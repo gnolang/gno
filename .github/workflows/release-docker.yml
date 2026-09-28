@@ -1,17 +1,14 @@
 # Build and Push Docker Images using Docker Bake
 name: release / docker
 
+# Images are built from version tags only. A branch push used to build a
+# floating chain-<name> image whose version string satisfies no
+# halt_min_version and which operators nevertheless pulled; and a chain/<name>
+# launch tag would recreate that name for an image reporting a different
+# version. A runnable node image is always a vX.Y.Z tag (RELEASING.md).
 on:
   push:
-    branches:
-      - chain/*
     tags:
-      - chain/*
-      # Release tags too: VALIDATOR.md points operators at ghcr.io for upgrade
-      # images, and under the chain/gnoland1.N scheme a coordinated upgrade
-      # always carried a chain/* tag. A v* release that built no image would
-      # leave them with the chain/<name> branch build, whose version string is
-      # <branch>.<count>+<sha> — which satisfies no halt_min_version.
       - v*
   workflow_dispatch:
     inputs:
@@ -26,7 +23,17 @@ jobs:
   bake:
     strategy:
       matrix:
-        image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs,gpao]
+        # `latest` only for the CLI tools: a node image that moves by itself
+        # breaks coordinated upgrades (RELEASING.md, "Container images").
+        include:
+          - { image: gnoland, latest: false }
+          - { image: gnokey, latest: true }
+          - { image: gnoweb, latest: true }
+          - { image: gno, latest: true }
+          - { image: gnofaucet, latest: false }
+          - { image: gnodev, latest: true }
+          - { image: gnocontribs, latest: false }
+          - { image: gpao, latest: false }
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,10 +53,20 @@ jobs:
           # and v<X.Y.Z>, and only the latter is a version the node can order.
           # The branch fallback deliberately produces something unparseable —
           # a branch build must not satisfy an upgrade gate.
+          BRANCH=$(git branch --show-current)
           V=$(git describe --tags --exact-match --match 'v*' 2>/dev/null \
               || git describe --tags --exact-match 2>/dev/null \
-              || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
+              || echo "${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
           echo "version=$V" >> "$GITHUB_OUTPUT"
+          # The sha of what is built. docker/metadata-action's type=sha would
+          # label the image with the event's sha instead, which on a dispatch
+          # is the default branch's tip, not the tag being built.
+          echo "short_sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+          # `latest` may only move forward. Gate it on being the highest final
+          # v* tag, not merely a final one: a backport cut after a newer line
+          # must not re-point latest at the older line.
+          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
+          echo "is_highest=$([ -n "$HIGHEST" ] && [ "$HIGHEST" = "$GITHUB_REF_NAME" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
@@ -74,16 +91,23 @@ jobs:
         env:
           INPUTS_TAG: ${{ inputs.tag }}
 
+      # Tags: the git tag itself, the dispatch input, the built commit's sha,
+      # and `latest` for the images the matrix marks, only when this tag is the
+      # highest final release. The action's own default adds `latest` to every
+      # tag build, gnoland included, so it is turned off and the raw rule below
+      # is the only `latest` published. See RELEASING.md, "Container images".
       - name: Extract metadata
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         id: meta
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
-            type=ref,event=branch
             type=ref,event=tag
             type=raw,value=${{ steps.resolve_tag.outputs.tag }},enable=${{ inputs.tag != '' }}
-            type=sha,prefix=sha-
+            type=raw,value=sha-${{ steps.build_version.outputs.short_sha }}
+            type=raw,value=latest,enable=${{ matrix.latest && steps.build_version.outputs.is_highest == 'true' }}
+          flavor: |
+            latest=false
           labels: |
             org.opencontainers.image.authors=Gno Core Team
 
