@@ -440,7 +440,11 @@ func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSe
 		if precommit == nil {
 			continue
 		}
-		added, err := voteSet.AddVote(commit.GetVote(idx))
+		vote := commit.GetVote(idx)
+		// ValidatorAddress is not signed and is redundant with the
+		// precommit's position, so take it from the set, not the wire.
+		vote.ValidatorAddress, _ = vals.GetByIndex(idx)
+		added, err := voteSet.AddVote(vote)
 		if !added || err != nil {
 			panic(fmt.Sprintf("Failed to reconstruct LastCommit: %v", err))
 		}
