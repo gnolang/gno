@@ -9,7 +9,9 @@
 // The contract: a version runs the blocks from the previous entry's
 // halt_height + 1 (1 for genesis) up to and including its own successor's
 // halt_height. Entries are in chain order: strictly increasing versions and
-// strictly increasing halt heights.
+// strictly increasing halt heights. A rolling release — a PATCH that changes
+// no consensus code, switched to whenever an operator likes — has no halt and
+// bounds no range: it can serve the same blocks as the entry before it.
 package upgrades
 
 import (
@@ -46,13 +48,15 @@ const (
 	imagePrefix = "ghcr.io/gnolang/gno/gnoland:"
 )
 
-// Kind says what an entry is: the genesis the chain started on, or a
-// coordinated upgrade that changed the binary at a halt height.
+// Kind says what an entry is: the genesis the chain started on, a
+// coordinated upgrade that changed the binary at a halt height, or a rolling
+// release that operators switch to at their convenience.
 type Kind string
 
 const (
 	KindGenesis Kind = "genesis"
 	KindUpgrade Kind = "upgrade"
+	KindRolling Kind = "rolling"
 )
 
 // Ledger is one chain's upgrades.json.
@@ -92,10 +96,13 @@ type Image struct {
 }
 
 // Range is the blocks one entry's version produced or replays.
-// To is 0 for the current version, which has no successor yet.
+// To is 0 for the current version, which has no successor yet. Rolling lists
+// the patches released on top of Version before the next halt: consensus-
+// compatible with it, so any of them can serve the same blocks.
 type Range struct {
 	Version  string
 	From, To int64
+	Rolling  []string
 }
 
 var (
@@ -200,6 +207,29 @@ func (l *Ledger) Validate() error {
 			} else if *e.HaltHeight <= prevHeight {
 				fail("%s: halt_height %d does not increase on the previous entry's %d", at, *e.HaltHeight, prevHeight)
 			}
+		case KindRolling:
+			// No halt, no floor, no proposal: a rolling release is switched to
+			// whenever an operator likes, and nothing on chain marks it.
+			if i == 0 {
+				fail("%s: the first entry must be the genesis, got kind %q", at, e.Kind)
+			}
+			if e.HaltHeight != nil {
+				fail("%s: a rolling release has no halt_height", at)
+			}
+			if e.HaltTime != nil {
+				fail("%s: a rolling release has no halt_time", at)
+			}
+			if e.HaltMinVersion != nil {
+				fail("%s: a rolling release sets no halt_min_version", at)
+			}
+			if e.Proposal != nil {
+				fail("%s: a rolling release has no proposal", at)
+			}
+			// Same MAJOR.MINOR as its predecessor: a change that needs a new
+			// MINOR is a coordinated upgrade, not a patch (RELEASING.md).
+			if c, ok := ParseVersion(e.Version); ok && prevVersion != "" && semver.MajorMinor(c) != semver.MajorMinor(prevVersion) {
+				fail("%s: a rolling release stays on its predecessor's MINOR (%s), got %s", at, semver.MajorMinor(prevVersion), e.Version)
+			}
 		default:
 			fail("%s: unknown kind %q", at, e.Kind)
 		}
@@ -288,22 +318,26 @@ func (l *Ledger) Has(v string) bool {
 }
 
 // BlockRanges is the contract made explicit: which version produced which
-// blocks. The last range's To is 0 because the current version is still running.
+// blocks. Only the genesis and the coordinated upgrades open a range; a rolling
+// release is attached to the range it was released into. The last range's To
+// is 0 because the current version is still running.
 func (l *Ledger) BlockRanges() []Range {
 	ranges := make([]Range, 0, len(l.Upgrades))
-	for i, e := range l.Upgrades {
-		from := int64(1)
-		if i > 0 && l.Upgrades[i-1].HaltHeight != nil {
-			from = *l.Upgrades[i-1].HaltHeight + 1
+	for _, e := range l.Upgrades {
+		if e.Kind == KindRolling {
+			if n := len(ranges); n > 0 {
+				ranges[n-1].Rolling = append(ranges[n-1].Rolling, e.Version)
+			}
+			continue
 		}
-		if i > 0 && e.HaltHeight != nil {
+		from := int64(1)
+		if e.HaltHeight != nil {
 			from = *e.HaltHeight + 1
 		}
-		var to int64
-		if i+1 < len(l.Upgrades) && l.Upgrades[i+1].HaltHeight != nil {
-			to = *l.Upgrades[i+1].HaltHeight
+		if n := len(ranges); n > 0 {
+			ranges[n-1].To = from - 1
 		}
-		ranges = append(ranges, Range{Version: e.Version, From: from, To: to})
+		ranges = append(ranges, Range{Version: e.Version, From: from})
 	}
 	return ranges
 }
@@ -317,7 +351,9 @@ func (l *Ledger) RenderTable() string {
 	b.WriteString("|---|---|---|---|---|---|---|\n")
 	for _, e := range l.Upgrades {
 		height, when, minVersion, proposal := "genesis", l.GenesisTime.UTC().Format(time.RFC3339), noneCell, noneCell
-		if e.Kind != KindGenesis {
+		if e.Kind == KindRolling {
+			height, when = "rolling", noneCell
+		} else if e.Kind != KindGenesis {
 			height, when, minVersion, proposal = pendingCell, pendingCell, notSetCell, pendingCell
 			if e.HaltHeight != nil {
 				height = fmt.Sprint(*e.HaltHeight)

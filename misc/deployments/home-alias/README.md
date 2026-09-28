@@ -2,9 +2,21 @@
 
 Alias system allows ⁠`/r/gnoland/home` to be replaced with the content from a static local markdown file using the `--aliases` flag of gnoweb.
 
+## Which homepage file
+
+Mainnet and the testnets do not list the same links. Copy the matching file as
+`home-override.md` in the aliased folder:
+
+| File | Network | Differs by |
+|------|---------|-----------|
+| [home.mainnet.md](home.mainnet.md) | `gnoland-1` (gno.land) | Akkadia link |
+| [home.testnet.md](home.testnet.md) | testnets (onyx) | Faucet Hub link, testnet notice |
+
+Staging is not concerned: it serves `r/gnoland/home` from the chain, with no alias.
+
 The purpose of this solution is either:
 
-- allowing overriding the current home alias, using a file called `home-overridden.md` placed in the same folder of currently aliased home file
+- allowing overriding the current home alias, using a file called `home-override.md` placed in the same folder of currently aliased home file
 - adding extra blocks to the current home, by placing them in a file called `extra-blocks.md`. The latter file should be placed in the same folder of currently aliased home file too.
 
 ## Prerequisites
@@ -30,7 +42,7 @@ docker compose --profile dev up -d
 - Then place an override into the `./home/` folder:
 
 ```sh
-gnokey query vm/qrender -remote https://rpc.test6.testnets.gno.land -data "gno.land/r/leon/home:" > home/home-override.md
+gnokey query vm/qrender -remote https://rpc.onyx.testnets.gno.land -data "gno.land/r/gnoland/blog:" > home/home-override.md
 ```
 
 - check the updated and overridden home at `http://127.0.0.1/`.

@@ -104,8 +104,12 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 
 	// Check headers specific to strict mode.
 	csp := res.Header.Get("Content-Security-Policy")
-	if !strings.Contains(csp, "https://assets.gnoteam.com") {
-		t.Errorf("Expected Content-Security-Policy to contain 'https://assets.gnoteam.com', got '%s'", csp)
+	if !strings.Contains(csp, "img-src 'self' data: https://gnolang.github.io") {
+		t.Errorf("Expected Content-Security-Policy img-src to carry the image host allowlist, got '%s'", csp)
+	}
+	// assets.gnoteam.com has no DNS record, so it must not be allowlisted as an image source.
+	if strings.Contains(csp, "assets.gnoteam.com") {
+		t.Errorf("Expected Content-Security-Policy not to allowlist 'assets.gnoteam.com', got '%s'", csp)
 	}
 	// The search dropdown fetches the same-origin /search.json, so connect-src
 	// must allow 'self' in addition to the RPC node.

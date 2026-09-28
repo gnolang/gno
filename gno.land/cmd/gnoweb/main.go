@@ -23,7 +23,6 @@ import (
 var cspImgHost = []string{
 	// Gno-related hosts
 	"https://gnolang.github.io",
-	"https://assets.gnoteam.com",
 	"https://sa.gno.services",
 
 	// Other providers should respect DMCA guidelines.
