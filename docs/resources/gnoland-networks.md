@@ -19,6 +19,8 @@ that name before, is retired. The version mainnet runs today, and every
 coordinated upgrade since launch, are listed in `UPGRADES.md` under
 [`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).
 
+To watch mainnet live, [Gnockpit](https://gnockpit.gno.land/) shows its chain state, recent blocks, validators and peers, and [status.gno.land](https://status.gno.land/) reports service health, incidents and scheduled maintenance.
+
 Onyx (`onyx-1`) is the testnet on the mainnet line: it launches on
 `2026-09-28T00:00:00Z` running mainnet's exact binaries, and is upgraded
 whenever mainnet is — every mainnet release is rehearsed there first. It has a
