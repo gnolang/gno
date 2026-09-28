@@ -175,6 +175,10 @@ func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Exe
 	return err
 }
 
+func (g *GovDAO) IsMember(addr address) bool {
+	return memberstore.IsMember(addr)
+}
+
 func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 	// Same-realm dispatch: pass cur through as data (non-crossing).
 	return g.render.Render(0, cur, pkgPath, path)

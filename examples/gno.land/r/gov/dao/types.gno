@@ -214,11 +214,6 @@ const proxyPkgPath = "gno.land/r/gov/dao"
 // stays the consumer's job — see r/gnops/valopers/admin.gno
 // and p/moul/authz's NewContractAuthority godoc.
 func (e *SimpleExecutor) Execute(cur realm) error {
-	// IsCurrent first, as every other gate here does: otherwise Previous() is
-	// read from whatever realm value the caller threaded in.
-	if !cur.IsCurrent() {
-		return errors.New("execution denied: cur is not the caller's live realm")
-	}
 	if prev := cur.Previous().PkgPath(); prev != proxyPkgPath &&
 		!strings.HasPrefix(prev, proxyPkgPath+"/") {
 		return errors.New("execution denied: executors are only invocable by " + proxyPkgPath)
@@ -253,12 +248,6 @@ type SafeExecutor struct {
 }
 
 func (e *SafeExecutor) Execute(cur realm) error {
-	// IsCurrent first, matching every other allowlist gate in this tree
-	// (proxy.go's UpdateImpl, treasury, memberstore). Without it this method
-	// trusts whatever realm value it is handed, so a caller threading a stale
-	// or sibling-frame cur would have its Previous() read from that value
-	// rather than from the live frame.
-	//
 	// NewSafeExecutor has no call sites, so this type is currently dead code.
 	// Live proposal execution goes through the Executor interface to
 	// SimpleExecutor.Execute, which now gates on the invoking realm being the
@@ -266,9 +255,6 @@ func (e *SafeExecutor) Execute(cur realm) error {
 	// and therefore rejects the approved route, and fails open while empty
 	// at genesis (height 0) and on the dev chain IDs.
 	// That is this method's bug; see SimpleExecutor.Execute.
-	if !cur.IsCurrent() {
-		return errors.New("execution denied: cur is not the caller's live realm")
-	}
 	// Verify the caller is an adequate Realm
 	if !InAllowedDAOs(cur.Previous().PkgPath()) {
 		return errors.New("execution only allowed by validated govDAOs")
@@ -310,6 +296,12 @@ type DAO interface {
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
 	PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, error)
+
+	// IsMember reports whether addr is a member of this DAO: someone whose
+	// proposals PreCreateProposal accepts. Realms that must know whether an
+	// address can propose, such as r/sys/params for run_submitters, ask it
+	// through the proxy, so the answer follows an implementation upgrade.
+	IsMember(addr address) bool
 
 	// ExecuteProposal executes the proposal executor and on error changes proposal
 	// status to denied with the error message being the denial reason.

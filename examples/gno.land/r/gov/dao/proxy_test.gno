@@ -133,6 +133,8 @@ func (dd *dummyDao) PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, 
 	return true, nil
 }
 
+func (dd *dummyDao) IsMember(addr address) bool { return false }
+
 func (dd *dummyDao) ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor) error {
 	return nil
 }

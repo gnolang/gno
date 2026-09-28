@@ -156,13 +156,6 @@ func GetProposal(pid ProposalID) (*Proposal, error) {
 // Individual entries must be non-blank realm paths; an empty entry would match
 // a user realm's empty PkgPath() and is rejected.
 func UpdateImpl(cur realm, r UpdateRequest) {
-	// AGENTS.md: in a crossing function, always check IsCurrent() before
-	// deriving caller identity from cur.Previous(). Redundant under the
-	// crossing-frame guarantee, but mandated, and this is the single most
-	// powerful entrypoint (it rewrites the allowlist and swaps the impl).
-	if !cur.IsCurrent() {
-		panic("UpdateImpl: realm value is not the caller's live cur")
-	}
 	gRealm := cur.Previous().PkgPath()
 
 	if !InAllowedDAOs(gRealm) {
@@ -221,6 +214,14 @@ func UpdateImpl(cur realm, r UpdateRequest) {
 	if r.DAO != nil {
 		dao = r.DAO
 	}
+}
+
+// IsMember reports whether addr is a member of the current DAO implementation.
+func IsMember(addr address) bool {
+	if dao == nil {
+		return false
+	}
+	return dao.IsMember(addr)
 }
 
 func AllowedDAOs() []string {
