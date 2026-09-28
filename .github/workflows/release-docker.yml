@@ -20,7 +20,7 @@ jobs:
   bake:
     strategy:
       matrix:
-        image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs]
+        image: [gnoland,gnokey,gnoweb,gno,gnofaucet,gnodev,gnocontribs,gpao]
     runs-on: ubuntu-latest
     permissions:
       contents: read

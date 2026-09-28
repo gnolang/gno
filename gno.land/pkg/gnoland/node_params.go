@@ -20,7 +20,7 @@ const (
 	// Keep in sync with examples/gno.land/r/sys/params/valset.gno.
 	//
 	//   dirty    flag set by realm; EndBlocker clears after applying.
-	//   proposed v3's full target valset.
+	//   proposed v0's full target valset.
 	//   current  chain-managed: the set that becomes active at H+2 once
 	//            the most recent EndBlock's updates apply. NOT the set
 	//            actively signing the current block.
@@ -35,8 +35,8 @@ const (
 	valsetPubKeyTypesPath = "node:valset:pubkey_types"
 
 	// maxValsetEntries caps len(valset:proposed) at WillSetParam time.
-	// v3 enforces 40 at proposal-creation; this is defense-in-depth at
-	// 2.5x to protect against future writers that bypass v3's cap.
+	// v0 enforces 40 at proposal-creation; this is defense-in-depth at
+	// 2.5x to protect against future writers that bypass v0's cap.
 	maxValsetEntries = 100
 )
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/leon/ctg"
+	"gno.land/p/leon/ctg/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/ufmt/v0"
 )

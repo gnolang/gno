@@ -99,9 +99,11 @@ func TestPreprocessAlloc_CumulativeAcrossStatements(t *testing.T) {
 
 // TestPreprocessAlloc_NoGCOnHardCap verifies the panic message
 // distinguishes the no-GC hard cap from the regular GC-retry path.
-// This is the protection invariant: GC during preprocess would
-// undercount because GarbageCollect doesn't visit m.Values, so the
-// preAlloc must NEVER attempt GC on overflow.
+// This is the protection invariant: preAlloc is shared by every
+// preprocess sub-Machine in the tx, so a collect bound to one machine
+// would walk only that machine's roots and free the rest of the tx's
+// preprocess allocations on paper. The preAlloc must therefore NEVER
+// attempt GC on overflow.
 func TestPreprocessAlloc_NoGCOnHardCap(t *testing.T) {
 	st, preAlloc := newPreprocessAllocTestStore(t, 2*1024, stypes.NewInfiniteGasMeter())
 	defer st.SetPreprocessAllocator(nil)
@@ -464,4 +466,258 @@ func TestEllipsisArrayIndexOverflow(t *testing.T) {
 			require.Contains(t, fmt.Sprint(val), tt.want, "got: %v", val)
 		})
 	}
+}
+
+// TestShiftAmountGasOverflow pins the clamp in doOpShl/doOpShlAssign. The
+// shift-amount gas charge runs before shlAssign enforces maxBigintShift, so an
+// unvalidated amount above ~2.4e17 used to wrap int64 negative and surface as
+// "gas must not be negative" from ConsumeGas instead of the real
+// "shift amount exceeds maximum" error. Every over-cap amount must report the
+// cap, whatever its magnitude.
+func TestShiftAmountGasOverflow(t *testing.T) {
+	for _, shift := range []string{
+		"10001",                // just over maxBigintShift
+		"4000000000",           // > MaxInt32
+		"300000000000000000",   // int64(x)*OpCPUSlopeBigIntShl overflows int64
+		"18446744073709551615", // MaxUint64
+	} {
+		t.Run(shift, func(t *testing.T) {
+			gm := stypes.NewGasMeter(math.MaxInt64)
+			st, _ := newPreprocessAllocTestStore(t, 64*1024*1024, gm)
+			t.Cleanup(func() { st.SetPreprocessAllocator(nil) })
+			m := NewMachineWithOptions(MachineOptions{
+				PkgPath: "gno.land/r/test/shiftgas",
+				Store:   st,
+				Output:  io.Discard,
+				Alloc:   NewAllocator(math.MaxInt64),
+			})
+			t.Cleanup(m.Release)
+			panicked, val := runMemPackageRecover(m, &std.MemPackage{
+				Type:  MPUserProd,
+				Name:  "shiftgas",
+				Path:  "gno.land/r/test/shiftgas",
+				Files: []*std.MemFile{{Name: "a.gno", Body: "package shiftgas\n\nconst _ = 1 << " + shift + "\n"}},
+			})
+			require.True(t, panicked, "over-cap shift must be rejected")
+			got := fmt.Sprint(val)
+			require.Contains(t, got, "exceeds maximum",
+				"must report the shift cap, got: %v", got)
+			require.NotContains(t, got, "gas must not be negative",
+				"gas charge overflowed instead of reporting the cap: %v", got)
+		})
+	}
+}
+
+// TestPreprocessGas_BignumLiterals pins the big-number charges at the layer
+// where the O(n^2) work actually runs — constant folding during preprocess.
+// Constant folding inherits the store's preprocess-allocator gas meter (same
+// wiring as keeper AddPackage / withQueryEvalMachine), so a small finite meter
+// here mirrors the real charging path while staying fast and deterministic.
+func TestPreprocessGas_BignumLiterals(t *testing.T) {
+	newMachine := func(t *testing.T, pkgName string, gm stypes.GasMeter) *Machine {
+		t.Helper()
+		st, _ := newPreprocessAllocTestStore(t, 256*1024*1024, gm)
+		t.Cleanup(func() { st.SetPreprocessAllocator(nil) })
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath: "gno.land/r/test/" + pkgName,
+			Store:   st,
+			Output:  io.Discard,
+			Alloc:   NewAllocator(math.MaxInt64),
+		})
+		t.Cleanup(m.Release)
+		return m
+	}
+	run := func(t *testing.T, m *Machine, pkgName, body string) (bool, any) {
+		t.Helper()
+		return runMemPackageRecover(m, &std.MemPackage{
+			Type:  MPUserProd,
+			Name:  pkgName,
+			Path:  "gno.land/r/test/" + pkgName,
+			Files: []*std.MemFile{{Name: "a.gno", Body: body}},
+		})
+	}
+
+	// Chained big-int shift: 1<<10000<<10000<<... grows the operand ~10000
+	// bits per step (each shift is within maxBigintShift, so the per-shift cap
+	// never trips). doOpShl now charges by operand bit-width, so the fold
+	// exhausts a modest gas budget after a few hundred shifts. Without that
+	// charge the 2000-shift chain bills only ~760K gas (per shift amount only)
+	// and would NOT OOG here — so this also guards against regressing part 2.
+	t.Run("chained_shift_oog", func(t *testing.T) {
+		m := newMachine(t, "shlgas", stypes.NewGasMeter(10_000_000))
+		body := "package shlgas\n\nconst _ = 1" + strings.Repeat(" << 10000", 2000) + "\n"
+		panicked, val := run(t, m, "shlgas", body)
+		require.True(t, panicked, "chained shift must exhaust gas during fold")
+		require.Contains(t, strings.ToLower(fmt.Sprint(val)), "gas",
+			"panic should be out-of-gas, got: %v", val)
+	})
+
+	// Literal parse: the quadratic charge exhausts a modest gas budget before
+	// the O(n^2) parse runs, on both INT and FLOAT (a trailing ".0" must not
+	// bypass it). ~200K digits is past the OOG threshold for both slopes at a
+	// 1e7 gas budget.
+	bigLit := strings.Repeat("1", 200_000)
+	for _, tc := range []struct{ name, lit string }{
+		{"int_literal_oog", bigLit},
+		{"float_literal_oog", bigLit + ".0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := newMachine(t, "litoog", stypes.NewGasMeter(10_000_000))
+			body := "package litoog\n\nconst _ = " + tc.lit + "\n"
+			panicked, val := run(t, m, "litoog", body)
+			require.True(t, panicked, "huge literal must exhaust gas")
+			require.Contains(t, strings.ToLower(fmt.Sprint(val)), "gas", "got: %v", val)
+		})
+	}
+
+	// Control: a large literal that the removed cap would have rejected
+	// (20000 digits) and a small shift chain both fold cleanly under a
+	// realistic budget — the fix meters, it does not forbid.
+	t.Run("within_limits_ok", func(t *testing.T) {
+		m := newMachine(t, "okpkg", stypes.NewGasMeter(1_000_000_000))
+		body := "package okpkg\n\nconst _ = " + strings.Repeat("9", 20_000) +
+			"\nconst _ = 1 << 10000 << 10000\n"
+		panicked, val := run(t, m, "okpkg", body)
+		require.False(t, panicked, "within-limit literals/shifts must fold, got: %v", val)
+	})
+}
+
+// TestBigLitParseChargeIsEvalInvariant guards a consensus hazard: the gas
+// charged for parsing a numeric literal must not depend on how many times that
+// AST node has already been evaluated.
+//
+// doOpEval used to write the blank-identifier-stripped text back into
+// x.Value. Charging on the raw length while mutating the node meant the first
+// evaluation billed the separators and every later one did not, so an
+// underscored literal cost 24 gas once and 20 gas thereafter.
+//
+// That was latent, not reachable: preprocess replaces every *BasicLitExpr with
+// a *ConstExpr (preprocess.go, TRANS_LEAVE) and Transcribe treats *ConstExpr as
+// a leaf, so no literal parsed out of .gno source is ever evaluated twice. It
+// is pinned anyway -- gas that varies with evaluation history is the same shape
+// as the mem-package-cache gas fork, and only the absence of a second eval
+// stands between the two.
+func TestBigLitParseChargeIsEvalInvariant(t *testing.T) {
+	t.Parallel()
+
+	// Long enough that the (len/10)^2 floor does not swallow the difference,
+	// and with enough separators to shift len/10.
+	raw := "89_" + strings.Repeat("123456789_", 10) + "1234567890"
+	require.NotEqual(t, len(raw), len(strings.ReplaceAll(raw, "_", "")),
+		"test literal must actually contain separators")
+
+	for _, tc := range []struct {
+		name string
+		kind Word
+	}{
+		{"int", INT},
+		{"float", FLOAT},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			value := raw
+			if tc.kind == FLOAT {
+				value = raw + ".5"
+			}
+			// One shared node, evaluated repeatedly -- the cached-AST case.
+			x := &BasicLitExpr{Kind: tc.kind, Value: value}
+
+			var charges []int64
+			for range 3 {
+				meter := stypes.NewGasMeter(1_000_000_000)
+				m := NewMachineWithOptions(MachineOptions{
+					PkgPath:  "test",
+					GasMeter: meter,
+				})
+				before := meter.GasConsumed()
+				m.PushExpr(x)
+				m.doOpEval()
+				charges = append(charges, meter.GasConsumed()-before)
+				m.Release()
+			}
+
+			// Pin the formula, not just its stability: the keeper-side test
+			// mirrors this arithmetic by hand, and a mirror can only ever
+			// catch an over-charge. If this assertion moves, that mirror
+			// (bigLitParseGas) and the ADR residual table must move with it.
+			slope := int64(OpCPUSlopeBigIntSetString)
+			if tc.kind == FLOAT {
+				slope = OpCPUSlopeBigDecParse
+			}
+			d10 := int64(len(value)) / 10
+			require.Equal(t, d10*d10*slope/10*GasFactorCPU, charges[0],
+				"charge formula changed")
+
+			require.Equal(t, charges[0], charges[1],
+				"gas must not depend on evaluation count (got %v)", charges)
+			require.Equal(t, charges[1], charges[2],
+				"gas must not depend on evaluation count (got %v)", charges)
+			require.Equal(t, value, x.Value,
+				"doOpEval must not mutate the shared AST node")
+		})
+	}
+}
+
+// TestTxPathLiteralCap pins the tx-path ceiling on a numeric literal.
+// TypeCheckMemPackage runs go/types before preprocess, and go/types refuses
+// any numeric literal over 10000 characters, so no literal a transaction can
+// deploy reaches chargeBigLitParse anywhere near the size at which the charge
+// itself would refuse (~1.23M INT / ~866K FLOAT).
+//
+// That cap is go/types' own const (go/types/literals.go), not something the
+// GoVersion pinned in gotypecheck.go governs, so a toolchain bump can move it
+// silently. This test is what makes that visible.
+func TestTxPathLiteralCap(t *testing.T) {
+	t.Parallel()
+
+	const goTypesLiteralCap = 10000
+
+	typeCheckVar := func(t *testing.T, lit string) error {
+		t.Helper()
+		mpkg := &std.MemPackage{
+			Type: MPUserProd,
+			Name: "capprobe",
+			Path: "gno.land/r/test/capprobe",
+			Files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: GenGnoModLatest("gno.land/r/test/capprobe")},
+				{Name: "a.gno", Body: "package capprobe\n\nvar X = " + lit + "\n"},
+			},
+		}
+		_, err := TypeCheckMemPackage(mpkg, TypeCheckOptions{
+			Getter: mockPackageGetter{},
+			Mode:   TCLatestStrict,
+		})
+		return err
+	}
+
+	// Every shape the charge covers, at the size the ADR calls a tx-path
+	// behaviour change.
+	for _, tc := range []struct{ name, lit string }{
+		{"decimal_int", strings.Repeat("9", 1_300_000)},
+		{"hex_int", "0x" + strings.Repeat("f", 1_300_000)},
+		{"frac_float", "1." + strings.Repeat("9", 1_299_998)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorContains(t, typeCheckVar(t, tc.lit), "excessively long constant")
+		})
+	}
+
+	t.Run("boundary", func(t *testing.T) {
+		t.Parallel()
+		if atCap := typeCheckVar(t, strings.Repeat("9", goTypesLiteralCap)); atCap != nil {
+			require.NotContains(t, atCap.Error(), "excessively long constant")
+		}
+		require.ErrorContains(t,
+			typeCheckVar(t, strings.Repeat("9", goTypesLiteralCap+1)),
+			"excessively long constant")
+	})
+
+	// Price the worst literal a transaction can carry through to doOpEval.
+	t.Run("worst_tx_literal_gas", func(t *testing.T) {
+		t.Parallel()
+		d10 := int64(goTypesLiteralCap) / 10
+		gas := d10 * d10 * OpCPUSlopeBigDecParse / 10 * GasFactorCPU
+		require.Less(t, gas, int64(3_000_000_000)/1000)
+	})
 }

@@ -39,21 +39,19 @@ import (
 // KindGnoForeign is the node kind for ForeignNode.
 var KindGnoForeign = ast.NewNodeKind("GnoForeign")
 
-// MaxGnoForeignBlocksPerConvert caps the number of <gno-foreign> blocks
-// one Convert call will admit. Beyond this count, foreign openers fall
-// through to raw HTML (safe-mode strips them). It is a foreign-specific
-// MONOTONIC per-Convert total — never decremented — distinct from the
-// cross-family nesting depth (nestdepth.go).
-//
-// Sourced from the chain/markdown native (the single source of truth)
-// so this enforcement and the realm-facing value realms read via
-// markdown.MaxForeignBlocksPerConvert() cannot drift apart.
+// MaxGnoForeignBlocksPerConvert is the maximum number of foreign blocks
+// admitted during one Convert call, including blocks in nested renders.
+// The value comes from the chain/markdown native so that this limit and
+// the value realms read through markdown.MaxForeignBlocksPerConvert()
+// always agree.
 var MaxGnoForeignBlocksPerConvert = chainmd.MaxForeignBlocksPerConvert()
 
-// gnoForeignBlockKey stores the monotonic per-Convert count of
-// <gno-foreign> openers admitted so far, maintained directly via
-// pc.Get / pc.Set in Open. Its lifecycle is not stack-shaped (never
-// decremented), so it does not use the nestdepth Push/Pop helper.
+type foreignBlockCounter struct {
+	count int
+}
+
+// gnoForeignBlockKey identifies the foreign block budget shared by all
+// parser contexts in one Convert call.
 var gnoForeignBlockKey = parser.NewContextKey()
 
 // ForeignNode is the AST node for a `<gno-foreign>` block. The body
@@ -73,6 +71,8 @@ type ForeignNode struct {
 	// does not carry parser.Context, so the value travels via this
 	// AST-node field.
 	DepthAtParse int
+	// blockCounter is the foreign block budget shared with nested renders.
+	blockCounter *foreignBlockCounter
 	// GnoCtx is the render context (GnoURL, chain id, …) captured at
 	// parse time. The renderer rebuilds the inner instance's
 	// parser.Context from it so links inside the sandbox get the same
@@ -94,9 +94,9 @@ type ForeignNode struct {
 	// terminating the outer block prematurely.
 	framingDepth int
 	// stripped marks a block that was refused by the block-count or
-	// nesting-depth cap. Such a node still OPENS (so it collects its
-	// body opaquely and the opener never falls through to the outer
-	// raw-HTML block parser — which, under WithUnsafe, would render
+	// nesting-depth cap. Such a node still OPENS (so it consumes its
+	// body opaquely without retaining it and the opener never falls
+	// through to the outer raw-HTML block parser — which, under WithUnsafe, would render
 	// the unescaped body as live HTML), but it does NOT Push/Pop the
 	// depth counter and the renderer emits a "budget exceeded" comment
 	// instead of the inner render.
@@ -204,30 +204,28 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 		return nil, parser.NoChildren
 	}
 
-	// Per-Convert block-count cap (foreign-only, monotonic). Checked
-	// BEFORE depth so the cap-reached path doesn't perturb the depth
-	// counter for sibling extensions.
-	//
-	// The block-count is MONOTONIC: incremented on every successful
-	// Open, NEVER decremented in Close or the AST transformer. It
-	// bounds work-per-Convert, not currently-open foreigns.
-	blockCount, _ := pc.Get(gnoForeignBlockKey).(int)
-	if blockCount >= MaxGnoForeignBlocksPerConvert {
-		// Refused, but still OPEN an opaque stripped node so the body
-		// is captured (not left to fall through to the outer raw-HTML
-		// parser). No Push, no count bump. See ForeignNode.stripped.
+	// The budget limits all foreign blocks admitted during this Convert call.
+	// The block cap is checked before the depth push so a block that exceeds
+	// the budget does not consume depth.
+	counter, _ := pc.Get(gnoForeignBlockKey).(*foreignBlockCounter)
+	if counter == nil {
+		counter = &foreignBlockCounter{}
+		pc.Set(gnoForeignBlockKey, counter)
+	}
+	if counter.count >= MaxGnoForeignBlocksPerConvert {
+		// A stripped node keeps refused content opaque to the outer HTML parser.
 		reader.AdvanceToEOL()
 		return &ForeignNode{stripped: true}, parser.NoChildren
 	}
 
-	// Cross-family nesting cap.
+	// The nesting cap spans all structural Gno blocks.
 	depthBefore := Get(pc)
 	if !Push(pc) {
 		reader.AdvanceToEOL()
 		return &ForeignNode{stripped: true}, parser.NoChildren
 	}
 
-	pc.Set(gnoForeignBlockKey, blockCount+1)
+	counter.count++
 	reader.AdvanceToEOL()
 
 	// Label stays empty when the opener carries no label attribute; the
@@ -235,6 +233,7 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	node := &ForeignNode{
 		Label:        label,
 		DepthAtParse: depthBefore + 1,
+		blockCounter: counter,
 		GnoCtx:       getGnoContext(pc),
 	}
 	// parser.NoChildren — load-bearing opacity invariant: the body must
@@ -259,32 +258,25 @@ func (*foreignParser) Continue(n ast.Node, reader text.Reader, pc parser.Context
 	case foreignTagOpen:
 		// Inner opener — opaque to outer parsing, increment body
 		// framing depth so the matching inner close doesn't close
-		// the outer block. Body bytes collected verbatim.
+		// the outer block.
 		fn.framingDepth++
-		fn.Body = append(fn.Body, line...)
-		reader.AdvanceToEOL()
-		return parser.Continue | parser.NoChildren
 
 	case foreignTagClose:
-		if fn.framingDepth > 0 {
-			// Inner close — pairs with an inner open, still inside
-			// our body bytes.
-			fn.framingDepth--
-			fn.Body = append(fn.Body, line...)
+		if fn.framingDepth == 0 {
+			// Outer close — consume the line and close the block.
+			fn.Closed = true
 			reader.AdvanceToEOL()
-			return parser.Continue | parser.NoChildren
+			return parser.Close
 		}
-		// Outer close — consume the line and close the block.
-		fn.Closed = true
-		reader.AdvanceToEOL()
-		return parser.Close
+		// Inner close — pairs with an inner open, still inside the body.
+		fn.framingDepth--
 	}
 
-	// Non-tag line — body content. Collected verbatim including
-	// trailing newline. No other block parser sees this line
-	// because we return parser.Continue with NoChildren (opacity
-	// invariant).
-	fn.Body = append(fn.Body, line...)
+	// Accepted nodes collect body lines verbatim, including trailing newlines.
+	// Stripped nodes only consume them. No other block parser sees these lines.
+	if !fn.stripped {
+		fn.Body = append(fn.Body, line...)
+	}
 	reader.AdvanceToEOL()
 	return parser.Continue | parser.NoChildren
 }
@@ -366,7 +358,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 		return ast.WalkContinue, nil
 	}
 
-	// Cap-refused block: its body was captured opaquely (so it never
+	// Cap-refused block: its body was consumed opaquely (so it never
 	// reached the outer raw-HTML parser); emit a marker and render
 	// nothing of it. Skips the inner instance entirely, preserving the
 	// per-Convert work bound.
@@ -397,6 +389,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 	// guards / rel attributes — without it, autolinks such as
 	// `<javascript:…>` render as live hrefs inside the sandbox.
 	innerCtx := NewGnoParserContext(n.GnoCtx)
+	innerCtx.Set(gnoForeignBlockKey, n.blockCounter)
 	// Flag the inner context as a foreign/untrusted origin so links
 	// inside the sandbox render as user-generated content (rel="ugc",
 	// no first-party tx/internal trust icons) and cannot borrow the
@@ -405,10 +398,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 	// and rebuilt here), this is set directly on innerCtx because it is
 	// a constant for every inner instance — there is nothing to capture.
 	markForeignOrigin(innerCtx)
-	// Pre-seed the depth counter so the cross-family cap stays
-	// global across the inner/outer boundary. gnoForeignBlockKey is
-	// intentionally NOT seeded — each Convert maintains its own
-	// per-Convert block-count.
+	// The inner context preserves the outer nesting depth and foreign block budget.
 	Seed(innerCtx, n.DepthAtParse)
 	if err := innerGM.Convert(n.Body, w, parser.WithContext(innerCtx)); err != nil {
 		// Inner parse/render failure: surface as a stripped HTML

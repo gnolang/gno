@@ -101,6 +101,8 @@ network. Set them with `gnoland config set <key> <value>`.
 | `mempool.size` | Max transactions held in the mempool |
 | `application.prune_strategy` | `everything`, `nothing`, or `syncable` (default). `nothing` keeps all history — needed for historical queries |
 | `consensus.timeout_commit` | Chain-wide; must match the network |
+| `halt_height` | Stop this node after committing that block. Normally left unset — a network-wide halt is scheduled by governance instead. See [UPGRADES.md](UPGRADES.md) |
+| `skip_upgrade_height` | Bypass the post-halt binary-version checks at that height. See [UPGRADES.md](UPGRADES.md) |
 
 Networks pin several of these; always start from the `config.toml` in the
 network's deployment directory rather than from the defaults.
@@ -232,6 +234,22 @@ announced in `#announcements` and `#general-chat`.
 
 Mainnet onboarding will differ; ask on Discord rather than assuming this flow
 carries over.
+
+## Upgrades
+
+Chains stop and restart on purpose. A coordinated upgrade halts every node at
+the same block, and the nodes that come back have to satisfy a minimum binary
+version — so a restart that "just works" and one that refuses to start are both
+expected outcomes, depending on which binary you hold.
+
+[UPGRADES.md](UPGRADES.md) covers what you need as an operator: how the halt
+height is set, what the halt looks like in your logs, why the process stays
+alive after halting, which binary version the node reports and where that value
+comes from, and what to do when the state format changes and the chain is
+rebuilt from a replayed genesis.
+
+[UPGRADES-TESTING.md](UPGRADES-TESTING.md) is a single-validator test plan for
+the halt mechanism, useful for rehearsing an upgrade before doing it for real.
 
 ## Getting help
 

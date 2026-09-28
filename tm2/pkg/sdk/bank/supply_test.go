@@ -413,7 +413,7 @@ func TestInternalHelpersRejectDuplicateDenoms(t *testing.T) {
 
 	// subtract: both entries would compute from the same starting balance, so only
 	// one debit would land while the caller believes two did.
-	err = env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, dup, false)
+	err = env.bankk.subtract(ctx, env.acck.GetAccount(ctx, addr), addr, dup)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "duplicate denom")
 	require.Equal(t, int64(100), env.bankk.GetCoin(ctx, addr, testRealmDenom),
@@ -436,7 +436,7 @@ func TestSubtractRejectsAnAccountForTheWrongAddress(t *testing.T) {
 		std.Coins{{Denom: testRealmDenom, Amount: 10}}))
 
 	err := env.bankk.subtract(ctx, env.acck.GetAccount(ctx, victim), attacker,
-		std.Coins{{Denom: testAccountDenom, Amount: 500}}, false)
+		std.Coins{{Denom: testAccountDenom, Amount: 500}})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "was passed for address")
 	require.Equal(t, int64(500), env.bankk.GetCoin(ctx, victim, testAccountDenom),

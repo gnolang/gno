@@ -1,8 +1,8 @@
 package minisocial
 
 import (
+	"gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/seqid/v0"
 )

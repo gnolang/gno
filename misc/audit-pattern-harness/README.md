@@ -52,6 +52,13 @@ the vulnerable fixture, and leaves the fixed fixture clean. The compile-check
 variant runs automatically when `GNO_BIN` is set or `gno` is available on
 `PATH`; otherwise it skips with instructions.
 
+**CI does not run the compile-check.** `ci-dir-misc.yml` runs `go test` for this
+module and installs no `gno` binary, so the variant above skips there — every
+time, silently, the way a skip does. What CI proves is that the rules and the
+record loader work, not that the fixtures still compile or still trip their
+rule. `make run` with a `-gno-bin` is what checks that, and it needs running by
+hand or by a job that builds gno first.
+
 ## Expected records
 
 Current pattern slices:

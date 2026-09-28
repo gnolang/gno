@@ -8,18 +8,16 @@ var (
 )
 
 func SetMessage(cur realm, next string) {
-	if assertAdmin(cur) {
-		message = next
-	}
+	assertAdmin(cur)
+	message = next
 }
 
 func TransferAdmin(cur realm, next address) {
 	if !next.IsValid() {
 		panic("invalid admin")
 	}
-	if assertAdmin(cur) {
-		admin = next
-	}
+	assertAdmin(cur)
+	admin = next
 }
 
 func Admin() address {
@@ -35,8 +33,8 @@ func Render(path string) string {
 	out += "This realm demonstrates three defensive patterns; read the source " +
 		"alongside this page:\n\n"
 	out += "1. **Live-realm guard** — `assertAdmin` panics unless " +
-		"`cur.IsCurrent()` holds, so a stale realm token captured elsewhere " +
-		"cannot mutate state.\n"
+		"`cur.IsCurrent()` holds, which checks the realm token against the " +
+		"live call frame before any authority is read from it.\n"
 	out += "2. **Caller identity via `cur.Previous().Address()`** — the admin " +
 		"check reads the immediate caller, not `OriginCaller()`, so an " +
 		"intermediary realm cannot pass itself off as the user.\n"
@@ -47,26 +45,24 @@ func Render(path string) string {
 	// in the content, so a backtick in path cannot close the span early — a
 	// naive "`" + path + "`" would.
 	out += "Admin: " + sanitize.InlineCode(admin.String()) + "\n\n"
-	out += "Message: " + escapeRenderText(message) + "\n"
+	out += "Message: " + sanitize.InlineText(message) + "\n"
 	if path != "" {
 		out += "\nPath: " + sanitize.InlineCode(path) + "\n"
 	}
 	return out
 }
 
-// assertAdmin guards a state-mutating call. The caller must pass its own cur
-// realm down; assertAdmin is a non-crossing helper, so it does not shift
-// PreviousRealm — the crossing happened in the outer function.
-func assertAdmin(cur realm) bool {
+// assertAdmin guards a state-mutating call. Callers pass their own cur rather
+// than cross(cur) — a non-crossing call of a crossing function, so
+// PreviousRealm does not shift and still names whoever called SetMessage or
+// TransferAdmin. The cur realm first parameter is what makes it a crossing
+// function: the compiler refuses any other first argument, so the token
+// reaching IsCurrent below is live by construction.
+func assertAdmin(cur realm) {
 	if !cur.IsCurrent() {
 		panic("invalid realm")
 	}
 	if cur.Previous().Address() != admin {
 		panic("admin only")
 	}
-	return true
-}
-
-func escapeRenderText(s string) string {
-	return sanitize.InlineText(s)
 }

@@ -6,7 +6,7 @@ import (
 	"chain/runtime"
 	"fmt"
 
-	psubtests "gno.land/p/demo/tests/subtests"
+	psubtests "gno.land/p/demo/tests/subtests/v0"
 	rsubtests "gno.land/r/tests/vm/subtests"
 )
 

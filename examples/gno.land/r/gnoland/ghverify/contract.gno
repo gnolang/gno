@@ -5,9 +5,9 @@ import (
 	"chain/runtime/unsafe"
 	"errors"
 
-	"gno.land/p/demo/gnorkle/feeds/static"
-	"gno.land/p/demo/gnorkle/gnorkle"
-	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/demo/gnorkle/feeds/static/v0"
+	"gno.land/p/demo/gnorkle/gnorkle/v0"
+	"gno.land/p/demo/gnorkle/message/v0"
 	"gno.land/p/nt/bptree/v0"
 )
 

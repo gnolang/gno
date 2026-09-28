@@ -8,7 +8,7 @@ whitelist managed by GovDAO (`ProposeNewController` /
 
 This realm does **not** define what a "name" is, what registration costs, or
 whether names can be transferred. Those policies live in *controller realms*
-that the DAO whitelists. See `r/sys/namereg/v1` for one such controller, and
+that the DAO whitelists. See `r/sys/namereg/v0` for one such controller, and
 the `examples/gno.land/r/sys/names` realm for the related namespace verifier
 that gates package deployment under `gno.land/r/<namespace>/...`.
 
@@ -28,7 +28,7 @@ This is **intentional**, not a bug. Genesis is the bootstrap window where:
 
 1. The controller whitelist is empty (it can't be populated until *after* it
    exists).
-2. System realms (`r/sys/users/init`, `r/sys/namereg/v1`, etc.) need to
+2. System realms (`r/sys/users/init`, `r/sys/namereg/v0`, etc.) need to
    pre-seed users and add themselves as controllers.
 3. Any realm whose `init()` runs at genesis can therefore call `RegisterUser`
    without authorization.
@@ -46,7 +46,7 @@ register at height 0"). After review, it is treated as **WON'T FIX, working
 as intended**:
 
 - Removing the bypass breaks every legitimate genesis pre-registration use
-  case (including this realm's own bootstrap and `r/sys/namereg/v1`'s
+  case (including this realm's own bootstrap and `r/sys/namereg/v0`'s
   preregister loop of system names).
 - A hardcoded genesis-allowlist (a la "only `r/sys/*` realms may bypass")
   shifts the trust to a literal in source — a chain upgrade is required to
@@ -86,8 +86,8 @@ FIX**:
 - Any realm whose `init()` runs at genesis can whitelist any address as a
   controller, without authorization.
 - This is how the registry bootstraps itself: `r/sys/users/init.Bootstrap`
-  adds its own package address, and `r/sys/namereg/v1/init.gno` likewise
-  auto-whitelists `gno.land/r/sys/namereg/v1`. Removing the bypass would
+  adds its own package address, and `r/sys/namereg/v0/init.gno` likewise
+  auto-whitelists `gno.land/r/sys/namereg/v0`. Removing the bypass would
   break the bootstrap pattern.
 - After genesis (height > 0) the function hard-panics, so the privilege
   window is strictly one-time at chain birth.

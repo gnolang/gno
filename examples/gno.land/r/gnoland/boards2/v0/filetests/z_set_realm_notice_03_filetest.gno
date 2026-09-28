@@ -1,0 +1,31 @@
+// PKGPATH: gno.land/r/gnoland/boards2/v0/filetests/z_set_realm_notice_03_filetest
+
+package z_set_realm_notice_03_filetest
+
+import (
+	"testing"
+
+	boards2 "gno.land/r/gnoland/boards2/v0"
+)
+
+const owner address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
+
+func main(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
+
+	boards2.SetRealmNotice(cross(cur), "This is a test realm message")
+
+	println(boards2.Render(""))
+}
+
+// Output:
+//
+// > \[!INFO\] Notice
+// > This is a test realm message
+//
+// # Boards
+// [Create Board](/r/gnoland/boards2/v0:create-board) • [List Admin Users](/r/gnoland/boards2/v0:admin-users) • [Help](/r/gnoland/boards2/v0:help)
+//
+// ---
+// ### Currently there are no boards
+// Be the first to [create a new board](/r/gnoland/boards2/v0:create-board)!

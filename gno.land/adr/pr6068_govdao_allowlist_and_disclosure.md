@@ -179,10 +179,10 @@ That last point was checked against the keeper rather than assumed, because it
 is what makes the blank-entry case latent instead of live. Two rules block it,
 and each of the five is blocked by one of them:
 
-- `keeper.go:818` requires a callable function's first parameter to be
-  `.uverse.realm`. `memberstore.Get(_ int, rlm realm)` takes an `int` first, so
-  it is rejected outright. `SafeExecutor.Execute` is a method, and the lookup
-  resolves package-level names only.
+- `VMKeeper.Call` in `keeper.go` requires a callable function's first parameter
+  to be `.uverse.realm`. `memberstore.Get(_ int, rlm realm)` takes an `int`
+  first, so it is rejected outright. `SafeExecutor.Execute` is a method, and the
+  lookup resolves package-level names only.
 - `convert.go` turns string arguments into Gno values and handles primitives,
   arrays, and `[]byte` alone. Everything else panics with "unexpected type in
   contract arg". That stops `UpdateImpl` (a struct), `treasury.Send` (an
@@ -433,7 +433,7 @@ fixing rather than tolerating. `PreExecuteProposal` gates on `isValidCall` only
 — there is no membership check — so **any** account may execute a proposal that
 has passed, and `VMKeeper.Call` charges the storage deposit to `msg.Caller`, the
 account that sent the transaction. The charge is capped by `msg.MaxDeposit`, or
-by the chain's `DefaultDeposit` of 600,000,000 ugnot when the sender sets none —
+by the chain's `DefaultDeposit` of 100,000,000 ugnot when the sender sets none —
 about 6 MB at the default price, so a 250 KB error was paid silently rather than
 refused. A sender who lowers `MaxDeposit` is not charged, but then the
 transaction fails and the proposal cannot be finalized by anyone unwilling to

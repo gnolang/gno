@@ -4,7 +4,7 @@
 // ─── STATUS: EXPERIMENTAL / INSECURE / INCOMPLETE / COMPLICATED ───
 //
 // Do not use as the basis for a production DAO without significant
-// hardening. The gnoland chain's actual governance is r/gov/dao/v3
+// hardening. The gnoland chain's actual governance is r/gov/dao/v0
 // (independent code path; not built on basedao).
 //
 // Known issues (non-exhaustive):
