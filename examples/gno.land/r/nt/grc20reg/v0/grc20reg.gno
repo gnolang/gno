@@ -36,7 +36,14 @@ func Register(cur realm, token *grc20.Token, slug string) string {
 	if slug != "" {
 		validateSlug(slug)
 	}
-	rlmPath := cur.Previous().PkgPath()
+	prev := cur.Previous()
+	// Ephemeral MsgRun realms are discarded after the tx, so registering one
+	// would leave a permanently dead entry.
+	if prev.IsEphemeral() {
+		panic("grc20reg: cannot register a token from an ephemeral realm")
+	}
+
+	rlmPath := prev.PkgPath()
 	key := fqname.Construct(rlmPath, token.GetSymbol())
 	// Token.ID() == key + "." + <id>; verify the token originates from the
 	// registering realm and symbol.
