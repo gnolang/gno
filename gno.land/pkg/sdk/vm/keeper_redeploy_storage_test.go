@@ -83,7 +83,7 @@ func TestRedeployReleasesTheStateItWipes(t *testing.T) {
 	empty := rec().Storage
 	require.NotZero(t, empty, "premise: a deployment must be charged for its own objects")
 
-	for i := 0; i < 40; i++ {
+	for i := range 40 {
 		call("Set", fmt.Sprintf("slot-%02d-%s", i, strings.Repeat("x", 64)))
 	}
 	env.vmk.CommitGnoTransactionStore(ctx)
@@ -164,7 +164,7 @@ func TestRepeatedRedeployDoesNotRatchet(t *testing.T) {
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	storages := make([]uint64, 0, 5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		require.NoError(t, env.vmk.AddPackage(ctx,
 			NewMsgAddPackage(addr, pkgPath, privateRealmFiles(pkgPath, redeployStorageSrc))))
 		env.vmk.CommitGnoTransactionStore(ctx)
