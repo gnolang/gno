@@ -397,18 +397,21 @@ classify() {
 # change waved through silently; one forgotten from this denylist costs one
 # --allow-merge with a human looking. gno.land/pkg holds gnoweb, gnoclient and
 # the CLI helpers next to the node, so only its two consensus packages are
-# roots. go.mod and go.sum are in: a dependency bump or a toolchain directive
-# changes behaviour inside these packages without touching a listed file.
+# roots — plus the node's own command, which wires the app (genesis signer
+# funding, the skip flags, app options) and can change InitChain. go.mod and
+# go.sum are in: a dependency bump or a toolchain directive changes behaviour
+# inside these packages without touching a listed file.
 readonly CONSENSUS_ROOTS=(
 	gnovm
 	tm2
 	gno.land/pkg/gnoland
 	gno.land/pkg/sdk
+	gno.land/cmd/gnoland
 	go.mod
 	go.sum
 )
 # Under the roots, but unable to fork a chain: the RPC server, CLI plumbing,
-# logging, telemetry, and the command-line front ends.
+# logging, telemetry, and the gno tool's own command line.
 readonly NON_CONSENSUS_DIRS=(
 	tm2/pkg/bft/rpc
 	tm2/pkg/commands
