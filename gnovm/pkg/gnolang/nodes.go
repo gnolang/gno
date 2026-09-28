@@ -1920,20 +1920,6 @@ func (sb *StaticBlock) getLocalIsConst(n Name) bool {
 	return slices.Contains(sb.Consts, n)
 }
 
-// IsAssignableNameAt reports whether the declaration at path may be an
-// assignment LHS: false for package-level func decls (NSFuncDecl) and
-// uverse names. Path-keyed, not name-keyed: an assignment before a
-// shadowing declaration in the same block targets the outer binding,
-// which a name walk misses by stopping at the shadow's reserved slot.
-func (sb *StaticBlock) IsAssignableNameAt(store Store, path ValuePath) bool {
-	// Uverse NameSources are zero-valued, so they cannot answer this.
-	if path.Type == VPUverse {
-		return false
-	}
-	bn := sb.GetBlockNodeForPath(store, path)
-	return bn.GetStaticBlock().NameSources[path.Index].Type != NSFuncDecl
-}
-
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 	idx, ok := sb.GetLocalIndex(n)

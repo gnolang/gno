@@ -1,4 +1,4 @@
-# ADR: Derive `IsAssignableNameAt` from `NameSources`, drop `StaticBlock.UnassignableNames`
+# ADR: Reject func-name assignment from `NameSources`, drop `StaticBlock.UnassignableNames`
 
 ## Context
 
@@ -11,9 +11,7 @@ calling `Reserve(false, nx, n, NSFuncDecl, -1)` on the same package
 block. Every other kind of unassignable name is handled elsewhere —
 constants are folded to `ConstExpr` (and tracked in `Consts`), type
 names are folded to `constTypeExpr`, and uverse names are refused by an
-explicit branch inside `IsAssignableNameAt` (formerly `IsAssignable`;
-renamed to avoid confusion with type assignability à la
-`checkAssignableTo`).
+explicit branch in `assertValidAssignLhs`.
 
 The name-keyed walk had a second defect, exposed by #6060: it stops at
 the first block holding a slot for the name, which for an assignment
@@ -32,11 +30,13 @@ list" — which is false.
 
 ## Decision
 
-- Delete the `UnassignableNames` field. `IsAssignableNameAt(store, path)`
-  answers from the block the NameExpr's already-resolved path names
-  (`GetBlockNodeForPath`, as `GetIsConstAt` does):
-  `NameSources[path.Index].Type != NSFuncDecl`. Indexing by the path
-  index is safe: `Define2` panics unless `NumNames == len(NameSources)`.
+- Delete the `UnassignableNames` field and the `IsAssignable` method.
+  The check reads the block the NameExpr's already-resolved path names,
+  via the existing `GetNameSourceForPath`, and rejects
+  `NameSource.Type == NSFuncDecl`. Indexing by the path index is safe:
+  `Define2` panics unless `NumNames == len(NameSources)`. No new method:
+  a general "is assignable" helper would overstate what it checks
+  (consts are refused by a separate branch).
 - Move the check from an `AssignStmt`-only loop in `preprocess.go` into
   `assertValidAssignLhs` (`type_check.go`), after its blank/uverse/const
   branches. That gate is shared by assignments, inc/dec and range
