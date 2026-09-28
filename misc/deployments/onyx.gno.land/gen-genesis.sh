@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # gen-genesis.sh — onyx genesis builder (single-file pipeline).
 #
-# onyx is the testnet on the mainnet line: it runs mainnet's exact binaries
-# (the version in UPGRADES.md) and is upgraded whenever mainnet is. Its genesis
+# onyx is the testnet on the mainnet line: it runs mainnet's code, one release
+# candidate ahead (the version in UPGRADES.md), and is upgraded whenever
+# mainnet is. Its genesis
 # is mainnet's shape with a testnet's money — a fresh chain, no hardfork, no
 # historical replay, built from the repo's examples/ tree plus a handful of
 # bootstrap txs, in minutes. Derived from misc/deployments/mainnet.gno.land/
@@ -477,6 +478,14 @@ sheet_total() {
     case "$amount" in
     '' | *[!0-9]*) die "sheet_total: unparseable amount in '$line'" ;;
     esac
+    # Bounded BEFORE the addition: a literal of 2^63 or more wraps silently in
+    # bash arithmetic, and the overflow check below would then compare garbage
+    # (`[ -lt ]` errors out and evaluates false). 19 digits, then lexicographic
+    # against the int64 maximum, keeps every amount representable.
+    # shellcheck disable=SC2071 # string comparison on purpose: equal-length digit strings order numerically, and `-gt` cannot parse a literal past int64
+    if [ "${#amount}" -gt 19 ] || { [ "${#amount}" -eq 19 ] && [[ "$amount" > 9223372036854775807 ]]; }; then
+      die "sheet_total: amount in '$line' is past the int64 Coin limit"
+    fi
     total=$((total + amount))
     if [ "$total" -lt "$amount" ]; then
       die "sheet_total: the sum overflowed a 64-bit integer at '$line' — the genesis supply cannot be represented"
