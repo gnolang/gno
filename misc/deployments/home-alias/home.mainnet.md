@@ -50,6 +50,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
+- [Akkadia](https://landing.akkadia.land/)
 - [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
 
 </gno-columns>

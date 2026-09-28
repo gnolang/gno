@@ -4,16 +4,13 @@ Alias system allows ⁠`/r/gnoland/home` to be replaced with the content from a 
 
 ## Which homepage file
 
-Package paths differ per network, so the homepage does too. Copy the matching
-file as `home-override.md` in the aliased folder:
+Mainnet and the testnets do not list the same links. Copy the matching file as
+`home-override.md` in the aliased folder:
 
 | File | Network | Differs by |
 |------|---------|-----------|
-| [home.mainnet.md](home.mainnet.md) | `gnoland-1` (gno.land) | `boards2/v0` |
-| [home.testnet.md](home.testnet.md) | testnets (pearl) | `boards2/v1`, testnet notice |
-
-`boards2/v1` is what the running pearl has. #6172 renumbered `examples/` to `v0`,
-so a testnet regenerated from master needs that line back at `v0`.
+| [home.mainnet.md](home.mainnet.md) | `gnoland-1` (gno.land) | Akkadia link |
+| [home.testnet.md](home.testnet.md) | testnets (onyx) | Faucet Hub link, testnet notice |
 
 Staging is not concerned: it serves `r/gnoland/home` from the chain, with no alias.
 
@@ -45,7 +42,7 @@ docker compose --profile dev up -d
 - Then place an override into the `./home/` folder:
 
 ```sh
-gnokey query vm/qrender -remote https://rpc.pearl.testnets.gno.land -data "gno.land/r/leon/home:" > home/home-override.md
+gnokey query vm/qrender -remote https://rpc.onyx.testnets.gno.land -data "gno.land/r/gnoland/blog:" > home/home-override.md
 ```
 
 - check the updated and overridden home at `http://127.0.0.1/`.
