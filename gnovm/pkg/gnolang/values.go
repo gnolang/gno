@@ -3255,6 +3255,22 @@ func fillDefaultStructFields(alloc *Allocator, st *StructType, tvs []TypedValue)
 	for i, ft := range st.Fields {
 		if ft.Type.Kind() != InterfaceKind {
 			tvs[i] = defaultTypedValue(alloc, ft.Type)
+			inheritDefaultPkgID(tvs[i], st.GetPkgID())
+		}
+	}
+}
+
+// inheritDefaultPkgID stamps the unnamed array defaults nested in a
+// realm-declared composite with that realm, since an unnamed array type
+// carries no PkgPath of its own for stampPkgID to read.
+func inheritDefaultPkgID(tv TypedValue, pid PkgID) {
+	if !pid.IsRealmPkg() || getDeclaredPkgID(tv.T).IsRealmPkg() {
+		return
+	}
+	if av, ok := tv.V.(*ArrayValue); ok {
+		av.SetPkgID(pid)
+		for _, etv := range av.List {
+			inheritDefaultPkgID(etv, pid)
 		}
 	}
 }
@@ -3266,11 +3282,12 @@ func defaultStructValue(alloc *Allocator, st *StructType) *StructValue {
 	)
 }
 
-func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
+func defaultArrayValue(alloc *Allocator, t Type) *ArrayValue {
+	at := baseOf(t).(*ArrayType)
 	if at.Elt.Kind() == Uint8Kind {
-		return alloc.NewDataArray(at, at.Len)
+		return alloc.NewDataArray(t, at.Len)
 	}
-	av := alloc.NewListArray(at, at.Len)
+	av := alloc.NewListArray(t, at.Len)
 	tvs := av.List
 	if et := at.Elem(); et.Kind() != InterfaceKind {
 		// av is a Go local until the caller roots it, so anchor its list
@@ -3280,6 +3297,7 @@ func defaultArrayValue(alloc *Allocator, at *ArrayType) *ArrayValue {
 		alloc.PushAnchor(tvs)
 		for i := range at.Len {
 			tvs[i] = defaultTypedValue(alloc, et)
+			inheritDefaultPkgID(tvs[i], getDeclaredPkgID(t))
 		}
 		alloc.PopAnchor()
 	}
@@ -3295,7 +3313,7 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	case *ArrayType:
 		return TypedValue{
 			T: t,
-			V: defaultArrayValue(alloc, ct),
+			V: defaultArrayValue(alloc, t),
 		}
 	case *StructType:
 		return TypedValue{
