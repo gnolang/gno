@@ -24,6 +24,15 @@ on:
       - '!**/*.md'
       - examples/**/*.md
       - gnovm/stdlibs/**/*.md
+      # gno.land/pkg/upgrades validates every misc/deployments/*/upgrades.json
+      # and checks its rendered UPGRADES.md, and TestReleaseToolingMatchesTheParser
+      # pins the off-tag version shape of the build files.
+      - misc/deployments/*/upgrades.json
+      - misc/deployments/*/UPGRADES.md
+      - misc/deployments/upgrades/**
+      - .github/goreleaser.yaml
+      - .github/workflows/release-docker.yml
+      - .github/workflows/release-goreleaser.yml
   workflow_dispatch:
 
 permissions:

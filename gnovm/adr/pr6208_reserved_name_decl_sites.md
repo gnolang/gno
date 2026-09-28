@@ -27,7 +27,9 @@ then returns). Every unchecked site was a way to spoof a builtin in a body.
 reason from the other side: a reader must be able to trust that `cur` is the
 frame's identity, and an int named `cur` defeats that even where it is safe.
 Both are one question, and #6196's per-site check kept missing sites (the
-type-switch variable; then func, type and import names).
+type-switch variable; then func, type and import names). #5981 meanwhile
+landed an `iota`-only check in `Reserve`, at the same funnel; the general
+check here subsumes it (`iota` is a uverse name) and its fixtures stay.
 
 ## Decision
 
