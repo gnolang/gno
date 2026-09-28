@@ -250,8 +250,9 @@ CHECKSUMS_DATA=$(
 # LOCKED 2026-09-26 — the onyx-1 launch build (every launch value final),
 # built from the chain/mainnet tree at the v1.5.0 code (2ed33ea9a). Any run
 # producing different bytes for these artifacts fails loudly; a run from
-# master fails on packages.gen.txt by design, since master's examples/ has
-# moved on from what the network runs.
+# master fails the lock by design, since master's examples/ has moved on from
+# what the network runs (the package list can still match: it is the sources
+# of a listed package that differ, and they surface in genesis_txs.jsonl).
 0f58018876aa393456190c5236ad8b66b1c7a0e1d25ab31674b26f5d8d14a960  work/packages.gen.txt
 623202193678c47d349fff159ab74dcbc77baae8fd52f23be9966135e4d90d95  work/valoper-seed.jsonl
 e466c739ab146fbb4a325181565ce8ce65d86425d2b3477d7cba482a2053ad63  work/genesis_txs.jsonl
