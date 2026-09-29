@@ -4,6 +4,7 @@ import {
 	type GnoSession,
 	readSession,
 } from "../../feature/connect/frontend/session.js";
+import { readMeta } from "./chain.js";
 import { BaseController } from "./controller.js";
 import { SIGNER_UNAVAILABLE } from "./tx-outcome.js";
 import {
@@ -111,11 +112,6 @@ export class WalletLaunchController extends BaseController {
 		return undefined;
 	}
 
-	private _meta(name: string): string {
-		const el = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
-		return el?.content?.trim() || "";
-	}
-
 	// Coarse primary pointer only: maxTouchPoints would also match touchscreen
 	// laptops, where a failed custom-scheme launch would break Execute.
 	private _isMobile(): boolean {
@@ -174,8 +170,8 @@ export class WalletLaunchController extends BaseController {
 		const send = this._readSend();
 		if (send) tx.send = send;
 
-		const rpc = this._meta("gnoconnect:rpc");
-		const chainid = this._meta("gnoconnect:chainid");
+		const rpc = readMeta("gnoconnect:rpc");
+		const chainid = readMeta("gnoconnect:chainid");
 		if (rpc) tx.rpc = rpc;
 		if (chainid) tx.chainid = chainid;
 
