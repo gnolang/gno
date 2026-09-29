@@ -111,7 +111,12 @@ LAYOUT - Header component
                 <span class="b-identity__avatar b-identity__avatar--large" data-connect-target="menu-avatar"></span>
                 <div class="b-identity__names">
                   <a class="b-identity__username" data-connect-target="username-link" hidden></a>
-                  <span class="b-identity__short u-font-mono" data-connect-target="short-address"></span>
+                  <span class="b-identity__address-row">
+                    <span class="b-identity__short u-font-mono" data-connect-target="short-address"></span>
+                    <button type="button" class="b-inline-btn b-identity__copy" data-controller="copy"
+                      data-action="click->copy#copy" data-connect-target="copy" aria-label="Copy address"
+                      title="Copy address">{{ template "ui/copy" }}</button>
+                  </span>
                   <span class="b-identity__via" data-connect-target="via"></span>
                 </div>
               </div>
@@ -133,7 +138,6 @@ LAYOUT - Header component
               </dl>
             </div>
             <div class="b-identity__actions" role="menu" aria-label="Identity">
-              <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
               <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
               <button type="button" role="menuitem" class="b-identity__danger"
                 data-connect-target="disconnect">Disconnect</button>
