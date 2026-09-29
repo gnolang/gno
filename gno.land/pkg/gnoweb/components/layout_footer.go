@@ -41,7 +41,7 @@ func EnrichFooterData(data FooterData) FooterData {
 	}
 	nav = append(nav,
 		FooterLink{Label: "Blog", URL: "/r/gnoland/blog"},
-		FooterLink{Label: "Status", URL: "https://status.gnoteam.com/", Outbound: OutboundStatus},
+		FooterLink{Label: "Status", URL: "https://status.gno.land/", Outbound: OutboundStatus},
 	)
 
 	data.Sections = []FooterSection{
@@ -55,6 +55,7 @@ func EnrichFooterData(data FooterData) FooterData {
 				{Label: "GitHub", URL: "https://github.com/gnolang/gno", Outbound: OutboundGitHub},
 				{Label: "Twitter", URL: "https://twitter.com/_gnoland", Outbound: OutboundTwitter},
 				{Label: "Discord", URL: "https://discord.com/invite/gnoland", Outbound: OutboundDiscord},
+				{Label: "Bubble Rumble", URL: "https://bubblerumble.net/", Outbound: OutboundBubbleRumble},
 				{Label: "YouTube", URL: "https://www.youtube.com/@_gnoland", Outbound: OutboundYouTube},
 			},
 		},

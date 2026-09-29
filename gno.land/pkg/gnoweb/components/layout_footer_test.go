@@ -25,10 +25,11 @@ func TestEnrichFooterData_Outbound(t *testing.T) {
 	want := map[string]string{
 		"https://docs.gno.land/":                                OutboundDocs,
 		"https://faucet.gno.land/":                              OutboundFaucet,
-		"https://status.gnoteam.com/":                           OutboundStatus,
+		"https://status.gno.land/":                              OutboundStatus,
 		"https://github.com/gnolang/gno":                        OutboundGitHub,
 		"https://twitter.com/_gnoland":                          OutboundTwitter,
 		"https://discord.com/invite/gnoland":                    OutboundDiscord,
+		"https://bubblerumble.net/":                             OutboundBubbleRumble,
 		"https://www.youtube.com/@_gnoland":                     OutboundYouTube,
 		"https://github.com/gnolang/gno/blob/master/LICENSE.md": OutboundGitHub,
 		"https://github.com/gnolang/gno/blob/master/TERMS.md":   OutboundGitHub,

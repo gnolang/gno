@@ -4,7 +4,7 @@ http:
     secure-headers:
       headers:
         # CSP Headers
-        contentSecurityPolicy: "default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src 'self' data: https://gnolang.github.io https://assets.gnoteam.com https://sa.gno.services https://imgur.com https://*.imgur.com https://*.github.io https://github.com https://*.githubusercontent.com https://imgflip.com https://*.imgflip.com https://ipfs.io https://cloudflare-ipfs.com; font-src 'self';"
+        contentSecurityPolicy: "default-src 'self'; script-src 'self' https://sa.gno.services; style-src 'self'; img-src 'self' data: https://gnolang.github.io https://sa.gno.services https://imgur.com https://*.imgur.com https://*.github.io https://github.com https://*.githubusercontent.com https://imgflip.com https://*.imgflip.com https://ipfs.io https://cloudflare-ipfs.com; font-src 'self';"
         # Vary: Origin
         addVaryHeader: true
         # X-XSS-Protection: 1; mode=block

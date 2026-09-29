@@ -142,6 +142,7 @@ func main() {
 //
 // - Check out our [community projects](https://github.com/gnolang/awesome-gno)
 // - [Discord](https://discord.com/invite/gnoland)
+// - [Bubble Rumble](https://bubblerumble.net/)
 // - [Twitter](https://twitter.com/_gnoland)
 // - [Youtube](https://www.youtube.com/@_gnoland)
 // - [Telegram](https://t.me/gnoland)
