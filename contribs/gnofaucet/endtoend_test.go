@@ -39,15 +39,15 @@ const (
 const (
 	e2eFaucetStartTimeout = 10 * time.Second
 	e2eFaucetStopTimeout  = 10 * time.Second
-	e2ePollInterval       = 50 * time.Millisecond
+	e2ePollInterval       = 5 * time.Millisecond
 	e2eHealthCheckTimeout = time.Second
 	e2eRequestTimeout     = 30 * time.Second
 )
 
 // TestCaptchaFaucetAgainstARealChain runs the faucet of `gnofaucet serve
 // captcha` against an in-memory gno.land node built from this repository, sends
-// drips over HTTP in the shape faucet-hub sends them, and checks the outcome
-// on-chain.
+// JSON-RPC drips to it over HTTP, with the captcha token in meta as faucet-hub
+// sends it, and checks the outcome on-chain.
 //
 // The unit tests exercise each layer against fakes. What they cannot show is
 // that a drip works against a real node: that the faucet decodes the accounts
@@ -71,7 +71,7 @@ func TestCaptchaFaucetAgainstARealChain(t *testing.T) {
 		faucetURL := startTestFaucet(t, chain)
 		to := newTestAddress()
 
-		status, res := sendDrip(t, faucetURL, []any{to.String(), e2eDripAmount}, hcaptchaTestResponse)
+		status, res := sendDrip(t, faucetURL, []string{to.String(), e2eDripAmount}, hcaptchaTestResponse)
 
 		require.Equal(t, http.StatusOK, status)
 		require.Nil(t, res.Error)
@@ -83,7 +83,7 @@ func TestCaptchaFaucetAgainstARealChain(t *testing.T) {
 		faucetURL := startTestFaucet(t, chain)
 		to := newTestAddress()
 
-		status, res := sendDrip(t, faucetURL, []any{to.String()}, hcaptchaTestResponse)
+		status, res := sendDrip(t, faucetURL, []string{to.String()}, hcaptchaTestResponse)
 
 		require.Equal(t, http.StatusOK, status)
 		require.Nil(t, res.Error)
@@ -95,7 +95,7 @@ func TestCaptchaFaucetAgainstARealChain(t *testing.T) {
 		to := newTestAddress()
 		aboveMax := std.MustParseCoins(e2eMaxSendAmount).Add(std.NewCoins(std.NewCoin("ugnot", 1)))
 
-		status, res := sendDrip(t, faucetURL, []any{to.String(), aboveMax.String()}, hcaptchaTestResponse)
+		status, res := sendDrip(t, faucetURL, []string{to.String(), aboveMax.String()}, hcaptchaTestResponse)
 
 		require.Equal(t, http.StatusOK, status)
 		require.NotNil(t, res.Error)
@@ -107,7 +107,7 @@ func TestCaptchaFaucetAgainstARealChain(t *testing.T) {
 		faucetURL := startTestFaucet(t, chain)
 		to := newTestAddress()
 
-		status, res := sendDrip(t, faucetURL, []any{to.String(), e2eDripAmount}, "not-a-valid-hcaptcha-token")
+		status, res := sendDrip(t, faucetURL, []string{to.String(), e2eDripAmount}, "not-a-valid-hcaptcha-token")
 
 		require.Equal(t, http.StatusOK, status)
 		require.NotNil(t, res.Error)
@@ -119,11 +119,11 @@ func TestCaptchaFaucetAgainstARealChain(t *testing.T) {
 		faucetURL := startTestFaucet(t, chain)
 		to := newTestAddress()
 
-		status, res := sendDrip(t, faucetURL, []any{to.String(), e2eDripAmount}, hcaptchaTestResponse)
+		status, res := sendDrip(t, faucetURL, []string{to.String(), e2eDripAmount}, hcaptchaTestResponse)
 		require.Equal(t, http.StatusOK, status)
 		require.Nil(t, res.Error)
 
-		status, _ = sendDrip(t, faucetURL, []any{to.String(), e2eDripAmount}, hcaptchaTestResponse)
+		status, _ = sendDrip(t, faucetURL, []string{to.String(), e2eDripAmount}, hcaptchaTestResponse)
 
 		assert.Equal(t, http.StatusUnauthorized, status)
 		assert.Equal(t, std.MustParseCoins(e2eDripAmount), chain.balance(t, to))
@@ -249,10 +249,10 @@ func startTestFaucet(t *testing.T, chain testChain) string {
 func assertNoErrorLogged(t *testing.T, logs string) {
 	t.Helper()
 
-	lines := strings.Split(strings.TrimSpace(logs), "\n")
-	require.NotEmpty(t, lines[0], "the faucet logged nothing")
+	logs = strings.TrimSpace(logs)
+	require.NotEmpty(t, logs, "the faucet logged nothing")
 
-	for _, line := range lines {
+	for line := range strings.SplitSeq(logs, "\n") {
 		var entry struct {
 			Level string `json:"level"`
 		}
@@ -305,17 +305,11 @@ func newTestAddress() crypto.Address {
 	return secp256k1.GenPrivKey().PubKey().Address()
 }
 
-// dripResponse is the JSON-RPC response to a drip request.
-type dripResponse struct {
-	Result string              `json:"result"`
-	Error  *spec.BaseJSONError `json:"error"`
-}
-
-// sendDrip posts a drip request to the faucet in the shape faucet-hub sends
-// it: params hold the recipient and an optional amount, and the captcha token
-// goes in meta. It returns the HTTP status and, when the faucet answered with
-// JSON-RPC, the decoded response.
-func sendDrip(t *testing.T, faucetURL string, params []any, captcha string) (int, dripResponse) {
+// sendDrip posts a JSON-RPC drip request to the faucet: params hold the
+// recipient and, optionally, the amount, and the captcha token goes in meta, as
+// faucet-hub sends it. It returns the HTTP status and, when the faucet answered
+// with JSON-RPC, the decoded response.
+func sendDrip(t *testing.T, faucetURL string, params []string, captcha string) (int, spec.BaseJSONResponse) {
 	t.Helper()
 
 	body, err := json.Marshal(map[string]any{
@@ -332,7 +326,7 @@ func sendDrip(t *testing.T, faucetURL string, params []any, captcha string) (int
 	require.NoError(t, err)
 	defer res.Body.Close()
 
-	var rpcResponse dripResponse
+	var rpcResponse spec.BaseJSONResponse
 	if res.StatusCode == http.StatusOK {
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&rpcResponse))
 	}

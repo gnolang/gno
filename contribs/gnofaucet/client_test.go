@@ -1,13 +1,15 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
+	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -16,35 +18,36 @@ import (
 
 // serveNodeResult starts a JSON-RPC endpoint that answers method with result
 // the way a node does. It fails the test on any other method, and on a request
-// whose string params differ from wantParams.
-func serveNodeResult(t *testing.T, method string, wantParams map[string]string, result string) *httptest.Server {
+// whose path param is not wantPath.
+func serveNodeResult(t *testing.T, method, wantPath, result string) *httptest.Server {
 	t.Helper()
 
 	node := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var rpcRequest struct {
-			ID     json.RawMessage            `json:"id"`
-			Method string                     `json:"method"`
-			Params map[string]json.RawMessage `json:"params"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&rpcRequest); err != nil {
+		var request rpctypes.RPCRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Errorf("decoding JSON-RPC request: %v", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if rpcRequest.Method != method {
-			t.Errorf("JSON-RPC method = %q, want %q", rpcRequest.Method, method)
+		if request.Method != method {
+			t.Errorf("JSON-RPC method = %q, want %q", request.Method, method)
 			http.Error(w, "unexpected method", http.StatusBadRequest)
 			return
 		}
-		for name, want := range wantParams {
-			var got string
-			if err := json.Unmarshal(rpcRequest.Params[name], &got); err != nil || got != want {
-				t.Errorf("JSON-RPC param %q = %s, want %q", name, rpcRequest.Params[name], want)
-			}
+
+		var params struct {
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal(request.Params, &params); err != nil {
+			t.Errorf("decoding JSON-RPC params: %v", err)
+		}
+		if params.Path != wantPath {
+			t.Errorf("JSON-RPC path param = %q, want %q", params.Path, wantPath)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if _, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":%s}`, rpcRequest.ID, result); err != nil {
+		response := rpctypes.RPCResponse{JSONRPC: "2.0", ID: request.ID, Result: json.RawMessage(result)}
+		if err := json.NewEncoder(w).Encode(response); err != nil {
 			t.Errorf("writing %s response: %v", method, err)
 		}
 	}))
@@ -53,24 +56,25 @@ func serveNodeResult(t *testing.T, method string, wantParams map[string]string, 
 	return node
 }
 
-// accountQueryParams are the params the node client sends to read the account
-// of address.
-func accountQueryParams(address string) map[string]string {
-	return map[string]string{"path": "auth/accounts/" + address}
+// getAccountFromNode reads the account at address through a node client whose
+// node answers the account query with result.
+func getAccountFromNode(t *testing.T, address, result string) (std.Account, error) {
+	t.Helper()
+
+	node := serveNodeResult(t, "abci_query", "auth/accounts/"+address, result)
+
+	cli, err := newNodeClient(node.URL)
+	require.NoError(t, err)
+
+	return cli.GetAccount(crypto.MustAddressFromString(address))
 }
 
-// accountQueryResult is an abci_query result, in the shape a node returns it,
-// whose response data is data. An empty data is sent as null.
-func accountQueryResult(data string) string {
-	encoded := "null"
-	if data != "" {
-		encoded = fmt.Sprintf("%q", base64.StdEncoding.EncodeToString([]byte(data)))
-	}
-
-	return fmt.Sprintf(
-		`{"response":{"ResponseBase":{"Error":null,"Data":%s,"Events":null,"Log":"","Info":""},"Key":null,"Value":null,"Proof":null,"Height":"0"}}`,
-		encoded,
-	)
+// accountQueryResult is the abci_query result a node returns with data as its
+// response data. A nil data is sent as null.
+func accountQueryResult(data []byte) string {
+	return string(amino.MustMarshalJSON(&ctypes.ResultABCIQuery{
+		Response: abci.ResponseQuery{ResponseBase: abci.ResponseBase{Data: data}},
+	}))
 }
 
 // transferCommitResult is the broadcast_tx_commit result of a 100 GNOT faucet
@@ -108,7 +112,8 @@ const transferCommitResult = `{
 func TestNodeClient_DecodesBankTransferEvent(t *testing.T) {
 	t.Parallel()
 
-	node := serveNodeResult(t, "broadcast_tx_commit", nil, transferCommitResult)
+	// A broadcast carries only the transaction, so the request has no path.
+	node := serveNodeResult(t, "broadcast_tx_commit", "", transferCommitResult)
 
 	cli, err := newNodeClient(node.URL)
 	require.NoError(t, err)
@@ -148,16 +153,10 @@ const faucetAccountQueryResult = `{
 func TestNodeClient_DecodesGnoAccount(t *testing.T) {
 	t.Parallel()
 
-	node := serveNodeResult(t, "abci_query", accountQueryParams(faucetAccountAddress), faucetAccountQueryResult)
-
-	cli, err := newNodeClient(node.URL)
+	account, err := getAccountFromNode(t, faucetAccountAddress, faucetAccountQueryResult)
 	require.NoError(t, err)
 
-	address := crypto.MustAddressFromString(faucetAccountAddress)
-	account, err := cli.GetAccount(address)
-	require.NoError(t, err)
-
-	assert.Equal(t, address, account.GetAddress())
+	assert.Equal(t, crypto.MustAddressFromString(faucetAccountAddress), account.GetAddress())
 	assert.Equal(t, std.MustParseCoins("999999995373000000ugnot"), account.GetCoins())
 	assert.Equal(t, uint64(6), account.GetAccountNumber())
 	assert.Equal(t, uint64(27), account.GetSequence())
@@ -193,19 +192,14 @@ func TestNodeClient_ReportsMissingAccount(t *testing.T) {
 		result string
 	}{
 		{name: "null data", result: missingAccountQueryResult},
-		{name: "empty data", result: accountQueryResult("")},
+		{name: "empty data", result: accountQueryResult(nil)},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			node := serveNodeResult(t, "abci_query", accountQueryParams(address), testCase.result)
-
-			cli, err := newNodeClient(node.URL)
-			require.NoError(t, err)
-
-			_, err = cli.GetAccount(crypto.MustAddressFromString(address))
+			_, err := getAccountFromNode(t, address, testCase.result)
 
 			assert.ErrorIs(t, err, std.UnknownAddressError{})
 		})
@@ -232,81 +226,51 @@ const invalidAddressQueryResult = `{
 	}
 }`
 
-// TestNodeClient_RejectsUnusableAccountAnswers checks that the node client
-// returns an error, and no account, for every node answer the faucet cannot
-// sign with. The node's own answers are recorded from onyx-1; the malformed
-// data cases are constructed, as a correct node never returns them.
-func TestNodeClient_RejectsUnusableAccountAnswers(t *testing.T) {
+// TestNodeClient_GetAccountErrors checks that the node client returns an
+// error, and no account, for each node answer it does not accept. The node's
+// own answer is recorded from onyx-1; the malformed data cases are constructed,
+// as a correct node never returns them. BaseAccount is decoded strictly, so a
+// BaseAccount field that std.BaseAccount lacks is rejected on purpose.
+func TestNodeClient_GetAccountErrors(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name    string
-		address string
-		result  string
-		check   func(t *testing.T, err error)
+		name      string
+		address   string
+		result    string
+		wantErrAs any // when set, a pointer the error must match with errors.As
 	}{
 		{
-			name:    "node rejects the query",
-			address: faucetAccountAddress,
-			result:  invalidAddressQueryResult,
-			check: func(t *testing.T, err error) {
-				t.Helper()
-
-				var nodeErr std.InvalidAddressError
-				assert.ErrorAs(t, err, &nodeErr)
-			},
+			name:      "node rejects the query",
+			address:   faucetAccountAddress,
+			result:    invalidAddressQueryResult,
+			wantErrAs: new(std.InvalidAddressError),
 		},
 		{
-			name:    "data is not JSON",
-			address: faucetAccountAddress,
-			result:  accountQueryResult("not json"),
-			check: func(t *testing.T, err error) {
-				t.Helper()
-
-				var syntaxErr *json.SyntaxError
-				assert.ErrorAs(t, err, &syntaxErr)
-			},
+			name:      "data is not JSON",
+			address:   faucetAccountAddress,
+			result:    accountQueryResult([]byte("not json")),
+			wantErrAs: new(*json.SyntaxError),
 		},
 		{
 			name:    "data has no BaseAccount field",
 			address: faucetAccountAddress,
-			result:  accountQueryResult(`{"attributes":"0"}`),
-			check: func(t *testing.T, err error) {
-				t.Helper()
-
-				require.Error(t, err)
-				assert.NotErrorIs(t, err, std.UnknownAddressError{})
-			},
+			result:  accountQueryResult([]byte(`{"attributes":"0"}`)),
 		},
 		{
 			name:    "BaseAccount has a field std.BaseAccount lacks",
 			address: faucetAccountAddress,
-			result:  accountQueryResult(`{"BaseAccount":{"address":"` + faucetAccountAddress + `","unknown":"0"},"attributes":"0"}`),
-			check: func(t *testing.T, err error) {
-				t.Helper()
-
-				assert.Error(t, err)
-			},
+			result:  accountQueryResult([]byte(`{"BaseAccount":{"address":"` + faucetAccountAddress + `","unknown":"0"},"attributes":"0"}`)),
 		},
 		{
 			name:    "BaseAccount is null",
 			address: faucetAccountAddress,
-			result:  accountQueryResult(`{"BaseAccount":null,"attributes":"0"}`),
-			check: func(t *testing.T, err error) {
-				t.Helper()
-
-				assert.Error(t, err)
-			},
+			result:  accountQueryResult([]byte(`{"BaseAccount":null,"attributes":"0"}`)),
 		},
 		{
 			name:    "account belongs to another address",
 			address: "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m",
 			result:  faucetAccountQueryResult,
-			check: func(t *testing.T, err error) {
-				t.Helper()
-
-				assert.Error(t, err)
-			},
 		},
 	}
 
@@ -314,15 +278,14 @@ func TestNodeClient_RejectsUnusableAccountAnswers(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			node := serveNodeResult(t, "abci_query", accountQueryParams(testCase.address), testCase.result)
-
-			cli, err := newNodeClient(node.URL)
-			require.NoError(t, err)
-
-			account, err := cli.GetAccount(crypto.MustAddressFromString(testCase.address))
+			account, err := getAccountFromNode(t, testCase.address, testCase.result)
 
 			assert.Nil(t, account)
-			testCase.check(t, err)
+			require.Error(t, err)
+			assert.NotErrorIs(t, err, std.UnknownAddressError{})
+			if testCase.wantErrAs != nil {
+				assert.ErrorAs(t, err, testCase.wantErrAs)
+			}
 		})
 	}
 }
@@ -332,10 +295,9 @@ func TestNodeClient_RejectsUnusableAccountAnswers(t *testing.T) {
 func TestNodeClient_ReportsUnreachableNode(t *testing.T) {
 	t.Parallel()
 
-	node := httptest.NewServer(http.NotFoundHandler())
-	node.Close()
-
-	cli, err := newNodeClient(node.URL)
+	// Nothing serves port 1 (tcpmux) on the loopback address, whereas the port
+	// of a closed test server may be reused by a parallel test.
+	cli, err := newNodeClient("http://127.0.0.1:1")
 	require.NoError(t, err)
 
 	account, err := cli.GetAccount(crypto.MustAddressFromString(faucetAccountAddress))
