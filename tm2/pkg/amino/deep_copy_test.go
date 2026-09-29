@@ -197,3 +197,34 @@ func TestDeepCopyPointerToStruct(t *testing.T) {
 	assert.Equal(t, 1, cpy.Inner.Ints[0])
 	assert.Nil(t, *cpy.Inner.Bz)
 }
+
+// TestDeepCopyNilBehindPointer covers nil slice, map, pointer and interface
+// values reached through a pointer, which must be copied as nil rather than
+// panic or turn into an empty value.
+func TestDeepCopyNilBehindPointer(t *testing.T) {
+	t.Parallel()
+
+	var nilSlice []int
+	assert.Nil(t, *amino.DeepCopy(&nilSlice).(*[]int))
+
+	var nilMap map[string]int
+	assert.Nil(t, *amino.DeepCopy(&nilMap).(*map[string]int))
+
+	var nilPtr *int
+	assert.Nil(t, *amino.DeepCopy(&nilPtr).(**int))
+
+	var nilIface any
+	assert.Nil(t, *amino.DeepCopy(&nilIface).(*any))
+}
+
+// TestDeepCopyMap covers the map branch, asserting that map values are
+// deep-copied rather than shared with the source.
+func TestDeepCopyMap(t *testing.T) {
+	t.Parallel()
+
+	src := map[string][]int{"a": {1, 2, 3}}
+	cpy := amino.DeepCopy(src).(map[string][]int)
+
+	src["a"][0] = 999
+	assert.Equal(t, 1, cpy["a"][0])
+}

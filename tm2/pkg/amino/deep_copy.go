@@ -51,6 +51,9 @@ func deepCopy(src, dst reflect.Value) {
 }
 
 func _deepCopy(src, dst reflect.Value) {
+	if isNil(src) {
+		return
+	}
 	switch src.Kind() {
 	case reflect.Pointer:
 		cpy := reflect.New(src.Type().Elem())
@@ -84,10 +87,6 @@ func _deepCopy(src, dst reflect.Value) {
 		}
 
 	case reflect.Slice:
-		if src.IsNil() {
-			dst.Set(src)
-			return
-		}
 		switch src.Type().Elem().Kind() {
 		case reflect.Int64, reflect.Int32, reflect.Int16,
 			reflect.Int8, reflect.Int, reflect.Uint64,
@@ -133,7 +132,8 @@ func _deepCopy(src, dst reflect.Value) {
 		cpy := reflect.MakeMapWithSize(src.Type(), src.Len())
 		keys := src.MapKeys()
 		for _, key := range keys {
-			val := src.MapIndex(key)
+			val := reflect.New(src.Type().Elem()).Elem()
+			deepCopy(src.MapIndex(key), val)
 			cpy.SetMapIndex(key, val)
 		}
 		dst.Set(cpy)
