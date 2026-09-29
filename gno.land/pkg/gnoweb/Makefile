@@ -63,7 +63,7 @@ cache_dir := .cache
 #####################
 # General Targets
 #####################
-.PHONY: all dev start-node generate fmt css ts
+.PHONY: all dev start-node generate fmt css ts test test.go test.front
 
 # Generate public dir
 all: generate
@@ -76,8 +76,9 @@ node-start:
 	go -C ../../../contribs/gnodev run -tags=noembed . -no-web
 
 # Test process
-test:
-	go test -v ./...
+test: test.go test.front
+test.go:; go test -v ./...
+test.front:; $(MAKE) -C frontend test
 
 # Format process
 fmt: fmt.go fmt.front
