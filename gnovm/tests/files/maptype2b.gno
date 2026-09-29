@@ -1,8 +1,8 @@
 package main
 
-// Companion to maptype2.gno: after the map-key check has deferred past
-// incomplete nested DeclaredTypes, == on S must still see a comparable
-// struct (not a memo poisoned by an earlier nil-Base walk).
+// Companion to maptype2.gno: == on S must see a comparable struct, not a
+// memo poisoned by an isComparable call made while nested DeclaredTypes
+// were still incomplete.
 
 type D X
 type X [2]*Z

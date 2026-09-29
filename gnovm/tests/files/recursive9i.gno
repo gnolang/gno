@@ -15,7 +15,7 @@ type B A
 func main() {}
 
 // Error:
-// main/recursive9i.gno:8:6-11:2: invalid recursive type: B refers to itself
+// main/recursive9i.gno:8:6-11:2: invalid recursive type: A -> B -> A
 
 // TypeCheckError:
 // main/recursive9i.gno:13:6: invalid recursive type: B refers to itself

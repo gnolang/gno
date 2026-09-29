@@ -16,7 +16,7 @@ type (
 func main() {}
 
 // Error:
-// main/recursive9j.gno:10:2-10: invalid recursive type: h refers to itself
+// main/recursive9j.gno:8:2-7: invalid recursive type: e -> f -> g -> h -> i -> j -> e
 
 // TypeCheckError:
 // main/recursive9j.gno:11:2: invalid recursive type: h refers to itself
