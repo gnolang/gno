@@ -33,10 +33,17 @@
         <span data-connect-target="avatar"></span>
         <span data-connect-target="address"></span>
       </button>
-      <div id="identity-menu" role="menu" data-connect-target="menu" hidden>
-        <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
-        <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
-        <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
+      <div id="identity-menu" data-connect-target="menu" hidden>
+        <div role="group" aria-label="Account">
+          <span data-connect-target="full-address"></span>
+          <span data-connect-target="balance" hidden></span>
+          <span data-connect-target="account-line" hidden></span>
+        </div>
+        <div role="menu" aria-label="Identity">
+          <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
+          <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
+          <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
+        </div>
       </div>
     </div>
   </div>

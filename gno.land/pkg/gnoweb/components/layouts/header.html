@@ -100,15 +100,22 @@ LAYOUT - Header component
         <button type="button" class="b-btn b-btn--secondary b-identity__connect"
           data-connect-target="connect-btn">Connect</button>
         <div data-connect-target="account" class="b-identity__account" hidden>
-          <button type="button" class="b-identity__toggle" data-connect-target="toggle" aria-haspopup="menu"
+          <button type="button" class="b-identity__toggle" data-connect-target="toggle" aria-haspopup="true"
             aria-expanded="false" aria-controls="identity-menu">
             <span class="b-identity__avatar" data-connect-target="avatar"></span>
             <span class="b-identity__address u-font-mono" data-connect-target="address"></span>
           </button>
-          <div class="b-identity__menu" id="identity-menu" role="menu" data-connect-target="menu" hidden>
-            <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
-            <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
-            <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
+          <div class="b-identity__menu" id="identity-menu" data-connect-target="menu" hidden>
+            <div class="b-identity__details" role="group" aria-label="Account">
+              <span class="b-identity__full u-font-mono" data-connect-target="full-address"></span>
+              <span data-connect-target="balance" hidden></span>
+              <span data-connect-target="account-line" hidden></span>
+            </div>
+            <div class="b-identity__actions" role="menu" aria-label="Identity">
+              <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
+              <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
+              <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
+            </div>
           </div>
         </div>
       </div>
