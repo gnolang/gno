@@ -177,3 +177,16 @@ func TestHelpView_RendersTxOutcomeSlot(t *testing.T) {
 	assert.Contains(t, out, `data-controller="tx-outcome"`)
 	assert.Contains(t, out, `data-tx-outcome-func-value="Transfer"`)
 }
+
+func TestHelpView_CommandHasAccountSlots(t *testing.T) {
+	t.Parallel()
+
+	data, _ := helpFixture()
+	data.Functions[0].Crossing = true // only crossing functions get the gnokey command
+	var buf bytes.Buffer
+	require.NoError(t, HelpView(data).Render(&buf))
+
+	out := buf.String()
+	assert.Contains(t, out, `-account-number <span data-action-function-target="account-number">ACCOUNTNUMBER</span>`)
+	assert.Contains(t, out, `-account-sequence <span data-action-function-target="sequence">SEQUENCENUMBER</span>`)
+}

@@ -1,3 +1,9 @@
+import {
+	type Account,
+	commandNumbers,
+	isAddress,
+	loadAccount,
+} from "./account.js";
 import { abciQuery, ChainError, normalizeRPC } from "./chain.js";
 import {
 	BaseController,
@@ -12,6 +18,7 @@ export class ActionFunctionController extends BaseController {
 	declare _pkgPath: string | null;
 	declare _paramInputsCache: HTMLInputElement[];
 	declare _params: Record<string, string>;
+	declare _address: string;
 
 	// Cached params inputs
 	private get _paramInputs(): HTMLInputElement[] {
@@ -78,6 +85,33 @@ export class ActionFunctionController extends BaseController {
 		const addressElements = this.getTargets("address");
 		addressElements.forEach((addressElement) => {
 			addressElement.textContent = address.trim() || "ADDRESS";
+		});
+		void this._fillAccount(address.trim());
+	}
+
+	// Account number and sequence for the address in the command, or the
+	// placeholders when it is a key name, unknown on chain, or unreachable.
+	private async _fillAccount(address: string): Promise<void> {
+		this._address = address;
+		const numbers = this.getTargets("account-number");
+		const sequences = this.getTargets("sequence");
+		if (numbers.length === 0 && sequences.length === 0) return;
+
+		let account: Account | null = null;
+		if (isAddress(address)) {
+			try {
+				account = await loadAccount(address);
+			} catch (err) {
+				this.warn("account lookup failed", err);
+			}
+		}
+		if (this._address !== address) return; // a newer address won
+		const fill = commandNumbers(account);
+		numbers.forEach((el) => {
+			el.textContent = fill.accountNumber;
+		});
+		sequences.forEach((el) => {
+			el.textContent = fill.sequence;
 		});
 	}
 
