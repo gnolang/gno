@@ -20,8 +20,8 @@ require (
 )
 
 // Link the tm2 of this repository: it defines the amino types the faucet
-// decodes and the bytes it signs. Fix a tm2 API break in
-// github.com/gnolang/faucet rather than removing this replace.
+// decodes and the bytes it signs. Adapt gnofaucet or github.com/gnolang/faucet
+// to a tm2 change rather than removing this replace.
 replace github.com/gnolang/gno => ../..
 
 require (
