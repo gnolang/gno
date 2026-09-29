@@ -3,6 +3,7 @@ import {
 	chainMatches,
 	isAddress,
 	loadAccount,
+	loadUsername,
 	refresh,
 } from "../../../frontend/js/account.js";
 import { BaseController } from "../../../frontend/js/controller.js";
@@ -16,11 +17,12 @@ import { avatarSVG } from "./avatar.js";
 import {
 	clearSession,
 	connectWallet,
+	displayName,
 	type GnoSession,
 	onSessionChange,
 	readSession,
 	reconcile,
-	truncate,
+	setUsername,
 } from "./session.js";
 
 // ConnectController owns the header identity: it renders the remembered
@@ -62,14 +64,20 @@ export class ConnectController extends BaseController {
 			if (!this.element.contains(event.target as Node)) this._closeMenu();
 		});
 
-		this._unsubscribe = onSessionChange((session) => this._render(session));
+		this._unsubscribe = onSessionChange((session) => {
+			this._render(session);
+			void this._resolveUsername(session);
+		});
 
 		// Render the remembered address immediately — no flash of "Connect" on
 		// every navigation — then reconcile asynchronously. The address is the
 		// user's own and is display-only, so a brief unverified render costs
 		// nothing.
 		this._render(readSession());
-		void reconcile().then((session) => this._render(session));
+		void reconcile().then((session) => {
+			this._render(session);
+			void this._resolveUsername(session);
+		});
 	}
 
 	protected disconnect(): void {
@@ -92,14 +100,44 @@ export class ConnectController extends BaseController {
 		account.hidden = false;
 
 		const address = this.getTarget("address");
-		if (address) address.textContent = truncate(session.address);
+		if (address) address.textContent = displayName(session);
 		const avatar = this.getTarget("avatar");
 		// The SVG is generated from a numeric PRNG, never from the address text.
 		if (avatar) avatar.innerHTML = avatarSVG(session.address);
 
 		const toggle = this.getTarget("toggle");
 		toggle?.setAttribute("title", session.address);
-		toggle?.setAttribute("aria-label", `Connected as ${session.address}`);
+		toggle?.setAttribute(
+			"aria-label",
+			session.username
+				? `Connected as @${session.username} (${session.address})`
+				: `Connected as ${session.address}`,
+		);
+
+		const link = this.getTarget("username-link") as HTMLAnchorElement | null;
+		if (link) {
+			link.hidden = !session.username;
+			link.textContent = session.username ? `@${session.username}` : "";
+			link.href = session.username
+				? `/u/${encodeURIComponent(session.username)}`
+				: "#";
+		}
+	}
+
+	// Check the stored name once per page; a failed lookup keeps it.
+	private async _resolveUsername(session: GnoSession | null): Promise<void> {
+		if (
+			!session ||
+			!isAddress(session.address) ||
+			!chainMatches(session.chainid)
+		) {
+			return;
+		}
+		try {
+			setUsername(session.address, await loadUsername(session.address));
+		} catch (err) {
+			this.warn("username lookup failed", err);
+		}
 	}
 
 	// Candidates for logging in: announced wallets, plus a legacy extension

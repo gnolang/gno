@@ -174,6 +174,11 @@
 	color: var(--s-color-text-secondary);
 }
 
+.b-identity__username {
+	font-weight: 600;
+	color: var(--s-color-text-link);
+}
+
 .b-identity__full {
 	overflow-wrap: anywhere;
 	color: var(--s-color-text-primary);

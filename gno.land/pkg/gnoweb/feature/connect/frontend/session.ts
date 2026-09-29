@@ -14,6 +14,7 @@ export interface GnoSession {
 	address: string;
 	chainid: string;
 	name: string;
+	username?: string; // r/sys/users name, when registered
 }
 
 const STORAGE_KEY = "gnoweb:session:v1";
@@ -31,15 +32,22 @@ function emit(session: GnoSession | null): void {
 // hand-edited entry must drop the session, not render undefined.
 function normalize(value: unknown): GnoSession | null {
 	if (typeof value !== "object" || value === null) return null;
-	const { rdns, address, chainid, name } = value as Record<string, unknown>;
+	const { rdns, address, chainid, name, username } = value as Record<
+		string,
+		unknown
+	>;
 	if (typeof rdns !== "string" || !rdns) return null;
 	if (typeof address !== "string" || !address) return null;
-	return {
+	const session: GnoSession = {
 		rdns,
 		address,
 		chainid: typeof chainid === "string" ? chainid : "",
 		name: typeof name === "string" ? name.slice(0, MAX_NAME_LENGTH) : "",
 	};
+	if (typeof username === "string" && username) {
+		session.username = username.slice(0, MAX_NAME_LENGTH);
+	}
+	return session;
 }
 
 export function readSession(): GnoSession | null {
@@ -73,6 +81,21 @@ export function clearSession(): void {
 		// Nothing to do: the in-memory notification below is what the UI reads.
 	}
 	emit(null);
+}
+
+// setUsername records the name resolved for address, if it is still current.
+export function setUsername(address: string, username: string | null): void {
+	const session = readSession();
+	if (!session || session.address !== address) return;
+	if ((session.username ?? null) === username) return;
+	const next: GnoSession = { ...session };
+	if (username) next.username = username.slice(0, MAX_NAME_LENGTH);
+	else delete next.username;
+	writeSession(next);
+}
+
+export function displayName(session: GnoSession): string {
+	return session.username ? `@${session.username}` : truncate(session.address);
 }
 
 export function onSessionChange(
