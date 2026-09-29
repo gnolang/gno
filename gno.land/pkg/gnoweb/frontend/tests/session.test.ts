@@ -94,3 +94,27 @@ test("displayName prefers @username over the truncated address", () => {
 	assert.equal(displayName({ ...alice, username: "moul" }), "@moul");
 	assert.equal(displayName(alice), "g1jg8mtu…sqf5");
 });
+
+test("a name longer than the clamp converges instead of re-announcing", () => {
+	writeSession(alice);
+	setUsername(alice.address, "x".repeat(100));
+	const seen: unknown[] = [];
+	const off = onSessionChange((s) => seen.push(s));
+	setUsername(alice.address, "x".repeat(100));
+	off();
+	assert.deepEqual(seen, []);
+});
+
+test("a name storage cannot keep is not announced", () => {
+	writeSession(alice);
+	Object.assign(window.localStorage, {
+		setItem: () => {
+			throw new Error("QuotaExceededError");
+		},
+	});
+	const seen: unknown[] = [];
+	const off = onSessionChange((s) => seen.push(s));
+	setUsername(alice.address, "moul");
+	off();
+	assert.deepEqual(seen, []);
+});
