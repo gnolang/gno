@@ -3,8 +3,8 @@
 ## Context
 
 gnoweb is a single binary serving several chains under the gno.land name:
-mainnet (`gnoland-1`, at gno.land), the current testnet (`pearl-1`), staging,
-and `dev` under gnodev.
+mainnet (`gnoland-1`, at gno.land), the testnets (`onyx-1`, `pearl-1`),
+staging, and `dev` under gnodev.
 
 Nothing in the UI tells them apart. The only signal is the chain-id inside the
 Network Info popup, behind a click, so a user cannot know which chain they are
@@ -64,6 +64,14 @@ canonical link, the meta-refresh target and a visible anchor), so that page
 still offers a click through to whatever the flag holds. Pre-existing and out of
 scope here, but the two surfaces now disagree by design rather than by accident.
 
+**The Status link comes from `-status-url`, empty by default.** Unlike the
+faucet hub, each network has its own status page (`status.gno.land` for
+mainnet, `status.onyx.testnets.gno.land` for Onyx), so the flag's value is the
+link target. A hardcoded host would point every testnet at mainnet's status,
+which is the problem this change exists to remove, so no flag means no link.
+The value is rendered on every page, so it is validated at startup as an
+absolute http(s) URL, the same fail-closed rule as the chain-id.
+
 **Colour is secondary, the word carries the signal.** The chip names the kind
 in text, so the tint is reinforcement and never the only cue: it survives a
 screenshot, colour blindness and forced-colors. `--s-color-text-brand-default`
@@ -121,6 +129,16 @@ than escaping at each use, so every consumer is covered, including the ones adde
 later. The value is not always operator-supplied: with `-chainid` empty it comes
 from the node over the wire.
 
+A rejected value stops gnoweb at startup rather than degrading, including when
+it came off the wire from an RPC the operator does not control. That path only
+runs when `-chainid` is explicitly empty (the CLI defaults to `dev`, gnodev
+always sets its own), gnoweb already refused to start when the node could not
+be asked, and gnoweb trusts that RPC for all realm content anyway. Degrading
+would mean rendering either an unsafe value or an empty one, and the chain-id
+ends up in the gnokey commands users paste and sign. The regex restricts the
+characters, which tm2 does not (it only requires 1 to 50 of them); every chain-id
+in use today passes it, and an operator can always set `-chainid` explicitly.
+
 ### One theming mechanism, not two
 
 The network palette lives in `[data-network="…"]` blocks beside the existing
@@ -163,6 +181,9 @@ now, and it follows whatever background the banner ends up with.
   `misc/deployments/home-alias`, `test2`, `test3`), so none regress. `gnodev`
   does not set it and has no such flag, so a local dev server no longer shows
   the link — correct, it has no faucet.
+- The same holds for the Status link: the mainnet deployment must now pass
+  `-status-url=https://status.gno.land` to keep it, and each testnet its own
+  page. Until then the footer shows no Status link rather than a wrong one.
 - The `.network-chip--alert` rule is written flat rather than as a nested
   `&--alert`: `postcss-preset-env`'s `nesting-rules` is spec-compliant CSS
   nesting, which does not concatenate `&` with a suffix. The nested form
@@ -188,8 +209,11 @@ New tests: `NewRouter`'s testnet default, explicit mainnet, and rejection of
 an invalid `-network-kind` (`app_test.go`), `Valid()` and the chip text
 (`components/network_test.go`),
 a render-level assertion that `data-network` and `network-chip--alert` reach
-the HTML (`components/layout_test.go`), and that the footer renders no Faucet
-link without a configured faucet (`components/layout_footer_test.go`).
+the HTML (`components/layout_test.go`), that the footer renders no Faucet
+link without a configured faucet and no Status link without a status url
+(`components/layout_footer_test.go`), the `-status-url` validation
+(`app_test.go`), and that the configured status url reaches the rendered
+footer (`handler_http_test.go`).
 
 Also checked by hand against a running gnoweb, since a Go test cannot catch a
 dead CSS selector: chip and `data-network` under both kinds, the chip

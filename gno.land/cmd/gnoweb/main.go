@@ -49,6 +49,7 @@ type webCfg struct {
 	remoteHelp       string
 	bind             string
 	faucetURL        string
+	statusURL        string
 	networkKind      string
 	aliases          string
 	noDefaultAliases bool
@@ -158,7 +159,14 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.faucetURL,
 		"faucet-url",
 		defaultWebOptions.faucetURL,
-		"The faucet URL will redirect the user when they access `/faucet`, and is the faucet advertised in the footer. Leave empty on a deployment that has no faucet.",
+		"The faucet URL will redirect the user when they access `/faucet`; setting it also shows the footer Faucet link (to the faucet hub). Leave empty on a deployment that has no faucet.",
+	)
+
+	fs.StringVar(
+		&c.statusURL,
+		"status-url",
+		defaultWebOptions.statusURL,
+		"The network's status page, linked from the footer. Leave empty for no Status link.",
 	)
 
 	fs.StringVar(
@@ -246,6 +254,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.StatusURL = cfg.statusURL
 	appcfg.NetworkKind = components.NetworkKind(cfg.networkKind)
 
 	// Parse banner from env

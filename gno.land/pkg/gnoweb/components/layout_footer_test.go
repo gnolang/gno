@@ -7,7 +7,7 @@ import (
 )
 
 func TestEnrichFooterData_Outbound(t *testing.T) {
-	data := EnrichFooterData(FooterData{HasFaucet: true})
+	data := EnrichFooterData(FooterData{HasFaucet: true, StatusURL: "https://status.gno.land/"})
 
 	// Flatten Sections and LegalLinks into a single URL→Outbound map; URLs
 	// across the two groups are distinct, so a last-write collision would
@@ -54,8 +54,8 @@ func TestStaticHeaderGeneralLinks_Outbound(t *testing.T) {
 	assert.NotContains(t, got, "https://gno.land/about")
 }
 
-// Mainnet runs without -faucet-url, and the link used to be unconditional,
-// pointing at a hub that only dispenses testnet tokens.
+// The link used to be unconditional, so a deployment with no faucet (gnodev,
+// a local chain) still advertised the hub.
 func TestEnrichFooterData_FaucetIsConditional(t *testing.T) {
 	labels := func(data FooterData) []string {
 		var out []string
@@ -83,4 +83,26 @@ func TestEnrichFooterData_FaucetIsConditional(t *testing.T) {
 	}
 	// The hub, not -faucet-url: staging points that flag at a POST-only API.
 	assert.Equal(t, faucetHubURL, url)
+}
+
+// Each network has its own status page, set per deployment; without one the
+// footer shows no Status link rather than another network's.
+func TestEnrichFooterData_StatusIsConditional(t *testing.T) {
+	statusURL := func(data FooterData) (string, bool) {
+		for _, sec := range data.Sections {
+			for _, l := range sec.Links {
+				if l.Label == "Status" {
+					return l.URL, true
+				}
+			}
+		}
+		return "", false
+	}
+
+	_, found := statusURL(EnrichFooterData(FooterData{}))
+	assert.False(t, found, "no status url configured must render no Status link")
+
+	got, found := statusURL(EnrichFooterData(FooterData{StatusURL: "https://status.onyx.testnets.gno.land"}))
+	assert.True(t, found)
+	assert.Equal(t, "https://status.onyx.testnets.gno.land", got)
 }

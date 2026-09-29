@@ -48,6 +48,7 @@ type StaticMetadata struct {
 	Banner            components.BannerData
 	NetworkKind       components.NetworkKind
 	FaucetURL         string
+	StatusURL         string
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -224,6 +225,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 				Enabled: h.Static.Analytics,
 			},
 			HasFaucet: h.Static.FaucetURL != "",
+			StatusURL: h.Static.StatusURL,
 		},
 		// Seeded here, not only in setHeaderForRealm: the early parse-error
 		// page renders IndexLayout without it and would lose the chip.

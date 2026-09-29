@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path"
 	"regexp"
 	"strings"
@@ -57,6 +58,8 @@ type AppConfig struct {
 	// FaucetURL is where `/faucet` redirects and the faucet the footer
 	// advertises. Empty means this deployment has no faucet.
 	FaucetURL string
+	// StatusURL is the status page the footer links to. Empty means no link.
+	StatusURL string
 	// NetworkKind defaults to testnet when left empty; mainnet is explicit.
 	NetworkKind components.NetworkKind
 	// Domain is the domain used by the node.
@@ -136,6 +139,16 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 			cfg.NetworkKind, components.NetworkMainnet, components.NetworkTestnet, components.NetworkLocal)
 	}
 
+	// Operator-set and rendered as a link on every page, so it must be an
+	// absolute http(s) URL with no credentials; refuse to start rather than
+	// publish anything else. Checked before the chain-id probe, like the kind.
+	if cfg.StatusURL != "" {
+		u, err := url.Parse(cfg.StatusURL)
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil {
+			return nil, fmt.Errorf("invalid status url %q, want an absolute http(s) URL", cfg.StatusURL)
+		}
+	}
+
 	if cfg.ChainID == "" {
 		cfg.ChainID, err = getChainID(context.Background(), rpcclient)
 		if err != nil {
@@ -177,6 +190,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Banner:            cfg.Banner,
 		NetworkKind:       cfg.NetworkKind,
 		FaucetURL:         cfg.FaucetURL,
+		StatusURL:         cfg.StatusURL,
 	}
 
 	// Configure Markdown renderer

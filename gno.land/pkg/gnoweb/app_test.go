@@ -428,6 +428,42 @@ func TestNewRouter_NetworkKind(t *testing.T) {
 	}
 }
 
+// The status URL is rendered as a link on every page, so anything that is
+// not an absolute http(s) URL is refused at startup.
+func TestNewRouter_StatusURLIsValidated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		statusURL string
+		wantErr   bool
+	}{
+		{name: "unset", statusURL: ""},
+		{name: "https", statusURL: "https://status.gno.land/"},
+		{name: "testnet", statusURL: "https://status.onyx.testnets.gno.land"},
+		{name: "javascript", statusURL: "javascript:alert(1)", wantErr: true},
+		{name: "relative", statusURL: "/status", wantErr: true},
+		{name: "no scheme", statusURL: "status.gno.land", wantErr: true},
+		{name: "ftp", statusURL: "ftp://status.gno.land", wantErr: true},
+		{name: "userinfo", statusURL: "https://evil.com@status.gno.land", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = "gnoland-1"
+			cfg.StatusURL = tc.statusURL
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "invalid status url")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestNewRouter_ChainIDIsValidated(t *testing.T) {
 	t.Parallel()
 

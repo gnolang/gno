@@ -9,6 +9,9 @@ type FooterData struct {
 	// from the same config that gates the /faucet route, so the footer and the
 	// route can no longer disagree about whether one exists.
 	HasFaucet bool
+	// StatusURL is this network's status page. Empty means no Status link: a
+	// status page for another network is worse than none.
+	StatusURL string
 }
 
 // faucetHubURL is the user-facing faucet for every network that has one. It is
@@ -39,10 +42,10 @@ func EnrichFooterData(data FooterData) FooterData {
 	if data.HasFaucet {
 		nav = append(nav, FooterLink{Label: "Faucet", URL: faucetHubURL, Outbound: OutboundFaucet})
 	}
-	nav = append(nav,
-		FooterLink{Label: "Blog", URL: "/r/gnoland/blog"},
-		FooterLink{Label: "Status", URL: "https://status.gno.land/", Outbound: OutboundStatus},
-	)
+	nav = append(nav, FooterLink{Label: "Blog", URL: "/r/gnoland/blog"})
+	if data.StatusURL != "" {
+		nav = append(nav, FooterLink{Label: "Status", URL: data.StatusURL, Outbound: OutboundStatus})
+	}
 
 	data.Sections = []FooterSection{
 		{
