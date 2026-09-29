@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 
 	tm2Client "github.com/gnolang/faucet/client/http"
@@ -12,8 +11,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
-
-var errAccountNotFound = errors.New("account not found")
 
 // nodeClient is the client the faucet uses to talk to the node. It reads
 // accounts itself and relies on the faucet library's client for everything
@@ -48,7 +45,11 @@ func newNodeClient(remote string) (*nodeClient, error) {
 // A gno.land node returns its own account type: a std.BaseAccount next to
 // fields the faucet does not use. Amino rejects JSON fields that its target
 // type lacks, so the response is split with encoding/json, which ignores them,
-// and only the BaseAccount field is decoded with amino.
+// and only the BaseAccount field is decoded with amino. That decoding stays
+// strict: a BaseAccount field that this tree's std.BaseAccount lacks is an
+// error.
+//
+// An address with no account yields an error wrapping std.UnknownAddressError.
 func (c *nodeClient) GetAccount(address crypto.Address) (std.Account, error) {
 	path := fmt.Sprintf("auth/accounts/%s", address.String())
 
@@ -63,7 +64,7 @@ func (c *nodeClient) GetAccount(address crypto.Address) (std.Account, error) {
 	// The node answers null for an address that has no account.
 	data := res.Response.Data
 	if len(data) == 0 || string(data) == "null" {
-		return nil, fmt.Errorf("unable to fetch account %s, %w", address, errAccountNotFound)
+		return nil, fmt.Errorf("unable to fetch account %s, %w", address, std.UnknownAddressError{})
 	}
 
 	var account struct {

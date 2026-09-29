@@ -182,7 +182,7 @@ const missingAccountQueryResult = `{
 }`
 
 // TestNodeClient_ReportsMissingAccount checks that the node client reports an
-// address the node holds no account for as errAccountNotFound.
+// address the node holds no account for as std.UnknownAddressError.
 func TestNodeClient_ReportsMissingAccount(t *testing.T) {
 	t.Parallel()
 
@@ -207,7 +207,7 @@ func TestNodeClient_ReportsMissingAccount(t *testing.T) {
 
 			_, err = cli.GetAccount(crypto.MustAddressFromString(address))
 
-			assert.ErrorIs(t, err, errAccountNotFound)
+			assert.ErrorIs(t, err, std.UnknownAddressError{})
 		})
 	}
 }
@@ -275,7 +275,7 @@ func TestNodeClient_RejectsUnusableAccountAnswers(t *testing.T) {
 				t.Helper()
 
 				require.Error(t, err)
-				assert.NotErrorIs(t, err, errAccountNotFound)
+				assert.NotErrorIs(t, err, std.UnknownAddressError{})
 			},
 		},
 		{
