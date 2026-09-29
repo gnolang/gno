@@ -11,13 +11,14 @@ import (
 // must stay in sync with the enum in frontend/js/analytics.ts and the values
 // documented in SIMPLEANALYTICS.md.
 const (
-	OutboundDocs    = "docs"
-	OutboundFaucet  = "faucet"
-	OutboundStatus  = "status"
-	OutboundGitHub  = "github"
-	OutboundTwitter = "twitter"
-	OutboundDiscord = "discord"
-	OutboundYouTube = "youtube"
+	OutboundDocs         = "docs"
+	OutboundFaucet       = "faucet"
+	OutboundStatus       = "status"
+	OutboundGitHub       = "github"
+	OutboundTwitter      = "twitter"
+	OutboundDiscord      = "discord"
+	OutboundYouTube      = "youtube"
+	OutboundBubbleRumble = "bubblerumble"
 )
 
 // AnalyticsData holds the SimpleAnalytics metadata rendered into the page.
@@ -27,10 +28,10 @@ type AnalyticsData struct {
 	// Path is the analytics pageview path (see analyticsPath) rendered as
 	// data-sa-path; the client reports it to SimpleAnalytics in place of the
 	// raw pathname.
-	Path       string
-	ChainId    string
-	AssetsPath string
-	BuildTime  string
+	Path          string
+	ChainId       string
+	AssetsPath    string
+	AssetsVersion string
 	// Hostname, when non-empty, is rendered as data-hostname on the
 	// SimpleAnalytics script tag to override the hostname SA reports.
 	// Set this when the site listens on a host SA would otherwise report

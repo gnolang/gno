@@ -18,7 +18,7 @@ import (
 )
 
 // validPubKey is a deterministic ed25519 pubkey usable across cases.
-// Re-used from existing v3 test fixtures so it's a known-good string.
+// Re-used from existing v0 test fixtures so it's a known-good string.
 const (
 	validPubKeyA = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq3ds6sdvc0shfkq02h6xx5g0jp04aadexfnpsmgjxu72xz9y30aqfrlpny"
 	validPubKeyB = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"

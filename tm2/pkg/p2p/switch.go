@@ -31,6 +31,19 @@ var (
 	seedDialInterval = 30 * time.Second
 )
 
+var (
+	// errDuplicatePeer is returned when a connection carries a peer ID the
+	// peer set already holds
+	errDuplicatePeer = errors.New("duplicate peer")
+
+	// errMaxOutboundPeers is returned when a dialed connection would exceed
+	// the outbound peer limit
+	errMaxOutboundPeers = errors.New("already have max outbound peers")
+
+	// errPeerStopped is returned when a peer is stopped while being added
+	errPeerStopped = errors.New("peer stopped while being added")
+)
+
 type reactorPeerBehavior struct {
 	chDescs      []*conn.ChannelDescriptor
 	reactorsByCh map[byte]Reactor
@@ -235,6 +248,31 @@ func (sw *MultiplexSwitch) StopPeerForError(peer PeerConn, err error) {
 	sw.DialPeers(peer.SocketAddr())
 }
 
+// isSuperseded reports whether a different connection is registered under this
+// peer's ID. Two connections hold one peer ID while a reconnect races the
+// teardown of the connection it supersedes, and the peer set entry under that
+// ID belongs to whichever won
+func (sw *MultiplexSwitch) isSuperseded(peer PeerConn) bool {
+	registered := sw.peers.Get(peer.ID())
+
+	return registered != nil && registered != peer
+}
+
+// removeReactorPeerState walks the reactors' RemovePeer so the state their
+// InitPeer created is given back. Without it, an addPeer path that returns an
+// error after InitPeer has run leaves that state held for the lifetime of the
+// process.
+//
+// This is unconditional, including for a connection another has superseded: a
+// reactor keying its state on the connection, as mempoolIDs does, gives back
+// only what this connection took, and giving nothing back is a leak. A reactor
+// keying on the peer ID instead cannot tell the two apart either way
+func (sw *MultiplexSwitch) removeReactorPeerState(peer PeerConn, err error) {
+	for _, reactor := range sw.reactors {
+		reactor.RemovePeer(peer, err)
+	}
+}
+
 func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// Remove the peer from the transport
 	sw.transport.Remove(peer)
@@ -258,8 +296,20 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	}
 
 	// Alert the reactors of a peer removal
-	for _, reactor := range sw.reactors {
-		reactor.RemovePeer(peer, err)
+	sw.removeReactorPeerState(peer, err)
+
+	// A connection that lost the race for the peer set shares its peer ID with
+	// the connection that won it. Its own socket is closed above and its own
+	// reactor state is given back, but the entry under that ID is the live
+	// connection's, and this one never announced itself as connected
+	if sw.isSuperseded(peer) {
+		sw.Logger.Debug(
+			"not removing the peer set entry of a superseded connection",
+			"peer", peer,
+			"err", err,
+		)
+
+		return
 	}
 
 	// Removing a peer should go last to avoid a situation where a peer
@@ -871,6 +921,33 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
+	// Reject a connection sw.peers.Add would refuse anyway before any reactor
+	// sees it, so it neither starts nor leaves reactor state behind. The dial
+	// loop's own Has check races the dial it guards, so this is the first
+	// point where the check is worth anything. sw.peers.Add stays the
+	// authoritative one
+	if sw.peers.Has(p.ID()) {
+		return errDuplicatePeer
+	}
+
+	// Enforce the outbound limit where the peer is actually added. DialPeers
+	// only checks it when an address is queued, and NumOutbound cannot change
+	// while that loop runs, so a single batch of queued dials would otherwise
+	// overshoot the limit without bound. Persistent peers are exempt, as
+	// MaxNumOutboundPeers documents
+	if p.IsOutbound() && !sw.isPersistentPeer(p.ID()) {
+		if out := sw.peers.NumOutbound(); out >= sw.maxOutboundPeers {
+			sw.Logger.Info(
+				"Ignoring outbound connection: already have max outbound peers",
+				"have", out,
+				"max", sw.maxOutboundPeers,
+				"id", p.ID(),
+			)
+
+			return errMaxOutboundPeers
+		}
+	}
+
 	// Add some data to the peer, which is required by reactors.
 	for _, reactor := range sw.reactors {
 		p = reactor.InitPeer(p)
@@ -882,13 +959,31 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	if err := p.Start(); err != nil {
 		sw.Logger.Error("Error starting peer", "err", err, "peer", p)
 
+		sw.removeReactorPeerState(p, err)
+
 		return err
 	}
 
 	// Add the peer to the peer set. Do this before starting the reactors
 	// so that if Receive errors, we will find the peer and remove it.
 	if err := sw.peers.Add(p); err != nil {
+		sw.removeReactorPeerState(p, err)
+
 		return err
+	}
+
+	// The peer can have been stopped while it was being added: the recv
+	// routine p.Start() spawned reports an error to stopAndRemovePeer, which
+	// removes from the peer set last, so its Remove can have run before the
+	// Add above. Adding a stopped peer would hold its slot and its ID for the
+	// lifetime of the process, since nothing removes a peer twice.
+	//
+	// Its reactor state needs no unwinding here: whatever stopped the peer
+	// walked the reactors' RemovePeer on the way
+	if !p.IsRunning() {
+		sw.peers.Remove(p.ID())
+
+		return errPeerStopped
 	}
 
 	// Start all the reactor protocols on the peer.

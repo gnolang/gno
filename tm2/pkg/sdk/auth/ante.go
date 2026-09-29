@@ -309,9 +309,25 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			verifySig := !simulate ||
 				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-				return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				// Either payload rendering is accepted; std.VerifySignaturePayload
+				// holds the argument for why that is safe.
+				//
+				// Spelled out here rather than delegated to that helper because
+				// the payload is built above, before gas is charged and outside
+				// the simulate gate, and delegating would reorder those steps on
+				// the consensus path. The legacy encoding cannot fail once the
+				// one above succeeded -- the two differ only in the fee's plain
+				// fields -- so lerr carries nothing the first marshal did not
+				// already report. Gas was charged above for one verification.
+				legacySignBytes, lerr := tx.GetSignBytesLegacy(
+					newCtx.ChainID(),
+					accNum,
+					accSeq,
+				)
+				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
+					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				}
 			}
-
 			if isSession {
 				sigAcc.SetSequence(sigAcc.GetSequence() + 1)
 				ak.SetSessionAccount(newCtx, signerAddrs[i], sigAcc)
@@ -635,8 +651,9 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	return ctx.WithGasMeter(store.NewGasMeter(gasLimit))
 }
 
-// GetSignBytes returns a slice of bytes to sign over for a given transaction
-// and an account.
+// GetSignBytes returns the amount/gas rendering of the signature payload for a
+// given transaction and account. It is a signing helper only: a verifier must
+// also accept the gas_wanted/gas_fee rendering, see std.VerifySignaturePayload.
 func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]byte, error) {
 	var (
 		accNum      uint64

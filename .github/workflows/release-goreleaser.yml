@@ -70,6 +70,17 @@ jobs:
             echo "tag-version=master" >> "$GITHUB_OUTPUT"
           fi
 
+      # These builds are never releases, so the version compiled in must not
+      # parse: a parseable one (the dummy v0.0.0 tag used to leak in) would
+      # satisfy a governance halt_min_version. Same shape and same shell as
+      # gno.land/Makefile and release-docker.yml's fallback, pinned by
+      # gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser.
+      - name: Compute build version
+        id: build_version
+        run: |
+          BRANCH=$(git branch --show-current)
+          echo "version=${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
       - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         with:
           distribution: goreleaser-pro
@@ -79,3 +90,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }} # zizmor: ignore[secrets-outside-env]
           TAG_VERSION: ${{ steps.args.outputs.tag-version }}
+          BUILD_VERSION: ${{ steps.build_version.outputs.version }}

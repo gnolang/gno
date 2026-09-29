@@ -140,6 +140,23 @@ func TestBankKeeper(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSendCoinsEmitsTransferEvent(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	from := crypto.AddressFromPreimage([]byte("event-from"))
+	to := crypto.AddressFromPreimage([]byte("event-to"))
+	amount := std.NewCoins(std.NewCoin("ugnot", 5))
+	require.NoError(t, env.bankk.SetCoins(env.ctx, from, amount))
+
+	require.NoError(t, env.bankk.SendCoins(env.ctx, from, to, amount))
+	require.Equal(t, []sdk.Event{TransferEvent{
+		From:  from.String(),
+		To:    to.String(),
+		Coins: amount,
+	}}, env.ctx.EventLogger().Events())
+}
+
 func TestViewKeeper(t *testing.T) {
 	t.Parallel()
 
@@ -213,6 +230,19 @@ func TestSessionSendCoinsWithinSpendLimit(t *testing.T) {
 	assert.Equal(t, int64(900), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
 	assert.Equal(t, int64(100), env.bankk.GetCoins(ctx, recipient).AmountOf("foo"))
 	assert.Equal(t, int64(100), da.GetSpendUsed().AmountOf("foo"))
+}
+
+func TestSessionSendCoinsSelfTransferDoesNotSpendLimit(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx, masterAddr, da := setupSessionCtx(t, env,
+		std.NewCoins(std.NewCoin("foo", 1000)),
+		std.NewCoins(std.NewCoin("foo", 50)))
+
+	require.NoError(t, env.bankk.SendCoins(ctx, masterAddr, masterAddr, std.NewCoins(std.NewCoin("foo", 100))))
+	assert.Equal(t, int64(1000), env.bankk.GetCoins(ctx, masterAddr).AmountOf("foo"))
+	assert.Equal(t, int64(0), da.GetSpendUsed().AmountOf("foo"))
 }
 
 // TestSessionSendCoinsExceedingSpendLimit verifies SendCoins rejects when
@@ -742,6 +772,7 @@ func TestBankKeeperSendCoinsZero(t *testing.T) {
 		bankk.SendCoins(ctx, from, to, std.NewCoins(std.NewCoin("rstr", 1))),
 		std.RestrictedTransferError{},
 	)
+	require.Empty(t, ctx.EventLogger().Events())
 }
 
 // Test SetRestrictedDenoms

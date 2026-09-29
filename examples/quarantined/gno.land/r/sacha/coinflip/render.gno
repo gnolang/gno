@@ -4,8 +4,8 @@ import (
 	"chain"
 	"strconv"
 
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/md/v0"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/r/sys/users"
 )
 

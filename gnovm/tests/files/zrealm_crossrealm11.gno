@@ -6,7 +6,7 @@ import (
 	"chain/runtime"
 	"chain/runtime/unsafe"
 
-	ptests "gno.land/p/demo/tests"
+	ptests "gno.land/p/demo/tests/v0"
 	"gno.land/p/nt/ufmt/v0"
 	rtests "gno.land/r/tests/vm"
 )

@@ -22,7 +22,7 @@ Stay updated and connected with the Gno.land community:
 
 - [Twitter/X](https://twitter.com/_gnoland) - Latest announcements and updates
 - [GitHub](https://github.com/gnolang) - Repositories for all Gno.land projects
-- [Forum](https://gno.land/r/gnoland/boards2/v1) - Long-form discussions and proposals
+- [Forum](https://gno.land/r/gnoland/boards2/v0) - Long-form discussions and proposals
 
 ## Tools
 
@@ -37,7 +37,8 @@ Power up your Gno.land journey with these tools:
 ## Monitoring & Analytics
 
 - [Block Explorer](https://gnoscan.io/) - Transaction history and block details
-- [Network Status](https://status.gnoteam.com/) - Health and status of Gno.land networks
+- [Network Status](https://status.gno.land/) - Service health, incidents and scheduled maintenance
+- [Gnockpit](https://gnockpit.gno.land/) - Live mainnet dashboard: chain state, recent blocks, validators and peers
 
 ## Educational Resources
 
