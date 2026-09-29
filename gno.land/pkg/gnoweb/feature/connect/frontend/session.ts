@@ -19,16 +19,12 @@ export interface GnoSession {
 const STORAGE_KEY = "gnoweb:session:v1";
 const MAX_NAME_LENGTH = 64;
 
-const listeners = new Set<(session: GnoSession | null) => void>();
+// Each controller bundle embeds its own copy of this module, so a module-level
+// listener set would only reach its own bundle: changes travel on window.
+export const SESSION_EVENT = "gnoweb:session";
 
 function emit(session: GnoSession | null): void {
-	listeners.forEach((listener) => {
-		try {
-			listener(session);
-		} catch (err) {
-			console.warn("session: listener failed", err);
-		}
-	});
+	window.dispatchEvent(new CustomEvent(SESSION_EVENT, { detail: session }));
 }
 
 // Storage is same-origin, but it is still parsed input: a half-written or
@@ -82,8 +78,15 @@ export function clearSession(): void {
 export function onSessionChange(
 	fn: (session: GnoSession | null) => void,
 ): () => void {
-	listeners.add(fn);
-	return () => listeners.delete(fn);
+	const listener = (event: Event) => {
+		try {
+			fn((event as CustomEvent<GnoSession | null>).detail);
+		} catch (err) {
+			console.warn("session: listener failed", err);
+		}
+	};
+	window.addEventListener(SESSION_EVENT, listener);
+	return () => window.removeEventListener(SESSION_EVENT, listener);
 }
 
 export function findAnnounced(rdns: string): GnoWallet | undefined {
