@@ -19,9 +19,12 @@ type DocsSidebarItem struct {
 }
 
 // DocsSidebarSection groups items under a "## ..." heading from README.md.
+// HasActive marks the section holding the current page, the only one that
+// starts open.
 type DocsSidebarSection struct {
-	Title string
-	Items []DocsSidebarItem
+	Title     string
+	Items     []DocsSidebarItem
+	HasActive bool
 }
 
 // DocsData is the input to DocsView: rendered Markdown content plus the

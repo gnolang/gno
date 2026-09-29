@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/docs"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -40,6 +41,7 @@ func TestDocsHandlerRoutes(t *testing.T) {
 		route       string
 		wantStatus  int
 		wantSnippet string // substring expected in the rendered body
+		wantAbsent  string // substring that must not appear in the body
 	}{
 		{
 			name:        "index renders README",
@@ -109,6 +111,19 @@ func TestDocsHandlerRoutes(t *testing.T) {
 			wantStatus:  http.StatusOK,
 			wantSnippet: `href="/docs/builders/getting-started" aria-current="page"`,
 		},
+		{
+			// The index's own headings are the section captions.
+			name:       "index has no page outline",
+			route:      "/docs",
+			wantStatus: http.StatusOK,
+			wantAbsent: ">On this page<",
+		},
+		{
+			name:        "unlisted page keeps its outline",
+			route:       "/docs/MANIFESTO",
+			wantStatus:  http.StatusOK,
+			wantSnippet: ">On this page<",
+		},
 	}
 
 	for _, tc := range cases {
@@ -130,7 +145,33 @@ func TestDocsHandlerRoutes(t *testing.T) {
 					"expected %q in body", tc.wantSnippet,
 				)
 			}
+			if tc.wantAbsent != "" {
+				assert.NotContains(t, rec.Body.String(), tc.wantAbsent)
+			}
 		})
+	}
+}
+
+// Only the section holding the current page starts open.
+func TestBuildSidebarHasActive(t *testing.T) {
+	t.Parallel()
+
+	toc := []*components.TocItem{{Title: "Intro", ID: "intro"}}
+
+	sections, matched := buildSidebar("builders/getting-started.md", toc)
+	require.True(t, matched)
+	var open []string
+	for _, sec := range sections {
+		if sec.HasActive {
+			open = append(open, sec.Title)
+		}
+	}
+	assert.Equal(t, []string{"Build on Gno.land"}, open)
+
+	sections, matched = buildSidebar("README.md", toc)
+	assert.False(t, matched)
+	for _, sec := range sections {
+		assert.False(t, sec.HasActive, sec.Title)
 	}
 }
 

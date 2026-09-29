@@ -2824,6 +2824,12 @@ main.dev-mode .b-toc a {
 	}
 }
 
+/* The standalone outline wraps its label in a landmark; the label keeps the
+   position it had as the rail's first child. */
+.b-docs-page-outline > .b-docs-heading {
+	margin-block-start: 0;
+}
+
 /* Section captions sit one level under the rail headings. */
 .b-docs-section > summary {
 	color: var(--s-color-text-primary);
@@ -2872,8 +2878,14 @@ main.dev-mode .b-toc a {
 	margin-block-start: var(--g-space-1);
 	font-size: var(--g-font-size-90);
 
+	/* The shared .b-toc margins would pad the band unevenly: the nested list's
+	   own bottom margin, and the one each item after the first carries. */
 	& > .b-toc {
-		margin-block-start: 0;
+		margin-block: 0;
+
+		& > :last-child {
+			margin-block-end: 0;
+		}
 	}
 }
 

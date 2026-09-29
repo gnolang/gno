@@ -170,9 +170,11 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ComponentContent: components.NewReaderComponent(&content),
 		Sections:         sections,
 	}
-	if !matched {
-		// The page is reachable but absent from README.md's lists, so no tree
-		// entry can carry its outline. Render it on its own rather than drop it.
+	// The page is reachable but absent from README.md's lists, so no tree
+	// entry can carry its outline. Render it on its own rather than drop it.
+	// The index is the exception: its headings are the section captions the
+	// tree already shows.
+	if !matched && resolvedRel != "README.md" {
 		docsData.PageToc = toc.Items
 	}
 	indexData.BodyView = components.DocsView(docsData)
@@ -351,8 +353,8 @@ func shouldSkipLink(target string) bool {
 // matching the currently rendered page is flagged Active and carries the page's
 // own outline. currentRel is the embed-relative path of the current document,
 // e.g. "builders/getting-started.md". The bool reports whether any item
-// matched: 11 of the 44 embedded pages are not listed in README.md, and those
-// still need their outline rendered somewhere.
+// matched: some embedded pages are not listed in README.md, and those still
+// need their outline rendered somewhere.
 func buildSidebar(currentRel string, pageToc []*components.TocItem) ([]components.DocsSidebarSection, bool) {
 	var matched bool
 	parsed := docs.Sidebar()
@@ -383,6 +385,7 @@ func buildSidebar(currentRel string, pageToc []*components.TocItem) ([]component
 			if active {
 				item.Toc = pageToc
 				matched = true
+				viewSec.HasActive = true
 			}
 			viewSec.Items = append(viewSec.Items, item)
 		}
