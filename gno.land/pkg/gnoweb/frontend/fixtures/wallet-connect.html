@@ -35,10 +35,18 @@
       </button>
       <div id="identity-menu" data-connect-target="menu" hidden>
         <div role="group" aria-label="Account">
+          <span data-connect-target="menu-avatar"></span>
           <a data-connect-target="username-link" hidden></a>
-          <span data-connect-target="full-address"></span>
-          <span data-connect-target="balance" hidden></span>
-          <span data-connect-target="account-line" hidden></span>
+          <span data-connect-target="short-address"></span>
+          <span data-connect-target="via"></span>
+          <div data-connect-target="balance-block" hidden>
+            <span data-connect-target="amount"></span> GNOT
+            <span data-connect-target="extra" hidden></span>
+          </div>
+          <dl data-connect-target="account-rows" hidden>
+            <dt>Account</dt><dd data-connect-target="account-number"></dd>
+            <dt>Sequence</dt><dd data-connect-target="sequence"></dd>
+          </dl>
         </div>
         <div role="menu" aria-label="Identity">
           <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>

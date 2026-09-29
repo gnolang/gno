@@ -75,23 +75,36 @@ export function parseAccount(
 	};
 }
 
+// formatGnot is the ugnot amount in GNOT, without the unit.
 export function formatGnot(ugnot: bigint): string {
 	const whole = (ugnot / 1_000_000n).toLocaleString("en-US");
 	const frac = ugnot % 1_000_000n;
-	if (frac === 0n) return `${whole} GNOT`;
-	return `${whole}.${frac.toString().padStart(6, "0").replace(/0+$/, "")} GNOT`;
+	if (frac === 0n) return whole;
+	return `${whole}.${frac.toString().padStart(6, "0").replace(/0+$/, "")}`;
 }
 
-export function accountView(account: Account | null): {
-	balance: string;
-	line: string | null;
-} {
-	if (!account) return { balance: "0 GNOT · not on chain yet", line: null };
+export interface AccountView {
+	amount: string; // GNOT, without the unit
+	extra: string | null; // other tokens, or "not on chain yet"
+	accountNumber: string | null;
+	sequence: string | null;
+}
+
+export function accountView(account: Account | null): AccountView {
+	if (!account) {
+		return {
+			amount: "0",
+			extra: "Not on chain yet",
+			accountNumber: null,
+			sequence: null,
+		};
+	}
 	const n = account.otherDenoms;
-	const extra = n === 0 ? "" : ` · +${n} other token${n === 1 ? "" : "s"}`;
 	return {
-		balance: `${formatGnot(account.ugnot)}${extra}`,
-		line: `Account ${account.accountNumber} · Sequence ${account.sequence}`,
+		amount: formatGnot(account.ugnot),
+		extra: n === 0 ? null : `+${n} other token${n === 1 ? "" : "s"}`,
+		accountNumber: account.accountNumber,
+		sequence: account.sequence,
 	};
 }
 
