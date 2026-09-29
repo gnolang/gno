@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gnolang/faucet"
-	tm2Client "github.com/gnolang/faucet/client/http"
 	"github.com/gnolang/faucet/config"
 	"github.com/gnolang/faucet/estimate/static"
 	"github.com/gnolang/gno/gno.land/pkg/log"
@@ -237,10 +236,9 @@ func serveFaucet(
 		return errors.New("invalid remote address")
 	}
 
-	// Create the client (HTTP)
-	cli, err := tm2Client.NewClient(cfg.remote)
+	cli, err := newNodeClient(cfg.remote)
 	if err != nil {
-		return fmt.Errorf("unable to create TM2 client, %w", err)
+		return err
 	}
 
 	faucetOpts := []faucet.Option{
