@@ -66,6 +66,8 @@
       data-controller="wallet-launch" data-action-function-target="function-execute">
       <input type="text" data-action-function-param-value="to" value="g1abc"
         data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" />
+      <button type="button" class="b-input__me" hidden data-action-function-target="me"
+        data-action="click->action-function#fillMe" data-action-function-name-param="to">me</button>
       <input type="text" data-action-function-param-value="amount" value="42"
         data-action-function-target="param-input" data-action="input->action-function#updateAllArgs" />
     </form>

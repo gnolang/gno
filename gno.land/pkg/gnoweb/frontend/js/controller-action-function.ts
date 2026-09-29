@@ -1,4 +1,9 @@
 import {
+	type GnoSession,
+	onSessionChange,
+	readSession,
+} from "../../feature/connect/frontend/session.js";
+import {
 	type Account,
 	commandNumbers,
 	isAddress,
@@ -46,6 +51,30 @@ export class ActionFunctionController extends BaseController {
 
 		// Dispatch initial params state for wallet integration
 		this._dispatchParamsChanged();
+
+		this._showMeButtons(readSession());
+		onSessionChange((session) => this._showMeButtons(session));
+	}
+
+	private _showMeButtons(session: GnoSession | null): void {
+		this.getTargets("me").forEach((button) => {
+			button.hidden = !session;
+		});
+	}
+
+	// Fill one address parameter with the connected address (DOM action).
+	// A query function's live result evaluates the args as Gno, so it gets a
+	// string literal; a call's args are passed as raw strings.
+	public fillMe(event: Event & { params?: Record<string, unknown> }): void {
+		const session = readSession();
+		const name = String(event.params?.name ?? "");
+		const input = this._paramInputs.find(
+			(inp) => this.getValue("param", inp) === name,
+		);
+		if (!session || !input) return;
+		const isQuery = this.getTarget("qeval-result") !== null;
+		input.value = isQuery ? `"${session.address}"` : session.address;
+		input.dispatchEvent(new Event("input", { bubbles: true }));
 	}
 
 	// listen for events from action-header controller
