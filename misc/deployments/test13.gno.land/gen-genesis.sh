@@ -22,8 +22,8 @@
 # "hardfork-ready":
 #
 #   1. FILTERED_PACKAGES adds the four packages that gnoland1 doesn't ship
-#      (p/onbloc/{uint256,int256,json}, r/sys/validators/v3) and one realm
-#      (r/demo/defi/grc20reg) we want available post-fork.
+#      (p/onbloc/{uint256,int256,json}, r/sys/validators/v0) and one realm
+#      (r/nt/grc20reg/v0) we want available post-fork.
 #   2. INITIAL_VALSET is the test-13 valset rather than gnoland1's launch
 #      7. Power 10 each — chosen for visibility in tooling that displays
 #      the ratio of votes; consensus only cares about relative weight.
@@ -105,11 +105,11 @@ HALT_HEIGHT=1485629
 #     test-13 but absent from gnoland1's source genesis (uint256 is a
 #     transitive dep of int256). gnogenesis txs add packages resolves the
 #     full dep graph from these entries.
-#   - r/sys/validators/v3: PR #5485's valset realm. Master's EndBlocker
+#   - r/sys/validators/v0: PR #5485's valset realm. Master's EndBlocker
 #     reads valset state from this realm's params; without it on chain,
 #     post-genesis valset changes can't happen. Mainnet gnoland1 doesn't
 #     deploy it, so we addpkg it here.
-#   - r/demo/defi/grc20reg: GRC20 token registry; not in gnoland1's filter.
+#   - r/nt/grc20reg/v0: GRC20 token registry; not in gnoland1's filter.
 FILTERED_PACKAGES=(
   ./gno.land/r/sys/...
   ./gno.land/r/gov/...
@@ -122,8 +122,8 @@ FILTERED_PACKAGES=(
   ./gno.land/p/onbloc/uint256
   ./gno.land/p/onbloc/int256
   ./gno.land/p/onbloc/json
-  ./gno.land/r/sys/validators/v3
-  ./gno.land/r/demo/defi/grc20reg
+  ./gno.land/r/sys/validators/v0
+  ./gno.land/r/nt/grc20reg/v0
 )
 
 # Initial test-13 validator set. Format: "name power address pub_key".

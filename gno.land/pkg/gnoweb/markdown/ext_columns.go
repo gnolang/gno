@@ -124,7 +124,7 @@ func parseLineTag(line []byte) GnoColumnTag {
 		// above. The separator has no content and no end tag, so a bare
 		// `<gno-columns-sep>` is a start token — and it is the spelling
 		// every emitter in the tree actually produces (p/moul/md's
-		// Columns/ColumnsN, p/demo/blog, and hand-written pages such as
+		// Columns/ColumnsN, p/gnoland/blog/v0, and hand-written pages such as
 		// r/gnoland/home).
 		//
 		// Rejecting it left the line to be parsed as a CommonMark type-7
@@ -133,7 +133,7 @@ func parseLineTag(line []byte) GnoColumnTag {
 		// HTML is disabled, as it is by default. Usually that was the
 		// following column's first line, but when a separator is followed
 		// immediately by `</gno-columns>` (the padded-flush shape
-		// p/demo/blog emits) it ate the close tag, leaving the block open
+		// p/gnoland/blog/v0 emits) it ate the close tag, leaving the block open
 		// and pulling the rest of the document inside the column.
 		if tok.Type == html.SelfClosingTagToken || tok.Type == html.StartTagToken {
 			return GnoColumnTagSep

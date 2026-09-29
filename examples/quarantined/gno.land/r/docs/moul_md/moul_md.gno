@@ -1,8 +1,8 @@
 package moul_md
 
-import "gno.land/p/moul/md"
+import "gno.land/p/moul/md/v0"
 
-// This package demonstrates the usage of the gno.land/p/moul/md package.
+// This package demonstrates the usage of the gno.land/p/moul/md/v0 package.
 
 func Render(path string) string {
 	sections := []string{
@@ -29,7 +29,7 @@ func Render(path string) string {
 
 func renderIntro() string {
 	return md.H1("Package Demo: `p/moul/md` ") +
-		md.Paragraph("This document demonstrates the features of the "+md.Link("gno.land/p/moul/md", "https://gno.land/p/moul/md")+" package, showing both the source code and the rendered result for each feature.") +
+		md.Paragraph("This document demonstrates the features of the "+md.Link("gno.land/p/moul/md/v0", "https://gno.land/p/moul/md/v0")+" package, showing both the source code and the rendered result for each feature.") +
 		"\n" +
 		md.Blockquote(md.Bold("Note:")+" The md package provides helper functions to generate markdown programmatically, making it easier to create dynamic documentation and content.") +
 		"\n"
@@ -403,7 +403,7 @@ func renderBestPractices() string {
 
 func renderSeeAlso() string {
 	links := []string{
-		md.Link("gno.land/p/moul/md", "https://gno.land/p/moul/md") + " - The md package source code",
+		md.Link("gno.land/p/moul/md/v0", "https://gno.land/p/moul/md/v0") + " - The md package source code",
 		md.Link("Markdown on Gno", "https://gno.land/r/docs/markdown") + " - Comprehensive guide on Gno Flavored Markdown syntax",
 	}
 

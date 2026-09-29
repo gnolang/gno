@@ -17,9 +17,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	p2pcfg "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	p2pMock "github.com/gnolang/gno/tm2/pkg/p2p/mock"
 	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // testP2PConfig returns a configuration for testing the peer-to-peer layer
@@ -255,15 +257,15 @@ func TestMempoolIDsBasic(t *testing.T) {
 
 	ids := newMempoolIDs()
 
-	id := p2pTypes.GenerateNodeKey().ID()
+	peer := p2pMock.GeneratePeers(t, 1)[0]
 
-	ids.ReserveForPeer(id)
-	assert.EqualValues(t, 1, ids.GetForPeer(id))
-	ids.Reclaim(id)
+	ids.ReserveForPeer(peer)
+	assert.EqualValues(t, 1, ids.GetForPeer(peer))
+	ids.Reclaim(peer)
 
-	ids.ReserveForPeer(id)
-	assert.EqualValues(t, 2, ids.GetForPeer(id))
-	ids.Reclaim(id)
+	ids.ReserveForPeer(peer)
+	assert.EqualValues(t, 2, ids.GetForPeer(peer))
+	ids.Reclaim(peer)
 }
 
 func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
@@ -276,14 +278,88 @@ func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
 	// 0 is already reserved for UnknownPeerID
 	ids := newMempoolIDs()
 
+	// Reservations are keyed on the connection, so a distinct connection is
+	// all it takes to consume an ID
 	for range maxActiveIDs - 1 {
-		id := p2pTypes.GenerateNodeKey().ID()
-		ids.ReserveForPeer(id)
+		ids.ReserveForPeer(&p2pMock.Peer{})
 	}
 
 	assert.Panics(t, func() {
-		id := p2pTypes.GenerateNodeKey().ID()
-
-		ids.ReserveForPeer(id)
+		ids.ReserveForPeer(&p2pMock.Peer{})
 	})
+}
+
+func TestMempoolIDsReserveIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	ids := newMempoolIDs()
+
+	peer := p2pMock.GeneratePeers(t, 1)[0]
+
+	ids.ReserveForPeer(peer)
+	first := ids.GetForPeer(peer)
+	require.NotEqual(t, UnknownPeerID, first, "the first reservation took an ID")
+	require.Len(t, ids.activeIDs, 2) // UnknownPeerID and first
+
+	// InitPeer runs once per connection, so a second reservation for the same
+	// connection must not take a second ID.
+	ids.ReserveForPeer(peer)
+	assert.Equal(t, first, ids.GetForPeer(peer))
+	assert.Len(t, ids.activeIDs, 2)
+
+	ids.Reclaim(peer)
+	assert.Len(t, ids.activeIDs, 1) // UnknownPeerID
+	assert.Empty(t, ids.peerMap)
+}
+
+func TestMempoolIDsSupersededConnKeepsItsOwnID(t *testing.T) {
+	t.Parallel()
+
+	ids := newMempoolIDs()
+
+	conns := p2pMock.GeneratePeers(t, 2)
+	conn1, conn2 := conns[0], conns[1]
+
+	// conn2 is a reconnect from the same node, so it carries the same peer ID,
+	// and reaches InitPeer before the switch has torn conn1 down.
+	id := conn1.ID()
+	conn2.IDFn = func() p2pTypes.ID { return id }
+
+	ids.ReserveForPeer(conn1)
+	ids.ReserveForPeer(conn2)
+
+	first, second := ids.GetForPeer(conn1), ids.GetForPeer(conn2)
+	require.NotEqual(t, UnknownPeerID, first)
+	require.NotEqual(t, UnknownPeerID, second)
+	assert.NotEqual(t, first, second, "connections sharing a peer ID share an ID")
+
+	// conn1's teardown gives back conn1's ID and leaves the connection that
+	// superseded it able to gossip under an ID of its own.
+	ids.Reclaim(conn1)
+	assert.Equal(t, second, ids.GetForPeer(conn2))
+	assert.NotEqual(t, UnknownPeerID, ids.GetForPeer(conn2))
+
+	ids.Reclaim(conn2)
+	assert.Len(t, ids.activeIDs, 1) // UnknownPeerID
+	assert.Empty(t, ids.peerMap)
+}
+
+func TestMempoolIDsRemovedBeforeAdded(t *testing.T) {
+	t.Parallel()
+
+	mempool, cleanup := newMempoolWithApp(proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication()))
+	defer cleanup()
+
+	memR := NewReactor(memcfg.TestMempoolConfig(), mempool)
+
+	// A connection that fails on its first read is removed from every reactor
+	// before the switch reaches AddPeer, so RemovePeer runs in between.
+	for _, peer := range p2pMock.GeneratePeers(t, 100) {
+		memR.InitPeer(peer)
+		memR.RemovePeer(peer, nil)
+		memR.AddPeer(peer)
+	}
+
+	assert.Len(t, memR.ids.activeIDs, 1) // UnknownPeerID
+	assert.Empty(t, memR.ids.peerMap)
 }

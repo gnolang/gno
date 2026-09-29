@@ -74,10 +74,6 @@ func TestCodecParity_VM(t *testing.T) {
 			PkgPath:  "gno.land/r/demo/foo",
 			PkgHash:  "b1946ac92492d2347c6235b4d2611184",
 		}},
-		{"MsgDisablePackage", &vm.MsgDisablePackage{
-			Approver: caller,
-			PkgPath:  "gno.land/r/demo/foo",
-		}},
 		{"MsgRejectPackage", &vm.MsgRejectPackage{
 			Sender:  caller,
 			PkgPath: "gno.land/r/demo/foo",

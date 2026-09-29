@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -454,13 +455,13 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 	}
 }
 
-// TestMsgEnableDisablePackage covers the message contract for the two inert-flow
-// messages, which had no direct test.
+// TestMsgEnablePackage covers the message contract for the inert-flow enable
+// message, which had no direct test.
 //
-// Approver is the whole authorization for both -- the keeper checks it against
+// Approver is the whole authorization -- the keeper checks it against
 // params.PkgApprovers -- so GetSigners returning it is what makes the ante
 // verify the right signature. A wrong answer there is not a formatting bug.
-func TestMsgEnableDisablePackage(t *testing.T) {
+func TestMsgEnablePackage(t *testing.T) {
 	t.Parallel()
 
 	approver := crypto.AddressFromPreimage([]byte("approver"))
@@ -482,26 +483,17 @@ func TestMsgEnableDisablePackage(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 
-				// Both messages carry the same two fields and the same rules, so
-				// a divergence between them is itself worth catching.
-				enable := MsgEnablePackage{Approver: tc.approver, PkgPath: tc.path}
-				disable := MsgDisablePackage{Approver: tc.approver, PkgPath: tc.path}
-
-				eErr, dErr := enable.ValidateBasic(), disable.ValidateBasic()
+				err := MsgEnablePackage{Approver: tc.approver, PkgPath: tc.path}.ValidateBasic()
 				if tc.wantErr == "" {
-					assert.NoError(t, eErr)
-					assert.NoError(t, dErr)
+					assert.NoError(t, err)
 					return
 				}
-				require.Error(t, eErr)
-				require.Error(t, dErr)
+				require.Error(t, err)
 				// The detail lives in the wrapped trace, not in Error(): these
 				// errors format as the generic "invalid address error" and
 				// "invalid package path". Asserting on Error() alone would not
 				// distinguish which field was missing.
-				assert.Contains(t, fmt.Sprintf("%+v", eErr), tc.wantErr)
-				assert.Contains(t, fmt.Sprintf("%+v", dErr), tc.wantErr,
-					"disable must reject the same input as enable, for the same reason")
+				assert.Contains(t, fmt.Sprintf("%+v", err), tc.wantErr)
 			})
 		}
 	})
@@ -509,11 +501,8 @@ func TestMsgEnableDisablePackage(t *testing.T) {
 	t.Run("GetSigners is the approver", func(t *testing.T) {
 		t.Parallel()
 
-		enable := MsgEnablePackage{Approver: approver, PkgPath: path}
-		disable := MsgDisablePackage{Approver: approver, PkgPath: path}
-
-		assert.Equal(t, []crypto.Address{approver}, enable.GetSigners())
-		assert.Equal(t, []crypto.Address{approver}, disable.GetSigners())
+		assert.Equal(t, []crypto.Address{approver},
+			MsgEnablePackage{Approver: approver, PkgPath: path}.GetSigners())
 	})
 
 	t.Run("GetSignBytes covers both fields", func(t *testing.T) {
@@ -544,7 +533,33 @@ func TestMsgEnableDisablePackage(t *testing.T) {
 		// The ante handler and the session deny-list both key off these.
 		assert.Equal(t, "vm", MsgEnablePackage{}.Route())
 		assert.Equal(t, "enable_package", MsgEnablePackage{}.Type())
-		assert.Equal(t, "vm", MsgDisablePackage{}.Route())
-		assert.Equal(t, "disable_package", MsgDisablePackage{}.Type())
+	})
+
+	t.Run("every field survives the wire", func(t *testing.T) {
+		t.Parallel()
+
+		// A field the BINARY encoding drops is not a cosmetic bug: the signer
+		// signs GetSignBytes (JSON) over the full message, the node recomputes
+		// it from what it decoded, and the two differ -- so the transaction is
+		// rejected as "signature verification failed; verify correct account,
+		// sequence, and chain-id", naming none of the three.
+		//
+		// The binary path is generated (pb3_gen.go, `make -C misc/genproto2`),
+		// so adding a field to this struct without regenerating produces
+		// exactly that. PkgHeight shipped that way until an integration test
+		// caught it.
+		msg := MsgEnablePackage{
+			Approver:  approver,
+			PkgPath:   path,
+			PkgHash:   "deadbeef",
+			PkgHeight: 999,
+		}
+		bz, err := amino.Marshal(msg)
+		require.NoError(t, err)
+		var back MsgEnablePackage
+		require.NoError(t, amino.Unmarshal(bz, &back))
+		assert.Equal(t, msg, back)
+		assert.Equal(t, msg.GetSignBytes(), back.GetSignBytes(),
+			"what the node verifies must be what the approver signed")
 	})
 }

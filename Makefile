@@ -92,12 +92,13 @@ GO_FIX_FLAGS ?= -omitzero=false
 fix:
 	CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./...
 	@# The misc/ entries must track the ci-dir-misc.yml matrix, which lints
-	@# each of them as its own module. Only those with their own go.mod need
+	@# each of them as its own module, plus gnoe2e, which CI lints from its own
+	@# workflow rather than that matrix. Only those with their own go.mod need
 	@# listing -- genproto, genstd and goscan have none, so the root `go fix
 	@# ./...` above already covers them. audit-pattern-harness was linted by CI
 	@# and missing here, so its CI failure told the reader to run a target that
 	@# could not fix it.
-	@for d in $(wildcard contribs/*/) misc/audit-pattern-harness/ misc/autocounterd/ misc/loop/; do \
+	@for d in $(wildcard contribs/*/) misc/audit-pattern-harness/ misc/autocounterd/ misc/gnoe2e/ misc/loop/; do \
 		echo "==> go fix $$d"; \
 		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
 	done

@@ -202,10 +202,13 @@ func Origin(cur realm) string { return origin }
 	//
 	// The hash is computed from the source that was submitted, which is how a
 	// real approver gets it -- they saw the transaction. It matches the parked
-	// blob because PackageContentHash excludes gnomod.toml, the only file the
-	// keeper stamps at submit.
+	// blob because PackageContentHash resets the gnomod.toml fields the keeper
+	// stamps at submit before hashing it, so the submitted copy and the stored
+	// copy canonicalize to the same bytes.
+	submittedHash, err := vm.PackageContentHash(submitted)
+	require.NoError(t, err)
 	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
-		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(submitted),
+		Approver: approverAddr, PkgPath: path, PkgHash: submittedHash,
 	}}, approver)
 	require.True(t, enableResp.IsOK(), "approver should be able to enable: %s", enableResp.Log)
 
@@ -301,11 +304,112 @@ func Hello(cur realm) string { return "hi" }
 
 	collectorAfterSubmit := ugnotBalance(t, app, collectorAddr)
 
+	submittedHash, err := vm.PackageContentHash(submitted)
+	require.NoError(t, err)
 	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
-		Approver: approverAddr, PkgPath: path, PkgHash: vm.PackageContentHash(submitted),
+		Approver: approverAddr, PkgPath: path, PkgHash: submittedHash,
 	}}, approver)
 	require.True(t, enableResp.IsOK(), "enable should succeed: %s", enableResp.Log)
 
 	assert.Equal(t, collectorAfterSubmit, ugnotBalance(t, app, collectorAddr),
 		"enable must not charge again; the charge is a submit-time cost")
+}
+
+// TestInertPrivateRealmSurvivesAStrangersSubmission drives the creator binding
+// on a live private realm through real signed transactions.
+//
+// The keeper's own tests call AddPackage directly, which cannot show what this
+// one does: the stranger's submission is a well-formed, correctly signed,
+// fee-paying MsgAddPackage that nothing outside the keeper objects to. Namespace
+// enforcement is off, which is the state this repo's genesis produces, so the
+// keeper's refusal is the only thing between any address and the realm -- and
+// after it, the realm still answers with the owner's identity and serves the
+// owner's source.
+func TestInertPrivateRealmSurvivesAStrangersSubmission(t *testing.T) {
+	t.Parallel()
+
+	const path = "gno.land/r/demo/privowned"
+	// init() records who the VM believes is running it, and Which marks which
+	// version is live. The two submissions differ in nothing else, so a takeover
+	// would be invisible without them.
+	pkgFor := func(which string) *std.MemPackage {
+		return &std.MemPackage{
+			Name: "privowned",
+			Path: path,
+			Files: []*std.MemFile{
+				{Name: "gnomod.toml", Body: "module = \"" + path + "\"\ngno = \"0.9\"\nprivate = true\n"},
+				{Name: "privowned.gno", Body: `package privowned
+
+import "chain/runtime/unsafe"
+
+var origin string
+
+func init() {
+	origin = string(unsafe.OriginCaller())
+}
+
+func Origin(cur realm) string { return origin }
+
+func Which(cur realm) string { return "` + which + `" }
+`},
+			},
+		}
+	}
+
+	keys := getDummyKeys(t, 4)
+	owner, approver, stranger, caller := keys[0], keys[1], keys[2], keys[3]
+	ownerAddr := owner.PubKey().Address()
+	approverAddr := approver.PubKey().Address()
+	strangerAddr := stranger.PubKey().Address()
+
+	vmGen := vm.DefaultGenesisState()
+	vmGen.Params.CodeSubmissionPolicy = "inert"
+	vmGen.Params.PkgApprovers = []crypto.Address{approverAddr}
+
+	app, deliver := inertChain(t, vmGen, keys)
+
+	// The owner parks their private realm and the approver activates it.
+	ownerPkg := pkgFor("owner")
+	resp := deliver(t, []std.Msg{vm.MsgAddPackage{Creator: ownerAddr, Package: ownerPkg}}, owner)
+	require.True(t, resp.IsOK(), "owner submit: %s", resp.Log)
+	ownerHash, err := vm.PackageContentHash(ownerPkg)
+	require.NoError(t, err)
+	resp = deliver(t, []std.Msg{vm.MsgEnablePackage{
+		Approver: approverAddr, PkgPath: path, PkgHash: ownerHash,
+	}}, approver)
+	require.True(t, resp.IsOK(), "owner enable: %s", resp.Log)
+
+	// The stranger submits their own bytes at the owner's live private path.
+	strangerPkg := pkgFor("stranger")
+	submitResp := deliver(t, []std.Msg{vm.MsgAddPackage{
+		Creator: strangerAddr, Package: strangerPkg,
+	}}, stranger)
+	require.False(t, submitResp.IsOK(),
+		"a stranger's submission over a live private realm must be refused")
+	assert.Contains(t, submitResp.Log, ownerAddr.String(),
+		"the refusal must name the address the realm belongs to")
+
+	// Nothing was queued for an approver to activate either.
+	strangerHash, err := vm.PackageContentHash(strangerPkg)
+	require.NoError(t, err)
+	enableResp := deliver(t, []std.Msg{vm.MsgEnablePackage{
+		Approver: approverAddr, PkgPath: path, PkgHash: strangerHash,
+	}}, approver)
+	require.False(t, enableResp.IsOK(), "there must be nothing parked to enable")
+	assert.Contains(t, enableResp.Log, "no inert package at path",
+		"the enable must fail for want of a parked package, not for another reason")
+
+	// The realm is still the owner's: the identity init() recorded, and the code.
+	callResp := deliver(t, []std.Msg{vm.MsgCall{
+		Caller: caller.PubKey().Address(), PkgPath: path, Func: "Origin",
+	}}, caller)
+	require.True(t, callResp.IsOK(), "the owner's realm must still be callable: %s", callResp.Log)
+	assert.Contains(t, string(callResp.Data), ownerAddr.String())
+	assert.NotContains(t, string(callResp.Data), strangerAddr.String(),
+		"a stranger must not become the origin caller of the owner's live private realm")
+
+	qr := app.Query(abci.RequestQuery{Path: "vm/qfile", Data: []byte(path + "/privowned.gno")})
+	require.True(t, qr.IsOK(), "qfile: %v", qr.ResponseBase.Error)
+	assert.Contains(t, string(qr.Data), `return "owner"`,
+		"qfile must keep serving the owner's source at the owner's path")
 }

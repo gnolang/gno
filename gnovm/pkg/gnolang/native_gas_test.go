@@ -1,6 +1,10 @@
 package gnolang
 
 import (
+	"math"
+	"os"
+	"regexp"
+	"strconv"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/store/types"
@@ -229,6 +233,161 @@ func TestChargeNativeGas_SliceTotalBytes(t *testing.T) {
 	}
 }
 
+func TestModExpWork(t *testing.T) {
+	// units(expLen) * (modExpFloorWords + ceil(modLen/8)^2), where units() is
+	// the modular-multiplication count of whichever expNN routine runs.
+	const (
+		gen  = modExpGenericPerBit * 8 // generic loop, per exponent byte
+		mont = modExpMontPerWord       // Montgomery, per exponent word
+	)
+	cases := []struct {
+		expLen, modLen int64
+		want           int64
+	}{
+		{0, 256, 0}, // exponent 0: Exp returns immediately
+		{256, 0, 0}, // empty modulus: X_modExp short-circuits
+		{0, 0, 0},   //
+		{1, 8, gen * (modExpFloorWords + 1)},
+		{1, 1, gen * (modExpFloorWords + 1)}, // sub-word modulus still costs one word
+		{1, 9, gen * (modExpFloorWords + 4)}, // 9 bytes rounds up to 2 words
+
+		// Either side of the one-word exponent crossover. big.Int runs the
+		// generic loop at 8 bytes and Montgomery at 9. The two must not cross:
+		// an 8-byte exponent measures more expensive than a 9-byte one, so
+		// charging it less would be a real undercharge.
+		{7, 256, 7 * gen * (modExpFloorWords + 32*32)},
+		{8, 256, 8 * gen * (modExpFloorWords + 32*32)},
+		{9, 256, (modExpMontSetup + 2*mont) * (modExpFloorWords + 32*32)},
+		{16, 256, (modExpMontSetup + 2*mont) * (modExpFloorWords + 32*32)},
+		{17, 256, (modExpMontSetup + 3*mont) * (modExpFloorWords + 32*32)},
+
+		// The shape the production slope is anchored to. Whole multiples of a
+		// word are unaffected by the rounding.
+		{256, 256, (modExpMontSetup + 32*mont) * (modExpFloorWords + 32*32)},
+		{1024, 1024, (modExpMontSetup + 128*mont) * (modExpFloorWords + 128*128)},
+
+		// Operand lengths reach the gas layer before crypto/modexp rejects
+		// them, so the metric must saturate rather than wrap.
+		{500_000_000, 500_000_000, modExpWorkSaturation},
+		{1, 500_000_000, modExpWorkSaturation},
+		{math.MaxInt64, math.MaxInt64, modExpWorkSaturation},
+		// A huge exponent against a 1-byte modulus stays under the saturation
+		// point: the quadratic term is 1, so only the floor term applies. The
+		// exponent is clamped to maxOperandLenForWork (1<<28) first — flattening
+		// above that is safe because X_modExp rejects anything past 1024 bytes
+		// and returns without doing the work at all.
+		{
+			500_000_000, 1,
+			(modExpMontSetup + ((1 << 28) / 8 * mont)) * (modExpFloorWords + 1),
+		},
+	}
+	for _, c := range cases {
+		if got := modExpWork(c.expLen, c.modLen); got != c.want {
+			t.Errorf("modExpWork(%d, %d) = %d, want %d", c.expLen, c.modLen, got, c.want)
+		}
+	}
+}
+
+// TestModExpWorkNoCrossoverInversion pins the property the crossover exists to
+// provide: cost must never fall as the exponent grows by one byte. The metric
+// this replaced charged 8*len(exp) uniformly, which priced an 8-byte exponent
+// below a 9-byte one even though big.Int's generic loop makes 8 bytes the more
+// expensive of the two.
+func TestModExpWorkNoCrossoverInversion(t *testing.T) {
+	for modLen := int64(1); modLen <= 1024; modLen *= 2 {
+		for expLen := int64(1); expLen < 64; expLen++ {
+			prev := modExpWork(expLen-1, modLen)
+			if got := modExpWork(expLen, modLen); got < prev {
+				t.Fatalf("modExpWork(%d, %d) = %d < modExpWork(%d, %d) = %d",
+					expLen, modLen, got, expLen-1, modLen, prev)
+			}
+		}
+	}
+}
+
+// TestModExpWorkSlopeProductFitsInt64 guards the unguarded `gi.Slope * N`
+// multiply in chargeNativeGas: the saturation clamp is only safe if the shipped
+// slope times the clamp still fits. Uses the largest slope any row could
+// plausibly carry after a re-fit rather than today's value, so raising the slope
+// trips this before it trips consensus.
+func TestModExpWorkSlopeProductFitsInt64(t *testing.T) {
+	const maxPlausibleSlope = 1 << 16
+	if modExpWorkSaturation > math.MaxInt64/maxPlausibleSlope {
+		t.Fatalf("modExpWorkSaturation %d * slope %d overflows int64 — lower the "+
+			"clamp or route the multiply through overflow.Mul",
+			int64(modExpWorkSaturation), maxPlausibleSlope)
+	}
+}
+
+// TestModExpWorkMonotonic: the metric must never decrease as either operand
+// grows, or a larger call could be charged less than a smaller one.
+func TestModExpWorkMonotonic(t *testing.T) {
+	lens := []int64{1, 2, 7, 8, 9, 32, 64, 255, 256, 1024, 1 << 20, 1 << 30}
+	for i, exp := range lens {
+		for j, mod := range lens {
+			got := modExpWork(exp, mod)
+			if i > 0 {
+				if prev := modExpWork(lens[i-1], mod); got < prev {
+					t.Fatalf("non-monotonic in exp at mod=%d: %d(exp=%d) < %d(exp=%d)",
+						mod, got, exp, prev, lens[i-1])
+				}
+			}
+			if j > 0 {
+				if prev := modExpWork(exp, lens[j-1]); got < prev {
+					t.Fatalf("non-monotonic in mod at exp=%d: %d(mod=%d) < %d(mod=%d)",
+						exp, got, mod, prev, lens[j-1])
+				}
+			}
+		}
+	}
+}
+
+func TestChargeNativeGas_ModExpWork(t *testing.T) {
+	// Slope 1024 => 1 gas per unit of work, so Cycles reads back the metric.
+	// SlopeIdx 0 names the exponent; the modulus is read from param 1.
+	cleanup := registerTestNative(t, &NativeGasInfo{
+		Base:  7,
+		Slope: 1024, SlopeIdx: 0, SlopeKind: SizeModExpWork,
+	})
+	defer cleanup()
+
+	cases := []struct {
+		expLen, modLen int
+		want           int64
+	}{
+		{0, 0, 7},
+		{1, 8, 7 + (modExpGenericPerBit*8)*(modExpFloorWords+1)},
+		{256, 256, 7 + (modExpMontSetup+32*modExpMontPerWord)*(modExpFloorWords+1024)},
+		// Asymmetry is priced: a big exponent against a small modulus is no
+		// longer free, which is what the old len(modulus)-only slope missed.
+		{1024, 32, 7 + (modExpMontSetup+128*modExpMontPerWord)*(modExpFloorWords+16)},
+	}
+	for _, c := range cases {
+		m := stubMachine([]int{c.expLen, c.modLen})
+		_ = m.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})
+		if m.Cycles != c.want {
+			t.Errorf("expLen=%d modLen=%d: got %d cycles, want %d", c.expLen, c.modLen, m.Cycles, c.want)
+		}
+	}
+}
+
+// TestChargeNativeGas_ModExpWorkMissingPair guards the pair read: a native
+// registered with SizeModExpWork but only one parameter present must charge
+// Base rather than index out of range.
+func TestChargeNativeGas_ModExpWorkMissingPair(t *testing.T) {
+	cleanup := registerTestNative(t, &NativeGasInfo{
+		Base:  11,
+		Slope: 1024, SlopeIdx: 0, SlopeKind: SizeModExpWork,
+	})
+	defer cleanup()
+
+	m := stubMachine([]int{256})
+	_ = m.chargeNativeGas(&FuncValue{NativePkg: testNativePkg, NativeName: testNativeFn})
+	if m.Cycles != 11 {
+		t.Fatalf("got %d cycles, want 11 (base only)", m.Cycles)
+	}
+}
+
 func TestChargeNativeGas_PreCallTwoSlopesOnDistinctParams(t *testing.T) {
 	// Mimic crypto/merkle.innerHash: two independent unbounded byte params,
 	// each carrying the same per-byte rate so the charge tracks the sum of
@@ -383,5 +542,51 @@ func BenchmarkChargeNativeGas_IncrCPUBaseline(b *testing.B) {
 	m := &Machine{GasMeter: &recordingMeter{}}
 	for i := 0; i < b.N; i++ {
 		m.incrCPU(150)
+	}
+}
+
+// TestModExpConstantsMatchFitter keeps the runtime metric and the calibration
+// fitter computing the same quantity. gen_native_table.py has to reduce each
+// (expLen, modLen) bench point to a work value before it can fit a slope over
+// them, so it carries its own copy of these constants. If the two drift, the
+// fitter reduces every bench to a work value the runtime never charges on and
+// the slope it emits is scaled by the ratio between them — a silently mispriced
+// consensus row that no other test would catch, since the Go-side tests check
+// the row against modExpWork and never against the fitter.
+func TestModExpConstantsMatchFitter(t *testing.T) {
+	t.Parallel()
+
+	const fitter = "../../cmd/calibrate/gen_native_table.py"
+	src, err := os.ReadFile(fitter)
+	if err != nil {
+		t.Fatalf("read %s: %v", fitter, err)
+	}
+	for _, c := range []struct {
+		pyName string
+		goVal  int64
+	}{
+		{"MODEXP_FLOOR_WORDS", modExpFloorWords},
+		{"MODEXP_WORD_BYTES", modExpWordBytes},
+		{"MODEXP_MONT_SETUP", modExpMontSetup},
+		{"MODEXP_MONT_PER_WORD", modExpMontPerWord},
+		{"MODEXP_GENERIC_PER_BIT", modExpGenericPerBit},
+	} {
+		re := regexp.MustCompile(`(?m)^` + c.pyName + `\s*=\s*(\d+)\s*$`)
+		m := re.FindSubmatch(src)
+		if m == nil {
+			t.Errorf("%s: %s not found — the fitter must define it, or this test "+
+				"can no longer tell whether the two agree", fitter, c.pyName)
+			continue
+		}
+		got, err := strconv.ParseInt(string(m[1]), 10, 64)
+		if err != nil {
+			t.Errorf("%s: %s = %q, not an integer", fitter, c.pyName, m[1])
+			continue
+		}
+		if got != c.goVal {
+			t.Errorf("%s has %s = %d, but the runtime uses %d — the fitter would "+
+				"reduce the calibration benches to a metric production never charges",
+				fitter, c.pyName, got, c.goVal)
+		}
 	}
 }

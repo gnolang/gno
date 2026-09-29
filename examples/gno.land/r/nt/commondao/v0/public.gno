@@ -1,11 +1,8 @@
 package commondao
 
 import (
-	// unsafe is used in two places, both reading the frame (never for
-	// authorization by pkgpath): OriginCaller in New (invitations target
-	// EOAs, so the invite is keyed to the transaction origin) and
-	// CurrentRealm in assertRunningPath (deploy-time path check). Caller
-	// authentication everywhere uses cur.Previous().
+	// unsafe is used only for the CurrentRealm call in assertRunningPath when
+	// checking the deployment path. Caller authentication uses cur.Previous().
 	"chain/runtime/unsafe"
 	"strings"
 
@@ -36,6 +33,29 @@ func assertRunningPath() {
 	}
 }
 
+// assertCallerIsUser rejects a code realm creating a DAO on someone's
+// behalf. New keys the invite and the creators set on the caller, and
+// invites are granted to people, so the caller must be the user itself:
+// either a direct MsgCall (IsUserCall) or that user's own MsgRun frame
+// (IsUserRun, whose address is the signer's own). Both are IsUser; a
+// published realm is neither.
+//
+// Relaying is what this excludes. If a realm could redeem an invite, one
+// invited realm would become a DAO factory for un-invited callers — the
+// vector pr6012_commondao_ownership_rescope.md closed by keying on the
+// transaction origin. Keying on the caller closes it too, but only while
+// the caller cannot be a realm.
+//
+// It bounds who may *create* a DAO, not who may sit on one: the members
+// argument may still name realm addresses, and sub-DAO councils are set
+// by proposal (see CreateSubDAOProposal). Handing a DAO to a realm is a
+// council decision, not a creation-time one.
+func assertCallerIsUser(cur realm) {
+	if !cur.Previous().IsUser() {
+		panic("only a user can create a DAO")
+	}
+}
+
 // Invite invites a user to the realm.
 // A user invitation is required to start creating new DAOs.
 func Invite(cur realm, invitee address) {
@@ -60,14 +80,17 @@ func IsInvited(addr address) bool {
 }
 
 // New creates a new CommonDAO and returns its ID.
-// An invitation is required to start creating DAOs: the transaction
-// origin (an EOA) must hold an invite, which is consumed on its first
-// creation; afterwards that origin may create further DAOs freely. The
-// caller becomes a council member, optionally together with a newline
-// separated list of additional member addresses. Sub-DAOs are created
-// through proposals (see CreateSubDAOProposal).
+// The caller must be a user, not a realm (see assertCallerIsUser), and must
+// hold an invite. The invite is consumed when that caller creates a DAO for
+// the first time, after which the caller may create further DAOs freely.
+// The caller becomes a council member along with any additional member
+// addresses listed on separate lines; those may be realm addresses, so a
+// DAO can be handed to a realm by seating it here and resigning. DAOs with
+// a parent are created through proposals (see CreateSubDAOProposal).
 func New(cur realm, name, purpose, description, members string) uint64 {
 	assertCurrent(cur)
+	assertCallerIsUser(cur)
+	caller := cur.Previous().Address()
 
 	name = strings.TrimSpace(name)
 	assertDAONameIsValid(name)
@@ -78,17 +101,14 @@ func New(cur realm, name, purpose, description, members string) uint64 {
 	description = strings.TrimSpace(description)
 	assertDAODescriptionIsValid(description)
 
-	// The right to create DAOs is granted to invited EOAs, so gate on the
-	// transaction origin. The invite is consumed once; the origin is then
-	// recorded so it can create further DAOs without another invite.
-	orig := unsafe.OriginCaller()
-	if !isCreator(orig) {
-		assertIsInvited(orig)
-		invites.Remove(orig.String())
-		creators.Set(orig.String(), struct{}{})
+	// The invite is consumed once. The direct user caller is then recorded and
+	// can create further DAOs without another invite.
+	if !isCreator(caller) {
+		assertIsInvited(caller)
+		invites.Remove(caller.String())
+		creators.Set(caller.String(), struct{}{})
 	}
 
-	caller := cur.Previous().Address()
 	dao := createDAO(name, purpose, description, parseInitialMembers(caller, members)...)
 	return dao.ID()
 }

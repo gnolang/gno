@@ -26,7 +26,7 @@ package launderrh_embed
 // /r/-declared at the OUTER level.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
