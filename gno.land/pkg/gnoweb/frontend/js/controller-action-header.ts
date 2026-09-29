@@ -1,3 +1,9 @@
+import {
+	type GnoSession,
+	onSessionChange,
+	readSession,
+} from "../../feature/connect/frontend/session.js";
+import { refresh } from "./account.js";
 import { BaseController, debounce } from "./controller.js";
 
 // TYPE DEFINITIONS
@@ -14,7 +20,16 @@ export class ActionHeaderController extends BaseController {
 	protected connect(): void {
 		this.on("controllers:ready", () => {
 			this._restoreMode();
-			this._restoreAddress();
+			this._applySession(readSession());
+		});
+		onSessionChange((session) => this._applySession(session));
+		// Back from the terminal: the sequence has likely moved. One owner
+		// refreshes, so N function blocks share one request.
+		document.addEventListener("visibilitychange", () => {
+			const input = this.getTarget("address") as HTMLInputElement | null;
+			if (document.visibilityState !== "visible" || !input?.value) return;
+			refresh(input.value.trim());
+			this.dispatch("address:changed", { address: input.value });
 		});
 	}
 
@@ -47,13 +62,15 @@ export class ActionHeaderController extends BaseController {
 		});
 	}
 
-	// restore the address from localStorage
-	private _restoreAddress(): void {
-		const addressInput = this.getTarget("address") as HTMLInputElement;
-		this.restoreValue("actionAddressInput", addressInput, (value) => {
-			// Dispatch event for other controllers to listen
-			this.dispatch("address:changed", { address: value });
-		});
+	// Connected: the session address, still editable. Disconnected: the
+	// manually typed address, as before.
+	private _applySession(session: GnoSession | null): void {
+		const input = this.getTarget("address") as HTMLInputElement | null;
+		if (!input) return;
+		const address =
+			session?.address ?? localStorage.getItem("actionAddressInput") ?? "";
+		input.value = address;
+		this.dispatch("address:changed", { address });
 	}
 
 	// debounced address update
