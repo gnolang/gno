@@ -4640,3 +4640,13 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 		display: block;
 	}
 }
+
+/* Marks the connected address in realm content. */
+.b-you {
+	margin-inline-start: var(--g-space-1);
+	padding-inline: var(--g-space-1);
+	border-radius: var(--s-rounded-sm);
+	font-size: 0.75em;
+	background-color: var(--s-color-bg-surface-secondary);
+	color: var(--s-color-text-secondary);
+}
