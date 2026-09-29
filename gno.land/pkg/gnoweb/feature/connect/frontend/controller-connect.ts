@@ -1,3 +1,10 @@
+import {
+	accountView,
+	chainMatches,
+	isAddress,
+	loadAccount,
+	refresh,
+} from "../../../frontend/js/account.js";
 import { BaseController } from "../../../frontend/js/controller.js";
 import {
 	type Candidate,
@@ -154,6 +161,37 @@ export class ConnectController extends BaseController {
 		if (!menu) return;
 		menu.hidden = false;
 		this.getTarget("toggle")?.setAttribute("aria-expanded", "true");
+		void this._renderAccount();
+	}
+
+	// Fresh numbers on every open: balance and sequence are what move.
+	private async _renderAccount(): Promise<void> {
+		const session = readSession();
+		const full = this.getTarget("full-address");
+		const balance = this.getTarget("balance");
+		const line = this.getTarget("account-line");
+		if (!session || !balance || !line) return;
+
+		if (full) full.textContent = session.address;
+		balance.hidden = true;
+		line.hidden = true;
+		if (!isAddress(session.address) || !chainMatches(session.chainid)) return;
+
+		balance.textContent = "…";
+		balance.hidden = false;
+		refresh(session.address);
+		let view: ReturnType<typeof accountView>;
+		try {
+			view = accountView(await loadAccount(session.address));
+		} catch (err) {
+			this.warn("account lookup failed", err);
+			balance.hidden = true;
+			return;
+		}
+		if (readSession()?.address !== session.address) return; // switched meanwhile
+		balance.textContent = view.balance;
+		line.textContent = view.line ?? "";
+		line.hidden = view.line === null;
 	}
 
 	private _closeMenu(): void {
