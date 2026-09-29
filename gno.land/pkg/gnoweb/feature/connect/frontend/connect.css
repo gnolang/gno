@@ -120,9 +120,20 @@
 	height: 100%;
 }
 
+/* The header row also carries the realm tabs, and below --max the grid track
+   cannot hold both -- the address is what gives way, leaving the avatar. The
+   toggle keeps its aria-label and title, and the menu still copies the
+   address, so nothing becomes unreachable. */
 .b-identity__address {
+	display: none;
 	font-size: 0.8125rem;
 	white-space: nowrap;
+}
+
+@media (--max) {
+	.b-identity__address {
+		display: block;
+	}
 }
 
 .b-identity__menu {
