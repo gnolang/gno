@@ -5,6 +5,7 @@ import {
 	readSession,
 } from "../../feature/connect/frontend/session.js";
 import { BaseController } from "./controller.js";
+import { SIGNER_UNAVAILABLE } from "./tx-outcome.js";
 import {
 	type Candidate,
 	legacyCandidate,
@@ -144,6 +145,7 @@ export class WalletLaunchController extends BaseController {
 		const url = new URL(action, window.location.href);
 		url.searchParams.delete("status");
 		url.searchParams.delete("hash");
+		url.searchParams.delete("code");
 		url.hash = `func-${this._funcName}`;
 		return url.toString();
 	}
@@ -261,6 +263,20 @@ export class WalletLaunchController extends BaseController {
 				await this._signInPage(wallet, true);
 				return;
 			}
+		}
+
+		// The pinned identity is not in this wallet: land where a launch-link
+		// wallet's callback would, so one notice explains both transports.
+		if (
+			response?.status === "Rejected" &&
+			response.code === SIGNER_UNAVAILABLE
+		) {
+			const url = new URL(this._callbackURL());
+			url.searchParams.set("status", "error");
+			url.searchParams.set("code", SIGNER_UNAVAILABLE);
+			url.hash = `func-${this._funcName}`;
+			this._navigate(url.toString());
+			return;
 		}
 
 		// Rejected, or anything else: the function help page, args pinned.

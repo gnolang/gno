@@ -104,6 +104,11 @@ UI - Help Function component
         </a>
       </span>
     </header>
+    <div class="b-alert" data-controller="tx-outcome" data-tx-outcome-func-value="{{ .Name }}" role="status" hidden>
+      <p data-tx-outcome-target="message"></p>
+      <button type="button" class="b-btn" data-tx-outcome-target="reconnect">Reconnect</button>
+      <button type="button" class="b-btn" data-tx-outcome-target="dismiss">Dismiss</button>
+    </div>
 
     {{ with .DocComponent }}
     <div class="c-doc-view description">{{ render . }}</div>
