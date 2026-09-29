@@ -1,4 +1,4 @@
-# PRxxxx: Versioned redeploy carries the realm's globals
+# PR6253: Versioned redeploy carries the realm's globals
 
 Status: proof of concept, draft PR. Background: RFC #694, #2191, #4682.
 
