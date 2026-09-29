@@ -76,14 +76,6 @@
 		@media (--lg) {
 			grid-column: span 6;
 		}
-
-		&--explorer {
-			grid-column: span 10;
-		}
-	}
-
-	.main-nav--explorer {
-		grid-column: span 10;
 	}
 
 	.user-picture {
