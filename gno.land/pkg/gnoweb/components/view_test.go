@@ -1,12 +1,14 @@
 package components
 
 import (
+	"bytes"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSourceView(t *testing.T) {
@@ -390,4 +392,16 @@ func TestUserView(t *testing.T) {
 	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+func TestRealmView_MountsYouBadge(t *testing.T) {
+	t.Parallel()
+
+	view := RealmView(RealmData{
+		ComponentContent: NewReaderComponent(strings.NewReader("content")),
+		TocItems:         &RealmTOCData{},
+	})
+	var buf bytes.Buffer
+	require.NoError(t, view.Render(&buf))
+	assert.Contains(t, buf.String(), `data-controller="you-badge"`)
 }
