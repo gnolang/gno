@@ -84,14 +84,22 @@ export function clearSession(): void {
 }
 
 // setUsername records the name resolved for address, if it is still current.
+// It announces only what storage kept: the announcement re-runs resolution,
+// which must then find the name already stored, or it would loop.
 export function setUsername(address: string, username: string | null): void {
 	const session = readSession();
 	if (!session || session.address !== address) return;
-	if ((session.username ?? null) === username) return;
+	const name = username ? username.slice(0, MAX_NAME_LENGTH) : undefined;
+	if (session.username === name) return;
 	const next: GnoSession = { ...session };
-	if (username) next.username = username.slice(0, MAX_NAME_LENGTH);
+	if (name) next.username = name;
 	else delete next.username;
-	writeSession(next);
+	try {
+		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+	} catch {
+		return;
+	}
+	emit(next);
 }
 
 export function displayName(session: GnoSession): string {
