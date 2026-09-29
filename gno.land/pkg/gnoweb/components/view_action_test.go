@@ -190,3 +190,23 @@ func TestHelpView_CommandHasAccountSlots(t *testing.T) {
 	assert.Contains(t, out, `-account-number <span data-action-function-target="account-number">ACCOUNTNUMBER</span>`)
 	assert.Contains(t, out, `-account-sequence <span data-action-function-target="sequence">SEQUENCENUMBER</span>`)
 }
+
+func TestHelpView_OffersMeOnlyOnAddressParams(t *testing.T) {
+	t.Parallel()
+
+	data, _ := helpFixture()
+	data.Functions[0].Params = []*doc.JSONField{
+		{Name: "to", Type: "address"},
+		{Name: "from", Type: ".uverse.address"},
+		{Name: "user", Type: "string"},
+		{Name: "amount", Type: "int64"},
+	}
+	var buf bytes.Buffer
+	require.NoError(t, HelpView(data).Render(&buf))
+
+	out := buf.String()
+	assert.Equal(t, 2, strings.Count(out, `data-action-function-target="me"`))
+	assert.Contains(t, out, `data-action-function-name-param="to"`)
+	assert.Contains(t, out, `data-action-function-name-param="from"`)
+	assert.NotContains(t, out, `data-action-function-name-param="user"`)
+}

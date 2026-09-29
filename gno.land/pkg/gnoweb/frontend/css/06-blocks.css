@@ -974,6 +974,15 @@
 	}
 }
 
+/* "me" fills an address parameter with the connected address. */
+.b-input > .b-input__me {
+	flex: none;
+	padding-inline: var(--g-space-3);
+	border-inline-start: var(--s-border);
+	color: var(--s-color-text-link);
+	cursor: pointer;
+}
+
 /* Shared header form-control padding — `.b-input > input/select`,
    Pretty/Tree toggle pills. One edit moves all header controls in
    lockstep. */

@@ -134,6 +134,11 @@ UI - Help Function component
             data-action-function-target="param-input" data-action="input->action-function#updateAllArgs"
             data-action-function-param-value="{{ .Name }}" autocomplete="off" autocorrect="off" autocapitalize="off"
             spellcheck="false" />
+          {{ if or (eq .Type "address") (eq .Type ".uverse.address") }}
+          <button type="button" class="b-input__me" hidden data-action-function-target="me"
+            data-action="click->action-function#fillMe" data-action-function-name-param="{{ .Name }}"
+            title="Use the connected address">me</button>
+          {{ end }}
         </div>
         {{ end }}
       </div>
