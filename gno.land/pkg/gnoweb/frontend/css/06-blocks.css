@@ -3540,6 +3540,45 @@ main.dev-mode > section:has(.c-overview-view) {
 	text-decoration: underline;
 }
 
+/* Error report: a wallet refused the request. Warning colors match the
+   $help alerts (.b-alert), which are scoped to function blocks. */
+.b-wallet-chooser__error {
+	display: flex;
+	gap: var(--g-space-2);
+	padding: var(--g-space-3) var(--g-space-4);
+	border-inline-start: var(--g-space-1) solid var(--s-color-border-warning);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-warning-weak);
+	color: var(--s-color-text-warning);
+	font-size: var(--g-font-size-100);
+
+	.c-icon {
+		flex: none;
+		margin-block-start: 0.1em;
+	}
+
+	p {
+		margin: 0;
+	}
+}
+
+.b-wallet-chooser__code {
+	display: block;
+	margin-block-start: var(--g-space-1);
+	font-size: var(--g-font-size-80);
+	opacity: 0.8;
+}
+
+.b-wallet-chooser__hint {
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-90);
+}
+
+.b-wallet-chooser--error [data-wallet-launch-target="chooser-cancel"] {
+	align-self: flex-end;
+	width: auto;
+}
+
 /* ===== HELP PAGE QR ===== */
 /* Collapsed until its anchor is the target: the QR button navigates to the
    fresh URL, and landing there opens the panel. */
