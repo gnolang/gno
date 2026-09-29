@@ -70,3 +70,4 @@ jobs:
         with:
           node-version: lts/Jod
       - run: make -C gno.land/pkg/gnoweb/frontend lint.ci
+      - run: make -C gno.land/pkg/gnoweb/frontend test
