@@ -1,6 +1,6 @@
 # gnoweb connected reads: account, username, signer_unavailable
 
-Design doc. Status: proposed.
+Design doc. Status: implemented (see Deviations).
 
 ## Context
 
@@ -302,3 +302,23 @@ One commit per point, each with its rebuilt `public/js` bundle and signed off:
   there. Balance and sequence are never persisted.
 - The frontend gets its first unit-test setup, which Spec 2's encoder golden
   test will reuse.
+
+## Deviations
+
+Found while planning and implementing; recorded in
+`gno.land/adr/prxxxx_gnoweb_wallet_connect.md` (items 5–11).
+
+1. Session changes travel as a `window` event: each controller bundle embeds its
+   own `session.ts`. The account cache lives in a `globalThis` slot for the same
+   reason.
+2. The cache is not cleared on session change; it is keyed by address.
+3. `abciQuery` returns text, not bytes.
+4. `func` comes from the `$help&func=…` web query in the URL path, with a
+   query-string fallback for the static fixture.
+5. The "me" button is rendered server-side for `address`/`.uverse.address`
+   params, and fills `"g1…"` on query functions (their live result evaluates the
+   args as Gno) and a raw `g1…` on calls.
+6. `you-badge` mounts on a hidden sentinel in `realm.html`, and a link counts as
+   "you" only when its path carries the address.
+7. The generic `[hidden]` rule is exempt from PurgeCSS, which had been stripping
+   it.
