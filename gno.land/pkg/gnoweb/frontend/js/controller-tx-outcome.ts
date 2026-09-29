@@ -1,11 +1,17 @@
 import { readSession } from "../../feature/connect/frontend/session.js";
 import { BaseController } from "./controller.js";
-import { outcomeMessage, withoutOutcome } from "./tx-outcome.js";
+import {
+	outcomeMessage,
+	SIGNER_UNAVAILABLE,
+	withoutOutcome,
+} from "./tx-outcome.js";
 
 // TxOutcomeController shows why a transaction came back, for the function it
 // sits in. Only signer_unavailable is explained today.
 export class TxOutcomeController extends BaseController {
 	protected connect(): void {
+		// Almost every page load carries no outcome: skip the session read.
+		if (!window.location.search.includes(SIGNER_UNAVAILABLE)) return;
 		const message = outcomeMessage(
 			window.location.href,
 			this.getValue("func"),

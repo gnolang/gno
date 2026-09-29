@@ -1,8 +1,4 @@
-import {
-	type GnoSession,
-	onSessionChange,
-	readSession,
-} from "../../feature/connect/frontend/session.js";
+import { readSession } from "../../feature/connect/frontend/session.js";
 import {
 	type Account,
 	commandNumbers,
@@ -51,15 +47,6 @@ export class ActionFunctionController extends BaseController {
 
 		// Dispatch initial params state for wallet integration
 		this._dispatchParamsChanged();
-
-		this._showMeButtons(readSession());
-		onSessionChange((session) => this._showMeButtons(session));
-	}
-
-	private _showMeButtons(session: GnoSession | null): void {
-		this.getTargets("me").forEach((button) => {
-			button.hidden = !session;
-		});
 	}
 
 	// Fill one address parameter with the connected address (DOM action).

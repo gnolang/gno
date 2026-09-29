@@ -65,6 +65,12 @@ export class ActionHeaderController extends BaseController {
 	// Connected: the session address, still editable. Disconnected: the
 	// manually typed address, as before.
 	private _applySession(session: GnoSession | null): void {
+		// One owner for every function's "me" buttons, not one per block.
+		document
+			.querySelectorAll<HTMLElement>('[data-action-function-target="me"]')
+			.forEach((button) => {
+				button.hidden = !session;
+			});
 		const input = this.getTarget("address") as HTMLInputElement | null;
 		if (!input) return;
 		const address =
