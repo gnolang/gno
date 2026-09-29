@@ -1,3 +1,4 @@
+import { abciQuery, ChainError, normalizeRPC } from "./chain.js";
 import {
 	BaseController,
 	debounce,
@@ -234,13 +235,12 @@ export class ActionFunctionController extends BaseController {
 	// Fetch the qeval result from the remote
 	private async _fetchQEval(remote: string, data: string): Promise<string> {
 		try {
-			const url = `${remote}/abci_query?path=vm%2fqeval&data=${btoa(data)}`;
-			const response = await fetch(url);
-			if (!response.ok) return "";
-
-			const result = (await response.json()).result.response.ResponseBase;
-			return result.Data ? atob(result.Data) : `Error: ${result.Error.value}`;
-		} catch {
+			return (await abciQuery("vm/qeval", data, normalizeRPC(remote))) ?? "";
+		} catch (err) {
+			// A node error is the answer; a transport failure shows nothing.
+			if (err instanceof ChainError && err.nodeError !== undefined) {
+				return `Error: ${err.nodeError}`;
+			}
 			return "";
 		}
 	}
