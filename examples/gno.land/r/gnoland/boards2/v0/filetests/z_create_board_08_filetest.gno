@@ -31,13 +31,18 @@ func main(cur realm) {
 // [Create Board](/r/gnoland/boards2/v0:create-board) • [List Admin Users](/r/gnoland/boards2/v0:admin-users) • [Help](/r/gnoland/boards2/v0:help)
 //
 // ---
-// ### Currently there are no boards
-// Be the first to [create a new board](/r/gnoland/boards2/v0:create-board)!
+// Sort by: [newest first](/r/gnoland/boards2/v0:?order=desc)
+//
+// ###### [OpenDiscussions](/r/gnoland/boards2/v0:OpenDiscussions)
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #1
+// **0 threads**
+//
+//
 //
 // ==================
 // # [Boards](/r/gnoland/boards2/v0) › TestBoard
-// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #1
-// ↳ [Create Thread](/r/gnoland/boards2/v0:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v0$help&func=RequestInvite&boardID=1) • [Manage Board](?menu=manageBoard)
+// Created by [g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx](/u/g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx) on 2009-02-13 11:31pm UTC, #2
+// ↳ [Create Thread](/r/gnoland/boards2/v0:TestBoard/create-thread) • [Request Invite](/r/gnoland/boards2/v0$help&func=RequestInvite&boardID=2) • [Manage Board](?menu=manageBoard)
 //
 // ---
 // ### This board doesn't have any threads
