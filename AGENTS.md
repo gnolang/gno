@@ -85,6 +85,11 @@ make fmt                        # Format all code
 - Format: `gofmt`/`goimports`.
 - Lint: `golangci-lint` (`.github/golangci.yml`).
 
+### gnoweb frontend (`gno.land/pkg/gnoweb/`)
+- Every `.ts` under `frontend/js/` and `feature/*/frontend/` compiles to its own esbuild bundle; only `controller.js` is shared. Module-level state is therefore **per bundle**: share state across controllers through `window`/`document` events or a `globalThis[Symbol.for(...)]` slot, never a module-level variable.
+- `make generate` rebuilds a bundle only when its own entry `.ts` changes, not when a module it imports does. After editing a shared module, run `rm -f public/js/*.js && make generate`. CI runs `fclean generate` and fails on any diff in `public/`.
+- PurgeCSS (production CSS) drops attribute selectors whose values never appear in scanned content, even inside `:where()`/`:not()`; neither `safelist` nor `dynamicAttributes` keeps them. Mark such a rule with `/* purgecss ignore current */`, and check the built `public/main.css` for it.
+
 ### Universal
 - Commits: conventional (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `refactor:`) with optional scope (`feat(gnovm):`).
 - Branches: kebab-case (`fix-vm-params`), always feature branches.
