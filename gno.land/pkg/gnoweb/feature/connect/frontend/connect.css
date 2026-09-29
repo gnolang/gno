@@ -164,3 +164,23 @@
 .b-identity__menu button:hover {
 	background: var(--s-color-bg-surface-primary-hover);
 }
+
+.b-identity__details {
+	display: grid;
+	gap: 0.125rem;
+	padding: 0.5rem 0.625rem;
+	border-block-end: 1px solid var(--s-color-border-primary);
+	font-size: 0.8125rem;
+	color: var(--s-color-text-secondary);
+}
+
+.b-identity__full {
+	overflow-wrap: anywhere;
+	color: var(--s-color-text-primary);
+}
+
+.b-identity__actions {
+	display: flex;
+	flex-direction: column;
+	padding-block-start: 0.25rem;
+}
