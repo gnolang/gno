@@ -15,3 +15,13 @@ clean fclean:
 
 node_modules: package-lock.json package.json
 	npm install && touch $@
+
+# Unit tests: esbuild bundles each tests/*.test.ts for node, then node's own
+# runner executes them. No test framework dependency.
+test_out := .cache/test
+
+.PHONY: test
+test: node_modules
+	rm -rf $(test_out)
+	./node_modules/.bin/esbuild tests/*.test.ts --bundle --platform=node --format=esm --outdir=$(test_out) --out-extension:.js=.mjs --log-level=error
+	node --test '$(test_out)/*.test.mjs'
