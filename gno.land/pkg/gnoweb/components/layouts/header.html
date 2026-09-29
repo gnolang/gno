@@ -107,15 +107,36 @@ LAYOUT - Header component
           </button>
           <div class="b-identity__menu" id="identity-menu" data-connect-target="menu" hidden>
             <div class="b-identity__details" role="group" aria-label="Account">
-              <a class="b-identity__username" data-connect-target="username-link" hidden></a>
-              <span class="b-identity__full u-font-mono" data-connect-target="full-address"></span>
-              <span data-connect-target="balance" hidden></span>
-              <span data-connect-target="account-line" hidden></span>
+              <div class="b-identity__who">
+                <span class="b-identity__avatar b-identity__avatar--large" data-connect-target="menu-avatar"></span>
+                <div class="b-identity__names">
+                  <a class="b-identity__username" data-connect-target="username-link" hidden></a>
+                  <span class="b-identity__short u-font-mono" data-connect-target="short-address"></span>
+                  <span class="b-identity__via" data-connect-target="via"></span>
+                </div>
+              </div>
+              <div class="b-identity__balance" data-connect-target="balance-block" hidden>
+                <span class="b-identity__label">Balance</span>
+                <span class="b-identity__amount"><span data-connect-target="amount"></span>
+                  <span class="b-identity__unit">GNOT</span></span>
+                <span class="b-identity__extra" data-connect-target="extra" hidden></span>
+              </div>
+              <dl class="b-identity__meta" data-connect-target="account-rows" hidden>
+                <div>
+                  <dt class="b-identity__label">Account</dt>
+                  <dd class="u-font-mono" data-connect-target="account-number"></dd>
+                </div>
+                <div>
+                  <dt class="b-identity__label">Sequence</dt>
+                  <dd class="u-font-mono" data-connect-target="sequence"></dd>
+                </div>
+              </dl>
             </div>
             <div class="b-identity__actions" role="menu" aria-label="Identity">
               <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
               <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
-              <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
+              <button type="button" role="menuitem" class="b-identity__danger"
+                data-connect-target="disconnect">Disconnect</button>
             </div>
           </div>
         </div>

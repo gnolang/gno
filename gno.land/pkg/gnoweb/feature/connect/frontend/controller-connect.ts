@@ -1,4 +1,5 @@
 import {
+	type AccountView,
 	accountView,
 	chainMatches,
 	isAddress,
@@ -23,6 +24,7 @@ import {
 	readSession,
 	reconcile,
 	setUsername,
+	truncate,
 } from "./session.js";
 
 // ConnectController owns the header identity: it renders the remembered
@@ -116,6 +118,20 @@ export class ConnectController extends BaseController {
 				? `/u/${encodeURIComponent(session.username)}`
 				: "#";
 		}
+
+		const menuAvatar = this.getTarget("menu-avatar");
+		if (menuAvatar) menuAvatar.innerHTML = avatarSVG(session.address);
+		const short = this.getTarget("short-address");
+		if (short) {
+			short.textContent = truncate(session.address);
+			short.title = session.address;
+		}
+		const via = this.getTarget("via");
+		if (via) {
+			via.textContent = [session.name, session.chainid]
+				.filter(Boolean)
+				.join(" · ");
+		}
 	}
 
 	private _apply(session: GnoSession | null): void {
@@ -205,31 +221,48 @@ export class ConnectController extends BaseController {
 	// Fresh numbers on every open: balance and sequence are what move.
 	private async _renderAccount(): Promise<void> {
 		const session = readSession();
-		const full = this.getTarget("full-address");
-		const balance = this.getTarget("balance");
-		const line = this.getTarget("account-line");
-		if (!session || !balance || !line) return;
+		const block = this.getTarget("balance-block");
+		const rows = this.getTarget("account-rows");
+		if (!session || !block || !rows) return;
 
-		if (full) full.textContent = session.address;
-		balance.hidden = true;
-		line.hidden = true;
+		block.hidden = true;
+		rows.hidden = true;
 		if (!this._queryable(session)) return;
 
-		balance.textContent = "…";
-		balance.hidden = false;
+		this._fillAccount({
+			amount: "…",
+			extra: null,
+			accountNumber: "…",
+			sequence: "…",
+		});
+		block.hidden = false;
 		refresh(session.address);
-		let view: ReturnType<typeof accountView>;
+		let view: AccountView;
 		try {
 			view = accountView(await loadAccount(session.address));
 		} catch (err) {
 			this.warn("account lookup failed", err);
-			balance.hidden = true;
+			block.hidden = true;
+			rows.hidden = true;
 			return;
 		}
 		if (readSession()?.address !== session.address) return; // switched meanwhile
-		balance.textContent = view.balance;
-		line.textContent = view.line ?? "";
-		line.hidden = view.line === null;
+		this._fillAccount(view);
+	}
+
+	private _fillAccount(view: AccountView): void {
+		const text = (name: string, value: string | null) => {
+			const el = this.getTarget(name);
+			if (!el) return;
+			el.textContent = value ?? "";
+			el.hidden = value === null;
+		};
+		text("amount", view.amount);
+		text("extra", view.extra);
+		text("account-number", view.accountNumber);
+		text("sequence", view.sequence);
+		const rows = this.getTarget("account-rows");
+		if (rows) rows.hidden = view.accountNumber === null;
 	}
 
 	private _closeMenu(): void {

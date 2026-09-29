@@ -96,6 +96,18 @@
 	margin-inline-start: var(--g-space-4);
 }
 
+/* Below --md the toggle can end past the viewport edge, which would clip the
+   menu: hang it from the sticky header instead, which spans the viewport. */
+@media not all and (--md) {
+	.b-identity {
+		position: static;
+	}
+
+	.b-identity__menu {
+		inset-inline-end: var(--g-space-2);
+	}
+}
+
 .b-identity__toggle {
 	display: flex;
 	align-items: center;
@@ -143,7 +155,7 @@
 	z-index: 20;
 	display: flex;
 	flex-direction: column;
-	min-width: 12rem;
+	min-width: 16rem;
 	padding: 0.25rem;
 	border: 1px solid var(--s-color-border-primary);
 	border-radius: 0.5rem;
@@ -167,25 +179,100 @@
 
 .b-identity__details {
 	display: grid;
-	gap: 0.125rem;
-	padding: 0.5rem 0.625rem;
-	border-block-end: 1px solid var(--s-color-border-primary);
-	font-size: 0.8125rem;
+	gap: var(--g-space-3);
+	padding: var(--g-space-3);
+	border-block-end: var(--s-border);
+	font-size: var(--g-font-size-90);
 	color: var(--s-color-text-secondary);
 }
 
-.b-identity__username {
-	font-weight: 600;
-	color: var(--s-color-text-link);
+/* Who: the generated avatar beside the name, address, wallet and chain. */
+.b-identity__who {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-3);
+	min-width: 0;
 }
 
-.b-identity__full {
+.b-identity__avatar--large {
+	width: 2rem;
+	height: 2rem;
+}
+
+.b-identity__names {
+	display: grid;
+	gap: var(--g-space-0-5);
+	min-width: 0;
+}
+
+.b-identity__username {
+	font-size: var(--g-font-size-100);
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-link);
 	overflow-wrap: anywhere;
+}
+
+/* Without a registered name, the address is the headline. */
+.b-identity__username[hidden] + .b-identity__short {
+	font-size: var(--g-font-size-100);
+	color: var(--s-color-text-primary);
+}
+
+.b-identity__via,
+.b-identity__extra {
+	font-size: var(--g-font-size-80);
+	color: var(--s-color-text-tertiary);
+}
+
+/* Labels match the package overview's meta list. */
+.b-identity__label {
+	font-size: var(--g-font-size-80);
+	font-weight: var(--g-font-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--s-color-text-tertiary);
+}
+
+.b-identity__balance,
+.b-identity__meta {
+	display: grid;
+	gap: var(--g-space-1);
+	margin: 0;
+	padding-block-start: var(--g-space-3);
+	border-block-start: var(--s-border);
+}
+
+.b-identity__amount {
+	font-size: var(--g-font-size-400);
+	font-weight: var(--g-font-semibold);
+	color: var(--s-color-text-primary);
+	overflow-wrap: anywhere;
+}
+
+.b-identity__unit {
+	font-size: var(--g-font-size-90);
+	font-weight: normal;
+	color: var(--s-color-text-secondary);
+}
+
+.b-identity__meta > div {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--g-space-3);
+}
+
+.b-identity__meta dd {
+	margin: 0;
 	color: var(--s-color-text-primary);
 }
 
 .b-identity__actions {
 	display: flex;
 	flex-direction: column;
-	padding-block-start: 0.25rem;
+	padding-block-start: var(--g-space-1);
+}
+
+.b-identity__danger {
+	color: var(--s-color-text-caution);
 }
