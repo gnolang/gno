@@ -45,9 +45,6 @@ export class ConnectController extends BaseController {
 		this.getTarget("toggle")?.addEventListener("click", () =>
 			this._toggleMenu(),
 		);
-		this.getTarget("copy")?.addEventListener("click", () =>
-			this._copyAddress(),
-		);
 		// "Change wallet" always shows the list, even with one wallet installed:
 		// picking is the whole point, unlike login, which auto-picks a lone wallet.
 		this.getTarget("switch")?.addEventListener("click", () =>
@@ -126,6 +123,11 @@ export class ConnectController extends BaseController {
 			short.textContent = truncate(session.address);
 			short.title = session.address;
 		}
+		// The copy controller on this button reads the value at click time.
+		this.getTarget("copy")?.setAttribute(
+			"data-copy-text-value",
+			session.address,
+		);
 		const via = this.getTarget("via");
 		if (via) {
 			via.textContent = [session.name, session.chainid]
@@ -195,13 +197,6 @@ export class ConnectController extends BaseController {
 			return;
 		}
 		await connectWallet(picked.wallet);
-	}
-
-	private _copyAddress(): void {
-		const session = readSession();
-		if (!session) return;
-		void navigator.clipboard?.writeText(session.address);
-		this._closeMenu();
 	}
 
 	private _toggleMenu(): void {
