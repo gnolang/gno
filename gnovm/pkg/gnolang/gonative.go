@@ -133,6 +133,16 @@ func Go2GnoValue(alloc *Allocator, store Store, rv reflect.Value) (tv TypedValue
 		rvl := rv.Len()
 		rvc := rv.Cap()
 
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			// Match the reflect.Array arm above, and every other byte-slice
+			// producer in the VM: flat Data backing, 1 byte per element.
+			// Value.Bytes tests the element kind, not its identity, so this
+			// also covers named byte types (reflect.Copy would not).
+			baseArray := alloc.NewDataArray(nil, rvc)
+			copy(baseArray.Data[:rvl], rv.Bytes())
+			tv.V = alloc.NewSlice(baseArray, 0, rvl, rvc)
+			return
+		}
 		baseArray := alloc.NewListArray2(nil, rvl, rvc)
 		list := baseArray.List
 		for i := range rvl {
@@ -341,7 +351,7 @@ func Gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 		// beyond Length is unobservable from Gno. Sizing by Maxcap let a
 		// zero-length, large-Maxcap slice buy an unmetered Go allocation and
 		// memcpy for the flat native base cost. Natives must not rely on a
-		// parameter slice's capacity; see adr/gno2go_slice_gas.md.
+		// parameter slice's capacity; see adr/acd01fa29_gno2go_slice_gas.md.
 		if svb.Data == nil {
 			rv.Set(reflect.MakeSlice(st, svl, svl))
 			for i := range svl {

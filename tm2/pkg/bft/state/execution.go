@@ -150,8 +150,11 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 		return state, ProxyAppConnError(err)
 	}
 
-	// Save the results by height
-	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
+	// Save the results by height. A failed write must stop the block here:
+	// past the application commit below, a missing record is unrecoverable.
+	if err := SaveABCIResponses(blockExec.db, block.Height, abciResponses); err != nil {
+		return state, err
+	}
 
 	// Save the results by tx hash
 	for index, tx := range block.Txs {

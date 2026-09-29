@@ -8,7 +8,7 @@
 // Tests against this victim should all fail to mutate gImm.
 package launderrvictim
 
-import "gno.land/p/demo/tests/launderpkg"
+import "gno.land/p/demo/tests/launderpkg/v0"
 
 // Immutable is /r/-declared (the key difference from /r/laundervictim,
 // which uses /p/launderpkg.Immutable).

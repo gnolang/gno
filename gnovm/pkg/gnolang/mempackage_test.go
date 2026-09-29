@@ -445,6 +445,29 @@ func TestValidateMemPackageAny_SepReserved(t *testing.T) {
 	assert.ErrorContains(t, err, "is reserved for sub-realm derivation")
 }
 
+// Info is amino field 5 of std.MemPackage, typed any, and no producer in the
+// tree sets it: every non-nil value arrives from whoever authored the message
+// or the genesis file. It is neither read nor hashed nor priced as source, so
+// it is refused rather than carried into storage.
+func TestValidateMemPackageAny_InfoRefused(t *testing.T) {
+	t.Parallel()
+	newMpkg := func() *std.MemPackage {
+		return &std.MemPackage{
+			Type:  MPUserProd,
+			Name:  "hey",
+			Path:  "example.com/r/hey",
+			Files: []*std.MemFile{{Name: "a.gno", Body: "package hey"}},
+		}
+	}
+	require.NoError(t, ValidateMemPackageAny(newMpkg()))
+
+	mpkg := newMpkg()
+	mpkg.Info = &std.MemFile{Name: "payload.gno", Body: "package payload"}
+	err := ValidateMemPackageAny(mpkg)
+	require.ErrorIs(t, err, ErrMemPackageInfo)
+	assert.ErrorContains(t, err, mpkg.Path)
+}
+
 func TestIsVersionSuffix(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

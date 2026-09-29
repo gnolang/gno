@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 const (
@@ -241,9 +243,11 @@ func (hiv *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint
 
-// ImplError returns true if the TypedValue's type implements the error interface.
-func (tv *TypedValue) ImplError() bool {
-	return IsImplementedBy(gErrorType, tv.T)
+// ImplError returns true if the TypedValue's type implements the error
+// interface. gm meters the embedded-field BFS walk (nil = a no-op); see
+// IsErrorType.
+func (tv *TypedValue) ImplError(gm types.GasMeter) bool {
+	return isImplementedBy(gm, gErrorType, tv.T)
 }
 
 // for print() and println().
