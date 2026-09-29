@@ -14,23 +14,27 @@ The flow:
 
 ## 1. Binaries
 
-Everything is built from the **`chain/mainnet`** branch (<https://github.com/gnolang/gno/tree/chain/mainnet>).
+Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) — `v1.5.0` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
 
-Build from source:
-
-```shell
-git clone https://github.com/gnolang/gno.git
-cd gno && git checkout chain/mainnet
-make -C gno.land install.gnoland install.gnokey   # installs to $GOPATH/bin
-```
-
-Or build a Docker image:
+**Native binary (recommended for validators).** Download `gnoland` for your platform from the version's [release page](https://github.com/gnolang/gno/releases/tag/v1.5.0), check it against `CHECKSUMS.txt` there (the same checksums are in `upgrades.json`), and point `GNOROOT` at a checkout of the same tag — the node reads `gnovm/stdlibs` from it:
 
 ```shell
-docker build --target gnoland -t gnoland:mainnet .
+curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.5.0/gnoland_linux_amd64
+curl -fsSLO https://github.com/gnolang/gno/releases/download/v1.5.0/CHECKSUMS.txt
+shasum -a 256 gnoland_linux_amd64                   # must match the line in CHECKSUMS.txt
+git clone --branch v1.5.0 --depth 1 https://github.com/gnolang/gno.git ~/gno
+export GNOROOT=~/gno
+chmod +x gnoland_linux_amd64 && ./gnoland_linux_amd64 version   # must print v1.5.0
 ```
 
-Prebuilt `gnoland`/`gnokey` binaries are on the release page (below). Prebuilt container images are on the GitHub Container Registry, at `ghcr.io/gnolang/gno/gnoland`.
+Or build it from the tag (`git checkout v1.5.0 && make -C gno.land install.gnoland install.gnokey`; `gnoland version` must print `v1.5.0`). Never from `master` or from the branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
+
+**Container image.** `ghcr.io/gnolang/gno/gnoland:v1.5.0` is the same binary with `GNOROOT` preset. Weigh what it adds before running a validator on it: a base image you also have to trust, a registry that must be reachable when you restart, a root daemon in the path, and one more way to end up with two instances of your validator signing at once — a restart policy, a `compose up` on a second host, a forgotten container. Double-signing is not punished today; it will be. If you use it: never `latest`, never a restart policy, and mount `secrets/` read-only.
+
+```shell
+docker pull ghcr.io/gnolang/gno/gnoland:v1.5.0
+docker run --rm ghcr.io/gnolang/gno/gnoland:v1.5.0 version   # must print v1.5.0
+```
 
 ## 2. Genesis
 
@@ -106,6 +110,8 @@ gnoland start \
 `--skip-genesis-sig-verification` is **required**: some genesis transactions carry placeholder or intentionally-invalidated signatures (e.g. the `names.Enable` call runs with a patched caller), so the node panics on startup without it.
 
 Let the node sync, and wait until it has caught up to the chain tip before the next step.
+
+**Syncing from genesis stops at every past upgrade.** Each coordinated halt in [`UPGRADES.md`](./UPGRADES.md) fires again during replay: the node stops after committing that halt height. Restart it — with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version — and it continues. Verified on 2026-09-22: a `v1.5.0` node with this configuration replayed the chain from genesis to the tip (height 251,330) in about two hours, stopping at 36300, 113000 and 162200 and resuming after a plain restart each time, with block ids and app hashes identical to the network's. Whether a single binary can replay everything after a future upgrade depends on that upgrade; `UPGRADES.md` says which version to use if it cannot. If a restart lands between a halt proposal's execution and its halt height while your binary already satisfies that halt's version, the node refuses to start; set `skip_upgrade_height` to that height in `config.toml` for that one restart, or use the previous version until the height.
 
 ## 5. Register as a validator candidate
 

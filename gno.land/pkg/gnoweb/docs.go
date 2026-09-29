@@ -118,12 +118,12 @@ func (h *DocsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
-			AssetsPath: h.Static.AssetsPath,
-			ChromaPath: h.Static.ChromaPath,
-			ChainId:    h.Static.ChainId,
-			Remote:     h.Static.RemoteHelp,
-			BuildTime:  h.Static.BuildTime,
-			Title:      h.Static.Domain + " - " + r.URL.Path,
+			AssetsPath:    h.Static.AssetsPath,
+			ChromaPath:    h.Static.ChromaPath,
+			ChainId:       h.Static.ChainId,
+			Remote:        h.Static.RemoteHelp,
+			AssetsVersion: h.Static.AssetsVersion,
+			Title:         h.Static.Domain + " - " + r.URL.Path,
 		},
 		FooterData: components.FooterData{
 			Analytics: components.AnalyticsData{
@@ -218,12 +218,12 @@ func (h *DocsHandler) resolve(rel string) (src []byte, resolvedRel string, ok bo
 func (h *DocsHandler) renderError(w http.ResponseWriter, r *http.Request, status int, msg string) {
 	indexData := components.IndexData{
 		HeadData: components.HeadData{
-			AssetsPath: h.Static.AssetsPath,
-			ChromaPath: h.Static.ChromaPath,
-			ChainId:    h.Static.ChainId,
-			Remote:     h.Static.RemoteHelp,
-			BuildTime:  h.Static.BuildTime,
-			Title:      h.Static.Domain + " - " + msg,
+			AssetsPath:    h.Static.AssetsPath,
+			ChromaPath:    h.Static.ChromaPath,
+			ChainId:       h.Static.ChainId,
+			Remote:        h.Static.RemoteHelp,
+			AssetsVersion: h.Static.AssetsVersion,
+			Title:         h.Static.Domain + " - " + msg,
 		},
 		FooterData: components.FooterData{
 			Analytics: components.AnalyticsData{
@@ -317,7 +317,7 @@ func rewriteDocsLinks(src []byte, currentRel string) []byte {
 // `text/html,...,*/*;q=0.8` and a bare `*/*` keep serving the rendered page.
 func wantsMarkdown(accept string) bool {
 	var namedMarkdown, namedHTML bool
-	for _, part := range strings.Split(accept, ",") {
+	for part := range strings.SplitSeq(accept, ",") {
 		// Drop parameters (";q=0.9", ";charset=...") and normalize.
 		mediaType, _, _ := strings.Cut(part, ";")
 		switch strings.ToLower(strings.TrimSpace(mediaType)) {

@@ -18,7 +18,9 @@ RUN --mount=type=cache,target=/go/pkg/mod/,id=valsignerd-gomodcache \
 
 COPY . ./
 
-RUN { git describe --tags --exact-match 2>/dev/null \
+# --match 'v*': a release commit also carries a chain/<name> tag, which
+# gno.land/pkg/gnoland.parseReleaseVersion refuses as a version.
+RUN { git describe --tags --exact-match --match 'v*' 2>/dev/null \
     || echo "$(git rev-parse --abbrev-ref HEAD).$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)"; \
     } > /gnoroot/build_version
 

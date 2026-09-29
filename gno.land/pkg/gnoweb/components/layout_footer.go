@@ -31,7 +31,7 @@ func EnrichFooterData(data FooterData) FooterData {
 				{Label: "Docs", URL: "/docs"},
 				{Label: "Faucet", URL: "https://faucet.gno.land/", Outbound: OutboundFaucet},
 				{Label: "Blog", URL: "https://gno.land/r/gnoland/blog"},
-				{Label: "Status", URL: "https://status.gnoteam.com/", Outbound: OutboundStatus},
+				{Label: "Status", URL: "https://status.gno.land/", Outbound: OutboundStatus},
 			},
 		},
 		{
@@ -39,7 +39,8 @@ func EnrichFooterData(data FooterData) FooterData {
 			Links: []FooterLink{
 				{Label: "GitHub", URL: "https://github.com/gnolang/gno", Outbound: OutboundGitHub},
 				{Label: "Twitter", URL: "https://twitter.com/_gnoland", Outbound: OutboundTwitter},
-				{Label: "Discord", URL: "https://discord.gg/S8nKUqwkPn", Outbound: OutboundDiscord},
+				{Label: "Discord", URL: "https://discord.com/invite/gnoland", Outbound: OutboundDiscord},
+				{Label: "Bubble Rumble", URL: "https://bubblerumble.net/", Outbound: OutboundBubbleRumble},
 				{Label: "YouTube", URL: "https://www.youtube.com/@_gnoland", Outbound: OutboundYouTube},
 			},
 		},
