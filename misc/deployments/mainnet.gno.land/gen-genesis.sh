@@ -461,6 +461,13 @@ CHECKSUMS_DATA=$(
   cat <<'EOF'
 # LOCKED 2026-09-12 — the gnoland-1 launch build (every launch value final).
 # Any run producing different bytes for these artifacts fails loudly.
+#
+# Reproducing these bytes requires the RELEASE TAG's binaries: #6173 changed
+# the sign-doc bytes gnokey signs, so post-tag toolchains produce different
+# genesis-tx SIGNATURES (msg and fee bytes stay identical — replay of the
+# published genesis is unaffected, signatures are skipped at genesis). A
+# checksum mismatch on a post-tag rebuild is therefore expected, and this
+# manifest deliberately keeps guarding the launch bytes.
 0f58018876aa393456190c5236ad8b66b1c7a0e1d25ab31674b26f5d8d14a960  work/packages.gen.txt
 63b2f339252e5dceb41d52fa7ea07d0f31d52aa2a1c2c499c5ab9fef055eb8cf  work/valoper-seed.jsonl
 a8b985e4f435f9893bcffd8b9ad73a65086f6a23d5c154e2e74222c9cc1a52e4  work/genesis_txs.jsonl

@@ -2873,11 +2873,11 @@ func (m *Machine) NumFrames() int {
 	return len(m.Frames)
 }
 
-// NumCallFrames returns the number of actual function call frames,
+// NumCallFrames returns the number of named function call frames,
 // excluding closure frames (func literals) and control-flow basic
-// frames (for/range/switch where Func is nil). Only named, non-closure
-// function calls count as separate call boundaries for origin-call
-// purposes.
+// frames (for/range/switch where Func is nil). It is the stack size the
+// native gas model bills getRealm against; use NumCallBoundaryFrames to
+// count call boundaries, which is not the same thing.
 func (m *Machine) NumCallFrames() int {
 	count := 0
 	for i := range m.Frames {
@@ -2885,6 +2885,73 @@ func (m *Machine) NumCallFrames() int {
 		if fr.Func != nil && !fr.Func.IsClosure {
 			count++
 		}
+	}
+	return count
+}
+
+// NumCallBoundaryFrames returns the number of frames that stand for a call
+// boundary: every named function call, plus every func literal that was
+// entered from outside its own realm. Control-flow basic frames (for/range/
+// switch, where Func is nil) never count.
+//
+// A func literal is part of its caller's body for as long as it runs with its
+// caller's storage authority, which is what lets a realm factor its own code
+// into closures without changing how the call looks from outside. It stops
+// being that the moment it runs with someone else's, because then it is a call
+// made by another party, and counting it is the only thing that keeps the realm
+// boundary visible in the count.
+//
+// The test is the storage realm on each side of the call, NOT the crossing
+// flags and NOT the declaring package, both of which were tried and are wrong:
+//
+//   - A crossing func literal invoked without cross(), as `f(cur)` inside its
+//     own realm, has DidCrossing set by installInheritedCur even though it
+//     never left the realm. Invoked as `f(cross(cur))` it has WithCross set,
+//     same realm. Gating on the flags makes a realm lose AssertOriginCall by
+//     calling its own closure. Gating on them the other way lets a plain
+//     non-crossing call into another realm's exported closure through, which
+//     is a storage borrow and very much a realm change.
+//   - The declaring package is wrong for a func literal in a /p/ package: it
+//     has no storage of its own and borrows the caller's, so it is the
+//     caller's code however different the two paths look.
+//
+// Walking outwards from the innermost frame, calleeRealm is the realm the
+// frame's body ran in, and fr.LastRealm is the realm of whoever called it. A
+// nil LastRealm means the call came from the message rather than from Gno
+// code, so the frame is the one the message entered and counts like any other
+// entry point.
+// ownsItsStorage reports whether r is a realm that has storage of its own. A
+// /p/ package does not: the Machine names it as the current realm while its
+// code runs, but the borrow rule puts its writes in whoever called it, so it
+// is the caller's code and a call into it is not a realm boundary. Without
+// this, every func literal in a pure package reads as a foreign realm.
+func ownsItsStorage(r *Realm) bool {
+	return r != nil && (IsRealmPath(r.Path) || IsEphemeralPath(r.Path))
+}
+
+// sameRealm compares two realms by identity, tolerating either being nil. Paths
+// rather than pointers: a realm can be reloaded from the store, and two values
+// for one path have to read as one realm here or a frame looks like a boundary
+// for no reason.
+func sameRealm(a, b *Realm) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Path == b.Path
+}
+
+func (m *Machine) NumCallBoundaryFrames() int {
+	count := 0
+	calleeRealm := m.Realm
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		fr := &m.Frames[i]
+		if fr.Func == nil {
+			continue
+		}
+		if !fr.Func.IsClosure || fr.LastRealm == nil || ownsItsStorage(calleeRealm) && !sameRealm(fr.LastRealm, calleeRealm) {
+			count++
+		}
+		calleeRealm = fr.LastRealm
 	}
 	return count
 }

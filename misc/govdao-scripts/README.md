@@ -19,10 +19,11 @@ Shared scripts for govDAO governance operations. These scripts require `GNOKEY_N
 ./govdao restrict-account ADDR [ADDR...]     # re-restrict account(s) from transferring ugnot
 ./govdao set-cla URL                         # set/update CLA document via govDAO proposal
 ./govdao set-valoper-minfee AMOUNT           # update valoper registration minimum fee
+./govdao set-halt HEIGHT MIN_VERSION          # schedule a coordinated halt (HEIGHT 0 cancels)
 ```
 
 The `-v0` validator commands route through `r/sys/validators/v0` (operator-keyed,
 post-VALOPLAN2). Use them on chains running v0 (test-13 onward). On chains still
 running v2 (gnoland1 pre-hardfork), use the unsuffixed `add-validator` / `rm-validator`.
 
-Each deployment wrapper (e.g., `misc/deployments/gnoland1/govdao`) sets the correct chain ID, RPC endpoint, and default key name.
+Each deployment wrapper (e.g., `misc/deployments/betanet/govdao`) sets the correct chain ID, RPC endpoint, and default key name.

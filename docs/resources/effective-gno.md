@@ -183,9 +183,9 @@ var (
 
 func init(cur realm) {
 	created = time.Now()
-	// cur.Previous() in the context of realm initialisation is,
-	// of course, the publisher of the realm :)
-	// This can be better than hardcoding an admin address as a constant.
+	// During initialization the previous realm is the publisher of the realm
+	// (the EOA that deployed it), so capturing it here is better than
+	// hardcoding an admin address as a constant.
 	admin = cur.Previous().Address()
 	// list is already initialized, so it will already contain "foo", "bar" and
 	// the current time as existing items.

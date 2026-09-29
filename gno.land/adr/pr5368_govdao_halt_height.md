@@ -103,17 +103,23 @@ escape hatch for an operator who has already migrated out-of-band.
 
 ### Version comparison
 
-`meetsMinVersion` (`node_params.go:193`) parses `chain/gnoland<major>.<minor>`:
-if the majors differ it compares majors, otherwise it requires
-`minor >= minMinor`. If *either* side fails to parse, it falls back to exact
-string equality.
+`meetsMinVersion` parses two release-tag shapes — `vMAJOR.MINOR.PATCH` and
+betanet's retired `chain/gnolandMAJOR.MINOR` — and orders them as a single line,
+by major, then minor, then patch, with a pre-release ranking below the release
+it leads to. If *either* side fails to parse, it falls back to exact string
+equality.
+
+> As originally merged in #5368 only the `chain/gnoland` shape parsed, which
+> meant a `halt_min_version` naming any other tag — including the bare
+> `chain/mainnet` that mainnet launched under — silently degraded to byte
+> equality. `vMAJOR.MINOR.PATCH` was added for that reason; see RELEASING.md.
 
 The fallback is deliberately strict rather than permissive, but it has a sharp
-edge worth knowing: `gno.land/Makefile` builds inject a `git describe`-derived
-version (`master.12345+abc1234`), which never parses as a chain version. Such a
-binary satisfies only a byte-identical `halt_min_version`, so in practice it
-fails any `chain/gnolandX.Y` requirement. Testing this feature requires
-building with an explicit `-ldflags` version; see
+edge worth knowing: `gno.land/Makefile` builds off a tag inject a
+`git describe`-derived version (`master.12345+abc1234`), which parses as neither
+shape. Such a binary satisfies only a byte-identical `halt_min_version`, so in
+practice it fails every version floor. Testing this feature requires building
+with an explicit `-ldflags` version; see
 [`gno.land/cmd/gnoland/UPGRADES-TESTING.md`](../cmd/gnoland/UPGRADES-TESTING.md).
 
 ## Alternatives Considered
