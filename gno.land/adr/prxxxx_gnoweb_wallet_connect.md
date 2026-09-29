@@ -109,14 +109,38 @@ navigation to the exact args being encoded. A stale code is structurally
 impossible, which is what [PR 4602](https://github.com/gnolang/gno/pull/4602)
 was blocked on.
 
+### Connected reads run in the browser
+
+A connected page reads the account (`auth/accounts`) and the username
+(`vm/qeval_json` on `r/sys/users.ResolveAddress(addr).Name()`) from the RPC in
+`gnoconnect:rpc`, as `_fetchQEval` already did for `$help` results. The address
+never reaches the gnoweb server and pages stay identical for every visitor. The
+loader is keyed by address (the `$help` ADDRESS field may differ from the
+session) and cached per page in a `globalThis` slot, because every controller
+bundle embeds its own modules. The username may be stored in the session entry
+to avoid a flash on navigation; balance and sequence never are. Session changes
+travel as a `window` event for the same bundle reason. Any read failure renders
+today's disconnected page.
+
 ## Alternatives considered
 
 - **A server session with a signature challenge.** Rejected: it makes every
   page per-user and uncacheable, needs a backend gnoweb does not have, and buys
   nothing here — gnoweb never acts on the user's behalf, the wallet does.
-- **A JS test runner for the frontend.** Rejected: gnoweb has none, and adding
-  one is a larger decision than this change should make. A checked-in fixture
-  plus a documented checklist covers the same cases reproducibly.
+- **A JS test runner for the frontend.** Rejected at first: gnoweb had none, and
+  adding one was a larger decision than the connect change should make.
+  Revisited for connected reads, whose parsing, formatting and URL logic is pure:
+  `make -C gno.land/pkg/gnoweb/frontend test` bundles `frontend/tests/*.test.ts`
+  with the existing esbuild and runs Node's built-in `node --test`, so no
+  dependency was added. The fixture and checklist still cover the DOM flows.
+- **Server-side reads** (new gnoweb endpoints over `gnoclient`): no RPC
+  reachability concerns, but gnoweb would learn who is connected and per-user
+  responses break caching.
+- **One fetch per controller**: duplicates `auth/accounts` per function block on
+  `$help`.
+- **`@gnolang/gno-js-client` for encoding** (future dry-run): imports Node
+  `crypto` and bundles to 326 KB minified; a hand-written encoder is planned
+  instead.
 - **A client-side QR encoder.** Rejected: vendoring a JS encoder against a
   server-side one already drafted in PR 4602, and it would need the page to
   re-encode on every keystroke rather than resolving to one URL.
@@ -160,7 +184,28 @@ was blocked on.
    controllers need them; leaving them on `$help` would mean either duplicating
    the registry JSON or a header with no chooser.
 4. **Frontend tests are a checked-in fixture plus a checklist**, not a test
-   runner — see Alternatives.
+   runner — see Alternatives (revisited for connected reads).
+
+Connected reads (`docs/superpowers/specs/2026-09-29-gnoweb-connected-reads-design.md`):
+
+5. **Session changes cross controller bundles as a `window` event.** Each
+   bundle embedded its own `session.ts`, so `onSessionChange` never heard a
+   write from another controller.
+6. **The account cache is not cleared on session change.** It is keyed by
+   address, so a new identity never reads the old entry.
+7. **`abciQuery` returns text, not bytes.** Every consumer parses JSON.
+8. **`func` is read from the `$help&func=…` web query in the URL path**, with a
+   query-string fallback for the static fixture.
+9. **The "me" button is rendered server-side** only for `address` and
+   `.uverse.address` params. It fills `"g1…"` on query functions, whose live
+   result evaluates the args as Gno source, and a raw `g1…` on calls.
+10. **`you-badge` mounts on a hidden sentinel in `realm.html`.** Two controllers
+    on one element break `BaseController`, and wrapping `md-renderer` would break
+    the aside/article grid. A link counts as "you" only when its path carries
+    the address; table-sort links keep `?address=` as page state.
+11. **The generic `[hidden]` rule is exempt from PurgeCSS.** Its
+    `[hidden="until-found"]` value never appears in scanned content, so the rule
+    was purged and any element whose class sets `display` ignored `hidden`.
 
 ## Validation
 

@@ -116,7 +116,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.remoteHelp,
 		"help-remote",
 		defaultWebOptions.remoteHelp,
-		"help page's remote address",
+		"public RPC URL given to browsers, for gnokey commands and client-side reads; must be reachable by visitors over HTTPS",
 	)
 
 	fs.StringVar(
