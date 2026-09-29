@@ -212,8 +212,20 @@
 	overflow-wrap: anywhere;
 }
 
+.b-identity__address-row {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	min-width: 0;
+}
+
+.b-identity__menu .b-identity__copy {
+	padding: 0;
+	line-height: 0;
+}
+
 /* Without a registered name, the address is the headline. */
-.b-identity__username[hidden] + .b-identity__short {
+.b-identity__username[hidden] + .b-identity__address-row .b-identity__short {
 	font-size: var(--g-font-size-100);
 	color: var(--s-color-text-primary);
 }

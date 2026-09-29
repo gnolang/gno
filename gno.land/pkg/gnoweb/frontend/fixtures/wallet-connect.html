@@ -38,6 +38,8 @@
           <span data-connect-target="menu-avatar"></span>
           <a data-connect-target="username-link" hidden></a>
           <span data-connect-target="short-address"></span>
+          <button type="button" data-controller="copy" data-action="click->copy#copy"
+            data-connect-target="copy" aria-label="Copy address">copy</button>
           <span data-connect-target="via"></span>
           <div data-connect-target="balance-block" hidden>
             <span data-connect-target="amount"></span> GNOT
@@ -49,7 +51,6 @@
           </dl>
         </div>
         <div role="menu" aria-label="Identity">
-          <button type="button" role="menuitem" data-connect-target="copy">Copy address</button>
           <button type="button" role="menuitem" data-connect-target="switch">Change wallet</button>
           <button type="button" role="menuitem" data-connect-target="disconnect">Disconnect</button>
         </div>
