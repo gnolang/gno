@@ -2,6 +2,7 @@
 // identity control. The markup lives in layouts/header.html, so it is present
 // on every page; this module owns everything that happens inside it.
 
+import { readMeta } from "./chain.js";
 import type { GnoWallet } from "./wallet-discovery.js";
 
 // Entry shape of the server-embedded registry (components/wallets.json).
@@ -168,6 +169,12 @@ export function openChooser(opts: {
 
 	const title = el("chooser-title");
 	if (title) title.textContent = opts.title ?? "Open with a wallet";
+	// Undo a previous error report: the picker is the default state.
+	dialog.classList.remove("b-wallet-chooser--error");
+	const install = el("chooser-install");
+	if (install) install.hidden = false;
+	const cancelLabel = el("chooser-cancel");
+	if (cancelLabel) cancelLabel.textContent = "Cancel";
 
 	return new Promise<Candidate | null>((resolve) => {
 		let settled = false;
@@ -217,13 +224,45 @@ export function openChooser(opts: {
 	});
 }
 
-// Reopen the chooser to say why a wallet did nothing. A request refused
-// without ever reaching a wallet screen otherwise leaves the user staring at
-// an unchanged page. `code` is the standard's enumerated reason, rendered as
-// text — nothing coming back from a wallet is trusted as markup. Resolves
-// when the dialog closes, so a caller can navigate only once the user has
-// actually seen the message; resolves immediately if there is no dialog to
-// show, so a page without the chooser markup is never stranded.
+// What a wallet's failure means for the user, per the standard's codes.
+// Only a known code is ever shown; anything else gets the generic sentence.
+const ERROR_MESSAGES: Record<
+	string,
+	(wallet: string, chain: string) => string
+> = {
+	no_signer: (w) =>
+		`${w} has no account to sign with. Create or import one in ${w}, then click Execute again.`,
+	network_declined: (w, chain) =>
+		`${w} didn't switch to this network${chain ? ` (${chain})` : ""}. Select it in ${w}, then try again.`,
+	signer_unavailable: (w) =>
+		`${w} isn't on the account you're connected as. Switch to it in ${w}, or reconnect.`,
+	tx_failed: (w) => `${w} sent the transaction, but it failed.`,
+};
+
+export interface ChooserErrorView {
+	title: string;
+	message: string;
+	code: string | null;
+}
+
+export function chooserErrorView(
+	walletName: string,
+	err: unknown,
+	chain = "",
+): ChooserErrorView {
+	const raw = (err as { code?: unknown } | null)?.code;
+	const known =
+		typeof raw === "string" && Object.hasOwn(ERROR_MESSAGES, raw) ? raw : null;
+	return {
+		title: `${walletName} couldn't sign`,
+		message: known
+			? ERROR_MESSAGES[known](walletName, chain)
+			: `${walletName} couldn't handle this request.`,
+		code: known,
+	};
+}
+
+// Reopen the chooser as an error report, then resolve when it closes.
 export function reportChooserError(
 	walletName: string,
 	err: unknown,
@@ -232,17 +271,63 @@ export function reportChooserError(
 	const list = el("chooser-list");
 	if (!dialog || !list) return Promise.resolve();
 
-	const code = (err as { code?: unknown })?.code;
-	const reason = typeof code === "string" ? ` (${code})` : "";
+	const view = chooserErrorView(
+		walletName,
+		err,
+		readMeta("gnoconnect:chainid"),
+	);
+	dialog.classList.add("b-wallet-chooser--error");
+	const title = el("chooser-title");
+	if (title) title.textContent = view.title;
+	const install = el("chooser-install");
+	if (install) install.hidden = true;
+	const browser = el("chooser-browser");
+	if (browser) browser.hidden = true;
+	const close = el("chooser-cancel") as HTMLButtonElement | null;
+	if (close) {
+		close.textContent = "Close";
+		close.onclick = () => dialog.close();
+	}
 
 	list.textContent = "";
-	const li = document.createElement("li");
-	li.className = "b-wallet-chooser__error";
-	li.textContent = `${walletName} could not take this transaction${reason}. The gnokey command below works without a wallet.`;
-	list.appendChild(li);
+	list.append(errorPanel(view), hint());
 
 	return new Promise<void>((resolve) => {
 		dialog.addEventListener("close", () => resolve(), { once: true });
 		if (!dialog.open) show(dialog);
+		close?.focus();
 	});
+}
+
+function errorPanel(view: ChooserErrorView): HTMLElement {
+	const li = document.createElement("li");
+	li.className = "b-wallet-chooser__error";
+	li.setAttribute("role", "alert");
+
+	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+	svg.setAttribute("class", "c-icon");
+	svg.setAttribute("aria-hidden", "true");
+	const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+	use.setAttribute("href", "#ico-warning");
+	svg.appendChild(use);
+
+	const body = document.createElement("div");
+	const message = document.createElement("p");
+	message.textContent = view.message;
+	body.appendChild(message);
+	if (view.code) {
+		const code = document.createElement("code");
+		code.className = "b-wallet-chooser__code";
+		code.textContent = view.code;
+		body.appendChild(code);
+	}
+	li.append(svg, body);
+	return li;
+}
+
+function hint(): HTMLElement {
+	const li = document.createElement("li");
+	li.className = "b-wallet-chooser__hint";
+	li.textContent = "You can also sign with the gnokey command on this page.";
+	return li;
 }
