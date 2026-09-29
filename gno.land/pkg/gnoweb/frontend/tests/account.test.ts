@@ -75,23 +75,40 @@ test("junk denoms are counted, never kept", () => {
 });
 
 test("formatGnot is exact and trims trailing zeros", () => {
-	assert.equal(formatGnot(0n), "0 GNOT");
-	assert.equal(formatGnot(1_000_000n), "1 GNOT");
-	assert.equal(formatGnot(12_500_000n), "12.5 GNOT");
-	assert.equal(formatGnot(1n), "0.000001 GNOT");
-	assert.equal(formatGnot(105537570490n), "105,537.57049 GNOT");
-	assert.equal(formatGnot(2n ** 64n), "18,446,744,073,709.551616 GNOT");
+	assert.equal(formatGnot(0n), "0");
+	assert.equal(formatGnot(1_000_000n), "1");
+	assert.equal(formatGnot(12_500_000n), "12.5");
+	assert.equal(formatGnot(1n), "0.000001");
+	assert.equal(formatGnot(105537570490n), "105,537.57049");
+	assert.equal(formatGnot(2n ** 64n), "18,446,744,073,709.551616");
 });
 
-test("accountView covers present, extra tokens, and not-on-chain", () => {
-	const a = parseAccount(addr, accountJSON("12500000ugnot,1foo,2bar"));
-	assert.deepEqual(accountView(a), {
-		balance: "12.5 GNOT · +2 other tokens",
-		line: "Account 3096238 · Sequence 368",
-	});
+test("accountView splits amount, extra line and numbers", () => {
+	assert.deepEqual(
+		accountView(parseAccount(addr, accountJSON("12500000ugnot,1foo,2bar"))),
+		{
+			amount: "12.5",
+			extra: "+2 other tokens",
+			accountNumber: "3096238",
+			sequence: "368",
+		},
+	);
+	assert.equal(
+		accountView(parseAccount(addr, accountJSON("1ugnot,1foo"))).extra,
+		"+1 other token",
+	);
+	assert.equal(
+		accountView(parseAccount(addr, accountJSON("1ugnot"))).extra,
+		null,
+	);
+});
+
+test("accountView of an account not on chain yet", () => {
 	assert.deepEqual(accountView(null), {
-		balance: "0 GNOT · not on chain yet",
-		line: null,
+		amount: "0",
+		extra: "Not on chain yet",
+		accountNumber: null,
+		sequence: null,
 	});
 });
 
