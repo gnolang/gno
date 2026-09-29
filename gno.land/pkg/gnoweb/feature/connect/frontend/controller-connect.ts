@@ -64,20 +64,14 @@ export class ConnectController extends BaseController {
 			if (!this.element.contains(event.target as Node)) this._closeMenu();
 		});
 
-		this._unsubscribe = onSessionChange((session) => {
-			this._render(session);
-			void this._resolveUsername(session);
-		});
+		this._unsubscribe = onSessionChange((session) => this._apply(session));
 
 		// Render the remembered address immediately — no flash of "Connect" on
 		// every navigation — then reconcile asynchronously. The address is the
 		// user's own and is display-only, so a brief unverified render costs
 		// nothing.
 		this._render(readSession());
-		void reconcile().then((session) => {
-			this._render(session);
-			void this._resolveUsername(session);
-		});
+		void reconcile().then((session) => this._apply(session));
 	}
 
 	protected disconnect(): void {
@@ -124,15 +118,21 @@ export class ConnectController extends BaseController {
 		}
 	}
 
+	private _apply(session: GnoSession | null): void {
+		this._render(session);
+		void this._resolveUsername(session);
+	}
+
+	// Whether chain reads about session can run against this page's RPC.
+	private _queryable(session: GnoSession | null): session is GnoSession {
+		return (
+			!!session && isAddress(session.address) && chainMatches(session.chainid)
+		);
+	}
+
 	// Check the stored name once per page; a failed lookup keeps it.
 	private async _resolveUsername(session: GnoSession | null): Promise<void> {
-		if (
-			!session ||
-			!isAddress(session.address) ||
-			!chainMatches(session.chainid)
-		) {
-			return;
-		}
+		if (!this._queryable(session)) return;
 		try {
 			setUsername(session.address, await loadUsername(session.address));
 		} catch (err) {
@@ -213,7 +213,7 @@ export class ConnectController extends BaseController {
 		if (full) full.textContent = session.address;
 		balance.hidden = true;
 		line.hidden = true;
-		if (!isAddress(session.address) || !chainMatches(session.chainid)) return;
+		if (!this._queryable(session)) return;
 
 		balance.textContent = "…";
 		balance.hidden = false;

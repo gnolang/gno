@@ -110,21 +110,27 @@ export function chainMatches(sessionChainid: string): boolean {
 	return !sessionChainid || !page || sessionChainid === page;
 }
 
-export function loadAccount(address: string): Promise<Account | null> {
+// forAddress caches load under kind:address; a non-address sends no request.
+function forAddress<T>(
+	kind: string,
+	address: string,
+	load: () => Promise<T>,
+): Promise<T> {
 	if (!isAddress(address)) {
 		return Promise.reject(new ChainError("not an address"));
 	}
-	return cached(`account:${address}`, async () =>
+	return cached(`${kind}:${address}`, load);
+}
+
+export function loadAccount(address: string): Promise<Account | null> {
+	return forAddress("account", address, async () =>
 		parseAccount(address, await abciQuery(`auth/accounts/${address}`)),
 	);
 }
 
 // loadUsername is null for an unregistered address; an RPC failure throws.
 export function loadUsername(address: string): Promise<string | null> {
-	if (!isAddress(address)) {
-		return Promise.reject(new ChainError("not an address"));
-	}
-	return cached(`username:${address}`, async () => {
+	return forAddress("username", address, async () => {
 		try {
 			const name = await qevalJSON(
 				`gno.land/r/sys/users.ResolveAddress("${address}").Name()`,
