@@ -165,3 +165,15 @@ func TestHelpView_RendersQROnlyForTheSelectedFunction(t *testing.T) {
 	// The button still points at the other function, which selects it on arrival.
 	assert.Contains(t, out, "func=Render")
 }
+
+func TestHelpView_RendersTxOutcomeSlot(t *testing.T) {
+	t.Parallel()
+
+	data, _ := helpFixture()
+	var buf bytes.Buffer
+	require.NoError(t, HelpView(data).Render(&buf))
+
+	out := buf.String()
+	assert.Contains(t, out, `data-controller="tx-outcome"`)
+	assert.Contains(t, out, `data-tx-outcome-func-value="Transfer"`)
+}

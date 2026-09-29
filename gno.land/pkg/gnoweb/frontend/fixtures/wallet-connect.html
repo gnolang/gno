@@ -46,6 +46,11 @@
     data-action-function-pkgpath-value="gno.land/r/demo/bank">
     <h2 id="func-Transfer">Transfer</h2>
     <button type="submit" form="form-Transfer">Execute</button>
+    <div class="b-alert" data-controller="tx-outcome" data-tx-outcome-func-value="Transfer" role="status" hidden>
+      <p data-tx-outcome-target="message"></p>
+      <button type="button" class="b-btn" data-tx-outcome-target="reconnect">Reconnect</button>
+      <button type="button" class="b-btn" data-tx-outcome-target="dismiss">Dismiss</button>
+    </div>
     <a href="http://localhost:8000/frontend/fixtures/wallet-connect.html?func=Transfer&to=&amount=#qr-Transfer"
       data-action-function-target="qr-anchor">QR</a>
     <form class="params" id="form-Transfer" method="GET"
@@ -63,6 +68,7 @@
   <p><button type="button" id="stub-one">Announce one wallet</button>
     <button type="button" id="stub-two">Announce a second</button>
     <button type="button" id="stub-reject">Announce one that rejects</button>
+    <button type="button" id="stub-wrongsigner">Announce one on another account (signer_unavailable)</button>
     <button type="button" id="stub-nosendtx">Announce one without sendTx</button>
     <button type="button" id="stub-noconnect">Announce one without connect</button>
     <button type="button" id="stub-notconnected">Announce one answering not_connected once</button>
@@ -100,6 +106,9 @@
     on("stub-two", () => re(stub("uuid-2", "Stub Two", "test.stub.two")));
     on("stub-reject", () => re(stub("uuid-6", "Rejecting", "test.stub.reject", {
       sendTx: async () => { log("sendTx rejected"); return { status: "Rejected", code: "user_rejected" }; },
+    })));
+    on("stub-wrongsigner", () => re(stub("uuid-7", "Wrong account", "test.stub.wrongsigner", {
+      sendTx: async (tx) => { log("sendTx declined, signer", tx.signer); return { status: "Rejected", code: "signer_unavailable" }; },
     })));
     on("stub-nosendtx", () => re(stub("uuid-3", "No sendTx", "test.stub.nosendtx", { sendTx: undefined })));
     on("stub-noconnect", () => re(stub("uuid-4", "No connect", "test.stub.noconnect", { connect: undefined, getAccount: undefined })));

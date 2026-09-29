@@ -46,6 +46,10 @@ export class ConnectController extends BaseController {
 			clearSession();
 			this._closeMenu();
 		});
+		// Other controllers (the tx-outcome notice) ask to switch accounts.
+		this.on("connect:pick", () => {
+			void this._pickWallet("Change wallet", true);
+		});
 		// Close the menu on an outside click, like the other header popups.
 		document.addEventListener("click", (event) => {
 			if (!this.element.contains(event.target as Node)) this._closeMenu();
