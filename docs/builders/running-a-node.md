@@ -16,7 +16,7 @@ So before anything else, name what you're actually trying to do:
 
 ## Develop contracts
 
-No node needed. [`gnodev`](../resources/gnodev.md) boots a local devnet
+No node needed. [`gnodev`](../resources/gnodev-reference.md) boots a local devnet
 with hot reload, pre-funded accounts, and a built-in web UI — a faster
 loop than any real chain. `gno test` runs your tests with no chain at
 all, and the [Playground](https://play.gno.land) runs Gno in your

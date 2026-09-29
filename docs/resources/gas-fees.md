@@ -92,7 +92,7 @@ gnokey query auth/gasprice -remote https://rpc.gno.land:443
 This returns the gas price calculated from the most recently completed block,
 which is the minimum rate currently required for new transactions.
 
-For more details, see [`auth/gasprice`](../users/interact-with-gnokey.md#authgasprice).
+For more details, see [`auth/gasprice`](gnokey-reference.md#authgasprice).
 
 ### How the Network Adjusts Gas Price
 
