@@ -2204,3 +2204,51 @@ func TestHTTPHandler_CanonicalIgnoresForwardedHost(t *testing.T) {
 	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/r/mock/path" />`)
 	assert.NotContains(t, body, "evil.example", "the canonical link must not follow a request header")
 }
+
+// TestHTTPHandler_RobotsMeta checks the page's robots meta follows -noindex,
+// so it agrees with the X-Robots-Tag the router sets; static exports that
+// cannot send headers rely on the meta alone.
+func TestHTTPHandler_RobotsMeta(t *testing.T) {
+	t.Parallel()
+
+	for noindex, want := range map[bool]string{
+		false: `<meta name="robots" content="index, follow" />`,
+		true:  `<meta name="robots" content="noindex, nofollow" />`,
+	} {
+		config := newTestHandlerConfig(t, gnoweb.NewMockClient(&gnoweb.MockPackage{
+			Domain: "example.com",
+			Path:   "/r/mock/path",
+			Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
+		}))
+		config.Meta.NoIndex = noindex
+		config.Meta.CanonicalOrigin = "https://gno.land"
+		handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), config)
+		require.NoError(t, err)
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path", nil))
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Contains(t, rr.Body.String(), want, "noindex %v", noindex)
+		// A noindex page must not point a canonical at gno.land: Google may
+		// carry the noindex over to it.
+		assert.Equal(t, !noindex, strings.Contains(rr.Body.String(), `rel="canonical"`), "noindex %v", noindex)
+	}
+}
+
+// TestHTTPHandler_ActionFormNoIndex checks an action form stays out of the
+// index while the function list it comes from does not.
+func TestHTTPHandler_ActionFormNoIndex(t *testing.T) {
+	t.Parallel()
+
+	handler := newMetadataHandler(t, "/r/mock/path", nil)
+	for target, want := range map[string]string{
+		"/r/mock/path$help":             `<meta name="robots" content="index, follow" />`,
+		"/r/mock/path$help&func=Render": `<meta name="robots" content="noindex, nofollow" />`,
+	} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+		require.Equal(t, http.StatusOK, rr.Code, target)
+		assert.Contains(t, rr.Body.String(), want, target)
+		assert.Equal(t, strings.Contains(want, `"index`), strings.Contains(rr.Body.String(), `rel="canonical"`), target)
+	}
+}

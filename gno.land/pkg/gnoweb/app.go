@@ -63,6 +63,10 @@ type AppConfig struct {
 	// the visitor did not reach tells a crawler the content belongs elsewhere,
 	// and every deployment but one would be claiming gno.land's.
 	CanonicalOrigin string
+	// NoIndex asks search engines to leave this deployment out of their
+	// index. Off by default, so no deployment can drop out of search by
+	// forgetting a flag; testnets, staging and previews turn it on.
+	NoIndex bool
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
 	// Aliases is a map of aliases pointing to another path or a static file.
@@ -109,6 +113,12 @@ func NewDefaultAppConfig() *AppConfig {
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
 
+	canonicalOrigin, err := normalizeCanonicalOrigin(cfg.CanonicalOrigin)
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("crawl policy", "noindex", cfg.NoIndex, "canonical_origin", canonicalOrigin)
+
 	// Initialize RPC Client.
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
 		client.WithRequestTimeout(cfg.NodeRequestTimeout),
@@ -133,7 +143,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	staticMeta := StaticMetadata{
 		Domain:            cfg.Domain,
-		CanonicalOrigin:   strings.TrimSuffix(cfg.CanonicalOrigin, "/"),
+		CanonicalOrigin:   canonicalOrigin,
+		NoIndex:           cfg.NoIndex,
 		AssetsPath:        assetsBase,
 		ChromaPath:        chromaStylePath,
 		RemoteHelp:        cfg.RemoteHelp,
@@ -142,6 +153,12 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AnalyticsHostname: cfg.AnalyticsHostname,
 		AssetsVersion:     AssetsVersion(),
 		Banner:            cfg.Banner,
+	}
+	// A noindex deployment names no canonical anywhere: Google may carry a
+	// noindex over to the canonical target, and a deployment that copied
+	// mainnet's -canonical-origin would point every page at gno.land.
+	if cfg.NoIndex {
+		staticMeta.CanonicalOrigin = ""
 	}
 
 	// Configure Markdown renderer
@@ -219,6 +236,18 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle realm/package discovery search (browser fetches the list once and filters locally)
 	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
+
+	// Crawl policy. A sitemap needs absolute URLs, so it is only served with a
+	// canonical origin, and never by a deployment that asked not to be indexed.
+	sitemapOrigin := canonicalOrigin
+	if cfg.NoIndex {
+		sitemapOrigin = ""
+	}
+	mux.Handle("/robots.txt", handlerRobotsTXT(cfg.NoIndex, sitemapOrigin))
+	mux.Handle("/sitemap.xml", handlerSitemapXML(logger, sitemapOrigin, cfg.Aliases, searchDir))
+	if cfg.NoIndex {
+		return noIndexMiddleware(mux), nil
+	}
 
 	return mux, nil
 }

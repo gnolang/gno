@@ -39,6 +39,7 @@ const defaultRequestTimeout = 30 * time.Second
 type StaticMetadata struct {
 	Domain            string
 	CanonicalOrigin   string
+	NoIndex           bool
 	AssetsPath        string
 	ChromaPath        string
 	RemoteHelp        string
@@ -221,6 +222,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Remote:            h.Static.RemoteHelp,
 			AssetsVersion:     h.Static.AssetsVersion,
 			AnalyticsHostname: h.Static.AnalyticsHostname,
+			// Matches the X-Robots-Tag NewRouter sets under -noindex.
+			NoIndex: h.Static.NoIndex,
 		},
 		FooterData: components.FooterData{
 			Analytics: components.AnalyticsData{
@@ -333,10 +336,22 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// whether the page exists. A canonical on an error shell tells a crawler
 	// the URL is real, which is how a mistyped path becomes an indexed page.
 	if status != http.StatusOK {
+		indexData.HeadData.NoIndex = true
+	}
+
+	// An action form ($help&func=...) exists for every call a realm links to,
+	// so indexing them would publish an unbounded set of near-identical pages.
+	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("func") {
+		indexData.HeadData.NoIndex = true
+	}
+
+	// A noindex page names no canonical: Google may carry a noindex over to
+	// the canonical target. (Under -noindex, NewRouter already drops the
+	// canonical origin for every view.)
+	if indexData.HeadData.NoIndex {
 		indexData.HeadData.Canonical = ""
 		indexData.HeadData.URL = ""
 		indexData.HeadData.Image = ""
-		indexData.HeadData.NoIndex = true
 	}
 
 	// Render the final page with the rendered body

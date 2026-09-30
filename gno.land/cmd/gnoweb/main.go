@@ -44,6 +44,7 @@ var cspImgHost = []string{
 
 type webCfg struct {
 	canonicalOrigin  string
+	noIndex          bool
 	chainid          string
 	remote           string
 	remoteTimeout    time.Duration
@@ -137,7 +138,14 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.canonicalOrigin,
 		"canonical-origin",
 		defaultWebOptions.canonicalOrigin,
-		"public origin of this deployment, scheme included; empty emits no canonical tag",
+		"public origin of this deployment, scheme included; empty emits no canonical tag and no sitemap",
+	)
+
+	fs.BoolVar(
+		&c.noIndex,
+		"noindex",
+		defaultWebOptions.noIndex,
+		"ask search engines to leave this deployment out of their index (testnets, staging, previews); never set it on mainnet",
 	)
 
 	fs.StringVar(
@@ -238,6 +246,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
 	appcfg.CanonicalOrigin = cfg.canonicalOrigin
+	appcfg.NoIndex = cfg.noIndex
 	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)
