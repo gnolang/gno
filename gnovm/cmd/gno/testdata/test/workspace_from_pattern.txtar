@@ -1,0 +1,37 @@
+# The working directory is in no workspace, but the pattern points at one:
+# `gno test ./examples/...` from a repo root whose gnowork.toml is in examples/.
+
+gno test ./examples/...
+
+! stdout .+
+stderr 'ok      ./examples/foo'
+
+# A pattern that reaches no workspace still fails, naming the ones it found.
+
+! gno test ./...
+
+! stdout .+
+stderr 'workspaces found below: examples'
+
+-- examples/gnowork.toml --
+-- examples/foo/gnomod.toml --
+module = "gno.test/p/integ/foo"
+gno = "0.9"
+
+-- examples/foo/foo.gno --
+package foo
+
+func Foo() string {
+	return "foo"
+}
+
+-- examples/foo/foo_test.gno --
+package foo
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+	if Foo() != "foo" {
+		t.Fatalf("got %q", Foo())
+	}
+}
