@@ -71,6 +71,24 @@ export interface GnoWalletProvider {
 	sendTx?(tx: GnoTxRequest): Promise<UserResponse<{ hash: string }>>;
 	connect?(opts?: { chainid?: string }): Promise<UserResponse<GnoAccount>>;
 	getAccount?(): Promise<UserResponse<GnoAccount>>;
+	on?<E extends keyof GnoProviderEvents>(
+		event: E,
+		listener: (detail: GnoProviderEvents[E]) => void,
+	): () => void;
+}
+
+export interface GnoNetwork {
+	chainid: string;
+	rpc: string;
+	name?: string;
+}
+
+// What a wallet tells an approved origin when the user changes something in it.
+// Advisory: they update what the page shows, never what it signs.
+export interface GnoProviderEvents {
+	accountChanged: GnoAccount;
+	networkChanged: GnoNetwork;
+	disconnect: null;
 }
 
 export interface GnoWallet {

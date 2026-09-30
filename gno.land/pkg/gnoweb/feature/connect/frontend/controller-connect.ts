@@ -19,6 +19,7 @@ import {
 	clearSession,
 	connectWallet,
 	displayName,
+	followWallet,
 	type GnoSession,
 	onSessionChange,
 	readSession,
@@ -33,6 +34,7 @@ import {
 export class ConnectController extends BaseController {
 	declare _discovery: ReturnType<typeof getWallets>;
 	declare _unsubscribe: () => void;
+	declare _menuFor: string; // the address and chain the open menu's numbers are for
 
 	protected connect(): void {
 		this.initializeDOM({});
@@ -63,7 +65,13 @@ export class ConnectController extends BaseController {
 			if (!this.element.contains(event.target as Node)) this._closeMenu();
 		});
 
-		this._unsubscribe = onSessionChange((session) => this._apply(session));
+		const offSession = onSessionChange((session) => this._apply(session));
+		// The wallet reports switches and revocations made in it.
+		const unfollow = followWallet();
+		this._unsubscribe = () => {
+			offSession();
+			unfollow();
+		};
 
 		// Render the remembered address immediately — no flash of "Connect" on
 		// every navigation — then reconcile asynchronously. The address is the
@@ -139,6 +147,15 @@ export class ConnectController extends BaseController {
 	private _apply(session: GnoSession | null): void {
 		this._render(session);
 		void this._resolveUsername(session);
+		// An open menu refetches only when the account or chain it shows moved,
+		// not on a username write-back.
+		if (
+			session &&
+			this.getTarget("menu")?.hidden === false &&
+			menuKey(session) !== this._menuFor
+		) {
+			void this._renderAccount();
+		}
 	}
 
 	// Whether chain reads about session can run against this page's RPC.
@@ -219,6 +236,7 @@ export class ConnectController extends BaseController {
 		const block = this.getTarget("balance-block");
 		const rows = this.getTarget("account-rows");
 		if (!session || !block || !rows) return;
+		this._menuFor = menuKey(session);
 
 		block.hidden = true;
 		rows.hidden = true;
@@ -266,4 +284,8 @@ export class ConnectController extends BaseController {
 		menu.hidden = true;
 		this.getTarget("toggle")?.setAttribute("aria-expanded", "false");
 	}
+}
+
+function menuKey(session: GnoSession): string {
+	return `${session.address}|${session.chainid}`;
 }
