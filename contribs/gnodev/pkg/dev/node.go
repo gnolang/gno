@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -76,6 +77,14 @@ type NodeConfig struct {
 	// initialization.
 	NoReplay bool
 
+	// TxRecorder, if set, is handed every transaction this node commits, in
+	// block order, as it commits. gnodev wires it to the on-disk history
+	// store so a chain's transactions outlive the process.
+	//
+	// It is called synchronously on the node's block-execution path, so an
+	// implementation must not block: buffer, and make durable elsewhere.
+	TxRecorder TxRecorder
+
 	// MaxGasPerBlock sets the maximum amount of gas that can be used in a single block.
 	MaxGasPerBlock int64
 
@@ -130,6 +139,11 @@ func (n *Node) devGenState() gnoland.GnoGenesisState {
 	return genesis
 }
 
+// TxRecorder receives committed transactions in (height, index) order.
+type TxRecorder interface {
+	Record(tx gnoland.TxWithMetadata) error
+}
+
 // Node is not thread safe
 type Node struct {
 	*node.Node
@@ -148,6 +162,14 @@ type Node struct {
 
 	// track starting time for genesis
 	startTime time.Time
+
+	// blockTime carries the timestamp of the block currently being
+	// delivered, in unix seconds, published by the EventNewBlock that
+	// precedes that block's EventTx events. Committed transactions have no
+	// timestamp of their own, and reading it back from the block store from
+	// inside the event callback would query a height that is still being
+	// committed.
+	blockTime atomic.Int64
 
 	// state
 	initialState, state []gnoland.TxWithMetadata
@@ -589,6 +611,12 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 
 func (n *Node) handleEventTX(evt tm2events.Event) {
 	switch data := evt.(type) {
+	case bft.EventNewBlock:
+		// Fired before this block's EventTx events, on the same goroutine.
+		if data.Block != nil {
+			n.blockTime.Store(data.Block.Time.Unix())
+		}
+
 	case bft.EventTx:
 		go func() {
 			// Use a separate goroutine in order to avoid a deadlock situation.
@@ -616,7 +644,36 @@ func (n *Node) handleEventTX(evt tm2events.Event) {
 				"error", err)
 		}
 
+		n.recordTx(data, resEvt.Tx)
 		n.emitter.Emit(resEvt)
+	}
+}
+
+// recordTx hands a committed transaction to the configured TxRecorder.
+//
+// Failed transactions are skipped, matching getBlockTransactions: the history
+// on disk then replays to the same state the block store would rebuild. That
+// is deliberately lossy, because a message that failed can still have
+// committed ante state (a deducted fee, an incremented sequence); carrying
+// them with metadata.Failed set is the job of the richer metadata pass, not of
+// this one.
+func (n *Node) recordTx(data bft.EventTx, tx std.Tx) {
+	if n.config.TxRecorder == nil || !data.Result.Response.IsOK() {
+		return
+	}
+
+	err := n.config.TxRecorder.Record(gnoland.TxWithMetadata{
+		Tx: tx,
+		Metadata: &gnoland.GnoTxMetadata{
+			Timestamp: n.blockTime.Load(),
+		},
+	})
+	if err != nil {
+		// Never fatal: losing a line of history must not stop the chain.
+		n.logger.Error("unable to record transaction in history",
+			"height", data.Result.Height,
+			"index", data.Result.Index,
+			"error", err)
 	}
 }
 

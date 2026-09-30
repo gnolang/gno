@@ -17,7 +17,10 @@ const DefaultDomain = "gno.land"
 // localNoWorkspaceHint is local mode's line in the no-workspace banner.
 const localNoWorkspaceHint = "running in discovery mode: packages resolve on-demand from examples, and from a chain RPC for domains passed via -remote."
 
-var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
+var (
+	ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
+	ErrConflictingStateDir = errors.New("cannot specify `txs-file` or `genesis-file` along with `state-dir`: the state dir owns the transaction history")
+)
 
 type LocalAppConfig struct {
 	AppConfig
