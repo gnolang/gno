@@ -5,6 +5,7 @@
 
 import {
 	type GnoAccount,
+	type GnoProviderEvents,
 	type GnoWallet,
 	getWallets,
 } from "../../../frontend/js/wallet-discovery.js";
@@ -207,6 +208,83 @@ export async function reconcile(): Promise<GnoSession | null> {
 	const updated = toSession(wallet, account);
 	writeSession(updated);
 	return updated;
+}
+
+// followWallet keeps the session in step with what the remembered wallet
+// reports: a switched account or network rewrites it, a disconnect clears it.
+// It never prompts; after a disconnect, reconnecting is the user's move.
+export function followWallet(
+	lookup: (rdns: string) => GnoWallet | undefined = findAnnounced,
+	onAnnounce: (fn: () => void) => () => void = (fn) => getWallets().on(fn),
+): () => void {
+	let following: { rdns: string; stop: () => void } | null = null;
+
+	const stop = () => {
+		following?.stop();
+		following = null;
+	};
+
+	// A wallet whose on() returned no unsubscribe keeps calling after we switch.
+	const ours = (rdns: string): GnoSession | null => {
+		const session = readSession();
+		return session?.rdns === rdns ? session : null;
+	};
+
+	const follow = (session: GnoSession | null) => {
+		if (!session) return stop();
+		if (following?.rdns === session.rdns) return;
+		stop();
+		const wallet = lookup(session.rdns);
+		const on = wallet?.provider?.on;
+		if (!wallet || typeof on !== "function") return; // retried on announce
+
+		const rdns = session.rdns;
+		const offs: (() => void)[] = [];
+		const subscribe = <E extends keyof GnoProviderEvents>(
+			event: E,
+			listener: (detail: GnoProviderEvents[E]) => void,
+		) => {
+			try {
+				const off = on.call(wallet.provider, event, listener);
+				if (typeof off === "function") offs.push(off);
+			} catch (err) {
+				console.warn(
+					`session: wallet "${wallet.info.name}" rejected ${event}`,
+					err,
+				);
+			}
+		};
+
+		subscribe("accountChanged", (account) => {
+			const current = ours(rdns);
+			if (!current || typeof account?.address !== "string" || !account.address)
+				return;
+			if (account.address === current.address) return;
+			writeSession(toSession(wallet, account));
+		});
+		subscribe("networkChanged", (network) => {
+			const current = ours(rdns);
+			if (!current || typeof network?.chainid !== "string") return;
+			if (network.chainid === current.chainid) return;
+			writeSession({ ...current, chainid: network.chainid });
+		});
+		subscribe("disconnect", () => {
+			if (ours(rdns)) clearSession();
+		});
+
+		following = { rdns, stop: () => offs.forEach((off) => off()) };
+	};
+
+	const offSession = onSessionChange(follow);
+	// The wallet may announce after the session was restored from storage.
+	const offAnnounce = onAnnounce(() => follow(readSession()));
+	follow(readSession());
+
+	return () => {
+		offSession();
+		offAnnounce();
+		stop();
+	};
 }
 
 // Header display form: enough of each end to recognise, short enough to fit.
