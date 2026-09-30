@@ -2,6 +2,7 @@
 LAYOUT - Overview
 =================================================================================== */}}
 {{ define "renderOverview" }}
+{{ with .JSONLD }}<script type="application/ld+json">{{ . }}</script>{{ end }}
 <!-- Overview Sidebar -->
 <aside class="b-sidebar sidebar" aria-label="Package metadata and table of contents">
   <div>

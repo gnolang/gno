@@ -189,6 +189,19 @@ func TestHTTPHandler_Get(t *testing.T) {
 			"my_super_arg",
 			"SuperRenderFunction",
 		}},
+		// Help page as JSON: the callable functions, for agents
+		{Path: "/r/mock/path$help&json", Status: http.StatusOK, Contains: []string{
+			`"pkgpath":"/r/mock/path"`,
+			`"name":"SuperRenderFunction"`,
+		}},
+		{Path: "/r/invalid/path$help&json", Status: http.StatusNotFound, Contain: `"error"`},
+		// The whole package as one text, for pasting into any assistant
+		{Path: "/r/mock/path$download", Status: http.StatusOK, Contains: []string{
+			"// file: render.gno",
+			"one more time",
+			"// file: LicEnse",
+		}},
+		{Path: "/r/invalid/path$download", Status: http.StatusNotFound},
 
 		// Package not found
 		{Path: "/r/invalid/path", Status: http.StatusNotFound, Contain: "not found"},
@@ -369,9 +382,10 @@ func TestHTTPHandler_GetSourceDownload(t *testing.T) {
 			Contain: "not found",
 		},
 		{
+			// No file: the whole package as one text, for AI assistants.
 			Path:    "/r/mock/path$source&download",
-			Status:  http.StatusNotFound,
-			Contain: "not found",
+			Status:  http.StatusOK,
+			Contain: "// file: test.gno",
 		},
 		{
 			Path:    "/invalid/path$source&file=test.gno&download",

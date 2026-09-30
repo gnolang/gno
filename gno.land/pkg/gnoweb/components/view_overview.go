@@ -154,6 +154,8 @@ type OverviewData struct {
 	SymbolsTruncated bool
 
 	ComponentTOC Component
+	// JSONLD describes the package to search engines and AI crawlers.
+	JSONLD map[string]any
 }
 
 // OverviewView constructs a new overview View from pre-built data.

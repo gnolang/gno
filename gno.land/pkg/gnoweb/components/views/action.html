@@ -95,6 +95,18 @@ UI - Help Function component
           </svg>
           <span>Execute</span>
         </button>
+        {{ with aiFuncAction $data . }}
+        <details class="b-ai-func">
+          <summary class="b-btn b-btn--secondary c-with-icon" title="Ask an AI assistant about this function">
+            <svg class="c-icon" aria-hidden="true"><use href="#ico-ai"></use></svg>
+            <span>Ask AI</span>
+          </summary>
+          <span class="b-ai-func__menu">
+            <a href="{{ .Claude }}" target="_blank" rel="noopener noreferrer" data-outbound="claude">Claude ↗</a>
+            <a href="{{ .ChatGPT }}" target="_blank" rel="noopener noreferrer" data-outbound="chatgpt">ChatGPT ↗</a>
+          </span>
+        </details>
+        {{ end }}
       </span>
     </header>
 

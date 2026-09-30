@@ -257,6 +257,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The function list as JSON, for agents that want to know what to call.
+	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
+		h.ServeHelpJSON(r.Context(), gnourl, w)
+		return
+	}
+
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
@@ -612,6 +618,39 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	return http.StatusOK, components.UserView(data)
 }
 
+// callableFuncs returns the exported non-method funcs of a package, without
+// their leading "cur realm" param: the signature still shows it, but no one
+// passes it.
+func callableFuncs(jdoc *doc.JSONDocumentation) []*doc.JSONFunc {
+	fsigs := []*doc.JSONFunc{}
+	for _, fun := range jdoc.Funcs {
+		if !(fun.Type == "" && token.IsExported(fun.Name)) {
+			continue
+		}
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
+			fun.Params = fun.Params[1:]
+		}
+		fsigs = append(fsigs, fun)
+	}
+	return fsigs
+}
+
+// ServeHelpJSON serves the callable functions of a package as JSON.
+func (h *HTTPHandler) ServeHelpJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
+	if err != nil {
+		status, msg := clientErrorMessage(err, 0)
+		writeJSONErrorResponse(w, status, msg)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_ = json.NewEncoder(w).Encode(struct {
+		PkgPath   string          `json:"pkgpath"`
+		Functions []*doc.JSONFunc `json:"functions"`
+	}{path.Join(h.Static.Domain, gnourl.Path), callableFuncs(jdoc)})
+}
+
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 	if err != nil {
@@ -634,19 +673,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return components.NewReaderComponent(&buf)
 	}
 
-	// Get public non-method funcs
-	fsigs := []*doc.JSONFunc{}
-	for _, fun := range jdoc.Funcs {
-		if !(fun.Type == "" && token.IsExported(fun.Name)) {
-			continue
-		}
-
-		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
-			// Don't make an entry field for "cur realm". The signature will still show it.
-			fun.Params = fun.Params[1:]
-		}
-		fsigs = append(fsigs, fun)
-	}
+	fsigs := callableFuncs(jdoc)
 
 	// Get selected function
 	selArgs := make(map[string]string)
@@ -893,7 +920,7 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	}
 
 	if fileName == "" {
-		http.Error(w, "not found", http.StatusNotFound)
+		h.servePackageText(ctx, gnourl, w)
 		return
 	}
 
@@ -911,6 +938,35 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
 	w.Write(source) // write raw file
+}
+
+// servePackageText serves every file of a package as one plain-text document,
+// each under a "// file:" header, so it can be pasted into any assistant.
+func (h *HTTPHandler) servePackageText(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	files, err := h.Client.ListFiles(ctx, gnourl.Path, 0)
+	if err == nil && len(files) == 0 {
+		err = ErrClientPackageNotFound
+	}
+	var out bytes.Buffer
+	fmt.Fprintf(&out, "// %s\n", path.Join(h.Static.Domain, gnourl.Path))
+	for _, file := range files {
+		if err != nil {
+			break
+		}
+		var source []byte
+		if source, _, err = h.Client.File(ctx, gnourl.Path, file, 0); err == nil {
+			fmt.Fprintf(&out, "\n// file: %s\n%s\n", file, source)
+		}
+	}
+	if err != nil {
+		h.Logger.Error("unable to get package sources", "path", gnourl.Path, "error", err)
+		status, _ := GetClientErrorStatusView(gnourl, err, 0)
+		http.Error(w, "not found", status)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(out.Bytes())
 }
 
 // readWhitelistedCookie returns the cookie's value when it matches one
@@ -1055,6 +1111,7 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
+		Origin:     gnourl.Origin,
 	}
 }
 
@@ -1179,6 +1236,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		Domain:      h.Static.Domain,
 		DocRenderer: h.Renderer,
 	})
+	data.JSONLD = components.PackageJSONLD(gnourl.Origin, data)
 	return http.StatusOK, components.OverviewView(data)
 }
 

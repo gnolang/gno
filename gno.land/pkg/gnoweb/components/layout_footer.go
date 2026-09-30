@@ -28,6 +28,7 @@ func EnrichFooterData(data FooterData) FooterData {
 			Links: []FooterLink{
 				{Label: "About", URL: "/about"},
 				{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
+				{Label: "Build with AI", URL: gnoMCPRepo, Outbound: OutboundGnoMCP},
 				{Label: "Faucet", URL: "https://faucet.gno.land/", Outbound: OutboundFaucet},
 				{Label: "Blog", URL: "https://gno.land/r/gnoland/blog"},
 				{Label: "Status", URL: "https://status.gno.land/", Outbound: OutboundStatus},

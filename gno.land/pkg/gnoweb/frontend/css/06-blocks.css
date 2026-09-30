@@ -114,11 +114,12 @@
 		background-color: var(--s-color-bg-surface-secondary);
 		border: var(--s-border-secondary);
 		height: 100%;
-		padding-inline: var(--g-space-1-5);
+		padding-inline: var(--g-space-1-5) var(--g-space-8);
 		border-radius: var(--s-rounded);
 
+		/* Search icon, then the network toggle from md */
 		@media (--md) {
-			padding-inline-end: var(--g-space-8);
+			padding-inline-end: var(--g-space-16);
 		}
 
 		/* Focus state */
@@ -137,6 +138,10 @@
 		color: var(--s-color-text-secondary);
 		font-weight: var(--g-font-medium);
 
+		@media (--md) {
+			padding-inline-end: var(--g-space-16);
+		}
+
 		& > input {
 			height: 100%;
 			width: 100%;
@@ -149,15 +154,42 @@
 		}
 	}
 
+	/* Right-hand controls: search icon, network toggle, Ask AI */
+	.searchbar-actions {
+		position: absolute;
+		top: 1px;
+		right: 1px;
+		height: calc(100% - 2px);
+		display: flex;
+		align-items: center;
+		padding-inline-end: var(--g-space-1-5);
+		z-index: var(--g-z-max);
+	}
+
+	/* Submits the search, sits close to the network toggle */
+	.search-icon {
+		display: flex;
+		padding: var(--g-space-1-5) var(--g-space-0-5) var(--g-space-1-5)
+			var(--g-space-1-5);
+		cursor: pointer;
+
+		&:hover > svg {
+			color: var(--s-color-text-tertiary-hover);
+		}
+
+		/* Drawn heavier than the globe, so one step smaller to match it */
+		& > svg {
+			width: var(--g-space-4);
+			height: var(--g-space-4);
+			color: var(--s-color-text-tertiary);
+		}
+	}
+
 	/* Network toggle button */
 	.network-toggle {
-		position: absolute;
 		display: none;
 		justify-content: center;
 		align-items: center;
-		right: 1px;
-		top: 1px;
-		height: calc(100% - 2px);
 		padding: var(--g-space-1-5);
 		border-radius: var(--g-border-radius);
 		background-color: var(--g-color-transparent);
@@ -177,6 +209,94 @@
 		&:hover > svg {
 			color: var(--s-color-text-tertiary-hover);
 		}
+	}
+
+	/* Ask AI: a labelled pill left of the network toggle */
+	.ai-popup {
+		display: contents;
+	}
+
+	/* A white chip at the far right, like a breadcrumb item */
+	.ai-toggle {
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-1);
+		padding: var(--g-space-0-5) var(--g-space-1-5);
+		border: 1px solid var(--s-color-border-transparent);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-base);
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+		line-height: var(--g-line-height-snug);
+		margin-inline-start: var(--g-space-1);
+		cursor: pointer;
+
+		& > svg {
+			width: var(--g-space-4);
+			height: var(--g-space-4);
+			color: var(--s-color-text-link);
+		}
+
+		&:hover {
+			background-color: var(--s-color-bg-brand-default);
+			color: var(--s-color-text-base);
+
+			& > svg {
+				color: currentColor;
+			}
+		}
+	}
+
+	/* Room for the pill next to the icons */
+	&:has(.ai-toggle) {
+		& > .inner,
+		& .searchbar {
+			padding-inline-end: var(--g-space-28);
+
+			@media (--md) {
+				padding-inline-end: var(--g-space-36);
+			}
+		}
+	}
+
+	& .ai-popup__title {
+		color: var(--s-color-text-tertiary);
+		font-size: var(--g-font-size-50);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	& .ai-popup .inner > header {
+		padding-block-end: var(--g-space-2);
+		border-block-end: var(--s-border);
+	}
+
+	& .ai-action {
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-0-5);
+	}
+
+	& .ai-action__targets {
+		display: flex;
+		gap: var(--g-space-2);
+		margin-block-start: var(--g-space-1);
+		font-size: var(--g-font-size-50);
+		color: var(--s-color-text-secondary);
+	}
+
+	/* The popup text is tertiary; its buttons must not read as disabled */
+	& .ai-popup .b-btn {
+		color: var(--s-color-text-secondary);
+	}
+
+	& .ai-mcp {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--g-space-1);
+		padding-block-start: var(--g-space-2-5);
+		border-block-start: var(--s-border);
 	}
 
 	/* Popup dialog styles */
@@ -215,6 +335,52 @@
 			color: var(--s-color-text-secondary);
 			font-size: var(--g-font-size-100);
 			font-weight: var(--g-font-semibold);
+		}
+	}
+}
+
+/* ===== ASK AI ON ONE FUNCTION (Actions view) ===== */
+.b-ai-func {
+	position: relative;
+
+	& > summary {
+		list-style: none;
+
+		&::-webkit-details-marker {
+			display: none;
+		}
+
+		& .c-icon {
+			color: var(--s-color-text-link);
+		}
+
+		/* Icon only on small screens, where the row is already full */
+		& > span {
+			display: none;
+
+			@media (--md) {
+				display: inline;
+			}
+		}
+	}
+
+	& .b-ai-func__menu {
+		position: absolute;
+		top: calc(100% + var(--g-space-1));
+		right: 0;
+		z-index: var(--g-z-10);
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-1);
+		min-width: max-content;
+		padding: var(--g-space-2) var(--g-space-3);
+		border: var(--s-border-secondary);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-base);
+		font-size: var(--g-font-size-50);
+
+		& > a {
+			color: var(--s-color-text-link);
 		}
 	}
 }
