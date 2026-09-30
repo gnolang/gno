@@ -55,7 +55,6 @@ type Pkg struct {
 	Dir     string   // examples/gno.land/r/gnoland/home (repo-relative, slash-separated)
 	Imports []string // gno.land/* imports of its non-test files
 	Realm   bool     // lives under gno.land/r/
-	Draft   bool     // gnomod.toml: draft = true
 	Ignore  bool     // gnomod.toml: ignore = true
 }
 
@@ -88,7 +87,7 @@ type Plan struct {
 	// PR comment. Only populated for gnoweb changes.
 	Shots []Shot `json:"shots,omitempty"`
 	// Pairs are before/after screenshots of realms this PR changed, rendered
-	// from the merge base and from the head with the same gnoweb.
+	// from the base the pull request merges into and from the head, with the same gnoweb.
 	Pairs []ShotPair `json:"pairs,omitempty"`
 }
 
@@ -144,7 +143,7 @@ func LoadPkgs(root string) (map[string]*Pkg, error) {
 			Dir:   rel,
 			Realm: strings.Contains(rel, "/r/"),
 		}
-		pkg.Draft, pkg.Ignore = modFlags(filepath.Join(p, "gnomod.toml"))
+		pkg.Ignore = modIgnored(filepath.Join(p, "gnomod.toml"))
 		pkg.Imports = gnoImports(files)
 		pkgs[pkg.Path] = pkg
 		return nil
@@ -155,26 +154,23 @@ func LoadPkgs(root string) (map[string]*Pkg, error) {
 	return pkgs, nil
 }
 
-// modFlags reads the two booleans we care about out of a gnomod.toml without
-// pulling in a TOML parser: they are always plain top-level `key = true` lines.
-func modFlags(p string) (draft, ignore bool) {
+// modIgnored reads `ignore = true` out of a gnomod.toml without pulling in a
+// TOML parser: it is always a plain top-level line.
+func modIgnored(p string) bool {
 	b, err := os.ReadFile(p)
 	if err != nil {
-		return false, false
+		return false
 	}
 	for line := range strings.SplitSeq(string(b), "\n") {
 		// A trailing comment is not part of the value: `ignore = true # why`
 		// otherwise reads as neither true nor false, and the package is
 		// previewed as if it were live.
 		line, _, _ = strings.Cut(line, "#")
-		switch strings.ReplaceAll(strings.TrimSpace(line), " ", "") {
-		case "draft=true":
-			draft = true
-		case "ignore=true":
-			ignore = true
+		if strings.ReplaceAll(strings.TrimSpace(line), " ", "") == "ignore=true" {
+			return true
 		}
 	}
-	return draft, ignore
+	return false
 }
 
 // gnoImports returns the gno.land/* imports of the given files. .gno is Go

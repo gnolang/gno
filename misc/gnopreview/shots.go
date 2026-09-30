@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -10,8 +11,14 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
+
+// shotTimeout bounds one Chrome run. A shot takes about two seconds, most of
+// it the 4 s virtual-time budget; a browser that hangs would otherwise hold
+// the job until the runner's six-hour limit.
+const shotTimeout = 60 * time.Second
 
 // Shot is one screenshot embedded in the PR comment.
 type Shot struct {
@@ -23,7 +30,7 @@ type Shot struct {
 // comment can embed them by URL without uploading anything.
 const shotsDir = "_shots"
 
-// beforeDir holds the same realms rendered from the merge base.
+// beforeDir holds the same realms rendered from the base branch.
 const beforeDir = "_before"
 
 // maxPairs caps how many changed realms get a before/after pair. Four images is
@@ -36,14 +43,14 @@ type ShotPair struct {
 	Before string `json:"before,omitempty"`
 	After  string `json:"after"`
 	URL    string `json:"url"` // the after page, for the link behind the image
-	// New says the realm does not exist at the merge base, which is why there
+	// New says the realm does not exist on the base branch, which is why there
 	// is no "before". Distinct from Before being empty because no base
 	// checkout was supplied at all — claiming a realm is new when we simply
 	// did not look would be a lie in the comment.
 	New bool `json:"new,omitempty"`
 }
 
-// ScreenshotPairs photographs each changed realm as the merge base renders it
+// ScreenshotPairs photographs each changed realm as the base branch renders it
 // and as this branch renders it. Both passes use the SAME gnoweb — the binary
 // and the assets come from the head — so what the pair shows is the realm
 // change and nothing else.
@@ -82,7 +89,7 @@ func ScreenshotPairs(outDir string, head, base *Crawler, realms []string, newRea
 		}
 		pair.After = path.Join(shotsDir, name+"-after.png")
 
-		// "New in this PR" is asserted only from the merge-base tree, never
+		// "New in this PR" is asserted only from the base tree, never
 		// inferred from a missing capture: a base pass that ran but failed on
 		// this realm would otherwise be reported as the realm not existing.
 		if base != nil {
@@ -168,7 +175,9 @@ func chromeShot(bin, url, dst string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(bin,
+	ctx, cancel := context.WithTimeout(context.Background(), shotTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin,
 		"--headless=new",
 		"--disable-gpu",
 		"--no-sandbox",
@@ -181,7 +190,16 @@ func chromeShot(bin, url, dst string) error {
 		"--screenshot="+out,
 		url,
 	)
+	// Chrome forks renderer and GPU helpers that inherit the output pipe, so
+	// killing the parent alone leaves CombinedOutput waiting on them: kill the
+	// whole group, and stop waiting for the pipe shortly after.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
+	cmd.WaitDelay = 5 * time.Second
 	if b, err := cmd.CombinedOutput(); err != nil {
+		if ctx.Err() != nil {
+			return fmt.Errorf("chrome did not finish within %s", shotTimeout)
+		}
 		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(b)))
 	}
 	if fi, err := os.Stat(out); err != nil || fi.Size() == 0 {

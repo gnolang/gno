@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html"
 	"io"
@@ -21,7 +22,7 @@ import (
 // A page is one crawled gnoweb response.
 type page struct {
 	URL  string // gnoweb path, e.g. /r/gnoland/home$source&file=home.gno
-	File string // repo-relative output file, e.g. r/gnoland/home/_t/source--file-home.gno/index.html
+	File string // repo-relative output file, e.g. r/gnoland/home/_t/source-file-home.gno-7a0d5a89/index.html
 	Body string
 }
 
@@ -135,6 +136,15 @@ func (c *Crawler) Run() error {
 			continue
 		}
 		visited[u] = true
+		// Scope is checked again at fetch time, not only at discovery: a realm
+		// that lists all its arguments on one page queues every one of them
+		// before the first is charged, and each would be fetched only for
+		// charge() to throw it away (2,000 links, 2,004 fetches, 14 kept).
+		// Seeds are exempt: the before-pass is RenderOnly, where nothing is in
+		// scope, and would otherwise drop its own seed.
+		if !seedSet[u] && !c.inScope(u) {
+			continue
+		}
 		if c.MaxPages > 0 && len(c.pages) >= c.MaxPages {
 			return fmt.Errorf("page cap %d reached (queue still had %d)", c.MaxPages, len(queue)+1)
 		}
@@ -516,7 +526,7 @@ var unsafeSeg = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 // the tab query under _t/, both slugged, so no path segment ever carries $, :
 // or & — characters that survive a URL but not every static host.
 //
-//	/r/x/y:p/about$source  ->  r/x/y/_a/p-about/_t/source/index.html
+//	/r/x/y:p/about$source  ->  r/x/y/_a/p-about-e71ffeb2/_t/source/index.html
 func urlToFile(u string) string {
 	base, args, query := splitURL(strings.TrimPrefix(u, "/"))
 	// A trailing slash is gnoweb's listing view, a different page from the
@@ -617,25 +627,35 @@ func copyTree(src, dst string) (int, error) {
 	return rewrites, err
 }
 
-// waitReady polls probe until gnoweb answers, the process exits, or the
+// waitReady polls gnoweb's /ready until it answers, the process exits, or the
 // deadline passes. died carries the node's exit so a crash fails in seconds
 // with the real reason instead of timing out minutes later on "not ready".
-func waitReady(base, probe string, timeout time.Duration, died <-chan error) error {
+//
+// /ready, not a realm page: it answers once the node serves queries, whether
+// or not every realm loaded. Probing the first realm instead waited out the
+// whole timeout when that one realm failed to load, on a node that was up; a
+// realm that fails is reported by the crawl as missed, which says which one.
+func waitReady(base string, timeout time.Duration, died <-chan error) error {
 	deadline := time.Now().Add(timeout)
 	client := &http.Client{Timeout: 3 * time.Second}
-	u, err := url.JoinPath(base, probe)
+	u, err := url.JoinPath(base, "/ready")
 	if err != nil {
 		return err
 	}
 	for time.Now().Before(deadline) {
 		select {
 		case err := <-died:
-			return fmt.Errorf("gnodev exited before serving %s — see the gnodev log: %w", probe, err)
+			return fmt.Errorf("gnodev exited before it was ready, see the gnodev log: %w", err)
 		default:
 		}
 		if resp, err := client.Get(u); err == nil {
+			var st struct{ Status string }
+			// The body, not just the status: any server already on the port
+			// answers 200 to a catch-all route, and the crawl would then
+			// snapshot someone else's site as the preview.
+			derr := json.NewDecoder(io.LimitReader(resp.Body, 1<<10)).Decode(&st)
 			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
+			if resp.StatusCode == http.StatusOK && derr == nil && st.Status == "ready" {
 				return nil
 			}
 		}

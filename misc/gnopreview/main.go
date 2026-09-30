@@ -4,11 +4,13 @@
 //
 // It has two modes, matching the two halves of the CI workflow:
 //
-//	gnopreview plan   -changed <file>          # what would be previewed, as JSON
-//	gnopreview render -changed <file> -out dir # boot gnodev, crawl, write the tree
+//	gnopreview plan    -changed <file>          # what would be previewed, as JSON
+//	gnopreview render  -changed <file> -out dir # boot gnodev, crawl, write the tree
+//	gnopreview comment -snapshot dir -base-url  # the sticky PR comment, from a snapshot
 //
-// `render` also writes <out>/preview.json and <out>/comment.md, which the
-// publishing job turns into the sticky PR comment.
+// `render` also writes <out>/preview.json and <out>/comment.md. The publishing
+// job does not post that comment.md, which the pull request's own code wrote:
+// it runs `comment` from the default branch over the snapshot's preview.json.
 package main
 
 import (
@@ -16,6 +18,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,6 +51,7 @@ type config struct {
 	maxArgs   int
 	chrome    string
 	timeout   time.Duration
+	snapshot  string
 }
 
 func main() {
@@ -59,14 +63,14 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: gnopreview <plan|render> [flags]")
+		return errors.New("usage: gnopreview <plan|render|comment> [flags]")
 	}
 	cmd, args := args[0], args[1:]
 
 	var cfg config
 	fs := flag.NewFlagSet("gnopreview "+cmd, flag.ExitOnError)
 	fs.StringVar(&cfg.root, "root", "", "gno monorepo root (default: walk up from the working directory)")
-	fs.StringVar(&cfg.baseRoot, "base-root", "", "checkout of the merge base; enables before/after screenshots of changed realms")
+	fs.StringVar(&cfg.baseRoot, "base-root", "", "checkout of the base the head is compared with; enables before/after screenshots of changed realms")
 	fs.StringVar(&cfg.changed, "changed", "-", "file holding the changed paths, one per line (- for stdin)")
 	fs.StringVar(&cfg.out, "out", "_preview", "output directory")
 	fs.StringVar(&cfg.gnodev, "gnodev", envOr("GNODEV", "gnodev"), "gnodev binary")
@@ -79,8 +83,13 @@ func run(args []string) error {
 	fs.IntVar(&cfg.maxArgs, "max-args", defaultMaxArgs, "cap on render-argument pages per realm; 0 for no cap")
 	fs.StringVar(&cfg.chrome, "chrome", "", "Chrome/Chromium binary for screenshots (default: autodetect)")
 	fs.DurationVar(&cfg.timeout, "timeout", 5*time.Minute, "how long to wait for gnodev to come up")
+	fs.StringVar(&cfg.snapshot, "snapshot", "", "comment: a rendered snapshot directory, holding preview.json")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	// comment needs no gno tree: the publishing job has only this program.
+	if cmd == "comment" {
+		return comment(cfg)
 	}
 
 	root, err := findRoot(cfg.root)
@@ -142,7 +151,7 @@ func render(cfg config, plan *Plan) error {
 		FileBudget:   fileBudget(plan),
 		ArgBudget:    cfg.maxArgs,
 	}
-	if err := waitReady(c.Base, urlOf(plan.Realms[0]), cfg.timeout, died); err != nil {
+	if err := waitReady(c.Base, cfg.timeout, died); err != nil {
 		return err
 	}
 	if err := c.Run(); err != nil {
@@ -181,10 +190,42 @@ func render(cfg config, plan *Plan) error {
 	return nil
 }
 
+// comment prints the sticky PR comment for a finished snapshot, built by
+// TrustedPlan from its preview.json. No output at all means no comment.
+func comment(cfg config) error {
+	if cfg.snapshot == "" {
+		return errors.New("comment: -snapshot is required")
+	}
+	b, err := os.ReadFile(filepath.Join(cfg.snapshot, "preview.json"))
+	if err != nil {
+		return err
+	}
+	var in Plan
+	if err := json.Unmarshal(b, &in); err != nil {
+		return fmt.Errorf("preview.json: %w", err)
+	}
+	p, err := TrustedPlan(&in, cfg.snapshot)
+	if err != nil {
+		return fmt.Errorf("preview.json: %w", err)
+	}
+	_, err = fmt.Print(Comment(p, cfg.baseURL, cfg.pr))
+	return err
+}
+
 // startGnodev boots gnodev on the given package dirs of the given tree.
 // Dependencies resolve lazily out of examples/, so only the realms being
 // previewed are loaded.
 func startGnodev(cfg config, root string, dirs []string, port int, logName string) (func(), <-chan error, error) {
+	// gnodev failing to bind is not fatal to it straight away, and whatever
+	// already holds the port answers the readiness probe in its place. Refuse
+	// up front, naming the port, rather than crawl a stranger's server.
+	for _, p := range []int{port, port + 10000} {
+		ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", p))
+		if err != nil {
+			return nil, nil, fmt.Errorf("port %d is already in use; pick another with -port: %w", p, err)
+		}
+		ln.Close()
+	}
 	examples := filepath.Join(root, examplesRel)
 	args := []string{
 		"local", "-no-watch",
@@ -240,13 +281,13 @@ func fileBudget(plan *Plan) int {
 	return 0
 }
 
-// renderBase renders the changed realms a second time from the merge-base
+// renderBase renders the changed realms a second time from the base
 // checkout, into <out>/_before/. It reuses the head's gnodev binary and the
 // head's assets on purpose: the pair must differ by the realm change alone, not
 // by whatever else moved on master. Returns nil when there is no base checkout,
 // none of the changed realms exist there (all new), or the pass fails — a
 // missing "before" costs the comment one image, not the preview.
-// It also reports which changed realms do not exist at the merge base at all —
+// It also reports which changed realms do not exist at the base at all —
 // the only sound basis for telling a reviewer a realm is new.
 func renderBase(cfg config, plan *Plan, head *Crawler) (*Crawler, map[string]bool) {
 	if cfg.baseRoot == "" {
@@ -284,7 +325,7 @@ func renderBase(cfg config, plan *Plan, head *Crawler) (*Crawler, map[string]boo
 		RenderOnly: true,
 		Prefix:     beforeDir,
 	}
-	if err := waitReady(base.Base, urlOf(realms[0]), cfg.timeout, died); err != nil {
+	if err := waitReady(base.Base, cfg.timeout, died); err != nil {
 		fmt.Fprintln(os.Stderr, "  ! base render:", err)
 		return nil, newRealms
 	}

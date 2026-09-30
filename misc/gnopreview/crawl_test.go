@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestSplitURL(t *testing.T) {
@@ -58,6 +62,9 @@ func TestURLToFile(t *testing.T) {
 		// so ":p/a-b", ":p/a/b" and ":p/a&b" cannot share a file
 		{"/r/gnoland/home$file=home.gno&source", "r/gnoland/home/_t/file-home.gno-source-2ca84ba4/index.html"},
 		{"/r/gnoland/blog:p/hello", "r/gnoland/blog/_a/p-hello-13cc55eb/index.html"},
+		// The two examples crawl.go and the README spell out.
+		{"/r/gnoland/home$source&file=home.gno", "r/gnoland/home/_t/source-file-home.gno-7a0d5a89/index.html"},
+		{"/r/x/y:p/about$source", "r/x/y/_a/p-about-e71ffeb2/_t/source/index.html"},
 		{"/r/gnoland/blog:p/hello$source", "r/gnoland/blog/_a/p-hello-13cc55eb/_t/source/index.html"},
 		{"/r/", "r/_dir/index.html"},
 		{"/", "_root/index.html"},
@@ -419,5 +426,84 @@ func TestSetNoindexInsertsInsideHead(t *testing.T) {
 	}
 	if want := "<head>" + noindexTag; !strings.Contains(got, want) {
 		t.Errorf("noindex not inserted at the head: %q", got)
+	}
+}
+
+// A realm that lists every render argument on one page queues all of them
+// before the first is charged. Once the budget is spent the rest must be
+// dropped from the queue, not fetched and then thrown away by charge().
+func TestRunDoesNotFetchPastTheArgumentBudget(t *testing.T) {
+	t.Parallel()
+	var fetches atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fetches.Add(1)
+		var b strings.Builder
+		b.WriteString("<html><body>")
+		if r.URL.Path == "/r/demo/list" {
+			for i := range 2000 {
+				fmt.Fprintf(&b, `<a href="/r/demo/list:%d">%d</a>`, i, i)
+			}
+		}
+		b.WriteString("</body></html>")
+		fmt.Fprint(w, b.String())
+	}))
+	defer srv.Close()
+
+	const budget = 3
+	c := &Crawler{Base: srv.URL, Realms: []string{"gno.land/r/demo/list"}, ArgBudget: budget}
+	if err := c.Run(); err != nil {
+		t.Fatal(err)
+	}
+	want := len(c.Seeds()) + budget
+	if got := int(fetches.Load()); got != want {
+		t.Errorf("%d fetches; want %d (the seeds plus %d argument pages)", got, want, budget)
+	}
+	if len(c.pages) != want {
+		t.Errorf("%d pages kept; want %d", len(c.pages), want)
+	}
+}
+
+// The before-pass renders only its seeds, where nothing is in scope; the
+// fetch-time scope check must not drop the seeds themselves.
+func TestRunRenderOnlyKeepsItsSeeds(t *testing.T) {
+	t.Parallel()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `<html><body><a href="/r/demo/list:1">1</a></body></html>`)
+	}))
+	defer srv.Close()
+
+	c := &Crawler{Base: srv.URL, Realms: []string{"gno.land/r/demo/list"}, RenderOnly: true}
+	if err := c.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := c.pages["/r/demo/list"]; !ok || len(c.pages) != 1 {
+		t.Errorf("before-pass captured %d page(s), want just the seed", len(c.pages))
+	}
+}
+
+// Anything already listening on the port answers 200 to a catch-all route;
+// only gnoweb's own readiness body means gnodev is up.
+func TestWaitReadyWantsGnowebsAnswer(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		body string
+		ok   bool
+	}{
+		{"gnoweb", `{"status":"ready"}`, true},
+		{"a stranger's catch-all page", "<!doctype html><title>something else</title>", false},
+		{"not ready yet", `{"status":"starting"}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				fmt.Fprint(w, tc.body)
+			}))
+			defer srv.Close()
+			err := waitReady(srv.URL, 1500*time.Millisecond, nil)
+			if (err == nil) != tc.ok {
+				t.Errorf("waitReady = %v; want ok=%v", err, tc.ok)
+			}
+		})
 	}
 }

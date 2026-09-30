@@ -26,8 +26,9 @@ marked `ignore = true`. Realms under `gno.land/r/tests/` are previewed when chan
 directly but never pulled in as dependents — they are VM fixtures, and a change to a
 widely imported package would otherwise crowd out the realms the PR is about.
 
-At most 25 realms are rendered (`-max-realms`). Directly changed realms are always
-kept; the comment says how many were dropped.
+At most 25 realms are rendered (`-max-realms`). Directly changed realms are rendered
+first, so the cap only cuts one when a pull request changes more than 25; the comment
+says how many were dropped and names a changed realm it cut without linking it.
 
 **Per-file `$source` pages are rendered only for the files the pull request touched.**
 They are the bulk of a wide preview — 133 of 243 pages and 13.3 MB of 22.2 MB on a change
@@ -56,7 +57,7 @@ GNODEV=/tmp/gnodev GNOROOT=$(git rev-parse --show-toplevel) \
 ( cd _preview && python3 -m http.server 8777 )   # http://localhost:8777/
 ```
 
-Pass `-base-root <checkout of the merge base>` to get **before/after** screenshots of the
+Pass `-base-root <checkout of the base>` to get **before/after** screenshots of the
 realms the pull request changed. Both passes run the *head's* gnodev and reference the
 head's assets, so the pair differs by the realm change and nothing else; the two nodes are
 given distinct RPC ports and keybases, because gnodev defaults both to fixed locations and
@@ -70,7 +71,7 @@ would otherwise collide.
 - `_shots/*.png` — screenshots. A **gnoweb** change gets a fixed four-page sample; a
   **realm** change gets `<realm>-before.png` / `<realm>-after.png` for up to 2 changed
   realms. The two are alternatives, never both.
-- `_before/` — the changed realms as the merge base renders them, so a reviewer can click
+- `_before/` — the changed realms as the base branch renders them, so a reviewer can click
   through to the before page and not just its screenshot
 
 Publishing lives in a separate repository, [`gnolang/gno-previews`](https://github.com/gnolang/gno-previews) —
@@ -81,18 +82,22 @@ see its README for why. This tool does not know about it: it writes a directory,
 
 ```
 _preview/
-  index.html                                  # list of rendered realms
-  public/                                     # gnoweb css/js/fonts, copied from the repo
-  r/gnoland/home/index.html                   # the render view
-  r/gnoland/home/_t/source/index.html         # $source
-  r/gnoland/home/_t/file-home.gno-source/…    # $source&file=home.gno
-  r/gnoland/blog/_a/p-hello/index.html        # :p/hello render arguments
+  index.html                                                   # list of rendered realms
+  public/                                                      # gnoweb css/js/fonts, copied from the repo
+  r/gnoland/home/index.html                                    # the render view
+  r/gnoland/home/_t/source/index.html                          # $source
+  r/gnoland/home/_t/source-file-home.gno-7a0d5a89/index.html   # $source&file=home.gno
+  r/gnoland/blog/_a/p-hello-13cc55eb/index.html                # :p/hello render arguments
   _shots/home.png
 ```
 
 gnoweb puts the tab and the render arguments in the URL path (`$source&file=x`,
 `:p/about`). Those spellings are slugged into `_t/` and `_a/` so **no output path ever
-contains `$`, `:` or `&`** — characters a URL tolerates but a static host may not.
+contains `$`, `:` or `&`** — characters a URL tolerates but a static host may not. A
+segment that had to be rewritten carries the first 8 hex digits of its input's SHA-256,
+so `:p/a-b`, `:p/a/b` and `:p/a&b` cannot collapse onto one file; `source` and `help`
+are already safe and stay bare.
+
 Because the site lives under `_t`/`_a`/`_shots`, a `.nojekyll` marker is mandatory
 wherever it is published.
 

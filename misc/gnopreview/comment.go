@@ -2,7 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"path/filepath"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -10,6 +14,79 @@ import (
 // CommentMarker identifies the sticky PR comment so the publishing job updates
 // it in place instead of adding one per push.
 const CommentMarker = "<!-- gnoweb-pr-preview -->"
+
+// safePkgPath is the only shape a realm or package path read back from
+// preview.json may take. That file is written by the pull request's own code,
+// so anything else is refused rather than escaped: no backtick, bracket, angle
+// bracket, parenthesis or space ever reaches the comment's markdown.
+var safePkgPath = regexp.MustCompile(`^gno\.land/[pr](/[A-Za-z0-9_][A-Za-z0-9_.-]*)+$`)
+
+// TrustedPlan rebuilds the plan a comment is written from out of an untrusted
+// preview.json and the snapshot directory it came with. The publishing job
+// runs this from the default branch, so the comment it posts as the bot is
+// built by trusted code: package paths are validated, and every file path
+// and caption is derived again from the realm name and this binary's own
+// tables instead of being taken from the file. A screenshot the snapshot
+// does not hold is dropped rather than embedded as a broken image.
+func TrustedPlan(in *Plan, snapshot string) (*Plan, error) {
+	if in.Dropped < 0 {
+		return nil, fmt.Errorf("dropped: refusing %d", in.Dropped)
+	}
+	p := &Plan{Gnoweb: in.Gnoweb, Dropped: in.Dropped}
+	for _, l := range []struct {
+		name string
+		in   []string
+		out  *[]string
+	}{
+		{"realms", in.Realms, &p.Realms},
+		{"changed_realms", in.ChangedRealms, &p.ChangedRealms},
+		{"changed_pkgs", in.ChangedPkgs, &p.ChangedPkgs},
+		{"missed", in.Missed, &p.Missed},
+	} {
+		for _, v := range l.in {
+			if !safePkgPath.MatchString(v) {
+				return nil, fmt.Errorf("%s: refusing %q", l.name, v)
+			}
+			*l.out = append(*l.out, v)
+		}
+	}
+	exists := func(rel string) bool {
+		fi, err := os.Lstat(filepath.Join(snapshot, filepath.FromSlash(rel)))
+		return err == nil && fi.Mode().IsRegular()
+	}
+	for _, sp := range shotPlan {
+		f := path.Join(shotsDir, sp.name+".png")
+		for _, s := range in.Shots {
+			if s.File == f && exists(f) {
+				p.Shots = append(p.Shots, Shot{File: f, Label: sp.label})
+				break
+			}
+		}
+	}
+	for _, u := range in.Pairs {
+		if len(p.Pairs) >= maxPairs {
+			break
+		}
+		if !contains(p.ChangedRealms, u.Realm) || slices.ContainsFunc(p.Pairs, func(q ShotPair) bool { return q.Realm == u.Realm }) {
+			continue
+		}
+		name := slug(strings.TrimPrefix(urlOf(u.Realm), "/"))
+		pair := ShotPair{
+			Realm: u.Realm,
+			URL:   path.Dir(urlToFile(urlOf(u.Realm))) + "/",
+			After: path.Join(shotsDir, name+"-after.png"),
+			New:   u.New,
+		}
+		if !exists(pair.After) {
+			continue
+		}
+		if before := path.Join(shotsDir, name+"-before.png"); u.Before != "" && exists(before) {
+			pair.Before = before
+		}
+		p.Pairs = append(p.Pairs, pair)
+	}
+	return p, nil
+}
 
 // Comment renders the sticky PR comment body. baseURL is where the snapshot is
 // served from (with or without a trailing slash); when it is empty the comment
@@ -32,15 +109,20 @@ func Comment(p *Plan, baseURL, pr string) string {
 		}
 		return fmt.Sprintf("[`%s`](%s%s/)", label, base, urlPath)
 	}
-	// A realm the crawl never captured has no page in the snapshot, so it is
-	// named without a link: the alternative is a bullet pointing at a 404.
+	// A realm with no page in the snapshot is named without a link: the
+	// alternative is a bullet pointing at a 404. Either the crawl never
+	// captured it, or the realm cap cut it before the crawl started, which
+	// past 25 changed realms includes changed ones.
 	missed := map[string]bool{}
 	for _, r := range p.Missed {
 		missed[r] = true
 	}
 	bullet := func(r string) string {
-		if missed[r] {
+		switch {
+		case missed[r]:
 			return "`" + r + "` (not rendered: the page did not load)"
+		case !contains(p.Realms, r):
+			return "`" + r + "` (not rendered: realm cap reached)"
 		}
 		return link(urlOf(r), r) + tabs(base, r)
 	}
@@ -95,7 +177,7 @@ func Comment(p *Plan, baseURL, pr string) string {
 	}
 
 	if p.Dropped > 0 {
-		b.WriteString(fmt.Sprintf("\n⚠️ %d more affected realm(s) were **not** rendered (cap reached) — the changed realms are always kept.\n", p.Dropped))
+		b.WriteString(fmt.Sprintf("\n⚠️ %d affected realm(s) were **not** rendered (cap reached). Changed realms are rendered first.\n", p.Dropped))
 	}
 	b.WriteString("\n<sub>Static snapshot of a fresh chain: realms render their post-`init` state, transactions and search do not work, and links out of the preview go to the live site.")
 	if pr != "" {
@@ -105,7 +187,7 @@ func Comment(p *Plan, baseURL, pr string) string {
 	return b.String()
 }
 
-// pairGrid shows each changed realm as the merge base renders it and as this
+// pairGrid shows each changed realm as the base branch renders it and as this
 // branch renders it, side by side. Both columns come from the same gnoweb, so
 // the difference is the realm change.
 func pairGrid(pairs []ShotPair, base string) string {
@@ -127,7 +209,7 @@ func pairGrid(pairs []ShotPair, base string) string {
 		}
 		b.WriteString("<table><tr>")
 		b.WriteString(fmt.Sprintf(
-			`<td width="50%%"><img src="%s/%s" width="100%%" alt="%s before"><br><sub>before — merge base</sub></td>`,
+			`<td width="50%%"><img src="%s/%s" width="100%%" alt="%s before"><br><sub>before — base branch</sub></td>`,
 			base, p.Before, p.Realm))
 		b.WriteString(fmt.Sprintf(
 			`<td width="50%%"><a href="%s/%s"><img src="%s/%s" width="100%%" alt="%s after"></a><br><sub><b>after — this PR</b></sub></td>`,
