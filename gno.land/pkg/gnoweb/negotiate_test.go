@@ -29,6 +29,8 @@ func TestNegotiatesMarkdown(t *testing.T) {
 		{"json", "application/json", false},
 		{"surrounding spaces", "  text/markdown  ", true},
 		{"markdown present with non-zero q among others", "text/html;q=0.9, text/markdown;q=0.8", true},
+		{"unparseable part then markdown", "@@@, text/markdown", true},
+		{"refused markdown then accepted markdown", "text/markdown;q=0, text/markdown", true},
 	}
 
 	for _, tc := range cases {

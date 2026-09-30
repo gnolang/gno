@@ -27,8 +27,8 @@ pass. Everything else is unchanged.
 Three design points carry the weight.
 
 **Negotiation is explicit-only.** `negotiatesMarkdown` matches `text/markdown`
-and the alias `text/x-markdown`, parsed with `mime.ParseMediaType` rather than
-hand-rolled splitting. It never matches the `*/*` or `text/*` wildcards. This is
+and the alias `text/x-markdown`, each media range parsed with
+`mime.ParseMediaType`. It never matches the `*/*` or `text/*` wildcards. This is
 the load-bearing rule: every browser sends `*/*`, so wildcard matching would
 serve markdown source to browsers and break the site. An explicit `q=0` is
 honored as a refusal.
@@ -68,8 +68,8 @@ Two response headers follow from serving two representations of one URL:
 `X-Content-Type-Options: nosniff` on the markdown write, because these bytes
 reach the client without the goldmark sanitization the HTML path applies, and
 `nosniff` stops a browser sniffing them back into an executable type. The GET
-`Content-Type` default also changed from `Header().Add` to `Header().Set`, so the
-markdown path overrides it instead of appending a second value.
+`Content-Type` default also changed from `Header().Add` to `Header().Set` for
+clarity; `Set` replaces rather than appends.
 
 ## Consequences
 

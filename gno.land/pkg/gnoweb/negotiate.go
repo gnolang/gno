@@ -18,7 +18,7 @@ import (
 // that asks for markdown by name reaches this branch, so there is no competing
 // preference worth ordering.
 func negotiatesMarkdown(accept string) bool {
-	for _, part := range strings.Split(accept, ",") {
+	for part := range strings.SplitSeq(accept, ",") {
 		mediaType, params, err := mime.ParseMediaType(strings.TrimSpace(part))
 		if err != nil {
 			continue
