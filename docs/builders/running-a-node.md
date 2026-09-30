@@ -57,6 +57,9 @@ each network pins its own.
 :::warning
 Don't point a `master` build at a released network. Chains run pinned
 releases; a node built from `master` will not reach consensus with them.
+After a coordinated upgrade the chain can also require a minimum binary
+version, and a `master` build satisfies none — see
+[upgrades](../../gno.land/cmd/gnoland/UPGRADES.md).
 :::
 
 ## Become a validator
@@ -78,7 +81,7 @@ Get the node running first, then start onboarding. Two places:
   own genesis, peers, and `VALIDATOR.md`.
 
 Onboarding starts in `#general-chat` on
-[Discord](https://discord.gg/YFtMjWwUN7); the `#testnet-*` channels only
+[Discord](https://discord.com/invite/gnoland); the `#testnet-*` channels only
 become visible once you hold a candidate or validator role.
 
 ## Run a chain locally
@@ -92,5 +95,5 @@ Install the binary with the `--full` flag of the
 
 ## Still not sure?
 
-Ask on [Discord](https://discord.gg/YFtMjWwUN7). Say what you're trying
+Ask on [Discord](https://discord.com/invite/gnoland). Say what you're trying
 to build; someone will tell you whether a node is part of the answer.

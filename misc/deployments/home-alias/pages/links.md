@@ -9,7 +9,7 @@ Below are Gno.land's most important links.
 #### [Gno.land Workshops, a repo for Gno resources](https://github.com/gnolang/workshops)
 #### [Gno.land Students Program](https://github.com/gnolang/student-contributors-program/)
 #### [Gno.land Contributor page](https://gno.land/contribute)
-#### [Gno.land Discord](https://discord.gg/gnoland)
+#### [Gno.land Discord](https://discord.com/invite/gnoland)
 #### [Gno.land X](https://x.com/_gnoland)
 #### [Gno.land YouTube](https://www.youtube.com/@_gnoland)
 #### [Gno.land Playground, an online editor for exploring Gno.land](https://play.gno.land)
