@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -133,7 +135,10 @@ func (n *Node) devGenState() gnoland.GnoGenesisState {
 // Node is not thread safe
 type Node struct {
 	*node.Node
-	muNode sync.RWMutex
+	muNode                sync.RWMutex
+	muAccountNumbers      sync.Mutex
+	accountNumbers        map[auth.AccountIdentity]uint64
+	initialAccountNumbers map[auth.AccountIdentity]uint64
 
 	config       *NodeConfig
 	emitter      emitter.Emitter
@@ -283,17 +288,11 @@ func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gno
 		txResults[i] = &tx
 	}
 
-	// XXX: Consider replacing a failed transaction with an empty transaction
-	// to preserve the transaction height ?
-	// Note that this would also require committing instead of using the
-	// genesis block.
+	// Preserve failed records too: source GasWanted distinguishes message
+	// failures with committed ante writes from failures that committed nothing.
 
 	metaTxs := make([]gnoland.TxWithMetadata, 0, len(txs))
 	for i, encodedTx := range txs {
-		if deliverTx := deliverTxs[i]; !deliverTx.IsOK() {
-			continue // skip failed tx
-		}
-
 		var tx std.Tx
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
 			return nil, fmt.Errorf("unable to unmarshal tx: %w", unmarshalErr)
@@ -303,6 +302,9 @@ func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gno
 			Tx: tx,
 			Metadata: &gnoland.GnoTxMetadata{
 				Timestamp: b.BlockMeta.Header.Time.Unix(),
+				Failed:    !deliverTxs[i].IsOK(),
+				GasWanted: deliverTxs[i].GasWanted,
+				GasUsed:   deliverTxs[i].GasUsed,
 			},
 		})
 	}
@@ -329,6 +331,10 @@ func (n *Node) getLatestBlockNumber() uint64 {
 func (n *Node) Reset(ctx context.Context) error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
+
+	n.muAccountNumbers.Lock()
+	n.accountNumbers = maps.Clone(n.initialAccountNumbers)
+	n.muAccountNumbers.Unlock()
 
 	// Reset starting time
 	startTime := time.Now()
@@ -636,6 +642,17 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
 	// Genesis verification is always false with Gnodev
 	nodeConfig.SkipGenesisSigVerification = true
+	nodeConfig.PreserveReplaySignerState = true
+	n.muAccountNumbers.Lock()
+	if !n.config.NoReplay {
+		nodeConfig.ReplayAccountNumbers = maps.Clone(n.accountNumbers)
+	}
+	n.muAccountNumbers.Unlock()
+	nodeConfig.AccountNumberObserver = func(numbers map[auth.AccountIdentity]uint64) {
+		n.muAccountNumbers.Lock()
+		defer n.muAccountNumbers.Unlock()
+		n.accountNumbers = numbers
+	}
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {

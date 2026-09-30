@@ -36,6 +36,10 @@ type AnteOptions struct {
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
 
+	// PreserveReplaySignerState advances signed development history while
+	// unsigned synthetic genesis transactions retain their original behavior.
+	PreserveReplaySignerState bool
+
 	// RequireSigForSimulate reports whether tx must have its signatures
 	// cryptographically verified even in simulate mode.
 	//
@@ -215,21 +219,10 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// ——— Phase 3: Verify signatures, increment sequences ———
 
 		for i, sig := range stdSigs {
-			if isGenesis && !opts.VerifyGenesisSignatures {
+			skipGenesisSignature := !opts.VerifyGenesisSignatures && (isGenesis || IsGenesisReplay(ctx))
+			replaySignedTx := opts.PreserveReplaySignerState && len(sig.Signature) > 0
+			if skipGenesisSignature && !replaySignedTx {
 				continue
-			}
-			// Hardfork genesis replay: historical and patched txs carry a
-			// BlockHeight > 0 overridden for faithful re-execution, so the
-			// isGenesis check above misses them. When the operator opted
-			// into --skip-genesis-sig-verification, skip their signature
-			// check too — the whole replayed genesis is vouched for by its
-			// agreed sha256, and a rewritten (patched) body can no longer
-			// verify by design. isGenesis is left untouched so the
-			// accNum/accSeq sign-bytes logic below still uses source values.
-			if !opts.VerifyGenesisSignatures {
-				if IsGenesisReplay(ctx) {
-					continue
-				}
 			}
 
 			da, isSession := sessionAccounts[signerAddrs[i]]
@@ -284,48 +277,50 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				return newCtx, abciResult(std.ErrInvalidPubKey("PubKey not found")), true
 			}
 
-			// Sign bytes: sigAcc's own AccountNumber and Sequence.
-			// At genesis, both are zero regardless of actual values.
-			var accNum, accSeq uint64
-			if !isGenesis {
-				accNum = sigAcc.GetAccountNumber()
-				accSeq = sigAcc.GetSequence()
-			}
-			signBytes, err := tx.GetSignBytes(
-				newCtx.ChainID(),
-				accNum,
-				accSeq,
-			)
-			if err != nil {
-				return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
-			}
-
-			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
-				return newCtx, res, true
-			}
-
-			// Simulate normally skips verification; see RequireSigForSimulate
-			// for why some messages cannot afford that.
-			verifySig := !simulate ||
-				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
-			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-				// Either payload rendering is accepted; std.VerifySignaturePayload
-				// holds the argument for why that is safe.
-				//
-				// Spelled out here rather than delegated to that helper because
-				// the payload is built above, before gas is charged and outside
-				// the simulate gate, and delegating would reorder those steps on
-				// the consensus path. The legacy encoding cannot fail once the
-				// one above succeeded -- the two differ only in the fee's plain
-				// fields -- so lerr carries nothing the first marshal did not
-				// already report. Gas was charged above for one verification.
-				legacySignBytes, lerr := tx.GetSignBytesLegacy(
+			if !skipGenesisSignature {
+				// Sign bytes: sigAcc's own AccountNumber and Sequence.
+				// At genesis, both are zero regardless of actual values.
+				var accNum, accSeq uint64
+				if !isGenesis {
+					accNum = sigAcc.GetAccountNumber()
+					accSeq = sigAcc.GetSequence()
+				}
+				signBytes, err := tx.GetSignBytes(
 					newCtx.ChainID(),
 					accNum,
 					accSeq,
 				)
-				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
-					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+				if err != nil {
+					return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+				}
+
+				if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
+					return newCtx, res, true
+				}
+
+				// Simulate normally skips verification; see RequireSigForSimulate
+				// for why some messages cannot afford that.
+				verifySig := !simulate ||
+					(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
+				if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
+					// Either payload rendering is accepted; std.VerifySignaturePayload
+					// holds the argument for why that is safe.
+					//
+					// Spelled out here rather than delegated to that helper because
+					// the payload is built above, before gas is charged and outside
+					// the simulate gate, and delegating would reorder those steps on
+					// the consensus path. The legacy encoding cannot fail once the
+					// one above succeeded -- the two differ only in the fee's plain
+					// fields -- so lerr carries nothing the first marshal did not
+					// already report. Gas was charged above for one verification.
+					legacySignBytes, lerr := tx.GetSignBytesLegacy(
+						newCtx.ChainID(),
+						accNum,
+						accSeq,
+					)
+					if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
+						return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
+					}
 				}
 			}
 			if isSession {

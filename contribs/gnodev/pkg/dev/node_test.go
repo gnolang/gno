@@ -3,6 +3,7 @@ package dev
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -19,9 +20,12 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -384,10 +388,23 @@ func Render(_ string) string { return strconv.Itoa(i) }
 	require.Equal(t, emitter.NextEvent().Type(), events.EvtTxResult,
 		"(probably) not enough gas for the transaction to be committed")
 
+	signer := newInMemorySigner(t, node.Config().ChainID())
+	info, err := signer.Info()
+	require.NoError(t, err)
+	cli := gnoclient.Client{RPCClient: node.Client()}
+	before, _, err := cli.QueryAccount(info.GetAddress())
+	require.NoError(t, err)
+	require.Equal(t, uint64(2), before.Sequence, "message out of gas commits the ante sequence")
+
 	// Reload the node
 	err = node.Reload(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
+
+	cli.RPCClient = node.Client()
+	after, _, err := cli.QueryAccount(info.GetAddress())
+	require.NoError(t, err)
+	require.Equal(t, before, after, "out of gas history preserves ante fees and authentication")
 
 	// Check for correct render update
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foo")
@@ -868,4 +885,169 @@ func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybas
 		Password: "",      // Password for encryption
 		ChainID:  chainid, // Chain ID for transaction signing
 	}
+}
+
+// newTestingBankClient prepares a funded signer and a small transfer to itself.
+func newTestingBankClient(t *testing.T, node *Node) (*gnoclient.Client, bank.MsgSend, gnoclient.BaseTxCfg) {
+	t.Helper()
+	signer := newInMemorySigner(t, node.Config().ChainID())
+	info, err := signer.Info()
+	require.NoError(t, err)
+	cli := &gnoclient.Client{Signer: signer, RPCClient: node.Client()}
+	msg := bank.MsgSend{FromAddress: info.GetAddress(), ToAddress: info.GetAddress(), Amount: std.MustParseCoins("1ugnot")}
+	cfg := gnoclient.BaseTxCfg{GasFee: "1000000ugnot", GasWanted: 3000000}
+	return cli, msg, cfg
+}
+
+func testingAccount(t *testing.T, cli *gnoclient.Client, address crypto.Address) *std.BaseAccount {
+	t.Helper()
+	account, _, err := cli.QueryAccount(address)
+	require.NoError(t, err)
+	return account
+}
+
+func testingSignSend(t *testing.T, cli *gnoclient.Client, cfg gnoclient.BaseTxCfg, msg bank.MsgSend) *std.Tx {
+	t.Helper()
+	tx, err := gnoclient.NewSendTx(cfg, msg)
+	require.NoError(t, err)
+	signed, err := cli.SignTx(*tx, 0, 0)
+	require.NoError(t, err)
+	return signed
+}
+
+func testingReadExamplePackage(t *testing.T, path string) *std.MemPackage {
+	t.Helper()
+	pkg, err := gnolang.ReadMemPackage(filepath.Join(gnoenv.RootDir(), "examples", path), path, gnolang.MPUserProd)
+	require.NoError(t, err)
+	return pkg
+}
+
+const testingOtherAccountSeed = "mention vintage immense fix clerk state magnet embrace meadow buzz captain bar mystery decade mammal rib chunk upset finish athlete maple undo space palace"
+
+func TestReloadPreservesSessionSignerState(t *testing.T) {
+	pkg := testingReadExamplePackage(t, "gno.land/p/nt/cford32/v0")
+	cfg, holder := newTestingNodeConfig(t, pkg)
+	cfg.PackagesModifier = []QueryPath{{Path: pkg.Path, Creator: crypto.Address{1}}}
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder)
+	cli, msg, txcfg := newTestingBankClient(t, node)
+
+	// Delegate a session key and commit both successful and failed transfers.
+	session, err := gnoclient.SignerFromBip39(testingOtherAccountSeed, cfg.ChainID, "", 0, 0)
+	require.NoError(t, err)
+	info, err := session.Info()
+	require.NoError(t, err)
+	_, err = cli.CreateSession(txcfg, auth.MsgCreateSession{Creator: msg.FromAddress, SessionKey: info.GetPubKey(), AllowPaths: []string{"bank/send"}, SpendLimit: std.MustParseCoins("2000000000000000000ugnot")})
+	require.NoError(t, err)
+	session.(*gnoclient.SignerFromKeybase).Master = msg.FromAddress
+	cli.Signer = session
+	_, err = cli.Send(txcfg, msg)
+	require.NoError(t, err)
+	failing := msg
+	failing.Amount = std.MustParseCoins("1000000000000000000ugnot")
+	res, err := cli.Send(txcfg, failing)
+	require.Error(t, err)
+	require.NoError(t, res.CheckTx.Error)
+	require.Error(t, res.DeliverTx.Error)
+
+	beforeMaster := testingAccount(t, cli, msg.FromAddress)
+	beforeSession, _, err := cli.QuerySessionAccount(msg.FromAddress, info.GetAddress())
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), beforeMaster.Sequence)
+	require.Equal(t, uint64(2), beforeSession.Sequence)
+	signed := testingSignSend(t, cli, txcfg, msg)
+
+	// Adding a genesis creator and reloading twice must retain session spend and identity.
+	node.AddPackagePaths(pkg.Path)
+	for range 2 {
+		require.NoError(t, node.Reload(t.Context()))
+		cli.RPCClient = node.Client()
+		require.Equal(t, beforeMaster, testingAccount(t, cli, msg.FromAddress))
+		afterSession, _, err := cli.QuerySessionAccount(msg.FromAddress, info.GetAddress())
+		require.NoError(t, err)
+		require.Equal(t, beforeSession, afterSession)
+	}
+	_, err = cli.BroadcastTxCommit(signed)
+	require.NoError(t, err)
+}
+
+func TestReloadAndHistoryRewindSignerSequence(t *testing.T) {
+	node, emitter := newTestingDevNode(t, usersInitMemPkg())
+	cli, msg, cfg := newTestingBankClient(t, node)
+
+	// Commit two transfers, then rewind to the first.
+	for range 2 {
+		_, err := cli.Send(cfg, msg)
+		require.NoError(t, err)
+		emitter.NextEvent()
+	}
+	require.NoError(t, node.MoveToPreviousTX(t.Context()))
+	render, err := testingRenderRealm(t, node, usersInitPkgPath)
+	require.NoError(t, err)
+	require.Equal(t, "bootstrapped", render, "history navigation retains unsigned bootstrap transactions")
+	cli.RPCClient = node.Client()
+	require.Equal(t, uint64(1), testingAccount(t, cli, msg.FromAddress).Sequence)
+
+	// Reload must keep the selected prefix and allow its next signed transfer.
+	require.NoError(t, node.Reload(t.Context()))
+	cli.RPCClient = node.Client()
+	require.Equal(t, uint64(1), testingAccount(t, cli, msg.FromAddress).Sequence)
+	_, err = cli.Send(cfg, msg)
+	require.NoError(t, err)
+}
+
+func TestReloadPreservesCreatedSignerAccountNumber(t *testing.T) {
+	pkg := testingReadExamplePackage(t, "gno.land/p/nt/cford32/v0")
+	cfg, holder := newTestingNodeConfig(t, pkg)
+	cfg.PackagesModifier = []QueryPath{{Path: pkg.Path, Creator: crypto.Address{1}}}
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder)
+	cli, masterSend, txcfg := newTestingBankClient(t, node)
+
+	// Fund a new signer, commit its first transfer, and save that history.
+	other, err := gnoclient.SignerFromBip39(testingOtherAccountSeed, cfg.ChainID, "", 0, 0)
+	require.NoError(t, err)
+	info, err := other.Info()
+	require.NoError(t, err)
+	_, err = cli.Send(txcfg, bank.MsgSend{FromAddress: masterSend.FromAddress, ToAddress: info.GetAddress(), Amount: std.MustParseCoins("10000000ugnot")})
+	require.NoError(t, err)
+	cli.Signer = other
+	msg := bank.MsgSend{FromAddress: info.GetAddress(), ToAddress: info.GetAddress(), Amount: std.MustParseCoins("1ugnot")}
+	_, err = cli.Send(txcfg, msg)
+	require.NoError(t, err)
+	before := testingAccount(t, cli, msg.FromAddress)
+	signed := testingSignSend(t, cli, txcfg, msg)
+	require.NoError(t, node.SaveCurrentState(t.Context()))
+
+	// A new genesis creator must not renumber the historical signer.
+	node.AddPackagePaths(pkg.Path)
+	require.NoError(t, node.Reload(t.Context()))
+	cli.RPCClient = node.Client()
+	require.Equal(t, before, testingAccount(t, cli, msg.FromAddress), "new genesis creators must not renumber historical signer accounts")
+	_, err = cli.BroadcastTxCommit(signed)
+	require.NoError(t, err)
+
+	// Reset restores the saved identity and rewinds the later transfer.
+	require.NoError(t, node.Reset(t.Context()))
+	cli.RPCClient = node.Client()
+	require.Equal(t, before, testingAccount(t, cli, msg.FromAddress), "saved initial history retains account identity and rewinds the later transaction")
+	_, err = cli.Send(txcfg, msg)
+	require.NoError(t, err)
+}
+
+func TestNoReplayDiscardsAuthenticationHistory(t *testing.T) {
+	cfg, holder := newTestingNodeConfig(t)
+	cfg.NoReplay = true
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder)
+	cli, msg, txcfg := newTestingBankClient(t, node)
+	initial := testingAccount(t, cli, msg.FromAddress)
+
+	// Commit a transfer, then intentionally reload without history.
+	_, err := cli.Send(txcfg, msg)
+	require.NoError(t, err)
+	require.NoError(t, node.Reload(t.Context()))
+	cli.RPCClient = node.Client()
+
+	// Authentication state and fees return to genesis, allowing a newly signed transfer.
+	require.Equal(t, initial, testingAccount(t, cli, msg.FromAddress), "NoReplay intentionally discards public key, sequence and fee history")
+	_, err = cli.Send(txcfg, msg)
+	require.NoError(t, err)
 }

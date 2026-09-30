@@ -131,7 +131,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// tm2/adr/pr6034_realm_denom_balance_keys.md.
 	accountTierDenoms := []string{ugnot.Denom}
 
-	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount).WithAccountNumbers(cfg.ReplayAccountNumbers)
 	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, accountTierDenoms)
 	gpk := auth.NewGasPriceKeeper(mainKey)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acck, bankk, prmk)
@@ -150,7 +150,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
-		VerifyGenesisSignatures: !cfg.SkipGenesisSigVerification,
+		VerifyGenesisSignatures:   !cfg.SkipGenesisSigVerification,
+		PreserveReplaySignerState: cfg.PreserveReplaySignerState,
 		// MsgAddPackage and MsgRun both compile caller-supplied Gno source,
 		// and who is allowed to do that is decided from the signer.
 		// `.app/simulate` is a public query that RUNS the messages, so
@@ -259,14 +260,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	})
 
 	// Set EndBlocker
-	baseApp.SetEndBlocker(
-		EndBlocker(
-			prmk,
-			acck,
-			gpk,
-			baseApp,
-		),
-	)
+	endBlocker := EndBlocker(prmk, acck, gpk, baseApp)
+	baseApp.SetEndBlocker(func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+		res := endBlocker(ctx, req)
+		observeAccountNumbers(ctx, acck, cfg.AccountNumberObserver)
+		return res
+	})
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acck, gpk))
@@ -362,6 +361,14 @@ func PanicOnFailingTxResultHandler(_ sdk.Context, _ std.Tx, res sdk.Result) {
 // [NewAppWithOptions] will set [InitChainerConfig.InitChainer] as its InitChainer
 // function.
 type InitChainerConfig struct {
+	// PreserveReplaySignerState is enabled only by gnodev for trusted history.
+	PreserveReplaySignerState bool
+
+	// ReplayAccountNumbers and AccountNumberObserver preserve development account
+	// identity across genesis rebuilds. Production callers leave both unset.
+	ReplayAccountNumbers  map[auth.AccountIdentity]uint64
+	AccountNumberObserver func(map[auth.AccountIdentity]uint64)
+
 	// Handles the results of each genesis transaction.
 	GenesisTxResultHandler
 
@@ -500,11 +507,31 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		}
 	}
 
+	observeAccountNumbers(ctx, cfg.acck, cfg.AccountNumberObserver)
+
 	// Done!
 	return abci.ResponseInitChain{
 		Validators:  req.Validators,
 		TxResponses: txResponses,
 	}
+}
+
+// ponytail: O(accounts + sessions) per dev block, use targeted updates if this scan becomes costly.
+func observeAccountNumbers(ctx sdk.Context, acck auth.AccountKeeperI, observer func(map[auth.AccountIdentity]uint64)) {
+	if observer == nil {
+		return
+	}
+	ctx = ctx.WithGasMeter(nil)
+	numbers := map[auth.AccountIdentity]uint64{}
+	acck.IterateAccounts(ctx, func(acc std.Account) bool {
+		numbers[auth.AccountIdentity{Address: acc.GetAddress()}] = acc.GetAccountNumber()
+		acck.(auth.AccountKeeper).IterateSessions(ctx, acc.GetAddress(), func(session std.Account) bool {
+			numbers[auth.AccountIdentity{Master: acc.GetAddress(), Address: session.GetAddress()}] = session.GetAccountNumber()
+			return false
+		})
+		return false
+	})
+	observer(numbers)
 }
 
 // shouldRunValoperCoverageAssertion combines the cfg override with the
@@ -973,7 +1000,16 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 	// Response carries an explicit error so downstream consumers
 	// (indexers, explorers) don't mistake a skipped failed tx for a
 	// successful one.
-	if metadata != nil && metadata.Failed {
+	// runTx reports GasWanted only after the complete ante handler succeeds.
+	// Positive-height transactions with zero gas cannot pass auth's tx-size
+	// charge. Thus nonzero source GasWanted records committed ante writes.
+	// Live gnodev proposals cap summed Fee.GasWanted at block MaxGas, each
+	// deferred block charge is capped at that tx's wanted gas, and gnoland
+	// has no BeginBlock gas charge. Under those bounds a successful message
+	// cannot become a failure after its writes flush. Unrestricted direct SDK
+	// delivery lacks this guarantee and is not the source of this history.
+	anteOnly := cfg.PreserveReplaySignerState && metadata != nil && metadata.Failed && metadata.GasWanted > 0
+	if metadata != nil && metadata.Failed && !anteOnly {
 		report.record(txIdx, metadata, 0, 0, replayCategorySkippedFailed, nil)
 		return abci.ResponseDeliverTx{
 			ResponseBase: abci.ResponseBase{
@@ -997,7 +1033,19 @@ func (cfg InitChainerConfig) deliverGenesisTx(
 		return ctx.WithValue(auth.GenesisReplayKey{}, true)
 	}
 
-	res := cfg.baseApp.Deliver(stdTx, ctxFn)
+	var res sdk.Result
+	if anteOnly {
+		res = cfg.baseApp.DeliverAnteOnly(stdTx, ctxFn)
+		if res.IsOK() {
+			report.record(txIdx, metadata, 0, 0, replayCategorySkippedFailed, nil)
+			return abci.ResponseDeliverTx{ResponseBase: abci.ResponseBase{
+				Error: abci.StringError("replay skipped: tx messages failed on source chain"),
+				Log:   "genesis replay: restored ante effects without executing failed messages",
+			}, GasWanted: res.GasWanted, GasUsed: res.GasUsed}, true
+		}
+	} else {
+		res = cfg.baseApp.Deliver(stdTx, ctxFn)
+	}
 	if res.IsErr() {
 		ctx.Logger().Error(
 			"Unable to deliver genesis tx",

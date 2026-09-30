@@ -1009,6 +1009,9 @@ func TestAnteHandlerGenesisReplaySkip(t *testing.T) {
 
 	// flag ON AND replay key set: signature verification is skipped.
 	checkValidTx(t, skipHandler, ctxReplay, tx, false)
+	replayed := env.acck.GetAccount(ctx, addr)
+	require.Zero(t, replayed.GetSequence(), "default replay keeps legacy sequence semantics")
+	require.Nil(t, replayed.GetPubKey(), "default replay keeps legacy public key semantics")
 
 	// flag OFF and no replay key (a fully normal node): the feature is
 	// inert — the invalid signature is verified and rejected.

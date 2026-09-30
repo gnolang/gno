@@ -1161,6 +1161,14 @@ func TestTxGasLimits(t *testing.T) {
 		// check gas used and wanted
 		require.Equal(t, tc.gasUsed, res.GasUsed, fmt.Sprintf("%d: %v, %v", i, tc, res))
 
+		// GasWanted becomes nonzero only once ante succeeds. Replay uses this
+		// distinction to preserve committed ante effects of message failures.
+		if getCounter(tx) > gasGranted {
+			require.Zero(t, res.GasWanted)
+		} else {
+			require.Equal(t, gasGranted, res.GasWanted)
+		}
+
 		// check for out of gas
 		if !tc.fail {
 			require.True(t, res.IsOK(), fmt.Sprintf("%d: %v, %v", i, tc, res))
