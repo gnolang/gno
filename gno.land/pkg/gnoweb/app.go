@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"path"
 	"strings"
@@ -86,12 +87,15 @@ type AppConfig struct {
 func NewDefaultAppConfig() *AppConfig {
 	const localRemote = "127.0.0.1:26657"
 	return &AppConfig{
-		NodeRemote:              localRemote, // local first
-		RemoteHelp:              localRemote, // local first
-		NodeRequestTimeout:      time.Minute,
-		AssetsPath:              "/public/",
-		Domain:                  "gno.land",
-		Aliases:                 DefaultAliases,
+		NodeRemote:         localRemote, // local first
+		RemoteHelp:         localRemote, // local first
+		NodeRequestTimeout: time.Minute,
+		AssetsPath:         "/public/",
+		Domain:             "gno.land",
+		// Clone: DefaultAliases is package-level, and callers write into
+		// cfg.Aliases (cmd/gnoweb, gnodev, tests). Handing out the map itself
+		// lets one server's config change every other server's defaults.
+		Aliases:                 maps.Clone(DefaultAliases),
 		RenderConfig:            NewDefaultRenderConfig(),
 		StateRateLimitPerMinute: 100,
 		MaxConcurrentRPC:        32,
