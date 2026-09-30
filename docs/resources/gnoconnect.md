@@ -338,10 +338,19 @@ it refuses a hopeless request before spending the user's attention on it — but
 does not discharge the obligation.
 
 `signer_unavailable` means the wallet *cannot* be the pinned identity, not that
-it cannot right now: a held identity whose session has expired is a state the
-user can fix, and a wallet SHOULD offer that rather than declining. Declining
-tells the producer to re-`connect`, which is the wrong advice when the wallet
-holds the identity all along.
+it cannot right now: a held identity whose session has expired, or has used up
+its spending limit, is a state the user can fix, and a wallet SHOULD offer that
+rather than declining. Declining tells the producer to re-`connect`, which is the
+wrong advice when the wallet holds the identity all along.
+
+A session's limits are the wallet's business in the same way its key is: the
+producer never sees the session, so it has nothing to raise and no request to make.
+The wallet offers the fix in its own review (sign with the identity's own key, or
+replace the session with one whose limits cover the request), and the producer
+sees one of the usual outcomes: `Approved`, a `Rejected` if the user declined the
+fix, or `tx_failed` if the wallet has no fix to offer. A wallet MUST NOT answer a
+request it refused on its own limits with a bare `Rejected`: that reads as the
+user saying no.
 
 ## In-Page Wallets (browser extensions)
 
@@ -380,6 +389,9 @@ choice.
 Observing is not intercepting: a wallet may listen to events a page dispatches,
 as long as it does not cancel them, stop their propagation, or act on them as
 though it had been called.
+
+The one exception is a page that never starts the handshake at all, such as a
+visitor's page with JavaScript disabled; see Pages that never ask.
 
 ```ts
 // Wallet side
@@ -639,6 +651,66 @@ A page that wants the connection established deliberately — to show who is
 connected before offering anything to sign — calls `connect` and does not rely on
 either behaviour.
 
+### Events: what the wallet tells the page
+
+Everything above starts with the page. Some changes start with the user, in the
+wallet: they switch accounts, change network, or revoke the site. Without being
+told, a page shows a stale identity until its next request fails. A wallet MAY
+therefore tell an approved origin when its state changes. This is an optional part
+of the provider, feature-detected like the optional methods:
+
+```ts
+// Returns an unsubscribe function. An event name the wallet does not know is
+// accepted and never fires, so a page can subscribe before it knows what the
+// wallet supports.
+on<E extends keyof GnoProviderEvents>(
+  event: E,
+  listener: (detail: GnoProviderEvents[E]) => void,
+): () => void;
+
+interface GnoProviderEvents {
+  accountChanged: GnoAccount;   // the identity the wallet now acts as here
+  networkChanged: GnoNetwork;   // the active network
+  disconnect: null;             // this origin is no longer approved
+}
+```
+
+**Events are delivered through the provider, never as `window` events.** Any
+script in the page can dispatch a `window` event, so a page listening there could
+be told the user disconnected, or switched to an attacker's address, by code that
+is not the wallet. A listener registered on the provider the user chose hears only
+that wallet. The same holds for the wallet's own plumbing: a wallet that carries
+events from its extension into the page over a channel the page can also write
+to, such as a `window` event it re-emits, has only moved the forgery inside.
+
+**Events inform; they never instruct.** A page updates what it shows. It never
+signs, sends or connects because an event arrived. In particular, **a page MUST
+NOT call `connect` in response to `disconnect`**: the user just revoked the site,
+and a connect prompt in reply argues with them. Reconnecting is the user's move.
+
+**The `signer` pin remains the guarantee.** A page that missed an event, or never
+subscribed, is still protected at signing time: a request pinned to the old
+identity is declined with `signer_unavailable` rather than signed as the new one.
+Events keep the display honest; the pin keeps the transaction honest.
+
+What the wallet owes:
+
+- **Approved origins only.** An event discloses what the user has agreed to share
+  with that origin and nothing more. An origin that is not approved hears nothing.
+- **An account change the origin is not approved for is a `disconnect`.** When a
+  wallet approves origins per account, switching to an account this origin was
+  never approved for ends the connection; it does not announce the new address.
+- **Identity, not key.** `accountChanged` fires when the identity changes, not
+  when the wallet changes which key it signs with. Moving between an identity and
+  one of its own sessions is not a change the page can observe, for the reason
+  given in The `signer` pin.
+- **Every document of the origin.** The change applies to the origin, not to
+  whichever tab has focus, so every open page of that origin is told.
+- **Only real changes.** No event when the new value equals the old one.
+
+A page that relies on events still reads state on load (`getAccount`,
+`getNetwork`), since events report changes, not the current state.
+
 ### Announcements are untrusted
 
 Any script running in the page can dispatch `gno:registerWallet`, including
@@ -654,6 +726,67 @@ from announcements is rendering attacker-controllable input, so it MUST:
 None of this authenticates the wallet: the user picking a name from a list is
 the trust decision, exactly as when they install an extension. What the page
 owes them is that the list is legible and cannot be crowded out.
+
+### Pages that never ask
+
+Everything above is page script. A visitor who has disabled JavaScript, or a page
+written before this protocol, never dispatches `gno:requestWallet`, and nothing
+on the page can call a provider. An extension's content script still runs there,
+outside the page's own scripts, so one route into an in-page wallet remains: the
+navigation the page makes without script, following a TxLink.
+
+**A wallet MAY intercept a navigation to a TxLink, and only on a page that has not
+dispatched `gno:requestWallet` since it loaded.** Once the page has asked, it is
+choosing, and the rule against consuming its events holds without exception. The
+two paths therefore never compete: a page that runs script turns the fallback off
+by doing what this section already requires of it, and a page that cannot run
+script has no one else to hand the request to.
+
+Two obligations make that test reliable:
+
+- **A page implementing the in-page protocol MUST dispatch `gno:requestWallet`
+  when it loads**, not lazily when the user first reaches for a wallet. The
+  request is what turns interception off; a page that asks late loses its first
+  click to the fallback.
+- **A wallet MUST be listening before the page's scripts run** (for a browser
+  extension, a content script injected at `document_start`). A wallet that
+  started listening later cannot tell a page that never asked from one that asked
+  before it was there, and MUST NOT intercept.
+
+A navigation to a TxLink is:
+
+- following a link whose `href` is a TxLink;
+- submitting a `GET` form whose `action` is a TxLink. The submitted fields fill
+  that TxLink's arguments; a field named after a parameter replaces the value the
+  `action` carried.
+
+The TxLink rules apply unchanged: a target outside `gnoconnect:txdomains`, or off
+the page's own origin when that is absent, is not a transaction source and is
+not intercepted. The wallet reads the request from the TxLink, never from the
+markup around it. The markup belongs to one site; the TxLink is the standard.
+
+An intercepted TxLink is handled as a `sendtx` without `signer`, since there was
+no `connect` to take one from. The same review, network resolution and error
+codes apply.
+
+**A wallet that cannot carry the request through lets the navigation happen.** If
+it will not act, it does not cancel the event. If it has already cancelled and
+then finds it cannot proceed, it SHOULD perform the navigation itself, so the user
+lands on whatever the page offers without a wallet (on gnoweb, the `gnokey`
+command to copy). A user who declines in review stays where they were: that is an
+answer, not a failure.
+
+What the visitor gives up, stated so it is not mistaken for a bug:
+
+- **No choice of wallet.** Choosing is page script. With two intercepting wallets
+  installed, the first to register takes the navigation: the race the announce
+  protocol removes, back because the page cannot run.
+- **No connection, no `signer` pin, no events.** Each action stands alone.
+
+Nothing here is a trust signal. Any script may dispatch `gno:requestWallet`, which
+at worst turns the fallback off on a page that runs script anyway. A page that
+stays silent gains nothing either: all it leaves a wallet is a TxLink, which the
+wallet puts through review like any other.
 
 ## Launch Links (external wallets)
 
