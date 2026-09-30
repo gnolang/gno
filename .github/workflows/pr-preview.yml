@@ -4,8 +4,9 @@
 # This is the UNTRUSTED half: it runs the pull request's own code (gnodev, the
 # realms, misc/gnopreview) and therefore has a read-only token and no secrets.
 # It only produces an artifact. Publishing it — pushing to gnolang/gno-previews,
-# writing the PR comment — happens in pr-preview-publish.yml, which never checks
-# out PR code and never trusts what this job wrote beyond the rendered HTML.
+# writing the PR comment — happens in pr-preview-publish.yml, which never runs
+# PR code, builds the comment itself from the default branch's gnopreview, and
+# holds a snapshot from an untrusted author until a maintainer approves it.
 #
 # No artifact means no comment: a PR that changes neither a realm, a realm
 # dependency nor gnoweb is silently skipped.
@@ -34,17 +35,18 @@ concurrency:
 
 jobs:
   render:
-    # One knob turns previews on: the repository variable GNOWEB_PREVIEW_BASE_URL,
-    # set to where the Pages site is served from (no trailing slash). Unset means
-    # previews are off — which is what every fork gets by default, so nobody pays
-    # for a gnodev build they did not ask for.
-    #
-    #   gh variable set GNOWEB_PREVIEW_BASE_URL -R <repo> -b https://<owner>.github.io/<repo>
-    if: vars.GNOWEB_PREVIEW_BASE_URL != ''
+    # Always on here; elsewhere only where the repository variable
+    # GNOWEB_PREVIEW_BASE_URL is set, so a fork's own pull requests do not pay
+    # for a gnodev build nobody asked for. The name check is what keeps pull
+    # requests *from* forks rendering: GitHub's variables settings page says
+    # repository variables are not passed to a pull_request run from a fork,
+    # and gating on the variable alone would then skip most of the pull
+    # requests this exists for. Correct either way, so not relied on.
+    if: github.repository == 'gnolang/gno' || vars.GNOWEB_PREVIEW_BASE_URL != ''
     runs-on: ubuntu-latest
-    env:
-      PR: ${{ github.event.pull_request.number }}
-      BASE_URL: ${{ vars.GNOWEB_PREVIEW_BASE_URL }}/pr-${{ github.event.pull_request.number }}
+    # A render takes about a minute; this bounds a hung gnodev or browser,
+    # which would otherwise hold the runner for GitHub's six-hour default.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -74,7 +76,9 @@ jobs:
           else
             base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
           fi
-          git diff --name-only "$base" HEAD > changed.txt
+          # --no-renames: a file moved between packages is a change to both,
+          # and rename detection would report only where it went.
+          git diff --no-renames --name-only "$base" HEAD > changed.txt
           echo "changed files: $(wc -l < changed.txt) (base $base)"
           # A checkout of that base, so a changed realm can be rendered as it
           # looks today as well as as this branch renders it. Both passes use
@@ -102,9 +106,10 @@ jobs:
         if: steps.plan.outputs.skip != 'true'
         run: cd contribs/gnodev && go build -o "$RUNNER_TEMP/gnodev" .
 
-      # Screenshots are only taken for gnoweb changes; google-chrome ships with
-      # the ubuntu-latest image, and a missing browser costs the comment its
-      # images, not the preview.
+      # google-chrome ships with the ubuntu-latest image, and a missing browser
+      # costs the comment its images, not the preview. No -base-url: the
+      # comment.md this writes is for local runs, and the publishing job
+      # builds the one it posts from preview.json, with a URL it trusts.
       - name: Render the snapshot
         if: steps.plan.outputs.skip != 'true'
         env:
@@ -114,9 +119,7 @@ jobs:
           "$RUNNER_TEMP/gnopreview" render \
             -changed changed.txt \
             -base-root "$RUNNER_TEMP/base" \
-            -out _preview \
-            -base-url "$BASE_URL" \
-            -pr "$PR"
+            -out _preview
           rm -rf _preview/gnodev.log _preview/gnodev-base.log _preview/.gnodev-*
           du -sh _preview
 

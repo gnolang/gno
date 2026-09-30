@@ -42,6 +42,10 @@ jobs:
     # Same opt-in as pr-preview.yml; see the note there.
     if: vars.GNOWEB_PREVIEW_BASE_URL != ''
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Where the deploy key lives. The environment without reviewers: deleting a
+    # directory named after the PR number runs nothing from the pull request.
+    environment: gno-previews
     permissions: {} # everything this job touches lives in the previews repository
     env:
       PR: ${{ github.event.pull_request.number }}
@@ -52,7 +56,7 @@ jobs:
         with:
           repository: ${{ env.PREVIEWS_REPO }}
           ref: main
-          ssh-key: ${{ secrets.PREVIEWS_DEPLOY_KEY }} # zizmor: ignore[secrets-outside-env]
+          ssh-key: ${{ secrets.PREVIEWS_DEPLOY_KEY }}
           path: previews
 
       # Same replay story as the publish job: on a rejected push, reset onto the latest
