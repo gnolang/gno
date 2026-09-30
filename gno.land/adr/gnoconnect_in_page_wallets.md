@@ -180,11 +180,18 @@ compatible with the decision above rather than alternatives to it:
   additionally lets a wallet reach the intent by **observing** the navigation,
   which `gnoconnect.md` permits ("Observing is not intercepting"). Deferred as
   a separate change, since it alters a URL shape `master` also produces.
-- **Sanction interception conditionally in the standard**, via a liveness marker
-  gnoweb sets on boot. Unnecessary: with script disabled gnoweb registers
-  nothing, so the wallet is unopposed without needing to be told. Adopting it
-  would put a gnoweb-specific migration into a wallet-agnostic standard, which
-  the bullet above this section rejects on its own terms.
+- **Sanction interception through a liveness marker gnoweb sets on boot.**
+  That would put a gnoweb-specific signal into a wallet-agnostic standard.
+
+Interception is nonetheless sanctioned in the standard, on a signal it already
+defines: `gnoconnect.md` § Pages that never ask lets a wallet intercept a TxLink
+navigation only on a page that has not dispatched `gno:requestWallet`. "The
+wallet is unopposed without being told" held technically but not in practice.
+The standard's rule against consuming the page's events is unconditional, so a
+conforming wallet drops the fallback: Adena's GnoConnect branch removed its
+interceptors on exactly that reading. And no-JS is not a migration with an expiry
+date, so the objection to putting transition mechanisms in the standard does not
+apply to it.
 
 In-page signing by a desktop extension with script disabled therefore works, and
 works for exactly one wallet — the first to register. That is a property of the
@@ -201,6 +208,30 @@ entries so a flood cannot push the real wallet out of view.
 This does not authenticate anything, and is not meant to: picking a name from a
 list is the user's trust decision, as it was when they installed the extension.
 What the page owes them is a list that is legible and cannot be crowded out.
+
+### Following the wallet's events
+
+The session is remembered in `localStorage`, so without being told, the header
+keeps showing an account the user has since switched away from, or a site they
+revoked in the wallet. `followWallet` (`feature/connect/frontend/session.ts`)
+subscribes to the remembered wallet's `provider.on` (`gnoconnect.md` § Events)
+and keeps the session in step:
+
+- `accountChanged` rewrites the session with the new address and drops the
+  stored username, which belonged to the old one.
+- `networkChanged` records the new `chainid`, which decides whether the header's
+  chain reads can run against this page's RPC.
+- `disconnect` clears the session. It does not call `connect`: the user just
+  revoked the site, and a prompt in reply argues with them.
+
+It only listens to the wallet the session came from, subscribes once per wallet
+(announcements repeat), resubscribes when the session changes, and waits for the
+wallet to announce when the session was restored before it did. An event about
+another wallet, or one that changes nothing, is ignored.
+
+These events only change what the header shows. What gets signed is still
+protected by the `signer` pin on every intent: a page that missed an event has its
+request declined, not signed as the wrong identity.
 
 ## Alternatives considered
 
