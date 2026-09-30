@@ -1,0 +1,30 @@
+{
+  "$schema": "../upgrades/upgrades.schema.json",
+  "schema_version": 1,
+  "chain_id": "onyx-1",
+  "genesis_sha256": "4b006fd7ccdec052865accc84dd29b2b76f8b57b2560789a15eedaa88f0e26c5",
+  "genesis_time": "2026-09-28T00:00:00Z",
+  "upgrades": [
+    {
+      "kind": "genesis",
+      "version": "v1.5.0",
+      "commit": "e75fef82c02876a4df92ad6e325c5479b9532168",
+      "halt_height": null,
+      "halt_time": null,
+      "halt_min_version": null,
+      "proposal": null,
+      "image": {
+        "ref": "ghcr.io/gnolang/gno/gnoland:v1.5.0",
+        "digest": "sha256:6ae099c2828c7fcfccd9b8e49ba4f11cd77e38514b7607ce70734aafd53aa73f"
+      },
+      "binaries": {
+        "darwin/amd64": "https://github.com/gnolang/gno/releases/download/v1.5.0/gnoland_darwin_amd64?checksum=sha256:5af86e32f5d91794f032e947c80dc6fcadcc11a02e3ae1e32de3ce84da8bde01",
+        "darwin/arm64": "https://github.com/gnolang/gno/releases/download/v1.5.0/gnoland_darwin_arm64?checksum=sha256:8ae9e0a8696c35d9966090a7e156022c7de694e1fbbcf01a9ba058ea780c41ab",
+        "linux/amd64": "https://github.com/gnolang/gno/releases/download/v1.5.0/gnoland_linux_amd64?checksum=sha256:8dcff48228a881e398d238e3e14760c175c872fb164e85f21e5b4ee94a8b076d",
+        "linux/arm64": "https://github.com/gnolang/gno/releases/download/v1.5.0/gnoland_linux_arm64?checksum=sha256:dde3bb390c2df9f18e2f776c240bb83c32358131c7dbdbe04a716855f579b7a5"
+      },
+      "ran_as": null,
+      "release": "https://github.com/gnolang/gno/releases/tag/v1.5.0"
+    }
+  ]
+}
