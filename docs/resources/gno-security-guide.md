@@ -212,13 +212,30 @@ func Users() []*User { return users }   // attacker gets aliased slice
 
 Any pointer (slice header, map, struct pointer) returned by a getter
 is mutation-attempt surface. The readonly taint protects you from
-direct field writes (`Users()[0].Name = "x"` panics), but if `*User`
-has any method with a body that writes its receiver, calling that
-method on the returned pointer succeeds — borrow rule #2 borrows `m.Realm`
-back to `/r/V`, and the write commits.
+direct field writes (`Users()[0].Name = "x"` panics). A `/p/` method
+that writes its receiver is refused too, **unless the owner granted a
+handle**: borrow rule #2 borrows `m.Realm` back to `/r/V` only for an
+object the owner passed through `mutable(x)`. Without the grant the
+method runs with the caller's storage and its write fails with
+`cannot modify object owned by another realm from library code`.
 
-**Rule**: getters return either values (copies), unexported method
-results, or read-only views. Never a pointer to internal mutable state.
+```go
+var users = mutable(avl.NewTree())    // handle: Set() through any reference commits to /r/V
+var log   = avl.NewTree()             // view: Set() is refused
+
+func Users() *avl.Tree                { return users }
+func ReadUsers() *rotree.ReadOnlyTree { return rotree.Wrap(users, nil) } // view of granted data
+```
+
+**Rule**: a reference that leaves your realm is a view by default.
+Write `mutable(x)` only where you mean to publish that object's
+mutators as your own API, and treat every `mutable(` in a realm as a
+line reviewers must read; `/p/` code cannot grant your stored objects
+for you. The grant belongs to the object: once granted, every reference
+to it is a handle, from every getter, with no revoke, so a view of
+granted data is a wrapper, not the object. The same applies to
+arguments: a value you pass into another realm is a view there unless
+you granted it.
 
 #### 5.1a `/p/`-type with unexported fields but exported mutation methods
 

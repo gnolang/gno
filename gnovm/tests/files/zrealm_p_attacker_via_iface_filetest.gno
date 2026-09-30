@@ -8,14 +8,12 @@ import (
 	"gno.land/r/tests/vm/crossrealm"
 )
 
-// /p/-method dispatched on an unreal foreign receiver borrows
-// m.Realm to the receiver's PkgID (borrow rule #2). Pre-interrealm-v2 the
-// borrow only fired for REAL foreign receivers; with allocation-time
-// PkgID stamping, unreal receivers also carry their authoring realm's
-// PkgID and borrow rule #2 follows.
+// /p/-method dispatched on a foreign receiver the owner granted with
+// mutable(x) borrows m.Realm to the receiver's PkgID (borrow rule #2),
+// whether the receiver is real or, as here, allocated in this transaction.
 //
-// crossrealm.Make1() returns a *p_crossrealm.Container constructed
-// inside /r/tests/vm/crossrealm (borrow rule #1). The Container is
+// crossrealm.Make1() returns a *p_crossrealm.Container constructed and
+// granted inside /r/tests/vm/crossrealm (borrow rule #1). The Container is
 // returned to /r/caller still bearing PkgID=crossrealm. When /r/caller
 // invokes the /p/-declared Touch() method, borrow rule #2 fires:
 // unsafe.CurrentRealm() inside Touch reports /r/tests/vm/crossrealm,

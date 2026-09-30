@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/laundere
 package laundere
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Attack E: /p/attack.TamperViaMethod wraps the receiver-borrow
 // loophole. The body of TamperViaMethod calls o.Set(s) — Set is a
 // /p/-method on the victim-stamped *Object receiver, so borrow rule 2
@@ -27,4 +32,6 @@ func main(cur realm) {
 
 // Output:
 // before: original-ptr
-// after:  pwnd-via-pattack-method
+
+// Error:
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): o<VPBlock(1,0)>.Field
