@@ -1,4 +1,4 @@
-# ADR: Integrated Playground, Eval, and Fork Views in gnoweb
+# ADR: Integrated Playground, Eval, Fork, and Run Views in gnoweb
 
 ## Context
 
@@ -19,7 +19,7 @@ The key problems:
 
 ## Decision
 
-Add three interactive features to gnoweb as Go-native, single-binary
+Add four interactive features to gnoweb as Go-native, single-binary
 extensions with no additional runtime dependencies:
 
 ### 1. `/_/play` — Playground scratch pad
@@ -39,16 +39,19 @@ by calling `/_/api/eval`. For scratch-pad code that has no on-chain package,
 it prints CLI instructions instead. This is intentional: the playground is a
 first step, not a full REPL.
 
-### 2. `?eval` on realm/package pages — Expression Evaluator
+### 2. Expression Evaluator on the Actions page (`?help`)
 
-Adds an "Eval" tab to the existing realm/package navigation. Renders:
+Rather than a tab of its own, the evaluator is a section of the existing
+Actions page, above the per-function transaction builders. Renders:
 - A text input for arbitrary Gno expressions
 - A result pane updated via `POST /_/api/eval`
-- Quick-call buttons for exported, non-crossing, non-method functions
 - An expression history with re-run support
 
-The evaluator is read-only by design: only non-crossing functions are shown in
-Quick Call, and arbitrary expressions are limited to what `vm/qeval` allows
+Each non-crossing function in the list below it also gets an "Eval" button that
+seeds the input with a call to that function, which is the quick-call path.
+
+The evaluator is read-only by design: only non-crossing functions offer the
+Eval button, and arbitrary expressions are limited to what `vm/qeval` allows
 (no state mutation).
 
 ### 3. `?fork` on package/realm pages — Fork to Playground
@@ -57,15 +60,36 @@ Loads all `.gno` source files from a package via the existing `ListFiles` +
 `File` client methods, concatenates them with `// --- filename.gno ---`
 separators, and redirects to the playground view pre-filled with that code.
 
+### 4. Run scratchpad on the Actions page — Dry Run
+
+A code editor seeded with a script that imports the realm being viewed, so the
+user can do what a single function call cannot express: sequence several calls,
+or pass a value that has to be constructed. It produces a copy-pasteable
+`gnokey maketx run` command, a `script.gno` download, and a **Dry Run** button
+that simulates the transaction against the node without committing it.
+
+The Actions page now reads top to bottom as increasing power: package overview,
+expression evaluator (read-only), run scratchpad (a whole script), then the
+per-function transaction builders.
+
+Dry Run posts to `/_/api/dryrun`, which builds a `vm.MsgRun` from the script
+and runs it through the node's simulate path. It requires a bech32 address,
+since a dry run has no way to resolve a local key name.
+
 ### API endpoints
 
-Two new JSON endpoints behind `/_/api/`:
+Three JSON endpoints behind `/_/api/`, all served by the playground feature:
 
 - `POST /_/api/eval` — Evaluates a `pkg_path` + `expression` pair via
   `vm/qeval` ABCI query. Returns `{result}` or `{error}`.
 - `GET /_/api/funcs?path=...` — Returns exported, non-crossing functions for a
   package using the existing `Doc()` client method. Used by the eval quick-call
   buttons and (in future) playground-aware tooling.
+- `POST /_/api/dryrun` — Simulates a `MsgRun` transaction for a `pkg_path` +
+  `script` + `address` triple. Returns `{result}` or `{error}`.
+
+`eval` and `dryrun` share one per-IP token-bucket limiter, since both put work
+on the same node; `dryrun` additionally caps its request body.
 
 ### Frontend approach
 
@@ -81,16 +105,22 @@ imports.
 ### CSP update
 
 `connect-src` in the Content Security Policy was extended from just the remote
-ABCI endpoint to also include `'self'`, enabling the JS to call `/_/api/eval`
-and `/_/api/funcs` without CSP violations.
+ABCI endpoint to also include `'self'`, enabling the JS to call `/_/api/eval`,
+`/_/api/funcs` and `/_/api/dryrun` without CSP violations.
 
 ## Alternatives Considered
 
 - **WebSocket REPL:** More interactive but much more complex server state.
   Deferred to a later iteration.
 - **Server-side gno run / gno test:** Would require sandboxing, resource
-  limits, and execution isolation. Out of scope for this PR; instructions are
-  printed instead.
+  limits, and execution isolation. Out of scope for this PR; the scratchpad
+  simulates instead (`/_/api/dryrun`), which reuses the node's existing
+  transaction path and commits nothing, and the playground prints CLI
+  instructions.
+- **A separate Run page and header tab:** Rejected. It would duplicate the
+  Actions page's purpose and force a tab choice before the user knows whether
+  their work is one call or several, with the package path and chain context
+  they already have on screen not following them across.
 - **CodeMirror editor:** Adopted (#5674) via the shared `@gnoweb/js/code-editor`
   component — Go/TOML syntax modes, with the `<textarea>` kept as a hidden
   progressive-enhancement fallback.
@@ -107,23 +137,35 @@ and `/_/api/funcs` without CSP violations.
 - **Positive:** Developers can fork any package's source into the playground
   with one click.
 - **Positive:** Zero new runtime dependencies; gnoweb stays a single binary.
-- **Positive:** The `/_/api/eval` and `/_/api/funcs` endpoints form a stable
-  base for future tooling (IDE integrations, CLI helpers, etc.).
+- **Positive:** The `/_/api/eval`, `/_/api/funcs` and `/_/api/dryrun` endpoints
+  form a stable base for future tooling (IDE integrations, CLI helpers, etc.).
+- **Positive:** Everything you can do to a realm from the browser is now on one
+  page, in one order, sharing the package path and chain context already on
+  screen.
+- **Trade-off:** `components` now imports a feature package. This is the only
+  such edge and exists solely to reach an embedded FS; `feature/run` is kept
+  free of Go dependencies on the rest of gnoweb so it cannot cycle.
+- **Trade-off:** Dry Run requires a bech32 address rather than a key name, so
+  the user must look up the address if they're used to just using the key name.
 - **Trade-off:** The playground cannot execute scratch-pad code that isn't
   deployed on-chain. This is acceptable for an initial iteration; the UI
   prints CLI instructions to bridge the gap.
-- **Trade-off:** No rate-limiting or sandboxing on `/_/api/eval`. Acceptable
-  for a dev/exploration tool; should be addressed before exposing this to
-  mainnet at scale.
+- **Trade-off:** `/_/api/eval` and `/_/api/dryrun` are rate-limited per IP but
+  not sandboxed. Acceptable for a dev/exploration tool; the isolation question
+  should be revisited before exposing this to mainnet at scale.
 - **Trade-off:** Compiled JS is committed to the repo. This is consistent with
   the existing gnoweb frontend approach.
 
 ## Not Yet Implemented
 
 - CodeMirror syntax highlighting and editor features
-- Server-side `gno run` / `gno test` execution with sandboxing
+- Server-side `gno run` / `gno test` execution with sandboxing (the scratchpad
+  simulates via `/_/api/dryrun`; it does not execute uncommitted code)
+- Dry Run against a key name rather than a bech32 address. As a minimum, can
+  check if the name is registered on-chain
+- Send / gas / deposit values from the Dry Run request (the handler currently
+  hardcodes them; the UI collects them only for the generated CLI command)
 - WebSocket REPL
 - Wallet integration (signing transactions from playground)
 - gnodev hot-reload integration
-- Rate limiting / abuse prevention on eval API
 - Full test coverage for playground handler (current patch coverage ~16%)
