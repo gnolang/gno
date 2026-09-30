@@ -12,16 +12,8 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
-// Every deployment is indexable unless its operator passes -noindex. Testnets,
-// staging and previews serve the same realms under the gno.land name, and
-// search engines list them next to, or instead of, the real network; the
-// opt-out keeps them out without ever risking the real one.
-
-// normalizeCanonicalOrigin returns origin in the one spelling gnoweb copies
-// into canonical tags, robots.txt and sitemap URLs: lowercase, no default port,
-// no trailing slash. Harmless variants are fixed rather than refused, since a
-// refusal stops gnoweb; anything that is not a bare http(s) origin (a path,
-// query, credentials) is still an error.
+// normalizeCanonicalOrigin lowercases origin and drops a default port and
+// trailing slashes. Anything but a bare http(s) origin is an error.
 func normalizeCanonicalOrigin(origin string) (string, error) {
 	origin = strings.TrimRight(strings.TrimSpace(origin), "/")
 	if origin == "" {
@@ -33,8 +25,8 @@ func normalizeCanonicalOrigin(origin string) (string, error) {
 	}
 	scheme, host := strings.ToLower(u.Scheme), strings.ToLower(u.Host)
 	host = strings.TrimSuffix(host, map[string]string{"https": ":443", "http": ":80"}[scheme])
-	// Rebuilding the URL from scheme and host alone catches everything else
-	// at once, including an empty trailing "?" or "#" that Parse accepts.
+	// Rebuilding from scheme and host rejects a path, query, credentials, and
+	// the empty trailing "?" or "#" that Parse accepts.
 	if (scheme != "http" && scheme != "https") || host == "" || strings.HasSuffix(host, ":") ||
 		!strings.EqualFold((&url.URL{Scheme: u.Scheme, Host: u.Host}).String(), origin) {
 		return "", fmt.Errorf("invalid canonical origin %q: want scheme://host[:port]", origin)
@@ -42,9 +34,8 @@ func normalizeCanonicalOrigin(origin string) (string, error) {
 	return scheme + "://" + host, nil
 }
 
-// noIndexMiddleware marks every response as not indexable. robots.txt still
-// allows crawling: a crawler that may not fetch a page never sees its noindex,
-// and keeps whatever it already indexed.
+// noIndexMiddleware marks every response noindex. robots.txt must still allow
+// crawling, or crawlers never see it.
 func noIndexMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
@@ -52,8 +43,7 @@ func noIndexMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// handlerRobotsTXT serves robots.txt. sitemapOrigin is the canonical origin
-// when a sitemap is served, empty otherwise.
+// handlerRobotsTXT serves robots.txt; sitemapOrigin is empty without a sitemap.
 func handlerRobotsTXT(noindex bool, sitemapOrigin string) http.Handler {
 	body := "User-agent: *\nDisallow: /search.json\nDisallow: /status.json\n"
 	switch {
@@ -82,11 +72,8 @@ type sitemapURLSet struct {
 	URLs    []sitemapURL `xml:"url"`
 }
 
-// handlerSitemapXML lists the operator's alias pages: the curated entry
-// points of the site. Realms are left out on purpose; most are demos or near
-// empty, and crawlers reach the good ones through links. The directory is
-// only read to drop a path alias whose realm this chain lacks, which would
-// otherwise publish a 404. No lastmod: gnoweb has no honest source for one.
+// handlerSitemapXML lists the alias pages only: most realms are demos or near
+// empty, and crawlers reach the rest through links.
 func handlerSitemapXML(logger *slog.Logger, origin string, aliases map[string]AliasTarget, dir RealmDirectory) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if origin == "" {
@@ -119,8 +106,8 @@ func handlerSitemapXML(logger *slog.Logger, origin string, aliases map[string]Al
 	})
 }
 
-// sitemapAliases returns, sorted, the alias paths worth listing: static pages
-// always, and a path alias only when its realm exists on this chain.
+// sitemapAliases returns the sorted aliases to list: static pages, and path
+// aliases whose realm exists on this chain, so no 404 is published.
 func sitemapAliases(aliases map[string]AliasTarget, realms []string) []string {
 	known := make(map[string]bool, len(realms))
 	for _, p := range realms {
@@ -129,8 +116,7 @@ func sitemapAliases(aliases map[string]AliasTarget, realms []string) []string {
 
 	var paths []string
 	for alias, target := range aliases {
-		// Only keys gnoweb serves under that exact URL: a key it would
-		// rewrite or redirect lists a URL that is not the page served.
+		// A key gnoweb redirects or rewrites is not the URL of the page served.
 		if _, redirected := Redirects[alias]; redirected || !isCleanWebPath(alias) {
 			continue
 		}

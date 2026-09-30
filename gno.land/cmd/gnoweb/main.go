@@ -145,7 +145,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.noIndex,
 		"noindex",
 		defaultWebOptions.noIndex,
-		"ask search engines to leave this deployment out of their index (testnets, staging, previews); never set it on mainnet",
+		"keep this deployment out of search engines (testnets, staging); never on mainnet",
 	)
 
 	fs.StringVar(

@@ -2205,9 +2205,7 @@ func TestHTTPHandler_CanonicalIgnoresForwardedHost(t *testing.T) {
 	assert.NotContains(t, body, "evil.example", "the canonical link must not follow a request header")
 }
 
-// TestHTTPHandler_RobotsMeta checks the page's robots meta follows -noindex,
-// so it agrees with the X-Robots-Tag the router sets; static exports that
-// cannot send headers rely on the meta alone.
+// TestHTTPHandler_RobotsMeta checks the robots meta follows -noindex.
 func TestHTTPHandler_RobotsMeta(t *testing.T) {
 	t.Parallel()
 
@@ -2229,14 +2227,11 @@ func TestHTTPHandler_RobotsMeta(t *testing.T) {
 		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path", nil))
 		require.Equal(t, http.StatusOK, rr.Code)
 		assert.Contains(t, rr.Body.String(), want, "noindex %v", noindex)
-		// A noindex page must not point a canonical at gno.land: Google may
-		// carry the noindex over to it.
 		assert.Equal(t, !noindex, strings.Contains(rr.Body.String(), `rel="canonical"`), "noindex %v", noindex)
 	}
 }
 
-// TestHTTPHandler_ActionFormNoIndex checks an action form stays out of the
-// index while the function list it comes from does not.
+// TestHTTPHandler_ActionFormNoIndex checks action forms are noindex, $help is not.
 func TestHTTPHandler_ActionFormNoIndex(t *testing.T) {
 	t.Parallel()
 

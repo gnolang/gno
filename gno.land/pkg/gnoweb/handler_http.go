@@ -339,15 +339,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.HeadData.NoIndex = true
 	}
 
-	// An action form ($help&func=...) exists for every call a realm links to,
-	// so indexing them would publish an unbounded set of near-identical pages.
+	// Action forms ($help&func=) are one near-identical page per realm call.
 	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("func") {
 		indexData.HeadData.NoIndex = true
 	}
 
-	// A noindex page names no canonical: Google may carry a noindex over to
-	// the canonical target. (Under -noindex, NewRouter already drops the
-	// canonical origin for every view.)
+	// Google may carry a noindex over to the canonical target.
 	if indexData.HeadData.NoIndex {
 		indexData.HeadData.Canonical = ""
 		indexData.HeadData.URL = ""

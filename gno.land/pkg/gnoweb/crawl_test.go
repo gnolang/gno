@@ -16,8 +16,7 @@ import (
 func TestNormalizeCanonicalOrigin(t *testing.T) {
 	t.Parallel()
 
-	// Harmless spellings are normalized rather than refused: a refusal stops
-	// gnoweb from starting.
+	// Harmless spellings are fixed, not refused: a refusal stops gnoweb.
 	for in, want := range map[string]string{
 		"":                      "",
 		"https://gno.land":      "https://gno.land",
@@ -37,8 +36,6 @@ func TestNormalizeCanonicalOrigin(t *testing.T) {
 		}
 	}
 
-	// Anything that is not a bare http(s) origin would be copied into every
-	// canonical tag and sitemap URL, so it still stops startup.
 	for _, in := range []string{
 		"gno.land",
 		"ftp://gno.land",
@@ -183,7 +180,7 @@ func TestNewRouter_CrawlPolicy(t *testing.T) {
 		cfg.ChainID = "test"
 		cfg.CanonicalOrigin = origin
 		cfg.NoIndex = noindex
-		// A static page renders without a node, so the page meta is testable here.
+		// A static page renders without a node.
 		cfg.Aliases = map[string]AliasTarget{"/static": NewStaticAlias("# Static\n\nBody.")}
 		return NewRouter(log.NewTestingLogger(t), cfg)
 	}
@@ -195,8 +192,7 @@ func TestNewRouter_CrawlPolicy(t *testing.T) {
 
 	t.Run("the default stays indexable, with or without an origin", func(t *testing.T) {
 		t.Parallel()
-		// The safe direction: forgetting every flag must never take a
-		// deployment out of search.
+		// Forgetting every flag must never take a deployment out of search.
 		for _, origin := range []string{"", "https://gno.land"} {
 			router, err := newRouter(t, origin, false)
 			require.NoError(t, err)
@@ -225,8 +221,7 @@ func TestNewRouter_CrawlPolicy(t *testing.T) {
 		assert.NotContains(t, get(router, "/robots.txt").Body.String(), "Sitemap")
 		assert.Equal(t, http.StatusNotFound, get(router, "/sitemap.xml").Code)
 		assert.Contains(t, get(router, "/static").Body.String(), `<meta name="robots" content="noindex, nofollow" />`)
-		// No page may point a canonical at the shared origin, including the
-		// views that return before the page handler clears it.
+		// $state returns before the page handler's head logic.
 		for _, target := range []string{"/static", "/r/demo/boards$state"} {
 			body := get(router, target).Body.String()
 			assert.NotContains(t, body, `rel="canonical"`, target)

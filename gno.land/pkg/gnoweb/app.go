@@ -63,9 +63,8 @@ type AppConfig struct {
 	// the visitor did not reach tells a crawler the content belongs elsewhere,
 	// and every deployment but one would be claiming gno.land's.
 	CanonicalOrigin string
-	// NoIndex asks search engines to leave this deployment out of their
-	// index. Off by default, so no deployment can drop out of search by
-	// forgetting a flag; testnets, staging and previews turn it on.
+	// NoIndex keeps this deployment out of search engines (testnets, staging).
+	// Off by default, so a forgotten flag never drops a site from search.
 	NoIndex bool
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
@@ -154,9 +153,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AssetsVersion:     AssetsVersion(),
 		Banner:            cfg.Banner,
 	}
-	// A noindex deployment names no canonical anywhere: Google may carry a
-	// noindex over to the canonical target, and a deployment that copied
-	// mainnet's -canonical-origin would point every page at gno.land.
+	// Google may carry a noindex over to the canonical target, so a noindex
+	// deployment names none, even with mainnet's -canonical-origin.
 	if cfg.NoIndex {
 		staticMeta.CanonicalOrigin = ""
 	}
@@ -237,8 +235,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
 
-	// Crawl policy. A sitemap needs absolute URLs, so it is only served with a
-	// canonical origin, and never by a deployment that asked not to be indexed.
+	// The sitemap needs an origin for absolute URLs and is never served under -noindex.
 	sitemapOrigin := canonicalOrigin
 	if cfg.NoIndex {
 		sitemapOrigin = ""
