@@ -1571,14 +1571,13 @@ func (dt *DeclaredType) Kind() Kind {
 
 func (dt *DeclaredType) Seal() {
 	dt.checkSeal()
-	validateEmbedDepth(dt, string(dt.Name))
 	dt.sealed = true
 }
 
 // MaxEmbedDepth bounds embed-chain depth for declared types, struct fields,
-// and embedded interfaces. The check fires at type construction (Seal for
-// named types; doOp{Struct,Interface}Type and staticTypeFromAST for inline
-// types). Caps the worst-case FindEmbeddedFieldType trail length so that K
+// and embedded interfaces. The check fires once a declaration group is
+// built (endTypeDeclGroup) and at construction for inline types
+// (doOp{Struct,Interface}Type and staticTypeFromAST). Caps the worst-case FindEmbeddedFieldType trail length so that K
 // repeated selector lookups stay O(K * MaxEmbedDepth) instead of O(K * N)
 // for deeply nested source-level embed chains. 8 is well above any observed
 // legitimate Gno code (deepest in stdlib + examples + tests is 3); the cap
@@ -1958,9 +1957,9 @@ func isInterfaceMethodEmbed(t Type) bool {
 }
 
 // validateEmbedDepth panics if t's embed depth exceeds MaxEmbedDepth.
-// Called at type-finalization points (Seal for named types; immediately
-// after construction for inline struct/interface types). Per-call cost is
-// O(MaxEmbedDepth) thanks to embedDepth's early-exit.
+// Called once a declaration group is built (endTypeDeclGroup) and
+// immediately after construction for inline struct/interface types.
+// Per-call cost is O(MaxEmbedDepth) thanks to embedDepth's early-exit.
 func validateEmbedDepth(t Type, displayName string) {
 	if d := embedDepth(t, nil); d > MaxEmbedDepth {
 		panic(fmt.Sprintf(

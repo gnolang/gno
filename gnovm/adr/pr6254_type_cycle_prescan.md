@@ -46,9 +46,11 @@ Validate the declaration graph first, then predefine.
    so direct and indirect are classified in one place.
 5. **The walk carries no verdict.** Its `direct` flag, the LEAVE check and
    the alias-chain resolver are gone.
-6. **Map-key comparability** is checked once per group after its types are
-   built (`assertValidMapKeys`). Every key is settled by then, so the check
-   needs no settledness walk and cannot poison the `comparable` memo.
+6. **Map-key comparability and embed depth** are checked once per group
+   after its types are built (`endTypeDeclGroup`), since a member
+   reached through a pointer may still have a nil base when its container
+   is sealed. `Seal` no longer checks embed depth; every key and base is
+   settled by then, so the map check cannot poison the `comparable` memo.
 
 ## Alternatives considered
 
@@ -64,9 +66,16 @@ Validate the declaration graph first, then predefine.
 - Invalid cycles are reported before any type is built, always with the
   full path (`A -> B -> A`). Goldens for `recursive9i` and `recursive9j`
   changed from `refers to itself` to the path form.
-- `findUndefinedV/T/Any` and `tryPredefine` lose the `direct` and `stack`
-  parameters and the `directR` result; `predefineRecursively2` loses
-  `direct` and keeps `stack` for its value-cycle message.
+- `findUndefinedV/T/Any` and `tryPredefine` lose the `direct`, `stack` and
+  `defining` parameters and the `directR` result: the walk only returns the
+  first undefined name, which can now only be a value. `tryPredefine`
+  builds only the shapes `reserveTypeDecls` leaves (an alias of a name
+  outside the group, `pkg.T`). `predefineRecursively2` keeps `stack` and
+  `defining` for its value-cycle message; its type-cycle branch is an
+  assertion, so the pre-scan is the only verdict and every direct-cycle
+  filetest pins it.
+- `embed_depth1` pins the post-group embed-depth check with a chain
+  declared top-down, which `Seal` alone accepted.
 - Forward references among function-local type declarations are invalid
   Go and still fail with `not defined in fileset`, as before.
 - Bare-name references into a cycle (`type A B` with B pointing back

@@ -47,13 +47,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
-	// Reject invalid type cycles before any type is constructed.
 	var sites []typeDeclSite
 	for _, fn := range fset.Files {
 		sites = appendTypeDeclSites(sites, fn, fn.Decls)
 	}
-	assertNoTypeDeclCycles(sites)
-	reserveTypeDecls(store, sites)
+	beginTypeDeclGroup(store, sites)
 
 	// Predefine all import decls first.
 	// This must be done before TypeDecls, as it may recursively
@@ -95,8 +93,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-	// Every declared type is built now, so map keys are settled.
-	assertValidMapKeys(store, sites)
+	endTypeDeclGroup(store, sites)
 	// Then, predefine all func/method decls.
 	for _, fn := range fset.Files {
 		for i := range fn.Decls {
@@ -879,14 +876,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					td, isType := d.(*TypeDecl)
 					if isType {
-						assertNoTypeDeclCycles([]typeDeclSite{{td, last}})
-						reserveTypeDecls(store, []typeDeclSite{{td, last}})
+						beginTypeDeclGroup(store, []typeDeclSite{{td, last}})
 					}
 
 					// recursively predefine dependencies.
 					preprocessed := predefineRecursively(store, last, d)
 					if isType {
-						assertValidMapKeys(store, []typeDeclSite{{td, last}})
+						endTypeDeclGroup(store, []typeDeclSite{{td, last}})
 					}
 					if preprocessed {
 						return d, TRANS_SKIP
@@ -1226,12 +1222,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-					// Reject invalid type cycles before any type
-					// is constructed, then predefine all type decls.
-					// After PredefineFileSet nothing is left to check.
+					// Predefine all type decls. After PredefineFileSet
+					// nothing is left to do here.
 					sites := appendTypeDeclSites(nil, n, n.Decls)
-					assertNoTypeDeclCycles(sites)
-					reserveTypeDecls(store, sites)
+					beginTypeDeclGroup(store, sites)
 					for i := range n.Decls {
 						d := n.Decls[i]
 						switch d.(type) {
@@ -1248,7 +1242,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-					assertValidMapKeys(store, sites)
+					endTypeDeclGroup(store, sites)
 					// Then, predefine all func/method decls.
 					for i := range n.Decls {
 						d := n.Decls[i]
@@ -5212,12 +5206,12 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 //
 // Returns:
 //   - un: undefined dependency's name if any
-func findUndefinedV(store Store, last BlockNode, x Expr, defining map[Name]struct{}, elide Type) (un Name) {
-	return findUndefinedAny(store, last, x, defining, false, elide)
+func findUndefinedV(store Store, last BlockNode, x Expr, elide Type) (un Name) {
+	return findUndefinedAny(store, last, x, false, elide)
 }
 
-func findUndefinedT(store Store, last BlockNode, x Expr, defining map[Name]struct{}) (un Name) {
-	return findUndefinedAny(store, last, x, defining, true, nil)
+func findUndefinedT(store Store, last BlockNode, x Expr) (un Name) {
+	return findUndefinedAny(store, last, x, true, nil)
 }
 
 // typeDeclForName returns the *TypeDecl that declares n, or nil if n is not
@@ -5234,9 +5228,9 @@ func typeDeclForName(store Store, last BlockNode, n Name) *TypeDecl {
 	return nil
 }
 
-func findUndefinedAny(store Store, last BlockNode, x Expr, defining map[Name]struct{}, astype bool, elide Type) (un Name) {
+func findUndefinedAny(store Store, last BlockNode, x Expr, astype bool, elide Type) (un Name) {
 	if debugFind {
-		fmt.Printf("findUndefinedAny(%v, %v, astype=%v, elide=%v\n", x, defining, astype, elide)
+		fmt.Printf("findUndefinedAny(%v, astype=%v, elide=%v\n", x, astype, elide)
 	}
 	if x == nil {
 		return
@@ -5263,17 +5257,8 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, defining map[Name]str
 					return
 				}
 		*/
-		if astype {
-			// A type name still being defined has a slot reserved by
-			// reserveTypeDecls; cycles among type declarations were
-			// validated before predefinition. A value name being defined
-			// may merely shadow a type of the same name, as in
-			// `var csvReader Reader = &csvReader{}`, where the composite
-			// literal refers to the outer type.
-			if _, ok := defining[cx.Name]; ok && typeDeclForName(store, last, cx.Name) != nil {
-				return
-			}
-		}
+		// Every type declaration of the group has a slot from
+		// reserveTypeDecls, so only values can still be undefined here.
 		if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 			return
 		}
@@ -5281,35 +5266,35 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, defining map[Name]str
 	case *BasicLitExpr:
 		return
 	case *BinaryExpr:
-		un = findUndefinedV(store, last, cx.Left, defining, nil)
+		un = findUndefinedV(store, last, cx.Left, nil)
 		if un != "" {
 			return
 		}
-		un = findUndefinedV(store, last, cx.Right, defining, nil)
+		un = findUndefinedV(store, last, cx.Right, nil)
 		if un != "" {
 			return
 		}
 	case *SelectorExpr:
-		return findUndefinedV(store, last, cx.X, defining, nil)
+		return findUndefinedV(store, last, cx.X, nil)
 	case *SliceExpr:
-		un = findUndefinedV(store, last, cx.X, defining, nil)
+		un = findUndefinedV(store, last, cx.X, nil)
 		if un != "" {
 			return
 		}
 		if cx.Low != nil {
-			un = findUndefinedV(store, last, cx.Low, defining, nil)
+			un = findUndefinedV(store, last, cx.Low, nil)
 			if un != "" {
 				return
 			}
 		}
 		if cx.High != nil {
-			un = findUndefinedV(store, last, cx.High, defining, nil)
+			un = findUndefinedV(store, last, cx.High, nil)
 			if un != "" {
 				return
 			}
 		}
 		if cx.Max != nil {
-			un = findUndefinedV(store, last, cx.Max, defining, nil)
+			un = findUndefinedV(store, last, cx.Max, nil)
 			if un != "" {
 				return
 			}
@@ -5317,20 +5302,20 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, defining map[Name]str
 	case *StarExpr: // POINTER & DEREF
 		// NOTE: *StarExpr can either mean dereference, or a pointer type.
 		if astype {
-			return findUndefinedT(store, last, cx.X, defining)
+			return findUndefinedT(store, last, cx.X)
 		} else {
-			return findUndefinedV(store, last, cx.X, defining, nil)
+			return findUndefinedV(store, last, cx.X, nil)
 		}
 	case *RefExpr:
-		return findUndefinedV(store, last, cx.X, defining, nil)
+		return findUndefinedV(store, last, cx.X, nil)
 	case *TypeAssertExpr:
-		un = findUndefinedV(store, last, cx.X, defining, nil)
+		un = findUndefinedV(store, last, cx.X, nil)
 		if un != "" {
 			return
 		}
-		return findUndefinedT(store, last, cx.Type, defining)
+		return findUndefinedT(store, last, cx.Type)
 	case *UnaryExpr:
-		return findUndefinedV(store, last, cx.X, defining, nil)
+		return findUndefinedV(store, last, cx.X, nil)
 	case *CompositeLitExpr:
 		var ct Type
 		if cx.Type == nil {
@@ -5346,7 +5331,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, defining map[Name]str
 				cx.Type = toConstTypeExpr(tx, elide)
 			*/
 		} else {
-			un = findUndefinedT(store, last, cx.Type, defining)
+			un = findUndefinedT(store, last, cx.Type)
 			if un != "" {
 				return
 			}
@@ -5363,18 +5348,18 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, defining map[Name]str
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
 			for _, kvx := range cx.Elts {
-				un = findUndefinedV(store, last, kvx.Key, defining, nil)
+				un = findUndefinedV(store, last, kvx.Key, nil)
 				if un != "" {
 					return
 				}
-				un = findUndefinedV(store, last, kvx.Value, defining, ct.Elem())
+				un = findUndefinedV(store, last, kvx.Value, ct.Elem())
 				if un != "" {
 					return
 				}
 			}
 		case StructKind:
 			for _, kvx := range cx.Elts {
-				un = findUndefinedV(store, last, kvx.Value, defining, nil)
+				un = findUndefinedV(store, last, kvx.Value, nil)
 				if un != "" {
 					return
 				}
@@ -5385,7 +5370,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, defining map[Name]str
 				ct.String()))
 		}
 	case *FuncLitExpr:
-		un = findUndefinedT(store, last, &cx.Type, defining)
+		un = findUndefinedT(store, last, &cx.Type)
 		if un != "" {
 			return
 		}
@@ -5394,70 +5379,70 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, defining map[Name]str
 			cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, AttrPreprocessFuncLitExpr)
 		}
 	case *FieldTypeExpr: // FIELD
-		return findUndefinedT(store, last, cx.Type, defining)
+		return findUndefinedT(store, last, cx.Type)
 	case *ArrayTypeExpr:
 		if cx.Len != nil {
-			un = findUndefinedV(store, last, cx.Len, defining, nil)
+			un = findUndefinedV(store, last, cx.Len, nil)
 			if un != "" {
 				return
 			}
 		}
-		return findUndefinedT(store, last, cx.Elt, defining)
+		return findUndefinedT(store, last, cx.Elt)
 	case *SliceTypeExpr:
-		return findUndefinedT(store, last, cx.Elt, defining)
+		return findUndefinedT(store, last, cx.Elt)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
-			un = findUndefinedT(store, last, &cx.Methods[i], defining)
+			un = findUndefinedT(store, last, &cx.Methods[i])
 			if un != "" {
 				return
 			}
 		}
 	case *FuncTypeExpr:
 		for i := range cx.Params {
-			un = findUndefinedT(store, last, &cx.Params[i], defining)
+			un = findUndefinedT(store, last, &cx.Params[i])
 			if un != "" {
 				return
 			}
 		}
 		for i := range cx.Results {
-			un = findUndefinedT(store, last, &cx.Results[i], defining)
+			un = findUndefinedT(store, last, &cx.Results[i])
 			if un != "" {
 				return
 			}
 		}
 	case *MapTypeExpr: // MAP
-		un = findUndefinedT(store, last, cx.Key, defining)
+		un = findUndefinedT(store, last, cx.Key)
 		if un != "" {
 			return
 		}
-		un = findUndefinedT(store, last, cx.Value, defining)
+		un = findUndefinedT(store, last, cx.Value)
 		if un != "" {
 			return
 		}
 	case *StructTypeExpr: // STRUCT
 		for i := range cx.Fields {
-			un = findUndefinedT(store, last, &cx.Fields[i], defining)
+			un = findUndefinedT(store, last, &cx.Fields[i])
 			if un != "" {
 				return
 			}
 		}
 	case *CallExpr:
-		un = findUndefinedV(store, last, cx.Func, defining, nil)
+		un = findUndefinedV(store, last, cx.Func, nil)
 		if un != "" {
 			return
 		}
 		for i := range cx.Args {
-			un = findUndefinedV(store, last, cx.Args[i], defining, nil)
+			un = findUndefinedV(store, last, cx.Args[i], nil)
 			if un != "" {
 				return
 			}
 		}
 	case *IndexExpr:
-		un = findUndefinedV(store, last, cx.X, defining, nil)
+		un = findUndefinedV(store, last, cx.X, nil)
 		if un != "" {
 			return
 		}
-		un = findUndefinedV(store, last, cx.Index, defining, nil)
+		un = findUndefinedV(store, last, cx.Index, nil)
 		if un != "" {
 			return
 		}
@@ -5562,9 +5547,9 @@ func predefineRecursivelyIndexed(store Store, last BlockNode, d Decl, index *pre
 }
 
 // `stack` and `defining` hold the names being predefined, for detecting
-// cycles through values (type cycles are validated before predefinition).
-// `stack` keeps declaration order for the error message; `defining` is the
-// same data as a map, for the lookup.
+// cycles through values (type cycles are rejected before predefinition).
+// `stack` keeps declaration order for the message; `defining` is the same
+// data as a map.
 func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, index *predefineDeclIndex) bool {
 	pkg := packageOf(last)
 
@@ -5596,7 +5581,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	var un Name // undefined name
 	var untype bool
 	for {
-		un, untype = tryPredefine(store, pkg, last, d, defining)
+		un, untype = tryPredefine(store, pkg, last, d)
 		if debugFind {
 			fmt.Printf("tryPredefine(%v, %v, defining=%v)-->un=%v,untype=%v\n", d, stack, defining, un, untype)
 		}
@@ -5605,12 +5590,13 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			// first, check circularity.
 			if _, exists := defining[un]; exists {
 				if untype {
-					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
-						Names(stack).Join(" -> "), un))
-				} else {
-					panic(fmt.Sprintf("invalid recursive value: %s -> %s",
+					// assertNoTypeDeclCycles rejects every cycle a
+					// TypeDecl can close before predefinition.
+					panic(fmt.Sprintf("should not happen: type cycle %s -> %s",
 						Names(stack).Join(" -> "), un))
 				}
+				panic(fmt.Sprintf("invalid recursive value: %s -> %s",
+					Names(stack).Join(" -> "), un))
 			}
 			// Look up the dependency declaration in the fileset.
 			//
@@ -5666,7 +5652,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 // If all dependencies are met, constructs and empty definition value (for a
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
-func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, defining map[Name]struct{}) (un Name, untype bool) {
+func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Name, untype bool) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
@@ -5739,7 +5725,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, definin
 		if isBlankIdentifier(d.Type) {
 			panic("cannot use _ as value or type")
 		}
-		un = findUndefinedT(store, last, d.Type, defining) // XXX
+		un = findUndefinedT(store, last, d.Type) // XXX
 		if un != "" {
 			untype = true
 			return
@@ -5748,7 +5734,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, definin
 		// `var a, b, c = 1, a, b` was already split up before reaching
 		// here, whereas they are illegal inside a function.
 		for _, vx := range d.Values {
-			un = findUndefinedV(store, last, vx, defining, nil)
+			un = findUndefinedV(store, last, vx, nil)
 			if un != "" {
 				untype = false
 				return
@@ -5769,23 +5755,10 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, definin
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		if !isLocallyDefined(last2, d.Name) {
-			// construct empty t type
+			// reserveTypeDecls built every other shape; only an alias
+			// of a name outside the group and pkg.T are left.
 			var t Type
 			switch tx := d.Type.(type) {
-			case *FuncTypeExpr:
-				t = &FuncType{}
-			case *ArrayTypeExpr:
-				t = &ArrayType{}
-			case *SliceTypeExpr:
-				t = &SliceType{}
-			case *InterfaceTypeExpr:
-				t = &InterfaceType{}
-			case *MapTypeExpr:
-				t = &MapType{}
-			case *StructTypeExpr:
-				t = &StructType{}
-			case *StarExpr:
-				t = &PointerType{}
 			case *NameExpr:
 				// check for blank identifier in type
 				// e.g., `type T _`
@@ -5811,7 +5784,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, definin
 				}
 			case *SelectorExpr:
 				// get package value.
-				un = findUndefinedV(store, last, tx.X, defining, nil)
+				un = findUndefinedV(store, last, tx.X, nil)
 				if un != "" {
 					untype = true
 					return
@@ -5832,8 +5805,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, definin
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.GetType()
 			default:
-				panic(fmt.Sprintf(
-					"unexpected type declaration type %v",
+				panic(fmt.Sprintf("should not happen: %v not reserved",
 					reflect.TypeOf(d.Type)))
 			}
 			if d.IsAlias {
@@ -5871,21 +5843,20 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, definin
 		}
 		// after predefinitions (for reasonable recursion support),
 		// return any undefined dependencies.
-		un = findUndefinedAny(
-			store, last, d.Type, defining, true, nil)
+		un = findUndefinedAny(store, last, d.Type, true, nil)
 		if un != "" {
 			untype = true
 			return
 		}
 		// END *TypeDecl
 	case *FuncDecl:
-		un = findUndefinedT(store, last, &d.Type, defining)
+		un = findUndefinedT(store, last, &d.Type)
 		if un != "" {
 			untype = true
 			return
 		}
 		if d.IsMethod {
-			un = findUndefinedT(store, last, &d.Recv, defining)
+			un = findUndefinedT(store, last, &d.Recv)
 			if un != "" {
 				untype = true
 				return

@@ -21,6 +21,7 @@ func TestTypeDeclInvalidCycle(t *testing.T) {
 		// cycle it happened to close would call the group legal.
 		{"direct cycle beside a legal one", "type A struct{ b *B; c C }\ntype C struct{ b B }\ntype B struct{ a A }", "A -> C -> B -> A"},
 		{"other package is a leaf", "type A struct{ t std.Address }", ""},
+		{"selector on own name", "type time time.Duration", "time -> time"},
 	}
 	m := NewMachine("main", nil)
 	for _, c := range cases {

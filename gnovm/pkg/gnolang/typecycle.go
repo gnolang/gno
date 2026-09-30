@@ -14,6 +14,14 @@ import (
 // leaves the aliases nothing to resolve to. Any other cycle is legal: it
 // passes through an indirection and contains a defined type. See
 // golang/go#25838.
+//
+// TODO(gas): this file's walks (collectTypeDeps, findCycle, embedDepth
+// and uncomparableMapKey via endTypeDeclGroup) are covered only by
+// the flat PreprocessGasPerByte charge. They are linear in the source
+// except embedDepth, which re-walks a subgraph shared by many embedders
+// once per declaration. Meter them like embedWalk: thread
+// preprocessGasMeterOf(store) and chargeCPUGas per visited node with a
+// calibrated OpCPUSlope constant.
 
 // typeDeclSite is a type declaration with the block node that holds it, for
 // error locations.
@@ -103,9 +111,15 @@ func collectTypeDeps(x Expr, direct bool, add func(Name, bool)) {
 		}
 	case *FieldTypeExpr:
 		collectTypeDeps(x.Type, direct, add)
+	case *SelectorExpr:
+		// pkg.T names another package's type, unless pkg is a member of
+		// this group: `type time time.Duration` with no import.
+		if nx, ok := x.X.(*NameExpr); ok {
+			add(nx.Name, direct)
+		}
 	}
-	// A *SelectorExpr names another package's type and a *constTypeExpr is
-	// already a type; neither can refer back into this group.
+	// A *constTypeExpr is already a type and cannot refer back into
+	// this group.
 }
 
 // findCycle returns a cycle among the edges that keep accepts, or nil. The
@@ -178,6 +192,14 @@ func (g *typeDeclGraph) invalidCycle() []Name {
 	})
 }
 
+// beginTypeDeclGroup runs before any declaration of a group is
+// predefined: it rejects invalid cycles, then reserves every slot.
+// endTypeDeclGroup closes the group.
+func beginTypeDeclGroup(store Store, sites []typeDeclSite) {
+	assertNoTypeDeclCycles(sites)
+	reserveTypeDecls(store, sites)
+}
+
 // assertNoTypeDeclCycles panics, located at the first declaration of the
 // cycle, if the type declarations in sites form an invalid cycle.
 func assertNoTypeDeclCycles(sites []typeDeclSite) {
@@ -207,63 +229,72 @@ func appendTypeDeclSites(sites []typeDeclSite, block BlockNode, decls []Decl) []
 	return sites
 }
 
-// assertValidMapKeys panics, located at the declaration, if a type declared
-// by sites contains a map whose key cannot be compared with ==. It runs once
-// the declarations are built, so every key is settled and isComparable can
-// be trusted.
-func assertValidMapKeys(store Store, sites []typeDeclSite) {
-	seen := map[Type]struct{}{}
+// endTypeDeclGroup runs the checks that need every type of the group
+// settled: embed depth and map-key comparability. Seal meets a
+// pointer-referenced member before its base is set, so it can judge neither.
+func endTypeDeclGroup(store Store, sites []typeDeclSite) {
 	for _, s := range sites {
-		if s.decl.Name == blankIdentifier {
-			continue
-		}
-		tv := s.block.GetSlot(store, s.decl.Name, true)
-		if tv == nil {
-			continue
-		}
-		if key := uncomparableMapKey(tv.GetType(), seen); key != nil {
-			func() {
-				defer doRecover([]BlockNode{s.block}, s.decl)
-				panic(fmt.Sprintf("invalid map key type %s", key.String()))
-			}()
+		if s.decl.Name != blankIdentifier {
+			checkBuiltTypeDecl(store, s)
 		}
 	}
 }
 
-// uncomparableMapKey returns the key type of the first map in t whose key
-// is not comparable, or nil. seen carries across calls so shared types are
-// walked once.
-func uncomparableMapKey(t Type, seen map[Type]struct{}) Type {
-	if t == nil {
-		return nil
+func checkBuiltTypeDecl(store Store, s typeDeclSite) {
+	tv := s.block.GetSlot(store, s.decl.Name, true)
+	if tv == nil {
+		return
 	}
-	if _, ok := seen[t]; ok {
-		return nil
+	// A bare name adds no embed or map of its own; the declaration it
+	// names checks them.
+	switch unconst(s.decl.Type).(type) {
+	case *NameExpr, *SelectorExpr:
+		return
 	}
-	seen[t] = struct{}{}
+	defer doRecover([]BlockNode{s.block}, s.decl)
+	t := tv.GetType()
+	validateEmbedDepth(t, string(s.decl.Name))
+	if key := uncomparableMapKey(baseOf(t)); key != nil {
+		panic(fmt.Sprintf("invalid map key type %s", key.String()))
+	}
+}
+
+// uncomparableMapKey returns the key type of the first map written inline
+// in t whose key is not comparable, or nil. A declared type inside t is
+// not entered: it is checked at its own declaration.
+func uncomparableMapKey(t Type) Type {
 	switch t := t.(type) {
-	case *DeclaredType:
-		return uncomparableMapKey(t.Base, seen)
 	case *ArrayType:
-		return uncomparableMapKey(t.Elt, seen)
+		return uncomparableMapKey(t.Elt)
 	case *SliceType:
-		return uncomparableMapKey(t.Elt, seen)
+		return uncomparableMapKey(t.Elt)
 	case *PointerType:
-		return uncomparableMapKey(t.Elt, seen)
+		return uncomparableMapKey(t.Elt)
 	case *StructType:
-		for i := range t.Fields {
-			if key := uncomparableMapKey(t.Fields[i].Type, seen); key != nil {
-				return key
-			}
-		}
+		return uncomparableMapKeyIn(t.Fields)
+	case *FuncType:
+		return uncomparableMapKeyIn(t.Params, t.Results)
+	case *InterfaceType:
+		return uncomparableMapKeyIn(t.Methods)
 	case *MapType:
 		if !isComparable(t.Key) {
 			return t.Key
 		}
-		if key := uncomparableMapKey(t.Key, seen); key != nil {
+		if key := uncomparableMapKey(t.Key); key != nil {
 			return key
 		}
-		return uncomparableMapKey(t.Value, seen)
+		return uncomparableMapKey(t.Value)
+	}
+	return nil
+}
+
+func uncomparableMapKeyIn(lists ...[]FieldType) Type {
+	for _, fs := range lists {
+		for i := range fs {
+			if key := uncomparableMapKey(fs[i].Type); key != nil {
+				return key
+			}
+		}
 	}
 	return nil
 }
