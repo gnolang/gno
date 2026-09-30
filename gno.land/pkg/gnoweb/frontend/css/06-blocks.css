@@ -106,6 +106,8 @@
 	position: relative;
 	height: auto;
 	width: 100%;
+	/* A long path scrolls inside the bar instead of widening the page */
+	min-width: 0;
 	color: var(--s-color-text-quaternary);
 
 	& > .inner {
@@ -162,8 +164,25 @@
 		height: calc(100% - 2px);
 		display: flex;
 		align-items: center;
-		padding-inline-end: var(--g-space-1-5);
 		z-index: var(--g-z-max);
+		/* A long path scrolls under the icons: cover it, with a short fade */
+		border-radius: 0 var(--s-rounded) var(--s-rounded) 0;
+		background-color: var(--s-color-bg-surface-secondary);
+
+		&::before {
+			content: "";
+			position: absolute;
+			top: 0;
+			right: 100%;
+			bottom: 0;
+			width: var(--g-space-4);
+			background: linear-gradient(
+				to right,
+				var(--g-color-transparent),
+				var(--s-color-bg-surface-secondary)
+			);
+			pointer-events: none;
+		}
 	}
 
 	/* Submits the search, sits close to the network toggle */
@@ -211,7 +230,7 @@
 		}
 	}
 
-	/* Ask AI: a labelled pill left of the network toggle */
+	/* Ask AI popup: its own wrapper keeps its "~" rules apart */
 	.ai-popup {
 		display: contents;
 	}
@@ -228,7 +247,7 @@
 		color: var(--s-color-text-primary);
 		font-weight: var(--g-font-semibold);
 		line-height: var(--g-line-height-snug);
-		margin-inline-start: var(--g-space-1);
+		margin-inline: var(--g-space-1) var(--g-space-1-5);
 		cursor: pointer;
 
 		& > svg {
@@ -245,23 +264,34 @@
 				color: currentColor;
 			}
 		}
+
+		/* Icon only below lg, where the bar is short */
+		& > span {
+			display: none;
+
+			@media (--lg) {
+				display: inline;
+			}
+		}
 	}
 
-	/* Room for the pill next to the icons */
+	/* Room for the Ask AI chip next to the icons */
 	&:has(.ai-toggle) {
 		& > .inner,
 		& .searchbar {
-			padding-inline-end: var(--g-space-28);
+			padding-inline-end: var(--g-space-16);
 
 			@media (--md) {
+				padding-inline-end: var(--g-space-24);
+			}
+
+			@media (--lg) {
 				padding-inline-end: var(--g-space-36);
 			}
 		}
 	}
 
 	& .ai-popup__title {
-		color: var(--s-color-text-tertiary);
-		font-size: var(--g-font-size-50);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 	}
@@ -282,12 +312,20 @@
 		gap: var(--g-space-2);
 		margin-block-start: var(--g-space-1);
 		font-size: var(--g-font-size-50);
+	}
+
+	/* Hints read at AA contrast */
+	& .ai-action > .item-label {
 		color: var(--s-color-text-secondary);
 	}
 
 	/* The popup text is tertiary; its buttons must not read as disabled */
 	& .ai-popup .b-btn {
 		color: var(--s-color-text-secondary);
+	}
+
+	& .ai-mcp a {
+		text-decoration: underline;
 	}
 
 	& .ai-mcp {

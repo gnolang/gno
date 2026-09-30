@@ -256,6 +256,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	// The state branch builds its header before prepareIndexBodyView does.
+	gnourl.Origin = requestOrigin(r)
 
 	// The function list as JSON, for agents that want to know what to call.
 	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
@@ -646,9 +648,11 @@ func (h *HTTPHandler) ServeHelpJSON(ctx context.Context, gnourl *weburl.GnoURL, 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_ = json.NewEncoder(w).Encode(struct {
-		PkgPath   string          `json:"pkgpath"`
+		PkgPath   string          `json:"pkg_path"`
+		ChainID   string          `json:"chain_id"`
+		Remote    string          `json:"remote"`
 		Functions []*doc.JSONFunc `json:"functions"`
-	}{path.Join(h.Static.Domain, gnourl.Path), callableFuncs(jdoc)})
+	}{path.Join(h.Static.Domain, gnourl.Path), h.Static.ChainId, h.Static.RemoteHelp, callableFuncs(jdoc)})
 }
 
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
@@ -940,32 +944,61 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Write(source) // write raw file
 }
 
+// Bounds on servePackageText, so one request cannot turn into an unbounded
+// number of node queries or response bytes.
+const (
+	packageTextMaxFiles = 100
+	packageTextMaxBytes = 2 << 20
+	packageTextFetchers = 8
+)
+
 // servePackageText serves every file of a package as one plain-text document,
 // each under a "// file:" header, so it can be pasted into any assistant.
 func (h *HTTPHandler) servePackageText(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
 	files, err := h.Client.ListFiles(ctx, gnourl.Path, 0)
+	files = slices.DeleteFunc(files, func(f string) bool { return f == "" })
 	if err == nil && len(files) == 0 {
 		err = ErrClientPackageNotFound
 	}
-	var out bytes.Buffer
-	fmt.Fprintf(&out, "// %s\n", path.Join(h.Static.Domain, gnourl.Path))
-	for _, file := range files {
-		if err != nil {
-			break
-		}
-		var source []byte
-		if source, _, err = h.Client.File(ctx, gnourl.Path, file, 0); err == nil {
-			fmt.Fprintf(&out, "\n// file: %s\n%s\n", file, source)
-		}
-	}
 	if err != nil {
+		h.Logger.Error("unable to list package files", "path", gnourl.Path, "error", err)
+		status, _ := GetClientErrorStatusView(gnourl, err, 0)
+		http.Error(w, "not found", status)
+		return
+	}
+	if len(files) > packageTextMaxFiles {
+		http.Error(w, "package too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	sources := make([][]byte, len(files))
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(packageTextFetchers)
+	for i, file := range files {
+		g.Go(func() (err error) {
+			sources[i], _, err = h.Client.File(gctx, gnourl.Path, file, 0)
+			return err
+		})
+	}
+	if err := g.Wait(); err != nil {
 		h.Logger.Error("unable to get package sources", "path", gnourl.Path, "error", err)
 		status, _ := GetClientErrorStatusView(gnourl, err, 0)
 		http.Error(w, "not found", status)
 		return
 	}
+
+	var out bytes.Buffer
+	fmt.Fprintf(&out, "// %s\n", path.Join(h.Static.Domain, gnourl.Path))
+	for i, file := range files {
+		fmt.Fprintf(&out, "\n// file: %s\n%s\n", file, sources[i])
+	}
+	if out.Len() > packageTextMaxBytes {
+		http.Error(w, "package too large", http.StatusRequestEntityTooLarge)
+		return
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "public, max-age=60")
 	_, _ = w.Write(out.Bytes())
 }
 
@@ -1236,7 +1269,6 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		Domain:      h.Static.Domain,
 		DocRenderer: h.Renderer,
 	})
-	data.JSONLD = components.PackageJSONLD(gnourl.Origin, data)
 	return http.StatusOK, components.OverviewView(data)
 }
 

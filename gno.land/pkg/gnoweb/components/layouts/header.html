@@ -20,7 +20,6 @@ LAYOUT - Header component
               aria-expanded="false" aria-controls="omnisearch-results"
               aria-autocomplete="list" autocomplete="off"
               data-action="input->searchbar#search" />
-            <button type="submit" class="u-sr-only">Search</button>
           </form>
 
           {{ template "ui/breadcrumb" .Breadcrumb }}
@@ -43,7 +42,8 @@ LAYOUT - Header component
             </svg>
           </label>
           {{ if .AI }}
-          <label for="ai-popup-toggle" class="ai-toggle" tabindex="0" role="button" aria-controls="ai-popup">
+          <label for="ai-popup-toggle" class="ai-toggle" tabindex="0" role="button" aria-controls="ai-popup"
+            aria-label="Ask AI">
             <svg aria-hidden="true">
               <use href="#ico-ai"></use>
             </svg>
@@ -125,16 +125,16 @@ LAYOUT - Header component
               <button type="button" class="b-btn b-btn--secondary c-with-icon" data-controller="copy"
                 data-action="click->copy#copy" data-copy-fetch-value="{{ . }}"
                 title="Copy every file of this package as one text, for any AI assistant">
-                {{ template "ui/copy" }}<span>Copy the package for any AI</span>
+                {{ template "ui/copy" }}<span>Copy package as text</span>
               </button>
               {{ end }}
               <div class="ai-mcp">
                 <span class="item-value">Give your AI agent access to gno.land</span>
-                <span class="item-label">Claude Code, Cursor, Codex and more, via
-                  <a href="{{ .MCPRepo }}" target="_blank" rel="noopener noreferrer" data-outbound="gnomcp">gno-mcp</a> (pre-release).</span>
+                <span class="item-label">Claude Code, Codex, Gemini and more, via
+                  <a href="{{ .MCPSite }}" target="_blank" rel="noopener noreferrer" data-outbound="gnomcp">gnomcp</a>
+                  (pre-release).</span>
                 <button type="button" class="b-btn b-btn--secondary c-with-icon" data-controller="copy"
-                  data-action="click->copy#copy" data-copy-text-value="{{ .MCPInstall }}"
-                  aria-label="Copy the gno-mcp install command">
+                  data-action="click->copy#copy" data-copy-text-value="{{ .MCPInstall }}">
                   {{ template "ui/copy" }}<span>Copy install command</span>
                 </button>
               </div>

@@ -191,7 +191,7 @@ func TestHTTPHandler_Get(t *testing.T) {
 		}},
 		// Help page as JSON: the callable functions, for agents
 		{Path: "/r/mock/path$help&json", Status: http.StatusOK, Contains: []string{
-			`"pkgpath":"/r/mock/path"`,
+			`"pkg_path":"/r/mock/path"`,
 			`"name":"SuperRenderFunction"`,
 		}},
 		{Path: "/r/invalid/path$help&json", Status: http.StatusNotFound, Contain: `"error"`},
@@ -2006,4 +2006,42 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 		assert.NotContains(t, body, "Not Yet Enabled",
 			"or the banner would claim every typo is awaiting approval")
 	})
+}
+
+// TestHTTPHandler_AskAI checks the Ask AI entry points reach every view of a
+// realm, the state view included, and stay off a local server.
+func TestHTTPHandler_AskAI(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(&gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
+		Functions: []*doc.JSONFunc{
+			{Name: "Transfer", Params: []*doc.JSONField{{Name: "to", Type: "address"}}},
+		},
+	}))
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), config)
+	require.NoError(t, err)
+
+	get := func(target, host string) string {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		req.Host = host
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		return rr.Body.String()
+	}
+
+	for target, want := range map[string]string{
+		"/r/mock/path":        "Ask AI about this realm",
+		"/r/mock/path$source": "Ask AI about the source",
+		"/r/mock/path$state":  "Ask AI about the state",
+		"/r/mock/path$help":   "Ask AI about these functions",
+	} {
+		body := get(target, "gno.land")
+		assert.Contains(t, body, want, target)
+		assert.Contains(t, body, `class="ai-toggle"`, target)
+		assert.NotContains(t, get(target, "localhost:8888"), `class="ai-toggle"`, target)
+	}
+	assert.Contains(t, get("/r/mock/path$help", "gno.land"), `class="b-ai-func"`)
 }

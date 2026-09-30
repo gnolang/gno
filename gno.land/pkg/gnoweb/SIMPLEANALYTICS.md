@@ -125,11 +125,11 @@ Two layers fire in parallel.
 | `discord` | discord.com/invite/gnoland |
 | `bubblerumble` | bubblerumble.net |
 | `youtube` | youtube.com/@_gnoland |
-| `claude` | claude.ai ("Use with AI" menu) |
-| `chatgpt` | chatgpt.com ("Use with AI" menu) |
-| `gnomcp` | github.com/gnoverse/gno-mcp ("Use with AI" menu) |
+| `claude` | claude.ai ("Ask AI" menus) |
+| `chatgpt` | chatgpt.com ("Ask AI" menus) |
+| `gnomcp` | mcp.gno.dev ("Ask AI" menu, footer) |
 
-`data-outbound` is set in Go (`layout_footer.go`, `layout_header.go`) and rendered by `footer.html` / `ui/header_link`. To tag a new outbound: add `Outbound: "<target>"` to the `FooterLink` / `HeaderLink` in Go.
+`data-outbound` is set in Go (`layout_footer.go`, `layout_header.go`) and rendered by `footer.html` / `ui/header_link`; the "Ask AI" links set it directly in `layouts/header.html` and `views/action.html`. To tag a new outbound: add `Outbound: "<target>"` to the `FooterLink` / `HeaderLink` in Go.
 
 ## Cardinality caps
 
