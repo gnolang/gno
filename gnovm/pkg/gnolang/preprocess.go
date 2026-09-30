@@ -4359,7 +4359,7 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 			PkgPath: packageOf(last).PkgPath,
 			Fields:  buildFieldTypesAST(store, last, x.Fields, true),
 		}
-		validateEmbedDepth(st, "<anonymous struct>")
+		validateEmbedDepth(preprocessGasMeterOf(store), st, "<anonymous struct>")
 		validateStructFields(st, "<anonymous struct>")
 		return st, true
 	case *InterfaceTypeExpr:
@@ -4372,7 +4372,7 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, false), pkgPath),
 			Generic: x.Generic,
 		}
-		validateEmbedDepth(it, "<anonymous interface>")
+		validateEmbedDepth(preprocessGasMeterOf(store), it, "<anonymous interface>")
 		validateInterfaceMethods(it, "<anonymous interface>")
 		return it, true
 	}
@@ -5829,7 +5829,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 		// every member of the group. Cycles were validated up front, so a
 		// direct dependency is never still in progress.
 		var unbuilt Name
-		collectTypeDeps(d.Type, true, func(dep Name, direct bool) {
+		nodes := collectTypeDeps(d.Type, true, func(dep Name, direct bool) {
 			if unbuilt != "" || !direct {
 				return
 			}
@@ -5838,6 +5838,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 				unbuilt = dep
 			}
 		})
+		chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeTypeDepNode*nodes)
 		if unbuilt != "" {
 			return unbuilt, true
 		}

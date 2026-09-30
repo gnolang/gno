@@ -3,6 +3,8 @@ package gnolang
 import (
 	"fmt"
 	"slices"
+
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Validation of cycles among type declarations. It runs before the
@@ -15,13 +17,8 @@ import (
 // passes through an indirection and contains a defined type. See
 // golang/go#25838.
 //
-// TODO(gas): this file's walks (collectTypeDeps, findCycle, embedDepth
-// and uncomparableMapKey via endTypeDeclGroup) are covered only by
-// the flat PreprocessGasPerByte charge. They are linear in the source
-// except embedDepth, which re-walks a subgraph shared by many embedders
-// once per declaration. Meter them like embedWalk: thread
-// preprocessGasMeterOf(store) and chargeCPUGas per visited node with a
-// calibrated OpCPUSlope constant.
+// The walks here run outside the op loop and are billed to the preprocess
+// gas meter per unit of work (chargeCPUGas), like embedWalk.
 
 // typeDeclSite is a type declaration with the block node that holds it, for
 // error locations.
@@ -40,6 +37,7 @@ type typeDeclGraph struct {
 	deps         map[Name][]typeDep
 	names        []Name // declaration order, for deterministic reports
 	hasAliasEdge bool   // some edge joins two aliases
+	nodes, edges int64  // work done, for gas
 }
 
 // newTypeDeclGraph indexes the declarations in sites and the references
@@ -63,7 +61,7 @@ func newTypeDeclGraph(sites []typeDeclSite) *typeDeclGraph {
 	}
 	for _, name := range g.names {
 		from := g.sites[name].decl
-		collectTypeDeps(from.Type, true, func(dep Name, direct bool) {
+		g.nodes += collectTypeDeps(from.Type, true, func(dep Name, direct bool) {
 			to, ok := g.sites[dep]
 			if !ok {
 				return
@@ -75,42 +73,44 @@ func newTypeDeclGraph(sites []typeDeclSite) *typeDeclGraph {
 	return g
 }
 
-// collectTypeDeps calls add for every name that x refers to as a type.
-// direct is false once the reference sits behind an indirection.
-func collectTypeDeps(x Expr, direct bool, add func(Name, bool)) {
+// collectTypeDeps calls add for every name that x refers to as a type and
+// returns the number of nodes visited. direct is false once the reference
+// sits behind an indirection.
+func collectTypeDeps(x Expr, direct bool, add func(Name, bool)) (nodes int64) {
+	nodes = 1
 	switch x := x.(type) {
 	case *NameExpr:
 		add(x.Name, direct)
 	case *StarExpr:
-		collectTypeDeps(x.X, false, add)
+		nodes += collectTypeDeps(x.X, false, add)
 	case *SliceTypeExpr:
-		collectTypeDeps(x.Elt, false, add)
+		nodes += collectTypeDeps(x.Elt, false, add)
 	case *ArrayTypeExpr:
-		collectTypeDeps(x.Elt, direct, add)
+		nodes += collectTypeDeps(x.Elt, direct, add)
 	case *MapTypeExpr:
-		collectTypeDeps(x.Key, false, add)
-		collectTypeDeps(x.Value, false, add)
+		nodes += collectTypeDeps(x.Key, false, add)
+		nodes += collectTypeDeps(x.Value, false, add)
 	case *ChanTypeExpr:
-		collectTypeDeps(x.Value, false, add)
+		nodes += collectTypeDeps(x.Value, false, add)
 	case *FuncTypeExpr:
 		for i := range x.Params {
-			collectTypeDeps(x.Params[i].Type, false, add)
+			nodes += collectTypeDeps(x.Params[i].Type, false, add)
 		}
 		for i := range x.Results {
-			collectTypeDeps(x.Results[i].Type, false, add)
+			nodes += collectTypeDeps(x.Results[i].Type, false, add)
 		}
 	case *InterfaceTypeExpr:
 		// An embedded interface is a bare name and direct; a method
 		// signature is a FuncTypeExpr and so indirect.
 		for i := range x.Methods {
-			collectTypeDeps(x.Methods[i].Type, direct, add)
+			nodes += collectTypeDeps(x.Methods[i].Type, direct, add)
 		}
 	case *StructTypeExpr:
 		for i := range x.Fields {
-			collectTypeDeps(x.Fields[i].Type, direct, add)
+			nodes += collectTypeDeps(x.Fields[i].Type, direct, add)
 		}
 	case *FieldTypeExpr:
-		collectTypeDeps(x.Type, direct, add)
+		nodes += collectTypeDeps(x.Type, direct, add)
 	case *SelectorExpr:
 		// pkg.T names another package's type, unless pkg is a member of
 		// this group: `type time time.Duration` with no import.
@@ -120,6 +120,7 @@ func collectTypeDeps(x Expr, direct bool, add func(Name, bool)) {
 	}
 	// A *constTypeExpr is already a type and cannot refer back into
 	// this group.
+	return nodes
 }
 
 // findCycle returns a cycle among the edges that keep accepts, or nil. The
@@ -138,6 +139,7 @@ func (g *typeDeclGraph) findCycle(keep func(from Name, dep typeDep) bool) []Name
 		color[n] = gray
 		path = append(path, n)
 		for _, dep := range g.deps[n] {
+			g.edges++
 			if !keep(n, dep) {
 				continue
 			}
@@ -196,18 +198,21 @@ func (g *typeDeclGraph) invalidCycle() []Name {
 // predefined: it rejects invalid cycles, then reserves every slot.
 // endTypeDeclGroup closes the group.
 func beginTypeDeclGroup(store Store, sites []typeDeclSite) {
-	assertNoTypeDeclCycles(sites)
+	assertNoTypeDeclCycles(preprocessGasMeterOf(store), sites)
 	reserveTypeDecls(store, sites)
 }
 
 // assertNoTypeDeclCycles panics, located at the first declaration of the
-// cycle, if the type declarations in sites form an invalid cycle.
-func assertNoTypeDeclCycles(sites []typeDeclSite) {
+// cycle, if the type declarations in sites form an invalid cycle. The
+// scan is billed to gm per node and edge.
+func assertNoTypeDeclCycles(gm store.GasMeter, sites []typeDeclSite) {
 	if len(sites) == 0 {
 		return
 	}
 	g := newTypeDeclGraph(sites)
 	cycle := g.invalidCycle()
+	chargeCPUGas(gm, OpCPUSlopeTypeDeclSite*int64(len(g.names))+
+		OpCPUSlopeTypeDepNode*g.nodes+OpCPUSlopeTypeDepEdge*g.edges)
 	if cycle == nil {
 		return
 	}
@@ -233,14 +238,15 @@ func appendTypeDeclSites(sites []typeDeclSite, block BlockNode, decls []Decl) []
 // settled: embed depth and map-key comparability. Seal meets a
 // pointer-referenced member before its base is set, so it can judge neither.
 func endTypeDeclGroup(store Store, sites []typeDeclSite) {
+	gm := preprocessGasMeterOf(store)
 	for _, s := range sites {
 		if s.decl.Name != blankIdentifier {
-			checkBuiltTypeDecl(store, s)
+			checkBuiltTypeDecl(store, gm, s)
 		}
 	}
 }
 
-func checkBuiltTypeDecl(store Store, s typeDeclSite) {
+func checkBuiltTypeDecl(store Store, gm store.GasMeter, s typeDeclSite) {
 	tv := s.block.GetSlot(store, s.decl.Name, true)
 	if tv == nil {
 		return
@@ -253,45 +259,50 @@ func checkBuiltTypeDecl(store Store, s typeDeclSite) {
 	}
 	defer doRecover([]BlockNode{s.block}, s.decl)
 	t := tv.GetType()
-	validateEmbedDepth(t, string(s.decl.Name))
-	if key := uncomparableMapKey(baseOf(t)); key != nil {
+	validateEmbedDepth(gm, t, string(s.decl.Name))
+	var work int64
+	key := uncomparableMapKey(baseOf(t), &work)
+	chargeCPUGas(gm, OpCPUSlopeMapKeyNode*work)
+	if key != nil {
 		panic(fmt.Sprintf("invalid map key type %s", key.String()))
 	}
 }
 
 // uncomparableMapKey returns the key type of the first map written inline
-// in t whose key is not comparable, or nil. A declared type inside t is
-// not entered: it is checked at its own declaration.
-func uncomparableMapKey(t Type) Type {
+// in t whose key is not comparable, or nil, counting visited nodes in
+// work. A declared type inside t is not entered: it is checked at its own
+// declaration.
+func uncomparableMapKey(t Type, work *int64) Type {
+	*work++
 	switch t := t.(type) {
 	case *ArrayType:
-		return uncomparableMapKey(t.Elt)
+		return uncomparableMapKey(t.Elt, work)
 	case *SliceType:
-		return uncomparableMapKey(t.Elt)
+		return uncomparableMapKey(t.Elt, work)
 	case *PointerType:
-		return uncomparableMapKey(t.Elt)
+		return uncomparableMapKey(t.Elt, work)
 	case *StructType:
-		return uncomparableMapKeyIn(t.Fields)
+		return uncomparableMapKeyIn(work, t.Fields)
 	case *FuncType:
-		return uncomparableMapKeyIn(t.Params, t.Results)
+		return uncomparableMapKeyIn(work, t.Params, t.Results)
 	case *InterfaceType:
-		return uncomparableMapKeyIn(t.Methods)
+		return uncomparableMapKeyIn(work, t.Methods)
 	case *MapType:
 		if !isComparable(t.Key) {
 			return t.Key
 		}
-		if key := uncomparableMapKey(t.Key); key != nil {
+		if key := uncomparableMapKey(t.Key, work); key != nil {
 			return key
 		}
-		return uncomparableMapKey(t.Value)
+		return uncomparableMapKey(t.Value, work)
 	}
 	return nil
 }
 
-func uncomparableMapKeyIn(lists ...[]FieldType) Type {
+func uncomparableMapKeyIn(work *int64, lists ...[]FieldType) Type {
 	for _, fs := range lists {
 		for i := range fs {
-			if key := uncomparableMapKey(fs[i].Type); key != nil {
+			if key := uncomparableMapKey(fs[i].Type, work); key != nil {
 				return key
 			}
 		}

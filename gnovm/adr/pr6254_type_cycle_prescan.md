@@ -52,6 +52,17 @@ Validate the declaration graph first, then predefine.
    is sealed. `Seal` no longer checks embed depth; every key and base is
    settled by then, so the map check cannot poison the `comparable` memo.
 
+7. **Gas.** The walks run outside the op loop, where only the flat
+   `PreprocessGasPerByte` applies, so they bill the tx's preprocess meter
+   per unit of work through `chargeCPUGas`, as `embedWalk` does: per
+   declaration, node and edge in the pre-scan and build-order scan, per
+   type visited or field scanned in `embedDepth`, per node in the map-key
+   walk. Slopes are dev-box fits from `BenchmarkTypeDeclGroup`
+   (`cmd/calibrate/typedeclgroup_bench_m5_arm64.txt`) times the 2.1 machine
+   factor of #6164, rounded up so every grid shape is a floor. Only
+   `embedDepth` can exceed linear in the source: a subgraph shared by many
+   embedders is re-walked once per declaration, which `embed_gas` pins.
+
 ## Alternatives considered
 
 - **Keep the two-verdict design of #6048.** Works and matches go/types, but
@@ -75,7 +86,8 @@ Validate the declaration graph first, then predefine.
   assertion, so the pre-scan is the only verdict and every direct-cycle
   filetest pins it.
 - `embed_depth1` pins the post-group embed-depth check with a chain
-  declared top-down, which `Seal` alone accepted.
+  declared top-down, which `Seal` alone accepted. `typecycle_gas_test.go`
+  pins each charge with a budget that only the metered walk exceeds.
 - Forward references among function-local type declarations are invalid
   Go and still fail with `not defined in fileset`, as before.
 - Bare-name references into a cycle (`type A B` with B pointing back
