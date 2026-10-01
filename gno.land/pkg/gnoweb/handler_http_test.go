@@ -1808,8 +1808,8 @@ func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
 
 	// The HTML <title> reflects the page. Empty Title means
 	// HeadData.Title was not set on the state branch. (Test config
-	// leaves Domain unset, so the title is the page alone.)
-	assert.Contains(t, body, `<title>/r/mock/path$state</title>`,
+	// leaves Domain unset, so the title is the path alone.)
+	assert.Contains(t, body, `<title>/r/mock/path</title>`,
 		"page title must reflect realm path — empty title means HeadData.Title was not set on the state branch")
 }
 
@@ -2022,24 +2022,23 @@ func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnowe
 }
 
 // TestHTTPHandler_PageMetadata regresses the head metadata: every page
-// must carry a <title> and a canonical URL naming that page, so two
-// posts under one realm stop sharing one title, and the slots gnoweb
-// declares but cannot source stop rendering empty.
+// must carry a <title>, a summary, a share image and a canonical URL naming
+// that page, so the slots gnoweb declares stop rendering empty.
 func TestHTTPHandler_PageMetadata(t *testing.T) {
 	t.Parallel()
 
 	handler := newMetadataHandler(t, "/r/mock/path", nil)
 
 	cases := []struct {
-		name string
-		url  string
-		page string // the <title> head, and the canonical path
+		name      string
+		url       string
+		canonical string // path of the canonical URL
 	}{
-		{name: "realm", url: "/r/mock/path", page: "/r/mock/path"},
-		// The two posts of one realm differ only in Args, which the old
-		// title dropped: both rendered "gno.land - /r/mock/path".
-		{name: "realm with args", url: "/r/mock/path:p/hello", page: "/r/mock/path:p/hello"},
-		{name: "source view", url: "/r/mock/path$source", page: "/r/mock/path$source"},
+		{name: "realm", url: "/r/mock/path", canonical: "/r/mock/path"},
+		// The two posts of one realm differ only in Args, so the canonical
+		// keeps them.
+		{name: "realm with args", url: "/r/mock/path:p/hello", canonical: "/r/mock/path:p/hello"},
+		{name: "source view", url: "/r/mock/path$source", canonical: "/r/mock/path$source"},
 	}
 
 	for _, tc := range cases {
@@ -2051,21 +2050,17 @@ func TestHTTPHandler_PageMetadata(t *testing.T) {
 			handler.ServeHTTP(rr, req)
 
 			body := rr.Body.String()
-			canonical := "https://gno.land" + tc.page
-			assert.Contains(t, body, "<title>"+tc.page+" - gno.land</title>",
-				"page title must name the page, not the realm it sits under")
+			canonical := "https://gno.land" + tc.canonical
+			// /r/mock is outside the trusted paths, so the title is its path.
+			assert.Contains(t, body, "<title>/r/mock/path - gno.land</title>")
 			assert.Contains(t, body, `<link rel="canonical" href="`+canonical+`" />`,
 				"canonical link must address the page under the configured domain")
 			assert.Contains(t, body, `<meta property="og:url" content="`+canonical+`" />`,
 				"og:url must carry the canonical URL")
-			// This realm renders headings and code, no prose, so the
-			// summary has no source and its slot stays dropped.
-			assert.NotContains(t, body, `<meta name="description"`, "an unsourced slot must be dropped, not rendered empty")
-			// The mark is gno.land's, so a realm does not get to post a card
-			// under it. No image, and the card type follows.
-			assert.NotContains(t, body, `<meta property="og:image"`,
-				"a permissionless page must not borrow the official mark")
-			assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`)
+			assert.Contains(t, body, `<meta name="description" content="`+gnoweb.CommunityRealmDescription+`" />`)
+			assert.Contains(t, body, `<meta property="og:image" content="https://gno.land/public/imgs/og-community.png" />`,
+				"a community page gets the card that says so, not gno.land's own")
+			assert.Contains(t, body, `<meta name="twitter:card" content="summary_large_image" />`)
 		})
 	}
 }
@@ -2207,8 +2202,8 @@ func TestHTTPHandler_CanonicalIgnoresForwardedHost(t *testing.T) {
 	assert.NotContains(t, body, "evil.example", "the canonical link must not follow a request header")
 }
 
-// TestHTTPHandler_AliasShareImage checks that a page the operator published,
-// and only that, carries gno.land's share image and the large card.
+// TestHTTPHandler_AliasShareImage checks that a page the operator published
+// carries gno.land's share image and the large card, query or not.
 func TestHTTPHandler_AliasShareImage(t *testing.T) {
 	t.Parallel()
 
@@ -2218,38 +2213,24 @@ func TestHTTPHandler_AliasShareImage(t *testing.T) {
 	})
 
 	const image = "https://gno.land/public/imgs/og-gnoland.png"
-	cases := []struct {
-		name  string
-		url   string
-		image bool
-	}{
-		{name: "realm alias", url: "/about", image: true},
-		{name: "static alias", url: "/terms", image: true},
-		// On a realm alias the query reaches Render, so it stays in the
-		// head, but it is text the operator never vetted: no mark beside it.
-		{name: "realm alias with a query", url: "/about?Claim+your+airdrop+at+evil.example"},
-		// A static page renders the same bytes whatever the query, so a
-		// tracking parameter is not a page of its own and keeps the image.
-		{name: "static alias with a query", url: "/terms?utm_source=twitter", image: true},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, url := range []string{
+		"/about",
+		"/terms",
+		// The query never reaches the head, so it cannot sit beside the mark.
+		"/about?Claim+your+airdrop+at+evil.example",
+		"/terms?utm_source=twitter",
+	} {
+		t.Run(url, func(t *testing.T) {
 			t.Parallel()
 
 			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
 
 			require.Equal(t, http.StatusOK, rr.Code)
 			body := rr.Body.String()
-			if tc.image {
-				assert.Contains(t, body, `<meta property="og:image" content="`+image+`" />`)
-				assert.Contains(t, body, `<meta name="twitter:image" content="`+image+`" />`)
-				assert.Contains(t, body, `<meta name="twitter:card" content="summary_large_image" />`)
-			} else {
-				assert.NotContains(t, body, `<meta property="og:image"`)
-				assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`)
-			}
+			assert.Contains(t, body, `<meta property="og:image" content="`+image+`" />`)
+			assert.Contains(t, body, `<meta name="twitter:image" content="`+image+`" />`)
+			assert.Contains(t, body, `<meta name="twitter:card" content="summary_large_image" />`)
 		})
 	}
 
@@ -2303,6 +2284,143 @@ func TestHTTPHandler_ErrorShellUnpublished(t *testing.T) {
 			assert.NotContains(t, body, `<meta property="og:url"`)
 			assert.NotContains(t, body, `<meta property="og:image"`)
 			assert.Contains(t, body, `<meta name="robots" content="noindex, nofollow" />`)
+		})
+	}
+}
+
+// documentClient answers Realm with what render returns for a path, so a test
+// sets the document a page displays. Other calls go to the embedded mock.
+type documentClient struct {
+	*gnoweb.MockClient
+	render map[string]func(args string) string
+}
+
+func (c documentClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
+	if render, ok := c.render[path]; ok {
+		return []byte(render(args)), nil
+	}
+	return c.MockClient.Realm(ctx, path, args)
+}
+
+// TestHTTPHandler_PageTrust checks what each kind of page lends its head
+// (#3910). A trusted page may repeat its own heading and first paragraph; a
+// community page repeats nothing it renders; and on no page do arguments or a
+// query a link typed reach the title or the summary.
+func TestHTTPHandler_PageTrust(t *testing.T) {
+	t.Parallel()
+
+	const (
+		post   = "The first post of the blog, said at the length a summary needs."
+		lure   = "Official gno.land airdrop: claim your GNOT at evil.example before it ends."
+		gnoImg = "https://gno.land/public/imgs/og-gnoland.png"
+		comImg = "https://gno.land/public/imgs/og-community.png"
+	)
+	files := map[string]string{"render.gno": `package main; func Render(path string) string { return "" }`}
+	pkg := func(path string) *gnoweb.MockPackage {
+		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: files}
+	}
+	client := documentClient{
+		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/gnoland/echo"), pkg("/r/nym/app"), pkg("/p/nym/lib")),
+		render: map[string]func(string) string{
+			// Like p/gnoland/blog: a post by its slug, "404" for anything else.
+			"/r/gnoland/blog": func(args string) string {
+				if args == "p/hello" {
+					return "# Hello worlds\n\n" + post + "\n"
+				}
+				return "404"
+			},
+			// A trusted realm that quotes its input back, as an error page does.
+			"/r/gnoland/echo": func(args string) string {
+				return "# Not found: " + args + "\n\nNothing is published at " + args + ", try another page.\n"
+			},
+			"/r/nym/app": func(string) string { return "# Official gno.land airdrop\n\n" + lure + "\n" },
+		},
+	}
+	config := newTestHandlerConfig(t, client)
+	config.Meta.Domain = "gno.land"
+	config.Meta.CanonicalOrigin = "https://gno.land"
+	config.Meta.AssetsPath = "/public/"
+	config.TrustedPaths = []string{"gnoland"}
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	config.Renderer = gnoweb.NewHTMLRenderer(logger, gnoweb.NewDefaultRenderConfig(), nil)
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	cases := []struct {
+		name, url                       string
+		title, description, image, path string // path is the canonical's
+	}{
+		{
+			name: "trusted post", url: "/r/gnoland/blog:p/hello",
+			title: "Hello worlds", description: post, image: gnoImg, path: "/r/gnoland/blog:p/hello",
+		},
+		{
+			name: "trusted realm, crafted args", url: "/r/gnoland/blog:Official_GNOT_airdrop_claim_at_evil.example",
+			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg,
+			path: "/r/gnoland/blog:Official_GNOT_airdrop_claim_at_evil.example",
+		},
+		{
+			name: "trusted realm, crafted query", url: "/r/gnoland/blog?Official+notice:+claim+your+GNOT+airdrop+at+evil.example",
+			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog",
+		},
+		{
+			name: "trusted realm echoing its args", url: "/r/gnoland/echo:Official_GNOT_airdrop_claim_at_evil.example",
+			title: "/r/gnoland/echo", description: gnoweb.SiteDescription, image: gnoImg,
+			path: "/r/gnoland/echo:Official_GNOT_airdrop_claim_at_evil.example",
+		},
+		{
+			name: "trusted realm echoing its query", url: "/r/gnoland/echo?Official+GNOT+airdrop+at+evil.example",
+			title: "/r/gnoland/echo", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/echo",
+		},
+		{
+			name: "community realm", url: "/r/nym/app",
+			title: "/r/nym/app", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/r/nym/app",
+		},
+		{
+			name: "community realm, crafted query", url: "/r/nym/app?Official+GNOT+airdrop+at+evil.example",
+			title: "/r/nym/app", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/r/nym/app",
+		},
+		{
+			name: "community package", url: "/p/nym/lib",
+			title: "/p/nym/lib", description: gnoweb.CommunityPackageDescription, image: comImg, path: "/p/nym/lib",
+		},
+		{
+			name: "community user", url: "/u/nym",
+			title: "/u/nym", description: gnoweb.CommunityUserDescription, image: comImg, path: "/u/nym",
+		},
+		{
+			name: "trusted user", url: "/u/gnoland",
+			title: "/u/gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/u/gnoland",
+		},
+		{
+			name: "trusted source view", url: "/r/gnoland/blog$source",
+			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog$source",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+			canonical := "https://gno.land" + tc.path
+			assert.Contains(t, head, "<title>"+tc.title+" - gno.land</title>")
+			assert.Contains(t, head, `<meta name="description" content="`+tc.description+`" />`)
+			assert.Contains(t, head, `<meta property="og:description" content="`+tc.description+`" />`)
+			assert.Contains(t, head, `<meta property="og:image" content="`+tc.image+`" />`)
+			assert.Contains(t, head, `<meta name="twitter:card" content="summary_large_image" />`)
+			assert.Contains(t, head, `<link rel="canonical" href="`+canonical+`" />`)
+			assert.Contains(t, head, `<meta property="og:url" content="`+canonical+`" />`)
+			// Only the canonical and og:url may carry crafted args, as part
+			// of the URL; no text slot may, and nothing may carry the query.
+			text := strings.ReplaceAll(head, canonical, "")
+			for _, word := range []string{"airdrop", "evil"} {
+				assert.NotContains(t, strings.ToLower(text), word)
+			}
 		})
 	}
 }

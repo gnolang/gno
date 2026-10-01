@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -293,15 +294,16 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// A static page renders the same bytes whatever the query says, so
-	// /about?utm_source=x is /about. On a realm the query reaches Render and
-	// stays part of the page, but it is text the operator never vetted, so
-	// only a query-less operator URL gets the share image.
+	// /about?utm_source=x is /about and may still name itself.
 	if operatorPage && alias.Kind == StaticMarkdown {
 		u := *headURL
 		u.Query = nil
 		headURL = &u
 	}
-	h.setHeadMetadata(&indexData, headURL, operatorPage && len(headURL.Query) == 0)
+	kind := h.packageKind(gnourl)
+	if operatorPage {
+		kind = pageOfficial
+	}
 
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
 	// internally dispatches:
@@ -319,13 +321,14 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Page path: wrap the state body in IndexLayout chrome. Set
-		// HeaderData here (the Title came from setHeadMetadata) so the
-		// global header — breadcrumb + Content/State/Source/Actions tabs —
-		// renders against this realm instead of inheriting zero values and
-		// pointing the tabs at empty URLs.
+		// HeaderData here so the global header — breadcrumb +
+		// Content/State/Source/Actions tabs — renders against this realm
+		// instead of inheriting zero values and pointing the tabs at empty
+		// URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
 		indexData.BodyView = view
+		h.setHeadMetadata(&indexData.HeadData, headURL, kind)
 		unpublishErrorShell(&indexData.HeadData, status)
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -349,6 +352,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	var status int
 	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
 
+	h.setHeadMetadata(&indexData.HeadData, headURL, kind)
 	unpublishErrorShell(&indexData.HeadData, status)
 
 	// Render the final page with the rendered body
@@ -458,13 +462,8 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, 
 	}
 	// A page the operator ships may name itself; anything else is read off
 	// what the page displays.
-	indexData.HeadData.Description = meta.Description
-	if alias.Description != "" {
-		indexData.HeadData.Description = alias.Description
-	}
-	if alias.Title != "" {
-		indexData.HeadData.Title = h.titleWithDomain(alias.Title)
-	}
+	indexData.HeadData.Title = cmp.Or(alias.Title, meta.Title)
+	indexData.HeadData.Description = cmp.Or(alias.Description, meta.Description)
 
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems:         &components.RealmTOCData{Items: meta.Toc.Items},
@@ -528,6 +527,9 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
+	// What the document says about itself; setHeadMetadata decides whether
+	// the head may repeat it.
+	indexData.HeadData.Title = meta.Title
 	indexData.HeadData.Description = meta.Description
 
 	return http.StatusOK, components.RealmView(components.RealmData{
@@ -1091,17 +1093,6 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 	return status, components.StatusErrorComponent(msg)
 }
 
-// pageTitle names the page before the domain, because a browser tab and a
-// search result both truncate the tail. The parts encoded are the ones that
-// identify a page — path, arguments, view marker and query — so two URLs
-// rendering different content never produce one title. EncodeWebURL, which
-// canonicalURL uses, covers the same set.
-func (h *HTTPHandler) pageTitle(gnourl *weburl.GnoURL) string {
-	return h.titleWithDomain(strings.TrimSuffix(gnourl.Encode(
-		weburl.EncodePath|weburl.EncodeArgs|weburl.EncodeWebQuery|weburl.EncodeQuery|weburl.EncodeNoEscape,
-	), "/"))
-}
-
 // titleWithDomain puts the domain last, where a tab strip and a search result
 // both cut.
 func (h *HTTPHandler) titleWithDomain(page string) string {
@@ -1119,32 +1110,37 @@ func (h *HTTPHandler) titleWithDomain(page string) string {
 // encoder gnoweb's own links use, so the canonical matches the URL a crawler
 // followed. The request host is deliberately unused: X-Forwarded-Host is
 // caller-supplied, so a canonical built from it sends crawlers wherever the
-// caller asked.
+// caller asked. The query is dropped: anyone can append one to any page, and
+// keeping it would publish one page under as many URLs as there are queries.
 func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	if h.Static.CanonicalOrigin == "" {
 		return ""
 	}
-	return h.Static.CanonicalOrigin + gnourl.EncodeWebURL()
+	u := *gnourl
+	u.Query = nil
+	return h.Static.CanonicalOrigin + u.EncodeWebURL()
 }
 
-// ogImageAsset carries gno.land's mark, so it is served only for the pages an
-// operator ships. A realm is permissionless: lending it the mark would let a
-// page nobody vetted post a card under gno.land's identity, which is the half
-// of #3910 that curation, not metadata, has to answer.
-const ogImageAsset = "imgs/og-gnoland.png"
+// setHeadMetadata settles the <head> once the body is rendered. The body
+// leaves in head what the document says about itself, its first heading and
+// its summary, and mayRepeat decides whether they stay. The title otherwise
+// falls back to the path alone: arguments and query are typed by whoever
+// wrote the link, on any realm, trusted or not.
+func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.GnoURL, kind pageKind) {
+	title, description := head.Title, head.Description
+	if !kind.mayRepeat(gnourl, title, description) {
+		title, description = "", ""
+	}
+	head.Title = h.titleWithDomain(cmp.Or(title, strings.TrimSuffix(gnourl.Path, "/")))
+	head.Description = cmp.Or(description, kind.defaultDescription(gnourl))
 
-// setHeadMetadata fills the <head> slots that the URL alone answers. The
-// summary is left to whatever renders the body, since only the rendered
-// document carries one.
-func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL, shareImage bool) {
 	canonical := h.canonicalURL(gnourl)
-	indexData.HeadData.Title = h.pageTitle(gnourl)
-	indexData.HeadData.Canonical = canonical
-	indexData.HeadData.URL = canonical
+	head.Canonical = canonical
+	head.URL = canonical
 	// A crawler fetches og:image as given, with no page to resolve it
 	// against, so it needs the same declared origin as the canonical.
-	if h.Static.CanonicalOrigin != "" && shareImage {
-		indexData.HeadData.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, ogImageAsset)
+	if h.Static.CanonicalOrigin != "" {
+		head.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, kind.shareImage())
 	}
 }
 
