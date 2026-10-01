@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -24,7 +25,13 @@ func normalizeCanonicalOrigin(origin string) (string, error) {
 	// Parse checks only what follows the last colon, so a stray one before it
 	// (gno.land:x:443) has to be refused here; a bracketed IPv6 host is fine.
 	strayColon := strings.Contains(u.Hostname(), ":") && !strings.HasPrefix(u.Host, "[")
-	if (scheme != "http" && scheme != "https") || host == "" || strings.HasSuffix(host, ":") || strayColon ||
+	// Parse checks only that the port is digits, so 0 or 99999 gets through.
+	badPort := false
+	if p := u.Port(); p != "" {
+		n, err := strconv.Atoi(p)
+		badPort = err != nil || n < 1 || n > 65535
+	}
+	if (scheme != "http" && scheme != "https") || host == "" || strings.HasSuffix(host, ":") || strayColon || badPort ||
 		!strings.EqualFold((&url.URL{Scheme: u.Scheme, Host: u.Host}).String(), origin) {
 		return "", fmt.Errorf("invalid canonical origin %q: want scheme://host[:port]", origin)
 	}
