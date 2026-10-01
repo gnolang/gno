@@ -117,6 +117,10 @@ func setupDevNodeConfig(
 	config.Emitter = emitter
 	config.BalancesList = balances.List()
 	config.TMConfig.RPC.ListenAddress = cfg.nodeRPCListenerAddr
+	// DefaultNodeConfig starts from tm2's TestConfig, which turns on the
+	// unsafe_* routes. Two of them write a profile to any path the caller
+	// names, unauthenticated, and nothing in gnodev needs any of them.
+	config.TMConfig.RPC.Unsafe = false
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
