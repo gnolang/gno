@@ -37,6 +37,36 @@ func TestMathEscapesUserContent(t *testing.T) {
 	}
 }
 
+func TestMathDoesNotSwallowText(t *testing.T) {
+	cases := map[string]string{
+		`\alpha is greek`:                    `\alpha is greek`,
+		`$100 is the price`:                  `$100 is the price`,
+		`\_underscore`:                       `_underscore`,
+		`$5 and $10`:                         `$5 and $10`,
+		`costs \$5 and \$6`:                  `costs $5 and $6`,
+		"$$\nnever closed\n\nnext paragraph": "next paragraph",
+	}
+	for src, want := range cases {
+		t.Run(src, func(t *testing.T) {
+			out := renderMathMarkdown(t, src)
+			assert.Contains(t, out, want)
+			assert.NotContains(t, out, "<math")
+		})
+	}
+}
+
+func TestMathStillRenders(t *testing.T) {
+	for _, src := range []string{
+		`$E=mc^2$`,
+		`price $x^2$ here`,
+		`$$\int_0^1 x^2 dx$$`,
+		"$$\n\\int_0^1 x^2 dx\n$$",
+		`\\(A = \\pi r^2\\)`,
+	} {
+		assert.Contains(t, renderMathMarkdown(t, src), "<math", src)
+	}
+}
+
 // Run with -race: the renderer used to share one converter across renders.
 func TestMathConcurrentRender(t *testing.T) {
 	gm := goldmark.New(goldmark.WithExtensions(NewGnoExtension()))

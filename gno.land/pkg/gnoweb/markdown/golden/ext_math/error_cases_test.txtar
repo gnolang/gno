@@ -65,18 +65,12 @@ $ (should be separate)</p>
     <mrow>
       <mi>x</mi>
       <mo>=</mo>
-    </mrow>
-    <annotation encoding="application/x-tex">x = </annotation>
-  </semantics>
-</math>
-y + z
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
-  <semantics>
-    <mrow>
+      <mo>$</mo>
+      <mi>y</mi>
       <mo>+</mo>
-      <mi>w</mi>
+      <mi>z</mi>
     </mrow>
-    <annotation encoding="application/x-tex"> + w</annotation>
+    <annotation encoding="application/x-tex">x = $y + z</annotation>
   </semantics>
 </math>
- (should not work)</p>
+ + w$ (should not work)</p>

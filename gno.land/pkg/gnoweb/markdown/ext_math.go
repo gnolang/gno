@@ -89,6 +89,10 @@ func (p *texInlineRegionParser) Trigger() []byte {
 }
 
 func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ parser.Context) ast.Node {
+	// An escaped delimiter (\$) is literal text.
+	if block.PrecendingCharacter() == '\\' {
+		return nil
+	}
 	line, seg := block.PeekLine()
 	var begin, end []byte
 	var flavor int
@@ -101,6 +105,11 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ pars
 			begin = _dollarDisplay
 			end = _dollarDisplay
 		} else {
+			// Pandoc rule: the opening $ must be followed by a non-space,
+			// so prices such as "$ 5" are not math.
+			if util.IsSpace(line[1]) {
+				return nil
+			}
 			flavor = flavor_inline | delimeter_tex
 			begin = _dollarInline
 			end = _dollarInline
@@ -119,16 +128,18 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ pars
 			return nil
 		}
 	}
-	// fmt.Println(string(line))
+	findEnd := func(b []byte) int { return bytes.Index(b, end) }
+	if flavor == flavor_inline|delimeter_tex {
+		findEnd = findDollarClose
+	}
 	start := seg.Start + len(begin)
-	stop := bytes.Index(line[len(begin):], end)
+	stop := findEnd(line[len(begin):])
 	if stop < 0 {
 		// could be a linebreak due to formatting issues
-		// count := 0
 		posLine, posSeg := block.Position()
 		block.AdvanceLine()
 		line, seg = block.PeekLine()
-		stop = bytes.Index(line, end)
+		stop = findEnd(line)
 		if stop < 0 {
 			block.SetPosition(posLine, posSeg)
 			return nil
@@ -142,6 +153,26 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ pars
 	tex := string(block.Value(seg))
 	block.Advance(stop + len(end))
 	return &mathInlineNode{tex: tex, flavor: flavor}
+}
+
+// findDollarClose returns the index of the first $ in b that can close an
+// inline $...$ expression, or -1. Following pandoc, a closing $ must not be
+// preceded by a space or a backslash nor followed by a digit, so "$5 and $10"
+// stays plain text.
+func findDollarClose(b []byte) int {
+	for i := 0; i < len(b); i++ {
+		if b[i] != '$' {
+			continue
+		}
+		if i == 0 || util.IsSpace(b[i-1]) || b[i-1] == '\\' {
+			continue
+		}
+		if i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9' {
+			continue
+		}
+		return i
+	}
+	return -1
 }
 
 var mathBlockInfoKey = parser.NewContextKey()
@@ -159,54 +190,58 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 		return nil, parser.NoChildren
 	}
 
+	// Only display delimiters ($$ and \[) open a math block. Anything else
+	// (\alpha, \_, $100, ...) is left to the paragraph and inline parsers.
 	line, _ := reader.PeekLine()
-	displaystyle := false
+	var open, closeTag []byte
 	var flavor int
-	if bytes.HasPrefix(line, _displayopen) {
-		displaystyle = true
-		flavor = flavor_display | delimeter_ams
-	} else if bytes.HasPrefix(line, _dollarDisplay) {
-		displaystyle = true
-		flavor = flavor_display | delimeter_tex
-	} else if bytes.HasPrefix(line, _inlineopen) {
-		flavor = flavor_inline | delimeter_ams
-	} else if bytes.HasPrefix(line, _dollarInline) {
-		flavor = flavor_inline | delimeter_tex
+	switch {
+	case bytes.HasPrefix(line, _displayopen):
+		open, closeTag, flavor = _displayopen, _displayclose, flavor_display|delimeter_ams
+	case bytes.HasPrefix(line, _dollarDisplay):
+		open, closeTag, flavor = _dollarDisplay, _dollarDisplay, flavor_display|delimeter_tex
+	default:
+		return nil, parser.NoChildren
 	}
 
-	if displaystyle {
-		if flavor&delimeter_ams > 0 {
-			if bytes.Contains(line, _displayclose) {
-				return nil, parser.NoChildren
-			}
-			reader.Advance(len(_displayclose))
-		}
-		if flavor&delimeter_tex > 0 {
-			if bytes.Contains(line[2:], _dollarDisplay) {
-				return nil, parser.NoChildren
-			}
-			reader.Advance(len(_dollarDisplay))
-		}
-		pc.Set(mathBlockInfoKey, mathBlockData{flavor: flavor})
-		node := &mathBlockNode{flavor: flavor}
-		_, seg := reader.PeekLine()
-		node.Lines().Append(seg)
-		return node, parser.NoChildren
+	// A closing delimiter on the same line is an inline-level expression,
+	// handled by the inline parser.
+	if bytes.Contains(line[len(open):], closeTag) {
+		return nil, parser.NoChildren
+	}
+	// Don't open a block that never closes: it would swallow the rest of the
+	// document.
+	if !hasClosingLine(reader, closeTag) {
+		return nil, parser.NoChildren
 	}
 
-	if flavor&delimeter_ams > 0 {
-		if bytes.Contains(line, _inlineclose) {
-			return nil, parser.NoChildren
-		}
-		reader.Advance(len(_inlineopen)) // move reader past this line
-	} else if flavor&delimeter_tex > 0 {
-		if bytes.Contains(line[1:], _dollarInline) {
-			return nil, parser.NoChildren
-		}
-		reader.Advance(len(_dollarInline)) // move reader past this line
-	}
+	reader.Advance(len(open))
 	pc.Set(mathBlockInfoKey, mathBlockData{flavor: flavor})
-	return &mathBlockNode{flavor: flavor}, parser.NoChildren
+	node := &mathBlockNode{flavor: flavor}
+	_, seg := reader.PeekLine()
+	node.Lines().Append(seg)
+	return node, parser.NoChildren
+}
+
+// hasClosingLine reports whether closeTag appears on one of the lines after
+// the current one, within MaxMathInputLen bytes. The reader position is left
+// unchanged.
+func hasClosingLine(reader text.Reader, closeTag []byte) bool {
+	posLine, posSeg := reader.Position()
+	defer reader.SetPosition(posLine, posSeg)
+	reader.AdvanceLine()
+	for scanned := 0; scanned <= MaxMathInputLen; {
+		line, _ := reader.PeekLine()
+		if line == nil {
+			return false
+		}
+		if bytes.Contains(line, closeTag) {
+			return true
+		}
+		scanned += len(line)
+		reader.AdvanceLine()
+	}
+	return false
 }
 
 func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
