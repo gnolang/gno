@@ -2104,31 +2104,31 @@ func TestHTTPHandler_GetUserView_RegisteredWithoutPackages(t *testing.T) {
 
 // An address is a namespace by construction, so it always has a page. It is
 // still looked up, because the registry is the only thing that can say which
-// name it belongs to, and the packages live under that name.
+// name it belongs to, and packages may live under either half of the pair.
 func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		payload       []byte
-		wantNamespace string
-		wantBody      []string
+		name         string
+		payload      []byte
+		wantPrefixes []string
+		wantBody     []string
 	}{
 		{
 			name:    "registered address serves the name's page",
 			payload: resolveAnyPayload("alice"),
-			// The packages live under the name, not under the address, so the
-			// lookup has to switch to it or the page reports nothing.
-			wantNamespace: "alice",
-			wantBody:      []string{"Gnome alice", testUserAddr},
+			// Packages may live under either half of the pair, so both are
+			// listed, the name first.
+			wantPrefixes: []string{"@alice", "@" + testUserAddr},
+			wantBody:     []string{"Gnome alice", testUserAddr},
 		},
 		{
 			name:    "unregistered address stands on its own",
 			payload: resolveAnyMissing(),
 			// Nothing resolves, so the address is the namespace; it is still
 			// printed in full, because it is the only identity the page has.
-			wantNamespace: testUserAddr,
-			wantBody:      []string{"g1ma...dlf5", testUserAddr},
+			wantPrefixes: []string{"@" + testUserAddr},
+			wantBody:     []string{"g1ma...dlf5", testUserAddr},
 		},
 	}
 
@@ -2136,10 +2136,10 @@ func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			var gotPrefix string
+			var gotPrefixes []string
 			client := &stubClient{
 				listPathsFunc: func(_ context.Context, prefix string, _ int) ([]string, error) {
-					gotPrefix = prefix
+					gotPrefixes = append(gotPrefixes, prefix)
 					return nil, nil
 				},
 				evalFunc: func(_ context.Context, pkgPath, expr string) ([]byte, error) {
@@ -2155,7 +2155,7 @@ func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 			rr := getUserPage(t, client, "/u/"+testUserAddr)
 
 			assert.Equal(t, http.StatusOK, rr.Code)
-			assert.Equal(t, "@"+tc.wantNamespace, gotPrefix, "contributions query")
+			assert.Equal(t, tc.wantPrefixes, gotPrefixes, "contributions queries")
 			for _, want := range tc.wantBody {
 				assert.Contains(t, rr.Body.String(), want)
 			}
@@ -2163,16 +2163,16 @@ func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 	}
 }
 
-// A registered name prints the address it belongs to, and keeps its own
-// namespace: it is already the namespace, and following a rename here would
-// hide the packages the old name still holds.
+// A registered name prints the address it belongs to, lists its own namespace
+// first, and takes its home realm from it.
 func TestHTTPHandler_GetUserView_NamePrintsItsAddress(t *testing.T) {
 	t.Parallel()
 
-	var gotPrefix, gotRealmPath string
+	var gotPrefixes []string
+	var gotRealmPath string
 	client := &stubClient{
 		listPathsFunc: func(_ context.Context, prefix string, _ int) ([]string, error) {
-			gotPrefix = prefix
+			gotPrefixes = append(gotPrefixes, prefix)
 			return []string{"/r/alice/pkg1"}, nil
 		},
 		evalFunc: func(_ context.Context, _, expr string) ([]byte, error) {
@@ -2188,7 +2188,7 @@ func TestHTTPHandler_GetUserView_NamePrintsItsAddress(t *testing.T) {
 	rr := getUserPage(t, client, "/u/alice")
 
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "@alice", gotPrefix)
+	assert.Equal(t, []string{"@alice", "@" + testUserAddr}, gotPrefixes)
 	assert.Equal(t, "/r/alice/home", gotRealmPath)
 	assert.Contains(t, rr.Body.String(), testUserAddr, "the page prints the address behind the name")
 }
@@ -2276,4 +2276,95 @@ func TestHTTPHandler_GetUserView_LookupFailureIsNotA404(t *testing.T) {
 	}, "/u/alice")
 
 	assert.Equal(t, http.StatusRequestTimeout, rr.Code, "a timeout must surface as a timeout, not as a missing user")
+}
+
+// A failed lookup only matters when the gate needs it: an address, or a
+// namespace that already holds packages, is served without the registry.
+func TestHTTPHandler_GetUserView_LookupFailureServesWhatNeedsNoRegistry(t *testing.T) {
+	t.Parallel()
+
+	for segment, paths := range map[string][]string{
+		testUserAddr: nil,
+		"gnops":      {"/r/gnops/valopers"},
+	} {
+		t.Run(segment, func(t *testing.T) {
+			t.Parallel()
+
+			rr := getUserPage(t, &stubClient{
+				listPathsFunc: func(context.Context, string, int) ([]string, error) { return paths, nil },
+				evalFunc: func(context.Context, string, string) ([]byte, error) {
+					return nil, gnoweb.ErrClientTimeout
+				},
+				realmFunc: func(context.Context, string, string) ([]byte, error) {
+					return nil, gnoweb.ErrClientPackageNotFound
+				},
+			}, "/u/"+segment)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+		})
+	}
+}
+
+// A registered user can deploy under both halves of the pair, since
+// r/sys/names lets any address deploy under its own address namespace. Both
+// URLs list both, or the packages under the other half disappear.
+func TestHTTPHandler_GetUserView_ListsBothNamespaces(t *testing.T) {
+	t.Parallel()
+
+	for _, segment := range []string{"alice", testUserAddr} {
+		t.Run(segment, func(t *testing.T) {
+			t.Parallel()
+
+			rr := getUserPage(t, &stubClient{
+				listPathsFunc: func(_ context.Context, prefix string, _ int) ([]string, error) {
+					switch prefix {
+					case "@alice":
+						return []string{"/r/alice/byname"}, nil
+					case "@" + testUserAddr:
+						return []string{"/r/" + testUserAddr + "/byaddr"}, nil
+					}
+					return nil, nil
+				},
+				evalFunc: func(context.Context, string, string) ([]byte, error) {
+					return resolveAnyPayload("alice"), nil
+				},
+				// Only the address has a home realm, so the page falls back to it.
+				realmFunc: func(_ context.Context, path, _ string) ([]byte, error) {
+					if path == "/r/"+testUserAddr+"/home" {
+						return []byte("address home"), nil
+					}
+					return nil, gnoweb.ErrClientPackageNotFound
+				},
+			}, "/u/"+segment)
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Contains(t, rr.Body.String(), "byname")
+			assert.Contains(t, rr.Body.String(), "byaddr")
+			assert.Contains(t, rr.Body.String(), "address home")
+			assert.Contains(t, rr.Body.String(), `href="../r/`+testUserAddr+`/home"`)
+		})
+	}
+}
+
+// An old alias resolves to the current name, not to itself, so it keeps its
+// own namespace instead of borrowing the pair's.
+func TestHTTPHandler_GetUserView_OldAliasKeepsItsNamespace(t *testing.T) {
+	t.Parallel()
+
+	var gotPrefixes []string
+	rr := getUserPage(t, &stubClient{
+		listPathsFunc: func(_ context.Context, prefix string, _ int) ([]string, error) {
+			gotPrefixes = append(gotPrefixes, prefix)
+			return []string{"/r/alice/pkg1"}, nil
+		},
+		evalFunc: func(context.Context, string, string) ([]byte, error) {
+			return resolveAnyPayload("alice-renamed"), nil
+		},
+		realmFunc: func(context.Context, string, string) ([]byte, error) {
+			return nil, gnoweb.ErrClientPackageNotFound
+		},
+	}, "/u/alice")
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, []string{"@alice"}, gotPrefixes)
 }

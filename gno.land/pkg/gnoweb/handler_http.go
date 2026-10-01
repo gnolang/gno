@@ -492,21 +492,25 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	})
 }
 
-// MaxUserContributions caps how many contributions /u/<user> renders.
+// MaxUserContributions caps how many contributions /u/<user> renders per
+// namespace; a resolved user lists two.
 // Each entry costs a bech32 decode, a weburl parse, and a sort comparison;
 // an unbounded cap turns a single GET into a 10k-iteration amplifier.
 // Exported so external tests assert against the documented cap.
 // TODO: paginate via ?page= when a contributor exceeds this cap.
 const MaxUserContributions = 200
 
-// buildContributions returns the sorted list of contributions (packages and realms) for a user.
-func (h *HTTPHandler) buildContributions(ctx context.Context, username string) ([]components.UserContribution, int, error) {
-	prefix := "@" + username
-
-	paths, err := h.Client.ListPaths(ctx, prefix, MaxUserContributions)
-	if err != nil {
-		h.Logger.Error("unable to query contributions", "user", username, "error", err)
-		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
+// buildContributions returns the sorted list of contributions (packages and
+// realms) deployed under any of the given namespaces.
+func (h *HTTPHandler) buildContributions(ctx context.Context, namespaces ...string) ([]components.UserContribution, int, error) {
+	var paths []string
+	for _, ns := range namespaces {
+		nsPaths, err := h.Client.ListPaths(ctx, "@"+ns, MaxUserContributions)
+		if err != nil {
+			h.Logger.Error("unable to query contributions", "user", ns, "error", err)
+			return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", ns, err)
+		}
+		paths = append(paths, nsPaths...)
 	}
 
 	contribs := make([]components.UserContribution, 0, len(paths))
@@ -537,7 +541,10 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	}
 
 	sort.Slice(contribs, func(i, j int) bool {
-		return contribs[i].Title < contribs[j].Title
+		if contribs[i].Title != contribs[j].Title {
+			return contribs[i].Title < contribs[j].Title
+		}
+		return contribs[i].URL < contribs[j].URL
 	})
 	return slices.Clip(contribs), realmCount, nil
 }
@@ -651,8 +658,9 @@ func displayPackageName(pkgPath string) string {
 // GetUserView returns the user profile view for a given GnoURL. The segment
 // may be either half of the pair: /u/<name> and /u/<address> serve the same
 // page, and each prints the other half. A page is served only for an address,
-// a namespace holding packages, a name r/sys/users resolves, or a path this
-// gnoweb's own aliases publish; anything else would be a fabricated profile.
+// a namespace holding packages, a current name r/sys/users resolves to itself,
+// or a path this gnoweb's own aliases publish; anything else would be a
+// fabricated profile.
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	segment := gnourl.Username()
 
@@ -662,24 +670,25 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return http.StatusNotFound, components.StatusErrorComponent("user not found")
 	}
 
-	identity, err := h.resolveUser(ctx, segment)
-	if err != nil {
-		h.Logger.Error("unable to resolve user", "error", err)
-		return GetClientErrorStatusView(gnourl, err, 0)
+	// A failed lookup is only fatal where the gate needs it, below: an address
+	// or a namespace holding packages is served without the registry.
+	identity, resolveErr := h.resolveUser(ctx, segment)
+	if resolveErr != nil {
+		h.Logger.Warn("unable to resolve user", "error", resolveErr)
 	}
 
-	// Everything below keys on the namespace the packages live under. An
-	// address the registry resolves deploys under its name, so /u/<address>
-	// has to switch to it or the page reports zero contributions for a user
-	// who has hundreds. A name keeps its own segment even when it resolves,
-	// because it is already the namespace, and following a rename here would
-	// hide the packages the old name still holds.
-	namespace := segment
-	if identity.Name != "" && segment == identity.Address {
-		namespace = identity.Name
+	// A resolved user may deploy under both halves of the pair, since
+	// r/sys/names lets any address deploy under its own address namespace, so
+	// /u/<name> and /u/<address> both list both. The name comes first: its
+	// home realm is tried first and it is what the page is titled by. An old alias
+	// resolves to the current name, not to itself, so it keeps its own
+	// segment and still shows what the old name holds.
+	namespaces := []string{segment}
+	if identity.Name != "" && (segment == identity.Name || segment == identity.Address) {
+		namespaces = []string{identity.Name, identity.Address}
 	}
 
-	contribs, realmCount, err := h.buildContributions(ctx, namespace)
+	contribs, realmCount, err := h.buildContributions(ctx, namespaces...)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
 		return GetClientErrorStatusView(gnourl, err, 0)
@@ -690,23 +699,32 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// renamed-away names do not.
 	isCurrentName := identity.Name != "" && identity.Name == segment
 	if !isAddress && !isCurrentName && len(contribs) == 0 && !h.isAliasTarget(gnourl.Path) {
+		if resolveErr != nil {
+			return GetClientErrorStatusView(gnourl, resolveErr, 0)
+		}
 		return http.StatusNotFound, components.StatusErrorComponent("user not found")
 	}
 
 	var content bytes.Buffer
 
-	// Render user profile realm
-	raw, err := h.Client.Realm(ctx, "/r/"+namespace+"/home", "")
-	if err == nil {
-		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+	// Render the first home realm the pair has; the link under the avatar
+	// points at the same one.
+	namespace := namespaces[0]
+	for _, ns := range namespaces {
+		raw, err := h.Client.Realm(ctx, "/r/"+ns+"/home", "")
+		if err != nil {
+			h.Logger.Debug("unable to fetch user realm", "username", ns, "error", err)
+			continue
+		}
+		namespace = ns
+		if _, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
 			ChainId: h.Static.ChainId,
 			Remote:  h.Static.RemoteHelp,
 			Domain:  h.Static.Domain,
-		})
-	}
-
-	if content.Len() == 0 {
-		h.Logger.Debug("unable to fetch user realm", "username", namespace, "error", err)
+		}); err != nil {
+			h.Logger.Debug("unable to render user realm", "username", ns, "error", err)
+		}
+		break
 	}
 
 	// Compute package counts
@@ -715,7 +733,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 
 	// An unregistered address is all the page has to show for a name, so it is
 	// shortened to stay readable next to the avatar.
-	username := CreateUsernameFromBech32(namespace)
+	username := CreateUsernameFromBech32(namespaces[0])
 
 	// TODO: get from user r/profile and use placeholder if not set
 	handlename := "Gnome " + username

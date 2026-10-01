@@ -33,7 +33,7 @@ used".
 
 ## Decision
 
-`GetUserView` serves a page only when one of three facts holds, checked in
+`GetUserView` serves a page only when one of four facts holds, checked in
 this order:
 
 1. `<name>` is a bech32 address (`crypto.AddressFromBech32`, HRP `g`, 20
@@ -60,10 +60,13 @@ this order:
    registered nor a namespace holding a package, so rules 1 to 3 all refuse it.
 
 Anything else is a 404. A chain that does not deploy `r/sys/users` answers
-"no", which is the gnodev case; a chain that could not be asked (timeout, node
-error) surfaces that error through the handler's usual mapping, because a 404
-published on a blip deletes a real user's page for as long as a crawler
-remembers it.
+"no", which is the gnodev case. A chain that could not be asked (timeout, node
+error, an unrecognized answer) is only fatal where the gate depends on the
+answer, a name with no packages: that error surfaces through the handler's
+usual mapping, because a 404 published on a blip deletes a real user's page for
+as long as a crawler remembers it. An address or a namespace holding packages
+is served without the registry, and the page just lacks the other half of the
+pair.
 
 Before any query, `<name>` must match the registry's own name shape unless it
 is an address: `gnolang.Re_name`, which `r/sys/users/store.gno` states its own
@@ -76,30 +79,34 @@ expression can leave a Gno string literal.
 
 `ResolveAny` is chosen over `ResolveName` because it answers both questions the
 page has in a single `qeval`: whether the user exists, which gates the page,
-and the other half of the pair, which the page prints. The handler then keys
-every lookup on the **namespace** the packages live under rather than on the
-URL segment: an address the registry resolves deploys under its name, so
-`/u/<address>` switches to it. A name keeps its own segment even when it
-resolves, because it is already the namespace, and following a rename here
-would hide the packages the old name still holds. `UserData` carries
-`Namespace` for links, which is never elided and repairs the home button, and
-`Address` for display.
+and the other half of the pair, which the page prints. When the segment is
+either half of a resolved pair, the contributions list both **namespaces**:
+`r/sys/names` lets any address deploy under its own
+address namespace, registered or not, so a registered user can hold packages
+under both (on `gnoland-1`, `nym-jeronimo000` holds all eleven of theirs under
+its address). The home realm is the name's, falling back to the address's. A
+name left behind by a rename resolves to the current name, not to itself, so it
+keeps its own segment and still lists what the old name holds. `UserData`
+carries `Namespace` for links, which is never elided and repairs the home
+button, and `Address` for display.
 
-The gate runs before the `/r/<name>/home` fetch, which is dropped for a name
-that has no page. Per request: an unknown name stays at two RPCs (`qpaths` and
-`qeval` replace `qrender` and `qpaths`), a namespace with packages stays at
-two, and a registered user with no packages pays a third. The `qeval` is the
-heavier of the two shapes, because the `qrender` it replaces returned before
-building a machine when the package was absent.
+The gate runs before the home fetch, which is dropped for a name that has no
+page. Per request: one `qeval`, then one `qpaths` per namespace listed (one, or
+two for a resolved user), then the home fetch, which tries the name's home
+before the address's. An unknown name stops at two RPCs. The `qeval` is the
+heavier shape, because the `qrender` it replaces returned before building a
+machine when the package was absent.
 
 ## Alternatives considered
 
 - **`IsNameTaken`** is one boolean and trivially parsed, but it is
   `nameStore.Has`: true for deleted users and for old aliases after a
   rename. It answers "would `RegisterUser` fail", not "is this a user".
-- **Resolving first, listing second** is the intuitive order, but it breaks
-  gnodev, where names are not registered, and adds an RPC to every request
-  for a namespace that has packages.
+- **Listing first and resolving only when the list is empty** saves the `qeval`
+  on a namespace that has packages, but then `/u/<address>` cannot know which
+  name's packages to add, and `/u/<name>` cannot print its address. Resolving
+  first costs one `qeval` per request; gnodev is unaffected, since a missing
+  registry answers the zero value.
 - **Rendering with a "this name is not registered" notice** keeps the 200
   and the crawlable space; the status has to be a 404 for links, crawlers and
   mention rendering to behave.
@@ -124,7 +131,12 @@ building a machine when the package was absent.
   A gate that breaks a URL the same binary advertises is a worse trade than the
   empty profile it removes, and the rule generalizes: any operator alias
   pointing into `/u/` is served.
-- A registered user with no packages keeps their page, at one extra `qeval`.
+- A registered user with no packages keeps their page.
+- A resolved user's page queries `qpaths` twice, once per half of the pair,
+  and fetches the address's home when the name has none: up to five RPCs.
+- A name pre-registered for a namespace that genesis already populated (e.g.
+  `demo`) is credited with those genesis packages on its address page. That
+  follows from resolving the pair, not from listing both halves.
 - On gnodev a developer who has deployed nothing under their name gets a 404
   where they used to get an empty profile; deploying one package restores it
   through rule 2.
@@ -145,7 +157,9 @@ building a machine when the package was absent.
   the value repr, keyed on each field's *type tag* rather than its position: a
   field added to `UserData` does not shift the result. `(nil ...)` is a
   legitimate "no user"; any other unrecognized shape is an error, not a "no",
-  because quietly 404ing every registered user at once must surface.
+  because quietly 404ing every registered user at once must surface. It
+  surfaces as an error where the gate needs the answer, and as a warning in the
+  log elsewhere.
 - `/u/<name>` and `/u/<address>` now serve the same page and print both halves,
   so the pair is indexable twice. No canonical link tag is emitted; if that
   matters, it is a separate change.

@@ -54,9 +54,9 @@ type UserData struct {
 	// Username is what the page prints: the registered name, or a shortened
 	// address when the namespace has no name behind it.
 	Username string
-	// Namespace is the path segment the user's packages live under, which is
-	// the full address when no name resolves. Links use this, never Username,
-	// which may be elided.
+	// Namespace is the namespace whose home realm the page links to: the
+	// name's, the address's when only it has one, or the full address when no
+	// name resolves. Links use this, never Username, which may be elided.
 	Namespace string
 	// Address is the full bech32 address, empty when none could be resolved.
 	Address       string
