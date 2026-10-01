@@ -9,6 +9,8 @@
     $> make install.gnokey
 
 Also, see the [quickstart guide](../../../docs/users/using-gnokey.md).
+For every command, transaction type, and query, see the
+[command reference](../../../docs/resources/gnokey-reference.md).
 
 ## Manual Entropy Generation
 

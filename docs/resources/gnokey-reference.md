@@ -2,8 +2,7 @@
 
 `gnokey` is the official command-line client for Gno.land. This reference lists
 every `gnokey` command and covers deploying packages, calling and scripting
-realms, and reading chain state. Offline signing, multisig, session accounts,
-and key export live in the [`gnokey` README](../../gno.land/cmd/gnokey/README.md).
+realms, and reading chain state.
 
 `gnokey` is a production tool and stays deliberately minimal: signing keys and
 talking to a live network, nothing more. Developer conveniences, for example a
