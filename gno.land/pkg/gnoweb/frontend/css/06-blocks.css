@@ -1156,12 +1156,12 @@
 		top: var(--g-space-14);
 		padding-block-start: var(--g-space-2);
 
-		/* Hide the sidebar wrapper when its `<nav>` has no content
-		   at all. Source page emits `<nav><ul><li>...` (TOC) — the
-		   `nav > *` check passes. State emits `<nav><dl>...</dl>
-		   <ul>...</ul></nav>` and possibly `<nav><dl>...</dl></nav>`
-		   on object pages without TOC entries — both pass. Only a
-		   genuinely empty `<nav>` triggers the hide. */
+		/* Hide the sidebar wrapper when its `<nav>` holds nothing but
+		   its `.b-sidebar-heading`, e.g. a realm whose TOC rendered
+		   empty: every rail's <nav> opens with that heading, so the
+		   check looks for any other child. Source emits a TOC <ul>,
+		   state always emits its export button and usually a <dl>,
+		   so neither is hidden. */
 		&:has(.inner):not(:has(nav > :not(.b-sidebar-heading))) {
 			display: none;
 		}
