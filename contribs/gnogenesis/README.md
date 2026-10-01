@@ -141,7 +141,7 @@ The format for transactions in the transaction sheet is the following:
 To add genesis transactions from a file:
 
 ```shell
-gnogenesis txs add sheets ./txs.json
+gnogenesis txs add sheets ./txs.jsonl
 ```
 
 This outputs the initial transaction count.
@@ -183,3 +183,132 @@ The steps to get this sort of hash are:
 - cast the result to `types.Tx` (`bft`)
 - call `Hash` on the `types.Tx`
 - encode the result into base64
+
+## Genesis Transaction Sheet Format Reference
+
+This section provides a comprehensive reference for the `genesis_txs.jsonl` file format for genesis transactions.
+
+- **Format**: JSONL (JSON Lines) - one transaction per line
+- **Encoding**: Amino JSON serialization
+
+### Transaction Structure
+
+Each line contains a `TxWithMetadata` object serialized as compact JSON (no newlines within the object):
+
+```text
+{"tx":{"msg":[...],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[...],"memo":""},"metadata":{"timestamp":1234567890}}
+{"tx":{"msg":[...],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[...],"memo":""},"metadata":{"timestamp":1234567891}}
+```
+
+The structure of each `TxWithMetadata` object (shown here formatted for readability):
+
+```json
+{
+  "tx": {
+    "msg": [...],
+    "fee": {
+      "gas_wanted": "2000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": [...],
+    "memo": ""
+  },
+  "metadata": {
+    "timestamp": 1234567890
+  }
+}
+```
+
+### Message Types
+
+Genesis transactions support three VM message types defined in [`gno.land/pkg/sdk/vm/msgs.go`](../../gno.land/pkg/sdk/vm/msgs.go):
+
+| Type | Amino Type | Description |
+|------|------------|-------------|
+| `MsgCall` | `/vm.m_call` | Calls a function on an existing realm |
+| `MsgAddPackage` | `/vm.m_addpkg` | Deploys a new package or realm |
+| `MsgRun` | `/vm.m_run` | Executes ephemeral code (less common in genesis) |
+
+### Transaction Ordering
+
+Transactions **must be sorted by timestamp before writing** to ensure deterministic ordering when replaying genesis state. The sorting is not done automatically when reading, you must sort manually using `slices.SortStableFunc` as shown in the example below.
+
+### Creating and writing a genesis_txs.jsonl file
+
+The following example shows how to create transactions, sort them by timestamp, sign them, and write to a JSONL file:
+
+[embedmd]:# (./_assets/genesis_txs_example.go go)
+```go
+package example
+
+import (
+	"cmp"
+	"fmt"
+	"os"
+	"slices"
+	"time"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+func createGenesisTxsFile(outputPath string, privKey secp256k1.PrivKeySecp256k1, chainID string) error {
+	var txs []gnoland.TxWithMetadata
+
+	// Create a MsgCall transaction
+	caller := privKey.PubKey().Address()
+	callTx := gnoland.TxWithMetadata{
+		Tx: std.Tx{
+			Msgs: []std.Msg{
+				vm.MsgCall{
+					Caller:  caller,
+					PkgPath: "gno.land/r/demo/users",
+					Func:    "Register",
+					Args:    []string{"myusername"},
+					Send:    std.Coins{},
+				},
+			},
+			Fee: std.NewFee(2000000, std.MustParseCoin("1000000ugnot")),
+		},
+		Metadata: &gnoland.GnoTxMetadata{
+			Timestamp: time.Now().Unix(),
+		},
+	}
+	txs = append(txs, callTx)
+
+	// Sort transactions by timestamp (required for deterministic ordering)
+	slices.SortStableFunc(txs, func(a, b gnoland.TxWithMetadata) int {
+		if a.Metadata == nil || b.Metadata == nil {
+			return 0
+		}
+		return cmp.Compare(a.Metadata.Timestamp, b.Metadata.Timestamp)
+	})
+
+	// Sign transactions
+	if err := gnoland.SignGenesisTxs(txs, privKey, chainID); err != nil {
+		return err
+	}
+
+	// Write transactions to JSONL file
+	file, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for _, tx := range txs {
+		encoded, err := amino.MarshalJSON(tx)
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(file, "%s\n", encoded); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+```

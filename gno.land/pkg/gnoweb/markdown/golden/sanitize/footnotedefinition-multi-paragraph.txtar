@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: FootnoteDefinition
+// ARGS: "cite"
+-- input.md --
+First paragraph of the citation.
+
+Second paragraph with details.
+-- output.md --
+[^cite]:
+    First paragraph of the citation.
+
+    Second paragraph with details.

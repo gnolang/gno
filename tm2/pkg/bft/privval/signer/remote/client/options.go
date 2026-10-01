@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"time"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
@@ -82,6 +83,7 @@ func WithAuthorizedKeys(keys []ed25519.PubKeyEd25519) Option {
 // NewRemoteSignerClient creates a new RemoteSignerClient with the required server address and
 // logger. The client can be further configured using functional options.
 func NewRemoteSignerClient(
+	ctx context.Context,
 	serverAddress string,
 	logger *slog.Logger,
 	options ...Option,
@@ -113,8 +115,15 @@ func NewRemoteSignerClient(
 		option(rsc)
 	}
 
-	// Set a cancelable context for dialing the server.
-	rsc.dialCtx, rsc.cancelDialCtx = context.WithCancel(context.Background())
+	// Initialize the dialer with the configured dial timeout so that each
+	// dial attempt is bounded. Without this, the timeout set via
+	// WithDialTimeout is silently ignored, and a dial to an unreachable
+	// server blocks until the OS TCP stack gives up (potentially minutes),
+	// which can stall the consensus receiveRoutine indefinitely.
+	rsc.dialer = net.Dialer{Timeout: rsc.dialTimeout}
+
+	// Set a cancelable context for the client.
+	rsc.ctx, rsc.cancelCtx = context.WithCancel(ctx)
 
 	// Fetch the public key from the server and cache it.
 	if err := rsc.cachePubKey(); err != nil {

@@ -1,11 +1,14 @@
 package vm
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMsgAddPackage_ValidateBasic(t *testing.T) {
@@ -129,7 +132,6 @@ func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -234,6 +236,48 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 			expectErr: InvalidExprError{},
 		},
 		{
+			name: "func name with injected expression",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "Foo()+huge",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
+			name: "func name with selector chain",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "Foo.Bar",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
+			name: "func name starting with digit",
+			msg: MsgCall{
+				Caller:  caller,
+				PkgPath: pkgPath,
+				Func:    "1Foo",
+				Args:    args,
+				Send: std.Coins{std.Coin{
+					Denom:  "ugnot",
+					Amount: 1000,
+				}},
+			},
+			expectErr: InvalidExprError{},
+		},
+		{
 			name: "invalid Send coins",
 			msg: MsgCall{
 				Caller:  caller,
@@ -278,7 +322,6 @@ func TestMsgCall_ValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -400,7 +443,6 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -411,4 +453,113 @@ func TestMsgRun_ValidateBasic(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMsgEnablePackage covers the message contract for the inert-flow enable
+// message, which had no direct test.
+//
+// Approver is the whole authorization -- the keeper checks it against
+// params.PkgApprovers -- so GetSigners returning it is what makes the ante
+// verify the right signature. A wrong answer there is not a formatting bug.
+func TestMsgEnablePackage(t *testing.T) {
+	t.Parallel()
+
+	approver := crypto.AddressFromPreimage([]byte("approver"))
+	const path = "gno.land/r/demo/foo"
+
+	t.Run("ValidateBasic", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name     string
+			approver crypto.Address
+			path     string
+			wantErr  string
+		}{
+			{"both present", approver, path, ""},
+			{"missing approver", crypto.Address{}, path, "missing approver address"},
+			{"missing path", approver, "", "missing package path"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				err := MsgEnablePackage{Approver: tc.approver, PkgPath: tc.path}.ValidateBasic()
+				if tc.wantErr == "" {
+					assert.NoError(t, err)
+					return
+				}
+				require.Error(t, err)
+				// The detail lives in the wrapped trace, not in Error(): these
+				// errors format as the generic "invalid address error" and
+				// "invalid package path". Asserting on Error() alone would not
+				// distinguish which field was missing.
+				assert.Contains(t, fmt.Sprintf("%+v", err), tc.wantErr)
+			})
+		}
+	})
+
+	t.Run("GetSigners is the approver", func(t *testing.T) {
+		t.Parallel()
+
+		assert.Equal(t, []crypto.Address{approver},
+			MsgEnablePackage{Approver: approver, PkgPath: path}.GetSigners())
+	})
+
+	t.Run("GetSignBytes covers both fields", func(t *testing.T) {
+		t.Parallel()
+
+		base := MsgEnablePackage{Approver: approver, PkgPath: path}
+		otherPath := MsgEnablePackage{Approver: approver, PkgPath: path + "bar"}
+		otherApprover := MsgEnablePackage{
+			Approver: crypto.AddressFromPreimage([]byte("someone else")),
+			PkgPath:  path,
+		}
+
+		// If a field were left out of the sign bytes, a signature over one
+		// message would be valid for another -- so changing either field must
+		// change what gets signed.
+		assert.NotEqual(t, base.GetSignBytes(), otherPath.GetSignBytes(),
+			"the package path must be covered by the signature")
+		assert.NotEqual(t, base.GetSignBytes(), otherApprover.GetSignBytes(),
+			"the approver must be covered by the signature")
+		assert.Equal(t, base.GetSignBytes(), MsgEnablePackage{
+			Approver: approver, PkgPath: path,
+		}.GetSignBytes(), "and the same message must sign identically")
+	})
+
+	t.Run("route and type", func(t *testing.T) {
+		t.Parallel()
+
+		// The ante handler and the session deny-list both key off these.
+		assert.Equal(t, "vm", MsgEnablePackage{}.Route())
+		assert.Equal(t, "enable_package", MsgEnablePackage{}.Type())
+	})
+
+	t.Run("every field survives the wire", func(t *testing.T) {
+		t.Parallel()
+
+		// A field the BINARY encoding drops is not a cosmetic bug: the signer
+		// signs GetSignBytes (JSON) over the full message, the node recomputes
+		// it from what it decoded, and the two differ -- so the transaction is
+		// rejected as "signature verification failed; verify correct account,
+		// sequence, and chain-id", naming none of the three.
+		//
+		// The binary path is generated (pb3_gen.go, `make -C misc/genproto2`),
+		// so adding a field to this struct without regenerating produces
+		// exactly that. PkgHeight shipped that way until an integration test
+		// caught it.
+		msg := MsgEnablePackage{
+			Approver:  approver,
+			PkgPath:   path,
+			PkgHash:   "deadbeef",
+			PkgHeight: 999,
+		}
+		bz, err := amino.Marshal(msg)
+		require.NoError(t, err)
+		var back MsgEnablePackage
+		require.NoError(t, amino.Unmarshal(bz, &back))
+		assert.Equal(t, msg, back)
+		assert.Equal(t, msg.GetSignBytes(), back.GetSignBytes(),
+			"what the node verifies must be what the approver signed")
+	})
 }

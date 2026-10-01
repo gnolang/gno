@@ -1,0 +1,183 @@
+package bptree
+
+import (
+	"errors"
+	"sync"
+)
+
+// ValueResolver resolves a valueKey to the raw value bytes.
+type ValueResolver func(vk []byte) ([]byte, error)
+
+// ImmutableTree is a read-only snapshot of the tree at a specific version.
+// It is safe for concurrent reads. Created by MutableTree.GetImmutable()
+// or by snapshotting the root after SaveVersion.
+//
+// When the snapshot is backed by a DB, ndb is non-nil. Iterators and exporters
+// created from it register as version readers (via ndb.incrVersionReaders) so
+// that PruneVersionsTo cannot delete nodes they still depend on.
+type ImmutableTree struct {
+	root          Node
+	version       int64
+	valueResolver ValueResolver // resolves valueKeys to raw values
+	ndb           *nodeDB       // set when the snapshot is backed by a DB
+	registered    bool          // true if this snapshot incremented versionReaders; Close must decrement
+	fast          bool          // consult the fast index in Get (committed snapshots only; see newImmutable)
+	closeOnce     sync.Once     // guards decr so double/concurrent Close can't over-decrement
+}
+
+// NewImmutableTree creates an ImmutableTree from a root node and version.
+func NewImmutableTree(root Node, version int64) *ImmutableTree {
+	return &ImmutableTree{root: root, version: version}
+}
+
+// Close releases this snapshot's version-reader reservation, if it holds one,
+// allowing a prune of its version to proceed. It is idempotent (sync.Once) so
+// double or concurrent Close cannot over-decrement. A snapshot from GetImmutable
+// or proof generation is registered and MUST be Closed; unregistered snapshots
+// (Snapshot, GetImmutableUnregistered) make Close a no-op.
+func (t *ImmutableTree) Close() error {
+	t.closeOnce.Do(func() {
+		if t.registered && t.ndb != nil && t.version > 0 {
+			t.ndb.decrVersionReaders(t.version)
+		}
+		t.ndb = nil
+	})
+	return nil
+}
+
+// SetValueResolver sets the function used to resolve valueKeys to raw values.
+func (t *ImmutableTree) SetValueResolver(resolver ValueResolver) {
+	t.valueResolver = resolver
+}
+
+// resolveValue resolves a valueKey to raw bytes if a resolver is set.
+func (t *ImmutableTree) resolveValue(vk []byte) ([]byte, error) {
+	if t.valueResolver != nil {
+		return t.valueResolver(vk)
+	}
+	return nil, ErrKeyDoesNotExist
+}
+
+// Get returns the value for a key, or nil if not found.
+func (t *ImmutableTree) Get(key []byte) ([]byte, error) {
+	if t.root == nil {
+		return nil, nil
+	}
+	// Advisory fast path (committed snapshots only): resolve via the inline fast
+	// index in 1 read, trusting an entry only when it is no newer than this
+	// snapshot. A miss, a too-new entry, or a corrupt entry falls through to the
+	// authoritative tree walk; the index is never the source of truth for
+	// absence. See fast_index.go.
+	if t.fast && t.ndb != nil {
+		if val, ok := t.ndb.fastGet(key, t.version); ok {
+			return val, nil
+		}
+	}
+	_, _, vk, found, err := treeLookup(t.root, key)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, nil
+	}
+	return t.resolveValue(vk)
+}
+
+// Has returns true if the key exists.
+func (t *ImmutableTree) Has(key []byte) (bool, error) {
+	if t.root == nil {
+		return false, nil
+	}
+	return treeHas(t.root, key)
+}
+
+// Size returns the total number of key-value pairs.
+func (t *ImmutableTree) Size() int64 {
+	if t.root == nil {
+		return 0
+	}
+	return nodeSize(t.root)
+}
+
+// Height returns the tree height.
+func (t *ImmutableTree) Height() int8 {
+	if t.root == nil {
+		return 0
+	}
+	return int8(nodeHeight(t.root))
+}
+
+// Hash returns the root hash. Returns SHA256("") for empty trees, matching IAVL.
+func (t *ImmutableTree) Hash() []byte {
+	if t.root == nil {
+		return emptyHash()
+	}
+	h := t.root.Hash()
+	return h[:]
+}
+
+// Version returns the version of this snapshot.
+func (t *ImmutableTree) Version() int64 {
+	return t.version
+}
+
+// IsEmpty returns true if the tree has no keys.
+func (t *ImmutableTree) IsEmpty() bool {
+	return t.root == nil
+}
+
+// GetByIndex returns the key and value at the given index.
+func (t *ImmutableTree) GetByIndex(index int64) ([]byte, []byte, error) {
+	if t.root == nil || index < 0 || index >= t.Size() {
+		return nil, nil, ErrKeyDoesNotExist
+	}
+	key, _, vk, err := treeGetByIndex(t.root, index)
+	if err != nil {
+		return nil, nil, err
+	}
+	val, err := t.resolveValue(vk)
+	return key, val, err
+}
+
+// GetWithIndex returns the index, value, and whether the key was found.
+func (t *ImmutableTree) GetWithIndex(key []byte) (int64, []byte, error) {
+	if t.root == nil {
+		return 0, nil, nil
+	}
+	idx, _, vk, found, err := treeGetWithIndex(t.root, key)
+	if err != nil {
+		return 0, nil, err
+	}
+	if !found {
+		return idx, nil, nil
+	}
+	val, err := t.resolveValue(vk)
+	return idx, val, err
+}
+
+// Iterate calls fn for each key-value pair in sorted order.
+// If a value resolver is set, values are resolved to actual bytes.
+func (t *ImmutableTree) Iterate(fn func(key []byte, value []byte) bool) (bool, error) {
+	if t.root == nil {
+		return false, nil
+	}
+	if t.valueResolver != nil {
+		var resolveErr error
+		stopped, walkErr := iterateNodeResolved(t.root, func(key, vk []byte) bool {
+			val, err := t.valueResolver(vk)
+			if err != nil {
+				resolveErr = err
+				return true // stop
+			}
+			return fn(key, val)
+		})
+		if walkErr != nil {
+			return stopped, walkErr
+		}
+		return stopped, resolveErr
+	}
+	// No resolver: refuse rather than fall back to passing value HASHES where
+	// the callback expects values — a semantic trap that also exposed slices
+	// aliasing the leaves' live hash arrays.
+	return false, errors.New("bptree: Iterate requires a value resolver")
+}

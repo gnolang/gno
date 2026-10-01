@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: ImageURL
+// CONTEXT: ![alt](%s)
+-- input.md --
+mailto:victim@evil.com
+-- output.md --
+
+-- output.html --
+<p><img src="" alt="alt"></p>

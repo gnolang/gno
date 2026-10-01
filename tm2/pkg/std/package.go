@@ -12,10 +12,18 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 	// Account
 	&BaseAccount{}, "BaseAccount",
+	&BaseSessionAccount{}, "BaseSessionAccount",
+	// Vesting
+	&VestingSchedule{}, "VestingSchedule",
 	// Coin
 	&Coin{}, "Coin",
 	// GasPrice
 	&GasPrice{}, "GasPrice",
+
+	// Tx
+	Tx{}, "Tx",
+	Fee{}, "Fee",
+	Signature{}, "Signature",
 
 	// MemFile/MemPackage
 	MemFile{}, "MemFile",
@@ -41,4 +49,10 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	NoSignaturesError{}, "NoSignaturesError",
 	GasOverflowError{}, "GasOverflowError",
 	RestrictedTransferError{}, "RestrictedTransferError",
+	SessionExpiredError{}, "SessionExpiredError",
+	SessionNotFoundError{}, "SessionNotFoundError",
+	SessionLimitError{}, "SessionLimitError",
+	SessionNotAllowedError{}, "SessionNotAllowedError",
+	InvalidVestingScheduleError{}, "InvalidVestingScheduleError",
+	VestingLockedCoinsError{}, "VestingLockedCoinsError",
 ))

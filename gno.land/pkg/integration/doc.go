@@ -34,13 +34,13 @@
 //   - Must be run before `gnoland start`.
 //   - Loads a specific package from the 'examples' directory or from the working ($WORK) directory.
 //   - Can be used to load a single package or all packages within a directory.
-//   - If the target package has a `gno.mod`, all its dependencies (and their respective
+//   - If the target package has a `gnomod.toml`, all its dependencies (and their respective
 //     dependencies) will also be loaded.
 //   - The command takes either one or two arguments. The first argument is the name of the package(s),
 //     and the second (optional) argument is the path to the package(s).
 //     Examples:
 //     -- # Load a package from the 'examples' directory:
-//     -- loadpkg gno.land/p/nt/ufmt
+//     -- loadpkg gno.land/p/nt/ufmt/v0
 //     -- # Load a package `./bar` from the testscript's working directory with the name `gno.land/r/foobar/bar`:
 //     -- loadpkg gno.land/r/foobar/bar $WORK/bar
 //   - If the path is not prefixed with the working directory, it is assumed to be relative to the
@@ -86,6 +86,13 @@
 //     fails and its second argument refers to a file inside the testscript
 //     file. The content will be quoted with txtar.Quote if needed, requiring
 //     manual edits if it's not unquoted in the script.
+//
+// To update gas-wanted values in txtar tests after gas model changes, run:
+//
+//	./gno.land/pkg/integration/update_gas_wanted.sh
+//
+// This captures actual gas usage and sets gas-wanted to 110% of actual,
+// rounded to 2 significant digits with _ separators.
 //
 // Output (available inside testscripts files):
 //

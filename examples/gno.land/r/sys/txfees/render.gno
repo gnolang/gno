@@ -2,13 +2,12 @@ package txfees
 
 import (
 	"chain/banker"
-	"chain/runtime"
 	"strings"
 )
 
-func Render(path string) string {
-	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	realmAddr := runtime.CurrentRealm().Address()
+func Render(cur realm, _ string) string {
+	banker_ := banker.NewReadonlyBanker()
+	realmAddr := cur.Address()
 	balance := banker_.GetCoins(realmAddr).String()
 
 	if strings.TrimSpace(balance) == "" {

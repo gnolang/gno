@@ -86,8 +86,18 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 
 	// Setup node configuration
 	nodecfg.DB = db
-	nodecfg.TMConfig.DBPath = pcfg.DBDir
 	nodecfg.TMConfig = pcfg.TMConfig
+	// Each (re)start must bind a fresh OS-assigned port. node.Start mutates
+	// these addresses from ":0" to the concrete resolved port; the harness
+	// keeps the same config across `gnoland restart`, so without this reset a
+	// restart would re-bind that specific port — which a concurrent node can
+	// already hold under parallel in-memory execution ("address already in
+	// use"). ":0" lets the kernel pick a free port on every start.
+	nodecfg.TMConfig.RPC.ListenAddress = defaultListenAddr
+	nodecfg.TMConfig.P2P.ListenAddress = defaultListenAddr
+	// Ensure WAL is disabled for tests. WALDisabled has `json:"-"` tag,
+	// so it's lost when config is serialized to JSON for subprocess communication.
+	nodecfg.TMConfig.Consensus.WALDisabled = true
 	nodecfg.Genesis = pcfg.Genesis.ToGenesisDoc()
 	nodecfg.Genesis.Validators = []bft.GenesisValidator{
 		{

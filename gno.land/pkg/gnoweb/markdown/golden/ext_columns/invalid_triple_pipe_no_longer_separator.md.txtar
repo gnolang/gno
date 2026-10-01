@@ -1,0 +1,16 @@
+-- input.md --
+<gno-columns>
+left
+|||
+right
+</gno-columns>
+
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<p>left
+|||
+right</p>
+</div>
+</div> <!-- </gno-columns> -->

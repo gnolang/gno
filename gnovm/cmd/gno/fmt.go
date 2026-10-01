@@ -16,6 +16,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnofmt"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/rogpeppe/go-internal/diff"
 )
@@ -233,8 +234,17 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 	}
 
 	p := gnofmt.NewProcessor(r)
+
+	// Files under gnovm/tests/{files,challenges} are filetests — each .gno is
+	// independent (different package names by design), so they cannot be parsed
+	// as a single package. Route them directly to per-file formatting; any
+	// other directory whose files disagree on package name is a genuine error,
+	// surfaced by FormatFile as ErrPackageConflict.
+	filetestsRoot := filepath.Join(gnoroot, "gnovm", "tests", "files")
+	challengesRoot := filepath.Join(gnoroot, "gnovm", "tests", "challenges")
+
 	return func(file string, io commands.IO) []byte {
-		data, err := p.FormatFile(file)
+		data, err := formatOneFile(p, file, filetestsRoot, challengesRoot)
 		if err == nil {
 			return data
 		}
@@ -245,6 +255,73 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 
 		return nil
 	}, nil
+}
+
+// formatOneFile routes file to the per-file formatter when it lives under a
+// known filetest root; otherwise lets the package-aware formatter handle it.
+//
+// A filetest that expects a compile/runtime error (an `// Error:` or
+// `// TypeCheckError:` directive) often leaves its imports "wrong" on purpose —
+// e.g. a symbol left unimported to trigger "undefined: x", an import path the
+// resolver can't reach, or an unused import asserted via TypeCheckError.
+// Resolving imports would defeat the test, so such files are formatted
+// layout-only (FormatSource); every other filetest still gets its imports
+// resolved (FormatImportFromSource).
+func formatOneFile(p *gnofmt.Processor, file string, filetestRoots ...string) ([]byte, error) {
+	if !isUnderAnyRoot(filepath.Dir(file), filetestRoots) {
+		return p.FormatFile(file)
+	}
+
+	expectsError, err := filetestExpectsError(file)
+	if err != nil {
+		return nil, err
+	}
+	if expectsError {
+		return p.FormatSource(file, nil)
+	}
+	return p.FormatImportFromSource(file, nil)
+}
+
+// filetestExpectsError reports whether the filetest at path declares an
+// `// Error:` or `// TypeCheckError:` directive, i.e. it expects the program to
+// fail to compile, type-check, or run. Either case may rely on imports being
+// left untouched (e.g. an unused import asserted via TypeCheckError), so the
+// caller formats such files layout-only.
+func filetestExpectsError(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, fmt.Errorf("unable to open %q: %w", path, err)
+	}
+	defer f.Close()
+
+	dirs, err := test.ParseDirectives(f)
+	if err != nil {
+		return false, fmt.Errorf("unable to parse directives in %q: %w", path, err)
+	}
+	return dirs.First(test.DirectiveError) != nil ||
+		dirs.First(test.DirectiveTypeCheckError) != nil, nil
+}
+
+// isUnderAnyRoot reports whether dir equals or is a descendant of any of
+// roots. Paths are compared after cleaning and resolving to absolute form;
+// symlinks are not followed.
+func isUnderAnyRoot(dir string, roots []string) bool {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	abs = filepath.Clean(abs)
+	sep := string(os.PathSeparator)
+	for _, root := range roots {
+		if root == "" {
+			continue
+		}
+		root = filepath.Clean(root)
+		if abs == root || strings.HasPrefix(abs, root+sep) {
+			return true
+		}
+	}
+	return false
 }
 
 func fmtFormatFile(file string, io commands.IO) []byte {

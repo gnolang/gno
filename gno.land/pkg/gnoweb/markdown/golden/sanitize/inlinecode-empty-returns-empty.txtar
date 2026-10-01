@@ -1,0 +1,7 @@
+// MARKDOWNFUNC: InlineCode
+// CONTEXT: a%sb
+-- input.md --
+-- output.md --
+
+-- output.html --
+<p>ab</p>

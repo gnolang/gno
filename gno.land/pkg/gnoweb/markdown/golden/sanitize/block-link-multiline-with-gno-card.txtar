@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+[text
+<gno-card>](/url)
+-- output.md --
+
+
+[text
+\<gno-card>](/url)
+
+-- output.html --
+<p><a href="/url">text
+&lt;gno-card&gt;<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a></p>

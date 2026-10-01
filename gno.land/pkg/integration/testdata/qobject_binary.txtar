@@ -1,0 +1,49 @@
+# Test the vm/qobject_binary endpoint end-to-end: a persisted *Item pointer
+# whose HeapItemValue ObjectID we discover via qeval_json, then fetch via
+# qobject_binary to verify the wire format is stable amino binary bytes.
+
+loadpkg gno.land/r/test/objbin $WORK/realm
+
+gnoland start
+
+# Discover the HeapItemValue ObjectID via qeval_json.
+gnokey query vm/qeval_json --data "gno.land/r/test/objbin.GetPointer()"
+cmp stdout getpointer.stdout.golden
+
+# qobject_binary: invalid ObjectID should error before any binary is produced.
+! gnokey query vm/qobject_binary --data "invalid"
+stderr 'invalid expression'
+
+# qobject_binary: valid format but non-existent object.
+! gnokey query vm/qobject_binary --data "0000000000000000000000000000000000000000:999"
+stderr 'object not found'
+
+# qobject_binary: successful fetch — the amino binary wire format begins
+# with the registered type URL "/gno.HeapItemValue" for a pointer's heap
+# slot. We regex-match rather than cmp-golden because the trailing bytes
+# are raw amino encoding (non-printable), which can't be pinned as a
+# text golden reliably.
+gnokey query vm/qobject_binary --data "0b346ccb4f46250025c8e5c235c8fca7b9f1d317:4"
+stdout '^height: 0'
+stdout '/gno.HeapItemValue'
+
+-- getpointer.stdout.golden --
+height: 0
+data: {"results":[{"T":{"@type":"/gno.PointerType","Elt":{"@type":"/gno.RefType","ID":"gno.land/r/test/objbin.Item"}},"V":{"@type":"/gno.PointerValue","TV":null,"Base":{"@type":"/gno.RefValue","ObjectID":"0b346ccb4f46250025c8e5c235c8fca7b9f1d317:4","Hash":"d9f377d5f17d5a4b5dbeb1dd9735bbddbafb3768"},"Index":"0"}}]}
+-- realm/gnomod.toml --
+module = "gno.land/r/test/objbin"
+gno = "0.9"
+
+-- realm/realm.gno --
+package objbin
+
+type Item struct {
+	Name  string
+	Value int
+}
+
+var myItem = &Item{Name: "test", Value: 123}
+
+func GetPointer() *Item {
+	return myItem
+}

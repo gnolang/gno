@@ -11,6 +11,8 @@ updates:
       actions:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
 
   # Maintain dependencies for top level Go modules
   - package-ecosystem: gomod
@@ -30,3 +32,5 @@ updates:
     open-pull-requests-limit: 10
     pull-request-branch-name:
       separator: "-"
+    cooldown:
+      default-days: 7

@@ -1,0 +1,19 @@
+-- input.md --
+before
+
+<gno-foreign>
+A paragraph with **bold** and *italic* and `code`.
+
+A second paragraph with a [link](https://example.org/).
+</gno-foreign>
+
+after
+-- output.html --
+<p>before</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<p>A paragraph with <strong>bold</strong> and <em>italic</em> and <code>code</code>.</p>
+<p>A second paragraph with a <a href="https://example.org/" rel="noopener nofollow ugc">link<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>.</p>
+</div>
+</div>
+<p>after</p>

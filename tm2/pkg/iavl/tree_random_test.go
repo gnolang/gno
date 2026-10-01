@@ -3,6 +3,7 @@ package iavl
 import (
 	"encoding/base64"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"sort"
@@ -34,7 +35,6 @@ func TestRandomOperations(t *testing.T) {
 	}
 
 	for i, seed := range seeds {
-		i, seed := i, seed
 		t.Run(fmt.Sprintf("Seed %v", seed), func(t *testing.T) {
 			if testing.Short() && i >= 2 {
 				t.Skip("Skipping seed in short mode")
@@ -113,7 +113,7 @@ func testRandomOperations(t *testing.T, randSeed int64) { //nolint: thelper
 	memMirrors := make(map[int64]map[string]string)
 
 	for version < versions {
-		for i := 0; i < versionOps; i++ {
+		for range versionOps {
 			switch {
 			case len(mirror) > 0 && r.Float64() < deleteRatio:
 				index := r.Intn(len(mirrorKeys))
@@ -396,9 +396,7 @@ func assertVersions(t *testing.T, tree *MutableTree, mirrors ...map[int64]map[st
 // copyMirror copies a mirror map.
 func copyMirror(mirror map[string]string) map[string]string {
 	c := make(map[string]string, len(mirror))
-	for k, v := range mirror {
-		c[k] = v
-	}
+	maps.Copy(c, mirror)
 	return c
 }
 

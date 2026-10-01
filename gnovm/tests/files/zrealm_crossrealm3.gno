@@ -5,18 +5,18 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 
-// NOTE: it is valid to persist external realm types.
+// Method receivers don't change the result for foreign-realm-typed
+// vars: under the new rule, somevalue's StructValue is /r/tests/vm-
+// stamped, and borrow rule #2 shifts m.Realm to /r/tests/vm inside
+// Modify(). But the receiver pointer's Base is /r/crossrealm's
+// package block (which holds the slot), and IsReadonlyBy checks
+// that Base's PkgID, not the slot value's. /r/crossrealm != /r/tests/vm
+// → rejected.
 var somevalue tests.TestRealmObject
 
-func init() {
-	somevalue.Field = "test"
-}
-
 func main(cur realm) {
-	// NOTE: it is also valid to modify it using an external realm function.
 	somevalue.Modify()
-	println(somevalue)
 }
 
-// Output:
-// (struct{("test_modified" string)} gno.land/r/tests/vm.TestRealmObject)
+// Error:
+// cannot directly modify readonly tainted object (use a method or crossing function): t<VPBlock(1,0)>.Field

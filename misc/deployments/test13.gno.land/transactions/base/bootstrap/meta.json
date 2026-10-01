@@ -1,0 +1,10 @@
+{
+  "reason": "test-13 hardfork bootstrap MsgRun: seeds the GenesisDeployer as the sole T1 GovDAO member, adds 10 faucet addresses to unrestricted accounts, locks the bank, swaps T1 from GenesisDeployer to manfred (gnoland1 inherit), and wires the packages/rotate realm into AllowedDAOs.",
+  "kind": "MsgRun",
+  "caller_key": "GenesisDeployer",
+  "gas_wanted": 100000000,
+  "gas_fee": "1ugnot",
+  "account_number": "0",
+  "sequence": "0",
+  "body_file": "govdao_prop1_test13.gno"
+}

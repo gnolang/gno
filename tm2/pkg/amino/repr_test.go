@@ -48,7 +48,7 @@ func (f *Foo) UnmarshalAmino(repr []pair) error {
 }
 
 var (
-	gopkg       = reflect.TypeOf(Foo{}).PkgPath()
+	gopkg       = reflect.TypeFor[Foo]().PkgPath()
 	testPackage = pkg.NewPackage(gopkg, "tests", "").
 			WithDependencies().
 			WithTypes(FooList(nil))

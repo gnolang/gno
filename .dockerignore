@@ -5,10 +5,16 @@ build/
 misc/*
 !misc/loop/
 !misc/autocounterd/
+!misc/val-scenarios/
 tests/docker-integration/
 docs/
 .github/
 *.md
+
+# Excluded to make Docker build cache stable across CI checkouts.
+.git
+.gitignore
+.gitattributes
 
 # Copied from .gitignore
 

@@ -1,14 +1,14 @@
 // PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
-func main() {
+func main(cur realm) {
 	f := func(cur realm) {
 		panic("panicked!")
 	}
-	abort(f)
+	abort(0, cur, f)
 }
 
-func abort(f any) {
+func abort(_ int, rlm realm, f any) {
 
 	var didAbort bool
 	var abortValue any
@@ -18,7 +18,7 @@ func abort(f any) {
 	case func():
 		r = revive(f)
 	case func(realm):
-		r = revive(func() { f(cross) })
+		r = revive(func() { f(cross(rlm)) })
 	default:
 		panic("f must be of type func() or func(realm)")
 	}

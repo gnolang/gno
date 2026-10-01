@@ -28,13 +28,13 @@ go run .
 
 ## Monitor
 
-This calls r/demo/boards to add `testboard` and a thread if they don't exist. This utility adds millions of replies to the first post on board #1.
-To monitor progress, in a web browser go to http://127.0.0.1:8888/r/demo/boards:testboard . The first post says something like "(100 replies)".
+This calls r/archive/boards to add `testboard` and a thread if they don't exist. This utility adds millions of replies to the first post on board #1.
+To monitor progress, in a web browser go to http://127.0.0.1:8888/r/archive/boards:testboard . The first post says something like "(100 replies)".
 Refresh your browser to see this number increase.
 
 ## Optional speedup
 
-This utility adds 50 replies per transaction (as allowed by the maximum gas of 100 million). By default gno.land does one transaction every
+This utility adds 50 replies per transaction (as allowed by the maximum gas of 1_000_000_000). By default gno.land does one transaction every
 5 seconds. It is optional but recommended to decrease this time to 1 second as follows:
 
 * In the terminal where you started gno.land, hit ctrl-C

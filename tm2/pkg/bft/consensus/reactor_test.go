@@ -25,6 +25,39 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type prevoteCountingPrivValidator struct {
+	types.PrivValidator
+	mtx              sync.Mutex
+	prevoteSignCalls int
+}
+
+func (pv *prevoteCountingPrivValidator) SignVote(chainID string, vote *types.Vote) error {
+	if vote.Type == types.PrevoteType {
+		pv.mtx.Lock()
+		pv.prevoteSignCalls++
+		pv.mtx.Unlock()
+	}
+	return pv.PrivValidator.SignVote(chainID, vote)
+}
+
+func (pv *prevoteCountingPrivValidator) PrevoteSignCalls() int {
+	pv.mtx.Lock()
+	defer pv.mtx.Unlock()
+	return pv.prevoteSignCalls
+}
+
+type gatedPrevotePrivValidator struct {
+	types.PrivValidator
+	gate <-chan struct{}
+}
+
+func (pv *gatedPrevotePrivValidator) SignVote(chainID string, vote *types.Vote) error {
+	if vote.Type == types.PrevoteType {
+		<-pv.gate
+	}
+	return pv.PrivValidator.SignVote(chainID, vote)
+}
+
 // ----------------------------------------------
 // in-process testnets
 
@@ -147,6 +180,80 @@ func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
 	}
 
 	// wait till everyone makes the first new block
+	timeoutWaitGroup(t, N, func(j int) {
+		<-blocksSubs[j]
+	}, css)
+}
+
+func TestReactorDoesNotResignKnownSelfPrevote(t *testing.T) {
+	t.Parallel()
+
+	const N = 2
+	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
+	defer cleanup()
+
+	node0PrivVal := &prevoteCountingPrivValidator{PrivValidator: css[0].privValidator}
+	css[0].SetPrivValidator(node0PrivVal)
+
+	node1Gate := make(chan struct{})
+	css[1].SetPrivValidator(&gatedPrevotePrivValidator{
+		PrivValidator: css[1].privValidator,
+		gate:          node1Gate,
+	})
+
+	node0VoteCh := subscribeToVoter(css[0], node0PrivVal.PubKey().Address())
+	firstPrevoteCh := make(chan *types.Vote, 1)
+	stopVotes := make(chan struct{})
+	votesDrained := make(chan struct{})
+	go func() {
+		defer close(votesDrained)
+		for {
+			select {
+			case <-stopVotes:
+				return
+			case msg := <-node0VoteCh:
+				voteEvent, ok := msg.(types.EventVote)
+				if !ok || voteEvent.Vote.Type != types.PrevoteType {
+					continue
+				}
+
+				select {
+				case firstPrevoteCh <- voteEvent.Vote:
+				default:
+				}
+			}
+		}
+	}()
+
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
+	defer func() {
+		close(stopVotes)
+		<-votesDrained
+		stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
+	}()
+
+	var selfPrevote *types.Vote
+	select {
+	case <-time.After(ensureTimeout):
+		t.Fatal("timeout waiting for node 0 prevote")
+	case selfPrevote = <-firstPrevoteCh:
+	}
+
+	before := node0PrivVal.PrevoteSignCalls()
+	if before == 0 {
+		t.Fatal("expected node 0 to have signed its prevote")
+	}
+
+	if css[0].Height != selfPrevote.Height || css[0].Round != selfPrevote.Round {
+		t.Fatalf("expected node 0 to still be at %d/%d, got %d/%d", selfPrevote.Height, selfPrevote.Round, css[0].Height, css[0].Round)
+	}
+
+	css[0].signAddVote(types.PrevoteType, selfPrevote.BlockID.Hash, selfPrevote.BlockID.PartsHeader)
+
+	assert.Equal(t, before, node0PrivVal.PrevoteSignCalls())
+
+	close(node1Gate)
+
 	timeoutWaitGroup(t, N, func(j int) {
 		<-blocksSubs[j]
 	}, css)
@@ -572,7 +679,6 @@ func TestNewRoundStepMessageValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -613,10 +719,20 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 			func(msg *NewValidBlockMessage) { msg.BlockParts = bitarray.NewBitArray(types.MaxBlockPartsCount + 1) },
 			"BlockParts bit array size 1602 not equal to BlockPartsHeader.Total 1",
 		},
+		{
+			func(msg *NewValidBlockMessage) { msg.BlockParts.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 element",
+		},
+		{
+			func(msg *NewValidBlockMessage) {
+				msg.BlockParts.Bits = 500
+				msg.BlockPartsHeader.Total = 500 // header total should match bitarray size so ba validation is reached
+			},
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
+		},
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			t.Parallel()
 
@@ -653,10 +769,17 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 			func(msg *ProposalPOLMessage) { msg.ProposalPOL = bitarray.NewBitArray(types.MaxVotesCount + 1) },
 			"ProposalPOL bit array is too big: 10001, max: 10000",
 		},
+		{
+			func(msg *ProposalPOLMessage) { msg.ProposalPOL.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 elements",
+		},
+		{
+			func(msg *ProposalPOLMessage) { msg.ProposalPOL.Bits = 500 },
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
+		},
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			t.Parallel()
 
@@ -693,7 +816,6 @@ func TestBlockPartMessageValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -737,7 +859,6 @@ func TestHasVoteMessageValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -786,7 +907,6 @@ func TestVoteSetMaj23MessageValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -826,10 +946,17 @@ func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
 			func(msg *VoteSetBitsMessage) { msg.Votes = bitarray.NewBitArray(types.MaxVotesCount + 1) },
 			"votes bit array is too big: 10001, max: 10000",
 		},
+		{
+			func(msg *VoteSetBitsMessage) { msg.Votes.Elems = nil },
+			"mismatch between specified number of bits 1, and number of elements 0, expected 1 elements",
+		},
+		{
+			func(msg *VoteSetBitsMessage) { msg.Votes.Bits = 500 },
+			"mismatch between specified number of bits 500, and number of elements 1, expected 8 elements",
+		},
 	}
 
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
 			t.Parallel()
 

@@ -1,3 +1,5 @@
+// Package common contains common flag definitions, authentication key file
+// management, and utility functions used across gnokms commands.
 package common
 
 import (

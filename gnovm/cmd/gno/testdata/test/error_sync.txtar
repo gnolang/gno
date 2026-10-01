@@ -8,9 +8,9 @@ gno test -update-golden-tests -v .
 ! stdout .+
 stderr '=== RUN   ./x_filetest.gno'
 
-cmp x_filetest.gno x_filetest.gno.golden
+cmp filetests/x_filetest.gno x_filetest.gno.golden
 
--- x_filetest.gno --
+-- filetests/x_filetest.gno --
 package main
 
 func main() {

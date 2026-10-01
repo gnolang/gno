@@ -8,6 +8,9 @@ import (
 	"os"
 	"runtime/pprof"
 
+	// Register vm amino types so the gno CLI can deserialize
+	// ABCI errors (e.g. InvalidPackageError) from chain RPC responses.
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 

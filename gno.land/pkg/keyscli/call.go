@@ -6,9 +6,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -98,18 +96,10 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 	// read statement.
 	fnc := cfg.FuncName
 
-	// read account pubkey.
-	nameOrBech32 := args[0]
-	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
+	caller, err := cfg.RootCfg.GetCaller(args[0])
 	if err != nil {
 		return err
 	}
-	info, err := kb.GetByNameOrAddress(nameOrBech32)
-	if err != nil {
-		return err
-	}
-	caller := info.GetAddress()
-	// info.GetPubKey()
 
 	// Parse send amount.
 	send, err := std.ParseCoins(cfg.Send)
@@ -147,9 +137,7 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
-			PrintTxInfo(tx, res, io)
-		}
+		cfg.RootCfg.RootCfg.OnTxSuccess = PrintTxSuccess
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err

@@ -1,0 +1,21 @@
+// MARKDOWNFUNC: TableCell
+// CONTEXT: | %s | b |\n|---|---|\n| c | d |
+-- input.md --
+has	tab
+-- output.md --
+has tab
+-- output.html --
+<table>
+<thead>
+<tr>
+<th>has tab</th>
+<th>b</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c</td>
+<td>d</td>
+</tr>
+</tbody>
+</table>

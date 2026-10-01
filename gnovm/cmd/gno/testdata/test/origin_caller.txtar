@@ -13,13 +13,13 @@ gno = "0.9"
 package origin_caller
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 	"testing"
 )
 
 func TestOriginCaller(t *testing.T) {
-	if runtime.OriginCaller().IsValid() {
-		t.Error("std.OriginCaller() from (non-filetest) test cases should not return a valid address")
+	if unsafe.OriginCaller().IsValid() {
+		t.Error("unsafe.OriginCaller() from (non-filetest) test cases should not return a valid address")
 	}
 }
 -- gnomod.toml --

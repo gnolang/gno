@@ -6,7 +6,7 @@
 
     $> git clone git@github.com:gnolang/gno.git
     $> cd ./gno
-    $> make install_gnokey
+    $> make install.gnokey
 
 Also, see the [quickstart guide](../../../docs/users/interact-with-gnokey.md).
 

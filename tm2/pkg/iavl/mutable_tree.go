@@ -802,7 +802,7 @@ func (tree *MutableTree) saveFastNodeVersion(latestVersion int64) error {
 
 func (tree *MutableTree) getUnsavedFastNodeAdditions() map[string]*fastnode.Node {
 	additions := make(map[string]*fastnode.Node)
-	tree.unsavedFastNodeAdditions.Range(func(key, value interface{}) bool {
+	tree.unsavedFastNodeAdditions.Range(func(key, value any) bool {
 		additions[key.(string)] = value.(*fastnode.Node)
 		return true
 	})
@@ -811,9 +811,9 @@ func (tree *MutableTree) getUnsavedFastNodeAdditions() map[string]*fastnode.Node
 
 // getUnsavedFastNodeRemovals returns unsaved FastNodes to remove
 
-func (tree *MutableTree) getUnsavedFastNodeRemovals() map[string]interface{} {
-	removals := make(map[string]interface{})
-	tree.unsavedFastNodeRemovals.Range(func(key, value interface{}) bool {
+func (tree *MutableTree) getUnsavedFastNodeRemovals() map[string]any {
+	removals := make(map[string]any)
+	tree.unsavedFastNodeRemovals.Range(func(key, value any) bool {
 		removals[key.(string)] = value
 		return true
 	})
@@ -829,7 +829,7 @@ func (tree *MutableTree) addUnsavedAddition(key []byte, node *fastnode.Node) {
 
 func (tree *MutableTree) saveFastNodeAdditions() error {
 	keysToSort := make([]string, 0)
-	tree.unsavedFastNodeAdditions.Range(func(k, _ interface{}) bool {
+	tree.unsavedFastNodeAdditions.Range(func(k, _ any) bool {
 		keysToSort = append(keysToSort, k.(string))
 		return true
 	})
@@ -853,7 +853,7 @@ func (tree *MutableTree) addUnsavedRemoval(key []byte) {
 
 func (tree *MutableTree) saveFastNodeRemovals() error {
 	keysToSort := make([]string, 0)
-	tree.unsavedFastNodeRemovals.Range(func(k, _ interface{}) bool {
+	tree.unsavedFastNodeRemovals.Range(func(k, _ any) bool {
 		keysToSort = append(keysToSort, k.(string))
 		return true
 	})

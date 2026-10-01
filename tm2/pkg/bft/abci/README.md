@@ -10,25 +10,20 @@ Previously, the ABCI was referred to as TMSP.
 
 The community has provided a number of additional implementations, see the [Tendermint Ecosystem](https://tendermint.com/ecosystem)
 
-
-## Installation & Usage
-
-To get up and running quickly, see the [getting started guide](../docs/app-dev/getting-started.md) along with the [abci-cli documentation](../docs/app-dev/abci-cli.md) which will go through the examples found in the [examples](./example/) directory.
-
 ## Specification
 
 A detailed description of the ABCI methods and message types is contained in:
 
-- [The main spec](../docs/spec/abci/abci.md)
 - [A protobuf file](./types/types.proto)
 - [A Go interface](./types/application.go)
 
 ## Protocol Buffers
 
-To compile the protobuf file, run (from the root of the repo):
+To compile the protobuf file, first install the protobuf command-line tools, e.g. with `brew install protobuf`. Then run (from the root of the repo):
 
 ```
-make protoc_abci
+make -C misc/devdeps
+make -C misc/genproto
 ```
 
 See `protoc --help` and [the Protocol Buffers site](https://developers.google.com/protocol-buffers) for details on compiling for other languages.

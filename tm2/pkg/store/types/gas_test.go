@@ -73,3 +73,75 @@ func TestAddUint64Overflow(t *testing.T) {
 		)
 	}
 }
+
+// TestWillIterator asserts that WillIterator charges ReadCostFlat
+// (modelling the seek as one Get-equivalent tree walk).
+func TestWillIterator(t *testing.T) {
+	t.Parallel()
+	meter := NewGasMeter(1 << 62)
+	cfg := DefaultGasConfig()
+	gctx := &GasContext{Meter: meter, Config: cfg}
+
+	gctx.WillIterator()
+	require.Equal(t, cfg.ReadCostFlat, meter.GasConsumed())
+
+	// nil gctx is safe and a no-op.
+	var nilCtx *GasContext
+	require.NotPanics(t, func() { nilCtx.WillIterator() })
+}
+
+// TestWillIterNext asserts the per-step formula:
+// IterNextCostFlat + ReadCostPerByte * len(value).
+func TestWillIterNext(t *testing.T) {
+	t.Parallel()
+	meter := NewGasMeter(1 << 62)
+	cfg := DefaultGasConfig()
+	gctx := &GasContext{Meter: meter, Config: cfg}
+
+	val := []byte("hello world") // 11 bytes
+	gctx.WillIterNext(val)
+
+	want := cfg.IterNextCostFlat + 11*cfg.ReadCostPerByte
+	require.Equal(t, want, meter.GasConsumed())
+
+	// Empty value charges only the flat.
+	meter2 := NewGasMeter(1 << 62)
+	gctx2 := &GasContext{Meter: meter2, Config: cfg}
+	gctx2.WillIterNext(nil)
+	require.Equal(t, cfg.IterNextCostFlat, meter2.GasConsumed())
+
+	// nil gctx is safe.
+	var nilCtx *GasContext
+	require.NotPanics(t, func() { nilCtx.WillIterNext(val) })
+}
+
+// Both meters implement one interface, so they must agree on what an input may
+// be. A negative consumption lowers the total instead of raising it, and the
+// infinite meter reports that total as the transaction's gas used.
+//
+// Not reachable today: every caller derives gas from a length or a validated
+// parameter, and the vm parameters that scale it are checked positive. This
+// keeps the two implementations from disagreeing about the contract anyway.
+func TestBothGasMetersRefuseANegativeConsumption(t *testing.T) {
+	t.Parallel()
+
+	for name, meter := range map[string]GasMeter{
+		"metered":  NewGasMeter(1000),
+		"infinite": NewInfiniteGasMeter(),
+	} {
+		require.Panics(t, func() { meter.ConsumeGas(-1, "negative") },
+			"%s meter must refuse a negative consumption", name)
+		require.Panics(t, func() { meter.RefundGas(-1, "negative") },
+			"%s meter must refuse a negative refund", name)
+	}
+
+	// The control: a real amount is still counted, and a refund still lands.
+	m := NewInfiniteGasMeter()
+	m.ConsumeGas(100, "work")
+	require.Equal(t, Gas(100), m.GasConsumed())
+	m.RefundGas(40, "dedup")
+	require.Equal(t, Gas(60), m.GasConsumed())
+	// A refund larger than the total floors at zero rather than going negative.
+	m.RefundGas(1000, "over")
+	require.Equal(t, Gas(0), m.GasConsumed())
+}

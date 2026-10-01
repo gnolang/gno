@@ -2,6 +2,7 @@ package iavl
 
 import (
 	"fmt"
+	"strings"
 )
 
 // PrintTree prints the whole tree in an indented form.
@@ -11,13 +12,13 @@ func PrintTree(tree *ImmutableTree) {
 }
 
 func printNode(ndb *nodeDB, node *Node, indent int) error {
-	indentPrefix := ""
-	for i := 0; i < indent; i++ {
-		indentPrefix += "    "
+	var indentPrefix strings.Builder
+	for range indent {
+		indentPrefix.WriteString("    ")
 	}
 
 	if node == nil {
-		fmt.Printf("%s<nil>\n", indentPrefix)
+		fmt.Printf("%s<nil>\n", indentPrefix.String())
 		return nil
 	}
 	if node.rightNode != nil {
@@ -32,9 +33,9 @@ func printNode(ndb *nodeDB, node *Node, indent int) error {
 
 	hash := node._hash(node.nodeKey.version)
 
-	fmt.Printf("%sh:%X\n", indentPrefix, hash)
+	fmt.Printf("%sh:%X\n", indentPrefix.String(), hash)
 	if node.isLeaf() {
-		fmt.Printf("%s%X:%X (%v)\n", indentPrefix, node.key, node.value, node.subtreeHeight)
+		fmt.Printf("%s%X:%X (%v)\n", indentPrefix.String(), node.key, node.value, node.subtreeHeight)
 	}
 
 	if node.leftNode != nil {

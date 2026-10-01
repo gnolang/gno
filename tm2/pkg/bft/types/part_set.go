@@ -15,6 +15,7 @@ import (
 var (
 	ErrPartSetUnexpectedIndex = errors.New("Error part set unexpected index")
 	ErrPartSetInvalidProof    = errors.New("Error part set invalid proof")
+	ErrPartSetTooBig          = errors.New("Error part set too big")
 )
 
 type Part struct {
@@ -75,6 +76,9 @@ func (psh PartSetHeader) Equals(other PartSetHeader) bool {
 func (psh PartSetHeader) ValidateBasic() error {
 	if psh.Total < 0 {
 		return errors.New("Negative Total")
+	}
+	if psh.Total > MaxBlockPartsCount {
+		return fmt.Errorf("PartSetHeader total is too big: %d, max: %d: %w", psh.Total, MaxBlockPartsCount, ErrPartSetTooBig)
 	}
 	// Hash can be empty in case of POLBlockID.PartsHeader in Proposal.
 	if err := ValidateHash(psh.Hash); err != nil {
@@ -188,6 +192,26 @@ func (ps *PartSet) Total() int {
 	return ps.total
 }
 
+// ByteSize returns the size of the data the part set carries, which for a part
+// set built from a block is the length-prefixed amino encoding of that block --
+// the exact form peers decode, and so the form any size limit applies to.
+// Returns 0 for a part set built from a header, which holds no parts yet.
+func (ps *PartSet) ByteSize() int {
+	if ps == nil {
+		return 0
+	}
+
+	size := 0
+
+	for _, part := range ps.parts {
+		if part != nil {
+			size += len(part.Bytes)
+		}
+	}
+
+	return size
+}
+
 func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	if ps == nil {
 		return false, nil
@@ -203,6 +227,17 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	// If part already exists, return false.
 	if ps.parts[part.Index] != nil {
 		return false, nil
+	}
+
+	// Verify proof metadata matches what we expect.
+	// Proof.Verify uses Proof.Index internally, so a Byzantine peer could send
+	// a Part with part.Index != part.Proof.Index and pass the merkle check
+	// while storing bytes at the wrong position.
+	if part.Proof.Index != part.Index {
+		return false, ErrPartSetInvalidProof
+	}
+	if part.Proof.Total != ps.total {
+		return false, ErrPartSetInvalidProof
 	}
 
 	// Check hash proof

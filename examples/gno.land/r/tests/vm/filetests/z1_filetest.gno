@@ -1,0 +1,17 @@
+// PKGPATH: gno.land/r/tests/vm/filetests/z1_filetest
+
+package z1_filetest
+
+import (
+	tests "gno.land/r/tests/vm"
+)
+
+func main(cur realm) {
+	println(tests.Counter(cross(cur)))
+	tests.IncCounter(cross(cur))
+	println(tests.Counter(cross(cur)))
+}
+
+// Output:
+// 0
+// 1

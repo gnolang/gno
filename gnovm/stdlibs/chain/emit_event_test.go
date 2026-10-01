@@ -2,6 +2,7 @@ package chain
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -118,6 +119,41 @@ func TestEmit(t *testing.T) {
 				},
 			},
 			expectPanic: false,
+		},
+		{
+			// A value exactly at the cap is kept verbatim — never truncated.
+			name:      "ValueAtCap",
+			eventType: "test",
+			attrs:     []string{"key1", strings.Repeat("v", MaxEventAttrLen)},
+			expectedEvents: []Event{
+				{
+					Type:    "test",
+					PkgPath: pkgPath,
+					Attributes: []EventAttribute{
+						{Key: "key1", Value: strings.Repeat("v", MaxEventAttrLen)},
+					},
+				},
+			},
+			expectPanic: false,
+		},
+		{
+			// A value over the cap panics rather than silently truncating.
+			name:        "ValueTooLong",
+			eventType:   "test",
+			attrs:       []string{"key1", strings.Repeat("v", MaxEventAttrLen+1)},
+			expectPanic: true,
+		},
+		{
+			name:        "KeyTooLong",
+			eventType:   "test",
+			attrs:       []string{strings.Repeat("k", MaxEventAttrLen+1), "value1"},
+			expectPanic: true,
+		},
+		{
+			name:        "TypeTooLong",
+			eventType:   strings.Repeat("t", MaxEventAttrLen+1),
+			attrs:       []string{"key1", "value1"},
+			expectPanic: true,
 		},
 	}
 

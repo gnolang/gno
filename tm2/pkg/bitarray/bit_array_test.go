@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -249,7 +250,6 @@ func TestJSONMarshalUnmarshal(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.bA.String(), func(t *testing.T) {
 			t.Parallel()
 
@@ -273,4 +273,113 @@ func TestJSONMarshalUnmarshal(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Reproducer/regression test for json.Unmarshal crashing when no bits are passed into the JSON.
+func TestUnmarshalJSONDoesntCrashOnZeroBits(t *testing.T) {
+	t.Parallel()
+
+	type indexCorpus struct {
+		BitArray *BitArray `json:"ba"`
+		Index    int       `json:"i"`
+	}
+
+	ic := new(indexCorpus)
+	blob := []byte(`{"BA":""}`)
+	err := json.Unmarshal(blob, ic)
+	require.NoError(t, err)
+	require.Equal(t, ic.BitArray, &BitArray{Bits: 0, Elems: nil})
+}
+
+func TestBitArrayValidateBasic(t *testing.T) {
+	testCases := []struct {
+		name    string
+		bA1     *BitArray
+		expPass bool
+	}{
+		{"valid empty", &BitArray{}, true},
+		{"valid explicit 0 bits nil elements", &BitArray{Bits: 0, Elems: nil}, true},
+		{"valid explicit 0 bits 0 len elements", &BitArray{Bits: 0, Elems: make([]uint64, 0)}, true},
+		{"valid nil", nil, true},
+		{"valid with elements", NewBitArray(10), true},
+		{"more elements than bits specifies", &BitArray{Bits: 0, Elems: make([]uint64, 5)}, false},
+		{"less elements than bits specifies", &BitArray{Bits: 200, Elems: make([]uint64, 1)}, false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.bA1.ValidateBasic()
+			require.Equal(t, err == nil, tc.expPass)
+		})
+	}
+}
+
+func TestStringBoundedByElems(t *testing.T) {
+	require.Equal(t,
+		"BA{65:x_______________________________________________________________<1 unset>}",
+		(&BitArray{Bits: 65, Elems: []uint64{1}}).String(),
+	)
+
+	result := make(chan string, 1)
+	go func() {
+		result <- (&BitArray{Bits: 2_000_000_000, Elems: nil}).String()
+	}()
+
+	select {
+	case got := <-result:
+		require.Less(t, len(got), 256)
+	case <-time.After(2 * time.Second):
+		t.Fatal("String did not return within 2 seconds")
+	}
+}
+
+func TestMarshalJSONBoundedByElems(t *testing.T) {
+	type marshalResult struct {
+		bz  []byte
+		err error
+	}
+	result := make(chan marshalResult, 1)
+	go func() {
+		bz, err := (&BitArray{Bits: 2_000_000_000, Elems: nil}).MarshalJSON()
+		result <- marshalResult{bz: bz, err: err}
+	}()
+
+	select {
+	case got := <-result:
+		require.Error(t, got.err)
+		require.Empty(t, got.bz)
+	case <-time.After(2 * time.Second):
+		t.Fatal("MarshalJSON did not return within 2 seconds")
+	}
+}
+
+func TestMarshalJSONRejectsInconsistentBitArray(t *testing.T) {
+	bz, err := (&BitArray{Bits: 65, Elems: []uint64{1}}).MarshalJSON()
+	require.Error(t, err)
+	require.Empty(t, bz)
+}
+
+func TestRenderingPreservesValidBitArrayOutput(t *testing.T) {
+	bA := NewBitArray(5)
+	bA.SetIndex(0, true)
+	bA.SetIndex(3, true)
+
+	require.Equal(t, "BA{5:x__x_}", bA.String())
+	bz, err := bA.MarshalJSON()
+	require.NoError(t, err)
+	require.Equal(t, `"x__x_"`, string(bz))
+}
+
+func TestMarshalJSONRoundtrip(t *testing.T) {
+	bA := NewBitArray(5)
+	bA.SetIndex(0, true)
+	bA.SetIndex(3, true)
+
+	bz, err := bA.MarshalJSON()
+	require.NoError(t, err)
+	require.Regexp(t, bitArrayJSONRegexp, string(bz))
+
+	var got BitArray
+	require.NoError(t, got.UnmarshalJSON(bz))
+	require.Equal(t, bA.Bits, got.Bits)
+	require.Equal(t, bA.Elems, got.Elems)
 }

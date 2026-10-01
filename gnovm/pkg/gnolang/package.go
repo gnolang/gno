@@ -30,10 +30,12 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&PackageValue{},
 	&Block{},
 	RefValue{},
+	ExportRefValue{},
 	&HeapItemValue{},
 
 	//----------------------------------------
 	// Realm/Object
+	&Realm{},
 	ObjectID{},
 	&ObjectInfo{},
 
@@ -104,6 +106,9 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	FileNode{},
 	PackageNode{},
 	RefNode{},
+	NameSource{},
+	Pos{},
+	Span{},
 
 	//----------------------------------------
 	// Types

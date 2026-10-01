@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" font-family="monospace" font-size="13">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#555"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6" fill="#3b82f6"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="520" fill="#fafafa" rx="8"/>
+
+  <!-- Title -->
+  <text x="400" y="32" text-anchor="middle" font-size="18" font-weight="bold" fill="#111">@gnojs/amino — Data Flow</text>
+
+  <!-- GnoVM Box -->
+  <rect x="40" y="60" width="200" height="200" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="140" y="82" text-anchor="middle" font-size="14" font-weight="bold" fill="#16a34a">GnoVM</text>
+
+  <!-- Endpoints -->
+  <rect x="60" y="96" width="160" height="32" rx="4" fill="#fff" stroke="#16a34a"/>
+  <text x="140" y="117" text-anchor="middle" fill="#111">vm/qpkg_json</text>
+
+  <rect x="60" y="140" width="160" height="32" rx="4" fill="#fff" stroke="#16a34a"/>
+  <text x="140" y="161" text-anchor="middle" fill="#111">vm/qobject_json</text>
+
+  <rect x="60" y="184" width="160" height="32" rx="4" fill="#fff" stroke="#16a34a"/>
+  <text x="140" y="205" text-anchor="middle" fill="#111">vm/qtype_json</text>
+
+  <!-- Endpoint descriptions -->
+  <text x="140" y="240" text-anchor="middle" font-size="10" fill="#666">entry point</text>
+  <text x="140" y="252" text-anchor="middle" font-size="10" fill="#666">drill-down · type resolve</text>
+
+  <!-- Amino JSON Box -->
+  <rect x="290" y="80" width="200" height="180" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="390" y="102" text-anchor="middle" font-size="14" font-weight="bold" fill="#3b82f6">Amino JSON</text>
+
+  <text x="310" y="126" font-size="11" fill="#444">TypedValue { T, V, N }</text>
+  <text x="310" y="146" font-size="11" fill="#444">  T: @type discriminator</text>
+  <text x="310" y="166" font-size="11" fill="#444">  V: StringValue, RefValue,</text>
+  <text x="310" y="182" font-size="11" fill="#444">     StructValue, MapValue…</text>
+  <text x="310" y="202" font-size="11" fill="#444">  N: base64 8-byte LE</text>
+  <text x="310" y="222" font-size="11" fill="#444">     (primitives)</text>
+  <text x="310" y="246" font-size="11" fill="#999">RefValue → qobject_json</text>
+  <text x="310" y="258" font-size="11" fill="#999">RefType  → qtype_json</text>
+
+  <!-- Library Box -->
+  <rect x="290" y="300" width="200" height="140" rx="8" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5"/>
+  <text x="390" y="322" text-anchor="middle" font-size="14" font-weight="bold" fill="#ca8a04">@gnojs/amino</text>
+
+  <text x="310" y="348" font-size="11" fill="#444">decodePkg()</text>
+  <text x="310" y="366" font-size="11" fill="#444">decodeObject()</text>
+  <text x="310" y="384" font-size="11" fill="#444">decodeTypedValue()</text>
+  <text x="310" y="406" font-size="11" fill="#444">decodeN() · typeName()</text>
+  <text x="310" y="424" font-size="11" fill="#444">structFieldNames()</text>
+
+  <!-- StateNode Box -->
+  <rect x="550" y="300" width="200" height="140" rx="8" fill="#faf5ff" stroke="#9333ea" stroke-width="1.5"/>
+  <text x="650" y="322" text-anchor="middle" font-size="14" font-weight="bold" fill="#9333ea">StateNode</text>
+
+  <text x="570" y="348" font-size="11" fill="#444">name: "myVar"</text>
+  <text x="570" y="366" font-size="11" fill="#444">type: "boards.Board"</text>
+  <text x="570" y="384" font-size="11" fill="#444">kind: "struct"</text>
+  <text x="570" y="402" font-size="11" fill="#444">value?: "42"</text>
+  <text x="570" y="420" font-size="11" fill="#444">children?: [...]</text>
+
+  <!-- UI Consumers -->
+  <rect x="550" y="80" width="200" height="100" rx="8" fill="#fff1f2" stroke="#e11d48" stroke-width="1.5"/>
+  <text x="650" y="102" text-anchor="middle" font-size="14" font-weight="bold" fill="#e11d48">Consumers</text>
+
+  <text x="570" y="128" font-size="11" fill="#444">State Explorer UI</text>
+  <text x="570" y="148" font-size="11" fill="#444">CLI tools</text>
+  <text x="570" y="168" font-size="11" fill="#444">Custom dashboards</text>
+
+  <!-- Arrows: GnoVM → Amino JSON -->
+  <line x1="220" y1="112" x2="288" y2="112" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="220" y1="156" x2="288" y2="156" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="220" y1="200" x2="288" y2="200" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Arrow: Amino JSON → Library -->
+  <line x1="390" y1="262" x2="390" y2="298" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+
+  <!-- Arrow: Library → StateNode -->
+  <line x1="492" y1="370" x2="548" y2="370" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Arrow: StateNode → Consumers -->
+  <line x1="650" y1="298" x2="650" y2="182" stroke="#555" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Lazy fetch loop arrow -->
+  <path d="M 550,400 Q 530,460 390,460 Q 250,460 250,200 L 250,164" fill="none" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-blue)"/>
+  <text x="300" y="482" font-size="10" fill="#3b82f6">lazy fetch: RefValue/RefType → drill-down</text>
+
+  <!-- Footer -->
+  <text x="400" y="510" text-anchor="middle" font-size="10" fill="#999">Gno.land State Explorer Architecture</text>
+</svg>

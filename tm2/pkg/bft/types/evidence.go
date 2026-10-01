@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
@@ -68,7 +69,7 @@ const (
 // allowed in the block and their maximum total size (limited to 1/10th
 // of the maximum block size).
 // TODO: change to a constant, or to a fraction of the validator set size.
-// See https://github.com/tendermint/classic/issues/2590
+// See https://github.com/tendermint/tendermint/issues/2590
 func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
 	maxBytes := blockMaxBytes / MaxEvidenceBytesDenominator
 	maxNum := maxBytes / MaxEvidenceBytes
@@ -268,11 +269,11 @@ func (evl EvidenceList) Hash() []byte {
 }
 
 func (evl EvidenceList) String() string {
-	s := ""
+	var s strings.Builder
 	for _, e := range evl {
-		s += fmt.Sprintf("%s\t\t", e)
+		s.WriteString(fmt.Sprintf("%s\t\t", e))
 	}
-	return s
+	return s.String()
 }
 
 // Has returns true if the evidence is in the EvidenceList.

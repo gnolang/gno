@@ -45,7 +45,7 @@ The default value is defined in [`gno.land/pkg/sdk/vm/params.go`](https://github
 
 ```text
 storagePriceDefault = "100ugnot" // cost per byte
-// e.g., 1 GNOT per 10KB (≈ 1B GNOT = 10TB)
+// e.g., 1 GNOT per 10KB (≈ 1.333B GNOT = 13.33TB)
 ```
 
 ### Tracking Storage

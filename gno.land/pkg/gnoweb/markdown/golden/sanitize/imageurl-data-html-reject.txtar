@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: ImageURL
+// CONTEXT: ![img](%s)
+-- input.md --
+data:text/html,<script>alert(1)</script>
+-- output.md --
+
+-- output.html --
+<p><img src="" alt="img"></p>

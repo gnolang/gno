@@ -7,6 +7,7 @@ import (
 	"net"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
@@ -15,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -57,7 +59,7 @@ func extractDependenciesFromTxs(nodeConfig *gnodev.NodeConfig, paths *[]string) 
 }
 
 // setupDevNode initializes and returns a new DevNode.
-func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, paths ...string) (*gnodev.Node, error) {
+func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeConfig, loader *packages.Loader, paths ...string) (*gnodev.Node, error) {
 	logger := nodeConfig.Logger
 
 	if cfg.txsFile != "" { // Load txs files
@@ -89,6 +91,13 @@ func setupDevNode(ctx context.Context, cfg *AppConfig, nodeConfig *gnodev.NodeCo
 		logger.Debug("no path(s) provided")
 	}
 
+	// Genesis txs never pass through the lazy proxy, so -paths entries and
+	// txs-file dependencies must be tracked explicitly to reach genesis.
+	loader.Track(paths...)
+
+	// A reset returns to this seeded set, dropping lazily loaded packages.
+	nodeConfig.ResetState = loader.ResetTracked
+
 	return gnodev.NewDevNode(ctx, nodeConfig, paths...)
 }
 
@@ -98,11 +107,11 @@ func setupDevNodeConfig(
 	logger *slog.Logger,
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
-	loader packages.Loader,
+	reload func() ([]*packages.Package, error),
 	book *address.Book,
 ) (*gnodev.NodeConfig, error) {
 	config := gnodev.DefaultNodeConfig(cfg.root, cfg.chainDomain)
-	config.Loader = loader
+	config.Reload = reload
 
 	config.Logger = logger
 	config.Emitter = emitter
@@ -111,6 +120,8 @@ func setupDevNodeConfig(
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
+	config.TMConfig.Consensus.CreateEmptyBlocks = cfg.emptyBlocks
+	config.TMConfig.Consensus.CreateEmptyBlocksInterval = time.Duration(cfg.emptyBlocksInterval) * time.Second
 
 	// other listeners
 	config.TMConfig.P2P.ListenAddress = defaultLocalAppConfig.nodeP2PListenerAddr
@@ -126,6 +137,17 @@ func setupDevNodeConfig(
 		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
 	}
 	config.DefaultCreator = dkey
+
+	// Use the provided validator key instead of a generated one
+	if cfg.validatorKeyFile != "" {
+		vkey, err := signer.LoadFileKey(cfg.validatorKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load validator key %q: %w", cfg.validatorKeyFile, err)
+		}
+		config.ValidatorKey = vkey.PrivKey
+
+		logger.Info("validator key loaded", "path", cfg.validatorKeyFile, "addr", vkey.Address.String())
+	}
 
 	return config, nil
 }

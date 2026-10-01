@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 )
 
@@ -14,6 +13,18 @@ func (m *Machine) doOpInc() {
 	// Get reference to lhs.
 	pv := m.PopAsPointer(s.X)
 	lv := pv.TV
+
+	// Gas based on operand type.
+	switch lv.T.Kind() {
+	case Float32Kind, Float64Kind:
+		m.incrCPU(OpCPUIncFloat)
+	default:
+		m.incrCPU(OpCPUIncInt)
+	}
+
+	// Per-N gas for BigInt/BigDec.
+	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntInc)
+	m.incrCPUBigDecUnary(lv, OpCPUSlopeBigDecInc)
 
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider
@@ -63,22 +74,14 @@ func (m *Machine) doOpInc() {
 		lb = big.NewInt(0).Add(lb, big.NewInt(1))
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		sum := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Add(sum, lb, apd.New(1, 0))
-		if err != nil {
-			panic(fmt.Sprintf("bigdec addition error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec addition inexact: %v + 1", lb))
-		}
-		lv.V = BigdecValue{V: sum}
+		lv.V = bigdecAdd(lv.GetBigDec(), BigdecValue{V: new(big.Rat).SetInt64(1)})
 	default:
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}
 
 	// Mark dirty in realm.
-	if m.Realm != nil && pv.Base != nil {
-		m.Realm.DidUpdate(pv.Base.(Object), nil, nil)
+	if pv.Base != nil {
+		m.Realm.DidUpdate(m, pv.Base.(Object), nil, nil)
 	}
 }
 
@@ -88,6 +91,18 @@ func (m *Machine) doOpDec() {
 	// Get result ptr depending on lhs.
 	pv := m.PopAsPointer(s.X)
 	lv := pv.TV
+
+	// Gas based on operand type.
+	switch lv.T.Kind() {
+	case Float32Kind, Float64Kind:
+		m.incrCPU(OpCPUDecFloat)
+	default:
+		m.incrCPU(OpCPUDecInt)
+	}
+
+	// Per-N gas for BigInt/BigDec.
+	m.incrCPUBigUnary(lv, OpCPUSlopeBigIntDec)
+	m.incrCPUBigDecUnary(lv, OpCPUSlopeBigDecDec)
 
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider
@@ -133,21 +148,13 @@ func (m *Machine) doOpDec() {
 		lb = big.NewInt(0).Sub(lb, big.NewInt(1))
 		lv.V = BigintValue{V: lb}
 	case UntypedBigdecType:
-		lb := lv.GetBigDec()
-		sum := apd.New(0, 0)
-		cond, err := apd.BaseContext.WithPrecision(0).Sub(sum, lb, apd.New(1, 0))
-		if err != nil {
-			panic(fmt.Sprintf("bigdec addition error: %v", err))
-		} else if cond.Inexact() {
-			panic(fmt.Sprintf("bigdec addition inexact: %v + 1", lb))
-		}
-		lv.V = BigdecValue{V: sum}
+		lv.V = bigdecSub(lv.GetBigDec(), BigdecValue{V: new(big.Rat).SetInt64(1)})
 	default:
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}
 
 	// Mark dirty in realm.
-	if m.Realm != nil && pv.Base != nil {
-		m.Realm.DidUpdate(pv.Base.(Object), nil, nil)
+	if pv.Base != nil {
+		m.Realm.DidUpdate(m, pv.Base.(Object), nil, nil)
 	}
 }

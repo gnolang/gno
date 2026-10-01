@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: URL
+// CONTEXT: [click](%s)
+-- input.md --
+//evil.com/x
+-- output.md --
+
+-- output.html --
+<p><a href="">click</a></p>

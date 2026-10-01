@@ -10,7 +10,7 @@ with Go. Therefore, if you haven't already, we highly recommend reading
 ## Disclaimer
 
 Gno is a young language. The practices we've identified are based on its current
-state. As Gno evolves, new practices will emerge and some current ones may
+state. As Gno evolves, new practices will emerge, and some current ones may
 become obsolete. We welcome your contributions and feedback. Stay updated and
 help shape Gno's future!
 
@@ -21,7 +21,7 @@ counter-intuitive, especially if you're coming from a Go background.
 
 ### Embrace global variables in realms
 
-In Gno, using global variables is not only acceptable, but also encouraged,
+In Gno, using global variables is not only acceptable but also encouraged,
 specifically when working with realms. This is due to the unique persistence
 feature of realms.
 
@@ -76,7 +76,7 @@ While the famous [quote by Rob
 Pike](https://github.com/golang/go/wiki/CodeReviewComments#dont-panic) advises
 Go developers "Don't panic.", in Gno, we actually embrace `panic`.
 
-Panic in Gno is not just for critical errors or programming mistakes as it is in
+Panic in Gno is not just for critical errors or programming mistakes, as it is in
 Go. Instead, it's used as a control flow mechanism to stop the execution of a
 [realm](./realms.md) when something goes wrong. This could be due to an invalid input, a
 failed precondition, or any other situation where it's not possible or desirable
@@ -91,7 +91,7 @@ When you return an `error` in Gno, it's like giving back any other piece of data
 It tells you something went wrong, but it doesn't stop your code or undo any
 changes you made.
 
-But, when you use `panic` in Gno, it stops your code right away, says it failed,
+But when you use `panic` in Gno, it stops your code right away, says it failed,
 and doesn't save any changes you made. This is safer when you want to stop
 everything and not save wrong changes.
 
@@ -108,10 +108,11 @@ behavior. Packages should be designed to be flexible and not impose restrictions
 that could lead to user frustration or the need to fork the code.
 
 ```go
-import "std"
-
-func Foobar() {
-	caller := std.PreviousRealm().Address()
+func Foobar(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	if caller != "g1xxxxx" {
 		panic("permission denied")
 	}
@@ -123,8 +124,8 @@ func Foobar() {
 
 ### Understand the importance of `init()`
 
-In Gno, the `init()` function isn't just a function, it's a cornerstone. It's
-automatically triggered when a new realm is added onchain, making it a one-time
+In Gno, the `init()` function isn't just a function; it's a cornerstone. It's
+automatically triggered when a new realm is added on-chain, making it a one-time
 setup tool for the lifetime of a realm. In essence, `init()` acts as a
 constructor for your realm.
 
@@ -141,8 +142,8 @@ In Gno, `init()` primarily serves two purposes:
 ```go
 import "gno.land/r/some/registry"
 
-func init() {
-	registry.Register(cross, "myID", myCallback)
+func init(cur realm) {
+	registry.Register(cross(cur), "myID", myCallback)
 }
 
 func myCallback(a, b string) { /* ... */ }
@@ -152,23 +153,20 @@ A common use case could be to set the "admin" as the caller uploading the
 package.
 
 ```go
-import (
-	"std"
-	"time"
-)
+import "time"
 
 var (
 	created time.Time
-	admin   std.Address
+	admin   address
 	list	= []string{"foo", "bar", time.Now().Format("15:04:05")}
 )
 
-func init() {
+func init(cur realm) {
 	created = time.Now()
-	// std.OriginCaller in the context of realm initialisation is,
-	// of course, the publisher of the realm :)
-	// This can be better than hardcoding an admin address as a constant.
-	admin = std.OriginCaller()
+	// During initialization the previous realm is the publisher of the realm
+	// (the EOA that deployed it), so capturing it here is better than
+	// hardcoding an admin address as a constant.
+	admin = cur.Previous().Address()
 	// list is already initialized, so it will already contain "foo", "bar" and
 	// the current time as existing items.
 	list = append(list, admin.String())
@@ -203,7 +201,7 @@ of Go and Gno. Essentially, you can think of each `p/` package as a Lego brick
 in an ever-growing collection, giving more power to users. `p/` in Gno is
 basically a way to extend the standard libraries in a community-driven manner.
 
-Unlike other compiled languages where dependencies are not always well-known and
+Unlike other compiled languages, where dependencies are not always well-known and
 clear metrics are lacking, Gno allows for a reputation system not only for the
 called contracts, but also for the dependencies.
 
@@ -217,7 +215,7 @@ dependencies. However, in Gno, we can expect that over time, contracts will
 become smaller, more powerful, and partially audited by default, thanks to this
 enforced open-source system.
 
-One key difference between the Go and Gno ecosystem is the trust assumption when
+One key difference between the Go and Gno ecosystems is the trust assumption when
 adding a new dependency. Dependency code always needs to be vetted, [regardless
 of what programming language or ecosystem you're using][sc-attack]. However, in
 Gno, you can have the certainty that the author of a package cannot overwrite an
@@ -272,8 +270,8 @@ func SellTokens(_ realm, amount int) {
 
 One of the well-known proverbs in Go is: ["Documentation is for
 users"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=1147s), as stated by Rob
-Pike. In Go, documentation is for users, but users are often developers. In Gno,
-documentation is for users, and users can be other developers but also the end users.
+Pike. In Go, documentation is primarily for users, but users are often developers themselves. In Gno,
+documentation is for users, and users can be other developers as well as end users.
 
 In Go, we usually have well-written documentation for other developers to
 maintain and use our code as a library. Then, we often have another layer of
@@ -284,7 +282,7 @@ In Gno, the focus shifts towards writing documentation for the end user. You can
 even consider that the main reader is an end user, who is not so interested in
 technical details, but mostly interested in how and why they should use a
 particular endpoint. Comments will be used to aid code source reading, but also to
-generate documentation and even for smart wallets that need to understand what
+generate documentation, and even for smart wallets that need to understand what
 to do.
 
 Inline comments have the same goal: to guide users (developers or end users)
@@ -293,7 +291,7 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-Here's an example from [grc20](https://gno.land/p/demo/tokens/grc20$source&file=types.gno)
+Here's an example from [grc20](https://staging.gno.land/p/nt/grc20/v0$source&file=types.gno)
 to illustrate the concept:
 
 ```go
@@ -304,25 +302,33 @@ to illustrate the concept:
 // The Teller interface is designed to ensure that any token adhering to this
 // standard provides a consistent API for interacting with fungible tokens.
 type Teller interface {
-	exts.TokenMetadata
+	// Returns the name of the token.
+	GetName() string
+
+	// Returns the symbol of the token, usually a shorter version of the
+	// name.
+	GetSymbol() string
+
+	// Returns the decimals places of the token.
+	GetDecimals() int
 
 	// Returns the amount of tokens in existence.
-	TotalSupply() uint64
+	TotalSupply() int64
 
 	// Returns the amount of tokens owned by `account`.
-	BalanceOf(account std.Address) uint64
+	BalanceOf(account address) int64
 
 	// Moves `amount` tokens from the caller's account to `to`.
 	//
 	// Returns an error if the operation failed.
-	Transfer(to std.Address, amount uint64) error
+	Transfer(to address, amount int64) error
 
 	// Returns the remaining number of tokens that `spender` will be
 	// allowed to spend on behalf of `owner` through {transferFrom}. This is
 	// zero by default.
 	//
 	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) uint64
+	Allowance(owner, spender address) int64
 
 	// Sets `amount` as the allowance of `spender` over the caller's tokens.
 	//
@@ -334,14 +340,14 @@ type Teller interface {
 	// this race condition is to first reduce the spender's allowance to 0
 	// and set the desired value afterwards:
 	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	Approve(spender std.Address, amount uint64) error
+	Approve(spender address, amount int64) error
 
 	// Moves `amount` tokens from `from` to `to` using the
 	// allowance mechanism. `amount` is then deducted from the caller's
 	// allowance.
 	//
 	// Returns an error if the operation failed.
-	TransferFrom(from, to std.Address, amount uint64) error
+	TransferFrom(from, to address, amount int64) error
 }
 ```
 
@@ -370,10 +376,9 @@ clear code is better than clever code.
 
 ### Package naming and organization
 
-Your package name should match the folder name. This helps to prevent having
-named imports, which can make your code more difficult to understand and
-maintain. By matching the package name with the folder name, you can ensure that
-your imports are clear and intuitive.
+Your package name must match the last element of the package path (ignoring a
+trailing `/vN` version suffix). This keeps imports clear and intuitive, avoiding
+the need for named imports.
 
 Ideally, package names should be short and human-readable. This makes it easier
 for other developers to understand what your package does at a glance. Avoid
@@ -399,23 +404,23 @@ don't expect that other people will use your helpers, then you should probably
 use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
 
 Packages which contain `internal` as an element of the path (ie. at the end, or
-in between, like `gno.land/p/nt/seqid/internal`, or
-`gno.land/p/nt/seqid/internal/base32`) can only be imported by packages
+in between, like `gno.land/p/demo/mypackage/internal`, or
+`gno.land/p/demo/mypackage/internal/helpers`) can only be imported by packages
 sharing the same root as the `internal` package. That is, given a package
 structure as follows:
 
 ```
-gno.land/p/nt/seqid
-├── generator
+gno.land/p/demo/mypackage
+├── utils
 └── internal
-    ├── base32
-    └── cford32
+	├── helpers
+	└── crypto
 ```
 
-The `seqid/internal`, `seqid/internal/base32` and `seqid/internal/cford32`
-packages can only be imported by `seqid` and `seqid/generator`.
+The `mypackage/internal`, `mypackage/internal/helpers`, and `mypackage/internal/crypto`
+packages can only be imported by `mypackage` and `mypackage/utils`.
 
-This works for both realm and packages, and can be used to create entirely
+This works for both realms and packages, and can be used to create entirely
 restricted packages and realms that are not meant for outside consumption.
 
 ### Define types and interfaces in pure packages (p/)
@@ -456,24 +461,22 @@ your realm with the same level of care and security considerations as you would
 a public API.
 
 One approach is to simulate a secure perimeter within your realm by having
-private functions for the logic and then writing your API layer by adding some
+private functions for the logic, and then writing your API layer by adding some
 front-facing API with authentication. This way, you can control access to your
 realm's functionality and ensure that only authorized callers can execute
 certain operations.
 
 ```go
-import "std"
-
-func PublicMethod(nb int) {
-	caller := std.PreviousRealm().Address()
+func PublicMethod(cur realm, nb int) {
+	caller := cur.Previous().Address()
 	privateMethod(caller, nb)
 }
 
-func privateMethod(caller std.Address, nb int) { /* ... */ }
+func privateMethod(caller address, nb int) { /* ... */ }
 ```
 
 In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `std.PreviousRealm().Address()`, and
+realms. It retrieves the caller's address using `cur.Previous().Address()`, and
 then passes it to `privateMethod`, which is a private function that performs the
 actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
@@ -487,37 +490,35 @@ these logs can be indexed, filtered, and searched by external services, allowing
 them to monitor the behaviour of on-chain apps.
 
 It is good practice to emit events when any major action in your code is
-triggered. For example, good times to emit an event is after a balance transfer,
+triggered. For example, good times to emit an event are after a balance transfer,
 ownership change, profile created, etc. Alternatively, you can view event emission
 as a way to include data for monitoring purposes, given the indexable nature of
 events.
 
 Events consist of a type and a slice of strings representing `key:value` pairs.
-They are emitted with the `Emit()` function, contained in the `std` package in
+They are emitted with the `Emit()` function, contained in the `chain` package in
 the Gno standard library:
 
 ```go
 package events
 
-import (
-	"std"
-)
+import "chain"
 
-var owner std.Address
+var owner address
 
-func init() {
-	owner = std.PreviousRealm().Address()
+func init(cur realm) {
+	owner = cur.Previous().Address()
 }
 
-func ChangeOwner(_ realm, newOwner std.Address) {
-	caller := std.PreviousRealm().Address()
+func ChangeOwner(cur realm, newOwner address) {
+	caller := cur.Previous().Address()
 
 	if caller != owner {
 		panic("access denied")
 	}
 
 	owner = newOwner
-	std.Emit("OwnershipChange", "newOwner", newOwner.String())
+	chain.Emit("OwnershipChange", "newOwner", newOwner.String())
 }
 
 ```
@@ -527,19 +528,18 @@ of block #43 will contain the following data:
 ```json
 {
   "Events": [
-    {
-      "@type": "/tm.gnoEvent",
-      "type": "OwnershipChange",
-      "pkg_path": "gno.",
-      "func": "ChangeOwner",
-      "attrs": [
-        {
-          "key": "newOwner",
-          "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
-        }
-      ]
-    }
-    // other events
+	{
+	  "@type": "/tm.gnoEvent",
+	  "type": "OwnershipChange",
+	  "pkg_path": "gno.land/r/demo/example",
+	  "attrs": [
+		{
+		  "key": "newOwner",
+		  "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+		}
+	  ]
+	}
+	// other events
   ]
 }
 ```
@@ -554,46 +554,47 @@ be accessible to different types of users, such as the public, admins, or
 moderators.
 
 The goal is usually to store the admin address or a list of addresses
-(`std.Address`) in a variable, and then create helper functions to update the
+(`address`) in a variable, and then create helper functions to update the
 owners. These helper functions should check if the caller of a function is
 whitelisted or not.
 
 Let's deep dive into the different access control mechanisms we can use:
 
-One strategy is to look at the caller with `std.PreviousRealm()`, which could be the
-EOA (Externally Owned Account), or the preceding realm in the call stack.
+One strategy is to look at the immediate caller with `cur.Previous()` inside a
+crossing function (`func F(cur realm, ...)`). The previous realm could be the EOA
+(Externally Owned Account), or the preceding realm in the call stack.
 
-Another approach is to look specifically at the EOA. For this, you should call
-`std.OriginCaller()`, which returns the public address of the account that
-signed the transaction.
-
-TODO: explain when to use `std.OriginCaller`.
+Another approach is to look specifically at the EOA with
+`unsafe.OriginCaller()` from `chain/runtime/unsafe`, which returns the public
+address of the account that signed the transaction. This is Gno's `tx.origin`,
+and it carries the same phishing risk as Solidity's well-known `tx.origin`: an
+intermediate realm the user was tricked into calling still shows up as that
+original signer. Prefer `cur.Previous()` for caller authentication; reach for
+`unsafe.OriginCaller()` only when you specifically need the signer's identity
+rather than the immediate caller's.
 
 Internally, this call will look at the frame stack, which is basically the stack
-of callers including all the functions, anonymous functions, other realms, and
-take the initial caller. This allows you to identify the original caller and
-implement access control based on their address.
+of callers, including all the functions, anonymous functions, other realms, and
+take the initial caller.
 
 Here's an example:
 
 ```go
-import "std"
+var admin address = "g1xxxxx"
 
-var admin std.Address = "g1xxxxx"
-
-func AdminOnlyFunction(_ realm) {
-	caller := std.PreviousRealm().Address()
+func AdminOnlyFunction(cur realm) {
+	caller := cur.Previous().Address()
 	if caller != admin {
 		panic("permission denied")
 	}
 	// ...
 }
 
-// func UpdateAdminAddress(_ realm, newAddr std.Address) { /* ... */ }
+// func UpdateAdminAddress(cur realm, newAddr address) { /* ... */ }
 ```
 
 In this example, `AdminOnlyFunction` is a function that can only be called by
-the admin. It retrieves the caller's address using `std.PreviousRealm().Address()`,
+the admin. It retrieves the caller's address using `cur.Previous().Address()`,
 this can be either another realm contract, or the calling user if there is no
 other intermediary realm. and then checks if the caller is the admin. If not, it
 panics and stops the execution.
@@ -606,10 +607,8 @@ the behavior of the default grc20 implementation.
 Here's an example:
 
 ```go
-import "std"
-
-func TransferTokens(_ realm, to std.Address, amount int64) {
-	caller := std.PreviousRealm().Address()
+func TransferTokens(cur realm, to address, amount int64) {
+	caller := cur.Previous().Address()
 	if caller != admin {
 		panic("permission denied")
 	}
@@ -618,66 +617,96 @@ func TransferTokens(_ realm, to std.Address, amount int64) {
 ```
 
 In this example, `TransferTokens` is a function that can only be called by the
-admin. It retrieves the caller's address using `std.PreviousRealm().Address()`, and
+admin. It retrieves the caller's address using `cur.Previous().Address()`, and
 then checks if the caller is the admin. If not, the function panics and execution is stopped.
 
 By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Using avl.Tree for efficient data retrieval
+### Prefer avl.Tree over map for scalable storage
 
-In Gno, the `avl.Tree` data structure is a powerful tool for optimizing data
-retrieval. It works by lazily resolving information, which means it only loads
-the data you need when you need it. This allows you to scale your application
-and pay less gas for data retrieval.
+An `avl.Tree` works like a `map` for storing key-value pairs. `maps` store all
+entries in one object (accessing any value loads everything), while AVL trees
+store each node separately (accessing a value loads only the search path).
+This makes `avl.Tree` significantly more efficient in both gas usage and
+runtime performance for large or growing datasets.
 
-[AVL is short for Adelson-Velsky and Landis:][avl-wiki] under the hood, it is an
-implementation of a self-balancing binary tree.
-[avl-wiki]: https://en.wikipedia.org/wiki/AVL_tree
+**Key differences**:
 
-The `avl.Tree` can be used like a map, where you can store key-value pairs and
-retrieve an entry with a simple key. However, unlike a traditional map, the
-`avl.Tree` doesn't load unnecessary data. This makes it particularly efficient
-for large data sets where you only need to access a small subset of the data at
-a time.
+- **AVL Trees**: O(log n) lookup, lazy loading, iterate in **sorted key order**.
+- **Maps**: O(1) lookup, type safety, iterate in **unspecified order**.
 
-Here's an example of how you can use `avl.Tree`:
+**Use `avl.Tree` when you need**:
+
+- Lazy loading (efficient for large datasets - only loads the search path)
+- Efficient range queries (find all keys between "bob" and "charlie")
+- Data that grows over time (user registries, leaderboards)
+- Sorted iteration by key value
+
+**Use `map` when you need**:
+
+- O(1) fast lookups
+- Small bounded datasets (e.g.: configuration values)
+- Type safety (AVL values are `any` and require type assertions)
 
 ```go
-import "avl"
+// Map example
+users := make(map[string]User)
+users["bob"] = User{}
+users["alice"] = User{}
+for name := range users { // unspecified order
+	// ...
+}
+user := users["alice"] // O(1) direct access
 
-var tree avl.Tree
+// AVL example
+var users avl.Tree
+users.Set("bob", &User{})
+users.Set("alice", &User{})
+users.Set("charlie", &User{})
 
-func GetPost(id string) *Post {
-	return tree.Get(id).(*Post)
+// Iterate all users (sorted alphabetically)
+users.Iterate("", "", func(name string, value any) bool {
+	// Order: alice, bob, charlie (sorted by key)
+	user := value.(*User) // Type assertion required - values are any
+	return false // return true to stop iteration
+})
+
+// Range query: get users from "bob" (inclusive) to "charlie" (exclusive)
+// This is O(log n + k) where k = results in range
+users.Iterate("bob", "charlie", func(name string, value any) bool {
+	// Only visits: bob (end is exclusive)
+	user := value.(*User) 
+	return false
+})
+
+// Get a specific user (O(log n))
+// Get returns nil if the key does not exist
+value := users.Get("alice")
+if value == nil {
+	return nil
+}
+return value.(*User)
+
+// Check if a key exists without retrieving the value
+if users.Has("alice") {
+	// key exists
 }
 
-func AddPost(_ realm, id string, post *Post) {
-	tree.Set(id, post)
+// Multi-index example - search the same data in different ways
+var (
+	usersById   avl.Tree // Find user by ID
+	usersByName avl.Tree // Find user by name
+)
+
+func AddUser(id, name string) {
+	usersById.Set(id, name)     // Can search by ID
+	usersByName.Set(name, id)   // Can search by name
 }
 ```
 
-In this example, `GetPost` is a function that retrieves a post from the
-`avl.Tree` using an ID. It only loads the post with the specified ID, without
-loading any other posts.
-
-In the future, we plan to add built-in "map" support that will match the
-efficiency of an `avl.Tree` while offering a more intuitive API. Until then, if
-you're dealing with a compact dataset, it's probably best to use slices.
-For larger datasets where you need to quickly retrieve elements by keys,
-`avl.Tree` is the way to go.
-
-You can also create SQL-like indexes by having multiple `avl.Tree` instances for
-different fields. For example, you can have an `avl.Tree` for ID to *post, then
-an `avl.Tree` for Tags, etc. Then, you can create reader methods that will just
-retrieve what you need, similar to SQL indexes.
-
-By using `avl.Tree` and other efficient data structures, you can optimize your
-Gno code for performance and cost-effectiveness, making your applications more
-scalable and efficient.
-
-TODO: multi-indices example
+For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
 
 ### Construct "safe" objects
 
@@ -691,13 +720,18 @@ pointer can be "stored" by other realms without issue, because it protects its
 usage completely.
 
 ```go
-type MySafeStruct {
-	counter nb
-	admin std.Address
+type MySafeStruct struct {
+	counter int
+	admin address
 }
 
-func NewSafeStruct() *MySafeStruct {
-	caller := std.PreviousRealm().Address()
+// A /p/ package cannot declare realm-first-arg crossing functions, so the
+// caller's realm is threaded as a non-first argument, the way p/nt/ownable does.
+func NewSafeStruct(_ int, rlm realm) *MySafeStruct {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	return &MySafeStruct{
 		counter: 0,
 		admin: caller,
@@ -705,8 +739,11 @@ func NewSafeStruct() *MySafeStruct {
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
-func (s *MySafeStruct) Inc(_ realm) {
-	caller := std.PreviousRealm().Address()
+func (s *MySafeStruct) Inc(_ int, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("realm handle is not the live caller")
+	}
+	caller := rlm.Previous().Address()
 	if caller != s.admin {
 		panic("permission denied")
 	}
@@ -714,15 +751,14 @@ func (s *MySafeStruct) Inc(_ realm) {
 }
 ```
 
-Then, you can register this object in another or several other realms so other
-realms can access the object, but still following your own rules.
+Then, you can register this object in one or more other realms so that they can access it, while still following your own rules.
 
 ```go
 import "gno.land/r/otherrealm"
 
-func init() {
-	mySafeObj := NewSafeStruct()
-	otherrealm.Register(mySafeObject)
+func init(cur realm) {
+	mySafeObj := NewSafeStruct(0, cur)
+	otherrealm.Register(mySafeObj)
 }
 
 // then, other realm can call the public functions but won't be the "owner" of
@@ -747,6 +783,94 @@ security.
 
 Read about how to use the Banker module [here](./gno-stdlibs.md#banker).
 
+When you only need one balance, ask for it: `GetCoin(addr, denom)` reads a single
+store key, while `GetCoins(addr)` reads every denom the address holds. That
+distinction is not just an optimization. Anyone can send any address a new denom
+without its consent, so `GetCoins` on a caller-supplied address costs whatever a
+third party decided it should — enough of them and your function can no longer be
+called at all.
+
+#### Verifying inbound Coin payments
+
+A realm that wants to charge for a function typically attaches a payment check
+like this:
+
+```go
+func BuyThing(cur realm, ...) {
+    if !cur.Previous().IsUser() {   // BAD
+        panic("must be called by a user")
+    }
+    if unsafe.OriginSend().AmountOf("ugnot") != price {
+        panic("wrong payment amount")
+    }
+    // ... do the thing ...
+}
+```
+
+This is **subtly unsafe**. `unsafe.OriginSend()` returns the coins attached to
+the *original transaction*, not the coins actually received by this realm. If
+anything runs between the tx origin and this realm's function, those coins may
+have been consumed by the intermediary. Two attacker shapes bypass the check:
+
+1. **Intermediate code realm.** User calls `r/attacker/wrapper.DoIt()` with
+   `-send 1000000ugnot`. The wrapper keeps the coins (via its own banker) and
+   then calls `BuyThing(cross(cur), ...)` on your realm. Your realm sees
+   `OriginSend() = 1000000ugnot`, the `IsUser()` check passes because... actually
+   it doesn't — `IsUser()` rejects pure code realms. Which leads to:
+
+2. **User-run ephemeral realm (`maketx run`).** The attacker writes a short
+   script and broadcasts it via `gnokey maketx run -send 1000000ugnot ...`.
+   That script runs in an ephemeral code realm at path
+   `gno.land/e/{attacker}/run`. Inside main, the script consumes the origin-send
+   envelope (via its own `BankerTypeOriginSend`) or simply does whatever it
+   wants with the coins, then calls `BuyThing(cross(cur), ...)`. Your realm sees
+   `OriginSend() = 1000000ugnot` in the envelope and `IsUser() = true` because
+   **`IsUser()` accepts both `IsUserCall()` (pure EOA) AND `IsUserRun()` (user-run
+   ephemeral realm)**. The check passes but no coins reached your realm.
+
+The fix is to use `IsUserCall()` instead of `IsUser()`:
+
+```go
+func BuyThing(cur realm, ...) {
+    if !cur.Previous().IsUserCall() {  // GOOD
+        panic("must be called directly by an EOA (maketx call)")
+    }
+    if unsafe.OriginSend().AmountOf("ugnot") != price {
+        panic("wrong payment amount")
+    }
+    // ... do the thing ...
+}
+```
+
+`IsUserCall()` returns true only when `cur.Previous().PkgPath() == ""`, i.e.
+the caller is a pure EOA. In that case the `-send` coins are guaranteed to
+have landed at this realm's address, so `OriginSend()` and receipt agree.
+
+Why the pairing matters: removing either check alone reopens the bypass.
+`OriginSend()` without the EOA guard is lying about receipt. The EOA guard
+without the amount check lets users pay nothing. Keep them together, commented
+as a pair, and ideally cover the bypass with a regression test using
+`testing.NewCodeRealm()` to simulate an intermediate attacker realm.
+
+Alternatives considered:
+
+- **`runtime.AssertOriginCall()`** — strictly enforces "direct MsgCall, no
+  intermediaries, no MsgRun". Correct, but stricter than most realms want:
+  rejects `testing.NewUserRealm`-based unit tests in some configurations and
+  blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
+  (e.g. governance-only functions).
+
+- **`banker.NewBanker(banker.BankerTypeOriginSend, cur)`** — creating this banker
+  requires `cur.Previous().PkgPath() == ""`, so it implicitly asserts EOA. But
+  it's a side-effectful assertion; if you don't need the banker itself,
+  `IsUserCall()` is clearer.
+
+- **Pulling coins from the caller** — **not possible** in current gno. Every
+  `banker.SendCoins(from, to, amt)` requires `from == pkgAddr` (your own realm's
+  address); there is no ERC-20-style `transferFrom`. Payment flow is push-only
+  via `-send`. The `OriginSend` amount check + `IsUserCall` guard is the only
+  pattern available.
+
 #### GRC20 tokens
 
 GRC20 tokens, on the other hand, are like Ethereum's ERC20 or CosmWasm's CW20.
@@ -765,17 +889,35 @@ Coins, or flexibility and control with GRC20 tokens. And if you want the
 best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 
 ```go
-import "gno.land/p/demo/tokens/grc20"
+import "gno.land/p/nt/grc20/v0"
 
-var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
+var (
+	Token         *grc20.Token
+	privateLedger *grc20.PrivateLedger
+	// Keep the teller unexported: it is a spend capability. It is built from
+	// the ledger, which never leaves this realm, and it only works here.
+	userTeller grc20.Teller
+)
 
-func MyBalance(_ realm) uint64 {
-	caller := std.PreviousRealm().Address()
-	return fooToken.BalanceOf(caller)
+func init(cur realm) {
+	Token, privateLedger = grc20.NewToken("Foo Token", "FOO", 4, 0, cur)
+	userTeller = privateLedger.CallerTeller()
+}
+
+// Transfer moves the caller's own tokens (userTeller debits cur.Previous()).
+func Transfer(cur realm, to address, amount int64) {
+	if err := userTeller.Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func MyBalance(cur realm) int64 {
+	caller := cur.Previous().Address()
+	return Token.BalanceOf(caller)
 }
 ```
 
-See also: https://gno.land/r/demo/defi/foo20
+See also: https://staging.gno.land/r/demo/defi/foo20
 
 #### Wrapping Coins
 

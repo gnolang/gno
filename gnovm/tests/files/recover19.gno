@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// recover: nil pointer dereference
+// recover: runtime error: nil pointer dereference

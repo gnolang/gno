@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/ownable"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/r/leon/hor"
 
 	"gno.land/r/ursulovic/registry"
@@ -133,26 +133,26 @@ func renderContactsUrl() string {
 }
 
 func UpdateGithubUrl(url string) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 	githubUrl = url
 }
 
 func UpdateLinkedinUrl(url string) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 	linkedinUrl = url
 }
 
 func UpdateAboutMe(text string) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 	aboutMe = text
 }
 
 func UpdateImagePrice(newPrice int64) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 	imageUpdatePrice = newPrice
 }
 
 func UpdateIsValidUrlFunction(f func(string) bool) {
-	Ownable.AssertOwnedByPrevious()
+	Ownable.AssertOwned()
 	isValidUrl = f
 }

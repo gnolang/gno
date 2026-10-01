@@ -15,4 +15,4 @@ func main() {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (w/o method): (const (ref(filetests/extern/net/http) package{})).DefaultClient.Timeout
+// main/assign0b.gno:13:2-20: cannot directly mutate filetests/extern/net/http.DefaultClient from main

@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
@@ -85,8 +86,19 @@ func (b *alertParser) Trigger() []byte {
 // regex matches alert syntax: [!(type)]-(title)
 var regex = regexp.MustCompile(`^\[!(?P<kind>[\w]+)\](?P<closed>-{0,1})($|\s+(?P<title>.*))`)
 
-// process checks if the current line matches alert syntax
-// Returns true if it's a valid alert line and the number of bytes to advance
+// process checks if the current line matches alert syntax. It returns whether
+// a `>` marker is there and the offset, FROM THE START OF THE LINE, of the
+// first byte after the marker — the offset Open slices the line at to test the
+// `[!KIND]` regex. Counting from the line start rather than from the marker is
+// what lets an indented (up to three columns, per CommonMark) or padded marker
+// open an alert; `pos` is also exactly the right argument for reader.Advance,
+// which spends reader padding before it touches real bytes.
+//
+// This MUST NOT mutate the reader. Open calls it before the `[!KIND]` regex
+// decides whether the line is an alert at all, and a block parser that
+// declines to open has to leave the reader exactly as it found it —
+// otherwise the parser that handles the line next inherits the change. See
+// consumeMarker for why a stray padding is not survivable.
 func (b *alertParser) process(reader text.Reader) (bool, int) {
 	line, _ := reader.PeekLine()
 	w, pos := util.IndentWidth(line, reader.LineOffset())
@@ -94,20 +106,51 @@ func (b *alertParser) process(reader text.Reader) (bool, int) {
 		return false, 0
 	}
 
-	advanceBy := 1
+	pos++
 
-	if pos+advanceBy >= len(line) || line[pos+advanceBy] == '\n' {
-		return true, advanceBy
+	if pos >= len(line) || line[pos] == '\n' {
+		return true, pos
 	}
-	if line[pos+advanceBy] == ' ' || line[pos+advanceBy] == '\t' {
-		advanceBy++
-	}
-
-	if line[pos+advanceBy-1] == '\t' {
-		reader.SetPadding(2)
+	if line[pos] == ' ' || line[pos] == '\t' {
+		pos++
 	}
 
-	return true, advanceBy
+	return true, pos
+}
+
+// consumeMarker consumes the `>` marker at the current reader position, plus
+// one following space or tab, and reports whether a marker was there. It
+// mirrors goldmark's blockquoteParser.process byte for byte, deliberately:
+// the two parsers share the `>` trigger and alternate on nested `>` lines, so
+// they have to agree on how far a marker advances the reader.
+//
+// The tab arithmetic is the part that matters. A tab is consumed and the
+// REMAINDER of the tab stop is handed back as reader padding. Setting a fixed
+// padding without consuming the tab instead leaves the reader pinned: padding
+// units absorb the blockquote parser's own Advance calls, so
+// parser.openBlocks re-opens a blockquote on the same byte and loops,
+// appending an ast.Blockquote every pass until memory runs out. `>>>>>` plus a
+// tab was enough to do it.
+func consumeMarker(reader text.Reader) bool {
+	line, _ := reader.PeekLine()
+	w, pos := util.IndentWidth(line, reader.LineOffset())
+	if w > 3 || pos >= len(line) || line[pos] != '>' {
+		return false
+	}
+	pos++
+	if pos >= len(line) || line[pos] == '\n' {
+		reader.Advance(pos)
+		return true
+	}
+	reader.Advance(pos)
+	if line[pos] == ' ' || line[pos] == '\t' {
+		padding := 0
+		if line[pos] == '\t' {
+			padding = util.TabWidth(reader.LineOffset()) - 1
+		}
+		reader.AdvanceAndSetPadding(1, padding)
+	}
+	return true
 }
 
 const (
@@ -140,18 +183,25 @@ func parseAlertType(kind string) (AlertType, string) {
 
 // Open creates a new Alert node when alert syntax is detected
 func (b *alertParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	ok, advanceBy := b.process(reader)
+	ok, markerEnd := b.process(reader)
 	if !ok {
 		return nil, parser.NoChildren
 	}
 
 	line, _ := reader.PeekLine()
-	if len(line) <= advanceBy {
+	if len(line) <= markerEnd {
 		return nil, parser.NoChildren
 	}
 
-	subline := line[advanceBy:]
+	subline := line[markerEnd:]
 	if !regex.Match(subline) {
+		return nil, parser.NoChildren
+	}
+
+	// Cross-family nesting cap (shared with gno-foreign, gno-columns).
+	// On refusal, return nil so the `>` line falls through to the
+	// blockquote parser.
+	if !Push(pc) {
 		return nil, parser.NoChildren
 	}
 
@@ -167,26 +217,29 @@ func (b *alertParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	alert.SetAttributeString("alertType", alertType)
 	alert.SetAttributeString("closed", len(closed) != 0)
 
-	i := strings.Index(string(line), "]")
-	reader.Advance(i)
+	// Advance to the `]` that closes `[!KIND]` so alertHeaderParser (trigger
+	// `]`) takes over. Offset it from markerEnd, inside the subline the regex
+	// actually matched, rather than searching the whole line.
+	reader.Advance(markerEnd + bytes.IndexByte(subline, ']'))
 
 	return alert, parser.HasChildren
 }
 
 // Continue processes subsequent lines of an alert block
 func (b *alertParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
-	ok, advanceBy := b.process(reader)
-	if !ok {
+	if !consumeMarker(reader) {
 		return parser.Close
 	}
 
-	reader.Advance(advanceBy)
 	return parser.Continue | parser.HasChildren
 }
 
-// Close is called when the alert block ends
+// Close is called when the alert block ends. Pop the cross-family
+// depth counter, matching the Push from Open. Goldmark calls Close
+// exactly once per successfully-opened block (whether terminated
+// normally or at EOF), so this pairs 1:1 with Open's Push.
 func (b *alertParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
-	// nothing to do
+	Pop(pc)
 }
 
 // CanInterruptParagraph indicates if this parser can interrupt a paragraph
@@ -276,17 +329,23 @@ func (b *alertHeaderParser) Open(parent ast.Node, reader text.Reader, pc parser.
 		reader.Advance(1)
 	}
 
-	_, segment := reader.Position()
 	line, _ := reader.PeekLine()
 
-	w, _ := util.IndentWidth(line, reader.LineOffset())
-	reader.Advance(w)
+	// Advance by BYTE position, not by indent WIDTH. A tab between `]` and
+	// the title has width 1-4 but occupies one byte, so advancing by the
+	// width eats title bytes (`> [!NOTE]\ttitle` rendered as `tle`).
+	_, pos := util.IndentWidth(line, reader.LineOffset())
+	reader.Advance(pos)
 
-	_, segment = reader.Position()
+	_, segment := reader.Position()
 	line, _ = reader.PeekLine()
 
-	if len(line) > 0 && line[len(line)-1] == '\n' {
-		segment.Stop = segment.Stop - 1
+	// Drop the line terminator. Trimming only `\n` leaves a CRLF source with a
+	// lone `\r`, which counts as a title and suppresses the default kind label,
+	// so `> [!NOTE]\r\n` renders an empty <summary>. Subtract the bytes trimmed
+	// rather than recomputing Stop, so any reader padding stays accounted for.
+	if trimmed := bytes.TrimRight(line, "\r\n"); len(trimmed) != len(line) {
+		segment.Stop -= len(line) - len(trimmed)
 	}
 
 	alert := NewAlertHeader()

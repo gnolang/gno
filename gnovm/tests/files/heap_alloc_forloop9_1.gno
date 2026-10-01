@@ -16,7 +16,7 @@ func main() {
 }
 
 // Preprocessed:
-// file{ package main; func Search(n (const-type int), f func(.arg_0 (const-type int)) .res.0 (const-type bool)) .res.0 (const-type int) { f<VPBlock(1,1)>((const (1 int))); return (const (0 int)) }; func main() { for x<!~VPBlock(1,0)> := (const (0 int)); x<~VPBlock(1,0)> < (const (2 int)); x<~VPBlock(1,0)>++ { count<!~VPBlock(1,1)> := (const (0 int)); (const (println func(...interface {})))((const (" first: count: " string)), count<~VPBlock(1,1)>); Search<VPBlock(4,0)>((const (1 int)), func func(i (const-type int)) .res.0 (const-type bool){ count<~VPBlock(1,2)>++; return (const-type bool)(i<VPBlock(1,0)> >= x<~VPBlock(1,3)>) }<count<()~VPBlock(1,1)>, x<()~VPBlock(1,0)>>); (const (println func(...interface {})))((const ("second: count: " string)), count<~VPBlock(1,1)>) } } }
+// file{ package main; func Search(n (const-type int), f func(.arg_0 (const-type int)) .res.0 (const-type bool)) .res.0 (const-type int) { f<VPBlock(1,1)>((const (1 int))); return (const (0 int)) }; func main() { for x.loopvar<!~VPBlock(1,0)> := (const (0 int)); x.loopvar<~VPBlock(1,0)> < (const (2 int)); x.loopvar<~VPBlock(1,0)>++ { count<!~VPBlock(1,1)> := (const (0 int)); (const (println func(...interface {})))((const (" first: count: " string)), count<~VPBlock(1,1)>); Search<VPBlock(4,0)>((const (1 int)), func func(i (const-type int)) .res.0 (const-type bool){ count<~VPBlock(1,2)>++; return (const-type bool)(i<VPBlock(1,0)> >= x.loopvar<~VPBlock(1,3)>) }<count<()~VPBlock(1,1)>, x.loopvar<()~VPBlock(1,0)>>); (const (println func(...interface {})))((const ("second: count: " string)), count<~VPBlock(1,1)>) } } }
 
 // Output:
 //  first: count:  0

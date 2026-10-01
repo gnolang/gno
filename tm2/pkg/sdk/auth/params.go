@@ -6,7 +6,9 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -25,6 +27,10 @@ const (
 
 	DefaultFeeCollectorName string = "fee_collector"
 )
+
+// MaxGasPriceComponent caps governance and dynamic gas price components at
+// 10^12, keeping calcBlockGasPrice arithmetic safely within int64 range.
+const MaxGasPriceComponent int64 = 1_000_000_000_000
 
 // Params defines the parameters for the auth module.
 type Params struct {
@@ -99,6 +105,18 @@ func (p Params) Validate() error {
 	if p.TxSigLimit <= 0 {
 		return fmt.Errorf("invalid tx signature limit: %d", p.TxSigLimit)
 	}
+	// TxSigLimit bounds the leaves a transaction may present; multisig's
+	// MaxTotalKeys bounds the whole key, and is a compile-time constant this
+	// parameter cannot raise. A key spending L leaves and branching at every
+	// level is L leaves plus at most L-1 threshold keys above them, so a limit
+	// past that admits keys the signature check then rejects with
+	// ErrInvalidPubKey — a shape the chain's own limit permits and its verifier
+	// refuses. Reject the desynchronised parameter rather than the keys.
+	if maxLeaves := int64((multisig.MaxTotalKeys + 1) / 2); p.TxSigLimit > maxLeaves {
+		return fmt.Errorf(
+			"invalid tx signature limit: %d exceeds %d, the most leaves multisig.MaxTotalKeys (%d) admits",
+			p.TxSigLimit, maxLeaves, multisig.MaxTotalKeys)
+	}
 	if p.SigVerifyCostED25519 <= 0 {
 		return fmt.Errorf("invalid ED25519 signature verification cost: %d", p.SigVerifyCostED25519)
 	}
@@ -116,6 +134,44 @@ func (p Params) Validate() error {
 	}
 	if p.FeeCollector.IsZero() {
 		return fmt.Errorf("invalid fee collector, cannot be empty")
+	}
+	gp := p.InitialGasPrice
+	// A gas price is either unset -- the value DefaultParams uses to leave
+	// pricing disabled -- or a genuine ratio with both components positive.
+	//
+	// "Unset" has to mean "both components are zero" rather than equality with
+	// std.GasPrice{}, because the params store is lossy for a zero amount: it
+	// marshals a Coin through Coin.String(), which renders "" and drops the
+	// denom. A price written as {Gas: 1000, Price: 0ugnot} reads back as
+	// {Gas: 1000, Price: {Denom: "", Amount: 0}}, so a struct-equality test
+	// accepts it on the way in and rejects it on the way out. WillSetParam
+	// re-validates the whole struct it reads from the store, so that asymmetry
+	// would panic every later write to any auth param, and ExportGenesis would
+	// emit a genesis the node then refuses to load.
+	unset := gp.Gas == 0 && gp.Price.Amount == 0
+	if !unset {
+		// Each degenerate half is a trap on its own. Gas == 0 makes
+		// std.GasPrice.IsGTE error out on every fee comparison, so no
+		// transaction can be priced at all. Price.Amount == 0 pins the block gas
+		// price at zero for good: calcBlockGasPrice returns early on a zero
+		// amount and nothing outside InitChainer ever writes a nonzero one back,
+		// so a later proposal restoring a real price cannot take effect.
+		if gp.Gas <= 0 || gp.Price.Amount <= 0 {
+			return fmt.Errorf(
+				"invalid initial gas price: gas and price amount must both be positive, got %d gas and %d",
+				gp.Gas, gp.Price.Amount)
+		}
+		// Shape only. tm2 is the generic framework and does not know which
+		// denomination the chain it is hosting collects fees in -- genesis names
+		// it, the chain's own genesis validation asserts it (see
+		// gnoland.validateAuthGenesis), and WillSetParam below keeps governance
+		// from moving it afterwards.
+		if err := std.ValidateDenom(gp.Price.Denom); err != nil {
+			return fmt.Errorf("invalid initial gas price: %w", err)
+		}
+		if gp.Gas > MaxGasPriceComponent || gp.Price.Amount > MaxGasPriceComponent {
+			return fmt.Errorf("invalid initial gas price: gas and price amount must not exceed %d", MaxGasPriceComponent)
+		}
 	}
 	return nil
 }
@@ -147,23 +203,66 @@ func (ak AccountKeeper) SetParams(ctx sdk.Context, params Params) error {
 
 func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	params := Params{}
-	ak.prmk.GetStruct(ctx, "p", &params)
+	// Bypass store-side gas metering for module config reads — these
+	// are bootstrap-frequency, in-cache after the first hit, and the
+	// caller (AnteHandler/handlers) hasn't necessarily applied the
+	// gas config that we'd be metering against yet.
+	ak.prmk.GetStruct(ctx.WithGasMeter(nil), "p", &params)
 	return params
 }
 
-// WillSetParam defines what needs to be done when the parameter is set.
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
-	logger := ak.Logger(ctx)
+	params := ak.GetParams(ctx)
 	switch key {
-	case "p:unrestricted_addrs":
-		addrs, ok := value.([]string)
-		if !ok {
-			return
+	case "p:max_memo_bytes":
+		params.MaxMemoBytes = sdkparams.MustParamInt64("max_memo_bytes", value)
+	case "p:tx_sig_limit":
+		params.TxSigLimit = sdkparams.MustParamInt64("tx_sig_limit", value)
+	case "p:tx_size_cost_per_byte":
+		params.TxSizeCostPerByte = sdkparams.MustParamInt64("tx_size_cost_per_byte", value)
+	case "p:sig_verify_cost_ed25519":
+		params.SigVerifyCostED25519 = sdkparams.MustParamInt64("sig_verify_cost_ed25519", value)
+	case "p:sig_verify_cost_secp256k1":
+		params.SigVerifyCostSecp256k1 = sdkparams.MustParamInt64("sig_verify_cost_secp256k1", value)
+	case "p:gas_price_change_compressor":
+		params.GasPricesChangeCompressor = sdkparams.MustParamInt64("gas_price_change_compressor", value)
+	case "p:target_gas_ratio":
+		params.TargetGasRatio = sdkparams.MustParamInt64("target_gas_ratio", value)
+	case feeCollectorPath:
+		s := sdkparams.MustParamString("fee_collector", value)
+		addr, err := crypto.AddressFromString(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid fee_collector address: %v", err))
 		}
+		params.FeeCollector = addr
+	case "p:initial_gasprice":
+		s := sdkparams.MustParamString("initial_gasprice", value)
+		gp, err := std.ParseGasPrice(s)
+		if err != nil {
+			panic(fmt.Sprintf("invalid initial_gasprice: %v", err))
+		}
+		// Governance may move the price, but not the denomination it is quoted
+		// in. std.GasPrice.IsGTE refuses to compare prices across denoms, so a
+		// switch makes EnsureSufficientMempoolFees reject every transaction --
+		// including the proposal that would switch it back, which is why this
+		// has to be caught before the write rather than repaired after it. The
+		// denom is whatever genesis chose; a price that is still unset has none
+		// to preserve, so first enabling pricing is free to pick one.
+		if cur := params.InitialGasPrice; cur.Gas != 0 || cur.Price.Amount != 0 {
+			if gp.Price.Denom != cur.Price.Denom {
+				panic(fmt.Sprintf("invalid initial_gasprice: denomination must stay %q, got %q",
+					cur.Price.Denom, gp.Price.Denom))
+			}
+		}
+		params.InitialGasPrice = gp
+	case "p:unrestricted_addrs":
+		addrs := sdkparams.MustParamStrings("unrestricted_addrs", value)
 		ak.applyUnrestrictedAddrsChange(ctx, addrs)
 	default:
-		// No-op for unrecognized keys
-		logger.Error("No-op for unrecognized keys", "key", key)
+		panic(fmt.Sprintf("unknown auth param key: %q", key))
+	}
+	if err := params.Validate(); err != nil {
+		panic("invalid param: " + err.Error())
 	}
 }
 

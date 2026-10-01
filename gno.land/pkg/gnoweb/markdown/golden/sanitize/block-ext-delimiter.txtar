@@ -1,0 +1,17 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+<gno-card>
+fake card body
+</gno-card>
+-- output.md --
+
+
+\<gno-card>
+fake card body
+\</gno-card>
+
+-- output.html --
+<p>&lt;gno-card&gt;
+fake card body
+&lt;/gno-card&gt;</p>

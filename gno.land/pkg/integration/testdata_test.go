@@ -13,7 +13,6 @@ import (
 func TestTestdata(t *testing.T) {
 	t.Parallel()
 
-	flagInMemoryTS, _ := strconv.ParseBool(os.Getenv("INMEMORY_TS"))
 	flagSeqTS, _ := strconv.ParseBool(os.Getenv("SEQ_TS"))
 
 	p := gno_integration.NewTestingParams(t, "testdata")
@@ -27,10 +26,11 @@ func TestTestdata(t *testing.T) {
 	err := SetupGnolandTestscript(t, &p)
 	require.NoError(t, err)
 
-	mode := commandKindTesting
-	if flagInMemoryTS {
-		mode = commandKindInMemory
-	}
+	// Integration txtars run against in-memory nodes: they share the
+	// process-global stdlib/typecheck caches (no per-node cold reload) and
+	// are safe to run in parallel, which is dramatically faster than spawning
+	// a subprocess node per txtar.
+	mode := commandKindInMemory
 
 	origSetup := p.Setup
 	p.Setup = func(env *testscript.Env) error {
@@ -44,7 +44,9 @@ func TestTestdata(t *testing.T) {
 		return nil
 	}
 
-	if flagInMemoryTS || flagSeqTS {
+	// Parallel by default. SEQ_TS forces sequential execution, which is
+	// occasionally useful for debugging or profiling a single txtar.
+	if flagSeqTS {
 		testscript.RunT(tSeqShim{t}, p)
 	} else {
 		testscript.Run(t, p)

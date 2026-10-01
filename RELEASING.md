@@ -1,0 +1,280 @@
+# RELEASING.md
+
+> For contributors, see [CONTRIBUTING.md](CONTRIBUTING.md). This document
+> covers internal processes for those with merge access.
+
+---
+
+## Three versions, not one
+
+A gno.land release moves three independent version surfaces. Confusing them is
+the source of most release incidents, so they are named separately here.
+
+| Surface | Where it lives | What it controls | When it moves |
+|---|---|---|---|
+| **Release version** | a git tag, compiled into `tm2/pkg/version.Version` via `-ldflags` | what `gnoland version` reports, and what a governance `halt_min_version` is compared against | every release |
+| **Protocol version** | six constants under `tm2/`, see [Protocol versions](#protocol-versions) | the versionset exchanged in the p2p handshake; peers whose MAJOR differs cannot connect | rarely, and never on its own |
+| **App version** | `baseApp.SetAppVersion` in `gno.land/pkg/gnoland/app.go` | the `app` entry of the versionset, persisted onto consensus state at the ABCI handshake | rarely |
+
+Only the first is what people usually mean by "the version". The tooling in
+[`misc/release/`](misc/release) covers the first two: `cut-release.sh` for the
+release version, `bump-protocol-version.sh` for the protocol constants. The app
+version is the literal `SetAppVersion("dev")` in `app.go` and is edited by hand.
+
+## Versioning & branching
+
+Releases are cut when they provide meaningful value for users to
+install/upgrade, or when the network needs to coordinate an upgrade — not on
+every commit.
+
+**Semver:** `vMAJOR.MINOR.PATCH`
+
+| Component | Meaning |
+|-----------|---------|
+| **MAJOR** | A new network: a chain reset with an incompatible genesis, where state does not carry over. |
+| **MINOR** | A coordinated upgrade of the current network — consensus change, state migration, new module, protocol change. Validators must halt together. |
+| **PATCH** | A backward-compatible change that needs no coordination. Operators switch binaries whenever convenient. |
+
+**If a change alters the bytes nodes agree on, it is at least a MINOR**, whatever
+it looks like otherwise. A one-line fix to the signing payload is a coordinated
+upgrade; a thousand-line refactor of `gnoweb` is a patch. `cut-release.sh` warns
+when a range tagged as a patch contains commits marked `feat!:`/`BREAKING`, but
+the judgement is yours.
+
+### The `v` line is continuous across networks
+
+`v1.0.0` and `v1.1.0` are betanet's — the same two commits as
+`chain/gnoland1.0` and `chain/gnoland1.1`. They were deleted upstream for a
+while and have been restored at their original commits.
+
+The line continues rather than restarting: mainnet's launch is `v1.2.0`. A tag
+name is never reused for different content, which is also why restoring a
+deleted tag is only safe at the commit it originally pointed to — anyone still
+holding the old ref then has an identical one.
+
+### Branches and tags
+
+| Branch | Tags | Purpose |
+|--------|------|---------|
+| `master` | none | Continuous integration; the development tree |
+| `chain/mainnet` | `v1.x.x`, plus the `chain/mainnet` launch tag | Mainnet (`gnoland-1`) — coordinated upgrades only, never rebased |
+| `chain/gnoland1` | `chain/gnoland1.0`, `chain/gnoland1.1` | Retired. Frozen at what betanet ran; the tags keep their original names because they are compiled into those binaries. The branch is to be renamed `chain/betanet` — until it is, `--chain betanet` has no branch to resolve |
+| *(none)* | `chain/<name>` | A testnet on the mainnet line, onyx first: it runs mainnet's `vX.Y.Z` binaries, so it has no branch. Its launch tag sits on the commit of the version it launched on (its folder `misc/deployments/<name>.gno.land/` lands on `chain/mainnet` before that version is cut), and the tag's release carries its `genesis.json` |
+| `chain/pearl`, `chain/test13`, … | `chain/<name>` | Earlier testnets, each on its own code line. Frozen |
+
+Two tag shapes exist, and the node parses both
+(`gno.land/pkg/gnoland.meetsMinVersion`):
+
+- **`vMAJOR.MINOR.PATCH`** — the release shape. Ordered, so it can gate an
+  upgrade. This is what new releases use.
+- **`chain/gnolandMAJOR.MINOR`** — betanet's retired shape. Still parsed, because
+  those two tags are the version strings inside binaries that once ran a chain.
+
+A bare `chain/<name>` tag — `chain/mainnet`, `chain/pearl` — marks where a chain
+launched and carries its `genesis.json` as a release asset. It is **not a
+version**: it does not order, so it cannot be used as a `halt_min_version`. Name
+a `vX.Y.Z` tag there instead.
+
+**Tagging rules.** Tags are immutable: never move one, and never reuse a name.
+New tags are annotated (`git tag -a`), so plain `git describe` finds them;
+`v1.0.0` predates the rule and is lightweight, which is one reason every
+`describe` in the tree passes `--tags --match 'v*'` — the other being that a
+release commit also carries the chain's launch tag, which is not a version.
+Pre-release tags (`v1.3.0-rc.1`) are allowed; they sort *below* the release they
+lead to, and are published as GitHub pre-releases so they do not become the
+"Latest" release operators and `misc/install.sh` land on.
+
+### Chain branches are not master
+
+`master` is the development tree. A `chain/*` branch is what a network actually
+runs, and the two are not the same thing:
+
+- Everything on a chain branch must also be on `master`. The chain must not run
+  code the development tree has never seen. `cut-release.sh` checks this.
+- `master` may be ahead, and usually is. That is fine and expected.
+- **A chain branch moves only when a release is cut, and every move is
+  tagged.** Whether a release merges `master` or cherry-picks a set of PRs is
+  decided per release and written in the tag message. A merge that touches
+  consensus code is refused by `cut-release.sh` unless `--allow-merge` says the
+  operator knows it ships everything `master` had. Between releases the branch
+  tip is the latest tag, plus at most a documentation commit, so an operator
+  can check it out blindly.
+- **Where this ends up.** Merging `master` is the natural default while mainnet
+  tracks it closely. The day `master` carries work mainnet must not ship yet,
+  the default flips to cherry-picking and the branch becomes a maintained
+  release line in the Cosmos SDK / CometBFT sense: `release/vX.Y.x`, never
+  merged from `master`, every change a labelled backport. Set that up the
+  first time a hotfix must ship while `master` is mid-refactor — before, not
+  during.
+
+## Cutting a release
+
+```sh
+# dry run: every check, no push
+misc/release/cut-release.sh v1.3.0
+
+# a coordinated upgrade: also prints the GovDAO halt proposal to go with it
+misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
+```
+
+The script checks that a tag would work as a release, and each check
+corresponds to something that has gone wrong before. All but one are refusals:
+
+1. **The version shape parses.** A tag the node cannot parse degrades
+   `halt_min_version` to byte equality, which refuses the very binary the
+   upgrade was cut for — and the chain cannot restart at all.
+2. **The tag is free**, locally and on origin.
+3. **The commit is on `master`**, or differs only under `misc/deployments/`.
+   A *warning*, not a refusal: a squash-merged commit shows up as missing even
+   though its content landed, so the operator has to read the list. Two
+   refusals sit next to it: a **merge of `master` that touches consensus code**
+   needs `--allow-merge`, and a **breaking commit in a PATCH range** is refused
+   outright — a consensus change is a MINOR.
+4. **The protocol-version constants agree** (see below).
+5. **The built binary reports the tag.** Built the way CI builds it, then asked.
+6. **The upgrade ledger has an entry for the version**
+   (`misc/deployments/<chain>.gno.land/upgrades.json`). A release candidate
+   only warns, since it rehearses the final version's entry; a final release
+   without one is refused.
+   Mainnet's launch-day binaries were hand-built without the `-ldflags`: they
+   reported `develop`, satisfied no `halt_min_version`, and were not
+   reproducible from the tag, until the `v1.2.0` release replaced them; this
+   check is what catches that class of mistake before validators download it.
+
+Pushing a `v*` tag triggers
+[`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
+the four platforms, asserts each native binary carries the tag, and attaches
+them to the release. It also triggers
+[`release / docker`](.github/workflows/release-docker.yml), which publishes the
+matching images to `ghcr.io/gnolang/gno/*`. A `chain/<name>` launch tag
+triggers nothing: its release is the genesis record, created by hand with the
+`genesis.json` and its checksums attached, and no binaries.
+
+**Do not hand-upload release binaries** — an artifact built outside CI is not
+reproducible from the tag and generally lacks the `-ldflags` that give it a
+version at all. Note that `-ldflags` is only recorded in `go version -m` output
+for builds without `-trimpath`, so its absence there is not on its own evidence
+of a hand-built binary; the binary's own `version` output is.
+
+### Rehearse on the testnet first
+
+The testnet runs the same binary as mainnet; only the genesis balances and the
+on-chain transactions differ. Every mainnet release is therefore first cut as
+a release candidate on the same commit (`cut-release.sh v1.6.0-rc.1 --push`),
+deployed to the testnet through the operator procedure (`set-halt` naming the
+rc, validators switch at the height), and checked there: the halt fires, an
+early start is refused, blocks are produced after the restart, a fresh node
+syncs from genesis with the rc. A fix means a new commit and `rc.2`. Only then
+is the final tag cut, on the same commit as the last rc.
+
+### Container images
+
+`release / docker` publishes `ghcr.io/gnolang/gno/<tool>:vX.Y.Z` for every
+`v*` tag, release candidates included, and never re-pushes a version tag. The
+four CLI tools — `gno`, `gnokey`, `gnodev`, `gnoweb` — also get `latest`, and
+only when the tag is the *highest* final release, so a backport cut after a
+newer line never moves `latest` backwards. GitHub's "Latest" release marker and
+`misc/install.sh`'s default follow the same rule, by version order rather than
+by creation date. `gnoland` deliberately has no floating tag: a node image
+that moves by itself is incompatible with a coordinated upgrade, because a
+validator restarting for an unrelated reason between "release built" and
+"halt height" would pull the new binary, and the node would refuse to start it
+until the halt. Operators pin the version the halt proposal names. Images are
+built from tags, not from branch pushes; `:master` images are development
+builds whose version does not parse.
+
+### Release pages and the upgrade ledger
+
+Two kinds of release page, one job each:
+
+- `chain/<name>` is the genesis record: `genesis.json`, its `.gz`, their
+  checksums, and a description of the chain at birth. Frozen; no binaries.
+- `vX.Y.Z` is a binary you can run: the CI-built binaries and `CHECKSUMS.txt`,
+  the halt height and `halt_min_version` of the upgrade that made it live, the
+  eight image URLs, and the changelog.
+
+`misc/deployments/<chain>/upgrades.json` is the ledger: one entry per version
+the network has run — the genesis, one per coordinated halt, and one per
+rolling patch (`kind: rolling`: no halt, no floor, no proposal, same MINOR as
+its predecessor) — with commit, halt height and time, `halt_min_version`,
+GovDAO proposal, image digest, and a per-platform map of binary downloads with
+checksums. The format is
+[`misc/deployments/upgrades/upgrades.schema.json`](misc/deployments/upgrades/upgrades.schema.json);
+the rules — chain order, one genesis, versions the node can order, `null` for a
+fact that has not happened yet and never `""` — are enforced by
+`gno.land/pkg/upgrades`, whose tests validate every ledger in the tree and
+check that the `UPGRADES.md` next to it is current:
+
+```sh
+go run ./misc/deployments/upgrades render misc/deployments/mainnet.gno.land   # after editing the JSON
+go run ./misc/deployments/upgrades check  misc/deployments/mainnet.gno.land   # what CI runs
+```
+
+Add the entry when cutting the release, fill in the digest once the image is
+built and the halt time once the halt has happened, render, and port both files
+to `master`. A testnet's ledger names what it ran, release candidates included.
+Every halt proposal names the version being released — `set-halt.sh` refuses a
+value the node cannot parse, and an empty one leaves the restart gate off.
+
+### Coordinated upgrades
+
+For a MINOR bump, the release is only half of it: validators have to stop at the
+same height and come back on the new binary. `--halt-height` prints the GovDAO
+proposal to go with the tag, with `halt_min_version` set to the tag being cut,
+and the command that creates it:
+
+```sh
+misc/deployments/mainnet.gno.land/govdao set-halt 120000 v1.3.0
+```
+
+The mechanism, the failure modes, and what a halt looks like in the logs are
+documented in [`gno.land/cmd/gnoland/UPGRADES.md`](gno.land/cmd/gnoland/UPGRADES.md).
+
+### Hotfix
+
+A critical fix that cannot wait for the `master`-first flow: commit on the
+`chain/` branch, tag, deploy, and **back-port to `master` immediately**. The
+back-port is the part that gets skipped, and it is the part that matters — until
+it lands, the chain is running code nobody can review on `master`.
+
+## Protocol versions
+
+The protocol version is one value living in six files, split that way to avoid
+import cycles rather than because the parts may differ:
+
+| File | Constant |
+|---|---|
+| `tm2/pkg/crypto/version.go` | `Version` |
+| `tm2/pkg/bft/abci/version/version.go` | `Version` |
+| `tm2/pkg/bft/blockchain/version/version.go` | `Version` |
+| `tm2/pkg/bft/types/version/version.go` | `BlockVersion` |
+| `tm2/pkg/p2p/version/version.go` | `Version` |
+| `tm2/pkg/bft/version/version.go` | `Version` |
+
+Each guards the next in an `init()`, so a bump that misses one panics every node
+at startup. Move them together:
+
+```sh
+misc/release/bump-protocol-version.sh --check   # are they consistent?
+misc/release/bump-protocol-version.sh v1.0.0    # move all six
+```
+
+`TestProtocolVersionsAgree` in `tm2/pkg/bft/version/version_test.go` is what
+fails in CI if they drift.
+
+**A MAJOR bump here partitions the network.** `VersionSet.CompatibleWith`
+compares major.minor and refuses a peer whose major differs, so old and new
+nodes cannot gossip — independently of any halt height. It must ride a
+coordinated upgrade, with every validator switching at the same block.
+`TestVersionSetCompatibleWith` covers the refusal and the negotiated minor;
+treat a MAJOR bump as needing a rehearsal on a testnet anyway.
+
+These constants have never been bumped: they still read `v1.0.0-rc.0`, the value
+they were given in 2023. Mainnet launched on it.
+
+## New network
+
+A chain reset with an incompatible genesis. Create `chain/<name>` from the new
+genesis commit, tag `vMAJOR.0.0`, and cut a `chain/<name>` launch tag carrying
+`genesis.json`. The previous line keeps receiving patches on its own branch,
+LTS-style, until it is retired.
