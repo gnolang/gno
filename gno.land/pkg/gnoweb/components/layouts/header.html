@@ -54,10 +54,10 @@ LAYOUT - Header component
 
         <!-- Network Info Popup -->
 
-        <input type="checkbox" id="searchbar-server-popup-toggle" class="b-popup u-sr-only" aria-expanded="false" />
+        <input type="checkbox" id="searchbar-server-popup-toggle" class="b-popup u-sr-only" tabindex="-1" aria-hidden="true" />
         <label for="searchbar-server-popup-toggle" class="b-popup-bg"></label>
 
-        <div class="b-popup-dialog" role="dialog" aria-labelledby="network-info-title" aria-modal="true">
+        <div class="b-popup-dialog" id="network-info-popup" role="dialog" aria-labelledby="network-info-title" aria-modal="true">
           <div class="inner">
             <header>
               <span id="network-info-title">Network Info</span>
@@ -94,7 +94,7 @@ LAYOUT - Header component
         <!-- Ask AI Popup: after Network Info so each open dialog covers both toggles,
              wrapped so the "~" popup rules of one never reach the other -->
         <div class="ai-popup">
-          <input type="checkbox" id="ai-popup-toggle" class="b-popup u-sr-only" aria-expanded="false" />
+          <input type="checkbox" id="ai-popup-toggle" class="b-popup u-sr-only" tabindex="-1" aria-hidden="true" />
           <label for="ai-popup-toggle" class="b-popup-bg"></label>
 
           <div class="b-popup-dialog" id="ai-popup" role="dialog" aria-labelledby="ai-popup-title" aria-modal="true">
