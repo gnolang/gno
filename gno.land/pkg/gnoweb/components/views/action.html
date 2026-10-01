@@ -102,10 +102,10 @@ UI - Help Function component
             <span>Ask AI</span>
           </summary>
           <span class="b-ai-func__menu">
-            <a class="c-with-icon" href="{{ .Claude }}" target="_blank" rel="noopener noreferrer"
-              data-outbound="claude">Claude<svg class="c-icon" aria-hidden="true"><use href="#ico-external-link"></use></svg></a>
-            <a class="c-with-icon" href="{{ .ChatGPT }}" target="_blank" rel="noopener noreferrer"
-              data-outbound="chatgpt">ChatGPT<svg class="c-icon" aria-hidden="true"><use href="#ico-external-link"></use></svg></a>
+            {{ range .Links }}
+            <a class="c-with-icon" href="{{ .URL }}" target="_blank" rel="noopener noreferrer"
+              data-outbound="{{ .Outbound }}">{{ .Name }}<svg class="c-icon" aria-hidden="true"><use href="#ico-external-link"></use></svg></a>
+            {{ end }}
           </span>
         </details>
         {{ end }}
