@@ -387,6 +387,36 @@ func TestOversizedResponseIsRefusedBeforeDecoding(t *testing.T) {
 	}
 }
 
+// A band that fails after earlier ones found rows returns those rows: they
+// are the newest, and a reader is better served by them than by an error.
+func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":100000}}`)
+			return
+		}
+		bands++
+		if bands == 1 {
+			respond(w, `{"data":{"getTransactions":[{"hash":"newest"}]}}`)
+			return
+		}
+		w.WriteHeader(http.StatusBadGateway)
+	})
+
+	txs, err := c.RecentByPackage(context.Background(), "gno.land/r/demo/boards", 5)
+	if err != nil {
+		t.Fatalf("RecentByPackage: %v, want the first band's rows", err)
+	}
+	if len(txs) != 1 || txs[0].Hash != "newest" {
+		t.Fatalf("txs = %+v, want the first band's row", txs)
+	}
+}
+
 // likeValues pulls every `like: "..."` literal back out of a query, decoded
 // the way the indexer reads it.
 func likeValues(t *testing.T, q string) []string {

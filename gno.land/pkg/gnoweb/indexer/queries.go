@@ -306,6 +306,11 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 			// before the cap are the newest in this band.
 			return trim(append(found, out.Txs...), need), nil
 		default:
+			// A wide band timing out costs the rows the narrower ones
+			// already found; those are still the newest, so keep them.
+			if len(found) > 0 {
+				return trim(found, need), nil
+			}
 			return nil, err
 		}
 
