@@ -177,8 +177,11 @@ func TestIndexLayout_AskAI(t *testing.T) {
 		"no origin": render("", ViewModeRealm),
 		"home":      render("https://gno.land", ViewModeHome),
 	} {
-		assert.NotContains(t, p, "ai-popup", name)
-		// The search button shows on every page.
-		assert.Contains(t, p, `<button type="submit" form="header-searchbar" class="search-icon"`, name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.NotContains(t, p, "ai-popup")
+			// The search button shows on every page.
+			assert.Contains(t, p, `<button type="submit" form="header-searchbar" class="search-icon"`)
+		})
 	}
 }
