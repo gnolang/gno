@@ -49,6 +49,16 @@
 	}
 }
 
+.b-banner--warning {
+	background-color: var(--s-color-bg-warning-weak);
+	border-block-end: 1px solid var(--s-color-border-warning);
+	color: var(--s-color-text-warning);
+
+	& code {
+		background-color: color-mix(in srgb, currentColor 12%, transparent);
+	}
+}
+
 /* ===== HEADER COMPONENT ===== */
 .b-header {
 	position: sticky;
