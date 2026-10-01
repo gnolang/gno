@@ -129,5 +129,5 @@ entries; a human lands them.
 - `sunspirit` is left out of the default list at the team's request.
 - Reviewing this surfaced two pre-existing gaps that let third-party content
   render under a trusted path's chrome: `$source&file=` accepted path
-  separators and is fixed alongside this change; `?state&oid=` still fetches
+  separators and is fixed in #6261; `?state&oid=` still fetches
   any object regardless of the page's realm and is tracked separately.
