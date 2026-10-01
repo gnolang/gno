@@ -158,7 +158,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedPaths,
 		"trusted-paths",
 		defaultWebOptions.trustedPaths,
-		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice",
+		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice and given official page metadata",
 	)
 
 	fs.StringVar(
@@ -289,6 +289,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		logger.Warn("GNOWEB_BANNER_URL is set but GNOWEB_BANNER_TEXT is empty; banner will not be shown")
 	}
 
+	// The trusted list also decides what a page's <head> may repeat, so it
+	// applies with the notice off.
+	appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
 	if !cfg.noRealmNotice {
 		text := cmp.Or(os.Getenv("GNOWEB_REALM_NOTICE_TEXT"), defaultRealmNoticeText)
 		notice, err := components.NewBannerData(text, "")
@@ -302,7 +305,6 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 			logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
 		}
 		appcfg.RealmNotice = notice.AsWarning()
-		appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
 	}
 
 	if cfg.noDefaultAliases {

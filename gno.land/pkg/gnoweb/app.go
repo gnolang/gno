@@ -69,7 +69,8 @@ type AppConfig struct {
 	// TrustedPaths.
 	RealmNotice components.BannerData
 	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
-	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice.
+	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice and may lend
+	// their own heading and summary to the page metadata.
 	TrustedPaths []string
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
