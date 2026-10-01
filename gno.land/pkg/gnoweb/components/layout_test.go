@@ -670,3 +670,46 @@ func TestIndexLayout_FontPreloadsMatchStylesheet(t *testing.T) {
 	}
 	require.NotZero(t, matched, "expected the head to preload at least one stylesheet font")
 }
+
+// A noindex page publishes nothing that tells a crawler the URL is worth
+// keeping, even when a handler filled the fields in.
+func TestIndexLayout_NoIndexDropsCanonical(t *testing.T) {
+	render := func(noIndex bool) string {
+		data := IndexData{
+			HeadData: HeadData{
+				Title:     "Test",
+				Canonical: "https://gno.land/r/demo",
+				URL:       "https://gno.land/r/demo",
+				Image:     "https://gno.land/public/og.png",
+				NoIndex:   noIndex,
+			},
+			Mode: ViewModeHome,
+			BodyView: &View{
+				Type:      "test-view",
+				Component: NewReaderComponent(strings.NewReader("testdata")),
+			},
+		}
+		var buf strings.Builder
+		require.NoError(t, IndexLayout(data).Render(&buf))
+		return buf.String()
+	}
+
+	tags := []string{
+		`<link rel="canonical" href="https://gno.land/r/demo" />`,
+		`<meta property="og:url" content="https://gno.land/r/demo" />`,
+		`<meta property="og:image" content="https://gno.land/public/og.png" />`,
+		`<meta name="twitter:image" content="https://gno.land/public/og.png" />`,
+	}
+
+	indexed := render(false)
+	for _, tag := range tags {
+		assert.Contains(t, indexed, tag)
+	}
+
+	unindexed := render(true)
+	for _, tag := range tags {
+		assert.NotContains(t, unindexed, tag)
+	}
+	assert.Contains(t, unindexed, `<meta name="twitter:card" content="summary" />`)
+	assert.Contains(t, unindexed, `<meta name="robots" content="noindex, nofollow" />`)
+}
