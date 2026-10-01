@@ -109,6 +109,13 @@ func NewDefaultAppConfig() *AppConfig {
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
 
+	// A canonical is resolved against the page, so an origin without a scheme
+	// would name a 404 on every page; refuse it here rather than ship it.
+	canonicalOrigin, err := normalizeCanonicalOrigin(cfg.CanonicalOrigin)
+	if err != nil {
+		return nil, err
+	}
+
 	// Initialize RPC Client.
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
 		client.WithRequestTimeout(cfg.NodeRequestTimeout),
@@ -133,7 +140,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	staticMeta := StaticMetadata{
 		Domain:            cfg.Domain,
-		CanonicalOrigin:   strings.TrimSuffix(cfg.CanonicalOrigin, "/"),
+		CanonicalOrigin:   canonicalOrigin,
 		AssetsPath:        assetsBase,
 		ChromaPath:        chromaStylePath,
 		RemoteHelp:        cfg.RemoteHelp,
