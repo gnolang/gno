@@ -1213,6 +1213,23 @@
 		& > nav > :first-child {
 			margin-block-start: 0;
 		}
+
+		/* Below --lg the toggle right above already shows the rail's title,
+		   so the <h2> repeating it is hidden visually (.u-sr-only) but kept
+		   for the outline and as the <nav>'s aria-labelledby name. */
+		@media not all and (--lg) {
+			& > nav > .b-sidebar-heading:first-child {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				margin: -1px;
+				padding: 0;
+				overflow: hidden;
+				clip: rect(0, 0, 0, 0);
+				white-space: nowrap;
+				border-width: 0;
+			}
+		}
 	}
 
 	.b-expend-btn {
