@@ -179,10 +179,10 @@
 	/* Semantic backgrounds */
 	--s-color-bg-brand-weak: var(--g-color-green-950);
 	--s-color-bg-success-weak: var(--g-color-green-950);
-	--s-color-bg-info-weak: var(--g-color-blue-900);
+	--s-color-bg-info-weak: var(--g-color-blue-950);
 	--s-color-bg-warning-weak: var(--g-color-yellow-950);
 	--s-color-bg-caution-weak: var(--g-color-red-950);
-	--s-color-bg-tip-weak: var(--g-color-purple-900);
+	--s-color-bg-tip-weak: var(--g-color-purple-950);
 	--s-color-bg-note-weak: var(--g-color-gray-750);
 
 	/* Form backgrounds */
