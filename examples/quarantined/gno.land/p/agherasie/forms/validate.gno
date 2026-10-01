@@ -3,7 +3,7 @@ package forms
 import (
 	"strings"
 
-	"gno.land/p/onbloc/json"
+	"gno.land/p/onbloc/json/v0"
 )
 
 func validateBooleanField(node *json.Node, field Field) bool {

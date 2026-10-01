@@ -21,7 +21,7 @@ package launderrh_mv_method_value
 // Outcome confirms method values preserve receiver borrowing.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

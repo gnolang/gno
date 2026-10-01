@@ -1,6 +1,8 @@
 package params
 
 import (
+	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -53,8 +55,29 @@ func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 		if !ok {
 			continue
 		}
-		amino.MustUnmarshalJSON(kv.Value, rv.Addr().Interface())
+		if err := decodeField(rv, kv.Value); err != nil {
+			panic(fmt.Errorf("failed to decode param field %q: %w", name, err))
+		}
 	}
+}
+
+func decodeField(rv reflect.Value, value []byte) error {
+	tmp := reflect.New(rv.Type())
+	err := amino.UnmarshalJSON(value, tmp.Interface())
+	if err == nil {
+		rv.Set(tmp.Elem())
+		return nil
+	}
+	if _, ok := rv.Addr().Interface().(json.Unmarshaler); !ok {
+		return err
+	}
+
+	tmp = reflect.New(rv.Type())
+	if err := json.Unmarshal(value, tmp.Interface()); err != nil {
+		return err
+	}
+	rv.Set(tmp.Elem())
+	return nil
 }
 
 // Gets list of kvpairs associated with param struct from store.

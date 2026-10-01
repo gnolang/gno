@@ -15,7 +15,7 @@ var cur realm
 
 func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	var (
-		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+		admin = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 		alice = testutils.TestAddress("alice")
 		bob   = testutils.TestAddress("bob")
 	)
@@ -63,7 +63,7 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 
 func TestErrConditions(cur realm, t *testing.T) {
 	var (
-		admin = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+		admin = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 		empty = address("")
 	)
 

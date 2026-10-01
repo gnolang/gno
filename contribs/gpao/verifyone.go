@@ -49,7 +49,20 @@ type verifyOneConfig struct {
 
 func (c *verifyOneConfig) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.gnoRoot, "gno-root", "", "gno repository root")
-	fs.StringVar(&c.remote, "remote", "", "RPC address, for resolving on-chain-only imports")
+	fs.StringVar(&c.remote, "remote", "",
+		"RPC address of the node imports resolve from (required); every /p/ and "+
+			"/r/ import comes from the chain, and disk is not consulted for them")
+}
+
+// validate reports a configuration this child cannot verify with, mirroring
+// config.validate for the daemon's own flags. newVerifier calls it, so there is
+// no order in which a verifier gets built without it.
+func (c *verifyOneConfig) validate() error {
+	if c.remote == "" {
+		return errors.New("--remote is required: every /p/ and /r/ import " +
+			"resolves from the chain, so verification needs a node to ask")
+	}
+	return nil
 }
 
 func newVerifyOneCmd(io commands.IO) *commands.Command {
@@ -103,41 +116,66 @@ func execVerifyOne(_ context.Context, cfg *verifyOneConfig, cio commands.IO) err
 	// (ProdOnly), not the package type's.
 	mpkg.Type = gno.MPUserAll
 
-	v, err := newVerifier(cfg.gnoRoot, cfg.remote, cio.Err())
+	v, err := newVerifier(*cfg, cio.Err())
 	if err != nil {
-		return err
+		// The config was refused, or the RPC client would not build -- either
+		// way nothing judged the package.
+		exitNoVerdict(cio.Err(), err)
 	}
 	if err := v.prepare(&mpkg); err != nil {
-		// The network under the resolver failed before any verdict was
-		// possible; same channel as below.
-		fmt.Fprintln(cio.Err(), err)
-		os.Exit(exitResolverUnavailable)
+		// Setting up for the compile failed: the network under the resolver, a
+		// dependency the chain is already running that this tree cannot build,
+		// or one the node will not serve. None is evidence about the candidate.
+		exitNoVerdict(cio.Err(), err)
 	}
 	// Everything the compile needs is local now. The parent starts the budget
 	// on this line.
 	fmt.Fprintln(cio.Out(), childReadyMarker)
 	if err := v.verifyPackage(&mpkg); err != nil {
-		if errors.Is(err, errResolverUnavailable) {
-			// Not a verdict; say so with the exit status, which is the only
-			// channel the parent classifies on. The reason still goes to
-			// stderr, which the parent tees and reports.
+		// Neither is a verdict, and the status is the only channel the parent
+		// classifies on. Unavailable first: a parked import found while the
+		// network was failing is unconfirmed.
+		switch {
+		case errors.Is(err, errResolverUnavailable):
+			exitNoVerdict(cio.Err(), err)
+		case errors.Is(err, errImportParked):
 			fmt.Fprintln(cio.Err(), err)
-			os.Exit(exitResolverUnavailable)
+			os.Exit(exitImportParked)
 		}
 		return err
 	}
 	return nil
 }
 
+// exitNoVerdict reports err and leaves with the status that says verification
+// reached no verdict. The reason goes to stderr, which the parent tees and
+// reports; the status is the only channel it classifies on.
+//
+// Every reason to take this path is about the oracle -- its configuration, its
+// network, its tree -- and none is evidence about the package. So the one thing
+// that must not happen is exiting 1, which the parent reads as a rejection and
+// which settles a submitter's bytes for the life of the process.
+func exitNoVerdict(w io.Writer, err error) {
+	fmt.Fprintln(w, err)
+	os.Exit(exitResolverUnavailable)
+}
+
 // exitResolverUnavailable is the child's exit status when verification could
-// not obtain evidence -- the network under the import resolver failed -- as
-// opposed to exiting 1 with a verdict. 2 belongs to the Go runtime (panic).
+// not obtain evidence -- the child could not be configured, the network under
+// the import resolver failed, or a dependency the chain is already running
+// would not build in this tree -- as opposed to exiting 1 with a verdict. 2
+// belongs to the Go runtime (panic).
 //
 // Exited directly rather than through commands.ExitCodeError: the test
 // harness drives the command through ParseAndRun, which returns that error
 // instead of translating it into a status, and the parent classifies on the
 // status alone.
 const exitResolverUnavailable = 3
+
+// exitImportParked is the child's exit status when the typecheck failed while
+// an import is parked on the chain awaiting its own approval: the verdict
+// belongs to the queue's order, not to the package. See errImportParked.
+const exitImportParked = 4
 
 // childReadyMarker is the one line the child writes to stdout, once every
 // source the compile needs is local. The parent starts the budget when it
@@ -164,9 +202,11 @@ const childReadyMarker = "gpao: ready"
 //
 // Exit status is the verdict: a clean exit passes, and a non-zero exit from a
 // child that ran to completion is a rejection carrying the child's stderr as
-// the reason. Two exits are not verdicts at all: exitResolverUnavailable, which
-// says verification could not obtain evidence and becomes errVerifyUnavailable,
-// and a deadline, which becomes errVerifyBudget. Upstream treats both as "no
+// the reason. Three exits are not verdicts at all: exitResolverUnavailable,
+// which says verification could not obtain evidence and becomes
+// errVerifyUnavailable; exitImportParked, which says the package waits on an
+// import the chain holds parked and becomes errAwaitingDependency; and a
+// deadline, which becomes errVerifyBudget. Upstream treats all three as "no
 // verdict yet" rather than as a rejection, and that distinction matters — a
 // rejected package is settled, a slow one may just have lost a race with
 // whatever else the machine was doing.
@@ -187,16 +227,16 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 	clock := newChildClock(cancel, o.cfg.prepareBudget, o.cfg.verifyBudget)
 	defer clock.stop()
 
-	args := []string{verifyOneCmdName, "-gno-root", o.cfg.gnoRoot}
-	if o.cfg.remote != "" {
-		args = append(args, "-remote", o.cfg.remote)
+	args := []string{
+		verifyOneCmdName,
+		"-gno-root", o.cfg.gnoRoot,
+		"-remote", o.cfg.remote,
 	}
 	cmd := exec.CommandContext(runCtx, self, args...)
 	cmd.Stdin = bytes.NewReader(payload)
 	// Tee, don't capture. The buffer supplies the rejection reason on a
-	// non-zero exit, but the child also writes advisory notes on the SUCCESS
-	// path -- notably "preprocess NOT measured" when an import cannot be
-	// resolved -- and capturing alone silently dropped every one of those.
+	// non-zero exit, but the child's stores also write diagnostics on the
+	// SUCCESS path, and capturing alone silently dropped every one of those.
 	// Bounded. Volume here is attacker-influenced: go/types is given an error
 	// handler with no cap, so a package crafted to emit many errors would
 	// otherwise be buffered in full and mirrored verbatim into the operator's
@@ -251,8 +291,11 @@ func (o *oracle) verify(ctx context.Context, mpkg *std.MemPackage) error {
 		if msg == "" {
 			msg = runErr.Error()
 		}
-		if ee.ExitCode() == exitResolverUnavailable {
+		switch ee.ExitCode() {
+		case exitResolverUnavailable:
 			return fmt.Errorf("%w: %s", errVerifyUnavailable, msg)
+		case exitImportParked:
+			return fmt.Errorf("%w: %s", errAwaitingDependency, msg)
 		}
 		return errors.New(msg)
 	}

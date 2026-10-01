@@ -150,7 +150,7 @@ import (
 // CEILING on a storage deposit when a message declares no MaxDeposit, so a
 // single message may now add at most 1 MB of realm state rather than 6 MB
 // before it is refused. Measured against all 321 genesis packages the largest
-// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// deploy is r/gnoland/boards2/v0 at 276,098 bytes (27,609,800ugnot), so the
 // new ceiling clears the worst real case by 3.6x.
 // Bumped again by the two inert-charge vm params, for the same reason as
 // run_submitters above: two more keys, written unconditionally. Behavior at
@@ -204,23 +204,35 @@ import (
 // (10ugnot) returns -5ugnot. Comments only — no code changed, the scenario
 // calls neither method, and the zrealm_crossrealm38.gno filetest still passes.
 //
-// Hash bumped by the realm transaction sponsorship PR: adding the PayGas and
-// PayStorage natives to the chain/runtime stdlib changes that stdlib's committed
-// genesis MemPackage, which shifts the committed multistore root — same class of
-// change as the crypto/errors/markdown stdlib bumps above. Behavior is unchanged
-// (the zrealm_crossrealm38.gno filetest still passes); only the genesis encoding
-// shifted. This covers the whole sponsorship stdlib surface: the paygas.gno /
-// paystorage.gno doc comments (including the "PayGas and PayStorage are
-// independent" note added when two-realm sponsorship was allowed) are stdlib
-// .gno source bytes committed into genesis, so they are consensus-relevant even
-// though they are comments. The native .go changes are NOT part of the committed
-// MemPackage and do not affect this hash. Re-derived after merging master, so
-// this value reflects the bptree store + #5890 + #5891 + #5892 + #5867 + the
-// banker comment + this PR together.
-// Re-derived after merging master into the sponsorship branch, so this value
-// reflects master's bumps (banker.GetCoin, the coins.gno doc fix, and the
-// origin-send envelope work) together with the sponsorship stdlib surface.
-const expectedCrossrealm38Hash = "0c36d9bbc5c84a8f329a942b029a31ac04edf6167c8b91f6291ff99ff91c012a"
+// Bumped 2026-09-10 by data-backing byte slices: doOpSliceLit now allocates a
+// flat Data-backed ArrayValue for []byte composite literals instead of one
+// TypedValue per element, so those arrays persist under a different amino
+// encoding and the iavl root moves. Attributed by bisection: reverting
+// op_expressions.go alone restores 1d05023c, while reverting gonative.go's
+// Go2GnoValue byte arm or doOpSliceLit2's indexed-literal path leaves the
+// value below unchanged, so doOpSliceLit's byte path is the whole cause.
+// Narrowed once more to the two 136-byte HMAC pads in crypto/cometblszk, the
+// only package-scope []byte literals in the stdlibs that setupTestEnv commits
+// wholesale: excluding len-136 literals from the Data path also restores
+// 1d05023c. The scenario's own realms hold no byte slices (crossrealm_f keeps
+// []*Entry), so behavior is unchanged and the zrealm_crossrealm38.gno filetest
+// still passes.
+//
+// Bumped by the crypto/modexp operand cap and gas rework: modexp.gno gained a
+// MaxOperandLen const, a length guard in ModExp, and doc text for the new
+// rejection behavior. stdlib .gno source bytes are committed into genesis
+// state, so the root moves. Note this branch also adds modexp_test.gno, and
+// loadStdlibPackage reads stdlibs with MPStdlibAll, which keeps _test.gno
+// files — so that file is inside the Merkle root too, not just modexp.gno.
+// crossrealm38 calls neither, so the shift is those source bytes alone. The
+// gas-row change moves nothing here: gas is not committed state. Re-derived
+// after merging develop, whose own changes moved the root too, so neither
+// side's value survives.
+//
+// Bumped by realm transaction sponsorship (#5382): the PayGas and PayStorage
+// declarations (and their doc comments) are stdlib .gno source bytes committed
+// into genesis, so the root moves. crossrealm38 calls neither.
+const expectedCrossrealm38Hash = "2842338f42e9d0823cc7439e915de9d82a7fec256255715dc886d45a57dd6788"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

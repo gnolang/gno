@@ -977,7 +977,7 @@ type bodyStmt struct {
 	BodyLen       int          // for for-continue
 	NextBodyIndex int          // init:-2, cond/elem:-1, body:0..., post:n
 	NumOps        int          // number of Ops, for goto
-	NumValues     int          // number of Values, for goto
+	NumValues     int          // number of Values, for goto (range: X-only, excludes ASSIGN LHS operands; see rangeFrame)
 	NumExprs      int          // number of Exprs, for goto
 	NumStmts      int          // number of Stmts, for goto
 	Cond          Expr         // for ForStmt
@@ -2323,6 +2323,12 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 
 // Set type to nil, only reserving the name.
 func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype NSType, index int) {
+	// iota is a non-shadowable builtin. A three-clause for init reaches here
+	// renamed to "iota.loopvar"; uverse's own registration goes through
+	// Define2, bypassing Reserve, so it is unaffected.
+	if nx.Name == iotaIdentifier || nx.Name == iotaIdentifier+".loopvar" {
+		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", iotaIdentifier))
+	}
 	_, exists := sb.GetLocalIndex(nx.Name)
 	if !exists {
 		sb.Define2(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})

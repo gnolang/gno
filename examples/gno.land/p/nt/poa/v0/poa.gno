@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"gno.land/p/nt/bptree/v0"
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 )
 
 var ErrInvalidVotingPower = errors.New("invalid voting power")

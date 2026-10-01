@@ -5,7 +5,7 @@ import (
 
 	prms "sys/params"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 )
@@ -273,7 +273,7 @@ func TestDelegatePathValidation(t *testing.T) {
 
 // TestValsetGateRejectsForeignRealm closes a pre-existing coverage gap found
 // while factoring the shared gate: assertValsetCaller had no test in this realm
-// at all, so nothing asserted that a realm other than r/sys/validators/v3 is
+// at all, so nothing asserted that a realm other than r/sys/validators/v0 is
 // refused.
 func TestValsetGateRejectsForeignRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(testOther))
