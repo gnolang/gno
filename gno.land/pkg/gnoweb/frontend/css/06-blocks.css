@@ -440,6 +440,49 @@
 		}
 	}
 
+	/* First segment (r or p) when the other side of the project exists: the
+	   whole chip opens a menu, the chevron says so. Without a counterpart it
+	   stays the plain link above. */
+	.kind-switch {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-1);
+		border: 1px solid var(--s-color-border-transparent);
+		border-radius: var(--s-rounded-sm);
+		padding: var(--g-space-0-5) var(--g-space-1);
+		background-color: var(--s-color-bg-base);
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		anchor-name: --kind-switch;
+
+		& > svg {
+			width: var(--g-space-2);
+			height: var(--g-space-2);
+			color: var(--s-color-text-tertiary);
+		}
+
+		&:hover,
+		&:focus-visible {
+			background-color: var(--s-color-bg-brand-default);
+			color: var(--s-color-text-base);
+
+			& > svg {
+				color: currentColor;
+			}
+		}
+	}
+
+	/* Keep the button lit while its menu is open */
+	&:has(#kind-switch-menu:popover-open) .kind-switch {
+		background-color: var(--s-color-bg-brand-default);
+		color: var(--s-color-text-base);
+
+		& > svg {
+			color: currentColor;
+		}
+	}
+
 	/* Argument specific styles */
 	.argument {
 		&:not(:first-child)::before {
@@ -3454,4 +3497,72 @@ main.dev-mode > section:has(.c-overview-view) {
 	background-color: var(--s-color-bg-brand-default);
 	color: var(--s-color-text-base);
 	border-radius: var(--s-rounded-sm);
+}
+
+/* ===== KIND SWITCH MENU (popover, top layer: not clipped by the header reel) ===== */
+/* Without anchor positioning (Firefox today) the menu opens under the header,
+   at the breadcrumb's start, rather than in the middle of the screen. */
+@supports not (top: anchor(bottom)) {
+	.b-kind-switch {
+		top: var(--g-space-14, 3.5rem);
+		left: var(--g-space-16, 4rem);
+	}
+}
+
+.b-kind-switch {
+	position-anchor: --kind-switch;
+	inset: auto;
+	top: anchor(bottom);
+	left: anchor(left);
+	margin: var(--g-space-1) 0 0;
+	min-width: var(--g-space-64, 16rem);
+	max-width: calc(100vw - 2 * var(--g-space-4));
+	padding: var(--g-space-1);
+	border: var(--s-border);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+
+	& .item {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		column-gap: var(--g-space-2);
+		align-items: center;
+		padding: var(--g-space-2);
+		border-radius: var(--s-rounded-sm);
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+
+		&:hover,
+		&:focus-visible {
+			background-color: var(--s-color-bg-surface-secondary);
+			color: var(--s-color-text-primary);
+		}
+
+		& > svg {
+			grid-row: span 2;
+			align-self: start;
+			width: var(--g-space-5);
+			height: var(--g-space-5);
+		}
+
+		& > .item-label {
+			grid-column: 2;
+		}
+	}
+
+	& .item--primary {
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+	}
+
+	& .item-path {
+		grid-column: 2;
+		font-family: var(--g-font-mono, monospace);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-normal, 400);
+		color: var(--s-color-text-tertiary);
+	}
+
 }
