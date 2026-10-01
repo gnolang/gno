@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"html/template"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -89,6 +90,7 @@ type HTTPHandlerConfig struct {
 	// burst. ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
+	// Also gates X-Forwarded-Host in requestOrigin.
 	StateRateLimitTrustedProxies []string
 }
 
@@ -122,6 +124,8 @@ type HTTPHandler struct {
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
 	State *state.Handler
+	// trustedProxies are the networks whose X-Forwarded-Host is believed.
+	trustedProxies []*net.IPNet
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -146,6 +150,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	if err != nil {
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
+	h.trustedProxies = trustedProxies
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
@@ -259,7 +264,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The state branch builds its header before prepareIndexBodyView does.
-	gnourl.Origin = requestOrigin(r)
+	gnourl.Origin = requestOrigin(r, h.trustedProxies)
 
 	// The function list as JSON, for agents that want to know what to call.
 	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
@@ -414,7 +419,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		h.Logger.Warn("invalid gno url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
-	gnourl.Origin = requestOrigin(r)
+	gnourl.Origin = requestOrigin(r, h.trustedProxies)
 
 	h.setHeaderForRealm(indexData, gnourl)
 
@@ -1064,11 +1069,14 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 	return ""
 }
 
-// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// requestOrigin returns scheme+host. X-Forwarded-Host is honored only from a
+// trusted proxy: the origin reaches shareable links and AI prompts, and a
+// cache in front of gnoweb does not key on that header. X-Forwarded-Proto
+// can only pick http or https for the same host, so it is always honored.
 // Empty when no host is known; callers fall back to path-relative URLs.
-func requestOrigin(r *http.Request) string {
+func requestOrigin(r *http.Request, trusted []*net.IPNet) string {
 	host := r.Host
-	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" && state.FromTrustedProxy(r, trusted) {
 		first, _, _ := strings.Cut(forwarded, ",")
 		if h := strings.TrimSpace(first); h != "" {
 			host = h

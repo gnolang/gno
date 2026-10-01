@@ -262,6 +262,7 @@ func TestHTTPHandler_HelpURLOrigin(t *testing.T) {
 		host     string
 		fwdProto string
 		fwdHost  string
+		trusted  bool   // the request comes from a trusted proxy
 		wantURL  string // absolute prefix (template HTML-escapes "&" to "&amp;")
 	}{
 		{
@@ -274,6 +275,14 @@ func TestHTTPHandler_HelpURLOrigin(t *testing.T) {
 			host:     "backend.internal",
 			fwdProto: "https",
 			fwdHost:  "gno.land",
+			trusted:  true,
+			wantURL:  "https://gno.land/r/mock/path$help",
+		},
+		{
+			name:     "forwarded host from an untrusted peer",
+			host:     "gno.land",
+			fwdProto: "https",
+			fwdHost:  "evil.example",
 			wantURL:  "https://gno.land/r/mock/path$help",
 		},
 		{
@@ -288,11 +297,15 @@ func TestHTTPHandler_HelpURLOrigin(t *testing.T) {
 			t.Parallel()
 
 			cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+			req := httptest.NewRequest(http.MethodGet, "/r/mock/path$help", nil)
+			if tc.trusted {
+				// httptest.NewRequest comes from 192.0.2.1.
+				cfg.StateRateLimitTrustedProxies = []string{"192.0.2.0/24"}
+			}
 			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
 			handler, err := gnoweb.NewHTTPHandler(logger, cfg)
 			require.NoError(t, err)
 
-			req := httptest.NewRequest(http.MethodGet, "/r/mock/path$help", nil)
 			req.Host = tc.host
 			if tc.fwdProto != "" {
 				req.Header.Set("X-Forwarded-Proto", tc.fwdProto)
