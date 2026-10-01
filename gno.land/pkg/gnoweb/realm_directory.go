@@ -46,15 +46,25 @@ var _ RealmDirectory = (*rpcRealmDirectory)(nil)
 // truncated and says so; going further needs cursor pagination on qpaths.
 const searchPathLimit = 10_000
 
-// rpcRealmDirectory serves paths straight from the chain. It holds no state
-// beyond a semaphore and a singleflight group: the semaphore bounds concurrent
-// outbound RPC queries; the group coalesces concurrent /search.json hits so a
-// cold edge cache cannot amplify a burst of clients into a burst of RPC calls.
+// pathsTTL: the omnibar asks `$search&json` on every debounced keystroke, and
+// each answer needs the listing. singleflight only merges calls in flight at
+// the same moment, so without reuse a reader typing `author:de` costs two
+// 10000-path qpaths per keystroke. /search.json shares the same cache.
+const pathsTTL = 5 * time.Second
+
+// rpcRealmDirectory serves paths from the chain, reusing a listing for
+// pathsTTL. The semaphore bounds concurrent outbound RPC queries; the group
+// coalesces concurrent misses so a cold cache cannot amplify a burst of
+// clients into a burst of RPC calls.
 type rpcRealmDirectory struct {
 	client pathLister
 	domain string
 	sem    chan struct{}
 	sf     singleflight.Group
+
+	mu       sync.Mutex
+	cached   PathsResult
+	cachedAt time.Time
 }
 
 func newRPCRealmDirectory(client pathLister, domain string, maxConcurrent int) *rpcRealmDirectory {
@@ -79,10 +89,26 @@ const fetchTimeout = 10 * time.Second
 // disconnects would otherwise cancel the answer every follower was waiting
 // on — one reader closing a tab failing everyone else's search.
 func (d *rpcRealmDirectory) Paths(ctx context.Context) (PathsResult, error) {
+	if res, ok := d.fresh(); ok {
+		return res, nil
+	}
+
 	ch := d.sf.DoChan("paths", func() (any, error) {
+		// Re-check under the group: a caller that just finished a fetch has
+		// stored it by the time a late one gets here.
+		if res, ok := d.fresh(); ok {
+			return res, nil
+		}
 		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), fetchTimeout)
 		defer cancel()
-		return d.fetchPaths(fetchCtx)
+		res, err := d.fetchPaths(fetchCtx)
+		if err != nil {
+			return PathsResult{}, err
+		}
+		d.mu.Lock()
+		d.cached, d.cachedAt = res, time.Now()
+		d.mu.Unlock()
+		return res, nil
 	})
 
 	select {
@@ -94,6 +120,17 @@ func (d *rpcRealmDirectory) Paths(ctx context.Context) (PathsResult, error) {
 	case <-ctx.Done():
 		return PathsResult{}, ctx.Err()
 	}
+}
+
+// fresh returns the cached listing while it is within pathsTTL. Callers
+// only read the slices, so sharing them is safe.
+func (d *rpcRealmDirectory) fresh() (PathsResult, bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if !d.cachedAt.IsZero() && time.Since(d.cachedAt) < pathsTTL {
+		return d.cached, true
+	}
+	return PathsResult{}, false
 }
 
 func (d *rpcRealmDirectory) fetchPaths(ctx context.Context) (PathsResult, error) {

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,6 +55,50 @@ func TestRPCRealmDirectory_Paths(t *testing.T) {
 	require.Equal(t, []string{"/r/demo/boards", "/r/demo/users"}, got.Realms) // empty entry filtered
 	require.Equal(t, []string{"/p/demo/avl"}, got.Packages)
 	require.False(t, got.Truncated, "a short listing is not a capped one")
+}
+
+// countingLister counts ListPaths calls and can fail on demand.
+type countingLister struct {
+	calls atomic.Int32
+	fail  atomic.Bool
+}
+
+func (c *countingLister) ListPaths(_ context.Context, prefix string, _ int) ([]string, error) {
+	c.calls.Add(1)
+	if c.fail.Load() {
+		return nil, errors.New("node down")
+	}
+	return []string{prefix + "/demo/x"}, nil
+}
+
+// Sequential callers within pathsTTL reuse one listing: the omnibar asks on
+// every debounced keystroke, and singleflight only merges concurrent calls.
+func TestRPCRealmDirectory_ReusesListingWithinTTL(t *testing.T) {
+	t.Parallel()
+	lister := &countingLister{}
+	dir := newRPCRealmDirectory(lister, "gno.land", 4)
+
+	for range 5 {
+		_, err := dir.Paths(context.Background())
+		require.NoError(t, err)
+	}
+	assert.Equal(t, int32(2), lister.calls.Load(), "one qpaths per prefix, not per call")
+}
+
+// A failure is not cached: the next caller asks the node again.
+func TestRPCRealmDirectory_DoesNotCacheFailures(t *testing.T) {
+	t.Parallel()
+	lister := &countingLister{}
+	lister.fail.Store(true)
+	dir := newRPCRealmDirectory(lister, "gno.land", 4)
+
+	_, err := dir.Paths(context.Background())
+	require.Error(t, err)
+
+	lister.fail.Store(false)
+	got, err := dir.Paths(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"gno.land/r/demo/x"}, got.Realms)
 }
 
 func TestHandlerSearchJSON_OK(t *testing.T) {
