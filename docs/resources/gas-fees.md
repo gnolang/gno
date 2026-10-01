@@ -120,7 +120,7 @@ Here are some recommended gas values for common operations:
 
 | Operation                 | Recommended Gas Wanted | Gas Fee at 1ugnot/1000gas |
 | ------------------------- | ---------------------- | ------------------------- |
-| Simple transfer           | 100,000                | 100ugnot                  |
+| Simple transfer           | 2,000,000              | 2000ugnot                 |
 | Calling a realm function  | 2,000,000              | 2000ugnot                 |
 | Deploying a small package | 5,000,000              | 5000ugnot                 |
 | Deploying a complex realm | 10,000,000+            | 10000ugnot                |
@@ -215,4 +215,4 @@ not enough deposit to cover the storage usage: requires 206900ugnot for 2069 byt
 ```
 - The message stores more bytes than your deposit cap covers at 100ugnot per
   byte. Raise it with `-max-deposit`, or store less. Without the flag the cap
-  is the chain's own ceiling, `600000000ugnot` on staging and mainnet today.
+  is the chain's own ceiling, `100000000ugnot` unless the network sets another.

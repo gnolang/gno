@@ -691,10 +691,10 @@ large or growing datasets they usually cost less gas and run faster.
 - Type safety (tree values are usually `any` and require type assertions)
 
 Do not make map iteration order part of a public API or `Render` output.
-Map iteration in Gno is deterministic today, but an order users can see or link
-to is a promise you then have to keep. For leaderboards, member lists, tables,
-feeds, and pagination, store explicit sortable keys and iterate through a
-tree-backed index or an ordered list.
+Map iteration in Gno follows insertion order today, but an order users can see
+or link to is a promise you then have to keep. For leaderboards, member lists,
+tables, feeds, and pagination, store explicit sortable keys and iterate through
+a tree-backed index or an ordered list.
 
 ```go
 // Small, bounded lookup: a map can be fine.

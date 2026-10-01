@@ -296,19 +296,20 @@ After running the command, we can expect an output similar to the following:
 ```bash
 OK!
 GAS WANTED: 8000000
-GAS USED:   6997402
-HEIGHT:     24142
+GAS USED:   6975797
+HEIGHT:     2
 STORAGE DELTA:  1043 bytes
 STORAGE FEE:    104300ugnot
 TOTAL TX COST:  112300ugnot
-EVENTS:     [{"type":"Transfer","attrs":[{"key":"token","value":"gno.land/r/gnoland/wugnot.wugnot.0000000"},{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/p/demo/tokens/grc20"},{"bytes_delta":1043,"fee_delta":{"denom":"ugnot","amount":104300},"pkg_path":"gno.land/r/gnoland/wugnot"}]
+EVENTS:     [{"from":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","to":"g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum","coins":[{"denom":"ugnot","amount":1000}]},{"type":"Transfer","attrs":[{"key":"token","value":"gno.land/r/gnoland/wugnot.wugnot.0000000"},{"key":"from","value":""},{"key":"to","value":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/p/nt/grc20/v0"},{"bytes_delta":1043,"fee_delta":{"denom":"ugnot","amount":104300},"pkg_path":"gno.land/r/gnoland/wugnot"}]
 INFO:
-TX HASH:    YGEbzlB9hKEP/TaRCcZ8bvyuK3S30u24vcVeHn6UlKA=
+TX HASH:    krIPGMvjzkSXndiLM2hC2Qad0sLDcw/HSGClk8Kwjmo=
 ```
 
-In this case, we can see that the `Deposit()` function emitted an
-[event](../resources/gno-stdlibs.md#events) that tells us more about what
-happened during the transaction.
+The first event is the bank transfer of the `1000ugnot` sent with the call. The
+second is the `Transfer` [event](../resources/gno-stdlibs.md#events) of the
+`1000` `wugnot` that `Deposit()` minted to the caller, and the last is the
+storage event.
 
 After broadcasting the transaction, we can verify that we have the amount of
 `wugnot` we expect. `BalanceOf` only reads state, and `maketx call` refuses it
@@ -826,7 +827,7 @@ Create the tx once (any participant can do it), then distribute the JSON to sign
 TX_PAYLOAD="./multisig-abc-send.json"
 rm -f "$TX_PAYLOAD"
 
-gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 100ugnot -gas-wanted 100000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
+gnokey maketx send --home "./alice-kb" -chainid staging -send "100000ugnot" -gas-fee 2000ugnot -gas-wanted 2000000 -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss -broadcast=false multisig-abc > "$TX_PAYLOAD"
 ```
 
 **Important: sign using the multisig account number + sequence**

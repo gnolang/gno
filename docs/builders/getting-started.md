@@ -243,8 +243,9 @@ Three flags decide what a transaction costs you:
   [storage deposit](../resources/storage-deposit.md), the GNOT locked against
   bytes your transaction adds. The deposit is locked rather than spent, but it
   comes out of your balance just like the fee does. Omit the flag and the chain
-  applies its own ceiling: `100000000ugnot` on a local chain, `600000000ugnot`
-  on staging and mainnet today.
+  applies its own ceiling, `100000000ugnot` unless the network sets another.
+  Read a network's value with
+  `gnokey query params/vm:p:default_deposit -remote <rpc>`.
 
 The first two are tied together: the chain accepts the transaction when
 `gas-fee` divided by `gas-wanted` is at least the network's gas price. That
