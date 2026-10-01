@@ -2368,3 +2368,31 @@ func TestHTTPHandler_GetUserView_OldAliasKeepsItsNamespace(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, []string{"@alice"}, gotPrefixes)
 }
+
+// An answer the parser does not recognize is an error, not a "no user": read
+// as "no", a change in the realm's repr would 404 every registered user at
+// once. It surfaces where the gate needs it and is ignored elsewhere.
+func TestHTTPHandler_GetUserView_UnrecognizedLookupIsNotA404(t *testing.T) {
+	t.Parallel()
+
+	for segment, want := range map[string]int{
+		"alice":      http.StatusInternalServerError,
+		testUserAddr: http.StatusOK,
+	} {
+		t.Run(segment, func(t *testing.T) {
+			t.Parallel()
+
+			rr := getUserPage(t, &stubClient{
+				listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+				evalFunc: func(context.Context, string, string) ([]byte, error) {
+					return []byte("(\"alice\" string)\n(true bool)"), nil
+				},
+				realmFunc: func(context.Context, string, string) ([]byte, error) {
+					return nil, gnoweb.ErrClientPackageNotFound
+				},
+			}, "/u/"+segment)
+
+			assert.Equal(t, want, rr.Code)
+		})
+	}
+}
