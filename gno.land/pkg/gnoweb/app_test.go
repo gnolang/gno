@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html"
 	"maps"
@@ -493,6 +494,53 @@ func TestNewRouter_ChainIDIsValidated(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+		})
+	}
+}
+
+// With no -chainid, the chain-id comes off the wire; it must go through the
+// same check as an operator-set one before it reaches the banner and meta tags.
+func TestNewRouter_ChainIDFromNodeIsValidated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		network string
+		wantErr bool
+	}{
+		{name: "valid", network: "test6.testnets"},
+		{name: "backtick", network: "x`](https://evil.example)`", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			node := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var req struct {
+					ID     json.RawMessage `json:"id"`
+					Method string          `json:"method"`
+				}
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req)) ||
+					!assert.Equal(t, "status", req.Method) {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				network, _ := json.Marshal(tc.network)
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"node_info":{"network":%s}}}`, req.ID, network)
+			}))
+			t.Cleanup(node.Close)
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = ""
+			cfg.NodeRemote = node.URL
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "invalid chain-id")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.network, cfg.ChainID)
 		})
 	}
 }
