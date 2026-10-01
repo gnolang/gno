@@ -33,8 +33,7 @@ used".
 
 ## Decision
 
-`GetUserView` serves a page only when one of four facts holds, checked in
-this order:
+`GetUserView` serves a page only when one of four facts holds:
 
 1. `<name>` is a bech32 address (`crypto.AddressFromBech32`, HRP `g`, 20
    bytes). An address is a namespace by construction.
@@ -67,8 +66,8 @@ through the handler's usual mapping, because a 404 published on a blip deletes
 a real user's page for as long as a crawler remembers it. An address, a
 namespace holding packages or an alias target is served without the registry,
 and the page just lacks the other half of the pair. The lookup runs on its own
-deadline, a quarter of the request's and at most 2 s, so a slow registry costs
-the pair, not the page.
+deadline, a quarter of the request's and at most 2 s, so a slow registry or a
+busy RPC pool costs the pair, not the page.
 
 Before any query, `<name>` must match the registry's own name shape unless it
 is an address: `gnolang.Re_name`, which `r/sys/users/store.gno` states its own
@@ -156,8 +155,9 @@ machine when the package was absent.
   returns `(*UserData, bool)`, and only the first line carries the pair, so
   that is the line read. The realm exports no string-returning resolver and
   `.Name()` on the pointer panics when it is nil, so the pair is matched out of
-  the value repr, keyed on each field's *type tag* rather than its position: a
-  field added to `UserData` does not shift the result. `(nil ...)` is a
+  the value repr, keyed on each field's *type tag*: a field added before the
+  address or after the name does not shift the result, but a string field
+  inserted between them is read as the name. `(nil ...)` is a
   legitimate "no user"; any other unrecognized shape is an error, not a "no",
   because quietly 404ing every registered user at once must surface. It
   surfaces as an error where the gate needs the answer, and as a warning in the

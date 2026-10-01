@@ -38,7 +38,8 @@ const defaultRequestTimeout = 30 * time.Second
 
 // maxUserLookupTimeout caps the r/sys/users lookup behind every /u/ page. The
 // lookup runs before the listing and the home realm, on the same deadline, so
-// a slow registry left unbounded would spend all of it and fail the page.
+// a slow registry or a busy RPC pool left unbounded would spend all of it and
+// fail the page. The budget covers the wait for an RPC slot as well.
 const maxUserLookupTimeout = 2 * time.Second
 
 // StaticMetadata holds static configuration for a web handler.

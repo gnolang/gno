@@ -113,9 +113,9 @@ type ClientAdapter interface {
 	PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error)
 
 	// Eval evaluates a read-only Gno expression (`vm/qeval`) and returns the
-	// raw result, one line per return value. The node splits pkgPath from expr
-	// on the first dot after the first slash, so pkgPath may carry a domain but
-	// no dot past it, and expr is the caller's to keep safe.
+	// raw result, one line per return value. pkgPath carries no domain, since
+	// the client adds its own, and no dot: the node splits pkgPath from expr on
+	// the first dot after the first slash. expr is the caller's to keep safe.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 
