@@ -2506,9 +2506,12 @@ main.is-dev-mode .b-toc a {
 			color: var(--s-color-text-tertiary);
 		}
 
+		/* bg-input-disabled, not surface-secondary: a readonly value is
+		   focusable content, so tertiary text needs 4.5:1 on it (4.83:1
+		   light, 6.99:1 dark; surface-secondary gave 4.25:1 light). */
 		&[readonly],
 		&:disabled {
-			background-color: var(--s-color-bg-surface-secondary);
+			background-color: var(--s-color-bg-input-disabled);
 			color: var(--s-color-text-tertiary);
 			cursor: not-allowed;
 
