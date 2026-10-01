@@ -126,6 +126,8 @@ type HTTPHandler struct {
 	State *state.Handler
 	// trustedProxies are the networks whose X-Forwarded-Host is believed.
 	trustedProxies []*net.IPNet
+	// packageText caches the whole-package texts of $download.
+	packageText packageTextCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -997,64 +999,6 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", fileName))
 	w.WriteHeader(http.StatusOK)
 	w.Write(source) // write raw file
-}
-
-// Bounds on servePackageText, so one request cannot turn into an unbounded
-// number of node queries or response bytes.
-const (
-	packageTextMaxFiles = 100
-	packageTextMaxBytes = 2 << 20
-	packageTextFetchers = 8
-)
-
-// servePackageText serves every file of a package as one plain-text document,
-// each under a "// file:" header, so it can be pasted into any assistant.
-func (h *HTTPHandler) servePackageText(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
-	files, err := h.Client.ListFiles(ctx, gnourl.Path, 0)
-	files = slices.DeleteFunc(files, func(f string) bool { return f == "" })
-	if err == nil && len(files) == 0 {
-		err = ErrClientPackageNotFound
-	}
-	if err != nil {
-		h.Logger.Error("unable to list package files", "path", gnourl.Path, "error", err)
-		status, _ := GetClientErrorStatusView(gnourl, err, 0)
-		http.Error(w, "not found", status)
-		return
-	}
-	if len(files) > packageTextMaxFiles {
-		http.Error(w, "package too large", http.StatusRequestEntityTooLarge)
-		return
-	}
-
-	sources := make([][]byte, len(files))
-	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(packageTextFetchers)
-	for i, file := range files {
-		g.Go(func() (err error) {
-			sources[i], _, err = h.Client.File(gctx, gnourl.Path, file, 0)
-			return err
-		})
-	}
-	if err := g.Wait(); err != nil {
-		h.Logger.Error("unable to get package sources", "path", gnourl.Path, "error", err)
-		status, _ := GetClientErrorStatusView(gnourl, err, 0)
-		http.Error(w, "not found", status)
-		return
-	}
-
-	var out bytes.Buffer
-	fmt.Fprintf(&out, "// %s\n", path.Join(h.Static.Domain, gnourl.Path))
-	for i, file := range files {
-		fmt.Fprintf(&out, "\n// file: %s\n%s\n", file, sources[i])
-	}
-	if out.Len() > packageTextMaxBytes {
-		http.Error(w, "package too large", http.StatusRequestEntityTooLarge)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Cache-Control", "public, max-age=60")
-	_, _ = w.Write(out.Bytes())
 }
 
 // readWhitelistedCookie returns the cookie's value when it matches one
