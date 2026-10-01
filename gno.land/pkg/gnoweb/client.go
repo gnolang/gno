@@ -165,10 +165,7 @@ func (c *rpcClient) File(ctx context.Context, path, fileName string, height int6
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
-	if fileName == "" {
-		return nil, meta, errors.New("empty filename given") // XXX: Consider creating a specific error variable
-	}
-	if !validFileName(fileName) {
+	if fileName == "" || !validFileName(fileName) {
 		return nil, meta, ErrClientFileNotFound
 	}
 

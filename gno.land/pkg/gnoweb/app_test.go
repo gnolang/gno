@@ -118,6 +118,8 @@ func TestRoutes(t *testing.T) {
 			{"/r/sys/users/init/%2E%2E", notFound, ""},
 			{"/r/sys/users$source&file=init", notFound, ""}, // no extension: qfile reads it as the child package
 			{"/r/sys/users$download&file=init", notFound, ""},
+			{"/r/sys/users$source&file=%20", notFound, ""}, // blank name trims to empty
+			{"/r/sys/users$download&file=%20", notFound, ""},
 			{"/r/sys/users$state&frag=source&file=init%2Finit.gno&line=1", ok, "file not found"}, // fragments answer 200 with an error body
 			// Test assets
 			{"/public/main.css", ok, ""},
