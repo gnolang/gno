@@ -35,7 +35,7 @@ LAYOUT - Header component
             </svg>
           </button>
           <label for="searchbar-server-popup-toggle" class="network-toggle" tabindex="0" role="button"
-            aria-controls="network-info-popup">
+            aria-controls="network-info-popup" data-controller="popup" data-action="keydown->popup#key">
             <svg>
               <title>Network Info</title>
               <use href="#ico-earth"></use>
@@ -43,7 +43,7 @@ LAYOUT - Header component
           </label>
           {{ if .AI }}
           <label for="ai-popup-toggle" class="ai-toggle" tabindex="0" role="button" aria-controls="ai-popup"
-            aria-label="Ask AI">
+            aria-label="Ask AI" data-controller="popup" data-action="keydown->popup#key">
             <svg aria-hidden="true">
               <use href="#ico-ai"></use>
             </svg>
@@ -61,7 +61,8 @@ LAYOUT - Header component
           <div class="inner">
             <header>
               <span id="network-info-title">Network Info</span>
-              <label for="searchbar-server-popup-toggle" tabindex="0" role="button" aria-label="Close popup">
+              <label for="searchbar-server-popup-toggle" tabindex="0" role="button" aria-label="Close popup"
+                data-controller="popup" data-action="keydown->popup#key">
                 <svg aria-hidden="true" class="c-icon">
                   <title>Close Network Info</title>
                   <use href="#ico-cross"></use>
@@ -100,7 +101,8 @@ LAYOUT - Header component
             <div class="inner">
               <header>
                 <span id="ai-popup-title" class="ai-popup__title">Ask AI about {{ .Context }}</span>
-                <label for="ai-popup-toggle" tabindex="0" role="button" aria-label="Close popup">
+                <label for="ai-popup-toggle" tabindex="0" role="button" aria-label="Close popup"
+                  data-controller="popup" data-action="keydown->popup#key">
                   <svg aria-hidden="true" class="c-icon">
                     <title>Close Ask AI</title>
                     <use href="#ico-cross"></use>

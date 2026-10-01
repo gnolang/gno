@@ -160,6 +160,8 @@ func TestIndexLayout_AskAI(t *testing.T) {
 	// Install instructions live on the gnomcp site, not in a copied script.
 	assert.Contains(t, page, `href="`+gnoMCPSite+`"`)
 	assert.NotContains(t, page, "install.sh")
+	// Enter and Space open the popup from its label.
+	assert.Contains(t, page, `aria-label="Ask AI" data-controller="popup" data-action="keydown->popup#key"`)
 	// The Ask AI popup renders after Network Info, so each open dialog
 	// covers both toggles, and inside its own wrapper, so the "~" popup
 	// rules of one never open the other.

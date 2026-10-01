@@ -240,7 +240,8 @@
 		display: flex;
 		align-items: center;
 		gap: var(--g-space-1);
-		padding: var(--g-space-0-5) var(--g-space-1-5);
+		/* 24px tall at least, the WCAG target size, when icon only */
+		padding: var(--g-space-1) var(--g-space-1-5);
 		border: 1px solid var(--s-color-border-transparent);
 		border-radius: var(--s-rounded-sm);
 		background-color: var(--s-color-bg-base);
@@ -315,17 +316,14 @@
 	}
 
 	/* Hints read at AA contrast */
-	& .ai-action > .item-label {
+	& .ai-action > .item-label,
+	& .ai-mcp > .item-label {
 		color: var(--s-color-text-secondary);
 	}
 
 	/* The popup text is tertiary; its buttons must not read as disabled */
 	& .ai-popup .b-btn {
 		color: var(--s-color-text-secondary);
-	}
-
-	& .ai-mcp a {
-		text-decoration: underline;
 	}
 
 	& .ai-mcp {
@@ -417,8 +415,13 @@
 		background-color: var(--s-color-bg-base);
 		font-size: var(--g-font-size-50);
 
+		/* The link green is under AA at this size on the dark base */
 		& > a {
-			color: var(--s-color-text-link);
+			color: var(--s-color-text-secondary);
+
+			&:hover {
+				color: var(--s-color-text-link-hover);
+			}
 		}
 	}
 }
@@ -1670,7 +1673,12 @@ main.dev-mode .b-toc a {
 		margin-block-end: var(--g-space-1);
 	}
 
+	/* On a narrow card the buttons move under the title instead of
+	   squeezing it */
 	& > header {
+		flex-wrap: wrap;
+		gap: var(--g-space-2) var(--g-space-4);
+
 		.signature {
 			& > code {
 				color: var(--s--text-secondary);
