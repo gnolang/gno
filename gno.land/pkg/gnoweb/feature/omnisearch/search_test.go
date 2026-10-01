@@ -82,10 +82,18 @@ type mockIndexer struct {
 
 	// sourceAuthor records the author SourceContains was asked to filter on.
 	sourceAuthor string
+
+	// tipErr fails LatestBlockHeight.
+	tipErr error
 }
 
-func (m *mockIndexer) LatestBlockHeight(context.Context) (int, error) { return 185214, nil }
-func (m *mockIndexer) URL() string                                    { return "https://indexer.example/graphql/query" }
+func (m *mockIndexer) LatestBlockHeight(context.Context) (int, error) {
+	if m.tipErr != nil {
+		return 0, m.tipErr
+	}
+	return 185214, nil
+}
+func (m *mockIndexer) URL() string { return "https://indexer.example/graphql/query" }
 
 func (m *mockIndexer) TxByHash(context.Context, string) (*indexer.Tx, error) {
 	return m.tx, m.err
@@ -415,6 +423,14 @@ func TestIndexerStatusOnlyWhenAnIndexerGroupRan(t *testing.T) {
 	if withIndexer.Indexer.LastBlock != 185214 {
 		t.Errorf("LastBlock = %d, want 185214", withIndexer.Indexer.LastBlock)
 	}
+
+	// A failing tip shows a fixed phrase, not the indexer's raw error.
+	down := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(),
+		&mockIndexer{tipErr: errors.New(`graphql error: dial tcp 10.0.0.5:8546`)})
+	st := down.build(context.Background(), mustQuery(t, down, "account:g1abc", "")).Indexer
+	if st == nil || st.Err == nil || st.Err.Error() != "indexer unavailable" {
+		t.Errorf("Indexer footer = %+v, want Err %q", st, "indexer unavailable")
+	}
 }
 
 // --- rendered-content search -----------------------------------------------
@@ -431,6 +447,10 @@ func TestRenderSearchRefusesAnUnboundedField(t *testing.T) {
 	groups, _ := h.Search(context.Background(), mustQuery(t, h, "render:hello", ""))
 	if len(groups) != 1 || groups[0].Err == nil {
 		t.Fatalf("groups = %+v, want one group carrying an error", groups)
+	}
+	// The reader's own fix, not a masked "unavailable".
+	if !errors.Is(groups[0].Err, errRenderNeedsNarrowing) {
+		t.Errorf("Err = %q, want the narrowing hint", groups[0].Err)
 	}
 	if c.realmCalls != 0 {
 		t.Errorf("Realm called %d times, want 0", c.realmCalls)
