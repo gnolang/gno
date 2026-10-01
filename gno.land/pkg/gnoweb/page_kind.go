@@ -22,9 +22,9 @@ const (
 
 const (
 	siteDescription             = "Explore realms and packages on gno.land, the network for Gno smart contracts."
-	communityRealmDescription   = "A community realm on gno.land, published by its author and not reviewed by the gno.land team."
-	communityPackageDescription = "A community package on gno.land, published by its author and not reviewed by the gno.land team."
-	communityUserDescription    = "A gno.land user profile. Its content is not reviewed by the gno.land team."
+	communityRealmDescription   = "A realm deployed on gno.land by its author."
+	communityPackageDescription = "A package deployed on gno.land by its author."
+	communityUserDescription    = "A gno.land user profile."
 
 	officialImageAsset  = "imgs/og-gnoland.png"
 	communityImageAsset = "imgs/og-community.png"
@@ -77,7 +77,8 @@ func (k pageKind) defaultDescription(u *weburl.GnoURL) string {
 }
 
 // shareImage is the card image asset. gno.land's plain mark goes only to the
-// pages it answers for; a community page gets one that says it is not.
+// pages it answers for; a community page gets one marked as community
+// content.
 func (k pageKind) shareImage() string {
 	if k == pageCommunity {
 		return communityImageAsset
