@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var (
@@ -149,6 +150,14 @@ func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error
 	return c.query(ctx, qpath, []byte(data), 0)
 }
 
+// validFileName reports whether vm/qfile reads name as a file of the package
+// itself. vm/qfile splits paths with std.SplitFilepath, where a separator, a
+// dot segment or a name without a dot resolves to another path.
+func validFileName(name string) bool {
+	_, file := std.SplitFilepath(gopath.Join("pkg", name))
+	return file == name
+}
+
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
 // Chroma for syntax highlighting or Raw style source.
@@ -158,6 +167,9 @@ func (c *rpcClient) File(ctx context.Context, path, fileName string, height int6
 	fileName = strings.TrimSpace(fileName)
 	if fileName == "" {
 		return nil, meta, errors.New("empty filename given") // XXX: Consider creating a specific error variable
+	}
+	if !validFileName(fileName) {
+		return nil, meta, ErrClientFileNotFound
 	}
 
 	// XXX: Consider moving this into gnoclient
