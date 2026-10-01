@@ -3,6 +3,7 @@ package omnisearch
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"slices"
@@ -205,6 +206,58 @@ func TestResolverFailureBecomesAVisibleGroupError(t *testing.T) {
 	}
 	if groups[0].Err == nil {
 		t.Fatal("group Err = nil, want the resolver failure")
+	}
+}
+
+// A backend failure reaches the visitor as a fixed phrase. The raw error can
+// name the node's RPC address or carry the indexer's own GraphQL message;
+// only the logs get it.
+func TestBackendFailuresAreNotShownVerbatim(t *testing.T) {
+	t.Parallel()
+
+	raw := errors.New(`Post "http://127.0.0.1:1": dial tcp 127.0.0.1:1: connect: connection refused`)
+	tests := []struct {
+		name  string
+		h     *Handler
+		query string
+		pkg   string
+		want  string
+	}{
+		{
+			name:  "indexer down",
+			h:     newHandler(t, &mockClient{}, &mockIndexer{err: raw}),
+			query: "activity", pkg: "/r/demo/boards",
+			want: "indexer unavailable",
+		},
+		{
+			name:  "indexer not found",
+			h:     newHandler(t, &mockClient{}, &mockIndexer{err: fmt.Errorf("transaction %w: abc", indexer.ErrNotFound)}),
+			query: "tx:abc",
+			want:  "not found",
+		},
+		{
+			name:  "listing down",
+			h:     newHandlerWithDir(t, &mockClient{}, &mockDirectory{err: raw}, nil),
+			query: "blog",
+			want:  "chain node unavailable",
+		},
+		{
+			name:  "input error kept",
+			h:     newHandler(t, &mockClient{}, &mockIndexer{}),
+			query: "block:abc",
+			want:  `"abc" is not a block height`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			groups, _ := tt.h.Search(context.Background(), mustQuery(t, tt.h, tt.query, tt.pkg))
+			if len(groups) != 1 || groups[0].Err == nil {
+				t.Fatalf("groups = %+v, want one group carrying an error", groups)
+			}
+			if got := groups[0].Err.Error(); got != tt.want {
+				t.Fatalf("shown error = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

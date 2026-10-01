@@ -2,7 +2,6 @@ package omnisearch
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -20,7 +19,7 @@ const (
 )
 
 // errRenderNeedsNarrowing states the one precondition.
-var errRenderNeedsNarrowing = errors.New(
+var errRenderNeedsNarrowing error = inputError(
 	"rendered-content search needs a narrower field: add author:<name> or in:/r/<path>")
 
 // renderSelector searches what realms display. Chain data, not indexer: the

@@ -53,7 +53,7 @@ func indexerSelectors() []*Selector {
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				height, err := strconv.Atoi(term)
 				if err != nil || height < 0 {
-					return nil, fmt.Errorf("%q is not a block height", term)
+					return nil, inputError(fmt.Sprintf("%q is not a block height", term))
 				}
 				b, err := h.deps.Indexer.Block(ctx, height)
 				if err != nil {

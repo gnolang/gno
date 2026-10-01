@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
@@ -159,7 +161,7 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 		// "could not answer", not a 500.
 		h.deps.Logger.Warn("omnisearch: resolver failed",
 			"selector", sel.Name, "term_length", len(term), "error", err)
-		g.Err = err
+		g.Err = publicError(err, sel.Source)
 	}
 	g.Results = results
 	return []Group{g}, ""
@@ -223,11 +225,50 @@ func (h *Handler) indexerStatus(ctx context.Context, groups []Group) *IndexerSta
 	st := &IndexerStatus{URL: h.deps.Indexer.URL()}
 	height, err := h.deps.Indexer.LatestBlockHeight(ctx)
 	if err != nil {
-		st.Err = err
+		h.deps.Logger.Warn("omnisearch: indexer tip failed", "error", err)
+		st.Err = publicError(err, SourceIndexer)
 		return st
 	}
 	st.LastBlock = height
 	return st
+}
+
+// inputError is a resolver's verdict on the query itself, such as a term
+// that is not a block height. It says nothing about the backends, so a
+// visitor sees it as is.
+type inputError string
+
+func (e inputError) Error() string { return string(e) }
+
+// publicError is what a visitor is shown of a failure: a fixed phrase. The
+// raw error is logged by the caller; its text can carry the node's RPC
+// address or the indexer's own GraphQL message.
+//
+// Chain errors are matched on gnoweb's sentinel messages, the same pact
+// feature/state relies on: neither feature can import gnoweb.
+func publicError(err error, src Source) error {
+	var in inputError
+	if errors.As(err, &in) {
+		return in
+	}
+	msg := err.Error()
+	switch {
+	case errors.Is(err, context.DeadlineExceeded),
+		strings.Contains(msg, state.ClientErrTimeout):
+		return errors.New("timed out")
+	case errors.Is(err, indexer.ErrNotFound),
+		strings.Contains(msg, state.ClientErrPackageNotFound),
+		strings.Contains(msg, state.ClientErrObjectNotFound):
+		return errors.New("not found")
+	case errors.Is(err, indexer.ErrTooLarge),
+		errors.Is(err, indexer.ErrResponseTooLarge),
+		strings.Contains(msg, state.ClientErrResponseTooLarge):
+		return errors.New("answer too large")
+	case src == SourceIndexer:
+		return errors.New("indexer unavailable")
+	default:
+		return errors.New("chain node unavailable")
+	}
 }
 
 // writeRateLimited answers in the shape the caller can read.

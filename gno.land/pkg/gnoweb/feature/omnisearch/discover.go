@@ -24,7 +24,8 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 
 	realms, packages, truncated, err := h.deps.Directory.Paths(ctx)
 	if err != nil {
-		return []Group{{Label: "Realms", Source: SourceChain, Err: err}}
+		h.deps.Logger.Warn("omnisearch: path listing failed", "error", err)
+		return []Group{{Label: "Realms", Source: SourceChain, Err: publicError(err, SourceChain)}}
 	}
 
 	kinds := []struct {
