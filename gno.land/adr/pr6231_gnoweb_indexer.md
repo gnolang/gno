@@ -104,8 +104,8 @@ server labelled `indexer`. A 404 means the endpoint is absent and it stops
 asking. Which qualifiers exist is a property of the deployment, and only the
 server knows it. The client's rule for *what looks like* a qualifier mirrors
 the server's exactly — a whitespace token carrying a colon, unless it looks
-like a URL so a pasted link still navigates — rather than being re-derived
-into a second grammar that drifts.
+like a URL so a pasted link still navigates, or like an object ID — rather
+than being re-derived into a second grammar that drifts.
 
 ### GitHub-style qualifiers, with a hard fetch budget
 
@@ -317,7 +317,8 @@ independently of anything gnoweb does.
 - `MaxResults = 20` per group; `maxDiscoverResults = 10`
 - one selector per query; a discovery search costs **one** directory listing
   (itself two `qpaths` calls, fanned out in parallel), shared with
-  `/search.json` through the same singleflight group. `is:` narrows what is
+  `/search.json` through the same singleflight group and a 5 s cache, since
+  the omnibar asks on every debounced keystroke. `is:` narrows what is
   rendered, not what is fetched.
 - `PageOnly` keeps fan-out selectors off the per-keystroke path;
   `render:` fans out to at most 8 packages, 4 at a time
@@ -330,8 +331,10 @@ independently of anything gnoweb does.
   migrated to it in the same change, so the rule has one home rather than two
 - outbound concurrency to the indexer capped at 16, mirroring the RPC
   client's semaphore; responses capped at 8 MiB before decoding; redirects
-  refused, and upstream response bodies never quoted into an error a reader
-  will see
+  refused. A backend failure is logged and shown to the reader as a fixed
+  phrase (unavailable, timed out, not found, too large), never as the raw
+  error, which can name the node's RPC address or carry the indexer's
+  GraphQL message
 - the widening loop stops early when the caller's deadline is nearly spent:
   a window whose answer arrives after the reader gave up costs the indexer
   exactly as much as one they will read
@@ -343,6 +346,10 @@ independently of anything gnoweb does.
 - chain tip cached 5 s per client and fetched through a singleflight group, so
   a cold cache costs one round trip for all concurrent callers rather than one
   each; fetched on request, never by a ticker
+- tx-indexer evaluates `like` as a Go regular expression, so `content:` and
+  `importers` send their term through `regexp.QuoteMeta`: a substring match,
+  as labelled. `author:` on `content:` goes into the indexer's filter
+  (creator or namespace) rather than thinning the capped page it returns
 - package paths are validated against `weburl`'s own grammar before becoming
   an href, never escaped into one: deployment is permissionless, so a path is
   attacker-supplied data
@@ -373,3 +380,5 @@ rather than worked around:
 - Cursor pagination on `qpaths`, so a chain past 10000 packages can be listed
   rather than merely reported as truncated.
 - `GNOWEB_INDEXER_URL` as an env alternative to the flag, if operators ask.
+  The bearer token is env-only already (`GNOWEB_INDEXER_TOKEN`), so it never
+  sits in the process arguments.
