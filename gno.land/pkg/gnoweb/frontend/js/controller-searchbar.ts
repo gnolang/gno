@@ -257,10 +257,12 @@ export class SearchbarController extends BaseController {
 				!this.selectors.some((s) => s.bare && s.name === t.toLowerCase()),
 		);
 		if (text.length > 0) return text.join(" ");
-		const values = tokens.filter(SearchbarController.isQualifierToken).map((t) => {
-			const at = t.indexOf(":");
-			return { key: t.slice(0, at).toLowerCase(), value: t.slice(at + 1) };
-		});
+		const values = tokens
+			.filter(SearchbarController.isQualifierToken)
+			.map((t) => {
+				const at = t.indexOf(":");
+				return { key: t.slice(0, at).toLowerCase(), value: t.slice(at + 1) };
+			});
 		const named = values.find((v) =>
 			this.selectors.some((s) => s.name === v.key),
 		);
