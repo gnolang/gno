@@ -1,17 +1,14 @@
 # A sponsored grow followed by a free in the SAME tx must not convert the
 # sponsoring realm's balance into the signer's.
 #
-# Regression test. Refunds go to the tx caller, which is right when the freed
-# bytes were locked by an EARLIER transaction. On the per-message path it was
-# also applied when THIS tx's sponsor had just funded them one message ago:
-# msg[1] grew storage and charged the realm, msg[2] freed it and paid the
-# signer. Zero-fee, repeatable, drain rate one maxDeposit per tx.
-#
-# Settlement now unwinds this tx's own sponsored lock first and only pays the
-# caller what is left over.
+# PayStorage pays only for the sponsor's own storage, so the grow and the free
+# both happen in the sponsor realm here. Refunds normally go to the caller,
+# which is right when the freed bytes were locked by an EARLIER transaction;
+# but bytes this tx's sponsor locked one message ago are the sponsor's money,
+# so settlement returns them to the sponsor first and pays the caller only
+# what is left over.
 
 ## load packages
-loadpkg gno.land/r/test/ss_store $WORK/store
 loadpkg gno.land/r/test/ss_payer $WORK/payer
 
 ## create user1 for signing
@@ -29,7 +26,7 @@ cp stdout user1_balance_before
 
 ## 0-fee tx; storage settles per message:
 ##   msg[0] Pay   -> PayGas + PayStorage
-##   msg[1] Grow  -> realm is charged the deposit
+##   msg[1] Grow  -> the sponsor realm grows, and pays its own deposit
 ##   msg[2] Free  -> releases what msg[1] just locked
 gnokey sign -tx-path $WORK/drain.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
 stdout 'Tx successfully signed and saved to '
@@ -44,20 +41,29 @@ gnokey query bank/balances/$user1_user_addr
 cp stdout user1_balance_after
 cmp user1_balance_before user1_balance_after
 
-## The sponsor gets its own deposit back, so it is out only 3400ugnot: the gas plus
-## the dust of the bytes still held (Grow allocates more than Free releases).
-## Before the fix the signer took the released deposit instead.
+## The sponsor gets its own deposit back, so it is out only 3154ugnot: 2154 of
+## gas plus the 1000ugnot deposit for the 10 bytes Free leaves behind. Re-derive
+## on a gas-schedule or storage-price change; what matters is that user1 did not
+## gain and the sponsor did not lose the released deposit.
 gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
-stdout '9996600ugnot'
+stdout '9996846ugnot'
 
--- store/gnomod.toml --
-module = "ss_store"
+-- payer/gnomod.toml --
+module = "ss_payer"
 gno = "0.9"
 
--- store/store.gno --
-package ss_store
+-- payer/payer.gno --
+package ss_payer
+
+import "chain/runtime"
 
 var data []string
+
+func Pay(cur realm) string {
+	runtime.PayGas(5000000)
+	runtime.PayStorage(1000000)
+	return "paid"
+}
 
 func Grow(cur realm) {
 	for i := 0; i < 24; i++ {
@@ -69,20 +75,5 @@ func Free(cur realm) {
 	data = nil
 }
 
--- payer/gnomod.toml --
-module = "ss_payer"
-gno = "0.9"
-
--- payer/payer.gno --
-package ss_payer
-
-import "chain/runtime"
-
-func Pay(cur realm) string {
-	runtime.PayGas(5000000)
-	runtime.PayStorage(1000000)
-	return "paid"
-}
-
 -- drain.tx --
-{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Pay","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_store","func":"Grow","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_store","func":"Free","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Pay","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Grow","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Free","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}

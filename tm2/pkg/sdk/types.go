@@ -33,18 +33,8 @@ type PayStorageInfo struct {
 	RealmPkgPath string         // pkg path of the realm that called PayStorage
 	RealmAddr    crypto.Address // derived address of the realm
 	MaxDeposit   int64          // storage deposit cap in ugnot (0 = PayStorage not called)
-	SpentDeposit int64          // deposit already charged across prior messages (per-tx running total)
-	// SponsorFunded records, per realm path, how much of that realm's locked
-	// deposit THIS transaction's sponsor paid. It exists because the
-	// per-message path settles each message against its own diffs and so
-	// cannot tell "this free releases deposit an earlier tx locked" (refund
-	// belongs to the caller) from "it releases what my sponsor just paid, one
-	// message ago" (refund belongs to the sponsor). Without it, a grow in one
-	// message and a free in the next converts the sponsoring realm's balance
-	// into the signer's. The deferred path nets diffs per realm across the tx,
-	// so it never locks and releases the same bytes and does not consult this.
-	SponsorFunded map[string]int64
-	Eligible      bool // true only for 0-fee credit-window txs; PayStorage is a no-op otherwise
+	SpentDeposit int64          // net deposit the realm has locked in its own storage during this tx
+	Eligible     bool           // true only for 0-fee credit-window txs; PayStorage is a no-op otherwise
 }
 
 // Result is the union of ResponseDeliverTx and ResponseCheckTx plus events.

@@ -12,7 +12,6 @@ import (
 	"iter"
 	"log/slog"
 	"maps"
-	"math"
 	"math/big"
 	"path"
 	"path/filepath"
@@ -2370,25 +2369,14 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 		// this directly during a non-deliver phase doesn't lock funds.
 		return nil
 	}
-	// When PayStorage is active, the sponsoring realm pays storage deposits
-	// instead of the caller. MaxDeposit is a per-TRANSACTION cap: track the spend
-	// so far on the shared PayStorageInfo so that an N-message tx cannot charge
-	// the realm up to the full budget on every message.
-	//
-	// Only the PAYER is redirected; `caller` keeps refunds. See
-	// ProcessStorageDepositFromDiffs for why freed storage never belongs to the
-	// sponsor. Here the payer is this MESSAGE's caller rather than the tx's
-	// first signer, which is finer-grained than the deferred path by design.
-	var maxStorageBudget int64 = math.MaxInt64
+	// A realm that called PayStorage pays for growth of its OWN storage, up to
+	// what is left of its per-transaction budget; growth in any other realm
+	// stays on the caller. A deposit is refunded to whoever later frees the
+	// bytes, so paying another realm's deposit would let any other message in
+	// the tx route the sponsor's budget into a realm it controls and withdraw it.
 	psi := ctx.PayStorageInfo()
-	sponsored := psi != nil && psi.MaxDeposit > 0
-	payer := caller
-	if sponsored {
-		payer = psi.RealmAddr
-		maxStorageBudget = psi.MaxDeposit - psi.SpentDeposit
-		if maxStorageBudget < 0 {
-			maxStorageBudget = 0
-		}
+	if psi != nil && psi.MaxDeposit == 0 {
+		psi = nil // PayStorage was not called
 	}
 
 	realmDiffs := gnostore.RealmStorageDiffs()
@@ -2401,13 +2389,6 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 	depositAmt := deposit.AmountOf(ugnot.Denom)
 	if depositAmt == 0 {
 		depositAmt = std.MustParseCoin(params.DefaultDeposit).Amount
-	}
-	if sponsored {
-		// The sponsoring realm's committed PayStorage budget is the deposit
-		// ceiling, not the caller's (often empty) MaxDeposit / DefaultDeposit —
-		// otherwise a legitimately large sponsored write is wrongly rejected as
-		// "not enough deposit". Mirrors ProcessStorageDepositFromDiffs.
-		depositAmt = maxStorageBudget
 	}
 	price := std.MustParseCoin(params.StoragePrice)
 
@@ -2446,17 +2427,20 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				rlmPath, diff-paramsDiff, paramsDiff))
 			continue
 		}
+		sponsored := psi != nil && rlmPath == psi.RealmPkgPath
 		if diff > 0 {
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
-			// Check PayStorage budget
-			if maxStorageBudget < math.MaxInt64 && requiredDeposit > maxStorageBudget {
-				allErrs = goerrors.Join(allErrs, fmt.Errorf(
-					"storage deposit exceeds PayStorage budget: requires %d%s, budget remaining %d%s",
-					requiredDeposit, ugnot.Denom, maxStorageBudget, ugnot.Denom))
-				continue
-			}
-			if depositAmt < requiredDeposit {
+			payer := caller
+			if sponsored {
+				if remaining := psi.MaxDeposit - psi.SpentDeposit; requiredDeposit > remaining {
+					allErrs = goerrors.Join(allErrs, fmt.Errorf(
+						"storage deposit exceeds PayStorage budget: requires %d%s, budget remaining %d%s",
+						requiredDeposit, ugnot.Denom, remaining, ugnot.Denom))
+					continue
+				}
+				payer = psi.RealmAddr
+			} else if depositAmt < requiredDeposit {
 				allErrs = goerrors.Join(allErrs, fmt.Errorf(
 					"not enough deposit to cover the storage usage: requires %d%s for %d bytes",
 					requiredDeposit, ugnot.Denom, diff))
@@ -2473,20 +2457,12 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			// held — keeps bank state and params meta consistent on
 			// partial failure.
 			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
-			depositAmt -= requiredDeposit
-			maxStorageBudget -= requiredDeposit
 			if sponsored {
-				// Persist the running spend so the next message in this tx
-				// sees the reduced remaining budget.
+				// Shared across the tx's messages, so the budget is a
+				// per-transaction cap.
 				psi.SpentDeposit += requiredDeposit
-				// Remember that THIS tx's sponsor funded this realm's deposit,
-				// so a later message in the same tx that frees the bytes
-				// refunds the sponsor rather than handing its money to the
-				// signer. See PayStorageInfo.SponsorFunded.
-				if psi.SponsorFunded == nil {
-					psi.SponsorFunded = make(map[string]int64)
-				}
-				psi.SponsorFunded[rlmPath] += requiredDeposit
+			} else {
+				depositAmt -= requiredDeposit
 			}
 			// Emit event for storage deposit lock
 			d := std.Coin{Denom: ugnot.Denom, Amount: requiredDeposit}
@@ -2541,15 +2517,14 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				receiver = params.StorageFeeCollector
 			}
 
-			// Unwind this tx's own sponsored lock first: whatever the sponsor
-			// funded a message ago is its money coming back, not the caller's
-			// to collect. Only the excess released deposit that an EARLIER
-			// transaction locked, and that excess is the caller's. Skipped for
-			// a restricted denom, where the refund is withheld from everyone.
+			// Freeing what this tx's sponsor locked earlier in the same tx
+			// returns it to the sponsor first; only the rest, locked by an
+			// earlier transaction, goes to the caller. Skipped for a
+			// restricted denom, where the refund is withheld from everyone.
 			totalUnlocked := depositUnlocked
 			sponsorShare := int64(0)
-			if !isRestricted && psi != nil && psi.SponsorFunded[rlmPath] > 0 {
-				sponsorShare = min(depositUnlocked, psi.SponsorFunded[rlmPath])
+			if sponsored && !isRestricted {
+				sponsorShare = min(depositUnlocked, psi.SpentDeposit)
 			}
 			if sponsorShare > 0 {
 				// The byte release rides along with this transfer; the
@@ -2559,7 +2534,6 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 					ctx, psi.RealmAddr, rlm, sponsorShare, released); err != nil {
 					return err
 				}
-				psi.SponsorFunded[rlmPath] -= sponsorShare
 				psi.SpentDeposit -= sponsorShare
 				depositUnlocked -= sponsorShare
 				if depositUnlocked > 0 {

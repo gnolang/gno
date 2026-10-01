@@ -1,0 +1,88 @@
+# PayStorage pays only for the sponsoring realm's OWN storage.
+#
+# A deposit is refunded to whoever later frees the bytes. If the sponsor paid
+# for growth in any realm the tx touched, another message in the same tx could
+# grow a realm it controls on the sponsor's budget, then free it in a second
+# sponsored tx and collect the refund: a zero-cost drain of up to maxDeposit
+# per transaction, whatever conditions the sponsor checks before paying.
+#
+# Here the vault's growth must stay on user1, and the sponsor must pay gas only.
+
+loadpkg gno.land/r/test/dr_sponsor $WORK/sponsor
+loadpkg gno.land/r/test/dr_vault $WORK/vault
+
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+gnoland start
+
+## fund the sponsor realm
+gnokey maketx send -send 10000000ugnot -to g1l0sqzdjed2hmyf9jzf2jwjtf773fdr27037dpj -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query bank/balances/$user1_user_addr
+stdout '"1000000000ugnot"'
+
+## tx1: [sponsor.Do, vault.Grow], 0-fee. The vault's deposit is user1's to pay.
+gnokey sign -tx-path $WORK/grow.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence 0 user1
+gnokey broadcast $WORK/grow.tx -quiet=false
+stdout OK!
+stdout 'STORAGE FEE:    479700ugnot'
+
+gnokey query bank/balances/$user1_user_addr
+stdout '"999520300ugnot"'
+
+## tx2: [sponsor.Do, vault.Shrink], 0-fee. user1 gets back its own deposit.
+gnokey sign -tx-path $WORK/shrink.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence 1 user1
+gnokey broadcast $WORK/shrink.tx -quiet=false
+stdout OK!
+
+gnokey query bank/balances/$user1_user_addr
+stdout '"999999000ugnot"'
+
+## The sponsor paid gas for both txs and no deposit. Before the fix it ended at
+## 9515735ugnot, having paid the vault's 479700ugnot deposit that user1 then
+## collected.
+gnokey query bank/balances/g1l0sqzdjed2hmyf9jzf2jwjtf773fdr27037dpj
+stdout '"9995683ugnot"'
+
+-- sponsor/gnomod.toml --
+module = "gno.land/r/test/dr_sponsor"
+gno = "0.9"
+
+-- sponsor/sponsor.gno --
+package dr_sponsor
+
+import "chain/runtime"
+
+// Do sponsors the caller's transaction. A real sponsor would gate this; the
+// point is that its storage budget covers its own storage, not the rest of
+// the transaction.
+func Do(cur realm) {
+	runtime.PayGas(1000000)
+	runtime.PayStorage(1000000)
+}
+
+-- vault/gnomod.toml --
+module = "gno.land/r/test/dr_vault"
+gno = "0.9"
+
+-- vault/vault.gno --
+package dr_vault
+
+var data []string
+
+func Grow(cur realm) {
+	for i := 0; i < 40; i++ {
+		data = append(data, "padding to make the storage deposit worth stealing")
+	}
+}
+
+func Shrink(cur realm) {
+	data = nil
+}
+
+-- grow.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/dr_sponsor","func":"Do","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/dr_vault","func":"Grow","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}
+
+-- shrink.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/dr_sponsor","func":"Do","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/dr_vault","func":"Shrink","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}
