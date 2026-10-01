@@ -1252,7 +1252,9 @@
 		   WCAG 2.1.1 Keyboard and 4.1.2 Name, Role, Value. */
 		&:has(> input:focus-visible) {
 			outline: var(--s-focus-ring);
-			outline-offset: var(--g-space-1);
+			/* Inside the label: it fills .inner edge to edge, and .inner's
+			   overflow-y: auto clips both axes, cutting any ring drawn outside. */
+			outline-offset: -2px;
 		}
 
 		& > input {
