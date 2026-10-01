@@ -2017,3 +2017,109 @@ func BenchmarkIndexPeriodic(b *testing.B) {
 		})
 	}
 }
+
+func TestContainsFunc(t *testing.T) {
+	for _, ct := range ContainsRuneTests {
+		if bytes.ContainsFunc(ct.b, func(r rune) bool {
+			return ct.r == r
+		}) != ct.expected {
+			t.Errorf("ContainsFunc(%q, func(%q)) = %v, want %v",
+				ct.b, ct.r, !ct.expected, ct.expected)
+		}
+	}
+}
+
+var cutTests = []struct {
+	s, sep        string
+	before, after string
+	found         bool
+}{
+	{"abc", "b", "a", "c", true},
+	{"abc", "a", "", "bc", true},
+	{"abc", "c", "ab", "", true},
+	{"abc", "abc", "", "", true},
+	{"abc", "", "", "abc", true},
+	{"abc", "d", "abc", "", false},
+	{"", "d", "", "", false},
+	{"", "", "", "", true},
+}
+
+func TestCut(t *testing.T) {
+	for _, tt := range cutTests {
+		if before, after, found := bytes.Cut([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || string(after) != tt.after || found != tt.found {
+			t.Errorf("Cut(%q, %q) = %q, %q, %v, want %q, %q, %v", tt.s, tt.sep, before, after, found, tt.before, tt.after, tt.found)
+		}
+	}
+}
+
+var cutPrefixTests = []struct {
+	s, sep string
+	after  string
+	found  bool
+}{
+	{"abc", "a", "bc", true},
+	{"abc", "abc", "", true},
+	{"abc", "", "abc", true},
+	{"abc", "d", "abc", false},
+	{"", "d", "", false},
+	{"", "", "", true},
+}
+
+func TestCutPrefix(t *testing.T) {
+	for _, tt := range cutPrefixTests {
+		if after, found := bytes.CutPrefix([]byte(tt.s), []byte(tt.sep)); string(after) != tt.after || found != tt.found {
+			t.Errorf("CutPrefix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, after, found, tt.after, tt.found)
+		}
+	}
+}
+
+var cutSuffixTests = []struct {
+	s, sep string
+	before string
+	found  bool
+}{
+	{"abc", "bc", "a", true},
+	{"abc", "abc", "", true},
+	{"abc", "", "abc", true},
+	{"abc", "d", "abc", false},
+	{"", "d", "", false},
+	{"", "", "", true},
+}
+
+func TestCutSuffix(t *testing.T) {
+	for _, tt := range cutSuffixTests {
+		if before, found := bytes.CutSuffix([]byte(tt.s), []byte(tt.sep)); string(before) != tt.before || found != tt.found {
+			t.Errorf("CutSuffix(%q, %q) = %q, %v, want %q, %v", tt.s, tt.sep, before, found, tt.before, tt.found)
+		}
+	}
+}
+
+func TestClone(t *testing.T) {
+	var cloneTests = [][]byte{
+		[]byte(nil),
+		[]byte{},
+		bytes.Clone([]byte{}),
+		[]byte(strings.Repeat("a", 42))[:0],
+		[]byte(strings.Repeat("a", 42))[:0:0],
+		[]byte("short"),
+		[]byte(strings.Repeat("a", 42)),
+	}
+	for _, input := range cloneTests {
+		clone := bytes.Clone(input)
+		if !bytes.Equal(clone, input) {
+			t.Errorf("Clone(%q) = %q; want %q", input, clone, input)
+		}
+
+		if input == nil && clone != nil {
+			t.Errorf("Clone(%#v) return value should be equal to nil slice.", input)
+		}
+
+		if input != nil && clone == nil {
+			t.Errorf("Clone(%#v) return value should not be equal to nil slice.", input)
+		}
+
+		// XXX: upstream also asserts unsafe.SliceData(input) != unsafe.SliceData(clone)
+		// to verify the clone does not alias the input's backing array. gno does not
+		// expose unsafe, so this aliasing assertion is omitted.
+	}
+}

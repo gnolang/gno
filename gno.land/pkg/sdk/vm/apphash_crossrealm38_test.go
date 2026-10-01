@@ -228,7 +228,12 @@ import (
 // gas-row change moves nothing here: gas is not committed state. Re-derived
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
-const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
+//
+// Hash bumped by #5679 (encoding/ascii85 + encoding/pem port): new stdlib
+// source shifts the genesis Merkle root. Re-derived after merging master,
+// whose own stdlib changes moved the root too, so neither side's value
+// survives.
+const expectedCrossrealm38Hash = "78bd08aaa5b647e89cbe827e52e54a698f105f0faefcde6e9d33d845c018a8e8"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
