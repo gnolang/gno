@@ -133,6 +133,14 @@ built-in node with a custom state, and exposes flags to tune node behavior
 (RPC listener, web listener, chain ID, …). See `gnodev --help` for the full
 list.
 
+The node validates with a key it generates on every (re)build, so its validator
+address changes on each reload. To pin it — for instance when a realm or a
+genesis state refers to the validator by address — pass a key file with
+`-validator-key-file <file>`, in the `priv_validator_key.json` format written by
+`gnoland secrets init`. `gnodev` replays the chain from height 1 on every reload
+and keeps no sign state, so it re-signs the same heights with that key: use a
+throwaway key, never one that validates on a live network.
+
 ## Calling your realm
 
 Once `gnodev` is running, you can drive your realm from another terminal using
@@ -213,6 +221,7 @@ terminal; it turns off when output is piped or redirected, and in
 | `-balance-file <file>` | Seed account balances from a file (cannot be combined with `-genesis`) |
 | `-txs-file <file>` | Replay genesis transactions at startup; signers are auto-premined and referenced packages auto-loaded (cannot be combined with `-genesis`) |
 | `-genesis <file>` | Load a custom genesis file at startup |
+| `-validator-key-file <file>` | Validate with the key from a `priv_validator_key.json` (as written by `gnoland secrets init`) instead of a generated one, so the validator address stays the same across reloads and restarts. No double-sign protection: never pass a production key |
 | `-node-rpc-listener <addr>` | Node RPC listen address (default `127.0.0.1:26657`); `gnokey -remote` must match it |
 | `-web-listener <addr>` | gnoweb listen address (default `127.0.0.1:8888`) |
 | `-no-web` | Run without gnoweb |
