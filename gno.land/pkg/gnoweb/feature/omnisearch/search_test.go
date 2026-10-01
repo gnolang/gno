@@ -258,6 +258,7 @@ func TestBackendFailuresAreNotShownVerbatim(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			groups, _ := tt.h.Search(context.Background(), mustQuery(t, tt.h, tt.query, tt.pkg))
 			if len(groups) != 1 || groups[0].Err == nil {
 				t.Fatalf("groups = %+v, want one group carrying an error", groups)
