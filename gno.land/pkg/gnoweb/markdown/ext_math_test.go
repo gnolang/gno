@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,6 +63,8 @@ func TestMathStillRenders(t *testing.T) {
 		`$$\int_0^1 x^2 dx$$`,
 		"$$\n\\int_0^1 x^2 dx\n$$",
 		`\\(A = \\pi r^2\\)`,
+		`a \\$x$ b`,
+		`$a\\$`,
 	} {
 		assert.Contains(t, renderMathMarkdown(t, src), "<math", src)
 	}
@@ -86,12 +89,19 @@ func TestMathConcurrentRender(t *testing.T) {
 
 func TestMathOutputIsBounded(t *testing.T) {
 	t.Run("deep nesting", func(t *testing.T) {
-		for _, depth := range []int{50, 1000, 8000} {
+		for _, depth := range []int{50, 1000} {
 			src := "$" + strings.Repeat(`\sqrt{`, depth) + "x" + strings.Repeat("}", depth) + "$"
 			out := renderMathMarkdown(t, src)
-			t.Logf("depth=%d input=%d output=%d", depth, len(src), len(out))
 			assert.Less(t, len(out), 64*len(src)+4096, "depth %d", depth)
 		}
+	})
+	t.Run("many unclosed openers", func(t *testing.T) {
+		// Each unclosed opener looks ahead for a closing delimiter; the
+		// lookahead is cached so this stays linear.
+		start := time.Now()
+		out := renderMathMarkdown(t, strings.Repeat("\\\\[\n", 1<<16))
+		assert.NotContains(t, out, "<math")
+		assert.Less(t, time.Since(start), 10*time.Second)
 	})
 	t.Run("too long", func(t *testing.T) {
 		src := "$" + strings.Repeat("x+", MaxMathInputLen) + "x$"

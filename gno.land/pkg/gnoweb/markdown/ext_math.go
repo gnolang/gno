@@ -3,6 +3,7 @@ package markdown
 import (
 	"bytes"
 	"html"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/mathml"
 	"github.com/yuin/goldmark"
@@ -59,8 +60,9 @@ type mathInlineNode struct {
 
 type mathBlockNode struct {
 	ast.BaseBlock
-	flavor int
-	tex    string
+	flavor   int
+	tex      string
+	closeTag []byte
 }
 
 var (
@@ -89,10 +91,6 @@ func (p *texInlineRegionParser) Trigger() []byte {
 }
 
 func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ parser.Context) ast.Node {
-	// An escaped delimiter (\$) is literal text.
-	if block.PrecendingCharacter() == '\\' {
-		return nil
-	}
 	line, seg := block.PeekLine()
 	var begin, end []byte
 	var flavor int
@@ -155,16 +153,25 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ pars
 	return &mathInlineNode{tex: tex, flavor: flavor}
 }
 
+// isEscaped reports whether b[i] is preceded by an odd number of backslashes.
+func isEscaped(b []byte, i int) bool {
+	n := 0
+	for i--; i >= 0 && b[i] == '\\'; i-- {
+		n++
+	}
+	return n%2 == 1
+}
+
 // findDollarClose returns the index of the first $ in b that can close an
 // inline $...$ expression, or -1. Following pandoc, a closing $ must not be
-// preceded by a space or a backslash nor followed by a digit, so "$5 and $10"
-// stays plain text.
+// preceded by a space or an escaping backslash nor followed by a digit, so
+// "$5 and $10" stays plain text.
 func findDollarClose(b []byte) int {
 	for i := 0; i < len(b); i++ {
 		if b[i] != '$' {
 			continue
 		}
-		if i == 0 || util.IsSpace(b[i-1]) || b[i-1] == '\\' {
+		if i == 0 || util.IsSpace(b[i-1]) || isEscaped(b, i) {
 			continue
 		}
 		if i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9' {
@@ -173,12 +180,6 @@ func findDollarClose(b []byte) int {
 		return i
 	}
 	return -1
-}
-
-var mathBlockInfoKey = parser.NewContextKey()
-
-type mathBlockData struct {
-	flavor int
 }
 
 func (p *texBlockRegionParser) Trigger() []byte {
@@ -190,7 +191,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 		return nil, parser.NoChildren
 	}
 
-	// Only display delimiters ($$ and \[) open a math block. Anything else
+	// Only display delimiters ($$ and \\[) open a math block. Anything else
 	// (\alpha, \_, $100, ...) is left to the paragraph and inline parsers.
 	line, _ := reader.PeekLine()
 	var open, closeTag []byte
@@ -211,62 +212,92 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	}
 	// Don't open a block that never closes: it would swallow the rest of the
 	// document.
-	if !hasClosingLine(reader, closeTag) {
+	if !hasClosingLine(reader, pc, closeTag) {
 		return nil, parser.NoChildren
 	}
 
 	reader.Advance(len(open))
-	pc.Set(mathBlockInfoKey, mathBlockData{flavor: flavor})
-	node := &mathBlockNode{flavor: flavor}
+	node := &mathBlockNode{flavor: flavor, closeTag: closeTag}
 	_, seg := reader.PeekLine()
 	node.Lines().Append(seg)
 	return node, parser.NoChildren
 }
 
+var (
+	mathScanDisplayKey = parser.NewContextKey()
+	mathScanDollarKey  = parser.NewContextKey()
+)
+
+// mathScan caches a closing-delimiter lookahead: no line starting in
+// [from, to) contains the delimiter. If found, the line starting at to does;
+// otherwise scanning stopped there (eof tells whether the document ended), and
+// toLine/toSeg is the reader position to resume from.
+type mathScan struct {
+	from, to   int
+	found, eof bool
+	toLine     int
+	toSeg      text.Segment
+}
+
 // hasClosingLine reports whether closeTag appears on one of the lines after
 // the current one, within MaxMathInputLen bytes. The reader position is left
-// unchanged.
-func hasClosingLine(reader text.Reader, closeTag []byte) bool {
+// unchanged. Results are cached on pc so that a page full of unclosed openers
+// is scanned once overall instead of once per opener.
+func hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool {
+	key := mathScanDollarKey
+	if bytes.Equal(closeTag, _displayclose) {
+		key = mathScanDisplayKey
+	}
+
 	posLine, posSeg := reader.Position()
 	defer reader.SetPosition(posLine, posSeg)
 	reader.AdvanceLine()
-	for scanned := 0; scanned <= MaxMathInputLen; {
-		line, _ := reader.PeekLine()
+	_, seg := reader.PeekLine()
+	start := seg.Start
+	limit := start + MaxMathInputLen
+
+	sc, ok := pc.Get(key).(mathScan)
+	if ok && sc.from <= start && start <= sc.to {
+		if sc.found {
+			return sc.to <= limit
+		}
+		if sc.eof {
+			return false
+		}
+		reader.SetPosition(sc.toLine, sc.toSeg)
+	} else {
+		sc = mathScan{from: start}
+	}
+
+	defer func() { pc.Set(key, sc) }()
+	for {
+		line, seg := reader.PeekLine()
+		sc.to = seg.Start
+		sc.toLine, sc.toSeg = reader.Position()
 		if line == nil {
+			sc.eof = true
+			return false
+		}
+		if seg.Start > limit {
 			return false
 		}
 		if bytes.Contains(line, closeTag) {
+			sc.found = true
 			return true
 		}
-		scanned += len(line)
 		reader.AdvanceLine()
 	}
-	return false
 }
 
 func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
+	n, ok := node.(*mathBlockNode)
+	if !ok {
+		return parser.Close
+	}
 	line, seg := reader.PeekLine()
-	key := pc.Get(mathBlockInfoKey)
-	var flavor int
-	if d, ok := key.(mathBlockData); ok {
-		flavor = d.flavor
-	} else {
-		return parser.None
-	}
-	var closeTag []byte
-	switch flavor {
-	case flavor_inline | delimeter_ams:
-		closeTag = _inlineclose
-	case flavor_display | delimeter_ams:
-		closeTag = _displayclose
-	case flavor_inline | delimeter_tex:
-		closeTag = _dollarInline
-	case flavor_display | delimeter_tex:
-		closeTag = _dollarDisplay
-	}
-	if stop := bytes.Index(line, closeTag); stop > -1 {
+	if stop := bytes.Index(line, n.closeTag); stop > -1 {
 		node.Lines().Append(text.NewSegment(seg.Start, seg.Start+stop))
-		reader.Advance(stop + len(closeTag)) // move reader past closing tag
+		reader.Advance(stop + len(n.closeTag)) // move reader past closing tag
 		return parser.Close | parser.NoChildren
 	}
 	node.Lines().Append(seg)
@@ -274,15 +305,13 @@ func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc pa
 }
 
 func (p *texBlockRegionParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
-	if d, ok := pc.Get(mathBlockInfoKey).(mathBlockData); ok {
-		if n, ok := node.(*mathBlockNode); ok {
-			for i := range n.Lines().Len() {
-				n.tex += string(reader.Value(n.Lines().At(i)))
-			}
-			n.flavor = d.flavor
+	if n, ok := node.(*mathBlockNode); ok {
+		var tex strings.Builder
+		for i := range n.Lines().Len() {
+			tex.Write(reader.Value(n.Lines().At(i)))
 		}
+		n.tex = tex.String()
 	}
-	pc.Set(mathBlockInfoKey, nil)
 }
 
 func (p *texBlockRegionParser) CanInterruptParagraph() bool { return true }
