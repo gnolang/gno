@@ -2204,3 +2204,101 @@ func TestHTTPHandler_CanonicalIgnoresForwardedHost(t *testing.T) {
 	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/r/mock/path" />`)
 	assert.NotContains(t, body, "evil.example", "the canonical link must not follow a request header")
 }
+
+// TestHTTPHandler_AliasShareImage checks that a page the operator published,
+// and only that, carries gno.land's share image and the large card.
+func TestHTTPHandler_AliasShareImage(t *testing.T) {
+	t.Parallel()
+
+	handler := newMetadataHandler(t, "/r/gnoland/pages", map[string]gnoweb.AliasTarget{
+		"/about": {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
+		"/terms": {Value: "# Terms\n", Kind: gnoweb.StaticMarkdown},
+	})
+
+	const image = `<meta property="og:image" content="https://gno.land/public/imgs/og-gnoland.png" />`
+	for _, url := range []string{"/about", "/terms"} {
+		t.Run(url, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			assert.Contains(t, body, image)
+			assert.Contains(t, body, `<meta name="twitter:image" content="https://gno.land/public/imgs/og-gnoland.png" />`)
+			assert.Contains(t, body, `<meta name="twitter:card" content="summary_large_image" />`)
+		})
+	}
+
+	// On a realm alias the query reaches Render, so it stays in the head,
+	// but it is text the operator never vetted: no mark beside it.
+	t.Run("realm alias with a query", func(t *testing.T) {
+		t.Parallel()
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/about?Claim+your+airdrop+at+evil.example", nil))
+
+		require.Equal(t, http.StatusOK, rr.Code)
+		body := rr.Body.String()
+		assert.NotContains(t, body, `<meta property="og:image"`, "a query the operator never vetted must not sit beside the mark")
+		assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`)
+	})
+
+	// A static page renders the same bytes whatever the query, so a tracking
+	// parameter is not a page of its own and keeps the image.
+	t.Run("static alias with a query", func(t *testing.T) {
+		t.Parallel()
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/terms?utm_source=twitter", nil))
+
+		require.Equal(t, http.StatusOK, rr.Code)
+		body := rr.Body.String()
+		assert.Contains(t, body, `<title>/terms - gno.land</title>`)
+		assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/terms" />`)
+		assert.Contains(t, body, `<meta property="og:url" content="https://gno.land/terms" />`)
+		head, _, _ := strings.Cut(body, "</head>")
+		assert.NotContains(t, head, "utm_source", "a query a static page ignores must not reach its head")
+		assert.Contains(t, body, image)
+	})
+}
+
+// TestHTTPHandler_ErrorShellUnpublished checks that a page answering an error
+// names no canonical, no og:url and no share image, and asks to stay out of
+// the index, on every branch that renders the layout.
+func TestHTTPHandler_ErrorShellUnpublished(t *testing.T) {
+	t.Parallel()
+
+	handler := newMetadataHandler(t, "/r/mock/path", map[string]gnoweb.AliasTarget{
+		// An alias would carry the share image, so a broken one shows the
+		// image is dropped too.
+		"/gone": {Value: "/r/mock/nope", Kind: gnoweb.GnowebPath},
+	})
+
+	cases := []struct {
+		name   string
+		url    string
+		status int
+	}{
+		{"missing realm", "/r/mock/nope", http.StatusNotFound},
+		{"alias to a missing realm", "/gone", http.StatusNotFound},
+		{"state page with a bad oid", "/r/mock/path$state&oid=bogus", http.StatusBadRequest},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+
+			require.Equal(t, tc.status, rr.Code)
+			body := rr.Body.String()
+			assert.NotContains(t, body, `rel="canonical"`)
+			assert.NotContains(t, body, `<meta property="og:url"`)
+			assert.NotContains(t, body, `<meta property="og:image"`)
+			assert.Contains(t, body, `<meta name="robots" content="noindex, nofollow" />`)
+		})
+	}
+}
