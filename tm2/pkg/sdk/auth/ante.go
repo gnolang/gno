@@ -35,8 +35,6 @@ type AnteOptions struct {
 	// This is useful for development, and maybe production chains.
 	// Always check your settings and inspect genesis transactions.
 	VerifyGenesisSignatures bool
-	// AllowZeroFeeTxs enables 0-fee transactions when realms sponsor gas via PayGas.
-	AllowZeroFeeTxs bool
 
 	// RequireSigForSimulate reports whether tx must have its signatures
 	// cryptographically verified even in simulate mode.
@@ -69,15 +67,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		consParams := ctx.ConsensusParams()
 		isZeroFeeTx := tx.Fee.GasFee.IsZero() && consParams.Block.MaxGasCreditPerTx > 0
 
-		// Genesis is exempt from the two SponsorStorage guards below — genesis txs
-		// are trusted and never sponsor. "Genesis" is a property of the DELIVERY,
-		// not of the raw height: CheckTx is served from node start and checkState
-		// carries InitChain's zero height until the first Commit, so gating on
-		// height alone would let ordinary mempool traffic skip both guards in that
-		// window and admit txs that are then rejected deterministically at
-		// DeliverTx. Mirrors the credit-window scoping in baseapp.runTx.
-		notGenesis := ctx.BlockHeight() > 0 || ctx.Mode() != sdk.RunTxModeDeliver
-
 		// A sponsored (0-fee) tx cannot be ADMITTED before the first block is
 		// committed. checkState carries InitChain's zero height until the first
 		// Commit, and at height 0 gno.land's genesis wrapper auto-creates and
@@ -108,8 +97,8 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// validator policy), so it cannot stop a proposer from force-including a
 		// 0-fee tx. Before this feature, Tx.ValidateBasic rejected such txs
 		// outright; relaxing it to admit canonical zero fees for sponsorship
-		// removed that backstop, and this restores it.
-		if tx.Fee.GasFee.IsZero() && !isZeroFeeTx && notGenesis {
+		// removed that backstop, and this restores it, genesis included.
+		if tx.Fee.GasFee.IsZero() && !isZeroFeeTx {
 			res = abciResult(std.ErrInsufficientFee(
 				"zero-fee transactions require a non-zero Block.MaxGasCreditPerTx"))
 			return ctx, res, true
@@ -134,17 +123,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// Ensure that the provided fees meet a minimum threshold for the validator,
 		// if this is a CheckTx. This is only for local mempool purposes, and thus
-		// is only run upon checktx. Skip for 0-fee PayGas txs when allowed.
-		if ctx.IsCheckTx() && !simulate {
-			if isZeroFeeTx && !opts.AllowZeroFeeTxs {
-				res = abciResult(std.ErrInsufficientFee("zero-fee transactions not accepted by this validator"))
+		// is only run upon checktx. Whether this validator admits 0-fee txs at
+		// all is decided in BaseApp.CheckTx.
+		if ctx.IsCheckTx() && !simulate && !isZeroFeeTx {
+			res := EnsureSufficientMempoolFees(ctx, tx.Fee)
+			if !res.IsOK() {
 				return ctx, res, true
-			}
-			if !isZeroFeeTx {
-				res := EnsureSufficientMempoolFees(ctx, tx.Fee)
-				if !res.IsOK() {
-					return ctx, res, true
-				}
 			}
 		}
 

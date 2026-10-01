@@ -153,7 +153,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
 		VerifyGenesisSignatures: !cfg.SkipGenesisSigVerification,
-		AllowZeroFeeTxs:         cfg.AllowZeroFeeTxs,
 		// MsgAddPackage and MsgRun both compile caller-supplied Gno source,
 		// and who is allowed to do that is decided from the signer.
 		// `.app/simulate` is a public query that RUNS the messages, so

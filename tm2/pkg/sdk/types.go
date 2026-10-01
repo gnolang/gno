@@ -23,10 +23,9 @@ type Handler interface {
 
 // PayGasInfo tracks whether a realm has called PayGas in the current transaction.
 type PayGasInfo struct {
-	RealmPkgPath string         // pkg path of the realm that called PayGas
-	RealmAddr    crypto.Address // derived address of the realm
-	MaxFee       int64          // gas fee cap in ugnot (0 = PayGas not called)
-	Eligible     bool           // true only for 0-fee credit-window txs; PayGas is a no-op otherwise
+	RealmAddr crypto.Address // derived address of the realm
+	MaxFee    int64          // gas fee cap in ugnot (0 = PayGas not called)
+	Eligible  bool           // true only for 0-fee credit-window txs; PayGas is a no-op otherwise
 }
 
 // Result is the union of ResponseDeliverTx and ResponseCheckTx plus events.

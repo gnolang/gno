@@ -368,11 +368,7 @@ func TestAnteHandlerRejectsSponsoredTxBeforeFirstBlock(t *testing.T) {
 	cp.Block.MaxGasCreditPerTx = 1_000_000 // credit window OPEN
 	ctx := env.ctx.WithConsensusParams(cp).
 		WithBlockHeader(&bft.Header{ChainID: env.ctx.ChainID(), Height: 0})
-	// An OPTING-IN validator: without AllowZeroFeeTxs the mempool gate would
-	// reject the tx first and the height-0 guard would never be exercised.
-	opts := defaultAnteOptions()
-	opts.AllowZeroFeeTxs = true
-	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, opts)
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 
 	fee := std.NewFee(50000, std.NewCoin("ugnot", 0)) // 0-fee => sponsored
 

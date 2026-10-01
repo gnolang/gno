@@ -56,7 +56,6 @@ func X_payGas(m *gno.Machine, pkgPath string, maxFee int64) {
 		m.GasMeter.SetLimit(limit)
 	}
 
-	pgi.RealmPkgPath = pkgPath
 	pgi.RealmAddr = gno.DerivePkgCryptoAddr(pkgPath)
 	pgi.MaxFee = maxFee
 }

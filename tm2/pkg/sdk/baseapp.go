@@ -646,27 +646,24 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 		return
 	}
 
-	// For 0-fee txs when allowed, use RunTxModeCheckExecute to run full VM
-	// execution so that runTx can validate PayGas was called before accepting
-	// into the mempool (the PayGas-not-called rejection itself lives in runTx,
-	// for all modes). Unlike Simulate, this mode persists the ante's account
-	// sequence increment to checkState when the tx is admitted, so a subsequent
-	// sponsored tx from the same account (sequence+1) is accepted; and it
-	// verifies signatures normally (it is not Simulate), so no forged-signature
-	// tx can enter the mempool.
-	//
-	// Only do this on FIRST-TIME admission. A recheck (issued after every
-	// committed block for every still-pending tx) must NOT re-run the full VM:
-	// the tx already passed admission once, and re-executing every pending 0-fee
-	// tx each block is an unbounded CPU-amplification vector. On recheck we fall
-	// back to the cheap ante-only RunTxModeCheck, which re-validates sequence and
-	// funding; DeliverTx independently re-enforces PayGas at inclusion time.
+	// First-time admission of a sponsored tx runs its messages
+	// (RunTxModeCheckExecute), so runTx can check that a realm called PayGas and
+	// dry-run settlement. Unlike Simulate, it verifies signatures and persists
+	// the ante's sequence increment for an admitted tx, so the account's next
+	// sponsored tx is accepted. Rechecks, issued for every pending tx after each
+	// block, stay ante-only: re-running the VM for all of them every block would
+	// be an unbounded CPU cost, and DeliverTx enforces PayGas again anyway.
 	mode := RunTxModeCheck
-	if req.Type != abci.CheckTxTypeRecheck &&
-		tx.Fee.GasFee.IsZero() && app.allowZeroFeeTxs &&
-		app.consensusParams != nil && app.consensusParams.Block != nil &&
-		app.consensusParams.Block.MaxGasCreditPerTx > 0 {
-		mode = RunTxModeCheckExecute
+	if app.isSponsoredTx(tx) {
+		// Admitting 0-fee txs is local mempool policy, like MinGasPrices;
+		// DeliverTx does not depend on it.
+		if !app.allowZeroFeeTxs {
+			res.Error = ABCIError(std.ErrInsufficientFee("zero-fee transactions not accepted by this validator"))
+			return
+		}
+		if req.Type != abci.CheckTxTypeRecheck {
+			mode = RunTxModeCheckExecute
+		}
 	}
 	ctx := app.getContextForTx(mode, req.Tx)
 
@@ -789,6 +786,13 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	result.Log = strings.Join(msgLogs, "\n")
 	result.GasUsed = ctx.GasMeter().GasConsumed()
 	return result
+}
+
+// isSponsoredTx reports whether tx is a 0-fee tx running on the credit window
+// (Block.MaxGasCreditPerTx), which only a realm calling PayGas can pay for.
+func (app *BaseApp) isSponsoredTx(tx Tx) bool {
+	cp := app.consensusParams
+	return tx.Fee.GasFee.IsZero() && cp != nil && cp.Block != nil && cp.Block.MaxGasCreditPerTx > 0
 }
 
 // Returns the applications's deliverState if app is in RunTxModeDeliver,
@@ -1007,8 +1011,6 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	}
 	cp := msCache.(store.Checkpointable)
 
-	// Set up the shared PayGas / PayStorage context before message execution, so
-	// the sponsorship pointers are visible to every message in the tx.
 	runMsgCtx := ctx
 
 	// A 0-fee tx executes on the PayGas credit window (see the ante handler).
@@ -1023,13 +1025,10 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	// the first Commit. Gating on height alone therefore disabled PayGas
 	// enforcement for every mempool admission in that window. Scope the exemption
 	// to DeliverTx so CheckExecute still enforces sponsorship.
-	zeroFeeCreditTx := (ctx.BlockHeight() > 0 || mode != RunTxModeDeliver) &&
-		tx.Fee.GasFee.IsZero() &&
-		app.consensusParams != nil && app.consensusParams.Block != nil &&
-		app.consensusParams.Block.MaxGasCreditPerTx > 0
+	sponsored := (ctx.BlockHeight() > 0 || mode != RunTxModeDeliver) && app.isSponsoredTx(tx)
 
 	// Share one PayGasInfo across all messages in this tx.
-	runMsgCtx = runMsgCtx.WithPayGasInfo(&PayGasInfo{Eligible: zeroFeeCreditTx})
+	runMsgCtx = runMsgCtx.WithPayGasInfo(&PayGasInfo{Eligible: sponsored})
 
 	// Own the per-tx event logger here rather than inside runMsgs, so that
 	// end-of-tx settlement emits into the SAME logger and its events can be
@@ -1068,7 +1067,7 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	// block proposer cannot force-include a free tx that skips PayGas. A 0-fee tx
 	// that never called PayGas has no payer, so it must fail and have its msg
 	// writes discarded (below, result.IsOK() is false → WriteCheckpoint reverts).
-	if zeroFeeCreditTx && !payGasCalled && result.IsOK() {
+	if sponsored && !payGasCalled && result.IsOK() {
 		result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
 	}
 

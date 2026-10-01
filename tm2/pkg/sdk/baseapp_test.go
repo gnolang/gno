@@ -595,16 +595,43 @@ func TestCheckTx(t *testing.T) {
 	require.Nil(t, storedBytes)
 }
 
-// TestCheckTxSponsoredSequencePersists verifies that CheckTx admission of a
-// 0-fee (PayGas-sponsored) tx via RunTxModeCheckExecute persists the ante
-// handler's writes — notably the account sequence increment — to checkState, so
-// successive sponsored txs from the same account are admitted within a block.
-//
-// The counter ante is a proxy for the account sequence: incrementingCounter
-// asserts the stored counter equals the tx's counter, which only holds if each
-// CheckTx's ante write persisted. This is a regression guard for the earlier
-// behavior where 0-fee CheckTx ran in Simulate mode and discarded ante writes,
-// capping a sender to one in-flight sponsored tx per block.
+// TestCheckTxZeroFeeRejectedWhenNotOptedIn: with the credit window open but
+// AllowZeroFeeTxs off, a 0-fee tx is refused at admission without running its
+// messages. DeliverTx does not depend on this local policy.
+func TestCheckTxZeroFeeRejectedWhenNotOptedIn(t *testing.T) {
+	t.Parallel()
+
+	counterKey := []byte("counter-key")
+	ran := false
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, counterKey)) }
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ran = true
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:        1_000_000,
+				MaxGas:            10_000_000,
+				MaxGasCreditPerTx: 1_000_000,
+			},
+		},
+	})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+
+	r := app.CheckTx(abci.RequestCheckTx{Tx: txBytes})
+	require.False(t, r.IsOK())
+	require.IsType(t, std.InsufficientFeeError{}, r.Error)
+	require.False(t, ran, "a validator that has not opted in must not run the messages")
+}
+
 // TestZeroFeeTxWithoutPayGasRejectedAtCheckExecute is the companion guard to
 // TestCheckTxSponsoredSequencePersists: a 0-fee tx whose messages never call
 // PayGas has no payer and must be REJECTED at admission — including before the
@@ -649,6 +676,16 @@ func TestZeroFeeTxWithoutPayGasRejectedAtCheckExecute(t *testing.T) {
 	require.Empty(t, r.Events, "a failed tx must not report events")
 }
 
+// TestCheckTxSponsoredSequencePersists verifies that CheckTx admission of a
+// 0-fee (PayGas-sponsored) tx via RunTxModeCheckExecute persists the ante
+// handler's writes — notably the account sequence increment — to checkState, so
+// successive sponsored txs from the same account are admitted within a block.
+//
+// The counter ante is a proxy for the account sequence: incrementingCounter
+// asserts the stored counter equals the tx's counter, which only holds if each
+// CheckTx's ante write persisted. This is a regression guard for the earlier
+// behavior where 0-fee CheckTx ran in Simulate mode and discarded ante writes,
+// capping a sender to one in-flight sponsored tx per block.
 func TestCheckTxSponsoredSequencePersists(t *testing.T) {
 	t.Parallel()
 
