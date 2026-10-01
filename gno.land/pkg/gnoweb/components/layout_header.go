@@ -34,8 +34,7 @@ type HeaderData struct {
 	NetworkKind NetworkKind
 }
 
-// NetworkChipTitle is the tooltip. The visible chip is a bare chain-id, which
-// means nothing to a reader who does not already know which chains are mainnet.
+// NetworkChipTitle is the chip's tooltip, spelling out whether this is mainnet.
 func (d HeaderData) NetworkChipTitle() string {
 	if d.NetworkKind.IsMainnet() {
 		return "You are on gno.land mainnet (" + d.ChainId + ")"

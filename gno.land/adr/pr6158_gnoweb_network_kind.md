@@ -174,8 +174,8 @@ now, and it follows whatever background the banner ends up with.
 ## Consequences
 
 - `data-network` is available to CSS for any further per-network styling.
-- `NetworkKind` is the hook §2.6 (per-network robots policy) and §2.4 (default
-  off-mainnet banner) key off; neither is in this change.
+- `NetworkKind` is the hook §2.6 (per-network robots policy) keys off; that is
+  not in this change.
 - Deployments that want a footer Faucet link must set `-faucet-url`. Every
   deployment in this repo that had one already does (`misc/loop`,
   `misc/deployments/home-alias`, `test2`, `test3`), so none regress. `gnodev`
