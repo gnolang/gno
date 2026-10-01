@@ -150,16 +150,10 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// Set gas meter: credit window for 0-fee txs, GasWanted for normal txs.
 		if isZeroFeeTx {
+			// Never infinite outside DeliverTx: the height-0 admission check
+			// above already rejected the only non-Deliver case where
+			// SetGasMeter would hand one out.
 			newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)
-			// SetGasMeter hands out an INFINITE meter at height 0 (genesis) and
-			// for source-gas replay. That exemption is correct when DELIVERING a
-			// trusted genesis/replay tx, but CheckTx is served from node start
-			// while checkState still carries InitChain's zero height, so mempool
-			// admission of a 0-fee tx would otherwise run the VM unmetered.
-			// Outside DeliverTx, always bound a credit-window tx by the window.
-			if ctx.Mode() != sdk.RunTxModeDeliver {
-				newCtx = newCtx.WithGasMeter(store.NewGasMeter(consParams.Block.MaxGasCreditPerTx))
-			}
 		} else {
 			newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
 		}
