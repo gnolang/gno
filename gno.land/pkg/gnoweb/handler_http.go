@@ -310,11 +310,10 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Page path: wrap the state body in IndexLayout chrome. Set
-		// HeaderData here (mirroring prepareIndexBodyView; setHeadMetadata
-		// above already set the Title) so the global header — breadcrumb +
-		// Content/State/Source/Actions tabs — renders against this realm
-		// instead of inheriting zero values and pointing the tabs at empty
-		// URLs.
+		// HeaderData here (the Title came from setHeadMetadata) so the
+		// global header — breadcrumb + Content/State/Source/Actions tabs —
+		// renders against this realm instead of inheriting zero values and
+		// pointing the tabs at empty URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
 		indexData.BodyView = view
@@ -1132,14 +1131,14 @@ const ogImageAsset = "imgs/og-gnoland.png"
 // setHeadMetadata fills the <head> slots that the URL alone answers. The
 // summary is left to whatever renders the body, since only the rendered
 // document carries one.
-func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL, operatorPage bool) {
+func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL, shareImage bool) {
 	canonical := h.canonicalURL(gnourl)
 	indexData.HeadData.Title = h.pageTitle(gnourl)
 	indexData.HeadData.Canonical = canonical
 	indexData.HeadData.URL = canonical
 	// A crawler fetches og:image as given, with no page to resolve it
 	// against, so it needs the same declared origin as the canonical.
-	if h.Static.CanonicalOrigin != "" && operatorPage {
+	if h.Static.CanonicalOrigin != "" && shareImage {
 		indexData.HeadData.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, ogImageAsset)
 	}
 }
