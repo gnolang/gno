@@ -77,6 +77,45 @@ func TestDescription(t *testing.T) {
 	}
 }
 
+func TestTitle(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{"first h1", "Intro.\n\n# The post title\n\n# Another\n", "The post title"},
+		{"an h2 is not a title", "## Section\n\nText.\n", ""},
+		{"an empty h1 is skipped", "#\n\n# Named\n", "Named"},
+		{"inline markup is flattened", "# A [link](/r/x) and **bold**\n", "A link and bold"},
+		{"entities and escapes are resolved", "# Tom &amp; Jerry \\*live\\*\n", "Tom & Jerry *live*"},
+		{"an image alt is not a title", "# ![Official notice](x.png)\n", ""},
+		{"a nested h1 is not the page's", "> # Quoted\n", ""},
+		{"empty", "", ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			src := []byte(tc.src)
+			doc := goldmark.New().Parser().Parse(text.NewReader(src))
+			assert.Equal(t, tc.want, Title(doc, src))
+		})
+	}
+
+	t.Run("truncates", func(t *testing.T) {
+		t.Parallel()
+
+		src := []byte("# " + strings.Repeat("word ", 30))
+		doc := goldmark.New().Parser().Parse(text.NewReader(src))
+		got := Title(doc, src)
+		assert.LessOrEqual(t, len([]rune(got)), titleMaxRunes+1, "one rune of headroom for the ellipsis")
+		assert.True(t, strings.HasSuffix(got, "…"))
+	})
+}
+
 func TestDescriptionTruncates(t *testing.T) {
 	t.Parallel()
 

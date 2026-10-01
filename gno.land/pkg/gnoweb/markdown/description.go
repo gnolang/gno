@@ -20,12 +20,30 @@ const (
 	// either as a summary is worse than none; measured against deployed
 	// realms, a real one-line summary clears this.
 	descriptionMinRunes = 40
+	// titleMaxRunes caps a heading lifted into <title>, leaving room for the
+	// domain before a search result cuts it.
+	titleMaxRunes = 60
 )
 
 // RealmMeta is what rendering a document yields besides its HTML.
 type RealmMeta struct {
 	Toc         Toc
+	Title       string
 	Description string
+}
+
+// Title returns the text of the first top-level h1, as plain text, read the
+// way Description reads a paragraph.
+func Title(doc ast.Node, src []byte) string {
+	for n := doc.FirstChild(); n != nil; n = n.NextSibling() {
+		if h, ok := n.(*ast.Heading); !ok || h.Level != 1 {
+			continue
+		}
+		if text := plainText(src, n); text != "" {
+			return truncateRunes(text, titleMaxRunes)
+		}
+	}
+	return ""
 }
 
 // Description returns the first paragraph long enough to summarise the page,
@@ -36,12 +54,17 @@ func Description(doc ast.Node, src []byte) string {
 		if n.Kind() != ast.KindParagraph {
 			continue
 		}
-		text := strings.Join(strings.Fields(visibleText(src, n)), " ")
+		text := plainText(src, n)
 		if len([]rune(text)) >= descriptionMinRunes {
 			return truncateRunes(text, descriptionMaxRunes)
 		}
 	}
 	return ""
+}
+
+// plainText is the visible text of n on one line.
+func plainText(src []byte, n ast.Node) string {
+	return strings.Join(strings.Fields(visibleText(src, n)), " ")
 }
 
 // visibleText is nodeText minus the parts a reader does not read. An image's
