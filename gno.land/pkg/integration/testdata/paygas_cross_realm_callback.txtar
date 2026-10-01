@@ -1,8 +1,9 @@
-# Test that PayGas panics when called from a cross-realm callback.
-# Rule 2: function creator realm must match paying realm.
-# An attacker realm passes a callback to a victim realm.
-# The callback calls PayGas — this should panic because the callback
-# was defined in the attacker realm, not the victim realm.
+# A realm cannot be made to pay from inside a callback it runs for someone else.
+# The attacker's callback runs while the victim is the current realm, but the
+# only realm value it holds is the attacker's own cur, which is not current
+# there, so PayGas refuses it. (Under the old frame-based check, a victim that
+# exported a plain PayGas helper could be made to pay by passing that helper as
+# the callback; a helper now needs the victim's own cur.)
 
 ## start a new node
 gnoland start
@@ -20,9 +21,8 @@ gnokey maketx send -send 10000000ugnot -to g1tlsggatdrxa4mrlfg0d3m7n9wsn9ppeww87
 stdout OK!
 
 ## attacker calls victim.Execute with a callback that calls PayGas
-## This should fail because the callback's creator (attacker) != payer (victim)
 ! gnokey maketx call -pkgpath gno.land/r/test/attacker -func Attack -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stderr 'function creator realm does not match paying realm'
+stderr 'rlm must be the current realm'
 
 -- victim/gnomod.toml --
 module = "victim"
@@ -40,7 +40,7 @@ func Execute(cur realm, fn func()) {
 
 // SponsoredWork pays gas for the caller — this is the legitimate use case.
 func SponsoredWork(cur realm) string {
-	runtime.PayGas(1000000)
+	runtime.PayGas(1000000, cur)
 	return "done"
 }
 
@@ -62,6 +62,6 @@ func Attack(cur realm) {
 		// This callback is defined in the attacker realm
 		// but executes in the victim realm's context.
 		// PayGas should panic: creator (attacker) != payer (victim).
-		runtime.PayGas(1000000)
+		runtime.PayGas(1000000, cur)
 	})
 }

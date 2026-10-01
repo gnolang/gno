@@ -371,6 +371,7 @@ type vmkContextKey int
 const (
 	vmkContextKeyStore vmkContextKey = iota
 	vmkContextKeyTypeCheckCache
+	vmkContextKeyPayStorage
 )
 
 func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
@@ -393,9 +394,24 @@ func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 }
 
 func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
-	return ctx.
+	ctx = ctx.
 		WithValue(vmkContextKeyTypeCheckCache, maps.Clone(vm.typeCheckCache)).
 		WithValue(vmkContextKeyStore, vm.newGnoTransactionStore(ctx))
+	if pgi := ctx.PayGasInfo(); pgi != nil && pgi.Eligible {
+		ctx = ctx.WithValue(vmkContextKeyPayStorage, &stdlibs.PayStorageInfo{})
+	}
+	return ctx
+}
+
+// beginPayStorage records that the current message calls entry ("" when it
+// calls no realm) and returns the transaction's PayStorage commitment, or nil
+// outside a sponsored transaction.
+func beginPayStorage(ctx sdk.Context, entry string) *stdlibs.PayStorageInfo {
+	psi, _ := ctx.Value(vmkContextKeyPayStorage).(*stdlibs.PayStorageInfo)
+	if psi != nil {
+		psi.Entry = entry
+	}
+	return psi
 }
 
 func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
@@ -1161,6 +1177,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Seed per-message accumulator for chain/params byte tracking. Must
 	// happen BEFORE NewSDKParams captures ctx into its struct field.
 	ctx = ContextWithParamsAccum(ctx)
+	psi := beginPayStorage(ctx, pkgPath)
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:         ctx.ChainID(),
@@ -1179,9 +1196,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		EventLogger:         ctx.EventLogger(),
 		SessionAccount:      getSessionAccount(ctx, creator),
 		PayGasInfo:          ctx.PayGasInfo(),
-		PayStorageInfo:      ctx.PayStorageInfo(),
+		PayStorageInfo:      psi,
 		GasPrice:            getGasPrice(ctx),
-		StorageDepositDenom: ugnot.Denom,
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -1230,7 +1246,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
 
-	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params, pkgPath)
 	if err != nil {
 		return err
 	}
@@ -1297,6 +1313,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	chainDomain := params.ChainDomain
 	// Seed per-message accumulator before NewSDKParams captures ctx.
 	ctx = ContextWithParamsAccum(ctx)
+	psi := beginPayStorage(ctx, pkgPath)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:            ctx.ChainID(),
 		ChainDomain:        chainDomain,
@@ -1316,9 +1333,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		EventLogger:             ctx.EventLogger(),
 		SessionAccount:          getSessionAccount(ctx, caller),
 		PayGasInfo:              ctx.PayGasInfo(),
-		PayStorageInfo:          ctx.PayStorageInfo(),
+		PayStorageInfo:          psi,
 		GasPrice:                getGasPrice(ctx),
-		StorageDepositDenom:     ugnot.Denom,
 	}
 	preAlloc := gno.NewAllocator(maxAllocTx)
 	preAlloc.SetGasMeter(ctx.GasMeter())
@@ -1415,7 +1431,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
-	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params, pkgPath)
 	if err != nil {
 		return "", err
 	}
@@ -1595,14 +1611,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		// ephemeral /e/<addr>/run realm, so IsUserCall() is false. Leaving
 		// the recipient empty is fail-closed: nothing can spend against an
 		// envelope that never moved.
-		Banker:              NewSDKBanker(vm, ctx),
-		Params:              NewSDKParams(vm.prmk, ctx),
-		EventLogger:         ctx.EventLogger(),
-		SessionAccount:      getSessionAccount(ctx, caller),
-		PayGasInfo:          ctx.PayGasInfo(),
-		PayStorageInfo:      ctx.PayStorageInfo(),
-		GasPrice:            getGasPrice(ctx),
-		StorageDepositDenom: ugnot.Denom,
+		Banker:         NewSDKBanker(vm, ctx),
+		Params:         NewSDKParams(vm.prmk, ctx),
+		EventLogger:    ctx.EventLogger(),
+		SessionAccount: getSessionAccount(ctx, caller),
+		PayGasInfo:     ctx.PayGasInfo(),
+		GasPrice:       getGasPrice(ctx),
 	}
 
 	buf := new(bytes.Buffer)
@@ -1667,7 +1681,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	res = buf.String()
 	// Use parameters before executing the message, as they may change during execution.
 	// Parameter changes take effect only after the message has executed successfully.
-	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params)
+	err = vm.processStorageDeposit(ctx, caller, msg.MaxDeposit, gnostore, params, "")
 	if err != nil {
 		return "", err
 	}
@@ -2362,19 +2376,17 @@ func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
 //
 // Returns an aggregated error if any realm processing fails due to insufficient deposit,
 // transfer errors.
-func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params) error {
+//
+// entry is the realm the message calls ("" if none): only it can have its
+// storage sponsored in this message. See stdlibs.PayStorageInfo.
+func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params, entry string) error {
 	if ctx.IsCheckTx() {
 		// Defense-in-depth: baseapp already skips handler.Process in
 		// CheckTx, but keep the guard so any future caller invoking
 		// this directly during a non-deliver phase doesn't lock funds.
 		return nil
 	}
-	// A realm that called PayStorage pays for growth of its OWN storage, up to
-	// what is left of its per-transaction budget; growth in any other realm
-	// stays on the caller. A deposit is refunded to whoever later frees the
-	// bytes, so paying another realm's deposit would let any other message in
-	// the tx route the sponsor's budget into a realm it controls and withdraw it.
-	psi := ctx.PayStorageInfo()
+	psi, _ := ctx.Value(vmkContextKeyPayStorage).(*stdlibs.PayStorageInfo)
 	if psi != nil && psi.MaxDeposit == 0 {
 		psi = nil // PayStorage was not called
 	}
@@ -2427,10 +2439,13 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				rlmPath, diff-paramsDiff, paramsDiff))
 			continue
 		}
-		sponsored := psi != nil && rlmPath == psi.RealmPkgPath
+		// The sponsor's own storage. It pays for growth there only in a
+		// message that calls it, and gets back what it funded first on a free.
+		sponsorRealm := psi != nil && rlmPath == psi.RealmPkgPath
 		if diff > 0 {
 			// lock deposit for the additional storage used.
 			requiredDeposit := overflow.Mulp(diff, price.Amount)
+			sponsored := sponsorRealm && entry == rlmPath
 			payer := caller
 			if sponsored {
 				if remaining := psi.MaxDeposit - psi.SpentDeposit; requiredDeposit > remaining {
@@ -2458,8 +2473,6 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			// partial failure.
 			FlushParamsRealmAccum(ctx, vm.prmk, rlmPath)
 			if sponsored {
-				// Shared across the tx's messages, so the budget is a
-				// per-transaction cap.
 				psi.SpentDeposit += requiredDeposit
 			} else {
 				depositAmt -= requiredDeposit
@@ -2523,7 +2536,7 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 			// restricted denom, where the refund is withheld from everyone.
 			totalUnlocked := depositUnlocked
 			sponsorShare := int64(0)
-			if sponsored && !isRestricted {
+			if sponsorRealm && !isRestricted {
 				sponsorShare = min(depositUnlocked, psi.SpentDeposit)
 			}
 			if sponsorShare > 0 {

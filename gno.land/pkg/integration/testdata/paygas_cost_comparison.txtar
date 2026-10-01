@@ -61,7 +61,7 @@ import (
 )
 
 func SponsoredSetValue(cur realm, val string) string {
-	runtime.PayGas(5000000)
-	runtime.PayStorage(500000)
+	runtime.PayGas(5000000, cur)
+	runtime.PayStorage(500000, cur)
 	return work.SetValue(cross(cur), val)
 }

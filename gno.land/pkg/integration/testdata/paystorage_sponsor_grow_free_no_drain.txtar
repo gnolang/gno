@@ -41,12 +41,12 @@ gnokey query bank/balances/$user1_user_addr
 cp stdout user1_balance_after
 cmp user1_balance_before user1_balance_after
 
-## The sponsor gets its own deposit back, so it is out only 3154ugnot: 2154 of
+## The sponsor gets its own deposit back, so it is out only 3061ugnot: 2061 of
 ## gas plus the 1000ugnot deposit for the 10 bytes Free leaves behind. Re-derive
 ## on a gas-schedule or storage-price change; what matters is that user1 did not
 ## gain and the sponsor did not lose the released deposit.
 gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
-stdout '9996846ugnot'
+stdout '9996939ugnot'
 
 -- payer/gnomod.toml --
 module = "ss_payer"
@@ -60,8 +60,8 @@ import "chain/runtime"
 var data []string
 
 func Pay(cur realm) string {
-	runtime.PayGas(5000000)
-	runtime.PayStorage(1000000)
+	runtime.PayGas(5000000, cur)
+	runtime.PayStorage(1000000, cur)
 	return "paid"
 }
 

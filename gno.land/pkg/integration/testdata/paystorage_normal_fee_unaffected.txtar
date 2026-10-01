@@ -42,7 +42,7 @@ import "chain/runtime"
 var data []string
 
 func Grow(cur realm, s string) string {
-	runtime.PayStorage(5000000) // unconditional — must be a no-op on a fee-paying tx
+	runtime.PayStorage(5000000, cur) // unconditional — must be a no-op on a fee-paying tx
 	data = append(data, s)      // grows realm storage
 	return "grown"
 }

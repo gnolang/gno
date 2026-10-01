@@ -2,10 +2,8 @@
 # MsgCall targets realm A → A calls B.SponsoredHelper() → B calls PayGas → B pays.
 #
 # NOTE: "sub-realm" here means a realm at a NESTED PACKAGE PATH (a separate
-# realm with its own package), not a `realm.Sub()` identity. The two are
-# unrelated: a `cur.Sub("x")` identity is only ever the PRESENTED realm, so it
-# can never be the payer — the host pays. See the "realm.Sub() identities and
-# sponsorship" note in docs/design/realm-gas-sponsorship-hld.md.
+# realm with its own package), not a `realm.Sub()` token, which PayGas refuses
+# (see paygas_realm_capability.txtar).
 
 ## start a new node
 gnoland start
@@ -45,7 +43,7 @@ package subrealm
 import "chain/runtime"
 
 func SponsoredHelper(cur realm) string {
-	runtime.PayGas(1000000) // sub-realm pays gas
+	runtime.PayGas(1000000, cur) // sub-realm pays gas
 	return "sub-realm done"
 }
 

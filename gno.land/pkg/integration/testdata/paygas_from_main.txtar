@@ -1,18 +1,18 @@
-# Test that calling PayGas from main() via MsgRun panics.
-# main is not a realm — PayGas must be called from a realm.
+# MsgRun's ephemeral realm cannot sponsor: PayGas rejects any rlm that is not a
+# top-level /r/ realm, and the run realm lives under gno.land/e/.
 
 ## start a new node
 gnoland start
 
-## run a script that calls PayGas directly from main
+## run a script whose main passes its own realm to PayGas
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/main.gno
-stderr 'caller is not a realm'
+stderr 'rlm is not a realm'
 
 -- main.gno --
 package main
 
 import "chain/runtime"
 
-func main() {
-	runtime.PayGas(1000000) // main calling PayGas — should panic
+func main(cur realm) {
+	runtime.PayGas(1000000, cur)
 }

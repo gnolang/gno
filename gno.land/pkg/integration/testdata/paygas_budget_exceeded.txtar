@@ -27,6 +27,6 @@ package tiny
 import "chain/runtime"
 
 func DoWork(cur realm) string {
-	runtime.PayGas(100) // 100 ugnot / 1 ugnot per gas = 100 gas limit, but we already consumed more
+	runtime.PayGas(100, cur) // 100 ugnot / 1 ugnot per gas = 100 gas limit, but we already consumed more
 	return "done"
 }

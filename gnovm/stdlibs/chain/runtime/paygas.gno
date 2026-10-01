@@ -1,17 +1,24 @@
 package runtime
 
-// PayGas commits the calling realm to pay gas for the current transaction.
-// maxFee is the maximum amount in ugnot the realm is willing to pay.
-// The gas limit is derived from maxFee and the current (dynamic) gas price —
-// the same price used at settlement — not the per-validator minimum gas price.
+// PayGas commits rlm to pay this transaction's gas, up to maxFee ugnot.
 //
-// Rules:
-//   - Only realms can call PayGas (not packages, not main).
-//   - The function containing PayGas must be defined in the same realm that pays.
-//   - Can only be called once per transaction.
-//   - Only takes effect in a 0-fee sponsored transaction (a no-op otherwise).
+// rlm is the paying realm's capability, as for banker.NewBanker: pass the cur
+// of your crossing function (or a value threaded down from it). It must be the
+// current realm, and a top-level realm rather than a sub-realm token. It comes
+// last because a realm-typed first parameter would make PayGas a crossing
+// function.
 //
-// PayGas and PayStorage are independent: one realm may sponsor gas while a
-// different realm sponsors storage in the same transaction. Each realm pays only
-// its own commitment from its own balance.
-func PayGas(maxFee int64)
+// It only takes effect in a 0-fee sponsored transaction, and is a no-op
+// otherwise. There it may be called once per transaction, and it covers the
+// gas of the whole transaction, other messages included. The gas limit becomes
+// what maxFee buys at the current gas price, capped by the credit window; the
+// realm is charged for the gas actually used, and only if the transaction
+// succeeds.
+func PayGas(maxFee int64, rlm realm) {
+	if !rlm.IsCurrent() {
+		panic("PayGas: rlm must be the current realm")
+	}
+	payGas(rlm.PkgPath(), maxFee)
+}
+
+func payGas(pkgPath string, maxFee int64)

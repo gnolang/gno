@@ -98,14 +98,23 @@ type ExecContext struct {
 	Params             ParamsInterface
 	EventLogger        *sdk.EventLogger
 	SessionAccount     std.DelegatedAccount // nil for master-key txs
-	PayGasInfo         *sdk.PayGasInfo      // mutable, shared pointer. MaxFee > 0 means PayGas was called.
-	PayStorageInfo     *sdk.PayStorageInfo  // mutable, shared pointer. MaxDeposit > 0 means PayStorage was called.
-	GasPrice           std.GasPrice         // current gas price for PayGas gas limit derivation
-	// StorageDepositDenom is the denomination storage deposits are charged in.
-	// It is NOT necessarily the gas-price denomination (the chain may price gas
-	// in another token), so PayStorage must check a realm's balance against this
-	// one rather than reusing GasPrice.Price.Denom.
-	StorageDepositDenom string
+	PayGasInfo         *sdk.PayGasInfo      // nil outside a tx; shared with the SDK context
+	PayStorageInfo     *PayStorageInfo      // nil unless this message's entry realm may sponsor storage
+	GasPrice           std.GasPrice         // current gas price, to derive PayGas's gas limit
+}
+
+// PayStorageInfo is a sponsored transaction's PayStorage commitment, shared
+// by its messages. Only the realm a message calls (Entry) may commit, and the
+// sponsor pays only for its own storage, in its own messages. Storage is
+// charged to the realm that allocated it and refunded to whoever frees it, so
+// a commitment that reached code the sponsor did not call, or storage it does
+// not own, would let that code collect the sponsor's deposits.
+type PayStorageInfo struct {
+	Entry        string         // pkg path of the realm the current message calls
+	RealmPkgPath string         // the committed realm ("" until PayStorage is called)
+	RealmAddr    crypto.Address // its address
+	MaxDeposit   int64          // the committed budget for the transaction
+	SpentDeposit int64          // net deposit the realm has locked in its own storage
 }
 
 // MarkOriginSendObservedBy records that the realm at realmPath made the

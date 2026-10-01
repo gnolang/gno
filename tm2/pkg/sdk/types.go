@@ -29,14 +29,6 @@ type PayGasInfo struct {
 	Eligible     bool           // true only for 0-fee credit-window txs; PayGas is a no-op otherwise
 }
 
-type PayStorageInfo struct {
-	RealmPkgPath string         // pkg path of the realm that called PayStorage
-	RealmAddr    crypto.Address // derived address of the realm
-	MaxDeposit   int64          // storage deposit cap in ugnot (0 = PayStorage not called)
-	SpentDeposit int64          // net deposit the realm has locked in its own storage during this tx
-	Eligible     bool           // true only for 0-fee credit-window txs; PayStorage is a no-op otherwise
-}
-
 // Result is the union of ResponseDeliverTx and ResponseCheckTx plus events.
 // Its wire encoding must stay compatible with abci.ResponseDeliverTx (same
 // fields), so no PayGas/sponsorship state is carried here — that lives on the

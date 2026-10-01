@@ -53,7 +53,7 @@ package swap
 import "chain/runtime"
 
 func Swap(cur realm) string {
-	runtime.PayGas(1000000)
+	runtime.PayGas(1000000, cur)
 	return "swapped"
 }
 

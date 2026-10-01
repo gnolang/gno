@@ -260,7 +260,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// End-of-tx settlement runs ONLY on success. On failure every message
 		// write reverts and a gas sponsor does NOT pay: free execution is instead
 		// bounded by the credit window and the "PayGas was called" enforcement.
-		// See the design note in docs/design/realm-gas-sponsorship-hld.md.
+		// See gno.land/adr/pr5382_realm_transaction_sponsorship.md.
 		//
 		// baseapp also runs this at 0-fee mempool admission (CheckExecute), where
 		// it acts as a DRY RUN: every write below lands in the discarded cache, so
@@ -303,16 +303,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 				actualCost = pgi.MaxFee
 			}
 			if actualCost > 0 {
-				realmAddr := pgi.RealmAddr
+				// The bank checks the balance before writing anything, so an
+				// insolvent sponsor just fails the tx (and, at admission, keeps
+				// it out of the mempool).
 				costCoins := std.NewCoins(std.NewCoin(gasPrice.Price.Denom, actualCost))
-				// Pre-check balance (same pattern as auth.DeductFees).
-				realmCoins := bankk.GetCoins(settleCtx, realmAddr)
-				if !realmCoins.SubUnsafe(costCoins).IsValid() {
-					return std.ErrInsufficientFunds(fmt.Sprintf(
-						"PayGas settlement: insufficient realm funds; %s < %s", realmCoins, costCoins))
-				}
-				if err := bankk.SendCoinsUnrestricted(settleCtx, realmAddr, feeCollectorAddr, costCoins); err != nil {
-					return std.ErrInternal(fmt.Sprintf("PayGas settlement failed: %v", err))
+				if err := bankk.SendCoinsUnrestricted(settleCtx, pgi.RealmAddr, feeCollectorAddr, costCoins); err != nil {
+					return err
 				}
 			}
 		}

@@ -1028,10 +1028,8 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 		app.consensusParams != nil && app.consensusParams.Block != nil &&
 		app.consensusParams.Block.MaxGasCreditPerTx > 0
 
-	// Share PayGasInfo and PayStorageInfo pointers across all messages in this tx.
-	runMsgCtx = runMsgCtx.
-		WithPayGasInfo(&PayGasInfo{Eligible: zeroFeeCreditTx}).
-		WithPayStorageInfo(&PayStorageInfo{Eligible: zeroFeeCreditTx})
+	// Share one PayGasInfo across all messages in this tx.
+	runMsgCtx = runMsgCtx.WithPayGasInfo(&PayGasInfo{Eligible: zeroFeeCreditTx})
 
 	// Own the per-tx event logger here rather than inside runMsgs, so that
 	// end-of-tx settlement emits into the SAME logger and its events can be
@@ -1075,8 +1073,8 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	}
 
 	// End-of-tx settlement runs ONLY on success. On failure every message write
-	// reverts and a gas sponsor does NOT pay — see the design note in
-	// docs/design/realm-gas-sponsorship-hld.md. A settlement error fails the tx,
+	// reverts and a gas sponsor does NOT pay — see
+	// tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md. A settlement error fails the tx,
 	// which then takes the revert branch below.
 	//
 	// It runs for CheckExecute as well as DeliverTx. A tx whose settlement cannot

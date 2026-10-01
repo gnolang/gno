@@ -66,8 +66,8 @@ package mm_payer
 import "chain/runtime"
 
 func Pay(cur realm) string {
-	runtime.PayGas(5000000)    // pay gas up to 5 gnot
-	runtime.PayStorage(500000) // pay storage up to 0.5 gnot
+	runtime.PayGas(5000000, cur)    // pay gas up to 5 gnot
+	runtime.PayStorage(500000, cur) // pay storage up to 0.5 gnot
 	return "paid"
 }
 

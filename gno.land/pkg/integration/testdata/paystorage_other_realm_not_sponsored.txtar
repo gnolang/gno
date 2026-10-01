@@ -39,11 +39,10 @@ stdout OK!
 gnokey query bank/balances/$user1_user_addr
 stdout '"999999000ugnot"'
 
-## The sponsor paid gas for both txs and no deposit. Before the fix it ended at
-## 9515735ugnot, having paid the vault's 479700ugnot deposit that user1 then
-## collected.
+## The sponsor paid gas for both txs and no deposit. Paying for the vault too,
+## it would have lost the vault's 479700ugnot deposit to user1.
 gnokey query bank/balances/g1l0sqzdjed2hmyf9jzf2jwjtf773fdr27037dpj
-stdout '"9995683ugnot"'
+stdout '"9995989ugnot"'
 
 -- sponsor/gnomod.toml --
 module = "gno.land/r/test/dr_sponsor"
@@ -58,8 +57,8 @@ import "chain/runtime"
 // point is that its storage budget covers its own storage, not the rest of
 // the transaction.
 func Do(cur realm) {
-	runtime.PayGas(1000000)
-	runtime.PayStorage(1000000)
+	runtime.PayGas(1000000, cur)
+	runtime.PayStorage(1000000, cur)
 }
 
 -- vault/gnomod.toml --

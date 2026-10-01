@@ -1,5 +1,5 @@
-# Test that a struct method in the same realm can call PayGas.
-# Rule 2 allows this because function creator (realm) == payer (realm).
+# A method can sponsor when its realm hands it cur: the capability, not the
+# function's package, decides who pays.
 
 ## start a new node
 gnoland start
@@ -28,13 +28,13 @@ import "chain/runtime"
 
 type Router struct{}
 
-func (r *Router) Process() string {
-	runtime.PayGas(1000000)
+func (r *Router) Process(maxFee int64, rlm realm) string {
+	runtime.PayGas(maxFee, rlm)
 	return "method done"
 }
 
 var router = &Router{}
 
 func DoWork(cur realm) string {
-	return router.Process()
+	return router.Process(1000000, cur)
 }

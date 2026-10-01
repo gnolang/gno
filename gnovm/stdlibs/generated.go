@@ -1314,50 +1314,62 @@ var nativeFuncs = [...]NativeFunc{
 	},
 	{
 		"chain/runtime",
-		"PayGas",
+		"payGas",
 		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
 		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
-				p0  int64
+				p0  string
 				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  int64
+				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
 			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
-			libs_chain_runtime.PayGas(
+			libs_chain_runtime.X_payGas(
 				m,
-				p0)
+				p0, p1)
 		},
 	},
 	{
 		"chain/runtime",
-		"PayStorage",
+		"payStorage",
 		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("int64")},
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("string")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
 		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
-				p0  int64
+				p0  string
 				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  int64
+				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
 			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
 			tv0.DeepFill(m.Store)
 			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
 
-			libs_chain_runtime.PayStorage(
+			libs_chain_runtime.X_payStorage(
 				m,
-				p0)
+				p0, p1)
 		},
 	},
 	{

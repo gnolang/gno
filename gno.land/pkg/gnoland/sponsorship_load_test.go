@@ -38,7 +38,7 @@ const sponsorRealm = `package sponsor
 import "chain/runtime"
 
 func Do(cur realm) string {
-	runtime.PayGas(5000000)
+	runtime.PayGas(5000000, cur)
 	x := 0
 	for i := 0; i < 10000; i++ {
 		x += i

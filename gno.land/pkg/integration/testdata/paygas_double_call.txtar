@@ -25,7 +25,7 @@ package double
 import "chain/runtime"
 
 func DoWork(cur realm) string {
-	runtime.PayGas(1000000)
-	runtime.PayGas(1000000) // second call should panic
+	runtime.PayGas(1000000, cur)
+	runtime.PayGas(1000000, cur) // second call should panic
 	return "done"
 }

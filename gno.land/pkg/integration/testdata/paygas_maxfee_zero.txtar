@@ -25,6 +25,6 @@ package zero
 import "chain/runtime"
 
 func DoWork(cur realm) string {
-	runtime.PayGas(0)
+	runtime.PayGas(0, cur)
 	return "done"
 }

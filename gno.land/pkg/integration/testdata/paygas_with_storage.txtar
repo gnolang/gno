@@ -45,8 +45,8 @@ import "chain/runtime"
 var data string
 
 func DoWork(cur realm) string {
-	runtime.PayGas(5000000)    // realm pays gas
-	runtime.PayStorage(500000) // realm pays storage
+	runtime.PayGas(5000000, cur)    // realm pays gas
+	runtime.PayStorage(500000, cur) // realm pays storage
 	data = "some new state that triggers a storage deposit"
 	return "done"
 }

@@ -73,7 +73,7 @@ func Sponsor(cur realm, payer string) string {
 	balances.Set("aa", treasury.(int64)+1000)
 
 	// 2. only now commit to paying the user's gas
-	runtime.PayGas(5000000)
+	runtime.PayGas(5000000, cur)
 	return "sponsored"
 }
 `
@@ -109,7 +109,7 @@ const paygasOnlyRealm = `package paymaster
 import "chain/runtime"
 
 func Sponsor(cur realm, payer string) string {
-	runtime.PayGas(5000000)
+	runtime.PayGas(5000000, cur)
 	return "sponsored"
 }
 `
@@ -130,7 +130,7 @@ func Sponsor(cur realm, payer string) string {
 	balances[payer] = bal - 1000
 	balances["aa"] += 1000
 
-	runtime.PayGas(5000000)
+	runtime.PayGas(5000000, cur)
 	return "sponsored"
 }
 `
@@ -171,7 +171,7 @@ func Sponsor(cur realm, _ string) string {
 	if err := led.TransferFrom(payer, treasury, treasury, 1000); err != nil {
 		panic(err)
 	}
-	runtime.PayGas(5000000)
+	runtime.PayGas(5000000, cur)
 	return "sponsored"
 }
 `
@@ -213,7 +213,7 @@ func Sponsor(cur realm, _ string) string {
 	if err := led.TransferFrom(payer, treasury, treasury, 1000); err != nil {
 		panic(err)
 	}
-	runtime.PayGas(5000000)
+	runtime.PayGas(5000000, cur)
 	return "sponsored"
 }
 `

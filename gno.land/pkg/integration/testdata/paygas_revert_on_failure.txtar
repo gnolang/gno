@@ -33,7 +33,7 @@ package revert
 import "chain/runtime"
 
 func DoWorkAndFail(cur realm) string {
-	runtime.PayGas(1000000)
+	runtime.PayGas(1000000, cur)
 	panic("intentional panic after PayGas")
 	return "unreachable"
 }

@@ -39,7 +39,7 @@ func SmallBudgetHeavyWork(cur realm) string {
 	// PayGas with a small budget: 3000 ugnot / (1ugnot/1000gas) = 3000000 gas.
 	// This succeeds (enough for the tx setup + code before the loop), but the
 	// heavy work after it exhausts the 3M gas limit.
-	runtime.PayGas(3000)
+	runtime.PayGas(3000, cur)
 
 	// Heavy work that exceeds the derived gas limit → OOG.
 	s := ""

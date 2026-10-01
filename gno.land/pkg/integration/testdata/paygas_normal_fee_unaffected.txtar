@@ -28,6 +28,6 @@ package normalfee
 import "chain/runtime"
 
 func DoWork(cur realm) string {
-	runtime.PayGas(1000000) // called but user already pays gas
+	runtime.PayGas(1000000, cur) // called but user already pays gas
 	return "done"
 }

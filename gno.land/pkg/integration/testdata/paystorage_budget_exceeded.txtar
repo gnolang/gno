@@ -37,8 +37,8 @@ import "chain/runtime"
 var bigData string
 
 func WriteLotsOfData(cur realm) string {
-	runtime.PayGas(5000000)
-	runtime.PayStorage(1) // tiny budget — 1 ugnot won't cover any storage
+	runtime.PayGas(5000000, cur)
+	runtime.PayStorage(1, cur) // tiny budget — 1 ugnot won't cover any storage
 
 	// Write lots of data — storage deposit will exceed budget
 	bigData = "this is a lot of data that requires storage deposit exceeding 1 ugnot"

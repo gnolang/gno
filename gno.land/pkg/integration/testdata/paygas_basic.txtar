@@ -45,6 +45,6 @@ package sponsor
 import "chain/runtime"
 
 func DoWork(cur realm) string {
-	runtime.PayGas(1000000) // realm pays up to 1000000 ugnot (1 gnot)
+	runtime.PayGas(1000000, cur) // realm pays up to 1000000 ugnot (1 gnot)
 	return "done"
 }

@@ -27,6 +27,6 @@ func HeavyWork(cur realm) string {
 	for i := 0; i < 100000; i++ {
 		s += "x"
 	}
-	runtime.PayGas(1000000) // never reached — OOG first
+	runtime.PayGas(1000000, cur) // never reached — OOG first
 	return s
 }
