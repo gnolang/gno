@@ -93,6 +93,7 @@
 
 		flex-shrink: 0;
 		padding-inline: var(--g-space-2);
+		border: var(--g-space-px, 1px) solid var(--s-color-border-network);
 		border-radius: var(--s-rounded);
 		background-color: var(--s-color-bg-network);
 		color: var(--s-color-text-network);
@@ -114,6 +115,7 @@
 	   not concatenate `&` with a suffix -- it would compile to a dead type
 	   selector. Same reason `.main-nav--explorer` above is flat. */
 	.network-chip--alert {
+		border-color: transparent;
 		background-color: var(--s-color-bg-network-alert);
 		color: var(--s-color-text-network-alert);
 	}
@@ -138,6 +140,10 @@
 	position: relative;
 	height: auto;
 	width: 100%;
+
+	/* Shrink beside the network chip; the breadcrumb scrolls in its own reel
+	   instead of pushing the header past the viewport at 320px. */
+	min-width: 0;
 	color: var(--s-color-text-quaternary);
 
 	& > .inner {
