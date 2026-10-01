@@ -194,7 +194,7 @@
           </dl>
         {{ end }}
         {{ if .Sidebar.TOC }}
-          {{ if .Sidebar.Heading }}<h2 class="b-sidebar-heading">{{ .Sidebar.Heading }}</h2>{{ end }}
+          {{ if .Sidebar.Heading }}<h3 class="b-sidebar-heading">{{ .Sidebar.Heading }}</h3>{{ end }}
           {{ $treeMode := eq .ViewMode "tree" }}
           <ul class="b-toc b-state-toc">
             {{ range .Sidebar.TOC }}
