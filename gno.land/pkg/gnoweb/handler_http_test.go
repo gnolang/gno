@@ -2591,6 +2591,37 @@ func TestHTTPHandler_GetUserView_SlowLookupDoesNotStarveThePage(t *testing.T) {
 	}
 }
 
+// The lookup budget is a quarter of the request at most 2s: with the default
+// one-minute node timeout the quarter alone would be 15s, so the cap is the
+// bound that applies in production.
+func TestHTTPHandler_GetUserView_LookupDeadlineIsCapped(t *testing.T) {
+	t.Parallel()
+
+	var remaining time.Duration
+	var hasDeadline bool
+	client := &stubClient{
+		evalFunc: func(ctx context.Context, _, _ string) ([]byte, error) {
+			var deadline time.Time
+			deadline, hasDeadline = ctx.Deadline()
+			remaining = time.Until(deadline)
+			return resolveAnyPayload("alice"), nil
+		},
+		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+	}
+
+	cfg := newTestHandlerConfig(t, client)
+	cfg.Timeout = time.Minute
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/u/alice", nil))
+
+	require.True(t, hasDeadline, "the lookup must run under a deadline")
+	assert.LessOrEqual(t, remaining, 2*time.Second, "the lookup must be capped at 2s, not a quarter of the request")
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
+
 // Only a gno address is a namespace by construction. Any other bech32 string
 // (another chain's address, a typo'd HRP) is just a name, and an unknown one at
 // that, so it is not served a profile with an "address" line it does not have.
