@@ -10,7 +10,8 @@ import (
 // gno.land/pkg/gnoweb (that would create an import cycle), so it cannot use
 // errors.Is against gnoweb's ErrClient* sentinels. Instead, mapClientError
 // matches on the stable error-message substrings produced by gnoweb's client.
-// Exported so gnoweb pins the pact in a test (see TestStateErrorSentinelPact).
+// Exported so gnoweb pins the pact in a test (see TestStateErrorSentinelPact),
+// and so feature/omnisearch classifies the same errors the same way.
 const (
 	ClientErrPackageNotFound  = "package not found"
 	ClientErrObjectNotFound   = "object not found"

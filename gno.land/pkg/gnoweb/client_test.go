@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"log/slog"
 	"strings"
 	"testing"
 	"time"
@@ -151,8 +149,7 @@ func TestListPathsForwardsLimit(t *testing.T) {
 	t.Parallel()
 
 	caller := &pathsCaller{listing: "gno.land/r/demo/a\ngno.land/r/demo/b"}
-	c := NewRPCClientAdapter(slog.New(slog.NewTextHandler(io.Discard, nil)),
-		client.NewRPCClient(caller), "gno.land", 0)
+	c := NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(caller), "gno.land", 0)
 
 	paths, err := c.ListPaths(context.Background(), "gno.land/r", 10_000)
 	if err != nil {

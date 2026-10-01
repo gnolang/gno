@@ -159,8 +159,12 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 	if err != nil {
 		// Reported, never fatal: a dead indexer degrades to a visible
 		// "could not answer", not a 500.
-		h.deps.Logger.Warn("omnisearch: resolver failed",
-			"selector", sel.Name, "term_length", len(term), "error", err)
+		// An input error is the reader's typo, not backend trouble.
+		var in inputError
+		if !errors.As(err, &in) {
+			h.deps.Logger.Warn("omnisearch: resolver failed",
+				"selector", sel.Name, "term_length", len(term), "error", err)
+		}
 		g.Err = publicError(err, sel.Source)
 	}
 	g.Results = results
@@ -263,7 +267,7 @@ func publicError(err error, src Source) error {
 	case errors.Is(err, indexer.ErrTooLarge),
 		errors.Is(err, indexer.ErrResponseTooLarge),
 		strings.Contains(msg, state.ClientErrResponseTooLarge):
-		return errors.New("answer too large")
+		return errors.New("response too large")
 	case src == SourceIndexer:
 		return errors.New("indexer unavailable")
 	default:

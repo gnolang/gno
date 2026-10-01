@@ -60,6 +60,9 @@ const QUALIFIED_SEARCH_DELAY = 220;
 // through to a normal text search.
 const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
 
+// A leading `gno.land` host, with or without scheme.
+const GNO_LAND_HOST = /^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i;
+
 export class SearchbarController extends BaseController {
 	private realms: string[] = [];
 	private packages: string[] = [];
@@ -141,9 +144,9 @@ export class SearchbarController extends BaseController {
 	// path (with or without its leading slash), a gno.land link, or a URL.
 	static isPathLike(raw: string): boolean {
 		return (
-			/^\/?[rpu]\//.test(raw) ||
+			/^[rpu]\//.test(raw) ||
 			raw.startsWith("/") ||
-			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i.test(raw) ||
+			GNO_LAND_HOST.test(raw) ||
 			/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
 		);
 	}
@@ -785,10 +788,7 @@ export class SearchbarController extends BaseController {
 	// realm paths copied from anywhere resolve locally; non-`gno.land` absolute
 	// URLs pass through, and relatives resolve against the origin.
 	static resolveTarget(input: string): string | null {
-		const stripped = input.replace(
-			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i,
-			"",
-		);
+		const stripped = input.replace(GNO_LAND_HOST, "");
 		try {
 			const url = new URL(stripped, window.location.origin);
 			if (url.protocol !== "http:" && url.protocol !== "https:") return null;
