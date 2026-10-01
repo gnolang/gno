@@ -1018,7 +1018,9 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 // requestOrigin returns scheme+host. X-Forwarded-Host is honored only from a
 // trusted proxy: the origin reaches shareable links and AI prompts, and a
 // cache in front of gnoweb does not key on that header. X-Forwarded-Proto
-// can only pick http or https for the same host, so it is always honored.
+// is always honored: at worst a spoofed one downgrades links to http on the
+// same host, while gating it would give every TLS-terminated deployment
+// without -trusted-proxies http links.
 // Empty when no host is known; callers fall back to path-relative URLs.
 func requestOrigin(r *http.Request, trusted []*net.IPNet) string {
 	host := r.Host
@@ -1152,7 +1154,8 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 
 // dropAIMenuOnError keeps the Ask AI menu off error pages: its prompts would
 // send the assistant to views that do not exist, and carry a file name the
-// package does not hold.
+// package does not hold. The menu is built from HeaderData.Origin at render
+// time, and nothing else in the header reads it.
 func dropAIMenuOnError(indexData *components.IndexData, status int) {
 	if status != http.StatusOK {
 		indexData.HeaderData.Origin = ""

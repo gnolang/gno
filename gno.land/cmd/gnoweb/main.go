@@ -50,6 +50,7 @@ type webCfg struct {
 	bind             string
 	faucetURL        string
 	aliases          string
+	trustedProxies   string
 	noDefaultAliases bool
 	noCache          bool
 	timeout          time.Duration
@@ -123,6 +124,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"aliases",
 		defaultWebOptions.aliases,
 		"comma-separated list of aliases in the form: '<path>=<realm-path>' or '<path>=static:<markdown-file>'",
+	)
+
+	fs.StringVar(
+		&c.trustedProxies,
+		"trusted-proxies",
+		defaultWebOptions.trustedProxies,
+		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed",
 	)
 
 	fs.BoolVar(
@@ -238,6 +246,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	if cfg.trustedProxies != "" {
+		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
+	}
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
