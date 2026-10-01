@@ -3552,6 +3552,22 @@ main.dev-mode > section:has(.c-overview-view) {
 		}
 	}
 
+	/* Label and path on one line */
+	& .item--inline {
+		grid-template-columns: auto auto 1fr;
+		align-items: baseline;
+
+		& > svg {
+			grid-row: auto;
+			align-self: center;
+		}
+
+		& > .item-label,
+		& > .item-path {
+			grid-column: auto;
+		}
+	}
+
 	& .item--primary {
 		color: var(--s-color-text-primary);
 		font-weight: var(--g-font-semibold);

@@ -160,14 +160,19 @@ UI - Breadcrumb component
     </li>
     {{- end }}
   </ol>
-  {{- with .Counterpart }}{{ $kind := index $.Parts 0 }}
+  {{- with .Counterpart }}{{ $kind := index $.Parts 0 }}{{ $ns := index $.Parts 1 }}
   <div id="kind-switch-menu" popover class="b-kind-switch" role="menu">
     <a href="{{ .URL }}" role="menuitem" class="item item--primary">
       <svg aria-hidden="true" class="c-icon"><use href="#{{ .Icon }}"></use></svg>
       <span class="item-label">{{ .Label }} of this project</span>
       <span class="item-path">{{ .Title }}</span>
     </a>
-    <a href="{{ $kind.URL }}/" role="menuitem" class="item">
+    <a href="/u/{{ $ns.Name }}" role="menuitem" class="item item--inline">
+      <svg aria-hidden="true" class="c-icon"><use href="#ico-user-link"></use></svg>
+      <span class="item-label">{{ $ns.Name }}</span>
+      <span class="item-path">/u/{{ $ns.Name }}</span>
+    </a>
+    <a href="{{ $kind.URL }}/" role="menuitem" class="item item--inline">
       <svg aria-hidden="true" class="c-icon"><use href="#ico-list"></use></svg>
       <span class="item-label">{{ if eq $kind.Name "r" }}All realms{{ else }}All packages{{ end }}</span>
       <span class="item-path">{{ $kind.URL }}/</span>
