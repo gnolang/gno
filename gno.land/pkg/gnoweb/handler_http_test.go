@@ -2265,6 +2265,7 @@ func TestHTTPHandler_ErrorShellUnpublished(t *testing.T) {
 			assert.NotContains(t, body, `rel="canonical"`)
 			assert.NotContains(t, body, `<meta property="og:url"`)
 			assert.NotContains(t, body, `<meta property="og:image"`)
+			assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`)
 			assert.Contains(t, body, `<meta name="robots" content="noindex, nofollow" />`)
 		})
 	}

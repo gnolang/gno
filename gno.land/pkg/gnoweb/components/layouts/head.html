@@ -19,9 +19,8 @@
   <meta name="description" content="{{ .Description }}" />
   {{ end }}
 
-  <!-- Canonical URL. A noindex page publishes no canonical, og:url or share
-       image: they would tell a crawler the URL is worth keeping. -->
-  {{ if and .Canonical (not .NoIndex) }}
+  <!-- Canonical URL -->
+  {{ if .Canonical }}
   <link rel="canonical" href="{{ .Canonical }}" />
   {{ end }}
 
@@ -30,21 +29,21 @@
   {{ if .Description }}
   <meta property="og:description" content="{{ .Description }}" />
   {{ end }}
-  {{ if and .Image (not .NoIndex) }}
+  {{ if .Image }}
   <meta property="og:image" content="{{ .Image }}" />
   {{ end }}
-  {{ if and .URL (not .NoIndex) }}
+  {{ if .URL }}
   <meta property="og:url" content="{{ .URL }}" />
   {{ end }}
   <meta property="og:type" content="website" />
 
   <!-- Twitter Card metadata -->
-  <meta name="twitter:card" content="{{ if and .Image (not .NoIndex) }}summary_large_image{{ else }}summary{{ end }}" />
+  <meta name="twitter:card" content="{{ if .Image }}summary_large_image{{ else }}summary{{ end }}" />
   <meta name="twitter:title" content="{{ .Title }}" />
   {{ if .Description }}
   <meta name="twitter:description" content="{{ .Description }}" />
   {{ end }}
-  {{ if and .Image (not .NoIndex) }}
+  {{ if .Image }}
   <meta name="twitter:image" content="{{ .Image }}" />
   {{ end }}
 
