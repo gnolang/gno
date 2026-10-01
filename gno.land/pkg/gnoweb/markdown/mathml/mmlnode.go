@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+// maxIndent caps the pretty-print indentation level. Without a cap the
+// leading whitespace grows linearly with nesting depth, making the output
+// size quadratic in the input for deeply nested expressions.
+const maxIndent = 16
+
 // entityRef matches a well-formed HTML character reference. Node text is
 // allowed to carry these (symbol tables emit e.g. "&OverBrace;"), every other
 // markup-significant character is escaped.
@@ -173,7 +178,7 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 	}
 	var padding string
 	if indent >= 0 {
-		padding = strings.Repeat(" ", 2*indent)
+		padding = strings.Repeat(" ", 2*min(indent, maxIndent))
 		w.WriteString(padding)
 	}
 	w.WriteRune('<')

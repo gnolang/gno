@@ -13,6 +13,10 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// MaxMathInputLen is the maximum length in bytes of a single math expression.
+// Longer expressions are not converted and are rendered as escaped text.
+const MaxMathInputLen = 8 << 10
+
 const (
 	priorityMathInlineParser = 50
 	priorityMathBlockParser  = 90
@@ -285,7 +289,7 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	}
 	inline := flavor&flavor_inline > 0
 
-	{
+	if len(tex) <= MaxMathInputLen {
 		// The converter keeps per-expression state, so it must not be shared
 		// across concurrent renders.
 		converter := mathml.NewMathMLConverter()

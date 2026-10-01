@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"strings"
 	"sync"
 	"testing"
 
@@ -51,4 +52,21 @@ func TestMathConcurrentRender(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+func TestMathOutputIsBounded(t *testing.T) {
+	t.Run("deep nesting", func(t *testing.T) {
+		for _, depth := range []int{50, 1000, 8000} {
+			src := "$" + strings.Repeat(`\sqrt{`, depth) + "x" + strings.Repeat("}", depth) + "$"
+			out := renderMathMarkdown(t, src)
+			t.Logf("depth=%d input=%d output=%d", depth, len(src), len(out))
+			assert.Less(t, len(out), 64*len(src)+4096, "depth %d", depth)
+		}
+	})
+	t.Run("too long", func(t *testing.T) {
+		src := "$" + strings.Repeat("x+", MaxMathInputLen) + "x$"
+		out := renderMathMarkdown(t, src)
+		assert.NotContains(t, out, "<math")
+		assert.Contains(t, out, `<span class="math-inline">`)
+	})
 }

@@ -29,3 +29,13 @@ func TestMMLNodeWriteKeepsEntities(t *testing.T) {
 	NewMMLNode("mo", "&notanentity &").Write(&b, -1)
 	assert.Equal(t, "<mo>&amp;notanentity &amp;</mo>", b.String())
 }
+
+func TestParseDepthLimit(t *testing.T) {
+	deep := strings.Repeat(`\sqrt{`, MaxParseDepth+1) + "x" + strings.Repeat("}", MaxParseDepth+1)
+	_, err := NewMathMLConverter().ConvertInline(deep)
+	assert.Error(t, err)
+
+	shallow := strings.Repeat(`\sqrt{`, 10) + "x" + strings.Repeat("}", 10)
+	_, err = NewMathMLConverter().ConvertInline(shallow)
+	assert.NoError(t, err)
+}

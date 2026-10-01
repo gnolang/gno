@@ -1,9 +1,16 @@
 package mathml
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
+
+// MaxParseDepth is the maximum recursion depth of the TeX parser. Deeper
+// expressions fail to convert.
+const MaxParseDepth = 64
+
+var errMaxDepth = errors.New("mathml: expression nested too deeply")
 
 // TexToMML converts LaTeX to MathML
 func TexToMML(tex string, macros map[string]string, block, displaystyle bool) (result string, err error) {
@@ -80,6 +87,7 @@ type MathMLConverter struct {
 	currentIsDisplay     bool            // true if the current expression is being rendered in displaystyle
 	needMacroExpansion   map[string]bool // used if any \newcommand definitions are encountered.
 	unknownCommandsAsOps bool            // treat unknown \commands as operators
+	depth                int             // current ParseTex recursion depth
 }
 
 // NewDocument creates a MathMLConverter for a document

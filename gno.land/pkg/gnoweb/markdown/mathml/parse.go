@@ -80,6 +80,13 @@ func (converter *MathMLConverter) OriginalString(b *TokenBuffer) string {
 
 // Parse a list of TeX tokens into a MathML node tree
 func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext, parent ...*MMLNode) *MMLNode {
+	// Bound recursion so adversarial nesting cannot blow up time, memory or
+	// output size. The panic is recovered by render and reported as an error.
+	converter.depth++
+	defer func() { converter.depth-- }()
+	if converter.depth > MaxParseDepth {
+		panic(errMaxDepth)
+	}
 	var node *MMLNode
 	siblings := make([]*MMLNode, 0)
 	var optionString string
