@@ -300,6 +300,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// values and pointing the tabs at empty URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
+		dropAIMenuOnError(&indexData, status)
 		indexData.BodyView = view
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -323,6 +324,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	wantMarkdown := negotiatesMarkdown(r.Header.Get("Accept"))
 
 	status, bodyView := h.prepareIndexBodyView(r, &indexData, wantMarkdown)
+	dropAIMenuOnError(&indexData, status)
 
 	// The realm and static-markdown paths return a markdown view; serve its
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
@@ -1201,6 +1203,15 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
 		Origin:     gnourl.Origin,
+	}
+}
+
+// dropAIMenuOnError keeps the Ask AI menu off error pages: its prompts would
+// send the assistant to views that do not exist, and carry a file name the
+// package does not hold.
+func dropAIMenuOnError(indexData *components.IndexData, status int) {
+	if status != http.StatusOK {
+		indexData.HeaderData.Origin = ""
 	}
 }
 
