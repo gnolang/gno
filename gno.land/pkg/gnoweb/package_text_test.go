@@ -98,9 +98,7 @@ func TestPackageTextCache(t *testing.T) {
 		release := make(chan struct{})
 		var wg sync.WaitGroup
 		for range 8 {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				text, err := c.get("/r/a", func() ([]byte, error) {
 					builds.Add(1)
 					<-release
@@ -108,7 +106,7 @@ func TestPackageTextCache(t *testing.T) {
 				})
 				assert.NoError(t, err)
 				assert.Equal(t, "a", string(text))
-			}()
+			})
 		}
 		// Give every caller time to reach the build before it returns; a
 		// late one finds the stored text either way.
