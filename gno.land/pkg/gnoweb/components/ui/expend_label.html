@@ -8,7 +8,9 @@ UI - Expend Label component
 <label for="toc-expend" class="b-expend-btn">
   {{ . }}
   <input id="toc-expend" type="checkbox" class="u-sr-only" />
-  <span class="wrapper-icon">
+  {{/* aria-hidden: the "open"/"close" ::before text would otherwise join
+       the checkbox's name ("Contents open, checkbox, not checked"). */}}
+  <span class="wrapper-icon" aria-hidden="true">
     <svg class="c-icon u-icon-static">
       <use href="#ico-arrow-down"></use>
     </svg>
