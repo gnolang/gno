@@ -67,9 +67,13 @@ func NewAIMenu(origin string, u weburl.GnoURL) *AIMenu {
 	}
 	page := origin + u.Path
 	kind := aiKind(u.Path)
-	file := u.File
-	if file == "" && u.WebQuery.Has("source") {
-		file = u.WebQuery.Get("file")
+	// Only the source view checks a file against the package.
+	var file string
+	if q := u.WebQuery; !q.Has("help") && !q.Has("state") {
+		file = u.File
+		if file == "" && q.Has("source") {
+			file = q.Get("file")
+		}
 	}
 
 	m := &AIMenu{MCP: AILink{Name: "gnomcp", URL: gnoMCPSite, Outbound: OutboundGnoMCP}}
