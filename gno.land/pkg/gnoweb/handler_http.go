@@ -36,6 +36,11 @@ const ReadmeFileName = "README.md"
 // can fan out to many RPC calls — an unbounded request is an unbounded-work vector).
 const defaultRequestTimeout = 30 * time.Second
 
+// maxUserLookupTimeout caps the r/sys/users lookup behind every /u/ page. The
+// lookup runs before the listing and the home realm, on the same deadline, so
+// a slow registry left unbounded would spend all of it and fail the page.
+const maxUserLookupTimeout = 2 * time.Second
+
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
 	Domain            string
@@ -191,6 +196,14 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// requestTimeout is the deadline every GET runs under.
+func (h *HTTPHandler) requestTimeout() time.Duration {
+	if h.Timeout <= 0 {
+		return defaultRequestTimeout
+	}
+	return h.Timeout
+}
+
 // Get processes a GET HTTP request and renders the appropriate page.
 func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -200,11 +213,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	timeout := h.Timeout
-	if timeout <= 0 {
-		timeout = defaultRequestTimeout
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.requestTimeout())
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -622,9 +631,10 @@ type userIdentity struct {
 //
 // The realm exports no string-returning resolver, and .Name() on the returned
 // pointer panics when it is nil, so one qeval plus this match is the cheapest
-// lookup that cannot fault. Matching on each field's type tag rather than its
-// position means a field added to UserData does not shift the result, and an
-// unrecognized shape is an error rather than a silent "no user".
+// lookup that cannot fault. Matching on each field's type tag means a field
+// added before or after the pair does not shift the result (one inserted
+// between them, or swapping them, would), and an unrecognized shape is an
+// error rather than a silent "no user".
 var reUserData = regexp.MustCompile(`\("(g1[a-z0-9]+)" \.uverse\.address\),\("([a-z0-9_-]*)" string\)`)
 
 // resolveUser asks r/sys/users which name and address stand behind a /u/
@@ -644,7 +654,12 @@ func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdenti
 		identity.Address = input
 	}
 
-	res, err := h.Client.Eval(ctx, UserRegistryPath, fmt.Sprintf("ResolveAny(%q)", input))
+	// A quarter of the request budget at most, so a hung registry leaves the
+	// rest of the page the time it needs; a timeout here is an ordinary
+	// lookup error.
+	lookupCtx, cancel := context.WithTimeout(ctx, min(h.requestTimeout()/4, maxUserLookupTimeout))
+	defer cancel()
+	res, err := h.Client.Eval(lookupCtx, UserRegistryPath, fmt.Sprintf("ResolveAny(%q)", input))
 	switch {
 	case errors.Is(err, ErrClientPackageNotFound):
 		h.Logger.Debug("no user registry on this chain", "error", err)

@@ -2137,7 +2137,7 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 }
 
 // testUserAddr is the address every resolveAnyPayload below hands back.
-const testUserAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+const testUserAddr = "g1vahx7am9vgkhgetnwskh2um9wgknqvfprr0wez"
 
 // resolveAnyPayload mirrors the raw vm/qeval output of ResolveAny for a user
 // that resolves. The UserData line carries a "(false bool)" of its own and the
@@ -2260,7 +2260,9 @@ func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 			// Nothing resolves, so the address is the namespace; it is still
 			// printed in full, because it is the only identity the page has.
 			wantPrefixes: []string{"@" + testUserAddr},
-			wantBody:     []string{"g1ma...dlf5", testUserAddr},
+			// The subtitle element, not a bare substring: the address is
+			// also in the breadcrumb and the title.
+			wantBody: []string{"g1va...0wez", `title="` + testUserAddr + `"`},
 		},
 	}
 
@@ -2474,7 +2476,7 @@ func TestHTTPHandler_GetUserView_ListsBothNamespaces(t *testing.T) {
 			assert.Contains(t, rr.Body.String(), "byaddr")
 			assert.Contains(t, rr.Body.String(), "address home")
 			assert.Contains(t, rr.Body.String(), `href="../r/`+testUserAddr+`/home"`)
-			assert.Contains(t, rr.Body.String(), "g1ma...dlf5/home", "the button names the realm it links to")
+			assert.Contains(t, rr.Body.String(), "g1va...0wez/home", "the button names the realm it links to")
 			assert.NotContains(t, rr.Body.String(), "alice/home")
 		})
 	}
@@ -2529,4 +2531,80 @@ func TestHTTPHandler_GetUserView_UnrecognizedLookupIsNotA404(t *testing.T) {
 			assert.Equal(t, want, rr.Code)
 		})
 	}
+}
+
+// A registry that hangs must not spend the deadline the rest of the page
+// needs: the lookup only enriches the page (or gates a name with nothing
+// under it), so pages that do not need it still render once it times out.
+func TestHTTPHandler_GetUserView_SlowLookupDoesNotStarveThePage(t *testing.T) {
+	t.Parallel()
+
+	for segment, want := range map[string]int{
+		"gnops":      http.StatusOK,             // holds packages: served without the registry
+		testUserAddr: http.StatusOK,             // an address is a namespace by construction
+		"alice":      http.StatusRequestTimeout, // nothing under it: only the registry can say
+	} {
+		t.Run(segment, func(t *testing.T) {
+			t.Parallel()
+
+			// Every RPC fails once its context is done, as acquireRPCSlot does.
+			alive := func(ctx context.Context) error {
+				if ctx.Err() != nil {
+					return gnoweb.ErrClientTimeout
+				}
+				return nil
+			}
+			client := &stubClient{
+				evalFunc: func(ctx context.Context, _, _ string) ([]byte, error) {
+					<-ctx.Done()
+					return nil, gnoweb.ErrClientTimeout
+				},
+				listPathsFunc: func(ctx context.Context, prefix string, _ int) ([]string, error) {
+					if err := alive(ctx); err != nil {
+						return nil, err
+					}
+					if prefix == "@gnops" {
+						return []string{"/r/gnops/valopers"}, nil
+					}
+					return nil, nil
+				},
+				realmFunc: func(ctx context.Context, _, _ string) ([]byte, error) {
+					if err := alive(ctx); err != nil {
+						return nil, err
+					}
+					return nil, gnoweb.ErrClientPackageNotFound
+				},
+			}
+
+			cfg := newTestHandlerConfig(t, client)
+			cfg.Timeout = 800 * time.Millisecond
+			handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
+			require.NoError(t, err)
+
+			start := time.Now()
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/u/"+segment, nil))
+
+			assert.Equal(t, want, rr.Code)
+			assert.Less(t, time.Since(start), cfg.Timeout, "the lookup must give up before the request deadline")
+		})
+	}
+}
+
+// Only a gno address is a namespace by construction. Any other bech32 string
+// (another chain's address, a typo'd HRP) is just a name, and an unknown one at
+// that, so it is not served a profile with an "address" line it does not have.
+func TestHTTPHandler_GetUserView_ForeignBech32IsNotAnAddress(t *testing.T) {
+	t.Parallel()
+
+	const cosmosAddr = "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	rr := getUserPage(t, &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+		evalFunc: func(context.Context, string, string) ([]byte, error) {
+			return resolveAnyMissing(), nil
+		},
+	}, "/u/"+cosmosAddr)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.NotContains(t, rr.Body.String(), `title="`+cosmosAddr+`"`)
 }
