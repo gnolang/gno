@@ -35,6 +35,15 @@ type PackageInfo struct {
 	Height      int    // gnomod [addpkg] deploy block height
 	Draft       bool   // gnomod draft = not production-ready
 	Private     bool   // gnomod private
+	Source      PackageSource
+}
+
+// PackageSource is the gnomod [source] section: where the deployer says the
+// code lives. Declared, never verified by the chain.
+type PackageSource struct {
+	URL      string // link to the module directory at Revision, see gnomod.Source.URL
+	Label    string // repository without the scheme, like "github.com/gnolang/gno"
+	Revision string // short commit id, empty when none was stamped
 }
 
 // PackageStats aggregates numeric counters derived from files and qdoc.

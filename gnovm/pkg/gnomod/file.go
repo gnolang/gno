@@ -2,7 +2,10 @@ package gnomod
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"path"
+	"strings"
 
 	"golang.org/x/mod/module"
 )
@@ -38,6 +41,11 @@ type File struct {
 	// If this value is set, the module cannot be added to the chain.
 	Replace []Replace `toml:"replace,omitempty" json:"replace,omitempty"`
 
+	// Source declares where the module's source code lives, so explorers can
+	// link a deployed package back to it. It is informational: the chain stores
+	// it as written and never fetches or verifies it.
+	Source Source `toml:"source,omitempty" json:"source,omitempty"`
+
 	// AddPkg is the addpkg section of the gnomod.toml file.
 	// It is filled by the vmkeeper when a module is added.
 	// It is not intended to be used offchain.
@@ -63,6 +71,109 @@ type AddPkg struct {
 	MaxDeposit string `toml:"max_deposit,omitempty" json:"max_deposit,omitempty"`
 	// XXX: GnoVersion // gno version at add time?
 	// XXX: Consider things like IsUsingBanker or other security-awareness flags
+}
+
+// Source points at the repository holding a module's source code.
+type Source struct {
+	// Repository is the https URL of the repository,
+	// like `https://github.com/gnolang/gno`.
+	Repository string `toml:"repository,omitempty" json:"repository,omitempty"`
+	// Path is the module's directory inside the repository, slash-separated
+	// and relative to its root, like `examples/gno.land/p/nt/avl`.
+	// Empty means the repository root.
+	Path string `toml:"path,omitempty" json:"path,omitempty"`
+	// Revision is the commit the module was published from. It is meant to be
+	// stamped by deploy tooling rather than committed, since a committed value
+	// is stale as soon as the next commit lands.
+	Revision string `toml:"revision,omitempty" json:"revision,omitempty"`
+}
+
+// IsZero reports whether no source is declared.
+func (s Source) IsZero() bool {
+	return s == Source{}
+}
+
+// maxSourceFieldLen bounds each [source] value. The fields are caller-supplied
+// and stored on chain, and nothing legitimate comes close.
+const maxSourceFieldLen = 256
+
+// Validate checks the [source] section. Only https URLs without credentials,
+// query or fragment are accepted, so that a value rendered as a link by an
+// explorer cannot carry a script scheme or a leaked token.
+func (s Source) Validate() error {
+	if s.IsZero() {
+		return nil
+	}
+	if s.Repository == "" {
+		return fmt.Errorf("'source.repository' is required when [source] is set")
+	}
+	for name, v := range map[string]string{"repository": s.Repository, "path": s.Path, "revision": s.Revision} {
+		if len(v) > maxSourceFieldLen {
+			return fmt.Errorf("'source.%s' exceeds %d bytes", name, maxSourceFieldLen)
+		}
+		if strings.ContainsFunc(v, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+			return fmt.Errorf("'source.%s' contains control characters", name)
+		}
+	}
+	u, err := url.Parse(s.Repository)
+	if err != nil {
+		return fmt.Errorf("'source.repository': %w", err)
+	}
+	switch {
+	case u.Scheme != "https":
+		return fmt.Errorf("'source.repository' must be an https URL, got %q", s.Repository)
+	case u.Host == "":
+		return fmt.Errorf("'source.repository' has no host")
+	case u.User != nil:
+		return fmt.Errorf("'source.repository' must not embed credentials")
+	case u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(s.Repository, "?#"):
+		return fmt.Errorf("'source.repository' must not have a query or fragment")
+	}
+	if p := s.Path; p != "" {
+		if strings.HasPrefix(p, "/") || strings.Contains(p, `\`) || path.Clean(p) != p || p == ".." || strings.HasPrefix(p, "../") {
+			return fmt.Errorf("'source.path' must be a clean relative path, got %q", p)
+		}
+	}
+	if r := s.Revision; r != "" {
+		if len(r) < 7 || len(r) > 64 || strings.Trim(r, "0123456789abcdef") != "" {
+			return fmt.Errorf("'source.revision' must be a lowercase hex commit id, got %q", r)
+		}
+	}
+	return nil
+}
+
+// URL returns a browsable link to the module's source. For the common forges
+// it points at the directory at the declared revision (or the default branch);
+// for any other host it is the repository URL itself.
+func (s Source) URL() string {
+	if s.Repository == "" {
+		return ""
+	}
+	repo := strings.TrimSuffix(s.Repository, "/")
+	if s.Path == "" && s.Revision == "" {
+		return repo
+	}
+	rev := s.Revision
+	if rev == "" {
+		rev = "HEAD"
+	}
+	u, err := url.Parse(repo)
+	if err != nil {
+		return repo
+	}
+	var link string
+	switch u.Host {
+	case "github.com":
+		link = repo + "/tree/" + rev
+	case "gitlab.com":
+		link = repo + "/-/tree/" + rev
+	default:
+		return repo
+	}
+	if s.Path != "" {
+		link += "/" + s.Path
+	}
+	return link
 }
 
 type Replace struct {
@@ -121,6 +232,10 @@ func (f *File) Validate() error {
 	// module is a valid import path.
 	err := module.CheckImportPath(modPath)
 	if err != nil {
+		return fmt.Errorf("invalid gnomod.toml: %w", err)
+	}
+
+	if err := f.Source.Validate(); err != nil {
 		return fmt.Errorf("invalid gnomod.toml: %w", err)
 	}
 
