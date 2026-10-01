@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"html"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/mathml"
 	"github.com/yuin/goldmark"
@@ -292,14 +293,14 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 			mml, err = r.converter.ConvertDisplay(tex)
 		}
 		if err != nil {
-			// Fallback to raw LaTeX if conversion fails
+			// Fallback to the escaped raw LaTeX if conversion fails
 			if flavor&flavor_inline > 0 {
 				w.WriteString(`<span class="math-inline">`)
-				w.WriteString(tex)
+				w.WriteString(html.EscapeString(tex))
 				w.WriteString(`</span>`)
 			} else {
 				w.WriteString(`<div class="math-display">`)
-				w.WriteString(tex)
+				w.WriteString(html.EscapeString(tex))
 				w.WriteString(`</div>`)
 			}
 		} else {

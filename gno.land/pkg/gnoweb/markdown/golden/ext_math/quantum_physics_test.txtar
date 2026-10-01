@@ -198,7 +198,7 @@ Helmholtz free energy: $F = U - TS$
         <mo fence="true" stretchy="true">)</mo>
       </mrow>
     </mrow>
-    <annotation encoding="application/x-tex">\sigma_x = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\sigma_x = \begin{pmatrix} 0 &amp; 1 \\ 1 &amp; 0 \end{pmatrix}</annotation>
   </semantics>
 </math>
 , 
@@ -234,7 +234,7 @@ Helmholtz free energy: $F = U - TS$
         <mo fence="true" stretchy="true">)</mo>
       </mrow>
     </mrow>
-    <annotation encoding="application/x-tex">\sigma_y = \begin{pmatrix} 0 & -i \\ i & 0 \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\sigma_y = \begin{pmatrix} 0 &amp; -i \\ i &amp; 0 \end{pmatrix}</annotation>
   </semantics>
 </math>
 , 
@@ -270,7 +270,7 @@ Helmholtz free energy: $F = U - TS$
         <mo fence="true" stretchy="true">)</mo>
       </mrow>
     </mrow>
-    <annotation encoding="application/x-tex">\sigma_z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\sigma_z = \begin{pmatrix} 1 &amp; 0 \\ 0 &amp; -1 \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>

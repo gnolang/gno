@@ -55,7 +55,7 @@ func wrapInMathTag(mrow *MMLNode, tex string) *MMLNode {
 		semantics.AppendChild(mrow)
 		semantics.doPostProcess()
 	}
-	annotation := NewMMLNode("annotation", strings.ReplaceAll(tex, "<", "&lt;"))
+	annotation := NewMMLNode("annotation", tex)
 	annotation.SetAttr("encoding", "application/x-tex")
 	semantics.AppendChild(annotation)
 	return node
@@ -173,7 +173,7 @@ func (converter *MathMLConverter) wrapInMathTag(mrow *MMLNode, tex string) *MMLN
 			semantics.doPostProcess()
 		}
 	}
-	annotation := NewMMLNode("annotation", strings.ReplaceAll(tex, "<", "&lt;"))
+	annotation := NewMMLNode("annotation", tex)
 	annotation.SetAttr("encoding", "application/x-tex")
 	semantics.AppendChild(annotation)
 	return node

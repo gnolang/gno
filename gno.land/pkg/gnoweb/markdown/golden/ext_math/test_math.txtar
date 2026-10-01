@@ -161,8 +161,8 @@ E = mc^2
     </mrow>
     <annotation encoding="application/x-tex">
 \begin{pmatrix}
-a & b \\
-c & d
+a &amp; b \\
+c &amp; d
 \end{pmatrix}
 </annotation>
   </semantics>

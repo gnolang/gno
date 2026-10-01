@@ -1,9 +1,54 @@
 package mathml
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 )
+
+// entityRef matches a well-formed HTML character reference. Node text is
+// allowed to carry these (symbol tables emit e.g. "&OverBrace;"), every other
+// markup-significant character is escaped.
+var entityRef = regexp.MustCompile(`^&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
+
+// writeEscaped writes s to w, escaping <, >, " and any & that does not
+// start a well-formed character reference. This makes the output safe both
+// as element content and inside a double-quoted attribute value.
+func writeEscaped(w *strings.Builder, s string) {
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case '<':
+			w.WriteString("&lt;")
+		case '>':
+			w.WriteString("&gt;")
+		case '"':
+			w.WriteString("&#34;")
+		case '&':
+			if m := entityRef.FindString(s[i:]); m != "" {
+				w.WriteString(m)
+				i += len(m) - 1
+			} else {
+				w.WriteString("&amp;")
+			}
+		default:
+			w.WriteByte(c)
+		}
+	}
+}
+
+// isAttrName reports whether s is a safe XML attribute name.
+func isAttrName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '-' || c == '_' || c == ':' || i > 0 && c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	return true
+}
 
 // An MMLNode is the representation of a MathML tag or tree.
 type MMLNode struct {
@@ -142,19 +187,21 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		val := n.Attrib[key]
+		if !isAttrName(key) {
+			continue
+		}
 		w.WriteRune(' ')
 		w.WriteString(key)
 		w.WriteString(`="`)
-		w.WriteString(val)
+		writeEscaped(w, n.Attrib[key])
 		w.WriteRune('"')
 	}
 	if len(n.CSS) > 0 {
 		w.WriteString(` style="`)
 		for key, val := range n.CSS {
-			w.WriteString(key)
+			writeEscaped(w, key)
 			w.WriteRune(':')
-			w.WriteString(val)
+			writeEscaped(w, val)
 			w.WriteRune(';')
 		}
 		w.WriteRune('"')
@@ -162,7 +209,7 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 	w.WriteRune('>')
 	if !self_closing_tags[tag] {
 		if len(n.Children) == 0 {
-			w.WriteString(n.Text)
+			writeEscaped(w, n.Text)
 		} else {
 			nextIndent := indent
 			if indent >= 0 {

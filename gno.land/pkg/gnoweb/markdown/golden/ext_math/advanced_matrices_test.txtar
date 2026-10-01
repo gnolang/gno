@@ -73,7 +73,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       </mtable>
       <mo fence="true" stretchy="true">)</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -119,7 +119,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       </mtable>
       <mo fence="true" stretchy="true">)</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a &amp; b &amp; c \\ d &amp; e &amp; f \\ g &amp; h &amp; i \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -158,7 +158,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       <mi>b</mi>
       <mi>c</mi>
     </mrow>
-    <annotation encoding="application/x-tex">\det\begin{pmatrix} a & b \\ c & d \end{pmatrix} = ad - bc</annotation>
+    <annotation encoding="application/x-tex">\det\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix} = ad - bc</annotation>
   </semantics>
 </math>
 </p>
@@ -234,7 +234,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       <mi>g</mi>
       <mo form="postfix" stretchy="false">)</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\det\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix} = a(ei - fh) - b(di - fg) + c(dh - eg)</annotation>
+    <annotation encoding="application/x-tex">\det\begin{pmatrix} a &amp; b &amp; c \\ d &amp; e &amp; f \\ g &amp; h &amp; i \end{pmatrix} = a(ei - fh) - b(di - fg) + c(dh - eg)</annotation>
   </semantics>
 </math>
 </p>
@@ -327,7 +327,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">)</mo>
       </mrow>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} e & f \\ g & h \end{pmatrix} = \begin{pmatrix} ae + bg & af + bh \\ ce + dg & cf + dh \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix} \begin{pmatrix} e &amp; f \\ g &amp; h \end{pmatrix} = \begin{pmatrix} ae + bg &amp; af + bh \\ ce + dg &amp; cf + dh \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -384,7 +384,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">)</mo>
       </mrow>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}^T = \begin{pmatrix} a & c \\ b & d \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix}^T = \begin{pmatrix} a &amp; c \\ b &amp; d \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -414,7 +414,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       </mtable>
       <mo fence="true" stretchy="true">)</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} A & B \\ C & D \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} A &amp; B \\ C &amp; D \end{pmatrix}</annotation>
   </semantics>
 </math>
  where 
@@ -576,7 +576,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       </mtable>
       <mo fence="true" stretchy="true">)</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} 1 & x_1 & x_1^2 & \cdots & x_1^{n-1} \\ 1 & x_2 & x_2^2 & \cdots & x_2^{n-1} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_n & x_n^2 & \cdots & x_n^{n-1} \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} 1 &amp; x_1 &amp; x_1^2 &amp; \cdots &amp; x_1^{n-1} \\ 1 &amp; x_2 &amp; x_2^2 &amp; \cdots &amp; x_2^{n-1} \\ \vdots &amp; \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\ 1 &amp; x_n &amp; x_n^2 &amp; \cdots &amp; x_n^{n-1} \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -758,7 +758,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       </mtable>
       <mo fence="true" stretchy="true">)</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} a + bi & c + di \\ e + fi & g + hi \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a + bi &amp; c + di \\ e + fi &amp; g + hi \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -827,7 +827,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">)</mo>
       </mrow>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \begin{pmatrix} \bar{a} & \bar{c} \\ \bar{b} & \bar{d} \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix}^\dagger = \begin{pmatrix} \bar{a} &amp; \bar{c} \\ \bar{b} &amp; \bar{d} \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>

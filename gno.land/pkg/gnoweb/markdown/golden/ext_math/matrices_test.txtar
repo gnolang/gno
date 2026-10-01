@@ -40,7 +40,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
         </mtr>
       </mtable>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{matrix} a & b \\ c & d \end{matrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{matrix} a &amp; b \\ c &amp; d \end{matrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -69,7 +69,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       </mtable>
       <mo fence="true" stretchy="true">)</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} a & b \\ c & d \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -98,7 +98,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       </mtable>
       <mo fence="true" stretchy="true">]</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{bmatrix} a & b \\ c & d \end{bmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{bmatrix} a &amp; b \\ c &amp; d \end{bmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -127,7 +127,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       </mtable>
       <mo fence="true" stretchy="true">}</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{Bmatrix} a & b \\ c & d \end{Bmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{Bmatrix} a &amp; b \\ c &amp; d \end{Bmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -156,7 +156,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       </mtable>
       <mo fence="true" stretchy="true">|</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{vmatrix} a & b \\ c & d \end{vmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{vmatrix} a &amp; b \\ c &amp; d \end{vmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -185,7 +185,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       </mtable>
       <mo fence="true" stretchy="true">‖</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{Vmatrix} a & b \\ c & d \end{Vmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{Vmatrix} a &amp; b \\ c &amp; d \end{Vmatrix}</annotation>
   </semantics>
 </math>
 </p>
@@ -231,7 +231,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       </mtable>
       <mo fence="true" stretchy="true">)</mo>
     </mrow>
-    <annotation encoding="application/x-tex">\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}</annotation>
+    <annotation encoding="application/x-tex">\begin{pmatrix} a &amp; b &amp; c \\ d &amp; e &amp; f \\ g &amp; h &amp; i \end{pmatrix}</annotation>
   </semantics>
 </math>
 </p>
