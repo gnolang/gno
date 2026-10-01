@@ -35,14 +35,17 @@ name. `packageKind` in `page_kind.go` sorts every page into one of three
 kinds, using the `-trusted-paths` list that #6191 introduced for the realm
 notice:
 
-- **official**: a page an operator aliased, or a `/r/`, `/p/` or `/u/` page
-  whose package is under a trusted path;
+- **official**: a markdown page an operator passed to `--aliases`, or a
+  `/r/`, `/p/` or `/u/` page whose package is under a trusted path;
 - **community**: any other `/r/`, `/p/` or `/u/` page;
 - **site**: a view that belongs to no package, such as the bare `/r/`
   listing.
 
-The zero value is community, so a page nobody classified fails closed. The
-notice and the metadata read the same classification, and `cmd/gnoweb` passes
+An alias to a realm takes the kind of the package it serves: it publishes
+whatever its target renders, so aliasing a community realm must not lend it
+gno.land's card. Only a markdown alias, whose bytes the operator wrote, is
+official by itself. The zero value is community, so a page nobody classified
+fails closed. The notice and the metadata read the same classification, and `cmd/gnoweb` passes
 the trusted list even when `-no-realm-notice` hides the notice. A library
 caller that sets no `TrustedPaths`, gnodev included, gets community metadata
 on every package page.
@@ -51,11 +54,18 @@ on every package page.
 
 `setHeadMetadata` in `handler_http.go` runs once the body is rendered,
 against the URL the client asked for rather than the alias target, so
-`/about` names `/about` and not `/r/gnoland/pages:p/about`. The body leaves
-in `HeadData` what the document says about itself: its first top-level h1
-and its first paragraph long enough to summarise, both read as plain text
-(`markdown.Title`, `markdown.Description`), or an operator's front matter.
-`setHeadMetadata` then decides:
+`/about` names `/about` and not `/r/gnoland/pages:p/about`. The body hands it
+a `pageLead`, what the document says about itself, or an operator's front
+matter; `HeadData` is written only by `setHeadMetadata`, so no early return
+can print text it has not vetted. `markdown.Lead` reads the lead as plain
+text: the title is a leading h1, the first block of the document, and the
+summary the first paragraph long enough to summarise between that h1, or the
+document start, and the next heading or rule. Text further down belongs to a
+section, a list or a post a trusted realm shows on behalf of its users; a
+forum's "# Claim your airdrop" post must not title the forum.
+`r/gov/dao` opens on `# GovDAO` then `## Members`, so it keeps its title and
+gets the site sentence instead of an `Author: g1...` line. `setHeadMetadata`
+then decides:
 
 | | title | description | image |
 |---|---|---|---|
@@ -78,18 +88,19 @@ carries neither args nor query; otherwise it gets the path and the generic
 sentence. A page an operator aliases keeps its h1, since the alias URL has no
 args and the target's are the operator's.
 
-`og-community.png` is the gno.land mark at a smaller scale over "Community
-content · not reviewed by gno.land". A preview of a community page therefore
-still says where it is hosted, and says whose page it is. An empty card reads
-as a broken site, so every 200 page carries a title, a description and,
+The community wording names who published the page rather than who did not
+review it: "A realm deployed on gno.land by its author." A stamp of what
+gno.land has not reviewed would read as a gatekeeper on a permissionless
+network. `og-community.png` marks the card as community content; its caption
+is to be reworded the same way. An empty card reads as a broken site, so every 200 page carries a title, a description and,
 when `-canonical-origin` is set, an image.
 
 `canonicalURL` prefixes `Static.CanonicalOrigin`, set by `-canonical-origin`,
 to `GnoURL.EncodeWebURL`, the encoder gnoweb's own links use, with the query
-removed. `head.html` still wraps `description`, `og:description`, `og:image`,
-`og:url` and `twitter:*` in `{{ if }}` for the shells that have no input, and
-`twitter:card` falls back from `summary_large_image` to `summary` when there
-is no image.
+removed. `head.html` wraps `description`, `og:description`, `og:image`,
+`og:url` and `twitter:*` in plain `{{ if }}`s for the shells that have no
+input, and `twitter:card` falls back from `summary_large_image` to `summary`
+when there is no image.
 
 ### The summary repeats what the page shows, and nothing else
 
@@ -118,7 +129,8 @@ whatever the query says, so `/about?utm_source=x` also keeps its front matter.
 
 An error shell drops its canonical, its share image and its indexability. The
 head is assembled before the body knows the page is missing, so a mistyped path
-would otherwise publish itself as a real URL.
+would otherwise publish itself as a real URL. `unpublishErrorShell` holds the
+rule, in Go; the template only renders what it is given.
 
 ## Alternatives considered
 
@@ -135,8 +147,8 @@ part that identifies the page is the part that survives only when it leads.
 **Withhold the image from realm pages.** The first version of this change
 served the share image only to operator pages. A link preview without an
 image looks broken, and a community page posted anyway still shows gno.land
-as its host; a dedicated card that says the page is unreviewed answers #3910
-better than no card.
+as its host; a dedicated card that marks the page as community content
+answers #3910 better than no card.
 
 **Keep the arguments in the title.** Each blog post had its own title that
 way, even without a heading. Any link could also set the title of a trusted
@@ -149,6 +161,14 @@ enough to drop `/ t / <tag>` drops every post title too, and one loose enough
 to keep post titles lets a reformatted echo through. A realm that wants its
 pages titled can be aliased, or declare titles itself in a later change.
 
+**Take the first h1 or paragraph anywhere in the document.** More pages would
+get a title and a summary. A trusted realm that lists user posts, comments or
+proposals would then be titled and summarised by whichever of them came first.
+
+**Treat every alias as official.** An operator chose it, but an alias to a
+realm renders what the realm's deployer wrote, and the notice already says
+so on the page.
+
 **Canonicalise every view to the content page.** `$source` and `$help`
 render different content from the realm body, so each addresses its own
 page and gets its own canonical.
@@ -158,12 +178,13 @@ page and gets its own canonical.
 Every page now carries a title, a description and, with an origin set, a
 share image and a canonical URL.
 
-An official page with an h1 and no args or query is titled by it. Every other
-page is titled by its path: the posts of one realm, trusted or not, share
+An official page that opens on an h1 and has no args or query is titled by
+it. Every other page is titled by its path: the posts of one realm, trusted or not, share
 their realm's title, as do `$source` and the content page of one realm, while
-their canonicals differ. Directory listings, `$source`, `$help` and profile pages on
-official paths carry the generic site sentence, since they have no paragraph
-to summarise.
+their canonicals differ. Directory listings, `$source`, `$help` and profile
+pages on official paths carry the generic site sentence, since they have no
+paragraph to summarise, as does any official page whose prose sits under a
+later heading.
 
 Pages that differ only by query now share one canonical.
 
