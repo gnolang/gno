@@ -83,7 +83,7 @@
 		grid-column: span 10;
 	}
 
-	/* Chain-id chip, on every network; --alert escalates it off-mainnet. */
+	/* Chain-id chip, off mainnet only: mainnet keeps the header as it was. */
 	.network-chip {
 		display: inline-flex;
 		align-items: center;
@@ -93,15 +93,14 @@
 
 		flex-shrink: 0;
 		padding-inline: var(--g-space-2);
-		border: var(--g-space-px, 1px) solid var(--s-color-border-network);
 		border-radius: var(--s-rounded);
-		background-color: var(--s-color-bg-network);
-		color: var(--s-color-text-network);
+		background-color: var(--s-color-bg-network-alert);
+		color: var(--s-color-text-network-alert);
 		font-size: var(--g-font-size-50);
 		font-weight: var(--g-font-semibold);
 		white-space: nowrap;
 
-		/* Cap the unbounded value, not the chip: that truncated "mainnet". */
+		/* Cap the unbounded value, not the chip: that truncated the kind. */
 		& .network-chip__id {
 			display: inline-block;
 			max-inline-size: 14ch;
@@ -109,15 +108,6 @@
 			text-overflow: ellipsis;
 			vertical-align: bottom;
 		}
-	}
-
-	/* Flat, not nested `&--alert`: postcss-nesting is spec-compliant and does
-	   not concatenate `&` with a suffix -- it would compile to a dead type
-	   selector. Same reason `.main-nav--explorer` above is flat. */
-	.network-chip--alert {
-		border-color: transparent;
-		background-color: var(--s-color-bg-network-alert);
-		color: var(--s-color-text-network-alert);
 	}
 
 	.user-picture {

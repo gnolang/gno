@@ -9,9 +9,8 @@ LAYOUT - Header component
         {{ template "ui/gnome" }}
       </a>
 
-      {{ if .ChainId }}
-      <span class="network-chip {{ if not .NetworkKind.IsMainnet }}network-chip--alert{{ end }}"
-        title="{{ .NetworkChipTitle }}">
+      {{ if and .ChainId (not .NetworkKind.IsMainnet) }}
+      <span class="network-chip" title="{{ .NetworkChipTitle }}">
         <span class="u-sr-only">Network: </span><span class="network-chip__id">{{ .ChainId }}</span> {{ .NetworkKind }}
       </span>
       {{ end }}

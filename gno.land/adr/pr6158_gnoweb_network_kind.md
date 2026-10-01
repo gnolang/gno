@@ -36,12 +36,16 @@ forgets the flag shows the alert chip, the safe direction, visibly and
 immediately; a testnet can only present as mainnet through explicit
 misconfiguration, which no derivation prevents either (the override existed).
 
-**The chip is rendered on every network, mainnet included.** Marking only the
-testnets would make the signal an absence, and an absence is unreadable — a
-user who has never seen the chip cannot tell "this is mainnet" from "this build
-predates the chip". The chip names the chain on every page and escalates to a
-coloured `--alert` variant off-mainnet. It sits next to the logo and does not
-replace the Network Info popup, which keeps the full remote/chain-id detail.
+**The chip is rendered off mainnet only.** The risk this change addresses runs
+one way: taking a testnet for mainnet. The warning therefore belongs on the
+network that is not the default, and mainnet keeps the header it has today, so
+the familiar look means mainnet and anything that breaks it (hat, links,
+banner, chip) means "not mainnet". A mainnet chip would add no protection: a
+lookalike site copies it for free, and a "mainnet" badge there would reassure
+the visitor in exactly the wrong case; only the domain identifies a site. A
+mainnet that forgets `-network-kind` still shows the chip, since the default is
+testnet. The chip sits next to the logo and does not replace the Network Info
+popup, which keeps the full remote/chain-id detail on every network.
 
 **The faucet link is gated on `FaucetURL != ""`, but does not use its value.**
 The config field already decides whether `/faucet` is routed, so it is the
@@ -86,9 +90,7 @@ to mainnet.
 ### The chip names the kind, and a banner says it in a sentence
 
 A chip showing `pearl-1` and nothing else only helps a reader who already knows
-the chain-id list. The visible text is therefore `<chain-id> <kind>` on every
-network, mainnet included: a signal that exists only off mainnet makes mainnet
-an absence, and an absence is what a lookalike site produces for free. The kind
+the chain-id list. The visible text is therefore `<chain-id> <kind>`. The kind
 word is a sibling of the chain-id rather than part of it, so the `14ch` cap that
 keeps an unbounded operator value from eating the header does not truncate a
 fixed word.
@@ -160,8 +162,10 @@ now, and it follows whatever background the banner ends up with.
   and the failure mode of the flag-only design (mainnet forgetting the flag)
   is safe and immediately visible, while a wrong naming assumption fails
   silently in the dangerous direction the day the scheme changes.
-- **Chip off-mainnet only** (as originally drafted in #6121 §2.3). Rejected:
-  see above — an absent marker carries no information.
+- **Chip on every network, mainnet included.** Tried in this PR, then dropped
+  at review: on mainnet it added no protection (see above), made the header
+  scroll sideways on a 320px phone, and read as the start of the search box
+  beside it.
 - **Faucet link conditional on `NetworkKind`.** Rejected: `FaucetURL` already
   encodes "does this deployment have a faucet", and it is what routes
   `/faucet`. Two sources of truth for one fact is how they drift.
@@ -184,20 +188,20 @@ now, and it follows whatever background the banner ends up with.
 - The same holds for the Status link: the mainnet deployment must now pass
   `-status-url=https://status.gno.land` to keep it, and each testnet its own
   page. Until then the footer shows no Status link rather than a wrong one.
-- The `.network-chip--alert` rule is written flat rather than as a nested
-  `&--alert`: `postcss-preset-env`'s `nesting-rules` is spec-compliant CSS
-  nesting, which does not concatenate `&` with a suffix. The nested form
-  compiles to a dead type selector, as the pre-existing `&--explorer` (removed
-  by this change, its flat duplicate did the work) demonstrated. Anything
-  added to this file must follow the flat form.
+- Modifier classes in `06-blocks.css` are written flat (`.main-nav--explorer`)
+  rather than as a nested `&--explorer`: `postcss-preset-env`'s `nesting-rules`
+  is spec-compliant CSS nesting, which does not concatenate `&` with a suffix.
+  The nested form compiles to a dead type selector, as the pre-existing
+  `&--explorer` (removed by this change, its flat duplicate did the work)
+  demonstrated. Anything added to this file must follow the flat form.
 - `public/main.css` is a tracked, embedded build artifact and CI verifies it is
   in sync (`.github/workflows/ci-dir-gnoland.yml`, `gnoweb_generate`). Any CSS
   change here requires `make -C gno.land/pkg/gnoweb generate`.
 - The chip prints `-chainid` verbatim, and that flag still defaults to `"dev"`,
   is never validated against the node, and shares its variable with the
   deprecated `-help-chainid`, so passing both is last-one-wins in silence
-  (#6121 §2.1). The kind does not derive from it, but a wrong chain-id now
-  shows on every page instead of behind the popup.
+  (#6121 §2.1). The kind does not derive from it, but off mainnet a wrong
+  chain-id now shows on every page instead of behind the popup.
 
 ## Verification
 
@@ -208,15 +212,15 @@ now, and it follows whatever background the banner ends up with.
 New tests: `NewRouter`'s testnet default, explicit mainnet, and rejection of
 an invalid `-network-kind` (`app_test.go`), `Valid()` and the chip text
 (`components/network_test.go`),
-a render-level assertion that `data-network` and `network-chip--alert` reach
-the HTML (`components/layout_test.go`), that the footer renders no Faucet
+a render-level assertion that `data-network` reaches the HTML under every kind
+and the chip only off mainnet (`components/layout_test.go`), that the footer renders no Faucet
 link without a configured faucet and no Status link without a status url
 (`components/layout_footer_test.go`), the `-status-url` validation
 (`app_test.go`), and that the configured status url reaches the rendered
 footer (`handler_http_test.go`).
 
 Also checked by hand against a running gnoweb, since a Go test cannot catch a
-dead CSS selector: chip and `data-network` under both kinds, the chip
-surviving the 400 error page, the footer link appearing only with
-`-faucet-url`, and `.b-header .network-chip--alert` present in the generated
+dead CSS selector: `data-network` under each kind, the chip off
+mainnet only, the chip surviving the 400 error page, the footer link appearing
+only with `-faucet-url`, and `.b-header .network-chip` present in the generated
 `public/main.css`.

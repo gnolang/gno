@@ -624,13 +624,16 @@ func TestIndexLayout_NetworkPropagation(t *testing.T) {
 
 	testnet := render(NetworkTestnet, "pearl-1")
 	assert.Contains(t, testnet, `data-network="testnet"`)
-	assert.Contains(t, testnet, "network-chip--alert")
+	assert.Contains(t, testnet, `class="network-chip"`)
 	assert.Contains(t, testnet, "pearl-1")
 
+	local := render(NetworkLocal, "dev")
+	assert.Contains(t, local, `class="network-chip"`)
+
+	// Mainnet keeps the header it had before the chip existed.
 	mainnet := render(NetworkMainnet, "gnoland-1")
 	assert.Contains(t, mainnet, `data-network="mainnet"`)
-	assert.NotContains(t, mainnet, "network-chip--alert")
-	assert.Contains(t, mainnet, "network-chip")
+	assert.NotContains(t, mainnet, "network-chip")
 }
 
 // headFixture renders the index layout head with the given build version.

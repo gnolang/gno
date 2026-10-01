@@ -20,10 +20,6 @@ func TestNetworkKindValid(t *testing.T) {
 func TestHeaderNetworkChipText(t *testing.T) {
 	t.Parallel()
 
-	mainnet := HeaderData{ChainId: "gnoland-1", NetworkKind: NetworkMainnet}
-	assert.Contains(t, mainnet.NetworkChipTitle(), "mainnet")
-	assert.Contains(t, mainnet.NetworkChipTitle(), "gnoland-1")
-
 	testnet := HeaderData{ChainId: "pearl-1", NetworkKind: NetworkTestnet}
 	assert.Contains(t, testnet.NetworkChipTitle(), "not mainnet")
 	assert.Contains(t, testnet.NetworkChipTitle(), "pearl-1")
