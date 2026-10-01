@@ -1,37 +1,4 @@
-package home
-
-import (
-	"chain/runtime"
-	"strconv"
-
-	"gno.land/p/leon/svgbtn/v0"
-	"gno.land/p/moul/dynreplacer/v0"
-	"gno.land/p/nt/ownable/v0"
-	"gno.land/r/devrels/events"
-	blog "gno.land/r/gnoland/blog"
-)
-
-var (
-	override string
-	Admin    = ownable.NewWithAddress("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
-)
-
-func Render(_ string) string {
-	r := dynreplacer.New()
-	r.RegisterCallback(":latest-blogposts:", func() string {
-		return blog.RenderLastPostsWidget(4)
-	})
-	r.RegisterCallback(":upcoming-events:", func() string {
-		out, _ := events.RenderEventWidget(events.MaxWidgetSize)
-		return out
-	})
-	r.RegisterCallback(":qotb:", quoteOfTheBlock)
-	r.RegisterCallback(":newsletter-button:", newsletterButton)
-	r.RegisterCallback(":chain-height:", func() string {
-		return strconv.Itoa(int(runtime.ChainHeight()))
-	})
-
-	template := `# Welcome to Gno.land
+# Welcome to Gno.land
 
 We're building Gno.land, set to become the leading open-source smart contract
 platform, using Gno, an interpreted and fully deterministic variation of the
@@ -66,7 +33,6 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Events](/events)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 <gno-columns-sep>
 
@@ -84,24 +50,8 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
+- [Akkadia](https://landing.akkadia.land/)
 - [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
-- [Staging](https://staging.gno.land/)
-- [Testnet 12](https://test12.testnets.gno.land/)
-- [Faucet Hub](https://faucet.gno.land)
-
-</gno-columns>
-
-<gno-columns>
-
-## [Latest Blogposts](/r/gnoland/blog)
-
-:latest-blogposts:
-
-<gno-columns-sep>
-
-## [Latest Events](/events)
-
-:upcoming-events:
 
 </gno-columns>
 
@@ -144,17 +94,17 @@ System-level realm packages used by the chain.
 
 ### r/demo
 
-Demo realm packages showcasing what’s possible.
+Demo realm packages showcasing what's possible.
 
 [Browse](/r/demo)
 
 <gno-columns-sep>
 
-### p/demo
+### p/nt
 
-Pure packages for demo purposes.
+Standard pure packages maintained by the core team.
 
-[Browse](/p/demo)
+[Browse](/p/nt)
 
 </gno-columns>
 
@@ -164,7 +114,7 @@ Pure packages for demo purposes.
 
 ## Socials
 
-- Check out our [community projects](https://github.com/gnolang/awesome-gno)
+- Check out our [community projects](https://github.com/gnoverse/awesome-gno)
 - [Discord](https://discord.com/invite/gnoland)
 - [Bubble Rumble](https://bubblerumble.net/)
 - [Twitter](https://twitter.com/_gnoland)
@@ -173,63 +123,10 @@ Pure packages for demo purposes.
 
 <gno-columns-sep>
 
-## Quote of the ~Day~ Block #:chain-height:
-
-> :qotb:
-
-</gno-columns>
-
----
-
 ## Sign up for our newsletter
 
 Stay in the Gno by signing up for our newsletter. You'll get the scoop on dev updates, fresh content, and community news.
 
-:newsletter-button:
+[Subscribe to stay in the Gno](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
 
----
-
-**This is a testnet.** Package names are not guaranteed to be available for production.`
-
-	if override != "" {
-		template = override
-	}
-	result := r.Replace(template)
-	return result
-}
-
-func newsletterButton() string {
-	return svgbtn.Button(
-		256,
-		44,
-		"#226c57",
-		"#ffffff",
-		"Subscribe to stay in the Gno",
-		"https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b",
-	)
-}
-
-func quoteOfTheBlock() string {
-	quotes := []string{
-		"Gno is for Truth.",
-		"Gno is for Social Coordination.",
-		"Gno is _not only_ for DeFi.",
-		"Now, you Gno.",
-		"Come for the Go, Stay for the Gno.",
-	}
-	height := runtime.ChainHeight()
-	idx := int(height) % len(quotes)
-	qotb := quotes[idx]
-	return qotb
-}
-
-func AdminSetOverride(cur realm, content string) {
-	Admin.AssertOwnedBy(cur.Previous().Address())
-	override = content
-}
-
-func AdminTransferOwnership(cur realm, newOwner address) {
-	if err := Admin.TransferOwnership(0, cur, newOwner); err != nil {
-		panic(err)
-	}
-}
+</gno-columns>
