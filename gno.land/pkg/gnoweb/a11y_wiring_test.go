@@ -61,26 +61,26 @@ func TestRailA11yWiring(t *testing.T) {
 					continue
 				}
 				nodes = append(nodes, n)
-				if id := attr(n, "id"); id != "" {
+				id := attr(n, "id")
+				if id != "" {
 					ids[id]++
 				}
-				if attr(n, "id") == "toc-expend" {
+				if id == "toc-expend" {
 					toggle = n
 				}
 			}
 
 			for _, n := range nodes {
 				for ref := range strings.FieldsSeq(attr(n, "aria-labelledby")) {
-					assert.Positive(t, ids[ref], "<%s aria-labelledby=%q> names no id on the page", n.Data, ref)
+					assert.Equal(t, 1, ids[ref], "<%s aria-labelledby=%q> must name exactly one id on the page", n.Data, ref)
 				}
 			}
 
 			if r.hasRail {
-				require.NotNil(t, toggle, "rail toggle #toc-expend missing")
-				assert.Contains(t, classes(toggle), "u-sr-only", "rail toggle must stay visually hidden, not display:none")
+				require.Equal(t, 1, ids["toc-expend"], "rail toggle #toc-expend must exist exactly once")
+				assert.True(t, hasClass(toggle, "u-sr-only"), "rail toggle must stay visually hidden, not display:none")
 			}
 
-			// Skip link: first element of <body>.
 			skip := slices.IndexFunc(nodes, func(n *html.Node) bool { return hasClass(n, "u-skip-link") })
 			require.NotEqual(t, -1, skip, "skip link missing")
 			href := attr(nodes[skip], "href")
@@ -111,10 +111,8 @@ func attr(n *html.Node, key string) string {
 	return ""
 }
 
-func classes(n *html.Node) []string { return strings.Fields(attr(n, "class")) }
-
 func hasClass(n *html.Node, c string) bool {
-	return n.Type == html.ElementNode && slices.Contains(classes(n), c)
+	return n.Type == html.ElementNode && slices.Contains(strings.Fields(attr(n, "class")), c)
 }
 
 // isFocusable approximates the sequential focus order: what a Tab can reach.
