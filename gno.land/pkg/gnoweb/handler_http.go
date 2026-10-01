@@ -347,14 +347,18 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Search answers on /u/ and chain-wide too, so the chrome follows
-		// the URL rather than assuming a realm.
+		// the URL rather than assuming a realm. Chain-wide results name no
+		// package: realm tabs there would lead to State/Source/Actions
+		// pages for "/" that do not exist.
 		switch {
 		case gnourl.IsPure():
 			indexData.Mode = components.ViewModePackage
 		case gnourl.IsUser():
 			indexData.Mode = components.ViewModeUser
-		default:
+		case gnourl.IsRealm():
 			indexData.Mode = components.ViewModeRealm
+		default:
+			indexData.Mode = components.ViewModeExplorer
 		}
 		h.setHeaderForRealm(&indexData, gnourl)
 		// An unbounded URL space where each URL costs a path listing: not

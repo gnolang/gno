@@ -79,3 +79,24 @@ func TestSearchPageAcceptsAPlainFormSubmission(t *testing.T) {
 	require.Contains(t, rr.Body.String(), `value="mock"`,
 		"the query must round-trip into the form, or the no-JS path silently searched for nothing")
 }
+
+// Chain-wide results name no package, so the header must not offer the
+// realm tabs: State, Source and Actions for "/" are all error pages.
+func TestChainWideSearchHasNoPackageTabs(t *testing.T) {
+	t.Parallel()
+
+	handler := newSearchPageHandler(t)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/$search?q=blog", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	for _, tab := range []string{"$state", "$source", "$help"} {
+		require.NotContains(t, rr.Body.String(), tab,
+			"chain-wide results must not link a %s tab", tab)
+	}
+
+	realm := httptest.NewRecorder()
+	handler.ServeHTTP(realm, httptest.NewRequest(http.MethodGet, "/r/mock/path$search?q=blog", nil))
+	require.Contains(t, realm.Body.String(), "$source",
+		"a realm-scoped search keeps the realm tabs")
+}
