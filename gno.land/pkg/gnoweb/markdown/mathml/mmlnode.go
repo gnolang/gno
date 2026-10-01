@@ -41,7 +41,8 @@ func writeEscaped(w *strings.Builder, s string) {
 	}
 }
 
-// isAttrName reports whether s is a safe XML attribute name.
+// isAttrName reports whether s is a safe XML attribute name. Attribute names
+// are not user-controlled today; this is defense in depth.
 func isAttrName(s string) bool {
 	if s == "" {
 		return false

@@ -3025,22 +3025,22 @@ func TestCmdClass(t *testing.T) {
 		{
 			name:     "class_basic",
 			input:    "\\class{highlight}{x}",
-			expected: "class",
+			expected: `class="highlight"`,
 		},
 		{
 			name:     "class_multiple",
 			input:    "\\class{highlight important}{y}",
-			expected: "class",
+			expected: `class="highlight important"`,
 		},
 		{
 			name:     "class_expression",
 			input:    "\\class{math}{x + y}",
-			expected: "class",
+			expected: `class="math"`,
 		},
 		{
 			name:     "class_fraction",
 			input:    "\\class{frac}{\\frac{a}{b}}",
-			expected: "class",
+			expected: `class="frac"`,
 		},
 	}
 
@@ -3052,8 +3052,12 @@ func TestCmdClass(t *testing.T) {
 				t.Fatalf("ConvertInline failed: %v", err)
 			}
 
-			if !strings.Contains(output, tt.expected) {
-				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
+			// User-supplied classes are dropped, the content is kept.
+			if strings.Contains(output, tt.expected) {
+				t.Errorf("Expected output not to contain %q, got %q", tt.expected, output)
+			}
+			if !strings.Contains(output, "<mi>") {
+				t.Errorf("Expected content to be rendered, got %q", output)
 			}
 		})
 	}

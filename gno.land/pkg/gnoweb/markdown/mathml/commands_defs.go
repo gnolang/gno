@@ -133,9 +133,9 @@ func cmd_class(converter *MathMLConverter, name string, star bool, ctx parseCont
 	if len(args) < 2 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	n := converter.ParseTex(args[1], ctx)
-	n.SetAttr("class", StringifyTokens(args[0].Expr))
-	return n
+	// The class name is ignored: letting page authors apply arbitrary site
+	// CSS classes would allow restyling (e.g. overlaying) the page.
+	return converter.ParseTex(args[1], ctx)
 }
 
 func cmd_raisebox(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
