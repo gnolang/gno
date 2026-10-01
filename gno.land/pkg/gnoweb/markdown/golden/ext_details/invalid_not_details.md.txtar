@@ -1,0 +1,8 @@
+-- input.md --
+:::foo Summary
+This is not a details block.
+:::
+-- output.html --
+<p>:::foo Summary
+This is not a details block.
+:::</p>

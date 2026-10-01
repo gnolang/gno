@@ -1,0 +1,24 @@
+-- input.md --
+:::details[open] Changelog
+## v1.2.3
+
+- First entry
+- Second entry
+
+```
+fenced code
+```
+:::
+-- output.html --
+<details class="gno-details" open>
+<summary><svg><use href="#ico-arrow"></use></svg>Changelog</summary>
+<div>
+<h2>v1.2.3</h2>
+<ul>
+<li>First entry</li>
+<li>Second entry</li>
+</ul>
+<pre><code>fenced code
+</code></pre>
+</div>
+</details>
