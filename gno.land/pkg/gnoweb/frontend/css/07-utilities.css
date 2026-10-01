@@ -44,6 +44,12 @@
 	@media (--lg) {
 		scroll-margin-block-start: var(--g-space-16);
 	}
+
+	/* Focused programmatically by the skip link (tabindex="-1"); Chrome
+	   would otherwise ring the whole content box. The link keeps its ring. */
+	&:focus {
+		outline: none;
+	}
 }
 
 .u-sr-only {
