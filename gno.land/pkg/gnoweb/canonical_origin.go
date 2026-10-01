@@ -21,7 +21,10 @@ func normalizeCanonicalOrigin(origin string) (string, error) {
 	host = strings.TrimSuffix(host, map[string]string{"https": ":443", "http": ":80"}[scheme])
 	// Rebuilding from scheme and host rejects a path, query, credentials, and
 	// the empty trailing "?" or "#" that Parse accepts.
-	if (scheme != "http" && scheme != "https") || host == "" || strings.HasSuffix(host, ":") ||
+	// Parse checks only what follows the last colon, so a stray one before it
+	// (gno.land:x:443) has to be refused here; a bracketed IPv6 host is fine.
+	strayColon := strings.Contains(u.Hostname(), ":") && !strings.HasPrefix(u.Host, "[")
+	if (scheme != "http" && scheme != "https") || host == "" || strings.HasSuffix(host, ":") || strayColon ||
 		!strings.EqualFold((&url.URL{Scheme: u.Scheme, Host: u.Host}).String(), origin) {
 		return "", fmt.Errorf("invalid canonical origin %q: want scheme://host[:port]", origin)
 	}

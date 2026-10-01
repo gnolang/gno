@@ -22,6 +22,7 @@ func TestNormalizeCanonicalOrigin(t *testing.T) {
 		"http://gno.land:80":    "http://gno.land",
 		"https://gno.land:8443": "https://gno.land:8443",
 		"http://gno.land:443":   "http://gno.land:443",
+		"http://[::1]:8888":     "http://[::1]:8888",
 	} {
 		got, err := normalizeCanonicalOrigin(in)
 		if assert.NoError(t, err, "origin %q", in) {
@@ -43,6 +44,8 @@ func TestNormalizeCanonicalOrigin(t *testing.T) {
 		"https://gno.land#",
 		"https:gno.land",
 		"https://gno.land:",
+		"https://gno.land:x:443",
+		"https://gno.land:443:443",
 	} {
 		_, err := normalizeCanonicalOrigin(in)
 		assert.Error(t, err, "origin %q", in)
