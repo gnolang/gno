@@ -32,34 +32,32 @@ type RealmMeta struct {
 	Description string
 }
 
-// Title returns the text of the first top-level h1, as plain text, read the
-// way Description reads a paragraph.
-func Title(doc ast.Node, src []byte) string {
-	for n := doc.FirstChild(); n != nil; n = n.NextSibling() {
-		if h, ok := n.(*ast.Heading); !ok || h.Level != 1 {
-			continue
-		}
-		if text := plainText(src, n); text != "" {
-			return truncateRunes(text, titleMaxRunes)
+// Lead returns what the top of a document says about it, as plain text: the
+// title is a leading h1, and the description the first paragraph long enough
+// to summarise between that h1, or the document start, and the next heading
+// or rule. Text further down belongs to a section, a list or a post someone
+// else wrote, not to the page, so it never names the page. A paragraph with
+// no visible text, such as a banner image, does not count as leading.
+func Lead(doc ast.Node, src []byte) (title, description string) {
+	n := doc.FirstChild()
+	for n != nil && n.Kind() == ast.KindParagraph && plainText(src, n) == "" {
+		n = n.NextSibling()
+	}
+	if h, ok := n.(*ast.Heading); ok && h.Level == 1 {
+		title = truncateRunes(plainText(src, n), titleMaxRunes)
+		n = n.NextSibling()
+	}
+	for ; n != nil; n = n.NextSibling() {
+		switch n.Kind() {
+		case ast.KindHeading, ast.KindThematicBreak:
+			return title, ""
+		case ast.KindParagraph:
+			if text := plainText(src, n); len([]rune(text)) >= descriptionMinRunes {
+				return title, truncateRunes(text, descriptionMaxRunes)
+			}
 		}
 	}
-	return ""
-}
-
-// Description returns the first paragraph long enough to summarise the page,
-// as plain text. It repeats only what the page already shows, so a page cannot
-// carry a summary a reader cannot see.
-func Description(doc ast.Node, src []byte) string {
-	for n := doc.FirstChild(); n != nil; n = n.NextSibling() {
-		if n.Kind() != ast.KindParagraph {
-			continue
-		}
-		text := plainText(src, n)
-		if len([]rune(text)) >= descriptionMinRunes {
-			return truncateRunes(text, descriptionMaxRunes)
-		}
-	}
-	return ""
+	return title, ""
 }
 
 // plainText is the visible text of n on one line.
@@ -110,11 +108,17 @@ func resolveText(text []byte) []byte {
 	return []byte(stdhtml.UnescapeString(buf.String()))
 }
 
-// TruncateDescription caps a summary at the same length as one lifted from a
-// page's own text, so an operator-written description and a derived one cut in
-// the same place.
-func TruncateDescription(s string) string {
-	return truncateRunes(strings.Join(strings.Fields(s), " "), descriptionMaxRunes)
+// TruncateTitle caps an operator-written title at the length of one lifted
+// from a page's own h1, so both cut in the same place.
+func TruncateTitle(s string) string { return truncateLine(s, titleMaxRunes) }
+
+// TruncateDescription caps an operator-written summary at the length of one
+// lifted from a page's own text, so both cut in the same place.
+func TruncateDescription(s string) string { return truncateLine(s, descriptionMaxRunes) }
+
+// truncateLine puts s on one line and caps it at limit runes.
+func truncateLine(s string, limit int) string {
+	return truncateRunes(strings.Join(strings.Fields(s), " "), limit)
 }
 
 // truncateRunes cuts on a word boundary so the summary never ends mid-word.

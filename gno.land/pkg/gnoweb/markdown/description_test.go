@@ -38,6 +38,28 @@ func TestDescription(t *testing.T) {
 			"The post itself, which says what happened and why it matters.",
 		},
 		{"an index of dates has no summary", "# Blog\n\n16 Sep 2026\n\n27 Aug 2026\n", ""},
+		{
+			"a paragraph before any heading summarises the page",
+			"What this realm does, in one sentence long enough to be a summary.\n\n# Title\n",
+			"What this realm does, in one sentence long enough to be a summary.",
+		},
+		{
+			// Like r/gov/dao: the lead is a title, and the prose sits in sections.
+			"a paragraph under a later heading is a section's, not the page's",
+			"# GovDAO\n## Proposals\n\nAuthor: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 proposed this.\n",
+			"",
+		},
+		{
+			"a rule ends the lead",
+			"# Title\n\n---\n\nA paragraph long enough to summarise, but under the rule.\n",
+			"",
+		},
+		{
+			// Past the lead, the text belongs to whoever the page quotes.
+			"text further down never summarises the page",
+			"Short.\n\n- item\n\n## Sub\n\n> quote\n\nUser post: Claim your free GNOT airdrop at evil.example right now!\n\n# User-chosen title evil.example\n",
+			"",
+		},
 		{"a document with no paragraph has no summary", "# Only\n\n## Headings\n", ""},
 		{"empty", "", ""},
 		{
@@ -72,7 +94,8 @@ func TestDescription(t *testing.T) {
 
 			src := []byte(tc.src)
 			doc := goldmark.New().Parser().Parse(text.NewReader(src))
-			assert.Equal(t, tc.want, Description(doc, src))
+			_, got := Lead(doc, src)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }
@@ -85,9 +108,12 @@ func TestTitle(t *testing.T) {
 		src  string
 		want string
 	}{
-		{"first h1", "Intro.\n\n# The post title\n\n# Another\n", "The post title"},
+		{"a leading h1", "# The post title\n\nIntro.\n\n# Another\n", "The post title"},
+		// Further down, an h1 may head a comment or a quoted post.
+		{"an h1 after other text is not the page's", "Intro.\n\n# The post title\n", ""},
+		{"a banner image before the h1 does not count", "![banner](x.png)\n\n# Named\n", "Named"},
 		{"an h2 is not a title", "## Section\n\nText.\n", ""},
-		{"an empty h1 is skipped", "#\n\n# Named\n", "Named"},
+		{"an empty leading h1 is no title", "#\n\n# Named\n", ""},
 		{"inline markup is flattened", "# A [link](/r/x) and **bold**\n", "A link and bold"},
 		{"entities and escapes are resolved", "# Tom &amp; Jerry \\*live\\*\n", "Tom & Jerry *live*"},
 		{"an image alt is not a title", "# ![Official notice](x.png)\n", ""},
@@ -101,7 +127,8 @@ func TestTitle(t *testing.T) {
 
 			src := []byte(tc.src)
 			doc := goldmark.New().Parser().Parse(text.NewReader(src))
-			assert.Equal(t, tc.want, Title(doc, src))
+			got, _ := Lead(doc, src)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 
@@ -110,7 +137,7 @@ func TestTitle(t *testing.T) {
 
 		src := []byte("# " + strings.Repeat("word ", 30))
 		doc := goldmark.New().Parser().Parse(text.NewReader(src))
-		got := Title(doc, src)
+		got, _ := Lead(doc, src)
 		assert.LessOrEqual(t, len([]rune(got)), titleMaxRunes+1, "one rune of headroom for the ellipsis")
 		assert.True(t, strings.HasSuffix(got, "…"))
 	})
@@ -121,7 +148,7 @@ func TestDescriptionTruncates(t *testing.T) {
 
 	src := []byte(strings.Repeat("word ", 60))
 	doc := goldmark.New().Parser().Parse(text.NewReader(src))
-	got := Description(doc, src)
+	_, got := Lead(doc, src)
 
 	assert.LessOrEqual(t, len([]rune(got)), descriptionMaxRunes+1, "one rune of headroom for the ellipsis")
 	assert.True(t, strings.HasSuffix(got, "…"), "a cut summary must say it was cut")

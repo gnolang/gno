@@ -143,7 +143,9 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 		r.logger.Warn("unable to inspect for TOC elements", "error", err)
 	}
 
-	return md.RealmMeta{Toc: toc, Title: md.Title(doc, src), Description: md.Description(doc, src)}, nil
+	meta := md.RealmMeta{Toc: toc}
+	meta.Title, meta.Description = md.Lead(doc, src)
+	return meta, nil
 }
 
 // RenderSource renders a source file into HTML with syntax highlighting based on its extension.

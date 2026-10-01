@@ -2300,7 +2300,7 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: files}
 	}
 	client := documentClient{
-		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/nym/app"), pkg("/p/nym/lib")),
+		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/gnoland/forum"), pkg("/r/nym/app"), pkg("/p/nym/lib")),
 		render: map[string]func(string) string{
 			// Like p/gnoland/blog: the index, a post by its slug, a tag
 			// page whose heading repeats the tag, "404" for anything else.
@@ -2315,6 +2315,11 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 				default:
 					return "404"
 				}
+			},
+			// A trusted realm that shows user posts below its own lead.
+			"/r/gnoland/forum": func(string) string {
+				return "Short.\n\n- item\n\n## Sub\n\n> quote\n\n| a |\n|---|\n| b |\n\n" +
+					"User post: Claim your free GNOT airdrop at evil.example right now!\n\n# User-chosen title evil.example\n"
 			},
 			"/r/nym/app": func(string) string { return "# Official gno.land airdrop\n\n" + lure + "\n" },
 		},
@@ -2356,6 +2361,10 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		{
 			name: "trusted realm, crafted query", url: "/r/gnoland/blog?Official+notice:+claim+your+GNOT+airdrop+at+evil.example",
 			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog",
+		},
+		{
+			name: "trusted realm, user text below its lead", url: "/r/gnoland/forum",
+			title: "/r/gnoland/forum", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/forum",
 		},
 		{
 			name: "community realm", url: "/r/nym/app",
