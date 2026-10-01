@@ -6,7 +6,7 @@
 
 {{ template "state/sidebar" . }}
 
-<header class="b-content-header">
+<header id="main-content" tabindex="-1" class="b-content-header">
   <h1 class="title b-content-h1">
     {{ if .Crumbs }}{{ with index .Crumbs 0 }}{{ if .Href }}
       <a class="back-link" href="{{ .Href }}" aria-label="Back to {{ .Label }}" title="Back to {{ .Label }}">

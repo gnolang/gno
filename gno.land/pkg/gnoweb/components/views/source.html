@@ -6,7 +6,7 @@ LAYOUT - Source component
 {{ with render .ComponentTOC }} {{ template "layout/aside" (dict "Title" "Files" "Content" .) }} {{ end }}
 
 <!-- Source Info -->
-<header class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
+<header id="main-content" tabindex="-1" class="b-content-header u-gap-0 u-mb-0 u-lg-mb-4">
   <h1 class="title b-content-h1">
     <a href="{{ .PkgPath }}$source" class="b-content-h1__back" title="Back to overview" aria-label="Back to overview">
       <svg class="c-icon"><use href="#ico-arrow-left"></use></svg>

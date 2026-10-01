@@ -30,6 +30,9 @@ type RealmData struct {
 type ArticleData struct {
 	ComponentContent Component
 	Classes          string
+	// SkipTarget makes the article the skip link's target (#main-content).
+	// Set on views whose rail precedes the article, see SkipTargetInBody.
+	SkipTarget bool
 }
 
 type realmViewParams struct {
@@ -42,6 +45,7 @@ func RealmView(data RealmData) *View {
 		Article: ArticleData{
 			ComponentContent: data.ComponentContent,
 			Classes:          "c-realm-view",
+			SkipTarget:       true,
 		},
 		ComponentTOC: NewTemplateComponent("ui/toc_realm", data.TocItems),
 	}

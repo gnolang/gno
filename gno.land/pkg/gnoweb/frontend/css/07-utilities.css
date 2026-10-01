@@ -35,6 +35,17 @@
 	}
 }
 
+/* The skip link's target: <main>, or on rail views the content past the rail.
+   Clears the sticky .b-header, which would otherwise cover its top: 105px
+   tall below --lg (two rows), 57px from --lg up. */
+#main-content {
+	scroll-margin-block-start: var(--g-space-28);
+
+	@media (--lg) {
+		scroll-margin-block-start: var(--g-space-16);
+	}
+}
+
 .u-sr-only {
 	height: 1px;
 	margin: -1px;
