@@ -741,6 +741,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	data := components.UserData{
 		Username:      username,
 		Namespace:     namespace,
+		HomeLabel:     CreateUsernameFromBech32(namespace),
 		Address:       identity.Address,
 		Handlename:    handlename,
 		Contributions: contribs,

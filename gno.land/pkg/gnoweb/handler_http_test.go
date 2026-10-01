@@ -2342,6 +2342,8 @@ func TestHTTPHandler_GetUserView_ListsBothNamespaces(t *testing.T) {
 			assert.Contains(t, rr.Body.String(), "byaddr")
 			assert.Contains(t, rr.Body.String(), "address home")
 			assert.Contains(t, rr.Body.String(), `href="../r/`+testUserAddr+`/home"`)
+			assert.Contains(t, rr.Body.String(), "g1ma...dlf5/home", "the button names the realm it links to")
+			assert.NotContains(t, rr.Body.String(), "alice/home")
 		})
 	}
 }

@@ -62,11 +62,11 @@ this order:
 Anything else is a 404. A chain that does not deploy `r/sys/users` answers
 "no", which is the gnodev case. A chain that could not be asked (timeout, node
 error, an unrecognized answer) is only fatal where the gate depends on the
-answer, a name with no packages: that error surfaces through the handler's
-usual mapping, because a 404 published on a blip deletes a real user's page for
-as long as a crawler remembers it. An address or a namespace holding packages
-is served without the registry, and the page just lacks the other half of the
-pair.
+answer, a name with no packages that no alias publishes: that error surfaces
+through the handler's usual mapping, because a 404 published on a blip deletes
+a real user's page for as long as a crawler remembers it. An address, a
+namespace holding packages or an alias target is served without the registry,
+and the page just lacks the other half of the pair.
 
 Before any query, `<name>` must match the registry's own name shape unless it
 is an address: `gnolang.Re_name`, which `r/sys/users/store.gno` states its own

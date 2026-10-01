@@ -58,6 +58,10 @@ type UserData struct {
 	// name's, the address's when only it has one, or the full address when no
 	// name resolves. Links use this, never Username, which may be elided.
 	Namespace string
+	// HomeLabel is Namespace as the home button prints it, shortened when it
+	// is an address. It differs from Username when the page falls back to the
+	// address's home realm.
+	HomeLabel string
 	// Address is the full bech32 address, empty when none could be resolved.
 	Address       string
 	Handlename    string
