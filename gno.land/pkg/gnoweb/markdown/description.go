@@ -58,7 +58,13 @@ func visibleText(src []byte, n ast.Node) string {
 				walk(c)
 				continue
 			}
-			b.Write(nodeText(src, c))
+			text := nodeText(src, c)
+			// goldmark resolves escapes and entities in text when it writes
+			// HTML, but writes a code span as typed; the summary follows.
+			if c.Kind() == ast.KindText && n.Kind() != ast.KindCodeSpan {
+				text = resolveDestination(text)
+			}
+			b.Write(text)
 		}
 	}
 	walk(n)
