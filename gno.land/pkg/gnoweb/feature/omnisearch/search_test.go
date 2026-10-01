@@ -99,10 +99,6 @@ func (m *mockIndexer) Deploys(context.Context, string, int) ([]indexer.Tx, error
 	return m.txs, m.err
 }
 
-func (m *mockIndexer) Importers(context.Context, string, int) ([]indexer.Tx, error) {
-	return m.txs, m.err
-}
-
 func (m *mockIndexer) SourceContains(context.Context, string, int) ([]indexer.Tx, error) {
 	return m.txs, m.err
 }
