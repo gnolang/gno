@@ -384,12 +384,8 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
 	ctx := r.Context()
 
+	// Get already resolved GnowebPath aliases; only StaticMarkdown is left.
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
-
-	// If the alias target exists and is a gnoweb path, replace the URL path with it.
-	if aliasExists && aliasTarget.Kind == GnowebPath {
-		r.URL.Path = aliasTarget.Value
-	}
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {

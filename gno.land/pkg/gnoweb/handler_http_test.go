@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -2011,7 +2012,10 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 	config := newTestHandlerConfig(t, gnoweb.NewMockClient(
 		pkg("/r/gnoland/home"), pkg("/r/nym-sunny000/app"), pkg("/p/nt/avl"), pkg("/p/nym-sunny000/lib"),
 	))
-	config.Aliases = gnoweb.DefaultAliases
+	config.Aliases = maps.Clone(gnoweb.DefaultAliases)
+	// A chained alias must not render a package the notice was not decided on.
+	config.Aliases["/chain"] = gnoweb.AliasTarget{Value: "/chain-next", Kind: gnoweb.GnowebPath}
+	config.Aliases["/chain-next"] = gnoweb.AliasTarget{Value: "/r/nym-sunny000/app", Kind: gnoweb.GnowebPath}
 	noticeData, err := components.NewBannerData(notice, "")
 	require.NoError(t, err)
 	config.Meta.RealmNotice = noticeData.AsWarning()
@@ -2036,6 +2040,7 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		{"/r/nym-sunny000/app?state", true},
 		{"/p/nym-sunny000/lib", true},
 		{"/r/unknown/pkg", true},
+		{"/chain", false},
 	}
 
 	for _, tc := range cases {
@@ -2051,6 +2056,11 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 
 			body := rr.Body.String()
 			assert.Contains(t, body, banner)
+			if tc.path == "/chain" {
+				// Aliases resolve once, so /chain lands on /chain-next, which is not a package.
+				assert.Equal(t, http.StatusBadRequest, rr.Code)
+				return
+			}
 			if tc.wantNotice {
 				assert.Contains(t, body, notice)
 			} else {
