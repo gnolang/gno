@@ -141,11 +141,12 @@ export class SearchbarController extends BaseController {
 	}
 
 	// isPathLike reports input the bar navigates to rather than searches: a
-	// path (with or without its leading slash), a gno.land link, or a URL.
+	// path (with or without its leading slash), an anchor or query on this
+	// page, a gno.land link, or a URL.
 	static isPathLike(raw: string): boolean {
 		return (
 			/^[rpu]\//.test(raw) ||
-			raw.startsWith("/") ||
+			/^[/#?]/.test(raw) ||
 			GNO_LAND_HOST.test(raw) ||
 			/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
 		);
