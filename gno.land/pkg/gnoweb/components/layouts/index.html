@@ -9,7 +9,7 @@
        the whole navigation before reaching the content. WCAG 2.4.1.
        The target is <main> unless the view renders the rail first, in which
        case the view puts #main-content on what follows the rail
-       (see SkipTargetInBody), or the next Tab would land in the rail. */}}
+       (see View.SkipTargetInBody), or the next Tab would land in the rail. */}}
   <a href="#main-content" class="u-skip-link">Skip to content</a>
   {{ template "ui/icons" -}}
   {{ if .IndexData.Banner.Enabled -}}
@@ -24,7 +24,7 @@
   {{ end -}}
   {{ end -}}
   {{ template "layouts/header" .IndexData.HeaderData -}}
-  <main {{ if not .SkipTargetInBody }}id="main-content" tabindex="-1" {{ end }}{{ if .IsDevmodView }}class="is-dev-mode" {{ end }}>
+  <main {{ if not .IndexData.BodyView.SkipTargetInBody }}id="main-content" tabindex="-1" {{ end }}{{ if .IsDevmodView }}class="is-dev-mode" {{ end }}>
     <section class="c-center">
       {{ render .IndexData.BodyView -}}
     </section>

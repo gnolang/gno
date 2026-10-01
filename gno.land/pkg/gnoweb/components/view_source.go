@@ -121,5 +121,7 @@ func SourceView(data SourceData) *View {
 		FileDownload: data.FileDownload,
 	}
 
-	return NewTemplateView(SourceViewType, "renderSource", viewData)
+	view := NewTemplateView(SourceViewType, "renderSource", viewData)
+	view.SkipTargetInBody = true // on the content header
+	return view
 }

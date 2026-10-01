@@ -172,12 +172,9 @@ type indexLayoutParams struct {
 
 	// Additional data
 	IsDevmodView bool
-	// SkipTargetInBody is set for views that render their rail before the
-	// content and carry #main-content themselves, past the rail.
-	SkipTargetInBody bool
-	ViewType         string
-	JSController     string
-	Theme            string
+	ViewType     string
+	JSController string
+	Theme        string
 }
 
 func IndexLayout(data IndexData) Component {
@@ -201,11 +198,6 @@ func IndexLayout(data IndexData) Component {
 	switch data.BodyView.Type {
 	case HelpViewType, SourceViewType, DirectoryViewType, StatusViewType, StateViewType, OverviewViewType:
 		dataLayout.IsDevmodView = true
-	}
-
-	switch data.BodyView.Type {
-	case RealmViewType, SourceViewType, OverviewViewType, StateViewType:
-		dataLayout.SkipTargetInBody = true
 	}
 
 	return NewTemplateComponent("index", dataLayout)

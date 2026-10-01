@@ -36,8 +36,8 @@
 }
 
 /* The skip link's target: <main>, or on rail views the content past the rail.
-   Clears the sticky .b-header, which would otherwise cover its top: 105px
-   tall below --lg (two rows), 57px from --lg up. */
+   Clears the sticky .b-header, which would otherwise cover its top: two
+   rows below --lg, one from --lg up. */
 #main-content {
 	scroll-margin-block-start: var(--g-space-28);
 
