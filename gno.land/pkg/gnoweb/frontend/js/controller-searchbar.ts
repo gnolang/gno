@@ -122,15 +122,30 @@ export class SearchbarController extends BaseController {
 			}
 		}
 
-		// A qualified query is a search, not a path: send it to the results
-		// page, which is also the view a reader without JavaScript gets.
-		if (this.isQualified(raw)) {
+		// A qualified query, or free text that names no path, is a search:
+		// send it to the results page, which is also the view a reader without
+		// JavaScript gets. Navigating `counter` to `/counter` was a dead end.
+		if (
+			this.isQualified(raw) ||
+			(this.searchAvailable !== false && !SearchbarController.isPathLike(raw))
+		) {
 			go(this.searchHref(raw));
 			return;
 		}
 
 		const target = SearchbarController.resolveTarget(raw);
 		if (target) go(target);
+	}
+
+	// isPathLike reports input the bar navigates to rather than searches: a
+	// path (with or without its leading slash), a gno.land link, or a URL.
+	static isPathLike(raw: string): boolean {
+		return (
+			/^\/?[rpu]\//.test(raw) ||
+			raw.startsWith("/") ||
+			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i.test(raw) ||
+			/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
+		);
 	}
 
 	private currentRealmPath(): string | null {
@@ -193,6 +208,7 @@ export class SearchbarController extends BaseController {
 				this.render(q, res.groups ?? [], pageMatches, {
 					unknownFilter: res.unknown_filter,
 					fullPage: true,
+					highlight: this.highlightTerm(q),
 				});
 				return;
 			}
@@ -231,10 +247,31 @@ export class SearchbarController extends BaseController {
 		return this.selectors.some((s) => s.bare && s.name === word);
 	}
 
+	// highlightTerm is what a server-answered row can contain: the free text,
+	// else the selector's value. No title contains `func:Render` as typed.
+	private highlightTerm(q: string): string {
+		const tokens = q.split(/\s+/).filter(Boolean);
+		const text = tokens.filter(
+			(t) =>
+				!SearchbarController.isQualifierToken(t) &&
+				!this.selectors.some((s) => s.bare && s.name === t.toLowerCase()),
+		);
+		if (text.length > 0) return text.join(" ");
+		const values = tokens.filter(SearchbarController.isQualifierToken).map((t) => {
+			const at = t.indexOf(":");
+			return { key: t.slice(0, at).toLowerCase(), value: t.slice(at + 1) };
+		});
+		const named = values.find((v) =>
+			this.selectors.some((s) => s.name === v.key),
+		);
+		return (named ?? values[0])?.value ?? "";
+	}
+
 	// isQualifierToken must stay in step with ParseQuery's isQualifierKey.
 	static isQualifierToken(token: string): boolean {
 		const at = token.indexOf(":");
-		if (at < 0) return false;
+		// An object ID led by a hex letter has a bare-word key too.
+		if (at < 0 || OID_PATTERN.test(token)) return false;
 		if (token.slice(at + 1).startsWith("//")) return false;
 		return /^[a-z][a-z0-9_-]*$/.test(token.slice(0, at).toLowerCase());
 	}
@@ -310,7 +347,11 @@ export class SearchbarController extends BaseController {
 		q: string,
 		groups: SearchGroup[],
 		pageMatches: PageMatch[],
-		opts: { unknownFilter?: string; fullPage?: boolean } = {},
+		opts: {
+			unknownFilter?: string;
+			fullPage?: boolean;
+			highlight?: string;
+		} = {},
 	): void {
 		const results = this.beginDraw();
 		if (!results) return;
@@ -332,7 +373,7 @@ export class SearchbarController extends BaseController {
 
 			if (group.error) section.appendChild(this.buildNotice(group.error));
 			for (const r of group.results ?? []) {
-				section.appendChild(this.buildItem(r, q, group));
+				section.appendChild(this.buildItem(r, opts.highlight ?? q, group));
 			}
 			results.appendChild(section);
 		}
@@ -569,7 +610,7 @@ export class SearchbarController extends BaseController {
 
 	// fillHighlighted writes text into el, emphasizing the first match of q.
 	private fillHighlighted(el: HTMLElement, text: string, q: string): void {
-		const at = text.toLowerCase().indexOf(q.toLowerCase());
+		const at = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
 		if (at < 0) {
 			el.textContent = text;
 			return;

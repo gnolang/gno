@@ -44,6 +44,13 @@ func TestParseQuerySplitsQualifiersFromText(t *testing.T) {
 			wantFilters: []Filter{{Key: "in", Value: "gno.land/r/demo/boards:p/foo"}},
 		},
 		{
+			// 6 of 16 object IDs start with a hex letter, which reads as a
+			// bare-word key. Digit-led ones never did.
+			name:     "letter-led object id is text",
+			raw:      "a3f1c2d4e5f60718293a4b5c6d7e8f9012345678:5",
+			wantText: "a3f1c2d4e5f60718293a4b5c6d7e8f9012345678:5",
+		},
+		{
 			name:        "key is case insensitive",
 			raw:         "FUNC:Vote",
 			wantFilters: []Filter{{Key: "func", Value: "Vote"}},

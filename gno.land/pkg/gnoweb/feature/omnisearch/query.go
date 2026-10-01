@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 )
 
 // Input bounds. A search box is attacker-controlled and every resolver turns
@@ -86,7 +88,10 @@ func ParseQuery(raw string) (*Query, error) {
 	for tok := range strings.FieldsSeq(raw) {
 		key, value, found := strings.Cut(tok, ":")
 		key = strings.ToLower(strings.TrimSpace(key))
-		if !found || !isQualifierKey(key) || strings.HasPrefix(value, "//") {
+		// An object ID whose hex starts with a letter has a bare-word key
+		// too; it is text, not an unknown qualifier.
+		if !found || !isQualifierKey(key) || strings.HasPrefix(value, "//") ||
+			state.OIDPattern.MatchString(tok) {
 			text = append(text, tok)
 			continue
 		}
