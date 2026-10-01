@@ -91,8 +91,10 @@ args and the target's are the operator's.
 The community wording names who published the page rather than who did not
 review it: "A realm deployed on gno.land by its author." A stamp of what
 gno.land has not reviewed would read as a gatekeeper on a permissionless
-network. `og-community.png` marks the card as community content; its caption
-is to be reworded the same way. An empty card reads as a broken site, so every 200 page carries a title, a description and,
+network. `og-community.png` follows: it leads with "Community realm" and
+"Open source, running on-chain. Read its code, call its functions.", with
+gno.land's mark small in a corner, as the platform the realm runs on rather
+than its author. An empty card reads as a broken site, so every 200 page carries a title, a description and,
 when `-canonical-origin` is set, an image.
 
 `canonicalURL` prefixes `Static.CanonicalOrigin`, set by `-canonical-origin`,
