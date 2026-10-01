@@ -38,7 +38,7 @@ func TestRailA11yWiring(t *testing.T) {
 		{"/r/gnoland/blog$source&file=admin.gno", true},    // source file
 		{"/r/gnoland/blog$state", true},                    // package state
 		{"/r/gnoland/blog/", false},                        // directory, no rail
-		{"/r/tests/vm/deep/very/deep", true},               // empty TOC: rail emitted, CSS hides it
+		{"/r/tests/vm/deep/very/deep", true},               // empty TOC: rail emitted (empty <ul>, still shown)
 		{"/r/gnoland/blog$source&file=nonexistent", false}, // error page
 	}
 

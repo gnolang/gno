@@ -1156,12 +1156,11 @@
 		top: var(--g-space-14);
 		padding-block-start: var(--g-space-2);
 
-		/* Hide the sidebar wrapper when its `<nav>` holds nothing but
-		   its `.b-sidebar-heading` (e.g. a realm whose TOC rendered
-		   empty), or when there is no `<nav>` at all (the overview
-		   with an empty index). Each rail's <nav> opens with that
-		   heading, hence the :not(). Source emits a TOC <ul>, state
-		   always emits its export button, so neither is hidden. */
+		/* Guard: hide the sidebar wrapper when its `<nav>` holds
+		   nothing but its `.b-sidebar-heading` (each rail's <nav> opens
+		   with that heading, hence the :not()). None of the five rail
+		   templates emits such a <nav> today: an empty TOC still
+		   renders an empty `<ul class="b-toc">`, so the rail stays. */
 		&:has(.inner):not(:has(nav > :not(.b-sidebar-heading))) {
 			display: none;
 		}
