@@ -9,12 +9,19 @@ type TocItem struct {
 	// Icon is an optional sprite id suffix (e.g. "kind-func") rendered as a
 	// leading kind glyph. Empty means no glyph — realm/action/source TOCs leave
 	// it unset, so only the package overview surfaces icons.
-	Icon  string
+	Icon string
+	// Link points off the current page, e.g. at a file in the source view. When
+	// it is empty the item anchors to its own ID.
+	Link  string
 	Items []*TocItem
 }
 
-// Anchor returns the anchor link for this ToC item.
+// Anchor returns this ToC item's target: its Link when set, otherwise an anchor
+// to its own ID.
 func (i TocItem) Anchor() string {
+	if i.Link != "" {
+		return i.Link
+	}
 	return "#" + i.ID
 }
 

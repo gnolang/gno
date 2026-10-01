@@ -48,6 +48,9 @@ module.exports = (ctx) => {
 						"b-tag",
 						"b-tag--secondary",
 					],
+					// Chroma emits its class names at render time, so they appear in
+					// no template or Go source and the extractor never sees them.
+					greedy: [/chroma-/],
 					deep: [
 						/c-realm-view\b/,
 						/c-readme-view\b/,
