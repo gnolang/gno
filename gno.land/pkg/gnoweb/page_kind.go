@@ -30,6 +30,10 @@ const (
 	communityImageAsset = "imgs/og-community.png"
 )
 
+// pageLead is what a rendered document says about itself: its leading h1
+// and its summary. setHeadMetadata decides whether the head repeats it.
+type pageLead struct{ title, description string }
+
 // packageKind classifies u by the package it renders. A user page renders
 // that user's home realm. The bare "/r/", "/p/" and "/u/" listings belong to
 // no package.

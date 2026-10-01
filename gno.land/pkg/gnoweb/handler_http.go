@@ -328,7 +328,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
 		indexData.BodyView = view
-		h.setHeadMetadata(&indexData.HeadData, headURL, kind)
+		h.setHeadMetadata(&indexData.HeadData, headURL, kind, pageLead{})
 		unpublishErrorShell(&indexData.HeadData, status)
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -349,10 +349,13 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 	}
 
-	var status int
-	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
+	var (
+		status int
+		lead   pageLead
+	)
+	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData, &lead)
 
-	h.setHeadMetadata(&indexData.HeadData, headURL, kind)
+	h.setHeadMetadata(&indexData.HeadData, headURL, kind, lead)
 	unpublishErrorShell(&indexData.HeadData, status)
 
 	// Render the final page with the rendered body
@@ -419,7 +422,8 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 }
 
 // prepareIndexBodyView prepares the data and main view for the index page.
-func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+// A page that renders a document records what it says about itself in lead.
+func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData, lead *pageLead) (int, *components.View) {
 	ctx := r.Context()
 
 	// Get already resolved GnowebPath aliases; only StaticMarkdown is left.
@@ -437,9 +441,9 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		indexData.HeaderData.Static = true
-		return h.GetMarkdownView(gnourl, aliasTarget, indexData)
+		return h.GetMarkdownView(gnourl, aliasTarget, lead)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
-		return h.GetPackageView(ctx, gnourl, indexData)
+		return h.GetPackageView(ctx, gnourl, indexData, lead)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -447,7 +451,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 }
 
 // GetMarkdownView handles rendering of markdown files.
-func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, lead *pageLead) (int, *components.View) {
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
@@ -462,8 +466,10 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, 
 	}
 	// A page the operator ships may name itself; anything else is read off
 	// what the page displays.
-	indexData.HeadData.Title = cmp.Or(alias.Title, meta.Title)
-	indexData.HeadData.Description = cmp.Or(alias.Description, meta.Description)
+	*lead = pageLead{
+		title:       cmp.Or(alias.Title, meta.Title),
+		description: cmp.Or(alias.Description, meta.Description),
+	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems:         &components.RealmTOCData{Items: meta.Toc.Items},
@@ -472,7 +478,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, 
 }
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
-func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, lead *pageLead) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -497,11 +503,11 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	}
 
 	// Ultimately get realm view
-	return h.GetRealmView(ctx, gnourl, indexData)
+	return h.GetRealmView(ctx, gnourl, indexData, lead)
 }
 
 // GetRealmView renders a realm page or returns an error/status if not available.
-func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, lead *pageLead) (int, *components.View) {
 	// First fecth the realm
 	raw, err := h.Client.Realm(ctx, gnourl.Path, gnourl.EncodeArgs())
 	switch {
@@ -527,10 +533,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
-	// What the document says about itself; setHeadMetadata decides whether
-	// the head may repeat it.
-	indexData.HeadData.Title = meta.Title
-	indexData.HeadData.Description = meta.Description
+	*lead = pageLead{title: meta.Title, description: meta.Description}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
@@ -1121,18 +1124,17 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	return h.Static.CanonicalOrigin + u.EncodeWebURL()
 }
 
-// setHeadMetadata settles the <head> once the body is rendered. The body
-// leaves in head what the document says about itself, its first heading and
-// its summary, and mayRepeat decides whether they stay. The title otherwise
-// falls back to the path alone: arguments and query are typed by whoever
-// wrote the link, on any realm, trusted or not.
-func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.GnoURL, kind pageKind) {
-	title, description := head.Title, head.Description
+// setHeadMetadata settles the <head> once the body is rendered, and is the
+// only writer of its text slots. lead, what the document says about itself,
+// reaches the head only if mayRepeat allows. The title otherwise falls back to
+// the path alone: arguments and query are typed by whoever wrote the link, on
+// any realm, trusted or not.
+func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.GnoURL, kind pageKind, lead pageLead) {
 	if !kind.mayRepeat(gnourl) {
-		title, description = "", ""
+		lead = pageLead{}
 	}
-	head.Title = h.titleWithDomain(cmp.Or(title, strings.TrimSuffix(gnourl.Path, "/")))
-	head.Description = cmp.Or(description, kind.defaultDescription(gnourl))
+	head.Title = h.titleWithDomain(cmp.Or(lead.title, strings.TrimSuffix(gnourl.Path, "/")))
+	head.Description = cmp.Or(lead.description, kind.defaultDescription(gnourl))
 
 	canonical := h.canonicalURL(gnourl)
 	head.Canonical = canonical
