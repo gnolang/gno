@@ -32,7 +32,11 @@ func NewStaticAlias(content string) AliasTarget {
 	for line := range strings.SplitSeq(head, "\n") {
 		key, value, found := strings.Cut(line, ":")
 		if !found {
-			continue
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			// Prose between two thematic breaks, not front matter.
+			return target
 		}
 		value = strings.Trim(strings.TrimSpace(value), `"'`)
 		switch strings.TrimSpace(key) {

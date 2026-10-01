@@ -53,6 +53,13 @@ func TestNewStaticAlias(t *testing.T) {
 			body:        "Body.\n",
 		},
 		{
+			// A page may open on a rule and draw another further down; the
+			// prose between them is content, not a header to strip.
+			name:    "prose between two thematic breaks is not front matter",
+			content: "---\n\nIntro paragraph.\n\n---\n\nMore.\n",
+			body:    "---\n\nIntro paragraph.\n\n---\n\nMore.\n",
+		},
+		{
 			name:    "a thematic break is not front matter",
 			content: "---\n\nBody.\n",
 			body:    "---\n\nBody.\n",
