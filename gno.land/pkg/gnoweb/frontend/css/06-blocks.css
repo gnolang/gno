@@ -94,8 +94,8 @@
 		flex-shrink: 0;
 		padding-inline: var(--g-space-2);
 		border-radius: var(--s-rounded);
-		background-color: var(--s-color-bg-network-alert);
-		color: var(--s-color-text-network-alert);
+		background-color: var(--s-color-bg-network);
+		color: var(--s-color-text-network);
 		font-size: var(--g-font-size-50);
 		font-weight: var(--g-font-semibold);
 		white-space: nowrap;
