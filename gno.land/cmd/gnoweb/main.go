@@ -130,7 +130,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedProxies,
 		"trusted-proxies",
 		defaultWebOptions.trustedProxies,
-		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed",
+		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins",
 	)
 
 	fs.BoolVar(
