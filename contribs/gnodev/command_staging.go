@@ -21,14 +21,18 @@ var defaultStagingOptions = AppConfig{
 	logFormat:   "json",
 	maxGas:      10_000_000_000,
 	webHome:     ":none:",
-	// Staging binds every interface, unlike local mode. This is the mode
-	// meant for server use, and the published gnodev image is unusable
-	// without it: bound to loopback inside a container, `docker run -p` maps
-	// a port only the container itself can reach, so the node reports ready
-	// and nothing outside can connect. Narrow it explicitly when running
-	// staging on a machine whose network you do not trust.
+	// Staging serves the network on one port, unlike local mode. The web
+	// listener binds every interface: bound to loopback inside a container,
+	// `docker run -p` maps a port only the container itself can reach, so
+	// the node reports ready and nothing outside can connect.
+	//
+	// The node's RPC stays on the loopback. The web listener serves it at
+	// /rpc, and to JSON-RPC POSTs on /, through an allowlist of public
+	// routes, so a deployment is one hostname and one certificate, and
+	// gnokey -remote https://<host> works as is.
 	webListenerAddr:            "0.0.0.0:8888",
-	nodeRPCListenerAddr:        "0.0.0.0:26657",
+	nodeRPCListenerAddr:        "127.0.0.1:26657",
+	faucetAmount:               "10000000ugnot",
 	deployKey:                  defaultDeployerAddress.String(),
 	home:                       gnoenv.HomeDir(),
 	root:                       gnoenv.RootDir(),
@@ -59,6 +63,11 @@ This mode is designed for stability and security, suitable for pre-deployment te
 Interactive mode and unsafe API access are disabled to ensure a secure environment.
 The log format is set to JSON, facilitating integration with logging systems.
 Staging eager-loads the workspace, every -extra-root, and $GNOROOT/examples by default (use -no-examples to skip).
+
+The web listener is the one port meant for the network. Next to gnoweb it serves
+the node's RPC under /rpc, and JSON-RPC posted to /, limited to public routes, so
+'gnokey -remote https://<host>' needs nothing else; and a faucet at /faucet. The
+node's own RPC listener stays on the loopback.
 
 Additionally, you can specify an additional package directory to load.
 `,

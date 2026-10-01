@@ -52,7 +52,11 @@ at any time for the in-terminal help menu (see [Interactive controls](#interacti
   referenced.
 - `gnodev staging` is tuned for server use: no interactive mode, no unsafe API,
   and JSON logs. On top of the workspace and `-extra-root`, all of `examples/`
-  is eager-loaded at startup (use `-no-examples` to skip it).
+  is eager-loaded at startup (use `-no-examples` to skip it). It serves the
+  network on one port, the web listener (`0.0.0.0:8888`): gnoweb, the node's
+  RPC under `/rpc` limited to its public routes, and a faucet at `/faucet`.
+  JSON-RPC posted to `/` is answered too, so `gnokey -remote https://<host>`
+  works with no path. The node's own RPC listener stays on the loopback.
 
 ## Features
 
@@ -209,6 +213,7 @@ terminal; it turns off when output is piped or redirected, and in
 | `-node-rpc-listener <addr>` | Node RPC listen address (default `127.0.0.1:26657`); `gnokey -remote` must match it |
 | `-web-listener <addr>` | gnoweb listen address (default `127.0.0.1:8888`) |
 | `-no-web` | Run without gnoweb |
+| `-faucet <amount>` | Amount the staging faucet at `/faucet` sends per claim, once a minute per address (default `10000000ugnot`, empty to disable) |
 | `-unsafe-api` | Expose the `/reset` and `/reload` HTTP endpoints (on in local, off in staging) |
 | `-interactive` | Force interactive controls when stdout is not a terminal (on by default in local at a terminal, off in staging) |
 | `-no-watch` | Disable file watching |
