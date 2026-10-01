@@ -59,23 +59,24 @@ and its first paragraph long enough to summarise, both read as plain text
 
 | | title | description | image |
 |---|---|---|---|
-| official | the h1, or the path | the paragraph, or `siteDescription` | `og-gnoland.png` |
+| official, no args or query | the h1, or the path | the paragraph, or `siteDescription` | `og-gnoland.png` |
+| official, with args or query | the path | `siteDescription` | `og-gnoland.png` |
 | site | the path | `siteDescription` | `og-gnoland.png` |
 | community | the path | a fixed sentence per kind (realm, package, user) | `og-community.png` |
 
-The domain follows the title: `Hello worlds - gno.land`. The page comes first
+The domain follows the title: `The gno.land blog - gno.land`. The page comes first
 because a browser tab and a search result both truncate the tail.
 
 The path is the only part of the URL a title repeats. Arguments and query
 are typed by whoever wrote the link, on any realm, trusted ones included:
 `/r/gnoland/blog:Official_GNOT_airdrop_claim_at_evil.example` used to title
-itself with that sentence. An official page also loses its h1 and paragraph
-when the link carries a query, since the query reaches `Render`, or when
-either repeats the arguments verbatim, which is what an error or not-found
-page that quotes its input does (`r/gov/dao` prints the parse error of a
-proposal ID). A realm that rewrites its input before echoing it gets past the
-verbatim check; that is the trusted realm's bug to fix, not one metadata can
-catch.
+itself with that sentence. Both also reach `Render`, and trusted realms echo
+them: `p/gnoland/blog` writes a tag into its tag page's heading
+(`# Gno.land's blog / t / <tag>`), and `r/gov/dao` prints the parse error of a
+proposal ID. So an official page lends its h1 and paragraph only when its link
+carries neither args nor query; otherwise it gets the path and the generic
+sentence. A page an operator aliases keeps its h1, since the alias URL has no
+args and the target's are the operator's.
 
 `og-community.png` is the gno.land mark at a smaller scale over "Community
 content · not reviewed by gno.land". A preview of a community page therefore
@@ -139,8 +140,14 @@ better than no card.
 
 **Keep the arguments in the title.** Each blog post had its own title that
 way, even without a heading. Any link could also set the title of a trusted
-page to a sentence of its choosing, which is the exact abuse #3910 names. The
-h1 gives posts distinct titles; a page without one shares its realm's.
+page to a sentence of its choosing, which is the exact abuse #3910 names.
+
+**Take the h1 of a page with args unless it repeats them.** This would give
+each blog post its own heading as a title. A string match cannot tell an echo
+from a heading: a post's slug is made of its title's words, so a check strict
+enough to drop `/ t / <tag>` drops every post title too, and one loose enough
+to keep post titles lets a reformatted echo through. A realm that wants its
+pages titled can be aliased, or declare titles itself in a later change.
 
 **Canonicalise every view to the content page.** `$source` and `$help`
 render different content from the realm body, so each addresses its own
@@ -151,10 +158,10 @@ page and gets its own canonical.
 Every page now carries a title, a description and, with an origin set, a
 share image and a canonical URL.
 
-An official page with an h1 is titled by it. Pages without one, and every
-community page, are titled by their path: two posts of a community realm, or
-`$source` and the content page of one realm, share a title while their
-canonicals differ. Directory listings, `$source`, `$help` and profile pages on
+An official page with an h1 and no args or query is titled by it. Every other
+page is titled by its path: the posts of one realm, trusted or not, share
+their realm's title, as do `$source` and the content page of one realm, while
+their canonicals differ. Directory listings, `$source`, `$help` and profile pages on
 official paths carry the generic site sentence, since they have no paragraph
 to summarise.
 
