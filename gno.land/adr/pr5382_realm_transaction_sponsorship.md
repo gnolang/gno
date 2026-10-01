@@ -12,75 +12,83 @@ Other chains solve this differently: Ethereum uses EIP-4337 (Paymasters + bundle
 
 ## Decision
 
-Introduce two independent native functions that allow realms to sponsor transaction costs:
+Two natives in `chain/runtime` let a realm sponsor a 0-fee transaction:
 
-- **`runtime.PayGas(maxFee int64)`** — realm pays gas fees, capped at maxFee (ugnot)
-- **`runtime.PayStorage(maxDeposit int64)`** — realm pays storage deposits, capped at maxDeposit (ugnot)
+- **`runtime.PayGas(maxFee int64, rlm realm)`** — `rlm` pays the transaction's gas, up to `maxFee` ugnot.
+- **`runtime.PayStorage(maxDeposit int64, rlm realm)`** — `rlm` pays the storage deposits for its own storage, up to `maxDeposit` ugnot.
 
-Plus a tx-level flag:
-
-- **`Fee.SponsorStorage = true`** — defers storage deposits to end-of-tx for multi-message sponsorship
+Both only take effect in a 0-fee transaction while the chain's credit window is open (see the tm2 ADR), and are no-ops otherwise, including outside a transaction (queries, `gno test`). A 0-fee transaction that never calls `PayGas` is rejected. The realm is charged only if the transaction succeeds.
 
 ## Key Design Decisions
 
 ### 1. Mid-execution sponsorship
 
-The realm decides **during execution** whether to sponsor. This allows running arbitrary validation logic (check balances, collect alternative tokens, verify whitelists) before committing to pay. No other chain does this without off-chain infrastructure.
+The realm decides **during execution** whether to sponsor, so it can run arbitrary logic first: collect payment in another token, check a whitelist, rate-limit. Pre-registration or feegrant-style allowances cannot run that logic.
 
-**Why not upfront commitment?** Pre-registration (`RegisterGasSponsor`) or feegrant-style allowances can't run on-chain conditional logic. The realm needs to execute code to decide.
+### 2. The realm is a capability argument
 
-### 2. Credit window (`MaxGasCreditPerTx`)
+`rlm` must be the current realm, checked with `rlm.IsCurrent()`, the same capability `banker.NewBanker(bt, rlm)` requires to spend a realm's coins. A realm passes the `cur` of its crossing function, or threads it into a helper. The native also refuses anything that is not a top-level `/r/` realm: packages, MsgRun's ephemeral realm, and sub-realm tokens (`cur.Sub(...)`).
 
-A consensus parameter defines how much gas a 0-fee tx can consume before `PayGas` is called. Execution starts on "credit" — if `PayGas` is never called, the tx fails. This is enforced in **both** CheckTx (so invalid 0-fee txs never enter the mempool) and DeliverTx (so a block proposer cannot force-include a free tx that skips `PayGas` — its state changes are discarded). Genesis txs are exempt.
+`rlm` is the last parameter because a function whose first parameter is a `realm` is a crossing function.
 
-**Why a consensus param?** Validators must agree on the credit window size. It bounds the free execution validators absorb for invalid 0-fee txs.
+**Why not inspect the call stack?** An earlier version required the function calling `PayGas` to be declared in the current realm. That hard-codes the VM's frame layout, and it lets a confused deputy through: if a realm exports a plain helper that calls `PayGas` and also runs a caller-supplied callback, an attacker passes the helper as the callback and the realm pays. A helper now needs the realm's own `cur`.
 
-### 3. Settlement inside cached context
+### 3. Settle only on success
 
-Gas and storage settlement execute inside the cached message execution context. On tx failure, the cache is not written — the realm does NOT pay. This prevents griefing attacks where an attacker engineers a failure after sponsorship to drain the realm without it receiving anything in return.
+Settlement runs in gno.land's `EndTxHook`, only when the transaction succeeded: the gas debit is `ceil(gasUsed × LastGasPrice)`, capped at `maxFee`, sent from the realm to the fee collector. On failure everything reverts and the realm pays nothing.
 
-**Why not outside the cache?** If settlement persisted on failure, an attacker could: call a realm that collects USDC then calls PayGas → trigger failure → USDC collection reverts but gas payment persists → realm loses gnot, attacker keeps USDC.
+**Why not charge on failure, like a normal fee?** A realm that collects a token and then calls `PayGas` would be drained: an attacker makes the transaction fail afterwards, the token transfer reverts, and the gnot is still taken. The realm cannot defend itself, since its own bookkeeping reverts too. The cost of this choice, failing sponsored transactions that nobody pays for, is covered in the tm2 ADR.
 
-### 4. PayGas and PayStorage are independent
+### 4. PayStorage covers the sponsor's own storage, in its own messages
 
-A realm can call either or both, and the two may even be called by **different** realms in the same tx (e.g. a shared gas-paymaster realm sponsors gas while an app realm sponsors its own storage). Gas and storage are separate concerns with separate budgets, and settlement charges each commitment from its own realm's balance — gas from the `PayGas` realm, storage from the `PayStorage` realm — so neither can consume the other's budget or drain the other realm. A DeFi realm might sponsor gas (users pay in USDC) but not storage. A gaming realm might sponsor both.
+The sponsor pays only for growth of its own storage, and only in a message whose entry is the sponsor itself: a `MsgCall` to it, or its `init` during `MsgAddPackage`. Growth anywhere else stays on the caller. The budget is per transaction.
 
-**Why not one function?** Gas and storage have different economics (gas = computation, storage = persistent state). Separate caps and separate payers keep the two fully decoupled.
+Both limits are needed because a storage deposit is refunded to whoever later frees the bytes, and storage is charged to the realm that allocated it:
 
-**Why allow two realms?** The security invariants that matter — each native validates its own caller (creator == payer) and charges only its own realm's own capped commitment — hold per-call regardless of whether the same realm makes both calls. Requiring one realm would forbid the natural account-abstraction "paymaster" composition (a shared gas sponsor + app-owned storage) without adding any safety.
+- Paying for every realm the transaction touches let another message grow a realm the attacker controls, then free it in a second sponsored transaction and collect the deposit. Measured: the signer gained 478,700ugnot across two 0-fee transactions.
+- Paying for the sponsor's own storage in any message still let another realm keep an object the sponsor allocated (any constructor-style function), which lands in the sponsor's storage, then drop it and collect. Measured: +597,800ugnot.
 
-### 5. Function creator must match payer
+What remains is the sponsor's own API. If a sponsor lets callers free storage it sponsored, they receive that deposit, except what the sponsor funded earlier in the same transaction, which is returned to the sponsor first. This is a visible design choice of the sponsoring realm, and `PayStorage`'s doc comment says so.
 
-The function containing `PayGas`/`PayStorage` must be defined in the same realm that `CurrentRealm` identifies as the payer. This prevents cross-realm callback attacks where a malicious realm tricks another realm into calling PayGas via a passed closure.
+Storage in other realms is the user's to pay. A sponsor that wants to cover it can send the user gnot in the same transaction; the deposit is then the user's, which matches who receives the refund.
 
-**Checked via:** `callerFrame.Func.PkgPath == currentPkgPath` (frame inspection at call depth 2).
+### 5. No balance pre-checks
 
-### 6. SponsorStorage tx flag
+`PayGas` and `PayStorage` only record the commitment. Settlement is authoritative: the bank checks every debit before writing, and CheckTx admission dry-runs settlement, so an insolvent sponsor never enters the mempool. Pre-checks also read the realm's whole balance with `GetCoins`, whose cost is set by whoever sends the realm new denoms.
 
-Storage diffs are per-message (cleared between messages by `ClearObjectCache`). Without a flag, PayStorage only covers messages after it's called. The `SponsorStorage` flag signals upfront that diffs should be accumulated across all messages and settled once at end-of-tx.
+### 6. Gas and storage may be sponsored by different realms
 
-**Why a tx flag instead of always deferring?** Per-message storage deposit is the existing behavior. Changing it for all txs would be a breaking change. The flag is opt-in and backward compatible.
+A shared gas paymaster may call `PayGas` while the app realm calls `PayStorage` for its own storage. Each realm is charged only its own commitment, from its own balance.
 
-### 7. Gas price from existing auth module
+### 7. Gas price from the auth module
 
-The gas price for settlement comes from `auth.GasPriceKeeper.LastGasPrice()`, not a new consensus parameter. This reuses the existing gas price system and avoids configuration duplication. The derived gas limit and the settled cost both use this dynamic price; the settled cost uses ceiling division so the realm is never undercharged the sub-unit remainder.
+The gas limit (`maxFee` divided by the gas price, capped by the credit window) and the settled cost use the auth module's dynamic `LastGasPrice`, the price normal transactions are checked against. No new parameter.
 
-### 8. `PayGas`/`PayStorage` only take effect in sponsored txs
+### 8. No `Fee.SponsorStorage` flag
 
-`PayGas` applies only to a 0-fee credit-window tx. In a normal fee-paying tx the signer already pays gas, so calling `PayGas` is a **no-op** — this prevents charging both the signer (ante fee) and the realm (settlement), and prevents the realm from shrinking the user's gas limit below their `GasWanted`. The derived gas limit is additionally capped at the credit window, so a large `maxFee` cannot let a single tx exceed the block gas limit.
+An earlier version had a tx flag that deferred storage settlement to the end of the transaction, so that `PayStorage` could cover messages before its call. It was removed: after #6173 the signed fee is rendered as `{amount, gas}`, so the flag was not covered by signatures and anyone relaying the tx could flip it, and signing it would make Ledger refuse the transaction. A commitment already covers the later messages of its transaction, so a sponsor's message just goes first.
 
 ## Alternatives Considered
 
 | Alternative | Why not |
 |-------------|---------|
-| Cosmos feegrant module | No on-chain conditional logic. Can't collect USDC before sponsoring. |
+| Cosmos feegrant module | No on-chain conditional logic. Can't collect a token before sponsoring. |
 | Off-chain relayer (EIP-2771 style) | Requires external infrastructure. Centralization risk. |
 | Realm pre-registration | Can't run arbitrary logic before committing to pay. |
 | Post-execution refund | User still needs gnot upfront. Not truly gasless. |
-| Single PayGas covering everything | Gas and storage have different economics. Separate caps needed. |
-| Always defer storage to end-of-tx | Breaking change for existing per-message behavior. |
+| Single PayGas covering storage too | Gas is burned, storage deposits are refundable; they need separate payers and separate rules. |
+| PayStorage covering any realm | Drainable through refunds (decision 4). Safe support needs per-sponsor deposit tracking in realm state. |
+| Charging the sponsor on failure | Reintroduces the drain in decision 3. |
+
+## Consequences
+
+- A `PayGas` commitment covers the gas of every message in the transaction, including ones the sponsor did not call; size `maxFee` accordingly.
+- Realm authors must gate sponsorship (whitelist, payment, rate limit). An unconditional `PayGas` in a public function pays for anyone.
+- Measured cost: a GRC20 approve + transferFrom paymaster transaction uses about 6M gas (`sponsorship_usecase_test.go`), so the credit window must be at least that for the motivating use case.
+- The two native gas entries are heuristic (they mirror `chain.packageAddress`, which hashes the same pkgpath) pending calibration.
+- Adding the natives changes the `chain/runtime` stdlib committed at genesis, so the genesis app hash changes.
 
 ## References
 
-- Full HLD: `docs/design/realm-gas-sponsorship-hld.md`
+- tm2 ADR: `tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md`
 - Implementation PR: gnolang/gno#5382

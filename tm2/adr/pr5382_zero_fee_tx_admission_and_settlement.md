@@ -6,212 +6,148 @@ Proposed (part of PR #5382, "realm transaction sponsorship")
 
 ## Context
 
-PR #5382 lets a realm pay a user's gas and storage from its own balance,
-enabling 0-fee ("gasless") transactions. The realm-facing design and the
-settlement logic live in gno.land and are covered by
+PR #5382 lets a realm pay a user's gas (and its own storage deposits), enabling
+0-fee transactions. The realm-facing design lives in gno.land and is covered by
 `gno.land/adr/pr5382_realm_transaction_sponsorship.md`. This ADR records the
-**Tendermint2-layer** decisions, because the feature required consensus-param,
-ante-handler, baseapp, mempool-config, and `std.Tx` changes that the tm2 layer
-must own and keep deterministic.
+Tendermint2 decisions: the consensus parameter, ante handler, baseapp, mempool
+configuration and `std.Tx` changes.
 
 The core tension: whether a tx pays a fee is normally known before execution,
-but *realm sponsorship is decided during execution* (a realm calls
-`runtime.PayGas` only after running its own logic). So tm2 must (a) admit and
-meter a tx that carries no fee, (b) let the VM tell the SDK, mid-execution, that
-a realm committed to pay, and (c) reject any 0-fee tx where no realm did so —
-identically on every validator, at both CheckTx and DeliverTx.
+but sponsorship is decided during execution, when a realm calls
+`runtime.PayGas`. So tm2 must (a) admit and meter a tx that carries no fee,
+(b) let the VM tell the SDK mid-execution that a realm committed to pay, and
+(c) reject any 0-fee tx where no realm did, identically on every validator.
 
 ## Decision
 
-Add a bounded, consensus-enforced **gas credit window** for 0-fee txs, a
-per-validator mempool **opt-in**, a dedicated **admission mode** that executes
-the tx during CheckTx, and a **success-only settlement hook**; carry sponsorship
-state on the in-process `sdk.Context` (never on the wire).
+A consensus-enforced **gas credit window** for 0-fee txs, a per-validator
+mempool **opt-in**, an **admission mode** that executes the tx during CheckTx,
+and a **success-only settlement hook**. Sponsorship state lives on the
+in-process `sdk.Context`, never on the wire.
 
 ## Key design decisions
 
 ### 1. Credit window as a consensus parameter (`Block.MaxGasCreditPerTx`)
 
-A new `BlockParams.MaxGasCreditPerTx` (default `0` = feature disabled) sizes the
-gas meter for a 0-fee tx before any realm pays. It is validated `>= 0` and
-`<= Block.MaxGas` (`tm2/pkg/bft/types/params.go`), so one sponsored tx can never
-be sized larger than a whole block. Being a consensus param, it is identical on
-every validator and doubles as a chain-wide kill switch.
+`BlockParams.MaxGasCreditPerTx` (default `0` = disabled) sizes the gas meter of
+a 0-fee tx. It is the tx's whole gas budget: `PayGas` may shrink it to what
+`maxFee` buys, never raise it. It is validated `>= 0` and `<= Block.MaxGas`, so
+one sponsored tx is never larger than a block, and it doubles as a chain-wide
+kill switch.
 
-### 2. Two-gate model: consensus enforcement vs. local admission policy
+### 2. Two gates: consensus enforcement vs. local admission policy
 
 `MaxGasCreditPerTx > 0` (consensus) enables the credit window and the
-"PayGas-was-called" enforcement in **every** mode. A separate per-validator
-`AppConfig.AllowZeroFeeTxs` (`tm2/pkg/sdk/config/config.go`, `[application]`
-section — alongside `MinGasPrices`) gates only whether *this* validator admits
-0-fee txs into *its* mempool. DeliverTx behaviour does not depend on the opt-in,
-so block validation stays deterministic even for validators that reject 0-fee
-txs locally.
+"PayGas was called" enforcement in every mode. `AppConfig.AllowZeroFeeTxs`
+(`[application]`, next to `MinGasPrices`) only decides whether *this* validator
+admits 0-fee txs into *its* mempool. DeliverTx does not depend on it.
+
+With the window closed a 0-fee tx is rejected in every mode, as on master.
+`Tx.ValidateBasic` now accepts an empty fee because amino encodes any zero coin
+as `""`, so a `0ugnot` fee always arrives as `Coin{}`; the ante restores the
+rejection unless the window is open. A sponsored tx is also not admitted before
+the first block, when gno.land's genesis ante funds unknown signers.
 
 ### 3. `RunTxModeCheckExecute` for mempool admission
 
-Ante-only CheckTx cannot know whether a realm will call `PayGas`. A new
-`RunTxMode` runs the tx's messages during CheckTx (to validate sponsorship) while
-persisting only the ante's account-sequence increment to `checkState` and
-discarding the message writes; it verifies signatures normally. `RunTxModeSimulate`
-was rejected for this because its throwaway cache discards the sequence bump,
-capping a sender to one in-flight sponsored tx per block. Rechecks fall back to
-the cheap ante-only `RunTxModeCheck`.
+Ante-only CheckTx cannot know whether a realm will call `PayGas`. First-time
+CheckTx of a 0-fee tx runs its messages in `RunTxModeCheckExecute`, verifying
+signatures normally, persisting only the ante's sequence increment to
+`checkState` and discarding message writes. `RunTxModeSimulate` was rejected:
+its throwaway cache drops the sequence bump (one in-flight sponsored tx per
+account per block). Rechecks stay ante-only, so pending 0-fee txs are not
+re-executed every block.
 
-### 4. `PayGas`-was-called enforcement in `runTx`, all modes
+### 4. "PayGas was called" is enforced in `runTx`, all modes
 
-A 0-fee tx that never calls `PayGas` has no payer and is rejected in `runTx`
-(shared by Check/CheckExecute/Deliver), so a block proposer cannot force-include
-a free tx that skips sponsorship. Whether a realm called `PayGas` is read from
-the in-process `PayGasInfo.MaxFee > 0`, not from the wire.
+A 0-fee tx that never calls `PayGas` has no payer and fails in `runTx` (shared by
+Check, CheckExecute and Deliver), so a proposer cannot force-include a free tx.
+It is read from the in-process `PayGasInfo.MaxFee > 0`.
 
-### 5. Settlement via a success-only `EndTxHook`; `GasMeter.SetLimit`
+### 5. Settlement via a success-only `EndTxHook`; `CommitTxHook`; `GasMeter.SetLimit`
 
-tm2 exposes an `EndTxHook(ctx, result) error` invoked **only on tx success**;
-gno.land implements the actual debiting. On failure everything reverts and the
-realm pays nothing (see Alternatives). `store.GasMeter` gains `SetLimit`, used by
-`PayGas` to *shrink* the credit window to what `maxFee` affords (never raise it).
+`EndTxHook(ctx, result) error` runs only on success, and gno.land implements the
+debit there. A returned error fails the tx. It runs in both `RunTxModeDeliver`
+and `RunTxModeCheckExecute`: at admission it is a dry run whose writes land in
+the discarded cache, and it is what rejects an insolvent sponsor or an
+over-budget storage commitment before the tx is gossiped. Simulate (RPC gas
+estimation) does not run it.
 
-The hook runs in **both** `RunTxModeDeliver` and `RunTxModeCheckExecute`. Running
-it at admission is what makes the "realm has funds" half of the admission contract
-real: settlement is where sponsor solvency, the storage budget, and the
-"`SponsorStorage` grew storage but nobody called `PayStorage`" case are decided.
-Without it those txs were admitted, gossiped, and included — burning block gas at
-nobody's expense, since a failed sponsored tx charges no one. Under CheckExecute
-the hook is a **dry run**: its writes go to the message cache, which is discarded.
+Because of the dry run, the hook must not write outside the cache-wrapped
+store. Committing gno.land's transaction store does, so it moved to a new
+`CommitTxHook(ctx)`, called only for a successful delivered tx.
 
-That forces a second hook. `CommitTxHook(ctx)` runs only for a delivered,
-successful tx and is where gno.land calls `CommitGnoTransactionStore`. It cannot
-live in `EndTxHook`, because it writes through to the **node-level** gno store
-cache — outside the cache-wrapped `MultiStore` — so a CheckExecute dry run would
-mutate shared state that the rollback does not cover.
+Settlement events are appended to `result.Events` after the hook, and a failed
+tx reports no events. `result.Events` feeds `LastResultsHash`.
 
-Settlement events are spliced onto `result.Events` after the hook, since
-`runMsgs` freezes the result before it runs, and are cleared if settlement fails
-(mirroring `runMsgs`, which drops events when a message fails). `result.Events`
-feeds `LastResultsHash`, so both halves are consensus-relevant.
+`store.GasMeter` gains `SetLimit`, used by `PayGas` to shrink the limit. An
+infinite meter reports `Limit() == 0`; `PayGas` leaves it alone, so source-gas
+replay is not refused.
 
-### 6. `std.Fee.SponsorStorage` and the `ValidateBasic` relaxation
+### 6. Sponsorship state on the in-process `sdk.Context`
 
-`std.Fee` gains a `SponsorStorage bool` (proto field 3, `omitempty`) that defers
-storage deposits to end-of-tx so one `PayStorage` covers a multi-message tx.
-`Tx.ValidateBasic` accepts a canonical zero fee (previously rejected) so 0-fee
-txs pass structural validation; the ante rejects `SponsorStorage=true` on a
-normal fee-paying tx so the mistake surfaces at submission.
+`PayGasInfo` is allocated per tx in `runTx` and shared by pointer with the VM.
+It is not on `Result`, which must stay wire-compatible with
+`abci.ResponseDeliverTx`. Storage sponsorship is gno.land's own state and does
+not touch tm2.
 
-### 7. Sponsorship state on the in-process `sdk.Context`, not on `Result`
+### 7. Reported `GasWanted` for 0-fee txs is the credit window
 
-`Result` must stay wire-compatible with `abci.ResponseDeliverTx`, so
-`PayGasInfo`/`PayStorageInfo` (and `txCaller`/`sponsorStorage`) live on the
-in-process `sdk.Context` as shared pointers, freshly allocated per tx in `runTx`.
-
-### 8. Reported `GasWanted` for 0-fee txs is the credit window
-
-The ante reports `GasWanted = MaxGasCreditPerTx` for a 0-fee tx (not the
-client-supplied value) so the mempool packs blocks against real worst-case gas.
+The ante reports `GasWanted = MaxGasCreditPerTx` for a 0-fee tx, so the mempool
+packs blocks against the real worst case rather than the client's value.
 
 ## Consequences
 
-- **Determinism is preserved.** Classification (0-fee, credit window,
-  PayGas-enforcement) is consensus-param-driven and mode-independent; `GasUsed`
-  is not part of `LastResultsHash`, so settlement metering choices don't fork the
-  app hash.
-- **The `EndTxHook` contract now means "settle on success."** A downstream tm2
-  embedder that sets this hook must implement settlement (and its own failure
-  semantics); an embedder that *forgets* it would run sponsored txs for free.
-- **`GasMeter.SetLimit` weakens the meter's fixed-limit invariant.** Every meter
-  holder can now resize the limit; the "only shrink" rule is enforced by the
-  `PayGas` caller, not the type. Alternate meter implementations must replicate it.
-- **The universal `sdk.Context` carries feature-specific fields.** Convenient but
-  couples a reusable layer to one feature; correctness relies on per-tx allocation.
-- **Opt-in raises a validator's CheckTx cost.** `CheckExecute` runs the full VM
-  (up to `MaxGasCreditPerTx`) per first-time 0-fee tx, with no per-account
-  admission rate limit in v1 (deferred). Rechecks are ante-only to avoid
-  per-block re-execution.
-- **Opening the credit window without a gas price makes sponsorship inert.**
-  `MaxGasCreditPerTx` is a consensus param while the gas price is an auth param,
-  so nothing cross-validates them: a genesis that sets the window but leaves
-  `auth.initial_gasprice` at its zero default passes validation, and then every
-  `PayGas` call panics with "gas price not set" (it must divide by the price to
-  derive a gas limit). Sponsorship simply never works, while opt-in validators
-  still spend credit-window CPU rejecting the txs. The failure is loud and
-  immediate rather than silent, so this is left as an operator-configuration
-  concern; enabling the window is a deliberate act and should be paired with a
-  non-zero `initial_gasprice`. Note `PayStorage` deliberately does NOT require a
-  gas price — it never converts gas to a fee.
-- **Deferred storage is priced once, at end-of-tx.** With `SponsorStorage`, the
-  accumulator holds raw byte deltas and settlement prices them all with the VM
-  params read at end-of-tx, whereas the per-message path snapshots params before
-  each message. A tx that changes `StoragePrice` in one message and grows storage
-  in another is therefore priced differently under the two paths. Retaining the
-  per-message price (or the already-computed deposit) in `AccumulatedDiffs` would
-  fix it, but that changes settlement arithmetic and so is consensus-relevant;
-  deferred. Reaching it requires a single tx that performs a governance param
-  change *and* grows storage under `SponsorStorage`.
+- **Sponsorship makes `gasUsed` consensus state.** `GasUsed` is not in
+  `LastResultsHash`, but the sponsor's debit is `ceil(gasUsed × price)`, so any
+  difference in gas between nodes changes a bank balance and forks the app hash
+  on the next block, not only when it flips an out-of-gas outcome. (Master
+  already writes block gas into state through the gas price update, but only
+  coarsely.)
+- **`EndTxHook` now means "settle on success".** Breaking for tm2 embedders; an
+  embedder that forgets to settle runs sponsored txs for free.
+- **`GasMeter.SetLimit` weakens the meter's fixed-limit invariant.** The
+  "only shrink" rule is enforced by `PayGas`, not the type. Breaking for
+  out-of-tree meters.
+- **Opting in raises a validator's CheckTx cost.** CheckExecute runs the VM, up
+  to the credit window, for every first-time 0-fee tx, under the mutex that
+  CheckTx shares with consensus. A tx rejected at admission consumes no sequence
+  and can be resent with new bytes, so this is free to repeat. There is no
+  per-account admission limit yet.
+- **Opening the window without a gas price makes sponsorship inert.** Nothing
+  cross-validates `MaxGasCreditPerTx` against `auth.initial_gasprice`; `PayGas`
+  then panics "gas price not set". Loud, and an operator configuration issue.
 - **Hardfork replay of a sponsored tx does not reproduce the source debit.**
-  Settlement recomputes the sponsor's charge from the *replay's* gas consumption
-  and the target chain's current `LastGasPrice`. Genesis replay does not replay
-  historical per-block gas-price updates, and source-gas mode deliberately allows
-  different metering, so a replayed sponsored tx can debit a different amount
-  than it did on the source chain — diverging the sponsor's balance and the
-  AppHash. Reproducing it faithfully requires archiving the source settlement
-  amount (or the source gas price) in the tx metadata, which is a genesis-format
-  change and is deliberately out of scope here. This is currently unreachable:
-  no chain has sponsored txs to replay, since the feature ships disabled.
-- **A `MaxGasCreditPerTx` change is latent** until node restart (memoized at
-  InitChain), despite being governance-tunable.
-- **Open item:** sponsored-tx compute is charged to the block gas meter, which
-  feeds the dynamic gas-price update, so gasless-tx load can raise the price
-  normal users must clear. The asymmetry is confined to the FAILURE path. A
-  SUCCESSFUL sponsored tx is a full price-taker: settlement sends
-  `ceil(gasUsed × LastGasPrice)` from the realm to the same
-  `FeeCollectorAddress` the ante credits for normal fees, at the same dynamic
-  price, so it contributes to the fee market exactly as much as a perfectly
-  estimated fee-paying tx (a normal tx pays `GasFee` for `GasWanted` with no
-  refund, so it contributes that or more per gas actually burned). A FAILING
-  sponsored tx pays nothing — `EndTxHook` runs only on `result.IsOK()` —
-  while its gas is still charged to the block meter, where a failing normal tx
-  keeps its ante-deducted fee. That unpaid subset is the same residual as
-  "free execution on failure": bounded by the credit window, with the
-  deterministic routes closed at admission by the settlement dry run.
-  Magnitude is small at the shipped defaults (`Block.MaxGas` 3e9,
-  `TargetGasRatio` 70, `GasPricesChangeCompressor` 10, initial price
-  1ugnot/1000gas): the price does not move until a block exceeds the 2.1e9
-  target, which at a 10M credit window takes ~210 full-window txs in one
-  block, and any single under-target block decays the increment back. Whether
-  the failure-path subset should be excluded from the price signal is
-  unresolved and should be adjudicated before enabling on a live chain —
-  noting that excluding SUCCESSFUL sponsored gas would be wrong: it is real
-  congestion, and un-pricing it would let sponsored load crowd out normal txs
-  while the floor stays put.
+  Settlement recomputes it from the replay's gas and the target chain's gas
+  price. Unreachable today: no chain has sponsored txs.
+- **A `MaxGasCreditPerTx` change is latent until restart** (memoized at
+  InitChain).
+- **Open: failing sponsored txs.** A sponsored tx that fails at delivery charges
+  nobody, while its gas still counts against the block and feeds the gas price.
+  Admission closes the deterministic routes (the settlement dry run), but
+  admission and delivery see different state, and a realm can condition
+  `PayGas` on the difference: on `ChainHeight()`, or on a one-shot allowance
+  several pending txs all pass. Such a tx passes admission and burns up to the
+  credit window at delivery for free. This cannot be fixed by settlement: at
+  delivery no realm called `PayGas`, so there is no one to charge. A durable
+  mitigation (a per-account admission limit or an on-chain penalty for failing
+  0-fee txs) is required before enabling the window on a public chain.
 
 ## Alternatives considered
 
-- **Upfront feegrant / pre-registration** (payer declared before execution).
-  Rejected: the realm must run conditional on-chain logic (collect an alt-token,
-  check a whitelist) before deciding to sponsor.
-- **Charge the sponsor for gas on failure** (parity with normal fee txs, which
-  keep their fee on failure). Implemented, then reverted: it reintroduces a
-  griefing attack where an attacker engineers a post-`PayGas` failure so the
-  realm's message-side collection reverts but its gnot is still taken. The atomic
-  all-or-nothing rule (realm pays only when the whole tx commits) is safer; the
-  residual free-execution-on-failure is bounded by the credit window, and the
-  deterministic routes to it are closed at admission by dry-running settlement
-  (see below). What remains is a block proposer force-including a failing tx (who
-  can waste their own block anyway) and check/deliver divergence on pending
-  message state.
-- **`RunTxModeSimulate` for admission.** Rejected: it discards the ante sequence
-  increment (one in-flight sponsored tx per account per block) and required a
-  signature-verification override; `RunTxModeCheckExecute` avoids both.
-- **Settlement inside tm2 baseapp.** Rejected: fee/coin logic is app-specific;
-  tm2 provides the hook and the meter primitive, gno.land owns the debiting.
-- **Carrying sponsorship state on `Result`.** Rejected: `Result` must stay
-  wire-compatible with `abci.ResponseDeliverTx`.
+- **Upfront feegrant / pre-registration.** Rejected: the realm must run
+  conditional logic before deciding to sponsor.
+- **Charge the sponsor on failure.** Implemented, then reverted: it lets an
+  attacker drain a realm by failing the tx after `PayGas` (see the gno.land ADR).
+- **`RunTxModeSimulate` for admission.** Rejected: it drops the sequence bump
+  and needed a signature-verification override.
+- **Settlement inside tm2 baseapp.** Rejected: coin logic is app-specific; tm2
+  provides the hooks and the meter primitive.
+- **Carrying sponsorship state on `Result`.** Rejected: wire compatibility.
 
 ## References
 
 - gno.land ADR: `gno.land/adr/pr5382_realm_transaction_sponsorship.md`
-- HLD: `docs/design/realm-gas-sponsorship-hld.md`
 - Files: `tm2/pkg/bft/types/params.go`, `tm2/pkg/bft/abci/types/types.go`,
   `tm2/pkg/sdk/auth/ante.go`, `tm2/pkg/sdk/baseapp.go`, `tm2/pkg/sdk/types.go`,
   `tm2/pkg/sdk/context.go`, `tm2/pkg/sdk/config/config.go`,
