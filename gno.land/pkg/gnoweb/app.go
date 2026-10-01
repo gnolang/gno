@@ -235,7 +235,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
 
-	// The sitemap needs an origin for absolute URLs and is never served under -noindex.
+	// The sitemap needs an origin for absolute URLs and is never served under -no-index.
 	sitemapOrigin := canonicalOrigin
 	if cfg.NoIndex {
 		sitemapOrigin = ""

@@ -222,7 +222,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Remote:            h.Static.RemoteHelp,
 			AssetsVersion:     h.Static.AssetsVersion,
 			AnalyticsHostname: h.Static.AnalyticsHostname,
-			// Matches the X-Robots-Tag NewRouter sets under -noindex.
+			// Matches the X-Robots-Tag NewRouter sets under -no-index.
 			NoIndex: h.Static.NoIndex,
 		},
 		FooterData: components.FooterData{

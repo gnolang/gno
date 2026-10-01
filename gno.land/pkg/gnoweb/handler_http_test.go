@@ -2205,7 +2205,7 @@ func TestHTTPHandler_CanonicalIgnoresForwardedHost(t *testing.T) {
 	assert.NotContains(t, body, "evil.example", "the canonical link must not follow a request header")
 }
 
-// TestHTTPHandler_RobotsMeta checks the robots meta follows -noindex.
+// TestHTTPHandler_RobotsMeta checks the robots meta follows -no-index.
 func TestHTTPHandler_RobotsMeta(t *testing.T) {
 	t.Parallel()
 

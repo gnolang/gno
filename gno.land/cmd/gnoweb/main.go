@@ -143,7 +143,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(
 		&c.noIndex,
-		"noindex",
+		"no-index",
 		defaultWebOptions.noIndex,
 		"keep this deployment out of search engines (testnets, staging); never on mainnet",
 	)
