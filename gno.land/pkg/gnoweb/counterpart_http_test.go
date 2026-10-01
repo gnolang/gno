@@ -195,3 +195,27 @@ func TestCounterpart_StateAPISkipsLookup(t *testing.T) {
 	}
 	assert.Zero(t, calls.Load())
 }
+
+// A markdown answer (Accept: text/markdown) renders no header either.
+func TestCounterpart_MarkdownAnswerSkipsLookup(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	client := &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) {
+			calls.Add(1)
+			return nil, nil
+		},
+	}
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		newTestHandlerConfig(t, client),
+	)
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "/r/alice/golf/game", nil)
+	req.Header.Set("Accept", "text/markdown")
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	assert.Zero(t, calls.Load())
+}
