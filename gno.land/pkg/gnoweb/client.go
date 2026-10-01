@@ -111,6 +111,12 @@ type ClientAdapter interface {
 	// status "absent", not ErrClientPackageNotFound: the caller needs to tell
 	// "nothing here" from "the node did not answer".
 	PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error)
+
+	// Eval evaluates a read-only Gno expression (`vm/qeval`) and returns the
+	// raw result, one line per return value. The node splits pkgPath from expr
+	// on the first dot, so pkgPath carries none, and expr is the caller's to
+	// keep safe.
+	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 
 type rpcClient struct {
@@ -145,6 +151,16 @@ func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error
 
 	path = strings.Trim(path, "/")
 	data := fmt.Sprintf("%s/%s:%s", c.domain, path, args)
+
+	return c.query(ctx, qpath, []byte(data), 0)
+}
+
+// Eval evaluates expr inside pkgPath through vm/qeval.
+func (c *rpcClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	const qpath = "vm/qeval"
+
+	pkgPath = strings.Trim(pkgPath, "/")
+	data := fmt.Sprintf("%s/%s.%s", c.domain, pkgPath, expr)
 
 	return c.query(ctx, qpath, []byte(data), 0)
 }

@@ -40,6 +40,7 @@ type stubClient struct {
 	docFunc       func(ctx context.Context, path string) (*doc.JSONDocumentation, error)
 	listFilesFunc func(ctx context.Context, path string) ([]string, error)
 	listPathsFunc func(ctx context.Context, prefix string, limit int) ([]string, error)
+	evalFunc      func(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 
 func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
@@ -75,6 +76,16 @@ func (s *stubClient) ListPaths(ctx context.Context, prefix string, limit int) ([
 		return s.listPathsFunc(ctx, prefix, limit)
 	}
 	return nil, errors.New("stubClient: ListPaths not implemented")
+}
+
+// Eval answers like a chain that does not deploy the queried realm unless a
+// test stages otherwise, which keeps the user page rendering off the raw path
+// segment.
+func (s *stubClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	if s.evalFunc != nil {
+		return s.evalFunc(ctx, pkgPath, expr)
+	}
+	return nil, gnoweb.ErrClientPackageNotFound
 }
 
 func (s *stubClient) StatePkg(_ context.Context, _ string, _ int64) ([]byte, error) {
@@ -828,6 +839,119 @@ func TestHTTPHandler_GetUserView(t *testing.T) {
 	assert.Contains(t, body, "pkg2")
 	// The username should be visible
 	assert.Contains(t, body, "testuser")
+}
+
+// TestHTTPHandler_GetUserView_Identity — /u/<name> and /u/<address> are the
+// two halves of one identity, so each has to serve the same page and print the
+// other half. The registry answer is the value repr a node prints, so the
+// handler's parser is exercised against the shape it will actually meet.
+func TestHTTPHandler_GetUserView_Identity(t *testing.T) {
+	t.Parallel()
+
+	const (
+		testUser = "testuser"
+		testAddr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+		// An address with no name behind it: same shape, absent from the registry.
+		orphanAddr = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+	)
+
+	resolved := fmt.Appendf(nil,
+		"(&(struct{(%q .uverse.address),(%q string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)\n(true bool)\n",
+		testAddr, testUser)
+	unresolved := []byte("(nil *gno.land/r/sys/users.UserData)\n(false bool)\n")
+
+	registry := func(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+		if pkgPath != "/r/sys/users" {
+			return nil, gnoweb.ErrClientPackageNotFound
+		}
+		if expr == fmt.Sprintf("ResolveAny(%q)", testUser) || expr == fmt.Sprintf("ResolveAny(%q)", testAddr) {
+			return resolved, nil
+		}
+		return unresolved, nil
+	}
+
+	tests := []struct {
+		name string
+		// evalFunc nil stands for a chain with no registry deployed.
+		evalFunc      func(ctx context.Context, pkgPath, expr string) ([]byte, error)
+		path          string
+		wantNamespace string
+		wantBody      []string
+		wantNotInBody []string
+	}{
+		{
+			name:          "name shows its address",
+			evalFunc:      registry,
+			path:          "/u/" + testUser,
+			wantNamespace: testUser,
+			wantBody:      []string{testAddr, "Welcome to " + testUser, "pkg1"},
+		},
+		{
+			name:     "address serves the name's page",
+			evalFunc: registry,
+			path:     "/u/" + testAddr,
+			// The packages live under the name, not under the address, so the
+			// lookup has to switch to it or the page reports nothing.
+			wantNamespace: testUser,
+			wantBody:      []string{testAddr, "Welcome to " + testUser, "pkg1"},
+		},
+		{
+			name:     "unregistered address keeps its own namespace",
+			evalFunc: registry,
+			path:     "/u/" + orphanAddr,
+			// Nothing resolves, so the address is the namespace; it is still
+			// printed in full, because it is the only identity the page has.
+			wantNamespace: orphanAddr,
+			wantBody:      []string{orphanAddr},
+		},
+		{
+			name:          "no registry falls back to the raw segment",
+			path:          "/u/" + testUser,
+			wantNamespace: testUser,
+			wantBody:      []string{"Welcome to " + testUser, "pkg1"},
+			wantNotInBody: []string{testAddr},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var gotPrefix, gotRealmPath string
+			client := &stubClient{
+				evalFunc: tc.evalFunc,
+				listPathsFunc: func(_ context.Context, prefix string, _ int) ([]string, error) {
+					gotPrefix = prefix
+					return []string{"/r/" + tc.wantNamespace + "/pkg1"}, nil
+				},
+				realmFunc: func(_ context.Context, path, _ string) ([]byte, error) {
+					gotRealmPath = path
+					return fmt.Appendf(nil, "# Welcome to %s", tc.wantNamespace), nil
+				},
+			}
+
+			handler, err := gnoweb.NewHTTPHandler(
+				slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+				newTestHandlerConfig(t, client),
+			)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.path, nil))
+
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Equal(t, "@"+tc.wantNamespace, gotPrefix, "contributions query")
+			assert.Equal(t, "/r/"+tc.wantNamespace+"/home", gotRealmPath, "home realm query")
+
+			body := rr.Body.String()
+			for _, want := range tc.wantBody {
+				assert.Contains(t, body, want)
+			}
+			for _, unwanted := range tc.wantNotInBody {
+				assert.NotContains(t, body, unwanted)
+			}
+		})
+	}
 }
 
 func TestHTTPHandler_GetUserView_QueryPathsError(t *testing.T) {
