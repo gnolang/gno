@@ -40,25 +40,22 @@ func setupAddressBook(logger *slog.Logger, cfg *AppConfig) (*address.Book, error
 	}
 
 	// Ensure that we have a default address
-	names, ok := book.GetByAddress(defaultDeployerAddress)
-	if ok {
-		// Account already exist in the keybase
-		if len(names) > 0 && names[0] != "" {
-			logger.Info("default address imported", "name", names[0], "addr", defaultDeployerAddress.String())
-		} else {
-			logger.Info("default address imported", "addr", defaultDeployerAddress.String())
+	if names, ok := book.GetByAddress(defaultDeployerAddress); ok {
+		var name string
+		if len(names) > 0 {
+			name = names[0]
 		}
+		logger.Info("default address resolved from keybase",
+			"name", name,
+			"addr", defaultDeployerAddress.String(),
+			"note", "test key, every gnodev shares this address")
 		return book, nil
 	}
 
-	// If the key isn't found, create a default one
-	creatorName := fmt.Sprintf("_default#%.6s", defaultDeployerAddress.String())
-	book.Add(defaultDeployerAddress, creatorName)
+	book.Add(defaultDeployerAddress, "")
 
-	logger.Warn("default address created",
-		"name", creatorName,
+	logger.Warn("default address tracked in-memory only; gnokey cannot sign with it",
 		"addr", defaultDeployerAddress.String(),
-		"mnemonic", DefaultDeployerSeed,
 	)
 
 	return book, nil
