@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net"
 	"net/http"
@@ -246,6 +247,29 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+// setupTrust passes appcfg the trusted paths and, unless -no-realm-notice is
+// set, the realm notice. The trusted list also decides what a page's <head>
+// may repeat, so it applies with the notice off.
+func setupTrust(cfg *webCfg, appcfg *gnoweb.AppConfig, logger *slog.Logger) error {
+	appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
+	if cfg.noRealmNotice {
+		return nil
+	}
+	text := cmp.Or(os.Getenv("GNOWEB_REALM_NOTICE_TEXT"), defaultRealmNoticeText)
+	notice, err := components.NewBannerData(text, "")
+	if err == nil && !notice.Enabled() {
+		err = errors.New("renders to nothing")
+	}
+	if err != nil {
+		return fmt.Errorf("invalid GNOWEB_REALM_NOTICE_TEXT: %w", err)
+	}
+	if cfg.html {
+		logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
+	}
+	appcfg.RealmNotice = notice.AsWarning()
+	return nil
+}
+
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup logger
 	level := zapcore.InfoLevel
@@ -289,22 +313,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		logger.Warn("GNOWEB_BANNER_URL is set but GNOWEB_BANNER_TEXT is empty; banner will not be shown")
 	}
 
-	// The trusted list also decides what a page's <head> may repeat, so it
-	// applies with the notice off.
-	appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
-	if !cfg.noRealmNotice {
-		text := cmp.Or(os.Getenv("GNOWEB_REALM_NOTICE_TEXT"), defaultRealmNoticeText)
-		notice, err := components.NewBannerData(text, "")
-		if err == nil && !notice.Enabled() {
-			err = errors.New("renders to nothing")
-		}
-		if err != nil {
-			return nil, fmt.Errorf("invalid GNOWEB_REALM_NOTICE_TEXT: %w", err)
-		}
-		if cfg.html {
-			logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
-		}
-		appcfg.RealmNotice = notice.AsWarning()
+	if err := setupTrust(cfg, appcfg, logger); err != nil {
+		return nil, err
 	}
 
 	if cfg.noDefaultAliases {

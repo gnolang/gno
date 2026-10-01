@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -8,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -74,6 +77,24 @@ func TestSetupWeb(t *testing.T) {
 
 	_, err = setupWeb(&opts, []string{}, stdio)
 	require.NoError(t, err)
+}
+
+// TestSetupTrust checks that the trusted paths reach the app with the realm
+// notice on or off: they also decide what a page's head may repeat.
+func TestSetupTrust(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "")
+
+	for _, noNotice := range []bool{false, true} {
+		t.Run(fmt.Sprintf("no-realm-notice=%v", noNotice), func(t *testing.T) {
+			cfg := defaultWebOptions
+			cfg.noRealmNotice = noNotice
+			appcfg := gnoweb.NewDefaultAppConfig()
+
+			require.NoError(t, setupTrust(&cfg, appcfg, slog.New(slog.DiscardHandler)))
+			assert.Equal(t, strings.Split(defaultTrustedPaths, ","), appcfg.TrustedPaths)
+			assert.Equal(t, !noNotice, appcfg.RealmNotice.Enabled())
+		})
+	}
 }
 
 // Dummy handler to simulate the processing chain.

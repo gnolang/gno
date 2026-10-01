@@ -2081,7 +2081,7 @@ func TestHTTPHandler_PageDescription(t *testing.T) {
 
 // TestHTTPHandler_StaticPageFrontMatter checks that a page the operator ships
 // can name itself, instead of being titled by its path and summarised by its
-// first paragraph.
+// first paragraph, with or without a query: its bytes do not depend on one.
 func TestHTTPHandler_StaticPageFrontMatter(t *testing.T) {
 	t.Parallel()
 
@@ -2102,17 +2102,23 @@ func TestHTTPHandler_StaticPageFrontMatter(t *testing.T) {
 		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})), config)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/about", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	for _, url := range []string{"/about", "/about?utm_source=twitter"} {
+		t.Run(url, func(t *testing.T) {
+			t.Parallel()
 
-	body := rr.Body.String()
-	assert.Contains(t, body, "<title>About - gno.land</title>", "the page names itself, the domain stays last")
-	assert.Contains(t, body, `<meta name="description" content="Why gno.land exists, in the words we chose." />`)
-	assert.NotContains(t, body, `<meta name="description" content="The body paragraph`, "a chosen summary wins over the extracted one")
-	assert.NotContains(t, body, "title: About", "the front matter must not render as page content")
-	// The canonical still names the URL, not the title.
-	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/about" />`)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
+
+			head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+			assert.Contains(t, head, "<title>About - gno.land</title>", "the page names itself, the domain stays last")
+			assert.Contains(t, head, `<meta name="description" content="Why gno.land exists, in the words we chose." />`)
+			assert.NotContains(t, head, "The body paragraph", "a chosen summary wins over the extracted one")
+			// The canonical still names the URL, not the title.
+			assert.Contains(t, head, `<link rel="canonical" href="https://gno.land/about" />`)
+			assert.NotContains(t, head, "utm_source")
+			assert.NotContains(t, rr.Body.String(), "title: About", "the front matter must not render as page content")
+		})
+	}
 }
 
 // TestHTTPHandler_PageDescriptionEscapes pins the escaping of a summary. The
