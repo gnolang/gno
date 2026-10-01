@@ -8,9 +8,10 @@ package runtime
 // last because a realm-typed first parameter would make PayGas a crossing
 // function.
 //
-// It only takes effect in a 0-fee sponsored transaction, and is a no-op
-// otherwise. There it may be called once per transaction, and it covers the
-// gas of the whole transaction, other messages included. The gas limit becomes
+// Invalid arguments always panic. A valid call only takes effect in a 0-fee
+// sponsored transaction, and is a no-op otherwise. There it may be called once
+// per transaction, and it covers the gas of the whole transaction, other
+// messages included. The gas limit becomes
 // what maxFee buys at the current gas price, capped by the credit window; the
 // realm is charged for the gas actually used, and only if the transaction
 // succeeds.

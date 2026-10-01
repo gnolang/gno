@@ -232,7 +232,7 @@ import (
 // Bumped by realm transaction sponsorship (#5382): the PayGas and PayStorage
 // declarations (and their doc comments) are stdlib .gno source bytes committed
 // into genesis, so the root moves. crossrealm38 calls neither.
-const expectedCrossrealm38Hash = "759ee2b184e28ba37eb5f1729c8591cc4d874519c6ba83d38bf12a53e8363989"
+const expectedCrossrealm38Hash = "5a714701e0830a8ab291d5147a1162bfeabfbfa95388d7bd97f084492590b5fb"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

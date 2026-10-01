@@ -45,7 +45,8 @@ admits 0-fee txs into *its* mempool. DeliverTx does not depend on it.
 With the window closed a 0-fee tx is rejected in every mode, as on master.
 `Tx.ValidateBasic` now accepts an empty fee because amino encodes any zero coin
 as `""`, so a `0ugnot` fee always arrives as `Coin{}`; the ante restores the
-rejection unless the window is open. A sponsored tx is also not admitted before
+rejection right after `ValidateBasic` unless the window is open, so the order of
+checks, and the error a block records, match master. A sponsored tx is also not admitted before
 the first block, when gno.land's genesis ante funds unknown signers.
 
 ### 3. `RunTxModeCheckExecute` for mempool admission
@@ -61,8 +62,10 @@ re-executed every block.
 ### 4. "PayGas was called" is enforced in `runTx`, all modes
 
 A 0-fee tx that never calls `PayGas` has no payer and fails in `runTx` (shared by
-Check, CheckExecute and Deliver), so a proposer cannot force-include a free tx.
-It is read from the in-process `PayGasInfo.MaxFee > 0`.
+Check, CheckExecute and Deliver), so it never changes state. It is read from the
+in-process `PayGasInfo.MaxFee > 0`. It is checked after the messages run, so a
+proposer can still include one: it fails, but burns up to the credit window of
+block gas that nobody pays for (see Open below).
 
 ### 5. Settlement via a success-only `EndTxHook`; `CommitTxHook`; `GasMeter.SetLimit`
 
@@ -122,16 +125,21 @@ packs blocks against the real worst case rather than the client's value.
   price. Unreachable today: no chain has sponsored txs.
 - **A `MaxGasCreditPerTx` change is latent until restart** (memoized at
   InitChain).
+- **Feature off is master, except for gas.** With the window closed every tx
+  follows master's checks in master's order. Only the stdlib grew: a tx that
+  loads `chain/runtime` uses about 3.5K more gas.
 - **Open: failing sponsored txs.** A sponsored tx that fails at delivery charges
   nobody, while its gas still counts against the block and feeds the gas price.
-  Admission closes the deterministic routes (the settlement dry run), but
-  admission and delivery see different state, and a realm can condition
-  `PayGas` on the difference: on `ChainHeight()`, or on a one-shot allowance
-  several pending txs all pass. Such a tx passes admission and burns up to the
-  credit window at delivery for free. This cannot be fixed by settlement: at
-  delivery no realm called `PayGas`, so there is no one to charge. A durable
-  mitigation (a per-account admission limit or an on-chain penalty for failing
-  0-fee txs) is required before enabling the window on a public chain.
+  Admission closes the deterministic routes (the settlement dry run), but two
+  remain. Admission and delivery see different state, and a realm can
+  condition `PayGas` on the difference: on `ChainHeight()`, or on a one-shot
+  allowance several pending txs all pass. And a proposer can include 0-fee txs
+  that were never admitted, since DeliverTx cannot apply local admission
+  policy. Either way a tx burns up to the credit window at delivery for free.
+  Settlement cannot fix it: no realm called `PayGas`, so there is no one to
+  charge. The mitigation has to act at delivery, e.g. an on-chain penalty on
+  the signer of a failing 0-fee tx; an admission limit alone does not cover
+  the proposer. Required before enabling the window on a public chain.
 
 ## Alternatives considered
 

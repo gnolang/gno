@@ -86,24 +86,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return ctx, res, true
 		}
 
-		// A 0-fee tx is only legitimate when the credit window is OPEN, because
-		// that is the only path that gives it a payer. With the window disabled
-		// (MaxGasCreditPerTx == 0 — the default, and the kill switch) there is no
-		// sponsorship: PayGas is inert, no settlement runs, and the tx would
-		// simply execute for free on the caller's GasWanted.
-		//
-		// This must be rejected in EVERY mode, not just CheckTx. The mempool
-		// minimum-fee check below is deliberately CheckTx-only (it is local
-		// validator policy), so it cannot stop a proposer from force-including a
-		// 0-fee tx. Before this feature, Tx.ValidateBasic rejected such txs
-		// outright; relaxing it to admit canonical zero fees for sponsorship
-		// removed that backstop, and this restores it, genesis included.
-		if tx.Fee.GasFee.IsZero() && !isZeroFeeTx {
-			res = abciResult(std.ErrInsufficientFee(
-				"zero-fee transactions require a non-zero Block.MaxGasCreditPerTx"))
-			return ctx, res, true
-		}
-
 		// Ensure that the gas wanted is not greater than the max allowed.
 		// For 0-fee txs, gas limit is set by the credit window, not GasWanted.
 		if !isZeroFeeTx {
@@ -175,6 +157,15 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		if err := tx.ValidateBasic(); err != nil {
 			return newCtx, abciResult(err), true
+		}
+		// ValidateBasic accepts a zero fee because a sponsored tx carries one (a
+		// zero coin amino-encodes as "", so it always arrives as Coin{}). With
+		// the credit window closed nothing can sponsor it, so reject it here, in
+		// every mode and where ValidateBasic used to, which keeps the check
+		// order, and so the error a block records, identical to master.
+		if tx.Fee.GasFee.IsZero() && !isZeroFeeTx {
+			return newCtx, abciResult(std.ErrInsufficientFee(
+				"zero-fee transactions require a non-zero Block.MaxGasCreditPerTx")), true
 		}
 
 		// Mulp, not a bare multiply: TxSizeCostPerByte is only validated positive,

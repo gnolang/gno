@@ -48,7 +48,7 @@ Both limits are needed because a storage deposit is refunded to whoever later fr
 - Paying for every realm the transaction touches let another message grow a realm the attacker controls, then free it in a second sponsored transaction and collect the deposit. Measured: the signer gained 478,700ugnot across two 0-fee transactions.
 - Paying for the sponsor's own storage in any message still let another realm keep an object the sponsor allocated (any constructor-style function), which lands in the sponsor's storage, then drop it and collect. Measured: +597,800ugnot.
 
-What remains is the sponsor's own API. If a sponsor lets callers free storage it sponsored, they receive that deposit, except what the sponsor funded earlier in the same transaction, which is returned to the sponsor first. This is a visible design choice of the sponsoring realm, and `PayStorage`'s doc comment says so.
+What remains is whatever the sponsor's own messages run. Everything they add to the sponsor's storage is charged to it, whoever's code adds it, for example an object it hands to a hook or callback that another realm keeps. And if the sponsor lets callers free storage it sponsored, they receive that deposit. Within one transaction a free in the sponsor's storage is first netted against what it locked earlier in the transaction, whoever paid for the freed bytes. So a sponsored function must not run code it does not control, and `PayStorage`'s doc comment says so. Charging only the sponsor's own code would need the VM to track which realm's code produced each byte; it does not.
 
 Storage in other realms is the user's to pay. A sponsor that wants to cover it can send the user gnot in the same transaction; the deposit is then the user's, which matches who receives the refund.
 
@@ -86,7 +86,8 @@ An earlier version had a tx flag that deferred storage settlement to the end of 
 - Realm authors must gate sponsorship (whitelist, payment, rate limit). An unconditional `PayGas` in a public function pays for anyone.
 - Measured cost: a GRC20 approve + transferFrom paymaster transaction uses about 6M gas (`sponsorship_usecase_test.go`), so the credit window must be at least that for the motivating use case.
 - The two native gas entries are heuristic (they mirror `chain.packageAddress`, which hashes the same pkgpath) pending calibration.
-- Adding the natives changes the `chain/runtime` stdlib committed at genesis, so the genesis app hash changes.
+- Adding the natives changes the `chain/runtime` stdlib committed at genesis, so the genesis app hash changes, and every transaction that loads `chain/runtime` uses about 3.5K more gas, sponsored or not.
+- A sponsor's functions cannot be batched: a second `PayGas` or `PayStorage` in the same transaction panics.
 
 ## References
 

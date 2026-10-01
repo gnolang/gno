@@ -30,8 +30,7 @@ type BeginTxHook func(ctx Context) Context
 //
 // It runs in BOTH RunTxModeDeliver and RunTxModeCheckExecute. Running it at
 // mempool admission is what keeps a tx that cannot possibly settle (e.g. an
-// insolvent sponsor, or a SponsorStorage tx that grew storage without calling
-// PayStorage) out of the mempool: such a tx is deterministically doomed, and
+// insolvent sponsor) out of the mempool: such a tx is deterministically doomed, and
 // admitting it would let anyone burn block gas for free, since a failed
 // sponsored tx charges nobody. Under CheckExecute every write the hook makes
 // lands in a cache that is discarded, so settlement there is a dry run.

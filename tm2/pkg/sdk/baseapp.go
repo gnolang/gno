@@ -638,7 +638,8 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 // whether or not a transaction can possibly be executed, first decoding and then
 // the ante handler (which checks signatures/fees/ValidateBasic).
 //
-// NOTE:CheckTx does not run the actual Msg handler function(s).
+// NOTE: CheckTx does not run the Msg handlers, except on first-time admission
+// of a sponsored 0-fee tx (RunTxModeCheckExecute).
 func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
 	var tx Tx
 	if err := amino.Unmarshal(req.Tx, &tx); err != nil {

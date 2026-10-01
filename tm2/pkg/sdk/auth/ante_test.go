@@ -416,7 +416,7 @@ func TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled(t *testing.T) {
 	env := setupTestEnv()
 	cp := env.ctx.ConsensusParams()
 	cp.Block.MaxGasCreditPerTx = 0 // credit window disabled
-	ctx := env.ctx.WithConsensusParams(cp)
+	ctx := env.ctx.WithConsensusParams(cp).WithValue(GasPriceContextKey{}, std.GasPrice{})
 	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
 
 	priv1, _, addr1 := tu.KeyTestPubAddr()
@@ -438,6 +438,12 @@ func TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled(t *testing.T) {
 		// CheckTx too.
 		checkInvalidTx(t, anteHandler, ctx.WithMode(sdk.RunTxModeCheck), tx, false, std.InsufficientFeeError{})
 	}
+
+	// The rejection sits where master's ValidateBasic rejected these, so the
+	// earlier checks still win, with the error a block records unchanged.
+	tooMuchGas := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs,
+		std.NewFee(cp.Block.MaxGas+1, std.Coin{}))
+	checkInvalidTx(t, anteHandler, ctx.WithMode(sdk.RunTxModeDeliver), tooMuchGas, false, std.InvalidGasWantedError{})
 
 	// Sanity: the same tx WITH a fee is accepted, so the guard is not blanket.
 	txOK := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, tu.NewTestFee())
