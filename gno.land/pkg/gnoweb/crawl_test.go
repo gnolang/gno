@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"context"
 	"encoding/xml"
 	"errors"
 	"net/http"
@@ -103,6 +104,7 @@ func TestHandlerSitemapXML(t *testing.T) {
 	aliases := map[string]AliasTarget{
 		"/":              {Value: "/r/gnoland/home", Kind: GnowebPath},          // a whole realm
 		"/about":         {Value: "/r/gnoland/pages:p/about", Kind: GnowebPath}, // one page of a realm
+		"/start":         {Value: "/r/gnoland/pages:p/start", Kind: GnowebPath}, // same realm, queried once
 		"/events":        {Value: "/r/devrels/events", Kind: GnowebPath},        // realm absent here
 		"/docs":          {Value: "/u/docs", Kind: GnowebPath},                  // not a realm
 		"/terms":         {Value: "# Terms", Kind: StaticMarkdown},              // operator page
@@ -113,22 +115,24 @@ func TestHandlerSitemapXML(t *testing.T) {
 		"/terms.md":      {Value: "# Terms", Kind: StaticMarkdown},              // gnoweb rewrites the extension
 		"/r/demo/boards": {Value: "# Boards", Kind: StaticMarkdown},             // operator override of a realm URL
 	}
-	dir := stubDirectory{
-		realms:   []string{"/r/gnoland/home", "/r/gnoland/pages", "/r/demo/boards"},
-		packages: []string{"/p/nt/avl/v0"},
-	}
-	serve := func(origin, method string, d RealmDirectory) *httptest.ResponseRecorder {
+	client := NewMockClient(
+		&MockPackage{Path: "/r/gnoland/home"},
+		&MockPackage{Path: "/r/gnoland/pages"},
+		&MockPackage{Path: "/r/demo/boards"},
+		&MockPackage{Path: "/r/devrels/events", Inert: true}, // parked, not served
+	)
+	serve := func(origin, method string, c fileLister) *httptest.ResponseRecorder {
 		rr := httptest.NewRecorder()
 		req := httptest.NewRequest(method, "/sitemap.xml", nil)
 		req.Host = "evil.example"
 		req.Header.Set("X-Forwarded-Host", "evil.example")
-		handlerSitemapXML(newDiscardLogger(), origin, aliases, d).ServeHTTP(rr, req)
+		handlerSitemapXML(newDiscardLogger(), origin, aliases, c).ServeHTTP(rr, req)
 		return rr
 	}
 
 	t.Run("lists the curated alias pages under the canonical origin", func(t *testing.T) {
 		t.Parallel()
-		rr := serve("https://gno.land", http.MethodGet, dir)
+		rr := serve("https://gno.land", http.MethodGet, client)
 
 		require.Equal(t, http.StatusOK, rr.Code)
 		assert.Equal(t, "application/xml; charset=utf-8", rr.Header().Get("Content-Type"))
@@ -149,23 +153,33 @@ func TestHandlerSitemapXML(t *testing.T) {
 			"https://gno.land/about",
 			"https://gno.land/r/demo/boards",
 			"https://gno.land/src",
+			"https://gno.land/start",
 			"https://gno.land/terms",
 		}, locs)
 	})
 
 	t.Run("not found without a canonical origin", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, http.StatusNotFound, serve("", http.MethodGet, dir).Code)
+		assert.Equal(t, http.StatusNotFound, serve("", http.MethodGet, client).Code)
 	})
 
 	t.Run("method not allowed", func(t *testing.T) {
 		t.Parallel()
-		assert.Equal(t, http.StatusMethodNotAllowed, serve("https://gno.land", http.MethodPost, dir).Code)
+		assert.Equal(t, http.StatusMethodNotAllowed, serve("https://gno.land", http.MethodPost, client).Code)
+	})
+
+	t.Run("queries each target realm once, never the full listing", func(t *testing.T) {
+		t.Parallel()
+		// The full listing is capped at 1000 paths, so it cannot tell an
+		// absent realm from one past the cap.
+		lister := &countingFileLister{}
+		require.Equal(t, http.StatusOK, serve("https://gno.land", http.MethodGet, lister).Code)
+		assert.ElementsMatch(t, []string{"/r/gnoland/home", "/r/gnoland/pages", "/r/devrels/events", "/r/demo/boards"}, lister.calls)
 	})
 
 	t.Run("upstream error", func(t *testing.T) {
 		t.Parallel()
-		rr := serve("https://gno.land", http.MethodGet, stubDirectory{err: errors.New("rpc down")})
+		rr := serve("https://gno.land", http.MethodGet, &countingFileLister{err: errors.New("rpc down")})
 		assert.Equal(t, http.StatusBadGateway, rr.Code)
 	})
 }
@@ -234,4 +248,15 @@ func TestNewRouter_CrawlPolicy(t *testing.T) {
 		_, err := newRouter(t, "https://gno.land/r/demo", false)
 		require.Error(t, err)
 	})
+}
+
+// countingFileLister records the paths queried and answers every one with err.
+type countingFileLister struct {
+	err   error
+	calls []string
+}
+
+func (c *countingFileLister) ListFiles(_ context.Context, path string, _ int64) ([]string, error) {
+	c.calls = append(c.calls, path)
+	return nil, c.err
 }

@@ -1,7 +1,9 @@
 package gnoweb
 
 import (
+	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -72,9 +74,14 @@ type sitemapURLSet struct {
 	URLs    []sitemapURL `xml:"url"`
 }
 
+// fileLister is the subset of ClientAdapter the sitemap depends on.
+type fileLister interface {
+	ListFiles(ctx context.Context, path string, height int64) ([]string, error)
+}
+
 // handlerSitemapXML lists the alias pages only: most realms are demos or near
 // empty, and crawlers reach the rest through links.
-func handlerSitemapXML(logger *slog.Logger, origin string, aliases map[string]AliasTarget, dir RealmDirectory) http.Handler {
+func handlerSitemapXML(logger *slog.Logger, origin string, aliases map[string]AliasTarget, client fileLister) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if origin == "" {
 			http.NotFound(w, r)
@@ -85,15 +92,15 @@ func handlerSitemapXML(logger *slog.Logger, origin string, aliases map[string]Al
 			return
 		}
 
-		realms, _, err := dir.Paths(r.Context())
+		paths, err := sitemapAliases(r.Context(), aliases, client)
 		if err != nil {
-			logger.Error("sitemap: unable to list paths", "error", err)
+			logger.Error("sitemap: unable to check alias realms", "error", err)
 			http.Error(w, "sitemap unavailable", http.StatusBadGateway)
 			return
 		}
 
 		var set sitemapURLSet
-		for _, p := range sitemapAliases(aliases, realms) {
+		for _, p := range paths {
 			set.URLs = append(set.URLs, sitemapURL{Loc: origin + (&url.URL{Path: p}).EscapedPath()})
 		}
 
@@ -107,14 +114,13 @@ func handlerSitemapXML(logger *slog.Logger, origin string, aliases map[string]Al
 }
 
 // sitemapAliases returns the sorted aliases to list: static pages, and path
-// aliases whose realm exists on this chain, so no 404 is published.
-func sitemapAliases(aliases map[string]AliasTarget, realms []string) []string {
-	known := make(map[string]bool, len(realms))
-	for _, p := range realms {
-		known[p] = true
-	}
-
+// aliases whose realm exists on this chain, so no 404 is published. Each
+// target realm is checked with its own query: the full listing is capped at
+// 1000 entries, and r/gnoland/* sorts after every r/g1... user realm. vm/qfile
+// is used over vm/qpkgmeta_json because every node version answers it.
+func sitemapAliases(ctx context.Context, aliases map[string]AliasTarget, client fileLister) ([]string, error) {
 	var paths []string
+	byRealm := map[string][]string{}
 	for alias, target := range aliases {
 		// A key gnoweb redirects or rewrites is not the URL of the page served.
 		if _, redirected := Redirects[alias]; redirected || !isCleanWebPath(alias) {
@@ -126,13 +132,24 @@ func sitemapAliases(aliases map[string]AliasTarget, realms []string) []string {
 		case GnowebPath:
 			realm, _, _ := strings.Cut(target.Value, ":")
 			realm, _, _ = strings.Cut(realm, "$")
-			if known[realm] {
-				paths = append(paths, alias)
+			if strings.HasPrefix(realm, "/r/") {
+				byRealm[realm] = append(byRealm[realm], alias)
 			}
 		}
 	}
+
+	for realm, realmAliases := range byRealm {
+		_, err := client.ListFiles(ctx, realm, 0)
+		switch {
+		case err == nil:
+			paths = append(paths, realmAliases...)
+		// A target with a file-like last segment is a bad alias, not an outage.
+		case !errors.Is(err, ErrClientPackageNotFound) && !errors.Is(err, ErrClientFileNotFound):
+			return nil, fmt.Errorf("%s: %w", realm, err)
+		}
+	}
 	slices.Sort(paths)
-	return paths
+	return paths, nil
 }
 
 // isCleanWebPath reports whether gnoweb parses p and encodes it back unchanged.

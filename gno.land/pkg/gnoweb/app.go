@@ -241,7 +241,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		sitemapOrigin = ""
 	}
 	mux.Handle("/robots.txt", handlerRobotsTXT(cfg.NoIndex, sitemapOrigin))
-	mux.Handle("/sitemap.xml", handlerSitemapXML(logger, sitemapOrigin, cfg.Aliases, searchDir))
+	mux.Handle("/sitemap.xml", handlerSitemapXML(logger, sitemapOrigin, cfg.Aliases, adpcli))
 	if cfg.NoIndex {
 		return noIndexMiddleware(mux), nil
 	}
