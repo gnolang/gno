@@ -95,7 +95,7 @@ func (h *HTTPHandler) buildPackageText(ctx context.Context, gnourl *weburl.GnoUR
 	if out.Len() > packageTextMaxBytes {
 		return nil, errPackageTooLarge
 	}
-	return out.Bytes(), nil
+	return bytes.Clone(out.Bytes()), nil
 }
 
 // packageTextCache keeps each package text for packageTextTTL, so repeating
