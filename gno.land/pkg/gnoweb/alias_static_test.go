@@ -78,6 +78,34 @@ func TestNewStaticAlias(t *testing.T) {
 			body:    "---\n\nSee https://gno.land for more.\n\n---\n\nMore.\n",
 		},
 		{
+			name:    "a line opening on a URL between two thematic breaks is not front matter",
+			content: "---\n\nhttps://gno.land/r/gnoland/blog\n\n---\n\nMore.\n",
+			body:    "---\n\nhttps://gno.land/r/gnoland/blog\n\n---\n\nMore.\n",
+		},
+		{
+			name:    "a line opening on a mailto link between two thematic breaks is not front matter",
+			content: "---\n\nmailto:hello@gno.land\n\n---\n\nMore.\n",
+			body:    "---\n\nmailto:hello@gno.land\n\n---\n\nMore.\n",
+		},
+		{
+			name:    "a key padded before its colon still sets its field",
+			content: "---\ntitle : About\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a key with an empty value ends the line on its colon",
+			content: "---\ntitle: About\ndescription:\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a key followed by a tab is a key",
+			content: "---\ntitle:\tAbout\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
 			name:    "a heading between two thematic breaks is not front matter",
 			content: "---\n\n## Section\n\n    indented code\n\n---\n\nMore.\n",
 			body:    "---\n\n## Section\n\n    indented code\n\n---\n\nMore.\n",

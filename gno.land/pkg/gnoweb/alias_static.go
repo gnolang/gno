@@ -37,7 +37,11 @@ func NewStaticAlias(content string) AliasTarget {
 	sawKey := false
 	for line := range strings.SplitSeq(head, "\n") {
 		key, value, found := strings.Cut(line, ":")
-		if !found || !isFrontMatterKey(key) {
+		key = strings.TrimRight(key, " \t")
+		// As in YAML, a colon makes a key only at the end of the line or
+		// before a space or tab, so https://... or mailto:... is prose.
+		isKey := found && (value == "" || value[0] == ' ' || value[0] == '\t')
+		if !isKey || !isFrontMatterKey(key) {
 			// Blank lines, YAML comments, list items and indented
 			// continuations are front matter too; anything else is prose.
 			if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") ||
@@ -68,7 +72,6 @@ func NewStaticAlias(content string) AliasTarget {
 // lowercase word, as Jekyll and Hugo write them. Sentence-case prose such as
 // "Note: read this." does not qualify.
 func isFrontMatterKey(key string) bool {
-	key = strings.TrimRight(key, " ")
 	if key == "" || key[0] < 'a' || key[0] > 'z' {
 		return false
 	}
