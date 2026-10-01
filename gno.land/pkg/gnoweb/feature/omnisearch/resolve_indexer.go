@@ -132,7 +132,7 @@ func indexerSelectors() []*Selector {
 // "mentions", not "imports": a substring match counts comments and string
 // literals too.
 func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, error) {
-	txs, err := h.deps.Indexer.SourceContains(ctx, q.ChainPath, recentLimit)
+	txs, err := h.deps.Indexer.SourceContains(ctx, q.ChainPath, "", recentLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -161,11 +161,13 @@ func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, err
 // resolveContent lists packages whose source contains the term. The indexer
 // returns deploys; duplicates collapse to the newest per package.
 func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]Result, error) {
-	txs, err := h.deps.Indexer.SourceContains(ctx, term, recentLimit)
+	// The author goes into the indexer's filter: applied here alone, it would
+	// only thin out the newest matches, and miss the author's older ones.
+	author, _ := q.Get(FilterAuthor)
+	txs, err := h.deps.Indexer.SourceContains(ctx, term, author, recentLimit)
 	if err != nil {
 		return nil, err
 	}
-	author, _ := q.Get(FilterAuthor)
 
 	seen := make(map[string]bool, len(txs))
 	out := make([]Result, 0, len(txs))
@@ -175,6 +177,8 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 			if path == "" || seen[path] {
 				continue
 			}
+			// Still checked per message: a transaction that matched may
+			// carry other deploys.
 			if !matchesAuthor(path, m.Signer(), author, h.deps.Domain) {
 				continue
 			}

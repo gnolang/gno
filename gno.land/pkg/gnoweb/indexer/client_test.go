@@ -386,3 +386,110 @@ func TestOversizedResponseIsRefusedBeforeDecoding(t *testing.T) {
 		t.Fatalf("error = %v, want ErrResponseTooLarge", err)
 	}
 }
+
+// likeValues pulls every `like: "..."` literal back out of a query, decoded
+// the way the indexer reads it.
+func likeValues(t *testing.T, q string) []string {
+	t.Helper()
+	var out []string
+	for _, m := range regexp.MustCompile(`like: ("(?:[^"\\]|\\.)*")`).FindAllStringSubmatch(q, -1) {
+		var v string
+		if err := json.Unmarshal([]byte(m[1]), &v); err != nil {
+			t.Fatalf("like literal %s: %v", m[1], err)
+		}
+		out = append(out, v)
+	}
+	return out
+}
+
+func captureTxQuery(t *testing.T, run func(c *Client)) string {
+	t.Helper()
+	var txQuery string
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":10}}`)
+			return
+		}
+		txQuery = req.Query
+		respond(w, `{"data":{"getTransactions":[]}}`)
+	})
+	run(c)
+	return txQuery
+}
+
+// tx-indexer evaluates `like` with regexp.MatchString, and a pattern that
+// does not compile matches nothing. The term must reach it quoted.
+func TestSourceContainsQuotesTheTerm(t *testing.T) {
+	for _, term := range []string{"Render(", "[]byte", "*avl.Tree", "a.b", "zzzz|Render"} {
+		t.Run(term, func(t *testing.T) {
+			q := captureTxQuery(t, func(c *Client) {
+				_, _ = c.SourceContains(context.Background(), term, "", 5)
+			})
+			likes := likeValues(t, q)
+			if len(likes) != 1 {
+				t.Fatalf("like filters = %q, want one", likes)
+			}
+			if likes[0] != regexp.QuoteMeta(term) {
+				t.Fatalf("like = %q, want %q", likes[0], regexp.QuoteMeta(term))
+			}
+			re := regexp.MustCompile(likes[0])
+			if !re.MatchString("x " + term + " y") {
+				t.Errorf("%q does not match a body containing %q", likes[0], term)
+			}
+		})
+	}
+
+	// The metacharacters must not keep their meaning.
+	q := captureTxQuery(t, func(c *Client) {
+		_, _ = c.SourceContains(context.Background(), "a.b", "", 5)
+	})
+	if regexp.MustCompile(likeValues(t, q)[0]).MatchString("aXb") {
+		t.Error(`"a.b" matches "aXb"`)
+	}
+}
+
+// The author narrows the indexer's own filter, by creator address or by
+// namespace, so older packages by that author are not crowded out of the
+// capped answer by newer ones from others.
+func TestSourceContainsFiltersAuthorOnTheIndexer(t *testing.T) {
+	q := captureTxQuery(t, func(c *Client) {
+		_, _ = c.SourceContains(context.Background(), "avl.Tree", "bob", 5)
+	})
+	likes := likeValues(t, q)
+	if len(likes) != 3 {
+		t.Fatalf("like filters = %q, want body, creator and path", likes)
+	}
+	if !strings.Contains(q, "_or:") {
+		t.Fatalf("author is not an alternative of creator and path:\n%s", q)
+	}
+	creator, path := regexp.MustCompile(likes[1]), regexp.MustCompile(likes[2])
+
+	for _, tt := range []struct {
+		re   *regexp.Regexp
+		in   string
+		want bool
+	}{
+		{creator, "bob", true},
+		{creator, "BOB", true},
+		{creator, "bobby", false},
+		{path, "gno.land/r/bob/counter", true},
+		{path, "gno.land/p/bob", true},
+		{path, "gno.land/r/bobby/counter", false},
+		{path, "gno.land/r/alice/bob", false},
+	} {
+		if got := tt.re.MatchString(tt.in); got != tt.want {
+			t.Errorf("%q.MatchString(%q) = %v, want %v", tt.re, tt.in, got, tt.want)
+		}
+	}
+
+	// A metacharacter in the author is literal too.
+	q = captureTxQuery(t, func(c *Client) {
+		_, _ = c.SourceContains(context.Background(), "avl.Tree", "b.b", 5)
+	})
+	if regexp.MustCompile(likeValues(t, q)[2]).MatchString("gno.land/r/bxb/x") {
+		t.Error(`author "b.b" matches namespace "bxb"`)
+	}
+}

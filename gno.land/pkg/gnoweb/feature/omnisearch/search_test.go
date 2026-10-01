@@ -78,6 +78,9 @@ type mockIndexer struct {
 	tx  *indexer.Tx
 	txs []indexer.Tx
 	err error
+
+	// sourceAuthor records the author SourceContains was asked to filter on.
+	sourceAuthor string
 }
 
 func (m *mockIndexer) LatestBlockHeight(context.Context) (int, error) { return 185214, nil }
@@ -99,7 +102,8 @@ func (m *mockIndexer) Deploys(context.Context, string, int) ([]indexer.Tx, error
 	return m.txs, m.err
 }
 
-func (m *mockIndexer) SourceContains(context.Context, string, int) ([]indexer.Tx, error) {
+func (m *mockIndexer) SourceContains(_ context.Context, _, author string, _ int) ([]indexer.Tx, error) {
+	m.sourceAuthor = author
 	return m.txs, m.err
 }
 
@@ -501,6 +505,21 @@ func TestNamespaceSlashListsSiblings(t *testing.T) {
 		if !want[got] {
 			t.Errorf("%q is not one of alice's packages", got)
 		}
+	}
+}
+
+// `author:` narrows a content search on the indexer, not on the capped page
+// it returns: newer matches by others would otherwise crowd out the author's
+// older packages and answer "Nothing matched".
+func TestContentSearchSendsTheAuthorToTheIndexer(t *testing.T) {
+	t.Parallel()
+
+	idx := &mockIndexer{}
+	h := newHandler(t, &mockClient{}, idx)
+
+	h.Search(context.Background(), mustQuery(t, h, "content:avl.Tree author:bob", ""))
+	if idx.sourceAuthor != "bob" {
+		t.Fatalf("SourceContains author = %q, want %q", idx.sourceAuthor, "bob")
 	}
 }
 

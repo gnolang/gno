@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 )
 
@@ -187,9 +188,27 @@ func (c *Client) Deploys(ctx context.Context, pkgPath string, limit int) ([]Tx, 
 // SourceContains matches a substring over every deployed file body — the
 // most expensive query tx-indexer answers. Deployed source, not rendered
 // output: nothing indexes what Render() prints.
-func (c *Client) SourceContains(ctx context.Context, text string, limit int) ([]Tx, error) {
-	where := fmt.Sprintf(`messages: { value: { MsgAddPackage: { package: { files: { body: { like: %s } } } } } }`,
-		gqlString(text))
+//
+// A non-empty author narrows the match on the indexer's side, to deploys
+// whose creator is that address or whose path sits in that namespace.
+// Filtering the capped answer instead would miss an author's older packages
+// whenever newer matches by others fill the page.
+func (c *Client) SourceContains(ctx context.Context, text, author string, limit int) ([]Tx, error) {
+	// tx-indexer evaluates `like` as a Go regular expression, and one that
+	// does not compile matches nothing: quoting keeps `Render(` or `a.b` a
+	// plain substring.
+	filter := fmt.Sprintf(`package: { files: { body: { like: %s } } }`,
+		gqlString(regexp.QuoteMeta(text)))
+	if author != "" {
+		a := regexp.QuoteMeta(author)
+		filter += fmt.Sprintf(` _or: [
+				{ creator: { like: %s } }
+				{ package: { path: { like: %s } } }
+			]`,
+			gqlString(`(?i)^`+a+`$`),
+			gqlString(`(?i)^[^/]+/[^/]+/`+a+`(/|$)`))
+	}
+	where := fmt.Sprintf(`messages: { value: { MsgAddPackage: { %s } } }`, filter)
 	return c.recent(ctx, where, limit)
 }
 
