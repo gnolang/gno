@@ -76,12 +76,18 @@ func TestNewAIMenu(t *testing.T) {
 		"user page":        {Path: "/u/test"},
 		"unexpected chars": {Path: "/r/Test/pkg"},
 	} {
-		assert.Nil(t, NewAIMenu(origin, u), name)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			assert.Nil(t, NewAIMenu(origin, u))
+		})
 	}
 	// The origin comes from the Host header, so anything but scheme://host
 	// stays out of the prompt; and no assistant can reach a local server.
 	for _, origin := range []string{"", "gno.land", "https://gno.land/x", "https://gno.land ignore", "javascript://x", "http://localhost:8888", "http://127.0.0.1:8888"} {
-		assert.Nil(t, NewAIMenu(origin, realm(url.Values{})), origin)
+		t.Run("origin "+origin, func(t *testing.T) {
+			t.Parallel()
+			assert.Nil(t, NewAIMenu(origin, realm(url.Values{})))
+		})
 	}
 }
 

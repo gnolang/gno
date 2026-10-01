@@ -26,6 +26,9 @@ const (
 	packageTextTTL = 60 * time.Second
 	// packageTextCacheBytes caps the memory the cache holds.
 	packageTextCacheBytes = 32 << 20
+	// packageTextBuildTimeout bounds a shared build, which outlives the
+	// request that started it.
+	packageTextBuildTimeout = 30 * time.Second
 )
 
 var errPackageTooLarge = errors.New("package too large")
@@ -34,6 +37,10 @@ var errPackageTooLarge = errors.New("package too large")
 // each under a "// file:" header, so it can be pasted into any assistant.
 func (h *HTTPHandler) servePackageText(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
 	text, err := h.packageText.get(gnourl.Path, func() ([]byte, error) {
+		// Concurrent requests share this build: one client hanging up must
+		// not fail the others.
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), packageTextBuildTimeout)
+		defer cancel()
 		return h.buildPackageText(ctx, gnourl)
 	})
 	switch {
@@ -93,8 +100,9 @@ func (h *HTTPHandler) buildPackageText(ctx context.Context, gnourl *weburl.GnoUR
 
 // packageTextCache keeps each package text for packageTextTTL, so repeating
 // a $download costs no node query, and coalesces concurrent builds of the
-// same package into one. Errors are not cached: a missing package may be
-// deployed the next block. The leader's context governs a shared build.
+// same package into one. errPackageTooLarge is kept too, since a package
+// does not change once deployed; other errors are not: a missing package
+// may be deployed the next block.
 type packageTextCache struct {
 	mu      sync.Mutex
 	entries map[string]packageTextEntry
@@ -105,28 +113,26 @@ type packageTextCache struct {
 
 type packageTextEntry struct {
 	text    []byte
+	err     error // errPackageTooLarge, or nil
 	expires time.Time
 }
 
 func (c *packageTextCache) get(key string, build func() ([]byte, error)) ([]byte, error) {
-	if text, ok := c.lookup(key); ok {
-		return text, nil
+	if e, ok := c.lookup(key); ok {
+		return e.text, e.err
 	}
 	v, err, _ := c.sf.Do(key, func() (any, error) {
-		if text, ok := c.lookup(key); ok {
-			return text, nil
+		if e, ok := c.lookup(key); ok {
+			return e.text, e.err
 		}
 		text, err := build()
-		if err != nil {
-			return nil, err
+		if err == nil || errors.Is(err, errPackageTooLarge) {
+			c.store(key, text, err)
 		}
-		c.store(key, text)
-		return text, nil
+		return text, err
 	})
-	if err != nil {
-		return nil, err
-	}
-	return v.([]byte), nil
+	text, _ := v.([]byte)
+	return text, err
 }
 
 func (c *packageTextCache) clock() time.Time {
@@ -136,18 +142,18 @@ func (c *packageTextCache) clock() time.Time {
 	return time.Now()
 }
 
-func (c *packageTextCache) lookup(key string) ([]byte, bool) {
+func (c *packageTextCache) lookup(key string) (packageTextEntry, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e, ok := c.entries[key]
 	if !ok || !c.clock().Before(e.expires) {
-		return nil, false
+		return packageTextEntry{}, false
 	}
-	return e.text, true
+	return e, true
 }
 
-// store keeps text unless the cache is full of live entries.
-func (c *packageTextCache) store(key string, text []byte) {
+// store keeps the result unless the cache is full of live entries.
+func (c *packageTextCache) store(key string, text []byte, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	now := c.clock()
@@ -163,6 +169,6 @@ func (c *packageTextCache) store(key string, text []byte) {
 	if c.size+len(text) > packageTextCacheBytes {
 		return
 	}
-	c.entries[key] = packageTextEntry{text: text, expires: now.Add(packageTextTTL)}
+	c.entries[key] = packageTextEntry{text: text, err: err, expires: now.Add(packageTextTTL)}
 	c.size += len(text)
 }

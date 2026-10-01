@@ -1,1 +1,1 @@
-import{BaseController as r}from"./controller.js";var n=class extends r{connect(){}key(e){let{key:t}=e;t!=="Enter"&&t!==" "||(e.preventDefault(),this.element.click())}};export{n as PopupController};
+import{BaseController as n}from"./controller.js";var r=class extends n{connect(){}key(t){let e=t;e.repeat||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||e.key!=="Enter"&&e.key!==" "||(t.preventDefault(),this.element.click())}};export{r as PopupController};

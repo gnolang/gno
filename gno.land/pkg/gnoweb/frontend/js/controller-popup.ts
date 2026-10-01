@@ -7,8 +7,9 @@ export class PopupController extends BaseController {
 	protected connect(): void {}
 
 	public key(event: Event): void {
-		const { key } = event as KeyboardEvent;
-		if (key !== "Enter" && key !== " ") return;
+		const e = event as KeyboardEvent;
+		if (e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+		if (e.key !== "Enter" && e.key !== " ") return;
 		event.preventDefault();
 		this.element.click();
 	}

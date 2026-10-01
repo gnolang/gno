@@ -66,10 +66,7 @@ func NewAIMenu(origin string, u weburl.GnoURL) *AIMenu {
 		return nil
 	}
 	page := origin + u.Path
-	kind := "package"
-	if strings.HasPrefix(u.Path, "/r/") {
-		kind = "realm"
-	}
+	kind := aiKind(u.Path)
 	file := u.File
 	if file == "" && u.WebQuery.Has("source") {
 		file = u.WebQuery.Get("file")
@@ -124,14 +121,22 @@ func NewAIFuncAction(origin, pkgPath, fn string) *AIAction {
 		return nil
 	}
 	page := origin + pkgPath
-	kind, how := "realm", "the gnokey command to call it"
-	if !strings.HasPrefix(pkgPath, "/r/") {
+	kind, how := aiKind(pkgPath), "the gnokey command to call it"
+	if kind == "package" {
 		// MsgCall only targets realms; a package is evaluated with a query.
-		kind, how = "package", "the gnokey query vm/qeval command to evaluate it"
+		how = "the gnokey query vm/qeval command to evaluate it"
 	}
 	a := newAIAction(origin, "Ask AI", "",
 		fmt.Sprintf("Explain the function %s of the gno.land %s %s: what it does, its parameters, and %s. The %s's functions, chain ID and RPC are at %s$help&json, its full source at %s$download.", fn, kind, page, how, kind, page, page))
 	return &a
+}
+
+// aiKind names what lives at a path matched by aiPkgPathRe.
+func aiKind(pkgPath string) string {
+	if strings.HasPrefix(pkgPath, "/r/") {
+		return "realm"
+	}
+	return "package"
 }
 
 func (m *AIMenu) add(origin, label, hint, prompt string) {

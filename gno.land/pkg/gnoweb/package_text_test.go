@@ -76,6 +76,15 @@ func TestServePackageText_Cache(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, get("/r/does/not/exist$download").Code)
 	}
 	assert.Equal(t, int64(8), client.queries.Load(), "errors are not cached")
+
+	// The build is shared, so it does not die with the request that
+	// started it.
+	now = now.Add(packageTextTTL)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path$download", nil).WithContext(ctx))
+	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
 func TestPackageTextCache(t *testing.T) {
@@ -101,9 +110,11 @@ func TestPackageTextCache(t *testing.T) {
 				assert.Equal(t, "a", string(text))
 			}()
 		}
+		// Give every caller time to reach the build before it returns; a
+		// late one finds the stored text either way.
+		time.Sleep(20 * time.Millisecond)
 		close(release)
 		wg.Wait()
-		// A late caller misses the group but finds the stored text.
 		assert.Equal(t, int64(1), builds.Load())
 	})
 
@@ -129,5 +140,19 @@ func TestPackageTextCache(t *testing.T) {
 		_, err := c.get("/r/a", func() ([]byte, error) { return nil, boom })
 		assert.ErrorIs(t, err, boom)
 		assert.Empty(t, c.entries)
+	})
+
+	// A deployed package never shrinks, so the costly rejection is kept.
+	t.Run("too large is cached", func(t *testing.T) {
+		t.Parallel()
+
+		var c packageTextCache
+		var builds int
+		build := func() ([]byte, error) { builds++; return nil, errPackageTooLarge }
+		for range 2 {
+			_, err := c.get("/r/a", build)
+			assert.ErrorIs(t, err, errPackageTooLarge)
+		}
+		assert.Equal(t, 1, builds)
 	})
 }
