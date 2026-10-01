@@ -66,8 +66,8 @@ const (
 // interface; that nil check is the feature switch.
 type Client struct {
 	url string
-	// token, when set, is sent as a bearer credential. Most indexers are
-	// public; a self-hosted one behind auth is a flag away.
+	// token, when set, is sent as a bearer credential. Indexers are usually
+	// public, so most deployments leave it empty.
 	token string
 	http  *http.Client
 
@@ -212,8 +212,8 @@ func (c *Client) do(ctx context.Context, query string, out any) error {
 	}
 
 	// Name the status: a 403 otherwise surfaces as "invalid character '<'".
-	// The body is never quoted — these errors reach visitors, and echoing it
-	// would republish an upstream response to the public.
+	// The body is never quoted, only its size and type: these errors are
+	// logged, and visitors see a fixed phrase.
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("indexer returned %s (%d bytes of %q)",
 			resp.Status, len(raw), resp.Header.Get("Content-Type"))
