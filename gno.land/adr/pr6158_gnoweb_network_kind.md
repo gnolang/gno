@@ -163,9 +163,9 @@ now, and it follows whatever background the banner ends up with.
   is safe and immediately visible, while a wrong naming assumption fails
   silently in the dangerous direction the day the scheme changes.
 - **Chip on every network, mainnet included.** Tried in this PR, then dropped
-  at review: on mainnet it added no protection (see above), made the header
-  scroll sideways on a 320px phone, and read as the start of the search box
-  beside it.
+  at review: on mainnet it added no protection (see above), yet it took header
+  width on a 320px phone and needed its own outlined variant so it would not
+  read as the start of the search box beside it.
 - **Faucet link conditional on `NetworkKind`.** Rejected: `FaucetURL` already
   encodes "does this deployment have a faucet", and it is what routes
   `/faucet`. Two sources of truth for one fact is how they drift.
