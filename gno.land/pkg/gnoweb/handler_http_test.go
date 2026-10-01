@@ -1996,9 +1996,10 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 	})
 }
 
-// newMetadataHandler serves one realm under the gno.land domain. The head
-// metadata tests below read what the page says about itself, so the domain
-// has to be set and the realm body does not matter.
+// newMetadataHandler serves one realm under the gno.land domain, trusting
+// the gnoland namespace. The head metadata tests below read what the page
+// says about itself, so the domain has to be set and the realm body does not
+// matter.
 func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnoweb.AliasTarget) *gnoweb.HTTPHandler {
 	t.Helper()
 
@@ -2010,6 +2011,7 @@ func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnowe
 	config.Meta.Domain = "gno.land"
 	config.Meta.CanonicalOrigin = "https://gno.land"
 	config.Meta.AssetsPath = "/public/"
+	config.TrustedPaths = []string{"gnoland"}
 	if aliases != nil {
 		config.Aliases = aliases
 	}
@@ -2329,6 +2331,10 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 	config.Meta.CanonicalOrigin = "https://gno.land"
 	config.Meta.AssetsPath = "/public/"
 	config.TrustedPaths = []string{"gnoland"}
+	config.Aliases = map[string]gnoweb.AliasTarget{
+		"/hello":    {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath},
+		"/nymalias": {Value: "/r/nym/app", Kind: gnoweb.GnowebPath},
+	}
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
 	config.Renderer = gnoweb.NewHTMLRenderer(logger, gnoweb.NewDefaultRenderConfig(), nil)
 	handler, err := gnoweb.NewHTTPHandler(logger, config)
@@ -2365,6 +2371,17 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		{
 			name: "trusted realm, user text below its lead", url: "/r/gnoland/forum",
 			title: "/r/gnoland/forum", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/forum",
+		},
+		// The operator chose the target's args, so the alias keeps the h1.
+		{
+			name: "alias to a trusted post", url: "/hello",
+			title: "Hello worlds", description: post, image: gnoImg, path: "/hello",
+		},
+		// An alias publishes whatever its target renders, so it keeps the
+		// target's kind.
+		{
+			name: "alias to a community realm", url: "/nymalias",
+			title: "/nymalias", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/nymalias",
 		},
 		{
 			name: "community realm", url: "/r/nym/app",

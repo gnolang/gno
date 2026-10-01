@@ -243,9 +243,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// branch below short-circuits, so an alias-mapped state URL would
 	// previously route to the unmapped path and 404.
 	requested := *r.URL
-	// An alias is a page the operator chose to publish, whether it points at a
-	// markdown file or at a realm they vouched for. Everything else is a path
-	// anyone can occupy.
 	alias, operatorPage := h.Aliases[r.URL.Path]
 	if operatorPage && alias.Kind == GnowebPath {
 		r.URL.Path = alias.Value
@@ -274,8 +271,13 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The notice follows the package, even behind an alias.
+	// A markdown alias serves bytes the operator wrote. A realm alias serves
+	// whatever its target renders, so it keeps the target's kind, for the
+	// notice and the head alike.
 	kind := h.packageKind(gnourl)
+	if operatorPage && alias.Kind == StaticMarkdown {
+		kind = pageOfficial
+	}
 	if kind == pageCommunity && h.Static.RealmNotice.Enabled() {
 		indexData.Notice = h.Static.RealmNotice
 	}
@@ -290,20 +292,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// target: /about and /r/gnoland/pages:p/about serve one page, and
 	// /about is the address to publish.
 	headURL := gnourl
-	if requested.Path != r.URL.Path {
+	switch {
+	case operatorPage && alias.Kind == GnowebPath:
 		if u, err := weburl.ParseFromURL(&requested); err == nil {
 			headURL = u
 		}
-	}
-	// A static page renders the same bytes whatever the query says, so
-	// /about?utm_source=x is /about and may still name itself.
-	if operatorPage && alias.Kind == StaticMarkdown {
-		u := *headURL
+	case operatorPage && alias.Kind == StaticMarkdown:
+		// A static page renders the same bytes whatever the query says, so
+		// /about?utm_source=x is /about and may still name itself.
+		u := *gnourl
 		u.Query = nil
 		headURL = &u
-	}
-	if operatorPage {
-		kind = pageOfficial
 	}
 
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
