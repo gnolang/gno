@@ -2247,3 +2247,103 @@ func TestHTTPHandler_ActionFormNoIndex(t *testing.T) {
 		assert.Equal(t, strings.Contains(want, `"index`), strings.Contains(rr.Body.String(), `rel="canonical"`), target)
 	}
 }
+
+// TestHTTPHandler_AliasShareImage checks that a page the operator published,
+// and only that, carries gno.land's share image and the large card.
+func TestHTTPHandler_AliasShareImage(t *testing.T) {
+	t.Parallel()
+
+	handler := newMetadataHandler(t, "/r/gnoland/pages", map[string]gnoweb.AliasTarget{
+		"/about": {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
+		"/terms": {Value: "# Terms\n", Kind: gnoweb.StaticMarkdown},
+	})
+
+	const image = "https://gno.land/public/imgs/og-gnoland.png"
+	cases := []struct {
+		name  string
+		url   string
+		image bool
+	}{
+		{name: "realm alias", url: "/about", image: true},
+		{name: "static alias", url: "/terms", image: true},
+		// On a realm alias the query reaches Render, so it stays in the
+		// head, but it is text the operator never vetted: no mark beside it.
+		{name: "realm alias with a query", url: "/about?Claim+your+airdrop+at+evil.example"},
+		// A static page renders the same bytes whatever the query, so a
+		// tracking parameter is not a page of its own and keeps the image.
+		{name: "static alias with a query", url: "/terms?utm_source=twitter", image: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			if tc.image {
+				assert.Contains(t, body, `<meta property="og:image" content="`+image+`" />`)
+				assert.Contains(t, body, `<meta name="twitter:image" content="`+image+`" />`)
+				assert.Contains(t, body, `<meta name="twitter:card" content="summary_large_image" />`)
+			} else {
+				assert.NotContains(t, body, `<meta property="og:image"`)
+				assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`)
+			}
+		})
+	}
+
+	t.Run("static alias drops the query from its head", func(t *testing.T) {
+		t.Parallel()
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/terms?utm_source=twitter", nil))
+
+		head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+		assert.Contains(t, head, `<title>/terms - gno.land</title>`)
+		assert.Contains(t, head, `<link rel="canonical" href="https://gno.land/terms" />`)
+		assert.Contains(t, head, `<meta property="og:url" content="https://gno.land/terms" />`)
+		assert.NotContains(t, head, "utm_source")
+	})
+}
+
+// TestHTTPHandler_ErrorShellUnpublished checks that a page answering an error
+// names no canonical, no og:url and no share image, and asks to stay out of
+// the index, on every branch that renders the layout.
+func TestHTTPHandler_ErrorShellUnpublished(t *testing.T) {
+	t.Parallel()
+
+	handler := newMetadataHandler(t, "/r/mock/path", map[string]gnoweb.AliasTarget{
+		// An alias would carry the share image, so a broken one shows the
+		// image is dropped too.
+		"/gone": {Value: "/r/mock/nope", Kind: gnoweb.GnowebPath},
+	})
+
+	cases := []struct {
+		name   string
+		url    string
+		status int
+	}{
+		{"missing realm", "/r/mock/nope", http.StatusNotFound},
+		{"alias to a missing realm", "/gone", http.StatusNotFound},
+		{"state page with a bad oid", "/r/mock/path$state&oid=bogus", http.StatusBadRequest},
+		{"unparsable path", "/~!1337", http.StatusNotFound},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+
+			require.Equal(t, tc.status, rr.Code)
+			body := rr.Body.String()
+			assert.NotContains(t, body, `rel="canonical"`)
+			assert.NotContains(t, body, `<meta property="og:url"`)
+			assert.NotContains(t, body, `<meta property="og:image"`)
+			assert.Contains(t, body, `<meta name="robots" content="noindex, nofollow" />`)
+		})
+	}
+}

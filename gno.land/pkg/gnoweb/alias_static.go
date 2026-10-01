@@ -29,20 +29,53 @@ func NewStaticAlias(content string) AliasTarget {
 		return target
 	}
 
+	// A block is front matter only if every line could be YAML and at least
+	// one is a key, so a page drawing a rule above and below a heading, a
+	// URL or a "Note: ..." line keeps it. Fields are set only once the whole
+	// block qualifies.
+	var title, description string
+	sawKey := false
 	for line := range strings.SplitSeq(head, "\n") {
 		key, value, found := strings.Cut(line, ":")
-		if !found {
-			continue
+		if !found || !isFrontMatterKey(key) {
+			// Blank lines, YAML comments, list items and indented
+			// continuations are front matter too; anything else is prose.
+			if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") ||
+				strings.HasPrefix(line, "- ") || strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+				continue
+			}
+			return target
 		}
+		sawKey = true
 		value = strings.Trim(strings.TrimSpace(value), `"'`)
-		switch strings.TrimSpace(key) {
+		switch key {
 		case "title":
-			target.Title = value
+			title = value
 		case "description":
-			target.Description = markdown.TruncateDescription(value)
+			description = markdown.TruncateDescription(value)
 		}
 	}
+	if !sawKey {
+		return target
+	}
+	target.Title, target.Description = title, description
 	target.Value = strings.TrimLeft(body, "\n")
 
 	return target
+}
+
+// isFrontMatterKey reports whether key looks like a front matter key: a
+// lowercase word, as Jekyll and Hugo write them. Sentence-case prose such as
+// "Note: read this." does not qualify.
+func isFrontMatterKey(key string) bool {
+	key = strings.TrimRight(key, " ")
+	if key == "" || key[0] < 'a' || key[0] > 'z' {
+		return false
+	}
+	for _, c := range key {
+		if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '_' && c != '-' {
+			return false
+		}
+	}
+	return true
 }

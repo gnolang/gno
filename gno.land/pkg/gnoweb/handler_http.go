@@ -243,8 +243,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// An alias is a page the operator chose to publish, whether it points at a
 	// markdown file or at a realm they vouched for. Everything else is a path
 	// anyone can occupy.
-	_, operatorPage := h.Aliases[r.URL.Path]
-	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
+	alias, operatorPage := h.Aliases[r.URL.Path]
+	if operatorPage && alias.Kind == GnowebPath {
 		r.URL.Path = alias.Value
 	}
 
@@ -263,6 +263,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 		indexData.HeadData.Title = "gno.land — invalid path"
 		indexData.BodyView = components.StatusErrorComponent("invalid path")
+		unpublishErrorShell(&indexData.HeadData, http.StatusNotFound)
 		w.WriteHeader(http.StatusNotFound)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render error view", "error", err)
@@ -285,7 +286,16 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			headURL = u
 		}
 	}
-	h.setHeadMetadata(&indexData, headURL, operatorPage)
+	// A static page renders the same bytes whatever the query says, so
+	// /about?utm_source=x is /about. On a realm the query reaches Render and
+	// stays part of the page, but it is text the operator never vetted, so
+	// only a query-less operator URL gets the share image.
+	if operatorPage && alias.Kind == StaticMarkdown {
+		u := *headURL
+		u.Query = nil
+		headURL = &u
+	}
+	h.setHeadMetadata(&indexData, headURL, operatorPage && len(headURL.Query) == 0)
 
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
 	// internally dispatches:
@@ -303,13 +313,14 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Page path: wrap the state body in IndexLayout chrome. Set
-		// HeaderData/Title here (mirroring prepareIndexBodyView) so the
-		// global header — breadcrumb + Content/State/Source/Actions
-		// tabs — renders against this realm instead of inheriting zero
-		// values and pointing the tabs at empty URLs.
+		// HeaderData here (the Title came from setHeadMetadata) so the
+		// global header — breadcrumb + Content/State/Source/Actions tabs —
+		// renders against this realm instead of inheriting zero values and
+		// pointing the tabs at empty URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
 		indexData.BodyView = view
+		unpublishErrorShell(&indexData.HeadData, status)
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render state page", "error", err)
@@ -332,12 +343,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	var status int
 	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
 
-	// The head is built before the body is rendered, so it does not yet know
-	// whether the page exists. A canonical on an error shell tells a crawler
-	// the URL is real, which is how a mistyped path becomes an indexed page.
-	if status != http.StatusOK {
-		indexData.HeadData.NoIndex = true
-	}
+	unpublishErrorShell(&indexData.HeadData, status)
 
 	// Action forms ($help&func=) are one near-identical page per realm call.
 	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("func") {
@@ -1140,16 +1146,31 @@ const ogImageAsset = "imgs/og-gnoland.png"
 // setHeadMetadata fills the <head> slots that the URL alone answers. The
 // summary is left to whatever renders the body, since only the rendered
 // document carries one.
-func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL, operatorPage bool) {
+func (h *HTTPHandler) setHeadMetadata(indexData *components.IndexData, gnourl *weburl.GnoURL, shareImage bool) {
 	canonical := h.canonicalURL(gnourl)
 	indexData.HeadData.Title = h.pageTitle(gnourl)
 	indexData.HeadData.Canonical = canonical
 	indexData.HeadData.URL = canonical
 	// A crawler fetches og:image as given, with no page to resolve it
 	// against, so it needs the same declared origin as the canonical.
-	if h.Static.CanonicalOrigin != "" && operatorPage {
+	if h.Static.CanonicalOrigin != "" && shareImage {
 		indexData.HeadData.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, ogImageAsset)
 	}
+}
+
+// unpublishErrorShell drops what an error shell must not publish. The head is
+// built before the body is rendered, so it does not yet know whether the page
+// exists. A canonical on an error shell tells a crawler the URL is real, which
+// is how a mistyped path becomes an indexed page. Call it before every
+// WriteHeader that renders IndexLayout.
+func unpublishErrorShell(head *components.HeadData, status int) {
+	if status == http.StatusOK {
+		return
+	}
+	head.Canonical = ""
+	head.URL = ""
+	head.Image = ""
+	head.NoIndex = true
 }
 
 // setHeaderForRealm seeds IndexData.HeaderData from the parsed realm URL.

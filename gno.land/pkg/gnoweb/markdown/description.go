@@ -1,10 +1,14 @@
 package markdown
 
 import (
+	"bufio"
+	"bytes"
+	stdhtml "html"
 	"strings"
 	"unicode"
 
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/renderer/html"
 )
 
 const (
@@ -58,11 +62,29 @@ func visibleText(src []byte, n ast.Node) string {
 				walk(c)
 				continue
 			}
-			b.Write(nodeText(src, c))
+			text := nodeText(src, c)
+			// goldmark resolves escapes and entities in text when it writes
+			// HTML, but writes a code span as typed; the summary follows.
+			if c.Kind() == ast.KindText && n.Kind() != ast.KindCodeSpan {
+				text = resolveText(text)
+			}
+			b.Write(text)
 		}
 	}
 	walk(n)
 	return b.String()
+}
+
+// resolveText resolves backslash escapes and entity references the way goldmark
+// does when it writes a text node, in one pass, so an escaped entity (`\&amp;`)
+// stays literal as it does on the page. The writer emits HTML; unescaping it
+// gives the plain text the template escapes again into the attribute.
+func resolveText(text []byte) []byte {
+	var buf bytes.Buffer
+	w := bufio.NewWriter(&buf)
+	html.DefaultWriter.Write(w, text)
+	_ = w.Flush()
+	return []byte(stdhtml.UnescapeString(buf.String()))
 }
 
 // TruncateDescription caps a summary at the same length as one lifted from a

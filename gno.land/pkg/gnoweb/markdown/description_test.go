@@ -41,6 +41,18 @@ func TestDescription(t *testing.T) {
 		{"a document with no paragraph has no summary", "# Only\n\n## Headings\n", ""},
 		{"empty", "", ""},
 		{
+			// The summary reads as the page does: entities and escapes
+			// resolved, a code span as typed.
+			name: "entities and escapes are resolved, code spans are not",
+			src:  "Tom &amp; Jerry cost 5 &euro; each, \\*not\\* 10, unlike `a &amp; b`.\n",
+			want: "Tom & Jerry cost 5 € each, *not* 10, unlike a &amp; b.",
+		},
+		{
+			name: "an escaped entity stays literal, as on the page",
+			src:  "An escaped \\&amp; stays as typed on the page, and in the summary too.\n",
+			want: "An escaped &amp; stays as typed on the page, and in the summary too.",
+		},
+		{
 			// An alt shows only when the image fails, so lifting it would
 			// publish a summary the reader never sees.
 			name: "an image alt is not a summary",

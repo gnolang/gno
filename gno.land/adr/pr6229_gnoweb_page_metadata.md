@@ -33,8 +33,8 @@ from a `weburl.GnoURL`. Two helpers back it:
 - `pageTitle` encodes path, arguments, view marker and query, then appends
   the domain: `/r/gnoland/blog:p/hello-worlds - gno.land`. The page comes
   first because a browser tab and a search result both truncate the tail.
-- `canonicalURL` prefixes `https://` and the configured `Static.Domain` to
-  `GnoURL.EncodeWebURL`, the encoder gnoweb's own links use.
+- `canonicalURL` prefixes `Static.CanonicalOrigin`, set by `-canonical-origin`,
+  to `GnoURL.EncodeWebURL`, the encoder gnoweb's own links use.
 
 `setHeadMetadata` runs once in `Get`, against the URL the client asked for
 rather than the alias target, so `/about` names `/about` and not
@@ -64,7 +64,16 @@ half of #3910 that curation has to answer, not metadata.
 A canonical URL needs a public origin, and a deployment that names the wrong
 one tells a crawler its content belongs elsewhere. `-canonical-origin` is empty
 by default: no origin declared, no canonical tag, because every deployment but
-one would otherwise be claiming gno.land's.
+one would otherwise be claiming gno.land's. A value that is not a bare
+`scheme://host[:port]` stops gnoweb at startup: `gno.land` alone would render a
+relative href, and every page would name a 404 as its canonical.
+
+The query is part of a realm page's identity: it reaches `Render`, so two
+queries can render two pages, and the title and canonical keep it. A static
+page renders the same bytes whatever the query says, so its head drops the
+query and `/about?utm_source=x` names `/about`. The share image goes only to an
+operator URL with no query left, since query text on a realm alias is text the
+operator never vetted.
 
 An error shell drops its canonical, its share image and its indexability. The
 head is assembled before the body knows the page is missing, so a mistyped path
@@ -74,7 +83,7 @@ would otherwise publish itself as a real URL.
 
 **Build the canonical from the request host.** `requestOrigin` already reads
 `X-Forwarded-Host`, which any caller can set. A canonical link built from it
-points crawlers at whatever host the caller named, so the configured domain
+points crawlers at whatever host the caller named, so the configured origin
 is the input instead. The cost is that a chain reachable under a second
 hostname advertises only the configured one.
 
@@ -90,16 +99,17 @@ page and gets its own canonical.
 
 Every page under one realm now has a distinct title and a canonical URL.
 
-Pages with prose now carry a description and a share image. Directory
-listings, `$source`, `$help` and profile pages do not: they have no paragraph
-to summarise, and an invented one is worse than none.
+Pages with prose now carry a description, and pages an operator published also
+carry the share image. Directory listings, `$source`, `$help` and profile pages
+carry no description: they have no paragraph to summarise, and an invented one
+is worse than none.
 
 Operators must set `-canonical-origin` to get a canonical tag, and gno.land's
 own deployment is one of them. Until it does, the tag is absent, which is the
 safe direction.
 
-A deployment served over plain HTTP advertises an `https://` canonical.
-Adding a scheme to `AppConfig` would close it and is not done here.
+`-canonical-origin` includes the scheme, so a deployment served over plain
+HTTP declares `http://` there and gets an `http://` canonical.
 
 `robots.txt` and `sitemap.xml` remain absent. Both answer 400 on gno.land
 today, since neither is a valid gno path. Their content is a policy question

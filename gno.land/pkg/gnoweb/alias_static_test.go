@@ -53,6 +53,47 @@ func TestNewStaticAlias(t *testing.T) {
 			body:        "Body.\n",
 		},
 		{
+			// A page may open on a rule and draw another further down; the
+			// prose between them is content, not a header to strip.
+			name:    "prose between two thematic breaks is not front matter",
+			content: "---\n\nIntro paragraph.\n\n---\n\nMore.\n",
+			body:    "---\n\nIntro paragraph.\n\n---\n\nMore.\n",
+		},
+		{
+			name:    "comments and continuation lines stay front matter",
+			content: "---\n# shipped with the node\ntitle: About\nnotes: >\n  folded text\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			// Only a lowercase key makes a line YAML; prose, a URL, a heading
+			// or indented code between two rules stays on the page.
+			name:    "colon prose between two thematic breaks is not front matter",
+			content: "---\n\nNote: read this.\n\n---\n\nMore.\n",
+			body:    "---\n\nNote: read this.\n\n---\n\nMore.\n",
+		},
+		{
+			name:    "a URL between two thematic breaks is not front matter",
+			content: "---\n\nSee https://gno.land for more.\n\n---\n\nMore.\n",
+			body:    "---\n\nSee https://gno.land for more.\n\n---\n\nMore.\n",
+		},
+		{
+			name:    "a heading between two thematic breaks is not front matter",
+			content: "---\n\n## Section\n\n    indented code\n\n---\n\nMore.\n",
+			body:    "---\n\n## Section\n\n    indented code\n\n---\n\nMore.\n",
+		},
+		{
+			name:    "a top-level list stays front matter",
+			content: "---\ntitle: About\ntags:\n- gno\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a title is not taken from a block that is not front matter",
+			content: "---\ntitle: About\nIntro.\n---\nBody.\n",
+			body:    "---\ntitle: About\nIntro.\n---\nBody.\n",
+		},
+		{
 			name:    "a thematic break is not front matter",
 			content: "---\n\nBody.\n",
 			body:    "---\n\nBody.\n",
