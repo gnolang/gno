@@ -84,6 +84,10 @@ type NodeConfig struct {
 
 	// ChainDomain specifies the domain name associated with the blockchain network.
 	ChainDomain string
+
+	// ValidatorKey is the key the node signs blocks with, registered as the sole
+	// genesis validator. If nil, a random key is generated on every node (re)build.
+	ValidatorKey crypto.PrivKey
 }
 
 func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
@@ -629,7 +633,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	}
 
 	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainDomain, genesis)
+	nodeConfig := newNodeConfig(n.config, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
 	nodeConfig.CacheStdlibLoad = true
@@ -719,10 +723,13 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
-	// Create Mocked Identity
+func newNodeConfig(cfg *NodeConfig, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+	// Create Mocked Identity, from the provided key if any
 	pv := bft.NewMockPV()
-	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)
+	if cfg.ValidatorKey != nil {
+		pv = bft.NewMockPVWithPrivKey(cfg.ValidatorKey)
+	}
+	genesis := gnoland.NewDefaultGenesisConfig(cfg.ChainID, cfg.ChainDomain)
 	genesis.AppState = appstate
 
 	// Add self as validator
@@ -736,11 +743,10 @@ func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnol
 		},
 	}
 
-	cfg := &gnoland.InMemoryNodeConfig{
+	return &gnoland.InMemoryNodeConfig{
 		PrivValidator: pv,
-		TMConfig:      tmc,
+		TMConfig:      cfg.TMConfig,
 		Genesis:       genesis,
 		VMOutput:      os.Stdout,
 	}
-	return cfg
 }
