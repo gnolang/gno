@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -274,18 +273,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// computation, so it should not consume the tx's (tightened) gas budget
 		// or inflate its reported GasUsed. gasUsed for the fee is read from the
 		// REAL tx meter before the swap.
-		//
-		// CAVEAT: this covers only the bank/params side. The gno transaction
-		// store was built in BeginTxHook and captured the ORIGINAL meter (see
-		// VMKeeper.MakeGnoTransactionStore), so the realm reads/writes that
-		// ProcessStorageDepositFromDiffs performs still charge the tx meter —
-		// proportional to the number of realms in AccumulatedDiffs. A sponsor
-		// sizing maxFee purely from an RPC gas estimate (Simulate does not run
-		// settlement) can therefore come up short and OOG inside settlement.
-		// That tx is deterministically doomed, so admission now rejects it
-		// rather than letting it burn block gas, but the estimate is still
-		// optimistic. Making settlement's store metering match this comment is
-		// a consensus-affecting change and is deliberately not done here.
 		gasUsed := ctx.GasMeter().GasConsumed()
 		settleCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())
 
@@ -329,55 +316,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 				}
 			}
 		}
-
-		// Storage deposit settlement (SponsorStorage txs).
-		if ctx.SponsorStorage() {
-			// SponsorStorage defers all messages' storage diffs to end-of-tx,
-			// expecting a realm to cover them via PayStorage. Diffs were
-			// accumulated per-message in accumulateStorageDiffs.
-			psi := ctx.PayStorageInfo()
-			if psi != nil && len(psi.AccumulatedDiffs) > 0 {
-				gnostore := vmk.GetGnoTransactionStoreReadOnly(settleCtx)
-				params := vmk.GetParams(settleCtx)
-				grewStorage := false
-				for _, d := range psi.AccumulatedDiffs {
-					if d > 0 {
-						grewStorage = true
-						break
-					}
-				}
-				switch {
-				case psi.MaxDeposit > 0:
-					// A realm sponsored: it PAYS for storage growth up to its
-					// committed budget. It is only the payer — refunds for freed
-					// storage go to the tx caller, which the callee resolves
-					// itself (see ProcessStorageDepositFromDiffs).
-					// Fold out anything already debited on the per-message path,
-					// so the realm's committed budget is a per-TRANSACTION cap
-					// rather than one that re-arms at end-of-tx. Belt and braces
-					// now that every message path defers under SponsorStorage,
-					// but the cap must not depend on that staying true.
-					outstanding := psi.MaxDeposit - psi.SpentDeposit
-					if err := vmk.ProcessStorageDepositFromDiffs(settleCtx, psi.RealmAddr, psi.AccumulatedDiffs, outstanding, gnostore, params); err != nil {
-						return std.ErrInternal(fmt.Sprintf("storage deposit settlement failed: %v", err))
-					}
-				case grewStorage:
-					// Storage grew but no realm called PayStorage: there is no
-					// authorized payer or budget (the signer's per-message
-					// MaxDeposit was never applied), so fail with a TYPED error
-					// (surfaced cleanly at DeliverTx) rather than a panic that the
-					// baseapp recover turns into an opaque ErrInternal.
-					return std.ErrUnauthorized("SponsorStorage tx grew storage but no realm called PayStorage")
-				default:
-					// Only refunds (freed storage), which need no payer or
-					// authorization — return the freed deposit to the tx caller.
-					if err := vmk.ProcessStorageDepositFromDiffs(settleCtx, ctx.TxCaller(), psi.AccumulatedDiffs, math.MaxInt64, gnostore, params); err != nil {
-						return std.ErrInternal(fmt.Sprintf("storage deposit settlement failed: %v", err))
-					}
-				}
-			}
-		}
-		// Per-message storage (SponsorStorage=false) was already settled in handlers.
 
 		return nil
 	})

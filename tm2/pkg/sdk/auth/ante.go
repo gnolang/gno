@@ -115,26 +115,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return ctx, res, true
 		}
 
-		// Fee.SponsorStorage only applies to sponsored (0-fee) txs, where a realm
-		// covers deferred storage via PayStorage. Reject it on a normal fee-paying
-		// tx so the mistake surfaces at submission (CheckTx) rather than failing
-		// opaquely at inclusion (the deferred path would skip the signer's
-		// per-message deposit and then abort at end-of-tx).
-		if tx.Fee.SponsorStorage && !isZeroFeeTx && notGenesis {
-			res = abciResult(std.ErrUnauthorized("SponsorStorage requires a 0-fee sponsored transaction"))
-			return ctx, res, true
-		}
-
-		// SponsorStorage defers all messages' storage diffs to end-of-tx, where
-		// the per-message caller identity is lost: the deferred settlement can
-		// attribute a freed-storage refund only to a single tx caller (the first
-		// signer). Restrict it to single-signer txs so that caller is unambiguous,
-		// avoiding routing one signer's refund to a co-signer.
-		if tx.Fee.SponsorStorage && len(tx.GetSigners()) > 1 && notGenesis {
-			res = abciResult(std.ErrUnauthorized("SponsorStorage is not supported for multi-signer transactions"))
-			return ctx, res, true
-		}
-
 		// Ensure that the gas wanted is not greater than the max allowed.
 		// For 0-fee txs, gas limit is set by the credit window, not GasWanted.
 		if !isZeroFeeTx {
@@ -236,9 +216,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		stdSigs := tx.GetSignatures()
 		isGenesis := ctx.BlockHeight() == 0
 		sessionAccounts := map[crypto.Address]std.DelegatedAccount{}
-
-		// Store tx caller and sponsor flag for end-of-tx settlement.
-		newCtx = newCtx.WithTxCaller(signerAddrs[0]).WithSponsorStorage(tx.Fee.SponsorStorage)
 
 		// ——— Phase 1: Resolve all signers ———
 

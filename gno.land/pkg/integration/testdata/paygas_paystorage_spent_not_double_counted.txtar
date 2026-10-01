@@ -1,5 +1,5 @@
 # A realm that calls PayStorage in one message and PayGas in a LATER message of
-# the same tx, with SponsorStorage=false (the per-message settlement path).
+# the same tx (storage settles per message).
 #
 # On that path the first message's storage deposit is debited IMMEDIATELY and
 # recorded in PayStorageInfo.SpentDeposit. When PayGas then runs, its
@@ -56,8 +56,8 @@ import "chain/runtime"
 
 var data []string
 
-// Message 0: commits to storage and grows it. With SponsorStorage=false this is
-// settled at the end of THIS message, debiting the realm right away.
+// Message 0: commits to storage and grows it. This is settled at the end of
+// THIS message, debiting the realm right away.
 func Store(cur realm) string {
 	runtime.PayStorage(5000000)
 	data = append(data, "grow the realm's storage")

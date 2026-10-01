@@ -39,8 +39,8 @@ stdout OK!
 gnokey query bank/balances/g1tur0eldetcmmyanlnpyf5mhv3c788dkq0wa7va
 ! stdout '10000000ugnot'
 
-## check user1 balance — may pay storage for Msg[0] (counter.Increment) since SponsorStorage not set.
-## To make user pay truly 0 for multi-msg, use SponsorStorage=true on the tx.
+## check user1 balance — may pay storage for Msg[0] (counter.Increment): PayStorage
+## only covers storage settled after it is called, so a sponsor's call should come first.
 gnokey query bank/balances/$user1_user_addr
 
 -- counter/gnomod.toml --

@@ -144,9 +144,8 @@ func (tx Tx) GetSignBytesLegacy(chainID string, accountNumber uint64, sequence u
 // gas to be used by the transaction. The ratio yields an effective "gasprice",
 // which must be above some miminum to be accepted into the mempool.
 type Fee struct {
-	GasWanted      int64 `json:"gas_wanted" yaml:"gas_wanted"`
-	GasFee         Coin  `json:"gas_fee" yaml:"gas_fee"`
-	SponsorStorage bool  `json:"sponsor_storage,omitempty" yaml:"sponsor_storage"` // true = defer storage deposits to end-of-tx for PayStorage
+	GasWanted int64 `json:"gas_wanted" yaml:"gas_wanted"`
+	GasFee    Coin  `json:"gas_fee" yaml:"gas_fee"`
 }
 
 // NewFee returns a new instance of Fee

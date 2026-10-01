@@ -30,11 +30,10 @@ type PayGasInfo struct {
 }
 
 type PayStorageInfo struct {
-	RealmPkgPath     string           // pkg path of the realm that called PayStorage
-	RealmAddr        crypto.Address   // derived address of the realm
-	MaxDeposit       int64            // storage deposit cap in ugnot (0 = PayStorage not called)
-	SpentDeposit     int64            // deposit already charged across prior messages (per-tx running total)
-	AccumulatedDiffs map[string]int64 // tx-level storage diff accumulator (when SponsorStorage=true)
+	RealmPkgPath string         // pkg path of the realm that called PayStorage
+	RealmAddr    crypto.Address // derived address of the realm
+	MaxDeposit   int64          // storage deposit cap in ugnot (0 = PayStorage not called)
+	SpentDeposit int64          // deposit already charged across prior messages (per-tx running total)
 	// SponsorFunded records, per realm path, how much of that realm's locked
 	// deposit THIS transaction's sponsor paid. It exists because the
 	// per-message path settles each message against its own diffs and so

@@ -7,7 +7,6 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -36,8 +35,6 @@ type Context struct {
 	eventLogger    *EventLogger
 	payGasInfo     *PayGasInfo     // shared pointer for PayGas sponsorship
 	payStorageInfo *PayStorageInfo // shared pointer for PayStorage sponsorship
-	txCaller       crypto.Address  // first signer, used for storage deposit fallback
-	sponsorStorage bool            // true when tx.Fee.SponsorStorage is set
 }
 
 // Proposed rename, not done to avoid API breakage
@@ -66,8 +63,6 @@ func (c Context) MinGasPrices() []GasPrice        { return c.minGasPrices }
 func (c Context) EventLogger() *EventLogger       { return c.eventLogger }
 func (c Context) PayGasInfo() *PayGasInfo         { return c.payGasInfo }
 func (c Context) PayStorageInfo() *PayStorageInfo { return c.payStorageInfo }
-func (c Context) TxCaller() crypto.Address        { return c.txCaller }
-func (c Context) SponsorStorage() bool            { return c.sponsorStorage }
 
 // clone the header before returning
 func (c Context) BlockHeader() abci.Header {
@@ -169,16 +164,6 @@ func (c Context) WithPayGasInfo(pgi *PayGasInfo) Context {
 
 func (c Context) WithPayStorageInfo(psi *PayStorageInfo) Context {
 	c.payStorageInfo = psi
-	return c
-}
-
-func (c Context) WithTxCaller(addr crypto.Address) Context {
-	c.txCaller = addr
-	return c
-}
-
-func (c Context) WithSponsorStorage(sponsor bool) Context {
-	c.sponsorStorage = sponsor
 	return c
 }
 

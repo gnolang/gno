@@ -1029,13 +1029,9 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 		app.consensusParams.Block.MaxGasCreditPerTx > 0
 
 	// Share PayGasInfo and PayStorageInfo pointers across all messages in this tx.
-	psi := &PayStorageInfo{Eligible: zeroFeeCreditTx}
-	if runMsgCtx.SponsorStorage() {
-		psi.AccumulatedDiffs = make(map[string]int64)
-	}
 	runMsgCtx = runMsgCtx.
 		WithPayGasInfo(&PayGasInfo{Eligible: zeroFeeCreditTx}).
-		WithPayStorageInfo(psi)
+		WithPayStorageInfo(&PayStorageInfo{Eligible: zeroFeeCreditTx})
 
 	// Own the per-tx event logger here rather than inside runMsgs, so that
 	// end-of-tx settlement emits into the SAME logger and its events can be

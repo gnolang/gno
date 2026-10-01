@@ -5,8 +5,7 @@
 # bytes were locked by an EARLIER transaction. On the per-message path it was
 # also applied when THIS tx's sponsor had just funded them one message ago:
 # msg[1] grew storage and charged the realm, msg[2] freed it and paid the
-# signer. Zero-fee, repeatable, drain rate one maxDeposit per tx. The deferred
-# (SponsorStorage) path was never exposed because it nets diffs per realm.
+# signer. Zero-fee, repeatable, drain rate one maxDeposit per tx.
 #
 # Settlement now unwinds this tx's own sponsored lock first and only pays the
 # caller what is left over.
@@ -28,7 +27,7 @@ stdout OK!
 gnokey query bank/balances/$user1_user_addr
 cp stdout user1_balance_before
 
-## 0-fee tx, NO sponsor_storage flag, so storage settles per message:
+## 0-fee tx; storage settles per message:
 ##   msg[0] Pay   -> PayGas + PayStorage
 ##   msg[1] Grow  -> realm is charged the deposit
 ##   msg[2] Free  -> releases what msg[1] just locked

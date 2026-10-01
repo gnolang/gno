@@ -136,14 +136,14 @@ func Sponsor(cur realm, payer string) string {
 `
 
 // grc20Realm is the REAL use case: an actual GRC20 token from
-// p/demo/tokens/grc20. The user has approved the paymaster; the paymaster does
+// p/nt/grc20/v0. The user has approved the paymaster; the paymaster does
 // a TransferFrom to collect payment, then sponsors the gas. This is the
 // approve/transferFrom paymaster pattern, not an approximation of it.
 const grc20Realm = `package paymaster
 
 import (
 	"chain/runtime"
-	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/seqid/v0"
 )
 
@@ -184,7 +184,7 @@ const grc20ApproveInTxRealm = `package paymaster
 
 import (
 	"chain/runtime"
-	"gno.land/p/demo/tokens/grc20"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/seqid/v0"
 )
 
@@ -265,11 +265,10 @@ func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
 				)
 			}
 			if tc.withGRC {
-				demo := filepath.Join(gnoenv.RootDir(), "examples", "gno.land", "p", "demo")
 				st.Txs = append(st.Txs,
 					TxWithMetadata{Tx: deployExampleTx(t, deployer, filepath.Join(ex, "cford32", "v0"), "gno.land/p/nt/cford32/v0")},
 					TxWithMetadata{Tx: deployExampleTx(t, deployer, filepath.Join(ex, "seqid", "v0"), "gno.land/p/nt/seqid/v0")},
-					TxWithMetadata{Tx: deployExampleTx(t, deployer, filepath.Join(demo, "tokens", "grc20"), "gno.land/p/demo/tokens/grc20")},
+					TxWithMetadata{Tx: deployExampleTx(t, deployer, filepath.Join(ex, "grc20", "v0"), "gno.land/p/nt/grc20/v0")},
 				)
 			}
 			st.Txs = append(st.Txs,
