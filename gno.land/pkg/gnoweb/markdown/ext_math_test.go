@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,4 +34,21 @@ func TestMathEscapesUserContent(t *testing.T) {
 			assert.NotContains(t, out, `" onmouseover=`)
 		})
 	}
+}
+
+// Run with -race: the renderer used to share one converter across renders.
+func TestMathConcurrentRender(t *testing.T) {
+	gm := goldmark.New(goldmark.WithExtensions(NewGnoExtension()))
+	in := [][]byte{[]byte(`$E=mc^2$`), []byte(`$$\int_0^1 x^2 dx$$`)}
+	var wg sync.WaitGroup
+	for i := range 50 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var b bytes.Buffer
+			assert.NoError(t, gm.Convert(in[i%2], &b))
+			assert.Contains(t, b.String(), "<math")
+		}()
+	}
+	wg.Wait()
 }

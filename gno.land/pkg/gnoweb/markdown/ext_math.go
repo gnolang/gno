@@ -254,15 +254,11 @@ func (p *texInlineRegionParser) CanInterruptParagraph() bool { return true }
 
 func (p *texInlineRegionParser) CanAcceptIndentedLine() bool { return true }
 
-type MathRenderer struct {
-	converter *mathml.MathMLConverter
-}
+type MathRenderer struct{}
 
 // NewMathRenderer returns a new MathRenderer.
 func NewMathRenderer() renderer.NodeRenderer {
-	return &MathRenderer{
-		converter: mathml.NewMathMLConverter(),
-	}
+	return &MathRenderer{}
 }
 
 // RegisterFuncs registers the renderer with the Goldmark renderer.
@@ -272,6 +268,9 @@ func (r *MathRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 }
 
 func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
+		return ast.WalkSkipChildren, nil
+	}
 	var tex string
 	var flavor int
 	switch t := node.(type) {
@@ -284,30 +283,35 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	default:
 		return ast.WalkContinue, nil
 	}
-	if entering {
+	inline := flavor&flavor_inline > 0
+
+	{
+		// The converter keeps per-expression state, so it must not be shared
+		// across concurrent renders.
+		converter := mathml.NewMathMLConverter()
 		var mml string
 		var err error
-		if flavor&flavor_inline > 0 {
-			mml, err = r.converter.ConvertInline(tex)
+		if inline {
+			mml, err = converter.ConvertInline(tex)
 		} else {
-			mml, err = r.converter.ConvertDisplay(tex)
+			mml, err = converter.ConvertDisplay(tex)
 		}
-		if err != nil {
-			// Fallback to the escaped raw LaTeX if conversion fails
-			if flavor&flavor_inline > 0 {
-				w.WriteString(`<span class="math-inline">`)
-				w.WriteString(html.EscapeString(tex))
-				w.WriteString(`</span>`)
-			} else {
-				w.WriteString(`<div class="math-display">`)
-				w.WriteString(html.EscapeString(tex))
-				w.WriteString(`</div>`)
-			}
-		} else {
+		if err == nil {
 			w.WriteString(mml)
+			return ast.WalkSkipChildren, nil
 		}
 	}
 
+	// Fallback to the escaped raw LaTeX if conversion fails.
+	if inline {
+		w.WriteString(`<span class="math-inline">`)
+		w.WriteString(html.EscapeString(tex))
+		w.WriteString(`</span>`)
+	} else {
+		w.WriteString(`<div class="math-display">`)
+		w.WriteString(html.EscapeString(tex))
+		w.WriteString(`</div>`)
+	}
 	return ast.WalkSkipChildren, nil
 }
 
