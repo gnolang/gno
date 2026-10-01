@@ -32,7 +32,10 @@ func NewStaticAlias(content string) AliasTarget {
 	for line := range strings.SplitSeq(head, "\n") {
 		key, value, found := strings.Cut(line, ":")
 		if !found {
-			if strings.TrimSpace(line) == "" {
+			// Blank lines, YAML comments and indented continuations are
+			// front matter too; anything else is prose.
+			if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") ||
+				strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
 				continue
 			}
 			// Prose between two thematic breaks, not front matter.

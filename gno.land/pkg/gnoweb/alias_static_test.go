@@ -60,6 +60,12 @@ func TestNewStaticAlias(t *testing.T) {
 			body:    "---\n\nIntro paragraph.\n\n---\n\nMore.\n",
 		},
 		{
+			name:    "comments and continuation lines stay front matter",
+			content: "---\n# shipped with the node\ntitle: About\nnotes: >\n  folded text\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
 			name:    "a thematic break is not front matter",
 			content: "---\n\nBody.\n",
 			body:    "---\n\nBody.\n",
