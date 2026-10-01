@@ -50,7 +50,6 @@ type webCfg struct {
 	bind             string
 	faucetURL        string
 	indexerURL       string
-	indexerToken     string
 	trustedProxies   string
 	aliases          string
 	noDefaultAliases bool
@@ -96,8 +95,9 @@ func main() {
 			LongHelp: `gnoweb web interface
 
 Environment variables:
-  GNOWEB_BANNER_TEXT  Banner content (supports inline markdown). Max 400 chars.
-  GNOWEB_BANNER_URL   Optional link for the banner (requires GNOWEB_BANNER_TEXT).`,
+  GNOWEB_BANNER_TEXT    Banner content (supports inline markdown). Max 400 chars.
+  GNOWEB_BANNER_URL     Optional link for the banner (requires GNOWEB_BANNER_TEXT).
+  GNOWEB_INDEXER_TOKEN  Optional bearer token sent to -indexer-url. Only needed for an endpoint behind authentication.`,
 		},
 		&cfg,
 		func(ctx context.Context, args []string) error {
@@ -139,13 +139,6 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"indexer-url",
 		defaultWebOptions.indexerURL,
 		"tx-indexer GraphQL endpoint enabling indexer-backed search qualifiers (transactions, account activity, source search). Empty (the default) keeps gnoweb talking only to its RPC node; indexer results are never consensus data.",
-	)
-
-	fs.StringVar(
-		&c.indexerToken,
-		"indexer-token",
-		defaultWebOptions.indexerToken,
-		"bearer token sent to the indexer. Only needed for an endpoint behind authentication; most are public.",
 	)
 
 	fs.StringVar(
@@ -276,7 +269,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
 	appcfg.IndexerURL = cfg.indexerURL
-	appcfg.IndexerToken = cfg.indexerToken
+	// Read from the environment only, so the credential never shows up in
+	// the process arguments (ps, /proc/<pid>/cmdline, container specs).
+	appcfg.IndexerToken = os.Getenv("GNOWEB_INDEXER_TOKEN")
 	if cfg.trustedProxies != "" {
 		appcfg.StateRateLimitTrustedProxies = splitAndTrim(cfg.trustedProxies)
 	}
