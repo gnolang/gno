@@ -255,7 +255,7 @@ page and `Render` flips from "Count: 0" to "Count: 1"; re-run to keep
 incrementing.
 
 For more options, see
-[Running a local dev node](../resources/gnodev-reference.md).
+[Running a local dev node](../resources/gnodev.md).
 
 ## Deploy to a shared network
 

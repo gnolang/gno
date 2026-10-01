@@ -50,7 +50,8 @@ Learn about core concepts found in Gno.land & Gno.
 - [Storage Deposit](resources/storage-deposit.md) - Learn how storage deposits work, including costs, refunds, and cleanup incentives in Gno.land.
 - [Standard libraries](resources/gno-stdlibs.md) - An overview of the standard libraries found in the Gno language and how they enhance blockchain functionality.
 - [Configuring Gno Projects](resources/configuring-gno-projects.md) - Using gnomod.toml & gnowork.toml to configure your Gno packages.
-- [Local development with `gnodev`](resources/gnodev-reference.md) - Reference for the local node, its features and flags, and the hot-reload development loop.
+- [`gnokey` command reference](resources/gnokey-reference.md) - Every `gnokey` command, transaction message, and query, with flags and examples.
+- [Local development with `gnodev`](resources/gnodev.md) - Reference for the local node, its features and flags, and the hot-reload development loop.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Working with Realms](resources/realms.md) - Working with realms and environment variables.
 - [Interrealm Specification](resources/gno-interrealm.md) - How inter-realm communication works, and how the design got here.

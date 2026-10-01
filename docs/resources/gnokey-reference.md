@@ -1,14 +1,15 @@
 # `gnokey` command reference
 
-`gnokey` is the official command-line client for Gno.land. This reference covers
-every `gnokey` command: key management, deploying packages, calling and
-scripting realms, signing transactions, multisig, and reading chain state.
+`gnokey` is the official command-line client for Gno.land. This reference lists
+every `gnokey` command and covers deploying packages, calling and scripting
+realms, and reading chain state. Offline signing, multisig, session accounts,
+and key export live in the [`gnokey` README](../../gno.land/cmd/gnokey/README.md).
 
 `gnokey` is a production tool and stays deliberately minimal: signing keys and
 talking to a live network, nothing more. Developer conveniences, for example a
 transaction template system or realm scaffolding, would belong in a development
 tool that could come in the future, the same way
-[`gnodev`](./gnodev-reference.md) exists so you can develop locally without
+[`gnodev`](./gnodev.md) exists so you can develop locally without
 driving a full node through the `gnoland` toolchain.
 
 For everyday wallet use, see
@@ -21,22 +22,24 @@ follow [Getting started](../builders/getting-started.md). If you don't have
 | Command | What it does |
 |---------|-------------|
 | [`add`](../users/using-gnokey.md#managing-key-pairs) | create or import a key pair |
-| [`add bech32`](#multisig-k-of-n) | add a watch-only key from a bech32 public key |
-| [`add multisig`](#multisig-k-of-n) | create a multisig key from member keys |
-| [`add ledger`](../users/using-gnokey.md#managing-key-pairs) | add a key from a Ledger device |
+| [`add bech32`](../../gno.land/cmd/gnokey/README.md#multisig-k-of-n) | add a watch-only key from a bech32 public key |
+| [`add multisig`](../../gno.land/cmd/gnokey/README.md#multisig-k-of-n) | create a multisig key from member keys |
+| `add ledger` | add a key from a Ledger device |
 | [`list`](../users/using-gnokey.md#managing-key-pairs) | list keys in a keybase |
-| [`delete`](../users/using-gnokey.md#managing-key-pairs) | delete a key |
-| [`export`](#exporting-and-importing-keys) | export a private key as encrypted armor |
-| [`import`](#exporting-and-importing-keys) | import an encrypted private key |
-| [`generate`](../users/using-gnokey.md#managing-key-pairs) | generate a BIP39 mnemonic |
-| [`rotate`](../users/using-gnokey.md#managing-key-pairs) | change a key's keybase password |
+| `delete` | delete a key |
+| [`export`](../../gno.land/cmd/gnokey/README.md#exporting-and-importing-keys) | export a private key as encrypted armor |
+| [`import`](../../gno.land/cmd/gnokey/README.md#exporting-and-importing-keys) | import an encrypted private key |
+| `generate` | generate a BIP39 mnemonic |
+| `rotate` | change a key's keybase password |
 | [`maketx`](#making-transactions) | build, sign, and broadcast transactions |
-| [`maketx session`](#session) | create, revoke, or revokeall session accounts |
+| [`maketx enablepkg`](#enablepkg-and-rejectpkg) | activate a package awaiting approval |
+| [`maketx rejectpkg`](#enablepkg-and-rejectpkg) | remove a package awaiting approval |
+| [`maketx session`](../../gno.land/cmd/gnokey/README.md#session) | create, revoke, or revokeall session accounts |
 | [`query`](#querying-a-gnoland-network) | read chain state without spending gas |
-| [`sign`](#airgapped-signing) | sign an unsigned transaction |
-| [`broadcast`](#airgapped-signing) | broadcast a signed transaction |
-| [`verify`](#verifying-a-signature) | verify a transaction signature |
-| [`multisign`](#multisig-k-of-n) | combine multisig signatures |
+| [`sign`](../../gno.land/cmd/gnokey/README.md#airgapped-signing) | sign an unsigned transaction |
+| [`broadcast`](../../gno.land/cmd/gnokey/README.md#airgapped-signing) | broadcast a signed transaction |
+| [`verify`](../../gno.land/cmd/gnokey/README.md#verifying-a-signature) | verify a transaction signature |
+| [`multisign`](../../gno.land/cmd/gnokey/README.md#multisig-k-of-n) | combine multisig signatures |
 | `version` | print the `gnokey` binary version |
 
 ## Making transactions
@@ -60,7 +63,7 @@ command takes the same base-configuration flags:
 - `-chainid` and `-remote` - the network to target; the two must match
 - `-broadcast` - send the transaction to the chain (default `true`; set
   `-broadcast=false` to build the unsigned transaction without sending it, as
-  in [Airgapped signing](#airgapped-signing))
+  in [Airgapped signing](../../gno.land/cmd/gnokey/README.md#airgapped-signing))
 - `-memo` - arbitrary text attached to the transaction (optional)
 - `-simulate` - simulation mode: `test` (default, simulate first, broadcast
   only on success), `skip` (broadcast without simulating), `only` (dry run,
@@ -68,7 +71,7 @@ command takes the same base-configuration flags:
 - `-gas-fee-margin` - percentage added to the estimated gas fee (default `5`;
   only used with `-simulate only`)
 - `-master` - the master account's key name or address, when signing with a
-  session key (optional; see [Session](#session))
+  session key (optional; see [Session](../../gno.land/cmd/gnokey/README.md#session))
 
 `-gas-wanted` and `-gas-fee` together cap what you pay; `gnokey` never fills
 them in for you. Run the transaction with `-simulate only` to get good values,
@@ -308,350 +311,40 @@ func main() {
 }
 ```
 
-## Session
-
-`gnokey maketx session` manages session accounts, a type of subaccount that a
-master key authorizes to sign specific message types on its behalf. Session
-accounts are useful for agents and device-login flows where the master key
-should not sign every transaction.
-
-### `session create`
-
-Creates a session account authorized by a master key. Its flags are:
-
-- `-pubkey` - the session subaccount's public key in bech32 format (`gpub1...`,
-  not a `g1...` address)
-- `-expires-at` - session expiry: a duration (`24h`, `7d`, `4w`; max ~4y), a
-  unix timestamp, or `none` for no expiry (required)
-- `-allow-paths` - per-message restrictions (required, repeatable). Use `*` for
-  unrestricted, or list specific entries like `vm/exec:gno.land/r/foo`,
-  `vm/run`, `bank/send`
-- `-spend-limit` - max spend per period (optional; omitted = no spending)
-- `-spend-period` - seconds; `0` = lifetime cap
-
-```bash
-gnokey maketx session create \
-  -pubkey gpub1... \
-  -expires-at 24h \
-  -allow-paths "vm/exec:gno.land/r/myrealm" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid staging \
-  -remote "https://rpc.staging.gno.land:443" \
-  masterkey
-```
-
-The master key signs the creation message. `-master` cannot be used with
-`session create`; the master key must sign directly.
-
-### `session revoke`
-
-Revokes a single session account by its public key:
-
-```bash
-gnokey maketx session revoke \
-  -pubkey gpub1... \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid staging \
-  -remote "https://rpc.staging.gno.land:443" \
-  masterkey
-```
-
-### `session revokeall`
-
-Revokes all session accounts for the master key:
-
-```bash
-gnokey maketx session revokeall \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid staging \
-  -remote "https://rpc.staging.gno.land:443" \
-  masterkey
-```
-
-## Airgapped signing
-
-`gnokey` can split a transaction's creation, signing, and broadcasting across two
-machines. Signing on an
-[airgapped](https://en.wikipedia.org/wiki/Air_gap_(networking)) machine keeps
-your private key away from internet-borne attacks; it never touches the online
-machine. The flow uses one online machine (`A`) and one offline (`B`):
-
-1. `A` (online): fetch account information from the chain
-2. `B` (offline): build the unsigned transaction
-3. `B` (offline): sign it
-4. `A` (online): broadcast it
-
-**1. Fetch account information.** Query [`auth/accounts`](#authaccounts) for the
-signing address and note its `account_number` and `sequence`. Both are folded into
-the signature to prevent replay, so signing needs them:
-
-```bash
-gnokey query auth/accounts/<your_address> -remote "https://rpc.staging.gno.land:443"
-```
-
-**2. Build the unsigned transaction.** Any `maketx` with `-broadcast=false` prints
-the transaction, with a null `signature` field, to standard output instead of
-sending it; redirect the output to a file:
-
-```bash
-gnokey maketx call \
-  -pkgpath "gno.land/r/demo/counter" -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -broadcast=false \
-  mykey > counter.tx
-```
-
-**3. Sign it.** `gnokey sign` fills in the signature, using the account number
-and sequence from step 1. Optional flags:
-
-- `-output-document <file>` - write the signature to a separate file, used for
-  [multisig](#multisig-k-of-n) signing
-- `-session` - mark the named key as a [session](#session) key
-
-```bash
-gnokey sign \
-  -tx-path counter.tx -chainid "staging" \
-  -account-number 468 -account-sequence 0 \
-  mykey
-```
-
-**4. Broadcast it.** Back on the online machine, send the signed file. No key is
-needed here, since the transaction is already signed:
-
-```bash
-gnokey broadcast -remote "https://rpc.staging.gno.land:443" counter.tx
-```
-
-`broadcast` also takes `-dry-run` to simulate the broadcast without committing.
-
-### Verifying a signature
-
-`gnokey verify` checks a transaction's signature without broadcasting it. The
-node runs the same check on broadcast, so `verify` is for the standalone cases:
-
-- confirming a signature file received from a [multisig](#multisig-k-of-n)
-  member before combining
-- proving a transaction file was signed by a given address
-
-Flags:
-
-- `-tx-path` - the transaction file to verify
-- `-sig-path` - a separate signature file, as written by `sign -output-document`
-  (optional; without it, verifies the first signature embedded in the
-  transaction)
-- `-chainid`, `-account-number`, `-account-sequence` - must match the values
-  used at signing. Any left unset are queried from `-remote`; offline, pass all
-  three explicitly.
-
-The key argument is a name or address in the local keybase; a watch-only
-`add bech32` entry is enough.
-
-**Online** (unset flags queried from `-remote`):
-
-```bash
-gnokey verify -tx-path counter.tx -remote https://rpc.staging.gno.land:443 mykey
-```
-
-Querying works only while the transaction is pending: broadcasting bumps the
-sequence, so an already-executed transaction needs the original values passed
-explicitly.
-
-**Offline, or after broadcast** (all values explicit):
-
-```bash
-gnokey verify -tx-path counter.tx \
-  -chainid "staging" -account-number 468 -account-sequence 0 \
-  mykey
-```
-
-With `-sig-path` instead of the embedded signature:
-
-```bash
-gnokey verify -tx-path counter.tx -sig-path counter-sig.json \
-  -remote https://rpc.staging.gno.land:443 mykey
-```
-
-A valid signature prints `Valid signature!` with the signing address, public
-key, and signature; anything else exits with an error.
-
-## Multisig (k-of-n)
-
-A k-of-n multisig spends only when k of its n member keys sign. The example below
-is a 2-of-3 between Alice, Bob, and Charlie.
-
-:::info Same members, same address
-
-A multisig is defined by its **member keys and threshold**. `add multisig` sorts
-members by address before deriving the key, so the same member set and threshold
-give every participant the same address, whatever the `--multisig` flag order.
-With `-nosort`, the supplied order defines the key, and every participant must
-use the same one.
-
-Signatures are matched to members by public key: each must come from a defined
-member, and `multisign` accepts them in any order.
-
-:::
-
-### 1. Each participant builds the multisig key
-
-In their own keybase, every signer needs their own private key, the other members'
-public keys (added as bech32 keys), and agreement on the member set and
-threshold. Alice's keybase looks like this:
-
-```sh
-# Recover Alice's private key
-echo "\n\n$ALICE_MNEMONIC" | gnokey add --recover alice --home ./alice-kb -insecure-password-stdin -quiet
-
-# Add the other members' pubkeys
-gnokey add bech32 --home ./alice-kb -pubkey "$BOB_PUBKEY" multisig-bob
-gnokey add bech32 --home ./alice-kb -pubkey "$CHARLIE_PUBKEY" multisig-charlie
-
-# Create the 2-of-3 multisig
-gnokey add multisig --home ./alice-kb \
-  --multisig alice --multisig multisig-bob --multisig multisig-charlie \
-  -threshold 2 \
-  multisig-abc
-```
-
-Bob and Charlie do the same in their own keybases, each holding their own private
-key where Alice holds a pubkey. All three then derive the same `multisig-abc`
-address.
-
-### 2. Create the transaction and sign it
-
-Any participant builds the unsigned transaction once, from the multisig account,
-and shares the JSON with the signers:
-
-```sh
-gnokey maketx send --home ./alice-kb \
-  -chainid staging -send "100000ugnot" \
-  -gas-fee 100000ugnot -gas-wanted 100000 \
-  -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss \
-  -broadcast=false \
-  multisig-abc > multisig-abc-send.json
-```
-
-Each signer signs with the **multisig** account's `account_number` and `sequence`,
-fetched with [`auth/accounts`](#authaccounts) on the multisig address, not their
-own, and writes a separate signature document:
-
-```sh
-echo "\n\n" | gnokey sign --tx-path multisig-abc-send.json --home ./alice-kb alice \
-  --account-number "$MULTISIG_ACC_NUM" --account-sequence "$MULTISIG_ACC_SEQ" \
-  -insecure-password-stdin -quiet --output-document alice-sig.json
-```
-
-Bob does the same against his keybase for `bob-sig.json`. Two signatures satisfy
-the 2-of-3, so Charlie's is optional.
-
-### 3. Combine signatures and broadcast
-
-`gnokey multisign` merges the signatures, run from any keybase that holds
-`multisig-abc`:
-
-```sh
-gnokey multisign --tx-path multisig-abc-send.json --home ./alice-kb \
-  --signature alice-sig.json --signature bob-sig.json \
-  multisig-abc
-
-gnokey broadcast --home ./alice-kb multisig-abc-send.json
-```
-
-```mermaid
-flowchart TD
-  A[Start] --> B[Create unsigned TX payload with gnokey maketx ..., and distribute it to all members to sign]
-  B --> C[Query the chain for the latest multisig account number and account sequence]
-  C --> D1[Alice signs payload with gnokey sign using multisig account_number and sequence, produces <br/>alice-sig.json]
-  C --> D2[Bob signs payload with gnokey sign using multisig account_number and sequence, produces <br/>bob-sig.json]
-  C --> D3[Charlie optionally signs the payload, produces <br/>charlie-sig.json]
-  D1 --> E[Combine signatures with gnokey multisign.<br/>Each signature is matched to its member by public key]
-  D2 --> E
-  D3 -. optional .-> E
-  E --> F[Broadcast TX<br/>gnokey broadcast]
-  F --> G[Done]
-```
-
-## Exporting and importing keys
-
-`gnokey export` writes a private key as encrypted armor, and `gnokey import`
-reads it back into a keybase. These are the key-transfer commands for airgapped
-workflows and keybase migration.
-
-### `export`
-
-```bash
-gnokey export -key mykey -output-path mykey-armor.txt
-```
-
-Flags:
-
-- `-key` - the key name or bech32 address to export
-- `-output-path` - where to write the encrypted armor file
-
-### `import`
-
-```bash
-gnokey import -name mykey -armor-path mykey-armor.txt
-```
-
-Flags:
-
-- `-name` - the name to store the imported key under
-- `-armor-path` - path to the encrypted armor file
-
-## Building gnokey for an airgapped machine
-
-To run `gnokey` on an airgapped machine, build it on a trusted online machine,
-verify the binary, and carry it across offline.
-
-**Match the target's OS and arch.** Read the target with `uname -s` and
-`uname -m` (`x86_64` → `GOARCH=amd64`, `aarch64`/`arm64` → `GOARCH=arm64`), and
-set `GOOS`/`GOARCH` if your build machine differs.
-
-**Ledger needs CGO.** Ledger support requires `CGO_ENABLED=1`, which is off by
-default in this repo (see [#2737](https://github.com/gnolang/gno/issues/2737)).
-Cross-compiling with CGO is painful, so the simplest reliable path is to build on a
-machine matching the target's OS, arch, and glibc baseline.
-
-Build from a known commit. `make build.gnokey` stamps the version string
-automatically:
-
-```bash
-git clone https://github.com/gnolang/gno.git && cd gno/gno.land
-git checkout <commit>
-make build.gnokey
-./build/gnokey version   # sanity-check
-```
-
-Record what you built, checksum it, and bundle it for transfer:
-
-```bash
-git rev-parse HEAD > build/gnokey.gitrev
-sha256sum build/gnokey > build/gnokey.sha256
-
-tar -czf gnokey-airgap.tgz -C build gnokey gnokey.sha256 gnokey.gitrev
-sha256sum gnokey-airgap.tgz > gnokey-airgap.tgz.sha256
-```
-
-Copy the `.tgz` and its checksum to offline media. On the airgapped machine, verify
-before use:
-
-```bash
-sha256sum -c gnokey-airgap.tgz.sha256
-tar -xzf gnokey-airgap.tgz
-sha256sum -c gnokey.sha256
-./gnokey version
-```
-
-:::warning CGO builds carry dynamic dependencies
-
-A `CGO_ENABLED=1` binary may depend on system libraries (glibc and friends). If it
-won't start on the airgapped box with missing shared libraries, the build
-environment doesn't match the target closely enough: rebuild on the same
-distro/glibc baseline, or install the runtime libraries there through your offline
-package process.
-
-:::
+### `enablepkg` and `rejectpkg`
+
+On a chain whose `code_submission_policy` parameter is `inert`, as mainnet's is,
+`addpkg` parks the package rather than deploying it: the code is stored, but
+nothing type-checks it, runs it, or can import it until an address listed in the
+`pkg_approvers` parameter activates it. List what is waiting with
+[`vm/qinertpaths`](#vmqinertpaths).
+
+`gnokey maketx enablepkg` activates a parked package, and only an approver can
+send it. Its own flags are:
+
+- `-pkgpath` - the parked package's path (required)
+- `-pkgdir` - a local copy of the source you reviewed, hashed so the approval
+  names those exact bytes
+- `-pkg-hash` - the content hash, when it was computed elsewhere; use instead of
+  `-pkgdir`
+- `-pkg-height` - the block the reviewed submission landed in, so any
+  re-submission invalidates the approval (optional)
+
+Hash your own reviewed copy, never one read from the chain: the submitter can
+replace the parked bytes at any time, and a hash taken from the chain approves
+whatever is parked at that moment.
+
+`gnokey maketx rejectpkg -pkgpath <path>` removes a parked package. An approver
+or the address that submitted it can send it, and the submission charge is not
+refunded.
+
+## Operator workflows
+
+Signing on an offline machine, multisig accounts, session accounts, and moving
+keys between keybases are covered in the [`gnokey` README](../../gno.land/cmd/gnokey/README.md):
+[airgapped signing](../../gno.land/cmd/gnokey/README.md#airgapped-signing), [multisig](../../gno.land/cmd/gnokey/README.md#multisig-k-of-n),
+[session accounts](../../gno.land/cmd/gnokey/README.md#session), and
+[export and import](../../gno.land/cmd/gnokey/README.md#exporting-and-importing-keys).
 
 ## Querying a Gno.land network
 
@@ -661,7 +354,7 @@ and `-height` reads the state at a specific block instead of the latest one. The
 available queries:
 
 - `auth/accounts/{ADDRESS}` - account information
-- `auth/accounts/{ADDRESS}/sessions` - the [session](#session) accounts of an address
+- `auth/accounts/{ADDRESS}/sessions` - the [session](../../gno.land/cmd/gnokey/README.md#session) accounts of an address
 - `auth/gasprice` - the current minimum gas price for transactions
 - `bank/balances/{ADDRESS}` - account balances
 - `bank/supply/{DENOM}` - the total supply of a denomination
@@ -673,6 +366,7 @@ available queries:
 - `vm/qeval` - evaluate an expression in read-only mode
 - `vm/qrender` - call a realm's `Render` function and return its output
 - `vm/qpaths` - list existing package paths
+- `vm/qinertpaths` - list package paths parked awaiting approval
 - `vm/qstorage` - a realm's storage usage and locked deposit
 
 For the machine-readable variants (`vm/qeval_json`, `vm/qobject_json`, and
@@ -856,20 +550,20 @@ Returns the documentation of a package path, given with `-data`, as JSON. It cov
 the package itself and its functions, types, and values:
 
 ```bash
-gnokey query vm/qdoc --data "gno.land/r/gnoland/valopers/v2" -remote https://rpc.gno.land:443
+gnokey query vm/qdoc --data "gno.land/r/gnops/valopers" -remote https://rpc.gno.land:443
 ```
 
 ```
 height: 0
 data: {
-  "package_path": "gno.land/r/gnoland/valopers/v2",
-  "package_doc": "Package valopers is designed around the permissionless lifecycle of valoper profiles...\n",
+  "package_path": "gno.land/r/gnops/valopers",
+  "package_doc": "Package valopers is designed around the permissionless lifecycle of valoper profiles.\n",
   "funcs": [
     {
       "name": "GetByAddr",
-      "signature": "func GetByAddr(address address) Valoper",
-      "doc": "GetByAddr fetches the valoper using the address, if present\n",
-      "params": [{ "name": "address", "type": "address", "doc": "" }],
+      "signature": "func GetByAddr(addr address) Valoper",
+      "doc": "GetByAddr fetches the valoper using the operator address, if present.\n",
+      "params": [{ "name": "addr", "type": "address", "doc": "" }],
       "results": [{ "name": "", "type": "Valoper", "doc": "" }]
     }
     // other funcs
@@ -878,7 +572,7 @@ data: {
     {
       "name": "Valoper",
       "type": "struct { ... }",
-      "doc": "Valoper represents a validator operator profile\n"
+      "doc": "Valoper represents a validator operator profile.\n"
     }
   ]
   // values omitted
@@ -963,6 +657,24 @@ it in one piece:
 
 ```bash
 gnokey query "vm/qpaths?limit=3" --data "gno.land/r/gnoland" -remote https://rpc.gno.land:443
+```
+
+### `vm/qinertpaths`
+
+Lists the paths of packages parked awaiting approval (see
+[`enablepkg` and `rejectpkg`](#enablepkg-and-rejectpkg)) that start with the
+prefix given via `-data`. `vm/qpaths` never lists them, since a parked package
+is not live. It takes the same `?limit=<x>` suffix:
+
+```bash
+gnokey query "vm/qinertpaths?limit=3" -remote https://rpc.gno.land:443
+```
+
+```console
+height: 0
+data: gno.land/r/g1n4pl5uc4yt5r96m9w6fmdznx3x0jyg8l6arhmt/bazaar/genesis
+gno.land/r/g1n4pl5uc4yt5r96m9w6fmdznx3x0jyg8l6arhmt/bazaar/gnft
+gno.land/r/g1n4pl5uc4yt5r96m9w6fmdznx3x0jyg8l6arhmt/zdex/v1
 ```
 
 ### `vm/qstorage`
