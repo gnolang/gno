@@ -1,10 +1,6 @@
 package gnoweb
 
-import (
-	"strings"
-
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-)
+import "github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 
 // pageKind says who answers for a page, which decides what its <head> may
 // repeat. gno.land is permissionless, so a title, a summary or a share card
@@ -51,25 +47,14 @@ func (h *HTTPHandler) packageKind(u *weburl.GnoURL) pageKind {
 	}
 }
 
-// mayRepeat reports whether the head of u may repeat texts, what the rendered
+// mayRepeat reports whether the head of u may repeat what the rendered
 // document says about itself. Only an official page may, and only when the
-// link typed nothing the document could have echoed: a query reaches Render
-// on any realm, and a trusted realm that quotes its arguments back, as an
-// error or not-found page does, would otherwise lend them to the head.
-func (k pageKind) mayRepeat(u *weburl.GnoURL, texts ...string) bool {
-	if k != pageOfficial || len(u.Query) > 0 {
-		return false
-	}
-	if u.Args == "" {
-		return true
-	}
-	args := strings.ToLower(u.Args)
-	for _, text := range texts {
-		if strings.Contains(strings.ToLower(text), args) {
-			return false
-		}
-	}
-	return true
+// link typed nothing past the path: arguments and query both reach Render,
+// and a trusted realm may echo them, as p/gnoland/blog does with a tag in its
+// heading. A post's slug and its title share words, so no string match tells
+// an echo from a heading.
+func (k pageKind) mayRepeat(u *weburl.GnoURL) bool {
+	return k == pageOfficial && u.Args == "" && len(u.Query) == 0
 }
 
 // defaultDescription is the summary a page gets when it may not, or does not,

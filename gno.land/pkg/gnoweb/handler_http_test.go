@@ -1806,11 +1806,11 @@ func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
 	assert.Contains(t, body, `href="/r/mock/path$help"`,
 		"Actions tab link must point at the realm — empty href means RealmURL was not threaded")
 
-	// The HTML <title> reflects the page. Empty Title means
-	// HeadData.Title was not set on the state branch. (Test config
-	// leaves Domain unset, so the title is the path alone.)
+	// The state branch settles the head too, so its title falls back to
+	// the path. (Test config leaves Domain unset, so the title is the
+	// path alone.)
 	assert.Contains(t, body, `<title>/r/mock/path</title>`,
-		"page title must reflect realm path — empty title means HeadData.Title was not set on the state branch")
+		"the state branch must set the head metadata like any other page")
 }
 
 // TestHTTPHandler_StateJSONErrorOnBadURL checks that a `$state&json`
@@ -2021,46 +2021,26 @@ func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnowe
 	return handler
 }
 
-// TestHTTPHandler_PageMetadata regresses the head metadata: every page
-// must carry a <title>, a summary, a share image and a canonical URL naming
-// that page, so the slots gnoweb declares stop rendering empty.
+// TestHTTPHandler_PageMetadata checks that the canonical URL and og:url name
+// the page under the configured domain, arguments and view included, so two
+// posts of one realm, or its content and source, keep distinct addresses.
+// What the text slots say is TestHTTPHandler_PageTrust's.
 func TestHTTPHandler_PageMetadata(t *testing.T) {
 	t.Parallel()
 
 	handler := newMetadataHandler(t, "/r/mock/path", nil)
 
-	cases := []struct {
-		name      string
-		url       string
-		canonical string // path of the canonical URL
-	}{
-		{name: "realm", url: "/r/mock/path", canonical: "/r/mock/path"},
-		// The two posts of one realm differ only in Args, so the canonical
-		// keeps them.
-		{name: "realm with args", url: "/r/mock/path:p/hello", canonical: "/r/mock/path:p/hello"},
-		{name: "source view", url: "/r/mock/path$source", canonical: "/r/mock/path$source"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, url := range []string{"/r/mock/path", "/r/mock/path:p/hello", "/r/mock/path$source"} {
+		t.Run(url, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(http.MethodGet, tc.url, nil)
 			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
 
 			body := rr.Body.String()
-			canonical := "https://gno.land" + tc.canonical
-			// /r/mock is outside the trusted paths, so the title is its path.
-			assert.Contains(t, body, "<title>/r/mock/path - gno.land</title>")
-			assert.Contains(t, body, `<link rel="canonical" href="`+canonical+`" />`,
-				"canonical link must address the page under the configured domain")
-			assert.Contains(t, body, `<meta property="og:url" content="`+canonical+`" />`,
-				"og:url must carry the canonical URL")
-			assert.Contains(t, body, `<meta name="description" content="`+gnoweb.CommunityRealmDescription+`" />`)
-			assert.Contains(t, body, `<meta property="og:image" content="https://gno.land/public/imgs/og-community.png" />`,
-				"a community page gets the card that says so, not gno.land's own")
-			assert.Contains(t, body, `<meta name="twitter:card" content="summary_large_image" />`)
+			canonical := "https://gno.land" + url
+			assert.Contains(t, body, `<link rel="canonical" href="`+canonical+`" />`)
+			assert.Contains(t, body, `<meta property="og:url" content="`+canonical+`" />`)
 		})
 	}
 }
@@ -2320,18 +2300,21 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: files}
 	}
 	client := documentClient{
-		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/gnoland/echo"), pkg("/r/nym/app"), pkg("/p/nym/lib")),
+		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/nym/app"), pkg("/p/nym/lib")),
 		render: map[string]func(string) string{
-			// Like p/gnoland/blog: a post by its slug, "404" for anything else.
+			// Like p/gnoland/blog: the index, a post by its slug, a tag
+			// page whose heading repeats the tag, "404" for anything else.
 			"/r/gnoland/blog": func(args string) string {
-				if args == "p/hello" {
+				switch tag, isTag := strings.CutPrefix(args, "t/"); {
+				case args == "", strings.HasPrefix(args, "?"):
+					return "# The gno.land blog\n\n" + post + "\n"
+				case args == "p/hello":
 					return "# Hello worlds\n\n" + post + "\n"
+				case isTag:
+					return "# The gno.land blog / t / " + tag + "\n\nPosts tagged " + tag + ", newest first.\n"
+				default:
+					return "404"
 				}
-				return "404"
-			},
-			// A trusted realm that quotes its input back, as an error page does.
-			"/r/gnoland/echo": func(args string) string {
-				return "# Not found: " + args + "\n\nNothing is published at " + args + ", try another page.\n"
 			},
 			"/r/nym/app": func(string) string { return "# Official gno.land airdrop\n\n" + lure + "\n" },
 		},
@@ -2351,8 +2334,19 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		title, description, image, path string // path is the canonical's
 	}{
 		{
+			name: "trusted realm", url: "/r/gnoland/blog",
+			title: "The gno.land blog", description: post, image: gnoImg, path: "/r/gnoland/blog",
+		},
+		// Args reach Render, and the realm's own heading may repeat them,
+		// so a page addressed by args is titled by its path.
+		{
 			name: "trusted post", url: "/r/gnoland/blog:p/hello",
-			title: "Hello worlds", description: post, image: gnoImg, path: "/r/gnoland/blog:p/hello",
+			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog:p/hello",
+		},
+		{
+			name: "trusted realm echoing its args", url: "/r/gnoland/blog:t/Official_GNOT_airdrop_at_evil.example",
+			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg,
+			path: "/r/gnoland/blog:t/Official_GNOT_airdrop_at_evil.example",
 		},
 		{
 			name: "trusted realm, crafted args", url: "/r/gnoland/blog:Official_GNOT_airdrop_claim_at_evil.example",
@@ -2362,15 +2356,6 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		{
 			name: "trusted realm, crafted query", url: "/r/gnoland/blog?Official+notice:+claim+your+GNOT+airdrop+at+evil.example",
 			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog",
-		},
-		{
-			name: "trusted realm echoing its args", url: "/r/gnoland/echo:Official_GNOT_airdrop_claim_at_evil.example",
-			title: "/r/gnoland/echo", description: gnoweb.SiteDescription, image: gnoImg,
-			path: "/r/gnoland/echo:Official_GNOT_airdrop_claim_at_evil.example",
-		},
-		{
-			name: "trusted realm echoing its query", url: "/r/gnoland/echo?Official+GNOT+airdrop+at+evil.example",
-			title: "/r/gnoland/echo", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/echo",
 		},
 		{
 			name: "community realm", url: "/r/nym/app",

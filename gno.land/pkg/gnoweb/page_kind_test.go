@@ -45,14 +45,14 @@ func TestPageKindMayRepeat(t *testing.T) {
 		name string
 		kind pageKind
 		url  string
-		text string
 		want bool
 	}{
-		{"official", pageOfficial, "/r/gnoland/blog:p/hello", "Hello worlds", true},
-		{"community", pageCommunity, "/r/nym/app", "Hello", false},
-		{"site", pageSite, "/r/", "Hello", false},
-		{"a query reaches Render", pageOfficial, "/r/gnoland/blog?page=2", "Blog", false},
-		{"args echoed back", pageOfficial, "/r/gnoland/echo:Claim_At_Evil", "Not found: claim_at_evil", false},
+		{"official", pageOfficial, "/r/gnoland/blog", true},
+		{"official view", pageOfficial, "/r/gnoland/blog$source", true},
+		{"community", pageCommunity, "/r/nym/app", false},
+		{"site", pageSite, "/r/", false},
+		{"args reach Render", pageOfficial, "/r/gnoland/blog:t/Claim_At_Evil", false},
+		{"a query reaches Render", pageOfficial, "/r/gnoland/blog?page=2", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -60,7 +60,7 @@ func TestPageKindMayRepeat(t *testing.T) {
 
 			u, err := weburl.Parse(tc.url)
 			require.NoError(t, err)
-			assert.Equal(t, tc.want, tc.kind.mayRepeat(u, tc.text))
+			assert.Equal(t, tc.want, tc.kind.mayRepeat(u))
 		})
 	}
 }

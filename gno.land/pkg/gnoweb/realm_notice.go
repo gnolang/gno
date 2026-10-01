@@ -1,10 +1,6 @@
 package gnoweb
 
-import (
-	"strings"
-
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
-)
+import "strings"
 
 // trustedPaths is keyed without the "/r/" or "/p/" prefix so one entry
 // covers both trees. An entry trusts its own path and everything under it.
@@ -33,10 +29,4 @@ func (t trustedPaths) contains(pkg string) bool {
 		}
 		pkg = pkg[:i]
 	}
-}
-
-// showRealmNotice reports whether u is a package or user page outside the
-// trusted paths.
-func (h *HTTPHandler) showRealmNotice(u *weburl.GnoURL) bool {
-	return h.Static.RealmNotice.Enabled() && h.packageKind(u) == pageCommunity
 }

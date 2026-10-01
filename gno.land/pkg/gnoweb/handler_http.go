@@ -274,7 +274,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.showRealmNotice(gnourl) {
+	// The notice follows the package, even behind an alias.
+	kind := h.packageKind(gnourl)
+	if kind == pageCommunity && h.Static.RealmNotice.Enabled() {
 		indexData.Notice = h.Static.RealmNotice
 	}
 
@@ -300,7 +302,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		u.Query = nil
 		headURL = &u
 	}
-	kind := h.packageKind(gnourl)
 	if operatorPage {
 		kind = pageOfficial
 	}
@@ -1128,7 +1129,7 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 // wrote the link, on any realm, trusted or not.
 func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.GnoURL, kind pageKind) {
 	title, description := head.Title, head.Description
-	if !kind.mayRepeat(gnourl, title, description) {
+	if !kind.mayRepeat(gnourl) {
 		title, description = "", ""
 	}
 	head.Title = h.titleWithDomain(cmp.Or(title, strings.TrimSuffix(gnourl.Path, "/")))
