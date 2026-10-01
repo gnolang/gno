@@ -54,7 +54,7 @@ func NewStaticAlias(content string) AliasTarget {
 		value = strings.Trim(strings.TrimSpace(value), `"'`)
 		switch key {
 		case "title":
-			title = value
+			title = markdown.TruncateTitle(value)
 		case "description":
 			description = markdown.TruncateDescription(value)
 		}

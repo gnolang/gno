@@ -53,6 +53,12 @@ func TestNewStaticAlias(t *testing.T) {
 			body:        "Body.\n",
 		},
 		{
+			name:    "an overlong title is capped like a derived one",
+			content: "---\ntitle: " + strings.Repeat("word ", 50) + "\n---\nBody.\n",
+			title:   strings.TrimSpace(strings.Repeat("word ", 12)) + "…",
+			body:    "Body.\n",
+		},
+		{
 			// A page may open on a rule and draw another further down; the
 			// prose between them is content, not a header to strip.
 			name:    "prose between two thematic breaks is not front matter",

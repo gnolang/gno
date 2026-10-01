@@ -264,7 +264,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		indexData.HeadData.Title = "gno.land — invalid path"
+		indexData.HeadData.Title = h.titleWithDomain("invalid path")
 		indexData.BodyView = components.StatusErrorComponent("invalid path")
 		unpublishErrorShell(&indexData.HeadData, http.StatusNotFound)
 		w.WriteHeader(http.StatusNotFound)
