@@ -42,7 +42,6 @@ module.exports = (ctx) => {
 						/-active$/,
 						/-open$/,
 						"u-hidden",
-						"dev-mode",
 						"u-sr-only",
 						"data-theme",
 						"b-tag",
