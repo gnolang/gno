@@ -44,7 +44,7 @@ func TestHTMLRenderer_RenderDocumentation_FencedBlock(t *testing.T) {
 	require.NoError(t, err)
 	out := buf.String()
 	require.Contains(t, out, "Intro")
-	require.Contains(t, out, `<details class="doc-example">`)
+	require.Contains(t, out, `<details class="b-doc-example">`)
 }
 
 // A doc comment is its package author's: no link in it passes on authority,
