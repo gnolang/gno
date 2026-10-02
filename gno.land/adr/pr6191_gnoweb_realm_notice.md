@@ -58,8 +58,8 @@ a trusted namespace means replacing the namespace entry with per-package
 entries. A deny set is the later addition if that becomes frequent. This entry
 format is the interchange format for any future producer of the list.
 
-The wording says "reviewed", not "audited": the team reviews its own realms,
-it does not audit them. The same text is used on pure packages, which hold no
+The default wording says the package was "deployed by its author" and claims
+no review or audit. The same text is used on pure packages, which hold no
 coins; it addresses the end user, who reaches a package page from a realm.
 
 The default list names namespaces whose code the team reviews in this repo or

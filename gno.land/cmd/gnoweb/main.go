@@ -67,7 +67,7 @@ type webCfg struct {
 	trustedPaths     string
 }
 
-const defaultRealmNoticeText = "Community realm. Not reviewed by the gno.land team. Read the code before you interact or send coins."
+const defaultRealmNoticeText = "Community realm, deployed by its author. Read the code before you interact or send coins."
 
 var defaultWebOptions = webCfg{
 	chainid:        "dev",
