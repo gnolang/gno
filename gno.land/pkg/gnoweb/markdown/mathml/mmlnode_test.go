@@ -39,3 +39,12 @@ func TestParseDepthLimit(t *testing.T) {
 	_, err = NewMathMLConverter().ConvertInline(shallow)
 	assert.NoError(t, err)
 }
+
+func TestMMLNodeWriteSortsCSS(t *testing.T) {
+	n := NewMMLNode("mo", "lim").SetCssProp("padding", "0").SetCssProp("border-bottom", "1px").SetCssProp("color", "red")
+	for range 20 {
+		var b strings.Builder
+		n.Write(&b, -1)
+		assert.Equal(t, `<mo style="border-bottom:1px;color:red;padding:0;">lim</mo>`, b.String())
+	}
+}

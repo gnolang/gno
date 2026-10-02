@@ -1,8 +1,9 @@
 package mathml
 
 import (
+	"maps"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -185,14 +186,8 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 	w.WriteRune('<')
 	w.WriteString(tag)
 
-	// Sort attributes for consistent output
-	keys := make([]string, 0, len(n.Attrib))
-	for key := range n.Attrib {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
+	// Sort attributes and CSS properties for deterministic output.
+	for _, key := range slices.Sorted(maps.Keys(n.Attrib)) {
 		if !isAttrName(key) {
 			continue
 		}
@@ -204,10 +199,10 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 	}
 	if len(n.CSS) > 0 {
 		w.WriteString(` style="`)
-		for key, val := range n.CSS {
+		for _, key := range slices.Sorted(maps.Keys(n.CSS)) {
 			writeEscaped(w, key)
 			w.WriteRune(':')
-			writeEscaped(w, val)
+			writeEscaped(w, n.CSS[key])
 			w.WriteRune(';')
 		}
 		w.WriteRune('"')
