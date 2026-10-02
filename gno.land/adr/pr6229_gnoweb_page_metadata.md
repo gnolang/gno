@@ -70,13 +70,19 @@ then decides:
 
 | | title | description | image |
 |---|---|---|---|
-| official, no args or query | the h1, or the path | the paragraph, or `siteDescription` | `og-gnoland.png` |
-| official, with args or query | the path | `siteDescription` | `og-gnoland.png` |
+| official, no args or query | the h1, or the path title | the paragraph, or `siteDescription` | `og-gnoland.png` |
+| official, with args or query | the path title | `siteDescription` | `og-gnoland.png` |
 | site | the path | `siteDescription` | `og-gnoland.png` |
-| community | the path | a fixed sentence per kind (realm, package, user) | `og-community.png` |
+| community | the path title | a fixed sentence per realm, package or user page | `og-community-{realm,package,user}.png` |
 
-The domain follows the title: `The gno.land blog - gno.land`. The page comes first
-because a browser tab and a search result both truncate the tail.
+The path title, `pathTitle`, reads what the path says and nothing a realm
+rendered: `/r/nym/games/chess` is "games/chess · realm by nym", `/p/nym/lib`
+"lib · package by nym", `/u/nym` "nym · user profile". A namespace root such
+as `/r/nym` has no realm of its own and reads "realms by nym". An address
+namespace is shortened as the user page shows it (`g1jg...sqf5`). Other paths,
+`/r/` or an alias without an h1, name themselves. The domain follows the
+title: `The gno.land blog - gno.land`. The page comes first because a browser
+tab and a search result both truncate the tail.
 
 The path is the only part of the URL a title repeats. Arguments and query
 are typed by whoever wrote the link, on any realm, trusted ones included:
@@ -96,8 +102,11 @@ network. `og-community.png` follows: it leads with "Community realm" and
 "Open source, running on-chain. Read its code, call its functions.", with
 gno.land's mark small in a corner, as the platform the realm runs on rather
 than its author, and "Deployed by its author · check before you sign" level
-with it. An empty card reads as a broken site, so every 200 page carries a title, a description and,
-when `-canonical-origin` is set, an image.
+with it. Packages and profiles get the same card as "Community package" and
+"Community profile". Cards are per kind for now, not per package: a card
+naming the package ("app · realm by nym") is tracked in #6266. An empty card
+reads as a broken site, so every 200 page carries a title, a description
+and, when `-canonical-origin` is set, an image.
 
 `canonicalURL` prefixes `Static.CanonicalOrigin`, set by `-canonical-origin`,
 to `GnoURL.EncodeWebURL`, the encoder gnoweb's own links use, with the query
@@ -136,6 +145,38 @@ head is assembled before the body knows the page is missing, so a mistyped path
 would otherwise publish itself as a real URL. `unpublishErrorShell` holds the
 rule, in Go; the template only renders what it is given.
 
+### Which community pages search engines may index
+
+`indexable` in `robots.go` decides, once per request in `Get` and before any
+branch writes, whether a page may be indexed. One that may not gets
+`<meta name="robots" content="noindex, nofollow">`, an
+`X-Robots-Tag: noindex, nofollow` header (the only signal a text/markdown
+response can carry) and no canonical, since a canonical on a noindex page
+contradicts it. It keeps its card: link previews ignore robots. Official
+pages are always indexed. For community pages, `-index-community` chooses:
+
+| `-index-community` | community pages indexed |
+|---|---|
+| `registered` (default) | the bare page of a package or user page whose namespace is a registered name: no args, no query, no `$` view |
+| `none` | none |
+| `all` | all of them, like official pages |
+
+The `registered` line rests on the chain. `checkNamespacePermission`
+(`gno.land/pkg/sdk/vm/keeper.go`) asks `r/sys/names.IsAuthorizedAddressForNamespace`
+before every deploy, and once that realm is enabled it authorizes
+`r/<ns>/` only for the address `<ns>` itself or for the current holder of the
+name `<ns>` in `r/sys/users` (`examples/gno.land/r/sys/names/verifier.gno`;
+`gno.land/pkg/integration/testdata/addpkg_namespace.txtar`). Mainnet enables
+it at genesis (`misc/deployments/mainnet.gno.land/README.md`), betanet through
+its first GovDAO proposal. An address namespace therefore costs nothing to
+create and throw away, while a name is held by one account. gnoweb tells the
+two apart by the path alone, with the bech32 check the user page already
+uses, and makes no RPC. A chain that never enables `r/sys/names` lets anyone
+deploy under any name; it should run `-index-community=none`.
+
+Args, a query or a `$` view (`$source`, `$help`, `$state`, a download) let
+any link multiply one package into unbounded URLs, so none is indexed.
+
 ### Links pass on authority only where gno.land answers for them
 
 A followed link tells a search engine the linking site vouches for its
@@ -165,13 +206,23 @@ gno.land's pages from user realms, and that risk come before SEO.
 
 | concern | this change | what remains, and where |
 |---|---|---|
-| SEO bombing: user pages ranking on gno.land's metadata | a community page's title is its path, its description a fixed sentence, its card says it is a community realm; arguments and query never reach a title or summary | the page body is still indexed under gno.land; a page-level robots policy for community pages is drafted, pending a decision |
+| SEO bombing: user pages ranking on gno.land's name | community titles come from the path, descriptions are fixed, cards say the page is community content; args, query and `$` views of community pages are noindex; every link in a community document is `nofollow ugc` | the bare page of a registered-name realm stays indexable, with that fixed head, under `-index-community=registered` |
+| Throwaway scam realms | an address namespace, free to create and discard, is noindex | none for search; the page itself still renders |
+| Scams under a registered name | indexable, but with a path title, a fixed description, a community card and the #6191 notice on the page | content filtering in #5185; `-index-community=none` if that is not enough |
 | Dilution of the site's authority through links | every link in a community document, and every external link in a trusted one, is `nofollow ugc` | links in `$help` doc comments go through the documentation renderer, which has no link policy and adds no `rel` |
 | Scams and phishing through metadata | the head repeats a document only on official pages, only its leading h1 and paragraph, and never when the link carries args or a query | a trusted realm whose own lead shows user text would lend it; the trusted list is the control |
 | Phishing through page content | out of scope for metadata | the community notice of #6191 on the page; content filtering in #5185 |
-| Crawlers telling main pages from user realms | distinct card, fixed descriptions and `ugc` links on community pages; the trusted list decides which is which | robots policy above; the sitemap of #6256 should list official pages only (a follow-up there); no structured data |
+| Crawlers telling main pages from user realms | `noindex` and `X-Robots-Tag` on the community pages above, `ugc` links, distinct cards and descriptions, all from one classification | the sitemap of #6256 should list official pages only (a follow-up there); no structured data |
 | Front matter as authored metadata (#3797, reverted by #3924) | front matter is read only from markdown files an operator passes to `--aliases` | none |
 | Who counts as official | `-trusted-paths`, with a default list in `cmd/gnoweb` | governance of that list |
+
+### Reversibility
+
+`-index-community` changes the policy without a code change. Search engines
+apply a noindex, or its removal, when they next crawl the page: days to weeks,
+with no penalty for the change itself. A URL meant to carry noindex must stay
+crawlable: blocking it in robots.txt hides the noindex and can leave the URL
+listed from links alone, which matters for the robots.txt of #6256.
 
 ## Alternatives considered
 
@@ -217,10 +268,15 @@ page and gets its own canonical.
 ## Consequences
 
 Every page now carries a title, a description and, with an origin set, a
-share image and a canonical URL.
+share image. Every indexed page also names a canonical URL.
+
+Community realms beyond the bare pages under registered names leave search
+results under gno.land, and with `none` all of them do. That costs the
+ecosystem the discoverability #5769 asks for; the trusted list, and the
+bare-page rule, are the way back in.
 
 An official page that opens on an h1 and has no args or query is titled by
-it. Every other page is titled by its path: the posts of one realm, trusted or not, share
+it. Every other page is titled by its path title: the posts of one realm, trusted or not, share
 their realm's title, as do `$source` and the content page of one realm, while
 their canonicals differ. Directory listings, `$source`, `$help` and profile
 pages on official paths carry the generic site sentence, since they have no
