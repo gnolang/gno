@@ -11,6 +11,9 @@ type HeaderLink struct {
 	URL      string
 	Icon     string
 	IsActive bool
+	// Tooltip is shown on hover to explain what the link opens. Empty renders
+	// no title attribute.
+	Tooltip string
 	// Outbound, when set to one of the Outbound* constants, is rendered as
 	// data-outbound on the link so SimpleAnalytics fires a named
 	// outbound_<label> event instead of an anonymous outbound click.
@@ -54,11 +57,19 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	helpURL.WebQuery = url.Values{"help": {""}}
 	stateURL.WebQuery = url.Values{"state": {""}}
 
+	// Carry the open file onto the Source link. Without it, a reader already
+	// looking at a file is sent back to the package overview by the tab that
+	// is meant to be showing them source.
+	if file := u.WebQuery.Get("file"); file != "" {
+		sourceURL.WebQuery.Set("file", file)
+	}
+
 	contentLink := HeaderLink{
 		Label:    "Content",
 		URL:      contentURL.EncodeWebURL(),
 		Icon:     "ico-content",
 		IsActive: isActive(u.WebQuery, "Content"),
+		Tooltip:  "The realm's rendered page, or a package's file listing.",
 	}
 
 	sourceLink := HeaderLink{
@@ -66,6 +77,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		URL:      sourceURL.EncodeWebURL(),
 		Icon:     "ico-code",
 		IsActive: isActive(u.WebQuery, "Source"),
+		Tooltip:  "Browse the package source files.",
 	}
 
 	actionsLink := HeaderLink{
@@ -73,6 +85,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		URL:      helpURL.EncodeWebURL(),
 		Icon:     "ico-helper",
 		IsActive: isActive(u.WebQuery, "Actions"),
+		Tooltip:  "Call the realm's exported functions.",
 	}
 
 	stateLink := HeaderLink{
@@ -80,6 +93,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 		URL:      stateURL.EncodeWebURL(),
 		Icon:     "ico-state",
 		IsActive: isActive(u.WebQuery, "State"),
+		Tooltip:  "Inspect the realm's stored on-chain state.",
 	}
 
 	switch {
