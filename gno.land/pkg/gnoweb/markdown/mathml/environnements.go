@@ -1,6 +1,7 @@
 package mathml
 
 import (
+	"maps"
 	"strconv"
 	"strings"
 )
@@ -305,9 +306,7 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 		return node
 	}
 	if node != nil {
-		for k, v := range attrib {
-			node.Attrib[k] = v
-		}
+		maps.Copy(node.Attrib, attrib)
 	}
 	setAlignmentStyle(node)
 	row.Children = append(row.Children, left, node, right)

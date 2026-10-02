@@ -77,13 +77,11 @@ func TestMathConcurrentRender(t *testing.T) {
 	in := [][]byte{[]byte(`$E=mc^2$`), []byte(`$$\int_0^1 x^2 dx$$`)}
 	var wg sync.WaitGroup
 	for i := range 50 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			var b bytes.Buffer
 			assert.NoError(t, gm.Convert(in[i%2], &b))
 			assert.Contains(t, b.String(), "<math")
-		}()
+		})
 	}
 	wg.Wait()
 }

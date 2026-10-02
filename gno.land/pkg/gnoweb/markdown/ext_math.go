@@ -167,7 +167,7 @@ func isEscaped(b []byte, i int) bool {
 // preceded by a space or an escaping backslash nor followed by a digit, so
 // "$5 and $10" stays plain text.
 func findDollarClose(b []byte) int {
-	for i := 0; i < len(b); i++ {
+	for i := range b {
 		if b[i] != '$' {
 			continue
 		}
