@@ -2528,6 +2528,69 @@ func TestHTTPHandler_GetUserView_LookupFailureServesWhatNeedsNoRegistry(t *testi
 	}
 }
 
+// The label over an address says it is unregistered only when the registry
+// answered so: a failed lookup knows nothing, and printing "Unregistered
+// address" over a registered user's address would misidentify them.
+func TestHTTPHandler_GetUserView_AddressLabelNeedsAnAnswer(t *testing.T) {
+	t.Parallel()
+
+	for name, tc := range map[string]struct {
+		eval      func(context.Context, string, string) ([]byte, error)
+		wantLabel string
+		wantTitle string
+	}{
+		"lookup fails": {
+			eval: func(context.Context, string, string) ([]byte, error) {
+				return nil, gnoweb.ErrClientTimeout
+			},
+			wantLabel: `<p class="label">Address</p>`,
+			wantTitle: addressTitle(testUserAddr),
+		},
+		"no registry": {
+			eval: func(context.Context, string, string) ([]byte, error) {
+				return nil, gnoweb.ErrClientPackageNotFound
+			},
+			wantLabel: `<p class="label">Address</p>`,
+			wantTitle: addressTitle(testUserAddr),
+		},
+		"registry says no": {
+			eval: func(context.Context, string, string) ([]byte, error) {
+				return resolveAnyMissing(), nil
+			},
+			wantLabel: `<p class="label">Unregistered address</p>`,
+			wantTitle: addressTitle(testUserAddr),
+		},
+		"registered": {
+			eval: func(context.Context, string, string) ([]byte, error) {
+				return resolveAnyPayload("alice"), nil
+			},
+			wantLabel: `<p class="label">Gnome</p>`,
+			wantTitle: userTitle("alice"),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			rr := getUserPage(t, &stubClient{
+				listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+				evalFunc:      tc.eval,
+				realmFunc: func(context.Context, string, string) ([]byte, error) {
+					return nil, gnoweb.ErrClientPackageNotFound
+				},
+			}, "/u/"+testUserAddr)
+
+			body := rr.Body.String()
+			assert.Equal(t, http.StatusOK, rr.Code)
+			assert.Contains(t, body, tc.wantLabel)
+			assert.Contains(t, body, tc.wantTitle)
+			assert.Contains(t, body, `data-copy-text-value="`+testUserAddr+`"`, "the address stays copyable")
+			if tc.wantLabel != `<p class="label">Unregistered address</p>` {
+				assert.NotContains(t, body, "Unregistered address")
+			}
+		})
+	}
+}
+
 // A registered user can deploy under both halves of the pair, since
 // r/sys/names lets any address deploy under its own address namespace. Both
 // URLs list both, or the packages under the other half disappear.

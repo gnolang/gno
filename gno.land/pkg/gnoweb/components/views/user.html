@@ -12,7 +12,7 @@
         <p class="label">Gnome</p>
         <h1 class="title{{ if .LongName }} title--long{{ end }}">{{ .Username }}</h1>
         {{ else if .Address }}
-        <p class="label">Unregistered address</p>
+        <p class="label">{{ if .Unregistered }}Unregistered address{{ else }}Address{{ end }}</p>
         {{ $halves := splitHalf .Address }}
         <h1 class="title title--address u-font-mono" title="{{ .Address }}">{{ index $halves 0 }}<wbr>{{ index $halves 1 }}</h1>
         {{ end }}

@@ -50,6 +50,20 @@ type UserContribution struct {
 	Date        *time.Time
 }
 
+// UserRegistration is what the user registry answered about the page's
+// address. Only an answer says the address is unregistered: a lookup that
+// failed, or a chain with no registry to ask, knows nothing either way.
+type UserRegistration int
+
+const (
+	// UserRegistrationUnknown is the zero value: the registry gave no answer.
+	UserRegistrationUnknown UserRegistration = iota
+	// UserRegistrationNone is the registry answering that nobody holds it.
+	UserRegistrationNone
+	// UserRegistrationRegistered is the registry naming the user behind it.
+	UserRegistrationRegistered
+)
+
 // UserData contains data for the user view
 type UserData struct {
 	// Username is the name the page is titled by, empty when the namespace is
@@ -66,7 +80,10 @@ type UserData struct {
 	Address string
 	// CurrentName is the name Username now resolves to, set only when it is
 	// another one: Username is then an old name, and Address its new owner's.
-	CurrentName   string
+	CurrentName string
+	// Registration is what the registry answered, which an empty Username
+	// cannot tell apart: no user, or no answer.
+	Registration  UserRegistration
 	Bio           string
 	Teams         []struct{}
 	Links         []UserLink
@@ -81,6 +98,12 @@ type UserData struct {
 // long name wraps onto at most two lines instead of being cut: impersonating
 // names tend to differ from the real one at the end.
 const longNameRunes = 16
+
+// Unregistered reports whether the registry answered that nobody holds
+// Address, the only case the page may say so.
+func (d UserData) Unregistered() bool {
+	return d.Registration == UserRegistrationNone
+}
 
 // LongName reports whether Username is long enough to be titled smaller.
 func (d UserData) LongName() bool {

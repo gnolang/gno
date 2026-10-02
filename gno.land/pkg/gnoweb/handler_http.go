@@ -625,6 +625,9 @@ const UserRegistryPath = "/r/sys/users"
 type userIdentity struct {
 	Name    string // the user's current registered name
 	Address string // the bech32 address that name belongs to
+	// Registration is whether the registry answered at all: an empty Name
+	// is the same for "nobody holds it" and "no answer".
+	Registration components.UserRegistration
 }
 
 // reUserData reads the pair out of the value repr vm/qeval prints for a
@@ -675,6 +678,7 @@ func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdenti
 	// it is the only one that carries the pair.
 	line, _, _ := bytes.Cut(bytes.TrimSpace(res), []byte("\n"))
 	if bytes.HasPrefix(line, []byte("(nil ")) {
+		identity.Registration = components.UserRegistrationNone
 		return identity, nil
 	}
 
@@ -689,7 +693,11 @@ func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdenti
 	if identity.Address != "" && string(match[1]) != identity.Address {
 		return identity, fmt.Errorf("%w: ResolveAny(%q) answered for %q", ErrClientResponse, input, match[1])
 	}
-	return userIdentity{Name: string(match[2]), Address: string(match[1])}, nil
+	return userIdentity{
+		Name:         string(match[2]),
+		Address:      string(match[1]),
+		Registration: components.UserRegistrationRegistered,
+	}, nil
 }
 
 // isAliasTarget reports whether one of this gnoweb's own aliases points at
@@ -828,6 +836,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		HomeLabel:     CreateUsernameFromBech32(namespace),
 		Address:       identity.Address,
 		CurrentName:   currentName,
+		Registration:  identity.Registration,
 		Contributions: contribs,
 		PackageCount:  pkgCount,
 		RealmCount:    realmCount,
