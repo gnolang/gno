@@ -139,6 +139,14 @@ gno test --update-golden-tests .
 | `MAXALLOC` | Max memory allocation in bytes.      | `0`     |
 | `SEND`     | Coins sent with the transaction.     | (none)  |
 
+A filetest's `main` is the transaction's own script: the runner's call into it
+plays the message, so for `runtime.AssertOriginCall` the file's realm is never
+an intermediary even under an `r/` `PKGPATH`. A realm filetest can therefore
+call another realm's asserting function directly, as a user would, but a
+closure or helper wrapped around that call enters the file's realm first and
+turns the assertion into a non-origin call. Use `testing.SetRealm` with a
+`NewCodeRealm` to simulate a foreign realm as the caller.
+
 **Output directives** are multi-line comments at the bottom:
 
 | Directive        | Matches                                       |

@@ -1,2 +1,2 @@
-module = "gno.vm/t/integ/main"
+module = "gno.land/p/t/integ/main"
 gno = "0.9"

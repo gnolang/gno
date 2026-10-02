@@ -626,7 +626,7 @@ coins.Add(otherCoins)
 ```go
 func AssertOriginCall()
 ```
-Panics if caller of function is not an EOA. Only allows `MsgCall` transactions; panics on `MsgRun` calls.
+Panics unless called from the exported function a `MsgCall` named, with no other realm between the message and that function and nothing of the realm's own between that function and the call: not a named helper, not a closure, not a deferred function, since any function the realm declares is a value a script can hand back to it. `/p/` and stdlib helpers are transparent. Call it as the first statement of the entry function. Panics on `MsgRun` calls. It is not a re-entrancy lock and not an immediate-caller check: for those use `cur.Previous()`.
 
 ##### Usage
 ```go
@@ -982,7 +982,10 @@ Sets the realm for the current frame. After calling `SetRealm()`, calling
 any `PreviousRealm()` called from a function used after SetRealm will yield `rlm`.
 
 Should be used in combination with [`NewUserRealm`](#newuserrealm) &
-[`NewCodeRealm`](#newcoderealm).
+[`NewCodeRealm`](#newcoderealm). A `NewCodeRealm` naming a realm other than
+the one under test also counts as a realm between the caller and the callee
+for [`AssertOriginCall`](#assertorigincall), so the refusal path can be
+unit-tested without a second realm.
 
 #### Usage
 
