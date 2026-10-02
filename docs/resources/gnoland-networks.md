@@ -30,6 +30,24 @@ seed, and its own `UPGRADES.md` under
 [`misc/deployments/onyx.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land).
 Pearl is retiring in its favour.
 
+### Latest testnet
+
+Each testnet has its own hostnames, and a `latest` set always points at the current one, so links and scripts written against them keep working when a new testnet launches:
+
+| Service    | URL                                        |
+|------------|--------------------------------------------|
+| gnoweb     | https://latest.testnets.gno.land           |
+| RPC        | https://rpc.latest.testnets.gno.land:443   |
+| Gnockpit   | https://gnockpit.latest.testnets.gno.land  |
+| Status     | https://status.latest.testnets.gno.land    |
+| tx-indexer | https://indexer.latest.testnets.gno.land   |
+
+The chain ID changes with each testnet, so read it from the node instead of hard-coding it:
+
+```shell
+curl -s https://rpc.latest.testnets.gno.land:443/status | grep -o '"network":"[^"]*"'
+```
+
 ### WebSocket endpoints
 
 All networks follow the same pattern for websocket connections:

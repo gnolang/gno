@@ -10,7 +10,7 @@ Mainnet and the testnets do not list the same links. Copy the matching file as
 | File | Network | Differs by |
 |------|---------|-----------|
 | [home.mainnet.md](home.mainnet.md) | `gnoland-1` (gno.land) | Akkadia link |
-| [home.testnet.md](home.testnet.md) | testnets (onyx) | Faucet Hub link, testnet notice |
+| [home.testnet.md](home.testnet.md) | testnets (latest.testnets.gno.land) | Faucet Hub link, testnet notice |
 
 Staging is not concerned: it serves `r/gnoland/home` from the chain, with no alias.
 
@@ -42,7 +42,7 @@ docker compose --profile dev up -d
 - Then place an override into the `./home/` folder:
 
 ```sh
-gnokey query vm/qrender -remote https://rpc.onyx.testnets.gno.land -data "gno.land/r/gnoland/blog:" > home/home-override.md
+gnokey query vm/qrender -remote https://rpc.latest.testnets.gno.land -data "gno.land/r/gnoland/blog:" > home/home-override.md
 ```
 
 - check the updated and overridden home at `http://127.0.0.1/`.
