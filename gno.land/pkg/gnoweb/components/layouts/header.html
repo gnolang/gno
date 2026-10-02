@@ -90,7 +90,7 @@ LAYOUT - Header component
       </div>
 
       {{ if .Mode.IsHome }}
-      <div role="menu" class="menu-general">
+      <div role="menu" class="b-menu-general">
         {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
       </div>
       {{ end }}
@@ -103,7 +103,7 @@ LAYOUT - Header component
 UI - Header link component
 ================================================================================== */}}
 {{ define "ui/header_link" }}
-<a href="{{ .URL }}" class="b-menu-link" role="menuitem"{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>
+<a href="{{ .URL }}" class="b-menu-link" role="menuitem"{{ with .Tooltip }} title="{{ . }}"{{ end }}{{ with .Outbound }} data-outbound="{{ . }}"{{ end }}>
   <div class="link {{ if .Icon }} link--icon{{ end }}{{ if .IsActive }} link--is-active u-text-stroke{{ end }}">
     {{ if .Icon }}
     <svg>
