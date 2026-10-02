@@ -35,8 +35,9 @@ name. `packageKind` in `page_kind.go` sorts every page into one of three
 kinds, using the `-trusted-paths` list that #6191 introduced for the realm
 notice:
 
-- **official**: a markdown page an operator passed to `--aliases`, or a
-  `/r/`, `/p/` or `/u/` page whose package is under a trusted path;
+- **official**: a `/r/`, `/p/` or `/u/` page whose package is under a
+  trusted path, or a markdown page an operator passed to `--aliases`
+  (`pageOperator`, official and the author of its own links);
 - **community**: any other `/r/`, `/p/` or `/u/` page;
 - **site**: a view that belongs to no package, such as the bare `/r/`
   listing.
@@ -134,6 +135,43 @@ An error shell drops its canonical, its share image and its indexability. The
 head is assembled before the body knows the page is missing, so a mistyped path
 would otherwise publish itself as a real URL. `unpublishErrorShell` holds the
 rule, in Go; the template only renders what it is given.
+
+### Links pass on authority only where gno.land answers for them
+
+A followed link tells a search engine the linking site vouches for its
+target. `pageKind.links` gives every rendered document a `markdown.LinkPolicy`,
+through the one `renderContext` helper all four document views use (realm,
+user page, README, operator markdown):
+
+| document | internal link | external link |
+|---|---|---|
+| community realm, package README, user page | `nofollow ugc` | `noopener nofollow ugc` |
+| trusted realm or README | followed | `noopener nofollow ugc` |
+| operator markdown (`--aliases` file) | followed | `noopener` |
+
+A trusted realm keeps its external links unfollowed because it may show
+what its users wrote: a board, a proposal, a profile. The policy's zero value
+follows nothing, so a document rendered without one is treated as user
+content. Links from a `<gno-foreign>` sandbox stay unfollowed whatever the
+policy. gnoweb's own header, breadcrumb and tab links are not documents and
+keep no `rel`.
+
+### Answering #3910
+
+#3910 and its thread name the risks of user content under gno.land's name:
+SEO bombing, dilution of the site's authority, scams and phishing, and harmful
+content affecting gno.land's reputation. It asks that search engines can tell
+gno.land's pages from user realms, and that risk come before SEO.
+
+| concern | this change | what remains, and where |
+|---|---|---|
+| SEO bombing: user pages ranking on gno.land's metadata | a community page's title is its path, its description a fixed sentence, its card says it is a community realm; arguments and query never reach a title or summary | the page body is still indexed under gno.land; a page-level robots policy for community pages is drafted, pending a decision |
+| Dilution of the site's authority through links | every link in a community document, and every external link in a trusted one, is `nofollow ugc` | links in `$help` doc comments go through the documentation renderer, which has no link policy and adds no `rel` |
+| Scams and phishing through metadata | the head repeats a document only on official pages, only its leading h1 and paragraph, and never when the link carries args or a query | a trusted realm whose own lead shows user text would lend it; the trusted list is the control |
+| Phishing through page content | out of scope for metadata | the community notice of #6191 on the page; content filtering in #5185 |
+| Crawlers telling main pages from user realms | distinct card, fixed descriptions and `ugc` links on community pages; the trusted list decides which is which | robots policy above; the sitemap of #6256 should list official pages only (a follow-up there); no structured data |
+| Front matter as authored metadata (#3797, reverted by #3924) | front matter is read only from markdown files an operator passes to `--aliases` | none |
+| Who counts as official | `-trusted-paths`, with a default list in `cmd/gnoweb` | governance of that list |
 
 ## Alternatives considered
 
