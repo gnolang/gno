@@ -5,8 +5,9 @@ import { BaseController } from "./controller.js";
 // a label only reacts to clicks, and a click moves focus to its hidden
 // checkbox: Enter and Space toggle the checkbox instead, leaving focus on the
 // label. On the opener (the label with aria-controls), aria-expanded follows
-// the checkbox, and focus left on the checkbox or in the closed popup
-// returns to the opener.
+// the checkbox. The open dialog covers its opener, so opening it moves focus
+// to its first focusable element (the close button); closing it returns
+// focus left on the checkbox or in the popup to the opener.
 export class PopupController extends BaseController {
 	protected connect(): void {
 		this.input()?.addEventListener("change", () => this.sync());
@@ -37,7 +38,13 @@ export class PopupController extends BaseController {
 		this.element.setAttribute("aria-expanded", String(input.checked));
 		const active = document.activeElement;
 		const popup = document.getElementById(popupId);
-		if (active === input || (!input.checked && popup?.contains(active))) {
+		if (input.checked) {
+			// Opened from the opener, by key (focus on it) or click (focus on
+			// the checkbox): focus moves into the dialog covering it.
+			if (active === input || active === this.element) {
+				popup?.querySelector<HTMLElement>('[tabindex="0"]')?.focus();
+			}
+		} else if (active === input || popup?.contains(active)) {
 			this.element.focus();
 		}
 	}
