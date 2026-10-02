@@ -182,11 +182,21 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 	untrusted := isForeignOrigin(pc)
 	links := getLinkPolicy(pc)
 
+	// Collect first and replace after: swapping a node out mid-walk clears
+	// the sibling the walk would visit next, so a link after an autolink in
+	// the same paragraph would never be wrapped, nor given its rel.
+	var nodes []ast.Node
 	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
+		switch node.(type) {
+		case *ast.Link, *ast.AutoLink:
+			if entering {
+				nodes = append(nodes, node)
+			}
 		}
+		return ast.WalkContinue, nil
+	})
 
+	for _, node := range nodes {
 		var (
 			gnoLink *GnoLink
 			rawDest []byte
@@ -223,9 +233,6 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			labelNode.SetRaw(true)
 			link.AppendChild(link, labelNode)
 			gnoLink = &GnoLink{Link: link}
-
-		default:
-			return ast.WalkContinue, nil
 		}
 		gnoLink.Untrusted = nodeUntrusted
 
@@ -240,15 +247,13 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		dest, err := url.Parse(string(resolveDestination(rawDest)))
 		if err != nil {
 			gnoLink.LinkType = GnoLinkTypeInvalid
-			return ast.WalkContinue, nil
+			continue
 		}
 
 		// Detect and set the GnoLink type.
 		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
 		gnoLink.Followed = !nodeUntrusted && links.follows(gnoLink.LinkType)
-
-		return ast.WalkContinue, nil
-	})
+	}
 }
 
 // detectLinkType detects the type of link based on the destination

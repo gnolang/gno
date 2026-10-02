@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -166,4 +167,26 @@ func renderLinksWith(t *testing.T, src string, links LinkPolicy) string {
 	var out bytes.Buffer
 	require.NoError(t, m.Convert([]byte(src), &out, ctx))
 	return out.String()
+}
+
+// TestExtLinksAllWrapped checks that every link gets its rel, wherever it
+// sits: after an autolink in the same paragraph, or inside columns.
+func TestExtLinksAllWrapped(t *testing.T) {
+	t.Parallel()
+
+	const src = "Welcome <contact@nym.example> - see [best casino](https://casino.example)\n\n" +
+		"<gno-columns>\n<https://a.example> [b](https://b.example)\n|||\n[c](/r/other/pkg) <https://d.example>\n</gno-columns>\n"
+
+	gnourl, err := weburl.Parse("https://gno.land/r/test")
+	require.NoError(t, err)
+	m := goldmark.New()
+	NewGnoExtension().Extend(m)
+	var out bytes.Buffer
+	require.NoError(t, m.Convert([]byte(src), &out, parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))))
+
+	anchors := regexp.MustCompile(`<a [^>]*>`).FindAllString(out.String(), -1)
+	require.Len(t, anchors, 6, out.String())
+	for _, a := range anchors {
+		require.Contains(t, a, "nofollow ugc", a)
+	}
 }
