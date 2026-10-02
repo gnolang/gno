@@ -274,6 +274,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// ADR-003 §Architecture wire-in. Body-already-written paths return nil
 	// View; page path returns a non-nil View for chrome composition.
 	if gnourl.WebQuery.Has("state") {
+		// Only the page path renders a header; json and fragment requests
+		// would pay for a lookup nobody sees.
+		counterpart := func() *components.HeaderLink { return nil }
+		if !gnourl.WebQuery.Has("json") && !gnourl.WebQuery.Has("frag") {
+			counterpart = h.startCounterpart(r.Context(), gnourl)
+		}
 		status, view := h.State.Handle(r.Context(), w, r, gnourl)
 		if view == nil {
 			// Direct-write path (json or fragment): body and headers
@@ -287,6 +293,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// values and pointing the tabs at empty URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
+		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
 		indexData.BodyView = view
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -418,7 +425,14 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
-		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
+		// A markdown answer has no header, so it skips the counterpart lookup.
+		if wantMarkdown {
+			return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
+		}
+		counterpart := h.startCounterpart(ctx, gnourl)
+		status, view := h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
+		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
+		return status, view
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")

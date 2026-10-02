@@ -18,6 +18,8 @@ type HeaderLink struct {
 	// data-outbound on the link so SimpleAnalytics fires a named
 	// outbound_<label> event instead of an anonymous outbound click.
 	Outbound string
+	// Title names the destination when the label alone does not.
+	Title string
 }
 
 type HeaderLinks struct {
