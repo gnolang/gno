@@ -447,3 +447,29 @@ func (l *linkExtension) Extend(m goldmark.Markdown) {
 		util.Prioritized(&linkRenderer{}, 500),
 	))
 }
+
+// docLinks marks every link of a doc comment as user content. Doc comments
+// are the package author's, and the doc renderer is shared by pages of every
+// kind with no link policy of its own, so it treats each link as one from a
+// community document.
+type docLinks struct{}
+
+// ExtDocLinks adds rel="noopener nofollow ugc" to every link of a doc
+// comment.
+var ExtDocLinks goldmark.Extender = docLinks{}
+
+func (e docLinks) Extend(m goldmark.Markdown) {
+	m.Parser().AddOptions(parser.WithASTTransformers(util.Prioritized(e, 999)))
+}
+
+func (docLinks) Transform(doc *ast.Document, _ text.Reader, _ parser.Context) {
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		switch n.(type) {
+		case *ast.Link, *ast.AutoLink:
+			if entering {
+				n.SetAttributeString("rel", []byte("noopener nofollow ugc"))
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+}

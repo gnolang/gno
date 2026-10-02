@@ -105,6 +105,7 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 			markdown.NewHighlighting(markdown.WithFormatOptions(cfg.ChromaOptions...)),
 			md.ExtCodeExpand(docFormatter, cfg.ChromaStyle),
 			md.ExtEmphasis, // bound emphasis-parsing cost (yuin/goldmark#555)
+			md.ExtDocLinks,
 		),
 		goldmark.WithParserOptions(parser.WithAttribute()),
 	}

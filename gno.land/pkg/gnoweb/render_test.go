@@ -47,6 +47,17 @@ func TestHTMLRenderer_RenderDocumentation_FencedBlock(t *testing.T) {
 	require.Contains(t, out, `<details class="doc-example">`)
 }
 
+// A doc comment is its package author's: no link in it passes on authority,
+// autolinks included.
+func TestHTMLRenderer_RenderDocumentation_LinksAreUGC(t *testing.T) {
+	t.Parallel()
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	require.NoError(t, r.RenderDocumentation(&buf, []byte("See [x](https://example.org/), <https://example.net/> and [in](/r/x).\n")))
+	out := buf.String()
+	require.Equal(t, 3, strings.Count(out, `rel="noopener nofollow ugc"`), out)
+}
+
 func TestHTMLRenderer_RenderDocumentation_StripsRawHTML(t *testing.T) {
 	t.Parallel()
 	// Raw HTML in doc strings is stripped by Goldmark's default safe mode
