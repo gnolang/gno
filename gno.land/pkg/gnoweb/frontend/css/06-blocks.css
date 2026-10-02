@@ -3439,9 +3439,11 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		color: var(--s-color-text-tertiary);
 	}
 
+	/* Carries errors as well as "No results": secondary, not tertiary, so it
+	   clears WCAG AA on both dropdown surfaces. */
 	.b-omnisearch-empty {
 		padding: var(--g-space-2);
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-size: var(--g-font-size-100);
 	}
 

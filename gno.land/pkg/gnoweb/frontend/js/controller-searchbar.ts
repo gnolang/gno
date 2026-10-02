@@ -1,8 +1,40 @@
-import { BaseController, debounce } from "./controller.js";
+import { BaseController } from "./controller.js";
 
 type PathsResponse = {
 	realms: string[];
 	packages: string[];
+};
+
+// Shapes returned by `<path>$search&…&json`. The controller knows no
+// qualifier by name: the server owns the list, so a deployment without an
+// indexer simply advertises fewer of them and the omnibar offers fewer.
+type Selector = {
+	name: string;
+	hint: string;
+	label: string;
+	scope: string;
+	source: string;
+	bare?: boolean;
+};
+
+type SearchResult = {
+	title: string;
+	detail?: string;
+	href?: string;
+	tags?: string[];
+};
+
+type SearchGroup = {
+	label: string;
+	source: string;
+	results?: SearchResult[];
+	error?: string;
+};
+
+type SearchResponse = {
+	selectors?: Selector[];
+	groups?: SearchGroup[];
+	unknown_filter?: string;
 };
 
 type PageMatch = {
@@ -19,11 +51,17 @@ const RESULTS_PER_GROUP = 5;
 const MAX_PAGE_MATCHES = 10;
 const SNIPPET_RADIUS = 32;
 const SEARCH_DELAY = 120;
+// A qualified query costs a round trip, so it waits longer than the local
+// path filter, which costs nothing.
+const QUALIFIED_SEARCH_DELAY = 220;
 
 // Full Amino object ID: 40 hex + ":" + uint index (ObjectID.MarshalAmino).
 // Anchored to {40} to mirror the server's ValidateOID; shorter inputs fall
 // through to a normal text search.
 const OID_PATTERN = /^[a-f0-9]{40}:\d+$/i;
+
+// A leading `gno.land` host, with or without scheme.
+const GNO_LAND_HOST = /^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i;
 
 export class SearchbarController extends BaseController {
 	private realms: string[] = [];
@@ -35,6 +73,13 @@ export class SearchbarController extends BaseController {
 	private pageMatches: PageMatch[] = [];
 	private highlightEl: HTMLElement | null = null;
 	private runId = 0;
+	private selectors: Selector[] = [];
+	private selectorsLoaded = false;
+	// null until the first probe answers. false means this deployment serves
+	// no `$search` endpoint, and the controller stops asking.
+	private searchAvailable: boolean | null = null;
+	private selectorProbe: Promise<void> | null = null;
+	private timer: ReturnType<typeof setTimeout> | undefined;
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -49,29 +94,62 @@ export class SearchbarController extends BaseController {
 		document.addEventListener("keydown", this.onKeyShortcut.bind(this));
 	}
 
-	// search filters the (once-fetched) path list for the current input.
+	// search filters the (once-fetched) path list for the current input, or
+	// asks the server when the input carries a qualifier.
 	public search(): void {
-		this.debouncedSearch();
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		this.schedule(input?.value.trim() ?? "");
 	}
 
 	// searchUrl keeps the bar usable as a direct path navigator on submit.
+	// preventDefault is called only on a path the controller actually
+	// handles. Calling it up front meant an unhandled input swallowed the
+	// submit and did nothing at all — worst of all on a deployment with no
+	// `$search` endpoint, where the form's own action would have worked.
 	public searchUrl(e: Event): void {
-		e.preventDefault();
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
 		const raw = input?.value.trim();
 		if (!raw) return;
+
+		const go = (href: string): void => {
+			e.preventDefault();
+			window.location.href = href;
+		};
 
 		// OID-shaped input redirects to the state view for that object.
 		if (OID_PATTERN.test(raw) && !raw.startsWith("/")) {
 			const realmPath = this.currentRealmPath();
 			if (realmPath) {
-				window.location.href = `${realmPath}$state&oid=${encodeURIComponent(raw)}`;
+				go(`${realmPath}$state&oid=${encodeURIComponent(raw)}`);
 				return;
 			}
 		}
 
+		// A qualified query, or free text that names no path, is a search:
+		// send it to the results page, which is also the view a reader without
+		// JavaScript gets. Navigating `counter` to `/counter` was a dead end.
+		if (
+			this.isQualified(raw) ||
+			(this.searchAvailable !== false && !SearchbarController.isPathLike(raw))
+		) {
+			go(this.searchHref(raw));
+			return;
+		}
+
 		const target = SearchbarController.resolveTarget(raw);
-		if (target) window.location.href = target;
+		if (target) go(target);
+	}
+
+	// isPathLike reports input the bar navigates to rather than searches: a
+	// path (with or without its leading slash), an anchor or query (resolved
+	// against the site root), a gno.land link, or a URL.
+	static isPathLike(raw: string): boolean {
+		return (
+			/^[rpu]\//.test(raw) ||
+			/^[/#?]/.test(raw) ||
+			GNO_LAND_HOST.test(raw) ||
+			/^[a-z][a-z0-9+.-]*:\/\//i.test(raw)
+		);
 	}
 
 	private currentRealmPath(): string | null {
@@ -102,23 +180,309 @@ export class SearchbarController extends BaseController {
 		}
 	}
 
-	private debouncedSearch = debounce((): void => {
-		const input = this.getDOMElement("input") as HTMLInputElement | null;
-		const q = input?.value.trim() ?? "";
-		if (q.length < MIN_QUERY_LENGTH) {
-			this.close();
-			return;
-		}
-		void this.run(q);
-	}, SEARCH_DELAY);
+	// One timer, with the delay chosen when it is scheduled. Two independent
+	// debounce closures could not cancel each other, so the keystroke that
+	// turned a query into a qualified one fired both of them: two identical
+	// requests, and two rate-limit tokens for one search.
+	private schedule(q: string): void {
+		clearTimeout(this.timer);
+		this.timer = setTimeout(
+			() => {
+				const input = this.getDOMElement("input") as HTMLInputElement | null;
+				const current = input?.value.trim() ?? "";
+				if (current.length < MIN_QUERY_LENGTH) {
+					this.close();
+					return;
+				}
+				void this.run(current);
+			},
+			this.isQualified(q) ? QUALIFIED_SEARCH_DELAY : SEARCH_DELAY,
+		);
+	}
 
 	private async run(q: string): Promise<void> {
 		const id = ++this.runId;
 		const pageMatches = this.scanPage(q);
+
+		if (this.isQualified(q)) {
+			const res = await this.fetchSearch(q);
+			if (id !== this.runId) return; // a newer keystroke superseded us
+			if (res) {
+				this.pageMatches = pageMatches;
+				this.render(q, res.groups ?? [], pageMatches, {
+					unknownFilter: res.unknown_filter,
+					fullPage: true,
+					highlight: this.highlightTerm(q),
+				});
+				return;
+			}
+			// The endpoint did not answer: fall through to the local path
+			// filter rather than showing the reader an empty dropdown.
+		}
+
 		await this.ensureLoaded();
-		if (id !== this.runId) return; // a newer keystroke superseded us
+		if (id !== this.runId) return;
 		this.pageMatches = pageMatches;
-		this.draw(q, this.filter(q), pageMatches);
+		this.render(q, this.filter(q), pageMatches);
+	}
+
+	// scopeBase strips any `$webquery` so `$search` hangs off the bare path.
+	private scopeBase(): string {
+		const p = window.location.pathname;
+		const at = p.indexOf("$");
+		return at >= 0 ? p.slice(0, at) : p;
+	}
+
+	private searchHref(q: string): string {
+		return `${this.scopeBase()}$search&q=${encodeURIComponent(q)}`;
+	}
+
+	// isQualified reports whether a query carries a `key:value` token or names
+	// a no-argument selector, i.e. whether the server has to answer it.
+	private isQualified(q: string): boolean {
+		if (this.searchAvailable === false) return false;
+		// Mirrors ParseQuery exactly. The key must be a bare word: a gno path
+		// with arguments (/r/gnoland/pages:p/about) carries a colon too, and
+		// the bar is prefilled with the current path — treating that as a
+		// search turned Enter from "go there" into "search for a qualifier
+		// that does not exist".
+		if (q.split(/\s+/).some(SearchbarController.isQualifierToken)) return true;
+		const word = q.trim().toLowerCase();
+		return this.selectors.some((s) => s.bare && s.name === word);
+	}
+
+	// highlightTerm is what a server-answered row can contain: the free text,
+	// else the selector's value. No title contains `func:Render` as typed.
+	private highlightTerm(q: string): string {
+		const tokens = q.split(/\s+/).filter(Boolean);
+		const text = tokens.filter(
+			(t) =>
+				!SearchbarController.isQualifierToken(t) &&
+				!this.selectors.some((s) => s.bare && s.name === t.toLowerCase()),
+		);
+		if (text.length > 0) return text.join(" ");
+		const values = tokens
+			.filter(SearchbarController.isQualifierToken)
+			.map((t) => {
+				const at = t.indexOf(":");
+				return { key: t.slice(0, at).toLowerCase(), value: t.slice(at + 1) };
+			});
+		const named = values.find((v) =>
+			this.selectors.some((s) => s.name === v.key),
+		);
+		return (named ?? values[0])?.value ?? "";
+	}
+
+	// isQualifierToken must stay in step with ParseQuery's isQualifierKey.
+	static isQualifierToken(token: string): boolean {
+		const at = token.indexOf(":");
+		// An object ID led by a hex letter has a bare-word key too.
+		if (at < 0 || OID_PATTERN.test(token)) return false;
+		if (token.slice(at + 1).startsWith("//")) return false;
+		return /^[a-z][a-z0-9_-]*$/.test(token.slice(0, at).toLowerCase());
+	}
+
+	// fetchSearch asks the server. A failure returns null and is not retried
+	// for the life of the page when the endpoint itself is absent: an older
+	// gnoweb, or one behind a proxy that does not route `$search`, must not
+	// cost a request per keystroke.
+	private async fetchSearch(q: string): Promise<SearchResponse | null> {
+		try {
+			const res = await fetch(`${this.searchHref(q)}&json`, {
+				headers: { Accept: "application/json" },
+			});
+			if (res.status === 404) {
+				this.searchAvailable = false;
+				return null;
+			}
+			if (!res.ok) return null;
+			const data = (await res.json()) as SearchResponse;
+			this.searchAvailable = true;
+			if (data.selectors) {
+				this.selectors = data.selectors;
+				this.selectorsLoaded = true;
+			}
+			return data;
+		} catch {
+			return null;
+		}
+	}
+
+	// loadSelectors probes the endpoint once with an empty query so the hint
+	// list reflects what this deployment can actually answer.
+	private async loadSelectors(): Promise<void> {
+		if (this.selectorsLoaded || this.searchAvailable === false) return;
+		if (this.selectorProbe) return this.selectorProbe;
+		// The flag is set by fetchSearch on success, never here: setting it
+		// before the await meant one offline moment silently disabled every
+		// bare qualifier for the life of the page, with no retry.
+		this.selectorProbe = this.fetchSearch("")
+			.then(() => undefined)
+			.finally(() => {
+				this.selectorProbe = null;
+			});
+		return this.selectorProbe;
+	}
+
+	// beginDraw resets the dropdown for a fresh render; endDraw reveals it.
+	// Both render paths go through them so ARIA state cannot drift between
+	// the local filter and the server-answered one.
+	private beginDraw(): HTMLElement | null {
+		const results = this.getDOMElement("results");
+		if (!results) return null;
+		this.clearHighlight();
+		this.getDOMElement("input")?.removeAttribute("aria-activedescendant");
+		results.textContent = "";
+		this.items = [];
+		this.activeIndex = -1;
+		return results;
+	}
+
+	private endDraw(results: HTMLElement): void {
+		// In the combobox pattern DOM focus stays on the input; options are
+		// reached with the arrow keys. Without this, Tab walks every result.
+		for (const el of this.items) el.tabIndex = -1;
+		results.hidden = false;
+		this.getDOMElement("input")?.setAttribute("aria-expanded", "true");
+	}
+
+	// render is the single dropdown renderer. Both paths — the local path
+	// filter and the server's answer — hand it the same SearchGroup[], so
+	// ARIA bookkeeping and item collection cannot drift between them.
+	private render(
+		q: string,
+		groups: SearchGroup[],
+		pageMatches: PageMatch[],
+		opts: {
+			unknownFilter?: string;
+			fullPage?: boolean;
+			highlight?: string;
+		} = {},
+	): void {
+		const results = this.beginDraw();
+		if (!results) return;
+
+		if (opts.unknownFilter) {
+			results.appendChild(
+				this.buildNotice(
+					`"${opts.unknownFilter}:" is not a search qualifier here`,
+				),
+			);
+		}
+
+		for (const group of groups) {
+			const label =
+				group.source === "indexer"
+					? `${group.label}, from indexer`
+					: group.label;
+			const section = this.sectionWithLabel(label);
+
+			if (group.error) section.appendChild(this.buildNotice(group.error));
+			for (const r of group.results ?? []) {
+				section.appendChild(this.buildItem(r, opts.highlight ?? q, group));
+			}
+			results.appendChild(section);
+		}
+
+		// A qualified query always offers its own results page, the only view
+		// that works without JavaScript.
+		if (opts.fullPage) results.appendChild(this.buildFullPageItem(q));
+
+		if (pageMatches.length > 0) {
+			results.appendChild(this.buildPageSection(q, pageMatches));
+		}
+		if (this.items.length === 0) {
+			results.appendChild(this.buildNotice("No results"));
+		}
+		this.endDraw(results);
+	}
+
+	// buildItem renders one row. Provenance belongs to the group, so it is
+	// read from there rather than repeated on every result.
+	private buildItem(
+		r: SearchResult,
+		q: string,
+		group: SearchGroup,
+	): HTMLElement {
+		const linkable = r.href?.startsWith("/") ?? false;
+		const item = document.createElement(linkable ? "a" : "div");
+		item.className = "b-omnisearch-item";
+		item.setAttribute("role", "option");
+
+		if (linkable && r.href) {
+			(item as HTMLAnchorElement).href = r.href;
+		} else {
+			// Announced but unreachable by the arrow keys — a transaction has
+			// no page in gnoweb — so it must not inflate the option count.
+			item.setAttribute("aria-disabled", "true");
+		}
+		item.setAttribute(
+			"aria-label",
+			group.source === "indexer"
+				? `from indexer: ${r.title}`
+				: `${group.label}: ${r.title}`,
+		);
+
+		const tag = this.buildTag(r, group);
+		if (tag) item.appendChild(tag);
+
+		const text = document.createElement("span");
+		text.className = "b-omnisearch-text";
+		this.fillHighlighted(text, r.title, q);
+		if (r.detail) {
+			const detail = document.createElement("small");
+			detail.textContent = ` ${r.detail}`;
+			text.appendChild(detail);
+		}
+		item.appendChild(text);
+
+		if (linkable) this.items.push(item);
+		return item;
+	}
+
+	// buildTag marks provenance for an indexer row, or the on-chain kind
+	// (r/p/u) for a path the local filter produced.
+	private buildTag(r: SearchResult, group: SearchGroup): HTMLElement | null {
+		const indexer = group.source === "indexer";
+		const type = indexer ? "i" : SearchbarController.typeOf(r.href ?? "");
+		if (!type) return null;
+
+		const tag = document.createElement("span");
+		tag.className = "b-omnisearch-tag";
+		tag.dataset.type = type;
+		tag.textContent = type;
+		// The row's aria-label already carries this; the glyph is decoration.
+		tag.setAttribute("aria-hidden", "true");
+		if (indexer) tag.title = "From an indexer, not from the chain";
+		return tag;
+	}
+
+	// buildNotice renders a message inside the listbox. It is an option
+	// because role="listbox" owns only options and groups — and a disabled
+	// one, because it is not reachable by the arrow keys and must not inflate
+	// the option count a screen reader announces.
+	private buildNotice(text: string): HTMLElement {
+		const el = document.createElement("div");
+		el.className = "b-omnisearch-empty";
+		el.setAttribute("role", "option");
+		el.setAttribute("aria-disabled", "true");
+		el.textContent = text;
+		return el;
+	}
+
+	private buildFullPageItem(q: string): HTMLElement {
+		const section = this.sectionWithLabel("All results");
+		const item = document.createElement("a");
+		item.className = "b-omnisearch-item";
+		item.setAttribute("role", "option");
+		item.href = this.searchHref(q);
+		const text = document.createElement("span");
+		text.className = "b-omnisearch-text";
+		text.textContent = `Open the full results page for "${q}"`;
+		item.appendChild(text);
+		section.appendChild(item);
+		this.items.push(item);
+		return section;
 	}
 
 	// ensureLoaded fetches the path list once and reuses it for every keystroke.
@@ -148,11 +512,9 @@ export class SearchbarController extends BaseController {
 
 	// filter ranks the cached lists by relevance and keeps the top results per
 	// group. Users are derived from the first path segment of the ranked matches.
-	private filter(q: string): {
-		apps: string[];
-		packages: string[];
-		users: string[];
-	} {
+	// filter ranks the cached lists locally and emits the same shape the
+	// server returns, so one renderer serves both paths.
+	private filter(q: string): SearchGroup[] {
 		const needle = q.toLowerCase();
 		const apps = SearchbarController.rank(this.realms, needle);
 		const packages = SearchbarController.rank(this.packages, needle);
@@ -167,11 +529,19 @@ export class SearchbarController extends BaseController {
 			}
 		}
 
-		return {
-			apps: apps.slice(0, RESULTS_PER_GROUP),
-			packages: packages.slice(0, RESULTS_PER_GROUP),
-			users: users.slice(0, RESULTS_PER_GROUP),
-		};
+		const toGroup = (label: string, paths: string[]): SearchGroup => ({
+			label,
+			source: "chain",
+			results: paths
+				.slice(0, RESULTS_PER_GROUP)
+				.map((path) => ({ title: path, href: path })),
+		});
+
+		return [
+			toGroup("Apps", apps),
+			toGroup("Packages", packages),
+			toGroup("Users", users),
+		].filter((g) => (g.results?.length ?? 0) > 0);
 	}
 
 	// rank returns the paths matching needle, most-relevant first: a match in the
@@ -207,81 +577,6 @@ export class SearchbarController extends BaseController {
 		return score - segs.length;
 	}
 
-	private draw(
-		q: string,
-		groups: { apps: string[]; packages: string[]; users: string[] },
-		pageMatches: PageMatch[],
-	): void {
-		const results = this.getDOMElement("results");
-		const input = this.getDOMElement("input");
-		if (!results) return;
-
-		this.clearHighlight();
-		input?.removeAttribute("aria-activedescendant");
-		results.textContent = "";
-		this.items = [];
-		this.activeIndex = -1;
-
-		const gnoland = this.buildLinkSection("gno.land", q, [
-			["Apps", groups.apps],
-			["Packages", groups.packages],
-			["Users", groups.users],
-		]);
-		if (gnoland) results.appendChild(gnoland);
-
-		if (pageMatches.length > 0) {
-			results.appendChild(this.buildPageSection(q, pageMatches));
-		}
-
-		if (this.items.length === 0) {
-			const empty = document.createElement("div");
-			empty.className = "b-omnisearch-empty";
-			empty.textContent = "No results";
-			results.appendChild(empty);
-		}
-		results.hidden = false;
-		input?.setAttribute("aria-expanded", "true");
-	}
-
-	private buildLinkSection(
-		title: string,
-		q: string,
-		groups: Array<[string, string[]]>,
-	): HTMLElement | null {
-		const filled = groups.filter(([, paths]) => paths.length > 0);
-		if (filled.length === 0) return null;
-
-		const section = this.sectionWithLabel(title);
-		for (const [label, paths] of filled) {
-			for (const path of paths) {
-				if (!path.startsWith("/")) continue;
-				const item = document.createElement("a");
-				item.className = "b-omnisearch-item";
-				item.href = path;
-				item.setAttribute("role", "option");
-				item.setAttribute("aria-label", `${label}: ${path}`);
-
-				const type = SearchbarController.typeOf(path);
-				if (type) {
-					const tag = document.createElement("span");
-					tag.className = "b-omnisearch-tag";
-					tag.dataset.type = type;
-					tag.textContent = type;
-					item.appendChild(tag);
-				}
-
-				const text = document.createElement("span");
-				text.className = "b-omnisearch-text";
-				this.fillHighlighted(text, path, q);
-				item.appendChild(text);
-
-				section.appendChild(item);
-				this.items.push(item);
-			}
-		}
-		return section;
-	}
-
 	private buildPageSection(q: string, matches: PageMatch[]): HTMLElement {
 		const section = this.sectionWithLabel(
 			`This page · ${matches.length} matches`,
@@ -312,13 +607,16 @@ export class SearchbarController extends BaseController {
 		const label = document.createElement("span");
 		label.className = "b-omnisearch-label";
 		label.textContent = title;
+		// role="group" owns only options; the group already carries this
+		// text as its aria-label, so the span is decoration.
+		label.setAttribute("aria-hidden", "true");
 		section.appendChild(label);
 		return section;
 	}
 
 	// fillHighlighted writes text into el, emphasizing the first match of q.
 	private fillHighlighted(el: HTMLElement, text: string, q: string): void {
-		const at = text.toLowerCase().indexOf(q.toLowerCase());
+		const at = q ? text.toLowerCase().indexOf(q.toLowerCase()) : -1;
 		if (at < 0) {
 			el.textContent = text;
 			return;
@@ -391,6 +689,9 @@ export class SearchbarController extends BaseController {
 	private selectInput(): void {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
 		requestAnimationFrame(() => input?.select());
+		// Learn the qualifier list on first focus, not on page load: a reader
+		// who never opens the bar costs no request.
+		void this.loadSelectors();
 	}
 
 	// scanPage collects up to MAX_PAGE_MATCHES occurrences of q in the page
@@ -488,10 +789,7 @@ export class SearchbarController extends BaseController {
 	// realm paths copied from anywhere resolve locally; non-`gno.land` absolute
 	// URLs pass through, and relatives resolve against the origin.
 	static resolveTarget(input: string): string | null {
-		const stripped = input.replace(
-			/^(?:https?:\/\/)?gno\.land(?=\/|$|\?|#)/i,
-			"",
-		);
+		const stripped = input.replace(GNO_LAND_HOST, "");
 		try {
 			const url = new URL(stripped, window.location.origin);
 			if (url.protocol !== "http:" && url.protocol !== "https:") return null;

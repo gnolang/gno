@@ -11,11 +11,16 @@ LAYOUT - Header component
 
       <div class="b-main-navigation" data-controller="searchbar">
         <div class="inner c-reel u-no-scrollbar">
-          <form class="searchbar" data-action="submit->searchbar#searchUrl">
+          {{/* method/action/name make the bar work with JavaScript off: the
+               form submits to the server-rendered results page. The
+               controller intercepts the submit when JavaScript is on, so
+               this is the fallback, not the normal path. */}}
+          <form class="searchbar" method="GET" action="{{ .SearchAction }}"
+            role="search" data-action="submit->searchbar#searchUrl">
             <label for="header-input-search" class="u-sr-only">
               gno.land Search
             </label>
-            <input id="header-input-search" data-searchbar-target="input"
+            <input id="header-input-search" name="q" data-searchbar-target="input"
               type="text" value="{{ .RealmPath }}" role="combobox"
               aria-expanded="false" aria-controls="omnisearch-results"
               aria-autocomplete="list" autocomplete="off"
