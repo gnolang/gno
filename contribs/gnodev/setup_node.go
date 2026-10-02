@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	signer "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/local"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -136,6 +137,17 @@ func setupDevNodeConfig(
 		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
 	}
 	config.DefaultCreator = dkey
+
+	// Use the provided validator key instead of a generated one
+	if cfg.validatorKeyFile != "" {
+		vkey, err := signer.LoadFileKey(cfg.validatorKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load validator key %q: %w", cfg.validatorKeyFile, err)
+		}
+		config.ValidatorKey = vkey.PrivKey
+
+		logger.Info("validator key loaded", "path", cfg.validatorKeyFile, "addr", vkey.Address.String())
+	}
 
 	return config, nil
 }
