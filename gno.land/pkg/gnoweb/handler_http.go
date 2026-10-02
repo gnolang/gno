@@ -552,7 +552,7 @@ func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.G
 
 // MaxUserContributions caps how many contributions /u/<user> renders per
 // namespace; a resolved user lists two.
-// Each entry costs a bech32 decode, a weburl parse, and a sort comparison;
+// Each entry costs a weburl parse and a sort comparison;
 // an unbounded cap turns a single GET into a 10k-iteration amplifier.
 // Exported so external tests assert against the documented cap.
 // TODO: paginate via ?page= when a contributor exceeds this cap.
@@ -611,6 +611,8 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, namespaces ...stri
 // reads the same source rather than a copy that could drift out of it.
 var reUsername = gno.Re_name.Compile()
 
+// maxUsernameLen mirrors maxNameLen in r/sys/users, which caps a name in
+// bytes on top of the shape reUsername checks.
 const maxUsernameLen = 64
 
 // UserRegistryPath is the realm that maps gno.land names to addresses, and the
@@ -651,7 +653,7 @@ func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdenti
 	// An address is its own answer for half the pair, registry or not: it is
 	// already the address, and it is a namespace by construction.
 	identity := userIdentity{}
-	if _, err := crypto.AddressFromBech32(input); err == nil {
+	if isGnoAddress(input) {
 		identity.Address = input
 	}
 
@@ -703,9 +705,16 @@ func (h *HTTPHandler) isAliasTarget(path string) bool {
 	return false
 }
 
+// isGnoAddress reports whether s is a gno bech32 address, which is a namespace
+// by construction.
+func isGnoAddress(s string) bool {
+	_, err := crypto.AddressFromBech32(s)
+	return err == nil
+}
+
 // CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
 func CreateUsernameFromBech32(username string) string {
-	if _, err := crypto.AddressFromBech32(username); err != nil {
+	if !isGnoAddress(username) {
 		return username
 	}
 
@@ -733,8 +742,7 @@ func displayPackageName(pkgPath string) string {
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	segment := gnourl.Username()
 
-	_, err := crypto.AddressFromBech32(segment)
-	isAddress := err == nil
+	isAddress := isGnoAddress(segment)
 	if !isAddress && (len(segment) > maxUsernameLen || !reUsername.Matches(segment)) {
 		return http.StatusNotFound, components.StatusUserNotFoundComponent("")
 	}
@@ -743,7 +751,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// or a namespace holding packages is served without the registry.
 	identity, resolveErr := h.resolveUser(ctx, segment)
 	if resolveErr != nil {
-		h.Logger.Warn("unable to resolve user", "error", resolveErr)
+		h.Logger.Warn("unable to resolve user", "user", segment, "error", resolveErr)
 	}
 
 	// A resolved user may deploy under both halves of the pair, since

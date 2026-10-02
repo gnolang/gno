@@ -149,9 +149,9 @@ machine when the package was absent.
 - On gnodev a developer who has deployed nothing under their name gets a 404
   where they used to get an empty profile; deploying one package restores it
   through rule 2.
-- The 404 body is the shared `StatusErrorComponent` text, "Something went
-  wrong", which is wrong for a name that simply is not registered. Every other
-  404 in gnoweb says the same thing, so the copy is a separate change.
+- The 404 has its own `StatusUserNotFoundComponent` body: "No user is
+  registered as <name>." for a segment that could be a name, and "This is not a
+  valid user name or address." for one that could not, which is not echoed.
 - `$help`, `$source` and `$state` under `/u/` are not gated. They already 404
   on chain for a name that owns nothing, and they route through
   `GetPackageView` before this code, so closing them is a separate change.
