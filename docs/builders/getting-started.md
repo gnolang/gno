@@ -273,7 +273,7 @@ network dropdown and every `gnokey` command's `-remote` and
 | Testnet    | see below    | `https://rpc.latest.testnets.gno.land:443`    |
 | Mainnet    | `gnoland-1`  | `https://rpc.gno.land:443`                    |
 
-The testnet row uses the `latest` endpoint, which always points at the current testnet. Its chain ID changes with each testnet, so read it from the node: `curl -s https://rpc.latest.testnets.gno.land:443/status | grep -o '"network":"[^"]*"'`. See [Networks](../resources/gnoland-networks.md#latest-testnet) for which testnet is current and what it runs.
+The testnet row uses the `latest` endpoint, which always points at the current testnet. Its chain ID changes with each testnet, so read it from the node: `curl -s https://rpc.latest.testnets.gno.land:443/status | grep -o '"network": *"[^"]*"'`. See [Networks](../resources/gnoland-networks.md#latest-testnet) for which testnet is current and what it runs.
 
 Examples below use **staging** because it resets on a short cadence,
 fine for a throwaway first deploy. For anything you want to keep around,

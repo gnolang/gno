@@ -40,12 +40,14 @@ Each testnet has its own hostnames, and a `latest` set always points at the curr
 | RPC        | https://rpc.latest.testnets.gno.land:443   |
 | Gnockpit   | https://gnockpit.latest.testnets.gno.land  |
 | Status     | https://status.latest.testnets.gno.land    |
-| tx-indexer | https://indexer.latest.testnets.gno.land   |
+| tx-indexer | https://indexer.latest.testnets.gno.land/graphql |
+
+The tx-indexer URL opens its GraphQL playground; GraphQL clients send their queries to `/graphql/query` on the same host.
 
 The chain ID changes with each testnet, so read it from the node instead of hard-coding it:
 
 ```shell
-curl -s https://rpc.latest.testnets.gno.land:443/status | grep -o '"network":"[^"]*"'
+curl -s https://rpc.latest.testnets.gno.land:443/status | grep -o '"network": *"[^"]*"'
 ```
 
 ### WebSocket endpoints
