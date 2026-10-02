@@ -1,0 +1,291 @@
+package gnoweb
+
+import (
+	"strings"
+
+	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+)
+
+// pageKind says who answers for a page, which decides what its <head> may
+// repeat and which of its links search engines may follow. gno.land is
+// permissionless, so a title, a summary, a share card or a followed link
+// lifted from any realm would let anyone speak under gno.land's name (#3910).
+// The zero value is the most restrictive, so an unclassified page fails closed.
+type pageKind int
+
+const (
+	// pageCommunity is a package or user page outside the trusted paths. Its
+	// head repeats nothing it renders, and none of its links is followed.
+	pageCommunity pageKind = iota
+	// pageOfficial is a page of a package under the trusted paths, reached by
+	// its own path or through an alias. Its head may repeat its leading
+	// heading and paragraph.
+	pageOfficial
+	// pageOperator is a markdown page an operator passed to -aliases. It is
+	// official, and its links are the operator's own.
+	pageOperator
+	// pageSite is a gnoweb view that belongs to no package, such as the bare
+	// "/r/" listing. Its head is generic.
+	pageSite
+)
+
+const (
+	officialImageAsset         = "imgs/og-gnoland.png"
+	communityRealmImageAsset   = "imgs/og-community-realm.png"
+	communityPackageImageAsset = "imgs/og-community-package.png"
+	communityUserImageAsset    = "imgs/og-community-user.png"
+)
+
+// pageLead is what a rendered document says about itself: its leading h1
+// and its summary. setHeadMetadata decides whether the head repeats it.
+type pageLead struct{ title, description string }
+
+// pagePolicy decides, from a page's URL alone, who answers for it and what
+// search engines may do with it. It needs no request and no RPC, so anything
+// that lists pages, such as a sitemap, classifies them the same way.
+type pagePolicy struct {
+	trusted trustedPaths
+	aliases map[string]AliasTarget
+	// aliasOf maps a realm alias's target, path and args, to the alias.
+	aliasOf map[string]string
+	index   CommunityIndex
+}
+
+func newPagePolicy(trusted []string, aliases map[string]AliasTarget, index CommunityIndex) pagePolicy {
+	return pagePolicy{
+		trusted: newTrustedPaths(trusted),
+		aliases: aliases,
+		aliasOf: aliasTargets(aliases),
+		index:   index,
+	}
+}
+
+// aliasTargets maps each realm alias's target to the alias that publishes
+// it. When two aliases share a target the shorter wins, then the first in
+// order, so the choice does not depend on map order.
+func aliasTargets(aliases map[string]AliasTarget) map[string]string {
+	of := make(map[string]string)
+	for alias, target := range aliases {
+		if target.Kind != GnowebPath {
+			continue
+		}
+		u, err := weburl.Parse(target.Value)
+		if err != nil {
+			continue
+		}
+		key := aliasKey(u)
+		if cur, ok := of[key]; !ok || len(alias) < len(cur) || (len(alias) == len(cur) && alias < cur) {
+			of[key] = alias
+		}
+	}
+	return of
+}
+
+func aliasKey(u *weburl.GnoURL) string {
+	return u.Encode(weburl.EncodePath | weburl.EncodeArgs | weburl.EncodeNoEscape)
+}
+
+// aliasFor is the alias that publishes the page at u, if u is an alias's
+// target asked for as such, with no view and no query.
+func (p pagePolicy) aliasFor(u *weburl.GnoURL) (string, bool) {
+	if len(u.WebQuery) > 0 || len(u.Query) > 0 {
+		return "", false
+	}
+	alias, ok := p.aliasOf[aliasKey(u)]
+	return alias, ok
+}
+
+// kind classifies u, the URL a page is served from once a realm alias is
+// resolved. A user page renders that user's home realm. The bare "/r/",
+// "/p/" and "/u/" listings belong to no package.
+func (p pagePolicy) kind(u *weburl.GnoURL) pageKind {
+	if a, ok := p.aliases[u.Path]; ok && a.Kind == StaticMarkdown {
+		return pageOperator
+	}
+	pkg, ok := packagePath(u)
+	switch {
+	case !ok:
+		return pageSite
+	case u.IsUser() && strings.Contains(pkg, "/"):
+		// A user is one name; a deeper path must not borrow the trust of
+		// the name it starts with.
+		return pageCommunity
+	case p.trusted.contains(pkg):
+		return pageOfficial
+	default:
+		return pageCommunity
+	}
+}
+
+// isPackageURL reports whether u is under /r/, /p/ or /u/.
+func isPackageURL(u *weburl.GnoURL) bool {
+	return u.IsRealm() || u.IsPure() || u.IsUser()
+}
+
+// packagePath is the package u renders, without its "/r/" or "/p/" prefix,
+// or the user name of a user page. It is false for any other URL, the bare
+// listings included.
+func packagePath(u *weburl.GnoURL) (string, bool) {
+	if !isPackageURL(u) {
+		return "", false
+	}
+	pkg := strings.Trim(u.Path[3:], "/") // skip "/r/", "/p/" or "/u/"
+	return pkg, pkg != ""
+}
+
+// mayRepeat reports whether the head of u may repeat what the rendered
+// document says about itself. Only an official page may, and only when the
+// link typed nothing past the path: arguments and query both reach Render,
+// and a trusted realm may echo them, as p/gnoland/blog does with a tag in its
+// heading. A post's slug and its title share words, so no string match tells
+// an echo from a heading.
+func (k pageKind) mayRepeat(u *weburl.GnoURL) bool {
+	return (k == pageOfficial || k == pageOperator) && u.Args == "" && len(u.Query) == 0
+}
+
+// pathTitle names a page by its path alone, for the pages whose document may
+// not name them: what the package is and whose namespace it sits in, as in
+// "games/chess · realm by nym". An address namespace is shortened the way the
+// user page shows it. The bare listings are "Realms", "Packages" and
+// "Users"; any other path, an alias's, names itself without its slashes. The
+// title is capped like an h1, since a path can be as long as a link cares.
+func pathTitle(u *weburl.GnoURL) string {
+	return md.TruncateTitle(pathName(u))
+}
+
+// pathName is pathTitle before it is capped.
+func pathName(u *weburl.GnoURL) string {
+	pkg, ok := packagePath(u)
+	switch {
+	case ok:
+	case u.IsRealm():
+		return "Realms"
+	case u.IsPure():
+		return "Packages"
+	case u.IsUser():
+		return "Users"
+	default:
+		return strings.Trim(u.Path, "/")
+	}
+	ns, name, _ := strings.Cut(pkg, "/")
+	owner := CreateUsernameFromBech32(ns)
+	switch {
+	case u.IsUser():
+		return owner + " · user profile"
+	case u.IsPure() && name == "":
+		return "packages by " + owner
+	case u.IsPure():
+		return name + " · package by " + owner
+	case name == "":
+		return "realms by " + owner
+	default:
+		return name + " · realm by " + owner
+	}
+}
+
+// links says which links of a document of kind k search engines may follow,
+// so a page gno.land does not answer for passes on none of its authority.
+// External links stay nofollow on every page but an operator's own: a
+// trusted realm may still show what its users wrote.
+func (k pageKind) links() md.LinkPolicy {
+	switch k {
+	case pageOperator:
+		return md.FollowAllLinks
+	case pageCommunity:
+		return md.FollowNoLinks
+	default:
+		return md.FollowInternalLinks
+	}
+}
+
+// pageRender is what Get hands the views that render a document, and what
+// they hand back for the head.
+type pageRender struct {
+	// links says which links of the document crawlers may follow.
+	links md.LinkPolicy
+	// markdown is set when the client asked for text/markdown.
+	markdown bool
+	// lead is set by a view: what the document says about itself.
+	lead pageLead
+	// empty is set by a view whose page shows nothing of its own.
+	empty bool
+}
+
+// servedPage is what Get learns about the page it serves, for the head.
+type servedPage struct {
+	// url is the URL the client asked for, not an alias target; it names
+	// the page.
+	url *weburl.GnoURL
+	// target is the URL the page is served from: an alias's target, or url.
+	// It decides the kind and the card.
+	target *weburl.GnoURL
+	kind   pageKind
+	robots robots
+	// render is handed to the views.
+	render pageRender
+}
+
+// renderContext is the context a document renders under for pr.
+func (h *HTTPHandler) renderContext(pr *pageRender) RealmRenderContext {
+	return RealmRenderContext{
+		ChainId: h.Static.ChainId,
+		Remote:  h.Static.RemoteHelp,
+		Domain:  h.Static.Domain,
+		Links:   pr.links,
+	}
+}
+
+// pageCard is the summary and share image of a page whose document does
+// not, or may not, summarise it.
+type pageCard struct {
+	description string
+	image       string // asset path, under the assets root
+	imageAlt    string
+}
+
+// card is the card of a page of kind k served from u, on domain. gno.land's
+// plain mark goes only to the pages it answers for; a community page gets a
+// card that says what kind of page it is, and a summary built from its path,
+// which is the one part of it its author does not write freely.
+func (k pageKind) card(u *weburl.GnoURL, domain string) pageCard {
+	if k != pageCommunity {
+		return pageCard{
+			description: "Explore realms and packages on " + domain + ", the network for Gno smart contracts.",
+			image:       officialImageAsset,
+			imageAlt:    "gno.land logo",
+		}
+	}
+	pkg, _ := packagePath(u)
+	ns, name, _ := strings.Cut(pkg, "/")
+	owner := CreateUsernameFromBech32(ns)
+	// deployed reads "games/chess, a realm deployed on gno.land by nym.", or
+	// "Realms deployed ..." for a namespace root.
+	deployed := func(kind, kinds string) string {
+		what := kinds
+		if name != "" {
+			what = name + ", a " + kind
+		}
+		return md.TruncateDescription(what + " deployed on " + domain + " by " + owner + ".")
+	}
+	switch {
+	case u.IsUser():
+		return pageCard{
+			description: md.TruncateDescription(owner + "'s profile on " + domain + "."),
+			image:       communityUserImageAsset,
+			imageAlt:    "Community profile on " + domain,
+		}
+	case u.IsPure():
+		return pageCard{
+			description: deployed("package", "Packages"),
+			image:       communityPackageImageAsset,
+			imageAlt:    "Community package on " + domain + ", deployed by its author",
+		}
+	default:
+		return pageCard{
+			description: deployed("realm", "Realms"),
+			image:       communityRealmImageAsset,
+			imageAlt:    "Community realm on " + domain + ", deployed by its author",
+		}
+	}
+}

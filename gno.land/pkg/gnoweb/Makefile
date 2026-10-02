@@ -92,6 +92,12 @@ lint.front:; $(MAKE) -C frontend lint
 # Generate process
 generate: maincss ts static
 
+# Community share cards, from their wording in frontend/og-cards/generate.sh
+# (macOS only). Run `make static` after to copy them to public/.
+.PHONY: og-cards
+og-cards:
+	./frontend/og-cards/generate.sh
+
 # Main CSS
 maincss: $(output_maincss)
 $(output_maincss): $(main_css_files) $(templates_files) $(postcss)
