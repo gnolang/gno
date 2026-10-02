@@ -6,4 +6,5 @@ const (
 	CommunityRealmDescription   = communityRealmDescription
 	CommunityPackageDescription = communityPackageDescription
 	CommunityUserDescription    = communityUserDescription
+	ErrorDescription            = errorDescription
 )

@@ -162,6 +162,16 @@ type pageRender struct {
 	empty bool
 }
 
+// servedPage is what Get learns about the page it serves, for the head.
+type servedPage struct {
+	// url is the URL the client asked for, not an alias target.
+	url    *weburl.GnoURL
+	kind   pageKind
+	robots robots
+	// render is handed to the views.
+	render pageRender
+}
+
 // renderContext is the context a document renders under for pr.
 func (h *HTTPHandler) renderContext(pr *pageRender) RealmRenderContext {
 	return RealmRenderContext{

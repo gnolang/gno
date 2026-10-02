@@ -271,9 +271,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		indexData.HeadData.Title = h.titleWithDomain("invalid path")
 		indexData.BodyView = components.StatusErrorComponent("invalid path")
-		unpublishErrorShell(&indexData.HeadData, http.StatusNotFound)
+		h.setHead(w, &indexData.HeadData, &servedPage{}, http.StatusNotFound)
 		w.WriteHeader(http.StatusNotFound)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render error view", "error", err)
@@ -281,7 +280,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	kind := h.classifyPage(w, &indexData, gnourl)
+	sp := h.classifyPage(w, &indexData, gnourl)
 
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
@@ -292,18 +291,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Head metadata names the URL the client asked for, not the alias
 	// target: /about and /r/gnoland/pages:p/about serve one page, and
 	// /about is the address to publish.
-	headURL := gnourl
 	switch {
 	case realmAlias:
 		if u, err := weburl.ParseFromURL(&requested); err == nil {
-			headURL = u
+			sp.url = u
 		}
 	case staticPage:
 		// A static page renders the same bytes whatever the query says, so
 		// /about?utm_source=x is /about and may still name itself.
 		u := *gnourl
 		u.Query = nil
-		headURL = &u
+		sp.url = &u
 	}
 
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
@@ -329,8 +327,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
 		indexData.BodyView = view
-		h.setHeadMetadata(&indexData.HeadData, headURL, kind, pageLead{})
-		unpublishErrorShell(&indexData.HeadData, status)
+		h.setHead(w, &indexData.HeadData, &sp, status)
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render state page", "error", err)
@@ -350,8 +347,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 	}
 
-	pr := pageRender{links: kind.links(), markdown: negotiatesMarkdown(r.Header.Get("Accept"))}
-	status, bodyView := h.prepareIndexBodyView(r, &indexData, &pr)
+	sp.render.markdown = negotiatesMarkdown(r.Header.Get("Accept"))
+	status, bodyView := h.prepareIndexBodyView(r, &indexData, &sp.render)
 
 	// The realm and static-markdown paths return a markdown view; serve its
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
@@ -368,12 +365,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	indexData.BodyView = bodyView
-	if pr.empty {
-		noIndex(w, &indexData.HeadData)
-	}
-
-	h.setHeadMetadata(&indexData.HeadData, headURL, kind, pr.lead)
-	unpublishErrorShell(&indexData.HeadData, status)
+	h.setHead(w, &indexData.HeadData, &sp, status)
 
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
@@ -383,27 +375,38 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // classifyPage classifies the page at u and sets what follows from its kind
-// alone: the community notice, and the robots policy. It runs before any
-// branch writes, since the markdown and download responses have no head to
-// carry a robots meta. A markdown alias serves bytes the operator wrote; a
-// realm alias serves whatever its target renders, so u is the target and
-// the alias keeps the target's kind.
-func (h *HTTPHandler) classifyPage(w http.ResponseWriter, indexData *components.IndexData, u *weburl.GnoURL) pageKind {
-	kind := h.policy.kind(u)
-	if kind == pageCommunity && h.Static.RealmNotice.Enabled() {
+// alone: the community notice, the link policy, and the robots policy. The
+// X-Robots-Tag header is set here, before any branch writes, since the
+// markdown and download responses have no head to carry a robots meta. A
+// markdown alias serves bytes the operator wrote; a realm alias serves
+// whatever its target renders, so u is the target and the alias keeps the
+// target's kind.
+func (h *HTTPHandler) classifyPage(w http.ResponseWriter, indexData *components.IndexData, u *weburl.GnoURL) servedPage {
+	sp := servedPage{url: u, kind: h.policy.kind(u)}
+	sp.robots = h.policy.robots(sp.kind, u)
+	sp.render.links = sp.kind.links()
+	if sp.kind == pageCommunity && h.Static.RealmNotice.Enabled() {
 		indexData.Notice = h.Static.RealmNotice
 	}
-	if !h.policy.indexable(kind, u) {
-		noIndex(w, &indexData.HeadData)
+	if sp.robots != indexFollow {
+		w.Header().Set("X-Robots-Tag", sp.robots.String())
 	}
-	return kind
+	return sp
 }
 
-// noIndex asks search engines to keep the page out of their index, in the
-// response header and in the head.
-func noIndex(w http.ResponseWriter, head *components.HeadData) {
-	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-	head.NoIndex = true
+// finalRobots is what the page tells search engines once its status is
+// known, and sets the X-Robots-Tag header to match. An error, a user page
+// with nothing to show, or a state explorer page that asked for less, is
+// noindex, nofollow whatever the policy granted.
+func finalRobots(w http.ResponseWriter, sp *servedPage, status int) robots {
+	r := sp.robots
+	if status != http.StatusOK || sp.render.empty || w.Header().Get("X-Robots-Tag") == noIndexNoFollow.String() {
+		r = noIndexNoFollow
+	}
+	if r != indexFollow {
+		w.Header().Set("X-Robots-Tag", r.String())
+	}
+	return r
 }
 
 // maxPostFormBytes caps r.Body for the redirect form. The form carries
@@ -1184,33 +1187,58 @@ func (h *HTTPHandler) titleWithDomain(page string) string {
 // caller-supplied, so a canonical built from it sends crawlers wherever the
 // caller asked. The query is dropped: anyone can append one to any page, and
 // keeping it would publish one page under as many URLs as there are queries.
+//
+// An indexed page carries no $ key but source and file (see robots), and
+// they are written in the order gnoweb's own links use: $source&file=<name>.
 func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	if h.Static.CanonicalOrigin == "" {
 		return ""
 	}
 	u := *gnourl
-	u.Query = nil
-	return h.Static.CanonicalOrigin + u.EncodeWebURL()
+	u.Query, u.WebQuery = nil, nil
+	canonical := h.Static.CanonicalOrigin + u.EncodeWebURL()
+	if gnourl.WebQuery.Has("source") {
+		canonical += "$source"
+		if file := gnourl.WebQuery.Get("file"); file != "" {
+			canonical += "&file=" + url.QueryEscape(file)
+		}
+	}
+	return canonical
 }
 
-// setHeadMetadata settles the <head> once the body is rendered, and is the
-// only writer of its text slots. lead, what the document says about itself,
-// reaches the head only if mayRepeat allows. The title otherwise comes from
-// the path alone: arguments and query are typed by whoever wrote the link, on
-// any realm, trusted or not.
-func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.GnoURL, kind pageKind, lead pageLead) {
-	if !kind.mayRepeat(gnourl) {
+// errorDescription is the summary of every error page: it says nothing of
+// the URL, which whoever wrote the link chose.
+const errorDescription = "This page is not available."
+
+// setHead settles the <head> once the body is rendered and its status known,
+// and is its only writer. An error page gets a fixed title and summary, and
+// no canonical, og:url or card: the head is built from the URL, and a
+// mistyped one must not publish itself or its words. Otherwise the
+// document's lead reaches the head only if mayRepeat allows, and the title
+// comes from the path alone: arguments and query are typed by whoever wrote
+// the link, on any realm, trusted or not.
+func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, sp *servedPage, status int) {
+	r := finalRobots(w, sp, status)
+	head.Robots = r.String()
+	if status != http.StatusOK {
+		head.Title = h.titleWithDomain(errorTitle(status))
+		head.Description = errorDescription
+		return
+	}
+
+	lead := sp.render.lead
+	if !sp.kind.mayRepeat(sp.url) {
 		lead = pageLead{}
 	}
-	head.Title = h.titleWithDomain(cmp.Or(lead.title, pathTitle(gnourl)))
-	description, image := kind.card(gnourl)
+	head.Title = h.titleWithDomain(cmp.Or(lead.title, pathTitle(sp.url)))
+	description, image := sp.kind.card(sp.url)
 	head.Description = cmp.Or(lead.description, description)
 
 	// A page kept out of the index names no canonical, but keeps its card:
 	// link previews ignore robots, and an empty card looks broken.
-	canonical := h.canonicalURL(gnourl)
+	canonical := h.canonicalURL(sp.url)
 	head.URL = canonical
-	if !head.NoIndex {
+	if r == indexFollow {
 		head.Canonical = canonical
 	}
 	// A crawler fetches og:image as given, with no page to resolve it
@@ -1220,19 +1248,16 @@ func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.
 	}
 }
 
-// unpublishErrorShell drops what an error shell must not publish. The head is
-// built before the body is rendered, so it does not yet know whether the page
-// exists. A canonical on an error shell tells a crawler the URL is real, which
-// is how a mistyped path becomes an indexed page. Call it before every
-// WriteHeader that renders IndexLayout.
-func unpublishErrorShell(head *components.HeadData, status int) {
-	if status == http.StatusOK {
-		return
+// errorTitle names an error page by its status alone.
+func errorTitle(status int) string {
+	switch status {
+	case http.StatusNotFound:
+		return "Page not found"
+	case http.StatusBadRequest:
+		return "Invalid path"
+	default:
+		return http.StatusText(status)
 	}
-	head.Canonical = ""
-	head.URL = ""
-	head.Image = ""
-	head.NoIndex = true
 }
 
 // setHeaderForRealm seeds IndexData.HeaderData from the parsed realm URL.

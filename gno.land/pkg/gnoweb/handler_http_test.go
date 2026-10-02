@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"log/slog"
 	"maps"
@@ -2236,7 +2237,8 @@ func TestHTTPHandler_PageMetadata(t *testing.T) {
 
 	handler := newMetadataHandler(t, "/r/gnoland/path", nil)
 
-	for _, url := range []string{"/r/gnoland/path", "/r/gnoland/path:p/hello", "/r/gnoland/path$source"} {
+	// $source&file= in the order gnoweb's own links write it.
+	for _, url := range []string{"/r/gnoland/path", "/r/gnoland/path:p/hello", "/r/gnoland/path$source", "/r/gnoland/path$source&file=render.gno"} {
 		t.Run(url, func(t *testing.T) {
 			t.Parallel()
 
@@ -2244,7 +2246,7 @@ func TestHTTPHandler_PageMetadata(t *testing.T) {
 			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
 
 			body := rr.Body.String()
-			canonical := "https://gno.land" + url
+			canonical := html.EscapeString("https://gno.land" + url)
 			assert.Contains(t, body, `<link rel="canonical" href="`+canonical+`" />`)
 			assert.Contains(t, body, `<meta property="og:url" content="`+canonical+`" />`)
 		})
@@ -2315,8 +2317,8 @@ func TestHTTPHandler_StaticPageFrontMatter(t *testing.T) {
 			assert.Contains(t, head, "<title>About - gno.land</title>", "the page names itself, the domain stays last")
 			assert.Contains(t, head, `<meta name="description" content="Why gno.land exists, in the words we chose." />`)
 			assert.NotContains(t, head, "The body paragraph", "a chosen summary wins over the extracted one")
-			// The canonical still names the URL, not the title.
-			assert.Contains(t, head, `<link rel="canonical" href="https://gno.land/about" />`)
+			// og:url still names the URL, not the title.
+			assert.Contains(t, head, `<meta property="og:url" content="https://gno.land/about" />`)
 			assert.NotContains(t, head, "utm_source")
 			assert.NotContains(t, rr.Body.String(), "title: About", "the front matter must not render as page content")
 		})
@@ -2431,9 +2433,11 @@ func TestHTTPHandler_AliasShareImage(t *testing.T) {
 
 		head, _, _ := strings.Cut(rr.Body.String(), "</head>")
 		assert.Contains(t, head, `<title>/terms - gno.land</title>`)
-		assert.Contains(t, head, `<link rel="canonical" href="https://gno.land/terms" />`)
 		assert.Contains(t, head, `<meta property="og:url" content="https://gno.land/terms" />`)
 		assert.NotContains(t, head, "utm_source")
+		// A query makes a URL of its own, which is kept out of the index.
+		assert.Contains(t, head, `<meta name="robots" content="noindex, follow" />`)
+		assert.NotContains(t, head, `rel="canonical"`)
 	})
 }
 
@@ -2453,11 +2457,12 @@ func TestHTTPHandler_ErrorShellUnpublished(t *testing.T) {
 		name   string
 		url    string
 		status int
+		title  string
 	}{
-		{"missing realm", "/r/mock/nope", http.StatusNotFound},
-		{"alias to a missing realm", "/gone", http.StatusNotFound},
-		{"state page with a bad oid", "/r/mock/path$state&oid=bogus", http.StatusBadRequest},
-		{"unparsable path", "/~!1337", http.StatusNotFound},
+		{"missing realm", "/r/mock/nope", http.StatusNotFound, "Page not found"},
+		{"alias to a missing realm", "/gone", http.StatusNotFound, "Page not found"},
+		{"state page with a bad oid", "/r/mock/path$state&oid=bogus", http.StatusBadRequest, "Invalid path"},
+		{"unparsable path", "/~!1337", http.StatusNotFound, "Page not found"},
 	}
 
 	for _, tc := range cases {
@@ -2474,6 +2479,10 @@ func TestHTTPHandler_ErrorShellUnpublished(t *testing.T) {
 			assert.NotContains(t, body, `<meta property="og:image"`)
 			assert.Contains(t, body, `<meta name="twitter:card" content="summary" />`)
 			assert.Contains(t, body, `<meta name="robots" content="noindex, nofollow" />`)
+			assert.Equal(t, "noindex, nofollow", rr.Header().Get("X-Robots-Tag"))
+			// The head names the error, never the URL that caused it.
+			assert.Contains(t, body, "<title>"+tc.title+" - gno.land</title>")
+			assert.Contains(t, body, `<meta name="description" content="`+gnoweb.ErrorDescription+`" />`)
 		})
 	}
 }
@@ -2571,8 +2580,8 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		pkgImg   = "https://gno.land/public/imgs/og-community-package.png"
 		userImg  = "https://gno.land/public/imgs/og-community-user.png"
 	)
-	// Every page indexed, so each carries a canonical to read the path off;
-	// TestHTTPHandler_CommunityIndex covers which ones lose it.
+	// Every page carries og:url, whichever the index policy keeps; the
+	// canonical is TestHTTPHandler_CommunityIndex's.
 	handler := newTrustHandler(t, gnoweb.IndexAllCommunity)
 
 	cases := []struct {
@@ -2659,7 +2668,6 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 			assert.Contains(t, head, `<meta property="og:description" content="`+tc.description+`" />`)
 			assert.Contains(t, head, `<meta property="og:image" content="`+tc.image+`" />`)
 			assert.Contains(t, head, `<meta name="twitter:card" content="summary_large_image" />`)
-			assert.Contains(t, head, `<link rel="canonical" href="`+canonical+`" />`)
 			assert.Contains(t, head, `<meta property="og:url" content="`+canonical+`" />`)
 			// Only the canonical and og:url may carry crafted args, as part
 			// of the URL; no text slot may, and nothing may carry the query.
@@ -2673,45 +2681,52 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 
 // TestHTTPHandler_CommunityIndex checks what search engines are told about
 // each page under each -index-community setting. A page kept out of the index
-// gets a noindex meta, an X-Robots-Tag header (the only signal a markdown
+// gets a robots meta and an X-Robots-Tag header (the only signal a markdown
 // response can carry) and no canonical, but keeps its card.
 func TestHTTPHandler_CommunityIndex(t *testing.T) {
 	t.Parallel()
 
+	const (
+		nn = "noindex, nofollow"
+		nf = "noindex, follow"
+		ix = "index, follow"
+	)
 	pages := []struct {
 		name, url string
-		markdown  bool // asked for text/markdown, so there is no head to read
-		official  bool // indexed under every setting
-		named     bool // a bare page under a registered name: indexed under "registered"
-		ownRobots bool // the state explorer may send its own X-Robots-Tag
+		markdown  bool      // asked for text/markdown, so there is no head to read
+		want      [3]string // robots under none, registered, all
 	}{
-		{name: "community realm", url: "/r/nym/app", named: true},
-		{name: "community package", url: "/p/nym/lib", named: true},
-		{name: "community user", url: "/u/nym", named: true},
-		{name: "alias to a community realm", url: "/nymalias", named: true},
-		{name: "community realm as markdown", url: "/r/nym/app", markdown: true, named: true},
-		{name: "address namespace", url: trustAddrRealm},
-		{name: "community realm with args", url: "/r/nym/app:p/x"},
-		{name: "community realm with a query", url: "/r/nym/app?page=2"},
-		{name: "community realm with args, as markdown", url: "/r/nym/app:p/x", markdown: true},
-		{name: "community source", url: "/r/nym/app$source"},
-		{name: "community help", url: "/r/nym/app$help"},
-		{name: "community state", url: "/r/nym/app$state", ownRobots: true},
-		{name: "official realm", url: "/r/gnoland/blog", official: true},
-		{name: "official realm with args", url: "/r/gnoland/blog:p/hello", official: true},
-		{name: "official realm as markdown", url: "/r/gnoland/blog", markdown: true, official: true},
-		{name: "operator page", url: "/about", official: true},
+		{name: "community realm", url: "/r/nym/app", want: [3]string{nn, ix, ix}},
+		{name: "community package", url: "/p/nym/lib", want: [3]string{nn, ix, ix}},
+		{name: "community user", url: "/u/nym", want: [3]string{nn, ix, ix}},
+		{name: "alias to a community realm", url: "/nymalias", want: [3]string{nn, ix, ix}},
+		{name: "community realm as markdown", url: "/r/nym/app", markdown: true, want: [3]string{nn, ix, ix}},
+		{name: "address namespace", url: trustAddrRealm, want: [3]string{nn, nn, ix}},
+		{name: "community realm with args", url: "/r/nym/app:p/x", want: [3]string{nn, nn, ix}},
+		{name: "community realm with args, as markdown", url: "/r/nym/app:p/x", markdown: true, want: [3]string{nn, nn, ix}},
+		{name: "community realm with a query", url: "/r/nym/app?page=2", want: [3]string{nn, nn, nf}},
+		{name: "community source", url: "/r/nym/app$source", want: [3]string{nn, nn, ix}},
+		{name: "community help", url: "/r/nym/app$help", want: [3]string{nn, nn, nf}},
+		{name: "community state", url: "/r/nym/app$state", want: [3]string{nn, nn, nf}},
+		{name: "official realm", url: "/r/gnoland/blog", want: [3]string{ix, ix, ix}},
+		{name: "official realm with args", url: "/r/gnoland/blog:p/hello", want: [3]string{ix, ix, ix}},
+		{name: "official realm as markdown", url: "/r/gnoland/blog", markdown: true, want: [3]string{ix, ix, ix}},
+		{name: "official source", url: "/r/gnoland/blog$source", want: [3]string{ix, ix, ix}},
+		{name: "official source file", url: "/r/gnoland/blog$source&file=render.gno", want: [3]string{ix, ix, ix}},
+		{name: "official unknown view", url: "/r/gnoland/blog$foo=bar", want: [3]string{nf, nf, nf}},
+		{name: "official help", url: "/r/gnoland/blog$help", want: [3]string{nf, nf, nf}},
+		{name: "official state", url: "/r/gnoland/blog$state", want: [3]string{nf, nf, nf}},
+		{name: "official second page", url: "/r/gnoland/blog?page=2", want: [3]string{nf, nf, nf}},
+		{name: "operator page", url: "/about", want: [3]string{ix, ix, ix}},
 	}
 
-	for _, index := range []gnoweb.CommunityIndex{gnoweb.IndexNoCommunity, gnoweb.IndexRegisteredCommunity, gnoweb.IndexAllCommunity} {
+	for i, index := range []gnoweb.CommunityIndex{gnoweb.IndexNoCommunity, gnoweb.IndexRegisteredCommunity, gnoweb.IndexAllCommunity} {
 		handler := newTrustHandler(t, index)
 		for _, p := range pages {
 			t.Run(index.String()+"/"+p.name, func(t *testing.T) {
 				t.Parallel()
 
-				indexed := p.official || index == gnoweb.IndexAllCommunity ||
-					(index == gnoweb.IndexRegisteredCommunity && p.named)
-
+				want := p.want[i]
 				req := httptest.NewRequest(http.MethodGet, p.url, nil)
 				if p.markdown {
 					req.Header.Set("Accept", "text/markdown")
@@ -2720,23 +2735,20 @@ func TestHTTPHandler_CommunityIndex(t *testing.T) {
 				handler.ServeHTTP(rr, req)
 				require.Equal(t, http.StatusOK, rr.Code)
 
-				robots := rr.Header().Get("X-Robots-Tag")
-				switch {
-				case !indexed:
-					assert.Equal(t, "noindex, nofollow", robots)
-				case !p.ownRobots:
-					assert.Empty(t, robots)
+				if want == ix {
+					assert.Empty(t, rr.Header().Get("X-Robots-Tag"))
+				} else {
+					assert.Equal(t, want, rr.Header().Get("X-Robots-Tag"))
 				}
 				if p.markdown {
 					return
 				}
 
 				head, _, _ := strings.Cut(rr.Body.String(), "</head>")
-				if indexed {
-					assert.Contains(t, head, `<meta name="robots" content="index, follow" />`)
+				assert.Contains(t, head, `<meta name="robots" content="`+want+`" />`)
+				if want == ix {
 					assert.Contains(t, head, `<link rel="canonical"`)
 				} else {
-					assert.Contains(t, head, `<meta name="robots" content="noindex, nofollow" />`)
 					assert.NotContains(t, head, `rel="canonical"`)
 				}
 				assert.Contains(t, head, `<meta property="og:image"`, "a link preview ignores robots, so the card stays")

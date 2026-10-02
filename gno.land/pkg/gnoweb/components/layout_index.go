@@ -45,9 +45,8 @@ type HeadData struct {
 	Title       string
 	Description string
 	Canonical   string
-	// NoIndex keeps a page out of a search index: an error shell, or a
-	// community page the crawl policy leaves out.
-	NoIndex           bool
+	// Robots is the content of the robots meta, as the handler decided it.
+	Robots            string
 	Image             string
 	URL               string
 	ChromaPath        string

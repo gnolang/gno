@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"fmt"
+	"net/url"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
@@ -49,23 +50,67 @@ func (c *CommunityIndex) UnmarshalText(text []byte) error {
 	return fmt.Errorf("unknown community index %q: want none, registered or all", text)
 }
 
-// indexable reports whether search engines may index u, a page of kind k.
-// Under "registered", only the bare page of a package or user page is, and
-// only under a registered name: once r/sys/names is enabled the chain lets
-// nobody deploy under a name they do not hold, while anyone may deploy under
-// their own address, which makes address namespaces free to throw away.
-// Arguments, a query or a $ view multiply one package into as many URLs as
-// a link cares to write, so none of them is indexed.
-func (p pagePolicy) indexable(k pageKind, u *weburl.GnoURL) bool {
-	if k != pageCommunity {
-		return true
-	}
-	switch p.index {
-	case IndexAllCommunity:
-		return true
-	case IndexRegisteredCommunity:
-		return u.Args == "" && len(u.Query) == 0 && len(u.WebQuery) == 0 && !isAddress(u.Namespace())
+// robots is what a page tells search engines, in its meta and in the
+// X-Robots-Tag header. The values order from strictest to loosest, and the
+// zero value is the strictest, so an unset policy fails closed.
+type robots int
+
+const (
+	noIndexNoFollow robots = iota
+	noIndexFollow
+	indexFollow
+)
+
+func (r robots) String() string {
+	switch r {
+	case indexFollow:
+		return "index, follow"
+	case noIndexFollow:
+		return "noindex, follow"
 	default:
-		return false
+		return "noindex, nofollow"
 	}
+}
+
+// canonicalViews are the $ keys an indexed page may carry: gnoweb links to a
+// package's source and to each file in it. Any other key ($help, $state, a
+// key nobody links to) is a view of a page, not a page of its own.
+func canonicalViews(q url.Values) bool {
+	for key := range q {
+		if key != "source" && key != "file" {
+			return false
+		}
+	}
+	return true
+}
+
+// robots decides what search engines may do with u, a page of kind k.
+//
+// A community page under "registered" is indexed only as the bare page of a
+// package or user under a registered name: once r/sys/names is enabled the
+// chain lets nobody deploy under a name they do not hold, while anyone may
+// deploy under their own address, which makes address namespaces free to
+// throw away. Under "none" no community page is indexed, and under "all"
+// community pages follow the rule of official ones.
+//
+// An official page is indexed, but not under a query or a $ view other than
+// its source: both let any link multiply one page into as many URLs as it
+// cares to write, and a query reaches Render. Its links stay followed.
+func (p pagePolicy) robots(k pageKind, u *weburl.GnoURL) robots {
+	if k == pageCommunity {
+		switch p.index {
+		case IndexAllCommunity:
+		case IndexRegisteredCommunity:
+			if u.Args != "" || len(u.Query) > 0 || len(u.WebQuery) > 0 || isAddress(u.Namespace()) {
+				return noIndexNoFollow
+			}
+			return indexFollow
+		default:
+			return noIndexNoFollow
+		}
+	}
+	if len(u.Query) > 0 || !canonicalViews(u.WebQuery) {
+		return noIndexFollow
+	}
+	return indexFollow
 }
