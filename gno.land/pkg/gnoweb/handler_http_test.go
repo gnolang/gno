@@ -2194,6 +2194,14 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 	})
 }
 
+// withGnoLandMeta serves config under gno.land's domain, origin and assets
+// path, as the head metadata tests read it.
+func withGnoLandMeta(config *gnoweb.HTTPHandlerConfig) {
+	config.Meta.Domain = "gno.land"
+	config.Meta.CanonicalOrigin = "https://gno.land"
+	config.Meta.AssetsPath = "/public/"
+}
+
 // newMetadataHandler serves one realm under the gno.land domain, trusting
 // the gnoland namespace. The head metadata tests below read what the page
 // says about itself, so the domain has to be set and the realm body does not
@@ -2206,9 +2214,7 @@ func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnowe
 		Path:   realmPath,
 		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
 	}))
-	config.Meta.Domain = "gno.land"
-	config.Meta.CanonicalOrigin = "https://gno.land"
-	config.Meta.AssetsPath = "/public/"
+	withGnoLandMeta(config)
 	config.TrustedPaths = []string{"gnoland"}
 	if aliases != nil {
 		config.Aliases = aliases
@@ -2252,8 +2258,7 @@ func TestHTTPHandler_PageDescription(t *testing.T) {
 	t.Parallel()
 
 	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
-	config.Meta.Domain = "gno.land"
-	config.Meta.CanonicalOrigin = "https://gno.land"
+	withGnoLandMeta(config)
 	config.Renderer = gnoweb.NewHTMLRenderer(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
 		gnoweb.NewDefaultRenderConfig(), nil,
@@ -2284,8 +2289,7 @@ func TestHTTPHandler_StaticPageFrontMatter(t *testing.T) {
 	t.Parallel()
 
 	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
-	config.Meta.Domain = "gno.land"
-	config.Meta.CanonicalOrigin = "https://gno.land"
+	withGnoLandMeta(config)
 	config.Renderer = gnoweb.NewHTMLRenderer(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
 		gnoweb.NewDefaultRenderConfig(), nil,
@@ -2325,8 +2329,7 @@ func TestHTTPHandler_PageDescriptionEscapes(t *testing.T) {
 	t.Parallel()
 
 	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
-	config.Meta.Domain = "gno.land"
-	config.Meta.CanonicalOrigin = "https://gno.land"
+	withGnoLandMeta(config)
 	config.Renderer = gnoweb.NewHTMLRenderer(
 		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
 		gnoweb.NewDefaultRenderConfig(), nil,
@@ -2540,11 +2543,9 @@ func newTrustHandler(t *testing.T, index gnoweb.CommunityIndex) *gnoweb.HTTPHand
 		},
 	}
 	config := newTestHandlerConfig(t, client)
-	config.Meta.Domain = "gno.land"
-	config.Meta.CanonicalOrigin = "https://gno.land"
-	config.Meta.AssetsPath = "/public/"
+	withGnoLandMeta(config)
 	config.TrustedPaths = []string{"gnoland"}
-	config.Meta.IndexCommunity = index
+	config.IndexCommunity = index
 	config.Aliases = map[string]gnoweb.AliasTarget{
 		"/about":    {Value: "# About\n\nA page the operator wrote, at the length a summary needs.\n\n" + trustLinks + "\n", Kind: gnoweb.StaticMarkdown},
 		"/hello":    {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath},
@@ -2565,7 +2566,6 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 	t.Parallel()
 
 	const (
-		post     = trustPost
 		gnoImg   = "https://gno.land/public/imgs/og-gnoland.png"
 		realmImg = "https://gno.land/public/imgs/og-community-realm.png"
 		pkgImg   = "https://gno.land/public/imgs/og-community-package.png"
@@ -2581,7 +2581,7 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 	}{
 		{
 			name: "trusted realm", url: "/r/gnoland/blog",
-			title: "The gno.land blog", description: post, image: gnoImg, path: "/r/gnoland/blog",
+			title: "The gno.land blog", description: trustPost, image: gnoImg, path: "/r/gnoland/blog",
 		},
 		// Args reach Render, and the realm's own heading may repeat them,
 		// so a page addressed by args is titled by its path.
@@ -2610,7 +2610,7 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		// The operator chose the target's args, so the alias keeps the h1.
 		{
 			name: "alias to a trusted post", url: "/hello",
-			title: "Hello worlds", description: post, image: gnoImg, path: "/hello",
+			title: "Hello worlds", description: trustPost, image: gnoImg, path: "/hello",
 		},
 		// An alias publishes whatever its target renders, so it keeps the
 		// target's kind.

@@ -22,14 +22,17 @@ const (
 	IndexAllCommunity
 )
 
+// String is the -index-community value of c, the one table of names.
 func (c CommunityIndex) String() string {
 	switch c {
+	case IndexNoCommunity:
+		return "none"
 	case IndexRegisteredCommunity:
 		return "registered"
 	case IndexAllCommunity:
 		return "all"
 	default:
-		return "none"
+		return fmt.Sprintf("CommunityIndex(%d)", int(c))
 	}
 }
 
@@ -37,17 +40,13 @@ func (c CommunityIndex) String() string {
 func (c CommunityIndex) MarshalText() ([]byte, error) { return []byte(c.String()), nil }
 
 func (c *CommunityIndex) UnmarshalText(text []byte) error {
-	switch string(text) {
-	case "none":
-		*c = IndexNoCommunity
-	case "registered":
-		*c = IndexRegisteredCommunity
-	case "all":
-		*c = IndexAllCommunity
-	default:
-		return fmt.Errorf("unknown community index %q: want none, registered or all", text)
+	for v := IndexNoCommunity; v <= IndexAllCommunity; v++ {
+		if string(text) == v.String() {
+			*c = v
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("unknown community index %q: want none, registered or all", text)
 }
 
 // indexable reports whether search engines may index u, a page of kind k.
@@ -57,11 +56,11 @@ func (c *CommunityIndex) UnmarshalText(text []byte) error {
 // their own address, which makes address namespaces free to throw away.
 // Arguments, a query or a $ view multiply one package into as many URLs as
 // a link cares to write, so none of them is indexed.
-func (h *HTTPHandler) indexable(k pageKind, u *weburl.GnoURL) bool {
+func (p pagePolicy) indexable(k pageKind, u *weburl.GnoURL) bool {
 	if k != pageCommunity {
 		return true
 	}
-	switch h.Static.IndexCommunity {
+	switch p.index {
 	case IndexAllCommunity:
 		return true
 	case IndexRegisteredCommunity:

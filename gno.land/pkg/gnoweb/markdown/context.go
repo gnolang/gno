@@ -43,7 +43,7 @@ func getGnoContext(ctx parser.Context) GnoContext {
 	chainId, _ := getChainIdFromContext(ctx)
 	remote, _ := getRemoteFromContext(ctx)
 	domain, _ := getDomainFromContext(ctx)
-	return GnoContext{GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain, Links: getLinkPolicy(ctx)}
+	return GnoContext{GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain, Links: getLinkPolicyFromContext(ctx)}
 }
 
 // getUrlFromContext retrieves the GnoURL from the parser context
@@ -79,9 +79,9 @@ func getDomainFromContext(ctx parser.Context) (domain string, ok bool) {
 	return
 }
 
-// getLinkPolicy retrieves the LinkPolicy from the parser context. A context
+// getLinkPolicyFromContext retrieves the LinkPolicy from the parser context. A context
 // that carries none gets the zero value, which follows no link.
-func getLinkPolicy(ctx parser.Context) LinkPolicy {
+func getLinkPolicyFromContext(ctx parser.Context) LinkPolicy {
 	p, _ := ctx.Get(gLinkPolicyContextKey).(LinkPolicy)
 	return p
 }

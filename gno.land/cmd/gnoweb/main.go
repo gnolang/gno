@@ -175,7 +175,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.canonicalOrigin,
 		"canonical-origin",
 		defaultWebOptions.canonicalOrigin,
-		"public origin of this deployment, scheme included; empty emits no canonical tag",
+		"public origin of this deployment, scheme included; empty emits no canonical, og:url or share image",
 	)
 
 	fs.StringVar(

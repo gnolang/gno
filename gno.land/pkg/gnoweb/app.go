@@ -69,8 +69,10 @@ type AppConfig struct {
 	// TrustedPaths.
 	RealmNotice components.BannerData
 	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
-	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice and may lend
-	// their own heading and summary to the page metadata.
+	// no "/r/" or "/p/" prefix) whose pages are official: they never show
+	// RealmNotice, may lend their own heading and summary to the page
+	// metadata, keep their internal links followed, and are indexed whatever
+	// IndexCommunity says.
 	TrustedPaths []string
 	// IndexCommunity says which pages outside TrustedPaths search engines may
 	// index; the others get noindex, nofollow and no canonical.
@@ -161,7 +163,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AssetsVersion:     AssetsVersion(),
 		Banner:            cfg.Banner,
 		RealmNotice:       cfg.RealmNotice,
-		IndexCommunity:    cfg.IndexCommunity,
 	}
 
 	// Configure Markdown renderer
@@ -183,6 +184,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Renderer:                     renderer,
 		Aliases:                      cfg.Aliases,
 		TrustedPaths:                 cfg.TrustedPaths,
+		IndexCommunity:               cfg.IndexCommunity,
 		Timeout:                      cfg.NodeRequestTimeout,
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,

@@ -9,10 +9,13 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
-func TestPackageKind(t *testing.T) {
+func TestPagePolicyKind(t *testing.T) {
 	t.Parallel()
 
-	h := &HTTPHandler{trusted: newTrustedPaths([]string{"gnoland"})}
+	p := pagePolicy{
+		trusted: newTrustedPaths([]string{"gnoland"}),
+		aliases: map[string]AliasTarget{"/about": {Value: "# About", Kind: StaticMarkdown}},
+	}
 	cases := map[string]pageKind{
 		"/r/gnoland/home":      pageOfficial,
 		"/r/gnoland/blog:p/x":  pageOfficial,
@@ -24,7 +27,8 @@ func TestPackageKind(t *testing.T) {
 		"/u/nym":               pageCommunity,
 		"/r/":                  pageSite,
 		"/p/":                  pageSite,
-		"/about":               pageSite,
+		"/about":               pageOperator,
+		"/other":               pageSite,
 		"/":                    pageSite,
 	}
 	for path, want := range cases {
@@ -33,7 +37,7 @@ func TestPackageKind(t *testing.T) {
 
 			u, err := weburl.Parse(path)
 			require.NoError(t, err)
-			assert.Equal(t, want, h.packageKind(u))
+			assert.Equal(t, want, p.kind(u))
 		})
 	}
 }

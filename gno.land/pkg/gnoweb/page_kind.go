@@ -18,10 +18,11 @@ const (
 	// pageCommunity is a package or user page outside the trusted paths. Its
 	// head repeats nothing it renders, and none of its links is followed.
 	pageCommunity pageKind = iota
-	// pageOfficial is a trusted package page, or a realm an operator aliased
-	// that is one. Its head may repeat its leading heading and paragraph.
+	// pageOfficial is a page of a package under the trusted paths, reached by
+	// its own path or through an alias. Its head may repeat its leading
+	// heading and paragraph.
 	pageOfficial
-	// pageOperator is a markdown page an operator passed to --aliases. It is
+	// pageOperator is a markdown page an operator passed to -aliases. It is
 	// official, and its links are the operator's own.
 	pageOperator
 	// pageSite is a gnoweb view that belongs to no package, such as the bare
@@ -45,21 +46,47 @@ const (
 // and its summary. setHeadMetadata decides whether the head repeats it.
 type pageLead struct{ title, description string }
 
-// packageKind classifies u by the package it renders. A user page renders
-// that user's home realm. The bare "/r/", "/p/" and "/u/" listings belong to
-// no package.
-func (h *HTTPHandler) packageKind(u *weburl.GnoURL) pageKind {
-	if !(u.IsRealm() || u.IsPure() || u.IsUser()) {
-		return pageSite
+// pagePolicy decides, from a page's URL alone, who answers for it and what
+// search engines may do with it. It needs no request and no RPC, so anything
+// that lists pages, such as a sitemap, classifies them the same way.
+type pagePolicy struct {
+	trusted trustedPaths
+	aliases map[string]AliasTarget
+	index   CommunityIndex
+}
+
+// kind classifies u, the URL a page is served from once a realm alias is
+// resolved. A user page renders that user's home realm. The bare "/r/",
+// "/p/" and "/u/" listings belong to no package.
+func (p pagePolicy) kind(u *weburl.GnoURL) pageKind {
+	if a, ok := p.aliases[u.Path]; ok && a.Kind == StaticMarkdown {
+		return pageOperator
 	}
-	switch pkg := u.Path[3:]; { // skip "/r/", "/p/" or "/u/"
-	case pkg == "":
+	pkg, ok := packagePath(u)
+	switch {
+	case !ok:
 		return pageSite
-	case h.trusted.contains(pkg):
+	case p.trusted.contains(pkg):
 		return pageOfficial
 	default:
 		return pageCommunity
 	}
+}
+
+// isPackageURL reports whether u is under /r/, /p/ or /u/.
+func isPackageURL(u *weburl.GnoURL) bool {
+	return u.IsRealm() || u.IsPure() || u.IsUser()
+}
+
+// packagePath is the package u renders, without its "/r/" or "/p/" prefix,
+// or the user name of a user page. It is false for any other URL, the bare
+// listings included.
+func packagePath(u *weburl.GnoURL) (string, bool) {
+	if !isPackageURL(u) {
+		return "", false
+	}
+	pkg := strings.Trim(u.Path[3:], "/") // skip "/r/", "/p/" or "/u/"
+	return pkg, pkg != ""
 }
 
 // mayRepeat reports whether the head of u may repeat what the rendered
@@ -77,12 +104,12 @@ func (k pageKind) mayRepeat(u *weburl.GnoURL) bool {
 // "games/chess · realm by nym". An address namespace is shortened the way the
 // user page shows it. A path outside /r/, /p/ and /u/ names itself.
 func pathTitle(u *weburl.GnoURL) string {
-	ns := u.Namespace()
-	if ns == "" || !(u.IsRealm() || u.IsPure() || u.IsUser()) {
+	pkg, ok := packagePath(u)
+	if !ok {
 		return strings.TrimSuffix(u.Path, "/")
 	}
+	ns, name, _ := strings.Cut(pkg, "/")
 	owner := CreateUsernameFromBech32(ns)
-	name := strings.Trim(strings.TrimPrefix(u.Path[3:], ns), "/")
 	switch {
 	case u.IsUser():
 		return owner + " · user profile"
@@ -112,13 +139,24 @@ func (k pageKind) links() md.LinkPolicy {
 	}
 }
 
-// renderContext is the context a document of kind k renders under.
-func (h *HTTPHandler) renderContext(k pageKind) RealmRenderContext {
+// pageRender is what Get hands the views that render a document, and what
+// they hand back for the head.
+type pageRender struct {
+	// links says which links of the document crawlers may follow.
+	links md.LinkPolicy
+	// markdown is set when the client asked for text/markdown.
+	markdown bool
+	// lead is set by a view: what the document says about itself.
+	lead pageLead
+}
+
+// renderContext is the context a document renders under for pr.
+func (h *HTTPHandler) renderContext(pr *pageRender) RealmRenderContext {
 	return RealmRenderContext{
 		ChainId: h.Static.ChainId,
 		Remote:  h.Static.RemoteHelp,
 		Domain:  h.Static.Domain,
-		Links:   k.links(),
+		Links:   pr.links,
 	}
 }
 

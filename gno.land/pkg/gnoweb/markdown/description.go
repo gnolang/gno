@@ -62,7 +62,12 @@ func Lead(doc ast.Node, src []byte) (title, description string) {
 
 // plainText is the visible text of n on one line.
 func plainText(src []byte, n ast.Node) string {
-	return strings.Join(strings.Fields(visibleText(src, n)), " ")
+	return oneLine(visibleText(src, n))
+}
+
+// oneLine collapses every run of whitespace in s to one space.
+func oneLine(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // visibleText is nodeText minus the parts a reader does not read. An image's
@@ -118,7 +123,7 @@ func TruncateDescription(s string) string { return truncateLine(s, descriptionMa
 
 // truncateLine puts s on one line and caps it at limit runes.
 func truncateLine(s string, limit int) string {
-	return truncateRunes(strings.Join(strings.Fields(s), " "), limit)
+	return truncateRunes(oneLine(s), limit)
 }
 
 // truncateRunes cuts on a word boundary so the summary never ends mid-word.

@@ -2,8 +2,9 @@ package gnoweb
 
 import "strings"
 
-// trustedPaths is keyed without the "/r/" or "/p/" prefix so one entry
-// covers both trees. An entry trusts its own path and everything under it.
+// trustedPaths is keyed without the "/r/", "/p/" or "/u/" prefix so one
+// entry covers every tree. An entry trusts its own path and everything under
+// it.
 type trustedPaths map[string]struct{}
 
 func newTrustedPaths(entries []string) trustedPaths {

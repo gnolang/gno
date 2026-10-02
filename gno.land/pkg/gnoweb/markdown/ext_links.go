@@ -3,7 +3,6 @@ package markdown
 import (
 	"errors"
 	"net/url"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
@@ -110,17 +109,20 @@ type GnoLink struct {
 	Followed bool
 }
 
-// rel is the link's rel attribute: noopener for any page another site may
-// open, nofollow ugc for any link search engines may not follow.
+// rel is the link's rel attribute: noopener on a link to another site or
+// out of a sandbox, nofollow ugc on a link search engines may not follow.
 func (n *GnoLink) rel() string {
-	var rel []string
-	if n.Untrusted || n.LinkType == GnoLinkTypeExternal {
-		rel = append(rel, "noopener")
+	opener := n.Untrusted || n.LinkType == GnoLinkTypeExternal
+	switch {
+	case opener && !n.Followed:
+		return "noopener nofollow ugc"
+	case opener:
+		return "noopener"
+	case !n.Followed:
+		return "nofollow ugc"
+	default:
+		return ""
 	}
-	if !n.Followed {
-		rel = append(rel, "nofollow", "ugc")
-	}
-	return strings.Join(rel, " ")
 }
 
 func (n *GnoLink) Dump(source []byte, level int) {
@@ -180,7 +182,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 	// Links parsed under a <gno-foreign> sandbox context render as
 	// untrusted (rel="ugc", no first-party trust icons). Read once.
 	untrusted := isForeignOrigin(pc)
-	links := getLinkPolicy(pc)
+	links := getLinkPolicyFromContext(pc)
 
 	// Collect first and replace after: swapping a node out mid-walk clears
 	// the sibling the walk would visit next, so a link after an autolink in
