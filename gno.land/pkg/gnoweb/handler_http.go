@@ -9,6 +9,7 @@ import (
 	"go/token"
 	"html/template"
 	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -302,7 +303,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// values and pointing the tabs at empty URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
-		dropAIMenuOnError(&indexData, status)
+		scrubHeaderOnError(&indexData, status)
 		indexData.BodyView = view
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -326,7 +327,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	wantMarkdown := negotiatesMarkdown(r.Header.Get("Accept"))
 
 	status, bodyView := h.prepareIndexBodyView(r, &indexData, wantMarkdown)
-	dropAIMenuOnError(&indexData, status)
+	scrubHeaderOnError(&indexData, status)
 
 	// The realm and static-markdown paths return a markdown view; serve its
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
@@ -1152,13 +1153,21 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 	}
 }
 
-// dropAIMenuOnError keeps the Ask AI menu off error pages: its prompts would
-// send the assistant to views that do not exist, and carry a file name the
-// package does not hold. The menu is built from HeaderData.Origin at render
-// time, and nothing else in the header reads it.
-func dropAIMenuOnError(indexData *components.IndexData, status int) {
-	if status != http.StatusOK {
-		indexData.HeaderData.Origin = ""
+// scrubHeaderOnError keeps an error page's header from vouching for the
+// request. The Ask AI menu is dropped, as its prompts would send the assistant
+// to views that do not exist: the menu is built from HeaderData.Origin at
+// render time, and nothing else in the header reads it. The file web-query
+// value is dropped too, so a name the package does not hold is not echoed
+// back through the Source tab, which otherwise carries the open file.
+func scrubHeaderOnError(indexData *components.IndexData, status int) {
+	if status == http.StatusOK {
+		return
+	}
+	indexData.HeaderData.Origin = ""
+	if u := &indexData.HeaderData.RealmURL; u.WebQuery.Has("file") {
+		// Clone: the map is shared with the request's GnoURL.
+		u.WebQuery = maps.Clone(u.WebQuery)
+		u.WebQuery.Del("file")
 	}
 }
 
