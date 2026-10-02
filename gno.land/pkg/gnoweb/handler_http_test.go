@@ -2157,15 +2157,22 @@ func resolveAnyMissing() []byte {
 
 // userTitle is the user page's title for a registered name.
 func userTitle(name string) string {
-	return `<h1 class="title" title="` + name + `">` + name + `</h1>`
+	return `<h1 class="title">` + name + `</h1>`
 }
 
-// userAddressLine is the line under the user page's title: the full address,
-// never shortened, so a visitor can check it against a lookalike, and a copy
-// button that copies it from a data attribute.
+// addressTitle is the user page's title for an address with no name: the
+// full address, never shortened, breakable only at its middle.
+func addressTitle(addr string) string {
+	mid := len(addr) / 2
+	return `<h1 class="title title--address u-font-mono" title="` + addr + `">` + addr[:mid] + `<wbr>` + addr[mid:] + `</h1>`
+}
+
+// userAddressLine is the line under a name: the full address, never
+// shortened, so a visitor can check it against a lookalike, breakable only at
+// its middle, and a copy button that copies it from a data attribute.
 func userAddressLine(addr string) string {
 	mid := len(addr) / 2
-	return `<span class="address u-font-mono" title="` + addr + `">` + addr[:mid] + `<wbr><span class="address-end">` + addr[mid:] + `<button type="button" class="b-inline-btn" data-controller="copy" data-action="click->copy#copy"
+	return `<span class="address u-font-mono" title="` + addr + `">` + addr[:mid] + `<wbr><span class="address-end" data-controller="copy">` + addr[mid:] + `<button type="button" class="b-inline-btn b-copy-btn" data-action="click->copy#copy"
           data-copy-text-value="` + addr + `"`
 }
 
@@ -2277,8 +2284,7 @@ func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 			// full, for checking.
 			wantPrefixes: []string{"@" + testUserAddr},
 			wantBody: []string{
-				`<h1 class="title u-font-mono" title="` + testUserAddr + `">g1vahx…rr0wez</h1>`,
-				userAddressLine(testUserAddr),
+				addressTitle(testUserAddr),
 			},
 		},
 	}
@@ -2657,21 +2663,24 @@ func TestHTTPHandler_GetUserView_ForeignBech32IsNotAnAddress(t *testing.T) {
 	assert.NotContains(t, rr.Body.String(), `title="`+cosmosAddr+`"`)
 }
 
-// The identity block prints each half of the pair once: "Gnome" as a label,
-// the name (or a short address when there is none) as the title, and the full
-// address under it, never shortened, since a shortened form is what a
-// lookalike address imitates.
+// The identity block prints each half of the pair once: a label, the name as
+// the title, and the full address under it, never shortened, since a
+// shortened form is what a lookalike address imitates. An address with no name
+// is its own title.
 func TestHTTPHandler_GetUserView_Identity(t *testing.T) {
 	t.Parallel()
 
-	// The longest name the gate lets through: the title ellipsizes it in CSS,
-	// so the markup must carry it whole.
+	// The longest name the gate lets through: it is never cut, only titled
+	// smaller so it wraps onto fewer lines.
 	longName := "a" + strings.Repeat("b", gnoweb.MaxUsernameLen-1)
+	// The shortest name that counts as long.
+	longishName := "a" + strings.Repeat("b", 16)
 
 	tests := []struct {
 		name     string
 		segment  string
 		payload  []byte
+		paths    []string
 		want     []string
 		dontWant []string
 	}{
@@ -2679,32 +2688,68 @@ func TestHTTPHandler_GetUserView_Identity(t *testing.T) {
 			name:     "registered, by name",
 			segment:  "alice",
 			payload:  resolveAnyPayload("alice"),
-			want:     []string{userTitle("alice"), userAddressLine(testUserAddr)},
-			dontWant: []string{"g1vahx…rr0wez", "Gnome alice"},
+			want:     []string{`<p class="label">Gnome</p>`, userTitle("alice"), userAddressLine(testUserAddr), `data-copy-copied-value="Address copied"`, `role="status" data-copy-target="status"`},
+			dontWant: []string{"…", "Gnome alice", "Unregistered", "Address unavailable", "now @"},
 		},
 		{
 			name:     "registered, by address",
 			segment:  testUserAddr,
 			payload:  resolveAnyPayload("alice"),
-			want:     []string{userTitle("alice"), userAddressLine(testUserAddr)},
-			dontWant: []string{"g1vahx…rr0wez", "Gnome alice"},
+			want:     []string{`<p class="label">Gnome</p>`, userTitle("alice"), userAddressLine(testUserAddr)},
+			dontWant: []string{"…", "Unregistered", "now @"},
 		},
 		{
 			name:    "address only",
 			segment: testUserAddr,
 			payload: resolveAnyMissing(),
 			want: []string{
-				`<h1 class="title u-font-mono" title="` + testUserAddr + `">g1vahx…rr0wez</h1>`,
-				userAddressLine(testUserAddr),
+				`<p class="label">Unregistered address</p>`,
+				addressTitle(testUserAddr),
+				`data-copy-text-value="` + testUserAddr + `"`,
+				`<span>Copy address</span>`,
+				`role="status" data-copy-target="status"`,
 			},
-			dontWant: []string{`<h1 class="title" `, "Gnome g1"},
+			// The address is the title; it is not repeated under it.
+			dontWant: []string{`<p class="label">Gnome</p>`, `class="address u-font-mono"`, "…", "Address unavailable"},
 		},
 		{
 			name:     "long name",
 			segment:  longName,
 			payload:  resolveAnyPayload(longName),
-			want:     []string{userTitle(longName), userAddressLine(testUserAddr)},
+			want:     []string{`<h1 class="title title--long">` + longName + `</h1>`, userAddressLine(testUserAddr)},
 			dontWant: []string{"…"},
+		},
+		{
+			name:    "sixteen characters is not long",
+			segment: longishName[:16],
+			payload: resolveAnyPayload(longishName[:16]),
+			want:    []string{userTitle(longishName[:16])},
+		},
+		{
+			name:    "seventeen characters is long",
+			segment: longishName,
+			payload: resolveAnyPayload(longishName),
+			want:    []string{`<h1 class="title title--long">` + longishName + `</h1>`},
+		},
+		{
+			// A namespace holding packages that the registry does not know:
+			// there is no address to print, and the page says so.
+			name:     "namespace without a registry entry",
+			segment:  "bob",
+			payload:  resolveAnyMissing(),
+			paths:    []string{"/r/bob/pkg"},
+			want:     []string{userTitle("bob"), `<p class="subtitle">Address unavailable</p>`},
+			dontWant: []string{"data-copy-text-value", "now @"},
+		},
+		{
+			// An old name is titled by itself and prints its new owner's
+			// address, so it points at the name that owner holds now.
+			name:     "old alias",
+			segment:  "alice-old",
+			payload:  resolveAnyPayload("alice"),
+			paths:    []string{"/r/alice-old/pkg"},
+			want:     []string{userTitle("alice-old"), userAddressLine(testUserAddr), `<p class="subtitle">now <a href="/u/alice">@alice</a></p>`},
+			dontWant: []string{userTitle("alice")},
 		},
 	}
 
@@ -2713,7 +2758,12 @@ func TestHTTPHandler_GetUserView_Identity(t *testing.T) {
 			t.Parallel()
 
 			rr := getUserPage(t, &stubClient{
-				listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+				listPathsFunc: func(_ context.Context, prefix string, _ int) ([]string, error) {
+					if prefix == "@"+tc.segment {
+						return tc.paths, nil
+					}
+					return nil, nil
+				},
 				evalFunc: func(context.Context, string, string) ([]byte, error) {
 					return tc.payload, nil
 				},
@@ -2724,18 +2774,41 @@ func TestHTTPHandler_GetUserView_Identity(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, rr.Code)
 			body := rr.Body.String()
-			assert.Contains(t, body, `<p class="label">Gnome</p>`)
 			for _, want := range tc.want {
 				assert.Contains(t, body, want)
 			}
 			for _, dontWant := range tc.dontWant {
 				assert.NotContains(t, body, dontWant)
 			}
-			assert.Equal(t, 1, strings.Count(body, `class="address u-font-mono"`), "the full address is printed once")
+			assert.Equal(t, 1, strings.Count(body, `<h1 class="title`), "one title")
 			assert.Equal(t, 1, strings.Count(body, `<div class="b-user-sidebar">`))
 			assert.Regexp(t, `(?s)<div class="b-user-sidebar">.*</a>\s*</div>\s*</aside>`, body, "the sidebar block is closed inside the aside")
 		})
 	}
+}
+
+// A 404 names the user that was asked for, when it is a name at all.
+func TestHTTPHandler_GetUserView_NotFoundMessage(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+		evalFunc: func(context.Context, string, string) ([]byte, error) {
+			return resolveAnyMissing(), nil
+		},
+	}
+
+	rr := getUserPage(t, client, "/u/zzznotauser")
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Contains(t, rr.Body.String(), "No user is registered as zzznotauser.")
+	assert.Contains(t, rr.Body.String(), "Go Back Home")
+	assert.NotContains(t, rr.Body.String(), "Something went wrong.")
+
+	// A segment that cannot be a name is not echoed back.
+	rr = getUserPage(t, client, "/u/a--b")
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+	assert.Contains(t, rr.Body.String(), "This is not a valid user name or address.")
+	assert.NotContains(t, rr.Body.String(), "a--b.")
 }
 
 // Nothing from the URL or the registry reaches the identity block unescaped:
@@ -2799,7 +2872,7 @@ func TestHTTPHandler_GetUserView_HostileIdentity(t *testing.T) {
 			body := rr.Body.String()
 			assert.NotContains(t, body, script)
 			assert.NotContains(t, body, regName)
-			assert.Contains(t, body, `<h1 class="title u-font-mono" title="`+testUserAddr+`">g1vahx…rr0wez</h1>`)
+			assert.Contains(t, body, addressTitle(testUserAddr))
 		})
 	}
 
@@ -2823,6 +2896,6 @@ func TestHTTPHandler_GetUserView_HostileIdentity(t *testing.T) {
 		body := rr.Body.String()
 		assert.NotContains(t, body, other)
 		assert.NotContains(t, body, userTitle("alice"))
-		assert.Contains(t, body, userAddressLine(testUserAddr))
+		assert.Contains(t, body, addressTitle(testUserAddr))
 	})
 }

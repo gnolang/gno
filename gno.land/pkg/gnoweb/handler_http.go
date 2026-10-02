@@ -736,7 +736,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	_, err := crypto.AddressFromBech32(segment)
 	isAddress := err == nil
 	if !isAddress && (len(segment) > maxUsernameLen || !reUsername.Matches(segment)) {
-		return http.StatusNotFound, components.StatusErrorComponent("user not found")
+		return http.StatusNotFound, components.StatusUserNotFoundComponent("")
 	}
 
 	// A failed lookup is only fatal where the gate needs it, below: an address
@@ -771,7 +771,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		if resolveErr != nil {
 			return GetClientErrorStatusView(gnourl, resolveErr, 0)
 		}
-		return http.StatusNotFound, components.StatusErrorComponent("user not found")
+		return http.StatusNotFound, components.StatusUserNotFoundComponent(segment)
 	}
 
 	var content bytes.Buffer
@@ -808,11 +808,18 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		username = ""
 	}
 
+	// An old name resolves to the current one, which the page points at.
+	var currentName string
+	if username != "" && identity.Name != "" && identity.Name != username {
+		currentName = identity.Name
+	}
+
 	data := components.UserData{
 		Username:      username,
 		Namespace:     namespace,
 		HomeLabel:     CreateUsernameFromBech32(namespace),
 		Address:       identity.Address,
+		CurrentName:   currentName,
 		Contributions: contribs,
 		PackageCount:  pkgCount,
 		RealmCount:    realmCount,

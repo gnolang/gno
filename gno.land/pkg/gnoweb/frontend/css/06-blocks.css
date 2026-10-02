@@ -1084,7 +1084,7 @@
 	}
 
 	.user-identity {
-		/* lets the title ellipsize instead of pushing the column wider */
+		/* lets the title wrap instead of pushing the column wider */
 		min-width: 0;
 		max-width: 100%;
 
@@ -1095,7 +1095,7 @@
 
 	/* Same eyebrow as the overview sidebar's .b-pkg-meta dt.label. */
 	.label {
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-weight: var(--g-font-semibold);
 		font-size: var(--g-font-size-80);
 		text-transform: uppercase;
@@ -1103,33 +1103,48 @@
 		margin-block-end: var(--g-space-1);
 	}
 
-	/* One line whatever the name: the full value is in the title attribute. */
+	/* A name is never cut: lookalike names differ from the real one at the
+	   end, so it wraps (anywhere, names have no spaces) instead. */
 	.title {
 		display: block;
 		font-weight: var(--g-font-bold);
 		font-size: var(--g-font-size-700);
 		color: var(--s-color-text-primary);
 		line-height: var(--g-line-height-tight);
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
+		overflow-wrap: anywhere;
 
 		@media (--md) {
 			font-size: var(--g-font-size-800);
 		}
+	}
 
-		/* A shortened address: mono glyphs run wider, so it steps down to
-		   stay whole, most of all in the narrow lg..xl sidebar. */
-		&.u-font-mono {
-			font-size: var(--g-font-size-600);
+	/* A long name (decided in Go) steps down so it holds on two lines. */
+	.title--long {
+		font-size: var(--g-font-size-500);
 
-			@media (--lg) {
-				font-size: var(--g-font-size-400);
-			}
+		@media (--md) {
+			font-size: var(--g-font-size-500);
+		}
+	}
 
-			@media (--xl) {
-				font-size: var(--g-font-size-600);
-			}
+	/* A full address as the title: no wrap but at the template's <wbr>, so
+	   one line or two equal halves, sized for 20 mono glyphs per sidebar
+	   width. Roboto Mono ships one regular cut, so it is not asked for bold. */
+	.title--address {
+		font-weight: var(--g-font-normal);
+		font-size: var(--g-font-size-300);
+		overflow-wrap: normal;
+
+		@media (--md) {
+			font-size: var(--g-font-size-300);
+		}
+
+		@media (--lg) {
+			font-size: var(--g-font-size-90);
+		}
+
+		@media (--xl) {
+			font-size: var(--g-font-size-300);
 		}
 	}
 
@@ -1140,11 +1155,19 @@
 		color: var(--s-color-text-secondary);
 		/* the address and the copy icon fit a lg sidebar together at this size */
 		font-size: var(--g-font-size-80);
-		line-height: var(--g-line-height-tight);
+		line-height: 1.4;
 		margin-block-start: var(--g-space-4);
 
 		@media (--lg) {
 			margin-block-start: var(--g-space-2);
+		}
+
+		& + .subtitle {
+			margin-block-start: var(--g-space-1);
+		}
+
+		a {
+			color: var(--s-color-text-link);
 		}
 	}
 
@@ -1156,12 +1179,34 @@
 		white-space: nowrap;
 	}
 
-	.subtitle button {
+	/* Copy button: a 24px target that takes no more room than its icon, so
+	   the address and the icon still share one 304px line at 12px. */
+	.b-copy-btn {
+		color: var(--s-color-text-secondary);
 		vertical-align: middle;
-		margin-inline-start: var(--g-space-px);
+		padding-block: calc(var(--g-space-1) * 1.5);
+		margin-block: calc(var(--g-space-1) * -1.5);
+		border-radius: var(--s-rounded-sm);
+
+		&:hover {
+			color: var(--s-color-text-secondary-hover);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--s-color-text-link);
+			outline-offset: 2px;
+		}
+	}
+
+	.address .b-copy-btn {
+		/* 0.25em of gap: a full space-1 tips the 1280 line over by a pixel */
+		padding-inline: 0.25em var(--g-space-2);
+		margin-inline-end: calc(var(--g-space-2) * -1);
 
 		.c-icon {
 			display: block;
+			width: 1em;
+			height: 1em;
 		}
 	}
 
@@ -2930,7 +2975,7 @@ main.dev-mode > section:has(.c-overview-view) {
 	}
 
 	dt.label {
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-weight: var(--g-font-semibold);
 		font-size: var(--g-font-size-80);
 		text-transform: uppercase;

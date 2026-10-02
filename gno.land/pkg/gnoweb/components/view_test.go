@@ -393,10 +393,11 @@ func TestUserView(t *testing.T) {
 }
 
 // The view escapes the identity whatever reaches it, in text, in the title
-// attributes and in the copy button's data attribute, and shortens an address
-// by runes, so a multi-byte one is never cut into invalid UTF-8.
+// attributes and in the copy button's data attribute, and splits an address by
+// runes, so a multi-byte one is never cut into invalid UTF-8.
 func TestUserView_EscapesIdentity(t *testing.T) {
 	const hostile = `"><script>alert(1)</script>`
+	const escaped = `&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;`
 
 	render := func(data UserData) string {
 		t.Helper()
@@ -407,22 +408,29 @@ func TestUserView_EscapesIdentity(t *testing.T) {
 	}
 
 	t.Run("name", func(t *testing.T) {
-		out := render(UserData{Username: hostile, Address: hostile})
+		out := render(UserData{Username: hostile, Address: hostile, CurrentName: hostile})
 		assert.NotContains(t, out, "<script>alert(1)</script>")
-		assert.Contains(t, out, `<h1 class="title" title="&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;</h1>`)
-		assert.Contains(t, out, `data-copy-text-value="&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"`)
+		assert.Contains(t, out, `<h1 class="title title--long">`+escaped+`</h1>`)
+		assert.Contains(t, out, `data-copy-text-value="`+escaped+`"`)
 		// The address line's two halves are escaped each, around the one
 		// literal break point.
-		assert.Contains(t, out, `&#34;&gt;&lt;script&gt;ale<wbr><span class="address-end">rt(1)&lt;/script&gt;<button`)
+		assert.Contains(t, out, `title="`+escaped+`">&#34;&gt;&lt;script&gt;ale<wbr><span class="address-end" data-controller="copy">rt(1)&lt;/script&gt;<button`)
+		assert.Contains(t, out, `now <a href="/u/%22%3e%3cscript%3ealert%281%29%3c/script%3e">@`+escaped+`</a>`)
 	})
 
 	t.Run("address only", func(t *testing.T) {
-		addr := hostile + strings.Repeat("é", 20) + "‮"
+		addr := hostile + strings.Repeat("é", 20) + "\u202e"
 		out := render(UserData{Address: addr})
 		assert.NotContains(t, out, "<script>alert(1)</script>")
-		assert.True(t, utf8.ValidString(out), "the short form is cut on rune boundaries")
-		assert.Contains(t, out, `<h1 class="title u-font-mono" title="&#34;&gt;&lt;script&gt;`)
-		// 6 runes on each side of the ellipsis, escaped.
-		assert.Contains(t, out, `&#34;&gt;&lt;scr…ééééé`+"‮"+`</h1>`)
+		assert.True(t, utf8.ValidString(out), "the halves are cut on rune boundaries")
+		assert.Contains(t, out, `<h1 class="title title--address u-font-mono" title="`+escaped)
+		assert.Contains(t, out, `data-copy-text-value="`+escaped)
 	})
+}
+
+func TestUserData_LongName(t *testing.T) {
+	assert.False(t, UserData{Username: strings.Repeat("a", 16)}.LongName())
+	assert.True(t, UserData{Username: strings.Repeat("a", 17)}.LongName())
+	// Counted in runes, not bytes.
+	assert.False(t, UserData{Username: strings.Repeat("é", 16)}.LongName())
 }

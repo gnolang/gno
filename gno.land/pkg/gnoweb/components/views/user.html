@@ -6,22 +6,40 @@
         {{ template "ui/gnome" }}
       </div>
       <div class="user-identity">
+        {{- /* An address breaks only at its middle (splitHalf + <wbr>), into two
+        equal halves, when it cannot fit one line. */ -}}
+        {{ if .Username }}
         <p class="label">Gnome</p>
-        {{ with .Username }}
-        <h1 class="title" title="{{ . }}">{{ . }}</h1>
-        {{ else }}
-        <h1 class="title u-font-mono" title="{{ .Address }}">{{ truncMiddle .Address 6 }}</h1>
+        <h1 class="title{{ if .LongName }} title--long{{ end }}">{{ .Username }}</h1>
+        {{ else if .Address }}
+        <p class="label">Unregistered address</p>
+        {{ $halves := splitHalf .Address }}
+        <h1 class="title title--address u-font-mono" title="{{ .Address }}">{{ index $halves 0 }}<wbr>{{ index $halves 1 }}</h1>
         {{ end }}
       </div>
+      {{ if .Username }}
       {{ with .Address }}
       <p class="subtitle">
-        {{- /* breaks only at the middle, into two equal halves, when it cannot fit one line;
-        the copy button stays glued to the end so it never drifts away from the text */ -}}
+        {{- /* the copy button stays glued to the end so it never drifts away from the text */ -}}
         {{ $halves := splitHalf . }}
-        <span class="address u-font-mono" title="{{ . }}">{{ index $halves 0 }}<wbr><span class="address-end">{{ index $halves 1 }}<button type="button" class="b-inline-btn" data-controller="copy" data-action="click->copy#copy"
-          data-copy-text-value="{{ . }}" aria-label="Copy address" title="Copy address">
+        <span class="address u-font-mono" title="{{ . }}">{{ index $halves 0 }}<wbr><span class="address-end" data-controller="copy">{{ index $halves 1 }}<button type="button" class="b-inline-btn b-copy-btn" data-action="click->copy#copy"
+          data-copy-text-value="{{ . }}" data-copy-copied-value="Address copied" aria-label="Copy address" title="Copy address">
           {{- template "ui/copy" -}}
-        </button></span></span>
+        </button><span class="u-sr-only" role="status" data-copy-target="status"></span></span></span>
+      </p>
+      {{ else }}
+      <p class="subtitle">Address unavailable</p>
+      {{ end }}
+      {{ with .CurrentName }}
+      <p class="subtitle">now <a href="/u/{{ . }}">@{{ . }}</a></p>
+      {{ end }}
+      {{ else if .Address }}
+      <p class="subtitle" data-controller="copy">
+        <button type="button" class="b-inline-btn b-copy-btn c-with-icon" data-action="click->copy#copy"
+          data-copy-text-value="{{ .Address }}" data-copy-copied-value="Address copied" aria-label="Copy address" title="Copy address">
+          {{- template "ui/copy" -}}<span>Copy address</span>
+        </button>
+        <span class="u-sr-only" role="status" data-copy-target="status"></span>
       </p>
       {{ end }}
     </div>

@@ -3,6 +3,7 @@ package components
 import (
 	"net/url"
 	"time"
+	"unicode/utf8"
 )
 
 const UserViewType ViewType = "user-view"
@@ -63,7 +64,10 @@ type UserData struct {
 	// address's home realm.
 	HomeLabel string
 	// Address is the full bech32 address, empty when none could be resolved.
-	Address       string
+	Address string
+	// CurrentName is the name Username now resolves to, set only when it is
+	// another one: Username is then an old name, and Address its new owner's.
+	CurrentName   string
 	Bio           string
 	Teams         []struct{}
 	Links         []UserLink
@@ -72,6 +76,16 @@ type UserData struct {
 	RealmCount    int
 	PureCount     int
 	Content       Component
+}
+
+// longNameRunes is the length past which the title steps down a size, so a
+// long name wraps onto at most two lines instead of being cut: impersonating
+// names tend to differ from the real one at the end.
+const longNameRunes = 16
+
+// LongName reports whether Username is long enough to be titled smaller.
+func (d UserData) LongName() bool {
+	return utf8.RuneCountInString(d.Username) > longNameRunes
 }
 
 // enrichLinks sets the Title of link-type entries to their hostname.

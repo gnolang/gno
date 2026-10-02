@@ -90,10 +90,12 @@ name left behind by a rename resolves to the current name, not to itself, so it
 keeps its own segment and still lists what the old name holds. `UserData`
 carries `Namespace` for links, which is never elided and repairs the home
 button, and `Address` for display. The page is titled by `Username`, the name,
-under a "Gnome" label; an address with no name has an empty `Username` and is
-titled by its short form. Under the title `Address` is always printed in full
-with a copy button, on one line where it fits and otherwise split once into two
-equal halves, never shortened: a start…end form is exactly
+under a "Gnome" label, never cut (a long name wraps); an address with no name
+has an empty `Username` and is titled by the full address, under an
+"Unregistered address" label. Under a name `Address` is printed in full with a
+copy button ("Address unavailable" when nothing resolved it), and an old name
+also links to the name it now resolves to. An address is never shortened, only
+split once into two equal halves where it cannot fit one line: a start…end form is exactly
 what a lookalike vanity address imitates, and checking who is behind a name is
 what the line is for.
 
