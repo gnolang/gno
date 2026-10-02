@@ -98,6 +98,7 @@ func TestStateErrorSentinelPact(t *testing.T) {
 		substr   string
 	}{
 		{"package not found", ErrClientPackageNotFound, state.ClientErrPackageNotFound},
+		{"file not found", ErrClientFileNotFound, state.ClientErrFileNotFound},
 		{"object not found", ErrClientObjectNotFound, state.ClientErrObjectNotFound},
 		{"timeout", ErrClientTimeout, state.ClientErrTimeout},
 		{"bad request", ErrClientBadRequest, state.ClientErrBadRequest},
@@ -168,5 +169,30 @@ func TestListPathsForwardsLimit(t *testing.T) {
 	}
 	if caller.gotPath != "vm/qpaths" {
 		t.Fatalf("query path = %q, want %q", caller.gotPath, "vm/qpaths")
+	}
+}
+
+func TestValidFileName(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]bool{
+		"render.gno":          true,
+		"gnomod.toml":         true,
+		"README.md":           true,
+		"README":              true,
+		"LICENSE":             true,
+		".gitignore":          true,
+		"init":                false, // no dot: vm/qfile reads it as a child package
+		".":                   false,
+		"..":                  false,
+		"../other/render.gno": false,
+		"sub/render.gno":      false,
+		"/render.gno":         false,
+		"render.gno/":         false,
+	}
+	for name, want := range cases {
+		if got := validFileName(name); got != want {
+			t.Errorf("validFileName(%q) = %v, want %v", name, got, want)
+		}
 	}
 }
