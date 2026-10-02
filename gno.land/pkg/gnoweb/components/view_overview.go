@@ -159,5 +159,7 @@ type OverviewData struct {
 
 // OverviewView constructs a new overview View from pre-built data.
 func OverviewView(data OverviewData) *View {
-	return NewTemplateView(OverviewViewType, "renderOverview", data)
+	view := NewTemplateView(OverviewViewType, "renderOverview", data)
+	view.SkipTargetInBody = true // on the content header
+	return view
 }

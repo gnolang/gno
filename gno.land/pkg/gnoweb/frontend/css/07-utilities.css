@@ -9,6 +9,49 @@
 	display: inline;
 }
 
+.u-skip-link {
+	position: absolute;
+	inset-block-start: var(--g-space-2);
+	inset-inline-start: var(--g-space-2);
+	/* Must outrank .b-header, which is sticky at --g-z-max with an opaque
+	   background over this exact corner. At an equal z-index the header still
+	   wins, being later in the DOM, so the link would be focused but hidden. */
+	z-index: calc(var(--g-z-max) + 1);
+	padding: var(--g-space-2) var(--g-space-4);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	outline: var(--s-focus-ring);
+
+	/* Off-screen until focused rather than display:none, so it stays in the
+	   tab order and is announced. */
+	&:not(:focus-visible) {
+		clip-path: inset(50%);
+		overflow: hidden;
+		white-space: nowrap;
+		block-size: 1px;
+		inline-size: 1px;
+		padding: 0;
+	}
+}
+
+/* The skip link's target: <main>, or on rail views the content past the rail.
+   Clears the sticky .b-header, which would otherwise cover its top: two
+   rows below --lg, one from --lg up. */
+#main-content {
+	scroll-margin-block-start: var(--g-space-28);
+
+	@media (--lg) {
+		scroll-margin-block-start: var(--g-space-16);
+	}
+
+	/* Focused programmatically by the skip link (tabindex="-1"); Chrome
+	   would otherwise ring the whole content box. The link keeps its ring. */
+	&:focus {
+		outline: none;
+	}
+}
+
 .u-sr-only {
 	height: 1px;
 	margin: -1px;
@@ -124,5 +167,5 @@
 
 /* ===== EMPTY STATE UTILITIES ===== */
 *:empty + .u-prev-empty {
-	margin-top: var(--space-4);
+	margin-top: var(--g-space-4);
 }
