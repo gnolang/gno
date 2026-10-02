@@ -1124,12 +1124,18 @@
 	}
 
 	/* A full address as the title: no wrap but at the template's <wbr>, so
-	   one line or two equal halves, sized for 20 mono glyphs per sidebar
-	   width. Roboto Mono ships one regular cut, so it is not asked for bold. */
+	   one line or two equal halves, sized for 20 mono glyphs per column
+	   width. Beside the avatar a phone leaves the viewport less 152px, too
+	   narrow for a half at 18px below sm, so it starts at 13px there.
+	   Roboto Mono ships one regular cut, so it is not asked for bold. */
 	.title--address {
 		font-weight: var(--g-font-normal);
-		font-size: var(--g-font-size-300);
+		font-size: var(--g-font-size-90);
 		overflow-wrap: normal;
+
+		@media (--sm) {
+			font-size: var(--g-font-size-300);
+		}
 
 		@media (--lg) {
 			font-size: var(--g-font-size-90);
