@@ -149,11 +149,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
-		policy: pagePolicy{
-			trusted: newTrustedPaths(cfg.TrustedPaths),
-			aliases: cfg.Aliases,
-			index:   cfg.IndexCommunity,
-		},
+		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
@@ -1193,6 +1189,11 @@ func (h *HTTPHandler) titleWithDomain(page string) string {
 func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	if h.Static.CanonicalOrigin == "" {
 		return ""
+	}
+	// An alias's target, asked for by its own path, is the alias's page:
+	// /r/gnoland/home is /, so both name /.
+	if alias, ok := h.policy.aliasFor(gnourl); ok {
+		return h.Static.CanonicalOrigin + alias
 	}
 	u := *gnourl
 	u.Query, u.WebQuery = nil, nil

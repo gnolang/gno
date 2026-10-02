@@ -2361,18 +2361,31 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 	t.Parallel()
 
 	handler := newMetadataHandler(t, "/r/gnoland/pages", map[string]gnoweb.AliasTarget{
-		"/about": {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
+		"/about":      {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
+		"/about-long": {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/about", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	cases := []struct{ url, canonical string }{
+		{"/about", "https://gno.land/about"},
+		// The target asked for by its own path is the same page, so it
+		// names the alias rather than compete with it; of two aliases, the
+		// shorter.
+		{"/r/gnoland/pages:p/about", "https://gno.land/about"},
+		// A view of the target is a page of its own.
+		{"/r/gnoland/pages:p/about$source", "https://gno.land/r/gnoland/pages:p/about$source"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.url, func(t *testing.T) {
+			t.Parallel()
 
-	body := rr.Body.String()
-	assert.Contains(t, body, `<title>/about - gno.land</title>`)
-	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/about" />`)
-	assert.NotContains(t, body, `href="https://gno.land/r/gnoland/pages:p/about"`,
-		"an aliased page must not name its target as canonical")
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+
+			body := rr.Body.String()
+			assert.Contains(t, body, `<link rel="canonical" href="`+tc.canonical+`" />`)
+			assert.Contains(t, body, `<meta property="og:url" content="`+tc.canonical+`" />`)
+		})
+	}
 }
 
 // TestHTTPHandler_CanonicalIgnoresForwardedHost pins the canonical link
@@ -2595,8 +2608,9 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		// Args reach Render, and the realm's own heading may repeat them,
 		// so a page addressed by args is titled by its path.
 		{
+			// /hello aliases this post, so the post names the alias.
 			name: "trusted post", url: "/r/gnoland/blog:p/hello",
-			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog:p/hello",
+			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/hello",
 		},
 		{
 			name: "trusted realm echoing its args", url: "/r/gnoland/blog:t/Official_GNOT_airdrop_at_evil.example",
@@ -2628,8 +2642,9 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 			title: "/nymalias", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/nymalias",
 		},
 		{
+			// /nymalias aliases this realm, so it names the alias.
 			name: "community realm", url: "/r/nym/app",
-			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/r/nym/app",
+			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/nymalias",
 		},
 		{
 			name: "community realm, crafted query", url: "/r/nym/app?Official+GNOT+airdrop+at+evil.example",

@@ -52,7 +52,53 @@ type pageLead struct{ title, description string }
 type pagePolicy struct {
 	trusted trustedPaths
 	aliases map[string]AliasTarget
+	// aliasOf maps a realm alias's target, path and args, to the alias.
+	aliasOf map[string]string
 	index   CommunityIndex
+}
+
+func newPagePolicy(trusted []string, aliases map[string]AliasTarget, index CommunityIndex) pagePolicy {
+	return pagePolicy{
+		trusted: newTrustedPaths(trusted),
+		aliases: aliases,
+		aliasOf: aliasTargets(aliases),
+		index:   index,
+	}
+}
+
+// aliasTargets maps each realm alias's target to the alias that publishes
+// it. When two aliases share a target the shorter wins, then the first in
+// order, so the choice does not depend on map order.
+func aliasTargets(aliases map[string]AliasTarget) map[string]string {
+	of := make(map[string]string)
+	for alias, target := range aliases {
+		if target.Kind != GnowebPath {
+			continue
+		}
+		u, err := weburl.Parse(target.Value)
+		if err != nil {
+			continue
+		}
+		key := aliasKey(u)
+		if cur, ok := of[key]; !ok || len(alias) < len(cur) || (len(alias) == len(cur) && alias < cur) {
+			of[key] = alias
+		}
+	}
+	return of
+}
+
+func aliasKey(u *weburl.GnoURL) string {
+	return u.Encode(weburl.EncodePath | weburl.EncodeArgs | weburl.EncodeNoEscape)
+}
+
+// aliasFor is the alias that publishes the page at u, if u is an alias's
+// target asked for as such, with no view and no query.
+func (p pagePolicy) aliasFor(u *weburl.GnoURL) (string, bool) {
+	if len(u.WebQuery) > 0 || len(u.Query) > 0 {
+		return "", false
+	}
+	alias, ok := p.aliasOf[aliasKey(u)]
+	return alias, ok
 }
 
 // kind classifies u, the URL a page is served from once a realm alias is
