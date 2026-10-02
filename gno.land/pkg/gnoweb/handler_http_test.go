@@ -2179,14 +2179,23 @@ func userAddressLine(addr string) string {
 func getUserPage(t *testing.T, client *stubClient, path string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	handler, err := gnoweb.NewHTTPHandler(
-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-		newTestHandlerConfig(t, client),
-	)
-	require.NoError(t, err)
+	return newUserPageHandler(t, newTestHandlerConfig(t, client)).get(path)
+}
 
+// userPageHandler serves GETs against a handler built from a test config.
+type userPageHandler struct{ http.Handler }
+
+func newUserPageHandler(t *testing.T, cfg *gnoweb.HTTPHandlerConfig) userPageHandler {
+	t.Helper()
+
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
+	require.NoError(t, err)
+	return userPageHandler{handler}
+}
+
+func (h userPageHandler) get(path string) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
 	return rr
 }
 
@@ -2279,9 +2288,8 @@ func TestHTTPHandler_GetUserView_Address(t *testing.T) {
 		{
 			name:    "unregistered address stands on its own",
 			payload: resolveAnyMissing(),
-			// Nothing resolves, so the address is the namespace. The title is
-			// its short form, for reading; the line under it still prints it in
-			// full, for checking.
+			// Nothing resolves, so the address is the namespace, and the
+			// page is titled by it in full.
 			wantPrefixes: []string{"@" + testUserAddr},
 			wantBody: []string{
 				addressTitle(testUserAddr),
@@ -2367,20 +2375,12 @@ func TestHTTPHandler_GetUserView_AliasTargetIsServed(t *testing.T) {
 		},
 	}
 
-	handler, err := gnoweb.NewHTTPHandler(
-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-		&gnoweb.HTTPHandlerConfig{
-			ClientAdapter: client,
-			Renderer:      &rawRenderer{},
-			Aliases:       map[string]gnoweb.AliasTarget{"/docs": {Value: "/u/docs", Kind: gnoweb.GnowebPath}},
-		},
-	)
-	require.NoError(t, err)
+	cfg := newTestHandlerConfig(t, client)
+	cfg.Aliases = map[string]gnoweb.AliasTarget{"/docs": {Value: "/u/docs", Kind: gnoweb.GnowebPath}}
+	handler := newUserPageHandler(t, cfg)
 
 	for _, path := range []string{"/docs", "/u/docs"} {
-		rr := httptest.NewRecorder()
-		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
-		assert.Equal(t, http.StatusOK, rr.Code, path)
+		assert.Equal(t, http.StatusOK, handler.get(path).Code, path)
 	}
 }
 
@@ -2601,12 +2601,10 @@ func TestHTTPHandler_GetUserView_SlowLookupDoesNotStarveThePage(t *testing.T) {
 
 			cfg := newTestHandlerConfig(t, client)
 			cfg.Timeout = 800 * time.Millisecond
-			handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
-			require.NoError(t, err)
+			handler := newUserPageHandler(t, cfg)
 
 			start := time.Now()
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/u/"+segment, nil))
+			rr := handler.get("/u/" + segment)
 
 			assert.Equal(t, want, rr.Code)
 			assert.Less(t, time.Since(start), cfg.Timeout, "the lookup must give up before the request deadline")
@@ -2634,11 +2632,7 @@ func TestHTTPHandler_GetUserView_LookupDeadlineIsCapped(t *testing.T) {
 
 	cfg := newTestHandlerConfig(t, client)
 	cfg.Timeout = time.Minute
-	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
-	require.NoError(t, err)
-
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/u/alice", nil))
+	rr := newUserPageHandler(t, cfg).get("/u/alice")
 
 	require.True(t, hasDeadline, "the lookup must run under a deadline")
 	assert.LessOrEqual(t, remaining, 2*time.Second, "the lookup must be capped at 2s, not a quarter of the request")
@@ -2823,8 +2817,8 @@ func TestHTTPHandler_GetUserView_HostileIdentity(t *testing.T) {
 		"markup":           `"><` + "script>alert(1)</script>",
 		"quote":            `alice"onmouseover="x`,
 		"unicode":          "ålice",
-		"bidi override":    "alice‮gnp.exe",
-		"zero-width":       "ali​ce",
+		"bidi override":    "alice\u202egnp.exe",
+		"zero-width":       "ali\u200bce",
 		"too long":         "a" + strings.Repeat("b", gnoweb.MaxUsernameLen),
 		"almost bech32":    testUserAddr[:len(testUserAddr)-1] + "x",
 		"uppercase bech32": strings.ToUpper(testUserAddr),
@@ -2849,8 +2843,8 @@ func TestHTTPHandler_GetUserView_HostileIdentity(t *testing.T) {
 
 	for name, regName := range map[string]string{
 		"markup":        `"><` + "script>alert(1)</script>",
-		"bidi override": "alice‮",
-		"zero-width":    "ali​ce",
+		"bidi override": "alice\u202e",
+		"zero-width":    "ali\u200bce",
 		"uppercase":     "Alice",
 	} {
 		t.Run("registry name "+name, func(t *testing.T) {
