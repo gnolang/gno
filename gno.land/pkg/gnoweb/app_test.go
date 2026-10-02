@@ -112,6 +112,15 @@ func TestRoutes(t *testing.T) {
 			{"/グノー", notFound, ""},
 			{"/\u269B\uFE0F", notFound, ""}, // Unicode
 			{"/p/demo/flow/LICENSE", ok, "BSD 3-Clause"},
+			// A file name must not resolve to another package path in vm/qfile.
+			{"/r/tests/vm/deep/very/deep$source&file=..%2F..%2F..%2F..%2F..%2Fsys%2Fusers%2Fusers.gno", notFound, ""},
+			{"/r/tests/vm/deep/very/deep$download&file=..%2F..%2F..%2F..%2F..%2Fsys%2Fusers%2Fusers.gno", notFound, ""},
+			{"/r/sys/users/init/%2E%2E", notFound, ""},
+			{"/r/sys/users$source&file=init", notFound, ""}, // no extension: qfile reads it as the child package
+			{"/r/sys/users$download&file=init", notFound, ""},
+			{"/r/sys/users$source&file=%20", notFound, ""}, // blank name trims to empty
+			{"/r/sys/users$download&file=%20", notFound, ""},
+			{"/r/sys/users$state&frag=source&file=init%2Finit.gno&line=1", ok, "file not found"}, // fragments answer 200 with an error body
 			// Test assets
 			{"/public/main.css", ok, ""},
 			{"/public/js/index.js", ok, ""},
