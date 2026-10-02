@@ -117,6 +117,8 @@ func TestTitle(t *testing.T) {
 		{"inline markup is flattened", "# A [link](/r/x) and **bold**\n", "A link and bold"},
 		{"entities and escapes are resolved", "# Tom &amp; Jerry \\*live\\*\n", "Tom & Jerry *live*"},
 		{"an image alt is not a title", "# ![Official notice](x.png)\n", ""},
+		// A bidi override reorders what a tab shows; a zero-width space hides.
+		{"format characters are dropped", "# Pay \u202eelpmaxe.live\u202c to \u200bgno\n", "Pay elpmaxe.live to gno"},
 		{"a nested h1 is not the page's", "> # Quoted\n", ""},
 		{"empty", "", ""},
 	}

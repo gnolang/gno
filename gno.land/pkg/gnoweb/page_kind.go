@@ -31,11 +31,6 @@ const (
 )
 
 const (
-	siteDescription             = "Explore realms and packages on gno.land, the network for Gno smart contracts."
-	communityRealmDescription   = "A realm deployed on gno.land by its author."
-	communityPackageDescription = "A package deployed on gno.land by its author."
-	communityUserDescription    = "A gno.land user profile."
-
 	officialImageAsset         = "imgs/og-gnoland.png"
 	communityRealmImageAsset   = "imgs/og-community-realm.png"
 	communityPackageImageAsset = "imgs/og-community-package.png"
@@ -152,7 +147,8 @@ func (k pageKind) mayRepeat(u *weburl.GnoURL) bool {
 // pathTitle names a page by its path alone, for the pages whose document may
 // not name them: what the package is and whose namespace it sits in, as in
 // "games/chess · realm by nym". An address namespace is shortened the way the
-// user page shows it. A path outside /r/, /p/ and /u/ names itself. The
+// user page shows it. The bare listings are "Realms", "Packages" and
+// "Users"; any other path, an alias's, names itself without its slashes. The
 // title is capped like an h1, since a path can be as long as a link cares.
 func pathTitle(u *weburl.GnoURL) string {
 	return md.TruncateTitle(pathName(u))
@@ -161,8 +157,16 @@ func pathTitle(u *weburl.GnoURL) string {
 // pathName is pathTitle before it is capped.
 func pathName(u *weburl.GnoURL) string {
 	pkg, ok := packagePath(u)
-	if !ok {
-		return strings.TrimSuffix(u.Path, "/")
+	switch {
+	case ok:
+	case u.IsRealm():
+		return "Realms"
+	case u.IsPure():
+		return "Packages"
+	case u.IsUser():
+		return "Users"
+	default:
+		return strings.Trim(u.Path, "/")
 	}
 	ns, name, _ := strings.Cut(pkg, "/")
 	owner := CreateUsernameFromBech32(ns)
@@ -210,8 +214,12 @@ type pageRender struct {
 
 // servedPage is what Get learns about the page it serves, for the head.
 type servedPage struct {
-	// url is the URL the client asked for, not an alias target.
-	url    *weburl.GnoURL
+	// url is the URL the client asked for, not an alias target; it names
+	// the page.
+	url *weburl.GnoURL
+	// target is the URL the page is served from: an alias's target, or url.
+	// It decides the kind and the card.
+	target *weburl.GnoURL
 	kind   pageKind
 	robots robots
 	// render is handed to the views.
@@ -228,19 +236,56 @@ func (h *HTTPHandler) renderContext(pr *pageRender) RealmRenderContext {
 	}
 }
 
-// card is the summary and share image of a page of kind k at u, for when its
-// document may not, or does not, summarise it. gno.land's plain mark goes
-// only to the pages it answers for; a community page gets a card that says
-// what kind of page it is.
-func (k pageKind) card(u *weburl.GnoURL) (description, image string) {
+// pageCard is the summary and share image of a page whose document does
+// not, or may not, summarise it.
+type pageCard struct {
+	description string
+	image       string // asset path, under the assets root
+	imageAlt    string
+}
+
+// card is the card of a page of kind k served from u, on domain. gno.land's
+// plain mark goes only to the pages it answers for; a community page gets a
+// card that says what kind of page it is, and a summary built from its path,
+// which is the one part of it its author does not write freely.
+func (k pageKind) card(u *weburl.GnoURL, domain string) pageCard {
+	if k != pageCommunity {
+		return pageCard{
+			description: "Explore realms and packages on " + domain + ", the network for Gno smart contracts.",
+			image:       officialImageAsset,
+			imageAlt:    "gno.land logo",
+		}
+	}
+	pkg, _ := packagePath(u)
+	ns, name, _ := strings.Cut(pkg, "/")
+	owner := CreateUsernameFromBech32(ns)
+	// deployed reads "games/chess, a realm deployed on gno.land by nym.", or
+	// "Realms deployed ..." for a namespace root.
+	deployed := func(kind, kinds string) string {
+		what := kinds
+		if name != "" {
+			what = name + ", a " + kind
+		}
+		return md.TruncateDescription(what + " deployed on " + domain + " by " + owner + ".")
+	}
 	switch {
-	case k != pageCommunity:
-		return siteDescription, officialImageAsset
-	case u.IsPure():
-		return communityPackageDescription, communityPackageImageAsset
 	case u.IsUser():
-		return communityUserDescription, communityUserImageAsset
+		return pageCard{
+			description: md.TruncateDescription(owner + "'s profile on " + domain + "."),
+			image:       communityUserImageAsset,
+			imageAlt:    "Community profile on " + domain,
+		}
+	case u.IsPure():
+		return pageCard{
+			description: deployed("package", "Packages"),
+			image:       communityPackageImageAsset,
+			imageAlt:    "Community package on " + domain + ", deployed by its author",
+		}
 	default:
-		return communityRealmDescription, communityRealmImageAsset
+		return pageCard{
+			description: deployed("realm", "Realms"),
+			image:       communityRealmImageAsset,
+			imageAlt:    "Community realm on " + domain + ", deployed by its author",
+		}
 	}
 }

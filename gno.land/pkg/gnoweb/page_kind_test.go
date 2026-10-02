@@ -88,8 +88,10 @@ func TestPathTitle(t *testing.T) {
 		"/r/nym":                 "realms by nym",
 		"/r/nym/":                "realms by nym",
 		"/p/nym":                 "packages by nym",
-		"/r/":                    "/r",
-		"/about":                 "/about",
+		"/r/":                    "Realms",
+		"/p/":                    "Packages",
+		"/u/":                    "Users",
+		"/about":                 "about",
 		"/":                      "",
 	}
 	for path, want := range cases {

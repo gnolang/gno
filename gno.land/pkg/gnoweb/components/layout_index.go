@@ -47,7 +47,9 @@ type HeadData struct {
 	Canonical   string
 	// Robots is the content of the robots meta, as the handler decided it.
 	Robots            string
+	SiteName          string
 	Image             string
+	ImageAlt          string
 	URL               string
 	ChromaPath        string
 	AssetsPath        string

@@ -381,7 +381,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 // whatever its target renders, so u is the target and the alias keeps the
 // target's kind.
 func (h *HTTPHandler) classifyPage(w http.ResponseWriter, indexData *components.IndexData, u *weburl.GnoURL) servedPage {
-	sp := servedPage{url: u, kind: h.policy.kind(u)}
+	sp := servedPage{url: u, target: u, kind: h.policy.kind(u)}
 	sp.robots = h.policy.robots(sp.kind, u)
 	sp.render.links = sp.kind.links()
 	if sp.kind == pageCommunity && h.Static.RealmNotice.Enabled() {
@@ -1168,12 +1168,12 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 }
 
 // titleWithDomain puts the domain last, where a tab strip and a search result
-// both cut.
+// both cut, unless the title already names it.
 func (h *HTTPHandler) titleWithDomain(page string) string {
 	switch {
 	case page == "":
 		return h.Static.Domain
-	case h.Static.Domain == "":
+	case h.Static.Domain == "", strings.Contains(strings.ToLower(page), strings.ToLower(h.Static.Domain)):
 		return page
 	default:
 		return page + " - " + h.Static.Domain
@@ -1234,9 +1234,13 @@ func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, 
 	if !sp.kind.mayRepeat(sp.url) {
 		lead = pageLead{}
 	}
-	head.Title = h.titleWithDomain(cmp.Or(lead.title, pathTitle(sp.url)))
-	description, image := sp.kind.card(sp.url)
-	head.Description = cmp.Or(lead.description, description)
+	if lead.title == "" {
+		lead.title = pathTitle(sp.url)
+	}
+	head.Title = h.titleWithDomain(lead.title)
+	card := sp.kind.card(sp.target, h.Static.Domain)
+	head.Description = cmp.Or(lead.description, card.description)
+	head.SiteName = h.Static.Domain
 
 	// A page kept out of the index names no canonical, but keeps its card:
 	// link previews ignore robots, and an empty card looks broken.
@@ -1247,8 +1251,13 @@ func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, 
 	}
 	// A crawler fetches og:image as given, with no page to resolve it
 	// against, so it needs the same declared origin as the canonical.
+	// The version makes a preview cache fetch a redrawn card.
 	if h.Static.CanonicalOrigin != "" {
-		head.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, image)
+		head.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, card.image)
+		if h.Static.AssetsVersion != "" {
+			head.Image += "?v=" + url.QueryEscape(h.Static.AssetsVersion)
+		}
+		head.ImageAlt = card.imageAlt
 	}
 }
 

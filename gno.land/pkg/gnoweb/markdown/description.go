@@ -65,8 +65,16 @@ func plainText(src []byte, n ast.Node) string {
 	return oneLine(visibleText(src, n))
 }
 
-// oneLine collapses every run of whitespace in s to one space.
+// oneLine collapses every run of whitespace in s to one space, and drops
+// format characters (bidi overrides, zero-width joiners): invisible on the
+// page, they would reorder or disguise the text in a title or a summary.
 func oneLine(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, s)
 	return strings.Join(strings.Fields(s), " ")
 }
 

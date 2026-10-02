@@ -2445,7 +2445,7 @@ func TestHTTPHandler_AliasShareImage(t *testing.T) {
 		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/terms?utm_source=twitter", nil))
 
 		head, _, _ := strings.Cut(rr.Body.String(), "</head>")
-		assert.Contains(t, head, `<title>/terms - gno.land</title>`)
+		assert.Contains(t, head, `<title>terms - gno.land</title>`)
 		assert.Contains(t, head, `<meta property="og:url" content="https://gno.land/terms" />`)
 		assert.NotContains(t, head, "utm_source")
 		// A query makes a URL of its own, which is kept out of the index.
@@ -2610,61 +2610,61 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		{
 			// /hello aliases this post, so the post names the alias.
 			name: "trusted post", url: "/r/gnoland/blog:p/hello",
-			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/hello",
+			title: "blog · realm by gnoland - gno.land", description: gnoweb.SiteDescription, image: gnoImg, path: "/hello",
 		},
 		{
 			name: "trusted realm echoing its args", url: "/r/gnoland/blog:t/Official_GNOT_airdrop_at_evil.example",
-			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg,
+			title: "blog · realm by gnoland - gno.land", description: gnoweb.SiteDescription, image: gnoImg,
 			path: "/r/gnoland/blog:t/Official_GNOT_airdrop_at_evil.example",
 		},
 		{
 			name: "trusted realm, crafted args", url: "/r/gnoland/blog:Official_GNOT_airdrop_claim_at_evil.example",
-			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg,
+			title: "blog · realm by gnoland - gno.land", description: gnoweb.SiteDescription, image: gnoImg,
 			path: "/r/gnoland/blog:Official_GNOT_airdrop_claim_at_evil.example",
 		},
 		{
 			name: "trusted realm, crafted query", url: "/r/gnoland/blog?Official+notice:+claim+your+GNOT+airdrop+at+evil.example",
-			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog",
+			title: "blog · realm by gnoland - gno.land", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog",
 		},
 		{
 			name: "trusted realm, user text below its lead", url: "/r/gnoland/forum",
-			title: "forum · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/forum",
+			title: "forum · realm by gnoland - gno.land", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/forum",
 		},
 		// The operator chose the target's args, so the alias keeps the h1.
 		{
 			name: "alias to a trusted post", url: "/hello",
-			title: "Hello worlds", description: trustPost, image: gnoImg, path: "/hello",
+			title: "Hello worlds - gno.land", description: trustPost, image: gnoImg, path: "/hello",
 		},
 		// An alias publishes whatever its target renders, so it keeps the
 		// target's kind.
 		{
 			name: "alias to a community realm", url: "/nymalias",
-			title: "/nymalias", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/nymalias",
+			title: "nymalias - gno.land", description: "app, a realm deployed on gno.land by nym.", image: realmImg, path: "/nymalias",
 		},
 		{
 			// /nymalias aliases this realm, so it names the alias.
 			name: "community realm", url: "/r/nym/app",
-			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/nymalias",
+			title: "app · realm by nym - gno.land", description: "app, a realm deployed on gno.land by nym.", image: realmImg, path: "/nymalias",
 		},
 		{
 			name: "community realm, crafted query", url: "/r/nym/app?Official+GNOT+airdrop+at+evil.example",
-			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/r/nym/app",
+			title: "app · realm by nym - gno.land", description: "app, a realm deployed on gno.land by nym.", image: realmImg, path: "/r/nym/app",
 		},
 		{
 			name: "community package", url: "/p/nym/lib",
-			title: "lib · package by nym", description: gnoweb.CommunityPackageDescription, image: pkgImg, path: "/p/nym/lib",
+			title: "lib · package by nym - gno.land", description: "lib, a package deployed on gno.land by nym.", image: pkgImg, path: "/p/nym/lib",
 		},
 		{
 			name: "community user", url: "/u/nym",
-			title: "nym · user profile", description: gnoweb.CommunityUserDescription, image: userImg, path: "/u/nym",
+			title: "nym · user profile - gno.land", description: "nym's profile on gno.land.", image: userImg, path: "/u/nym",
 		},
 		{
 			name: "trusted user", url: "/u/gnoland",
-			title: "gnoland · user profile", description: gnoweb.SiteDescription, image: gnoImg, path: "/u/gnoland",
+			title: "gnoland · user profile - gno.land", description: gnoweb.SiteDescription, image: gnoImg, path: "/u/gnoland",
 		},
 		{
 			name: "trusted source view", url: "/r/gnoland/blog$source",
-			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog$source",
+			title: "blog · realm by gnoland - gno.land", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog$source",
 		},
 	}
 
@@ -2678,9 +2678,10 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 			require.Equal(t, http.StatusOK, rr.Code)
 			head, _, _ := strings.Cut(rr.Body.String(), "</head>")
 			canonical := "https://gno.land" + tc.path
-			assert.Contains(t, head, "<title>"+tc.title+" - gno.land</title>")
-			assert.Contains(t, head, `<meta name="description" content="`+tc.description+`" />`)
-			assert.Contains(t, head, `<meta property="og:description" content="`+tc.description+`" />`)
+			description := html.EscapeString(tc.description)
+			assert.Contains(t, head, "<title>"+tc.title+"</title>")
+			assert.Contains(t, head, `<meta name="description" content="`+description+`" />`)
+			assert.Contains(t, head, `<meta property="og:description" content="`+description+`" />`)
 			assert.Contains(t, head, `<meta property="og:image" content="`+tc.image+`" />`)
 			assert.Contains(t, head, `<meta name="twitter:card" content="summary_large_image" />`)
 			assert.Contains(t, head, `<meta property="og:url" content="`+canonical+`" />`)
@@ -2825,6 +2826,45 @@ func TestHTTPHandler_UserPages(t *testing.T) {
 		require.NotNil(t, title)
 		assert.LessOrEqual(t, len([]rune(title[1])), 80, title[1])
 	})
+}
+
+// TestHTTPHandler_ShareCardTags checks the tags a link preview reads beside
+// the image: the site name, the image size and its alt text, and a versioned
+// image URL so a redrawn card reaches preview caches.
+func TestHTTPHandler_ShareCardTags(t *testing.T) {
+	t.Parallel()
+
+	render := map[string]string{"render.gno": `package main; func Render(string) string { return "body" }`}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(
+		&gnoweb.MockPackage{Domain: "gno.land", Path: "/r/gnoland/home", Files: render},
+		&gnoweb.MockPackage{Domain: "gno.land", Path: "/r/nym/app", Files: render},
+	))
+	withGnoLandMeta(config)
+	config.Meta.AssetsVersion = "v1"
+	config.TrustedPaths = []string{"gnoland"}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})), config)
+	require.NoError(t, err)
+
+	cases := []struct{ url, image, alt string }{
+		{"/r/gnoland/home", "og-gnoland.png", "gno.land logo"},
+		{"/r/nym/app", "og-community-realm.png", "Community realm on gno.land, deployed by its author"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.url, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+			head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+
+			assert.Contains(t, head, `<meta property="og:site_name" content="gno.land" />`)
+			assert.Contains(t, head, `<meta property="og:image" content="https://gno.land/public/imgs/`+tc.image+`?v=v1" />`)
+			assert.Contains(t, head, `<meta property="og:image:width" content="1200" />`)
+			assert.Contains(t, head, `<meta property="og:image:height" content="630" />`)
+			assert.Contains(t, head, `<meta property="og:image:alt" content="`+tc.alt+`" />`)
+			assert.Contains(t, head, `<meta name="twitter:image:alt" content="`+tc.alt+`" />`)
+		})
+	}
 }
 
 // TestHTTPHandler_LinkRel checks which links of a rendered document search

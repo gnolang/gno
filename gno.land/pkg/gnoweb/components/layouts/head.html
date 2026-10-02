@@ -25,12 +25,18 @@
   {{ end }}
 
   <!-- Open Graph metadata -->
+  {{ if .SiteName }}
+  <meta property="og:site_name" content="{{ .SiteName }}" />
+  {{ end }}
   <meta property="og:title" content="{{ .Title }}" />
   {{ if .Description }}
   <meta property="og:description" content="{{ .Description }}" />
   {{ end }}
   {{ if .Image }}
   <meta property="og:image" content="{{ .Image }}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="{{ .ImageAlt }}" />
   {{ end }}
   {{ if .URL }}
   <meta property="og:url" content="{{ .URL }}" />
@@ -45,6 +51,7 @@
   {{ end }}
   {{ if .Image }}
   <meta name="twitter:image" content="{{ .Image }}" />
+  <meta name="twitter:image:alt" content="{{ .ImageAlt }}" />
   {{ end }}
 
   <!-- Favicon -->
