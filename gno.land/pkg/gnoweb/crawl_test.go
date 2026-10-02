@@ -1,0 +1,219 @@
+package gnoweb
+
+import (
+	"context"
+	"encoding/xml"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestHandlerRobotsTXT(t *testing.T) {
+	t.Parallel()
+
+	get := func(noindex bool, origin string) *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		handlerRobotsTXT(noindex, origin).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/robots.txt", nil))
+		return rr
+	}
+
+	t.Run("indexable with a sitemap", func(t *testing.T) {
+		t.Parallel()
+		rr := get(false, "https://gno.land")
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "text/plain; charset=utf-8", rr.Header().Get("Content-Type"))
+		assert.Equal(t, "public, max-age=3600", rr.Header().Get("Cache-Control"))
+		assert.Equal(t, "User-agent: *\nDisallow: /search.json\nDisallow: /status.json\n\nSitemap: https://gno.land/sitemap.xml\n", rr.Body.String())
+	})
+
+	t.Run("indexable without a canonical origin", func(t *testing.T) {
+		t.Parallel()
+		rr := get(false, "")
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "User-agent: *\nDisallow: /search.json\nDisallow: /status.json\n", rr.Body.String())
+	})
+
+	t.Run("noindex still allows crawling", func(t *testing.T) {
+		t.Parallel()
+		// A Disallow would hide the noindex header from crawlers.
+		rr := get(true, "")
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "# Not indexed: every response carries X-Robots-Tag: noindex.\nUser-agent: *\nAllow: /\n", rr.Body.String())
+	})
+
+	t.Run("method not allowed", func(t *testing.T) {
+		t.Parallel()
+		rr := httptest.NewRecorder()
+		handlerRobotsTXT(false, "").ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/robots.txt", nil))
+		assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
+	})
+}
+
+func TestHandlerSitemapXML(t *testing.T) {
+	t.Parallel()
+
+	aliases := map[string]AliasTarget{
+		"/":              {Value: "/r/gnoland/home", Kind: GnowebPath},          // a whole realm
+		"/about":         {Value: "/r/gnoland/pages:p/about", Kind: GnowebPath}, // one page of a realm
+		"/start":         {Value: "/r/gnoland/pages:p/start", Kind: GnowebPath}, // same realm, queried once
+		"/events":        {Value: "/r/devrels/events", Kind: GnowebPath},        // realm absent here
+		"/docs":          {Value: "/u/docs", Kind: GnowebPath},                  // not a realm
+		"/terms":         {Value: "# Terms", Kind: StaticMarkdown},              // operator page
+		"/foo bar":       {Value: "# Foo", Kind: StaticMarkdown},                // not a clean path
+		"relative":       {Value: "# Relative", Kind: StaticMarkdown},           // no leading slash
+		"/src":           {Value: "/r/demo/boards$source", Kind: GnowebPath},    // a view of a realm
+		"/blog":          {Value: "# Blog", Kind: StaticMarkdown},               // redirected before aliases
+		"/terms.md":      {Value: "# Terms", Kind: StaticMarkdown},              // gnoweb rewrites the extension
+		"/r/demo/boards": {Value: "# Boards", Kind: StaticMarkdown},             // operator override of a realm URL
+	}
+	client := NewMockClient(
+		&MockPackage{Path: "/r/gnoland/home"},
+		&MockPackage{Path: "/r/gnoland/pages"},
+		&MockPackage{Path: "/r/demo/boards"},
+		&MockPackage{Path: "/r/devrels/events", Inert: true}, // parked, not served
+	)
+	serve := func(origin, method string, c fileLister) *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		req := httptest.NewRequest(method, "/sitemap.xml", nil)
+		req.Host = "evil.example"
+		req.Header.Set("X-Forwarded-Host", "evil.example")
+		handlerSitemapXML(newDiscardLogger(), origin, aliases, c).ServeHTTP(rr, req)
+		return rr
+	}
+
+	t.Run("lists the curated alias pages under the canonical origin", func(t *testing.T) {
+		t.Parallel()
+		rr := serve("https://gno.land", http.MethodGet, client)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "application/xml; charset=utf-8", rr.Header().Get("Content-Type"))
+		assert.Equal(t, "public, max-age=3600", rr.Header().Get("Cache-Control"))
+		body := rr.Body.String()
+		assert.True(t, strings.HasPrefix(body, xml.Header+`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`), body)
+		assert.NotContains(t, body, "evil.example")
+
+		var set sitemapURLSet
+		require.NoError(t, xml.Unmarshal(rr.Body.Bytes(), &set))
+		var locs []string
+		for _, u := range set.URLs {
+			locs = append(locs, u.Loc)
+		}
+		// Realms and packages are not listed, only operator entry points.
+		assert.Equal(t, []string{
+			"https://gno.land/",
+			"https://gno.land/about",
+			"https://gno.land/r/demo/boards",
+			"https://gno.land/src",
+			"https://gno.land/start",
+			"https://gno.land/terms",
+		}, locs)
+	})
+
+	t.Run("not found without a canonical origin", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, http.StatusNotFound, serve("", http.MethodGet, client).Code)
+	})
+
+	t.Run("method not allowed", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, http.StatusMethodNotAllowed, serve("https://gno.land", http.MethodPost, client).Code)
+	})
+
+	t.Run("queries each target realm once, never the full listing", func(t *testing.T) {
+		t.Parallel()
+		// The full listing is capped at 1000 paths, so it cannot tell an
+		// absent realm from one past the cap.
+		lister := &countingFileLister{}
+		require.Equal(t, http.StatusOK, serve("https://gno.land", http.MethodGet, lister).Code)
+		assert.ElementsMatch(t, []string{"/r/gnoland/home", "/r/gnoland/pages", "/r/devrels/events", "/r/demo/boards"}, lister.calls)
+	})
+
+	t.Run("upstream error", func(t *testing.T) {
+		t.Parallel()
+		rr := serve("https://gno.land", http.MethodGet, &countingFileLister{err: errors.New("rpc down")})
+		assert.Equal(t, http.StatusBadGateway, rr.Code)
+	})
+}
+
+func TestNewRouter_CrawlPolicy(t *testing.T) {
+	t.Parallel()
+
+	newRouter := func(t *testing.T, origin string, noindex bool) (http.Handler, error) {
+		t.Helper()
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = "127.0.0.1:123456" // no node needed for these routes
+		cfg.ChainID = "test"
+		cfg.CanonicalOrigin = origin
+		cfg.NoIndex = noindex
+		// A static page renders without a node.
+		cfg.Aliases = map[string]AliasTarget{"/static": NewStaticAlias("# Static\n\nBody.")}
+		return NewRouter(log.NewTestingLogger(t), cfg)
+	}
+	get := func(h http.Handler, target string) *httptest.ResponseRecorder {
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+		return rr
+	}
+
+	t.Run("the default stays indexable, with or without an origin", func(t *testing.T) {
+		t.Parallel()
+		// Forgetting every flag must never take a deployment out of search.
+		for _, origin := range []string{"", "https://gno.land"} {
+			router, err := newRouter(t, origin, false)
+			require.NoError(t, err)
+			for _, target := range []string{"/liveness", "/robots.txt"} {
+				assert.Empty(t, get(router, target).Header().Get("X-Robots-Tag"), "%s with origin %q", target, origin)
+			}
+			assert.NotContains(t, get(router, "/robots.txt").Body.String(), "Allow: /\n")
+			assert.Contains(t, get(router, "/static").Body.String(), `<meta name="robots" content="index, follow" />`)
+		}
+	})
+
+	t.Run("an origin adds the sitemap, trailing slash trimmed", func(t *testing.T) {
+		t.Parallel()
+		router, err := newRouter(t, "https://gno.land/", false)
+		require.NoError(t, err)
+		assert.Contains(t, get(router, "/robots.txt").Body.String(), "Sitemap: https://gno.land/sitemap.xml\n")
+	})
+
+	t.Run("noindex marks every response and drops the sitemap", func(t *testing.T) {
+		t.Parallel()
+		router, err := newRouter(t, "https://gno.land", true)
+		require.NoError(t, err)
+		for _, target := range []string{"/liveness", "/robots.txt", "/sitemap.xml"} {
+			assert.Equal(t, "noindex, nofollow", get(router, target).Header().Get("X-Robots-Tag"), target)
+		}
+		assert.NotContains(t, get(router, "/robots.txt").Body.String(), "Sitemap")
+		assert.Equal(t, http.StatusNotFound, get(router, "/sitemap.xml").Code)
+		assert.Contains(t, get(router, "/static").Body.String(), `<meta name="robots" content="noindex, nofollow" />`)
+		// $state returns before the page handler's head logic.
+		for _, target := range []string{"/static", "/r/demo/boards$state"} {
+			body := get(router, target).Body.String()
+			assert.NotContains(t, body, `rel="canonical"`, target)
+			assert.NotContains(t, body, `content="https://gno.land`, target)
+		}
+	})
+
+	t.Run("an invalid canonical origin stops startup", func(t *testing.T) {
+		t.Parallel()
+		_, err := newRouter(t, "https://gno.land/r/demo", false)
+		require.Error(t, err)
+	})
+}
+
+// countingFileLister records the paths queried and answers every one with err.
+type countingFileLister struct {
+	err   error
+	calls []string
+}
+
+func (c *countingFileLister) ListFiles(_ context.Context, path string, _ int64) ([]string, error) {
+	c.calls = append(c.calls, path)
+	return nil, c.err
+}

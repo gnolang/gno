@@ -42,9 +42,12 @@ func (m ViewMode) ShouldShowGeneralLinks() bool {
 }
 
 type HeadData struct {
-	Title             string
-	Description       string
-	Canonical         string
+	Title       string
+	Description string
+	Canonical   string
+	// NoIndex keeps an error shell out of a search index: the head is built
+	// before the body knows the page is missing.
+	NoIndex           bool
 	Image             string
 	URL               string
 	ChromaPath        string

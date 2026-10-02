@@ -17,17 +17,17 @@ import (
 )
 
 var DefaultAliases = map[string]AliasTarget{
-	"/":           {"/r/gnoland/home", GnowebPath},
-	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
-	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
-	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
-	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
-	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
-	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
-	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
-	"/events":     {"/r/devrels/events", GnowebPath},
-	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
-	"/docs":       {"/u/docs", GnowebPath},
+	"/":           {Value: "/r/gnoland/home", Kind: GnowebPath},
+	"/about":      {Value: "/r/gnoland/pages:p/about", Kind: GnowebPath},
+	"/gnolang":    {Value: "/r/gnoland/pages:p/gnolang", Kind: GnowebPath},
+	"/ecosystem":  {Value: "/r/gnoland/pages:p/ecosystem", Kind: GnowebPath},
+	"/start":      {Value: "/r/gnoland/pages:p/start", Kind: GnowebPath},
+	"/license":    {Value: "/r/gnoland/pages:p/license", Kind: GnowebPath},
+	"/contribute": {Value: "/r/gnoland/pages:p/contribute", Kind: GnowebPath},
+	"/links":      {Value: "/r/gnoland/pages:p/links", Kind: GnowebPath},
+	"/events":     {Value: "/r/devrels/events", Kind: GnowebPath},
+	"/partners":   {Value: "/r/gnoland/pages:p/partners", Kind: GnowebPath},
+	"/docs":       {Value: "/u/docs", Kind: GnowebPath},
 }
 
 // AppConfig contains configuration for gnoweb.
@@ -57,6 +57,15 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
+
+	// CanonicalOrigin is the public origin this deployment is reachable at,
+	// scheme included. Empty means no canonical tag: a canonical naming a host
+	// the visitor did not reach tells a crawler the content belongs elsewhere,
+	// and every deployment but one would be claiming gno.land's.
+	CanonicalOrigin string
+	// NoIndex keeps this deployment out of search engines (testnets, staging).
+	// Off by default, so a forgotten flag never drops a site from search.
+	NoIndex bool
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
 	// Aliases is a map of aliases pointing to another path or a static file.
@@ -103,6 +112,14 @@ func NewDefaultAppConfig() *AppConfig {
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
 
+	// A canonical is resolved against the page, so an origin without a scheme
+	// would name a 404 on every page; refuse it here rather than ship it.
+	canonicalOrigin, err := normalizeCanonicalOrigin(cfg.CanonicalOrigin)
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("crawl policy", "noindex", cfg.NoIndex, "canonical_origin", canonicalOrigin)
+
 	// Initialize RPC Client.
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
 		client.WithRequestTimeout(cfg.NodeRequestTimeout),
@@ -127,6 +144,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	staticMeta := StaticMetadata{
 		Domain:            cfg.Domain,
+		CanonicalOrigin:   canonicalOrigin,
+		NoIndex:           cfg.NoIndex,
 		AssetsPath:        assetsBase,
 		ChromaPath:        chromaStylePath,
 		RemoteHelp:        cfg.RemoteHelp,
@@ -135,6 +154,11 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AnalyticsHostname: cfg.AnalyticsHostname,
 		AssetsVersion:     AssetsVersion(),
 		Banner:            cfg.Banner,
+	}
+	// Google may carry a noindex over to the canonical target, so a noindex
+	// deployment names none, even with mainnet's -canonical-origin.
+	if cfg.NoIndex {
+		staticMeta.CanonicalOrigin = ""
 	}
 
 	// Configure Markdown renderer
@@ -212,6 +236,17 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle realm/package discovery search (browser fetches the list once and filters locally)
 	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
+
+	// The sitemap needs an origin for absolute URLs and is never served under -no-index.
+	sitemapOrigin := canonicalOrigin
+	if cfg.NoIndex {
+		sitemapOrigin = ""
+	}
+	mux.Handle("/robots.txt", handlerRobotsTXT(cfg.NoIndex, sitemapOrigin))
+	mux.Handle("/sitemap.xml", handlerSitemapXML(logger, sitemapOrigin, cfg.Aliases, adpcli))
+	if cfg.NoIndex {
+		return noIndexMiddleware(mux), nil
+	}
 
 	return mux, nil
 }
