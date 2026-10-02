@@ -1,0 +1,42 @@
+-- input.md --
+Simple test: $x = 1$
+
+LaTeX test: \(A = \pi r^2\)
+
+Display test:
+$$
+E = mc^2
+$$
+
+-- output.html --
+<p>Simple test: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <mn>1</mn>
+    </mrow>
+    <annotation encoding="application/x-tex">x = 1</annotation>
+  </semantics>
+</math>
+</p>
+<p>LaTeX test: (A = \pi r^2)</p>
+<p>Display test:</p>
+
+<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>E</mi>
+      <mo>=</mo>
+      <mi>m</mi>
+      <msup>
+        <mi>c</mi>
+        <mn>2</mn>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">
+E = mc^2
+</annotation>
+  </semantics>
+</math>

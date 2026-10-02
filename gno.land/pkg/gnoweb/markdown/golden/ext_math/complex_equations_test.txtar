@@ -1,0 +1,305 @@
+-- input.md --
+Complex equations test:
+
+Quadratic formula: $x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$
+
+Einstein's mass-energy equivalence: $E = mc^2$
+
+Schrödinger equation: $i\hbar\frac{\partial}{\partial t}\Psi = \hat{H}\Psi$
+
+Maxwell's equations: $\nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t}$
+
+Fourier transform: $\mathcal{F}\{f(t)\} = \int_{-\infty}^{\infty} f(t) e^{-2\pi i \xi t} dt$
+
+Laplace transform: $\mathcal{L}\{f(t)\} = \int_0^{\infty} f(t) e^{-st} dt$
+
+Binomial theorem: $(a + b)^n = \sum_{k=0}^{n} \binom{n}{k} a^{n-k} b^k$
+
+Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
+
+-- output.html --
+<p>Complex equations test:</p>
+<p>Quadratic formula: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>x</mi>
+      <mo>=</mo>
+      <mfrac>
+        <mrow>
+          <mo>−</mo>
+          <mi>b</mi>
+          <mo>±</mo>
+          <msqrt>
+            <mrow>
+              <msup>
+                <mi>b</mi>
+                <mn>2</mn>
+              </msup>
+              <mo>−</mo>
+              <mn>4</mn>
+              <mi>a</mi>
+              <mi>c</mi>
+            </mrow>
+          </msqrt>
+        </mrow>
+        <mrow>
+          <mn>2</mn>
+          <mi>a</mi>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Einstein's mass-energy equivalence: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>E</mi>
+      <mo>=</mo>
+      <mi>m</mi>
+      <msup>
+        <mi>c</mi>
+        <mn>2</mn>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">E = mc^2</annotation>
+  </semantics>
+</math>
+</p>
+<p>Schrödinger equation: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>i</mi>
+      <mi>ℏ</mi>
+      <mfrac>
+        <mi>∂</mi>
+        <mrow>
+          <mi>∂</mi>
+          <mi>t</mi>
+        </mrow>
+      </mfrac>
+      <mi mathvariant="normal">Ψ</mi>
+      <mo>=</mo>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">H</mi>
+        <mo stretchy="true">^</mo>
+      </mover>
+      <mi mathvariant="normal">Ψ</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">i\hbar\frac{\partial}{\partial t}\Psi = \hat{H}\Psi</annotation>
+  </semantics>
+</math>
+</p>
+<p>Maxwell's equations: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi mathvariant="normal">∇</mi>
+      <mo>×</mo>
+      <mover accent="true">
+        <mi style="font-feature-settings: 'dtls' on;">E</mi>
+        <mo stretchy="true">⃗</mo>
+      </mover>
+      <mo>=</mo>
+      <mo>−</mo>
+      <mfrac>
+        <mrow>
+          <mi>∂</mi>
+          <mover accent="true">
+            <mi style="font-feature-settings: 'dtls' on;">B</mi>
+            <mo stretchy="true">⃗</mo>
+          </mover>
+        </mrow>
+        <mrow>
+          <mi>∂</mi>
+          <mi>t</mi>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Fourier transform: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi class="mathcal">ℱ︀</mi>
+      <mo stretchy="true">{</mo>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>t</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo stretchy="true">}</mo>
+      <mo>=</mo>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mrow>
+          <mo>−</mo>
+          <mi>∞</mi>
+        </mrow>
+        <mi>∞</mi>
+      </msubsup>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>t</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <msup>
+        <mi>e</mi>
+        <mrow>
+          <mo>−</mo>
+          <mn>2</mn>
+          <mi>π</mi>
+          <mi>i</mi>
+          <mi>ξ</mi>
+          <mi>t</mi>
+        </mrow>
+      </msup>
+      <mi>d</mi>
+      <mi>t</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\mathcal{F}\{f(t)\} = \int_{-\infty}^{\infty} f(t) e^{-2\pi i \xi t} dt</annotation>
+  </semantics>
+</math>
+</p>
+<p>Laplace transform: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi class="mathcal">ℒ︀</mi>
+      <mo stretchy="true">{</mo>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>t</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo stretchy="true">}</mo>
+      <mo>=</mo>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mn>0</mn>
+        <mi>∞</mi>
+      </msubsup>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>t</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <msup>
+        <mi>e</mi>
+        <mrow>
+          <mo>−</mo>
+          <mi>s</mi>
+          <mi>t</mi>
+        </mrow>
+      </msup>
+      <mi>d</mi>
+      <mi>t</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\mathcal{L}\{f(t)\} = \int_0^{\infty} f(t) e^{-st} dt</annotation>
+  </semantics>
+</math>
+</p>
+<p>Binomial theorem: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>a</mi>
+      <mo>+</mo>
+      <mi>b</mi>
+      <msup>
+        <mo form="postfix" stretchy="false">)</mo>
+        <mi>n</mi>
+      </msup>
+      <mo>=</mo>
+      <mrow>
+        <munderover>
+          <mo largeop="true" movablelimits="true">∑</mo>
+          <mrow>
+            <mi>k</mi>
+            <mo>=</mo>
+            <mn>0</mn>
+          </mrow>
+          <mi>n</mi>
+        </munderover>
+      </mrow>
+      <mrow>
+        <mo fence="true" stretchy="true">(</mo>
+        <mfrac linethickness="0">
+          <mi>n</mi>
+          <mi>k</mi>
+        </mfrac>
+        <mo fence="true" stretchy="true">)</mo>
+      </mrow>
+      <msup>
+        <mi>a</mi>
+        <mrow>
+          <mi>n</mi>
+          <mo>−</mo>
+          <mi>k</mi>
+        </mrow>
+      </msup>
+      <msup>
+        <mi>b</mi>
+        <mi>k</mi>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">(a + b)^n = \sum_{k=0}^{n} \binom{n}{k} a^{n-k} b^k</annotation>
+  </semantics>
+</math>
+</p>
+<p>Taylor series: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>x</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mo>=</mo>
+      <mrow>
+        <munderover>
+          <mo largeop="true" movablelimits="true">∑</mo>
+          <mrow>
+            <mi>n</mi>
+            <mo>=</mo>
+            <mn>0</mn>
+          </mrow>
+          <mi>∞</mi>
+        </munderover>
+      </mrow>
+      <mfrac>
+        <mrow>
+          <msup>
+            <mi>f</mi>
+            <mrow>
+              <mo form="prefix" stretchy="false">(</mo>
+              <mi>n</mi>
+              <mo form="postfix" stretchy="false">)</mo>
+            </mrow>
+          </msup>
+          <mo form="prefix" stretchy="false">(</mo>
+          <mi>a</mi>
+          <mo form="postfix" stretchy="false">)</mo>
+        </mrow>
+        <mrow>
+          <mi>n</mi>
+          <mo>!</mo>
+        </mrow>
+      </mfrac>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>x</mi>
+      <mo>−</mo>
+      <mi>a</mi>
+      <msup>
+        <mo form="postfix" stretchy="false">)</mo>
+        <mi>n</mi>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n</annotation>
+  </semantics>
+</math>
+</p>

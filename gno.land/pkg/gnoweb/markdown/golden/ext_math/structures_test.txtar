@@ -1,0 +1,321 @@
+-- input.md --
+Complex mathematical structures test:
+
+Fractions: $\frac{a}{b}$, $\frac{x^2 + y^2}{z^3}$
+
+Nested fractions: $\frac{\frac{a}{b}}{\frac{c}{d}}$
+
+Square roots: $\sqrt{x}$, $\sqrt[3]{x}$, $\sqrt[n]{x}$
+
+Nested roots: $\sqrt{\sqrt{x}}$
+
+Superscripts and subscripts: $x^2$, $x_1$, $x^{2+3}$, $x_{i+1}$
+
+Combined: $x_i^{j+1}$, $\sqrt{x^2 + y^2}$
+
+Sums and products: $\sum_{i=1}^{n} x_i$, $\prod_{i=1}^{n} x_i$
+
+Integrals: $\int_a^b f(x) dx$, $\int_{-\infty}^{\infty} e^{-x^2} dx$
+
+-- output.html --
+<p>Complex mathematical structures test:</p>
+<p>Fractions: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mfrac>
+        <mi>a</mi>
+        <mi>b</mi>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\frac{a}{b}</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mfrac>
+        <mrow>
+          <msup>
+            <mi>x</mi>
+            <mn>2</mn>
+          </msup>
+          <mo>+</mo>
+          <msup>
+            <mi>y</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+        <mrow>
+          <msup>
+            <mi>z</mi>
+            <mn>3</mn>
+          </msup>
+        </mrow>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\frac{x^2 + y^2}{z^3}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Nested fractions: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mfrac>
+        <mfrac>
+          <mi>a</mi>
+          <mi>b</mi>
+        </mfrac>
+        <mfrac>
+          <mi>c</mi>
+          <mi>d</mi>
+        </mfrac>
+      </mfrac>
+    </mrow>
+    <annotation encoding="application/x-tex">\frac{\frac{a}{b}}{\frac{c}{d}}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Square roots: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msqrt>
+        <mi>x</mi>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt{x}</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mroot>
+        <mi>x</mi>
+        <mn>3</mn>
+      </mroot>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt[3]{x}</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mroot>
+        <mi>x</mi>
+        <mi>n</mi>
+      </mroot>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt[n]{x}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Nested roots: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msqrt>
+        <msqrt>
+          <mi>x</mi>
+        </msqrt>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt{\sqrt{x}}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Superscripts and subscripts: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msup>
+        <mi>x</mi>
+        <mn>2</mn>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">x^2</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msub>
+        <mi>x</mi>
+        <mn>1</mn>
+      </msub>
+    </mrow>
+    <annotation encoding="application/x-tex">x_1</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msup>
+        <mi>x</mi>
+        <mrow>
+          <mn>2</mn>
+          <mo>+</mo>
+          <mn>3</mn>
+        </mrow>
+      </msup>
+    </mrow>
+    <annotation encoding="application/x-tex">x^{2+3}</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msub>
+        <mi>x</mi>
+        <mrow>
+          <mi>i</mi>
+          <mo>+</mo>
+          <mn>1</mn>
+        </mrow>
+      </msub>
+    </mrow>
+    <annotation encoding="application/x-tex">x_{i+1}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Combined: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msubsup>
+        <mi>x</mi>
+        <mi>i</mi>
+        <mrow>
+          <mi>j</mi>
+          <mo>+</mo>
+          <mn>1</mn>
+        </mrow>
+      </msubsup>
+    </mrow>
+    <annotation encoding="application/x-tex">x_i^{j+1}</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msqrt>
+        <mrow>
+          <msup>
+            <mi>x</mi>
+            <mn>2</mn>
+          </msup>
+          <mo>+</mo>
+          <msup>
+            <mi>y</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </msqrt>
+    </mrow>
+    <annotation encoding="application/x-tex">\sqrt{x^2 + y^2}</annotation>
+  </semantics>
+</math>
+</p>
+<p>Sums and products: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mrow>
+        <munderover>
+          <mo largeop="true" movablelimits="true">∑</mo>
+          <mrow>
+            <mi>i</mi>
+            <mo>=</mo>
+            <mn>1</mn>
+          </mrow>
+          <mi>n</mi>
+        </munderover>
+      </mrow>
+      <msub>
+        <mi>x</mi>
+        <mi>i</mi>
+      </msub>
+    </mrow>
+    <annotation encoding="application/x-tex">\sum_{i=1}^{n} x_i</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <mrow>
+        <munderover>
+          <mo largeop="true" movablelimits="true">∏</mo>
+          <mrow>
+            <mi>i</mi>
+            <mo>=</mo>
+            <mn>1</mn>
+          </mrow>
+          <mi>n</mi>
+        </munderover>
+      </mrow>
+      <msub>
+        <mi>x</mi>
+        <mi>i</mi>
+      </msub>
+    </mrow>
+    <annotation encoding="application/x-tex">\prod_{i=1}^{n} x_i</annotation>
+  </semantics>
+</math>
+</p>
+<p>Integrals: 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mi>a</mi>
+        <mi>b</mi>
+      </msubsup>
+      <mi>f</mi>
+      <mo form="prefix" stretchy="false">(</mo>
+      <mi>x</mi>
+      <mo form="postfix" stretchy="false">)</mo>
+      <mi>d</mi>
+      <mi>x</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\int_a^b f(x) dx</annotation>
+  </semantics>
+</math>
+, 
+<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+  <semantics>
+    <mrow>
+      <msubsup>
+        <mo largeop="true" movablelimits="true">∫</mo>
+        <mrow>
+          <mo>−</mo>
+          <mi>∞</mi>
+        </mrow>
+        <mi>∞</mi>
+      </msubsup>
+      <msup>
+        <mi>e</mi>
+        <mrow>
+          <mo>−</mo>
+          <msup>
+            <mi>x</mi>
+            <mn>2</mn>
+          </msup>
+        </mrow>
+      </msup>
+      <mi>d</mi>
+      <mi>x</mi>
+    </mrow>
+    <annotation encoding="application/x-tex">\int_{-\infty}^{\infty} e^{-x^2} dx</annotation>
+  </semantics>
+</math>
+</p>
