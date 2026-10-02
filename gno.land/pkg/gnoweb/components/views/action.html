@@ -33,7 +33,7 @@ LAYOUT - Action component
 
 <!-- Help ToC -->
 {{ with render .ComponentTOC }}
-{{ template "layout/aside" . }}
+{{ template "layout/aside" (dict "Title" "Functions" "Content" .) }}
 {{ end }}
 
 
