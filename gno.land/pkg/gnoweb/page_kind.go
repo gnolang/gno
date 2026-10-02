@@ -66,6 +66,10 @@ func (p pagePolicy) kind(u *weburl.GnoURL) pageKind {
 	switch {
 	case !ok:
 		return pageSite
+	case u.IsUser() && strings.Contains(pkg, "/"):
+		// A user is one name; a deeper path must not borrow the trust of
+		// the name it starts with.
+		return pageCommunity
 	case p.trusted.contains(pkg):
 		return pageOfficial
 	default:
@@ -102,8 +106,14 @@ func (k pageKind) mayRepeat(u *weburl.GnoURL) bool {
 // pathTitle names a page by its path alone, for the pages whose document may
 // not name them: what the package is and whose namespace it sits in, as in
 // "games/chess · realm by nym". An address namespace is shortened the way the
-// user page shows it. A path outside /r/, /p/ and /u/ names itself.
+// user page shows it. A path outside /r/, /p/ and /u/ names itself. The
+// title is capped like an h1, since a path can be as long as a link cares.
 func pathTitle(u *weburl.GnoURL) string {
+	return md.TruncateTitle(pathName(u))
+}
+
+// pathName is pathTitle before it is capped.
+func pathName(u *weburl.GnoURL) string {
 	pkg, ok := packagePath(u)
 	if !ok {
 		return strings.TrimSuffix(u.Path, "/")
@@ -148,6 +158,8 @@ type pageRender struct {
 	markdown bool
 	// lead is set by a view: what the document says about itself.
 	lead pageLead
+	// empty is set by a view whose page shows nothing of its own.
+	empty bool
 }
 
 // renderContext is the context a document renders under for pr.

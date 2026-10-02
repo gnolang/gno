@@ -368,6 +368,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	indexData.BodyView = bodyView
+	if pr.empty {
+		noIndex(w, &indexData.HeadData)
+	}
 
 	h.setHeadMetadata(&indexData.HeadData, headURL, kind, pr.lead)
 	unpublishErrorShell(&indexData.HeadData, status)
@@ -391,10 +394,16 @@ func (h *HTTPHandler) classifyPage(w http.ResponseWriter, indexData *components.
 		indexData.Notice = h.Static.RealmNotice
 	}
 	if !h.policy.indexable(kind, u) {
-		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-		indexData.HeadData.NoIndex = true
+		noIndex(w, &indexData.HeadData)
 	}
 	return kind
+}
+
+// noIndex asks search engines to keep the page out of their index, in the
+// response header and in the head.
+func noIndex(w http.ResponseWriter, head *components.HeadData) {
+	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+	head.NoIndex = true
 }
 
 // maxPostFormBytes caps r.Body for the redirect form. The form carries
@@ -675,7 +684,12 @@ func displayPackageName(pkgPath string) string {
 
 // GetUserView returns the user profile view for a given GnoURL.
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL, pr *pageRender) (int, *components.View) {
-	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	// A user page is one name. Anything deeper is not a page, and must not
+	// be a 200 that inherits the name's trust or echoes the rest.
+	username, _ := packagePath(gnourl)
+	if strings.Contains(username, "/") {
+		return http.StatusNotFound, components.StatusErrorComponent("user not found")
+	}
 
 	var content bytes.Buffer
 
@@ -695,6 +709,10 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL, pr
 		h.Logger.Error("unable to build contributions", "error", err)
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
+
+	// Nothing rendered and nothing published: the page shows only the name
+	// the link typed, so it is not worth an index entry.
+	pr.empty = content.Len() == 0 && len(contribs) == 0
 
 	// Compute package counts
 	pkgCount := len(contribs)

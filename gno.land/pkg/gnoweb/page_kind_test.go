@@ -25,6 +25,7 @@ func TestPagePolicyKind(t *testing.T) {
 		"/r/nym/app":           pageCommunity,
 		"/p/nym/lib":           pageCommunity,
 		"/u/nym":               pageCommunity,
+		"/u/gnoland/airdrop":   pageCommunity,
 		"/r/":                  pageSite,
 		"/p/":                  pageSite,
 		"/about":               pageOperator,

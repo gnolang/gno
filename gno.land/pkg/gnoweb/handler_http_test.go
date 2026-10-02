@@ -2746,6 +2746,60 @@ func TestHTTPHandler_CommunityIndex(t *testing.T) {
 	}
 }
 
+// TestHTTPHandler_UserPages checks that a user page is one name: a deeper
+// path is not found rather than a page that inherits the name's trust, and a
+// name with nothing to show stays out of the index with a bounded title.
+func TestHTTPHandler_UserPages(t *testing.T) {
+	t.Parallel()
+
+	handler := newTrustHandler(t, gnoweb.IndexRegisteredCommunity)
+	get := func(t *testing.T, url string) (*httptest.ResponseRecorder, string) {
+		t.Helper()
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
+		head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+		return rr, head
+	}
+
+	t.Run("a user with packages is indexed", func(t *testing.T) {
+		t.Parallel()
+
+		rr, head := get(t, "/u/nym")
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Empty(t, rr.Header().Get("X-Robots-Tag"))
+		assert.Contains(t, head, `<link rel="canonical"`)
+	})
+
+	t.Run("a name with nothing to show is not", func(t *testing.T) {
+		t.Parallel()
+
+		rr, head := get(t, "/u/claim-free-gnot-at-evil-example")
+		require.Equal(t, http.StatusOK, rr.Code)
+		assert.Equal(t, "noindex, nofollow", rr.Header().Get("X-Robots-Tag"))
+		assert.Contains(t, head, `<meta name="robots" content="noindex, nofollow" />`)
+		assert.NotContains(t, head, `rel="canonical"`)
+	})
+
+	for _, url := range []string{"/u/official/gnoland/airdrop", "/u/gnoland/claim-free-gnot-airdrop"} {
+		t.Run("a deeper path is not found: "+url, func(t *testing.T) {
+			t.Parallel()
+
+			rr, head := get(t, url)
+			assert.Equal(t, http.StatusNotFound, rr.Code)
+			assert.NotContains(t, head, "og-gnoland.png", "a deeper path must not borrow a trusted name's card")
+		})
+	}
+
+	t.Run("a long name gets a bounded title", func(t *testing.T) {
+		t.Parallel()
+
+		_, head := get(t, "/u/"+strings.Repeat("a", 3000))
+		title := regexp.MustCompile(`<title>([^<]*)</title>`).FindStringSubmatch(head)
+		require.NotNil(t, title)
+		assert.LessOrEqual(t, len([]rune(title[1])), 80, title[1])
+	})
+}
+
 // TestHTTPHandler_LinkRel checks which links of a rendered document search
 // engines may follow. A community document passes on no authority; a trusted
 // realm passes it within gno.land only, since it may show what its users
