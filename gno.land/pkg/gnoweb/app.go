@@ -30,6 +30,13 @@ var DefaultAliases = map[string]AliasTarget{
 	"/docs":       {Value: "/u/docs", Kind: GnowebPath},
 }
 
+// DefaultTrustedPaths are the namespaces gno.land treats as official, comma
+// separated as -trusted-paths takes them: namespaces whose code the gno.land
+// team reviews or whose deploy key belongs to a party it vouches for (see
+// the realm notice ADR). Trust in a namespace holds only on a chain that
+// enforces who may deploy under it, as r/sys/names does once enabled.
+const DefaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
+
 // AppConfig contains configuration for gnoweb.
 type AppConfig struct {
 	// UnsafeHTML, if enabled, allows to use HTML in the markdown.
@@ -69,7 +76,7 @@ type AppConfig struct {
 	// TrustedPaths.
 	RealmNotice components.BannerData
 	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
-	// no "/r/" or "/p/" prefix) whose pages are official: they never show
+	// no "/r/" or "/p/" prefix), or "*" for every path, whose pages are official: they never show
 	// RealmNotice, may lend their own heading and summary to the page
 	// metadata, keep their internal links followed, and are indexed whatever
 	// IndexCommunity says.
@@ -113,6 +120,7 @@ func NewDefaultAppConfig() *AppConfig {
 		RenderConfig:            NewDefaultRenderConfig(),
 		StateRateLimitPerMinute: 100,
 		MaxConcurrentRPC:        32,
+		TrustedPaths:            strings.Split(DefaultTrustedPaths, ","),
 		IndexCommunity:          IndexRegisteredCommunity,
 	}
 }

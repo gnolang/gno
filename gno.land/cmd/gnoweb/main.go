@@ -67,10 +67,6 @@ type webCfg struct {
 	trustedPaths     string
 }
 
-// defaultTrustedPaths are namespaces whose code the gno.land team reviews or
-// whose deploy key belongs to a party it vouches for; see the realm notice ADR.
-const defaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
-
 const defaultRealmNoticeText = "Community realm. Not reviewed by the gno.land team. Read the code before you interact or send coins."
 
 var defaultWebOptions = webCfg{
@@ -79,8 +75,8 @@ var defaultWebOptions = webCfg{
 	bind:           ":8888",
 	remoteTimeout:  time.Minute,
 	timeout:        time.Minute,
-	trustedPaths:   defaultTrustedPaths,
-	indexCommunity: gnoweb.IndexRegisteredCommunity,
+	trustedPaths:   gnoweb.DefaultTrustedPaths,
+	indexCommunity: gnoweb.NewDefaultAppConfig().IndexCommunity,
 }
 
 func main() {
@@ -161,7 +157,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedPaths,
 		"trusted-paths",
 		defaultWebOptions.trustedPaths,
-		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice and given official page metadata",
+		"comma-separated namespaces or package paths (without /r/ or /p/), or *, treated as official; only as safe as the chain's namespace enforcement (r/sys/names)",
 	)
 
 	fs.TextVar(

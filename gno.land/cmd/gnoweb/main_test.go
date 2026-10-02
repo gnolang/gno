@@ -92,7 +92,7 @@ func TestSetupTrust(t *testing.T) {
 			appcfg := gnoweb.NewDefaultAppConfig()
 
 			require.NoError(t, setupTrust(&cfg, appcfg, slog.New(slog.DiscardHandler)))
-			assert.Equal(t, strings.Split(defaultTrustedPaths, ","), appcfg.TrustedPaths)
+			assert.Equal(t, strings.Split(gnoweb.DefaultTrustedPaths, ","), appcfg.TrustedPaths)
 			assert.Equal(t, !noNotice, appcfg.RealmNotice.Enabled())
 		})
 	}

@@ -151,6 +151,9 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Logger:   logger,
 		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity),
 	}
+	for _, e := range malformedTrustedPaths(cfg.TrustedPaths) {
+		logger.Warn("trusted path matches no package, write it without /r/, /p/ or a domain", "entry", e)
+	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
 		rate = defaultStateRateLimitPerMinute

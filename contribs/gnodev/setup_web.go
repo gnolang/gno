@@ -21,6 +21,8 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
 	appcfg.NodeRemote = remoteAddr
 	appcfg.ChainID = cfg.chainId
+	// Every package on a gnodev chain is the developer's own.
+	appcfg.TrustedPaths = []string{"*"}
 	if cfg.webRemoteHelperAddr != "" {
 		appcfg.RemoteHelp = cfg.webRemoteHelperAddr
 	} else {
