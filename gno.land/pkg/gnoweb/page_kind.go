@@ -35,8 +35,10 @@ const (
 	communityPackageDescription = "A package deployed on gno.land by its author."
 	communityUserDescription    = "A gno.land user profile."
 
-	officialImageAsset  = "imgs/og-gnoland.png"
-	communityImageAsset = "imgs/og-community.png"
+	officialImageAsset         = "imgs/og-gnoland.png"
+	communityRealmImageAsset   = "imgs/og-community-realm.png"
+	communityPackageImageAsset = "imgs/og-community-package.png"
+	communityUserImageAsset    = "imgs/og-community-user.png"
 )
 
 // pageLead is what a rendered document says about itself: its leading h1
@@ -96,9 +98,9 @@ func pathTitle(u *weburl.GnoURL) string {
 }
 
 // links says which links of a document of kind k search engines may follow,
-// so a page gno.land does not answer for passes on none of its authority. External links
-// stay nofollow on every page but an operator's own: a trusted realm may
-// still show what its users wrote.
+// so a page gno.land does not answer for passes on none of its authority.
+// External links stay nofollow on every page but an operator's own: a
+// trusted realm may still show what its users wrote.
 func (k pageKind) links() md.LinkPolicy {
 	switch k {
 	case pageOperator:
@@ -120,27 +122,19 @@ func (h *HTTPHandler) renderContext(k pageKind) RealmRenderContext {
 	}
 }
 
-// defaultDescription is the summary a page gets when it may not, or does not,
-// summarise itself.
-func (k pageKind) defaultDescription(u *weburl.GnoURL) string {
+// card is the summary and share image of a page of kind k at u, for when its
+// document may not, or does not, summarise it. gno.land's plain mark goes
+// only to the pages it answers for; a community page gets a card that says
+// what kind of page it is.
+func (k pageKind) card(u *weburl.GnoURL) (description, image string) {
 	switch {
 	case k != pageCommunity:
-		return siteDescription
+		return siteDescription, officialImageAsset
 	case u.IsPure():
-		return communityPackageDescription
+		return communityPackageDescription, communityPackageImageAsset
 	case u.IsUser():
-		return communityUserDescription
+		return communityUserDescription, communityUserImageAsset
 	default:
-		return communityRealmDescription
+		return communityRealmDescription, communityRealmImageAsset
 	}
-}
-
-// shareImage is the card image asset. gno.land's plain mark goes only to the
-// pages it answers for; a community page gets one marked as community
-// content.
-func (k pageKind) shareImage() string {
-	if k == pageCommunity {
-		return communityImageAsset
-	}
-	return officialImageAsset
 }

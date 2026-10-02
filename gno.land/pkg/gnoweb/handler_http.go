@@ -1165,7 +1165,8 @@ func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.
 		lead = pageLead{}
 	}
 	head.Title = h.titleWithDomain(cmp.Or(lead.title, pathTitle(gnourl)))
-	head.Description = cmp.Or(lead.description, kind.defaultDescription(gnourl))
+	description, image := kind.card(gnourl)
+	head.Description = cmp.Or(lead.description, description)
 
 	canonical := h.canonicalURL(gnourl)
 	head.Canonical = canonical
@@ -1173,7 +1174,7 @@ func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.
 	// A crawler fetches og:image as given, with no page to resolve it
 	// against, so it needs the same declared origin as the canonical.
 	if h.Static.CanonicalOrigin != "" {
-		head.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, kind.shareImage())
+		head.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, image)
 	}
 }
 

@@ -2560,9 +2560,11 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 	t.Parallel()
 
 	const (
-		post   = trustPost
-		gnoImg = "https://gno.land/public/imgs/og-gnoland.png"
-		comImg = "https://gno.land/public/imgs/og-community.png"
+		post     = trustPost
+		gnoImg   = "https://gno.land/public/imgs/og-gnoland.png"
+		realmImg = "https://gno.land/public/imgs/og-community-realm.png"
+		pkgImg   = "https://gno.land/public/imgs/og-community-package.png"
+		userImg  = "https://gno.land/public/imgs/og-community-user.png"
 	)
 	handler := newTrustHandler(t)
 
@@ -2607,23 +2609,23 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		// target's kind.
 		{
 			name: "alias to a community realm", url: "/nymalias",
-			title: "/nymalias", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/nymalias",
+			title: "/nymalias", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/nymalias",
 		},
 		{
 			name: "community realm", url: "/r/nym/app",
-			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/r/nym/app",
+			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/r/nym/app",
 		},
 		{
 			name: "community realm, crafted query", url: "/r/nym/app?Official+GNOT+airdrop+at+evil.example",
-			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/r/nym/app",
+			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: realmImg, path: "/r/nym/app",
 		},
 		{
 			name: "community package", url: "/p/nym/lib",
-			title: "lib · package by nym", description: gnoweb.CommunityPackageDescription, image: comImg, path: "/p/nym/lib",
+			title: "lib · package by nym", description: gnoweb.CommunityPackageDescription, image: pkgImg, path: "/p/nym/lib",
 		},
 		{
 			name: "community user", url: "/u/nym",
-			title: "nym · user profile", description: gnoweb.CommunityUserDescription, image: comImg, path: "/u/nym",
+			title: "nym · user profile", description: gnoweb.CommunityUserDescription, image: userImg, path: "/u/nym",
 		},
 		{
 			name: "trusted user", url: "/u/gnoland",
