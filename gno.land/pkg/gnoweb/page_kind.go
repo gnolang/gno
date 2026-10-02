@@ -1,6 +1,8 @@
 package gnoweb
 
 import (
+	"strings"
+
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
@@ -66,6 +68,31 @@ func (h *HTTPHandler) packageKind(u *weburl.GnoURL) pageKind {
 // an echo from a heading.
 func (k pageKind) mayRepeat(u *weburl.GnoURL) bool {
 	return (k == pageOfficial || k == pageOperator) && u.Args == "" && len(u.Query) == 0
+}
+
+// pathTitle names a page by its path alone, for the pages whose document may
+// not name them: what the package is and whose namespace it sits in, as in
+// "games/chess · realm by nym". An address namespace is shortened the way the
+// user page shows it. A path outside /r/, /p/ and /u/ names itself.
+func pathTitle(u *weburl.GnoURL) string {
+	ns := u.Namespace()
+	if ns == "" || !(u.IsRealm() || u.IsPure() || u.IsUser()) {
+		return strings.TrimSuffix(u.Path, "/")
+	}
+	owner := CreateUsernameFromBech32(ns)
+	name := strings.Trim(strings.TrimPrefix(u.Path[3:], ns), "/")
+	switch {
+	case u.IsUser():
+		return owner + " · user profile"
+	case u.IsPure() && name == "":
+		return "packages by " + owner
+	case u.IsPure():
+		return name + " · package by " + owner
+	case name == "":
+		return "realms by " + owner
+	default:
+		return name + " · realm by " + owner
+	}
 }
 
 // links says which links of a document of kind k search engines may follow,

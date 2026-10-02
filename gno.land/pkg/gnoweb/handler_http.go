@@ -1157,14 +1157,14 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 
 // setHeadMetadata settles the <head> once the body is rendered, and is the
 // only writer of its text slots. lead, what the document says about itself,
-// reaches the head only if mayRepeat allows. The title otherwise falls back to
+// reaches the head only if mayRepeat allows. The title otherwise comes from
 // the path alone: arguments and query are typed by whoever wrote the link, on
 // any realm, trusted or not.
 func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.GnoURL, kind pageKind, lead pageLead) {
 	if !kind.mayRepeat(gnourl) {
 		lead = pageLead{}
 	}
-	head.Title = h.titleWithDomain(cmp.Or(lead.title, strings.TrimSuffix(gnourl.Path, "/")))
+	head.Title = h.titleWithDomain(cmp.Or(lead.title, pathTitle(gnourl)))
 	head.Description = cmp.Or(lead.description, kind.defaultDescription(gnourl))
 
 	canonical := h.canonicalURL(gnourl)

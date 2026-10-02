@@ -2005,10 +2005,9 @@ func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
 	assert.Contains(t, body, `href="/r/mock/path$help"`,
 		"Actions tab link must point at the realm — empty href means RealmURL was not threaded")
 
-	// The state branch settles the head too, so its title falls back to
-	// the path. (Test config leaves Domain unset, so the title is the
-	// path alone.)
-	assert.Contains(t, body, `<title>/r/mock/path</title>`,
+	// The state branch settles the head too, so its title comes from the
+	// path. (Test config leaves Domain unset, so no domain follows it.)
+	assert.Contains(t, body, `<title>path · realm by mock</title>`,
 		"the state branch must set the head metadata like any other page")
 }
 
@@ -2579,25 +2578,25 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		// so a page addressed by args is titled by its path.
 		{
 			name: "trusted post", url: "/r/gnoland/blog:p/hello",
-			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog:p/hello",
+			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog:p/hello",
 		},
 		{
 			name: "trusted realm echoing its args", url: "/r/gnoland/blog:t/Official_GNOT_airdrop_at_evil.example",
-			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg,
+			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg,
 			path: "/r/gnoland/blog:t/Official_GNOT_airdrop_at_evil.example",
 		},
 		{
 			name: "trusted realm, crafted args", url: "/r/gnoland/blog:Official_GNOT_airdrop_claim_at_evil.example",
-			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg,
+			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg,
 			path: "/r/gnoland/blog:Official_GNOT_airdrop_claim_at_evil.example",
 		},
 		{
 			name: "trusted realm, crafted query", url: "/r/gnoland/blog?Official+notice:+claim+your+GNOT+airdrop+at+evil.example",
-			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog",
+			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog",
 		},
 		{
 			name: "trusted realm, user text below its lead", url: "/r/gnoland/forum",
-			title: "/r/gnoland/forum", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/forum",
+			title: "forum · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/forum",
 		},
 		// The operator chose the target's args, so the alias keeps the h1.
 		{
@@ -2612,27 +2611,27 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		},
 		{
 			name: "community realm", url: "/r/nym/app",
-			title: "/r/nym/app", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/r/nym/app",
+			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/r/nym/app",
 		},
 		{
 			name: "community realm, crafted query", url: "/r/nym/app?Official+GNOT+airdrop+at+evil.example",
-			title: "/r/nym/app", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/r/nym/app",
+			title: "app · realm by nym", description: gnoweb.CommunityRealmDescription, image: comImg, path: "/r/nym/app",
 		},
 		{
 			name: "community package", url: "/p/nym/lib",
-			title: "/p/nym/lib", description: gnoweb.CommunityPackageDescription, image: comImg, path: "/p/nym/lib",
+			title: "lib · package by nym", description: gnoweb.CommunityPackageDescription, image: comImg, path: "/p/nym/lib",
 		},
 		{
 			name: "community user", url: "/u/nym",
-			title: "/u/nym", description: gnoweb.CommunityUserDescription, image: comImg, path: "/u/nym",
+			title: "nym · user profile", description: gnoweb.CommunityUserDescription, image: comImg, path: "/u/nym",
 		},
 		{
 			name: "trusted user", url: "/u/gnoland",
-			title: "/u/gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/u/gnoland",
+			title: "gnoland · user profile", description: gnoweb.SiteDescription, image: gnoImg, path: "/u/gnoland",
 		},
 		{
 			name: "trusted source view", url: "/r/gnoland/blog$source",
-			title: "/r/gnoland/blog", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog$source",
+			title: "blog · realm by gnoland", description: gnoweb.SiteDescription, image: gnoImg, path: "/r/gnoland/blog$source",
 		},
 	}
 
