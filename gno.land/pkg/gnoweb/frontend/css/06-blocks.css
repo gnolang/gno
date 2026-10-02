@@ -1121,10 +1121,6 @@
 	/* A long name (decided in Go) steps down so it holds on two lines. */
 	.title--long {
 		font-size: var(--g-font-size-500);
-
-		@media (--md) {
-			font-size: var(--g-font-size-500);
-		}
 	}
 
 	/* A full address as the title: no wrap but at the template's <wbr>, so
@@ -1134,10 +1130,6 @@
 		font-weight: var(--g-font-normal);
 		font-size: var(--g-font-size-300);
 		overflow-wrap: normal;
-
-		@media (--md) {
-			font-size: var(--g-font-size-300);
-		}
 
 		@media (--lg) {
 			font-size: var(--g-font-size-90);
