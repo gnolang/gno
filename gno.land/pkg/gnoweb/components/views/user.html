@@ -15,11 +15,13 @@
       </div>
       {{ with .Address }}
       <p class="subtitle">
-        <span class="address u-font-mono" title="{{ . }}">{{ . }}</span>
-        <button type="button" class="b-inline-btn" data-controller="copy" data-action="click->copy#copy"
+        {{- /* breaks only at the middle, into two equal halves, when it cannot fit one line;
+        the copy button stays glued to the end so it never drifts away from the text */ -}}
+        {{ $halves := splitHalf . }}
+        <span class="address u-font-mono" title="{{ . }}">{{ index $halves 0 }}<wbr><span class="address-end">{{ index $halves 1 }}<button type="button" class="b-inline-btn" data-controller="copy" data-action="click->copy#copy"
           data-copy-text-value="{{ . }}" aria-label="Copy address" title="Copy address">
-          {{ template "ui/copy" }}
-        </button>
+          {{- template "ui/copy" -}}
+        </button></span></span>
       </p>
       {{ end }}
     </div>
@@ -30,6 +32,7 @@
         {{ .PackageCount }}
       </span>
     </a>
+  </div>
 </aside>
 
 <md-renderer class="c-realm-view">

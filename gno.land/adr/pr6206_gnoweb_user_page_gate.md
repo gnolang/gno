@@ -91,8 +91,9 @@ keeps its own segment and still lists what the old name holds. `UserData`
 carries `Namespace` for links, which is never elided and repairs the home
 button, and `Address` for display. The page is titled by `Username`, the name,
 under a "Gnome" label; an address with no name has an empty `Username` and is
-titled by its short form. Under the title `Address` is always printed in full,
-on one line with a copy button, never shortened: a start…end form is exactly
+titled by its short form. Under the title `Address` is always printed in full
+with a copy button, on one line where it fits and otherwise split once into two
+equal halves, never shortened: a start…end form is exactly
 what a lookalike vanity address imitates, and checking who is behind a name is
 what the line is for.
 
@@ -163,7 +164,9 @@ machine when the package was absent.
   the value repr, keyed on each field's *type tag*: a field added before the
   address or after the name does not shift the result, but a string field
   inserted between them is read as the name. `(nil ...)` is a
-  legitimate "no user"; any other unrecognized shape is an error, not a "no",
+  legitimate "no user"; an address answered with a different address is an
+  error, so the page never prints two addresses as one user; any other
+  unrecognized shape is an error, not a "no",
   because quietly 404ing every registered user at once must surface. It
   surfaces as an error where the gate needs the answer, and as a warning in the
   log elsewhere.

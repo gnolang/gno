@@ -2140,9 +2140,6 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 // testUserAddr is the address every resolveAnyPayload below hands back.
 const testUserAddr = "g1vahx7am9vgkhgetnwskh2um9wgknqvfprr0wez"
 
-// maxTestUsernameLen mirrors the gate's cap on a /u/ name.
-const maxTestUsernameLen = 64
-
 // resolveAnyPayload mirrors the raw vm/qeval output of ResolveAny for a user
 // that resolves. The UserData line carries a "(false bool)" of its own and the
 // second line is a bool too, so a parser that searches the whole payload for a
@@ -2167,8 +2164,8 @@ func userTitle(name string) string {
 // never shortened, so a visitor can check it against a lookalike, and a copy
 // button that copies it from a data attribute.
 func userAddressLine(addr string) string {
-	return `<span class="address u-font-mono" title="` + addr + `">` + addr + `</span>
-        <button type="button" class="b-inline-btn" data-controller="copy" data-action="click->copy#copy"
+	mid := len(addr) / 2
+	return `<span class="address u-font-mono" title="` + addr + `">` + addr[:mid] + `<wbr><span class="address-end">` + addr[mid:] + `<button type="button" class="b-inline-btn" data-controller="copy" data-action="click->copy#copy"
           data-copy-text-value="` + addr + `"`
 }
 
@@ -2669,7 +2666,7 @@ func TestHTTPHandler_GetUserView_Identity(t *testing.T) {
 
 	// The longest name the gate lets through: the title ellipsizes it in CSS,
 	// so the markup must carry it whole.
-	longName := "a" + strings.Repeat("b", maxTestUsernameLen-1)
+	longName := "a" + strings.Repeat("b", gnoweb.MaxUsernameLen-1)
 
 	tests := []struct {
 		name     string
@@ -2735,6 +2732,8 @@ func TestHTTPHandler_GetUserView_Identity(t *testing.T) {
 				assert.NotContains(t, body, dontWant)
 			}
 			assert.Equal(t, 1, strings.Count(body, `class="address u-font-mono"`), "the full address is printed once")
+			assert.Equal(t, 1, strings.Count(body, `<div class="b-user-sidebar">`))
+			assert.Regexp(t, `(?s)<div class="b-user-sidebar">.*</a>\s*</div>\s*</aside>`, body, "the sidebar block is closed inside the aside")
 		})
 	}
 }
@@ -2753,7 +2752,7 @@ func TestHTTPHandler_GetUserView_HostileIdentity(t *testing.T) {
 		"unicode":          "ålice",
 		"bidi override":    "alice‮gnp.exe",
 		"zero-width":       "ali​ce",
-		"too long":         "a" + strings.Repeat("b", maxTestUsernameLen),
+		"too long":         "a" + strings.Repeat("b", gnoweb.MaxUsernameLen),
 		"almost bech32":    testUserAddr[:len(testUserAddr)-1] + "x",
 		"uppercase bech32": strings.ToUpper(testUserAddr),
 	} {
@@ -2803,4 +2802,27 @@ func TestHTTPHandler_GetUserView_HostileIdentity(t *testing.T) {
 			assert.Contains(t, body, `<h1 class="title u-font-mono" title="`+testUserAddr+`">g1vahx…rr0wez</h1>`)
 		})
 	}
+
+	// An address resolves to itself: a registry answering for another one
+	// is not believed, so the page never prints two addresses as one user.
+	t.Run("registry answers for another address", func(t *testing.T) {
+		t.Parallel()
+
+		const other = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+		rr := getUserPage(t, &stubClient{
+			listPathsFunc: func(context.Context, string, int) ([]string, error) { return nil, nil },
+			evalFunc: func(context.Context, string, string) ([]byte, error) {
+				return bytes.ReplaceAll(resolveAnyPayload("alice"), []byte(testUserAddr), []byte(other)), nil
+			},
+			realmFunc: func(context.Context, string, string) ([]byte, error) {
+				return nil, gnoweb.ErrClientPackageNotFound
+			},
+		}, "/u/"+testUserAddr)
+
+		require.Equal(t, http.StatusOK, rr.Code)
+		body := rr.Body.String()
+		assert.NotContains(t, body, other)
+		assert.NotContains(t, body, userTitle("alice"))
+		assert.Contains(t, body, userAddressLine(testUserAddr))
+	})
 }

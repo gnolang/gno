@@ -682,6 +682,11 @@ func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdenti
 		// user at once, and in silence.
 		return identity, fmt.Errorf("%w: unexpected ResolveAny result %q", ErrClientResponse, line)
 	}
+	// An address resolves to itself or not at all; a registry naming another
+	// one would have the page print two different addresses as one user.
+	if identity.Address != "" && string(match[1]) != identity.Address {
+		return identity, fmt.Errorf("%w: ResolveAny(%q) answered for %q", ErrClientResponse, input, match[1])
+	}
 	return userIdentity{Name: string(match[2]), Address: string(match[1])}, nil
 }
 

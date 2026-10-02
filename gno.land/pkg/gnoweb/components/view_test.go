@@ -411,6 +411,9 @@ func TestUserView_EscapesIdentity(t *testing.T) {
 		assert.NotContains(t, out, "<script>alert(1)</script>")
 		assert.Contains(t, out, `<h1 class="title" title="&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;</h1>`)
 		assert.Contains(t, out, `data-copy-text-value="&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"`)
+		// The address line's two halves are escaped each, around the one
+		// literal break point.
+		assert.Contains(t, out, `&#34;&gt;&lt;script&gt;ale<wbr><span class="address-end">rt(1)&lt;/script&gt;<button`)
 	})
 
 	t.Run("address only", func(t *testing.T) {

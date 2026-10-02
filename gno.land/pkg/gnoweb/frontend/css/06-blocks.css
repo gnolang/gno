@@ -1118,18 +1118,24 @@
 			font-size: var(--g-font-size-800);
 		}
 
-		/* A shortened address: mono glyphs run wider, and at this size it
-		   stays whole in every sidebar width. */
+		/* A shortened address: mono glyphs run wider, so it steps down to
+		   stay whole, most of all in the narrow lg..xl sidebar. */
 		&.u-font-mono {
 			font-size: var(--g-font-size-600);
+
+			@media (--lg) {
+				font-size: var(--g-font-size-400);
+			}
+
+			@media (--xl) {
+				font-size: var(--g-font-size-600);
+			}
 		}
 	}
 
 	.subtitle {
 		grid-column: 1 / -1;
-		display: flex;
-		align-items: center;
-		gap: var(--g-space-px);
+		display: block;
 		max-width: 100%;
 		color: var(--s-color-text-secondary);
 		/* the address and the copy icon fit a lg sidebar together at this size */
@@ -1144,11 +1150,19 @@
 
 	/* The full address, never cut: it is what a visitor checks a name
 	   against, and a shortened form is what a lookalike address imitates.
-	   Sized to fit the sidebar on one line; it scrolls rather than wraps. */
-	.address {
+	   One line where it fits; otherwise the template's <wbr> splits it
+	   into two equal halves, the only place it can break. */
+	.address-end {
 		white-space: nowrap;
-		overflow-x: auto;
-		min-width: 0;
+	}
+
+	.subtitle button {
+		vertical-align: middle;
+		margin-inline-start: var(--g-space-px);
+
+		.c-icon {
+			display: block;
+		}
 	}
 
 	& > a {
