@@ -795,19 +795,19 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
-	// An unregistered address is all the page has to show for a name, so it is
-	// shortened to stay readable next to the avatar.
-	username := CreateUsernameFromBech32(namespaces[0])
-
-	// TODO: get from user r/profile and use placeholder if not set
-	handlename := "Gnome " + username
+	// The page is titled by the name; an address with no name behind it has
+	// none, and the view titles it by the address instead.
+	// TODO: get a display name from r/profile.
+	username := namespaces[0]
+	if username == identity.Address {
+		username = ""
+	}
 
 	data := components.UserData{
 		Username:      username,
 		Namespace:     namespace,
 		HomeLabel:     CreateUsernameFromBech32(namespace),
 		Address:       identity.Address,
-		Handlename:    handlename,
 		Contributions: contribs,
 		PackageCount:  pkgCount,
 		RealmCount:    realmCount,

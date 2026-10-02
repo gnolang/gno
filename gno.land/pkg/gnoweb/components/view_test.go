@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
@@ -348,9 +349,8 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 
 func TestUserView(t *testing.T) {
 	data := UserData{
-		Username:   "testuser",
-		Handlename: "Test User",
-		Bio:        "This is a test user.",
+		Username: "testuser",
+		Bio:      "This is a test user.",
 		Links: []UserLink{
 			{Type: UserLinkTypeLink, URL: "https://example.com"},
 			{Type: UserLinkTypeGithub, URL: "https://github.com/testuser", Title: "GitHub"},
@@ -390,4 +390,36 @@ func TestUserView(t *testing.T) {
 	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+// The view escapes the identity whatever reaches it, in text, in the title
+// attributes and in the copy button's data attribute, and shortens an address
+// by runes, so a multi-byte one is never cut into invalid UTF-8.
+func TestUserView_EscapesIdentity(t *testing.T) {
+	const hostile = `"><script>alert(1)</script>`
+
+	render := func(data UserData) string {
+		t.Helper()
+		data.Content = NewReaderComponent(strings.NewReader(""))
+		var buf strings.Builder
+		assert.NoError(t, UserView(data).Render(&buf))
+		return buf.String()
+	}
+
+	t.Run("name", func(t *testing.T) {
+		out := render(UserData{Username: hostile, Address: hostile})
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.Contains(t, out, `<h1 class="title" title="&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;">&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;</h1>`)
+		assert.Contains(t, out, `data-copy-text-value="&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"`)
+	})
+
+	t.Run("address only", func(t *testing.T) {
+		addr := hostile + strings.Repeat("é", 20) + "‮"
+		out := render(UserData{Address: addr})
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.True(t, utf8.ValidString(out), "the short form is cut on rune boundaries")
+		assert.Contains(t, out, `<h1 class="title u-font-mono" title="&#34;&gt;&lt;script&gt;`)
+		// 6 runes on each side of the ellipsis, escaped.
+		assert.Contains(t, out, `&#34;&gt;&lt;scr…ééééé`+"‮"+`</h1>`)
+	})
 }

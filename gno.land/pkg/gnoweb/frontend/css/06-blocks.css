@@ -1069,43 +1069,86 @@
 		}
 	}
 
+	/* Avatar and name side by side below lg, stacked above it; the address
+	   line always spans the full width so it fits on one line. */
 	.user-info {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--g-space-6);
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: end;
+		column-gap: var(--g-space-6);
 
 		@media (--lg) {
-			flex-direction: column;
-		}
-
-		& > div:last-child {
-			align-self: flex-end;
-			@media (--lg) {
-				align-self: flex-start;
-			}
+			grid-template-columns: minmax(0, 1fr);
+			justify-items: start;
 		}
 	}
 
+	.user-identity {
+		/* lets the title ellipsize instead of pushing the column wider */
+		min-width: 0;
+		max-width: 100%;
+
+		@media (--lg) {
+			margin-block-start: var(--g-space-6);
+		}
+	}
+
+	/* Same eyebrow as the overview sidebar's .b-pkg-meta dt.label. */
+	.label {
+		color: var(--s-color-text-tertiary);
+		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-80);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		margin-block-end: var(--g-space-1);
+	}
+
+	/* One line whatever the name: the full value is in the title attribute. */
 	.title {
-		display: bock;
+		display: block;
 		font-weight: var(--g-font-bold);
 		font-size: var(--g-font-size-700);
 		color: var(--s-color-text-primary);
 		line-height: var(--g-line-height-tight);
-		word-break: break-all;
-		text-transform: capitalize;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 
 		@media (--md) {
 			font-size: var(--g-font-size-800);
 		}
+
+		/* A shortened address: mono glyphs run wider, and at this size it
+		   stays whole in every sidebar width. */
+		&.u-font-mono {
+			font-size: var(--g-font-size-600);
+		}
 	}
 
 	.subtitle {
-		display: block;
+		grid-column: 1 / -1;
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-px);
+		max-width: 100%;
 		color: var(--s-color-text-secondary);
-		font-size: var(--g-font-size-100);
+		/* the address and the copy icon fit a lg sidebar together at this size */
+		font-size: var(--g-font-size-80);
 		line-height: var(--g-line-height-tight);
-		margin-block-start: var(--g-space-2);
+		margin-block-start: var(--g-space-4);
+
+		@media (--lg) {
+			margin-block-start: var(--g-space-2);
+		}
+	}
+
+	/* The full address, never cut: it is what a visitor checks a name
+	   against, and a shortened form is what a lookalike address imitates.
+	   Sized to fit the sidebar on one line; it scrolls rather than wraps. */
+	.address {
+		white-space: nowrap;
+		overflow-x: auto;
+		min-width: 0;
 	}
 
 	& > a {

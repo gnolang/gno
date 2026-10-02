@@ -51,8 +51,8 @@ type UserContribution struct {
 
 // UserData contains data for the user view
 type UserData struct {
-	// Username is what the page prints: the registered name, or a shortened
-	// address when the namespace has no name behind it.
+	// Username is the name the page is titled by, empty when the namespace is
+	// an address with no name behind it: the page is then titled by Address.
 	Username string
 	// Namespace is the namespace whose home realm the page links to: the
 	// name's, the address's when only it has one, or the full address when no
@@ -64,7 +64,6 @@ type UserData struct {
 	HomeLabel string
 	// Address is the full bech32 address, empty when none could be resolved.
 	Address       string
-	Handlename    string
 	Bio           string
 	Teams         []struct{}
 	Links         []UserLink

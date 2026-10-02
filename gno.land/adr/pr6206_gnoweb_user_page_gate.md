@@ -89,7 +89,12 @@ its address). The home realm is the name's, falling back to the address's. A
 name left behind by a rename resolves to the current name, not to itself, so it
 keeps its own segment and still lists what the old name holds. `UserData`
 carries `Namespace` for links, which is never elided and repairs the home
-button, and `Address` for display.
+button, and `Address` for display. The page is titled by `Username`, the name,
+under a "Gnome" label; an address with no name has an empty `Username` and is
+titled by its short form. Under the title `Address` is always printed in full,
+on one line with a copy button, never shortened: a start…end form is exactly
+what a lookalike vanity address imitates, and checking who is behind a name is
+what the line is for.
 
 The gate runs before the home fetch, which is dropped for a name that has no
 page. Per request: one `qeval`, then one `qpaths` per namespace listed (one, or

@@ -5,19 +5,23 @@
       <div class="user-avatar">
         {{ template "ui/gnome" }}
       </div>
-      <div>
-        <h1 class="title">
-          {{ .Handlename }}
-        </h1>
-        <p class="subtitle">
-          {{ .Username }}
-        </p>
-        {{ with .Address }}
-        <p class="subtitle u-font-mono u-word-break" title="{{ . }}">
-          {{ . }}
-        </p>
+      <div class="user-identity">
+        <p class="label">Gnome</p>
+        {{ with .Username }}
+        <h1 class="title" title="{{ . }}">{{ . }}</h1>
+        {{ else }}
+        <h1 class="title u-font-mono" title="{{ .Address }}">{{ truncMiddle .Address 6 }}</h1>
         {{ end }}
       </div>
+      {{ with .Address }}
+      <p class="subtitle">
+        <span class="address u-font-mono" title="{{ . }}">{{ . }}</span>
+        <button type="button" class="b-inline-btn" data-controller="copy" data-action="click->copy#copy"
+          data-copy-text-value="{{ . }}" aria-label="Copy address" title="Copy address">
+          {{ template "ui/copy" }}
+        </button>
+      </p>
+      {{ end }}
     </div>
 
     <a href="#user-contributions-packages" role="button" aria-controls="user-contributions-packages" class="b-btn">
