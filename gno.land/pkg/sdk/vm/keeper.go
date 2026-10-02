@@ -2372,8 +2372,9 @@ func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
 // storage size changes tracked within the gnoStore.
 //
 // For each realm, it:
-// - Charges the caller a deposit proportional to newly used storage (positive size difference).
-// - Returns the deposit to the caller for released storage (negative size difference).
+//   - Charges the caller a deposit proportional to newly used storage (positive size difference).
+//   - Returns the deposit to the caller for released storage (negative size difference),
+//     or to the storage fee collector while ugnot is a restricted denom.
 //
 // A realm that called PayStorage is charged instead of the caller for growth of
 // its own storage in a message whose entry is that realm, and a free in its

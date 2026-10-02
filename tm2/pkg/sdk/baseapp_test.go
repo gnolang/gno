@@ -722,7 +722,7 @@ func TestCheckTxSponsoredSequencePersists(t *testing.T) {
 	})
 
 	nTxs := int64(5)
-	for i := int64(0); i < nTxs; i++ {
+	for i := range nTxs {
 		tx := newTxCounter(i, 0)
 		txBytes, err := amino.Marshal(tx)
 		require.NoError(t, err)

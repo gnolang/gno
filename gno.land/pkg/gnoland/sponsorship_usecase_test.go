@@ -237,8 +237,9 @@ func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			const window = 30_000_000 // generous, so we measure cost not the cap
 
 			opts := TestAppOptions(memdb.NewMemDB())
