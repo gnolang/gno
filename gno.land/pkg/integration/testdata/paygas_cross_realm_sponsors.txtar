@@ -16,11 +16,9 @@ stdout OK!
 gnokey maketx addpkg -pkgdir $WORK/stopayer -pkgpath gno.land/r/test/stopayer -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-## fund stopayer generously; fund gaspayer with only 6000000 — enough to cover its
-## OWN gas commitment (maxFee 5000000) but NOT maxFee+maxDeposit (10000000). This
-## makes the test also catch a regression where PayGas wrongly folds the other
-## realm's storage deposit into gaspayer's balance check (which would spuriously
-## reject here).
+## fund stopayer generously; fund gaspayer with only 6000000 — enough for its OWN
+## gas commitment (maxFee 5000000) but not maxFee+maxDeposit (10000000), so a
+## regression charging it for the other realm's storage would fail here.
 gnokey maketx send -send 10000000ugnot -to g1ct5mv8yujr5sheks76kutcptp4l89t5jxusumu -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 gnokey maketx send -send 6000000ugnot -to g164cs55tunylr9t455rk3lgkzlashyzkznxndcw -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
@@ -38,7 +36,7 @@ stdout OK!
 stdout '"grown" string'
 
 ## stopayer paid ONLY storage: 10000000 - 40300 (403-byte write deposit) = 9959700.
-## Had it been cross-charged the gas too, it would be 9957556 — so this proves the
+## Had it been cross-charged the gas too, it would be 9957592 — so this proves the
 ## storage sponsor is NOT charged for gas.
 gnokey query bank/balances/g1ct5mv8yujr5sheks76kutcptp4l89t5jxusumu
 stdout '9959700ugnot'

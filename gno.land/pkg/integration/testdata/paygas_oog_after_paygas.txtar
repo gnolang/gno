@@ -18,7 +18,7 @@ stdout OK!
 gnokey query bank/balances/g1javuas63xhumsdllp6mugm3ckx4ju4gzgzf8hn
 stdout '10000000ugnot'
 
-## call with 0 fee — PayGas(1000) gives ~1M gas, heavy work after PayGas exhausts it
+## call with 0 fee — PayGas(3000) allows 3M gas, and the work after it exhausts that
 ! gnokey maketx call -pkgpath gno.land/r/test/oog -func SmallBudgetHeavyWork -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 stderr 'out of gas'
 

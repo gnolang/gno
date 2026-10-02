@@ -403,9 +403,10 @@ func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 	return ctx
 }
 
-// beginPayStorage records that the current message calls entry ("" when it
-// calls no realm) and returns the transaction's PayStorage commitment, or nil
-// outside a sponsored transaction.
+// beginPayStorage records that the current message calls entry, for a message
+// in which entry may sponsor its own storage (MsgCall, MsgAddPackage), and
+// returns the transaction's PayStorage commitment, or nil outside a sponsored
+// transaction.
 func beginPayStorage(ctx sdk.Context, entry string) *stdlibs.PayStorageInfo {
 	psi, _ := ctx.Value(vmkContextKeyPayStorage).(*stdlibs.PayStorageInfo)
 	if psi != nil {
@@ -2374,11 +2375,15 @@ func resolveBlock(store gno.Store, v gno.Value) *gno.Block {
 // - Charges the caller a deposit proportional to newly used storage (positive size difference).
 // - Returns the deposit to the caller for released storage (negative size difference).
 //
+// A realm that called PayStorage is charged instead of the caller for growth of
+// its own storage in a message whose entry is that realm, and a free in its
+// storage refunds it first, up to what it has locked in this transaction. See
+// stdlibs.PayStorageInfo.
+//
 // Returns an aggregated error if any realm processing fails due to insufficient deposit,
 // transfer errors.
 //
-// entry is the realm the message calls ("" if none): only it can have its
-// storage sponsored in this message. See stdlibs.PayStorageInfo.
+// entry is the realm the message calls ("" if none).
 func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address, deposit std.Coins, gnostore gno.Store, params Params, entry string) error {
 	if ctx.IsCheckTx() {
 		// Defense-in-depth: baseapp already skips handler.Process in
@@ -2530,10 +2535,11 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				receiver = params.StorageFeeCollector
 			}
 
-			// Freeing what this tx's sponsor locked earlier in the same tx
-			// returns it to the sponsor first; only the rest, locked by an
-			// earlier transaction, goes to the caller. Skipped for a
-			// restricted denom, where the refund is withheld from everyone.
+			// A free in the sponsor's storage is netted against what the
+			// sponsor has locked in this tx, whoever paid for the freed
+			// bytes: that much returns to the sponsor, the rest to the
+			// caller. Skipped for a restricted denom, where the refund is
+			// withheld from everyone.
 			totalUnlocked := depositUnlocked
 			sponsorShare := int64(0)
 			if sponsorRealm && !isRestricted {

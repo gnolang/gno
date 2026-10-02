@@ -17,7 +17,7 @@ Two natives in `chain/runtime` let a realm sponsor a 0-fee transaction:
 - **`runtime.PayGas(maxFee int64, rlm realm)`** — `rlm` pays the transaction's gas, up to `maxFee` ugnot.
 - **`runtime.PayStorage(maxDeposit int64, rlm realm)`** — `rlm` pays the storage deposits for its own storage, up to `maxDeposit` ugnot.
 
-Both only take effect in a 0-fee transaction while the chain's credit window is open (see the tm2 ADR), and are no-ops otherwise, including outside a transaction (queries, `gno test`). A 0-fee transaction that never calls `PayGas` is rejected. The realm is charged only if the transaction succeeds.
+Invalid arguments always panic. A valid call only takes effect in a 0-fee transaction while the chain's credit window is open (see the tm2 ADR), and is a no-op otherwise: in fee-paying transactions, at genesis, and outside a transaction (queries, `gno test`). A 0-fee transaction that never calls `PayGas` is rejected. The realm is charged only if the transaction succeeds.
 
 ## Key Design Decisions
 

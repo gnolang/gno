@@ -1,9 +1,8 @@
-# PayStorage redirects only the PAYER of storage growth to the sponsoring realm.
-# Freed storage still refunds the message caller: the deposit it releases was
-# locked by an earlier transaction, so it never belonged to the sponsor.
+# Freeing storage in a realm other than the sponsor refunds the message caller:
+# PayStorage only concerns the sponsor's own storage.
 #
-# test1 funds the deposit; user1 then sends a plain 0-fee call whose realm
-# sponsors and frees that storage. The refund must land on user1.
+# test1 funds ss_store's deposit; user1 then sends a 0-fee call to ss_payer,
+# which sponsors and frees ss_store's storage. The refund must land on user1.
 
 ## load packages
 loadpkg gno.land/r/test/ss_store $WORK/store

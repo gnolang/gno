@@ -1,6 +1,6 @@
-# Test multi-message tx where PayGas is called in the second message.
-# First message sets up state, second message calls PayGas.
-# Both messages execute, realm pays total gas.
+# A MsgRun calls two realms: a counter, then a swap realm that calls PayGas.
+# The swap realm pays the gas of the whole tx, including the counter call made
+# before PayGas.
 
 ## start a new node
 gnoland start

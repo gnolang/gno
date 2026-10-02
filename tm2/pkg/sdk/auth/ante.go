@@ -158,11 +158,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		if err := tx.ValidateBasic(); err != nil {
 			return newCtx, abciResult(err), true
 		}
-		// ValidateBasic accepts a zero fee because a sponsored tx carries one (a
-		// zero coin amino-encodes as "", so it always arrives as Coin{}). With
-		// the credit window closed nothing can sponsor it, so reject it here, in
-		// every mode and where ValidateBasic used to, which keeps the check
-		// order, and so the error a block records, identical to master.
+		// ValidateBasic accepts an empty fee because a sponsored tx carries one (a
+		// zero coin normally amino-encodes as ""). With the credit window closed
+		// nothing can sponsor a 0-fee tx, so reject it here, in every mode. This
+		// is where ValidateBasic rejected an empty fee before, so a well-formed
+		// 0-fee tx still gets that error at that point.
 		if tx.Fee.GasFee.IsZero() && !isZeroFeeTx {
 			return newCtx, abciResult(std.ErrInsufficientFee(
 				"zero-fee transactions require a non-zero Block.MaxGasCreditPerTx")), true

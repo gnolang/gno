@@ -1,6 +1,5 @@
-# Test that a normal tx (GasFee > 0) that calls PayGas still works normally.
-# The user pays gas as usual. PayGas should still set PayGasInfo but the
-# user's fee covers gas, not the realm.
+# In a normal fee-paying tx, PayGas is a no-op: the user pays gas as usual and
+# the realm pays nothing.
 
 ## start a new node
 gnoland start
@@ -9,7 +8,7 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/normalfee -pkgpath gno.land/r/test/normalfee -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-## fund realm so PayGas balance check passes
+## fund the realm, so a wrong charge would show
 gnokey maketx send -send 10000000ugnot -to g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 

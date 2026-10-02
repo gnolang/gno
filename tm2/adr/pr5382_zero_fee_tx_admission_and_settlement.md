@@ -32,8 +32,10 @@ in-process `sdk.Context`, never on the wire.
 `BlockParams.MaxGasCreditPerTx` (default `0` = disabled) sizes the gas meter of
 a 0-fee tx. It is the tx's whole gas budget: `PayGas` may shrink it to what
 `maxFee` buys, never raise it. It is validated `>= 0` and `<= Block.MaxGas`, so
-one sponsored tx is never larger than a block, and it doubles as a chain-wide
-kill switch.
+one sponsored tx is never larger than a block. Like the app's other block
+params it is read from the copy stored at InitChain, so turning the feature on
+or off takes a chain upgrade; a validator can only stop admitting 0-fee txs
+locally.
 
 ### 2. Two gates: consensus enforcement vs. local admission policy
 
@@ -42,12 +44,16 @@ kill switch.
 (`[application]`, next to `MinGasPrices`) only decides whether *this* validator
 admits 0-fee txs into *its* mempool. DeliverTx does not depend on it.
 
-With the window closed a 0-fee tx is rejected in every mode, as on master.
-`Tx.ValidateBasic` now accepts an empty fee because amino encodes any zero coin
-as `""`, so a `0ugnot` fee always arrives as `Coin{}`; the ante restores the
-rejection right after `ValidateBasic` unless the window is open, so the order of
-checks, and the error a block records, match master. A sponsored tx is also not admitted before
-the first block, when gno.land's genesis ante funds unknown signers.
+With the window closed a 0-fee tx is rejected in every mode.
+`Tx.ValidateBasic` now accepts an empty fee, because amino normally encodes a
+zero coin as `""` and a sponsored tx must carry one; the ante rejects a 0-fee
+tx right after `ValidateBasic` unless the window is open. That is where
+`ValidateBasic` rejected an empty fee before, so a well-formed 0-fee tx gets the
+same error as on master at the same point; a malformed one (no signatures, wrong
+signer count) now fails `ValidateBasic`'s later checks instead. A sponsored tx is
+also not admitted before the first block, when gno.land's genesis ante funds
+unknown signers, and genesis delivery is exempt from sponsorship: `PayGas` is
+inert there.
 
 ### 3. `RunTxModeCheckExecute` for mempool admission
 
@@ -72,9 +78,9 @@ block gas that nobody pays for (see Open below).
 `EndTxHook(ctx, result) error` runs only on success, and gno.land implements the
 debit there. A returned error fails the tx. It runs in both `RunTxModeDeliver`
 and `RunTxModeCheckExecute`: at admission it is a dry run whose writes land in
-the discarded cache, and it is what rejects an insolvent sponsor or an
-over-budget storage commitment before the tx is gossiped. Simulate (RPC gas
-estimation) does not run it.
+the discarded cache, and it is what rejects an insolvent sponsor before the tx
+is gossiped. (Storage over the sponsor's budget already fails the message during
+CheckExecute.) Simulate (RPC gas estimation) does not run it.
 
 Because of the dry run, the hook must not write outside the cache-wrapped
 store. Committing gno.land's transaction store does, so it moved to a new
@@ -123,11 +129,11 @@ packs blocks against the real worst case rather than the client's value.
 - **Hardfork replay of a sponsored tx does not reproduce the source debit.**
   Settlement recomputes it from the replay's gas and the target chain's gas
   price. Unreachable today: no chain has sponsored txs.
-- **A `MaxGasCreditPerTx` change is latent until restart** (memoized at
-  InitChain).
-- **Feature off is master, except for gas.** With the window closed every tx
-  follows master's checks in master's order. Only the stdlib grew: a tx that
-  loads `chain/runtime` uses about 3.5K more gas.
+- **`MaxGasCreditPerTx` is fixed at genesis.** The app reads block params from
+  the copy stored at InitChain, so a change takes a chain upgrade.
+- **Feature off.** With the window closed a well-formed 0-fee tx is rejected
+  with master's error at master's point, and fee-paying txs are unchanged. The
+  stdlib grew: a tx that loads `chain/runtime` uses about 3.5K more gas.
 - **Open: failing sponsored txs.** A sponsored tx that fails at delivery charges
   nobody, while its gas still counts against the block and feeds the gas price.
   Admission closes the deterministic routes (the settlement dry run), but two

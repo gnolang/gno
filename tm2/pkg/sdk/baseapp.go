@@ -1064,10 +1064,11 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	pgi := runMsgCtx.PayGasInfo()
 	payGasCalled := pgi != nil && pgi.MaxFee > 0
 
-	// Enforce sponsorship for 0-fee txs in EVERY mode — including DeliverTx, so a
-	// block proposer cannot force-include a free tx that skips PayGas. A 0-fee tx
-	// that never called PayGas has no payer, so it must fail and have its msg
-	// writes discarded (below, result.IsOK() is false → WriteCheckpoint reverts).
+	// Enforce sponsorship for 0-fee txs in EVERY mode, including DeliverTx. A
+	// 0-fee tx that never called PayGas has no payer, so it fails and its msg
+	// writes are discarded (below, result.IsOK() is false → WriteCheckpoint
+	// reverts). A proposer can still include one, burning the gas its messages
+	// used at no one's expense; see the tm2 ADR's open item.
 	if sponsored && !payGasCalled && result.IsOK() {
 		result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
 	}
