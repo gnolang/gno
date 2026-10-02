@@ -3646,5 +3646,4 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		font-weight: var(--g-font-normal, 400);
 		color: var(--s-color-text-tertiary);
 	}
-
 }
