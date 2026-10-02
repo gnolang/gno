@@ -68,7 +68,7 @@ type webCfg struct {
 // whose deploy key belongs to a party it vouches for; see the realm notice ADR.
 const defaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
 
-const defaultRealmNoticeText = "Community realm. Not reviewed by the gno.land team. Read the code before you interact or send coins."
+const defaultRealmNoticeText = "Community realm, deployed by its author. Read the code before you interact or send coins."
 
 var defaultWebOptions = webCfg{
 	chainid:       "dev",
