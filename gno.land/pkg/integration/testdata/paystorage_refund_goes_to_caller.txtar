@@ -44,12 +44,12 @@ cp stdout user1_balance_after
 ## than gaining the 299500ugnot refund: 1000000000 + 299500.
 stdout '"1000299500ugnot"'
 
-## The sponsor paid gas (1908ugnot) and received nothing -> 9998092. Had the
-## refund gone to the sponsor it would have ended at 10297592, richer than it
+## The sponsor paid gas (1910ugnot) and received nothing -> 9998090. Had the
+## refund gone to the sponsor it would have ended at 10297590, richer than it
 ## started. Re-derive both figures on a gas-schedule or storage-price change; the
 ## direction is what matters — the sponsor must never end above 10000000ugnot.
 gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
-stdout '9998092ugnot'
+stdout '9998090ugnot'
 
 -- store/gnomod.toml --
 module = "ss_store"

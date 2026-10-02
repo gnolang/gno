@@ -42,7 +42,7 @@ stdout '"999999000ugnot"'
 ## The sponsor paid gas for both txs and no deposit. Paying for the vault too,
 ## it would have lost the vault's 479700ugnot deposit to user1.
 gnokey query bank/balances/g1l0sqzdjed2hmyf9jzf2jwjtf773fdr27037dpj
-stdout '"9995989ugnot"'
+stdout '"9995985ugnot"'
 
 -- sponsor/gnomod.toml --
 module = "gno.land/r/test/dr_sponsor"

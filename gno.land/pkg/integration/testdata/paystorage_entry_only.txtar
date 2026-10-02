@@ -34,7 +34,7 @@ stdout '"999999000ugnot"'
 ## The sponsor paid gas only. Without the entry rule it paid the 651700ugnot
 ## the grab cost and user1 collected it on the drop.
 gnokey query bank/balances/g106kdgw7p43j8wzl9q45ggcxgydpst9q79dm5qx
-stdout '"9994618ugnot"'
+stdout '"9994613ugnot"'
 
 -- sponsor/gnomod.toml --
 module = "gno.land/r/test/eo_sponsor"

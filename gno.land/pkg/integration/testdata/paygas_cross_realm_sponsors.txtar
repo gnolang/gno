@@ -36,20 +36,20 @@ stdout OK!
 stdout '"grown" string'
 
 ## stopayer paid ONLY storage: 10000000 - 40300 (403-byte write deposit) = 9959700.
-## Had it been cross-charged the gas too, it would be 9957592 — so this proves the
+## Had it been cross-charged the gas too, it would be 9957590 — so this proves the
 ## storage sponsor is NOT charged for gas.
 gnokey query bank/balances/g1ct5mv8yujr5sheks76kutcptp4l89t5jxusumu
 stdout '9959700ugnot'
 
-## gaspayer paid ONLY gas: 6000000 - 2108 (gas cost) = 5997892. Had it been
-## cross-charged the 40300 storage too, it would be 5957592 — so this proves the
+## gaspayer paid ONLY gas: 6000000 - 2110 (gas cost) = 5997890. Had it been
+## cross-charged the 40300 storage too, it would be 5957590 — so this proves the
 ## gas sponsor is NOT charged for storage.
 ## NOTE: the exact gas figure tracks the chain's gas schedule, so re-derive it on
 ## a gas-schedule change. What the assertion pins is the *separation* — neither
 ## balance moves by the other realm's cost — so never "fix" it by folding in the
 ## other realm's 40300.
 gnokey query bank/balances/g164cs55tunylr9t455rk3lgkzlashyzkznxndcw
-stdout '5997892ugnot'
+stdout '5997890ugnot'
 
 -- gaspayer/gnomod.toml --
 module = "gaspayer"
