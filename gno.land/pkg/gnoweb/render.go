@@ -74,6 +74,8 @@ type RealmRenderContext struct {
 	ChainId string
 	Remote  string
 	Domain  string
+	// Links says which links of the document search engines may follow.
+	Links md.LinkPolicy
 }
 
 // HTMLRenderer implements the Renderer interface for HTML output.
@@ -129,6 +131,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	mdctx.ChainId = ctx.ChainId
 	mdctx.Remote = ctx.Remote
 	mdctx.Domain = ctx.Domain
+	mdctx.Links = ctx.Links
 
 	pctx := md.NewGnoParserContext(mdctx)
 

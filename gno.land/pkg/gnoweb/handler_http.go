@@ -278,7 +278,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// notice and the head alike.
 	kind := h.packageKind(gnourl)
 	if operatorPage && alias.Kind == StaticMarkdown {
-		kind = pageOfficial
+		kind = pageOperator
 	}
 	if kind == pageCommunity && h.Static.RealmNotice.Enabled() {
 		indexData.Notice = h.Static.RealmNotice
@@ -476,11 +476,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, 
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, []byte(alias.Value), RealmRenderContext{
-		ChainId: h.Static.ChainId,
-		Remote:  h.Static.RemoteHelp,
-		Domain:  h.Static.Domain,
-	})
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, []byte(alias.Value), h.renderContext(pageOperator))
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
@@ -561,11 +557,7 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 	}
 
 	var content bytes.Buffer
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
-		ChainId: h.Static.ChainId,
-		Remote:  h.Static.RemoteHelp,
-		Domain:  h.Static.Domain,
-	})
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, h.renderContext(h.packageKind(gnourl)))
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
@@ -670,11 +662,7 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	// Render user profile realm
 	raw, err := h.Client.Realm(ctx, "/r/"+username+"/home", "")
 	if err == nil {
-		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
-			ChainId: h.Static.ChainId,
-			Remote:  h.Static.RemoteHelp,
-			Domain:  h.Static.Domain,
-		})
+		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, h.renderContext(h.packageKind(gnourl)))
 	}
 
 	if content.Len() == 0 {
@@ -803,11 +791,7 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 	}
 
 	var buf bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, RealmRenderContext{
-		ChainId: h.Static.ChainId,
-		Remote:  h.Static.RemoteHelp,
-		Domain:  h.Static.Domain,
-	}); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, h.renderContext(h.packageKind(gnourl))); err != nil {
 		h.Logger.Error("render README.md", "error", err)
 		return nil, nil
 	}

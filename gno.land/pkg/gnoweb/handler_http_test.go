@@ -10,6 +10,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -2489,34 +2490,36 @@ func (c documentClient) Realm(ctx context.Context, path, args string) ([]byte, e
 	return c.MockClient.Realm(ctx, path, args)
 }
 
-// TestHTTPHandler_PageTrust checks what each kind of page lends its head
-// (#3910). A trusted page may repeat its own heading and first paragraph; a
-// community page repeats nothing it renders; and on no page do arguments or a
-// query a link typed reach the title or the summary.
-func TestHTTPHandler_PageTrust(t *testing.T) {
-	t.Parallel()
+// Documents the trust tests render. Each carries one link inside gno.land
+// and one outside it, so the rel of both can be read off the page.
+const (
+	trustPost  = "The first post of the blog, said at the length a summary needs."
+	trustLure  = "Official gno.land airdrop: claim your GNOT at evil.example before it ends."
+	trustLinks = "[home](/r/gnoland/home) and [out](https://example.org/)"
+)
 
-	const (
-		post   = "The first post of the blog, said at the length a summary needs."
-		lure   = "Official gno.land airdrop: claim your GNOT at evil.example before it ends."
-		gnoImg = "https://gno.land/public/imgs/og-gnoland.png"
-		comImg = "https://gno.land/public/imgs/og-community.png"
-	)
+// newTrustHandler serves trusted realms under gnoland, community ones under
+// nym, and an operator page at /about, with the HTML renderer.
+func newTrustHandler(t *testing.T) *gnoweb.HTTPHandler {
+	t.Helper()
+
 	files := map[string]string{"render.gno": `package main; func Render(path string) string { return "" }`}
 	pkg := func(path string) *gnoweb.MockPackage {
 		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: files}
 	}
+	lib := pkg("/p/nym/lib")
+	lib.Files = map[string]string{"lib.gno": "package lib", "README.md": "# lib\n\n" + trustLinks + "\n"}
 	client := documentClient{
-		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/gnoland/forum"), pkg("/r/nym/app"), pkg("/p/nym/lib")),
+		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/gnoland/forum"), pkg("/r/nym/app"), lib),
 		render: map[string]func(string) string{
 			// Like p/gnoland/blog: the index, a post by its slug, a tag
 			// page whose heading repeats the tag, "404" for anything else.
 			"/r/gnoland/blog": func(args string) string {
 				switch tag, isTag := strings.CutPrefix(args, "t/"); {
 				case args == "", strings.HasPrefix(args, "?"):
-					return "# The gno.land blog\n\n" + post + "\n"
+					return "# The gno.land blog\n\n" + trustPost + "\n\n" + trustLinks + "\n"
 				case args == "p/hello":
-					return "# Hello worlds\n\n" + post + "\n"
+					return "# Hello worlds\n\n" + trustPost + "\n"
 				case isTag:
 					return "# The gno.land blog / t / " + tag + "\n\nPosts tagged " + tag + ", newest first.\n"
 				default:
@@ -2528,7 +2531,9 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 				return "Short.\n\n- item\n\n## Sub\n\n> quote\n\n| a |\n|---|\n| b |\n\n" +
 					"User post: Claim your free GNOT airdrop at evil.example right now!\n\n# User-chosen title evil.example\n"
 			},
-			"/r/nym/app": func(string) string { return "# Official gno.land airdrop\n\n" + lure + "\n" },
+			"/r/nym/app": func(string) string {
+				return "# Official gno.land airdrop\n\n" + trustLure + "\n\n" + trustLinks + "\n"
+			},
 		},
 	}
 	config := newTestHandlerConfig(t, client)
@@ -2537,6 +2542,7 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 	config.Meta.AssetsPath = "/public/"
 	config.TrustedPaths = []string{"gnoland"}
 	config.Aliases = map[string]gnoweb.AliasTarget{
+		"/about":    {Value: "# About\n\nA page the operator wrote, at the length a summary needs.\n\n" + trustLinks + "\n", Kind: gnoweb.StaticMarkdown},
 		"/hello":    {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath},
 		"/nymalias": {Value: "/r/nym/app", Kind: gnoweb.GnowebPath},
 	}
@@ -2544,6 +2550,22 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 	config.Renderer = gnoweb.NewHTMLRenderer(logger, gnoweb.NewDefaultRenderConfig(), nil)
 	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err)
+	return handler
+}
+
+// TestHTTPHandler_PageTrust checks what each kind of page lends its head
+// (#3910). A trusted page may repeat its own heading and first paragraph; a
+// community page repeats nothing it renders; and on no page do arguments or a
+// query a link typed reach the title or the summary.
+func TestHTTPHandler_PageTrust(t *testing.T) {
+	t.Parallel()
+
+	const (
+		post   = trustPost
+		gnoImg = "https://gno.land/public/imgs/og-gnoland.png"
+		comImg = "https://gno.land/public/imgs/og-community.png"
+	)
+	handler := newTrustHandler(t)
 
 	cases := []struct {
 		name, url                       string
@@ -2639,6 +2661,64 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestHTTPHandler_LinkRel checks which links of a rendered document search
+// engines may follow. A community document passes on no authority; a trusted
+// realm passes it within gno.land only, since it may show what its users
+// wrote; an operator's own page passes it everywhere. gnoweb's own links
+// around the document are never marked.
+func TestHTTPHandler_LinkRel(t *testing.T) {
+	t.Parallel()
+
+	handler := newTrustHandler(t)
+	relOf := func(t *testing.T, body, href string) string {
+		t.Helper()
+		m := regexp.MustCompile(`<a href="` + regexp.QuoteMeta(href) + `"([^>]*)>`).FindStringSubmatch(body)
+		require.NotNil(t, m, "no link to %s", href)
+		rel := regexp.MustCompile(`rel="([^"]*)"`).FindStringSubmatch(m[1])
+		if rel == nil {
+			return ""
+		}
+		return rel[1]
+	}
+
+	cases := []struct {
+		name, url          string
+		internal, external string // the rel each link carries; "" for none
+	}{
+		{"community realm", "/r/nym/app", "nofollow ugc", "noopener nofollow ugc"},
+		{"alias to a community realm", "/nymalias", "nofollow ugc", "noopener nofollow ugc"},
+		{"community package README", "/p/nym/lib", "nofollow ugc", "noopener nofollow ugc"},
+		{"trusted realm", "/r/gnoland/blog", "", "noopener nofollow ugc"},
+		{"operator page", "/about", "", "noopener"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			assert.Equal(t, tc.internal, relOf(t, body, "/r/gnoland/home"))
+			assert.Equal(t, tc.external, relOf(t, body, "https://example.org/"))
+		})
+	}
+
+	t.Run("gnoweb's own links on a community page", func(t *testing.T) {
+		t.Parallel()
+
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/nym/app", nil))
+
+		tabs := regexp.MustCompile(`<a [^>]*href="/r/nym/app\$source"[^>]*>`).FindAllString(rr.Body.String(), -1)
+		require.NotEmpty(t, tabs, "the page links to its own source")
+		for _, tab := range tabs {
+			assert.NotContains(t, tab, "nofollow")
+		}
+	})
 }
 
 // TestHTTPHandler_RealmNotice covers which pages carry the notice; the global
