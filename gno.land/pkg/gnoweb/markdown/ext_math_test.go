@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
+	"golang.org/x/net/html"
 )
 
 func renderMathMarkdown(t *testing.T, src string) string {
@@ -108,5 +109,52 @@ func TestMathOutputIsBounded(t *testing.T) {
 		out := renderMathMarkdown(t, src)
 		assert.NotContains(t, out, "<math")
 		assert.Contains(t, out, `<span class="math-inline">`)
+	})
+}
+
+// FuzzMathRender checks that math input cannot inject script, event handlers
+// or javascript: URLs, and that the output size stays linear in the input.
+func FuzzMathRender(f *testing.F) {
+	for _, seed := range []string{
+		`E=mc^2`,
+		`\text{</math><script>alert(1)</script>}`,
+		`\class{x" onclick="alert(1)}{y}`,
+		`\color{red" onmouseover="alert(1)}{y}`,
+		`\begin{matrix}</span><script>alert(1)</script>`,
+		`\begin{pmatrix} a & b \\ c & d \end{pmatrix}`,
+		`\sqrt[3]{\frac{a}{b}} \overset{!}{=} \mathop{lim}`,
+		`\raisebox{1em}{x} \textcolor{red}{y} \multirow{2}{a}`,
+	} {
+		f.Add(seed)
+	}
+	gm := goldmark.New(goldmark.WithExtensions(NewGnoExtension()))
+	f.Fuzz(func(t *testing.T, tex string) {
+		for _, src := range []string{"$" + tex + "$", "$$" + tex + "$$", "$$\n" + tex + "\n$$"} {
+			var buf bytes.Buffer
+			if err := gm.Convert([]byte(src), &buf); err != nil {
+				return
+			}
+			out := buf.String()
+			if len(out) > 64*len(src)+4096 {
+				t.Fatalf("output too large: %d bytes for %d bytes of input", len(out), len(src))
+			}
+			z := html.NewTokenizer(strings.NewReader(out))
+			for tt := z.Next(); tt != html.ErrorToken; tt = z.Next() {
+				if tt != html.StartTagToken && tt != html.SelfClosingTagToken {
+					continue
+				}
+				tok := z.Token()
+				switch tok.Data {
+				case "script", "style", "iframe", "object", "embed", "svg":
+					t.Fatalf("unexpected <%s> in output for %q:\n%s", tok.Data, src, out)
+				}
+				for _, a := range tok.Attr {
+					if strings.HasPrefix(a.Key, "on") ||
+						strings.HasPrefix(strings.ToLower(strings.TrimSpace(a.Val)), "javascript:") {
+						t.Fatalf("unexpected %s attribute in output for %q:\n%s", a.Key, src, out)
+					}
+				}
+			}
+		}
 	})
 }
