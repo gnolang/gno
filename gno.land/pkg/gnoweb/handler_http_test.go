@@ -2228,9 +2228,9 @@ func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnowe
 func TestHTTPHandler_PageMetadata(t *testing.T) {
 	t.Parallel()
 
-	handler := newMetadataHandler(t, "/r/mock/path", nil)
+	handler := newMetadataHandler(t, "/r/gnoland/path", nil)
 
-	for _, url := range []string{"/r/mock/path", "/r/mock/path:p/hello", "/r/mock/path$source"} {
+	for _, url := range []string{"/r/gnoland/path", "/r/gnoland/path:p/hello", "/r/gnoland/path$source"} {
 		t.Run(url, func(t *testing.T) {
 			t.Parallel()
 
@@ -2376,15 +2376,15 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 func TestHTTPHandler_CanonicalIgnoresForwardedHost(t *testing.T) {
 	t.Parallel()
 
-	handler := newMetadataHandler(t, "/r/mock/path", nil)
+	handler := newMetadataHandler(t, "/r/gnoland/path", nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/r/mock/path", nil)
+	req := httptest.NewRequest(http.MethodGet, "/r/gnoland/path", nil)
 	req.Header.Set("X-Forwarded-Host", "evil.example")
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
 	body := rr.Body.String()
-	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/r/mock/path" />`)
+	assert.Contains(t, body, `<link rel="canonical" href="https://gno.land/r/gnoland/path" />`)
 	assert.NotContains(t, body, "evil.example", "the canonical link must not follow a request header")
 }
 
@@ -2497,9 +2497,13 @@ const (
 	trustLinks = "[home](/r/gnoland/home) and [out](https://example.org/)"
 )
 
+// trustAddrRealm is a community realm under an address namespace.
+const trustAddrRealm = "/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/app"
+
 // newTrustHandler serves trusted realms under gnoland, community ones under
-// nym, and an operator page at /about, with the HTML renderer.
-func newTrustHandler(t *testing.T) *gnoweb.HTTPHandler {
+// nym and an address, and an operator page at /about, with the HTML
+// renderer and the given community index.
+func newTrustHandler(t *testing.T, index gnoweb.CommunityIndex) *gnoweb.HTTPHandler {
 	t.Helper()
 
 	files := map[string]string{"render.gno": `package main; func Render(path string) string { return "" }`}
@@ -2509,7 +2513,7 @@ func newTrustHandler(t *testing.T) *gnoweb.HTTPHandler {
 	lib := pkg("/p/nym/lib")
 	lib.Files = map[string]string{"lib.gno": "package lib", "README.md": "# lib\n\n" + trustLinks + "\n"}
 	client := documentClient{
-		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/gnoland/forum"), pkg("/r/nym/app"), lib),
+		MockClient: gnoweb.NewMockClient(pkg("/r/gnoland/blog"), pkg("/r/gnoland/forum"), pkg("/r/nym/app"), pkg(trustAddrRealm), lib),
 		render: map[string]func(string) string{
 			// Like p/gnoland/blog: the index, a post by its slug, a tag
 			// page whose heading repeats the tag, "404" for anything else.
@@ -2540,6 +2544,7 @@ func newTrustHandler(t *testing.T) *gnoweb.HTTPHandler {
 	config.Meta.CanonicalOrigin = "https://gno.land"
 	config.Meta.AssetsPath = "/public/"
 	config.TrustedPaths = []string{"gnoland"}
+	config.Meta.IndexCommunity = index
 	config.Aliases = map[string]gnoweb.AliasTarget{
 		"/about":    {Value: "# About\n\nA page the operator wrote, at the length a summary needs.\n\n" + trustLinks + "\n", Kind: gnoweb.StaticMarkdown},
 		"/hello":    {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath},
@@ -2566,7 +2571,9 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 		pkgImg   = "https://gno.land/public/imgs/og-community-package.png"
 		userImg  = "https://gno.land/public/imgs/og-community-user.png"
 	)
-	handler := newTrustHandler(t)
+	// Every page indexed, so each carries a canonical to read the path off;
+	// TestHTTPHandler_CommunityIndex covers which ones lose it.
+	handler := newTrustHandler(t, gnoweb.IndexAllCommunity)
 
 	cases := []struct {
 		name, url                       string
@@ -2664,6 +2671,81 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 	}
 }
 
+// TestHTTPHandler_CommunityIndex checks what search engines are told about
+// each page under each -index-community setting. A page kept out of the index
+// gets a noindex meta, an X-Robots-Tag header (the only signal a markdown
+// response can carry) and no canonical, but keeps its card.
+func TestHTTPHandler_CommunityIndex(t *testing.T) {
+	t.Parallel()
+
+	pages := []struct {
+		name, url string
+		markdown  bool // asked for text/markdown, so there is no head to read
+		official  bool // indexed under every setting
+		named     bool // a bare page under a registered name: indexed under "registered"
+		ownRobots bool // the state explorer may send its own X-Robots-Tag
+	}{
+		{name: "community realm", url: "/r/nym/app", named: true},
+		{name: "community package", url: "/p/nym/lib", named: true},
+		{name: "community user", url: "/u/nym", named: true},
+		{name: "alias to a community realm", url: "/nymalias", named: true},
+		{name: "community realm as markdown", url: "/r/nym/app", markdown: true, named: true},
+		{name: "address namespace", url: trustAddrRealm},
+		{name: "community realm with args", url: "/r/nym/app:p/x"},
+		{name: "community realm with a query", url: "/r/nym/app?page=2"},
+		{name: "community realm with args, as markdown", url: "/r/nym/app:p/x", markdown: true},
+		{name: "community source", url: "/r/nym/app$source"},
+		{name: "community help", url: "/r/nym/app$help"},
+		{name: "community state", url: "/r/nym/app$state", ownRobots: true},
+		{name: "official realm", url: "/r/gnoland/blog", official: true},
+		{name: "official realm with args", url: "/r/gnoland/blog:p/hello", official: true},
+		{name: "official realm as markdown", url: "/r/gnoland/blog", markdown: true, official: true},
+		{name: "operator page", url: "/about", official: true},
+	}
+
+	for _, index := range []gnoweb.CommunityIndex{gnoweb.IndexNoCommunity, gnoweb.IndexRegisteredCommunity, gnoweb.IndexAllCommunity} {
+		handler := newTrustHandler(t, index)
+		for _, p := range pages {
+			t.Run(index.String()+"/"+p.name, func(t *testing.T) {
+				t.Parallel()
+
+				indexed := p.official || index == gnoweb.IndexAllCommunity ||
+					(index == gnoweb.IndexRegisteredCommunity && p.named)
+
+				req := httptest.NewRequest(http.MethodGet, p.url, nil)
+				if p.markdown {
+					req.Header.Set("Accept", "text/markdown")
+				}
+				rr := httptest.NewRecorder()
+				handler.ServeHTTP(rr, req)
+				require.Equal(t, http.StatusOK, rr.Code)
+
+				robots := rr.Header().Get("X-Robots-Tag")
+				switch {
+				case !indexed:
+					assert.Equal(t, "noindex, nofollow", robots)
+				case !p.ownRobots:
+					assert.Empty(t, robots)
+				}
+				if p.markdown {
+					return
+				}
+
+				head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+				if indexed {
+					assert.Contains(t, head, `<meta name="robots" content="index, follow" />`)
+					assert.Contains(t, head, `<link rel="canonical"`)
+				} else {
+					assert.Contains(t, head, `<meta name="robots" content="noindex, nofollow" />`)
+					assert.NotContains(t, head, `rel="canonical"`)
+				}
+				assert.Contains(t, head, `<meta property="og:image"`, "a link preview ignores robots, so the card stays")
+				assert.Contains(t, head, `<meta property="og:url"`)
+			})
+		}
+	}
+}
+
 // TestHTTPHandler_LinkRel checks which links of a rendered document search
 // engines may follow. A community document passes on no authority; a trusted
 // realm passes it within gno.land only, since it may show what its users
@@ -2672,7 +2754,7 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 func TestHTTPHandler_LinkRel(t *testing.T) {
 	t.Parallel()
 
-	handler := newTrustHandler(t)
+	handler := newTrustHandler(t, gnoweb.IndexRegisteredCommunity)
 	relOf := func(t *testing.T, body, href string) string {
 		t.Helper()
 		m := regexp.MustCompile(`<a href="` + regexp.QuoteMeta(href) + `"([^>]*)>`).FindStringSubmatch(body)

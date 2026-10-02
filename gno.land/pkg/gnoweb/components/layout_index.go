@@ -45,8 +45,8 @@ type HeadData struct {
 	Title       string
 	Description string
 	Canonical   string
-	// NoIndex keeps an error shell out of a search index: the head is built
-	// before the body knows the page is missing.
+	// NoIndex keeps a page out of a search index: an error shell, or a
+	// community page the crawl policy leaves out.
 	NoIndex           bool
 	Image             string
 	URL               string

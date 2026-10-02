@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -95,6 +97,40 @@ func TestSetupTrust(t *testing.T) {
 			assert.Equal(t, !noNotice, appcfg.RealmNotice.Enabled())
 		})
 	}
+}
+
+func TestIndexCommunityFlag(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		args []string
+		want gnoweb.CommunityIndex
+	}{
+		{nil, gnoweb.IndexRegisteredCommunity},
+		{[]string{"-index-community=none"}, gnoweb.IndexNoCommunity},
+		{[]string{"-index-community=all"}, gnoweb.IndexAllCommunity},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprint(tc.args), func(t *testing.T) {
+			t.Parallel()
+
+			cfg := defaultWebOptions
+			fs := flag.NewFlagSet("gnoweb", flag.ContinueOnError)
+			cfg.RegisterFlags(fs)
+			require.NoError(t, fs.Parse(tc.args))
+			assert.Equal(t, tc.want, cfg.indexCommunity)
+		})
+	}
+
+	t.Run("unknown value", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := defaultWebOptions
+		fs := flag.NewFlagSet("gnoweb", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		cfg.RegisterFlags(fs)
+		assert.Error(t, fs.Parse([]string{"-index-community=some"}))
+	})
 }
 
 // Dummy handler to simulate the processing chain.

@@ -49,6 +49,7 @@ type StaticMetadata struct {
 	AssetsVersion     string
 	Banner            components.BannerData
 	RealmNotice       components.BannerData
+	IndexCommunity    CommunityIndex
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -282,6 +283,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	if kind == pageCommunity && h.Static.RealmNotice.Enabled() {
 		indexData.Notice = h.Static.RealmNotice
+	}
+	// Decided before any branch writes: the markdown and download responses
+	// have no head to carry a robots meta.
+	if !h.indexable(kind, gnourl) {
+		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+		indexData.HeadData.NoIndex = true
 	}
 
 	// Handle download request outside of component rendering flow.
@@ -629,11 +636,16 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	return slices.Clip(contribs), realmCount, nil
 }
 
+// isAddress reports whether s is a bech32 address, as a personal namespace is.
+func isAddress(s string) bool {
+	_, _, err := bech32.Decode(s)
+	return err == nil
+}
+
 // TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
 // CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
 func CreateUsernameFromBech32(username string) string {
-	_, _, err := bech32.Decode(username)
-	if err == nil {
+	if isAddress(username) {
 		// If it's a valid bech32 address, create a shortened version
 		username = username[:4] + "..." + username[len(username)-4:]
 	}
@@ -1168,9 +1180,13 @@ func (h *HTTPHandler) setHeadMetadata(head *components.HeadData, gnourl *weburl.
 	description, image := kind.card(gnourl)
 	head.Description = cmp.Or(lead.description, description)
 
+	// A page kept out of the index names no canonical, but keeps its card:
+	// link previews ignore robots, and an empty card looks broken.
 	canonical := h.canonicalURL(gnourl)
-	head.Canonical = canonical
 	head.URL = canonical
+	if !head.NoIndex {
+		head.Canonical = canonical
+	}
 	// A crawler fetches og:image as given, with no page to resolve it
 	// against, so it needs the same declared origin as the canonical.
 	if h.Static.CanonicalOrigin != "" {

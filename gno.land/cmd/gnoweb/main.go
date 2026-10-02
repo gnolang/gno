@@ -63,6 +63,7 @@ type webCfg struct {
 	noStrict         bool
 	verbose          bool
 	noRealmNotice    bool
+	indexCommunity   gnoweb.CommunityIndex
 	trustedPaths     string
 }
 
@@ -73,12 +74,13 @@ const defaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,mo
 const defaultRealmNoticeText = "Community realm. Not reviewed by the gno.land team. Read the code before you interact or send coins."
 
 var defaultWebOptions = webCfg{
-	chainid:       "dev",
-	remote:        "127.0.0.1:26657",
-	bind:          ":8888",
-	remoteTimeout: time.Minute,
-	timeout:       time.Minute,
-	trustedPaths:  defaultTrustedPaths,
+	chainid:        "dev",
+	remote:         "127.0.0.1:26657",
+	bind:           ":8888",
+	remoteTimeout:  time.Minute,
+	timeout:        time.Minute,
+	trustedPaths:   defaultTrustedPaths,
+	indexCommunity: gnoweb.IndexRegisteredCommunity,
 }
 
 func main() {
@@ -160,6 +162,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"trusted-paths",
 		defaultWebOptions.trustedPaths,
 		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice and given official page metadata",
+	)
+
+	fs.TextVar(
+		&c.indexCommunity,
+		"index-community",
+		defaultWebOptions.indexCommunity,
+		"which pages outside -trusted-paths search engines may index: none, registered (bare pages under a registered name) or all",
 	)
 
 	fs.StringVar(
@@ -290,6 +299,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
 	appcfg.CanonicalOrigin = cfg.canonicalOrigin
+	appcfg.IndexCommunity = cfg.indexCommunity
 	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)

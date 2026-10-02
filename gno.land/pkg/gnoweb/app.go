@@ -72,6 +72,9 @@ type AppConfig struct {
 	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice and may lend
 	// their own heading and summary to the page metadata.
 	TrustedPaths []string
+	// IndexCommunity says which pages outside TrustedPaths search engines may
+	// index; the others get noindex, nofollow and no canonical.
+	IndexCommunity CommunityIndex
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -108,6 +111,7 @@ func NewDefaultAppConfig() *AppConfig {
 		RenderConfig:            NewDefaultRenderConfig(),
 		StateRateLimitPerMinute: 100,
 		MaxConcurrentRPC:        32,
+		IndexCommunity:          IndexRegisteredCommunity,
 	}
 }
 
@@ -157,6 +161,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AssetsVersion:     AssetsVersion(),
 		Banner:            cfg.Banner,
 		RealmNotice:       cfg.RealmNotice,
+		IndexCommunity:    cfg.IndexCommunity,
 	}
 
 	// Configure Markdown renderer
