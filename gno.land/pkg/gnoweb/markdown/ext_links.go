@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
@@ -62,6 +63,34 @@ func (t GnoLinkType) String() string {
 	return "unknown"
 }
 
+// LinkPolicy says which links of a document search engines may follow. A
+// link they may not follow renders with rel="nofollow ugc": it was written by
+// someone the site does not answer for. The zero value follows none, so a
+// document rendered without a policy is treated as user content.
+type LinkPolicy int
+
+const (
+	// FollowNoLinks marks every link as user content: a community document.
+	FollowNoLinks LinkPolicy = iota
+	// FollowInternalLinks follows links within the site and marks the others:
+	// a trusted realm may still show what its users wrote.
+	FollowInternalLinks
+	// FollowAllLinks follows every link: a page the operator wrote.
+	FollowAllLinks
+)
+
+// follows reports whether a link of type t may be followed under p.
+func (p LinkPolicy) follows(t GnoLinkType) bool {
+	switch p {
+	case FollowAllLinks:
+		return true
+	case FollowInternalLinks:
+		return t != GnoLinkTypeExternal
+	default:
+		return false
+	}
+}
+
 var KindGnoLink = ast.NewNodeKind("GnoLink")
 
 // GnoLink represents a link with Gno-specific metadata
@@ -76,6 +105,22 @@ type GnoLink struct {
 	// markdown cannot wear the host realm's link chrome. The href is
 	// still resolved normally; only the trust signals are stripped.
 	Untrusted bool
+	// Followed reports whether search engines may follow the link, from the
+	// document's LinkPolicy. An untrusted link is never followed.
+	Followed bool
+}
+
+// rel is the link's rel attribute: noopener for any page another site may
+// open, nofollow ugc for any link search engines may not follow.
+func (n *GnoLink) rel() string {
+	var rel []string
+	if n.Untrusted || n.LinkType == GnoLinkTypeExternal {
+		rel = append(rel, "noopener")
+	}
+	if !n.Followed {
+		rel = append(rel, "nofollow", "ugc")
+	}
+	return strings.Join(rel, " ")
 }
 
 func (n *GnoLink) Dump(source []byte, level int) {
@@ -135,6 +180,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 	// Links parsed under a <gno-foreign> sandbox context render as
 	// untrusted (rel="ugc", no first-party trust icons). Read once.
 	untrusted := isForeignOrigin(pc)
+	links := getLinkPolicy(pc)
 
 	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -199,6 +245,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 
 		// Detect and set the GnoLink type.
 		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
+		gnoLink.Followed = !nodeUntrusted && links.follows(gnoLink.LinkType)
 
 		return ast.WalkContinue, nil
 	})
@@ -338,13 +385,10 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		}
 		w.WriteByte('"')
 
-		// Prepare additional link attributes. External links always
-		// carry the rel guard; untrusted (foreign-sandbox) links carry
-		// it regardless of type so internal/tx links from foreign
-		// content are still marked as user-generated.
+		// Prepare additional link attributes.
 		attrs := []attr{}
-		if n.LinkType == GnoLinkTypeExternal || n.Untrusted {
-			attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
+		if rel := n.rel(); rel != "" {
+			attrs = append(attrs, attr{"rel", rel})
 		}
 		if n.Title != nil {
 			attrs = append(attrs, attr{"title", string(n.Title)})

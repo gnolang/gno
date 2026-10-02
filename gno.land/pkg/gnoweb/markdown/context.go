@@ -11,6 +11,7 @@ var (
 	gRemoteContextKey        = parser.NewContextKey()
 	gDomainContextKey        = parser.NewContextKey()
 	gForeignOriginContextKey = parser.NewContextKey()
+	gLinkPolicyContextKey    = parser.NewContextKey()
 )
 
 type GnoContext struct {
@@ -18,6 +19,8 @@ type GnoContext struct {
 	ChainId string
 	Remote  string
 	Domain  string
+	// Links says which links search engines may follow; see LinkPolicy.
+	Links LinkPolicy
 }
 
 // NewGnoParserContext creates a new parser context with GnoURL
@@ -27,6 +30,7 @@ func NewGnoParserContext(mdctx GnoContext) parser.Context {
 	ctx.Set(gChainIdContextKey, mdctx.ChainId)
 	ctx.Set(gRemoteContextKey, mdctx.Remote)
 	ctx.Set(gDomainContextKey, mdctx.Domain)
+	ctx.Set(gLinkPolicyContextKey, mdctx.Links)
 	return ctx
 }
 
@@ -39,7 +43,7 @@ func getGnoContext(ctx parser.Context) GnoContext {
 	chainId, _ := getChainIdFromContext(ctx)
 	remote, _ := getRemoteFromContext(ctx)
 	domain, _ := getDomainFromContext(ctx)
-	return GnoContext{GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain}
+	return GnoContext{GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain, Links: getLinkPolicy(ctx)}
 }
 
 // getUrlFromContext retrieves the GnoURL from the parser context
@@ -73,6 +77,13 @@ func getDomainFromContext(ctx parser.Context) (domain string, ok bool) {
 		return "", false
 	}
 	return
+}
+
+// getLinkPolicy retrieves the LinkPolicy from the parser context. A context
+// that carries none gets the zero value, which follows no link.
+func getLinkPolicy(ctx parser.Context) LinkPolicy {
+	p, _ := ctx.Get(gLinkPolicyContextKey).(LinkPolicy)
+	return p
 }
 
 // markForeignOrigin flags ctx as the parser context of a <gno-foreign>

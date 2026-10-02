@@ -33,8 +33,10 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	require.NoError(t, err)
 
 	// Create parser context with the test URL
+	// Render as a trusted realm, the policy most fixtures describe.
 	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{
 		GnoURL: gnourl,
+		Links:  FollowInternalLinks,
 	}))
 
 	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {

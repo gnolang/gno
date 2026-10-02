@@ -124,13 +124,45 @@ func TestExtLinksClassifiesResolvedDestination(t *testing.T) {
 	}
 }
 
+// TestExtLinksPolicy pins the rel each LinkPolicy gives an internal and an
+// external link. noopener follows the destination; nofollow ugc follows the
+// policy, and the zero value marks every link.
+func TestExtLinksPolicy(t *testing.T) {
+	t.Parallel()
+
+	const src = "[in](/r/other/pkg) [out](https://example.org/)"
+	cases := []struct {
+		name    string
+		policy  LinkPolicy
+		in, out string
+	}{
+		{"zero value", 0, ` rel="nofollow ugc"`, ` rel="noopener nofollow ugc"`},
+		{"follow internal", FollowInternalLinks, ``, ` rel="noopener nofollow ugc"`},
+		{"follow all", FollowAllLinks, ``, ` rel="noopener"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := renderLinksWith(t, src, tc.policy)
+			require.Contains(t, got, `<a href="/r/other/pkg"`+tc.in+`>`)
+			require.Contains(t, got, `<a href="https://example.org/"`+tc.out+`>`)
+		})
+	}
+}
+
 func renderExtLinks(t *testing.T, src string) string {
+	t.Helper()
+	return renderLinksWith(t, src, FollowInternalLinks)
+}
+
+func renderLinksWith(t *testing.T, src string, links LinkPolicy) string {
 	t.Helper()
 	gnourl, err := weburl.Parse("https://gno.land/r/test")
 	require.NoError(t, err)
 	m := goldmark.New()
 	ExtLinks.Extend(m)
-	ctx := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+	ctx := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl, Links: links}))
 	var out bytes.Buffer
 	require.NoError(t, m.Convert([]byte(src), &out, ctx))
 	return out.String()
