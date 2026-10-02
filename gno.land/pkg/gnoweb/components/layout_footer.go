@@ -5,7 +5,19 @@ type FooterData struct {
 	Sections    []FooterSection
 	LegalNotice string
 	LegalLinks  []FooterLink
+	// HasFaucet reports whether this deployment offers a faucet at all. Taken
+	// from the same config that gates the /faucet route, so the footer and the
+	// route can no longer disagree about whether one exists.
+	HasFaucet bool
+	// StatusURL is this network's status page. Empty means no Status link: a
+	// status page for another network is worse than none.
+	StatusURL string
 }
+
+// faucetHubURL is the user-facing faucet for every network that has one. It is
+// deliberately not -faucet-url: that flag holds the endpoint /faucet redirects
+// to, which some deployments point at an API rather than at a page.
+const faucetHubURL = "https://faucet.gno.land/"
 
 type FooterLink struct {
 	Label string
@@ -22,16 +34,23 @@ type FooterSection struct {
 }
 
 func EnrichFooterData(data FooterData) FooterData {
+	nav := []FooterLink{
+		{Label: "About", URL: "/about"},
+		{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
+	}
+	// A deployment without a faucet must not advertise one.
+	if data.HasFaucet {
+		nav = append(nav, FooterLink{Label: "Faucet", URL: faucetHubURL, Outbound: OutboundFaucet})
+	}
+	nav = append(nav, FooterLink{Label: "Blog", URL: "/r/gnoland/blog"})
+	if data.StatusURL != "" {
+		nav = append(nav, FooterLink{Label: "Status", URL: data.StatusURL, Outbound: OutboundStatus})
+	}
+
 	data.Sections = []FooterSection{
 		{
 			Title: "Footer navigation",
-			Links: []FooterLink{
-				{Label: "About", URL: "/about"},
-				{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
-				{Label: "Faucet", URL: "https://faucet.gno.land/", Outbound: OutboundFaucet},
-				{Label: "Blog", URL: "https://gno.land/r/gnoland/blog"},
-				{Label: "Status", URL: "https://status.gno.land/", Outbound: OutboundStatus},
-			},
+			Links: nav,
 		},
 		{
 			Title: "Social media",

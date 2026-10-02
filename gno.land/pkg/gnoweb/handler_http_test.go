@@ -146,6 +146,22 @@ func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTT
 	}
 }
 
+// The status url set on the handler reaches the rendered footer; FooterData
+// is built in one place, so this covers every page.
+func TestHTTPHandler_FooterStatusLink(t *testing.T) {
+	t.Parallel()
+
+	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient())
+	cfg.Meta = gnoweb.StaticMetadata{StatusURL: "https://status.onyx.testnets.gno.land"}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), cfg)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/does/not/exist", nil))
+
+	assert.Contains(t, rr.Body.String(), `href="https://status.onyx.testnets.gno.land" data-outbound="status"`)
+}
+
 // TestHTTPHandler_Get tests the Get method of WebHandler using table-driven tests.
 func TestHTTPHandler_Get(t *testing.T) {
 	t.Parallel()

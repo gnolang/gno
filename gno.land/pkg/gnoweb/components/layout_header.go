@@ -26,19 +26,26 @@ type HeaderLinks struct {
 }
 
 type HeaderData struct {
-	RealmPath  string
-	RealmURL   weburl.GnoURL
-	Breadcrumb BreadcrumbData
-	Links      HeaderLinks
-	ChainId    string
-	Remote     string
-	Mode       ViewMode
-	Static     bool
+	RealmPath   string
+	RealmURL    weburl.GnoURL
+	Breadcrumb  BreadcrumbData
+	Links       HeaderLinks
+	ChainId     string
+	Remote      string
+	Mode        ViewMode
+	Static      bool
+	NetworkKind NetworkKind
+}
+
+// NetworkChipTitle is the chip's tooltip. The chip only renders off mainnet.
+func (d HeaderData) NetworkChipTitle() string {
+	return "You are on " + d.ChainId + " — this is not mainnet"
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
 	return []HeaderLink{
-		{Label: "About", URL: "https://gno.land/about"},
+		// Relative: an absolute gno.land URL moves the user off their deployment.
+		{Label: "About", URL: "/about"},
 		{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
 		{Label: "GitHub", URL: "https://github.com/gnolang", Outbound: OutboundGitHub},
 	}

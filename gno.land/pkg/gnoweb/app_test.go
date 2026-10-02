@@ -1,6 +1,8 @@
 package gnoweb
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"html"
 	"maps"
@@ -8,11 +10,13 @@ import (
 	"net/http/httptest"
 	"os"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/rs/xid"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -393,4 +397,197 @@ func TestHealthEndpoints(t *testing.T) {
 			assert.Contains(t, response.Body.String(), `{"status":"ready"}`)
 		})
 	})
+}
+
+// NewRouter is where the network-kind default and validation are enforced.
+// With ChainID preset the node is never contacted, so this needs no running
+// chain.
+func TestNewRouter_NetworkKind(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		chainID  string
+		override components.NetworkKind
+		want     components.NetworkKind
+		wantErr  string
+	}{
+		// Never guessed from the chain-id: even the mainnet id defaults to
+		// the safe kind unless the operator says otherwise.
+		{name: "default is testnet", chainID: "gnoland-1", want: components.NetworkTestnet},
+		{name: "default on a testnet id", chainID: "pearl-1", want: components.NetworkTestnet},
+		{name: "mainnet is explicit", chainID: "gnoland-1", override: components.NetworkMainnet, want: components.NetworkMainnet},
+		{name: "local is explicit", chainID: "dev", override: components.NetworkLocal, want: components.NetworkLocal},
+		{name: "invalid kind", chainID: "pearl-1", override: "prod", wantErr: "invalid network kind"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = tc.chainID
+			cfg.NetworkKind = tc.override
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, cfg.NetworkKind)
+		})
+	}
+}
+
+// The status URL is rendered as a link on every page, so anything that is
+// not an absolute http(s) URL is refused at startup.
+func TestNewRouter_StatusURLIsValidated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		statusURL string
+		wantErr   bool
+	}{
+		{name: "unset", statusURL: ""},
+		{name: "https", statusURL: "https://status.gno.land/"},
+		{name: "testnet", statusURL: "https://status.onyx.testnets.gno.land"},
+		{name: "javascript", statusURL: "javascript:alert(1)", wantErr: true},
+		{name: "relative", statusURL: "/status", wantErr: true},
+		{name: "no scheme", statusURL: "status.gno.land", wantErr: true},
+		{name: "ftp", statusURL: "ftp://status.gno.land", wantErr: true},
+		{name: "userinfo", statusURL: "https://evil.com@status.gno.land", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = "gnoland-1"
+			cfg.StatusURL = tc.statusURL
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "invalid status url")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestNewRouter_ChainIDIsValidated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		chainID string
+		wantErr bool
+	}{
+		{name: "mainnet", chainID: "gnoland-1"},
+		{name: "testnet", chainID: "pearl-1"},
+		{name: "dev", chainID: "dev"},
+		{name: "dotted", chainID: "test6.testnets"},
+		{name: "backtick", chainID: "x`](https://evil.example)`", wantErr: true},
+		{name: "space", chainID: "pearl 1", wantErr: true},
+		{name: "angle bracket", chainID: "<script>", wantErr: true},
+		{name: "too long", chainID: strings.Repeat("a", 65), wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = tc.chainID
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "invalid chain-id")
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+// With no -chainid, the chain-id comes off the wire; it must go through the
+// same check as an operator-set one before it reaches the banner and meta tags.
+func TestNewRouter_ChainIDFromNodeIsValidated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		network string
+		wantErr bool
+	}{
+		{name: "valid", network: "test6.testnets"},
+		{name: "backtick", network: "x`](https://evil.example)`", wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			node := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var req struct {
+					ID     json.RawMessage `json:"id"`
+					Method string          `json:"method"`
+				}
+				if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&req)) ||
+					!assert.Equal(t, "status", req.Method) {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				network, _ := json.Marshal(tc.network)
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":{"node_info":{"network":%s}}}`, req.ID, network)
+			}))
+			t.Cleanup(node.Close)
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = ""
+			cfg.NodeRemote = node.URL
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			if tc.wantErr {
+				require.ErrorContains(t, err, "invalid chain-id")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.network, cfg.ChainID)
+		})
+	}
+}
+
+func TestNewRouter_NetworkBanner(t *testing.T) {
+	t.Parallel()
+
+	operator, err := components.NewBannerData("scheduled maintenance", "")
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name       string
+		kind       components.NetworkKind
+		banner     components.BannerData
+		wantBanner bool
+		wantText   string
+	}{
+		{name: "testnet gets one", kind: components.NetworkTestnet, wantBanner: true, wantText: "Not gno.land mainnet"},
+		{name: "local says so", kind: components.NetworkLocal, wantBanner: true, wantText: "Local development chain"},
+		{name: "mainnet gets none", kind: components.NetworkMainnet, wantBanner: false},
+		{name: "operator banner wins", kind: components.NetworkTestnet, banner: operator, wantBanner: true, wantText: "scheduled maintenance"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = "pearl-1"
+			cfg.NetworkKind = tc.kind
+			cfg.Banner = tc.banner
+
+			_, err := NewRouter(log.NewTestingLogger(t), cfg)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantBanner, cfg.Banner.Enabled())
+			if tc.wantText != "" {
+				var buf bytes.Buffer
+				require.NoError(t, cfg.Banner.Render(&buf))
+				assert.Contains(t, buf.String(), tc.wantText)
+			}
+		})
+	}
 }
