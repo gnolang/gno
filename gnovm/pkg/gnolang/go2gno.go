@@ -589,7 +589,18 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 			Body: ess,
 		}
 		if gon.Else != nil {
-			setSpan(fs, gon.Else, &elseStmt)
+			// else-if is represented as Else=*ast.IfStmt. That nested
+			// IfStmt already owns gon.Else's span; copying it onto the
+			// wrapping IfCaseStmt would give two BlockNodes the same
+			// Location after setNodeLocations (see #6065). Mark the
+			// synthetic wrapper with Num=1 so the spans stay distinct.
+			if _, isElseIf := gon.Else.(*ast.IfStmt); isElseIf {
+				sp := SpanFromGo(fs, gon.Else)
+				sp.Num = 1
+				elseStmt.SetSpan(sp)
+			} else {
+				setSpan(fs, gon.Else, &elseStmt)
+			}
 		}
 		return &IfStmt{
 			Init: toSimp(fs, gon.Init),
