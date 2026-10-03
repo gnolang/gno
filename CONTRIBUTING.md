@@ -38,7 +38,8 @@ make test
 
 Test specific Gno code:
 ```bash
-gno test ./examples/... -v
+gno test ./examples/... -v                       # everything, takes a while
+gno test ./examples/gno.land/r/demo/counter -v   # one package
 ```
 
 ## Project Structure
