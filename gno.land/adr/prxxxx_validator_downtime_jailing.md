@@ -178,7 +178,7 @@ Per vote, at BeginBlock(H):
    (A miss that leaves the window is thereby forgotten exactly when a new block
    enters it — the Cosmos sliding-window invariant, without a per-validator
    `IndexOffset`.)
-4. If `H−1 > StartHeight + window` and
+4. If `missed`, `H−1 > StartHeight + window` and
    `MissedCount > window − window × min_signed_per_window / 100`: **jail**.
    Add the address to the jailed set with
    `jailed_until = header.Time + downtime_jail_duration`, drop its signing
@@ -188,14 +188,25 @@ Per vote, at BeginBlock(H):
    The decision and its reason are known here and nowhere else; the removal
    itself shows up in tm2's `EventValidatorSetUpdates` at EndBlock.
 
+`H−1 > StartHeight + window` is the **grace period**, taken from Cosmos
+(`height > StartHeight + SignedBlocksWindow`): no jail decision until a full
+window has been observed since the validator's first vote. A validator that
+has just entered has no history, and the bitmap cannot tell "no history" from
+"missed", so judging it earlier would judge an empty window. Misses still
+count during the grace, which is what the `missed` condition is for: without
+it, a validator dark for most of its first window and back online when the
+grace ends would be jailed on a block it signed — the SDK does exactly that.
+With it, a jail always happens on a block the validator missed, that block
+was committed without it, and removing it can never lower the signing share;
+this is what lets the power floor go (see Alternatives).
+
 Determinism: `LastCommitInfo` is derived from the committed block,
 `header.Time` is the block time, and every write lands in the deliver state,
 so all nodes compute the same result and it is covered by the app hash.
 
 Signing info exists only for validators in `consensus`. A vote from an
 address that has none creates it — with `StartHeight` set to that height —
-only if the address is in `consensus`; a validator is not jailable until one
-full window has elapsed since `StartHeight`. When the EndBlocker's diff
+only if the address is in `consensus`. When the EndBlocker's diff
 removes an address (jail, governance removal), its signing info and bitmap
 are deleted; a key rotation is the one exception, see §7. The address still
 appears in `LastCommitInfo` for two more blocks, since tm2 applies the
@@ -466,10 +477,16 @@ Two things this makes explicit:
 - **Drop offline validators inside tm2.** Rejected: membership policy belongs
   to the ABCI application, where Cosmos keeps it too; tm2 only reports votes.
 - **A power-weighted floor on jailing** ("never jail more than 1/3 of the
-  power in one block"). Not needed: a validator is jailed on a block it missed,
-  and that block was committed, so the remaining set already held more than
-  2/3 without the jailed ones. The existing empty-set floor stays as the
-  backstop.
+  power in one block", or a cumulative cap on jailed power). Not needed: a
+  validator is jailed only on a block it missed (§1 step 4), that block was
+  committed, so its signers alone held more than 2/3 — and every validator
+  jailed in the same block is a non-signer of it, however many there are.
+  Removing them raises the signers' share; a cap would only keep provably
+  absent power in the denominator. Seven validators with two dead: 5 of 7
+  sign, 5 needed, margin zero, and after both are jailed 5 of 5 sign, 4
+  needed, margin one. A cap protects against a verdict that can be wrong,
+  such as an off-chain monitor's; this one is read from the commits. The
+  existing empty-set floor stays as the backstop.
 
 ## Consequences
 
@@ -514,8 +531,8 @@ Negative / trade-offs:
 
 - Unit tests for the tracker: bit set/clear as a miss enters and leaves the
   window, `MissedCount` equals the popcount, grace period, jail exactly at
-  `MissedCount > window − window × pct / 100`, reset on jail, window-change
-  reset, no-op when the window is 0.
+  `MissedCount > window − window × pct / 100` and never on a signed block,
+  reset on jail, window-change reset, no-op when the window is 0.
 - `TestEndBlocker` extensions on the existing `valsetState` mock: a jail
   removes from the diff but not from `current`; clearing the entry re-adds
   with the governed power; a governance removal of a jailed validator leaves
