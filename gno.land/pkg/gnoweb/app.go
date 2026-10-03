@@ -59,6 +59,12 @@ type AppConfig struct {
 	Domain string
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
+	// RealmNotice, if set, is shown as the header's second row on pages of
+	// packages outside TrustedPaths.
+	RealmNotice components.RealmNotice
+	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
+	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice.
+	TrustedPaths []string
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -136,6 +142,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AnalyticsHostname: cfg.AnalyticsHostname,
 		AssetsVersion:     AssetsVersion(),
 		Banner:            cfg.Banner,
+		RealmNotice:       cfg.RealmNotice,
 	}
 
 	// Configure Markdown renderer
@@ -156,6 +163,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Meta:                         staticMeta,
 		Renderer:                     renderer,
 		Aliases:                      cfg.Aliases,
+		TrustedPaths:                 cfg.TrustedPaths,
 		Timeout:                      cfg.NodeRequestTimeout,
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
