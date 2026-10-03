@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"encoding/json"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -111,7 +113,8 @@ const (
 	QueryPackageMetaJSON = "qpkgmeta_json"
 	// QueryInertPaths lists what is awaiting approval. Separate from QueryPaths,
 	// which ranges the live key space and cannot see it.
-	QueryInertPaths = "qinertpaths"
+	QueryInertPaths    = "qinertpaths"
+	QueryLatestVersion = "qlatestversion"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -149,6 +152,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 		res = vh.queryInertPaths(ctx, req)
 	case QueryTypeJSON:
 		res = vh.queryType(ctx, req)
+	case QueryLatestVersion:
+		res = vh.queryLatestVersion(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -340,6 +345,22 @@ func (vh vmHandler) queryStorage(ctx sdk.Context, req abci.RequestQuery) (res ab
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+// queryLatestVersion returns the latest deployed version for a base package path.
+func (vh vmHandler) queryLatestVersion(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	basePath := string(req.Data)
+	result, err := vh.vm.QueryLatestVersion(ctx, basePath)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+	bz, err := json.Marshal(result)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(err)
+	}
+	res.Data = bz
+	res.Height = req.Height
 	return
 }
 
