@@ -14,40 +14,53 @@ trust, per page or otherwise, and neither did the chain.
 ## Decision
 
 gnoweb shows a notice on every `/r/`, `/p/` and `/u/` page whose namespace is
-not under a trusted entry: render, `$source`, `$help`, `?state`, and the user
+not under a trusted entry: render, `$source`, `$help`, `$state`, and the user
 profile, which renders that user's home realm. The actions page is where a
-user copies a transaction, so it is the page that matters most.
+user copies a transaction, so it is the page that matters most: when a
+transaction link asks for coins there, its warning also says "This is a
+community realm, deployed by its author." Markdown responses of these pages
+(`Accept: text/markdown`) keep their body verbatim and carry the response
+header `X-Gnoweb-Realm-Notice: community` instead.
 
 The notice is the second row of the sticky header, under the path bar and the
 tabs and above the header's bottom border. It uses the header's own surface,
 grid and hairline, a circled info icon, and secondary text with the lead-in
 "Community realm" in the info colour; the row has `role="note"` and the
-accessible name "Realm notice". Being part of the sticky header, it stays in
-view while the user scrolls a long page or fills a transaction form. Official
-pages render the header exactly as before, with no empty row. The site-wide
-banner and any network banner stay above the header, unchanged: an operator's
-emergency banner must stay visible on the very pages it warns about, and the
-notice never replaces it. Sticky elements below the header
-(`--s-header-offset`) and anchor jumps (`scroll-padding` on the root) move
-down by the row, sized for one line from `--lg` up and two below it, where the
-text can wrap; a longer operator text overlaps by the extra lines, which CSS
-alone cannot measure.
+accessible name "Community realm notice", and the main landmark points at its
+text with `aria-describedby`, so a reader who skips the header still gets it.
+Being part of the sticky header, it stays in view while the user scrolls a
+long page or fills a transaction form. Official pages render exactly as
+before, with no empty row. The site-wide banner and any network banner stay
+above the header, unchanged: an operator's emergency banner must stay visible
+on the very pages it warns about, and the notice never replaces it.
 
-The default text has a phone-length variant, "**Community realm**. Read the
-code before you send coins.", shown below `--md` without JavaScript (both
-variants are rendered, CSS shows one). At 375px it still wraps to two lines:
-the 16px gutters, the icon and its gap leave 319px, and the text needs 378px
-at the header's 14px. An operator's `GNOWEB_REALM_NOTICE_TEXT` has no short
-variant and shows as-is at every width, wrapping with `text-wrap: pretty`:
-deriving a short form from arbitrary markdown is not worth a second setting.
+The row's height is fixed, so nothing below the header can drift. The server
+sets `data-realm-notice-lines` on `<html>`: 1 for the default text, 2 for an
+operator's. The row's block size derives from that count, the font size and
+line height tokens, and sticky elements below the header (`--s-header-offset`)
+and anchor jumps (`scroll-padding` on the root) move down by exactly that
+size. The default text fits one line at every width from 320px: "**Community
+realm.** Read the code first." up to `--lg`, and "**Community realm**,
+deployed by its author. Read the code before you interact or send coins." from
+`--lg` up; both are rendered and CSS shows one, without JavaScript. An
+operator's `GNOWEB_REALM_NOTICE_TEXT` has no short variant: it shows at every
+width, clamped to two lines, and long words such as URLs break rather than
+widen the page. On viewports shorter than 30em the header does not stick, so
+a taller header never takes over the screen (WCAG 1.4.10).
 
 The notice is on by default in the `gnoweb` binary (`-no-realm-notice` turns
 it off), with the trusted list in `-trusted-paths` and the wording in
-`GNOWEB_REALM_NOTICE_TEXT`. A text that renders to nothing refuses to start:
-an on-by-default safeguard must not switch itself off on a typo, which is why
-it is stricter than the opt-in banner. The library default
-(`NewDefaultAppConfig`) leaves it off, so gnodev, where every package is the
-developer's own, never shows it.
+`GNOWEB_REALM_NOTICE_TEXT`. The text is inline markdown, rendered like the
+banner's but without images, so the sticky header never loads a remote image.
+A text without a visible character refuses to start: empty markup, links
+without a label, zero-width and other format characters, spaces and blank
+fillers do not count. An on-by-default safeguard must not switch itself off
+on a typo or be blanked on purpose, which is why it is stricter than the
+opt-in banner. Entries of `-trusted-paths` that cannot match the package they
+name (a domain, an `r/`, `p/` or `u/` prefix, uppercase letters) are logged at
+startup and kept, trusting no intended package. The library default
+(`NewDefaultAppConfig`) leaves the notice off, so gnodev, where every package
+is the developer's own, never shows it.
 
 Trust is decided by namespace. That is sound on mainnet, as checked against
 the live chain on 2026-09-17 (`r/sys/names.IsEnabled`, `r/sys/users`,
@@ -67,6 +80,10 @@ the live chain on 2026-09-17 (`r/sys/names.IsEnabled`, `r/sys/users`,
   `jeronimoalbi`, `mason`). For the last two kinds only genesis or a GovDAO
   proposal can place code, and a GovDAO allocation of such a name to a new
   party has to be mirrored in the list.
+
+The default list therefore assumes namespace enforcement as on mainnet
+(`r/sys/names` enabled); a chain without it lets anyone deploy under any
+name, and its gnoweb must set `-trusted-paths` itself.
 
 An entry is a namespace or a package path, without the domain and without the
 `/r/` or `/p/` prefix; one entry covers both trees because they share a deploy
@@ -89,6 +106,10 @@ namespace entry with the paths it stands behind. Changing the list is a
 reviewed pull request; the deployment flag exists for removing an entry
 without a release.
 
+"Trusted" vouches for code, not for what users write through it. A trusted
+realm still renders user-written content, such as validator descriptions,
+board posts or token names, without the notice.
+
 ## Alternatives considered
 
 - **Opt-in through an environment variable**, like the existing banner. Relies
@@ -102,7 +123,7 @@ without a release.
   home page, is synced by a sidecar script that writes a file (#4478). See
   Evolution.
 - **A markdown alert inside the rendered article.** Needs renderer changes and
-  would not reach `$source`, `$help` or `?state` pages.
+  would not reach `$source`, `$help` or `$state` pages.
 
 Presentation options weighed for the notice itself:
 
@@ -116,6 +137,12 @@ Presentation options weighed for the notice itself:
   next to the network controls.
 - **A tinted header row.** Same structure as the decision, but a second
   surface colour in the header added weight without adding meaning.
+- **A notice height left to the text.** Sticky elements below the header
+  either overlapped a wrapped row or left a gap above a short one; the
+  reserved line count keeps both exact.
+- **A kind or tone field on the notice.** Only one kind exists. If another
+  notice kind is ever needed, a kind on `RealmNotice`, mapped to a modifier
+  class, is the extension point.
 
 ## Evolution
 
@@ -124,8 +151,8 @@ Two lanes, both already practised in this repository.
 **Fast lane, in place with this change.** A list compiled into the binary and
 changed by pull request is how gnoweb has always carried an allowlist: the
 image hosts in the CSP (#4058) work the same way, and the wallet registry
-proposed in #5970 takes the same shape. A merge builds the image; whether the instance restarts on its
-own is an infrastructure property, not gnoweb's.
+proposed in #5970 takes the same shape. A merge builds the image; whether the
+instance restarts on its own is an infrastructure property, not gnoweb's.
 
 **Slow lane, when a second reader or a governance need appears.** The source of
 truth moves on chain under GovDAO, which is the trust root of every on-chain
@@ -160,5 +187,5 @@ entries; a human lands them.
 - `sunspirit` is left out of the default list at the team's request.
 - Reviewing this surfaced two pre-existing gaps that let third-party content
   render under a trusted path's chrome: `$source&file=` accepted path
-  separators and is fixed in #6261; `?state&oid=` still fetches
+  separators and is fixed in #6261; `$state&oid=` still fetches
   any object regardless of the page's realm and is tracked separately.
