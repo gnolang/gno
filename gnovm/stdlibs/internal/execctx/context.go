@@ -98,6 +98,23 @@ type ExecContext struct {
 	Params             ParamsInterface
 	EventLogger        *sdk.EventLogger
 	SessionAccount     std.DelegatedAccount // nil for master-key txs
+	PayGasInfo         *sdk.PayGasInfo      // nil outside a tx; shared with the SDK context
+	PayStorageInfo     *PayStorageInfo      // nil unless this message's entry realm may sponsor storage
+	GasPrice           std.GasPrice         // current gas price, to derive PayGas's gas limit
+}
+
+// PayStorageInfo is a sponsored transaction's PayStorage commitment, shared
+// by its messages. Only the realm a message calls (Entry) may commit, and the
+// sponsor pays only for its own storage, in its own messages. Storage is
+// charged to the realm that allocated it and refunded to whoever frees it, so
+// a commitment that reached code the sponsor did not call, or storage it does
+// not own, would let that code collect the sponsor's deposits.
+type PayStorageInfo struct {
+	Entry        string         // pkg path of the realm the current message calls
+	RealmPkgPath string         // the committed realm ("" until PayStorage is called)
+	RealmAddr    crypto.Address // its address
+	MaxDeposit   int64          // the committed budget for the transaction
+	SpentDeposit int64          // net deposit the realm has locked in its own storage
 }
 
 // MarkOriginSendObservedBy records that the realm at realmPath made the

@@ -1,0 +1,79 @@
+# A sponsored grow followed by a free in the SAME tx must not convert the
+# sponsoring realm's balance into the signer's.
+#
+# PayStorage pays only for the sponsor's own storage, so the grow and the free
+# both happen in the sponsor realm here. Refunds normally go to the caller,
+# which is right when the freed bytes were locked by an EARLIER transaction;
+# but bytes this tx's sponsor locked one message ago are the sponsor's money,
+# so settlement returns them to the sponsor first and pays the caller only
+# what is left over.
+
+## load packages
+loadpkg gno.land/r/test/ss_payer $WORK/payer
+
+## create user1 for signing
+adduserfrom user1 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+
+## start a new node
+gnoland start
+
+## fund the payer realm
+gnokey maketx send -send 10000000ugnot -to g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_before
+
+## 0-fee tx; storage settles per message:
+##   msg[0] Pay   -> PayGas + PayStorage
+##   msg[1] Grow  -> the sponsor realm grows, and pays its own deposit
+##   msg[2] Free  -> releases what msg[1] just locked
+gnokey sign -tx-path $WORK/drain.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
+stdout 'Tx successfully signed and saved to '
+
+gnokey broadcast $WORK/drain.tx -quiet=false
+stdout OK!
+
+## THE ASSERTION: user1 signed a 0-fee tx and freed only bytes the sponsor paid
+## for moments earlier, so its balance must not move at all. Before the fix it
+## gained the released deposit.
+gnokey query bank/balances/$user1_user_addr
+cp stdout user1_balance_after
+cmp user1_balance_before user1_balance_after
+
+## The sponsor gets its own deposit back, so it is out only 3064ugnot: 2064 of
+## gas plus the 1000ugnot deposit for the 10 bytes Free leaves behind. Re-derive
+## on a gas-schedule or storage-price change; what matters is that user1 did not
+## gain and the sponsor did not lose the released deposit.
+gnokey query bank/balances/g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04
+stdout '9996936ugnot'
+
+-- payer/gnomod.toml --
+module = "ss_payer"
+gno = "0.9"
+
+-- payer/payer.gno --
+package ss_payer
+
+import "chain/runtime"
+
+var data []string
+
+func Pay(cur realm) string {
+	runtime.PayGas(5000000, cur)
+	runtime.PayStorage(1000000, cur)
+	return "paid"
+}
+
+func Grow(cur realm) {
+	for i := 0; i < 24; i++ {
+		data = append(data, "padding that the sponsor pays the deposit for")
+	}
+}
+
+func Free(cur realm) {
+	data = nil
+}
+
+-- drain.tx --
+{"msg":[{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Pay","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Grow","args":null},{"@type":"/vm.m_call","caller":"g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0","send":"","pkg_path":"gno.land/r/test/ss_payer","func":"Free","args":null}],"fee":{"gas_wanted":"10000000","gas_fee":"0ugnot"},"signatures":null,"memo":""}

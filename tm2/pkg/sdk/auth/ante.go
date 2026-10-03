@@ -63,32 +63,66 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 	return func(
 		ctx sdk.Context, tx std.Tx, simulate bool,
 	) (newCtx sdk.Context, res sdk.Result, abort bool) {
-		// Ensure that the gas wanted is not greater than the max allowed.
+		// Determine if this is a 0-fee PayGas transaction.
 		consParams := ctx.ConsensusParams()
-		if consParams.Block.MaxGas == -1 {
-			// no gas bounds (not recommended)
-		} else if consParams.Block.MaxGas < tx.Fee.GasWanted {
-			// tx gas-wanted too large.
-			res = abciResult(std.ErrInvalidGasWanted(
-				fmt.Sprintf(
-					"invalid gas-wanted; got: %d block-max-gas: %d",
-					tx.Fee.GasWanted, consParams.Block.MaxGas,
-				),
-			))
+		isZeroFeeTx := tx.Fee.GasFee.IsZero() && consParams.Block.MaxGasCreditPerTx > 0
+
+		// A sponsored (0-fee) tx cannot be ADMITTED before the first block is
+		// committed. checkState carries InitChain's zero height until the first
+		// Commit, and at height 0 gno.land's genesis wrapper auto-creates and
+		// funds any unknown signer (see gnoland.NewAppWithOptions). Admission
+		// decisions taken against that synthetic state are meaningless: a tx from
+		// a fresh key passes CheckTx and is gossiped, then fails deterministically
+		// at DeliverTx in block 1 where the account never existed — and repeating
+		// it with fresh keys forces one credit-window VM execution per attempt on
+		// every opting-in node, during startup.
+		//
+		// Genesis DELIVERY is unaffected (trusted genesis txs never sponsor), and
+		// there is nothing to lose by refusing: the chain is not producing blocks
+		// yet, so clients simply resubmit once block 1 exists.
+		if isZeroFeeTx && ctx.BlockHeight() == 0 && ctx.Mode() != sdk.RunTxModeDeliver {
+			res = abciResult(std.ErrUnauthorized(
+				"sponsored transactions are not accepted before the first block"))
 			return ctx, res, true
+		}
+
+		// Ensure that the gas wanted is not greater than the max allowed.
+		// For 0-fee txs, gas limit is set by the credit window, not GasWanted.
+		if !isZeroFeeTx {
+			if consParams.Block.MaxGas == -1 {
+				// no gas bounds (not recommended)
+			} else if consParams.Block.MaxGas < tx.Fee.GasWanted {
+				// tx gas-wanted too large.
+				res = abciResult(std.ErrInvalidGasWanted(
+					fmt.Sprintf(
+						"invalid gas-wanted; got: %d block-max-gas: %d",
+						tx.Fee.GasWanted, consParams.Block.MaxGas,
+					),
+				))
+				return ctx, res, true
+			}
 		}
 
 		// Ensure that the provided fees meet a minimum threshold for the validator,
 		// if this is a CheckTx. This is only for local mempool purposes, and thus
-		// is only run upon checktx.
-		if ctx.IsCheckTx() && !simulate {
+		// is only run upon checktx. Whether this validator admits 0-fee txs at
+		// all is decided in BaseApp.CheckTx.
+		if ctx.IsCheckTx() && !simulate && !isZeroFeeTx {
 			res := EnsureSufficientMempoolFees(ctx, tx.Fee)
 			if !res.IsOK() {
 				return ctx, res, true
 			}
 		}
 
-		newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
+		// Set gas meter: credit window for 0-fee txs, GasWanted for normal txs.
+		if isZeroFeeTx {
+			// Never infinite outside DeliverTx: the height-0 admission check
+			// above already rejected the only non-Deliver case where
+			// SetGasMeter would hand one out.
+			newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)
+		} else {
+			newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
+		}
 
 		// AnteHandlers must have their own defer/recover in order for the BaseApp
 		// to know how much gas was used! This is because the GasMeter is created in
@@ -123,6 +157,15 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		if err := tx.ValidateBasic(); err != nil {
 			return newCtx, abciResult(err), true
+		}
+		// ValidateBasic accepts an empty fee because a sponsored tx carries one (a
+		// zero coin normally amino-encodes as ""). With the credit window closed
+		// nothing can sponsor a 0-fee tx, so reject it here, in every mode. This
+		// is where ValidateBasic rejected an empty fee before, so a well-formed
+		// 0-fee tx still gets that error at that point.
+		if tx.Fee.GasFee.IsZero() && !isZeroFeeTx {
+			return newCtx, abciResult(std.ErrInsufficientFee(
+				"zero-fee transactions require a non-zero Block.MaxGasCreditPerTx")), true
 		}
 
 		// Mulp, not a bare multiply: TxSizeCostPerByte is only validated positive,
@@ -306,6 +349,10 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 			// Simulate normally skips verification; see RequireSigForSimulate
 			// for why some messages cannot afford that.
+			//
+			// CheckTx admission of 0-fee sponsored txs runs in
+			// RunTxModeCheckExecute, not Simulate, so simulate is false there
+			// and forged-signature txs are rejected before entering the mempool.
 			verifySig := !simulate ||
 				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
@@ -343,7 +390,17 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			newCtx = newCtx.WithValue(std.SessionAccountsContextKey{}, sessionAccounts)
 		}
 
-		return newCtx, sdk.Result{GasWanted: tx.Fee.GasWanted}, false
+		// Report GasWanted. For 0-fee txs the effective per-tx gas ceiling is the
+		// credit window (the meter was sized to MaxGasCreditPerTx above), NOT the
+		// client-supplied tx.Fee.GasWanted. The mempool sums the reported GasWanted
+		// against Block.MaxGas when packing a block, so reporting the credit window
+		// keeps block packing bounded by real worst-case consumption; reporting the
+		// client value (which can be 0) would let a proposer overfill the block.
+		reportedGasWanted := tx.Fee.GasWanted
+		if isZeroFeeTx {
+			reportedGasWanted = consParams.Block.MaxGasCreditPerTx
+		}
+		return newCtx, sdk.Result{GasWanted: reportedGasWanted}, false
 	}
 }
 
