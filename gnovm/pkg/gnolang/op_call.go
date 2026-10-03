@@ -109,13 +109,18 @@ func (m *Machine) installCrossingCur(cx *CallExpr, isCrossing bool, pkgPath stri
 }
 
 // curUsesPreprocessOrigin reports whether tv is a captured realm whose
-// prev field is the preprocess-time placeholder origin (addr=""). The
-// placeholder is baked into the `.cur` ConstExpr by preprocess.go for
-// main(cur realm) / init(cur realm); at runtime we detect it so the
-// doOpCall fix can swap in the per-tx origin carrying the real
-// OriginCaller addr. Fully structural — survives AST persistence,
-// because the already-swapped per-tx origin always has a non-empty
-// addr and is naturally suppressed.
+// prev field is the preprocess-time placeholder origin. The placeholder
+// is baked into the `.cur` ConstExpr by preprocess.go for main(cur realm)
+// / init(cur realm); at runtime we detect it so the doOpCall fix can swap
+// in the per-tx origin carrying the real OriginCaller addr.
+//
+// The detection is BY IDENTITY against the one package-level placeholder
+// (gOriginRealmTV), not by shape: `.cur` is only ever baked by an
+// in-process preprocess of a synthesized call statement (runFunc,
+// MaybeInjectCurForEval), so the value carries the global's own pointer,
+// while a materialized per-tx origin — including one whose OriginCaller
+// is empty, as in every query and the test harness — is a fresh
+// allocation that never matches.
 func (m *Machine) curUsesPreprocessOrigin(tv *TypedValue) bool {
 	sv := derefRealmStruct(tv)
 	if sv == nil || len(sv.Fields) < 3 {
@@ -439,6 +444,12 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 		// Capture the caller's live crossing cur BEFORE this frame's Cur is
 		// set: topCrossingCur skips frames whose Cur is still unset, so right
 		// now it resolves to the caller's, not ours. Used by the check below.
+		//
+		// NOTE: this walk is not metered. doOpEnterCrossing charges
+		// OpCPUSlopeEnterCrossing per call frame for the same traversal;
+		// adding the matching charge here changes gas for every no-cross
+		// crossing entry, so it is deferred to ride with the other gas
+		// schedule work instead of this fix — see gnolang/gno-fixes#115.
 		callerCur, hasCallerCur := m.topCrossingCur()
 
 		// Unwrap a heap-promoted slot: when cur is captured by a nested
@@ -477,11 +488,11 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 		// caller that argument has to be that caller's own current cur — the
 		// only realm value a crossing function can pass on by the name `cur`
 		// (preprocess rejects any other first arg to a no-cross crossing
-		// call). Threading `cur` unchanged, and delegating it to another
-		// realm's executor or callback, both preserve HIV identity; a `cur`
-		// that was rebound, or captured in a different frame, does not. A
-		// mismatch means this frame would run as a realm its caller is not
-		// in, and IsCurrent()/cross(rlm) would then agree with that.
+		// call). Passing `cur` on from the frame that owns it preserves HIV
+		// identity; a `cur` that was rebound, or captured in one crossing
+		// frame and forwarded from another, does not. A mismatch means this
+		// frame would run as a realm its caller is not in, and
+		// IsCurrent()/cross(rlm) would then agree with that.
 		//
 		// DO NOT DELETE THIS AS DEAD CODE. An earlier revision of this change
 		// called it "unreachable from source once the preprocess rejection is
@@ -496,9 +507,10 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 		//
 		// Skipped when there is no crossing caller (a bootstrap entry:
 		// main/init/origin, a top-level MsgRun/query, or a test harness
-		// seeding cur through non-crossing frames) and when the cur was
-		// rebuilt from the preprocess-origin placeholder above.
-		if hasCallerCur && !rebuilt && !realmMatchesCurHIV(&fr.Cur, realmHIV(&callerCur)) {
+		// seeding cur through non-crossing frames), when the cur was rebuilt
+		// from the preprocess-origin placeholder above, and when the caller is
+		// the testing stdlib dispatching a sub-test (see harnessSeedsCur).
+		if hasCallerCur && !rebuilt && !m.harnessSeedsCur() && !realmMatchesCurHIV(&fr.Cur, realmHIV(&callerCur)) {
 			// WORDED FOR THE PERSON MOST LIKELY TO SEE IT. The reachable
 			// source shape is a closure that captured `cur` in one crossing
 			// frame and is called from another, which is an ordinary mistake,
@@ -507,8 +519,8 @@ func (m *Machine) installInheritedCur(fr *Frame, fv *FuncValue, b *Block) {
 			// says "stale capture or sibling frame" for the same underlying
 			// condition.
 			panic(fmt.Sprintf(
-				"crossing function %s.%s was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur). Pass the caller's own `cur` unchanged, or use cross(cur) to enter as this realm",
-				fv.PkgPath, fv.Name))
+				"crossing function %s was entered without cross(), so it takes its caller's identity — but the value passed is not the caller's own cur (a stale capture from another frame, a sibling frame, or a rebound cur). Pass the caller's own `cur` unchanged, or use cross(cur) to enter as this realm",
+				funcDisplayName(fv)))
 		}
 	}
 }
@@ -533,6 +545,34 @@ func realmMatchesCurHIV(tv *TypedValue, target *HeapItemValue) bool {
 		}
 	}
 	return target == checkHIV
+}
+
+// harnessSeedsCur reports whether the frame that called the function being
+// installed into belongs to the testing stdlib. t.Run hands a crossing
+// sub-test closure the TOP-LEVEL test's cur on purpose
+// (gnovm/tests/stdlibs/testing/testing.gno), while the live crossing frame is
+// whichever helper the test called into before calling t.Run; that is a
+// deliberate seeding by trusted test infrastructure, not the stale capture
+// the identity check exists to catch. The testing package cannot be reached
+// from on-chain code, so this exemption is test-only.
+func (m *Machine) harnessSeedsCur() bool {
+	caller := m.PeekCallFrame(2) // 1 is the callee frame being installed
+	return caller != nil && caller.Func != nil && caller.Func.PkgPath == TestingBasePkgPath
+}
+
+// funcDisplayName renders a callee for the diagnostics users see. A function
+// literal has no Name, so fall back to its source location: that is exactly
+// the callback shape the identity panic is worded for, and an empty name
+// makes the panic unactionable.
+func funcDisplayName(fv *FuncValue) string {
+	if fv.Name != "" {
+		return fv.PkgPath + "." + string(fv.Name)
+	}
+	if fv.Source != nil {
+		loc := fv.Source.GetLocation()
+		return fmt.Sprintf("%s func literal at %s:%d", fv.PkgPath, loc.File, loc.Line)
+	}
+	return fv.PkgPath + ".<func literal>"
 }
 
 func (m *Machine) doOpCallNativeBody() {
