@@ -123,6 +123,7 @@
 
 		/* Tab-icon size, on the first line when the text wraps. */
 		& svg {
+			flex-shrink: 0;
 			width: var(--g-space-5);
 			height: var(--g-space-5);
 			margin-block-start: calc((1lh - var(--g-space-5)) / 2);
