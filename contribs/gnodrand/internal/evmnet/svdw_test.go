@@ -145,8 +145,8 @@ func hashToG1Ref(msg []byte) []byte {
 
 func TestHashToG1MatchesKyber(t *testing.T) {
 	msgs := [][]byte{{}, []byte("abc"), Message(1), Message(liveRound)}
-	for i := 0; i < 200; i++ {
-		s := sha256.Sum256([]byte(fmt.Sprint(i)))
+	for i := range 200 {
+		s := sha256.Sum256(fmt.Append(nil, i))
 		msgs = append(msgs, s[:])
 	}
 	for _, m := range msgs {
