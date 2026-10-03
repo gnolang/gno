@@ -36,7 +36,10 @@ type HeaderData struct {
 	Remote     string
 	Mode       ViewMode
 	Static     bool
-	Notice     RealmNotice
+	// Origin is the request scheme+host the AI prompts link to.
+	Origin string
+	AI     *AIMenu
+	Notice RealmNotice
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -165,6 +168,9 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	data.RealmPath = data.RealmURL.EncodeURL()
 	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
+	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
+		data.AI = NewAIMenu(data.Origin, data.RealmURL)
+	}
 	data.Links.General = nil
 
 	if mode.ShouldShowGeneralLinks() {
