@@ -24,8 +24,9 @@ header `X-Gnoweb-Realm-Notice: community` instead.
 
 The notice is the second row of the sticky header, under the path bar and the
 tabs and above the header's bottom border. It uses the header's own surface,
-grid and hairline, a circled info icon, and secondary text with the lead-in
-"Community realm" in the info colour; the row has `role="note"` and the
+grid and hairline, a circled info icon in the site's green, and secondary
+text with the lead-in "Community realm" in semibold primary text, not green,
+so it does not read as a link; the row has `role="note"` and the
 accessible name "Community realm notice", and the main landmark points at its
 text with `aria-describedby`, so a reader who skips the header still gets it.
 Being part of the sticky header, it stays in view while the user scrolls a

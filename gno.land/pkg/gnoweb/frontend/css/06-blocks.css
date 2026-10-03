@@ -92,8 +92,9 @@
 	}
 
 	/* Realm notice: second row on community pages, on the header's own
-	   surface and grid. Colour only on the icon and the lead-in. Its height
-	   is fixed by --s-header-notice-lines, so sticky offsets cannot drift. */
+	   surface and grid. Green only on the icon, so the lead-in does not read
+	   as a link. Its height is fixed by --s-header-notice-lines, so sticky
+	   offsets cannot drift. */
 	.b-header-notice {
 		block-size: var(--s-header-notice-block-size);
 		border-block-start: var(--s-border);
@@ -123,12 +124,12 @@
 		/* On the first line when the text wraps. */
 		& svg {
 			margin-block-start: calc((1lh - var(--g-space-4)) / 2);
-			color: var(--s-color-text-info);
+			color: var(--s-color-text-link);
 		}
 
 		& strong {
 			font-weight: var(--g-font-semibold);
-			color: var(--s-color-text-info);
+			color: var(--s-color-text-primary);
 		}
 
 		/* Operator text is inline markdown: keep links and code legible. */
