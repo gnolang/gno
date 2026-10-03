@@ -179,6 +179,11 @@ func (m *Machine) doOpEval() {
 		}
 	case *CallExpr:
 		m.PushOp(OpPrecall)
+		// Eval send last, so doOpPrecall pops it off the top.
+		if x.Send != nil {
+			m.PushExpr(x.Send)
+			m.PushOp(OpEval)
+		}
 		// Eval args.
 		args := x.Args
 		for i := len(args) - 1; 0 <= i; i-- {

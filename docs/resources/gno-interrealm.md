@@ -403,6 +403,20 @@ func main(cur realm) {
 }
 ```
 
+A cross-call may carry coins: `fn(cross(rlm, coins), ...)` with `coins` of type
+`chain.Coins`. The VM moves them from `rlm`'s address to the callee realm's as
+part of the call, and the callee reads exactly what this call delivered with
+`banker.CallSend()` — gno's `msg.value`. The receipt is bound to that call:
+same-realm `fn(cur)` calls see it, a further cross or a re-entrant call does
+not. The message `-send` of a MsgCall is the entry call's receipt.
+
+```go
+func Route(cur realm) {
+    got := banker.CallSend().AmountOf("ugnot")             // what the user sent me
+    wrap.Deposit(cross(cur, chain.Coins{{"ugnot", got}}))  // forward it on the cross
+}
+```
+
 When a crossing-function or crossing-method is called with `nil` as the first
 argument instead of `cross(rlm)` it is called a non-crossing-call; and no
 realm-context nor realm-storage-context change takes place.

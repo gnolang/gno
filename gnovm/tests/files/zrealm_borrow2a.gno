@@ -52,4 +52,4 @@ func main(cur realm) {
 // gno.land/r/borrow/zrealm_borrow2a.gno:16:26-31: use of builtin cross not in function call
 
 // TypeCheckError:
-// gno.land/r/borrow/zrealm_borrow2a.gno:16:26: cannot use cross (value of type func(rlm realm) realm) as crossrealm_b.realm value in argument to crossrealm_b.SetClosure: func(rlm realm) realm does not implement gno0p9.realm (missing method Address)
+// gno.land/r/borrow/zrealm_borrow2a.gno:16:26: cannot use cross (value of type func(rlm realm, coins ...any) realm) as crossrealm_b.realm value in argument to crossrealm_b.SetClosure: func(rlm realm, coins ...any) realm does not implement gno0p9.realm (missing method Address)
