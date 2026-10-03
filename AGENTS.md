@@ -74,7 +74,7 @@ make fmt                        # Format all code
 - Import paths: `gno.land/{p,r}/...` only.
 - No OS/network access.
 - Before writing Gno code, read the relevant docs in `docs/resources/`:
-  - `gno-interrealm.md` — cross-realm calls, `cross(rlm)`/`realm` semantics
+  - `gno-interrealm-v2.md` — cross-realm calls, `cross(rlm)`/`realm` semantics
   - `effective-gno.md` — idiomatic Gno patterns
   - `go-gno-compatibility.md` — what works and what doesn't vs Go
   - `gno-testing.md` — testing patterns for `.gno` files
@@ -101,7 +101,7 @@ make fmt                        # Format all code
 
 ## Gno Security Semantics
 
-- Before writing or reviewing any caller-authentication, access-control, or cross-realm code in Gno (`/r/`, `/p/`, `/e/` packages), read `docs/resources/gno-interrealm.md`. Do not pattern-match from Solidity `msg.sender` or other-language intuition.
+- Before writing or reviewing any caller-authentication, access-control, or cross-realm code in Gno (`/r/`, `/p/`, `/e/` packages), read `docs/resources/gno-interrealm-v2.md`. Do not pattern-match from Solidity `msg.sender` or other-language intuition.
 - For the complete AI-focused checklist (11 cases), read `docs/resources/gno-ai-contract-review.md` before reviewing any realm.
 - Reading one balance is `banker.GetCoin(addr, denom)`, not `GetCoins(addr).AmountOf(denom)`. `GetCoins` reads every denom the address holds, and since anyone can send any address a new denom without consent, its cost is set by a third party — on a caller-supplied address that is a permanent out-of-gas waiting to happen. Hoisting a repeated `GetCoins` out of a loop helps but does not fix it: the second call's per-key reads are cache hits and cost no gas, while its iterator walk is charged again, so what remains still scales with a denom count a third party controls. Two exceptions, both real: `GetCoin` panics on a malformed denom where `AmountOf` returns zero, so do not put an unvalidated `Render` path segment or query parameter through it; and if the surrounding function already called `GetCoins`, use its result rather than reading again. Both statements are about the realm-facing `chain/banker` API — the Go keeper's `GetCoin` and `std.Coins.AmountOf` behave the other way round, so do not carry a measurement from one side over to the other.
 - `runtime.PreviousRealm()` only shifts on explicit cross-calls (`fn(cross, ...)`) into crossing functions (`func fn(cur realm, ...){...}`). A `PreviousRealm().PkgPath() == "..."` check inside a non-crossing function does not identify the immediate caller and is a security bug.
