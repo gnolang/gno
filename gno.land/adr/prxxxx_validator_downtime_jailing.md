@@ -286,10 +286,14 @@ already reads v0 from Go: through the VM keeper, calling an exported function
 of a realm that exists today. `GetByAddr` is non-crossing, so it is an eval,
 not a `MsgCall`.
 
-Only the operator address itself can send `MsgUnjail`. The auth list that
+`MsgUnjail` is signed by the operator account. The auth list that
 `UpdateKeepRunning` and `UpdateSigningKey` honour lives inside the profile's
-`Authorizable` and is not exported, so a delegate on that list cannot unjail.
-Exposing it is a realm change and waits for a hardfork.
+`Authorizable` and is not exported, so it cannot be consulted from Go. The
+operator can instead delegate the message to an account session
+(`gno.land/adr/adr-001-session-subaccounts.md`) scoped to `liveness/unjail`,
+which requires adding that route type to the `validSessionRouteTypes`
+whitelist in `gno.land/pkg/gnoland/allow_paths.go`. Cosmos operators do the
+same with an `x/authz` grant for `MsgUnjail`.
 
 Unjail is an operator action, not a timer, on purpose. With no stake, an
 explicit transaction is the only evidence available that someone is at the
@@ -511,8 +515,9 @@ Negative / trade-offs:
 - A new sdk module and message type: amino registration, a `liveness` route,
   a `gnokey` subcommand, and a VM eval inside a Go handler, bounded by the
   sender's gas.
-- Only the operator address can unjail; auth-list delegates cannot until a
-  hardfork exposes the list.
+- `liveness/unjail` joins the `validSessionRouteTypes` whitelist, so unjail
+  can be delegated to a scoped session; valopers' auth list, which is not
+  readable from Go, does not apply to it.
 - Realms cannot see jail state until a hardfork; `v0.Render` shows jailed
   validators as members meanwhile.
 - The "active at H+2" meaning moves from `current` to `consensus`; `current`
@@ -547,10 +552,11 @@ Negative / trade-offs:
   `LastCommitInfo` across a window, the way `x/slashing` is tested. The txtar
   harness runs one in-memory validator and cannot make one go silent.
 - txtar for `MsgUnjail` end to end: wrong signer, operator without a profile,
-  `no validator is jailed`, the real `GetByAddr` lookup through the VM, and
-  `gnokey query liveness/jailed` returning an empty set. The accept path and
-  the `jailed until` refusal need a jail entry, which the txtar chain never
-  produces; they stay at the Go level.
+  `no validator is jailed`, the real `GetByAddr` lookup through the VM, a
+  session scoped to `liveness/unjail` that is accepted and one scoped to
+  `bank/send` that is refused, and `gnokey query liveness/jailed` returning
+  an empty set. The accept path and the `jailed until` refusal need a jail
+  entry, which the txtar chain never produces; they stay at the Go level.
 - A multi-validator devnet run with one node stopped, checking the
   `ValidatorJailed` event, the `consensus` set, and the unjail round trip;
   recorded in the PR, since CI cannot run it today.
