@@ -13,15 +13,33 @@ trust, per page or otherwise, and neither did the chain.
 
 ## Decision
 
-gnoweb shows a notice, in the warning tone, on every `/r/`, `/p/` and `/u/`
-page whose namespace is not under a trusted entry: render, `$source`, `$help`,
-`?state`, and the user profile, which renders that user's home realm. The
-actions page is where a user copies a transaction, so it is the page that
-matters most; the notice sits at the top and scrolls out of view under the
-sticky header on long pages, so a reminder next to the transaction form is a
-possible follow-up. The notice is rendered under the site-wide banner, never
-instead of it: an operator's emergency banner must stay visible on the very
-pages it warns about.
+gnoweb shows a notice on every `/r/`, `/p/` and `/u/` page whose namespace is
+not under a trusted entry: render, `$source`, `$help`, `?state`, and the user
+profile, which renders that user's home realm. The actions page is where a
+user copies a transaction, so it is the page that matters most.
+
+The notice is the second row of the sticky header, under the path bar and the
+tabs and above the header's bottom border. It uses the header's own surface,
+grid and hairline, a circled info icon, and secondary text with the lead-in
+"Community realm" in the info colour; the row has `role="note"` and the
+accessible name "Realm notice". Being part of the sticky header, it stays in
+view while the user scrolls a long page or fills a transaction form. Official
+pages render the header exactly as before, with no empty row. The site-wide
+banner and any network banner stay above the header, unchanged: an operator's
+emergency banner must stay visible on the very pages it warns about, and the
+notice never replaces it. Sticky elements below the header
+(`--s-header-offset`) and anchor jumps (`scroll-padding` on the root) move
+down by the row, sized for one line from `--lg` up and two below it, where the
+text can wrap; a longer operator text overlaps by the extra lines, which CSS
+alone cannot measure.
+
+The default text has a phone-length variant, "**Community realm**. Read the
+code before you send coins.", shown below `--md` without JavaScript (both
+variants are rendered, CSS shows one). At 375px it still wraps to two lines:
+the 16px gutters, the icon and its gap leave 319px, and the text needs 378px
+at the header's 14px. An operator's `GNOWEB_REALM_NOTICE_TEXT` has no short
+variant and shows as-is at every width, wrapping with `text-wrap: pretty`:
+deriving a short form from arbitrary markdown is not worth a second setting.
 
 The notice is on by default in the `gnoweb` binary (`-no-realm-notice` turns
 it off), with the trusted list in `-trusted-paths` and the wording in
@@ -85,6 +103,19 @@ without a release.
   Evolution.
 - **A markdown alert inside the rendered article.** Needs renderer changes and
   would not reach `$source`, `$help` or `?state` pages.
+
+Presentation options weighed for the notice itself:
+
+- **A full-width strip above the header**, in the warning or the info tone.
+  Reads as a second site-wide banner, competes with the operator's banner,
+  and scrolls away on long pages.
+- **A callout at the top of the content column.** Scrolls away, and its
+  position depends on each view's layout.
+- **A "Community" tag in the path bar, disclosing the sentence on demand.**
+  Hides the message behind an interaction and crowds the path bar on phones,
+  next to the network controls.
+- **A tinted header row.** Same structure as the decision, but a second
+  surface colour in the header added weight without adding meaning.
 
 ## Evolution
 
