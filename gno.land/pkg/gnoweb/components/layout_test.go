@@ -623,6 +623,89 @@ func TestIndexLayout_Banner(t *testing.T) {
 	}
 }
 
+func TestNewRealmNotice(t *testing.T) {
+	t.Parallel()
+
+	t.Run("text that renders to nothing is an error", func(t *testing.T) {
+		t.Parallel()
+		for _, text := range []string{"", "   ", "# heading only", "\nsecond line"} {
+			_, err := NewRealmNotice(text, "")
+			assert.Error(t, err, "%q", text)
+		}
+	})
+
+	t.Run("short is optional", func(t *testing.T) {
+		t.Parallel()
+		n, err := NewRealmNotice("Community realm", "")
+		require.NoError(t, err)
+		assert.True(t, n.Enabled())
+		assert.False(t, n.Short.Enabled())
+	})
+}
+
+// realmNoticeLayout renders a realm page with the given notice and banner.
+func realmNoticeLayout(t *testing.T, notice RealmNotice, banner string) string {
+	t.Helper()
+
+	bannerData, err := NewBannerData(banner, "")
+	require.NoError(t, err)
+	data := IndexData{
+		HeadData: HeadData{Title: "Test"},
+		Mode:     ViewModeRealm,
+		Banner:   bannerData,
+		Notice:   notice,
+		BodyView: &View{
+			Type:      "test-view",
+			Component: NewReaderComponent(strings.NewReader("testdata")),
+		},
+	}
+
+	var buf strings.Builder
+	require.NoError(t, IndexLayout(data).Render(&buf))
+	return buf.String()
+}
+
+func TestIndexLayout_RealmNotice(t *testing.T) {
+	t.Parallel()
+
+	const row = `<div class="b-header-notice" role="note" aria-label="Realm notice">`
+
+	t.Run("no notice leaves the header unchanged", func(t *testing.T) {
+		t.Parallel()
+		out := realmNoticeLayout(t, RealmNotice{}, "")
+		assert.NotContains(t, out, "b-header-notice")
+		assert.Contains(t, out, "</nav>\n</header>")
+	})
+
+	t.Run("notice is the header's second row, banner stays above", func(t *testing.T) {
+		t.Parallel()
+		notice, err := NewRealmNotice("**Community realm**, deployed by its author.", "**Community realm**.")
+		require.NoError(t, err)
+		out := realmNoticeLayout(t, notice, "Maintenance")
+
+		header := strings.Index(out, `<header class="b-header">`)
+		require.NotEqual(t, -1, header)
+		assert.Less(t, strings.Index(out, `class="b-banner"`), header, "banner must render above the header")
+		assert.Contains(t, out, "</nav>\n  "+row, "notice must follow the nav inside the header")
+		assert.Less(t, strings.Index(out, row), strings.Index(out, "<main"))
+		assert.Contains(t, out, `<svg class="c-icon u-icon-static" aria-hidden="true">`+"\n        "+`<use href="#ico-info-circle"></use>`)
+		assert.Contains(t, out, `<span class="short"><strong>Community realm</strong>.</span>`)
+		assert.Contains(t, out, `<span class="long"><strong>Community realm</strong>, deployed by its author.</span>`)
+	})
+
+	t.Run("text without short shows as-is at every width", func(t *testing.T) {
+		t.Parallel()
+		notice, err := NewRealmNotice("Operator <script>alert(1)</script> & co", "")
+		require.NoError(t, err)
+		out := realmNoticeLayout(t, notice, "")
+
+		assert.Contains(t, out, row)
+		assert.Contains(t, out, "<span>Operator <!-- raw HTML omitted -->alert(1)<!-- raw HTML omitted --> &amp; co</span>")
+		assert.NotContains(t, out, "<script>alert(1)")
+		assert.NotContains(t, out, `class="short"`)
+	})
+}
+
 // headFixture renders the index layout head with the given build version.
 func headFixture(t *testing.T, version string) string {
 	t.Helper()

@@ -2259,11 +2259,21 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 				assert.Equal(t, http.StatusBadRequest, rr.Code)
 				return
 			}
-			if tc.wantNotice {
-				assert.Contains(t, body, notice)
-			} else {
+			if !tc.wantNotice {
 				assert.NotContains(t, body, notice)
+				assert.NotContains(t, body, "b-header-notice")
+				return
 			}
+			// The notice is a row of the header; the operator banner stays above it.
+			header := strings.Index(body, `<header class="b-header">`)
+			row := strings.Index(body, `<div class="b-header-notice" role="note" aria-label="Realm notice">`)
+			require.NotEqual(t, -1, header)
+			require.NotEqual(t, -1, row)
+			assert.Less(t, strings.Index(body, banner), header)
+			assert.Less(t, header, row)
+			assert.Less(t, row, strings.Index(body, "<main"))
+			assert.Contains(t, body[row:], "<span>"+notice+"</span>")
+			assert.Equal(t, 1, strings.Count(body, notice), "the notice renders once, in the header row")
 		})
 	}
 }
