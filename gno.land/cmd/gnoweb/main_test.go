@@ -75,6 +75,15 @@ func TestSetupWeb(t *testing.T) {
 
 	_, err = setupWeb(&opts, []string{}, stdio)
 	require.NoError(t, err)
+
+	opts.trustedProxies = "10.0.0.0/8, 192.0.2.1"
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.NoError(t, err)
+
+	// A bad entry fails at startup instead of quietly trusting less.
+	opts.trustedProxies = "10.0.0.0/8,not-an-ip"
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.ErrorContains(t, err, "not-an-ip")
 }
 
 // A realm notice text that renders to nothing must refuse to start, unless the
