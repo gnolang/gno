@@ -98,8 +98,9 @@ func main() {
 Environment variables:
   GNOWEB_BANNER_TEXT        Banner content (supports inline markdown). Max 400 chars.
   GNOWEB_BANNER_URL         Optional link for the banner (requires GNOWEB_BANNER_TEXT).
-  GNOWEB_REALM_NOTICE_TEXT  Notice shown on packages outside -trusted-paths (inline markdown). Max 400 chars.
-                            Unset or empty keeps the built-in text; a value that renders to nothing
+  GNOWEB_REALM_NOTICE_TEXT  Notice shown on package and user pages outside -trusted-paths (inline markdown,
+                            no images). Max 400 chars, shown on up to two lines.
+                            Unset or empty keeps the built-in text; a value with no visible text
                             refuses to start. Disable the notice with -no-realm-notice.`,
 		},
 		&cfg,
@@ -155,14 +156,15 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.noRealmNotice,
 		"no-realm-notice",
 		defaultWebOptions.noRealmNotice,
-		"disable the notice shown on pages of packages outside -trusted-paths",
+		"disable the notice shown on package and user pages outside -trusted-paths",
 	)
 
 	fs.StringVar(
 		&c.trustedPaths,
 		"trusted-paths",
 		defaultWebOptions.trustedPaths,
-		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice",
+		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice; "+
+			"the default list assumes namespace enforcement as on mainnet (r/sys/names enabled), set it on other chains",
 	)
 
 	fs.StringVar(

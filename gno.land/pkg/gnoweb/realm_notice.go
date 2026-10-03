@@ -24,6 +24,22 @@ func newTrustedPaths(entries []string) trustedPaths {
 	return set
 }
 
+// trustedPathProblem says why an operator-typed entry cannot match the
+// package it names, or "" if it can. Such an entry is kept and trusts no
+// intended package, so the notice fails closed.
+func trustedPathProblem(entry string) string {
+	e := strings.Trim(entry, " /")
+	switch {
+	case strings.Contains(e, "."):
+		return "contains a dot: drop the domain"
+	case strings.HasPrefix(e, "r/"), strings.HasPrefix(e, "p/"), strings.HasPrefix(e, "u/"):
+		return "starts with r/, p/ or u/: drop the prefix"
+	case e != strings.ToLower(e):
+		return "has uppercase letters: package paths are lowercase"
+	}
+	return ""
+}
+
 // contains reports whether pkg or one of its parent paths is trusted.
 func (t trustedPaths) contains(pkg string) bool {
 	pkg = strings.TrimSuffix(pkg, "/")

@@ -134,6 +134,12 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		return nil, fmt.Errorf("config validate error: %w", err)
 	}
 
+	for _, e := range cfg.TrustedPaths {
+		if why := trustedPathProblem(e); why != "" {
+			logger.Warn("trusted path entry will not match the package it names", "entry", e, "reason", why)
+		}
+	}
+
 	h := &HTTPHandler{
 		Client:   cfg.ClientAdapter,
 		Static:   cfg.Meta,
