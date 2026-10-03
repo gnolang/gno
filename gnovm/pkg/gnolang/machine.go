@@ -1668,6 +1668,16 @@ const (
 	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
 	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
 	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
+	// Type-declaration group validation (typecycle.go), at preprocess.
+	// Fits from BenchmarkTypeDeclGroup on the M5 dev box
+	// (cmd/calibrate/typedeclgroup_bench_m5_arm64.txt, machine factor 2.1):
+	// site 106, node 5.0, edge 25.7, embed step 25.8, map-key node 1.8
+	// reference-ns, rounded up so every grid shape is a floor.
+	OpCPUSlopeTypeDeclSite   = 230 // typeDeclGraph: per declaration indexed and visited
+	OpCPUSlopeTypeDepNode    = 11  // collectTypeDeps: per type-expression node visited
+	OpCPUSlopeTypeDepEdge    = 55  // findCycle: per edge examined
+	OpCPUSlopeEmbedDepthStep = 55  // embedDepth: per type visited or field scanned
+	OpCPUSlopeMapKeyNode     = 4   // uncomparableMapKey: per type node visited
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
