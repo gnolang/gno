@@ -155,6 +155,10 @@
 	--s-divider-strong: 1px solid
 		color-mix(in srgb, currentColor 14%, transparent);
 
+	/* Where sticky elements below the header stick: the header's height from
+	   --lg up. */
+	--s-header-offset: var(--g-space-14);
+
 	/* Logo / gnome */
 	--s-logo-hat: var(--g-color-green-600, #226c57);
 	--s-logo-beard: var(--g-color-gray-300, #999999);

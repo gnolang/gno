@@ -1163,7 +1163,7 @@
 
 	& > div {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		padding-block-start: var(--g-space-2);
 
 		/* Guard: hide the sidebar wrapper when its `<nav>` holds
@@ -1181,10 +1181,10 @@
 	}
 
 	.inner {
-		/* Wrapper is `sticky; top: --g-space-14`, so a full `100vh`
+		/* Wrapper is `sticky; top: --s-header-offset`, so a full `100vh`
 		   pushes the tail below the fold with no way to scroll to it.
 		   Subtract the sticky offset + a bottom breathing margin. */
-		max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+		max-height: calc(100vh - var(--s-header-offset) - var(--g-space-4));
 		overflow-y: auto;
 		/* Scrollbar hidden via the `u-no-scrollbar` utility the sidebar
 		   templates already carry — wheel/touch scrolling stays
@@ -2890,7 +2890,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		}
 		.b-sidebar .inner {
 			/* keep the sticky sidebar's bottom reachable below the header */
-			max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+			max-height: calc(100vh - var(--s-header-offset) - var(--g-space-4));
 		}
 		.b-content-header {
 			justify-content: flex-start;
@@ -3014,7 +3014,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 
 	@media (--md) {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		/* Above the code blocks' absolute .srcactions (g-z-1) so their Copy/source
 		   buttons scroll under the sticky bar instead of over it. */
 		z-index: var(--g-z-2);
