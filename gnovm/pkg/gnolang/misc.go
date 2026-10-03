@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 	"unsafe"
@@ -196,6 +197,29 @@ func DerivePkgCryptoAddr(pkgPath string) crypto.Address {
 	}
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
+}
+
+// DeriveObjectCryptoAddr derives an object's address from its ObjectID, the way
+// DerivePkgCryptoAddr derives one from a package path. The "objectid:" prefix
+// keeps the two preimage spaces apart, and neither may collide with a pubkey
+// address.
+//
+// Both halves of the ID must be stamped. PkgID is set by the allocator at
+// creation but NewTime only when the owning realm persists the object, so an
+// object that was never persisted names nothing and has no address. Callers
+// should use ObjectID.IsFinalized to check rather than relying on the panic.
+//
+// The preimage layout is consensus state from the first address that reaches an
+// event, a registry or a balance: changing the prefix, the separators, the
+// PkgID encoding or the NewTime semantics moves every object address in
+// existence and needs a migration. Preimage shape taken from #6139 so the two
+// approaches stay interchangeable.
+func DeriveObjectCryptoAddr(oid ObjectID) crypto.Address {
+	if !oid.IsFinalized() || oid.PkgID.IsZero() {
+		panic("objectID is not fully stamped: " + oid.String())
+	}
+
+	return crypto.AddressFromPreimage([]byte("objectid:" + oid.PkgID.String() + ":" + strconv.FormatUint(oid.NewTime, 10)))
 }
 
 func DerivePkgBech32Addr(pkgPath string) crypto.Bech32Address {
