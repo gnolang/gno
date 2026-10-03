@@ -626,21 +626,48 @@ func TestIndexLayout_Banner(t *testing.T) {
 func TestNewRealmNotice(t *testing.T) {
 	t.Parallel()
 
-	t.Run("text that renders to nothing is an error", func(t *testing.T) {
-		t.Parallel()
-		for _, text := range []string{"", "   ", "# heading only", "\nsecond line"} {
-			_, err := NewRealmNotice(text, "")
-			assert.Error(t, err, "%q", text)
-		}
-	})
+	cases := []struct {
+		name, text, short string
+		wantErr           bool
+	}{
+		{name: "empty", text: "", wantErr: true},
+		{name: "spaces", text: "   ", wantErr: true},
+		{name: "heading only", text: "# heading only", wantErr: true},
+		{name: "first line empty", text: "\nsecond line", wantErr: true},
+		{name: "raw html only", text: "<b></b>", wantErr: true},
+		{name: "zero-width space", text: "\u200b", wantErr: true},
+		{name: "zero-width entity", text: "&#8203;", wantErr: true},
+		{name: "nbsp entity", text: "&nbsp;", wantErr: true},
+		{name: "braille blank", text: "\u2800", wantErr: true},
+		{name: "empty link", text: "[](https://example.com)", wantErr: true},
+		{name: "image only", text: "![warning](https://example.com/w.png)", wantErr: true},
+		{name: "text", text: "Community realm"},
+		{name: "text and short", text: "Community realm, long", short: "Community realm"},
+		{name: "short renders nothing", text: "Community realm", short: "<b></b>", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			n, err := NewRealmNotice(tc.text, tc.short)
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, n.Enabled())
+			assert.Equal(t, tc.short != "", n.Short.Enabled())
+		})
+	}
+}
 
-	t.Run("short is optional", func(t *testing.T) {
-		t.Parallel()
-		n, err := NewRealmNotice("Community realm", "")
-		require.NoError(t, err)
-		assert.True(t, n.Enabled())
-		assert.False(t, n.Short.Enabled())
-	})
+func TestNewRealmNotice_DropsImages(t *testing.T) {
+	t.Parallel()
+
+	n, err := NewRealmNotice("Read ![logo](https://example.com/l.png) the code", "")
+	require.NoError(t, err)
+	var buf strings.Builder
+	require.NoError(t, n.Text.Render(&buf))
+	assert.Equal(t, "Read  the code", buf.String())
 }
 
 // realmNoticeLayout renders a realm page with the given notice and banner.

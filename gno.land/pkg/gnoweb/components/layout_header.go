@@ -2,6 +2,7 @@ package components
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -51,22 +52,32 @@ type RealmNotice struct {
 func (n RealmNotice) Enabled() bool { return n.Text.Enabled() }
 
 // NewRealmNotice renders text and short as inline markdown, the same way as
-// NewBannerData; short may be empty. Unlike the opt-in banner, a text that
-// renders to nothing is an error, so the notice cannot switch itself off on
-// a typo.
+// NewBannerData but without images; short may be empty. Unlike the opt-in
+// banner, a text that shows no visible character is an error, so the notice
+// cannot switch itself off on a typo or be blanked on purpose.
 func NewRealmNotice(text, short string) (RealmNotice, error) {
-	t, err := NewBannerData(text, "")
+	t, err := newNoticeText(text)
 	if err != nil {
 		return RealmNotice{}, err
 	}
-	if !t.Enabled() {
-		return RealmNotice{}, errors.New("renders to nothing")
+	n := RealmNotice{Text: t}
+	if short != "" {
+		if n.Short, err = newNoticeText(short); err != nil {
+			return RealmNotice{}, fmt.Errorf("short variant: %w", err)
+		}
 	}
-	s, err := NewBannerData(short, "")
+	return n, nil
+}
+
+func newNoticeText(markdown string) (BannerData, error) {
+	b, visible, err := renderInline(markdown, "", true)
 	if err != nil {
-		return RealmNotice{}, err
+		return BannerData{}, err
 	}
-	return RealmNotice{Text: t, Short: s}, nil
+	if !visible {
+		return BannerData{}, errors.New("renders no visible text")
+	}
+	return b, nil
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {
