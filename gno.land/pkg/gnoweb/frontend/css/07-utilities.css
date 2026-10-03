@@ -37,7 +37,8 @@
 
 /* The skip link's target: <main>, or on rail views the content past the rail.
    Clears the sticky .b-header, which would otherwise cover its top: two
-   rows below --lg, one from --lg up. */
+   rows below --lg, one from --lg up. The realm-notice row adds its own
+   scroll-padding (06-blocks). */
 #main-content {
 	scroll-margin-block-start: var(--g-space-28);
 

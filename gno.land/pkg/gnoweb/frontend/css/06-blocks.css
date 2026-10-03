@@ -53,6 +53,11 @@
 .b-header {
 	position: sticky;
 	top: 0;
+
+	@media (--short-viewport) {
+		position: relative;
+	}
+
 	background-color: var(--s-color-bg-base);
 	border-block-end: var(--s-border);
 	z-index: var(--g-z-max);
@@ -86,6 +91,77 @@
 		grid-column: span 10;
 	}
 
+	/* Realm notice: second row on community pages, on the header's own
+	   surface and grid. Green only on the icon, so the lead-in does not read
+	   as a link. Its height is fixed by --s-header-notice-lines, so sticky
+	   offsets cannot drift. */
+	.b-header-notice {
+		block-size: var(--s-header-notice-block-size);
+		border-block-start: var(--s-border);
+		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-100);
+		line-height: var(--g-line-height-normal);
+
+		& > p {
+			display: flex;
+			align-items: flex-start;
+			gap: var(--g-space-2);
+			padding-block: var(--g-space-2);
+		}
+
+		/* Clamped to the reserved lines; a long URL breaks rather than
+		   widening the page. */
+		& > p > span {
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: var(--s-header-notice-lines);
+			overflow: hidden;
+			min-width: 0;
+			overflow-wrap: anywhere;
+			text-wrap: pretty;
+		}
+
+		/* Tab-icon size, on the first line when the text wraps. */
+		& svg {
+			flex-shrink: 0;
+			width: var(--g-space-5);
+			height: var(--g-space-5);
+			margin-block-start: calc((1lh - var(--g-space-5)) / 2);
+			color: var(--s-color-text-link);
+		}
+
+		& strong {
+			font-weight: var(--g-font-semibold);
+			color: var(--s-color-text-primary);
+		}
+
+		/* Operator text is inline markdown: keep links and code legible. */
+		& a {
+			color: var(--s-color-text-link);
+			text-decoration: underline;
+		}
+
+		& code {
+			padding: var(--g-space-0-5) var(--g-space-1);
+			border-radius: var(--s-rounded-sm);
+			background-color: var(--s-color-bg-surface-secondary);
+		}
+
+		/* The default text has a short variant up to --lg; operator text
+		   has none. */
+		& .short {
+			@media (--lg) {
+				display: none;
+			}
+		}
+
+		& .long {
+			@media not all and (--lg) {
+				display: none;
+			}
+		}
+	}
+
 	.user-picture {
 		border-radius: var(--s-rounded);
 		border: var(--s-border-secondary);
@@ -98,6 +174,39 @@
 			width: 100%;
 			height: 100%;
 		}
+	}
+}
+
+/* Pages with the realm-notice row carry data-realm-notice-lines on <html>,
+   set by the server: 1 for the default text, 2 for operator text. The row's
+   height derives from it, and sticky elements and anchor jumps below the
+   header move down by that height. */
+[data-realm-notice-lines] {
+	--s-header-notice-lines: 1;
+	--s-header-notice-line: calc(
+		var(--g-font-size-100) *
+		var(--g-line-height-normal)
+	);
+	--s-header-notice-block-size: calc(
+		var(--g-space-px) +
+		2 *
+		var(--g-space-2) +
+		var(--s-header-notice-lines) *
+		var(--s-header-notice-line)
+	);
+	--s-header-notice-size: var(--s-header-notice-block-size);
+	scroll-padding-block-start: var(--s-header-notice-size);
+}
+
+[data-realm-notice-lines="2"] {
+	--s-header-notice-lines: 2;
+}
+
+/* The header does not stick on short viewports: nothing to clear. */
+@media (--short-viewport) {
+	:root {
+		--s-header-size: 0px;
+		--s-header-notice-size: 0px;
 	}
 }
 
@@ -1153,7 +1262,7 @@
 
 	& > div {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		padding-block-start: var(--g-space-2);
 
 		/* Guard: hide the sidebar wrapper when its `<nav>` holds
@@ -1171,10 +1280,10 @@
 	}
 
 	.inner {
-		/* Wrapper is `sticky; top: --g-space-14`, so a full `100vh`
+		/* Wrapper is `sticky; top: --s-header-offset`, so a full `100vh`
 		   pushes the tail below the fold with no way to scroll to it.
 		   Subtract the sticky offset + a bottom breathing margin. */
-		max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+		max-height: calc(100vh - var(--s-header-offset) - var(--g-space-4));
 		overflow-y: auto;
 		/* Scrollbar hidden via the `u-no-scrollbar` utility the sidebar
 		   templates already carry — wheel/touch scrolling stays
@@ -2880,7 +2989,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		}
 		.b-sidebar .inner {
 			/* keep the sticky sidebar's bottom reachable below the header */
-			max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+			max-height: calc(100vh - var(--s-header-offset) - var(--g-space-4));
 		}
 		.b-content-header {
 			justify-content: flex-start;
@@ -3004,7 +3113,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 
 	@media (--md) {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		/* Above the code blocks' absolute .srcactions (g-z-1) so their Copy/source
 		   buttons scroll under the sticky bar instead of over it. */
 		z-index: var(--g-z-2);

@@ -46,6 +46,7 @@ type StaticMetadata struct {
 	AnalyticsHostname string
 	AssetsVersion     string
 	Banner            components.BannerData
+	RealmNotice       components.RealmNotice
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -83,7 +84,9 @@ type HTTPHandlerConfig struct {
 	ClientAdapter ClientAdapter
 	Renderer      Renderer
 	Aliases       map[string]AliasTarget
-	Timeout       time.Duration
+	// TrustedPaths — see AppConfig field of the same name.
+	TrustedPaths []string
+	Timeout      time.Duration
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
 	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
 	// burst. ADR-003 §Resource bounds.
@@ -118,6 +121,7 @@ type HTTPHandler struct {
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
 	Timeout  time.Duration
+	trusted  trustedPaths
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
@@ -130,6 +134,12 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		return nil, fmt.Errorf("config validate error: %w", err)
 	}
 
+	for _, e := range cfg.TrustedPaths {
+		if why := trustedPathProblem(e); why != "" {
+			logger.Warn("trusted path entry will not match the package it names", "entry", e, "reason", why)
+		}
+	}
+
 	h := &HTTPHandler{
 		Client:   cfg.ClientAdapter,
 		Static:   cfg.Meta,
@@ -137,6 +147,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
+		trusted:  newTrustedPaths(cfg.TrustedPaths),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
@@ -228,11 +239,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Banner: h.Static.Banner,
 	}
 
-	// Apply GnowebPath alias rewrite BEFORE parsing — every downstream
-	// dispatch (state, source, package view) needs to see the resolved
-	// path. Legacy did this inside prepareIndexBodyView, which the state
-	// branch below short-circuits, so an alias-mapped state URL would
-	// previously route to the unmapped path and 404.
+	// Resolve GnowebPath aliases once, BEFORE parsing: every downstream
+	// dispatch (state, source, package view) and the realm notice must see
+	// the path that is rendered. Aliases do not chain.
 	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
 		r.URL.Path = alias.Value
 	}
@@ -315,6 +324,10 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
 	if bodyView.Type == components.MarkdownViewType {
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		// The body stays verbatim; the header carries the notice instead.
+		if indexData.HeaderData.Notice.Enabled() {
+			w.Header().Set(RealmNoticeHeader, "community")
+		}
 		// Render() output reaches the client unsanitized here, so pin the type:
 		// without this a browser may sniff the body back into HTML and run it.
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -394,12 +407,8 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	ctx := r.Context()
 
+	// Get already resolved GnowebPath aliases; only StaticMarkdown is left.
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
-
-	// If the alias target exists and is a gnoweb path, replace the URL path with it.
-	if aliasExists && aliasTarget.Kind == GnowebPath {
-		r.URL.Path = aliasTarget.Value
-	}
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
@@ -738,6 +747,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
 		Origin:    gnourl.Origin,
+		Community: h.showRealmNotice(gnourl),
 	})
 }
 
@@ -1094,11 +1104,11 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 	return status, components.StatusErrorComponent(msg)
 }
 
-// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData
-// from the parsed realm URL. Shared by the state-page wire-in and the
-// generic prepareIndexBodyView path so the global header (breadcrumb +
-// Content/State/Source/Actions tabs) always renders against the same
-// realm. Mode must be set on indexData before calling.
+// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData,
+// realm notice included, from the parsed realm URL. Shared by the state-page
+// wire-in and the generic prepareIndexBodyView path so the global header
+// (breadcrumb + Content/State/Source/Actions tabs) always renders against the
+// same realm. Mode must be set on indexData before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -1107,6 +1117,9 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
+	}
+	if h.showRealmNotice(gnourl) {
+		indexData.HeaderData.Notice = h.Static.RealmNotice
 	}
 }
 

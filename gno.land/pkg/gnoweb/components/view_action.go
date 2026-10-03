@@ -32,6 +32,9 @@ type HelpData struct {
 	Doc         Component
 	Domain      string
 	Origin      string // request scheme+host; makes help URLs shareable
+	// Community is set on packages outside the trusted paths, the pages that
+	// show the realm notice.
+	Community bool
 }
 
 type HelpTocData struct {
