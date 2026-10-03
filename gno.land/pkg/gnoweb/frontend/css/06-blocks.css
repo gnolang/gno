@@ -49,16 +49,6 @@
 	}
 }
 
-.b-banner--warning {
-	background-color: var(--s-color-bg-warning-weak);
-	border-block-end: 1px solid var(--s-color-border-warning);
-	color: var(--s-color-text-warning);
-
-	& code {
-		background-color: color-mix(in srgb, currentColor 12%, transparent);
-	}
-}
-
 /* ===== HEADER COMPONENT ===== */
 .b-header {
 	position: sticky;
@@ -96,6 +86,57 @@
 		grid-column: span 10;
 	}
 
+	/* Realm notice: second row on community pages, on the header's own
+	   surface and grid. Colour only on the icon and the lead-in. */
+	.b-header-notice {
+		border-block-start: var(--s-border);
+		color: var(--s-color-text-secondary);
+
+		& > p {
+			display: flex;
+			align-items: center;
+			gap: var(--g-space-2);
+			padding-block: var(--g-space-2);
+			text-wrap: pretty;
+		}
+
+		& svg {
+			color: var(--s-color-text-info);
+		}
+
+		& strong {
+			font-weight: var(--g-font-semibold);
+			color: var(--s-color-text-info);
+		}
+
+		/* Operator text is inline markdown: keep links and code legible. */
+		& a {
+			color: var(--s-color-text-link);
+			text-decoration: underline;
+		}
+
+		& code {
+			padding: var(--g-space-0-5) var(--g-space-1);
+			border-radius: var(--s-rounded-sm);
+			background-color: var(--s-color-bg-surface-secondary);
+		}
+
+		/* The default text has a phone-length variant; operator text has none. */
+		& .short {
+			@media (--md) {
+				display: none;
+			}
+		}
+
+		& .long {
+			display: none;
+
+			@media (--md) {
+				display: inline;
+			}
+		}
+	}
+
 	.user-picture {
 		border-radius: var(--s-rounded);
 		border: var(--s-border-secondary);
@@ -108,6 +149,19 @@
 			width: 100%;
 			height: 100%;
 		}
+	}
+}
+
+/* The realm-notice row makes the sticky header taller: sticky elements and
+   anchor jumps below the header move down by the row, sized for two lines
+   below --lg where the text can wrap, one from --lg up. */
+:root:has(.b-header-notice) {
+	--s-header-notice-size: var(--g-space-14);
+	--s-header-offset: calc(var(--g-space-14) + var(--s-header-notice-size));
+	scroll-padding-block-start: var(--s-header-notice-size);
+
+	@media (--lg) {
+		--s-header-notice-size: var(--g-space-9);
 	}
 }
 

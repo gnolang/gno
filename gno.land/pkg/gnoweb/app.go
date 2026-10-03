@@ -59,9 +59,9 @@ type AppConfig struct {
 	Domain string
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
-	// RealmNotice, if set, is shown under Banner on pages of packages outside
-	// TrustedPaths.
-	RealmNotice components.BannerData
+	// RealmNotice, if set, is shown as the header's second row on pages of
+	// packages outside TrustedPaths.
+	RealmNotice components.RealmNotice
 	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
 	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice.
 	TrustedPaths []string

@@ -2214,9 +2214,9 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 	// A chained alias must not render a package the notice was not decided on.
 	config.Aliases["/chain"] = gnoweb.AliasTarget{Value: "/chain-next", Kind: gnoweb.GnowebPath}
 	config.Aliases["/chain-next"] = gnoweb.AliasTarget{Value: "/r/nym-sunny000/app", Kind: gnoweb.GnowebPath}
-	noticeData, err := components.NewBannerData(notice, "")
+	var err error
+	config.Meta.RealmNotice, err = components.NewRealmNotice(notice, "")
 	require.NoError(t, err)
-	config.Meta.RealmNotice = noticeData.AsWarning()
 	config.Meta.Banner, err = components.NewBannerData(banner, "")
 	require.NoError(t, err)
 	config.TrustedPaths = []string{"gnoland", "nt"}

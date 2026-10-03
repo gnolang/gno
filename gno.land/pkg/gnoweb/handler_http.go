@@ -46,7 +46,7 @@ type StaticMetadata struct {
 	AnalyticsHostname string
 	AssetsVersion     string
 	Banner            components.BannerData
-	RealmNotice       components.BannerData
+	RealmNotice       components.RealmNotice
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect

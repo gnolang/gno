@@ -1,6 +1,7 @@
 package components
 
 import (
+	"errors"
 	"net/url"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -34,6 +35,36 @@ type HeaderData struct {
 	Remote     string
 	Mode       ViewMode
 	Static     bool
+	Notice     RealmNotice
+}
+
+// RealmNotice is the header row shown on pages of community packages.
+type RealmNotice struct {
+	// Text is shown at every width, unless Short is set.
+	Text BannerData
+	// Short, if set, replaces Text below the md breakpoint.
+	Short BannerData
+}
+
+func (n RealmNotice) Enabled() bool { return n.Text.Enabled() }
+
+// NewRealmNotice renders text and short as inline markdown, the same way as
+// NewBannerData; short may be empty. Unlike the opt-in banner, a text that
+// renders to nothing is an error, so the notice cannot switch itself off on
+// a typo.
+func NewRealmNotice(text, short string) (RealmNotice, error) {
+	t, err := NewBannerData(text, "")
+	if err != nil {
+		return RealmNotice{}, err
+	}
+	if !t.Enabled() {
+		return RealmNotice{}, errors.New("renders to nothing")
+	}
+	s, err := NewBannerData(short, "")
+	if err != nil {
+		return RealmNotice{}, err
+	}
+	return RealmNotice{Text: t, Short: s}, nil
 }
 
 func StaticHeaderGeneralLinks() []HeaderLink {

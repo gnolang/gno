@@ -1,9 +1,7 @@
 package main
 
 import (
-	"cmp"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"maps"
@@ -68,7 +66,13 @@ type webCfg struct {
 // whose deploy key belongs to a party it vouches for; see the realm notice ADR.
 const defaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
 
-const defaultRealmNoticeText = "Community realm, deployed by its author. Read the code before you interact or send coins."
+// The default realm notice, and the variant shown below the md breakpoint so
+// it fits one line on a phone. An operator's GNOWEB_REALM_NOTICE_TEXT has no
+// short variant and shows as-is at every width.
+const (
+	defaultRealmNoticeText  = "**Community realm**, deployed by its author. Read the code before you interact or send coins."
+	defaultRealmNoticeShort = "**Community realm**. Read the code before you send coins."
+)
 
 var defaultWebOptions = webCfg{
 	chainid:       "dev",
@@ -281,18 +285,18 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	}
 
 	if !cfg.noRealmNotice {
-		text := cmp.Or(os.Getenv("GNOWEB_REALM_NOTICE_TEXT"), defaultRealmNoticeText)
-		notice, err := components.NewBannerData(text, "")
-		if err == nil && !notice.Enabled() {
-			err = errors.New("renders to nothing")
+		text, short := defaultRealmNoticeText, defaultRealmNoticeShort
+		if env := os.Getenv("GNOWEB_REALM_NOTICE_TEXT"); env != "" {
+			text, short = env, ""
 		}
+		notice, err := components.NewRealmNotice(text, short)
 		if err != nil {
 			return nil, fmt.Errorf("invalid GNOWEB_REALM_NOTICE_TEXT: %w", err)
 		}
 		if cfg.html {
 			logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
 		}
-		appcfg.RealmNotice = notice.AsWarning()
+		appcfg.RealmNotice = notice
 		appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
 	}
 

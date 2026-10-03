@@ -12,8 +12,17 @@
        (see View.SkipTargetInBody), or the next Tab would land in the rail. */}}
   <a href="#main-content" class="u-skip-link">Skip to content</a>
   {{ template "ui/icons" -}}
-  {{ template "ui/banner" .IndexData.Banner -}}
-  {{ template "ui/banner" .IndexData.Notice -}}
+  {{ if .IndexData.Banner.Enabled -}}
+  {{ if .IndexData.Banner.HasURL -}}
+  <a href="{{ .IndexData.Banner.URL }}" target="_blank" rel="noopener noreferrer" class="b-banner">
+    <span>{{ render .IndexData.Banner }}</span>
+  </a>
+  {{ else -}}
+  <div class="b-banner">
+    <span>{{ render .IndexData.Banner }}</span>
+  </div>
+  {{ end -}}
+  {{ end -}}
   {{ template "layouts/header" .IndexData.HeaderData -}}
   <main {{ if not .IndexData.BodyView.SkipTargetInBody }}id="main-content" tabindex="-1" {{ end }}{{ if .IsDevmodView }}class="is-dev-mode" {{ end }}>
     <section class="c-center">

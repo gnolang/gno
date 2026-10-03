@@ -156,7 +156,7 @@
 		color-mix(in srgb, currentColor 14%, transparent);
 
 	/* Where sticky elements below the header stick: the header's height from
-	   --lg up. */
+	   --lg up. Grows by the realm-notice row on community pages (06-blocks). */
 	--s-header-offset: var(--g-space-14);
 
 	/* Logo / gnome */

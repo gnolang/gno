@@ -96,6 +96,21 @@ LAYOUT - Header component
       {{ end }}
     </div>
   </nav>
+  {{- if .Notice.Enabled }}
+  <div class="b-header-notice" role="note" aria-label="Realm notice">
+    <p class="c-center">
+      <svg class="c-icon u-icon-static" aria-hidden="true">
+        <use href="#ico-info-circle"></use>
+      </svg>
+      {{- if .Notice.Short.Enabled }}
+      <span class="short">{{ render .Notice.Short }}</span>
+      <span class="long">{{ render .Notice.Text }}</span>
+      {{- else }}
+      <span>{{ render .Notice.Text }}</span>
+      {{- end }}
+    </p>
+  </div>
+  {{- end }}
 </header>
 {{ end }}
 
