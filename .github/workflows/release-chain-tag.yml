@@ -51,6 +51,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+      id-token: write # to sign the provenance attestation (keyless, sigstore)
+      attestations: write # to store it on the repository
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -122,6 +124,15 @@ jobs:
             fi
             echo "${name}: ${got}"
           done
+
+      # Provenance: who built each binary, from which commit, with which
+      # workflow. Operators verify with `gh attestation verify <file> --repo
+      # gnolang/gno` (RELEASING.md, "Signing and provenance"). The release
+      # binaries are not reproducible from the tag (no -trimpath, see above),
+      # so this attestation is the operator's anchor besides the checksums.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

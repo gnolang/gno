@@ -97,8 +97,9 @@ runs, and the two are not the same thing:
   decided per release and written in the tag message. A merge that touches
   consensus code is refused by `cut-release.sh` unless `--allow-merge` says the
   operator knows it ships everything `master` had. Between releases the branch
-  tip is the latest tag, plus at most a documentation commit, so an operator
-  can check it out blindly.
+  tip is the latest tag, plus at most documentation or release-tooling commits
+  that change no node code (the ledger, `VALIDATOR.md`, these workflows,
+  `cut-release.sh`), so an operator can check it out blindly.
 - **Where this ends up.** Merging `master` is the natural default while mainnet
   tracks it closely. The day `master` carries work mainnet must not ship yet,
   the default flips to cherry-picking and the branch becomes a maintained
@@ -155,6 +156,27 @@ reproducible from the tag and generally lacks the `-ldflags` that give it a
 version at all. Note that `-ldflags` is only recorded in `go version -m` output
 for builds without `-trimpath`, so its absence there is not on its own evidence
 of a hand-built binary; the binary's own `version` output is.
+
+### Signing and provenance
+
+The binaries `release / chain-tag` attaches carry a build-provenance
+attestation (which workflow built them, from which commit and tag), and the
+images `release / docker` pushes are signed keylessly by digest. Both rely on
+the workflow's identity, not on a key anyone holds. To verify what you are
+about to run:
+
+```sh
+gh attestation verify gnoland_linux_amd64 --repo gnolang/gno
+cosign verify ghcr.io/gnolang/gno/gnoland:v1.6.0 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github.com/gnolang/gno/\.github/workflows/release-docker\.yml@refs/tags/v'
+```
+
+The release binaries are not reproducible from the tag (they are built
+without `-trimpath`, so `gnoland` can find `GNOROOT`), which is why the
+attestation, the checksums and the ledger's recorded digests are the
+operator's anchors. `ci / upgrades-ledger-digests` compares every recorded
+digest with the registry weekly and fails on the first drift.
 
 ### Rehearse on the testnet first
 

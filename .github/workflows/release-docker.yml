@@ -39,6 +39,7 @@ jobs:
       contents: read
       actions: write # kept in case type=gha is re-enabled; not required by type=registry
       packages: write # to push images to ghcr.io
+      id-token: write # to sign the images (keyless, sigstore)
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -112,6 +113,7 @@ jobs:
             org.opencontainers.image.authors=Gno Core Team
 
       - name: Bake build and push
+        id: bake
         uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         env:
           BUILD_VERSION: ${{ steps.build_version.outputs.version }}
@@ -131,3 +133,16 @@ jobs:
             *.cache-from=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }}
             *.cache-to=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }},mode=max
             *.context=.
+
+      # Keyless signature on the pushed image, by digest, so `cosign verify`
+      # can tie ghcr.io/gnolang/gno/<tool>:vX.Y.Z to this workflow and tag
+      # (RELEASING.md, "Signing and provenance").
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign the image
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+          DIGEST: ${{ fromJSON(steps.bake.outputs.metadata)[matrix.image]['containerimage.digest'] }}
+        run: |
+          [ -n "${DIGEST}" ] || { echo "::error::bake reported no digest for ${IMAGE}"; exit 1; }
+          cosign sign --yes "${IMAGE}@${DIGEST}"
