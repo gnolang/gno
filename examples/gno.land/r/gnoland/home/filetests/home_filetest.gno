@@ -62,7 +62,7 @@ func main() {
 // - [Gnoscan](https://gnoscan.io)
 // - [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
 // - [Staging](https://staging.gno.land/)
-// - [Testnet 12](https://test12.testnets.gno.land/)
+// - [Latest testnet](https://latest.testnets.gno.land/)
 // - [Faucet Hub](https://faucet.gno.land)
 //
 // </gno-columns>
