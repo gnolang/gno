@@ -31,9 +31,9 @@ Specifies the **Gno language version**. Currently, only version `"0.9"` is suppo
 
 #### `replace` (coming soon)
 
-Used for **local development and testing**. When set, this field allows local
-replacement of the package, but will cause `addpkg` to **fail on-chain**. Useful
-for overriding dependencies during local testing.
+Declares that an import should resolve somewhere else, for local development. A
+module carrying a `replace` cannot be deployed: `addpkg` refuses it with
+`development packages are not allowed`.
 
 #### `addpkg`
 
@@ -45,6 +45,10 @@ added. It is not intended for manual use off-chain.
   Primarily used in monorepo setups. If not specified, it's automatically set to
   the address that initiated the `addpkg` transaction.
 - **`height`**: the block height at which the module was added.
+- **`max_deposit`**: the [storage deposit](storage-deposit.md) ceiling the
+  submitter declared, or the chain default at the time. Written only on a chain
+  that stores a package first and runs it later, so the public networks leave it
+  empty.
 
 #### `draft`  
 
