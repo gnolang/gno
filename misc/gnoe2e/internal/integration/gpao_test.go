@@ -164,11 +164,12 @@ func TestGpaoStartFailsTheScriptWhenTheBuildFails(t *testing.T) {
 func TestGpaoArgsInjectDefaults(t *testing.T) {
 	cfg := GpaoConfig{ChainID: "test-e2e", Remote: "tcp://127.0.0.1:26657", GnoRoot: "/gno"}
 
-	args := gpaoArgs(cfg, "127.0.0.1:9999", nil)
+	args := gpaoArgs(cfg, "127.0.0.1:9999", "/work/gpao-data", nil)
 
 	require.Equal(t, []string{
 		"-chain-id", "test-e2e",
 		"-status-listen", "127.0.0.1:9999",
+		"-data-dir", "/work/gpao-data",
 		"-gno-root", "/gno",
 		"-remote", "tcp://127.0.0.1:26657",
 	}, args)
@@ -177,7 +178,7 @@ func TestGpaoArgsInjectDefaults(t *testing.T) {
 func TestGpaoScriptRemoteWins(t *testing.T) {
 	cfg := GpaoConfig{ChainID: "test-e2e", Remote: "tcp://default:26657"}
 
-	args := gpaoArgs(cfg, "127.0.0.1:9999", []string{"-remote", "tcp://chosen:26657"})
+	args := gpaoArgs(cfg, "127.0.0.1:9999", "/work/gpao-data", []string{"-remote", "tcp://chosen:26657"})
 
 	require.NotContains(t, args, "tcp://default:26657",
 		"a script that names a node must not also get the default")
@@ -187,7 +188,7 @@ func TestGpaoScriptRemoteWins(t *testing.T) {
 func TestGpaoScriptRemoteEqualsFormWins(t *testing.T) {
 	cfg := GpaoConfig{ChainID: "test-e2e", Remote: "tcp://default:26657"}
 
-	args := gpaoArgs(cfg, "127.0.0.1:9999", []string{"-remote=tcp://chosen:26657"})
+	args := gpaoArgs(cfg, "127.0.0.1:9999", "/work/gpao-data", []string{"-remote=tcp://chosen:26657"})
 
 	require.NotContains(t, args, "tcp://default:26657",
 		"the -flag=value form must also suppress the injected default")
@@ -211,6 +212,40 @@ func TestGpaoStartFailsTheScriptWhenNoBinaryProviderIsConfigured(t *testing.T) {
 
 	require.True(t, adapter.Failed, "a run with no binary provider fails the script")
 	require.Contains(t, logged.String(), "gpao: no binary provider")
+}
+
+// TestGpaoStartRefusesAScriptOwnDataDir: the oracle's state directory is the
+// harness's to place, and it places it under $WORK so a cursor cannot outlive
+// the script that wrote it. A scenario naming -data-dir fails rather than being
+// silently overridden -- a flag a scenario set and that did nothing is worse
+// than a scenario that will not run.
+//
+// Fails whatever neg says, like the other guards in start: a "! gpao start"
+// standing on a rejected flag would pass while asserting nothing about the
+// oracle.
+func TestGpaoStartRefusesAScriptOwnDataDir(t *testing.T) {
+	// Two forms, not three: namesFlag is shared rather than per-flag, and
+	// TestGpaoScriptRemoteEqualsFormWins already pins its -flag=value handling.
+	// What is worth a case each is the guard itself and the guard surviving
+	// negation.
+	for _, line := range []string{
+		"gpao start -data-dir /tmp/elsewhere\n",
+		"! gpao start --data-dir /tmp/elsewhere\n",
+	} {
+		logger, logged := bufferedTestLogger(t)
+		adapter := NewTestscriptT(logger, false)
+		cfg := GpaoConfig{Binary: fakeGpaoBinary, ChainID: "test-e2e"}
+
+		testscript.RunT(adapter, testscript.Params{
+			Files: []string{writeScript(t, line)},
+			Cmds: map[string]func(*testscript.TestScript, bool, []string){
+				"gpao": GpaoTSCmd(cfg),
+			},
+		})
+
+		require.True(t, adapter.Failed, "%q must fail the script", line)
+		require.Contains(t, logged.String(), "-data-dir is assigned by the harness")
+	}
 }
 
 // TestStopDaemonKeepsWhatTheOracleSaidOnItsWayDown pins the order teardown
