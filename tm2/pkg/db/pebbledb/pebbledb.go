@@ -40,8 +40,14 @@ type PebbleDB struct {
 	db *pebble.DB
 }
 
+// NewPebbleDB opens a database with DefaultPebbleOptions. This is the
+// constructor the db registry uses, so it is what every node store runs on.
 func NewPebbleDB(name string, dir string) (*PebbleDB, error) {
-	return NewPebbleDBWithOpts(name, dir, &pebble.Options{})
+	opts := DefaultPebbleOptions()
+	// Open takes its own reference on the cache; drop ours so that closing
+	// the database releases it.
+	defer opts.Cache.Unref()
+	return NewPebbleDBWithOpts(name, dir, opts)
 }
 
 func NewPebbleDBWithOpts(name string, dir string, o *pebble.Options) (*PebbleDB, error) {

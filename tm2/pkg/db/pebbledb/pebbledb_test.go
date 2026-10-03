@@ -36,6 +36,34 @@ func TestPebbleDBBackend(t *testing.T) {
 	assert.True(t, ok)
 }
 
+// The registry opens every node store through NewPebbleDB, so the tuning in
+// DefaultPebbleOptions only reaches production if NewPebbleDB applies it.
+func TestNewPebbleDBUsesDefaultOptions(t *testing.T) {
+	t.Parallel()
+
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	opened, err := db.NewDB(name, db.PebbleDBBackend, t.TempDir())
+	require.NoError(t, err)
+	pdb := opened.(*PebbleDB)
+	defer pdb.Close()
+
+	for i := range 1000 {
+		require.NoError(t, pdb.Set(fmt.Appendf(nil, "key-%04d", i), []byte("value")))
+	}
+	require.NoError(t, pdb.db.Flush())
+
+	// A point lookup of an absent key inside the table's range must be
+	// answered by the bloom filter, without reading a data block.
+	for i := range 100 {
+		v, err := pdb.Get(fmt.Appendf(nil, "key-%04d-absent", i))
+		require.NoError(t, err)
+		require.Nil(t, v)
+	}
+
+	m := pdb.db.Metrics()
+	assert.Positive(t, m.Filter.Hits, "absent keys should be filtered by the bloom filter")
+}
+
 func BenchmarkPebbleDBRandomReadsWrites(b *testing.B) {
 	name := fmt.Sprintf("test_%x", internal.RandStr(12))
 	db, err := NewPebbleDB(name, b.TempDir())
