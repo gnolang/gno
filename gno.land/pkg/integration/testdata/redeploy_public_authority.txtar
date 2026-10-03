@@ -1,0 +1,236 @@
+# A public realm that names an [upgrade] authority can be redeployed by that
+# address, importers included.
+#
+# `[upgrade] authority` in gnomod.toml makes a public path redeployable by one
+# address, with `version` stepping as for a private realm: globals are carried,
+# types keep their identity, migrate() runs. Importers compile package
+# selectors to block slots and method selectors to method indices, so a public
+# redeploy may only append; moving a declaration is refused. An immutable
+# realm may not import an upgradeable one. Dropping the authority freezes the
+# realm for good.
+
+adduser stranger
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/vault_v1 -pkgpath gno.land/r/demo/vault -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+
+# An immutable realm may not import it.
+! gnokey maketx addpkg -pkgdir $WORK/immut -pkgpath gno.land/r/demo/immut -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'is upgradeable and cannot be imported by an immutable realm'
+
+# A mutable one may, and may keep its values.
+gnokey maketx addpkg -pkgdir $WORK/client -pkgpath gno.land/r/demo/client -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/client -func Deposit -args 5 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/client.Last()'
+stdout '"receipt for 5 \(v1\)"'
+gnokey query vm/qeval --data 'gno.land/r/demo/vault.Total()'
+stdout '5 int64'
+
+# Only the authority may redeploy.
+! gnokey maketx addpkg -pkgdir $WORK/vault_v2 -pkgpath gno.land/r/demo/vault -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test stranger
+stderr 'only the upgrade authority'
+
+# A redeploy that moves a declaration is refused: the client compiled against
+# the slot order.
+! gnokey maketx addpkg -pkgdir $WORK/vault_v2_moved -pkgpath gno.land/r/demo/vault -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: declaration Receipt moved or was removed'
+
+# Version 2 appends a method and a function, changes Deposit, and migrates.
+gnokey maketx addpkg -pkgdir $WORK/vault_v2 -pkgpath gno.land/r/demo/vault -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/vault.Total()'
+stdout '5 int64'
+gnokey query vm/qeval --data 'gno.land/r/demo/vault.Count()'
+stdout '1 int'
+
+# The client, deployed against v1, keeps working and sees v2's behaviour.
+gnokey maketx call -pkgpath gno.land/r/demo/client -func Deposit -args 5 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/vault.Total()'
+stdout '15 int64'
+gnokey query vm/qeval --data 'gno.land/r/demo/client.Last()'
+stdout '"receipt for 10 \(v2\)"'
+# The receipt v1 persisted in the client answers with v2's method.
+gnokey query vm/qeval --data 'gno.land/r/demo/client.First()'
+stdout '"receipt for 5 \(v2\)"'
+
+gnoland restart
+stdout 'node restarted successfully'
+gnokey query vm/qeval --data 'gno.land/r/demo/client.First()'
+stdout '"receipt for 5 \(v2\)"'
+
+# Version 3 drops the authority: the realm is now immutable, for good.
+gnokey maketx addpkg -pkgdir $WORK/vault_v3_frozen -pkgpath gno.land/r/demo/vault -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/vault.Total()'
+stdout '15 int64'
+! gnokey maketx addpkg -pkgdir $WORK/vault_v4 -pkgpath gno.land/r/demo/vault -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'package already exists: gno.land/r/demo/vault'
+
+-- vault_v1/gnomod.toml --
+module = "gno.land/r/demo/vault"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- vault_v1/vault.gno --
+package vault
+
+import "strconv"
+
+type Receipt struct{ Amount int64 }
+
+func (r *Receipt) String() string { return "receipt for " + strconv.FormatInt(r.Amount, 10) + " (v1)" }
+
+var total int64
+
+func Deposit(cur realm, n int64) *Receipt {
+	total += n
+	return &Receipt{Amount: n}
+}
+
+func Total() int64 { return total }
+
+-- vault_v2/gnomod.toml --
+module = "gno.land/r/demo/vault"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- vault_v2/vault.gno --
+package vault
+
+import "strconv"
+
+type Receipt struct{ Amount int64 }
+
+func (r *Receipt) String() string { return "receipt for " + strconv.FormatInt(r.Amount, 10) + " (v2)" }
+func (r *Receipt) Doubled() int64 { return r.Amount * 2 } // appended
+
+var total int64
+
+// Deposit now credits double.
+func Deposit(cur realm, n int64) *Receipt {
+	n *= 2
+	total += n
+	count++
+	return &Receipt{Amount: n}
+}
+
+func Total() int64 { return total }
+
+var count int // appended
+
+func migrate() { count = 1 } // one deposit happened under v1
+
+func Count() int { return count } // appended
+
+-- vault_v2_moved/gnomod.toml --
+module = "gno.land/r/demo/vault"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- vault_v2_moved/vault.gno --
+package vault
+
+import "strconv"
+
+var total int64 // moved ahead of Receipt
+
+type Receipt struct{ Amount int64 }
+
+func (r *Receipt) String() string { return "receipt for " + strconv.FormatInt(r.Amount, 10) + " (v2)" }
+
+func Deposit(cur realm, n int64) *Receipt {
+	total += n
+	return &Receipt{Amount: n}
+}
+
+func Total() int64 { return total }
+
+-- vault_v3_frozen/gnomod.toml --
+module = "gno.land/r/demo/vault"
+gno = "0.9"
+version = 3
+
+-- vault_v3_frozen/vault.gno --
+package vault
+
+import "strconv"
+
+type Receipt struct{ Amount int64 }
+
+func (r *Receipt) String() string { return "receipt for " + strconv.FormatInt(r.Amount, 10) + " (v2)" }
+func (r *Receipt) Doubled() int64 { return r.Amount * 2 }
+
+var total int64
+
+func Deposit(cur realm, n int64) *Receipt {
+	n *= 2
+	total += n
+	count++
+	return &Receipt{Amount: n}
+}
+
+func Total() int64 { return total }
+
+var count int
+
+func Count() int { return count }
+
+-- vault_v4/gnomod.toml --
+module = "gno.land/r/demo/vault"
+gno = "0.9"
+version = 4
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- vault_v4/vault.gno --
+package vault
+
+func Total() int64 { return 0 }
+
+-- immut/gnomod.toml --
+module = "gno.land/r/demo/immut"
+gno = "0.9"
+
+-- immut/immut.gno --
+package immut
+
+import "gno.land/r/demo/vault"
+
+func Total() int64 { return vault.Total() }
+
+-- client/gnomod.toml --
+module = "gno.land/r/demo/client"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- client/client.gno --
+package client
+
+import "gno.land/r/demo/vault"
+
+var receipts []*vault.Receipt
+
+func Deposit(cur realm, n int64) {
+	receipts = append(receipts, vault.Deposit(cross(cur), n))
+}
+
+func First() string { return receipts[0].String() }
+func Last() string  { return receipts[len(receipts)-1].String() }

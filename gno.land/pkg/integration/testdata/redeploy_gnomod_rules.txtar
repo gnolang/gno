@@ -1,0 +1,175 @@
+# The gnomod.toml rules that gate a versioned redeploy, and how a live private
+# realm moves between the unversioned and the versioned redeploy.
+#
+# `version` needs a way to redeploy (private, or an [upgrade] authority), an
+# authority needs a version and a valid address, and both need a realm path.
+# Over a live private realm: no version on either side is the old redeploy,
+# which starts the globals over; version = 1 over an unversioned realm opts
+# in and carries them; after that the version must step by one, and the path
+# cannot become public.
+
+gnoland start
+
+# Refused on a fresh deploy.
+! gnokey maketx addpkg -pkgdir $WORK/version_only -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'version in gnomod.toml requires private = true or an \[upgrade\] authority'
+! gnokey maketx addpkg -pkgdir $WORK/authority_only -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'an \[upgrade\] authority in gnomod.toml requires version'
+! gnokey maketx addpkg -pkgdir $WORK/bad_authority -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'invalid \[upgrade\] authority in gnomod.toml'
+! gnokey maketx addpkg -pkgdir $WORK/negative -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'version in gnomod.toml must not be negative'
+! gnokey maketx addpkg -pkgdir $WORK/pure_upgradeable -pkgpath gno.land/p/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'private or upgradeable packages must be realm packages'
+
+# A live private realm without a version.
+gnokey maketx addpkg -pkgdir $WORK/unversioned -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/rules -func Hit -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/rules -func Hit -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/demo/rules.Hits()'
+stdout '2 int'
+
+# The unversioned redeploy starts the globals over and reruns init().
+gnokey maketx addpkg -pkgdir $WORK/unversioned -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/rules.Hits()'
+stdout '0 int'
+gnokey maketx call -pkgpath gno.land/r/demo/rules -func Hit -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/rules -func Hit -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/rules -func Hit -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/demo/rules.Hits()'
+stdout '3 int'
+
+# version = 1 over it opts in: the globals are carried, migrate() runs.
+gnokey maketx addpkg -pkgdir $WORK/v1 -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/rules.Hits()'
+stdout '3 int'
+gnokey query vm/qeval --data 'gno.land/r/demo/rules.Tag()'
+stdout '"v1 migrated"'
+
+# From here the version must step by one, and the realm stays private.
+! gnokey maketx addpkg -pkgdir $WORK/unversioned -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'needs version = 2 in gnomod.toml, got 0'
+! gnokey maketx addpkg -pkgdir $WORK/v1 -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'needs version = 2 in gnomod.toml, got 1'
+! gnokey maketx addpkg -pkgdir $WORK/v2_public -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'a private package cannot be overridden by a public package'
+gnokey query vm/qeval --data 'gno.land/r/demo/rules.Hits()'
+stdout '3 int'
+gnokey query vm/qeval --data 'gno.land/r/demo/rules.Tag()'
+stdout '"v1 migrated"'
+
+-- version_only/gnomod.toml --
+module = "gno.land/r/demo/rules"
+gno = "0.9"
+version = 1
+
+-- version_only/rules.gno --
+package rules
+
+func Tag() string { return "version only" }
+
+-- authority_only/gnomod.toml --
+module = "gno.land/r/demo/rules"
+gno = "0.9"
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- authority_only/rules.gno --
+package rules
+
+func Tag() string { return "authority only" }
+
+-- bad_authority/gnomod.toml --
+module = "gno.land/r/demo/rules"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "not-an-address"
+
+-- bad_authority/rules.gno --
+package rules
+
+func Tag() string { return "bad authority" }
+
+-- negative/gnomod.toml --
+module = "gno.land/r/demo/rules"
+gno = "0.9"
+private = true
+version = -1
+
+-- negative/rules.gno --
+package rules
+
+func Tag() string { return "negative" }
+
+-- pure_upgradeable/gnomod.toml --
+module = "gno.land/p/demo/rules"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- pure_upgradeable/rules.gno --
+package rules
+
+func Tag() string { return "pure" }
+
+-- unversioned/gnomod.toml --
+module = "gno.land/r/demo/rules"
+gno = "0.9"
+private = true
+
+-- unversioned/rules.gno --
+package rules
+
+var hits int
+
+func Hit(cur realm) { hits++ }
+func Hits() int     { return hits }
+func Tag() string   { return "unversioned" }
+
+-- v1/gnomod.toml --
+module = "gno.land/r/demo/rules"
+gno = "0.9"
+private = true
+version = 1
+
+-- v1/rules.gno --
+package rules
+
+var (
+	hits int
+	tag  string
+)
+
+func migrate() { tag = "v1 migrated" }
+
+func Hit(cur realm) { hits++ }
+func Hits() int     { return hits }
+func Tag() string   { return tag }
+
+-- v2_public/gnomod.toml --
+module = "gno.land/r/demo/rules"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- v2_public/rules.gno --
+package rules
+
+var (
+	hits int
+	tag  string
+)
+
+func Hit(cur realm) { hits++ }
+func Hits() int     { return hits }
+func Tag() string   { return tag }

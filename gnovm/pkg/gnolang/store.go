@@ -64,6 +64,7 @@ type Store interface {
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
+	ReplaceType(Type) // over what the store holds: a redeploy's definition
 	GetPackageNode(pkgPath string) *PackageNode
 	GetBlockNode(Location) BlockNode
 	GetBlockNodeSafe(Location) BlockNode
@@ -103,7 +104,8 @@ type Store interface {
 	// is skipped. Each path is yielded once, at its highest index, which is
 	// where its current content was stored.
 	IterMemPackage() <-chan *std.MemPackage
-	ClearObjectCache() // run before processing a message
+	ReplaceCachePackage(*PackageValue) // SetCachePackage for a redeploy
+	ClearObjectCache()                 // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                              // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine)          // for native functions
@@ -450,6 +452,12 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 		panic(fmt.Sprintf("package %s already exists in cache", pv.PkgPath))
 	}
 	ds.cacheObjects[oid] = pv
+}
+
+// ReplaceCachePackage is SetCachePackage for a redeploy, where the package
+// value it replaces may have been read in the same transaction.
+func (ds *defaultStore) ReplaceCachePackage(pv *PackageValue) {
+	ds.cacheObjects[ObjectIDFromPkgPath(pv.PkgPath)] = pv
 }
 
 // Some atomic operation. Consults cacheRealms before reading from
@@ -884,18 +892,30 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 }
 
 func (ds *defaultStore) SetType(tt Type) {
-	var size int
-	if bm.Enabled {
-		old := bm.StartStore(bm.StoreSetType)
-		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
-	}
 	tid := tt.TypeID()
 	// Idempotent: if this TypeID is already known in-cache, do nothing.
 	// The cache is populated either by a previous SetType (which also
 	// persisted to backend) or by loading from backend on GetType — either
-	// way the backend already has the canonical entry.
+	// way the backend already has the canonical entry. A redeploy of the
+	// owning package is the exception, and uses ReplaceType.
 	if _, exists := ds.cacheTypes[tid]; exists {
 		return
+	}
+	ds.setType(tid, tt)
+}
+
+// ReplaceType persists tt over whatever the store holds under its TypeID, so
+// objects loaded afterwards resolve to the redeployed definition, methods
+// included.
+func (ds *defaultStore) ReplaceType(tt Type) {
+	ds.setType(tt.TypeID(), tt)
+}
+
+func (ds *defaultStore) setType(tid TypeID, tt Type) {
+	var size int
+	if bm.Enabled {
+		old := bm.StartStore(bm.StoreSetType)
+		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
 	}
 	// save type to backend.
 	if ds.baseStore != nil {

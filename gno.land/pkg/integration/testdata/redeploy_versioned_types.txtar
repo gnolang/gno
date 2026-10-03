@@ -1,0 +1,337 @@
+# What a versioned redeploy of a private realm may change about its types and
+# globals, and what it refuses.
+#
+# The carry keys globals by name and static type and declared types by name
+# and underlying shape, because the realm's own persisted objects still carry
+# both. So a redeploy may add types, add globals, change or drop methods, and
+# drop globals; it may not drop or reshape a type, retype a global, or turn a
+# global into something that is not a variable. A carried global ignores its
+# new initializer, init() does not run, every migrate() does. Each refusal
+# leaves the realm as the previous version wrote it.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/v1 -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/shapes -func Add -args alice -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/shapes -func Add -args bob -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Count()'
+stdout '2 int'
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Describe()'
+stdout '"bob v1"'
+
+# Refused: a declared type is dropped. Objects of it are still persisted.
+! gnokey maketx addpkg -pkgdir $WORK/v2_type_removed -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: type Kind was removed; persisted values may still have it'
+
+# Refused: renaming a type is dropping it.
+! gnokey maketx addpkg -pkgdir $WORK/v2_type_renamed -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: type Entry was removed'
+
+# Refused: a struct gains a field. Persisted values would no longer match
+# their type; appended fields are a follow-up.
+! gnokey maketx addpkg -pkgdir $WORK/v2_field_appended -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: type Entry changed its underlying type'
+
+# Refused: an interface gains a method. Same rule, same message.
+! gnokey maketx addpkg -pkgdir $WORK/v2_iface_changed -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: type Store changed its underlying type'
+
+# Refused: a global becomes a constant.
+! gnokey maketx addpkg -pkgdir $WORK/v2_var_to_const -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: counter is no longer a variable'
+
+# Refused: one declaration names a carried global and a new one.
+! gnokey maketx addpkg -pkgdir $WORK/v2_mixed_decl -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'mixes carried and new globals'
+
+# Every refusal left version 1 serving.
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Tag()'
+stdout '"v1"'
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Count()'
+stdout '2 int'
+
+# Permitted, all at once: a new type and a new global; a method changed and a
+# method dropped on a carried type; a carried global with an initializer; an
+# init() and two migrate() functions.
+gnokey maketx addpkg -pkgdir $WORK/v2_ok -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Tag()'
+stdout '"v2"'
+# The initializer `counter = 100` was skipped: the carried value wins.
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Count()'
+stdout '2 int'
+# The new global started at zero.
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Hits()'
+stdout '0 int'
+# Both migrate() ran, in order; init() did not.
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Log()'
+stdout '"ab"'
+# The object v1 persisted dispatches v2's method body.
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Describe()'
+stdout '"bob v2"'
+
+gnoland restart
+stdout 'node restarted successfully'
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Describe()'
+stdout '"bob v2"'
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Log()'
+stdout '"ab"'
+
+# Refused: once versioned, a realm cannot go back to the unversioned redeploy.
+! gnokey maketx addpkg -pkgdir $WORK/v3_unversioned -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'needs version = 3 in gnomod.toml, got 0'
+gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Tag()'
+stdout '"v2"'
+
+-- v1/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 1
+
+-- v1/shapes.gno --
+package shapes
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+func (e *Entry) Describe() string { return e.Name + " v1" }
+func (e *Entry) Old() int         { return e.N }
+
+type Kind int
+
+type Store interface{ Get() int }
+
+var (
+	counter int
+	entries []*Entry
+	kind    Kind
+)
+
+func Add(cur realm, name string) {
+	counter++
+	entries = append(entries, &Entry{Name: name, N: counter})
+}
+
+func Count() int       { return counter }
+func Describe() string { return entries[len(entries)-1].Describe() }
+func Tag() string      { return "v1" }
+
+-- v2_type_removed/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_type_removed/shapes.gno --
+package shapes
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+type Store interface{ Get() int }
+
+var (
+	counter int
+	entries []*Entry
+)
+
+func Tag() string { return "v2" }
+
+-- v2_type_renamed/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_type_renamed/shapes.gno --
+package shapes
+
+type Item struct {
+	Name string
+	N    int
+}
+
+type Kind int
+
+type Store interface{ Get() int }
+
+var (
+	counter int
+	entries []*Item
+	kind    Kind
+)
+
+func Tag() string { return "v2" }
+
+-- v2_field_appended/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_field_appended/shapes.gno --
+package shapes
+
+type Entry struct {
+	Name string
+	N    int
+	Note string
+}
+
+type Kind int
+
+type Store interface{ Get() int }
+
+var (
+	counter int
+	entries []*Entry
+	kind    Kind
+)
+
+func Tag() string { return "v2" }
+
+-- v2_iface_changed/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_iface_changed/shapes.gno --
+package shapes
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+type Kind int
+
+type Store interface {
+	Get() int
+	Set(int)
+}
+
+var (
+	counter int
+	entries []*Entry
+	kind    Kind
+)
+
+func Tag() string { return "v2" }
+
+-- v2_var_to_const/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_var_to_const/shapes.gno --
+package shapes
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+type Kind int
+
+type Store interface{ Get() int }
+
+const counter = 0
+
+var (
+	entries []*Entry
+	kind    Kind
+)
+
+func Tag() string { return "v2" }
+
+-- v2_mixed_decl/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_mixed_decl/shapes.gno --
+package shapes
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+type Kind int
+
+type Store interface{ Get() int }
+
+var counter, hits int
+
+var (
+	entries []*Entry
+	kind    Kind
+)
+
+func Tag() string { return "v2" }
+
+-- v2_ok/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_ok/shapes.gno --
+package shapes
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+// Describe changed its body; Old is gone: a private realm owes importers nothing.
+func (e *Entry) Describe() string { return e.Name + " v2" }
+
+type Kind int
+
+type Store interface{ Get() int }
+
+type Note string // new type
+
+var (
+	counter = 100 // carried: the initializer is skipped
+	entries []*Entry
+	kind    Kind
+	hits    int    // new: starts at zero
+	log     string // new
+)
+
+func init()    { log += "init" } // does not run on an upgrade
+func migrate() { log += "a" }
+func migrate() { log += "b" }
+
+func Add(cur realm, name string) {
+	counter++
+	hits++
+	entries = append(entries, &Entry{Name: name, N: counter})
+}
+
+func Count() int       { return counter }
+func Hits() int        { return hits }
+func Log() string      { return log }
+func Describe() string { return entries[len(entries)-1].Describe() }
+func Tag() string      { return "v2" }
+
+-- v3_unversioned/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+
+-- v3_unversioned/shapes.gno --
+package shapes
+
+func Tag() string { return "v3" }

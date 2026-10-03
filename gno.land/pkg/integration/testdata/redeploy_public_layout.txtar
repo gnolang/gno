@@ -1,0 +1,518 @@
+# What a public redeploy may change about its layout, and what it refuses.
+#
+# Importers compile `pkg.X` to a slot in the package block and `v.M()` to an
+# index in the type's method list, so a public realm may only append: no
+# declaration or method may be removed, moved or retyped, whether or not any
+# importer uses it. init, migrate and blank funcs are reserved after every
+# other name, so adding or dropping them moves nothing. An immutable realm
+# cannot gain an authority later, and an upgradeable one cannot turn private.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/board_v1 -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx addpkg -pkgdir $WORK/reader_v1 -pkgpath gno.land/r/demo/reader -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/demo/reader -func Publish -args hello -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Summary()'
+stdout '"hello/5/1/10"'
+
+# Refused: a function is dropped. Unused by the reader, but some importer may
+# hold its slot.
+! gnokey maketx addpkg -pkgdir $WORK/board_v2_func_removed -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: declaration Unused moved or was removed'
+
+# Refused: a global is dropped. A private realm may; a public one may not.
+! gnokey maketx addpkg -pkgdir $WORK/board_v2_var_removed -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: declaration hits moved or was removed'
+
+# Refused: a function changes signature in place.
+! gnokey maketx addpkg -pkgdir $WORK/board_v2_func_retyped -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: declaration Count changed type from'
+
+# Refused: a constant changes type.
+! gnokey maketx addpkg -pkgdir $WORK/board_v2_const_retyped -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: declaration Limit changed type from'
+
+# Refused: a method is dropped.
+! gnokey maketx addpkg -pkgdir $WORK/board_v2_method_removed -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: method Len moved or was removed'
+
+# Refused: two methods swap places.
+! gnokey maketx addpkg -pkgdir $WORK/board_v2_method_moved -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: method Body moved or was removed'
+
+# Refused: a method changes signature.
+! gnokey maketx addpkg -pkgdir $WORK/board_v2_method_retyped -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: method Body changed type from'
+
+# Refused: an upgradeable realm cannot turn private.
+! gnokey maketx addpkg -pkgdir $WORK/board_v2_private -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'an upgradeable package cannot become private'
+
+# Every refusal left version 1 serving the reader.
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Summary()'
+stdout '"hello/5/1/10"'
+gnokey query vm/qeval --data 'gno.land/r/demo/board.Tag()'
+stdout '"v1"'
+
+# Permitted: append a method, a function, a global and a type; drop init();
+# add migrate() and a blank func. No slot the reader compiled against moves.
+gnokey maketx addpkg -pkgdir $WORK/board_v2_ok -pkgpath gno.land/r/demo/board -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/board.Tag()'
+stdout '"v2"'
+gnokey query vm/qeval --data 'gno.land/r/demo/board.Views()'
+stdout '1 int'
+# The reader, compiled against v1, still resolves every selector; the post it
+# persisted answers with v2's Body.
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Summary()'
+stdout '"HELLO/5/1/10"'
+gnokey maketx call -pkgpath gno.land/r/demo/reader -func Publish -args again -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Summary()'
+stdout '"HELLO/5/2/10"'
+
+# The reader redeploys against v2 to use what v2 appended.
+gnokey maketx addpkg -pkgdir $WORK/reader_v2 -pkgpath gno.land/r/demo/reader -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Summary()'
+stdout '"HELLO/5/2/10 last=AGAIN"'
+
+gnoland restart
+stdout 'node restarted successfully'
+gnokey query vm/qeval --data 'gno.land/r/demo/reader.Summary()'
+stdout '"HELLO/5/2/10 last=AGAIN"'
+
+# An immutable realm cannot gain an authority later: the path is permanent.
+gnokey maketx addpkg -pkgdir $WORK/fixed_v1 -pkgpath gno.land/r/demo/fixed -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx addpkg -pkgdir $WORK/fixed_v2 -pkgpath gno.land/r/demo/fixed -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'package already exists: gno.land/r/demo/fixed'
+
+-- board_v1/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v1/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Body() string { return p.Text }
+func (p *Post) Len() int      { return len(p.Text) }
+
+const Limit = 10
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Unused() int { return hits }
+func Tag() string { return "v1" }
+
+func init() {}
+
+-- board_v2_func_removed/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v2_func_removed/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Body() string { return p.Text }
+func (p *Post) Len() int      { return len(p.Text) }
+
+const Limit = 10
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Tag() string { return "v2" }
+
+-- board_v2_var_removed/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v2_var_removed/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Body() string { return p.Text }
+func (p *Post) Len() int      { return len(p.Text) }
+
+const Limit = 10
+
+var posts []*Post
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Unused() int { return 0 }
+func Tag() string { return "v2" }
+
+-- board_v2_func_retyped/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v2_func_retyped/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Body() string { return p.Text }
+func (p *Post) Len() int      { return len(p.Text) }
+
+const Limit = 10
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int64 { return int64(len(posts)) }
+func Unused() int  { return hits }
+func Tag() string  { return "v2" }
+
+-- board_v2_const_retyped/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v2_const_retyped/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Body() string { return p.Text }
+func (p *Post) Len() int      { return len(p.Text) }
+
+const Limit = "ten"
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Unused() int { return hits }
+func Tag() string { return "v2" }
+
+-- board_v2_method_removed/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v2_method_removed/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Body() string { return p.Text }
+
+const Limit = 10
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Unused() int { return hits }
+func Tag() string { return "v2" }
+
+-- board_v2_method_moved/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v2_method_moved/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Len() int      { return len(p.Text) }
+func (p *Post) Body() string { return p.Text }
+
+const Limit = 10
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Unused() int { return hits }
+func Tag() string { return "v2" }
+
+-- board_v2_method_retyped/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v2_method_retyped/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Body(prefix string) string { return prefix + p.Text }
+func (p *Post) Len() int                  { return len(p.Text) }
+
+const Limit = 10
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Unused() int { return hits }
+func Tag() string { return "v2" }
+
+-- board_v2_private/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+private = true
+version = 2
+
+-- board_v2_private/board.gno --
+package board
+
+type Post struct{ Text string }
+
+func (p *Post) Body() string { return p.Text }
+func (p *Post) Len() int      { return len(p.Text) }
+
+const Limit = 10
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Unused() int { return hits }
+func Tag() string { return "v2" }
+
+-- board_v2_ok/gnomod.toml --
+module = "gno.land/r/demo/board"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- board_v2_ok/board.gno --
+package board
+
+import "strings"
+
+type Post struct{ Text string }
+
+func (p *Post) Body() string  { return strings.ToUpper(p.Text) } // body changed
+func (p *Post) Len() int       { return len(p.Text) }
+func (p *Post) Lower() string { return strings.ToLower(p.Text) } // appended
+
+const Limit = 10
+
+var (
+	posts []*Post
+	hits  int
+)
+
+func Publish(cur realm, text string) *Post {
+	p := &Post{Text: text}
+	posts = append(posts, p)
+	views++
+	return p
+}
+
+func Count() int  { return len(posts) }
+func Unused() int { return hits }
+func Tag() string { return "v2" }
+
+// Appended below every v1 name. init() is gone; migrate and the blank func
+// are reserved after every other name, so nothing above moved.
+type Draft struct{ Text string }
+
+var views int
+
+func Last() string { return posts[len(posts)-1].Body() }
+func Views() int   { return views }
+
+func migrate() { views = len(posts) }
+func _()       {}
+
+-- reader_v1/gnomod.toml --
+module = "gno.land/r/demo/reader"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- reader_v1/reader.gno --
+package reader
+
+import (
+	"strconv"
+
+	"gno.land/r/demo/board"
+)
+
+var first *board.Post
+
+func Publish(cur realm, text string) {
+	p := board.Publish(cross(cur), text)
+	if first == nil {
+		first = p
+	}
+}
+
+func Summary() string {
+	return first.Body() + "/" + strconv.Itoa(first.Len()) + "/" +
+		strconv.Itoa(board.Count()) + "/" + strconv.Itoa(board.Limit)
+}
+
+-- reader_v2/gnomod.toml --
+module = "gno.land/r/demo/reader"
+gno = "0.9"
+version = 2
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- reader_v2/reader.gno --
+package reader
+
+import (
+	"strconv"
+
+	"gno.land/r/demo/board"
+)
+
+var first *board.Post
+
+func Publish(cur realm, text string) {
+	p := board.Publish(cross(cur), text)
+	if first == nil {
+		first = p
+	}
+}
+
+func Summary() string {
+	return first.Body() + "/" + strconv.Itoa(first.Len()) + "/" +
+		strconv.Itoa(board.Count()) + "/" + strconv.Itoa(board.Limit) +
+		" last=" + board.Last()
+}
+
+-- fixed_v1/gnomod.toml --
+module = "gno.land/r/demo/fixed"
+gno = "0.9"
+
+-- fixed_v1/fixed.gno --
+package fixed
+
+func Tag() string { return "v1" }
+
+-- fixed_v2/gnomod.toml --
+module = "gno.land/r/demo/fixed"
+gno = "0.9"
+version = 1
+
+[upgrade]
+authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+-- fixed_v2/fixed.gno --
+package fixed
+
+func Tag() string { return "v2" }

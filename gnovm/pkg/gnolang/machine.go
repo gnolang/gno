@@ -336,32 +336,54 @@ func assertBorrowedRealm(pkgPath string, r *Realm) {
 // NOTE: package paths not beginning with gno.land will be allowed to override,
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
-	ch := m.Store.IterMemPackage()
-	for mpkg := range ch {
+	done := map[string]bool{}
+	for mpkg := range m.Store.IterMemPackage() {
 		// IterMemPackage never yields nil: its producer already skips
 		// prod-less packages before sending.
-		mpkg = MPFProd.FilterMemPackage(mpkg)
-		fset := m.ParseMemPackage(mpkg)
-		pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
-		m.Store.SetBlockNode(pn)
-		PredefineFileSet(m.Store, pn, fset)
-		for _, fn := range fset.Files {
-			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(m.Store, pn, fn).(*FileNode)
-			// Save BlockNodes to m.Store.
-			SaveBlockNodes(m.Store, fn)
-		}
-		// Normally, the fileset would be added onto the
-		// package node only after runFiles(), but we cannot
-		// run files upon restart (only preprocess them).
-		// So, add them here instead.
-		// TODO: is this right?
-		if pn.FileSet == nil {
-			pn.FileSet = fset
-		}
-		// pn.FileSet != nil happens for non-realm file tests.
-		// TODO ensure the files are the same.
+		m.preprocessSavedPackage(mpkg, done)
 	}
+}
+
+// preprocessSavedPackage preprocesses mpkg once, after the packages it
+// imports: a depth-first walk of the import decls (gnomod.PkgList.Sort does
+// the same over parsed packages, which this has not yet). The index order
+// IterMemPackage yields is deploy order, which a redeploy of an imported realm
+// breaks: its entry moves after its importers.
+func (m *Machine) preprocessSavedPackage(mpkg *std.MemPackage, done map[string]bool) {
+	if done[mpkg.Path] {
+		return
+	}
+	done[mpkg.Path] = true
+	mpkg = MPFProd.FilterMemPackage(mpkg)
+	fset := m.ParseMemPackage(mpkg)
+	for _, fn := range fset.Files {
+		for _, d := range fn.Decls {
+			if id, ok := d.(*ImportDecl); ok {
+				if dep := m.Store.GetMemPackage(id.PkgPath); dep != nil {
+					m.preprocessSavedPackage(dep, done)
+				}
+			}
+		}
+	}
+	pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
+	m.Store.SetBlockNode(pn)
+	PredefineFileSet(m.Store, pn, fset)
+	for _, fn := range fset.Files {
+		// Save Types to m.Store (while preprocessing).
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		// Save BlockNodes to m.Store.
+		SaveBlockNodes(m.Store, fn)
+	}
+	// Normally, the fileset would be added onto the
+	// package node only after runFiles(), but we cannot
+	// run files upon restart (only preprocess them).
+	// So, add them here instead.
+	// TODO: is this right?
+	if pn.FileSet == nil {
+		pn.FileSet = fset
+	}
+	// pn.FileSet != nil happens for non-realm file tests.
+	// TODO ensure the files are the same.
 }
 
 //----------------------------------------
@@ -380,7 +402,9 @@ func (m *Machine) RunMemPackage(mpkg *std.MemPackage, save bool) (*PackageNode, 
 }
 
 // RunMemPackageOverRealm works as [RunMemPackage], except that the package it
-// builds takes over prior rather than starting a realm of its own.
+// builds takes over prior rather than starting a realm of its own. When the
+// package's gnomod.toml carries a version, the prior package's globals are
+// carried into the new one and migrate runs in place of init; see upgrade.go.
 //
 // prior is the realm record persisted at mpkg.Path, and nil for a path that
 // holds no realm yet. Handing it over is what keeps a redeployment's ObjectIDs
@@ -443,8 +467,12 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prio
 	files := m.ParseMemPackageAsType(mpkg, mptype)
 	mod, err := gnomod.ParseMemPackage(mpkg)
 	private := false
+	var plan *upgradePlan
 	if err == nil && mod != nil {
 		private = mod.Private
+		if prior != nil && mod.Version > 0 {
+			plan = planUpgrade(m.Store, mpkg.Path)
+		}
 	}
 
 	// make and set package if doesn't exist.
@@ -464,25 +492,34 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prio
 			pv.SetRealm(prior)
 		}
 		m.Store.SetBlockNode(pn)
-		m.Store.SetCachePackage(pv)
+		if prior != nil {
+			m.Store.ReplaceCachePackage(pv)
+		} else {
+			m.Store.SetCachePackage(pv)
+		}
 	}
 	m.SetActivePackage(pv)
 	// run files.
-	updates := m.runFileDecls(overrides, files.Files...)
+	updates := m.runFileDecls(overrides, plan, files.Files...)
 	// populate pv.fBlocksMap.
 	pv.deriveFBlocksMap(m.Store)
 	// save package value and mempackage.
 	// XXX save condition will be removed once gonative is removed.
 	var throwaway *Realm
 	if save {
-		// store new package values and types
-		throwaway = m.saveNewPackageValuesAndTypes()
+		// store new package values and types; a redeploy replaces the types
+		// (an upgrade already did, before loading the carried objects).
+		throwaway = m.saveNewPackageValuesAndTypes(prior != nil && plan == nil)
 		if throwaway != nil {
 			m.setRealm(throwaway)
 		}
 	}
-	// run init functions
-	m.runInitFromUpdates(pv, updates)
+	// run init functions, or on an upgrade the migrate functions instead.
+	initFn := Name("init")
+	if plan != nil {
+		initFn = "migrate"
+	}
+	m.runFuncsFromUpdates(pv, updates, initFn)
 	// save again after init.
 	if save {
 		m.resavePackageValues(throwaway)
@@ -526,7 +563,7 @@ func checkDuplicates(fset *FileSet) error {
 			var name Name
 			switch d := d.(type) {
 			case *FuncDecl:
-				if d.Name == "init" {
+				if IsPkgInitFunc(d.Name) {
 					continue
 				}
 				name = d.Name
@@ -642,7 +679,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 	if rlm == nil && pv.IsRealm() {
 		rlm = NewRealm(pv.PkgPath) // throwaway
 	}
-	updates := m.runFileDecls(IsStdlib(pv.PkgPath), fns...)
+	updates := m.runFileDecls(IsStdlib(pv.PkgPath), nil, fns...)
 	if rlm != nil {
 		pb := pv.GetBlock(m.Store)
 		for _, update := range updates {
@@ -654,7 +691,7 @@ func (m *Machine) RunFiles(fns ...*FileNode) {
 			}
 		}
 	}
-	m.runInitFromUpdates(pv, updates)
+	m.runFuncsFromUpdates(pv, updates, "init")
 	if rlm != nil {
 		rlm.FinalizeRealmTransaction(m.Store)
 	}
@@ -695,7 +732,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 	var throwaway *Realm
 	if save {
 		// store new package values and types
-		throwaway = m.saveNewPackageValuesAndTypes()
+		throwaway = m.saveNewPackageValuesAndTypes(false)
 		if throwaway != nil {
 			m.setRealm(throwaway)
 		}
@@ -728,7 +765,7 @@ func (h *initHeap) Pop() any {
 // This will also run each init function encountered.
 // Returns the updated typed values of package.
 // m.Package must match fns's package path.
-func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValue {
+func (m *Machine) runFileDecls(withOverrides bool, plan *upgradePlan, fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -794,6 +831,12 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)
 
+	// On an upgrade, point the carried slots at the prior heap items; their
+	// declarations are then skipped below.
+	if plan != nil {
+		m.applyUpgradePlan(pn, pv, plan)
+	}
+
 	// To initialize package variables, Go's spec says the following:
 	//    Within a package, package-level variable initialization proceeds
 	//    stepwise, with each step selecting the variable earliest in declaration
@@ -848,10 +891,12 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	for ready.Len() > 0 {
 		idx := heap.Pop(ready).(int)
 		decl := pending[idx]
-		fb := pv.GetFileBlock(m.Store, declFiles[idx].FileName)
-		m.PushBlock(fb)
-		m.runDeclaration(decl)
-		m.PopBlock()
+		if !isCarriedDecl(decl, plan) {
+			fb := pv.GetFileBlock(m.Store, declFiles[idx].FileName)
+			m.PushBlock(fb)
+			m.runDeclaration(decl)
+			m.PopBlock()
+		}
 		for _, n := range decl.GetDeclNames() {
 			fdeclared[n] = struct{}{}
 		}
@@ -881,14 +926,16 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 	return updates
 }
 
-// Run new init functions.
+// Run the new package initializers named fn: "init", or "migrate" on a
+// versioned redeploy (see IsPkgInitFunc).
 // Go spec: "To ensure reproducible initialization
 // behavior, build systems are encouraged to present
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
 // If m.Realm is set `init(cur realm)` works too.
-func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
-	// Only for the init functions make the origin caller
+func (m *Machine) runFuncsFromUpdates(pv *PackageValue, updates []TypedValue, fn Name) {
+	prefix := string(fn) + "."
+	// Only for the initializers make the origin caller
 	// the package addr.
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
@@ -896,7 +943,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 			if !ok {
 				continue // skip native functions.
 			}
-			if strings.HasPrefix(string(fv.Name), "init.") {
+			if strings.HasPrefix(string(fv.Name), prefix) {
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
 				maybeCrossing := m.Realm != nil
@@ -908,11 +955,12 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 }
 
 // Save the machine's package using realm finalization deep crawl.
-// Also saves declared types.
+// Also saves declared types, replacing the stored definitions when
+// replaceTypes (a redeploy of the owning package).
 // This happens before any init calls.
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
-func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
+func (m *Machine) saveNewPackageValuesAndTypes(replaceTypes bool) (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -927,21 +975,27 @@ func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 		rlm.FinalizeRealmTransaction(m.Store)
 		throwaway = rlm
 	}
-	// save declared types — only those that belong to this package.
-	// Aliases to uverse types or to types from other packages have a
-	// DeclaredType.PkgPath pointing elsewhere; persisting them here would
-	// be redundant (cross-pkg: the owning pkg already SetType'd them;
-	// uverse: lives in the in-memory VM registry, not in chain state).
-	if bv, ok := pv.Block.(*Block); ok {
-		for _, tv := range bv.Values {
-			if tvv, ok := tv.V.(TypeValue); ok {
-				if dt, ok := tvv.Type.(*DeclaredType); ok && dt.PkgPath == pv.PkgPath {
-					m.Store.SetType(dt)
-				}
-			}
+	m.saveDeclaredTypes(pv, replaceTypes)
+	return
+}
+
+// saveDeclaredTypes persists the package's own declared types. Aliases to
+// uverse types or to types from other packages have a DeclaredType.PkgPath
+// pointing elsewhere; the owning package persists those (uverse lives in the
+// in-memory VM registry). Over a redeploy the stored definition is replaced,
+// methods included: SetType would keep the one already cached.
+func (m *Machine) saveDeclaredTypes(pv *PackageValue, replace bool) {
+	bv, ok := pv.Block.(*Block)
+	if !ok {
+		return
+	}
+	for _, dt := range ownDeclaredTypes(bv, pv.PkgPath) {
+		if replace {
+			m.Store.ReplaceType(dt)
+		} else {
+			m.Store.SetType(dt)
 		}
 	}
-	return
 }
 
 // Resave any changes to realm after init calls.
@@ -1191,7 +1245,7 @@ func (m *Machine) RunStatement(st Stage, s Stmt) {
 // call runDeclaration() instead.  No blocknodes are saved to store, and
 // declarations are not realm compatible.
 func (m *Machine) RunDeclaration(d Decl) {
-	if fd, ok := d.(*FuncDecl); ok && fd.Name == "init" {
+	if fd, ok := d.(*FuncDecl); ok && IsPkgInitFunc(fd.Name) {
 		// XXX or, consider running it, but why would this be needed?
 		// from a repl there is no need for init() functions.
 		// Also, there are complications with realms, where
