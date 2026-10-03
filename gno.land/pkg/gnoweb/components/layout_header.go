@@ -43,13 +43,27 @@ type HeaderData struct {
 type RealmNotice struct {
 	// Text is shown at every width, unless Short is set.
 	Text BannerData
-	// Short, if set, replaces Text below the md breakpoint.
+	// Short, if set, replaces Text below the lg breakpoint.
 	Short BannerData
 }
 
 // Enabled reports whether the page shows the notice: handlers only set a
 // RealmNotice on pages of packages outside the trusted paths.
 func (n RealmNotice) Enabled() bool { return n.Text.Enabled() }
+
+// Lines is how many lines the row reserves in the sticky header, 0 when
+// disabled. A notice with a short variant is the default one, whose texts fit
+// one line at every width; any other text is clamped to two.
+func (n RealmNotice) Lines() int {
+	switch {
+	case !n.Enabled():
+		return 0
+	case n.Short.Enabled():
+		return 1
+	default:
+		return 2
+	}
+}
 
 // NewRealmNotice renders text and short as inline markdown, the same way as
 // NewBannerData but without images; short may be empty. Unlike the opt-in

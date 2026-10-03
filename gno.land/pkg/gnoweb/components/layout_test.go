@@ -670,6 +670,18 @@ func TestNewRealmNotice_DropsImages(t *testing.T) {
 	assert.Equal(t, "Read  the code", buf.String())
 }
 
+func TestRealmNotice_Lines(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, 0, RealmNotice{}.Lines())
+	short, err := NewRealmNotice("Community realm, long", "Community realm")
+	require.NoError(t, err)
+	assert.Equal(t, 1, short.Lines())
+	custom, err := NewRealmNotice("Operator text", "")
+	require.NoError(t, err)
+	assert.Equal(t, 2, custom.Lines())
+}
+
 // realmNoticeLayout renders a realm page with the given notice and banner.
 func realmNoticeLayout(t *testing.T, notice RealmNotice, banner string) string {
 	t.Helper()
@@ -692,44 +704,60 @@ func realmNoticeLayout(t *testing.T, notice RealmNotice, banner string) string {
 	return buf.String()
 }
 
+// noticeRow returns the realm-notice row's markup, or "" if there is none.
+func noticeRow(out string) string {
+	start := strings.Index(out, `<div class="b-header-notice"`)
+	if start < 0 {
+		return ""
+	}
+	end := strings.Index(out[start:], "</div>")
+	return out[start : start+end]
+}
+
 func TestIndexLayout_RealmNotice(t *testing.T) {
 	t.Parallel()
 
-	const row = `<div class="b-header-notice" role="note" aria-label="Realm notice">`
-
-	t.Run("no notice leaves the header unchanged", func(t *testing.T) {
+	t.Run("no notice leaves the page unchanged", func(t *testing.T) {
 		t.Parallel()
 		out := realmNoticeLayout(t, RealmNotice{}, "")
-		assert.NotContains(t, out, "b-header-notice")
+		assert.Empty(t, noticeRow(out))
 		assert.Contains(t, out, "</nav>\n</header>")
+		assert.Contains(t, out, `<html lang="en">`)
 	})
 
-	t.Run("notice is the header's second row, banner stays above", func(t *testing.T) {
+	t.Run("default notice is the header's one-line second row", func(t *testing.T) {
 		t.Parallel()
-		notice, err := NewRealmNotice("**Community realm**, deployed by its author.", "**Community realm**.")
+		notice, err := NewRealmNotice("**Community realm**, deployed by its author.", "**Community realm.**")
 		require.NoError(t, err)
 		out := realmNoticeLayout(t, notice, "Maintenance")
 
 		header := strings.Index(out, `<header class="b-header">`)
 		require.NotEqual(t, -1, header)
 		assert.Less(t, strings.Index(out, `class="b-banner"`), header, "banner must render above the header")
-		assert.Contains(t, out, "</nav>\n  "+row, "notice must follow the nav inside the header")
-		assert.Less(t, strings.Index(out, row), strings.Index(out, "<main"))
-		assert.Contains(t, out, `<svg class="c-icon u-icon-static" aria-hidden="true">`+"\n        "+`<use href="#ico-info-circle"></use>`)
-		assert.Contains(t, out, `<span class="short"><strong>Community realm</strong>.</span>`)
-		assert.Contains(t, out, `<span class="long"><strong>Community realm</strong>, deployed by its author.</span>`)
+		assert.Less(t, strings.Index(out, "</nav>"), strings.Index(out, `<div class="b-header-notice"`), "row follows the nav")
+		assert.Less(t, strings.Index(out, `<div class="b-header-notice"`), strings.Index(out, "</header>\n<main"), "row is inside the header")
+
+		row := noticeRow(out)
+		assert.Contains(t, row, `role="note"`)
+		assert.Contains(t, row, `aria-label="Realm notice"`)
+		assert.Contains(t, row, `aria-hidden="true"`)
+		assert.Contains(t, row, `<use href="#ico-info-circle"></use>`)
+		assert.Contains(t, row, `<span class="short"><strong>Community realm.</strong></span>`)
+		assert.Contains(t, row, `<span class="long"><strong>Community realm</strong>, deployed by its author.</span>`)
+		assert.Contains(t, out, `<html lang="en" data-realm-notice-lines="1">`)
 	})
 
-	t.Run("text without short shows as-is at every width", func(t *testing.T) {
+	t.Run("operator text shows as-is and reserves two lines", func(t *testing.T) {
 		t.Parallel()
 		notice, err := NewRealmNotice("Operator <script>alert(1)</script> & co", "")
 		require.NoError(t, err)
 		out := realmNoticeLayout(t, notice, "")
 
-		assert.Contains(t, out, row)
-		assert.Contains(t, out, "<span>Operator <!-- raw HTML omitted -->alert(1)<!-- raw HTML omitted --> &amp; co</span>")
-		assert.NotContains(t, out, "<script>alert(1)")
-		assert.NotContains(t, out, `class="short"`)
+		row := noticeRow(out)
+		assert.Contains(t, row, "<span>Operator <!-- raw HTML omitted -->alert(1)<!-- raw HTML omitted --> &amp; co</span>")
+		assert.NotContains(t, row, "<script>")
+		assert.NotContains(t, row, `class="short"`)
+		assert.Contains(t, out, `<html lang="en" data-realm-notice-lines="2">`)
 	})
 }
 

@@ -66,12 +66,13 @@ type webCfg struct {
 // whose deploy key belongs to a party it vouches for; see the realm notice ADR.
 const defaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
 
-// The default realm notice, and the variant shown below the md breakpoint so
-// it fits one line on a phone. An operator's GNOWEB_REALM_NOTICE_TEXT has no
-// short variant and shows as-is at every width.
+// The default realm notice, and the short variant shown below the lg
+// breakpoint. Each fits one line of the header row from 320px up where it is
+// shown, so the row reserves one line. An operator's GNOWEB_REALM_NOTICE_TEXT
+// has no short variant, shows at every width and is clamped to two lines.
 const (
 	defaultRealmNoticeText  = "**Community realm**, deployed by its author. Read the code before you interact or send coins."
-	defaultRealmNoticeShort = "**Community realm**. Read the code before you send coins."
+	defaultRealmNoticeShort = "**Community realm.** Read the code first."
 )
 
 var defaultWebOptions = webCfg{

@@ -53,6 +53,11 @@
 .b-header {
 	position: sticky;
 	top: 0;
+
+	@media (--short-viewport) {
+		position: relative;
+	}
+
 	background-color: var(--s-color-bg-base);
 	border-block-end: var(--s-border);
 	z-index: var(--g-z-max);
@@ -87,20 +92,37 @@
 	}
 
 	/* Realm notice: second row on community pages, on the header's own
-	   surface and grid. Colour only on the icon and the lead-in. */
+	   surface and grid. Colour only on the icon and the lead-in. Its height
+	   is fixed by --s-header-notice-lines, so sticky offsets cannot drift. */
 	.b-header-notice {
+		block-size: var(--s-header-notice-block-size);
 		border-block-start: var(--s-border);
 		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-100);
+		line-height: var(--g-line-height-normal);
 
 		& > p {
 			display: flex;
-			align-items: center;
+			align-items: flex-start;
 			gap: var(--g-space-2);
 			padding-block: var(--g-space-2);
+		}
+
+		/* Clamped to the reserved lines; a long URL breaks rather than
+		   widening the page. */
+		& > p > span {
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: var(--s-header-notice-lines);
+			overflow: hidden;
+			min-width: 0;
+			overflow-wrap: anywhere;
 			text-wrap: pretty;
 		}
 
+		/* On the first line when the text wraps. */
 		& svg {
+			margin-block-start: calc((1lh - var(--g-space-4)) / 2);
 			color: var(--s-color-text-info);
 		}
 
@@ -121,18 +143,17 @@
 			background-color: var(--s-color-bg-surface-secondary);
 		}
 
-		/* The default text has a phone-length variant; operator text has none. */
+		/* The default text has a short variant up to --lg; operator text
+		   has none. */
 		& .short {
-			@media (--md) {
+			@media (--lg) {
 				display: none;
 			}
 		}
 
 		& .long {
-			display: none;
-
-			@media (--md) {
-				display: inline;
+			@media not all and (--lg) {
+				display: none;
 			}
 		}
 	}
@@ -152,16 +173,36 @@
 	}
 }
 
-/* The realm-notice row makes the sticky header taller: sticky elements and
-   anchor jumps below the header move down by the row, sized for two lines
-   below --lg where the text can wrap, one from --lg up. */
-:root:has(.b-header-notice) {
-	--s-header-notice-size: var(--g-space-14);
-	--s-header-offset: calc(var(--g-space-14) + var(--s-header-notice-size));
+/* Pages with the realm-notice row carry data-realm-notice-lines on <html>,
+   set by the server: 1 for the default text, 2 for operator text. The row's
+   height derives from it, and sticky elements and anchor jumps below the
+   header move down by that height. */
+[data-realm-notice-lines] {
+	--s-header-notice-lines: 1;
+	--s-header-notice-line: calc(
+		var(--g-font-size-100) *
+		var(--g-line-height-normal)
+	);
+	--s-header-notice-block-size: calc(
+		var(--g-space-px) +
+		2 *
+		var(--g-space-2) +
+		var(--s-header-notice-lines) *
+		var(--s-header-notice-line)
+	);
+	--s-header-notice-size: var(--s-header-notice-block-size);
 	scroll-padding-block-start: var(--s-header-notice-size);
+}
 
-	@media (--lg) {
-		--s-header-notice-size: var(--g-space-9);
+[data-realm-notice-lines="2"] {
+	--s-header-notice-lines: 2;
+}
+
+/* The header does not stick on short viewports: nothing to clear. */
+@media (--short-viewport) {
+	:root {
+		--s-header-size: 0px;
+		--s-header-notice-size: 0px;
 	}
 }
 

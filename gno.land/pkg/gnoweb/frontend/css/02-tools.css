@@ -12,6 +12,8 @@
 @custom-media --xl (min-width: calc(1020 / 16 * 1rem));
 @custom-media --2xl (min-width: calc(1366 / 16 * 1rem));
 @custom-media --max (min-width: calc(1580 / 16 * 1rem));
+/* Too short for a sticky header to leave room for the page (WCAG 1.4.10). */
+@custom-media --short-viewport (max-height: calc(480 / 16 * 1rem));
 
 /* ===== SEMANTIC TOKENS ===== */
 :root {
@@ -156,8 +158,11 @@
 		color-mix(in srgb, currentColor 14%, transparent);
 
 	/* Where sticky elements below the header stick: the header's height from
-	   --lg up. Grows by the realm-notice row on community pages (06-blocks). */
-	--s-header-offset: var(--g-space-14);
+	   --lg up, plus the realm-notice row on community pages. Both sizes drop
+	   to zero where the header does not stick (06-blocks). */
+	--s-header-size: var(--g-space-14);
+	--s-header-notice-size: 0px;
+	--s-header-offset: calc(var(--s-header-size) + var(--s-header-notice-size));
 
 	/* Logo / gnome */
 	--s-logo-hat: var(--g-color-green-600, #226c57);
