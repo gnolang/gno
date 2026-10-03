@@ -68,30 +68,30 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 			target: "/r/alice/golf/game",
 			want: []string{
 				`popovertarget="kind-switch-menu"`,
-				`<a href="/p/alice/golf" role="menuitem" class="item item--primary">`,
+				`<a href="/p/alice/golf" class="item item--primary">`,
 				`<span class="item-label">Packages of this project</span>`,
 				`<span class="item-path">/p/alice/golf (2 packages)</span>`,
 				`<use href="#ico-pure"></use>`,
-				`<a href="/u/alice" role="menuitem" class="item item--inline">`,
-				`<a href="/r/" role="menuitem" class="item item--inline">`,
+				`<a href="/u/alice" class="item item--inline">`,
+				`<a href="/r/" class="item item--inline">`,
 			},
 			notWant: []string{"/p/alice/golfer"},
 		},
 		{
 			name:   "source tab keeps the link",
 			target: "/r/alice/golf/game$source",
-			want:   []string{`<a href="/p/alice/golf" role="menuitem" class="item item--primary">`},
+			want:   []string{`<a href="/p/alice/golf" class="item item--primary">`},
 		},
 		{
 			name:   "state page keeps the link",
 			target: "/r/alice/golf/game$state",
-			want:   []string{`<a href="/p/alice/golf" role="menuitem" class="item item--primary">`},
+			want:   []string{`<a href="/p/alice/golf" class="item item--primary">`},
 		},
 		{
 			name:   "package links its only realm directly",
 			target: "/p/alice/golf/physics",
 			want: []string{
-				`<a href="/r/alice/golf/game" role="menuitem" class="item item--primary">`,
+				`<a href="/r/alice/golf/game" class="item item--primary">`,
 				`<span class="item-label">Realm of this project</span>`,
 				`<span class="item-label">All packages</span>`,
 			},
@@ -99,7 +99,7 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 		{
 			name:   "project listing links the other side's listing",
 			target: "/r/alice/golf/",
-			want:   []string{`<a href="/p/alice/golf" role="menuitem" class="item item--primary">`},
+			want:   []string{`<a href="/p/alice/golf" class="item item--primary">`},
 		},
 		{
 			name:    "nothing on the other side, no link",
