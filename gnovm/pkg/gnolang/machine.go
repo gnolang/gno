@@ -447,6 +447,14 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prio
 		private = mod.Private
 	}
 
+	// A redeploy replaces the package value persisted at this path, orphaning
+	// everything the previous deployment owned. Release it first, so its
+	// storage deposit is credited back in the same message that charges for
+	// the new deployment, and so the package value id is free for the new one.
+	if prior != nil {
+		prior.ReleaseRedeployedObjects(m.Store)
+	}
+
 	// make and set package if doesn't exist.
 	pn := (*PackageNode)(nil)
 	pv := (*PackageValue)(nil)
