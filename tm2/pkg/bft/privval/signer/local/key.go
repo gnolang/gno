@@ -8,9 +8,37 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
+
+// KeyType identifies a signing scheme for the validator file key.
+type KeyType string
+
+const (
+	KeyTypeEd25519   KeyType = "ed25519"
+	KeyTypeSecp256k1 KeyType = "secp256k1"
+)
+
+// DefaultKeyType is the scheme used by GenerateFileKey when no type is
+// specified. Kept at ed25519 for backwards compatibility with existing
+// tooling and CI.
+const DefaultKeyType = KeyTypeEd25519
+
+// ParseKeyType returns a KeyType for the given string, or an error if the
+// value is not a recognised scheme.
+func ParseKeyType(s string) (KeyType, error) {
+	switch KeyType(s) {
+	case KeyTypeEd25519:
+		return KeyTypeEd25519, nil
+	case KeyTypeSecp256k1:
+		return KeyTypeSecp256k1, nil
+	default:
+		return "", fmt.Errorf("unsupported validator key type %q (want %q or %q)",
+			s, KeyTypeEd25519, KeyTypeSecp256k1)
+	}
+}
 
 // FileKey is a struct that contains the private key, public key, and address of a
 // FileSigner. It is persisted to disk in JSON format using amino.
@@ -92,25 +120,53 @@ func LoadFileKey(filePath string) (*FileKey, error) {
 	return fk, nil
 }
 
-// GenerateFileKey generates a new random FileKey.
+// GenerateFileKey generates a new random FileKey using DefaultKeyType.
+// Kept for backwards compatibility; new callers should use
+// GenerateFileKeyOfType to be explicit about the scheme.
 func GenerateFileKey() *FileKey {
-	// Generate a new random private key.
-	privKey := ed25519.GenPrivKey()
+	fk, err := GenerateFileKeyOfType(DefaultKeyType)
+	if err != nil {
+		// DefaultKeyType is a compile-time constant we control, so
+		// any error here would be a programmer mistake. Panic instead
+		// of swallowing.
+		panic(fmt.Sprintf("GenerateFileKey: %v", err))
+	}
+	return fk
+}
 
-	// Create a new FileKey instance.
+// GenerateFileKeyOfType generates a new random FileKey using the given scheme.
+func GenerateFileKeyOfType(keyType KeyType) (*FileKey, error) {
+	var privKey crypto.PrivKey
+	switch keyType {
+	case KeyTypeEd25519:
+		privKey = ed25519.GenPrivKey()
+	case KeyTypeSecp256k1:
+		privKey = secp256k1.GenPrivKey()
+	default:
+		return nil, fmt.Errorf("unsupported validator key type %q", keyType)
+	}
+
 	return &FileKey{
 		PrivKey: privKey,
 		PubKey:  privKey.PubKey(),
 		Address: privKey.PubKey().Address(),
-	}
+	}, nil
 }
 
-// GeneratePersistedFileKey generates a new random FileKey persisted to disk.
+// GeneratePersistedFileKey generates a new random FileKey of DefaultKeyType
+// persisted to disk.
 func GeneratePersistedFileKey(filePath string) (*FileKey, error) {
-	// Generate a new random FileKey.
-	fk := GenerateFileKey()
+	return GeneratePersistedFileKeyOfType(filePath, DefaultKeyType)
+}
 
-	// Persist the FileKey to disk.
+// GeneratePersistedFileKeyOfType generates a new random FileKey of the given
+// scheme persisted to disk.
+func GeneratePersistedFileKeyOfType(filePath string, keyType KeyType) (*FileKey, error) {
+	fk, err := GenerateFileKeyOfType(keyType)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := fk.save(filePath); err != nil {
 		return nil, err
 	}
@@ -119,7 +175,8 @@ func GeneratePersistedFileKey(filePath string) (*FileKey, error) {
 }
 
 // LoadOrMakeFileKey returns a new FileKey instance from the given file path.
-// If the file does not exist, a new FileKey is generated and persisted to disk.
+// If the file does not exist, a new FileKey is generated and persisted to disk
+// using DefaultKeyType.
 func LoadOrMakeFileKey(filePath string) (*FileKey, error) {
 	// If the file exists, load the FileKey from the file.
 	if osm.FileExists(filePath) {
