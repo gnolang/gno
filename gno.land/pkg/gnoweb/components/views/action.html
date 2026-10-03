@@ -131,6 +131,9 @@ UI - Help Function component
           </svg>Warning
         </h3>
         <div class="content">
+          {{- if $data.Community }}
+          <p>This is a community realm, deployed by its author.</p>
+          {{- end }}
           <p>This transaction link is requesting <strong>{{ . }}</strong> from your
             balance. For your safety, you must manually confirm the addition of coins to the transaction.</p>
           <div class="b-btn b-switch">

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -72,6 +73,23 @@ func TestSetupWeb(t *testing.T) {
 
 	stdio.SetOut(devNull)
 
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.NoError(t, err)
+}
+
+// A realm notice text that renders to nothing must refuse to start, unless the
+// notice is disabled.
+func TestSetupWeb_RealmNoticeText(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "# heading only")
+	stdio := commands.NewDefaultIO()
+	stdio.SetOut(commands.WriteNopCloser(io.Discard))
+
+	opts := defaultWebOptions
+	opts.bind = "127.0.0.1:0"
+	_, err := setupWeb(&opts, []string{}, stdio)
+	require.ErrorContains(t, err, "invalid GNOWEB_REALM_NOTICE_TEXT")
+
+	opts.noRealmNotice = true
 	_, err = setupWeb(&opts, []string{}, stdio)
 	require.NoError(t, err)
 }

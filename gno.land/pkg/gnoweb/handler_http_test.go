@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -2189,5 +2191,128 @@ func TestHTTPHandler_PendingApprovalBanner(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, status)
 		assert.NotContains(t, body, "Not Yet Enabled",
 			"or the banner would claim every typo is awaiting approval")
+	})
+}
+
+// TestHTTPHandler_RealmNotice covers which pages carry the notice; the global
+// banner stays on all of them.
+func TestHTTPHandler_RealmNotice(t *testing.T) {
+	t.Parallel()
+
+	const (
+		notice = "Read this package with care"
+		banner = "Global banner"
+	)
+	render := map[string]string{"render.gno": `package main; func Render(path string) string { return "ok" }`}
+	renderFn := []*doc.JSONFunc{{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Type: "string"}}}}
+	pkg := func(path string) *gnoweb.MockPackage {
+		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: render, Functions: renderFn}
+	}
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(
+		pkg("/r/gnoland/home"), pkg("/r/nym-sunny000/app"), pkg("/p/nt/avl"), pkg("/p/nym-sunny000/lib"),
+	))
+	config.Aliases = maps.Clone(gnoweb.DefaultAliases)
+	// A chained alias must not render a package the notice was not decided on.
+	config.Aliases["/chain"] = gnoweb.AliasTarget{Value: "/chain-next", Kind: gnoweb.GnowebPath}
+	config.Aliases["/chain-next"] = gnoweb.AliasTarget{Value: "/r/nym-sunny000/app", Kind: gnoweb.GnowebPath}
+	var err error
+	config.Meta.RealmNotice, err = components.NewRealmNotice(notice, "")
+	require.NoError(t, err)
+	config.Meta.Banner, err = components.NewBannerData(banner, "")
+	require.NoError(t, err)
+	config.TrustedPaths = []string{"gnoland", "nt"}
+
+	cases := []struct {
+		path       string
+		wantNotice bool
+	}{
+		{"/", false}, // aliased to /r/gnoland/home
+		{"/r/gnoland/home", false},
+		{"/p/nt/avl", false},
+		{"/r/", false},
+		{"/u/gnoland", false},
+		{"/u/alice", true},
+		{"/r/nym-sunny000/app", true},
+		{"/r/nym-sunny000/app/", true},
+		{"/r/nym-sunny000/app$help", true},
+		{"/r/nym-sunny000/app$source&file=render.gno", true},
+		{"/r/nym-sunny000/app?state", true},
+		{"/r/nym-sunny000/app$state", true},
+		{"/p/nym-sunny000/lib", true},
+		{"/r/unknown/pkg", true},
+		{"/chain", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			t.Parallel()
+
+			logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+			handler, err := gnoweb.NewHTTPHandler(logger, config)
+			require.NoError(t, err)
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.path, nil))
+
+			body := rr.Body.String()
+			assert.Contains(t, body, banner)
+			if tc.path == "/chain" {
+				// Aliases resolve once, so /chain lands on /chain-next, which is not a package.
+				assert.Equal(t, http.StatusBadRequest, rr.Code)
+				return
+			}
+			if !tc.wantNotice {
+				assert.NotContains(t, body, notice)
+				assert.NotContains(t, body, "b-header-notice")
+				return
+			}
+			// The notice is a row of the header; the operator banner stays above it.
+			header := strings.Index(body, `<header class="b-header">`)
+			row := strings.Index(body, `<div class="b-header-notice" role="note" aria-label="Community realm notice">`)
+			require.NotEqual(t, -1, header)
+			require.NotEqual(t, -1, row)
+			assert.Less(t, strings.Index(body, banner), header)
+			assert.Less(t, header, row)
+			assert.Less(t, row, strings.Index(body, "<main"))
+			assert.Contains(t, body[row:], "<span>"+notice+"</span>")
+			assert.Equal(t, 1, strings.Count(body, notice), "the notice renders once, in the header row")
+		})
+	}
+
+	serve := func(t *testing.T, path, accept string) *httptest.ResponseRecorder {
+		t.Helper()
+		logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+		handler, err := gnoweb.NewHTTPHandler(logger, config)
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		if accept != "" {
+			req.Header.Set("Accept", accept)
+		}
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		return rr
+	}
+
+	t.Run("markdown response carries the notice in a header", func(t *testing.T) {
+		t.Parallel()
+		rr := serve(t, "/r/nym-sunny000/app", "text/markdown")
+		assert.Equal(t, "community", rr.Header().Get(gnoweb.RealmNoticeHeader))
+		assert.Equal(t, "text/markdown; charset=utf-8", rr.Header().Get("Content-Type"))
+		assert.NotContains(t, rr.Body.String(), "<!doctype html>", "the markdown body stays verbatim")
+
+		rr = serve(t, "/r/gnoland/home", "text/markdown")
+		assert.Empty(t, rr.Header().Get(gnoweb.RealmNoticeHeader))
+	})
+
+	t.Run("coin warning on the actions page names a community realm", func(t *testing.T) {
+		t.Parallel()
+		const line = "This is a community realm, deployed by its author."
+		body := serve(t, "/r/nym-sunny000/app$help&func=Render&.send=1ugnot", "").Body.String()
+		assert.Contains(t, body, "This transaction link is requesting")
+		assert.Contains(t, body, line)
+
+		body = serve(t, "/r/gnoland/home$help&func=Render&.send=1ugnot", "").Body.String()
+		assert.Contains(t, body, "This transaction link is requesting")
+		assert.NotContains(t, body, line)
 	})
 }
