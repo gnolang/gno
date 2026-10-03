@@ -33,6 +33,7 @@ type AppConfig struct {
 	webHome              string
 	webAnalytics         bool
 	webAnalyticsHostname string
+	faucetAmount         string
 
 	// Loader
 	noExamples                 bool
@@ -114,6 +115,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"web-with-html",
 		defaultCfg.webWithHTML,
 		"gnoweb: enable HTML parsing in markdown rendering",
+	)
+
+	fs.StringVar(
+		&c.faucetAmount,
+		"faucet",
+		defaultCfg.faucetAmount,
+		"staging: amount the faucet at /faucet sends per claim, empty to disable",
 	)
 
 	fs.StringVar(
