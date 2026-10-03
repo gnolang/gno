@@ -233,11 +233,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Banner: h.Static.Banner,
 	}
 
-	// Apply GnowebPath alias rewrite BEFORE parsing — every downstream
-	// dispatch (state, source, package view) needs to see the resolved
-	// path. Legacy did this inside prepareIndexBodyView, which the state
-	// branch below short-circuits, so an alias-mapped state URL would
-	// previously route to the unmapped path and 404.
+	// Resolve GnowebPath aliases once, BEFORE parsing: every downstream
+	// dispatch (state, source, package view) and the realm notice must see
+	// the path that is rendered. Aliases do not chain.
 	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
 		r.URL.Path = alias.Value
 	}
@@ -262,10 +260,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			h.Logger.Error("failed to render error view", "error", err)
 		}
 		return
-	}
-
-	if h.showRealmNotice(gnourl) {
-		indexData.Notice = h.Static.RealmNotice
 	}
 
 	// Handle download request outside of component rendering flow.
@@ -1099,11 +1093,11 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 	return status, components.StatusErrorComponent(msg)
 }
 
-// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData
-// from the parsed realm URL. Shared by the state-page wire-in and the
-// generic prepareIndexBodyView path so the global header (breadcrumb +
-// Content/State/Source/Actions tabs) always renders against the same
-// realm. Mode must be set on indexData before calling.
+// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData,
+// realm notice included, from the parsed realm URL. Shared by the state-page
+// wire-in and the generic prepareIndexBodyView path so the global header
+// (breadcrumb + Content/State/Source/Actions tabs) always renders against the
+// same realm. Mode must be set on indexData before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -1112,6 +1106,9 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
+	}
+	if h.showRealmNotice(gnourl) {
+		indexData.HeaderData.Notice = h.Static.RealmNotice
 	}
 }
 

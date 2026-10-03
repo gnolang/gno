@@ -165,8 +165,6 @@ type IndexData struct {
 	Mode     ViewMode
 	Theme    string
 	Banner   BannerData
-	// Notice is rendered as the header's second row; see RealmNotice.
-	Notice RealmNotice
 }
 
 type indexLayoutParams struct {
@@ -182,7 +180,6 @@ type indexLayoutParams struct {
 func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
 	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
-	data.HeaderData.Notice = data.Notice
 
 	data.FooterData.Analytics.PageType = ClassifyPageType(data.Mode, data.BodyView.Type)
 	data.FooterData.Analytics.Path = analyticsPath(data.HeaderData.RealmURL)

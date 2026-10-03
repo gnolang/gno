@@ -650,10 +650,10 @@ func realmNoticeLayout(t *testing.T, notice RealmNotice, banner string) string {
 	bannerData, err := NewBannerData(banner, "")
 	require.NoError(t, err)
 	data := IndexData{
-		HeadData: HeadData{Title: "Test"},
-		Mode:     ViewModeRealm,
-		Banner:   bannerData,
-		Notice:   notice,
+		HeadData:   HeadData{Title: "Test"},
+		HeaderData: HeaderData{Notice: notice},
+		Mode:       ViewModeRealm,
+		Banner:     bannerData,
 		BodyView: &View{
 			Type:      "test-view",
 			Component: NewReaderComponent(strings.NewReader("testdata")),

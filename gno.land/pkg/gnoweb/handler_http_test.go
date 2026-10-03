@@ -2200,7 +2200,7 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 	t.Parallel()
 
 	const (
-		notice = "Community realm notice"
+		notice = "Read this package with care"
 		banner = "Global banner"
 	)
 	render := map[string]string{"render.gno": `package main; func Render(path string) string { return "ok" }`}
@@ -2236,6 +2236,7 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		{"/r/nym-sunny000/app$help", true},
 		{"/r/nym-sunny000/app$source&file=render.gno", true},
 		{"/r/nym-sunny000/app?state", true},
+		{"/r/nym-sunny000/app$state", true},
 		{"/p/nym-sunny000/lib", true},
 		{"/r/unknown/pkg", true},
 		{"/chain", false},

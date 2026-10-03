@@ -46,6 +46,8 @@ type RealmNotice struct {
 	Short BannerData
 }
 
+// Enabled reports whether the page shows the notice: handlers only set a
+// RealmNotice on pages of packages outside the trusted paths.
 func (n RealmNotice) Enabled() bool { return n.Text.Enabled() }
 
 // NewRealmNotice renders text and short as inline markdown, the same way as
