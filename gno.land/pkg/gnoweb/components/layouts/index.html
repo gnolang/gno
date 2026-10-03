@@ -24,7 +24,7 @@
   {{ end -}}
   {{ end -}}
   {{ template "layouts/header" .IndexData.HeaderData -}}
-  <main {{ if not .IndexData.BodyView.SkipTargetInBody }}id="main-content" tabindex="-1" {{ end }}{{ if .IsDevmodView }}class="is-dev-mode" {{ end }}>
+  <main {{ if not .IndexData.BodyView.SkipTargetInBody }}id="main-content" tabindex="-1" {{ end }}{{ if .IsDevmodView }}class="is-dev-mode" {{ end }}{{ if .IndexData.HeaderData.Notice.Enabled }}aria-describedby="realm-notice" {{ end }}>
     <section class="c-center">
       {{ render .IndexData.BodyView -}}
     </section>

@@ -723,6 +723,7 @@ func TestIndexLayout_RealmNotice(t *testing.T) {
 		assert.Empty(t, noticeRow(out))
 		assert.Contains(t, out, "</nav>\n</header>")
 		assert.Contains(t, out, `<html lang="en">`)
+		assert.NotContains(t, out, "aria-describedby")
 	})
 
 	t.Run("default notice is the header's one-line second row", func(t *testing.T) {
@@ -739,12 +740,14 @@ func TestIndexLayout_RealmNotice(t *testing.T) {
 
 		row := noticeRow(out)
 		assert.Contains(t, row, `role="note"`)
-		assert.Contains(t, row, `aria-label="Realm notice"`)
+		assert.Contains(t, row, `aria-label="Community realm notice"`)
+		assert.Contains(t, row, `<p id="realm-notice"`)
 		assert.Contains(t, row, `aria-hidden="true"`)
 		assert.Contains(t, row, `<use href="#ico-info-circle"></use>`)
 		assert.Contains(t, row, `<span class="short"><strong>Community realm.</strong></span>`)
 		assert.Contains(t, row, `<span class="long"><strong>Community realm</strong>, deployed by its author.</span>`)
 		assert.Contains(t, out, `<html lang="en" data-realm-notice-lines="1">`)
+		assert.Contains(t, out, `aria-describedby="realm-notice"`)
 	})
 
 	t.Run("operator text shows as-is and reserves two lines", func(t *testing.T) {

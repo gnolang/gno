@@ -6,6 +6,10 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
 
+// RealmNoticeHeader is set to "community" on markdown responses of pages that
+// show the realm notice, whose body is served verbatim.
+const RealmNoticeHeader = "X-Gnoweb-Realm-Notice"
+
 // trustedPaths is keyed without the "/r/" or "/p/" prefix so one entry
 // covers both trees. An entry trusts its own path and everything under it.
 type trustedPaths map[string]struct{}

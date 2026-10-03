@@ -318,6 +318,10 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
 	if bodyView.Type == components.MarkdownViewType {
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		// The body stays verbatim; the header carries the notice instead.
+		if indexData.HeaderData.Notice.Enabled() {
+			w.Header().Set(RealmNoticeHeader, "community")
+		}
 		// Render() output reaches the client unsanitized here, so pin the type:
 		// without this a browser may sniff the body back into HTML and run it.
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -737,6 +741,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
 		Origin:    gnourl.Origin,
+		Community: h.showRealmNotice(gnourl),
 	})
 }
 

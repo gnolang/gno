@@ -2204,8 +2204,9 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		banner = "Global banner"
 	)
 	render := map[string]string{"render.gno": `package main; func Render(path string) string { return "ok" }`}
+	renderFn := []*doc.JSONFunc{{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Type: "string"}}}}
 	pkg := func(path string) *gnoweb.MockPackage {
-		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: render}
+		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: render, Functions: renderFn}
 	}
 	config := newTestHandlerConfig(t, gnoweb.NewMockClient(
 		pkg("/r/gnoland/home"), pkg("/r/nym-sunny000/app"), pkg("/p/nt/avl"), pkg("/p/nym-sunny000/lib"),
@@ -2267,7 +2268,7 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 			}
 			// The notice is a row of the header; the operator banner stays above it.
 			header := strings.Index(body, `<header class="b-header">`)
-			row := strings.Index(body, `<div class="b-header-notice" role="note" aria-label="Realm notice">`)
+			row := strings.Index(body, `<div class="b-header-notice" role="note" aria-label="Community realm notice">`)
 			require.NotEqual(t, -1, header)
 			require.NotEqual(t, -1, row)
 			assert.Less(t, strings.Index(body, banner), header)
@@ -2277,4 +2278,41 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 			assert.Equal(t, 1, strings.Count(body, notice), "the notice renders once, in the header row")
 		})
 	}
+
+	serve := func(t *testing.T, path, accept string) *httptest.ResponseRecorder {
+		t.Helper()
+		logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+		handler, err := gnoweb.NewHTTPHandler(logger, config)
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		if accept != "" {
+			req.Header.Set("Accept", accept)
+		}
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		return rr
+	}
+
+	t.Run("markdown response carries the notice in a header", func(t *testing.T) {
+		t.Parallel()
+		rr := serve(t, "/r/nym-sunny000/app", "text/markdown")
+		assert.Equal(t, "community", rr.Header().Get(gnoweb.RealmNoticeHeader))
+		assert.Equal(t, "text/markdown; charset=utf-8", rr.Header().Get("Content-Type"))
+		assert.NotContains(t, rr.Body.String(), "<!doctype html>", "the markdown body stays verbatim")
+
+		rr = serve(t, "/r/gnoland/home", "text/markdown")
+		assert.Empty(t, rr.Header().Get(gnoweb.RealmNoticeHeader))
+	})
+
+	t.Run("coin warning on the actions page names a community realm", func(t *testing.T) {
+		t.Parallel()
+		const line = "This is a community realm, deployed by its author."
+		body := serve(t, "/r/nym-sunny000/app$help&func=Render&.send=1ugnot", "").Body.String()
+		assert.Contains(t, body, "This transaction link is requesting")
+		assert.Contains(t, body, line)
+
+		body = serve(t, "/r/gnoland/home$help&func=Render&.send=1ugnot", "").Body.String()
+		assert.Contains(t, body, "This transaction link is requesting")
+		assert.NotContains(t, body, line)
+	})
 }
