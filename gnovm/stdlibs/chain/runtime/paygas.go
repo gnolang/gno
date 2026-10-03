@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"strings"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -13,8 +15,11 @@ func X_payGas(m *gno.Machine, pkgPath string, maxFee int64) {
 		m.Panic(typedString("PayGas: maxFee must be positive"))
 		return
 	}
-	// Excludes packages, MsgRun's ephemeral realm and sub-realm tokens.
-	if !gno.IsRealmPath(pkgPath) {
+	// Excludes packages, MsgRun's ephemeral realm and sub-realm tokens. A
+	// sub-realm token ("host#sub") is refused before the regexp: a failing
+	// match can backtrack past what this native's gas row, fitted on
+	// matches, charges.
+	if strings.IndexByte(pkgPath, '#') >= 0 || !gno.IsRealmPath(pkgPath) {
 		m.Panic(typedString("PayGas: rlm is not a realm"))
 		return
 	}

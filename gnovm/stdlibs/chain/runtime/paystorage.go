@@ -1,6 +1,8 @@
 package runtime
 
 import (
+	"strings"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 )
@@ -12,8 +14,11 @@ func X_payStorage(m *gno.Machine, pkgPath string, maxDeposit int64) {
 		m.Panic(typedString("PayStorage: maxDeposit must be positive"))
 		return
 	}
-	// Excludes packages, MsgRun's ephemeral realm and sub-realm tokens.
-	if !gno.IsRealmPath(pkgPath) {
+	// Excludes packages, MsgRun's ephemeral realm and sub-realm tokens. A
+	// sub-realm token ("host#sub") is refused before the regexp: a failing
+	// match can backtrack past what this native's gas row, fitted on
+	// matches, charges.
+	if strings.IndexByte(pkgPath, '#') >= 0 || !gno.IsRealmPath(pkgPath) {
 		m.Panic(typedString("PayStorage: rlm is not a realm"))
 		return
 	}

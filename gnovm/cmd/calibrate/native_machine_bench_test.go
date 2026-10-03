@@ -917,7 +917,10 @@ func BenchmarkNative_Runtime_GetRealm_1000(b *testing.B) { benchRuntimeGetRealm(
 // levied before the native picks a branch.
 //
 // pkgPath is always rlm.PkgPath(), so it never exceeds std's 256-byte pkgpath
-// limit and the sizes stop there. Worst case: one-letter segments,
+// limit and the sizes stop there. Every path that reaches the regexp matches
+// it: the one reachable input that would not, a sub-realm token ("host#sub"),
+// is refused on its '#' first (see BenchmarkNative_Runtime_PayGasSubRealm_256).
+// Worst case among matches: one-letter segments,
 // gno.land/r/a/a/a/..., which put a segment boundary, where the regexp's
 // backtracker tries each alternative, on every other byte. At 256 bytes
 // payGas costs 1.7x what it does on one long segment, and 10% more than on
@@ -988,6 +991,39 @@ func benchRuntimePayStorage(b *testing.B, n int) {
 	}
 	if psi.MaxDeposit == 0 {
 		b.Fatal("payStorage did not commit")
+	}
+}
+
+// A sub-realm token reaches payGas (it passes rlm.IsCurrent()) but is not a
+// realm. Its host ending in one long letters segment is the shape on which a
+// failing regexp match backtracks longest, costlier than any match; the '#'
+// check refuses it before the regexp, so this must stay well under the
+// matching cost at the same length. Not fitted: the row is charged before the
+// native picks a branch. No frames, so m.Panic records an empty stack trace:
+// that cost is the same for any native that panics, and the harness's frames
+// are too bare to render one.
+func BenchmarkNative_Runtime_PayGasSubRealm_256(b *testing.B) {
+	host := "gno.land/r/test/"
+	pkgPath := host + strings.Repeat("a", 256-len(host)-2) + "#x"
+	m := newDispatchMachine(2)
+	addContextAndFrames(m)
+	ctx := m.Context.(stdlibs.ExecContext)
+	ctx.PayGasInfo = &sdk.PayGasInfo{Eligible: true}
+	m.Context = ctx
+	setBlockValueFromGo(m, 0, pkgPath)
+	setBlockValueFromGo(m, 1, int64(1_000_000))
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/runtime", "payGas"), nReturns: 0}
+	refuse := func() (r any) {
+		defer func() { r = recover() }()
+		h.call()
+		return nil
+	}
+	if ex, ok := refuse().(*gno.Exception); !ok || !strings.Contains(ex.Sprint(m), "rlm is not a realm") {
+		b.Fatalf("payGas(%q) was not refused as a non-realm", pkgPath)
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		refuse()
 	}
 }
 
