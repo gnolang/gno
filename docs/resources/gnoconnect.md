@@ -246,7 +246,8 @@ implementations normalise it, so a wallet lowercases before comparing.
 |---|---|---|
 | `sendtx` | `MsgCall` | yes |
 | `signtx` | `MsgCall` | no — returns the signed tx to the producer |
-| `connect` | — | asks for the user's on-chain identity |
+| `connect` | — | asks for the user's on-chain identity; with `pubkey`, also has a producer-held key authorised as a session of it |
+| `disconnect` | — | revokes a producer-held session |
 
 `send…` signs and broadcasts, `sign…` signs only. `MsgRun` follows the same
 naming when it lands (`sendrun` / `signrun`); it is a separate host rather than a
@@ -484,6 +485,12 @@ answer, so a request without a usable one is dropped. `state` behaves as for
 `sendtx` (see Network resolution) — so a `connect` may prompt the user to switch,
 or to add a chain the wallet does not have, before it answers.
 
+A `connect` may also carry **scope hints** (`allow`, `spend`, `period`,
+`expires`) describing what the producer will send through the wallet, or a
+**`pubkey`** naming a key the producer holds, to have it authorised as a session
+of the identity. Both are optional and additive: a `connect` without them means
+exactly what this section says. See Sessions below.
+
 The wallet MUST ask the user before disclosing anything, and MUST show the
 callback's host: a producer's claimed name is self-asserted and unverifiable,
 so the destination is the only anti-phishing anchor the user has. The protocol
@@ -496,13 +503,16 @@ is its callback destination.
 <callback>?status=error&code=<code>&state=<echoed>
 ```
 
-Error codes (`code`): `no_signer`, `network_declined`, `invalid_request`. As on
-`tx`, `status` is the closed outcome class and `code` the enumerated reason.
+Error codes (`code`): `no_signer`, `network_declined`, `invalid_request`, and for
+a `connect` naming a key the session codes listed under Sessions. As on `tx`,
+`status` is the closed outcome class and `code` the enumerated reason.
 
 `features` (optional) is a comma-separated list of the wallet's optional
 capabilities, letting a producer tailor later requests. v1 tokens: the **hosts**
 the wallet supports — `sendtx` (sign and broadcast) and `signtx` (sign only) —
-plus `multi_msg` (accepts the indexed multi-message form). The two tx hosts are
+plus `multi_msg` (accepts the indexed multi-message form) and `sessions` (grants
+producer-held sessions: `pubkey` and `old` on `connect`, and the `disconnect`
+host — see Sessions). The two tx hosts are
 independent, so a pure signer may offer `signtx` without `sendtx`. `multi_msg`
 extends the single-message baseline (every wallet handles at least one message).
 A wallet that omits `features` is making no claim, and a producer should assume
@@ -516,6 +526,571 @@ user stating who they are, not as authentication. Authority comes from the
 on-chain `tx` the user reviews and signs. A proof-of-control extension
 (challenge + signature) is left for producers with a backend able to verify one.
 
+### Sessions: `connect` with a key, and `disconnect`
+
+The standard treats sessions as the wallet's business: a producer pins an
+identity (`signer`), never a key, and the wallet chooses which key signs. This
+section keeps that model and gives producers exactly two verbs. A producer
+**connects** and **disconnects**; which sessions exist, which one signs, and how
+they are created, renewed and cleaned up is decided in the wallet, with the user.
+
+A producer connects in one of two ways:
+
+| the producer wants to | `connect` carries | the wallet | afterwards the producer |
+|---|---|---|---|
+| send through the wallet | nothing new, or optional **scope hints** (`allow`, `spend`, `period`, `expires`) | answers with the identity; it MAY first pick one of its own sessions that covers the hints, or offer to create one | sends `sendtx` / `signtx` pinned to `address` |
+| sign by itself | a **`pubkey`** it holds, the grant it needs, and a proof of possession | authorises that key on chain as a session of the identity, inside the limits the user approved | signs every transaction with its key, without going back to the wallet |
+
+The two are compatible. A producer that holds its own session key can still send
+`sendtx` requests: the wallet signs them with its own key or one of its own
+sessions. Both are sessions of the same identity, which is what the chain
+credits and what `signer` pins.
+
+**Renewing, changing the budget or the allowed paths** is a new `connect` with a
+fresh key that names the current one in `old`. The wallet revokes the old
+session and creates the new one in a single transaction. A producer may also
+`disconnect` and then `connect` again, which costs two transactions and leaves a
+gap between them.
+
+**Why `disconnect` is a host and the grant is a parameter.** A wallet silently
+ignores query parameters it does not understand (see Forward compatibility).
+Ignoring `pubkey` is safe: a wallet that does not know it answers an
+identity-only `connect` and grants nothing, and the producer detects it (see
+Callback results). Ignoring a revocation would not be safe, since the producer
+would believe a key was disabled when it still works. So revocation is the host
+`disconnect`, and a wallet that does not implement it answers
+`unsupported_host`.
+
+Sessions are carried by launch links only in this version. The in-page
+transport, and sessions a session could create itself (attenuated
+sub-sessions, which would need consensus changes), are not covered.
+
+#### Two kinds of session
+
+A session the wallet signs `sendtx` and `signtx` requests with is
+**wallet-held**: the producer never sees it, and its limits are the wallet's
+business. Scope hints only help the wallet choose or prepare one; they give the
+producer no handle on it.
+
+A session requested with `pubkey` is **producer-held**. The key is generated
+by, stored by and signs inside the producer. The wallet acts only as a
+*broker*: it shows the user the grant, obtains the identity's signature on the
+`auth` messages, and reports the result. Two consequences:
+
+- **The private key never travels.** Only its public key appears in a request. A
+  wallet MUST NOT generate a session key for a producer, and a producer MUST NOT
+  send a private key in any parameter. It follows that a wallet cannot hand one
+  of its existing sessions to a producer: with `pubkey`, the session is always
+  the producer's own key.
+- **The producer can only act on its own session.** Every request that names a
+  key carries a proof of possession made with that key (see Proof of
+  possession). The producer cannot list, read, replace or revoke any other
+  session of the identity. The wallet stays responsible for housekeeping the
+  identity's sessions (see Wallet housekeeping), and no request can ask for it.
+
+#### Chain rules a producer must know
+
+These are gno.land consensus rules today (`tm2/pkg/sdk/auth`,
+`gno.land/pkg/gnoland`), not choices made by this standard:
+
+- **A session cannot sign `auth/*` or `vm/add_package`.** Even a `*` grant
+  excludes them. Only the identity's own key can create, replace or revoke a
+  session, so a wallet that only holds a session key needs some other route to
+  that key (see Obtaining the identity's signature).
+- **Sessions cannot be updated.** Changing limits means revoking and creating
+  again, which is what a `connect` with `old` does.
+- **At most 16 sessions per identity, and expired ones count.** The chain never
+  deletes an expired session; only `MsgRevokeSession` removes one.
+- **At most 8 allow entries per session.** The grammar is `*`, or
+  `<route>/<type>[:<path>]` with `<route>/<type>` one of `vm/exec`, `vm/run`,
+  `bank/send` or `bank/multisend`. Only `vm/exec` takes a `:<path>`, matched as
+  `path == entry` or `path` starting with `entry + "/"`.
+- **The spend limit covers every outflow** charged to the identity for the
+  session's transactions: gas fees, `MsgCall.Send`, bank sends and storage
+  deposits. An empty limit means the session cannot spend anything, so it
+  cannot even pay its own gas.
+- **`period` is a resetting window.** Once `period` seconds have passed since
+  the window opened, the next spend resets the counter and opens a new window
+  at that spend's block time. `0` makes the limit a lifetime cap. Maximum:
+  2,592,000 seconds (30 days).
+- **The budget counts gross outflows.** Coins flowing back to the identity,
+  such as a realm paying out winnings, do not lower the session's used amount.
+- **A spend over the limit is refused before any fee is taken.** The session's
+  total outflow is checked against the remaining budget first.
+- **Maximum lifetime is 126,144,000 seconds (about 4 years).**
+- **A session holds no coins.** Everything is debited from the identity's
+  balance, so a session is only as funded as its identity. Anyone can fund the
+  identity by sending to its address, and no session operation is involved.
+- **The same key can be revoked and recreated in one transaction.** The new
+  session gets a new account number and a sequence of 0, so transactions signed
+  for the old one cannot be replayed.
+- **Fees are charged on most rejections, and in full.** A message that fails in
+  its handler (a bound exceeded, a duplicate key) still costs the transaction's
+  fee, because only `ValidateBasic` (for example the 8-entry cap) and the
+  session spend check reject a transaction before fees are taken. The fee
+  charged is the whole `gas-fee` offered, whatever gas was used, so whoever
+  composes a transaction derives it from the chain's minimum gas price
+  (`auth/gasprice`) times the gas wanted, with some headroom, rather than
+  offering a fixed large amount.
+- **Every message in a transaction succeeds or none does.** A revocation
+  followed by a failing creation leaves the revoked session in place.
+
+#### Parameters
+
+| parameter | `connect` (identity) | `connect` with `pubkey` | `disconnect` | meaning |
+|---|---|---|---|---|
+| `pubkey` | — | required | required | the producer's key, bech32 `gpub1…` |
+| `old` | — | optional | — | the producer's current session key, `gpub1…`, to revoke in the same transaction |
+| `allow` | optional hint, 1–8, repeatable | required, 1–8, repeatable | — | allow entries, chain grammar |
+| `spend` | optional hint | optional | — | spend limit per period, `gnokey` coin syntax (`5000000ugnot`) |
+| `period` | optional hint | optional | — | seconds, `0`–`2592000`; absent means `0` |
+| `expires` | optional hint | required | — | lifetime in **seconds**, `1`–`126144000` |
+| `chainid` | required | required | required | network, resolved as in Network resolution |
+| `rpc` | optional | optional | optional | advisory, as everywhere |
+| `signer` | — | optional; **required** with `old` | **required** | the identity (`address` from a previous `connect`) |
+| `callback` | required | required | optional | where the wallet answers |
+| `state` | optional, RECOMMENDED | **required** | **required** | opaque correlation token, at most 256 characters |
+| `iat` | — | **required** | **required** | issue time, unix seconds |
+| `sig` | — | **required** | **required** | proof of possession by `pubkey` |
+| `oldsig` | — | **required** with `old` | — | proof of possession by `old` |
+
+Rules:
+
+- **`pubkey` sets the mode.** A `connect` with `pubkey` asks for a grant to
+  that key. Without it, `allow`, `spend`, `period` and `expires` are hints for
+  the wallet's own sessions, and the request is otherwise a plain `connect`.
+- **`old` comes with `pubkey`.** A wallet that implements `pubkey` MUST
+  implement `old`. So the only wallets that ignore `old` are the ones that
+  ignore `pubkey` too, and they grant nothing. `old` MUST differ from `pubkey`,
+  and requires `signer` and `oldsig`; otherwise the request is
+  `invalid_request`.
+- **`expires` is a duration, not a timestamp.** The identity's signature may come
+  minutes after the request (see Obtaining the identity's signature). For a
+  grant, the lifetime counts from when the wallet composes the transaction (see
+  Time below); for a hint, from when the request arrived. A producer cannot ask
+  for a session with no expiry: an unlimited lifetime is a decision the user
+  takes in their wallet, not something a dapp can request.
+- **`callback` is required on `connect`:** the producer needs the answer, and
+  with no `signer` it has no other way to learn the identity. On `disconnect` it
+  is optional, because the producer can confirm the revocation on chain by
+  itself.
+- **`state` is required when a key is named,** not just recommended, because it
+  is part of the signed payload and the replay defence.
+- **`signer` is required with `old` and on `disconnect`.** They act on an
+  existing session, and a session lives under one identity. Without `old` it is
+  optional, and a missing pin means "whichever identity the user picks". A
+  producer that already knows the identity SHOULD pin it.
+- **Encoding** follows the launch-link rules. `+` is a literal plus in every
+  parameter above (none of them is an argument value), and repeated `allow`
+  parameters keep their order.
+- **The usual validation applies.** A wallet answers `invalid_request` to a
+  request with a missing required parameter, a malformed key, an allow entry the
+  chain grammar rejects, more than 8 entries, or an out-of-range `period` or
+  `expires`. It validates hints the same way, so the grammar is the same
+  whichever mode a producer uses.
+
+#### Proof of possession
+
+Every request that names a key is signed by that key, so a producer can only
+have a key authorised, replaced or revoked if it controls it.
+
+**Payload.** Take all query parameters of the request except `sig` and `oldsig`,
+percent-decode them, and sort them by key then value, bytewise in UTF-8 — which
+is Unicode code-point order. (A UTF-16 comparison, the default for strings in
+JavaScript, orders characters above U+FFFF differently: compare code points.)
+The payload is these lines joined with `\n` (LF), with no trailing newline:
+
+```
+gnoconnect-session-v1
+host=<host, lowercased>
+<key>=<value>
+<key>=<value>
+…
+```
+
+- **No control characters.** A name or value containing one — C0, DEL or C1,
+  as Go's `unicode.IsControl` defines them, line breaks included — is
+  `invalid_request`.
+- **No `=` in parameter names.** A decoded name containing `=` is
+  `invalid_request`: `a%3Db=c` and `a=b%3Dc` would give the same line, so a
+  relay could rename a signed parameter without breaking the signature.
+- **Everything in the request is covered,** including `callback`, `chainid`,
+  `iat`, `state`, `signer` and `old`. Changing any of them breaks the
+  signature, so a request redirected to another callback or replayed on another
+  chain is refused.
+- **The host is covered too** (`connect` or `disconnect`), so a signed
+  `connect` cannot be replayed as a `disconnect`, or the reverse.
+- **The `gnoconnect-session-v1` prefix** keeps this payload from ever looking
+  like a transaction sign document (which starts with `{`). That matters because
+  the same key will sign transactions.
+- **Parameters added by future extensions are signed too,** since every
+  parameter except the signatures is covered. A wallet that does not know a
+  parameter still verifies the signature over it, then ignores it.
+
+**Signature.** It is made with the key's own scheme, as tm2's `PrivKey.Sign`
+does, and checked as `PubKey.VerifyBytes` does:
+
+- secp256k1: ECDSA over SHA-256(payload), 64 bytes `R‖S`, low-S. Wallets MUST
+  support it.
+- ed25519: RFC 8032 over the payload, 64 bytes. Wallets MAY support it, and
+  answer `invalid_proof` if they do not.
+
+`sig` and `oldsig` are **base64url without padding** (RFC 4648 §5). Both sign
+the same payload.
+
+**Wallet checks, before showing anything to the user:**
+
+1. `sig` verifies against `pubkey`, and with `old` `oldsig` verifies against
+   `old`. Otherwise answer `invalid_proof`.
+2. `iat` is no more than 10 minutes old and no more than 1 minute in the future
+   by the wallet's clock. Otherwise answer `stale_request`. (Ten minutes only
+   bounds how long a link may wait before the wallet opens it; the identity's
+   signature may come later.)
+3. The wallet SHOULD remember the `(pubkey, state)` pairs it has accepted for
+   that window and drop a repeat without answering: the first copy is being
+   handled, and answering the copy could close the producer's request early.
+   A request the wallet refused and receives again is not answered a second
+   time either.
+
+**What it proves.** That the requester holds the private key, and nothing about
+*who* the requester is. As for every `connect`, the producer's identity to the
+user is its callback destination, which the wallet MUST show. What the proof
+stops is one producer replacing or revoking another producer's session, and a
+producer getting a key it does not control authorised.
+
+#### Time
+
+A session's expiry is enforced against block time, so a wallet judges it the
+same way: it takes "now" as the time of the latest block, never later than its
+own clock, when it decides whether a session is expired and when it composes
+`ExpiresAt = now + expires`. A node whose latest block carries no usable time
+(no block yet, or still syncing) gives no such time, and the wallet does not
+compose against it. A grant that would already be over when it lands (a chain
+that has produced no block for longer than `expires`) is refused before the
+user is asked.
+
+#### `connect` without a key: scope hints
+
+```
+<scheme>://connect?allow=<entry>&allow=<entry>&spend=<coins>&period=<s>&expires=<s>&chainid=<id>&callback=<url>&state=<token>
+```
+
+The hints describe what the producer intends to send through the wallet. The
+wallet MAY use them to choose a session it already holds for the identity that
+covers them, or to offer the user to create one, before it answers, so the
+first `sendtx` does not stop on a missing or too narrow session. A session
+covers the hints when it allows every hinted entry, its budget is at least the
+hinted one (and, when the hint names a period, resets at least that often), and
+it lasts at least `expires` counted from the request's arrival (a wallet allows
+a minute or so of slack, since block time trails the clock). A session with no spend limit cannot
+pay its own gas, so it covers no hint. What the wallet does with the hints is
+entirely its own decision:
+
+- The user may also choose to sign with the identity itself, or to decide
+  later. The answer is the same in every case: the `connect` callback above.
+- Creating a wallet-held session is a grant like any other. Its review follows
+  the Review section, and its costs are paid by the identity.
+- A hint creates no obligation. The producer learns nothing about the session,
+  and a later `sendtx` that the session cannot cover is the wallet's to handle
+  in its own review.
+
+#### `connect` with a key
+
+```
+<scheme>://connect?pubkey=<gpub>&allow=<entry>&allow=<entry>&spend=<coins>&period=<s>&expires=<s>&chainid=<id>&rpc=<rpc>&signer=<address>&callback=<url>&state=<token>&iat=<unix>&sig=<b64url>
+```
+
+The wallet:
+
+1. Resolves the network, then the identity: the pinned `signer`, or one the user
+   picks. If it cannot obtain a signature from the pinned identity, it answers
+   `signer_unavailable`; if it has no identity at all, `no_signer`.
+2. Looks up `pubkey` as a session of that identity
+   (`auth/accounts/{address}/session/{session address}`):
+   - **Present and not expired:** nothing to sign. After the user agrees to
+     disclose the identity, as for any `connect`, the wallet answers with the
+     grant read from the chain. This makes `connect` safe to repeat: a producer
+     whose callback was lost asks again with the same key and gets its answer.
+   - **Present and expired:** the wallet answers `session_expired`. The
+     producer connects again with a fresh key and names the expired one in
+     `old`, which frees its slot.
+3. Checks on chain everything else the chain would reject, because a rejected
+   transaction still costs its fee: the identity has a free session slot, or the
+   wallet can free one (see Wallet housekeeping). If not, the wallet answers
+   `session_limit`.
+4. Shows the consent screen (see Review).
+5. Composes one transaction: `MsgRevokeSession` for `old` if given and on chain,
+   any housekeeping revocations, then `MsgCreateSession{Creator: identity,
+   SessionKey: pubkey, ExpiresAt: now + expires, AllowPaths: allow, SpendLimit:
+   spend, SpendPeriod: period}`, with "now" as in Time. It obtains the
+   identity's signature and broadcasts.
+6. Waits until the session is visible on chain, then answers.
+
+**Narrowing.** The user MAY narrow the grant on the review screen: a shorter
+lifetime, a lower spend limit, a longer period, fewer allow entries. The user MUST
+NOT widen it: the producer did not ask for more, and more authority on a key a
+third party holds helps no one. The callback reports what was actually granted,
+and the producer MUST work with that.
+
+**The network can change under a pending request.** A switch the user accepts
+for another request (a `sendtx` for another chain, say) leaves a request parked
+for review on a network the wallet is no longer on. Before planning or
+composing it, the wallet resolves its network again: it offers to switch back,
+or answers `network_declined`. Conversely, declining a switch answers
+`network_declined` only to the requests that named that other chain; a parked
+request for the current chain stays pending.
+
+##### Renewal and rotation: `old`
+
+```
+<scheme>://connect?pubkey=<new gpub>&old=<gpub>&allow=…&spend=…&period=…&expires=…&chainid=<id>&signer=<address>&callback=<url>&state=<token>&iat=<unix>&sig=<b64url>&oldsig=<b64url>
+```
+
+This is how a producer renews before expiry, changes the budget or changes the
+allowed paths. The rules of a `connect` with a key apply, plus:
+
+- **The new grant is new consent.** The review MUST show the old and new limits
+  side by side and highlight any widening: a longer lifetime, a higher limit, a
+  shorter period, new allow entries.
+- **Revocation and creation go in one transaction,** revocation first. The
+  transaction is atomic: if the creation fails, the old session is still there.
+  This is what makes `old` worth having over `disconnect` then `connect`: one
+  signature by the identity, one fee, and no moment without a working session.
+- **An `old` that has expired but is still stored is valid:** renewing it is
+  exactly what `old` is for.
+- **An `old` that is no longer on chain** (the user revoked it, or a previous
+  renewal already did) does not fail the request. The proof still shows the
+  producer held it; there is simply nothing to revoke. The review says so, the
+  transaction creates the new session only, and the callback omits `revoked`.
+- **A fresh key every time.** Since `old` and `pubkey` differ, a renewal is also
+  a rotation: a copy of the old key that leaked stops working.
+
+#### `disconnect`
+
+```
+<scheme>://disconnect?pubkey=<gpub>&chainid=<id>&signer=<address>&callback=<url>&state=<token>&iat=<unix>&sig=<b64url>
+```
+
+- **It ends a producer-held session.** A producer that connected without a key
+  holds nothing the wallet could revoke for it. It disconnects by forgetting the
+  address, and sends no request.
+- **`pubkey` must be a session of `signer` on chain,** or the wallet answers
+  `session_not_found`.
+- **The user still confirms.** Revoking only removes authority, but it costs gas
+  to the identity and may need the identity's signature from another device. The
+  wallet MAY use a lighter screen than for a grant.
+- **The wallet MAY add housekeeping revocations** to the same transaction, as on
+  `connect`, and shows them in the review.
+- **A producer that has lost its key cannot ask for this.** The user then revokes
+  from the wallet's own interface, which is wallet business.
+
+#### Obtaining the identity's signature
+
+This standard does not say how the wallet obtains the identity's signature on
+the `auth` messages, only that the user approved the content first. Possible
+routes:
+
+- **The wallet holds the identity's key.** One approval, signed on the device.
+- **A hardware signer.**
+- **A desktop handoff,** for a wallet that only holds a session key and cannot
+  sign `auth/*` itself. The wallet shows the user a command or QR code for the
+  identity's signer on another device, then watches the chain. For a `connect`
+  with a key, no `old` and no housekeeping:
+
+  ```
+  gnokey maketx session create -pubkey <gpub> -expires-at <expires>s \
+    -allow-paths <entry> … -spend-limit <coins> -spend-period <s> \
+    -gas-fee <fee> -gas-wanted <gas> -chainid <id> -remote <rpc> <identity>
+  ```
+
+  `-expires-at` takes a duration (`90000s`, `7d`) counted when the command
+  runs, or an absolute unix time; a duration keeps the granted lifetime whole
+  however long the user takes to reach the computer. For a `disconnect` with no
+  housekeeping:
+
+  ```
+  gnokey maketx session revoke -pubkey <gpub> \
+    -gas-fee <fee> -gas-wanted <gas> -chainid <id> -remote <rpc> <identity>
+  ```
+
+  `-broadcast` defaults to `true` in `gnokey`, so these sign and broadcast.
+  Passing `-broadcast=false` instead prints the unsigned document.
+
+  For a `connect` with `old`, and for any transaction carrying housekeeping
+  revocations, `gnokey` has no single command. The wallet writes the unsigned
+  multi-message document and shows:
+
+  ```
+  gnokey sign -tx-path <file> -chainid <id> -account-number <n> \
+    -account-sequence <seq> <identity> \
+  && gnokey broadcast -dry-run -remote <rpc> <file> \
+  && gnokey broadcast -remote <rpc> <file>
+  ```
+
+  The `-dry-run` step runs the transaction without committing it, so anything
+  the chain would reject (a session list filled since the wallet checked, a
+  stale sequence) stops the command before a fee is charged.
+  Without it, a doomed transaction is still included and costs its whole fee.
+
+  `gnokey sign` does not look up the account: the wallet fills in the
+  identity's account number and current sequence. The document goes stale as
+  soon as the identity sends any other transaction (the broadcast then fails
+  with `signature verification failed`), so the wallet regenerates it when the
+  sequence moves. Its `ExpiresAt` is absolute, fixed when the wallet composed
+  it (see Time).
+
+So the answer may come minutes after the request. The wallet SHOULD keep the
+request pending until the chain shows the outcome, MUST let the user cancel
+(answering `cancelled`), and answers once the chain confirms. Some platforms
+only let an app open a URL while it is in the foreground (Android blocks
+activity starts from the background), so a wallet that watches the chain in the
+background answers when the user returns to it. A producer MUST treat the
+request as possibly unanswered, as the launch-link rules require, and SHOULD
+watch the chain itself when it can (it always can once it knows the identity).
+
+#### Review
+
+Before obtaining any signature, the review screen MUST show:
+
+- **the callback's host** (the producer's only identity);
+- **the network**: chain id and the endpoint in effect, as in Network resolution;
+- **the identity** that grants;
+- **each allow entry,** with a warning on entries that let the key reach
+  arbitrary code or move funds directly: `*`, a bare `vm/exec`, `vm/run`,
+  `bank/send` and `bank/multisend`;
+- **the budget in plain terms** ("5 GNOT per hour") **and its worst case** over
+  the whole lifetime ("at most 3,600 GNOT over 30 days"), since the period
+  resets for as long as the session lives;
+- **the expiry,** as an absolute date (approximate when the identity signs on
+  another device: the lifetime counts from when the transaction lands);
+- **with `old`,** the old and new grants side by side, widenings highlighted, or
+  a note that the old key is no longer on chain and nothing is replaced;
+- **every housekeeping revocation** added to the transaction;
+- **for every transaction,** what the identity pays in gas for it.
+
+#### Callback results
+
+```
+<callback>?status=success&address=<bech32>&chainid=<id>&features=<tokens>&session=<bech32>&expires_at=<unix>&allow=<entry>…&spend=<coins>&period=<s>&revoked=<bech32>&hash=<txhash>&state=<echoed>   # connect with a key
+<callback>?status=success&address=<bech32>&chainid=<id>&hash=<txhash>&state=<echoed>                                                                                                       # disconnect
+<callback>?status=cancelled&state=<echoed>
+<callback>?status=error&code=<code>&state=<echoed>
+```
+
+A `connect` without a key, hints or not, answers as described under `connect`.
+
+- **`address`** is the identity, the one a later request pins as `signer`.
+- **`session`** is the bech32 address of `pubkey`, which the producer computes
+  itself. In a `connect` without a key, the same field is the wallet's own
+  delegated key, informational only. **A producer MUST compare `session` with
+  the address of its `pubkey`.** If they differ, or `session` is missing, the
+  wallet did not grant anything: it does not implement these parameters and
+  answered an identity-only `connect`. The producer still has a valid
+  `address`, which is what a fallback (such as a desktop command it shows
+  itself) needs.
+- **`expires_at`, `allow`, `spend` and `period`** are what was actually granted,
+  after any narrowing, or what is on chain for an existing session (step 2).
+- **`revoked`** is the address of `old` when this transaction revoked it. It is
+  absent when there was no `old`, or when `old` was no longer on chain.
+- **`hash`** is optional. A wallet that watched a desktop signer broadcast may
+  not know it, and an answer about an existing session has none. As everywhere,
+  it is a hint and not proof.
+- **`pubkey`** in a callback keeps the meaning it has for `connect`: the
+  identity's public key, optional. It is never the producer's key.
+
+**A producer MUST confirm on chain before relying on the result.** After a
+`connect` with a key, it queries `auth/accounts/{address}/session/{session}` and
+checks `ExpiresAt`, `SpendLimit`, `SpendPeriod` and `AllowPaths`; with
+`revoked`, it also checks the old session is gone. After a `disconnect`, it
+checks the session is gone. Anyone can open a callback scheme. An answer whose
+`address` is not the identity the producer pinned, or whose `chainid` is not the
+request's, is not about its request.
+
+**Error codes.** All of `sendtx`'s apply where they make sense:
+`invalid_request`, `network_declined`, `signer_unavailable`, `no_signer`,
+`unsupported_host` (a wallet without `disconnect`), `tx_failed`. Requests that
+name a key add:
+
+- `invalid_proof`: `sig` or `oldsig` did not verify, or the key type is not
+  supported.
+- `stale_request`: `iat` is outside the window.
+- `session_expired`: `connect` named a key that is an expired session of the
+  identity.
+- `session_not_found`: `disconnect` named a key that is not a session of
+  `signer`.
+- `session_limit`: the identity already has 16 sessions and the wallet could not
+  make room (see Wallet housekeeping).
+
+#### Wallet housekeeping
+
+Expired sessions count towards the limit of 16 and are never removed by the
+chain. When it composes a `connect` or `disconnect` transaction, a wallet MAY
+add `MsgRevokeSession` messages for **expired** sessions of the identity, and it
+SHOULD do so before answering `session_limit`. These messages MUST appear in the
+review.
+
+This is entirely the wallet's decision: there is no request parameter for it,
+and the producer neither sees nor controls it. A wallet MUST NOT revoke a session
+that has not expired, other than the `old` of a `connect` or the `pubkey` of a
+`disconnect`, without the user explicitly choosing to.
+
+#### Producer obligations
+
+- **Generate the key on the device** and keep it in the platform's secure
+  storage (Keychain or Android Keystore). Never transmit it.
+- **Use a fresh key for every `connect` that grants,** first and renewal alike.
+- **Keep the old key until the renewal is confirmed on chain,** then delete
+  it. A transaction signed with the old key may fail if the swap happens while it
+  is pending; re-sign it with the new key.
+- **Watch the session and renew with `old` well before expiry.** With a wallet
+  that hands off to a desktop, the user needs time to reach a computer, so a
+  notification several days ahead works better than a failure mid-session.
+- **Read the remaining budget from the chain**, not from a local tally:
+  `remaining = (now ≥ SpendReset + SpendPeriod) ? SpendLimit : SpendLimit −
+  SpendUsed`. What can actually be spent is also capped by the identity's
+  balance (`bank/balances/{address}`). A low balance is fixed by funding the
+  identity's address, not by a session operation. Winnings paid back to the
+  identity raise its balance but leave the session's budget unchanged.
+- **Sign transactions in the session format**: the signature carries the session
+  address and the transaction names the identity as caller and sender. A client
+  that cannot represent this produces invalid transactions; check that the one
+  you use supports session signers.
+- **Use `disconnect` when the user logs out,** then delete the key once the
+  revocation is confirmed.
+
+#### Example: a game that needs about an hour of play at a time
+
+The producer asks for 5 GNOT per hour on its realm only, for 30 days.
+Parameters before encoding:
+
+```
+land.gno.gnokey://connect
+  ?pubkey=gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq…
+  &allow=vm/exec:gno.land/r/demo/game
+  &spend=5000000ugnot&period=3600&expires=2592000
+  &chainid=gnoland-1&rpc=https://rpc.gno.land:443
+  &callback=<its https page on game.example>
+  &state=Qm9vcC0xNzI3&iat=1790841600&sig=…
+```
+
+The review shows the callback host `game.example`, `gnoland-1` and its
+endpoint, the realm path, "5 GNOT per hour, at most 3,600 GNOT over 30 days"
+and the expiry date. After the user's approval and the identity's signature, the
+answer is appended to that callback, in its fragment:
+
+```
+<callback>#status=success&address=g1…&chainid=gnoland-1&features=sendtx,signtx,sessions&session=g1…&expires_at=1793433600&allow=vm%2Fexec%3Agno.land%2Fr%2Fdemo%2Fgame&spend=5000000ugnot&period=3600&state=Qm9vcC0xNzI3
+```
+
+Three days before `expires_at`, the producer notifies the user and sends a new
+`connect` with a new key in `pubkey`, the current key in `old`, `signer` set to
+the identity, signed by both keys. When the user logs out, it sends
+`disconnect` for the current key.
+
+A wallet that does not grant sessions answers the first request with
+`status=success&address=g1…` and no `session` for that key. The producer then
+knows it must obtain the grant another way, and already knows the identity.
+
 ### Callback URL rules
 
 A wallet opens `callback`, so it MUST constrain it:
@@ -526,13 +1101,21 @@ A wallet opens `callback`, so it MUST constrain it:
 - Require an absolute URI with a scheme, no control characters, bounded length.
 - The wallet appends its response keys, preserving any parameters already in
   `callback`. If a response-key name (`status`, `code`, `state`, `hash`,
-  `signedtx`, `address`, `session`, `pubkey`, `chainid`, `features`) already
-  appears, the wallet's appended value is authoritative — producers MUST read
-  the **last** occurrence.
+  `signedtx`, `address`, `session`, `pubkey`, `chainid`, `features`,
+  `expires_at`, `spend`, `period`, `revoked`) already appears, the wallet's
+  appended value is authoritative — producers MUST read the **last**
+  occurrence. `allow` is the exception: it repeats in a session answer, so a
+  producer cannot tell its own occurrences from the wallet's, and its callback
+  MUST NOT carry an `allow` parameter.
+- Response names and values are percent-encoded like the request's; a wallet
+  may encode characters it need not (`expires%5Fat`), so producers MUST
+  percent-decode names as well as values.
 - For an `https:` callback the wallet SHOULD return the result in the URL
   **fragment** (`#status=…`) rather than the query, to keep it out of server
   logs and `Referer`. A custom-scheme callback travels no network hop, so query
-  parameters are fine there.
+  parameters are fine there. A producer reads the answer where the wallet writes
+  it — the fragment for an `http(s)` callback, the query otherwise — and
+  ignores the other part.
 - On violation for `connect`, drop the request — there is nowhere to answer.
   For `sendtx` the callback is optional, so the wallet MAY still let the user sign,
   but MUST make clear that the requesting producer will not be notified.
@@ -544,7 +1127,9 @@ conferring no standing. Nothing in this standard is specific to any entry here.
 
 - **Gnoweb** (producer)
 - **Adena Wallet** (wallet)
-- **Gnokey Mobile** (wallet)
+- **Gnokey Mobile** (wallet; on iOS and Android also grants sessions: `connect`
+  with a key, `disconnect`, scope hints)
+- **Bubble Rumble mobile** (producer holding its own session key)
 - **Gnobro** (coming soon)
 - _Add your clients here_
 
