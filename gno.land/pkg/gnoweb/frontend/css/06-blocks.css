@@ -245,6 +245,7 @@
 		inset: 0;
 		display: flex;
 		align-items: center;
+		gap: var(--g-space-1-5);
 		padding: var(--g-space-1-5);
 		padding-inline-end: var(--g-space-8);
 		font-size: var(--g-font-size-200);
@@ -271,11 +272,12 @@
 			}
 		}
 
-		/* "/" shortcut hint: on an empty, unfocused bar, from md (no keyboard on mobile) */
+		/* "/" shortcut hint before the placeholder: on an empty, unfocused bar,
+		   from md (no keyboard on mobile). Kept after the input in the markup
+		   so the sibling selector below needs no :has. */
 		& > .shortcut {
+			order: -1;
 			flex-shrink: 0;
-			/* Clear the fade drawn left of the actions */
-			margin-inline-end: var(--g-space-4);
 
 			@media not all and (--md) {
 				display: none;
