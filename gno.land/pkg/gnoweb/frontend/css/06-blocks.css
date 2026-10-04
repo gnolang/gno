@@ -272,9 +272,7 @@
 			}
 		}
 
-		/* "/" shortcut hint before the placeholder: on an empty, unfocused bar,
-		   from md (no keyboard on mobile). Kept after the input in the markup
-		   so the sibling selector below needs no :has. */
+		/* "/" shortcut hint, from md: no keyboard on mobile */
 		& > .shortcut {
 			order: -1;
 			flex-shrink: 0;
@@ -322,7 +320,7 @@
 		}
 	}
 
-	/* Submits the search, sits close to the network toggle from md */
+	/* Submits the search, sits close to the network toggle */
 	.search-icon {
 		display: flex;
 		padding: var(--g-space-1-5);

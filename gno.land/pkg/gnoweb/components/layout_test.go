@@ -292,7 +292,6 @@ func TestEnrichHeaderData_RootHasNoRealmPath(t *testing.T) {
 
 	data := HeaderData{RealmURL: weburl.GnoURL{Path: "/"}}
 
-	// An empty value lets the search input show its placeholder
 	enriched := EnrichHeaderData(data, ViewModeHome)
 	assert.Empty(t, enriched.RealmPath)
 }

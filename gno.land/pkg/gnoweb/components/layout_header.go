@@ -166,8 +166,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 }
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
-	// The root (a static home) has no path to show: an empty value lets the
-	// search input fall back to its placeholder.
+	// The root has no path: an empty value shows the placeholder
 	if data.RealmURL.Path != "/" {
 		data.RealmPath = data.RealmURL.EncodeURL()
 	}

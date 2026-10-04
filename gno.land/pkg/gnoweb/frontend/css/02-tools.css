@@ -91,7 +91,7 @@
 
 	/* Form text */
 	--s-color-text-input: var(--g-color-gray-600, #54595d); /* Input text */
-	--s-color-text-input-placeholder: var(--g-color-gray-600, #545454); /* Placeholder, AA on surface-secondary */
+	--s-color-text-input-placeholder: var(--g-color-gray-600, #545454); /* Placeholder */
 	--s-color-text-input-disabled: var(--g-color-gray-300, #999999); /* Disabled input */
 
 	/* Semantic text */

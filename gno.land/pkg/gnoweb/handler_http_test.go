@@ -2038,9 +2038,8 @@ func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
 		"page title must reflect realm path — empty title means HeadData.Title was not set on the state branch")
 }
 
-// TestHTTPHandler_StaticHomeSearchPlaceholder checks that a static home
-// leaves the header search input empty, without an empty breadcrumb laid
-// over it, so its placeholder shows.
+// TestHTTPHandler_StaticHomeSearchPlaceholder checks that a static home shows
+// the search placeholder, with no empty breadcrumb over it.
 func TestHTTPHandler_StaticHomeSearchPlaceholder(t *testing.T) {
 	t.Parallel()
 

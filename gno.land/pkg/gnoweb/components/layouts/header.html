@@ -20,11 +20,9 @@ LAYOUT - Header component
               aria-keyshortcuts="/" role="combobox" aria-expanded="false" aria-controls="omnisearch-results"
               aria-autocomplete="list" autocomplete="off"
               data-action="input->searchbar#search" />
-            <!-- "/" focuses the bar (searchbar#onKeyShortcut) -->
             <kbd class="b-tag shortcut" aria-hidden="true">/</kbd>
           </form>
 
-          {{- /* An empty breadcrumb (the root) would only cover the placeholder */}}
           {{ if or .Breadcrumb.Parts .Breadcrumb.ArgParts .Breadcrumb.Queries }}{{ template "ui/breadcrumb" .Breadcrumb }}{{ end }}
         </div>
 
