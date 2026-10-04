@@ -122,6 +122,7 @@ func mayBeIPFSURL(b []byte) bool {
 //	https://<cid>.ipfs.dweb.link/<path>     -> <gateway>/ipfs/<cid>/<path>
 //	https://<label>.ipns.dweb.link/<path>   -> <gateway>/ipns/<name>/<path>
 //
+// Protocol-relative URLs (//ipfs.io/ipfs/...) are handled like https ones.
 // Query and fragment are kept. It reports false, and leaves the URL alone,
 // for anything else: other hosts, userinfo, explicit ports, or a CID or
 // name that is not plain alphanumerics (plus dots and hyphens for IPNS).
@@ -135,7 +136,7 @@ func rewriteIPFSURL(gateway, raw string) (string, bool) {
 	switch u.Scheme { // url.Parse lowercases the scheme
 	case "ipfs", "ipns":
 		namespace, name, rest = u.Scheme, u.Host, u.EscapedPath()
-	case "http", "https":
+	case "http", "https", "": // "" with a host: protocol-relative //host/...
 		host := strings.ToLower(u.Host) // keeps any port, so ported hosts never match
 		if _, retired := ipfsRetiredGateways[host]; retired {
 			namespace, name, rest = splitGatewayPath(u.EscapedPath())

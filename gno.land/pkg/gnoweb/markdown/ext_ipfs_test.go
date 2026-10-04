@@ -49,6 +49,10 @@ func TestRewriteIPFSURL(t *testing.T) {
 		{"https://" + testCIDv1 + ".ipfs.cf-ipfs.com/", gwIPFS + testCIDv1 + "/"},
 		{"https://en-wikipedia--on--ipfs-org.ipns.dweb.link/wiki/", testGateway + "/ipns/en.wikipedia-on-ipfs.org/wiki/"},
 		{"https://" + testIPNSKey + ".ipns.dweb.link/", testGateway + "/ipns/" + testIPNSKey + "/"},
+
+		// Protocol-relative URLs on retired gateways.
+		{"//ipfs.io/ipfs/" + testCIDv1 + "/x", gwIPFS + testCIDv1 + "/x"},
+		{"//" + testCIDv1 + ".ipfs.dweb.link/x", gwIPFS + testCIDv1 + "/x"},
 	}
 	for _, tc := range rewritten {
 		got, ok := rewriteIPFSURL(testGateway, tc.in)
@@ -86,6 +90,7 @@ func TestRewriteIPFSURL(t *testing.T) {
 		"javascript:alert(1)",
 		"mailto:a@b.c",
 		"/r/demo/foo",
+		"/ipfs/" + testCIDv1, // relative to the gnoweb host
 		"",
 	}
 	for _, in := range untouched {
@@ -124,25 +129,30 @@ func TestIPFSRenderMatchesGatewayURL(t *testing.T) {
 		"/a%20b?x=%26#frag",
 		"/&#x61;.png",
 	}
-	sources := []string{
-		"ipfs://" + testCIDv1,
-		"&#x69;pfs://" + testCIDv1,
-		"https://ipfs.io/ipfs/" + testCIDv1,
-		"https://" + testCIDv1 + ".ipfs.dweb.link",
+	const dnslink = "/ipns/en.wikipedia-on-ipfs.org"
+	sources := []struct{ src, path string }{
+		{"ipfs://" + testCIDv1, "/ipfs/" + testCIDv1},
+		{"&#x69;pfs://" + testCIDv1, "/ipfs/" + testCIDv1},
+		{"https://ipfs.io/ipfs/" + testCIDv1, "/ipfs/" + testCIDv1},
+		{"https://" + testCIDv1 + ".ipfs.dweb.link", "/ipfs/" + testCIDv1},
+		{"//ipfs.io/ipfs/" + testCIDv1, "/ipfs/" + testCIDv1},
+		{"ipns://en.wikipedia-on-ipfs.org", dnslink},
+		{"https://gateway.ipfs.io/ipns/en.wikipedia-on-ipfs.org", dnslink},
+		{"https://en-wikipedia--on--ipfs-org.ipns.dweb.link", dnslink},
 	}
 	forms := []string{"[x](%s)", "![x](%s)", "<%s>", "[x][r]\n\n[r]: %s"}
 
 	for _, form := range forms {
 		for _, suffix := range suffixes {
-			want := renderIPFS(t, fmt.Sprintf(form, testGateway+"/ipfs/"+testCIDv1+suffix), testGateway)
 			for _, source := range sources {
-				got := renderIPFS(t, fmt.Sprintf(form, source+suffix), testGateway)
+				want := renderIPFS(t, fmt.Sprintf(form, testGateway+source.path+suffix), testGateway)
+				got := renderIPFS(t, fmt.Sprintf(form, source.src+suffix), testGateway)
 				switch {
 				case form != "<%s>":
-					assert.Equal(t, want, got, "form %q, source %q, suffix %q", form, source, suffix)
-				case !strings.HasPrefix(source, "&"): // autolinks keep their own label
+					assert.Equal(t, want, got, "form %q, source %q, suffix %q", form, source.src, suffix)
+				case !strings.HasPrefix(source.src, "&") && !strings.HasPrefix(source.src, "/"): // autolinks keep their own label
 					assert.Equal(t, reURLAttr.FindAllString(want, -1), reURLAttr.FindAllString(got, -1),
-						"form %q, source %q, suffix %q", form, source, suffix)
+						"form %q, source %q, suffix %q", form, source.src, suffix)
 				}
 			}
 		}

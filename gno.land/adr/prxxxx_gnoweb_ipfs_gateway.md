@@ -36,8 +36,9 @@ cannot open, and images were blocked by the CSP.
     hosts, userinfo, ports and anything unparsable are left as written.
 - The rewritten destination is escaped for markdown (`\` and `&`), because the
   renderers resolve escapes and character references in a destination once
-  more. A test renders every form next to the same gateway URL written by hand
-  and requires identical output.
+  more. A test renders each URL form (`ipfs://`, `ipns://`, entity-encoded,
+  path gateway, subdomain gateway, inlined DNSLink) next to the same gateway
+  URL written by hand and requires identical output.
 - The CSP drops the dead hosts and allows the configured gateway origin.
 - The gateway must be `https` (`http` only on loopback), with no credentials,
   path, query or fragment, and not on the gnoweb domain. On that domain,
@@ -86,4 +87,6 @@ that limit applies per visitor, not per gnoweb instance.
   `-html`. Autolinks keep their original label while the href points at the
   gateway.
 - `md.Link` and `md.Image` (through `sanitize`) still drop `ipfs://` URLs.
-  `docs/users/explore-with-gnoweb.md` says to write the markdown directly.
+  `docs/users/explore-with-gnoweb.md` says to write the markdown directly only
+  for CIDs a realm controls, and to validate any user-supplied CID (ASCII
+  letters and digits only) before building `ipfs://<cid>` from it.

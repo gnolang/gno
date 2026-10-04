@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,7 +23,7 @@ func TestNormalizeIPFSGateway(t *testing.T) {
 		{"https://gw.example:8443", "https://gw.example:8443"},
 		{"http://localhost:8080", "http://localhost:8080"},
 		{"http://127.0.0.1:8080/", "http://127.0.0.1:8080"},
-		{"http://[::1]:8080", "http://[::1]:8080"},
+		{"https://xn--bcher-kva.example", "https://xn--bcher-kva.example"}, // punycode
 		{"http://ipfs.localhost:8080", "http://ipfs.localhost:8080"},
 	}
 	for _, tc := range valid {
@@ -44,6 +45,16 @@ func TestNormalizeIPFSGateway(t *testing.T) {
 		"https://ipfs .filebase.io",          // whitespace in host
 		"https://gno.land",                   // the gnoweb domain
 		"https://ipfs.GNO.land",              // a subdomain of it
+		"https://gno.land.",                  // the gnoweb domain, trailing dot
+		"https://*",                          // a CSP wildcard
+		"https://*.example",                  // a CSP wildcard
+		"https://gw,example",                 // not a host
+		`https://gw"x`,                       // not a host
+		"https://ipfs.filebase.io:",          // empty port
+		"https://gw.example:0",               // port out of range
+		"https://gw.example:99999",           // port out of range
+		"http://[::1]:8080",                  // IPv6: no CSP host-source for it
+		"https://[2001:db8::1]",              // IPv6
 	}
 	for _, in := range invalid {
 		_, err := normalizeIPFSGateway(in, "gno.land")
@@ -59,6 +70,7 @@ func TestNewRouterIPFSGateway(t *testing.T) {
 		cfg := NewDefaultAppConfig()
 		cfg.ChainID = "dev" // skips the chain-id lookup: no node needed
 		cfg.IPFSGateway = gateway
+		cfg.Aliases = maps.Clone(cfg.Aliases) // NewDefaultAppConfig shares DefaultAliases
 		cfg.Aliases["/ipfs-page"] = AliasTarget{Value: "![x](ipfs://" + cid + ")", Kind: StaticMarkdown}
 
 		router, err := NewRouter(log.NewTestingLogger(t), cfg)

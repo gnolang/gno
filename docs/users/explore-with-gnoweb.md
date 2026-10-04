@@ -105,9 +105,12 @@ to a gateway URL, so the gateway can change without touching your realm. The
 content still has to be pinned somewhere on the IPFS network: a gateway only
 serves what some node provides.
 
-:::info
+:::warning
 The URL helpers in `p/nt/markdown/sanitize/v0`, which `p/moul/md` uses, reject
-`ipfs://` URLs. Write the markdown link or image directly instead.
+`ipfs://` URLs, so write the markdown yourself for a CID your realm controls.
+Never put a CID or URL that comes from users or other realms into markdown as
+is: check that the CID contains only ASCII letters and digits, then build
+`ipfs://<cid>` from it.
 :::
 
 ### Viewing source code
