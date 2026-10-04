@@ -74,7 +74,7 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 				`<use href="#ico-pure"></use>`,
 				`<a href="/r/" class="item item--inline">`,
 				`<a href="/u/alice" class="item item--inline">`,
-				`<span class="item-label">All by alice</span>`,
+				`<span class="item-label">All in alice</span>`,
 			},
 			notWant: []string{"/p/alice/golfer"},
 		},
