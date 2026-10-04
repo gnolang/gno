@@ -322,12 +322,15 @@
 		}
 	}
 
-	/* Submits the search, sits close to the network toggle */
+	/* Submits the search, sits close to the network toggle from md */
 	.search-icon {
 		display: flex;
-		padding: var(--g-space-1-5) var(--g-space-0-5) var(--g-space-1-5)
-			var(--g-space-1-5);
+		padding: var(--g-space-1-5);
 		cursor: pointer;
+
+		@media (--md) {
+			padding-inline-end: var(--g-space-0-5);
+		}
 
 		&:hover > svg {
 			color: var(--s-color-text-tertiary-hover);
