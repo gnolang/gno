@@ -352,6 +352,11 @@ fix, or `tx_failed` if the wallet has no fix to offer. A wallet MUST NOT answer 
 request it refused on its own limits with a bare `Rejected`: that reads as the
 user saying no.
 
+A producer that wants to sign by itself, with a session key it holds rather than
+through the wallet, asks for that key to be authorised with the session verbs of
+launch links (see Sessions, under Launch Links). Such a session is the
+producer's, not the wallet's, and these two paragraphs do not apply to it.
+
 ## In-Page Wallets (browser extensions)
 
 A wallet that runs code in the page announces itself; the page collects the
@@ -1120,7 +1125,8 @@ on-chain `tx` the user reviews and signs. A proof-of-control extension
 ### Sessions: `connect` with a key, and `disconnect`
 
 The standard treats sessions as the wallet's business: a producer pins an
-identity (`signer`), never a key, and the wallet chooses which key signs. This
+identity, never a key, and the wallet chooses which key signs (see The `signer`
+pin). This
 section keeps that model and gives producers exactly two verbs. A producer
 **connects** and **disconnects**; which sessions exist, which one signs, and how
 they are created, renewed and cleaned up is decided in the wallet, with the user.
@@ -1152,15 +1158,19 @@ would believe a key was disabled when it still works. So revocation is the host
 `disconnect`, and a wallet that does not implement it answers
 `unsupported_host`.
 
-Sessions are carried by launch links only in this version. The in-page
-transport, and sessions a session could create itself (attenuated
-sub-sessions, which would need consensus changes), are not covered.
+Sessions are carried by launch links only in this version: the in-page
+provider's `connect(opts)` takes no key and no hints yet. It could take the same
+fields (`pubkey`, `old`, the grant, `sig`, `oldsig`) and gain a `disconnect`
+method; a `connect` on an approved origin would then answer without prompting
+only when it names no key, or a key that is already a session covering the
+request. Sessions a session could create itself (attenuated sub-sessions, which
+would need consensus changes) are not covered either.
 
 #### Two kinds of session
 
 A session the wallet signs `sendtx` and `signtx` requests with is
 **wallet-held**: the producer never sees it, and its limits are the wallet's
-business. Scope hints only help the wallet choose or prepare one; they give the
+business, as The `signer` pin says. Scope hints only help the wallet choose or prepare one; they give the
 producer no handle on it.
 
 A session requested with `pubkey` is **producer-held**. The key is generated
@@ -1384,8 +1394,8 @@ entirely its own decision:
 - Creating a wallet-held session is a grant like any other. Its review follows
   the Review section, and its costs are paid by the identity.
 - A hint creates no obligation. The producer learns nothing about the session,
-  and a later `sendtx` that the session cannot cover is the wallet's to handle
-  in its own review.
+  and a later `sendtx` that the session cannot cover is handled as The `signer`
+  pin says: the wallet offers the fix in its own review.
 
 #### `connect` with a key
 
