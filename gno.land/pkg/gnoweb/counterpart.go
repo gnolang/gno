@@ -28,6 +28,10 @@ const maxCounterpartPaths = 100
 // slow to list paths costs a missing link, never a slower page.
 const counterpartGrace = 300 * time.Millisecond
 
+// counterpartTimeout bounds a lookup on its own: a page that stops waiting
+// does not cancel it, so a slow answer still fills the cache.
+const counterpartTimeout = 5 * time.Second
+
 // counterpartTTL is how long a project listing is reused. Most pages have no
 // counterpart, so caching the empty answers matters as much as the others; a
 // package deployed meanwhile shows up within the TTL.
@@ -124,11 +128,12 @@ func counterpartLink(target, root string, n int) *components.HeaderLink {
 		kind, icon = "realm", "ico-realm"
 	}
 	label := "Matching " + kind
-	switch {
-	case n >= maxCounterpartPaths:
-		label = strconv.Itoa(maxCounterpartPaths) + "+ matching " + kind + "s"
-	case n > 1:
-		label = strconv.Itoa(n) + " matching " + kind + "s"
+	if n > 1 {
+		count := strconv.Itoa(n)
+		if n >= maxCounterpartPaths {
+			count += "+"
+		}
+		label = count + " matching " + kind + "s"
 	}
 	return &components.HeaderLink{
 		Label: label,
@@ -146,9 +151,10 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 		return func() *components.HeaderLink { return nil }
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), counterpartTimeout)
 	done := make(chan *components.HeaderLink, 1)
 	go func() {
+		defer cancel()
 		paths, err := h.counterparts.get(root, func() ([]string, error) {
 			paths, err := h.Client.ListPaths(ctx, gopath.Join(h.Static.Domain, root), maxCounterpartPaths)
 			if len(paths) > maxCounterpartPaths {
@@ -170,7 +176,6 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 	}()
 
 	return func() *components.HeaderLink {
-		defer cancel()
 		select {
 		case link := <-done:
 			return link
@@ -187,6 +192,7 @@ type counterpartCache struct {
 	mu      sync.Mutex
 	entries map[string]counterpartEntry
 	sf      singleflight.Group
+	sweep   time.Time        // when a full cache next has an entry to drop
 	now     func() time.Time // for tests; time.Now when nil
 }
 
@@ -239,9 +245,15 @@ func (c *counterpartCache) store(root string, paths []string) {
 		c.entries = make(map[string]counterpartEntry)
 	}
 	if len(c.entries) >= maxCounterpartEntries {
+		if now.Before(c.sweep) {
+			return
+		}
+		c.sweep = now.Add(counterpartTTL)
 		for k, e := range c.entries {
 			if !now.Before(e.expires) {
 				delete(c.entries, k)
+			} else if e.expires.Before(c.sweep) {
+				c.sweep = e.expires
 			}
 		}
 		if len(c.entries) >= maxCounterpartEntries {

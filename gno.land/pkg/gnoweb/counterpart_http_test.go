@@ -40,7 +40,7 @@ func golfPackages() []*gnoweb.MockPackage {
 	}
 }
 
-func serveCounterpart(t *testing.T, client gnoweb.ClientAdapter, target string) *httptest.ResponseRecorder {
+func newCounterpartHandler(t *testing.T, client gnoweb.ClientAdapter) http.Handler {
 	t.Helper()
 
 	handler, err := gnoweb.NewHTTPHandler(
@@ -48,10 +48,18 @@ func serveCounterpart(t *testing.T, client gnoweb.ClientAdapter, target string) 
 		newTestHandlerConfig(t, client),
 	)
 	require.NoError(t, err)
+	return handler
+}
 
+func serve(handler http.Handler, req *http.Request) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+	handler.ServeHTTP(rr, req)
 	return rr
+}
+
+func serveCounterpart(t *testing.T, client gnoweb.ClientAdapter, target string) *httptest.ResponseRecorder {
+	t.Helper()
+	return serve(newCounterpartHandler(t, client), httptest.NewRequest(http.MethodGet, target, nil))
 }
 
 func TestCounterpart_HeaderLink(t *testing.T) {
@@ -157,34 +165,46 @@ func TestCounterpart_LookupFailureKeepsPage(t *testing.T) {
 	assert.NotContains(t, rr.Body.String(), "item--primary")
 }
 
-// A lookup that never answers must not hold the page back, and must be
-// cancelled once the page gives up on it.
-func TestCounterpart_SlowLookupDoesNotDelayPage(t *testing.T) {
+// A slow lookup must not hold the page back, and its answer, once in, must
+// serve the next page from the cache.
+func TestCounterpart_SlowLookupFillsCache(t *testing.T) {
 	t.Parallel()
 
-	cancelled := make(chan struct{})
+	var calls atomic.Int32
+	answered := make(chan struct{})
 	client := &stubClient{
 		realmFunc: func(context.Context, string, string) ([]byte, error) {
 			return []byte("hello"), nil
 		},
 		listPathsFunc: func(ctx context.Context, _ string, _ int) ([]string, error) {
-			<-ctx.Done()
-			close(cancelled)
-			return nil, ctx.Err()
+			calls.Add(1)
+			defer close(answered)
+			select {
+			case <-time.After(time.Second):
+				return []string{"/p/alice/golf/game"}, nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
 		},
+	}
+	handler := newCounterpartHandler(t, client)
+	get := func() *httptest.ResponseRecorder {
+		return serve(handler, httptest.NewRequest(http.MethodGet, "/r/alice/golf/game", nil))
 	}
 
 	start := time.Now()
-	rr := serveCounterpart(t, client, "/r/alice/golf/game")
-	assert.Less(t, time.Since(start), 2*time.Second)
+	rr := get()
+	assert.Less(t, time.Since(start), 900*time.Millisecond)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.NotContains(t, rr.Body.String(), "item--primary")
 
 	select {
-	case <-cancelled:
-	case <-time.After(2 * time.Second):
-		t.Fatal("lookup was not cancelled")
+	case <-answered:
+	case <-time.After(3 * time.Second):
+		t.Fatal("lookup did not finish")
 	}
+	assert.Contains(t, get().Body.String(), `<a href="/p/alice/golf/game" class="item item--primary">`)
+	assert.Equal(t, int32(1), calls.Load())
 }
 
 // State fragments and JSON render no header, so they must not pay for a lookup.
@@ -220,14 +240,8 @@ func TestCounterpart_MarkdownAnswerSkipsLookup(t *testing.T) {
 		},
 	}
 
-	handler, err := gnoweb.NewHTTPHandler(
-		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
-		newTestHandlerConfig(t, client),
-	)
-	require.NoError(t, err)
-
 	req := httptest.NewRequest(http.MethodGet, "/r/alice/golf/game", nil)
 	req.Header.Set("Accept", "text/markdown")
-	handler.ServeHTTP(httptest.NewRecorder(), req)
+	serve(newCounterpartHandler(t, client), req)
 	assert.Zero(t, calls.Load())
 }

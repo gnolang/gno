@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -156,4 +157,24 @@ func TestCounterpartCache(t *testing.T) {
 	assert.Error(t, err)
 	c.get("/p/bob/x", list)
 	assert.Equal(t, 3, calls, "errors are not cached")
+}
+
+func TestCounterpartCacheFull(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(0, 0)
+	c := counterpartCache{now: func() time.Time { return now }}
+	for i := range maxCounterpartEntries {
+		c.store(strconv.Itoa(i), nil)
+	}
+
+	c.store("late", nil)
+	_, ok := c.lookup("late")
+	assert.False(t, ok, "a full cache of live entries keeps no more")
+
+	now = now.Add(counterpartTTL)
+	c.store("late", nil)
+	_, ok = c.lookup("late")
+	assert.True(t, ok, "expired entries make room")
+	assert.Len(t, c.entries, 1)
 }
