@@ -3953,7 +3953,6 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	}
 
 	& .item--primary {
-		color: var(--s-color-text-primary);
 		font-weight: var(--g-font-semibold);
 	}
 
@@ -3963,5 +3962,10 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		font-size: var(--g-font-size-50);
 		font-weight: var(--g-font-normal);
 		color: var(--s-color-text-tertiary);
+	}
+
+	/* Tertiary falls short of AA on the hover surface */
+	& .item:is(:hover, :focus-visible) .item-path {
+		color: var(--s-color-text-secondary);
 	}
 }
