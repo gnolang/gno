@@ -25,9 +25,8 @@ var gatewayHost = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9](
 // The origin goes into the CSP, so it must be a plain DNS name or IPv4
 // address with an optional valid port. The gateway must be https (http only
 // on loopback, for local dev), must carry no credentials, path, query or
-// fragment, and must not be on the gnoweb domain: links there would be
-// classified as internal, and a path gateway would serve any author's HTML
-// from the same site.
+// fragment, and must not be on the gnoweb domain, where a path gateway
+// would serve any author's HTML from the same site.
 func normalizeIPFSGateway(raw, domain string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {

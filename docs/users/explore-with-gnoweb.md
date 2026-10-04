@@ -110,7 +110,8 @@ The URL helpers in `p/nt/markdown/sanitize/v0`, which `p/moul/md` uses, reject
 `ipfs://` URLs, so write the markdown yourself for a CID your realm controls.
 Never put a CID or URL that comes from users or other realms into markdown as
 is: check that the CID contains only ASCII letters and digits, then build
-`ipfs://<cid>` from it.
+`ipfs://<cid>` from it. Build the alt text or link label with
+`sanitize.InlineText`, as `md.Image` and `md.Link` would.
 :::
 
 ### Viewing source code

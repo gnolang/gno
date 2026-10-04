@@ -29,9 +29,10 @@ cannot open, and images were blocked by the CSP.
   autolinks, reference links and images, including inside `<gno-foreign>`:
   - `ipfs://<cid>/<path>` and `ipns://<name>/<path>` become
     `<gateway>/ipfs/...` and `<gateway>/ipns/...`;
-  - URLs on the retired gateways above (plus `gateway.ipfs.io`), in path form
-    or subdomain form (`<cid>.ipfs.<host>`, `<label>.ipns.<host>` with DNSLink
-    labels decoded), become the same path on the gateway.
+  - URLs on the retired gateways above (plus `gateway.ipfs.io`), in path form,
+    protocol-relative form (`//host/...`) or subdomain form
+    (`<cid>.ipfs.<host>`, `<label>.ipns.<host>` with DNSLink labels decoded),
+    become the same path on the gateway.
   - Only an alphanumeric CID, or an IPNS key or DNS name, is rewritten. Other
     hosts, userinfo, ports and anything unparsable are left as written.
 - The rewritten destination is escaped for markdown (`\` and `&`), because the
@@ -41,8 +42,9 @@ cannot open, and images were blocked by the CSP.
   URL written by hand and requires identical output.
 - The CSP drops the dead hosts and allows the configured gateway origin.
 - The gateway must be `https` (`http` only on loopback), with no credentials,
-  path, query or fragment, and not on the gnoweb domain. On that domain,
-  rewritten links would be classified as internal, and a path gateway would
+  path, query or fragment. Its host must be a DNS name or an IPv4 address,
+  with an optional port in 1..65535 (the CSP has no IPv6 host-source), and
+  not on the gnoweb domain or a subdomain of it, where a path gateway would
   serve any author's HTML from the same site.
 
 The default was measured on 2026-09-23 over 16 CIDs (example-realm images,
@@ -88,5 +90,6 @@ that limit applies per visitor, not per gnoweb instance.
   gateway.
 - `md.Link` and `md.Image` (through `sanitize`) still drop `ipfs://` URLs.
   `docs/users/explore-with-gnoweb.md` says to write the markdown directly only
-  for CIDs a realm controls, and to validate any user-supplied CID (ASCII
-  letters and digits only) before building `ipfs://<cid>` from it.
+  for CIDs a realm controls, to validate any user-supplied CID (ASCII
+  letters and digits only) before building `ipfs://<cid>` from it, and to
+  build alt text and link labels with `sanitize.InlineText`.
