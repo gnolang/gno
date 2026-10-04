@@ -24,9 +24,12 @@
 // CID and Multihash values are immutable and comparable with ==. They are
 // safe to store in realm state, return to callers, and use as keys
 // (KeyString). A key identifies the CID, not the content: CIDs with
-// different codecs, and a CIDv0 and its V1, can name the same bytes, so key
-// by string(c.Multihash().Bytes()) to identify content. An identity CID
-// contains its content, so Verify proves nothing about storage for it.
+// different codecs, a CIDv0 and its V1, and the same bytes hashed with
+// different functions all name the same content. To key by content, accept
+// one hash function (Multihash().Code() == SHA256) and key by
+// string(c.Multihash().Bytes()). Verify compares digests only and ignores
+// the codec. An identity CID contains its content, so Verify proves nothing
+// about storage for it.
 // DecodeFirst reads a CID stored next to other data, as in CAR files and
 // dag-pb links.
 package cid

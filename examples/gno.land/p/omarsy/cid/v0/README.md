@@ -29,13 +29,18 @@ err = c.Verify([]byte("hello")) // nil: "hello" is the content c names
   `Sum(cid.Raw, file)` is what `ipfs add --cid-version=1` prints for a file
   of up to 256 KiB.
 - `Verify(block)` supports sha2-256, keccak-256 and identity multihashes. It
-  checks one block: only a Raw CID of a single-block file verifies against
-  the file's bytes. An identity CID contains its content, so verifying it
-  proves nothing about storage; reject `Identity` where that matters.
+  compares digests only and ignores the codec: any CID whose multihash
+  matches the block verifies. Of the CIDs `ipfs add` prints, only the Raw CID
+  of a single-block file has the file's bytes as its block, so check
+  `Codec() == cid.Raw` where that matters. An identity CID contains its
+  content, so verifying it proves nothing about storage; reject `Identity`
+  where that matters.
 - CID values are immutable and comparable with `==`, so they are safe to
   store, return and use as keys (`KeyString`). A key identifies the CID, not
-  the content: CIDs with different codecs, and a CIDv0 and its V1, can name
-  the same bytes. Key by `string(c.Multihash().Bytes())` to identify content.
+  the content: CIDs with different codecs, a CIDv0 and its V1, and the same
+  bytes hashed with different functions all name the same content. To key by
+  content, accept one hash function (`Multihash().Code() == cid.SHA256`) and
+  key by `string(c.Multihash().Bytes())`.
 - `DecodeFirst` reads a CID at the start of a buffer, as stored in CAR files
   and dag-pb links.
 

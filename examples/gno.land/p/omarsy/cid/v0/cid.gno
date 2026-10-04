@@ -193,8 +193,10 @@ func (c CID) Bytes() []byte {
 
 // KeyString returns the binary form of c as a string, a compact and exact
 // key for maps and avl trees. It identifies the CID, not the content: CIDs
-// with different codecs, and a CIDv0 and its V1, can name the same bytes. To
-// key by content, use string(c.Multihash().Bytes()).
+// with different codecs, a CIDv0 and its V1, and the same bytes hashed with
+// different functions all name the same content. To key by content, accept
+// one hash function (Multihash().Code() == SHA256) and key by
+// string(c.Multihash().Bytes()).
 func (c CID) KeyString() string {
 	return c.b
 }
@@ -204,11 +206,13 @@ func (c CID) KeyString() string {
 // ErrDigestMismatch if they differ and ErrUnsupportedHash for a hash
 // function other than sha2-256, keccak-256 or identity.
 //
-// Verify checks one block: only a Raw CID of a single-block file verifies
-// against the file's bytes; other files are named by a DAG root node. An
-// identity CID contains its content, so verifying it proves nothing about
-// storage or possession; reject Multihash().Code() == Identity where that
-// matters.
+// Verify compares digests only and ignores the codec: any CID whose
+// multihash matches block verifies. Of the CIDs `ipfs add` prints, only the
+// Raw CID of a single-block file has the file's bytes as its block; other
+// files are named by a DAG root node. Check Codec() == Raw where that
+// matters. An identity CID contains its content, so verifying it proves
+// nothing about storage or possession; reject Multihash().Code() == Identity
+// where that matters.
 func (c CID) Verify(block []byte) error {
 	if c.b == "" {
 		return errCID

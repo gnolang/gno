@@ -87,13 +87,16 @@ removed (checked by mutating the code).
 
 - Realms can parse user-supplied CIDs, store them compactly, and verify
   single-block content (up to 256 KiB with default chunking) on chain.
-- `Verify` checks one block: only a Raw CID of a single-block file verifies
-  against the file's bytes; other files are named by a DAG root node. The docs
-  say so.
-- A CID identifies content only up to its codec and version: CIDs with
-  different codecs, and a CIDv0 and its V1, name the same bytes. Realms that
-  key by content should key by the multihash, and realms that pay for storage
-  should refuse identity CIDs, which contain their content. The docs say so.
+- `Verify` compares digests only and ignores the codec. Of the CIDs
+  `ipfs add` prints, only the Raw CID of a single-block file has the file's
+  bytes as its block; other files are named by a DAG root node. The docs say
+  so.
+- A CID identifies content only up to its codec, version and hash function:
+  CIDs with different codecs, a CIDv0 and its V1, and the same bytes hashed
+  with sha2-256, keccak-256 or identity all name the same content. Realms that
+  key by content should accept one hash function and key by the multihash,
+  and realms that pay for storage should refuse identity CIDs, which contain
+  their content. The docs say so.
 - The API freezes at the first mainnet deploy: a deployed path cannot be
   changed, so later additions go to a new version path.
 - Deploying to mainnet needs the `omarsy` namespace registered (or an address
