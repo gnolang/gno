@@ -3945,6 +3945,13 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		}
 	}
 
+	/* Sets the global listing apart from the project's own links */
+	& > hr {
+		margin: var(--g-space-1) calc(-1 * var(--g-space-1));
+		border: 0;
+		border-block-start: var(--s-border);
+	}
+
 	& .item--primary {
 		color: var(--s-color-text-primary);
 		font-weight: var(--g-font-semibold);

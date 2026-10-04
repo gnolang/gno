@@ -255,15 +255,16 @@ UI - Breadcrumb component
       <span class="item-path">{{ .URL }}</span>
     </a>
     {{- end }}
-    <a href="{{ $kind.URL }}/" class="item item--inline">
-      <svg aria-hidden="true" class="c-icon"><use href="#ico-list"></use></svg>
-      <span class="item-label">{{ if eq $kind.Name "r" }}All realms{{ else }}All packages{{ end }}</span>
-      <span class="item-path">{{ $kind.URL }}/</span>
-    </a>
     <a href="/u/{{ . }}" class="item item--inline">
       <svg aria-hidden="true" class="c-icon"><use href="#ico-user-link"></use></svg>
       <span class="item-label">All by {{ . }}</span>
       <span class="item-path">/u/{{ . }}</span>
+    </a>
+    <hr>
+    <a href="{{ $kind.URL }}/" class="item item--inline">
+      <svg aria-hidden="true" class="c-icon"><use href="#ico-list"></use></svg>
+      <span class="item-label">{{ if eq $kind.Name "r" }}All realms{{ else }}All packages{{ end }}</span>
+      <span class="item-path">{{ $kind.URL }}/</span>
     </a>
   </div>
   {{- end }}
