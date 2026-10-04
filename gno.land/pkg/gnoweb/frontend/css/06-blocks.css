@@ -272,7 +272,7 @@
 		}
 
 		/* "/" shortcut hint: on an empty, unfocused bar, from md (no keyboard on mobile) */
-		& > .b-tag {
+		& > .shortcut {
 			flex-shrink: 0;
 			/* Clear the fade drawn left of the actions */
 			margin-inline-end: var(--g-space-4);
@@ -282,13 +282,11 @@
 			}
 		}
 
-		& > input:is(:focus, :not(:placeholder-shown)) + .b-tag {
+		& > input:is(:focus, :not(:placeholder-shown)) + .shortcut {
 			display: none;
 		}
 
-		/* An empty breadcrumb (the root) would only cover the placeholder */
-		&:focus-within + .b-breadcrumb,
-		& + .b-breadcrumb:not(:has(li)) {
+		&:focus-within + .b-breadcrumb {
 			display: none;
 		}
 	}
