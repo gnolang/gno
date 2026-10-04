@@ -91,19 +91,14 @@ Rendered pages load images only from gnoweb's own assets, `data:` SVG images and
 a short list of hosts such as imgur and GitHub (`cspImgHost` in
 `gno.land/cmd/gnoweb/main.go`).
 
-To show content stored on IPFS, write an `ipfs://` or `ipns://` URL:
-
-```markdown
-![logo](ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/logo.png)
-[whitepaper](ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/paper.pdf)
-```
-
-gnoweb resolves these through its configured IPFS gateway (`-ipfs-gateway`,
-`https://ipfs.filebase.io` by default). It also rewrites URLs on retired public
-gateways, such as `https://ipfs.io/ipfs/...`, to that gateway. Prefer `ipfs://`
-to a gateway URL, so the gateway can change without touching your realm. The
-content still has to be pinned somewhere on the IPFS network: a gateway only
-serves what some node provides.
+To show content stored on IPFS, use an `ipfs://<cid>/<path>` or
+`ipns://<name>/<path>` URL as the target of a markdown link or image. gnoweb
+resolves it through its configured IPFS gateway (`-ipfs-gateway`, Filebase's
+public gateway by default). It also rewrites links to retired public gateways,
+such as ipfs.io and dweb.link, to that gateway. Prefer `ipfs://` to a gateway
+URL, so the gateway can change without touching your realm. The content still
+has to be pinned somewhere on the IPFS network: a gateway only serves what some
+node provides.
 
 :::warning
 The URL helpers in `p/nt/markdown/sanitize/v0`, which `p/moul/md` uses, reject
