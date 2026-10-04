@@ -12,7 +12,7 @@ import (
 
 // DefaultIPFSGateway is the public gateway that ipfs:// URLs and URLs on
 // retired public gateways (ipfs.io, dweb.link, ...) are rewritten to. See
-// gno.land/adr/prxxxx_gnoweb_ipfs_gateway.md for how it was chosen.
+// gno.land/adr/pr6270_gnoweb_ipfs_gateway.md for how it was chosen.
 const DefaultIPFSGateway = "https://ipfs.filebase.io"
 
 // gatewayHost matches a lowercase DNS name or IPv4 address: the hosts a CSP

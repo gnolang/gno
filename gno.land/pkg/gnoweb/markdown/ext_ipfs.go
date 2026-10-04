@@ -12,7 +12,7 @@ import (
 )
 
 // ipfsRetiredGateways are public IPFS gateways that no longer serve
-// hotlinked content (see gno.land/adr/prxxxx_gnoweb_ipfs_gateway.md); URLs
+// hotlinked content (see gno.land/adr/pr6270_gnoweb_ipfs_gateway.md); URLs
 // on them are rewritten to the configured gateway. The value reports
 // whether the gateway also served the subdomain form <cid>.ipfs.<host>.
 var ipfsRetiredGateways = map[string]bool{
