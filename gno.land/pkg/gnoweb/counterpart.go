@@ -79,12 +79,8 @@ func counterpartTarget(twin, root string, paths []string) (target string, n int)
 		members = append(members, p)
 	}
 
-	// The twin opens directly unless it has siblings (v0 next to v2); the
-	// project root has no directory of its own to list.
+	// The twin opens directly unless it has siblings (v0 next to v2).
 	if hasTwin {
-		if twin == root {
-			return twin, 1
-		}
 		dir := gopath.Dir(twin)
 		for _, m := range members {
 			if gopath.Dir(m) == dir {
@@ -138,7 +134,6 @@ func counterpartLink(target, root string, n int) *components.HeaderLink {
 		Label: label,
 		URL:   target,
 		Icon:  icon,
-		Title: target,
 	}
 }
 
@@ -155,15 +150,16 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 	done := make(chan *components.HeaderLink, 1)
 	go func() {
 		paths, err := h.counterparts.get(root, func() ([]string, error) {
-			return h.Client.ListPaths(ctx, gopath.Join(h.Static.Domain, root), maxCounterpartPaths)
+			paths, err := h.Client.ListPaths(ctx, gopath.Join(h.Static.Domain, root), maxCounterpartPaths)
+			if len(paths) > maxCounterpartPaths {
+				paths = paths[:maxCounterpartPaths]
+			}
+			return paths, err
 		})
 		if err != nil {
 			h.Logger.Debug("counterpart lookup failed", "root", root, "error", err)
 			done <- nil
 			return
-		}
-		if len(paths) > maxCounterpartPaths {
-			paths = paths[:maxCounterpartPaths]
 		}
 		target, n := counterpartTarget(twin, root, paths)
 		if n == 0 {

@@ -122,12 +122,12 @@ func TestCounterpartLink(t *testing.T) {
 	one := counterpartLink("/p/alice/golf/physics", "/p/alice/golf", 1)
 	assert.Equal(t, "Matching package", one.Label)
 	assert.Equal(t, "ico-pure", one.Icon)
-	assert.Equal(t, "/p/alice/golf/physics", one.Title)
+	assert.Equal(t, "/p/alice/golf/physics", one.URL)
 
 	many := counterpartLink("/r/alice/golf", "/r/alice/golf", 3)
 	assert.Equal(t, "3 matching realms", many.Label)
 	assert.Equal(t, "ico-realm", many.Icon)
-	assert.Equal(t, "/r/alice/golf", many.Title)
+	assert.Equal(t, "/r/alice/golf", many.URL)
 
 	capped := counterpartLink("/p/alice/golf", "/p/alice/golf", maxCounterpartPaths)
 	assert.Equal(t, "100+ matching packages", capped.Label)

@@ -740,7 +740,8 @@
 		}
 
 		/* Common link styles */
-		a {
+		a,
+		.kind-switch {
 			display: inline-block;
 			border: 1px solid var(--s-color-border-transparent);
 			border-radius: var(--s-rounded-sm);
@@ -756,17 +757,14 @@
 		}
 	}
 
-	/* First segment (r or p) when the other side of the project exists: the
-	   whole chip opens a menu, the chevron says so. Without a counterpart it
-	   stays the plain link above. */
-	.kind-switch {
+	/* First segment (r or p) on a namespaced page: the whole chip opens a
+	   menu, the chevron says so. It shares the link chip above, at the same
+	   specificity so these overrides win. */
+	.element .kind-switch {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--g-space-1);
-		border: 1px solid var(--s-color-border-transparent);
-		border-radius: var(--s-rounded-sm);
 		padding: var(--g-space-0-5) var(--g-space-1);
-		background-color: var(--s-color-bg-base);
 		color: inherit;
 		font: inherit;
 		cursor: pointer;
@@ -777,26 +775,18 @@
 			height: var(--g-space-2-5);
 			color: var(--s-color-text-secondary);
 		}
-
-		&:hover,
-		&:focus-visible {
-			background-color: var(--s-color-bg-brand-default);
-			color: var(--s-color-text-base);
-
-			& > svg {
-				color: currentColor;
-			}
-		}
 	}
 
-	/* Keep the button lit while its menu is open */
+	/* Lit on hover, focus, and while its menu is open */
+	.element .kind-switch:focus-visible,
 	&:has(#kind-switch-menu:popover-open) .kind-switch {
 		background-color: var(--s-color-bg-brand-default);
 		color: var(--s-color-text-base);
+	}
 
-		& > svg {
-			color: currentColor;
-		}
+	.kind-switch:is(:hover, :focus-visible) > svg,
+	&:has(#kind-switch-menu:popover-open) .kind-switch > svg {
+		color: currentColor;
 	}
 
 	/* Argument specific styles */
@@ -3891,8 +3881,8 @@ main.is-dev-mode > section:has(.c-overview-view) {
    at the breadcrumb's start, rather than in the middle of the screen. */
 @supports not (top: anchor(bottom)) {
 	.b-kind-switch {
-		top: var(--g-space-14, 3.5rem);
-		left: var(--g-space-16, 4rem);
+		top: var(--g-space-14);
+		left: var(--g-space-16);
 	}
 }
 
@@ -3902,7 +3892,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	top: anchor(bottom);
 	left: anchor(left);
 	margin: var(--g-space-1) 0 0;
-	min-width: var(--g-space-64, 16rem);
+	min-width: var(--g-space-64);
 	max-width: calc(100vw - 2 * var(--g-space-4));
 	padding: var(--g-space-1);
 	border: var(--s-border);
@@ -3962,9 +3952,9 @@ main.is-dev-mode > section:has(.c-overview-view) {
 
 	& .item-path {
 		grid-column: 2;
-		font-family: var(--g-font-mono, monospace);
+		font-family: var(--g-font-family-mono);
 		font-size: var(--g-font-size-50);
-		font-weight: var(--g-font-normal, 400);
+		font-weight: var(--g-font-normal);
 		color: var(--s-color-text-tertiary);
 	}
 }

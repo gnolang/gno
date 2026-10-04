@@ -1220,8 +1220,8 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 		})
 	}
 
-	if len(data.Parts) >= 2 && (data.Parts[0].Name == "r" || data.Parts[0].Name == "p") {
-		data.Namespace = data.Parts[1].Name
+	if url.IsRealm() || url.IsPure() {
+		data.Namespace = url.Namespace()
 	}
 
 	// Add args
