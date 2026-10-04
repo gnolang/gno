@@ -73,8 +73,10 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 				`<span class="item-path">/p/alice/golf</span>`,
 				`<use href="#ico-pure"></use>`,
 				`<a href="/r/" class="item item--inline">`,
+				`<a href="/u/alice" class="item item--inline">`,
+				`<span class="item-label">All by alice</span>`,
 			},
-			notWant: []string{"/p/alice/golfer", `href="/u/alice"`},
+			notWant: []string{"/p/alice/golfer"},
 		},
 		{
 			name:   "source tab keeps the link",
