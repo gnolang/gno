@@ -773,9 +773,9 @@
 		anchor-name: --kind-switch;
 
 		& > svg {
-			width: var(--g-space-2);
-			height: var(--g-space-2);
-			color: var(--s-color-text-tertiary);
+			width: var(--g-space-2-5);
+			height: var(--g-space-2-5);
+			color: var(--s-color-text-secondary);
 		}
 
 		&:hover,

@@ -69,13 +69,12 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 			want: []string{
 				`popovertarget="kind-switch-menu"`,
 				`<a href="/p/alice/golf" class="item item--primary">`,
-				`<span class="item-label">Packages of this project</span>`,
-				`<span class="item-path">/p/alice/golf (2 packages)</span>`,
+				`<span class="item-label">2 matching packages</span>`,
+				`<span class="item-path">/p/alice/golf</span>`,
 				`<use href="#ico-pure"></use>`,
-				`<a href="/u/alice" class="item item--inline">`,
 				`<a href="/r/" class="item item--inline">`,
 			},
-			notWant: []string{"/p/alice/golfer"},
+			notWant: []string{"/p/alice/golfer", `href="/u/alice"`},
 		},
 		{
 			name:   "source tab keeps the link",
@@ -92,7 +91,7 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 			target: "/p/alice/golf/physics",
 			want: []string{
 				`<a href="/r/alice/golf/game" class="item item--primary">`,
-				`<span class="item-label">Realm of this project</span>`,
+				`<span class="item-label">Matching realm</span>`,
 				`<span class="item-label">All packages</span>`,
 			},
 		},

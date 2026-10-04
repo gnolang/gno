@@ -6,16 +6,18 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
+	"golang.org/x/sync/singleflight"
 )
 
-// A realm and the pure packages it is built on usually share a project
+// A realm and the pure packages it is built on often share a project
 // directory in the same namespace (/r/alice/golf/game next to
-// /p/alice/golf/physics), but nothing on chain links them. The counterpart
-// link in the header crosses from one side to the other.
+// /p/alice/golf/physics), but nothing on chain links them: the only tie is the
+// path, so the header calls the other side "matching", never related.
 
 // maxCounterpartPaths caps the listing of the other side's project directory.
 // Past it the link still points at the project, only the count is a floor.
@@ -25,6 +27,15 @@ const maxCounterpartPaths = 100
 // flight. The lookup runs alongside the page's own queries, so a node that is
 // slow to list paths costs a missing link, never a slower page.
 const counterpartGrace = 300 * time.Millisecond
+
+// counterpartTTL is how long a project listing is reused. Most pages have no
+// counterpart, so caching the empty answers matters as much as the others; a
+// package deployed meanwhile shows up within the TTL.
+const counterpartTTL = time.Minute
+
+// maxCounterpartEntries bounds the cache; past it, new roots go uncached
+// until entries expire.
+const maxCounterpartEntries = 4096
 
 // counterpartRoots returns, for a realm or pure package path, the same path on
 // the other side (twin) and the project directory it belongs to there (root).
@@ -52,19 +63,38 @@ func counterpartRoots(pkgPath string) (twin, root string, ok bool) {
 }
 
 // counterpartTarget picks the page the link opens, given the paths live under
-// root: the twin itself when it exists, the only package when there is one,
-// and otherwise the deepest directory above the twin that holds any, as a
-// listing. n is how many packages that target covers; zero means no link.
+// root: the twin itself unless it has siblings, whose directory is then
+// listed so the twin never hides them; without a twin, the only package when
+// there is one, and otherwise the deepest directory above the twin that holds
+// any, as a listing. n is how many packages that target covers; zero means no
+// link.
 func counterpartTarget(twin, root string, paths []string) (target string, n int) {
 	members := make([]string, 0, len(paths))
+	hasTwin := false
 	for _, p := range paths {
 		if !isUnder(p, root) || !(weburl.GnoURL{Path: p}).IsValidPath() || strings.Contains(p, "//") {
 			continue
 		}
-		if p == twin {
+		hasTwin = hasTwin || p == twin
+		members = append(members, p)
+	}
+
+	// The twin opens directly unless it has siblings (v0 next to v2); the
+	// project root has no directory of its own to list.
+	if hasTwin {
+		if twin == root {
 			return twin, 1
 		}
-		members = append(members, p)
+		dir := gopath.Dir(twin)
+		for _, m := range members {
+			if gopath.Dir(m) == dir {
+				n++
+			}
+		}
+		if n == 1 {
+			return twin, 1
+		}
+		return dir, n
 	}
 
 	for dir := twin; ; dir = gopath.Dir(dir) {
@@ -93,29 +123,22 @@ func isUnder(p, dir string) bool {
 
 // counterpartLink builds the header link for a lookup result.
 func counterpartLink(target, root string, n int) *components.HeaderLink {
-	label, icon := "Package", "ico-pure"
+	kind, icon := "package", "ico-pure"
 	if strings.HasPrefix(root, "/r/") {
-		label, icon = "Realm", "ico-realm"
+		kind, icon = "realm", "ico-realm"
 	}
-	if n > 1 {
-		label += "s"
+	label := "Matching " + kind
+	switch {
+	case n >= maxCounterpartPaths:
+		label = strconv.Itoa(maxCounterpartPaths) + "+ matching " + kind + "s"
+	case n > 1:
+		label = strconv.Itoa(n) + " matching " + kind + "s"
 	}
 	return &components.HeaderLink{
 		Label: label,
 		URL:   target,
 		Icon:  icon,
-		Title: counterpartTitle(target, n),
-	}
-}
-
-func counterpartTitle(target string, n int) string {
-	switch {
-	case n == 1:
-		return target
-	case n >= maxCounterpartPaths:
-		return target + " (" + strconv.Itoa(maxCounterpartPaths) + "+ packages)"
-	default:
-		return target + " (" + strconv.Itoa(n) + " packages)"
+		Title: target,
 	}
 }
 
@@ -131,7 +154,9 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 	ctx, cancel := context.WithCancel(ctx)
 	done := make(chan *components.HeaderLink, 1)
 	go func() {
-		paths, err := h.Client.ListPaths(ctx, gopath.Join(h.Static.Domain, root), maxCounterpartPaths)
+		paths, err := h.counterparts.get(root, func() ([]string, error) {
+			return h.Client.ListPaths(ctx, gopath.Join(h.Static.Domain, root), maxCounterpartPaths)
+		})
 		if err != nil {
 			h.Logger.Debug("counterpart lookup failed", "root", root, "error", err)
 			done <- nil
@@ -157,4 +182,75 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 			return nil
 		}
 	}
+}
+
+// counterpartCache keeps each project listing for counterpartTTL and
+// coalesces concurrent lookups of the same root. Errors are not kept: a node
+// that failed once may answer the next request.
+type counterpartCache struct {
+	mu      sync.Mutex
+	entries map[string]counterpartEntry
+	sf      singleflight.Group
+	now     func() time.Time // for tests; time.Now when nil
+}
+
+type counterpartEntry struct {
+	paths   []string
+	expires time.Time
+}
+
+func (c *counterpartCache) get(root string, list func() ([]string, error)) ([]string, error) {
+	if paths, ok := c.lookup(root); ok {
+		return paths, nil
+	}
+	v, err, _ := c.sf.Do(root, func() (any, error) {
+		if paths, ok := c.lookup(root); ok {
+			return paths, nil
+		}
+		paths, err := list()
+		if err == nil {
+			c.store(root, paths)
+		}
+		return paths, err
+	})
+	paths, _ := v.([]string)
+	return paths, err
+}
+
+func (c *counterpartCache) clock() time.Time {
+	if c.now != nil {
+		return c.now()
+	}
+	return time.Now()
+}
+
+func (c *counterpartCache) lookup(root string) ([]string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	e, ok := c.entries[root]
+	if !ok || !c.clock().Before(e.expires) {
+		return nil, false
+	}
+	return e.paths, true
+}
+
+// store keeps the listing unless the cache is full of live entries.
+func (c *counterpartCache) store(root string, paths []string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := c.clock()
+	if c.entries == nil {
+		c.entries = make(map[string]counterpartEntry)
+	}
+	if len(c.entries) >= maxCounterpartEntries {
+		for k, e := range c.entries {
+			if !now.Before(e.expires) {
+				delete(c.entries, k)
+			}
+		}
+		if len(c.entries) >= maxCounterpartEntries {
+			return
+		}
+	}
+	c.entries[root] = counterpartEntry{paths: paths, expires: now.Add(counterpartTTL)}
 }

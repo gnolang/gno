@@ -1,7 +1,9 @@
 package gnoweb
 
 import (
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -44,10 +46,22 @@ func TestCounterpartTarget(t *testing.T) {
 		n      int
 	}{
 		{
-			name:   "twin exists",
+			name:   "twin without siblings opens directly",
 			twin:   "/p/alice/golf/game",
-			paths:  []string{"/p/alice/golf/course", "/p/alice/golf/game"},
+			paths:  []string{"/p/alice/golf/game", "/p/alice/golf/ui/board"},
 			target: "/p/alice/golf/game", n: 1,
+		},
+		{
+			name:   "twin with siblings opens their listing",
+			twin:   "/p/alice/golf/v0",
+			paths:  []string{"/p/alice/golf/v0", "/p/alice/golf/v2"},
+			target: "/p/alice/golf", n: 2,
+		},
+		{
+			name:   "twin at the project root opens directly",
+			twin:   "/p/alice/golf",
+			paths:  []string{"/p/alice/golf", "/p/alice/golf/ui"},
+			target: "/p/alice/golf", n: 1,
 		},
 		{
 			name:   "one package opens directly",
@@ -106,15 +120,40 @@ func TestCounterpartLink(t *testing.T) {
 	t.Parallel()
 
 	one := counterpartLink("/p/alice/golf/physics", "/p/alice/golf", 1)
-	assert.Equal(t, "Package", one.Label)
+	assert.Equal(t, "Matching package", one.Label)
 	assert.Equal(t, "ico-pure", one.Icon)
 	assert.Equal(t, "/p/alice/golf/physics", one.Title)
 
 	many := counterpartLink("/r/alice/golf", "/r/alice/golf", 3)
-	assert.Equal(t, "Realms", many.Label)
+	assert.Equal(t, "3 matching realms", many.Label)
 	assert.Equal(t, "ico-realm", many.Icon)
-	assert.Equal(t, "/r/alice/golf (3 packages)", many.Title)
+	assert.Equal(t, "/r/alice/golf", many.Title)
 
 	capped := counterpartLink("/p/alice/golf", "/p/alice/golf", maxCounterpartPaths)
-	assert.Equal(t, "/p/alice/golf (100+ packages)", capped.Title)
+	assert.Equal(t, "100+ matching packages", capped.Label)
+}
+
+func TestCounterpartCache(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(0, 0)
+	c := counterpartCache{now: func() time.Time { return now }}
+	calls := 0
+	list := func() ([]string, error) {
+		calls++
+		return nil, nil // an empty answer is cached too
+	}
+
+	c.get("/p/alice/golf", list)
+	c.get("/p/alice/golf", list)
+	assert.Equal(t, 1, calls)
+
+	now = now.Add(counterpartTTL)
+	c.get("/p/alice/golf", list)
+	assert.Equal(t, 2, calls)
+
+	_, err := c.get("/p/bob/x", func() ([]string, error) { return nil, errors.New("node down") })
+	assert.Error(t, err)
+	c.get("/p/bob/x", list)
+	assert.Equal(t, 3, calls, "errors are not cached")
 }

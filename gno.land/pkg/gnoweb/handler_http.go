@@ -133,6 +133,8 @@ type HTTPHandler struct {
 	trustedProxies []*net.IPNet
 	// packageText caches the whole-package texts of $download.
 	packageText packageTextCache
+	// counterparts caches the project listings behind the breadcrumb switch.
+	counterparts counterpartCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
