@@ -9,6 +9,8 @@ import (
 	"go/token"
 	"html/template"
 	"log/slog"
+	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -44,8 +46,9 @@ type StaticMetadata struct {
 	ChainId           string
 	Analytics         bool
 	AnalyticsHostname string
-	BuildTime         string
+	AssetsVersion     string
 	Banner            components.BannerData
+	RealmNotice       components.RealmNotice
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -53,12 +56,12 @@ type StaticMetadata struct {
 // populated explicitly rather than derived from HeadData.
 func (s StaticMetadata) RedirectAnalytics() components.AnalyticsData {
 	return components.AnalyticsData{
-		Enabled:    s.Analytics,
-		PageType:   "redirect",
-		ChainId:    s.ChainId,
-		AssetsPath: s.AssetsPath,
-		BuildTime:  s.BuildTime,
-		Hostname:   s.AnalyticsHostname,
+		Enabled:       s.Analytics,
+		PageType:      "redirect",
+		ChainId:       s.ChainId,
+		AssetsPath:    s.AssetsPath,
+		AssetsVersion: s.AssetsVersion,
+		Hostname:      s.AnalyticsHostname,
 		// Path is left empty: redirect targets are server-controlled constants,
 		// and the client path-overwriter falls back to SA's default path for an
 		// empty data-sa-path.
@@ -83,12 +86,15 @@ type HTTPHandlerConfig struct {
 	ClientAdapter ClientAdapter
 	Renderer      Renderer
 	Aliases       map[string]AliasTarget
-	Timeout       time.Duration
+	// TrustedPaths — see AppConfig field of the same name.
+	TrustedPaths []string
+	Timeout      time.Duration
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
 	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
 	// burst. ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
+	// Also gates X-Forwarded-Host in requestOrigin.
 	StateRateLimitTrustedProxies []string
 }
 
@@ -118,16 +124,27 @@ type HTTPHandler struct {
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
 	Timeout  time.Duration
+	trusted  trustedPaths
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
 	State *state.Handler
+	// trustedProxies are the networks whose X-Forwarded-Host is believed.
+	trustedProxies []*net.IPNet
+	// packageText caches the whole-package texts of $download.
+	packageText packageTextCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
 func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("config validate error: %w", err)
+	}
+
+	for _, e := range cfg.TrustedPaths {
+		if why := trustedPathProblem(e); why != "" {
+			logger.Warn("trusted path entry will not match the package it names", "entry", e, "reason", why)
+		}
 	}
 
 	h := &HTTPHandler{
@@ -137,6 +154,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
+		trusted:  newTrustedPaths(cfg.TrustedPaths),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
@@ -146,6 +164,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	if err != nil {
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
+	h.trustedProxies = trustedProxies
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
@@ -179,7 +198,9 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodGet:
-		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		// The same URL can return HTML or markdown depending on Accept.
+		w.Header().Set("Vary", "Accept")
 		h.Get(w, r)
 	case http.MethodPost:
 		h.Post(w, r)
@@ -214,7 +235,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			ChromaPath:        h.Static.ChromaPath,
 			ChainId:           h.Static.ChainId,
 			Remote:            h.Static.RemoteHelp,
-			BuildTime:         h.Static.BuildTime,
+			AssetsVersion:     h.Static.AssetsVersion,
 			AnalyticsHostname: h.Static.AnalyticsHostname,
 		},
 		FooterData: components.FooterData{
@@ -226,11 +247,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Banner: h.Static.Banner,
 	}
 
-	// Apply GnowebPath alias rewrite BEFORE parsing — every downstream
-	// dispatch (state, source, package view) needs to see the resolved
-	// path. Legacy did this inside prepareIndexBodyView, which the state
-	// branch below short-circuits, so an alias-mapped state URL would
-	// previously route to the unmapped path and 404.
+	// Resolve GnowebPath aliases once, BEFORE parsing: every downstream
+	// dispatch (state, source, package view) and the realm notice must see
+	// the path that is rendered. Aliases do not chain.
 	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
 		r.URL.Path = alias.Value
 	}
@@ -254,6 +273,14 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render error view", "error", err)
 		}
+		return
+	}
+	// The state branch builds its header before prepareIndexBodyView does.
+	gnourl.Origin = requestOrigin(r, h.trustedProxies)
+
+	// The function list as JSON, for agents that want to know what to call.
+	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
+		h.ServeHelpJSON(r.Context(), gnourl, w)
 		return
 	}
 
@@ -285,6 +312,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// values and pointing the tabs at empty URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
+		scrubHeaderOnError(&indexData, status)
 		indexData.BodyView = view
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -305,8 +333,30 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 	}
 
-	var status int
-	status, indexData.BodyView = h.prepareIndexBodyView(r, &indexData)
+	wantMarkdown := negotiatesMarkdown(r.Header.Get("Accept"))
+
+	status, bodyView := h.prepareIndexBodyView(r, &indexData, wantMarkdown)
+	scrubHeaderOnError(&indexData, status)
+
+	// The realm and static-markdown paths return a markdown view; serve its
+	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
+	if bodyView.Type == components.MarkdownViewType {
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		// The body stays verbatim; the header carries the notice instead.
+		if indexData.HeaderData.Notice.Enabled() {
+			w.Header().Set(RealmNoticeHeader, "community")
+		}
+		// Render() output reaches the client unsanitized here, so pin the type:
+		// without this a browser may sniff the body back into HTML and run it.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(status)
+		if err := bodyView.Render(w); err != nil {
+			h.Logger.Error("failed to render markdown view", "error", err)
+		}
+		return
+	}
+
+	indexData.BodyView = bodyView
 
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
@@ -372,31 +422,30 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 }
 
 // prepareIndexBodyView prepares the data and main view for the index page.
-func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	ctx := r.Context()
 
+	// Get already resolved GnowebPath aliases; only StaticMarkdown is left.
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
-
-	// If the alias target exists and is a gnoweb path, replace the URL path with it.
-	if aliasExists && aliasTarget.Kind == GnowebPath {
-		r.URL.Path = aliasTarget.Value
-	}
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("invalid gno url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
-	gnourl.Origin = requestOrigin(r)
+	gnourl.Origin = requestOrigin(r, h.trustedProxies)
 
 	h.setHeaderForRealm(indexData, gnourl)
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
+		if wantMarkdown {
+			return http.StatusOK, components.MarkdownView([]byte(aliasTarget.Value))
+		}
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
-		return h.GetPackageView(ctx, gnourl, indexData)
+		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -425,7 +474,7 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 }
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
-func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -450,24 +499,40 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	}
 
 	// Ultimately get realm view
+	if wantMarkdown {
+		return h.GetMarkdownRealmView(ctx, gnourl, indexData)
+	}
 	return h.GetRealmView(ctx, gnourl, indexData)
 }
 
-// GetRealmView renders a realm page or returns an error/status if not available.
-func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	// First fecth the realm
+// fetchRealm fetches a realm's raw Render() output. On success it returns the
+// bytes with ok=true and the status/fallback unset. When the realm cannot be
+// rendered it returns ok=false with the HTML fallback view and status to send as-is.
+func (h *HTTPHandler) fetchRealm(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) ([]byte, int, *components.View, bool) {
 	raw, err := h.Client.Realm(ctx, gnourl.Path, gnourl.EncodeArgs())
 	switch {
-	case err == nil: // ok
+	case err == nil:
+		return raw, 0, nil, true
 	case errors.Is(err, ErrClientRenderNotDeclared):
 		// No Render() declared: fall back to directory view (which will show README.md if present)
-		return h.GetDirectoryView(ctx, gnourl, indexData)
+		status, view := h.GetDirectoryView(ctx, gnourl, indexData)
+		return nil, status, view, false
 	case errors.Is(err, ErrClientPackageNotFound):
 		// No realm exists here, try to display underlying paths
-		return h.GetPathsListView(ctx, gnourl, indexData)
+		status, view := h.GetPathsListView(ctx, gnourl, indexData)
+		return nil, status, view, false
 	default:
 		h.Logger.Error("unable to fetch realm", "error", err, "path", gnourl.EncodeURL())
-		return GetClientErrorStatusView(gnourl, err, 0)
+		status, view := GetClientErrorStatusView(gnourl, err, 0)
+		return nil, status, view, false
+	}
+}
+
+// GetRealmView renders a realm page as HTML, or returns an error/status if not available.
+func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData)
+	if !ok {
+		return status, fallback
 	}
 
 	var content bytes.Buffer
@@ -489,6 +554,16 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 		// sanitized before rendering
 		ComponentContent: components.NewReaderComponent(&content),
 	})
+}
+
+// GetMarkdownRealmView serves a realm's raw Render() output as text/markdown. It
+// falls back to the directory, paths-list, or error view when the realm cannot be fetched.
+func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData)
+	if !ok {
+		return status, fallback
+	}
+	return http.StatusOK, components.MarkdownView(raw)
 }
 
 // MaxUserContributions caps how many contributions /u/<user> renders.
@@ -612,6 +687,41 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	return http.StatusOK, components.UserView(data)
 }
 
+// callableFuncs returns the exported non-method funcs of a package, without
+// their leading "cur realm" param: the signature still shows it, but no one
+// passes it.
+func callableFuncs(jdoc *doc.JSONDocumentation) []*doc.JSONFunc {
+	fsigs := []*doc.JSONFunc{}
+	for _, fun := range jdoc.Funcs {
+		if !(fun.Type == "" && token.IsExported(fun.Name)) {
+			continue
+		}
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
+			fun.Params = fun.Params[1:]
+		}
+		fsigs = append(fsigs, fun)
+	}
+	return fsigs
+}
+
+// ServeHelpJSON serves the callable functions of a package as JSON.
+func (h *HTTPHandler) ServeHelpJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
+	if err != nil {
+		status, msg := clientErrorMessage(err, 0)
+		writeJSONErrorResponse(w, status, msg)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_ = json.NewEncoder(w).Encode(struct {
+		PkgPath   string          `json:"pkg_path"`
+		ChainID   string          `json:"chain_id"`
+		Remote    string          `json:"remote"`
+		Functions []*doc.JSONFunc `json:"functions"`
+	}{path.Join(h.Static.Domain, gnourl.Path), h.Static.ChainId, h.Static.RemoteHelp, callableFuncs(jdoc)})
+}
+
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 	if err != nil {
@@ -634,19 +744,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return components.NewReaderComponent(&buf)
 	}
 
-	// Get public non-method funcs
-	fsigs := []*doc.JSONFunc{}
-	for _, fun := range jdoc.Funcs {
-		if !(fun.Type == "" && token.IsExported(fun.Name)) {
-			continue
-		}
-
-		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
-			// Don't make an entry field for "cur realm". The signature will still show it.
-			fun.Params = fun.Params[1:]
-		}
-		fsigs = append(fsigs, fun)
-	}
+	fsigs := callableFuncs(jdoc)
 
 	// Get selected function
 	selArgs := make(map[string]string)
@@ -690,6 +788,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
 		Origin:    gnourl.Origin,
+		Community: h.showRealmNotice(gnourl),
 	})
 }
 
@@ -893,15 +992,19 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	}
 
 	if fileName == "" {
-		http.Error(w, "not found", http.StatusNotFound)
+		h.servePackageText(ctx, gnourl, w)
 		return
 	}
 
 	// Get source file
 	source, _, err := h.Client.File(ctx, pkgPath, fileName, 0)
 	if err != nil {
-		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		status, _ := GetClientErrorStatusView(gnourl, err, 0)
+		if status == http.StatusNotFound {
+			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
+		} else {
+			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+		}
 		http.Error(w, "not found", status)
 		return
 	}
@@ -927,11 +1030,16 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 	return ""
 }
 
-// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// requestOrigin returns scheme+host. X-Forwarded-Host is honored only from a
+// trusted proxy: the origin reaches shareable links and AI prompts, and a
+// cache in front of gnoweb does not key on that header. X-Forwarded-Proto
+// is always honored: at worst a spoofed one downgrades links to http on the
+// same host, while gating it would give every TLS-terminated deployment
+// without -trusted-proxies http links.
 // Empty when no host is known; callers fall back to path-relative URLs.
-func requestOrigin(r *http.Request) string {
+func requestOrigin(r *http.Request, trusted []*net.IPNet) string {
 	host := r.Host
-	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" && state.FromTrustedProxy(r, trusted) {
 		first, _, _ := strings.Cut(forwarded, ",")
 		if h := strings.TrimSpace(first); h != "" {
 			host = h
@@ -989,7 +1097,7 @@ func clientErrorMessage(err error, height int64) (int, string) {
 	if err == nil {
 		return http.StatusOK, ""
 	}
-	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
+	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientFileNotFound) || errors.Is(err, ErrClientObjectNotFound) {
 		return http.StatusNotFound, err.Error()
 	}
 	if height > 0 {
@@ -1042,11 +1150,11 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 	return status, components.StatusErrorComponent(msg)
 }
 
-// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData
-// from the parsed realm URL. Shared by the state-page wire-in and the
-// generic prepareIndexBodyView path so the global header (breadcrumb +
-// Content/State/Source/Actions tabs) always renders against the same
-// realm. Mode must be set on indexData before calling.
+// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData,
+// realm notice included, from the parsed realm URL. Shared by the state-page
+// wire-in and the generic prepareIndexBodyView path so the global header
+// (breadcrumb + Content/State/Source/Actions tabs) always renders against the
+// same realm. Mode must be set on indexData before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -1055,6 +1163,28 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
+		Origin:     gnourl.Origin,
+	}
+	if h.showRealmNotice(gnourl) {
+		indexData.HeaderData.Notice = h.Static.RealmNotice
+	}
+}
+
+// scrubHeaderOnError keeps an error page's header from vouching for the
+// request. The Ask AI menu is dropped, as its prompts would send the assistant
+// to views that do not exist: the menu is built from HeaderData.Origin at
+// render time, and nothing else in the header reads it. The file web-query
+// value is dropped too, so a name the package does not hold is not echoed
+// back through the Source tab, which otherwise carries the open file.
+func scrubHeaderOnError(indexData *components.IndexData, status int) {
+	if status == http.StatusOK {
+		return
+	}
+	indexData.HeaderData.Origin = ""
+	if u := &indexData.HeaderData.RealmURL; u.WebQuery.Has("file") {
+		// Clone: the map is shared with the request's GnoURL.
+		u.WebQuery = maps.Clone(u.WebQuery)
+		u.WebQuery.Del("file")
 	}
 }
 
