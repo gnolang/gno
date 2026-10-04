@@ -177,6 +177,39 @@ func TestDecodeFirst(t *testing.T) {
 	}
 }
 
+// The longest CID the package accepts must round-trip through every
+// multibase and DecodeFirst, so no length cap is too tight.
+func TestMaxCID(t *testing.T) {
+	digest := []byte(strings.Repeat("\xff", maxDigestLen))
+	mh, err := NewMultihash(maxVarint, digest)
+	urequire.NoError(t, err)
+	c, err := NewV1(maxVarint, mh)
+	urequire.NoError(t, err)
+	uassert.Equal(t, maxCIDLen, len(c.Bytes()))
+
+	for _, base := range []byte("bBzkfF") {
+		s, err := c.Encode(base)
+		urequire.NoError(t, err)
+		got, err := Parse(s)
+		urequire.NoError(t, err, s)
+		uassert.True(t, got == c, s)
+	}
+
+	got, n, err := DecodeFirst(append(c.Bytes(), 1, 2))
+	urequire.NoError(t, err)
+	uassert.True(t, got == c)
+	uassert.Equal(t, maxCIDLen, n)
+
+	// A 128-byte identity digest is the largest inline content.
+	ident, err := NewMultihash(Identity, digest)
+	urequire.NoError(t, err)
+	ic, err := NewV1(Raw, ident)
+	urequire.NoError(t, err)
+	parsed, err := Parse(ic.String())
+	urequire.NoError(t, err)
+	uassert.NoError(t, parsed.Verify(digest))
+}
+
 func TestParseRejects(t *testing.T) {
 	hex129 := "f0155008101" + strings.Repeat("61", 129)
 	for _, s := range []string{

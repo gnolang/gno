@@ -20,7 +20,8 @@ err = c.Verify([]byte("hello")) // nil: "hello" is the content c names
 ```
 
 - `Parse` and `Decode` accept CIDv0 (`Qm...`) and multibase CIDv1 (`b`, `B`,
-  `z`, `k`, `f`, `F`). Parsing is strict: each CID has one accepted form.
+  `z`, `k`, `f`, `F`). Parsing is strict: each CID has one accepted form
+  per multibase, so compare parsed CIDs, never input strings.
 - `String` gives the canonical form (base58btc for CIDv0, base32 for CIDv1),
   `Encode` the other multibase forms. `V1` converts a CIDv0 so the two
   versions can be compared.
@@ -28,10 +29,13 @@ err = c.Verify([]byte("hello")) // nil: "hello" is the content c names
   `Sum(cid.Raw, file)` is what `ipfs add --cid-version=1` prints for a file
   of up to 256 KiB.
 - `Verify(block)` supports sha2-256, keccak-256 and identity multihashes. It
-  checks one block: a CIDv0, or the CIDv1 of a larger file, names the root of
-  a DAG, not the file's bytes.
+  checks one block: only a Raw CID of a single-block file verifies against
+  the file's bytes. An identity CID contains its content, so verifying it
+  proves nothing about storage; reject `Identity` where that matters.
 - CID values are immutable and comparable with `==`, so they are safe to
-  store, return and use as keys (`KeyString`).
+  store, return and use as keys (`KeyString`). A key identifies the CID, not
+  the content: CIDs with different codecs, and a CIDv0 and its V1, can name
+  the same bytes. Key by `string(c.Multihash().Bytes())` to identify content.
 - `DecodeFirst` reads a CID at the start of a buffer, as stored in CAR files
   and dag-pb links.
 

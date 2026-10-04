@@ -192,8 +192,9 @@ func (c CID) Bytes() []byte {
 }
 
 // KeyString returns the binary form of c as a string, a compact and exact
-// key for maps and avl trees. Convert CIDv0 keys with V1 first if both
-// versions of a CID must share a key.
+// key for maps and avl trees. It identifies the CID, not the content: CIDs
+// with different codecs, and a CIDv0 and its V1, can name the same bytes. To
+// key by content, use string(c.Multihash().Bytes()).
 func (c CID) KeyString() string {
 	return c.b
 }
@@ -203,8 +204,11 @@ func (c CID) KeyString() string {
 // ErrDigestMismatch if they differ and ErrUnsupportedHash for a hash
 // function other than sha2-256, keccak-256 or identity.
 //
-// Verify checks one block. A CIDv0, or a CIDv1 of a file too large for one
-// block, names the file's root DAG node, not the file's bytes.
+// Verify checks one block: only a Raw CID of a single-block file verifies
+// against the file's bytes; other files are named by a DAG root node. An
+// identity CID contains its content, so verifying it proves nothing about
+// storage or possession; reject Multihash().Code() == Identity where that
+// matters.
 func (c CID) Verify(block []byte) error {
 	if c.b == "" {
 		return errCID

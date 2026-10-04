@@ -44,8 +44,9 @@ namespace can be deployed today.
   - base58btc and base36 convert with multi-digit limbs;
   - an input longer than any CID in its base is rejected before decoding.
 
-  Without the length check, a 512-character base58btc string cost 561M gas to
-  reject.
+  An uncapped 512-character base58btc string cost 561M gas to reject with the
+  first, digit-by-digit decoder and about 37M with limbs; with the cap, the
+  worst rejected input costs about 9M.
 
 Gas, measured with `gno test` as the difference from an empty test:
 
@@ -86,8 +87,13 @@ removed (checked by mutating the code).
 
 - Realms can parse user-supplied CIDs, store them compactly, and verify
   single-block content (up to 256 KiB with default chunking) on chain.
-- `Verify` checks one block. A CIDv0, or the CIDv1 of a larger file, names a
-  DAG root, so its file bytes do not verify against it; the docs say so.
+- `Verify` checks one block: only a Raw CID of a single-block file verifies
+  against the file's bytes; other files are named by a DAG root node. The docs
+  say so.
+- A CID identifies content only up to its codec and version: CIDs with
+  different codecs, and a CIDv0 and its V1, name the same bytes. Realms that
+  key by content should key by the multihash, and realms that pay for storage
+  should refuse identity CIDs, which contain their content. The docs say so.
 - The API freezes at the first mainnet deploy: a deployed path cannot be
   changed, so later additions go to a new version path.
 - Deploying to mainnet needs the `omarsy` namespace registered (or an address
