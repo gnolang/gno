@@ -1220,6 +1220,10 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 		})
 	}
 
+	if len(data.Parts) >= 2 && (data.Parts[0].Name == "r" || data.Parts[0].Name == "p") {
+		data.Namespace = data.Parts[1].Name
+	}
+
 	// Add args
 	if url.Args != "" {
 		argSplit := strings.Split(url.Args, "/")

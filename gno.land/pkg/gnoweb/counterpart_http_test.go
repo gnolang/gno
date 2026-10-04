@@ -103,8 +103,18 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 			want:   []string{`<a href="/p/alice/golf" class="item item--primary">`},
 		},
 		{
-			name:    "nothing on the other side, no link",
-			target:  "/r/bob/solo",
+			name:   "nothing on the other side keeps the menu without the switch",
+			target: "/r/bob/solo",
+			want: []string{
+				`popovertarget="kind-switch-menu"`,
+				`<a href="/r/" class="item item--inline">`,
+				`<a href="/u/bob" class="item item--inline">`,
+			},
+			notWant: []string{"item--primary"},
+		},
+		{
+			name:    "kind listing has no namespace, no menu",
+			target:  "/r/",
 			notWant: []string{"kind-switch"},
 		},
 		{
@@ -144,7 +154,7 @@ func TestCounterpart_LookupFailureKeepsPage(t *testing.T) {
 	rr := serveCounterpart(t, client, "/r/alice/golf/game")
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Contains(t, rr.Body.String(), "hello")
-	assert.NotContains(t, rr.Body.String(), "kind-switch")
+	assert.NotContains(t, rr.Body.String(), "item--primary")
 }
 
 // A lookup that never answers must not hold the page back, and must be
@@ -168,7 +178,7 @@ func TestCounterpart_SlowLookupDoesNotDelayPage(t *testing.T) {
 	rr := serveCounterpart(t, client, "/r/alice/golf/game")
 	assert.Less(t, time.Since(start), 2*time.Second)
 	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.NotContains(t, rr.Body.String(), "kind-switch")
+	assert.NotContains(t, rr.Body.String(), "item--primary")
 
 	select {
 	case <-cancelled:

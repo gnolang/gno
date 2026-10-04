@@ -208,12 +208,12 @@ UI - Breadcrumb component
 <form method="GET" action="" class="b-breadcrumb">
   <ol data-searchbar-target="breadcrumb">
     <!-- Path Part -->
-    {{- $cp := .Counterpart }}
+    {{- $cp := .Counterpart }}{{ $ns := .Namespace }}
     {{- range $index, $part := .Parts }}
-    {{- if and (eq $index 0) $cp }}
+    {{- if and (eq $index 0) $ns }}
     <li class="element">
       <button type="button" class="kind-switch" popovertarget="kind-switch-menu"
-        aria-label="{{ $part.Name }}: {{ $cp.Label }}" title="{{ $cp.Label }}">
+        aria-label="{{ $part.Name }}: {{ with $cp }}{{ .Label }}, {{ end }}{{ if eq $part.Name "r" }}all realms{{ else }}all packages{{ end }}, all by {{ $ns }}"{{ with $cp }} title="{{ .Label }}"{{ end }}>
         {{ $part.Name }}<svg aria-hidden="true" class="c-icon"><use href="#ico-arrow-down"></use></svg>
       </button>
     </li>
@@ -246,22 +246,24 @@ UI - Breadcrumb component
     </li>
     {{- end }}
   </ol>
-  {{- with .Counterpart }}{{ $kind := index $.Parts 0 }}{{ $ns := index $.Parts 1 }}
+  {{- with .Namespace }}{{ $kind := index $.Parts 0 }}
   <div id="kind-switch-menu" popover class="b-kind-switch">
+    {{- with $.Counterpart }}
     <a href="{{ .URL }}" class="item item--primary">
       <svg aria-hidden="true" class="c-icon"><use href="#{{ .Icon }}"></use></svg>
       <span class="item-label">{{ .Label }}</span>
       <span class="item-path">{{ .Title }}</span>
     </a>
+    {{- end }}
     <a href="{{ $kind.URL }}/" class="item item--inline">
       <svg aria-hidden="true" class="c-icon"><use href="#ico-list"></use></svg>
       <span class="item-label">{{ if eq $kind.Name "r" }}All realms{{ else }}All packages{{ end }}</span>
       <span class="item-path">{{ $kind.URL }}/</span>
     </a>
-    <a href="/u/{{ $ns.Name }}" class="item item--inline">
+    <a href="/u/{{ . }}" class="item item--inline">
       <svg aria-hidden="true" class="c-icon"><use href="#ico-user-link"></use></svg>
-      <span class="item-label">All by {{ $ns.Name }}</span>
-      <span class="item-path">/u/{{ $ns.Name }}</span>
+      <span class="item-label">All by {{ . }}</span>
+      <span class="item-path">/u/{{ . }}</span>
     </a>
   </div>
   {{- end }}
