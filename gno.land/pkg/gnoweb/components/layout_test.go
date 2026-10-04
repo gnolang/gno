@@ -287,6 +287,16 @@ func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
 	assert.Len(t, enriched.Links.Dev, 4, "expected Content, State, Source, and Actions links")
 }
 
+func TestEnrichHeaderData_RootHasNoRealmPath(t *testing.T) {
+	t.Parallel()
+
+	data := HeaderData{RealmURL: weburl.GnoURL{Path: "/"}}
+
+	// An empty value lets the search input show its placeholder
+	enriched := EnrichHeaderData(data, ViewModeHome)
+	assert.Empty(t, enriched.RealmPath)
+}
+
 func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 	t.Parallel()
 

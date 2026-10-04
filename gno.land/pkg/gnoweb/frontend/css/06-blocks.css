@@ -243,6 +243,8 @@
 	.searchbar {
 		position: absolute;
 		inset: 0;
+		display: flex;
+		align-items: center;
 		padding: var(--g-space-1-5);
 		padding-inline-end: var(--g-space-8);
 		font-size: var(--g-font-size-200);
@@ -258,9 +260,35 @@
 			width: 100%;
 			background-color: transparent;
 			outline: none;
+
+			&::placeholder {
+				color: var(--s-color-text-input-placeholder);
+				font-weight: var(--g-font-normal);
+			}
+
+			&:placeholder-shown {
+				text-overflow: ellipsis;
+			}
 		}
 
-		&:focus-within + .b-breadcrumb {
+		/* "/" shortcut hint: on an empty, unfocused bar, from md (no keyboard on mobile) */
+		& > .b-tag {
+			flex-shrink: 0;
+			/* Clear the fade drawn left of the actions */
+			margin-inline-end: var(--g-space-4);
+
+			@media not all and (--md) {
+				display: none;
+			}
+		}
+
+		& > input:is(:focus, :not(:placeholder-shown)) + .b-tag {
+			display: none;
+		}
+
+		/* An empty breadcrumb (the root) would only cover the placeholder */
+		&:focus-within + .b-breadcrumb,
+		& + .b-breadcrumb:not(:has(li)) {
 			display: none;
 		}
 	}
