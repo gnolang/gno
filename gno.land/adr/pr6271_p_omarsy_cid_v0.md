@@ -24,7 +24,8 @@ namespace can be deployed today.
 - `CID` and `Multihash` hold their binary form in a string: immutable,
   comparable with `==`, safe to store in realm state, return to other realms,
   and use as keys. There are no exported mutators and no shared byte slices.
-- `Parse` and `Decode` are strict, so each CID has one accepted form:
+- `Parse` and `Decode` are strict, so each CID has one accepted binary form
+  and one accepted string per multibase:
   - unsigned varints must be minimal and at most 9 bytes;
   - sha2-256 and keccak-256 digests must be 32 bytes, and any digest at most
     128 bytes;
