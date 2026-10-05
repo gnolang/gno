@@ -59,40 +59,55 @@ func track(kind string, l *listing, h int64) {
 	if kind == "listed" {
 		pulseListed.add(h/epochBlocks, 1)
 	}
-	activity.push(event{kind, l, l.rankedStars.Size()})
+	activity.push(event{kind, l, l.rankedCount()})
 }
 
 // epochRing counts events per epoch over the last len(counts) epochs, in
-// constant space: slot epoch%len is reused once its epoch is too old.
+// constant space: slot epoch%len holds the count of the one epoch of the
+// window (last-len, last] that maps to it, so a slot is reused once its
+// epoch is too old. One slice, not one per field: each is a stored object.
 type epochRing struct {
-	epochs []int64
 	counts []int
+	last   int64 // newest epoch counted
 }
 
-func newEpochRing(n int) *epochRing {
-	return &epochRing{make([]int64, n), make([]int, n)}
+func newEpochRing(n int) epochRing {
+	return epochRing{counts: make([]int, n)}
 }
 
 // add adds delta to epoch's count. A negative delta for an epoch that has
 // left the ring is dropped: that epoch no longer counts anywhere.
 func (r *epochRing) add(epoch int64, delta int) {
-	i := int(epoch % int64(len(r.counts)))
-	if r.epochs[i] != epoch {
-		if delta < 0 {
-			return
-		}
-		r.epochs[i], r.counts[i] = epoch, 0
+	n := int64(len(r.counts))
+	if delta > 0 && epoch <= r.last-n { // only a test moves the height back: restart
+		r.last = epoch - n
 	}
-	r.counts[i] += delta
+	if epoch > r.last {
+		from := r.last + 1
+		if from < epoch-n+1 {
+			from = epoch - n + 1
+		}
+		if from < 0 {
+			from = 0
+		}
+		for e := from; e <= epoch; e++ { // the epochs entering the window start at 0
+			r.counts[e%n] = 0
+		}
+		r.last = epoch
+	}
+	if epoch <= r.last-n {
+		return
+	}
+	r.counts[epoch%n] += delta
 }
 
 // sum returns the total of the window epochs ending at epoch.
 func (r *epochRing) sum(epoch int64, window int) int {
-	n := 0
-	for i, e := range r.epochs {
+	total := 0
+	for e := r.last; e >= 0 && r.last-e < int64(len(r.counts)); e-- {
 		if e <= epoch && epoch-e < int64(window) {
-			n += r.counts[i]
+			total += r.counts[e%int64(len(r.counts))]
 		}
 	}
-	return n
+	return total
 }

@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chain/runtime"
 	"math"
 	"strconv"
 	"strings"
@@ -25,17 +26,24 @@ type listing struct {
 	// alone buys no exposure (T11).
 	Confirmed bool
 
-	core        bool  // listed by the seed: shown in gno.land essentials, kept off New, Top and Rediscover
-	live        rich  // rich fields currently in effect
-	next        *rich // last submitted change, in effect from nextAt+richDelay
-	nextAt      int64
-	stars       *avl.Tree  // user address -> star, all of them (the displayed count)
-	rankedStars *avl.Tree  // descKey(star height, address) -> star height, ranked stars only
-	recent      *epochRing // ranked stars per epoch, for trending
-	trendScore  int        // stars7d at the last ranked-star change, an upper bound of it since
-	trendEpoch  int64      // epoch of that change
-	milestone   int        // highest ranked-star milestone already announced
-	hidden      bool       // hidden by GovDAO: kept under its path, shown nowhere
+	core       bool   // listed by the seed: shown in gno.land essentials, kept off New, Top and Rediscover
+	icon       string // rich fields currently in effect, kept flat: a rich value is one more stored object
+	cover      string
+	next       *rich // last submitted change, in effect from nextAt+richDelay
+	nextAt     int64
+	book       *starBook // nil until the first star, so an unstarred listing stores no star objects
+	trendScore int       // stars7d at the last ranked-star change, an upper bound of it since
+	trendEpoch int64     // epoch of that change
+	milestone  int       // highest ranked-star milestone already announced
+	hidden     bool      // hidden by GovDAO: kept under its path, shown nowhere
+}
+
+// starBook holds a listing's stars. Its trees are values, not pointers, so
+// a first star stores one object fewer per tree.
+type starBook struct {
+	all    avl.Tree  // user address -> packed star, all of them (the displayed count)
+	ranked avl.Tree  // descKey(star height, address) -> star height, ranked stars only
+	recent epochRing // ranked stars per epoch, for trending; empty until the first ranked star
 }
 
 type star struct {
@@ -43,6 +51,43 @@ type star struct {
 	// Ranked records whether the star counts in rankings (see Star).
 	// Judged once, at star time, so reads need no cross-realm call.
 	Ranked bool
+}
+
+// pack stores s as one int64, its height doubled plus its rank bit: a
+// struct value would be one more stored object per star.
+func (s star) pack() int64 {
+	v := s.Height * 2
+	if s.Ranked {
+		v++
+	}
+	return v
+}
+
+// starOf returns addr's star on l, which must exist.
+func (l *listing) starOf(addr string) star {
+	v := l.book.all.Get(addr).(int64)
+	return star{Height: v / 2, Ranked: v%2 == 1}
+}
+
+// starCount is the displayed number of stars; rankedCount, the number that
+// rank the listing.
+func (l *listing) starCount() int {
+	if l.book == nil {
+		return 0
+	}
+	return l.book.all.Size()
+}
+
+func (l *listing) rankedCount() int {
+	if l.book == nil {
+		return 0
+	}
+	return l.book.ranked.Size()
+}
+
+// starred reports whether addr stars l.
+func (l *listing) starred(addr string) bool {
+	return l.book != nil && l.book.all.Has(addr)
 }
 
 type rich struct {
@@ -53,9 +98,9 @@ type rich struct {
 // shelfIndex orders the visible, confirmed listings of one audience for the
 // shelves.
 type shelfIndex struct {
-	created *avl.Tree // descKey(Created) -> *listing
-	updated *avl.Tree // descKey(Updated) -> *listing, if Updated != Created
-	stars   *avl.Tree // descKey(ranked stars) -> *listing, if any
+	created avl.Tree // descKey(Created) -> *listing
+	updated avl.Tree // descKey(Updated) -> *listing, if Updated != Created
+	stars   avl.Tree // descKey(ranked stars) -> *listing, if any
 }
 
 // trendIndex files listings by the epoch of their last ranked-star change,
@@ -99,36 +144,23 @@ type builder struct {
 }
 
 var (
-	listings = avl.NewTree() // slug -> *listing, visible only
-	byPath   = avl.NewTree() // path -> *listing, hidden included
-	byTitle  = avl.NewTree() // titleKey -> slug of the visible listing using it
-	byNS     = avl.NewTree() // namespace -> []*listing, hidden included
+	listings avl.Tree // slug -> *listing, visible only
+	byPath   avl.Tree // path -> *listing, hidden included; also read per namespace (namespaceListings)
+	byTitle  avl.Tree // titleKey -> slug of the visible listing using it
 
 	// Visible listings only, maintained by index and unindex; the shelf
 	// indexes and the builders hold confirmed ones only.
-	byCategory = newCategoryIndex() // category -> *avl.Tree of descKey(Created) -> *listing, apps only
-	apps       = newShelfIndex()
-	toolbox    = newShelfIndex() // services and packages, for api/v1/build
-	namedApps  = avl.NewTree()   // descKey(Created) -> *listing, named namespaces' apps but the core ones: New's and Rediscover's ground
-	appTrend   = &trendIndex{}   // the build lens has no trending shelf
+	byCategory avl.Tree // category -> *avl.Tree of descKey(Created) -> *listing, apps only; made by a category's first app
+	apps       shelfIndex
+	toolbox    shelfIndex // services and packages, for api/v1/build
+	namedApps  avl.Tree   // descKey(Created) -> *listing, named namespaces' apps but the core ones: New's and Rediscover's ground
+	appTrend   trendIndex // the build lens has no trending shelf
 
 	// Builders, kept ranked on every write so reads never scan namespaces.
-	builders        = avl.NewTree() // namespace -> *builder
-	buildersByRank  = avl.NewTree() // descKey(rank, namespace) -> *builder
-	buildersByFirst = avl.NewTree() // descKey(First, namespace) -> *builder
+	builders        avl.Tree // namespace -> *builder
+	buildersByRank  avl.Tree // descKey(rank, namespace) -> *builder
+	buildersByFirst avl.Tree // descKey(First, namespace) -> *builder
 )
-
-func newCategoryIndex() *avl.Tree {
-	t := avl.NewTree()
-	for _, c := range categories {
-		t.Set(c.Key, avl.NewTree())
-	}
-	return t
-}
-
-func newShelfIndex() shelfIndex {
-	return shelfIndex{avl.NewTree(), avl.NewTree(), avl.NewTree()}
-}
 
 // upsert lists l, or updates the listing of the same path in place, keeping
 // its slug and creation height; a confirmed l confirms the listing. It
@@ -139,7 +171,7 @@ func upsert(l *listing, h int64) string {
 		return "paused"
 	}
 	l.Namespace = namespaceOf(l.Path)
-	existing := lookup(byPath, l.Path)
+	existing := lookup(&byPath, l.Path)
 	if existing != nil {
 		l.Slug = existing.Slug
 	}
@@ -161,13 +193,9 @@ func upsert(l *listing, h int64) string {
 		return reason
 	}
 	l.Created, l.Updated = h, h
-	l.stars = avl.NewTree()
-	l.rankedStars = avl.NewTree()
-	l.recent = newEpochRing(trendEpochs)
 	listings.Set(l.Slug, l)
 	byPath.Set(l.Path, l)
 	byTitle.Set(titleKey(l.Title), l.Slug)
-	byNS.Set(l.Namespace, append(namespaceListings(l.Namespace), l))
 	l.index()
 	track("listed", l, h)
 	return ""
@@ -246,11 +274,11 @@ func (l *listing) shownApp() bool {
 	return l.indexed() && l.Kind == kindApp
 }
 
-func (l *listing) shelves() shelfIndex {
+func (l *listing) shelves() *shelfIndex {
 	if l.Kind == kindApp {
-		return apps
+		return &apps
 	}
-	return toolbox
+	return &toolbox
 }
 
 // index adds a visible app to its category, and a confirmed listing to the
@@ -258,7 +286,12 @@ func (l *listing) shelves() shelfIndex {
 func (l *listing) index() {
 	key := descKey(l.Created, l.Slug)
 	if l.Kind == kindApp {
-		categoryMembers(l.Category).Set(key, l)
+		members, ok := byCategory.Get(l.Category).(*avl.Tree)
+		if !ok {
+			members = avl.NewTree()
+			byCategory.Set(l.Category, members)
+		}
+		members.Set(key, l)
 	}
 	if !l.Confirmed {
 		return
@@ -277,7 +310,7 @@ func (l *listing) index() {
 			b.First = l.Created
 		}
 		b.Listings++
-		b.Stars += l.rankedStars.Size()
+		b.Stars += l.rankedCount()
 	})
 }
 
@@ -296,7 +329,7 @@ func (l *listing) unindex() {
 	l.unindexStars(ix)
 	updateBuilder(l.Namespace, func(b *builder) {
 		b.Listings--
-		b.Stars -= l.rankedStars.Size()
+		b.Stars -= l.rankedCount()
 		if b.First == l.Created {
 			b.First = firstCreated(l.Namespace, l)
 		}
@@ -304,8 +337,8 @@ func (l *listing) unindex() {
 }
 
 // indexStars and unindexStars keep l's entries in the star-ordered indexes.
-func (l *listing) indexStars(ix shelfIndex) {
-	if n := l.rankedStars.Size(); n > 0 {
+func (l *listing) indexStars(ix *shelfIndex) {
+	if n := l.rankedCount(); n > 0 {
 		ix.stars.Set(descKey(int64(n), l.Slug), l)
 		if l.Kind == kindApp {
 			appTrend.set(l)
@@ -313,8 +346,8 @@ func (l *listing) indexStars(ix shelfIndex) {
 	}
 }
 
-func (l *listing) unindexStars(ix shelfIndex) {
-	if n := l.rankedStars.Size(); n > 0 {
+func (l *listing) unindexStars(ix *shelfIndex) {
+	if n := l.rankedCount(); n > 0 {
 		ix.stars.Remove(descKey(int64(n), l.Slug))
 		if l.Kind == kindApp {
 			appTrend.remove(l)
@@ -343,9 +376,9 @@ func updateBuilder(ns string, change func(b *builder)) {
 		buildersByFirst.Remove(descKey(first, ns))
 		return
 	}
-	rekey(buildersByRank, descKey(rank, ns), descKey(b.rank(), ns), b)
+	rekey(&buildersByRank, descKey(rank, ns), descKey(b.rank(), ns), b)
 	if fresh || b.First != first { // never on a star
-		rekey(buildersByFirst, descKey(first, ns), descKey(b.First, ns), b)
+		rekey(&buildersByFirst, descKey(first, ns), descKey(b.First, ns), b)
 	}
 }
 
@@ -397,7 +430,7 @@ func (l *listing) reindex(change func()) {
 // the star indexes and its builder's total only, so a star costs O(log n),
 // not a full reindex.
 func (l *listing) restar(h int64, change func()) {
-	shown, ix, before := l.indexed(), l.shelves(), l.rankedStars.Size()
+	shown, ix, before := l.indexed(), l.shelves(), l.rankedCount()
 	if shown {
 		l.unindexStars(ix)
 	}
@@ -407,7 +440,7 @@ func (l *listing) restar(h int64, change func()) {
 		return
 	}
 	l.indexStars(ix)
-	updateBuilder(l.Namespace, func(b *builder) { b.Stars += l.rankedStars.Size() - before })
+	updateBuilder(l.Namespace, func(b *builder) { b.Stars += l.rankedCount() - before })
 }
 
 // addStar records a star. Only ranked stars rank a listing (Top,
@@ -416,14 +449,20 @@ func (l *listing) restar(h int64, change func()) {
 // total.
 func (l *listing) addStar(addr string, s star) {
 	epoch := s.Height / epochBlocks
-	l.stars.Set(addr, s)
+	if l.book == nil {
+		l.book = &starBook{}
+	}
+	l.book.all.Set(addr, s.pack())
 	pulseStars.add(epoch, 1)
 	if !s.Ranked {
 		return
 	}
-	l.recent.add(epoch, 1)
-	l.restar(s.Height, func() { l.rankedStars.Set(descKey(s.Height, addr), s.Height) })
-	n := l.rankedStars.Size()
+	if l.book.recent.counts == nil {
+		l.book.recent = newEpochRing(trendEpochs)
+	}
+	l.book.recent.add(epoch, 1)
+	l.restar(s.Height, func() { l.book.ranked.Set(descKey(s.Height, addr), s.Height) })
+	n := l.rankedCount()
 	if n >= confirmStars {
 		l.confirm(s.Height)
 	}
@@ -438,15 +477,15 @@ func (l *listing) addStar(addr string, s star) {
 // removeStar drops addr's star at height h. Once the star's epoch has left
 // the rings, it no longer counts there, so nothing is subtracted.
 func (l *listing) removeStar(addr string, h int64) {
-	s := l.stars.Get(addr).(star)
+	s := l.starOf(addr)
 	epoch := s.Height / epochBlocks
-	l.stars.Remove(addr)
+	l.book.all.Remove(addr)
 	pulseStars.add(epoch, -1)
 	if !s.Ranked {
 		return
 	}
-	l.recent.add(epoch, -1)
-	l.restar(h, func() { l.rankedStars.Remove(descKey(s.Height, addr)) })
+	l.book.recent.add(epoch, -1)
+	l.restar(h, func() { l.book.ranked.Remove(descKey(s.Height, addr)) })
 }
 
 // descKey orders by n descending, then key ascending, in a forward
@@ -462,9 +501,13 @@ func descValue(key string) int64 {
 }
 
 // categoryMembers returns the visible apps of a validated category, newest
-// first.
+// first. A category no app has used has no tree yet: it reads as a new,
+// empty one, which nothing stores.
 func categoryMembers(category string) *avl.Tree {
-	return byCategory.Get(category).(*avl.Tree)
+	if members, ok := byCategory.Get(category).(*avl.Tree); ok {
+		return members
+	}
+	return avl.NewTree()
 }
 
 // appCount is the number of visible apps in a category.
@@ -472,14 +515,25 @@ func appCount(category string) int {
 	return categoryMembers(category).Size()
 }
 
+// namespaceListings returns ns's listings, hidden included, from the
+// byPath ranges of its realms and packages: a separate index would cost
+// storage for what byPath already orders.
 func namespaceListings(ns string) []*listing {
-	ls, _ := byNS.Get(ns).([]*listing)
+	var ls []*listing
+	for _, kind := range []string{"/p/", "/r/"} {
+		prefix := runtime.ChainDomain() + kind + ns + "/"
+		// "0" follows "/": the range holds exactly the paths under prefix.
+		byPath.Iterate(prefix, prefix[:len(prefix)-1]+"0", func(_ string, v any) bool {
+			ls = append(ls, v.(*listing))
+			return false
+		})
+	}
 	return ls
 }
 
 // visibleInNamespace counts the listings that use one of the namespace's
 // maxPerNamespace slots: hidden ones release theirs. Hidden listings stay in
-// byNS, so this grows only with GovDAO hides.
+// byPath, so this grows only with GovDAO hides.
 func visibleInNamespace(ns string) int {
 	n := 0
 	for _, l := range namespaceListings(ns) {
@@ -566,7 +620,7 @@ func lookup(tree *avl.Tree, key string) *listing {
 }
 
 func bySlugOrPanic(slug string) *listing {
-	l := lookup(listings, slug)
+	l := lookup(&listings, slug)
 	if l == nil {
 		panic(errUnknownListing)
 	}
@@ -574,11 +628,16 @@ func bySlugOrPanic(slug string) *listing {
 }
 
 func byPathOrPanic(path string) *listing {
-	l := lookup(byPath, path)
+	l := lookup(&byPath, path)
 	if l == nil {
 		panic("store: caller is not a listed realm")
 	}
 	return l
+}
+
+// live returns the rich fields in effect before any pending change.
+func (l *listing) live() rich {
+	return rich{Icon: l.icon, Cover: l.cover}
 }
 
 // effective returns the rich fields in effect at height h, and whether a
@@ -586,25 +645,26 @@ func byPathOrPanic(path string) *listing {
 func (l *listing) effective(h int64) (rich, bool) {
 	switch {
 	case l.next == nil:
-		return l.live, false
+		return l.live(), false
 	case h-l.nextAt >= richDelay:
 		return *l.next, false
 	default:
-		return l.live, true
+		return l.live(), true
 	}
 }
 
 // submitRich replaces any change still pending: the delay restarts.
 // Resubmitting the latest values changes nothing.
 func (l *listing) submitRich(r rich, h int64) {
-	latest := l.live
+	latest := l.live()
 	if l.next != nil {
 		latest = *l.next
 	}
 	if r == latest {
 		return
 	}
-	l.live, _ = l.effective(h)
+	live, _ := l.effective(h)
+	l.icon, l.cover = live.Icon, live.Cover
 	l.next = &r
 	l.nextAt = h
 	l.touch(h)
@@ -615,7 +675,10 @@ func (l *listing) isNew(h int64) bool {
 }
 
 func (l *listing) stars7d(h int64) int {
-	return l.recent.sum(h/epochBlocks, trendEpochs)
+	if l.book == nil {
+		return 0
+	}
+	return l.book.recent.sum(h/epochBlocks, trendEpochs)
 }
 
 // earned reports earned reputation (ADR §2) from chain data alone. Only
@@ -623,14 +686,14 @@ func (l *listing) stars7d(h int64) int {
 // newest first, so the check reads one entry: the earnStars-th oldest must
 // be starMaturity old.
 func (l *listing) earned(h int64) bool {
-	if h-l.Created < earnAge || l.rankedStars.Size() < earnStars {
+	if h-l.Created < earnAge || l.rankedCount() < earnStars {
 		return false
 	}
 	if _, pending := l.effective(h); pending {
 		return false
 	}
 	mature := false
-	l.rankedStars.ReverseIterateByOffset(earnStars-1, 1, func(_ string, v any) bool {
+	l.book.ranked.ReverseIterateByOffset(earnStars-1, 1, func(_ string, v any) bool {
 		mature = h-v.(int64) >= starMaturity
 		return true
 	})

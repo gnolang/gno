@@ -14,7 +14,7 @@ const (
 // isTop reports an app with enough ranked stars for Top: below the floor, a
 // young chain would crown an app with one star.
 func isTop(l *listing) bool {
-	return l.rankedStars.Size() >= topStars
+	return l.rankedCount() >= topStars
 }
 
 // topApps returns at most n community apps of Top's head, the store front's
@@ -41,7 +41,7 @@ func topApps(n int) []*listing {
 // namespace earns no front-page slot (its apps stay in :latest and their
 // category), and no core app, since those are in gno.land essentials.
 func newApps(n int) []*listing {
-	return window(namedApps, 0, n)
+	return window(&namedApps, 0, n)
 }
 
 // homeShelves composes the store front at height h, over apps only.

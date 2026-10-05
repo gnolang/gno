@@ -31,7 +31,7 @@ func starFrom(cur realm, slug string, who ...string) {
 	for _, u := range who {
 		addr := nameUser(cur, u)
 		if !voters.Has(addr.String()) {
-			voters.Set(addr.String(), &voter{NameSeen: -nameMaturity})
+			voters.Set(addr.String(), voter{NameSeen: -nameMaturity})
 		}
 		testing.SetRealm(testing.NewUserRealm(addr))
 		Star(cross(cur), slug)
@@ -108,7 +108,7 @@ func TestRegisterUpsert(cur realm, t *testing.T) {
 	uassert.Equal(t, education+1, appCount("education"))
 	uassert.Equal(t, utilities-1, appCount("utilities"))
 	uassert.False(t, byTitle.Has(titleKey("Upsert App")), "the old title is released")
-	uassert.Equal(t, `["upsert-app"]`, jsonSlugs(window(apps.updated, 0, 1)))
+	uassert.Equal(t, `["upsert-app"]`, jsonSlugs(window(&apps.updated, 0, 1)))
 	uassert.True(t, activity.newestFirst()[0] == ev("updated", "upsert-app", 0))
 
 	// An invalid update leaves the listing untouched.
@@ -132,7 +132,7 @@ func TestUpdateSpam(cur realm, t *testing.T) {
 	testing.SetHeight(900 * epochBlocks) // after every other update
 	registerSpam(cur, "Version 1")
 	l := bySlugOrPanic("spam-app")
-	updatedShelf := func() string { return jsonSlugs(window(apps.updated, 0, 10)) }
+	updatedShelf := func() string { return jsonSlugs(window(&apps.updated, 0, 10)) }
 	shelf, feed := updatedShelf(), activity
 
 	for i := 0; i < 5; i++ {
@@ -350,14 +350,14 @@ func TestUnconfirmedAnnouncesNothing(cur realm, t *testing.T) {
 // listing only adds to the displayed count.
 func TestOwnStarDoesNotRank(cur realm, t *testing.T) {
 	owner := nameUser(cur, "selfstar")
-	voters.Set(owner.String(), &voter{NameSeen: -nameMaturity})
+	voters.Set(owner.String(), voter{NameSeen: -nameMaturity})
 	path := "gno.land/r/" + owner.String() + "/self"
 	testing.SetRealm(testing.NewUserRealm(owner))
 	Claim(cross(cur), path, "self-app", "Self App", "A tagline", "nft-art", 1, kindApp)
 	Star(cross(cur), "self-app")
 	l := bySlugOrPanic("self-app")
-	uassert.Equal(t, 1, l.stars.Size())
-	uassert.Equal(t, 0, l.rankedStars.Size())
+	uassert.Equal(t, 1, l.starCount())
+	uassert.Equal(t, 0, l.rankedCount())
 }
 
 // TestRegisterKeepsServiceKind checks that a claimed service confirmed by
@@ -533,7 +533,7 @@ func TestStarRateLimit(cur realm, t *testing.T) {
 
 func TestStarsIndex(cur realm, t *testing.T) {
 	registerFrom(cur, "gno.land/r/climber/app", "climber-app", "Climber")
-	top := func() string { return jsonSlugs(window(apps.stars, 0, 3)) }
+	top := func() string { return jsonSlugs(window(&apps.stars, 0, 3)) }
 	before := top()
 	var fans []string
 	for i := 0; i < 12; i++ { // more than any other listing in this test run
@@ -562,7 +562,7 @@ func TestSybilStars(cur realm, t *testing.T) {
 	l := bySlugOrPanic("sybil-app")
 	contains(t, listingJSON("sybil-app"), `"stars":10`)
 	uassert.Equal(t, 0, l.stars7d(runtime.ChainHeight()))
-	uassert.False(t, strings.Contains(jsonSlugs(window(apps.stars, 0, 100)), "sybil-app"), "not in Top")
+	uassert.False(t, strings.Contains(jsonSlugs(window(&apps.stars, 0, 100)), "sybil-app"), "not in Top")
 	uassert.False(t, strings.Contains(jsonSlugs(trending(runtime.ChainHeight(), 10).items), "sybil-app"), "not trending")
 	uassert.True(t, activity.newestFirst()[0].Kind != "milestone", "no milestone")
 	top, _ := topBuilders()
@@ -579,12 +579,12 @@ func TestNameMaturity(cur realm, t *testing.T) {
 	addr := nameUser(cur, "newname")
 	testing.SetRealm(testing.NewUserRealm(addr))
 	Star(cross(cur), "mature-one")
-	uassert.Equal(t, 0, bySlugOrPanic("mature-one").rankedStars.Size(), "a new name's star does not rank")
+	uassert.Equal(t, 0, bySlugOrPanic("mature-one").rankedCount(), "a new name's star does not rank")
 
 	testing.SkipHeights(nameMaturity)
 	testing.SetRealm(testing.NewUserRealm(addr))
 	Star(cross(cur), "mature-two")
-	uassert.Equal(t, 1, bySlugOrPanic("mature-two").rankedStars.Size())
+	uassert.Equal(t, 1, bySlugOrPanic("mature-two").rankedCount())
 }
 
 func TestStars7dAndTrending(cur realm, t *testing.T) {
@@ -601,7 +601,7 @@ func TestStars7dAndTrending(cur realm, t *testing.T) {
 
 	testing.SkipHeights(6 * epochBlocks) // the first epoch leaves the 7-epoch window
 	uassert.Equal(t, 1, l.stars7d(runtime.ChainHeight()))
-	uassert.Equal(t, 4, l.stars.Size())
+	uassert.Equal(t, 4, l.starCount())
 	contains(t, Render("api/v1/home"), `{"title":"Trending this week","slugs":[]`)
 }
 

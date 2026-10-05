@@ -1343,13 +1343,19 @@ gnoweb only queries category pages that exist in the cached taxonomy.
 - Indexer: 1 merged GraphQL request per page on a cold cache; #6231's
   16-slot gate, 8 MiB cap and breaker unchanged.
 - Realm JSON capped at 2 MiB before decoding.
-- Storage, measured: a demo with about 40 listings and 70 ranked stars
-  needed about 1.27 MB of realm storage (about 127 GNOT of deposit at 100
-  ugnot per byte). Each listing carries several index entries (creation,
-  update, stars, trend, category, named) and its own trees (stars, ranked
-  stars), so storage grows with listings and stars, not with readers. Each
-  writer pays the deposit for what it adds; the seed's deploy pays for the
-  seed.
+- Storage, measured in an integration test at 100 ugnot per byte:
+  deploying the realm with its 12-listing seed stores about 314 KB (about
+  31 GNOT of deposit): about 110 KB of code (each top-level function
+  stores about 850 bytes, its function value and its package-block entry),
+  49 KB of empty indexes and rings, and about 13 KB per seeded listing. A
+  `Register` adds about 12.8 KB (1.3 GNOT), about 20 KB for a namespace's
+  first listing (its builder entries). A star adds about 2.1 KB, a ranked
+  star about 4.3 KB, and about 2 KB more for each index it moves the
+  listing into (Top, a trending slot); a listing's first star also makes
+  its star book (about 2 KB), and an address's first star its rate-limit
+  record. Each index entry is an avl leaf and inner node of 1 to 2 KB, so
+  storage grows with listings and stars, not with readers. Each writer
+  pays the deposit for what it adds; the seed's deploy pays for the seed.
 - In the realm, every read is bounded whatever the catalogue's size: front
   sections read at most 16 index entries (Top stops at its floor and skips
   only the few core apps), builders 10, Trending
@@ -1489,10 +1495,10 @@ Epoch rotation gives a provable exposure guarantee with no state.
   gnoweb's `-store-deny` lands.
 - The path is permanent: a wrong constant or a bug stays in `v0`, and a `v1`
   means apps re-`Register` and stars start over.
-- Storage: a demo with about 40 listings and 70 ranked stars needed about
-  1.27 MB of realm storage, about 127 GNOT of deposit at 100 ugnot per byte,
-  since each listing carries several index entries and its own trees. Each
-  writer pays its own deposit; the seed's deploy pays for the seed.
+- Storage: deploying the realm with its seed takes about 31 GNOT of
+  deposit at 100 ugnot per byte, a `Register` about 1.3 GNOT and a star
+  0.2 to 0.4 GNOT, since each listing and star is several index entries.
+  Each writer pays its own deposit; the seed's deploy pays for the seed.
 - Names are free (0 ugnot for a `nym-` name on mainnet today), so ranked
   stars and Rediscover's named-only rule are a delay, not a price, until
   GovDAO sets `registerPrice` above zero.

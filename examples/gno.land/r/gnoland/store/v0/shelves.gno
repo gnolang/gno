@@ -45,11 +45,11 @@ type list struct {
 func findList(key string, h int64) (list, bool) {
 	switch key {
 	case "top":
-		return list{Key: key, Title: "Top", Index: apps.stars}, true
+		return list{Key: key, Title: "Top", Index: &apps.stars}, true
 	case "latest":
-		return list{Key: key, Title: "New", Index: apps.created}, true
+		return list{Key: key, Title: "New", Index: &apps.created}, true
 	case "updated":
-		return list{Key: key, Title: "Recently updated", Index: apps.updated}, true
+		return list{Key: key, Title: "Recently updated", Index: &apps.updated}, true
 	case "trending":
 		t := trending(h, pageSize)
 		return list{Key: key, Title: "Trending this week", Items: t.items, Counts: t.scores}, true
@@ -87,9 +87,9 @@ func (l list) count() int {
 // for api/v1/build and the markdown build page.
 func buildShelves(h int64) []shelf {
 	return []shelf{
-		{Title: "New to build with", Items: takeWhile(toolbox.created, gridPool, func(l *listing) bool { return l.isNew(h) })},
-		{Title: "Recently updated", Items: window(toolbox.updated, 0, gridPool)},
-		{Title: "Most starred", Items: window(toolbox.stars, 0, gridPool)},
+		{Title: "New to build with", Items: takeWhile(&toolbox.created, gridPool, func(l *listing) bool { return l.isNew(h) })},
+		{Title: "Recently updated", Items: window(&toolbox.updated, 0, gridPool)},
+		{Title: "Most starred", Items: window(&toolbox.stars, 0, gridPool)},
 	}
 }
 
@@ -175,7 +175,7 @@ func trending(h int64, n int) *topN {
 // index is newest first, so the new apps are a prefix, found by binary
 // search.
 func rotation(h int64) []*listing {
-	ix := namedApps
+	ix := &namedApps
 	fresh := sort.Search(ix.Size(), func(i int) bool {
 		_, v := ix.GetByIndex(i)
 		return !v.(*listing).isNew(h)
@@ -199,7 +199,7 @@ func rotation(h int64) []*listing {
 // most listings, and the namespaces that started listing most recently, at
 // most builderRank each, from indexes kept on every write.
 func topBuilders() (top, fresh []*builder) {
-	return builderRows(buildersByRank), builderRows(buildersByFirst)
+	return builderRows(&buildersByRank), builderRows(&buildersByFirst)
 }
 
 func builderRows(index *avl.Tree) []*builder {

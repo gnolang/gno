@@ -46,7 +46,7 @@ const (
 )
 
 // voters holds what the store keeps per starring address.
-var voters = avl.NewTree() // address -> *voter
+var voters avl.Tree // address -> voter, a value: a pointer would store one more object per address
 
 type voter struct {
 	Epoch    int64 // of the last star
@@ -70,7 +70,7 @@ func Register(cur realm, slug, title, tagline, category string, palette int) {
 	// The weekly announcement limit is updateCooldown.
 	path := cur.Previous().PkgPath()
 	kind := kindApp
-	if existing := lookup(byPath, path); existing != nil {
+	if existing := lookup(&byPath, path); existing != nil {
 		kind = existing.Kind // a service claimed by its owner stays one
 	}
 	l := newListing(path, slug, title, tagline, category, palette, kind)
@@ -161,16 +161,13 @@ func Star(cur realm, slug string) {
 	// registration height, so a name's first star only starts the clock.
 	l, caller := starTarget(cur, slug)
 	addr := caller.String()
-	if l.stars.Has(addr) {
+	if l.starred(addr) {
 		panic("store: already starred")
 	}
 	h := runtime.ChainHeight()
-	v := spendStar(addr, h)
 	named := users.ResolveAddress(caller) != nil
-	if named && v.NameSeen == 0 {
-		v.NameSeen = h
-	}
-	ranked := named && h-v.NameSeen >= nameMaturity && !ownsNamespace(caller, l.Namespace)
+	nameSeen := spendStar(addr, h, named)
+	ranked := named && h-nameSeen >= nameMaturity && !ownsNamespace(caller, l.Namespace)
 	l.addStar(addr, star{Height: h, Ranked: ranked})
 }
 
@@ -178,7 +175,7 @@ func Star(cur realm, slug string) {
 // star: the 20 a day count the stars you add.
 func Unstar(cur realm, slug string) {
 	l, caller := starTarget(cur, slug)
-	if !l.stars.Has(caller.String()) {
+	if !l.starred(caller.String()) {
 		panic("store: not starred")
 	}
 	l.removeStar(caller.String(), runtime.ChainHeight())
@@ -192,14 +189,11 @@ func starTarget(cur realm, slug string) (*listing, address) {
 	return bySlugOrPanic(slug), caller.Address()
 }
 
-// spendStar charges one star to addr's budget for the epoch of h and
-// returns its voter record.
-func spendStar(addr string, h int64) *voter {
-	v, _ := voters.Get(addr).(*voter)
-	if v == nil {
-		v = &voter{}
-		voters.Set(addr, v)
-	}
+// spendStar charges one star to addr's budget for the epoch of h, records
+// h as the height the store first saw addr named if it is the first, and
+// returns that height (0 if never).
+func spendStar(addr string, h int64, named bool) int64 {
+	v, _ := voters.Get(addr).(voter)
 	if epoch := h / epochBlocks; v.Epoch != epoch {
 		v.Epoch, v.Spent = epoch, 0
 	}
@@ -207,5 +201,9 @@ func spendStar(addr string, h int64) *voter {
 		panic("store: star rate limit")
 	}
 	v.Spent++
-	return v
+	if named && v.NameSeen == 0 {
+		v.NameSeen = h
+	}
+	voters.Set(addr, v)
+	return v.NameSeen
 }

@@ -167,10 +167,10 @@ func Block(list string, n int) string {
 // ranked stars as the store counts them and a link to star it, or "". An
 // app shows it in its own Render instead of a count of its own.
 func Badge(path string) string {
-	l := lookup(byPath, path)
+	l := lookup(&byPath, path)
 	if l == nil || !l.shownApp() {
 		return ""
 	}
-	return "★ " + strconv.Itoa(l.rankedStars.Size()) + " on Explore · " +
+	return "★ " + strconv.Itoa(l.rankedCount()) + " on Explore · " +
 		md.Link("Star", storeURL+"$help&func=Star&slug="+l.Slug)
 }

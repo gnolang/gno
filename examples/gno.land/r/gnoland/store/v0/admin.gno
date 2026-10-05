@@ -68,7 +68,7 @@ func ProposeHide(cur realm, slug, reason string) dao.ProposalRequest {
 	if err := checkHide(slug, reason); err != nil {
 		panic(err)
 	}
-	path := lookup(listings, slug).Path
+	path := lookup(&listings, slug).Path
 	return proposal(cur, "Hide "+slug+" from the store", "Hides the store listing "+slug+" ("+path+"), for "+reason+".",
 		func() error { return hideBound(slug, path, reason) })
 }
@@ -95,7 +95,7 @@ func ProposeSpotlight(cur realm, slug string, days int) dao.ProposalRequest {
 	if err := checkPick(slug, days); err != nil {
 		panic(err)
 	}
-	l := lookup(listings, slug)
+	l := lookup(&listings, slug)
 	path, title := l.Path, titleKey(l.Title)
 	n := strconv.Itoa(days)
 	return proposal(cur, "Feature "+slug+" as the front page's hero for "+n+" days",
@@ -117,7 +117,7 @@ func pickBound(slug, path, title string, days int, h int64) error {
 	if err := checkSlugPath(slug, path); err != nil {
 		return err
 	}
-	if titleKey(lookup(listings, slug).Title) != title {
+	if titleKey(lookup(&listings, slug).Title) != title {
 		return errTitleChanged
 	}
 	return setPick(slug, days, h)
@@ -127,7 +127,7 @@ func pickBound(slug, path, title string, days int, h int64) error {
 // hide releases the slug, so between a proposal and its execution it may
 // pass to an unrelated listing, which must not be hidden or picked instead.
 func checkSlugPath(slug, path string) error {
-	l := lookup(listings, slug)
+	l := lookup(&listings, slug)
 	switch {
 	case l == nil:
 		return errUnknownListing
@@ -140,7 +140,7 @@ func checkSlugPath(slug, path string) error {
 // checkPick checks that slug is an app picked() would show: visible and
 // confirmed, so a bare claim is never picked.
 func checkPick(slug string, days int) error {
-	l := lookup(listings, slug)
+	l := lookup(&listings, slug)
 	switch {
 	case l == nil:
 		return errUnknownListing
@@ -159,7 +159,7 @@ func setPick(slug string, days int, h int64) error {
 	if err := checkPick(slug, days); err != nil {
 		return err
 	}
-	l := lookup(listings, slug)
+	l := lookup(&listings, slug)
 	pick.listing, pick.title, pick.until = l, titleKey(l.Title), h+int64(days)*blocksPerDay
 	chain.Emit("StorePicked", "slug", slug, "days", strconv.Itoa(days))
 	return nil
@@ -194,7 +194,7 @@ func hide(slug, reason string) error {
 	if err := checkHide(slug, reason); err != nil {
 		return err
 	}
-	l := lookup(listings, slug)
+	l := lookup(&listings, slug)
 	l.unindex()
 	dropPick(l)
 	listings.Remove(l.Slug)
@@ -227,7 +227,7 @@ func checkHide(slug, reason string) error {
 	switch {
 	case !isHideReason(reason):
 		return errUnknownReason
-	case lookup(listings, slug) == nil: // visible listings only
+	case lookup(&listings, slug) == nil: // visible listings only
 		return errUnknownListing
 	}
 	return nil
@@ -235,7 +235,7 @@ func checkHide(slug, reason string) error {
 
 // hiddenListing returns the hidden listing of path.
 func hiddenListing(path string) (*listing, error) {
-	l := lookup(byPath, path)
+	l := lookup(&byPath, path)
 	if l == nil || !l.hidden {
 		return nil, errNotHidden
 	}
