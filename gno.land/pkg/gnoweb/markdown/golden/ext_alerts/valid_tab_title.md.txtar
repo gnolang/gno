@@ -1,0 +1,34 @@
+-- input.md --
+> [!NOTE]	Tab separated title
+> body
+
+> [!TIP]-		Two tabs then title
+> body
+
+> [!WARNING]	
+> tab then nothing, so no title
+-- output.html --
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Tab separated title<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>body</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-tip">
+<summary>
+<svg><use href="#ico-tip"></use></svg>Two tabs then title<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>body</p>
+</div>
+</details>
+<details class="gno-alert gno-alert-warning" open>
+<summary>
+<svg><use href="#ico-warning"></use></svg>Warning<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>tab then nothing, so no title</p>
+</div>
+</details>

@@ -31,7 +31,12 @@ type BroadcastCfg struct {
 	testSimulate bool
 	// max gas limit to use for simulation (optional).
 	simulateMaxGas int64
-	GasFeeMargin   uint64
+
+	// simTxBytes, when set, is a separately signed tx to simulate with. See
+	// where it is built in maketx.go: simulation rewrites GasWanted, which
+	// invalidates the original signature.
+	simTxBytes   []byte
+	GasFeeMargin uint64
 }
 
 const simulationMaxGasFallback = int64(math.MaxInt64)
@@ -126,6 +131,9 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	// testSimulate continues onto broadcasting the transaction.
 	if cfg.DryRun || cfg.testSimulate {
 		simBz, rewritten, err := buildSimulationTxBytes(cfg.tx, bz, cfg.simulateMaxGas)
+		if cfg.simTxBytes != nil {
+			simBz, rewritten, err = cfg.simTxBytes, true, nil
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -171,21 +179,34 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 // original bytes are returned unchanged. It also returns whether tx bytes were
 // rewritten.
 func buildSimulationTxBytes(tx *std.Tx, txBytes []byte, maxGas int64) ([]byte, bool, error) {
-	if maxGas < 0 {
-		maxGas = simulationMaxGasFallback
-	}
-	if maxGas == 0 || tx.Fee.GasWanted >= maxGas {
+	simTx, rewritten := txWithGasWanted(tx, maxGas)
+	if !rewritten {
 		return txBytes, false, nil
 	}
-
-	simTx := *tx
-	simTx.Fee.GasWanted = maxGas
-	simBz, err := amino.Marshal(&simTx)
+	simBz, err := amino.Marshal(simTx)
 	if err != nil {
 		return nil, false, errors.Wrap(err, "remarshaling tx binary bytes for simulation")
 	}
 
 	return simBz, true, nil
+}
+
+// txWithGasWanted returns a copy of tx with GasWanted raised to the
+// consensus maxGas, and whether it differs from tx. maxGas of -1 (chain has no
+// limit) falls back to MaxInt64; 0 (unknown, e.g. the fetch failed) means no
+// change. The copy still carries tx's signature, which no longer matches it:
+// changing GasWanted changes the sign bytes, so a caller that needs a valid
+// signature must clear and re-sign.
+func txWithGasWanted(tx *std.Tx, maxGas int64) (*std.Tx, bool) {
+	if maxGas < 0 {
+		maxGas = simulationMaxGasFallback
+	}
+	if maxGas == 0 || tx.Fee.GasWanted >= maxGas {
+		return nil, false
+	}
+	simTx := *tx
+	simTx.Fee.GasWanted = maxGas
+	return &simTx, true
 }
 
 func suggestedGasWanted(gasUsed int64) int64 {

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cockroachdb/apd/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,21 +69,19 @@ func TestBoundedSprintTV_BigInt_Huge(t *testing.T) {
 }
 
 func TestBoundedSprintTV_BigDec_Small(t *testing.T) {
-	bd := apd.New(123, -2) // 1.23
+	// 123/100 = 1.23
+	bd := new(big.Rat).SetFrac(big.NewInt(123), big.NewInt(100))
 	tv := TypedValue{T: UntypedBigdecType, V: BigdecValue{V: bd}}
 	out := BoundedSprintTV(tv, nil, 100)
 	assert.Contains(t, out, "1.23")
 }
 
 func TestBoundedSprintTV_BigDec_Huge(t *testing.T) {
-	// Coefficient = 1 << (1<<20) ≈ 300K decimal digits. Models the
-	// runtime case where apd's unlimited-precision Add lets a user
-	// grow the coefficient over many gas-metered steps before
-	// triggering a panic that carries the value through bounded
-	// rendering.
-	bd := new(apd.Decimal)
-	bd.Coeff.Lsh(apd.NewBigInt(1), 1<<20)
-	bd.Exponent = 0
+	// Numerator = 1 << (1<<20) ≈ 300K decimal digits. Models the
+	// runtime case where a user accumulates a huge rational numerator
+	// triggering a panic that carries the value through bounded rendering.
+	num := new(big.Int).Lsh(big.NewInt(1), 1<<20)
+	bd := new(big.Rat).SetFrac(num, big.NewInt(1))
 	tv := TypedValue{T: UntypedBigdecType, V: BigdecValue{V: bd}}
 	out := BoundedSprintTV(tv, nil, 1024)
 	// Should hit the BitLen pre-check: BitLen() ≈ 1M > 1024*3.

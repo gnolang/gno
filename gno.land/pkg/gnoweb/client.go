@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var (
@@ -104,6 +106,18 @@ type ClientAdapter interface {
 	// StateType retrieves a type definition by TypeID at the given
 	// block height (0 for latest).
 	StateType(ctx context.Context, typeId string, height int64) ([]byte, error)
+
+	// PackageMeta reports whether a path holds a live package, one parked
+	// awaiting an approver, or nothing. An absent path is a nil error with
+	// status "absent", not ErrClientPackageNotFound: the caller needs to tell
+	// "nothing here" from "the node did not answer".
+	PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error)
+
+	// Eval evaluates a read-only Gno expression (`vm/qeval`) and returns the
+	// raw result, one line per return value. pkgPath carries no domain, since
+	// the client adds its own, and no dot: the node splits pkgPath from expr on
+	// the first dot after the first slash. expr is the caller's to keep safe.
+	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
 }
 
 type rpcClient struct {
@@ -142,6 +156,24 @@ func (c *rpcClient) Realm(ctx context.Context, path, args string) ([]byte, error
 	return c.query(ctx, qpath, []byte(data), 0)
 }
 
+// Eval evaluates expr inside pkgPath through vm/qeval.
+func (c *rpcClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	const qpath = "vm/qeval"
+
+	pkgPath = strings.Trim(pkgPath, "/")
+	data := fmt.Sprintf("%s/%s.%s", c.domain, pkgPath, expr)
+
+	return c.query(ctx, qpath, []byte(data), 0)
+}
+
+// validFileName reports whether vm/qfile reads name as a file of the package
+// itself. vm/qfile splits paths with std.SplitFilepath, where a separator, a
+// dot segment or a name without a dot resolves to another path.
+func validFileName(name string) bool {
+	_, file := std.SplitFilepath(gopath.Join("pkg", name))
+	return file == name
+}
+
 // SourceFile fetches and writes the source file from a given
 // package path and file name to the provided writer. It uses
 // Chroma for syntax highlighting or Raw style source.
@@ -149,8 +181,8 @@ func (c *rpcClient) File(ctx context.Context, path, fileName string, height int6
 	const qpath = "vm/qfile"
 
 	fileName = strings.TrimSpace(fileName)
-	if fileName == "" {
-		return nil, meta, errors.New("empty filename given") // XXX: Consider creating a specific error variable
+	if fileName == "" || !validFileName(fileName) {
+		return nil, meta, ErrClientFileNotFound
 	}
 
 	// XXX: Consider moving this into gnoclient
@@ -243,6 +275,25 @@ func (c *rpcClient) StatePkg(ctx context.Context, path string, height int64) ([]
 	return c.query(ctx, qpath, []byte(data), height)
 }
 
+// PackageMeta queries vm/qpkgmeta_json. Always at the latest height: the
+// question is whether the package is live *now*, and a historical answer would
+// say nothing about whether it still needs approving.
+func (c *rpcClient) PackageMeta(ctx context.Context, path string) (*vm.PackageMeta, error) {
+	const qpath = "vm/qpkgmeta_json"
+
+	path = strings.Trim(path, "/")
+	data := fmt.Sprintf("%s/%s", c.domain, path)
+	raw, err := c.query(ctx, qpath, []byte(data), 0)
+	if err != nil {
+		return nil, err
+	}
+	var meta vm.PackageMeta
+	if err := json.Unmarshal(raw, &meta); err != nil {
+		return nil, fmt.Errorf("unable to decode package meta: %w", err)
+	}
+	return &meta, nil
+}
+
 // StateObject retrieves an object by ObjectID via vm/qobject_json
 // at the given block height (0 for latest).
 func (c *rpcClient) StateObject(ctx context.Context, oid string, height int64) ([]byte, error) {
@@ -263,7 +314,7 @@ func (c *rpcClient) StateType(ctx context.Context, typeId string, height int64) 
 // data. `height = 0` uses the latest block; any positive value pins
 // the query to that historical height via ABCIQueryWithOptions.
 func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height int64) ([]byte, error) {
-	// Debug, not Info: `data` carries attacker-supplied OID/TID/file —
+	// Debug, not Info: `data` carries caller-supplied OID/TID/file —
 	// at hot-path rates this would amplify log volume by an order of
 	// magnitude. Failures still log at Warn/Error below.
 	c.logger.Debug("querying node", "path", qpath, "data", string(data), "height", height)
@@ -365,6 +416,35 @@ func (c *rpcClient) query(ctx context.Context, qpath string, data []byte, height
 			"error", qres.Response.Error,
 		)
 		return nil, ErrClientRenderNotDeclared
+	case errors.Is(qerr, vm.ExportSizeExceededError{}):
+		// The node refused the query because its response would exceed
+		// maxQueryExportBytes. That is the same "response too large" condition
+		// gnoweb's own maxRPCResponseSize cap reports, so route it to the same
+		// sentinel (state.mapClientError renders it as 502, not a generic 500).
+		c.logger.Warn("node refused oversized response",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, fmt.Errorf("%w: rejected by node export size guard", ErrClientResponseTooLarge)
+	case errors.Is(qerr, vm.ExportDepthExceededError{}):
+		// Sibling of the size guard above: the node refused a response nested
+		// past maxExportDepth. Route it to the same sentinel so it renders as a
+		// 502 rather than a generic 500 — from the client's side it is the same
+		// "the node would not serialize this" condition.
+		//
+		// Defensive, not expected: the value-returning endpoints gnoweb calls
+		// (qpkg_json / qobject_json) resolve persisted data, whose children
+		// collapse to RefValue one level in, so they do not reach the depth cap
+		// (measured: a 600-node persisted list exports to 899 bytes). Mapped
+		// anyway so a future endpoint — or a shape that does not collapse —
+		// cannot regress this into a generic 500.
+		c.logger.Warn("node refused deeply nested response",
+			"path", qpath,
+			"data", string(data),
+			"error", qres.Response.Error,
+		)
+		return nil, fmt.Errorf("%w: rejected by node export depth guard", ErrClientResponseTooLarge)
 	default:
 	}
 

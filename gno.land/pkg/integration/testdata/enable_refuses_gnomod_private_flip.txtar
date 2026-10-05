@@ -1,0 +1,169 @@
+# Regression: gnomod.toml's private flag is bound to the approval hash.
+#
+# Under the inert code submission policy, a submitted package remains inert
+# until an approver enables it by naming its PackageContentHash. The hash
+# includes the gnomod fields declared by the author.
+#
+# This test submits a realm with private = true and prepares an enable for that
+# source. The submitter then replaces it with the same .gno files and
+# private = false. The prepared enable no longer matches the approved hash and
+# is refused.
+#
+# The two package directories below hold identical .gno bytes and differ only
+# in gnomod.toml's private flag. Restoring the reviewed private flag confirms
+# that the matching enable succeeds.
+
+adduser creator
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/sys/params
+
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
+
+gnoland start
+
+## -- proposal 0: move the code submission policy to inert
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_policy.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2200001ugnot -gas-wanted 22_000_000 -args 0 -chainid=tendermint_test test1
+stdout OK!
+gnokey query params/vm:p:code_submission_policy
+stdout 'data: "inert"$'
+
+## -- proposal 1: register test1 as the approver
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/submit_approvers.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 1 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2200001ugnot -gas-wanted 22_000_000 -args 1 -chainid=tendermint_test test1
+stdout OK!
+gnokey query params/vm:p:pkg_approvers
+stdout 'data: \["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\]'
+
+## the creator submits the realm with private = true for review
+gnokey maketx addpkg -pkgdir $WORK/priv -pkgpath gno.land/r/gnomodflag -gas-fee 1000001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test creator
+stdout OK!
+gnokey query vm/qpkgmeta_json --data "gno.land/r/gnomodflag"
+stdout '"status":"inert"'
+
+## the approver prepares an enable for the reviewed source
+gnokey maketx enablepkg -pkgpath gno.land/r/gnomodflag -pkgdir $WORK/priv -broadcast=false -gas-fee 100000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout '/vm\.m_enable_pkg'
+
+## the creator replaces the submitted package with identical .gno files and private = false
+gnokey maketx addpkg -pkgdir $WORK/pub -pkgpath gno.land/r/gnomodflag -gas-fee 1000001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test creator
+stdout OK!
+
+## the prepared enable no longer matches the approved source and is refused
+! gnokey maketx enablepkg -pkgpath gno.land/r/gnomodflag -pkgdir $WORK/priv -broadcast -gas-fee 100000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'is not what was approved'
+## the realm remains inert
+gnokey query vm/qpkgmeta_json --data "gno.land/r/gnomodflag"
+stdout '"status":"inert"'
+
+## positive control: restoring the reviewed private flag lets the enable succeed
+gnokey maketx addpkg -pkgdir $WORK/priv -pkgpath gno.land/r/gnomodflag -gas-fee 1000001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test creator
+stdout OK!
+gnokey maketx enablepkg -pkgpath gno.land/r/gnomodflag -pkgdir $WORK/priv -broadcast -gas-fee 100000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qpkgmeta_json --data "gno.land/r/gnomodflag"
+stdout '"status":"live"'
+
+## -- a package whose gnomod.toml module line was never updated to the deploy path
+##
+## The chain accepts it and stampGnomod rewrites module to the deploy path, so
+## the stored copy is not the submitted one. The hash normalizes that away on
+## both sides; when it did not, this package parked fine and no approver could
+## ever enable it.
+gnokey maketx addpkg -pkgdir $WORK/mismatch -pkgpath gno.land/r/heightpin -gas-fee 1000001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test creator
+stdout OK!
+gnokey query vm/qpkgmeta_json --data "gno.land/r/heightpin"
+stdout '"status":"inert"'
+
+## -pkg-height pins the submission, not just the source: a height that is not
+## the one parked is refused even though the bytes match exactly.
+! gnokey maketx enablepkg -pkgpath gno.land/r/heightpin -pkgdir $WORK/mismatch -pkg-height 999 -broadcast -gas-fee 100000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 're-submitted after review'
+gnokey query vm/qpkgmeta_json --data "gno.land/r/heightpin"
+stdout '"status":"inert"'
+
+## unpinned, the same approval lands -- the module rewrite does not stand in its way
+gnokey maketx enablepkg -pkgpath gno.land/r/heightpin -pkgdir $WORK/mismatch -broadcast -gas-fee 100000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qpkgmeta_json --data "gno.land/r/heightpin"
+stdout '"status":"live"'
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"), memberstore.NewMember(3))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
+}
+
+-- run/submit_policy.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	prop := params.NewSysParamStringPropRequest(cross(cur), "vm", "p", "code_submission_policy", "inert")
+	dao.MustCreateProposal(cross(cur), prop)
+}
+
+-- run/submit_approvers.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	prop := params.NewSysParamStringsPropRequest(cross(cur), "vm", "p", "pkg_approvers",
+		[]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
+	dao.MustCreateProposal(cross(cur), prop)
+}
+
+-- priv/gnomod.toml --
+module = "gno.land/r/gnomodflag"
+private = true
+gno = "0.9"
+
+-- priv/gnomodflag.gno --
+package gnomodflag
+
+func Value() string { return "hello" }
+func Render(_ string) string { return Value() }
+-- pub/gnomod.toml --
+module = "gno.land/r/gnomodflag"
+private = false
+gno = "0.9"
+
+-- pub/gnomodflag.gno --
+package gnomodflag
+
+func Value() string { return "hello" }
+func Render(_ string) string { return Value() }
+-- mismatch/gnomod.toml --
+module = "gno.land/r/sometemplate"
+gno = "0.9"
+
+-- mismatch/heightpin.gno --
+package heightpin
+
+func Value() string { return "hello" }
+func Render(_ string) string { return Value() }

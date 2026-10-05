@@ -11,7 +11,7 @@ import (
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 )
 
 // cur is a zero-value realm used as a placeholder when forwarding to

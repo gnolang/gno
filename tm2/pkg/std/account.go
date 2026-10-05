@@ -2,12 +2,18 @@ package std
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 
+	// Register the key types which may appear in a std.Signature with the global
+	// amino codec.
+	//
+	// Do NOT add tm2/pkg/crypto/mock here: its signatures are trivially
+	// forgeable, and registering it makes it decodable as a constituent key of a
+	// multisig.PubKeyMultisigThreshold anywhere this package is linked in.
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
-	_ "github.com/gnolang/gno/tm2/pkg/crypto/mock"
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
@@ -34,6 +40,19 @@ type Account interface {
 	GetCoins() Coins
 	SetCoins(Coins) error
 
+	// GetVesting returns the account's vesting schedule, which is the zero
+	// value for an account that has none. SetVesting does not validate; the
+	// caller does, because genesis is the only thing that sets one and it can
+	// report which entry was wrong.
+	GetVesting() VestingSchedule
+	SetVesting(VestingSchedule)
+
+	// LockedCoins returns the coins that cannot be transferred out at
+	// blockTime. Every account answers this, and almost every account answers
+	// with nothing; it is on the interface rather than on a narrower one so
+	// that enforcing a lock never depends on which concrete type is stored.
+	LockedCoins(blockTime time.Time) Coins
+
 	// Ensure that account implements stringer
 	String() string
 }
@@ -54,6 +73,10 @@ type BaseAccount struct {
 	PubKey        crypto.PubKey  `json:"public_key" yaml:"public_key"`
 	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
 	Sequence      uint64         `json:"sequence" yaml:"sequence"`
+	// Vesting locks part of the balance until it vests. The zero value locks
+	// nothing, which is what almost every account carries, and costs nothing to
+	// store: amino writes neither a field nor a JSON key for it.
+	Vesting VestingSchedule `json:"vesting,omitempty" yaml:"vesting,omitempty"`
 }
 
 // NewBaseAccount creates a new BaseAccount object
@@ -77,7 +100,7 @@ func (acc BaseAccount) String() string {
 		pubkey = crypto.PubKeyToBech32(acc.PubKey)
 	}
 
-	return fmt.Sprintf(`Account:
+	s := fmt.Sprintf(`Account:
   Address:       %s
   Pubkey:        %s
   Coins:         %s
@@ -85,6 +108,27 @@ func (acc BaseAccount) String() string {
   Sequence:      %d`,
 		acc.Address, pubkey, acc.Coins, acc.AccountNumber, acc.Sequence,
 	)
+	// Only when there is one, so an account without a schedule prints exactly as
+	// it always has. Otherwise every account would gain a line saying "none".
+	if !acc.Vesting.IsZero() {
+		s += fmt.Sprintf("\n  Vesting:       %s", acc.Vesting)
+	}
+	return s
+}
+
+// GetVesting - Implements Account.
+func (acc BaseAccount) GetVesting() VestingSchedule {
+	return acc.Vesting
+}
+
+// SetVesting - Implements Account.
+func (acc *BaseAccount) SetVesting(vs VestingSchedule) {
+	acc.Vesting = vs
+}
+
+// LockedCoins - Implements Account.
+func (acc BaseAccount) LockedCoins(blockTime time.Time) Coins {
+	return acc.Vesting.LockedCoins(blockTime)
 }
 
 // ProtoBaseAccount - a prototype function for BaseAccount

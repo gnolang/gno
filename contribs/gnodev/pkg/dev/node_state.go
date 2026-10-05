@@ -88,8 +88,7 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 
 	// Create genesis with loaded pkgs + previous state
 	newState := n.state[:newIndex]
-	genesis := gnoland.DefaultGenState()
-	genesis.Balances = n.config.BalancesList
+	genesis := n.devGenState()
 	genesis.Txs = append(pkgsTxs, newState...)
 
 	// Reset the node with the new genesis state.

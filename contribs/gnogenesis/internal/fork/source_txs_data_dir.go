@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -121,6 +122,13 @@ func (s *dataDirTxsSource) Description() string { return "gnoland data directory
 
 func (s *dataDirTxsSource) Close() error {
 	var errs []error
+	// Release the multistore before its backing DB: LoadLatestVersion seeds a
+	// query snapshot that PebbleDB reports as leaked if the DB closes first.
+	if closer, ok := s.cms.(io.Closer); ok {
+		if closeErr := closer.Close(); closeErr != nil {
+			errs = append(errs, closeErr)
+		}
+	}
 	for _, db := range []dbm.DB{s.bsDB, s.stateDB, s.appDB} {
 		if db == nil {
 			continue

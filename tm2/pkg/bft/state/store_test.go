@@ -1,10 +1,12 @@
 package state_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -132,6 +134,48 @@ func TestLoadConsensusParamsAtInitialHeight(t *testing.T) {
 		require.NoError(t, err, "should load consensus params at InitialHeight")
 		assert.NotEmpty(t, params.Block)
 	}, "LoadConsensusParams should not panic at InitialHeight")
+}
+
+// TestSaveABCIResponsesIsDurable pins that the responses reach the disk when
+// they are written, not when the state that supersedes them is written.
+func TestSaveABCIResponsesIsDurable(t *testing.T) {
+	t.Parallel()
+
+	responses := &sm.ABCIResponses{
+		DeliverTxs: []abci.ResponseDeliverTx{
+			{ResponseBase: abci.ResponseBase{Data: []byte("delivered")}},
+		},
+	}
+	require.NotEmpty(t, responses.Bytes(), "payload must be non-empty for the assertion below to mean anything")
+
+	stateDB := newUnsyncedWriteDB()
+	require.NoError(t, sm.SaveABCIResponses(stateDB, 1, responses))
+
+	loaded, err := sm.LoadABCIResponses(stateDB.Durable(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, responses.DeliverTxs, loaded.DeliverTxs)
+}
+
+// TestSaveABCIResponsesReturnsWriteError pins that a failed write surfaces to
+// the caller instead of being dropped: the caller must get the chance to stop
+// the block before the application commits a height with no recovery record.
+func TestSaveABCIResponsesReturnsWriteError(t *testing.T) {
+	t.Parallel()
+
+	writeErr := errors.New("injected responses write failure")
+	stateDB := &failingWriteDB{
+		DB:      memdb.NewMemDB(),
+		failKey: sm.CalcABCIResponsesKey(1),
+		failErr: writeErr,
+	}
+
+	err := sm.SaveABCIResponses(stateDB, 1, &sm.ABCIResponses{
+		DeliverTxs: []abci.ResponseDeliverTx{
+			{ResponseBase: abci.ResponseBase{Data: []byte("delivered")}},
+		},
+	})
+	require.ErrorIs(t, err, writeErr)
+	require.ErrorContains(t, err, "height 1")
 }
 
 func BenchmarkLoadValidators(b *testing.B) {

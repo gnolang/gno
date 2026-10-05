@@ -208,8 +208,7 @@ func IsTestFile(file string) bool {
 // enforced now without moving the packages. A future cleanup will
 // collapse the list as packages move under a single namespace.
 func IsTestPkgPath(pkgPath string) bool {
-	return pkgPath == "gno.land/p/demo/tests" ||
-		strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
+	return strings.HasPrefix(pkgPath, "gno.land/p/demo/tests/") ||
 		strings.HasPrefix(pkgPath, "gno.land/p/test/") ||
 		pkgPath == "gno.land/r/tests/vm" ||
 		strings.HasPrefix(pkgPath, "gno.land/r/tests/vm/")
@@ -852,6 +851,46 @@ func MustReadMemPackage(dir string, pkgPath string, mptype MemPackageType) *std.
 	return pkg
 }
 
+// WriteMemPackageTo writes all files of mpkg into dir, the inverse of
+// [ReadMemPackage]. MemPackage file names are flat, so a *_filetest.gno
+// file whose on-disk home is the filetests subdirectory (see
+// [ReadMemPackage]) is written back there rather than into dir; all other
+// files are written into dir directly. It does not remove on-disk files
+// absent from mpkg. Prefer this over the generic std.MemPackage.WriteTo
+// for directories following the gno package layout.
+func WriteMemPackageTo(mpkg *std.MemPackage, dir string) error {
+	// Like MemPackage.WriteTo, validate all names before writing anything.
+	// Names must also be flat (as ReadMemPackage produces): a separator
+	// would silently break the filetests routing below.
+	for _, mfile := range mpkg.Files {
+		if !filepath.IsLocal(mfile.Name) {
+			return fmt.Errorf("invalid file name %q: must be a local path", mfile.Name)
+		}
+		if mfile.Name != filepath.Base(mfile.Name) {
+			return fmt.Errorf("invalid file name %q: must not contain path separators", mfile.Name)
+		}
+	}
+	for _, mfile := range mpkg.Files {
+		fpath := filepath.Join(dir, mfile.Name)
+		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+			subpath := filepath.Join(dir, "filetests", mfile.Name)
+			if osFileExists(subpath) {
+				fpath = subpath
+			}
+		}
+		err := os.WriteFile(fpath, []byte(mfile.Body), 0o644)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func osFileExists(fpath string) bool {
+	fi, err := os.Stat(fpath)
+	return err == nil && !fi.IsDir()
+}
+
 // ReadMemPackageFromList creates a new [std.MemPackage] with the specified
 // pkgPath, containing the contents of all the files provided in the list
 // slice.
@@ -1128,6 +1167,11 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 	return ValidateMemPackageAny(mpkg)
 }
 
+// ErrMemPackageInfo reports a std.MemPackage that arrived with its Info field
+// set. Callers match on it to name the refusal, since every other validation
+// failure here is about a path or a file.
+var ErrMemPackageInfo = errors.New("info field is not accepted")
+
 // Validates everything about mpkg, including that all files are within the
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
@@ -1155,6 +1199,11 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 	// Check mpkg.Type/mptype.
 	mptype := mpkg.Type.(MemPackageType)
 	mptype.Validate(mpkg.Path)
+	// Info is amino field 5, typed any, so a message can carry any registered
+	// value there. Nothing produces or reads it, so refuse it.
+	if mpkg.Info != nil {
+		return fmt.Errorf("invalid package %q: %w", mpkg.Path, ErrMemPackageInfo)
+	}
 	// ...
 	goodFileXtns := goodFileXtns
 	if mptype.IsStdlib() { // Allow transpilation to work on stdlib with native functions.

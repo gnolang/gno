@@ -1,10 +1,27 @@
 name: ci / e2e
 
 on:
+  # No path filter on push: master always gets the full suite.
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+    paths:
+      - .github/workflows/ci-e2e.yml
+      - misc/e2e/**
+      - Dockerfile
+      - gno.land/**
+      - gnovm/**
+      - tm2/**
+      - examples/**
+      - go.mod
+      - go.sum
+      # *.md is prose, except in the gno source trees where it is valid
+      # mempackage content (see gnovm/pkg/gnolang/mempackage.go goodFileXtns).
+      # Order matters: a later positive pattern wins over an earlier negation.
+      - '!**/*.md'
+      - examples/**/*.md
+      - gnovm/stdlibs/**/*.md
 
 permissions:
   contents: read

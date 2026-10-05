@@ -3,7 +3,7 @@ package validators
 import (
 	"math"
 
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 )
 
 // GetChanges returns the validator changes stored on the realm,

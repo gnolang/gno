@@ -6,7 +6,7 @@ package launderrh_conv_subslice
 // address to *Tamper. Confirms Case 1 fires after subslicing.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

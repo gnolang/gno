@@ -49,6 +49,18 @@ type AddPkg struct {
 	Creator string `toml:"creator,omitempty" json:"creator,omitempty"`
 	// Height is the block height at which the module was added.
 	Height int `toml:"height,omitempty" json:"height,omitempty"`
+	// MaxDeposit is the storage-deposit ceiling that applies when the charge
+	// is paid by a later message than the one that submitted the package --
+	// the "inert" policy, where MsgEnablePackage pays.
+	//
+	// It is what the submitter declared on MsgAddPackage, or the chain default
+	// as it stood at submit time if they declared nothing. Either way it is
+	// fixed when the package is stored, so a later change to the chain default
+	// cannot widen what the submitter is charged.
+	//
+	// Empty on the ordinary path: there the ceiling is used in the same
+	// transaction that declared it, so nothing needs to outlive it.
+	MaxDeposit string `toml:"max_deposit,omitempty" json:"max_deposit,omitempty"`
 	// XXX: GnoVersion // gno version at add time?
 	// XXX: Consider things like IsUsingBanker or other security-awareness flags
 }

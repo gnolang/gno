@@ -3,9 +3,17 @@
 # many operations — including exhausting the underlying balance to
 # verify bank-level enforcement still fires on a persisted banker.
 #
-# banker.gno:11 says "Banker objects cannot be persisted" — this test
-# empirically demonstrates the doc is stale. Both same-realm and
-# cross-realm capability persistence work, including failure modes.
+# This pins the behavior documented in chain/banker's package comment:
+# both same-realm and cross-realm capability persistence work, including
+# the failure modes. (The comment previously claimed "Banker objects
+# cannot be persisted"; this test is what established otherwise, and the
+# comment was corrected in the same change.)
+#
+# The security consequence is documented on NewBanker: authorization is
+# construction-time only, so a persisted banker is an irrevocable grant
+# of spending authority over its address. Phase 2 below is exactly that
+# shape — realm B keeps a banker scoped to realm A and drains A across
+# later txs without A's further involvement.
 
 loadpkg gno.land/r/test/bankerb $WORK/bankerb
 loadpkg gno.land/r/test/bankera $WORK/bankera
@@ -90,6 +98,10 @@ import (
 var saved banker.Banker
 
 func Save(cur realm) {
+	// The -send envelope provisions A's address so later txs have a
+	// balance to spend. Acknowledge it: MsgCall rejects an envelope no
+	// executing code ever observes.
+	_ = unsafe.OriginSend()
 	saved = banker.NewBanker(banker.BankerTypeRealmSend, cur)
 }
 
@@ -108,6 +120,8 @@ func UseSelfAmount(cur realm, amount int64) {
 // hands it to realm B. Any -send envelope on this call accrues to A's
 // address as additional funds B can later drain.
 func GiveBankerToB(cur realm) {
+	// Same as Save: the -send envelope funds A for B to later drain.
+	_ = unsafe.OriginSend()
 	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
 	bankerb.Receive(cross(cur), b)
 }

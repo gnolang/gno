@@ -1,0 +1,12 @@
+id: unsafe-previous-realm
+title: unsafe.PreviousRealm() alongside a cur realm parameter
+rule: unsafe_previous_realm
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/unsafe-previous-realm/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 1
+  - name: fixed
+    path: ../fixtures/unsafe-previous-realm/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0
