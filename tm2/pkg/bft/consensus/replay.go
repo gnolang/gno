@@ -340,6 +340,12 @@ func (h *Handshaker) ReplayBlocks(
 		if err != nil {
 			return nil, err
 		}
+		// An app rejects the genesis through the response Error field:
+		// InitChainSync is a pass-through down to the local client and never
+		// turns it into a Go-level error.
+		if res.IsErr() {
+			return nil, fmt.Errorf("InitChain rejected the genesis: %w", res.Error)
+		}
 
 		// Save the results by height
 		abciResponse := sm.NewABCIResponsesFromNum(int64(len(res.TxResponses)))
