@@ -69,6 +69,14 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	// truncMiddle shortens long opaque strings (e.g. bech32 addresses) for the
 	// sidebar: keeps `keep` runes on each side joined by an ellipsis.
 	funcs["truncMiddle"] = func(s string, keep int) string { return TruncMiddle(s, keep, keep) }
+	// splitHalf cuts s in two at its middle rune, so a long opaque string (a
+	// bech32 address) can be offered a single break point between equal
+	// halves. Both halves are plain strings and stay escaped by the template.
+	funcs["splitHalf"] = func(s string) [2]string {
+		r := []rune(s)
+		mid := len(r) / 2
+		return [2]string{string(r[:mid]), string(r[mid:])}
+	}
 	// dict creates a map from key-value pairs for passing multiple values to templates
 	funcs["dict"] = func(kv ...any) (map[string]any, error) {
 		if len(kv)%2 != 0 {

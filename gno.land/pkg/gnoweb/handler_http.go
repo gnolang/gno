@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -26,7 +27,8 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
-	"github.com/gnolang/gno/tm2/pkg/bech32"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -36,6 +38,12 @@ const ReadmeFileName = "README.md"
 // configured, so r.Context() always carries a deadline (the page path
 // can fan out to many RPC calls — an unbounded request is an unbounded-work vector).
 const defaultRequestTimeout = 30 * time.Second
+
+// maxUserLookupTimeout caps the r/sys/users lookup behind every /u/ page. The
+// lookup runs before the listing and the home realm, on the same deadline, so
+// a slow registry or a busy RPC pool left unbounded would spend all of it and
+// fail the page. The budget covers the wait for an RPC slot as well.
+const maxUserLookupTimeout = 2 * time.Second
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
@@ -222,6 +230,14 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// requestTimeout is the deadline every GET runs under.
+func (h *HTTPHandler) requestTimeout() time.Duration {
+	if h.Timeout <= 0 {
+		return defaultRequestTimeout
+	}
+	return h.Timeout
+}
+
 // Get processes a GET HTTP request and renders the appropriate page.
 func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -231,11 +247,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	timeout := h.Timeout
-	if timeout <= 0 {
-		timeout = defaultRequestTimeout
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.requestTimeout())
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -588,26 +600,35 @@ func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.G
 	return http.StatusOK, components.MarkdownView(raw)
 }
 
-// MaxUserContributions caps how many contributions /u/<user> renders.
-// Each entry costs a bech32 decode, a weburl parse, and a sort comparison;
+// MaxUserContributions caps how many contributions /u/<user> renders per
+// namespace; a resolved user lists two.
+// Each entry costs a weburl parse and a sort comparison;
 // an unbounded cap turns a single GET into a 10k-iteration amplifier.
 // Exported so external tests assert against the documented cap.
 // TODO: paginate via ?page= when a contributor exceeds this cap.
 const MaxUserContributions = 200
 
-// buildContributions returns the sorted list of contributions (packages and realms) for a user.
-func (h *HTTPHandler) buildContributions(ctx context.Context, username string) ([]components.UserContribution, int, error) {
-	prefix := "@" + username
-
-	paths, err := h.Client.ListPaths(ctx, prefix, MaxUserContributions)
-	if err != nil {
-		h.Logger.Error("unable to query contributions", "user", username, "error", err)
-		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
+// buildContributions returns the sorted list of contributions (packages and
+// realms) deployed under any of the given namespaces.
+func (h *HTTPHandler) buildContributions(ctx context.Context, namespaces ...string) ([]components.UserContribution, int, error) {
+	var paths []string
+	for _, ns := range namespaces {
+		nsPaths, err := h.Client.ListPaths(ctx, "@"+ns, MaxUserContributions)
+		if err != nil {
+			h.Logger.Error("unable to query contributions", "user", ns, "error", err)
+			return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", ns, err)
+		}
+		paths = append(paths, nsPaths...)
 	}
 
 	contribs := make([]components.UserContribution, 0, len(paths))
 	realmCount := 0
 	for _, raw := range paths {
+		// An empty listing is a single blank line, not a malformed path.
+		if raw == "" {
+			continue
+		}
+
 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
 		u, err := weburl.Parse(trimmed)
 		if err != nil {
@@ -628,64 +649,232 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	}
 
 	sort.Slice(contribs, func(i, j int) bool {
-		return contribs[i].Title < contribs[j].Title
+		if contribs[i].Title != contribs[j].Title {
+			return contribs[i].Title < contribs[j].Title
+		}
+		return contribs[i].URL < contribs[j].URL
 	})
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
-func CreateUsernameFromBech32(username string) string {
-	_, _, err := bech32.Decode(username)
-	if err == nil {
-		// If it's a valid bech32 address, create a shortened version
-		username = username[:4] + "..." + username[len(username)-4:]
-	}
+// reUsername is the shape r/sys/users accepts: it mirrors gnolang, so gnoweb
+// reads the same source rather than a copy that could drift out of it.
+var reUsername = gno.Re_name.Compile()
 
-	return username
+// maxUsernameLen mirrors maxNameLen in r/sys/users, which caps a name in
+// bytes on top of the shape reUsername checks.
+const maxUsernameLen = 64
+
+// UserRegistryPath is the realm that maps gno.land names to addresses, and the
+// only source gnoweb has for either side of the pair.
+const UserRegistryPath = "/r/sys/users"
+
+// userIdentity is the pair behind a /u/ path segment. Each field is empty when
+// the registry could not confirm it, so a chain that does not deploy the
+// registry yields the zero value and every caller falls back to the segment.
+type userIdentity struct {
+	Name    string // the user's current registered name
+	Address string // the bech32 address that name belongs to
+	// Registration is whether the registry answered at all: an empty Name
+	// is the same for "nobody holds it" and "no answer".
+	Registration components.UserRegistration
 }
 
-// GetUserView returns the user profile view for a given GnoURL.
+// reUserData reads the pair out of the value repr vm/qeval prints for a
+// *UserData:
+//
+//	(&(struct{("g1…" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
+//
+// The realm exports no string-returning resolver, and .Name() on the returned
+// pointer panics when it is nil, so one qeval plus this match is the cheapest
+// lookup that cannot fault. Matching on each field's type tag means a field
+// added before or after the pair does not shift the result (one inserted
+// between them, or swapping them, would), and an unrecognized shape is an
+// error rather than a silent "no user".
+var reUserData = regexp.MustCompile(`\("(g1[a-z0-9]+)" \.uverse\.address\),\("([a-z0-9_-]*)" string\)`)
+
+// resolveUser asks r/sys/users which name and address stand behind a /u/
+// segment, accepting either form as input. ResolveAny answers both questions
+// the page has in a single qeval: whether the user exists at all, which gates
+// the page, and the other half of the pair, which the page prints.
+//
+// A chain without the registry answers the zero value and no error, which is
+// the gnodev case; a chain that could not be asked returns an error, since a
+// 404 published on a timeout deletes a real user's page for as long as a
+// crawler remembers it.
+func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdentity, error) {
+	// An address is its own answer for half the pair, registry or not: it is
+	// already the address, and it is a namespace by construction.
+	identity := userIdentity{}
+	if isGnoAddress(input) {
+		identity.Address = input
+	}
+
+	// A quarter of the request budget at most, so a hung registry leaves the
+	// rest of the page the time it needs; a timeout here is an ordinary
+	// lookup error.
+	lookupCtx, cancel := context.WithTimeout(ctx, min(h.requestTimeout()/4, maxUserLookupTimeout))
+	defer cancel()
+	res, err := h.Client.Eval(lookupCtx, UserRegistryPath, fmt.Sprintf("ResolveAny(%q)", input))
+	switch {
+	case errors.Is(err, ErrClientPackageNotFound):
+		h.Logger.Debug("no user registry on this chain", "error", err)
+		return identity, nil
+	case err != nil:
+		return identity, err
+	}
+
+	// ResolveAny returns (*UserData, bool); the pointer is the first line, and
+	// it is the only one that carries the pair.
+	line, _, _ := bytes.Cut(bytes.TrimSpace(res), []byte("\n"))
+	if bytes.HasPrefix(line, []byte("(nil ")) {
+		identity.Registration = components.UserRegistrationNone
+		return identity, nil
+	}
+
+	match := reUserData.FindSubmatch(line)
+	if match == nil {
+		// Reading an unknown shape as "no user" would 404 every registered
+		// user at once, and in silence.
+		return identity, fmt.Errorf("%w: unexpected ResolveAny result %q", ErrClientResponse, line)
+	}
+	// An address resolves to itself or not at all; a registry naming another
+	// one would have the page print two different addresses as one user.
+	if identity.Address != "" && string(match[1]) != identity.Address {
+		return identity, fmt.Errorf("%w: ResolveAny(%q) answered for %q", ErrClientResponse, input, match[1])
+	}
+	return userIdentity{
+		Name:         string(match[2]),
+		Address:      string(match[1]),
+		Registration: components.UserRegistrationRegistered,
+	}, nil
+}
+
+// isAliasTarget reports whether one of this gnoweb's own aliases points at
+// path. The operator published it on purpose, so the gate below must not 404 a
+// URL gnoweb itself advertises: "/docs" maps to "/u/docs", and `docs` is
+// neither a registered user nor a namespace holding a package.
+func (h *HTTPHandler) isAliasTarget(path string) bool {
+	for _, target := range h.Aliases {
+		if target.Kind == GnowebPath && target.Value == path {
+			return true
+		}
+	}
+	return false
+}
+
+// isGnoAddress reports whether s is a gno bech32 address, which is a namespace
+// by construction.
+func isGnoAddress(s string) bool {
+	_, err := crypto.AddressFromBech32(s)
+	return err == nil
+}
+
+// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
+func CreateUsernameFromBech32(username string) string {
+	if !isGnoAddress(username) {
+		return username
+	}
+
+	return username[:4] + "..." + username[len(username)-4:]
+}
+
+// GetUserView returns the user profile view for a given GnoURL. The segment
+// may be either half of the pair: /u/<name> and /u/<address> serve the same
+// page, and each prints the other half. A page is served only for an address,
+// a namespace holding packages, a current name r/sys/users resolves to itself,
+// or a path this gnoweb's own aliases publish; anything else would be a
+// fabricated profile.
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	segment := gnourl.Username()
 
-	var content bytes.Buffer
-
-	// Render user profile realm
-	raw, err := h.Client.Realm(ctx, "/r/"+username+"/home", "")
-	if err == nil {
-		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
-			ChainId: h.Static.ChainId,
-			Remote:  h.Static.RemoteHelp,
-			Domain:  h.Static.Domain,
-		})
+	isAddress := isGnoAddress(segment)
+	if !isAddress && (len(segment) > maxUsernameLen || !reUsername.Matches(segment)) {
+		return http.StatusNotFound, components.StatusUserNotFoundComponent("")
 	}
 
-	if content.Len() == 0 {
-		h.Logger.Debug("unable to fetch user realm", "username", username, "error", err)
+	// A failed lookup is only fatal where the gate needs it, below: an address
+	// or a namespace holding packages is served without the registry.
+	identity, resolveErr := h.resolveUser(ctx, segment)
+	if resolveErr != nil {
+		h.Logger.Warn("unable to resolve user", "user", segment, "error", resolveErr)
 	}
 
-	// Build contributions
-	contribs, realmCount, err := h.buildContributions(ctx, username)
+	// A resolved user may deploy under both halves of the pair, since
+	// r/sys/names lets any address deploy under its own address namespace, so
+	// /u/<name> and /u/<address> both list both. The name comes first: its
+	// home realm is tried first and it is what the page is titled by. An old alias
+	// resolves to the current name, not to itself, so it keeps its own
+	// segment and still shows what the old name holds.
+	namespaces := []string{segment}
+	if identity.Name != "" && (segment == identity.Name || segment == identity.Address) {
+		namespaces = []string{identity.Name, identity.Address}
+	}
+
+	contribs, realmCount, err := h.buildContributions(ctx, namespaces...)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
 		return GetClientErrorStatusView(gnourl, err, 0)
+	}
+
+	// Only the current name of a live user counts, which is the rule
+	// r/sys/names applies before authorizing a deploy: unknown, deleted and
+	// renamed-away names do not.
+	isCurrentName := identity.Name != "" && identity.Name == segment
+	if !isAddress && !isCurrentName && len(contribs) == 0 && !h.isAliasTarget(gnourl.Path) {
+		if resolveErr != nil {
+			return GetClientErrorStatusView(gnourl, resolveErr, 0)
+		}
+		return http.StatusNotFound, components.StatusUserNotFoundComponent(segment)
+	}
+
+	var content bytes.Buffer
+
+	// Render the first home realm the pair has; the link under the avatar
+	// points at the same one.
+	namespace := namespaces[0]
+	for _, ns := range namespaces {
+		raw, err := h.Client.Realm(ctx, "/r/"+ns+"/home", "")
+		if err != nil {
+			h.Logger.Debug("unable to fetch user realm", "username", ns, "error", err)
+			continue
+		}
+		namespace = ns
+		if _, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+			ChainId: h.Static.ChainId,
+			Remote:  h.Static.RemoteHelp,
+			Domain:  h.Static.Domain,
+		}); err != nil {
+			h.Logger.Debug("unable to render user realm", "username", ns, "error", err)
+		}
+		break
 	}
 
 	// Compute package counts
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
-	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-	// Try to decode the bech32 address
-	username = CreateUsernameFromBech32(username)
+	// The page is titled by the name; an address with no name behind it has
+	// none, and the view titles it by the address instead.
+	// TODO: get a display name from r/profile.
+	username := namespaces[0]
+	if username == identity.Address {
+		username = ""
+	}
 
-	// TODO: get from user r/profile and use placeholder if not set
-	handlename := "Gnome " + username
+	// An old name resolves to the current one, which the page points at.
+	var currentName string
+	if username != "" && identity.Name != "" && identity.Name != username {
+		currentName = identity.Name
+	}
 
 	data := components.UserData{
 		Username:      username,
-		Handlename:    handlename,
+		Namespace:     namespace,
+		HomeLabel:     CreateUsernameFromBech32(namespace),
+		Address:       identity.Address,
+		CurrentName:   currentName,
+		Registration:  identity.Registration,
 		Contributions: contribs,
 		PackageCount:  pkgCount,
 		RealmCount:    realmCount,
