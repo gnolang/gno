@@ -10,6 +10,8 @@ import (
 	"go/token"
 	"html/template"
 	"log/slog"
+	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -48,7 +50,7 @@ type StaticMetadata struct {
 	AnalyticsHostname string
 	AssetsVersion     string
 	Banner            components.BannerData
-	RealmNotice       components.BannerData
+	RealmNotice       components.RealmNotice
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -100,6 +102,7 @@ type HTTPHandlerConfig struct {
 	// burst. ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
+	// Also gates X-Forwarded-Host in requestOrigin.
 	StateRateLimitTrustedProxies []string
 }
 
@@ -134,12 +137,22 @@ type HTTPHandler struct {
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
 	State *state.Handler
+	// trustedProxies are the networks whose X-Forwarded-Host is believed.
+	trustedProxies []*net.IPNet
+	// packageText caches the whole-package texts of $download.
+	packageText packageTextCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
 func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("config validate error: %w", err)
+	}
+
+	for _, e := range cfg.TrustedPaths {
+		if why := trustedPathProblem(e); why != "" {
+			logger.Warn("trusted path entry will not match the package it names", "entry", e, "reason", why)
+		}
 	}
 
 	h := &HTTPHandler{
@@ -151,9 +164,6 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Logger:   logger,
 		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity),
 	}
-	for _, e := range malformedTrustedPaths(cfg.TrustedPaths) {
-		logger.Warn("trusted path matches no package, write it without /r/, /p/ or a domain", "entry", e)
-	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
 		rate = defaultStateRateLimitPerMinute
@@ -162,6 +172,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	if err != nil {
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
+	h.trustedProxies = trustedProxies
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
@@ -244,11 +255,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Banner: h.Static.Banner,
 	}
 
-	// Apply GnowebPath alias rewrite BEFORE parsing — every downstream
-	// dispatch (state, source, package view) needs to see the resolved
-	// path. Legacy did this inside prepareIndexBodyView, which the state
-	// branch below short-circuits, so an alias-mapped state URL would
-	// previously route to the unmapped path and 404.
+	// Resolve GnowebPath aliases once, BEFORE parsing: every downstream
+	// dispatch (state, source, package view) and the realm notice must see
+	// the path that is rendered. Aliases do not chain.
 	requested := *r.URL
 	alias, aliased := h.Aliases[r.URL.Path]
 	staticPage := aliased && alias.Kind == StaticMarkdown
@@ -278,8 +287,16 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	// The state branch builds its header before prepareIndexBodyView does.
+	gnourl.Origin = requestOrigin(r, h.trustedProxies)
 
-	sp := h.classifyPage(w, &indexData, gnourl)
+	// The function list as JSON, for agents that want to know what to call.
+	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
+		h.ServeHelpJSON(r.Context(), gnourl, w)
+		return
+	}
+
+	sp := h.classifyPage(w, gnourl)
 
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
@@ -325,6 +342,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
+		scrubHeaderOnError(&indexData, status)
 		indexData.BodyView = view
 		h.setHead(w, &indexData.HeadData, &sp, status)
 		w.WriteHeader(status)
@@ -348,11 +366,16 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	sp.render.markdown = negotiatesMarkdown(r.Header.Get("Accept"))
 	status, bodyView := h.prepareIndexBodyView(r, &indexData, &sp.render)
+	scrubHeaderOnError(&indexData, status)
 
 	// The realm and static-markdown paths return a markdown view; serve its
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
 	if bodyView.Type == components.MarkdownViewType {
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		// The body stays verbatim; the header carries the notice instead.
+		if indexData.HeaderData.Notice.Enabled() {
+			w.Header().Set(RealmNoticeHeader, "community")
+		}
 		// Render() output reaches the client unsanitized here, so pin the type:
 		// without this a browser may sniff the body back into HTML and run it.
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -374,19 +397,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // classifyPage classifies the page at u and sets what follows from its kind
-// alone: the community notice, the link policy, and the robots policy. The
+// alone: the link policy and the robots policy. The community notice reads
+// the same classification, in setHeaderForRealm. The
 // X-Robots-Tag header is set here, before any branch writes, since the
 // markdown and download responses have no head to carry a robots meta. A
 // markdown alias serves bytes the operator wrote; a realm alias serves
 // whatever its target renders, so u is the target and the alias keeps the
 // target's kind.
-func (h *HTTPHandler) classifyPage(w http.ResponseWriter, indexData *components.IndexData, u *weburl.GnoURL) servedPage {
+func (h *HTTPHandler) classifyPage(w http.ResponseWriter, u *weburl.GnoURL) servedPage {
 	sp := servedPage{url: u, target: u, kind: h.policy.kind(u)}
 	sp.robots = h.policy.robots(sp.kind, u)
 	sp.render.links = sp.kind.links()
-	if sp.kind == pageCommunity && h.Static.RealmNotice.Enabled() {
-		indexData.Notice = h.Static.RealmNotice
-	}
 	if sp.robots != indexFollow {
 		w.Header().Set("X-Robots-Tag", sp.robots.String())
 	}
@@ -478,7 +499,7 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		h.Logger.Warn("invalid gno url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
-	gnourl.Origin = requestOrigin(r)
+	gnourl.Origin = requestOrigin(r, h.trustedProxies)
 
 	h.setHeaderForRealm(indexData, gnourl)
 
@@ -741,6 +762,41 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL, pr
 	return http.StatusOK, components.UserView(data)
 }
 
+// callableFuncs returns the exported non-method funcs of a package, without
+// their leading "cur realm" param: the signature still shows it, but no one
+// passes it.
+func callableFuncs(jdoc *doc.JSONDocumentation) []*doc.JSONFunc {
+	fsigs := []*doc.JSONFunc{}
+	for _, fun := range jdoc.Funcs {
+		if !(fun.Type == "" && token.IsExported(fun.Name)) {
+			continue
+		}
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
+			fun.Params = fun.Params[1:]
+		}
+		fsigs = append(fsigs, fun)
+	}
+	return fsigs
+}
+
+// ServeHelpJSON serves the callable functions of a package as JSON.
+func (h *HTTPHandler) ServeHelpJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
+	if err != nil {
+		status, msg := clientErrorMessage(err, 0)
+		writeJSONErrorResponse(w, status, msg)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_ = json.NewEncoder(w).Encode(struct {
+		PkgPath   string          `json:"pkg_path"`
+		ChainID   string          `json:"chain_id"`
+		Remote    string          `json:"remote"`
+		Functions []*doc.JSONFunc `json:"functions"`
+	}{path.Join(h.Static.Domain, gnourl.Path), h.Static.ChainId, h.Static.RemoteHelp, callableFuncs(jdoc)})
+}
+
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
 	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
 	if err != nil {
@@ -763,19 +819,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return components.NewReaderComponent(&buf)
 	}
 
-	// Get public non-method funcs
-	fsigs := []*doc.JSONFunc{}
-	for _, fun := range jdoc.Funcs {
-		if !(fun.Type == "" && token.IsExported(fun.Name)) {
-			continue
-		}
-
-		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
-			// Don't make an entry field for "cur realm". The signature will still show it.
-			fun.Params = fun.Params[1:]
-		}
-		fsigs = append(fsigs, fun)
-	}
+	fsigs := callableFuncs(jdoc)
 
 	// Get selected function
 	selArgs := make(map[string]string)
@@ -819,6 +863,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
 		Origin:    gnourl.Origin,
+		Community: h.showRealmNotice(gnourl),
 	})
 }
 
@@ -1018,7 +1063,7 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	}
 
 	if fileName == "" {
-		http.Error(w, "not found", http.StatusNotFound)
+		h.servePackageText(ctx, gnourl, w)
 		return
 	}
 
@@ -1056,11 +1101,16 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 	return ""
 }
 
-// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// requestOrigin returns scheme+host. X-Forwarded-Host is honored only from a
+// trusted proxy: the origin reaches shareable links and AI prompts, and a
+// cache in front of gnoweb does not key on that header. X-Forwarded-Proto
+// is always honored: at worst a spoofed one downgrades links to http on the
+// same host, while gating it would give every TLS-terminated deployment
+// without -trusted-proxies http links.
 // Empty when no host is known; callers fall back to path-relative URLs.
-func requestOrigin(r *http.Request) string {
+func requestOrigin(r *http.Request, trusted []*net.IPNet) string {
 	host := r.Host
-	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" && state.FromTrustedProxy(r, trusted) {
 		first, _, _ := strings.Cut(forwarded, ",")
 		if h := strings.TrimSpace(first); h != "" {
 			host = h
@@ -1280,7 +1330,7 @@ func errorTitle(status int) string {
 // setHeaderForRealm seeds IndexData.HeaderData from the parsed realm URL.
 // Shared by the state-page wire-in and the generic prepareIndexBodyView path
 // so the global header (breadcrumb + Content/State/Source/Actions tabs)
-// always renders against the same realm. Mode must be set on indexData
+// always renders against the same realm, realm notice included. Mode must be set on indexData
 // before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
 	indexData.HeaderData = components.HeaderData{
@@ -1289,6 +1339,28 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
+		Origin:     gnourl.Origin,
+	}
+	if h.showRealmNotice(gnourl) {
+		indexData.HeaderData.Notice = h.Static.RealmNotice
+	}
+}
+
+// scrubHeaderOnError keeps an error page's header from vouching for the
+// request. The Ask AI menu is dropped, as its prompts would send the assistant
+// to views that do not exist: the menu is built from HeaderData.Origin at
+// render time, and nothing else in the header reads it. The file web-query
+// value is dropped too, so a name the package does not hold is not echoed
+// back through the Source tab, which otherwise carries the open file.
+func scrubHeaderOnError(indexData *components.IndexData, status int) {
+	if status == http.StatusOK {
+		return
+	}
+	indexData.HeaderData.Origin = ""
+	if u := &indexData.HeaderData.RealmURL; u.WebQuery.Has("file") {
+		// Clone: the map is shared with the request's GnoURL.
+		u.WebQuery = maps.Clone(u.WebQuery)
+		u.WebQuery.Del("file")
 	}
 }
 

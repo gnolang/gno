@@ -49,20 +49,15 @@
 	}
 }
 
-.b-banner--warning {
-	background-color: var(--s-color-bg-warning-weak);
-	border-block-end: 1px solid var(--s-color-border-warning);
-	color: var(--s-color-text-warning);
-
-	& code {
-		background-color: color-mix(in srgb, currentColor 12%, transparent);
-	}
-}
-
 /* ===== HEADER COMPONENT ===== */
 .b-header {
 	position: sticky;
 	top: 0;
+
+	@media (--short-viewport) {
+		position: relative;
+	}
+
 	background-color: var(--s-color-bg-base);
 	border-block-end: var(--s-border);
 	z-index: var(--g-z-max);
@@ -96,6 +91,77 @@
 		grid-column: span 10;
 	}
 
+	/* Realm notice: second row on community pages, on the header's own
+	   surface and grid. Green only on the icon, so the lead-in does not read
+	   as a link. Its height is fixed by --s-header-notice-lines, so sticky
+	   offsets cannot drift. */
+	.b-header-notice {
+		block-size: var(--s-header-notice-block-size);
+		border-block-start: var(--s-border);
+		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-100);
+		line-height: var(--g-line-height-normal);
+
+		& > p {
+			display: flex;
+			align-items: flex-start;
+			gap: var(--g-space-2);
+			padding-block: var(--g-space-2);
+		}
+
+		/* Clamped to the reserved lines; a long URL breaks rather than
+		   widening the page. */
+		& > p > span {
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: var(--s-header-notice-lines);
+			overflow: hidden;
+			min-width: 0;
+			overflow-wrap: anywhere;
+			text-wrap: pretty;
+		}
+
+		/* Tab-icon size, on the first line when the text wraps. */
+		& svg {
+			flex-shrink: 0;
+			width: var(--g-space-5);
+			height: var(--g-space-5);
+			margin-block-start: calc((1lh - var(--g-space-5)) / 2);
+			color: var(--s-color-text-link);
+		}
+
+		& strong {
+			font-weight: var(--g-font-semibold);
+			color: var(--s-color-text-primary);
+		}
+
+		/* Operator text is inline markdown: keep links and code legible. */
+		& a {
+			color: var(--s-color-text-link);
+			text-decoration: underline;
+		}
+
+		& code {
+			padding: var(--g-space-0-5) var(--g-space-1);
+			border-radius: var(--s-rounded-sm);
+			background-color: var(--s-color-bg-surface-secondary);
+		}
+
+		/* The default text has a short variant up to --lg; operator text
+		   has none. */
+		& .short {
+			@media (--lg) {
+				display: none;
+			}
+		}
+
+		& .long {
+			@media not all and (--lg) {
+				display: none;
+			}
+		}
+	}
+
 	.user-picture {
 		border-radius: var(--s-rounded);
 		border: var(--s-border-secondary);
@@ -111,11 +177,46 @@
 	}
 }
 
+/* Pages with the realm-notice row carry data-realm-notice-lines on <html>,
+   set by the server: 1 for the default text, 2 for operator text. The row's
+   height derives from it, and sticky elements and anchor jumps below the
+   header move down by that height. */
+[data-realm-notice-lines] {
+	--s-header-notice-lines: 1;
+	--s-header-notice-line: calc(
+		var(--g-font-size-100) *
+		var(--g-line-height-normal)
+	);
+	--s-header-notice-block-size: calc(
+		var(--g-space-px) +
+		2 *
+		var(--g-space-2) +
+		var(--s-header-notice-lines) *
+		var(--s-header-notice-line)
+	);
+	--s-header-notice-size: var(--s-header-notice-block-size);
+	scroll-padding-block-start: var(--s-header-notice-size);
+}
+
+[data-realm-notice-lines="2"] {
+	--s-header-notice-lines: 2;
+}
+
+/* The header does not stick on short viewports: nothing to clear. */
+@media (--short-viewport) {
+	:root {
+		--s-header-size: 0px;
+		--s-header-notice-size: 0px;
+	}
+}
+
 /* ===== MAIN NAVIGATION ===== */
 .b-main-navigation {
 	position: relative;
 	height: auto;
 	width: 100%;
+	/* A long path scrolls inside the bar instead of widening the page */
+	min-width: 0;
 	color: var(--s-color-text-quaternary);
 
 	& > .inner {
@@ -124,11 +225,12 @@
 		background-color: var(--s-color-bg-surface-secondary);
 		border: var(--s-border-secondary);
 		height: 100%;
-		padding-inline: var(--g-space-1-5);
+		padding-inline: var(--g-space-1-5) var(--g-space-8);
 		border-radius: var(--s-rounded);
 
+		/* Search icon, then the network toggle from md */
 		@media (--md) {
-			padding-inline-end: var(--g-space-8);
+			padding-inline-end: var(--g-space-16);
 		}
 
 		/* Focus state */
@@ -147,6 +249,10 @@
 		color: var(--s-color-text-secondary);
 		font-weight: var(--g-font-medium);
 
+		@media (--md) {
+			padding-inline-end: var(--g-space-16);
+		}
+
 		& > input {
 			height: 100%;
 			width: 100%;
@@ -159,15 +265,59 @@
 		}
 	}
 
+	/* Right-hand controls: search icon, network toggle, Ask AI */
+	.searchbar-actions {
+		position: absolute;
+		top: 1px;
+		right: 1px;
+		height: calc(100% - 2px);
+		display: flex;
+		align-items: center;
+		z-index: var(--g-z-max);
+		/* A long path scrolls under the icons: cover it, with a short fade */
+		border-radius: 0 var(--s-rounded) var(--s-rounded) 0;
+		background-color: var(--s-color-bg-surface-secondary);
+
+		&::before {
+			content: "";
+			position: absolute;
+			top: 0;
+			right: 100%;
+			bottom: 0;
+			width: var(--g-space-4);
+			background: linear-gradient(
+				to right,
+				var(--g-color-transparent),
+				var(--s-color-bg-surface-secondary)
+			);
+			pointer-events: none;
+		}
+	}
+
+	/* Submits the search, sits close to the network toggle */
+	.search-icon {
+		display: flex;
+		padding: var(--g-space-1-5) var(--g-space-0-5) var(--g-space-1-5)
+			var(--g-space-1-5);
+		cursor: pointer;
+
+		&:hover > svg {
+			color: var(--s-color-text-tertiary-hover);
+		}
+
+		/* Drawn heavier than the globe, so one step smaller to match it */
+		& > svg {
+			width: var(--g-space-4);
+			height: var(--g-space-4);
+			color: var(--s-color-text-tertiary);
+		}
+	}
+
 	/* Network toggle button */
 	.network-toggle {
-		position: absolute;
 		display: none;
 		justify-content: center;
 		align-items: center;
-		right: 1px;
-		top: 1px;
-		height: calc(100% - 2px);
 		padding: var(--g-space-1-5);
 		border-radius: var(--g-border-radius);
 		background-color: var(--g-color-transparent);
@@ -187,6 +337,111 @@
 		&:hover > svg {
 			color: var(--s-color-text-tertiary-hover);
 		}
+	}
+
+	/* Ask AI popup: its own wrapper keeps its "~" rules apart */
+	.ai-popup {
+		display: contents;
+	}
+
+	/* A white chip at the far right, like a breadcrumb item */
+	.ai-toggle {
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-1);
+		/* 24px tall at least, the WCAG target size, when icon only */
+		padding: var(--g-space-1) var(--g-space-1-5);
+		border: 1px solid var(--s-color-border-transparent);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-base);
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+		line-height: var(--g-line-height-snug);
+		margin-inline: var(--g-space-1) var(--g-space-1-5);
+		cursor: pointer;
+
+		& > svg {
+			width: var(--g-space-4);
+			height: var(--g-space-4);
+			color: var(--s-color-text-link);
+		}
+
+		&:hover {
+			background-color: var(--s-color-bg-brand-default);
+			color: var(--s-color-text-base);
+
+			& > svg {
+				color: currentColor;
+			}
+		}
+
+		/* Icon only below lg, where the bar is short */
+		& > span {
+			display: none;
+
+			@media (--lg) {
+				display: inline;
+			}
+		}
+	}
+
+	/* Room for the Ask AI chip next to the icons */
+	&:has(.ai-toggle) {
+		& > .inner,
+		& .searchbar {
+			padding-inline-end: var(--g-space-16);
+
+			@media (--md) {
+				padding-inline-end: var(--g-space-24);
+			}
+
+			@media (--lg) {
+				padding-inline-end: var(--g-space-36);
+			}
+		}
+	}
+
+	& .ai-popup__title {
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	& .ai-popup .inner > header {
+		padding-block-end: var(--g-space-2);
+		border-block-end: var(--s-border);
+	}
+
+	& .ai-action {
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-0-5);
+	}
+
+	& .ai-action__targets {
+		display: flex;
+		gap: var(--g-space-2);
+		margin-block-start: var(--g-space-1);
+		font-size: var(--g-font-size-50);
+	}
+
+	/* Hints read at AA contrast */
+	& .ai-action > .item-label,
+	& .ai-mcp > .item-label {
+		color: var(--s-color-text-secondary);
+	}
+
+	/* The popup text is tertiary; its buttons must not read as disabled */
+	& .ai-popup .b-btn {
+		color: var(--s-color-text-secondary);
+	}
+
+	& .ai-mcp {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--g-space-1);
+		padding-block-start: var(--g-space-2-5);
+		border-block-start: var(--s-border);
 	}
 
 	/* Popup dialog styles */
@@ -225,6 +480,57 @@
 			color: var(--s-color-text-secondary);
 			font-size: var(--g-font-size-100);
 			font-weight: var(--g-font-semibold);
+		}
+	}
+}
+
+/* ===== ASK AI ON ONE FUNCTION (Actions view) ===== */
+.b-ai-func {
+	position: relative;
+
+	& > summary {
+		list-style: none;
+
+		&::-webkit-details-marker {
+			display: none;
+		}
+
+		& .c-icon {
+			color: var(--s-color-text-link);
+		}
+
+		/* Icon only on small screens, where the row is already full */
+		& > span {
+			display: none;
+
+			@media (--md) {
+				display: inline;
+			}
+		}
+	}
+
+	& .b-ai-func__menu {
+		position: absolute;
+		top: calc(100% + var(--g-space-1));
+		right: 0;
+		z-index: var(--g-z-10);
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-1);
+		min-width: max-content;
+		padding: var(--g-space-2) var(--g-space-3);
+		border: var(--s-border-secondary);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-base);
+		font-size: var(--g-font-size-50);
+
+		/* The link green is under AA at this size on the dark base */
+		& > a {
+			color: var(--s-color-text-secondary);
+
+			&:hover {
+				color: var(--s-color-text-link-hover);
+			}
 		}
 	}
 }
@@ -1163,7 +1469,7 @@
 
 	& > div {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		padding-block-start: var(--g-space-2);
 
 		/* Guard: hide the sidebar wrapper when its `<nav>` holds
@@ -1181,10 +1487,10 @@
 	}
 
 	.inner {
-		/* Wrapper is `sticky; top: --g-space-14`, so a full `100vh`
+		/* Wrapper is `sticky; top: --s-header-offset`, so a full `100vh`
 		   pushes the tail below the fold with no way to scroll to it.
 		   Subtract the sticky offset + a bottom breathing margin. */
-		max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+		max-height: calc(100vh - var(--s-header-offset) - var(--g-space-4));
 		overflow-y: auto;
 		/* Scrollbar hidden via the `u-no-scrollbar` utility the sidebar
 		   templates already carry — wheel/touch scrolling stays
@@ -1516,7 +1822,12 @@ main.is-dev-mode .b-toc a {
 		margin-block-end: var(--g-space-1);
 	}
 
+	/* On a narrow card the buttons move under the title instead of
+	   squeezing it */
 	& > header {
+		flex-wrap: wrap;
+		gap: var(--g-space-2) var(--g-space-4);
+
 		.signature {
 			& > code {
 				color: var(--s-color-text-secondary);
@@ -2890,7 +3201,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		}
 		.b-sidebar .inner {
 			/* keep the sticky sidebar's bottom reachable below the header */
-			max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+			max-height: calc(100vh - var(--s-header-offset) - var(--g-space-4));
 		}
 		.b-content-header {
 			justify-content: flex-start;
@@ -3014,7 +3325,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 
 	@media (--md) {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		/* Above the code blocks' absolute .srcactions (g-z-1) so their Copy/source
 		   buttons scroll under the sticky bar instead of over it. */
 		z-index: var(--g-z-2);

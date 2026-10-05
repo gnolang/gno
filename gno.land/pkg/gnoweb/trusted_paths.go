@@ -36,19 +36,18 @@ func (t trustedPaths) contains(pkg string) bool {
 	}
 }
 
-// malformedTrustedPaths returns the entries that can match no package: one
-// that keeps a "r/", "p/", "u/" or domain prefix, or has an uppercase letter,
-// which package paths never do. They stay in the list, matching nothing, so
-// a typo trusts less, never more.
-func malformedTrustedPaths(entries []string) []string {
-	var bad []string
-	for _, e := range entries {
-		e = strings.Trim(e, " /")
-		switch {
-		case strings.HasPrefix(e, "r/"), strings.HasPrefix(e, "p/"), strings.HasPrefix(e, "u/"),
-			strings.HasPrefix(e, "gno.land/"), strings.ToLower(e) != e:
-			bad = append(bad, e)
-		}
+// trustedPathProblem says why an operator-typed entry cannot match the
+// package it names, or "" if it can. Such an entry is kept and trusts no
+// intended package, so a typo trusts less, never more.
+func trustedPathProblem(entry string) string {
+	e := strings.Trim(entry, " /")
+	switch {
+	case strings.Contains(e, "."):
+		return "contains a dot: drop the domain"
+	case strings.HasPrefix(e, "r/"), strings.HasPrefix(e, "p/"), strings.HasPrefix(e, "u/"):
+		return "starts with r/, p/ or u/: drop the prefix"
+	case e != strings.ToLower(e):
+		return "has uppercase letters: package paths are lowercase"
 	}
-	return bad
+	return ""
 }

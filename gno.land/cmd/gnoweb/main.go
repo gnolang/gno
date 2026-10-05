@@ -1,9 +1,7 @@
 package main
 
 import (
-	"cmp"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -54,6 +52,7 @@ type webCfg struct {
 	bind             string
 	faucetURL        string
 	aliases          string
+	trustedProxies   string
 	noDefaultAliases bool
 	noCache          bool
 	timeout          time.Duration
@@ -67,7 +66,14 @@ type webCfg struct {
 	trustedPaths     string
 }
 
-const defaultRealmNoticeText = "Community realm, deployed by its author. Read the code before you interact or send coins."
+// The default realm notice, and the short variant shown below the lg
+// breakpoint. Each fits one line of the header row from 320px up where it is
+// shown, so the row reserves one line. An operator's GNOWEB_REALM_NOTICE_TEXT
+// has no short variant, shows at every width and is clamped to two lines.
+const (
+	defaultRealmNoticeText  = "**Community realm**, deployed by its author. Read the code before you interact or send coins."
+	defaultRealmNoticeShort = "**Community realm.** Read the code first."
+)
 
 var defaultWebOptions = webCfg{
 	chainid:        "dev",
@@ -93,8 +99,9 @@ func main() {
 Environment variables:
   GNOWEB_BANNER_TEXT        Banner content (supports inline markdown). Max 400 chars.
   GNOWEB_BANNER_URL         Optional link for the banner (requires GNOWEB_BANNER_TEXT).
-  GNOWEB_REALM_NOTICE_TEXT  Notice shown on packages outside -trusted-paths (inline markdown). Max 400 chars.
-                            Unset or empty keeps the built-in text; a value that renders to nothing
+  GNOWEB_REALM_NOTICE_TEXT  Notice shown on package and user pages outside -trusted-paths (inline markdown,
+                            no images). Max 400 chars, shown on up to two lines.
+                            Unset or empty keeps the built-in text; a value with no visible text
                             refuses to start. Disable the notice with -no-realm-notice.`,
 		},
 		&cfg,
@@ -139,6 +146,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"comma-separated list of aliases in the form: '<path>=<realm-path>' or '<path>=static:<markdown-file>'",
 	)
 
+	fs.StringVar(
+		&c.trustedProxies,
+		"trusted-proxies",
+		defaultWebOptions.trustedProxies,
+		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins",
+	)
+
 	fs.BoolVar(
 		&c.noDefaultAliases,
 		"no-default-aliases",
@@ -150,7 +164,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.noRealmNotice,
 		"no-realm-notice",
 		defaultWebOptions.noRealmNotice,
-		"disable the notice shown on pages of packages outside -trusted-paths",
+		"disable the notice shown on package and user pages outside -trusted-paths",
 	)
 
 	fs.StringVar(
@@ -260,18 +274,18 @@ func setupTrust(cfg *webCfg, appcfg *gnoweb.AppConfig, logger *slog.Logger) erro
 	if cfg.noRealmNotice {
 		return nil
 	}
-	text := cmp.Or(os.Getenv("GNOWEB_REALM_NOTICE_TEXT"), defaultRealmNoticeText)
-	notice, err := components.NewBannerData(text, "")
-	if err == nil && !notice.Enabled() {
-		err = errors.New("renders to nothing")
+	text, short := defaultRealmNoticeText, defaultRealmNoticeShort
+	if env := os.Getenv("GNOWEB_REALM_NOTICE_TEXT"); env != "" {
+		text, short = env, ""
 	}
+	notice, err := components.NewRealmNotice(text, short)
 	if err != nil {
 		return fmt.Errorf("invalid GNOWEB_REALM_NOTICE_TEXT: %w", err)
 	}
 	if cfg.html {
 		logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
 	}
-	appcfg.RealmNotice = notice.AsWarning()
+	appcfg.RealmNotice = notice
 	return nil
 }
 
@@ -305,6 +319,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	if cfg.trustedProxies != "" {
+		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
+	}
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
