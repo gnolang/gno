@@ -53,6 +53,11 @@
 .b-header {
 	position: sticky;
 	top: 0;
+
+	@media (--short-viewport) {
+		position: relative;
+	}
+
 	background-color: var(--s-color-bg-base);
 	border-block-end: var(--s-border);
 	z-index: var(--g-z-max);
@@ -86,6 +91,77 @@
 		grid-column: span 10;
 	}
 
+	/* Realm notice: second row on community pages, on the header's own
+	   surface and grid. Green only on the icon, so the lead-in does not read
+	   as a link. Its height is fixed by --s-header-notice-lines, so sticky
+	   offsets cannot drift. */
+	.b-header-notice {
+		block-size: var(--s-header-notice-block-size);
+		border-block-start: var(--s-border);
+		color: var(--s-color-text-secondary);
+		font-size: var(--g-font-size-100);
+		line-height: var(--g-line-height-normal);
+
+		& > p {
+			display: flex;
+			align-items: flex-start;
+			gap: var(--g-space-2);
+			padding-block: var(--g-space-2);
+		}
+
+		/* Clamped to the reserved lines; a long URL breaks rather than
+		   widening the page. */
+		& > p > span {
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: var(--s-header-notice-lines);
+			overflow: hidden;
+			min-width: 0;
+			overflow-wrap: anywhere;
+			text-wrap: pretty;
+		}
+
+		/* Tab-icon size, on the first line when the text wraps. */
+		& svg {
+			flex-shrink: 0;
+			width: var(--g-space-5);
+			height: var(--g-space-5);
+			margin-block-start: calc((1lh - var(--g-space-5)) / 2);
+			color: var(--s-color-text-link);
+		}
+
+		& strong {
+			font-weight: var(--g-font-semibold);
+			color: var(--s-color-text-primary);
+		}
+
+		/* Operator text is inline markdown: keep links and code legible. */
+		& a {
+			color: var(--s-color-text-link);
+			text-decoration: underline;
+		}
+
+		& code {
+			padding: var(--g-space-0-5) var(--g-space-1);
+			border-radius: var(--s-rounded-sm);
+			background-color: var(--s-color-bg-surface-secondary);
+		}
+
+		/* The default text has a short variant up to --lg; operator text
+		   has none. */
+		& .short {
+			@media (--lg) {
+				display: none;
+			}
+		}
+
+		& .long {
+			@media not all and (--lg) {
+				display: none;
+			}
+		}
+	}
+
 	.user-picture {
 		border-radius: var(--s-rounded);
 		border: var(--s-border-secondary);
@@ -101,11 +177,46 @@
 	}
 }
 
+/* Pages with the realm-notice row carry data-realm-notice-lines on <html>,
+   set by the server: 1 for the default text, 2 for operator text. The row's
+   height derives from it, and sticky elements and anchor jumps below the
+   header move down by that height. */
+[data-realm-notice-lines] {
+	--s-header-notice-lines: 1;
+	--s-header-notice-line: calc(
+		var(--g-font-size-100) *
+		var(--g-line-height-normal)
+	);
+	--s-header-notice-block-size: calc(
+		var(--g-space-px) +
+		2 *
+		var(--g-space-2) +
+		var(--s-header-notice-lines) *
+		var(--s-header-notice-line)
+	);
+	--s-header-notice-size: var(--s-header-notice-block-size);
+	scroll-padding-block-start: var(--s-header-notice-size);
+}
+
+[data-realm-notice-lines="2"] {
+	--s-header-notice-lines: 2;
+}
+
+/* The header does not stick on short viewports: nothing to clear. */
+@media (--short-viewport) {
+	:root {
+		--s-header-size: 0px;
+		--s-header-notice-size: 0px;
+	}
+}
+
 /* ===== MAIN NAVIGATION ===== */
 .b-main-navigation {
 	position: relative;
 	height: auto;
 	width: 100%;
+	/* A long path scrolls inside the bar instead of widening the page */
+	min-width: 0;
 	color: var(--s-color-text-quaternary);
 
 	& > .inner {
@@ -114,11 +225,12 @@
 		background-color: var(--s-color-bg-surface-secondary);
 		border: var(--s-border-secondary);
 		height: 100%;
-		padding-inline: var(--g-space-1-5);
+		padding-inline: var(--g-space-1-5) var(--g-space-8);
 		border-radius: var(--s-rounded);
 
+		/* Search icon, then the network toggle from md */
 		@media (--md) {
-			padding-inline-end: var(--g-space-8);
+			padding-inline-end: var(--g-space-16);
 		}
 
 		/* Focus state */
@@ -137,6 +249,10 @@
 		color: var(--s-color-text-secondary);
 		font-weight: var(--g-font-medium);
 
+		@media (--md) {
+			padding-inline-end: var(--g-space-16);
+		}
+
 		& > input {
 			height: 100%;
 			width: 100%;
@@ -149,15 +265,59 @@
 		}
 	}
 
+	/* Right-hand controls: search icon, network toggle, Ask AI */
+	.searchbar-actions {
+		position: absolute;
+		top: 1px;
+		right: 1px;
+		height: calc(100% - 2px);
+		display: flex;
+		align-items: center;
+		z-index: var(--g-z-max);
+		/* A long path scrolls under the icons: cover it, with a short fade */
+		border-radius: 0 var(--s-rounded) var(--s-rounded) 0;
+		background-color: var(--s-color-bg-surface-secondary);
+
+		&::before {
+			content: "";
+			position: absolute;
+			top: 0;
+			right: 100%;
+			bottom: 0;
+			width: var(--g-space-4);
+			background: linear-gradient(
+				to right,
+				var(--g-color-transparent),
+				var(--s-color-bg-surface-secondary)
+			);
+			pointer-events: none;
+		}
+	}
+
+	/* Submits the search, sits close to the network toggle */
+	.search-icon {
+		display: flex;
+		padding: var(--g-space-1-5) var(--g-space-0-5) var(--g-space-1-5)
+			var(--g-space-1-5);
+		cursor: pointer;
+
+		&:hover > svg {
+			color: var(--s-color-text-tertiary-hover);
+		}
+
+		/* Drawn heavier than the globe, so one step smaller to match it */
+		& > svg {
+			width: var(--g-space-4);
+			height: var(--g-space-4);
+			color: var(--s-color-text-tertiary);
+		}
+	}
+
 	/* Network toggle button */
 	.network-toggle {
-		position: absolute;
 		display: none;
 		justify-content: center;
 		align-items: center;
-		right: 1px;
-		top: 1px;
-		height: calc(100% - 2px);
 		padding: var(--g-space-1-5);
 		border-radius: var(--g-border-radius);
 		background-color: var(--g-color-transparent);
@@ -177,6 +337,111 @@
 		&:hover > svg {
 			color: var(--s-color-text-tertiary-hover);
 		}
+	}
+
+	/* Ask AI popup: its own wrapper keeps its "~" rules apart */
+	.ai-popup {
+		display: contents;
+	}
+
+	/* A white chip at the far right, like a breadcrumb item */
+	.ai-toggle {
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-1);
+		/* 24px tall at least, the WCAG target size, when icon only */
+		padding: var(--g-space-1) var(--g-space-1-5);
+		border: 1px solid var(--s-color-border-transparent);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-base);
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+		line-height: var(--g-line-height-snug);
+		margin-inline: var(--g-space-1) var(--g-space-1-5);
+		cursor: pointer;
+
+		& > svg {
+			width: var(--g-space-4);
+			height: var(--g-space-4);
+			color: var(--s-color-text-link);
+		}
+
+		&:hover {
+			background-color: var(--s-color-bg-brand-default);
+			color: var(--s-color-text-base);
+
+			& > svg {
+				color: currentColor;
+			}
+		}
+
+		/* Icon only below lg, where the bar is short */
+		& > span {
+			display: none;
+
+			@media (--lg) {
+				display: inline;
+			}
+		}
+	}
+
+	/* Room for the Ask AI chip next to the icons */
+	&:has(.ai-toggle) {
+		& > .inner,
+		& .searchbar {
+			padding-inline-end: var(--g-space-16);
+
+			@media (--md) {
+				padding-inline-end: var(--g-space-24);
+			}
+
+			@media (--lg) {
+				padding-inline-end: var(--g-space-36);
+			}
+		}
+	}
+
+	& .ai-popup__title {
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	& .ai-popup .inner > header {
+		padding-block-end: var(--g-space-2);
+		border-block-end: var(--s-border);
+	}
+
+	& .ai-action {
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-0-5);
+	}
+
+	& .ai-action__targets {
+		display: flex;
+		gap: var(--g-space-2);
+		margin-block-start: var(--g-space-1);
+		font-size: var(--g-font-size-50);
+	}
+
+	/* Hints read at AA contrast */
+	& .ai-action > .item-label,
+	& .ai-mcp > .item-label {
+		color: var(--s-color-text-secondary);
+	}
+
+	/* The popup text is tertiary; its buttons must not read as disabled */
+	& .ai-popup .b-btn {
+		color: var(--s-color-text-secondary);
+	}
+
+	& .ai-mcp {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--g-space-1);
+		padding-block-start: var(--g-space-2-5);
+		border-block-start: var(--s-border);
 	}
 
 	/* Popup dialog styles */
@@ -215,6 +480,57 @@
 			color: var(--s-color-text-secondary);
 			font-size: var(--g-font-size-100);
 			font-weight: var(--g-font-semibold);
+		}
+	}
+}
+
+/* ===== ASK AI ON ONE FUNCTION (Actions view) ===== */
+.b-ai-func {
+	position: relative;
+
+	& > summary {
+		list-style: none;
+
+		&::-webkit-details-marker {
+			display: none;
+		}
+
+		& .c-icon {
+			color: var(--s-color-text-link);
+		}
+
+		/* Icon only on small screens, where the row is already full */
+		& > span {
+			display: none;
+
+			@media (--md) {
+				display: inline;
+			}
+		}
+	}
+
+	& .b-ai-func__menu {
+		position: absolute;
+		top: calc(100% + var(--g-space-1));
+		right: 0;
+		z-index: var(--g-z-10);
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-1);
+		min-width: max-content;
+		padding: var(--g-space-2) var(--g-space-3);
+		border: var(--s-border-secondary);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-base);
+		font-size: var(--g-font-size-50);
+
+		/* The link green is under AA at this size on the dark base */
+		& > a {
+			color: var(--s-color-text-secondary);
+
+			&:hover {
+				color: var(--s-color-text-link-hover);
+			}
 		}
 	}
 }
@@ -260,7 +576,7 @@
 				display: flex;
 			}
 
-			& ~ .menu-general {
+			& ~ .b-menu-general {
 				display: none;
 			}
 		}
@@ -268,7 +584,7 @@
 
 	/* Menu containers */
 	& .menu-dev,
-	& .menu-general {
+	& .b-menu-general {
 		display: flex;
 		justify-content: flex-end;
 		height: 100%;
@@ -354,7 +670,7 @@
 
 	/* Link with icon - simplified styles */
 	.link--icon {
-		font-weight: var(--g-font-regular);
+		font-weight: var(--g-font-normal);
 		margin-inline-end: var(--g-space-4);
 
 		@media (--sm) {
@@ -376,7 +692,7 @@
 	}
 }
 
-.menu-general .link {
+.b-menu-general .link {
 	color: var(--s-color-text-secondary);
 
 	&:hover {
@@ -713,8 +1029,7 @@
 /* Responsive label-hide for `.b-inline-btn` toolbars: icon-only on
    small screens, full label at xl+. Used by source page header
    (Copy/Download) and the state explorer tree toolbar. */
-.b-content-header .b-inline-btn > span,
-.tree-toolbar .b-inline-btn > span {
+.b-content-header .b-inline-btn > span {
 	display: none;
 
 	@media (--xl) {
@@ -831,7 +1146,7 @@
 	}
 
 	&:focus-visible {
-		outline: 2px solid var(--s-color-text-link);
+		outline: var(--s-focus-ring);
 		outline-offset: 2px;
 	}
 }
@@ -1154,16 +1469,15 @@
 
 	& > div {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		padding-block-start: var(--g-space-2);
 
-		/* Hide the sidebar wrapper when its `<nav>` has no content
-		   at all. Source page emits `<nav><ul><li>...` (TOC) — the
-		   `nav > *` check passes. State emits `<nav><dl>...</dl>
-		   <ul>...</ul></nav>` and possibly `<nav><dl>...</dl></nav>`
-		   on object pages without TOC entries — both pass. Only a
-		   genuinely empty `<nav>` triggers the hide. */
-		&:has(.inner):not(:has(nav > *)) {
+		/* Guard: hide the sidebar wrapper when its `<nav>` holds
+		   nothing but its `.b-sidebar-heading` (each rail's <nav> opens
+		   with that heading, hence the :not()). None of the five rail
+		   templates emits such a <nav> today: an empty TOC still
+		   renders an empty `<ul class="b-toc">`, so the rail stays. */
+		&:has(.inner):not(:has(nav > :not(.b-sidebar-heading))) {
 			display: none;
 		}
 
@@ -1173,10 +1487,10 @@
 	}
 
 	.inner {
-		/* Wrapper is `sticky; top: --g-space-14`, so a full `100vh`
+		/* Wrapper is `sticky; top: --s-header-offset`, so a full `100vh`
 		   pushes the tail below the fold with no way to scroll to it.
 		   Subtract the sticky offset + a bottom breathing margin. */
-		max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+		max-height: calc(100vh - var(--s-header-offset) - var(--g-space-4));
 		overflow-y: auto;
 		/* Scrollbar hidden via the `u-no-scrollbar` utility the sidebar
 		   templates already carry — wheel/touch scrolling stays
@@ -1197,13 +1511,38 @@
 
 			@media (--lg) {
 				display: block;
-				margin-block-start: 0;
+				/* Took over the toggle's top offset: the toggle is the
+				   rail's desktop heading no longer, and display:none
+				   drops its margin with it. */
+				margin-block-start: var(--g-space-10);
 				padding-inline: 0;
 				padding-block-end: var(--g-space-28);
 
 				& > * {
 					padding-inline-start: 0;
 				}
+			}
+		}
+
+		/* The <nav> supplies the leading gap, so its heading drops its own. */
+		& > nav > :first-child {
+			margin-block-start: 0;
+		}
+
+		/* Below --lg the toggle right above already shows the rail's title,
+		   so the <h2> repeating it is hidden visually (.u-sr-only) but kept
+		   for the outline and as the <nav>'s aria-labelledby name. */
+		@media not all and (--lg) {
+			& > nav > .b-sidebar-heading:first-child {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				margin: -1px;
+				padding: 0;
+				overflow: hidden;
+				clip: rect(0, 0, 0, 0);
+				white-space: nowrap;
+				border-width: 0;
 			}
 		}
 	}
@@ -1223,31 +1562,34 @@
 			background-color: var(--s-color-bg-surface-secondary);
 		}
 
+		/* Mobile-only. The rail used to have no heading of its own, so this
+		   toggle wore one on desktop; now the <h2> inside the panel it opens
+		   names the rail in both layouts and this is purely the affordance. */
 		@media (--lg) {
-			font-size: var(--g-font-size-200);
-			font-weight: var(--g-font-semibold);
-			margin-block-start: var(--g-space-10);
-			border: none;
-			background-color: var(--g-color-transparent);
-			padding: 0;
-			cursor: default;
-
-			&:hover {
-				background-color: var(--g-color-transparent);
-			}
+			display: none;
 		}
 
-		&:has(#toc-expend:checked) + nav {
+		&:has(> input:checked) + * {
 			display: block;
 		}
 
-		&:has(#toc-expend:checked) .ico {
+		&:has(> input:checked) .ico {
 			transform: rotate(180deg);
 		}
 
-		& > input {
-			display: none;
+		/* The control is visually hidden (.u-sr-only in the template), not
+		   display:none, which removed it from the tab order and from the
+		   accessibility tree: below --lg the rail could not be opened by
+		   keyboard at all, and screen readers announced no role and no state.
+		   WCAG 2.1.1 Keyboard and 4.1.2 Name, Role, Value. */
+		&:has(> input:focus-visible) {
+			outline: var(--s-focus-ring);
+			/* Inside the label: it fills .inner edge to edge, and .inner's
+			   overflow-y: auto clips both axes, cutting any ring drawn outside. */
+			outline-offset: -2px;
+		}
 
+		& > input {
 			&:checked + .wrapper-icon {
 				&:before {
 					content: "close";
@@ -1275,21 +1617,31 @@
 	}
 }
 
-.dev-mode .b-sidebar .b-expend-btn {
+.is-dev-mode .b-sidebar .b-expend-btn {
 	background-color: var(--s-color-bg-surface-secondary);
-
-	@media (--lg) {
-		background-color: var(--g-color-transparent);
-	}
 
 	&:hover {
 		background-color: var(--s-color-bg-surface-primary);
 	}
 }
 
+/* The one rail section heading. Names what the section lists, and on desktop
+   the first one doubles as the rail's title now that the toggle is hidden
+   there. Replaces three byte-identical copies: `.b-pkg-meta dt.section` /
+   `.b-pkg-meta-heading` here, `.b-state-meta` ditto in the state bundle, and
+   an overview-only rule that bumped the size back up to 200. */
+.b-sidebar-heading {
+	color: var(--s-color-text-primary);
+	font-weight: var(--g-font-semibold);
+	font-size: var(--g-font-size-200);
+	margin-block: var(--g-space-4) var(--g-space-2);
+	padding-block-end: var(--g-space-1);
+	border-block-end: var(--s-divider);
+}
+
 /* ===== CODE COMPONENT & CHROMA ===== */
 .b-source-code {
-	font-family: var(--g-font-mono);
+	font-family: var(--g-font-family-mono);
 
 	/* Qualified with .chroma-chroma to outrank chroma's own light-theme
 	   background rule, so the code sits on the surface (white in light) with a
@@ -1366,15 +1718,11 @@ pre.chroma-chroma {
 	}
 }
 
-main.dev-mode .b-toc a {
+main.is-dev-mode .b-toc a {
 	word-break: break-all;
 }
 
 .b-source-toc {
-	& > .b-source-toc__overview {
-		margin-block-end: var(--g-space-4);
-	}
-
 	& > .b-toc {
 		margin-block-end: var(--g-space-4);
 	}
@@ -1383,33 +1731,41 @@ main.dev-mode .b-toc a {
 		margin-block-start: var(--g-space-1-5);
 	}
 
-	.accordion {
-		summary {
-			& > svg {
-				transform: rotate(-90deg);
-			}
+	/* Always-open file section (Configuration Files): a heading over its list,
+	   matching the accordion's heading type without the collapse toggle. */
+	.b-source-toc__section h3 {
+		font-size: var(--g-font-size-100);
+		font-weight: var(--g-font-medium);
+		margin-block: 0 var(--g-space-1);
+	}
+}
 
-			&:hover {
-				text-decoration: underline;
-				color: var(--s-color-text-link-hover);
-			}
+/* Disclosure group. Was `.accordion`, nested inside `.b-source-toc`: an
+   unprefixed global name that only one block could reach. */
+.b-accordion {
+	& > summary {
+		& > svg {
+			transform: rotate(-90deg);
 		}
 
-		&[open] {
-			summary > svg {
-				transform: rotate(0deg);
-			}
+		&:hover {
+			text-decoration: underline;
+			color: var(--s-color-text-link-hover);
 		}
 
-		& > .b-toc {
-			padding-inline-start: var(--g-space-5);
-		}
-
-		h3 {
+		& > h3 {
 			font-size: var(--g-font-size-100);
 			font-weight: var(--g-font-medium);
 			margin-block-start: 0;
 		}
+	}
+
+	&[open] > summary > svg {
+		transform: rotate(0deg);
+	}
+
+	& > .b-toc {
+		padding-inline-start: var(--g-space-5);
 	}
 }
 
@@ -1466,10 +1822,15 @@ main.dev-mode .b-toc a {
 		margin-block-end: var(--g-space-1);
 	}
 
+	/* On a narrow card the buttons move under the title instead of
+	   squeezing it */
 	& > header {
+		flex-wrap: wrap;
+		gap: var(--g-space-2) var(--g-space-4);
+
 		.signature {
 			& > code {
-				color: var(--s--text-secondary);
+				color: var(--s-color-text-secondary);
 			}
 
 			@media (--lg) {
@@ -1609,7 +1970,7 @@ main.dev-mode .b-toc a {
 		}
 	}
 
-	/* `.packages-tabs` block lives at top level (below `.b-packages`)
+	/* `.b-packages-tabs` block lives at top level (below `.b-packages`)
 	   so the same chrome can be reused by other pages (state explorer
 	   sub-header). */
 
@@ -1684,7 +2045,7 @@ main.dev-mode .b-toc a {
 			display: none;
 			grid-column: 1 / -1;
 			font-size: var(--g-font-size-200);
-			font-weight: var(--g-font-weight-bold);
+			font-weight: var(--g-font-bold);
 			color: var(--s-color-text-tertiary);
 			padding-block: var(--g-space-2);
 			width: 100%;
@@ -1803,7 +2164,7 @@ main.dev-mode .b-toc a {
 		display: flex;
 	}
 
-	/* Active-label underline now scoped to `.packages-tabs label:has(input:checked)`
+	/* Active-label underline now scoped to `.b-packages-tabs label:has(input:checked)`
 	   at top level (lifted to be reusable). See PACKAGES-TABS COMPONENT block. */
 
 	/* realms not found */
@@ -1937,8 +2298,8 @@ main.dev-mode .b-toc a {
 }
 
 /* Filter-tabs row — lifted out of `.b-packages` to be reusable
-   (state explorer subheader composes it via `class="packages-tabs"`). */
-.packages-tabs {
+   (state explorer subheader composes it via `class="b-packages-tabs"`). */
+.b-packages-tabs {
 	display: flex;
 	grid-column: span 4 / span 4;
 	gap: var(--g-space-4);
@@ -1977,7 +2338,7 @@ main.dev-mode .b-toc a {
 		/* Radios are `u-sr-only` — surface their focus on the label
 		   so keyboard users can see the active tab. */
 		&:has(input:focus-visible) {
-			outline: 2px solid var(--s-color-text-link);
+			outline: var(--s-focus-ring);
 			outline-offset: var(--g-space-1);
 			border-radius: var(--s-rounded-sm);
 		}
@@ -1991,7 +2352,7 @@ main.dev-mode .b-toc a {
 		}
 	}
 
-	/* Active-label underline — on `.packages-tabs` directly so it
+	/* Active-label underline — on `.b-packages-tabs` directly so it
 	   carries to any page using the class. */
 	label:has(input:checked) {
 		color: var(--s-color-text-tertiary);
@@ -2170,82 +2531,90 @@ main.dev-mode .b-toc a {
 			}
 		}
 	}
+}
 
-	/* ===== TOOLTIP COMPONENT ===== */
-	.tooltip {
-		--tooltip-left: 0;
-		--tooltip-right: initial;
+/* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */
+.c-realm-view .tooltip,
+.c-readme-view .tooltip {
+	--tooltip-left: 0;
+	--tooltip-right: initial;
 
-		position: relative;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: var(--s-rounded-full);
-		color: var(--s-color-text-tertiary);
-		width: var(--g-space-4);
-		height: var(--g-space-4);
-		border: var(--s-border);
-		margin-block-end: var(--g-space-px);
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--s-rounded-full);
+	color: var(--s-color-text-tertiary);
+	width: var(--g-space-4);
+	height: var(--g-space-4);
+	border: var(--s-border);
+	margin-block-end: var(--g-space-px);
 
-		& > svg {
-			width: var(--g-space-3);
-			height: var(--g-space-3);
-		}
-
-		&::after {
-			content: attr(data-tooltip);
-			left: var(--tooltip-left);
-			right: var(--tooltip-right);
-			position: absolute;
-			z-index: var(--g-z-max);
-			scale: 0;
-			visibility: hidden;
-			padding-inline: var(--g-space-2);
-			padding-block: var(--g-space-1);
-			background-color: var(--s-color-bg-base);
-			border-radius: var(--s-rounded);
-			border: var(--s-border-secondary);
-			width: fit-content;
-			min-width: var(--g-space-32);
-			max-width: var(--g-space-48);
-			top: 100%;
-			text-align: center;
-			font-size: var(--g-font-size-100);
-			color: var(--s-color-text-secondary);
-			font-weight: var(--g-font-normal);
-			opacity: 0;
-		}
-
-		&:hover::after {
-			opacity: 1;
-			visibility: visible;
-			transition-delay: var(--g-transition-fast);
-			scale: 1;
-		}
-
-		&:only-of-type {
-			margin-inline: 0.3em;
-		}
-
-		&:has(+ span) {
-			margin-inline-start: 0.3em;
-		}
+	& > svg {
+		width: var(--g-space-3);
+		height: var(--g-space-3);
 	}
 
-	.link-external {
-		font-size: 0.67em;
-	}
-	.link-internal {
-		font-size: 0.75em;
-		font-weight: 400;
-	}
-	.link-tx {
-		font-size: 0.75em;
-	}
-	.link-user {
-		font-size: 0.75em;
+	&::after {
+		content: attr(data-tooltip);
+		left: var(--tooltip-left);
+		right: var(--tooltip-right);
+		position: absolute;
+		z-index: var(--g-z-max);
+		scale: 0;
+		visibility: hidden;
+		padding-inline: var(--g-space-2);
+		padding-block: var(--g-space-1);
+		background-color: var(--s-color-bg-base);
+		border-radius: var(--s-rounded);
+		border: var(--s-border-secondary);
+		width: fit-content;
+		min-width: var(--g-space-32);
+		max-width: var(--g-space-48);
+		top: 100%;
+		text-align: center;
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+		font-weight: var(--g-font-normal);
+		opacity: 0;
 	}
 
+	&:hover::after {
+		opacity: 1;
+		visibility: visible;
+		transition-delay: var(--g-transition-fast);
+		scale: 1;
+	}
+
+	&:only-of-type {
+		margin-inline: 0.3em;
+	}
+
+	&:has(+ span) {
+		margin-inline-start: 0.3em;
+	}
+}
+
+.c-realm-view .link-external,
+.c-readme-view .link-external {
+	font-size: 0.67em;
+}
+.c-realm-view .link-internal,
+.c-readme-view .link-internal {
+	font-size: 0.75em;
+	font-weight: 400;
+}
+.c-realm-view .link-tx,
+.c-readme-view .link-tx {
+	font-size: 0.75em;
+}
+.c-realm-view .link-user,
+.c-readme-view .link-user {
+	font-size: 0.75em;
+}
+
+.c-realm-view,
+.c-readme-view {
 	/* ===== CHECKBOXES COMPONENT ===== */
 	ul:has(li > input[type="checkbox"]:first-child) {
 		list-style: none;
@@ -2461,9 +2830,12 @@ main.dev-mode .b-toc a {
 			color: var(--s-color-text-tertiary);
 		}
 
+		/* bg-input-disabled, not surface-secondary: a readonly value is
+		   focusable content, so tertiary text needs 4.5:1 on it (4.83:1
+		   light, 6.99:1 dark; surface-secondary gave 4.25:1 light). */
 		&[readonly],
 		&:disabled {
-			background-color: var(--s-color-bg-secondary);
+			background-color: var(--s-color-bg-input-disabled);
 			color: var(--s-color-text-tertiary);
 			cursor: not-allowed;
 
@@ -2764,7 +3136,7 @@ main.dev-mode .b-toc a {
 /* ==========================================================================
    DOC EXAMPLE — collapsible code block in doc-context markdown rendering
    ========================================================================== */
-.doc-example {
+.b-doc-example {
 	margin-block: var(--g-space-3);
 	border: var(--s-divider);
 	border-radius: var(--s-rounded-sm);
@@ -2797,7 +3169,7 @@ main.dev-mode .b-toc a {
 /* Code in doc comments (examples, snippets) is chroma-highlighted; drop chroma's
    own background so the surrounding surface shows — no stray code-editor blue.
    Descendant selector so it catches the chroma <pre> wherever it nests (plain
-   doc code or inside a <details class="doc-example">). */
+   doc code or inside a <details class="b-doc-example">). */
 .c-doc-view .chroma-chroma {
 	background-color: transparent;
 }
@@ -2806,19 +3178,13 @@ main.dev-mode .b-toc a {
 /* Modeled on pkg.go.dev layout, using CUBE CSS blocks with semantic tokens. */
 
 /* `span 99` (not `1 / -1`) so the sidebar spans implicit rows too. */
-main.dev-mode > section:has(.c-overview-view) {
+main.is-dev-mode > section:has(.c-overview-view) {
 	.b-content-h1 {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--g-space-3);
 		flex-wrap: wrap;
 		text-align: start;
-	}
-
-	/* Sidebar section headings a notch larger (16px) for presence. Scoped to the
-	   overview so it persists past merge. */
-	:is(.b-pkg-meta dt.section, .b-pkg-meta-heading) {
-		font-size: var(--g-font-size-200);
 	}
 
 	@media (--lg) {
@@ -2835,7 +3201,7 @@ main.dev-mode > section:has(.c-overview-view) {
 		}
 		.b-sidebar .inner {
 			/* keep the sticky sidebar's bottom reachable below the header */
-			max-height: calc(100vh - var(--g-space-14) - var(--g-space-4));
+			max-height: calc(100vh - var(--s-header-offset) - var(--g-space-4));
 		}
 		.b-content-header {
 			justify-content: flex-start;
@@ -2850,7 +3216,8 @@ main.dev-mode > section:has(.c-overview-view) {
    given its own `b-pkg-*` name: #5649 ships a `.b-state-meta` in the same
    bundle (feature/state/frontend/state.css), so sharing the name would
    cross-apply between the two views. Overview-owned. */
-.b-pkg-meta {
+.b-pkg-meta,
+.b-state-meta {
 	margin: 0 0 var(--g-space-6) 0;
 	font-size: var(--g-font-size-90);
 	display: flex;
@@ -2906,16 +3273,6 @@ main.dev-mode > section:has(.c-overview-view) {
 	}
 }
 
-.b-pkg-meta dt.section,
-.b-pkg-meta-heading {
-	color: var(--s-color-text-primary);
-	font-weight: var(--g-font-semibold);
-	font-size: var(--g-font-size-100);
-	margin-block: var(--g-space-4) var(--g-space-2);
-	padding-block-end: var(--g-space-1);
-	border-block-end: var(--s-divider);
-}
-
 .b-pkg-metadata {
 	display: block;
 
@@ -2968,7 +3325,7 @@ main.dev-mode > section:has(.c-overview-view) {
 
 	@media (--md) {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		/* Above the code blocks' absolute .srcactions (g-z-1) so their Copy/source
 		   buttons scroll under the sticky bar instead of over it. */
 		z-index: var(--g-z-2);
@@ -2978,7 +3335,7 @@ main.dev-mode > section:has(.c-overview-view) {
 	}
 }
 
-.b-pkg-subheader .packages-tabs {
+.b-pkg-subheader .b-packages-tabs {
 	display: flex;
 	flex-wrap: wrap;
 	grid-column: span 4 / span 4;
@@ -3017,7 +3374,7 @@ main.dev-mode > section:has(.c-overview-view) {
 		}
 
 		&:focus-visible {
-			outline: 2px solid var(--s-color-text-link);
+			outline: var(--s-focus-ring);
 			outline-offset: var(--g-space-1);
 			border-radius: var(--s-rounded-sm);
 		}
@@ -3037,13 +3394,13 @@ main.dev-mode > section:has(.c-overview-view) {
 
 /* Active tab: high-contrast text (white/black per theme), not the tertiary gray
    of the inactive tabs. */
-.b-pkg-subheader .packages-tabs a[aria-current] {
+.b-pkg-subheader .b-packages-tabs a[aria-current] {
 	color: var(--s-color-text-primary);
 }
 
 /* Active-section underline. The agnostic observer controller sets aria-current
    on the in-view section's link as you scroll. */
-.b-pkg-subheader .packages-tabs a[aria-current]::after {
+.b-pkg-subheader .b-packages-tabs a[aria-current]::after {
 	content: "";
 	position: absolute;
 	bottom: calc(var(--g-space-1) * -2);
@@ -3059,7 +3416,7 @@ main.dev-mode > section:has(.c-overview-view) {
    tabs 3/4 of the bar (not half) to keep them on one line. Outside the corral
    so it survives the #5649 merge. */
 @media (--md) {
-	.c-overview-view .b-pkg-subheader .packages-tabs {
+	.c-overview-view .b-pkg-subheader .b-packages-tabs {
 		grid-column: span 3 / span 3;
 	}
 
@@ -3119,6 +3476,16 @@ main.dev-mode > section:has(.c-overview-view) {
 	.b-inline-btn {
 		font-size: var(--g-font-size-100);
 		font-weight: var(--g-font-normal);
+	}
+
+	/* The reset strips link styling from the one label that navigates. */
+	.b-pkg-section__link {
+		color: var(--s-color-text-link);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
 	}
 }
 
@@ -3298,6 +3665,11 @@ main.dev-mode > section:has(.c-overview-view) {
 	color: var(--s-color-text-secondary);
 }
 
+.b-pkg-list__outbound {
+	inline-size: 0.75em;
+	block-size: 0.75em;
+}
+
 .b-pkg-list__tags {
 	display: inline-flex;
 	gap: var(--g-space-1-5);
@@ -3315,18 +3687,33 @@ main.dev-mode > section:has(.c-overview-view) {
 	background: var(--s-color-bg-brand-weak);
 }
 
-/* Status pair: draft (caution) vs published (success); visibility uses the
-   neutral b-tag--secondary for public/private. */
+/* Two axes side by side: status on caution/success, visibility on warning/info.
+   Yellow against blue survives red-green deficiency. */
+.b-tag--draft,
+.b-tag--published,
+.b-tag--private,
+.b-tag--public {
+	border-color: transparent;
+}
+
 .b-tag--draft {
 	color: var(--s-color-text-caution);
 	background: var(--s-color-bg-caution-weak);
-	border-color: transparent;
 }
 
 .b-tag--published {
 	color: var(--s-color-text-success);
 	background: var(--s-color-bg-success-weak);
-	border-color: transparent;
+}
+
+.b-tag--private {
+	color: var(--s-color-text-warning);
+	background: var(--s-color-bg-warning-weak);
+}
+
+.b-tag--public {
+	color: var(--s-color-text-info);
+	background: var(--s-color-bg-info-weak);
 }
 
 /* Truncation notice (shown when symbol lists were capped). */
