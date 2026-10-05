@@ -92,6 +92,11 @@ func TestRoutes(t *testing.T) {
 			{"/r/gnoland/blog$help&func=Render&path=foo/bar", ok, `value="foo/bar"`},
 			// {"/r/gnoland/blog$help&func=NonExisting", ok, "NonExisting not found"}, // XXX(TODO)
 			{"/r/sys/users", ok, "r/sys/users"},
+			// Registered in the genesis txs, so these run the real vm/qeval
+			// query; zoo_ma123 also covers a name with a separator.
+			{"/u/moul001", ok, "moul001"},
+			{"/u/zoo_ma123", ok, "zoo_ma123"},
+			{"/u/zzznotauser", notFound, "user not found"},
 			{"/r/sys/users/users.gno", ok, "ResolveName"},
 			{"/r/tests/vm/deep/very/deep", ok, "it works!"},
 			{"/r/tests/vm/deep/very/deep?arg1=val1&arg2=val2", ok, "hi ?arg1=val1&amp;arg2=val2"},
