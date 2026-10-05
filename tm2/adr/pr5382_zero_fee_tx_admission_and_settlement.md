@@ -50,7 +50,9 @@ zero coin as `""` and a sponsored tx must carry one; the ante rejects a 0-fee
 tx right after `ValidateBasic` unless the window is open. That is where
 `ValidateBasic` rejected an empty fee before, so a well-formed 0-fee tx gets the
 same error as on master at the same point; a malformed one (no signatures, wrong
-signer count) now fails `ValidateBasic`'s later checks instead. A sponsored tx is
+signer count) now fails `ValidateBasic`'s later checks instead. Offline checks
+that call `ValidateBasic` alone need the window check too; `gnogenesis verify`
+has it, because a genesis tx the ante rejects stops `InitChain`. A sponsored tx is
 also not admitted before the first block, when gno.land's genesis ante funds
 unknown signers, and genesis delivery is exempt from sponsorship: `PayGas` is
 inert there.
@@ -103,7 +105,10 @@ not touch tm2.
 ### 7. Reported `GasWanted` for 0-fee txs is the credit window
 
 The ante reports `GasWanted = MaxGasCreditPerTx` for a 0-fee tx, so the mempool
-packs blocks against the real worst case rather than the client's value.
+packs blocks against the real worst case rather than the client's value. Each
+sponsored tx reserves the whole window, even when `PayGas` caps it lower (the
+cap is only known after execution), so a block holds at most
+`Block.MaxGas / MaxGasCreditPerTx` sponsored txs, whatever they actually use.
 
 ## Consequences
 

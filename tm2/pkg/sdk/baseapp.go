@@ -642,7 +642,7 @@ func (app *BaseApp) BeginBlock(req abci.RequestBeginBlock) (res abci.ResponseBeg
 // of a sponsored 0-fee tx (RunTxModeCheckExecute).
 func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) {
 	var tx Tx
-	if err := amino.Unmarshal(req.Tx, &tx); err != nil {
+	if err := decodeTx(req.Tx, &tx); err != nil {
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	}
@@ -789,6 +789,17 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	return result
 }
 
+// decodeTx is amino.Unmarshal with a decode panic turned into an error. CheckTx
+// decodes before runTx's recover is in place, to pick the run mode.
+func decodeTx(bz []byte, tx *Tx) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic decoding tx: %v", r)
+		}
+	}()
+	return amino.Unmarshal(bz, tx)
+}
+
 // isSponsoredTx reports whether tx is a 0-fee tx running on the credit window
 // (Block.MaxGasCreditPerTx), which only a realm calling PayGas can pay for.
 func (app *BaseApp) isSponsoredTx(tx Tx) bool {
@@ -898,7 +909,14 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 				if cp := ctx.ConsensusParams(); cp != nil && cp.Block != nil {
 					maxGas = cp.Block.MaxGas
 				}
-				log := store.OutOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor, true)
+				// Report the limit the tx ran out of: PayGas can lower a
+				// sponsored tx's meter below the credit window it reports as
+				// GasWanted. (Logs are not part of the block results hash.)
+				limit := gasWanted
+				if l := ctx.GasMeter().Limit(); l > 0 && l < limit {
+					limit = l
+				}
+				log := store.OutOfGasLog(gasUsed, limit, maxGas, ex.Descriptor, true)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted

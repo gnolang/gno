@@ -8,9 +8,17 @@ gnoland start
 gnokey maketx addpkg -pkgdir $WORK/exhaust -pkgpath gno.land/r/test/exhaust -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
-## call with 0 fee — credit window should be exhausted before PayGas
-! gnokey maketx call -pkgpath gno.land/r/test/exhaust -func HeavyWork -gas-fee 0ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
-stderr 'out of gas'
+## call with 0 fee — credit window should be exhausted before PayGas. A 0-fee
+## tx's limit is the window, not its gas-wanted: asking for 100M still stops
+## at 10M (gnokey prints the gas-wanted it sent, the error the window).
+! gnokey maketx call -pkgpath gno.land/r/test/exhaust -func HeavyWork -gas-fee 0ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout 'GAS USED:   100[0-9]{5}$'
+stderr 'gas used \(100[0-9]{5}\) exceeds tx.s gas wanted \(10000000\)'
+
+## the same at admission (CheckTx), without gnokey's simulation first
+! gnokey maketx call -pkgpath gno.land/r/test/exhaust -func HeavyWork -gas-fee 0ugnot -gas-wanted 100000000 -simulate skip -broadcast -chainid=tendermint_test test1
+stderr 'check transaction failed'
+stderr 'gas used \(100[0-9]{5}\) exceeds tx.s gas wanted \(10000000\)'
 
 -- exhaust/gnomod.toml --
 module = "exhaust"

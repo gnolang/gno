@@ -2490,6 +2490,9 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				FeeDelta:   d,
 				PkgPath:    rlmPath,
 			}
+			if sponsored {
+				evt.Payer = psi.RealmAddr.Bech32()
+			}
 			ctx.EventLogger().EmitEvent(evt)
 		} else {
 			// release storage used and return deposit
@@ -2577,6 +2580,9 @@ func (vm *VMKeeper) processStorageDeposit(ctx sdk.Context, caller crypto.Address
 				FeeRefund:      d,
 				PkgPath:        rlmPath,
 				RefundWithheld: isRestricted,
+			}
+			if sponsorShare > 0 {
+				evt.SponsorRefund = &std.Coin{Denom: ugnot.Denom, Amount: sponsorShare}
 			}
 			ctx.EventLogger().EmitEvent(evt)
 		}

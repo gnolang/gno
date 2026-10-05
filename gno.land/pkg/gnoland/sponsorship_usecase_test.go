@@ -10,6 +10,9 @@ package gnoland
 //
 // This measures the gas that pattern actually consumes end to end: a GRC20-style
 // ledger transfer (storage reads + writes on an avl tree) followed by PayGas.
+// Each case runs at the window listed with it (its cost rounded up to the next
+// million) and fails if it no longer fits; the ADR cites the GRC20 cases for its
+// 6M floor.
 //
 //	go test ./pkg/gnoland/ -run TestSponsorshipUseCaseFitsWindow -v
 
@@ -218,8 +221,8 @@ func Sponsor(cur realm, _ string) string {
 }
 `
 
-// TestSponsorshipUseCaseFitsWindow reports the gas the paymaster pattern costs
-// and the smallest credit window under which it succeeds.
+// TestSponsorshipUseCaseFitsWindow checks that each paymaster pattern is
+// admitted at the credit window listed with it, and reports the gas it used.
 func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
 	t.Parallel()
 
@@ -228,19 +231,20 @@ func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
 		src     string
 		withAVL bool
 		withGRC bool
+		window  int64 // measured cost rounded up to the next million
 	}{
-		{"paygas-only (floor)", paygasOnlyRealm, false, false},
-		{"map ledger + paygas", mapLedgerRealm, false, false},
-		{"avl ledger + paygas", paymasterRealm, true, false},
-		{"REAL grc20 transferFrom + paygas (approval pre-existing)", grc20Realm, true, true},
-		{"REAL grc20 approve + transferFrom + paygas (first interaction)", grc20ApproveInTxRealm, true, true},
+		{"paygas-only (floor)", paygasOnlyRealm, false, false, 1_000_000},
+		{"map ledger + paygas", mapLedgerRealm, false, false, 2_000_000},
+		{"avl ledger + paygas", paymasterRealm, true, false, 7_000_000},
+		{"REAL grc20 transferFrom + paygas (approval pre-existing)", grc20Realm, true, true, 6_000_000},
+		{"REAL grc20 approve + transferFrom + paygas (first interaction)", grc20ApproveInTxRealm, true, true, 6_000_000},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			const window = 30_000_000 // generous, so we measure cost not the cap
+			window := tc.window
 
 			opts := TestAppOptions(memdb.NewMemDB())
 			opts.AllowZeroFeeTxs = true
@@ -312,8 +316,8 @@ func TestSponsorshipUseCaseFitsWindow(t *testing.T) {
 			tx.Signatures = []std.Signature{{PubKey: priv.PubKey(), Signature: sig}}
 
 			res := bapp.CheckTx(abci.RequestCheckTx{Tx: amino.MustMarshal(tx)})
-			require.True(t, res.IsOK(), "should be admitted at a 30M window: %v | %.200s", res.Error, res.Log)
-			t.Logf("%-22s gasUsed=%8d  => needs a window of at least ~%dM", tc.name, res.GasUsed, (res.GasUsed+999_999)/1_000_000)
+			require.True(t, res.IsOK(), "should be admitted at a %dM window: %v | %.200s", window/1_000_000, res.Error, res.Log)
+			t.Logf("%-22s gasUsed=%8d  (window %dM)", tc.name, res.GasUsed, window/1_000_000)
 		})
 	}
 }

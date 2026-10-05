@@ -17,6 +17,10 @@ gnokey maketx call -pkgpath gno.land/r/test/normalfee -func DoWork -gas-fee 1000
 stdout OK!
 stdout '"done" string'
 
+## the realm paid nothing
+gnokey query bank/balances/g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f
+stdout '"10000000ugnot"'
+
 -- normalfee/gnomod.toml --
 module = "normalfee"
 gno = "0.9"

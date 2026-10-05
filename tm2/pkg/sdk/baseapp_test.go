@@ -679,7 +679,8 @@ func TestZeroFeeTxWithoutPayGasRejectedAtCheckExecute(t *testing.T) {
 // TestCheckTxSponsoredSequencePersists verifies that CheckTx admission of a
 // 0-fee (PayGas-sponsored) tx via RunTxModeCheckExecute persists the ante
 // handler's writes — notably the account sequence increment — to checkState, so
-// successive sponsored txs from the same account are admitted within a block.
+// successive sponsored txs from the same account are admitted within a block,
+// and discards the messages' writes.
 //
 // The counter ante is a proxy for the account sequence: incrementingCounter
 // asserts the stored counter equals the tx's counter, which only holds if each
@@ -690,9 +691,11 @@ func TestCheckTxSponsoredSequencePersists(t *testing.T) {
 	t.Parallel()
 
 	counterKey := []byte("counter-key")
+	msgKey := []byte("msg-key")
 	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, counterKey)) }
 	routerOpt := func(bapp *BaseApp) {
 		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.Store(mainKey).Set(nil, msgKey, []byte("written by the message"))
 			// Stand in for a realm calling runtime.PayGas: the native sets MaxFee
 			// on the shared PayGasInfo pointer, which is what runTx checks. Without
 			// this the tx is (correctly) rejected as a 0-fee tx with no sponsor —
@@ -736,6 +739,8 @@ func TestCheckTxSponsoredSequencePersists(t *testing.T) {
 	// require.Equal would already have failed on the second tx.)
 	checkStateStore := app.checkState.ctx.Store(mainKey)
 	require.Equal(t, nTxs, getIntFromStore(checkStateStore, nil, counterKey))
+	// Admission ran the message and dropped what it wrote.
+	require.Nil(t, checkStateStore.Get(nil, msgKey), "CheckExecute must not keep message writes")
 
 	// A committed block resets checkState, as for normal CheckTx.
 	header := &bft.Header{ChainID: "test-chain", Height: 1}
@@ -743,6 +748,51 @@ func TestCheckTxSponsoredSequencePersists(t *testing.T) {
 	app.EndBlock(abci.RequestEndBlock{})
 	app.Commit()
 	require.Nil(t, app.checkState.ctx.Store(mainKey).Get(nil, counterKey))
+}
+
+// TestOutOfGasLogReportsPayGasLimit: a sponsored tx reports the credit window
+// as GasWanted, but PayGas can lower its meter. Running out under the lower
+// limit must name that limit in the log, not the window.
+func TestOutOfGasLogReportsPayGasLimit(t *testing.T) {
+	t.Parallel()
+
+	const window, payGasLimit = 1_000_000, 50_000
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			// The auth ante's shape for a 0-fee tx: the meter is the window,
+			// and so is the reported GasWanted.
+			return ctx.WithGasMeter(store.NewGasMeter(window)), Result{GasWanted: window}, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			// What runtime.PayGas does: commit, and tighten the meter.
+			ctx.PayGasInfo().MaxFee = 1
+			ctx.GasMeter().SetLimit(payGasLimit)
+			ctx.GasMeter().ConsumeGas(payGasLimit+1, "work")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:        1_000_000,
+				MaxGas:            10_000_000,
+				MaxGasCreditPerTx: window,
+			},
+		},
+	})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+	r := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.IsType(t, std.OutOfGasError{}, r.Error)
+	require.Equal(t, int64(window), r.GasWanted)
+	require.Contains(t, r.Log, fmt.Sprintf("exceeds tx's gas wanted (%d)", payGasLimit))
 }
 
 // TestCheckTxMalformedTypeURL verifies that CheckTx returns a decode error

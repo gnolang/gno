@@ -34,6 +34,14 @@ stdout 'Tx successfully signed and saved to '
 gnokey broadcast $WORK/drain.tx -quiet=false
 stdout OK!
 
+## gnokey reports the storage as the sponsor's: it paid the deposit (payer) and
+## got back what Free released (sponsor_refund), net 1000ugnot; user1 paid none
+stdout '"payer":"g1sel0lekwpwm6fmjnfeqfwwgrrnymjx97ujha04"'
+stdout '"sponsor_refund":\{"denom":"ugnot","amount":287500\}'
+stdout 'STORAGE FEE:    0ugnot'
+stdout 'SPONSORED STORAGE: 1000ugnot'
+stdout 'TOTAL TX COST:  0ugnot'
+
 ## THE ASSERTION: user1 signed a 0-fee tx and freed only bytes the sponsor paid
 ## for moments earlier, so its balance must not move at all. Before the fix it
 ## gained the released deposit.

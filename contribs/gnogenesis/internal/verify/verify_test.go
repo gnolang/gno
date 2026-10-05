@@ -267,6 +267,46 @@ func TestGenesis_Verify(t *testing.T) {
 		}
 	})
 
+	t.Run("zero-fee tx needs an open credit window", func(t *testing.T) {
+		// The node's ante rejects a zero-fee tx unless the credit window is
+		// open, and a rejected genesis tx stops InitChain, so verify has to
+		// reject the same genesis. ValidateBasic alone no longer does.
+		t.Parallel()
+
+		for _, window := range []int64{0, 1_000_000} {
+			g := getValidTestGenesis()
+			g.ConsensusParams.Block.MaxGasCreditPerTx = window
+
+			sender := ed25519.GenPrivKey()
+			tx := std.Tx{
+				Msgs: []std.Msg{bank.MsgSend{
+					FromAddress: sender.PubKey().Address(),
+					ToAddress:   sender.PubKey().Address(),
+					Amount:      std.NewCoins(std.NewCoin("ugnot", 10)),
+				}},
+				Fee: std.Fee{GasWanted: 1000000},
+			}
+			tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+			appState := g.AppState.(gnoland.GnoGenesisState)
+			appState.Txs = []gnoland.TxWithMetadata{{Tx: tx}}
+			g.AppState = appState
+
+			tempFile, cleanup := testutils.NewTestFile(t)
+			t.Cleanup(cleanup)
+			require.NoError(t, g.SaveAs(tempFile.Name()))
+
+			cmd := NewVerifyCmd(commands.NewTestIO())
+			err := cmd.ParseAndRun(context.Background(), []string{
+				"--genesis-path", tempFile.Name(), "--skip-signature-check",
+			})
+			if window == 0 {
+				require.ErrorContains(t, err, "zero fee")
+			} else {
+				require.NoError(t, err)
+			}
+		}
+	})
+
 	t.Run("missing signer public key", func(t *testing.T) {
 		// Zero-value placeholder signatures (e.g. valoper-seed output)
 		// carry no public key. Verification must reject them with a

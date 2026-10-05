@@ -25,23 +25,26 @@ stdout '10000000ugnot'
 
 ## check user1 balance before
 gnokey query bank/balances/$user1_user_addr
-cp stdout user1_balance_before
+stdout '"1000000000ugnot"'
 
 ## sign the multi-msg tx with user1 (fresh sequence, no prior txs)
 gnokey sign -tx-path $WORK/multi_msg.tx -chainid=tendermint_test -account-number $user1_account_num -account-sequence $user1_account_seq user1
 stdout 'Tx successfully signed and saved to '
 
-## broadcast
+## broadcast. user1's only cost is the deposit for the 10 bytes
+## counter.Increment adds: PayStorage covers only the payer realm's own storage.
 gnokey broadcast $WORK/multi_msg.tx -quiet=false
 stdout OK!
+stdout 'STORAGE DELTA:  10 bytes'
+stdout 'TOTAL TX COST:  1000ugnot'
 
 ## check payer balance decreased (paid gas for both messages)
 gnokey query bank/balances/g1tur0eldetcmmyanlnpyf5mhv3c788dkq0wa7va
 ! stdout '10000000ugnot'
 
-## user1 pays any storage counter.Increment grows: PayStorage covers only the
-## payer realm's own storage.
+## user1 paid that deposit and no gas
 gnokey query bank/balances/$user1_user_addr
+stdout '"999999000ugnot"'
 
 -- counter/gnomod.toml --
 module = "mm_counter"

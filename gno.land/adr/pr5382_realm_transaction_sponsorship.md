@@ -84,10 +84,11 @@ An earlier version had a tx flag that deferred storage settlement to the end of 
 
 - A `PayGas` commitment covers the gas of every message in the transaction, including ones the sponsor did not call; size `maxFee` accordingly.
 - Realm authors must gate sponsorship (whitelist, payment, rate limit). An unconditional `PayGas` in a public function pays for anyone.
-- Measured cost: a GRC20 approve + transferFrom paymaster transaction uses about 6M gas (`sponsorship_usecase_test.go`), so the credit window must be at least that for the motivating use case.
+- Measured cost: a GRC20 paymaster transaction (approve + transferFrom, then `PayGas`) uses 5.2-5.4M gas, so the credit window must be at least 6M for the motivating use case. `sponsorship_usecase_test.go` runs each measured pattern at its window and fails if it no longer fits.
 - The two native gas entries are measured: `payGas` charges 1097 + 35448·len(pkgPath)/1024 gas and `payStorage` 1091 + 35576·len(pkgPath)/1024, about 1.9K for a 24-byte realm path and 10K at the 256-byte pkgpath limit. Both natives match the pkgpath regexp twice (`IsRealmPath`, then `IsGnoRunPath` inside `DerivePkgCryptoAddr`) before hashing, which costs 2.2x `chain.packageAddress` per byte; the placeholder rows copied from it charged about half at the length limit. The benches use the regexp's worst case among matches, one-letter segments (`gno.land/r/a/a/...`). A failing match can backtrack longer than any match, so the natives refuse the one reachable input that fails, a sub-realm token (`host#sub`), on its `#` before the regexp. Measured on an Apple M1 Pro (data in `gnovm/cmd/calibrate/sponsorship_bench_m1pro_arm64.txt`); like the rest of the table, they need re-measuring on the reference hardware before deployment.
 - Adding the natives changes the `chain/runtime` stdlib committed at genesis, so the genesis app hash changes, and every transaction that loads `chain/runtime` uses about 3.5K more gas, sponsored or not.
 - A sponsor's functions cannot be batched: a second `PayGas` or `PayStorage` in the same transaction panics.
+- Storage events say who paid. A `StorageDepositEvent` paid through `PayStorage` carries the sponsor's address in `payer`, and a `StorageUnlockEvent` carries in `sponsor_refund` the part returned to the sponsor. Both are omitted otherwise, so unsponsored events encode as before. gnokey counts only the signer's share as its storage fee and prints the sponsor's as `SPONSORED STORAGE`.
 
 ## References
 
