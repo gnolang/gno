@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
@@ -348,9 +349,8 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 
 func TestUserView(t *testing.T) {
 	data := UserData{
-		Username:   "testuser",
-		Handlename: "Test User",
-		Bio:        "This is a test user.",
+		Username: "testuser",
+		Bio:      "This is a test user.",
 		Links: []UserLink{
 			{Type: UserLinkTypeLink, URL: "https://example.com"},
 			{Type: UserLinkTypeGithub, URL: "https://github.com/testuser", Title: "GitHub"},
@@ -390,4 +390,47 @@ func TestUserView(t *testing.T) {
 	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+// The view escapes the identity whatever reaches it, in text, in the title
+// attributes and in the copy button's data attribute, and splits an address by
+// runes, so a multi-byte one is never cut into invalid UTF-8.
+func TestUserView_EscapesIdentity(t *testing.T) {
+	const hostile = `"><script>alert(1)</script>`
+	const escaped = `&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;`
+
+	render := func(data UserData) string {
+		t.Helper()
+		data.Content = NewReaderComponent(strings.NewReader(""))
+		var buf strings.Builder
+		assert.NoError(t, UserView(data).Render(&buf))
+		return buf.String()
+	}
+
+	t.Run("name", func(t *testing.T) {
+		out := render(UserData{Username: hostile, Address: hostile, CurrentName: hostile})
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.Contains(t, out, `<h1 class="title title--long">`+escaped+`</h1>`)
+		assert.Contains(t, out, `data-copy-text-value="`+escaped+`"`)
+		// The address line's two halves are escaped each, around the one
+		// literal break point.
+		assert.Contains(t, out, `title="`+escaped+`">&#34;&gt;&lt;script&gt;ale<wbr><span class="address-end" data-controller="copy">rt(1)&lt;/script&gt;<button`)
+		assert.Contains(t, out, `now <a href="/u/%22%3e%3cscript%3ealert%281%29%3c/script%3e">@`+escaped+`</a>`)
+	})
+
+	t.Run("address only", func(t *testing.T) {
+		addr := hostile + strings.Repeat("é", 20) + "\u202e"
+		out := render(UserData{Address: addr})
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.True(t, utf8.ValidString(out), "the halves are cut on rune boundaries")
+		assert.Contains(t, out, `<h1 class="title title--address u-font-mono" title="`+escaped)
+		assert.Contains(t, out, `data-copy-text-value="`+escaped)
+	})
+}
+
+func TestUserData_LongName(t *testing.T) {
+	assert.False(t, UserData{Username: strings.Repeat("a", 16)}.LongName())
+	assert.True(t, UserData{Username: strings.Repeat("a", 17)}.LongName())
+	// Counted in runes, not bytes.
+	assert.False(t, UserData{Username: strings.Repeat("é", 16)}.LongName())
 }
