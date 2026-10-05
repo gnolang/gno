@@ -212,16 +212,29 @@ func (l *IPLimiter) has(ip string) bool {
 // is a valid IP; otherwise the RemoteAddr host is used. Falls back to the raw
 // RemoteAddr string when SplitHostPort fails (e.g. unix sockets in tests).
 func extractIP(r *http.Request, trusted []*net.IPNet) string {
+	if FromTrustedProxy(r, trusted) {
+		if v := net.ParseIP(strings.TrimSpace(r.Header.Get("X-Real-IP"))); v != nil {
+			return v.String()
+		}
+	}
+	return remoteHost(r)
+}
+
+// FromTrustedProxy reports whether r arrived from inside one of the trusted
+// networks, so its forwarding headers (X-Real-IP, X-Forwarded-*) can be
+// believed. An empty list trusts nothing.
+func FromTrustedProxy(r *http.Request, trusted []*net.IPNet) bool {
+	if len(trusted) == 0 {
+		return false
+	}
+	ip := net.ParseIP(remoteHost(r))
+	return ip != nil && ipInNets(ip, trusted)
+}
+
+func remoteHost(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		host = r.RemoteAddr
-	}
-	if len(trusted) > 0 {
-		if remoteIP := net.ParseIP(host); remoteIP != nil && ipInNets(remoteIP, trusted) {
-			if v := net.ParseIP(strings.TrimSpace(r.Header.Get("X-Real-IP"))); v != nil {
-				return v.String()
-			}
-		}
+		return r.RemoteAddr
 	}
 	return host
 }

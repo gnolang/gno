@@ -971,7 +971,7 @@ body:has(#state-view-tree:checked) .b-page-subheader {
 
 	@media (--md) {
 		position: sticky;
-		top: var(--g-space-14);
+		top: var(--s-header-offset);
 		z-index: var(--g-z-1);
 		background-color: var(--s-color-bg-base-dev);
 		padding-block-start: var(--g-space-2);
