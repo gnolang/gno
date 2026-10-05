@@ -35,6 +35,9 @@ cannot open, and images were blocked by the CSP.
     become the same path on the gateway.
   - Only an alphanumeric CID, or an IPNS key or DNS name, is rewritten. Other
     hosts, userinfo, ports and anything unparsable are left as written.
+  - So is a path with a `.` or `..` segment, also percent-encoded or split by
+    `\`. On the gateway the CID is a path segment rather than the host, so the
+    browser would resolve `ipfs://<a>/../<b>` to `<b>`, other content.
 - The rewritten destination is escaped for markdown (`\` and `&`), because the
   renderers resolve escapes and character references in a destination once
   more. A test renders each URL form (`ipfs://`, `ipns://`, entity-encoded,

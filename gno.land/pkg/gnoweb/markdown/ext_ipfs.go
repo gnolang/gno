@@ -124,8 +124,9 @@ func mayBeIPFSURL(b []byte) bool {
 //
 // Protocol-relative URLs (//ipfs.io/ipfs/...) are handled like https ones.
 // Query and fragment are kept. It reports false, and leaves the URL alone,
-// for anything else: other hosts, userinfo, explicit ports, or a CID or
-// name that is not plain alphanumerics (plus dots and hyphens for IPNS).
+// for anything else: other hosts, userinfo, explicit ports, a CID or name
+// that is not plain alphanumerics (plus dots and hyphens for IPNS), or a
+// path with a "." or ".." segment.
 func rewriteIPFSURL(gateway, raw string) (string, bool) {
 	u, err := url.Parse(raw)
 	if err != nil || u.User != nil {
@@ -151,6 +152,11 @@ func rewriteIPFSURL(gateway, raw string) (string, bool) {
 	// Also rejects the empty name of an unmatched split, and any port or
 	// opaque form, which leave a ':' in the name or no host at all.
 	if !validIPFSName(namespace, name) {
+		return "", false
+	}
+	// On the gateway the CID is a path segment rather than the host, so a
+	// ".." after it would resolve to other content.
+	if hasDotSegment(u.Path) {
 		return "", false
 	}
 
@@ -222,6 +228,19 @@ func validIPFSName(namespace, name string) bool {
 		}
 	}
 	return true
+}
+
+// hasDotSegment reports whether the decoded path p has a "." or ".."
+// segment. It splits at "\" too, because browsers treat it as "/" in https
+// URLs, and the decoded path also exposes %2F, which a gateway may decode
+// before it resolves the path.
+func hasDotSegment(p string) bool {
+	for _, seg := range strings.FieldsFunc(p, func(r rune) bool { return r == '/' || r == '\\' }) {
+		if seg == "." || seg == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 type ipfsExtension struct{}

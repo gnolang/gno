@@ -101,12 +101,14 @@ has to be pinned somewhere on the IPFS network: a gateway only serves what some
 node provides.
 
 :::warning
-The URL helpers in `p/nt/markdown/sanitize/v0`, which `p/moul/md` uses, reject
-`ipfs://` URLs, so write the markdown yourself for a CID your realm controls.
-Never put a CID or URL that comes from users or other realms into markdown as
-is: check that the CID contains only ASCII letters and digits, then build
-`ipfs://<cid>` from it. Build the alt text or link label with
-`sanitize.InlineText`, as `md.Image` and `md.Link` would.
+The URL helpers in `p/nt/markdown/sanitize/v0`, which `p/moul/md/v0` uses,
+reject `ipfs://` URLs, so write the markdown yourself for a CID your realm
+controls. Never put a CID or URL that comes from users or other realms into
+markdown as is: check that the CID contains only ASCII letters and digits, then
+build `ipfs://<cid>` from it. If you add a path, allow only ASCII letters,
+digits, `-`, `_` and `.` in each segment, and reject `.` and `..` segments.
+Build the alt text or link label with `sanitize.InlineText`, as `md.Image` and
+`md.Link` would.
 :::
 
 ### Viewing source code

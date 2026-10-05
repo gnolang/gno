@@ -29,6 +29,7 @@ func TestRewriteIPFSURL(t *testing.T) {
 		{"ipfs://" + testCIDv1, gwIPFS + testCIDv1},
 		{"ipfs://" + testCIDv1 + "/dir/a%20b.png?filename=x.png#top", gwIPFS + testCIDv1 + "/dir/a%20b.png?filename=x.png#top"},
 		{"IPFS://" + testCIDv0 + "/", gwIPFS + testCIDv0 + "/"},
+		{"ipfs://" + testCIDv1 + "/..a/b../.x", gwIPFS + testCIDv1 + "/..a/b../.x"}, // dots, but no dot segment
 		{"ipns://en.wikipedia-on-ipfs.org/wiki/", testGateway + "/ipns/en.wikipedia-on-ipfs.org/wiki/"},
 		{"ipns://" + testIPNSKey, testGateway + "/ipns/" + testIPNSKey},
 
@@ -87,6 +88,16 @@ func TestRewriteIPFSURL(t *testing.T) {
 		"ipns://example..com",
 		"ipns://example.com.",
 		"ipfs://" + strings.Repeat("a", 254),
+		// On the gateway the CID is only a path segment, which ".." leaves.
+		"ipfs://" + testCIDv1 + "/../" + testCIDv0 + "/x.png",
+		"ipfs://" + testCIDv1 + "/%2e%2e/" + testCIDv0,
+		"ipfs://" + testCIDv1 + "/.%2E/" + testCIDv0,
+		"ipfs://" + testCIDv1 + "/./x.png",
+		"ipfs://" + testCIDv1 + "/x%2F..%2F..%2F" + testCIDv0,
+		"ipfs://" + testCIDv1 + `/..\` + testCIDv0,
+		"ipns://example.com/../../ipns/evil.example/x",
+		"https://" + testCIDv1 + ".ipfs.dweb.link/../" + testCIDv0,
+		"https://ipfs.io/ipfs/" + testCIDv1 + "/../" + testCIDv0,
 		"javascript:alert(1)",
 		"mailto:a@b.c",
 		"/r/demo/foo",
@@ -173,7 +184,8 @@ func TestIPFSRenderUntouched(t *testing.T) {
 
 	t.Run("other urls", func(t *testing.T) {
 		t.Parallel()
-		src := "[a](https://example.com/ipfs/" + testCIDv1 + ") [b](/r/demo/foo) [c](javascript:alert(1))"
+		src := "[a](https://example.com/ipfs/" + testCIDv1 + ") [b](/r/demo/foo) [c](javascript:alert(1))" +
+			" [d](ipfs://" + testCIDv1 + "/../" + testCIDv0 + ") ![e](https://" + testCIDv1 + ".ipfs.dweb.link/%2e%2e/" + testCIDv0 + ")"
 		assert.Equal(t, renderIPFS(t, src, ""), renderIPFS(t, src, testGateway))
 	})
 }
