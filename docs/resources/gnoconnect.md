@@ -247,7 +247,7 @@ implementations normalise it, so a wallet lowercases before comparing.
 | `sendtx` | `MsgCall` | yes |
 | `signtx` | `MsgCall` | no — returns the signed tx to the producer |
 | `connect` | — | asks for the user's on-chain identity; with `pubkey`, also has a producer-held key authorised as a session of it |
-| `disconnect` | — | revokes a producer-held session |
+| `disconnect` | — | ends what the wallet keeps for the producer; with `pubkey`, also revokes that producer-held session |
 
 `send…` signs and broadcasts, `sign…` signs only. `MsgRun` follows the same
 naming when it lands (`sendrun` / `signrun`); it is a separate host rather than a
@@ -637,28 +637,30 @@ These are gno.land consensus rules today (`tm2/pkg/sdk/auth`,
 
 #### Parameters
 
-| parameter | `connect` (identity) | `connect` with `pubkey` | `disconnect` | meaning |
-|---|---|---|---|---|
-| `pubkey` | — | required | required | the producer's key, bech32 `gpub1…` |
-| `old` | — | optional | — | the producer's current session key, `gpub1…`, to revoke in the same transaction |
-| `allow` | optional hint, 1–8, repeatable | required, 1–8, repeatable | — | allow entries, chain grammar |
-| `spend` | optional hint | optional | — | spend limit per period, `gnokey` coin syntax (`5000000ugnot`) |
-| `period` | optional hint | optional | — | seconds, `0`–`2592000`; absent means `0` |
-| `expires` | optional hint | required | — | lifetime in **seconds**, `1`–`126144000` |
-| `chainid` | required | required | required | network, resolved as in Network resolution |
-| `rpc` | optional | optional | optional | advisory, as everywhere |
-| `signer` | — | optional; **required** with `old` | **required** | the identity (`address` from a previous `connect`) |
-| `callback` | required | required | optional | where the wallet answers |
-| `state` | optional, RECOMMENDED | **required** | **required** | opaque correlation token, at most 256 characters |
-| `iat` | — | **required** | **required** | issue time, unix seconds |
-| `sig` | — | **required** | **required** | proof of possession by `pubkey` |
-| `oldsig` | — | **required** with `old` | — | proof of possession by `old` |
+| parameter | `connect` (identity) | `connect` with `pubkey` | `disconnect` | `disconnect` with `pubkey` | meaning |
+|---|---|---|---|---|---|
+| `pubkey` | — | required | — | required | the producer's key, bech32 `gpub1…` |
+| `old` | — | optional | — | — | the producer's current session key, `gpub1…`, to revoke in the same transaction |
+| `allow` | optional hint, 1–8, repeatable | required, 1–8, repeatable | — | — | allow entries, chain grammar |
+| `spend` | optional hint | optional | — | — | spend limit per period, `gnokey` coin syntax (`5000000ugnot`) |
+| `period` | optional hint | optional | — | — | seconds, `0`–`2592000`; absent means `0` |
+| `expires` | optional hint | required | — | — | lifetime in **seconds**, `1`–`126144000` |
+| `chainid` | required | required | — | required | network, resolved as in Network resolution |
+| `rpc` | optional | optional | — | optional | advisory, as everywhere |
+| `signer` | — | optional; **required** with `old` | — | **required** | the identity (`address` from a previous `connect`) |
+| `callback` | required | required | optional | optional | where the wallet answers |
+| `state` | optional, RECOMMENDED | **required** | optional, RECOMMENDED | **required** | opaque correlation token, at most 256 characters |
+| `iat` | — | **required** | — | **required** | issue time, unix seconds |
+| `sig` | — | **required** | — | **required** | proof of possession by `pubkey` |
+| `oldsig` | — | **required** with `old` | — | — | proof of possession by `old` |
 
 Rules:
 
 - **`pubkey` sets the mode.** A `connect` with `pubkey` asks for a grant to
   that key. Without it, `allow`, `spend`, `period` and `expires` are hints for
   the wallet's own sessions, and the request is otherwise a plain `connect`.
+  Likewise a `disconnect` with `pubkey` revokes that key, and one without it
+  only ends what the wallet keeps for the producer.
 - **`old` comes with `pubkey`.** A wallet that implements `pubkey` MUST
   implement `old`. So the only wallets that ignore `old` are the ones that
   ignore `pubkey` too, and they grant nothing. `old` MUST differ from `pubkey`,
@@ -676,8 +678,8 @@ Rules:
   itself.
 - **`state` is required when a key is named,** not just recommended, because it
   is part of the signed payload and the replay defence.
-- **`signer` is required with `old` and on `disconnect`.** They act on an
-  existing session, and a session lives under one identity. Without `old` it is
+- **`signer` is required with `old` and on a `disconnect` with `pubkey`.** They
+  act on an existing session, and a session lives under one identity. Without `old` it is
   optional, and a missing pin means "whichever identity the user picks". A
   producer that already knows the identity SHOULD pin it.
 - **Encoding** follows the launch-link rules. `+` is a literal plus in every
@@ -868,14 +870,22 @@ allowed paths. The rules of a `connect` with a key apply, plus:
 #### `disconnect`
 
 ```
+<scheme>://disconnect?callback=<url>&state=<token>
 <scheme>://disconnect?pubkey=<gpub>&chainid=<id>&signer=<address>&callback=<url>&state=<token>&iat=<unix>&sig=<b64url>
 ```
 
-- **It ends a producer-held session.** A producer that connected without a key
-  holds nothing the wallet could revoke for it. It disconnects by forgetting the
-  address, and sends no request.
-- **`pubkey` must be a session of `signer` on chain,** or the wallet answers
-  `session_not_found`.
+- **It always ends what the wallet keeps for the producer,** whatever that is
+  (in-page, the origin's approval; a wallet that keeps nothing per producer has
+  nothing to end). Without `pubkey` that is all it does, and the wallet answers
+  `success` without `revoked`.
+- **Without `pubkey` the request is not authenticated:** on a launch link the
+  callback's host is self-declared. So it may only remove, never grant, and the
+  wallet asks the user before any on-chain revocation it would derive from it
+  (for example of a wallet-held session it created for this producer's hints).
+  A producer that connected without a key may send it, or simply forget the
+  address.
+- **With `pubkey`, it also ends that producer-held session.** `pubkey` must be a
+  session of `signer` on chain, or the wallet answers `session_not_found`.
 - **The user still confirms.** Revoking only removes authority, but it costs gas
   to the identity and may need the identity's signature from another device. The
   wallet MAY use a lighter screen than for a grant.
@@ -972,7 +982,8 @@ Before obtaining any signature, the review screen MUST show:
 
 ```
 <callback>?status=success&address=<bech32>&chainid=<id>&features=<tokens>&session=<bech32>&expires_at=<unix>&allow=<entry>…&spend=<coins>&period=<s>&revoked=<bech32>&hash=<txhash>&state=<echoed>   # connect with a key
-<callback>?status=success&address=<bech32>&chainid=<id>&hash=<txhash>&state=<echoed>                                                                                                       # disconnect
+<callback>?status=success&address=<bech32>&chainid=<id>&hash=<txhash>&state=<echoed>                                                                                                       # disconnect with a key
+<callback>?status=success&state=<echoed>                                                                                                                                                    # disconnect without a key
 <callback>?status=cancelled&state=<echoed>
 <callback>?status=error&code=<code>&state=<echoed>
 ```
