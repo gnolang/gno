@@ -158,7 +158,7 @@ func rewriteIPFSURL(gateway, raw string) (string, bool) {
 	// ".." after it would resolve to other content. And gateways built on
 	// boxo (Kubo, Rainbow) redirect any request with a "uri" query
 	// parameter to the content it names.
-	if hasDotSegment(u.Path) || u.Query().Get("uri") != "" {
+	if hasDotSegment(u.Path) || hasURIParam(u.RawQuery) {
 		return "", false
 	}
 
@@ -239,6 +239,20 @@ func validIPFSName(namespace, name string) bool {
 func hasDotSegment(p string) bool {
 	for _, seg := range strings.FieldsFunc(p, func(r rune) bool { return r == '/' || r == '\\' }) {
 		if seg == "." || seg == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+// hasURIParam reports whether rawQuery has a "uri" key, whatever its value.
+// url.ParseQuery would drop a pair whose value has a malformed escape, but
+// the renderer repairs that escape (%zz becomes %25zz), so the gateway
+// would still see the parameter.
+func hasURIParam(rawQuery string) bool {
+	for _, pair := range strings.Split(rawQuery, "&") {
+		key, _, _ := strings.Cut(pair, "=")
+		if k, err := url.QueryUnescape(key); err == nil && k == "uri" {
 			return true
 		}
 	}

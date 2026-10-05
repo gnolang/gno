@@ -102,6 +102,7 @@ func TestRewriteIPFSURL(t *testing.T) {
 		// Gateways built on boxo redirect a "uri" query to that content.
 		"ipfs://" + testCIDv1 + "/x?uri=ipfs://" + testCIDv0,
 		"ipfs://" + testCIDv1 + "?%75ri=ipfs://" + testCIDv0,
+		"ipfs://" + testCIDv1 + "/x?uri=ipfs://" + testCIDv0 + "/a?%zz", // rendered as %25zz
 		"https://ipfs.io/ipfs/" + testCIDv1 + "?a=1&uri=ipns://example.com",
 		"javascript:alert(1)",
 		"mailto:a@b.c",
