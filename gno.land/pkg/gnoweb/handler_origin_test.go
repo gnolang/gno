@@ -5,14 +5,21 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRequestOrigin(t *testing.T) {
 	t.Parallel()
 
+	trusted, err := state.ParseTrustedProxies([]string{"10.0.0.0/8"})
+	require.NoError(t, err)
+	const proxy = "10.0.0.2:4242"
+
 	cases := []struct {
 		name     string
+		remote   string
 		host     string
 		tls      bool
 		fwdProto string
@@ -32,6 +39,7 @@ func TestRequestOrigin(t *testing.T) {
 		},
 		{
 			name:     "behind proxy with X-Forwarded-Proto https",
+			remote:   proxy,
 			host:     "internal-pod-1",
 			fwdProto: "https",
 			fwdHost:  "gno.land",
@@ -39,6 +47,7 @@ func TestRequestOrigin(t *testing.T) {
 		},
 		{
 			name:     "behind proxy with X-Forwarded-Proto http",
+			remote:   proxy,
 			host:     "internal-pod-1",
 			fwdProto: "http",
 			fwdHost:  "preview.gno.land",
@@ -46,9 +55,21 @@ func TestRequestOrigin(t *testing.T) {
 		},
 		{
 			name:     "X-Forwarded-Host with chain takes leftmost",
+			remote:   proxy,
 			host:     "backend",
 			fwdProto: "https",
 			fwdHost:  "gno.land, edge-1, edge-2",
+			want:     "https://gno.land",
+		},
+		{
+			// A cache in front of gnoweb does not key on this header, so
+			// believing it from anyone would let one request poison the
+			// links and AI prompts served to the next visitor.
+			name:     "ignores X-Forwarded-Host from an untrusted peer",
+			remote:   "203.0.113.7:4242",
+			host:     "gno.land",
+			fwdProto: "https",
+			fwdHost:  "evil.example",
 			want:     "https://gno.land",
 		},
 		{
@@ -89,8 +110,9 @@ func TestRequestOrigin(t *testing.T) {
 			t.Parallel()
 
 			r := &http.Request{
-				Host:   tc.host,
-				Header: http.Header{},
+				RemoteAddr: tc.remote,
+				Host:       tc.host,
+				Header:     http.Header{},
 			}
 			if tc.tls {
 				r.TLS = &tls.ConnectionState{}
@@ -102,7 +124,7 @@ func TestRequestOrigin(t *testing.T) {
 				r.Header.Set("X-Forwarded-Host", tc.fwdHost)
 			}
 
-			assert.Equal(t, tc.want, requestOrigin(r))
+			assert.Equal(t, tc.want, requestOrigin(r, trusted))
 		})
 	}
 }
