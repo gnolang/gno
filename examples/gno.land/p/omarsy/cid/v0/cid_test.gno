@@ -177,6 +177,20 @@ func TestDecodeFirst(t *testing.T) {
 	}
 }
 
+// A CIDv1 with codec 0x20 starts 01 20, so only its first byte tells it
+// from a CIDv0, whose multihash starts 12 20.
+func TestDecodeCodec0x20(t *testing.T) {
+	c, err := NewV1(0x20, Sum(Raw, []byte("hello")).Multihash())
+	urequire.NoError(t, err)
+	d, err := Decode(c.Bytes())
+	urequire.NoError(t, err)
+	uassert.True(t, d == c)
+	f, n, err := DecodeFirst(c.Bytes())
+	urequire.NoError(t, err)
+	uassert.Equal(t, 36, n)
+	uassert.True(t, f == c)
+}
+
 // The longest CID the package accepts must round-trip through every
 // multibase and DecodeFirst, so no length cap is too tight.
 func TestMaxCID(t *testing.T) {
@@ -240,6 +254,19 @@ func TestParseRejects(t *testing.T) {
 		_, err := Parse(s)
 		uassert.Error(t, err, s)
 	}
+}
+
+// A CIDv1 can be 46 characters long like a CIDv0, so Parse must also check
+// the "Qm" prefix.
+func TestParseBase32Len46(t *testing.T) {
+	mh, err := NewMultihash(Identity, []byte("abcdefghijklmnopqrstuvwx"))
+	urequire.NoError(t, err)
+	c, err := NewV1(Raw, mh)
+	urequire.NoError(t, err)
+	uassert.Equal(t, 46, len(c.String()))
+	p, err := Parse(c.String())
+	urequire.NoError(t, err)
+	uassert.True(t, p == c)
 }
 
 func TestNewMultihash(t *testing.T) {
