@@ -480,7 +480,12 @@ type ErrorCode =
   | "no_signer"
   | "not_connected"    // in-page only — see Connecting, and what it gates
   | "unsupported_host"
-  | "tx_failed";
+  | "tx_failed"
+  | "invalid_proof"    // sessions — see Proof of possession
+  | "stale_request"
+  | "session_expired"
+  | "session_not_found"
+  | "session_limit";
 ```
 
 One set serves both transports; `not_connected` is the one code a launch-link
@@ -513,19 +518,23 @@ and it is what a producer must call before it can pin a `signer`.
 // `chainid` is optional: given, it resolves like any other request and may
 // prompt a switch; omitted, the wallet answers against the active network and
 // says which in GnoAccount.chainid. See Network resolution, step 1.
-connect(opts?: { chainid?: string }): Promise<UserResponse<GnoAccount>>;
+// The other fields are the launch link's `connect` parameters: scope hints, or
+// a producer-held session — see Sessions in the browser.
+connect(opts?: GnoConnectOptions): Promise<UserResponse<GnoAccount & Partial<GnoSessionGrant>>>;
 
 interface GnoAccount {
   address: string;         // bech32
   chainid: string;         // the chain this answer was given against
   pubkey: string | null;   // gpub, when the wallet exposes one
+  features?: string[];     // as the launch link's `features`
 }
 ```
 
-**`connect` on an already-approved origin MUST resolve without prompting.** A
-page restoring a session on every navigation would otherwise throw a wallet
-popup on every page load, which makes the feature unusable. Re-approval is for
-origins the user has not already approved.
+**`connect` on an already-approved origin MUST resolve without prompting,**
+unless it names a key that is not already a session covering the request (see
+Sessions in the browser). A page restoring a session on every navigation would
+otherwise throw a wallet popup on every page load, which makes the feature
+unusable. Re-approval is for origins the user has not already approved.
 
 #### Optional methods
 
@@ -549,6 +558,10 @@ getNetwork(): Promise<UserResponse<GnoNetwork>>;
 // Ask the user to switch to a configured chain. A chain the user does not have
 // is network_declined, not a silent add.
 switchNetwork(chainid: string): Promise<UserResponse<{ chainid: string }>>;
+
+// The launch link's `disconnect`: withdraws this origin's approval and, given a
+// request naming a key, also revokes that session. See Sessions in the browser.
+disconnect(req?: GnoDisconnectRequest): Promise<UserResponse<{ revoked?: string; hash?: string }>>;
 
 // Several messages, ONE transaction: one signature, one broadcast, one hash.
 // The launch-link analogue is the multi_msg feature, and the name matches it —
@@ -715,6 +728,98 @@ What the wallet owes:
 
 A page that relies on events still reads state on load (`getAccount`,
 `getNetwork`), since events report changes, not the current state.
+
+### Sessions in the browser
+
+The in-page provider grants, renews and revokes producer-held sessions with the
+launch links' verbs, fields and rules (see Sessions: `connect` with a key, and
+`disconnect`). Only two things differ, both for a reason of the transport: the
+payload has no `callback` line, since the answer goes back to the calling page
+and cannot be redirected; and the review shows the page's **origin**,
+authenticated by the browser, where a launch link shows the callback's host.
+
+```ts
+interface GnoConnectOptions {
+  chainid?: string;    // required as soon as pubkey is present
+  allow?: string[];    // scope hints, or the requested grant with pubkey
+  spend?: string;
+  period?: number;
+  expires?: number;
+  pubkey?: string;     // a producer-held session: the producer's key, gpub1…
+  old?: string;
+  signer?: string;
+  state?: string;
+  iat?: number;
+  sig?: string;
+  oldsig?: string;
+}
+
+interface GnoSessionGrant {
+  session: string;     // bech32 address of pubkey — compare it with your key's
+  expiresAt: number;
+  allow: string[];
+  spend: string;
+  period: number;
+  revoked?: string;
+  hash?: string;
+}
+
+interface GnoDisconnectRequest {
+  pubkey: string;
+  chainid: string;
+  signer: string;
+  state: string;
+  iat: number;
+  sig: string;
+}
+```
+
+- **Fields and validation are the launch link's,** with the same bounds and the
+  same errors. With `pubkey`, `chainid` and `state` become required. Without
+  it, `allow`, `spend`, `period` and `expires` are scope hints, validated the
+  same way.
+- **The payload** is built from the fields: the same lines as for the launch
+  link, numbers in decimal, `allow` one line per entry, absent fields omitted.
+  Every field but `sig` and `oldsig` is covered, those this standard does not
+  define yet included, exactly as every query parameter is on a link. A
+  `callback` field has no meaning in-page: it is ignored and never signed, so a
+  proof made for a launch link, which covers its `callback`, does not verify
+  in-page.
+- **The wallet checks the request before any window opens,** the origin approval
+  included: shape, proof, freshness and the replay memory, as in Proof of
+  possession. Only then does it approve the origin and resolve the network, as
+  for any request, then the identity, look the key up and, when a transaction is
+  needed, open the review.
+- **A repeated `(pubkey, state)` is answered** `Rejected` with
+  `invalid_request`, rather than dropped: each call has its own promise, so
+  answering cannot close the first, and a promise that never settles leaves the
+  page waiting for nothing.
+- **Answers.** As for every method, the user declining is `Rejected`. So is a
+  request the wallet refuses for a reason the page can act on, with its `code`:
+  `invalid_request`, `invalid_proof`, `stale_request`, `session_expired`,
+  `session_not_found`, `session_limit`, `signer_unavailable`,
+  `network_declined`. A genuine failure (`tx_failed`, `no_signer`,
+  `not_connected`) rejects the promise.
+- **`disconnect(req?)` always withdraws the origin's approval** once the call has
+  settled — the review window still opens in the approved context — and then
+  fires the `disconnect` event. With `req`, it also revokes the session: proof,
+  `session_not_found`, the user's confirmation, the transaction. A decline is
+  `Rejected`; the approval is withdrawn in every case, a refused proof included.
+  A `disconnect` with a key does not need the origin to be approved still: its
+  proof authenticates it.
+- **Detection.** A wallet that grants sessions has the `disconnect` method and
+  lists `sessions` in the `features` of its `connect` answers. A page holds a
+  session as granted only if `session` is its key's address, and a key as
+  revoked only if `revoked` is: a wallet that ignores `pubkey` answers a plain
+  `connect`, and one that ignores `req` withdraws the approval and revokes
+  nothing. As on links, a page confirms on chain before relying on either.
+- **Keys.** An in-page wallet that grants sessions MUST accept Ed25519 and
+  secp256k1, for the proof and for the session key. A web producer SHOULD use an
+  Ed25519 WebCrypto key generated with `extractable: false` and kept in
+  IndexedDB as the `CryptoKey` itself: a script injected into the page can use
+  it while it runs, but cannot copy it. secp256k1 remains allowed, for existing
+  JavaScript libraries, but its private key is necessarily readable by
+  JavaScript.
 
 ### Announcements are untrusted
 
@@ -1158,13 +1263,9 @@ would believe a key was disabled when it still works. So revocation is the host
 `disconnect`, and a wallet that does not implement it answers
 `unsupported_host`.
 
-Sessions are carried by launch links only in this version: the in-page
-provider's `connect(opts)` takes no key and no hints yet. It could take the same
-fields (`pubkey`, `old`, the grant, `sig`, `oldsig`) and gain a `disconnect`
-method; a `connect` on an approved origin would then answer without prompting
-only when it names no key, or a key that is already a session covering the
-request. Sessions a session could create itself (attenuated sub-sessions, which
-would need consensus changes) are not covered either.
+The in-page provider carries the same verbs, fields and rules: see Sessions in
+the browser. Sessions a session could create itself (attenuated sub-sessions,
+which would need consensus changes) are not covered.
 
 #### Two kinds of session
 
@@ -1335,8 +1436,9 @@ does, and checked as `PubKey.VerifyBytes` does:
 
 - secp256k1: ECDSA over SHA-256(payload), 64 bytes `R‖S`, low-S. Wallets MUST
   support it.
-- ed25519: RFC 8032 over the payload, 64 bytes. Wallets MAY support it, and
-  answer `invalid_proof` if they do not.
+- ed25519: RFC 8032 over the payload, 64 bytes. Launch-link wallets MAY support
+  it, and answer `invalid_proof` if they do not; in-page wallets MUST (see
+  Sessions in the browser).
 
 `sig` and `oldsig` are **base64url without padding** (RFC 4648 §5). Both sign
 the same payload.
@@ -1353,11 +1455,13 @@ the same payload.
    that window and drop a repeat without answering: the first copy is being
    handled, and answering the copy could close the producer's request early.
    A request the wallet refused and receives again is not answered a second
-   time either.
+   time either. (In-page, where each call has its own promise, the repeat is
+   answered instead: see Sessions in the browser.)
 
 **What it proves.** That the requester holds the private key, and nothing about
 *who* the requester is. As for every `connect`, the producer's identity to the
-user is its callback destination, which the wallet MUST show. What the proof
+user is its callback destination (in-page, its origin), which the wallet MUST
+show. What the proof
 stops is one producer replacing or revoking another producer's session, and a
 producer getting a key it does not control authorised.
 
@@ -1563,7 +1667,7 @@ watch the chain itself when it can (it always can once it knows the identity).
 
 Before obtaining any signature, the review screen MUST show:
 
-- **the callback's host** (the producer's only identity);
+- **the callback's host** (the producer's only identity; in-page, the origin);
 - **the network**: chain id and the endpoint in effect, as in Network resolution;
 - **the identity** that grants;
 - **each allow entry,** with a warning on entries that let the key reach
@@ -1649,7 +1753,9 @@ that has not expired, other than the `old` of a `connect` or the `pubkey` of a
 #### Producer obligations
 
 - **Generate the key on the device** and keep it in the platform's secure
-  storage (Keychain or Android Keystore). Never transmit it.
+  storage (Keychain or Android Keystore; in a browser, a non-extractable
+  WebCrypto key kept in IndexedDB — see Sessions in the browser). Never
+  transmit it.
 - **Use a fresh key for every `connect` that grants,** first and renewal alike.
 - **Keep the old key until the renewal is confirmed on chain,** then delete
   it. A transaction signed with the old key may fail if the swap happens while it
@@ -1738,7 +1844,8 @@ Informative, not normative — ecosystem status, carrying no requirement and
 conferring no standing. Nothing in this standard is specific to any entry here.
 
 - **Gnoweb** (producer)
-- **Adena Wallet** (wallet)
+- **Adena Wallet** (wallet; a prototype on a fork also grants sessions in-page:
+  `connect` with a key, `disconnect`)
 - **Gnokey Mobile** (wallet; on iOS and Android also grants sessions: `connect`
   with a key, `disconnect`, scope hints)
 - **Bubble Rumble mobile** (producer holding its own session key)
