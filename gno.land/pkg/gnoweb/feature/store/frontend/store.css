@@ -117,7 +117,8 @@
 		margin-inline: var(--g-space-0-5) var(--g-space-2-5);
 		border-radius: var(--s-rounded-full);
 		background-color: var(--s-color-bg-brand-action);
-		box-shadow: 0 0 0 var(--g-space-1) color-mix(in srgb, var(--s-color-bg-brand-action) 25%, transparent);
+		box-shadow: 0 0 0 var(--g-space-1)
+			color-mix(in srgb, var(--s-color-bg-brand-action) 25%, transparent);
 		vertical-align: 0.05em;
 	}
 
@@ -173,7 +174,11 @@
 	   no scroll timeline, so no fade. */
 	@supports (animation-timeline: scroll()) {
 		& > ul {
-			mask-image: linear-gradient(to right, #000 calc(100% - var(--store-nav-fade)), transparent);
+			mask-image: linear-gradient(
+				to right,
+				#000 calc(100% - var(--store-nav-fade)),
+				transparent
+			);
 			animation: store-nav-fade linear both;
 			animation-timeline: scroll(self inline);
 		}
@@ -564,7 +569,11 @@
 	font-weight: var(--g-font-medium);
 
 	&:hover {
-		background-color: color-mix(in srgb, var(--s-color-bg-brand-default) 85%, var(--s-color-text-primary));
+		background-color: color-mix(
+			in srgb,
+			var(--s-color-bg-brand-default) 85%,
+			var(--s-color-text-primary)
+		);
 	}
 }
 
