@@ -92,7 +92,9 @@ carries `Namespace` for links, which is never elided and repairs the home
 button, and `Address` for display. The page is titled by `Username`, the name,
 under a "Gnome" label, never cut (a long name wraps); an address with no name
 has an empty `Username` and is titled by the full address, under an
-"Unregistered address" label. Under a name `Address` is printed in full with a
+"Unregistered address" label when the registry answers that nobody holds it,
+and a neutral "Address" label when the lookup fails or the chain has no
+registry. Under a name `Address` is printed in full with a
 copy button ("Address unavailable" when nothing resolved it), and an old name
 also links to the name it now resolves to. An address is never shortened, only
 split once into two equal halves where it cannot fit one line: a start…end form is exactly
