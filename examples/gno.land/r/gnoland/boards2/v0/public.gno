@@ -188,6 +188,13 @@ func createBoard(id boards.ID, caller address, name string, listed, open bool) e
 		return err
 	}
 
+	return addBoard(id, caller, name, listed, open)
+}
+
+// addBoard creates a board and adds it to the realm storage.
+// It performs no permission or validation checks, so callers are responsible
+// for doing their own.
+func addBoard(id boards.ID, caller address, name string, listed, open bool) error {
 	board := boards.New(id)
 	board.Name = name
 	board.Creator = caller
