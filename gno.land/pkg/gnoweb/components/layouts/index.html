@@ -1,6 +1,6 @@
 {{ define "index" -}}
 <!doctype html>
-<html lang="en"{{ with .Theme }} data-theme="{{ . }}"{{ end }}{{ with .NetworkKind }} data-network="{{ . }}"{{ end }}>
+<html lang="en"{{ with .Theme }} data-theme="{{ . }}"{{ end }}{{ with .NetworkKind }} data-network="{{ . }}"{{ end }}{{ with .IndexData.HeaderData.Notice.Lines }} data-realm-notice-lines="{{ . }}"{{ end }}>
 {{ template "layouts/head" .IndexData.HeadData -}}
 
 <body>
@@ -24,7 +24,7 @@
   {{ end -}}
   {{ end -}}
   {{ template "layouts/header" .IndexData.HeaderData -}}
-  <main {{ if not .IndexData.BodyView.SkipTargetInBody }}id="main-content" tabindex="-1" {{ end }}{{ if .IsDevmodView }}class="is-dev-mode" {{ end }}>
+  <main {{ if not .IndexData.BodyView.SkipTargetInBody }}id="main-content" tabindex="-1" {{ end }}{{ if .IsDevmodView }}class="is-dev-mode" {{ end }}{{ if .IndexData.HeaderData.Notice.Enabled }}aria-describedby="realm-notice" {{ end }}>
     <section class="c-center">
       {{ render .IndexData.BodyView -}}
     </section>

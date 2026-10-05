@@ -37,6 +37,7 @@ func EnrichFooterData(data FooterData) FooterData {
 	nav := []FooterLink{
 		{Label: "About", URL: "/about"},
 		{Label: "Docs", URL: "https://docs.gno.land/", Outbound: OutboundDocs},
+		{Label: "Build with AI", URL: gnoMCPSite, Outbound: OutboundGnoMCP},
 	}
 	// A deployment without a faucet must not advertise one.
 	if data.HasFaucet {

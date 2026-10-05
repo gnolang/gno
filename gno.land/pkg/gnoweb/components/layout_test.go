@@ -656,6 +656,147 @@ func TestIndexLayout_NetworkPropagation(t *testing.T) {
 	assert.NotContains(t, mainnet, "network-chip")
 }
 
+func TestNewRealmNotice(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name, text, short string
+		wantErr           bool
+	}{
+		{name: "empty", text: "", wantErr: true},
+		{name: "spaces", text: "   ", wantErr: true},
+		{name: "heading only", text: "# heading only", wantErr: true},
+		{name: "first line empty", text: "\nsecond line", wantErr: true},
+		{name: "raw html only", text: "<b></b>", wantErr: true},
+		{name: "zero-width space", text: "\u200b", wantErr: true},
+		{name: "zero-width entity", text: "&#8203;", wantErr: true},
+		{name: "nbsp entity", text: "&nbsp;", wantErr: true},
+		{name: "braille blank", text: "\u2800", wantErr: true},
+		{name: "empty link", text: "[](https://example.com)", wantErr: true},
+		{name: "image only", text: "![warning](https://example.com/w.png)", wantErr: true},
+		{name: "text", text: "Community realm"},
+		{name: "text and short", text: "Community realm, long", short: "Community realm"},
+		{name: "short renders nothing", text: "Community realm", short: "<b></b>", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			n, err := NewRealmNotice(tc.text, tc.short)
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, n.Enabled())
+			assert.Equal(t, tc.short != "", n.Short.Enabled())
+		})
+	}
+}
+
+func TestNewRealmNotice_DropsImages(t *testing.T) {
+	t.Parallel()
+
+	n, err := NewRealmNotice("Read ![logo](https://example.com/l.png) the code", "")
+	require.NoError(t, err)
+	var buf strings.Builder
+	require.NoError(t, n.Text.Render(&buf))
+	assert.Equal(t, "Read  the code", buf.String())
+}
+
+func TestRealmNotice_Lines(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, 0, RealmNotice{}.Lines())
+	short, err := NewRealmNotice("Community realm, long", "Community realm")
+	require.NoError(t, err)
+	assert.Equal(t, 1, short.Lines())
+	custom, err := NewRealmNotice("Operator text", "")
+	require.NoError(t, err)
+	assert.Equal(t, 2, custom.Lines())
+}
+
+// realmNoticeLayout renders a realm page with the given notice and banner.
+func realmNoticeLayout(t *testing.T, notice RealmNotice, banner string) string {
+	t.Helper()
+
+	bannerData, err := NewBannerData(banner, "")
+	require.NoError(t, err)
+	data := IndexData{
+		HeadData:   HeadData{Title: "Test"},
+		HeaderData: HeaderData{Notice: notice},
+		Mode:       ViewModeRealm,
+		Banner:     bannerData,
+		BodyView: &View{
+			Type:      "test-view",
+			Component: NewReaderComponent(strings.NewReader("testdata")),
+		},
+	}
+
+	var buf strings.Builder
+	require.NoError(t, IndexLayout(data).Render(&buf))
+	return buf.String()
+}
+
+// noticeRow returns the realm-notice row's markup, or "" if there is none.
+func noticeRow(out string) string {
+	start := strings.Index(out, `<div class="b-header-notice"`)
+	if start < 0 {
+		return ""
+	}
+	end := strings.Index(out[start:], "</div>")
+	return out[start : start+end]
+}
+
+func TestIndexLayout_RealmNotice(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no notice leaves the page unchanged", func(t *testing.T) {
+		t.Parallel()
+		out := realmNoticeLayout(t, RealmNotice{}, "")
+		assert.Empty(t, noticeRow(out))
+		assert.Contains(t, out, "</nav>\n</header>")
+		assert.Contains(t, out, `<html lang="en">`)
+		assert.NotContains(t, out, "aria-describedby")
+	})
+
+	t.Run("default notice is the header's one-line second row", func(t *testing.T) {
+		t.Parallel()
+		notice, err := NewRealmNotice("**Community realm**, deployed by its author.", "**Community realm.**")
+		require.NoError(t, err)
+		out := realmNoticeLayout(t, notice, "Maintenance")
+
+		header := strings.Index(out, `<header class="b-header">`)
+		require.NotEqual(t, -1, header)
+		assert.Less(t, strings.Index(out, `class="b-banner"`), header, "banner must render above the header")
+		assert.Less(t, strings.Index(out, "</nav>"), strings.Index(out, `<div class="b-header-notice"`), "row follows the nav")
+		assert.Less(t, strings.Index(out, `<div class="b-header-notice"`), strings.Index(out, "</header>\n<main"), "row is inside the header")
+
+		row := noticeRow(out)
+		assert.Contains(t, row, `role="note"`)
+		assert.Contains(t, row, `aria-label="Community realm notice"`)
+		assert.Contains(t, row, `<p id="realm-notice"`)
+		assert.Contains(t, row, `aria-hidden="true"`)
+		assert.Contains(t, row, `<use href="#ico-info-circle"></use>`)
+		assert.Contains(t, row, `<span class="short"><strong>Community realm.</strong></span>`)
+		assert.Contains(t, row, `<span class="long"><strong>Community realm</strong>, deployed by its author.</span>`)
+		assert.Contains(t, out, `<html lang="en" data-realm-notice-lines="1">`)
+		assert.Contains(t, out, `aria-describedby="realm-notice"`)
+	})
+
+	t.Run("operator text shows as-is and reserves two lines", func(t *testing.T) {
+		t.Parallel()
+		notice, err := NewRealmNotice("Operator <script>alert(1)</script> & co", "")
+		require.NoError(t, err)
+		out := realmNoticeLayout(t, notice, "")
+
+		row := noticeRow(out)
+		assert.Contains(t, row, "<span>Operator <!-- raw HTML omitted -->alert(1)<!-- raw HTML omitted --> &amp; co</span>")
+		assert.NotContains(t, row, "<script>")
+		assert.NotContains(t, row, `class="short"`)
+		assert.Contains(t, out, `<html lang="en" data-realm-notice-lines="2">`)
+	})
+}
+
 // headFixture renders the index layout head with the given build version.
 func headFixture(t *testing.T, version string) string {
 	t.Helper()

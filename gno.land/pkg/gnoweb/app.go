@@ -66,6 +66,12 @@ type AppConfig struct {
 	Domain string
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
+	// RealmNotice, if set, is shown as the header's second row on pages of
+	// packages outside TrustedPaths.
+	RealmNotice components.RealmNotice
+	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
+	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice.
+	TrustedPaths []string
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -76,9 +82,10 @@ type AppConfig struct {
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies is the list of trusted reverse-proxy
 	// CIDRs (or bare IPs) for the per-IP rate limiter. X-Real-IP is honored
-	// only for connections originating inside one of these networks; empty
-	// (the default) trusts nothing, so untrusted deployments never trust
-	// attacker-controlled headers. ADR-003 §Resource bounds.
+	// only for connections originating inside one of these networks, and so
+	// is X-Forwarded-Host for the page origin (shareable links, AI prompts);
+	// empty (the default) trusts nothing, so untrusted deployments never
+	// trust attacker-controlled headers. ADR-003 §Resource bounds.
 	StateRateLimitTrustedProxies []string
 	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
 	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
@@ -191,6 +198,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		NetworkKind:       cfg.NetworkKind,
 		FaucetURL:         cfg.FaucetURL,
 		StatusURL:         cfg.StatusURL,
+		RealmNotice:       cfg.RealmNotice,
 	}
 
 	// Configure Markdown renderer
@@ -211,6 +219,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Meta:                         staticMeta,
 		Renderer:                     renderer,
 		Aliases:                      cfg.Aliases,
+		TrustedPaths:                 cfg.TrustedPaths,
 		Timeout:                      cfg.NodeRequestTimeout,
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
