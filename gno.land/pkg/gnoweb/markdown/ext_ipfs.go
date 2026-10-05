@@ -250,7 +250,7 @@ func hasDotSegment(p string) bool {
 // the renderer repairs that escape (%zz becomes %25zz), so the gateway
 // would still see the parameter.
 func hasURIParam(rawQuery string) bool {
-	for _, pair := range strings.Split(rawQuery, "&") {
+	for pair := range strings.SplitSeq(rawQuery, "&") {
 		key, _, _ := strings.Cut(pair, "=")
 		if k, err := url.QueryUnescape(key); err == nil && k == "uri" {
 			return true
