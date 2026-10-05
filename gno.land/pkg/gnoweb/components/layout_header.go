@@ -36,6 +36,8 @@ type HeaderData struct {
 	Remote     string
 	Mode       ViewMode
 	Static     bool
+	// StoreURL, when set, adds the Explore entry left of the logo.
+	StoreURL string
 	// Origin is the request scheme+host the AI prompts link to.
 	Origin string
 	AI     *AIMenu

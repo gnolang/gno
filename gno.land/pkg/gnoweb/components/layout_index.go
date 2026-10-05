@@ -89,7 +89,7 @@ func NewBannerData(markdown, globalURL string) (BannerData, error) {
 
 // renderInline is NewBannerData with two additions for the realm notice:
 // dropImages removes images, and visible reports whether the result shows at
-// least one visible character (see isVisibleRune).
+// least one visible character (see IsVisibleRune).
 func renderInline(markdown, globalURL string, dropImages bool) (b BannerData, visible bool, err error) {
 	// Keep only the first line
 	if i := strings.IndexAny(markdown, "\n\r"); i >= 0 {
@@ -193,7 +193,7 @@ func hasVisibleText(doc ast.Node, src []byte) bool {
 		default:
 			return ast.WalkContinue, nil
 		}
-		if entering && strings.IndexFunc(stdhtml.UnescapeString(s), isVisibleRune) >= 0 {
+		if entering && strings.IndexFunc(stdhtml.UnescapeString(s), IsVisibleRune) >= 0 {
 			visible = true
 			return ast.WalkStop, nil
 		}
@@ -202,10 +202,10 @@ func hasVisibleText(doc ast.Node, src []byte) bool {
 	return visible
 }
 
-// isVisibleRune reports whether r draws something: graphic, neither space
+// IsVisibleRune reports whether r draws something: graphic, neither space
 // nor format (Cf: zero-width and bidi controls), nor one of the fillers that
 // Unicode classes as graphic but fonts draw as blank.
-func isVisibleRune(r rune) bool {
+func IsVisibleRune(r rune) bool {
 	switch r {
 	case '\u2800', '\u115F', '\u1160', '\u3164', '\uFFA0': // braille blank, hangul fillers
 		return false
