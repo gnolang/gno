@@ -29,7 +29,8 @@ func TestRewriteIPFSURL(t *testing.T) {
 		{"ipfs://" + testCIDv1, gwIPFS + testCIDv1},
 		{"ipfs://" + testCIDv1 + "/dir/a%20b.png?filename=x.png#top", gwIPFS + testCIDv1 + "/dir/a%20b.png?filename=x.png#top"},
 		{"IPFS://" + testCIDv0 + "/", gwIPFS + testCIDv0 + "/"},
-		{"ipfs://" + testCIDv1 + "/..a/b../.x", gwIPFS + testCIDv1 + "/..a/b../.x"}, // dots, but no dot segment
+		{"ipfs://" + testCIDv1 + "/..a/b../.x", gwIPFS + testCIDv1 + "/..a/b../.x"},     // dots, but no dot segment
+		{"ipfs://" + testCIDv1 + "?curi=1&a=uri", gwIPFS + testCIDv1 + "?curi=1&a=uri"}, // "uri", but not the key
 		{"ipns://en.wikipedia-on-ipfs.org/wiki/", testGateway + "/ipns/en.wikipedia-on-ipfs.org/wiki/"},
 		{"ipns://" + testIPNSKey, testGateway + "/ipns/" + testIPNSKey},
 
@@ -98,6 +99,10 @@ func TestRewriteIPFSURL(t *testing.T) {
 		"ipns://example.com/../../ipns/evil.example/x",
 		"https://" + testCIDv1 + ".ipfs.dweb.link/../" + testCIDv0,
 		"https://ipfs.io/ipfs/" + testCIDv1 + "/../" + testCIDv0,
+		// Gateways built on boxo redirect a "uri" query to that content.
+		"ipfs://" + testCIDv1 + "/x?uri=ipfs://" + testCIDv0,
+		"ipfs://" + testCIDv1 + "?%75ri=ipfs://" + testCIDv0,
+		"https://ipfs.io/ipfs/" + testCIDv1 + "?a=1&uri=ipns://example.com",
 		"javascript:alert(1)",
 		"mailto:a@b.c",
 		"/r/demo/foo",

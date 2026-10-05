@@ -125,8 +125,8 @@ func mayBeIPFSURL(b []byte) bool {
 // Protocol-relative URLs (//ipfs.io/ipfs/...) are handled like https ones.
 // Query and fragment are kept. It reports false, and leaves the URL alone,
 // for anything else: other hosts, userinfo, explicit ports, a CID or name
-// that is not plain alphanumerics (plus dots and hyphens for IPNS), or a
-// path with a "." or ".." segment.
+// that is not plain alphanumerics (plus dots and hyphens for IPNS), a path
+// with a "." or ".." segment, or a "uri" query parameter.
 func rewriteIPFSURL(gateway, raw string) (string, bool) {
 	u, err := url.Parse(raw)
 	if err != nil || u.User != nil {
@@ -155,8 +155,10 @@ func rewriteIPFSURL(gateway, raw string) (string, bool) {
 		return "", false
 	}
 	// On the gateway the CID is a path segment rather than the host, so a
-	// ".." after it would resolve to other content.
-	if hasDotSegment(u.Path) {
+	// ".." after it would resolve to other content. And gateways built on
+	// boxo (Kubo, Rainbow) redirect any request with a "uri" query
+	// parameter to the content it names.
+	if hasDotSegment(u.Path) || u.Query().Get("uri") != "" {
 		return "", false
 	}
 
