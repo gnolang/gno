@@ -16,8 +16,24 @@
 	padding-block: var(--g-space-8) var(--g-space-24);
 	color: var(--s-color-text-primary);
 
+	/* The page's blocks relate through centres, not one rigid column
+	   split. Call the content 24 units wide: the shelves are four cards of
+	   six units (two from --md, one list on a phone), always --store-gap
+	   apart. The Spotlight is three cards of eight, so its middle card is
+	   centred on the page centre, the shelves' line between cards 2 and 3;
+	   the calls to list and the Top builders split on that centre too.
+	   The hero leans: its split falls on unit 15, the centre of the third
+	   shelf card. A split is the middle of the gap between two halves.
+	   --store-frame is a card's tinted frame; a tinted panel (the
+	   Spotlight tray, the calls to list) pads by --store-bleed and bleeds
+	   that much outside the content, so what is in it keeps the units. */
+	--store-gap: var(--g-space-4);
+	--store-frame: var(--g-space-1);
+	--store-bleed: var(--g-space-4);
+
 	@media (--md) {
 		gap: var(--g-space-12);
+		--store-bleed: var(--g-space-6);
 	}
 
 	/* Covers keep 16:9 whether generated (svg) or owner-supplied (img). */
@@ -312,13 +328,17 @@
 
 /* The Spotlight is set apart on a tray, so it reads as the day's pick
    rather than one more shelf; the first shelf follows closer. */
+/* The tray bleeds outside the content by its own padding, so its cards
+   keep the content's width: the middle one is centred on the page.
+   On a phone that bleed reaches the screen's edges, so it is square. */
 .b-store-spotlight {
-	padding: var(--g-space-4);
+	margin-inline: calc(-1 * var(--store-bleed));
+	padding: var(--store-bleed);
 	border-radius: var(--s-rounded);
 	background-color: var(--s-color-bg-surface-primary);
 
-	@media (--md) {
-		padding: var(--g-space-6);
+	@media not (--md) {
+		border-radius: 0;
 	}
 
 	.b-pkg-section__header {
@@ -342,7 +362,7 @@
 	flex-direction: column;
 	gap: var(--g-space-1);
 	block-size: 100%;
-	padding: var(--g-space-1);
+	padding: var(--store-frame);
 	border-radius: var(--s-rounded);
 	background-color: var(--s-color-bg-surface-primary);
 	transition: background-color var(--g-transition-fast);
@@ -445,16 +465,39 @@
 }
 
 /* The page's one hero: the card at full width, the cover beside the text
-   on wide screens, wide and short so the hero leads without taking the
-   whole fold. The text is one stack on the cover's middle: label, a title
+   on wide screens. The gap between them is the grid's plus the two frames
+   a pair of cards would have, and its middle is the split: on the page
+   centre while the shelves have two columns, then on the centre of the
+   third shelf card (unit 15 of 24), so the cover leads at about 5:3.
+   Wide and short so the hero leads without taking the whole fold. The text is one stack on the cover's middle: label, a title
    at the size of a page section, the tagline as a lead, the meta in one
    row under it (category, stars, path, nothing pushed to an edge), then
    the buttons. */
 .b-store-hero .b-store-card {
+	--store-hero-gap: calc(var(--store-gap) + 2 * var(--store-frame));
+
 	@media (--lg) {
 		display: grid;
-		grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: var(--store-hero-gap);
 		align-items: stretch;
+	}
+
+	/* The card is W = 100% + 2 frames wide and a shelf card c = (W - 3
+	   gaps) / 4, so the third one's centre is at 2.5 c + 2 gaps =
+	   0.625 W + 0.125 gap. The cover starts a frame in and ends half the
+	   hero's gap before that centre. */
+	@media (--xl) {
+		--store-hero-split: calc(
+			62.5% +
+			var(--store-frame) /
+			4 +
+			var(--store-gap) /
+			8
+		);
+		grid-template-columns:
+			calc(var(--store-hero-split) - var(--store-hero-gap) / 2)
+			minmax(0, 1fr);
 	}
 
 	.cover {
@@ -633,7 +676,7 @@
 .b-store-grid {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: var(--g-space-3);
+	gap: var(--store-gap);
 
 	@media (--md) {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -641,7 +684,6 @@
 
 	@media (--xl) {
 		grid-template-columns: repeat(4, minmax(0, 1fr));
-		gap: var(--g-space-4);
 	}
 
 	.cover {
@@ -698,10 +740,13 @@
 	}
 }
 
-/* Spotlight apps scroll in a row on small screens and share it on wide
-   ones, however many there are. Three across, their covers are wider
-   still, so the row stays the height of a grid row. */
+/* Spotlight apps scroll in a row on a phone. On two columns the first of
+   three takes its own row, the others share the next; every cover is as
+   tall as a shelf card's at 2:1, so a wider one is a wider crop of its
+   art. From --xl the apps are equal, three of eight units, so the
+   middle one is centred on the page (two share it half and half). */
 .b-store-grid--spotlight {
+	container-type: inline-size;
 	grid-template-columns: none;
 	grid-auto-columns: 85%;
 	grid-auto-flow: column;
@@ -715,23 +760,36 @@
 	.cover {
 		display: block;
 		aspect-ratio: 3 / 1;
-
-		@media (--md) {
-			aspect-ratio: 2 / 1;
-		}
 	}
 
 	@media (--md) {
-		grid-auto-columns: 45%;
-	}
-
-	@media (--xl) {
-		grid-template-columns: none;
-		grid-auto-columns: minmax(0, 1fr);
+		--store-col: calc((100cqi - var(--store-gap)) / 2);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-auto-flow: row;
 		overflow-x: visible;
 
+		& > li:first-child:nth-last-child(odd) {
+			grid-column: span 2;
+		}
+
 		.cover {
-			aspect-ratio: 5 / 2;
+			block-size: calc((var(--store-col) - 2 * var(--store-frame)) / 2);
+			aspect-ratio: auto;
+		}
+	}
+
+	/* The covers stay a shelf card's height (a quarter of the row, 2:1),
+	   so the wider cards crop their art rather than grow. */
+	@media (--xl) {
+		--store-col: calc((100cqi - 3 * var(--store-gap)) / 4);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+
+		&:has(> li:first-child:nth-last-child(2)) {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		& > li:first-child:nth-last-child(odd) {
+			grid-column: auto;
 		}
 	}
 }
@@ -745,7 +803,7 @@
 
 	@media (--lg) {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: var(--g-space-8);
+		gap: var(--store-gap);
 	}
 
 	.count {
@@ -757,13 +815,21 @@
 /* The call to list: the action page's card panel (.b-action-function),
    whose surface gives the .b-code blocks inside its edge, so the copy
    button sits in the code block's top-right corner as on that page. The
-   page leaves more room above it than between its sections. Code keeps its
-   lines: a long one scrolls rather than wraps mid-string. */
+   page leaves more room above it than between its sections. Like the
+   Spotlight tray, the panel bleeds outside the content by its padding, so
+   its two halves split on the page centre. Code keeps its lines: a
+   long one scrolls rather than wraps mid-string. */
 .b-store-cta {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
-	gap: var(--g-space-4);
+	gap: var(--store-gap);
 	margin-block: var(--g-space-6) 0;
+	margin-inline: calc(-1 * var(--store-bleed));
+	padding: var(--store-bleed);
+
+	@media not (--md) {
+		border-radius: 0;
+	}
 
 	.description {
 		max-inline-size: 70ch;
@@ -794,11 +860,10 @@
 		white-space: pre;
 	}
 
-	/* Wide screens: the why on the left, the code to copy on the right. */
-	@media (--xl) {
-		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
-		column-gap: var(--g-space-8);
-		padding: var(--g-space-6);
+	/* Wide screens: the why on the left half, the code to copy on the
+	   right half, split on the page centre. */
+	@media (--lg) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 }
 
