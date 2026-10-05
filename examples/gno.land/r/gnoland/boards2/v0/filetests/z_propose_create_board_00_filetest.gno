@@ -50,9 +50,9 @@ func main(cur realm) {
 }
 
 // Output:
-// boards before = 0
+// boards before = 1
 // executed = true
 // found = true
-// ID = 1
+// ID = 2
 // owner is owner = true
 // proposer is owner = false

@@ -45,4 +45,4 @@ func main(cur realm) {
 
 // Output:
 // executed = false
-// boards = 1
+// boards = 2
