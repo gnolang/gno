@@ -101,7 +101,7 @@ func (p pagePolicy) robots(k pageKind, u *weburl.GnoURL) robots {
 		switch p.index {
 		case IndexAllCommunity:
 		case IndexRegisteredCommunity:
-			if u.Args != "" || len(u.Query) > 0 || len(u.WebQuery) > 0 || isAddress(u.Namespace()) {
+			if u.Args != "" || len(u.Query) > 0 || len(u.WebQuery) > 0 || isGnoAddress(u.Namespace()) {
 				return noIndexNoFollow
 			}
 			return indexFollow

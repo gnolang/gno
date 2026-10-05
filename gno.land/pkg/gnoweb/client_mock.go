@@ -219,3 +219,11 @@ func pkgHasRender(pkg *MockPackage) bool {
 	}
 	return false
 }
+
+// Eval answers like a chain that does not deploy the realm.
+func (m *MockClient) Eval(ctx context.Context, _, _ string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+	return nil, ErrClientPackageNotFound
+}

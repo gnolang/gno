@@ -6,3 +6,6 @@ const (
 	SiteDescription  = "Explore realms and packages on gno.land, the network for Gno smart contracts."
 	ErrorDescription = errorDescription
 )
+
+// MaxUsernameLen exposes the gate's cap on a /u/ name to the external tests.
+const MaxUsernameLen = maxUsernameLen
