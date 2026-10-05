@@ -197,8 +197,8 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 
 // QEval evaluates the given expression with the realm code at pkgPath. The pkgPath should
 // include the prefix like "gno.land/". The expression is usually a function call like
-// "GetBoardIDFromName(\"testboard\")". The return value is a typed expression like
-// "(1 gno.land/r/archive/boards.BoardID)\n(true bool)".
+// "IsBoardFrozen(1)". The return value is a typed expression like
+// "(false bool)".
 func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
@@ -213,6 +213,95 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	}
 	if qres.Response.Error != nil {
 		return "", nil, errors.Wrapf(qres.Response.Error, "QEval failed: log:%s", qres.Response.Log)
+	}
+
+	return string(qres.Response.Data), qres, nil
+}
+
+// QEvalJSON evaluates the given expression with the realm code at pkgPath. The pkgPath should
+// include the prefix like "gno.land/". The expression is usually a function call like
+// "IsBoardFrozen(1)". The return value is a JSON string like
+// "{\"results\":[{\"T\":{\"@type\":\"/gno.PrimitiveType\",\"value\":\"4\"}}]}".
+func (c *Client) QEvalJSON(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return "", nil, err
+	}
+
+	path := "vm/qeval_json"
+	data := fmt.Appendf(nil, "%s.%s", pkgPath, expression)
+
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "query qeval_json")
+	}
+	if qres.Response.Error != nil {
+		return "", nil, errors.Wrapf(qres.Response.Error, "QEvalJSON failed: log:%s", qres.Response.Log)
+	}
+
+	return string(qres.Response.Data), qres, nil
+}
+
+// QObjectJSON retrieves the persisted object with the given objectID, like
+// "0ed754d80e40da2645666583e74d4ab093970a6a:534". The return value is a JSON
+// string like "{\"objectid\":\"...\",\"value\":{...}}".
+func (c *Client) QObjectJSON(objectID string) (string, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return "", nil, err
+	}
+
+	path := "vm/qobject_json"
+	data := []byte(objectID)
+
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "query qobject_json")
+	}
+	if qres.Response.Error != nil {
+		return "", nil, errors.Wrapf(qres.Response.Error, "QObjectJSON failed: log:%s", qres.Response.Log)
+	}
+
+	return string(qres.Response.Data), qres, nil
+}
+
+// QTypeJSON retrieves the type definition with the given typeID, like
+// "gno.land/r/sys/users.UserData". The return value is a JSON string like
+// "{\"typeid\":\"...\",\"type\":{...}}".
+func (c *Client) QTypeJSON(typeID string) (string, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return "", nil, err
+	}
+
+	path := "vm/qtype_json"
+	data := []byte(typeID)
+
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "query qtype_json")
+	}
+	if qres.Response.Error != nil {
+		return "", nil, errors.Wrapf(qres.Response.Error, "QTypeJSON failed: log:%s", qres.Response.Log)
+	}
+
+	return string(qres.Response.Data), qres, nil
+}
+
+// QPkgJSON retrieves the package-level variables of the package at pkgPath. The
+// pkgPath should include the prefix like "gno.land/". The return value is a JSON
+// string like "{\"names\":[...],\"values\":[...]}".
+func (c *Client) QPkgJSON(pkgPath string) (string, *ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return "", nil, err
+	}
+
+	path := "vm/qpkg_json"
+	data := []byte(pkgPath)
+
+	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "query qpkg_json")
+	}
+	if qres.Response.Error != nil {
+		return "", nil, errors.Wrapf(qres.Response.Error, "QPkgJSON failed: log:%s", qres.Response.Log)
 	}
 
 	return string(qres.Response.Data), qres, nil
