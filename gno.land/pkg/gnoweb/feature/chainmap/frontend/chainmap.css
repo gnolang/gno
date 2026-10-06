@@ -277,18 +277,32 @@
 	font-size: var(--g-font-size-50);
 }
 
-/* A path wraps rather than being cut: realms under one address differ only
-   at their end, and a shortened address is what a lookalike imitates. */
+/* The busiest realms, in the rail's list style (b-toc): a path is never
+   cut, since realms under one address differ only at their end and a
+   shortened address is what a lookalike imitates; its count sits at the
+   end of the row. */
 .b-map-busiest {
-	font-size: var(--g-font-size-90);
+	padding: 0;
 
-	& .b-pkg-list__link > :first-child {
-		min-width: 0;
-		overflow-wrap: anywhere;
+	& a {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--g-space-3);
+
+		& > span {
+			display: block;
+			min-width: 0;
+			overflow-wrap: anywhere;
+			-webkit-line-clamp: none;
+		}
 	}
 
-	& .b-tag--tertiary {
+	& small {
 		flex: none;
+		color: var(--s-color-text-tertiary);
+		font: inherit;
+		font-variant-numeric: tabular-nums;
 	}
 }
 

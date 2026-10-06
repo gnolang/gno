@@ -62,13 +62,13 @@ in the listing's rail.
 =================================================================================== */}}
 {{ define "chainmap/key" }}
 <section class="b-map-key" aria-labelledby="map-key-heading">
-<h3 id="map-key-heading" class="b-sidebar-heading">Map key</h3>
+<h2 id="map-key-heading" class="b-sidebar-heading">Map key</h2>
 <dl class="b-pkg-meta">
   {{ with .Up }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}$map">Map of {{ . }}</a></dd></div>{{ end }}
   <div class="row"><dt class="label">Area</dt><dd class="value">One tile per package</dd></div>
   <div class="row"><dt class="label">Boxes</dt><dd class="value">Path segments; select a name to zoom</dd></div>
   {{ if .Window }}{{ with .Window }}
-  <div class="row"><dt class="label">Color</dt><dd class="value">Successful calls, 7 days</dd></div>
+  <div class="row"><dt class="label">Color</dt><dd class="value"><span class="b-tag b-tag--indexer">indexer</span> Successful calls, 7 days</dd></div>
   <div class="row"><dt class="label">Window</dt><dd class="value">{{ .Since.UTC.Format "Jan 2" }} → now · blocks {{ .From }}–{{ .To }}</dd></div>
   {{ end }}{{ else if eq .Activity "pending" }}
   <div class="row"><dt class="label">Color</dt><dd class="value">Calls are still being counted. <a href="{{ .Root }}$map">Reload</a></dd></div>
@@ -90,11 +90,13 @@ in the listing's rail.
 {{ end }}{{ end }}
 </section>
 {{ with .Busiest }}
+{{/* The rail's own list style, the Package Index's: no rules of its own
+     under the heading's. */}}
 <section aria-labelledby="map-busiest-heading">
-  <h3 id="map-busiest-heading" class="b-sidebar-heading">Most called · 7 days <span class="b-tag b-tag--indexer">indexer</span></h3>
-  <ol class="b-pkg-list b-map-busiest">
+  <h2 id="map-busiest-heading" class="b-sidebar-heading">Most called · 7 days</h2>
+  <ol class="b-toc b-map-busiest">
     {{ range . }}
-    <li class="b-pkg-list__item"><a class="b-pkg-list__link" href="{{ .Path }}"><span class="u-font-mono">{{ .Path }}</span><span class="b-tag--tertiary">{{ .Calls }}</span></a></li>
+    <li><a href="{{ .Path }}"><span>{{ .Path }}</span><small>{{ .Calls }}</small></a></li>
     {{ end }}
   </ol>
 </section>
