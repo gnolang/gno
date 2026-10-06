@@ -195,7 +195,7 @@ func TestFit(t *testing.T) {
 	}{
 		{"daily", room(5), "daily"},
 		{"governance", room(6), "gover…"},
-		{"governance", room(3), ""},
+		{"governance", room(5), ""},
 		{"a", room(1), "a"},
 	}
 	for _, c := range cases {

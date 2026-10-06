@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 // The map is drawn in a fixed coordinate space the SVG scales to its width,
@@ -32,8 +34,9 @@ const (
 	monoAdvance = 0.6
 
 	// minLabelChars is the shortest label worth drawing: below it a name is
-	// an ellipsis and a letter, which reads as a rendering fault.
-	minLabelChars = 4
+	// a few letters and an ellipsis, which names nothing ("g17…" could be
+	// any of a hundred addresses) and reads as a rendering fault.
+	minLabelChars = 6
 )
 
 // subgroupMin is how many packages a group needs before it is split by the
@@ -123,6 +126,9 @@ type Tile struct {
 	// ShadeClass is the activity colour, empty when the map shows none.
 	ShadeClass string
 }
+
+// PathSegments is Path cut after each slash, for line breaks in lists.
+func (t Tile) PathSegments() []string { return components.PathSegments(t.Path) }
 
 // buildGroups groups the listed paths below prefix, which ends with a slash,
 // by their first and then their second path segment. A path outside prefix

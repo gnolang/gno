@@ -39,9 +39,11 @@
 	}
 }
 
+/* Tile names in the strongest text color on every shade: the secondary
+   gray on a gray tile fell under 3:1. */
 .b-map__group {
 	--map-tile: var(--s-color-bg-surface-secondary);
-	--map-ink: var(--s-color-text-secondary);
+	--map-ink: var(--s-color-text-primary);
 }
 
 /* A tile: its fill, a hairline of page between neighbours, its name. */
@@ -159,10 +161,9 @@
 
 /* ===== ACTIVITY ===== */
 /* A tile's activity class replaces its group's hue. Steps mix the action
-   green into the neutral surface, so the ramp follows the theme. From the
-   middle step the ink is the strongest text color, and the two strongest
-   steps take dark ink in both themes: light text on the mid green fails
-   contrast. */
+   green into the neutral surface, so the ramp follows the theme. The two
+   strongest steps take dark ink in both themes: light text on the mid green
+   fails contrast. */
 .b-map__tile--l0,
 .b-map__tile--l1,
 .b-map__tile--l2,
@@ -180,7 +181,6 @@
 }
 .b-map__tile--l2 {
 	--map-step: 50%;
-	--map-ink: var(--s-color-text-primary);
 }
 .b-map__tile--l3 {
 	--map-step: 75%;
@@ -216,7 +216,6 @@
 	min-height: 1.5em;
 	overflow: hidden;
 	color: var(--s-color-text-secondary);
-	font-family: var(--g-font-family-mono);
 	font-size: var(--g-font-size-50);
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -278,9 +277,10 @@
 }
 
 /* The busiest realms, in the rail's list style (b-toc): a path is never
-   cut, since realms under one address differ only at their end and a
-   shortened address is what a lookalike imitates; its count sits at the
-   end of the row. */
+   shortened, since realms under one address differ only at their end and a
+   shortened address is what a lookalike imitates. It wraps after a slash
+   (the template's <wbr>), inside a segment only when one is wider than the
+   rail; its count sits at the end of the row, in the value color. */
 .b-map-busiest {
 	padding: 0;
 
@@ -300,7 +300,7 @@
 
 	& small {
 		flex: none;
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-primary);
 		font: inherit;
 		font-variant-numeric: tabular-nums;
 	}

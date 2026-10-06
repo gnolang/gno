@@ -71,12 +71,12 @@ the standard library's source upstream).
 {{ define "ui/pkg_import" }}
 {{ if .Link }}
 <a href="{{ .Link }}" class="b-pkg-list__link"{{ if .External }} rel="noopener noreferrer" title="External link"{{ end }}>
-  <span class="c-with-icon u-font-mono">{{ .Path }}{{ if .External }}<svg class="c-icon b-pkg-list__outbound" aria-hidden="true"><use href="#ico-external-link"></use></svg>{{ end }}</span>
+  <span class="c-with-icon u-font-mono">{{ range .PathSegments }}{{ . }}<wbr>{{ end }}{{ if .External }}<svg class="c-icon b-pkg-list__outbound" aria-hidden="true"><use href="#ico-external-link"></use></svg>{{ end }}</span>
   <span class="b-tag b-tag--kind">{{ .Kind }}</span>
 </a>
 {{ else }}
 <span class="b-pkg-list__link b-pkg-list__link--disabled">
-  <span class="u-font-mono">{{ .Path }}</span>
+  <span class="u-font-mono">{{ range .PathSegments }}{{ . }}<wbr>{{ end }}</span>
   <span class="b-tag b-tag--kind">{{ .Kind }}</span>
 </span>
 {{ end }}

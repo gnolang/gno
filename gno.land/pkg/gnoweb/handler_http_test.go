@@ -1810,7 +1810,7 @@ func TestHTTPHandler_GetOverviewView_SuccessRendersAllSections(t *testing.T) {
 	assert.NotContains(t, body, ">internal<", "unexported func should not appear as a symbol")
 	assert.Contains(t, body, "Config", "type should be rendered")
 	assert.Contains(t, body, "foo.gno", "file link should appear")
-	assert.Contains(t, body, "gno.land/p/demo/avl", "qdoc import should be rendered")
+	assert.Contains(t, body, "gno.land/<wbr>p/<wbr>demo/<wbr>avl", "qdoc import should be rendered, breakable after each slash")
 }
 
 // TestHTTPHandler_GetOverviewView_DegradedOnQdocFailure verifies the overview still

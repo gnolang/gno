@@ -2,6 +2,7 @@ package components
 
 import (
 	"io"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -100,6 +101,15 @@ type ImportLink struct {
 	Link     string
 	External bool
 }
+
+// PathSegments is Path cut after each slash, for a template to offer a line
+// break there before any inside a segment.
+func (l ImportLink) PathSegments() []string { return PathSegments(l.Path) }
+
+// PathSegments cuts a package path after each slash. A long path then wraps
+// between segments, so an address stays whole on its line where it fits:
+// two lookalike addresses are compared at a glance only when unbroken.
+func PathSegments(p string) []string { return strings.SplitAfter(p, "/") }
 
 // FileLink is a file entry rendered in the Files section.
 type FileLink struct {

@@ -85,6 +85,7 @@ in the listing's rail.
 <ul class="b-map-scale" aria-label="Calls per color">
   {{ range . }}<li><span class="b-map-swatch {{ .Class }}" aria-hidden="true"></span>{{ .Calls }}</li>{{ end }}
 </ul>
+<p class="b-map-key-note">Calls per shade, scaled to this map's busiest realm.</p>
 {{ end }}
 {{ with .Window }}{{ if .Partial }}
 <p class="b-map-key-note">Part of the window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</p>
@@ -97,7 +98,7 @@ in the listing's rail.
   <h2 id="map-busiest-heading" class="b-sidebar-heading">Most called · 7 days</h2>
   <ol class="b-toc b-map-busiest">
     {{ range . }}
-    <li><a href="{{ .Path }}"><span>{{ .Path }}</span><small>{{ .Calls }}</small></a></li>
+    <li><a href="{{ .Path }}"><span>{{ range .PathSegments }}{{ . }}<wbr>{{ end }}</span><small>{{ .Calls }}</small></a></li>
     {{ end }}
   </ol>
 </section>
