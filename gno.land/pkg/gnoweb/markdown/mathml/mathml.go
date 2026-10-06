@@ -29,9 +29,6 @@ func NewMathMLConverter() *MathMLConverter {
 func (converter *MathMLConverter) render(tex string, displaystyle bool) (result string, err error) {
 	var ast *MMLNode
 	var builder strings.Builder
-	// The MathML is written on one line, without indentation: whitespace
-	// around inline math, as in "($x$)", would show as spaces.
-	const indent = -1
 	setStyle := func(math *MMLNode) {
 		if displaystyle {
 			math.SetAttr("display", "block")
@@ -46,7 +43,7 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 		if r := recover(); r != nil {
 			ast = makeMMLError()
 			setStyle(ast)
-			ast.Write(&builder, indent)
+			ast.Write(&builder)
 			result = builder.String()
 			err = fmt.Errorf("MathML encountered an unexpected error")
 		}
@@ -59,7 +56,9 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 	ast = converter.wrapInMathTag(converter.ParseTex(NewTokenBuffer(tokens), ctxRoot), tex)
 	ast.SetAttr("xmlns", "http://www.w3.org/1998/Math/MathML")
 	setStyle(ast)
-	ast.Write(&builder, indent)
+	// Write writes the MathML on one line: whitespace around inline math,
+	// as in "($x$)", would show as spaces.
+	ast.Write(&builder)
 	if displaystyle {
 		builder.WriteRune('\n')
 	}

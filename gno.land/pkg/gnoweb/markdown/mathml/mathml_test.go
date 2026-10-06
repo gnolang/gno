@@ -536,7 +536,7 @@ func TestMMLNode_Write(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			node := NewMMLNode(tt.tag, tt.text)
 			var buf strings.Builder
-			node.Write(&buf, 0)
+			node.Write(&buf)
 			_ = buf
 		})
 	}

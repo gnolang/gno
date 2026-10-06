@@ -5,11 +5,6 @@ import (
 	"strings"
 )
 
-// maxIndent caps the pretty-print indentation level. Without a cap the
-// leading whitespace grows linearly with nesting depth, making the output
-// size quadratic in the input for deeply nested expressions.
-const maxIndent = 16
-
 // writeEscaped writes s to w, escaping <, >, " and &. This makes the output
 // safe both as element content and inside a double-quoted attribute value.
 // Node text always holds literal characters, never character references, so
@@ -155,8 +150,8 @@ func (n *MMLNode) AppendNew(opt ...string) *MMLNode {
 	return newnode
 }
 
-// Write the MMLNode to the strings.Builder w.
-func (n *MMLNode) Write(w *strings.Builder, indent int) {
+// Write the MMLNode to the strings.Builder w, on one line.
+func (n *MMLNode) Write(w *strings.Builder) {
 	if n == nil {
 		return
 	}
@@ -168,11 +163,6 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 		tag = n.Tag
 	} else {
 		return
-	}
-	var padding string
-	if indent >= 0 {
-		padding = strings.Repeat(" ", 2*min(indent, maxIndent))
-		w.WriteString(padding)
 	}
 	w.WriteRune('<')
 	w.WriteString(tag)
@@ -200,18 +190,9 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 		if len(n.Children) == 0 {
 			writeEscaped(w, n.Text)
 		} else {
-			nextIndent := indent
-			if indent >= 0 {
-				w.WriteRune('\n')
-				nextIndent++
-			}
 			for _, child := range n.Children {
-				child.Write(w, nextIndent)
-				if child != nil && child.Properties&propNonprint == 0 && indent >= 0 {
-					w.WriteRune('\n')
-				}
+				child.Write(w)
 			}
-			w.WriteString(padding)
 		}
 	}
 	w.WriteString("</")

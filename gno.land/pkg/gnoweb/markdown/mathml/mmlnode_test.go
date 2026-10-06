@@ -16,7 +16,7 @@ func TestMMLNodeWriteEscapes(t *testing.T) {
 	n.SetAttr("class", `x" onclick="alert(1)`)
 	n.SetAttr(`bad" onclick="alert(1)`, "v")
 	var b strings.Builder
-	n.Write(&b, -1)
+	n.Write(&b)
 	assert.Equal(t,
 		`<mi class="x&#34; onclick=&#34;alert(1)">&lt;/math&gt;&lt;script&gt;x &amp; y&lt;/script&gt;</mi>`,
 		b.String())
@@ -33,7 +33,7 @@ func TestMMLNodeWriteEscapesEntities(t *testing.T) {
 		"&notanentity &": "&amp;notanentity &amp;",
 	} {
 		var b strings.Builder
-		NewMMLNode("mo", in).Write(&b, -1)
+		NewMMLNode("mo", in).Write(&b)
 		assert.Equal(t, "<mo>"+want+"</mo>", b.String())
 	}
 }
@@ -61,7 +61,7 @@ func TestMMLNodeWriteSortsAttributes(t *testing.T) {
 	n := NewMMLNode("mo", "lim").SetAttr("rspace", "0").SetAttr("fence", "true").SetAttr("lspace", "0")
 	for range 20 {
 		var b strings.Builder
-		n.Write(&b, -1)
+		n.Write(&b)
 		assert.Equal(t, `<mo fence="true" lspace="0" rspace="0">lim</mo>`, b.String())
 	}
 }
