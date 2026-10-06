@@ -2,11 +2,19 @@ package chainmap
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"golang.org/x/sync/singleflight"
 )
+
+// ErrPending is returned when a reader's own wait ran out before the answer
+// came. The fetch carries on; a reader can say "still working" for this
+// error, and only for this one, since a fetch that failed on a deadline is a
+// failure.
+var ErrPending = errors.New("answer still pending")
 
 // flight memoizes one answer per key and refreshes it on request. It runs
 // nothing in the background: a fetch is started by a reader, detached from
@@ -24,6 +32,9 @@ type flight[T any] struct {
 	max int
 	// stale serves an expired answer at once while it is refreshed.
 	stale bool
+	// partial, when set, marks answers kept only for errTTL, like failures:
+	// an answer some reads failed to complete is worth retrying soon.
+	partial func(T) bool
 
 	mu      sync.Mutex
 	entries map[string]flightEntry[T]
@@ -45,7 +56,7 @@ func (f *flight[T]) fresh(key string) (flightEntry[T], bool) {
 		return e, false
 	}
 	ttl := f.ttl
-	if e.err != nil {
+	if e.err != nil || (f.partial != nil && f.partial(e.val)) {
 		ttl = f.errTTL
 	}
 	return e, time.Since(e.at) < ttl
@@ -57,6 +68,12 @@ func (f *flight[T]) fresh(key string) (flightEntry[T], bool) {
 func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Context) (T, error)) (T, error) {
 	if e, ok := f.fresh(key); ok {
 		return e.val, e.err
+	}
+	// A reader already out of time starts nothing: a loop over keys under an
+	// expired deadline would otherwise launch every fetch at once.
+	if err := ctx.Err(); err != nil {
+		var zero T
+		return zero, fmt.Errorf("%w: %w", ErrPending, err)
 	}
 
 	ch := f.group.DoChan(key, func() (any, error) {
@@ -86,7 +103,7 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 		return e.val, e.err
 	case <-ctx.Done():
 		var zero T
-		return zero, ctx.Err()
+		return zero, fmt.Errorf("%w: %w", ErrPending, ctx.Err())
 	}
 }
 

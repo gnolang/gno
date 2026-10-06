@@ -66,10 +66,11 @@ func (c *Client) CallsBetween(ctx context.Context, lower, upper int) ([]Tx, erro
 }
 
 // DeploysQuoting returns every deploy in the heights (lower, upper] whose
-// source contains text. Unlike SourceContains it does not stop at the newest
-// few: a caller asking who imports a package needs every candidate, and walks
-// the chain band by band to get them, since a scan of the whole chain outlasts
-// the client's request timeout.
+// source holds pkgPath as a Go string literal, interpreted ("…") or raw (`…`),
+// which is how an import names it. Unlike SourceContains it does not stop at
+// the newest few: a caller asking who imports a package needs every
+// candidate, and walks the chain band by band to get them, since a scan of the
+// whole chain outlasts the client's request timeout.
 //
 // A transaction matches when any package it deploys contains text, so a
 // batched deploy brings along packages that do not. The caller has to check
@@ -78,15 +79,18 @@ func (c *Client) CallsBetween(ctx context.Context, lower, upper int) ([]Tx, erro
 // When the answer exceeds the indexer's element cap, the rows it kept are
 // returned along with an error wrapping ErrTooLarge, so the caller can say
 // "at least".
-func (c *Client) DeploysQuoting(ctx context.Context, text string, lower, upper int) ([]Tx, error) {
+func (c *Client) DeploysQuoting(ctx context.Context, pkgPath string, lower, upper int) ([]Tx, error) {
 	var out struct {
 		Txs []Tx `json:"getTransactions"`
 	}
-	// QuoteMeta for the reason SourceContains gives: `like` is a regexp.
+	// `like` is a Go regexp. The delimiters keep gno.land/p/nt/avl/v0 from
+	// matching inside gno.land/p/nt/avl/v0/rotree; QuoteMeta keeps the dots
+	// literal.
+	literal := "[\"`]" + regexp.QuoteMeta(pkgPath) + "[\"`]"
 	q := fmt.Sprintf(`{ getTransactions(where: {
 		%s
 		messages: { value: { MsgAddPackage: { package: { files: { body: { like: %s } } } } } }
-	}) { %s } }`, heightBand(lower, upper), gqlString(regexp.QuoteMeta(text)), deployFields)
+	}) { %s } }`, heightBand(lower, upper), gqlString(literal), deployFields)
 	err := c.Query(ctx, q, &out)
 	if err != nil && !errors.Is(err, ErrTooLarge) {
 		return nil, err

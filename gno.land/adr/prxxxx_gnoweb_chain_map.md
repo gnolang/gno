@@ -87,21 +87,35 @@ transaction as a whole; a quote can also sit in a test or a string. Only the
 chain can say which package imports it, so the side is labelled "Imported by"
 and contains nothing the chain did not confirm.
 
-The scan walks the chain in bands of 150 000 blocks, three at a time, the
-bottom band without a lower bound so it reaches genesis at height 0. One query
-over the whole chain took 4.9 s on gnoland-1, past the indexer client's 4 s
-request timeout (which also feeds its breaker); a band took 0.6 to 1.7 s, and
-the four bands returned exactly the 210 rows of the whole-chain query.
+Candidates are deploys holding the path as a Go string literal, interpreted
+or raw: an import may be written with backquotes. The scan walks the chain in
+bands of 75 000 blocks, two at a time, the bottom band without a lower bound
+so it reaches genesis at height 0, and the first failing band cancels the
+others. One query over the whole chain took 4.9 s on gnoland-1, past the
+indexer client's 4 s request timeout; bands of 150 000 took 0.6 to 1.7 s and
+returned exactly the 210 rows of the whole-chain query, and the narrower band
+keeps a margin, because that client's breaker counts timeouts and an open
+breaker turns off search for every reader.
 
 The lookup costs that scan plus a node read per candidate — about 38 s for
 `gno.land/p/nt/avl/v0`'s 265 candidates against the public RPC, which found
-183 importers — so it is a page of its own: never run by the overview,
-rate-limited per IP, `noindex`, and capped at 400 candidates. Answers are
+183 importers — so it is a page of its own: never run by the overview, `noindex`, capped at
+400 candidates, limited to six lookups a minute per address (burst three;
+cached answers are free) and to two lookups at once across all readers. The
+package's own imports are read first, so a path with no live package answers
+404 without costing the indexer anything. Answers are
 cached per package for ten minutes, and each candidate's imports are cached
 too, so packages sharing importers read them once. A reader waits at most 12 s;
-the lookup runs detached for up to 60 s and a reload finds it. Past any of its
+the lookup runs detached for up to 60 s and a reload finds it. Only the
+reader's own wait reads as "still looking": a lookup that failed, even on its
+own deadline, reads as unavailable. An answer some candidate reads failed to
+complete is kept one minute rather than ten, so a reload retries them. Past any of its
 bounds — a band the indexer capped, the candidate cap, an unread candidate —
 the count reads "at least".
+
+A map exists only where the list does, that is where no package lives at the
+path: on a package, its List tab would open the package instead of the
+listing it drew.
 
 ### One cache shape
 
@@ -163,6 +177,10 @@ that PR.
   only their accessible name and tooltip.
 - Activity spans a week estimated from the indexer's block times over the
   last 20 000 blocks.
+- Importer scans and the activity refresh share the indexer client, its
+  16 slots and its breaker, with search. Bands, concurrency and lookup limits
+  keep them well under its timeout, but a separate client for aggregate
+  queries would isolate them; that is a change to #6231's wiring.
 - The provenance footer partial and its type copy omnisearch's, and reuse its
   styles; omnisearch can switch to them in a follow-up so the two cannot
   drift. Likewise omnisearch's `importers:` qualifier (unchecked mentions)

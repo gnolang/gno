@@ -51,8 +51,8 @@ func TestImportersChecksEveryCandidateOnChain(t *testing.T) {
 	if got.AsOf != 10 {
 		t.Errorf("as of = %d, want the indexer tip 10", got.AsOf)
 	}
-	if len(f.quoted) == 0 || f.quoted[0] != `"`+avl+`"` {
-		t.Errorf("searched %q, want the quoted import path", f.quoted)
+	if len(f.quoted) == 0 || f.quoted[0] != avl {
+		t.Errorf("searched %q, want the import path", f.quoted)
 	}
 }
 

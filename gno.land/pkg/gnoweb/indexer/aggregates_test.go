@@ -77,7 +77,7 @@ func TestDeploysQuotingKeepsRowsWhenCapped(t *testing.T) {
 		]},"errors":[{"message":"max elements per query reached"}]}`)
 	})
 
-	txs, err := c.DeploysQuoting(context.Background(), `"gno.land/p/a.b"`, -1, 1000)
+	txs, err := c.DeploysQuoting(context.Background(), "gno.land/p/a.b", -1, 1000)
 	if !errors.Is(err, ErrTooLarge) {
 		t.Fatalf("err = %v, want ErrTooLarge", err)
 	}
@@ -87,7 +87,8 @@ func TestDeploysQuotingKeepsRowsWhenCapped(t *testing.T) {
 	if strings.Contains(query, "gt:") || !strings.Contains(query, "lt: 1001") {
 		t.Errorf("the bottom band must drop its lower bound to reach height 0:\n%s", query)
 	}
-	if got := likeValues(t, query); len(got) != 1 || got[0] != `"gno\.land/p/a\.b"` {
-		t.Errorf("like = %q, want the quoted path with regexp metacharacters escaped", got)
+	// Either Go string literal: an import may be written with backquotes.
+	if got := likeValues(t, query); len(got) != 1 || got[0] != "[\"`]gno\\.land/p/a\\.b[\"`]" {
+		t.Errorf("like = %q, want the path between either quote, metacharacters escaped", got)
 	}
 }

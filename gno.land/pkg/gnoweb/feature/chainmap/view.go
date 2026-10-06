@@ -92,7 +92,7 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	})
 	if err != nil {
 		data.Activity = ActivityUnavailable
-		if errors.Is(err, context.DeadlineExceeded) {
+		if errors.Is(err, ErrPending) {
 			data.Activity = ActivityPending
 		} else {
 			h.deps.Logger.Warn("map: activity unavailable", "error", err)

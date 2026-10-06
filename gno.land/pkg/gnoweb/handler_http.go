@@ -227,7 +227,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		}),
 		Logger: logger,
 	})
-	h.Map = chainmap.New(chainmapDeps(cfg, logger, rate, trustedProxies))
+	h.Map = chainmap.New(chainmapDeps(cfg, logger, trustedProxies))
 	return h, nil
 }
 
@@ -235,7 +235,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 // search: *indexer.Client answers both features, so the map needs no flag of
 // its own. A nil cfg.Indexer leaves the feature without one, which is the
 // switch.
-func chainmapDeps(cfg *HTTPHandlerConfig, logger *slog.Logger, rate int, trustedProxies []*net.IPNet) chainmap.Deps {
+func chainmapDeps(cfg *HTTPHandlerConfig, logger *slog.Logger, trustedProxies []*net.IPNet) chainmap.Deps {
 	deps := chainmap.Deps{
 		Imports: importReader{client: cfg.ClientAdapter, domain: cfg.Meta.Domain},
 		Domain:  cfg.Meta.Domain,
@@ -252,14 +252,24 @@ func chainmapDeps(cfg *HTTPHandlerConfig, logger *slog.Logger, rate int, trusted
 		return deps
 	}
 	deps.Indexer = idx
-	// Its own bucket: an importer lookup is a whole-chain indexer scan plus a
-	// node read per candidate.
+	// Its own bucket, and a narrow one: an importer lookup is a whole-chain
+	// indexer scan plus a node read per candidate, so the general rate would
+	// let one address run hundreds a minute. Cached answers are not charged.
 	deps.Limiter = state.NewIPLimiter(state.RateLimitConfig{
-		PerMinute:      rate,
+		PerMinute:      importerLookupsPerMinute,
+		Burst:          importerLookupsBurst,
 		TrustedProxies: trustedProxies,
 	})
 	return deps
 }
+
+// importerLookupsPerMinute and importerLookupsBurst bound the importer
+// lookups one address may start: a reader browsing dependencies starts a few,
+// not dozens.
+const (
+	importerLookupsPerMinute = 6
+	importerLookupsBurst     = 3
+)
 
 // importReader adapts ClientAdapter to chainmap.ImportReader: a package's
 // non-test imports are what vm/qdoc reports. A missing package is both
@@ -635,7 +645,12 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 // GetPackageView handles package pages, including help, source, directory, and user views.
 func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	// Handle Map page: the listing below the path, drawn rather than listed.
+	// A map exists only where the list does, which is where no package lives:
+	// on a package its List tab would open the package, not the listing.
 	if gnourl.WebQuery.Has("map") {
+		if _, err := h.Client.ListFiles(ctx, strings.TrimSuffix(gnourl.Path, "/"), 0); err == nil {
+			return http.StatusNotFound, components.StatusErrorComponent("This path is a package, not a listing: open it, or map the path above it.")
+		}
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	}
 

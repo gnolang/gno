@@ -27,11 +27,18 @@ const (
 
 	// scanBand is the height span of one candidate query. A whole-chain scan
 	// took 4.9 s on gnoland-1 in October 2026, past the indexer client's 4 s
-	// request timeout; bands of this width took 0.6 to 1.7 s.
-	scanBand = 150_000
+	// request timeout; bands of this width took 0.6 to 1.6 s unloaded. The
+	// margin matters: that client's breaker counts timeouts, and an open
+	// breaker turns off search for every reader too.
+	scanBand = 75_000
 
 	// scanConcurrency bounds the band queries in flight for one lookup.
-	scanConcurrency = 3
+	scanConcurrency = 2
+
+	// maxLookups bounds the lookups running at once across all readers. Each
+	// is a whole-chain scan plus up to maxCandidates node reads; the per-IP
+	// limiter alone lets many addresses run them side by side.
+	maxLookups = 2
 
 	// maxCandidates bounds the chain reads one lookup makes. Past it the
 	// answer is "at least": gno.land/p/nt/avl/v0 had 265 candidates.
@@ -72,6 +79,9 @@ type Importers struct {
 	// AtLeast is set when some candidates went unchecked: the indexer capped
 	// a band, there were more than maxCandidates, or a read failed.
 	AtLeast bool
+	// unread is set when a candidate read failed or ran out of time, which a
+	// retry can complete, unlike a cap.
+	unread bool
 	// AsOf is the indexer's last block when the lookup ran.
 	AsOf int
 }
@@ -81,11 +91,17 @@ type Importers struct {
 type importerFlights struct {
 	answers *flight[*Importers]
 	imports *flight[[]string]
+	// slots admits maxLookups lookups at a time.
+	slots chan struct{}
 }
 
 func newImporterFlights() importerFlights {
 	return importerFlights{
-		answers: &flight[*Importers]{ttl: importersTTL, errTTL: failureTTL, timeout: importersTimeout, max: maxImporterEntries},
+		slots: make(chan struct{}, maxLookups),
+		answers: &flight[*Importers]{
+			ttl: importersTTL, errTTL: failureTTL, timeout: importersTimeout, max: maxImporterEntries,
+			partial: func(imp *Importers) bool { return imp != nil && imp.unread },
+		},
 		// A failure is not remembered: ErrNotLive turns into imports the
 		// moment a parked deploy is approved.
 		imports: &flight[[]string]{ttl: importersTTL, timeout: importReadTimeout, max: maxImportEntries},
@@ -113,6 +129,13 @@ func (h *Handler) Importers(ctx context.Context, r *http.Request, pkgPath string
 // findImporters gathers candidates from the indexer, then keeps those whose
 // current import list on chain names pkgPath.
 func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers, error) {
+	select {
+	case h.importers.slots <- struct{}{}:
+		defer func() { <-h.importers.slots }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
 	asOf, err := h.deps.Indexer.LatestBlockHeight(ctx)
 	if err != nil {
 		return nil, err
@@ -133,6 +156,13 @@ func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers
 	)
 	g.SetLimit(checkConcurrency)
 	for _, cand := range candidates {
+		if ctx.Err() != nil {
+			// Out of time: the rest stay unread, and the answer says so.
+			mu.Lock()
+			imp.AtLeast, imp.unread = true, true
+			mu.Unlock()
+			break
+		}
 		g.Go(func() error {
 			imports, err := h.importers.imports.get(ctx, cand, func(ctx context.Context) ([]string, error) {
 				return h.deps.Imports.Imports(ctx, cand)
@@ -150,7 +180,7 @@ func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers
 			default:
 				// Unread, whether the node failed or time ran out: what was
 				// checked stands, and the answer says there may be more.
-				imp.AtLeast = true
+				imp.AtLeast, imp.unread = true, true
 			}
 			return nil
 		})
@@ -161,20 +191,18 @@ func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers
 }
 
 // scanCandidates lists, once each and sorted, the packages added by every
-// deploy quoting pkgPath's import path, band by band up to tip. The quotes
-// keep gno.land/p/nt/avl/v0 from matching inside gno.land/p/nt/avl/v0/rotree.
-// capped reports a band the indexer cut short.
+// deploy quoting pkgPath as a string literal, band by band up to tip. capped
+// reports a band the indexer cut short. The first failing band cancels the
+// others: the answer is an error either way.
 func (h *Handler) scanCandidates(ctx context.Context, pkgPath string, tip int) (paths []string, capped bool, err error) {
-	var (
-		mu sync.Mutex
-		g  errgroup.Group
-	)
+	var mu sync.Mutex
+	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(scanConcurrency)
 	// The bottom band starts below 0: genesis packages live at height 0.
 	for lower := -1; lower < tip; lower += scanBand {
 		upper := min(lower+scanBand, tip)
 		g.Go(func() error {
-			txs, err := h.deps.Indexer.DeploysQuoting(ctx, `"`+pkgPath+`"`, lower, upper)
+			txs, err := h.deps.Indexer.DeploysQuoting(gctx, pkgPath, lower, upper)
 			bandCapped := errors.Is(err, indexer.ErrTooLarge)
 			if err != nil && !bandCapped {
 				return err

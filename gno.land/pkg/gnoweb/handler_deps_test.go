@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -14,13 +15,19 @@ import (
 
 // stubIndexer is the *indexer.Client surface both indexer-backed features
 // read. Only the importer search answers; the rest is never reached here.
-type stubIndexer struct{ deploys []indexer.Tx }
+type stubIndexer struct {
+	deploys []indexer.Tx
+	scans   *atomic.Int32
+}
 
 var errUnused = errors.New("not used by these tests")
 
 func (s stubIndexer) LatestBlockHeight(context.Context) (int, error) { return 77, nil }
 func (s stubIndexer) URL() string                                    { return "https://indexer.test/graphql/query" }
 func (s stubIndexer) DeploysQuoting(_ context.Context, _ string, lower, _ int) ([]indexer.Tx, error) {
+	if s.scans != nil {
+		s.scans.Add(1)
+	}
 	if lower >= 0 {
 		return nil, nil // the stub's deploys sit at height 0, in the bottom band
 	}
@@ -133,5 +140,20 @@ func TestHTTPHandler_DepsOfAMissingPackage(t *testing.T) {
 
 	if got := serve(t, newDepsHandler(t, nil), "/p/demo/nothing$deps").Code; got != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", got)
+	}
+}
+
+// A path with no live package answers 404 at once and costs the indexer
+// nothing: random $deps URLs must not buy whole-chain scans.
+func TestHTTPHandler_DepsOfAMissingPackageScansNothing(t *testing.T) {
+	t.Parallel()
+
+	var scans atomic.Int32
+	h := newDepsHandler(t, &stubIndexer{scans: &scans})
+	if got := serve(t, h, "/r/demo/nothing$deps").Code; got != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", got)
+	}
+	if n := scans.Load(); n != 0 {
+		t.Fatalf("the indexer was scanned %d times for a package that does not exist", n)
 	}
 }

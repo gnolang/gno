@@ -142,17 +142,16 @@ func readBand(ctx context.Context, idx Indexer, lower, upper int) ([]indexer.Tx,
 	case upper-lower <= minBandWidth:
 		return nil, false, nil
 	}
-	// The halves are read side by side: a dense band otherwise costs one
-	// sequential round trip per split.
+	// The halves are read one after the other: splitting them into goroutines
+	// at every level would put up to 2^depth queries in flight per band, past
+	// bandConcurrency and onto the indexer client shared with search.
 	mid := lower + (upper-lower)/2
-	var (
-		g             errgroup.Group
-		low, high     []indexer.Tx
-		lowOK, highOK bool
-	)
-	g.Go(func() (err error) { low, lowOK, err = readBand(ctx, idx, lower, mid); return err })
-	g.Go(func() (err error) { high, highOK, err = readBand(ctx, idx, mid, upper); return err })
-	if err := g.Wait(); err != nil {
+	low, lowOK, err := readBand(ctx, idx, lower, mid)
+	if err != nil {
+		return nil, false, err
+	}
+	high, highOK, err := readBand(ctx, idx, mid, upper)
+	if err != nil {
 		return nil, false, err
 	}
 	return append(low, high...), lowOK && highOK, nil

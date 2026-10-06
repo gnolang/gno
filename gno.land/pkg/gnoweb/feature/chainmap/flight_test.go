@@ -110,3 +110,65 @@ func TestFlightExpires(t *testing.T) {
 		t.Error("an expired answer must not be served as fresh")
 	}
 }
+
+// A reader already out of time starts no fetch: under an expired deadline a
+// loop over keys would otherwise launch every fetch at once.
+func TestFlightStartsNothingForAnExpiredReader(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 4}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var fetches atomic.Int32
+	_, err := f.get(ctx, "k", func(context.Context) (int, error) { fetches.Add(1); return 1, nil })
+	if !errors.Is(err, ErrPending) {
+		t.Fatalf("err = %v, want ErrPending", err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if fetches.Load() != 0 {
+		t.Fatal("an expired reader started a fetch")
+	}
+}
+
+// Only the reader's own wait is pending. A fetch that failed on its own
+// deadline is a failure, and must not read as "still working".
+func TestFlightTellsPendingFromFailedOnADeadline(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Second, max: 4}
+	_, err := f.get(context.Background(), "k", func(context.Context) (int, error) {
+		return 0, context.DeadlineExceeded
+	})
+	if err == nil || errors.Is(err, ErrPending) {
+		t.Fatalf("err = %v, want the failure, not ErrPending", err)
+	}
+	if _, err := f.get(context.Background(), "k", nil); errors.Is(err, ErrPending) {
+		t.Fatal("a remembered failure must not read as pending")
+	}
+
+	slow := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 4}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	_, err = slow.get(ctx, "k", func(c context.Context) (int, error) { <-c.Done(); return 0, c.Err() })
+	if !errors.Is(err, ErrPending) {
+		t.Fatalf("err = %v, want ErrPending for the reader's own wait", err)
+	}
+}
+
+// An answer marked partial is kept only as long as a failure, so a reload
+// soon retries the reads that failed.
+func TestFlightKeepsPartialAnswersBriefly(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Hour, errTTL: time.Minute, timeout: time.Second, max: 4, partial: func(v int) bool { return v < 0 }}
+	f.entries = map[string]flightEntry[int]{
+		"partial":  {val: -1, at: time.Now().Add(-2 * time.Minute)},
+		"complete": {val: 1, at: time.Now().Add(-2 * time.Minute)},
+	}
+	if _, ok := f.fresh("partial"); ok {
+		t.Error("a partial answer outlived errTTL")
+	}
+	if _, ok := f.fresh("complete"); !ok {
+		t.Error("a complete answer expired before ttl")
+	}
+}

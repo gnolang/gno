@@ -140,3 +140,15 @@ func TestLevelIsLogarithmic(t *testing.T) {
 		}
 	}
 }
+
+// An activity refresh that failed is unavailable, not still being counted.
+func TestMapSaysUnavailableNotPendingForAFailedRefresh(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
+	h.activity.store("activity", nil, context.DeadlineExceeded)
+	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/x"}})
+	if strings.Contains(out, "still being counted") || !strings.Contains(out, "Call activity is unavailable") {
+		t.Error("a failed refresh must read as unavailable")
+	}
+}

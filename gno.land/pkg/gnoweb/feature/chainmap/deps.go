@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
@@ -39,26 +37,10 @@ func (h *Handler) DepsView(r *http.Request, pkgPath, title string) (int, *compon
 	ctx := r.Context()
 	full := h.deps.Domain + pkgPath
 
-	var (
-		imports      []string
-		importers    *Importers
-		importersErr error
-		g            errgroup.Group
-	)
-	g.Go(func() (err error) {
-		imports, err = h.deps.Imports.Imports(ctx, full)
-		return err
-	})
-	if h.HasIndexer() {
-		// Side by side with the imports: neither needs the other.
-		g.Go(func() error {
-			wctx, cancel := context.WithTimeout(ctx, depsWait)
-			defer cancel()
-			importers, importersErr = h.Importers(wctx, r, full)
-			return nil
-		})
-	}
-	if err := g.Wait(); err != nil {
+	// The package is read first: a path with no live package must not cost a
+	// whole-chain scan, nor wait for one before its 404.
+	imports, err := h.deps.Imports.Imports(ctx, full)
+	if err != nil {
 		return 0, nil, err
 	}
 
@@ -68,8 +50,11 @@ func (h *Handler) DepsView(r *http.Request, pkgPath, title string) (int, *compon
 	}
 	status := http.StatusOK
 	if h.HasIndexer() {
-		data.Graph.Importers, status = h.importersSide(pkgPath, importers, importersErr)
-		if importersErr == nil {
+		wctx, cancel := context.WithTimeout(ctx, depsWait)
+		defer cancel()
+		importers, err := h.Importers(wctx, r, full)
+		data.Graph.Importers, status = h.importersSide(pkgPath, importers, err)
+		if err == nil {
 			data.Indexer = &components.IndexerStatus{URL: h.deps.Indexer.URL(), LastBlock: importers.AsOf}
 		}
 	}
@@ -87,7 +72,7 @@ func (h *Handler) importersSide(pkgPath string, imp *Importers, err error) (*com
 		return &components.Importers{Links: components.ImportLinks(imp.Paths, h.deps.Domain), AtLeast: imp.AtLeast}, http.StatusOK
 	case errors.Is(err, ErrRateLimited):
 		return &components.Importers{Unavailable: "Too many lookups from your address. Try again in a minute."}, http.StatusTooManyRequests
-	case errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, ErrPending):
 		return &components.Importers{Unavailable: "Still looking them up. Reload in a moment."}, http.StatusOK
 	default:
 		h.deps.Logger.Warn("deps: importers unavailable", "path", pkgPath, "error", err)

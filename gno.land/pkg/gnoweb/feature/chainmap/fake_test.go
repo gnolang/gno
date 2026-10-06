@@ -58,9 +58,9 @@ func (f *fakeIndexer) CallsBetween(_ context.Context, lower, upper int) ([]index
 
 // DeploysQuoting answers the deploys whose height falls in the band; a
 // negative lower bound reaches height 0, as on the indexer.
-func (f *fakeIndexer) DeploysQuoting(_ context.Context, text string, lower, upper int) ([]indexer.Tx, error) {
+func (f *fakeIndexer) DeploysQuoting(_ context.Context, pkgPath string, lower, upper int) ([]indexer.Tx, error) {
 	f.mu.Lock()
-	f.quoted = append(f.quoted, text)
+	f.quoted = append(f.quoted, pkgPath)
 	f.mu.Unlock()
 	var out []indexer.Tx
 	for _, tx := range f.deploys {
