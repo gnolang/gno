@@ -91,6 +91,57 @@ func TestMathUnclosedDisplayDoesNotSwallowBlocks(t *testing.T) {
 	}
 }
 
+// An unclosed $$ must not swallow a block that would interrupt a paragraph
+// when a later line holds or ends with $$: display math reads like a
+// paragraph, and any CommonMark block start ends it.
+func TestMathUnclosedDisplayDoesNotSwallowInterruptingBlocks(t *testing.T) {
+	cases := []struct{ name, src, want string }{
+		{"bullet list", "$$\nx+1\n- item one\n- item $$\n", "<ul>\n<li>item one</li>\n<li>item $$</li>\n</ul>"},
+		{"plus list", "$$\nx+1\n+ item $$\n", "<li>item $$</li>"},
+		{"ordered list", "$$\nx+1\n1. item one\n2. item $$\n", "<ol>\n<li>item one</li>\n<li>item $$</li>\n</ol>"},
+		{"blockquote", "$$\nx+1\n> quote $$\n", "<blockquote>\n<p>quote $$</p>"},
+		{"html block", "$$\nx+1\n<div>\n$$\n</div>\n", "<!-- raw HTML omitted -->"},
+		{"setext heading", "$$\nx+1\nTitle\n===\nmore $$\n", "<h1>$$\nx+1\nTitle</h1>"},
+		{"thematic break ***", "$$\nx+1\n***\ny $$\n", "<hr>\n<p>y $$</p>"},
+		{"thematic break ---", "$$\nx+1\n\n---\ny $$\n", "<hr>\n<p>y $$</p>"},
+		{"line starting with $$", "$$\nx+1\n- item\n$$\n", "<li>item\n$$</li>"},
+		{"brackets", "\\\\[\nx+1\n- item \\\\]\n", "<li>item \\]</li>"},
+		{"inside a blockquote", "> $$\n> x+1\n> - item\n> $$\n", "<blockquote>\n<p>$$\nx+1"},
+		{"inside a list item", "- $$\n  x+1\n  - item $$\n", "<li>item $$</li>"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out := renderMathMarkdown(t, c.src)
+			assert.NotContains(t, out, "<math")
+			assert.Contains(t, out, c.want)
+		})
+	}
+}
+
+// Lines of display math that do not read as a block start stay math. A line
+// that does ("+ b", "- x", ">0") ends the block like it would end a
+// paragraph; "{}+ b" or a four-space indent keeps it in the math.
+func TestMathDisplayLinesThatLookLikeBlocks(t *testing.T) {
+	for _, src := range []string{
+		"$$\n-x^2 + 1\n$$\n",
+		"$$\na\n{}+ b\n$$\n",
+		"$$\na\n    + b\n$$\n",
+		"$$\na\n2. b\n$$\n",
+		"$$\na\n#b\n$$\n",
+		"$$\n\\begin{aligned}\nf &= x \\\\\n  &- y\n\\end{aligned}\n$$\n",
+	} {
+		assert.Contains(t, renderMathMarkdown(t, src), "<math", "%q", src)
+	}
+	for _, src := range []string{
+		"$$\na\n+ b\n$$\n",
+		"$$\na\n- x\n$$\n",
+		"$$\na\n> 0\n$$\n",
+		"$$\na\n>0\n$$\n",
+	} {
+		assert.NotContains(t, renderMathMarkdown(t, src), "<math", "%q", src)
+	}
+}
+
 func TestMathDisplayBlockClosing(t *testing.T) {
 	for name, src := range map[string]string{
 		"own line":         "$$\nx^2\n$$\n",

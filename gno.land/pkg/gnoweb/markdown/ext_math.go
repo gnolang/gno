@@ -3,6 +3,7 @@ package markdown
 import (
 	"bytes"
 	"html"
+	"reflect"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/mathml"
@@ -363,26 +364,88 @@ func closingLine(line, closeTag []byte) (content, consumed int, ok bool) {
 	return 0, 0, false
 }
 
-// endsMath reports whether line cannot be part of display math and ends any
-// block before it: a blank line (TeX forbids paragraph breaks in math mode),
-// or a code fence or ATX heading, which an unclosed opener must not swallow.
-func endsMath(line []byte) bool {
-	if util.IsBlank(line) {
-		return true
+// interruptingParsers are the CommonMark block parsers that can interrupt a
+// paragraph, the blockquote parser apart (see endsMath).
+var interruptingParsers, blockquoteParser = func() (bps []parser.BlockParser, quote parser.BlockParser) {
+	quote = parser.NewBlockquoteParser()
+	for _, v := range parser.DefaultBlockParsers() {
+		bp := v.Value.(parser.BlockParser)
+		if bp.CanInterruptParagraph() && reflect.TypeOf(bp) != reflect.TypeOf(quote) {
+			bps = append(bps, bp)
+		}
 	}
-	width, pos := util.IndentWidth(line, 0)
-	if width > 3 {
+	return bps, quote
+}()
+
+// blockProbe is a scratch parser context in which a line can be offered to
+// block parsers as if it followed a paragraph, without touching the real
+// parse.
+type blockProbe struct {
+	pc  parser.Context
+	doc ast.Node
+}
+
+var blockProbeKey = parser.NewContextKey()
+
+func blockProbeFrom(pc parser.Context) *blockProbe {
+	if p, ok := pc.Get(blockProbeKey).(*blockProbe); ok {
+		return p
+	}
+	doc := ast.NewDocument()
+	para := ast.NewParagraph()
+	doc.AppendChild(doc, para)
+	probe := &blockProbe{pc: parser.NewContext(), doc: doc}
+	probe.pc.SetOpenedBlocks([]parser.Block{{Node: para}})
+	pc.Set(blockProbeKey, probe)
+	return probe
+}
+
+// startsBlock reports whether line would open a block that interrupts a
+// paragraph: a thematic break, ATX or setext heading, code fence, list item,
+// HTML block or, with quotes, a blockquote. It asks goldmark's own parsers,
+// so every CommonMark rule applies (an ordered list must start at 1, an
+// empty item does not interrupt, a line indented by four spaces never
+// starts one of these blocks).
+func startsBlock(pc parser.Context, line []byte, quotes bool) bool {
+	w, pos := util.IndentWidth(line, 0)
+	if w > 3 || pos >= len(line) {
 		return false
 	}
-	trimmed := line[pos:]
-	if bytes.HasPrefix(trimmed, []byte("```")) || bytes.HasPrefix(trimmed, []byte("~~~")) {
-		return true
+	probe := blockProbeFrom(pc)
+	probe.pc.SetBlockOffset(pos)
+	probe.pc.SetBlockIndent(w)
+	try := func(bp parser.BlockParser) bool {
+		if trig := bp.Trigger(); trig != nil && bytes.IndexByte(trig, line[pos]) < 0 {
+			return false
+		}
+		node, _ := bp.Open(probe.doc, text.NewReader(line), probe.pc)
+		return node != nil
 	}
-	level := 0
-	for level < len(trimmed) && trimmed[level] == '#' {
-		level++
+	for _, bp := range interruptingParsers {
+		if try(bp) {
+			return true
+		}
 	}
-	return level >= 1 && level <= 6 && (level == len(trimmed) || util.IsSpace(trimmed[level]))
+	return quotes && try(blockquoteParser)
+}
+
+// endsMath reports whether line cannot be part of display math and ends any
+// block before it: a blank line (TeX forbids paragraph breaks in math mode)
+// or a line that would interrupt a paragraph (see startsBlock). Display math
+// is read like a paragraph so that an opener left unclosed cannot swallow
+// the lists, quotes, headings or HTML after it when a later line happens to
+// hold $$.
+//
+// The trade-off: a line of math that reads as a block start, such as "- x",
+// "+ 2y", "> 0" or "1. a", ends the block, which is then shown as text, just
+// as it would end a paragraph. Write such a line as "{}- x", move the
+// operator to the end of the previous line, or indent it by four spaces.
+//
+// quotes is false for the lookahead in Open, which reads raw source lines:
+// inside a blockquote every line starts with ">". Continue sees lines with
+// their container prefixes removed and catches a quote there.
+func endsMath(pc parser.Context, line []byte, quotes bool) bool {
+	return util.IsBlank(line) || startsBlock(pc, line, quotes)
 }
 
 // hasClosingLine reports whether a closing line for closeTag follows the
@@ -430,13 +493,13 @@ func hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool
 			end = pos + i + 1
 		}
 		line := src[pos:end]
+		if endsMath(pc, line, false) {
+			sc.dead = true
+			return false
+		}
 		if _, _, ok := closingLine(line, closeTag); ok {
 			sc.found = true
 			return true
-		}
-		if endsMath(line) {
-			sc.dead = true
-			return false
 		}
 		pos = end
 	}
@@ -448,18 +511,18 @@ func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc pa
 		return parser.Close
 	}
 	line, seg := reader.PeekLine()
+	// The lookahead in Open saw a closing line first, but it reads raw lines
+	// and cannot see container prefixes: inside a blockquote or list item the
+	// container may end first, and a quote is only caught here. Leave the
+	// line to the other block parsers; the unclosed block renders as text.
+	if line == nil || endsMath(pc, line, true) {
+		return parser.Close
+	}
 	if content, consumed, ok := closingLine(line, n.closeTag); ok {
 		node.Lines().Append(text.NewSegment(seg.Start, seg.Start+content))
 		reader.Advance(consumed) // move reader past closing tag
 		n.closed = true
 		return parser.Close | parser.NoChildren
-	}
-	// The lookahead in Open saw a closing line first, but it reads raw lines
-	// and cannot see container prefixes: inside a blockquote or list item the
-	// container may end first. Leave the line to the other block parsers; the
-	// unclosed block renders as text.
-	if line == nil || endsMath(line) {
-		return parser.Close
 	}
 	node.Lines().Append(seg)
 	return parser.Continue | parser.NoChildren
