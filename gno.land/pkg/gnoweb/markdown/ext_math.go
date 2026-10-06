@@ -72,17 +72,15 @@ type texBlockRegionParser struct {
 	starters *blockStarters
 }
 
-// NewTexBlockRegionParser returns a display math parser whose blocks end at
-// the CommonMark block starts only; see NewExtMath to add more.
-func NewTexBlockRegionParser() *texBlockRegionParser {
-	return &texBlockRegionParser{starters: defaultBlockStarters}
-}
+// mathFlavor says how an expression is displayed and which delimiters
+// enclose it in the source.
+type mathFlavor uint8
 
 const (
-	flavor_inline = 1 << iota
-	flavor_display
-	delimeter_ams
-	delimeter_tex
+	flavorInline mathFlavor = 1 << iota
+	flavorDisplay
+	delimiterAMS // \\( \\) and \\[ \\]
+	delimiterTeX // $ and $$
 )
 
 var (
@@ -96,7 +94,7 @@ var (
 
 // mathExpr is what the renderer needs from an inline or block math node.
 type mathExpr struct {
-	flavor int
+	flavor mathFlavor
 	tex    string
 	budget *mathBudget
 }
@@ -142,14 +140,14 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	posLine, posSeg := block.Position()
 	line, seg := block.PeekLine()
 	var begin, end []byte
-	var flavor int
+	var flavor mathFlavor
 	var key parser.ContextKey
 	if len(line) < len(_inlineopen) {
 		return nil
 	}
 	if line[0] == '$' {
 		if line[1] == '$' {
-			flavor = flavor_display | delimeter_tex
+			flavor = flavorDisplay | delimiterTeX
 			begin = _dollarDisplay
 			end = _dollarDisplay
 			key = closeDollarDisplayKey
@@ -159,7 +157,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			if util.IsSpace(line[1]) {
 				return nil
 			}
-			flavor = flavor_inline | delimeter_tex
+			flavor = flavorInline | delimiterTeX
 			begin = _dollarInline
 			end = _dollarInline
 			key = closeDollarInlineKey
@@ -167,12 +165,12 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	} else {
 		switch string(line[:3]) {
 		case string(_inlineopen):
-			flavor = flavor_inline | delimeter_ams
+			flavor = flavorInline | delimiterAMS
 			begin = _inlineopen
 			end = _inlineclose
 			key = closeInlineKey
 		case string(_displayopen):
-			flavor = flavor_display | delimeter_ams
+			flavor = flavorDisplay | delimiterAMS
 			begin = _displayopen
 			end = _displayclose
 			key = closeDisplayKey
@@ -181,7 +179,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 		}
 	}
 	find := func(b []byte) int { return bytes.Index(b, end) }
-	if flavor == flavor_inline|delimeter_tex {
+	if flavor == flavorInline|delimiterTeX {
 		find = findDollarClose
 	}
 	start := seg.Start + len(begin)
@@ -309,12 +307,12 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	// (\alpha, \_, $100, ...) is left to the paragraph and inline parsers.
 	line, _ := reader.PeekLine()
 	var open, closeTag []byte
-	var flavor int
+	var flavor mathFlavor
 	switch {
 	case bytes.HasPrefix(line, _displayopen):
-		open, closeTag, flavor = _displayopen, _displayclose, flavor_display|delimeter_ams
+		open, closeTag, flavor = _displayopen, _displayclose, flavorDisplay|delimiterAMS
 	case bytes.HasPrefix(line, _dollarDisplay):
-		open, closeTag, flavor = _dollarDisplay, _dollarDisplay, flavor_display|delimeter_tex
+		open, closeTag, flavor = _dollarDisplay, _dollarDisplay, flavorDisplay|delimiterTeX
 	default:
 		return nil, parser.NoChildren
 	}
@@ -583,10 +581,6 @@ func (p *texBlockRegionParser) CanInterruptParagraph() bool { return true }
 
 func (p *texBlockRegionParser) CanAcceptIndentedLine() bool { return true }
 
-func (p *texInlineRegionParser) CanInterruptParagraph() bool { return true }
-
-func (p *texInlineRegionParser) CanAcceptIndentedLine() bool { return true }
-
 type MathRenderer struct{}
 
 // NewMathRenderer returns a new MathRenderer.
@@ -616,7 +610,7 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 			// plain text.
 			w.WriteString("<p>")
 			open := _dollarDisplay
-			if t.flavor&delimeter_ams > 0 {
+			if t.flavor&delimiterAMS > 0 {
 				open = _displayopen
 			}
 			w.Write(open)
@@ -631,7 +625,7 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	default:
 		return ast.WalkContinue, nil
 	}
-	inline := expr.flavor&flavor_inline > 0
+	inline := expr.flavor&flavorInline > 0
 
 	if len(expr.tex) <= MaxMathInputLen && expr.budget.left > 0 {
 		// The converter keeps per-expression state, so it must not be shared
@@ -703,7 +697,3 @@ func (e *mathMLExtension) Extend(m goldmark.Markdown) {
 		),
 	)
 }
-
-// ExtMath is the global instance of the math extension, without any other
-// extension's block parsers (see NewExtMath).
-var ExtMath = NewExtMath()
