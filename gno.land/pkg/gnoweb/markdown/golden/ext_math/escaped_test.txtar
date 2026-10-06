@@ -2,21 +2,4 @@
 Test: \\(A = \\pi r^2\\)
 
 -- output.html --
-<p>Test: 
-<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
-  <semantics>
-    <mrow>
-      <mi>A</mi>
-      <mo>=</mo>
-      <mo>\</mo>
-      <mi>p</mi>
-      <mi>i</mi>
-      <msup>
-        <mi>r</mi>
-        <mn>2</mn>
-      </msup>
-    </mrow>
-    <annotation encoding="application/x-tex">A = \\pi r^2</annotation>
-  </semantics>
-</math>
-</p>
+<p>Test: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>A</mi><mo>=</mo><mo>\</mo><mi>p</mi><mi>i</mi><msup><mi>r</mi><mn>2</mn></msup></mrow><annotation encoding="application/x-tex">A = \\pi r^2</annotation></semantics></math></p>

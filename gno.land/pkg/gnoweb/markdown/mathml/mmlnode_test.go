@@ -187,9 +187,9 @@ func TestTableColumnsAfterSpans(t *testing.T) {
 	out, err := NewMathMLConverter().ConvertDisplay(`\begin{array}{lcr}\multicolumn{2}{c}{e}&f\\ \multirow{2}{*}{g}&h&i\\ &j&k\end{array}`)
 	require.NoError(t, err)
 	assert.Equal(t, 7, strings.Count(out, "<mtd"))
-	assert.Contains(t, out, "<mtd columnalign=\"right\">\n            <mi>f</mi>")
-	assert.Contains(t, out, "<mtd columnalign=\"center\">\n            <mi>j</mi>")
-	assert.Contains(t, out, "<mtd columnalign=\"right\">\n            <mi>k</mi>")
+	assert.Contains(t, out, "<mtd columnalign=\"right\"><mi>f</mi>")
+	assert.Contains(t, out, "<mtd columnalign=\"center\"><mi>j</mi>")
+	assert.Contains(t, out, "<mtd columnalign=\"right\"><mi>k</mi>")
 }
 
 // convertWithin converts tex, failing the test if conversion does not
@@ -357,4 +357,17 @@ func TestNestedRaiseIsBounded(t *testing.T) {
 	deep := strings.Repeat(`\raisebox{1em}{`, 40) + "x" + strings.Repeat("}", 40)
 	out := convertWithin(t, deep, false)
 	assert.Equal(t, 2, strings.Count(out, "voffset="))
+}
+
+// Inline math is written without surrounding or inner whitespace, which
+// would show as spaces around it, as in "($x$)".
+func TestInlineOutputIsCompact(t *testing.T) {
+	out := convertWithin(t, `\frac{a}{b} + \begin{pmatrix}1&2\end{pmatrix}`, false)
+	assert.NotContains(t, out, "\n")
+	assert.True(t, strings.HasPrefix(out, "<math "), out)
+	assert.True(t, strings.HasSuffix(out, "</math>"), out)
+	assert.NotContains(t, out, "> ")
+	out = convertWithin(t, `\frac{a}{b}`, true)
+	assert.Equal(t, 1, strings.Count(out, "\n"))
+	assert.True(t, strings.HasSuffix(out, "</math>\n"), out)
 }

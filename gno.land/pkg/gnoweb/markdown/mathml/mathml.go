@@ -82,7 +82,6 @@ func InlineStyle(tex string, macros map[string]string) (string, error) {
 type MathMLConverter struct {
 	EQCount              int             // used for numbering display equations
 	DoNumbering          bool            // Whether or not to number equations in a document
-	PrintOneLine         bool            // If true, print the MathML on a single line
 	currentExpr          []rune          // the expression currently being evaluated
 	currentIsDisplay     bool            // true if the current expression is being rendered in displaystyle
 	needMacroExpansion   map[string]bool // used if any \newcommand definitions are encountered.
@@ -108,10 +107,9 @@ func NewMathMLConverter(macros ...map[string]string) *MathMLConverter {
 func (converter *MathMLConverter) render(tex string, displaystyle bool) (result string, err error) {
 	var ast *MMLNode
 	var builder strings.Builder
-	var indent int
-	if converter.PrintOneLine {
-		indent = -1
-	}
+	// The MathML is written on one line, without indentation: whitespace
+	// around inline math, as in "($x$)", would show as spaces.
+	const indent = -1
 	setStyle := func(math *MMLNode) {
 		if displaystyle {
 			math.SetAttr("display", "block")
@@ -140,9 +138,10 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 	ast = converter.wrapInMathTag(converter.ParseTex(NewTokenBuffer(tokens), ctxRoot), tex)
 	ast.SetAttr("xmlns", "http://www.w3.org/1998/Math/MathML")
 	setStyle(ast)
-	builder.WriteRune('\n')
 	ast.Write(&builder, indent)
-	builder.WriteRune('\n')
+	if displaystyle {
+		builder.WriteRune('\n')
+	}
 	return builder.String(), err
 }
 
@@ -221,10 +220,6 @@ func (converter *MathMLConverter) SemanticsOnly(tex string) (string, error) {
 
 	ast := converter.ParseTex(NewTokenBuffer(tokens), ctxRoot)
 	var builder strings.Builder
-	var indent int
-	if converter.PrintOneLine {
-		indent = -1
-	}
-	ast.Write(&builder, indent)
+	ast.Write(&builder, -1)
 	return builder.String(), err
 }
