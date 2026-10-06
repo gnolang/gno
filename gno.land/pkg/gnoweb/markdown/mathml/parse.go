@@ -449,12 +449,6 @@ func (n *MMLNode) postProcessChars() {
 		switch child.Text {
 		case "-":
 			n.Children[i].Text = "−"
-		case "<":
-			n.Children[i].Text = "&lt;"
-		case ">":
-			n.Children[i].Text = "&gt;"
-		case "&":
-			n.Children[i].Text = "&amp;"
 		case "'", "’", "ʹ":
 			combinePrimes(i)
 		}

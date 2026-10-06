@@ -463,7 +463,7 @@ func stringifyTokensHtml(toks []Token) string {
 	var sb strings.Builder
 	for _, t := range toks {
 		if t.Value == " " {
-			sb.WriteString("&nbsp;")
+			sb.WriteString("\u00a0") // no-break space
 		} else {
 			sb.WriteString(t.Value)
 		}

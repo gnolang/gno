@@ -1797,7 +1797,7 @@ var symbolTable = map[string]symbol{
 		kind:   sym_relation,
 	},
 	"less": {
-		char:   "&lt;",
+		char:   "<",
 		entity: "&lt;",
 		kind:   sym_relation,
 	},
@@ -1924,7 +1924,7 @@ var symbolTable = map[string]symbol{
 		kind:   sym_closing,
 	},
 	"lt": {
-		char:   "&lt;",
+		char:   "<",
 		entity: "&lt;",
 		kind:   sym_binaryop,
 	},

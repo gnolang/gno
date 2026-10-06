@@ -19,15 +19,29 @@ func TestMMLNodeWriteEscapes(t *testing.T) {
 		b.String())
 }
 
-func TestMMLNodeWriteKeepsEntities(t *testing.T) {
-	for _, s := range []string{"&OverBrace;", "&lt;", "&#8289;", "&#x2061;"} {
+// Node text holds literal characters: an entity reference typed by the
+// author must display as typed, not be decoded by the browser.
+func TestMMLNodeWriteEscapesEntities(t *testing.T) {
+	for in, want := range map[string]string{
+		"&OverBrace;":    "&amp;OverBrace;",
+		"&lt;b&gt;":      "&amp;lt;b&amp;gt;",
+		"&#34;":          "&amp;#34;",
+		"&#x2061;":       "&amp;#x2061;",
+		"&notanentity &": "&amp;notanentity &amp;",
+	} {
 		var b strings.Builder
-		NewMMLNode("mo", s).Write(&b, -1)
-		assert.Equal(t, "<mo>"+s+"</mo>", b.String())
+		NewMMLNode("mo", in).Write(&b, -1)
+		assert.Equal(t, "<mo>"+want+"</mo>", b.String())
 	}
-	var b strings.Builder
-	NewMMLNode("mo", "&notanentity &").Write(&b, -1)
-	assert.Equal(t, "<mo>&amp;notanentity &amp;</mo>", b.String())
+}
+
+func TestConvertKeepsTypedEntities(t *testing.T) {
+	out, err := NewMathMLConverter().ConvertInline(`\text{&lt;b&gt; a b} \overbrace{x} < y`)
+	assert.NoError(t, err)
+	assert.Contains(t, out, "<mtext>&amp;lt;b&amp;gt;\u00a0a\u00a0b</mtext>")
+	assert.Contains(t, out, "<mo stretchy=\"true\">⏞</mo>")
+	assert.Contains(t, out, "<mo>&lt;</mo>")
+	assert.Contains(t, out, `<annotation encoding="application/x-tex">\text{&amp;lt;b&amp;gt; a b}`)
 }
 
 func TestParseDepthLimit(t *testing.T) {

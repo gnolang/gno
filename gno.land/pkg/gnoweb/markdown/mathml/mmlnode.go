@@ -2,7 +2,6 @@ package mathml
 
 import (
 	"maps"
-	"regexp"
 	"slices"
 	"strings"
 )
@@ -12,14 +11,10 @@ import (
 // size quadratic in the input for deeply nested expressions.
 const maxIndent = 16
 
-// entityRef matches a well-formed HTML character reference. Node text is
-// allowed to carry these (symbol tables emit e.g. "&OverBrace;"), every other
-// markup-significant character is escaped.
-var entityRef = regexp.MustCompile(`^&(?:[A-Za-z][A-Za-z0-9]*|#[0-9]+|#[xX][0-9A-Fa-f]+);`)
-
-// writeEscaped writes s to w, escaping <, >, " and any & that does not
-// start a well-formed character reference. This makes the output safe both
-// as element content and inside a double-quoted attribute value.
+// writeEscaped writes s to w, escaping <, >, " and &. This makes the output
+// safe both as element content and inside a double-quoted attribute value.
+// Node text always holds literal characters, never character references, so
+// an entity typed by the author (\text{&lt;b&gt;}) displays as typed.
 func writeEscaped(w *strings.Builder, s string) {
 	for i := 0; i < len(s); i++ {
 		switch c := s[i]; c {
@@ -30,12 +25,7 @@ func writeEscaped(w *strings.Builder, s string) {
 		case '"':
 			w.WriteString("&#34;")
 		case '&':
-			if m := entityRef.FindString(s[i:]); m != "" {
-				w.WriteString(m)
-				i += len(m) - 1
-			} else {
-				w.WriteString("&amp;")
-			}
+			w.WriteString("&amp;")
 		default:
 			w.WriteByte(c)
 		}

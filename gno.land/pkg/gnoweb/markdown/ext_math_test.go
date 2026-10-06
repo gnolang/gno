@@ -39,6 +39,16 @@ func TestMathEscapesUserContent(t *testing.T) {
 	}
 }
 
+// An entity reference typed in math source must display as typed: the
+// browser must not decode it into markup-significant characters.
+func TestMathTypedEntityIsNotDecoded(t *testing.T) {
+	out := renderMathMarkdown(t, `$\text{&lt;b&gt;} \text{&#34;}$`)
+	assert.Contains(t, out, "<mtext>&amp;lt;b&amp;gt;</mtext>")
+	assert.NotContains(t, out, "<mtext>&#34;</mtext>")
+	assert.NotContains(t, out, "<mtext>&lt;b&gt;</mtext>")
+	assert.Contains(t, out, `\text{&amp;lt;b&amp;gt;} \text{&amp;#34;}</annotation>`)
+}
+
 func TestMathDoesNotSwallowText(t *testing.T) {
 	cases := map[string]string{
 		`\alpha is greek`:                    `\alpha is greek`,

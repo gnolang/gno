@@ -224,10 +224,10 @@ func cmd_underOverBrace(converter *MathMLConverter, name string, star bool, ctx 
 	switch name {
 	case "overbrace":
 		n.Tag = "mover"
-		brace.Text = "&OverBrace;"
+		brace.Text = "⏞"
 	case "underbrace":
 		n.Tag = "munder"
-		brace.Text = "&UnderBrace;"
+		brace.Text = "⏟"
 	}
 	n.AppendChild(annotation, brace)
 	return n
