@@ -139,3 +139,24 @@ func TestComputeActivityOnAYoungChain(t *testing.T) {
 		t.Fatalf("from = %d, calls = %d; want the whole chain counted", a.From, a.Calls["gno.land/r/a"])
 	}
 }
+
+// A refresh that runs out of time keeps what it counted and says the rest is
+// unknown, rather than failing a week of counts for its last bands.
+func TestComputeActivityOutOfTimeIsPartial(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeIndexer{tip: weekOfBlocks + 10, t0: time.Unix(0, 0), bandDelay: 40 * time.Millisecond}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	a, err := computeActivity(ctx, f)
+	if err != nil {
+		t.Fatalf("computeActivity: %v, want a partial aggregate", err)
+	}
+	if !a.Partial {
+		t.Fatal("bands left unread must mark the aggregate partial")
+	}
+	total := (a.To - a.From + bandWidth) / bandWidth
+	if n := len(f.bandsQueried); n >= total {
+		t.Errorf("queried %d of %d bands: none should start after the deadline", n, total)
+	}
+}

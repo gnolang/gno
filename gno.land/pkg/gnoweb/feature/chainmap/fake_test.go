@@ -22,6 +22,10 @@ type fakeIndexer struct {
 	capOver int
 	// failBands makes CallsBetween fail outright.
 	failBands bool
+	// bandDelay makes each CallsBetween take this long, or until its ctx ends.
+	bandDelay time.Duration
+	// block makes DeploysQuoting wait until it is closed.
+	block chan struct{}
 
 	deploys      []indexer.Tx
 	deploysErr   error
@@ -39,10 +43,17 @@ func (f *fakeIndexer) Block(_ context.Context, height int) (*indexer.Block, erro
 	return &indexer.Block{Height: height, Time: f.t0.Add(time.Duration(height) * time.Second)}, nil
 }
 
-func (f *fakeIndexer) CallsBetween(_ context.Context, lower, upper int) ([]indexer.Tx, error) {
+func (f *fakeIndexer) CallsBetween(ctx context.Context, lower, upper int) ([]indexer.Tx, error) {
 	f.mu.Lock()
 	f.bandsQueried = append(f.bandsQueried, [2]int{lower, upper})
 	f.mu.Unlock()
+	if f.bandDelay > 0 {
+		select {
+		case <-time.After(f.bandDelay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 	if f.failBands {
 		return nil, errors.New("indexer down")
 	}
@@ -62,6 +73,9 @@ func (f *fakeIndexer) DeploysQuoting(_ context.Context, pkgPath string, lower, u
 	f.mu.Lock()
 	f.quoted = append(f.quoted, pkgPath)
 	f.mu.Unlock()
+	if f.block != nil {
+		<-f.block
+	}
 	var out []indexer.Tx
 	for _, tx := range f.deploys {
 		if tx.Height > lower && tx.Height <= upper {

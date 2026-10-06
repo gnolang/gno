@@ -69,11 +69,17 @@ func (h *Handler) DepsView(r *http.Request, pkgPath, title string) (int, *compon
 func (h *Handler) importersSide(pkgPath string, imp *Importers, err error) (*components.Importers, int) {
 	switch {
 	case err == nil:
-		return &components.Importers{Links: components.ImportLinks(imp.Paths, h.deps.Domain), AtLeast: imp.AtLeast}, http.StatusOK
+		return &components.Importers{
+			Links:   components.ImportLinks(imp.Paths, h.deps.Domain),
+			AtLeast: imp.AtLeast,
+			Retry:   imp.Unread,
+		}, http.StatusOK
 	case errors.Is(err, ErrRateLimited):
 		return &components.Importers{Unavailable: "Too many lookups from your address. Try again in a minute."}, http.StatusTooManyRequests
 	case errors.Is(err, ErrPending):
 		return &components.Importers{Unavailable: "Still looking them up. Reload in a moment."}, http.StatusOK
+	case errors.Is(err, ErrBusy):
+		return &components.Importers{Unavailable: "Other lookups are running. Reload in a moment."}, http.StatusServiceUnavailable
 	default:
 		h.deps.Logger.Warn("deps: importers unavailable", "path", pkgPath, "error", err)
 		return &components.Importers{Unavailable: "The indexer could not be read."}, http.StatusOK

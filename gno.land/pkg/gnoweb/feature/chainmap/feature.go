@@ -15,7 +15,10 @@ type Indexer interface {
 	LatestBlockHeight(ctx context.Context) (int, error)
 	Block(ctx context.Context, height int) (*indexer.Block, error)
 	CallsBetween(ctx context.Context, lower, upper int) ([]indexer.Tx, error)
-	DeploysQuoting(ctx context.Context, text string, lower, upper int) ([]indexer.Tx, error)
+	// DeploysQuoting returns the deploys in the heights (lower, upper] whose
+	// source holds pkgPath as a Go string literal, delimiters included, so
+	// that a path never matches inside a longer one.
+	DeploysQuoting(ctx context.Context, pkgPath string, lower, upper int) ([]indexer.Tx, error)
 	URL() string
 }
 

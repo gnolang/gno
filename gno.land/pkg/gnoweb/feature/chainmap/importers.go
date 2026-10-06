@@ -3,6 +3,7 @@ package chainmap
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"sync"
@@ -37,7 +38,9 @@ const (
 
 	// maxLookups bounds the lookups running at once across all readers. Each
 	// is a whole-chain scan plus up to maxCandidates node reads; the per-IP
-	// limiter alone lets many addresses run them side by side.
+	// limiter alone lets many addresses run them side by side. A lookup that
+	// finds no free slot is refused at once rather than queued, so waiting
+	// never eats its budget.
 	maxLookups = 2
 
 	// maxCandidates bounds the chain reads one lookup makes. Past it the
@@ -64,6 +67,10 @@ var (
 	// ErrNotLive is what an ImportReader returns for a path with no live
 	// package.
 	ErrNotLive = errors.New("package is not live")
+
+	// ErrBusy is returned when every lookup slot is taken. It is not
+	// remembered: the next reader may find a free slot.
+	ErrBusy = fmt.Errorf("%w: every lookup slot is taken", errTransient)
 )
 
 // Importers are the live packages whose non-test source imports a package.
@@ -79,9 +86,9 @@ type Importers struct {
 	// AtLeast is set when some candidates went unchecked: the indexer capped
 	// a band, there were more than maxCandidates, or a read failed.
 	AtLeast bool
-	// unread is set when a candidate read failed or ran out of time, which a
-	// retry can complete, unlike a cap.
-	unread bool
+	// Unread is set when a candidate read failed or ran out of time, which a
+	// retry can complete, unlike a cap. The answer is then kept only briefly.
+	Unread bool
 	// AsOf is the indexer's last block when the lookup ran.
 	AsOf int
 }
@@ -100,7 +107,7 @@ func newImporterFlights() importerFlights {
 		slots: make(chan struct{}, maxLookups),
 		answers: &flight[*Importers]{
 			ttl: importersTTL, errTTL: failureTTL, timeout: importersTimeout, max: maxImporterEntries,
-			partial: func(imp *Importers) bool { return imp != nil && imp.unread },
+			partial: func(imp *Importers) bool { return imp != nil && imp.Unread },
 		},
 		// A failure is not remembered: ErrNotLive turns into imports the
 		// moment a parked deploy is approved.
@@ -109,8 +116,9 @@ func newImporterFlights() importerFlights {
 }
 
 // Importers answers which live packages import pkgPath, a fully qualified
-// package path. The limiter is consulted only when the answer is not held: a
-// held answer costs neither the indexer nor the node anything.
+// package path. The limiter is consulted only when this reader would start a
+// lookup: a held answer, or one already being looked up, costs neither the
+// indexer nor the node anything more.
 func (h *Handler) Importers(ctx context.Context, r *http.Request, pkgPath string) (*Importers, error) {
 	if h.importers.answers == nil {
 		return nil, errors.New("no indexer configured")
@@ -118,7 +126,7 @@ func (h *Handler) Importers(ctx context.Context, r *http.Request, pkgPath string
 	if e, ok := h.importers.answers.fresh(pkgPath); ok {
 		return e.val, e.err
 	}
-	if h.deps.Limiter != nil && !h.deps.Limiter.AllowRequest(r) {
+	if !h.importers.answers.pending(pkgPath) && h.deps.Limiter != nil && !h.deps.Limiter.AllowRequest(r) {
 		return nil, ErrRateLimited
 	}
 	return h.importers.answers.get(ctx, pkgPath, func(ctx context.Context) (*Importers, error) {
@@ -132,8 +140,8 @@ func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers
 	select {
 	case h.importers.slots <- struct{}{}:
 		defer func() { <-h.importers.slots }()
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	default:
+		return nil, ErrBusy
 	}
 
 	asOf, err := h.deps.Indexer.LatestBlockHeight(ctx)
@@ -159,7 +167,7 @@ func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers
 		if ctx.Err() != nil {
 			// Out of time: the rest stay unread, and the answer says so.
 			mu.Lock()
-			imp.AtLeast, imp.unread = true, true
+			imp.AtLeast, imp.Unread = true, true
 			mu.Unlock()
 			break
 		}
@@ -180,7 +188,7 @@ func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers
 			default:
 				// Unread, whether the node failed or time ran out: what was
 				// checked stands, and the answer says there may be more.
-				imp.AtLeast, imp.unread = true, true
+				imp.AtLeast, imp.Unread = true, true
 			}
 			return nil
 		})
@@ -200,6 +208,11 @@ func (h *Handler) scanCandidates(ctx context.Context, pkgPath string, tip int) (
 	g.SetLimit(scanConcurrency)
 	// The bottom band starts below 0: genesis packages live at height 0.
 	for lower := -1; lower < tip; lower += scanBand {
+		// A band started after the lookup gave up would only fail, and each
+		// failure counts against the indexer client's breaker.
+		if gctx.Err() != nil {
+			break
+		}
 		upper := min(lower+scanBand, tip)
 		g.Go(func() error {
 			txs, err := h.deps.Indexer.DeploysQuoting(gctx, pkgPath, lower, upper)

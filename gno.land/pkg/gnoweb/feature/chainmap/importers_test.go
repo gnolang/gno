@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
@@ -150,4 +152,81 @@ func TestImportersWithoutAnIndexer(t *testing.T) {
 	if _, err := h.Importers(context.Background(), nil, avl); err == nil {
 		t.Fatal("Importers must refuse without an indexer")
 	}
+}
+
+// The first failing band stops the scan: later bands would only fail too, and
+// each failure counts against the shared indexer client's breaker.
+func TestScanStopsAfterAFailingBand(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeIndexer{tip: 20 * scanBand, deploysErr: errors.New("indexer down")}
+	h := newImporterHandler(f, fakeImports{}, nil)
+	if _, err := h.Importers(context.Background(), nil, avl); err == nil {
+		t.Fatal("a failing scan must fail the lookup")
+	}
+	if n := len(f.quoted); n > 2*scanConcurrency {
+		t.Errorf("%d bands queried after the first failure, want at most a concurrent handful", n)
+	}
+}
+
+// With every slot taken a lookup is refused at once, and the refusal is not
+// remembered: the next reader may find a slot.
+func TestImportersBusyIsNotRemembered(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeIndexer{tip: 10, deploys: []indexer.Tx{deploy("gno.land/r/a")}}
+	h := newImporterHandler(f, fakeImports{imports: map[string][]string{"gno.land/r/a": {avl}}}, nil)
+	for range maxLookups {
+		h.importers.slots <- struct{}{}
+	}
+	if _, err := h.Importers(context.Background(), nil, avl); !errors.Is(err, ErrBusy) {
+		t.Fatalf("err = %v, want ErrBusy", err)
+	}
+	for range maxLookups {
+		<-h.importers.slots
+	}
+	got, err := h.Importers(context.Background(), nil, avl)
+	if err != nil || len(got.Paths) != 1 {
+		t.Fatalf("got %+v, %v; a busy refusal must not be cached", got, err)
+	}
+}
+
+// A reader joining a lookup already running is not charged: reloading as the
+// page asks must not end in "too many lookups".
+func TestImportersJoiningIsFree(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeIndexer{tip: 10, block: make(chan struct{})}
+	lim := &countingLimiter{allow: 1}
+	h := newImporterHandler(f, fakeImports{}, lim)
+
+	short := func() context.Context {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		t.Cleanup(cancel)
+		return ctx
+	}
+	if _, err := h.Importers(short(), nil, avl); !errors.Is(err, ErrPending) {
+		t.Fatalf("first reader: err = %v, want ErrPending", err)
+	}
+	for range 3 {
+		if _, err := h.Importers(short(), nil, avl); !errors.Is(err, ErrPending) {
+			t.Fatalf("joining reader: err = %v, want ErrPending, not a rate limit", err)
+		}
+	}
+	close(f.block)
+	if lim.asked != 1 {
+		t.Errorf("limiter asked %d times, want once: only the reader who started the lookup pays", lim.asked)
+	}
+}
+
+type countingLimiter struct {
+	mu           sync.Mutex
+	allow, asked int
+}
+
+func (c *countingLimiter) AllowRequest(*http.Request) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.asked++
+	return c.asked <= c.allow
 }

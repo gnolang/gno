@@ -648,10 +648,7 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// A map exists only where the list does, which is where no package lives:
 	// on a package its List tab would open the package, not the listing.
 	if gnourl.WebQuery.Has("map") {
-		if _, err := h.Client.ListFiles(ctx, strings.TrimSuffix(gnourl.Path, "/"), 0); err == nil {
-			return http.StatusNotFound, components.StatusErrorComponent("This path is a package, not a listing: open it, or map the path above it.")
-		}
-		return h.GetPathsListView(ctx, gnourl, indexData)
+		return h.GetMapView(ctx, gnourl, indexData)
 	}
 
 	// Handle Help page
@@ -1291,6 +1288,30 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 		})
 	}
 	return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated)
+}
+
+// GetMapView draws the listing below a path. A map exists only where the list
+// does, which is where no package lives: on a package its List tab would open
+// the package, not the listing. The package check runs beside the listing,
+// so a namespace map waits one round trip, not two.
+func (h *HTTPHandler) GetMapView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	pkgErr := make(chan error, 1)
+	go func() {
+		_, err := h.Client.ListFiles(ctx, strings.TrimSuffix(gnourl.Path, "/"), 0)
+		pkgErr <- err
+	}()
+	status, view := h.GetPathsListView(ctx, gnourl, indexData)
+
+	switch err := <-pkgErr; {
+	case err == nil:
+		return http.StatusNotFound, components.StatusErrorComponent("This path is a package, not a listing: open it, or map the path above it.")
+	case !errors.Is(err, ErrClientPackageNotFound):
+		// The node could not say: drawing the listing could draw one below a
+		// package.
+		h.Logger.Error("map: unable to tell a package from a listing", "path", gnourl.Path, "error", err)
+		return GetClientErrorStatusView(gnourl, err, 0)
+	}
+	return status, view
 }
 
 // GetDirectoryView renders the directory view for a package, showing available files.

@@ -36,7 +36,11 @@ lists around a name.
     <p class="b-depgraph__empty">No live package imports it.</p>
     {{ end }}
     {{ if .AtLeast }}
-    <p class="b-depgraph__empty">{{ if .Links }}Some candidates could not be checked, so there may be more.{{ else }}None confirmed: the candidates could not be checked. Reload later to try again.{{ end }}</p>
+    {{ if .Retry }}
+    <p class="b-depgraph__empty">{{ if .Links }}Some candidates could not be checked, so there may be more.{{ else }}None confirmed: the candidates could not be checked.{{ end }} Reload in a minute to try again.</p>
+    {{ else }}
+    <p class="b-depgraph__empty">The indexer returned only part of the candidates, so there may be {{ if .Links }}more{{ else }}some{{ end }}.</p>
+    {{ end }}
     {{ end }}
     {{ end }}
     {{ else }}

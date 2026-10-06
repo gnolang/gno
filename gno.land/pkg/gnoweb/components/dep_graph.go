@@ -22,6 +22,9 @@ type Importers struct {
 	Links []ImportLink
 	// AtLeast says some candidates went unchecked: there may be more.
 	AtLeast bool
+	// Retry says the unchecked ones failed to read, which a reload may
+	// complete; otherwise the indexer or the candidate cap stopped the search.
+	Retry bool
 	// Unavailable says why there is no answer; Links is then empty.
 	Unavailable string
 }

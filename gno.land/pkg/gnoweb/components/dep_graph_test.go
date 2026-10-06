@@ -19,15 +19,25 @@ func renderGraph(t *testing.T, g DepGraph) string {
 func TestPkgGraphNeverClaimsNoneWhenUnchecked(t *testing.T) {
 	t.Parallel()
 
-	out := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{AtLeast: true}})
-	if strings.Contains(out, "No live package imports it.") {
-		t.Error("a partial answer with no confirmed importer claims there are none")
+	for _, imp := range []*Importers{{AtLeast: true}, {AtLeast: true, Retry: true}} {
+		out := renderGraph(t, DepGraph{Name: "/p/a", Importers: imp})
+		if strings.Contains(out, "No live package imports it.") {
+			t.Errorf("%+v: a partial answer with no confirmed importer claims there are none", imp)
+		}
+		if strings.Contains(out, "at least 0") {
+			t.Errorf("%+v: a partial answer must not show a count of at least 0", imp)
+		}
 	}
-	if strings.Contains(out, "at least 0") {
-		t.Error("a partial answer must not show a count of at least 0")
+
+	// Failed reads are worth a retry; a cap the indexer applied is not, and
+	// the page must not send the reader reloading for nothing.
+	retry := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{AtLeast: true, Retry: true}})
+	if !strings.Contains(retry, "could not be checked") || !strings.Contains(retry, "Reload") {
+		t.Error("failed reads must say so and offer a reload")
 	}
-	if !strings.Contains(out, "could not be checked") {
-		t.Error("a partial answer must say candidates went unchecked")
+	capped := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{AtLeast: true}})
+	if strings.Contains(capped, "Reload") || !strings.Contains(capped, "only part of the candidates") {
+		t.Error("a capped answer must say the indexer stopped, without offering a reload")
 	}
 
 	complete := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{}})

@@ -91,11 +91,29 @@ func computeActivity(ctx context.Context, idx Indexer) (*Activity, error) {
 	var mu sync.Mutex
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(bandConcurrency)
+	// partial marks the window as not fully read. A refresh that runs out of
+	// time keeps what it counted and says the rest is unknown, rather than
+	// throwing a week of counts away for its last band.
+	partial := func() {
+		mu.Lock()
+		a.Partial = true
+		mu.Unlock()
+	}
 	for lower := from - 1; lower < tip; lower += bandWidth {
+		// A band started after the refresh gave up would only fail, and each
+		// failure counts against the indexer client's breaker.
+		if gctx.Err() != nil {
+			partial()
+			break
+		}
 		upper := min(lower+bandWidth, tip)
 		g.Go(func() error {
 			txs, complete, err := readBand(gctx, idx, lower, upper)
 			if err != nil {
+				if ctx.Err() != nil {
+					partial()
+					return nil
+				}
 				return err
 			}
 			mu.Lock()

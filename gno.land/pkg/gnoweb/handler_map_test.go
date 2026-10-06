@@ -135,3 +135,17 @@ func TestHTTPHandler_MapStatuses(t *testing.T) {
 		}
 	}
 }
+
+// A map exists only where the list does: on a package that has packages
+// below it, the map must not draw them as if the path were a listing.
+func TestHTTPHandler_NoMapOnAPackageWithSubpackages(t *testing.T) {
+	t.Parallel()
+
+	h := newMapHandler(t, "/p/demo/lib", "/p/demo/lib/sub")
+	if got := serve(t, h, "/p/demo/lib$map").Code; got != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 on a package path", got)
+	}
+	if got := serve(t, h, "/p/demo$map").Code; got != http.StatusOK {
+		t.Fatalf("status = %d, want 200 on the listing above it", got)
+	}
+}
