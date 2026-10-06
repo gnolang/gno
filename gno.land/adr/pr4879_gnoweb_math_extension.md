@@ -24,11 +24,11 @@ no font download on the client.
 
 ### A goldmark extension that emits MathML
 
-`markdown/ext_math.go` adds an inline parser, a block parser and a renderer,
-registered by `NewGnoExtension` (`ExtMath`). The renderer converts each
-expression to MathML on the server and writes it in place, inside a
-`<semantics>` element that keeps the TeX source as an
-`<annotation encoding="application/x-tex">`.
+`markdown/ext_math.go` adds an inline parser, a block parser, an AST
+transformer and a renderer, registered by `NewGnoExtension` through
+`NewExtMath`. The renderer converts each expression to MathML on the server
+and writes it in place, on one line, inside a `<semantics>` element that
+keeps the TeX source as an `<annotation encoding="application/x-tex">`.
 
 Delimiters, as written in the markdown source:
 
@@ -39,6 +39,11 @@ Delimiters, as written in the markdown source:
 - `$$…$$` display.
 - `\\(…\\)` inline and `\\[…\\]` display. The backslash is doubled because
   `\(` is a CommonMark backslash escape: a single `\(x\)` renders as `(x)`.
+- A fenced code block whose info string is exactly `math`, as on GitHub, is
+  display math: the transformer replaces the fence with a math block held to
+  the same limits and budget as `$$`, and keeps the fence as its child, so a
+  fence that is not converted renders as the code block it would be without
+  math.
 
 A display delimiter written inside a line of text is inline-level: the
 expression is rendered as `<math display="block">` inside the paragraph. A
@@ -54,21 +59,40 @@ line, opens a math block.
   check offers the line to the block parsers themselves in a scratch context
   (`startsBlock`), so their interruption rules apply as written: goldmark's
   CommonMark parsers plus the block parsers the other gnoweb extensions
-  register, which `NewGnoExtension` records and hands to `NewExtMath`. They
-  are indexed once by trigger byte, so a line is offered only to the parsers
-  its first byte can open. An unclosed `$$` cannot swallow the lists, quotes,
-  headings or gnoweb blocks after it when a later line holds `$$`.
+  register, which `NewGnoExtension` records and hands to `NewExtMath`.
+  goldmark cannot list the parsers an extension loaded before this one
+  registered, so those are declared with `WithPeerBlockParsers`: gnoweb's
+  render config passes `extension.Footnote`'s, so a footnote definition ends
+  display math too. The parsers are indexed once by trigger byte, so a line
+  is offered only to the parsers its first byte can open, and the scratch
+  context drops every value a probed parser sets. An unclosed `$$` cannot
+  swallow the lists, quotes, headings or gnoweb blocks after it when a later
+  line holds `$$`.
 - A block opens only when a closing line follows within `MaxMathInputLen`
-  bytes and before such a line; otherwise the opener is text.
+  bytes, before such a line, and inside the containers (blockquote, list
+  item) the opener is in: the lookahead offers each line to those
+  containers' own `Continue`, and a math block has no lazy continuation
+  lines. Otherwise the opener stays paragraph text, read exactly as without
+  math.
 - A closing line ends with the delimiter, which appears on it only once:
   the delimiter alone, or after the last line of math. Like a closing code
   fence, it may be followed only by spaces, so `$$y$$ trailing` does not
   close a block and is not split into a paragraph with a stray `$$`.
-- A block whose container (blockquote, list item) ends before its closing
-  line is rendered as its source text.
+- Dollars around a reference to a footnote defined in the document are
+  prices, not math: an inline expression or a `$$` block that holds one is
+  left as the text (or paragraph) it would be without math, so the reference
+  and its footnote stay on the page.
+- An inline math node holds its source, delimiters included, as an
+  `ast.String` child that the renderer skips: text extractors (the table of
+  contents, an image's alt text) read the expression as written instead of
+  dropping it.
+- An inline expression is read from the one or two line segments the parser
+  already holds, not from `block.Value`, which walks the paragraph's lines
+  and made a paragraph of one expression per line quadratic.
 - An empty expression (`$$$$`, `\\(\\)`, a blank block) is text: it holds no
   math and would cost a whole `<math>` element for a few input bytes.
-- Code spans, fenced and indented code keep their `$` literally.
+- Code spans, indented code and fences other than ` ```math ` keep their `$`
+  literally.
 
 ### The converter: a port of TreeBlood
 
@@ -96,30 +120,46 @@ must not be shared between concurrent renders.
   ones that size or move content are parsed and bounded: `\multirow` and
   `\multicolumn` spans must be integers in 1..64 (`maxCellSpan`), and a
   `\raisebox` shift must be a length in a TeX unit or px (a bare number is
-  taken in em) of at most 20pt, 2em
+  taken in em) that keeps the sum of the enclosing shifts within 2em
   (`maxRaisePt`); anything else is dropped and the content rendered
-  unshifted or unspanned. An unbounded span would set the minimum size of a
-  stretched arrow thousands of em tall; an unbounded shift would move math
+  unshifted or unspanned. Size switches (`\tiny` … `\Huge`) multiply when
+  nested, so their cumulative scale is clamped to [0.5, 2.488] (`minSize`,
+  `maxSize`). An unbounded span would set the minimum size of a stretched
+  arrow thousands of em tall; an unbounded shift or size would draw math
   over the page around it.
 - `\class{name}{x}` renders `x` and drops the class: page authors must not
   apply the site's CSS classes (to overlay the page, for instance). The only
   classes in the output are the converter's own (`math-displaystyle`,
-  `math-textstyle`, `mathcal`, `mathscr`).
+  `math-textstyle`, `mathcal`, `mathscr` and the `math-*` styling classes
+  below).
+- No inline style. gnoweb's production CSP is `style-src 'self'`
+  (`SecureHeadersMiddleware` in `gno.land/cmd/gnoweb/main.go`), which drops
+  every `style` attribute, so what the converter used to write as styles is
+  a class the stylesheet styles: `math-dtls-on` (dotless letters under
+  accents), `math-latex-*` and `math-tex-*` (logo kerning), `math-liminf`
+  and `math-limsup`.
+- `\color` and `\textcolor` accept only the theme colours red, orange,
+  green, blue, purple and gray (or grey), as a `math-color-<name>` class; any
+  other name or value leaves the content in the text colour. An arbitrary
+  `mathcolor` would allow text in the background colour and ignore the dark
+  theme.
 - `\newcommand`, `\renewcommand` and `\def` are accepted but their
   definitions are not expanded, so there is no macro expansion to bound.
 - `FuzzMathRender` checks that no input produces `<script>`, `<style>`,
-  `<iframe>`, `<object>`, `<embed>` or `<svg>`, an `on*` attribute or a
-  `javascript:` value, and that the output stays within the size bounds
-  below.
+  `<iframe>`, `<object>`, `<embed>`, `<use>` or `<svg>` (except gnoweb's own
+  alert icon, an `<svg>` holding only `<use href="#ico-…">`), an `on*`
+  attribute or a `javascript:` value, and that the output stays within the
+  size bounds below. Each render runs under a timeout, and
+  `FuzzConversionTerminates` checks the converter alone the same way: a
+  `\sideset` loop had gone unnoticed because fuzzing just sat on the input.
 
 ### DoS model
 
 - Per expression, input: an expression longer than `MaxMathInputLen` (8 KiB)
   is not converted and is rendered as escaped text.
 - Per expression, depth: `ParseTex` panics past `MaxParseDepth` (64) nested
-  levels, and the converter recovers it as a conversion error; the
-  pretty-print indentation is capped at 16 levels (`maxIndent`) so deep
-  nesting cannot make the output quadratic.
+  levels, and the converter recovers it as a conversion error. The MathML
+  is written on one line, so nesting adds no indentation to the output.
 - Per expression, output: MathML longer than `64·n + 4096` bytes for `n`
   bytes of TeX (`maxMathOutputLen`) is discarded for the escaped source, so
   a table of thousands of tiny cells cannot amplify.
@@ -135,17 +175,30 @@ must not be shared between concurrent renders.
   rest of its line (quadratic on a line of `$a `); `findCloseCached` reuses
   the previous search of the same line. The block lookahead
   (`hasClosingLine`) caches the range it has scanned, so a page full of
-  unclosed `$$` or `\\[` lines is scanned once overall.
+  unclosed `$$` or `\\[` lines is scanned once overall; the cache is kept
+  per container.
 
 ### Styling
 
-Table cell alignment is written as a `columnalign` attribute on each `<mtd>`,
-decided once per logical column (`columnAlign`), and the stylesheet
-(`05-composition.css`) maps it to `text-align` and to the side padding that
-pairs up the columns of `aligned` environments. Chrome's MathML Core does not
-implement `columnalign`, so the stylesheet is what aligns cells there. Math
-uses the site's monospace family and a font size token, and display math
-gets the page's block spacing.
+All math styling is in the stylesheet (`05-composition.css`, scoped to the
+realm and readme views), with the theme's tokens:
+
+- Table cell alignment is written as a `columnalign` attribute on each
+  `<mtd>`, decided once per logical column (`columnAlign`), and the
+  stylesheet maps it to `text-align` and to the side padding that pairs up
+  the columns of `aligned` environments. Chrome's MathML Core does not
+  implement `columnalign`, so the stylesheet is what aligns cells there.
+- Math uses `font-family: math`, the system's math font, at `1.1em`, so it
+  follows the text around it (headings, tables); `\text` uses the body font.
+- The `math-color-*` classes map to the text tokens that have light and dark
+  values (caution, success, info, tip, tertiary); orange, which had none,
+  gets `--g-color-orange-400/600` and `--s-color-math-orange`.
+- Display math scrolls sideways when wider than the column, as code blocks
+  and tables do, with block padding so the scroll box does not clip limits
+  and descenders.
+- `merror` (whose text the converter puts in an `<mtext>`, as browsers draw
+  no text placed directly in it) uses the caution colours, and the
+  unconverted source fallbacks look like inline code.
 
 The `r/docs/markdown` realm documents the syntax
 (`examples/quarantined/gno.land/r/docs/markdown/markdown.gno`).
@@ -184,12 +237,15 @@ The `r/docs/markdown` realm documents the syntax
   variants (`\mathbb`, `\mathbf`, `\mathcal`, ...) are written as Unicode
   mathematical alphanumeric characters rather than `mathvariant`, which
   MathML Core only honours as `normal`.
-- Font: math inherits the site's monospace stack, whose first family is the
-  bundled Roboto Mono face. It has no OpenType `MATH` table, so stretchy
-  delimiters, radicals and large operators are drawn with the browser's
-  fallback and look plainer than with a math font. Shipping a math font
-  (Latin Modern Math, STIX Two Math) would fix it at the cost of a large
-  download on every page with math.
+- Font: `font-family: math` uses whatever math font the browser picks for
+  the system (for instance STIX Two Math on macOS, Cambria Math on
+  Windows); a system without one
+  falls back to a text font, where stretchy delimiters, radicals and large
+  operators look plainer. Shipping a math font (Latin Modern Math, STIX Two
+  Math) would make it uniform at the cost of a large download on every page
+  with math.
+- Inline math cannot wrap or scroll: a very long inline formula widens the
+  page on a phone. Long formulas belong in display math, which scrolls.
 - Every limit falls back to the escaped TeX source, never to an error page:
   an over-long, too deep, too expanding or over-budget expression is shown
   as text, and the rest of the page renders.
@@ -197,4 +253,17 @@ The `r/docs/markdown` realm documents the syntax
   source's size to every formula; it is counted in the output bounds.
 - The converter is a fork. Fixes made upstream in TreeBlood do not reach
   gnoweb on their own, and the hardening here must be kept when porting
-  them.
+  them. The parts of its API gnoweb does not use (`TexToMML`, document
+  numbering, macro arguments, the indenting writer) are removed.
+- Pandoc's `$` rule has false positives: in `$GNOT/$ATOM` the second `$`
+  follows a non-space and is not followed by a digit, so `GNOT/` renders as
+  math. Authors write `\$` for a literal dollar.
+- Realms that splice user text into their markdown now let it write TeX:
+  `sanitize.InlineText` (`gno.land/p/nt/markdown/sanitize/v0`) and
+  `chain/markdown.EscapeInline` (`gnovm/stdlibs/chain/markdown/markdown.go`)
+  do not escape `$`, so a user's `$x$` renders as math in such a realm.
+  The output is still escaped MathML within the bounds above, but escaping
+  `$` there is left to a follow-up PR.
+- Math is not rendered inside `<gno-foreign>`: the sandboxed renderer
+  (`buildInnerForeignMarkdown`) does not load the math extension, so TeX
+  there stays text.
