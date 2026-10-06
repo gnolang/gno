@@ -20,4 +20,4 @@ func main() {
 }
 
 // Output:
-// recovered nil pointer dereference
+// recovered value method main.S.String called using nil *S pointer

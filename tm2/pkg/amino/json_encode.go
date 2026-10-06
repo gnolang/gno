@@ -33,7 +33,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 	}
 
 	// Dereference value if pointer.
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			err = writeStr(w, `null`)
 			return
@@ -154,54 +154,99 @@ func (cdc *Codec) encodeReflectJSONInterface(w io.Writer, iinfo *TypeInfo, rv re
 		return
 	}
 
-	// Write Value to buffer
-	buf := poolBytesBuffer.Get()
-	defer poolBytesBuffer.Put(buf)
+	isValue := cinfo.IsJSONAnyValueType || (cinfo.IsAminoMarshaler && cinfo.ReprType.IsJSONAnyValueType)
+	prefix := _fmt(`{"@type":"%s"`, cinfo.TypeURL)
+	if isValue {
+		prefix += `,"value":`
+	}
+	// Streaming writes the wrapper eagerly, so encoding failures
+	// may leave partial JSON in the writer.
+	if err = writeStr(w, prefix); err != nil {
+		return
+	}
 
-	cdc.encodeReflectJSON(buf, cinfo, crv, fopts)
-	value := buf.Bytes()
-	if len(value) == 0 {
-		err = errors.New("JSON bytes cannot be empty")
+	valueWriter := ifaceJSONWriter{w: w, object: !isValue}
+	if err = cdc.encodeReflectJSON(&valueWriter, cinfo, crv, fopts); err != nil {
 		return
 	}
-	if cinfo.IsJSONAnyValueType || (cinfo.IsAminoMarshaler && cinfo.ReprType.IsJSONAnyValueType) {
-		// Sanity check
-		if value[0] == '{' || value[len(value)-1] == '}' {
-			err = errors.New("unexpected JSON object %s", value)
-			return
-		}
-		// Write TypeURL
-		err = writeStr(w, _fmt(`{"@type":"%s","value":`, cinfo.TypeURL))
-		if err != nil {
-			return
-		}
-		// Write Value
-		err = writeStr(w, string(value))
-		if err != nil {
-			return
-		}
-		// Write closing brace.
+	if err = valueWriter.finish(); err != nil {
+		return
+	}
+	if isValue {
 		err = writeStr(w, `}`)
-		return
-	} else {
-		// Sanity check
-		if value[0] != '{' || value[len(value)-1] != '}' {
-			err = errors.New("expected JSON object but got %s", value)
-			return
-		}
-		// Write TypeURL
-		err = writeStr(w, _fmt(`{"@type":"%s"`, cinfo.TypeURL))
-		if err != nil {
-			return
-		}
-		// Write Value
-		if len(value) > 2 {
-			err = writeStr(w, ","+string(value[1:]))
-		} else {
-			err = writeStr(w, `}`)
-		}
-		return
 	}
+	return
+}
+
+// ifaceJSONWriter streams an interface's concrete JSON into its wrapper.
+// It removes the opening brace for objects and retains the final byte
+// until finish can validate it.
+type ifaceJSONWriter struct {
+	w         io.Writer
+	last      [1]byte
+	object    bool
+	started   bool
+	hasLast   bool
+	wroteBody bool
+}
+
+func (iw *ifaceJSONWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	if n == 0 {
+		return 0, nil
+	}
+	if !iw.started {
+		iw.started = true
+		if iw.object {
+			if p[0] != '{' {
+				return 0, errors.New("expected JSON object")
+			}
+			// The wrapper already opened the object.
+			if p = p[1:]; len(p) == 0 {
+				return n, nil
+			}
+		} else if p[0] == '{' {
+			return 0, errors.New("unexpected JSON object")
+		}
+	}
+	if iw.hasLast {
+		if err := iw.writeBody(iw.last[:]); err != nil {
+			return 0, err
+		}
+	}
+	if len(p) > 1 {
+		if err := iw.writeBody(p[:len(p)-1]); err != nil {
+			return 0, err
+		}
+	}
+	iw.last[0], iw.hasLast = p[len(p)-1], true
+	return n, nil
+}
+
+// writeBody writes body bytes, adding a comma before the first
+// object body to separate it from the wrapper's "@type" field.
+func (iw *ifaceJSONWriter) writeBody(p []byte) error {
+	if iw.object && !iw.wroteBody {
+		iw.wroteBody = true
+		if err := writeStr(iw.w, `,`); err != nil {
+			return err
+		}
+	}
+	_, err := iw.w.Write(p)
+	return err
+}
+
+func (iw *ifaceJSONWriter) finish() error {
+	switch {
+	case !iw.started:
+		return errors.New("JSON bytes cannot be empty")
+	case !iw.hasLast || (iw.object && iw.last[0] != '}'):
+		return errors.New("expected JSON object")
+	case !iw.object && iw.last[0] == '}':
+		return errors.New("unexpected JSON object")
+	}
+	_, err := iw.w.Write(iw.last[:])
+	return err
 }
 
 func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.Value, fopts FieldOptions) (err error) {
@@ -258,7 +303,7 @@ func (cdc *Codec) encodeReflectJSONList(w io.Writer, info *TypeInfo, rv reflect.
 		for i := range length {
 			// Get dereferenced element value and info.
 			erv := rv.Index(i)
-			if erv.Kind() == reflect.Ptr &&
+			if erv.Kind() == reflect.Pointer &&
 				erv.IsNil() {
 				// then
 				err = writeStr(w, `null`)

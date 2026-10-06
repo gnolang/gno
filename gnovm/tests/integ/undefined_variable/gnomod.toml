@@ -1,2 +1,2 @@
-module = "gno.vm/r/tests/integ/undefined_variable"
+module = "gno.vm/r/tests/integ/main"
 gno = "0.9"

@@ -6,7 +6,7 @@ available third-party wallets that support Gno.land networks.
 
 ## GnoConnect Integration
 
-Gno.land uses GnoConnect, a protocol that allows external wallets to integrate
+Gno.land uses [GnoConnect](../resources/gnoconnect.md), a protocol that allows external wallets to integrate
 with gno-powered blockchains. This provides a standardized way for wallets to:
 
 - Connect to Gno.land networks

@@ -12,7 +12,7 @@ Standard libraries differ from on-chain packages in terms of their import path s
 Unlike on-chain [packages](./gno-packages.md), standard libraries do not incorporate
 a domain-like format at the beginning of their import path. For example:
 - `import "strings"` refers to a standard library
-- `import "gno.land/p/nt/avl"` refers to an on-chain pure package.
+- `import "gno.land/p/nt/avl/v0"` refers to an on-chain pure package.
 
 To see concrete implementation details & API references of the `chain` package &
 subpackages, see below.
@@ -178,7 +178,9 @@ Gno has a few custom builtin types & keywords that are used for handling Gno-spe
 cases:
 - `realm` - represents a Realm object
 - `address` - represents a Gno address
-- `cross` - passed as a `realm` type argument during a [crossing call](./gno-interrealm.md)
+- `cross(rlm)` - validates `rlm` is the current realm and passes it as the
+  `realm` type argument of a [crossing call](./gno-interrealm.md), e.g.
+  `fn(cross(cur), ...)`
 
 ### `address`
 
@@ -191,7 +193,7 @@ func (a address) String()  string {...}
 ```
 
 ### IsValid
-Check if **Address** is of a valid length, and conforms to the bech32 format.
+Check if **address** is of a valid length, and conforms to the bech32 format.
 
 ##### Usage
 ```go
@@ -201,7 +203,7 @@ if !address.IsValid() {...}
 ---
 
 ### String
-Get **string** representation of **Address**.
+Get **string** representation of **address**.
 
 ##### Usage
 ```go
@@ -217,11 +219,11 @@ stringAddr := addr.String()
 ```go
 type realm Realm
 type Realm struct { 
-    addr    Address
+    addr    address
     pkgPath string
 }
 
-func (r Realm) Address() Address {...}
+func (r Realm) Address() address {...}
 func (r Realm) PkgPath() string {...}
 func (r Realm) String() string {...}
 func (r Realm) IsUser() bool {...}
@@ -301,13 +303,12 @@ if r.IsUserCall() {...}
 
 ### IsEphemeral
 
-Checks if the receiver realm is a user realm, given by a `MsgCall` transaction.
+Checks if the receiver realm has an ephemeral package path (i.e. under `/e/`).
 
 ##### Usage
 ```go
-if r.IsUserCall() {...}
+if r.IsEphemeral() {...}
 ```
-
 ---
 
 ### CoinDenom
@@ -669,15 +670,18 @@ height := runtime.ChainHeight()
 ```
 ---
 
+## chain/runtime/unsafe
+
+
 ### OriginCaller
 ```go
-func OriginCaller() Address
+func OriginCaller() address
 ```
 Returns the original signer of the transaction.
 
 ##### Usage
 ```go
-caller := runtime.OriginCaller()
+caller := unsafe.OriginCaller()
 ```
 ---
 
@@ -689,7 +693,7 @@ Returns current [Realm](./realms.md) object.
 
 ##### Usage
 ```go
-currentRealm := runtime.CurrentRealm()
+currentRealm := unsafe.CurrentRealm()
 ```
 ---
 
@@ -702,7 +706,19 @@ user realm, `pkgpath` will be empty.
 
 ##### Usage
 ```go
-prevRealm := runtime.PreviousRealm()
+prevRealm := unsafe.PreviousRealm()
+```
+---
+
+### OriginSend
+```go
+func OriginSend() chain.Coins
+```
+Returns the `Coins` that were sent along with the calling transaction.
+
+##### Usage
+```go
+coinsSent := unsafe.OriginSend()
 ```
 ---
 
@@ -720,41 +736,83 @@ const (
 )
 
 type Banker interface {
-    GetCoins(addr Address) (dst Coins)
-    SendCoins(from, to Address, coins Coins)
-    IssueCoin(addr Address, denom string, amount int64)
-    RemoveCoin(addr Address, denom string, amount int64)
+    GetCoins(addr address) (dst chain.Coins)
+    GetCoin(addr address, denom string) int64
+    SendCoins(from, to address, amt chain.Coins)
+    TotalCoin(denom string) int64
+    IssueCoin(addr address, denom string, amount int64)
+    RemoveCoin(addr address, denom string, amount int64)
 }
 ```
 
 ### NewBanker
-Returns `Banker` of the specified type.
+Returns `Banker` of the specified type. Signature: `func NewBanker(bt BankerType, rlm realm) Banker`. For read-only access use `NewReadonlyBanker` instead. `NewBanker` panics on `BankerTypeReadonly`.
 
 ##### Parameters
-- `BankerType` - type of Banker to get:
-    - `BankerTypeReadonly` - read-only access to coin balances
-    - `BankerTypeOrigSend` - full access to coins sent with the transaction that calls the banker
+- `bt` **BankerType** - type of Banker to get:
+    - `BankerTypeOriginSend` - full access to coins sent with the transaction that calls the banker
     - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
     - `BankerTypeRealmIssue` - able to issue new coins
+- `rlm` **realm** - the calling realm capability, typically the crossing function's `cur`
 
 ##### Usage
 
 ```go
-banker := banker.NewBanker(banker.<BankerType>)
+banker := banker.NewBanker(banker.<BankerType>, cur)
+```
+
+### NewReadonlyBanker
+Returns a read-only `Banker` for querying coin balances. Signature: `func NewReadonlyBanker() Banker`. Requires no realm capability.
+
+##### Usage
+
+```go
+banker := banker.NewReadonlyBanker()
 ```
 ---
 
 ### GetCoins
-Returns `Coins` owned by `Address`.
+Returns `Coins` owned by `address`.
 
 ##### Parameters
-- `addr` **Address** to fetch balances for
+- `addr` **address** to fetch balances for
 
 ##### Usage
 
 ```go
 coins := banker.GetCoins(addr)
 ```
+
+:::info Cost grows with the number of denominations held
+
+`GetCoins` returns *every* denomination the address holds, so it costs gas in
+proportion to how many that is — and an address can be sent denominations it
+never asked for (see [IssueCoin](#issuecoin)), so that cost is not under its
+control. If you only care about one denomination, use
+[GetCoin](#getcoin) instead; its cost does not grow with the rest.
+
+:::
+
+---
+
+### GetCoin
+Returns the amount of a single `denom` owned by `addr`, without reading any
+other. Prefer this to [GetCoins](#getcoins) whenever one denomination will do.
+
+Panics if `denom` is malformed, where `GetCoins(addr).AmountOf(denom)` would have
+returned zero. Validate first if the denomination comes from somewhere you do not
+control — a `Render` path segment or query parameter, for instance.
+
+##### Parameters
+- `addr` **address** to read
+- `denom` **string** denomination to read
+
+##### Usage
+
+```go
+amount := banker.GetCoin(addr, denom)
+```
+
 ---
 
 ### SendCoins
@@ -762,8 +820,8 @@ Sends `coins` from address `from` to address `to`. `coins` needs to be a well-de
 `Coins` slice.
 
 ##### Parameters
-- `from` **Address** to send from
-- `to` **Address** to send to
+- `from` **address** to send from
+- `to` **address** to send to
 - `coins` **Coins** to send
 
 ##### Usage
@@ -776,7 +834,7 @@ banker.SendCoins(from, to, coins)
 Issues `amount` of coin with a denomination `denom` to address `addr`.
 
 ##### Parameters
-- `addr` **Address** to issue coins to
+- `addr` **address** to issue coins to
 - `denom` **string** denomination of coin to issue
 - `amount` **int64** amount of coin to issue
 
@@ -785,9 +843,28 @@ Issues `amount` of coin with a denomination `denom` to address `addr`.
 banker.IssueCoin(addr, denom, amount)
 ```
 
+:::warning Issuing needs no consent from the recipient
+
+`addr` is arbitrary. A realm can issue its coins to any address without that
+address agreeing, and the recipient cannot refuse or dispose of them: destroying
+a realm coin is [RemoveCoin](#removecoin), which only the issuing realm may call,
+and a holder has no burn of its own. Do not treat "this address holds our coin"
+as evidence that its owner opted in to anything.
+
+Because of this, realm-issued balances are stored per denomination, outside the
+account object, so that coins an address was sent unsolicited cannot make that
+address's own transactions more expensive.
+
+:::
+
 :::info Coin denominations
 
-`Banker` methods expect qualified denomination of the coins. Read more [here](#coindenom).
+`IssueCoin` and `RemoveCoin` require a qualified denomination — `"/" + pkgPath +
+":" + name`, as built by [CoinDenom](#coindenom) — and a realm may only issue
+under its own `pkgPath`. The leading `/` is what distinguishes a realm-issued
+denomination from one defined at genesis, such as `ugnot`; a realm cannot issue
+the latter. `GetCoins` and `SendCoins` take whatever denomination the coin
+actually has, qualified or not.
 
 :::
 
@@ -796,8 +873,13 @@ banker.IssueCoin(addr, denom, amount)
 ### RemoveCoin
 Removes (burns) `amount` of coin with a denomination `denom` from address `addr`.
 
+Only the realm that issued a denomination may remove it, and it needs no consent
+from the holder — with one exception: if the holder's account carries a vesting
+schedule naming that denomination, the still-locked part cannot be removed, and
+`RemoveCoin` fails until it vests.
+
 ##### Parameters
-- `addr` **Address** to remove coins from
+- `addr` **address** to remove coins from
 - `denom` **string** denomination of coin to remove
 - `amount` **int64** amount of coin to remove
 
@@ -806,16 +888,6 @@ Removes (burns) `amount` of coin with a denomination `denom` from address `addr`
 banker.RemoveCoin(addr, denom, amount)
 ```
 
-### OriginSend
-```go
-func OriginSend() Coins
-```
-Returns the `Coins` that were sent along with the calling transaction.
-
-##### Usage
-```go
-coinsSent := banker.OriginSend()
-```
 ---
 
 ## `testing`

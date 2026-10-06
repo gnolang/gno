@@ -33,6 +33,7 @@ module.exports = (ctx) => {
 					here("../**/*.html"),
 					here("../**/*.go"),
 					here("./js/**/*.ts"),
+					here("../feature/**/*.ts"),
 				],
 				safelist: {
 					standard: [
@@ -41,11 +42,24 @@ module.exports = (ctx) => {
 						/-active$/,
 						/-open$/,
 						"u-hidden",
-						"dev-mode",
 						"u-sr-only",
+						"data-theme",
+						"b-tag",
+						"b-tag--secondary",
 					],
-					deep: [/c-realm-view\b/, /c-readme-view\b/],
+					// Chroma emits its class names at render time, so they appear in
+					// no template or Go source and the extractor never sees them.
+					greedy: [/chroma-/],
+					deep: [
+						/c-realm-view\b/,
+						/c-readme-view\b/,
+						/c-overview-view\b/,
+						/c-doc-view\b/,
+						/b-source-code\b/,
+						/b-state-/,
+					],
 				},
+				dynamicAttributes: ["data-type"],
 				variables: true,
 				defaultExtractor: (content) => content.match(/[\w-:/%.]+(?<!:)/g) || [],
 			}),

@@ -1,0 +1,46 @@
+{
+  "reason": "boards2 cascade: rewrite MsgCall.Caller from g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun to the GovDAO T1 multisig (the only address still listed as boards2/v1 admin after PR #5280 removed g16jpf0… from initRealmPermissions). The realm role check WithPermission(caller, ...) then succeeds; everything else (Args, Func, fee, gas, SignerInfo) is preserved. Sig is invalidated by the caller swap but skipped via SkipSigVerificationKey for metadata.Source=patched. height=175605 func=RemoveMember",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1774262754",
+    "block_height": "175605",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun",
+        "account_num": "3262719",
+        "sequence": "1"
+      }
+    ]
+  },
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_call",
+        "caller": "g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh",
+        "send": "",
+        "max_deposit": "",
+        "pkg_path": "gno.land/r/gnoland/boards2/v1",
+        "func": "RemoveMember",
+        "args": [
+          "0",
+          "g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun"
+        ]
+      }
+    ],
+    "fee": {
+      "gas_wanted": "50000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "AvC68IPWD/o8iYM+et/K6YpBp4+m0hF3mLXIdFZnWH1Y"
+        },
+        "signature": "jFLzs0ekqBVqZplpZaDZo2jMkR8cClCR/fUfkGNYgPcxqMuRV4pxVUSaSvHRyW/Biokh2IOKd7BvbAyrobMd2g=="
+      }
+    ],
+    "memo": ""
+  }
+}

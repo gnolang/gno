@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"log"
@@ -11,12 +12,21 @@ import (
 	"sync"
 )
 
+// softfloatPatch carries the gnolang/gno#5806 fix (and a regression test case)
+// applied on top of the imported upstream sources. See applyPatch.
+//
+//go:embed softfloat.diff
+var softfloatPatch string
+
 func main() {
 	// Process softfloat64.go file
 	processSoftFloat64File()
 
 	// Process softfloat64_test.go file
 	processSoftFloat64TestFile()
+
+	// Apply softfloat.diff on top of the imported sources.
+	applyPatch()
 
 	// Run mvdan.cc/gofumpt
 	gofumpt()
@@ -59,6 +69,31 @@ func processSoftFloat64File() {
 	}
 }
 
+// applyPatch applies the embedded softfloat.diff to the freshly written
+// runtime_softfloat64.go and runtime_softfloat64_test.go. The diff carries the
+// gnolang/gno#5806 fix for a latent bug in upstream runtime/softfloat64.go:
+// fpack64/fpack32 returned a wrongly-scaled subnormal when fadd64/fsub64
+// produced a heavily-cancelled mantissa (two near-equal, opposite-sign normals
+// summing to a subnormal). fpack saved mant0/exp0/trunc0 before its
+// normalization loop, so the denormal path restored an un-normalized mantissa
+// and shifted it the wrong way. The fix moves the save to after the loop,
+// matching the change merged upstream in golang/go#79964, and adds a regression
+// case to the all-pairs test.
+//
+// patch is run non-interactively (-f) with a zero fuzz factor (-F 0) so it
+// fails loudly if the upstream sources drift: once gno upgrades to a Go release
+// containing the fix, the diff context will no longer match and `go generate`
+// will error, signaling that this patch (and softfloat.diff) can be removed.
+//
+// See https://github.com/gnolang/gno/issues/5806 and golang/go#79964.
+func applyPatch() {
+	cmd := exec.Command("patch", "-p1", "-f", "-F", "0")
+	cmd.Stdin = strings.NewReader(softfloatPatch)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Fatalf("error applying softfloat.diff (upstream sources may have changed; see gen/main.go): %v\n%s", err, out)
+	}
+}
+
 func processSoftFloat64TestFile() {
 	// Read source test file
 	content, err := os.ReadFile(fmt.Sprintf("%s/src/runtime/softfloat64_test.go", goroot()))
@@ -92,6 +127,12 @@ func processSoftFloat64TestFile() {
 }
 
 func gitRoot() (string, error) {
+	// Try git rev-parse --show-toplevel first; this correctly handles git worktrees.
+	if out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output(); err == nil {
+		return strings.TrimSpace(string(out)), nil
+	}
+
+	// Fall back to walking up parent directories looking for a .git entry.
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err

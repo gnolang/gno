@@ -2,7 +2,7 @@
 package testinit
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	tests "gno.land/r/tests/vm"
 )
@@ -12,21 +12,25 @@ var (
 	addrInit = address("addrInit")
 )
 
-func init() {
-	addr = runtime.OriginCaller()
-	addrInit = tests.InitOriginCaller(cross)
+func init(cur realm) {
+	addr = unsafe.OriginCaller()
+	addrInit = tests.InitOriginCaller(cross(cur))
 }
 
 func main(cur realm) {
-	// Prints blanks because init's origin caller is blank.
-	// XXX consider panic instead
+	// `addr` is set by init via unsafe.OriginCaller() — now reads the
+	// DefaultCaller because the filetest framework sets OriginCaller
+	// before RunMemPackage (consistent with the package-main path).
+	// `addrInit` is set via a cross-call that mints a fresh cur whose
+	// authority is the package itself, so the cross-call's view of
+	// OriginCaller resolves through the new realm context (empty here).
 	println(addr)
 	println(addrInit)
 	println(".") // trailing newline is needed.
 }
 
 // Output:
-//
+// g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // .
 

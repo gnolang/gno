@@ -1,0 +1,73 @@
+loadpkg gno.land/r/demo/crossrealm $WORK/crossrealm
+loadpkg gno.land/r/demo/main $WORK/main
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/main -func Exec -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout 'OK!'
+
+-- crossrealm/gnomod.toml --
+module = "gno.land/r/demo/crossrealm"
+gno = "0.9"
+
+-- crossrealm/crossrealm.gno --
+package crossrealm
+
+type S string
+
+var msg  = []byte("hello bug")
+var msg8  = []uint8("hello bug")
+var msgS  = S("hello bug")
+var msg32  = []int32("hello bug")
+
+
+func Message() []byte {
+	return msg
+}
+
+func Message8() []uint8 {
+    return msg8
+}
+func Message32() []int32 {
+    return msg32
+}
+
+func MessageS() S {
+    return msgS
+}
+
+
+
+-- main/gnomod.toml --
+module = "gno.land/r/demo/main"
+gno = "0.9"
+-- main/main.gno --
+package main
+
+import (
+	"gno.land/r/demo/crossrealm"
+	"bytes"
+)
+
+var msgLocal []byte = []byte{104, 101, 108, 108, 111, 32, 98, 117, 103}
+
+func Exec(cur realm) {
+	msg := crossrealm.Message()
+	msg8 := crossrealm.Message8()
+	msgS := crossrealm.MessageS()
+	msg32 := crossrealm.Message32()
+	
+	
+	if bytes.Equal([]byte(msg), msgLocal){
+		println("Equals")
+	}
+
+	if bytes.Equal([]byte(msg8), msgLocal){
+		println("Equals")
+	}
+
+	if bytes.Equal([]byte(msgS), msgLocal){
+		println("Equals")
+	}
+
+	println(string(msg32))
+}

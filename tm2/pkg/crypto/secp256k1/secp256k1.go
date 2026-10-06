@@ -126,7 +126,7 @@ func (pubKey PubKeySecp256k1) Address() crypto.Address {
 
 	hasherRIPEMD160 := ripemd160.New() //nolint:gosec
 	hasherRIPEMD160.Write(sha)         // does not error
-	return crypto.AddressFromBytes(hasherRIPEMD160.Sum(nil))
+	return crypto.MustAddressFromBytes(hasherRIPEMD160.Sum(nil))
 }
 
 // Bytes returns the pubkey marshalled with amino encoding.

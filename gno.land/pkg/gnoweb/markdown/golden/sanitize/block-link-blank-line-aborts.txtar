@@ -1,0 +1,16 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+[foo
+
+bar](/url)
+-- output.md --
+
+
+\[foo
+
+bar\](/url)
+
+-- output.html --
+<p>[foo</p>
+<p>bar](/url)</p>

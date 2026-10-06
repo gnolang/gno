@@ -11,6 +11,4 @@ func main(cur realm) {
 }
 
 // Output:
-
-// Error:
-// cannot modify external-realm or non-realm object
+// should not print

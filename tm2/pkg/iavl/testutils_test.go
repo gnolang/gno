@@ -46,7 +46,7 @@ func getTestTree(cacheSize int) *MutableTree {
 }
 
 // Convenience for a new node
-func N(l, r interface{}) *Node {
+func N(l, r any) *Node {
 	var left, right *Node
 	if _, ok := l.(*Node); ok {
 		left = l.(*Node)
@@ -323,7 +323,7 @@ func benchmarkImmutableAvlTreeWithDB(b *testing.B, db dbm.DB) { //nolint: thelpe
 	t := NewMutableTree(db, 100000, false, NewNopLogger())
 
 	value := []byte{}
-	for i := 0; i < 1000000; i++ {
+	for i := range 1000000 {
 		t.Set(i2b(int(iavlrand.RandInt31())), value)
 		if i > 990000 && i%1000 == 999 {
 			t.SaveVersion()

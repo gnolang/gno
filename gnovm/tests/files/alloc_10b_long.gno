@@ -1,29 +1,31 @@
+// PKGPATH: gno.land/r/test/alloc_10b
 // MAXALLOC: 20000000
 // SEND: 1000000ugnot
 
-package main
+package alloc_10b
 
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/archive/boards"
-	"gno.land/r/gnoland/users/v1"
+	uinit "gno.land/r/sys/users/init"
 )
 
-func main() {
+func main(cur realm) {
 	aliceAddr := testutils.TestAddress("alice")
 
 	// TestSetRealm sets the realm caller, in this case Alice
 	testing.SetRealm(testing.NewUserRealm(aliceAddr))
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "alice_123", aliceAddr)
+	testing.SetHeight(123)
 
-	users.Register(cross, "alice_123")
-
-	bid := boards.CreateBoard(cross, "testboard")
-	boards.CreateThread(cross, bid, "testthread", "testbody")
+	bid := boards.CreateBoard(cross(cur), "testboard")
+	boards.CreateThread(cross(cur), bid, "testthread", "testbody")
 	n := 5000
 	for i := 0; i < n; i++ {
-		boards.CreateReply(cross, bid, boards.PostID(1), boards.PostID(1), "reply")
+		boards.CreateReply(cross(cur), bid, boards.PostID(1), boards.PostID(1), "reply")
 	}
 	println("ok")
 }

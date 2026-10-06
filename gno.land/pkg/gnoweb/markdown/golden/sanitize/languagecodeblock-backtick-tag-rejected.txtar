@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: LanguageCodeBlock
+// ARGS: "go```"
+// CONTEXT: %s
+-- input.md --
+content
+-- output.md --
+```
+content
+```
+-- output.html --
+<pre><code>content
+</code></pre>

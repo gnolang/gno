@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -74,6 +75,32 @@ func TestSetupWeb(t *testing.T) {
 
 	_, err = setupWeb(&opts, []string{}, stdio)
 	require.NoError(t, err)
+
+	opts.trustedProxies = "10.0.0.0/8, 192.0.2.1"
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.NoError(t, err)
+
+	// A bad entry fails at startup instead of quietly trusting less.
+	opts.trustedProxies = "10.0.0.0/8,not-an-ip"
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.ErrorContains(t, err, "not-an-ip")
+}
+
+// A realm notice text that renders to nothing must refuse to start, unless the
+// notice is disabled.
+func TestSetupWeb_RealmNoticeText(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "# heading only")
+	stdio := commands.NewDefaultIO()
+	stdio.SetOut(commands.WriteNopCloser(io.Discard))
+
+	opts := defaultWebOptions
+	opts.bind = "127.0.0.1:0"
+	_, err := setupWeb(&opts, []string{}, stdio)
+	require.ErrorContains(t, err, "invalid GNOWEB_REALM_NOTICE_TEXT")
+
+	opts.noRealmNotice = true
+	_, err = setupWeb(&opts, []string{}, stdio)
+	require.NoError(t, err)
 }
 
 // Dummy handler to simulate the processing chain.
@@ -104,8 +131,17 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 
 	// Check headers specific to strict mode.
 	csp := res.Header.Get("Content-Security-Policy")
-	if !strings.Contains(csp, "https://assets.gnoteam.com") {
-		t.Errorf("Expected Content-Security-Policy to contain 'https://assets.gnoteam.com', got '%s'", csp)
+	if !strings.Contains(csp, "img-src 'self' data: https://gnolang.github.io") {
+		t.Errorf("Expected Content-Security-Policy img-src to carry the image host allowlist, got '%s'", csp)
+	}
+	// assets.gnoteam.com has no DNS record, so it must not be allowlisted as an image source.
+	if strings.Contains(csp, "assets.gnoteam.com") {
+		t.Errorf("Expected Content-Security-Policy not to allowlist 'assets.gnoteam.com', got '%s'", csp)
+	}
+	// The search dropdown fetches the same-origin /search.json, so connect-src
+	// must allow 'self' in addition to the RPC node.
+	if !strings.Contains(csp, "connect-src 'self' http://example.com/abci_query") {
+		t.Errorf("Expected Content-Security-Policy connect-src to contain 'self' and the RPC node, got '%s'", csp)
 	}
 	if res.Header.Get("Strict-Transport-Security") != "max-age=31536000" {
 		t.Errorf("Expected Strict-Transport-Security 'max-age=31536000', got '%s'", res.Header.Get("Strict-Transport-Security"))

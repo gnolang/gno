@@ -4,14 +4,14 @@ package crossrealm
 import "gno.land/r/tests/vm/crossrealm"
 
 // crossrealm_test -> crossrealm -> crossrealm
-func main() {
-	f := func() {
-		crossrealm.PrintRealms(cross)
+func main(cur realm) {
+	f := func(_ int, rlm realm) {
+		crossrealm.PrintRealms(cross(rlm))
 	}
 
-	crossrealm.SetClosure(cross, f)
+	crossrealm.SetClosure3(cross(cur), f)
 
-	crossrealm.ExecuteClosure(cross)
+	crossrealm.ExecuteClosure3(cross(cur))
 }
 
 // Output:

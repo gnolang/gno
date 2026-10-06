@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// cannot modify external-realm or non-realm object
+// cannot append to readonly tainted slice

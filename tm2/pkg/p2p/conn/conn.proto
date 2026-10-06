@@ -1,0 +1,17 @@
+syntax = "proto3";
+package p2p;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/p2p/conn/pb";
+
+// messages
+message Ping {
+}
+
+message Pong {
+}
+
+message Msg {
+	uint32 channel_id = 1 [json_name = "ChannelID"];
+	uint32 eof = 2 [json_name = "EOF"];
+	bytes bytes = 3 [json_name = "Bytes"];
+}

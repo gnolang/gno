@@ -1,0 +1,12 @@
+id: payment-user-call
+title: OriginSend without IsUserCall guard
+rule: payment_user_call
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/payment-user-call/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 1
+  - name: fixed
+    path: ../fixtures/payment-user-call/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0

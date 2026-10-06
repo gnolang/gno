@@ -1,0 +1,43 @@
+# A gnomod.toml past the decoder's nesting-depth bound must be rejected
+# end-to-end.
+#
+# The body rides in the MemPackage of MsgAddPackage, and both the type-check
+# pass and the keeper's own checks decode it. Upstream pelletier/go-toml v1
+# recursed once per nesting level with no depth limit, so ~400K unclosed '['
+# — under 400KB, well inside MaxTxBytes — exhausted Go's 1GB goroutine stack,
+# and a stack overflow is a fatal runtime error that no recover() can catch:
+# every node processing the block died. tm2/pkg/toml bounds it at
+# maxNestingDepth. See adr/gnomod_toml_bounds.md.
+#
+# 513 levels is past that bound but well under gnomod.maxFileSize, so this
+# exercises the decoder's own limit rather than the size cap, and a rejection
+# rather than the crash. The node must stay up and keep serving afterwards.
+
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/deep -pkgpath gno.land/r/$test1_user_addr/deep -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'TX HASH:    '
+stderr 'nesting depth exceeds limit 256'
+
+# The node survived the rejected message and still accepts a normal deploy.
+gnokey maketx addpkg -pkgdir $WORK/ok -pkgpath gno.land/r/$test1_user_addr/ok -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+-- deep/gnomod.toml --
+module = "deep"
+gno = "0.9"
+a = [[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[1]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]
+
+-- deep/deep.gno --
+package deep
+
+func Render(path string) string { return "deep" }
+
+-- ok/gnomod.toml --
+module = "ok"
+gno = "0.9"
+
+-- ok/ok.gno --
+package ok
+
+func Render(path string) string { return "ok" }

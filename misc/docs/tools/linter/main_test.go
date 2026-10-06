@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -72,6 +73,53 @@ nulla ac [blandit tempus](https://gitlab.org).
 
 	for i, u := range expectedUrls {
 		require.Equal(t, u, extractedUrls[i])
+	}
+}
+
+func TestExtractLinksSkipsRPCEndpoints(t *testing.T) {
+	t.Parallel()
+
+	// Chain RPC endpoints are JSON-RPC APIs, not documentation pages. A GET
+	// against them says nothing about the link being correct, but does tie
+	// docs CI to a live chain's uptime and TLS certificate.
+	mockFileContent := `# Networks
+- betanet: https://rpc.gno.land:443
+- staging: https://rpc.staging.gno.land:443
+- pearl: https://rpc.pearl.testnets.gno.land:443
+- a real doc link: https://docs.gno.land
+`
+
+	require.Equal(t,
+		[]string{"https://docs.gno.land"},
+		extractUrls([]byte(mockFileContent)),
+	)
+}
+
+func TestShouldCheckURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		url  string
+		want bool
+	}{
+		{"plain docs link", "https://docs.gno.land", true},
+		{"unrelated host", "https://example.org/rpc", true},
+		// "rpc." only counts as a host prefix, not anywhere in the URL.
+		{"rpc in path only", "https://example.org/rpc.gno.land", true},
+		{"betanet rpc", "https://rpc.gno.land:443", false},
+		{"testnet rpc", "https://rpc.pearl.testnets.gno.land:443", false},
+		{"localhost", "http://localhost:26657", false},
+		{"staging deployment", "https://staging.gno.land", false},
+		{"youtube", "https://youtube.com/watch?v=abc", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tt.want, shouldCheckURL(tt.url))
+		})
 	}
 }
 
@@ -220,20 +268,37 @@ func TestFindFilePaths(t *testing.T) {
 	}
 }
 
+// mockTransport returns a fixed HTTP status code for every request.
+type mockTransport struct{ statusCode int }
+
+func (m *mockTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: m.statusCode,
+		Body:       http.NoBody,
+	}, nil
+}
+
 func TestFlow(t *testing.T) {
 	t.Parallel()
+
+	// Replace the package-level HTTP client so checkUrl never hits the network.
+	origClient := httpClient
+	httpClient = &http.Client{Transport: &mockTransport{statusCode: http.StatusNotFound}}
+	t.Cleanup(func() { httpClient = origClient })
+
+	const brokenURL = "https://example.com/non-existent-page"
 
 	tempDir, err := os.MkdirTemp(".", "test")
 	require.NoError(t, err)
 	t.Cleanup(removeDir(t, tempDir))
 
-	contents := `This is a [broken Wikipedia link](https://www.wikipedia.org/non-existent-page).
+	contents := `This is a [broken link](` + brokenURL + `).
 Here's an embedmd link that links to a non-existing file: [embedmd]:# (../assets/myfile.sol go)
 and here is some JSX tags <string\> <random-unescaped-text-tag>
 and [this is a link to a non-existent](../myfolder/myfile.md) file.`
 
 	expectedItems := []string{
-		"https://www.wikipedia.org/non-existent-page",
+		brokenURL,
 		"../assets/myfile.sol",
 		"<random-unescaped-text-tag>",
 		"../myfolder/myfile.md",

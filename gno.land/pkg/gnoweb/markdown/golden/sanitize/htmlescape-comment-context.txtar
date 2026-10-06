@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: HTMLEscape
+// CONTEXT: <!-- author=%s -->
+-- input.md --
+g1evil --><script>alert(1)</script>
+-- output.md --
+g1evil --&gt;&lt;script&gt;alert(1)&lt;/script&gt;
+-- output.html --
+<!-- raw HTML omitted -->

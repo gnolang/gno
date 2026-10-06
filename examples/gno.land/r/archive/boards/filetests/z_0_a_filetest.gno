@@ -1,24 +1,24 @@
-// PKGPATH: gno.land/r/archive/boards_test
-package boards_test
+// PKGPATH: gno.land/r/archive/boards/filetests/z_0_a
+package z_0_a
 
 // SEND: 1000000ugnot
 
 import (
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/archive/boards"
 )
 
 var bid boards.BoardID
 
-func init() {
+func init(cur realm) {
 	caller := testutils.TestAddress("caller")
 	testing.SetRealm(testing.NewUserRealm(caller))
-	bid = boards.CreateBoard(cross, "test_board")
-	boards.CreateThread(cross, bid, "First Post (title)", "Body of the first post. (body)")
-	pid := boards.CreateThread(cross, bid, "Second Post (title)", "Body of the second post. (body)")
-	boards.CreateReply(cross, bid, pid, pid, "Reply of the second post")
+	bid = boards.CreateBoard(cross(cur), "test_board")
+	boards.CreateThread(cross(cur), bid, "First Post (title)", "Body of the first post. (body)")
+	pid := boards.CreateThread(cross(cur), bid, "Second Post (title)", "Body of the second post. (body)")
+	boards.CreateReply(cross(cur), bid, pid, pid, "Reply of the second post")
 }
 
 func main() {

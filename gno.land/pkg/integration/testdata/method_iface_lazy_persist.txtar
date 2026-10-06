@@ -1,0 +1,50 @@
+# A method value bound through an interface (G = o.Get) is lazy: it saves the
+# operand and dynamically dispatches at call time. This must survive a
+# persist/reload across txs — the stored bind re-reads the (mutated) embedded
+# interface field at the later call and re-dispatches to the new concrete type.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/lz -pkgpath gno.land/r/test/lz -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# bind G = o.Get while s.Inner is Impl{1}; persist.
+gnokey maketx call -pkgpath gno.land/r/test/lz -func Bind -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# reassign s.Inner to Other{} (a different concrete type); persist.
+gnokey maketx call -pkgpath gno.land/r/test/lz -func Mutate -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# later tx: G is reloaded and called -> must re-dispatch to Other.Get -> 2.
+gnokey maketx call -pkgpath gno.land/r/test/lz -func Call -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout '(2 int)'
+stdout OK!
+
+-- lz/gnomod.toml --
+module = "gno.land/r/test/lz"
+gno = "0.9"
+
+-- lz/lz.gno --
+package lz
+
+type Impl struct{ x int }
+
+func (i Impl) Get() int { return i.x }
+
+type Other struct{}
+
+func (Other) Get() int { return 2 }
+
+type Inner interface{ Get() int }
+
+type S struct{ Inner }
+
+type Outer interface{ Get() int }
+
+var s = &S{Inner: Impl{1}}
+var G func() int
+
+func Bind(cur realm)        { var o Outer = s; G = o.Get }
+func Mutate(cur realm)      { s.Inner = Other{} }
+func Call(cur realm) int    { return G() }

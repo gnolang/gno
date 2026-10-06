@@ -1,7 +1,6 @@
 package packages
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -54,14 +53,23 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 		if !loaderCtx.IsWorkspace {
 			switch patKind {
 			case patternKindRecursiveLocal:
-				return nil, errors.New("recursive pattern not supported in single-package mode, consider creating a gnowork.toml file")
+				// strip the trailing "..." segment; getPatternKind only
+				// accepts end-anchored recursion
+				dir, _ := filepath.Split(match)
+				absDir, err := filepath.Abs(dir)
+				if err != nil {
+					return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
+				}
+				if absDir != loaderCtx.Root {
+					return nil, fmt.Errorf("recursive pattern %q is not rooted at the current package in single-package mode (%q is not %q), consider creating a gnowork.toml file", match, absDir, loaderCtx.Root)
+				}
 			case patternKindDirectory:
 				absPat, err := filepath.Abs(match)
 				if err != nil {
 					return nil, fmt.Errorf("can't get absolute path to pattern %q: %w", match, err)
 				}
 				if absPat != loaderCtx.Root {
-					return nil, fmt.Errorf("pattern %q is not current package (%q is not %q)", match, absPat, loaderCtx.Root)
+					return nil, fmt.Errorf("pattern %q is not the current package (%q is not %q)", match, absPat, loaderCtx.Root)
 				}
 			case patternKindSingleFile:
 				absPat, err := filepath.Abs(match)
@@ -70,7 +78,7 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 				}
 				dir := filepath.Dir(absPat)
 				if dir != loaderCtx.Root {
-					return nil, fmt.Errorf("pattern %q is not current package (%q is not %q)", match, dir, loaderCtx.Root)
+					return nil, fmt.Errorf("pattern %q is not the current package (%q is not %q)", match, dir, loaderCtx.Root)
 				}
 			}
 		}
@@ -124,9 +132,19 @@ func expandPatterns(gnoRoot string, loaderCtx *loaderContext, out io.Writer, pat
 			addPkgDir(dir, &match)
 
 		case patternKindRecursiveLocal:
-			// sanity assert
+			// single-package mode: the pattern was validated above to be
+			// rooted at the context root, the only package it can match.
+			// A recursive pattern reads as "everything underneath", but
+			// single-package mode loads only the root — warn about any nested
+			// packages it silently drops so the quiet isn't mistaken for full
+			// coverage.
 			if !loaderCtx.IsWorkspace {
-				panic(fmt.Errorf("unexpected recursive pattern at this point"))
+				if nested := nestedPackageDirs(loaderCtx.Root, pat); len(nested) > 0 {
+					fmt.Fprintf(out, "gno: warning: %q matched only the root package in single-package mode; %d nested package(s) ignored: %s (create a gnowork.toml to include them)\n",
+						match, len(nested), strings.Join(nested, ", "))
+				}
+				addPkgDir(loaderCtx.Root, &match)
+				continue
 			}
 
 			dirs, err := expandRecursive(loaderCtx.Root, pat)
@@ -211,6 +229,29 @@ func expandRecursive(workspaceRoot string, pattern string) ([]string, error) {
 	}
 
 	return pkgDirs, nil
+}
+
+// nestedPackageDirs returns the package directories under root (excluding root
+// itself) that a recursive pattern would match in workspace mode but that
+// single-package mode silently drops. Paths are relative to root for legible
+// warnings. Best-effort: a walk error yields nil rather than failing the load.
+func nestedPackageDirs(root, pat string) []string {
+	dirs, err := expandRecursive(root, pat)
+	if err != nil {
+		return nil
+	}
+	var nested []string
+	for _, d := range dirs {
+		if d == root {
+			continue
+		}
+		rel, err := filepath.Rel(root, d)
+		if err != nil {
+			continue
+		}
+		nested = append(nested, rel)
+	}
+	return nested
 }
 
 type patternKind int

@@ -6,7 +6,7 @@ to explore the blockchain ecosystem.
 
 ## Networks
 
-The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Staging network.
+The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Betanet (`gnoland1`). The Staging network is accessible at [staging.gno.land](https://staging.gno.land).
 
 For a complete list of all available networks (testnets and more), see [Networks](../resources/gnoland-networks.md).
 
@@ -35,15 +35,14 @@ Let's break it down:
   which could have different chain domains.
 - `type` represents the type of package found on this path. There are two available
   options - `p` & `r` - pure packages and realms, respectively.
-- `namespace` is the namespace of the package. Namespaces can be registered using
-  the `gno.land/r/gnoland/users` realms, granting a user permission to deploy under
-  that specific namespace.
+- `namespace` is the namespace of the package. Currently only address-prefix
+  namespaces are supported, where the namespace matches the deployer's address.
 - `package name` represents the name of the package found on the path. This part has
   to match the top-level package declaration in Gno files.
 
 ## Viewing Rendered Content
 
-Realms can implement a special `Render()` function that returns HTML-like content:
+Realms can implement a special `Render()` function that returns Markdown content:
 
 `gnoweb` is a minimalistic web server that serves as a unified frontend for all
 realms in Gno.land. It uses ABCI queries to get the latest state of a specific
@@ -75,7 +74,7 @@ func Render(path string) string {
 Based on the provided path, `gnoweb` queries the Gno.land network using the
 `qrender` ABCI query. It then renders the response data as Markdown.
 
-The realm above can be found on the Staging network at [`gno.land/r/docs/hello`](https://gno.land/r/docs/hello).
+The realm above can be found on the Staging network at [`gno.land/r/docs/hello`](https://staging.gno.land/r/docs/hello).
 
 While JS/TS clients for Gno exist and developers can create custom websites for their
 Gno.land applications as they see fit, the approach `gnoweb` takes with `Render()`
@@ -91,7 +90,7 @@ Custom getter methods tailored to the specifics of the realm can be built instea
 All code uploaded to Gno.land is open-source and available for everyone to see,
 by design.
 
-Visit the [`gno.land/r/docs/source`](https://gno.land/r/docs/source) realm to learn
+Visit the [`gno.land/r/docs/source`](https://staging.gno.land/r/docs/source) realm to learn
 how you can do this.
 
 ## Alternative: Terminal UI with gnobro

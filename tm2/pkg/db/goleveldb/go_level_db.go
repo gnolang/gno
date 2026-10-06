@@ -137,6 +137,10 @@ func (db *GoLevelDB) Stats() map[string]string {
 	return stats
 }
 
+func (*GoLevelDB) NewSnapshot() (db.Snapshot, error) {
+	return nil, errors.New("snapshots not supported")
+}
+
 // ----------------------------------------
 // Batch
 
@@ -159,7 +163,7 @@ type goLevelDBBatch struct {
 
 // Implements Batch.
 func (mBatch *goLevelDBBatch) Set(key, value []byte) error {
-	mBatch.batch.Put(key, value)
+	mBatch.batch.Put(internal.NonNilBytes(key), internal.NonNilBytes(value))
 	return nil
 }
 

@@ -269,6 +269,9 @@ func TestGitHubClaimMiddleware(t *testing.T) {
 
 type mockRewarderWithFn struct {
 	getRewardFn func(context.Context, string) (int, error)
+	applyCalls  int
+	applyUser   string
+	applyAmount int
 }
 
 func (m *mockRewarderWithFn) GetReward(ctx context.Context, user string) (int, error) {
@@ -280,7 +283,82 @@ func (m *mockRewarderWithFn) GetReward(ctx context.Context, user string) (int, e
 }
 
 func (m *mockRewarderWithFn) Apply(ctx context.Context, user string, amount int) error {
+	m.applyCalls++
+	m.applyUser = user
+	m.applyAmount = amount
+
 	return nil
+}
+
+// TestGitHubClaimRewardsApplyTiming verifies that the contribution-reward debit
+// runs only after the downstream claim handler succeeds. The previous ordering
+// debited the reward before the cooldown check and before the actual on-chain
+// drip, so any downstream failure permanently destroyed the user's earned
+// balance with no refund path.
+func TestGitHubClaimRewardsApplyTiming(t *testing.T) {
+	t.Parallel()
+
+	makeChain := func(reward int, cooldownAllows bool, downstreamErr bool) (*mockRewarderWithFn, *spec.BaseJSONResponse) {
+		rewarder := &mockRewarderWithFn{
+			getRewardFn: func(_ context.Context, _ string) (int, error) {
+				return reward, nil
+			},
+		}
+
+		mw := chainMiddlewares(getMiddlewares(rewarder, &mockCooldownLimiter{
+			checkCooldownFn: func(_ context.Context, _ string, _ int64) (bool, error) {
+				return cooldownAllows, nil
+			},
+		})...)
+
+		next := func(_ context.Context, req *spec.BaseJSONRequest) *spec.BaseJSONResponse {
+			if downstreamErr {
+				return spec.NewJSONResponse(req.ID, nil,
+					spec.NewJSONError("drip failed: simulated downstream failure", spec.ServerErrorCode))
+			}
+
+			return spec.NewJSONResponse(req.ID, "ok", nil)
+		}
+
+		ctx := context.WithValue(context.Background(), ghUsernameKey, "alice")
+		req := spec.NewJSONRequest(1, claimRPCMethod, []any{"dst-addr"})
+
+		return rewarder, mw(next)(ctx, req)
+	}
+
+	t.Run("apply does not run when cooldown rejects", func(t *testing.T) {
+		t.Parallel()
+
+		rewarder, resp := makeChain(100, false, false)
+
+		assert.NotNil(t, resp.Error, "cooldown rejection must surface as an error")
+		assert.Contains(t, resp.Error.Message, "cooldown")
+		assert.Zero(t, rewarder.applyCalls,
+			"reward must NOT be debited when cooldown rejects the claim")
+	})
+
+	t.Run("apply does not run when downstream drip fails", func(t *testing.T) {
+		t.Parallel()
+
+		rewarder, resp := makeChain(100, true, true)
+
+		assert.NotNil(t, resp.Error, "downstream failure must surface as an error")
+		assert.Contains(t, resp.Error.Message, "drip failed")
+		assert.Zero(t, rewarder.applyCalls,
+			"reward must NOT be debited when the downstream drip fails")
+	})
+
+	t.Run("apply runs exactly once on full success", func(t *testing.T) {
+		t.Parallel()
+
+		rewarder, resp := makeChain(100, true, false)
+
+		assert.Nil(t, resp.Error, "successful claim must not return an error")
+		assert.Equal(t, 1, rewarder.applyCalls,
+			"reward must be debited exactly once on successful claim")
+		assert.Equal(t, "alice", rewarder.applyUser)
+		assert.Equal(t, 100, rewarder.applyAmount)
+	})
 }
 
 func TestGitHubCheckRewardsMiddleware(t *testing.T) {

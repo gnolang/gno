@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
@@ -10,19 +10,19 @@ import (
 type fooer struct{}
 
 func (fooer) Foo(cur realm) {
-	println("hello " + runtime.CurrentRealm().PkgPath())
+	println("hello " + unsafe.CurrentRealm().PkgPath())
 }
 
 func (fooer) Bar() {
-	println("hello " + runtime.CurrentRealm().PkgPath())
+	println("hello " + unsafe.CurrentRealm().PkgPath())
 }
 
 var f *fooer
 
 func main(cur realm) {
 	f = &fooer{}
-	crossrealm.SetFooer(cross, f)
-	crossrealm.CallFooerFooCur(cross)
+	crossrealm.SetFooer(cross(cur), f)
+	crossrealm.CallFooerFooCur(cross(cur))
 }
 
 // Error:

@@ -130,8 +130,8 @@ will display a single parenthesized note indicating that fact.
 
 For example:
 
-	$ gno mod why gno.land/p/nt/avl gno.land/p/demo/users
-	# gno.land/p/nt/avl
+	$ gno mod why gno.land/p/nt/avl/v0 gno.land/p/demo/users
+	# gno.land/p/nt/avl/v0
 	[FILENAME_1.gno]
 	[FILENAME_2.gno]
 

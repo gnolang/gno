@@ -55,7 +55,7 @@ func (m *mockTransport) Remove(p PeerConn) {
 }
 
 type (
-	addDelegate         func(PeerConn)
+	addDelegate         func(PeerConn) error
 	removePeerDelegate  func(types.ID) bool
 	hasDelegate         func(types.ID) bool
 	hasIPDelegate       func(net.IP) bool
@@ -76,10 +76,12 @@ type mockSet struct {
 	numOutboundFn numOutboundDelegate
 }
 
-func (m *mockSet) Add(peer PeerConn) {
+func (m *mockSet) Add(peer PeerConn) error {
 	if m.addFn != nil {
-		m.addFn(peer)
+		return m.addFn(peer)
 	}
+
+	return nil
 }
 
 func (m *mockSet) Remove(key types.ID) bool {
@@ -262,7 +264,7 @@ type (
 	setLoggerDelegate        func(*slog.Logger)
 	setSwitchDelegate        func(Switch)
 	getChannelsDelegate      func() []*conn.ChannelDescriptor
-	initPeerDelegate         func(PeerConn)
+	initPeerDelegate         func(PeerConn) PeerConn
 	addPeerDelegate          func(PeerConn)
 	removeSwitchPeerDelegate func(PeerConn, any)
 	receiveDelegate          func(byte, PeerConn, []byte)
@@ -379,10 +381,10 @@ func (m *mockReactor) GetChannels() []*conn.ChannelDescriptor {
 
 func (m *mockReactor) InitPeer(peer PeerConn) PeerConn {
 	if m.initPeerFn != nil {
-		m.initPeerFn(peer)
+		return m.initPeerFn(peer)
 	}
 
-	return nil
+	return peer
 }
 
 func (m *mockReactor) AddPeer(peer PeerConn) {

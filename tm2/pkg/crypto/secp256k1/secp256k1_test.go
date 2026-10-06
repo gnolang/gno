@@ -35,7 +35,7 @@ func TestPubKeySecp256k1Address(t *testing.T) {
 		privB, _ := hex.DecodeString(d.priv)
 		pubB, _ := hex.DecodeString(d.pub)
 		addrBbz, _, _ := base58.CheckDecode(d.addr)
-		addrB := crypto.AddressFromBytes(addrBbz)
+		addrB := crypto.MustAddressFromBytes(addrBbz)
 
 		var priv secp256k1.PrivKeySecp256k1
 		copy(priv[:], privB)
@@ -107,7 +107,6 @@ func TestGenPrivKeySecp256k1(t *testing.T) {
 		{"another seed used in cosmos tests #3", []byte("")},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

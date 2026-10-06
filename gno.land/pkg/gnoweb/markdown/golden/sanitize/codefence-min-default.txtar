@@ -1,0 +1,10 @@
+// MARKDOWNFUNC: CodeFence
+// ARGS: 3
+// CONTEXT: %s\nplain code without backticks\n%s
+-- input.md --
+plain code without backticks
+-- output.md --
+```
+-- output.html --
+<pre><code>plain code without backticks
+</code></pre>

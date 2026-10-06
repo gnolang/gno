@@ -21296,7 +21296,7 @@
           "user_view_type": "public",
           "site_admin": false
         },
-        "body": "This realms is directed toward friend group that want to organize meet-up more easily. Each group has admins who can create DAO poll in order to execute certain action while ensuring the agreement of the majority. (r/chaegnal/organizer)\r\n\r\nUses the pure package 'p/nt/commondao'  for the DAO implementation.\r\n\r\nEach file is tested and comments were added to enhance readability.",
+        "body": "This realms is directed toward friend group that want to organize meet-up more easily. Each group has admins who can create DAO poll in order to execute certain action while ensuring the agreement of the majority. (r/chaegnal/organizer)\r\n\r\nUses the pure package 'p/nt/commondao/v0'  for the DAO implementation.\r\n\r\nEach file is tested and comments were added to enhance readability.",
         "created_at": "2025-04-18T14:44:48Z",
         "updated_at": "2025-07-28T09:31:21Z",
         "closed_at": null,
@@ -21850,7 +21850,7 @@
           "user_view_type": "public",
           "site_admin": false
         },
-        "body": "This realms is directed toward friend group that want to organize meet-up more easily. Each group has admins who can create DAO poll in order to execute certain action while ensuring the agreement of the majority. (r/chaegnal/organizer)\r\n\r\nUses the pure package 'p/nt/commondao'  for the DAO implementation.\r\n\r\nEach file is tested and comments were added to enhance readability.",
+        "body": "This realms is directed toward friend group that want to organize meet-up more easily. Each group has admins who can create DAO poll in order to execute certain action while ensuring the agreement of the majority. (r/chaegnal/organizer)\r\n\r\nUses the pure package 'p/nt/commondao/v0'  for the DAO implementation.\r\n\r\nEach file is tested and comments were added to enhance readability.",
         "created_at": "2025-04-18T14:44:48Z",
         "updated_at": "2025-07-28T09:31:21Z",
         "closed_at": null,

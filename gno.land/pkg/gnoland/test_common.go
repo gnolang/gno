@@ -1,6 +1,7 @@
 package gnoland
 
 import (
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -9,9 +10,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/sdk/params"
-
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	storebptree "github.com/gnolang/gno/tm2/pkg/store/bptree"
 )
 
 type testEnv struct {
@@ -26,11 +26,11 @@ func setupTestEnv() testEnv {
 	authCapKey := store.NewStoreKey("authCapKey")
 
 	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(authCapKey, storebptree.FastStoreConstructor, db)
 	ms.LoadLatestVersion()
 	prmk := params.NewParamsKeeper(authCapKey)
-	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount)
-	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), authCapKey, []string{ugnot.Denom})
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 

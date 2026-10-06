@@ -1,0 +1,43 @@
+# A cyclic embedded interface (`s.IG = s`) bound lazily through an interface
+# (`G = o.Get`) and persisted must still raise the fatal cyclic-dispatch panic
+# when reloaded and called in a later tx — i.e. cycle detection (keyed on the
+# operand's reloaded identity) survives serialization and does NOT hang. The
+# raw panic is recovered at the keeper boundary into a clean failed tx.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/myrealm -pkgpath gno.land/r/test/myrealm -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# bind G = o.Get over a cyclic s.IG = s and persist it; the bind itself is lazy
+# (no resolution yet) so it must not panic here.
+gnokey maketx call -pkgpath gno.land/r/test/myrealm -func Bind -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout OK!
+
+# later tx: G is reloaded; calling it resolves the lazy bind, which loops over
+# the reloaded cyclic operand and must detect the cycle (terminate, not hang).
+! gnokey maketx call -pkgpath gno.land/r/test/myrealm -func CallLater -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stderr 'cyclic embedded interface in method-value dispatch'
+
+-- myrealm/gnomod.toml --
+module = "gno.land/r/test/myrealm"
+gno = "0.9"
+
+-- myrealm/myrealm.gno --
+package myrealm
+
+type IG interface{ Get() int }
+
+type Box struct{ IG }
+
+var s *Box
+var G func() int
+
+func Bind(cur realm) {
+	s = &Box{}
+	s.IG = s // cyclic embedded interface
+	var o IG = s
+	G = o.Get // lazy bind, resolved at call time
+}
+
+func CallLater(cur realm) int { return G() }

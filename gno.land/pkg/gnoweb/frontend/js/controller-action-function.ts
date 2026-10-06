@@ -194,6 +194,8 @@ export class ActionFunctionController extends BaseController {
 
 	// Update the qeval result
 	// If there is no "qeval-result" target, then do nothing.
+	// Placeholder text and the error class are both read from data-* attributes
+	// on the target so the contract is shared with analytics.ts.
 	private async _updateQEvalResult(): Promise<void> {
 		const resultTarget = this.getTarget("qeval-result") as HTMLElement;
 		const remoteTarget = this.getTarget("remote") as HTMLElement;
@@ -201,12 +203,15 @@ export class ActionFunctionController extends BaseController {
 		// If there is no resultTarget or remoteTarget, this is a crossing function.
 		if (!(resultTarget && remoteTarget)) return;
 
-		// If there are no args, then show the "(enter param values)" placeholder.
+		const placeholder = resultTarget.dataset.qevalPlaceholder ?? "";
+		const errorClass = resultTarget.dataset.qevalErrorClass ?? "u-color-danger";
+
+		// If there are no args, then show the placeholder.
 		const argNodes = this.getTargets("arg");
 		const haveAllArgs = argNodes.every((arg) => arg.textContent !== "");
 		if (!haveAllArgs) {
-			resultTarget.textContent = "(enter param values)";
-			resultTarget.classList.remove("u-color-danger");
+			resultTarget.textContent = placeholder;
+			resultTarget.classList.remove(errorClass);
 			return;
 		}
 
@@ -219,10 +224,7 @@ export class ActionFunctionController extends BaseController {
 		// Fetch the qeval result from the remote and update the DOM.
 		const result = await this._fetchQEval(remoteTarget.textContent || "", data);
 		resultTarget.textContent = result;
-		resultTarget.classList.toggle(
-			"u-color-danger",
-			result.startsWith("Error:"),
-		);
+		resultTarget.classList.toggle(errorClass, result.startsWith("Error:"));
 	}
 
 	// Fetch the qeval result from the remote

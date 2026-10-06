@@ -41,7 +41,7 @@ embedmd_filters = grep -v "exit status 1" | sed 's/^\(  -[^ ]* [^ ]*\) \{2,\}/\1
 generate: ## Generate documentation
 	mkdir -p .tmp
 	go build .
-	(go run . -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnobro-usage.txt
+	(./gnobro -h 2>&1 || true) | $(embedmd_filters) > .tmp/gnobro-usage.txt
 	$(rundep) github.com/campoy/embedmd -w `find . -name "*.md"`
 	rm -f ./gnobro
 

@@ -30,12 +30,29 @@ const (
 	// check if we should switch to consensus reactor
 	switchToConsensusIntervalSeconds = 1
 
-	// NOTE: keep up to date with bcBlockResponseMessage
-	bcBlockResponseMessagePrefixSize   = 4
-	bcBlockResponseMessageFieldKeySize = 1
-	maxMsgSize                         = types.MaxBlockSizeBytes +
-		bcBlockResponseMessagePrefixSize +
-		bcBlockResponseMessageFieldKeySize
+	// maxBlockMsgOverhead is the allowance for the bcBlockResponseMessage
+	// envelope wrapped around an already length-prefixed block: an amino type
+	// prefix, a field key and a length prefix, i.e. tens of bytes. 64KB is
+	// generous headroom for that framing.
+	//
+	// Note it does NOT need to cover the block header or the LastCommit:
+	// MaxDataBytes is also the max size ConsensusState.addProposalBlockPart
+	// passes to amino when decoding a proposal block, so a block can only ever
+	// be committed if its *whole* serialized form — header and commit
+	// included — fits in MaxDataBytes.
+	maxBlockMsgOverhead = 64 << 10 // 64KB
+
+	// maxMsgSize is the maximum size of a blockchain-reactor message. The
+	// largest message is a bcBlockResponseMessage carrying a full block. Since a
+	// committed block's serialized size is bounded by the chain's MaxDataBytes,
+	// which consensus-param validation caps at MaxBlockDataBytesLimit, deriving
+	// the limit from the ceiling covers every block the chain could ever have
+	// committed, including blocks committed before MaxDataBytes was lowered.
+	//
+	// It doubles as the channel's RecvMessageCapacity, so keeping it tight
+	// bounds the per-connection recving-buffer exposure; it was previously
+	// MaxBlockSizeBytes (100MB), far larger than any real block.
+	maxMsgSize = int(types.MaxBlockDataBytesLimit) + maxBlockMsgOverhead
 )
 
 // SwitchToConsensusFn is a callback method that is meant to
@@ -78,7 +95,10 @@ func NewBlockchainReactor(
 	fastSync bool,
 	switchToConsensusFn SwitchToConsensusFn,
 ) *BlockchainReactor {
-	if state.LastBlockHeight != store.Height() {
+	// Allow the case where InitialHeight > 1: after InitChain, the Handshaker sets
+	// state.LastBlockHeight = InitialHeight - 1, but the block store is still empty
+	// (Height() == 0). A non-empty store must always match state.
+	if store.Height() != 0 && state.LastBlockHeight != store.Height() {
 		panic(fmt.Sprintf("state (%v) and store (%v) height mismatch", state.LastBlockHeight,
 			store.Height()))
 	}
@@ -88,8 +108,17 @@ func NewBlockchainReactor(
 	const capacity = 1000                      // must be bigger than peers count
 	errorsCh := make(chan peerError, capacity) // so we don't block in #Receive#pool.AddBlock
 
+	// When the store is empty (fresh chain) and InitialHeight > 1, the
+	// Handshaker has set state.LastBlockHeight = InitialHeight - 1 but the
+	// store is still at height 0. Use the state height so the pool starts
+	// syncing at InitialHeight, not at 1.
+	startHeight := store.Height() + 1
+	if store.Height() == 0 && state.LastBlockHeight > 0 {
+		startHeight = state.LastBlockHeight + 1
+	}
+
 	pool := NewBlockPool(
-		store.Height()+1,
+		startHeight,
 		requestsCh,
 		errorsCh,
 	)
@@ -270,10 +299,12 @@ FOR_LOOP:
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
 				bcR.pool.Stop()
 
-				bcR.switchToConsensusFn(state, blocksSynced)
-				// else {
-				// should only happen during testing
-				// }
+				// switchToConsensusFn may be nil under test harnesses that
+				// construct a reactor in isolation; production wiring always
+				// supplies it.
+				if bcR.switchToConsensusFn != nil {
+					bcR.switchToConsensusFn(state, blocksSynced)
+				}
 
 				break FOR_LOOP
 			}

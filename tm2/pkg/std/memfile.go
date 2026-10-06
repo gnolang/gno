@@ -92,7 +92,7 @@ type MemPackage struct {
 	Path  string     `json:"path" yaml:"path"`           // import path
 	Files []*MemFile `json:"files" yaml:"files"`         // plain file system files.
 	Type  any        `json:"type,omitempty" yaml:"type"` // (user defined) package type.
-	Info  any        `json:"info,omitempty" yaml:"info"` // (user defined) extra information.
+	Info  any        `json:"info,omitempty" yaml:"info"` // unused; must be nil (see gnolang.ValidateMemPackageAny).
 }
 
 // Package Name must be lower_case, can have digits & underscores.
@@ -237,6 +237,12 @@ func (mpkg *MemPackage) IsZero() bool {
 
 // Write all files into dir.
 func (mpkg *MemPackage) WriteTo(dir string) error {
+	for _, mfile := range mpkg.Files {
+		if !filepath.IsLocal(mfile.Name) {
+			return fmt.Errorf("invalid file name %q: must be a local path", mfile.Name)
+		}
+	}
+
 	// fmt.Printf("writing mempackage to %q:\n", dir)
 	for _, mfile := range mpkg.Files {
 		// fmt.Printf(" - %s (%d bytes)\n", mfile.Name, len(mfile.Body))

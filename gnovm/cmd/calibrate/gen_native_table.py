@@ -1,0 +1,914 @@
+#!/usr/bin/env python3
+"""
+Generate native function gas table for GnoVM stdlibs from Go benchmarks.
+
+Mirrors gen_analysis.py (opcode handler gas) and gen_alloc_table.py
+(allocation gas). Reads `go test -bench=BenchmarkNative` output, fits a
+formula per native (flat, base + slope*N, base + α·(Na+Nb) for natives
+taking two unbounded byte slices, or base + α·count + β·total_bytes for
+slice-of-string natives), and prints:
+
+  - native_gas_formulas.md  — markdown table of fits
+  - native_gas_table.go.txt — Go-pasteable nativeGasTable block
+  - native_gas_fits.png      — multi-panel log-log plot of every linear fit
+
+Convention: 1 gas = 1 ns on reference hardware. Slope is emitted as ns
+per 1024 units of N (precedent: incrCPUBigInt in
+gnovm/pkg/gnolang/machine.go uses `slopePerKb / 1024`).
+
+Usage:
+    cd gnovm/cmd/calibrate
+    go test -bench=BenchmarkNative -count=3 -benchtime=200ms -timeout=20m . \
+        > native_bench_output.txt
+    python3 gen_native_table.py native_bench_output.txt
+"""
+import argparse
+import math
+import re
+import sys
+from collections import defaultdict
+
+import numpy as np
+
+
+# Mirrors modExpWork in gnovm/pkg/gnolang/native_gas.go. Keep in sync; the
+# runtime and the fitter must compute the same metric, or the fitter reduces
+# each bench to a work value the runtime never charges on and the slope it
+# emits is scaled by the ratio between the two. TestModExpConstantsMatchFitter
+# in gnovm/pkg/gnolang reads this file and asserts the constants agree.
+MODEXP_FLOOR_WORDS = 65
+MODEXP_WORD_BYTES = 8
+MODEXP_MONT_SETUP = 38
+MODEXP_MONT_PER_WORD = 160
+MODEXP_GENERIC_PER_BIT = 5
+
+
+def modexp_work(exp_len, mod_len):
+    """Modular multiplications big.Int.Exp performs — see SizeModExpWork.
+
+    One machine word of exponent decides the routine: the generic
+    square-and-multiply loop at or below it (one squaring, multiply and full
+    division per bit), the windowed Montgomery loop above it (a fixed setup
+    plus 5 steps per 4-bit window, walking whole words so a ragged length
+    rounds up).
+    """
+    if exp_len <= 0 or mod_len <= 0:
+        return 0
+    unit = MODEXP_FLOOR_WORDS + ((mod_len + 7) // 8) ** 2
+    if exp_len <= MODEXP_WORD_BYTES:
+        units = MODEXP_GENERIC_PER_BIT * 8 * exp_len
+    else:
+        ewords = (exp_len + MODEXP_WORD_BYTES - 1) // MODEXP_WORD_BYTES
+        units = MODEXP_MONT_SETUP + MODEXP_MONT_PER_WORD * ewords
+    return units * unit
+
+
+# Per-native spec.
+#   pkg, fn:               registry key (matches stdlibs/native_gas.go)
+#   slope_idx:             param index for slope (None for flat,
+#                          -1 for kinds that don't index a param)
+#   slope_kind:            SizeKind name
+#   bench_re:              regex; for variable-cost captures (size, ns),
+#                          for flat captures (ns,)
+NATIVE_SPECS = [
+    # ---- pure CPU, slope on input bytes ----
+    ("crypto/sha256", "sum256", 0, "LenBytes",
+     r"BenchmarkNative_SHA256_Sum256_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/ed25519", "verify", 1, "LenBytes",
+     r"BenchmarkNative_Ed25519_Verify_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain", "packageAddress", 0, "LenString",
+     r"BenchmarkNative_Chain_PackageAddress_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain", "deriveStorageDepositAddr", 0, "LenString",
+     r"BenchmarkNative_Chain_DeriveStorageDepositAddr_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- flat ----
+    ("chain", "pubKeyAddress", None, "Flat",
+     r"BenchmarkNative_Chain_PubKeyAddress-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("time", "loadFromEmbeddedTZData", None, "Flat",
+     r"BenchmarkNative_Time_LoadTZData-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("math", "Float32bits", None, "Flat",
+     r"BenchmarkNative_Math_Float32bits-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("math", "Float32frombits", None, "Flat",
+     r"BenchmarkNative_Math_Float32frombits-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("math", "Float64bits", None, "Flat",
+     r"BenchmarkNative_Math_Float64bits-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("math", "Float64frombits", None, "Flat",
+     r"BenchmarkNative_Math_Float64frombits-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- chain/banker (denom strings small; per-coin slope only) ----
+    ("chain/banker", "bankerSendCoins", 3, "LenSlice",
+     r"BenchmarkNative_Banker_SendCoins_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # SizeReturnLen → post-call charge. slope_idx is stack offset from
+    # top (1-based): bankerGetCoins → (denoms, amounts), denoms is the
+    # first-declared return so it lands at stack offset 2 (amounts at 1).
+    ("chain/banker", "bankerGetCoins", 2, "ReturnLen",
+     r"BenchmarkNative_Banker_GetCoins_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/banker", "bankerGetCoin", None, "Flat",
+     r"BenchmarkNative_Banker_GetCoin-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/banker", "bankerTotalCoin", None, "Flat",
+     r"BenchmarkNative_Banker_TotalCoin-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/banker", "bankerIssueCoin", None, "Flat",
+     r"BenchmarkNative_Banker_IssueCoin-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/banker", "bankerRemoveCoin", None, "Flat",
+     r"BenchmarkNative_Banker_RemoveCoin-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/banker", "originSend", None, "Flat",
+     r"BenchmarkNative_Banker_OriginSend-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/banker", "assertCallerIsRealm", None, "Flat",
+     r"BenchmarkNative_Banker_AssertCallerIsRealm-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- chain/params (payload-bytes slope where applicable) ----
+    ("chain/params", "SetBytes", 1, "LenBytes",
+     r"BenchmarkNative_Params_SetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "SetString", 1, "LenString",
+     r"BenchmarkNative_Params_SetString_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "SetBool", None, "Flat",
+     r"BenchmarkNative_Params_SetBool-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "SetInt64", None, "Flat",
+     r"BenchmarkNative_Params_SetInt64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "SetUint64", None, "Flat",
+     r"BenchmarkNative_Params_SetUint64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # chain/params getters return (value, found). value is first-declared,
+    # so it lands at stack offset 2.
+    ("chain/params", "GetBytes", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetString", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetString_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetBool", None, "Flat",
+     r"BenchmarkNative_Params_GetBool-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetInt64", None, "Flat",
+     r"BenchmarkNative_Params_GetInt64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/params", "GetUint64", None, "Flat",
+     r"BenchmarkNative_Params_GetUint64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- sys/params ----
+    # Setters share the (module, submodule, name, val[, add]) shape — the
+    # variable-cost slope param sits at index 3 (NOT 4: name comes BEFORE
+    # val). Bench harness still uses 4-5 block slots; the SlopeIdx below is
+    # what production chargeNativeGas indexes into at runtime.
+    ("sys/params", "setSysParamBytes", 3, "LenBytes",
+     r"BenchmarkNative_SysParams_SetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # getSysParamBytes → (value, found). value is first-declared, stack offset 2.
+    ("sys/params", "getSysParamBytes", 2, "ReturnLen",
+     r"BenchmarkNative_SysParams_GetBytes_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("sys/params", "setSysParamString", 3, "LenString",
+     r"BenchmarkNative_SysParams_SetString_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("sys/params", "setSysParamBool", None, "Flat",
+     r"BenchmarkNative_SysParams_SetBool-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("sys/params", "setSysParamInt64", None, "Flat",
+     r"BenchmarkNative_SysParams_SetInt64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("sys/params", "setSysParamUint64", None, "Flat",
+     r"BenchmarkNative_SysParams_SetUint64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("sys/params", "getSysParamBool", None, "Flat",
+     r"BenchmarkNative_SysParams_GetBool-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("sys/params", "getSysParamInt64", None, "Flat",
+     r"BenchmarkNative_SysParams_GetInt64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("sys/params", "getSysParamUint64", None, "Flat",
+     r"BenchmarkNative_SysParams_GetUint64-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("sys/params", "getSysParamString", 2, "ReturnLen",
+     r"BenchmarkNative_SysParams_GetString_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- chain/runtime ----
+    ("chain/runtime", "ChainID", None, "Flat",
+     r"BenchmarkNative_Runtime_ChainID-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/runtime", "ChainDomain", None, "Flat",
+     r"BenchmarkNative_Runtime_ChainDomain-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/runtime", "ChainHeight", None, "Flat",
+     r"BenchmarkNative_Runtime_ChainHeight-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/runtime", "originCaller", None, "Flat",
+     r"BenchmarkNative_Runtime_OriginCaller-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/runtime", "getSessionInfo", None, "Flat",
+     r"BenchmarkNative_Runtime_GetSessionInfo-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/runtime", "AssertOriginCall", None, "Flat",
+     r"BenchmarkNative_Runtime_AssertOriginCall-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/runtime", "getRealm", -1, "NumCallFrames",
+     r"BenchmarkNative_Runtime_GetRealm_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- time ----
+    ("time", "now", None, "Flat",
+     r"BenchmarkNative_Time_Now-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- chain/markdown (pure CPU, per-byte slope on input string) ----
+    # All 8 natives slope on the first parameter (s/content), kind LenString.
+    # MatchCharsetN slope is fit over bounded sizes only (production callers
+    # cap maxLen ≤ 64); the bench includes larger sizes for fit robustness
+    # but the runtime should still enforce a maxLen guard before charging.
+    ("chain/markdown", "StripBidiAndZeroWidth", 0, "LenString",
+     r"BenchmarkNative_Markdown_StripBidiAndZeroWidth_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "NormalizeBreaks", 0, "LenString",
+     r"BenchmarkNative_Markdown_NormalizeBreaks_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeInline", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeInline_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeTitle", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeTitle_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "PercentEncodeURL", 0, "LenString",
+     r"BenchmarkNative_Markdown_PercentEncodeURL_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "MatchCharsetN", 0, "LenString",
+     r"BenchmarkNative_Markdown_MatchCharsetN_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "CodeFence", 0, "LenString",
+     r"BenchmarkNative_Markdown_CodeFence_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/markdown", "EscapeBlockHazards", 0, "LenString",
+     r"BenchmarkNative_Markdown_EscapeBlockHazards_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+
+    # ---- IBC crypto stdlibs ----
+    ("crypto/keccak256", "sum256", 0, "LenBytes",
+     r"BenchmarkNative_Keccak256_Sum256_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # crypto/modexp is NOT here — it is fitted separately by fit_modexp, which
+    # takes upper bounds rather than least squares. See MODEXP_SPEC.
+    ("crypto/bn254", "g1Add", None, "Flat",
+     r"BenchmarkNative_BN254_G1Add-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/bn254", "g1Mul", None, "Flat",
+     r"BenchmarkNative_BN254_G1Mul-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/bn254", "pairingCheck", 0, "LenBytes",
+     # Bench name encodes pair count; the harness sets b.SetBytes(192*pairs),
+     # so the captured group is pair count and we convert below in parse_bench.
+     r"BenchmarkNative_BN254_PairingCheck_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/cometbls", "verifyZKP", None, "Flat",
+     r"BenchmarkNative_CometBLS_VerifyZKP-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "leafHash", 0, "LenBytes",
+     r"BenchmarkNative_Merkle_LeafHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "hashFromByteSlices", 0, "LenBytes",
+     # Bench name encodes nItems; per-item encoded size is 10 bytes (4 header
+     # + 6 payload), plus 4 for the outer count header.
+     r"BenchmarkNative_Merkle_HashFromByteSlices_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("crypto/merkle", "verifySimpleProof", 4, "LenBytes",
+     # Bench name encodes `total`; aunt count = log2(total), aunts bytes = 32*log2(total).
+     r"BenchmarkNative_Merkle_VerifySimpleProof_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+]
+
+
+# Pair specs: natives taking two independent unbounded byte-slice params
+# whose cost tracks the sum of the two lengths (crypto/merkle.innerHash
+# hashes 0x01||left||right). Charging only one of the two would leave the
+# other free, so the emitted row puts a slope on each.
+#
+# The bench sweeps both operands at the same size n, so a 1-D fit over n
+# measures base + rate*(2n) and the fitted slope is 2x the per-operand rate;
+# emit_go_table halves it back out into Slope and Slope2.
+#
+# Format: (pkg, fn, idx_a, idx_b, kind, regex)
+NATIVE_SPECS_PAIR = [
+    ("crypto/merkle", "innerHash", 0, 1, "LenBytes",
+     r"BenchmarkNative_Merkle_InnerHash_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+]
+
+
+# 2D specs: natives whose cost depends on BOTH element count AND total
+# inner bytes (e.g. chain.emit, *.SetStrings). Bench names are
+# "_<count>_<perElemBytes>-<gomaxprocs>" and the fitter regresses
+#   cost = base + α·count + β·(count*perElemBytes)
+# producing a NativeGasInfo with two additive slopes (Slope on count,
+# Slope2 on SliceTotalBytes). Post-call entries (post=True) emit into
+# the PostSlope/PostSlope2 fields and skip the pre-call slopes.
+#
+# Format: (pkg, fn, idx, count_kind, regex, post_call)
+NATIVE_SPECS_2D = [
+    ("chain", "emit", 1, "LenSlice",
+     r"BenchmarkNative_Chain_Emit_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
+    ("chain/params", "SetStrings", 1, "LenSlice",
+     r"BenchmarkNative_Params_SetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
+    ("chain/params", "UpdateParamStrings", 1, "LenSlice",
+     r"BenchmarkNative_Params_UpdateStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
+    ("chain/params", "GetStrings", 2, "ReturnLen",
+     r"BenchmarkNative_Params_GetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", True),
+    ("sys/params", "setSysParamStrings", 3, "LenSlice",
+     r"BenchmarkNative_SysParams_SetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
+    ("sys/params", "updateSysParamStrings", 3, "LenSlice",
+     r"BenchmarkNative_SysParams_UpdateStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", False),
+    ("sys/params", "getSysParamStrings", 2, "ReturnLen",
+     r"BenchmarkNative_SysParams_GetStrings_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op", True),
+]
+
+
+def parse_bench(path):
+    text = open(path).read()
+    var_data = defaultdict(lambda: defaultdict(list))
+    flat_data = defaultdict(list)
+    for pkg, fn, slope_idx, kind, regex in NATIVE_SPECS:
+        for line in text.splitlines():
+            m = re.search(regex, line)
+            if not m:
+                continue
+            if kind == "Flat":
+                flat_data[(pkg, fn)].append(float(m.group(1)))
+            else:
+                size = int(m.group(1))
+                ns = float(m.group(2))
+                var_data[(pkg, fn)][size].append(ns)
+    return var_data, flat_data
+
+
+# crypto/modexp is fitted on its own because its coefficients are UPPER BOUNDS
+# over the grid, not least squares. A central fit sits below cost on about half
+# the grid, which is fine for describing a cost and wrong for charging one.
+#
+# Matches the grid benches, NOT the symmetric BenchmarkNative_ModExp_N series:
+# fitting the symmetric diagonal is what hid the asymmetric cost originally.
+#
+# Format: (pkg, fn, exponent param index, regex over (expLen, modLen, ns))
+MODEXP_SPEC = ("crypto/modexp", "modExp", 1,
+               r"BenchmarkNative_ModExpGrid_(\d+)_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op")
+
+# Applied on top of the measured upper bound. The grid samples a surface rather
+# than covering it, and bench-to-bench variance on a shared machine is a few
+# percent; without headroom the thinnest grid point ships at exactly 1.00x.
+MODEXP_MARGIN = 1.2
+
+
+def parse_bench_modexp(path):
+    """Parse ModExpGrid rows: (expLen, modLen) -> list of ns observations."""
+    _, _, _, regex = MODEXP_SPEC
+    grid = defaultdict(list)
+    for line in open(path).read().splitlines():
+        m = re.search(regex, line)
+        if m:
+            grid[(int(m.group(1)), int(m.group(2)))].append(float(m.group(3)))
+    return grid
+
+
+def _round_up_2sf(x):
+    """Round up to two significant figures, so the table carries a readable
+    constant rather than the last digit of a benchmark. Always rounds up, so
+    rounding can never take a coefficient below the bound it came from."""
+    if x <= 0:
+        return 0
+    mag = 10.0 ** (math.floor(math.log10(x)) - 1)
+    return int(math.ceil(x / mag) * mag)
+
+
+def fit_modexp(grid, hw_factor=1.0):
+    """Upper-bound fit for crypto/modexp. Returns a row dict, or None.
+
+    Three coefficients, fitted in dependency order, each the maximum the grid
+    demands rather than the mean:
+
+      slope2  ns per byte of modulus. Taken from the expLen=0 points, which do
+              no exponentiation at all and so isolate the cost of converting the
+              operands and building the result — a cost linear in len(modulus)
+              that the work metric deliberately does not model.
+      base    the intercept of that same line.
+      slope   ns per modular multiplication, from max over every remaining point
+              of (ns - dispatcher(modLen)) / work(expLen, modLen).
+
+    hw_factor scales the measurements onto reference hardware. The benches are
+    rarely run on the reference Xeon, and a fit taken on a faster machine is an
+    undercharge everywhere unless it is projected first.
+    """
+    zero = {m: float(np.median(v)) * hw_factor for (e, m), v in grid.items() if e == 0}
+    rest = {(e, m): float(np.median(v)) * hw_factor
+            for (e, m), v in grid.items() if e > 0}
+    if len(zero) < 2 or not rest:
+        return None
+
+    mods = np.array(sorted(zero), dtype=float)
+    ns0 = np.array([zero[int(m)] for m in mods], dtype=float)
+    coeffs, *_ = np.linalg.lstsq(
+        np.column_stack([np.ones(len(mods)), mods]), ns0, rcond=None)
+    base, per_byte = float(coeffs[0]), max(float(coeffs[1]), 0.0)
+    # Lift the line until it covers every expLen=0 point. It is a charge, not a
+    # description, so it may sit above the data but never below it.
+    lift = float(np.max(ns0 / np.maximum(base + per_byte * mods, 1e-9)))
+    base, per_byte = max(base, 0.0) * lift, per_byte * lift
+
+    needed, worst = 0.0, None
+    for (e, m), ns in rest.items():
+        w = modexp_work(e, m)
+        if not w:
+            continue
+        r = max(ns - (base + per_byte * m), 0.0) / w
+        if r > needed:
+            needed, worst = r, (e, m)
+    if worst is None:
+        return None
+
+    return {
+        "pkg": MODEXP_SPEC[0], "fn": MODEXP_SPEC[1], "shape": "modexp",
+        "idx": MODEXP_SPEC[2],
+        "base": _round_up_2sf(base * MODEXP_MARGIN),
+        "slope": _round_up_2sf(needed * MODEXP_MARGIN * 1024),
+        "slope2": _round_up_2sf(per_byte * MODEXP_MARGIN * 1024),
+        "worst": worst, "npoints": len(grid), "hw_factor": hw_factor,
+    }
+
+
+def parse_bench_pair(path):
+    """Parse pair-spec bench rows: per-operand size → list of ns observations."""
+    text = open(path).read()
+    data = defaultdict(lambda: defaultdict(list))
+    for pkg, fn, _, _, _, regex in NATIVE_SPECS_PAIR:
+        for line in text.splitlines():
+            m = re.search(regex, line)
+            if not m:
+                continue
+            data[(pkg, fn)][int(m.group(1))].append(float(m.group(2)))
+    return data
+
+
+def parse_bench_2d(path):
+    """Parse 2-D bench rows: (count, perElem) → list of ns observations."""
+    text = open(path).read()
+    data = defaultdict(lambda: defaultdict(list))
+    for pkg, fn, _, _, regex, _ in NATIVE_SPECS_2D:
+        for line in text.splitlines():
+            m = re.search(regex, line)
+            if not m:
+                continue
+            count = int(m.group(1))
+            per_elem = int(m.group(2))
+            ns = float(m.group(3))
+            data[(pkg, fn)][(count, per_elem)].append(ns)
+    return data
+
+
+def fit_linear(sizes_ns):
+    """Weighted LS (1/y) so small N stays relevant; floor base to ns(min)."""
+    sizes = np.array(sorted(sizes_ns.keys()), dtype=float)
+    ns = np.array([np.median(sizes_ns[s]) for s in sizes], dtype=float)
+    if len(sizes) < 2:
+        return float(ns[0]), 0.0, 1.0
+    w = 1.0 / np.maximum(ns, 1e-9)
+    A = np.column_stack([np.ones(len(sizes)), sizes])
+    AW = (A.T * w).T
+    yW = ns * w
+    coeffs, *_ = np.linalg.lstsq(AW, yW, rcond=None)
+    base = max(float(coeffs[0]), float(ns[0]))
+    slope = max(float(coeffs[1]), 0.0)
+    pred = base + slope * sizes
+    ss_res = float(np.sum((ns - pred) ** 2))
+    ss_tot = float(np.sum((ns - ns.mean()) ** 2))
+    r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
+    return base, slope, r2
+
+
+def fit_2d(grid):
+    """Multivariate LS for cost = base + α·count + β·total_bytes.
+
+    grid: dict (count, per_elem) → list of ns observations.
+    Returns (base, alpha_count, beta_bytes, r2).
+    Weighted by 1/y to keep small/cheap data points from dominating.
+    Coefficients are floored at zero (gas can't be negative)."""
+    pts = []
+    for (c, p), nss in grid.items():
+        pts.append((c, c * p, float(np.median(nss))))
+    if len(pts) < 3:
+        # Need at least 3 to disambiguate base + 2 slopes.
+        return None
+    pts.sort()
+    arr = np.array(pts, dtype=float)
+    counts = arr[:, 0]
+    bytes_ = arr[:, 1]
+    ns = arr[:, 2]
+    w = 1.0 / np.maximum(ns, 1e-9)
+    A = np.column_stack([np.ones(len(arr)), counts, bytes_])
+    AW = (A.T * w).T
+    yW = ns * w
+    coeffs, *_ = np.linalg.lstsq(AW, yW, rcond=None)
+    base = max(float(coeffs[0]), float(ns.min()) * 0.5)
+    alpha = max(float(coeffs[1]), 0.0)
+    beta = max(float(coeffs[2]), 0.0)
+    pred = base + alpha * counts + beta * bytes_
+    ss_res = float(np.sum((ns - pred) ** 2))
+    ss_tot = float(np.sum((ns - ns.mean()) ** 2))
+    r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else 1.0
+    return base, alpha, beta, r2
+
+
+def fit_flat(values):
+    return float(np.median(values))
+
+
+def n_desc(kind, slope_idx):
+    return {
+        "LenBytes":         f"len(p{slope_idx}) bytes",
+        "LenString":        f"len(p{slope_idx}) string",
+        "LenSlice":         f"len(p{slope_idx}) slice",
+        "NumCallFrames":    "m.NumCallFrames()",
+        "ReturnLen":        f"len(return[{slope_idx}])",
+        "SliceTotalBytes":  f"sum_inner_len(p{slope_idx})",
+        "ModExpWork":       (f"modmuls(len(p{slope_idx})) * "
+                             f"({MODEXP_FLOOR_WORDS} + words(p{slope_idx + 1})^2)"),
+    }[kind]
+
+
+def emit_markdown(rows, out):
+    out.write("# Native Function Gas Formulas\n\n")
+    out.write("Generated by `gen_native_table.py`. 1 gas = 1 ns on reference hardware.\n")
+    out.write("Slope is ns/N; runtime stores it as `Slope/1024` and computes `base + slope*N/1024`.\n\n")
+    out.write("| Native | Shape | Base (ns) | α (ns/elem) | β (ns/byte) | N | R² |\n")
+    out.write("|---|---|---:|---:|---:|---|---:|\n")
+    for r in rows:
+        if r["shape"] == "flat":
+            out.write(f"| `{r['pkg']}.{r['fn']}` | flat | {r['base']:.1f} | — | — | — | — |\n")
+        elif r["shape"] == "linear":
+            out.write(
+                f"| `{r['pkg']}.{r['fn']}` | base+α·N | {r['base']:.1f} | "
+                f"{r['slope']:.4f} | — | {n_desc(r['kind'], r['slope_idx'])} | {r['r2']:.3f} |\n"
+            )
+        elif r["shape"] == "2d":
+            out.write(
+                f"| `{r['pkg']}.{r['fn']}` | base+α·count+β·bytes | "
+                f"{r['base']:.1f} | {r['alpha']:.4f} | {r['beta']:.4f} | "
+                f"{n_desc(r['count_kind'], r['idx'])} + sum_inner_len | {r['r2']:.3f} |\n"
+            )
+        elif r["shape"] == "pair":
+            rate = r["slope"] / 2.0
+            out.write(
+                f"| `{r['pkg']}.{r['fn']}` | base+α·(Na+Nb) | {r['base']:.1f} | "
+                f"{rate:.4f} | — | {n_desc(r['kind'], r['idx_a'])} + "
+                f"{n_desc(r['kind'], r['idx_b'])} | {r['r2']:.3f} |\n"
+            )
+
+
+def emit_go_table(rows, out):
+    """Emit nativeGasEntry literals matching gno.NativeGasInfo's shape.
+
+    SizeReturnLen (1-D) emits as post-call charges (Base flat + PostBase/
+    PostSlope/PostSlopeIdx/PostSlopeKind). 2-D fits emit Slope+Slope2
+    (or PostSlope+PostSlope2 when post-call) in one entry."""
+    out.write("// Code generated by gen_native_table.py from native_bench_output.txt.\n")
+    out.write("// 1 gas = 1 ns on reference hardware (Intel Xeon Platinum 8168).\n")
+    out.write("// Slope is ns per 1024 units of N; runtime computes base + slope*N/1024.\n")
+    out.write("// See gnovm/cmd/calibrate/native_gas_formulas.md for derivation.\n")
+    out.write("var calibratedNativeGas = []nativeGasEntry{\n")
+    for r in rows:
+        if r["shape"] == "modexp":
+            we, wm = r["worst"]
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {r["base"]}, '
+                f'Slope: {r["slope"]}, '
+                f'SlopeIdx: {r["idx"]}, '
+                f'SlopeKind: SizeModExpWork, '
+                f'Slope2: {r["slope2"]}, '
+                f'Slope2Idx: {r["idx"] + 1}, '
+                f'Slope2Kind: SizeLenBytes}},'
+                f' // upper bound over {r["npoints"]} ModExpGrid points'
+                f' (x{r["hw_factor"]} to reference, +{int((MODEXP_MARGIN - 1) * 100)}% margin);'
+                f' thinnest at expLen={we}/modLen={wm}\n'
+            )
+            continue
+        if r["shape"] == "flat":
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {int(round(r["base"]))}, '
+                f'SlopeIdx: -1, SlopeKind: SizeFlat}},'
+                f' // flat, median {r["base"]:.1f}ns\n'
+            )
+            continue
+        if r["shape"] == "pair":
+            # The bench held both operands at the same size, so the fitted
+            # slope covers both; half of it goes on each param so the total
+            # charge tracks len(a)+len(b).
+            rate_per_1024 = int(round(r["slope"] / 2.0 * 1024))
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {int(round(r["base"]))}, '
+                f'Slope: {rate_per_1024}, '
+                f'SlopeIdx: {r["idx_a"]}, '
+                f'SlopeKind: Size{r["kind"]}, '
+                f'Slope2: {rate_per_1024}, '
+                f'Slope2Idx: {r["idx_b"]}, '
+                f'Slope2Kind: Size{r["kind"]}}},'
+                f' // fit base={r["base"]:.1f}ns slope={r["slope"] / 2.0:.4f}ns/N'
+                f' (={rate_per_1024}/1024) per operand R²={r["r2"]:.3f}\n'
+            )
+            continue
+        if r["shape"] == "2d":
+            base = int(round(r["base"]))
+            alpha_per_1024 = int(round(r["alpha"] * 1024))
+            beta_per_1024 = int(round(r["beta"] * 1024))
+            if r["post"]:
+                # Post-call 2-D: pre is flat 0, post carries both slopes.
+                # The pre-call base is folded into PostBase since the
+                # bench measured end-to-end.
+                out.write(
+                    f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                    f'Base: 0, SlopeIdx: -1, SlopeKind: SizeFlat, '
+                    f'PostBase: {base}, '
+                    f'PostSlope: {alpha_per_1024}, '
+                    f'PostSlopeIdx: {r["idx"]}, '
+                    f'PostSlopeKind: Size{r["count_kind"]}, '
+                    f'PostSlope2: {beta_per_1024}, '
+                    f'PostSlope2Idx: {r["idx"]}, '
+                    f'PostSlope2Kind: SizeSliceTotalBytes}},'
+                    f' // post-2d: base={r["base"]:.1f}ns + α={r["alpha"]:.4f}ns/elem (={alpha_per_1024}/1024)'
+                    f' + β={r["beta"]:.4f}ns/byte (={beta_per_1024}/1024) R²={r["r2"]:.3f}\n'
+                )
+            else:
+                out.write(
+                    f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                    f'Base: {base}, '
+                    f'Slope: {alpha_per_1024}, '
+                    f'SlopeIdx: {r["idx"]}, '
+                    f'SlopeKind: Size{r["count_kind"]}, '
+                    f'Slope2: {beta_per_1024}, '
+                    f'Slope2Idx: {r["idx"]}, '
+                    f'Slope2Kind: SizeSliceTotalBytes}},'
+                    f' // 2d: base={r["base"]:.1f}ns + α={r["alpha"]:.4f}ns/elem (={alpha_per_1024}/1024)'
+                    f' + β={r["beta"]:.4f}ns/byte (={beta_per_1024}/1024) R²={r["r2"]:.3f}\n'
+                )
+            continue
+        # 1-D linear.
+        slope_per_1024 = int(round(r["slope"] * 1024))
+        if r["kind"] == "ReturnLen":
+            out.write(
+                f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+                f'Base: {int(round(r["base"]))}, '
+                f'SlopeIdx: -1, SlopeKind: SizeFlat, '
+                f'PostSlope: {slope_per_1024}, '
+                f'PostSlopeIdx: {r["slope_idx"]}, '
+                f'PostSlopeKind: Size{r["kind"]}}},'
+                f' // post-call: base={r["base"]:.1f}ns + {r["slope"]:.4f}ns/N (={slope_per_1024}/1024) R²={r["r2"]:.3f}\n'
+            )
+            continue
+        out.write(
+            f'\t{{Pkg: "{r["pkg"]}", Fn: "{r["fn"]}", '
+            f'Base: {int(round(r["base"]))}, '
+            f'Slope: {slope_per_1024}, '
+            f'SlopeIdx: {r["slope_idx"]}, '
+            f'SlopeKind: Size{r["kind"]}}},'
+            f' // fit base={r["base"]:.1f}ns slope={r["slope"]:.4f}ns/N (={slope_per_1024}/1024) R²={r["r2"]:.3f}\n'
+        )
+    out.write("}\n")
+
+
+def _param_label(r):
+    """Human-readable parameter description shown on each panel's x-axis.
+
+    Linear fits get the size source (e.g. "N = len(p1) slice") so the
+    reader can map the slope back to what gas charge it produces.
+    Flat fits get an explicit "(flat)" annotation."""
+    if r["shape"] == "flat":
+        return ""
+    if r["shape"] == "2d":
+        return f"count = len(p{r['idx']}); bytes = sum_inner_len"
+    if r["shape"] == "pair":
+        return f"N = len(p{r['idx_a']}) = len(p{r['idx_b']}) — {r['kind']}"
+    kind = r["kind"]
+    if kind == "NumCallFrames":
+        return "N = m.NumCallFrames()"
+    if kind == "ReturnLen":
+        return f"N = len(return[{r['slope_idx']}])"
+    return f"N = len(p{r['slope_idx']}) — {kind}"
+
+
+def plot_fits(var_data, flat_data, pair_data, two_d_data, rows, out_path):
+    """Render the parameterized fits — linear and 2-D.
+
+    Flat natives (single horizontal reference; no parameter on the x-axis)
+    are excluded — their plots are visually redundant with the median
+    they encode, and the markdown/table already captures the value.
+
+    - Linear panels: median data points (blue) + fit line (red dashed).
+    - 2-D panels: two overlaid series — vs count (perElem=1, blue) and
+      vs total bytes (count=2, orange). Each series gets the model's
+      prediction (dashed) so visual deviation flags a poor fit."""
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("matplotlib not installed, skipping plot", file=sys.stderr)
+        return
+    rows = [r for r in rows if r["shape"] != "flat"]
+    if not rows:
+        return
+    n = len(rows)
+    cols = 3
+    rows_n = (n + cols - 1) // cols
+    fig, axes = plt.subplots(rows_n, cols,
+                             figsize=(5 * cols, 3.2 * rows_n), squeeze=False)
+    for i, r in enumerate(rows):
+        ax = axes[i // cols][i % cols]
+        param = _param_label(r)
+
+        if r["shape"] == "2d":
+            grid = two_d_data[(r["pkg"], r["fn"])]
+            # Series 1: vary count, hold per-elem at min observed (≈1).
+            min_p = min(p for (_, p) in grid.keys())
+            counts = sorted({c for (c, p) in grid.keys() if p == min_p})
+            count_ns = [np.median(grid[(c, min_p)]) for c in counts]
+            # Series 2: vary per-elem, hold count at min observed (≈2).
+            min_c = min(c for (c, p) in grid.keys() if p > min_p) if any(p > min_p for (_, p) in grid.keys()) else min(c for (c, _) in grid.keys())
+            elems = sorted({p for (c, p) in grid.keys() if c == min_c})
+            elem_ns = [np.median(grid[(min_c, p)]) for p in elems]
+            if counts and count_ns:
+                ax.plot(counts, count_ns, "bo-", markersize=5,
+                        label=f"vs count (perElem={min_p})")
+                xs = np.array(counts, dtype=float)
+                pred = r["base"] + r["alpha"] * xs + r["beta"] * xs * min_p
+                ax.plot(xs, pred, "b--", alpha=0.6,
+                        label=f"  α={r['alpha']:.3f}")
+            if elems and elem_ns:
+                # Plot bytes-axis series on the SAME axis but scaled by
+                # total bytes (count*perElem) so it's comparable.
+                xs2_bytes = np.array([min_c * p for p in elems], dtype=float)
+                # Use the bytes-axis as a second curve; place its x as
+                # total bytes so the slopes are visually disentangled.
+                ax2 = ax.twiny()
+                ax2.plot(xs2_bytes, elem_ns, "s-", color="orange",
+                         markersize=5, label=f"vs total_bytes (count={min_c})")
+                pred2 = r["base"] + r["alpha"] * min_c + r["beta"] * xs2_bytes
+                ax2.plot(xs2_bytes, pred2, "--", color="orange", alpha=0.6,
+                         label=f"  β={r['beta']:.3f}")
+                ax2.set_xscale("log")
+                ax2.set_xlabel("total bytes (count·perElem)", fontsize=7,
+                               color="orange")
+                ax2.tick_params(axis="x", labelcolor="orange", labelsize=7)
+                ax2.legend(fontsize=7, loc="upper left")
+            ax.set_xscale("log")
+            ax.set_yscale("log")
+            ax.set_title(
+                f"{r['pkg']}.{r['fn']}\nbase={r['base']:.0f}+α·c+β·b R²={r['r2']:.3f}",
+                fontsize=9)
+        else:  # linear
+            # 2-D entries that demoted to 1-D (β rounded to zero) live
+            # in two_d_data, not var_data. Project them onto the count
+            # axis (use the smallest perElem observed; that's the "vs
+            # count, holding bytes near zero" slice that motivated the
+            # 1-D fit).
+            d = var_data.get((r["pkg"], r["fn"]))
+            if d is None and r["shape"] == "pair":
+                d = pair_data.get((r["pkg"], r["fn"]))
+            if d is None:
+                grid = two_d_data.get((r["pkg"], r["fn"]), {})
+                if not grid:
+                    ax.set_title(f"{r['pkg']}.{r['fn']}\n(no data)", fontsize=9)
+                    continue
+                min_p = min(p for (_, p) in grid.keys())
+                d = {c: grid[(c, min_p)]
+                     for (c, p) in grid.keys() if p == min_p}
+            sizes = np.array(sorted(d.keys()), dtype=float)
+            med = np.array([np.median(d[s]) for s in sizes])
+            ax.plot(sizes, med, "bo-", markersize=5, label="median ns/op")
+            if sizes.min() <= 0:
+                xs = np.linspace(0, sizes.max(), 200)
+            else:
+                xs = np.geomspace(sizes.min(), sizes.max(), 200)
+            ys = r["base"] + r["slope"] * xs
+            ax.plot(xs, ys, "r--",
+                    label=f"fit: {r['base']:.0f}+{r['slope']:.3f}·N  R²={r['r2']:.3f}")
+            if sizes.min() > 0:
+                ax.set_xscale("log", base=10)
+                ax.set_yscale("log")
+            ax.set_title(f"{r['pkg']}.{r['fn']}", fontsize=9)
+
+        if param:
+            ax.set_xlabel(param, fontsize=8)
+        ax.set_ylabel("ns/op", fontsize=8)
+        ax.legend(fontsize=7, loc="best")
+        ax.grid(True, which="both", alpha=0.3)
+
+    for j in range(n, rows_n * cols):
+        axes[j // cols][j % cols].axis("off")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=140)
+    print(f"\nPlot saved to {out_path}", file=sys.stderr)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("bench_file")
+    ap.add_argument("--md-out", default="native_gas_formulas.md")
+    ap.add_argument("--go-out", default="native_gas_table.go.txt")
+    ap.add_argument("--plot", default="native_gas_fits.png")
+    ap.add_argument("--no-plot", action="store_true")
+    ap.add_argument(
+        "--hw-factor", type=float, default=1.0,
+        help="Scale crypto/modexp measurements onto the reference Xeon 8168. "
+             "Leave at 1.0 only when the benches were run on it; otherwise a fit "
+             "taken on a faster machine undercharges everywhere. Anchor it on a "
+             "row already calibrated on the reference — see the recorded run in "
+             "ibc_native_bench_test.go.")
+    args = ap.parse_args()
+
+    var_data, flat_data = parse_bench(args.bench_file)
+    pair_data = parse_bench_pair(args.bench_file)
+    two_d_data = parse_bench_2d(args.bench_file)
+    modexp_grid = parse_bench_modexp(args.bench_file)
+
+    rows = []
+    for pkg, fn, slope_idx, kind, _ in NATIVE_SPECS:
+        if kind == "Flat":
+            vs = flat_data.get((pkg, fn))
+            if not vs:
+                print(f"WARN: no data for flat {pkg}.{fn}", file=sys.stderr)
+                continue
+            rows.append({"pkg": pkg, "fn": fn, "shape": "flat",
+                         "base": fit_flat(vs)})
+        else:
+            d = var_data.get((pkg, fn))
+            if not d or len(d) < 2:
+                print(f"WARN: not enough size points for {pkg}.{fn}", file=sys.stderr)
+                continue
+            base, slope, r2 = fit_linear(d)
+            # Demote to flat if either the per-1024 slope rounds to 0 or
+            # R² < 0.5 (the line fits worse than a constant mean).
+            if int(round(slope * 1024)) == 0 or r2 < 0.5:
+                rows.append({"pkg": pkg, "fn": fn, "shape": "flat",
+                             "base": base})
+                print(f"NOTE: {pkg}.{fn} demoted to flat (slope={slope:.6f}, R²={r2:.3f})", file=sys.stderr)
+            else:
+                rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
+                             "base": base, "slope": slope, "r2": r2,
+                             "slope_idx": slope_idx, "kind": kind})
+
+    # crypto/modexp: upper-bound fit, not least squares.
+    if modexp_grid:
+        mrow = fit_modexp(modexp_grid, args.hw_factor)
+        if mrow is None:
+            print("WARN: ModExpGrid needs at least two expLen=0 points and one "
+                  "priced point; crypto/modexp row not emitted", file=sys.stderr)
+        else:
+            rows.append(mrow)
+            if args.hw_factor == 1.0:
+                print("NOTE: crypto/modexp fitted with --hw-factor 1.0 — correct "
+                      "only if these benches ran on the reference Xeon 8168",
+                      file=sys.stderr)
+    else:
+        print("WARN: no ModExpGrid bench lines found", file=sys.stderr)
+
+    # Pair fits (two byte-slice params, one shared per-byte rate).
+    for pkg, fn, idx_a, idx_b, kind, _ in NATIVE_SPECS_PAIR:
+        d = pair_data.get((pkg, fn))
+        if not d or len(d) < 2:
+            print(f"WARN: not enough size points for pair {pkg}.{fn}", file=sys.stderr)
+            continue
+        base, slope, r2 = fit_linear(d)
+        if int(round(slope / 2.0 * 1024)) == 0:
+            # A zero rate would re-open the hole a pair spec exists to close,
+            # so refuse to emit rather than silently degrade to flat.
+            print(f"ERROR: pair {pkg}.{fn} fitted a zero per-byte rate "
+                  f"(slope={slope:.6f}, R²={r2:.3f}); it charges two unbounded "
+                  f"byte slices and must not be flat", file=sys.stderr)
+            sys.exit(1)
+        rows.append({"pkg": pkg, "fn": fn, "shape": "pair",
+                     "base": base, "slope": slope, "r2": r2,
+                     "idx_a": idx_a, "idx_b": idx_b, "kind": kind})
+
+    # 2-D fits.
+    for pkg, fn, idx, count_kind, _, post in NATIVE_SPECS_2D:
+        grid = two_d_data.get((pkg, fn))
+        if not grid:
+            print(f"WARN: no 2D data for {pkg}.{fn}", file=sys.stderr)
+            continue
+        result = fit_2d(grid)
+        if result is None:
+            print(f"WARN: insufficient 2D points for {pkg}.{fn}", file=sys.stderr)
+            continue
+        base, alpha, beta, r2 = result
+        alpha_per_1024 = int(round(alpha * 1024))
+        beta_per_1024 = int(round(beta * 1024))
+        # Demote noise-level slopes. Anything < 10/1024 ns/byte (≈0.01
+        # ns/byte; 10µs over a 1MB payload) is below bench-to-bench
+        # variance — keeping it just makes the table flip on re-runs.
+        if beta_per_1024 < 10:
+            beta_per_1024 = 0
+        if alpha_per_1024 < 10:
+            alpha_per_1024 = 0
+        # Demotion ladder:
+        #   both zero          → flat
+        #   only β zero        → 1-D linear on count (most natives — the
+        #                        per-byte cost lives in the metered KVStore,
+        #                        not the dispatcher; native CPU is per-elem)
+        #   only α zero        → 1-D linear on total bytes
+        #   both nonzero       → 2-D
+        if alpha_per_1024 == 0 and beta_per_1024 == 0:
+            rows.append({"pkg": pkg, "fn": fn, "shape": "flat", "base": base})
+            print(f"NOTE: {pkg}.{fn} 2D demoted to flat (α≈β≈0)", file=sys.stderr)
+        elif beta_per_1024 == 0:
+            # Synthesize a 1-D row matching the linear shape (kind=count).
+            shape_kind = count_kind  # LenSlice / ReturnLen
+            if post:
+                # Post-call: 1-D variant goes through the existing
+                # ReturnLen path. For LenSlice (pre-call) post=False stays.
+                shape_kind = "ReturnLen"
+            rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
+                         "base": base, "slope": alpha, "r2": r2,
+                         "slope_idx": idx, "kind": shape_kind})
+            print(f"NOTE: {pkg}.{fn} 2D→1D (β≈0): {alpha:.3f} ns/elem only",
+                  file=sys.stderr)
+        elif alpha_per_1024 == 0:
+            rows.append({"pkg": pkg, "fn": fn, "shape": "linear",
+                         "base": base, "slope": beta, "r2": r2,
+                         "slope_idx": idx, "kind": "SliceTotalBytes"})
+            print(f"NOTE: {pkg}.{fn} 2D→1D (α≈0): {beta:.4f} ns/byte only",
+                  file=sys.stderr)
+        else:
+            rows.append({
+                "pkg": pkg, "fn": fn, "shape": "2d",
+                "base": base, "alpha": alpha, "beta": beta, "r2": r2,
+                "idx": idx, "count_kind": count_kind, "post": post,
+            })
+
+    with open(args.md_out, "w") as f:
+        emit_markdown(rows, f)
+    print(f"Wrote {args.md_out}", file=sys.stderr)
+    with open(args.go_out, "w") as f:
+        emit_go_table(rows, f)
+    print(f"Wrote {args.go_out}", file=sys.stderr)
+    print()
+    emit_go_table(rows, sys.stdout)
+    if not args.no_plot:
+        plot_fits(var_data, flat_data, pair_data, two_d_data, rows, args.plot)
+
+
+if __name__ == "__main__":
+    main()

@@ -9,7 +9,8 @@ import (
 	rpcClient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
-	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm" // amino types
+	_ "github.com/gnolang/gno/gnovm/stdlibs/chain" // amino types
 )
 
 // Client is the TM2 HTTP client

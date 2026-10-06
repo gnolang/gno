@@ -4,6 +4,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/stretchr/testify/assert"
@@ -98,8 +99,8 @@ func TestStatusNoRenderComponent(t *testing.T) {
 
 func TestRedirectView(t *testing.T) {
 	data := RedirectData{
-		To:            "example/path",
-		WithAnalytics: true,
+		To:        "example/path",
+		Analytics: AnalyticsData{Enabled: true},
 	}
 	view := RedirectView(data)
 
@@ -112,7 +113,7 @@ func TestRedirectView(t *testing.T) {
 	assert.True(t, ok, "expected RedirectData type in component data")
 
 	assert.Equal(t, data.To, redirectData.To, "expected redirect to %s, got %s", data.To, redirectData.To)
-	assert.Equal(t, data.WithAnalytics, redirectData.WithAnalytics, "expected WithAnalytics to be %v, got %v", data.WithAnalytics, redirectData.WithAnalytics)
+	assert.Equal(t, data.Analytics.Enabled, redirectData.Analytics.Enabled, "expected Analytics.Enabled to be %v, got %v", data.Analytics.Enabled, redirectData.Analytics.Enabled)
 
 	assert.NoError(t, view.Render(io.Discard))
 }
@@ -261,9 +262,9 @@ func TestRealmViewTOCXSSPrevention(t *testing.T) {
 }
 
 func TestHelpView(t *testing.T) {
-	functions := []*doc.JSONFunc{
-		{Name: "Func1", Params: []*doc.JSONField{{Name: "param1"}}},
-		{Name: "Func2", Params: []*doc.JSONField{{Name: "param1"}, {Name: "param2"}}},
+	functions := []HelpFunction{
+		{JSONFunc: &doc.JSONFunc{Name: "Func1", Params: []*doc.JSONField{{Name: "param1"}}}},
+		{JSONFunc: &doc.JSONFunc{Name: "Func2", Params: []*doc.JSONField{{Name: "param1"}, {Name: "param2"}}}},
 	}
 	data := HelpData{
 		SelectedFunc: "Func1",
@@ -304,7 +305,7 @@ func TestDirectoryView(t *testing.T) {
 	assert.True(t, ok, "expected DirData type in component data")
 
 	assert.Equal(t, pkgPath, dirData.PkgPath, "expected PkgPath %s, got %s", pkgPath, dirData.PkgPath)
-	assert.Equal(t, len(files), len(dirData.Files), "expected %d files, got %d", len(files), len(dirData.Files))
+	assert.Equal(t, len(files), len(dirData.FilesLinks), "expected %d files, got %d", len(files), len(dirData.FilesLinks))
 	assert.Equal(t, fileCounter, dirData.FileCounter, "expected FileCounter %d, got %d", fileCounter, dirData.FileCounter)
 	assert.Equal(t, mode, dirData.Mode, "expected Mode %v, got %v", mode, dirData.Mode)
 
@@ -339,7 +340,6 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			result := tc.linkType.LinkPrefix(tc.pkgPath)
 			assert.Equal(t, tc.expected, result)
@@ -347,57 +347,10 @@ func TestDirLinkType_LinkPrefix(t *testing.T) {
 	}
 }
 
-func TestGetFullLinks(t *testing.T) {
-	cases := []struct {
-		name     string
-		files    []string
-		linkType DirLinkType
-		pkgPath  string
-		expected FilesLinks
-	}{
-		{
-			name:     "Source link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{
-				{Link: "/r/test/pkg$source&file=file1.gno", Name: "file1.gno"},
-				{Link: "/r/test/pkg$source&file=file2.gno", Name: "file2.gno"},
-			},
-		},
-		{
-			name:     "File link type with multiple files",
-			files:    []string{"file1.gno", "file2.gno"},
-			linkType: DirLinkTypeFile,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{
-				{Link: "file1.gno", Name: "file1.gno"},
-				{Link: "file2.gno", Name: "file2.gno"},
-			},
-		},
-		{
-			name:     "Empty files list",
-			files:    []string{},
-			linkType: DirLinkTypeSource,
-			pkgPath:  "/r/test/pkg",
-			expected: FilesLinks{},
-		},
-	}
-
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			result := GetFullLinks(tc.files, tc.linkType, tc.pkgPath)
-			assert.Equal(t, tc.expected, result)
-		})
-	}
-}
-
 func TestUserView(t *testing.T) {
 	data := UserData{
-		Username:   "testuser",
-		Handlename: "Test User",
-		Bio:        "This is a test user.",
+		Username: "testuser",
+		Bio:      "This is a test user.",
 		Links: []UserLink{
 			{Type: UserLinkTypeLink, URL: "https://example.com"},
 			{Type: UserLinkTypeGithub, URL: "https://github.com/testuser", Title: "GitHub"},
@@ -437,4 +390,47 @@ func TestUserView(t *testing.T) {
 	assert.Equal(t, 1, userData.PureCount, "expected 1 pure package")
 
 	assert.NoError(t, view.Render(io.Discard))
+}
+
+// The view escapes the identity whatever reaches it, in text, in the title
+// attributes and in the copy button's data attribute, and splits an address by
+// runes, so a multi-byte one is never cut into invalid UTF-8.
+func TestUserView_EscapesIdentity(t *testing.T) {
+	const hostile = `"><script>alert(1)</script>`
+	const escaped = `&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;`
+
+	render := func(data UserData) string {
+		t.Helper()
+		data.Content = NewReaderComponent(strings.NewReader(""))
+		var buf strings.Builder
+		assert.NoError(t, UserView(data).Render(&buf))
+		return buf.String()
+	}
+
+	t.Run("name", func(t *testing.T) {
+		out := render(UserData{Username: hostile, Address: hostile, CurrentName: hostile})
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.Contains(t, out, `<h1 class="title title--long">`+escaped+`</h1>`)
+		assert.Contains(t, out, `data-copy-text-value="`+escaped+`"`)
+		// The address line's two halves are escaped each, around the one
+		// literal break point.
+		assert.Contains(t, out, `title="`+escaped+`">&#34;&gt;&lt;script&gt;ale<wbr><span class="address-end" data-controller="copy">rt(1)&lt;/script&gt;<button`)
+		assert.Contains(t, out, `now <a href="/u/%22%3e%3cscript%3ealert%281%29%3c/script%3e">@`+escaped+`</a>`)
+	})
+
+	t.Run("address only", func(t *testing.T) {
+		addr := hostile + strings.Repeat("é", 20) + "\u202e"
+		out := render(UserData{Address: addr})
+		assert.NotContains(t, out, "<script>alert(1)</script>")
+		assert.True(t, utf8.ValidString(out), "the halves are cut on rune boundaries")
+		assert.Contains(t, out, `<h1 class="title title--address u-font-mono" title="`+escaped)
+		assert.Contains(t, out, `data-copy-text-value="`+escaped)
+	})
+}
+
+func TestUserData_LongName(t *testing.T) {
+	assert.False(t, UserData{Username: strings.Repeat("a", 16)}.LongName())
+	assert.True(t, UserData{Username: strings.Repeat("a", 17)}.LongName())
+	// Counted in runes, not bytes.
+	assert.False(t, UserData{Username: strings.Repeat("é", 16)}.LongName())
 }

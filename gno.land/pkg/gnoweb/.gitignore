@@ -1,3 +1,5 @@
 node_modules/
 tmp/
 .cache
+frontend/static/htmx-*.min.js
+frontend/static/htmx-*.min.js.sri

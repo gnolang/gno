@@ -130,7 +130,6 @@ func TestImporter_Add(t *testing.T) {
 		// further cases will be handled by Node.validate()
 	}
 	for desc, tc := range testcases {
-		tc := tc // appease scopelint
 		t.Run(desc, func(t *testing.T) {
 			tree := NewMutableTree(memdb.NewMemDB(), 0, false, NewNopLogger())
 			importer, err := tree.Import(1)

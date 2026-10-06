@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -142,6 +143,38 @@ func TestGetReward_MultipleUsers(t *testing.T) {
 	total2, err := rdb.Get(ctx, userRewardedKey(user2)).Int()
 	require.NoError(t, err)
 	assert.Equal(t, 80, total2)
+}
+
+// TestApply_ConcurrentDebitsAreAtomic verifies that overlapping Apply calls
+// for the same user accumulate without losing debits. A non-atomic get-then-set
+// implementation would let two callers read the same starting balance and both
+// write the same final value, effectively dropping one debit.
+func TestApply_ConcurrentDebitsAreAtomic(t *testing.T) {
+	rewarder, rdb := setupTestRewarder(t)
+
+	ctx := context.Background()
+	user := "racer"
+
+	const (
+		workers       = 50
+		debitPerCall  = 7
+		expectedTotal = workers * debitPerCall
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+
+			require.NoError(t, rewarder.Apply(ctx, user, debitPerCall))
+		}()
+	}
+	wg.Wait()
+
+	total, err := rdb.Get(ctx, userRewardedKey(user)).Int()
+	require.NoError(t, err)
+	assert.Equal(t, expectedTotal, total)
 }
 
 func TestGetReward_Rounding(t *testing.T) {

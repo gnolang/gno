@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gno.land/p/nt/testutils"
+	"gno.land/p/nt/testutils/v0"
 	"gno.land/r/gnoland/wugnot"
 )
 
@@ -16,7 +16,7 @@ var (
 	addrc = chain.PackageAddress("gno.land/r/gnoland/wugnot")
 )
 
-func main() {
+func main(cur realm) {
 	// issue ugnots
 	testing.IssueCoins(addr1, chain.Coins{{"ugnot", 100000001}})
 	printBalances()
@@ -28,12 +28,12 @@ func main() {
 	coins := chain.Coins{{"ugnot", 123_400}}
 	testing.SetOriginCaller(addr1)
 	testing.SetOriginSend(coins)
-	banker.NewBanker(banker.BankerTypeRealmSend).SendCoins(addr1, addrc, coins)
-	wugnot.Deposit(cross)
+	banker.NewBanker(banker.BankerTypeRealmSend, cur).SendCoins(addr1, addrc, coins)
+	wugnot.Deposit(cross(cur))
 	printBalances()
 
 	// withdraw of 4242ugnot to addr1
-	wugnot.Withdraw(cross, 4242)
+	wugnot.Withdraw(cross(cur), 4242)
 	printBalances()
 }
 
@@ -41,7 +41,7 @@ func printBalances() {
 	printSingleBalance := func(name string, addr address) {
 		wugnotBal := wugnot.BalanceOf(addr)
 		testing.SetOriginCaller(addr)
-		robanker := banker.NewBanker(banker.BankerTypeReadonly)
+		robanker := banker.NewReadonlyBanker()
 		coins := robanker.GetCoins(addr).AmountOf("ugnot")
 		fmt.Printf("| %-13s | addr=%s | wugnot=%-6d | ugnot=%-9d |\n",
 			name, addr, wugnotBal, coins)

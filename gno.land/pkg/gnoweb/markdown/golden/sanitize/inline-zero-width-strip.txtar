@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: InlineText
+// CONTEXT: # %s
+-- input.md --
+pay​pal
+-- output.md --
+paypal
+-- output.html --
+<h1>paypal</h1>

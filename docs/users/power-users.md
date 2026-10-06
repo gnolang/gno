@@ -22,7 +22,7 @@ Stay updated and connected with the Gno.land community:
 
 - [Twitter/X](https://twitter.com/_gnoland) - Latest announcements and updates
 - [GitHub](https://github.com/gnolang) - Repositories for all Gno.land projects
-- [Forum](https://gno.land/r/gnoland/boards2/v1) - Long-form discussions and proposals
+- [Forum](https://gno.land/r/gnoland/boards2/v0) - Long-form discussions and proposals
 
 ## Tools
 
@@ -30,13 +30,15 @@ Power up your Gno.land journey with these tools:
 
 - [Gno Studio](https://gno.studio/) - Web IDE for Gno development
   - [Gno Studio Connect](https://gno.studio/connect) - Interact with any Gno.land app with a web wallet
+- [Editor Setup](../builders/editor-setup.md) - Configure your editor with LSP support
 - [Gno Playground](https://play.gno.land/) - Try Gno code in your browser
 - [Faucet Hub](https://faucet.gno.land/) - Get testnet tokens
 
 ## Monitoring & Analytics
 
 - [Block Explorer](https://gnoscan.io/) - Transaction history and block details
-- [Network Status](https://status.gnoteam.com/) - Health and status of Gno.land networks
+- [Network Status](https://status.gno.land/) - Service health, incidents and scheduled maintenance
+- [Gnockpit](https://gnockpit.gno.land/) - Live mainnet dashboard: chain state, recent blocks, validators and peers
 
 ## Educational Resources
 
@@ -54,7 +56,7 @@ Ready to contribute? Here are pathways to level up your involvement:
 4. **Documentation** - Help improve these docs and educational content
 5. **Community Building** - Organize events or create content
 
-Check out the [Become a Gnome](../builders/become-a-gnome.md) guide for more
+Check out the [Contributor guide](../builders/contributor-guide.md) for more
 details on contributing to the ecosystem.
 
 Remember, the best power users eventually become builders. As you grow more

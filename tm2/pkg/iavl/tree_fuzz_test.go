@@ -3,6 +3,7 @@ package iavl //nolint:errcheck
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,16 +24,16 @@ func (p *program) Execute(tree *MutableTree) (err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			var str string
+			var str strings.Builder
 
 			for i, instr := range p.instructions {
 				prefix := "   "
 				if i == errLine {
 					prefix = ">> "
 				}
-				str += prefix + instr.String() + "\n"
+				str.WriteString(prefix + instr.String() + "\n")
 			}
-			err = fmt.Errorf("program panicked with: %s\n%s", r, str)
+			err = fmt.Errorf("program panicked with: %s\n%s", r, str.String())
 		}
 	}()
 

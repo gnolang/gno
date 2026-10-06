@@ -70,6 +70,39 @@ func TestCoinsIsZero(t *testing.T) {
 	}
 }
 
+func TestCoins_AmountOf(t *testing.T) {
+	coins := chain.Coins{
+		chain.NewCoin("denom1", 1),
+		chain.NewCoin("denom2", 2),
+	}
+
+	amount := coins.AmountOf("denom1")
+	if amount != 1 {
+		t.Fatalf("expected amount=1 for denom1, got %d", amount)
+	}
+
+	amount = coins.AmountOf("denom2")
+	if amount != 2 {
+		t.Fatalf("expected amount=2 for denom2, got %d", amount)
+	}
+
+	amount = coins.AmountOf("denom3")
+	if amount != 0 {
+		t.Fatalf("expected amount=0 for denom3, got %d", amount)
+	}
+
+	coins = append(coins, chain.NewCoin("denom1", 1))
+
+	func() {
+		defer func() {
+			if err := recover(); err == nil {
+				t.Fatal("expected panic when getting duplicate denom")
+			}
+		}()
+		coins.AmountOf("denom1")
+	}()
+}
+
 const maxInt64 int64 = (1 << 63) - 1
 
 func shouldPanic(t *testing.T, f func()) {
@@ -99,18 +132,45 @@ func TestNewCoins_SortsJoinsAndRemovesZero(t *testing.T) {
 	}
 }
 
-func TestNewCoins_ModifiesInputSliceOrdering(t *testing.T) {
-	// When passing a slice with the variadic expansion (s...), the underlying
-	// array elements are sorted in-place (sort.Sort operates on the shared array).
+func TestNewCoins_LeavesInputSliceAlone(t *testing.T) {
+	// Passing a slice with the variadic expansion (s...) shares the array with
+	// NewCoins, so it must copy before sorting.
 	s := []chain.Coin{
 		chain.NewCoin("b", 2),
 		chain.NewCoin("a", 1),
 	}
 	_ = chain.NewCoins(s...)
 
-	// After NewCoins, the original slice should be sorted by denom.
-	if s[0].Denom != "a" || s[1].Denom != "b" {
-		t.Fatalf("expected original slice to be sorted, got: %v", s)
+	if s[0].Denom != "b" || s[1].Denom != "a" {
+		t.Fatalf("NewCoins reordered the caller's slice: %v", s)
+	}
+}
+
+func TestNewCoins_DoesNotInflateInputSlice(t *testing.T) {
+	// Two coins of one denom make NewCoins join them, which shifts the rest of
+	// the set down a place. Done in the caller's array that would overwrite the
+	// caller's own coins with a repeat of the last one, so the caller would see
+	// more value than it put in and a denom listed twice.
+	s := []chain.Coin{
+		chain.NewCoin("a", 1),
+		chain.NewCoin("a", 2),
+		chain.NewCoin("b", 3),
+	}
+
+	joined := chain.NewCoins(s...)
+	if joined.String() != "3a,3b" {
+		t.Fatalf("expected the returned set to join the duplicates, got: %v", joined)
+	}
+
+	total := int64(0)
+	for _, c := range s {
+		total += c.Amount
+	}
+	if total != 6 {
+		t.Fatalf("caller's slice total changed from 6 to %d: %v", total, s)
+	}
+	if s[2].Denom != "b" || s[2].Amount != 3 {
+		t.Fatalf("caller's slice was overwritten: %v", s)
 	}
 }
 

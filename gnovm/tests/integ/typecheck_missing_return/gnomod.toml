@@ -1,2 +1,2 @@
-module = "gnovm/tests/integ/typecheck_missing_return"
+module = "gno.vm/r/tests/integ/valid"
 gno = "0.9"

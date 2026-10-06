@@ -69,18 +69,18 @@ func (pth KeyPath) AppendKey(key []byte, enc keyEncoding) KeyPath {
 }
 
 func (pth KeyPath) String() string {
-	res := ""
+	var res strings.Builder
 	for _, key := range pth {
 		switch key.enc {
 		case KeyEncodingURL:
-			res += "/" + url.PathEscape(string(key.name))
+			res.WriteString("/" + url.PathEscape(string(key.name)))
 		case KeyEncodingHex:
-			res += "/x:" + fmt.Sprintf("%X", key.name)
+			res.WriteString("/x:" + fmt.Sprintf("%X", key.name))
 		default:
 			panic("unexpected key encoding type")
 		}
 	}
-	return res
+	return res.String()
 }
 
 // Decode a path to a list of keys. Path must begin with `/`.

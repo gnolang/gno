@@ -46,6 +46,10 @@ func (m *mockSigner) Validate() error {
 	return nil
 }
 
+func (s *mockSigner) GetMaster() crypto.Address {
+	return crypto.Address{}
+}
+
 // Keys Info mock
 type (
 	mockGetAddress func() crypto.Address

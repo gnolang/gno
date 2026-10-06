@@ -4,12 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
+
+// StreamableResult is implemented by RPC result types that prefer to write
+// their JSON representation incrementally rather than be fully marshaled in
+// memory. Use this for results whose serialized size is unbounded (e.g.,
+// genesis state with large balance/tx tables) — the standard marshal path
+// would otherwise allocate the entire response twice (once when wrapping the
+// result into the JSON-RPC envelope, again when writing the envelope to the
+// socket), which can OOM the server on large payloads.
+//
+// Implementations MUST honor ctx cancellation between writes so a slow or
+// disconnected client doesn't pin server resources for a long stream.
+type StreamableResult interface {
+	StreamJSON(ctx context.Context, w io.Writer) error
+}
 
 // JSONRPCID is a wrapper type for JSON-RPC request IDs,
 // which can be a string value | number value | not set (nil)

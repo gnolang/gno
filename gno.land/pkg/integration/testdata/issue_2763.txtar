@@ -1,10 +1,32 @@
+# A _test.gno redeclaring a production symbol deploys successfully, and the
+# test-file declaration is not reachable on chain.
+#
+# History: originally addpkg did not store *_test.gno at all, so there was no
+# redeclaration to collide (issue #2763). #4463 made addpkg store AND
+# type-check them, which turned this into a deploy failure. AddPackage now
+# type-checks production files only — test files can never execute on chain, so
+# their type-check verdict has no on-chain meaning — which restores the
+# behaviour this issue originally wanted. The files are still stored and still
+# served by vm/qfile.
+#
+# The qeval assertion is the part that matters, and the two add2 bodies differ
+# deliberately: production returns a+b, the test file returns a+b+100. A result
+# of 3 therefore proves the chain resolved the PRODUCTION add2. Keep them
+# different — with identical bodies the assertion passes either way and guards
+# nothing.
+
 gnoland start
 
-# add contract
-# Note: previously "addpkg does not add *_test.gno files, so it works as expected without causing any redeclaration issues."
-# addpkg now add `_test.gno` files so redeclarations is not allowed aymore
-! gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/demo/foo -gas-fee 1000000ugnot -gas-wanted 16000000 -broadcast -chainid=tendermint_test test1
-stderr 'add2 redeclared in this block'
+gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/demo/foo -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stdout OK!
+
+# production add2 is what runs; the _test.gno redeclaration is inert
+gnokey query vm/qeval --data 'gno.land/r/demo/foo.Add(1,2)'
+stdout '3 int'
+
+# the test file is still stored and served
+gnokey query vm/qfile --data 'gno.land/r/demo/foo'
+stdout 'foo_test.gno'
 
 -- foo/gnomod.toml --
 module = "gno.land/r/demo/foo"
@@ -39,5 +61,7 @@ func TestFoo(t *testing.T) {
 }
 
 func add2(a, b int) int {
-	return a + b
+	// Deliberately different from the production add2 so the qeval assertion
+	// above can tell which one the chain resolved.
+	return a + b + 100
 }

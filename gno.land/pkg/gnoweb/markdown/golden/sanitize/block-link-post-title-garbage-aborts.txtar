@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+[a](/url "title" garbage)
+-- output.md --
+
+
+\[a\](/url "title" garbage)
+
+-- output.html --
+<p>[a](/url &quot;title&quot; garbage)</p>

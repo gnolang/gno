@@ -6,12 +6,12 @@ import (
 )
 
 func main(cur realm) {
-	println("test1", tests.CurrentRealmPath(cross))
+	println("test1", tests.CurrentRealmPath(cross(cur)))
 	func() {
-		println("test2", tests.CurrentRealmPath(cross))
+		println("test2", tests.CurrentRealmPath(cross(cur)))
 	}()
 	x := tests.CurrentRealmPath
-	println("test3", x(cross))
+	println("test3", x(cross(cur)))
 }
 
 // Output:

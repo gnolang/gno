@@ -1,0 +1,112 @@
+# Regression test for: rlm.Time was not persisted after being advanced
+# by processNewEscapedMarks' "passed from caller" branch. The result
+# was OID reuse across transactions, silently corrupting the storage
+# slot of objects constructed inside one cross-call and registered via
+# a second cross-call.
+#
+# Repro shape:
+#   r/registry: crossing constructor NewThing + crossing Register
+#   r/holder.init(cur):
+#       X = registry.NewThing(cross, "hello")
+#       registry.Register(cross, X, "X")
+#   later tx: registry.AllocMore(cross) advances registry.Time
+#   later tx: read holder.X.Inner.Tag — must still be "hello"
+#
+# Without the fix, r/registry's persisted Time is behind reality;
+# next-tx allocations get OIDs that collide with X+descendants,
+# overwriting X's storage with later-allocated objects.
+
+loadpkg gno.land/p/nt/avl/v0
+
+adduser alice
+gnoland start
+
+## deploy registry
+gnokey maketx addpkg -pkgdir $WORK/registry -pkgpath gno.land/r/test/escbug/registry -gas-fee 2000000ugnot -gas-wanted 8_000_000 -chainid=tendermint_test alice
+
+## deploy holder — its init(cur) cross-constructs and cross-registers X
+gnokey maketx addpkg -pkgdir $WORK/holder -pkgpath gno.land/r/test/escbug/holder -gas-fee 2000000ugnot -gas-wanted 8_000_000 -chainid=tendermint_test alice
+
+## verify the holder's X reads back correctly right after init
+gnokey query "vm/qrender" --data "gno.land/r/test/escbug/holder:"
+stdout 'X.Inner.Tag = hello'
+
+## now bump registry.Time by allocating more objects in registry
+gnokey maketx call -pkgpath gno.land/r/test/escbug/registry -func AllocMore -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test alice
+stdout 'OK!'
+
+## re-read holder.X — without the fix, X's slot has been overwritten by a
+## later AllocMore object and field reads would be garbage / wrong type.
+gnokey query "vm/qrender" --data "gno.land/r/test/escbug/holder:"
+stdout 'X.Inner.Tag = hello'
+
+-- registry/gnomod.toml --
+module = "gno.land/r/test/escbug/registry"
+gno = "0.9"
+
+-- registry/registry.gno --
+package registry
+
+import (
+	"strconv"
+
+	"gno.land/p/nt/avl/v0"
+)
+
+type Inner struct {
+	Tag string
+}
+
+type Thing struct {
+	Inner *Inner
+}
+
+var (
+	Things  = avl.NewTree()
+	counter int
+)
+
+// NewThing is a crossing constructor — allocates Thing in this realm's
+// frame and returns it. The returned pointer is anonymous at this point;
+// the caller may assign it to its own var, register it here, or both.
+func NewThing(cur realm, tag string) *Thing {
+	return &Thing{Inner: &Inner{Tag: tag}}
+}
+
+// Register adds t to this realm's registry. After Register returns, t
+// has refcount 2 (caller's var + registry leaf) and is marked
+// newEscaped during this realm's finalize.
+func Register(cur realm, t *Thing, key string) {
+	Things.Set(key, t)
+}
+
+// AllocMore advances this realm's Time by creating more registry
+// entries — used in the regression test to surface OID-reuse.
+func AllocMore(cur realm) {
+	for i := 0; i < 5; i++ {
+		counter++
+		Things.Set("filler-"+strconv.Itoa(counter), &Thing{Inner: &Inner{Tag: "f"}})
+	}
+}
+
+-- holder/gnomod.toml --
+module = "gno.land/r/test/escbug/holder"
+gno = "0.9"
+
+-- holder/holder.gno --
+package holder
+
+import (
+	"gno.land/r/test/escbug/registry"
+)
+
+var X *registry.Thing
+
+func init(cur realm) {
+	X = registry.NewThing(cross(cur), "hello")
+	registry.Register(cross(cur), X, "X")
+}
+
+func Render(_ string) string {
+	return "X.Inner.Tag = " + X.Inner.Tag
+}

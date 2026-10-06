@@ -2,13 +2,13 @@ package main
 
 func main() {
 	var p *int
-	println(*p)	
+	println(*p)
 }
 
 // Stacktrace:
-// panic: nil pointer dereference
+// panic: runtime error: nil pointer dereference
 // main<VPBlock(1,0)>()
 //     main/panic7.gno:5
 
 // Error:
-// nil pointer dereference
+// runtime error: nil pointer dereference

@@ -7,8 +7,8 @@ func main() {
 	}()
 
 	x, y := 10, 0
-	_ = x / y // Panics because of division by zero
+	_ = x / y // Panics because of runtime error: division by zero
 }
 
 // Output:
-// recover: division by zero
+// recover: runtime error: division by zero

@@ -5,8 +5,6 @@ type T struct {
 	b []*T
 	c map[string]T
 	d map[string]*T
-	e chan T
-	f chan *T
 	h *T
 	i func(T) T
 	j func(*T) *T
@@ -18,8 +16,6 @@ type U struct {
 	l []*T
 	m map[string]T
 	n map[string]*T
-	o chan T
-	p chan *T
 	q *T
 	r func(T) T
 	s func(*T) *T
@@ -33,5 +29,5 @@ func main() {
 }
 
 // Output:
-// (struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(main.T) main.T),(nil func(*main.T) *main.T),(struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(main.T) main.T),(nil func(*main.T) *main.T)} main.U)} main.T)
-// (struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(main.T) main.T),(nil func(*main.T) *main.T)} main.U)
+// (struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil *main.T),(nil func(main.T) main.T),(nil func(*main.T) *main.T),(struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil *main.T),(nil func(main.T) main.T),(nil func(*main.T) *main.T)} main.U)} main.T)
+// (struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil *main.T),(nil func(main.T) main.T),(nil func(*main.T) *main.T)} main.U)

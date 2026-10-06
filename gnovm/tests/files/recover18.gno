@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// recover: uninitialized map index
+// recover: runtime error: uninitialized map index

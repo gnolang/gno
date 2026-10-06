@@ -29,19 +29,19 @@ networks.
 See [Third-party wallets](../users/third-party-wallets.md).
 
 ### AVL Tree
-Data structure commonly used instead of the native `map` for
-key-value storage. It is efficient in both gas cost and runtime performance,
-particularly suited for large or growing datasets. Deployed under
-`gno.land/p/nt/avl`.
+Tree-backed key/value data structure commonly used instead of the native `map`
+for large or growing sorted indexes. The package is deployed under
+`gno.land/p/nt/avl/v0`; other tree-backed indexes, such as B+ trees, may fit
+different workloads.
 
-See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance 
-and the [package README](../../examples/gno.land/p/nt/avl/README.md) for technical details.
+See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for usage guidance
+and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 ## B
 
 ### Banker
 A Tendermint2 module that is natively embedded into the Gno language, via the
-`std` package. Used for manipulating Coins within Gno.
+`chain/banker` package. Used for manipulating Coins within Gno.
 
 ### Block
 A fundamental unit in a blockchain that contains a collection of validated
@@ -167,7 +167,7 @@ Gno.land networks, similar to WalletConnect in Ethereum.
 ### gnodev
 A development tool which provides a local Gno.land node with hot-reloading,
 state preservation, and a `gnoweb` interface for testing.
-See [Local Development with gnodev](../builders/local-dev-with-gnodev.md).
+See [Local development with `gnodev`](./gnodev.md).
 
 ### gnokey
 The official command-line keychain and client for Gno.land, allowing keypair
@@ -207,9 +207,9 @@ which the address is derived) that represents an account on Gno.land.
 A native Gno data structure for storing key-value pairs, identical to Go maps.
 Maps provide O(1) lookup time and type safety, but store all entries in a single
 object which can be inefficient for large datasets. For scalable storage in
-realms, consider using `avl.Tree` instead.
+realms, consider a tree-backed index or purpose-built helper instead.
 See [Data Structures](./gno-data-structures.md) and
-[Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage).
+[Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern).
 
 ### Merkleization
 The process of organizing data into a Merkle tree structure, allowing efficient
@@ -269,7 +269,7 @@ nonce. Used to protect against replay attacks.
 See [Realm](#realm).
 
 ### Staging network
-The main Gno.land chain for testing, accessible at [gno.land](https://gno.land).
+The main Gno.land chain for testing, accessible at [staging.gno.land](https://staging.gno.land).
 
 ### Standard Library
 Built-in packages that provide core functionality to Gno programs without
@@ -302,12 +302,6 @@ or calling a realm function.
 
 ### ugnot
 The smallest unit of GNOT. 1 GNOT = 1,000,000 ugnot (micro-GNOT).
-
-### User Registry
-
-A system realm that allows users to register usernames and claim matching
-namespaces for deploying code. List of releases found at `gno.land/r/gnoland/users`.
-See [Users and Teams](./users-and-teams.md) for details.
 
 ### wugnot
 Wrapped version of `ugnot`, following the GRC20 standard.
