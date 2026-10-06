@@ -215,29 +215,12 @@ UI - Overview body
 {{ end }}
 
 {{/* --- Imports --- */}}
-{{ with .Imports }}
+{{ if or .Imports .Graph.LookupURL }}
 <section class="b-pkg-section" id="imports">
   <h2 class="b-pkg-section__header">
-    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Imports</span></span>
-    <span class="count">{{ len . }}</span>
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Dependencies</span></span>
   </h2>
-  <ul class="b-pkg-list b-pkg-section__body">
-    {{ range . }}
-    <li class="b-pkg-list__item">
-      {{ if .Link }}
-      <a href="{{ .Link }}" class="b-pkg-list__link"{{ if .External }} rel="noopener noreferrer" title="External link"{{ end }}>
-        <span class="c-with-icon u-font-mono">{{ .Path }}{{ if .External }}<svg class="c-icon b-pkg-list__outbound" aria-hidden="true"><use href="#ico-external-link"></use></svg>{{ end }}</span>
-        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
-      </a>
-      {{ else }}
-      <span class="b-pkg-list__link b-pkg-list__link--disabled">
-        <span class="u-font-mono">{{ .Path }}</span>
-        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
-      </span>
-      {{ end }}
-    </li>
-    {{ end }}
-  </ul>
+  <div class="b-pkg-section__body">{{ template "ui/pkg_graph" .Graph }}</div>
 </section>
 {{ end }}
 

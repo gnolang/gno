@@ -78,3 +78,11 @@ func New(deps Deps) *Handler {
 // HasIndexer reports whether the indexer-backed answers exist on this
 // deployment.
 func (h *Handler) HasIndexer() bool { return h.deps.Indexer != nil }
+
+// IndexerURL names the indexer for a provenance footer; empty without one.
+func (h *Handler) IndexerURL() string {
+	if h.deps.Indexer == nil {
+		return ""
+	}
+	return h.deps.Indexer.URL()
+}

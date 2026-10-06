@@ -127,6 +127,9 @@ type OverviewInput struct {
 	Readme      Component
 	Domain      string
 	DocRenderer DocRenderer
+	// DepsURL is the page listing the package's importers, set only when
+	// this deployment can compute them.
+	DepsURL string
 }
 
 // OverviewData is the full payload passed to the overview template.
@@ -153,6 +156,10 @@ type OverviewData struct {
 	// SymbolsTruncated is set when funcs/types/values were capped at
 	// maxOverviewSymbols; the template then shows a "view full source" notice.
 	SymbolsTruncated bool
+
+	// Graph draws the package between what it imports and, when an indexer
+	// can tell, what imports it.
+	Graph DepGraph
 
 	ComponentTOC Component
 }

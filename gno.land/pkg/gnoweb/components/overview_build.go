@@ -340,6 +340,7 @@ func BuildOverview(in OverviewInput) OverviewData {
 		Consts:           consts,
 		Vars:             vars,
 		Imports:          imports,
+		Graph:            DepGraph{Name: in.URL.Path, Imports: imports, LookupURL: in.DepsURL},
 		Files:            files,
 		Subpackages:      subpacks,
 		Bugs:             bugs,

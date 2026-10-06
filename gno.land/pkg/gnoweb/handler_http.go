@@ -581,6 +581,11 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		}
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
+	case gnourl.WebQuery.Has("deps") && (gnourl.IsRealm() || gnourl.IsPure()):
+		// The answer costs an indexer scan per package: not a page for
+		// crawlers to walk.
+		indexData.HeadData.NoIndex = true
+		return h.GetDepsView(r, gnourl)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
 	default:
@@ -1633,7 +1638,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		return GetClientErrorStatusView(gnourl, err, height)
 	}
 
-	data := components.BuildOverview(components.OverviewInput{
+	in := components.OverviewInput{
 		URL:         gnourl,
 		Files:       files,
 		Doc:         jdoc,
@@ -1642,8 +1647,63 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		Readme:      readme,
 		Domain:      h.Static.Domain,
 		DocRenderer: h.Renderer,
-	})
+	}
+	if h.Map.HasIndexer() {
+		in.DepsURL = pkgPath + "$deps"
+	}
+	data := components.BuildOverview(in)
 	return http.StatusOK, components.OverviewView(data)
+}
+
+// depsWait is how long the dependencies page waits for the importers before
+// saying they are still being looked up. The lookup carries on detached, so a
+// reload finds it done.
+const depsWait = 12 * time.Second
+
+// GetDepsView renders a package's dependency graph with its importers. The
+// imports come from the chain; the importers are proposed by the indexer and
+// checked on chain by feature/chainmap.
+func (h *HTTPHandler) GetDepsView(r *http.Request, gnourl *weburl.GnoURL) (int, *components.View) {
+	ctx := r.Context()
+	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
+	jdoc, err := h.Client.Doc(ctx, pkgPath, 0)
+	if err != nil {
+		return GetClientErrorStatusView(gnourl, err, 0)
+	}
+
+	data := components.DepsData{
+		PkgPath: pkgPath,
+		Title:   displayPackageName(pkgPath),
+		Graph: components.DepGraph{
+			Name:    pkgPath,
+			Imports: components.ImportLinks(jdoc.Imports, h.Static.Domain),
+		},
+	}
+	if !h.Map.HasIndexer() {
+		return http.StatusOK, components.DepsView(data)
+	}
+
+	wctx, cancel := context.WithTimeout(ctx, depsWait)
+	defer cancel()
+	imp, err := h.Map.Importers(wctx, r, h.Static.Domain+pkgPath)
+	status := http.StatusOK
+	switch {
+	case err == nil:
+		data.Graph.Importers = &components.Importers{
+			Links:   components.ImportLinks(imp.Paths, h.Static.Domain),
+			AtLeast: imp.AtLeast,
+		}
+		data.Indexer = &components.IndexerStatus{URL: h.Map.IndexerURL(), LastBlock: imp.AsOf}
+	case errors.Is(err, chainmap.ErrRateLimited):
+		status = http.StatusTooManyRequests
+		data.Graph.Importers = &components.Importers{Unavailable: "Too many lookups from your address. Try again in a minute."}
+	case errors.Is(err, context.DeadlineExceeded):
+		data.Graph.Importers = &components.Importers{Unavailable: "Still looking them up. Reload in a moment."}
+	default:
+		h.Logger.Warn("deps: importers unavailable", "path", pkgPath, "error", err)
+		data.Graph.Importers = &components.Importers{Unavailable: "The indexer could not be read."}
+	}
+	return status, components.DepsView(data)
 }
 
 // fetchMetaFiles downloads gnomod.toml and any LICENSE file for the package.

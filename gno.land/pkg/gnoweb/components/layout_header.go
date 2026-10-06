@@ -223,11 +223,12 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("state")
+		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("state") && !webQuery.Has("deps")
 	case "State":
 		return webQuery.Has("state")
 	case "Source":
-		return webQuery.Has("source")
+		// The dependencies page extends the overview, which is under Source.
+		return webQuery.Has("source") || webQuery.Has("deps")
 	case "Actions":
 		return webQuery.Has("help")
 	case "List":

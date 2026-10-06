@@ -3816,6 +3816,123 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	background: var(--s-color-bg-info-weak);
 }
 
+/* ===== DEPENDENCIES PAGE ===== */
+.b-deps-view {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-6);
+}
+
+/* ===== DEPENDENCY GRAPH (ui/pkg_graph) ===== */
+/* The package between what it imports and what imports it. The two lists are
+   bracketed by a rule on the side facing the package, joined to it by a short
+   stub on each side: a graph read from left to right, with no geometry to
+   compute. Stacked below --lg, where the brackets turn to the top edge. */
+.b-depgraph {
+	--depgraph-gap: var(--g-space-6);
+	--depgraph-rule: 2px solid var(--s-color-border-secondary);
+
+	display: grid;
+	gap: var(--g-space-4);
+	align-items: center;
+
+	@media (--lg) {
+		grid-template-columns: minmax(0, 1fr) auto;
+		gap: 0;
+	}
+}
+
+.b-depgraph--both {
+	@media (--lg) {
+		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	}
+}
+
+.b-depgraph__side {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+	min-width: 0;
+	padding-block-start: var(--g-space-3);
+	border-block-start: var(--depgraph-rule);
+
+	@media (--lg) {
+		padding-block-start: 0;
+		border-block-start: none;
+	}
+}
+
+.b-depgraph__side--in {
+	@media (--lg) {
+		padding-inline-end: var(--depgraph-gap);
+		border-inline-end: var(--depgraph-rule);
+	}
+}
+
+.b-depgraph__side--out {
+	@media (--lg) {
+		padding-inline-start: var(--depgraph-gap);
+		border-inline-start: var(--depgraph-rule);
+	}
+}
+
+.b-depgraph__title {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	margin: 0;
+	font-size: var(--g-font-size-100);
+	font-weight: var(--g-font-weight-semibold, 600);
+}
+
+/* Long sides scroll in place rather than pushing the package off screen, and a
+   long path wraps rather than pushing its kind out of view. */
+.b-depgraph__list {
+	max-height: 24rem;
+	overflow-y: auto;
+
+	& .b-pkg-list__link > :first-child {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	& .b-tag {
+		flex: none;
+	}
+}
+
+.b-depgraph__empty {
+	margin: 0;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}
+
+.b-depgraph__self {
+	display: flex;
+	align-items: center;
+	justify-self: start;
+
+	& span {
+		padding: var(--g-space-2) var(--g-space-3);
+		border: var(--s-border);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-brand-weak);
+		font-weight: var(--g-font-weight-semibold, 600);
+	}
+
+	/* The stubs joining each bracket to the package. */
+	@media (--lg) {
+		justify-self: center;
+
+		&::before,
+		.b-depgraph--both &::after {
+			content: "";
+			width: var(--depgraph-gap);
+			border-block-start: var(--depgraph-rule);
+		}
+	}
+}
+
 /* Truncation notice (shown when symbol lists were capped). */
 .b-pkg-notice {
 	margin-block: 0 var(--g-space-6);

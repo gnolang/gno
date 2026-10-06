@@ -1,0 +1,23 @@
+{{/* ===================================================================================
+LAYOUT - Dependencies page
+
+The overview's graph with its "imported by" side computed. A page of its own
+because that answer costs a whole-chain indexer scan plus a node read per
+candidate: a reader asks for it, the overview never pays for it.
+=================================================================================== */}}
+{{ define "renderDeps" }}
+<article class="b-deps-view u-grid-full">
+  <header id="main-content" tabindex="-1" class="b-content-header">
+    <h1 class="title b-content-h1">
+      <a href="{{ .PkgPath }}$source" class="b-content-h1__back" title="Back to overview" aria-label="Back to overview">
+        <svg class="c-icon"><use href="#ico-arrow-left"></use></svg>
+      </a>
+      {{ .Title }} dependencies
+    </h1>
+  </header>
+
+  {{ template "ui/pkg_graph" .Graph }}
+
+  {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
+</article>
+{{ end }}
