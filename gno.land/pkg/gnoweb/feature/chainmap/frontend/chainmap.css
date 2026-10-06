@@ -2,18 +2,13 @@
    CHAINMAP - feature-scoped Block layer (CUBE CSS)
    Pulled into the Block layer via @import from frontend/css/main.css.
 
-   The map is an SVG drawn by the server in a fixed 1600 × 1000 space, scaled
-   to its width. Sizes below are in that space; the font sizes are the ones
-   tree.go fits labels to, and a test keeps the two equal. Colours are custom
-   properties set by modifier classes the server writes out whole, so the
-   production purge keeps them and both themes follow the tokens.
+   The map is an SVG drawn by the server in a fixed space (tree.go), scaled to
+   its width; its viewBox and label font sizes are attributes the server
+   writes, so the stylesheet sets neither. Stroke widths below are in that
+   space. Colors are custom properties set by modifier classes the server
+   writes out whole, so the production purge keeps them and both themes
+   follow the tokens.
    ========================================================================== */
-
-.b-map-view {
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-space-4);
-}
 
 /* Below --md the map keeps a readable size and scrolls sideways, rather than
    shrinking its labels to nothing. */
@@ -26,13 +21,9 @@
 
 /* ===== MAP ===== */
 .b-map {
-	--map-head-font: 13px;
-	--map-sub-font: 11.5px;
-	--map-tile-font: 11.5px;
 	--map-gap: var(--s-color-bg-base);
 
-	/* Must match mapWidth / mapHeight in tree.go. */
-	aspect-ratio: 1.6;
+	/* The viewBox gives the height its ratio. */
 	display: block;
 	width: 100%;
 	min-width: 56rem;
@@ -63,17 +54,28 @@
 
 	& text {
 		fill: var(--map-ink);
-		font-size: var(--map-tile-font);
 	}
 
-	&:hover rect,
-	&:focus-visible rect {
+	&:hover rect {
 		stroke: var(--s-color-border-focus);
 		stroke-width: 2.5;
 	}
 
+	/* Focus is drawn heavier than hover, and solid even on an unknown tile:
+	   the map scales down, and a thin or dashed ring is lost. */
+	&:focus-visible rect {
+		stroke: var(--s-color-border-focus);
+		stroke-width: 6;
+		stroke-dasharray: none;
+	}
+
 	&:focus-visible {
 		outline: none;
+	}
+
+	/* Filtered out: dimmed rather than removed, so the map keeps its shape. */
+	&.is-dimmed {
+		opacity: 0.2;
 	}
 }
 
@@ -100,7 +102,6 @@
 }
 
 .b-map__head text {
-	font-size: var(--map-head-font);
 	font-weight: var(--g-font-semibold);
 }
 
@@ -111,12 +112,11 @@
 
 	& text {
 		fill: var(--s-color-text-secondary);
-		font-size: var(--map-sub-font);
 	}
 }
 
 /* The box under the pointer is outlined, so a tile reads with its folder. */
-:is(.b-map__group, .b-map__sub-frame) {
+.b-map__group-frame {
 	transition: stroke 120ms ease;
 }
 
@@ -142,7 +142,8 @@
 }
 
 /* ===== GROUP HUES (no activity) ===== */
-/* Decoration only, telling neighbouring namespaces apart. */
+/* Decoration only, telling neighboring namespaces apart. Tints only: a plain
+   surface beside them would read as "no activity". */
 .b-map__group--hue0 {
 	--map-tile: var(--s-color-bg-info-weak);
 }
@@ -155,18 +156,13 @@
 .b-map__group--hue3 {
 	--map-tile: var(--s-color-bg-note-weak);
 }
-.b-map__group--hue4 {
-	--map-tile: var(--s-color-bg-surface-tertiary);
-}
-.b-map__group--hue5 {
-	--map-tile: var(--s-color-bg-surface-secondary);
-}
 
 /* ===== ACTIVITY ===== */
 /* A tile's activity class replaces its group's hue. Steps mix the action
-   green into the neutral surface, so the ramp follows the theme. The two
-   strongest steps take dark ink in both themes: light text on the mid green
-   fails contrast. */
+   green into the neutral surface, so the ramp follows the theme. From the
+   middle step the ink is the strongest text color, and the two strongest
+   steps take dark ink in both themes: light text on the mid green fails
+   contrast. */
 .b-map__tile--l0,
 .b-map__tile--l1,
 .b-map__tile--l2,
@@ -184,6 +180,7 @@
 }
 .b-map__tile--l2 {
 	--map-step: 50%;
+	--map-ink: var(--s-color-text-primary);
 }
 .b-map__tile--l3 {
 	--map-step: 75%;
@@ -194,7 +191,7 @@
 	--map-ink: var(--g-color-gray-900);
 }
 
-/* Unknown is never the colour of zero: a count the indexer could not settle
+/* Unknown is never the color of zero: a count the indexer could not settle
    is not a realm nobody called. Its own surface, set apart by a dashed edge. */
 .b-map__tile--unknown {
 	--map-tile: var(--s-color-bg-surface-tertiary);
@@ -207,6 +204,8 @@
 
 /* The tile under the pointer, named in full below the map. */
 .b-map-figure {
+	/* Anchors its skip link, which shows over the map's corner. */
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	gap: var(--g-space-2);
@@ -221,6 +220,11 @@
 	font-size: var(--g-font-size-50);
 	text-overflow: ellipsis;
 	white-space: nowrap;
+
+	/* No pointer to follow on touch: the tap opens the tile. */
+	@media (pointer: coarse) {
+		display: none;
+	}
 }
 
 /* Only where the map scrolls: below --md it keeps its width. */
@@ -235,37 +239,62 @@
 }
 
 /* ===== KEY (in the listing rail) ===== */
-/* The key is the overview's meta card (b-pkg-meta); only the colour scale and
-   the busiest list need rules of their own. */
-.b-map-scale-row {
-	align-items: center;
-	color: var(--s-color-text-tertiary);
+/* The key is the overview's meta card (b-pkg-meta); the color steps and the
+   busiest list need rules of their own. A swatch takes its color from the
+   same shade class a tile does. */
+.b-map-scale {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-1) var(--g-space-3);
+	margin-block: var(--g-space-2) 0;
+	padding: 0;
+	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
+	list-style: none;
+
+	& li {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-1);
+	}
 }
 
-.b-map-scale {
-	flex: 1;
-	height: 0.5rem;
+.b-map-swatch {
+	inline-size: 0.75rem;
+	block-size: 0.75rem;
+	border: 1px solid var(--s-color-border-secondary);
 	border-radius: var(--s-rounded-sm);
-	background: linear-gradient(
-		90deg,
-		var(--s-color-bg-surface-secondary),
-		var(--s-color-bg-success-action)
-	);
+	background-color: var(--map-tile);
+
+	&.b-map__tile--unknown {
+		border: 1px dashed var(--s-color-text-tertiary);
+	}
 }
 
 .b-map-key-note {
+	margin-block: var(--g-space-2) 0;
 	color: var(--s-color-text-secondary);
-	text-align: start;
+	font-size: var(--g-font-size-50);
 }
 
+/* A path wraps rather than being cut: realms under one address differ only
+   at their end, and a shortened address is what a lookalike imitates. */
 .b-map-busiest {
 	font-size: var(--g-font-size-90);
 
 	& .b-pkg-list__link > :first-child {
 		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 	}
+
+	& .b-tag--tertiary {
+		flex: none;
+	}
+}
+
+/* ===== DEPENDENCIES PAGE ===== */
+.b-deps-view {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-6);
 }

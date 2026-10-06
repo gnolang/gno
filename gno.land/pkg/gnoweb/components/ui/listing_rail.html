@@ -5,7 +5,8 @@ The right-hand rail of a directory listing, under the tabs as a realm's table of
 contents is: what the listing holds, a filter over it in either rendering, and
 the map's key when the listing is drawn as one. The summary is the overview's
 meta card; the filter is the overview's own, and without JavaScript it does
-nothing and the listing stays whole.
+nothing and the listing stays whole. On a map it dims what it filters out,
+so the tiles keep their places.
 =================================================================================== */}}
 {{ define "ui/listing_rail" }}
 <div class="b-listing-rail">
@@ -17,6 +18,7 @@ nothing and the listing stays whole.
   <input type="search" placeholder="Filter packages"
          data-controller="filter"
          data-filter-items-value="[data-listing-item]"
+         {{- if .Key }} data-filter-class-value="is-dimmed"{{ end }}
          data-action="input->filter#filter"
          aria-label="Filter packages">
   <svg class="c-icon" aria-hidden="true"><use href="#ico-search"></use></svg>

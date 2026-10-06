@@ -1,8 +1,6 @@
 package chainmap
 
 import (
-	"os"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -203,34 +201,6 @@ func TestFit(t *testing.T) {
 	for _, c := range cases {
 		if got := fit(c.text, c.w, tileFont); got != c.want {
 			t.Errorf("fit(%q, %.1f) = %q, want %q", c.text, c.w, got, c.want)
-		}
-	}
-}
-
-// The layout squares tiles for mapWidth × mapHeight and fits labels to the
-// font sizes below; the stylesheet draws the map at its own aspect-ratio and
-// font sizes. Nothing else ties the two.
-func TestStylesheetMatchesTheLayoutMetrics(t *testing.T) {
-	t.Parallel()
-
-	css, err := os.ReadFile("frontend/chainmap.css")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := map[string]float64{
-		`\.b-map \{[^}]*aspect-ratio:\s*([0-9.]+)`: mapWidth / mapHeight,
-		`--map-head-font:\s*([0-9.]+)px`:           headFont,
-		`--map-sub-font:\s*([0-9.]+)px`:            subFont,
-		`--map-tile-font:\s*([0-9.]+)px`:           tileFont,
-	}
-	for pattern, value := range want {
-		m := regexp.MustCompile(pattern).FindSubmatch(css)
-		if m == nil {
-			t.Errorf("stylesheet has no match for %s", pattern)
-			continue
-		}
-		if got, _ := strconv.ParseFloat(string(m[1]), 64); got != value {
-			t.Errorf("%s = %v in the stylesheet, %v in the layout", pattern, got, value)
 		}
 	}
 }

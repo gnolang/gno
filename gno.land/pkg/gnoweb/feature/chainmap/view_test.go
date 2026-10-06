@@ -2,7 +2,9 @@ package chainmap
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -166,5 +168,64 @@ func TestMapKeyListsTheBusiestRealms(t *testing.T) {
 	}
 	if strings.Contains(out, `href="/r/a/idle"><span`) {
 		t.Error("a realm nobody called is not among the busiest")
+	}
+}
+
+// The key's steps cover every count from 1 to the busiest exactly once, in
+// order, and name only shades some count reaches.
+func TestScaleTilesTheCounts(t *testing.T) {
+	t.Parallel()
+
+	for _, busiest := range []int{1, 2, 3, 7, 100, 1000, 12345} {
+		next := 1
+		for _, st := range scale(busiest, false)[1:] {
+			lo, hi, _ := strings.Cut(st.Calls, "–")
+			if hi == "" {
+				hi = lo
+			}
+			l, _ := strconv.Atoi(lo)
+			h, _ := strconv.Atoi(hi)
+			if l != next || h < l {
+				t.Fatalf("busiest %d: step %q after %d", busiest, st.Calls, next-1)
+			}
+			for c := l; c <= h; c++ {
+				if got := shadeClasses[level(c, busiest)]; got != st.Class {
+					t.Fatalf("busiest %d: %d calls drawn %s, key says %s", busiest, c, got, st.Class)
+				}
+			}
+			next = h + 1
+		}
+		if next != busiest+1 {
+			t.Errorf("busiest %d: the key stops at %d", busiest, next-1)
+		}
+	}
+	if s := scale(10, true); s[len(s)-1].Class != unknownShadeClass {
+		t.Error("a partial window's key must show the unknown shade")
+	}
+}
+
+// The figure carries what the layout fitted to, so the stylesheet need not
+// repeat it; keyboard readers can skip it, and the key names each shade.
+func TestMapFigureCarriesItsMetrics(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
+	h.activity.store("activity", &Activity{
+		Calls: map[string]int{"gno.land/r/a/busy": 100}, From: 10, To: 20, Since: time.Unix(0, 0),
+	}, nil)
+	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/busy", "/r/a/idle"}})
+	for _, want := range []string{
+		fmt.Sprintf(`viewBox="0 0 %g %g"`, mapWidth, mapHeight),
+		fmt.Sprintf(`font-size="%g"`, tileFont),
+		`href="#map-end"`,
+		`id="map-end"`,
+		`b-map-swatch b-map__tile--l4`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("map lacks %q", want)
+		}
+	}
+	if strings.Contains(out, "aria-live") {
+		t.Error("the hover status must not be a live region")
 	}
 }

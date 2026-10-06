@@ -11,19 +11,21 @@ around it, header and rail included, is the directory view's.
 =================================================================================== */}}
 {{ define "chainmap/figure" }}
 <div class="b-map-figure" data-controller="map">
+{{/* Up to a thousand links: a keyboard reader can pass them all at once. */}}
+<a class="u-skip-link" href="#map-end">Skip the map</a>
 <div class="b-map-frame">
-  <svg class="b-map" viewBox="0 0 960 600" role="group" aria-label="Packages under {{ .Root }}">
+  <svg class="b-map" viewBox="{{ .ViewBox }}" role="group" aria-label="Packages under {{ .Root }}">
     {{- range .Groups }}
     <g class="b-map__group {{ .HueClass }}">
+      {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
       {{- range .Subgroups }}
+      {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
       {{- range .Tiles }}
       <a class="b-map__tile {{ .ShadeClass }}" href="{{ .Path }}" data-listing-item data-name="{{ .Path }}"><title>{{ .Title }}</title><rect x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
-        {{- with .Label }}<text x="{{ .X }}" y="{{ .Y }}">{{ .Text }}</text>{{ end }}</a>
+        {{- with .Label }}{{ template "chainmap/text" . }}{{ end }}</a>
       {{- end }}
-      {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
       <rect class="b-map__sub-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
       {{- end }}
-      {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
       <rect class="b-map__group-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
     </g>
     {{- end }}
@@ -31,11 +33,17 @@ around it, header and rail included, is the directory view's.
 </div>
 {{/* Filled by the map controller with the tile under the pointer or the
      keyboard focus; hidden without JavaScript, where each tile's tooltip says
-     the same. */}}
-<p class="b-map-status" data-map-target="status" aria-live="polite" hidden></p>
+     the same. Not a live region: it changes on every pointer move. */}}
+<p class="b-map-status" data-map-target="status" hidden></p>
 <p class="b-map-scroll-hint">Scroll sideways to see the whole map.</p>
+<span id="map-end" tabindex="-1"></span>
 </div>
 {{ end }}
+
+{{/* A label, at the font size the layout fitted it to: a presentation
+     attribute, which the Content-Security-Policy allows where style does
+     not. */}}
+{{ define "chainmap/text" }}<text x="{{ .X }}" y="{{ .Y }}" font-size="{{ .Size }}">{{ .Text }}</text>{{ end }}
 
 
 {{/* A name band over the top of a group or subgroup, a link to that box's
@@ -45,7 +53,7 @@ around it, header and rail included, is the directory view's.
 {{- else }}<g class="{{ .Class }}">{{ template "chainmap/band" . }}</g>{{ end }}
 {{- end }}
 
-{{ define "chainmap/band" }}<rect x="{{ .Band.X }}" y="{{ .Band.Y }}" width="{{ .Band.W }}" height="{{ .Band.H }}" /><text x="{{ .Label.X }}" y="{{ .Label.Y }}">{{ .Label.Text }}</text>{{ end }}
+{{ define "chainmap/band" }}<rect x="{{ .Band.X }}" y="{{ .Band.Y }}" width="{{ .Band.W }}" height="{{ .Band.H }}" />{{ template "chainmap/text" .Label }}{{ end }}
 
 
 {{/* ===================================================================================
@@ -53,33 +61,37 @@ UI - Key: what the map measures and, for activity, what it could not. It sits
 in the listing's rail.
 =================================================================================== */}}
 {{ define "chainmap/key" }}
-<dl class="b-pkg-meta" aria-label="Map key">
-  <dt class="section b-sidebar-heading">Map key</dt>
+<section class="b-map-key" aria-labelledby="map-key-heading">
+<h3 id="map-key-heading" class="b-sidebar-heading">Map key</h3>
+<dl class="b-pkg-meta">
   {{ with .Up }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}$map">Map of {{ . }}</a></dd></div>{{ end }}
   <div class="row"><dt class="label">Area</dt><dd class="value">One tile per package</dd></div>
   <div class="row"><dt class="label">Boxes</dt><dd class="value">Path segments; select a name to zoom</dd></div>
-  {{ with .Window }}
-  <div class="row"><dt class="label">Colour</dt><dd class="value"><span class="b-tag b-tag--indexer">indexer</span> successful calls, 7 days</dd></div>
-  <div class="row b-map-scale-row" aria-hidden="true"><span>none</span><span class="b-map-scale"></span><span>most</span></div>
+  {{ if .Window }}{{ with .Window }}
+  <div class="row"><dt class="label">Color</dt><dd class="value">Successful calls, 7 days</dd></div>
   <div class="row"><dt class="label">Window</dt><dd class="value">{{ .Since.UTC.Format "Jan 2" }} → now · blocks {{ .From }}–{{ .To }}</dd></div>
-  {{ if .Partial }}
-  <div class="row"><dd class="value b-map-key-note">Part of the window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</dd></div>
-  {{ end }}
-  {{ else }}
-  {{ if eq .Activity "pending" }}
-  <div class="row"><dt class="label">Colour</dt><dd class="value">Calls are still being counted. Reload in a moment.</dd></div>
+  {{ end }}{{ else if eq .Activity "pending" }}
+  <div class="row"><dt class="label">Color</dt><dd class="value">Calls are still being counted. <a href="{{ .Root }}$map">Reload</a></dd></div>
   {{ else if eq .Activity "unavailable" }}
-  <div class="row"><dt class="label">Colour</dt><dd class="value">Calls unavailable: the indexer could not be read.</dd></div>
+  <div class="row"><dt class="label">Color</dt><dd class="value">Calls unavailable: the indexer could not be read.</dd></div>
   {{ else if eq .Activity "not-called" }}
-  <div class="row"><dt class="label">Colour</dt><dd class="value">None: nothing calls a pure package.</dd></div>
+  <div class="row"><dt class="label">Color</dt><dd class="value">None: nothing calls a pure package.</dd></div>
   {{ else }}
-  <div class="row"><dt class="label">Colour</dt><dd class="value">Tells neighbouring boxes apart</dd></div>
-  {{ end }}
+  <div class="row"><dt class="label">Color</dt><dd class="value">Tells neighboring boxes apart</dd></div>
   {{ end }}
 </dl>
+{{ with .Scale }}
+<ul class="b-map-scale" aria-label="Calls per color">
+  {{ range . }}<li><span class="b-map-swatch {{ .Class }}" aria-hidden="true"></span>{{ .Calls }}</li>{{ end }}
+</ul>
+{{ end }}
+{{ with .Window }}{{ if .Partial }}
+<p class="b-map-key-note">Part of the window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</p>
+{{ end }}{{ end }}
+</section>
 {{ with .Busiest }}
 <section aria-labelledby="map-busiest-heading">
-  <h3 id="map-busiest-heading" class="b-sidebar-heading">Most called · 7 days</h3>
+  <h3 id="map-busiest-heading" class="b-sidebar-heading">Most called · 7 days <span class="b-tag b-tag--indexer">indexer</span></h3>
   <ol class="b-pkg-list b-map-busiest">
     {{ range . }}
     <li class="b-pkg-list__item"><a class="b-pkg-list__link" href="{{ .Path }}"><span class="u-font-mono">{{ .Path }}</span><span class="b-tag--tertiary">{{ .Calls }}</span></a></li>

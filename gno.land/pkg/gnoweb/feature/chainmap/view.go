@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,10 +30,10 @@ type Listing struct {
 	Up string
 }
 
-// Activity states the legend tells apart. A map never shows a count it does
-// not have, so "not counted yet" and "could not count" are said, not drawn.
+// Why a map shows no activity, which the key says. A map never shows a count
+// it does not have, so "not counted yet" and "could not count" are said, not
+// drawn.
 const (
-	ActivityShown       = "shown"
 	ActivityPending     = "pending"
 	ActivityUnavailable = "unavailable"
 	// ActivityNotCalled is a map of pure packages, which nothing calls.
@@ -47,11 +48,13 @@ type MapData struct {
 	Up     string
 	Groups []*Group
 
-	// Activity is empty when no indexer is configured: the legend then says
-	// nothing about activity at all.
+	// Window is the activity the tiles are coloured with, nil when there is
+	// none; Activity then says why, or is empty when no indexer is
+	// configured and the key says nothing about activity at all.
+	Window   *Activity
 	Activity string
-	// Window is set when Activity is ActivityShown.
-	Window *Activity
+	// Scale is the colour steps the tiles use, for the key.
+	Scale []ScaleStep
 
 	// Indexer is the provenance footer, set whenever the indexer answered.
 	Indexer *components.IndexerStatus
@@ -67,6 +70,16 @@ const busiestCount = 5
 // nothing the list does not, so the listing offers no map at all.
 const MinPackages = 10
 
+// ViewBox is the SVG's coordinate space, the one the layout fitted to.
+func (*MapData) ViewBox() string {
+	return fmt.Sprintf("0 0 %g %g", mapWidth, mapHeight)
+}
+
+// ScaleStep is one colour of the key: a shade and the calls it stands for.
+type ScaleStep struct {
+	Class, Calls string
+}
+
 // Map draws a listing: the figure for the listing's body and its key for the
 // listing's rail. The page around them is the directory view's own.
 func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
@@ -77,8 +90,8 @@ func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
 	if h.activity != nil {
 		h.addActivity(ctx, data)
 	}
-	data.eachTile(func(t *Tile) { t.Title = tileTitle(*t, *data) })
-	if data.Activity == ActivityShown {
+	data.eachTile(func(t *Tile) { t.Title = tileTitle(t, data) })
+	if data.Window != nil {
 		data.Busiest = busiest(data, busiestCount)
 	}
 	return components.MapParts{
@@ -109,7 +122,7 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 		return
 	}
 
-	data.Activity, data.Window = ActivityShown, a
+	data.Window = a
 	data.Indexer = &components.IndexerStatus{URL: h.deps.Indexer.URL(), LastBlock: a.To}
 
 	// The scale is the busiest realm on this map, so a zoomed-in map still
@@ -128,6 +141,39 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 			t.ShadeClass = unknownShadeClass
 		}
 	})
+	data.Scale = scale(busiest, a.Partial)
+}
+
+// scale is the key's colour steps for a map whose busiest realm has busiest
+// calls: each shade with the range of calls it stands for, skipping a shade
+// no count reaches. Unknown comes last when the window is partial.
+func scale(busiest int, partial bool) []ScaleStep {
+	steps := []ScaleStep{{Class: shadeClasses[0], Calls: "0"}}
+	if partial {
+		steps[0].Calls = "0 (counted)"
+	}
+	// first[l] is the smallest count drawn at level l or above.
+	last := len(shadeClasses)
+	first := make([]int, last+1)
+	first[last] = busiest + 1
+	for l := 1; l < last; l++ {
+		first[l] = firstAtLevel(l, busiest)
+	}
+	for l := 1; l < last; l++ {
+		lo, hi := first[l], first[l+1]-1
+		switch {
+		case lo > hi:
+			continue
+		case lo == hi:
+			steps = append(steps, ScaleStep{Class: shadeClasses[l], Calls: strconv.Itoa(lo)})
+		default:
+			steps = append(steps, ScaleStep{Class: shadeClasses[l], Calls: strconv.Itoa(lo) + "–" + strconv.Itoa(hi)})
+		}
+	}
+	if partial {
+		steps = append(steps, ScaleStep{Class: unknownShadeClass, Calls: "unknown"})
+	}
+	return steps
 }
 
 // busiest returns up to n tiles with the most calls, most first; none without
@@ -180,11 +226,25 @@ func level(calls, busiest int) int {
 	return 1 + min(3, int(f*4))
 }
 
+// firstAtLevel is the smallest count from 1 that level draws at l or above,
+// or busiest+1 when none does: level's inverse, nudged to absorb rounding.
+func firstAtLevel(l, busiest int) int {
+	c := int(math.Ceil(math.Expm1(float64(l-1) / 4 * math.Log1p(float64(busiest)))))
+	c = max(c, 1)
+	for c > 1 && level(c-1, busiest) >= l {
+		c--
+	}
+	for c <= busiest && level(c, busiest) < l {
+		c++
+	}
+	return c
+}
+
 // tileTitle is the tile's tooltip. It repeats the label in full, since a
 // small tile truncates it.
-func tileTitle(t Tile, data MapData) string {
+func tileTitle(t *Tile, data *MapData) string {
 	switch {
-	case data.Activity != ActivityShown:
+	case data.Window == nil:
 		return t.Path
 	case t.Unknown:
 		return t.Path + " · calls unknown: part of the window could not be read"

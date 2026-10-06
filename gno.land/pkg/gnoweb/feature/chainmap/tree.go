@@ -11,21 +11,22 @@ import (
 
 // The map is drawn in a fixed coordinate space the SVG scales to its width,
 // so text sizes are known in the same units as the boxes and every label is
-// fitted here, to the character. mapWidth over mapHeight must match the
-// aspect-ratio the stylesheet gives .b-map.
+// fitted here, to the character. The template draws the viewBox and every
+// font size from these values, so nothing else has to agree with them.
 const (
 	mapWidth  = 960.0
 	mapHeight = 600.0
 )
 
-// Label metrics, in map units. The stylesheet sets the same font sizes on the
-// map's monospace text, whose advance is 0.6 em.
+// Label metrics, in map units. Labels are drawn in the monospace face, whose
+// advance is 0.6 em. The map scales down with the content column, so these
+// sit a step above body text sizes to stay readable there.
 const (
-	headBand    = 24.0 // a group's name band
-	headFont    = 13.0
-	subBand     = 20.0 // a subgroup's name band
-	subFont     = 11.5
-	tileFont    = 11.5
+	headBand    = 26.0 // a group's name band
+	headFont    = 14.0
+	subBand     = 22.0 // a subgroup's name band
+	subFont     = 12.5
+	tileFont    = 12.5
 	labelPad    = 6.0
 	monoAdvance = 0.6
 
@@ -47,17 +48,17 @@ const (
 // hueClasses are the group colours, written out whole so the stylesheet
 // purge, which keeps only class names it finds in the sources, sees them.
 var hueClasses = [...]string{
-	"b-map__group--hue0", "b-map__group--hue1", "b-map__group--hue2",
-	"b-map__group--hue3", "b-map__group--hue4", "b-map__group--hue5",
+	"b-map__group--hue0", "b-map__group--hue1", "b-map__group--hue2", "b-map__group--hue3",
 }
 
 // Rect is a box in map units.
 type Rect struct{ X, Y, W, H float64 }
 
-// Label is a name fitted to the box it sits in, and where to draw it.
+// Label is a name fitted to the box it sits in, where to draw it, and the
+// font size it was fitted to.
 type Label struct {
-	Text string
-	X, Y float64
+	Text       string
+	X, Y, Size float64
 }
 
 // Head is the name band over the top of a group or subgroup: a link to that
@@ -273,7 +274,7 @@ func layoutSubgroups(subs []*Subgroup, r rect, base string) {
 				continue
 			}
 			if text := fit(tileName(t.Path, tileBase), tr.W, tileFont); text != "" {
-				t.Label = &Label{Text: text, X: round1(tr.X + labelPad), Y: round1(tr.Y + tileFont + labelPad - 2)}
+				t.Label = &Label{Text: text, X: round1(tr.X + labelPad), Y: round1(tr.Y + tileFont + labelPad - 2), Size: tileFont}
 			}
 		}
 	}
@@ -292,7 +293,7 @@ func newHead(class, name, zoomURL string, r rect, band, font float64) *Head {
 	return &Head{
 		Class:    class,
 		Band:     toRect(rect{r.X, r.Y, r.W, band}),
-		Label:    Label{Text: text, X: round1(r.X + labelPad), Y: round1(r.Y + band/2 + font*0.35)},
+		Label:    Label{Text: text, X: round1(r.X + labelPad), Y: round1(r.Y + band/2 + font*0.35), Size: font},
 		ZoomURL:  zoomURL,
 		ZoomPath: strings.TrimSuffix(zoomURL, "$map"),
 	}

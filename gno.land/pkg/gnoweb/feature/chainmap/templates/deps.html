@@ -16,6 +16,8 @@ candidate: a reader asks for it, the overview never pays for it.
     </h1>
   </header>
 
+  {{/* The graph's sides are h3s, as under the overview's own section. */}}
+  <h2 class="u-sr-only">Dependency graph</h2>
   {{ template "ui/pkg_graph" .Graph }}
 
   {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}

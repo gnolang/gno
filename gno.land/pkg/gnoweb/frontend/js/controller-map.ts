@@ -14,7 +14,8 @@ export class MapController extends BaseController {
 		this.status = this.getTarget("status");
 		if (!this.status) return;
 		this.status.hidden = false;
-		this.status.textContent = "Point at a tile to see its package.";
+		const idle = "Point at a tile to see its package.";
+		this.status.textContent = idle;
 
 		const show = (event: Event): void => {
 			const tile = (event.target as Element | null)?.closest(".b-map__tile");
@@ -23,7 +24,13 @@ export class MapController extends BaseController {
 			// a text node, never as markup.
 			if (title && this.status) this.status.textContent = title;
 		};
+		// Leaving the map says nothing about a tile: back to the prompt, so a
+		// name never lingers under a pointer that has moved on.
+		const clear = (): void => {
+			if (this.status) this.status.textContent = idle;
+		};
 		this.element.addEventListener("pointerover", show);
 		this.element.addEventListener("focusin", show);
+		this.element.addEventListener("pointerleave", clear);
 	}
 }
