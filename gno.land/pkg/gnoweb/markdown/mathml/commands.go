@@ -275,7 +275,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		if name == "color" {
 			expr, err := switchExpressions.GetNextExpr()
 			if err == nil {
-				n.SetAttr("mathcolor", StringifyTokens(expr.Expr))
+				setColor(n, expr.Expr)
 				converter.ParseTex(switchExpressions, context|sw, n)
 				return n
 			}

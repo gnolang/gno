@@ -2039,44 +2039,6 @@ func TestNewCommand_StyleSwitches(t *testing.T) {
 	}
 }
 
-func TestNewCommand_ColorCommand(t *testing.T) {
-	tests := []struct {
-		name     string
-		command  string
-		expected string
-	}{
-		{
-			name:     "color_red",
-			command:  "\\color{red}{x + y}",
-			expected: "mathcolor=\"red\"",
-		},
-		{
-			name:     "color_blue",
-			command:  "\\color{blue}{x + y}",
-			expected: "mathcolor=\"blue\"",
-		},
-		{
-			name:     "color_hex",
-			command:  "\\color{#FF0000}{x + y}",
-			expected: "mathcolor=\"#FF0000\"",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			converter := NewMathMLConverter()
-			output, err := converter.ConvertInline(tt.command)
-			if err != nil {
-				t.Fatalf("ConvertInline failed: %v", err)
-			}
-
-			if !strings.Contains(output, tt.expected) {
-				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
-			}
-		})
-	}
-}
-
 func TestVariantTransform_AllVariants(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2946,54 +2908,6 @@ func TestProcessEnv(t *testing.T) {
 			name:     "cases_environment",
 			input:    "\\begin{cases} x & \\text{if } y > 0 \\\\ -x & \\text{if } y \\leq 0 \\end{cases}",
 			expected: "mtable",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			converter := NewMathMLConverter()
-			output, err := converter.ConvertInline(tt.input)
-			if err != nil {
-				t.Fatalf("ConvertInline failed: %v", err)
-			}
-
-			if !strings.Contains(output, tt.expected) {
-				t.Errorf("Expected output to contain %q, got %q", tt.expected, output)
-			}
-		})
-	}
-}
-
-func TestCmdTextcolor(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "textcolor_red",
-			input:    "\\textcolor{red}{x}",
-			expected: "textcolor",
-		},
-		{
-			name:     "textcolor_blue",
-			input:    "\\textcolor{blue}{y + z}",
-			expected: "textcolor",
-		},
-		{
-			name:     "textcolor_hex",
-			input:    "\\textcolor{#FF0000}{text}",
-			expected: "textcolor",
-		},
-		{
-			name:     "textcolor_rgb",
-			input:    "\\textcolor[rgb]{1,0,0}{colored}",
-			expected: "textcolor",
-		},
-		{
-			name:     "textcolor_expression",
-			input:    "\\textcolor{green}{\\frac{x}{y}}",
-			expected: "textcolor",
 		},
 	}
 

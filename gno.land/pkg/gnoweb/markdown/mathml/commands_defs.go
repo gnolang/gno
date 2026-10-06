@@ -185,12 +185,34 @@ func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseCo
 	return multi
 }
 
+// themeColors maps the colour names \color and \textcolor accept to the
+// suffix of the class the stylesheet colours: only theme colours, which
+// keep their contrast in light and dark mode. Other colours, as names, hex
+// or rgb values, are ignored and the content keeps the text colour.
+var themeColors = map[string]string{
+	"red":    "red",
+	"blue":   "blue",
+	"green":  "green",
+	"orange": "orange",
+	"purple": "purple",
+	"gray":   "gray",
+	"grey":   "gray",
+}
+
+// setColor gives n the class of the theme colour named by tex, if any.
+func setColor(n *MMLNode, tex []Token) {
+	if c, ok := themeColors[strings.ToLower(strings.TrimSpace(StringifyTokens(tex)))]; ok {
+		n.SetAttr("class", "math-color-"+c)
+	}
+}
+
 func cmd_textcolor(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
 	if len(args) < 2 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	n := converter.ParseTex(args[1], ctx)
-	n.SetAttr("mathcolor", StringifyTokens(args[0].Expr))
+	n := NewMMLNode("mstyle")
+	setColor(n, args[0].Expr)
+	converter.ParseTex(args[1], ctx, n)
 	return n
 }
 

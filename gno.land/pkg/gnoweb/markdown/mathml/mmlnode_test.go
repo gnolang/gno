@@ -260,3 +260,38 @@ func FuzzConversionTerminates(f *testing.F) {
 		convertWithin(t, tex, false)
 	})
 }
+
+// \color and \textcolor accept theme colours only, as classes the
+// stylesheet colours; any other colour leaves the content uncoloured.
+func TestColorIsThemeClass(t *testing.T) {
+	for arg, want := range map[string]string{
+		"red":        "math-color-red",
+		"Blue":       "math-color-blue",
+		" green ":    "math-color-green",
+		"ORANGE":     "math-color-orange",
+		"purple":     "math-color-purple",
+		"gray":       "math-color-gray",
+		"grey":       "math-color-gray",
+		"white":      "",
+		"black":      "",
+		"#FF0000":    "",
+		"#fff":       "",
+		"rgb(1,0,0)": "",
+		"red;x":      "",
+		"":           "",
+	} {
+		for _, tex := range []string{`\color{` + arg + `} x`, `\textcolor{` + arg + `}{x}`} {
+			out := convertWithin(t, tex, false)
+			assert.NotContains(t, out, "mathcolor", tex)
+			assert.Contains(t, out, "<mi>x</mi>", tex)
+			if want == "" {
+				assert.NotContains(t, out, "math-color-", tex)
+			} else {
+				assert.Contains(t, out, `<mstyle class="`+want+`">`, tex)
+			}
+		}
+	}
+	// Empty content does not fail the conversion.
+	_, err := NewMathMLConverter().ConvertInline(`\textcolor{red}{}`)
+	assert.NoError(t, err)
+}
