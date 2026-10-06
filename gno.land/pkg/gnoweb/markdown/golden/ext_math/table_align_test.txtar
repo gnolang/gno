@@ -46,7 +46,7 @@ $$
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">{</mo>
-      <mtable columnalign="left" rowalign="center">
+      <mtable columnalign="center" rowalign="center">
         <mtr>
           <mtd columnalign="left">
             <mi>x</mi>

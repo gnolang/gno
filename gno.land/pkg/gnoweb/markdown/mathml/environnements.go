@@ -227,10 +227,11 @@ func isEmptyCell(cell []*MMLNode) bool {
 // text-align and padding. Empty cells keep it: their padding is what
 // separates the column pairs of an aligned environment.
 func columnAlign(env string, align []string, col int) string {
+	env = strings.TrimSuffix(env, "*")
 	switch env {
 	case "cases":
 		return "left"
-	case "align", "align*", "aligned":
+	case "align", "aligned":
 		// Columns pair up as right-aligned left side, left-aligned right side.
 		return [...]string{"right", "left"}[col%2]
 	}
@@ -238,7 +239,7 @@ func columnAlign(env string, align []string, col int) string {
 		// The last alignment of the spec repeats for the remaining columns.
 		return align[min(col, len(align)-1)]
 	}
-	switch strings.TrimSuffix(env, "*") {
+	switch env {
 	case "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "subarray":
 		// Explicitly centered: Chrome's <mtd> default (-webkit-center)
 		// lays out cells of uneven width differently.
@@ -281,7 +282,6 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 	case "cases":
 		left = strechyOP("{")
 		right = NewMMLNode("mo") // Empty mo for proper fence pairing
-		attrib["columnalign"] = "left"
 	case "align", "align*", "aligned":
 		attrib["displaystyle"] = "true"
 	case "subarray":

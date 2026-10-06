@@ -21,6 +21,9 @@ var raiseLength = regexp.MustCompile(`^([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)) *
 // TeX's own units, and px, which CSS knows. The font-relative ones assume
 // TeX's default 10pt font. css marks the units a browser understands; the
 // others are converted to em.
+// emPt is the size of an em in TeX points, at TeX's default 10pt font.
+const emPt = 10
+
 var raiseUnits = map[string]struct {
 	pt  float64
 	css bool
@@ -31,7 +34,7 @@ var raiseUnits = map[string]struct {
 	"cm": {72.27 / 2.54, true},
 	"mm": {72.27 / 25.4, true},
 	"px": {72.27 / 96, true},
-	"em": {10, true},
+	"em": {emPt, true},
 	"ex": {5, true}, // CSS's fallback x-height of 0.5em
 	"bp": {72.27 / 72, false},
 	"dd": {1238.0 / 1157, false},
@@ -42,7 +45,7 @@ var raiseUnits = map[string]struct {
 
 // maxRaisePt is the largest \raisebox shift accepted, 2em. Larger shifts
 // would let math move over the page around it, so they are ignored.
-const maxRaisePt = 20
+const maxRaisePt = 2 * emPt
 
 // safeRaise returns s as a voffset value if it is a small length. A bare
 // number is taken in em.
@@ -66,7 +69,7 @@ func safeRaise(s string) (string, bool) {
 	}
 	num := strings.TrimPrefix(m[1], "+")
 	if !u.css {
-		em := strconv.FormatFloat(v*u.pt/raiseUnits["em"].pt, 'f', 4, 64)
+		em := strconv.FormatFloat(v*u.pt/emPt, 'f', 4, 64)
 		num, unit = strings.TrimSuffix(strings.TrimRight(em, "0"), "."), "em"
 	}
 	return num + unit, true
