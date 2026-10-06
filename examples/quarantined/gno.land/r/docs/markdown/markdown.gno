@@ -916,7 +916,7 @@ gno.land/r/docs/markdown$source
 
 ### Mathematics
 
-Supports mathematical expressions using LaTeX syntax, which are rendered as MathML for proper mathematical display.
+Supports mathematical expressions using LaTeX syntax, which are rendered as MathML for proper mathematical display. An expression that cannot be converted is shown as its source, like inline code.
 
 #### Inline Math
 
@@ -944,6 +944,14 @@ Mathematical operators: $+ - \times \div \pm \mp = \neq < > \leq \geq$
 
 Functions: $\sin, \cos, \tan, \log, \ln, \exp, \max, \min$
 
+Inline math can also be written between ±\\(± and ±\\)±:
+
+±±±markdown
+The area of a circle is \\(\pi r^2\\).
+±±±
+
+The area of a circle is \\(\pi r^2\\).
+
 #### Block Math
 
 For larger mathematical expressions, use double dollar signs:
@@ -958,6 +966,72 @@ $$
 \int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
 $$
 
+Display math can also be written between ±\\[± and ±\\]±, or in a code fence whose language is ±math±, as on GitHub:
+
+±±±±markdown
+\\[
+e^{i\pi} + 1 = 0
+\\]
+
+±±±math
+\sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+±±±
+±±±±
+
+\\[
+e^{i\pi} + 1 = 0
+\\]
+
+±±±math
+\sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+±±±
+
+A ±math± fence that cannot be converted stays a code block.
+
+#### Dollar Signs
+
+A single ±$± opens inline math only when the next character is not a space, and closes it only when the previous character is not a space and the next one is not a digit. Prices therefore stay text:
+
+±±±markdown
+It costs $5, or $ 10 with shipping, and $5 and $10 together.
+±±±
+
+It costs $5, or $ 10 with shipping, and $5 and $10 together.
+
+The rule cannot tell every price from math: in ±$GNOT/$ATOM± the second ±$± follows a non-space, so the text between the two is read as math. Write ±\$± for a dollar sign that must stay text:
+
+±±±markdown
+The pair \$GNOT/\$ATOM, and a literal dollar in math: $\$5$.
+±±±
+
+The pair \$GNOT/\$ATOM, and a literal dollar in math: $\$5$.
+
+#### Lines That Start a Block
+
+Display math ends at a line that would start another Markdown block, such as a list item (±- ±, ±+ ±, ±1. ±), a quote (±> ±) or a heading (±#±), so that an unclosed ±$$± cannot swallow the rest of the page. A formula line that begins with a minus sign followed by a space is such a line; put an empty group ±{}± in front of it:
+
+±±±markdown
+$$
+a
+{}- b
+$$
+±±±
+
+$$
+a
+{}- b
+$$
+
+#### Colours
+
+±\color± and ±\textcolor± accept the theme colours ±red±, ±orange±, ±green±, ±blue±, ±purple± and ±gray± (or ±grey±), which stay readable in light and dark mode. Other colour names and hex or RGB values are ignored, and the expression keeps the text colour:
+
+±±±markdown
+$\color{red}{a^2} + \color{blue}{b^2} = \textcolor{green}{c^2}$
+±±±
+
+$\color{red}{a^2} + \color{blue}{b^2} = \textcolor{green}{c^2}$
+
 #### Advanced Examples
 
 Matrices:
@@ -971,7 +1045,7 @@ c & d
 \begin{pmatrix}
 x \\
 y
-\end{pmatrix} = 
+\end{pmatrix} =
 \begin{pmatrix}
 ax + by \\
 cx + dy
@@ -987,7 +1061,7 @@ c & d
 \begin{pmatrix}
 x \\
 y
-\end{pmatrix} = 
+\end{pmatrix} =
 \begin{pmatrix}
 ax + by \\
 cx + dy
@@ -1063,6 +1137,7 @@ Second law: $dS \geq \frac{\delta Q}{T}$
 - **Integrals and sums**: ±\int±, ±\sum±, ±\prod±, ±\lim±
 - **Functions**: ±\sin±, ±\cos±, ±\tan±, ±\log±, ±\ln±, ±\exp±, ±\max±, ±\min±
 - **Matrices**: ±\begin{matrix}...\end{matrix}±, ±\begin{pmatrix}...\end{pmatrix}±
+- **Colours**: ±\color{blue}{...}±, ±\textcolor{red}{...}±, theme colours only
 - **Complex equations**: Schrödinger, Maxwell, Fourier transforms, etc.
 
 ### And more...
