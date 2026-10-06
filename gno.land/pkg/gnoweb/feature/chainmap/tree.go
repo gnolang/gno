@@ -14,8 +14,8 @@ import (
 // fitted here, to the character. mapWidth over mapHeight must match the
 // aspect-ratio the stylesheet gives .b-map.
 const (
-	mapWidth  = 1600.0
-	mapHeight = 1000.0
+	mapWidth  = 960.0
+	mapHeight = 600.0
 )
 
 // Label metrics, in map units. The stylesheet sets the same font sizes on the

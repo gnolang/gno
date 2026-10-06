@@ -1293,12 +1293,15 @@ func (h *HTTPHandler) renderListing(ctx context.Context, gnourl *weburl.GnoURL, 
 	// Update header mode
 	indexData.HeaderData.Mode = indexData.Mode
 
-	if gnourl.WebQuery.Has("map") {
-		return http.StatusOK, h.Map.MapView(ctx, chainmap.Listing{
-			Path: gnourl.Path, Paths: paths, Truncated: truncated,
-		})
+	// A listing too small for a map offers none, and draws a list even when
+	// its map is asked for.
+	mappable := len(paths) >= chainmap.MinPackages
+	indexData.HeaderData.Listing = &components.ListingTabs{Map: mappable}
+	if mappable && gnourl.WebQuery.Has("map") {
+		parts := h.Map.Map(ctx, chainmap.Listing{Path: gnourl.Path, Paths: paths})
+		return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, &parts)
 	}
-	return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated)
+	return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, nil)
 }
 
 // GetMapView draws the listing below a path. A map exists only where the list

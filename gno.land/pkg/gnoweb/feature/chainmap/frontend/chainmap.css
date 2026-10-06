@@ -195,20 +195,24 @@
 	}
 }
 
-/* ===== LEGEND ===== */
+/* Only where the map scrolls: below --md it keeps its width. */
+.b-map-scroll-hint {
+	margin-block-start: var(--g-space-2);
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+
+	@media (--md) {
+		display: none;
+	}
+}
+
+/* ===== KEY (in the listing rail) ===== */
 .b-map-legend {
 	display: flex;
 	flex-direction: column;
 	gap: var(--g-space-2);
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
-}
-
-/* Only where the map scrolls: below --md it keeps its width. */
-.b-map-legend__scroll-hint {
-	@media (--md) {
-		display: none;
-	}
 }
 
 .b-map-legend__row {

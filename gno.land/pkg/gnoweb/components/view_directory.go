@@ -12,6 +12,21 @@ type DirData struct {
 	Readme      Component
 	// Header heads an explorer listing (ui/listing_header).
 	Header ListingHeader
+	// Rail is an explorer listing's side rail (ui/listing_rail).
+	Rail Component
+	// Map is the listing drawn as a map; nil renders it as a list.
+	Map Component
+}
+
+// MapParts are what a map adds to a listing: the figure in the body, and its
+// key in the rail.
+type MapParts struct {
+	Figure, Key Component
+}
+
+// listingRail is the payload of ui/listing_rail.
+type listingRail struct {
+	Key Component
 }
 
 // ListingHeader heads a directory listing in either rendering, list or map.
@@ -81,15 +96,24 @@ func DirectoryView(pkgPath string, files []string, fileCounter int, linkType Dir
 	return NewTemplateView(DirectoryViewType, "renderDir", viewData)
 }
 
-// ExplorerView lists the package paths under pkgPath. truncated says the node
-// stopped at its cap, which the view then states rather than letting the list
-// pass for complete.
-func ExplorerView(pkgPath string, paths []string, truncated bool) *View {
-	return NewTemplateView(DirectoryViewType, "renderDir", DirData{
+// ExplorerView renders the package paths under pkgPath, as a list, or as a
+// map when m is set: one page, one header and one rail for both renderings.
+// truncated says the node stopped at its cap, which the view then states
+// rather than letting the listing pass for complete.
+func ExplorerView(pkgPath string, paths []string, truncated bool, m *MapParts) *View {
+	data := DirData{
 		PkgPath:     pkgPath,
 		FilesLinks:  buildFilesLinks(paths, DirLinkTypeFile, pkgPath),
 		FileCounter: len(paths),
 		Mode:        ViewModeExplorer,
 		Header:      NewListingHeader(pkgPath, len(paths), truncated),
-	})
+	}
+	rail := listingRail{}
+	if m != nil {
+		data.Map, rail.Key = m.Figure, m.Key
+	}
+	data.Rail = NewTemplateComponent("ui/listing_rail", rail)
+	view := NewTemplateView(DirectoryViewType, "renderDir", data)
+	view.SkipTargetInBody = true // on the content header
+	return view
 }

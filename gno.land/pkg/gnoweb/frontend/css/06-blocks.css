@@ -3820,23 +3820,23 @@ main.is-dev-mode > section:has(.c-overview-view) {
 }
 
 /* ===== DEPENDENCY GRAPH (ui/pkg_graph) ===== */
-/* The package between what it imports and what imports it. The two lists are
-   bracketed by a rule on the side facing the package, joined to it by a short
-   stub on each side: a graph read from left to right, with no geometry to
-   compute. Stacked below --lg, where the brackets turn to the top edge. */
+/* The package between what it imports and what imports it, read left to
+   right. From --lg it is two rows: the titles on one line, then the lists,
+   each bracketed by a rule on the side facing the package. The brackets run
+   the row's full height and the package sits at its middle, so the stubs
+   joining them always meet, however long either side runs. Each side spans
+   both rows through a subgrid. Below --lg the sides stack. */
 .b-depgraph {
 	--depgraph-gap: var(--g-space-6);
 	--depgraph-rule: 2px solid var(--s-color-border-secondary);
 
 	display: grid;
 	gap: var(--g-space-4);
-	/* Both sides start at the top, so their titles share a line however long
-	   either list runs. */
-	align-items: start;
 
 	@media (--lg) {
 		grid-template-columns: minmax(0, 1fr) auto;
-		gap: 0;
+		grid-template-rows: auto 1fr;
+		gap: var(--g-space-2) 0;
 	}
 }
 
@@ -3855,12 +3855,30 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	border-block-start: var(--depgraph-rule);
 
 	@media (--lg) {
+		display: grid;
+		grid-row: span 2;
+		grid-template-rows: subgrid;
 		padding-block-start: 0;
 		border-block-start: none;
 	}
 }
 
+.b-depgraph__body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+	min-width: 0;
+}
+
+/* Columns are named outright: the package's explicit row would otherwise
+   place it first, in the first column, ahead of the auto-placed sides. */
 .b-depgraph__side--in {
+	@media (--lg) {
+		grid-column: 1;
+	}
+}
+
+.b-depgraph__side--in .b-depgraph__body {
 	@media (--lg) {
 		padding-inline-end: var(--depgraph-gap);
 		border-inline-end: var(--depgraph-rule);
@@ -3869,8 +3887,16 @@ main.is-dev-mode > section:has(.c-overview-view) {
 
 .b-depgraph__side--out {
 	@media (--lg) {
-		padding-inline-start: var(--depgraph-gap);
-		border-inline-start: var(--depgraph-rule);
+		grid-column: 3;
+
+		& .b-depgraph__title {
+			padding-inline-start: var(--depgraph-gap);
+		}
+
+		& .b-depgraph__body {
+			padding-inline-start: var(--depgraph-gap);
+			border-inline-start: var(--depgraph-rule);
+		}
 	}
 }
 
@@ -3918,11 +3944,12 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		font-weight: var(--g-font-semibold);
 	}
 
-	/* The stubs joining each bracket to the package, level with the first
-	   rows rather than the middle of the longer side. */
+	/* The stubs joining each bracket to the package. */
 	@media (--lg) {
+		grid-row: 2;
+		grid-column: 2;
+		align-self: center;
 		justify-self: center;
-		margin-block-start: var(--g-space-8);
 
 		&::before,
 		.b-depgraph--both &::after {

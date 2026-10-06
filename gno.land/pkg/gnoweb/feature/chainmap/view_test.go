@@ -2,16 +2,21 @@ package chainmap
 
 import (
 	"context"
+	"io"
 	"strings"
 	"testing"
 	"time"
 )
 
+// render draws a listing's map, figure and key, as the listing page would.
 func render(t *testing.T, h *Handler, l Listing) string {
 	t.Helper()
+	parts := h.Map(context.Background(), l)
 	var b strings.Builder
-	if err := h.MapView(context.Background(), l).Render(&b); err != nil {
-		t.Fatalf("render: %v", err)
+	for _, c := range []interface{ Render(io.Writer) error }{parts.Figure, parts.Key} {
+		if err := c.Render(&b); err != nil {
+			t.Fatalf("render: %v", err)
+		}
 	}
 	return b.String()
 }
@@ -27,7 +32,7 @@ func TestMapWithoutIndexerSaysNothingAboutActivity(t *testing.T) {
 			t.Errorf("map without an indexer mentions %q", absent)
 		}
 	}
-	for _, want := range []string{`href="/r/a/x"`, `href="/r/a/y"`, `href="/r/b"`, `href="/r/a/$map"`, "3 Packages"} {
+	for _, want := range []string{`href="/r/a/x"`, `href="/r/a/y"`, `href="/r/b"`, `href="/r/a/$map"`, `data-listing-item data-name="/r/b"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("map lacks %q", want)
 		}
@@ -53,15 +58,6 @@ func TestMapEscapesPaths(t *testing.T) {
 	out := render(t, New(Deps{Imports: fakeImports{}}), Listing{Path: "/r", Paths: []string{`/r/x/"><script>alert(1)</script>`}})
 	if strings.Contains(out, "<script>") {
 		t.Fatal("a path reached the page unescaped")
-	}
-}
-
-func TestMapSaysWhenTheListingIsTruncated(t *testing.T) {
-	t.Parallel()
-
-	out := render(t, New(Deps{Imports: fakeImports{}}), Listing{Path: "/r", Paths: []string{"/r/a"}, Truncated: true})
-	if !strings.Contains(out, "Only the first 1 paths are listed") {
-		t.Error("a truncated listing must say so on the map too")
 	}
 }
 

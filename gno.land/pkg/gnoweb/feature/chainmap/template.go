@@ -17,7 +17,7 @@ var templateFS embed.FS
 // pages say each exactly as the list and the overview do.
 var pageTemplate = template.Must(template.Must(
 	template.New("chainmap").ParseFS(templateFS, "templates/*.html"),
-).ParseFS(components.SharedPartialsFS(), "listing_header.html", "listing_truncated.html", "indexer_status.html", "pkg_graph.html"))
+).ParseFS(components.SharedPartialsFS(), "indexer_status.html", "pkg_graph.html"))
 
 // pageComponent renders one of this feature's pages, so IndexLayout wraps it
 // in the standard chrome without components knowing the template.

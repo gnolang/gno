@@ -1,39 +1,34 @@
 {{/* ===================================================================================
-LAYOUT - Map of a directory listing
+UI - Map figure
 
-The same listing the list view renders, drawn as a treemap: namespaces, then
-the next path segment, then packages. Server-rendered and script-free. The SVG
-draws in a fixed 1600 × 1000 space it scales to its width, so every label was
+The listing the list view renders, drawn as a treemap: namespaces, then the
+next path segment, then packages. Server-rendered and script-free. The SVG
+draws in a fixed 960 × 600 space it scales to its width, so every label was
 fitted to its box on the server; geometry rides on attributes, since gnoweb's
 Content-Security-Policy drops inline styles. Every tile is a link named by its
-<title>, and every named box that holds more links to its own map.
+<title>, and every named box that holds more links to its own map. The page
+around it, header and rail included, is the directory view's.
 =================================================================================== */}}
-{{ define "renderMap" }}
-<article class="b-map-view u-grid-full">
-  {{ template "ui/listing_header" .Header }}
-
-  <div class="b-map-frame">
-    <svg class="b-map" viewBox="0 0 1600 1000" role="group" aria-label="Packages under {{ .Header.Path }}">
-      {{- range .Groups }}
-      <g class="b-map__group {{ .HueClass }}">
-        {{- range .Subgroups }}
-        {{- range .Tiles }}
-        <a class="b-map__tile {{ .ShadeClass }}" href="{{ .Path }}"><title>{{ .Title }}</title><rect x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
-          {{- with .Label }}<text x="{{ .X }}" y="{{ .Y }}">{{ .Text }}</text>{{ end }}</a>
-        {{- end }}
-        {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
-        <rect class="b-map__sub-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
-        {{- end }}
-        {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
-        <rect class="b-map__group-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
-      </g>
+{{ define "chainmap/figure" }}
+<div class="b-map-frame">
+  <svg class="b-map" viewBox="0 0 960 600" role="group" aria-label="Packages under {{ .Root }}">
+    {{- range .Groups }}
+    <g class="b-map__group {{ .HueClass }}">
+      {{- range .Subgroups }}
+      {{- range .Tiles }}
+      <a class="b-map__tile {{ .ShadeClass }}" href="{{ .Path }}" data-listing-item data-name="{{ .Path }}"><title>{{ .Title }}</title><rect x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+        {{- with .Label }}<text x="{{ .X }}" y="{{ .Y }}">{{ .Text }}</text>{{ end }}</a>
       {{- end }}
-    </svg>
-  </div>
-
-  {{ template "chainmap/legend" . }}
-  {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
-</article>
+      {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
+      <rect class="b-map__sub-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+      {{- end }}
+      {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
+      <rect class="b-map__group-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+    </g>
+    {{- end }}
+  </svg>
+</div>
+<p class="b-map-scroll-hint">Scroll sideways to see the whole map.</p>
 {{ end }}
 
 
@@ -48,12 +43,13 @@ Content-Security-Policy drops inline styles. Every tile is a link named by its
 
 
 {{/* ===================================================================================
-UI - Legend: what the map measures and, for activity, what it could not.
+UI - Key: what the map measures and, for activity, what it could not. It sits
+in the listing's rail.
 =================================================================================== */}}
-{{ define "chainmap/legend" }}
-<div class="b-map-legend" role="note">
+{{ define "chainmap/key" }}
+<section class="b-map-legend" aria-labelledby="map-key-heading">
+  <h3 id="map-key-heading" class="b-sidebar-heading">Map key</h3>
   <p>Area counts packages. Each box groups a path segment; select its name to map it.</p>
-  <p class="b-map-legend__scroll-hint">Scroll sideways to see the whole map.</p>
   {{ with .Window }}
   <p class="b-map-legend__row">
     <span class="b-tag b-tag--indexer">indexer</span>
@@ -76,5 +72,6 @@ UI - Legend: what the map measures and, for activity, what it could not.
   <p>Pure packages are not called directly, so this map shows no call activity.</p>
   {{ end }}
   {{ end }}
-</div>
+  {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
+</section>
 {{ end }}

@@ -46,6 +46,8 @@ type HeaderData struct {
 	Origin string
 	AI     *AIMenu
 	Notice RealmNotice
+	// Listing is set on a directory listing, whose tabs it carries.
+	Listing *ListingTabs
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -161,7 +163,7 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	case static:
 		return []HeaderLink{contentLink}
 	case mode == ViewModeExplorer:
-		return explorerLinks(u)
+		return []HeaderLink{}
 	case mode == ViewModeUser:
 		return []HeaderLink{contentLink}
 	case mode == ViewModePackage:
@@ -171,29 +173,37 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	}
 }
 
-// explorerLinks are the two renderings of a directory listing. Only a realm or
-// pure prefix has a listing: chain-wide search results run in explorer mode
-// too, and a map of "/" does not exist.
-func explorerLinks(u weburl.GnoURL) []HeaderLink {
-	if !u.IsRealm() && !u.IsPure() {
-		return []HeaderLink{}
+// ListingTabs are the renderings a directory listing offers, set by the
+// listing page itself: nothing else in explorer mode is a listing.
+type ListingTabs struct {
+	// Map is false for a listing too small for a map to show anything a list
+	// does not.
+	Map bool
+}
+
+// links are the Directory and Map tabs, or none when a map is not offered: a
+// single tab would choose between nothing.
+func (t *ListingTabs) links(u weburl.GnoURL) []HeaderLink {
+	if t == nil || !t.Map {
+		return nil
 	}
 	listURL, mapURL := u, u
 	listURL.WebQuery = url.Values{}
 	mapURL.WebQuery = url.Values{"map": {""}}
+	onMap := u.WebQuery.Has("map")
 	return []HeaderLink{
 		{
-			Label:    "List",
+			Label:    "Directory",
 			URL:      listURL.EncodeWebURL(),
-			Icon:     "ico-list",
-			IsActive: isActive(u.WebQuery, "List"),
+			Icon:     "ico-folder",
+			IsActive: !onMap,
 			Tooltip:  "Every package under this path, one per line.",
 		},
 		{
 			Label:    "Map",
 			URL:      mapURL.EncodeWebURL(),
 			Icon:     "ico-grid",
-			IsActive: isActive(u.WebQuery, "Map"),
+			IsActive: onMap,
 			Tooltip:  "The same packages drawn as a map, grouped by path.",
 		},
 	}
@@ -208,6 +218,9 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	}
 	data.SearchAction = searchBase + "$search"
 	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
+	if mode == ViewModeExplorer {
+		data.Links.Dev = data.Listing.links(data.RealmURL)
+	}
 	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
 		data.AI = NewAIMenu(data.Origin, data.RealmURL)
 	}
@@ -231,10 +244,6 @@ func isActive(webQuery url.Values, label string) bool {
 		return webQuery.Has("source") || webQuery.Has("deps")
 	case "Actions":
 		return webQuery.Has("help")
-	case "List":
-		return !webQuery.Has("map")
-	case "Map":
-		return webQuery.Has("map")
 	default:
 		return false
 	}

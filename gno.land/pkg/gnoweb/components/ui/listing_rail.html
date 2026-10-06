@@ -1,0 +1,21 @@
+{{/* ===================================================================================
+UI - Listing rail
+
+The right-hand rail of a directory listing, under the tabs as a realm's table of
+contents is: a filter over the listing, in either rendering, and the map's key
+when the listing is drawn as one. The filter is the overview's own: without
+JavaScript it does nothing and the listing stays whole.
+=================================================================================== */}}
+{{ define "ui/listing_rail" }}
+<div class="c-stack">
+  <div class="state-search b-input" role="search">
+    <input type="search" placeholder="Filter packages"
+           data-controller="filter"
+           data-filter-items-value="[data-listing-item]"
+           data-action="input->filter#filter"
+           aria-label="Filter packages">
+    <svg class="c-icon" aria-hidden="true"><use href="#ico-search"></use></svg>
+  </div>
+  {{ with .Key }}{{ render . }}{{ end }}
+</div>
+{{ end }}

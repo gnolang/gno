@@ -10,11 +10,13 @@ lists around a name.
 <div class="b-depgraph{{ if or .Importers .LookupURL }} b-depgraph--both{{ end }}">
   <section class="b-depgraph__side b-depgraph__side--in" aria-label="Imports">
     <h3 class="b-depgraph__title">Imports <span class="b-tag--tertiary">{{ len .Imports }}</span></h3>
-    {{ with .Imports }}
-    {{ template "ui/pkg_import_list" . }}
-    {{ else }}
-    <p class="b-depgraph__empty">Imports nothing.</p>
-    {{ end }}
+    <div class="b-depgraph__body">
+      {{ with .Imports }}
+      {{ template "ui/pkg_import_list" . }}
+      {{ else }}
+      <p class="b-depgraph__empty">Imports nothing.</p>
+      {{ end }}
+    </div>
   </section>
 
   <div class="b-depgraph__self"><span class="u-font-mono">{{ .Name }}</span></div>
@@ -26,6 +28,7 @@ lists around a name.
       {{ with .Importers }}{{ if and (not .Unavailable) (or .Links (not (or .Capped .Retry))) }}<span class="b-tag--tertiary">{{ if or .Capped .Retry }}at least {{ end }}{{ len .Links }}</span>{{ end }}{{ end }}
       <span class="b-tag b-tag--indexer">indexer</span>
     </h3>
+    <div class="b-depgraph__body">
     {{ with .Importers }}
     {{ if .Unavailable }}
     <p class="b-depgraph__empty" role="status">{{ .Unavailable }}</p>
@@ -47,6 +50,7 @@ lists around a name.
     {{ else }}
     <a class="b-btn b-btn--secondary" href="{{ .LookupURL }}" rel="nofollow">Find the packages that import it</a>
     {{ end }}
+    </div>
   </section>
   {{ end }}
 </div>

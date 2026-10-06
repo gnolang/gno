@@ -266,30 +266,9 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 		Path: "/r/test/pkg",
 	}
 
-	// A directory listing renders as a list or a map; the tabs switch the
-	// rendering and keep the path.
+	// Test explorer mode
 	links := StaticHeaderDevLinks(u, ViewModeExplorer, false)
-	require.Len(t, links, 2, "expected List and Map links in explorer mode")
-	assert.Equal(t, "List", links[0].Label)
-	assert.Equal(t, "/r/test/pkg", links[0].URL)
-	assert.True(t, links[0].IsActive, "List is the default rendering")
-	assert.Equal(t, "Map", links[1].Label)
-	assert.Equal(t, "/r/test/pkg$map", links[1].URL)
-	assert.False(t, links[1].IsActive)
-
-	u.WebQuery = url.Values{"map": {""}}
-	links = StaticHeaderDevLinks(u, ViewModeExplorer, false)
-	assert.False(t, links[0].IsActive, "List must not be active on the map")
-	assert.True(t, links[1].IsActive, "Map must be active on the map")
-}
-
-// Chain-wide search results run in explorer mode but list no directory: a
-// map of "/" does not exist, so neither tab may be offered there.
-func TestStaticHeaderDevLinks_ExplorerOutsideAPackagePrefix(t *testing.T) {
-	t.Parallel()
-
-	links := StaticHeaderDevLinks(weburl.GnoURL{Path: "/"}, ViewModeExplorer, false)
-	assert.Empty(t, links)
+	assert.Empty(t, links, "expected no links in explorer mode")
 }
 
 func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
@@ -321,7 +300,7 @@ func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 	enriched := EnrichHeaderData(data, ViewModeExplorer)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Len(t, enriched.Links.Dev, 2, "expected List and Map links in explorer mode")
+	assert.Empty(t, enriched.Links.Dev, "expected no dev links in explorer mode")
 }
 
 func TestViewModePredicates(t *testing.T) {
@@ -851,4 +830,30 @@ func TestIndexLayout_FontPreloadsMatchStylesheet(t *testing.T) {
 		matched++
 	}
 	require.NotZero(t, matched, "expected the head to preload at least one stylesheet font")
+}
+
+// A listing offers Directory and Map; one too small for a map offers no tab
+// at all, since a single tab would choose between nothing. Explorer pages that
+// are not listings, such as chain-wide search, carry no Listing and no tabs.
+func TestEnrichHeaderData_ListingTabs(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{Path: "/r/demo"}
+	tabs := EnrichHeaderData(HeaderData{RealmURL: u, Listing: &ListingTabs{Map: true}}, ViewModeExplorer).Links.Dev
+	require.Len(t, tabs, 2)
+	assert.Equal(t, "Directory", tabs[0].Label)
+	assert.Equal(t, "/r/demo", tabs[0].URL)
+	assert.True(t, tabs[0].IsActive)
+	assert.Equal(t, "/r/demo$map", tabs[1].URL)
+	assert.False(t, tabs[1].IsActive)
+
+	u.WebQuery = url.Values{"map": {""}}
+	tabs = EnrichHeaderData(HeaderData{RealmURL: u, Listing: &ListingTabs{Map: true}}, ViewModeExplorer).Links.Dev
+	assert.False(t, tabs[0].IsActive)
+	assert.True(t, tabs[1].IsActive)
+
+	assert.Empty(t, EnrichHeaderData(HeaderData{RealmURL: u, Listing: &ListingTabs{}}, ViewModeExplorer).Links.Dev,
+		"a listing too small for a map has no tabs")
+	assert.Empty(t, EnrichHeaderData(HeaderData{RealmURL: weburl.GnoURL{Path: "/"}}, ViewModeExplorer).Links.Dev,
+		"an explorer page that is not a listing has no tabs")
 }

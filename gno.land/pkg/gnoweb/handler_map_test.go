@@ -44,7 +44,7 @@ var (
 func TestHTTPHandler_MapAndListShowTheSameListing(t *testing.T) {
 	t.Parallel()
 
-	h := newMapHandler(t, "/r/demo/a", "/r/demo/b/c", "/r/other/x", "/p/demo/lib")
+	h := newMapHandler(t, append(manyPaths("/r/demo/p", 10), "/r/other/x", "/p/demo/lib")...)
 
 	list := serve(t, h, "/r/")
 	mapped := serve(t, h, "/r/$map")
@@ -61,7 +61,7 @@ func TestHTTPHandler_MapAndListShowTheSameListing(t *testing.T) {
 	}
 	slices.Sort(listed)
 	slices.Sort(tiles)
-	want := []string{"/r/demo/a", "/r/demo/b/c", "/r/other/x"}
+	want := append(manyPaths("/r/demo/p", 10), "/r/other/x")
 	if !slices.Equal(listed, want) || !slices.Equal(tiles, want) {
 		t.Fatalf("list = %v, map = %v, want both %v", listed, tiles, want)
 	}
@@ -72,8 +72,8 @@ func TestHTTPHandler_MapAndListShowTheSameListing(t *testing.T) {
 func TestHTTPHandler_ExplorerHasListAndMapTabs(t *testing.T) {
 	t.Parallel()
 
-	h := newMapHandler(t, "/r/demo/a")
-	for path, active := range map[string]string{"/r/demo": "List", "/r/demo$map": "Map"} {
+	h := newMapHandler(t, manyPaths("/r/demo/p", 10)...)
+	for path, active := range map[string]string{"/r/demo": "Directory", "/r/demo$map": "Map"} {
 		body := serve(t, h, path).Body.String()
 		if !strings.Contains(body, `href="/r/demo"`) || !strings.Contains(body, `href="/r/demo$map"`) {
 			t.Errorf("%s: missing the List or Map tab", path)
@@ -94,13 +94,7 @@ func TestHTTPHandler_ListingSaysWhenItStops(t *testing.T) {
 	t.Parallel()
 
 	const listCap = 1000 // gnoweb's maxListedPaths
-	paths := func(n int) []string {
-		out := make([]string, n)
-		for i := range out {
-			out[i] = fmt.Sprintf("/r/many/p%04d", i)
-		}
-		return out
-	}
+	paths := func(n int) []string { return manyPaths("/r/many/p", n) }
 
 	full := newMapHandler(t, paths(listCap)...)
 	over := newMapHandler(t, paths(listCap+1)...)
@@ -122,7 +116,7 @@ func TestHTTPHandler_ListingSaysWhenItStops(t *testing.T) {
 func TestHTTPHandler_MapStatuses(t *testing.T) {
 	t.Parallel()
 
-	h := newMapHandler(t, "/r/demo/a")
+	h := newMapHandler(t, append(manyPaths("/r/demo/p", 10), "/r/demo/a")...)
 	cases := map[string]int{
 		"/r/demo$map":    http.StatusOK,
 		"/r/demo/a$map":  http.StatusNotFound, // nothing below the package
@@ -141,11 +135,56 @@ func TestHTTPHandler_MapStatuses(t *testing.T) {
 func TestHTTPHandler_NoMapOnAPackageWithSubpackages(t *testing.T) {
 	t.Parallel()
 
-	h := newMapHandler(t, "/p/demo/lib", "/p/demo/lib/sub")
+	h := newMapHandler(t, append(manyPaths("/p/demo/lib/sub", 10), "/p/demo/lib")...)
 	if got := serve(t, h, "/p/demo/lib$map").Code; got != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404 on a package path", got)
 	}
 	if got := serve(t, h, "/p/demo$map").Code; got != http.StatusOK {
 		t.Fatalf("status = %d, want 200 on the listing above it", got)
+	}
+}
+
+// manyPaths returns n package paths prefix0000, prefix0001, …: enough for a
+// listing to offer a map.
+func manyPaths(prefix string, n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = fmt.Sprintf("%s%04d", prefix, i)
+	}
+	return out
+}
+
+// A listing too small for a map offers no tabs, and asking for its map draws
+// the list: a map of a few packages shows nothing the list does not.
+func TestHTTPHandler_SmallListingHasNoMap(t *testing.T) {
+	t.Parallel()
+
+	h := newMapHandler(t, "/r/demo/a", "/r/demo/b")
+	for _, path := range []string{"/r/demo", "/r/demo$map"} {
+		rr := serve(t, h, path)
+		body := rr.Body.String()
+		if rr.Code != http.StatusOK || !strings.Contains(body, `class="b-list"`) {
+			t.Errorf("%s: status %d, want the list", path, rr.Code)
+		}
+		if strings.Contains(body, `<span class="link-label">Map<`) || strings.Contains(body, "b-map") {
+			t.Errorf("%s: a small listing must offer no map", path)
+		}
+	}
+}
+
+// The listing sits on the realm grid: a rail with the filter, beside the
+// content, in both renderings.
+func TestHTTPHandler_ListingHasARailWithAFilter(t *testing.T) {
+	t.Parallel()
+
+	h := newMapHandler(t, manyPaths("/r/demo/p", 10)...)
+	for _, path := range []string{"/r/demo", "/r/demo$map"} {
+		body := serve(t, h, path).Body.String()
+		if !strings.Contains(body, `class="b-sidebar sidebar"`) || !strings.Contains(body, `data-filter-items-value="[data-listing-item]"`) {
+			t.Errorf("%s: no listing rail with its filter", path)
+		}
+	}
+	if body := serve(t, h, "/r/demo$map").Body.String(); !strings.Contains(body, "Map key") {
+		t.Error("the map's key belongs in the rail")
 	}
 }

@@ -37,7 +37,8 @@ const (
 
 // MapData is the render payload for templates/map.html.
 type MapData struct {
-	Header components.ListingHeader
+	// Root is the listing's root, ending with a slash.
+	Root   string
 	Groups []*Group
 
 	// Activity is empty when no indexer is configured: the legend then says
@@ -50,28 +51,31 @@ type MapData struct {
 	Indexer *components.IndexerStatus
 }
 
-// MapView builds the map of a listing.
-func (h *Handler) MapView(ctx context.Context, l Listing) *components.View {
-	root := strings.TrimSuffix(l.Path, "/")
-	data := MapData{
-		Header: components.NewListingHeader(root, len(l.Paths), l.Truncated),
-		Groups: buildGroups(root+"/", l.Paths),
-	}
+// MinPackages is the smallest listing worth a map: below it a map shows
+// nothing the list does not, so the listing offers no map at all.
+const MinPackages = 10
+
+// Map draws a listing: the figure for the listing's body and its key for the
+// listing's rail. The page around them is the directory view's own.
+func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
+	root := strings.TrimSuffix(l.Path, "/") + "/"
+	data := &MapData{Root: root, Groups: buildGroups(root, l.Paths)}
 	layout(data.Groups)
 
 	if h.activity != nil {
-		h.addActivity(ctx, &data)
+		h.addActivity(ctx, data)
 	}
-	data.eachTile(func(t *Tile) { t.Title = tileTitle(*t, data) })
-	// The directory view's own type: the map is that view, drawn. It shares
-	// the list's chrome, and its analytics page type.
-	return &components.View{Type: components.DirectoryViewType, Component: &pageComponent{name: "renderMap", data: data}}
+	data.eachTile(func(t *Tile) { t.Title = tileTitle(*t, *data) })
+	return components.MapParts{
+		Figure: &pageComponent{name: "chainmap/figure", data: data},
+		Key:    &pageComponent{name: "chainmap/key", data: data},
+	}
 }
 
 // addActivity colours the tiles with the window's calls, or says why it
 // cannot.
 func (h *Handler) addActivity(ctx context.Context, data *MapData) {
-	if !strings.HasPrefix(data.Header.Path, "/r/") {
+	if !strings.HasPrefix(data.Root, "/r/") {
 		data.Activity = ActivityNotCalled
 		return
 	}
