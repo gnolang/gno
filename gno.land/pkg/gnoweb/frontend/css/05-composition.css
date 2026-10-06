@@ -407,14 +407,112 @@
 	   paragraph it is a <span>, which must still break the line. */
 	.math-display {
 		display: block;
+		white-space: pre-wrap;
 	}
 
+	/* The math renderer sets no inline style (the page CSP blocks them):
+	   what the MathML attributes leave to CSS comes from the classes below.
+	   Sizes are in em so that math follows the text it sits in. */
 	math {
-		font-family: var(--g-font-family-mono);
-		font-size: var(--g-font-size-300);
+		font-family: math;
+		font-size: 1.1em;
+		font-feature-settings: "dtls" off;
 
 		&[display="block"] {
-			margin-block: var(--cr-space-4);
+			/* A formula wider than the column scrolls instead of widening
+			   the page, as code blocks and tables do. The scroll box would
+			   clip the glyphs that reach past the formula's box (limits,
+			   italic descenders): the padding gives them room, and takes
+			   its share of the margin so the spacing stays the same. */
+			max-width: 100%;
+			overflow-x: auto;
+			overflow-y: hidden;
+			margin-block: var(--cr-space-2);
+			padding-block: var(--cr-space-2);
+		}
+
+		/* \text and the like are prose, set in the body font; the letters
+		   of the \TeX and \LaTeX logos keep the math font. */
+		& mtext {
+			font-family: var(--g-font-family-inter-var);
+		}
+
+		& mrow:has(> .math-tex-kern-te) mtext {
+			font-family: inherit;
+		}
+
+		/* An unknown command or a missing argument. */
+		& merror {
+			color: var(--s-color-text-caution);
+			background-color: var(--s-color-bg-caution-weak);
+			border: var(--g-space-px) solid var(--s-color-border-error);
+			border-radius: var(--g-border-radius-sm);
+		}
+
+		/* Dotless i and j under an accent. */
+		& .math-dtls-on {
+			font-feature-settings: "dtls" on;
+		}
+
+		/* \color and \textcolor, restricted to these theme colours. */
+		& .math-color-red {
+			color: var(--s-color-text-caution);
+		}
+
+		& .math-color-orange {
+			color: var(--s-color-math-orange);
+		}
+
+		& .math-color-green {
+			color: var(--s-color-text-success);
+		}
+
+		& .math-color-blue {
+			color: var(--s-color-text-info);
+		}
+
+		& .math-color-purple {
+			color: var(--s-color-text-tip);
+		}
+
+		& .math-color-gray {
+			color: var(--s-color-text-tertiary);
+		}
+
+		/* \varliminf and \varlimsup. */
+		& .math-liminf {
+			padding: 0 0 0.1em 0;
+			border-bottom: 0.065em solid;
+		}
+
+		& .math-limsup {
+			padding: 0.1em 0 0 0;
+			border-top: 0.065em solid;
+		}
+
+		/* Kerning of the \TeX and \LaTeX logos. */
+		& .math-latex-kern-la {
+			margin-left: -0.35em;
+		}
+
+		& .math-latex-a {
+			padding: 0.2em 0 0 0;
+		}
+
+		& .math-latex-kern-at {
+			margin-left: -0.15em;
+		}
+
+		& .math-tex-kern-te {
+			margin-left: -0.1667em;
+		}
+
+		& .math-tex-e {
+			padding: 0 0 0.2155em 0;
+		}
+
+		& .math-tex-kern-ex {
+			margin-left: -0.125em;
 		}
 
 		/* Table cell alignment, set by the math renderer as columnalign.
@@ -491,7 +589,7 @@
 
 	/* ===== CODE ELEMENTS ===== */
 
-	:is(pre, code) {
+	:is(pre, code, .math-inline, .math-display) {
 		font-family: var(--g-font-family-mono);
 	}
 
@@ -504,7 +602,9 @@
 		overflow-x: auto;
 	}
 
-	:not(pre) > code {
+	/* Math the renderer could not convert shows its source as code. */
+	:not(pre) > code,
+	:is(.math-inline, .math-display) {
 		font-size: 0.96em;
 		padding: var(--cr-space-0-5) var(--cr-space-1);
 		border-radius: var(--g-border-radius-sm);

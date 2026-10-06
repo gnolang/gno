@@ -307,4 +307,8 @@
 	--g-color-purple-600: oklch(0.4994 0.2025 292.73); /* #6C3EC9 - Tip alert color */
 	--g-color-purple-900: oklch(0.3245 0.1221 293.31); /* #39216B */
 	--g-color-purple-950: oklch(0.27 0.055 293); /* Deep purple tint */
+
+	/* Orange scale */
+	--g-color-orange-400: oklch(0.78 0.15 62); /* #FB9F44 */
+	--g-color-orange-600: oklch(0.5 0.13 55); /* #994A00 */
 }
