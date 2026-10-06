@@ -1,7 +1,6 @@
 package mathml
 
 import (
-	"maps"
 	"slices"
 	"strings"
 )
@@ -54,7 +53,7 @@ type MMLNode struct {
 	Tag        string            // the value of the MathML tag, e.g. <mrow>, <msqrt>, <mo>....
 	Option     string            // container for any options that may be passed and processed for a tex command
 	Properties NodeProperties    // bitfield of NodeProperties
-	Attrib     map[string]string // key value pairs of XML attributes
+	Attrib     map[string]string // key value pairs of XML attributes; nil until one is set
 	Children   []*MMLNode        // ordered list of child MathML elements
 }
 
@@ -83,20 +82,17 @@ func NewMMLNode(opt ...string) *MMLNode {
 		Tag:      tagText[0],
 		Text:     tagText[1],
 		Children: make([]*MMLNode, 0),
-		Attrib:   make(map[string]string),
 	}
 }
 
 // set the attribute name to "true"
 func (n *MMLNode) SetTrue(name string) *MMLNode {
-	n.Attrib[name] = "true"
-	return n
+	return n.SetAttr(name, "true")
 }
 
 // set the attribute name to "false"
 func (n *MMLNode) SetFalse(name string) *MMLNode {
-	n.Attrib[name] = "false"
-	return n
+	return n.SetAttr(name, "false")
 }
 
 // remove the attribute entirely
@@ -107,6 +103,10 @@ func (n *MMLNode) UnsetAttr(name string) *MMLNode {
 
 // SetAttr sets the attribute name to "value" and returns the same MMLNode.
 func (n *MMLNode) SetAttr(name, value string) *MMLNode {
+	if n.Attrib == nil {
+		// Most nodes have no attribute: the map is allocated on first use.
+		n.Attrib = make(map[string]string, 2)
+	}
 	n.Attrib[name] = value
 	return n
 }
@@ -177,8 +177,15 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 	w.WriteRune('<')
 	w.WriteString(tag)
 
-	// Sort attributes for deterministic output.
-	for _, key := range slices.Sorted(maps.Keys(n.Attrib)) {
+	// Sort attributes for deterministic output. Nodes have few attributes:
+	// sorting them in a stack buffer saves an allocation per node.
+	var buf [8]string
+	keys := buf[:0]
+	for key := range n.Attrib {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
 		if !isAttrName(key) {
 			continue
 		}

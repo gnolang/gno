@@ -28,7 +28,7 @@ func (n *MMLNode) set_variants_from_context(context parseContext) {
 	var variant string
 	switch isolateMathVariant(context) {
 	case ctxVarNormal:
-		n.Attrib["mathvariant"] = "normal"
+		n.SetAttr("mathvariant", "normal")
 		return
 	case ctxVarBb:
 		variant = "double-struck"
@@ -60,10 +60,10 @@ func (n *MMLNode) set_variants_from_context(context parseContext) {
 	switch isolateMathVariant(context) {
 	case ctxVarScriptChancery:
 		variationselector = 0xfe00
-		n.Attrib["class"] = "mathcal"
+		n.SetAttr("class", "mathcal")
 	case ctxVarScriptRoundhand:
 		variationselector = 0xfe01
-		n.Attrib["class"] = "mathscr"
+		n.SetAttr("class", "mathscr")
 	}
 	if variationselector > 0 {
 		temp := make([]rune, 0)

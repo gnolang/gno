@@ -1,7 +1,6 @@
 package mathml
 
 import (
-	"maps"
 	"strconv"
 	"strings"
 )
@@ -110,13 +109,13 @@ func processTable(table *MMLNode, env string) {
 	if table == nil {
 		return
 	}
-	table.Attrib["columnalign"] = "center" //default
+	table.SetAttr("columnalign", "center") // default
 	align, lines := parseAlignmentString(table.Option)
 	if len(align) > 0 {
-		table.Attrib["columnalign"] = strings.Join(align, " ")
+		table.SetAttr("columnalign", strings.Join(align, " "))
 	}
 	if len(lines) > 0 {
-		table.Attrib["columnlines"] = strings.Join(lines, " ")
+		table.SetAttr("columnlines", strings.Join(lines, " "))
 	}
 	rows := make([]*MMLNode, 0)
 	var cellNode *MMLNode
@@ -147,7 +146,7 @@ func processTable(table *MMLNode, env string) {
 			cellNode = NewMMLNode("mtd")
 			cellNode.Children = append(cellNode.Children, cell...)
 			if a := columnAlign(env, align, cidx); a != "" {
-				cellNode.Attrib["columnalign"] = a
+				cellNode.SetAttr("columnalign", a)
 			}
 			width := 1
 			for i, c := range cell {
@@ -160,7 +159,7 @@ func processTable(table *MMLNode, env string) {
 				}
 				if spanstr, ok := c.Attrib["rowspan"]; ok {
 					delete(cellNode.Children[i].Attrib, "rowspan")
-					cellNode.Attrib["rowspan"] = spanstr
+					cellNode.SetAttr("rowspan", spanstr)
 					span, err := strconv.ParseInt(spanstr, 10, 16)
 					if err == nil {
 						rowspans[cidx] = int(span) - 1
@@ -171,12 +170,12 @@ func processTable(table *MMLNode, env string) {
 						// total height of this combined cell:
 						// span + (span-1)/2 = ((3*span)-1)/2
 						minsize := float32((3*span)-1) / 2
-						cellNode.Children[0].Attrib["minsize"] = strconv.FormatFloat(float64(minsize), 'f', 1, 32) + "em"
+						cellNode.Children[0].SetAttr("minsize", strconv.FormatFloat(float64(minsize), 'f', 1, 32)+"em")
 					}
 				}
 				if spanstr, ok := c.Attrib["columnspan"]; ok {
 					delete(cellNode.Children[i].Attrib, "columnspan")
-					cellNode.Attrib["columnspan"] = spanstr
+					cellNode.SetAttr("columnspan", spanstr)
 					span, err := strconv.ParseInt(spanstr, 10, 16)
 					if err == nil {
 						width = int(span)
@@ -187,7 +186,7 @@ func processTable(table *MMLNode, env string) {
 						// Browsers should get this fixed soon.
 						mover := NewMMLNode("mover")
 						mspace := NewMMLNode("mspace")
-						mspace.Attrib["width"] = arrowWidth
+						mspace.SetAttr("width", arrowWidth)
 						mover.AppendChild(c, mspace)
 						cellNode.Children[0] = mover
 					}
@@ -204,10 +203,10 @@ func processTable(table *MMLNode, env string) {
 		rows = append(rows, rowNode)
 	}
 	if nonDefaultSpacing {
-		table.Attrib["rowspacing"] = strings.Join(trim(rowspacing), " ")
+		table.SetAttr("rowspacing", strings.Join(trim(rowspacing), " "))
 	}
 	table.Tag = "mtable"
-	table.Attrib["rowalign"] = "center"
+	table.SetAttr("rowalign", "center")
 	table.Children = rows
 }
 
@@ -251,8 +250,8 @@ func columnAlign(env string, align []string, col int) string {
 // Create a strechy opening or closing parenthesis
 func strechyOP(c string) *MMLNode {
 	n := NewMMLNode("mo", c)
-	n.Attrib["stretchy"] = "true"
-	n.Attrib["fence"] = "true"
+	n.SetAttr("stretchy", "true")
+	n.SetAttr("fence", "true")
 	return n
 }
 
@@ -290,7 +289,9 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 		return node
 	}
 	if node != nil {
-		maps.Copy(node.Attrib, attrib)
+		for k, v := range attrib {
+			node.SetAttr(k, v)
+		}
 	}
 	row.Children = append(row.Children, left, node, right)
 	return row

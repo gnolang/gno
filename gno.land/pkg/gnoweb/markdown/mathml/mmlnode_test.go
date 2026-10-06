@@ -371,3 +371,24 @@ func TestInlineOutputIsCompact(t *testing.T) {
 	assert.Equal(t, 1, strings.Count(out, "\n"))
 	assert.True(t, strings.HasSuffix(out, "</math>\n"), out)
 }
+
+func BenchmarkConvert(b *testing.B) {
+	formulas := []string{
+		`x^2 + y^2 = z^2`,
+		`\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}`,
+		`\sum_{n=1}^{\infty} \frac{1}{n^2} = \frac{\pi^2}{6}`,
+		`\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}`,
+		`\begin{pmatrix} a & b \\ c & d \end{pmatrix}\begin{pmatrix} x \\ y \end{pmatrix}`,
+		`\mathbb{E}[X] = \sum_{i} x_i \, \Pr(X = x_i)`,
+		`\left( \sum_{k=1}^n a_k b_k \right)^2 \le \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)`,
+		`\begin{aligned} f(x) &= (x+1)^2 \\ &= x^2 + 2x + 1 \end{aligned}`,
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		for _, f := range formulas {
+			if _, err := NewMathMLConverter().ConvertDisplay(f); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
