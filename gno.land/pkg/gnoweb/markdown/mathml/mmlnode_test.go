@@ -1,6 +1,8 @@
 package mathml
 
 import (
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -294,4 +296,38 @@ func TestColorIsThemeClass(t *testing.T) {
 	// Empty content does not fail the conversion.
 	_, err := NewMathMLConverter().ConvertInline(`\textcolor{red}{}`)
 	assert.NoError(t, err)
+}
+
+// A mathsize percentage is relative to the enclosing size, so nested size
+// switches multiply; the cumulative size stays within \tiny and \Huge.
+func TestNestedSizeIsBounded(t *testing.T) {
+	sizeRe := regexp.MustCompile(`mathsize="([0-9.]+)%"`)
+	for tex, want := range map[string][]string{
+		`\Huge x`:                     {"248.8"},
+		`\tiny x`:                     {"050.0"},
+		`\Huge \Huge x`:               {"248.8", "100.0"},
+		`\Huge{\Huge{\Huge x}}`:       {"248.8", "100.0", "100.0"},
+		`\large \Huge x`:              {"120.0", "207.3"},
+		`\Huge \tiny x`:               {"248.8", "050.0"},
+		`\tiny \tiny x`:               {"050.0", "100.0"},
+		`\tiny \Huge x`:               {"050.0", "248.8"},
+		`\scriptsize \footnotesize x`: {"070.0", "080.0"},
+		`{\Huge a} {\Huge b}`:         {"248.8", "248.8"},
+	} {
+		out := convertWithin(t, tex, false)
+		var got []string
+		for _, m := range sizeRe.FindAllStringSubmatch(out, -1) {
+			got = append(got, m[1])
+		}
+		assert.Equal(t, want, got, tex)
+	}
+	deep := strings.Repeat(`\Huge{`, 40) + "x" + strings.Repeat("}", 40)
+	out := convertWithin(t, deep, false)
+	scale := 1.0
+	for _, m := range sizeRe.FindAllStringSubmatch(out, -1) {
+		v, err := strconv.ParseFloat(m[1], 64)
+		require.NoError(t, err)
+		scale *= v / 100
+	}
+	assert.LessOrEqual(t, scale, 2.4881)
 }

@@ -96,6 +96,20 @@ var (
 		"huge":              9 << ctxSizeOffset,
 		"Huge":              10 << ctxSizeOffset,
 	}
+	// sizeSwitches gives the scale of each size switch, relative to the
+	// surrounding math.
+	sizeSwitches = map[string]float64{
+		"tiny":         0.5,
+		"scriptsize":   0.7,
+		"footnotesize": 0.8,
+		"small":        0.9,
+		"normalsize":   1,
+		"large":        1.2,
+		"Large":        1.44,
+		"LARGE":        1.728,
+		"huge":         2.074,
+		"Huge":         2.488,
+	}
 	accents = map[string]rune{
 		"acute":          0x00b4,
 		"bar":            0x00af,
@@ -282,6 +296,10 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 			b.Unget()
 			return NewMMLNode("merror", name).SetAttr("title", fmt.Sprintf("%s expects an argument", name))
 		}
+		if size, ok := sizeSwitches[name]; ok {
+			converter.parseSized(switchExpressions, context|sw, n, size)
+			return n
+		}
 		converter.ParseTex(switchExpressions, context|sw, n)
 		switch name {
 		case "displaystyle":
@@ -298,26 +316,6 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 			n.SetAttr("scriptlevel", "2")
 		case "rm":
 			n.SetAttr("mathvariant", "normal")
-		case "tiny":
-			n.SetAttr("mathsize", "050.0%")
-		case "scriptsize":
-			n.SetAttr("mathsize", "070.0%")
-		case "footnotesize":
-			n.SetAttr("mathsize", "080.0%")
-		case "small":
-			n.SetAttr("mathsize", "090.0%")
-		case "normalsize":
-			n.SetAttr("mathsize", "100.0%")
-		case "large":
-			n.SetAttr("mathsize", "120.0%")
-		case "Large":
-			n.SetAttr("mathsize", "144.0%")
-		case "LARGE":
-			n.SetAttr("mathsize", "172.8%")
-		case "huge":
-			n.SetAttr("mathsize", "207.4%")
-		case "Huge":
-			n.SetAttr("mathsize", "248.8%")
 		}
 		return n
 	}
@@ -362,6 +360,30 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	n.set_variants_from_context(context)
 	n.setAttribsFromProperties()
 	return n
+}
+
+// minSize and maxSize bound the size of math under nested size switches,
+// relative to the math around it: a mathsize percentage is relative to the
+// enclosing font, so each nested \Huge would otherwise multiply the size
+// again, letting a short input draw glyphs over the whole page.
+const (
+	minSize = 0.5   // \tiny
+	maxSize = 2.488 // \Huge
+)
+
+// parseSized parses b into n under a size switch of the given scale. The
+// cumulative scale of the enclosing switches is clamped to [minSize,
+// maxSize], and n gets the mathsize that reaches it from the enclosing one.
+func (converter *MathMLConverter) parseSized(b *TokenBuffer, context parseContext, n *MMLNode, size float64) {
+	outer := converter.sizeScale
+	if outer == 0 {
+		outer = 1
+	}
+	scale := min(max(outer*size, minSize), maxSize)
+	n.SetAttr("mathsize", fmt.Sprintf("%05.1f%%", 100*scale/outer))
+	converter.sizeScale = scale
+	defer func() { converter.sizeScale = outer }()
+	converter.ParseTex(b, context, n)
 }
 
 func makeSymbol(t symbol, tok Token, context parseContext) *MMLNode {

@@ -88,6 +88,7 @@ type MathMLConverter struct {
 	needMacroExpansion   map[string]bool // used if any \newcommand definitions are encountered.
 	unknownCommandsAsOps bool            // treat unknown \commands as operators
 	depth                int             // current ParseTex recursion depth
+	sizeScale            float64         // cumulative scale of the enclosing size switches; 0 means 1
 }
 
 // NewDocument creates a MathMLConverter for a document
