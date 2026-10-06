@@ -24,10 +24,11 @@ const MaxMathInputLen = 8 << 10
 // expression, this bounds a page made of many.
 const MaxMathPageOutput = 2 << 20
 
-// maxMathOutputLen bounds the MathML of one expression of texLen bytes; an
-// expression that expands more (a table of thousands of tiny cells) is
-// rendered as escaped text.
-func maxMathOutputLen(texLen int) int { return 64*texLen + 4096 }
+// maxMathOutputLen bounds the MathML of n bytes of math source: one
+// expression of n bytes (one that expands more, such as a table of thousands
+// of tiny cells, is rendered as escaped text), and a page of n bytes, however
+// many expressions it holds (see mathBudgetFrom).
+func maxMathOutputLen(n int) int { return 64*n + 4096 }
 
 // mathBudget is the MathML output left for one render. Parsers attach the
 // render's budget, kept on the parser context, to every math node.
@@ -35,11 +36,19 @@ type mathBudget struct{ left int }
 
 var mathBudgetKey = parser.NewContextKey()
 
-func mathBudgetFrom(pc parser.Context) *mathBudget {
+// mathBudgetFrom returns the render's budget, creating it for a page of
+// srcLen bytes on first use. The budget scales with the page: every <math>
+// element costs a few hundred bytes of fixed markup, so a page made only of
+// tiny expressions ($a$$b$...) would otherwise grow by that much per three
+// input bytes, well past the ratio one expression is held to. A page gets the
+// MathML one expression of the page's size could produce, and never more
+// than MaxMathPageOutput; prose between expressions leaves plenty of room
+// for real pages.
+func mathBudgetFrom(pc parser.Context, srcLen int) *mathBudget {
 	if b, ok := pc.Get(mathBudgetKey).(*mathBudget); ok {
 		return b
 	}
-	b := &mathBudget{left: MaxMathPageOutput}
+	b := &mathBudget{left: min(maxMathOutputLen(srcLen), MaxMathPageOutput)}
 	pc.Set(mathBudgetKey, b)
 	return b
 }
@@ -123,6 +132,7 @@ func (p *texInlineRegionParser) Trigger() []byte {
 }
 
 func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
+	posLine, posSeg := block.Position()
 	line, seg := block.PeekLine()
 	var begin, end []byte
 	var flavor int
@@ -171,7 +181,6 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	stop := findCloseCached(pc, key, line[len(begin):], start, seg.Stop, find)
 	if stop < 0 {
 		// could be a linebreak due to formatting issues
-		posLine, posSeg := block.Position()
 		block.AdvanceLine()
 		line, seg = block.PeekLine()
 		stop = findCloseCached(pc, key, line, seg.Start-seg.Padding, seg.Stop, find)
@@ -186,8 +195,15 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	}
 	seg = text.NewSegment(start, seg.Start+stop)
 	tex := string(block.Value(seg))
+	if util.IsBlank([]byte(tex)) {
+		// An empty expression ($$$$, \\(\\)) holds no math, and converting
+		// it would cost a whole <math> element for a few input bytes: leave
+		// it as text.
+		block.SetPosition(posLine, posSeg)
+		return nil
+	}
 	block.Advance(stop + len(end))
-	return &mathInlineNode{mathExpr: mathExpr{tex: tex, flavor: flavor, budget: mathBudgetFrom(pc)}}
+	return &mathInlineNode{mathExpr: mathExpr{tex: tex, flavor: flavor, budget: mathBudgetFrom(pc, len(block.Source()))}}
 }
 
 var (
@@ -308,7 +324,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	}
 
 	reader.Advance(len(open))
-	node := &mathBlockNode{mathExpr: mathExpr{flavor: flavor, budget: mathBudgetFrom(pc)}, closeTag: closeTag}
+	node := &mathBlockNode{mathExpr: mathExpr{flavor: flavor, budget: mathBudgetFrom(pc, len(reader.Source()))}, closeTag: closeTag}
 	_, seg := reader.PeekLine()
 	node.Lines().Append(seg)
 	return node, parser.NoChildren
@@ -489,9 +505,10 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	case *mathInlineNode:
 		expr = t.mathExpr
 	case *mathBlockNode:
-		if !t.closed {
+		if !t.closed || util.IsBlank([]byte(t.tex)) {
 			// The opener never got its closing line (its container ended
-			// first): render the source as plain text.
+			// first), or the block holds no math: render the source as
+			// plain text.
 			w.WriteString("<p>")
 			open := _dollarDisplay
 			if t.flavor&delimeter_ams > 0 {
@@ -499,6 +516,9 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 			}
 			w.Write(open)
 			w.WriteString(html.EscapeString(t.tex))
+			if t.closed {
+				w.Write(t.closeTag)
+			}
 			w.WriteString("</p>\n")
 			return ast.WalkSkipChildren, nil
 		}

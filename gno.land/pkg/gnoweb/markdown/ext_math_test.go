@@ -251,6 +251,47 @@ func TestMathPageOutputIsBounded(t *testing.T) {
 	}
 }
 
+// An empty expression is not math: $$$$ used to cost a whole <math> element
+// per four input bytes.
+func TestMathEmptyExpressionIsText(t *testing.T) {
+	for src, want := range map[string]string{
+		"$$$$":           "<p>$$$$</p>",
+		"a $$ $$ b":      "<p>a $$ $$ b</p>",
+		`\\(\\)`:         `<p>\(\)</p>`,
+		`\\( \\)`:        `<p>\( \)</p>`,
+		"$$\n$$\n":       "<p>$$\n$$</p>",
+		"$$\n \t \n$$\n": "<p>$$</p>",
+		"\\\\[\n\\\\]\n": "<p>\\\\[\n\\\\]</p>",
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.NotContains(t, out, "<math", "%q", src)
+		assert.Contains(t, out, want, "%q", src)
+	}
+	// Non-empty neighbours still render.
+	assert.Equal(t, 1, strings.Count(renderMathMarkdown(t, "$$$$ $x$"), "<math"))
+}
+
+// Every <math> element carries a few hundred bytes of fixed markup, so a page
+// of nothing but tiny expressions must be bounded by its own size, like one
+// expression, and not only by MaxMathPageOutput.
+func TestMathTinyExpressionsPageIsLinear(t *testing.T) {
+	for _, unit := range []string{"$a$", "$a$$b$ ", "$$a$$", `\\(a\\)`} {
+		src := strings.Repeat(unit, 4096/len(unit))
+		out := renderMathMarkdown(t, src)
+		assert.LessOrEqual(t, len(out), maxMathOutputLen(len(src))+maxMarkupRatio*len(src), "%q", unit)
+		assert.Contains(t, out, "<math", "%q", unit)
+	}
+	// At three bytes an expression, the budget runs out partway: earlier
+	// expressions render, later ones fall back to escaped text.
+	out := renderMathMarkdown(t, strings.Repeat("$a$", 1000))
+	converted := strings.Count(out, "<math")
+	assert.Greater(t, converted, 500)
+	assert.Equal(t, 1000-converted, strings.Count(out, `<span class="math-inline">a</span>`))
+	// Prose between expressions leaves room for all of them.
+	src := strings.Repeat("the value $x_i$ is positive, ", 200)
+	assert.Equal(t, 200, strings.Count(renderMathMarkdown(t, src), "<math"))
+}
+
 func TestMathPageBudgetFallsBackToText(t *testing.T) {
 	expr := "$" + strings.Repeat("x^", 1000) + "x$\n\n"
 	out := renderMathMarkdown(t, strings.Repeat(expr, 200))
@@ -282,6 +323,10 @@ func TestMathExpressionAmplificationIsBounded(t *testing.T) {
 	assert.NotContains(t, out, "text-align")
 }
 
+// maxMarkupRatio bounds the HTML a page produces outside MathML, per input
+// byte: an unconverted $&$ is <span class="math-inline">&amp;</span>.
+const maxMarkupRatio = 16
+
 // FuzzMathRender checks that math input cannot inject script, event handlers
 // or javascript: URLs, and that the output size stays linear in the input.
 func FuzzMathRender(f *testing.F) {
@@ -295,6 +340,9 @@ func FuzzMathRender(f *testing.F) {
 		`\sqrt[3]{\frac{a}{b}} \overset{!}{=} \mathop{lim}`,
 		`\raisebox{1em}{x} \textcolor{red}{y} \multirow{2}{a}`,
 		`\begin{aligned}&x&x\\x&x\end{aligned}`,
+		strings.Repeat("$", 64),     // empty $$$$ expressions
+		strings.Repeat("a$$", 64),   // tiny inline expressions
+		strings.Repeat("$a$$$", 64), // tiny display expressions
 	} {
 		f.Add(seed)
 	}
@@ -306,8 +354,11 @@ func FuzzMathRender(f *testing.F) {
 				return
 			}
 			out := buf.String()
-			if len(out) > 64*len(src)+4096 {
-				t.Fatalf("output too large: %d bytes for %d bytes of input", len(out), len(src))
+			// The MathML of a page is bounded like one expression of the
+			// page's size; the HTML around it, and the escaped source of
+			// expressions left unconverted, by a small multiple of the input.
+			if limit := maxMathOutputLen(len(src)) + maxMarkupRatio*len(src); len(out) > limit {
+				t.Fatalf("output too large: %d bytes for %d bytes of input (limit %d)", len(out), len(src), limit)
 			}
 			z := html.NewTokenizer(strings.NewReader(out))
 			for tt := z.Next(); tt != html.ErrorToken; tt = z.Next() {
