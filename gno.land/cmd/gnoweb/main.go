@@ -291,7 +291,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	if cfg.trustedProxies != "" {
 		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
 	}
-	appcfg.IPFSGateway = cfg.ipfsGateway
+	appcfg.RenderConfig.IPFSGateway = cfg.ipfsGateway
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
@@ -348,8 +348,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 	logger.Info("Running", "listener", bindaddr.String())
 
-	// Setup security headers. NewRouter normalized appcfg.IPFSGateway.
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, appcfg.IPFSGateway)
+	// Setup security headers. NewRouter normalized the IPFS gateway in place.
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, appcfg.RenderConfig.IPFSGateway)
 
 	// Setup server
 	server := &http.Server{

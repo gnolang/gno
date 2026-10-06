@@ -42,7 +42,7 @@ func (t *ipfsTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 
 	type autolinkRewrite struct {
 		node *ast.AutoLink
-		dest []byte
+		url  string
 	}
 	var autolinks []autolinkRewrite
 	source := reader.Source()
@@ -53,48 +53,48 @@ func (t *ipfsTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 
 		switch n := node.(type) {
 		case *ast.Link:
-			if dest, ok := rewriteIPFSDestination(gateway, n.Destination); ok {
-				n.Destination = dest
+			if u, ok := rewriteIPFSDestination(gateway, n.Destination); ok {
+				n.Destination = escapeDestination(u)
 			}
 		case *ast.Image:
-			if dest, ok := rewriteIPFSDestination(gateway, n.Destination); ok {
-				n.Destination = dest
+			if u, ok := rewriteIPFSDestination(gateway, n.Destination); ok {
+				n.Destination = escapeDestination(u)
+				// A gallery would otherwise request every image at once,
+				// which trips public gateway rate limits.
+				n.SetAttributeString("loading", []byte("lazy"))
 			}
 		case *ast.AutoLink:
 			if n.AutoLinkType != ast.AutoLinkURL {
 				break
 			}
-			if dest, ok := rewriteIPFSDestination(gateway, n.URL(source)); ok {
-				autolinks = append(autolinks, autolinkRewrite{n, dest})
+			if u, ok := rewriteIPFSDestination(gateway, n.URL(source)); ok {
+				autolinks = append(autolinks, autolinkRewrite{n, u})
 			}
 		}
 
 		return ast.WalkContinue, nil
 	})
 
-	// An autolink has no destination to rewrite, so it is replaced by an
-	// equivalent link. That happens after the walk: RemoveChild clears the
-	// removed node's sibling pointers, which would end the walk of its
-	// parent early.
+	// An autolink has no destination to rewrite, so it is replaced by a link
+	// labelled with the gateway URL: the original text may name a retired
+	// gateway, and copying it would give a dead URL. That happens after the
+	// walk: RemoveChild clears the removed node's sibling pointers, which
+	// would end the walk of its parent early.
 	for _, a := range autolinks {
 		parent := a.node.Parent()
-		parent.ReplaceChild(parent, a.node, newLinkFromAutoLink(a.node, source, a.dest))
+		parent.ReplaceChild(parent, a.node, newLinkFromAutoLink(escapeDestination(a.url), []byte(a.url)))
 	}
 }
 
 // rewriteIPFSDestination rewrites a raw markdown destination and returns
-// it escaped for markdown again (see escapeDestination).
-func rewriteIPFSDestination(gateway string, dest []byte) ([]byte, bool) {
+// the gateway URL, which callers escape for markdown again (see
+// escapeDestination) before storing it as a destination.
+func rewriteIPFSDestination(gateway string, dest []byte) (string, bool) {
 	resolved := trimLeadingControlAndSpace(resolveDestination(dest))
 	if !mayBeIPFSURL(resolved) {
-		return nil, false
+		return "", false
 	}
-
-	out, ok := rewriteIPFSURL(gateway, string(resolved))
-	if !ok {
-		return nil, false
-	}
-	return escapeDestination(out), true
+	return rewriteIPFSURL(gateway, string(resolved))
 }
 
 // mayBeIPFSURL is a cheap filter that spares url.Parse on the common,

@@ -1,11 +1,13 @@
 package gnoweb
 
 import (
+	"bytes"
 	"maps"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,9 +45,9 @@ func TestNormalizeIPFSGateway(t *testing.T) {
 		"https://ipfs.filebase.io?",          // empty query
 		"https://ipfs.filebase.io#x",         // fragment
 		"https://ipfs .filebase.io",          // whitespace in host
-		"https://gno.land",                   // the gnoweb domain
+		"https://gno.land",                   // the chain domain
 		"https://ipfs.GNO.land",              // a subdomain of it
-		"https://gno.land.",                  // the gnoweb domain, trailing dot
+		"https://gno.land.",                  // the chain domain, trailing dot
 		"https://*",                          // a CSP wildcard
 		"https://*.example",                  // a CSP wildcard
 		"https://gw,example",                 // not a host
@@ -69,7 +71,7 @@ func TestNewRouterIPFSGateway(t *testing.T) {
 	render := func(gateway string) (string, *AppConfig) {
 		cfg := NewDefaultAppConfig()
 		cfg.ChainID = "dev" // skips the chain-id lookup: no node needed
-		cfg.IPFSGateway = gateway
+		cfg.RenderConfig.IPFSGateway = gateway
 		cfg.Aliases = maps.Clone(cfg.Aliases) // NewDefaultAppConfig shares DefaultAliases
 		cfg.Aliases["/ipfs-page"] = AliasTarget{Value: "![x](ipfs://" + cid + ")", Kind: StaticMarkdown}
 
@@ -82,7 +84,7 @@ func TestNewRouterIPFSGateway(t *testing.T) {
 	}
 
 	out, cfg := render("https://gw.example/")
-	assert.Equal(t, "https://gw.example", cfg.IPFSGateway, "normalized in place for the CSP")
+	assert.Equal(t, "https://gw.example", cfg.RenderConfig.IPFSGateway, "normalized in place for the CSP")
 	assert.Contains(t, out, `src="https://gw.example/ipfs/`+cid+`"`)
 
 	out, _ = render("")
@@ -90,7 +92,29 @@ func TestNewRouterIPFSGateway(t *testing.T) {
 
 	bad := NewDefaultAppConfig()
 	bad.ChainID = "dev"
-	bad.IPFSGateway = "http://gw.example"
+	bad.RenderConfig.IPFSGateway = "http://gw.example"
 	_, err := NewRouter(log.NewTestingLogger(t), bad)
 	assert.ErrorContains(t, err, "invalid IPFS gateway")
+
+	// Only the gnoweb and gnodev flags default to a gateway.
+	assert.Empty(t, NewDefaultAppConfig().RenderConfig.IPFSGateway)
+}
+
+func TestNewHTMLRendererIPFSGateway(t *testing.T) {
+	t.Parallel()
+
+	const cid = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+	render := func(gateway string) string {
+		cfg := NewDefaultRenderConfig()
+		cfg.IPFSGateway = gateway
+		r := NewHTMLRenderer(log.NewTestingLogger(t), cfg, nil)
+		var out bytes.Buffer
+		_, err := r.RenderRealm(&out, &weburl.GnoURL{Path: "/r/test"}, []byte("![x](ipfs://"+cid+")"), RealmRenderContext{})
+		require.NoError(t, err)
+		return out.String()
+	}
+
+	assert.Contains(t, render("https://gw.example/"), `src="https://gw.example/ipfs/`+cid+`"`)
+	// Not rendered as a relative URL: an invalid gateway is ignored.
+	assert.Contains(t, render("gw.example"), `src="ipfs://`+cid+`"`)
 }

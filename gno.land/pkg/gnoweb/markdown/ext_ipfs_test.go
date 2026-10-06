@@ -164,16 +164,45 @@ func TestIPFSRenderMatchesGatewayURL(t *testing.T) {
 			for _, source := range sources {
 				want := renderIPFS(t, fmt.Sprintf(form, testGateway+source.path+suffix), testGateway)
 				got := renderIPFS(t, fmt.Sprintf(form, source.src+suffix), testGateway)
+				if form == "![x](%s)" { // only the rewritten image is lazy
+					got = strings.Replace(got, ` loading="lazy"`, "", 1)
+				}
 				switch {
 				case form != "<%s>":
 					assert.Equal(t, want, got, "form %q, source %q, suffix %q", form, source.src, suffix)
-				case !strings.HasPrefix(source.src, "&") && !strings.HasPrefix(source.src, "/"): // autolinks keep their own label
+				case !strings.HasPrefix(source.src, "&") && !strings.HasPrefix(source.src, "/"):
+					// A hand-written autolink shows its raw text, a rewritten
+					// one the resolved URL (see TestIPFSRenderAttributes).
 					assert.Equal(t, reURLAttr.FindAllString(want, -1), reURLAttr.FindAllString(got, -1),
 						"form %q, source %q, suffix %q", form, source.src, suffix)
 				}
 			}
 		}
 	}
+}
+
+func TestIPFSRenderAttributes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("lazy images", func(t *testing.T) {
+		t.Parallel()
+		assert.Contains(t, renderIPFS(t, "![x](ipfs://"+testCIDv1+")", testGateway), ` loading="lazy"`)
+		assert.NotContains(t, renderIPFS(t, "![x](https://example.com/a.png)", testGateway), "loading=")
+	})
+
+	t.Run("autolink label", func(t *testing.T) {
+		t.Parallel()
+		// The label is the gateway URL, so copying it never gives a dead
+		// retired-gateway URL.
+		want := ">" + testGateway + "/ipfs/" + testCIDv1 + `/a.png?x=1&amp;y=2<span class="link-external`
+		for _, src := range []string{
+			"ipfs://" + testCIDv1,
+			"https://ipfs.io/ipfs/" + testCIDv1,
+			"https://" + testCIDv1 + ".ipfs.dweb.link",
+		} {
+			assert.Contains(t, renderIPFS(t, "<"+src+"/a.png?x=1&y=2>", testGateway), want, src)
+		}
+	})
 }
 
 // The golden files under golden/ext_ipfs pin the rewritten output; these

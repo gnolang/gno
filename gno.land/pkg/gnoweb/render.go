@@ -88,6 +88,14 @@ type HTMLRenderer struct {
 }
 
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter) *HTMLRenderer {
+	// NewRouter has already rejected an invalid gateway; a direct caller's
+	// is dropped rather than rendered as a relative or malformed URL.
+	gateway, err := normalizeIPFSGateway(cfg.IPFSGateway, "")
+	if err != nil {
+		logger.Warn("ignoring invalid IPFS gateway", "gateway", cfg.IPFSGateway, "error", err)
+	}
+	cfg.IPFSGateway = gateway
+
 	gmOpts := append(cfg.GoldmarkOptions, goldmark.WithExtensions(
 		markdown.NewHighlighting(
 			markdown.WithFormatOptions(cfg.ChromaOptions...), // force using chroma config

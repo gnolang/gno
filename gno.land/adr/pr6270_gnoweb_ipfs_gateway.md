@@ -21,9 +21,12 @@ cannot open, and images were blocked by the CSP.
 
 ## Decision
 
-- New setting `AppConfig.IPFSGateway` (`-ipfs-gateway` on gnoweb,
-  `-web-ipfs-gateway` on gnodev), default `https://ipfs.filebase.io`. Empty
-  disables everything below.
+- New setting `RenderConfig.IPFSGateway`, set by `-ipfs-gateway` on gnoweb and
+  `-web-ipfs-gateway` on gnodev. Both flags default to
+  `https://ipfs.filebase.io` (`DefaultIPFSGateway`). `NewDefaultAppConfig`
+  leaves it empty, like the realm notice, so library callers opt in. Empty
+  disables everything below. `NewRouter` rejects an invalid value, and
+  `NewHTMLRenderer` ignores one, so no caller renders relative URLs.
 - A markdown AST transformer (`markdown/ext_ipfs.go`, priority 400, so it runs
   before link classification and image validation at 500) rewrites links,
   autolinks, reference links and images, including inside `<gno-foreign>`:
@@ -41,6 +44,11 @@ cannot open, and images were blocked by the CSP.
     other content.
   - So is a URL with a `uri` query parameter: gateways built on boxo (Kubo,
     Rainbow) redirect such a request to the content the parameter names.
+- Rewritten images get `loading="lazy"`. Otherwise a gallery requests every
+  image at once, which trips public gateway rate limits, and an image with no
+  provider can hold the page's `load` event for close to a minute.
+- A rewritten autolink is labelled with the gateway URL. The original text may
+  name a retired gateway, and copying it would give a dead URL.
 - The rewritten destination is escaped for markdown (`\` and `&`), because the
   renderers resolve escapes and character references in a destination once
   more. A test renders each URL form (`ipfs://`, `ipns://`, entity-encoded,
@@ -49,9 +57,12 @@ cannot open, and images were blocked by the CSP.
 - The CSP drops the dead hosts and allows the configured gateway origin.
 - The gateway must be `https` (`http` only on loopback), with no credentials,
   path, query or fragment. Its host must be a DNS name or an IPv4 address,
-  with an optional port in 1..65535 (the CSP has no IPv6 host-source), and
-  not on the gnoweb domain or a subdomain of it, where a path gateway would
-  serve any author's HTML from the same site.
+  with an optional port in 1..65535 (the CSP has no IPv6 host-source). It
+  must not be on the chain domain (`AppConfig.Domain`, `gno.land`) or a
+  subdomain of it: gno.land's own gnoweb is served there, and a path gateway
+  on that site would serve any author's HTML from it. gnoweb does not know
+  the host it is actually served from, so other deployments must not point
+  the gateway at their own site.
 
 The default was measured on 2026-09-23 over 16 CIDs (example-realm images,
 public-gateway-checker fixtures, NFT metadata directories, xkcd, the Wikipedia
@@ -63,8 +74,12 @@ mirror), querying both gateways concurrently:
 | `gateway.pinata.cloud` | 13/16 | 5 to 13 s | 403 |
 
 Filebase documents its public gateway as meant "for testing and light usage",
-at 200 requests per minute. Images are fetched by each visitor's browser, so
-that limit applies per visitor, not per gnoweb instance.
+at 200 requests per minute, and it is stricter in practice. During review, a
+second burst of 100 image requests from one IP, a few seconds after the
+first, got 85 to 90 of them back as `429`. Images are fetched by each
+visitor's browser, so the limit applies per visitor, not per gnoweb instance.
+It is a fine default for development, but gno.land itself needs a dedicated
+or self-hosted gateway.
 
 ## Alternatives considered
 
@@ -91,9 +106,13 @@ that limit applies per visitor, not per gnoweb instance.
   `-ipfs-gateway` elsewhere.
 - A gateway only serves content some IPFS node provides. One sampled CID had no
   provider on any gateway.
+- The rewrite and the CSP must ship together. On 2026-10-06, gno.land still
+  served the old `img-src` (`ipfs.io`, `cloudflare-ipfs.com`,
+  `assets.gnoteam.com`). Rewritten images stay blocked there until the
+  deployed header allows the gateway, whether gnoweb `-strict` sets that
+  header or the proxy in front of it does.
 - Not rewritten: the documentation renderer, the site banner, and raw HTML under
-  `-html`. Autolinks keep their original label while the href points at the
-  gateway.
+  `-html`.
 - `md.Link` and `md.Image` (through `sanitize`) still drop `ipfs://` URLs.
   `docs/users/explore-with-gnoweb.md` says to write the markdown directly only
   for CIDs a realm controls, to validate any user-supplied CID (ASCII

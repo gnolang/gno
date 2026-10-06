@@ -251,7 +251,7 @@ resolves through its IPFS gateway. URLs on retired public gateways, such as
 ±https://ipfs.io/ipfs/...±, are rewritten to that gateway too:
 
 ±±±markdown
-![Alt text](ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi/logo.png)
+![Alt text](ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi)
 ±±±
 
 

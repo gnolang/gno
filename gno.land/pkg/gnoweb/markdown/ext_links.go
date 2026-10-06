@@ -121,13 +121,13 @@ func escapeDestination(resolved string) []byte {
 }
 
 // newLinkFromAutoLink builds the ast.Link that stands in for an autolink,
-// pointing at dest and labelled with the autolink's text, verbatim.
-func newLinkFromAutoLink(n *ast.AutoLink, source, dest []byte) *ast.Link {
+// pointing at dest and labelled with label, verbatim.
+func newLinkFromAutoLink(dest, label []byte) *ast.Link {
 	link := ast.NewLink()
 	link.Destination = dest
-	label := ast.NewString(n.Label(source))
-	label.SetRaw(true)
-	link.AppendChild(link, label)
+	text := ast.NewString(label)
+	text.SetRaw(true)
+	link.AppendChild(link, text)
 	return link
 }
 
@@ -192,7 +192,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			} else {
 				rawDest = rawURL
 			}
-			gnoLink = &GnoLink{Link: newLinkFromAutoLink(n, source, rawDest)}
+			gnoLink = &GnoLink{Link: newLinkFromAutoLink(rawDest, n.Label(source))}
 
 		default:
 			return ast.WalkContinue, nil

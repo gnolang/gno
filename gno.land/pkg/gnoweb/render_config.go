@@ -20,8 +20,9 @@ type RenderConfig struct {
 	ChromaOptions   []chromahtml.Option
 	GoldmarkOptions []goldmark.Option
 	// IPFSGateway is the gateway origin that ipfs:// URLs and URLs on
-	// retired IPFS gateways are rewritten to in realm markdown. Empty
-	// disables the rewrite. NewRouter sets it from AppConfig.IPFSGateway.
+	// retired IPFS gateways are rewritten to in realm markdown, such as
+	// DefaultIPFSGateway. Empty disables the rewrite. NewRouter rejects an
+	// invalid value; NewHTMLRenderer ignores one.
 	IPFSGateway string
 }
 
