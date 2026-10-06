@@ -81,3 +81,13 @@ func New(deps Deps) *Handler {
 // HasIndexer reports whether the indexer-backed answers exist on this
 // deployment.
 func (h *Handler) HasIndexer() bool { return h.deps.Indexer != nil }
+
+// DepsURL is the dependencies page of pkgPath, a gnoweb-relative path, or ""
+// on a deployment that cannot list importers: without an indexer the
+// overview's graph already shows all there is.
+func (h *Handler) DepsURL(pkgPath string) string {
+	if !h.HasIndexer() {
+		return ""
+	}
+	return pkgPath + "$deps"
+}

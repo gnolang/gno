@@ -159,9 +159,9 @@ type HTTPHandler struct {
 	State *state.Handler
 	// Search is the feature/omnisearch handler that owns every $search URL.
 	Search *omnisearch.Handler
-	// Map is the feature/chainmap handler behind every $map URL and the
-	// dependency graph's importers.
-	Map *chainmap.Handler
+	// ChainMap is the feature/chainmap handler: the map of a listing, and the
+	// dependencies page with its importers.
+	ChainMap *chainmap.Handler
 	// trustedProxies are the networks whose X-Forwarded-Host is believed.
 	trustedProxies []*net.IPNet
 	// packageText caches the whole-package texts of $download.
@@ -227,67 +227,8 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		}),
 		Logger: logger,
 	})
-	h.Map = chainmap.New(chainmapDeps(cfg, logger, trustedProxies))
+	h.ChainMap = chainmap.New(chainmapDeps(cfg, logger, trustedProxies))
 	return h, nil
-}
-
-// chainmapDeps wires feature/chainmap. The indexer is the one configured for
-// search: *indexer.Client answers both features, so the map needs no flag of
-// its own. A nil cfg.Indexer leaves the feature without one, which is the
-// switch.
-func chainmapDeps(cfg *HTTPHandlerConfig, logger *slog.Logger, trustedProxies []*net.IPNet) chainmap.Deps {
-	deps := chainmap.Deps{
-		Imports: importReader{client: cfg.ClientAdapter, domain: cfg.Meta.Domain},
-		Domain:  cfg.Meta.Domain,
-		Logger:  logger,
-	}
-	if cfg.Indexer == nil {
-		return deps
-	}
-	idx, ok := cfg.Indexer.(chainmap.Indexer)
-	if !ok {
-		// Not an error a deployment can hit with *indexer.Client, but a
-		// silent switch-off would hide it.
-		logger.Warn("indexer cannot back the map and dependency pages", "type", fmt.Sprintf("%T", cfg.Indexer))
-		return deps
-	}
-	deps.Indexer = idx
-	// Its own bucket, and a narrow one: an importer lookup is a whole-chain
-	// indexer scan plus a node read per candidate, so the general rate would
-	// let one address run hundreds a minute. Cached answers are not charged.
-	deps.Limiter = state.NewIPLimiter(state.RateLimitConfig{
-		PerMinute:      importerLookupsPerMinute,
-		Burst:          importerLookupsBurst,
-		TrustedProxies: trustedProxies,
-	})
-	return deps
-}
-
-// importerLookupsPerMinute and importerLookupsBurst bound the importer
-// lookups one address may start: a reader browsing dependencies starts a few,
-// not dozens.
-const (
-	importerLookupsPerMinute = 6
-	importerLookupsBurst     = 3
-)
-
-// importReader adapts ClientAdapter to chainmap.ImportReader: a package's
-// non-test imports are what vm/qdoc reports. A missing package is both
-// chainmap's ErrNotLive and the client's not-found, so either side reads it.
-type importReader struct {
-	client ClientAdapter
-	domain string
-}
-
-func (r importReader) Imports(ctx context.Context, pkgPath string) ([]string, error) {
-	d, err := r.client.Doc(ctx, strings.TrimPrefix(pkgPath, r.domain), 0)
-	if errors.Is(err, ErrClientPackageNotFound) {
-		return nil, fmt.Errorf("%w: %w", chainmap.ErrNotLive, err)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return d.Imports, nil
 }
 
 // searchDirectory adapts RealmDirectory to the shape feature/omnisearch
@@ -603,16 +544,11 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		}
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget.Value)
-	case gnourl.WebQuery.Has("deps") && (gnourl.IsRealm() || gnourl.IsPure()):
-		// The answer costs an indexer scan per package: not a page for
-		// crawlers to walk.
-		indexData.HeadData.NoIndex = true
-		pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-		status, view, err := h.Map.DepsView(r, pkgPath, displayPackageName(pkgPath))
-		if err != nil {
-			return GetClientErrorStatusView(gnourl, err, 0)
-		}
-		return status, view
+	case gnourl.WebQuery.Has("deps") && h.ChainMap.HasIndexer() && (gnourl.IsRealm() || gnourl.IsPure()):
+		// Only a deployment that can list importers serves the page; without
+		// an indexer the overview's graph is all there is, and $deps falls
+		// through to the package like any web query gnoweb does not know.
+		return h.GetDepsView(r, gnourl, indexData)
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
 	default:
@@ -645,8 +581,6 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 // GetPackageView handles package pages, including help, source, directory, and user views.
 func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	// Handle Map page: the listing below the path, drawn rather than listed.
-	// A map exists only where the list does, which is where no package lives:
-	// on a package its List tab would open the package, not the listing.
 	if gnourl.WebQuery.Has("map") {
 		return h.GetMapView(ctx, gnourl, indexData)
 	}
@@ -1251,85 +1185,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 
 func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	paths, truncated := h.listPaths(ctx, gnourl)
-	return h.renderListing(ctx, gnourl, indexData, paths, truncated)
-}
-
-// listPaths lists the package paths below gnourl, capped at maxListedPaths.
-// One more than is shown is asked for, so a listing stopping at the cap can
-// tell "exactly the cap" from "more than the cap".
-func (h *HTTPHandler) listPaths(ctx context.Context, gnourl *weburl.GnoURL) (paths []string, truncated bool) {
-	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
-	paths, qerr := h.Client.ListPaths(ctx, prefix, maxListedPaths+1)
-	if qerr != nil {
-		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
-	} else {
-		h.Logger.Debug("query paths", "prefix", prefix, "paths", len(paths))
-	}
-	if len(paths) == 0 || paths[0] == "" {
-		return nil, false
-	}
-	if len(paths) > maxListedPaths {
-		return paths[:maxListedPaths], true
-	}
-	return paths, false
-}
-
-// renderListing renders a listing as a list, or as a map for $map. The two
-// render this one listing, so they cannot disagree about what exists.
-func (h *HTTPHandler) renderListing(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, paths []string, truncated bool) (int, *components.View) {
-	if len(paths) == 0 {
-		// Both the realm view and the source view funnel here when nothing is
-		// live at the path, so this is the one place that has to distinguish
-		// "never submitted" from "submitted, not approved yet".
-		if view := h.pendingApprovalView(ctx, gnourl); view != nil {
-			return http.StatusNotFound, view
-		}
-		return GetClientErrorStatusView(gnourl, ErrClientPackageNotFound, 0)
-	}
-
-	// Always use explorer mode for paths list
-	indexData.Mode = components.ViewModeExplorer
-
-	// Update header mode
-	indexData.HeaderData.Mode = indexData.Mode
-
-	// A listing too small for a map offers none, and draws a list even when
-	// its map is asked for.
-	mappable := len(paths) >= chainmap.MinPackages
-	indexData.HeaderData.Listing = &components.ListingTabs{Map: mappable}
-	if mappable && gnourl.WebQuery.Has("map") {
-		parts := h.Map.Map(ctx, chainmap.Listing{Path: gnourl.Path, Paths: paths})
-		return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, &parts)
-	}
-	return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, nil)
-}
-
-// GetMapView draws the listing below a path. A map exists only where the list
-// does, which is where no package lives: on a package its List tab would open
-// the package, not the listing. The package check runs beside the listing
-// query, and the map is built only once the check has passed.
-func (h *HTTPHandler) GetMapView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	pkgErr := make(chan error, 1)
-	go func() {
-		_, err := h.Client.ListFiles(ctx, strings.TrimSuffix(gnourl.Path, "/"), 0)
-		pkgErr <- err
-	}()
-	paths, truncated := h.listPaths(ctx, gnourl)
-
-	switch err := <-pkgErr; {
-	case err == nil:
-		return http.StatusNotFound, components.StatusErrorComponent("This path is a package, not a listing: open it, or map the path above it.")
-	case errors.Is(err, ErrClientPackageNotFound):
-		return h.renderListing(ctx, gnourl, indexData, paths, truncated)
-	case ctx.Err() != nil:
-		// The reader left or the request ran out of time: nothing to report.
-		return GetClientErrorStatusView(gnourl, ctx.Err(), 0)
-	default:
-		// The node could not say: drawing the listing could draw one below a
-		// package.
-		h.Logger.Warn("map: unable to tell a package from a listing", "path", gnourl.Path, "error", err)
-		return http.StatusBadGateway, components.StatusErrorComponent("The node could not tell whether this path is a package. Try again in a moment.")
-	}
+	return h.renderListing(ctx, gnourl, indexData, paths, truncated, nil)
 }
 
 // GetDirectoryView renders the directory view for a package, showing available files.
@@ -1719,9 +1575,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		Domain:      h.Static.Domain,
 		DocRenderer: h.Renderer,
 	}
-	if h.Map.HasIndexer() {
-		in.DepsURL = pkgPath + "$deps"
-	}
+	in.DepsURL = h.ChainMap.DepsURL(pkgPath)
 	data := components.BuildOverview(in)
 	return http.StatusOK, components.OverviewView(data)
 }

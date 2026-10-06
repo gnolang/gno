@@ -3,6 +3,7 @@ package chainmap
 import (
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -61,8 +62,8 @@ func TestBuildGroupsByFirstThenSecondSegment(t *testing.T) {
 		t.Errorf("the pooled subgroup must have no zoom: %q", pool.ZoomURL)
 	}
 	for _, tl := range pool.Tiles {
-		if !strings.Contains(tl.name, "/") {
-			t.Errorf("pooled tile %q must be named by its path below the group", tl.name)
+		if name := tileName(tl.Path, moul.root+"/"); !strings.Contains(name, "/") {
+			t.Errorf("pooled tile %q must be named by its path below the group", name)
 		}
 	}
 
@@ -72,7 +73,7 @@ func TestBuildGroupsByFirstThenSecondSegment(t *testing.T) {
 	if zed.ZoomURL != "" || len(zed.Subgroups) != 1 || zed.Subgroups[0].Key != "" {
 		t.Fatalf("zed = %+v", zed)
 	}
-	if tl := zed.Subgroups[0].Tiles[0]; tl.Path != "/r/zed" || tl.name != "zed" {
+	if tl := zed.Subgroups[0].Tiles[0]; tl.Path != "/r/zed" || tileName(tl.Path, zed.root+"/") != "zed" {
 		t.Errorf("zed tile = %+v", tl)
 	}
 }
@@ -86,8 +87,31 @@ func TestSmallGroupsAreNotSplit(t *testing.T) {
 	if len(g.Subgroups) != 1 || g.Subgroups[0].Key != "" {
 		t.Fatalf("subgroups = %+v, want the group unsplit", g.Subgroups)
 	}
-	if name := g.Subgroups[0].Tiles[0].name; name != "x/1" {
+	if name := tileName(g.Subgroups[0].Tiles[0].Path, g.root+"/"); name != "x/1" {
 		t.Errorf("tile name = %q, want the path below the group", name)
+	}
+}
+
+// A tile is named below the nearest band drawn over it. When its group's
+// band does not fit, the group's key goes into the tile's own label, or
+// nothing on the map would say which namespace it belongs to.
+func TestTilesNameTheBandThatIsNotDrawn(t *testing.T) {
+	t.Parallel()
+
+	labels := func(base string) []string {
+		g := buildGroups("/r/", []string{"/r/a/x", "/r/a/y"})[0]
+		layoutSubgroups(g.Subgroups, rect{0, 0, mapWidth, mapHeight}, base)
+		var out []string
+		for _, tl := range g.Subgroups[0].Tiles {
+			out = append(out, tl.Label.Text)
+		}
+		return out
+	}
+	if got := labels("/r/a/"); !slices.Equal(got, []string{"x", "y"}) {
+		t.Errorf("under the group's band, labels = %q, want x and y", got)
+	}
+	if got := labels("/r/"); !slices.Equal(got, []string{"a/x", "a/y"}) {
+		t.Errorf("with no band, labels = %q, want a/x and a/y", got)
 	}
 }
 

@@ -55,7 +55,7 @@ in the listing's rail.
 {{ define "chainmap/key" }}
 <dl class="b-pkg-meta" aria-label="Map key">
   <dt class="section b-sidebar-heading">Map key</dt>
-  {{ with .UpURL }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}">Map of {{ $.UpPath }}</a></dd></div>{{ end }}
+  {{ with .Up }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}$map">Map of {{ . }}</a></dd></div>{{ end }}
   <div class="row"><dt class="label">Area</dt><dd class="value">One tile per package</dd></div>
   <div class="row"><dt class="label">Boxes</dt><dd class="value">Path segments; select a name to zoom</dd></div>
   {{ with .Window }}

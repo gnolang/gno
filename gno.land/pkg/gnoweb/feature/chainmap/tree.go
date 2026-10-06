@@ -74,7 +74,9 @@ type Head struct {
 
 // Group is the packages sharing the first path segment below the map's root.
 type Group struct {
-	Key      string
+	Key string
+	// root is the path the key names, the map's root plus the key.
+	root     string
 	Count    int
 	Rect     Rect
 	HueClass string
@@ -89,7 +91,9 @@ type Group struct {
 // Subgroup is the packages of a group sharing its next path segment. A group
 // too small to split holds one subgroup with no key.
 type Subgroup struct {
-	Key     string
+	Key string
+	// root is the path the key names; the group's root when Key is empty.
+	root    string
 	Rect    Rect
 	Head    *Head
 	ZoomURL string
@@ -98,9 +102,7 @@ type Subgroup struct {
 
 // Tile is one package.
 type Tile struct {
-	Path string // gnoweb-relative, the package's page
-	// name is what the tile is called within its subgroup.
-	name  string
+	Path  string // gnoweb-relative, the package's page
 	Rect  Rect
 	Label *Label
 	// Title is the tooltip and accessible name: the full path, which the
@@ -132,7 +134,7 @@ func buildGroups(prefix string, paths []string) []*Group {
 	for key, members := range byKey {
 		slices.Sort(members)
 		root := prefix + key
-		g := &Group{Key: key, Count: len(members)}
+		g := &Group{Key: key, root: root, Count: len(members)}
 		if !slices.Contains(members, root) {
 			g.ZoomURL = root + "/$map"
 		}
@@ -171,27 +173,24 @@ func subgroups(root string, members []string, split bool) []*Subgroup {
 	byKey := make(map[string]*Subgroup)
 	var subs []*Subgroup
 	for _, p := range members {
-		key, name := "", strings.TrimPrefix(p, root+"/")
-		if p == root {
-			name = baseName(root)
-		} else if k, rest, nested := strings.Cut(name, "/"); count[k] >= bandMin {
+		key := ""
+		if k, _, _ := strings.Cut(strings.TrimPrefix(p, root+"/"), "/"); p != root && count[k] >= bandMin {
 			key = k
-			if nested {
-				name = rest
-			}
 		}
 		s := byKey[key]
 		if s == nil {
-			s = &Subgroup{Key: key}
+			s = &Subgroup{Key: key, root: root}
+			if key != "" {
+				s.root += "/" + key
+			}
 			byKey[key] = s
 			subs = append(subs, s)
 		}
-		s.Tiles = append(s.Tiles, Tile{Path: p, name: name})
+		s.Tiles = append(s.Tiles, Tile{Path: p})
 	}
 	for _, s := range subs {
-		subRoot := root + "/" + s.Key
-		if s.Key != "" && !slices.ContainsFunc(s.Tiles, func(t Tile) bool { return t.Path == subRoot }) {
-			s.ZoomURL = subRoot + "/$map"
+		if s.Key != "" && !slices.ContainsFunc(s.Tiles, func(t Tile) bool { return t.Path == s.root }) {
+			s.ZoomURL = s.root + "/$map"
 		}
 	}
 	slices.SortFunc(subs, func(a, b *Subgroup) int {
@@ -201,6 +200,15 @@ func subgroups(root string, members []string, split bool) []*Subgroup {
 		return cmp.Compare(a.Key, b.Key)
 	})
 	return subs
+}
+
+// tileName is what a tile at p is called under the band naming base: its path
+// below it, or its last segment when it is the package the band names.
+func tileName(p, base string) string {
+	if rest, ok := strings.CutPrefix(p, base); ok {
+		return rest
+	}
+	return baseName(p)
 }
 
 // baseName is the last segment of a path.
@@ -219,6 +227,9 @@ func layout(groups []*Group) {
 		g := groups[i]
 		g.Rect = toRect(r)
 		inner := r
+		// Tiles are named below the nearest band drawn over them: without the
+		// group's, the key is part of their name, or nothing on the map says it.
+		base := strings.TrimSuffix(g.root, g.Key)
 		// A group that is one package at its own root is named by its tile;
 		// a band would only say it twice.
 		if g.Count > 1 || g.ZoomURL != "" {
@@ -228,13 +239,16 @@ func layout(groups []*Group) {
 			}
 			if g.Head = newHead("b-map__head", name, g.ZoomURL, r, headBand, headFont); g.Head != nil {
 				inner = rect{r.X, r.Y + headBand, r.W, r.H - headBand}
+				base = g.root + "/"
 			}
 		}
-		layoutSubgroups(g.Subgroups, inner)
+		layoutSubgroups(g.Subgroups, inner, base)
 	}
 }
 
-func layoutSubgroups(subs []*Subgroup, r rect) {
+// layoutSubgroups places subgroups in r and their tiles in them. base is the
+// path the group's band names, ending with a slash.
+func layoutSubgroups(subs []*Subgroup, r rect, base string) {
 	weights := make([]float64, len(subs))
 	for i, s := range subs {
 		weights[i] = float64(len(s.Tiles))
@@ -242,10 +256,10 @@ func layoutSubgroups(subs []*Subgroup, r rect) {
 	for i, sr := range squarify(weights, r) {
 		s := subs[i]
 		s.Rect = toRect(sr)
-		inner := sr
+		inner, tileBase := sr, base
 		if s.Key != "" {
 			if s.Head = newHead("b-map__sub", s.Key, s.ZoomURL, sr, subBand, subFont); s.Head != nil {
-				inner = rect{sr.X, sr.Y + subBand, sr.W, sr.H - subBand}
+				inner, tileBase = rect{sr.X, sr.Y + subBand, sr.W, sr.H - subBand}, s.root+"/"
 			}
 		}
 		ones := make([]float64, len(s.Tiles))
@@ -258,7 +272,7 @@ func layoutSubgroups(subs []*Subgroup, r rect) {
 			if tr.H < tileFont+2*labelPad {
 				continue
 			}
-			if text := fit(t.name, tr.W, tileFont); text != "" {
+			if text := fit(tileName(t.Path, tileBase), tr.W, tileFont); text != "" {
 				t.Label = &Label{Text: text, X: round1(tr.X + labelPad), Y: round1(tr.Y + tileFont + labelPad - 2)}
 			}
 		}

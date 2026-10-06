@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"path"
 	"slices"
 	"strings"
 	"time"
@@ -24,8 +23,10 @@ type Listing struct {
 	Path string
 	// Paths are the gnoweb-relative package paths below Path.
 	Paths []string
-	// Truncated is set when there were more paths than were listed.
-	Truncated bool
+	// Up is the listing one level up, ending with a slash: the way back out
+	// of a zoom. Empty when there is none, at a kind's root such as /r/ or
+	// where the path above is a package, which has no listing to map.
+	Up string
 }
 
 // Activity states the legend tells apart. A map never shows a count it does
@@ -42,9 +43,8 @@ const (
 type MapData struct {
 	// Root is the listing's root, ending with a slash.
 	Root string
-	// UpURL is the map one level up, the way back out of a zoom; empty at a
-	// kind's root, /r/ or /p/.
-	UpURL  string
+	// Up is the listing one level up; see Listing.Up.
+	Up     string
 	Groups []*Group
 
 	// Activity is empty when no indexer is configured: the legend then says
@@ -71,7 +71,7 @@ const MinPackages = 10
 // listing's rail. The page around them is the directory view's own.
 func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
 	root := strings.TrimSuffix(l.Path, "/") + "/"
-	data := &MapData{Root: root, UpURL: upURL(root), Groups: buildGroups(root, l.Paths)}
+	data := &MapData{Root: root, Up: l.Up, Groups: buildGroups(root, l.Paths)}
 	layout(data.Groups)
 
 	if h.activity != nil {
@@ -128,19 +128,6 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 			t.ShadeClass = unknownShadeClass
 		}
 	})
-}
-
-// UpPath is what the map one level up shows.
-func (d *MapData) UpPath() string { return strings.TrimSuffix(d.UpURL, "$map") }
-
-// upURL is the map of the path above root, or "" when root is a kind's own
-// root such as /r/.
-func upURL(root string) string {
-	parent := path.Dir(strings.TrimSuffix(root, "/"))
-	if strings.Count(parent, "/") < 1 || parent == "/" {
-		return ""
-	}
-	return parent + "/$map"
 }
 
 // busiest returns up to n tiles with the most calls, most first; none without

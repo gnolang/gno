@@ -188,3 +188,30 @@ func TestHTTPHandler_ListingHasARailWithAFilter(t *testing.T) {
 		t.Error("the map's key belongs in the rail")
 	}
 }
+
+// Zoom out leads to the map one level up, and only where there is one: not
+// from a kind's root, and not to a package, which has no listing to map.
+func TestHTTPHandler_MapZoomsOutToAListing(t *testing.T) {
+	t.Parallel()
+
+	h := newMapHandler(t, append(append(manyPaths("/r/a/b/c", 10), manyPaths("/r/p/x/y", 10)...), "/r/p")...)
+	for path, want := range map[string]string{
+		"/r/a/b$map":  `href="/r/a/$map"`,
+		"/r/a$map":    `href="/r/$map"`,
+		"/r/a/b/$map": `href="/r/a/$map"`,
+		"/r/p/x$map":  "",
+		"/r/$map":     "",
+	} {
+		body := serve(t, h, path).Body.String()
+		if !strings.Contains(body, "b-map__tile") {
+			t.Errorf("%s: no map drawn", path)
+			continue
+		}
+		if got := strings.Contains(body, "Zoom out"); got != (want != "") {
+			t.Errorf("%s: zoom out shown = %v, want %v", path, got, want != "")
+		}
+		if want != "" && !strings.Contains(body, want) {
+			t.Errorf("%s: zoom out must link %s", path, want)
+		}
+	}
+}

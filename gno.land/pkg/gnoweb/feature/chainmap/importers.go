@@ -53,6 +53,13 @@ const (
 	// importReadTimeout bounds one candidate's qdoc read.
 	importReadTimeout = 10 * time.Second
 
+	// LookupsPerMinute and LookupsBurst bound the importer lookups one
+	// address may start: a reader browsing dependencies starts a few, not
+	// dozens. A lookup only a cached answer serves, or one joining another
+	// in flight, is not charged.
+	LookupsPerMinute = 6
+	LookupsBurst     = 3
+
 	// maxImporterEntries and maxImportEntries bound the caches, so a crawler
 	// walking every package cannot grow them without limit.
 	maxImporterEntries = 512

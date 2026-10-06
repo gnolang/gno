@@ -80,8 +80,8 @@ func newDepsHandler(t *testing.T, idx *stubIndexer) http.Handler {
 	return h
 }
 
-// With no indexer nothing anywhere mentions importers: not on the overview,
-// not on the dependencies page, which still draws the imports.
+// With no indexer nothing anywhere mentions importers: the overview draws the
+// imports, and $deps, which would only repeat them, is not a page.
 func TestHTTPHandler_DepsWithoutIndexer(t *testing.T) {
 	t.Parallel()
 
@@ -94,12 +94,28 @@ func TestHTTPHandler_DepsWithoutIndexer(t *testing.T) {
 		t.Error("without an indexer the overview must not offer importers")
 	}
 
-	rr := serve(t, h, "/p/demo/lib$deps")
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rr.Code)
+	if body := serve(t, h, "/p/demo/lib$deps").Body.String(); strings.Contains(body, "b-deps-view") || strings.Contains(body, "Imported by") {
+		t.Error("without an indexer $deps must fall through to the package")
 	}
-	if body := rr.Body.String(); strings.Contains(body, "Imported by") || strings.Contains(body, "b-tag--indexer") {
-		t.Error("without an indexer the dependencies page must not mention importers")
+}
+
+// "/p/demo/lib" and "/p/demo/lib/" are one package and share one answer:
+// spellings of a path must not each buy a whole-chain scan.
+func TestHTTPHandler_DepsSharesOneAnswerPerPackage(t *testing.T) {
+	t.Parallel()
+
+	var scans atomic.Int32
+	h := newDepsHandler(t, &stubIndexer{scans: &scans})
+	serve(t, h, "/p/demo/lib$deps")
+	first := scans.Load()
+	if first == 0 {
+		t.Fatal("the first lookup did not scan")
+	}
+	if got := serve(t, h, "/p/demo/lib/$deps").Code; got != http.StatusOK {
+		t.Fatalf("status = %d, want 200", got)
+	}
+	if n := scans.Load(); n != first {
+		t.Fatalf("a second spelling scanned again: %d scans, want %d", n, first)
 	}
 }
 

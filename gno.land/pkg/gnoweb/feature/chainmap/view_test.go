@@ -168,19 +168,3 @@ func TestMapKeyListsTheBusiestRealms(t *testing.T) {
 		t.Error("a realm nobody called is not among the busiest")
 	}
 }
-
-func TestUpURL(t *testing.T) {
-	t.Parallel()
-
-	for root, want := range map[string]string{
-		"/r/":        "",
-		"/p/":        "",
-		"/r/moul/":   "/r/$map",
-		"/r/moul/x/": "/r/moul/$map",
-		"/p/nt/avl/": "/p/nt/$map",
-	} {
-		if got := upURL(root); got != want {
-			t.Errorf("upURL(%q) = %q, want %q", root, got, want)
-		}
-	}
-}

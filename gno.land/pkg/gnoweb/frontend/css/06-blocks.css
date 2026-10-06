@@ -82,8 +82,11 @@
 			grid-column: span 7;
 		}
 
-		&--full {
-			grid-column: span 10;
+		/* No dev links beside it: the bar takes their columns too. */
+		&.main-nav--full {
+			@media (--lg) {
+				grid-column: span 10;
+			}
 		}
 	}
 
