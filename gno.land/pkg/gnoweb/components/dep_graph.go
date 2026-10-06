@@ -22,6 +22,11 @@ type DepGraph struct {
 	Importers *Importers
 }
 
+// Shown reports whether the graph has anything to draw on the overview:
+// imports, or importers to look up. The section, its jump link and its
+// table-of-contents entry all follow it.
+func (g DepGraph) Shown() bool { return len(g.Imports) > 0 || g.LookupURL != "" }
+
 // Importers is the "imported by" side of a DepGraph.
 type Importers struct {
 	Links []ImportLink

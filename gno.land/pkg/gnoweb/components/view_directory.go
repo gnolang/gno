@@ -10,8 +10,8 @@ type DirData struct {
 	FilesLinks  FilesLinks
 	Mode        ViewMode
 	Readme      Component
-	// Header heads an explorer listing (ui/listing_header).
-	Header ListingHeader
+	// Truncated is set on a listing that stopped at its cap.
+	Truncated bool
 	// Rail is an explorer listing's side rail (ui/listing_rail).
 	Rail Component
 	// Map is the listing drawn as a map; nil renders it as a list.
@@ -39,20 +39,6 @@ func countFolders(root string, paths []string) int {
 		seen[key] = struct{}{}
 	}
 	return len(seen)
-}
-
-// ListingHeader heads a directory listing in either rendering, list or map.
-type ListingHeader struct {
-	// Path is the listing's root, ending with a slash.
-	Path  string
-	Count int
-	// Truncated is set when there were more paths than were listed.
-	Truncated bool
-}
-
-// NewListingHeader heads the listing of paths below root.
-func NewListingHeader(root string, count int, truncated bool) ListingHeader {
-	return ListingHeader{Path: strings.TrimSuffix(root, "/") + "/", Count: count, Truncated: truncated}
 }
 
 type DirLinkType int
@@ -113,13 +99,15 @@ func DirectoryView(pkgPath string, files []string, fileCounter int, linkType Dir
 // truncated says the node stopped at its cap, which the view then states
 // rather than letting the listing pass for complete.
 func ExplorerView(pkgPath string, paths []string, truncated bool, m *MapParts) *View {
+	// A listing is named by its root, with the slash that says so.
+	root := strings.TrimSuffix(pkgPath, "/") + "/"
 	data := DirData{
-		PkgPath:     pkgPath,
+		PkgPath:     root,
 		FileCounter: len(paths),
 		Mode:        ViewModeExplorer,
-		Header:      NewListingHeader(pkgPath, len(paths), truncated),
+		Truncated:   truncated,
 	}
-	rail := listingRail{Packages: len(paths), Folders: countFolders(data.Header.Path, paths)}
+	rail := listingRail{Packages: len(paths), Folders: countFolders(root, paths)}
 	if m != nil {
 		data.Map, rail.Key = m.Figure, m.Key
 	} else {

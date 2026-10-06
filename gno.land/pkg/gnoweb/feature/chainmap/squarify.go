@@ -1,8 +1,5 @@
 package chainmap
 
-// rect is a box in map units, as squarify works on it.
-type rect struct{ X, Y, W, H float64 }
-
 // squarify lays weights out in r, one rect per weight in the same order, each
 // rect's area proportional to its weight. weights must be sorted in
 // descending order.
@@ -11,14 +8,14 @@ type rect struct{ X, Y, W, H float64 }
 // row along the shorter side of what is left for as long as adding one does
 // not worsen the row's most elongated rect. Squares read as tiles; a plain
 // slice-and-dice layout turns a namespace with many packages into slivers.
-func squarify(weights []float64, r rect) []rect {
-	out := make([]rect, 0, len(weights))
+func squarify(weights []float64, r Rect) []Rect {
+	out := make([]Rect, 0, len(weights))
 	var total float64
 	for _, w := range weights {
 		total += w
 	}
 	if total <= 0 || r.W <= 0 || r.H <= 0 {
-		return make([]rect, len(weights))
+		return make([]Rect, len(weights))
 	}
 
 	areas := make([]float64, len(weights))
@@ -44,7 +41,7 @@ func squarify(weights []float64, r rect) []rect {
 			y := r.Y
 			for _, a := range row {
 				h := a / colW
-				out = append(out, rect{r.X, y, colW, h})
+				out = append(out, Rect{r.X, y, colW, h})
 				y += h
 			}
 			r.X += colW
@@ -55,7 +52,7 @@ func squarify(weights []float64, r rect) []rect {
 			x := r.X
 			for _, a := range row {
 				w := a / rowH
-				out = append(out, rect{x, r.Y, w, rowH})
+				out = append(out, Rect{x, r.Y, w, rowH})
 				x += w
 			}
 			r.Y += rowH

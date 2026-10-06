@@ -49,7 +49,7 @@ around it, header and rail included, is the directory view's.
 {{/* A name band over the top of a group or subgroup, a link to that box's
      own map when there is one. */}}
 {{ define "chainmap/head" }}
-{{- if .ZoomURL }}<a class="{{ .Class }}" href="{{ .ZoomURL }}"><title>Open the map of {{ .ZoomPath }}</title>{{ template "chainmap/band" . }}</a>
+{{- if .Zoom }}<a class="{{ .Class }}" href="{{ .Zoom }}$map"><title>Open the map of {{ .Zoom }}</title>{{ template "chainmap/band" . }}</a>
 {{- else }}<g class="{{ .Class }}">{{ template "chainmap/band" . }}</g>{{ end }}
 {{- end }}
 

@@ -6,9 +6,9 @@ count it exactly alike.
 =================================================================================== */}}
 {{ define "ui/listing_header" }}
 <header id="main-content" tabindex="-1" class="b-content-header">
-  <h1 class="title b-content-h1">{{ .Path }}</h1>
+  <h1 class="title b-content-h1">{{ .PkgPath }}</h1>
   <div class="header-info">
-    <span>{{ .Count }} {{ if eq .Count 1 }}Package{{ else }}Packages{{ end }}</span>
+    <span>{{ .FileCounter }} {{ if eq .FileCounter 1 }}Package{{ else }}Packages{{ end }}</span>
   </div>
 </header>
 {{ end }}

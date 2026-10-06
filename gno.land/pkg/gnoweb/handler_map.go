@@ -123,7 +123,7 @@ func (h *HTTPHandler) renderListing(ctx context.Context, gnourl *weburl.GnoURL, 
 	// A listing too small for a map offers none, and draws a list even when
 	// its map is asked for.
 	mappable := len(paths) >= chainmap.MinPackages
-	indexData.HeaderData.Listing = &components.ListingTabs{Map: mappable}
+	indexData.HeaderData.MapTab = mappable
 	if mappable && m != nil {
 		parts := h.ChainMap.Map(ctx, chainmap.Listing{Path: gnourl.Path, Paths: paths, Up: m.up})
 		return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, &parts)

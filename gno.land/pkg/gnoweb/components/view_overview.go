@@ -148,7 +148,6 @@ type OverviewData struct {
 	Types       []TypeEntry
 	Consts      []ValueGroup
 	Vars        []ValueGroup
-	Imports     []ImportLink
 	Files       []FileLink
 	Subpackages []SubpackageLink
 	Bugs        []string

@@ -3,9 +3,9 @@
 {{/* A listing sits on the realm grid: the rail under the tabs, on the right;
      the header and the list or map in the content columns. */}}
 {{ template "layout/aside" (dict "Title" "Listing" "Content" (render .Rail)) }}
-{{ template "ui/listing_header" .Header }}
+{{ template "ui/listing_header" . }}
 <md-renderer class="c-listing-view">
-  {{ if .Header.Truncated }}{{ template "ui/listing_truncated" .Header.Count }}{{ end }}
+  {{ if .Truncated }}{{ template "ui/listing_truncated" .FileCounter }}{{ end }}
   {{ with .Map }}{{ render . }}{{ else }}{{ template "ui/dir_list" $ }}{{ end }}
 </md-renderer>
 {{ else }}

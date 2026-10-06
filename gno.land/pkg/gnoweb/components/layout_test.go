@@ -839,7 +839,7 @@ func TestEnrichHeaderData_ListingTabs(t *testing.T) {
 	t.Parallel()
 
 	u := weburl.GnoURL{Path: "/r/demo"}
-	tabs := EnrichHeaderData(HeaderData{RealmURL: u, Listing: &ListingTabs{Map: true}}, ViewModeExplorer).Links.Dev
+	tabs := EnrichHeaderData(HeaderData{RealmURL: u, MapTab: true}, ViewModeExplorer).Links.Dev
 	require.Len(t, tabs, 2)
 	assert.Equal(t, "Directory", tabs[0].Label)
 	assert.Equal(t, "/r/demo", tabs[0].URL)
@@ -848,11 +848,11 @@ func TestEnrichHeaderData_ListingTabs(t *testing.T) {
 	assert.False(t, tabs[1].IsActive)
 
 	u.WebQuery = url.Values{"map": {""}}
-	tabs = EnrichHeaderData(HeaderData{RealmURL: u, Listing: &ListingTabs{Map: true}}, ViewModeExplorer).Links.Dev
+	tabs = EnrichHeaderData(HeaderData{RealmURL: u, MapTab: true}, ViewModeExplorer).Links.Dev
 	assert.False(t, tabs[0].IsActive)
 	assert.True(t, tabs[1].IsActive)
 
-	assert.Empty(t, EnrichHeaderData(HeaderData{RealmURL: u, Listing: &ListingTabs{}}, ViewModeExplorer).Links.Dev,
+	assert.Empty(t, EnrichHeaderData(HeaderData{RealmURL: u, MapTab: false}, ViewModeExplorer).Links.Dev,
 		"a listing too small for a map has no tabs")
 	assert.Empty(t, EnrichHeaderData(HeaderData{RealmURL: weburl.GnoURL{Path: "/"}}, ViewModeExplorer).Links.Dev,
 		"an explorer page that is not a listing has no tabs")

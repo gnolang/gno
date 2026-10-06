@@ -40,8 +40,8 @@ func TestBuildGroupsByFirstThenSecondSegment(t *testing.T) {
 		t.Fatalf("groups = %+v, want moul (6) then zed", groups)
 	}
 	moul := groups[0]
-	if moul.ZoomURL != "/r/moul/$map" {
-		t.Errorf("zoom = %q, want /r/moul/$map", moul.ZoomURL)
+	if moul.zoom != "/r/moul/" {
+		t.Errorf("zoom = %q, want /r/moul/", moul.zoom)
 	}
 	// Six packages: split by the next segment. x holds three and keeps a band;
 	// demo and blog are too small and pool together, named below moul.
@@ -53,11 +53,11 @@ func TestBuildGroupsByFirstThenSecondSegment(t *testing.T) {
 	if len(moul.Subgroups) != 2 || x == nil || pool == nil || len(x.Tiles) != 3 || len(pool.Tiles) != 3 {
 		t.Fatalf("moul subgroups = %v, want x (3) and the pooled rest (3)", subs)
 	}
-	if x.ZoomURL != "/r/moul/x/$map" {
-		t.Errorf("subgroup zoom = %q, want /r/moul/x/$map", x.ZoomURL)
+	if x.zoom != "/r/moul/x/" {
+		t.Errorf("subgroup zoom = %q, want /r/moul/x/", x.zoom)
 	}
-	if pool.ZoomURL != "" {
-		t.Errorf("the pooled subgroup must have no zoom: %q", pool.ZoomURL)
+	if pool.zoom != "" {
+		t.Errorf("the pooled subgroup must have no zoom: %q", pool.zoom)
 	}
 	for _, tl := range pool.Tiles {
 		if name := tileName(tl.Path, moul.root+"/"); !strings.Contains(name, "/") {
@@ -68,7 +68,7 @@ func TestBuildGroupsByFirstThenSecondSegment(t *testing.T) {
 	// /r/zed is a package with nothing below it: no zoom, one keyless
 	// subgroup, its tile named after it.
 	zed := groupByKey(groups, "zed")
-	if zed.ZoomURL != "" || len(zed.Subgroups) != 1 || zed.Subgroups[0].Key != "" {
+	if zed.zoom != "" || len(zed.Subgroups) != 1 || zed.Subgroups[0].Key != "" {
 		t.Fatalf("zed = %+v", zed)
 	}
 	if tl := zed.Subgroups[0].Tiles[0]; tl.Path != "/r/zed" || tileName(tl.Path, zed.root+"/") != "zed" {
@@ -98,7 +98,7 @@ func TestTilesNameTheBandThatIsNotDrawn(t *testing.T) {
 
 	labels := func(base string) []string {
 		g := buildGroups("/r/", []string{"/r/a/x", "/r/a/y"})[0]
-		layoutSubgroups(g.Subgroups, rect{0, 0, mapWidth, mapHeight}, base)
+		layoutSubgroups(g.Subgroups, Rect{0, 0, mapWidth, mapHeight}, base)
 		var out []string
 		for _, tl := range g.Subgroups[0].Tiles {
 			out = append(out, tl.Label.Text)
@@ -125,16 +125,16 @@ func TestBuildGroupsKeepsEveryPath(t *testing.T) {
 }
 
 // A key that is itself a package gets no zoom: the map of what lies below it
-// would carry a List tab opening the package, not the listing it drew.
+// is the package page, not a listing.
 func TestNoZoomIntoAPackage(t *testing.T) {
 	t.Parallel()
 
 	groups := buildGroups("/r/", []string{"/r/pkg", "/r/pkg/sub", "/r/ns/a", "/r/ns/b"})
-	if g := groupByKey(groups, "pkg"); g.ZoomURL != "" {
-		t.Errorf("zoom into a package: %q", g.ZoomURL)
+	if g := groupByKey(groups, "pkg"); g.zoom != "" {
+		t.Errorf("zoom into a package: %q", g.zoom)
 	}
-	if g := groupByKey(groups, "ns"); g.ZoomURL != "/r/ns/$map" {
-		t.Errorf("zoom into a namespace = %q, want /r/ns/$map", g.ZoomURL)
+	if g := groupByKey(groups, "ns"); g.zoom != "/r/ns/" {
+		t.Errorf("zoom into a namespace = %q, want /r/ns/", g.zoom)
 	}
 }
 

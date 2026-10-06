@@ -8,7 +8,7 @@ import (
 func TestSquarifyPreservesAreasAndStaysInside(t *testing.T) {
 	t.Parallel()
 
-	frame := rect{0, 0, 1.6, 1}
+	frame := Rect{0, 0, 1.6, 1}
 	weights := []float64{40, 12, 9, 9, 5, 3, 1, 1, 1}
 	got := squarify(weights, frame)
 	if len(got) != len(weights) {
@@ -52,7 +52,7 @@ func TestSquarifyKeepsEqualTilesSquareish(t *testing.T) {
 	for i := range weights {
 		weights[i] = 1
 	}
-	for i, r := range squarify(weights, rect{0, 0, 1, 1}) {
+	for i, r := range squarify(weights, Rect{0, 0, 1, 1}) {
 		if ratio := max(r.W/r.H, r.H/r.W); ratio > 2 {
 			t.Errorf("tile %d aspect ratio = %.2f, want at most 2", i, ratio)
 		}
@@ -62,15 +62,15 @@ func TestSquarifyKeepsEqualTilesSquareish(t *testing.T) {
 func TestSquarifyDegenerateInput(t *testing.T) {
 	t.Parallel()
 
-	if got := squarify(nil, rect{0, 0, 1, 1}); len(got) != 0 {
+	if got := squarify(nil, Rect{0, 0, 1, 1}); len(got) != 0 {
 		t.Errorf("no weights gave %d rects", len(got))
 	}
-	if got := squarify([]float64{1, 1}, rect{0, 0, 0, 1}); len(got) != 2 {
-		t.Errorf("a zero-width frame must still give one rect per weight, got %d", len(got))
+	if got := squarify([]float64{1, 1}, Rect{0, 0, 0, 1}); len(got) != 2 {
+		t.Errorf("a zero-width frame must still give one Rect per weight, got %d", len(got))
 	}
 }
 
-func overlap(a, b rect) float64 {
+func overlap(a, b Rect) float64 {
 	w := min(a.X+a.W, b.X+b.W) - max(a.X, b.X)
 	h := min(a.Y+a.H, b.Y+b.H) - max(a.Y, b.Y)
 	if w <= 0 || h <= 0 {

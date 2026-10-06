@@ -47,7 +47,9 @@ type HeaderData struct {
 	AI     *AIMenu
 	Notice RealmNotice
 	// Listing is set on a directory listing, whose tabs it carries.
-	Listing *ListingTabs
+	// MapTab is set by a directory listing large enough for a map: it then
+	// offers its Directory and Map renderings as tabs.
+	MapTab bool
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -173,20 +175,8 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	}
 }
 
-// ListingTabs are the renderings a directory listing offers, set by the
-// listing page itself: nothing else in explorer mode is a listing.
-type ListingTabs struct {
-	// Map is false for a listing too small for a map to show anything a list
-	// does not.
-	Map bool
-}
-
-// links are the Directory and Map tabs, or none when a map is not offered: a
-// single tab would choose between nothing.
-func (t *ListingTabs) links(u weburl.GnoURL) []HeaderLink {
-	if t == nil || !t.Map {
-		return nil
-	}
+// listingTabs are a listing's Directory and Map tabs.
+func listingTabs(u weburl.GnoURL) []HeaderLink {
 	listURL, mapURL := u, u
 	listURL.WebQuery = url.Values{}
 	mapURL.WebQuery = url.Values{"map": {""}}
@@ -217,9 +207,15 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 		searchBase = "/"
 	}
 	data.SearchAction = searchBase + "$search"
-	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
-	if mode == ViewModeExplorer {
-		data.Links.Dev = data.Listing.links(data.RealmURL)
+	switch {
+	case data.MapTab:
+		data.Links.Dev = listingTabs(data.RealmURL)
+	case mode == ViewModeExplorer:
+		// A listing without a map has one rendering: a single tab would
+		// choose between nothing.
+		data.Links.Dev = nil
+	default:
+		data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
 	}
 	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
 		data.AI = NewAIMenu(data.Origin, data.RealmURL)

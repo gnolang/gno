@@ -106,7 +106,7 @@ UI - Section nav: sticky anchor links (with count pills) + client-side symbol se
     {{ if or .Consts .Vars }}<a href="#{{ if .Consts }}constants{{ else }}variables{{ end }}">Values <span class="b-tag--tertiary">{{ add (len .Consts) (len .Vars) }}</span></a>{{ end }}
     {{ with .Funcs }}<a href="#functions">Funcs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
     {{ with .Types }}<a href="#types">Types <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
-    {{ with .Imports }}<a href="#imports">Imports <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
+    {{ if .Graph.Shown }}<a href="#imports">Dependencies <span class="b-tag--tertiary">{{ len .Graph.Imports }}</span></a>{{ end }}
     <a href="#files">Files <span class="b-tag--tertiary">{{ len .Files }}</span></a>
     {{ with .Subpackages }}<a href="#subpackages">Subdirs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
   </div>
@@ -214,8 +214,8 @@ UI - Overview body
 </section>
 {{ end }}
 
-{{/* --- Imports --- */}}
-{{ if or .Imports .Graph.LookupURL }}
+{{/* --- Dependencies --- */}}
+{{ if .Graph.Shown }}
 <section class="b-pkg-section" id="imports">
   <h2 class="b-pkg-section__header">
     <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Dependencies</span></span>
