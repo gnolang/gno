@@ -78,20 +78,23 @@ var (
 	_dollarDisplay = []byte("$$")
 )
 
-type mathInlineNode struct {
-	ast.BaseInline
+// mathExpr is what the renderer needs from an inline or block math node.
+type mathExpr struct {
 	flavor int
 	tex    string
 	budget *mathBudget
 }
 
+type mathInlineNode struct {
+	ast.BaseInline
+	mathExpr
+}
+
 type mathBlockNode struct {
 	ast.BaseBlock
-	flavor   int
-	tex      string
+	mathExpr
 	closeTag []byte
 	closed   bool // the closing delimiter was found
-	budget   *mathBudget
 }
 
 var (
@@ -184,7 +187,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	seg = text.NewSegment(start, seg.Start+stop)
 	tex := string(block.Value(seg))
 	block.Advance(stop + len(end))
-	return &mathInlineNode{tex: tex, flavor: flavor, budget: mathBudgetFrom(pc)}
+	return &mathInlineNode{mathExpr: mathExpr{tex: tex, flavor: flavor, budget: mathBudgetFrom(pc)}}
 }
 
 var (
@@ -305,7 +308,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	}
 
 	reader.Advance(len(open))
-	node := &mathBlockNode{flavor: flavor, closeTag: closeTag, budget: mathBudgetFrom(pc)}
+	node := &mathBlockNode{mathExpr: mathExpr{flavor: flavor, budget: mathBudgetFrom(pc)}, closeTag: closeTag}
 	_, seg := reader.PeekLine()
 	node.Lines().Append(seg)
 	return node, parser.NoChildren
@@ -481,14 +484,10 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	if !entering {
 		return ast.WalkSkipChildren, nil
 	}
-	var tex string
-	var flavor int
-	var budget *mathBudget
+	var expr mathExpr
 	switch t := node.(type) {
 	case *mathInlineNode:
-		flavor = t.flavor
-		tex = t.tex
-		budget = t.budget
+		expr = t.mathExpr
 	case *mathBlockNode:
 		if !t.closed {
 			// The opener never got its closing line (its container ended
@@ -503,13 +502,12 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 			w.WriteString("</p>\n")
 			return ast.WalkSkipChildren, nil
 		}
-		flavor = t.flavor
-		tex = t.tex
-		budget = t.budget
+		expr = t.mathExpr
 	default:
 		return ast.WalkContinue, nil
 	}
-	inline := flavor&flavor_inline > 0
+	tex, budget := expr.tex, expr.budget
+	inline := expr.flavor&flavor_inline > 0
 
 	if len(tex) <= MaxMathInputLen && budget.left > 0 {
 		// The converter keeps per-expression state, so it must not be shared

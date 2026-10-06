@@ -110,17 +110,20 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 	if converter.PrintOneLine {
 		indent = -1
 	}
+	setStyle := func(math *MMLNode) {
+		if displaystyle {
+			math.SetAttr("display", "block")
+			math.SetAttr("class", "math-displaystyle")
+			math.SetAttr("displaystyle", "true")
+		} else {
+			math.SetAttr("display", "inline")
+			math.SetAttr("class", "math-textstyle")
+		}
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			ast = makeMMLError()
-			if displaystyle {
-				ast.SetAttr("display", "block")
-				ast.SetAttr("class", "math-displaystyle")
-				ast.SetAttr("displaystyle", "true")
-			} else {
-				ast.SetAttr("display", "inline")
-				ast.SetAttr("class", "math-textstyle")
-			}
+			setStyle(ast)
 			ast.Write(&builder, indent)
 			result = builder.String()
 			err = fmt.Errorf("MathML encountered an unexpected error")
@@ -134,14 +137,7 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 	}
 	ast = converter.wrapInMathTag(converter.ParseTex(NewTokenBuffer(tokens), ctxRoot), tex)
 	ast.SetAttr("xmlns", "http://www.w3.org/1998/Math/MathML")
-	if displaystyle {
-		ast.SetAttr("display", "block")
-		ast.SetAttr("class", "math-displaystyle")
-		ast.SetAttr("displaystyle", "true")
-	} else {
-		ast.SetAttr("display", "inline")
-		ast.SetAttr("class", "math-textstyle")
-	}
+	setStyle(ast)
 	builder.WriteRune('\n')
 	ast.Write(&builder, indent)
 	builder.WriteRune('\n')
