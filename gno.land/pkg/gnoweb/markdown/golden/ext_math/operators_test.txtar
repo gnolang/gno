@@ -14,7 +14,7 @@ Functions: $\sin \cos \tan \log \ln \exp \max \min \sup \inf \lim$
 -- output.html --
 <p>Mathematical operators test:</p>
 <p>Basic operators: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo>+</mo>
@@ -29,7 +29,7 @@ Functions: $\sin \cos \tan \log \ln \exp \max \min \sup \inf \lim$
 </math>
 </p>
 <p>Relations: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo>=</mo>
@@ -52,7 +52,7 @@ Functions: $\sin \cos \tan \log \ln \exp \max \min \sup \inf \lim$
 </math>
 </p>
 <p>Set theory: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo>∈</mo>
@@ -71,7 +71,7 @@ Functions: $\sin \cos \tan \log \ln \exp \max \min \sup \inf \lim$
 </math>
 </p>
 <p>Arrows: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo>→</mo>
@@ -88,7 +88,7 @@ Functions: $\sin \cos \tan \log \ln \exp \max \min \sup \inf \lim$
 </math>
 </p>
 <p>Functions: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi lspace="0.11111em">sin</mi>

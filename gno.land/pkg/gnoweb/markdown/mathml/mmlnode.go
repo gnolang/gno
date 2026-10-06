@@ -55,7 +55,6 @@ type MMLNode struct {
 	Option     string            // container for any options that may be passed and processed for a tex command
 	Properties NodeProperties    // bitfield of NodeProperties
 	Attrib     map[string]string // key value pairs of XML attributes
-	CSS        map[string]string // inline css styling
 	Children   []*MMLNode        // ordered list of child MathML elements
 }
 
@@ -85,7 +84,6 @@ func NewMMLNode(opt ...string) *MMLNode {
 		Text:     tagText[1],
 		Children: make([]*MMLNode, 0),
 		Attrib:   make(map[string]string),
-		CSS:      make(map[string]string),
 	}
 }
 
@@ -113,6 +111,14 @@ func (n *MMLNode) SetAttr(name, value string) *MMLNode {
 	return n
 }
 
+// AddClass adds class to the classes of n and returns n.
+func (n *MMLNode) AddClass(class string) *MMLNode {
+	if c := n.Attrib["class"]; c != "" {
+		class = c + " " + class
+	}
+	return n.SetAttr("class", class)
+}
+
 func (n *MMLNode) SetProps(p NodeProperties) *MMLNode {
 	n.Properties = p
 	return n
@@ -120,11 +126,6 @@ func (n *MMLNode) SetProps(p NodeProperties) *MMLNode {
 
 func (n *MMLNode) AddProps(p NodeProperties) *MMLNode {
 	n.Properties |= p
-	return n
-}
-
-func (n *MMLNode) SetCssProp(key, val string) *MMLNode {
-	n.CSS[key] = val
 	return n
 }
 
@@ -176,7 +177,7 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 	w.WriteRune('<')
 	w.WriteString(tag)
 
-	// Sort attributes and CSS properties for deterministic output.
+	// Sort attributes for deterministic output.
 	for _, key := range slices.Sorted(maps.Keys(n.Attrib)) {
 		if !isAttrName(key) {
 			continue
@@ -185,16 +186,6 @@ func (n *MMLNode) Write(w *strings.Builder, indent int) {
 		w.WriteString(key)
 		w.WriteString(`="`)
 		writeEscaped(w, n.Attrib[key])
-		w.WriteRune('"')
-	}
-	if len(n.CSS) > 0 {
-		w.WriteString(` style="`)
-		for _, key := range slices.Sorted(maps.Keys(n.CSS)) {
-			writeEscaped(w, key)
-			w.WriteRune(':')
-			writeEscaped(w, n.CSS[key])
-			w.WriteRune(';')
-		}
 		w.WriteRune('"')
 	}
 	w.WriteRune('>')

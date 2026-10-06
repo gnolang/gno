@@ -10,7 +10,7 @@ Variants: $\varGamma, \varDelta, \varTheta, \varLambda, \varXi, \varPi, \varSigm
 -- output.html --
 <p>Greek letters test:</p>
 <p>Lowercase: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>α</mi>
@@ -66,7 +66,7 @@ Variants: $\varGamma, \varDelta, \varTheta, \varLambda, \varXi, \varPi, \varSigm
 </math>
 </p>
 <p>Uppercase: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi mathvariant="normal">Α</mi>
@@ -122,7 +122,7 @@ Variants: $\varGamma, \varDelta, \varTheta, \varLambda, \varXi, \varPi, \varSigm
 </math>
 </p>
 <p>Variants: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>Γ</mi>

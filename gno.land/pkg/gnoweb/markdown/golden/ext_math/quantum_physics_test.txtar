@@ -61,7 +61,7 @@ Helmholtz free energy: $F = U - TS$
 <p>Quantum physics and relativity equations test:</p>
 <h2>Quantum Mechanics</h2>
 <p>Schrödinger equation (time-dependent): 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>i</mi>
@@ -78,7 +78,7 @@ Helmholtz free energy: $F = U - TS$
       <mo>⟩</mo>
       <mo>=</mo>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">H</mi>
+        <mi class="math-dtls-on">H</mi>
         <mo stretchy="true">^</mo>
       </mover>
       <mi>|</mi>
@@ -90,11 +90,11 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Schrödinger equation (time-independent): 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">H</mi>
+        <mi class="math-dtls-on">H</mi>
         <mo stretchy="true">^</mo>
       </mover>
       <mi>|</mi>
@@ -111,7 +111,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Heisenberg uncertainty principle: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi mathvariant="normal">Δ</mi>
@@ -129,36 +129,36 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Commutator: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo form="prefix" stretchy="false">[</mo>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">A</mi>
+        <mi class="math-dtls-on">A</mi>
         <mo stretchy="true">^</mo>
       </mover>
       <mo>,</mo>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">B</mi>
+        <mi class="math-dtls-on">B</mi>
         <mo stretchy="true">^</mo>
       </mover>
       <mo form="postfix" stretchy="false">]</mo>
       <mo>=</mo>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">A</mi>
+        <mi class="math-dtls-on">A</mi>
         <mo stretchy="true">^</mo>
       </mover>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">B</mi>
+        <mi class="math-dtls-on">B</mi>
         <mo stretchy="true">^</mo>
       </mover>
       <mo>−</mo>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">B</mi>
+        <mi class="math-dtls-on">B</mi>
         <mo stretchy="true">^</mo>
       </mover>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">A</mi>
+        <mi class="math-dtls-on">A</mi>
         <mo stretchy="true">^</mo>
       </mover>
     </mrow>
@@ -167,7 +167,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Pauli matrices: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msub>
@@ -202,7 +202,7 @@ Helmholtz free energy: $F = U - TS$
   </semantics>
 </math>
 , 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msub>
@@ -238,7 +238,7 @@ Helmholtz free energy: $F = U - TS$
   </semantics>
 </math>
 , 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msub>
@@ -276,7 +276,7 @@ Helmholtz free energy: $F = U - TS$
 </p>
 <h2>Quantum Field Theory</h2>
 <p>Dirac equation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo form="prefix" stretchy="false">(</mo>
@@ -301,7 +301,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Klein-Gordon equation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo form="prefix" stretchy="false">(</mo>
@@ -328,7 +328,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Maxwell equations in tensor form: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msub>
@@ -358,7 +358,7 @@ Helmholtz free energy: $F = U - TS$
 </p>
 <h2>Special Relativity</h2>
 <p>Lorentz transformation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -376,7 +376,7 @@ Helmholtz free energy: $F = U - TS$
   </semantics>
 </math>
 , 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>t</mi>
@@ -405,7 +405,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Time dilation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi mathvariant="normal">Δ</mi>
@@ -421,7 +421,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Length contraction: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>L</mi>
@@ -437,7 +437,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Relativistic energy: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>E</mi>
@@ -471,7 +471,7 @@ Helmholtz free energy: $F = U - TS$
 </p>
 <h2>General Relativity</h2>
 <p>Einstein field equations: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msub>
@@ -530,7 +530,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Schwarzschild metric: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>d</mi>
@@ -627,7 +627,7 @@ Helmholtz free energy: $F = U - TS$
 </p>
 <h2>Statistical Mechanics</h2>
 <p>Boltzmann distribution: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>P</mi>
@@ -653,7 +653,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Partition function: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>Z</mi>
@@ -681,7 +681,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Fermi-Dirac distribution: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>f</mi>
@@ -713,7 +713,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Bose-Einstein distribution: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>f</mi>
@@ -746,7 +746,7 @@ Helmholtz free energy: $F = U - TS$
 </p>
 <h2>Thermodynamics</h2>
 <p>First law: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>d</mi>
@@ -763,7 +763,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Second law: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>d</mi>
@@ -782,7 +782,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Gibbs free energy: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>G</mi>
@@ -797,7 +797,7 @@ Helmholtz free energy: $F = U - TS$
 </math>
 </p>
 <p>Helmholtz free energy: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>F</mi>

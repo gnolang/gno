@@ -13,11 +13,10 @@ func TestMMLNodeWriteEscapes(t *testing.T) {
 	n := NewMMLNode("mi", `</math><script>x & y</script>`)
 	n.SetAttr("class", `x" onclick="alert(1)`)
 	n.SetAttr(`bad" onclick="alert(1)`, "v")
-	n.SetCssProp("color", `red"><script>`)
 	var b strings.Builder
 	n.Write(&b, -1)
 	assert.Equal(t,
-		`<mi class="x&#34; onclick=&#34;alert(1)" style="color:red&#34;&gt;&lt;script&gt;;">&lt;/math&gt;&lt;script&gt;x &amp; y&lt;/script&gt;</mi>`,
+		`<mi class="x&#34; onclick=&#34;alert(1)">&lt;/math&gt;&lt;script&gt;x &amp; y&lt;/script&gt;</mi>`,
 		b.String())
 }
 
@@ -56,12 +55,34 @@ func TestParseDepthLimit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestMMLNodeWriteSortsCSS(t *testing.T) {
-	n := NewMMLNode("mo", "lim").SetCssProp("padding", "0").SetCssProp("border-bottom", "1px").SetCssProp("color", "red")
+func TestMMLNodeWriteSortsAttributes(t *testing.T) {
+	n := NewMMLNode("mo", "lim").SetAttr("rspace", "0").SetAttr("fence", "true").SetAttr("lspace", "0")
 	for range 20 {
 		var b strings.Builder
 		n.Write(&b, -1)
-		assert.Equal(t, `<mo style="border-bottom:1px;color:red;padding:0;">lim</mo>`, b.String())
+		assert.Equal(t, `<mo fence="true" lspace="0" rspace="0">lim</mo>`, b.String())
+	}
+}
+
+// The page CSP blocks inline styles: the converter describes the math and
+// the stylesheet styles it, through classes.
+func TestNoInlineStyle(t *testing.T) {
+	for tex, class := range map[string]string{
+		`x`:                 "",
+		`\dot{\imath}`:      `class="math-dtls-on"`,
+		`\ddot{x}`:          `class="math-dtls-on"`,
+		`\underline{x}`:     `class="math-dtls-on"`,
+		`\LaTeX`:            `class="math-latex-a"`,
+		`\TeX`:              `class="math-tex-e"`,
+		`\varliminf_n x`:    `class="math-liminf"`,
+		`\varlimsup_n x`:    `class="math-limsup"`,
+		`\dot{\mathcal{A}}`: `class="mathcal math-dtls-on"`,
+	} {
+		for _, display := range []bool{false, true} {
+			out := convertWithin(t, tex, display)
+			assert.NotContains(t, out, " style=", tex)
+			assert.Contains(t, out, class, tex)
+		}
 	}
 }
 

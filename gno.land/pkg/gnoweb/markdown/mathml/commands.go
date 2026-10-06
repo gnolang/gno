@@ -53,8 +53,9 @@ var (
 	precompiled_commands = map[string]*MMLNode{
 		"varinjlim":  NewMMLNode("munder").SetProps(propMovablelimits|propLimitsunderover).AppendChild(NewMMLNode("mo", "lim"), NewMMLNode("mo", "→").SetTrue("stretchy")),
 		"varprojlim": NewMMLNode("munder").SetProps(propMovablelimits|propLimitsunderover).AppendChild(NewMMLNode("mo", "lim"), NewMMLNode("mo", "←").SetTrue("stretchy")),
-		"varliminf":  NewMMLNode("mpadded").SetProps(propMovablelimits | propLimitsunderover).AppendChild(NewMMLNode("mo", "lim").SetCssProp("padding", "0 0 0.1em 0").SetCssProp("border-bottom", "0.065em solid")),
-		"varlimsup":  NewMMLNode("mpadded").SetProps(propMovablelimits | propLimitsunderover).AppendChild(NewMMLNode("mo", "lim").SetCssProp("padding", "0.1em 0 0 0").SetCssProp("border-top", "0.065em solid")),
+		// The rule under or over lim is drawn by the stylesheet.
+		"varliminf": NewMMLNode("mpadded").SetProps(propMovablelimits | propLimitsunderover).AppendChild(NewMMLNode("mo", "lim").SetAttr("class", "math-liminf")),
+		"varlimsup": NewMMLNode("mpadded").SetProps(propMovablelimits | propLimitsunderover).AppendChild(NewMMLNode("mo", "lim").SetAttr("class", "math-limsup")),
 	}
 
 	math_variants = map[string]parseContext{
@@ -158,27 +159,30 @@ func isolateMathVariant(ctx parseContext) parseContext {
 	return ctx & ^(ctxVarNormal - 1)
 }
 
-// isLaTeXLogo argument is true for \LaTeX and false for \TeX
+// isLaTeXLogo argument is true for \LaTeX and false for \TeX. The kerning
+// that browsers do not apply from the MathML attributes alone comes from the
+// stylesheet, through the math-latex-* and math-tex-* classes: the page CSP
+// blocks inline styles.
 func makeTexLogo(isLaTeXLogo bool) *MMLNode {
 	mrow := NewMMLNode("mrow")
 	if isLaTeXLogo {
 		mrow.AppendNew("mtext", "L")
-		mrow.AppendNew("mspace").SetAttr("style", "margin-left:-0.35em;")
+		mrow.AppendNew("mspace").SetAttr("class", "math-latex-kern-la")
 
-		mpadded := mrow.AppendNew("mpadded").SetAttr("voffset", "0.2em").SetAttr("style", "padding:0.2em 0 0 0;")
+		mpadded := mrow.AppendNew("mpadded").SetAttr("voffset", "0.2em").SetAttr("class", "math-latex-a")
 		mstyle1 := mpadded.AppendNew("mstyle").SetAttr("scriptlevel", "0").SetAttr("displaystyle", "false")
 		mstyle1.AppendNew("mtext", "A")
 
-		mrow.AppendNew("mspace").SetAttr("width", "-0.15em").SetAttr("style", "margin-left:-0.15em;")
+		mrow.AppendNew("mspace").SetAttr("width", "-0.15em").SetAttr("class", "math-latex-kern-at")
 	}
 	mrow.AppendNew("mtext", "T")
-	mrow.AppendNew("mspace").SetAttr("width", "-0.1667em").SetAttr("style", "margin-left:-0.1667em;")
+	mrow.AppendNew("mspace").SetAttr("width", "-0.1667em").SetAttr("class", "math-tex-kern-te")
 
-	mpadded := mrow.AppendNew("mpadded").SetAttr("voffset", "-0.2155em").SetAttr("style", "padding:0 0 0.2155em 0;")
+	mpadded := mrow.AppendNew("mpadded").SetAttr("voffset", "-0.2155em").SetAttr("class", "math-tex-e")
 	mstyle := mpadded.AppendNew("mstyle").SetAttr("scriptlevel", "0").SetAttr("displaystyle", "false")
 	mstyle.AppendNew("mtext", "E")
 
-	mrow.AppendNew("mspace").SetAttr("width", "-0.125em").SetAttr("style", "margin-left:-0.125em;")
+	mrow.AppendNew("mspace").SetAttr("width", "-0.125em").SetAttr("class", "math-tex-kern-ex")
 	mrow.AppendNew("mtext", "X")
 
 	return mrow
@@ -330,7 +334,8 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		}
 		base := converter.ParseTex(tempbuf, context)
 		if base.Tag == "mi" {
-			base.SetAttr("style", "font-feature-settings: 'dtls' on;")
+			// Dotless i and j under the accent, through the stylesheet.
+			base.AddClass("math-dtls-on")
 		}
 		n.AppendChild(base, acc)
 	} else if ch, ok := accents_below[name]; ok {
@@ -343,7 +348,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		}
 		base := converter.ParseTex(tempbuf, context)
 		if base.Tag == "mi" {
-			base.SetAttr("style", "font-feature-settings: 'dtls' on;")
+			base.AddClass("math-dtls-on")
 		}
 		n.AppendChild(base, acc)
 	} else {

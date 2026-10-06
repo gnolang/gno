@@ -52,7 +52,7 @@ func TexToMML(tex string, macros map[string]string, block, displaystyle bool) (r
 }
 func wrapInMathTag(mrow *MMLNode, tex string) *MMLNode {
 	node := NewMMLNode("math")
-	node.SetAttr("style", "font-feature-settings: 'dtls' off;").SetAttr("xmlns", "http://www.w3.org/1998/Math/MathML")
+	node.SetAttr("xmlns", "http://www.w3.org/1998/Math/MathML")
 	semantics := node.AppendNew("semantics")
 	if mrow != nil && mrow.Tag != "mrow" {
 		root := semantics.AppendNew("mrow")
@@ -146,7 +146,6 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 
 func (converter *MathMLConverter) wrapInMathTag(mrow *MMLNode, tex string) *MMLNode {
 	node := NewMMLNode("math")
-	node.SetAttr("style", "font-feature-settings: 'dtls' off;")
 	semantics := node.AppendNew("semantics")
 	if converter.DoNumbering && converter.currentIsDisplay {
 		converter.EQCount++

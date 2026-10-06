@@ -20,7 +20,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
 -- output.html --
 <p>Complex equations test:</p>
 <p>Quadratic formula: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -54,7 +54,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
 </math>
 </p>
 <p>Einstein's mass-energy equivalence: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>E</mi>
@@ -70,7 +70,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
 </math>
 </p>
 <p>Schrödinger equation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>i</mi>
@@ -85,7 +85,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
       <mi mathvariant="normal">Ψ</mi>
       <mo>=</mo>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">H</mi>
+        <mi class="math-dtls-on">H</mi>
         <mo stretchy="true">^</mo>
       </mover>
       <mi mathvariant="normal">Ψ</mi>
@@ -95,13 +95,13 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
 </math>
 </p>
 <p>Maxwell's equations: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi mathvariant="normal">∇</mi>
       <mo>×</mo>
       <mover accent="true">
-        <mi style="font-feature-settings: 'dtls' on;">E</mi>
+        <mi class="math-dtls-on">E</mi>
         <mo stretchy="true">⃗</mo>
       </mover>
       <mo>=</mo>
@@ -110,7 +110,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
         <mrow>
           <mi>∂</mi>
           <mover accent="true">
-            <mi style="font-feature-settings: 'dtls' on;">B</mi>
+            <mi class="math-dtls-on">B</mi>
             <mo stretchy="true">⃗</mo>
           </mover>
         </mrow>
@@ -125,7 +125,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
 </math>
 </p>
 <p>Fourier transform: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi class="mathcal">ℱ︀</mi>
@@ -167,7 +167,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
 </math>
 </p>
 <p>Laplace transform: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi class="mathcal">ℒ︀</mi>
@@ -203,7 +203,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
 </math>
 </p>
 <p>Binomial theorem: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo form="prefix" stretchy="false">(</mo>
@@ -252,7 +252,7 @@ Taylor series: $f(x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} (x-a)^n$
 </math>
 </p>
 <p>Taylor series: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>f</mi>

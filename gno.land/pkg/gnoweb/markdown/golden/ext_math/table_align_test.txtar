@@ -16,7 +16,7 @@ $$
 -- output.html --
 <p>Cell alignment: aligned pairs (the empty third cell keeps its alignment), cases and an array spec.</p>
 
-<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mtable columnalign="center" displaystyle="true" rowalign="center">
@@ -42,7 +42,7 @@ $$
   </semantics>
 </math>
 
-<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">{</mo>
@@ -64,7 +64,7 @@ $$
   </semantics>
 </math>
 
-<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mtable columnalign="left center right" columnlines="none none" rowalign="center">

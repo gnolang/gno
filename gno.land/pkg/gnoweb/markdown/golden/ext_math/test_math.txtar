@@ -33,7 +33,7 @@ $$
 <h1>Math Test</h1>
 <h2>Inline Math</h2>
 <p>Simple inline math: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -45,7 +45,7 @@ $$
 </math>
 </p>
 <p>Complex inline math: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -82,7 +82,7 @@ $$
 <h2>Display Math</h2>
 <p>Simple display math:</p>
 
-<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>E</mi>
@@ -100,7 +100,7 @@ E = mc^2
 </math>
 <p>Complex display math:</p>
 
-<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msubsup>
@@ -135,7 +135,7 @@ E = mc^2
 </math>
 <p>Matrix:</p>
 
-<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">(</mo>

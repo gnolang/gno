@@ -41,7 +41,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 <p>Advanced roots and complex equations test:</p>
 <h2>Complex Roots</h2>
 <p>Simple square root: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msqrt>
@@ -53,7 +53,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>Square root with expression: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msqrt>
@@ -75,7 +75,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>k-th root: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mroot>
@@ -88,7 +88,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>k-th root with complex expression: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mroot>
@@ -111,7 +111,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>Nested roots: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msqrt>
@@ -125,7 +125,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>Multiple roots: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msqrt>
@@ -142,7 +142,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </p>
 <h2>Fractional Powers</h2>
 <p>Fractional power: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msup>
@@ -159,7 +159,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>Complex fractional power: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msup>
@@ -176,7 +176,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>Nested fractional powers: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo form="prefix" stretchy="false">(</mo>
@@ -203,7 +203,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </p>
 <h2>Advanced Root Equations</h2>
 <p>Quadratic formula with k-th root: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -238,7 +238,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>Cubic formula: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -322,7 +322,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>Nested radical: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msqrt>
@@ -353,7 +353,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </p>
 <h2>Complex Mathematical Structures</h2>
 <p>Continued fraction: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -408,7 +408,7 @@ Nested fractions with roots: $\frac{1}{\sqrt{1 + \frac{1}{\sqrt{1 + \frac{1}{\sq
 </math>
 </p>
 <p>Nested fractions with roots: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mfrac>

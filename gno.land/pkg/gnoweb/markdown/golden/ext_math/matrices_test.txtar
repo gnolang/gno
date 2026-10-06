@@ -18,7 +18,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 -- output.html --
 <p>Matrix tests:</p>
 <p>Simple matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mtable columnalign="center" rowalign="center">
@@ -45,7 +45,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 </math>
 </p>
 <p>Parentheses matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">(</mo>
@@ -74,7 +74,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 </math>
 </p>
 <p>Brackets matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">[</mo>
@@ -103,7 +103,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 </math>
 </p>
 <p>Braces matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">{</mo>
@@ -132,7 +132,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 </math>
 </p>
 <p>Vertical bars: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">|</mo>
@@ -161,7 +161,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 </math>
 </p>
 <p>Double vertical bars: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">‖</mo>
@@ -190,7 +190,7 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
 </math>
 </p>
 <p>Large matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">(</mo>

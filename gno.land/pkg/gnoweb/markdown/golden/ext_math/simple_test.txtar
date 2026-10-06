@@ -10,7 +10,7 @@ $$
 
 -- output.html --
 <p>Simple test: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -24,7 +24,7 @@ $$
 <p>LaTeX test: (A = \pi r^2)</p>
 <p>Display test:</p>
 
-<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>E</mi>

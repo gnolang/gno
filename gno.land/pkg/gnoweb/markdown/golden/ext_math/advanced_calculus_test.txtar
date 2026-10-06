@@ -31,7 +31,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 <p>Advanced calculus and differential equations test:</p>
 <h2>Complex Integrals</h2>
 <p>Gaussian integral: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msubsup>
@@ -64,7 +64,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </math>
 </p>
 <p>Fresnel integrals: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>C</mi>
@@ -99,7 +99,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
   </semantics>
 </math>
 , 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>S</mi>
@@ -135,7 +135,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </math>
 </p>
 <p>Beta function: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>B</mi>
@@ -200,7 +200,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </p>
 <h2>Partial Differential Equations</h2>
 <p>Heat equation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mfrac>
@@ -237,7 +237,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </math>
 </p>
 <p>Wave equation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mfrac>
@@ -283,7 +283,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </math>
 </p>
 <p>Laplace equation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msup>
@@ -299,7 +299,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </math>
 </p>
 <p>Poisson equation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msup>
@@ -323,7 +323,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </p>
 <h2>Complex Analysis</h2>
 <p>Cauchy-Riemann equations: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mfrac>
@@ -352,7 +352,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
   </semantics>
 </math>
 , 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mfrac>
@@ -383,7 +383,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </math>
 </p>
 <p>Cauchy integral formula: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>f</mi>
@@ -430,7 +430,7 @@ Residue theorem: $\oint_C f(z) dz = 2\pi i \sum_{k=1}^n \text{Res}(f, z_k)$
 </math>
 </p>
 <p>Residue theorem: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msub>

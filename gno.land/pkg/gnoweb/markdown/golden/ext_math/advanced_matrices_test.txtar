@@ -49,7 +49,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 <p>Advanced matrices and linear algebra test:</p>
 <h2>Basic Matrices</h2>
 <p>Simple 2x2 matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">(</mo>
@@ -78,7 +78,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </math>
 </p>
 <p>3x3 matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">(</mo>
@@ -125,7 +125,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </p>
 <h2>Determinants</h2>
 <p>2x2 determinant: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi lspace="0.11111em" movablelimits="true">det</mi>
@@ -163,7 +163,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </math>
 </p>
 <p>3x3 determinant: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi lspace="0.11111em" movablelimits="true">det</mi>
@@ -240,7 +240,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </p>
 <h2>Matrix Operations</h2>
 <p>Matrix multiplication: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mrow>
@@ -332,7 +332,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </math>
 </p>
 <p>Matrix transpose: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msup>
@@ -390,7 +390,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </p>
 <h2>Advanced Matrix Structures</h2>
 <p>Block matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">(</mo>
@@ -418,7 +418,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
  where 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>A</mi>
@@ -427,7 +427,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
 , 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>B</mi>
@@ -436,7 +436,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
 , 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>C</mi>
@@ -445,7 +445,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
 , 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>D</mi>
@@ -455,7 +455,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </math>
  are submatrices</p>
 <p>Vandermonde matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">(</mo>
@@ -582,7 +582,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </p>
 <h2>Eigenvalues and Eigenvectors</h2>
 <p>Characteristic polynomial: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi lspace="0.11111em" movablelimits="true">det</mi>
@@ -600,7 +600,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </math>
 </p>
 <p>Eigenvalue equation: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>A</mi>
@@ -615,7 +615,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </p>
 <h2>Matrix Decompositions</h2>
 <p>LU decomposition: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>A</mi>
@@ -627,7 +627,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
  where 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>L</mi>
@@ -636,7 +636,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
  is lower triangular and 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>U</mi>
@@ -646,7 +646,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </math>
  is upper triangular</p>
 <p>QR decomposition: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>A</mi>
@@ -658,7 +658,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
  where 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>Q</mi>
@@ -667,7 +667,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
  is orthogonal and 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>R</mi>
@@ -677,7 +677,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </math>
  is upper triangular</p>
 <p>SVD decomposition: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>A</mi>
@@ -693,7 +693,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
  where 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>U</mi>
@@ -702,7 +702,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
  and 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>V</mi>
@@ -711,7 +711,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
   </semantics>
 </math>
  are orthogonal and 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi mathvariant="normal">Σ</mi>
@@ -722,7 +722,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
  is diagonal</p>
 <h2>Complex Matrices</h2>
 <p>Complex matrix: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mo fence="true" stretchy="true">(</mo>
@@ -763,7 +763,7 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
 </math>
 </p>
 <p>Hermitian conjugate: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <msup>
@@ -798,13 +798,13 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
           <mtr>
             <mtd columnalign="center">
               <mover accent="true">
-                <mi style="font-feature-settings: 'dtls' on;">a</mi>
+                <mi class="math-dtls-on">a</mi>
                 <mo stretchy="true">¯</mo>
               </mover>
             </mtd>
             <mtd columnalign="center">
               <mover accent="true">
-                <mi style="font-feature-settings: 'dtls' on;">c</mi>
+                <mi class="math-dtls-on">c</mi>
                 <mo stretchy="true">¯</mo>
               </mover>
             </mtd>
@@ -812,13 +812,13 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
           <mtr>
             <mtd columnalign="center">
               <mover accent="true">
-                <mi style="font-feature-settings: 'dtls' on;">b</mi>
+                <mi class="math-dtls-on">b</mi>
                 <mo stretchy="true">¯</mo>
               </mover>
             </mtd>
             <mtd columnalign="center">
               <mover accent="true">
-                <mi style="font-feature-settings: 'dtls' on;">d</mi>
+                <mi class="math-dtls-on">d</mi>
                 <mo stretchy="true">¯</mo>
               </mover>
             </mtd>

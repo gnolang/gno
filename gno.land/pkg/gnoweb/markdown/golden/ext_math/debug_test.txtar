@@ -7,7 +7,7 @@ Test 3: \\[E = mc^2\\]
 
 -- output.html --
 <p>Test 1: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>x</mi>
@@ -19,7 +19,7 @@ Test 3: \\[E = mc^2\\]
 </math>
 </p>
 <p>Test 2: 
-<math class="math-textstyle" display="inline" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>A</mi>
@@ -37,7 +37,7 @@ Test 3: \\[E = mc^2\\]
 </math>
 </p>
 <p>Test 3: 
-<math class="math-displaystyle" display="block" displaystyle="true" style="font-feature-settings: 'dtls' off;" xmlns="http://www.w3.org/1998/Math/MathML">
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML">
   <semantics>
     <mrow>
       <mi>E</mi>

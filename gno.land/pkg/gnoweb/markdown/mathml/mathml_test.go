@@ -582,26 +582,6 @@ func TestMMLNode_SetFalse(t *testing.T) {
 	}
 }
 
-func TestMMLNode_SetCssProp(t *testing.T) {
-	tests := []struct {
-		name  string
-		prop  string
-		value string
-	}{
-		{"color_prop", "color", "red"},
-		{"font_size_prop", "font-size", "12px"},
-		{"margin_prop", "margin", "5px"},
-		{"empty_prop", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node := NewMMLNode("mi", "x")
-			node.SetCssProp(tt.prop, tt.value)
-		})
-	}
-}
-
 func TestMMLNode_AppendChild(t *testing.T) {
 	tests := []struct {
 		name  string
