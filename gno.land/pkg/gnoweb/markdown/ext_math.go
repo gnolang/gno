@@ -469,6 +469,21 @@ type blockProbe struct {
 	doc ast.Node
 }
 
+// probeContext is a parser context whose values cannot be set. Some parsers
+// record state for the next line they see (goldmark's list parsers skip the
+// next list start, gnoweb's count their nesting depth): a probe never sees
+// that next line, and must not leave the state behind for the next probe.
+type probeContext struct{ parser.Context }
+
+func (probeContext) Set(parser.ContextKey, any) {}
+
+func (c probeContext) ComputeIfAbsent(key parser.ContextKey, f func() any) any {
+	if v := c.Get(key); v != nil {
+		return v
+	}
+	return f()
+}
+
 var blockProbeKey = parser.NewContextKey()
 
 func blockProbeFrom(pc parser.Context) *blockProbe {
@@ -478,7 +493,7 @@ func blockProbeFrom(pc parser.Context) *blockProbe {
 	doc := ast.NewDocument()
 	para := ast.NewParagraph()
 	doc.AppendChild(doc, para)
-	probe := &blockProbe{pc: parser.NewContext(), doc: doc}
+	probe := &blockProbe{pc: probeContext{parser.NewContext()}, doc: doc}
 	probe.pc.SetOpenedBlocks([]parser.Block{{Node: para}})
 	pc.Set(blockProbeKey, probe)
 	return probe
@@ -503,10 +518,6 @@ func (t *blockStarters) startsBlock(pc parser.Context, line []byte) bool {
 	probe := blockProbeFrom(pc)
 	probe.pc.SetBlockOffset(pos)
 	probe.pc.SetBlockIndent(w)
-	// Some gnoweb parsers count their nesting depth on the context when
-	// they open, and a probe never closes what it opens: start each probe
-	// at depth 0 so that the count cannot fill up and make them decline.
-	Seed(probe.pc, 0)
 	for _, bp := range bps {
 		if node, _ := bp.Open(probe.doc, text.NewReader(line), probe.pc); node != nil {
 			return true
@@ -599,15 +610,22 @@ func (p *texBlockRegionParser) hasClosingLine(parent ast.Node, reader text.Reade
 
 // containerBlocks returns the open blocks that contain parent, the block a
 // math block would open in, outermost first: the containers whose prefix
-// each of its lines must carry.
+// each of its lines must carry. Other open blocks, such as the paragraph the
+// opener interrupts, are left out.
 func containerBlocks(parent ast.Node, pc parser.Context) []parser.Block {
-	blocks := pc.OpenedBlocks()
-	for i, b := range blocks {
-		if b.Node == parent {
-			return blocks[:i+1]
+	if parent.Kind() == ast.KindDocument {
+		return nil
+	}
+	var containers []parser.Block
+	for _, b := range pc.OpenedBlocks() {
+		for n := parent; n != nil; n = n.Parent() {
+			if n == b.Node {
+				containers = append(containers, b)
+				break
+			}
 		}
 	}
-	return nil // parent is the document
+	return containers
 }
 
 // inContainers offers a source line to the parsers of containers, as the

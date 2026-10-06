@@ -668,6 +668,12 @@ func TestMathDisplayCloseInSameContainer(t *testing.T) {
 		{"> $$\n> a &amp; b \\* c **d**\nlazy\n> $$", "<blockquote>\n<p>$$\na &amp; b * c <strong>d</strong>\nlazy\n$$</p>\n</blockquote>\n"},
 		{"> > $$\n> > a\n> $$", "<blockquote>\n<blockquote>\n<p>$$\na\n$$</p>\n</blockquote>\n</blockquote>\n"},
 		{"- $$\n  a\n- $$", "<ul>\n<li>$$\na</li>\n<li>$$</li>\n</ul>\n"},
+		// The paragraph the list interrupts is not a container of the item.
+		{"a\nb\n- \\\\[\nc", "<p>a\nb</p>\n<ul>\n<li>\\[\nc</li>\n</ul>\n"},
+		{"> a\n> - $$\n> c", "<blockquote>\n<p>a</p>\n<ul>\n<li>$$\nc</li>\n</ul>\n</blockquote>\n"},
+		// Probing the empty item for the first opener must not leave the
+		// list parser's state behind for the second one's probes.
+		{"- $$\n-\n$$\n- $$", "<ul>\n<li>$$</li>\n<li></li>\n</ul>\n<p>$$</p>\n<ul>\n<li>$$</li>\n</ul>\n"},
 	} {
 		assert.Equal(t, c.want, renderMathMarkdown(t, c.src), "%q", c.src)
 	}
@@ -682,6 +688,7 @@ func TestMathDisplayCloseInSameContainer(t *testing.T) {
 		"1. a\n\n   $$\n   x^2\n   $$\n",
 		"> [!NOTE]\n> $$\n> x^2\n> $$\n",
 		"> para\n> $$\n> x^2\n> $$\n",
+		"para\n- $$\n  x^2\n  $$\n",
 	} {
 		out := renderMathMarkdown(t, src)
 		assert.Contains(t, out, "<msup>", "%q", src)
