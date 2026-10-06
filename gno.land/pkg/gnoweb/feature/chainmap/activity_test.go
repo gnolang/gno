@@ -29,7 +29,7 @@ func TestComputeActivityCountsTheWindow(t *testing.T) {
 		},
 	}
 
-	a, err := computeActivity(context.Background(), f)
+	a, err := computeActivity(context.Background(), f, nil)
 	if err != nil {
 		t.Fatalf("computeActivity: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestComputeActivityBandsTileTheWindow(t *testing.T) {
 	t.Parallel()
 
 	f := &fakeIndexer{tip: weekOfBlocks + 1234, t0: time.Unix(0, 0)}
-	a, err := computeActivity(context.Background(), f)
+	a, err := computeActivity(context.Background(), f, nil)
 	if err != nil {
 		t.Fatalf("computeActivity: %v", err)
 	}
@@ -74,6 +74,46 @@ func TestComputeActivityBandsTileTheWindow(t *testing.T) {
 	}
 }
 
+// A refresh reads only what can have changed: the band the window now starts
+// in, the one it ends in, and any band closed since. Whole bands below the
+// tip are final and come from the cache, and the counts stay the same.
+func TestComputeActivityReadsClosedBandsOnce(t *testing.T) {
+	t.Parallel()
+
+	tip := weekOfBlocks + 50_000
+	from := tip - weekOfBlocks
+	f := &fakeIndexer{
+		tip: tip,
+		t0:  time.Unix(0, 0),
+		calls: map[int][]indexer.Tx{
+			from + 100_000: {call(from+100_000, true, "g1x", "gno.land/r/a")},
+			from + 300_000: {call(from+300_000, true, "g1y", "gno.land/r/a")},
+		},
+	}
+	closed := new(closedBands)
+	if _, err := computeActivity(context.Background(), f, closed); err != nil {
+		t.Fatalf("first count: %v", err)
+	}
+
+	f.tip += 30_000 // one more band closes, a new one opens
+	f.bandsQueried = nil
+	a, err := computeActivity(context.Background(), f, closed)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if n := len(f.bandsQueried); n > 4 {
+		t.Errorf("refresh read %d bands, want at most 4: %v", n, f.bandsQueried)
+	}
+	if a.Calls["gno.land/r/a"] != 2 || a.Callers["gno.land/r/a"] != 2 {
+		t.Errorf("r/a = %d calls by %d callers, want 2 by 2", a.Calls["gno.land/r/a"], a.Callers["gno.land/r/a"])
+	}
+	for lower := range closed.m {
+		if lower+bandWidth <= a.From-1 {
+			t.Errorf("band at %d left the window but is still kept", lower)
+		}
+	}
+}
+
 // A band the indexer caps is split until it fits, so a dense chain still
 // gets a complete count.
 func TestComputeActivitySplitsCappedBands(t *testing.T) {
@@ -86,7 +126,7 @@ func TestComputeActivitySplitsCappedBands(t *testing.T) {
 		capOver: 5_000,
 		calls:   map[int][]indexer.Tx{tip - 3: {call(tip-3, true, "g1x", "gno.land/r/a")}},
 	}
-	a, err := computeActivity(context.Background(), f)
+	a, err := computeActivity(context.Background(), f, nil)
 	if err != nil {
 		t.Fatalf("computeActivity: %v", err)
 	}
@@ -104,7 +144,7 @@ func TestComputeActivityMarksUnreadBandsPartial(t *testing.T) {
 	t.Parallel()
 
 	f := &fakeIndexer{tip: weekOfBlocks + 10, t0: time.Unix(0, 0), capOver: minBandWidth / 2}
-	a, err := computeActivity(context.Background(), f)
+	a, err := computeActivity(context.Background(), f, nil)
 	if err != nil {
 		t.Fatalf("computeActivity: %v", err)
 	}
@@ -117,7 +157,7 @@ func TestComputeActivityFailsWhenTheIndexerDoes(t *testing.T) {
 	t.Parallel()
 
 	f := &fakeIndexer{tip: weekOfBlocks + 10, t0: time.Unix(0, 0), failBands: true}
-	if _, err := computeActivity(context.Background(), f); err == nil {
+	if _, err := computeActivity(context.Background(), f, nil); err == nil {
 		t.Fatal("a failed band must fail the aggregate, not count as no calls")
 	}
 }
@@ -131,7 +171,7 @@ func TestComputeActivityOnAYoungChain(t *testing.T) {
 		t0:    time.Unix(0, 0),
 		calls: map[int][]indexer.Tx{1: {call(1, true, "g1x", "gno.land/r/a")}},
 	}
-	a, err := computeActivity(context.Background(), f)
+	a, err := computeActivity(context.Background(), f, nil)
 	if err != nil {
 		t.Fatalf("computeActivity: %v", err)
 	}
@@ -148,7 +188,7 @@ func TestComputeActivityOutOfTimeFails(t *testing.T) {
 	f := &fakeIndexer{tip: weekOfBlocks + 10, t0: time.Unix(0, 0), bandDelay: 40 * time.Millisecond}
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	if _, err := computeActivity(ctx, f); err == nil {
+	if _, err := computeActivity(ctx, f, nil); err == nil {
 		t.Fatal("a refresh out of time must fail, not return a partial week as fresh")
 	}
 	total := (weekOfBlocks + bandWidth) / bandWidth

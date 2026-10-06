@@ -36,7 +36,7 @@ func (h *Handler) DepsView(r *http.Request, pkgPath, title string) (int, *compon
 
 	// The package is read first: a path with no live package must not cost a
 	// whole-chain scan, nor wait for one before its 404.
-	imports, err := h.deps.Imports.Imports(ctx, full)
+	imports, err := h.imports(ctx, full)
 	if err != nil {
 		return 0, nil, err
 	}

@@ -115,7 +115,6 @@ func DirectoryView(pkgPath string, files []string, fileCounter int, linkType Dir
 func ExplorerView(pkgPath string, paths []string, truncated bool, m *MapParts) *View {
 	data := DirData{
 		PkgPath:     pkgPath,
-		FilesLinks:  buildFilesLinks(paths, DirLinkTypeFile, pkgPath),
 		FileCounter: len(paths),
 		Mode:        ViewModeExplorer,
 		Header:      NewListingHeader(pkgPath, len(paths), truncated),
@@ -123,6 +122,8 @@ func ExplorerView(pkgPath string, paths []string, truncated bool, m *MapParts) *
 	rail := listingRail{Packages: len(paths), Folders: countFolders(data.Header.Path, paths)}
 	if m != nil {
 		data.Map, rail.Key = m.Figure, m.Key
+	} else {
+		data.FilesLinks = buildFilesLinks(paths, DirLinkTypeFile, pkgPath)
 	}
 	data.Rail = NewTemplateComponent("ui/listing_rail", rail)
 	view := NewTemplateView(DirectoryViewType, "renderDir", data)

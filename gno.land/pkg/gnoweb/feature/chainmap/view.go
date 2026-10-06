@@ -97,7 +97,7 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	wctx, cancel := context.WithTimeout(ctx, activityWait)
 	defer cancel()
 	a, err := h.activity.get(wctx, "activity", func(ctx context.Context) (*Activity, error) {
-		return computeActivity(ctx, h.deps.Indexer)
+		return computeActivity(ctx, h.deps.Indexer, h.closedBands)
 	})
 	if err != nil {
 		data.Activity = ActivityUnavailable

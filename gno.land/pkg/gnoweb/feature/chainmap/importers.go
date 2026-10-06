@@ -131,7 +131,7 @@ func newImporterFlights() importerFlights {
 // lookup refused for want of a slot is refused before the limiter is asked,
 // so it costs the reader nothing either.
 func (h *Handler) Importers(ctx context.Context, r *http.Request, pkgPath string) (*Importers, error) {
-	if h.importers.answers == nil {
+	if !h.HasIndexer() {
 		return nil, errors.New("no indexer configured")
 	}
 	return h.importers.answers.get(ctx, pkgPath, func(ctx context.Context) (*Importers, error) {
@@ -145,6 +145,14 @@ func (h *Handler) Importers(ctx context.Context, r *http.Request, pkgPath string
 			return nil, ErrRateLimited
 		}
 		return h.findImporters(ctx, pkgPath)
+	})
+}
+
+// imports reads a package's imports through the cache the importer checks
+// share, so a dependencies page and the lookups it starts read each once.
+func (h *Handler) imports(ctx context.Context, pkgPath string) ([]string, error) {
+	return h.importers.imports.get(ctx, pkgPath, func(ctx context.Context) ([]string, error) {
+		return h.deps.Imports.Imports(ctx, pkgPath)
 	})
 }
 
@@ -179,9 +187,7 @@ func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers
 			break
 		}
 		g.Go(func() error {
-			imports, err := h.importers.imports.get(ctx, cand, func(ctx context.Context) ([]string, error) {
-				return h.deps.Imports.Imports(ctx, cand)
-			})
+			imports, err := h.imports(ctx, cand)
 			mu.Lock()
 			defer mu.Unlock()
 			switch {

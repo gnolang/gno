@@ -172,3 +172,27 @@ func TestFlightKeepsPartialAnswersBriefly(t *testing.T) {
 		t.Error("a complete answer expired before ttl")
 	}
 }
+
+// A fetch past its timeout is cancelled, not given a deadline: the indexer
+// client's breaker counts a deadline against the indexer, and one slow
+// aggregate must not turn search off.
+func TestFlightTimeoutCancelsTheFetch(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Minute, timeout: 10 * time.Millisecond, max: 1}
+	var seen error
+	_, err := f.get(context.Background(), "k", func(ctx context.Context) (int, error) {
+		if _, ok := ctx.Deadline(); ok {
+			t.Error("the fetch was given a deadline")
+		}
+		<-ctx.Done()
+		seen = ctx.Err()
+		return 0, ctx.Err()
+	})
+	if !errors.Is(seen, context.Canceled) {
+		t.Errorf("fetch ended with %v, want context.Canceled", seen)
+	}
+	if !errors.Is(err, errFetchTimeout) {
+		t.Errorf("get = %v, want errFetchTimeout", err)
+	}
+}

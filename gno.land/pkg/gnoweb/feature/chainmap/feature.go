@@ -56,9 +56,11 @@ type Deps struct {
 
 // Handler renders maps and answers the indexer-backed queries behind them.
 type Handler struct {
-	deps      Deps
-	activity  *flight[*Activity]
-	importers importerFlights
+	deps     Deps
+	activity *flight[*Activity]
+	// closedBands keeps the activity of whole bands across refreshes.
+	closedBands *closedBands
+	importers   importerFlights
 }
 
 // New validates required deps and returns a Handler. The caches exist only
@@ -73,6 +75,7 @@ func New(deps Deps) *Handler {
 	h := &Handler{deps: deps}
 	if deps.Indexer != nil {
 		h.activity = newActivityFlight()
+		h.closedBands = new(closedBands)
 		h.importers = newImporterFlights()
 	}
 	return h

@@ -22,6 +22,9 @@ var ErrPending = errors.New("answer still pending")
 // remembered.
 var errTransient = errors.New("transient")
 
+// errFetchTimeout is why a fetch that ran past its flight's timeout ended.
+var errFetchTimeout = errors.New("fetch timed out")
+
 // flight memoizes one answer per key and refreshes it on request. It runs
 // nothing in the background: a fetch is started by a reader, detached from
 // that reader so a closed tab does not waste the work, and shared by every
@@ -32,7 +35,10 @@ type flight[T any] struct {
 	// errTTL is how long a failure is remembered, so a failing backend is not
 	// asked again by every reader. Zero remembers none.
 	errTTL time.Duration
-	// timeout bounds one fetch, whoever started it.
+	// timeout bounds one fetch, whoever started it. It ends the fetch by
+	// cancelling it, not with a deadline: the indexer client's breaker counts
+	// a deadline as the indexer failing, and an open breaker turns search off
+	// for every reader. A fetch cut short this way is still a failure here.
 	timeout time.Duration
 	// max bounds the number of keys; the oldest answer goes first.
 	max int
@@ -44,13 +50,18 @@ type flight[T any] struct {
 
 	mu      sync.Mutex
 	entries map[string]flightEntry[T]
-	group   singleflight.Group
+	// stored numbers the answers in the order they were stored, which is the
+	// eviction order: clocks too coarse to tell two stores apart would leave
+	// "oldest" to map order.
+	stored uint64
+	group  singleflight.Group
 }
 
 type flightEntry[T any] struct {
 	val T
 	err error
 	at  time.Time
+	seq uint64
 }
 
 // fresh returns the answer for key if it is still fresh.
@@ -88,9 +99,14 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 		if e, ok := f.fresh(key); ok {
 			return e, nil
 		}
-		fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), f.timeout)
-		defer cancel()
+		fctx, cancel := context.WithCancelCause(context.WithoutCancel(ctx))
+		defer cancel(nil)
+		stop := time.AfterFunc(f.timeout, func() { cancel(errFetchTimeout) })
+		defer stop.Stop()
 		val, err := fetch(fctx)
+		if err != nil && context.Cause(fctx) == errFetchTimeout {
+			err = fmt.Errorf("%w: %w", errFetchTimeout, err)
+		}
 		return f.store(key, val, err), nil
 	})
 
@@ -117,9 +133,10 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 // readers get. A failure is remembered for errTTL; a stale flight keeps
 // serving its last good answer instead, and asks again after errTTL.
 func (f *flight[T]) store(key string, val T, err error) flightEntry[T] {
-	e := flightEntry[T]{val: val, err: err, at: time.Now()}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.stored++
+	e := flightEntry[T]{val: val, err: err, at: time.Now(), seq: f.stored}
 	if err != nil {
 		if f.errTTL == 0 || errors.Is(err, errTransient) {
 			return e
@@ -135,10 +152,9 @@ func (f *flight[T]) store(key string, val T, err error) flightEntry[T] {
 	}
 	if _, ok := f.entries[key]; !ok && len(f.entries) >= f.max {
 		var oldest string
-		var oldestAt time.Time
 		for k, old := range f.entries {
-			if oldest == "" || old.at.Before(oldestAt) {
-				oldest, oldestAt = k, old.at
+			if oldest == "" || old.seq < f.entries[oldest].seq {
+				oldest = k
 			}
 		}
 		delete(f.entries, oldest)
