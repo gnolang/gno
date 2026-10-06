@@ -12,96 +12,18 @@ const MaxParseDepth = 64
 
 var errMaxDepth = errors.New("mathml: expression nested too deeply")
 
-// TexToMML converts LaTeX to MathML
-func TexToMML(tex string, macros map[string]string, block, displaystyle bool) (result string, err error) {
-	var ast *MMLNode
-	var builder strings.Builder
-	defer func() {
-		if r := recover(); r != nil {
-			ast = makeMMLError()
-			if block {
-				ast.SetAttr("display", "block")
-			} else {
-				ast.SetAttr("display", "inline")
-			}
-			if displaystyle {
-				ast.SetTrue("displaystyle")
-			}
-			ast.Write(&builder, 0)
-			result = builder.String()
-			err = fmt.Errorf("MathML encountered an unexpected error while processing %s", tex)
-		}
-	}()
-	converter := NewMathMLConverter()
-	converter.currentExpr = []rune(strings.Clone(tex))
-	tokens, err := tokenize(converter.currentExpr)
-	if err != nil {
-		return "", err
-	}
-	ast = wrapInMathTag(converter.ParseTex(NewTokenBuffer(tokens), ctxRoot), tex)
-	if block {
-		ast.SetAttr("display", "block")
-	} else {
-		ast.SetAttr("display", "inline")
-	}
-	if displaystyle {
-		ast.SetTrue("displaystyle")
-	}
-	ast.Write(&builder, 1)
-	return builder.String(), err
-}
-func wrapInMathTag(mrow *MMLNode, tex string) *MMLNode {
-	node := NewMMLNode("math")
-	node.SetAttr("xmlns", "http://www.w3.org/1998/Math/MathML")
-	semantics := node.AppendNew("semantics")
-	if mrow != nil && mrow.Tag != "mrow" {
-		root := semantics.AppendNew("mrow")
-		root.AppendChild(mrow)
-		root.doPostProcess()
-	} else {
-		semantics.AppendChild(mrow)
-		semantics.doPostProcess()
-	}
-	annotation := NewMMLNode("annotation", tex)
-	annotation.SetAttr("encoding", "application/x-tex")
-	semantics.AppendChild(annotation)
-	return node
-}
-
-// DisplayStyle renders LaTeX as display MathML
-func DisplayStyle(tex string, macros map[string]string) (string, error) {
-	return TexToMML(tex, macros, true, false)
-}
-
-// InlineStyle renders LaTeX as inline MathML
-func InlineStyle(tex string, macros map[string]string) (string, error) {
-	return TexToMML(tex, macros, false, false)
-}
-
 // MathMLConverter manages LaTeX to MathML conversion state
 type MathMLConverter struct {
-	EQCount              int             // used for numbering display equations
-	DoNumbering          bool            // Whether or not to number equations in a document
-	currentExpr          []rune          // the expression currently being evaluated
-	currentIsDisplay     bool            // true if the current expression is being rendered in displaystyle
-	needMacroExpansion   map[string]bool // used if any \newcommand definitions are encountered.
-	unknownCommandsAsOps bool            // treat unknown \commands as operators
-	depth                int             // current ParseTex recursion depth
-	sizeScale            float64         // cumulative scale of the enclosing size switches; 0 means 1
-	raisePt              float64         // cumulative shift of the enclosing \raisebox commands, in points
+	currentExpr []rune  // the expression currently being evaluated
+	depth       int     // current ParseTex recursion depth
+	sizeScale   float64 // cumulative scale of the enclosing size switches; 0 means 1
+	raisePt     float64 // cumulative shift of the enclosing \raisebox commands, in points
 }
 
-// NewDocument creates a MathMLConverter for a document
-func NewDocument(macros map[string]string, doNumbering bool) *MathMLConverter {
-	converter := NewMathMLConverter(macros)
-	converter.DoNumbering = doNumbering
-	return converter
-}
-
-func NewMathMLConverter(macros ...map[string]string) *MathMLConverter {
-	var out MathMLConverter
-	out.needMacroExpansion = make(map[string]bool)
-	return &out
+// NewMathMLConverter returns a converter. It keeps per-expression state, so
+// it must not be shared across concurrent conversions.
+func NewMathMLConverter() *MathMLConverter {
+	return &MathMLConverter{}
 }
 
 func (converter *MathMLConverter) render(tex string, displaystyle bool) (result string, err error) {
@@ -128,7 +50,6 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 			result = builder.String()
 			err = fmt.Errorf("MathML encountered an unexpected error")
 		}
-		converter.currentIsDisplay = false
 	}()
 	converter.currentExpr = []rune(strings.Clone(tex))
 	tokens, err := tokenize(converter.currentExpr)
@@ -148,34 +69,15 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 func (converter *MathMLConverter) wrapInMathTag(mrow *MMLNode, tex string) *MMLNode {
 	node := NewMMLNode("math")
 	semantics := node.AppendNew("semantics")
-	if converter.DoNumbering && converter.currentIsDisplay {
-		converter.EQCount++
-		numberedEQ := NewMMLNode("mtable")
-		row := numberedEQ.AppendNew("mlabeledtr")
-		num := row.AppendNew("mtd")
-		eq := row.AppendNew("mtd")
-		num.AppendNew("mtext", fmt.Sprintf("(%d)", converter.EQCount))
-		if mrow != nil && mrow.Tag != "mrow" {
-			root := NewMMLNode("mrow")
-			root.AppendChild(mrow)
-			root.doPostProcess()
-			eq.AppendChild(root)
-		} else {
-			eq.AppendChild(mrow)
-			eq.doPostProcess()
-		}
-		semantics.AppendChild(numberedEQ)
+	if mrow != nil && mrow.Tag != "mrow" {
+		root := semantics.AppendNew("mrow")
+		root.AppendChild(mrow)
+		root.doPostProcess()
+	} else if mrow == nil {
+		semantics.AppendNew("none")
 	} else {
-		if mrow != nil && mrow.Tag != "mrow" {
-			root := semantics.AppendNew("mrow")
-			root.AppendChild(mrow)
-			root.doPostProcess()
-		} else if mrow == nil {
-			semantics.AppendNew("none")
-		} else {
-			semantics.AppendChild(mrow)
-			semantics.doPostProcess()
-		}
+		semantics.AppendChild(mrow)
+		semantics.doPostProcess()
 	}
 	annotation := NewMMLNode("annotation", tex)
 	annotation.SetAttr("encoding", "application/x-tex")
@@ -185,7 +87,6 @@ func (converter *MathMLConverter) wrapInMathTag(mrow *MMLNode, tex string) *MMLN
 
 // ConvertToDisplay converts LaTeX to display MathML
 func (converter *MathMLConverter) DisplayStyle(tex string) (string, error) {
-	converter.currentIsDisplay = true
 	return converter.render(tex, true)
 }
 
@@ -202,24 +103,4 @@ func (converter *MathMLConverter) ConvertInline(tex string) (string, error) {
 // ConvertDisplay converts LaTeX to display MathML
 func (converter *MathMLConverter) ConvertDisplay(tex string) (string, error) {
 	return converter.DisplayStyle(tex)
-}
-
-// ConvertToMathML converts LaTeX to MathML without semantics wrapper
-func (converter *MathMLConverter) SemanticsOnly(tex string) (string, error) {
-	converter.currentExpr = []rune(strings.Clone(tex))
-	tokens, err := tokenize(converter.currentExpr)
-	defer func() {
-		if r := recover(); r != nil {
-			// Handle panic gracefully
-			_ = r
-		}
-	}()
-	if err != nil {
-		return "", err
-	}
-
-	ast := converter.ParseTex(NewTokenBuffer(tokens), ctxRoot)
-	var builder strings.Builder
-	ast.Write(&builder, -1)
-	return builder.String(), err
 }

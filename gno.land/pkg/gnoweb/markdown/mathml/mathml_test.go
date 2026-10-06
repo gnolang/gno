@@ -151,66 +151,6 @@ func TestMakeSymbol(t *testing.T) {
 	}
 }
 
-// Tests for static functions
-func TestTexToMML(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-	}{
-		{"empty_string", ""},
-		{"simple_math", "x^2"},
-		{"fraction", "\\frac{1}{2}"},
-		{"square_root", "\\sqrt{x}"},
-		{"complex_expression", "\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := TexToMML(tt.input, nil, false, false)
-			_ = result
-			_ = err
-		})
-	}
-}
-
-func TestWrapInMathTag_Static(t *testing.T) {
-	tests := []struct {
-		name string
-		node *MMLNode
-		tex  string
-	}{
-		{"nil_node", nil, ""},
-		{"simple_node", NewMMLNode("mi", "x"), "x"},
-		{"complex_node", NewMMLNode("mrow"), "x + y"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := wrapInMathTag(tt.node, tt.tex)
-			_ = result
-		})
-	}
-}
-
-func TestNewDocument(t *testing.T) {
-	tests := []struct {
-		name      string
-		macros    map[string]string
-		numbering bool
-	}{
-		{"empty_macros", nil, false},
-		{"with_macros", map[string]string{"\\mycommand": "\text{my}"}, false},
-		{"with_numbering", nil, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := NewDocument(tt.macros, tt.numbering)
-			_ = result
-		})
-	}
-}
-
 func TestMakeMMLError(t *testing.T) {
 	tests := []struct {
 		name string
@@ -279,46 +219,6 @@ func TestMakeTexLogo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := makeTexLogo(tt.input)
 			_ = result
-		})
-	}
-}
-
-func TestInlineStyle(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-	}{
-		{"empty_string", ""},
-		{"simple_math", "x^2"},
-		{"fraction", "\frac{1}{2}"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := InlineStyle(tt.input, nil)
-			_ = result
-			_ = err
-		})
-	}
-}
-
-func TestDisplayStyle_Static(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  string
-		macros map[string]string
-	}{
-		{"empty_string", "", nil},
-		{"simple_math", "x^2", nil},
-		{"fraction", "\frac{1}{2}", nil},
-		{"with_macros", "\\mycommand{x}", map[string]string{"\\mycommand": "\text{my}"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := DisplayStyle(tt.input, tt.macros)
-			_ = result
-			_ = err
 		})
 	}
 }
@@ -1075,26 +975,6 @@ func TestMathMLConverter_ConvertDisplay(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			converter := NewMathMLConverter()
 			result, _ := converter.ConvertDisplay(tt.input)
-			_ = result
-		})
-	}
-}
-
-func TestMathMLConverter_SemanticsOnly(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-	}{
-		{"empty_string", ""},
-		{"simple_math", "x^2"},
-		{"fraction", "\\frac{1}{2}"},
-		{"complex_expression", "\\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			converter := NewMathMLConverter()
-			result, _ := converter.SemanticsOnly(tt.input)
 			_ = result
 		})
 	}

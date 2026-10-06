@@ -218,12 +218,8 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	if prop, ok := command_identifiers[name]; ok {
 		n := NewMMLNode("mi")
 		n.Properties = prop
-		if t, ok := symbolTable[name]; ok {
-			n.Text = t.char
-		} else {
-			n.Text = name
-			n.SetAttr("lspace", "0.11111em")
-		}
+		n.Text = name
+		n.SetAttr("lspace", "0.11111em")
 		n.Tok = tok
 		n.set_variants_from_context(context)
 		n.setAttribsFromProperties()
@@ -350,11 +346,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		}
 		n.AppendChild(base, acc)
 	} else {
-		if converter.unknownCommandsAsOps {
-			n = NewMMLNode("mo", tok.Value)
-		} else {
-			n = NewMMLNode("merror", tok.Value)
-		}
+		n = NewMMLNode("merror", tok.Value)
 	}
 	n.Tok = tok
 	n.set_variants_from_context(context)
