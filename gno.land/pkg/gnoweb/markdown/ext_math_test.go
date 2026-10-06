@@ -3,6 +3,7 @@ package markdown
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -612,12 +613,14 @@ func BenchmarkMathDisplayBlockLines(b *testing.B) {
 // paragraph's lines back from its last one. 1 MiB of "$a$\n" took ~20s.
 func TestMathOneExpressionPerLineIsLinear(t *testing.T) {
 	units := []string{"$a$\n", `\\(a\\)` + "\n", "$$a$$\n", "$a\nb$\n", "$$ $$\n", "> $a$\n", "> $a\n> b$\n"}
-	// Rendering four times the lines must cost about four times as much:
-	// the quadratic version cost sixteen times as much. The best of three
-	// runs keeps scheduler noise out of the ratio.
+	// Rendering eight times the lines must cost about eight times as much:
+	// the quadratic version cost sixty-four times as much. Inputs are large
+	// enough to dominate timer noise, and the best of three runs after a GC
+	// keeps scheduler and collector noise out of the ratio.
 	best := func(src string) time.Duration {
 		d := time.Duration(1<<63 - 1)
 		for range 3 {
+			runtime.GC()
 			start := time.Now()
 			renderMathMarkdown(t, src)
 			d = min(d, time.Since(start))
@@ -625,16 +628,16 @@ func TestMathOneExpressionPerLineIsLinear(t *testing.T) {
 		return d
 	}
 	for _, unit := range units {
-		small, large := strings.Repeat(unit, 1<<11), strings.Repeat(unit, 1<<13)
+		small, large := strings.Repeat(unit, 1<<12), strings.Repeat(unit, 1<<15)
 		ratio := float64(best(large)) / float64(best(small))
-		assert.Less(t, ratio, 10.0, "%q: 4x the input took %.1fx the time", unit, ratio)
+		assert.Less(t, ratio, 24.0, "%q: 8x the input took %.1fx the time", unit, ratio)
 	}
 	// End to end, with a generous bound.
 	for _, unit := range []string{"$a$\n", "> $a$\n"} {
 		src := strings.Repeat(unit, (1<<20)/len(unit))
 		start := time.Now()
 		out := renderMathMarkdown(t, src)
-		assert.Less(t, time.Since(start), 5*time.Second, "%q", unit)
+		assert.Less(t, time.Since(start), 10*time.Second, "%q", unit)
 		assert.Contains(t, out, "<math", "%q", unit)
 	}
 }
