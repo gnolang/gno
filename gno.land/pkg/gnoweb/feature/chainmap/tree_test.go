@@ -1,6 +1,9 @@
 package chainmap
 
 import (
+	"os"
+	"regexp"
+	"strconv"
 	"testing"
 )
 
@@ -79,5 +82,42 @@ func TestLayoutFillsTheMap(t *testing.T) {
 	}
 	if area < 9999 || area > 10001 { // percent × percent
 		t.Errorf("groups cover %.2f%%², want the whole map", area)
+	}
+}
+
+// A key that is itself a package gets no zoom: the map of what lies below it
+// would carry a List tab opening the package, not the listing it drew.
+func TestNoZoomIntoAPackage(t *testing.T) {
+	t.Parallel()
+
+	for _, g := range buildGroups("/r/", []string{"/r/pkg", "/r/pkg/sub", "/r/ns/a", "/r/ns/b"}) {
+		switch g.Key {
+		case "pkg":
+			if g.ZoomURL != "" {
+				t.Errorf("zoom into a package: %q", g.ZoomURL)
+			}
+		case "ns":
+			if g.ZoomURL != "/r/ns/$map" {
+				t.Errorf("zoom into a namespace = %q, want /r/ns/$map", g.ZoomURL)
+			}
+		}
+	}
+}
+
+// The layout squares tiles for mapAspect and the stylesheet draws the map at
+// its own aspect-ratio. Nothing else ties the two.
+func TestStylesheetDrawsTheMapAtTheLayoutAspect(t *testing.T) {
+	t.Parallel()
+
+	css, err := os.ReadFile("frontend/chainmap.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`\.b-map \{[^}]*aspect-ratio:\s*([0-9.]+);`).FindSubmatch(css)
+	if m == nil {
+		t.Fatal("no aspect-ratio on .b-map")
+	}
+	if got, _ := strconv.ParseFloat(string(m[1]), 64); got != mapAspect {
+		t.Fatalf("stylesheet aspect-ratio = %v, layout mapAspect = %v", got, mapAspect)
 	}
 }

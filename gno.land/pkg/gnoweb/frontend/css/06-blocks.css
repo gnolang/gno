@@ -3882,7 +3882,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	gap: var(--g-space-2);
 	margin: 0;
 	font-size: var(--g-font-size-100);
-	font-weight: var(--g-font-weight-semibold, 600);
+	font-weight: var(--g-font-semibold);
 }
 
 /* Long sides scroll in place rather than pushing the package off screen, and a
@@ -3917,7 +3917,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		border: var(--s-border);
 		border-radius: var(--s-rounded-sm);
 		background-color: var(--s-color-bg-brand-weak);
-		font-weight: var(--g-font-weight-semibold, 600);
+		font-weight: var(--g-font-semibold);
 	}
 
 	/* The stubs joining each bracket to the package. */

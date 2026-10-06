@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"strings"
 	"time"
@@ -26,7 +25,7 @@ type Listing struct {
 	Path string
 	// Paths are the gnoweb-relative package paths below Path.
 	Paths []string
-	// Truncated is set when the node listed no more than the paths given.
+	// Truncated is set when there were more paths than were listed.
 	Truncated bool
 }
 
@@ -43,7 +42,6 @@ const (
 // MapData is the render payload for templates/map.html.
 type MapData struct {
 	Path      string
-	ListURL   string
 	Count     int
 	Truncated bool
 	Groups    []*Group
@@ -63,7 +61,6 @@ func (h *Handler) MapView(ctx context.Context, l Listing) *components.View {
 	root := strings.TrimSuffix(l.Path, "/")
 	data := MapData{
 		Path:      root + "/",
-		ListURL:   root + "/",
 		Count:     len(l.Paths),
 		Truncated: l.Truncated,
 		Groups:    buildGroups(root+"/", l.Paths),
@@ -71,26 +68,28 @@ func (h *Handler) MapView(ctx context.Context, l Listing) *components.View {
 	layout(data.Groups)
 
 	if h.activity != nil {
-		h.addActivity(ctx, &data, strings.HasPrefix(data.Path, "/r/"))
+		h.addActivity(ctx, &data)
 	}
 	for _, g := range data.Groups {
 		for i := range g.Tiles {
 			g.Tiles[i].Title = tileTitle(g.Tiles[i], data)
 		}
 	}
-	return &components.View{Type: MapViewType, Component: &mapComponent{data: data}}
+	return &components.View{Type: MapViewType, Component: &pageComponent{name: "renderMap", data: data}}
 }
 
 // addActivity colours the tiles with the window's calls, or says why it
 // cannot.
-func (h *Handler) addActivity(ctx context.Context, data *MapData, realms bool) {
-	if !realms {
+func (h *Handler) addActivity(ctx context.Context, data *MapData) {
+	if !strings.HasPrefix(data.Path, "/r/") {
 		data.Activity = ActivityNotCalled
 		return
 	}
 	wctx, cancel := context.WithTimeout(ctx, activityWait)
 	defer cancel()
-	a, err := h.activity.get(wctx)
+	a, err := h.activity.get(wctx, "activity", func(ctx context.Context) (*Activity, error) {
+		return computeActivity(ctx, h.deps.Indexer)
+	})
 	if err != nil {
 		data.Activity = ActivityUnavailable
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -112,7 +111,6 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData, realms bool) {
 			t := &g.Tiles[i]
 			full := h.deps.Domain + t.Path
 			t.Calls, t.Callers = a.Calls[full], a.Callers[full]
-			g.Calls += t.Calls
 			busiest = max(busiest, t.Calls)
 		}
 	}
@@ -146,9 +144,6 @@ func level(calls, busiest int) int {
 	if calls <= 0 || busiest <= 0 {
 		return 0
 	}
-	if busiest == 1 {
-		return 4
-	}
 	f := math.Log1p(float64(calls)) / math.Log1p(float64(busiest))
 	return 1 + min(3, int(f*4))
 }
@@ -176,12 +171,4 @@ func plural(n int, noun string) string {
 		return "1 " + noun
 	}
 	return fmt.Sprintf("%d %ss", n, noun)
-}
-
-// mapComponent renders this feature's template, so IndexLayout wraps it in
-// the standard chrome without components knowing the template.
-type mapComponent struct{ data MapData }
-
-func (c *mapComponent) Render(w io.Writer) error {
-	return mapTemplate.ExecuteTemplate(w, "renderMap", c.data)
 }

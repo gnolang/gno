@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
@@ -25,6 +24,10 @@ const (
 	// activityTimeout bounds one refresh, independent of the request that
 	// started it.
 	activityTimeout = 30 * time.Second
+
+	// failureTTL is how long a failed indexer answer is remembered, so an
+	// indexer that is down is not asked again by every reader.
+	failureTTL = time.Minute
 
 	// rateProbe is how many blocks back the block rate is measured over.
 	rateProbe = 20_000
@@ -58,57 +61,11 @@ type Activity struct {
 	Partial bool
 }
 
-// activityCache holds the latest aggregate and refreshes it on demand. It runs
-// nothing in the background: a refresh is started by a request, detached from
-// it so a closed tab does not waste the work, and shared by every request that
-// arrives while it runs.
-type activityCache struct {
-	idx Indexer
-
-	mu  sync.Mutex
-	cur *Activity
-	at  time.Time
-
-	group singleflight.Group
-}
-
-// get returns the aggregate, waiting for a refresh only as long as ctx allows.
-// A stale aggregate is returned at once while a fresh one is computed behind
-// it. With nothing to serve and no time left, it returns ctx's error, and the
-// refresh it started keeps running for the next reader.
-func (c *activityCache) get(ctx context.Context) (*Activity, error) {
-	c.mu.Lock()
-	cur, fresh := c.cur, time.Since(c.at) < activityTTL
-	c.mu.Unlock()
-	if cur != nil && fresh {
-		return cur, nil
-	}
-
-	ch := c.group.DoChan("activity", func() (any, error) {
-		rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), activityTimeout)
-		defer cancel()
-		a, err := computeActivity(rctx, c.idx)
-		if err != nil {
-			return nil, err
-		}
-		c.mu.Lock()
-		c.cur, c.at = a, time.Now()
-		c.mu.Unlock()
-		return a, nil
-	})
-	if cur != nil {
-		return cur, nil
-	}
-
-	select {
-	case res := <-ch:
-		if res.Err != nil {
-			return nil, res.Err
-		}
-		return res.Val.(*Activity), nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
+// newActivityFlight holds the one aggregate. A stale one is served at once
+// while a request refreshes it, so after the first map nobody waits on the
+// indexer for activity.
+func newActivityFlight() *flight[*Activity] {
+	return &flight[*Activity]{ttl: activityTTL, errTTL: failureTTL, timeout: activityTimeout, max: 1, stale: true}
 }
 
 // computeActivity counts the window's calls band by band.
@@ -185,13 +142,17 @@ func readBand(ctx context.Context, idx Indexer, lower, upper int) ([]indexer.Tx,
 	case upper-lower <= minBandWidth:
 		return nil, false, nil
 	}
+	// The halves are read side by side: a dense band otherwise costs one
+	// sequential round trip per split.
 	mid := lower + (upper-lower)/2
-	low, lowOK, err := readBand(ctx, idx, lower, mid)
-	if err != nil {
-		return nil, false, err
-	}
-	high, highOK, err := readBand(ctx, idx, mid, upper)
-	if err != nil {
+	var (
+		g             errgroup.Group
+		low, high     []indexer.Tx
+		lowOK, highOK bool
+	)
+	g.Go(func() (err error) { low, lowOK, err = readBand(ctx, idx, lower, mid); return err })
+	g.Go(func() (err error) { high, highOK, err = readBand(ctx, idx, mid, upper); return err })
+	if err := g.Wait(); err != nil {
 		return nil, false, err
 	}
 	return append(low, high...), lowOK && highOK, nil
@@ -199,30 +160,26 @@ func readBand(ctx context.Context, idx Indexer, lower, upper int) ([]indexer.Tx,
 
 // windowStart estimates the first height of the window from the block rate
 // over the last rateProbe blocks, then reads that block's time so the map can
-// say exactly where its window starts.
+// say exactly where its window starts. A chain younger than the probe is
+// counted from its first block.
 func windowStart(ctx context.Context, idx Indexer, tip int) (int, time.Time, error) {
-	if tip <= rateProbe {
-		b, err := idx.Block(ctx, 1)
+	from := 1
+	if tip > rateProbe {
+		head, err := idx.Block(ctx, tip)
 		if err != nil {
 			return 0, time.Time{}, err
 		}
-		return 1, b.Time, nil
+		probe, err := idx.Block(ctx, tip-rateProbe)
+		if err != nil {
+			return 0, time.Time{}, err
+		}
+		elapsed := head.Time.Sub(probe.Time)
+		if elapsed <= 0 {
+			return 0, time.Time{}, errors.New("indexer block times do not increase")
+		}
+		blocks := int(float64(rateProbe) * float64(activityWindow) / float64(elapsed))
+		from = max(tip-blocks, 1)
 	}
-	head, err := idx.Block(ctx, tip)
-	if err != nil {
-		return 0, time.Time{}, err
-	}
-	probe, err := idx.Block(ctx, tip-rateProbe)
-	if err != nil {
-		return 0, time.Time{}, err
-	}
-	elapsed := head.Time.Sub(probe.Time)
-	if elapsed <= 0 {
-		return 0, time.Time{}, errors.New("indexer block times do not increase")
-	}
-	blocks := int(float64(rateProbe) * float64(activityWindow) / float64(elapsed))
-	from := max(tip-blocks, 1)
-
 	start, err := idx.Block(ctx, from)
 	if err != nil {
 		return 0, time.Time{}, err

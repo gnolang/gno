@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
@@ -52,7 +51,7 @@ func TestImportersChecksEveryCandidateOnChain(t *testing.T) {
 	if got.AsOf != 10 {
 		t.Errorf("as of = %d, want the indexer tip 10", got.AsOf)
 	}
-	if len(f.quoted) != 1 || f.quoted[0] != `"`+avl+`"` {
+	if len(f.quoted) == 0 || f.quoted[0] != `"`+avl+`"` {
 		t.Errorf("searched %q, want the quoted import path", f.quoted)
 	}
 }
@@ -131,7 +130,7 @@ func TestImportersLimitsOnlyCacheMisses(t *testing.T) {
 	if _, err := h.Importers(context.Background(), nil, avl); !errors.Is(err, ErrRateLimited) {
 		t.Fatalf("err = %v, want ErrRateLimited on a miss", err)
 	}
-	h.importers.store(avl, &Importers{AsOf: 7})
+	h.importers.answers.store(avl, &Importers{AsOf: 7}, nil)
 	got, err := h.Importers(context.Background(), nil, avl)
 	if err != nil || got.AsOf != 7 {
 		t.Fatalf("got %+v, %v; want the cached answer", got, err)
@@ -141,35 +140,10 @@ func TestImportersLimitsOnlyCacheMisses(t *testing.T) {
 	}
 }
 
-func TestImportersCacheIsBounded(t *testing.T) {
-	t.Parallel()
-
-	c := newImportersCache(&fakeIndexer{}, fakeImports{})
-	for i := range maxImporterEntries + 10 {
-		c.store(fmt.Sprintf("p%d", i), &Importers{})
-	}
-	if n := len(c.entries); n != maxImporterEntries {
-		t.Fatalf("entries = %d, want the cap %d", n, maxImporterEntries)
-	}
-	if c.cached("p0") != nil {
-		t.Error("the oldest entry must be the one evicted")
-	}
-}
-
-func TestImportersExpire(t *testing.T) {
-	t.Parallel()
-
-	c := newImportersCache(&fakeIndexer{}, fakeImports{})
-	c.entries[avl] = importersEntry{imp: &Importers{}, at: time.Now().Add(-2 * importersTTL)}
-	if c.cached(avl) != nil {
-		t.Error("an expired entry must not be served")
-	}
-}
-
 func TestImportersWithoutAnIndexer(t *testing.T) {
 	t.Parallel()
 
-	h := New(Deps{})
+	h := New(Deps{Imports: fakeImports{}})
 	if h.HasIndexer() {
 		t.Fatal("no indexer configured, yet HasIndexer")
 	}

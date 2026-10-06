@@ -77,15 +77,15 @@ func TestDeploysQuotingKeepsRowsWhenCapped(t *testing.T) {
 		]},"errors":[{"message":"max elements per query reached"}]}`)
 	})
 
-	txs, err := c.DeploysQuoting(context.Background(), `"gno.land/p/a.b"`)
+	txs, err := c.DeploysQuoting(context.Background(), `"gno.land/p/a.b"`, -1, 1000)
 	if !errors.Is(err, ErrTooLarge) {
 		t.Fatalf("err = %v, want ErrTooLarge", err)
 	}
 	if len(txs) != 1 || txs[0].Messages[0].Path() != "gno.land/r/user" {
 		t.Fatalf("txs = %+v, want the one decoded deploy", txs)
 	}
-	if strings.Contains(query, "block_height: {") {
-		t.Error("an importer search must cover the whole chain, not a band")
+	if strings.Contains(query, "gt:") || !strings.Contains(query, "lt: 1001") {
+		t.Errorf("the bottom band must drop its lower bound to reach height 0:\n%s", query)
 	}
 	if got := likeValues(t, query); len(got) != 1 || got[0] != `"gno\.land/p/a\.b"` {
 		t.Errorf("like = %q, want the quoted path with regexp metacharacters escaped", got)

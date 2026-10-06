@@ -15,7 +15,7 @@ type Indexer interface {
 	LatestBlockHeight(ctx context.Context) (int, error)
 	Block(ctx context.Context, height int) (*indexer.Block, error)
 	CallsBetween(ctx context.Context, lower, upper int) ([]indexer.Tx, error)
-	DeploysQuoting(ctx context.Context, text string) ([]indexer.Tx, error)
+	DeploysQuoting(ctx context.Context, text string, lower, upper int) ([]indexer.Tx, error)
 	URL() string
 }
 
@@ -37,8 +37,8 @@ type Deps struct {
 	// no indexer is configured.
 	Indexer Indexer
 
-	// Imports checks the importers the indexer proposes. Required with an
-	// Indexer.
+	// Imports reads a package's imports from the chain: the graph's left
+	// side, and the check on every importer the indexer proposes. Required.
 	Imports ImportReader
 
 	// Domain is the chain's domain (e.g. "gno.land"), which turns a gnoweb
@@ -54,23 +54,23 @@ type Deps struct {
 // Handler renders maps and answers the indexer-backed queries behind them.
 type Handler struct {
 	deps      Deps
-	activity  *activityCache
-	importers *importersCache
+	activity  *flight[*Activity]
+	importers importerFlights
 }
 
-// New returns a Handler. The caches exist only with an indexer, so a nil one
-// cannot be reached by mistake.
+// New validates required deps and returns a Handler. The caches exist only
+// with an indexer, so none can be reached without one.
 func New(deps Deps) *Handler {
+	if deps.Imports == nil {
+		panic("chainmap.New: Imports is required")
+	}
 	if deps.Logger == nil {
 		deps.Logger = slog.Default()
 	}
 	h := &Handler{deps: deps}
 	if deps.Indexer != nil {
-		if deps.Imports == nil {
-			panic("chainmap.New: Imports is required with an Indexer")
-		}
-		h.activity = &activityCache{idx: deps.Indexer}
-		h.importers = newImportersCache(deps.Indexer, deps.Imports)
+		h.activity = newActivityFlight()
+		h.importers = newImporterFlights()
 	}
 	return h
 }
@@ -78,11 +78,3 @@ func New(deps Deps) *Handler {
 // HasIndexer reports whether the indexer-backed answers exist on this
 // deployment.
 func (h *Handler) HasIndexer() bool { return h.deps.Indexer != nil }
-
-// IndexerURL names the indexer for a provenance footer; empty without one.
-func (h *Handler) IndexerURL() string {
-	if h.deps.Indexer == nil {
-		return ""
-	}
-	return h.deps.Indexer.URL()
-}

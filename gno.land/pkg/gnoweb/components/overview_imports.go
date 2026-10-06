@@ -2,15 +2,9 @@ package components
 
 import "strings"
 
-// ImportLinks turns fully qualified package paths into dependency links, as
-// the overview's Imports section renders them.
+// ImportLinks turns import paths — deduplicated and sorted, as vm/qdoc
+// reports them — into rendered dependency links.
 func ImportLinks(paths []string, domain string) []ImportLink {
-	return buildImports(paths, domain)
-}
-
-// buildImports turns the package's import paths — already deduplicated and
-// sorted by vm/qdoc — into rendered dependency links.
-func buildImports(paths []string, domain string) []ImportLink {
 	if len(paths) == 0 {
 		return nil
 	}

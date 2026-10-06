@@ -18,32 +18,26 @@ group is a link to that group's own map.
 
   {{/* SVG, so the geometry rides on x/y/width/height attributes: gnoweb's
        Content-Security-Policy drops inline style attributes. Percentages
-       keep text at the stylesheet's size whatever the map's width, and each
-       nested <svg> clips what it holds. */}}
-  <svg class="b-map{{ if eq .Activity "shown" }} b-map--activity{{ end }}" role="group" aria-label="Packages under {{ .Path }}">
+       keep text at the stylesheet's size whatever the map's width, and a
+       labelled tile is a nested <svg> so it clips its label; a tile too small
+       for one is a bare <rect>. */}}
+  <svg class="b-map" role="group" aria-label="Packages under {{ .Path }}">
     {{ range .Groups }}
     <svg class="b-map__group {{ .HueClass }}" x="{{ .Box.Left }}%" y="{{ .Box.Top }}%" width="{{ .Box.Width }}%" height="{{ .Box.Height }}%">
-      {{ range .Tiles }}
-      <a class="b-map__tile {{ .ShadeClass }}" href="{{ .Path }}">
-        <title>{{ .Title }}</title>
-        <svg x="{{ .Box.Left }}%" y="{{ .Box.Top }}%" width="{{ .Box.Width }}%" height="{{ .Box.Height }}%">
-          <rect width="100%" height="100%" />
-          {{ if .ShowLabel }}<text x="4" y="100%" dy="-5">{{ .Label }}</text>{{ end }}
-        </svg>
+      {{- range .Tiles }}
+      <a class="b-map__tile {{ .ShadeClass }}" href="{{ .Path }}"><title>{{ .Title }}</title>
+        {{- if .ShowLabel -}}
+        <svg x="{{ .Box.Left }}%" y="{{ .Box.Top }}%" width="{{ .Box.Width }}%" height="{{ .Box.Height }}%"><rect width="100%" height="100%" /><text x="4" y="100%" dy="-5">{{ .Label }}</text></svg>
+        {{- else -}}
+        <rect x="{{ .Box.Left }}%" y="{{ .Box.Top }}%" width="{{ .Box.Width }}%" height="{{ .Box.Height }}%" />
+        {{- end -}}
       </a>
-      {{ end }}
+      {{- end }}
       {{ if .Header }}
       {{ if .ZoomURL }}
-      <a class="b-map__head" href="{{ .ZoomURL }}">
-        <title>Open the map of {{ $.Path }}{{ .Key }}/</title>
-        <rect width="100%" height="20" />
-        <text x="5" y="14">{{ .Key }} · {{ len .Tiles }}</text>
-      </a>
+      <a class="b-map__head" href="{{ .ZoomURL }}"><title>Open the map of {{ $.Path }}{{ .Key }}/</title>{{ template "chainmap/head" . }}</a>
       {{ else }}
-      <g class="b-map__head">
-        <rect width="100%" height="20" />
-        <text x="5" y="14">{{ .Key }} · {{ len .Tiles }}</text>
-      </g>
+      <g class="b-map__head">{{ template "chainmap/head" . }}</g>
       {{ end }}
       {{ end }}
     </svg>
@@ -68,7 +62,6 @@ Says what the map measures, and for activity, what it could not measure.
     one path segment and is sized by how many it holds; open its name to map
     what lies below it.
   </p>
-  {{ if eq .Activity "shown" }}
   {{ with .Window }}
   <p>
     <span class="b-tag b-tag--indexer">indexer</span>
@@ -85,13 +78,18 @@ Says what the map measures, and for activity, what it could not measure.
     bounds, and a tile with a dashed edge is a realm whose calls are unknown.
   </p>
   {{ end }}
-  {{ end }}
-  {{ else if eq .Activity "pending" }}
+  {{ else }}
+  {{ if eq .Activity "pending" }}
   <p>Call activity is still being counted by the indexer. Reload in a moment to see it.</p>
   {{ else if eq .Activity "unavailable" }}
   <p>Call activity is unavailable: the indexer could not be read.</p>
   {{ else if eq .Activity "not-called" }}
   <p>Pure packages are not called directly, so this map shows no call activity.</p>
   {{ end }}
+  {{ end }}
 </div>
 {{ end }}
+
+
+{{/* The group header band: its name and how many packages it holds. */}}
+{{ define "chainmap/head" }}<rect width="100%" height="20" /><text x="5" y="14">{{ .Key }} · {{ len .Tiles }}</text>{{ end }}

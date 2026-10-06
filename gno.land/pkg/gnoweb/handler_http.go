@@ -233,25 +233,37 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 
 // chainmapDeps wires feature/chainmap. The indexer is the one configured for
 // search: *indexer.Client answers both features, so the map needs no flag of
-// its own. A nil cfg.Indexer fails the assertion and leaves the feature
-// without one, which is the switch.
+// its own. A nil cfg.Indexer leaves the feature without one, which is the
+// switch.
 func chainmapDeps(cfg *HTTPHandlerConfig, logger *slog.Logger, rate int, trustedProxies []*net.IPNet) chainmap.Deps {
-	deps := chainmap.Deps{Domain: cfg.Meta.Domain, Logger: logger}
-	if idx, ok := cfg.Indexer.(chainmap.Indexer); ok {
-		deps.Indexer = idx
-		deps.Imports = importReader{client: cfg.ClientAdapter, domain: cfg.Meta.Domain}
-		// Its own bucket: an importer lookup is a whole-chain indexer scan
-		// plus a node read per candidate.
-		deps.Limiter = state.NewIPLimiter(state.RateLimitConfig{
-			PerMinute:      rate,
-			TrustedProxies: trustedProxies,
-		})
+	deps := chainmap.Deps{
+		Imports: importReader{client: cfg.ClientAdapter, domain: cfg.Meta.Domain},
+		Domain:  cfg.Meta.Domain,
+		Logger:  logger,
 	}
+	if cfg.Indexer == nil {
+		return deps
+	}
+	idx, ok := cfg.Indexer.(chainmap.Indexer)
+	if !ok {
+		// Not an error a deployment can hit with *indexer.Client, but a
+		// silent switch-off would hide it.
+		logger.Warn("indexer cannot back the map and dependency pages", "type", fmt.Sprintf("%T", cfg.Indexer))
+		return deps
+	}
+	deps.Indexer = idx
+	// Its own bucket: an importer lookup is a whole-chain indexer scan plus a
+	// node read per candidate.
+	deps.Limiter = state.NewIPLimiter(state.RateLimitConfig{
+		PerMinute:      rate,
+		TrustedProxies: trustedProxies,
+	})
 	return deps
 }
 
 // importReader adapts ClientAdapter to chainmap.ImportReader: a package's
-// non-test imports are what vm/qdoc reports.
+// non-test imports are what vm/qdoc reports. A missing package is both
+// chainmap's ErrNotLive and the client's not-found, so either side reads it.
 type importReader struct {
 	client ClientAdapter
 	domain string
@@ -260,7 +272,7 @@ type importReader struct {
 func (r importReader) Imports(ctx context.Context, pkgPath string) ([]string, error) {
 	d, err := r.client.Doc(ctx, strings.TrimPrefix(pkgPath, r.domain), 0)
 	if errors.Is(err, ErrClientPackageNotFound) {
-		return nil, chainmap.ErrNotLive
+		return nil, fmt.Errorf("%w: %w", chainmap.ErrNotLive, err)
 	}
 	if err != nil {
 		return nil, err
@@ -585,7 +597,12 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		// The answer costs an indexer scan per package: not a page for
 		// crawlers to walk.
 		indexData.HeadData.NoIndex = true
-		return h.GetDepsView(r, gnourl)
+		pkgPath := strings.TrimSuffix(gnourl.Path, "/")
+		status, view, err := h.Map.DepsView(r, pkgPath, displayPackageName(pkgPath))
+		if err != nil {
+			return GetClientErrorStatusView(gnourl, err, 0)
+		}
+		return status, view
 	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
 		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
 	default:
@@ -1653,57 +1670,6 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 	}
 	data := components.BuildOverview(in)
 	return http.StatusOK, components.OverviewView(data)
-}
-
-// depsWait is how long the dependencies page waits for the importers before
-// saying they are still being looked up. The lookup carries on detached, so a
-// reload finds it done.
-const depsWait = 12 * time.Second
-
-// GetDepsView renders a package's dependency graph with its importers. The
-// imports come from the chain; the importers are proposed by the indexer and
-// checked on chain by feature/chainmap.
-func (h *HTTPHandler) GetDepsView(r *http.Request, gnourl *weburl.GnoURL) (int, *components.View) {
-	ctx := r.Context()
-	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
-	jdoc, err := h.Client.Doc(ctx, pkgPath, 0)
-	if err != nil {
-		return GetClientErrorStatusView(gnourl, err, 0)
-	}
-
-	data := components.DepsData{
-		PkgPath: pkgPath,
-		Title:   displayPackageName(pkgPath),
-		Graph: components.DepGraph{
-			Name:    pkgPath,
-			Imports: components.ImportLinks(jdoc.Imports, h.Static.Domain),
-		},
-	}
-	if !h.Map.HasIndexer() {
-		return http.StatusOK, components.DepsView(data)
-	}
-
-	wctx, cancel := context.WithTimeout(ctx, depsWait)
-	defer cancel()
-	imp, err := h.Map.Importers(wctx, r, h.Static.Domain+pkgPath)
-	status := http.StatusOK
-	switch {
-	case err == nil:
-		data.Graph.Importers = &components.Importers{
-			Links:   components.ImportLinks(imp.Paths, h.Static.Domain),
-			AtLeast: imp.AtLeast,
-		}
-		data.Indexer = &components.IndexerStatus{URL: h.Map.IndexerURL(), LastBlock: imp.AsOf}
-	case errors.Is(err, chainmap.ErrRateLimited):
-		status = http.StatusTooManyRequests
-		data.Graph.Importers = &components.Importers{Unavailable: "Too many lookups from your address. Try again in a minute."}
-	case errors.Is(err, context.DeadlineExceeded):
-		data.Graph.Importers = &components.Importers{Unavailable: "Still looking them up. Reload in a moment."}
-	default:
-		h.Logger.Warn("deps: importers unavailable", "path", pkgPath, "error", err)
-		data.Graph.Importers = &components.Importers{Unavailable: "The indexer could not be read."}
-	}
-	return status, components.DepsView(data)
 }
 
 // fetchMetaFiles downloads gnomod.toml and any LICENSE file for the package.

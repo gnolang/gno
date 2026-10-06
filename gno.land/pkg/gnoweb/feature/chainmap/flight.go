@@ -1,0 +1,125 @@
+package chainmap
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"golang.org/x/sync/singleflight"
+)
+
+// flight memoizes one answer per key and refreshes it on request. It runs
+// nothing in the background: a fetch is started by a reader, detached from
+// that reader so a closed tab does not waste the work, and shared by every
+// reader asking for the same key while it runs.
+type flight[T any] struct {
+	// ttl is how long an answer is served as fresh.
+	ttl time.Duration
+	// errTTL is how long a failure is remembered, so a failing backend is not
+	// asked again by every reader. Zero remembers none.
+	errTTL time.Duration
+	// timeout bounds one fetch, whoever started it.
+	timeout time.Duration
+	// max bounds the number of keys; the oldest answer goes first.
+	max int
+	// stale serves an expired answer at once while it is refreshed.
+	stale bool
+
+	mu      sync.Mutex
+	entries map[string]flightEntry[T]
+	group   singleflight.Group
+}
+
+type flightEntry[T any] struct {
+	val T
+	err error
+	at  time.Time
+}
+
+// fresh returns the answer for key if it is still fresh.
+func (f *flight[T]) fresh(key string) (flightEntry[T], bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	e, ok := f.entries[key]
+	if !ok {
+		return e, false
+	}
+	ttl := f.ttl
+	if e.err != nil {
+		ttl = f.errTTL
+	}
+	return e, time.Since(e.at) < ttl
+}
+
+// get answers key, fetching it when no fresh answer is held, and waits for
+// the fetch only as long as ctx allows; the fetch carries on for the next
+// reader.
+func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Context) (T, error)) (T, error) {
+	if e, ok := f.fresh(key); ok {
+		return e.val, e.err
+	}
+
+	ch := f.group.DoChan(key, func() (any, error) {
+		// A reader arriving as the previous fetch lands must not start
+		// another one.
+		if e, ok := f.fresh(key); ok {
+			return e, nil
+		}
+		fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), f.timeout)
+		defer cancel()
+		val, err := fetch(fctx)
+		return f.store(key, val, err), nil
+	})
+
+	if f.stale {
+		f.mu.Lock()
+		e, ok := f.entries[key]
+		f.mu.Unlock()
+		if ok && e.err == nil {
+			return e.val, nil
+		}
+	}
+
+	select {
+	case res := <-ch:
+		e := res.Val.(flightEntry[T])
+		return e.val, e.err
+	case <-ctx.Done():
+		var zero T
+		return zero, ctx.Err()
+	}
+}
+
+// store records an answer, evicting the oldest when full, and returns what
+// readers get. A failure is remembered for errTTL; a stale flight keeps
+// serving its last good answer instead, and asks again after errTTL.
+func (f *flight[T]) store(key string, val T, err error) flightEntry[T] {
+	e := flightEntry[T]{val: val, err: err, at: time.Now()}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if err != nil {
+		if f.errTTL == 0 {
+			return e
+		}
+		if old, ok := f.entries[key]; ok && f.stale && old.err == nil {
+			old.at = time.Now().Add(f.errTTL - f.ttl)
+			f.entries[key] = old
+			return old
+		}
+	}
+	if f.entries == nil {
+		f.entries = make(map[string]flightEntry[T])
+	}
+	if _, ok := f.entries[key]; !ok && len(f.entries) >= f.max {
+		var oldest string
+		var oldestAt time.Time
+		for k, old := range f.entries {
+			if oldest == "" || old.at.Before(oldestAt) {
+				oldest, oldestAt = k, old.at
+			}
+		}
+		delete(f.entries, oldest)
+	}
+	f.entries[key] = e
+	return e
+}

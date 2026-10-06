@@ -8,7 +8,7 @@ type DirData struct {
 	FilesLinks  FilesLinks
 	Mode        ViewMode
 	Readme      Component
-	// Truncated is set when the node listed no more than FileCounter paths.
+	// Truncated is set when there were more paths than were listed.
 	Truncated bool
 }
 

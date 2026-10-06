@@ -30,12 +30,10 @@ type Group struct {
 	// too small to carry one.
 	Header bool
 
-	// ZoomURL is the map of what lies below the key. Empty when nothing does:
-	// a zoom there would list no package and answer not found.
+	// ZoomURL is the map of what lies below the key. Empty when nothing does,
+	// since that map would list nothing, and when the key is itself a package:
+	// there the List tab of that map would open the package, not the listing.
 	ZoomURL string
-
-	// Calls sums the tiles' calls; meaningful only when the map has activity.
-	Calls int
 }
 
 // Tile is one package.
@@ -77,7 +75,6 @@ func buildGroups(prefix string, paths []string) []*Group {
 		label := key
 		if nested {
 			label = rest
-			g.ZoomURL = prefix + key + "/$map"
 		}
 		g.Tiles = append(g.Tiles, Tile{Path: p, Label: label})
 	}
@@ -93,7 +90,11 @@ func buildGroups(prefix string, paths []string) []*Group {
 	for i, g := range groups {
 		slices.SortFunc(g.Tiles, func(a, b Tile) int { return cmp.Compare(a.Label, b.Label) })
 		g.HueClass = hueClasses[i%len(hueClasses)]
-		g.Header = len(g.Tiles) > 1 || g.ZoomURL != ""
+		isPackage := slices.ContainsFunc(g.Tiles, func(t Tile) bool { return t.Label == g.Key && t.Path == prefix+g.Key })
+		if len(g.Tiles) > 1 && !isPackage {
+			g.ZoomURL = prefix + g.Key + "/$map"
+		}
+		g.Header = len(g.Tiles) > 1 || !isPackage
 	}
 	return groups
 }

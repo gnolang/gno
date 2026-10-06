@@ -56,11 +56,19 @@ func (f *fakeIndexer) CallsBetween(_ context.Context, lower, upper int) ([]index
 	return out, nil
 }
 
-func (f *fakeIndexer) DeploysQuoting(_ context.Context, text string) ([]indexer.Tx, error) {
+// DeploysQuoting answers the deploys whose height falls in the band; a
+// negative lower bound reaches height 0, as on the indexer.
+func (f *fakeIndexer) DeploysQuoting(_ context.Context, text string, lower, upper int) ([]indexer.Tx, error) {
 	f.mu.Lock()
 	f.quoted = append(f.quoted, text)
 	f.mu.Unlock()
-	return f.deploys, f.deploysErr
+	var out []indexer.Tx
+	for _, tx := range f.deploys {
+		if tx.Height > lower && tx.Height <= upper {
+			out = append(out, tx)
+		}
+	}
+	return out, f.deploysErr
 }
 
 func (f *fakeIndexer) URL() string { return "https://indexer.test/graphql/query" }

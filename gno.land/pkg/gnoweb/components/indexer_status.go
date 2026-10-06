@@ -6,6 +6,4 @@ package components
 type IndexerStatus struct {
 	URL       string
 	LastBlock int
-	// Err makes the footer say the freshness is unknown rather than omit it.
-	Err error
 }

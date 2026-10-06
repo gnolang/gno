@@ -290,7 +290,7 @@ func BuildOverview(in OverviewInput) OverviewData {
 	if in.Doc != nil {
 		importPaths = in.Doc.Imports
 	}
-	imports := buildImports(importPaths, in.Domain)
+	imports := ImportLinks(importPaths, in.Domain)
 	funcs, types := buildSymbols(in.Doc, in.DocRenderer, in.URL.Path)
 	values := buildValues(in.Doc, in.DocRenderer, in.URL.Path)
 	funcs, fTrunc := capSymbols(funcs, maxOverviewSymbols)

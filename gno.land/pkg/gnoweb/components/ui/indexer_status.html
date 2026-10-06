@@ -13,7 +13,7 @@ omnisearch footer's own classes, so both say it the same way.
     Parts of this page marked <span class="b-tag b-tag--indexer">indexer</span> come from an indexer,
     not from the chain. They are best-effort and not consensus data.
     Indexed by <span class="u-font-mono">{{ .URL }}</span> ·
-    {{ with .Err }}last indexed block unknown ({{ .Error }}){{ else }}last indexed block {{ .LastBlock }}{{ end }}
+    last indexed block {{ .LastBlock }}
   </span>
 </footer>
 {{ end }}

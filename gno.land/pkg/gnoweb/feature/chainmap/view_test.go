@@ -21,8 +21,8 @@ func render(t *testing.T, h *Handler, l Listing) string {
 func TestMapWithoutIndexerSaysNothingAboutActivity(t *testing.T) {
 	t.Parallel()
 
-	out := render(t, New(Deps{}), Listing{Path: "/r", Paths: []string{"/r/a/x", "/r/a/y", "/r/b"}})
-	for _, absent := range []string{"calls", "indexer", "b-map__tile--l", "b-map--activity"} {
+	out := render(t, New(Deps{Imports: fakeImports{}}), Listing{Path: "/r", Paths: []string{"/r/a/x", "/r/a/y", "/r/b"}})
+	for _, absent := range []string{"calls", "indexer", "b-map__tile--l"} {
 		if strings.Contains(out, absent) {
 			t.Errorf("map without an indexer mentions %q", absent)
 		}
@@ -39,7 +39,7 @@ func TestMapWithoutIndexerSaysNothingAboutActivity(t *testing.T) {
 func TestMapUsesNoInlineStyle(t *testing.T) {
 	t.Parallel()
 
-	out := render(t, New(Deps{}), Listing{Path: "/r", Paths: []string{"/r/a/x", "/r/b"}})
+	out := render(t, New(Deps{Imports: fakeImports{}}), Listing{Path: "/r", Paths: []string{"/r/a/x", "/r/b"}})
 	if strings.Contains(out, "style=") {
 		t.Fatal("the map carries a style attribute, which the Content-Security-Policy blocks")
 	}
@@ -50,7 +50,7 @@ func TestMapUsesNoInlineStyle(t *testing.T) {
 func TestMapEscapesPaths(t *testing.T) {
 	t.Parallel()
 
-	out := render(t, New(Deps{}), Listing{Path: "/r", Paths: []string{`/r/x/"><script>alert(1)</script>`}})
+	out := render(t, New(Deps{Imports: fakeImports{}}), Listing{Path: "/r", Paths: []string{`/r/x/"><script>alert(1)</script>`}})
 	if strings.Contains(out, "<script>") {
 		t.Fatal("a path reached the page unescaped")
 	}
@@ -59,7 +59,7 @@ func TestMapEscapesPaths(t *testing.T) {
 func TestMapSaysWhenTheListingIsTruncated(t *testing.T) {
 	t.Parallel()
 
-	out := render(t, New(Deps{}), Listing{Path: "/r", Paths: []string{"/r/a"}, Truncated: true})
+	out := render(t, New(Deps{Imports: fakeImports{}}), Listing{Path: "/r", Paths: []string{"/r/a"}, Truncated: true})
 	if !strings.Contains(out, "Only the first 1 paths are listed") {
 		t.Error("a truncated listing must say so on the map too")
 	}
@@ -69,15 +69,14 @@ func TestMapColoursRealmsByCalls(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.cur, h.activity.at = &Activity{
+	h.activity.store("activity", &Activity{
 		Calls:   map[string]int{"gno.land/r/a/busy": 100, "gno.land/r/a/some": 3},
 		Callers: map[string]int{"gno.land/r/a/busy": 7, "gno.land/r/a/some": 1},
 		From:    10, To: 20, Since: time.Unix(0, 0),
-	}, time.Now()
+	}, nil)
 
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/busy", "/r/a/some", "/r/a/idle"}})
 	for _, want := range []string{
-		"b-map--activity",
 		"b-map__tile b-map__tile--l4",
 		"/r/a/busy · 100 calls by 7 accounts",
 		"/r/a/some · 3 calls by 1 account",
@@ -96,10 +95,10 @@ func TestMapPartialWindowNeverShowsZero(t *testing.T) {
 	t.Parallel()
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
-	h.activity.cur, h.activity.at = &Activity{
+	h.activity.store("activity", &Activity{
 		Calls: map[string]int{"gno.land/r/a/x": 2}, Callers: map[string]int{"gno.land/r/a/x": 1},
 		Partial: true,
-	}, time.Now()
+	}, nil)
 
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/x", "/r/a/y"}})
 	if !strings.Contains(out, "b-map__tile--unknown") || !strings.Contains(out, "calls unknown") {
@@ -129,6 +128,7 @@ func TestLevelIsLogarithmic(t *testing.T) {
 	cases := []struct{ calls, busiest, want int }{
 		{0, 100, 0},
 		{1, 1, 4},
+		{2, 2, 4},
 		{100, 100, 4},
 		{1, 1000, 1},
 		{30, 1000, 2},

@@ -9,19 +9,29 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/singleflight"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
 const (
-	// importersTTL is how long a package's importers are served. A new
-	// importer needs a deploy, and the page states the block it is as of.
+	// importersTTL is how long an answer, and a candidate's imports, are
+	// served. A new importer needs a deploy, and the page states the block
+	// it is as of.
 	importersTTL = 10 * time.Minute
 
-	// importersTimeout bounds one lookup: the whole-chain source scan took
-	// about 5 s on gnoland-1 in October 2026, and the checks run after it.
-	importersTimeout = 30 * time.Second
+	// importersTimeout bounds one lookup. On gnoland-1 in October 2026 the
+	// scan took about 5 s and checking gno.land/p/nt/avl/v0's 265 candidates
+	// another 38 s (qdoc averaged 1.1 s on the public RPC). A reader waits
+	// depsWait at most; the lookup finishes for the next one.
+	importersTimeout = 60 * time.Second
+
+	// scanBand is the height span of one candidate query. A whole-chain scan
+	// took 4.9 s on gnoland-1 in October 2026, past the indexer client's 4 s
+	// request timeout; bands of this width took 0.6 to 1.7 s.
+	scanBand = 150_000
+
+	// scanConcurrency bounds the band queries in flight for one lookup.
+	scanConcurrency = 3
 
 	// maxCandidates bounds the chain reads one lookup makes. Past it the
 	// answer is "at least": gno.land/p/nt/avl/v0 had 265 candidates.
@@ -30,9 +40,13 @@ const (
 	// checkConcurrency bounds the qdoc reads in flight for one lookup.
 	checkConcurrency = 8
 
-	// maxImporterEntries bounds the cache, so a crawler walking every
-	// package cannot grow it without limit.
+	// importReadTimeout bounds one candidate's qdoc read.
+	importReadTimeout = 10 * time.Second
+
+	// maxImporterEntries and maxImportEntries bound the caches, so a crawler
+	// walking every package cannot grow them without limit.
 	maxImporterEntries = 512
+	maxImportEntries   = 4096
 )
 
 var (
@@ -56,126 +70,73 @@ type Importers struct {
 	// Paths are fully qualified and sorted.
 	Paths []string
 	// AtLeast is set when some candidates went unchecked: the indexer capped
-	// its answer, there were more than maxCandidates, or time ran out.
+	// a band, there were more than maxCandidates, or a read failed.
 	AtLeast bool
 	// AsOf is the indexer's last block when the lookup ran.
 	AsOf int
 }
 
-type importersEntry struct {
-	imp *Importers
-	at  time.Time
+// importerFlights hold the answers per package, and each candidate's imports
+// so that lookups for packages sharing importers read them once.
+type importerFlights struct {
+	answers *flight[*Importers]
+	imports *flight[[]string]
 }
 
-// importersCache memoizes lookups per package, bounded in size and age. Like
-// activityCache it runs nothing in the background.
-type importersCache struct {
-	idx  Indexer
-	docs ImportReader
-
-	mu      sync.Mutex
-	entries map[string]importersEntry
-
-	group singleflight.Group
-}
-
-func newImportersCache(idx Indexer, docs ImportReader) *importersCache {
-	return &importersCache{idx: idx, docs: docs, entries: make(map[string]importersEntry)}
+func newImporterFlights() importerFlights {
+	return importerFlights{
+		answers: &flight[*Importers]{ttl: importersTTL, errTTL: failureTTL, timeout: importersTimeout, max: maxImporterEntries},
+		// A failure is not remembered: ErrNotLive turns into imports the
+		// moment a parked deploy is approved.
+		imports: &flight[[]string]{ttl: importersTTL, timeout: importReadTimeout, max: maxImportEntries},
+	}
 }
 
 // Importers answers which live packages import pkgPath, a fully qualified
-// package path. The limiter is consulted only on a cache miss: a cached
-// answer costs neither the indexer nor the node anything.
+// package path. The limiter is consulted only when the answer is not held: a
+// held answer costs neither the indexer nor the node anything.
 func (h *Handler) Importers(ctx context.Context, r *http.Request, pkgPath string) (*Importers, error) {
-	if h.importers == nil {
+	if h.importers.answers == nil {
 		return nil, errors.New("no indexer configured")
 	}
-	if imp := h.importers.cached(pkgPath); imp != nil {
-		return imp, nil
+	if e, ok := h.importers.answers.fresh(pkgPath); ok {
+		return e.val, e.err
 	}
 	if h.deps.Limiter != nil && !h.deps.Limiter.AllowRequest(r) {
 		return nil, ErrRateLimited
 	}
-	return h.importers.lookup(ctx, pkgPath)
-}
-
-func (c *importersCache) cached(pkgPath string) *Importers {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if e, ok := c.entries[pkgPath]; ok && time.Since(e.at) < importersTTL {
-		return e.imp
-	}
-	return nil
-}
-
-// lookup runs one shared, detached lookup per package and waits for it as
-// long as ctx allows.
-func (c *importersCache) lookup(ctx context.Context, pkgPath string) (*Importers, error) {
-	ch := c.group.DoChan(pkgPath, func() (any, error) {
-		lctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), importersTimeout)
-		defer cancel()
-		imp, err := c.find(lctx, pkgPath)
-		if err != nil {
-			return nil, err
-		}
-		c.store(pkgPath, imp)
-		return imp, nil
+	return h.importers.answers.get(ctx, pkgPath, func(ctx context.Context) (*Importers, error) {
+		return h.findImporters(ctx, pkgPath)
 	})
-	select {
-	case res := <-ch:
-		if res.Err != nil {
-			return nil, res.Err
-		}
-		return res.Val.(*Importers), nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
 }
 
-// store keeps imp, evicting the oldest entry when the cache is full.
-func (c *importersCache) store(pkgPath string, imp *Importers) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if _, ok := c.entries[pkgPath]; !ok && len(c.entries) >= maxImporterEntries {
-		var oldest string
-		var oldestAt time.Time
-		for k, e := range c.entries {
-			if oldest == "" || e.at.Before(oldestAt) {
-				oldest, oldestAt = k, e.at
-			}
-		}
-		delete(c.entries, oldest)
-	}
-	c.entries[pkgPath] = importersEntry{imp: imp, at: time.Now()}
-}
-
-// find gathers candidates from the indexer, then keeps those whose current
-// import list on chain names pkgPath.
-func (c *importersCache) find(ctx context.Context, pkgPath string) (*Importers, error) {
-	asOf, err := c.idx.LatestBlockHeight(ctx)
+// findImporters gathers candidates from the indexer, then keeps those whose
+// current import list on chain names pkgPath.
+func (h *Handler) findImporters(ctx context.Context, pkgPath string) (*Importers, error) {
+	asOf, err := h.deps.Indexer.LatestBlockHeight(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// The quotes keep gno.land/p/nt/avl/v0 from matching inside
-	// gno.land/p/nt/avl/v0/rotree.
-	txs, err := c.idx.DeploysQuoting(ctx, `"`+pkgPath+`"`)
-	capped := errors.Is(err, indexer.ErrTooLarge)
-	if err != nil && !capped {
+	candidates, capped, err := h.scanCandidates(ctx, pkgPath, asOf)
+	if err != nil {
 		return nil, err
 	}
 
-	candidates := candidatesFrom(txs, pkgPath)
 	imp := &Importers{AsOf: asOf, AtLeast: capped}
 	if len(candidates) > maxCandidates {
 		candidates, imp.AtLeast = candidates[:maxCandidates], true
 	}
 
-	var mu sync.Mutex
-	g, gctx := errgroup.WithContext(ctx)
+	var (
+		mu sync.Mutex
+		g  errgroup.Group
+	)
 	g.SetLimit(checkConcurrency)
 	for _, cand := range candidates {
 		g.Go(func() error {
-			imports, err := c.docs.Imports(gctx, cand)
+			imports, err := h.importers.imports.get(ctx, cand, func(ctx context.Context) ([]string, error) {
+				return h.deps.Imports.Imports(ctx, cand)
+			})
 			mu.Lock()
 			defer mu.Unlock()
 			switch {
@@ -199,24 +160,41 @@ func (c *importersCache) find(ctx context.Context, pkgPath string) (*Importers, 
 	return imp, nil
 }
 
-// candidatesFrom lists, once each and in a stable order, the packages the
-// matched deploys added, other than pkgPath itself.
-func candidatesFrom(txs []indexer.Tx, pkgPath string) []string {
-	seen := make(map[string]struct{})
-	var out []string
-	for _, tx := range txs {
-		for _, m := range tx.Messages {
-			p := m.Path()
-			if m.Type() != "MsgAddPackage" || p == "" || p == pkgPath {
-				continue
+// scanCandidates lists, once each and sorted, the packages added by every
+// deploy quoting pkgPath's import path, band by band up to tip. The quotes
+// keep gno.land/p/nt/avl/v0 from matching inside gno.land/p/nt/avl/v0/rotree.
+// capped reports a band the indexer cut short.
+func (h *Handler) scanCandidates(ctx context.Context, pkgPath string, tip int) (paths []string, capped bool, err error) {
+	var (
+		mu sync.Mutex
+		g  errgroup.Group
+	)
+	g.SetLimit(scanConcurrency)
+	// The bottom band starts below 0: genesis packages live at height 0.
+	for lower := -1; lower < tip; lower += scanBand {
+		upper := min(lower+scanBand, tip)
+		g.Go(func() error {
+			txs, err := h.deps.Indexer.DeploysQuoting(ctx, `"`+pkgPath+`"`, lower, upper)
+			bandCapped := errors.Is(err, indexer.ErrTooLarge)
+			if err != nil && !bandCapped {
+				return err
 			}
-			if _, dup := seen[p]; dup {
-				continue
+			mu.Lock()
+			defer mu.Unlock()
+			capped = capped || bandCapped
+			for _, tx := range txs {
+				for _, m := range tx.Messages {
+					if p := m.Path(); m.Type() == "MsgAddPackage" && p != "" && p != pkgPath {
+						paths = append(paths, p)
+					}
+				}
 			}
-			seen[p] = struct{}{}
-			out = append(out, p)
-		}
+			return nil
+		})
 	}
-	slices.Sort(out)
-	return out
+	if err := g.Wait(); err != nil {
+		return nil, false, err
+	}
+	slices.Sort(paths)
+	return slices.Compact(paths), capped, nil
 }

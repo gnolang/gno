@@ -139,33 +139,3 @@ func TestComputeActivityOnAYoungChain(t *testing.T) {
 		t.Fatalf("from = %d, calls = %d; want the whole chain counted", a.From, a.Calls["gno.land/r/a"])
 	}
 }
-
-// A stale aggregate is served at once; nothing is served as fresh that is not.
-func TestActivityCacheServesStaleWhileRefreshing(t *testing.T) {
-	t.Parallel()
-
-	f := &fakeIndexer{tip: 100, t0: time.Unix(0, 0)}
-	c := &activityCache{idx: f}
-	stale := &Activity{To: 42}
-	c.cur, c.at = stale, time.Now().Add(-2*activityTTL)
-
-	got, err := c.get(context.Background())
-	if err != nil || got != stale {
-		t.Fatalf("get = %v, %v; want the stale aggregate at once", got, err)
-	}
-
-	// The refresh it started lands for the next reader.
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		c.mu.Lock()
-		cur := c.cur
-		c.mu.Unlock()
-		if cur != stale {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the refresh never replaced the stale aggregate")
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-}

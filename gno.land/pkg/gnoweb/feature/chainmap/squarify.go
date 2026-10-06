@@ -36,7 +36,7 @@ func squarify(weights []float64, r rect) []rect {
 		total += w
 	}
 	if total <= 0 || r.W <= 0 || r.H <= 0 {
-		return append(out, make([]rect, len(weights))...)
+		return make([]rect, len(weights))
 	}
 
 	areas := make([]float64, len(weights))

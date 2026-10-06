@@ -20,7 +20,10 @@ var errUnused = errors.New("not used by these tests")
 
 func (s stubIndexer) LatestBlockHeight(context.Context) (int, error) { return 77, nil }
 func (s stubIndexer) URL() string                                    { return "https://indexer.test/graphql/query" }
-func (s stubIndexer) DeploysQuoting(context.Context, string) ([]indexer.Tx, error) {
+func (s stubIndexer) DeploysQuoting(_ context.Context, _ string, lower, _ int) ([]indexer.Tx, error) {
+	if lower >= 0 {
+		return nil, nil // the stub's deploys sit at height 0, in the bottom band
+	}
 	return s.deploys, nil
 }
 

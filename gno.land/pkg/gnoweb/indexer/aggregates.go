@@ -8,9 +8,9 @@ import (
 	"slices"
 )
 
-// The queries below read a whole band of heights, or the whole chain, in one
-// request: they back aggregates (a week of calls, every importer of a
-// package) rather than a page of recent rows.
+// The queries below read a whole band of heights in one request: they back
+// aggregates (a week of calls, every importer of a package), which their
+// callers build band by band, rather than a page of recent rows.
 //
 // tx-indexer lets a transaction whose message it could not decode
 // (__typename UnexpectedMessage) through any message filter: on gnoland-1 in
@@ -54,9 +54,9 @@ func (c *Client) CallsBetween(ctx context.Context, lower, upper int) ([]Tx, erro
 	}
 	// `like` is a Go regexp on tx-indexer: "." matches any non-empty path.
 	q := fmt.Sprintf(`{ getTransactions(where: {
-		block_height: { gt: %d, lt: %d }
+		%s
 		messages: { value: { MsgCall: { pkg_path: { like: "." } } } }
-	}) { %s } }`, lower, upper+1, callFields)
+	}) { %s } }`, heightBand(lower, upper), callFields)
 	if err := c.Query(ctx, q, &out); err != nil {
 		return nil, err
 	}
@@ -65,10 +65,11 @@ func (c *Client) CallsBetween(ctx context.Context, lower, upper int) ([]Tx, erro
 	}), nil
 }
 
-// DeploysQuoting returns every deploy, at any height, whose source contains
-// text, in one query over the whole chain, genesis included. Unlike
-// SourceContains it is not windowed: a caller asking who imports a package
-// needs every candidate, not the newest few.
+// DeploysQuoting returns every deploy in the heights (lower, upper] whose
+// source contains text. Unlike SourceContains it does not stop at the newest
+// few: a caller asking who imports a package needs every candidate, and walks
+// the chain band by band to get them, since a scan of the whole chain outlasts
+// the client's request timeout.
 //
 // A transaction matches when any package it deploys contains text, so a
 // batched deploy brings along packages that do not. The caller has to check
@@ -77,14 +78,15 @@ func (c *Client) CallsBetween(ctx context.Context, lower, upper int) ([]Tx, erro
 // When the answer exceeds the indexer's element cap, the rows it kept are
 // returned along with an error wrapping ErrTooLarge, so the caller can say
 // "at least".
-func (c *Client) DeploysQuoting(ctx context.Context, text string) ([]Tx, error) {
+func (c *Client) DeploysQuoting(ctx context.Context, text string, lower, upper int) ([]Tx, error) {
 	var out struct {
 		Txs []Tx `json:"getTransactions"`
 	}
 	// QuoteMeta for the reason SourceContains gives: `like` is a regexp.
 	q := fmt.Sprintf(`{ getTransactions(where: {
+		%s
 		messages: { value: { MsgAddPackage: { package: { files: { body: { like: %s } } } } } }
-	}) { %s } }`, gqlString(regexp.QuoteMeta(text)), deployFields)
+	}) { %s } }`, heightBand(lower, upper), gqlString(regexp.QuoteMeta(text)), deployFields)
 	err := c.Query(ctx, q, &out)
 	if err != nil && !errors.Is(err, ErrTooLarge) {
 		return nil, err
@@ -94,13 +96,17 @@ func (c *Client) DeploysQuoting(ctx context.Context, text string) ([]Tx, error) 
 	}), err
 }
 
-// keepMatching returns the rows carrying at least one message match accepts.
-func keepMatching(rows []Tx, match func(Message) bool) []Tx {
-	out := rows[:0:0]
-	for _, tx := range rows {
-		if slices.ContainsFunc(tx.Messages, match) {
-			out = append(out, tx)
-		}
+// heightBand filters on the heights (lower, upper]. A negative lower bound
+// drops the lower filter altogether: `gt` excludes its bound, so no `gt` can
+// reach the packages a chain was launched with, at height 0.
+func heightBand(lower, upper int) string {
+	if lower < 0 {
+		return fmt.Sprintf(`block_height: { lt: %d }`, upper+1)
 	}
-	return out
+	return fmt.Sprintf(`block_height: { gt: %d, lt: %d }`, lower, upper+1)
+}
+
+// keepMatching keeps the rows carrying at least one message match accepts.
+func keepMatching(rows []Tx, match func(Message) bool) []Tx {
+	return slices.DeleteFunc(rows, func(tx Tx) bool { return !slices.ContainsFunc(tx.Messages, match) })
 }

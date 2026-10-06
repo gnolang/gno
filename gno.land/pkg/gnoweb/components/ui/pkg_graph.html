@@ -11,9 +11,7 @@ lists around a name.
   <section class="b-depgraph__side b-depgraph__side--in" aria-label="Imports">
     <h3 class="b-depgraph__title">Imports <span class="b-tag--tertiary">{{ len .Imports }}</span></h3>
     {{ with .Imports }}
-    <ul class="b-pkg-list b-depgraph__list">
-      {{ range . }}<li class="b-pkg-list__item">{{ template "ui/pkg_import" . }}</li>{{ end }}
-    </ul>
+    {{ template "ui/pkg_import_list" . }}
     {{ else }}
     <p class="b-depgraph__empty">Imports nothing.</p>
     {{ end }}
@@ -33,9 +31,7 @@ lists around a name.
     <p class="b-depgraph__empty" role="status">{{ .Unavailable }}</p>
     {{ else }}
     {{ with .Links }}
-    <ul class="b-pkg-list b-depgraph__list">
-      {{ range . }}<li class="b-pkg-list__item">{{ template "ui/pkg_import" . }}</li>{{ end }}
-    </ul>
+    {{ template "ui/pkg_import_list" . }}
     {{ else }}
     <p class="b-depgraph__empty">No live package imports it.</p>
     {{ end }}
@@ -49,6 +45,13 @@ lists around a name.
   </section>
   {{ end }}
 </div>
+{{ end }}
+
+
+{{ define "ui/pkg_import_list" }}
+<ul class="b-pkg-list b-depgraph__list">
+  {{ range . }}<li class="b-pkg-list__item">{{ template "ui/pkg_import" . }}</li>{{ end }}
+</ul>
 {{ end }}
 
 

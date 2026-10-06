@@ -25,7 +25,7 @@
 	border: var(--s-border);
 	border-radius: var(--s-rounded-sm);
 	background-color: var(--s-color-bg-base);
-	font-family: var(--g-font-family-mono, ui-monospace, monospace);
+	font-family: var(--g-font-family-mono);
 	font-size: var(--g-font-size-50);
 }
 
@@ -66,7 +66,7 @@
 
 	& text {
 		fill: var(--s-color-text-primary);
-		font-weight: var(--g-font-weight-semibold, 600);
+		font-weight: var(--g-font-semibold);
 	}
 
 	&:is(a):hover text,
@@ -97,12 +97,10 @@
 }
 
 /* ===== ACTIVITY ===== */
-/* Calls replace the hues. Steps mix the action green into the neutral
-   surface, so the ramp follows the theme. The two strongest steps take dark
-   ink in both themes: light text on the mid green fails contrast. */
-.b-map--activity .b-map__group {
-	--map-tile: var(--s-color-bg-surface-secondary);
-}
+/* A tile's activity class replaces its group's hue. Steps mix the action
+   green into the neutral surface, so the ramp follows the theme. The two
+   strongest steps take dark ink in both themes: light text on the mid green
+   fails contrast. */
 
 .b-map__tile--l0,
 .b-map__tile--l1,
