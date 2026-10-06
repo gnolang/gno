@@ -1,6 +1,7 @@
 package mathml
 
 import (
+	"errors"
 	"math"
 	"regexp"
 	"strconv"
@@ -130,8 +131,17 @@ func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseCo
 		var last string
 		for !side.Empty() {
 			t, err := side.GetNextToken()
-			if err != nil {
+			if errors.Is(err, ErrTokenBufferExpr) {
+				// A brace group where a ^ or _ is expected is not a script:
+				// skip it. GetNextToken does not advance past a group, so
+				// it must be consumed here or the loop never ends.
+				if _, err := side.GetNextExpr(); err != nil {
+					break
+				}
 				continue
+			}
+			if err != nil {
+				break
 			}
 			switch t.Value {
 			case "^":

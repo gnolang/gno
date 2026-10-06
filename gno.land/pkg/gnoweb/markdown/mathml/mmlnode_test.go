@@ -3,6 +3,7 @@ package mathml
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -166,4 +167,75 @@ func TestTableColumnsAfterSpans(t *testing.T) {
 	assert.Contains(t, out, "<mtd columnalign=\"right\">\n            <mi>f</mi>")
 	assert.Contains(t, out, "<mtd columnalign=\"center\">\n            <mi>j</mi>")
 	assert.Contains(t, out, "<mtd columnalign=\"right\">\n            <mi>k</mi>")
+}
+
+// convertWithin converts tex, failing the test if conversion does not
+// finish within two seconds instead of hanging the test binary.
+func convertWithin(t *testing.T, tex string, display bool) string {
+	t.Helper()
+	done := make(chan string, 1)
+	go func() {
+		c := NewMathMLConverter()
+		var out string
+		if display {
+			out, _ = c.ConvertDisplay(tex)
+		} else {
+			out, _ = c.ConvertInline(tex)
+		}
+		done <- out
+	}()
+	select {
+	case out := <-done:
+		return out
+	case <-time.After(2 * time.Second):
+		t.Fatalf("conversion of %q did not terminate", tex)
+		return ""
+	}
+}
+
+// Every loop reading a token buffer must advance it, or the input hangs the
+// renderer. A brace group where a token is expected is the usual trap.
+func TestConversionTerminates(t *testing.T) {
+	for _, tex := range []string{
+		`\sideset{{a}}{}{x}`,
+		`\sideset{}{{a}}{x}`,
+		`\sideset{{a}^b}{_{c}{d}}{\sum}`,
+		`\sideset{{}}{{}}{x}`,
+		`\sideset{ {a} }{ {b} }{x}`,
+		`\frac{{a}}{{b}}`,
+		`\frac {a} {b}`,
+		`\frac`,
+		`\sqrt[{3}]{{x}}`,
+		`\textcolor{{red}}{x}`,
+		`\newcommand{{\x}}{y}`,
+		`\color{{red}} x`,
+		`\begin{array}{{c}}a\end{array}`,
+		`\left\{ {a} \right.`,
+		`x^{} _{} {}{}{}`,
+		`\mathbf{{x}}`,
+		`\hat{{x}}`,
+		`\raisebox{{1em}}{{x}}`,
+		`\multirow{{2}}{*}{{x}}`,
+		`\prescript{{a}}{{b}}{{c}}`,
+	} {
+		convertWithin(t, tex, false)
+		convertWithin(t, tex, true)
+	}
+}
+
+// FuzzConversionTerminates checks that no input makes the converter loop.
+func FuzzConversionTerminates(f *testing.F) {
+	for _, s := range []string{
+		`\sideset{_a^b}{_c}{\sum}`, `\frac{a}{b}`, `\begin{array}{cc}a&b\\c&d\end{array}`,
+		`\left( x \middle| y \right)`, `\color{red} x`, `\newcommand{\x}{y}`,
+		`\sqrt[3]{x}`, `\raisebox{1em}{x}`, `\bigl( x \bigr)`, `a \over b`,
+	} {
+		f.Add(s)
+	}
+	f.Fuzz(func(t *testing.T, tex string) {
+		if len(tex) > 512 {
+			return
+		}
+		convertWithin(t, tex, false)
+	})
 }
