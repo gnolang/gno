@@ -25,8 +25,9 @@ cannot open, and images were blocked by the CSP.
   `-web-ipfs-gateway` on gnodev. Both flags default to
   `https://ipfs.filebase.io` (`DefaultIPFSGateway`). `NewDefaultAppConfig`
   leaves it empty, like the realm notice, so library callers opt in. Empty
-  disables everything below. `NewRouter` rejects an invalid value, and
-  `NewHTMLRenderer` ignores one, so no caller renders relative URLs.
+  disables everything below. `NewRouter` rejects an invalid value.
+  `NewHTMLRenderer`, which does not know the chain domain, ignores a malformed
+  one, so no caller renders relative URLs.
 - A markdown AST transformer (`markdown/ext_ipfs.go`, priority 400, so it runs
   before link classification and image validation at 500) rewrites links,
   autolinks, reference links and images, including inside `<gno-foreign>`:
@@ -44,9 +45,10 @@ cannot open, and images were blocked by the CSP.
     other content.
   - So is a URL with a `uri` query parameter: gateways built on boxo (Kubo,
     Rainbow) redirect such a request to the content the parameter names.
-- Rewritten images get `loading="lazy"`. Otherwise a gallery requests every
-  image at once, which trips public gateway rate limits, and an image with no
-  provider can hold the page's `load` event for close to a minute.
+- Rewritten images get `loading="lazy"`, so an image no IPFS node provides does
+  not hold the page's `load` event, which can otherwise take close to a minute.
+  It does not spread out a gallery's requests: unsized images sit inside the
+  browser's lazy-load margin, so they are all requested at once anyway.
 - A rewritten autolink is labelled with the gateway URL. The original text may
   name a retired gateway, and copying it would give a dead URL.
 - The rewritten destination is escaped for markdown (`\` and `&`), because the
@@ -76,10 +78,9 @@ mirror), querying both gateways concurrently:
 Filebase documents its public gateway as meant "for testing and light usage",
 at 200 requests per minute, and it is stricter in practice. During review, a
 second burst of 100 image requests from one IP, a few seconds after the
-first, got 85 to 90 of them back as `429`. Images are fetched by each
-visitor's browser, so the limit applies per visitor, not per gnoweb instance.
-It is a fine default for development, but gno.land itself needs a dedicated
-or self-hosted gateway.
+first, got 85 to 90 of them back as `429`: a single client hits the limit
+easily. It is a fine default for development, but gno.land itself needs a
+dedicated or self-hosted gateway.
 
 ## Alternatives considered
 

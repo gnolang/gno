@@ -59,8 +59,8 @@ func (t *ipfsTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		case *ast.Image:
 			if u, ok := rewriteIPFSDestination(gateway, n.Destination); ok {
 				n.Destination = escapeDestination(u)
-				// A gallery would otherwise request every image at once,
-				// which trips public gateway rate limits.
+				// An image no IPFS node provides can otherwise hold the
+				// page's load event for close to a minute.
 				n.SetAttributeString("loading", []byte("lazy"))
 			}
 		case *ast.AutoLink:
