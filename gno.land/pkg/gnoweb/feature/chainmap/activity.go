@@ -163,6 +163,12 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 	closed.prune(first)
 	var bands []*bandCounts
 	for aligned := first; aligned < tip; aligned += bandWidth {
+		// The band the window starts in is cached whole, but counts only
+		// from the window's start: read it clipped unless it starts there.
+		if aligned < from-1 {
+			bands = append(bands, nil)
+			continue
+		}
 		bands = append(bands, closed.get(aligned))
 	}
 

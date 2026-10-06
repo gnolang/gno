@@ -114,6 +114,37 @@ func TestComputeActivityReadsClosedBandsOnce(t *testing.T) {
 	}
 }
 
+// The band the window starts in was cached whole when it sat inside the
+// window; once the window starts within it, the heights before the start
+// must not be counted.
+func TestComputeActivityClipsTheCachedFirstBand(t *testing.T) {
+	t.Parallel()
+
+	tip := weekOfBlocks + 50_000
+	// Inside the first window, and before the next one, in the band the
+	// next window starts in.
+	early := tip + 30_000 - weekOfBlocks - 5
+	f := &fakeIndexer{
+		tip:   tip,
+		t0:    time.Unix(0, 0),
+		calls: map[int][]indexer.Tx{early: {call(early, true, "g1x", "gno.land/r/a")}},
+	}
+	closed := new(closedBands)
+	first, err := computeActivity(context.Background(), f, closed)
+	if err != nil || first.Calls["gno.land/r/a"] != 1 {
+		t.Fatalf("first count = %v, %v; want the call counted", first, err)
+	}
+
+	f.tip += 30_000
+	a, err := computeActivity(context.Background(), f, closed)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if n := a.Calls["gno.land/r/a"]; n != 0 {
+		t.Errorf("a call before the window was counted: %d", n)
+	}
+}
+
 // A band the indexer caps is split until it fits, so a dense chain still
 // gets a complete count.
 func TestComputeActivitySplitsCappedBands(t *testing.T) {
