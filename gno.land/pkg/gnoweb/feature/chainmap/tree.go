@@ -2,13 +2,47 @@ package chainmap
 
 import (
 	"cmp"
+	"math"
 	"slices"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
-// mapAspect is the map's width over its height. The stylesheet draws the map
-// at this ratio, so the squares the layout computes stay square on screen.
-const mapAspect = 1.6
+// The map is drawn in a fixed coordinate space the SVG scales to its width,
+// so text sizes are known in the same units as the boxes and every label is
+// fitted here, to the character. mapWidth over mapHeight must match the
+// aspect-ratio the stylesheet gives .b-map.
+const (
+	mapWidth  = 1600.0
+	mapHeight = 1000.0
+)
+
+// Label metrics, in map units. The stylesheet sets the same font sizes on the
+// map's monospace text, whose advance is 0.6 em.
+const (
+	headBand    = 24.0 // a group's name band
+	headFont    = 13.0
+	subBand     = 20.0 // a subgroup's name band
+	subFont     = 11.5
+	tileFont    = 11.5
+	labelPad    = 6.0
+	monoAdvance = 0.6
+
+	// minLabelChars is the shortest label worth drawing: below it a name is
+	// an ellipsis and a letter, which reads as a rendering fault.
+	minLabelChars = 4
+)
+
+// subgroupMin is how many packages a group needs before it is split by the
+// next path segment, and bandMin how many a subgroup needs to keep a band of
+// its own. Smaller subgroups are pooled with the group's loose packages, named
+// by their path below the group: a band over one or two tiles only repeats
+// their names.
+const (
+	subgroupMin = 6
+	bandMin     = 3
+)
 
 // hueClasses are the group colours, written out whole so the stylesheet
 // purge, which keeps only class names it finds in the sources, sees them.
@@ -17,35 +51,61 @@ var hueClasses = [...]string{
 	"b-map__group--hue3", "b-map__group--hue4", "b-map__group--hue5",
 }
 
-// Group is one box of the map: the packages sharing the next path segment.
+// Rect is a box in map units.
+type Rect struct{ X, Y, W, H float64 }
+
+// Label is a name fitted to the box it sits in, and where to draw it.
+type Label struct {
+	Text string
+	X, Y float64
+}
+
+// Head is the name band over the top of a group or subgroup: a link to that
+// box's own map when it has one.
+type Head struct {
+	// Class is the band's block class: one partial draws both kinds.
+	Class string
+	Band  Rect
+	Label Label
+	// ZoomURL is the box's own map, and ZoomPath what it maps; both empty
+	// when the box has no map of its own.
+	ZoomURL, ZoomPath string
+}
+
+// Group is the packages sharing the first path segment below the map's root.
 type Group struct {
-	Key   string
-	Tiles []Tile
-	Box   Box
-	// HueClass tells neighbouring groups apart; decoration only.
+	Key      string
+	Count    int
+	Rect     Rect
 	HueClass string
+	// Head is the name band; nil when the group is too small to carry one.
+	Head *Head
+	// ZoomURL is the map of what lies below the key; empty when the key is
+	// itself a package, whose map would carry a List tab opening the package.
+	ZoomURL   string
+	Subgroups []*Subgroup
+}
 
-	// Header is false for a group holding nothing but the package named by its
-	// key, whose tile already says everything a header would, and for a group
-	// too small to carry one.
-	Header bool
-
-	// ZoomURL is the map of what lies below the key. Empty when nothing does,
-	// since that map would list nothing, and when the key is itself a package:
-	// there the List tab of that map would open the package, not the listing.
+// Subgroup is the packages of a group sharing its next path segment. A group
+// too small to split holds one subgroup with no key.
+type Subgroup struct {
+	Key     string
+	Rect    Rect
+	Head    *Head
 	ZoomURL string
+	Tiles   []Tile
 }
 
 // Tile is one package.
 type Tile struct {
-	Path  string // gnoweb-relative, the package's page
-	Label string
-	Box   Box
-	// Title is the tooltip and accessible name: the full path, which a small
-	// tile clips or omits, and the activity when there is any.
+	Path string // gnoweb-relative, the package's page
+	// name is what the tile is called within its subgroup.
+	name  string
+	Rect  Rect
+	Label *Label
+	// Title is the tooltip and accessible name: the full path, which the
+	// label shortens, and the activity when there is any.
 	Title string
-	// ShowLabel is false for a tile too small to show a readable name.
-	ShowLabel bool
 
 	Calls, Callers int
 	// Unknown marks a tile whose count the indexer could not settle.
@@ -54,84 +114,193 @@ type Tile struct {
 	ShadeClass string
 }
 
-// buildGroups groups the listed paths by their first segment below prefix and
-// lays the result out. prefix ends with a slash, paths are gnoweb-relative
-// like prefix. A path outside prefix is dropped rather than misfiled.
+// buildGroups groups the listed paths below prefix, which ends with a slash,
+// by their first and then their second path segment. A path outside prefix
+// is dropped rather than misfiled.
 func buildGroups(prefix string, paths []string) []*Group {
-	byKey := make(map[string]*Group)
-	var groups []*Group
+	byKey := make(map[string][]string)
 	for _, p := range paths {
 		rel, ok := strings.CutPrefix(p, prefix)
 		if !ok || rel == "" {
 			continue
 		}
-		key, rest, nested := strings.Cut(rel, "/")
-		g := byKey[key]
-		if g == nil {
-			g = &Group{Key: key}
-			byKey[key] = g
-			groups = append(groups, g)
-		}
-		label := key
-		if nested {
-			label = rest
-		}
-		g.Tiles = append(g.Tiles, Tile{Path: p, Label: label})
+		key, _, _ := strings.Cut(rel, "/")
+		byKey[key] = append(byKey[key], p)
 	}
 
+	groups := make([]*Group, 0, len(byKey))
+	for key, members := range byKey {
+		slices.Sort(members)
+		root := prefix + key
+		g := &Group{Key: key, Count: len(members)}
+		if !slices.Contains(members, root) {
+			g.ZoomURL = root + "/$map"
+		}
+		g.Subgroups = subgroups(root, members, len(members) >= subgroupMin)
+		groups = append(groups, g)
+	}
 	// Largest first, as squarify requires; ties by name so a reload draws the
 	// same map.
 	slices.SortFunc(groups, func(a, b *Group) int {
-		if c := cmp.Compare(len(b.Tiles), len(a.Tiles)); c != 0 {
+		if c := cmp.Compare(b.Count, a.Count); c != 0 {
 			return c
 		}
 		return cmp.Compare(a.Key, b.Key)
 	})
 	for i, g := range groups {
-		slices.SortFunc(g.Tiles, func(a, b Tile) int { return cmp.Compare(a.Label, b.Label) })
 		g.HueClass = hueClasses[i%len(hueClasses)]
-		isPackage := slices.ContainsFunc(g.Tiles, func(t Tile) bool { return t.Label == g.Key && t.Path == prefix+g.Key })
-		if len(g.Tiles) > 1 && !isPackage {
-			g.ZoomURL = prefix + g.Key + "/$map"
-		}
-		g.Header = len(g.Tiles) > 1 || !isPackage
 	}
 	return groups
 }
 
-// Below these sizes, in percent of the map's width and height, a name cannot
-// be read at the stylesheet's font size on a desktop-wide map. The tile still
-// carries it as its accessible name and tooltip.
-const (
-	minLabelWidth  = 4.0
-	minLabelHeight = 3.0
-	minHeadWidth   = 6.0
-	minHeadHeight  = 5.0
-)
+// subgroups splits a group's members, all at or below root, by their next
+// segment, or keeps them together when split is false. The package at root
+// itself, if any, sits in the subgroup with no key.
+func subgroups(root string, members []string, split bool) []*Subgroup {
+	// Count each next segment first: only one with bandMin packages or more
+	// becomes a subgroup of its own.
+	count := make(map[string]int)
+	if split {
+		for _, p := range members {
+			if k, _, _ := strings.Cut(strings.TrimPrefix(p, root+"/"), "/"); p != root {
+				count[k]++
+			}
+		}
+	}
 
-// layout places groups on the map and tiles in their group. Every package
-// weighs the same: the map says how many packages there are, which is the one
-// size the chain answers for a whole listing at once.
+	byKey := make(map[string]*Subgroup)
+	var subs []*Subgroup
+	for _, p := range members {
+		key, name := "", strings.TrimPrefix(p, root+"/")
+		if p == root {
+			name = baseName(root)
+		} else if k, rest, nested := strings.Cut(name, "/"); count[k] >= bandMin {
+			key = k
+			if nested {
+				name = rest
+			}
+		}
+		s := byKey[key]
+		if s == nil {
+			s = &Subgroup{Key: key}
+			byKey[key] = s
+			subs = append(subs, s)
+		}
+		s.Tiles = append(s.Tiles, Tile{Path: p, name: name})
+	}
+	for _, s := range subs {
+		subRoot := root + "/" + s.Key
+		if s.Key != "" && !slices.ContainsFunc(s.Tiles, func(t Tile) bool { return t.Path == subRoot }) {
+			s.ZoomURL = subRoot + "/$map"
+		}
+	}
+	slices.SortFunc(subs, func(a, b *Subgroup) int {
+		if c := cmp.Compare(len(b.Tiles), len(a.Tiles)); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Key, b.Key)
+	})
+	return subs
+}
+
+// baseName is the last segment of a path.
+func baseName(p string) string { return p[strings.LastIndex(p, "/")+1:] }
+
+// layout places groups on the map, subgroups in their group and tiles in
+// their subgroup, and fits every label. Every package weighs the same: the
+// map says how many packages there are, the one size the chain answers for a
+// whole listing at once.
 func layout(groups []*Group) {
-	frame := rect{0, 0, mapAspect, 1}
 	weights := make([]float64, len(groups))
 	for i, g := range groups {
-		weights[i] = float64(len(g.Tiles))
+		weights[i] = float64(g.Count)
 	}
-	for i, gr := range squarify(weights, frame) {
+	for i, r := range squarify(weights, rect{0, 0, mapWidth, mapHeight}) {
 		g := groups[i]
-		g.Box = percent(gr, frame)
+		g.Rect = toRect(r)
+		inner := r
+		// A group that is one package at its own root is named by its tile;
+		// a band would only say it twice.
+		if g.Count > 1 || g.ZoomURL != "" {
+			name := g.Key
+			if g.Count > 1 {
+				name += " · " + strconv.Itoa(g.Count)
+			}
+			if g.Head = newHead("b-map__head", name, g.ZoomURL, r, headBand, headFont); g.Head != nil {
+				inner = rect{r.X, r.Y + headBand, r.W, r.H - headBand}
+			}
+		}
+		layoutSubgroups(g.Subgroups, inner)
+	}
+}
 
-		ones := make([]float64, len(g.Tiles))
+func layoutSubgroups(subs []*Subgroup, r rect) {
+	weights := make([]float64, len(subs))
+	for i, s := range subs {
+		weights[i] = float64(len(s.Tiles))
+	}
+	for i, sr := range squarify(weights, r) {
+		s := subs[i]
+		s.Rect = toRect(sr)
+		inner := sr
+		if s.Key != "" {
+			if s.Head = newHead("b-map__sub", s.Key, s.ZoomURL, sr, subBand, subFont); s.Head != nil {
+				inner = rect{sr.X, sr.Y + subBand, sr.W, sr.H - subBand}
+			}
+		}
+		ones := make([]float64, len(s.Tiles))
 		for j := range ones {
 			ones[j] = 1
 		}
-		for j, tr := range squarify(ones, gr) {
-			t := &g.Tiles[j]
-			t.Box = percent(tr, gr)
-			onMap := percent(tr, frame)
-			t.ShowLabel = onMap.Width >= minLabelWidth && onMap.Height >= minLabelHeight
+		for j, tr := range squarify(ones, inner) {
+			t := &s.Tiles[j]
+			t.Rect = toRect(tr)
+			if tr.H < tileFont+2*labelPad {
+				continue
+			}
+			if text := fit(t.name, tr.W, tileFont); text != "" {
+				t.Label = &Label{Text: text, X: round1(tr.X + labelPad), Y: round1(tr.Y + tileFont + labelPad - 2)}
+			}
 		}
-		g.Header = g.Header && g.Box.Width >= minHeadWidth && g.Box.Height >= minHeadHeight
 	}
+}
+
+// newHead bands the top of r with name, or returns nil when r is too short
+// to give a band and room below it, or too narrow for a readable name.
+func newHead(class, name, zoomURL string, r rect, band, font float64) *Head {
+	if r.H < 2*band {
+		return nil
+	}
+	text := fit(name, r.W, font)
+	if text == "" {
+		return nil
+	}
+	return &Head{
+		Class:    class,
+		Band:     toRect(rect{r.X, r.Y, r.W, band}),
+		Label:    Label{Text: text, X: round1(r.X + labelPad), Y: round1(r.Y + band/2 + font*0.35)},
+		ZoomURL:  zoomURL,
+		ZoomPath: strings.TrimSuffix(zoomURL, "$map"),
+	}
+}
+
+// fit returns text as it fits a box of width w at the given font size,
+// shortened with an ellipsis when it does not, or "" when fewer than
+// minLabelChars would.
+func fit(text string, w, font float64) string {
+	// The epsilon keeps a box exactly n characters wide from rounding to n-1.
+	room := int(math.Floor((w-2*labelPad)/(font*monoAdvance) + 1e-9))
+	if utf8.RuneCountInString(text) <= room {
+		return text
+	}
+	if room < minLabelChars {
+		return ""
+	}
+	return string([]rune(text)[:room-1]) + "…"
+}
+
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
+
+func toRect(r rect) Rect {
+	return Rect{X: round1(r.X), Y: round1(r.Y), W: round1(r.W), H: round1(r.H)}
 }

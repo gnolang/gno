@@ -1,14 +1,15 @@
 {{ define "renderDir" }} {{ $pkgpath := .PkgPath }}
 <article class="b-directory u-grid-full">
+  {{ if .Mode.IsExplorer }}
+  {{ template "ui/listing_header" .Header }}
+  {{ else }}
   <header class="b-content-header">
     <h1 class="title b-content-h1">{{ $pkgpath }}</h1>
     <div class="header-info">
-      <span>{{ if .Mode.IsExplorer }} Explorer · {{ .FileCounter }} Packages {{
-        else }} Directory · {{ .FileCounter }} Files {{ end }}</span>
+      <span>Directory · {{ .FileCounter }} Files</span>
     </div>
   </header>
-
-  {{ if .Truncated }}{{ template "ui/listing_truncated" .FileCounter }}{{ end }}
+  {{ end }}
 
   <ul class="b-list">
     {{ range .FilesLinks }}

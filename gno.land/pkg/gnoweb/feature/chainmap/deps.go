@@ -9,9 +9,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
-// DepsViewType tags the dependencies page.
-const DepsViewType components.ViewType = "deps-view"
-
 // depsWait is how long the dependencies page waits for the importers before
 // saying they are still being looked up. The lookup carries on detached, so a
 // reload finds it done.
@@ -59,7 +56,7 @@ func (h *Handler) DepsView(r *http.Request, pkgPath, title string) (int, *compon
 		}
 	}
 
-	view := &components.View{Type: DepsViewType, Component: &pageComponent{name: "renderDeps", data: data}}
+	view := &components.View{Type: components.DepsViewType, Component: &pageComponent{name: "renderDeps", data: data}}
 	view.SkipTargetInBody = true // on the content header
 	return status, view, nil
 }

@@ -1,5 +1,10 @@
 package components
 
+// DepsViewType identifies feature/chainmap's dependencies page, so
+// layout_index.go gives it the dev chrome of the Source pages it extends
+// without importing the feature, which already imports components.
+const DepsViewType ViewType = "deps-view"
+
 // DepGraph is the dependency graph around one package (ui/pkg_graph): what it
 // imports, read from the chain, and what imports it, which only an indexer
 // can propose.

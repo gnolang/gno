@@ -11,10 +11,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
-// MapViewType tags the body view. Local because nothing in components renders
-// this feature.
-const MapViewType components.ViewType = "map-view"
-
 // activityWait is how long a map page waits for the activity aggregate before
 // rendering without it. The refresh it started carries on for the next load.
 const activityWait = 3 * time.Second
@@ -41,10 +37,8 @@ const (
 
 // MapData is the render payload for templates/map.html.
 type MapData struct {
-	Path      string
-	Count     int
-	Truncated bool
-	Groups    []*Group
+	Header components.ListingHeader
+	Groups []*Group
 
 	// Activity is empty when no indexer is configured: the legend then says
 	// nothing about activity at all.
@@ -60,28 +54,24 @@ type MapData struct {
 func (h *Handler) MapView(ctx context.Context, l Listing) *components.View {
 	root := strings.TrimSuffix(l.Path, "/")
 	data := MapData{
-		Path:      root + "/",
-		Count:     len(l.Paths),
-		Truncated: l.Truncated,
-		Groups:    buildGroups(root+"/", l.Paths),
+		Header: components.NewListingHeader(root, len(l.Paths), l.Truncated),
+		Groups: buildGroups(root+"/", l.Paths),
 	}
 	layout(data.Groups)
 
 	if h.activity != nil {
 		h.addActivity(ctx, &data)
 	}
-	for _, g := range data.Groups {
-		for i := range g.Tiles {
-			g.Tiles[i].Title = tileTitle(g.Tiles[i], data)
-		}
-	}
-	return &components.View{Type: MapViewType, Component: &pageComponent{name: "renderMap", data: data}}
+	data.eachTile(func(t *Tile) { t.Title = tileTitle(*t, data) })
+	// The directory view's own type: the map is that view, drawn. It shares
+	// the list's chrome, and its analytics page type.
+	return &components.View{Type: components.DirectoryViewType, Component: &pageComponent{name: "renderMap", data: data}}
 }
 
 // addActivity colours the tiles with the window's calls, or says why it
 // cannot.
 func (h *Handler) addActivity(ctx context.Context, data *MapData) {
-	if !strings.HasPrefix(data.Path, "/r/") {
+	if !strings.HasPrefix(data.Header.Path, "/r/") {
 		data.Activity = ActivityNotCalled
 		return
 	}
@@ -106,22 +96,27 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	// The scale is the busiest realm on this map, so a zoomed-in map still
 	// tells its own realms apart.
 	busiest := 0
-	for _, g := range data.Groups {
-		for i := range g.Tiles {
-			t := &g.Tiles[i]
-			full := h.deps.Domain + t.Path
-			t.Calls, t.Callers = a.Calls[full], a.Callers[full]
-			busiest = max(busiest, t.Calls)
+	data.eachTile(func(t *Tile) {
+		full := h.deps.Domain + t.Path
+		t.Calls, t.Callers = a.Calls[full], a.Callers[full]
+		busiest = max(busiest, t.Calls)
+	})
+	data.eachTile(func(t *Tile) {
+		// Partial: a zero may be calls in the part that went unread.
+		t.Unknown = a.Partial && t.Calls == 0
+		t.ShadeClass = shadeClasses[level(t.Calls, busiest)]
+		if t.Unknown {
+			t.ShadeClass = unknownShadeClass
 		}
-	}
-	for _, g := range data.Groups {
-		for i := range g.Tiles {
-			t := &g.Tiles[i]
-			// Partial: a zero may be calls in the part that went unread.
-			t.Unknown = a.Partial && t.Calls == 0
-			t.ShadeClass = shadeClasses[level(t.Calls, busiest)]
-			if t.Unknown {
-				t.ShadeClass = unknownShadeClass
+	})
+}
+
+// eachTile calls fn on every tile of the map.
+func (d *MapData) eachTile(fn func(*Tile)) {
+	for _, g := range d.Groups {
+		for _, s := range g.Subgroups {
+			for i := range s.Tiles {
+				fn(&s.Tiles[i])
 			}
 		}
 	}

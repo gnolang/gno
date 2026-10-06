@@ -4,84 +4,101 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
-func TestBuildGroupsByNextSegment(t *testing.T) {
+func tilesOf(groups []*Group) []Tile {
+	var out []Tile
+	for _, g := range groups {
+		for _, s := range g.Subgroups {
+			out = append(out, s.Tiles...)
+		}
+	}
+	return out
+}
+
+func groupByKey(groups []*Group, key string) *Group {
+	for _, g := range groups {
+		if g.Key == key {
+			return g
+		}
+	}
+	return nil
+}
+
+func TestBuildGroupsByFirstThenSecondSegment(t *testing.T) {
 	t.Parallel()
 
-	paths := []string{
-		"/r/gnoland/home",
-		"/r/gnoland/blog",
-		"/r/gnoland/blog/admin",
-		"/r/alice/game",
-		"/r/zed",
-		"/p/outside/prefix", // not under /r/: dropped
+	paths := []string{"/r/zed", "/p/outside/prefix"} // the second is dropped
+	for _, sub := range []string{"x", "x", "x", "demo", "demo", "blog"} {
+		paths = append(paths, "/r/moul/"+sub+"/p"+strconv.Itoa(len(paths)))
 	}
 	groups := buildGroups("/r/", paths)
 
-	if len(groups) != 3 {
-		t.Fatalf("groups = %d, want 3 (gnoland, alice, zed)", len(groups))
+	if len(groups) != 2 || groups[0].Key != "moul" || groups[0].Count != 6 {
+		t.Fatalf("groups = %+v, want moul (6) then zed", groups)
 	}
-	// Largest first.
-	if g := groups[0]; g.Key != "gnoland" || len(g.Tiles) != 3 {
-		t.Fatalf("first group = %s with %d tiles, want gnoland with 3", g.Key, len(g.Tiles))
+	moul := groups[0]
+	if moul.ZoomURL != "/r/moul/$map" {
+		t.Errorf("zoom = %q, want /r/moul/$map", moul.ZoomURL)
 	}
-	if got := groups[0].Tiles[0].Label; got != "blog" {
-		t.Errorf("tiles sort by label: first = %q, want blog", got)
+	// Six packages: split by the next segment. x holds three and keeps a band;
+	// demo and blog are too small and pool together, named below moul.
+	subs := make(map[string]*Subgroup)
+	for _, sg := range moul.Subgroups {
+		subs[sg.Key] = sg
 	}
-	if got := groups[0].ZoomURL; got != "/r/gnoland/$map" {
-		t.Errorf("zoom = %q, want /r/gnoland/$map", got)
+	x, pool := subs["x"], subs[""]
+	if len(moul.Subgroups) != 2 || x == nil || pool == nil || len(x.Tiles) != 3 || len(pool.Tiles) != 3 {
+		t.Fatalf("moul subgroups = %v, want x (3) and the pooled rest (3)", subs)
 	}
-
-	// /r/zed is a package with nothing below it: a lone tile, no header, and
-	// no zoom, since a map of what is under it would be empty.
-	var zed *Group
-	for _, g := range groups {
-		if g.Key == "zed" {
-			zed = g
+	if x.ZoomURL != "/r/moul/x/$map" {
+		t.Errorf("subgroup zoom = %q, want /r/moul/x/$map", x.ZoomURL)
+	}
+	if pool.ZoomURL != "" {
+		t.Errorf("the pooled subgroup must have no zoom: %q", pool.ZoomURL)
+	}
+	for _, tl := range pool.Tiles {
+		if !strings.Contains(tl.name, "/") {
+			t.Errorf("pooled tile %q must be named by its path below the group", tl.name)
 		}
 	}
-	if zed == nil || zed.Header || zed.ZoomURL != "" {
-		t.Fatalf("zed = %+v, want a headerless group with no zoom", zed)
+
+	// /r/zed is a package with nothing below it: no zoom, one keyless
+	// subgroup, its tile named after it.
+	zed := groupByKey(groups, "zed")
+	if zed.ZoomURL != "" || len(zed.Subgroups) != 1 || zed.Subgroups[0].Key != "" {
+		t.Fatalf("zed = %+v", zed)
 	}
-	if zed.Tiles[0].Label != "zed" || zed.Tiles[0].Path != "/r/zed" {
-		t.Errorf("zed tile = %+v", zed.Tiles[0])
+	if tl := zed.Subgroups[0].Tiles[0]; tl.Path != "/r/zed" || tl.name != "zed" {
+		t.Errorf("zed tile = %+v", tl)
+	}
+}
+
+// Below subgroupMin a group is not split: a split of two or three packages
+// only draws frames around single tiles.
+func TestSmallGroupsAreNotSplit(t *testing.T) {
+	t.Parallel()
+
+	g := buildGroups("/r/", []string{"/r/a/x/1", "/r/a/y/2", "/r/a/z/3"})[0]
+	if len(g.Subgroups) != 1 || g.Subgroups[0].Key != "" {
+		t.Fatalf("subgroups = %+v, want the group unsplit", g.Subgroups)
+	}
+	if name := g.Subgroups[0].Tiles[0].name; name != "x/1" {
+		t.Errorf("tile name = %q, want the path below the group", name)
 	}
 }
 
 // The map is a rendering of the listing, so every listed path under the
-// prefix must come out as exactly one tile.
+// prefix comes out as exactly one tile.
 func TestBuildGroupsKeepsEveryPath(t *testing.T) {
 	t.Parallel()
 
-	paths := []string{"/r/a/x", "/r/a/y/z", "/r/b", "/r/c/d/e/f"}
-	tiles := 0
-	for _, g := range buildGroups("/r/", paths) {
-		tiles += len(g.Tiles)
-	}
-	if tiles != len(paths) {
-		t.Fatalf("tiles = %d, want %d", tiles, len(paths))
-	}
-}
-
-func TestLayoutFillsTheMap(t *testing.T) {
-	t.Parallel()
-
-	groups := buildGroups("/r/", []string{"/r/a/x", "/r/a/y", "/r/a/z", "/r/b/x"})
-	layout(groups)
-
-	var area float64
-	for _, g := range groups {
-		area += g.Box.Width * g.Box.Height
-		for _, tl := range g.Tiles {
-			if tl.Box.Width <= 0 || tl.Box.Height <= 0 {
-				t.Errorf("tile %s has no area: %+v", tl.Path, tl.Box)
-			}
-		}
-	}
-	if area < 9999 || area > 10001 { // percent × percent
-		t.Errorf("groups cover %.2f%%², want the whole map", area)
+	paths := []string{"/r/a/x", "/r/a/y/z", "/r/b", "/r/c/d/e/f", "/r/a/q/1", "/r/a/q/2", "/r/a/q/3", "/r/a/w"}
+	if n := len(tilesOf(buildGroups("/r/", paths))); n != len(paths) {
+		t.Fatalf("tiles = %d, want %d", n, len(paths))
 	}
 }
 
@@ -90,34 +107,122 @@ func TestLayoutFillsTheMap(t *testing.T) {
 func TestNoZoomIntoAPackage(t *testing.T) {
 	t.Parallel()
 
-	for _, g := range buildGroups("/r/", []string{"/r/pkg", "/r/pkg/sub", "/r/ns/a", "/r/ns/b"}) {
-		switch g.Key {
-		case "pkg":
-			if g.ZoomURL != "" {
-				t.Errorf("zoom into a package: %q", g.ZoomURL)
+	groups := buildGroups("/r/", []string{"/r/pkg", "/r/pkg/sub", "/r/ns/a", "/r/ns/b"})
+	if g := groupByKey(groups, "pkg"); g.ZoomURL != "" {
+		t.Errorf("zoom into a package: %q", g.ZoomURL)
+	}
+	if g := groupByKey(groups, "ns"); g.ZoomURL != "/r/ns/$map" {
+		t.Errorf("zoom into a namespace = %q, want /r/ns/$map", g.ZoomURL)
+	}
+}
+
+func TestLayoutTilesTheMapAndFitsEveryLabel(t *testing.T) {
+	t.Parallel()
+
+	var paths []string
+	for i := range 40 {
+		paths = append(paths, "/r/moul/x/daily/package-with-a-long-name-"+strconv.Itoa(i))
+	}
+	paths = append(paths, "/r/gnoland/home", "/r/gnoland/blog", "/r/sys/users")
+	groups := buildGroups("/r/", paths)
+	layout(groups)
+
+	var area float64
+	for _, g := range groups {
+		area += g.Rect.W * g.Rect.H
+		if g.Head != nil {
+			checkFits(t, g.Head.Label.Text, g.Rect.W, headFont)
+		}
+		for _, s := range g.Subgroups {
+			if s.Head != nil {
+				checkFits(t, s.Head.Label.Text, s.Rect.W, subFont)
 			}
-		case "ns":
-			if g.ZoomURL != "/r/ns/$map" {
-				t.Errorf("zoom into a namespace = %q, want /r/ns/$map", g.ZoomURL)
+			for _, tl := range s.Tiles {
+				if tl.Rect.W <= 0 || tl.Rect.H <= 0 {
+					t.Errorf("tile %s has no area", tl.Path)
+				}
+				if tl.Label != nil {
+					checkFits(t, tl.Label.Text, tl.Rect.W, tileFont)
+				}
 			}
+		}
+	}
+	if full := mapWidth * mapHeight; area < full*0.999 || area > full*1.001 {
+		t.Errorf("groups cover %.0f, want the whole map %.0f", area, full)
+	}
+}
+
+func checkFits(t *testing.T, text string, w, font float64) {
+	t.Helper()
+	if n := utf8.RuneCountInString(text); float64(n)*font*monoAdvance > w-2*labelPad+0.01 {
+		t.Errorf("label %q (%d chars) overflows a box %.1f wide", text, n, w)
+	}
+	if strings.HasSuffix(text, "…") && utf8.RuneCountInString(text) < minLabelChars {
+		t.Errorf("label %q is too short to be worth drawing", text)
+	}
+}
+
+func TestFit(t *testing.T) {
+	t.Parallel()
+
+	room := func(chars int) float64 { return float64(chars)*tileFont*monoAdvance + 2*labelPad }
+	cases := []struct {
+		text string
+		w    float64
+		want string
+	}{
+		{"daily", room(5), "daily"},
+		{"governance", room(6), "gover…"},
+		{"governance", room(3), ""},
+		{"a", room(1), "a"},
+	}
+	for _, c := range cases {
+		if got := fit(c.text, c.w, tileFont); got != c.want {
+			t.Errorf("fit(%q, %.1f) = %q, want %q", c.text, c.w, got, c.want)
 		}
 	}
 }
 
-// The layout squares tiles for mapAspect and the stylesheet draws the map at
-// its own aspect-ratio. Nothing else ties the two.
-func TestStylesheetDrawsTheMapAtTheLayoutAspect(t *testing.T) {
+// The layout squares tiles for mapWidth × mapHeight and fits labels to the
+// font sizes below; the stylesheet draws the map at its own aspect-ratio and
+// font sizes. Nothing else ties the two.
+func TestStylesheetMatchesTheLayoutMetrics(t *testing.T) {
 	t.Parallel()
 
 	css, err := os.ReadFile("frontend/chainmap.css")
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := regexp.MustCompile(`\.b-map \{[^}]*aspect-ratio:\s*([0-9.]+);`).FindSubmatch(css)
-	if m == nil {
-		t.Fatal("no aspect-ratio on .b-map")
+	want := map[string]float64{
+		`\.b-map \{[^}]*aspect-ratio:\s*([0-9.]+)`: mapWidth / mapHeight,
+		`--map-head-font:\s*([0-9.]+)px`:           headFont,
+		`--map-sub-font:\s*([0-9.]+)px`:            subFont,
+		`--map-tile-font:\s*([0-9.]+)px`:           tileFont,
 	}
-	if got, _ := strconv.ParseFloat(string(m[1]), 64); got != mapAspect {
-		t.Fatalf("stylesheet aspect-ratio = %v, layout mapAspect = %v", got, mapAspect)
+	for pattern, value := range want {
+		m := regexp.MustCompile(pattern).FindSubmatch(css)
+		if m == nil {
+			t.Errorf("stylesheet has no match for %s", pattern)
+			continue
+		}
+		if got, _ := strconv.ParseFloat(string(m[1]), 64); got != value {
+			t.Errorf("%s = %v in the stylesheet, %v in the layout", pattern, got, value)
+		}
+	}
+}
+
+// A group that is one package at its own root carries no band: its tile
+// already names it. A one-package group below a folder keeps its band, which
+// is the only place that names the folder.
+func TestNoBandOverALonePackage(t *testing.T) {
+	t.Parallel()
+
+	groups := buildGroups("/r/", []string{"/r/blog", "/r/boards2/v0"})
+	layout(groups)
+	if g := groupByKey(groups, "blog"); g.Head != nil {
+		t.Errorf("blog has a band %q over its own tile", g.Head.Label.Text)
+	}
+	if g := groupByKey(groups, "boards2"); g.Head == nil || g.Head.Label.Text != "boards2" {
+		t.Errorf("boards2 band = %+v, want its name without a count of one", g.Head)
 	}
 }

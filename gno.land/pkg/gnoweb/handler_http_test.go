@@ -572,8 +572,8 @@ func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
 
 	body := rr.Body.String()
 	assert.Equal(t, http.StatusOK, rr.Code)
-	// Explorer mode renders the "Packages" counter.
-	assert.Contains(t, body, "Packages")
+	// Explorer mode renders the package counter.
+	assert.Contains(t, body, "1 Package<")
 	// Main entry link points at the render, not the directory listing.
 	assert.Contains(t, body, `href="/r/mock/sub">`)
 	// Right-side inline buttons, including the new Browse (directory listing).

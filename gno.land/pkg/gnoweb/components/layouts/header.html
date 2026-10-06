@@ -4,7 +4,9 @@ LAYOUT - Header component
 {{ define "layouts/header" }}
 <header class="b-header">
   <nav class="c-center c-view-grid" aria-label="Package navigation">
-    <div class="main-nav {{ if .Mode.IsExplorer }}main-nav--explorer{{ end }}">
+    {{/* The search bar takes the whole row only when there are no tabs to
+         sit beside it: a listing has List and Map, a package its own. */}}
+    <div class="main-nav {{ if not .Links.Dev }}main-nav--full{{ end }}">
       <a href="/" class="user-picture">
         {{ template "ui/gnome" }}
       </a>

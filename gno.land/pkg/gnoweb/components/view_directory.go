@@ -1,5 +1,7 @@
 package components
 
+import "strings"
+
 const DirectoryViewType ViewType = "dir-view"
 
 type DirData struct {
@@ -8,8 +10,22 @@ type DirData struct {
 	FilesLinks  FilesLinks
 	Mode        ViewMode
 	Readme      Component
+	// Header heads an explorer listing (ui/listing_header).
+	Header ListingHeader
+}
+
+// ListingHeader heads a directory listing in either rendering, list or map.
+type ListingHeader struct {
+	// Path is the listing's root, ending with a slash.
+	Path  string
+	Count int
 	// Truncated is set when there were more paths than were listed.
 	Truncated bool
+}
+
+// NewListingHeader heads the listing of paths below root.
+func NewListingHeader(root string, count int, truncated bool) ListingHeader {
+	return ListingHeader{Path: strings.TrimSuffix(root, "/") + "/", Count: count, Truncated: truncated}
 }
 
 type DirLinkType int
@@ -74,6 +90,6 @@ func ExplorerView(pkgPath string, paths []string, truncated bool) *View {
 		FilesLinks:  buildFilesLinks(paths, DirLinkTypeFile, pkgPath),
 		FileCounter: len(paths),
 		Mode:        ViewModeExplorer,
-		Truncated:   truncated,
+		Header:      NewListingHeader(pkgPath, len(paths), truncated),
 	})
 }

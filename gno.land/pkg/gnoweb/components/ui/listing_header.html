@@ -1,0 +1,15 @@
+{{/* ===================================================================================
+UI - Listing header
+
+Heads a directory listing in either rendering, list or map, so the two name it,
+count it and say when it stops exactly alike.
+=================================================================================== */}}
+{{ define "ui/listing_header" }}
+<header class="b-content-header">
+  <h1 class="title b-content-h1">{{ .Path }}</h1>
+  <div class="header-info">
+    <span>{{ .Count }} {{ if eq .Count 1 }}Package{{ else }}Packages{{ end }}</span>
+  </div>
+</header>
+{{ if .Truncated }}{{ template "ui/listing_truncated" .Count }}{{ end }}
+{{ end }}

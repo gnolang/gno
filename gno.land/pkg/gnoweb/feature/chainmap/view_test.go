@@ -27,7 +27,7 @@ func TestMapWithoutIndexerSaysNothingAboutActivity(t *testing.T) {
 			t.Errorf("map without an indexer mentions %q", absent)
 		}
 	}
-	for _, want := range []string{`href="/r/a/x"`, `href="/r/a/y"`, `href="/r/b"`, `href="/r/a/$map"`, "Map · 3 Packages"} {
+	for _, want := range []string{`href="/r/a/x"`, `href="/r/a/y"`, `href="/r/b"`, `href="/r/a/$map"`, "3 Packages"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("map lacks %q", want)
 		}

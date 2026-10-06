@@ -1,48 +1,35 @@
 {{/* ===================================================================================
 LAYOUT - Map of a directory listing
 
-The same listing the list view renders, drawn as a treemap. Server-rendered and
-script-free: every tile is a link named by its <title>, and the zoom into a
-group is a link to that group's own map.
+The same listing the list view renders, drawn as a treemap: namespaces, then
+the next path segment, then packages. Server-rendered and script-free. The SVG
+draws in a fixed 1600 × 1000 space it scales to its width, so every label was
+fitted to its box on the server; geometry rides on attributes, since gnoweb's
+Content-Security-Policy drops inline styles. Every tile is a link named by its
+<title>, and every named box that holds more links to its own map.
 =================================================================================== */}}
 {{ define "renderMap" }}
 <article class="b-map-view u-grid-full">
-  <header class="b-content-header">
-    <h1 class="title b-content-h1">{{ .Path }}</h1>
-    <div class="header-info">
-      <span>Map · {{ .Count }} Packages</span>
-    </div>
-  </header>
+  {{ template "ui/listing_header" .Header }}
 
-  {{ if .Truncated }}{{ template "ui/listing_truncated" .Count }}{{ end }}
-
-  {{/* SVG, so the geometry rides on x/y/width/height attributes: gnoweb's
-       Content-Security-Policy drops inline style attributes. Percentages
-       keep text at the stylesheet's size whatever the map's width, and a
-       labelled tile is a nested <svg> so it clips its label; a tile too small
-       for one is a bare <rect>. */}}
-  <svg class="b-map" role="group" aria-label="Packages under {{ .Path }}">
-    {{ range .Groups }}
-    <svg class="b-map__group {{ .HueClass }}" x="{{ .Box.Left }}%" y="{{ .Box.Top }}%" width="{{ .Box.Width }}%" height="{{ .Box.Height }}%">
-      {{- range .Tiles }}
-      <a class="b-map__tile {{ .ShadeClass }}" href="{{ .Path }}"><title>{{ .Title }}</title>
-        {{- if .ShowLabel -}}
-        <svg x="{{ .Box.Left }}%" y="{{ .Box.Top }}%" width="{{ .Box.Width }}%" height="{{ .Box.Height }}%"><rect width="100%" height="100%" /><text x="4" y="100%" dy="-5">{{ .Label }}</text></svg>
-        {{- else -}}
-        <rect x="{{ .Box.Left }}%" y="{{ .Box.Top }}%" width="{{ .Box.Width }}%" height="{{ .Box.Height }}%" />
-        {{- end -}}
-      </a>
+  <div class="b-map-frame">
+    <svg class="b-map" viewBox="0 0 1600 1000" role="group" aria-label="Packages under {{ .Header.Path }}">
+      {{- range .Groups }}
+      <g class="b-map__group {{ .HueClass }}">
+        {{- range .Subgroups }}
+        {{- range .Tiles }}
+        <a class="b-map__tile {{ .ShadeClass }}" href="{{ .Path }}"><title>{{ .Title }}</title><rect x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+          {{- with .Label }}<text x="{{ .X }}" y="{{ .Y }}">{{ .Text }}</text>{{ end }}</a>
+        {{- end }}
+        {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
+        <rect class="b-map__sub-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+        {{- end }}
+        {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
+        <rect class="b-map__group-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+      </g>
       {{- end }}
-      {{ if .Header }}
-      {{ if .ZoomURL }}
-      <a class="b-map__head" href="{{ .ZoomURL }}"><title>Open the map of {{ $.Path }}{{ .Key }}/</title>{{ template "chainmap/head" . }}</a>
-      {{ else }}
-      <g class="b-map__head">{{ template "chainmap/head" . }}</g>
-      {{ end }}
-      {{ end }}
     </svg>
-    {{ end }}
-  </svg>
+  </div>
 
   {{ template "chainmap/legend" . }}
   {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
@@ -50,33 +37,35 @@ group is a link to that group's own map.
 {{ end }}
 
 
-{{/* ===================================================================================
-UI - Legend
+{{/* A name band over the top of a group or subgroup, a link to that box's
+     own map when there is one. */}}
+{{ define "chainmap/head" }}
+{{- if .ZoomURL }}<a class="{{ .Class }}" href="{{ .ZoomURL }}"><title>Open the map of {{ .ZoomPath }}</title>{{ template "chainmap/band" . }}</a>
+{{- else }}<g class="{{ .Class }}">{{ template "chainmap/band" . }}</g>{{ end }}
+{{- end }}
 
-Says what the map measures, and for activity, what it could not measure.
+{{ define "chainmap/band" }}<rect x="{{ .Band.X }}" y="{{ .Band.Y }}" width="{{ .Band.W }}" height="{{ .Band.H }}" /><text x="{{ .Label.X }}" y="{{ .Label.Y }}">{{ .Label.Text }}</text>{{ end }}
+
+
+{{/* ===================================================================================
+UI - Legend: what the map measures and, for activity, what it could not.
 =================================================================================== */}}
 {{ define "chainmap/legend" }}
 <div class="b-map-legend" role="note">
-  <p>
-    Each tile is a package, linked to its page. Each box holds the packages under
-    one path segment and is sized by how many it holds; open its name to map
-    what lies below it.
-  </p>
+  <p>Area counts packages. Each box groups a path segment; select its name to map it.</p>
+  <p class="b-map-legend__scroll-hint">Scroll sideways to see the whole map.</p>
   {{ with .Window }}
-  <p>
+  <p class="b-map-legend__row">
     <span class="b-tag b-tag--indexer">indexer</span>
-    Successful calls from block {{ .From }} ({{ .Since.UTC.Format "Jan 2, 15:04 UTC" }}) to block {{ .To }}.
     <span class="b-map-legend__scale" aria-hidden="true">
-      no calls
+      <span>no calls</span>
       <span class="b-map-legend__swatch b-map__tile--l0"></span><span class="b-map-legend__swatch b-map__tile--l1"></span><span class="b-map-legend__swatch b-map__tile--l2"></span><span class="b-map-legend__swatch b-map__tile--l3"></span><span class="b-map-legend__swatch b-map__tile--l4"></span>
-      most calls on this map
+      <span>most calls</span>
     </span>
+    <span>Successful calls from block {{ .From }} ({{ .Since.UTC.Format "Jan 2, 15:04 UTC" }}) to {{ .To }}, on a log scale against the busiest realm shown.</span>
   </p>
   {{ if .Partial }}
-  <p>
-    Part of this window could not be read from the indexer: counts are lower
-    bounds, and a tile with a dashed edge is a realm whose calls are unknown.
-  </p>
+  <p>Part of this window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</p>
   {{ end }}
   {{ else }}
   {{ if eq .Activity "pending" }}
@@ -89,7 +78,3 @@ Says what the map measures, and for activity, what it could not measure.
   {{ end }}
 </div>
 {{ end }}
-
-
-{{/* The group header band: its name and how many packages it holds. */}}
-{{ define "chainmap/head" }}<rect width="100%" height="20" /><text x="5" y="14">{{ .Key }} · {{ len .Tiles }}</text>{{ end }}

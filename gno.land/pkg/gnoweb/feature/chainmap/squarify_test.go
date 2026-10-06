@@ -70,17 +70,6 @@ func TestSquarifyDegenerateInput(t *testing.T) {
 	}
 }
 
-func TestPercentIsRelativeToTheFrame(t *testing.T) {
-	t.Parallel()
-
-	frame := rect{0.4, 0.2, 0.8, 0.5}
-	got := percent(rect{0.6, 0.45, 0.2, 0.25}, frame)
-	want := Box{Left: 25, Top: 50, Width: 25, Height: 50}
-	if got != want {
-		t.Errorf("percent = %+v, want %+v", got, want)
-	}
-}
-
 func overlap(a, b rect) float64 {
 	w := min(a.X+a.W, b.X+b.W) - max(a.X, b.X)
 	h := min(a.Y+a.H, b.Y+b.H) - max(a.Y, b.Y)

@@ -82,13 +82,9 @@
 			grid-column: span 7;
 		}
 
-		&--explorer {
+		&--full {
 			grid-column: span 10;
 		}
-	}
-
-	.main-nav--explorer {
-		grid-column: span 10;
 	}
 
 	/* Realm notice: second row on community pages, on the header's own
@@ -3834,7 +3830,9 @@ main.is-dev-mode > section:has(.c-overview-view) {
 
 	display: grid;
 	gap: var(--g-space-4);
-	align-items: center;
+	/* Both sides start at the top, so their titles share a line however long
+	   either list runs. */
+	align-items: start;
 
 	@media (--lg) {
 		grid-template-columns: minmax(0, 1fr) auto;
@@ -3920,9 +3918,11 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		font-weight: var(--g-font-semibold);
 	}
 
-	/* The stubs joining each bracket to the package. */
+	/* The stubs joining each bracket to the package, level with the first
+	   rows rather than the middle of the longer side. */
 	@media (--lg) {
 		justify-self: center;
+		margin-block-start: var(--g-space-8);
 
 		&::before,
 		.b-depgraph--both &::after {

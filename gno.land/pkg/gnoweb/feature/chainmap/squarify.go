@@ -1,25 +1,7 @@
 package chainmap
 
-import "math"
-
-// rect is a box in the map's own unit space.
+// rect is a box in map units, as squarify works on it.
 type rect struct{ X, Y, W, H float64 }
-
-// Box is a rect expressed in percent of its frame, ready for the x, y, width
-// and height attributes of a nested <svg>. Attributes, not an inline style:
-// gnoweb's Content-Security-Policy (style-src 'self') drops style attributes.
-type Box struct{ Left, Top, Width, Height float64 }
-
-// percent expresses r in percent of frame, rounded to keep the markup short.
-func percent(r, frame rect) Box {
-	pct := func(v, of float64) float64 { return math.Round(v/of*1e5) / 1e3 }
-	return Box{
-		Left:   pct(r.X-frame.X, frame.W),
-		Top:    pct(r.Y-frame.Y, frame.H),
-		Width:  pct(r.W, frame.W),
-		Height: pct(r.H, frame.H),
-	}
-}
 
 // squarify lays weights out in r, one rect per weight in the same order, each
 // rect's area proportional to its weight. weights must be sorted in
