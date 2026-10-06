@@ -127,23 +127,29 @@ func processTable(table *MMLNode, env string) {
 	separateCells := func(n *MMLNode) bool { return n != nil && n.Properties&propCellSep > 0 }
 	for _, row := range splitByFunc(table.Children, separateRows) {
 		rowNode := NewMMLNode("mtr")
-		var colspan int
 		space := "1.0ex"
-		for cidx, cell := range splitByFunc(row, separateCells) {
-			// If a cell in this column spans over this row, do not emit an <mtd> here.
+		// cidx is the logical column of the next cell: a \multicolumn cell
+		// is one cell of the source but covers several columns, and the
+		// cell after it starts after the last of them.
+		cidx := 0
+		for _, cell := range splitByFunc(row, separateCells) {
+			// A \multirow cell above covers this column, and the source
+			// leaves its place empty: emit no <mtd> for it. If the place is
+			// not empty, the cell is emitted anyway (and lands after the
+			// spanning cell) rather than dropped.
 			if rowspans[cidx] > 0 {
 				rowspans[cidx]--
-				continue
-			}
-			if colspan > 0 {
-				colspan--
-				continue
+				if isEmptyCell(cell) {
+					cidx++
+					continue
+				}
 			}
 			cellNode = NewMMLNode("mtd")
 			cellNode.Children = append(cellNode.Children, cell...)
 			if a := columnAlign(env, align, cidx); a != "" {
 				cellNode.Attrib["columnalign"] = a
 			}
+			width := 1
 			for i, c := range cell {
 				if c == nil {
 					continue
@@ -173,7 +179,7 @@ func processTable(table *MMLNode, env string) {
 					cellNode.Attrib["columnspan"] = spanstr
 					span, err := strconv.ParseInt(spanstr, 10, 16)
 					if err == nil {
-						colspan = int(span) - 1
+						width = int(span)
 					}
 					if len(cell) == 1 && c.Properties&propHorzArrow > 0 {
 						arrowWidth := strconv.FormatFloat(float64(2*span-1), 'f', 1, 32) + "em"
@@ -188,6 +194,7 @@ func processTable(table *MMLNode, env string) {
 				}
 			}
 			rowNode.AppendChild(cellNode)
+			cidx += width
 		}
 		if nonDefaultSpacing {
 			rowspacing = append(rowspacing, space)
@@ -202,6 +209,16 @@ func processTable(table *MMLNode, env string) {
 	table.Tag = "mtable"
 	table.Attrib["rowalign"] = "center"
 	table.Children = rows
+}
+
+// isEmptyCell reports whether a table cell holds nothing.
+func isEmptyCell(cell []*MMLNode) bool {
+	for _, n := range cell {
+		if n != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // columnAlign returns the alignment of column col of environment env, whose

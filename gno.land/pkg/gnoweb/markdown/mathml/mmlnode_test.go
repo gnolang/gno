@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMMLNodeWriteEscapes(t *testing.T) {
@@ -134,4 +135,35 @@ func TestCellSpanIsBounded(t *testing.T) {
 			assert.Contains(t, out, want, arg)
 		}
 	}
+}
+
+// A \multicolumn cell is one cell of the source: the cell after it starts
+// after the columns it covers and must not be dropped, even when the span
+// already fills the row. A cell typed where a \multirow cell above leaves
+// its place is not dropped either.
+func TestTableCellsAfterSpansAreKept(t *testing.T) {
+	for _, c := range []struct{ name, tex string }{
+		{"multicolumn fills the row", `\begin{array}{cc}\multicolumn{2}{c}{e}&f\end{array}`},
+		{"multicolumn leaves a column", `\begin{array}{ccc}\multicolumn{2}{c}{e}&f\end{array}`},
+		{"multicolumn in a later row", `\begin{array}{ccc}a&b&c\\ \multicolumn{2}{c}{e}&f\end{array}`},
+		{"text under multirow", `\begin{array}{cc}\multirow{2}{*}{e} & a \\ f & b\end{array}`},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			out, err := NewMathMLConverter().ConvertDisplay(c.tex)
+			require.NoError(t, err)
+			assert.Contains(t, out, "<mi>e</mi>")
+			assert.Contains(t, out, "<mi>f</mi>")
+		})
+	}
+}
+
+// A cell left empty under a \multirow cell gets no <mtd>, and the cells
+// after it keep their column's alignment.
+func TestTableColumnsAfterSpans(t *testing.T) {
+	out, err := NewMathMLConverter().ConvertDisplay(`\begin{array}{lcr}\multicolumn{2}{c}{e}&f\\ \multirow{2}{*}{g}&h&i\\ &j&k\end{array}`)
+	require.NoError(t, err)
+	assert.Equal(t, 7, strings.Count(out, "<mtd"))
+	assert.Contains(t, out, "<mtd columnalign=\"right\">\n            <mi>f</mi>")
+	assert.Contains(t, out, "<mtd columnalign=\"center\">\n            <mi>j</mi>")
+	assert.Contains(t, out, "<mtd columnalign=\"right\">\n            <mi>k</mi>")
 }
