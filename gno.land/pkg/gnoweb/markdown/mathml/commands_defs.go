@@ -13,29 +13,63 @@ import (
 // thousands of em tall over the rest of the page.
 const maxCellSpan = 64
 
-// raiseLength matches a \raisebox length: a number and an optional unit.
-var raiseLength = regexp.MustCompile(`^(-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))(em|ex|pt|px)?$`)
+// raiseLength matches a \raisebox length: a signed decimal and an optional
+// unit, which TeX lets a space precede.
+var raiseLength = regexp.MustCompile(`^([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)) *([a-zA-Z]{2})?$`)
 
-// maxRaise is the largest \raisebox shift accepted, per unit. Larger shifts
+// raiseUnits gives the size in TeX points of each unit \raisebox accepts:
+// TeX's own units, and px, which CSS knows. The font-relative ones assume
+// TeX's default 10pt font. css marks the units a browser understands; the
+// others are converted to em.
+var raiseUnits = map[string]struct {
+	pt  float64
+	css bool
+}{
+	"pt": {1, true},
+	"pc": {12, true},
+	"in": {72.27, true},
+	"cm": {72.27 / 2.54, true},
+	"mm": {72.27 / 25.4, true},
+	"px": {72.27 / 96, true},
+	"em": {10, true},
+	"ex": {5, true}, // CSS's fallback x-height of 0.5em
+	"bp": {72.27 / 72, false},
+	"dd": {1238.0 / 1157, false},
+	"cc": {12 * 1238.0 / 1157, false},
+	"sp": {1.0 / 65536, false},
+	"mu": {10.0 / 18, false},
+}
+
+// maxRaisePt is the largest \raisebox shift accepted, 2em. Larger shifts
 // would let math move over the page around it, so they are ignored.
-var maxRaise = map[string]float64{"": 2, "em": 2, "ex": 4, "pt": 20, "px": 20}
+const maxRaisePt = 20
 
-// safeRaise returns s as a voffset value if it is a small length.
+// safeRaise returns s as a voffset value if it is a small length. A bare
+// number is taken in em.
 func safeRaise(s string) (string, bool) {
-	s = strings.TrimSpace(s)
-	m := raiseLength.FindStringSubmatch(s)
+	m := raiseLength.FindStringSubmatch(strings.TrimSpace(s))
 	if m == nil {
+		return "", false
+	}
+	unit := strings.ToLower(m[2])
+	if unit == "" {
+		unit = "em"
+	}
+	u, ok := raiseUnits[unit]
+	if !ok {
 		return "", false
 	}
 	// The regexp only admits decimals, so ParseFloat cannot fail.
 	v, _ := strconv.ParseFloat(m[1], 64)
-	if math.Abs(v) > maxRaise[m[2]] {
+	if math.Abs(v*u.pt) > maxRaisePt {
 		return "", false
 	}
-	if m[2] == "" {
-		return m[1] + "em", true
+	num := strings.TrimPrefix(m[1], "+")
+	if !u.css {
+		em := strconv.FormatFloat(v*u.pt/raiseUnits["em"].pt, 'f', 4, 64)
+		num, unit = strings.TrimSuffix(strings.TrimRight(em, "0"), "."), "em"
 	}
-	return s, true
+	return num + unit, true
 }
 
 func cmd_multirow(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
