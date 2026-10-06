@@ -107,8 +107,9 @@ type mathInlineNode struct {
 type mathBlockNode struct {
 	ast.BaseBlock
 	mathExpr
+	openLen  int // the opening delimiter starts the first line
 	closeTag []byte
-	closed   bool // the closing delimiter was found
+	closed   bool // the closing delimiter ends the last line
 }
 
 var (
@@ -310,7 +311,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 
 	// Only display delimiters ($$ and \\[) open a math block. Anything else
 	// (\alpha, \_, $100, ...) is left to the paragraph and inline parsers.
-	line, _ := reader.PeekLine()
+	line, seg := reader.PeekLine()
 	var open, closeTag []byte
 	var flavor mathFlavor
 	switch {
@@ -328,15 +329,15 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 		return nil, parser.NoChildren
 	}
 	// Don't open a block that never closes: it would swallow the rest of the
-	// document.
-	if !p.hasClosingLine(reader, pc, closeTag) {
+	// document. Nor one that holds no math ($$ then $$): like an empty
+	// inline expression, it stays text.
+	found, empty := p.hasClosingLine(parent, reader, pc, closeTag)
+	if !found || empty && util.IsBlank(line[len(open):]) {
 		return nil, parser.NoChildren
 	}
 
-	reader.Advance(len(open))
-	node := &mathBlockNode{mathExpr: mathExpr{flavor: flavor, budget: mathBudgetFrom(pc, len(reader.Source()))}, closeTag: closeTag}
-	_, seg := reader.PeekLine()
-	node.Lines().Append(seg)
+	node := &mathBlockNode{mathExpr: mathExpr{flavor: flavor, budget: mathBudgetFrom(pc, len(reader.Source()))}, openLen: len(open), closeTag: closeTag}
+	node.Lines().Append(seg) // with the delimiter, for a fallback paragraph
 	return node, parser.NoChildren
 }
 
@@ -345,14 +346,17 @@ var (
 	mathScanDollarKey  = parser.NewContextKey()
 )
 
-// mathScan caches a closing-delimiter lookahead over source offsets: no line
-// starting in [from, to) closes the block or ends it early. If found, the line
-// starting at to closes it; if dead, that line ends any block before it (see
-// endsMath) or to is the end of the document; otherwise scanning stopped at
-// the size limit and can resume from to.
+// mathScan caches a closing-delimiter lookahead over source offsets, for the
+// blocks opened in container: no line starting in [from, to) closes the block
+// or ends it early. If found, the line starting at to closes it (and empty
+// says it is the first line and holds only the delimiter); if dead, that line
+// ends any block before it (see endsMath), leaves the container, or to is the
+// end of the document; otherwise scanning stopped at the size limit and can
+// resume from to.
 type mathScan struct {
-	from, to    int
-	found, dead bool
+	container          ast.Node
+	from, to           int
+	found, dead, empty bool
 }
 
 // closingLine reports whether line closes a math block delimited by closeTag:
@@ -436,21 +440,17 @@ func blockProbeFrom(pc parser.Context) *blockProbe {
 
 // startsBlock reports whether line would open a block that interrupts a
 // paragraph: a thematic break, ATX or setext heading, code fence, list item,
-// HTML block, one of the gnoweb blocks the extension was built with (columns,
-// forms, alerts) or, with quotes, a blockquote. It asks the parsers
+// HTML block, blockquote or one of the blocks of the other extensions the
+// math extension was built with (columns, forms, alerts). It asks the parsers
 // themselves, so every rule applies (an ordered list must start at 1, an
 // empty item does not interrupt, a line indented by four spaces never starts
 // one of these blocks).
-func (t *blockStarters) startsBlock(pc parser.Context, line []byte, quotes bool) bool {
+func (t *blockStarters) startsBlock(pc parser.Context, line []byte) bool {
 	w, pos := util.IndentWidth(line, 0)
 	if w > 3 || pos >= len(line) {
 		return false
 	}
-	c := line[pos]
-	if c == '>' && !quotes {
-		return false // the quote (and alert) parsers, see endsMath
-	}
-	bps := t[c]
+	bps := t[line[pos]]
 	if len(bps) == 0 {
 		return false
 	}
@@ -481,19 +481,20 @@ func (t *blockStarters) startsBlock(pc parser.Context, line []byte, quotes bool)
 // as it would end a paragraph. Write such a line as "{}- x", move the
 // operator to the end of the previous line, or indent it by four spaces.
 //
-// quotes is false for the lookahead in Open, which reads raw source lines:
-// inside a blockquote every line starts with ">". Continue sees lines with
-// their container prefixes removed and catches a quote there.
-func (t *blockStarters) endsMath(pc parser.Context, line []byte, quotes bool) bool {
-	return util.IsBlank(line) || t.startsBlock(pc, line, quotes)
+// line is read without its container prefixes (see inContainers).
+func (t *blockStarters) endsMath(pc parser.Context, line []byte) bool {
+	return util.IsBlank(line) || t.startsBlock(pc, line)
 }
 
 // hasClosingLine reports whether a closing line for closeTag follows the
 // current line within MaxMathInputLen bytes, before any line that ends math
-// (see endsMath). It reads the source directly and leaves the reader alone.
-// Results are cached on pc so that a page full of unclosed openers is scanned
-// once overall instead of once per opener.
-func (p *texBlockRegionParser) hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool {
+// (see endsMath) and before the container (blockquote, list item, ...) the
+// block would open in ends. It reads the source directly and leaves the
+// reader alone. Results are cached on pc so that a page full of unclosed
+// openers is scanned once overall instead of once per opener. empty reports
+// that the closing line is the next line and holds nothing but the
+// delimiter.
+func (p *texBlockRegionParser) hasClosingLine(parent ast.Node, reader text.Reader, pc parser.Context, closeTag []byte) (found, empty bool) {
 	key := mathScanDollarKey
 	if bytes.Equal(closeTag, _displayclose) {
 		key = mathScanDisplayKey
@@ -511,42 +512,78 @@ func (p *texBlockRegionParser) hasClosingLine(reader text.Reader, pc parser.Cont
 		pc.Set(key, sc)
 	}
 	pos := start
-	if sc.from <= start && start <= sc.to {
+	if sc.container == parent && sc.from <= start && start <= sc.to {
 		if sc.found {
-			return sc.to <= limit
+			return sc.to <= limit, sc.empty && sc.to == start
 		}
 		if sc.dead {
-			return false
+			return false, false
 		}
 		pos = sc.to
 	} else {
-		*sc = mathScan{from: start}
+		*sc = mathScan{container: parent, from: start}
 	}
 
+	containers := containerBlocks(parent, pc)
 	for {
 		sc.to = pos
 		if pos > limit {
-			return false
+			return false, false
 		}
 		if pos >= len(src) {
 			sc.dead = true
-			return false
+			return false, false
 		}
 		end := len(src)
 		if i := bytes.IndexByte(src[pos:], '\n'); i >= 0 {
 			end = pos + i + 1
 		}
-		line := src[pos:end]
-		if p.starters.endsMath(pc, line, false) {
+		line, ok := p.inContainers(pc, containers, src[pos:end])
+		if !ok || p.starters.endsMath(pc, line) {
 			sc.dead = true
-			return false
+			return false, false
 		}
-		if _, _, ok := closingLine(line, closeTag); ok {
-			sc.found = true
-			return true
+		if content, _, ok := closingLine(line, closeTag); ok {
+			sc.found, sc.empty = true, content == 0
+			return true, sc.empty && pos == start
 		}
 		pos = end
 	}
+}
+
+// containerBlocks returns the open blocks that contain parent, the block a
+// math block would open in, outermost first: the containers whose prefix
+// each of its lines must carry.
+func containerBlocks(parent ast.Node, pc parser.Context) []parser.Block {
+	blocks := pc.OpenedBlocks()
+	for i, b := range blocks {
+		if b.Node == parent {
+			return blocks[:i+1]
+		}
+	}
+	return nil // parent is the document
+}
+
+// inContainers offers a source line to the parsers of containers, as the
+// parser does to every line before handing what is left to the open block,
+// and returns what is left, or false if one of them does not continue on it.
+// Display math is not a paragraph, so a line without its container's prefix
+// is no lazy continuation line: it ends the container and the block. The
+// parsers run in the scratch context of blockProbe, so the real parse is
+// left untouched.
+func (p *texBlockRegionParser) inContainers(pc parser.Context, containers []parser.Block, line []byte) ([]byte, bool) {
+	if len(containers) == 0 {
+		return line, true
+	}
+	probe := blockProbeFrom(pc)
+	r := text.NewReader(line)
+	for _, c := range containers {
+		if c.Parser.Continue(c.Node, r, probe.pc)&parser.Continue == 0 {
+			return nil, false
+		}
+	}
+	line, _ = r.PeekLine()
+	return line, true
 }
 
 func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
@@ -555,15 +592,11 @@ func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc pa
 		return parser.Close
 	}
 	line, seg := reader.PeekLine()
-	// The lookahead in Open saw a closing line first, but it reads raw lines
-	// and cannot see container prefixes: inside a blockquote or list item the
-	// container may end first, and a quote is only caught here. Leave the
-	// line to the other block parsers; the unclosed block renders as text.
-	if line == nil || p.starters.endsMath(pc, line, true) {
+	if line == nil || p.starters.endsMath(pc, line) {
 		return parser.Close
 	}
-	if content, consumed, ok := closingLine(line, n.closeTag); ok {
-		node.Lines().Append(text.NewSegment(seg.Start, seg.Start+content))
+	if _, consumed, ok := closingLine(line, n.closeTag); ok {
+		node.Lines().Append(seg)
 		reader.Advance(consumed) // move reader past closing tag
 		n.closed = true
 		return parser.Close | parser.NoChildren
@@ -572,15 +605,42 @@ func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc pa
 	return parser.Continue | parser.NoChildren
 }
 
+// Close reads the TeX between the delimiters. The lookahead in Open checks
+// that the closing line comes in the same container and before any line
+// that ends math, so the block always closes. Should it not, or should it
+// hold no math, it is replaced by a paragraph of the same lines, which the
+// inline parsers then read as text, the way they would have without math.
 func (p *texBlockRegionParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
-	if n, ok := node.(*mathBlockNode); ok {
-		var tex strings.Builder
-		for i := range n.Lines().Len() {
-			tex.Write(reader.Value(n.Lines().At(i)))
-		}
-		n.tex = tex.String()
+	n, ok := node.(*mathBlockNode)
+	if !ok {
+		return
 	}
+	lines := n.Lines()
+	var tex strings.Builder
+	for i := range lines.Len() {
+		seg := lines.At(i)
+		v := seg.Value(reader.Source())
+		if i == 0 {
+			v = v[n.openLen:]
+		}
+		if i == lines.Len()-1 && n.closed {
+			content, _, _ := closingLine(v, n.closeTag)
+			v = v[:content]
+		}
+		tex.Write(v)
+	}
+	n.tex = tex.String()
+	if n.closed && !util.IsBlank([]byte(n.tex)) {
+		return
+	}
+	para := ast.NewParagraph()
+	para.SetLines(lines)
+	para.SetBlankPreviousLines(n.HasBlankPreviousLines())
+	n.Parent().ReplaceChild(n.Parent(), n, para)
+	paragraphParser.Close(para, reader, pc) // trim the lines like any paragraph
 }
+
+var paragraphParser = parser.NewParagraphParser()
 
 func (p *texBlockRegionParser) CanInterruptParagraph() bool { return true }
 
@@ -608,24 +668,6 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	case *mathInlineNode:
 		expr = t.mathExpr
 	case *mathBlockNode:
-		// Trim the bytes util.IsBlank counts as space, without copying.
-		if !t.closed || strings.Trim(t.tex, " \t\n\r") == "" {
-			// The opener never got its closing line (its container ended
-			// first), or the block holds no math: render the source as
-			// plain text.
-			w.WriteString("<p>")
-			open := _dollarDisplay
-			if t.flavor&delimiterAMS > 0 {
-				open = _displayopen
-			}
-			w.Write(open)
-			w.WriteString(html.EscapeString(t.tex))
-			if t.closed {
-				w.Write(t.closeTag)
-			}
-			w.WriteString("</p>\n")
-			return ast.WalkSkipChildren, nil
-		}
 		expr = t.mathExpr
 	default:
 		return ast.WalkContinue, nil

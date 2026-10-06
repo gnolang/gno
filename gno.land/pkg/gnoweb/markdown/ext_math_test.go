@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"golang.org/x/net/html"
@@ -291,6 +292,16 @@ func TestMathOutputIsBounded(t *testing.T) {
 		out := renderMathMarkdown(t, strings.Repeat("\\\\[\n", 1<<16))
 		assert.NotContains(t, out, "<math")
 		assert.Less(t, time.Since(start), 10*time.Second)
+		// The cache is kept per container: a long quote or list item
+		// full of openers is scanned once too.
+		for _, src := range []string{
+			strings.Repeat("> \\\\[\n", 1<<15),
+			"- a\n" + strings.Repeat("  \\\\[\n", 1<<15),
+		} {
+			start := time.Now()
+			assert.NotContains(t, renderMathMarkdown(t, src), "<math")
+			assert.Less(t, time.Since(start), 10*time.Second)
+		}
 	})
 	t.Run("too long", func(t *testing.T) {
 		src := "$" + strings.Repeat("x+", MaxMathInputLen) + "x$"
@@ -386,7 +397,7 @@ func TestMathEmptyExpressionIsText(t *testing.T) {
 		`\\( \\)`:        `<p>\( \)</p>`,
 		"$$\n$$\n":       "<p>$$\n$$</p>",
 		"$$\n \t \n$$\n": "<p>$$</p>",
-		"\\\\[\n\\\\]\n": "<p>\\\\[\n\\\\]</p>",
+		"\\\\[\n\\\\]\n": "<p>\\[\n\\]</p>",
 	} {
 		out := renderMathMarkdown(t, src)
 		assert.NotContains(t, out, "<math", "%q", src)
@@ -556,4 +567,81 @@ func TestMathInlineAcrossLinesInContainers(t *testing.T) {
 	} {
 		assert.Contains(t, renderMathMarkdown(t, src), want, "%q", src)
 	}
+}
+
+// A math block opens only if its closing line is in the same container
+// (blockquote, list item, ...). Otherwise the opener is paragraph text, and
+// the lines after it are read exactly as without math: lazy continuation
+// lines stay in the quote or item, and no text is lost to an HTML block
+// started outside it (reviewer repros on PR #4879).
+func TestMathDisplayCloseInSameContainer(t *testing.T) {
+	for _, c := range []struct{ src, want string }{
+		{"> $$\n> a\n<br>\nlost words\n$$", "<blockquote>\n<p>$$\na\n<!-- raw HTML omitted -->\nlost words\n$$</p>\n</blockquote>\n"},
+		{"- $$\n  a\n<span>\nlost\n$$", "<ul>\n<li>$$\na\n<!-- raw HTML omitted -->\nlost\n$$</li>\n</ul>\n"},
+		{"> $$\n> a\nlazy words\n$$", "<blockquote>\n<p>$$\na\nlazy words\n$$</p>\n</blockquote>\n"},
+		{"> $$\nx\n> $$", "<blockquote>\n<p>$$\nx\n$$</p>\n</blockquote>\n"},
+		// Inline markdown in the lines is rendered, not shown as source.
+		{"> $$\n> a &amp; b \\* c **d**\nlazy\n> $$", "<blockquote>\n<p>$$\na &amp; b * c <strong>d</strong>\nlazy\n$$</p>\n</blockquote>\n"},
+		{"> > $$\n> > a\n> $$", "<blockquote>\n<blockquote>\n<p>$$\na\n$$</p>\n</blockquote>\n</blockquote>\n"},
+		{"- $$\n  a\n- $$", "<ul>\n<li>$$\na</li>\n<li>$$</li>\n</ul>\n"},
+	} {
+		assert.Equal(t, c.want, renderMathMarkdown(t, c.src), "%q", c.src)
+	}
+
+	// A closing line in the same container closes the block, however deep.
+	for _, src := range []string{
+		"> $$\n> x^2\n> $$\n",
+		"> > $$\n> > x^2\n> > $$\n",
+		"- $$\n  x^2\n  $$\n",
+		"> - $$\n>   x^2\n>   $$\n",
+		"- > $$\n  > x^2\n  > $$\n",
+		"1. a\n\n   $$\n   x^2\n   $$\n",
+		"> [!NOTE]\n> $$\n> x^2\n> $$\n",
+		"> para\n> $$\n> x^2\n> $$\n",
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.Contains(t, out, "<msup>", "%q", src)
+		assert.NotContains(t, out, "$$", "%q", src)
+	}
+}
+
+// A block closed on the line after its opener holds no math and stays
+// paragraph text, so the lines after it are read as without math.
+func TestMathEmptyDisplayBlockIsParagraph(t *testing.T) {
+	for src, want := range map[string]string{
+		"$$\n$$\n<br>\nkept":         "<p>$$\n$$\n<!-- raw HTML omitted -->\nkept</p>\n",
+		"> $$\n> $$\n> <br>\n> kept": "<blockquote>\n<p>$$\n$$\n<!-- raw HTML omitted -->\nkept</p>\n</blockquote>\n",
+		"\\\\[\n  \\\\]\nkept":       "<p>\\[\n\\]\nkept</p>\n",
+	} {
+		assert.Equal(t, want, renderMathMarkdown(t, src), "%q", src)
+	}
+}
+
+// After a closed math block, as after any block that is not a paragraph, a
+// line of raw HTML starts an HTML block (CommonMark type 7), which gnoweb
+// omits up to the next blank line. That is what a fenced code block in the
+// same place does, so the math does not change it.
+func TestMathHTMLBlockAfterDisplayMath(t *testing.T) {
+	const after = "<span>\ntext after\n\nnext paragraph\n"
+	fence := renderMathMarkdown(t, "```\nx\n```\n"+after)
+	math := renderMathMarkdown(t, "$$\nx\n$$\n"+after)
+	assert.True(t, strings.HasPrefix(fence, "<pre><code>x\n</code></pre>\n"), fence)
+	assert.True(t, strings.HasSuffix(math, strings.TrimPrefix(fence, "<pre><code>x\n</code></pre>\n")), math)
+	assert.Contains(t, math, "<!-- raw HTML omitted -->\n<p>next paragraph</p>")
+}
+
+// The lookahead in Open makes sure the block closes, but should Continue end
+// it first, Close turns it back into a paragraph of the same lines rather
+// than showing its source.
+func TestMathUnclosedBlockBecomesParagraph(t *testing.T) {
+	src := []byte("$$\na **b**\n")
+	doc := ast.NewDocument()
+	n := &mathBlockNode{openLen: 2, closeTag: _dollarDisplay}
+	n.Lines().Append(text.NewSegment(0, 3))
+	n.Lines().Append(text.NewSegment(3, len(src)))
+	doc.AppendChild(doc, n)
+	(&texBlockRegionParser{}).Close(n, text.NewReader(src), parser.NewContext())
+	para, ok := doc.FirstChild().(*ast.Paragraph)
+	require.True(t, ok, "got %T", doc.FirstChild())
+	assert.Equal(t, "$$\na **b**", string(para.Lines().Value(src)))
 }
