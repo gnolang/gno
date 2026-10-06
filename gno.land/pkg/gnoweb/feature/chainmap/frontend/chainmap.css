@@ -1,0 +1,166 @@
+/* ==========================================================================
+   CHAINMAP - feature-scoped Block layer (CUBE CSS)
+   Pulled into the Block layer via @import from frontend/css/main.css.
+
+   The map is an SVG the server lays out: groups and tiles are nested <svg>
+   placed by percentage attributes, and every tile is a link. Colours live
+   here, as custom properties a group's hue or a tile's activity class sets,
+   so the map follows the theme with no dark-mode rule of its own. Those
+   classes are written out whole in Go, so the production purge keeps them.
+   ========================================================================== */
+
+.b-map-view {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-4);
+}
+
+/* ===== MAP ===== */
+.b-map {
+	/* Must match mapAspect in tree.go: the layout squares tiles for it. */
+	aspect-ratio: 1.6;
+	display: block;
+	width: 100%;
+	height: auto;
+	border: var(--s-border);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-base);
+	font-family: var(--g-font-family-mono, ui-monospace, monospace);
+	font-size: var(--g-font-size-50);
+}
+
+.b-map__group {
+	--map-tile: var(--s-color-bg-surface-secondary);
+	--map-ink: var(--s-color-text-primary);
+}
+
+.b-map__tile {
+	& rect {
+		fill: var(--map-tile);
+		/* The gutter between tiles is the page showing through. */
+		stroke: var(--s-color-bg-base);
+		stroke-width: 1;
+	}
+
+	& text {
+		fill: var(--map-ink);
+	}
+
+	&:hover rect,
+	&:focus-visible rect {
+		stroke: var(--s-color-border-focus);
+		stroke-width: 3;
+	}
+
+	&:focus-visible {
+		outline: none;
+	}
+}
+
+/* A group's name, on a band over its top edge. */
+.b-map__head {
+	& rect {
+		fill: var(--s-color-bg-base);
+		opacity: 0.8;
+	}
+
+	& text {
+		fill: var(--s-color-text-primary);
+		font-weight: var(--g-font-weight-semibold, 600);
+	}
+
+	&:is(a):hover text,
+	&:is(a):focus-visible text {
+		text-decoration: underline;
+	}
+}
+
+/* ===== GROUP HUES (no activity) ===== */
+/* Decoration only, telling neighbouring groups apart. */
+.b-map__group--hue0 {
+	--map-tile: var(--s-color-bg-info-weak);
+}
+.b-map__group--hue1 {
+	--map-tile: var(--s-color-bg-success-weak);
+}
+.b-map__group--hue2 {
+	--map-tile: var(--s-color-bg-tip-weak);
+}
+.b-map__group--hue3 {
+	--map-tile: var(--s-color-bg-note-weak);
+}
+.b-map__group--hue4 {
+	--map-tile: var(--s-color-bg-surface-tertiary);
+}
+.b-map__group--hue5 {
+	--map-tile: var(--s-color-bg-surface-secondary);
+}
+
+/* ===== ACTIVITY ===== */
+/* Calls replace the hues. Steps mix the action green into the neutral
+   surface, so the ramp follows the theme. The two strongest steps take dark
+   ink in both themes: light text on the mid green fails contrast. */
+.b-map--activity .b-map__group {
+	--map-tile: var(--s-color-bg-surface-secondary);
+}
+
+.b-map__tile--l0,
+.b-map__tile--l1,
+.b-map__tile--l2,
+.b-map__tile--l3,
+.b-map__tile--l4 {
+	--map-step: 0%;
+	--map-tile: color-mix(
+		in oklch,
+		var(--s-color-bg-success-action) var(--map-step),
+		var(--s-color-bg-surface-secondary)
+	);
+}
+.b-map__tile--l1 {
+	--map-step: 25%;
+}
+.b-map__tile--l2 {
+	--map-step: 50%;
+}
+.b-map__tile--l3 {
+	--map-step: 75%;
+	--map-ink: var(--g-color-gray-900);
+}
+.b-map__tile--l4 {
+	--map-step: 100%;
+	--map-ink: var(--g-color-gray-900);
+}
+
+/* Unknown is never the colour of zero: a count the indexer could not settle
+   is not a realm nobody called. Its own surface, set apart by a dashed edge. */
+.b-map__tile--unknown {
+	--map-tile: var(--s-color-bg-surface-tertiary);
+
+	& rect {
+		stroke-dasharray: 4 3;
+		stroke: var(--s-color-text-tertiary);
+	}
+}
+
+/* ===== LEGEND ===== */
+.b-map-legend {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+}
+
+.b-map-legend__scale {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--g-space-1);
+}
+
+.b-map-legend__swatch {
+	display: inline-block;
+	width: 1.25em;
+	height: 1em;
+	border: 1px solid var(--s-color-border-primary);
+	background-color: var(--map-tile);
+}

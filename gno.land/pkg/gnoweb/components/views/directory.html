@@ -8,6 +8,8 @@
     </div>
   </header>
 
+  {{ if .Truncated }}{{ template "ui/listing_truncated" .FileCounter }}{{ end }}
+
   <ul class="b-list">
     {{ range .FilesLinks }}
     <li>

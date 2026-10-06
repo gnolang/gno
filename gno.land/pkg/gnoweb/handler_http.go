@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/omnisearch"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -44,6 +45,10 @@ const defaultRequestTimeout = 30 * time.Second
 // a slow registry or a busy RPC pool left unbounded would spend all of it and
 // fail the page. The budget covers the wait for an RPC slot as well.
 const maxUserLookupTimeout = 2 * time.Second
+
+// maxListedPaths caps a directory listing, which the list and the map both
+// draw. qpaths has no cursor, so past it a listing can only say it stopped.
+const maxListedPaths = 1_000
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
@@ -154,6 +159,9 @@ type HTTPHandler struct {
 	State *state.Handler
 	// Search is the feature/omnisearch handler that owns every $search URL.
 	Search *omnisearch.Handler
+	// Map is the feature/chainmap handler behind every $map URL and the
+	// dependency graph's importers.
+	Map *chainmap.Handler
 	// trustedProxies are the networks whose X-Forwarded-Host is believed.
 	trustedProxies []*net.IPNet
 	// packageText caches the whole-package texts of $download.
@@ -219,7 +227,45 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		}),
 		Logger: logger,
 	})
+	h.Map = chainmap.New(chainmapDeps(cfg, logger, rate, trustedProxies))
 	return h, nil
+}
+
+// chainmapDeps wires feature/chainmap. The indexer is the one configured for
+// search: *indexer.Client answers both features, so the map needs no flag of
+// its own. A nil cfg.Indexer fails the assertion and leaves the feature
+// without one, which is the switch.
+func chainmapDeps(cfg *HTTPHandlerConfig, logger *slog.Logger, rate int, trustedProxies []*net.IPNet) chainmap.Deps {
+	deps := chainmap.Deps{Domain: cfg.Meta.Domain, Logger: logger}
+	if idx, ok := cfg.Indexer.(chainmap.Indexer); ok {
+		deps.Indexer = idx
+		deps.Imports = importReader{client: cfg.ClientAdapter, domain: cfg.Meta.Domain}
+		// Its own bucket: an importer lookup is a whole-chain indexer scan
+		// plus a node read per candidate.
+		deps.Limiter = state.NewIPLimiter(state.RateLimitConfig{
+			PerMinute:      rate,
+			TrustedProxies: trustedProxies,
+		})
+	}
+	return deps
+}
+
+// importReader adapts ClientAdapter to chainmap.ImportReader: a package's
+// non-test imports are what vm/qdoc reports.
+type importReader struct {
+	client ClientAdapter
+	domain string
+}
+
+func (r importReader) Imports(ctx context.Context, pkgPath string) ([]string, error) {
+	d, err := r.client.Doc(ctx, strings.TrimPrefix(pkgPath, r.domain), 0)
+	if errors.Is(err, ErrClientPackageNotFound) {
+		return nil, chainmap.ErrNotLive
+	}
+	if err != nil {
+		return nil, err
+	}
+	return d.Imports, nil
 }
 
 // searchDirectory adapts RealmDirectory to the shape feature/omnisearch
@@ -566,6 +612,11 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
 func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
+	// Handle Map page: the listing below the path, drawn rather than listed.
+	if gnourl.WebQuery.Has("map") {
+		return h.GetPathsListView(ctx, gnourl, indexData)
+	}
+
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -1165,10 +1216,10 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 }
 
 func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	const limit = 1_000 // XXX: implement pagination
-
 	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
-	paths, qerr := h.Client.ListPaths(ctx, prefix, limit)
+	// One more than is shown, so a listing stopping at the cap can tell
+	// "exactly the cap" from "more than the cap".
+	paths, qerr := h.Client.ListPaths(ctx, prefix, maxListedPaths+1)
 	if qerr != nil {
 		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
 	} else {
@@ -1184,6 +1235,10 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 		}
 		return GetClientErrorStatusView(gnourl, ErrClientPackageNotFound, 0)
 	}
+	truncated := len(paths) > maxListedPaths
+	if truncated {
+		paths = paths[:maxListedPaths]
+	}
 
 	// Always use explorer mode for paths list
 	indexData.Mode = components.ViewModeExplorer
@@ -1191,13 +1246,14 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 	// Update header mode
 	indexData.HeaderData.Mode = indexData.Mode
 
-	return http.StatusOK, components.DirectoryView(
-		gnourl.Path,
-		paths,
-		len(paths),
-		components.DirLinkTypeFile,
-		indexData.Mode,
-	)
+	// The list and the map render this one listing, so they cannot disagree
+	// about what exists.
+	if gnourl.WebQuery.Has("map") {
+		return http.StatusOK, h.Map.MapView(ctx, chainmap.Listing{
+			Path: gnourl.Path, Paths: paths, Truncated: truncated,
+		})
+	}
+	return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated)
 }
 
 // GetDirectoryView renders the directory view for a package, showing available files.
@@ -1555,7 +1611,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		prefix := path.Join(h.Static.Domain, pkgPath) + "/"
 		// Match GetPathsListView's cap so a package with many descendants
 		// doesn't silently drop direct children from the Subpackages section.
-		paths, err := h.Client.ListPaths(gctx, prefix, 1_000)
+		paths, err := h.Client.ListPaths(gctx, prefix, maxListedPaths)
 		if err != nil {
 			return nil
 		}

@@ -266,9 +266,30 @@ func TestStaticHeaderDevLinks_WithExplorerMode(t *testing.T) {
 		Path: "/r/test/pkg",
 	}
 
-	// Test explorer mode
+	// A directory listing renders as a list or a map; the tabs switch the
+	// rendering and keep the path.
 	links := StaticHeaderDevLinks(u, ViewModeExplorer, false)
-	assert.Empty(t, links, "expected no links in explorer mode")
+	require.Len(t, links, 2, "expected List and Map links in explorer mode")
+	assert.Equal(t, "List", links[0].Label)
+	assert.Equal(t, "/r/test/pkg", links[0].URL)
+	assert.True(t, links[0].IsActive, "List is the default rendering")
+	assert.Equal(t, "Map", links[1].Label)
+	assert.Equal(t, "/r/test/pkg$map", links[1].URL)
+	assert.False(t, links[1].IsActive)
+
+	u.WebQuery = url.Values{"map": {""}}
+	links = StaticHeaderDevLinks(u, ViewModeExplorer, false)
+	assert.False(t, links[0].IsActive, "List must not be active on the map")
+	assert.True(t, links[1].IsActive, "Map must be active on the map")
+}
+
+// Chain-wide search results run in explorer mode but list no directory: a
+// map of "/" does not exist, so neither tab may be offered there.
+func TestStaticHeaderDevLinks_ExplorerOutsideAPackagePrefix(t *testing.T) {
+	t.Parallel()
+
+	links := StaticHeaderDevLinks(weburl.GnoURL{Path: "/"}, ViewModeExplorer, false)
+	assert.Empty(t, links)
 }
 
 func TestEnrichHeaderData_WithRealmMode(t *testing.T) {
@@ -300,7 +321,7 @@ func TestEnrichHeaderData_WithExplorerMode(t *testing.T) {
 	enriched := EnrichHeaderData(data, ViewModeExplorer)
 	assert.Equal(t, "/r/test/pkg", enriched.RealmPath)
 	assert.Empty(t, enriched.Links.General)
-	assert.Empty(t, enriched.Links.Dev, "expected no dev links in explorer mode")
+	assert.Len(t, enriched.Links.Dev, 2, "expected List and Map links in explorer mode")
 }
 
 func TestViewModePredicates(t *testing.T) {

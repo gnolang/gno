@@ -161,13 +161,41 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	case static:
 		return []HeaderLink{contentLink}
 	case mode == ViewModeExplorer:
-		return []HeaderLink{}
+		return explorerLinks(u)
 	case mode == ViewModeUser:
 		return []HeaderLink{contentLink}
 	case mode == ViewModePackage:
 		return []HeaderLink{contentLink, sourceLink}
 	default:
 		return []HeaderLink{contentLink, stateLink, sourceLink, actionsLink}
+	}
+}
+
+// explorerLinks are the two renderings of a directory listing. Only a realm or
+// pure prefix has a listing: chain-wide search results run in explorer mode
+// too, and a map of "/" does not exist.
+func explorerLinks(u weburl.GnoURL) []HeaderLink {
+	if !u.IsRealm() && !u.IsPure() {
+		return []HeaderLink{}
+	}
+	listURL, mapURL := u, u
+	listURL.WebQuery = url.Values{}
+	mapURL.WebQuery = url.Values{"map": {""}}
+	return []HeaderLink{
+		{
+			Label:    "List",
+			URL:      listURL.EncodeWebURL(),
+			Icon:     "ico-list",
+			IsActive: isActive(u.WebQuery, "List"),
+			Tooltip:  "Every package under this path, one per line.",
+		},
+		{
+			Label:    "Map",
+			URL:      mapURL.EncodeWebURL(),
+			Icon:     "ico-grid",
+			IsActive: isActive(u.WebQuery, "Map"),
+			Tooltip:  "The same packages drawn as a map, grouped by path.",
+		},
 	}
 }
 
@@ -202,6 +230,10 @@ func isActive(webQuery url.Values, label string) bool {
 		return webQuery.Has("source")
 	case "Actions":
 		return webQuery.Has("help")
+	case "List":
+		return !webQuery.Has("map")
+	case "Map":
+		return webQuery.Has("map")
 	default:
 		return false
 	}

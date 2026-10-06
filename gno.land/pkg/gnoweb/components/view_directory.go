@@ -8,6 +8,8 @@ type DirData struct {
 	FilesLinks  FilesLinks
 	Mode        ViewMode
 	Readme      Component
+	// Truncated is set when the node listed no more than FileCounter paths.
+	Truncated bool
 }
 
 type DirLinkType int
@@ -61,4 +63,17 @@ func DirectoryView(pkgPath string, files []string, fileCounter int, linkType Dir
 		viewData.Readme = readme[0]
 	}
 	return NewTemplateView(DirectoryViewType, "renderDir", viewData)
+}
+
+// ExplorerView lists the package paths under pkgPath. truncated says the node
+// stopped at its cap, which the view then states rather than letting the list
+// pass for complete.
+func ExplorerView(pkgPath string, paths []string, truncated bool) *View {
+	return NewTemplateView(DirectoryViewType, "renderDir", DirData{
+		PkgPath:     pkgPath,
+		FilesLinks:  buildFilesLinks(paths, DirLinkTypeFile, pkgPath),
+		FileCounter: len(paths),
+		Mode:        ViewModeExplorer,
+		Truncated:   truncated,
+	})
 }
