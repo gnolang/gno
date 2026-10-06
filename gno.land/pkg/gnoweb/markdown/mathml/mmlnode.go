@@ -187,7 +187,13 @@ func (n *MMLNode) Write(w *strings.Builder) {
 	}
 	w.WriteRune('>')
 	if !self_closing_tags[tag] {
-		if len(n.Children) == 0 {
+		if len(n.Children) == 0 && tag == "merror" && n.Text != "" {
+			// merror lays out its children like mrow: browsers draw no
+			// text placed directly inside it, so the text goes in an mtext.
+			w.WriteString("<mtext>")
+			writeEscaped(w, n.Text)
+			w.WriteString("</mtext>")
+		} else if len(n.Children) == 0 {
 			writeEscaped(w, n.Text)
 		} else {
 			for _, child := range n.Children {
