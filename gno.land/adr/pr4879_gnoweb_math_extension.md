@@ -50,10 +50,14 @@ line, opens a math block.
 - A math block is read like a paragraph. It ends at a blank line (TeX
   forbids paragraph breaks in math mode) or at any line that would interrupt
   a paragraph: thematic break, ATX or setext heading, code fence, list item,
-  HTML block, blockquote. The check offers the line to goldmark's own
-  CommonMark block parsers in a scratch context (`startsBlock`), so their
-  interruption rules apply as written. An unclosed `$$` cannot swallow the
-  lists, quotes and headings after it when a later line holds `$$`.
+  HTML block, blockquote, and gnoweb's own columns, forms and alerts. The
+  check offers the line to the block parsers themselves in a scratch context
+  (`startsBlock`), so their interruption rules apply as written: goldmark's
+  CommonMark parsers plus the block parsers the other gnoweb extensions
+  register, which `NewGnoExtension` records and hands to `NewExtMath`. They
+  are indexed once by trigger byte, so a line is offered only to the parsers
+  its first byte can open. An unclosed `$$` cannot swallow the lists, quotes,
+  headings or gnoweb blocks after it when a later line holds `$$`.
 - A block opens only when a closing line follows within `MaxMathInputLen`
   bytes and before such a line; otherwise the opener is text.
 - A closing line ends with the delimiter, which appears on it only once:

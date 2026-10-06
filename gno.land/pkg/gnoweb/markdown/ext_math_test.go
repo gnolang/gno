@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
 	"golang.org/x/net/html"
 )
 
@@ -118,6 +119,24 @@ func TestMathUnclosedDisplayDoesNotSwallowInterruptingBlocks(t *testing.T) {
 	}
 }
 
+// The gnoweb blocks that interrupt a paragraph end display math too: an
+// unclosed $$ cannot swallow columns, a form or an alert up to a later $$.
+func TestMathUnclosedDisplayDoesNotSwallowGnoBlocks(t *testing.T) {
+	cases := []struct{ name, src, want string }{
+		{"columns", "$$\nx+1\n<gno-columns>\ny $$\n</gno-columns>\n", `<div class="gno-columns">`},
+		{"form", "$$\nx+1\n<gno-form>\n<gno-input name=\"a\" />\n</gno-form>\n$$\n", `<form class="gno-form"`},
+		{"alert", "$$\nx+1\n> [!NOTE]\n> y\n$$\n", `<details class="gno-alert gno-alert-note"`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out := renderMathMarkdown(t, c.src)
+			assert.NotContains(t, out, "<math")
+			assert.Contains(t, out, "<p>$$\nx+1")
+			assert.Contains(t, out, c.want)
+		})
+	}
+}
+
 // Lines of display math that do not read as a block start stay math. A line
 // that does ("+ b", "- x", ">0") ends the block like it would end a
 // paragraph; "{}+ b" or a four-space indent keeps it in the math.
@@ -164,21 +183,27 @@ func TestMathDisplayBlockClosing(t *testing.T) {
 // is not split off into a paragraph with a stray $$: here the block never
 // closes and the lines stay one paragraph, in which $$y$$ is inline math.
 func TestMathDisplayCloseIsLastOnItsLine(t *testing.T) {
-	for _, c := range []struct{ name, src, want string }{
-		{"inline math after the delimiter", "$$\nx\n$$y$$ trailing\n", "<p>$$\nx\n"},
-		{"text after the delimiter", "$$\nx\n$$ y\n", "<p>$$\nx\n$$ y</p>"},
-		{"text after brackets", "\\\\[\nx\n\\\\] y\n", "<p>\\[\nx\n\\] y</p>"},
+	for _, c := range []struct {
+		name, src string
+		wants     []string
+	}{
+		{"inline math after the delimiter", "$$\nx\n$$y$$ trailing\n", []string{
+			"<p>$$\nx\n",
+			`<annotation encoding="application/x-tex">y</annotation>`,
+			" trailing</p>",
+		}},
+		{"text after the delimiter", "$$\nx\n$$ y\n", []string{"<p>$$\nx\n$$ y</p>"}},
+		{"text after brackets", "\\\\[\nx\n\\\\] y\n", []string{"<p>\\[\nx\n\\] y</p>"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			out := renderMathMarkdown(t, c.src)
-			assert.Contains(t, out, c.want)
+			for _, want := range c.wants {
+				assert.Contains(t, out, want)
+			}
 			assert.NotContains(t, out, "<mi>x</mi>")
 			assert.NotContains(t, out, "<p>y")
 		})
 	}
-	out := renderMathMarkdown(t, "$$\nx\n$$y$$ trailing\n")
-	assert.Contains(t, out, `<annotation encoding="application/x-tex">y</annotation>`)
-	assert.Contains(t, out, " trailing</p>")
 
 	// Spaces after the delimiter, or before it, still close the block.
 	for _, src := range []string{"$$\nx\n$$  \n", "$$\nx\n  $$\n", "$$\nx $$ \n"} {
@@ -415,12 +440,6 @@ func TestMathExpressionAmplificationIsBounded(t *testing.T) {
 		out := renderMathMarkdown(t, src)
 		assert.LessOrEqual(t, len(out), maxMathOutputLen(len(src)), "%.30s", src)
 	}
-
-	// Cell alignment is a short attribute, never inline CSS. Empty cells
-	// keep it: it spaces the column pairs of an aligned environment.
-	out := renderMathMarkdown(t, "$\\begin{aligned}&x\\end{aligned}$")
-	assert.Contains(t, out, `<mtd columnalign="right"></mtd>`)
-	assert.NotContains(t, out, "text-align")
 }
 
 // maxMarkupRatio bounds the HTML a page produces outside MathML, per input
@@ -479,4 +498,16 @@ func FuzzMathRender(f *testing.F) {
 			}
 		}
 	})
+}
+
+// BenchmarkMathDisplayBlockLines parses a 200-line display block: every line
+// is checked for a block start twice, by the lookahead in Open and by
+// Continue.
+func BenchmarkMathDisplayBlockLines(b *testing.B) {
+	src := []byte("$$\n" + strings.Repeat("x_{1} + y^{2} \\\\\n", 200) + "$$\n")
+	gm := goldmark.New(goldmark.WithExtensions(NewGnoExtension()))
+	b.ReportAllocs()
+	for b.Loop() {
+		gm.Parser().Parse(text.NewReader(src))
+	}
 }

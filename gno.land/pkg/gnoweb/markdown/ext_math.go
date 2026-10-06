@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"html"
-	"reflect"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/mathml"
@@ -67,10 +66,16 @@ func NewTexInlineRegionParser() *texInlineRegionParser {
 	return &texInlineRegionParser{}
 }
 
-type texBlockRegionParser struct{}
+// texBlockRegionParser parses display math blocks. starters holds the block
+// parsers that end one (see endsMath).
+type texBlockRegionParser struct {
+	starters *blockStarters
+}
 
+// NewTexBlockRegionParser returns a display math parser whose blocks end at
+// the CommonMark block starts only; see NewExtMath to add more.
 func NewTexBlockRegionParser() *texBlockRegionParser {
-	return &texBlockRegionParser{}
+	return &texBlockRegionParser{starters: defaultBlockStarters}
 }
 
 const (
@@ -196,8 +201,8 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 		stop += len(begin)
 	}
 	seg = text.NewSegment(start, seg.Start+stop)
-	tex := string(block.Value(seg))
-	if util.IsBlank([]byte(tex)) {
+	value := block.Value(seg)
+	if util.IsBlank(value) {
 		// An empty expression ($$$$, \\(\\)) holds no math, and converting
 		// it would cost a whole <math> element for a few input bytes: leave
 		// it as text.
@@ -205,7 +210,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 		return nil
 	}
 	block.Advance(stop + len(end))
-	return &mathInlineNode{mathExpr: mathExpr{tex: tex, flavor: flavor, budget: mathBudgetFrom(pc, len(block.Source()))}}
+	return &mathInlineNode{mathExpr: mathExpr{tex: string(value), flavor: flavor, budget: mathBudgetFrom(pc, len(block.Source()))}}
 }
 
 var (
@@ -321,7 +326,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	}
 	// Don't open a block that never closes: it would swallow the rest of the
 	// document.
-	if !hasClosingLine(reader, pc, closeTag) {
+	if !p.hasClosingLine(reader, pc, closeTag) {
 		return nil, parser.NoChildren
 	}
 
@@ -367,18 +372,41 @@ func closingLine(line, closeTag []byte) (content, consumed int, ok bool) {
 	return content, len(trimmed), true
 }
 
-// interruptingParsers are the CommonMark block parsers that can interrupt a
-// paragraph, the blockquote parser apart (see endsMath).
-var interruptingParsers, blockquoteParser = func() (bps []parser.BlockParser, quote parser.BlockParser) {
-	quote = parser.NewBlockquoteParser()
-	for _, v := range parser.DefaultBlockParsers() {
-		bp := v.Value.(parser.BlockParser)
-		if bp.CanInterruptParagraph() && reflect.TypeOf(bp) != reflect.TypeOf(quote) {
-			bps = append(bps, bp)
+// blockStarters indexes the block parsers that can interrupt a paragraph by
+// the bytes that trigger them, so that a line is offered only to the parsers
+// its first byte can open. It is built once per extension: probing every
+// parser on every line of display math cost a Trigger slice per parser.
+type blockStarters [256][]parser.BlockParser
+
+// defaultBlockStarters holds the CommonMark parsers only.
+var defaultBlockStarters = newBlockStarters()
+
+// newBlockStarters indexes the default CommonMark block parsers and extra,
+// block parsers as registered with parser.WithBlockParsers, keeping those
+// that can interrupt a paragraph.
+func newBlockStarters(extra ...util.PrioritizedValue) *blockStarters {
+	var t blockStarters
+	for _, v := range append(parser.DefaultBlockParsers(), extra...) {
+		bp, ok := v.Value.(parser.BlockParser)
+		if !ok || !bp.CanInterruptParagraph() {
+			continue
+		}
+		if _, ok := bp.(*texBlockRegionParser); ok {
+			continue // math does not end math
+		}
+		trig := bp.Trigger()
+		if trig == nil { // triggered by any byte
+			for c := range t {
+				t[c] = append(t[c], bp)
+			}
+			continue
+		}
+		for _, c := range trig {
+			t[c] = append(t[c], bp)
 		}
 	}
-	return bps, quote
-}()
+	return &t
+}
 
 // blockProbe is a scratch parser context in which a line can be offered to
 // block parsers as if it followed a paragraph, without touching the real
@@ -405,31 +433,37 @@ func blockProbeFrom(pc parser.Context) *blockProbe {
 
 // startsBlock reports whether line would open a block that interrupts a
 // paragraph: a thematic break, ATX or setext heading, code fence, list item,
-// HTML block or, with quotes, a blockquote. It asks goldmark's own parsers,
-// so every CommonMark rule applies (an ordered list must start at 1, an
-// empty item does not interrupt, a line indented by four spaces never
-// starts one of these blocks).
-func startsBlock(pc parser.Context, line []byte, quotes bool) bool {
+// HTML block, one of the gnoweb blocks the extension was built with (columns,
+// forms, alerts) or, with quotes, a blockquote. It asks the parsers
+// themselves, so every rule applies (an ordered list must start at 1, an
+// empty item does not interrupt, a line indented by four spaces never starts
+// one of these blocks).
+func (t *blockStarters) startsBlock(pc parser.Context, line []byte, quotes bool) bool {
 	w, pos := util.IndentWidth(line, 0)
 	if w > 3 || pos >= len(line) {
+		return false
+	}
+	c := line[pos]
+	if c == '>' && !quotes {
+		return false // the quote (and alert) parsers, see endsMath
+	}
+	bps := t[c]
+	if len(bps) == 0 {
 		return false
 	}
 	probe := blockProbeFrom(pc)
 	probe.pc.SetBlockOffset(pos)
 	probe.pc.SetBlockIndent(w)
-	try := func(bp parser.BlockParser) bool {
-		if trig := bp.Trigger(); trig != nil && bytes.IndexByte(trig, line[pos]) < 0 {
-			return false
-		}
-		node, _ := bp.Open(probe.doc, text.NewReader(line), probe.pc)
-		return node != nil
-	}
-	for _, bp := range interruptingParsers {
-		if try(bp) {
+	// Some gnoweb parsers count their nesting depth on the context when
+	// they open, and a probe never closes what it opens: start each probe
+	// at depth 0 so that the count cannot fill up and make them decline.
+	Seed(probe.pc, 0)
+	for _, bp := range bps {
+		if node, _ := bp.Open(probe.doc, text.NewReader(line), probe.pc); node != nil {
 			return true
 		}
 	}
-	return quotes && try(blockquoteParser)
+	return false
 }
 
 // endsMath reports whether line cannot be part of display math and ends any
@@ -447,8 +481,8 @@ func startsBlock(pc parser.Context, line []byte, quotes bool) bool {
 // quotes is false for the lookahead in Open, which reads raw source lines:
 // inside a blockquote every line starts with ">". Continue sees lines with
 // their container prefixes removed and catches a quote there.
-func endsMath(pc parser.Context, line []byte, quotes bool) bool {
-	return util.IsBlank(line) || startsBlock(pc, line, quotes)
+func (t *blockStarters) endsMath(pc parser.Context, line []byte, quotes bool) bool {
+	return util.IsBlank(line) || t.startsBlock(pc, line, quotes)
 }
 
 // hasClosingLine reports whether a closing line for closeTag follows the
@@ -456,7 +490,7 @@ func endsMath(pc parser.Context, line []byte, quotes bool) bool {
 // (see endsMath). It reads the source directly and leaves the reader alone.
 // Results are cached on pc so that a page full of unclosed openers is scanned
 // once overall instead of once per opener.
-func hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool {
+func (p *texBlockRegionParser) hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool {
 	key := mathScanDollarKey
 	if bytes.Equal(closeTag, _displayclose) {
 		key = mathScanDisplayKey
@@ -467,9 +501,14 @@ func hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool
 	start := seg.Stop // the current line includes its newline
 	limit := start + MaxMathInputLen
 
+	// The zero mathScan is a scan from offset 0 that has not started.
+	sc, _ := pc.Get(key).(*mathScan)
+	if sc == nil {
+		sc = new(mathScan)
+		pc.Set(key, sc)
+	}
 	pos := start
-	sc, ok := pc.Get(key).(mathScan)
-	if ok && sc.from <= start && start <= sc.to {
+	if sc.from <= start && start <= sc.to {
 		if sc.found {
 			return sc.to <= limit
 		}
@@ -478,10 +517,9 @@ func hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool
 		}
 		pos = sc.to
 	} else {
-		sc = mathScan{from: start}
+		*sc = mathScan{from: start}
 	}
 
-	defer func() { pc.Set(key, sc) }()
 	for {
 		sc.to = pos
 		if pos > limit {
@@ -496,7 +534,7 @@ func hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool
 			end = pos + i + 1
 		}
 		line := src[pos:end]
-		if endsMath(pc, line, false) {
+		if p.starters.endsMath(pc, line, false) {
 			sc.dead = true
 			return false
 		}
@@ -518,7 +556,7 @@ func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc pa
 	// and cannot see container prefixes: inside a blockquote or list item the
 	// container may end first, and a quote is only caught here. Leave the
 	// line to the other block parsers; the unclosed block renders as text.
-	if line == nil || endsMath(pc, line, true) {
+	if line == nil || p.starters.endsMath(pc, line, true) {
 		return parser.Close
 	}
 	if content, consumed, ok := closingLine(line, n.closeTag); ok {
@@ -571,7 +609,8 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	case *mathInlineNode:
 		expr = t.mathExpr
 	case *mathBlockNode:
-		if !t.closed || util.IsBlank([]byte(t.tex)) {
+		// Trim the bytes util.IsBlank counts as space, without copying.
+		if !t.closed || strings.Trim(t.tex, " \t\n\r") == "" {
 			// The opener never got its closing line (its container ended
 			// first), or the block holds no math: render the source as
 			// plain text.
@@ -592,24 +631,23 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	default:
 		return ast.WalkContinue, nil
 	}
-	tex, budget := expr.tex, expr.budget
 	inline := expr.flavor&flavor_inline > 0
 
-	if len(tex) <= MaxMathInputLen && budget.left > 0 {
+	if len(expr.tex) <= MaxMathInputLen && expr.budget.left > 0 {
 		// The converter keeps per-expression state, so it must not be shared
 		// across concurrent renders.
 		converter := mathml.NewMathMLConverter()
 		var mml string
 		var err error
 		if inline {
-			mml, err = converter.ConvertInline(tex)
+			mml, err = converter.ConvertInline(expr.tex)
 		} else {
-			mml, err = converter.ConvertDisplay(tex)
+			mml, err = converter.ConvertDisplay(expr.tex)
 		}
-		ok := err == nil && len(mml) <= maxMathOutputLen(len(tex)) && len(mml) <= budget.left
+		ok := err == nil && len(mml) <= maxMathOutputLen(len(expr.tex)) && len(mml) <= expr.budget.left
 		// Charge the budget even for discarded output: it bounds the
 		// conversion work of a render, not only what gets written.
-		budget.left = max(budget.left-len(mml), 0)
+		expr.budget.left = max(expr.budget.left-len(mml), 0)
 		if ok {
 			w.WriteString(mml)
 			return ast.WalkSkipChildren, nil
@@ -629,11 +667,26 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	if node.Kind() == KindMathInline {
 		tag = "span"
 	}
-	fmt.Fprintf(w, `<%s class="%s">%s</%s>`, tag, class, html.EscapeString(tex), tag)
+	fmt.Fprintf(w, `<%s class="%s">%s</%s>`, tag, class, html.EscapeString(expr.tex), tag)
 	return ast.WalkSkipChildren, nil
 }
 
-type mathMLExtension struct{}
+type mathMLExtension struct {
+	starters *blockStarters
+}
+
+// NewExtMath returns a math extension. Besides the CommonMark block starts,
+// display math ends at a line that one of blockParsers, as registered with
+// parser.WithBlockParsers, would open to interrupt a paragraph: pass the
+// block parsers of the other extensions loaded alongside it, so that an
+// unclosed $$ cannot swallow their blocks either.
+func NewExtMath(blockParsers ...util.PrioritizedValue) goldmark.Extender {
+	starters := defaultBlockStarters
+	if len(blockParsers) > 0 {
+		starters = newBlockStarters(blockParsers...)
+	}
+	return &mathMLExtension{starters: starters}
+}
 
 func (e *mathMLExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
@@ -641,7 +694,7 @@ func (e *mathMLExtension) Extend(m goldmark.Markdown) {
 			util.Prioritized(NewTexInlineRegionParser(), priorityMathInlineParser),
 		),
 		parser.WithBlockParsers(
-			util.Prioritized(NewTexBlockRegionParser(), priorityMathBlockParser),
+			util.Prioritized(&texBlockRegionParser{starters: e.starters}, priorityMathBlockParser),
 		),
 	)
 	m.Renderer().AddOptions(
@@ -651,5 +704,6 @@ func (e *mathMLExtension) Extend(m goldmark.Markdown) {
 	)
 }
 
-// ExtMath is the global instance of the math extension
-var ExtMath = &mathMLExtension{}
+// ExtMath is the global instance of the math extension, without any other
+// extension's block parsers (see NewExtMath).
+var ExtMath = NewExtMath()

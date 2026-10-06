@@ -32,6 +32,7 @@ package markdown
 
 import (
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
 )
 
 var _ goldmark.Extender = (*GnoExtension)(nil)
@@ -65,6 +66,11 @@ func NewGnoExtension(opts ...Option) *GnoExtension {
 
 // Extend adds the Gno extension to the provided Goldmark markdown processor.
 func (e *GnoExtension) Extend(m goldmark.Markdown) {
+	// Record the block parsers the extensions below register: display math
+	// must end where any of them would interrupt a paragraph.
+	rec := &blockParserRecorder{Parser: m.Parser(), cfg: parser.NewConfig()}
+	m.SetParser(rec)
+
 	// Bound goldmark emphasis-parsing cost (yuin/goldmark#555) before anything
 	// else parses attacker-controlled markdown.
 	ExtEmphasis.Extend(m)
@@ -90,11 +96,27 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add mentions extension
 	ExtMention.Extend(m)
 
+	m.SetParser(rec.Parser)
+
 	// Add math extension
-	ExtMath.Extend(m)
+	NewExtMath(rec.cfg.BlockParsers...).Extend(m)
 
 	// If set, setup images filter
 	if e.cfg.imgValidatorFunc != nil {
 		ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)
 	}
+}
+
+// blockParserRecorder forwards parser options to Parser and records them in
+// cfg, where the block parsers they add can be read back.
+type blockParserRecorder struct {
+	parser.Parser
+	cfg *parser.Config
+}
+
+func (r *blockParserRecorder) AddOptions(opts ...parser.Option) {
+	for _, opt := range opts {
+		opt.SetParserOption(r.cfg)
+	}
+	r.Parser.AddOptions(opts...)
 }
