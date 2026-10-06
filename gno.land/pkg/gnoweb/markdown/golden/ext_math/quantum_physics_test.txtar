@@ -179,18 +179,18 @@ Helmholtz free energy: $F = U - TS$
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>0</mn>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>1</mn>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>1</mn>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>0</mn>
             </mtd>
           </mtr>
@@ -214,19 +214,19 @@ Helmholtz free energy: $F = U - TS$
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>0</mn>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mo>−</mo>
               <mi>i</mi>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>i</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>0</mn>
             </mtd>
           </mtr>
@@ -250,18 +250,18 @@ Helmholtz free energy: $F = U - TS$
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>1</mn>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>0</mn>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mn>0</mn>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mo>−</mo>
               <mn>1</mn>
             </mtd>

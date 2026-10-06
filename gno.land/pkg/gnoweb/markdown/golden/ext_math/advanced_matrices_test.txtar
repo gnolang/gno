@@ -55,18 +55,18 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
         </mtr>
@@ -84,35 +84,35 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>e</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>f</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>g</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>h</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>i</mi>
           </mtd>
         </mtr>
@@ -133,18 +133,18 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>a</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>b</mi>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>c</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>d</mi>
             </mtd>
           </mtr>
@@ -171,35 +171,35 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>a</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>b</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>c</mi>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>d</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>e</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>f</mi>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>g</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>h</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>i</mi>
             </mtd>
           </mtr>
@@ -247,18 +247,18 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>a</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>b</mi>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>c</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>d</mi>
             </mtd>
           </mtr>
@@ -269,18 +269,18 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>e</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>f</mi>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>g</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>h</mi>
             </mtd>
           </mtr>
@@ -292,14 +292,14 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>a</mi>
               <mi>e</mi>
               <mo>+</mo>
               <mi>b</mi>
               <mi>g</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>a</mi>
               <mi>f</mi>
               <mo>+</mo>
@@ -308,14 +308,14 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>c</mi>
               <mi>e</mi>
               <mo>+</mo>
               <mi>d</mi>
               <mi>g</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>c</mi>
               <mi>f</mi>
               <mo>+</mo>
@@ -340,18 +340,18 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
           <mo fence="true" stretchy="true">(</mo>
           <mtable columnalign="center" rowalign="center">
             <mtr>
-              <mtd style="text-align:center;">
+              <mtd columnalign="center">
                 <mi>a</mi>
               </mtd>
-              <mtd style="text-align:center;">
+              <mtd columnalign="center">
                 <mi>b</mi>
               </mtd>
             </mtr>
             <mtr>
-              <mtd style="text-align:center;">
+              <mtd columnalign="center">
                 <mi>c</mi>
               </mtd>
-              <mtd style="text-align:center;">
+              <mtd columnalign="center">
                 <mi>d</mi>
               </mtd>
             </mtr>
@@ -365,18 +365,18 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>a</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>c</mi>
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>b</mi>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mi>d</mi>
             </mtd>
           </mtr>
@@ -396,18 +396,18 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>A</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>B</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>C</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>D</mi>
           </mtd>
         </mtr>
@@ -461,26 +461,26 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mn>1</mn>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msub>
               <mi>x</mi>
               <mn>1</mn>
             </msub>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msubsup>
               <mi>x</mi>
               <mn>1</mn>
               <mn>2</mn>
             </msubsup>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>⋯</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msubsup>
               <mi>x</mi>
               <mn>1</mn>
@@ -493,26 +493,26 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mn>1</mn>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msub>
               <mi>x</mi>
               <mn>2</mn>
             </msub>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msubsup>
               <mi>x</mi>
               <mn>2</mn>
               <mn>2</mn>
             </msubsup>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>⋯</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msubsup>
               <mi>x</mi>
               <mn>2</mn>
@@ -525,43 +525,43 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>⋮</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>⋮</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>⋮</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>⋱</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>⋮</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mn>1</mn>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msub>
               <mi>x</mi>
               <mi>n</mi>
             </msub>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msubsup>
               <mi>x</mi>
               <mi>n</mi>
               <mn>2</mn>
             </msubsup>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>⋯</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <msubsup>
               <mi>x</mi>
               <mi>n</mi>
@@ -728,13 +728,13 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
       <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
             <mo>+</mo>
             <mi>b</mi>
             <mi>i</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
             <mo>+</mo>
             <mi>d</mi>
@@ -742,13 +742,13 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>e</mi>
             <mo>+</mo>
             <mi>f</mi>
             <mi>i</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>g</mi>
             <mo>+</mo>
             <mi>h</mi>
@@ -771,18 +771,18 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
           <mo fence="true" stretchy="true">(</mo>
           <mtable columnalign="center" rowalign="center">
             <mtr>
-              <mtd style="text-align:center;">
+              <mtd columnalign="center">
                 <mi>a</mi>
               </mtd>
-              <mtd style="text-align:center;">
+              <mtd columnalign="center">
                 <mi>b</mi>
               </mtd>
             </mtr>
             <mtr>
-              <mtd style="text-align:center;">
+              <mtd columnalign="center">
                 <mi>c</mi>
               </mtd>
-              <mtd style="text-align:center;">
+              <mtd columnalign="center">
                 <mi>d</mi>
               </mtd>
             </mtr>
@@ -796,13 +796,13 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
         <mo fence="true" stretchy="true">(</mo>
         <mtable columnalign="center" rowalign="center">
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mover accent="true">
                 <mi style="font-feature-settings: 'dtls' on;">a</mi>
                 <mo stretchy="true">¯</mo>
               </mover>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mover accent="true">
                 <mi style="font-feature-settings: 'dtls' on;">c</mi>
                 <mo stretchy="true">¯</mo>
@@ -810,13 +810,13 @@ Hermitian conjugate: $\begin{pmatrix} a & b \\ c & d \end{pmatrix}^\dagger = \be
             </mtd>
           </mtr>
           <mtr>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mover accent="true">
                 <mi style="font-feature-settings: 'dtls' on;">b</mi>
                 <mo stretchy="true">¯</mo>
               </mover>
             </mtd>
-            <mtd style="text-align:center;">
+            <mtd columnalign="center">
               <mover accent="true">
                 <mi style="font-feature-settings: 'dtls' on;">d</mi>
                 <mo stretchy="true">¯</mo>

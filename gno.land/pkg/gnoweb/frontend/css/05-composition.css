@@ -410,6 +410,23 @@
 		&[display="block"] {
 			margin-block: var(--cr-space-4);
 		}
+
+		/* Table cell alignment, set by the math renderer as columnalign.
+		   The side padding pairs up the columns of aligned environments;
+		   em keeps it relative to the formula. */
+		& mtd[columnalign="center"] {
+			text-align: center;
+		}
+
+		& mtd[columnalign="left"] {
+			text-align: left;
+			padding-inline: 0 1em;
+		}
+
+		& mtd[columnalign="right"] {
+			text-align: right;
+			padding-inline: 1em 0;
+		}
 	}
 
 	small {

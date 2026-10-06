@@ -51,18 +51,18 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
         </mtr>
@@ -80,18 +80,18 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       <mo fence="true" stretchy="true">[</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
         </mtr>
@@ -109,18 +109,18 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       <mo fence="true" stretchy="true">{</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
         </mtr>
@@ -138,18 +138,18 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       <mo fence="true" stretchy="true">|</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
         </mtr>
@@ -167,18 +167,18 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       <mo fence="true" stretchy="true">‖</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
         </mtr>
@@ -196,35 +196,35 @@ Large matrix: $\begin{pmatrix} a & b & c \\ d & e & f \\ g & h & i \end{pmatrix}
       <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>e</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>f</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>g</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>h</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>i</mi>
           </mtd>
         </mtr>

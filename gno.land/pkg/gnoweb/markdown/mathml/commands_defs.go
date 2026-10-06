@@ -248,7 +248,7 @@ func cmd_substack(converter *MathMLConverter, name string, star bool, ctx parseC
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
 	n := converter.ParseTex(args[0], ctx|ctxTable)
-	processTable(n)
+	processTable(n, name)
 	n.SetAttr("rowspacing", "0")
 	n.SetFalse("displaystyle")
 	return n

@@ -264,15 +264,22 @@ func TestMathPageBudgetFallsBackToText(t *testing.T) {
 }
 
 func TestMathExpressionAmplificationIsBounded(t *testing.T) {
-	src := "$\\begin{aligned}" + strings.Repeat("&x", MaxMathInputLen/2-32) + "\\end{aligned}$"
-	out := renderMathMarkdown(t, src)
-	assert.LessOrEqual(t, len(out), maxMathOutputLen(len(src)))
-	assert.NotContains(t, out, "<math")
+	// The densest inputs known; the past-the-cap fallback itself is
+	// exercised by TestMathPageBudgetFallsBackToText.
+	for _, src := range []string{
+		"$\\begin{aligned}" + strings.Repeat("&", MaxMathInputLen-32) + "\\end{aligned}$",
+		"$\\begin{aligned}" + strings.Repeat("&x", MaxMathInputLen/2-32) + "\\end{aligned}$",
+		"$" + strings.Repeat("x^", MaxMathInputLen/2-32) + "x$",
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.LessOrEqual(t, len(out), maxMathOutputLen(len(src)), "%.30s", src)
+	}
 
-	// Empty table cells carry no alignment markup.
-	out = renderMathMarkdown(t, "$\\begin{aligned}&x\\end{aligned}$")
-	assert.Contains(t, out, "<mtd></mtd>")
-	assert.Equal(t, 1, strings.Count(out, "text-align"))
+	// Cell alignment is a short attribute, never inline CSS. Empty cells
+	// keep it: it spaces the column pairs of an aligned environment.
+	out := renderMathMarkdown(t, "$\\begin{aligned}&x\\end{aligned}$")
+	assert.Contains(t, out, `<mtd columnalign="right"></mtd>`)
+	assert.NotContains(t, out, "text-align")
 }
 
 // FuzzMathRender checks that math input cannot inject script, event handlers

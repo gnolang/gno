@@ -141,18 +141,18 @@ E = mc^2
       <mo fence="true" stretchy="true">(</mo>
       <mtable columnalign="center" rowalign="center">
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>a</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>b</mi>
           </mtd>
         </mtr>
         <mtr>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>c</mi>
           </mtd>
-          <mtd style="text-align:center;">
+          <mtd columnalign="center">
             <mi>d</mi>
           </mtd>
         </mtr>

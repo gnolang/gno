@@ -105,8 +105,8 @@ func parseAlignmentString(str string) ([]string, []string) {
 	return trim(align), trim(lines)
 }
 
-// Process a table environment
-func processTable(table *MMLNode) {
+// Process the table of environment env.
+func processTable(table *MMLNode, env string) {
 	if table == nil {
 		return
 	}
@@ -141,14 +141,8 @@ func processTable(table *MMLNode) {
 			}
 			cellNode = NewMMLNode("mtd")
 			cellNode.Children = append(cellNode.Children, cell...)
-
-			if isEmptyCell(cellNode) {
-				// Alignment means nothing for an empty cell; skipping it
-				// keeps a table of bare & cheap to render.
-			} else if cidx < len(align) {
-				cellNode.CSS["text-align"] = align[cidx]
-			} else if len(align) > 0 {
-				cellNode.CSS["text-align"] = align[len(align)-1]
+			if a := columnAlign(env, align, cidx); a != "" {
+				cellNode.Attrib["columnalign"] = a
 			}
 			for i, c := range cell {
 				if c == nil {
@@ -210,14 +204,30 @@ func processTable(table *MMLNode) {
 	table.Children = rows
 }
 
-// isEmptyCell reports whether the table cell n has nothing to print.
-func isEmptyCell(n *MMLNode) bool {
-	for _, c := range n.Children {
-		if c != nil && c.Properties&propNonprint == 0 {
-			return false
-		}
+// columnAlign returns the alignment of column col of environment env, whose
+// column spec parsed to align, or "" to leave the cell to the <mtd> default.
+// Cells carry it as a columnalign attribute, which the stylesheet maps to
+// text-align and padding. Empty cells keep it: their padding is what
+// separates the column pairs of an aligned environment.
+func columnAlign(env string, align []string, col int) string {
+	switch env {
+	case "cases":
+		return "left"
+	case "align", "align*", "aligned":
+		// Columns pair up as right-aligned left side, left-aligned right side.
+		return [...]string{"right", "left"}[col%2]
 	}
-	return true
+	if len(align) > 0 {
+		// The last alignment of the spec repeats for the remaining columns.
+		return align[min(col, len(align)-1)]
+	}
+	switch strings.TrimSuffix(env, "*") {
+	case "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "subarray":
+		// Explicitly centered: Chrome's <mtd> default (-webkit-center)
+		// lays out cells of uneven width differently.
+		return "center"
+	}
+	return ""
 }
 
 // Create a strechy opening or closing parenthesis
@@ -228,54 +238,9 @@ func strechyOP(c string) *MMLNode {
 	return n
 }
 
-// Sets inline CSS to render mtd cell alignment correctly
-func setAlignmentStyle(node *MMLNode) {
-	var recurse func(n *MMLNode, alignList ...string)
-	recurse = func(n *MMLNode, alignList ...string) {
-		if n.Tag == "mtd" {
-			if isEmptyCell(n) {
-				return
-			}
-			a := alignList[0]
-			if columnalign, ok := n.Attrib["columnalign"]; ok {
-				a = columnalign
-			}
-			n.CSS["text-align"] = a
-			switch a {
-			case "left":
-				n.CSS["padding-left"] = "0em"
-				n.CSS["padding-right"] = "1em"
-			case "right":
-				n.CSS["padding-left"] = "1em"
-				n.CSS["padding-right"] = "0em"
-			}
-			return
-		}
-		var align string
-		for i, child := range n.Children {
-			if child.Tag == "mtr" {
-				recurse(child, alignList...)
-				continue
-			}
-			if i < len(alignList) {
-				align = alignList[i]
-			} else {
-				align = alignList[len(alignList)-1]
-			}
-			if thisalign, ok := n.Attrib["columnalign"]; ok {
-				recurse(child, thisalign)
-			} else {
-				recurse(child, align)
-			}
-		}
-	}
-	recurse(node, strings.Split(node.Attrib["columnalign"], " ")...)
-}
-
 func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
-	switch {
-	case ctx&ctxTable > 0:
-		processTable(node)
+	if ctx&ctxTable > 0 {
+		processTable(node, env)
 	}
 	row := NewMMLNode("mrow")
 	var left, right *MMLNode
@@ -302,19 +267,6 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 		attrib["columnalign"] = "left"
 	case "align", "align*", "aligned":
 		attrib["displaystyle"] = "true"
-		flipflop := []string{"right", "left"}
-		if node != nil {
-			for _, row := range node.Children {
-				if row == nil || len(row.Children) == 0 {
-					continue
-				}
-				for c, col := range row.Children {
-					if col != nil && col.Tag == "mtd" && !isEmptyCell(col) {
-						col.Attrib["columnalign"] = flipflop[c%2]
-					}
-				}
-			}
-		}
 	case "subarray":
 		attrib["displaystyle"] = "false"
 	default:
@@ -323,7 +275,6 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 	if node != nil {
 		maps.Copy(node.Attrib, attrib)
 	}
-	setAlignmentStyle(node)
 	row.Children = append(row.Children, left, node, right)
 	return row
 }

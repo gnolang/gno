@@ -1,8 +1,12 @@
 package mathml
 
 import (
+	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMathMLConverter_NewCommand(t *testing.T) {
@@ -966,20 +970,32 @@ func TestParseAlignmentString(t *testing.T) {
 	}
 }
 
-func TestSetAlignmentStyle(t *testing.T) {
+// Cells carry their alignment as a columnalign attribute, which the
+// stylesheet styles; never as inline CSS.
+func TestTableCellAlign(t *testing.T) {
+	mtdRe := regexp.MustCompile(`<mtd[^>]*>`)
 	tests := []struct {
-		name  string
-		input string
+		name string
+		tex  string
+		mtds []string
 	}{
-		{"empty_string", ""},
-		{"simple_style", "c"},
-		{"complex_style", "l|c|r"},
+		{"pmatrix is centered", `\begin{pmatrix}a&b\end{pmatrix}`, []string{`<mtd columnalign="center">`, `<mtd columnalign="center">`}},
+		{"matrix without spec is left to the default", `\begin{matrix}a&b\end{matrix}`, []string{"<mtd>", "<mtd>"}},
+		{"array spec", `\begin{array}{lr}a&b\end{array}`, []string{`<mtd columnalign="left">`, `<mtd columnalign="right">`}},
+		{"array spec repeats its last column", `\begin{array}{r}a&b\end{array}`, []string{`<mtd columnalign="right">`, `<mtd columnalign="right">`}},
+		{"cases is left aligned", `\begin{cases}a&b\end{cases}`, []string{`<mtd columnalign="left">`, `<mtd columnalign="left">`}},
+		// The empty third cell keeps its alignment: its padding is the gap
+		// between the two column pairs.
+		{"aligned keeps empty cells", `\begin{aligned}a&=1&&=2\end{aligned}`, []string{
+			`<mtd columnalign="right">`, `<mtd columnalign="left">`,
+			`<mtd columnalign="right">`, `<mtd columnalign="left">`,
+		}},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			node := NewMMLNode("table")
-			setAlignmentStyle(node)
+			out, err := NewMathMLConverter().render(tt.tex, false)
+			require.NoError(t, err)
+			assert.Equal(t, tt.mtds, mtdRe.FindAllString(out, -1))
 		})
 	}
 }
