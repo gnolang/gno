@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 	"golang.org/x/net/html"
@@ -644,4 +645,31 @@ func TestMathUnclosedBlockBecomesParagraph(t *testing.T) {
 	para, ok := doc.FirstChild().(*ast.Paragraph)
 	require.True(t, ok, "got %T", doc.FirstChild())
 	assert.Equal(t, "$$\na **b**", string(para.Lines().Value(src)))
+}
+
+// Dollars around a reference to a defined footnote are not math: the
+// reference would be swallowed, and goldmark drops a footnote nothing refers
+// to, so the note itself would vanish.
+func TestMathKeepsFootnoteReferences(t *testing.T) {
+	gm := goldmark.New(goldmark.WithExtensions(extension.Footnote, NewGnoExtension()))
+	render := func(src string) string {
+		var buf bytes.Buffer
+		require.NoError(t, gm.Convert([]byte(src), &buf))
+		return buf.String()
+	}
+	for _, src := range []string{
+		"It costs $5[^1] or 4$ here.\n\n[^1]: the note",
+		"It costs $$5[^1] or 4$$ here.\n\n[^1]: the note",
+		"a $x[^1]\ny$ b\n\n[^1]: the note",
+		"> [^1]: the note\n\n$a [^x] [^1]$",
+	} {
+		out := render(src)
+		assert.NotContains(t, out, "<math", "%q", src)
+		assert.Contains(t, out, `class="footnote-ref"`, "%q", src)
+		assert.Contains(t, out, "the note", "%q", src)
+	}
+	// Brackets that are not a defined footnote stay math.
+	for _, src := range []string{"$[^1]$", "$x[^2]$\n\n[^1]: note", "$[0,1]^2$"} {
+		assert.Contains(t, render(src), "<math", "%q", src)
+	}
 }

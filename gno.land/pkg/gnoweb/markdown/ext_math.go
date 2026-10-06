@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/mathml"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	extast "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"
@@ -205,16 +206,54 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 		}
 		head, tail = first, line[:stop]
 	}
-	if util.IsBlank(head) && util.IsBlank(tail) {
+	if util.IsBlank(head) && util.IsBlank(tail) ||
+		refersToFootnote(parent, pc, head) || refersToFootnote(parent, pc, tail) {
 		// An empty expression ($$$$, \\(\\)) holds no math, and converting
 		// it would cost a whole <math> element for a few input bytes: leave
-		// it as text.
+		// it as text. So is one that holds a footnote reference.
 		block.SetPosition(posLine, posSeg)
 		return nil
 	}
 	block.Advance(stop + len(end))
 	value := string(head) + string(tail)
 	return &mathInlineNode{mathExpr: mathExpr{tex: value, flavor: flavor, budget: mathBudgetFrom(pc, len(block.Source()))}}
+}
+
+var footnoteLabelsKey = parser.NewContextKey()
+
+// refersToFootnote reports whether b holds a reference ([^label]) to a
+// footnote defined in the document. Such dollars are prices, not math:
+// "It costs $5[^1] or 4$ here." would otherwise swallow the reference, and
+// goldmark drops a footnote nothing refers to, definition and all. The
+// labels are collected once per document, when the first expression holds
+// "[^" (block parsing is over by the time inline parsers run).
+func refersToFootnote(parent ast.Node, pc parser.Context, b []byte) bool {
+	i := bytes.Index(b, []byte("[^"))
+	if i < 0 {
+		return false
+	}
+	labels, ok := pc.Get(footnoteLabelsKey).(map[string]bool)
+	if !ok {
+		labels = map[string]bool{}
+		root := parent
+		for root.Parent() != nil {
+			root = root.Parent()
+		}
+		_ = ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+			if fn, ok := n.(*extast.Footnote); ok && entering {
+				labels[string(fn.Ref)] = true
+			}
+			return ast.WalkContinue, nil
+		})
+		pc.Set(footnoteLabelsKey, labels)
+	}
+	for ; i >= 0; i = bytes.Index(b, []byte("[^")) {
+		b = b[i+2:]
+		if j := bytes.IndexByte(b, ']'); j >= 0 && labels[string(b[:j])] {
+			return true
+		}
+	}
+	return false
 }
 
 var (
