@@ -142,7 +142,10 @@ func processTable(table *MMLNode) {
 			cellNode = NewMMLNode("mtd")
 			cellNode.Children = append(cellNode.Children, cell...)
 
-			if cidx < len(align) {
+			if isEmptyCell(cellNode) {
+				// Alignment means nothing for an empty cell; skipping it
+				// keeps a table of bare & cheap to render.
+			} else if cidx < len(align) {
 				cellNode.CSS["text-align"] = align[cidx]
 			} else if len(align) > 0 {
 				cellNode.CSS["text-align"] = align[len(align)-1]
@@ -207,6 +210,16 @@ func processTable(table *MMLNode) {
 	table.Children = rows
 }
 
+// isEmptyCell reports whether the table cell n has nothing to print.
+func isEmptyCell(n *MMLNode) bool {
+	for _, c := range n.Children {
+		if c != nil && c.Properties&propNonprint == 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // Create a strechy opening or closing parenthesis
 func strechyOP(c string) *MMLNode {
 	n := NewMMLNode("mo", c)
@@ -220,6 +233,9 @@ func setAlignmentStyle(node *MMLNode) {
 	var recurse func(n *MMLNode, alignList ...string)
 	recurse = func(n *MMLNode, alignList ...string) {
 		if n.Tag == "mtd" {
+			if isEmptyCell(n) {
+				return
+			}
 			a := alignList[0]
 			if columnalign, ok := n.Attrib["columnalign"]; ok {
 				a = columnalign
@@ -293,7 +309,7 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 					continue
 				}
 				for c, col := range row.Children {
-					if col != nil && col.Tag == "mtd" {
+					if col != nil && col.Tag == "mtd" && !isEmptyCell(col) {
 						col.Attrib["columnalign"] = flipflop[c%2]
 						col.CSS["text-align"] = flipflop[c%2]
 					}

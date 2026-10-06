@@ -227,6 +227,52 @@ func TestMathCachedCloseSearchStillPairs(t *testing.T) {
 	}
 }
 
+// MaxMathInputLen bounds one expression, not a page: a 1 MiB page of
+// aligned environments of bare & used to render to 112 MB of HTML.
+func TestMathPageOutputIsBounded(t *testing.T) {
+	for name, para := range map[string]string{
+		"aligned of bare &": "$\\begin{aligned}" + strings.Repeat("&", MaxMathInputLen-32) + "\\end{aligned}$\n\n",
+		"aligned of &x":     "$\\begin{aligned}" + strings.Repeat("&x", MaxMathInputLen/2-32) + "\\end{aligned}$\n\n",
+		"pmatrix of bare &": "$$\\begin{pmatrix}" + strings.Repeat("&", MaxMathInputLen-32) + "\\end{pmatrix}$$\n\n",
+		"tiny inline math":  "$a$ ",
+		"tiny display math": "$$a$$ ",
+		"long superscripts": "$" + strings.Repeat("x^", 4000) + "x$\n\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			src := strings.Repeat(para, (1<<20)/len(para))
+			out := renderMathMarkdown(t, src)
+			// The MathML is capped; past the cap every expression is
+			// escaped source, which costs a few bytes per input byte.
+			assert.Less(t, len(out), MaxMathPageOutput+12*len(src))
+			assert.Contains(t, out, `class="math-`)
+		})
+	}
+}
+
+func TestMathPageBudgetFallsBackToText(t *testing.T) {
+	expr := "$" + strings.Repeat("x^", 1000) + "x$\n\n"
+	out := renderMathMarkdown(t, strings.Repeat(expr, 200))
+	converted := strings.Count(out, "<math")
+	assert.Greater(t, converted, 0)
+	assert.Less(t, converted, 200)
+	assert.Equal(t, 200-converted, strings.Count(out, `<span class="math-inline">`))
+	// Once the budget is spent, nothing after is converted.
+	last := strings.LastIndex(out, "<math")
+	assert.NotContains(t, out[:last], `<span class="math-inline">`)
+}
+
+func TestMathExpressionAmplificationIsBounded(t *testing.T) {
+	src := "$\\begin{aligned}" + strings.Repeat("&x", MaxMathInputLen/2-32) + "\\end{aligned}$"
+	out := renderMathMarkdown(t, src)
+	assert.LessOrEqual(t, len(out), maxMathOutputLen(len(src)))
+	assert.NotContains(t, out, "<math")
+
+	// Empty table cells carry no alignment markup.
+	out = renderMathMarkdown(t, "$\\begin{aligned}&x\\end{aligned}$")
+	assert.Contains(t, out, "<mtd></mtd>")
+	assert.Equal(t, 1, strings.Count(out, "text-align"))
+}
+
 // FuzzMathRender checks that math input cannot inject script, event handlers
 // or javascript: URLs, and that the output size stays linear in the input.
 func FuzzMathRender(f *testing.F) {
@@ -239,6 +285,7 @@ func FuzzMathRender(f *testing.F) {
 		`\begin{pmatrix} a & b \\ c & d \end{pmatrix}`,
 		`\sqrt[3]{\frac{a}{b}} \overset{!}{=} \mathop{lim}`,
 		`\raisebox{1em}{x} \textcolor{red}{y} \multirow{2}{a}`,
+		`\begin{aligned}&x&x\\x&x\end{aligned}`,
 	} {
 		f.Add(seed)
 	}

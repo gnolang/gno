@@ -18,6 +18,32 @@ import (
 // Longer expressions are not converted and are rendered as escaped text.
 const MaxMathInputLen = 8 << 10
 
+// MaxMathPageOutput is the maximum number of bytes of MathML a single render
+// may produce. Once it is spent, the remaining expressions are rendered as
+// escaped text without being converted. MaxMathInputLen bounds one
+// expression, this bounds a page made of many.
+const MaxMathPageOutput = 2 << 20
+
+// maxMathOutputLen bounds the MathML of one expression of texLen bytes; an
+// expression that expands more (a table of thousands of tiny cells) is
+// rendered as escaped text.
+func maxMathOutputLen(texLen int) int { return 64*texLen + 4096 }
+
+// mathBudget is the MathML output left for one render. Parsers attach the
+// render's budget, kept on the parser context, to every math node.
+type mathBudget struct{ left int }
+
+var mathBudgetKey = parser.NewContextKey()
+
+func mathBudgetFrom(pc parser.Context) *mathBudget {
+	if b, ok := pc.Get(mathBudgetKey).(*mathBudget); ok {
+		return b
+	}
+	b := &mathBudget{left: MaxMathPageOutput}
+	pc.Set(mathBudgetKey, b)
+	return b
+}
+
 const (
 	priorityMathInlineParser = 50
 	priorityMathBlockParser  = 90
@@ -56,6 +82,7 @@ type mathInlineNode struct {
 	ast.BaseInline
 	flavor int
 	tex    string
+	budget *mathBudget
 }
 
 type mathBlockNode struct {
@@ -65,6 +92,7 @@ type mathBlockNode struct {
 	openTag  []byte
 	closeTag []byte
 	closed   bool // the closing delimiter was found
+	budget   *mathBudget
 }
 
 var (
@@ -153,7 +181,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	seg = text.NewSegment(start, seg.Start+stop)
 	tex := string(block.Value(seg))
 	block.Advance(stop + len(end))
-	return &mathInlineNode{tex: tex, flavor: flavor}
+	return &mathInlineNode{tex: tex, flavor: flavor, budget: mathBudgetFrom(pc)}
 }
 
 var inlineCloseKeys = map[string]parser.ContextKey{
@@ -271,7 +299,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	}
 
 	reader.Advance(len(open))
-	node := &mathBlockNode{flavor: flavor, openTag: open, closeTag: closeTag}
+	node := &mathBlockNode{flavor: flavor, openTag: open, closeTag: closeTag, budget: mathBudgetFrom(pc)}
 	_, seg := reader.PeekLine()
 	node.Lines().Append(seg)
 	return node, parser.NoChildren
@@ -448,10 +476,12 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 	}
 	var tex string
 	var flavor int
+	var budget *mathBudget
 	switch t := node.(type) {
 	case *mathInlineNode:
 		flavor = t.flavor
 		tex = t.tex
+		budget = t.budget
 	case *mathBlockNode:
 		if !t.closed {
 			// The opener never got its closing line (its container ended
@@ -463,12 +493,16 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 		}
 		flavor = t.flavor
 		tex = t.tex
+		budget = t.budget
 	default:
 		return ast.WalkContinue, nil
 	}
 	inline := flavor&flavor_inline > 0
+	if budget == nil {
+		budget = &mathBudget{left: MaxMathPageOutput}
+	}
 
-	if len(tex) <= MaxMathInputLen {
+	if len(tex) <= MaxMathInputLen && budget.left > 0 {
 		// The converter keeps per-expression state, so it must not be shared
 		// across concurrent renders.
 		converter := mathml.NewMathMLConverter()
@@ -479,7 +513,11 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 		} else {
 			mml, err = converter.ConvertDisplay(tex)
 		}
-		if err == nil {
+		ok := err == nil && len(mml) <= maxMathOutputLen(len(tex)) && len(mml) <= budget.left
+		// Charge the budget even for discarded output: it bounds the
+		// conversion work of a render, not only what gets written.
+		budget.left = max(budget.left-len(mml), 0)
+		if ok {
 			w.WriteString(mml)
 			return ast.WalkSkipChildren, nil
 		}
