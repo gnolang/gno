@@ -70,9 +70,9 @@ func (h *Handler) importersSide(pkgPath string, imp *Importers, err error) (*com
 	switch {
 	case err == nil:
 		return &components.Importers{
-			Links:   components.ImportLinks(imp.Paths, h.deps.Domain),
-			AtLeast: imp.AtLeast,
-			Retry:   imp.Unread,
+			Links:  components.ImportLinks(imp.Paths, h.deps.Domain),
+			Capped: imp.Capped,
+			Retry:  imp.Unread,
 		}, http.StatusOK
 	case errors.Is(err, ErrRateLimited):
 		return &components.Importers{Unavailable: "Too many lookups from your address. Try again in a minute."}, http.StatusTooManyRequests

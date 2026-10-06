@@ -17,7 +17,9 @@ import (
 var ErrPending = errors.New("answer still pending")
 
 // errTransient marks a fetch error that says nothing about the answer, such
-// as no capacity to start the fetch: it is returned but never remembered.
+// as no capacity or no budget to start the fetch: it is returned, to the
+// reader who started the fetch and to any that joined it, but never
+// remembered.
 var errTransient = errors.New("transient")
 
 // flight memoizes one answer per key and refreshes it on request. It runs
@@ -42,29 +44,7 @@ type flight[T any] struct {
 
 	mu      sync.Mutex
 	entries map[string]flightEntry[T]
-	running map[string]bool
 	group   singleflight.Group
-}
-
-// pending reports whether a fetch for key is running, so a reader can join it
-// rather than be charged for starting one.
-func (f *flight[T]) pending(key string) bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.running[key]
-}
-
-func (f *flight[T]) setRunning(key string, on bool) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.running == nil {
-		f.running = make(map[string]bool)
-	}
-	if on {
-		f.running[key] = true
-	} else {
-		delete(f.running, key)
-	}
 }
 
 type flightEntry[T any] struct {
@@ -108,8 +88,6 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 		if e, ok := f.fresh(key); ok {
 			return e, nil
 		}
-		f.setRunning(key, true)
-		defer f.setRunning(key, false)
 		fctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), f.timeout)
 		defer cancel()
 		val, err := fetch(fctx)

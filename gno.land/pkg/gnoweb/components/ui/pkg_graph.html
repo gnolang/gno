@@ -23,7 +23,7 @@ lists around a name.
   <section class="b-depgraph__side b-depgraph__side--out" aria-label="Imported by">
     <h3 class="b-depgraph__title">
       Imported by
-      {{ with .Importers }}{{ if and (not .Unavailable) (or .Links (not .AtLeast)) }}<span class="b-tag--tertiary">{{ if .AtLeast }}at least {{ end }}{{ len .Links }}</span>{{ end }}{{ end }}
+      {{ with .Importers }}{{ if and (not .Unavailable) (or .Links (not (or .Capped .Retry))) }}<span class="b-tag--tertiary">{{ if or .Capped .Retry }}at least {{ end }}{{ len .Links }}</span>{{ end }}{{ end }}
       <span class="b-tag b-tag--indexer">indexer</span>
     </h3>
     {{ with .Importers }}
@@ -32,15 +32,16 @@ lists around a name.
     {{ else }}
     {{ if .Links }}
     {{ template "ui/pkg_import_list" .Links }}
-    {{ else if not .AtLeast }}
+    {{ else if or .Capped .Retry }}
+    <p class="b-depgraph__empty">None confirmed among the candidates checked.</p>
+    {{ else }}
     <p class="b-depgraph__empty">No live package imports it.</p>
     {{ end }}
-    {{ if .AtLeast }}
-    {{ if .Retry }}
-    <p class="b-depgraph__empty">{{ if .Links }}Some candidates could not be checked, so there may be more.{{ else }}None confirmed: the candidates could not be checked.{{ end }} Reload in a minute to try again.</p>
-    {{ else }}
-    <p class="b-depgraph__empty">The indexer returned only part of the candidates, so there may be {{ if .Links }}more{{ else }}some{{ end }}.</p>
+    {{ if .Capped }}
+    <p class="b-depgraph__empty">The search stopped at its limit, so there may be more.</p>
     {{ end }}
+    {{ if .Retry }}
+    <p class="b-depgraph__empty">Some candidates could not be checked. Reload in a minute to try again.</p>
     {{ end }}
     {{ end }}
     {{ else }}

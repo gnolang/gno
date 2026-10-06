@@ -47,7 +47,7 @@ func TestImportersChecksEveryCandidateOnChain(t *testing.T) {
 	if !slices.Equal(got.Paths, want) {
 		t.Fatalf("importers = %v, want %v", got.Paths, want)
 	}
-	if got.AtLeast {
+	if got.Capped || got.Unread {
 		t.Error("every candidate was checked: the answer is complete")
 	}
 	if got.AsOf != 10 {
@@ -71,8 +71,8 @@ func TestImportersSaysAtLeastWhenACheckFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Importers: %v", err)
 	}
-	if !got.AtLeast {
-		t.Error("an unread candidate must turn the answer into a lower bound")
+	if !got.Unread || got.Capped {
+		t.Error("an unread candidate must mark the answer unread, not capped")
 	}
 	if !slices.Equal(got.Paths, []string{"gno.land/r/a"}) {
 		t.Errorf("importers = %v", got.Paths)
@@ -92,8 +92,8 @@ func TestImportersSaysAtLeastWhenTheIndexerCaps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Importers: %v", err)
 	}
-	if !got.AtLeast || len(got.Paths) != 1 {
-		t.Fatalf("got %+v, want the kept row checked and the answer marked at least", got)
+	if !got.Capped || len(got.Paths) != 1 {
+		t.Fatalf("got %+v, want the kept row checked and the answer marked capped", got)
 	}
 }
 
@@ -112,8 +112,8 @@ func TestImportersCapsTheChecks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Importers: %v", err)
 	}
-	if len(got.Paths) != maxCandidates || !got.AtLeast {
-		t.Fatalf("checked %d (at least: %v), want %d and a lower bound", len(got.Paths), got.AtLeast, maxCandidates)
+	if len(got.Paths) != maxCandidates || !got.Capped {
+		t.Fatalf("checked %d (capped: %v), want %d and a capped answer", len(got.Paths), got.Capped, maxCandidates)
 	}
 }
 
@@ -192,7 +192,8 @@ func TestImportersBusyIsNotRemembered(t *testing.T) {
 }
 
 // A reader joining a lookup already running is not charged: reloading as the
-// page asks must not end in "too many lookups".
+// page asks must not end in "too many lookups". Only the reader who starts
+// the lookup pays, since the limiter is asked inside the shared fetch.
 func TestImportersJoiningIsFree(t *testing.T) {
 	t.Parallel()
 
@@ -205,17 +206,38 @@ func TestImportersJoiningIsFree(t *testing.T) {
 		t.Cleanup(cancel)
 		return ctx
 	}
-	if _, err := h.Importers(short(), nil, avl); !errors.Is(err, ErrPending) {
-		t.Fatalf("first reader: err = %v, want ErrPending", err)
-	}
-	for range 3 {
+	// The first call registers the fetch before it returns, so every later
+	// call joins it whatever the scheduling.
+	for range 4 {
 		if _, err := h.Importers(short(), nil, avl); !errors.Is(err, ErrPending) {
-			t.Fatalf("joining reader: err = %v, want ErrPending, not a rate limit", err)
+			t.Fatalf("err = %v, want ErrPending, not a rate limit", err)
 		}
 	}
 	close(f.block)
+	if _, err := h.Importers(context.Background(), nil, avl); err != nil {
+		t.Fatalf("after the lookup: %v", err)
+	}
 	if lim.asked != 1 {
 		t.Errorf("limiter asked %d times, want once: only the reader who started the lookup pays", lim.asked)
+	}
+}
+
+// A lookup refused for want of a slot costs the reader nothing.
+func TestImportersBusyIsFree(t *testing.T) {
+	t.Parallel()
+
+	lim := &countingLimiter{allow: 100}
+	h := newImporterHandler(&fakeIndexer{tip: 10}, fakeImports{}, lim)
+	for range maxLookups {
+		h.importers.slots <- struct{}{}
+	}
+	for range 5 {
+		if _, err := h.Importers(context.Background(), nil, avl); !errors.Is(err, ErrBusy) {
+			t.Fatalf("err = %v, want ErrBusy", err)
+		}
+	}
+	if lim.asked != 0 {
+		t.Errorf("limiter asked %d times for refused lookups, want none", lim.asked)
 	}
 }
 

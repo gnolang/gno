@@ -19,7 +19,7 @@ func renderGraph(t *testing.T, g DepGraph) string {
 func TestPkgGraphNeverClaimsNoneWhenUnchecked(t *testing.T) {
 	t.Parallel()
 
-	for _, imp := range []*Importers{{AtLeast: true}, {AtLeast: true, Retry: true}} {
+	for _, imp := range []*Importers{{Capped: true}, {Retry: true}, {Capped: true, Retry: true}} {
 		out := renderGraph(t, DepGraph{Name: "/p/a", Importers: imp})
 		if strings.Contains(out, "No live package imports it.") {
 			t.Errorf("%+v: a partial answer with no confirmed importer claims there are none", imp)
@@ -27,17 +27,24 @@ func TestPkgGraphNeverClaimsNoneWhenUnchecked(t *testing.T) {
 		if strings.Contains(out, "at least 0") {
 			t.Errorf("%+v: a partial answer must not show a count of at least 0", imp)
 		}
+		if !strings.Contains(out, "None confirmed among the candidates checked.") {
+			t.Errorf("%+v: a partial empty answer must say none was confirmed so far", imp)
+		}
 	}
 
-	// Failed reads are worth a retry; a cap the indexer applied is not, and
-	// the page must not send the reader reloading for nothing.
-	retry := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{AtLeast: true, Retry: true}})
-	if !strings.Contains(retry, "could not be checked") || !strings.Contains(retry, "Reload") {
-		t.Error("failed reads must say so and offer a reload")
+	// Each cause is said as such: a limit a reload cannot lift, reads a
+	// reload may complete, or both.
+	capped := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{Capped: true}})
+	if !strings.Contains(capped, "stopped at its limit") || strings.Contains(capped, "Reload") {
+		t.Error("a capped answer must say the search stopped, without offering a reload")
 	}
-	capped := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{AtLeast: true}})
-	if strings.Contains(capped, "Reload") || !strings.Contains(capped, "only part of the candidates") {
-		t.Error("a capped answer must say the indexer stopped, without offering a reload")
+	retry := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{Retry: true}})
+	if !strings.Contains(retry, "could not be checked") || !strings.Contains(retry, "Reload") || strings.Contains(retry, "stopped at its limit") {
+		t.Error("failed reads must say so and offer a reload, and nothing else")
+	}
+	both := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{Capped: true, Retry: true}})
+	if !strings.Contains(both, "stopped at its limit") || !strings.Contains(both, "could not be checked") {
+		t.Error("both causes must be said when both apply")
 	}
 
 	complete := renderGraph(t, DepGraph{Name: "/p/a", Importers: &Importers{}})

@@ -20,10 +20,11 @@ type DepGraph struct {
 // Importers is the "imported by" side of a DepGraph.
 type Importers struct {
 	Links []ImportLink
-	// AtLeast says some candidates went unchecked: there may be more.
-	AtLeast bool
-	// Retry says the unchecked ones failed to read, which a reload may
-	// complete; otherwise the indexer or the candidate cap stopped the search.
+	// Capped says the search stopped at a limit, so there may be more; a
+	// reload cannot lift it.
+	Capped bool
+	// Retry says some candidates could not be read, which a reload may
+	// complete.
 	Retry bool
 	// Unavailable says why there is no answer; Links is then empty.
 	Unavailable string

@@ -100,11 +100,13 @@ breaker turns off search for every reader.
 The lookup costs that scan plus a node read per candidate — about 38 s for
 `gno.land/p/nt/avl/v0`'s 265 candidates against the public RPC, which found
 183 importers — so it is a page of its own: never run by the overview, `noindex`, capped at
-400 candidates, limited to six lookups a minute per address (burst three;
-a cached answer, or one already being looked up, is free) and to two lookups
-at once across all readers. A lookup finding both slots taken is refused at
-once ("other lookups are running") rather than queued, so waiting never eats
-its budget, and the refusal is not remembered. Behind a reverse proxy this
+400 candidates, limited to six lookups a minute per address (burst three)
+and to two lookups at once across all readers. The slot and the limiter are
+taken inside the shared fetch, which runs once however many readers ask: only
+the reader who starts a lookup pays, a cached answer or joining one in flight
+is free, and a lookup finding both slots taken is refused at once ("other
+lookups are running") before the limiter is asked, rather than queued on its
+own budget. Neither refusal is remembered. Behind a reverse proxy this
 limit, like gnoweb's others, needs `-trusted-proxies` to tell readers apart. The
 package's own imports are read first, so a path with no live package answers
 404 without costing the indexer anything. Answers are
@@ -123,8 +125,13 @@ listing it drew. The package check runs beside the listing; when the node
 cannot answer it, the map is an error, not a guess.
 
 No band query starts after its lookup or refresh has given up, since it could
-only fail against the shared client's breaker. An activity refresh that runs
-out of time keeps what it counted and marks the rest unknown.
+only fail against the shared client's breaker; the check sits inside each
+band's goroutine, past any wait for a concurrency slot. An activity refresh
+that runs out of time fails as a whole, and the last good week stays served.
+
+The graph says why an answer may be incomplete: the search stopped at a limit
+(a capped band or the candidate cap), which a reload cannot lift, or some
+candidates could not be read, which it may.
 
 ### One cache shape
 

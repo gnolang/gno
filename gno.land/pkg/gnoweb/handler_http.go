@@ -1250,17 +1250,34 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 }
 
 func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+	paths, truncated := h.listPaths(ctx, gnourl)
+	return h.renderListing(ctx, gnourl, indexData, paths, truncated)
+}
+
+// listPaths lists the package paths below gnourl, capped at maxListedPaths.
+// One more than is shown is asked for, so a listing stopping at the cap can
+// tell "exactly the cap" from "more than the cap".
+func (h *HTTPHandler) listPaths(ctx context.Context, gnourl *weburl.GnoURL) (paths []string, truncated bool) {
 	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
-	// One more than is shown, so a listing stopping at the cap can tell
-	// "exactly the cap" from "more than the cap".
 	paths, qerr := h.Client.ListPaths(ctx, prefix, maxListedPaths+1)
 	if qerr != nil {
 		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
 	} else {
 		h.Logger.Debug("query paths", "prefix", prefix, "paths", len(paths))
 	}
-
 	if len(paths) == 0 || paths[0] == "" {
+		return nil, false
+	}
+	if len(paths) > maxListedPaths {
+		return paths[:maxListedPaths], true
+	}
+	return paths, false
+}
+
+// renderListing renders a listing as a list, or as a map for $map. The two
+// render this one listing, so they cannot disagree about what exists.
+func (h *HTTPHandler) renderListing(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, paths []string, truncated bool) (int, *components.View) {
+	if len(paths) == 0 {
 		// Both the realm view and the source view funnel here when nothing is
 		// live at the path, so this is the one place that has to distinguish
 		// "never submitted" from "submitted, not approved yet".
@@ -1269,10 +1286,6 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 		}
 		return GetClientErrorStatusView(gnourl, ErrClientPackageNotFound, 0)
 	}
-	truncated := len(paths) > maxListedPaths
-	if truncated {
-		paths = paths[:maxListedPaths]
-	}
 
 	// Always use explorer mode for paths list
 	indexData.Mode = components.ViewModeExplorer
@@ -1280,8 +1293,6 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 	// Update header mode
 	indexData.HeaderData.Mode = indexData.Mode
 
-	// The list and the map render this one listing, so they cannot disagree
-	// about what exists.
 	if gnourl.WebQuery.Has("map") {
 		return http.StatusOK, h.Map.MapView(ctx, chainmap.Listing{
 			Path: gnourl.Path, Paths: paths, Truncated: truncated,
@@ -1292,26 +1303,30 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 
 // GetMapView draws the listing below a path. A map exists only where the list
 // does, which is where no package lives: on a package its List tab would open
-// the package, not the listing. The package check runs beside the listing,
-// so a namespace map waits one round trip, not two.
+// the package, not the listing. The package check runs beside the listing
+// query, and the map is built only once the check has passed.
 func (h *HTTPHandler) GetMapView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
 	pkgErr := make(chan error, 1)
 	go func() {
 		_, err := h.Client.ListFiles(ctx, strings.TrimSuffix(gnourl.Path, "/"), 0)
 		pkgErr <- err
 	}()
-	status, view := h.GetPathsListView(ctx, gnourl, indexData)
+	paths, truncated := h.listPaths(ctx, gnourl)
 
 	switch err := <-pkgErr; {
 	case err == nil:
 		return http.StatusNotFound, components.StatusErrorComponent("This path is a package, not a listing: open it, or map the path above it.")
-	case !errors.Is(err, ErrClientPackageNotFound):
+	case errors.Is(err, ErrClientPackageNotFound):
+		return h.renderListing(ctx, gnourl, indexData, paths, truncated)
+	case ctx.Err() != nil:
+		// The reader left or the request ran out of time: nothing to report.
+		return GetClientErrorStatusView(gnourl, ctx.Err(), 0)
+	default:
 		// The node could not say: drawing the listing could draw one below a
 		// package.
-		h.Logger.Error("map: unable to tell a package from a listing", "path", gnourl.Path, "error", err)
-		return GetClientErrorStatusView(gnourl, err, 0)
+		h.Logger.Warn("map: unable to tell a package from a listing", "path", gnourl.Path, "error", err)
+		return http.StatusBadGateway, components.StatusErrorComponent("The node could not tell whether this path is a package. Try again in a moment.")
 	}
-	return status, view
 }
 
 // GetDirectoryView renders the directory view for a package, showing available files.
