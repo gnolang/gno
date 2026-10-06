@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -474,42 +475,124 @@ func FuzzMathRender(f *testing.F) {
 		strings.Repeat("$", 64),     // empty $$$$ expressions
 		strings.Repeat("a$$", 64),   // tiny inline expressions
 		strings.Repeat("$a$$$", 64), // tiny display expressions
+		">[!0]",                     // an alert, which draws an <svg> icon
 	} {
 		f.Add(seed)
 	}
 	gm := goldmark.New(goldmark.WithExtensions(NewGnoExtension()))
 	f.Fuzz(func(t *testing.T, tex string) {
 		for _, src := range []string{"$" + tex + "$", "$$" + tex + "$$", "$$\n" + tex + "\n$$"} {
-			var buf bytes.Buffer
-			if err := gm.Convert([]byte(src), &buf); err != nil {
+			out, ok := convertWithin(t, gm, src, 10*time.Second)
+			if !ok {
 				return
 			}
-			out := buf.String()
 			// The MathML of a page is bounded like one expression of the
 			// page's size; the HTML around it, and the escaped source of
 			// expressions left unconverted, by a small multiple of the input.
 			if limit := maxMathOutputLen(len(src)) + maxMarkupRatio*len(src); len(out) > limit {
 				t.Fatalf("output too large: %d bytes for %d bytes of input (limit %d)", len(out), len(src), limit)
 			}
-			z := html.NewTokenizer(strings.NewReader(out))
-			for tt := z.Next(); tt != html.ErrorToken; tt = z.Next() {
-				if tt != html.StartTagToken && tt != html.SelfClosingTagToken {
-					continue
-				}
-				tok := z.Token()
-				switch tok.Data {
-				case "script", "style", "iframe", "object", "embed", "svg":
-					t.Fatalf("unexpected <%s> in output for %q:\n%s", tok.Data, src, out)
-				}
-				for _, a := range tok.Attr {
-					if strings.HasPrefix(a.Key, "on") ||
-						strings.HasPrefix(strings.ToLower(strings.TrimSpace(a.Val)), "javascript:") {
-						t.Fatalf("unexpected %s attribute in output for %q:\n%s", a.Key, src, out)
-					}
-				}
+			if err := checkNoActiveContent(out); err != nil {
+				t.Fatalf("%v in output for %q:\n%s", err, src, out)
 			}
 		}
 	})
+}
+
+// convertWithin renders src, failing the test if that takes longer than
+// timeout: fuzzing would otherwise sit on an input that loops forever
+// without reporting it. ok is false if goldmark returned an error.
+func convertWithin(t *testing.T, gm goldmark.Markdown, src string, timeout time.Duration) (out string, ok bool) {
+	t.Helper()
+	type result struct {
+		out string
+		err error
+	}
+	done := make(chan result, 1)
+	go func() {
+		var buf bytes.Buffer
+		err := gm.Convert([]byte(src), &buf)
+		done <- result{buf.String(), err}
+	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case r := <-done:
+		return r.out, r.err == nil
+	case <-timer.C:
+		t.Fatalf("rendering %q took over %v", src, timeout)
+		return "", false
+	}
+}
+
+// checkNoActiveContent returns an error if html holds an element or
+// attribute that runs script or embeds content. The one <svg> allowed is the
+// icon gnoweb's alerts, links and forms draw, <svg><use
+// href="#ico-..."></use></svg>: an <svg> immediately holding a <use> that
+// refers to one of the page's own icons, and nothing else.
+func checkNoActiveContent(out string) error {
+	z := html.NewTokenizer(strings.NewReader(out))
+	for tt := z.Next(); tt != html.ErrorToken; tt = z.Next() {
+		if tt != html.StartTagToken && tt != html.SelfClosingTagToken {
+			continue
+		}
+		tok := z.Token()
+		for _, a := range tok.Attr {
+			if strings.HasPrefix(a.Key, "on") ||
+				strings.HasPrefix(strings.ToLower(strings.TrimSpace(a.Val)), "javascript:") {
+				return fmt.Errorf("unexpected %s attribute", a.Key)
+			}
+		}
+		switch tok.Data {
+		case "svg":
+			if !isIconSVG(z) {
+				return fmt.Errorf("unexpected <svg>")
+			}
+		case "script", "style", "iframe", "object", "embed", "use":
+			return fmt.Errorf("unexpected <%s>", tok.Data)
+		}
+	}
+	return nil
+}
+
+// isIconSVG reads the tokens after an <svg> start tag and reports whether
+// they are exactly <use href="#ico-..."></use></svg>.
+func isIconSVG(z *html.Tokenizer) bool {
+	if z.Next() != html.StartTagToken {
+		return false
+	}
+	use := z.Token()
+	if use.Data != "use" || len(use.Attr) != 1 || use.Attr[0].Key != "href" || !strings.HasPrefix(use.Attr[0].Val, "#ico-") {
+		return false
+	}
+	if z.Next() != html.EndTagToken || z.Token().Data != "use" {
+		return false
+	}
+	return z.Next() == html.EndTagToken && z.Token().Data == "svg"
+}
+
+func TestMathFuzzOracle(t *testing.T) {
+	for _, ok := range []string{
+		`<p>a</p>`,
+		`<summary><svg><use href="#ico-note"></use></svg>Note</summary>`,
+		`<a href="u">x<svg class="c-icon"><use href="#ico-external-link"></use></svg></a>`,
+	} {
+		assert.NoError(t, checkNoActiveContent(ok), ok)
+	}
+	for _, bad := range []string{
+		`<svg></svg>`,
+		`<svg><use href="#ico-note"></use><script>alert(1)</script></svg>`,
+		`<svg><use href="https://evil.example/x.svg#a"></use></svg>`,
+		`<svg><use href="#ico-x" onload="alert(1)"></use></svg>`,
+		`<svg><image href="x"></image></svg>`,
+		`<svg onload="alert(1)"><use href="#ico-x"></use></svg>`,
+		`<use href="#ico-x"></use>`,
+		`<math><mi onclick="alert(1)">x</mi></math>`,
+		`<a href=" JavaScript:alert(1)">x</a>`,
+		`<script>alert(1)</script>`,
+	} {
+		assert.Error(t, checkNoActiveContent(bad), bad)
+	}
 }
 
 // BenchmarkMathDisplayBlockLines parses a 200-line display block: every line
