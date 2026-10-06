@@ -44,16 +44,19 @@ var raiseUnits = map[string]struct {
 	"mu": {10.0 / 18, false},
 }
 
-// maxRaisePt is the largest \raisebox shift accepted, 2em. Larger shifts
-// would let math move over the page around it, so they are ignored.
+// maxRaisePt is the largest \raisebox shift accepted, 2em, counting the
+// shifts of the enclosing \raisebox commands. Larger shifts would let math
+// move over the page around it, so they are ignored.
 const maxRaisePt = 2 * emPt
 
-// safeRaise returns s as a voffset value if it is a small length. A bare
-// number is taken in em.
-func safeRaise(s string) (string, bool) {
+// safeRaise returns s as a voffset value, and its size in points, if it
+// is a length that keeps the shift accumulated from the enclosing
+// \raisebox commands, outer points, within maxRaisePt. A bare number is
+// taken in em.
+func safeRaise(s string, outer float64) (string, float64, bool) {
 	m := raiseLength.FindStringSubmatch(strings.TrimSpace(s))
 	if m == nil {
-		return "", false
+		return "", 0, false
 	}
 	unit := strings.ToLower(m[2])
 	if unit == "" {
@@ -61,19 +64,20 @@ func safeRaise(s string) (string, bool) {
 	}
 	u, ok := raiseUnits[unit]
 	if !ok {
-		return "", false
+		return "", 0, false
 	}
 	// The regexp only admits decimals, so ParseFloat cannot fail.
 	v, _ := strconv.ParseFloat(m[1], 64)
-	if math.Abs(v*u.pt) > maxRaisePt {
-		return "", false
+	pt := v * u.pt
+	if math.Abs(outer+pt) > maxRaisePt {
+		return "", 0, false
 	}
 	num := strings.TrimPrefix(m[1], "+")
 	if !u.css {
 		em := strconv.FormatFloat(v*u.pt/emPt, 'f', 4, 64)
 		num, unit = strings.TrimSuffix(strings.TrimRight(em, "0"), "."), "em"
 	}
-	return num + unit, true
+	return num + unit, pt, true
 }
 
 func cmd_multirow(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
@@ -251,8 +255,11 @@ func cmd_raisebox(converter *MathMLConverter, name string, star bool, ctx parseC
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
 	n := NewMMLNode("mpadded")
-	if v, ok := safeRaise(StringifyTokens(args[0].Expr)); ok {
+	outer := converter.raisePt
+	if v, pt, ok := safeRaise(StringifyTokens(args[0].Expr), outer); ok {
 		n.SetAttr("voffset", v)
+		converter.raisePt += pt
+		defer func() { converter.raisePt = outer }()
 	}
 	converter.ParseTex(args[1], ctx, n)
 	return n

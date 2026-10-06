@@ -89,6 +89,7 @@ type MathMLConverter struct {
 	unknownCommandsAsOps bool            // treat unknown \commands as operators
 	depth                int             // current ParseTex recursion depth
 	sizeScale            float64         // cumulative scale of the enclosing size switches; 0 means 1
+	raisePt              float64         // cumulative shift of the enclosing \raisebox commands, in points
 }
 
 // NewDocument creates a MathMLConverter for a document

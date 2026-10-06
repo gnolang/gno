@@ -331,3 +331,30 @@ func TestNestedSizeIsBounded(t *testing.T) {
 	}
 	assert.LessOrEqual(t, scale, 2.4881)
 }
+
+// Nested \raisebox shifts add up: their sum stays within the 2em a single
+// \raisebox may shift. A shift that would exceed it is dropped, and its
+// content still rendered.
+func TestNestedRaiseIsBounded(t *testing.T) {
+	voffRe := regexp.MustCompile(`voffset="([^"]*)"`)
+	for tex, want := range map[string][]string{
+		`\raisebox{2em}{x}`:                                     {"2em"},
+		`\raisebox{1em}{\raisebox{1em}{x}}`:                     {"1em", "1em"},
+		`\raisebox{2em}{\raisebox{2em}{x}}`:                     {"2em"},
+		`\raisebox{2em}{\raisebox{-2em}{x}}`:                    {"2em", "-2em"},
+		`\raisebox{1.5em}{\raisebox{1em}{\raisebox{0.5em}{x}}}`: {"1.5em", "0.5em"},
+		`\raisebox{2em}{x}\raisebox{2em}{y}`:                    {"2em", "2em"},
+		`\raisebox{10pt}{\raisebox{1em}{\raisebox{1pt}{x}}}`:    {"10pt", "1em"},
+	} {
+		out := convertWithin(t, tex, false)
+		var got []string
+		for _, m := range voffRe.FindAllStringSubmatch(out, -1) {
+			got = append(got, m[1])
+		}
+		assert.Equal(t, want, got, tex)
+		assert.Contains(t, out, "<mi>x</mi>", tex)
+	}
+	deep := strings.Repeat(`\raisebox{1em}{`, 40) + "x" + strings.Repeat("}", 40)
+	out := convertWithin(t, deep, false)
+	assert.Equal(t, 2, strings.Count(out, "voffset="))
+}
