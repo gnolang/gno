@@ -511,3 +511,49 @@ func BenchmarkMathDisplayBlockLines(b *testing.B) {
 		gm.Parser().Parse(text.NewReader(src))
 	}
 }
+
+// A paragraph of one expression per line used to be quadratic: the inline
+// parser read each expression back through block.Value, which walks the
+// paragraph's lines back from its last one. 1 MiB of "$a$\n" took ~20s.
+func TestMathOneExpressionPerLineIsLinear(t *testing.T) {
+	units := []string{"$a$\n", `\\(a\\)` + "\n", "$$a$$\n", "$a\nb$\n", "$$ $$\n", "> $a$\n", "> $a\n> b$\n"}
+	// Rendering four times the lines must cost about four times as much:
+	// the quadratic version cost sixteen times as much. The best of three
+	// runs keeps scheduler noise out of the ratio.
+	best := func(src string) time.Duration {
+		d := time.Duration(1<<63 - 1)
+		for range 3 {
+			start := time.Now()
+			renderMathMarkdown(t, src)
+			d = min(d, time.Since(start))
+		}
+		return d
+	}
+	for _, unit := range units {
+		small, large := strings.Repeat(unit, 1<<11), strings.Repeat(unit, 1<<13)
+		ratio := float64(best(large)) / float64(best(small))
+		assert.Less(t, ratio, 10.0, "%q: 4x the input took %.1fx the time", unit, ratio)
+	}
+	// End to end, with a generous bound.
+	for _, unit := range []string{"$a$\n", "> $a$\n"} {
+		src := strings.Repeat(unit, (1<<20)/len(unit))
+		start := time.Now()
+		out := renderMathMarkdown(t, src)
+		assert.Less(t, time.Since(start), 5*time.Second, "%q", unit)
+		assert.Contains(t, out, "<math", "%q", unit)
+	}
+}
+
+// The expression is read from the parsed lines, without the container
+// prefix of the line it continues on.
+func TestMathInlineAcrossLinesInContainers(t *testing.T) {
+	for src, want := range map[string]string{
+		"> $a\n> b$":           "a\nb</annotation>",
+		"- $a\n  b$":           "a\nb</annotation>",
+		"> - $a\n>   b$":       "a\nb</annotation>",
+		"$a\nb$":               "a\nb</annotation>",
+		`\\(a` + "\n" + `b\\)`: "a\nb</annotation>",
+	} {
+		assert.Contains(t, renderMathMarkdown(t, src), want, "%q", src)
+	}
+}

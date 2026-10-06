@@ -182,10 +182,19 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	if flavor == flavorInline|delimiterTeX {
 		find = findDollarClose
 	}
-	start := seg.Start + len(begin)
-	stop := findCloseCached(pc, key, line[len(begin):], start, seg.Stop, find)
-	if stop < 0 {
-		// could be a linebreak due to formatting issues
+	// The expression is taken from the line slices, which the block reader
+	// gives without their container prefix (a quote's > or a list item's
+	// indent). block.Value would find the segment by walking the paragraph's
+	// lines back from the last one, which is quadratic on a long paragraph
+	// of one expression per line.
+	first := line[len(begin):]
+	var head, tail []byte // the expression on the opener's line and on the next
+	stop := findCloseCached(pc, key, first, seg.Start+len(begin), seg.Stop, find)
+	if stop >= 0 {
+		head = first[:stop]
+		stop += len(begin)
+	} else {
+		// The expression may continue on the next line.
 		block.AdvanceLine()
 		line, seg = block.PeekLine()
 		stop = findCloseCached(pc, key, line, seg.Start-seg.Padding, seg.Stop, find)
@@ -193,14 +202,9 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			block.SetPosition(posLine, posSeg)
 			return nil
 		}
-	} else {
-		// there was no linebreak, so we need to account for the slice we took
-		// in the original definition of stop.
-		stop += len(begin)
+		head, tail = first, line[:stop]
 	}
-	seg = text.NewSegment(start, seg.Start+stop)
-	value := block.Value(seg)
-	if util.IsBlank(value) {
+	if util.IsBlank(head) && util.IsBlank(tail) {
 		// An empty expression ($$$$, \\(\\)) holds no math, and converting
 		// it would cost a whole <math> element for a few input bytes: leave
 		// it as text.
@@ -208,7 +212,8 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 		return nil
 	}
 	block.Advance(stop + len(end))
-	return &mathInlineNode{mathExpr: mathExpr{tex: string(value), flavor: flavor, budget: mathBudgetFrom(pc, len(block.Source()))}}
+	value := string(head) + string(tail)
+	return &mathInlineNode{mathExpr: mathExpr{tex: value, flavor: flavor, budget: mathBudgetFrom(pc, len(block.Source()))}}
 }
 
 var (
