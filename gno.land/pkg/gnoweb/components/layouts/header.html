@@ -11,7 +11,7 @@ LAYOUT - Header component
 
       <div class="b-main-navigation" data-controller="searchbar">
         <div class="inner c-reel u-no-scrollbar">
-          <form class="searchbar" data-action="submit->searchbar#searchUrl">
+          <form id="header-searchbar" class="searchbar" data-action="submit->searchbar#searchUrl">
             <label for="header-input-search" class="u-sr-only">
               gno.land Search
             </label>
@@ -20,7 +20,6 @@ LAYOUT - Header component
               aria-expanded="false" aria-controls="omnisearch-results"
               aria-autocomplete="list" autocomplete="off"
               data-action="input->searchbar#search" />
-            <button type="submit" class="u-sr-only">Search</button>
           </form>
 
           {{ template "ui/breadcrumb" .Breadcrumb }}
@@ -28,23 +27,42 @@ LAYOUT - Header component
 
         <div id="omnisearch-results" class="b-omnisearch" data-searchbar-target="results" role="listbox" hidden></div>
 
-        <!-- Network Info Popup -->
-        <label for="searchbar-server-popup-toggle" class="network-toggle" tabindex="0" role="button"
-          aria-controls="network-info-popup">
-          <svg>
-            <title>Network Info</title>
-            <use href="#ico-earth"></use>
-          </svg>
-        </label>
+        <!-- Search icon, Network Info and Ask AI toggles -->
+        <div class="searchbar-actions">
+          <button type="submit" form="header-searchbar" class="search-icon" aria-label="Search">
+            <svg aria-hidden="true">
+              <use href="#ico-search"></use>
+            </svg>
+          </button>
+          <label for="searchbar-server-popup-toggle" class="network-toggle" tabindex="0" role="button"
+            aria-controls="network-info-popup" data-controller="popup" data-action="keydown->popup#key">
+            <svg>
+              <title>Network Info</title>
+              <use href="#ico-earth"></use>
+            </svg>
+          </label>
+          {{ if .AI }}
+          <label for="ai-popup-toggle" class="ai-toggle" tabindex="0" role="button" aria-controls="ai-popup"
+            aria-label="Ask AI" data-controller="popup" data-action="keydown->popup#key">
+            <svg aria-hidden="true">
+              <use href="#ico-ai"></use>
+            </svg>
+            <span>Ask AI</span>
+          </label>
+          {{ end }}
+        </div>
 
-        <input type="checkbox" id="searchbar-server-popup-toggle" class="b-popup u-sr-only" aria-expanded="false" />
+        <!-- Network Info Popup -->
+
+        <input type="checkbox" id="searchbar-server-popup-toggle" class="b-popup u-sr-only" tabindex="-1" aria-hidden="true" />
         <label for="searchbar-server-popup-toggle" class="b-popup-bg"></label>
 
-        <div class="b-popup-dialog" role="dialog" aria-labelledby="network-info-title" aria-modal="true">
+        <div class="b-popup-dialog" id="network-info-popup" role="dialog" aria-labelledby="network-info-title" aria-modal="true">
           <div class="inner">
             <header>
               <span id="network-info-title">Network Info</span>
-              <label for="searchbar-server-popup-toggle" tabindex="0" role="button" aria-label="Close popup">
+              <label for="searchbar-server-popup-toggle" tabindex="0" role="button" aria-label="Close popup"
+                data-controller="popup" data-action="keydown->popup#key">
                 <svg aria-hidden="true" class="c-icon">
                   <title>Close Network Info</title>
                   <use href="#ico-cross"></use>
@@ -71,6 +89,59 @@ LAYOUT - Header component
             </div>
           </div>
         </div>
+
+        {{ with .AI }}
+        <!-- Ask AI Popup: after Network Info so each open dialog covers both toggles,
+             wrapped so the "~" popup rules of one never reach the other -->
+        <div class="ai-popup">
+          <input type="checkbox" id="ai-popup-toggle" class="b-popup u-sr-only" tabindex="-1" aria-hidden="true" />
+          <label for="ai-popup-toggle" class="b-popup-bg"></label>
+
+          <div class="b-popup-dialog" id="ai-popup" role="dialog" aria-labelledby="ai-popup-title" aria-modal="true">
+            <div class="inner">
+              <header>
+                <span id="ai-popup-title" class="ai-popup__title">Ask AI about {{ .Context }}</span>
+                <label for="ai-popup-toggle" tabindex="0" role="button" aria-label="Close popup"
+                  data-controller="popup" data-action="keydown->popup#key">
+                  <svg aria-hidden="true" class="c-icon">
+                    <title>Close Ask AI</title>
+                    <use href="#ico-cross"></use>
+                  </svg>
+                </label>
+              </header>
+              {{ range .Actions }}
+              <div class="ai-action">
+                <span class="item-value">{{ .Label }}</span>
+                <span class="item-label">{{ .Hint }}</span>
+                <span class="ai-action__targets">
+                  {{ range .Links }}
+                  <a class="b-btn b-btn--secondary c-with-icon" href="{{ .URL }}" target="_blank"
+                    rel="noopener noreferrer" data-outbound="{{ .Outbound }}">{{ .Name }}
+                    <svg aria-hidden="true" class="c-icon"><use href="#ico-external-link"></use></svg></a>
+                  {{ end }}
+                </span>
+              </div>
+              {{ end }}
+              {{ with .PackageText }}
+              <button type="button" class="b-btn b-btn--secondary c-with-icon" data-controller="copy"
+                data-action="click->copy#copy" data-copy-fetch-value="{{ . }}"
+                title="Copy every file of this package as one text, for any AI assistant">
+                {{ template "ui/copy" }}<span>Copy package as text</span>
+              </button>
+              {{ end }}
+              {{ with .MCP }}
+              <div class="ai-mcp">
+                <span class="item-value">Give your AI agent access to gno.land</span>
+                <span class="item-label">Claude Code, Codex, Gemini and more, via {{ .Name }} (pre-release).</span>
+                <a class="b-btn b-btn--secondary c-with-icon" href="{{ .URL }}" target="_blank"
+                  rel="noopener noreferrer" data-outbound="{{ .Outbound }}">Set up {{ .Name }}
+                  <svg aria-hidden="true" class="c-icon"><use href="#ico-external-link"></use></svg></a>
+              </div>
+              {{ end }}
+            </div>
+          </div>
+        </div>
+        {{ end }}
       </div>
     </div>
 
@@ -90,12 +161,27 @@ LAYOUT - Header component
       </div>
 
       {{ if .Mode.IsHome }}
-      <div role="menu" class="menu-general">
+      <div role="menu" class="b-menu-general">
         {{ range .Links.General }}{{ template "ui/header_link" . }}{{ end }}
       </div>
       {{ end }}
     </div>
   </nav>
+  {{- if .Notice.Enabled }}
+  <div class="b-header-notice" role="note" aria-label="Community realm notice">
+    <p id="realm-notice" class="c-center">
+      <svg aria-hidden="true">
+        <use href="#ico-info-circle"></use>
+      </svg>
+      {{- if .Notice.Short.Enabled }}
+      <span class="short">{{ render .Notice.Short }}</span>
+      <span class="long">{{ render .Notice.Text }}</span>
+      {{- else }}
+      <span>{{ render .Notice.Text }}</span>
+      {{- end }}
+    </p>
+  </div>
+  {{- end }}
 </header>
 {{ end }}
 
