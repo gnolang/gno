@@ -112,6 +112,7 @@ type mathBlockNode struct {
 	openLen  int // the opening delimiter starts the first line
 	closeTag []byte
 	closed   bool // the closing delimiter ends the last line
+	fence    bool // a ```math fence, held as the only child
 }
 
 var (
@@ -694,6 +695,13 @@ func (p *texBlockRegionParser) CanAcceptIndentedLine() bool { return true }
 
 // mathTransformer finishes the math blocks once the inline parsers are done.
 //
+// A fenced code block whose info string is exactly "math", GitHub's syntax
+// for display math, becomes a display math block, converted with the same
+// converter and limits as $$. The code block becomes the math node's only
+// child, which the renderer shows, through whatever renders code blocks,
+// when the math is not converted: the fence then looks as it would without
+// math.
+//
 // A $$ block whose lines refer to a footnote defined in the document becomes
 // the paragraph it would be without math, like an inline expression (see
 // refersToFootnote): the block's lines are inline parsed as its children,
@@ -701,12 +709,19 @@ func (p *texBlockRegionParser) CanAcceptIndentedLine() bool { return true }
 type mathTransformer struct{}
 
 func (mathTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	src := reader.Source()
+	var fences []*ast.FencedCodeBlock
 	var withFootnotes []*mathBlockNode
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering || n.Type() != ast.TypeBlock {
 			return ast.WalkContinue, nil
 		}
-		if n, ok := n.(*mathBlockNode); ok {
+		switch n := n.(type) {
+		case *ast.FencedCodeBlock:
+			if n.Info != nil && string(n.Info.Segment.Value(src)) == "math" {
+				fences = append(fences, n)
+			}
+		case *mathBlockNode:
 			if hasFootnoteLink(n) {
 				withFootnotes = append(withFootnotes, n)
 			}
@@ -722,6 +737,20 @@ func (mathTransformer) Transform(doc *ast.Document, reader text.Reader, pc parse
 			para.AppendChild(para, c)
 		}
 		n.Parent().ReplaceChild(n.Parent(), n, para)
+	}
+	for _, fence := range fences {
+		tex := fence.Lines().Value(src)
+		if util.IsBlank(tex) {
+			continue // no math, like an empty $$ block
+		}
+		node := &mathBlockNode{
+			mathExpr: mathExpr{tex: string(tex), flavor: flavorDisplay | delimiterTeX, budget: mathBudgetFrom(pc, len(src))},
+			closed:   true,
+			fence:    true,
+		}
+		parent := fence.Parent()
+		parent.ReplaceChild(parent, fence, node)
+		node.AppendChild(node, fence)
 	}
 }
 
@@ -784,6 +813,12 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 			w.WriteString(mml)
 			return ast.WalkSkipChildren, nil
 		}
+	}
+
+	// A ```math fence that is not converted is shown as the code block it
+	// holds, as it would be without math.
+	if n, ok := node.(*mathBlockNode); ok && n.fence {
+		return ast.WalkContinue, nil
 	}
 
 	// Fallback to the escaped raw LaTeX if conversion fails. An inline

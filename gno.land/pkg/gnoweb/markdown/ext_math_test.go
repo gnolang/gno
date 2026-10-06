@@ -777,3 +777,54 @@ func TestMathEndsAtPeerBlocks(t *testing.T) {
 		assert.Equal(t, c.math, strings.Contains(buf.String(), "<math"), buf.String())
 	}
 }
+
+// A fenced code block whose info string is exactly "math" is display math,
+// as on GitHub. Any other fence is code.
+func TestMathFence(t *testing.T) {
+	for _, src := range []string{
+		"```math\nx^2\n```\n",
+		"~~~math\nx^2\n~~~\n",
+		"```math\n\\begin{aligned}\na &= x^2 \\\\\n\nb &= y\n\\end{aligned}\n```\n",
+		"> ```math\n> x^2\n> ```\n",
+		"- item\n\n  ```math\n  x^2\n  ```\n",
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.Contains(t, out, `<math class="math-displaystyle"`, "%q", src)
+		assert.Contains(t, out, "<msup>", "%q", src)
+		assert.NotContains(t, out, "<pre>", "%q", src)
+	}
+	for _, src := range []string{
+		"```Math\nx^2\n```\n",
+		"```math x\nx^2\n```\n",
+		"```latex\nx^2\n```\n",
+		"```\nx^2\n```\n",
+		"```math\n```\n",
+		"    math\n    x^2\n",
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.NotContains(t, out, "<math", "%q", src)
+		assert.Contains(t, out, "<pre><code", "%q", src)
+	}
+}
+
+// A math fence that is not converted (too long, a conversion error, the
+// page's budget spent) is shown as the code block it is without math, not
+// as a run of escaped source: a fence keeps its lines.
+func TestMathFenceFallsBackToCode(t *testing.T) {
+	for name, tex := range map[string]string{
+		"conversion error": "\\begin{matrix}\na</pre>\n",
+		"too long":         strings.Repeat("x+", MaxMathInputLen) + "x\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			out := renderMathMarkdown(t, "```math\n"+tex+"```\n")
+			assert.Equal(t, `<pre><code class="language-math">`+html.EscapeString(tex)+"</code></pre>\n", out)
+		})
+	}
+	t.Run("page budget", func(t *testing.T) {
+		fence := "```math\n" + strings.Repeat("x^", 1000) + "x\n```\n\n"
+		out := renderMathMarkdown(t, strings.Repeat(fence, 200))
+		converted := strings.Count(out, "<math")
+		assert.Greater(t, converted, 0)
+		assert.Equal(t, 200-converted, strings.Count(out, `<pre><code class="language-math">`))
+	})
+}
