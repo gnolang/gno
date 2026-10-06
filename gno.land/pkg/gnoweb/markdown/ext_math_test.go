@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/parser"
 	"golang.org/x/net/html"
 )
 
@@ -172,6 +173,58 @@ func TestMathOutputIsBounded(t *testing.T) {
 		assert.NotContains(t, out, "<math")
 		assert.Contains(t, out, `<span class="math-inline">`)
 	})
+}
+
+// Each unclosed inline opener used to rescan the rest of its line, which is
+// quadratic: a 1 MiB line of "$a " took about a minute to render.
+func TestMathUnclosedInlineOpenersAreLinear(t *testing.T) {
+	// Deterministic part: count the bytes the closing-delimiter search reads
+	// when every opener on a line is unclosed, as the inline parser calls it.
+	for _, unit := range []string{"$a ", `\\(a `} {
+		line := []byte(strings.Repeat(unit, 1<<12))
+		next := []byte("no closer on the next line either\n")
+		pc := parser.NewContext()
+		key := inlineCloseKeys["$"]
+		find := findDollarClose
+		if unit != "$a " {
+			key = inlineCloseKeys[string(_inlineclose)]
+			find = func(b []byte) int { return bytes.Index(b, _inlineclose) }
+		}
+		scanned := 0
+		counting := func(b []byte) int { scanned += len(b); return find(b) }
+		lineStop, nextStart := len(line), len(line)
+		for i := 0; i < len(line); i += len(unit) {
+			open := len(unit) - 2 // "$" or `\\(`
+			if findCloseCached(pc, key, line[i+open:], i+open, lineStop, counting) >= 0 {
+				t.Fatalf("%q: unexpected close", unit)
+			}
+			if findCloseCached(pc, key, next, nextStart, nextStart+len(next), counting) >= 0 {
+				t.Fatalf("%q: unexpected close on next line", unit)
+			}
+		}
+		assert.LessOrEqual(t, scanned, len(line)+len(next), "%q", unit)
+	}
+
+	// End to end, with a generous bound: the quadratic version took ~56s.
+	for _, unit := range []string{"$a ", `\\(a `, `\\[a `, "$a\n"} {
+		src := strings.Repeat(unit, (1<<20)/len(unit))
+		start := time.Now()
+		out := renderMathMarkdown(t, src)
+		assert.NotContains(t, out, "<math", "%q", unit)
+		assert.Less(t, time.Since(start), 10*time.Second, "%q", unit)
+	}
+}
+
+func TestMathCachedCloseSearchStillPairs(t *testing.T) {
+	for src, n := range map[string]int{
+		"$a $b$ $c$ $d":        2,
+		`\\(a \\(b\\) \\(c\\)`: 2,
+		"$a\nb$ $c\nd$":        2,
+		"$5 and $x$ and $y$":   2,
+		"$a \\$ b$":            1,
+	} {
+		assert.Equal(t, n, strings.Count(renderMathMarkdown(t, src), "<math"), src)
+	}
 }
 
 // FuzzMathRender checks that math input cannot inject script, event handlers

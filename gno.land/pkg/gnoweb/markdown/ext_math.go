@@ -92,7 +92,7 @@ func (p *texInlineRegionParser) Trigger() []byte {
 	return []byte{'\\', '$'}
 }
 
-func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ parser.Context) ast.Node {
+func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
 	line, seg := block.PeekLine()
 	var begin, end []byte
 	var flavor int
@@ -128,18 +128,19 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ pars
 			return nil
 		}
 	}
-	findEnd := func(b []byte) int { return bytes.Index(b, end) }
+	find := func(b []byte) int { return bytes.Index(b, end) }
 	if flavor == flavor_inline|delimeter_tex {
-		findEnd = findDollarClose
+		find = findDollarClose
 	}
+	key := inlineCloseKeys[string(end)]
 	start := seg.Start + len(begin)
-	stop := findEnd(line[len(begin):])
+	stop := findCloseCached(pc, key, line[len(begin):], start, seg.Stop, find)
 	if stop < 0 {
 		// could be a linebreak due to formatting issues
 		posLine, posSeg := block.Position()
 		block.AdvanceLine()
 		line, seg = block.PeekLine()
-		stop = findEnd(line)
+		stop = findCloseCached(pc, key, line, seg.Start-seg.Padding, seg.Stop, find)
 		if stop < 0 {
 			block.SetPosition(posLine, posSeg)
 			return nil
@@ -153,6 +154,57 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, _ pars
 	tex := string(block.Value(seg))
 	block.Advance(stop + len(end))
 	return &mathInlineNode{tex: tex, flavor: flavor}
+}
+
+var inlineCloseKeys = map[string]parser.ContextKey{
+	string(_dollarInline):  parser.NewContextKey(),
+	string(_dollarDisplay): parser.NewContextKey(),
+	string(_inlineclose):   parser.NewContextKey(),
+	string(_displayclose):  parser.NewContextKey(),
+}
+
+// closeScan records one search for a closing delimiter on the line that ends
+// at source offset stop: searching from offset from, the first close is at
+// offset found, or there is none before the line end if found is -1.
+type closeScan struct{ stop, from, found int }
+
+// findCloseCached returns find(b), where b is the part of a line starting at
+// source offset base and ending at stop, reusing an earlier search of the same
+// line when it answers the question. Whether a delimiter closes depends only
+// on the bytes around it, never on where the search started, so a search from
+// an earlier offset that found its close at or after base, or found none,
+// answers this one too. Without this, every unclosed opener rescans the rest
+// of its line (and the next one), which is quadratic on a line of "$a "
+// openers. Two lines are remembered: the opener's and the next one.
+func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, stop int, find func([]byte) int) int {
+	cache, _ := pc.Get(key).([2]closeScan)
+	slot := -1
+	for i, sc := range cache {
+		if sc.stop != stop {
+			continue
+		}
+		if sc.from <= base && (sc.found < 0 || sc.found >= base) {
+			if sc.found < 0 {
+				return -1
+			}
+			return sc.found - base
+		}
+		slot = i
+	}
+	if slot < 0 { // evict the entry for the earlier line
+		slot = 0
+		if cache[1].stop < cache[0].stop {
+			slot = 1
+		}
+	}
+	idx := find(b)
+	found := -1
+	if idx >= 0 {
+		found = base + idx
+	}
+	cache[slot] = closeScan{stop: stop, from: base, found: found}
+	pc.Set(key, cache)
+	return idx
 }
 
 // isEscaped reports whether b[i] is preceded by an odd number of backslashes.
