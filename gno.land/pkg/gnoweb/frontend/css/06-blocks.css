@@ -3892,9 +3892,14 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	gap: var(--g-space-2);
 	min-width: 0;
 
-	/* Lists run the side's width; a button keeps its own. */
+	/* Lists run the side's width; a button keeps its own, at the size of
+	   the text around it. */
 	& > .b-pkg-list {
 		align-self: stretch;
+	}
+
+	& > .b-btn {
+		font-size: var(--g-font-size-100);
 	}
 }
 
@@ -3941,6 +3946,8 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
    inside a page that scrolls hides rows and clips their tags. A long path
    wraps rather than pushing its kind out of view. */
 .b-depgraph__list {
+	font-size: var(--g-font-size-100);
+
 	& .b-pkg-list__link > :first-child {
 		min-width: 0;
 		overflow-wrap: anywhere;
@@ -3962,11 +3969,13 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	align-items: center;
 	justify-self: start;
 
+	/* The package as a tag-sized node, at the graph's text size. */
 	& span {
-		padding: var(--g-space-2) var(--g-space-3);
+		padding: var(--g-space-1) var(--g-space-2);
 		border: var(--s-border);
 		border-radius: var(--s-rounded-sm);
 		background-color: var(--s-color-bg-brand-weak);
+		font-size: var(--g-font-size-100);
 		font-weight: var(--g-font-semibold);
 	}
 
