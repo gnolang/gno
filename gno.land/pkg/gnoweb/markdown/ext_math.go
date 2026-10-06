@@ -59,6 +59,7 @@ const (
 	priorityMathInlineParser = 50
 	priorityMathBlockParser  = 90
 	priorityMathRenderer     = 100
+	priorityMathTransformer  = 100
 )
 
 type texInlineRegionParser struct{}
@@ -649,6 +650,9 @@ func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc pa
 // that ends math, so the block always closes. Should it not, or should it
 // hold no math, it is replaced by a paragraph of the same lines, which the
 // inline parsers then read as text, the way they would have without math.
+//
+// The lines are then trimmed like a paragraph's: the inline parsers read
+// them too, for the paragraph the block may become (see mathTransformer).
 func (p *texBlockRegionParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {
 	n, ok := node.(*mathBlockNode)
 	if !ok {
@@ -669,6 +673,12 @@ func (p *texBlockRegionParser) Close(node ast.Node, reader text.Reader, pc parse
 		tex.Write(v)
 	}
 	n.tex = tex.String()
+	for i := range lines.Len() {
+		seg := lines.At(i)
+		lines.Set(i, seg.TrimLeftSpace(reader.Source()))
+	}
+	last := lines.At(lines.Len() - 1)
+	lines.Set(lines.Len()-1, last.TrimRightSpace(reader.Source()))
 	if n.closed && !util.IsBlank([]byte(n.tex)) {
 		return
 	}
@@ -676,14 +686,56 @@ func (p *texBlockRegionParser) Close(node ast.Node, reader text.Reader, pc parse
 	para.SetLines(lines)
 	para.SetBlankPreviousLines(n.HasBlankPreviousLines())
 	n.Parent().ReplaceChild(n.Parent(), n, para)
-	paragraphParser.Close(para, reader, pc) // trim the lines like any paragraph
 }
-
-var paragraphParser = parser.NewParagraphParser()
 
 func (p *texBlockRegionParser) CanInterruptParagraph() bool { return true }
 
 func (p *texBlockRegionParser) CanAcceptIndentedLine() bool { return true }
+
+// mathTransformer finishes the math blocks once the inline parsers are done.
+//
+// A $$ block whose lines refer to a footnote defined in the document becomes
+// the paragraph it would be without math, like an inline expression (see
+// refersToFootnote): the block's lines are inline parsed as its children,
+// so the reference shows up as a footnote link there.
+type mathTransformer struct{}
+
+func (mathTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	var withFootnotes []*mathBlockNode
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering || n.Type() != ast.TypeBlock {
+			return ast.WalkContinue, nil
+		}
+		if n, ok := n.(*mathBlockNode); ok {
+			if hasFootnoteLink(n) {
+				withFootnotes = append(withFootnotes, n)
+			}
+			return ast.WalkSkipChildren, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	for _, n := range withFootnotes {
+		para := ast.NewParagraph()
+		para.SetLines(n.Lines())
+		para.SetBlankPreviousLines(n.HasBlankPreviousLines())
+		for c := n.FirstChild(); c != nil; c = n.FirstChild() {
+			para.AppendChild(para, c)
+		}
+		n.Parent().ReplaceChild(n.Parent(), n, para)
+	}
+}
+
+func hasFootnoteLink(n ast.Node) bool {
+	found := false
+	_ = ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if n.Kind() == extast.KindFootnoteLink {
+			found = true
+			return ast.WalkStop, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	return found
+}
 
 type MathRenderer struct{}
 
@@ -775,6 +827,9 @@ func (e *mathMLExtension) Extend(m goldmark.Markdown) {
 		),
 		parser.WithBlockParsers(
 			util.Prioritized(&texBlockRegionParser{starters: e.starters}, priorityMathBlockParser),
+		),
+		parser.WithASTTransformers(
+			util.Prioritized(mathTransformer{}, priorityMathTransformer),
 		),
 	)
 	m.Renderer().AddOptions(

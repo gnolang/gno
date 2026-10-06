@@ -732,7 +732,8 @@ func TestMathUnclosedBlockBecomesParagraph(t *testing.T) {
 
 // Dollars around a reference to a defined footnote are not math: the
 // reference would be swallowed, and goldmark drops a footnote nothing refers
-// to, so the note itself would vanish.
+// to, so the note itself would vanish. A display block holding one is the
+// paragraph it would be without math.
 func TestMathKeepsFootnoteReferences(t *testing.T) {
 	gm := goldmark.New(goldmark.WithExtensions(extension.Footnote, NewGnoExtension()))
 	render := func(src string) string {
@@ -745,6 +746,8 @@ func TestMathKeepsFootnoteReferences(t *testing.T) {
 		"It costs $$5[^1] or 4$$ here.\n\n[^1]: the note",
 		"a $x[^1]\ny$ b\n\n[^1]: the note",
 		"> [^1]: the note\n\n$a [^x] [^1]$",
+		"$$\nx[^1]\n$$\n\n[^1]: the note",
+		"> $$\n>   x [^1]\n> $$\n\n[^1]: the note",
 	} {
 		out := render(src)
 		assert.NotContains(t, out, "<math", "%q", src)
@@ -752,7 +755,7 @@ func TestMathKeepsFootnoteReferences(t *testing.T) {
 		assert.Contains(t, out, "the note", "%q", src)
 	}
 	// Brackets that are not a defined footnote stay math.
-	for _, src := range []string{"$[^1]$", "$x[^2]$\n\n[^1]: note", "$[0,1]^2$"} {
+	for _, src := range []string{"$[^1]$", "$x[^2]$\n\n[^1]: note", "$[0,1]^2$", "$$\nx[^2]\n$$\n\n[^1]: note"} {
 		assert.Contains(t, render(src), "<math", "%q", src)
 	}
 }
