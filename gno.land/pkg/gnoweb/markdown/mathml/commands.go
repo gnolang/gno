@@ -201,11 +201,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		n := NewMMLNode("mi")
 		n.Properties = prop
 		if t, ok := symbolTable[name]; ok {
-			if t.char != "" {
-				n.Text = t.char
-			} else {
-				n.Text = t.entity
-			}
+			n.Text = t.char
 		} else {
 			n.Text = name
 			n.SetAttr("lspace", "0.11111em")
@@ -366,11 +362,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 func makeSymbol(t symbol, tok Token, context parseContext) *MMLNode {
 	n := NewMMLNode()
 	n.Properties = t.properties
-	if t.char != "" {
-		n.Text = t.char
-	} else {
-		n.Text = t.entity
-	}
+	n.Text = t.char
 	if context&ctxTable > 0 && t.properties&(propHorzArrow|propVertArrow) > 0 {
 		n.SetTrue("stretchy")
 	}

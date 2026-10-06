@@ -89,7 +89,6 @@ type mathBlockNode struct {
 	ast.BaseBlock
 	flavor   int
 	tex      string
-	openTag  []byte
 	closeTag []byte
 	closed   bool // the closing delimiter was found
 	budget   *mathBudget
@@ -124,6 +123,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	line, seg := block.PeekLine()
 	var begin, end []byte
 	var flavor int
+	var key parser.ContextKey
 	if len(line) < len(_inlineopen) {
 		return nil
 	}
@@ -132,6 +132,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			flavor = flavor_display | delimeter_tex
 			begin = _dollarDisplay
 			end = _dollarDisplay
+			key = closeDollarDisplayKey
 		} else {
 			// Pandoc rule: the opening $ must be followed by a non-space,
 			// so prices such as "$ 5" are not math.
@@ -141,6 +142,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			flavor = flavor_inline | delimeter_tex
 			begin = _dollarInline
 			end = _dollarInline
+			key = closeDollarInlineKey
 		}
 	} else {
 		switch string(line[:3]) {
@@ -148,10 +150,12 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			flavor = flavor_inline | delimeter_ams
 			begin = _inlineopen
 			end = _inlineclose
+			key = closeInlineKey
 		case string(_displayopen):
 			flavor = flavor_display | delimeter_ams
 			begin = _displayopen
 			end = _displayclose
+			key = closeDisplayKey
 		default:
 			return nil
 		}
@@ -160,7 +164,6 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	if flavor == flavor_inline|delimeter_tex {
 		find = findDollarClose
 	}
-	key := inlineCloseKeys[string(end)]
 	start := seg.Start + len(begin)
 	stop := findCloseCached(pc, key, line[len(begin):], start, seg.Stop, find)
 	if stop < 0 {
@@ -184,12 +187,12 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	return &mathInlineNode{tex: tex, flavor: flavor, budget: mathBudgetFrom(pc)}
 }
 
-var inlineCloseKeys = map[string]parser.ContextKey{
-	string(_dollarInline):  parser.NewContextKey(),
-	string(_dollarDisplay): parser.NewContextKey(),
-	string(_inlineclose):   parser.NewContextKey(),
-	string(_displayclose):  parser.NewContextKey(),
-}
+var (
+	closeDollarInlineKey  = parser.NewContextKey()
+	closeDollarDisplayKey = parser.NewContextKey()
+	closeInlineKey        = parser.NewContextKey()
+	closeDisplayKey       = parser.NewContextKey()
+)
 
 // closeScan records one search for a closing delimiter on the line that ends
 // at source offset stop: searching from offset from, the first close is at
@@ -205,7 +208,11 @@ type closeScan struct{ stop, from, found int }
 // of its line (and the next one), which is quadratic on a line of "$a "
 // openers. Two lines are remembered: the opener's and the next one.
 func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, stop int, find func([]byte) int) int {
-	cache, _ := pc.Get(key).([2]closeScan)
+	cache, _ := pc.Get(key).(*[2]closeScan)
+	if cache == nil {
+		cache = new([2]closeScan)
+		pc.Set(key, cache)
+	}
 	slot := -1
 	for i, sc := range cache {
 		if sc.stop != stop {
@@ -231,7 +238,6 @@ func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, s
 		found = base + idx
 	}
 	cache[slot] = closeScan{stop: stop, from: base, found: found}
-	pc.Set(key, cache)
 	return idx
 }
 
@@ -299,7 +305,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	}
 
 	reader.Advance(len(open))
-	node := &mathBlockNode{flavor: flavor, openTag: open, closeTag: closeTag, budget: mathBudgetFrom(pc)}
+	node := &mathBlockNode{flavor: flavor, closeTag: closeTag, budget: mathBudgetFrom(pc)}
 	_, seg := reader.PeekLine()
 	node.Lines().Append(seg)
 	return node, parser.NoChildren
@@ -345,10 +351,11 @@ func endsMath(line []byte) bool {
 	if util.IsBlank(line) {
 		return true
 	}
-	trimmed := util.TrimLeftSpace(line)
-	if len(line)-len(trimmed) > 3 {
+	width, pos := util.IndentWidth(line, 0)
+	if width > 3 {
 		return false
 	}
+	trimmed := line[pos:]
 	if bytes.HasPrefix(trimmed, []byte("```")) || bytes.HasPrefix(trimmed, []byte("~~~")) {
 		return true
 	}
@@ -487,7 +494,12 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 			// The opener never got its closing line (its container ended
 			// first): render the source as plain text.
 			w.WriteString("<p>")
-			w.WriteString(html.EscapeString(string(t.openTag) + t.tex))
+			open := _dollarDisplay
+			if t.flavor&delimeter_ams > 0 {
+				open = _displayopen
+			}
+			w.Write(open)
+			w.WriteString(html.EscapeString(t.tex))
 			w.WriteString("</p>\n")
 			return ast.WalkSkipChildren, nil
 		}
@@ -498,9 +510,6 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 		return ast.WalkContinue, nil
 	}
 	inline := flavor&flavor_inline > 0
-	if budget == nil {
-		budget = &mathBudget{left: MaxMathPageOutput}
-	}
 
 	if len(tex) <= MaxMathInputLen && budget.left > 0 {
 		// The converter keeps per-expression state, so it must not be shared

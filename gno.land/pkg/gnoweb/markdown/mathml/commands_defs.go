@@ -1,6 +1,7 @@
 package mathml
 
 import (
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -26,8 +27,9 @@ func safeRaise(s string) (string, bool) {
 	if m == nil {
 		return "", false
 	}
-	v, err := strconv.ParseFloat(m[1], 64)
-	if err != nil || v > maxRaise[m[2]] || v < -maxRaise[m[2]] {
+	// The regexp only admits decimals, so ParseFloat cannot fail.
+	v, _ := strconv.ParseFloat(m[1], 64)
+	if math.Abs(v) > maxRaise[m[2]] {
 		return "", false
 	}
 	if m[2] == "" {

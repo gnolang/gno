@@ -311,7 +311,6 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 				for c, col := range row.Children {
 					if col != nil && col.Tag == "mtd" && !isEmptyCell(col) {
 						col.Attrib["columnalign"] = flipflop[c%2]
-						col.CSS["text-align"] = flipflop[c%2]
 					}
 				}
 			}

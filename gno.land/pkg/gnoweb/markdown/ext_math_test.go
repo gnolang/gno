@@ -180,21 +180,23 @@ func TestMathOutputIsBounded(t *testing.T) {
 func TestMathUnclosedInlineOpenersAreLinear(t *testing.T) {
 	// Deterministic part: count the bytes the closing-delimiter search reads
 	// when every opener on a line is unclosed, as the inline parser calls it.
-	for _, unit := range []string{"$a ", `\\(a `} {
+	for _, tc := range []struct {
+		unit string
+		open int
+		key  parser.ContextKey
+		find func([]byte) int
+	}{
+		{"$a ", 1, closeDollarInlineKey, findDollarClose},
+		{`\\(a `, 3, closeInlineKey, func(b []byte) int { return bytes.Index(b, _inlineclose) }},
+	} {
+		unit, open, key := tc.unit, tc.open, tc.key
 		line := []byte(strings.Repeat(unit, 1<<12))
 		next := []byte("no closer on the next line either\n")
 		pc := parser.NewContext()
-		key := inlineCloseKeys["$"]
-		find := findDollarClose
-		if unit != "$a " {
-			key = inlineCloseKeys[string(_inlineclose)]
-			find = func(b []byte) int { return bytes.Index(b, _inlineclose) }
-		}
 		scanned := 0
-		counting := func(b []byte) int { scanned += len(b); return find(b) }
+		counting := func(b []byte) int { scanned += len(b); return tc.find(b) }
 		lineStop, nextStart := len(line), len(line)
 		for i := 0; i < len(line); i += len(unit) {
-			open := len(unit) - 2 // "$" or `\\(`
 			if findCloseCached(pc, key, line[i+open:], i+open, lineStop, counting) >= 0 {
 				t.Fatalf("%q: unexpected close", unit)
 			}
