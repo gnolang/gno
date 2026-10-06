@@ -1,6 +1,40 @@
 package mathml
 
-import "unicode"
+import (
+	"regexp"
+	"strconv"
+	"strings"
+	"unicode"
+)
+
+// maxCellSpan caps \multirow and \multicolumn spans. A span sets the
+// minimum size of a stretched arrow, so an unbounded one draws a glyph
+// thousands of em tall over the rest of the page.
+const maxCellSpan = 64
+
+// raiseLength matches a \raisebox length: a number and an optional unit.
+var raiseLength = regexp.MustCompile(`^(-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+))(em|ex|pt|px)?$`)
+
+// maxRaise is the largest \raisebox shift accepted, per unit. Larger shifts
+// would let math move over the page around it, so they are ignored.
+var maxRaise = map[string]float64{"": 2, "em": 2, "ex": 4, "pt": 20, "px": 20}
+
+// safeRaise returns s as a voffset value if it is a small length.
+func safeRaise(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	m := raiseLength.FindStringSubmatch(s)
+	if m == nil {
+		return "", false
+	}
+	v, err := strconv.ParseFloat(m[1], 64)
+	if err != nil || v > maxRaise[m[2]] || v < -maxRaise[m[2]] {
+		return "", false
+	}
+	if m[2] == "" {
+		return m[1] + "em", true
+	}
+	return s, true
+}
 
 func cmd_multirow(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
 	if len(args) < 3 {
@@ -12,8 +46,11 @@ func cmd_multirow(converter *MathMLConverter, name string, star bool, ctx parseC
 	} else {
 		attr = "columnspan"
 	}
-	n := converter.ParseTex(args[2], ctx)          // #nosec G602 - bounds checked above
-	n.SetAttr(attr, StringifyTokens(args[0].Expr)) // #nosec G602 - bounds checked above
+	n := converter.ParseTex(args[2], ctx) // #nosec G602 - bounds checked above
+	span := strings.TrimSpace(StringifyTokens(args[0].Expr))
+	if v, err := strconv.Atoi(span); err == nil && v >= 1 && v <= maxCellSpan {
+		n.SetAttr(attr, strconv.Itoa(v))
+	}
 	return n
 }
 
@@ -142,7 +179,10 @@ func cmd_raisebox(converter *MathMLConverter, name string, star bool, ctx parseC
 	if len(args) < 2 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	n := NewMMLNode("mpadded").SetAttr("voffset", StringifyTokens(args[0].Expr))
+	n := NewMMLNode("mpadded")
+	if v, ok := safeRaise(StringifyTokens(args[0].Expr)); ok {
+		n.SetAttr("voffset", v)
+	}
 	converter.ParseTex(args[1], ctx, n)
 	return n
 }

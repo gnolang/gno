@@ -62,3 +62,51 @@ func TestMMLNodeWriteSortsCSS(t *testing.T) {
 		assert.Equal(t, `<mo style="border-bottom:1px;color:red;padding:0;">lim</mo>`, b.String())
 	}
 }
+
+// \raisebox shifts content without moving the box around it, so a large
+// shift would let math draw over the page around it.
+func TestRaiseboxShiftIsBounded(t *testing.T) {
+	for arg, want := range map[string]string{
+		"1em":       `voffset="1em"`,
+		"-0.5ex":    `voffset="-0.5ex"`,
+		"2pt":       `voffset="2pt"`,
+		"1":         `voffset="1em"`,
+		"-1000em":   "",
+		"99999px":   "",
+		"1em;x":     "",
+		"calc(1em)": "",
+		"1e9em":     "",
+		"1in":       "",
+	} {
+		out, err := NewMathMLConverter().ConvertInline(`\raisebox{` + arg + `}{x}`)
+		assert.NoError(t, err)
+		if want == "" {
+			assert.NotContains(t, out, "voffset", arg)
+		} else {
+			assert.Contains(t, out, want, arg)
+		}
+		assert.Contains(t, out, "<mi>x</mi>", arg)
+	}
+}
+
+func TestCellSpanIsBounded(t *testing.T) {
+	for arg, want := range map[string]string{
+		"2":     `rowspan="2"`,
+		" 3 ":   `rowspan="3"`,
+		"64":    `rowspan="64"`,
+		"65":    "",
+		"30000": "",
+		"0":     "",
+		"-1":    "",
+		"2x":    "",
+	} {
+		out, err := NewMathMLConverter().ConvertDisplay(`\begin{array}{cc}\multirow{` + arg + `}{*}{\uparrow} & a \\ & b\end{array}`)
+		assert.NoError(t, err)
+		if want == "" {
+			assert.NotContains(t, out, "rowspan", arg)
+			assert.NotContains(t, out, "minsize", arg)
+		} else {
+			assert.Contains(t, out, want, arg)
+		}
+	}
+}
