@@ -10,6 +10,7 @@ Content-Security-Policy drops inline styles. Every tile is a link named by its
 around it, header and rail included, is the directory view's.
 =================================================================================== */}}
 {{ define "chainmap/figure" }}
+<div class="b-map-figure" data-controller="map">
 <div class="b-map-frame">
   <svg class="b-map" viewBox="0 0 960 600" role="group" aria-label="Packages under {{ .Root }}">
     {{- range .Groups }}
@@ -28,7 +29,12 @@ around it, header and rail included, is the directory view's.
     {{- end }}
   </svg>
 </div>
+{{/* Filled by the map controller with the tile under the pointer or the
+     keyboard focus; hidden without JavaScript, where each tile's tooltip says
+     the same. */}}
+<p class="b-map-status" data-map-target="status" aria-live="polite" hidden></p>
 <p class="b-map-scroll-hint">Scroll sideways to see the whole map.</p>
+</div>
 {{ end }}
 
 
@@ -47,31 +53,39 @@ UI - Key: what the map measures and, for activity, what it could not. It sits
 in the listing's rail.
 =================================================================================== */}}
 {{ define "chainmap/key" }}
-<section class="b-map-legend" aria-labelledby="map-key-heading">
-  <h3 id="map-key-heading" class="b-sidebar-heading">Map key</h3>
-  <p>Area counts packages. Each box groups a path segment; select its name to map it.</p>
+<dl class="b-pkg-meta" aria-label="Map key">
+  <dt class="section b-sidebar-heading">Map key</dt>
+  {{ with .UpURL }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}">Map of {{ $.UpPath }}</a></dd></div>{{ end }}
+  <div class="row"><dt class="label">Area</dt><dd class="value">One tile per package</dd></div>
+  <div class="row"><dt class="label">Boxes</dt><dd class="value">Path segments; select a name to zoom</dd></div>
   {{ with .Window }}
-  <p class="b-map-legend__row">
-    <span class="b-tag b-tag--indexer">indexer</span>
-    <span class="b-map-legend__scale" aria-hidden="true">
-      <span>no calls</span>
-      <span class="b-map-legend__swatch b-map__tile--l0"></span><span class="b-map-legend__swatch b-map__tile--l1"></span><span class="b-map-legend__swatch b-map__tile--l2"></span><span class="b-map-legend__swatch b-map__tile--l3"></span><span class="b-map-legend__swatch b-map__tile--l4"></span>
-      <span>most calls</span>
-    </span>
-    <span>Successful calls from block {{ .From }} ({{ .Since.UTC.Format "Jan 2, 15:04 UTC" }}) to {{ .To }}, on a log scale against the busiest realm shown.</span>
-  </p>
+  <div class="row"><dt class="label">Colour</dt><dd class="value"><span class="b-tag b-tag--indexer">indexer</span> successful calls, 7 days</dd></div>
+  <div class="row b-map-scale-row" aria-hidden="true"><span>none</span><span class="b-map-scale"></span><span>most</span></div>
+  <div class="row"><dt class="label">Window</dt><dd class="value">{{ .Since.UTC.Format "Jan 2" }} → now · blocks {{ .From }}–{{ .To }}</dd></div>
   {{ if .Partial }}
-  <p>Part of this window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</p>
+  <div class="row"><dd class="value b-map-key-note">Part of the window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</dd></div>
   {{ end }}
   {{ else }}
   {{ if eq .Activity "pending" }}
-  <p>Call activity is still being counted by the indexer. Reload in a moment to see it.</p>
+  <div class="row"><dt class="label">Colour</dt><dd class="value">Calls are still being counted. Reload in a moment.</dd></div>
   {{ else if eq .Activity "unavailable" }}
-  <p>Call activity is unavailable: the indexer could not be read.</p>
+  <div class="row"><dt class="label">Colour</dt><dd class="value">Calls unavailable: the indexer could not be read.</dd></div>
   {{ else if eq .Activity "not-called" }}
-  <p>Pure packages are not called directly, so this map shows no call activity.</p>
+  <div class="row"><dt class="label">Colour</dt><dd class="value">None: nothing calls a pure package.</dd></div>
+  {{ else }}
+  <div class="row"><dt class="label">Colour</dt><dd class="value">Tells neighbouring boxes apart</dd></div>
   {{ end }}
   {{ end }}
-  {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
+</dl>
+{{ with .Busiest }}
+<section aria-labelledby="map-busiest-heading">
+  <h3 id="map-busiest-heading" class="b-sidebar-heading">Most called · 7 days</h3>
+  <ol class="b-pkg-list b-map-busiest">
+    {{ range . }}
+    <li class="b-pkg-list__item"><a class="b-pkg-list__link" href="{{ .Path }}"><span class="u-font-mono">{{ .Path }}</span><span class="b-tag--tertiary">{{ .Calls }}</span></a></li>
+    {{ end }}
+  </ol>
 </section>
+{{ end }}
+{{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
 {{ end }}

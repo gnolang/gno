@@ -115,6 +115,16 @@
 	}
 }
 
+/* The box under the pointer is outlined, so a tile reads with its folder. */
+:is(.b-map__group, .b-map__sub-frame) {
+	transition: stroke 120ms ease;
+}
+
+.b-map__group:hover > .b-map__group-frame {
+	stroke: var(--s-color-border-focus);
+	stroke-width: 2;
+}
+
 /* Frames draw on top of everything they hold, and never take a click. */
 :is(.b-map__group-frame, .b-map__sub-frame) {
 	fill: none;
@@ -195,6 +205,24 @@
 	}
 }
 
+/* The tile under the pointer, named in full below the map. */
+.b-map-figure {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+	min-width: 0;
+}
+
+.b-map-status {
+	min-height: 1.5em;
+	overflow: hidden;
+	color: var(--s-color-text-secondary);
+	font-family: var(--g-font-family-mono);
+	font-size: var(--g-font-size-50);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 /* Only where the map scrolls: below --md it keeps its width. */
 .b-map-scroll-hint {
 	margin-block-start: var(--g-space-2);
@@ -207,31 +235,37 @@
 }
 
 /* ===== KEY (in the listing rail) ===== */
-.b-map-legend {
-	display: flex;
-	flex-direction: column;
-	gap: var(--g-space-2);
-	color: var(--s-color-text-secondary);
+/* The key is the overview's meta card (b-pkg-meta); only the colour scale and
+   the busiest list need rules of their own. */
+.b-map-scale-row {
+	align-items: center;
+	color: var(--s-color-text-tertiary);
 	font-size: var(--g-font-size-50);
 }
 
-.b-map-legend__row {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--g-space-2) var(--g-space-3);
-}
-
-.b-map-legend__scale {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--g-space-1);
-}
-
-.b-map-legend__swatch {
-	display: inline-block;
-	width: 1.25em;
-	height: 0.75em;
+.b-map-scale {
+	flex: 1;
+	height: 0.5rem;
 	border-radius: var(--s-rounded-sm);
-	background-color: var(--map-tile);
+	background: linear-gradient(
+		90deg,
+		var(--s-color-bg-surface-secondary),
+		var(--s-color-bg-success-action)
+	);
+}
+
+.b-map-key-note {
+	color: var(--s-color-text-secondary);
+	text-align: start;
+}
+
+.b-map-busiest {
+	font-size: var(--g-font-size-90);
+
+	& .b-pkg-list__link > :first-child {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 }

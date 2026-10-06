@@ -77,7 +77,7 @@ func TestMapColoursRealmsByCalls(t *testing.T) {
 		"/r/a/busy · 100 calls by 7 accounts",
 		"/r/a/some · 3 calls by 1 account",
 		"/r/a/idle · no calls",
-		"from block 10",
+		"blocks 10–20",
 		"last indexed block 20",
 	} {
 		if !strings.Contains(out, want) {
@@ -113,7 +113,7 @@ func TestMapOfPurePackagesExplainsTheMissingActivity(t *testing.T) {
 
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
 	out := render(t, h, Listing{Path: "/p/nt", Paths: []string{"/p/nt/avl/v0"}})
-	if !strings.Contains(out, "Pure packages are not called directly") {
+	if !strings.Contains(out, "nothing calls a pure package") {
 		t.Error("a pure-package map must say why it shows no activity")
 	}
 }
@@ -144,7 +144,43 @@ func TestMapSaysUnavailableNotPendingForAFailedRefresh(t *testing.T) {
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
 	h.activity.store("activity", nil, context.DeadlineExceeded)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/x"}})
-	if strings.Contains(out, "still being counted") || !strings.Contains(out, "Call activity is unavailable") {
+	if strings.Contains(out, "still being counted") || !strings.Contains(out, "Calls unavailable") {
 		t.Error("a failed refresh must read as unavailable")
+	}
+}
+
+// The key lists the busiest realms on the map, most called first, and none
+// that nobody called.
+func TestMapKeyListsTheBusiestRealms(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
+	h.activity.store("activity", &Activity{
+		Calls: map[string]int{"gno.land/r/a/busy": 100, "gno.land/r/a/some": 3},
+		From:  10, To: 20, Since: time.Unix(0, 0),
+	}, nil)
+	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/busy", "/r/a/some", "/r/a/idle"}})
+	busy, some := strings.Index(out, `href="/r/a/busy"><span`), strings.Index(out, `href="/r/a/some"><span`)
+	if busy < 0 || some < 0 || busy > some {
+		t.Error("the busiest list must hold busy then some")
+	}
+	if strings.Contains(out, `href="/r/a/idle"><span`) {
+		t.Error("a realm nobody called is not among the busiest")
+	}
+}
+
+func TestUpURL(t *testing.T) {
+	t.Parallel()
+
+	for root, want := range map[string]string{
+		"/r/":        "",
+		"/p/":        "",
+		"/r/moul/":   "/r/$map",
+		"/r/moul/x/": "/r/moul/$map",
+		"/p/nt/avl/": "/p/nt/$map",
+	} {
+		if got := upURL(root); got != want {
+			t.Errorf("upURL(%q) = %q, want %q", root, got, want)
+		}
 	}
 }

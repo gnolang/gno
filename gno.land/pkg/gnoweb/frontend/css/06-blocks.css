@@ -3273,8 +3273,19 @@ main.is-dev-mode .b-toc a {
 /* ===== PACKAGE OVERVIEW ===== */
 /* Modeled on pkg.go.dev layout, using CUBE CSS blocks with semantic tokens. */
 
-/* `span 99` (not `1 / -1`) so the sidebar spans implicit rows too. */
-main.is-dev-mode > section:has(.c-overview-view) {
+/* A listing's rail opens on its <nav>, whose top margin stood in for the
+   header's when rails started at the top of the page. The rail now starts
+   level with the header, so the margin would push its title below the page's. */
+main.is-dev-mode > section:has(.c-listing-view) .b-sidebar .inner > nav {
+	@media (--lg) {
+		margin-block-start: 0;
+		padding-block-start: 0;
+	}
+}
+
+/* `span 99` (not `1 / -1`) so the sidebar spans implicit rows too. A directory
+   listing has the same header-and-rail layout, so it shares these rules. */
+main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	.b-content-h1 {
 		display: inline-flex;
 		align-items: center;
@@ -3812,6 +3823,19 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	background: var(--s-color-bg-info-weak);
 }
 
+/* ===== LISTING RAIL (ui/listing_rail) ===== */
+/* One rhythm between the rail's parts: the meta cards it reuses carry the
+   overview's bottom margin, which here would space them unevenly. */
+.b-listing-rail {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-6);
+
+	& > .b-pkg-meta {
+		margin-block-end: 0;
+	}
+}
+
 /* ===== DEPENDENCIES PAGE ===== */
 .b-deps-view {
 	display: flex;
@@ -3909,12 +3933,10 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	font-weight: var(--g-font-semibold);
 }
 
-/* Long sides scroll in place rather than pushing the package off screen, and a
-   long path wraps rather than pushing its kind out of view. */
+/* A long side runs its full length, the page scrolling it: a box scrolling
+   inside a page that scrolls hides rows and clips their tags. A long path
+   wraps rather than pushing its kind out of view. */
 .b-depgraph__list {
-	max-height: 24rem;
-	overflow-y: auto;
-
 	& .b-pkg-list__link > :first-child {
 		min-width: 0;
 		overflow-wrap: anywhere;

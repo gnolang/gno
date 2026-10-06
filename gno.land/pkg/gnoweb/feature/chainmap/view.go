@@ -1,10 +1,13 @@
 package chainmap
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"math"
+	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -38,7 +41,10 @@ const (
 // MapData is the render payload for templates/map.html.
 type MapData struct {
 	// Root is the listing's root, ending with a slash.
-	Root   string
+	Root string
+	// UpURL is the map one level up, the way back out of a zoom; empty at a
+	// kind's root, /r/ or /p/.
+	UpURL  string
 	Groups []*Group
 
 	// Activity is empty when no indexer is configured: the legend then says
@@ -49,7 +55,13 @@ type MapData struct {
 
 	// Indexer is the provenance footer, set whenever the indexer answered.
 	Indexer *components.IndexerStatus
+
+	// Busiest are the most called realms on the map, set with activity.
+	Busiest []Tile
 }
+
+// busiestCount is how many of the most called realms the key lists.
+const busiestCount = 5
 
 // MinPackages is the smallest listing worth a map: below it a map shows
 // nothing the list does not, so the listing offers no map at all.
@@ -59,13 +71,16 @@ const MinPackages = 10
 // listing's rail. The page around them is the directory view's own.
 func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
 	root := strings.TrimSuffix(l.Path, "/") + "/"
-	data := &MapData{Root: root, Groups: buildGroups(root, l.Paths)}
+	data := &MapData{Root: root, UpURL: upURL(root), Groups: buildGroups(root, l.Paths)}
 	layout(data.Groups)
 
 	if h.activity != nil {
 		h.addActivity(ctx, data)
 	}
 	data.eachTile(func(t *Tile) { t.Title = tileTitle(*t, *data) })
+	if data.Activity == ActivityShown {
+		data.Busiest = busiest(data, busiestCount)
+	}
 	return components.MapParts{
 		Figure: &pageComponent{name: "chainmap/figure", data: data},
 		Key:    &pageComponent{name: "chainmap/key", data: data},
@@ -113,6 +128,37 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 			t.ShadeClass = unknownShadeClass
 		}
 	})
+}
+
+// UpPath is what the map one level up shows.
+func (d *MapData) UpPath() string { return strings.TrimSuffix(d.UpURL, "$map") }
+
+// upURL is the map of the path above root, or "" when root is a kind's own
+// root such as /r/.
+func upURL(root string) string {
+	parent := path.Dir(strings.TrimSuffix(root, "/"))
+	if strings.Count(parent, "/") < 1 || parent == "/" {
+		return ""
+	}
+	return parent + "/$map"
+}
+
+// busiest returns up to n tiles with the most calls, most first; none without
+// calls.
+func busiest(data *MapData, n int) []Tile {
+	var top []Tile
+	data.eachTile(func(t *Tile) {
+		if t.Calls > 0 {
+			top = append(top, *t)
+		}
+	})
+	slices.SortFunc(top, func(a, b Tile) int {
+		if c := cmp.Compare(b.Calls, a.Calls); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.Path, b.Path)
+	})
+	return top[:min(n, len(top))]
 }
 
 // eachTile calls fn on every tile of the map.

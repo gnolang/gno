@@ -26,7 +26,19 @@ type MapParts struct {
 
 // listingRail is the payload of ui/listing_rail.
 type listingRail struct {
-	Key Component
+	Packages, Folders int
+	Key               Component
+}
+
+// countFolders counts the first path segments below root among paths: the
+// boxes a map of them draws, and what a reader scans a list for.
+func countFolders(root string, paths []string) int {
+	seen := make(map[string]struct{})
+	for _, p := range paths {
+		key, _, _ := strings.Cut(strings.TrimPrefix(p, root), "/")
+		seen[key] = struct{}{}
+	}
+	return len(seen)
 }
 
 // ListingHeader heads a directory listing in either rendering, list or map.
@@ -108,7 +120,7 @@ func ExplorerView(pkgPath string, paths []string, truncated bool, m *MapParts) *
 		Mode:        ViewModeExplorer,
 		Header:      NewListingHeader(pkgPath, len(paths), truncated),
 	}
-	rail := listingRail{}
+	rail := listingRail{Packages: len(paths), Folders: countFolders(data.Header.Path, paths)}
 	if m != nil {
 		data.Map, rail.Key = m.Figure, m.Key
 	}
