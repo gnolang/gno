@@ -828,3 +828,27 @@ func TestMathFenceFallsBackToCode(t *testing.T) {
 		assert.Equal(t, 200-converted, strings.Count(out, `<pre><code class="language-math">`))
 	})
 }
+
+// Math shows its source, delimiters included, where gnoweb reads a node's
+// text instead of rendering it: the table of contents and image alt text,
+// which read as without math.
+func TestMathTextIsItsSource(t *testing.T) {
+	src := []byte("## Energy $E=mc^2$ law\n\n## $E=mc^2$\n\n## a \\\\(x\\\\) b $$y$$\n")
+	gm := goldmark.New(goldmark.WithExtensions(NewGnoExtension()), goldmark.WithParserOptions(parser.WithAutoHeadingID()))
+	doc := gm.Parser().Parse(text.NewReader(src))
+	toc, err := TocInspect(doc, src, TocOptions{MaxDepth: 6})
+	require.NoError(t, err)
+	var titles []string
+	for _, item := range toc.Items {
+		titles = append(titles, item.Title)
+	}
+	assert.Equal(t, []string{"Energy $E=mc^2$ law", "$E=mc^2$", `a \(x\) b $$y$$`}, titles)
+
+	for src, want := range map[string]string{
+		"![a $x$ b](u)":           `alt="a $x$ b"`,
+		"![$a<b$ \\\\(c\\\\)](u)": `alt="$a&lt;b$ \(c\)"`,
+		"![a $x\nb$ c](u)":        "alt=\"a $x\nb$ c\"",
+	} {
+		assert.Contains(t, renderMathMarkdown(t, src), want, "%q", src)
+	}
+}

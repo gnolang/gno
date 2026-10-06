@@ -218,7 +218,12 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 	}
 	block.Advance(stop + len(end))
 	value := string(head) + string(tail)
-	return &mathInlineNode{mathExpr: mathExpr{tex: value, flavor: flavor, budget: mathBudgetFrom(pc, len(block.Source()))}}
+	node := &mathInlineNode{mathExpr: mathExpr{tex: value, flavor: flavor, budget: mathBudgetFrom(pc, len(block.Source()))}}
+	// The expression's source, delimiters included, is its text for
+	// whatever reads a node's text rather than rendering it: a heading's
+	// table of contents entry, an image's alt text. The renderer skips it.
+	node.AppendChild(node, ast.NewString([]byte(string(begin)+value+string(end))))
+	return node
 }
 
 var footnoteLabelsKey = parser.NewContextKey()
