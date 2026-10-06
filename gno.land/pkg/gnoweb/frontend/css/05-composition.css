@@ -403,6 +403,12 @@
 		cursor: pointer;
 	}
 
+	/* Display math left unconverted, shown as its source. Inside a
+	   paragraph it is a <span>, which must still break the line. */
+	.math-display {
+		display: block;
+	}
+
 	math {
 		font-family: var(--g-font-family-mono);
 		font-size: var(--g-font-size-300);

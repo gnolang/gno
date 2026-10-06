@@ -159,6 +159,26 @@ func TestMathDisplayBlockClosing(t *testing.T) {
 	}
 }
 
+// Display math that fails to convert falls back to its escaped source. Inside
+// a paragraph the fallback must be phrasing content: a <div> there is invalid
+// HTML, and the browser closes the paragraph before it.
+func TestMathDisplayFallbackElement(t *testing.T) {
+	for _, c := range []struct{ name, src, want string }{
+		{"dollars in a paragraph", "text $$\\begin{matrix}$$ text", `<p>text <span class="math-display">\begin{matrix}</span> text</p>`},
+		{"brackets in a paragraph", "text \\\\[\\begin{matrix}\\\\] text", `<p>text <span class="math-display">\begin{matrix}</span> text</p>`},
+		{"alone on its line", "$$\\begin{matrix}$$", `<p><span class="math-display">\begin{matrix}</span></p>`},
+		{"block", "$$\n\\begin{matrix}\n$$\n", "<div class=\"math-display\">\n\\begin{matrix}\n</div>"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			out := renderMathMarkdown(t, c.src)
+			assert.Contains(t, out, c.want)
+			if strings.HasPrefix(out, "<p>") {
+				assert.NotContains(t, out, "<div")
+			}
+		})
+	}
+}
+
 // Code spans and fences keep their $ literally.
 func TestMathNotInCode(t *testing.T) {
 	for _, src := range []string{

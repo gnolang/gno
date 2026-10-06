@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"fmt"
 	"html"
 	"reflect"
 	"strings"
@@ -613,16 +614,20 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 		}
 	}
 
-	// Fallback to the escaped raw LaTeX if conversion fails.
+	// Fallback to the escaped raw LaTeX if conversion fails. An inline
+	// node sits inside a paragraph, where a <div> is invalid (the browser
+	// closes the paragraph before it), so display math written inline
+	// ("text $$x$$ text") falls back to a <span>, which the stylesheet
+	// shows as a block like the <div>.
+	class := "math-display"
 	if inline {
-		w.WriteString(`<span class="math-inline">`)
-		w.WriteString(html.EscapeString(tex))
-		w.WriteString(`</span>`)
-	} else {
-		w.WriteString(`<div class="math-display">`)
-		w.WriteString(html.EscapeString(tex))
-		w.WriteString(`</div>`)
+		class = "math-inline"
 	}
+	tag := "div"
+	if node.Kind() == KindMathInline {
+		tag = "span"
+	}
+	fmt.Fprintf(w, `<%s class="%s">%s</%s>`, tag, class, html.EscapeString(tex), tag)
 	return ast.WalkSkipChildren, nil
 }
 
