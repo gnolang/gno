@@ -65,11 +65,12 @@ in the listing's rail.
 <h2 id="map-key-heading" class="b-sidebar-heading">Map key</h2>
 <dl class="b-pkg-meta">
   {{ with .Up }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}$map">Map of {{ . }}</a></dd></div>{{ end }}
-  <div class="row"><dt class="label">Area</dt><dd class="value">One tile per package</dd></div>
-  <div class="row"><dt class="label">Boxes</dt><dd class="value">Path segments; select a name to zoom</dd></div>
+  <div class="row"><dt class="label">Tile</dt><dd class="value">One package</dd></div>
+  <div class="row"><dt class="label">Box</dt><dd class="value" title="Select a box's name to open its map.">A folder, zoomable</dd></div>
   {{ if .Window }}{{ with .Window }}
-  <div class="row"><dt class="label">Color</dt><dd class="value"><span class="b-tag b-tag--indexer">indexer</span> Successful calls, 7 days</dd></div>
-  <div class="row"><dt class="label">Window</dt><dd class="value">{{ .Since.UTC.Format "Jan 2" }} → now · blocks {{ .From }}–{{ .To }}</dd></div>
+  <div class="row"><dt class="label">Color</dt><dd class="value" title="Successful calls over the last 7 days, counted by the indexer.">Calls <span class="b-tag b-tag--indexer">indexer</span></dd></div>
+  <div class="row"><dt class="label">Since</dt><dd class="value">{{ .Since.UTC.Format "Jan 2" }}, 7 days</dd></div>
+  <div class="row"><dt class="label">Blocks</dt><dd class="value">{{ .From }}–{{ .To }}</dd></div>
   {{ end }}{{ else if eq .Activity "pending" }}
   <div class="row"><dt class="label">Color</dt><dd class="value">Calls are still being counted. <a href="{{ .Root }}$map">Reload</a></dd></div>
   {{ else if eq .Activity "unavailable" }}

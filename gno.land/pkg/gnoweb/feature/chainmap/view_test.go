@@ -79,7 +79,7 @@ func TestMapColoursRealmsByCalls(t *testing.T) {
 		"/r/a/busy · 100 calls by 7 accounts",
 		"/r/a/some · 3 calls by 1 account",
 		"/r/a/idle · no calls",
-		"blocks 10–20",
+		">10–20<",
 		"last indexed block 20",
 	} {
 		if !strings.Contains(out, want) {
