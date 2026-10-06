@@ -2,6 +2,7 @@ package chainmap
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -127,7 +128,7 @@ func TestImportersLimitsOnlyCacheMisses(t *testing.T) {
 	lim := &denyAll{}
 	h := newImporterHandler(f, fakeImports{}, lim)
 
-	if _, err := h.Importers(context.Background(), nil, avl); err != ErrRateLimited {
+	if _, err := h.Importers(context.Background(), nil, avl); !errors.Is(err, ErrRateLimited) {
 		t.Fatalf("err = %v, want ErrRateLimited on a miss", err)
 	}
 	h.importers.store(avl, &Importers{AsOf: 7})
