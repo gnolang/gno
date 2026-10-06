@@ -104,7 +104,7 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 		stop := time.AfterFunc(f.timeout, func() { cancel(errFetchTimeout) })
 		defer stop.Stop()
 		val, err := fetch(fctx)
-		if err != nil && context.Cause(fctx) == errFetchTimeout {
+		if err != nil && errors.Is(context.Cause(fctx), errFetchTimeout) {
 			err = fmt.Errorf("%w: %w", errFetchTimeout, err)
 		}
 		return f.store(key, val, err), nil
