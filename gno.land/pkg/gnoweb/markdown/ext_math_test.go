@@ -673,3 +673,21 @@ func TestMathKeepsFootnoteReferences(t *testing.T) {
 		assert.Contains(t, render(src), "<math", "%q", src)
 	}
 }
+
+// Display math ends where a block of a peer extension's parser would
+// interrupt a paragraph, once the parser is declared.
+func TestMathEndsAtPeerBlocks(t *testing.T) {
+	src := []byte("$$\nx\n[^1]: note\n$$\n")
+	for _, c := range []struct {
+		ext  *GnoExtension
+		math bool
+	}{
+		{NewGnoExtension(), true},
+		{NewGnoExtension(WithPeerBlockParsers(extension.NewFootnoteBlockParser())), false},
+	} {
+		var buf bytes.Buffer
+		gm := goldmark.New(goldmark.WithExtensions(extension.Footnote, c.ext))
+		require.NoError(t, gm.Convert(src, &buf))
+		assert.Equal(t, c.math, strings.Contains(buf.String(), "<math"), buf.String())
+	}
+}

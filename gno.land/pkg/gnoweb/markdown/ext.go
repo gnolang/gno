@@ -33,6 +33,7 @@ package markdown
 import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/util"
 )
 
 var _ goldmark.Extender = (*GnoExtension)(nil)
@@ -45,6 +46,7 @@ type GnoExtension struct {
 
 type config struct {
 	imgValidatorFunc ImageValidatorFunc
+	peerBlockParsers []util.PrioritizedValue
 }
 
 type Option func(cfg *config)
@@ -52,6 +54,21 @@ type Option func(cfg *config)
 func WithImageValidator(valFunc ImageValidatorFunc) Option {
 	return func(cfg *config) {
 		cfg.imgValidatorFunc = valFunc
+	}
+}
+
+// WithPeerBlockParsers declares the block parsers that the goldmark
+// extensions loaded alongside the Gno extension register, such as
+// extension.Footnote's. Display math ends at any line one of them would
+// open to interrupt a paragraph, as it does at the CommonMark blocks and
+// gnoweb's own: goldmark cannot list the parsers an extension registered
+// before this one, so they must be passed here.
+func WithPeerBlockParsers(bps ...parser.BlockParser) Option {
+	return func(cfg *config) {
+		for _, bp := range bps {
+			// The priority is unused: the parsers are only probed.
+			cfg.peerBlockParsers = append(cfg.peerBlockParsers, util.Prioritized(bp, 0))
+		}
 	}
 }
 
@@ -99,7 +116,7 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	m.SetParser(rec.Parser)
 
 	// Add math extension
-	NewExtMath(rec.cfg.BlockParsers...).Extend(m)
+	NewExtMath(append(rec.cfg.BlockParsers, e.cfg.peerBlockParsers...)...).Extend(m)
 
 	// If set, setup images filter
 	if e.cfg.imgValidatorFunc != nil {

@@ -95,6 +95,20 @@ func TestRenderer_RenderRealm_Markdown(t *testing.T) {
 	assert.NotNil(t, toc)
 }
 
+// Display math ends at any line that would interrupt a paragraph, footnote
+// definitions included: the default config hands the footnote extension's
+// block parser to the math extension.
+func TestRenderRealm_MathEndsAtFootnoteDefinition(t *testing.T) {
+	r := newTestRenderer()
+	w := &bytes.Buffer{}
+	src := []byte("$$\nx\n[^1]: note\n$$\n\nsee[^1]")
+	_, err := r.RenderRealm(w, &weburl.GnoURL{Path: "/r/test"}, src, RealmRenderContext{ChainId: "dev"})
+	require.NoError(t, err)
+	assert.NotContains(t, w.String(), "<math")
+	assert.Contains(t, w.String(), "<p>$$\nx</p>")
+	assert.Contains(t, w.String(), `<li id="fn:1">`)
+}
+
 func TestRenderRealm_ForeignBudgetResetsPerCall(t *testing.T) {
 	r := newTestRenderer()
 	var src strings.Builder
