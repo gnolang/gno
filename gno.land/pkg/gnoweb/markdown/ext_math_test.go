@@ -159,6 +159,35 @@ func TestMathDisplayBlockClosing(t *testing.T) {
 	}
 }
 
+// Like a closing code fence, a closing delimiter may be followed only by
+// spaces. A line with text after it does not close the block, so the text
+// is not split off into a paragraph with a stray $$: here the block never
+// closes and the lines stay one paragraph, in which $$y$$ is inline math.
+func TestMathDisplayCloseIsLastOnItsLine(t *testing.T) {
+	for _, c := range []struct{ name, src, want string }{
+		{"inline math after the delimiter", "$$\nx\n$$y$$ trailing\n", "<p>$$\nx\n"},
+		{"text after the delimiter", "$$\nx\n$$ y\n", "<p>$$\nx\n$$ y</p>"},
+		{"text after brackets", "\\\\[\nx\n\\\\] y\n", "<p>\\[\nx\n\\] y</p>"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			out := renderMathMarkdown(t, c.src)
+			assert.Contains(t, out, c.want)
+			assert.NotContains(t, out, "<mi>x</mi>")
+			assert.NotContains(t, out, "<p>y")
+		})
+	}
+	out := renderMathMarkdown(t, "$$\nx\n$$y$$ trailing\n")
+	assert.Contains(t, out, `<annotation encoding="application/x-tex">y</annotation>`)
+	assert.Contains(t, out, " trailing</p>")
+
+	// Spaces after the delimiter, or before it, still close the block.
+	for _, src := range []string{"$$\nx\n$$  \n", "$$\nx\n  $$\n", "$$\nx $$ \n"} {
+		out := renderMathMarkdown(t, src)
+		assert.Contains(t, out, `<math class="math-displaystyle"`, "%q", src)
+		assert.NotContains(t, out, "<p>", "%q", src)
+	}
+}
+
 // Display math that fails to convert falls back to its escaped source. Inside
 // a paragraph the fallback must be phrasing content: a <div> there is invalid
 // HTML, and the browser closes the paragraph before it.

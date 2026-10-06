@@ -348,21 +348,23 @@ type mathScan struct {
 }
 
 // closingLine reports whether line closes a math block delimited by closeTag:
-// it must start with the delimiter, or end with it and hold it only once (so
-// an inline $$y$$ at the end of a line does not count). It returns the length
-// of the content before the delimiter and the number of bytes to consume.
+// the delimiter must be the last thing on the line, after the math or alone,
+// and appear on it only once. Like a closing code fence, it may be followed
+// only by spaces: "$$y$$ trailing" or "$$ and more" is not a closing line,
+// which would leave the text after it as a paragraph (with a stray $$), and
+// an inline $$y$$ at the end of a line does not count either. It returns the
+// length of the content before the delimiter and the number of bytes to
+// consume.
 func closingLine(line, closeTag []byte) (content, consumed int, ok bool) {
-	trimmed := util.TrimLeftSpace(line)
-	if bytes.HasPrefix(trimmed, closeTag) {
-		indent := len(line) - len(trimmed)
-		return 0, indent + len(closeTag), true
+	trimmed := util.TrimRightSpace(line)
+	if !bytes.HasSuffix(trimmed, closeTag) || bytes.Count(trimmed, closeTag) != 1 {
+		return 0, 0, false
 	}
-	trimmed = util.TrimRightSpace(line)
-	if bytes.HasSuffix(trimmed, closeTag) && bytes.Count(trimmed, closeTag) == 1 {
-		content = len(trimmed) - len(closeTag)
-		return content, len(trimmed), true
+	content = len(trimmed) - len(closeTag)
+	if util.IsBlank(trimmed[:content]) {
+		content = 0 // an indented delimiter alone on its line
 	}
-	return 0, 0, false
+	return content, len(trimmed), true
 }
 
 // interruptingParsers are the CommonMark block parsers that can interrupt a
