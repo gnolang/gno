@@ -67,6 +67,60 @@ func TestMathDoesNotSwallowText(t *testing.T) {
 	}
 }
 
+// An unclosed $$ must not turn the blocks after it into math, even when a
+// later line holds $$ (reviewer repros on PR #4879).
+func TestMathUnclosedDisplayDoesNotSwallowBlocks(t *testing.T) {
+	cases := []struct{ name, src, want string }{
+		{"heading", "$$\noops forgot to close\n\n## Section 2\n\nMore text with $$y$$ here.\n", "<h2>Section 2</h2>"},
+		{"fence", "$$\nunclosed\n\n```go\n$$\n```\n\nlast paragraph\n", "<p>last paragraph</p>"},
+		{"fence without blank line", "$$\nunclosed\n```go\n$$\n```\nlast paragraph\n", "<p>last paragraph</p>"},
+		{"heading without blank line", "$$\nunclosed\n# Title\n$$\n", "<h1>Title</h1>"},
+		{"inline $$ is not a closing line", "$$\nunclosed\nsee $$y$$ here\n", "<p>$$\nunclosed"},
+		{"blockquote ends first", "> $$\n> x^2\n$$\nafter\n", "<blockquote>\n<p>$$\nx^2"},
+		{"blank line inside blockquote", "> $$\n> x\n>\n> $$\n", "<p>$$\nx"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out := renderMathMarkdown(t, c.src)
+			assert.Contains(t, out, c.want)
+			// Whatever was swallowed would show up in the TeX annotation.
+			assert.NotContains(t, out, "unclosed\n</annotation>")
+			assert.NotContains(t, out, "<mi>u</mi>")
+		})
+	}
+}
+
+func TestMathDisplayBlockClosing(t *testing.T) {
+	for name, src := range map[string]string{
+		"own line":         "$$\nx^2\n$$\n",
+		"end of last line": "$$\nx^2 $$\n",
+		"indented close":   "$$\nx^2\n  $$\n",
+		"brackets":         "\\\\[\nx^2\n\\\\]\n",
+		"blockquote":       "> $$\n> x^2\n> $$\n",
+		"list item":        "- $$\n  x^2\n  $$\n- b\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			out := renderMathMarkdown(t, src)
+			assert.Contains(t, out, `<math class="math-displaystyle"`)
+			assert.Contains(t, out, "<msup>")
+		})
+	}
+}
+
+// Code spans and fences keep their $ literally.
+func TestMathNotInCode(t *testing.T) {
+	for _, src := range []string{
+		"a `$x$` b `$$y$$` c `\\(z\\)`",
+		"```\n$$\nx\n$$\n```\n",
+		"```\n$x$\n```\n",
+		"    $$x$$\n",
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.NotContains(t, out, "<math", src)
+		assert.Contains(t, out, "<code", src)
+	}
+}
+
 func TestMathStillRenders(t *testing.T) {
 	for _, src := range []string{
 		`$E=mc^2$`,

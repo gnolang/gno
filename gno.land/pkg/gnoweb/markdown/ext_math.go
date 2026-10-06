@@ -62,7 +62,9 @@ type mathBlockNode struct {
 	ast.BaseBlock
 	flavor   int
 	tex      string
+	openTag  []byte
 	closeTag []byte
+	closed   bool // the closing delimiter was found
 }
 
 var (
@@ -217,7 +219,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 	}
 
 	reader.Advance(len(open))
-	node := &mathBlockNode{flavor: flavor, closeTag: closeTag}
+	node := &mathBlockNode{flavor: flavor, openTag: open, closeTag: closeTag}
 	_, seg := reader.PeekLine()
 	node.Lines().Append(seg)
 	return node, parser.NoChildren
@@ -228,64 +230,109 @@ var (
 	mathScanDollarKey  = parser.NewContextKey()
 )
 
-// mathScan caches a closing-delimiter lookahead: no line starting in
-// [from, to) contains the delimiter. If found, the line starting at to does;
-// otherwise scanning stopped there (eof tells whether the document ended), and
-// toLine/toSeg is the reader position to resume from.
+// mathScan caches a closing-delimiter lookahead over source offsets: no line
+// starting in [from, to) closes the block or ends it early. If found, the line
+// starting at to closes it; if dead, that line ends any block before it (see
+// endsMath) or to is the end of the document; otherwise scanning stopped at
+// the size limit and can resume from to.
 type mathScan struct {
-	from, to   int
-	found, eof bool
-	toLine     int
-	toSeg      text.Segment
+	from, to    int
+	found, dead bool
 }
 
-// hasClosingLine reports whether closeTag appears on one of the lines after
-// the current one, within MaxMathInputLen bytes. The reader position is left
-// unchanged. Results are cached on pc so that a page full of unclosed openers
-// is scanned once overall instead of once per opener.
+// closingLine reports whether line closes a math block delimited by closeTag:
+// it must start with the delimiter, or end with it and hold it only once (so
+// an inline $$y$$ at the end of a line does not count). It returns the length
+// of the content before the delimiter and the number of bytes to consume.
+func closingLine(line, closeTag []byte) (content, consumed int, ok bool) {
+	trimmed := util.TrimLeftSpace(line)
+	if bytes.HasPrefix(trimmed, closeTag) {
+		indent := len(line) - len(trimmed)
+		return 0, indent + len(closeTag), true
+	}
+	trimmed = util.TrimRightSpace(line)
+	if bytes.HasSuffix(trimmed, closeTag) && bytes.Count(trimmed, closeTag) == 1 {
+		content = len(trimmed) - len(closeTag)
+		return content, len(trimmed), true
+	}
+	return 0, 0, false
+}
+
+// endsMath reports whether line cannot be part of display math and ends any
+// block before it: a blank line (TeX forbids paragraph breaks in math mode),
+// or a code fence or ATX heading, which an unclosed opener must not swallow.
+func endsMath(line []byte) bool {
+	if util.IsBlank(line) {
+		return true
+	}
+	trimmed := util.TrimLeftSpace(line)
+	if len(line)-len(trimmed) > 3 {
+		return false
+	}
+	if bytes.HasPrefix(trimmed, []byte("```")) || bytes.HasPrefix(trimmed, []byte("~~~")) {
+		return true
+	}
+	level := 0
+	for level < len(trimmed) && trimmed[level] == '#' {
+		level++
+	}
+	return level >= 1 && level <= 6 && (level == len(trimmed) || util.IsSpace(trimmed[level]))
+}
+
+// hasClosingLine reports whether a closing line for closeTag follows the
+// current line within MaxMathInputLen bytes, before any line that ends math
+// (see endsMath). It reads the source directly and leaves the reader alone.
+// Results are cached on pc so that a page full of unclosed openers is scanned
+// once overall instead of once per opener.
 func hasClosingLine(reader text.Reader, pc parser.Context, closeTag []byte) bool {
 	key := mathScanDollarKey
 	if bytes.Equal(closeTag, _displayclose) {
 		key = mathScanDisplayKey
 	}
 
-	posLine, posSeg := reader.Position()
-	defer reader.SetPosition(posLine, posSeg)
-	reader.AdvanceLine()
+	src := reader.Source()
 	_, seg := reader.PeekLine()
-	start := seg.Start
+	start := seg.Stop // the current line includes its newline
 	limit := start + MaxMathInputLen
 
+	pos := start
 	sc, ok := pc.Get(key).(mathScan)
 	if ok && sc.from <= start && start <= sc.to {
 		if sc.found {
 			return sc.to <= limit
 		}
-		if sc.eof {
+		if sc.dead {
 			return false
 		}
-		reader.SetPosition(sc.toLine, sc.toSeg)
+		pos = sc.to
 	} else {
 		sc = mathScan{from: start}
 	}
 
 	defer func() { pc.Set(key, sc) }()
 	for {
-		line, seg := reader.PeekLine()
-		sc.to = seg.Start
-		sc.toLine, sc.toSeg = reader.Position()
-		if line == nil {
-			sc.eof = true
+		sc.to = pos
+		if pos > limit {
 			return false
 		}
-		if seg.Start > limit {
+		if pos >= len(src) {
+			sc.dead = true
 			return false
 		}
-		if bytes.Contains(line, closeTag) {
+		end := len(src)
+		if i := bytes.IndexByte(src[pos:], '\n'); i >= 0 {
+			end = pos + i + 1
+		}
+		line := src[pos:end]
+		if _, _, ok := closingLine(line, closeTag); ok {
 			sc.found = true
 			return true
 		}
-		reader.AdvanceLine()
+		if endsMath(line) {
+			sc.dead = true
+			return false
+		}
+		pos = end
 	}
 }
 
@@ -295,10 +342,18 @@ func (p *texBlockRegionParser) Continue(node ast.Node, reader text.Reader, pc pa
 		return parser.Close
 	}
 	line, seg := reader.PeekLine()
-	if stop := bytes.Index(line, n.closeTag); stop > -1 {
-		node.Lines().Append(text.NewSegment(seg.Start, seg.Start+stop))
-		reader.Advance(stop + len(n.closeTag)) // move reader past closing tag
+	if content, consumed, ok := closingLine(line, n.closeTag); ok {
+		node.Lines().Append(text.NewSegment(seg.Start, seg.Start+content))
+		reader.Advance(consumed) // move reader past closing tag
+		n.closed = true
 		return parser.Close | parser.NoChildren
+	}
+	// The lookahead in Open saw a closing line first, but it reads raw lines
+	// and cannot see container prefixes: inside a blockquote or list item the
+	// container may end first. Leave the line to the other block parsers; the
+	// unclosed block renders as text.
+	if line == nil || endsMath(line) {
+		return parser.Close
 	}
 	node.Lines().Append(seg)
 	return parser.Continue | parser.NoChildren
@@ -346,6 +401,14 @@ func (r *MathRenderer) renderMath(w util.BufWriter, source []byte, node ast.Node
 		flavor = t.flavor
 		tex = t.tex
 	case *mathBlockNode:
+		if !t.closed {
+			// The opener never got its closing line (its container ended
+			// first): render the source as plain text.
+			w.WriteString("<p>")
+			w.WriteString(html.EscapeString(string(t.openTag) + t.tex))
+			w.WriteString("</p>\n")
+			return ast.WalkSkipChildren, nil
+		}
 		flavor = t.flavor
 		tex = t.tex
 	default:
