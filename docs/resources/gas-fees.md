@@ -40,9 +40,11 @@ checks:
 Gas Price = Gas Fee ÷ Gas Wanted
 ```
 
-`gnokey` simulates first, and a transaction that fails there costs nothing. It
-can still fail on chain afterwards, and once it is in a block you pay the whole
-fee, whether it used less gas than it asked for or failed outright.
+By default (`-simulate test`), `gnokey` simulates the transaction first and does
+not send it if the simulation fails, so it costs nothing. `-simulate skip` sends
+it without that check. Once a transaction is in a block you pay the whole fee,
+whether it used less gas than it asked for or failed outright, and one that
+passed simulation can still fail there if the state changed in between.
 
 The easiest way to size both is [`-simulate only`](#gas-estimation), which
 queries the current [gas price](#gas-price) and prints the recommended fee.
