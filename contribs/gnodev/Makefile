@@ -1,5 +1,7 @@
+
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
 GNOROOT_DIR ?= $(abspath $(lastword $(MAKEFILE_LIST))/../../../)
-GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR)"
+GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/gnovm/pkg/gnoenv._GNOROOT=$(GNOROOT_DIR) -X github.com/gnolang/gno/tm2/pkg/version.Version=$(VERSION)"
 GOTEST_FLAGS ?= $(GOBUILD_FLAGS) -v -p 1 -timeout=5m
 
 rundep := go run -modfile ../../misc/devdeps/go.mod
