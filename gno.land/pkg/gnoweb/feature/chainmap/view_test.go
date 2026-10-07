@@ -146,7 +146,7 @@ func TestMapSaysUnavailableNotPendingForAFailedRefresh(t *testing.T) {
 	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
 	h.activity.store("activity", nil, context.DeadlineExceeded)
 	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/x"}})
-	if strings.Contains(out, "still being counted") || !strings.Contains(out, "Calls unavailable") {
+	if strings.Contains(out, "still being counted") || !strings.Contains(out, "Activity unavailable") {
 		t.Error("a failed refresh must read as unavailable")
 	}
 }
@@ -178,7 +178,7 @@ func TestScaleTilesTheCounts(t *testing.T) {
 
 	for _, busiest := range []int{1, 2, 3, 7, 100, 1000, 12345} {
 		next := 1
-		for _, st := range scale(busiest, false, MetricCalls.format)[1:] {
+		for _, st := range scale(busiest, false, MetricCalls)[1:] {
 			lo, hi, _ := strings.Cut(st.Range, "–")
 			if hi == "" {
 				hi = lo
@@ -199,7 +199,7 @@ func TestScaleTilesTheCounts(t *testing.T) {
 			t.Errorf("busiest %d: the key stops at %d", busiest, next-1)
 		}
 	}
-	if s := scale(10, true, MetricCalls.format); s[len(s)-1].Class != unknownShadeClass {
+	if s := scale(10, true, MetricCalls); s[len(s)-1].Class != unknownShadeClass {
 		t.Error("a partial window's key must show the unknown shade")
 	}
 }
@@ -249,15 +249,15 @@ func TestMapColorsByGas(t *testing.T) {
 		`href="/r/$map"`,                 // back to calls
 		`href="/r/a/$map&amp;color=gas"`, // a zoom keeps the metric
 		"Most gas · 7 days",
-		"77.0 B",
-		"/r/a/x/heavy · 77.0 B gas over 3 calls",
+		"77.0 bn",
+		"/r/a/x/heavy · 77.0 bn gas over 3 calls",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("gas map lacks %q", want)
 		}
 	}
 	// heavy, with 3 calls, outranks busy, with 900, on gas.
-	if i, j := strings.Index(out, "<small>77.0 B</small>"), strings.Index(out, "<small>4 M</small>"); i < 0 || j < 0 || i > j {
+	if i, j := strings.Index(out, "<small>77.0 bn</small>"), strings.Index(out, "<small>4.0 M</small>"); i < 0 || j < 0 || i > j {
 		t.Errorf("busiest list is not ranked by gas")
 	}
 
@@ -274,5 +274,48 @@ func TestParseMetric(t *testing.T) {
 		if got := ParseMetric(in); got != want {
 			t.Errorf("ParseMetric(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// Gas is ranked and written as measured: 1.9 M ranks above 1.1 M (rounding up
+// to whole millions would tie them), and 50 k is not "1 M". Units read as gas,
+// never as bytes, and the legend's steps never overlap.
+func TestGasIsRankedAndWrittenAsMeasured(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
+	h.activity.store("activity", &Activity{
+		Calls: map[string]int{"gno.land/r/a/one": 1, "gno.land/r/a/two": 1, "gno.land/r/a/tiny": 1, "gno.land/r/a/huge": 1},
+		Gas:   map[string]int64{"gno.land/r/a/one": 1_100_000, "gno.land/r/a/two": 1_900_000, "gno.land/r/a/tiny": 50_000, "gno.land/r/a/huge": 76_000_000_000},
+		From:  10, To: 20, Since: time.Unix(0, 0),
+	}, nil)
+	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/one", "/r/a/two", "/r/a/tiny", "/r/a/huge"}, Metric: MetricGas})
+
+	i1, i2 := strings.Index(out, "<small>1.9 M</small>"), strings.Index(out, "<small>1.1 M</small>")
+	if i1 < 0 || i2 < 0 || i1 > i2 {
+		t.Error("1.9 M must rank above 1.1 M")
+	}
+	for _, want := range []string{"<small>50 k</small>", "<small>76.0 bn</small>", "/r/a/tiny · 50 k gas over 1 call", "Colored by gas used over the last 7 days"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("gas map lacks %q", want)
+		}
+	}
+	if strings.Contains(out, " B<") || strings.Contains(out, " B–") {
+		t.Error("billions must not be written B, which reads as bytes")
+	}
+}
+
+// Under gas the legend gives each shade's upper bound: two ranges written
+// with one decimal would print the same number where they meet.
+func TestGasLegendGivesUpperBounds(t *testing.T) {
+	t.Parallel()
+
+	steps := scale(76_000, false, MetricGas)
+	seen := map[string]bool{}
+	for _, st := range steps[1:] {
+		if !strings.HasPrefix(st.Range, "≤ ") || seen[st.Range] {
+			t.Errorf("step %q is not a distinct upper bound", st.Range)
+		}
+		seen[st.Range] = true
 	}
 }

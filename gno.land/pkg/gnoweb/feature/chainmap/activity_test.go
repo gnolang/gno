@@ -228,19 +228,26 @@ func TestComputeActivityOutOfTimeFails(t *testing.T) {
 	}
 }
 
-// The indexer reports gas per transaction: a batched one shares its gas
-// evenly between the calls it makes, and a failed one counts for nothing.
+// The indexer reports gas per transaction: it is shared evenly between the
+// messages that do work (calls, runs, deploys), so a call batched with a run
+// gets half. A plain send does no VM work and takes no share; a failed
+// transaction counts for nothing.
 func TestCountBandSharesGasBetweenCalls(t *testing.T) {
 	t.Parallel()
 
 	batched := call(5, true, "g1x", "gno.land/r/a")
-	batched.Messages = append(batched.Messages, call(5, true, "g1x", "gno.land/r/b").Messages...)
+	run, send := indexer.Message{}, indexer.Message{}
+	run.Value.Type, send.Value.Type = "MsgRun", "BankMsgSend"
+	batched.Messages = append(batched.Messages, run, send)
 	batched.GasUsed = 300
-	failed := call(6, false, "g1y", "gno.land/r/a")
+	pair := call(6, true, "g1x", "gno.land/r/a")
+	pair.Messages = append(pair.Messages, call(6, true, "g1x", "gno.land/r/b").Messages...)
+	pair.GasUsed = 1000
+	failed := call(7, false, "g1y", "gno.land/r/a")
 	failed.GasUsed = 1000
 
-	b := countBand([]indexer.Tx{batched, failed}, true)
-	if b.gas["gno.land/r/a"] != 150 || b.gas["gno.land/r/b"] != 150 {
-		t.Errorf("gas = %v, want 150 each", b.gas)
+	b := countBand([]indexer.Tx{batched, pair, failed}, true)
+	if b.gas["gno.land/r/a"] != 150+500 || b.gas["gno.land/r/b"] != 500 {
+		t.Errorf("gas = %v, want r/a 650 (150 + 500), r/b 500", b.gas)
 	}
 }

@@ -266,8 +266,8 @@ func TestHTTPHandler_MapColorsByGasWithIndexer(t *testing.T) {
 			t.Errorf("gas map lacks %q", want)
 		}
 	}
-	if i, j := strings.Index(body, "<small>9.0 B</small>"), strings.Index(body, "<small>3 M</small>"); i < 0 || j < 0 || i > j {
-		t.Error("the gas list must put p0001 (9 B gas, 1 call) before p0000 (3 M gas, 3 calls)")
+	if i, j := strings.Index(body, "<small>9.0 bn</small>"), strings.Index(body, "<small>3.0 M</small>"); i < 0 || j < 0 || i > j {
+		t.Error("the gas list must put p0001 (9 bn gas, 1 call) before p0000 (3 M gas, 3 calls)")
 	}
 	if calls := serve(t, h, "/r/demo$map").Body.String(); !strings.Contains(calls, "Most called · 7 days") {
 		t.Error("$map without color must stay the call map")

@@ -226,6 +226,13 @@
 	}
 }
 
+/* Which metric colours the tiles, under the map: on a phone the key is
+   folded away with the rail. */
+.b-map-metric {
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+}
+
 /* Only where the map scrolls: below --md it keeps its width. */
 .b-map-scroll-hint {
 	margin-block-start: var(--g-space-2);
@@ -268,17 +275,23 @@
 	border-radius: var(--s-rounded-sm);
 	font-size: var(--g-font-size-50);
 
+	/* At least 24px tall: a pointer target (WCAG 2.5.8). */
 	& > * {
+		display: inline-flex;
+		align-items: center;
+		min-height: 1.5rem;
 		padding: 0 var(--g-space-2);
-		line-height: 1.6;
 	}
 
-	& > a {
+	/* Qualified to outrank the meta card's link colour: the inactive metric
+	   reads as a choice, not as the selected one. */
+	.b-pkg-meta dd.value & > a {
 		color: var(--s-color-text-secondary);
 		text-decoration: none;
 
 		&:hover {
 			color: var(--s-color-text-link);
+			text-decoration: underline;
 		}
 	}
 

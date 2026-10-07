@@ -89,18 +89,24 @@ func countBand(txs []indexer.Tx, complete bool) *bandCounts {
 		if !tx.Success {
 			continue
 		}
-		var calls []string
+		// The gas is shared between the messages that run code: a call
+		// batched with a run or a deploy gets its share, not the whole.
+		var calls []indexer.Message
+		workers := 0
 		for _, m := range tx.Messages {
-			if p := m.Path(); m.Type() == "MsgCall" && p != "" {
-				calls = append(calls, p)
+			switch m.Type() {
+			case "MsgCall":
+				workers++
+				if m.Path() != "" {
+					calls = append(calls, m)
+				}
+			case "MsgRun", "MsgAddPackage":
+				workers++
 			}
 		}
-		for _, m := range tx.Messages {
+		for _, m := range calls {
 			p := m.Path()
-			if m.Type() != "MsgCall" || p == "" {
-				continue
-			}
-			b.gas[p] += int64(tx.GasUsed) / int64(len(calls))
+			b.gas[p] += int64(tx.GasUsed) / int64(workers)
 			b.calls[p]++
 			if b.callers[p] == nil {
 				b.callers[p] = make(map[string]struct{})
