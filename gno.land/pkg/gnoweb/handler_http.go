@@ -9,9 +9,12 @@ import (
 	"go/token"
 	"html/template"
 	"log/slog"
+	"maps"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -24,7 +27,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/bech32"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -34,6 +37,12 @@ const ReadmeFileName = "README.md"
 // configured, so r.Context() always carries a deadline (the page path
 // can fan out to many RPC calls — an unbounded request is an unbounded-work vector).
 const defaultRequestTimeout = 30 * time.Second
+
+// maxUserLookupTimeout caps the r/sys/users lookup behind every /u/ page. The
+// lookup runs before the listing and the home realm, on the same deadline, so
+// a slow registry or a busy RPC pool left unbounded would spend all of it and
+// fail the page. The budget covers the wait for an RPC slot as well.
+const maxUserLookupTimeout = 2 * time.Second
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
@@ -46,6 +55,7 @@ type StaticMetadata struct {
 	AnalyticsHostname string
 	AssetsVersion     string
 	Banner            components.BannerData
+	RealmNotice       components.RealmNotice
 }
 
 // RedirectAnalytics builds the AnalyticsData for a redirect view. The redirect
@@ -83,12 +93,15 @@ type HTTPHandlerConfig struct {
 	ClientAdapter ClientAdapter
 	Renderer      Renderer
 	Aliases       map[string]AliasTarget
-	Timeout       time.Duration
+	// TrustedPaths — see AppConfig field of the same name.
+	TrustedPaths []string
+	Timeout      time.Duration
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
 	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
 	// burst. ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
+	// Also gates X-Forwarded-Host in requestOrigin.
 	StateRateLimitTrustedProxies []string
 }
 
@@ -118,16 +131,27 @@ type HTTPHandler struct {
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
 	Timeout  time.Duration
+	trusted  trustedPaths
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
 	State *state.Handler
+	// trustedProxies are the networks whose X-Forwarded-Host is believed.
+	trustedProxies []*net.IPNet
+	// packageText caches the whole-package texts of $download.
+	packageText packageTextCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
 func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("config validate error: %w", err)
+	}
+
+	for _, e := range cfg.TrustedPaths {
+		if why := trustedPathProblem(e); why != "" {
+			logger.Warn("trusted path entry will not match the package it names", "entry", e, "reason", why)
+		}
 	}
 
 	h := &HTTPHandler{
@@ -137,6 +161,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
+		trusted:  newTrustedPaths(cfg.TrustedPaths),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
@@ -146,6 +171,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	if err != nil {
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
+	h.trustedProxies = trustedProxies
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
@@ -190,6 +216,14 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// requestTimeout is the deadline every GET runs under.
+func (h *HTTPHandler) requestTimeout() time.Duration {
+	if h.Timeout <= 0 {
+		return defaultRequestTimeout
+	}
+	return h.Timeout
+}
+
 // Get processes a GET HTTP request and renders the appropriate page.
 func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -199,11 +233,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	timeout := h.Timeout
-	if timeout <= 0 {
-		timeout = defaultRequestTimeout
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.requestTimeout())
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -228,11 +258,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		Banner: h.Static.Banner,
 	}
 
-	// Apply GnowebPath alias rewrite BEFORE parsing — every downstream
-	// dispatch (state, source, package view) needs to see the resolved
-	// path. Legacy did this inside prepareIndexBodyView, which the state
-	// branch below short-circuits, so an alias-mapped state URL would
-	// previously route to the unmapped path and 404.
+	// Resolve GnowebPath aliases once, BEFORE parsing: every downstream
+	// dispatch (state, source, package view) and the realm notice must see
+	// the path that is rendered. Aliases do not chain.
 	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
 		r.URL.Path = alias.Value
 	}
@@ -256,6 +284,14 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render error view", "error", err)
 		}
+		return
+	}
+	// The state branch builds its header before prepareIndexBodyView does.
+	gnourl.Origin = requestOrigin(r, h.trustedProxies)
+
+	// The function list as JSON, for agents that want to know what to call.
+	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
+		h.ServeHelpJSON(r.Context(), gnourl, w)
 		return
 	}
 
@@ -287,6 +323,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// values and pointing the tabs at empty URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
+		scrubHeaderOnError(&indexData, status)
 		indexData.BodyView = view
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
@@ -310,11 +347,16 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	wantMarkdown := negotiatesMarkdown(r.Header.Get("Accept"))
 
 	status, bodyView := h.prepareIndexBodyView(r, &indexData, wantMarkdown)
+	scrubHeaderOnError(&indexData, status)
 
 	// The realm and static-markdown paths return a markdown view; serve its
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
 	if bodyView.Type == components.MarkdownViewType {
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		// The body stays verbatim; the header carries the notice instead.
+		if indexData.HeaderData.Notice.Enabled() {
+			w.Header().Set(RealmNoticeHeader, "community")
+		}
 		// Render() output reaches the client unsanitized here, so pin the type:
 		// without this a browser may sniff the body back into HTML and run it.
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -394,19 +436,15 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
 	ctx := r.Context()
 
+	// Get already resolved GnowebPath aliases; only StaticMarkdown is left.
 	aliasTarget, aliasExists := h.Aliases[r.URL.Path]
-
-	// If the alias target exists and is a gnoweb path, replace the URL path with it.
-	if aliasExists && aliasTarget.Kind == GnowebPath {
-		r.URL.Path = aliasTarget.Value
-	}
 
 	gnourl, err := weburl.ParseFromURL(r.URL)
 	if err != nil {
 		h.Logger.Warn("invalid gno url path", "path_length", len(r.URL.EscapedPath()), "error", err)
 		return http.StatusNotFound, components.StatusErrorComponent("invalid path")
 	}
-	gnourl.Origin = requestOrigin(r)
+	gnourl.Origin = requestOrigin(r, h.trustedProxies)
 
 	h.setHeaderForRealm(indexData, gnourl)
 
@@ -539,26 +577,35 @@ func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.G
 	return http.StatusOK, components.MarkdownView(raw)
 }
 
-// MaxUserContributions caps how many contributions /u/<user> renders.
-// Each entry costs a bech32 decode, a weburl parse, and a sort comparison;
+// MaxUserContributions caps how many contributions /u/<user> renders per
+// namespace; a resolved user lists two.
+// Each entry costs a weburl parse and a sort comparison;
 // an unbounded cap turns a single GET into a 10k-iteration amplifier.
 // Exported so external tests assert against the documented cap.
 // TODO: paginate via ?page= when a contributor exceeds this cap.
 const MaxUserContributions = 200
 
-// buildContributions returns the sorted list of contributions (packages and realms) for a user.
-func (h *HTTPHandler) buildContributions(ctx context.Context, username string) ([]components.UserContribution, int, error) {
-	prefix := "@" + username
-
-	paths, err := h.Client.ListPaths(ctx, prefix, MaxUserContributions)
-	if err != nil {
-		h.Logger.Error("unable to query contributions", "user", username, "error", err)
-		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
+// buildContributions returns the sorted list of contributions (packages and
+// realms) deployed under any of the given namespaces.
+func (h *HTTPHandler) buildContributions(ctx context.Context, namespaces ...string) ([]components.UserContribution, int, error) {
+	var paths []string
+	for _, ns := range namespaces {
+		nsPaths, err := h.Client.ListPaths(ctx, "@"+ns, MaxUserContributions)
+		if err != nil {
+			h.Logger.Error("unable to query contributions", "user", ns, "error", err)
+			return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", ns, err)
+		}
+		paths = append(paths, nsPaths...)
 	}
 
 	contribs := make([]components.UserContribution, 0, len(paths))
 	realmCount := 0
 	for _, raw := range paths {
+		// An empty listing is a single blank line, not a malformed path.
+		if raw == "" {
+			continue
+		}
+
 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
 		u, err := weburl.Parse(trimmed)
 		if err != nil {
@@ -579,21 +626,134 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	}
 
 	sort.Slice(contribs, func(i, j int) bool {
-		return contribs[i].Title < contribs[j].Title
+		if contribs[i].Title != contribs[j].Title {
+			return contribs[i].Title < contribs[j].Title
+		}
+		return contribs[i].URL < contribs[j].URL
 	})
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
-func CreateUsernameFromBech32(username string) string {
-	_, _, err := bech32.Decode(username)
-	if err == nil {
-		// If it's a valid bech32 address, create a shortened version
-		username = username[:4] + "..." + username[len(username)-4:]
+// reUsername is the shape r/sys/users accepts: it mirrors gnolang, so gnoweb
+// reads the same source rather than a copy that could drift out of it.
+var reUsername = gno.Re_name.Compile()
+
+// maxUsernameLen mirrors maxNameLen in r/sys/users, which caps a name in
+// bytes on top of the shape reUsername checks.
+const maxUsernameLen = 64
+
+// UserRegistryPath is the realm that maps gno.land names to addresses, and the
+// only source gnoweb has for either side of the pair.
+const UserRegistryPath = "/r/sys/users"
+
+// userIdentity is the pair behind a /u/ path segment. Each field is empty when
+// the registry could not confirm it, so a chain that does not deploy the
+// registry yields the zero value and every caller falls back to the segment.
+type userIdentity struct {
+	Name    string // the user's current registered name
+	Address string // the bech32 address that name belongs to
+	// Registration is whether the registry answered at all: an empty Name
+	// is the same for "nobody holds it" and "no answer".
+	Registration components.UserRegistration
+}
+
+// reUserData reads the pair out of the value repr vm/qeval prints for a
+// *UserData:
+//
+//	(&(struct{("g1…" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
+//
+// The realm exports no string-returning resolver, and .Name() on the returned
+// pointer panics when it is nil, so one qeval plus this match is the cheapest
+// lookup that cannot fault. Matching on each field's type tag means a field
+// added before or after the pair does not shift the result (one inserted
+// between them, or swapping them, would), and an unrecognized shape is an
+// error rather than a silent "no user".
+var reUserData = regexp.MustCompile(`\("(g1[a-z0-9]+)" \.uverse\.address\),\("([a-z0-9_-]*)" string\)`)
+
+// resolveUser asks r/sys/users which name and address stand behind a /u/
+// segment, accepting either form as input. ResolveAny answers both questions
+// the page has in a single qeval: whether the user exists at all, which gates
+// the page, and the other half of the pair, which the page prints.
+//
+// A chain without the registry answers the zero value and no error, which is
+// the gnodev case; a chain that could not be asked returns an error, since a
+// 404 published on a timeout deletes a real user's page for as long as a
+// crawler remembers it.
+func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdentity, error) {
+	// An address is its own answer for half the pair, registry or not: it is
+	// already the address, and it is a namespace by construction.
+	identity := userIdentity{}
+	if isGnoAddress(input) {
+		identity.Address = input
 	}
 
-	return username
+	// A quarter of the request budget at most, so a hung registry leaves the
+	// rest of the page the time it needs; a timeout here is an ordinary
+	// lookup error.
+	lookupCtx, cancel := context.WithTimeout(ctx, min(h.requestTimeout()/4, maxUserLookupTimeout))
+	defer cancel()
+	res, err := h.Client.Eval(lookupCtx, UserRegistryPath, fmt.Sprintf("ResolveAny(%q)", input))
+	switch {
+	case errors.Is(err, ErrClientPackageNotFound):
+		h.Logger.Debug("no user registry on this chain", "error", err)
+		return identity, nil
+	case err != nil:
+		return identity, err
+	}
+
+	// ResolveAny returns (*UserData, bool); the pointer is the first line, and
+	// it is the only one that carries the pair.
+	line, _, _ := bytes.Cut(bytes.TrimSpace(res), []byte("\n"))
+	if bytes.HasPrefix(line, []byte("(nil ")) {
+		identity.Registration = components.UserRegistrationNone
+		return identity, nil
+	}
+
+	match := reUserData.FindSubmatch(line)
+	if match == nil {
+		// Reading an unknown shape as "no user" would 404 every registered
+		// user at once, and in silence.
+		return identity, fmt.Errorf("%w: unexpected ResolveAny result %q", ErrClientResponse, line)
+	}
+	// An address resolves to itself or not at all; a registry naming another
+	// one would have the page print two different addresses as one user.
+	if identity.Address != "" && string(match[1]) != identity.Address {
+		return identity, fmt.Errorf("%w: ResolveAny(%q) answered for %q", ErrClientResponse, input, match[1])
+	}
+	return userIdentity{
+		Name:         string(match[2]),
+		Address:      string(match[1]),
+		Registration: components.UserRegistrationRegistered,
+	}, nil
+}
+
+// isAliasTarget reports whether one of this gnoweb's own aliases points at
+// path. The operator published it on purpose, so the gate below must not 404 a
+// URL gnoweb itself advertises: "/docs" maps to "/u/docs", and `docs` is
+// neither a registered user nor a namespace holding a package.
+func (h *HTTPHandler) isAliasTarget(path string) bool {
+	for _, target := range h.Aliases {
+		if target.Kind == GnowebPath && target.Value == path {
+			return true
+		}
+	}
+	return false
+}
+
+// isGnoAddress reports whether s is a gno bech32 address, which is a namespace
+// by construction.
+func isGnoAddress(s string) bool {
+	_, err := crypto.AddressFromBech32(s)
+	return err == nil
+}
+
+// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
+func CreateUsernameFromBech32(username string) string {
+	if !isGnoAddress(username) {
+		return username
+	}
+
+	return username[:4] + "..." + username[len(username)-4:]
 }
 
 // displayPackageName returns versioned name for a package path.
@@ -608,47 +768,102 @@ func displayPackageName(pkgPath string) string {
 	return name
 }
 
-// GetUserView returns the user profile view for a given GnoURL.
+// GetUserView returns the user profile view for a given GnoURL. The segment
+// may be either half of the pair: /u/<name> and /u/<address> serve the same
+// page, and each prints the other half. A page is served only for an address,
+// a namespace holding packages, a current name r/sys/users resolves to itself,
+// or a path this gnoweb's own aliases publish; anything else would be a
+// fabricated profile.
 func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	username := strings.TrimPrefix(gnourl.Path, "/u/")
+	segment := gnourl.Username()
 
-	var content bytes.Buffer
-
-	// Render user profile realm
-	raw, err := h.Client.Realm(ctx, "/r/"+username+"/home", "")
-	if err == nil {
-		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
-			ChainId: h.Static.ChainId,
-			Remote:  h.Static.RemoteHelp,
-			Domain:  h.Static.Domain,
-		})
+	isAddress := isGnoAddress(segment)
+	if !isAddress && (len(segment) > maxUsernameLen || !reUsername.Matches(segment)) {
+		return http.StatusNotFound, components.StatusUserNotFoundComponent("")
 	}
 
-	if content.Len() == 0 {
-		h.Logger.Debug("unable to fetch user realm", "username", username, "error", err)
+	// A failed lookup is only fatal where the gate needs it, below: an address
+	// or a namespace holding packages is served without the registry.
+	identity, resolveErr := h.resolveUser(ctx, segment)
+	if resolveErr != nil {
+		h.Logger.Warn("unable to resolve user", "user", segment, "error", resolveErr)
 	}
 
-	// Build contributions
-	contribs, realmCount, err := h.buildContributions(ctx, username)
+	// A resolved user may deploy under both halves of the pair, since
+	// r/sys/names lets any address deploy under its own address namespace, so
+	// /u/<name> and /u/<address> both list both. The name comes first: its
+	// home realm is tried first and it is what the page is titled by. An old alias
+	// resolves to the current name, not to itself, so it keeps its own
+	// segment and still shows what the old name holds.
+	namespaces := []string{segment}
+	if identity.Name != "" && (segment == identity.Name || segment == identity.Address) {
+		namespaces = []string{identity.Name, identity.Address}
+	}
+
+	contribs, realmCount, err := h.buildContributions(ctx, namespaces...)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
 		return GetClientErrorStatusView(gnourl, err, 0)
+	}
+
+	// Only the current name of a live user counts, which is the rule
+	// r/sys/names applies before authorizing a deploy: unknown, deleted and
+	// renamed-away names do not.
+	isCurrentName := identity.Name != "" && identity.Name == segment
+	if !isAddress && !isCurrentName && len(contribs) == 0 && !h.isAliasTarget(gnourl.Path) {
+		if resolveErr != nil {
+			return GetClientErrorStatusView(gnourl, resolveErr, 0)
+		}
+		return http.StatusNotFound, components.StatusUserNotFoundComponent(segment)
+	}
+
+	var content bytes.Buffer
+
+	// Render the first home realm the pair has; the link under the avatar
+	// points at the same one.
+	namespace := namespaces[0]
+	for _, ns := range namespaces {
+		raw, err := h.Client.Realm(ctx, "/r/"+ns+"/home", "")
+		if err != nil {
+			h.Logger.Debug("unable to fetch user realm", "username", ns, "error", err)
+			continue
+		}
+		namespace = ns
+		if _, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
+			ChainId: h.Static.ChainId,
+			Remote:  h.Static.RemoteHelp,
+			Domain:  h.Static.Domain,
+		}); err != nil {
+			h.Logger.Debug("unable to render user realm", "username", ns, "error", err)
+		}
+		break
 	}
 
 	// Compute package counts
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
-	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-	// Try to decode the bech32 address
-	username = CreateUsernameFromBech32(username)
+	// The page is titled by the name; an address with no name behind it has
+	// none, and the view titles it by the address instead.
+	// TODO: get a display name from r/profile.
+	username := namespaces[0]
+	if username == identity.Address {
+		username = ""
+	}
 
-	// TODO: get from user r/profile and use placeholder if not set
-	handlename := "Gnome " + username
+	// An old name resolves to the current one, which the page points at.
+	var currentName string
+	if username != "" && identity.Name != "" && identity.Name != username {
+		currentName = identity.Name
+	}
 
 	data := components.UserData{
 		Username:      username,
-		Handlename:    handlename,
+		Namespace:     namespace,
+		HomeLabel:     CreateUsernameFromBech32(namespace),
+		Address:       identity.Address,
+		CurrentName:   currentName,
+		Registration:  identity.Registration,
 		Contributions: contribs,
 		PackageCount:  pkgCount,
 		RealmCount:    realmCount,
@@ -658,6 +873,41 @@ func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (i
 	}
 
 	return http.StatusOK, components.UserView(data)
+}
+
+// callableFuncs returns the exported non-method funcs of a package, without
+// their leading "cur realm" param: the signature still shows it, but no one
+// passes it.
+func callableFuncs(jdoc *doc.JSONDocumentation) []*doc.JSONFunc {
+	fsigs := []*doc.JSONFunc{}
+	for _, fun := range jdoc.Funcs {
+		if !(fun.Type == "" && token.IsExported(fun.Name)) {
+			continue
+		}
+		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
+			fun.Params = fun.Params[1:]
+		}
+		fsigs = append(fsigs, fun)
+	}
+	return fsigs
+}
+
+// ServeHelpJSON serves the callable functions of a package as JSON.
+func (h *HTTPHandler) ServeHelpJSON(ctx context.Context, gnourl *weburl.GnoURL, w http.ResponseWriter) {
+	jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
+	if err != nil {
+		status, msg := clientErrorMessage(err, 0)
+		writeJSONErrorResponse(w, status, msg)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_ = json.NewEncoder(w).Encode(struct {
+		PkgPath   string          `json:"pkg_path"`
+		ChainID   string          `json:"chain_id"`
+		Remote    string          `json:"remote"`
+		Functions []*doc.JSONFunc `json:"functions"`
+	}{path.Join(h.Static.Domain, gnourl.Path), h.Static.ChainId, h.Static.RemoteHelp, callableFuncs(jdoc)})
 }
 
 func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
@@ -682,19 +932,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return components.NewReaderComponent(&buf)
 	}
 
-	// Get public non-method funcs
-	fsigs := []*doc.JSONFunc{}
-	for _, fun := range jdoc.Funcs {
-		if !(fun.Type == "" && token.IsExported(fun.Name)) {
-			continue
-		}
-
-		if len(fun.Params) >= 1 && fun.Params[0].Type == "realm" {
-			// Don't make an entry field for "cur realm". The signature will still show it.
-			fun.Params = fun.Params[1:]
-		}
-		fsigs = append(fsigs, fun)
-	}
+	fsigs := callableFuncs(jdoc)
 
 	// Get selected function
 	selArgs := make(map[string]string)
@@ -738,6 +976,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		Doc:       renderDoc(jdoc.PackageDoc),
 		Domain:    h.Static.Domain,
 		Origin:    gnourl.Origin,
+		Community: h.showRealmNotice(gnourl),
 	})
 }
 
@@ -941,15 +1180,19 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	}
 
 	if fileName == "" {
-		http.Error(w, "not found", http.StatusNotFound)
+		h.servePackageText(ctx, gnourl, w)
 		return
 	}
 
 	// Get source file
 	source, _, err := h.Client.File(ctx, pkgPath, fileName, 0)
 	if err != nil {
-		h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		status, _ := GetClientErrorStatusView(gnourl, err, 0)
+		if status == http.StatusNotFound {
+			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
+		} else {
+			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
+		}
 		http.Error(w, "not found", status)
 		return
 	}
@@ -975,11 +1218,16 @@ func readWhitelistedCookie(r *http.Request, name string, allowed ...string) stri
 	return ""
 }
 
-// requestOrigin returns scheme+host honoring X-Forwarded-{Proto,Host}.
+// requestOrigin returns scheme+host. X-Forwarded-Host is honored only from a
+// trusted proxy: the origin reaches shareable links and AI prompts, and a
+// cache in front of gnoweb does not key on that header. X-Forwarded-Proto
+// is always honored: at worst a spoofed one downgrades links to http on the
+// same host, while gating it would give every TLS-terminated deployment
+// without -trusted-proxies http links.
 // Empty when no host is known; callers fall back to path-relative URLs.
-func requestOrigin(r *http.Request) string {
+func requestOrigin(r *http.Request, trusted []*net.IPNet) string {
 	host := r.Host
-	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" {
+	if forwarded := r.Header.Get("X-Forwarded-Host"); forwarded != "" && state.FromTrustedProxy(r, trusted) {
 		first, _, _ := strings.Cut(forwarded, ",")
 		if h := strings.TrimSpace(first); h != "" {
 			host = h
@@ -1037,7 +1285,7 @@ func clientErrorMessage(err error, height int64) (int, string) {
 	if err == nil {
 		return http.StatusOK, ""
 	}
-	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientObjectNotFound) {
+	if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientFileNotFound) || errors.Is(err, ErrClientObjectNotFound) {
 		return http.StatusNotFound, err.Error()
 	}
 	if height > 0 {
@@ -1090,11 +1338,11 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 	return status, components.StatusErrorComponent(msg)
 }
 
-// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData
-// from the parsed realm URL. Shared by the state-page wire-in and the
-// generic prepareIndexBodyView path so the global header (breadcrumb +
-// Content/State/Source/Actions tabs) always renders against the same
-// realm. Mode must be set on indexData before calling.
+// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData,
+// realm notice included, from the parsed realm URL. Shared by the state-page
+// wire-in and the generic prepareIndexBodyView path so the global header
+// (breadcrumb + Content/State/Source/Actions tabs) always renders against the
+// same realm. Mode must be set on indexData before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
 	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
@@ -1103,6 +1351,28 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
+		Origin:     gnourl.Origin,
+	}
+	if h.showRealmNotice(gnourl) {
+		indexData.HeaderData.Notice = h.Static.RealmNotice
+	}
+}
+
+// scrubHeaderOnError keeps an error page's header from vouching for the
+// request. The Ask AI menu is dropped, as its prompts would send the assistant
+// to views that do not exist: the menu is built from HeaderData.Origin at
+// render time, and nothing else in the header reads it. The file web-query
+// value is dropped too, so a name the package does not hold is not echoed
+// back through the Source tab, which otherwise carries the open file.
+func scrubHeaderOnError(indexData *components.IndexData, status int) {
+	if status == http.StatusOK {
+		return
+	}
+	indexData.HeaderData.Origin = ""
+	if u := &indexData.HeaderData.RealmURL; u.WebQuery.Has("file") {
+		// Clone: the map is shared with the request's GnoURL.
+		u.WebQuery = maps.Clone(u.WebQuery)
+		u.WebQuery.Del("file")
 	}
 }
 
