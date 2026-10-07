@@ -99,9 +99,9 @@ A few things to note:
   best practices: return early in your code and modify state only after you are sure all
   security checks in your code have passed. To discard (revert) state changes,
   use `panic()`.
-- To get the caller of `CreatePost`, name its `realm` parameter `cur` and read
-`cur.Previous().Address()`: `cur.Previous()` is the user or realm that called
-this function. Check out the [realm concept page](../resources/realms.md) and
+- To get the caller of `CreatePost`, read `cur.Previous().Address()`: `cur` is
+its `realm` parameter, and `cur.Previous()` is the user or realm that called
+it. Check out the [realm concept page](../resources/realms.md) and
 [Gno interrealm](../resources/gno-interrealm-v2.md) for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was
 included in, instead of the system time.

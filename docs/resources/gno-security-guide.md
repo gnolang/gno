@@ -4,8 +4,8 @@ This guide consolidates the practical security learnings from auditing
 cross-realm attack vectors in the Gno VM. It is the long-form companion
 to `gno-security.md` (which defines the numbered threat classes) and
 assumes the vocabulary of `gno-interrealm.md` (realm-context,
-realm-storage-context, borrow rules, `cur realm`), and of
-`gno-interrealm-v2.md` for `IsCurrent()`.
+realm-storage-context, borrow rules, `cur realm`). `IsCurrent()` is covered
+in `gno-interrealm-v2.md`.
 
 The goal: tell a realm author what they must do, and what they must
 *not* do, to keep their realm's state safe from external manipulation.
@@ -405,14 +405,14 @@ func Set(cur realm, key, value string) {
 
 Any `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` in a realm that
 also declares crossing functions (`func F(cur realm, ...)`) is a red flag.
-A function another realm calls and that needs its caller should be a
-crossing function itself, reading `cur.Previous()`.
+If another realm calls a function that needs to know its caller, make that
+function crossing and read `cur.Previous()`.
 
 **Rule**: in crossing functions, always derive caller identity from
 `cur.Previous()`, never from `unsafe.PreviousRealm()` or
-`unsafe.CurrentRealm()`. Reads of the transaction itself stay: the
-`unsafe.OriginSend()` payment check of §5.5, and `unsafe.OriginCaller()` where
-the signer is what you want to record.
+`unsafe.CurrentRealm()`. Reading the transaction itself is fine: the
+`unsafe.OriginSend()` payment check of §5.5, or `unsafe.OriginCaller()` to
+record the signer.
 
 ---
 

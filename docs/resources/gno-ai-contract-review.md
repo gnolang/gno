@@ -160,7 +160,7 @@ func Set(cur realm, key, value string) {
 ```
 
 Flag any `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` in a realm that also has
-`cur realm` parameters. Reads of the transaction itself belong there: an
+`cur realm` parameters. Reading the transaction itself is fine there: an
 `unsafe.OriginSend()` payment check paired with `cur.Previous().IsUserCall()`,
 or `unsafe.OriginCaller()` to record the signer.
 

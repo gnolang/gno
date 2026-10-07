@@ -161,8 +161,9 @@ func IsClaimed(id uint64) bool {
   enough.
 
 Use these packages to reduce repeated authorization code, but keep the realm's
-identity model explicit. A realm method should still pass the helper the
-caller it read from its own `cur`:
+identity model explicit. The read helpers, `OwnedBy` and `AssertOwnedBy`, take
+an address rather than finding the caller themselves, so the realm reads it
+from `cur.Previous()` and passes it in:
 
 ```go
 import "gno.land/p/nt/ownable/v0"
