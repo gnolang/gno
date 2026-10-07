@@ -243,9 +243,12 @@ On success you'll see:
 (1 int)
 OK!
 GAS WANTED: 1000000000
-GAS USED:   234567
+GAS USED:   1685054
 HEIGHT:     42
-EVENTS:     []
+STORAGE DELTA:  10 bytes
+STORAGE FEE:    1000ugnot
+TOTAL TX COST:  1001000ugnot
+EVENTS:     [{"bytes_delta":10,"fee_delta":{"denom":"ugnot","amount":1000},"pkg_path":"gno.land/r/myname/myrealm"}]
 INFO:
 TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
 ```
@@ -391,9 +394,12 @@ receipt:
 (1 int)
 OK!
 GAS WANTED: 2000000
-GAS USED:   234567
+GAS USED:   1685054
 HEIGHT:     12346
-EVENTS:     []
+STORAGE DELTA:  10 bytes
+STORAGE FEE:    1000ugnot
+TOTAL TX COST:  1001000ugnot
+EVENTS:     [{"bytes_delta":10,"fee_delta":{"denom":"ugnot","amount":1000},"pkg_path":"gno.land/r/<your-g1-addr>/myrealm"}]
 INFO:
 TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
 ```

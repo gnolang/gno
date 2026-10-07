@@ -365,7 +365,7 @@ Record what you built, checksum it, and bundle it for transfer:
 
 ```bash
 git rev-parse HEAD > build/gnokey.gitrev
-sha256sum build/gnokey > build/gnokey.sha256
+(cd build && sha256sum gnokey > gnokey.sha256)
 
 tar -czf gnokey-airgap.tgz -C build gnokey gnokey.sha256 gnokey.gitrev
 sha256sum gnokey-airgap.tgz > gnokey-airgap.tgz.sha256

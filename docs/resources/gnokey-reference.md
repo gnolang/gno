@@ -52,9 +52,12 @@ Four message types deploy and call code and move coins:
 | `Send`       | transfer coins between addresses        |
 | `Run`        | execute a Gno script against the chain  |
 
-Each `maketx` command sends one message, signed with a key from your keybase (see
-[Using the `gnokey` wallet](../users/using-gnokey.md#managing-key-pairs)). Every
-command takes the same base-configuration flags:
+Each `maketx` command sends a transaction holding exactly one message, signed
+with a key from your keybase (see
+[Using the `gnokey` wallet](../users/using-gnokey.md#managing-key-pairs)). A
+transaction carrying several messages has to be built in Go, with the
+[`gnoclient`](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)
+package. Every command takes the same base-configuration flags:
 
 - `-gas-wanted` - the maximum gas units the transaction may consume (required)
 - `-gas-fee` - the fee paid for the transaction, as `<amount>ugnot`
@@ -82,10 +85,11 @@ no fee is spent. Find `-chainid` and `-remote` values per network in
 State-changing calls cost gas paid in GNOT, so on testnets grab some from the
 [Faucet Hub](https://faucet.gno.land) first.
 
-Every successful transaction prints the same summary; a `Call` return value
-prints above the `OK!` line:
+Every successful transaction prints the same summary. The line above `OK!`
+holds a `Call`'s return value, and is empty for a send:
 
 ```console
+
 OK!
 GAS WANTED: 2000000
 GAS USED:   1237486
@@ -258,15 +262,14 @@ and in tests, and discarded in a `Call`.
 That example could just as easily have been a `maketx call`. `Run` earns its place
 when a plain call can't express what you need:
 
-1. Constructing composite arguments such as structs, maps, or slices, which
-   `Call` cannot pass
+1. Passing slices and maps, which `Call` cannot
 2. Calling realm functions repeatedly in a loop
 3. Calling methods on exported variables
 
-**1. Composite arguments.** `-args` only carries primitive values: booleans,
-numbers, strings, and base64-encoded `[]byte` or `[N]byte`. Structs, maps, and
-other slices cannot be passed. `Run` is full Gno code, so it can build them
-directly:
+**1. Slices and maps.** `-args` only carries primitive values: booleans,
+numbers, strings, and base64-encoded `[]byte` or `[N]byte`. Other slices, maps
+and structs cannot be passed. `Run` is full Gno code, so it can build a slice or
+a map and pass it on:
 
 ```go
 package main
@@ -274,13 +277,17 @@ package main
 import "gno.land/r/myrealm"
 
 func main(cur realm) {
-	post := myrealm.Post{
-		Title: "Hello",
-		Tags:  []string{"gno", "blockchain"},
-	}
-	myrealm.CreatePost(cross(cur), post)
+	tags := []string{"gno", "blockchain"}
+	myrealm.CreatePost(cross(cur), "Hello", tags)
 }
 ```
+
+A struct type the target realm declares is the exception: only that realm can
+construct one, so a script building `myrealm.Post` panics with
+`cannot allocate gno.land/r/myrealm.Post in realm gno.land/e/<address>/run`. A
+realm that wants a struct takes its fields, as `CreatePost` does here, and
+builds it itself. A struct whose type comes from a `/p/` package, or has no
+declared name, can be built in the script.
 
 **2. Looping over a realm function.** `Call` sends one transaction per call.
 `Run` batches multiple calls into a single transaction, saving gas and keeping
@@ -399,7 +406,7 @@ data: {
 }
 ```
 
-`height` is currently always `0`; module queries leave it unset. The state
+`height` is always `0`, since module queries leave it unset. The state
 itself is read at the latest block, or at `-height` if given.
 
 In `data`, the `BaseAccount` object is the TM2 struct for account data, and
@@ -453,7 +460,7 @@ gnokey query bank/supply//gno.land/r/demo/foo:gold -remote https://rpc.gno.land:
 
 ### `auth/gasprice`
 
-Returns the minimum gas price currently required for transactions, handy for
+Returns the minimum gas price the network requires for transactions, handy for
 setting `-gas-fee`:
 
 ```bash
@@ -537,6 +544,7 @@ import (
         "chain"
         "chain/banker"
         "chain/runtime"
+        "chain/runtime/unsafe"
         "strings"
 
         "gno.land/p/nt/grc20/v0"
@@ -555,29 +563,45 @@ the package itself and its functions, types, and values:
 gnokey query vm/qdoc --data "gno.land/r/gnops/valopers" -remote https://rpc.gno.land:443
 ```
 
+The JSON comes back on one line; here it is indented, and `...` marks what is
+cut:
+
 ```
 height: 0
 data: {
   "package_path": "gno.land/r/gnops/valopers",
+  "package_line": "package valopers // import \"gno.land/r/gnops/valopers\"",
   "package_doc": "Package valopers is designed around the permissionless lifecycle of valoper profiles.\n",
+  "imports": ["chain", "chain/runtime", ...],
+  "bugs": null,
+  "values": [...],
   "funcs": [
     {
+      "type": "",
       "name": "GetByAddr",
+      "crossing": false,
       "signature": "func GetByAddr(addr address) Valoper",
       "doc": "GetByAddr fetches the valoper using the operator address, if present.\n",
       "params": [{ "name": "addr", "type": "address", "doc": "" }],
-      "results": [{ "name": "", "type": "Valoper", "doc": "" }]
-    }
-    // other funcs
+      "results": [{ "name": "", "type": "Valoper", "doc": "" }],
+      "file": "valopers.gno",
+      "line": "422"
+    },
+    ...
   ],
   "types": [
     {
       "name": "Valoper",
       "type": "struct { ... }",
-      "doc": "Valoper represents a validator operator profile.\n"
-    }
+      "doc": "Valoper represents a validator operator profile.\n",
+      "alias": false,
+      "kind": "struct",
+      "fields": [{ "name": "Moniker", "type": "string", "doc": "// A human-readable name\n" }, ...],
+      "file": "valopers.gno",
+      "line": "74"
+    },
+    ...
   ]
-  // values omitted
 }
 ```
 
