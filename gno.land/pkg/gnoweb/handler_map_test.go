@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
@@ -260,7 +261,7 @@ func TestHTTPHandler_MapColorsByGasWithIndexer(t *testing.T) {
 		t.Fatalf("NewHTTPHandler: %v", err)
 	}
 
-	body := serve(t, h, "/r/demo$map&color=gas").Body.String()
+	body := serveWarm(t, h, "/r/demo$map&color=gas", "Most gas")
 	for _, want := range []string{`<span aria-current="true" title="Gas used`, "Most gas · 7 days"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("gas map lacks %q", want)
@@ -271,5 +272,19 @@ func TestHTTPHandler_MapColorsByGasWithIndexer(t *testing.T) {
 	}
 	if calls := serve(t, h, "/r/demo$map").Body.String(); !strings.Contains(calls, "Most called · 7 days") {
 		t.Error("$map without color must stay the call map")
+	}
+}
+
+// serveWarm serves path until its body holds want: a page served before the
+// activity aggregate first exists says it is pending, without waiting for it.
+func serveWarm(t *testing.T, h http.Handler, path, want string) string {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		body := serve(t, h, path).Body.String()
+		if strings.Contains(body, want) || time.Now().After(deadline) {
+			return body
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

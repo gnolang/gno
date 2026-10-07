@@ -4046,14 +4046,18 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	}
 }
 
-/* The indexer tag follows the title, as on the dependency graph's side. */
+/* The indexer tag follows the title. */
 .b-calls .b-pkg-section__header .b-tag--indexer {
 	align-self: center;
 	margin-inline-start: var(--g-space-2);
 	font-weight: var(--g-font-normal);
 }
 
+/* A function name is a Go identifier of any length: it wraps rather than
+   running over the caller. */
 .b-calls__func {
+	min-width: 0;
+	overflow-wrap: anywhere;
 	color: var(--s-color-text-primary);
 }
 
@@ -4090,7 +4094,8 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 
 /* The batch note sits under the gas it qualifies. Below --md the time takes
    its own line under the caller. */
-.b-calls__gas small {
+.b-calls__gas small,
+.b-calls__when small {
 	display: block;
 	font-size: var(--g-font-size-50);
 }
@@ -4105,7 +4110,8 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	}
 }
 
-.b-calls__empty {
+.b-calls__empty,
+.b-calls__note {
 	margin: 0;
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-100);

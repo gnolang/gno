@@ -77,7 +77,8 @@ func newActivityFlight() *flight[*Activity] {
 	return &flight[*Activity]{ttl: activityTTL, errTTL: failureTTL, timeout: activityTimeout, max: 1, stale: true}
 }
 
-// bandCounts are the successful calls of one band, per package.
+// bandCounts are one band's calls per realm: counts, callers and gas of the
+// successful ones, and the newest calls, failed ones included.
 type bandCounts struct {
 	calls   map[string]int
 	callers map[string]map[string]struct{}
@@ -89,28 +90,21 @@ type bandCounts struct {
 
 func countBand(txs []indexer.Tx, complete bool) *bandCounts {
 	b := &bandCounts{calls: make(map[string]int), callers: make(map[string]map[string]struct{}), gas: make(map[string]int64), recent: make(map[string][]Call), complete: complete}
+	failed := make(map[string][]Call)
 	for _, tx := range txs {
-		recordCalls(b.recent, tx)
 		if !tx.Success {
+			recordCalls(failed, tx)
 			continue
 		}
+		recordCalls(b.recent, tx)
 		// The gas is shared between the messages that run code: a call
 		// batched with a run or a deploy gets its share, not the whole.
-		var calls []indexer.Message
-		workers := 0
+		workers := workingMessages(tx)
 		for _, m := range tx.Messages {
-			switch m.Type() {
-			case "MsgCall":
-				workers++
-				if m.Path() != "" {
-					calls = append(calls, m)
-				}
-			case "MsgRun", "MsgAddPackage":
-				workers++
-			}
-		}
-		for _, m := range calls {
 			p := m.Path()
+			if m.Type() != "MsgCall" || p == "" {
+				continue
+			}
 			b.gas[p] += int64(tx.GasUsed) / int64(workers)
 			b.calls[p]++
 			if b.callers[p] == nil {
@@ -119,7 +113,28 @@ func countBand(txs []indexer.Tx, complete bool) *bandCounts {
 			b.callers[p][m.Value.Caller] = struct{}{}
 		}
 	}
+	// A failed call costs its sender little and may name any realm path:
+	// it is kept only beside a successful call into the same realm, so it
+	// can neither grow the aggregate nor stand alone for a realm.
+	for p, calls := range failed {
+		if len(b.recent[p]) > 0 {
+			b.recent[p] = newest(append(b.recent[p], calls...))
+		}
+	}
 	return b
+}
+
+// workingMessages counts the messages of tx that run code (calls, runs and
+// deploys), the ones its gas pays for.
+func workingMessages(tx indexer.Tx) int {
+	n := 0
+	for _, m := range tx.Messages {
+		switch m.Type() {
+		case "MsgCall", "MsgRun", "MsgAddPackage":
+			n++
+		}
+	}
+	return n
 }
 
 // closedBands keeps the counts of whole bands below the indexer's tip, keyed

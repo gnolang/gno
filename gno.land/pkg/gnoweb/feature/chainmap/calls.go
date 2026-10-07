@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"errors"
-	"fmt"
 	"slices"
 	"strconv"
 	"time"
@@ -15,51 +14,81 @@ import (
 
 // The overview's Recent calls come from the 7-day activity scan the map
 // already makes: each band keeps every realm's newest calls, so listing them
-// costs the indexer nothing more, whatever the traffic, and a path nobody
-// calls costs nothing at all.
+// adds no indexer query per page, and a path nobody calls costs nothing.
 const (
-	// recentCallsKept is how many calls a realm keeps, per band and overall.
+	// recentCallsKept is how many rows a realm keeps, per band and overall.
 	recentCallsKept = 8
-	// recentCallsWait is how long an overview waits for the aggregate before
-	// rendering without it; once computed it is served at once.
+	// maxFailedKept bounds the failed calls among them: anyone can send
+	// failed calls cheaply, and must not push the real ones out.
+	maxFailedKept = 2
+	// maxFuncKept bounds a function name, a Go identifier of any length.
+	maxFuncKept = 64
+	// recentCallsWait is how long an overview waits for a refresh of the
+	// aggregate; once one exists, it is served at once.
 	recentCallsWait = 1500 * time.Millisecond
 )
 
-// Call is one call into a realm, as the indexer recorded it.
+// Call is one transaction's calls into a realm: one row on the overview.
 type Call struct {
+	// Func names the functions called, in order ("Approve, Deposit").
 	Func, Caller string
-	Height, Gas  int
-	Failed       bool
-	// Others counts the other calls, runs and deploys in the transaction,
-	// which Gas, the transaction's, also paid for.
-	Others int
+	Height       int
+	// Gas is the transaction's, which every call in it shared.
+	Gas    int64
+	Failed bool
+	// Calls counts all the calls in the transaction, into any realm.
+	Calls int
 }
 
-// recordCalls adds tx's calls to the newest calls kept per realm.
+// recordCalls adds tx as one row to each realm it calls.
 func recordCalls(recent map[string][]Call, tx indexer.Tx) {
-	workers := 0
-	for _, m := range tx.Messages {
-		switch m.Type() {
-		case "MsgCall", "MsgRun", "MsgAddPackage":
-			workers++
-		}
-	}
+	rows := make(map[string]*Call)
+	var order []string
+	total := 0
 	for _, m := range tx.Messages {
 		p := m.Path()
 		if m.Type() != "MsgCall" || p == "" {
 			continue
 		}
-		recent[p] = newest(append(recent[p], Call{
-			Func: m.Value.Func, Caller: m.Value.Caller, Height: tx.Height, Gas: tx.GasUsed,
-			Failed: !tx.Success, Others: workers - 1,
-		}))
+		total++
+		fn := m.Value.Func
+		if len(fn) > maxFuncKept {
+			fn = fn[:maxFuncKept] + "…"
+		}
+		if r, ok := rows[p]; ok {
+			r.Func += ", " + fn
+			continue
+		}
+		rows[p] = &Call{Func: fn, Caller: m.Value.Caller, Height: tx.Height, Gas: int64(tx.GasUsed), Failed: !tx.Success}
+		order = append(order, p)
+	}
+	for _, p := range order {
+		r := rows[p]
+		r.Calls = total
+		recent[p] = newest(append(recent[p], *r))
 	}
 }
 
-// newest sorts calls newest first and keeps recentCallsKept of them.
+// newest sorts calls newest first and keeps recentCallsKept of them, at most
+// maxFailedKept failed, in a slice of their own: trimmed calls must not stay
+// alive in the backing array.
 func newest(calls []Call) []Call {
 	slices.SortStableFunc(calls, func(a, b Call) int { return cmp.Compare(b.Height, a.Height) })
-	return calls[:min(len(calls), recentCallsKept)]
+	out := make([]Call, 0, min(len(calls), recentCallsKept))
+	failed := 0
+	for _, c := range calls {
+		if len(out) == recentCallsKept {
+			break
+		}
+		if c.Failed {
+			if failed == maxFailedKept {
+				continue
+			}
+			failed++
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 // timeOf places a height of the window in time, between the times of its
@@ -80,13 +109,9 @@ func (h *Handler) CallsSection(ctx context.Context, pkgPath string, now time.Tim
 	if !h.HasIndexer() {
 		return nil
 	}
-	wctx, cancel := context.WithTimeout(ctx, recentCallsWait)
-	defer cancel()
-	a, err := h.activity.get(wctx, "activity", func(ctx context.Context) (*Activity, error) {
-		return computeActivity(ctx, h.deps.Indexer, h.closedBands)
-	})
+	a, err := h.loadActivity(ctx, recentCallsWait)
 	if err != nil && !errors.Is(err, ErrPending) {
-		h.deps.Logger.Warn("overview: recent calls unavailable", "error", err)
+		h.deps.Logger.Debug("overview: recent calls unavailable", "error", err)
 	}
 	return callsSection(a, err, pkgPath, now, h.deps.Indexer.URL())
 }
@@ -96,38 +121,24 @@ func (h *Handler) CallsSection(ctx context.Context, pkgPath string, now time.Tim
 func callsSection(a *Activity, err error, pkgPath string, now time.Time, indexerURL string) *components.CallsSection {
 	switch {
 	case errors.Is(err, ErrPending):
-		return &components.CallsSection{State: components.CallsPending}
+		return &components.CallsSection{Pending: true}
 	case err != nil || a == nil:
-		return &components.CallsSection{State: components.CallsUnavailable}
+		return &components.CallsSection{Unavailable: true}
 	}
 	s := &components.CallsSection{Partial: a.Partial, Indexer: &components.IndexerStatus{URL: indexerURL, LastBlock: a.To}}
 	for _, c := range a.Recent[pkgPath] {
 		row := components.CallRow{
 			Func: c.Func, Caller: c.Caller, Failed: c.Failed, Height: c.Height,
-			Gas: FormatGas(int64(c.Gas)),
+			Gas: components.FormatGas(c.Gas),
 		}
-		if c.Others > 0 {
-			row.Batch = "tx of " + strconv.Itoa(c.Others+1) + " calls"
+		if c.Calls > 1 {
+			row.Batch = "tx of " + strconv.Itoa(c.Calls) + " calls"
 		}
 		if !a.Until.IsZero() {
 			t := a.timeOf(c.Height)
-			row.Time, row.Ago = t.UTC().Format(time.RFC3339), ago(now.Sub(t))
+			row.Time, row.Ago = t.UTC().Format(time.RFC3339), components.FormatRelativeTime(now, t)
 		}
 		s.Rows = append(s.Rows, row)
 	}
 	return s
-}
-
-// ago writes a duration as how long ago something was.
-func ago(d time.Duration) string {
-	switch {
-	case d < time.Minute:
-		return "just now"
-	case d < time.Hour:
-		return fmt.Sprintf("%d min ago", int(d.Minutes()))
-	case d < 48*time.Hour:
-		return fmt.Sprintf("%d h ago", int(d.Hours()))
-	default:
-		return fmt.Sprintf("%d d ago", int(d.Hours()/24))
-	}
 }

@@ -156,11 +156,7 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 		data.Activity = ActivityNotCalled
 		return
 	}
-	wctx, cancel := context.WithTimeout(ctx, activityWait)
-	defer cancel()
-	a, err := h.activity.get(wctx, "activity", func(ctx context.Context) (*Activity, error) {
-		return computeActivity(ctx, h.deps.Indexer, h.closedBands)
-	})
+	a, err := h.loadActivity(ctx, activityWait)
 	if err != nil {
 		data.Activity = ActivityUnavailable
 		if errors.Is(err, ErrPending) {
@@ -206,6 +202,29 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 		data.Scale = scale(busiest, a.Partial)
 	}
 }
+
+// loadActivity returns the activity aggregate, waiting up to wait for a
+// refresh. Before any aggregate exists it does not wait: the first scan takes
+// seconds, and a page would only wait to say it is pending. The scan carries
+// on for the next reader either way.
+func (h *Handler) loadActivity(ctx context.Context, wait time.Duration) (*Activity, error) {
+	if !h.activity.has(activityKey) {
+		wait = coldWait
+	}
+	wctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+	return h.activity.get(wctx, activityKey, func(ctx context.Context) (*Activity, error) {
+		return computeActivity(ctx, h.deps.Indexer, h.closedBands)
+	})
+}
+
+const (
+	// activityKey is the aggregate's one cache key.
+	activityKey = "activity"
+	// coldWait is how long a reader waits when no aggregate exists yet:
+	// long enough to start the scan, not to wait for it.
+	coldWait = 10 * time.Millisecond
+)
 
 // gasLevel maps gas, in thousands, to a colour step on a log scale from the
 // lightest realm on the map to the heaviest. Gas sits in a narrow band (a call

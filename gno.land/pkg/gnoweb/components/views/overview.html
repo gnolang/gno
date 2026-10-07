@@ -401,7 +401,7 @@ signs. A failed lookup is said, so it never reads as a realm nobody calls.
   {{ else if .Empty }}
   <p class="b-calls__empty">No calls in the last 7 days.</p>
   {{ else }}
-  {{ if .Partial }}<p class="b-calls__empty">Part of the last 7 days could not be read: calls may be missing.</p>{{ end }}
+  {{ if .Partial }}<p class="b-calls__note">Part of the last 7 days could not be read: calls may be missing.</p>{{ end }}
   {{ with .Rows }}
   <ul class="b-pkg-list b-pkg-section__body">
     {{ range . }}
@@ -409,7 +409,7 @@ signs. A failed lookup is said, so it never reads as a realm nobody calls.
       <span class="b-calls__func"><span class="u-font-mono">{{ .Func }}</span>{{ if .Failed }} <span class="b-tag b-tag--failed">failed</span>{{ end }}</span>
       <span class="b-calls__caller u-font-mono"><span class="u-sr-only">by </span><a href="/u/{{ .Caller }}">{{ .Caller }}</a></span>
       <span class="b-calls__gas">{{ .Gas }} gas{{ with .Batch }}<small>{{ . }}</small>{{ end }}</span>
-      <span class="b-calls__when">{{ if .Time }}<time datetime="{{ .Time }}" title="Block {{ .Height }}, time estimated from the block rate">{{ .Ago }}</time>{{ else }}block {{ .Height }}{{ end }}</span>
+      <span class="b-calls__when">{{ if .Time }}<time datetime="{{ .Time }}" title="Estimated from the block rate">{{ .Ago }}</time>{{ end }}<small>block {{ .Height }}</small></span>
     </div></li>
     {{ end }}
   </ul>

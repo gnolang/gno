@@ -24,7 +24,7 @@ func overviewHandler(t *testing.T, client *gnoweb.MockClient, idx *stubIndexer) 
 	return h
 }
 
-func realmPkg(path string, storage *gnoweb.RealmStorage) *gnoweb.MockPackage {
+func mockPkg(path string, storage *gnoweb.RealmStorage) *gnoweb.MockPackage {
 	return &gnoweb.MockPackage{Path: path, Files: map[string]string{"a.gno": "package a"}, Storage: storage}
 }
 
@@ -33,7 +33,7 @@ func realmPkg(path string, storage *gnoweb.RealmStorage) *gnoweb.MockPackage {
 func TestHTTPHandler_OverviewShowsStorage(t *testing.T) {
 	t.Parallel()
 
-	client := gnoweb.NewMockClient(realmPkg("/r/demo/wugnot", &gnoweb.RealmStorage{Bytes: 1292654, Deposit: 129265400}))
+	client := gnoweb.NewMockClient(mockPkg("/r/demo/wugnot", &gnoweb.RealmStorage{Bytes: 1292654, Deposit: 129265400}))
 	body := serve(t, overviewHandler(t, client, nil), "/r/demo/wugnot$source").Body.String()
 	for _, want := range []string{">Storage</dt>", ">1.29 MB<", ">Storage deposit</dt>", ">129.27 GNOT<"} {
 		if !strings.Contains(body, want) {
@@ -48,7 +48,7 @@ func TestHTTPHandler_OverviewStorageOnlyForRealms(t *testing.T) {
 	t.Parallel()
 
 	var asked atomic.Int32
-	client := gnoweb.NewMockClient(realmPkg("/p/demo/lib", &gnoweb.RealmStorage{Bytes: 1, Deposit: 1}), realmPkg("/r/demo/quiet", nil))
+	client := gnoweb.NewMockClient(mockPkg("/p/demo/lib", &gnoweb.RealmStorage{Bytes: 1, Deposit: 1}), mockPkg("/r/demo/quiet", nil))
 	client.OnStorage = func(string) { asked.Add(1) }
 	h := overviewHandler(t, client, nil)
 	if body := serve(t, h, "/p/demo/lib$source").Body.String(); strings.Contains(body, "Storage deposit") || asked.Load() != 0 {
@@ -76,25 +76,30 @@ func TestHTTPHandler_OverviewRecentCalls(t *testing.T) {
 	const pkg = "/r/demo/wugnot" // the test config has no domain
 	var run indexer.Message
 	run.Value.Type = "MsgRun"
+	const caller = "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag"
 	idx := &stubIndexer{calls: []indexer.Tx{
-		{Height: 70, Success: true, GasUsed: 154_000_000, Messages: []indexer.Message{callMsg(pkg, "Approve", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag"), callMsg("/r/other/x", "Swap", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag")}},
+		{Height: 70, Success: true, GasUsed: 154_000_000, Messages: []indexer.Message{callMsg(pkg, "Approve", caller), callMsg(pkg, "Deposit", caller), callMsg("/r/other/x", "Swap", caller)}},
 		{Height: 60, Success: false, GasUsed: 120_000, Messages: []indexer.Message{callMsg(pkg, "Withdraw", "g1wzlp8l9quwf8cfa357amqlw83gssnzuwh4zucu"), run}},
+		{Height: 55, Success: true, GasUsed: 1_000, Messages: []indexer.Message{callMsg(pkg, "Transfer", caller)}},
 		{Height: 50, Success: true, GasUsed: 9_000_000, Messages: []indexer.Message{callMsg("/r/other/x", "Swap", "g1zzz")}},
 	}}
-	client := gnoweb.NewMockClient(realmPkg(pkg, nil), realmPkg("/r/other/x", nil))
-	body := serve(t, overviewHandler(t, client, idx), pkg+"$source").Body.String()
+	client := gnoweb.NewMockClient(mockPkg(pkg, nil), mockPkg("/r/other/x", nil))
+	body := serveWarm(t, overviewHandler(t, client, idx), pkg+"$source", "b-calls__row")
 	for _, want := range []string{
 		`id="calls"`, `href="#calls"`, ">Recent calls<",
-		">Approve<", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag", "154 M gas", "tx of 2 calls",
+		">Approve, Deposit<", caller, "154 M gas", "tx of 3 calls",
 		">Withdraw<", `b-tag--failed`, "120 k gas",
-		`<time datetime=`, "b-tag--indexer", "last indexed block",
+		`<time datetime=`, ">block 70<", "b-tag--indexer", "last indexed block",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("overview lacks %q", want)
 		}
 	}
-	if n := strings.Count(body, `class="b-calls__row"`); n != 2 || strings.Contains(body, ">Swap<") {
-		t.Errorf("rows = %d, want the two calls into this realm only", n)
+	if n := strings.Count(body, `class="b-calls__row"`); n != 3 || strings.Contains(body, ">Swap<") {
+		t.Errorf("rows = %d, want one row per transaction into this realm", n)
+	}
+	if strings.Contains(body, "tx of 2 calls") {
+		t.Error("a call batched with a run is not a tx of 2 calls")
 	}
 }
 
@@ -105,10 +110,10 @@ func TestHTTPHandler_OverviewRecentCallsScope(t *testing.T) {
 	t.Parallel()
 
 	idx := &stubIndexer{calls: []indexer.Tx{}}
-	client := gnoweb.NewMockClient(realmPkg("/r/demo/quiet", nil), realmPkg("/p/demo/lib", nil))
+	client := gnoweb.NewMockClient(mockPkg("/r/demo/quiet", nil), mockPkg("/p/demo/lib", nil))
 	h := overviewHandler(t, client, idx)
 
-	if body := serve(t, h, "/r/demo/quiet$source").Body.String(); !strings.Contains(body, "No calls in the last 7 days.") {
+	if body := serveWarm(t, h, "/r/demo/quiet$source", "No calls in the last 7 days."); !strings.Contains(body, "No calls in the last 7 days.") {
 		t.Error("a realm with no call in the window must say so")
 	}
 	if body := serve(t, h, "/p/demo/lib$source").Body.String(); strings.Contains(body, `id="calls"`) || strings.Contains(body, `href="#calls"`) {

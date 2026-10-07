@@ -1,20 +1,13 @@
 package components
 
-// Recent-calls states the section tells apart, so an indexer that could not
-// answer never reads as a realm nobody calls.
-const (
-	CallsPending     = "pending"
-	CallsUnavailable = "unavailable"
-)
-
 // CallsSection is the overview's Recent calls: the last calls into the realm
 // over the activity window, from an indexer. Nil when no indexer is
 // configured; the overview then has no such section at all.
 type CallsSection struct {
 	Rows []CallRow
-	// State is CallsPending or CallsUnavailable when there is nothing to
-	// trust; empty otherwise.
-	State string
+	// Pending is set while the aggregate is first computed, Unavailable
+	// when the indexer could not be read: no rows then says nothing.
+	Pending, Unavailable bool
 	// Partial is set when part of the window could not be read: no rows then
 	// says nothing.
 	Partial bool
@@ -22,10 +15,10 @@ type CallsSection struct {
 	Indexer *IndexerStatus
 }
 
-// Pending, Unavailable and Empty name the section's states for the template.
-func (s *CallsSection) Pending() bool     { return s.State == CallsPending }
-func (s *CallsSection) Unavailable() bool { return s.State == CallsUnavailable }
-func (s *CallsSection) Empty() bool       { return s.State == "" && !s.Partial && len(s.Rows) == 0 }
+// Empty reports a complete window with no call into the realm.
+func (s *CallsSection) Empty() bool {
+	return !s.Pending && !s.Unavailable && !s.Partial && len(s.Rows) == 0
+}
 
 // CallRow is one call, written for display.
 type CallRow struct {

@@ -79,6 +79,14 @@ func (f *flight[T]) fresh(key string) (flightEntry[T], bool) {
 	return e, time.Since(e.at) < ttl
 }
 
+// has reports whether an answer for key is held, fresh or not.
+func (f *flight[T]) has(key string) bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	_, ok := f.entries[key]
+	return ok
+}
+
 // get answers key, fetching it when no fresh answer is held, and waits for
 // the fetch only as long as ctx allows; the fetch carries on for the next
 // reader.

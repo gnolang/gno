@@ -35,19 +35,29 @@ chain's storage price without hard-coding it, since it is a parameter.
 ### Recent calls, from the activity scan
 
 With an indexer, the overview of a realm lists its last calls in a Recent
-calls section, marked as indexer data with the provenance footer: the
-function, the full caller address (never shortened, linked to its user
-page), the transaction's gas and how many calls that transaction held, a
-failed tag, and when.
+calls section, marked as indexer data with the provenance footer. A row is
+one transaction into the realm: the functions it called there ("Approve,
+Deposit"), the full caller address (never shortened, linked to its user
+page), the transaction's gas and how many calls it held, a failed tag, when,
+and its block.
 
 The rows come from the 7-day scan the map already makes. Each band of that
 scan keeps every realm's newest calls (the scan now also selects the
 function name), and the aggregate keeps the newest eight overall. The
-overview reads the shared aggregate, cached and served stale while it
-refreshes, and makes no indexer query of its own. So the section costs
-nothing per page, whatever the traffic; a path nobody calls, or that does
-not exist, costs nothing at all; and the indexer client the section relies
-on is never loaded, nor its breaker tripped, by overview traffic.
+overview reads the shared aggregate, cached for five minutes and served
+stale while it refreshes. There is one scan per five minutes whatever the
+traffic, started by whichever reader first finds the aggregate stale, map
+or overview; no page adds a query of its own, and the path read changes
+nothing, so a path nobody calls, or that does not exist, costs nothing.
+Before an aggregate first exists a reader does not wait for it (the scan
+takes seconds): the section says calls are still being counted, and the
+scan carries on for the next reader. This also applies to the map.
+
+A failed call costs its sender little and may name any realm path, so it is
+kept only beside a successful call into the same realm in the same band,
+and at most two per realm: failed calls can neither grow the aggregate with
+invented paths nor push a realm's real calls out. A function name, a Go
+identifier of any length, is kept to 64 characters.
 
 The cost of that choice is the window: a realm with no call in the last 7
 days says "No calls in the last 7 days.", rather than listing older calls.
@@ -57,8 +67,8 @@ never claims none.
 The indexer gives no time per transaction, so a call's time is placed from
 its height between the times of the window's first and last block, which
 the scan already reads; blocks come at a steady rate. The row shows how
-long ago, in a `<time>` element whose title gives the block and says the
-time is estimated.
+long ago in a `<time>` element whose title says it is estimated, and the
+block itself on the line below.
 
 The section exists only for a realm (a pure package cannot be called) and
 only at the latest height: a page pinned to a past height would otherwise
@@ -69,10 +79,12 @@ the indexer cannot be read it says so.
 ### Gas per row
 
 A row shows the whole transaction's gas, as measured (154 M, 120 k), with
-"tx of N calls" when the transaction held more than this call: the indexer
-reports gas per transaction, and splitting it on a single row would invent
-a precision the data does not have. The map, which aggregates, shares a
-transaction's gas between its working messages instead.
+"tx of N calls" when the transaction held more calls than this realm's:
+the indexer reports gas per transaction, and splitting it on a single row
+would invent a precision the data does not have. One row per transaction
+also keeps a transaction calling the realm twice from showing its gas
+twice. The map, which aggregates, shares a transaction's gas between its
+working messages instead.
 
 ## Alternatives considered
 
@@ -105,6 +117,9 @@ single row, where an even split reads as a measurement it is not.
 - Calls older than the 7-day window are not listed.
 - Times are estimates, within the block rate's variance.
 - Recent calls refresh with the activity aggregate (five minutes), not live.
+- Overview traffic alone now keeps the 7-day scan refreshed, where only the
+  map did before: still one scan per five minutes.
+- A realm whose only recent calls failed shows none.
 - One more node query per realm overview (`vm/qstorage`, a single record
   read).
 
