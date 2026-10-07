@@ -19,6 +19,9 @@ const (
 	OutboundDiscord      = "discord"
 	OutboundYouTube      = "youtube"
 	OutboundBubbleRumble = "bubblerumble"
+	OutboundClaude       = "claude"
+	OutboundChatGPT      = "chatgpt"
+	OutboundGnoMCP       = "gnomcp"
 )
 
 // AnalyticsData holds the SimpleAnalytics metadata rendered into the page.

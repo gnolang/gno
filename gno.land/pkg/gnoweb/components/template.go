@@ -5,12 +5,27 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/url"
 	"strings"
 )
 
 //go:embed ui/*.html views/*.html layouts/*.html
 var html embed.FS
+
+// SharedPartialsFS exposes the shared ui/ partials, and only those. Feature
+// packages parse their templates from their own embed and cannot reach this
+// one, so without it they copy the markup: feature/state carried a verbatim
+// mirror of ui/expend_label, pinned by a regression test, for exactly that
+// reason. Narrowed to ui/ so a caller cannot ParseFS views/ and silently
+// redefine renderRealm inside its own set.
+func SharedPartialsFS() fs.FS {
+	sub, err := fs.Sub(html, "ui")
+	if err != nil {
+		panic("components: sub ui: " + err.Error())
+	}
+	return sub
+}
 
 var funcMap = template.FuncMap{}
 
@@ -59,6 +74,14 @@ func registerCommonFuncs(funcs template.FuncMap) {
 			return s
 		}
 		return string(r[:keep]) + "…" + string(r[len(r)-keep:])
+	}
+	// splitHalf cuts s in two at its middle rune, so a long opaque string (a
+	// bech32 address) can be offered a single break point between equal
+	// halves. Both halves are plain strings and stay escaped by the template.
+	funcs["splitHalf"] = func(s string) [2]string {
+		r := []rune(s)
+		mid := len(r) / 2
+		return [2]string{string(r[:mid]), string(r[mid:])}
 	}
 	// dict creates a map from key-value pairs for passing multiple values to templates
 	funcs["dict"] = func(kv ...any) (map[string]any, error) {

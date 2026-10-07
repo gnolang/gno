@@ -95,9 +95,10 @@ type ValueGroup struct {
 
 // ImportLink is a dependency edge rendered in the Imports section.
 type ImportLink struct {
-	Path string
-	Kind string // "stdlib" | "package" | "realm" | "external"
-	Link string
+	Path     string
+	Kind     string // "stdlib" | "package" | "realm" | "external"
+	Link     string
+	External bool
 }
 
 // FileLink is a file entry rendered in the Files section.
@@ -158,5 +159,7 @@ type OverviewData struct {
 
 // OverviewView constructs a new overview View from pre-built data.
 func OverviewView(data OverviewData) *View {
-	return NewTemplateView(OverviewViewType, "renderOverview", data)
+	view := NewTemplateView(OverviewViewType, "renderOverview", data)
+	view.SkipTargetInBody = true // on the content header
+	return view
 }
