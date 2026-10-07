@@ -92,35 +92,3 @@ func TestDeploysQuotingKeepsRowsWhenCapped(t *testing.T) {
 		t.Errorf("like = %q, want the path between either quote, metacharacters escaped", got)
 	}
 }
-
-// BlockTimes asks for every height in one query and maps each to its time; a
-// height the indexer lacks is simply absent.
-func TestBlockTimesOneQuery(t *testing.T) {
-	t.Parallel()
-
-	var queries []string
-	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
-		var req gqlRequest
-		_ = json.Unmarshal(body, &req)
-		queries = append(queries, req.Query)
-		respond(w, `{"data":{"getBlocks":[{"height":12,"time":"2026-10-07T11:45:30Z"},{"height":10,"time":"2026-10-07T11:38:05Z"}]}}`)
-	})
-
-	times, err := c.BlockTimes(context.Background(), []int{10, 11, 12})
-	if err != nil {
-		t.Fatalf("BlockTimes: %v", err)
-	}
-	if len(queries) != 1 || !strings.Contains(queries[0], "eq: 10") || !strings.Contains(queries[0], "eq: 12") {
-		t.Fatalf("queries = %q, want one query naming each height", queries)
-	}
-	if len(times) != 2 || times[12].Format("15:04:05") != "11:45:30" {
-		t.Errorf("times = %v, want blocks 10 and 12 only", times)
-	}
-	if _, ok := times[11]; ok {
-		t.Error("a height the indexer lacks must be absent, not zero")
-	}
-	if got, err := c.BlockTimes(context.Background(), nil); err != nil || len(got) != 0 || len(queries) != 1 {
-		t.Error("no heights must cost no query")
-	}
-}

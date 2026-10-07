@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -124,18 +123,21 @@ type ClientAdapter interface {
 
 	// Storage reports what a realm keeps on chain and the deposit locked for
 	// it (`vm/qstorage`), at the given height (0 for latest).
-	Storage(ctx context.Context, path string, height int64) (*PackageStorage, error)
+	Storage(ctx context.Context, path string, height int64) (*RealmStorage, error)
 }
 
-// PackageStorage is a realm's stored size and deposit; see ClientAdapter.Storage.
-type PackageStorage = components.PackageStorage
+// RealmStorage is what a realm keeps on chain, in bytes, and the deposit
+// locked for it, in ugnot.
+type RealmStorage struct {
+	Bytes, Deposit int64
+}
 
 // storageAnswer is the shape of a vm/qstorage answer.
 var storageAnswer = regexp.MustCompile(`^storage: (\d+), deposit: (\d+)$`)
 
 // parseStorage reads a vm/qstorage answer. Anything but the exact shape is an
 // error: a zero would read as an empty realm.
-func parseStorage(raw []byte) (*PackageStorage, error) {
+func parseStorage(raw []byte) (*RealmStorage, error) {
 	m := storageAnswer.FindSubmatch(raw)
 	if m == nil {
 		return nil, fmt.Errorf("unexpected storage answer %q", raw)
@@ -148,11 +150,11 @@ func parseStorage(raw []byte) (*PackageStorage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("storage deposit: %w", err)
 	}
-	return &PackageStorage{Bytes: bytes, Deposit: deposit}, nil
+	return &RealmStorage{Bytes: bytes, Deposit: deposit}, nil
 }
 
 // Storage queries vm/qstorage for the realm at path.
-func (c *rpcClient) Storage(ctx context.Context, path string, height int64) (*PackageStorage, error) {
+func (c *rpcClient) Storage(ctx context.Context, path string, height int64) (*RealmStorage, error) {
 	data := fmt.Sprintf("%s/%s", c.domain, strings.Trim(path, "/"))
 	raw, err := c.query(ctx, "vm/qstorage", []byte(data), height)
 	if err != nil {

@@ -54,8 +54,8 @@ UI - Package metadata (sidebar card)
   {{ with .Info.Creator }}<div class="row"><dt class="label" title="The account that deployed this package.">Creator</dt><dd class="value"><a href="/u/{{ . }}" title="{{ . }}">{{ truncMiddle . 6 }}</a></dd></div>{{ end }}
   {{ if .Info.Creator }}<div class="row"><dt class="label" title="The block height at which this package was deployed.">Block</dt><dd class="value">{{ .Info.Height }}</dd></div>{{ end }}
   {{ with .Storage }}
-  <div class="row"><dt class="label" title="What this package keeps on chain between transactions.">Storage</dt><dd class="value">{{ .Size }}</dd></div>
-  <div class="row"><dt class="label" title="GNOT locked to pay for that storage, 1 GNOT per 10 KB, refunded as the data is freed.">Deposit</dt><dd class="value">{{ .DepositGNOT }}</dd></div>
+  <div class="row"><dt class="label" title="What this realm keeps on chain between transactions.">Storage</dt><dd class="value">{{ .Size }}</dd></div>
+  <div class="row"><dt class="label" title="GNOT locked to pay for that storage at the chain's storage price, refunded as the data is freed.">Storage deposit</dt><dd class="value">{{ .DepositGNOT }}</dd></div>
   {{ end }}
 
   <dt class="section b-sidebar-heading">Code stats</dt>
@@ -111,7 +111,7 @@ UI - Section nav: sticky anchor links (with count pills) + client-side symbol se
     {{ with .Funcs }}<a href="#functions">Funcs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
     {{ with .Types }}<a href="#types">Types <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
     {{ if .Graph.Shown }}<a href="#imports">Dependencies <span class="b-tag--tertiary">{{ len .Graph.Imports }}</span></a>{{ end }}
-    {{ if .Calls }}<a href="#calls">Calls</a>{{ end }}
+    {{ if .Calls }}<a href="#calls">Recent calls</a>{{ end }}
     <a href="#files">Files <span class="b-tag--tertiary">{{ len .Files }}</span></a>
     {{ with .Subpackages }}<a href="#subpackages">Subdirs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
   </div>
@@ -392,26 +392,28 @@ signs. A failed lookup is said, so it never reads as a realm nobody calls.
 {{ define "ui/pkg_calls" }}
 <section class="b-pkg-section b-calls" id="calls">
   <h2 class="b-pkg-section__header">
-    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-pulse"></use></svg><span>Recent calls</span></span>
-    <span class="b-tag b-tag--indexer">indexer</span>
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-pulse"></use></svg><span>Recent calls</span><span class="b-tag b-tag--indexer">indexer</span></span>
   </h2>
-  {{ if eq .State "pending" }}
-  <p class="b-calls__empty">Recent calls are still being read. Reload in a moment.</p>
-  {{ else if eq .State "unavailable" }}
+  {{ if .Pending }}
+  <p class="b-calls__empty">Recent calls are still being counted. Reload in a moment.</p>
+  {{ else if .Unavailable }}
   <p class="b-calls__empty">Recent calls unavailable: the indexer could not be read.</p>
-  {{ else if not .Rows }}
-  <p class="b-calls__empty">No calls found.</p>
+  {{ else if .Empty }}
+  <p class="b-calls__empty">No calls in the last 7 days.</p>
   {{ else }}
+  {{ if .Partial }}<p class="b-calls__empty">Part of the last 7 days could not be read: calls may be missing.</p>{{ end }}
+  {{ with .Rows }}
   <ul class="b-pkg-list b-pkg-section__body">
-    {{ range .Rows }}
+    {{ range . }}
     <li class="b-pkg-list__item"><div class="b-calls__row">
-      <span class="b-calls__func u-font-mono">{{ .Func }}{{ if .Failed }} <span class="b-tag b-calls__failed">failed</span>{{ end }}</span>
-      <a class="b-calls__caller u-font-mono" href="/u/{{ .Caller }}">{{ .Caller }}</a>
-      <span class="b-calls__gas">{{ .Gas }} gas</span>
-      <span class="b-calls__when">{{ .Ago }}{{ with .Others }}<small>+{{ . }} other call{{ if gt . 1 }}s{{ end }} in the tx</small>{{ end }}</span>
+      <span class="b-calls__func"><span class="u-font-mono">{{ .Func }}</span>{{ if .Failed }} <span class="b-tag b-tag--failed">failed</span>{{ end }}</span>
+      <span class="b-calls__caller u-font-mono"><span class="u-sr-only">by </span><a href="/u/{{ .Caller }}">{{ .Caller }}</a></span>
+      <span class="b-calls__gas">{{ .Gas }} gas{{ with .Batch }}<small>{{ . }}</small>{{ end }}</span>
+      <span class="b-calls__when">{{ if .Time }}<time datetime="{{ .Time }}" title="Block {{ .Height }}, time estimated from the block rate">{{ .Ago }}</time>{{ else }}block {{ .Height }}{{ end }}</span>
     </div></li>
     {{ end }}
   </ul>
+  {{ end }}
   {{ end }}
   {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
 </section>

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
@@ -20,11 +19,6 @@ type Indexer interface {
 	// source holds pkgPath as a Go string literal, delimiters included, so
 	// that a path never matches inside a longer one.
 	DeploysQuoting(ctx context.Context, pkgPath string, lower, upper int) ([]indexer.Tx, error)
-	// RecentByPackage returns the newest transactions touching a package:
-	// calls into it, and its deploys.
-	RecentByPackage(ctx context.Context, pkgPath string, limit int) ([]indexer.Tx, error)
-	// BlockTimes returns the time of each block in heights, in one query.
-	BlockTimes(ctx context.Context, heights []int) (map[int]time.Time, error)
 	URL() string
 }
 
@@ -66,8 +60,6 @@ type Handler struct {
 	activity *flight[*Activity]
 	// closedBands keeps the activity of whole bands across refreshes.
 	closedBands *closedBands
-	// recentCalls holds each package's last calls, for the overview.
-	recentCalls *flight[*RecentCalls]
 	importers   importerFlights
 }
 
@@ -84,7 +76,6 @@ func New(deps Deps) *Handler {
 	if deps.Indexer != nil {
 		h.activity = newActivityFlight()
 		h.closedBands = new(closedBands)
-		h.recentCalls = newRecentCallsFlight()
 		h.importers = newImporterFlights()
 	}
 	return h

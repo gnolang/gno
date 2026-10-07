@@ -203,6 +203,7 @@ func TestParseStorage(t *testing.T) {
 	t.Parallel()
 
 	got, err := parseStorage([]byte("storage: 1292654, deposit: 129265400"))
+	var _ *RealmStorage = got
 	if err != nil || got.Bytes != 1292654 || got.Deposit != 129265400 {
 		t.Fatalf("parseStorage = %+v, %v; want 1292654 bytes, 129265400 ugnot", got, err)
 	}

@@ -3800,13 +3800,15 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 /* Two axes side by side: status on caution/success, visibility on warning/info.
    Yellow against blue survives red-green deficiency. */
 .b-tag--draft,
+.b-tag--failed,
 .b-tag--published,
 .b-tag--private,
 .b-tag--public {
 	border-color: transparent;
 }
 
-.b-tag--draft {
+.b-tag--draft,
+.b-tag--failed {
 	color: var(--s-color-text-caution);
 	background: var(--s-color-bg-caution-weak);
 }
@@ -4044,8 +4046,15 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	}
 }
 
+/* The indexer tag follows the title, as on the dependency graph's side. */
+.b-calls .b-pkg-section__header .b-tag--indexer {
+	align-self: center;
+	margin-inline-start: var(--g-space-2);
+	font-weight: var(--g-font-normal);
+}
+
 .b-calls__func {
-	color: var(--s-color-text-link);
+	color: var(--s-color-text-primary);
 }
 
 .b-calls__caller {
@@ -4053,8 +4062,16 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	grid-row: 2;
 	min-width: 0;
 	overflow-wrap: anywhere;
-	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
+
+	& a {
+		color: var(--s-color-text-link);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
+	}
 
 	@media (--md) {
 		grid-column: auto;
@@ -4071,33 +4088,21 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	text-align: end;
 }
 
-/* Below --md the time sits on its own line under the caller, its batch note
-   beside it; from --md it ends the row, the note under it. */
+/* The batch note sits under the gas it qualifies. Below --md the time takes
+   its own line under the caller. */
+.b-calls__gas small {
+	display: block;
+	font-size: var(--g-font-size-50);
+}
+
 .b-calls__when {
 	grid-column: 1 / -1;
 	text-align: start;
 
-	& small::before {
-		content: " · ";
-	}
-
 	@media (--md) {
 		grid-column: auto;
 		text-align: end;
-
-		& small {
-			display: block;
-		}
-
-		& small::before {
-			content: none;
-		}
 	}
-}
-
-.b-calls__failed {
-	border-color: var(--s-color-border-error);
-	color: var(--s-color-border-error);
 }
 
 .b-calls__empty {

@@ -1,22 +1,19 @@
 package gnoweb_test
 
 import (
-	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
-func overviewHandler(t *testing.T, storage *gnoweb.PackageStorage, idx *stubIndexer) http.Handler {
+func overviewHandler(t *testing.T, client *gnoweb.MockClient, idx *stubIndexer) http.Handler {
 	t.Helper()
-	pkg := &gnoweb.MockPackage{Path: "/r/demo/wugnot", Files: map[string]string{"wugnot.gno": "package wugnot"}, Storage: storage}
-	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(pkg))
+	cfg := newTestHandlerConfig(t, client)
 	if idx != nil {
 		cfg.Indexer = idx
 	}
@@ -27,97 +24,100 @@ func overviewHandler(t *testing.T, storage *gnoweb.PackageStorage, idx *stubInde
 	return h
 }
 
-// The sidebar states what the realm keeps on chain and the GNOT locked for it,
+func realmPkg(path string, storage *gnoweb.RealmStorage) *gnoweb.MockPackage {
+	return &gnoweb.MockPackage{Path: path, Files: map[string]string{"a.gno": "package a"}, Storage: storage}
+}
+
+// A realm's sidebar states what it keeps on chain and the GNOT locked for it,
 // read from the node: no indexer involved.
 func TestHTTPHandler_OverviewShowsStorage(t *testing.T) {
 	t.Parallel()
 
-	body := serve(t, overviewHandler(t, &gnoweb.PackageStorage{Bytes: 1292654, Deposit: 129265400}, nil), "/r/demo/wugnot$source").Body.String()
-	for _, want := range []string{">Storage</dt>", ">1.29 MB<", ">Deposit</dt>", ">129.27 GNOT<"} {
+	client := gnoweb.NewMockClient(realmPkg("/r/demo/wugnot", &gnoweb.RealmStorage{Bytes: 1292654, Deposit: 129265400}))
+	body := serve(t, overviewHandler(t, client, nil), "/r/demo/wugnot$source").Body.String()
+	for _, want := range []string{">Storage</dt>", ">1.29 MB<", ">Storage deposit</dt>", ">129.27 GNOT<"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("overview lacks %q", want)
 		}
 	}
 }
 
-// A node that cannot say leaves the rows out: a zero would read as an empty
-// realm.
-func TestHTTPHandler_OverviewWithoutStorage(t *testing.T) {
+// A pure package keeps no state: the node is not asked, and nothing is shown.
+// A realm the node cannot answer for shows no rows rather than zeros.
+func TestHTTPHandler_OverviewStorageOnlyForRealms(t *testing.T) {
 	t.Parallel()
 
-	rr := serve(t, overviewHandler(t, nil, nil), "/r/demo/wugnot$source")
-	if rr.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rr.Code)
+	var asked atomic.Int32
+	client := gnoweb.NewMockClient(realmPkg("/p/demo/lib", &gnoweb.RealmStorage{Bytes: 1, Deposit: 1}), realmPkg("/r/demo/quiet", nil))
+	client.OnStorage = func(string) { asked.Add(1) }
+	h := overviewHandler(t, client, nil)
+	if body := serve(t, h, "/p/demo/lib$source").Body.String(); strings.Contains(body, "Storage deposit") || asked.Load() != 0 {
+		t.Errorf("a pure package must neither query nor show storage (queries: %d)", asked.Load())
 	}
-	if strings.Contains(rr.Body.String(), ">Deposit</dt>") {
-		t.Error("storage rows must be left out when the node does not answer")
+	rr := serve(t, h, "/r/demo/quiet$source")
+	if rr.Code != http.StatusOK || strings.Contains(rr.Body.String(), "Storage deposit") {
+		t.Error("a realm whose storage the node cannot give must render without the rows")
 	}
 }
 
-func callTx(height, gas int, ok bool, msgs ...indexer.Message) indexer.Tx {
-	return indexer.Tx{Height: height, GasUsed: gas, Success: ok, Messages: msgs}
-}
-
-func msgCall(pkg, fn, caller string) indexer.Message {
+func callMsg(pkg, fn, caller string) indexer.Message {
 	var m indexer.Message
 	m.Value.Type, m.Value.PkgPath, m.Value.Func, m.Value.Caller = "MsgCall", pkg, fn, caller
 	return m
 }
 
-// With an indexer the overview lists the realm's last calls: function, full
-// caller, the transaction's gas, failures, and the calls batched with it.
-// Deploys and rows the indexer could not decode are not calls.
+// With an indexer the overview lists the realm's last calls, taken from the
+// 7-day activity scan the map already makes: no query of its own. Each row
+// says the function, the full caller, the transaction's gas and how many
+// calls that transaction held, and whether it failed.
 func TestHTTPHandler_OverviewRecentCalls(t *testing.T) {
 	t.Parallel()
 
 	const pkg = "/r/demo/wugnot" // the test config has no domain
-	deploy := indexer.Message{}
-	deploy.Value.Type = "MsgAddPackage"
-	undecoded := indexer.Message{}
-	undecoded.Value.Type = "UnexpectedMessage"
-	idx := &stubIndexer{
-		recent: []indexer.Tx{
-			callTx(120, 154_000_000, true, msgCall(pkg, "Approve", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag"), msgCall("/r/other/x", "Swap", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag")),
-			callTx(110, 10_000_000, false, msgCall(pkg, "Withdraw", "g1wzlp8l9quwf8cfa357amqlw83gssnzuwh4zucu")),
-			callTx(100, 5_000_000, true, deploy),
-			callTx(90, 1, true, undecoded),
-		},
-		times: map[int]time.Time{120: time.Now().Add(-35 * time.Minute), 110: time.Now().Add(-3 * time.Hour)},
-	}
-	body := serve(t, overviewHandler(t, nil, idx), "/r/demo/wugnot$source").Body.String()
+	var run indexer.Message
+	run.Value.Type = "MsgRun"
+	idx := &stubIndexer{calls: []indexer.Tx{
+		{Height: 70, Success: true, GasUsed: 154_000_000, Messages: []indexer.Message{callMsg(pkg, "Approve", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag"), callMsg("/r/other/x", "Swap", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag")}},
+		{Height: 60, Success: false, GasUsed: 120_000, Messages: []indexer.Message{callMsg(pkg, "Withdraw", "g1wzlp8l9quwf8cfa357amqlw83gssnzuwh4zucu"), run}},
+		{Height: 50, Success: true, GasUsed: 9_000_000, Messages: []indexer.Message{callMsg("/r/other/x", "Swap", "g1zzz")}},
+	}}
+	client := gnoweb.NewMockClient(realmPkg(pkg, nil), realmPkg("/r/other/x", nil))
+	body := serve(t, overviewHandler(t, client, idx), pkg+"$source").Body.String()
 	for _, want := range []string{
-		`id="calls"`, `href="#calls"`, "Recent calls",
-		">Approve<", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag", "154 M gas", "+1 other call", "35 min ago",
-		`Withdraw <span class="b-tag b-calls__failed">failed</span>`, "3 h ago",
-		"b-tag--indexer", "last indexed block",
+		`id="calls"`, `href="#calls"`, ">Recent calls<",
+		">Approve<", "g13959x7zm49jaeyrfeltjkwz8adu8p0r0uhffag", "154 M gas", "tx of 2 calls",
+		">Withdraw<", `b-tag--failed`, "120 k gas",
+		`<time datetime=`, "b-tag--indexer", "last indexed block",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("overview lacks %q", want)
 		}
 	}
-	if strings.Contains(body, "MsgAddPackage") || strings.Count(body, `class="b-calls__row"`) != 2 {
-		t.Errorf("only the two calls are rows, got %d", strings.Count(body, `class="b-calls__row"`))
+	if n := strings.Count(body, `class="b-calls__row"`); n != 2 || strings.Contains(body, ">Swap<") {
+		t.Errorf("rows = %d, want the two calls into this realm only", n)
 	}
 }
 
-// Without an indexer nothing mentions calls; with one that fails, the section
-// says so instead of showing an empty list that reads as "never called".
-func TestHTTPHandler_OverviewRecentCallsStates(t *testing.T) {
+// Recent calls are only for a realm at the latest height: a pure package
+// cannot be called, and a page pinned to a past height must not show calls
+// made since. A realm with no call in the window says so.
+func TestHTTPHandler_OverviewRecentCallsScope(t *testing.T) {
 	t.Parallel()
 
-	if body := serve(t, overviewHandler(t, nil, nil), "/r/demo/wugnot$source").Body.String(); strings.Contains(body, `id="calls"`) {
+	idx := &stubIndexer{calls: []indexer.Tx{}}
+	client := gnoweb.NewMockClient(realmPkg("/r/demo/quiet", nil), realmPkg("/p/demo/lib", nil))
+	h := overviewHandler(t, client, idx)
+
+	if body := serve(t, h, "/r/demo/quiet$source").Body.String(); !strings.Contains(body, "No calls in the last 7 days.") {
+		t.Error("a realm with no call in the window must say so")
+	}
+	if body := serve(t, h, "/p/demo/lib$source").Body.String(); strings.Contains(body, `id="calls"`) || strings.Contains(body, `href="#calls"`) {
+		t.Error("a pure package must have no calls section")
+	}
+	if body := serve(t, h, "/r/demo/quiet$source&height=10").Body.String(); strings.Contains(body, `id="calls"`) {
+		t.Error("a page pinned to a past height must have no calls section")
+	}
+	if body := serve(t, overviewHandler(t, client, nil), "/r/demo/quiet$source").Body.String(); strings.Contains(body, `id="calls"`) {
 		t.Error("without an indexer the overview must not have a calls section")
 	}
-	failing := &stubIndexer{recentErr: errors.New("indexer down")}
-	body := serve(t, overviewHandler(t, nil, failing), "/r/demo/wugnot$source").Body.String()
-	if !strings.Contains(body, "Recent calls unavailable") {
-		t.Error("a failing indexer must be said, not shown as no calls")
-	}
-	empty := &stubIndexer{recent: []indexer.Tx{}}
-	body = serve(t, overviewHandler(t, nil, empty), "/r/demo/wugnot$source").Body.String()
-	if !strings.Contains(body, "No calls found") {
-		t.Error("an empty answer must say no calls were found")
-	}
 }
-
-var _ = context.Background

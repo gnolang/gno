@@ -27,7 +27,7 @@ type MockPackage struct {
 	// Pending stages a redeploy parked over a live package.
 	Pending bool
 	// Storage is what vm/qstorage reports; nil makes the query fail.
-	Storage *PackageStorage
+	Storage *RealmStorage
 	// Reason overrides the parked reason; defaults to awaiting-an-approver.
 	Reason string
 }
@@ -35,6 +35,8 @@ type MockPackage struct {
 // MockClient is a mock implementation of the ClientAdapter interface for testing.
 type MockClient struct {
 	Packages map[string]*MockPackage // path -> package
+	// OnStorage, when set, is told of every Storage query.
+	OnStorage func(path string)
 }
 
 var _ ClientAdapter = (*MockClient)(nil)
@@ -234,9 +236,12 @@ func (m *MockClient) Eval(ctx context.Context, _, _ string) ([]byte, error) {
 }
 
 // Storage returns the package's staged storage, or an error when none is set.
-func (m *MockClient) Storage(ctx context.Context, path string, _ int64) (*PackageStorage, error) {
+func (m *MockClient) Storage(ctx context.Context, path string, _ int64) (*RealmStorage, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("context error: %w", err)
+	}
+	if m.OnStorage != nil {
+		m.OnStorage(path)
 	}
 	pkg, exists := m.Packages[strings.TrimSuffix(path, "/")]
 	if !exists {

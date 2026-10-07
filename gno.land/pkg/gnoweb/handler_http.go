@@ -1511,26 +1511,33 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		jdoc     *doc.JSONDocumentation
 		readme   components.Component
 		subpaths []string
-		storage  *PackageStorage
+		storage  *components.PackageStorage
 		calls    *components.CallsSection
 	)
 
 	g, gctx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		// Best effort: a node that cannot say leaves the rows out.
-		s, err := h.Client.Storage(gctx, pkgPath, height)
-		if err != nil {
-			h.Logger.Debug("overview: storage unavailable", "path", pkgPath, "error", err)
+	// Storage and calls belong to realms: a pure package keeps no state and
+	// cannot be called. Calls are the latest ones, so a page pinned to a past
+	// height has none.
+	if gnourl.IsRealm() {
+		g.Go(func() error {
+			// Best effort: a node that cannot say leaves the rows out.
+			s, err := h.Client.Storage(gctx, pkgPath, height)
+			if err != nil {
+				h.Logger.Debug("overview: storage unavailable", "path", pkgPath, "error", err)
+				return nil
+			}
+			storage = &components.PackageStorage{Bytes: s.Bytes, Deposit: s.Deposit}
 			return nil
+		})
+		if height == 0 {
+			g.Go(func() error {
+				// Nil without an indexer; a failing one is said in the section.
+				calls = h.ChainMap.CallsSection(gctx, h.Static.Domain+pkgPath, time.Now())
+				return nil
+			})
 		}
-		storage = s
-		return nil
-	})
-	g.Go(func() error {
-		// Nil without an indexer; a failing one is said in the section.
-		calls = h.ChainMap.CallsSection(gctx, h.Static.Domain+pkgPath, time.Now())
-		return nil
-	})
+	}
 	g.Go(func() (err error) {
 		if files, err = h.Client.ListFiles(gctx, pkgPath, height); err != nil {
 			return err
