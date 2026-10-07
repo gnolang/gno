@@ -98,7 +98,7 @@ the same base flags. A `send` shows the ones every transaction needs:
 gnokey maketx send \
   -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
   -send 100ugnot \
-  -gas-fee 1000000ugnot \
+  -gas-fee 2000ugnot \
   -gas-wanted 2000000 \
   -chainid staging \
   -remote https://rpc.staging.gno.land:443 \
@@ -120,8 +120,9 @@ below). The rest are the base flags every transaction needs:
 Transactions cost gas, paid in GNOT. On a testnet, get some from the
 [Faucet Hub](https://faucet.gno.land) first. To pay the right amount, let `gnokey`
 estimate the gas: `-simulate only` runs the transaction as a dry run without
-broadcasting and reports the real gas used, which you then pass to `-gas-wanted`.
-See [Gas estimation](../resources/gas-fees.md#gas-estimation).
+broadcasting and prints the gas used, a suggested `-gas-wanted` and a fee.
+[Gas estimation](../resources/gas-fees.md#gas-estimation) explains which figures
+to pass.
 
 For the full base configuration, the output format, and every message type, see
 the [gnokey command reference](../resources/gnokey-reference.md#making-transactions).
@@ -147,7 +148,7 @@ gnokey maketx call \
   -pkgpath gno.land/r/gnoland/wugnot \
   -func Deposit \
   -send 1000ugnot \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 8000ugnot -gas-wanted 8000000 \
   -chainid staging -remote https://rpc.staging.gno.land:443 \
   mykey
 ```

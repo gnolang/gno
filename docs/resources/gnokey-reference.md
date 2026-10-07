@@ -58,7 +58,7 @@ command takes the same base-configuration flags:
 
 - `-gas-wanted` - the maximum gas units the transaction may consume (required)
 - `-gas-fee` - the fee paid for the transaction, as `<amount>ugnot`
-  (e.g. `1000000ugnot`; required)
+  (e.g. `2000ugnot`; required)
 - `-chainid` and `-remote` - the network to target; the two must match
 - `-broadcast` - send the transaction to the chain (default `true`; set
   `-broadcast=false` to build the unsigned transaction without sending it, as
@@ -72,12 +72,13 @@ command takes the same base-configuration flags:
 - `-master` - the master account's key name or address, when signing with a
   session key (optional; see [Session](../../gno.land/cmd/gnokey/README.md#session))
 
-`-gas-wanted` and `-gas-fee` together cap what you pay; `gnokey` never fills
-them in for you. Run the transaction with `-simulate only` to get good values,
-as shown in [Gas estimation](./gas-fees.md#gas-estimation). The default
-`-simulate test` then guards them: a transaction that fails simulation is never
-broadcast, and no fee is spent. Find `-chainid` and `-remote`
-values per network in [Network configuration](./gnoland-networks.md).
+`-gas-fee` is what you pay, in full, once the transaction is in a block, and
+`-gas-wanted` caps the gas it may use; `gnokey` never fills either in for you.
+Run the transaction with `-simulate only` to get good values, as shown in
+[Gas estimation](./gas-fees.md#gas-estimation). The default `-simulate test`
+then guards them: a transaction that fails simulation is never broadcast, and
+no fee is spent. Find `-chainid` and `-remote` values per network in
+[Network configuration](./gnoland-networks.md).
 State-changing calls cost gas paid in GNOT, so on testnets grab some from the
 [Faucet Hub](https://faucet.gno.land) first.
 
@@ -86,12 +87,12 @@ prints above the `OK!` line:
 
 ```console
 OK!
-GAS WANTED: 200000
-GAS USED:   117564
-HEIGHT:     3990
-EVENTS:     []
+GAS WANTED: 2000000
+GAS USED:   1237486
+HEIGHT:     3
+EVENTS:     [{"from":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","to":"g1khhdctawhehafxzm2gctz4fe9hf7gqdd8gwl3l","coins":[{"denom":"ugnot","amount":100000}]}]
 INFO:
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+TX HASH:    HFobWN0hrLQzHeNyYgPMigfwgiQ0dtlgOTlltmMl/hg=
 ```
 
 - `GAS WANTED` - the gas units you requested
@@ -120,7 +121,7 @@ flags are:
 gnokey maketx send \
   -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
   -send 100000ugnot \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
   mykey
@@ -144,8 +145,8 @@ Run it from the package directory, publishing to a path under a
 gnokey maketx addpkg \
   -pkgpath "gno.land/p/examplenamespace/hello_world" \
   -pkgdir "." \
-  -gas-fee 1000000ugnot \
-  -gas-wanted 20000000 \
+  -gas-fee 4000ugnot \
+  -gas-wanted 4000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
   mykey
@@ -180,8 +181,8 @@ gnokey maketx call \
   -pkgpath "gno.land/r/gnoland/wugnot" \
   -func "Deposit" \
   -send "1000ugnot" \
-  -gas-fee 10000000ugnot \
-  -gas-wanted 2000000 \
+  -gas-fee 8000ugnot \
+  -gas-wanted 8000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
   mykey
@@ -242,7 +243,7 @@ func main(cur realm) {
 
 ```bash
 gnokey maketx run \
-  -gas-fee 1000000ugnot \
+  -gas-fee 20000ugnot \
   -gas-wanted 20000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \

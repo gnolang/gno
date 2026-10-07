@@ -69,7 +69,7 @@ gnokey maketx session create \
   -expires-at 24h \
   -allow-paths "vm/exec:gno.land/r/myrealm" \
   -spend-limit 10000000ugnot \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
   masterkey
@@ -88,7 +88,7 @@ Revokes a single session account by its public key:
 ```bash
 gnokey maketx session revoke \
   -pubkey gpub1... \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
   masterkey
@@ -100,7 +100,7 @@ Revokes all session accounts for the master key:
 
 ```bash
 gnokey maketx session revokeall \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
   masterkey
@@ -134,7 +134,7 @@ sending it; redirect the output to a file:
 ```bash
 gnokey maketx call \
   -pkgpath "gno.land/r/demo/counter" -func "Increment" \
-  -gas-fee 1000000ugnot -gas-wanted 2000000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -broadcast=false \
   mykey > counter.tx
 ```
@@ -262,7 +262,7 @@ and shares the JSON with the signers:
 ```sh
 gnokey maketx send --home ./alice-kb \
   -chainid staging -send "100000ugnot" \
-  -gas-fee 100000ugnot -gas-wanted 100000 \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
   -to g1pm60rkcvkt4j6s24vgygyfuu3c2f5gt76lqtss \
   -broadcast=false \
   multisig-abc > multisig-abc-send.json
