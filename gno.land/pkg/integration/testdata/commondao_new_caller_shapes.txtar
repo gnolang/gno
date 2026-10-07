@@ -19,7 +19,7 @@ adduser test3
 adduser test4
 
 # Collapse the genesis council to test1 so it can Invite.
-patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx $test1_user_addr
 patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test1_user_addr
 
 gnoland start

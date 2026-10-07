@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var (
@@ -112,16 +113,23 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 				)
 			}
 
-			// Grab the signature bytes of the tx.
-			// Genesis transactions are signed with
-			// account number and sequence set to 0
-			signBytes, err := tx.Tx.GetSignBytes(genesis.ChainID, 0, 0)
+			// Verify the signature using the public key. Genesis
+			// transactions are signed with account number and sequence
+			// set to 0.
+			//
+			// Either payload rendering counts (see std.VerifySignaturePayload):
+			// a genesis file is signed once and cannot be re-signed, so the
+			// verifier has to accept whichever rendering its signer produced,
+			// as the node does.
+			rendering, err := std.VerifySignaturePayload(
+				signer.PubKey,
+				tx.Tx.SignDoc(genesis.ChainID, 0, 0),
+				signer.Signature,
+			)
 			if err != nil {
 				return fmt.Errorf("unable to get tx signature payload, %w", err)
 			}
-
-			// Verify the signature using the public key
-			if !signer.PubKey.VerifyBytes(signBytes, signer.Signature) {
+			if rendering == std.PayloadRenderingNone {
 				return fmt.Errorf(
 					"%w #%d, by signer %s",
 					errInvalidTxSignature,

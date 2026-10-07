@@ -7,6 +7,7 @@ import (
 	"chain/runtime/unsafe"
 	"crypto/bech32"
 	"errors"
+	"math"
 	"regexp"
 
 	"gno.land/p/moul/realmpath/v0"
@@ -43,6 +44,8 @@ var (
 	ErrFrontrunValidator    = errors.New("post-genesis: signing address is already an active validator")
 	ErrRotationThrottled    = errors.New("rotation throttled: try again later")
 	ErrRegistryEntryMissing = errors.New("signing address has no active registry entry (corrupted state)")
+	ErrPaidCallNotDirect    = errors.New("a fee is configured: call this directly as a user (maketx call), not from a realm or a maketx run script")
+	ErrFeeParamOutOfRange   = errors.New("configured fee exceeds the maximum representable coin amount")
 	ErrDisallowedPubKeyType = errors.New("consensus pubkey type is not allowed for validators")
 )
 
@@ -84,20 +87,46 @@ type Valoper struct {
 	auth *authorizable.Authorizable
 }
 
-func (v Valoper) Auth() *authorizable.Authorizable {
-	return v.auth
+// AuthOwner returns the operator address that owns this profile's auth
+// list. Read-only by construction: it copies out an address rather than
+// returning the live *authorizable.Authorizable.
+//
+// SECURITY: the previous `Auth() *authorizable.Authorizable` was a
+// capability leak of the same class this realm's governance authority
+// closes by returning a description instead of the live authority.
+// `Valoper` is returned BY VALUE from the exported, non-crossing
+// GetByAddr, but `auth` is a pointer field, so the copy shared the
+// callee's Authorizable. Any realm could therefore obtain a live,
+// mutable handle and write through it.
+//
+// That was a privilege escalation, not merely a wider surface.
+// Authorizable's gates read `rlm.Previous().Address()`, so inside a
+// hostile realm's frame `Previous()` is whoever called it. When a
+// valoper OPERATOR called any function of a hostile realm (faucet,
+// airdrop, mint), that realm could reach
+// `GetByAddr(operator).Auth().AddToAuthList(...)` and — because
+// Previous() was then the operator, the Authorizable's own owner —
+// persist itself onto the operator's auth list. From the next
+// transaction on it acted alone: UpdateKeepRunning to drain the
+// validator, UpdateSigningKey to rotate the consensus key.
+//
+// The exported wrappers below are NOT equivalent to the raw handle and
+// were never the hole: there `cur.Previous()` is the hostile realm
+// itself rather than the operator, so the owner check rejects it.
+func (v Valoper) AuthOwner() address {
+	return v.auth.Owner()
 }
 
 func AddToAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().AddToAuthList(0, cur, member); err != nil {
+	if err := v.auth.AddToAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
 	v := GetByAddr(addr)
-	if err := v.Auth().DeleteFromAuthList(0, cur, member); err != nil {
+	if err := v.auth.DeleteFromAuthList(0, cur, member); err != nil {
 		panic(err)
 	}
 }
@@ -116,19 +145,15 @@ func DeleteFromAuthList(cur realm, addr address, member address) {
 //     already be an active validator (a fresh registration cannot
 //     squat on the consensus address of an existing validator).
 //
-// Why OriginCaller==addr is sufficient (no IsUserCall): squatting
-// requires the attacker to be able to satisfy OriginCaller==victim,
-// which requires the victim's signing key. r/sys/namereg/v1.Register
-// also gates on IsUserCall, but that's because IT reads
-// unsafe.OriginSend() for the anti-squatting payment and IsUserCall
-// is needed to ensure the OriginSend envelope reflects what landed at
-// this realm rather than a phantom payment from a previous frame.
-// valopers.Register has no per-call payment-receipt check (fees are
-// validated against banker.OriginSend in a way that's symmetric to
-// IsUserCall via direct comparison), so the IsUserCall tightening
-// would only block legitimate `maketx run` flows (operator-authored
-// scripts that legitimately set OriginCaller==operator) without
-// adding identity-squat protection.
+// Why OriginCaller==addr is sufficient for the SQUAT guard (no
+// IsUserCall): squatting requires the attacker to satisfy
+// OriginCaller==victim, which requires the victim's signing key.
+//
+// The PAYMENT check is a different matter and does need IsUserCall —
+// see assertPaidCallIsDirect. An earlier version of this comment
+// claimed the fee was "validated against banker.OriginSend in a way
+// that's symmetric to IsUserCall via direct comparison"; there was no
+// such comparison, and the fee was bypassable (reported by @D4ryl00).
 //
 // Auth-list seeding: the profile's Authorizable owner is set to addr
 // (NOT OriginCaller). At H>0 the squat guard makes them equal anyway;
@@ -144,7 +169,8 @@ func Register(cur realm, moniker string, description string, serverType string, 
 	// Fee enforcement (read from sysparams; defaults to 0 until
 	// governance raises it post-transfer-enablement).
 	if fee := sysparams.GetValoperRegisterFee(); fee > 0 {
-		minFee := chain.NewCoin("ugnot", int64(fee))
+		assertPaidCallIsDirect(0, cur)
+		minFee := minFeeCoin(fee)
 		sentCoins := unsafe.OriginSend()
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
 			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
@@ -216,7 +242,7 @@ func UpdateMoniker(cur realm, addr address, moniker string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Update the moniker.
 	v.Moniker = moniker
@@ -235,7 +261,7 @@ func UpdateDescription(cur realm, addr address, description string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Update the description.
 	v.Description = description
@@ -250,7 +276,7 @@ func UpdateKeepRunning(cur realm, addr address, keepRunning bool) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Update status.
 	v.KeepRunning = keepRunning
@@ -272,7 +298,7 @@ func UpdateServerType(cur realm, addr address, serverType string) {
 	v := GetByAddr(addr)
 
 	// Check that the caller has permissions.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Update server type.
 	v.ServerType = serverType
@@ -308,7 +334,7 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	v := GetByAddr(addr)
 
 	// Auth: caller must be on operator's auth list.
-	v.Auth().AssertPreviousOnAuthList(0, cur)
+	v.auth.AssertPreviousOnAuthList(0, cur)
 
 	// Throttle: limit one rotation per rotation_period_blocks per
 	// operator (per profile, not per caller — multi-member auth lists
@@ -321,7 +347,8 @@ func UpdateSigningKey(cur realm, addr address, newPubKey string) {
 	// Fee: enforce only if non-zero (matches Register's pattern;
 	// rotation_fee defaults to zero pre-transfer-enablement).
 	if fee := sysparams.GetValoperRotationFee(); fee > 0 {
-		minFee := chain.NewCoin("ugnot", int64(fee))
+		assertPaidCallIsDirect(0, cur)
+		minFee := minFeeCoin(fee)
 		sentCoins := unsafe.OriginSend()
 		if len(sentCoins) != 1 || sentCoins[0].IsLT(minFee) {
 			panic(ufmt.Sprintf("payment must not be less than %d%s", minFee.Amount, minFee.Denom))
@@ -533,6 +560,101 @@ func validatePubKey(pubKey string) error {
 	}
 
 	return nil
+}
+
+// assertPaidCallIsDirect requires the immediate caller to be a plain EOA,
+// and must be paired with every unsafe.OriginSend() amount check in this
+// realm. Called only when a fee is actually configured.
+//
+// unsafe.OriginSend() reports the transaction's declared send ENVELOPE, not
+// what this realm received. Only a direct `maketx call` on valopers credits
+// the envelope to this realm's address. For a `maketx run` the keeper sets
+// pkgAddr := caller (gno.land/pkg/sdk/vm/keeper.go), so the coins move from
+// the caller to the caller and never land anywhere at all, while
+// OriginSend() still reports the full amount to us. See
+// gno.land/adr/pr6062_payable_send_check.md: "MsgRun is exempt: the coins
+// are moved from the caller to the caller, so nothing actually moves." So
+// the amount check alone verifies intent, never receipt.
+//
+// Reported by @D4ryl00, with a local-chain reproduction:
+// governance sets register_fee to 1000ugnot, an operator runs a script
+// calling Register with `-send 1000ugnot`, registration succeeds, valopers
+// receives zero, and the operator still holds the coins. No hostile script
+// is needed — the envelope is free by construction. Both fees default to 0,
+// so nothing was live.
+//
+// Why IsUserCall and not an address comparison: a run script's realm is
+// address-INDISTINGUISHABLE from its user. Inside `main(cur realm)` the
+// ephemeral realm's own address IS the caller's EOA address, so every
+// address-based guard in this realm accepts a `maketx run` — Register's
+// squat guard (OriginCaller == addr) and UpdateSigningKey's auth-list check
+// (Previous().Address() on the list) both pass. Only the pkgPath differs,
+// and IsUserCall() is the check that reads it. It is therefore the only
+// PreviousRealm shape where the envelope is guaranteed to have landed here:
+// it excludes intermediate code realms and user-run ephemeral realms alike.
+// Same reasoning and same pairing as r/sys/namereg/v0.Register, which reads
+// OriginSend for its anti-squatting payment; see the two-guard comment there.
+//
+// Deliberately inside the `fee > 0` branch rather than at the top of the
+// function: while a fee is unset there is no payment to establish receipt
+// of, and gating unconditionally would break the operator-authored
+// `maketx run` flows that the squat guard is happy to accept. The
+// restriction appears exactly when, and only when, money is involved.
+//
+// KNOWN LIMIT. AddToAuthList takes a plain `member address`, so a REALM
+// can sit on an operator's auth list, and once rotation_fee is nonzero
+// such a member can no longer drive UpdateSigningKey — it is not a user
+// call. An EOA rotation bot is unaffected, which is the shape the
+// auth-list docs describe ("HSM-bound or rotation-bot"), so nothing
+// documented breaks; a realm-mediated rotation would.
+//
+// The alternative that would keep realms working is a true receipt check:
+// track cumulative fees in realm state and require the realm's own
+// balance to have risen by `fee` since the last one. That works for any
+// caller shape, but it puts new persisted state and a banker into a
+// genesis realm, and lets anyone pre-pay another operator's fee by
+// donating to the realm address. Not worth it while both fees are 0 and
+// collected fees are unwithdrawable anyway (this realm has no banker, so
+// they strand at its address). Revisit if a realm-mediated paid rotation
+// is ever actually wanted.
+func assertPaidCallIsDirect(_ int, rlm realm) {
+	// IsCurrent before Previous, as AGENTS.md requires and every other
+	// (_ int, rlm realm) helper in this tree does (authorizable,
+	// sys/params/delegate, gov/dao/types, sys/validators/v0/cache).
+	// Both call sites pass their live cur, so this is defense-in-depth
+	// against a future caller threading a stale or stashed realm value:
+	// Previous() reads the prev field verbatim, so on a non-live token
+	// it answers for the wrong frame.
+	if !rlm.IsCurrent() {
+		panic(ErrPaidCallNotDirect)
+	}
+	if !rlm.Previous().IsUserCall() {
+		panic(ErrPaidCallNotDirect)
+	}
+}
+
+// minFeeCoin converts a configured fee (uint64, from sysparams) into the
+// ugnot Coin the amount checks compare against.
+//
+// Coin.Amount is an int64. A fee above MaxInt64 wraps negative, and
+// `sentCoins[0].IsLT(minFee)` is then false for every payment — the realm
+// reads the fee as configured, runs assertPaidCallIsDirect, and collects
+// 1ugnot while reporting "payment must not be less than -1ugnot". Failing
+// closed here keeps an unrepresentable fee from opening the paid path
+// instead of closing it.
+//
+// Reachable two ways today, neither requiring malice: governance can set
+// any uint64 through the generic r/sys/params factories, and
+// valopers/proposal.ProposeNewMinFeeProposalRequest takes an int64 and
+// stores uint64(newMinFee), so a negative fee — the obvious way to write
+// "disable the fee" — round-trips to 2^64-1. That signature is preserved
+// for historical-replay compatibility and is deliberately left alone; the
+// bound belongs at the consumption site, which covers both paths.
+func minFeeCoin(fee uint64) chain.Coin {
+	if fee > math.MaxInt64 {
+		panic(ErrFeeParamOutOfRange)
+	}
+	return chain.NewCoin("ugnot", int64(fee))
 }
 
 // assertPubKeyTypeAllowed panics if pubKey's type is not in the chain's validator allow-list (empty list accepts any).

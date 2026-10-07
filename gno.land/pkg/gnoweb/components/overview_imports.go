@@ -11,11 +11,8 @@ func buildImports(paths []string, domain string) []ImportLink {
 	out := make([]ImportLink, 0, len(paths))
 	for _, p := range paths {
 		kind := classifyImport(p, domain)
-		out = append(out, ImportLink{
-			Path: p,
-			Kind: kind,
-			Link: buildImportLink(p, kind, domain),
-		})
+		link, external := buildImportLink(p, kind, domain)
+		out = append(out, ImportLink{Path: p, Kind: kind, Link: link, External: external})
 	}
 	return out
 }
@@ -33,9 +30,17 @@ func classifyImport(p, domain string) string {
 	}
 }
 
-func buildImportLink(p, kind, domain string) string {
-	if kind == "package" || kind == "realm" {
-		return strings.TrimPrefix(p, domain)
+// stdlibSourceBase is where the Gno standard library lives. Stdlibs ship with
+// the node instead of being deployed on chain, so they have no package page to
+// link to and the source has to be reached upstream.
+const stdlibSourceBase = "https://github.com/gnolang/gno/tree/master/gnovm/stdlibs/"
+
+func buildImportLink(p, kind, domain string) (link string, external bool) {
+	switch kind {
+	case "package", "realm":
+		return strings.TrimPrefix(p, domain), false
+	case "stdlib":
+		return stdlibSourceBase + p, true
 	}
-	return ""
+	return "", false
 }

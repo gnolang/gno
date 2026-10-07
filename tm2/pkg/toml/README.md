@@ -47,11 +47,23 @@ recursion; a closer may sit in a comment and unwind nothing; a quoted key
 segment may span newlines and hide its depth from any per-line count. Counting
 the parsed path and the actual recursion is exact.
 
-Also carried, both unrelated to the bounds:
+Also carried, all unrelated to the bounds:
 
-4. **Four `go vet` fixes** — `l.errorf(err.Error())` → `l.errorf("%s", err.Error())`
+4. **`tomltree_write.go` — an exact control-character escape.** Upstream wrote
+   `intRr := uint16(rr); if intRr < 0x001F`, which is wrong in two directions.
+   The bound excluded U+001F itself, so that character was written raw into a
+   basic string — and `lexStringAsString` refuses raw `0x00`–`0x1F`, so `Marshal`
+   produced a document `Unmarshal` could not read. The conversion also truncated,
+   so a rune whose *low 16 bits* fall under `0x1F` (U+1000A, say) was emitted as
+   the escape for those bits alone and decoded back as a different character.
+   Both break `Unmarshal(Marshal(v)) == v`. That is load-bearing here rather than
+   cosmetic: `gnomod.toml` is *stored* re-encoded, and its approval hash is taken
+   after a further round trip (`gno.land/pkg/sdk/vm.PackageContentHash`), so an
+   encoding that is not a fixpoint is an approval no approver can ever match.
+   Covered by `TestBoundsMarshalRoundTripsEveryRune`.
+5. **Four `go vet` fixes** — `l.errorf(err.Error())` → `l.errorf("%s", err.Error())`
    in `lexer.go`, so `go test ./tm2/pkg/toml/` is clean without `-vet=off`.
-5. **One test made timezone-robust** — `TestUnmarshalLocalDateTime` compared raw
+6. **One test made timezone-robust** — `TestUnmarshalLocalDateTime` compared raw
    wall-clock components against a `time.Local` decode, so it failed on any zone
    putting `1979-05-27T00:32` in a historical DST gap. It now normalizes both
    sides identically. Verified under UTC, Europe/Paris, Asia/Kolkata,

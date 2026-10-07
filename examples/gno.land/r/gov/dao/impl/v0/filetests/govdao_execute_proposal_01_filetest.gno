@@ -44,6 +44,13 @@ func init(cur realm) {
 
 func main(cur realm) {
 	// Execute proposal, status should be ACTIVE
+	// SimpleExecutor.Execute is invocable only by the r/gov/dao proxy, which
+	// is the realm the live route calls it from (dao.ExecuteProposal ->
+	// impl.ExecuteProposal, both threading the proxy's cur non-crossing).
+	// This filetest calls impl.ExecuteProposal directly, so stand in for the
+	// proxy explicitly rather than exercising a route no transaction takes.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao"))
+
 	err := govdao.ExecuteProposal(0, cur, proposalID, executor)
 
 	println(err == nil)

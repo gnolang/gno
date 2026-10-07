@@ -3,8 +3,10 @@ package components
 import (
 	"bytes"
 	"fmt"
+	stdhtml "html"
 	"io"
 	"strings"
+	"unicode"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -52,7 +54,7 @@ type HeadData struct {
 	AnalyticsHostname string
 	Remote            string
 	ChainId           string
-	BuildTime         string
+	AssetsVersion     string
 }
 
 // MaxBannerLength is the maximum character length for banner markdown source.
@@ -81,6 +83,14 @@ func (b BannerData) Render(w io.Writer) (err error) {
 // If globalURL is non-empty (http/https only), the banner acts as a single clickable link
 // and any inline markdown links are unwrapped to plain text.
 func NewBannerData(markdown, globalURL string) (BannerData, error) {
+	b, _, err := renderInline(markdown, globalURL, false)
+	return b, err
+}
+
+// renderInline is NewBannerData with two additions for the realm notice:
+// dropImages removes images, and visible reports whether the result shows at
+// least one visible character (see isVisibleRune).
+func renderInline(markdown, globalURL string, dropImages bool) (b BannerData, visible bool, err error) {
 	// Keep only the first line
 	if i := strings.IndexAny(markdown, "\n\r"); i >= 0 {
 		markdown = markdown[:i]
@@ -88,7 +98,7 @@ func NewBannerData(markdown, globalURL string) (BannerData, error) {
 	markdown = strings.TrimSpace(markdown)
 
 	if markdown == "" {
-		return BannerData{}, nil
+		return BannerData{}, false, nil
 	}
 
 	// Truncate to max length (rune-safe)
@@ -115,8 +125,16 @@ func NewBannerData(markdown, globalURL string) (BannerData, error) {
 		c = next
 	}
 
+	var images []ast.Node
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering || n.Kind() != ast.KindLink {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		if n.Kind() == ast.KindImage && dropImages {
+			images = append(images, n)
+			return ast.WalkSkipChildren, nil
+		}
+		if n.Kind() != ast.KindLink {
 			return ast.WalkContinue, nil
 		}
 
@@ -136,10 +154,14 @@ func NewBannerData(markdown, globalURL string) (BannerData, error) {
 		n.SetAttributeString("rel", "noopener noreferrer")
 		return ast.WalkContinue, nil
 	})
+	// Removed after the walk: removing a node mid-walk ends its siblings' loop.
+	for _, n := range images {
+		n.Parent().RemoveChild(n.Parent(), n)
+	}
 
 	var buf bytes.Buffer
 	if err := md.Renderer().Render(&buf, src, doc); err != nil {
-		return BannerData{}, fmt.Errorf("banner markdown rendering: %w", err)
+		return BannerData{}, false, fmt.Errorf("banner markdown rendering: %w", err)
 	}
 
 	// Strip the <p></p> wrapper that goldmark adds for single-paragraph content.
@@ -150,11 +172,45 @@ func NewBannerData(markdown, globalURL string) (BannerData, error) {
 		}
 	}
 
-	bd := BannerData{content: result}
+	b = BannerData{content: result}
 	if hasGlobalURL {
-		bd.url = globalURL
+		b.url = globalURL
 	}
-	return bd, nil
+	return b, hasVisibleText(doc, src), nil
+}
+
+// hasVisibleText reports whether a text node under doc holds a visible
+// character once HTML entities are resolved. Raw HTML is not text.
+func hasVisibleText(doc ast.Node, src []byte) bool {
+	visible := false
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		var s string
+		switch t := n.(type) {
+		case *ast.Text:
+			s = string(t.Segment.Value(src))
+		case *ast.String:
+			s = string(t.Value)
+		default:
+			return ast.WalkContinue, nil
+		}
+		if entering && strings.IndexFunc(stdhtml.UnescapeString(s), isVisibleRune) >= 0 {
+			visible = true
+			return ast.WalkStop, nil
+		}
+		return ast.WalkContinue, nil
+	})
+	return visible
+}
+
+// isVisibleRune reports whether r draws something: graphic, neither space
+// nor format (Cf: zero-width and bidi controls), nor one of the fillers that
+// Unicode classes as graphic but fonts draw as blank.
+func isVisibleRune(r rune) bool {
+	switch r {
+	case '\u2800', '\u115F', '\u1160', '\u3164', '\uFFA0': // braille blank, hangul fillers
+		return false
+	}
+	return unicode.IsGraphic(r) && !unicode.IsSpace(r) && !unicode.Is(unicode.Cf, r)
 }
 
 type IndexData struct {
@@ -185,7 +241,7 @@ func IndexLayout(data IndexData) Component {
 	data.FooterData.Analytics.Path = analyticsPath(data.HeaderData.RealmURL)
 	data.FooterData.Analytics.ChainId = data.HeadData.ChainId
 	data.FooterData.Analytics.AssetsPath = data.HeadData.AssetsPath
-	data.FooterData.Analytics.BuildTime = data.HeadData.BuildTime
+	data.FooterData.Analytics.AssetsVersion = data.HeadData.AssetsVersion
 	data.FooterData.Analytics.Hostname = data.HeadData.AnalyticsHostname
 
 	dataLayout := indexLayoutParams{

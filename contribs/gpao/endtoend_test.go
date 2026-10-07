@@ -101,8 +101,11 @@ func TestEstimateEnableAgainstARealChain(t *testing.T) {
 		return client.SimulateResult(probe)
 	}
 
+	pkgHash, err := vm.PackageContentHash(mpkg)
+	require.NoError(t, err)
+
 	t.Run("an enable that would succeed estimates", func(t *testing.T) {
-		res, simErr := simulateEnable(t, vm.PackageContentHash(mpkg))
+		res, simErr := simulateEnable(t, pkgHash)
 		require.Equal(t, verdictReady, classifySimulate(res, simErr),
 			"a probe signed at the chain's own Block.MaxGas must be accepted and run")
 		assert.Positive(t, res.GasUsed, "and report what the enable actually costs")
