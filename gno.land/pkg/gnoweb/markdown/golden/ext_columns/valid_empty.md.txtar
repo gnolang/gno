@@ -13,9 +13,9 @@
 
 
 -- output.html --
-<h3 id="no-columns"><a class="heading-anchor" href="#no-columns">no columns</a></h3>
+<h3 id="no-columns">no columns<a href="#no-columns" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h3>
 <div class="gno-columns">
 </div> <!-- </gno-columns> -->
-<h3 id="no-columns-with-space"><a class="heading-anchor" href="#no-columns-with-space">no columns with space</a></h3>
+<h3 id="no-columns-with-space">no columns with space<a href="#no-columns-with-space" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h3>
 <div class="gno-columns">
 </div> <!-- </gno-columns> -->
