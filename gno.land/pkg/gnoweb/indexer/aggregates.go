@@ -23,6 +23,7 @@ import (
 const callFields = `
 	block_height
 	success
+	gas_used
 	messages {
 		value {
 			__typename

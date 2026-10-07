@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
 func serve(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
@@ -213,5 +214,62 @@ func TestHTTPHandler_MapZoomsOutToAListing(t *testing.T) {
 		if want != "" && !strings.Contains(body, want) {
 			t.Errorf("%s: zoom out must link %s", path, want)
 		}
+	}
+}
+
+// $map&color=gas is a map of the same listing; without an indexer it is the
+// plain map, with no switch to offer.
+func TestHTTPHandler_GasMapWithoutIndexer(t *testing.T) {
+	t.Parallel()
+
+	h := newMapHandler(t, manyPaths("/r/demo/p", 10)...)
+	rr := serve(t, h, "/r/demo$map&color=gas")
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	if body := rr.Body.String(); !strings.Contains(body, "b-map__tile") || strings.Contains(body, "b-map-switch") {
+		t.Error("without an indexer the gas map must be the plain map, with no switch")
+	}
+}
+
+// With an indexer, $map&color=gas shades by gas: the switch marks Gas, and the
+// side list ranks by gas, so a realm called rarely but heavily leads it.
+func TestHTTPHandler_MapColorsByGasWithIndexer(t *testing.T) {
+	t.Parallel()
+
+	callTo := func(path string, gas int) indexer.Tx {
+		tx := indexer.Tx{Height: 50, Success: true, GasUsed: gas, Messages: make([]indexer.Message, 1)}
+		tx.Messages[0].Value.Type, tx.Messages[0].Value.PkgPath, tx.Messages[0].Value.Caller = "MsgCall", path, "g1caller"
+		return tx
+	}
+	paths := manyPaths("/r/demo/p", 10)
+	// The test config has no domain, so a fully qualified path is the
+	// gnoweb path itself.
+	idx := &stubIndexer{calls: []indexer.Tx{
+		callTo("/r/demo/p0000", 1_000_000), callTo("/r/demo/p0000", 1_000_000), callTo("/r/demo/p0000", 1_000_000),
+		callTo("/r/demo/p0001", 9_000_000_000),
+	}}
+	pkgs := make([]*gnoweb.MockPackage, len(paths))
+	for i, p := range paths {
+		pkgs[i] = &gnoweb.MockPackage{Path: p, Files: map[string]string{"a.gno": "package a"}}
+	}
+	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(pkgs...))
+	cfg.Indexer = idx
+	h, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), cfg)
+	if err != nil {
+		t.Fatalf("NewHTTPHandler: %v", err)
+	}
+
+	body := serve(t, h, "/r/demo$map&color=gas").Body.String()
+	for _, want := range []string{`<span aria-current="true" title="Gas used`, "Most gas · 7 days"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("gas map lacks %q", want)
+		}
+	}
+	if i, j := strings.Index(body, "<small>9.0 B</small>"), strings.Index(body, "<small>3 M</small>"); i < 0 || j < 0 || i > j {
+		t.Error("the gas list must put p0001 (9 B gas, 1 call) before p0000 (3 M gas, 3 calls)")
+	}
+	if calls := serve(t, h, "/r/demo$map").Body.String(); !strings.Contains(calls, "Most called · 7 days") {
+		t.Error("$map without color must stay the call map")
 	}
 }

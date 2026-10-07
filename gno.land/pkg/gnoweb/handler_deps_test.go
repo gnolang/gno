@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
@@ -18,6 +19,8 @@ import (
 type stubIndexer struct {
 	deploys []indexer.Tx
 	scans   *atomic.Int32
+	// calls, when set, answer the map's activity scan.
+	calls []indexer.Tx
 }
 
 var errUnused = errors.New("not used by these tests")
@@ -47,9 +50,17 @@ func (stubIndexer) Deploys(context.Context, string, int) ([]indexer.Tx, error) {
 func (stubIndexer) SourceContains(context.Context, string, string, int) ([]indexer.Tx, error) {
 	return nil, errUnused
 }
-func (stubIndexer) Block(context.Context, int) (*indexer.Block, error) { return nil, errUnused }
-func (stubIndexer) CallsBetween(context.Context, int, int) ([]indexer.Tx, error) {
-	return nil, errUnused
+func (s stubIndexer) Block(_ context.Context, height int) (*indexer.Block, error) {
+	if s.calls == nil {
+		return nil, errUnused
+	}
+	return &indexer.Block{Height: height, Time: time.Unix(int64(height), 0)}, nil
+}
+func (s stubIndexer) CallsBetween(context.Context, int, int) ([]indexer.Tx, error) {
+	if s.calls == nil {
+		return nil, errUnused
+	}
+	return s.calls, nil
 }
 
 func deployOf(path string) indexer.Tx {

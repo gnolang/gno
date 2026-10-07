@@ -227,3 +227,20 @@ func TestComputeActivityOutOfTimeFails(t *testing.T) {
 		t.Errorf("queried %d of %d bands: none should start after the deadline", n, total)
 	}
 }
+
+// The indexer reports gas per transaction: a batched one shares its gas
+// evenly between the calls it makes, and a failed one counts for nothing.
+func TestCountBandSharesGasBetweenCalls(t *testing.T) {
+	t.Parallel()
+
+	batched := call(5, true, "g1x", "gno.land/r/a")
+	batched.Messages = append(batched.Messages, call(5, true, "g1x", "gno.land/r/b").Messages...)
+	batched.GasUsed = 300
+	failed := call(6, false, "g1y", "gno.land/r/a")
+	failed.GasUsed = 1000
+
+	b := countBand([]indexer.Tx{batched, failed}, true)
+	if b.gas["gno.land/r/a"] != 150 || b.gas["gno.land/r/b"] != 150 {
+		t.Errorf("gas = %v, want 150 each", b.gas)
+	}
+}

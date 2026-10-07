@@ -49,7 +49,7 @@ around it, header and rail included, is the directory view's.
 {{/* A name band over the top of a group or subgroup, a link to that box's
      own map when there is one. */}}
 {{ define "chainmap/head" }}
-{{- if .Zoom }}<a class="{{ .Class }}" href="{{ .Zoom }}$map"><title>Open the map of {{ .Zoom }}</title>{{ template "chainmap/band" . }}</a>
+{{- if .Zoom }}<a class="{{ .Class }}" href="{{ .Zoom }}$map{{ .Query }}"><title>Open the map of {{ .Zoom }}</title>{{ template "chainmap/band" . }}</a>
 {{- else }}<g class="{{ .Class }}">{{ template "chainmap/band" . }}</g>{{ end }}
 {{- end }}
 
@@ -64,15 +64,21 @@ in the listing's rail.
 <section class="b-map-key" aria-labelledby="map-key-heading">
 <h2 id="map-key-heading" class="b-sidebar-heading">Map key</h2>
 <dl class="b-pkg-meta">
-  {{ with .Up }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}$map">Map of {{ . }}</a></dd></div>{{ end }}
+  {{ with .Up }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}$map{{ $.Query }}">Map of {{ . }}</a></dd></div>{{ end }}
   <div class="row"><dt class="label">Tile</dt><dd class="value">One package</dd></div>
   <div class="row"><dt class="label">Box</dt><dd class="value" title="Select a box's name to open its map.">A folder, zoomable</dd></div>
   {{ if .Window }}{{ with .Window }}
-  <div class="row"><dt class="label">Color</dt><dd class="value" title="Successful calls over the last 7 days, counted by the indexer.">Calls <span class="b-tag b-tag--indexer">indexer</span></dd></div>
+  <div class="row"><dt class="label">Color</dt><dd class="value">
+    {{/* Two links, one per metric: no script needed to switch. */}}
+    <span class="b-map-switch" role="group" aria-label="Color tiles by">
+      {{ if $.Gas }}<a href="{{ $.Root }}$map" title="Successful calls over the last 7 days.">Calls</a><span aria-current="true" title="Gas used by successful calls over the last 7 days.">Gas</span>
+      {{- else }}<span aria-current="true" title="Successful calls over the last 7 days.">Calls</span><a href="{{ $.Root }}$map&amp;color=gas" title="Gas used by successful calls over the last 7 days.">Gas</a>{{ end }}
+    </span>
+    <span class="b-tag b-tag--indexer">indexer</span></dd></div>
   <div class="row"><dt class="label">Since</dt><dd class="value">{{ .Since.UTC.Format "Jan 2" }}, 7 days</dd></div>
   <div class="row"><dt class="label">Blocks</dt><dd class="value">{{ .From }}–{{ .To }}</dd></div>
   {{ end }}{{ else if eq .Activity "pending" }}
-  <div class="row"><dt class="label">Color</dt><dd class="value">Calls are still being counted. <a href="{{ .Root }}$map">Reload</a></dd></div>
+  <div class="row"><dt class="label">Color</dt><dd class="value">Calls are still being counted. <a href="{{ .Root }}$map{{ .Query }}">Reload</a></dd></div>
   {{ else if eq .Activity "unavailable" }}
   <div class="row"><dt class="label">Color</dt><dd class="value">Calls unavailable: the indexer could not be read.</dd></div>
   {{ else if eq .Activity "not-called" }}
@@ -82,10 +88,10 @@ in the listing's rail.
   {{ end }}
 </dl>
 {{ with .Scale }}
-<ul class="b-map-scale" aria-label="Calls per color">
-  {{ range . }}<li><span class="b-map-swatch {{ .Class }}" aria-hidden="true"></span>{{ .Calls }}</li>{{ end }}
+<ul class="b-map-scale" aria-label="{{ if $.Gas }}Gas{{ else }}Calls{{ end }} per color">
+  {{ range . }}<li><span class="b-map-swatch {{ .Class }}" aria-hidden="true"></span>{{ .Range }}</li>{{ end }}
 </ul>
-<p class="b-map-key-note">Calls per shade, scaled to this map's busiest realm.</p>
+<p class="b-map-key-note">{{ if $.Gas }}Gas per shade, scaled to this map's heaviest realm. A transaction's gas is shared between the calls it makes.{{ else }}Calls per shade, scaled to this map's busiest realm.{{ end }}</p>
 {{ end }}
 {{ with .Window }}{{ if .Partial }}
 <p class="b-map-key-note">Part of the window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</p>
@@ -95,10 +101,10 @@ in the listing's rail.
 {{/* The rail's own list style, the Package Index's: no rules of its own
      under the heading's. */}}
 <section aria-labelledby="map-busiest-heading">
-  <h2 id="map-busiest-heading" class="b-sidebar-heading">Most called · 7 days</h2>
+  <h2 id="map-busiest-heading" class="b-sidebar-heading">{{ if $.Gas }}Most gas{{ else }}Most called{{ end }} · 7 days</h2>
   <ol class="b-toc b-map-busiest">
     {{ range . }}
-    <li><a href="{{ .Path }}"><span>{{ range .PathSegments }}{{ . }}<wbr>{{ end }}</span><small>{{ .Calls }}</small></a></li>
+    <li><a href="{{ .Path }}"><span>{{ range .PathSegments }}{{ . }}<wbr>{{ end }}</span><small>{{ .Amount }}</small></a></li>
     {{ end }}
   </ol>
 </section>

@@ -50,9 +50,12 @@ const (
 
 // Activity is the call count of every realm over the window.
 type Activity struct {
-	// Calls and Callers are keyed by fully qualified package path.
+	// Calls, Callers and Gas are keyed by fully qualified package path. A
+	// transaction's gas is shared evenly between the calls it makes, the
+	// indexer reporting gas per transaction only.
 	Calls   map[string]int
 	Callers map[string]int
+	Gas     map[string]int64
 
 	// From and To are the heights counted, both inclusive.
 	From, To int
@@ -75,21 +78,29 @@ func newActivityFlight() *flight[*Activity] {
 type bandCounts struct {
 	calls   map[string]int
 	callers map[string]map[string]struct{}
+	gas     map[string]int64
 	// complete is false when part of the band stayed over the indexer's cap.
 	complete bool
 }
 
 func countBand(txs []indexer.Tx, complete bool) *bandCounts {
-	b := &bandCounts{calls: make(map[string]int), callers: make(map[string]map[string]struct{}), complete: complete}
+	b := &bandCounts{calls: make(map[string]int), callers: make(map[string]map[string]struct{}), gas: make(map[string]int64), complete: complete}
 	for _, tx := range txs {
 		if !tx.Success {
 			continue
+		}
+		var calls []string
+		for _, m := range tx.Messages {
+			if p := m.Path(); m.Type() == "MsgCall" && p != "" {
+				calls = append(calls, p)
+			}
 		}
 		for _, m := range tx.Messages {
 			p := m.Path()
 			if m.Type() != "MsgCall" || p == "" {
 				continue
 			}
+			b.gas[p] += int64(tx.GasUsed) / int64(len(calls))
 			b.calls[p]++
 			if b.callers[p] == nil {
 				b.callers[p] = make(map[string]struct{})
@@ -208,6 +219,7 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 	a := &Activity{
 		Calls:   make(map[string]int),
 		Callers: make(map[string]int),
+		Gas:     make(map[string]int64),
 		From:    from,
 		To:      tip,
 		Since:   since,
@@ -217,6 +229,9 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 		a.Partial = a.Partial || !b.complete
 		for p, n := range b.calls {
 			a.Calls[p] += n
+		}
+		for p, g := range b.gas {
+			a.Gas[p] += g
 		}
 		for p, set := range b.callers {
 			if callers[p] == nil {

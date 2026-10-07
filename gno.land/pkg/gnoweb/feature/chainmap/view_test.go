@@ -178,15 +178,15 @@ func TestScaleTilesTheCounts(t *testing.T) {
 
 	for _, busiest := range []int{1, 2, 3, 7, 100, 1000, 12345} {
 		next := 1
-		for _, st := range scale(busiest, false)[1:] {
-			lo, hi, _ := strings.Cut(st.Calls, "–")
+		for _, st := range scale(busiest, false, MetricCalls.format)[1:] {
+			lo, hi, _ := strings.Cut(st.Range, "–")
 			if hi == "" {
 				hi = lo
 			}
 			l, _ := strconv.Atoi(lo)
 			h, _ := strconv.Atoi(hi)
 			if l != next || h < l {
-				t.Fatalf("busiest %d: step %q after %d", busiest, st.Calls, next-1)
+				t.Fatalf("busiest %d: step %q after %d", busiest, st.Range, next-1)
 			}
 			for c := l; c <= h; c++ {
 				if got := shadeClasses[level(c, busiest)]; got != st.Class {
@@ -199,7 +199,7 @@ func TestScaleTilesTheCounts(t *testing.T) {
 			t.Errorf("busiest %d: the key stops at %d", busiest, next-1)
 		}
 	}
-	if s := scale(10, true); s[len(s)-1].Class != unknownShadeClass {
+	if s := scale(10, true, MetricCalls.format); s[len(s)-1].Class != unknownShadeClass {
 		t.Error("a partial window's key must show the unknown shade")
 	}
 }
@@ -227,5 +227,52 @@ func TestMapFigureCarriesItsMetrics(t *testing.T) {
 	}
 	if strings.Contains(out, "aria-live") {
 		t.Error("the hover status must not be a live region")
+	}
+}
+
+// A gas map shades and ranks by gas, keeps its metric on every map link, and
+// offers the way back to calls; the call map offers gas.
+func TestMapColorsByGas(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
+	h.activity.store("activity", &Activity{
+		Calls: map[string]int{"gno.land/r/a/x/busy": 900, "gno.land/r/a/x/heavy": 3},
+		Gas:   map[string]int64{"gno.land/r/a/x/busy": 4_000_000, "gno.land/r/a/x/heavy": 77_000_000_000},
+		From:  10, To: 20, Since: time.Unix(0, 0),
+	}, nil)
+	paths := []string{"/r/a/x/busy", "/r/a/x/heavy", "/r/a/x/idle", "/r/a/y/1", "/r/a/y/2", "/r/a/y/3"}
+
+	out := render(t, h, Listing{Path: "/r/", Up: "", Paths: paths, Metric: MetricGas})
+	for _, want := range []string{
+		`aria-current="true" title="Gas used`,
+		`href="/r/$map"`,                 // back to calls
+		`href="/r/a/$map&amp;color=gas"`, // a zoom keeps the metric
+		"Most gas · 7 days",
+		"77.0 B",
+		"/r/a/x/heavy · 77.0 B gas over 3 calls",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("gas map lacks %q", want)
+		}
+	}
+	// heavy, with 3 calls, outranks busy, with 900, on gas.
+	if i, j := strings.Index(out, "<small>77.0 B</small>"), strings.Index(out, "<small>4 M</small>"); i < 0 || j < 0 || i > j {
+		t.Errorf("busiest list is not ranked by gas")
+	}
+
+	calls := render(t, h, Listing{Path: "/r/", Paths: paths})
+	if !strings.Contains(calls, `href="/r/$map&amp;color=gas"`) || !strings.Contains(calls, "Most called · 7 days") {
+		t.Error("the call map must offer gas and keep its own list")
+	}
+}
+
+func TestParseMetric(t *testing.T) {
+	t.Parallel()
+
+	for in, want := range map[string]Metric{"gas": MetricGas, "calls": MetricCalls, "": MetricCalls, "GAS": MetricCalls, "x": MetricCalls} {
+		if got := ParseMetric(in); got != want {
+			t.Errorf("ParseMetric(%q) = %q, want %q", in, got, want)
+		}
 	}
 }

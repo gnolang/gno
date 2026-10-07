@@ -28,6 +28,33 @@ type Listing struct {
 	// of a zoom. Empty when there is none, at a kind's root such as /r/ or
 	// where the path above is a package, which has no listing to map.
 	Up string
+	// Metric is what the tiles are shaded by; the zero value is calls.
+	Metric Metric
+}
+
+// Metric is what a map's tiles are shaded by, chosen with ?color= on $map.
+type Metric string
+
+const (
+	MetricCalls Metric = "calls"
+	MetricGas   Metric = "gas"
+)
+
+// ParseMetric reads the color= value of a map URL. Anything but "gas" is
+// calls, so an unknown value draws the default map rather than an error.
+func ParseMetric(s string) Metric {
+	if s == string(MetricGas) {
+		return MetricGas
+	}
+	return MetricCalls
+}
+
+// query is what a map link appends after $map to keep this metric.
+func (m Metric) query() string {
+	if m == MetricGas {
+		return "&color=gas"
+	}
+	return ""
 }
 
 // Why a map shows no activity, which the key says. A map never shows a count
@@ -59,9 +86,18 @@ type MapData struct {
 	// Indexer is the provenance footer, set whenever the indexer answered.
 	Indexer *components.IndexerStatus
 
-	// Busiest are the most called realms on the map, set with activity.
+	// Busiest are the realms ranking highest on the metric, set with
+	// activity.
 	Busiest []Tile
+
+	// Metric is what the tiles are shaded by, and Query what a map link
+	// appends after $map to keep it.
+	Metric Metric
+	Query  string
 }
+
+// Gas reports whether the tiles are shaded by gas, for the template.
+func (d *MapData) Gas() bool { return d.Metric == MetricGas }
 
 // busiestCount is how many of the most called realms the key lists.
 const busiestCount = 5
@@ -75,17 +111,19 @@ func (*MapData) ViewBox() string {
 	return fmt.Sprintf("0 0 %g %g", mapWidth, mapHeight)
 }
 
-// ScaleStep is one colour of the key: a shade and the calls it stands for.
+// ScaleStep is one colour of the key: a shade and the range it stands for.
 type ScaleStep struct {
-	Class, Calls string
+	Class, Range string
 }
 
 // Map draws a listing: the figure for the listing's body and its key for the
 // listing's rail. The page around them is the directory view's own.
 func (h *Handler) Map(ctx context.Context, l Listing) components.MapParts {
 	root := strings.TrimSuffix(l.Path, "/") + "/"
-	data := &MapData{Root: root, Up: l.Up, Groups: buildGroups(root, l.Paths)}
+	metric := ParseMetric(string(l.Metric))
+	data := &MapData{Root: root, Up: l.Up, Groups: buildGroups(root, l.Paths), Metric: metric, Query: metric.query()}
 	layout(data.Groups)
+	data.eachHead(func(h *Head) { h.Query = data.Query })
 
 	if h.activity != nil {
 		h.addActivity(ctx, data)
@@ -130,27 +168,51 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	busiest := 0
 	data.eachTile(func(t *Tile) {
 		full := h.deps.Domain + t.Path
-		t.Calls, t.Callers = a.Calls[full], a.Callers[full]
-		busiest = max(busiest, t.Calls)
+		t.Calls, t.Callers, t.Gas = a.Calls[full], a.Callers[full], a.Gas[full]
+		t.Amount = data.Metric.format(t.value(data.Metric))
+		busiest = max(busiest, t.value(data.Metric))
 	})
 	data.eachTile(func(t *Tile) {
 		// Partial: a zero may be calls in the part that went unread.
 		t.Unknown = a.Partial && t.Calls == 0
-		t.ShadeClass = shadeClasses[level(t.Calls, busiest)]
+		t.ShadeClass = shadeClasses[level(t.value(data.Metric), busiest)]
 		if t.Unknown {
 			t.ShadeClass = unknownShadeClass
 		}
 	})
-	data.Scale = scale(busiest, a.Partial)
+	data.Scale = scale(busiest, a.Partial, data.Metric.format)
+}
+
+// value is what t is shaded and ranked by under m: its calls, or its gas in
+// millions, rounded up so that any gas at all draws a shade.
+func (t *Tile) value(m Metric) int {
+	if m == MetricGas {
+		return int((t.Gas + 999_999) / 1_000_000)
+	}
+	return t.Calls
+}
+
+// format writes a value of m for the key: a call count, or gas in millions
+// ("29 M") or billions ("5.6 B").
+func (m Metric) format(v int) string {
+	switch {
+	case m != MetricGas:
+		return strconv.Itoa(v)
+	case v < 1000:
+		return strconv.Itoa(v) + " M"
+	default:
+		return strconv.FormatFloat(float64(v)/1000, 'f', 1, 64) + " B"
+	}
 }
 
 // scale is the key's colour steps for a map whose busiest realm has busiest
-// calls: each shade with the range of calls it stands for, skipping a shade
-// no count reaches. Unknown comes last when the window is partial.
-func scale(busiest int, partial bool) []ScaleStep {
-	steps := []ScaleStep{{Class: shadeClasses[0], Calls: "0"}}
+// on the metric: each shade with the range it stands for, written by format,
+// skipping a shade no value reaches. Unknown comes last when the window is
+// partial.
+func scale(busiest int, partial bool, format func(int) string) []ScaleStep {
+	steps := []ScaleStep{{Class: shadeClasses[0], Range: "0"}}
 	if partial {
-		steps[0].Calls = "0 (counted)"
+		steps[0].Range = "0 (counted)"
 	}
 	// first[l] is the smallest count drawn at level l or above.
 	last := len(shadeClasses)
@@ -165,33 +227,47 @@ func scale(busiest int, partial bool) []ScaleStep {
 		case lo > hi:
 			continue
 		case lo == hi:
-			steps = append(steps, ScaleStep{Class: shadeClasses[l], Calls: strconv.Itoa(lo)})
+			steps = append(steps, ScaleStep{Class: shadeClasses[l], Range: format(lo)})
 		default:
-			steps = append(steps, ScaleStep{Class: shadeClasses[l], Calls: strconv.Itoa(lo) + "–" + strconv.Itoa(hi)})
+			steps = append(steps, ScaleStep{Class: shadeClasses[l], Range: format(lo) + "–" + format(hi)})
 		}
 	}
 	if partial {
-		steps = append(steps, ScaleStep{Class: unknownShadeClass, Calls: "unknown"})
+		steps = append(steps, ScaleStep{Class: unknownShadeClass, Range: "unknown"})
 	}
 	return steps
 }
 
-// busiest returns up to n tiles with the most calls, most first; none without
-// calls.
+// busiest returns up to n tiles ranking highest on the map's metric, highest
+// first; none at zero.
 func busiest(data *MapData, n int) []Tile {
 	var top []Tile
 	data.eachTile(func(t *Tile) {
-		if t.Calls > 0 {
+		if t.value(data.Metric) > 0 {
 			top = append(top, *t)
 		}
 	})
 	slices.SortFunc(top, func(a, b Tile) int {
-		if c := cmp.Compare(b.Calls, a.Calls); c != 0 {
+		if c := cmp.Compare(b.value(data.Metric), a.value(data.Metric)); c != 0 {
 			return c
 		}
 		return cmp.Compare(a.Path, b.Path)
 	})
 	return top[:min(n, len(top))]
+}
+
+// eachHead calls fn on every name band of the map.
+func (d *MapData) eachHead(fn func(*Head)) {
+	for _, g := range d.Groups {
+		if g.Head != nil {
+			fn(g.Head)
+		}
+		for _, s := range g.Subgroups {
+			if s.Head != nil {
+				fn(s.Head)
+			}
+		}
+	}
 }
 
 // eachTile calls fn on every tile of the map.
@@ -254,6 +330,9 @@ func tileTitle(t *Tile, data *MapData) string {
 	calls := plural(t.Calls, "call")
 	if data.Window.Partial {
 		calls = "at least " + calls
+	}
+	if data.Gas() {
+		return fmt.Sprintf("%s · %s gas over %s", t.Path, data.Metric.format(t.value(MetricGas)), calls)
 	}
 	return fmt.Sprintf("%s · %s by %s", t.Path, calls, plural(t.Callers, "account"))
 }

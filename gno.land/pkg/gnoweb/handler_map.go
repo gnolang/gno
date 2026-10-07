@@ -101,8 +101,12 @@ func (h *HTTPHandler) listPaths(ctx context.Context, gnourl *weburl.GnoURL) (pat
 }
 
 // mapRequest asks renderListing for the map rather than the list. up is the
-// listing one level up, or "" when there is none to zoom out to.
-type mapRequest struct{ up string }
+// listing one level up, or "" when there is none to zoom out to; metric is
+// what the tiles are shaded by.
+type mapRequest struct {
+	up     string
+	metric chainmap.Metric
+}
 
 // renderListing renders a listing as a list, or as a map when m is set. The
 // two render this one listing, so they cannot disagree about what exists.
@@ -125,7 +129,7 @@ func (h *HTTPHandler) renderListing(ctx context.Context, gnourl *weburl.GnoURL, 
 	mappable := len(paths) >= chainmap.MinPackages
 	indexData.HeaderData.MapTab = mappable
 	if mappable && m != nil {
-		parts := h.ChainMap.Map(ctx, chainmap.Listing{Path: gnourl.Path, Paths: paths, Up: m.up})
+		parts := h.ChainMap.Map(ctx, chainmap.Listing{Path: gnourl.Path, Paths: paths, Up: m.up, Metric: m.metric})
 		return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, &parts)
 	}
 	return http.StatusOK, components.ExplorerView(gnourl.Path, paths, truncated, nil)
@@ -178,5 +182,5 @@ func (h *HTTPHandler) GetMapView(ctx context.Context, gnourl *weburl.GnoURL, ind
 	if upErr != nil && !errors.Is(<-upErr, ErrClientPackageNotFound) {
 		up = ""
 	}
-	return h.renderListing(ctx, gnourl, indexData, paths, truncated, &mapRequest{up: up})
+	return h.renderListing(ctx, gnourl, indexData, paths, truncated, &mapRequest{up: up, metric: chainmap.ParseMetric(gnourl.WebQuery.Get("color"))})
 }

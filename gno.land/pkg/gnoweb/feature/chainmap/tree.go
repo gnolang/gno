@@ -81,6 +81,8 @@ type Head struct {
 	// Zoom is the path the box maps, ending with a slash; empty when the box
 	// has no map of its own.
 	Zoom string
+	// Query keeps the map's metric on the zoomed map; see MapData.Query.
+	Query string
 }
 
 // Group is the packages sharing the first path segment below the map's root.
@@ -121,6 +123,10 @@ type Tile struct {
 	Title string
 
 	Calls, Callers int
+	// Gas is the gas the realm's calls used over the window.
+	Gas int64
+	// Amount is the metric's value written for the key's busiest list.
+	Amount string
 	// Unknown marks a tile whose count the indexer could not settle.
 	Unknown bool
 	// ShadeClass is the activity colour, empty when the map shows none.
