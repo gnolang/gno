@@ -251,3 +251,37 @@ func TestCountBandSharesGasBetweenCalls(t *testing.T) {
 		t.Errorf("gas = %v, want r/a 650 (150 + 500), r/b 500", b.gas)
 	}
 }
+
+// A band whose answer is over the client's size cap is split like one over
+// the element cap, rather than failing the whole refresh for the week.
+func TestComputeActivitySplitsOversizedBands(t *testing.T) {
+	t.Parallel()
+
+	tip := weekOfBlocks + 50_000
+	f := &fakeIndexer{tip: tip, t0: time.Unix(0, 0), bytesOver: 5_000,
+		calls: map[int][]indexer.Tx{tip - 3: {call(tip-3, true, "g1x", "gno.land/r/a")}}}
+	a, err := computeActivity(context.Background(), f, nil)
+	if err != nil {
+		t.Fatalf("computeActivity: %v", err)
+	}
+	if a.Calls["gno.land/r/a"] != 1 || a.Partial {
+		t.Errorf("calls = %d, partial = %v; want 1, complete", a.Calls["gno.land/r/a"], a.Partial)
+	}
+}
+
+// A band read only in part is not kept: its missing calls would otherwise
+// stay missing until it leaves the window.
+func TestComputeActivityDoesNotKeepPartialBands(t *testing.T) {
+	t.Parallel()
+
+	tip := weekOfBlocks + 50_000
+	f := &fakeIndexer{tip: tip, t0: time.Unix(0, 0), capOver: minBandWidth / 2}
+	closed := new(closedBands)
+	a, err := computeActivity(context.Background(), f, closed)
+	if err != nil || !a.Partial {
+		t.Fatalf("computeActivity = partial %v, %v; want a partial window", a.Partial, err)
+	}
+	if n := len(closed.m); n != 0 {
+		t.Errorf("%d partial bands were kept", n)
+	}
+}

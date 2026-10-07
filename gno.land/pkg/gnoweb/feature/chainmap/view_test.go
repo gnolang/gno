@@ -178,7 +178,7 @@ func TestScaleTilesTheCounts(t *testing.T) {
 
 	for _, busiest := range []int{1, 2, 3, 7, 100, 1000, 12345} {
 		next := 1
-		for _, st := range scale(busiest, false, MetricCalls)[1:] {
+		for _, st := range scale(busiest, false)[1:] {
 			lo, hi, _ := strings.Cut(st.Range, "–")
 			if hi == "" {
 				hi = lo
@@ -199,7 +199,7 @@ func TestScaleTilesTheCounts(t *testing.T) {
 			t.Errorf("busiest %d: the key stops at %d", busiest, next-1)
 		}
 	}
-	if s := scale(10, true, MetricCalls); s[len(s)-1].Class != unknownShadeClass {
+	if s := scale(10, true); s[len(s)-1].Class != unknownShadeClass {
 		t.Error("a partial window's key must show the unknown shade")
 	}
 }
@@ -310,12 +310,66 @@ func TestGasIsRankedAndWrittenAsMeasured(t *testing.T) {
 func TestGasLegendGivesUpperBounds(t *testing.T) {
 	t.Parallel()
 
-	steps := scale(76_000, false, MetricGas)
+	steps := gasScale(500, 76_000_000, false)
+	if len(steps) < 3 {
+		t.Fatalf("steps = %v, want several", steps)
+	}
 	seen := map[string]bool{}
 	for _, st := range steps[1:] {
 		if !strings.HasPrefix(st.Range, "≤ ") || seen[st.Range] {
 			t.Errorf("step %q is not a distinct upper bound", st.Range)
 		}
 		seen[st.Range] = true
+	}
+}
+
+// A map whose heaviest realm used under a million gas still tells its realms
+// apart: whole millions would put every called tile in the top shade.
+func TestLightGasMapKeepsShadesApart(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
+	h.activity.store("activity", &Activity{
+		Calls: map[string]int{"gno.land/r/a/s": 1, "gno.land/r/a/m": 1, "gno.land/r/a/l": 1},
+		Gas:   map[string]int64{"gno.land/r/a/s": 20_000, "gno.land/r/a/m": 300_000, "gno.land/r/a/l": 900_000},
+		From:  10, To: 20, Since: time.Unix(0, 0),
+	}, nil)
+	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/s", "/r/a/m", "/r/a/l"}, Metric: MetricGas})
+	shade := func(p string) string {
+		i := strings.Index(out, `href="`+p+`"`)
+		j := strings.LastIndex(out[:i], "b-map__tile--")
+		return out[j : j+len("b-map__tile--l0")]
+	}
+	if shade("/r/a/s") == shade("/r/a/l") {
+		t.Errorf("20 k and 900 k gas share the shade %s", shade("/r/a/s"))
+	}
+}
+
+// Real gas sits in a narrow band (a call costs hundreds of thousands): the
+// gas scale starts at the lightest realm on the map, not at zero, so realms
+// between 500 k and 3.8 M spread over the shades instead of filling the top.
+func TestGasScaleStartsAtTheLightestRealm(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
+	gas := map[string]int64{"gno.land/r/a/p1": 500_000, "gno.land/r/a/p2": 900_000, "gno.land/r/a/p3": 1_700_000, "gno.land/r/a/p4": 3_800_000}
+	calls := map[string]int{}
+	for p := range gas {
+		calls[p] = 1
+	}
+	h.activity.store("activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
+	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/p1", "/r/a/p2", "/r/a/p3", "/r/a/p4"}, Metric: MetricGas})
+
+	shades := map[string]bool{}
+	for _, p := range []string{"/r/a/p1", "/r/a/p2", "/r/a/p3", "/r/a/p4"} {
+		i := strings.Index(out, `href="`+p+`"`)
+		j := strings.LastIndex(out[:i], "b-map__tile--")
+		shades[out[j:j+len("b-map__tile--l0")]] = true
+	}
+	if len(shades) < 3 {
+		t.Errorf("four realms from 500 k to 3.8 M use %d shades, want at least 3", len(shades))
+	}
+	if !strings.Contains(out, "≤ 3.8 M") || strings.Contains(out, "≤ 1 k") {
+		t.Error("the legend must run from the lightest realm to the heaviest")
 	}
 }
