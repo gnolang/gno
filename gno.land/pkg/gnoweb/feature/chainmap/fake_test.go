@@ -20,6 +20,9 @@ type fakeIndexer struct {
 	// capOver makes CallsBetween refuse any band wider than this many
 	// blocks, as the indexer's element cap does; 0 never refuses.
 	capOver int
+	// bytesOver makes CallsBetween fail with ErrResponseTooLarge for any
+	// band wider than this many blocks, as the client's size cap does.
+	bytesOver int
 	// failBands makes CallsBetween fail outright.
 	failBands bool
 	// bandDelay makes each CallsBetween take this long, or until its ctx ends.
@@ -56,6 +59,9 @@ func (f *fakeIndexer) CallsBetween(ctx context.Context, lower, upper int) ([]ind
 	}
 	if f.failBands {
 		return nil, errors.New("indexer down")
+	}
+	if f.bytesOver > 0 && upper-lower > f.bytesOver {
+		return nil, fmt.Errorf("%w: over 8 MiB", indexer.ErrResponseTooLarge)
 	}
 	if f.capOver > 0 && upper-lower > f.capOver {
 		return nil, fmt.Errorf("%w: max elements per query", indexer.ErrTooLarge)

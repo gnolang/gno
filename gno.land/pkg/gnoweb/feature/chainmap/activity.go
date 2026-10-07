@@ -212,7 +212,9 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 			}
 			// Each goroutine writes its own slot: no lock needed.
 			bands[i] = countBand(txs, complete)
-			if whole {
+			// Only a band read in full is final: a partial one keeps its gap
+			// until it leaves the window otherwise.
+			if whole && bands[i].complete {
 				closed.put(aligned, bands[i])
 			}
 			return nil
@@ -252,15 +254,18 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 	return a, nil
 }
 
-// readBand reads the heights (lower, upper], halving any band the indexer
-// caps. complete is false when some band stayed over the cap at the narrowest
-// width; its calls are then missing from the result.
+// readBand reads the heights (lower, upper], halving any band over the
+// indexer's element cap or the client's response size cap. complete is false
+// when some band stayed over a cap at the narrowest width; its calls are then
+// missing from the result.
 func readBand(ctx context.Context, idx Indexer, lower, upper int) ([]indexer.Tx, bool, error) {
 	txs, err := idx.CallsBetween(ctx, lower, upper)
 	switch {
 	case err == nil:
 		return txs, true, nil
-	case !errors.Is(err, indexer.ErrTooLarge):
+	case !errors.Is(err, indexer.ErrTooLarge) && !errors.Is(err, indexer.ErrResponseTooLarge):
+		// Over the element cap or over the client's size cap, a narrower
+		// band may fit; anything else is a failure.
 		return nil, false, err
 	case upper-lower <= minBandWidth:
 		return nil, false, nil

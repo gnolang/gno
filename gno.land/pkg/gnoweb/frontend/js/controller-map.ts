@@ -14,7 +14,7 @@ export class MapController extends BaseController {
 		this.status = this.getTarget("status");
 		if (!this.status) return;
 		this.status.hidden = false;
-		const idle = "Point at a tile to see its package.";
+		const idle = "Hover or focus a tile to see its package.";
 		this.status.textContent = idle;
 
 		const show = (event: Event): void => {

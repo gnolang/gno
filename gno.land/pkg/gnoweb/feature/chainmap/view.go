@@ -176,30 +176,87 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 
 	// The scale is the busiest realm on this map, so a zoomed-in map still
 	// tells its own realms apart.
-	busiest := 0
+	busiest, lightest := 0, 0
 	data.eachTile(func(t *Tile) {
 		full := h.deps.Domain + t.Path
 		t.Calls, t.Callers, t.Gas = a.Calls[full], a.Callers[full], a.Gas[full]
 		t.Amount = data.Metric.amount(t)
-		busiest = max(busiest, t.value(data.Metric))
+		if v := t.value(data.Metric); v > 0 {
+			busiest = max(busiest, v)
+			if lightest == 0 || v < lightest {
+				lightest = v
+			}
+		}
 	})
 	data.eachTile(func(t *Tile) {
 		// Partial: a zero may be calls in the part that went unread.
 		t.Unknown = a.Partial && t.Calls == 0
-		t.ShadeClass = shadeClasses[level(t.value(data.Metric), busiest)]
+		l := level(t.value(data.Metric), busiest)
+		if data.Gas() {
+			l = gasLevel(t.value(MetricGas), lightest, busiest)
+		}
+		t.ShadeClass = shadeClasses[l]
 		if t.Unknown {
 			t.ShadeClass = unknownShadeClass
 		}
 	})
-	data.Scale = scale(busiest, a.Partial, data.Metric)
+	if data.Gas() {
+		data.Scale = gasScale(lightest, busiest, a.Partial)
+	} else {
+		data.Scale = scale(busiest, a.Partial)
+	}
 }
 
-// value is what t is shaded by under m: its calls, or its gas in millions,
-// rounded up so that any gas at all draws a shade. The log scale needs small
-// integers; ranking and labels use the measured gas (rank, amount).
+// gasLevel maps gas, in thousands, to a colour step on a log scale from the
+// lightest realm on the map to the heaviest. Gas sits in a narrow band (a call
+// costs hundreds of thousands), so a scale from zero would put every realm in
+// the top shades.
+func gasLevel(v, lightest, heaviest int) int {
+	switch {
+	case v <= 0:
+		return 0
+	case heaviest <= lightest:
+		return len(shadeClasses) - 1
+	}
+	f := math.Log(float64(v)/float64(lightest)) / math.Log(float64(heaviest)/float64(lightest))
+	return 1 + min(len(shadeClasses)-2, int(f*float64(len(shadeClasses)-1)))
+}
+
+// gasScale is the key's colour steps under gas: each shade with its upper
+// bound, since rounded gas ranges would print the same number where they
+// meet. A bound that reads like the previous one is skipped.
+func gasScale(lightest, heaviest int, partial bool) []ScaleStep {
+	steps := []ScaleStep{{Class: shadeClasses[0], Range: "0"}}
+	if partial {
+		steps[0].Range = "0 (counted)"
+	}
+	last := len(shadeClasses) - 1
+	prev := ""
+	for l := 1; l <= last && heaviest > 0; l++ {
+		bound := float64(heaviest)
+		if l < last && heaviest > lightest {
+			bound = float64(lightest) * math.Pow(float64(heaviest)/float64(lightest), float64(l)/float64(last))
+		}
+		label := "≤ " + components.FormatGas(int64(bound)*1_000)
+		if label == prev {
+			continue
+		}
+		prev = label
+		steps = append(steps, ScaleStep{Class: shadeClasses[l], Range: label})
+	}
+	if partial {
+		steps = append(steps, ScaleStep{Class: unknownShadeClass, Range: "unknown"})
+	}
+	return steps
+}
+
+// value is what t is shaded by under m: its calls, or its gas in thousands,
+// rounded up so that any gas at all draws a shade. Thousands keep a map whose
+// heaviest realm used under a million apart; ranking and labels use the
+// measured gas (rank, amount).
 func (t *Tile) value(m Metric) int {
 	if m == MetricGas {
-		return int((t.Gas + 999_999) / 1_000_000)
+		return int((t.Gas + 999) / 1_000)
 	}
 	return t.Calls
 }
@@ -215,36 +272,15 @@ func (t *Tile) rank(m Metric) int64 {
 // amount writes t's measure under m for the busiest list.
 func (m Metric) amount(t *Tile) string {
 	if m == MetricGas {
-		return FormatGas(t.Gas)
+		return components.FormatGas(t.Gas)
 	}
 	return strconv.Itoa(t.Calls)
 }
 
-// FormatGas writes an amount of gas in thousands ("50 k"), millions ("1.9 M",
-// "154 M") or billions ("76.0 bn"): "B" would read as bytes beside a page's
-// storage sizes.
-func FormatGas(g int64) string {
-	f := float64(g)
-	switch {
-	case g < 1_000:
-		return strconv.FormatInt(g, 10)
-	case g < 1_000_000:
-		return strconv.FormatFloat(f/1e3, 'f', 0, 64) + " k"
-	case g < 10_000_000:
-		return strconv.FormatFloat(f/1e6, 'f', 1, 64) + " M"
-	case g < 1_000_000_000:
-		return strconv.FormatFloat(f/1e6, 'f', 0, 64) + " M"
-	default:
-		return strconv.FormatFloat(f/1e9, 'f', 1, 64) + " bn"
-	}
-}
-
 // scale is the key's colour steps for a map whose busiest realm has busiest
-// on the metric (see Tile.value): each shade with the calls it stands for, or
-// for gas its upper bound, since rounded gas ranges would print the same
-// number where they meet. A shade no value reaches is skipped; unknown comes
-// last when the window is partial.
-func scale(busiest int, partial bool, m Metric) []ScaleStep {
+// calls: each shade with the calls it stands for. A shade no count reaches is
+// skipped; unknown comes last when the window is partial.
+func scale(busiest int, partial bool) []ScaleStep {
 	steps := []ScaleStep{{Class: shadeClasses[0], Range: "0"}}
 	if partial {
 		steps[0].Range = "0 (counted)"
@@ -261,8 +297,6 @@ func scale(busiest int, partial bool, m Metric) []ScaleStep {
 		switch {
 		case lo > hi:
 			continue
-		case m == MetricGas:
-			steps = append(steps, ScaleStep{Class: shadeClasses[l], Range: "≤ " + FormatGas(int64(hi)*1_000_000)})
 		case lo == hi:
 			steps = append(steps, ScaleStep{Class: shadeClasses[l], Range: strconv.Itoa(lo)})
 		default:
@@ -369,7 +403,7 @@ func tileTitle(t *Tile, data *MapData) string {
 		calls = "at least " + calls
 	}
 	if data.Gas() {
-		return fmt.Sprintf("%s · %s gas over %s", t.Path, FormatGas(t.Gas), calls)
+		return fmt.Sprintf("%s · %s gas over %s", t.Path, components.FormatGas(t.Gas), calls)
 	}
 	return fmt.Sprintf("%s · %s by %s", t.Path, calls, plural(t.Callers, "account"))
 }

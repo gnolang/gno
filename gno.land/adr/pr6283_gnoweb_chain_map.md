@@ -103,6 +103,11 @@ detached from it and shared by every concurrent reader; a stale aggregate is
 served while it runs. A page waits three seconds, then says the activity is
 still being counted, with a reload link.
 
+A band over the indexer's element cap, or over the client's response size
+cap, is split the same way. Only a band read in full is kept as closed; a
+partial one is read again on the next refresh rather than keeping its gap
+for the week.
+
 A band still over the cap at the narrowest width makes the aggregate partial:
 counts become lower bounds ("at least N calls") and a realm with no counted
 call is drawn as unknown, never as zero. A pure-package map says that nothing
@@ -124,12 +129,15 @@ transaction's gas is shared evenly between the messages that run code
 realm the transaction calls, not the realms that one calls in turn, and the
 key says so.
 
-Shades use the shared log scale on gas in whole millions, rounded up so any
-gas draws a shade; ranking and labels use the gas as measured (50 k, 1.9 M,
-76.0 bn: bn, not B, which would read as bytes). The legend gives each
+Shades use a log scale on gas from the lightest realm on the map to the
+heaviest, not from zero as for calls: gas sits in a narrow band (a call
+costs hundreds of thousands), and a scale from zero put most of a folder's
+realms in the top shade. Ranking and labels
+use the gas as measured (50 k, 1.9 M, 76.0 bn), the unit chosen on the
+rounded value; bn, not B, which would read as bytes. The legend gives each
 shade's upper bound, since rounded ranges would print the same number where
-they meet. A line under the map names the metric, because the key folds
-away with the rail on a phone.
+they meet. Under gas, a line under the map names the metric, because the
+key folds away with the rail on a phone.
 
 On the whole chain the gas map looks much like the call map, the log scale
 putting the same realms in the top shades; the difference is mostly in the
