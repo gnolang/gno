@@ -4,7 +4,8 @@ This guide consolidates the practical security learnings from auditing
 cross-realm attack vectors in the Gno VM. It is the long-form companion
 to `gno-security.md` (which defines the numbered threat classes) and
 assumes the vocabulary of `gno-interrealm.md` (realm-context,
-realm-storage-context, borrow rules, `cur realm`, `IsCurrent()`).
+realm-storage-context, borrow rules, `cur realm`), and of
+`gno-interrealm-v2.md` for `IsCurrent()`.
 
 The goal: tell a realm author what they must do, and what they must
 *not* do, to keep their realm's state safe from external manipulation.
@@ -369,7 +370,7 @@ This is class **2 (designation-forgery)** from `gno-security.md`.
 
 Storing a `realm` value (whether `cur` or `cur.Previous()`) into a
 struct field, map value, package-level variable, or closure capture
-panics at attachment time or transaction finalize:
+panics when the crossing call that stored it returns and the realm is saved:
 `cannot persist realm value: realm values are ephemeral and tied to
 a call frame`.
 
@@ -380,10 +381,11 @@ the `Address()` or `PkgPath()` (plain strings), not the realm value.
 
 `chain/runtime/unsafe.PreviousRealm()` is the pre-`cur realm` API for
 obtaining the previous realm. Using it in a crossing function that already
-receives `cur realm` is always wrong: the walk answers from wherever it
-stands rather than from the frame this function was entered with, and it
-silently ignores the `cur` capability token the runtime minted for exactly
-this purpose.
+receives `cur realm` is always wrong. Called directly there, the walk names
+the same realm as `cur.Previous()` and adds nothing. Moved into a
+non-crossing function that another realm reaches, it names an earlier realm
+in the chain rather than that function's caller, while `cur` stays bound to
+the frame that received it.
 
 ```go
 // WRONG: cur is accepted but never used
@@ -401,13 +403,16 @@ func Set(cur realm, key, value string) {
 }
 ```
 
-Any import of `chain/runtime/unsafe` in a realm that also declares
-crossing functions (`func F(cur realm, ...)`) is a red flag. The
-`unsafe` package is appropriate only in non-crossing helpers or
-in realms that have not yet been migrated to the `cur realm` API.
+Any `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` in a realm that
+also declares crossing functions (`func F(cur realm, ...)`) is a red flag.
+A function another realm calls and that needs its caller should be a
+crossing function itself, reading `cur.Previous()`.
 
 **Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()`. Delete the `chain/runtime/unsafe` import.
+`cur.Previous()`, never from `unsafe.PreviousRealm()` or
+`unsafe.CurrentRealm()`. Reads of the transaction itself stay: the
+`unsafe.OriginSend()` payment check of §5.5, and `unsafe.OriginCaller()` where
+the signer is what you want to record.
 
 ---
 
@@ -531,8 +536,6 @@ Before deploying a realm:
 // gno.land/r/example/counter
 package counter
 
-import "chain"
-
 // /r/-declared data type. (A) satisfied.
 type Counter struct {
     value int
@@ -543,10 +546,10 @@ type Counter struct {
 // the methods exposed below.
 var gCounter *Counter
 
-func init() {
+func init(cur realm) {
     // m.Realm = /r/example/counter during init; allocation
-    // stamps PkgID = /r/example/counter.
-    gCounter = &Counter{value: 0, owner: address("")}
+    // stamps PkgID = /r/example/counter. The deployer owns it.
+    gCounter = &Counter{value: 0, owner: cur.Previous().Address()}
 }
 
 // Public read. Returns a value, not a pointer.
@@ -561,7 +564,7 @@ func Increment(cur realm) {
 
 // Authenticated owner-gated mutator.
 func SetOwner(cur realm, newOwner address) {
-    if gCounter.owner != "" && cur.Previous().Address() != gCounter.owner {
+    if cur.Previous().Address() != gCounter.owner {
         panic("not the owner")
     }
     gCounter.owner = newOwner
@@ -590,7 +593,7 @@ Attackers cannot:
 - Write `gCounter.value` directly (unexported field).
 - Get `gCounter` and Apply-launder it (no Apply method, no exported
   pointer).
-- Forge a `cur realm` (only the runtime mints one, on entry).
+- Forge a `cur realm` (only the runtime mints one).
 - Spoof `cur.Previous().Address()` (it's the live crossing frame).
 
 ---

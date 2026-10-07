@@ -5,7 +5,8 @@ the codebase (e.g. `// SECURITY (Class-4 captured callback)`) and the
 companion `SECURITY_GUIDE.md`. It assumes you have read
 [`gno-interrealm.md`](./gno-interrealm.md) — the language here uses that
 document's vocabulary (realm-context, crossing function, captured realm
-value, `IsCurrent()`).
+value), and [`gno-interrealm-v2.md`](./gno-interrealm-v2.md) for
+`IsCurrent()`.
 
 A `cur realm` value is a **language-enforced capability token**: the
 runtime mints one per crossing frame, refuses to persist it, and

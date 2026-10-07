@@ -136,11 +136,13 @@ authorizes the writes inside the method body.
 pointer to mutable state. If the pointed-to type has any mutation method, it is a
 live mutator handle. Never return the containing struct as a pointer.
 
-### 9. `unsafe.PreviousRealm()` — old API, answers from the wrong frame
+### 9. `unsafe.PreviousRealm()` — old API, wrong once moved into a non-crossing function
 
-`chain/runtime/unsafe.PreviousRealm()` walks the frame stack, so it answers from
-wherever it is called rather than naming the realm that entered this function. It
-should never appear alongside a `cur realm` parameter.
+`chain/runtime/unsafe.PreviousRealm()` walks the frame stack. Called directly in a
+crossing function it names the same realm as `cur.Previous()`. Moved into a
+non-crossing function that another realm reaches, it names an earlier realm in the
+chain instead, while `cur.Previous()` stays bound to the frame that received `cur`.
+It should never stand in for `cur.Previous()`.
 
 ```go
 // WRONG: cur is accepted but ignored
@@ -157,7 +159,10 @@ func Set(cur realm, key, value string) {
 }
 ```
 
-Flag any import of `chain/runtime/unsafe` in a realm that also has `cur realm` parameters.
+Flag any `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` in a realm that also has
+`cur realm` parameters. Reads of the transaction itself belong there: an
+`unsafe.OriginSend()` payment check paired with `cur.Previous().IsUserCall()`,
+or `unsafe.OriginCaller()` to record the signer.
 
 ### 10. Unsanitized user input in `Render`
 
@@ -235,7 +240,7 @@ Two cases where the swap is **wrong**, both found by making it:
 ## Review Checklist
 
 - [ ] Authenticated mutators take `cur realm` and derive identity from `cur.Previous()`
-- [ ] No import of `chain/runtime/unsafe` alongside `cur realm` parameters
+- [ ] No `unsafe.PreviousRealm()` or `unsafe.CurrentRealm()` alongside `cur realm` parameters
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`
 - [ ] No exported function returns a pointer to internal mutable state
 - [ ] No exported function returns a `/p/`-type pointer whose type has mutation methods
@@ -256,7 +261,7 @@ Two cases where the swap is **wrong**, both found by making it:
 |----------|---------|
 | [`gno-security-guide.md`](./gno-security-guide.md) | Deep technical explanation of the threat model, borrow rules, and anti-patterns |
 | [`gno-security.md`](./gno-security.md) | Numbered threat-class taxonomy |
-| [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, `IsCurrent()`, borrow rules) |
+| [`gno-interrealm.md`](./gno-interrealm.md) | Cross-realm call mechanics (`cur realm`, borrow rules); `IsCurrent()` is in [`gno-interrealm-v2.md`](./gno-interrealm-v2.md) |
 | [`effective-gno.md`](./effective-gno.md) | Idiomatic Gno patterns including payment guards |
 | `misc/audit-pattern-harness/` | Automated pattern detection tooling with sanitized fixtures |
 
