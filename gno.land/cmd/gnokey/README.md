@@ -18,8 +18,8 @@ For maximum security, you can provide your own entropy instead of relying on
 computer-generated randomness. Manual entropy generation creates a solemn ritual
 that emphasizes the importance of randomness in key generation. This method
 ensures your private key's randomness comes from physical sources rather than
-computer algorithms. Your input is SHA-256 hashed to create the seed and the
-same entropy always produces the same mnemonic.
+computer algorithms. Your input is SHA-256 hashed into the entropy the mnemonic
+is built from, so the same input always produces the same mnemonic.
 
 ```bash
 # Interactive entropy input
@@ -57,7 +57,10 @@ Creates a session account authorized by a master key. Its flags are:
 - `-allow-paths` - per-message restrictions (required, repeatable). Use `*` for
   unrestricted, or list specific entries like `vm/exec:gno.land/r/foo`,
   `vm/run`, `bank/send`
-- `-spend-limit` - max spend per period (optional; omitted = no spending)
+- `-spend-limit` - max spend per period, gas fees included, as coins such as
+  `1000000ugnot`. Omitted, the session can spend nothing, not even gas, so it
+  signs only where another signer pays the fees; a limit without `ugnot` is the
+  same for gas
 - `-spend-period` - seconds; `0` = lifetime cap
 
 ```bash
@@ -65,6 +68,7 @@ gnokey maketx session create \
   -pubkey gpub1... \
   -expires-at 24h \
   -allow-paths "vm/exec:gno.land/r/myrealm" \
+  -spend-limit 10000000ugnot \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
   -chainid staging \
   -remote "https://rpc.staging.gno.land:443" \
@@ -124,7 +128,7 @@ gnokey query auth/accounts/<your_address> -remote "https://rpc.staging.gno.land:
 ```
 
 **2. Build the unsigned transaction.** Any `maketx` with `-broadcast=false` prints
-the transaction, with a null `signature` field, to standard output instead of
+the transaction, with `"signatures":null`, to standard output instead of
 sending it; redirect the output to a file:
 
 ```bash
@@ -195,11 +199,15 @@ gnokey verify -tx-path counter.tx \
   mykey
 ```
 
-With `-sig-path` instead of the embedded signature:
+A multisig member's signature file was signed with the multisig account's
+number and sequence, while the online form looks up the key argument's own
+account, so pass the multisig's values explicitly:
 
 ```bash
-gnokey verify -tx-path counter.tx -sig-path counter-sig.json \
-  -remote https://rpc.staging.gno.land:443 mykey
+gnokey verify -tx-path multisig-abc-send.json -sig-path alice-sig.json \
+  -chainid staging \
+  -account-number "$MULTISIG_ACC_NUM" -account-sequence "$MULTISIG_ACC_SEQ" \
+  --home ./alice-kb alice
 ```
 
 A valid signature prints `Valid signature!` with the signing address, public

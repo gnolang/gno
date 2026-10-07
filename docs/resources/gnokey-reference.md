@@ -43,7 +43,7 @@ follow [Getting started](../builders/getting-started.md). If you don't have
 
 ## Making transactions
 
-Four message types change on-chain state:
+Four message types deploy and call code and move coins:
 
 | Message      | What it does                            |
 |--------------|-----------------------------------------|
@@ -133,7 +133,8 @@ the base configuration, it takes flags of its own:
 
 - `-pkgpath` - the on-chain path the code is published to
 - `-pkgdir` - the local directory holding the code
-- `-send` - coins to send to the realm with the deploy (optional)
+- `-send` - coins to send to the realm with the deploy (optional; refused for a
+  `/p/` package, and under the `inert` policy that mainnet runs)
 - `-max-deposit` - cap on GNOT locked for [storage deposit](./storage-deposit.md) (optional)
 
 Run it from the package directory, publishing to a path under a
@@ -218,7 +219,10 @@ own `-args`.
 
 `Run` executes a Gno script against on-chain code with `gnokey maketx run`. Write a
 `main` package; its `main()` function is detected and run, and any state changes
-are applied. Its own flags are:
+are applied. A chain can limit `Run` to the addresses in its
+`vm:p:run_submitters` parameter, and an empty list lets anyone send it.
+Mainnet's lists three addresses, so `maketx run` fails there for every other
+key. Its own flags are:
 
 - `-send` - coins to send with the run (optional)
 - `-max-deposit` - cap on GNOT locked for [storage deposit](./storage-deposit.md) (optional)
@@ -259,8 +263,9 @@ when a plain call can't express what you need:
 3. Calling methods on exported variables
 
 **1. Composite arguments.** `-args` only carries primitive values: booleans,
-numbers, strings, and base64-encoded `[]byte`. Structs, maps, and other slices
-cannot be passed. `Run` is full Gno code, so it can build them directly:
+numbers, strings, and base64-encoded `[]byte` or `[N]byte`. Structs, maps, and
+other slices cannot be passed. `Run` is full Gno code, so it can build them
+directly:
 
 ```go
 package main
@@ -324,8 +329,8 @@ send it. Its own flags are:
 - `-pkgpath` - the parked package's path (required)
 - `-pkgdir` - a local copy of the source you reviewed, hashed so the approval
   names those exact bytes
-- `-pkg-hash` - the content hash, when it was computed elsewhere; use instead of
-  `-pkgdir`
+- `-pkg-hash` - the content hash, when it was computed elsewhere; give exactly
+  one of `-pkgdir` and `-pkg-hash`
 - `-pkg-height` - the block the reviewed submission landed in, so any
   re-submission invalidates the approval (optional)
 
@@ -333,9 +338,9 @@ Hash your own reviewed copy, never one read from the chain: the submitter can
 replace the parked bytes at any time, and a hash taken from the chain approves
 whatever is parked at that moment.
 
-`gnokey maketx rejectpkg -pkgpath <path>` removes a parked package. An approver
-or the address that submitted it can send it, and the submission charge is not
-refunded.
+`gnokey maketx rejectpkg -pkgpath <path>` removes a parked package. An approver,
+the address that submitted it, or the owner of a live package at the same path
+can send it, and the submission charge is not refunded.
 
 ## Operator workflows
 
@@ -345,9 +350,9 @@ covered in the [`gnokey` README](../../gno.land/cmd/gnokey/README.md).
 ## Querying a Gno.land network
 
 `gnokey query` sends ABCI queries, which read network state without spending gas.
-Every query needs a `-remote` to read from; `-data` carries the query argument,
-and `-height` reads the state at a specific block instead of the latest one. The
-available queries:
+`-remote` names the node to read from, `127.0.0.1:26657` by default; `-data`
+carries the query argument, and `-height` reads the state at a specific block
+instead of the latest one. The available queries:
 
 - `auth/accounts/{ADDRESS}` - account information
 - `auth/accounts/{ADDRESS}/sessions` - the [session](../../gno.land/cmd/gnokey/README.md#session) accounts of an address
@@ -414,12 +419,12 @@ gno.land adds an `attributes` field next to it:
 Returns the [coin](./gno-stdlibs.md#coin) balances of an address:
 
 ```bash
-gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
+gnokey query bank/balances/g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum -remote https://rpc.gno.land:443
 ```
 
 ```console
 height: 0
-data: "227984898927ugnot"
+data: "5147968835830ugnot"
 ```
 
 ### `bank/supply`
@@ -431,19 +436,19 @@ nobody holds reads `0`, and so does an unknown one:
 gnokey query bank/supply/ugnot -remote https://rpc.gno.land:443
 ```
 
+```console
+height: 0
+data: "1333000221686563"
+```
+
+The amount comes back quoted, which is how `int64` renders on the wire.
+
 A realm-issued denomination is `/{PKGPATH}:{NAME}` and carries its own slashes,
 so it goes straight into the path:
 
 ```bash
 gnokey query bank/supply//gno.land/r/demo/foo:gold -remote https://rpc.gno.land:443
 ```
-
-```console
-height: 0
-data: "1000000"
-```
-
-The amount comes back quoted, which is how `int64` renders on the wire.
 
 ### `auth/gasprice`
 
@@ -458,7 +463,7 @@ gnokey query auth/gasprice -remote https://rpc.gno.land:443
 height: 0
 data: {
   "gas": "1000",
-  "price": "100ugnot"
+  "price": "1ugnot"
 }
 ```
 
@@ -478,26 +483,26 @@ parameter:
 gnokey query vm/qfuncs --data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
+The JSON comes back on one line; here it is indented, with the `realm` type of
+`cur` cut short:
+
 ```
 height: 0
 data: [
-        {
-          "FuncName": "Deposit",
-          "Params": null,
-          "Results": null
-        },
-        {
-          "FuncName": "Withdraw",
-          "Params": [
-            {
-            "Name": "amount",
-            "Type": "int64",
-            "Value": ""
-            }
-          ],
-          "Results": null
-        },
-        // other functions
+  {
+    "FuncName": "Deposit",
+    "Params": [{ "Name": "cur", "Type": "interface {...}", "Value": "" }],
+    "Results": null
+  },
+  {
+    "FuncName": "Withdraw",
+    "Params": [
+      { "Name": "cur", "Type": "interface {...}", "Value": "" },
+      { "Name": "amount", "Type": "int64", "Value": "" }
+    ],
+    "Results": null
+  },
+  // other functions
 ]
 ```
 
@@ -585,9 +590,8 @@ gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/gnoland
 ```
 
 This returns the `wugnot` balance of the address without a transaction.
-Quotation marks around string arguments must be escaped, and arguments must be
-literal expressions. Queries still run under an internal gas cap, so unbounded
-evaluations can fail.
+Quotation marks around string arguments must be escaped. Queries still run under
+an internal gas cap, so unbounded evaluations can fail.
 
 ### `vm/qrender`
 
@@ -634,10 +638,9 @@ gnokey query vm/qpaths --data "gno.land/r/gnoland" -remote https://rpc.gno.land:
 ```console
 height: 0
 data: gno.land/r/gnoland/blog
+gno.land/r/gnoland/boards2/v0
 gno.land/r/gnoland/coins
-gno.land/r/gnoland/events
-gno.land/r/gnoland/home
-gno.land/r/gnoland/pages
+gno.land/r/gnoland/wugnot
 ```
 
 A prefix can also be a `@username`, which lists that user's `/p` and `/r`
@@ -678,14 +681,16 @@ gno.land/r/g1n4pl5uc4yt5r96m9w6fmdznx3x0jyg8l6arhmt/zdex/v1
 Returns the current storage usage and deposit of a realm:
 
 ```bash
-gnokey query vm/qstorage --data "gno.land/r/foo" -remote https://rpc.gno.land:443
+gnokey query vm/qstorage --data "gno.land/r/gnoland/wugnot" -remote https://rpc.gno.land:443
 ```
 
 ```
 height: 0
-data: storage: 5025, deposit: 502500
+data: storage: 1297109, deposit: 129710900
 ```
 
-`storage` is the total bytes used; `deposit` is the total GNOT locked by the realm.
-Dividing the two gives the storage price (`502500/5025 = 100ugnot` per byte),
-without querying the chain parameters.
+`storage` is the total bytes used; `deposit` is the `ugnot` the realm has locked.
+Dividing the two gives the average price the realm paid per byte, here
+`100ugnot`. That is the current price only while the `vm:p:storage_price`
+parameter has not changed since; query `params/vm:p:storage_price` for the
+current one.

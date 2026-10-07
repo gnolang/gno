@@ -16,8 +16,9 @@ for install methods and [verifying the binary](../builders/install.md#verify-ins
 
 ## Managing key pairs
 
-Every transaction you send is signed by a key pair. `gnokey` derives one from a 12
-or 24-word [mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/):
+Every transaction you send is signed by a key pair. `gnokey` derives one from a
+[mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/), 24 words
+when `gnokey add` generates it:
 the private key signs your transactions, and the public key derives your `g1...`
 address. That address is your on-chain identity: every transaction you send
 carries it, and it owns your [coins](../resources/gno-stdlibs.md#coin).
@@ -74,12 +75,12 @@ Reading the chain doesn't cost gas. To see what an address holds, query its
 balance, pointing `-remote` at the network you care about:
 
 ```bash
-gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
+gnokey query bank/balances/g15vj5q08amlvyd0nx6zjgcvwq2d0gt9fcchrvum -remote https://rpc.gno.land:443
 ```
 
 ```bash
 height: 0
-data: "227984898927ugnot"
+data: "5147968835830ugnot"
 ```
 
 Balances are denominated in [`ugnot`](../resources/glossary.md#ugnot), the
@@ -91,7 +92,7 @@ For a visual view of a balance, use a block explorer such as
 ## Anatomy of a gnokey transaction
 
 Every state-changing command (`maketx send`, `maketx call`, and the rest) shares
-the same base flags. A `send` shows them all:
+the same base flags. A `send` shows the ones every transaction needs:
 
 ```bash
 gnokey maketx send \
@@ -106,7 +107,7 @@ gnokey maketx send \
 
 The `-to` and `-send` flags are specific to `send`; each message type has its own
 (see [Sending coins](#sending-coins) and [Calling a realm](#calling-a-realm)
-below). The rest are the base flags present on every transaction:
+below). The rest are the base flags every transaction needs:
 
 | Flag | What it is | Where to get it |
 |------|-----------|-----------------|

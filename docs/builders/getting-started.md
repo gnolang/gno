@@ -349,7 +349,7 @@ HEIGHT:     12345
 STORAGE DELTA:  1873 bytes
 STORAGE FEE:    187300ugnot
 TOTAL TX COST:  1187300ugnot
-EVENTS:     []
+EVENTS:     [{"bytes_delta":1873,"fee_delta":{"denom":"ugnot","amount":187300},"pkg_path":"gno.land/r/<your-g1-addr>/myrealm"}]
 INFO:
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
