@@ -339,11 +339,8 @@ refunded.
 
 ## Operator workflows
 
-Signing on an offline machine, multisig accounts, session accounts, and moving
-keys between keybases are covered in the [`gnokey` README](../../gno.land/cmd/gnokey/README.md):
-[airgapped signing](../../gno.land/cmd/gnokey/README.md#airgapped-signing), [multisig](../../gno.land/cmd/gnokey/README.md#multisig-k-of-n),
-[session accounts](../../gno.land/cmd/gnokey/README.md#session), and
-[export and import](../../gno.land/cmd/gnokey/README.md#exporting-and-importing-keys).
+Airgapped signing, multisig, session accounts, and key export and import are
+covered in the [`gnokey` README](../../gno.land/cmd/gnokey/README.md).
 
 ## Querying a Gno.land network
 

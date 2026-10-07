@@ -71,8 +71,11 @@ gnokey maketx session create \
   masterkey
 ```
 
-The master key signs the creation message. `-master` cannot be used with
-`session create`; the master key must sign directly.
+`-master` cannot be used with `session create`: the master key signs it
+directly. Once the session exists, any `maketx` command signed with the session
+key takes `-master <master key name or address>`, and
+`gnokey query auth/accounts/<master address>/sessions` lists the master's
+sessions.
 
 ### `session revoke`
 
@@ -177,17 +180,14 @@ Flags:
 The key argument is a name or address in the local keybase; a watch-only
 `add bech32` entry is enough.
 
-**Online** (unset flags queried from `-remote`):
+**Online**:
 
 ```bash
 gnokey verify -tx-path counter.tx -remote https://rpc.staging.gno.land:443 mykey
 ```
 
-Querying works only while the transaction is pending: broadcasting bumps the
-sequence, so an already-executed transaction needs the original values passed
-explicitly.
-
-**Offline, or after broadcast** (all values explicit):
+**Offline, or after broadcast**, pass all three, since broadcasting bumps the
+sequence the online form queries:
 
 ```bash
 gnokey verify -tx-path counter.tx \
@@ -244,8 +244,7 @@ gnokey add multisig --home ./alice-kb \
 ```
 
 Bob and Charlie do the same in their own keybases, each holding their own private
-key where Alice holds a pubkey. All three then derive the same `multisig-abc`
-address.
+key where Alice holds a pubkey.
 
 ### 2. Create the transaction and sign it
 
@@ -262,8 +261,8 @@ gnokey maketx send --home ./alice-kb \
 ```
 
 Each signer signs with the **multisig** account's `account_number` and `sequence`,
-fetched with [`auth/accounts`](../../../docs/resources/gnokey-reference.md#authaccounts) on the multisig address, not their
-own, and writes a separate signature document:
+fetched as in [airgapped signing](#airgapped-signing) step 1 on the multisig
+address, not their own, and writes a separate signature document:
 
 ```sh
 printf '\n\n' | gnokey sign --tx-path multisig-abc-send.json --home ./alice-kb alice \

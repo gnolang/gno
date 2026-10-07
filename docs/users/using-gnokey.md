@@ -4,8 +4,8 @@
 everyday wallet use: creating and managing keys, checking balances, sending
 coins, and calling realm functions.
 
-For deploying code, scripting, signing workflows, and the full
-command and query reference, see the
+For deploying code, scripting, and the full command and query
+reference, see the
 [gnokey command reference](../resources/gnokey-reference.md). If you'd prefer a graphical
 wallet, see [Third-party wallets](./third-party-wallets.md).
 
@@ -166,8 +166,10 @@ see the [gnokey command reference: `Call`](../resources/gnokey-reference.md#call
 
 ## Next steps
 
-- Deploy code, script transactions, sign offline, or read chain state: the
+- Deploy code, script transactions, or read chain state: the
   [gnokey command reference](../resources/gnokey-reference.md).
+- Sign offline, use a multisig, or set up session accounts: the
+  [`gnokey` README](../../gno.land/cmd/gnokey/README.md).
 - Write and ship your first realm end to end:
   [Getting started](../builders/getting-started.md).
 - Use a graphical wallet instead: [Third-party wallets](./third-party-wallets.md).
