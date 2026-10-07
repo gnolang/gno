@@ -1652,6 +1652,9 @@ func TestMultiplexSwitch_QueueMissingPersistentPeers(t *testing.T) {
 
 		sw.queueMissingPersistentPeers(make(map[types.ID]uint), now)
 
+		// The dial loop is woken: it only notices new items through dialNotify
+		assert.Len(t, sw.dialNotify, 1)
+
 		item := sw.persistentDialQueue.Pop()
 
 		require.NotNil(t, item)
