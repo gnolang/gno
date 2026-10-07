@@ -24,7 +24,7 @@ func TestExtCodeExpand_FencedGoBlock(t *testing.T) {
 	var buf bytes.Buffer
 	require.NoError(t, md.Convert([]byte(input), &buf))
 	out := buf.String()
-	require.Contains(t, out, `<details class="doc-example">`)
+	require.Contains(t, out, `<details class="b-doc-example">`)
 	require.Contains(t, out, `<summary>Example</summary>`)
 	require.Contains(t, out, `class="chroma-`) // chroma highlight classes present
 	require.Contains(t, out, `</details>`)
@@ -37,7 +37,7 @@ func TestExtCodeExpand_FencedBlockNoLangFallsBackToPlainText(t *testing.T) {
 	var buf bytes.Buffer
 	require.NoError(t, md.Convert([]byte(input), &buf))
 	out := buf.String()
-	require.Contains(t, out, `<details class="doc-example">`)
+	require.Contains(t, out, `<details class="b-doc-example">`)
 	require.Contains(t, out, `class="chroma-`)
 }
 
@@ -49,7 +49,7 @@ func TestExtCodeExpand_IndentedBlockRendersSameAsFenced(t *testing.T) {
 	var buf bytes.Buffer
 	require.NoError(t, md.Convert([]byte(input), &buf))
 	out := buf.String()
-	require.Contains(t, out, `<details class="doc-example">`,
+	require.Contains(t, out, `<details class="b-doc-example">`,
 		"indented code block must render as collapsible details, same as fenced")
 }
 
@@ -60,7 +60,7 @@ func TestExtCodeExpand_UnknownLangFallsBackToPlainText(t *testing.T) {
 	var buf bytes.Buffer
 	require.NoError(t, md.Convert([]byte(input), &buf))
 	out := buf.String()
-	require.Contains(t, out, `<details class="doc-example">`)
+	require.Contains(t, out, `<details class="b-doc-example">`)
 	// Unknown language falls back to the plain-text lexer, which still goes
 	// through chromahtml.Formatter — output carries chroma classes.
 	require.Contains(t, out, `class="chroma-`)
@@ -85,6 +85,6 @@ func TestExtCodeExpand_TextAroundCodeBlocksUnchanged(t *testing.T) {
 	require.NoError(t, md.Convert([]byte(input), &buf))
 	out := buf.String()
 	require.Contains(t, out, "<strong>world</strong>")
-	require.Contains(t, out, `<details class="doc-example">`)
+	require.Contains(t, out, `<details class="b-doc-example">`)
 	require.Contains(t, out, "Goodbye")
 }
