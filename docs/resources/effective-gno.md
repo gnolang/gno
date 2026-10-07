@@ -674,10 +674,10 @@ reliable way to manage access to your contract.
 
 The checks above are easy to get subtly wrong, and getting one wrong usually
 lets anyone call your admin functions. Reuse the shared packages instead:
-`gno.land/p/nt/ownable/v0` for a single owner, `gno.land/p/moul/authz/v0` for
-an authority that can grow from one admin to a member list or a DAO without
-touching the rest of your code, and `gno.land/p/nt/commondao/v0` for
-proposals and voting. [Community packages](./community-packages.md#access-control-helpers)
+`gno.land/p/nt/ownable/v0` for a single owner, and `gno.land/p/moul/authz/v0`
+for an authority that can grow from one admin to a member list or a DAO
+without touching the rest of your code.
+[Community packages](./community-packages.md#access-control-helpers)
 shows how a realm passes its caller to these helpers.
 
 ### Never call a caller-supplied function under your own authority
