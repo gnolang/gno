@@ -45,13 +45,8 @@ Gas Price = Gas Fee ÷ Gas Wanted
 can still fail on chain afterwards, and once it is in a block you pay the whole
 fee, whether it used less gas than it asked for or failed outright.
 
-### Calculating Your Gas Fee
-
-Your `--gas-fee` divided by your `--gas-wanted` must meet or exceed the
-[network gas price](#gas-price) for your transaction to be accepted.
-
-The easiest way is to use [`-simulate only`](#gas-estimation), which automatically queries the
-current gas price and calculates the recommended fee (with a 5% buffer).
+The easiest way to size both is [`-simulate only`](#gas-estimation), which
+queries the current [gas price](#gas-price) and prints the recommended fee.
 
 ## Gas Price
 
@@ -206,14 +201,12 @@ gas used (2600000) exceeds tx's gas wanted (1000000) during operation: simulatio
 - Your `--gas-wanted` is too low. Use `-simulate only` to estimate needed gas,
   then increase.
 - `operation: simulation` means the default `-simulate test` caught it before a
-  block, so nothing was charged. If instead it runs out of gas in a block, from
-  `-simulate skip` or the state changing after simulation, you pay the whole
-  `--gas-fee` and its effects are rolled back.
+  block, so nothing was charged.
 
 **Not enough deposit:**
 ```
 not enough deposit to cover the storage usage: requires 206900ugnot for 2069 bytes
 ```
 - The message stores more bytes than your deposit cap covers at 100ugnot per
-  byte. Raise it with `-max-deposit`, or store less. Without the flag the cap
-  is the chain's own ceiling, `100000000ugnot` unless the network sets another.
+  byte. Raise it with `-max-deposit`, or store less. Without the flag the
+  chain's own ceiling applies, per [Storage deposits](storage-deposit.md).

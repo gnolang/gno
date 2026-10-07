@@ -227,10 +227,8 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `GAS USED:   2590046` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `STORAGE DELTA:  1748 bytes` - how much on-chain state the transaction added
-- `STORAGE FEE:    174800ugnot` - despite the label, a
-  [storage deposit](../resources/storage-deposit.md) and not a fee: it is locked
-  against those bytes rather than spent. A deployed package's code cannot be
-  removed today, so this one stays locked
+- `STORAGE FEE:    174800ugnot` - the
+  [storage deposit](../resources/storage-deposit.md) locked against those bytes
 - `TOTAL TX COST:  178800ugnot` - the gas fee plus that deposit
 - `EVENTS:     [...]` - [Gno events](../resources/gno-stdlibs.md#events) emitted
   by the transaction, here the storage event that the added bytes produce. Every
