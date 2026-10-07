@@ -19,10 +19,10 @@ Deleting data → GNOT refunded
 Deleting means the realm's code freeing data it holds, through whatever
 functions it exposes. A network whose `bank:p:restricted_denoms` parameter
 lists `ugnot` sends the refund to the chain's storage fee collector instead of
-to the sender. A package's source cannot be deleted at all, so the deposit an
-`AddPkg` locks for the code stays locked. The exception is a
-[private](configuring-gno-projects.md) package, which can be re-uploaded: a
-smaller version releases the difference.
+to the sender. A package's source cannot be deleted at all. A
+[private](configuring-gno-projects.md) package can be re-uploaded, but a
+re-upload releases no deposit: it locks one for the bytes it adds, even when the
+new version is smaller.
 
 ### Purpose
 
