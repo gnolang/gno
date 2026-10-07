@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strings"
+	"time"
 )
 
 // The queries below read a whole band of heights in one request: they back
@@ -114,4 +116,28 @@ func heightBand(lower, upper int) string {
 // keepMatching keeps the rows carrying at least one message match accepts.
 func keepMatching(rows []Tx, match func(Message) bool) []Tx {
 	return slices.DeleteFunc(rows, func(tx Tx) bool { return !slices.ContainsFunc(tx.Messages, match) })
+}
+
+// BlockTimes returns the time of each block in heights, in one query. A
+// height the indexer does not have is absent from the map.
+func (c *Client) BlockTimes(ctx context.Context, heights []int) (map[int]time.Time, error) {
+	if len(heights) == 0 {
+		return map[int]time.Time{}, nil
+	}
+	var out struct {
+		Blocks []Block `json:"getBlocks"`
+	}
+	var or strings.Builder
+	for _, h := range heights {
+		fmt.Fprintf(&or, "{ height: { eq: %d } } ", h)
+	}
+	q := fmt.Sprintf(`{ getBlocks(where: { _or: [ %s] }) { height time } }`, or.String())
+	if err := c.Query(ctx, q, &out); err != nil {
+		return nil, err
+	}
+	times := make(map[int]time.Time, len(out.Blocks))
+	for _, b := range out.Blocks {
+		times[b.Height] = b.Time
+	}
+	return times, nil
 }

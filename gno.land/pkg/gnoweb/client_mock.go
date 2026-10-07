@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -25,6 +26,8 @@ type MockPackage struct {
 	Inert bool
 	// Pending stages a redeploy parked over a live package.
 	Pending bool
+	// Storage is what vm/qstorage reports; nil makes the query fail.
+	Storage *PackageStorage
 	// Reason overrides the parked reason; defaults to awaiting-an-approver.
 	Reason string
 }
@@ -228,4 +231,19 @@ func (m *MockClient) Eval(ctx context.Context, _, _ string) ([]byte, error) {
 		return nil, fmt.Errorf("context error: %w", err)
 	}
 	return nil, ErrClientPackageNotFound
+}
+
+// Storage returns the package's staged storage, or an error when none is set.
+func (m *MockClient) Storage(ctx context.Context, path string, _ int64) (*PackageStorage, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+	pkg, exists := m.Packages[strings.TrimSuffix(path, "/")]
+	if !exists {
+		return nil, ErrClientPackageNotFound
+	}
+	if pkg.Storage == nil {
+		return nil, errors.New("storage not staged")
+	}
+	return pkg.Storage, nil
 }

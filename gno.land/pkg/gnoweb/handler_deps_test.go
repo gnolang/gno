@@ -21,6 +21,10 @@ type stubIndexer struct {
 	scans   *atomic.Int32
 	// calls, when set, answer the map's activity scan.
 	calls []indexer.Tx
+	// recent, recentErr and times answer the overview's recent calls.
+	recent    []indexer.Tx
+	recentErr error
+	times     map[int]time.Time
 }
 
 var errUnused = errors.New("not used by these tests")
@@ -38,8 +42,23 @@ func (s stubIndexer) DeploysQuoting(_ context.Context, _ string, lower, _ int) (
 }
 
 func (stubIndexer) TxByHash(context.Context, string) (*indexer.Tx, error) { return nil, errUnused }
-func (stubIndexer) RecentByPackage(context.Context, string, int) ([]indexer.Tx, error) {
-	return nil, errUnused
+func (s stubIndexer) RecentByPackage(context.Context, string, int) ([]indexer.Tx, error) {
+	if s.recentErr != nil {
+		return nil, s.recentErr
+	}
+	if s.recent == nil {
+		return nil, errUnused
+	}
+	return s.recent, nil
+}
+func (s stubIndexer) BlockTimes(_ context.Context, heights []int) (map[int]time.Time, error) {
+	out := make(map[int]time.Time, len(heights))
+	for _, h := range heights {
+		if t, ok := s.times[h]; ok {
+			out[h] = t
+		}
+	}
+	return out, nil
 }
 func (stubIndexer) RecentByAddress(context.Context, string, int) ([]indexer.Tx, error) {
 	return nil, errUnused

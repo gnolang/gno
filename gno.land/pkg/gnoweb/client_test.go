@@ -196,3 +196,19 @@ func TestValidFileName(t *testing.T) {
 		}
 	}
 }
+
+// vm/qstorage answers "storage: <bytes>, deposit: <ugnot>"; anything else is
+// an error rather than a zero that would read as an empty realm.
+func TestParseStorage(t *testing.T) {
+	t.Parallel()
+
+	got, err := parseStorage([]byte("storage: 1292654, deposit: 129265400"))
+	if err != nil || got.Bytes != 1292654 || got.Deposit != 129265400 {
+		t.Fatalf("parseStorage = %+v, %v; want 1292654 bytes, 129265400 ugnot", got, err)
+	}
+	for _, bad := range []string{"", "storage: x, deposit: 1", "storage: 1", "deposit: 1, storage: 2", "storage: -1, deposit: 0"} {
+		if _, err := parseStorage([]byte(bad)); err == nil {
+			t.Errorf("parseStorage(%q) accepted a malformed answer", bad)
+		}
+	}
+}

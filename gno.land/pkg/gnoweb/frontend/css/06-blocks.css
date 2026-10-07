@@ -4026,6 +4026,90 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	}
 }
 
+/* ===== RECENT CALLS (ui/pkg_calls) ===== */
+/* One row per call: function, caller, gas, when. The caller is a full address,
+   never shortened: it wraps instead. Below --md the caller takes its own line. */
+.b-calls__row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: var(--g-space-1) var(--g-space-3);
+	align-items: baseline;
+	padding: var(--g-space-2);
+	font-size: var(--g-font-size-100);
+
+	/* Each row is its own grid, so the gas and time columns get fixed
+	   widths: auto ones would line up only on rows of the same content. */
+	@media (--md) {
+		grid-template-columns: minmax(0, 10rem) minmax(0, 1fr) 6rem 9rem;
+	}
+}
+
+.b-calls__func {
+	color: var(--s-color-text-link);
+}
+
+.b-calls__caller {
+	grid-column: 1 / -1;
+	grid-row: 2;
+	min-width: 0;
+	overflow-wrap: anywhere;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+
+	@media (--md) {
+		grid-column: auto;
+		grid-row: auto;
+	}
+}
+
+.b-calls__gas,
+.b-calls__when {
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	text-align: end;
+}
+
+/* Below --md the time sits on its own line under the caller, its batch note
+   beside it; from --md it ends the row, the note under it. */
+.b-calls__when {
+	grid-column: 1 / -1;
+	text-align: start;
+
+	& small::before {
+		content: " · ";
+	}
+
+	@media (--md) {
+		grid-column: auto;
+		text-align: end;
+
+		& small {
+			display: block;
+		}
+
+		& small::before {
+			content: none;
+		}
+	}
+}
+
+.b-calls__failed {
+	border-color: var(--s-color-border-error);
+	color: var(--s-color-border-error);
+}
+
+.b-calls__empty {
+	margin: 0;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}
+
+.b-calls > .b-omni-provenance {
+	margin-block-start: var(--g-space-3);
+}
+
 /* Truncation notice (shown when symbol lists were capped). */
 .b-pkg-notice {
 	margin-block: 0 var(--g-space-6);

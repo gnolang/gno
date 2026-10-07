@@ -104,6 +104,10 @@ func (s *stubClient) StateType(_ context.Context, _ string, _ int64) ([]byte, er
 
 // PackageMeta reports absent, so these tests keep their existing not-found
 // behaviour rather than picking up the pending-approval view.
+func (s *stubClient) Storage(context.Context, string, int64) (*gnoweb.PackageStorage, error) {
+	return nil, errors.New("storage not stubbed")
+}
+
 func (s *stubClient) PackageMeta(_ context.Context, path string) (*vm.PackageMeta, error) {
 	return &vm.PackageMeta{Path: path, Status: vm.PackageStatusAbsent}, nil
 }

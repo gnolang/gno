@@ -146,7 +146,7 @@ func TestBuildOverviewTOC(t *testing.T) {
 	subpacks := []SubpackageLink{{Name: "sub", Path: "/r/demo/foo/sub"}}
 	quality := PackageQuality{HasPkgDoc: true, HasReadme: true}
 
-	toc := buildOverviewTOC(quality, true, funcs, types, values, graph, files, subpacks)
+	toc := buildOverviewTOC(quality, true, funcs, types, values, graph, nil, files, subpacks)
 	got := make([]string, 0, len(toc))
 	for _, item := range toc {
 		got = append(got, item.Title)
@@ -161,7 +161,7 @@ func TestBuildOverviewTOC(t *testing.T) {
 	require.Equal(t, "#files", filesTOC.Anchor(), "the section header still anchors on the page")
 
 	// A README that never rendered must not get a table-of-contents entry.
-	unrendered := buildOverviewTOC(quality, false, funcs, types, values, graph, files, subpacks)
+	unrendered := buildOverviewTOC(quality, false, funcs, types, values, graph, nil, files, subpacks)
 	titles := make([]string, 0, len(unrendered))
 	for _, item := range unrendered {
 		titles = append(titles, item.Title)

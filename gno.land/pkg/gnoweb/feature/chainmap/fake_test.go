@@ -27,6 +27,8 @@ type fakeIndexer struct {
 	// block makes DeploysQuoting wait until it is closed.
 	block chan struct{}
 
+	recent       []indexer.Tx
+	recentCalls  int
 	deploys      []indexer.Tx
 	deploysErr   error
 	quoted       []string
@@ -125,4 +127,19 @@ func (f fakeImports) Imports(_ context.Context, pkgPath string) ([]string, error
 		return nil, ErrNotLive
 	}
 	return imps, nil
+}
+
+func (f *fakeIndexer) RecentByPackage(_ context.Context, _ string, _ int) ([]indexer.Tx, error) {
+	f.mu.Lock()
+	f.recentCalls++
+	f.mu.Unlock()
+	return f.recent, nil
+}
+
+func (f *fakeIndexer) BlockTimes(_ context.Context, heights []int) (map[int]time.Time, error) {
+	out := make(map[int]time.Time, len(heights))
+	for _, h := range heights {
+		out[h] = f.t0.Add(time.Duration(h) * time.Second)
+	}
+	return out, nil
 }

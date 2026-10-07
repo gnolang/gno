@@ -53,6 +53,10 @@ UI - Package metadata (sidebar card)
   {{ with .Info.License }}{{ if .Kind }}<div class="row"><dt class="label" title="The license detected from the package's LICENSE file.">License</dt><dd class="value"><a href="{{ $.PkgPath }}$source&file={{ .FileName }}">{{ .Kind }}</a></dd></div>{{ end }}{{ end }}
   {{ with .Info.Creator }}<div class="row"><dt class="label" title="The account that deployed this package.">Creator</dt><dd class="value"><a href="/u/{{ . }}" title="{{ . }}">{{ truncMiddle . 6 }}</a></dd></div>{{ end }}
   {{ if .Info.Creator }}<div class="row"><dt class="label" title="The block height at which this package was deployed.">Block</dt><dd class="value">{{ .Info.Height }}</dd></div>{{ end }}
+  {{ with .Storage }}
+  <div class="row"><dt class="label" title="What this package keeps on chain between transactions.">Storage</dt><dd class="value">{{ .Size }}</dd></div>
+  <div class="row"><dt class="label" title="GNOT locked to pay for that storage, 1 GNOT per 10 KB, refunded as the data is freed.">Deposit</dt><dd class="value">{{ .DepositGNOT }}</dd></div>
+  {{ end }}
 
   <dt class="section b-sidebar-heading">Code stats</dt>
   <div class="row"><dt class="label" title="Every file in the package, including tests and configuration.">Files</dt><dd class="value">{{ .Stats.FileCount }}</dd></div>
@@ -107,6 +111,7 @@ UI - Section nav: sticky anchor links (with count pills) + client-side symbol se
     {{ with .Funcs }}<a href="#functions">Funcs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
     {{ with .Types }}<a href="#types">Types <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
     {{ if .Graph.Shown }}<a href="#imports">Dependencies <span class="b-tag--tertiary">{{ len .Graph.Imports }}</span></a>{{ end }}
+    {{ if .Calls }}<a href="#calls">Calls</a>{{ end }}
     <a href="#files">Files <span class="b-tag--tertiary">{{ len .Files }}</span></a>
     {{ with .Subpackages }}<a href="#subpackages">Subdirs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
   </div>
@@ -223,6 +228,9 @@ UI - Overview body
   <div class="b-pkg-section__body">{{ template "ui/pkg_graph" .Graph }}</div>
 </section>
 {{ end }}
+
+{{/* --- Recent calls --- */}}
+{{ with .Calls }}{{ template "ui/pkg_calls" . }}{{ end }}
 
 {{/* --- Files --- */}}
 <section class="b-pkg-section" id="files">
@@ -373,4 +381,38 @@ UI - Value group card (const / var)
   {{ end }}
   {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
 </article>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Recent calls: the last calls into a realm, from an indexer. Function and
+caller as plain text and a profile link, never arguments, nor a link that
+signs. A failed lookup is said, so it never reads as a realm nobody calls.
+=================================================================================== */}}
+{{ define "ui/pkg_calls" }}
+<section class="b-pkg-section b-calls" id="calls">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-pulse"></use></svg><span>Recent calls</span></span>
+    <span class="b-tag b-tag--indexer">indexer</span>
+  </h2>
+  {{ if eq .State "pending" }}
+  <p class="b-calls__empty">Recent calls are still being read. Reload in a moment.</p>
+  {{ else if eq .State "unavailable" }}
+  <p class="b-calls__empty">Recent calls unavailable: the indexer could not be read.</p>
+  {{ else if not .Rows }}
+  <p class="b-calls__empty">No calls found.</p>
+  {{ else }}
+  <ul class="b-pkg-list b-pkg-section__body">
+    {{ range .Rows }}
+    <li class="b-pkg-list__item"><div class="b-calls__row">
+      <span class="b-calls__func u-font-mono">{{ .Func }}{{ if .Failed }} <span class="b-tag b-calls__failed">failed</span>{{ end }}</span>
+      <a class="b-calls__caller u-font-mono" href="/u/{{ .Caller }}">{{ .Caller }}</a>
+      <span class="b-calls__gas">{{ .Gas }} gas</span>
+      <span class="b-calls__when">{{ .Ago }}{{ with .Others }}<small>+{{ . }} other call{{ if gt . 1 }}s{{ end }} in the tx</small>{{ end }}</span>
+    </div></li>
+    {{ end }}
+  </ul>
+  {{ end }}
+  {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
+</section>
 {{ end }}
