@@ -46,9 +46,10 @@ added. It is not intended for manual use off-chain.
   the address that initiated the `addpkg` transaction.
 - **`height`**: the block height at which the module was added.
 - **`max_deposit`**: the [storage deposit](storage-deposit.md) ceiling the
-  submitter declared. Written only for a package submitted after genesis to a
-  chain whose `vm:p:code_submission_policy` is `inert`, which stores a package
-  first and runs it later.
+  submitter declared with `-max-deposit`, or the chain's `default_deposit`
+  when they declared none. Written only for a package submitted after genesis
+  to a chain whose `vm:p:code_submission_policy` is `inert`, which stores a
+  package first and runs it later.
 
 #### `draft`  
 

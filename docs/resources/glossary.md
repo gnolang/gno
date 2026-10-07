@@ -125,7 +125,8 @@ The whole fee paid for a transaction, one flat amount in ugnot. See
 
 ### Gas Wanted
 The maximum amount of gas a transaction is allowed to consume. A transaction
-that exceeds it fails and its effects are rolled back.
+that exceeds it fails and its effects are rolled back. See
+[Gas Wanted](./gas-fees.md#gas-wanted).
 
 ### Gno
 1. The programming language used for writing smart contracts on Gno.land.

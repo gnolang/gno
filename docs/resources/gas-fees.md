@@ -16,8 +16,7 @@ operation has a fixed cost, so the same transaction against the same state uses
 the same gas every time. Demand moves the price of that gas, never the amount.
 
 Charging for work keeps spam off the network. Every fee goes to one address,
-the chain's `auth:p:fee_collector` parameter, and no code pays validators out
-of it.
+the chain's `auth:p:fee_collector` parameter.
 
 ## Gas Parameters
 
@@ -106,9 +105,8 @@ Changes are gradual to avoid sudden price spikes.
 
 **Note**: Individual validators can also set their own minimum gas price through the
 `min_gas_prices` configuration parameter in their `config.toml` file. A node
-refuses a transaction under its own minimum from its mempool, so a validator
-whose minimum your fee misses never includes it. Paying above the minimums buys
-no priority: blocks take transactions in the order they arrived.
+refuses a transaction under its own minimum from its mempool. Paying above the
+minimums buys no priority: blocks take transactions in the order they arrived.
 
 ## Typical Gas Values
 
@@ -122,8 +120,9 @@ Here are some recommended gas values for common operations:
 | Deploying a complex realm | 10,000,000+            | 10000ugnot                |
 
 The fee column is the minimum the network accepts at the initial gas price, one
-`ugnot` per 1000 gas. It rises with the gas price, so query the current one or
-run `-simulate only` rather than copying these numbers into a script.
+`ugnot` per 1000 gas. It rises with the gas price, so
+[query the current one](#querying-gas-price) or run `-simulate only` rather
+than copying these numbers into a script.
 
 ## Gas Estimation
 
@@ -205,8 +204,10 @@ gas used (2600000) exceeds tx's gas wanted (1000000) during operation: simulatio
 
 **Not enough deposit:**
 ```
-not enough deposit to cover the storage usage: requires 206900ugnot for 2069 bytes
+storage deposit processing encountered one or more errors: not enough deposit to cover the storage usage: requires 206900ugnot for 2069 bytes
 ```
-- The message stores more bytes than your deposit cap covers at 100ugnot per
-  byte. Raise it with `-max-deposit`, or store less. Without the flag the
-  chain's own ceiling applies, per [Storage deposits](storage-deposit.md).
+- The bytes the message adds lock more than its deposit cap allows: 2069 bytes
+  lock 206900ugnot here. The cap is the `-max-deposit` you passed, or the
+  chain's own ceiling without the flag, per
+  [Storage deposits](storage-deposit.md). Pass a `-max-deposit` that covers
+  what the message locks, or store less.
