@@ -22,7 +22,8 @@ lists `ugnot` sends the refund to the chain's storage fee collector instead of
 to the sender. A package's source cannot be deleted at all. A
 [private](configuring-gno-projects.md) package can be re-uploaded, but a
 re-upload releases no deposit: it locks one for the bytes it adds, even when the
-new version is smaller.
+new version is smaller. This is a known bug, tracked in
+[#6248](https://github.com/gnolang/gno/issues/6248).
 
 ### Purpose
 
