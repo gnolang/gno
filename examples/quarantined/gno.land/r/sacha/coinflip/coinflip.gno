@@ -8,7 +8,7 @@ import (
 	"math/rand"
 
 	"gno.land/p/demo/entropy"
-	"gno.land/p/moul/fifo"
+	"gno.land/p/moul/fifo/v0"
 	"gno.land/r/sacha/config"
 )
 

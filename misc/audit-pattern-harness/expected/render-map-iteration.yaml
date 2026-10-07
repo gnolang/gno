@@ -1,0 +1,12 @@
+id: render-map-iteration
+title: Render depends on map iteration order
+rule: render_map_iteration
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/render-map-iteration/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 1
+  - name: fixed
+    path: ../fixtures/render-map-iteration/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0

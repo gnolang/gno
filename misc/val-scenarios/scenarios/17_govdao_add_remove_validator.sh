@@ -39,9 +39,9 @@ cat > "${script_dir}/add_validator.gno" << GNOEOF
 package main
 
 import (
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/memberstore/v0"
 	valr "gno.land/r/sys/validators/v2"
 )
 
@@ -102,7 +102,7 @@ cat > "${script_dir}/rm_validator.gno" << GNOEOF
 package main
 
 import (
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 	"gno.land/r/gov/dao"
 	valr "gno.land/r/sys/validators/v2"
 )

@@ -30,6 +30,12 @@ type MapCommitter[K comparable, V any] interface {
 	// After calling commit, the underlying tx log is cleared and the
 	// MapCommitter may be reused.
 	Commit()
+
+	// Dirty iterates the pending writes only — the entries Commit is about
+	// to publish to the underlying map — without the underlying map's own
+	// contents. Deletions are skipped. It lets a caller act on exactly the
+	// set of values that is about to become visible through the parent.
+	Dirty() iter.Seq2[K, V]
 }
 
 // Wrap wraps the map m into a data structure to keep a transaction log.
@@ -56,6 +62,19 @@ func (b *txLog[K, V]) Commit() {
 		}
 	}
 	b.dirty = make(map[K]deletable[V])
+}
+
+func (b *txLog[K, V]) Dirty() iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for k, v := range b.dirty {
+			if v.deleted {
+				continue
+			}
+			if !yield(k, v.v) {
+				return
+			}
+		}
+	}
 }
 
 func (b txLog[K, V]) Get(k K) (V, bool) {

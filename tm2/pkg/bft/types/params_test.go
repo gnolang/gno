@@ -25,9 +25,13 @@ func TestConsensusParamsValidation(t *testing.T) {
 		// test block params
 		0: {makeParams(1, 1024, 0, 10, valEd25519), true},
 		1: {makeParams(0, 1024, 0, 10, valEd25519), false},
-		2: {makeParams(47*1024*1024, 47*1024*1024+1024, 0, 10, valEd25519), true},
+		// MaxTxBytes has to leave MaxBlockOverheadBytes inside MaxDataBytes, and
+		// makeParams pins MaxDataBytes at the 2MB default, so these three are
+		// rejected for that reason -- a tx larger than a block's data budget
+		// could never be included in one.
+		2: {makeParams(47*1024*1024, 47*1024*1024+1024, 0, 10, valEd25519), false},
 		3: {makeParams(10, 1024, 0, 10, valEd25519), true},
-		4: {makeParams(100*1024*1024, 100*1024*1024+1024, 0, 10, valEd25519), true},
+		4: {makeParams(100*1024*1024, 100*1024*1024+1024, 0, 10, valEd25519), false},
 		5: {makeParams(101*1024*1024, 101*1024*1024+1024, 0, 10, valEd25519), false},
 		6: {makeParams(1024*1024*1024, 1024*1024*1024+1024, 0, 10, valEd25519), false},
 		7: {makeParams(1024*1024*1024, 1024*1024*1024+1024, 0, 10, valEd25519), false},
@@ -48,14 +52,82 @@ func TestConsensusParamsValidation(t *testing.T) {
 	}
 }
 
+func TestConsensusParamsValidationMaxDataBytes(t *testing.T) {
+	t.Parallel()
+
+	newParams := func(maxDataBytes int64) abci.ConsensusParams {
+		return abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:   1024,
+				MaxDataBytes: maxDataBytes,
+				MaxGas:       10,
+				TimeIotaMS:   10,
+			},
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: valEd25519},
+		}
+	}
+
+	// At or below the limit is accepted; above it is rejected so the chain can
+	// never produce blocks larger than the fast-sync message envelope.
+	assert.NoError(t, ValidateConsensusParams(newParams(MaxBlockDataBytes)))
+	assert.NoError(t, ValidateConsensusParams(newParams(MaxBlockDataBytesLimit)))
+	assert.Error(t, ValidateConsensusParams(newParams(MaxBlockDataBytesLimit+1)))
+
+	// Non-positive values must be rejected too. 0 panics the proposer in
+	// ReapMaxBytesMaxGas, and a negative value disables the reaping limit
+	// altogether (bypassing the ceiling above) while panicking amino when the
+	// consensus state decodes a proposal block with it as the max size.
+	assert.Error(t, ValidateConsensusParams(newParams(0)))
+	assert.Error(t, ValidateConsensusParams(newParams(-1)))
+}
+
+func TestConsensusParamsValidationMaxTxBytes(t *testing.T) {
+	t.Parallel()
+
+	newParams := func(maxTxBytes, maxDataBytes int64) abci.ConsensusParams {
+		return abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:   maxTxBytes,
+				MaxDataBytes: maxDataBytes,
+				MaxGas:       10,
+				TimeIotaMS:   10,
+			},
+			Validator: &abci.ValidatorParams{PubKeyTypeURLs: valEd25519},
+		}
+	}
+
+	// MaxDataBytes bounds the whole serialized block, so a MaxTxBytes-sized tx
+	// has to leave room for the header and the LastCommit. Right at the boundary
+	// is accepted; one byte over is not.
+	assert.NoError(t, ValidateConsensusParams(
+		newParams(MaxBlockDataBytes-MaxBlockOverheadBytes, MaxBlockDataBytes)))
+	assert.Error(t, ValidateConsensusParams(
+		newParams(MaxBlockDataBytes-MaxBlockOverheadBytes+1, MaxBlockDataBytes)))
+
+	// The defaults have to satisfy it, and so does the largest pair the ceiling
+	// permits -- that pair is what the per-connection recv budget is sized
+	// against (see TestDefaultBudgetCoversWorstLegalConfig in bft/node).
+	assert.NoError(t, ValidateConsensusParams(newParams(MaxBlockTxBytes, MaxBlockDataBytes)))
+	assert.NoError(t, ValidateConsensusParams(
+		newParams(MaxBlockDataBytesLimit-MaxBlockOverheadBytes, MaxBlockDataBytesLimit)))
+
+	// A tx budget larger than the block data budget can never be satisfied: the
+	// tx is admitted by CheckTx, reaped on its own, then trimmed out of every
+	// proposal, starving itself and everything queued behind it.
+	assert.Error(t, ValidateConsensusParams(newParams(MaxBlockDataBytes, MaxBlockDataBytes)))
+}
+
 func makeParams(
-	dataBytes, blockBytes, blockGas int64,
+	txBytes, blockBytes, blockGas int64,
 	blockTimeIotaMS int64,
 	pubkeyTypeURLs []string,
 ) abci.ConsensusParams {
 	return abci.ConsensusParams{
 		Block: &abci.BlockParams{
-			MaxTxBytes:    dataBytes,
+			MaxTxBytes: txBytes,
+			// MaxDataBytes is not varied by this helper, but it must be positive
+			// for the params to validate at all.
+			MaxDataBytes:  MaxBlockDataBytes,
 			MaxBlockBytes: blockBytes,
 			MaxGas:        blockGas,
 			TimeIotaMS:    blockTimeIotaMS,
@@ -115,6 +187,7 @@ func TestConsensusParamsUpdate(t *testing.T) {
 			abci.ConsensusParams{
 				Block: &abci.BlockParams{
 					MaxTxBytes:    100,
+					MaxDataBytes:  MaxBlockDataBytes,
 					MaxBlockBytes: 1024,
 					MaxGas:        200,
 					TimeIotaMS:    10,

@@ -114,7 +114,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 | Op handler | Cost-varying parameters | Pessimistic input | Why pessimistic |
 |---|---|---|---|
 | doOpPrecall | Function type (FuncValue/BoundMethod/TypeValue); IsWithCross; IsCrossing; NumArgs | FuncValue with IsWithCross+IsCrossing requiring realm creation | NewConcreteRealm allocation + Assign |
-| doOpEnterCrossing | Frame stack depth | Deep call stack with realm boundary check | **O(n²)**: PeekCallFrame(i) internally iterates backwards through ALL frames each time. Code has TODO: "O(n²), optimize." |
+| doOpEnterCrossing | Frame stack depth | Deep call stack with realm boundary check | **O(n)** since the single-cursor rewrite; was O(n²) when PeekCallFrame(i) restarted from the top each iteration. Charged linearly via OpCPUSlopeEnterCrossing. |
 | doOpCall | Number of captures; block size (NumNames); return count; param count; native vs Gno; variadic expansion | Gno function with many captures + params + returns + heap-defined results | Captures copy O(n); NewBlock O(NumNames); defaultTypedValue per result O(results); popCopyArgs variadic O(nvar) slice alloc; Store lookups for GetSource/GetType/GetParent |
 | doOpCallNativeBody | None (delegates to native) | Any native call | Cost depends on native implementation |
 | doOpCallDeferNativeBody | None | Any deferred native | Pop + call |
@@ -160,7 +160,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 | Item | Original claim | Correction |
 |---|---|---|
 | doOpRef | "Heap capture count; HeapCaptures iteration O(n)" | HeapCaptures iteration is in doOpFuncLit, NOT doOpRef. doOpRef is O(1) |
-| doOpEnterCrossing | "O(n) frame loop" | Actually **O(n²)** because PeekCallFrame(i) scans backwards each time |
+| doOpEnterCrossing | "O(n) frame loop" | Was **O(n²)** because PeekCallFrame(i) scanned backwards each time; since rewritten to a single cursor pass, so O(n) again |
 | doOpShr BigInt | "Shift behavior similar to Shl" | BigInt right shift has **no maxBigintShift limit** unlike left shift (capped at 10000) |
 | doOpStructLit keyed | "Searches by field index O(el)" | Uses pre-computed fnx.Path.Index for O(1) direct array access |
 | Comparison ops | "lessAssign helper" | No shared helper — 4 separate functions: isLss, isLeq, isGtr, isGeq |
@@ -214,9 +214,8 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 1. **doOpSliceLit2 sparse** — maxVal amplification attack vector
 2. **doOpSelector VPBlock** — block depth traversal
 3. **doOpReturnCallDefers** with many captures per defer
-4. **doOpEnterCrossing** — O(n²) frame scan
-5. **BenchmarkOpShl_BigInt** — shift values near maxBigintShift=10000
-6. **BenchmarkOpShr_BigInt** — very large shifts (no limit!)
+4. **BenchmarkOpShl_BigInt** — shift values near maxBigintShift=10000
+5. **BenchmarkOpShr_BigInt** — very large shifts (no limit!)
 
 ---
 

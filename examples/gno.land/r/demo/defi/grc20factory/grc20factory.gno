@@ -1,16 +1,16 @@
 package grc20factory
 
 import (
-	"gno.land/p/demo/tokens/grc20"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
+	p "gno.land/p/nt/avl/pager/v0"
+	"gno.land/p/nt/avl/rotree/v0"
 	"gno.land/p/nt/avl/v0"
-	p "gno.land/p/nt/avl/v0/pager"
-	"gno.land/p/nt/avl/v0/rotree"
+	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/r/demo/defi/grc20reg"
+	"gno.land/r/nt/grc20reg/v0"
 )
 
 var (
@@ -199,7 +199,7 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Get the balance of the specified address for the token.
 	inst := mustGetInstance(symbol)
-	balance := inst.token.CallerTeller().BalanceOf(address(addr))
+	balance := inst.token.BalanceOf(address(addr))
 
 	// Render the balance information.
 	out := md.Paragraph(

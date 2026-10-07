@@ -8,11 +8,11 @@
 // Without the genesis-only gate, the wide-open `RegisterUser` wrapper
 // would let any EOA land-grab any name (including reserved-sounding
 // names like "administrator" or "vitalik") to any address — for free,
-// without the namereg/v1 payment, blacklist, or canonical-collision
+// without the namereg/v0 payment, blacklist, or canonical-collision
 // checks. The gate closes that bypass.
 //
 // Post-genesis user registration must go through a whitelisted
-// controller that enforces its own policy (e.g. r/sys/namereg/v1).
+// controller that enforces its own policy (e.g. r/sys/namereg/v0).
 package init
 
 import (
@@ -38,7 +38,7 @@ func Bootstrap(cur realm) {
 // determines which name owns the canonical pointer when stems collide.
 func RegisterUser(cur realm, name string, addr address) {
 	if runtime.ChainHeight() != 0 {
-		panic("r/sys/users/init.RegisterUser: genesis-only; use a whitelisted controller post-genesis (e.g. r/sys/namereg/v1.Register)")
+		panic("r/sys/users/init.RegisterUser: genesis-only; use a whitelisted controller post-genesis (e.g. r/sys/namereg/v0.Register)")
 	}
 	if err := users.RegisterUserIgnoreCanonical(cross(cur), name, addr); err != nil {
 		panic(err)

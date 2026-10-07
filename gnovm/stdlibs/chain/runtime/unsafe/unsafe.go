@@ -15,10 +15,13 @@ func X_originCaller(m *gno.Machine) string {
 	return string(execctx.GetContext(m).OriginCaller)
 }
 
-// X_originSend mirrors the implementation that lived at
-// gnovm/stdlibs/chain/banker.X_originSend. The OriginSend envelope is
-// a tx-origin primitive (see Class-2 in docs/resources/gno-security.md),
-// so its native binding belongs with the other tx-origin natives.
+// X_originSend is the native binding for the OriginSend envelope, a tx-origin
+// primitive (see Class-2 in docs/resources/gno-security.md), so it sits with
+// the other tx-origin natives rather than with the banker.
+//
+// The expansion below repeats banker.ExpandCoins rather than calling it, so
+// this package need not import the banker it is quarantined from. The two
+// write one wire shape and have to stay in step.
 func X_originSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	ctx := execctx.GetContext(m)
 	// Reading the envelope is what makes a realm payable; MsgCall rejects

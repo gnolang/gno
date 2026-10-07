@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -3788,6 +3789,44 @@ func BenchmarkOpConvert_RunesToString_10(b *testing.B)   { benchOpConvert_RunesT
 func BenchmarkOpConvert_RunesToString_100(b *testing.B)  { benchOpConvert_RunesToString(b, 100) }
 func BenchmarkOpConvert_RunesToString_1000(b *testing.B) { benchOpConvert_RunesToString(b, 1000) }
 
+// --- Convert []byte→String (O(len) copy) ---
+
+func benchOpConvert_BytesToString(b *testing.B, length int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	// Data-backed, the only backing a byte slice can have (doOpSliceLit,
+	// make, append and Go2GnoValue all produce NewDataArray).
+	sliceBase := m.Alloc.NewDataArray(nil, length)
+	for i := range sliceBase.Data {
+		sliceBase.Data[i] = byte('a' + i%26)
+	}
+	sv := m.Alloc.NewSlice(sliceBase, 0, length, length)
+	byteSliceType := &SliceType{Elt: Uint8Type}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushValue(asValue(StringType))
+		m.PushValue(TypedValue{T: byteSliceType, V: sv})
+		bm.SwitchOpCode(bmTarget)
+		m.doOpConvert()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if len(res.GetString()) != length {
+			b.Fatalf("expected len %d, got %d", length, len(res.GetString()))
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpConvert_BytesToString_1(b *testing.B)    { benchOpConvert_BytesToString(b, 1) }
+func BenchmarkOpConvert_BytesToString_10(b *testing.B)   { benchOpConvert_BytesToString(b, 10) }
+func BenchmarkOpConvert_BytesToString_100(b *testing.B)  { benchOpConvert_BytesToString(b, 100) }
+func BenchmarkOpConvert_BytesToString_1000(b *testing.B) { benchOpConvert_BytesToString(b, 1000) }
+
 // --- doOpEval BasicLitExpr: literal parsing cost ---
 
 func benchOpEval_BasicLitInt(b *testing.B, value string) {
@@ -3817,9 +3856,115 @@ func BenchmarkOpEval_BasicLitInt_Small(b *testing.B) { benchOpEval_BasicLitInt(b
 func BenchmarkOpEval_BasicLitInt_Large(b *testing.B) {
 	benchOpEval_BasicLitInt(b, strings.Repeat("9", 100))
 }
+
 func BenchmarkOpEval_BasicLitInt_Hex(b *testing.B) {
 	benchOpEval_BasicLitInt(b, "0x"+strings.Repeat("FF", 50))
 }
+
+// --- doOpEval big numeric literals: quadratic parse cost ---
+//
+// Sized series feeding the OpCPUSlopeBigIntSetString / OpCPUSlopeBigDecParse
+// fits. The _Small/_Large/_Hex benchmarks above top out at 100 digits, which
+// is far inside the constant-dominated regime -- a quadratic slope cannot be
+// recovered from them, which is why those two constants have no native
+// reference-HW fit yet. Fit ns/op(pure) against digits^2; the const block's
+// rule is slope = ns/digit^2 * 1000.
+//
+// Decimal (and octal) go through nat.scan's maxPow/mulAddWW arm and are
+// O(n^2); bases 2/4/16 take the bit-packing arm on go>=1.25 and are linear,
+// hence the Hex series as a control.
+
+func benchOpEval_BigIntLit(b *testing.B, value string) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	litExpr := &BasicLitExpr{Kind: INT, Value: value}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushExpr(litExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEval()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.T != UntypedBigintType {
+			b.Fatal("expected UntypedBigintType")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+func benchOpEval_BigIntLitDec(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigIntLit(b, strings.Repeat("9", digits))
+}
+
+func BenchmarkOpEval_BigIntLit_1000(b *testing.B)  { benchOpEval_BigIntLitDec(b, 1000) }
+func BenchmarkOpEval_BigIntLit_4000(b *testing.B)  { benchOpEval_BigIntLitDec(b, 4000) }
+func BenchmarkOpEval_BigIntLit_16000(b *testing.B) { benchOpEval_BigIntLitDec(b, 16000) }
+func BenchmarkOpEval_BigIntLit_64000(b *testing.B) { benchOpEval_BigIntLitDec(b, 64000) }
+
+// Control: power-of-two base, linear on go>=1.25. The charge is
+// base-independent, so the gap here is the deliberate over-charge.
+func BenchmarkOpEval_BigIntLitHex_16000(b *testing.B) {
+	benchOpEval_BigIntLit(b, "0x"+strings.Repeat("f", 16000))
+}
+
+func BenchmarkOpEval_BigIntLitHex_64000(b *testing.B) {
+	benchOpEval_BigIntLit(b, "0x"+strings.Repeat("f", 64000))
+}
+
+func benchOpEval_BigDecLit(b *testing.B, value string) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	litExpr := &BasicLitExpr{Kind: FLOAT, Value: value}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		m.PushExpr(litExpr)
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEval()
+		bm.SwitchOpCode(bmSetup)
+		res := m.PeekValue(1)
+		if res.T != UntypedBigdecType {
+			b.Fatal("expected UntypedBigdecType")
+		}
+		m.Values = m.Values[:0]
+	}
+	reportBenchops(b)
+}
+
+// Frac-shaped: value magnitude stays ~1 so MantExp stays 2 and the
+// `MantExp > ratOverflowBits` guard never fires -- big.Rat.SetString runs on
+// the full mantissa on top of big.ParseFloat. This is the worst case and the
+// one OpCPUSlopeBigDecParse is calibrated against.
+func benchOpEval_BigDecLitFrac(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigDecLit(b, "1."+strings.Repeat("9", digits-2))
+}
+
+func BenchmarkOpEval_BigDecLit_1000(b *testing.B)  { benchOpEval_BigDecLitFrac(b, 1000) }
+func BenchmarkOpEval_BigDecLit_4000(b *testing.B)  { benchOpEval_BigDecLitFrac(b, 4000) }
+func BenchmarkOpEval_BigDecLit_16000(b *testing.B) { benchOpEval_BigDecLitFrac(b, 16000) }
+func BenchmarkOpEval_BigDecLit_64000(b *testing.B) { benchOpEval_BigDecLitFrac(b, 64000) }
+
+// Int-shaped control: magnitude grows with length, so MantExp exceeds
+// ratOverflowBits above ~1234 digits and the Rat parse is skipped. Roughly
+// half the cost of the frac-shaped series above -- do not calibrate on this
+// one.
+func benchOpEval_BigDecLitInt(b *testing.B, digits int) {
+	b.Helper()
+	benchOpEval_BigDecLit(b, strings.Repeat("9", digits)+".0")
+}
+
+func BenchmarkOpEval_BigDecLitInt_16000(b *testing.B) { benchOpEval_BigDecLitInt(b, 16000) }
+func BenchmarkOpEval_BigDecLitInt_64000(b *testing.B) { benchOpEval_BigDecLitInt(b, 64000) }
 
 func BenchmarkOpEval_BasicLitString(b *testing.B) {
 	m := benchMachine()
@@ -3843,7 +3988,7 @@ func BenchmarkOpEval_BasicLitString(b *testing.B) {
 	reportBenchops(b)
 }
 
-// --- doOpTypeAssert1 interface: VerifyImplementedBy with many methods ---
+// --- doOpTypeAssert1 interface: checkImplementedBy with many methods ---
 
 // benchInterfaceAndImpl creates an InterfaceType with nMethods methods and a
 // DeclaredType that implements nImpl of them. When nImpl == nMethods the type
@@ -3915,6 +4060,175 @@ func benchOpTypeAssert1_Interface(b *testing.B, nMethods int) {
 func BenchmarkOpTypeAssert1_Interface_1(b *testing.B)   { benchOpTypeAssert1_Interface(b, 1) }
 func BenchmarkOpTypeAssert1_Interface_10(b *testing.B)  { benchOpTypeAssert1_Interface(b, 10) }
 func BenchmarkOpTypeAssert1_Interface_100(b *testing.B) { benchOpTypeAssert1_Interface(b, 100) }
+
+// --- checkImplementedBy BFS: per-embedded-field cost ---
+//
+// A struct embedding nFields distinct types (each with no methods) and a
+// 1-method interface whose method matches none of them forces the BFS to
+// expand and scan every embedded field. The per-field slope is what
+// chargeCPUGas meters per embedded field (field expansion plus the
+// later resolveEmbedNode scan). Superseded for calibration by BenchmarkOpEmbedWalk,
+// which varies depth and width independently.
+
+// wideEmbedDeclaredType returns a declared struct type S embedding n distinct
+// method-less struct types, so any satisfaction check or method lookup on it
+// expands all n embedded fields.
+func wideEmbedDeclaredType(n int) *DeclaredType {
+	fields := make([]FieldType, n)
+	for i := range n {
+		fields[i] = FieldType{
+			Name:     Name(fmt.Sprintf("T%d", i)),
+			Type:     &StructType{PkgPath: "bench"},
+			Embedded: true,
+		}
+	}
+	return &DeclaredType{PkgPath: "bench", Name: "S", Base: &StructType{PkgPath: "bench", Fields: fields}}
+}
+
+// benchIfaceImplFields times one 1-method check that misses on a
+// struct embedding nFields method-less types, so the walk expands them all.
+func benchIfaceImplFields(b *testing.B, nFields int) {
+	b.Helper()
+	iface := &InterfaceType{
+		PkgPath: "bench",
+		Methods: []FieldType{{Name: "Missing", Type: &FuncType{}}},
+	}
+	dt := wideEmbedDeclaredType(nFields)
+
+	if err := iface.checkImplementedBy(nil, dt); err == nil {
+		b.Fatal("expected missing method")
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = iface.checkImplementedBy(nil, dt)
+	}
+	b.ReportMetric(float64(nFields), "fields/op")
+}
+
+// Field-count series for benchIfaceImplFields.
+func BenchmarkIfaceImpl_Fields_0(b *testing.B)   { benchIfaceImplFields(b, 0) }
+func BenchmarkIfaceImpl_Fields_8(b *testing.B)   { benchIfaceImplFields(b, 8) }
+func BenchmarkIfaceImpl_Fields_32(b *testing.B)  { benchIfaceImplFields(b, 32) }
+func BenchmarkIfaceImpl_Fields_128(b *testing.B) { benchIfaceImplFields(b, 128) }
+
+// --- checkImplementedBy: wide interface satisfied through wide embedding ---
+//
+// The adversarial shape: an n-method interface whose every method is provided
+// by a distinct one of n embedded types. One checkImplementedBy call per op,
+// all methods found. Exercises the shared embedWalk: the graph is expanded
+// once per check and re-scanned per method (before sharing, 128×128 cost
+// ~1.28 ms / 19K allocs per check on the dev box; after, ~0.15 ms / 536).
+
+// benchIfaceImplWide times one check of an n-method interface against
+// a struct whose n embedded types each provide one method (all hit).
+func benchIfaceImplWide(b *testing.B, n int) {
+	b.Helper()
+	methods := make([]FieldType, n)
+	fields := make([]FieldType, n)
+	for i := range n {
+		name := Name(fmt.Sprintf("M%d", i))
+		methods[i] = FieldType{Name: name, Type: &FuncType{Params: []FieldType{}, Results: []FieldType{}}}
+		dt := &DeclaredType{PkgPath: "bench", Name: Name(fmt.Sprintf("T%d", i)), Base: &StructType{PkgPath: "bench", Fields: []FieldType{}}}
+		ft := &FuncType{Params: []FieldType{{Name: "self", Type: dt}}, Results: []FieldType{}}
+		dt.Methods = []TypedValue{{T: ft, V: &FuncValue{Type: ft, IsMethod: true, Source: &FuncDecl{}, Name: name, PkgPath: "bench", body: []Stmt{}}}}
+		fields[i] = FieldType{Name: dt.Name, Type: dt, Embedded: true}
+	}
+	iface := &InterfaceType{PkgPath: "bench", Methods: methods}
+	dt := &DeclaredType{PkgPath: "bench", Name: "S", Base: &StructType{PkgPath: "bench", Fields: fields}}
+	if err := iface.checkImplementedBy(nil, dt); err != nil {
+		b.Fatalf("fixture should satisfy: %v", err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = iface.checkImplementedBy(nil, dt)
+	}
+	b.ReportMetric(float64(n), "methods/op")
+}
+
+// --- embedWalk calibration grid: depth × width × hit/miss × methods ---
+//
+// gridFixture(d, w, m, hit): root S embeds w types at level 1; the first type
+// of each level embeds w more at the next level, down to level d (N = d·w
+// types). hit: all m methods are declared on the first type of level d, so
+// every lookup expands and scans all N and rebuilds a d-hop trail; miss: no
+// type provides them (checkImplementedBy stops at the first missing method).
+//
+// Slopes: miss_m1 over N gives expand+scan per type; (hit_m16 − hit_m1)/15
+// gives N × scan + trail(d) per extra method; hit_m1 − miss_m1 gives trail(d).
+// cmd/calibrate/gen_analysis.py reads them out and picks the deep end.
+
+// embedWalkGridFixture builds an m-method interface and a root embedding w
+// types per level, d levels deep; hit puts all m methods on the deepest type.
+func embedWalkGridFixture(d, w, m int, hit bool) (*InterfaceType, *DeclaredType) {
+	methods := make([]FieldType, m)
+	for i := range m {
+		methods[i] = FieldType{Name: Name(fmt.Sprintf("M%d", i)), Type: &FuncType{Params: []FieldType{}, Results: []FieldType{}}}
+	}
+	iface := &InterfaceType{PkgPath: "bench", Methods: methods}
+	var leaf *DeclaredType
+	var build func(level int) []FieldType
+	build = func(level int) []FieldType {
+		fields := make([]FieldType, w)
+		for i := range w {
+			st := &StructType{PkgPath: "bench", Fields: []FieldType{}}
+			dt := &DeclaredType{PkgPath: "bench", Name: Name(fmt.Sprintf("L%d_%d", level, i)), Base: st}
+			if i == 0 && level < d {
+				st.Fields = build(level + 1)
+			}
+			if i == 0 && level == d {
+				leaf = dt
+			}
+			fields[i] = FieldType{Name: dt.Name, Type: dt, Embedded: true}
+		}
+		return fields
+	}
+	root := &DeclaredType{PkgPath: "bench", Name: "S", Base: &StructType{PkgPath: "bench", Fields: build(1)}}
+	if hit {
+		for i := range m {
+			ft := &FuncType{Params: []FieldType{{Name: "self", Type: leaf}}, Results: []FieldType{}}
+			leaf.Methods = append(leaf.Methods, TypedValue{T: ft, V: &FuncValue{Type: ft, IsMethod: true, Source: &FuncDecl{}, Name: methods[i].Name, PkgPath: "bench", body: []Stmt{}}})
+		}
+	}
+	return iface, root
+}
+
+// benchEmbedWalk times one checkImplementedBy over an embedWalkGridFixture and
+// reports the columns cmd/calibrate/gen_analysis.py parses.
+func benchEmbedWalk(b *testing.B, d, w, m int, hit bool) {
+	b.Helper()
+	iface, root := embedWalkGridFixture(d, w, m, hit)
+	if err := iface.checkImplementedBy(nil, root); hit != (err == nil) {
+		b.Fatalf("fixture hit=%v but err=%v", hit, err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	start := time.Now()
+	for i := 0; i < b.N; i++ {
+		_ = iface.checkImplementedBy(nil, root)
+	}
+	// No Machine harness here: the loop body is only the call, so pure ==
+	// total, and nothing is allocated through a gas-metered Allocator.
+	// Reported so cmd/calibrate/gen_analysis.py can parse these like ops.
+	b.ReportMetric(0, "alloc-gas/op")
+	b.ReportMetric(float64(time.Since(start).Nanoseconds())/float64(b.N), "ns/op(pure)")
+}
+
+// BenchmarkOpEmbedWalk is the calibration grid for OpCPUSlopeEmbed*; see
+// cmd/calibrate/gen_analysis.py (EMBEDWALK_SHAPES) for how the slopes are read.
+func BenchmarkOpEmbedWalk(b *testing.B) {
+	for _, s := range []struct{ d, w int }{{1, 8}, {1, 32}, {1, 128}, {2, 64}, {4, 8}, {4, 32}, {8, 1}, {8, 4}, {8, 16}} {
+		b.Run(fmt.Sprintf("d%d_w%d_miss_m1", s.d, s.w), func(b *testing.B) { benchEmbedWalk(b, s.d, s.w, 1, false) })
+		b.Run(fmt.Sprintf("d%d_w%d_hit_m1", s.d, s.w), func(b *testing.B) { benchEmbedWalk(b, s.d, s.w, 1, true) })
+		b.Run(fmt.Sprintf("d%d_w%d_hit_m16", s.d, s.w), func(b *testing.B) { benchEmbedWalk(b, s.d, s.w, 16, true) })
+	}
+}
+
+// Method-count series for benchIfaceImplWide.
+func BenchmarkIfaceImpl_Wide_8(b *testing.B)   { benchIfaceImplWide(b, 8) }
+func BenchmarkIfaceImpl_Wide_32(b *testing.B)  { benchIfaceImplWide(b, 32) }
+func BenchmarkIfaceImpl_Wide_128(b *testing.B) { benchIfaceImplWide(b, 128) }
 
 // --- doOpSelector VPInterface: interface method dispatch via findEmbeddedFieldType ---
 // Cost is O(nMethods) due to method matching.
@@ -4272,6 +4586,57 @@ func benchOpDefer(b *testing.B, nArgs int) {
 func BenchmarkOpDefer_1Arg(b *testing.B)    { benchOpDefer(b, 1) }
 func BenchmarkOpDefer_10Args(b *testing.B)  { benchOpDefer(b, 10) }
 func BenchmarkOpDefer_100Args(b *testing.B) { benchOpDefer(b, 100) }
+
+// --- doOpEnterCrossing: walk call frames until a WithCross/DidCrossing ancestor ---
+// Scales linearly with call stack depth until the first crossing ancestor: the
+// handler walks m.Frames once with a cursor, visiting each frame at most once.
+// The benchmark constructs `depth` call frames with only the deepest marked
+// WithCross=true, forcing the walk to traverse the full depth. This is the
+// calibration source for OpCPUSlopeEnterCrossing.
+
+func benchOpEnterCrossing(b *testing.B, depth int) {
+	b.Helper()
+	m := benchMachine()
+	defer m.Release()
+
+	// Make m.Package a realm and set a non-nil m.Realm so
+	// fri.LastRealm == m.Realm holds for intermediate frames.
+	m.Package = &PackageValue{PkgPath: "gno.land/r/bench"}
+	m.Realm = &Realm{Path: "gno.land/r/bench"}
+
+	// Dummy *FuncValue so Frame.IsCall() returns true.
+	fv := &FuncValue{PkgPath: "gno.land/r/bench"}
+
+	// Build `depth` call frames. The first pushed frame is the DEEPEST
+	// (the walk starts at the end of m.Frames and moves backward, so the
+	// first slot is reached last). Only the deepest has WithCross=true —
+	// this is what terminates the walk at step N.
+	m.Frames = m.Frames[:0]
+	for i := range depth {
+		fr := Frame{Func: fv, LastRealm: m.Realm}
+		if i == 0 {
+			fr.WithCross = true
+		}
+		m.Frames = append(m.Frames, fr)
+	}
+
+	bm.InitMeasure()
+	bm.BeginOpCode(bmSetup)
+	for range b.N {
+		// doOpEnterCrossing calls fr1.SetDidCrossing, which panics if
+		// DidCrossing is already true. Reset before each iteration.
+		m.Frames[len(m.Frames)-1].DidCrossing = false
+		bm.SwitchOpCode(bmTarget)
+		m.doOpEnterCrossing()
+		bm.SwitchOpCode(bmSetup)
+	}
+	reportBenchops(b)
+}
+
+func BenchmarkOpEnterCrossing_1(b *testing.B)    { benchOpEnterCrossing(b, 1) }
+func BenchmarkOpEnterCrossing_10(b *testing.B)   { benchOpEnterCrossing(b, 10) }
+func BenchmarkOpEnterCrossing_100(b *testing.B)  { benchOpEnterCrossing(b, 100) }
+func BenchmarkOpEnterCrossing_1000(b *testing.B) { benchOpEnterCrossing(b, 1000) }
 
 // --- OpForLoop: heap item copy at end of iteration ---
 // Benchmarks the cost of copying HeapItemValues at the end of each loop
@@ -4789,6 +5154,7 @@ func BenchmarkOpTypeAssert2_Interface_Hit_10(b *testing.B) { benchOpTypeAssert2_
 func BenchmarkOpTypeAssert2_Interface_Hit_100(b *testing.B) {
 	benchOpTypeAssert2_Interface(b, 100, true)
 }
+
 func BenchmarkOpTypeAssert2_Interface_Miss_10(b *testing.B) {
 	benchOpTypeAssert2_Interface(b, 10, false)
 }
@@ -5240,7 +5606,7 @@ func BenchmarkOpTypeSwitch_10(b *testing.B)   { benchOpTypeSwitch(b, 10) }
 func BenchmarkOpTypeSwitch_100(b *testing.B)  { benchOpTypeSwitch(b, 100) }
 func BenchmarkOpTypeSwitch_1000(b *testing.B) { benchOpTypeSwitch(b, 1000) }
 
-// --- doOpTypeSwitch with interface case: IsImplementedBy cost ---
+// --- doOpTypeSwitch with interface case: checkImplementedBy cost ---
 
 func benchOpTypeSwitch_Interface(b *testing.B, nMethods int) {
 	b.Helper()

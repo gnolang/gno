@@ -3,7 +3,7 @@ package crossrealm_c
 import (
 	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/tests/p_crossrealm"
+	"gno.land/p/demo/tests/p_crossrealm/v0"
 	"gno.land/r/tests/vm/crossrealm"
 )
 

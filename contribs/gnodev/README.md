@@ -104,6 +104,7 @@ FLAGS
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=true 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
+  -validator-key-file ...	load the validator key from the given priv_validator_key.json file instead of generating one (no double-sign protection: never use a production key)
   -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
   -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
@@ -153,6 +154,7 @@ FLAGS
   -txs-file ...	load the provided transactions file (refer to the documentation for format)
   -unsafe-api=false 	enable /reset and /reload endpoints which are not safe to expose publicly
   -v=false 	enable verbose output for development
+  -validator-key-file ...	load the validator key from the given priv_validator_key.json file instead of generating one (no double-sign protection: never use a production key)
   -web-analytics=false 	gnoweb: enable SimpleAnalytics tracking
   -web-analytics-hostname ...	gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)
   -web-help-remote ...	gnoweb: web server help page's remote addr (default to <node-rpc-listener>)
