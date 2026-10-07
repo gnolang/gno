@@ -702,8 +702,13 @@ func calculateBackoff(
 		maxInterval = defaultMaxInterval
 	}
 
-	// Calculate the interval by exponentiating the base interval by the number of attempts.
-	interval := min(baseInterval<<attempts, maxInterval)
+	// Calculate the interval by exponentiating the base interval by the number of attempts,
+	// capped at maxInterval. The shift is only taken when its result fits under maxInterval:
+	// past 63 bits it wraps around, to a negative or a meaningless interval
+	interval := maxInterval
+	if baseInterval <= maxInterval>>attempts {
+		interval = baseInterval << attempts
+	}
 
 	// Below is the code to add a jitter factor to the interval.
 	// Read random bytes into an 8 bytes buffer (size of an int64).

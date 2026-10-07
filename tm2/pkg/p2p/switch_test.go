@@ -1557,6 +1557,17 @@ func TestCalculateBackoff(t *testing.T) {
 			checkJitterRange(t, 10*time.Second, calculateBackoff(7, -10, 10*time.Minute)-128*time.Second)
 		}
 	})
+
+	// Test that the backoff interval stays capped however many attempts were made.
+	t.Run("attempts overflow", func(t *testing.T) {
+		t.Parallel()
+
+		for _, attempts := range []uint{33, 34, 40, 50, 63, 64, 100} {
+			for range 100 {
+				checkJitterRange(t, 3*time.Second, calculateBackoff(attempts, time.Second, 30*time.Second)-30*time.Second)
+			}
+		}
+	})
 }
 
 func TestSwitchAcceptLoopTransportClosed(t *testing.T) {
