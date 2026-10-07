@@ -725,6 +725,8 @@ func calculateBackoff(
 // configured address.
 // To monitor dial progress, subscribe to adequate p2p MultiplexSwitch events
 func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
+	peers := sw.Peers()
+
 	for _, peerAddr := range peerAddrs {
 		// Check if this is our address
 		if peerAddr.Same(sw.transport.NetAddress()) {
@@ -736,8 +738,14 @@ func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 			continue
 		}
 
+		// Check if the peer is already connected, or the address already
+		// queued. Peer exchange shares the same addresses over and over
+		if peers.Has(peerAddr.ID) || sw.dialQueue.Has(peerAddr) {
+			continue
+		}
+
 		// Ignore dial if the limit is reached
-		if out := sw.Peers().NumOutbound(); out >= sw.maxOutboundPeers {
+		if out := peers.NumOutbound(); out >= sw.maxOutboundPeers {
 			sw.Logger.Warn(
 				"ignoring dial request: already have max outbound peers",
 				"have", out,

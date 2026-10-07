@@ -1913,6 +1913,57 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 		assert.Nil(t, sw.persistentDialQueue.Peek())
 	})
 
+	t.Run("connected peer skipped", func(t *testing.T) {
+		t.Parallel()
+
+		addr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(&mockTransport{})
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool { return id == addr.ID },
+		}
+
+		sw.DialPeers(addr)
+
+		assert.Nil(t, sw.dialQueue.Peek())
+	})
+
+	t.Run("queued address not duplicated", func(t *testing.T) {
+		t.Parallel()
+
+		addr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(&mockTransport{})
+
+		// Peer exchange responses repeat the same addresses
+		sw.DialPeers(addr, addr)
+		sw.DialPeers(addr)
+
+		require.NotNil(t, sw.dialQueue.Pop())
+		assert.Nil(t, sw.dialQueue.Pop())
+	})
+
+	t.Run("another address of a queued peer is queued", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addr  = generateNetAddr(t, 1)[0]
+			other = &types.NetAddress{
+				ID:   addr.ID,
+				IP:   net.ParseIP("203.0.113.7"),
+				Port: addr.Port,
+			}
+
+			sw = NewMultiplexSwitch(&mockTransport{})
+		)
+
+		sw.DialPeers(addr, other)
+
+		require.NotNil(t, sw.dialQueue.Pop())
+		require.NotNil(t, sw.dialQueue.Pop())
+		assert.Nil(t, sw.dialQueue.Pop())
+	})
+
 	t.Run("outbound peer limit reached", func(t *testing.T) {
 		t.Parallel()
 
