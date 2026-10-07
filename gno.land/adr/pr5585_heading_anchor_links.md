@@ -2,35 +2,30 @@
 
 ## Context
 
-Issue [#5579](https://github.com/gnolang/gno/issues/5579): Rendered realm/readme headings get auto-generated IDs via `parser.WithAutoHeadingID()` but are not themselves clickable. The URL hash does not update on click, and there is no way to copy a stable link to a section without going through the ToC sidebar.
+Issue [#5579](https://github.com/gnolang/gno/issues/5579): rendered realm and readme headings get auto-generated IDs from `parser.WithAutoHeadingID()`, but nothing on the page links to them. There is no way to copy a link to a section without going through the ToC sidebar.
 
 ## Decision
 
-Add an AST transformer + inline node + node renderer to `GnoExtension`:
+Replace goldmark's heading renderer in `GnoExtension` with one that closes every heading that has an id and some content with a permalink anchor, using the icon and label of the `ui/pkg_anchor` template on package overview cards:
 
-- The transformer walks every heading and groups its children. Each contiguous run of children with no link in their subtree is moved under a synthetic `headingAnchorNode` carrying the heading's id. A child that is itself a link, or that contains one nested inside emphasis/strong/etc., stays in place as a run boundary so the anchor never wraps an `<a>`.
-- The renderer emits `<a class="heading-anchor" href="#id">…</a>` for each `headingAnchorNode`. Inline links inside the heading are left untouched and rendered by their existing renderers.
-- The default goldmark heading renderer continues to emit `<h2 id="…">…</h2>`; no override is needed.
+```html
+<h2 id="title">Title<a href="#title" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
+```
 
-Result: clicking on any non-link text in a heading updates `window.location.hash`, while clicks on inline links still navigate to their destination. Nested `<a>` is impossible by construction — the transformer never wraps a subtree that contains a link.
-
-No `aria-label` is set on the heading-anchor. Its accessible name falls back to the wrapped text, so screen-reader heading navigation keeps announcing the actual title.
+The icon is hidden at rest and shown when the heading is hovered or the anchor is focused. On devices with no hover (`@media (hover: none)`) it is always shown.
 
 ## Alternatives Considered
 
-1. **Always wrap heading text in a single `<a href="#id">`**: simpler, but breaks on headings containing inline links — nested `<a>` is invalid HTML and browsers auto-close the outer anchor.
-2. **Sibling-only empty anchor for every heading**: accessibility-safe but requires hovering to reveal a `§` / `#` indicator; less discoverable than click-anywhere-on-text.
-3. **Sibling empty anchor only when the heading contains a link**: keeps wrap mode for plain headings but hides the permalink from mouse users in the link case (no visible affordance, hover-`#` glyph felt out of place).
-4. **goldmark-anchor external extension**: external dependency; our custom transformer + renderer is minimal and keeps the dependency tree unchanged.
-5. **JavaScript-only approach**: could update `window.location.hash` on click, but requires extra UI to expose a copy-pasteable link.
-6. **`aria-label="Link to this section"` on every anchor**: overrides the anchor's accessible name and, by extension, the heading's accessible name — screen-reader heading navigation would announce every heading as "Link to this section" instead of the title. Rejected.
+1. **Wrap the heading text in `<a href="#id">`**: the first version of this PR. A heading containing a link needs one anchor per text run around it, which repeats the full `href` per run and grows the output quadratically with the number of links. It makes the heading text unselectable, splits one heading into several tab stops named after fragments, and leaves link-only headings with no permalink. Footnote refs, task checkboxes and raw HTML can still end up inside the anchor.
+2. **Anchor as a sibling of the heading, in a wrapper element** (GitHub's markup): keeps the anchor's `aria-label` out of the heading's accessible name, at the cost of a wrapper around every heading, which breaks the adjacent-heading rules (`h1 + h2`) in the realm view CSS.
+3. **goldmark-anchor external extension**: an external dependency for what is one renderer.
+4. **JavaScript-only approach**: no link to copy without extra UI.
 
 ## Consequences
 
-- Headings with auto-generated IDs are clickable: the whole heading text in the plain case, and every non-link span in the inline-link case. The inline link inside a heading retains its own destination on click.
-- A heading whose entire content is a single link (e.g. `## [foo](/x)`) gets no permalink anchor — the inline link wins the click. Users still reach the section via the address bar / ToC sidebar / Tab key on the heading id. This is judged acceptable given the rarity of the pattern.
-- An image embedded in a heading (e.g. `## ![alt](/img.png)`) is wrapped by the heading-anchor; clicking the image now sets `window.location.hash` instead of doing nothing. Mixed image-in-link headings (`## [![alt](/img)](/x)`) still let the inline link win.
-- A link nested inside other inline markup (e.g. a bold link `## **[x](/y)** tail`) is found by the subtree walk, so the surrounding `**bold**` stays outside the anchor instead of producing a nested `<a>`. Only the link-free runs around it become clickable permalink spans.
-- The golden test suite gained `parser.WithAutoHeadingID()` in the test setup to match production; existing fixtures gained `id` attributes and the anchor markup.
-- The extension is a no-op when a heading has no `id` (e.g. `parser.WithAutoHeadingID()` is not enabled, or a raw HTML heading slips through). The heading renders plain.
+- Link-only headings get a permalink too. Each heading grows by one anchor repeating its id, so the output stays linear in the heading's length.
+- The heading text is left untouched: it stays selectable, and inline links, footnote refs and raw HTML inside it render as before.
+- The heading's accessible name ends with "Permalink", since the anchor sits inside the heading.
+- The doc view does not load this extension, so godoc headings get no anchor.
+- The golden test setup gained `parser.WithAutoHeadingID()` to match production; existing fixtures gained `id` attributes and the anchor markup.
 - No new external dependencies.

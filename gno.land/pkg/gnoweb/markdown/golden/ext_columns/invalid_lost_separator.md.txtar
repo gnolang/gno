@@ -6,7 +6,7 @@
 <gno-columns-sep />
 
 -- output.html --
-<h2 id="bare-pipe-is-no-longer-a-column-separator"><a class="heading-anchor" href="#bare-pipe-is-no-longer-a-column-separator">bare-pipe is no longer a column separator</a></h2>
+<h2 id="bare-pipe-is-no-longer-a-column-separator">bare-pipe is no longer a column separator<a href="#bare-pipe-is-no-longer-a-column-separator" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 <p>|||</p>
-<h2 id="html-tag-log-separator"><a class="heading-anchor" href="#html-tag-log-separator">html tag log separator</a></h2>
+<h2 id="html-tag-log-separator">html tag log separator<a href="#html-tag-log-separator" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 <!-- unexpected/invalid columns tag omitted -->
