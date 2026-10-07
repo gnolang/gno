@@ -99,9 +99,10 @@ type MultiplexSwitch struct {
 	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
 	transport       Transport
 
-	dialQueue  *dial.Queue
-	dialNotify chan struct{}
-	events     *events.Events
+	dialQueue           *dial.Queue // dials of discovered peers and seeds
+	persistentDialQueue *dial.Queue // dials of persistent peers, fed by the redial loop
+	dialNotify          chan struct{}
+	events              *events.Events
 }
 
 // NewMultiplexSwitch creates a new MultiplexSwitch with the given config.
@@ -112,14 +113,15 @@ func NewMultiplexSwitch(
 	defaultCfg := config.DefaultP2PConfig()
 
 	sw := &MultiplexSwitch{
-		reactors:         make(map[string]Reactor),
-		peers:            newSet(),
-		transport:        transport,
-		dialQueue:        dial.NewQueue(),
-		dialNotify:       make(chan struct{}, 1),
-		events:           events.New(),
-		maxInboundPeers:  defaultCfg.MaxNumInboundPeers,
-		maxOutboundPeers: defaultCfg.MaxNumOutboundPeers,
+		reactors:            make(map[string]Reactor),
+		peers:               newSet(),
+		transport:           transport,
+		dialQueue:           dial.NewQueue(),
+		persistentDialQueue: dial.NewQueue(),
+		dialNotify:          make(chan struct{}, 1),
+		events:              events.New(),
+		maxInboundPeers:     defaultCfg.MaxNumInboundPeers,
+		maxOutboundPeers:    defaultCfg.MaxNumOutboundPeers,
 	}
 
 	// Set up the peer dial behavior
@@ -336,11 +338,11 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 			return
 
 		default:
-			// Grab a dial item
-			item := sw.dialQueue.Peek()
+			// Grab the next dial item
+			item, queue := sw.peekDialItem()
 			if item == nil {
 				// Nothing to dial, wait until something is
-				// added to the queue
+				// added to a queue
 				sw.waitForPeersToDial(ctx)
 				continue
 			}
@@ -354,13 +356,20 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				continue
 			}
 
-			// Pop the item from the dial queue
-			item = sw.dialQueue.Pop()
+			// Pop the item from its dial queue. The dial loop is the only
+			// consumer, so a push since the peek can only have put an earlier,
+			// also due, item at the head
+			item = queue.Pop()
 			peerAddr := item.Address
 
 			// Check if the peer is already connected
 			ps := sw.Peers()
 			if ps.Has(peerAddr.ID) {
+				sw.Logger.Debug(
+					"skipping dial, peer already connected",
+					"address", peerAddr.String(),
+				)
+
 				continue
 			}
 
@@ -372,6 +381,30 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 			sw.dialPeer(ctx, peerAddr)
 		}
+	}
+}
+
+// peekDialItem returns the next item to dial, along with the queue holding it.
+// A persistent peer due for dialing goes first, then a due discovered peer.
+// With nothing due, it returns the item due first, so the dial loop can wait
+// for it. The returned item is nil when both queues are empty
+func (sw *MultiplexSwitch) peekDialItem() (*dial.Item, *dial.Queue) {
+	var (
+		now        = time.Now()
+		persistent = sw.persistentDialQueue.Peek()
+		general    = sw.dialQueue.Peek()
+	)
+
+	switch {
+	case persistent != nil && !now.Before(persistent.Time):
+		// A due persistent peer goes first
+		return persistent, sw.persistentDialQueue
+	case general != nil && (persistent == nil || !general.Time.After(persistent.Time)):
+		// Otherwise the general head, when it is due or due first
+		return general, sw.dialQueue
+	default:
+		// The persistent head is due first, or both queues are empty
+		return persistent, sw.persistentDialQueue
 	}
 }
 
@@ -600,11 +633,12 @@ func (sw *MultiplexSwitch) runSeedDialLoop(ctx context.Context) {
 	}
 }
 
-// hasDialableItem returns a flag indicating if the dial queue holds an item
-// that can be dialed right now. The queue is time-sorted (ascending), so a head
-// item scheduled in the future means every queued item is currently backing off
+// hasDialableItem returns a flag indicating if either dial queue holds an item
+// that can be dialed right now. peekDialItem returns a due item whenever there
+// is one, so a returned item scheduled in the future means every queued item is
+// currently backing off
 func (sw *MultiplexSwitch) hasDialableItem() bool {
-	item := sw.dialQueue.Peek()
+	item, _ := sw.peekDialItem()
 
 	return item != nil && !time.Now().Before(item.Time)
 }

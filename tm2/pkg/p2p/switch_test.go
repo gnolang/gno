@@ -1017,6 +1017,32 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 		assert.False(t, sw.dialQueue.Has(seedAddr))
 	})
 
+	t.Run("dialable persistent item in the queue", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addrs    = generateNetAddr(t, 2)
+			seedAddr = addrs[0]
+			peerAddr = addrs[1]
+		)
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		// The switch still has a persistent peer to dial right now
+		sw.persistentDialQueue.Push(dial.Item{
+			Time:    time.Now(),
+			Address: peerAddr,
+		})
+
+		sw.dialSeed()
+
+		// The seed should not have been queued
+		assert.False(t, sw.dialQueue.Has(seedAddr))
+	})
+
 	t.Run("queued items fully backed off", func(t *testing.T) {
 		t.Parallel()
 
@@ -1338,7 +1364,7 @@ func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
 	}
 
 	// The redial loop queues exactly this for a persistent peer in backoff
-	sw.dialQueue.Push(dial.Item{
+	sw.persistentDialQueue.Push(dial.Item{
 		Time:    time.Now().Add(time.Hour),
 		Address: generateNetAddr(t, 1)[0],
 	})
@@ -1368,6 +1394,209 @@ func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
 	}
 
 	t.Fatal("no goroutine running runDialLoop found")
+}
+
+func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
+	t.Parallel()
+
+	var (
+		now    = time.Now()
+		due    = now.Add(-time.Second)
+		later  = now.Add(time.Hour)
+		latest = now.Add(2 * time.Hour)
+	)
+
+	testTable := []struct {
+		name       string
+		persistent []time.Time
+		general    []time.Time
+		want       string // the queue the item comes from, empty for none
+		wantTime   time.Time
+	}{
+		{
+			name: "both queues empty",
+		},
+		{
+			name:       "a due persistent peer",
+			persistent: []time.Time{due},
+			want:       "persistent",
+			wantTime:   due,
+		},
+		{
+			name:     "a due discovered peer",
+			general:  []time.Time{due},
+			want:     "general",
+			wantTime: due,
+		},
+		{
+			name:       "a due persistent peer goes before an earlier discovered peer",
+			persistent: []time.Time{due},
+			general:    []time.Time{due.Add(-time.Minute)},
+			want:       "persistent",
+			wantTime:   due,
+		},
+		{
+			name:       "a due discovered peer goes while the persistent peer backs off",
+			persistent: []time.Time{later},
+			general:    []time.Time{due},
+			want:       "general",
+			wantTime:   due,
+		},
+		{
+			name:       "nothing due, the persistent peer is due first",
+			persistent: []time.Time{later},
+			general:    []time.Time{latest},
+			want:       "persistent",
+			wantTime:   later,
+		},
+		{
+			name:       "nothing due, the discovered peer is due first",
+			persistent: []time.Time{latest},
+			general:    []time.Time{later},
+			want:       "general",
+			wantTime:   later,
+		},
+		{
+			name:       "a backed off persistent peer alone",
+			persistent: []time.Time{later},
+			want:       "persistent",
+			wantTime:   later,
+		},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				sw    = NewMultiplexSwitch(&mockTransport{})
+				addrs = generateNetAddr(t, len(testCase.persistent)+len(testCase.general))
+			)
+
+			for i, dialTime := range testCase.persistent {
+				sw.persistentDialQueue.Push(dial.Item{Time: dialTime, Address: addrs[i]})
+			}
+
+			for i, dialTime := range testCase.general {
+				sw.dialQueue.Push(dial.Item{
+					Time:    dialTime,
+					Address: addrs[len(testCase.persistent)+i],
+				})
+			}
+
+			item, queue := sw.peekDialItem()
+
+			if testCase.want == "" {
+				assert.Nil(t, item)
+
+				return
+			}
+
+			wantQueue := sw.dialQueue
+			if testCase.want == "persistent" {
+				wantQueue = sw.persistentDialQueue
+			}
+
+			require.NotNil(t, item)
+			assert.Same(t, wantQueue, queue)
+			assert.True(t, item.Time.Equal(testCase.wantTime))
+		})
+	}
+}
+
+func TestMultiplexSwitch_DialLoop_Persistent(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a due persistent peer is dialed before due discovered peers", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addrs  = generateNetAddr(t, 3)
+			dialed = make(chan types.NetAddress, len(addrs))
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					addr types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					dialed <- addr
+
+					return nil, errors.New("unable to dial")
+				},
+			}
+
+			sw  = NewMultiplexSwitch(mockTransport)
+			now = time.Now()
+		)
+
+		sw.peers = &mockSet{
+			hasFn: func(types.ID) bool { return false },
+		}
+
+		// Discovered peers that have been due for a while
+		sw.dialQueue.Push(dial.Item{Time: now.Add(-2 * time.Second), Address: addrs[0]})
+		sw.dialQueue.Push(dial.Item{Time: now.Add(-time.Second), Address: addrs[1]})
+
+		// A persistent peer that just became due
+		sw.persistentDialQueue.Push(dial.Item{Time: now, Address: addrs[2]})
+
+		go sw.runDialLoop(t.Context())
+
+		for _, want := range []*types.NetAddress{addrs[2], addrs[0], addrs[1]} {
+			select {
+			case got := <-dialed:
+				assert.Equal(t, *want, got)
+			case <-time.After(5 * time.Second):
+				t.Fatal("the dial loop stalled")
+			}
+		}
+	})
+
+	t.Run("a persistent peer connected meanwhile is not dialed", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addrs  = generateNetAddr(t, 2)
+			dialed = make(chan types.NetAddress, len(addrs))
+
+			mockTransport = &mockTransport{
+				dialFn: func(
+					_ context.Context,
+					addr types.NetAddress,
+					_ PeerBehavior,
+				) (PeerConn, error) {
+					dialed <- addr
+
+					return nil, errors.New("unable to dial")
+				},
+			}
+
+			sw  = NewMultiplexSwitch(mockTransport)
+			now = time.Now()
+		)
+
+		// The persistent peer connected, inbound, after its dial was queued
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool { return id == addrs[0].ID },
+		}
+
+		sw.persistentDialQueue.Push(dial.Item{Time: now, Address: addrs[0]})
+		sw.dialQueue.Push(dial.Item{Time: now, Address: addrs[1]})
+
+		go sw.runDialLoop(t.Context())
+
+		// The persistent item is taken first and dropped, so the only dial is
+		// the discovered peer
+		select {
+		case got := <-dialed:
+			assert.Equal(t, *addrs[1], got)
+		case <-time.After(5 * time.Second):
+			t.Fatal("the dial loop stalled")
+		}
+
+		assert.Nil(t, sw.persistentDialQueue.Peek())
+	})
 }
 
 func TestMultiplexSwitch_DialPeers(t *testing.T) {
