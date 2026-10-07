@@ -61,8 +61,7 @@ The gas price is returned as a `GasPrice` object with two fields:
 
 Together, these represent a **rate**. `{gas: 1000, price: "1ugnot"}` means 1
 ugnot per 1000 gas units, which simplifies to 0.001 ugnot per gas unit. That is
-the floor the price never drops below, and where the networks in this guide sit
-today. Under load the `price` field grows.
+the floor the price never drops below. Under load the `price` field grows.
 
 To calculate the minimum fee manually:
 

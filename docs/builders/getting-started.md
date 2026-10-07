@@ -232,8 +232,8 @@ gnokey maketx call \
 
 `-gas-wanted` caps the gas the transaction may use, and `-gas-fee` is the whole
 fee, one flat amount in `ugnot`. The fee divided by the gas wanted must reach
-the network's gas price, 1ugnot per 1000 gas at its floor, so 2000000 gas needs
-at least 2000ugnot. [Gas fees](../resources/gas-fees.md) explains both flags and
+the network's gas price, 1ugnot per 1000 gas, so 2000000 gas needs at least
+2000ugnot. [Gas fees](../resources/gas-fees.md) explains both flags and
 how `-simulate only` sizes them.
 
 The signer at the end is the `alice` key you just created. You'll

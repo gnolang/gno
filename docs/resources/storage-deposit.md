@@ -38,10 +38,9 @@ Below is an example of how the storage fee settlement flow works:
 2. Specify optional `-max-deposit` to limit the GNOT that can be locked for storage.
    Leaving it out does not remove the ceiling: the chain applies its own, the
    `default_deposit` parameter. The code ships it as `100000000ugnot`, one
-   megabyte of state at `100ugnot` per byte, and a network can set another
-   value. A message that would store more is refused, and
-   `-max-deposit` is how you raise the cap. Read a network's value with
-   `gnokey query params/vm:p:default_deposit -remote <rpc>`.
+   megabyte of state at `100ugnot` per byte. A message that would store more is
+   refused, and `-max-deposit` is how you raise the cap. Read a network's value
+   with `gnokey query params/vm:p:default_deposit -remote <rpc>`.
 3. The storage delta is calculated by the GnoVM (how much it grew or shrunk).
 4. The system locks or refunds GNOT accordingly.
 
