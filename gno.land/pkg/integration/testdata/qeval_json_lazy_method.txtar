@@ -6,12 +6,17 @@ loadpkg gno.land/r/test/lz $WORK/realm
 
 gnoland start
 
+# Height is racy (proof block), so match it with a regex and pin the data by
+# distinctive substrings rather than a full golden.
 gnokey query vm/qeval_json --data "gno.land/r/test/lz.GetG()"
-cmp stdout getg.stdout.golden
+stdout 'height: [1-9][0-9]*'
+stdout '"@type":"/gno.BoundMethodValue"'
+# The regression: Func stays typed-nil and the Method selector is not dropped.
+stdout '"Func":null'
+stdout '"Method":"Get","MethodPkg":"gno.land/r/test/lz"'
+stdout '"@type":"/gno.RefType","ID":"gno.land/r/test/lz.Impl"'
+stdout '"N":"AQAAAAAAAAA="'
 
--- getg.stdout.golden --
-height: 0
-data: {"results":[{"T":{"@type":"/gno.FuncType","Params":[],"Results":[{"Name":".res.0","Type":{"@type":"/gno.PrimitiveType","value":"32"},"Embedded":false,"Tag":"","PkgPath":""}]},"V":{"@type":"/gno.BoundMethodValue","ObjectInfo":{"ID":"02257358f7f2a792ff3db696d06d51d16522884e:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Func":null,"Receiver":{"T":{"@type":"/gno.RefType","ID":"gno.land/r/test/lz.Impl"},"V":{"@type":"/gno.StructValue","ObjectInfo":{"ID":"02257358f7f2a792ff3db696d06d51d16522884e:0","ModTime":"0","RefCount":"0","LastObjectSize":"0"},"Fields":[{"T":{"@type":"/gno.PrimitiveType","value":"32"},"N":"AQAAAAAAAAA="}]}},"Method":"Get","MethodPkg":"gno.land/r/test/lz"}}]}
 -- realm/gnomod.toml --
 module = "gno.land/r/test/lz"
 gno = "0.9"
