@@ -61,7 +61,7 @@ const (
 // multi-gigabyte allocation and OOM the node. It also caps qtype_json's
 // hand-rolled marshal, which amplifies a type DAG into a tree the same way (see
 // marshalTypeJSONBounded). See gno.ExportValues and
-// gno.land/adr/query_export_size_guard.md.
+// gno.land/adr/acd01fa29_query_export_size_guard.md.
 //
 // 10MB is deliberately permissive. It is an estimate of the *response*, and a
 // response that size still costs the node much more than that in transient

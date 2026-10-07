@@ -7,7 +7,7 @@ package crossrealm
 // `.seal` no longer counts, so only a type that declares it directly (the
 // runtime `.grealm`) satisfies the sealed interface. Otherwise identity
 // (from the overrides) and liveness (from the embedded realm) could come
-// from different concrete values. See gnovm/adr/realm_seal_embedding.md.
+// from different concrete values. See gnovm/adr/acd01fa29_realm_seal_embedding.md.
 //
 // The companion zrealm_seal_realm.gno covers the structural fake (no
 // embedding); this one covers the embedding-promotion path.
