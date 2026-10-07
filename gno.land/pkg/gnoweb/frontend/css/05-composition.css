@@ -681,7 +681,9 @@
 	}
 }
 
-:is(.c-realm-view, .c-readme-view) :is(h1, h2, h3, h4, h5, h6):hover > a.heading-anchor {
+:is(.c-realm-view, .c-readme-view)
+	:is(h1, h2, h3, h4, h5, h6):hover
+	> a.heading-anchor {
 	opacity: 1;
 }
 
