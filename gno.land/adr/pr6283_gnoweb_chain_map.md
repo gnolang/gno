@@ -110,6 +110,31 @@ calls packages rather than showing an empty scale. Without an indexer the map
 says nothing about activity; pale tints only tell neighboring namespaces
 apart.
 
+### Gas, as a second color
+
+The same scan reads each transaction's `gas_used`, so the key offers a
+Calls | Gas switch: two links, `$map` and `$map&color=gas`, with no script.
+Under gas the tiles, the legend and the side list follow the gas used over
+the week, and every map link (zoom in, zoom out, reload) keeps the metric.
+An unknown `color` value draws the call map.
+
+The indexer reports gas per transaction, not per message, so a
+transaction's gas is shared evenly between the messages that run code
+(calls, runs, deploys); a plain send takes no share. It is counted on the
+realm the transaction calls, not the realms that one calls in turn, and the
+key says so.
+
+Shades use the shared log scale on gas in whole millions, rounded up so any
+gas draws a shade; ranking and labels use the gas as measured (50 k, 1.9 M,
+76.0 bn: bn, not B, which would read as bytes). The legend gives each
+shade's upper bound, since rounded ranges would print the same number where
+they meet. A line under the map names the metric, because the key folds
+away with the rail on a phone.
+
+On the whole chain the gas map looks much like the call map, the log scale
+putting the same realms in the top shades; the difference is mostly in the
+ranking. It costs no query: the gas comes with rows the scan already reads.
+
 ### The dependency graph
 
 The overview's Imports section becomes a Dependencies graph: the package
