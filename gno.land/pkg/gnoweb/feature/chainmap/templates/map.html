@@ -92,7 +92,7 @@ in the listing's rail.
 <ul class="b-map-scale" aria-label="{{ if $.Gas }}Gas{{ else }}Calls{{ end }} per color">
   {{ range . }}<li><span class="b-map-swatch {{ .Class }}" aria-hidden="true"></span>{{ .Range }}</li>{{ end }}
 </ul>
-<p class="b-map-key-note">{{ if $.Gas }}Gas per shade, scaled to this map's heaviest realm. A transaction's gas is shared between the calls, runs and deploys it holds, and counted on the realm it calls, not the realms that one calls in turn.{{ else }}Calls per shade, scaled to this map's busiest realm.{{ end }}</p>
+<p class="b-map-key-note">{{ if $.Gas }}Gas per shade, from this map's lightest realm to its heaviest. A transaction's gas is shared between the calls, runs and deploys it holds, and counted on the realm it calls, not the realms that one calls in turn.{{ else }}Calls per shade, scaled to this map's busiest realm.{{ end }}</p>
 {{ end }}
 {{ with .Window }}{{ if .Partial }}
 <p class="b-map-key-note">Part of the window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</p>
