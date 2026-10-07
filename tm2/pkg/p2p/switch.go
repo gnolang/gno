@@ -247,20 +247,11 @@ func (sw *MultiplexSwitch) Peers() PeerSet {
 }
 
 // StopPeerForError disconnects from a peer due to external error.
-// If the peer is persistent, it will attempt to reconnect
+// A persistent peer is redialed by the redial loop, on its configured address
 func (sw *MultiplexSwitch) StopPeerForError(peer PeerConn, err error) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", err)
 
 	sw.stopAndRemovePeer(peer, err)
-
-	if !peer.IsPersistent() {
-		// Peer is not a persistent peer,
-		// no need to initiate a redial
-		return
-	}
-
-	// Add the peer to the dial queue
-	sw.DialPeers(peer.SocketAddr())
 }
 
 // isSuperseded reports whether a different connection is registered under this
@@ -617,7 +608,8 @@ func (sw *MultiplexSwitch) dialSeed() {
 		return
 	}
 
-	// Gather the seeds that are neither connected nor already queued
+	// Gather the seeds that are neither connected nor already queued. A seed
+	// that is also a persistent peer is left to the redial loop
 	candidates := make([]*types.NetAddress, 0)
 
 	sw.seeds.Range(func(key, value any) bool {
@@ -626,7 +618,7 @@ func (sw *MultiplexSwitch) dialSeed() {
 			addr = value.(*types.NetAddress)
 		)
 
-		if !peers.Has(id) && !sw.dialQueue.Has(addr) {
+		if !peers.Has(id) && !sw.dialQueue.Has(addr) && !sw.isPersistentPeer(id) {
 			candidates = append(candidates, addr)
 		}
 
@@ -729,11 +721,18 @@ func calculateBackoff(
 }
 
 // DialPeers adds the peers to the dial queue for async dialing.
+// Persistent peers are left to the redial loop, which dials them on their
+// configured address.
 // To monitor dial progress, subscribe to adequate p2p MultiplexSwitch events
 func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 	for _, peerAddr := range peerAddrs {
 		// Check if this is our address
 		if peerAddr.Same(sw.transport.NetAddress()) {
+			continue
+		}
+
+		// Check if this is a persistent peer
+		if sw.isPersistentPeer(peerAddr.ID) {
 			continue
 		}
 

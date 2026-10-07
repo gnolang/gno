@@ -252,8 +252,9 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		// Make sure the peer is removed
 		assert.False(t, sw.peers.Has(p.ID()))
 
-		// Make sure the peer is in the dial queue
-		sw.dialQueue.Has(p.SocketAddr())
+		// The redial loop owns persistent peers: nothing is queued here
+		assert.Nil(t, sw.dialQueue.Peek())
+		assert.Nil(t, sw.persistentDialQueue.Peek())
 	})
 }
 
@@ -1207,6 +1208,29 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 		assert.Contains(t, seeds, item.Address)
 		assert.Nil(t, sw.dialQueue.Pop())
 	})
+
+	t.Run("persistent seeds are not candidates", func(t *testing.T) {
+		t.Parallel()
+
+		// Nine of the ten seeds are also persistent peers, which DialPeers
+		// leaves to the redial loop. Picking one would waste the round
+		seeds := generateNetAddr(t, 10)
+
+		for range 20 {
+			sw := NewMultiplexSwitch(
+				&mockTransport{},
+				WithSeeds(seeds),
+				WithPersistentPeers(seeds[1:]),
+			)
+
+			sw.dialSeed()
+
+			item := sw.dialQueue.Pop()
+
+			require.NotNil(t, item)
+			assert.Equal(t, seeds[0], item.Address)
+		}
+	})
 }
 
 func TestMultiplexSwitch_SeedDialLoop(t *testing.T) {
@@ -1864,6 +1888,31 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 		assert.False(t, sw.dialQueue.Has(p.SocketAddr()))
 	})
 
+	t.Run("persistent peer left to the redial loop", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			configured = generateNetAddr(t, 1)[0]
+
+			// The same peer, as another node advertises it
+			learned = &types.NetAddress{
+				ID:   configured.ID,
+				IP:   net.ParseIP("203.0.113.7"),
+				Port: configured.Port,
+			}
+
+			sw = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers([]*types.NetAddress{configured}),
+			)
+		)
+
+		sw.DialPeers(configured, learned)
+
+		assert.Nil(t, sw.dialQueue.Peek())
+		assert.Nil(t, sw.persistentDialQueue.Peek())
+	})
+
 	t.Run("outbound peer limit reached", func(t *testing.T) {
 		t.Parallel()
 
@@ -1946,6 +1995,87 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 			assert.True(t, sw.dialQueue.Has(p.SocketAddr()))
 		}
 	})
+}
+
+// TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress reproduces the
+// shape of gnolang/gno#6287: a persistent peer reached through an address
+// learned via peer exchange drops, and the same address keeps coming back
+// through peer exchange. It must only ever be dialed on its configured address
+func TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress(t *testing.T) {
+	t.Parallel()
+
+	var (
+		configured = generateNetAddr(t, 1)[0]
+
+		// The same peer, as its public external address
+		learned = &types.NetAddress{
+			ID:   configured.ID,
+			IP:   net.ParseIP("203.0.113.7"),
+			Port: configured.Port,
+		}
+
+		dialed = make(chan types.NetAddress, 16)
+
+		mockTransport = &mockTransport{
+			dialFn: func(
+				_ context.Context,
+				addr types.NetAddress,
+				_ PeerBehavior,
+			) (PeerConn, error) {
+				dialed <- addr
+
+				return nil, errors.New("unable to dial")
+			},
+		}
+
+		sw = NewMultiplexSwitch(
+			mockTransport,
+			WithPersistentPeers([]*types.NetAddress{configured}),
+		)
+
+		p = mock.GeneratePeers(t, 1)[0]
+	)
+
+	sw.peers = &mockSet{
+		hasFn: func(types.ID) bool { return false },
+	}
+
+	// The connection over the learned address drops
+	p.IDFn = func() types.ID { return configured.ID }
+	p.SocketAddrFn = func() *types.NetAddress { return learned }
+	p.IsPersistentFn = func() bool { return true }
+	p.IsOutboundFn = func() bool { return true }
+
+	sw.StopPeerForError(p, errors.New("EOF"))
+
+	// Peer exchange shares the learned address again
+	sw.DialPeers(learned)
+
+	// Neither the dropped connection nor peer exchange queued the learned address
+	assert.Nil(t, sw.dialQueue.Peek())
+
+	ctx := t.Context()
+
+	go sw.runDialLoop(ctx)
+	go sw.runRedialLoop(ctx)
+
+	// The redial loop dials the configured address
+	select {
+	case addr := <-dialed:
+		assert.Equal(t, *configured, addr)
+	case <-time.After(5 * time.Second):
+		t.Fatal("the persistent peer was not dialed")
+	}
+
+	// and nothing dials the learned address
+	assert.Never(t, func() bool {
+		select {
+		case addr := <-dialed:
+			return addr.IP.Equal(learned.IP)
+		default:
+			return false
+		}
+	}, 200*time.Millisecond, 10*time.Millisecond)
 }
 
 func TestCalculateBackoff(t *testing.T) {

@@ -714,15 +714,6 @@ func (n *Node) OnStart() error {
 		return err
 	}
 
-	// Always connect to persistent peers
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
-	for _, err := range errs {
-		n.Logger.Error("invalid persistent peer address", "err", err)
-	}
-
-	// Dial the persistent peers
-	n.sw.DialPeers(peerAddrs...)
-
 	// If early start, wait for genesis time now (RPC+P2P already running).
 	if n.earlyStart {
 		now := tmtime.Now()
