@@ -496,26 +496,11 @@ var urltests = []URLTest{
 		},
 		"",
 	},
-	{
-		// Malformed IPv6 but still accepted.
-		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080/foo",
-		&URL{
-			Scheme: "http",
-			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:8080",
-			Path:   "/foo",
-		},
-		"",
-	},
-	{
-		// Malformed IPv6 but still accepted.
-		"http://2b01:e34:ef40:7730:8e70:5aff:fefe:edac:/foo",
-		&URL{
-			Scheme: "http",
-			Host:   "2b01:e34:ef40:7730:8e70:5aff:fefe:edac:",
-			Path:   "/foo",
-		},
-		"",
-	},
+	// Custom code: upstream removed the two "malformed IPv6 but still accepted"
+	// cases here (unbracketed hosts carrying several colons) when parseHost
+	// switched to the first colon rather than the last. Gno adopts the strict
+	// behaviour unconditionally, so those inputs are now errors; the bracketed
+	// forms below are the supported spelling.
 	{
 		"http://[2b01:e34:ef40:7730:8e70:5aff:fefe:edac]:8080/foo",
 		&URL{

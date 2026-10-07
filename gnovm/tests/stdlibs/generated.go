@@ -13,7 +13,6 @@ import (
 	testlibs_os "github.com/gnolang/gno/gnovm/tests/stdlibs/os"
 	testlibs_runtime "github.com/gnolang/gno/gnovm/tests/stdlibs/runtime"
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
-	testlibs_unicode "github.com/gnolang/gno/gnovm/tests/stdlibs/unicode"
 )
 
 // NativeFunc represents a function in the standard library which has a native
@@ -952,126 +951,6 @@ var nativeFuncs = [...]NativeFunc{
 				m.Alloc,
 				m.Store,
 				reflect.ValueOf(&r1).Elem(),
-			))
-		},
-	},
-	{
-		"unicode",
-		"IsPrint",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("rune")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
-		},
-		false,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  rune
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			r0 := testlibs_unicode.IsPrint(p0)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"unicode",
-		"IsGraphic",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("rune")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
-		},
-		false,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  rune
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			r0 := testlibs_unicode.IsGraphic(p0)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"unicode",
-		"SimpleFold",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("rune")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("rune")},
-		},
-		false,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  rune
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			r0 := testlibs_unicode.SimpleFold(p0)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"unicode",
-		"IsUpper",
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("p0"), Type: gno.X("rune")},
-		},
-		[]gno.FieldTypeExpr{
-			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
-		},
-		false,
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  rune
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
-			tv0.DeepFill(m.Store)
-			gno.Gno2GoValue(tv0, rp0)
-
-			r0 := testlibs_unicode.IsUpper(p0)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
 			))
 		},
 	},

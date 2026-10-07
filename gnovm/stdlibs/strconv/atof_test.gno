@@ -465,27 +465,30 @@ func initAtofOnce() {
 		}
 	}
 
-	// Generate random inputs for tests and benchmarks
+	// Generate random inputs for tests and benchmarks.
+	// Custom code: Gno's math/rand has no package-level source, so the
+	// generator is explicit. A fixed seed also makes these tests reproducible.
+	rng := rand.New(rand.NewPCG(1, 2))
 	if testing.Short() {
 		atofRandomTests = make([]atofSimpleTest, 100)
 	} else {
 		atofRandomTests = make([]atofSimpleTest, 10000)
 	}
 	for i := range atofRandomTests {
-		n := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
+		n := uint64(rng.Uint32())<<32 | uint64(rng.Uint32())
 		x := math.Float64frombits(n)
 		s := strconv.FormatFloat(x, 'g', -1, 64)
 		atofRandomTests[i] = atofSimpleTest{x, s}
 	}
 
 	for i := range benchmarksRandomBits {
-		bits := uint64(rand.Uint32())<<32 | uint64(rand.Uint32())
+		bits := uint64(rng.Uint32())<<32 | uint64(rng.Uint32())
 		x := math.Float64frombits(bits)
 		benchmarksRandomBits[i] = strconv.FormatFloat(x, 'g', -1, 64)
 	}
 
 	for i := range benchmarksRandomNormal {
-		x := rand.NormFloat64()
+		x := rng.NormFloat64()
 		benchmarksRandomNormal[i] = strconv.FormatFloat(x, 'g', -1, 64)
 	}
 }

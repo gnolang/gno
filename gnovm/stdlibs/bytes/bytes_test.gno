@@ -17,6 +17,13 @@ import (
 	"unicode/utf8"
 )
 
+// rng supplies the pseudo-random inputs these tests used to draw from
+// math/rand's package-level source. Gno has no such source (see the note at
+// the end of math/rand/rand.gno), so the generator is explicit and seeded,
+// which also makes these tests reproducible.
+var rng = rand.New(rand.NewPCG(1, 2))
+
+
 func eq2(a, b [][]byte) bool {
 	a2 := make([]string, len(a))
 	b2 := make([]string, len(b))
@@ -1707,7 +1714,7 @@ var makeFieldsInput = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
 	for i := range x {
-		switch rand.IntN(10) {
+		switch rng.IntN(10) {
 		case 0:
 			x[i] = ' '
 		case 1:
@@ -1729,7 +1736,7 @@ var makeFieldsInputASCII = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, rest ASCII non-space.
 	for i := range x {
-		if rand.IntN(10) == 0 {
+		if rng.IntN(10) == 0 {
 			x[i] = ' '
 		} else {
 			x[i] = 'x'
@@ -1827,7 +1834,7 @@ func makeBenchInputHard() []byte {
 	}
 	x := make([]byte, 0, 1<<20)
 	for {
-		i := rand.IntN(len(tokens))
+		i := rng.IntN(len(tokens))
 		if len(x)+len(tokens[i]) >= 1<<20 {
 			break
 		}

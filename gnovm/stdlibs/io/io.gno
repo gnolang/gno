@@ -572,7 +572,7 @@ type OffsetWriter struct {
 
 // NewOffsetWriter returns a new OffsetWriter that writes to w starting at offset off.
 func NewOffsetWriter(w WriterAt, off int64) *OffsetWriter {
-	return &OffsetWriter{w: w, off: off}
+	return &OffsetWriter{w: w, base: off, off: off}
 }
 
 func (o *OffsetWriter) Write(p []byte) (n int, err error) {

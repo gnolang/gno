@@ -38,13 +38,28 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+      # The stdlib_diff baseline is pinned explicitly rather than inherited from
+      # go.mod. The report answers "how far has gno drifted from upstream Go",
+      # so the Go version it compares against is a deliberate editorial choice
+      # and must not move silently when the repo's build toolchain is bumped.
+      # Keep this in sync with misc/stdlib_diff/README.md when bumping.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: "1.26.1"
+      - run: echo "GOROOT_SAVE=$(go env GOROOT)" >> "$GITHUB_ENV"
+      - run: |
+          got=$(go env GOVERSION)
+          echo "stdlib_diff baseline: $got"
+          case "$got" in
+            go1.26.1*) ;;
+            *) echo "::error::expected the stdlib_diff baseline to be go1.26.1, got $got"; exit 1 ;;
+          esac
+      # Everything after this point builds with the repo's own toolchain.
+      # GOROOT_SAVE, captured above, keeps pointing at the pinned baseline, so
+      # the diff tool is built with go.mod's Go but compares against 1.26.1.
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: go.mod
-      # Use the goroot at the top of the project to compare with the GnoVM
-      # stdlib, rather than the one in stdlib_diff (which may have a go.mod with
-      # a different toolchain version).
-      - run: echo "GOROOT_SAVE=$(go env GOROOT)" >> "$GITHUB_ENV"
       - run: "cd misc/stdlib_diff && make gen"
       - run: "cd misc/gendocs && make install gen"
       - run: "mkdir -p pages_output/stdlib_diff"
