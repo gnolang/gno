@@ -15,8 +15,9 @@ Gas measures the computational and storage work a transaction performs. Every
 operation has a fixed cost, so the same transaction against the same state uses
 the same gas every time. Demand moves the price of that gas, never the amount.
 
-Charging for work keeps spam off the network and pays validators for the
-resources they provide.
+Charging for work keeps spam off the network. Every fee goes to one address,
+the chain's `auth:p:fee_collector` parameter, and no code pays validators out
+of it.
 
 ## Gas Parameters
 
@@ -109,10 +110,10 @@ When blocks exceed this target, prices rise. When blocks fall below it, prices d
 Changes are gradual to avoid sudden price spikes.
 
 **Note**: Individual validators can also set their own minimum gas price through the
-`min_gas_prices` configuration parameter in their `config.toml` file. A fee that
-meets the network price but not a given validator's own minimum is simply left
-out of that validator's blocks, so a transaction priced at the bare minimum can
-wait longer. If yours sits unconfirmed, raise `--gas-fee` and resend.
+`min_gas_prices` configuration parameter in their `config.toml` file. A node
+refuses a transaction under its own minimum from its mempool, so a validator
+whose minimum your fee misses never includes it. Paying above the minimums buys
+no priority: blocks take transactions in the order they arrived.
 
 ## Typical Gas Values
 
