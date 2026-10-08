@@ -223,6 +223,12 @@ func replaceWithGnoLink(node ast.Node, gnoLink *GnoLink, rawDest []byte, orig *w
 
 // detectLinkType detects the type of link based on the destination
 func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLinkType) {
+	// A scheme without a host (https:///evil.com) still leads browsers to
+	// a host: they skip the extra slashes.
+	if dest.Scheme != "" && dest.Host == "" {
+		return nil, GnoLinkTypeExternal
+	}
+
 	// Attempt to parse the destination as a GnoURL.
 	target, err := weburl.ParseFromURL(dest)
 	if err != nil {
