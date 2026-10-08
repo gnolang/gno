@@ -934,10 +934,11 @@ is read.
 
 Write the tag on one line, self-closing (±/>±), with a lowercase name exactly as listed. A tag that is not
 self-closing, or whose name is unknown, renders nothing; the page source holds an HTML comment saying why.
+A page renders at most 1,000 icons.
 
 Some of the available names: ±star±, ±heart±, ±check-circle±, ±warning-triangle±, ±info±, ±wallet±, ±coin±,
 ±key±, ±lock±, ±shield±, ±user±, ±users±, ±calendar±, ±clock±, ±mail±, ±globe±, ±rocket±, ±lightning±,
-±database±, ±server±, ±terminal±, ±branch±. All 495, with a picture of each, are in
+±database±, ±server±, ±terminal±, ±branch±. All 491, with a picture of each, are in
 [ICONS.md](https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoweb/markdown/ICONS.md).
 
 ### Smart Contract Integration

@@ -26,6 +26,9 @@ Constraints that shaped the design:
   credit and no notice to keep. That rules out MIT, ISC, Apache and CC-BY
   sets (Lucide, Tabler, Phosphor, Heroicons, Material, Font Awesome): each
   requires keeping a notice. Only public-domain material, or icons we draw.
+  The chrome icons predate this rule: some come from Remix Icon (`link` is
+  its `link` path), under that set's own licence. They already ship in
+  every page; this change does not add them, it only makes them callable.
 - **Light and scalable.** A page pays only for the icons it shows; adding an
   icon costs a line, not page weight; render-time work is a map read and a
   few writes.
@@ -75,6 +78,13 @@ on a renderer that does not know it.
   closing `>`, every repeated `<gno-icon ` read to the end of the line, so
   200 KB of them on one line took 15 s to parse. Bounded, the same input
   takes milliseconds (`TestIconParseLinear`, `BenchmarkIconParse/unterminated`).
+- **The icons per render are capped** at 1,000 (`MaxIconsPerConvert`),
+  `<gno-foreign>` bodies included: the budget travels into the inner render
+  like the foreign block budget. Each icon writes up to 2.3 KB, so 1 MiB of
+  `<gno-icon name=pure />` made a 105 MB page, and 8 parallel requests on it
+  took gnoweb from 40 MB to 4.5 GB RSS. Past the cap a tag falls through to
+  goldmark's raw HTML path, as without the extension; the same page is
+  3.5 MB (`TestIconBudget`).
 - A tag that does not end within the bound, or spans lines, is not claimed:
   goldmark shows it as text or strips it as raw HTML. A tag that ends but is
   not self-closing (`<gno-icon name="x">`) is claimed and renders
@@ -110,7 +120,8 @@ on a renderer that does not know it.
   heading text nodes, so it shows `Launch` with no markup.
 - Icons are allowed inside `<gno-foreign>`. They are static allowlisted
   glyphs with no link or script surface, so foreign content gains nothing it
-  could abuse. Brand marks are excluded everywhere (below).
+  could abuse. Brand marks and the link badges are excluded everywhere
+  (below).
 
 ### Icon set
 
@@ -137,10 +148,13 @@ Six names the set lacks (`shield`, `shield-check`, `key`, `layers`, `music`,
 `markdown/icons/drawn.svg`.
 
 The chrome icons from `components/ui/icons.html` are callable too, except
-four brand marks (`github`, `twitter`, `discord`, `telegram`): realm content
-must not wear another organization's logo. Its two dead duplicate
-definitions (a second `ddl` and `warning`, which browsers never used) are
-removed. Total: **495 icons**, listed with a picture in `markdown/ICONS.md`.
+four brand marks (`github`, `twitter`, `discord`, `telegram`), since realm
+content must not wear another organization's logo, and the four link badges
+(`external-link`, `internal-link`, `tx-link`, `user-link`): `getLinkIcons`
+drops the first-party badges from `<gno-foreign>` links, and as icons a
+foreign block could add them back. Its two dead duplicate definitions (a
+second `ddl` and `warning`, which browsers never used) are removed. Total:
+**491 icons**, listed with a picture in `markdown/ICONS.md`.
 
 ### Registry: one generated Go table
 
@@ -167,8 +181,8 @@ sorted:
   any `url(#…)` reference are dropped, so the output is plain shape markup
   whatever the source files hold, and repeated inline copies never duplicate
   an `id`. Values are HTML-escaped. A name defined twice, in one source or
-  across sources, is an error. `TestIconRegistry` re-checks the shipped table
-  against the allowlist.
+  across sources, is an error. `TestIconTable` regenerates the table from
+  the sources through the allowlist and fails when the shipped one differs.
 - Single source of truth: the table is derived from `components/ui/icons.html`
   (the chrome sprite, unchanged in role), `icons/drawn.svg` and
   `icons/vendored.svg`; `TestIconTable` fails CI when it is stale.
@@ -199,22 +213,19 @@ does not grow, there is no asset to fetch and nothing to add to the CSP.
 
 ### Sanitizer (`chain/markdown`, `sanitize.Block` / `BlockRich`)
 
-`sanitize.Block` and `BlockRich` escape any line starting with `<gno-…>` so
-user content cannot open a structural block. That guard only looks at line
-starts, so before this change an icon rendered mid-line but showed as
-literal text at the start of a line. Icons are now rendered at every
-position: `isExtDelimiter` exempts the `<gno-icon` opener. An icon is an
-inline allowlisted glyph with no structural effect (gnoweb opens a plain
-paragraph on such a line), and `Block` already lets through
-`data:image/svg+xml` images, so user content gains no new way to look like
-realm chrome. `</gno-icon>` and look-alikes (`<gno-iconic>`) stay escaped.
-`InlineText` escapes `<`, so icons never render through it. Locked in by
-native unit tests and `golden/sanitize/{block,blockrich}-gno-icon-*` and
-`inline-gno-icon` fixtures.
+Unchanged here. `sanitize.Block` and `BlockRich` escape any line starting
+with `<gno-…>` so user content cannot open a structural block, and that guard
+only looks at line starts: in sanitized content an icon renders mid-line and
+shows as literal text at the start of a line. The
+`golden/sanitize/{block,blockrich}-gno-icon-*` and `inline-gno-icon` fixtures
+pin that, and that the malformed forms stay bounded to one paragraph.
+`InlineText` escapes `<`, so icons never render through it.
 
-The alternative, escaping `<gno-` mid-line too, needs the line-based guard to
-learn code spans (a backslash inside a code span is visible) and would turn
-every mid-line `<gno-…>` that safe mode used to strip into visible text.
+Exempting the `<gno-icon` opener from that guard would make the position not
+matter, but `chain/markdown` runs on chain: changing what `Block`,
+`BlockRich` and `Blockquote` return makes a coordinated upgrade (see
+`RELEASING.md`). It is left to its own PR so gnoweb can ship icons without
+waiting for one.
 
 ### Tooling
 
@@ -227,7 +238,7 @@ icons`:
    shipped);
 2. `go test -run TestIconTable -update-golden-tests` regenerates
    `icons_gen.go`;
-3. `go test -run 'TestIconRegistry|TestIconCatalog' -update-golden-tests`
+3. `go test -run TestIconCatalog -update-golden-tests`
    regenerates `ICONS.md` and `ICONS.svg` (GitHub strips `<gno-icon>` from
    markdown, so the catalog embeds a plain SVG picture of every glyph over its
    name, from the same table).
@@ -241,9 +252,9 @@ Apple M4 Max, `go test ./gno.land/pkg/gnoweb/markdown -bench BenchmarkIcon`.
 
 | What | Value |
 |---|---|
-| `gnoweb` binary, before → after (495 icons) | 45,894,994 → 46,109,090 bytes: **+214 KB (+0.47%)** |
+| `gnoweb` binary, before → after (495 icons, before the link badges were excluded) | 45,894,994 → 46,109,090 bytes: **+214 KB (+0.47%)** |
 | Table data (bodies + non-shared heads) | 162 KB; the shared head saves 51 KB |
-| Rendered icon, all 495 | mean **498 B**, median 447 B, min 136 B, max 2,300 B (chrome) |
+| Rendered icon, all 495 (same) | mean **498 B**, median 447 B, min 136 B, max 2,300 B (chrome) |
 | Render one icon (`star`, decorative) | 40 ns/op, 275 B, **0 allocs** |
 | Render one icon with a label | 58 ns/op, 296 B, **0 allocs** |
 | Render a chrome icon (`search`) | 48 ns/op, 611 B, 0 allocs |
@@ -278,17 +289,17 @@ Apple M4 Max, `go test ./gno.land/pkg/gnoweb/markdown -bench BenchmarkIcon`.
 
 ## Consequences
 
-- Authors get 495 icons with one obvious syntax; mistakes fail visibly in the
+- Authors get 491 icons with one obvious syntax; mistakes fail visibly in the
   page source and invisibly on the page.
 - `gnoweb` grows by 214 KB; pages grow by ≈500 bytes per icon used and not at
   all otherwise; the served page sprite is unchanged.
 - Parse cost: a `<` that is not an icon pays a 9-byte compare and allocates
   nothing; an icon allocates its node only; an unterminated tag costs at most
   a 512-byte scan. Render cost: a map read and a few writes, no allocation.
-- `chain/markdown`'s `EscapeBlockHazards` changes behavior for one input: a
-  line starting with `<gno-icon` no longer gets a leading backslash. Realm
-  output built with `sanitize.Block`/`BlockRich` before and after this change
-  differs only for such lines.
+- `chain/markdown` is untouched; in content passed through `sanitize.Block`
+  or `BlockRich`, an icon at the start of a line shows as text until the
+  sanitizer exempts it.
+- A page renders at most 1,000 icons; the rest are left out as raw HTML.
 - `FuzzIconRender` checks that no input panics, reads a tag past 512 bytes,
   or writes an `<svg>` that is neither a gno-icon nor a chrome `<use>` glyph,
   or an event handler (≈950,000 executions locally).
