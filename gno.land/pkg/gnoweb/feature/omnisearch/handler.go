@@ -122,11 +122,13 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 // dropped, and posted to the root rather than to the page.
 func wholeChainHref(q *Query) string {
 	var kept []string
-	for tok := range strings.FieldsSeq(q.Raw) {
-		if key, _, ok := strings.Cut(tok, ":"); ok && strings.EqualFold(key, FilterIn) {
-			continue
+	for _, f := range q.Filters {
+		if f.Key != FilterIn {
+			kept = append(kept, f.Key+":"+f.Value)
 		}
-		kept = append(kept, tok)
+	}
+	if q.Text != "" {
+		kept = append(kept, q.Text)
 	}
 	return "/$search?q=" + url.QueryEscape(strings.Join(kept, " "))
 }

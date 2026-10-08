@@ -25,13 +25,11 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 	// — bought a full directory listing and returned nothing. A scope is
 	// narrow enough on its own.
 	if len(needle) < MinTermLen && len(author) < MinTermLen && q.PkgPath == "" {
-		return []Group{{Label: "Search", Source: SourceChain, Err: inputError(
-			fmt.Sprintf("type at least %d characters, or a qualifier such as author:", MinTermLen))}}
+		return refused(fmt.Sprintf("type at least %d characters, or a qualifier such as author:", MinTermLen))
 	}
 	want, hasIs := q.Get(FilterIs)
 	if hasIs && !strings.EqualFold(want, "realm") && !strings.EqualFold(want, "package") {
-		return []Group{{Label: "Search", Source: SourceChain, Err: inputError(
-			fmt.Sprintf("is:%s is not a kind: use is:realm or is:package", want))}}
+		return refused(fmt.Sprintf("is:%s is not a kind: use is:realm or is:package", want))
 	}
 
 	realms, packages, truncated, err := h.deps.Directory.Paths(ctx)
@@ -61,11 +59,12 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		matched := 0
 		for _, p := range k.paths {
 			rel := strings.TrimPrefix(p, h.deps.Domain)
-			// Needle first: it rejects most paths and costs nothing.
-			if needle != "" && !strings.Contains(strings.ToLower(rel), needle) {
+			// Scope first, then the needle: both reject most paths, and the
+			// scope check does not allocate.
+			if !inScope(rel, q.PkgPath) {
 				continue
 			}
-			if !inScope(rel, q.PkgPath) {
+			if needle != "" && !strings.Contains(strings.ToLower(rel), needle) {
 				continue
 			}
 			ns := namespaceOf(rel)
@@ -124,6 +123,12 @@ func markCapped(g *Group, matched int) {
 		g.Truncated = true
 		g.Notice = fmt.Sprintf("Showing %d of %d matches.", len(g.Results), matched)
 	}
+}
+
+// refused is the answer to a query discovery will not run: why, rather than
+// "Nothing matched.".
+func refused(why string) []Group {
+	return []Group{{Label: "Search", Source: SourceChain, Err: inputError(why)}}
 }
 
 // inScope reports whether rel is the scoped package or sits under it. No

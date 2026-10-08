@@ -2,7 +2,6 @@ package omnisearch
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"html/template"
 	"strconv"
@@ -39,10 +38,8 @@ func indexerSelectors() []*Selector {
 			Label: "Account activity",
 			Scope: ScopeGlobal,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
+				// Rows travel with ErrPartial; Search tells it from a failure.
 				txs, err := h.deps.Indexer.RecentByAddress(ctx, term, recentLimit)
-				if err != nil && !errors.Is(err, indexer.ErrPartial) {
-					return nil, err
-				}
 				return h.txResults(txs), err
 			},
 		},
@@ -78,10 +75,8 @@ func indexerSelectors() []*Selector {
 			Scope: ScopePackage,
 			Bare:  true,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
+				// Rows travel with ErrPartial; Search tells it from a failure.
 				txs, err := h.deps.Indexer.RecentByPackage(ctx, q.ChainPath, recentLimit)
-				if err != nil && !errors.Is(err, indexer.ErrPartial) {
-					return nil, err
-				}
 				return h.txResults(txs), err
 			},
 		},
@@ -92,10 +87,8 @@ func indexerSelectors() []*Selector {
 			Scope: ScopePackage,
 			Bare:  true,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
+				// Rows travel with ErrPartial; Search tells it from a failure.
 				txs, err := h.deps.Indexer.Deploys(ctx, q.ChainPath, recentLimit)
-				if err != nil && !errors.Is(err, indexer.ErrPartial) {
-					return nil, err
-				}
 				return h.txResults(txs), err
 			},
 		},
@@ -133,10 +126,8 @@ func indexerSelectors() []*Selector {
 // Labelled "mentions", not "imports": a string literal outside an import
 // block counts too.
 func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, error) {
+	// Rows travel with ErrPartial; Search tells it from a failure.
 	txs, err := h.deps.Indexer.DeploysImporting(ctx, q.ChainPath, recentLimit)
-	if err != nil && !errors.Is(err, indexer.ErrPartial) {
-		return nil, err
-	}
 
 	seen := make(map[string]bool, len(txs))
 	out := make([]Result, 0, len(txs))
@@ -197,10 +188,8 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 	// The author goes into the indexer's filter: applied here alone, it would
 	// only thin out the newest matches, and miss the author's older ones.
 	author, _ := q.Get(FilterAuthor)
+	// Rows travel with ErrPartial; Search tells it from a failure.
 	txs, err := h.deps.Indexer.SourceContains(ctx, term, author, recentLimit)
-	if err != nil && !errors.Is(err, indexer.ErrPartial) {
-		return nil, err
-	}
 
 	seen := make(map[string]bool, len(txs))
 	out := make([]Result, 0, len(txs))
