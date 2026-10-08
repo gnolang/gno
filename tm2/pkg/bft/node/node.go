@@ -408,33 +408,41 @@ func parseSeedAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddr
 
 // parsePersistentPeerAddrs parses the persistent peer addresses from the node
 // configuration. A persistent peer has a single configured address: when the
-// same peer ID is listed more than once, the last entry is the one the switch
-// keeps and dials, so the earlier ones are reported
+// same peer ID is listed more than once, only the last entry is kept, at the
+// position of the ID's first appearance. An earlier entry is reported unless it
+// is identical to the one kept
 func parsePersistentPeerAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
+	parsed, errs := p2pTypes.NewNetAddressFromStrings(
 		splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "),
 	)
 	for _, err := range errs {
 		logger.Error("invalid persistent peer address", "err", err)
 	}
 
-	lastAddrs := make(map[p2pTypes.ID]*p2pTypes.NetAddress, len(peerAddrs))
-	for _, addr := range peerAddrs {
-		lastAddrs[addr.ID] = addr
-	}
+	var (
+		peerAddrs = make([]*p2pTypes.NetAddress, 0, len(parsed))
+		positions = make(map[p2pTypes.ID]int, len(parsed))
+	)
 
-	for _, addr := range peerAddrs {
-		last := lastAddrs[addr.ID]
-		if addr == last {
+	for _, addr := range parsed {
+		pos, repeated := positions[addr.ID]
+		if !repeated {
+			positions[addr.ID] = len(peerAddrs)
+			peerAddrs = append(peerAddrs, addr)
+
 			continue
 		}
 
-		logger.Warn(
-			"persistent peer listed more than once, only its last address is dialed",
-			"id", addr.ID,
-			"ignored", addr.String(),
-			"dialed", last.String(),
-		)
+		if ignored := peerAddrs[pos]; ignored.String() != addr.String() {
+			logger.Warn(
+				"persistent peer listed more than once, only its last address is dialed",
+				"id", addr.ID,
+				"ignored", ignored.String(),
+				"dialed", addr.String(),
+			)
+		}
+
+		peerAddrs[pos] = addr
 	}
 
 	return peerAddrs
