@@ -328,7 +328,13 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// reconnect to our node and the switch calls InitPeer before
 	// RemovePeer is finished.
 	// https://github.com/tendermint/tendermint/issues/3338
-	sw.peers.Remove(peer.ID())
+	//
+	// A disconnect is announced only when the peer set held the connection,
+	// so each announced connect has one matching disconnect, which the
+	// redial loop counts on
+	if !sw.peers.Remove(peer.ID()) {
+		return
+	}
 
 	sw.events.Notify(events.PeerDisconnectedEvent{
 		Address: peer.RemoteAddr(),

@@ -252,6 +252,33 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 	})
 }
 
+func TestMultiplexSwitch_StopPeer_AnnouncesDisconnectOnce(t *testing.T) {
+	t.Parallel()
+
+	var (
+		p  = mock.GeneratePeers(t, 1)[0]
+		sw = NewMultiplexSwitch(&mockTransport{
+			removeFn: func(PeerConn) {},
+		})
+	)
+
+	sw.peers = newSet()
+	require.NoError(t, sw.peers.Add(p))
+
+	subCh, unsubFn := sw.Subscribe(func(event events.Event) bool {
+		return event.Type() == events.PeerDisconnected
+	})
+	defer unsubFn()
+
+	// A second teardown of the same connection finds the peer set entry gone
+	sw.stopAndRemovePeer(p, nil)
+	sw.stopAndRemovePeer(p, nil)
+
+	// Notify delivers into the buffered subscription channel before it
+	// returns, so everything announced is already queued
+	assert.Len(t, subCh, 1, "one disconnect for the one connection the peer set held")
+}
+
 // peerErrorOnStart reports a peer error to the switch from inside Start, the
 // way an MConnection recv routine does on a bad first packet.
 type peerErrorOnStart struct {
@@ -300,6 +327,11 @@ func TestMultiplexSwitch_AddPeerRemovedBeforeAdded(t *testing.T) {
 		p = &peerErrorOnStart{Peer: mock.GeneratePeers(t, 1)[0]}
 	)
 
+	disconnects, unsubFn := sw.Subscribe(func(event events.Event) bool {
+		return event.Type() == events.PeerDisconnected
+	})
+	defer unsubFn()
+
 	// An error on the peer's first read reaches the switch from inside Start.
 	p.startFn = func() error {
 		sw.StopPeerForError(p, errors.New("peer error"))
@@ -320,6 +352,9 @@ func TestMultiplexSwitch_AddPeerRemovedBeforeAdded(t *testing.T) {
 	assert.False(t, sw.peers.Has(p.ID()))
 	assert.Zero(t, sw.peers.NumInbound())
 	assert.Empty(t, sw.peers.List())
+
+	// A connection stopped before it joined the peer set is never announced
+	assert.Len(t, disconnects, 0, "no disconnect for a peer that never joined the peer set")
 }
 
 func TestMultiplexSwitch_AddPeerRejectsDuplicateBeforeInit(t *testing.T) {
