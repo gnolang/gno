@@ -130,19 +130,35 @@ claim indexer provenance, or the reverse, through a copy-paste.
 running every registered one would turn a keystroke into a dozen chain and
 indexer queries — the amplification ADR-003 §Resource bounds exists to
 prevent. Without a selector the query falls to the discovery search, which
-costs at most two `ListPaths` calls, or one when `is:` picks a kind. The
-users group is derived from paths already fetched, so it is free.
+costs one directory listing (two `ListPaths` calls in parallel, whatever
+`is:` says: `is:` filters what is rendered, not what is fetched). A scope,
+from `in:` or the page, narrows it to that package and the paths under it,
+and the page offers the same search over the whole chain. The users group is
+derived from paths already fetched, so it is free.
 
 ### Provenance is part of the answer
 
 Every result carries the `Source` that produced it, all the way into the
 markup. An indexer-backed group renders an `indexer` tag; the page renders a
-footer naming the endpoint and the last indexed block. A chain-only answer
-never queries the indexer just to stamp a footer nothing will show.
+footer naming the endpoint, as scheme and host only, and the last indexed
+block. The URL is redacted because it is the one place an operator can put a
+basic-auth password or a query-string key, and the footer is public. A
+chain-only answer, or an indexer group that failed before answering, never
+queries the indexer just to stamp a footer.
 
 `importers` and `content:` are labelled as **mentions** and **source**, not
-imports and content: the indexer answers with a substring match over deployed
-file bodies, so a path inside a comment matches too. Overstating them would be
+imports and content: the indexer answers with a match over deployed file
+bodies, so a string literal outside an import block matches too. `importers`
+matches the path as Go quotes it, so `gno.land/r/demo/foo` does not match
+inside `gno.land/r/demo/foobar`; only the deploy messages of a matched
+transaction are listed, and a batch deploy is marked as such, since the
+indexer does not say which of its packages matched.
+
+A partial answer says so. Every cut sets `Group.Truncated` with a notice:
+`MaxResults` on a selector, `maxDiscoverResults` on a discovery group, the
+node's listing cap, `render:`'s candidate cap, an indexer walk that stopped
+short of genesis (`indexer.ErrPartial`), and a deploy search that filled its
+page. Overstating them would be
 exactly the quiet inaccuracy an indexer-backed feature must not introduce.
 
 ## Alternatives considered
@@ -222,7 +238,8 @@ produces outages that look like attacks.
   different PR.
 - Recent listings are windowed by block height because tx-indexer exposes no
   limit or offset. A quiet package can return nothing even though history
-  exists further back.
+  exists further back; the answer then says it searched the most recent
+  blocks only.
 - Path listings are capped by the node at 10000 per kind. Above that the
   answer says it is truncated, but it cannot page past it: `qpaths` has no
   cursor.
@@ -261,8 +278,8 @@ Touched in the core:
   `components/layouts/header.html` — `SearchAction`, and the `method`/`action`
   /`name` that make the bar work without JavaScript
 - `gno.land/pkg/gnoweb/feature/state/ratelimit.go` — `IPLimiter.AllowRequest`,
-  which also makes the previously inert `RateLimitConfig.TrustedProxies` do
-  something
+  which moves the trusted-proxy rule `feature/state` applied through
+  `extractIP` into the limiter, without changing behaviour
 - `gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts` — qualifier-aware
   querying, group rendering, submit to the results page
 - `gno.land/pkg/gnoweb/frontend/css/main.css`,
@@ -341,8 +358,10 @@ independently of anything gnoweb does.
 - selectors that fan out or scan the whole chain (`render:`, `content:`,
   `importers`) are `PageOnly` — they answer a committed navigation, never a
   keystroke
-- indexer breaker: 3 consecutive failures, 30 s cooldown; a miss or a capped
-  result set never counts against it
+- indexer breaker: 3 consecutive failures, 30 s cooldown; a miss, a capped
+  result set or the caller's own deadline or cancellation never counts
+  against it, since the omnibar's 3 s budget is below the client's 4 s
+  timeout
 - chain tip cached 5 s per client and fetched through a singleflight group, so
   a cold cache costs one round trip for all concurrent callers rather than one
   each; fetched on request, never by a ticker
@@ -362,7 +381,8 @@ rather than worked around:
 - `rpcClient.ListPaths` never forwarded its `limit` argument, so the node's
   1000 default governed silently and every caller saw the lexicographically
   first 1000 paths. It is forwarded now, raised to the node's own 10000
-  ceiling, and a listing that comes back at the cap says so — through
+  ceiling for search (`/u/<user>` keeps the 1000 it always got), and a
+  listing that comes back at the cap says so — through
   `PathsResult.Truncated`, into `/search.json` and onto the results page.
   Without that flag a search reports "no such realm" about a realm that
   exists, and always the same ones.
