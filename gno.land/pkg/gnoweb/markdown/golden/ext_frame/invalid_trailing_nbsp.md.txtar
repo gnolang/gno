@@ -3,6 +3,6 @@
 nbsp
 </gno-frame>
 -- output.html --
-<!-- unexpected/invalid frame tag omitted -->
-<p>nbsp</p>
+<p><!-- raw HTML omitted --> 
+nbsp</p>
 <!-- unexpected/invalid frame tag omitted -->

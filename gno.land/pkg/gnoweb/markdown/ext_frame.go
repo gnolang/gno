@@ -59,8 +59,9 @@ var (
 
 // parseFrameLineTag classifies a trimmed line. Only a bare `<gno-frame>`
 // or `</gno-frame>` is valid: the attribute allowlist is empty, so any
-// attribute, a self-closing form or trailing text makes the line invalid
-// rather than silently ignored. Tag names are case-insensitive, like the
+// attribute or a self-closing form makes the line invalid rather than
+// silently ignored. Text after the tag makes it no tag line at all, so the
+// text stays in a paragraph, as with gno-columns. Tag names are case-insensitive, like the
 // other gno-* tags.
 func parseFrameLineTag(line []byte) frameTagKind {
 	kind, prefix := frameTagOpen, frameOpenPrefix
@@ -72,11 +73,11 @@ func parseFrameLineTag(line []byte) frameTagKind {
 	switch {
 	case size == 0:
 		return frameTagNone
-	case size < len(line) && line[size] == '\r':
-		// goldmark splits lines on '\n' only, so with bare-CR line endings
-		// the whole input is one "line"; consuming it would drop the text.
+	case size < len(line):
+		// Text after the tag: not a tag line, so the paragraph keeps the
+		// text. With bare-CR line endings the "line" is the rest of the page.
 		return frameTagNone
-	case size != len(line) || selfClosing || attrs != 0:
+	case selfClosing || attrs != 0:
 		return frameTagInvalid
 	}
 	return kind

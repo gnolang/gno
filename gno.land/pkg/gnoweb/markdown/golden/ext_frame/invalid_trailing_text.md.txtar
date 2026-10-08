@@ -2,5 +2,5 @@
 <gno-frame> hello
 after
 -- output.html --
-<!-- unexpected/invalid frame tag omitted -->
-<p>after</p>
+<p><!-- raw HTML omitted --> hello
+after</p>

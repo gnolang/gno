@@ -1,0 +1,9 @@
+-- input.md --
+<gno-frame>
+In.
+</gno-frame> Footer.
+-- output.html --
+<section class="gno-frame">
+<p>In.
+<!-- raw HTML omitted --> Footer.</p>
+</section>
