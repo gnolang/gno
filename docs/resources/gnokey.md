@@ -91,13 +91,6 @@ lines, and `addpkg` appends a `PKGPATH` line.
 For an end-to-end deploy-and-call walkthrough, see
 [Getting started](../builders/getting-started.md).
 
-### `Send`
-
-`Send` transfers coins between two addresses with `gnokey maketx send`: `-to`
-names the recipient and `-send` the amount, as `<amount><denom>`.
-[Sending coins](../users/using-gnokey.md#sending-coins) in the wallet guide walks
-through one.
-
 ### `AddPackage`
 
 `AddPackage` uploads new code to the chain with `gnokey maketx addpkg`, from the
@@ -136,9 +129,6 @@ names the realm, `-func` the function, and each `-args` one argument, in order.
 `cur realm` parameter. Non-crossing functions are rejected; read them with
 [`vm/qeval`](#vmqeval), or call them from [`Run`](#run).
 
-[Calling a realm](../users/using-gnokey.md#calling-a-realm) in the wallet guide
-walks through one call.
-
 :::info `Call` always uses gas
 
 `maketx call` spends gas even when the function only reads state. To read without
@@ -166,6 +156,11 @@ gnokey maketx call -pkgpath gno.land/r/tests/vm/variadic -func Add ...
 
 Slice expansion (passing `nums...`) is not supported; pass each element as its
 own `-args`.
+
+### `Send`
+
+`Send` transfers coins between two addresses with `gnokey maketx send`: `-to`
+names the recipient and `-send` the amount, as `<amount><denom>`.
 
 ### `Run`
 
