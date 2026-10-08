@@ -670,15 +670,11 @@ By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
 reliable way to manage access to your contract.
 
-### Reuse access control instead of rolling your own
-
-The checks above are easy to get subtly wrong, and getting one wrong usually
-lets anyone call your admin functions. Reuse the shared packages instead:
-`gno.land/p/nt/ownable/v0` for a single owner, and `gno.land/p/moul/authz/v0`
-for an authority that can grow from one admin to a member list or a DAO
-without touching the rest of your code.
-[Community packages](./community-packages.md#access-control-helpers)
-shows how a realm passes its caller to these helpers.
+For common needs, reuse the shared helpers listed in
+[Community packages](./community-packages.md#access-control-helpers) rather
+than rolling your own. To
+tell whether the transaction was signed with a session key, and give it tighter
+limits, call `runtime.GetSessionInfo()`.
 
 ### Never call a caller-supplied function under your own authority
 
@@ -692,66 +688,13 @@ a parameter of a type your realm declares, which no `/p/` package can name.
 The [security guide](./gno-security-guide.md#53-accepting-an-attacker-callback-under-your-own-authority)
 covers the vector in full.
 
-### Know what the frame stack can tell you
-
-For access control, `cur.Previous()` answers the question that matters: who
-called me. The runtime answers a few narrower ones. `runtime.AssertOriginCall()`
-panics unless a `maketx call` entered the function directly.
-`cur.Previous().IsUserCall()` holds
-for a plain `maketx call` and not for a `maketx run` script, which the
-[payment rules](#verifying-inbound-coin-payments) depend on.
-`runtime.GetSessionInfo()` says whether a session key signed.
-
-Never authenticate a caller through `chain/runtime/unsafe`.
-`unsafe.PreviousRealm()` walks the frame stack, so in a non-crossing function
-reached from another realm it no longer names your caller.
-`unsafe.OriginCaller()` is the `tx.origin` covered in
-[contract-level access control](#contract-level-access-control).
-
 ### Choose storage types by access pattern
 
 A `map` or slice is stored as one object, so reading or updating one element
-loads or rewrites all of it. A tree stores each entry as its own node, so
-touching one key loads only the path to it. Plain maps and slices suit small,
-bounded state. Anything that grows with users, needs range queries, or is
-paged in `Render()` belongs in a tree:
-
-- `gno.land/p/nt/avl/v0` is the general sorted key/value index.
-- `gno.land/p/nt/bptree/v0`
-  [implements the same interface](../../examples/gno.land/p/nt/bptree/v0/doc.gno)
-  with a configurable fanout and fewer pointer dereferences per operation.
-  Reach for it when a large index is worth tuning.
-- `gno.land/p/nt/seqid/v0` produces sequential IDs that sort correctly as tree
-  keys, for insertion-ordered listings and pagination.
-
-```go
-import "gno.land/p/nt/avl/v0"
-
-var users avl.Tree
-users.Set("bob", &User{})
-users.Set("alice", &User{})
-
-// Sorted iteration; empty bounds walk everything.
-users.Iterate("", "", func(name string, value any) bool {
-	user := value.(*User) // values are any, assert the type
-	return false          // true stops the iteration
-})
-```
-
-[Gno data structures](./gno-data-structures.md#tree-backed-indexes) compares
-the containers, and the
-[avl package README](../../examples/gno.land/p/nt/avl/v0/README.md) shows how
-tree nodes sit in the object store.
-
-### Write gas-conscious code
-
-Gas pays for execution and for every object read from or written to storage,
-and the most effective optimization is usually to store less. Keep derived
-values and formatted strings out of state, never loop over state that grows
-without bound, and precompute off-chain whatever a caller can pass in. Bytes
-that stay stored also lock a [storage deposit](./storage-deposit.md),
-released when the data is deleted. [Gas fees](./gas-fees.md) has the prices
-and how to measure a call with `-simulate only`.
+loads or rewrites all of it, while a tree stores each entry as its own node.
+Keep maps and slices for small, bounded state, and put anything that grows in
+a tree; [Gno data structures](./gno-data-structures.md#tree-backed-indexes)
+compares the tree types.
 
 ### Construct "safe" objects
 
@@ -989,25 +932,11 @@ gno.land has no built-in price feed, so a realm that moves funds based on a
 fed value is only as secure as whoever provides that value: an attacker does
 not need a bug in your code, only a bad number in the feed.
 
-### Respect determinism: time, randomness, and ordering
+### Do not trust on-chain randomness
 
-Every validator replays your code and must reach the same result, so the VM is
-deterministic. `time.Now()` returns the block time, the same instant for every
-call in a block. `math/rand` is a seeded pseudo-random generator, and any seed
-a contract can compute is public, so a lottery with real stakes needs
-commit-reveal or an external source. Map iteration in Gno follows insertion
-order today, but an order users can see or link to is a promise you then have
-to keep. Choose that order on purpose: store sortable keys in a
-[tree](#choose-storage-types-by-access-pattern).
-
-### Check the stdlib before assuming Go's
-
-Gno's standard library is a curated subset of Go's: before writing code that
-assumes a package, confirm it exists with `gno doc <pkg>` or
-[the standard library reference](./gno-stdlibs.md). The most common surprise
-is `fmt`, which does not exist on-chain; use `gno.land/p/nt/ufmt/v0` instead.
-Chain-specific APIs (events, coins, banker, realm context) live under
-`chain`.
+`math/rand` is a seeded pseudo-random generator, and any seed a contract can
+compute is public, so a lottery with real stakes needs commit-reveal or an
+external source.
 
 ### Ship more than code
 
