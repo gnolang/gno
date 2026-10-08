@@ -407,7 +407,10 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		writeNL := idx < len(lines)-1 || trailingNewline
 
 		if inFence {
-			out.WriteString(line)
+			// The fence tracker can see fenced code where goldmark does
+			// not (a fence line inside an HTML block or a list item), so
+			// a button tag is escaped here too, as in a code span.
+			out.WriteString(escapeGnoButtonTags(line))
 			if writeNL {
 				out.WriteByte('\n')
 			}
