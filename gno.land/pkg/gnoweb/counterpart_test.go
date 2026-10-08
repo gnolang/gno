@@ -59,6 +59,18 @@ func TestCounterpartTarget(t *testing.T) {
 			target: "/p/alice/golf", n: 2,
 		},
 		{
+			name:   "twin's listing counts the whole subtree it shows",
+			twin:   "/p/alice/golf/v0",
+			paths:  []string{"/p/alice/golf/v0", "/p/alice/golf/v2", "/p/alice/golf/ui/board"},
+			target: "/p/alice/golf", n: 3,
+		},
+		{
+			name:   "twin's directory being a package opens its Directories section",
+			twin:   "/p/alice/golf/v1",
+			paths:  []string{"/p/alice/golf", "/p/alice/golf/v1", "/p/alice/golf/v2", "/p/alice/golf/v2/x"},
+			target: "/p/alice/golf$source#subpackages", n: 2,
+		},
+		{
 			name:   "twin at the project root opens directly",
 			twin:   "/p/alice/golf",
 			paths:  []string{"/p/alice/golf", "/p/alice/golf/ui"},
@@ -85,6 +97,12 @@ func TestCounterpartTarget(t *testing.T) {
 				"/p/alice/golf/ui",
 			},
 			target: "/p/alice/golf/engine", n: 2,
+		},
+		{
+			name:   "a package above the twin is named alone",
+			twin:   "/p/alice/golf/utils",
+			paths:  []string{"/p/alice/golf", "/p/alice/golf/impl/v0", "/p/alice/golf/init/v0"},
+			target: "/p/alice/golf", n: 1,
 		},
 		{
 			name:  "a sibling sharing the prefix is not the project",

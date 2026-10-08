@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -244,4 +246,85 @@ func TestCounterpart_MarkdownAnswerSkipsLookup(t *testing.T) {
 	req.Header.Set("Accept", "text/markdown")
 	serve(newCounterpartHandler(t, client), req)
 	assert.Zero(t, calls.Load())
+}
+
+var rePrimaryLink = regexp.MustCompile(`<a href="([^"]*)" class="item item--primary">\s*<svg[^>]*><use[^>]*></use></svg>\s*<span class="item-label">([^<]*)</span>`)
+
+// The "N matching" line must open a page that lists exactly those N paths. A
+// directory that is itself a package or realm opens that one package, so the
+// line then points at its overview's Directories section, which lists its
+// direct children, or names the package alone. Reported by davd-gzl on #6262.
+func TestCounterpart_LinkOpensWhatItCounts(t *testing.T) {
+	t.Parallel()
+
+	realm := func(path string) *gnoweb.MockPackage {
+		return &gnoweb.MockPackage{Path: path, Files: map[string]string{"r.gno": "package r"}, Functions: renderFuncs}
+	}
+	pure := func(path string) *gnoweb.MockPackage {
+		return &gnoweb.MockPackage{Path: path, Files: map[string]string{"p.gno": "package p"}}
+	}
+
+	cases := []struct {
+		name   string
+		pkgs   []*gnoweb.MockPackage
+		page   string
+		href   string
+		label  string
+		listed []string // what the opened page must show, one per counted path
+	}{
+		{
+			name:   "twin's directory is a realm (/r/tests/vm shape)",
+			pkgs:   []*gnoweb.MockPackage{realm("/r/tests/vm"), realm("/r/tests/vm/crossrealm"), realm("/r/tests/vm/subtests"), pure("/p/tests/vm/crossrealm")},
+			page:   "/p/tests/vm/crossrealm",
+			href:   "/r/tests/vm$source#subpackages",
+			label:  "2 matching realms",
+			listed: []string{"/r/tests/vm/crossrealm", "/r/tests/vm/subtests"},
+		},
+		{
+			name:   "twin's directory is a package",
+			pkgs:   []*gnoweb.MockPackage{pure("/p/alice/golf"), pure("/p/alice/golf/v1"), pure("/p/alice/golf/v2"), realm("/r/alice/golf/v1")},
+			page:   "/r/alice/golf/v1",
+			href:   "/p/alice/golf$source#subpackages",
+			label:  "2 matching packages",
+			listed: []string{"/p/alice/golf/v1", "/p/alice/golf/v2"},
+		},
+		{
+			name:  "no twin, project root is a realm (/r/gov/dao shape)",
+			pkgs:  []*gnoweb.MockPackage{realm("/r/gov/dao"), realm("/r/gov/dao/impl/v0"), realm("/r/gov/dao/init/v0"), pure("/p/gov/dao/utils")},
+			page:  "/p/gov/dao/utils",
+			href:  "/r/gov/dao",
+			label: "Matching realm",
+		},
+		{
+			name:   "twin's listing counts the whole subtree it shows",
+			pkgs:   []*gnoweb.MockPackage{pure("/p/alice/golf/v0"), pure("/p/alice/golf/v2"), pure("/p/alice/golf/ui/board"), realm("/r/alice/golf/v0")},
+			page:   "/r/alice/golf/v0",
+			href:   "/p/alice/golf",
+			label:  "3 matching packages",
+			listed: []string{"/p/alice/golf/v0", "/p/alice/golf/v2", "/p/alice/golf/ui/board"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := newCounterpartHandler(t, gnoweb.NewMockClient(tc.pkgs...))
+			body := serve(h, httptest.NewRequest(http.MethodGet, tc.page, nil)).Body.String()
+			m := rePrimaryLink.FindStringSubmatch(body)
+			require.NotNil(t, m, "no switch link on %s", tc.page)
+			assert.Equal(t, tc.href, m[1])
+			assert.Equal(t, tc.label, m[2])
+
+			target, fragment, _ := strings.Cut(tc.href, "#")
+			rr := serve(h, httptest.NewRequest(http.MethodGet, target, nil))
+			require.Equal(t, http.StatusOK, rr.Code)
+			opened := rr.Body.String()
+			if fragment != "" {
+				assert.True(t, strings.Contains(opened, `id="`+fragment+`"`), "%s has no #%s", target, fragment)
+			}
+			for _, p := range tc.listed {
+				assert.True(t, strings.Contains(opened, `href="`+p+`"`), "%s does not list %s", target, p)
+			}
+		})
+	}
 }

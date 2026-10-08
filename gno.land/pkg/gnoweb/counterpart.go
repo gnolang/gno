@@ -67,11 +67,17 @@ func counterpartRoots(pkgPath string) (twin, root string, ok bool) {
 }
 
 // counterpartTarget picks the page the link opens, given the paths live under
-// root: the twin itself unless it has siblings, whose directory is then
-// listed so the twin never hides them; without a twin, the only package when
-// there is one, and otherwise the deepest directory above the twin that holds
-// any, as a listing. n is how many packages that target covers; zero means no
-// link.
+// root, and n, how many packages that page lists; zero means no link.
+//
+// The twin opens directly unless it has siblings (v0 next to v2); without a
+// twin, the only package opens when there is one, and otherwise the deepest
+// directory above the twin that holds any. A directory gnoweb shows as a
+// listing only when no package lives there, and that listing holds its whole
+// subtree, so n counts the subtree. A directory that is itself a package
+// opens that package instead: the twin's siblings are then reached through
+// its overview's Directories section, which lists direct children only, and
+// the twinless walk names that package alone, since no page lists what lies
+// deeper below it.
 func counterpartTarget(twin, root string, paths []string) (target string, n int) {
 	members := make([]string, 0, len(paths))
 	hasTwin := false
@@ -83,18 +89,22 @@ func counterpartTarget(twin, root string, paths []string) (target string, n int)
 		members = append(members, p)
 	}
 
-	// The twin opens directly unless it has siblings (v0 next to v2).
 	if hasTwin {
 		dir := gopath.Dir(twin)
+		siblings := 0
 		for _, m := range members {
 			if gopath.Dir(m) == dir {
-				n++
+				siblings++
 			}
 		}
-		if n == 1 {
+		switch {
+		case siblings == 1:
 			return twin, 1
+		case slices.Contains(members, dir):
+			return dir + "$source#subpackages", siblings
+		default:
+			return dir, countUnder(members, dir)
 		}
-		return dir, n
 	}
 
 	for dir := twin; ; dir = gopath.Dir(dir) {
@@ -108,12 +118,25 @@ func counterpartTarget(twin, root string, paths []string) (target string, n int)
 		switch {
 		case n == 1:
 			return last, 1
+		case n > 1 && slices.Contains(members, dir):
+			return dir, 1
 		case n > 1:
 			return dir, n
 		case dir == root:
 			return "", 0
 		}
 	}
+}
+
+// countUnder counts the members lying below dir.
+func countUnder(members []string, dir string) int {
+	n := 0
+	for _, m := range members {
+		if isUnder(m, dir) {
+			n++
+		}
+	}
+	return n
 }
 
 // isUnder reports whether p is dir or lies below it.
