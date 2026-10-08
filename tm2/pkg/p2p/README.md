@@ -404,44 +404,61 @@ These peer connections are special: they bypass the maximum outbound peer limit,
 
 A good candidate for a persistent peer is a bootnode, that bootstraps and facilitates peer discovery for the network.
 
-The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. Every few seconds, it queues a dial for each persistent peer that is neither connected nor already queued, into the persistent dial queue. The first dial after a disconnect is queued on the next tick, due at once, unless a backoff dial still queued from before the last connection is used instead; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. A reconnect clears the backoff, so a peer that connects and drops at once is redialed at most once per tick. Each persistent peer has one configured address: when the same peer ID is listed more than once, only the last address is dialed, and the node logs a warning for each ignored entry whose address differs from the dialed one.
+The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. When a persistent peer drops, the redial service queues its dial into the persistent dial queue at once; every few seconds it also queues a dial for each persistent peer that is neither connected nor already queued, which covers startup and failed dials. The first dial is due at once; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. The backoff is reset only when a connection lasted at least 30 seconds, so a peer that keeps connecting and dropping backs off up to the cap, while a peer that drops after a stable connection is redialed at once. When a persistent peer connects, any dial still queued for it is removed, so it cannot delay a later redial. Each persistent peer has one configured address: when the same peer ID is listed more than once, only the last address is dialed, and the node logs a warning for each ignored entry whose address differs from the dialed one.
 
 ```go
 package p2p
 
-func (sw *MultiplexSwitch) queueMissingPersistentPeers(attempts map[types.ID]uint, now time.Time) {
-	peers := sw.Peers()
+func (sw *MultiplexSwitch) persistentPeerDisconnected(
+	id types.ID,
+	attempts map[types.ID]uint,
+	connectedAt map[types.ID]time.Time,
+	now time.Time,
+) {
+	// A stable connection resets the backoff
+	if since, ok := connectedAt[id]; ok && now.Sub(since) >= persistentStableUptime {
+		delete(attempts, id)
+	}
 
-	sw.persistentPeers.Range(func(key, value any) bool {
-		// ...
+	delete(connectedAt, id)
 
-		// Skip peers that are connected or already queued, and our own
-		// address, which a shared persistent peer list can contain
-		if peers.Has(id) ||
-			sw.persistentDialQueue.Has(addr) ||
-			addr.Same(sw.transport.NetAddress()) {
-			return true
-		}
+	// ...
 
-		dialTime := now
+	sw.queuePersistentPeer(id, addr, attempts, now)
+}
 
-		if n, attempted := attempts[id]; attempted {
-			// Subsequent attempt: apply backoff
-			dialTime = now.Add(calculateBackoff(n, time.Second, persistentRedialMaxBackoff))
+func (sw *MultiplexSwitch) queuePersistentPeer(
+	id types.ID,
+	addr *types.NetAddress,
+	attempts map[types.ID]uint,
+	now time.Time,
+) {
+	// Skip peers that are connected or already queued, and our own
+	// address, which a shared persistent peer list can contain
+	if sw.Peers().Has(id) ||
+		sw.persistentDialQueue.Has(addr) ||
+		addr.Same(sw.transport.NetAddress()) {
+		return
+	}
 
-			attempts[id] = n + 1
-		} else {
-			// First attempt
-			attempts[id] = 0
-		}
+	dialTime := now
 
-		sw.persistentDialQueue.Push(dial.Item{
-			Time:    dialTime,
-			Address: addr,
-		})
+	if n, attempted := attempts[id]; attempted {
+		// Subsequent attempt: apply backoff
+		dialTime = now.Add(calculateBackoff(n, time.Second, persistentRedialMaxBackoff))
 
-		// ...
+		attempts[id] = n + 1
+	} else {
+		// First attempt
+		attempts[id] = 0
+	}
+
+	sw.persistentDialQueue.Push(dial.Item{
+		Time:    dialTime,
+		Address: addr,
 	})
+
+	// ...
 }
 ```
 

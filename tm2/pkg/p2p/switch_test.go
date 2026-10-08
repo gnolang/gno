@@ -1065,8 +1065,8 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 			return sw.persistentDialQueue.Peek() != nil
 		}, 5*time.Second, 5*time.Millisecond)
 
-		// The connect did not reset the backoff, and the start pass counted
-		// an attempt: the dial waits at least the first backoff step
+		// The connect left the attempt count in place, so the dial waits for
+		// the first backoff step, about a second
 		item := sw.persistentDialQueue.Peek()
 
 		require.NotNil(t, item)
