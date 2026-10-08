@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -240,7 +241,19 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"}, // not `gno-`
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
 		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
-		{"ext-delimiter-tab-indented", "\t</gno-columns>\n", "\t\\</gno-columns>\n"},
+		{"ext-delimiter-tab-indented", "\t</gno-columns>\n", "\\\t</gno-columns>\n"}, // tab = 4 columns: line-start backslash
+		{"ext-delimiter-2-spaces", "  <gno-card>\n", "  \\<gno-card>\n"},
+		{"ext-delimiter-4-spaces", "    <gno-card>\n", "\\    <gno-card>\n"},
+		{"gno-button-mid-line", "hi <gno-button href=\"/r/x\" label=\"x\" />\n", "hi \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-after-list-marker", "- <GNO-BUTTON href=\"/r/x\" label=\"x\" />\n", "\\- \\<GNO-BUTTON href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-after-nbsp", "\u00a0<gno-button />\n", "\u00a0\\<gno-button />\n"},
+		{"gno-button-after-formfeed", "\f<gno-button />\n", "\f\\<gno-button />\n"},
+		{"gno-button-already-escaped", "a \\<gno-button />\n", "a \\<gno-button />\n"},
+		{"gno-button-after-escaped-backslash", "a \\\\<gno-button />\n", "a \\\\\\<gno-button />\n"},
+		{"gno-button-in-code-span", "use `<gno-button />` here\n", "use `<gno-button />` here\n"},
+		{"gno-button-after-code-span", "``a`` <gno-button />\n", "``a`` \\<gno-button />\n"},
+		{"gno-button-unclosed-backtick", "`a <gno-button />\n", "`a \\<gno-button />\n"},
+		{"gno-button-four-spaces", "    <gno-button />\n", "    \\<gno-button />\n"},
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
 		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
 		{"html-type1-pre", "<pre>x</pre>\n", "\\<pre>x</pre>\n"},
@@ -309,6 +322,9 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},
 		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-in-blockquote", "> <gno-button />\n", "> \\<gno-button />\n"},
+		{"gno-button-in-list", "- <gno-button />\n", "- \\<gno-button />\n"},
+		{"gno-button-in-heading", "# <gno-button />\n", "# \\<gno-button />\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
 		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},
@@ -415,6 +431,26 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 			b.SetBytes(int64(len(c.in)))
 			for i := 0; i < b.N; i++ {
 				_ = EscapeBlockHazardsRich(c.in)
+			}
+		})
+	}
+}
+
+// BenchmarkEscapeGnoButtonTagsBackticks escapes one line of backtick runs of
+// all different lengths, none closed, plus a tag. ns/op must grow linearly
+// with the line: an unclosed opener used to rescan the rest of the line.
+func BenchmarkEscapeGnoButtonTagsBackticks(b *testing.B) {
+	for _, runs := range []int{100, 400} {
+		var sb strings.Builder
+		for n := 1; n <= runs; n++ {
+			sb.WriteString(strings.Repeat("`", n))
+			sb.WriteString("a")
+		}
+		sb.WriteString(" <gno-button />")
+		line := sb.String()
+		b.Run(fmt.Sprintf("bytes=%d", len(line)), func(b *testing.B) {
+			for b.Loop() {
+				escapeGnoButtonTags(line)
 			}
 		})
 	}

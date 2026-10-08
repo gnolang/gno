@@ -1,0 +1,15 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+// INPUT_ESCAPED
+-- input.md --
+text\n\n\t<gno-card>
+-- output.md --
+
+
+text
+
+\	<gno-card>
+
+-- output.html --
+<p>text</p>
+<p>\	<!-- raw HTML omitted --></p>

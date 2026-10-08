@@ -418,20 +418,24 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			continue
 		}
 
-		// Extension delimiter lines: prefix with backslash so the line's
-		// opening `<` becomes a CM §2.4 inline escape. A leading space
-		// would be ineffective because gnoweb's extension parsers call
-		// util.TrimLeftSpace before tag matching (see ext_columns.go,
-		// ext_alert.go etc.) — the space gets stripped and the parser
-		// sees the bare tag. Backslash survives util.TrimLeftSpace
-		// (which only strips ASCII whitespace and form-feed) and
-		// goldmark's Type-7 HTML block detection (which requires the
-		// first non-whitespace char to be `<`, not `\`).
-		// It goes after the indent, right before `<`: an inline tag
-		// (`<gno-button />`) matches wherever its `<` sits.
+		// <gno-button /> is an inline tag: it renders wherever its `<`
+		// sits (after a list or quote marker, NBSP, mid-line…), so every
+		// occurrence is escaped, not only a line-start one.
+		line = escapeGnoButtonTags(line)
+
+		// Extension delimiter lines: a backslash before the `<` makes it a
+		// CM §2.4 inline escape, so neither a gno-* block parser nor the
+		// Type-7 HTML block detection sees a tag (a leading space would not
+		// do: the parsers call util.TrimLeftSpace). From 4 columns of indent
+		// the line may be indented code, where that backslash would show,
+		// so it goes at line start instead, ahead of the indent.
 		if isExtDelimiter(line) {
 			trimmed := strings.TrimLeft(line, " \t")
-			out.WriteString(line[:len(line)-len(trimmed)])
+			lead := line[:len(line)-len(trimmed)]
+			if indentColumns(lead) >= 4 {
+				lead, trimmed = "", line
+			}
+			out.WriteString(lead)
 			out.WriteByte('\\')
 			out.WriteString(trimmed)
 			if writeNL {
@@ -560,6 +564,111 @@ func isExtDelimiter(line string) bool {
 		rest = rest[1:]
 	}
 	return hasCaseInsensitivePrefix(rest, "gno-")
+}
+
+// indentColumns returns the width of a run of spaces and tabs, a tab
+// advancing to the next multiple of 4 (CM §2.2).
+func indentColumns(lead string) int {
+	cols := 0
+	for i := 0; i < len(lead); i++ {
+		if lead[i] == '\t' {
+			cols += 4 - cols%4
+		} else {
+			cols++
+		}
+	}
+	return cols
+}
+
+// gnoButtonTag is matched case-insensitively, as gnoweb matches it.
+const gnoButtonTag = "<gno-button"
+
+// escapeGnoButtonTags backslash-escapes the `<` of every `<gno-button` in
+// line, skipping one already escaped (so escaping is idempotent) and one
+// inside a code span closed on the same line, where the backslash would
+// show. A code span spanning lines is escaped anyway: visible, but safe.
+// Linear in len(line): a backtick opener is matched against the last run of
+// its length, indexed once, so an unclosed opener costs O(1), not a rescan.
+func escapeGnoButtonTags(line string) string {
+	if strings.IndexByte(line, '<') < 0 {
+		return line
+	}
+	var (
+		out     []byte
+		last    int
+		lastRun map[int]int // start of the last backtick run of each length
+	)
+	for i := 0; i < len(line); i++ {
+		switch line[i] {
+		case '\\':
+			i++ // the next byte is escaped
+		case '`':
+			if lastRun == nil {
+				lastRun = lastBacktickRuns(line, i)
+			}
+			n := backtickRun(line, i)
+			if lastRun[n] > i {
+				i = closingBacktickRun(line, i+n, n) + n - 1
+			} else {
+				i += n - 1
+			}
+		case '<':
+			if hasCaseInsensitivePrefix(line[i:], gnoButtonTag) {
+				if out == nil {
+					out = make([]byte, 0, len(line)+8)
+				}
+				out = append(append(out, line[last:i]...), '\\')
+				last = i
+			}
+		}
+	}
+	if out == nil {
+		return line
+	}
+	return string(append(out, line[last:]...))
+}
+
+// lastBacktickRuns maps each backtick run length in line[from:] to the start
+// of its last run.
+func lastBacktickRuns(line string, from int) map[int]int {
+	runs := map[int]int{}
+	for i := from; i < len(line); {
+		if line[i] != '`' {
+			i++
+			continue
+		}
+		n := backtickRun(line, i)
+		runs[n] = i
+		i += n
+	}
+	return runs
+}
+
+// backtickRun returns the length of the backtick run starting at i.
+func backtickRun(s string, i int) int {
+	n := 0
+	for i+n < len(s) && s[i+n] == '`' {
+		n++
+	}
+	return n
+}
+
+// closingBacktickRun returns the start of the first run of exactly n
+// backticks at or after from, or -1 (CM §6.1: a code span closes on a run
+// of the same length).
+func closingBacktickRun(s string, from, n int) int {
+	for i := from; i < len(s); {
+		if s[i] != '`' {
+			i++
+			continue
+		}
+		m := backtickRun(s, i)
+		if m == n {
+			return i
+		}
+		i += m
+	}
+	return -1
 }
 
 // isHTMLBlockType1to5Opener reports whether line opens a CommonMark
