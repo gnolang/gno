@@ -3234,7 +3234,9 @@ main.is-dev-mode .b-toc a {
 		--gno-button-bg: var(--s-color-bg-brand-default);
 		--gno-button-border: var(--s-color-border-brand-default);
 		--gno-button-text: var(--s-color-text-base);
-		--gno-button-outline: var(--s-color-text-link-hover);
+		/* Neutral, not green: in dark the only green text that passes AA is
+		   the success token, so a green outline matched success outline. */
+		--gno-button-outline: var(--s-color-text-secondary);
 
 		display: inline-flex;
 		align-items: center;

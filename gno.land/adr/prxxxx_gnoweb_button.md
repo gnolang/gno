@@ -156,15 +156,17 @@ is under AA in dark (2.94:1 on its fill, the alerts share that gap), so the
 `tip` text is 70% of it mixed with `--s-color-text-primary`: 4.75:1 in dark,
 still purple in light. An outline
 button's border takes its text colour, since the border is its only shape; the
-default outline uses `--s-color-text-link-hover`, the link token that passes
-AA in dark (the link token gives 3.77:1). Hover thickens the border with a
+default outline is neutral (`--s-color-text-secondary`), a secondary button:
+in dark the only green text that passes AA is the success token (the link
+token gives 3.77:1), so a green default outline matched `success outline`. It
+matches `note outline` in dark instead, the neutral alert kind. Hover thickens the border with a
 ring instead of fading the fill: the form submit's `opacity: 0.9` dropped
 `caution` in dark to 4.28:1. The link type icon is drawn in the button's text
 colour, so it stays visible on every fill.
 
 Measured text contrast (light / dark, identical at rest and on hover): default
 6.27 / 6.27, caution 10.34 / 4.95, warning 7.13 / 9.59, info 8.13 / 6.35, note
-17.47 / 8.77, tip 13.82 / 4.75, success 9.79 / 5.62; outline 6.27 / 7.14,
+17.47 / 8.77, tip 13.82 / 4.75, success 9.79 / 5.62; outline 7.10 / 10.26,
 caution outline 10.98 / 6.23, warning outline 7.58 / 12.64, info outline 8.66
 / 7.92, note outline 19.91 / 10.28, tip outline 15.53 / 6.02, success outline
 11.44 / 7.14. Every variant passes WCAG AA (4.5:1) in both themes. Outline
