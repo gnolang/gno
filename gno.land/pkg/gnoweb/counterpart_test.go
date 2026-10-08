@@ -105,6 +105,18 @@ func TestCounterpartTarget(t *testing.T) {
 			target: "/p/alice/golf", n: 1,
 		},
 		{
+			name:   "a package above the twin with matching children opens its Directories section",
+			twin:   "/p/alice/golf/foo",
+			paths:  []string{"/p/alice/golf", "/p/alice/golf/v1", "/p/alice/golf/v2"},
+			target: "/p/alice/golf$source#subpackages", n: 2,
+		},
+		{
+			name:   "a package above the twin with one matching child is named alone",
+			twin:   "/p/alice/golf/foo",
+			paths:  []string{"/p/alice/golf", "/p/alice/golf/v1", "/p/alice/golf/ui/board"},
+			target: "/p/alice/golf", n: 1,
+		},
+		{
 			name:  "a sibling sharing the prefix is not the project",
 			twin:  "/p/alice/golf/game",
 			paths: []string{"/p/alice/golfer", "/p/alice/golf2/x"},
@@ -147,6 +159,10 @@ func TestCounterpartLink(t *testing.T) {
 	assert.Equal(t, "3 matching realms", many.Label)
 	assert.Equal(t, "ico-realm", many.Icon)
 	assert.Equal(t, "/r/alice/golf", many.URL)
+
+	section := counterpartLink("/r/tests/vm$source#subpackages", "/r/tests/vm", 2)
+	assert.Equal(t, "/r/tests/vm$source#subpackages", section.URL)
+	assert.Equal(t, "/r/tests/vm", section.Path)
 
 	capped := counterpartLink("/p/alice/golf", "/p/alice/golf", maxCounterpartPaths)
 	assert.Equal(t, "100+ matching packages", capped.Label)

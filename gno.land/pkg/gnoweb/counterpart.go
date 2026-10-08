@@ -74,10 +74,11 @@ func counterpartRoots(pkgPath string) (twin, root string, ok bool) {
 // directory above the twin that holds any. A directory gnoweb shows as a
 // listing only when no package lives there, and that listing holds its whole
 // subtree, so n counts the subtree. A directory that is itself a package
-// opens that package instead: the twin's siblings are then reached through
-// its overview's Directories section, which lists direct children only, and
-// the twinless walk names that package alone, since no page lists what lies
-// deeper below it.
+// opens that package instead, so the link then points at its overview's
+// Directories section, which lists direct children only: it holds the twin's
+// siblings, or, on the twinless walk, the package's own children when two or
+// more match. With fewer the walk names that package alone, since no page
+// lists what lies deeper below it.
 func counterpartTarget(twin, root string, paths []string) (target string, n int) {
 	members := make([]string, 0, len(paths))
 	hasTwin := false
@@ -91,12 +92,7 @@ func counterpartTarget(twin, root string, paths []string) (target string, n int)
 
 	if hasTwin {
 		dir := gopath.Dir(twin)
-		siblings := 0
-		for _, m := range members {
-			if gopath.Dir(m) == dir {
-				siblings++
-			}
-		}
+		siblings := countChildren(members, dir)
 		switch {
 		case siblings == 1:
 			return twin, 1
@@ -119,6 +115,9 @@ func counterpartTarget(twin, root string, paths []string) (target string, n int)
 		case n == 1:
 			return last, 1
 		case n > 1 && slices.Contains(members, dir):
+			if children := countChildren(members, dir); children > 1 {
+				return dir + "$source#subpackages", children
+			}
 			return dir, 1
 		case n > 1:
 			return dir, n
@@ -126,6 +125,17 @@ func counterpartTarget(twin, root string, paths []string) (target string, n int)
 			return "", 0
 		}
 	}
+}
+
+// countChildren counts the members lying directly below dir.
+func countChildren(members []string, dir string) int {
+	n := 0
+	for _, m := range members {
+		if gopath.Dir(m) == dir {
+			n++
+		}
+	}
+	return n
 }
 
 // countUnder counts the members lying below dir.
@@ -158,9 +168,11 @@ func counterpartLink(target, root string, n int) *components.HeaderLink {
 		}
 		label = count + " matching " + kind + "s"
 	}
+	path, _, _ := strings.Cut(target, "$")
 	return &components.HeaderLink{
 		Label: label,
 		URL:   target,
+		Path:  path,
 		Icon:  icon,
 	}
 }

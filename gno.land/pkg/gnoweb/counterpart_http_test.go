@@ -248,12 +248,13 @@ func TestCounterpart_MarkdownAnswerSkipsLookup(t *testing.T) {
 	assert.Zero(t, calls.Load())
 }
 
-var rePrimaryLink = regexp.MustCompile(`<a href="([^"]*)" class="item item--primary">\s*<svg[^>]*><use[^>]*></use></svg>\s*<span class="item-label">([^<]*)</span>`)
+var rePrimaryLink = regexp.MustCompile(`<a href="([^"]*)" class="item item--primary">\s*<svg[^>]*><use[^>]*></use></svg>\s*<span class="item-label">([^<]*)</span>\s*<span class="item-path">([^<]*)</span>`)
 
 // The "N matching" line must open a page that lists exactly those N paths. A
 // directory that is itself a package or realm opens that one package, so the
 // line then points at its overview's Directories section, which lists its
-// direct children, or names the package alone. Reported by davd-gzl on #6262.
+// direct children when two or more match, or names the package alone.
+// Reported by davd-gzl on #6262.
 func TestCounterpart_LinkOpensWhatItCounts(t *testing.T) {
 	t.Parallel()
 
@@ -289,6 +290,14 @@ func TestCounterpart_LinkOpensWhatItCounts(t *testing.T) {
 			listed: []string{"/p/alice/golf/v1", "/p/alice/golf/v2"},
 		},
 		{
+			name:   "no twin, a realm above it has matching children (/r/tests/vm shape)",
+			pkgs:   []*gnoweb.MockPackage{realm("/r/tests/vm"), realm("/r/tests/vm/crossrealm"), realm("/r/tests/vm/subtests"), pure("/p/tests/vm/foo")},
+			page:   "/p/tests/vm/foo",
+			href:   "/r/tests/vm$source#subpackages",
+			label:  "2 matching realms",
+			listed: []string{"/r/tests/vm/crossrealm", "/r/tests/vm/subtests"},
+		},
+		{
 			name:  "no twin, project root is a realm (/r/gov/dao shape)",
 			pkgs:  []*gnoweb.MockPackage{realm("/r/gov/dao"), realm("/r/gov/dao/impl/v0"), realm("/r/gov/dao/init/v0"), pure("/p/gov/dao/utils")},
 			page:  "/p/gov/dao/utils",
@@ -314,6 +323,9 @@ func TestCounterpart_LinkOpensWhatItCounts(t *testing.T) {
 			require.NotNil(t, m, "no switch link on %s", tc.page)
 			assert.Equal(t, tc.href, m[1])
 			assert.Equal(t, tc.label, m[2])
+			// The grey path line shows the plain path, without the tab or anchor.
+			plain, _, _ := strings.Cut(tc.href, "$")
+			assert.Equal(t, plain, m[3])
 
 			target, fragment, _ := strings.Cut(tc.href, "#")
 			rr := serve(h, httptest.NewRequest(http.MethodGet, target, nil))
