@@ -1024,13 +1024,13 @@ $$
 
 #### Colours
 
-±\color± and ±\textcolor± accept the theme colours ±red±, ±orange±, ±green±, ±blue±, ±purple± and ±gray± (or ±grey±), which stay readable in light and dark mode. Other colour names and hex or RGB values are ignored, and the expression keeps the text colour:
+±\color± and ±\textcolor± accept the theme colours ±red±, ±orange±, ±green±, ±blue±, ±purple± and ±gray± (or ±grey±), which stay readable in light and dark mode. Other colour names and hex or RGB values are ignored, and the expression keeps the text colour. ±\color± colours everything after it in its group, so put it in braces to colour one term; ±\textcolor± takes the term as its argument:
 
 ±±±markdown
-$\color{red}{a^2} + \color{blue}{b^2} = \textcolor{green}{c^2}$
+${\color{red} a^2} + {\color{blue} b^2} = \textcolor{green}{c^2}$
 ±±±
 
-$\color{red}{a^2} + \color{blue}{b^2} = \textcolor{green}{c^2}$
+${\color{red} a^2} + {\color{blue} b^2} = \textcolor{green}{c^2}$
 
 #### Advanced Examples
 
@@ -1137,7 +1137,7 @@ Second law: $dS \geq \frac{\delta Q}{T}$
 - **Integrals and sums**: ±\int±, ±\sum±, ±\prod±, ±\lim±
 - **Functions**: ±\sin±, ±\cos±, ±\tan±, ±\log±, ±\ln±, ±\exp±, ±\max±, ±\min±
 - **Matrices**: ±\begin{matrix}...\end{matrix}±, ±\begin{pmatrix}...\end{pmatrix}±
-- **Colours**: ±\color{blue}{...}±, ±\textcolor{red}{...}±, theme colours only
+- **Colours**: ±{\color{blue} ...}±, ±\textcolor{red}{...}±, theme colours only
 - **Complex equations**: Schrödinger, Maxwell, Fourier transforms, etc.
 
 ### And more...

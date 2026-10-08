@@ -158,7 +158,6 @@ func init() {
 		"bcancel":     {F: cmd_cancel, argc: 1, optc: 0},
 		"xcancel":     {F: cmd_cancel, argc: 1, optc: 0},
 		"mathop":      {F: cmd_mathop, argc: 1, optc: 0},
-		"bmod":        {F: cmd_mod, argc: 1, optc: 0},
 		"pmod":        {F: cmd_mod, argc: 1, optc: 0},
 		"substack":    {F: cmd_substack, argc: 1, optc: 0},
 		"underbrace":  {F: cmd_underOverBrace, argc: 1, optc: 0},
@@ -223,6 +222,9 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		return makeTexLogo(true)
 	case "TeX":
 		return makeTexLogo(false)
+	case "bmod":
+		// A binary operator: it takes no argument.
+		return NewMMLNode("mo", "mod").SetAttr("lspace", bmodSpace).SetAttr("rspace", bmodSpace)
 	}
 
 	if prop, ok := command_identifiers[name]; ok {
@@ -279,6 +281,18 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		return n
 	}
 	if sw, ok := switches[name]; ok {
+		// A switch applies to the rest of its group, so a run of switches
+		// nests one level per switch. The run counts as one level against
+		// MaxParseDepth, and maxSwitchDepth bounds it.
+		converter.switchDepth++
+		converter.depth--
+		defer func() {
+			converter.switchDepth--
+			converter.depth++
+		}()
+		if converter.switchDepth > maxSwitchDepth {
+			panic(errMaxDepth)
+		}
 		cellEnd := func(t Token) bool {
 			if t.Kind&tokReserved > 0 && t.Value == "&" {
 				return true
@@ -306,6 +320,9 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 
 		n := NewMMLNode("mstyle")
 		if name == "color" {
+			// A colour model, as in \color[RGB]{255,0,0}, gives a value
+			// that is not a theme colour: the content keeps the text colour.
+			switchExpressions.GetOptions()
 			expr, err := switchExpressions.GetNextExpr()
 			if err == nil {
 				setColor(n, expr.Expr)
@@ -376,6 +393,13 @@ func (converter *MathMLConverter) makeAccent(tag string, ch rune, context parseC
 	}
 	return NewMMLNode(tag).SetTrue("accent").AppendChild(base, acc)
 }
+
+// bmodSpace is the space around \bmod, 5mu.
+const bmodSpace = "0.2778em"
+
+// maxSwitchDepth bounds the nesting of style switches (\bf, \color,
+// \large...) in one expression.
+const maxSwitchDepth = 256
 
 // minSize and maxSize bound the size of math under nested size switches,
 // relative to the math around it: a mathsize percentage is relative to the
@@ -490,6 +514,10 @@ func (converter *MathMLConverter) newCommand(b *TokenBuffer) (errNode *MMLNode) 
 		t = temp.Expr[0]
 	}
 	name = t.Value
+	// The argument count and the default of the first argument, as in
+	// \newcommand{\f}[2][a]{...}, are read and ignored.
+	b.GetOptions()
+	b.GetOptions()
 
 	definition, err = b.GetNextExpr()
 	if errors.Is(err, ErrTokenBufferSingle) {

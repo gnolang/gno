@@ -3,6 +3,7 @@ package mathml
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -18,6 +19,7 @@ type MathMLConverter struct {
 	depth       int     // current ParseTex recursion depth
 	sizeScale   float64 // cumulative scale of the enclosing size switches; 0 means 1
 	raisePt     float64 // cumulative shift of the enclosing \raisebox commands, in points
+	switchDepth int     // nesting of the enclosing style switches
 }
 
 // NewMathMLConverter returns a converter. It keeps per-expression state, so
@@ -57,7 +59,19 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 	if err != nil {
 		return "", err
 	}
-	ast = converter.wrapInMathTag(converter.ParseTex(NewTokenBuffer(tokens), ctxRoot), tex)
+	ctx := ctxRoot
+	breaks := hasTopLevelLineBreak(tokens)
+	if breaks {
+		// \\ outside an environment breaks the line: the expression is
+		// a one-column table, as in KaTeX.
+		ctx |= ctxTable
+	}
+	root := converter.ParseTex(NewTokenBuffer(tokens), ctx)
+	if breaks && root != nil {
+		processTable(root, "")
+		root.SetAttr("displaystyle", strconv.FormatBool(displaystyle))
+	}
+	ast = converter.wrapInMathTag(root, tex)
 	ast.SetAttr("xmlns", "http://www.w3.org/1998/Math/MathML")
 	setStyle(ast)
 	// Write writes the MathML on one line: whitespace around inline math,
@@ -86,6 +100,19 @@ func (converter *MathMLConverter) wrapInMathTag(mrow *MMLNode, tex string) *MMLN
 	annotation.SetAttr("encoding", "application/x-tex")
 	semantics.AppendChild(annotation)
 	return node
+}
+
+// hasTopLevelLineBreak reports whether tokens hold a \\ outside any group.
+func hasTopLevelLineBreak(tokens []Token) bool {
+	for i := 0; i < len(tokens); i++ {
+		t := tokens[i]
+		if opensGroup(t) {
+			i += t.MatchOffset
+		} else if t.Kind&tokCommand > 0 && t.Value == `\` {
+			return true
+		}
+	}
+	return false
 }
 
 // ConvertToDisplay converts LaTeX to display MathML

@@ -18,7 +18,7 @@ func setEnvironmentContext(envBegin Token, context parseContext) parseContext {
 	switch name {
 	case "matrix", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix":
 		if star {
-			context |= ctxEnvHasArg
+			context |= ctxEnvHasOpt
 		}
 		return context | ctxTable
 	case "array", "subarray":
@@ -74,7 +74,7 @@ func parseAlignmentString(str string) ([]string, []string) {
 	align := make([]string, 0, len(str))
 	lines := make([]string, 0, len(str))
 	wasline := true
-	for i, c := range str {
+	for _, c := range str {
 		switch c {
 		case 'l':
 			align = append(align, "left")
@@ -82,14 +82,15 @@ func parseAlignmentString(str string) ([]string, []string) {
 			align = append(align, "center")
 		case 'r':
 			align = append(align, "right")
-		case '|':
-			if i > 0 {
-				lines = append(lines, "solid")
-				wasline = true
-			}
-		case ':':
-			if i > 0 {
-				lines = append(lines, "dashed")
+		case '|', ':':
+			// One rule between two columns: MathML draws no double rule,
+			// and a rule before the first column is not drawn.
+			if !wasline {
+				rule := "solid"
+				if c == ':' {
+					rule = "dashed"
+				}
+				lines = append(lines, rule)
 				wasline = true
 			}
 		}
@@ -153,7 +154,7 @@ func processTable(table *MMLNode, env string) {
 				if c == nil {
 					continue
 				}
-				if s, ok := c.Attrib["rowspacing"]; ok {
+				if s, ok := c.Attrib["rowspacing"]; ok && isRowSpacing(c) {
 					space = s
 					nonDefaultSpacing = true
 				}

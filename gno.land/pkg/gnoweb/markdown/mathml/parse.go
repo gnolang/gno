@@ -3,6 +3,7 @@ package mathml
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 type NodeClass uint64
@@ -29,6 +30,8 @@ const (
 	propInfixChoose
 	propInfixAtop
 	propOperatorName
+
+	propInfix = propInfixOver | propInfixChoose | propInfixAtop
 )
 
 const (
@@ -45,7 +48,8 @@ const (
 	ctxSize_4
 	// ENVIRONMENTS
 	ctxTable
-	ctxEnvHasArg
+	ctxEnvHasArg // the environment takes a {spec}, after an optional [position]
+	ctxEnvHasOpt // the environment takes an optional [spec]
 	// ONLY FONT VARIANTS AFTER THIS POINT
 	ctxVarNormal
 	ctxVarBb
@@ -89,15 +93,14 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 	var node *MMLNode
 	siblings := make([]*MMLNode, 0)
 	var optionString string
-	if context&ctxEnvHasArg > 0 {
-		_, err := b.GetNextToken()
-		if errors.Is(err, ErrTokenBufferExpr) {
-			temp, _ := b.GetNextExpr()
-			optionString = StringifyTokens(temp.Expr)
-		} else {
-			b.Unget()
+	if context&(ctxEnvHasArg|ctxEnvHasOpt) > 0 {
+		opt, err := b.GetOptions()
+		if err == nil && context&ctxEnvHasOpt > 0 {
+			optionString = StringifyTokens(opt.Expr)
+		} else if spec, err := b.GetNextExpr(); err == nil {
+			optionString = StringifyTokens(spec.Expr)
 		}
-		context ^= ctxEnvHasArg
+		context &^= ctxEnvHasArg | ctxEnvHasOpt
 	}
 	doFence := func(tok Token) *MMLNode {
 		var n *MMLNode
@@ -133,9 +136,11 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 		if errors.Is(err, ErrTokenBufferExpr) {
 			expr, _ := b.GetNextExpr()
 			temp := converter.ParseTex(expr, context&^ctxRoot)
-			if temp != nil {
-				temp.Properties |= promotedProperties
+			if temp == nil {
+				// {} is an empty atom, which can carry a script.
+				temp = NewMMLNode("mrow")
 			}
+			temp.Properties |= promotedProperties
 			siblings = append(siblings, temp)
 			promotedProperties = 0
 			continue
@@ -204,7 +209,9 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 		case tok.Kind&(tokOpen|tokEnv) == tokOpen|tokEnv:
 			ctx := setEnvironmentContext(tok, context) &^ ctxRoot
 			env, _ := b.GetNextN(tok.MatchOffset)
-			child = processEnv(converter.ParseTex(env, ctx), tok.Value, ctx)
+			// The body is parsed into an mrow of its own even when it is a
+			// single node: processTable splits that mrow into cells.
+			child = processEnv(converter.ParseTex(env, ctx, NewMMLNode("mrow")), tok.Value, ctx)
 		case tok.Kind&tokOpen > 0:
 			child = NewMMLNode("mo")
 			if tok.Kind&tokCommand > 0 {
@@ -221,7 +228,7 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 			}
 			if tok.Kind&tokFence == tokFence {
 				container := NewMMLNode("mrow")
-				if tok.Kind&tokNull == 0 {
+				if tok.Kind&tokNullDelim == 0 {
 					container.AppendChild(child)
 				}
 				temp, _ := b.GetNextN(tok.MatchOffset)
@@ -238,7 +245,7 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 				child.Text = tok.Value
 			}
 			child.SetAttr("form", "postfix")
-			if tok.Kind&tokNull > 0 {
+			if tok.Kind&tokNullDelim > 0 {
 				child = nil
 				break
 			}
@@ -249,6 +256,9 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 				child.SetFalse("stretchy")
 			}
 		case tok.Kind&tokFence > 0:
+			if tok.Kind&tokNullDelim > 0 {
+				continue
+			}
 			child = doFence(tok)
 		case tok.Kind&tokLetter > 0:
 			child = NewMMLNode("mi", tok.Value)
@@ -311,8 +321,9 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 		if siblings[0] == nil {
 			return nil
 		}
-
-		if context&ctxRoot == ctxRoot && !(siblings[0].Tag == "mrow" || siblings[0].Tag == "mtd") {
+		// A lone \over still needs its fraction built here, or it would
+		// take its operands from the group around this one.
+		if context&ctxRoot == ctxRoot && !(siblings[0].Tag == "mrow" || siblings[0].Tag == "mtd") || siblings[0].Properties&propInfix > 0 {
 			node = NewMMLNode("mrow")
 			node.Children = append(node.Children, siblings...)
 		} else {
@@ -330,26 +341,39 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 }
 
 func (n *MMLNode) doPostProcess() {
-	if n != nil {
-		n.postProcessInfix()
-		n.postProcessLimitSwitch()
-		n.postProcessScripts()
-		n.postProcessOperatorNames()
-		n.postProcessSpace()
-		n.postProcessChars()
+	if n == nil {
+		return
 	}
+	n.postProcessInfix()
+	n.postProcessLimitSwitch()
+	n.postProcessScripts()
+	n.postProcessOperatorNames()
+	n.postProcessSpace()
+	n.postProcessChars()
 	begin := 0
-	for n.Children[begin] == nil && begin < len(n.Children)-1 {
+	for begin < len(n.Children)-1 && n.Children[begin] == nil {
 		begin++
 	}
 	n.Children = n.Children[begin:]
+}
+
+// isSeparator reports whether n separates the cells or rows of a table:
+// a & or \\, or the spacing marker of a \\[len].
+func isSeparator(n *MMLNode) bool {
+	return n != nil && (n.Properties&(propCellSep|propRowSep) > 0 || isRowSpacing(n))
+}
+
+// isRowSpacing reports whether n is the marker a \\[len] leaves before its
+// row separator.
+func isRowSpacing(n *MMLNode) bool {
+	return n.Tag == "rowspacing" && n.Properties&propNonprint > 0
 }
 
 func (n *MMLNode) postProcessLimitSwitch() {
 	var i int
 	for i = 1; i < len(n.Children); i++ {
 		child := n.Children[i]
-		if child == nil {
+		if child == nil || n.Children[i-1] == nil || isSeparator(n.Children[i-1]) {
 			continue
 		}
 		if child.Properties&propLimits > 0 {
@@ -461,16 +485,16 @@ const thinSpace = "0.1667em"
 func (n *MMLNode) postProcessSpace() {
 	i := 0
 	limit := len(n.Children)
+	isSpace := func(c *MMLNode) bool {
+		return c != nil && space_widths[c.Tok.Value] != 0 && c.Tok.Kind&tokCommand > 0
+	}
 	for ; i < limit; i++ {
-		if n.Children[i] == nil || space_widths[n.Children[i].Tok.Value] == 0 {
-			continue
-		}
-		if n.Children[i].Tok.Kind&tokCommand == 0 {
+		if !isSpace(n.Children[i]) {
 			continue
 		}
 		j := i + 1
 		width := space_widths[n.Children[i].Tok.Value]
-		for j < limit && space_widths[n.Children[j].Tok.Value] > 0 && n.Children[j].Tok.Kind&tokCommand > 0 {
+		for j < limit && isSpace(n.Children[j]) && space_widths[n.Children[j].Tok.Value] > 0 {
 			width += space_widths[n.Children[j].Tok.Value]
 			n.Children[j] = nil
 			j++
@@ -542,9 +566,8 @@ func (n *MMLNode) postProcessChars() {
 
 // Look for any ^ or _ among siblings and convert to a msub, msup, or msubsup
 func (n *MMLNode) postProcessScripts() {
-	var base, super, sub *MMLNode
-	var i int
-	for i = 0; i < len(n.Children); i++ {
+	for i := 0; i < len(n.Children); i++ {
+		var base, super, sub *MMLNode
 		child := n.Children[i]
 		if child == nil {
 			continue
@@ -558,7 +581,9 @@ func (n *MMLNode) postProcessScripts() {
 		if i < len(n.Children)-1 {
 			next = n.Children[i+1]
 		}
-		if i > 0 {
+		// A script at the start of a cell or row has no base: it must
+		// not take the separator before it.
+		if i > 0 && !isSeparator(n.Children[i-1]) {
 			base = n.Children[i-1]
 		}
 		if child.Properties&propSubscript > 0 {
@@ -627,47 +652,64 @@ func (n *MMLNode) postProcessScripts() {
 	}
 }
 
+// postProcessInfix builds the fraction of \over, \atop and \choose,
+// which take everything before them in their group, or in their cell or row
+// of a table, as numerator, and everything after as denominator.
 func (n *MMLNode) postProcessInfix() {
-	doFraction := func(name string, numerator *MMLNode, denominator *MMLNode) *MMLNode {
-		// for a binomial coefficient, we need to wrap it in parentheses, so the "fraction" must
-		// be a child of parent, and parent must be an mrow.
-		wrapper := NewMMLNode("mrow")
-		frac := NewMMLNode("mfrac")
-		frac.AppendChild(numerator, denominator)
-		switch name {
-		case "", "frac":
-			return frac
-		case "cfrac", "dfrac":
-			frac.SetTrue("displaystyle")
-			return frac
-		case "tfrac":
-			frac.SetFalse("displaystyle")
-			return frac
-		case "binom":
-			frac.SetAttr("linethickness", "0")
-			wrapper.AppendChild(strechyOP("("), frac, strechyOP(")"))
-		case "tbinom":
-			wrapper.SetFalse("displaystyle")
-			frac.SetAttr("linethickness", "0")
-			wrapper.AppendChild(strechyOP("("), frac, strechyOP(")"))
-		}
-		return wrapper
+	isInfix := func(c *MMLNode) bool { return c != nil && c.Properties&propInfix > 0 }
+	if !slices.ContainsFunc(n.Children, isInfix) {
+		return
 	}
-	for i := 1; i < len(n.Children); i++ {
-		a := n.Children[i-1]
-		b := n.Children[i]
-		if b == nil {
+	out := make([]*MMLNode, 0, len(n.Children))
+	start := 0
+	for i := 0; i <= len(n.Children); i++ {
+		if i < len(n.Children) && !isSeparator(n.Children[i]) {
 			continue
 		}
-		if b.Properties&propInfixOver > 0 {
-			n.Children[i-1] = doFraction("frac", a, b)
-		} else if b.Properties&propInfixChoose > 0 {
-			n.Children[i-1] = doFraction("binom", a, b)
-		} else if b.Properties&propInfixAtop > 0 {
-			n.Children[i-1] = doFraction("frac", a, b).SetAttr("linethickness", "0")
+		seg := n.Children[start:i]
+		k := slices.IndexFunc(seg, isInfix)
+		if k < 0 {
+			out = append(out, seg...)
+		} else {
+			infix := seg[k].Properties & propInfix
+			// TeX rejects a second \over in the same group as ambiguous:
+			// it is shown as an error around the fraction of the first.
+			ambiguous := false
+			for _, c := range seg[k:] {
+				if isInfix(c) {
+					ambiguous = ambiguous || c != seg[k]
+					c.Properties &^= propInfix
+				}
+			}
+			name := "frac"
+			if infix&propInfixChoose > 0 {
+				name = "binom"
+			}
+			frac := makeFraction(name, infixOperand(seg[:k]), infixOperand(seg[k:]))
+			if infix&propInfixAtop > 0 {
+				frac.SetAttr("linethickness", "0")
+			}
+			if ambiguous {
+				frac = NewMMLNode("merror").SetAttr("title", "ambiguous fraction: add braces").AppendChild(frac)
+			}
+			out = append(out, frac)
 		}
-		if b.Properties&(propInfixOver|propInfixChoose|propInfixAtop) > 0 {
-			n.Children[i] = nil
+		if i < len(n.Children) {
+			out = append(out, n.Children[i])
 		}
+		start = i + 1
 	}
+	n.Children = out
+}
+
+// infixOperand returns the nodes on one side of an \over as one node, post
+// processed as a group of their own.
+func infixOperand(nodes []*MMLNode) *MMLNode {
+	row := NewMMLNode("mrow").AppendChild(nodes...)
+	row.doPostProcess()
+	row.Children = slices.DeleteFunc(row.Children, func(c *MMLNode) bool { return c == nil })
+	if len(row.Children) == 1 {
+		return row.Children[0]
+	}
+	return row
 }

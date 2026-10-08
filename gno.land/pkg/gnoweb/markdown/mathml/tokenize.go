@@ -46,7 +46,7 @@ const (
 	tokBigness4
 	tokInfix
 	tokStarSuffix
-	tokNull = 0
+	tokNullDelim // the empty delimiter of \left. or \right.
 )
 
 var (
@@ -175,6 +175,11 @@ func getToken(tex []rune, start int) (Token, int) {
 			case r == '|':
 				state = lxEnd
 				kind = tokFence | tokEscaped
+				result = append(result, r)
+			case r == '\\':
+				// \\ is a line break, not an escaped backslash.
+				state = lxEnd
+				kind = tokCommand
 				result = append(result, r)
 			case slices.Contains(char_open, r):
 				state = lxEnd
@@ -411,16 +416,15 @@ func (b *TokenBuffer) GetUntil(f func(Token) bool) *TokenBuffer {
 
 // Get the next n tokens. Past the end of the buffer, it returns the rest of
 // the buffer with ErrTokenBufferEnd, and consumes it all the same: a caller
-// that ungets after the error rewinds to where it was, not before it.
+// that ungets after the error rewinds to where it was, not before it. With
+// skipWhitespace, the whitespace and comments before the tokens are skipped;
+// without it, n counts every token, as a MatchOffset does.
 //
 // Sub-buffers are cut with their capacity set to their length, here and in
 // GetNextExpr, GetOptions and GetUntil, so that no offset read inside one
 // can reach the tokens of the buffer around it.
 func (b *TokenBuffer) GetNextN(n int, skipWhitespace ...bool) (*TokenBuffer, error) {
 	temp := b.idx
-	for b.idx < len(b.Expr) && b.Expr[b.idx].Kind&tokComment > 0 {
-		b.idx++
-	}
 	if skipWhitespace != nil && skipWhitespace[0] {
 		for b.idx < len(b.Expr) && b.Expr[b.idx].Kind&(tokComment|tokWhitespace) > 0 {
 			b.idx++
@@ -596,11 +600,10 @@ func matchBracesLazy(tokens []Token) {
 	}
 }
 
-// FixFences is a helper function to fix fences
+// fixFences folds \left, \middle, \right and the \big commands into the
+// delimiter token after them, skipping the spaces in between as TeX does.
 func fixFences(toks []Token) []Token {
 	out := make([]Token, 0, len(toks))
-	var i int
-	var temp Token
 	bigLevel := func(s string) TokenKind {
 		switch s {
 		case "big":
@@ -612,68 +615,45 @@ func fixFences(toks []Token) []Token {
 		case "Bigg":
 			return tokBigness4
 		}
-		return tokNull
+		return 0
 	}
-	for i < len(toks) {
-		if i == len(toks)-1 {
+	for i := 0; i < len(toks); i++ {
+		val := toks[i].Value
+		// set and unset are the kinds the command sets and clears on its
+		// delimiter.
+		var set, unset TokenKind
+		if toks[i].Kind&tokCommand > 0 {
+			switch val {
+			case "left":
+				set, unset = tokFence|tokOpen, tokMiddle|tokClose
+			case "middle":
+				set, unset = tokFence|tokMiddle, tokOpen|tokClose
+			case "right":
+				set, unset = tokFence|tokClose, tokOpen|tokMiddle
+			case "big", "Big", "bigg", "Bigg":
+				set, unset = bigLevel(val), tokOpen|tokClose|tokFence
+			case "bigl", "Bigl", "biggl", "Biggl":
+				set, unset = tokOpen|bigLevel(val[:len(val)-1]), tokFence
+			case "bigr", "Bigr", "biggr", "Biggr":
+				set, unset = tokClose|bigLevel(val[:len(val)-1]), tokFence
+			}
+		}
+		j := i + 1
+		for j < len(toks) && toks[j].Kind&(tokWhitespace|tokComment) > 0 {
+			j++
+		}
+		if set == 0 || j == len(toks) {
 			out = append(out, toks[i])
-			break
+			continue
 		}
-		temp = toks[i]
-		nextval := toks[i+1].Value
-
-		switch val := toks[i].Value; val {
-		case "left":
-			i++
-			temp = toks[i]
-			if nextval == "." {
-				temp.Value = ""
-				temp.Kind = tokNull
-			} else {
-				temp.Value = nextval
-			}
-			temp.Kind |= tokFence | tokOpen
-			temp.Kind &= ^(tokMiddle | tokClose)
-		case "middle":
-			i++
-			temp = toks[i]
-			if nextval == "." {
-				temp.Value = ""
-				temp.Kind = tokNull
-			} else {
-				temp.Value = nextval
-			}
-			temp.Kind |= tokFence | tokMiddle
-			temp.Kind &= ^(tokOpen | tokClose)
-		case "right":
-			i++
-			temp = toks[i]
-			if nextval == "." {
-				temp.Value = ""
-				temp.Kind = tokNull
-			} else {
-				temp.Value = nextval
-			}
-			temp.Kind |= tokFence | tokClose
-			temp.Kind &= ^(tokOpen | tokMiddle)
-		case "big", "Big", "bigg", "Bigg":
-			i++
-			temp = toks[i]
-			temp.Kind |= bigLevel(val)
-			temp.Kind &= ^(tokOpen | tokClose | tokFence)
-		case "bigl", "Bigl", "biggl", "Biggl":
-			i++
-			temp = toks[i]
-			temp.Kind |= tokOpen | bigLevel(val[:len(val)-1])
-			temp.Kind &= ^tokFence
-		case "bigr", "Bigr", "biggr", "Biggr":
-			i++
-			temp = toks[i]
-			temp.Kind |= tokClose | bigLevel(val[:len(val)-1])
-			temp.Kind &= ^tokFence
+		i = j
+		temp := toks[i]
+		if temp.Value == "." && set&tokFence > 0 {
+			temp.Value = ""
+			temp.Kind = tokNullDelim
 		}
+		temp.Kind = temp.Kind&^unset | set
 		out = append(out, temp)
-		i++
 	}
 	return out
 }
@@ -694,10 +674,16 @@ func postProcessTokens(toks []Token) ([]Token, error) {
 		temp.MatchOffset = 0
 		switch toks[i].Value {
 		case "begin":
+			if toks[i].Kind&tokCommand == 0 {
+				break
+			}
 			name, i, _ = GetNextExpr(toks, i+1)
 			temp.Value = StringifyTokens(name)
 			temp.Kind = tokEnv | tokOpen
 		case "end":
+			if toks[i].Kind&tokCommand == 0 {
+				break
+			}
 			name, i, _ = GetNextExpr(toks, i+1)
 			temp.Value = StringifyTokens(name)
 			temp.Kind = tokEnv | tokClose

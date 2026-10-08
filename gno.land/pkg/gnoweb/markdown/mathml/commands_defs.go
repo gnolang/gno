@@ -14,18 +14,18 @@ import (
 // thousands of em tall over the rest of the page.
 const maxCellSpan = 64
 
-// raiseLength matches a \raisebox length: a signed decimal and an optional
-// unit, which TeX lets a space precede.
-var raiseLength = regexp.MustCompile(`^([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)) *([a-zA-Z]{2})?$`)
+// texLength matches the length of a \raisebox, \kern or \hspace: a signed
+// decimal and an optional unit, which TeX lets a space precede.
+var texLength = regexp.MustCompile(`^([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)) *([a-zA-Z]{2})?$`)
 
-// raiseUnits gives the size in TeX points of each unit \raisebox accepts:
-// TeX's own units, and px, which CSS knows. The font-relative ones assume
-// TeX's default 10pt font. css marks the units a browser understands; the
-// others are converted to em.
 // emPt is the size of an em in TeX points, at TeX's default 10pt font.
 const emPt = 10
 
-var raiseUnits = map[string]struct {
+// texUnits gives the size in TeX points of each unit a length accepts:
+// TeX's own units, and px, which CSS knows. The font-relative ones assume
+// TeX's default 10pt font. css marks the units a browser understands; the
+// others are converted to em.
+var texUnits = map[string]struct {
 	pt  float64
 	css bool
 }{
@@ -44,17 +44,26 @@ var raiseUnits = map[string]struct {
 	"mu": {10.0 / 18, false},
 }
 
-// maxRaisePt is the largest \raisebox shift accepted, 2em, counting the
-// shifts of the enclosing \raisebox commands. Larger shifts would let math
+// maxRaisePt is the largest \raisebox shift accepted, 2em of the math
+// around the formula, counting the shifts of the enclosing \raisebox
+// commands and the size switches in between. Larger shifts would let math
 // move over the page around it, so they are ignored.
 const maxRaisePt = 2 * emPt
 
-// safeRaise returns s as a voffset value, and its size in points, if it
-// is a length that keeps the shift accumulated from the enclosing
-// \raisebox commands, outer points, within maxRaisePt. A bare number is
+// fontScale returns the cumulative scale of the enclosing size switches.
+func (converter *MathMLConverter) fontScale() float64 {
+	if converter.sizeScale == 0 {
+		return 1
+	}
+	return converter.sizeScale
+}
+
+// parseLength returns s, a TeX length, as a CSS length, and its size in
+// points of the math around the formula: a length in em, or in a unit
+// written as em, grows with the enclosing size switches. A bare number is
 // taken in em.
-func safeRaise(s string, outer float64) (string, float64, bool) {
-	m := raiseLength.FindStringSubmatch(strings.TrimSpace(s))
+func (converter *MathMLConverter) parseLength(s string) (string, float64, bool) {
+	m := texLength.FindStringSubmatch(strings.TrimSpace(s))
 	if m == nil {
 		return "", 0, false
 	}
@@ -62,20 +71,20 @@ func safeRaise(s string, outer float64) (string, float64, bool) {
 	if unit == "" {
 		unit = "em"
 	}
-	u, ok := raiseUnits[unit]
+	u, ok := texUnits[unit]
 	if !ok {
 		return "", 0, false
 	}
 	// The regexp only admits decimals, so ParseFloat cannot fail.
 	v, _ := strconv.ParseFloat(m[1], 64)
 	pt := v * u.pt
-	if math.Abs(outer+pt) > maxRaisePt {
-		return "", 0, false
-	}
 	num := strings.TrimPrefix(m[1], "+")
 	if !u.css {
 		em := strconv.FormatFloat(v*u.pt/emPt, 'f', 4, 64)
 		num, unit = strings.TrimSuffix(strings.TrimRight(em, "0"), "."), "em"
+	}
+	if unit == "em" || unit == "ex" {
+		pt *= converter.fontScale()
 	}
 	return num + unit, pt, true
 }
@@ -90,7 +99,7 @@ func cmd_multirow(converter *MathMLConverter, name string, star bool, ctx parseC
 	} else {
 		attr = "columnspan"
 	}
-	n := converter.ParseTex(args[2], ctx) // #nosec G602 - bounds checked above
+	n := converter.parseArg(args[2], ctx) // #nosec G602 - bounds checked above
 	span := strings.TrimSpace(StringifyTokens(args[0].Expr))
 	if v, err := strconv.Atoi(span); err == nil && v >= 1 && v <= maxCellSpan {
 		n.SetAttr(attr, strconv.Itoa(v))
@@ -106,7 +115,7 @@ func cmd_prescript(converter *MathMLConverter, name string, star bool, ctx parse
 	sub := args[1]
 	base := args[2]
 	multi := NewMMLNode("mmultiscripts")
-	multi.AppendChild(converter.ParseTex(base, ctx))
+	multi.AppendChild(converter.parseArg(base, ctx))
 	multi.AppendChild(NewMMLNode("none"), NewMMLNode("none"), NewMMLNode("mprescripts"))
 	temp := converter.ParseTex(sub, ctx)
 	if temp != nil {
@@ -128,7 +137,7 @@ func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseCo
 	base := args[2]
 	multi := NewMMLNode("mmultiscripts")
 	multi.Properties |= propLimitsunderover
-	multi.AppendChild(converter.ParseTex(base, ctx))
+	multi.AppendChild(converter.parseArg(base, ctx))
 	getScripts := func(side *TokenBuffer) []*MMLNode {
 		subscripts := make([]*MMLNode, 0)
 		superscripts := make([]*MMLNode, 0)
@@ -156,7 +165,7 @@ func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseCo
 				if err != nil {
 					expr, _ = side.GetNextN(1, true)
 				}
-				superscripts = append(superscripts, converter.ParseTex(expr, ctx))
+				superscripts = append(superscripts, converter.parseArg(expr, ctx))
 				last = t.Value
 			case "_":
 				if last == t.Value {
@@ -166,14 +175,16 @@ func cmd_sideset(converter *MathMLConverter, name string, star bool, ctx parseCo
 				if err != nil {
 					expr, _ = side.GetNextN(1, true)
 				}
-				subscripts = append(subscripts, converter.ParseTex(expr, ctx))
+				subscripts = append(subscripts, converter.parseArg(expr, ctx))
 				last = t.Value
 			}
 		}
-		if len(superscripts) == 0 {
+		// Pad the shorter list, as after a repeated script (_a_b) or on
+		// a side with no script.
+		for len(superscripts) < max(len(subscripts), 1) {
 			superscripts = append(superscripts, NewMMLNode("none"))
 		}
-		if len(subscripts) == 0 {
+		for len(subscripts) < len(superscripts) {
 			subscripts = append(subscripts, NewMMLNode("none"))
 		}
 		result := make([]*MMLNode, len(subscripts)+len(superscripts))
@@ -224,9 +235,8 @@ func cmd_undersetOverset(converter *MathMLConverter, name string, star bool, ctx
 	if len(args) < 2 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	var base, embellishment *MMLNode
-	base = converter.ParseTex(args[1], ctx)
-	embellishment = converter.ParseTex(args[0], ctx)
+	base := converter.parseArg(args[1], ctx)
+	embellishment := converter.parseArg(args[0], ctx)
 	if base.Tag == "mo" {
 		base.SetTrue("stretchy")
 	}
@@ -256,7 +266,7 @@ func cmd_raisebox(converter *MathMLConverter, name string, star bool, ctx parseC
 	}
 	n := NewMMLNode("mpadded")
 	outer := converter.raisePt
-	if v, pt, ok := safeRaise(StringifyTokens(args[0].Expr), outer); ok {
+	if v, pt, ok := converter.parseLength(StringifyTokens(args[0].Expr)); ok && math.Abs(outer+pt) <= maxRaisePt {
 		n.SetAttr("voffset", v)
 		converter.raisePt += pt
 		defer func() { converter.raisePt = outer }()
@@ -289,41 +299,70 @@ func cmd_mathop(converter *MathMLConverter, name string, star bool, ctx parseCon
 	if len(args) < 1 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	n := NewMMLNode("mo", StringifyTokens(args[0].Expr)).SetAttr("rspace", "0")
+	n := converter.operator(args[0], ctx)
 	n.Properties |= propLimitsunderover | propMovablelimits
+	if n.Tag == "mo" {
+		n.SetAttr("rspace", "0")
+	}
 	return n
+}
+
+// operator parses b, the argument of \mathop or \operatorname, as one
+// operator. MathML Core honours movablelimits and the operator spacing on
+// <mo> only, so an argument that is only text (a word, a symbol, under a
+// font command or not) is written as one <mo>; anything else is kept as
+// parsed.
+func (converter *MathMLConverter) operator(b *TokenBuffer, ctx parseContext) *MMLNode {
+	n := converter.parseArg(b, ctx)
+	if n.Tag == "mo" {
+		return n
+	}
+	var sb strings.Builder
+	var leafText func(*MMLNode) bool
+	leafText = func(n *MMLNode) bool {
+		switch n.Tag {
+		case "mi", "mn", "mo", "mtext":
+			sb.WriteString(n.Text)
+		case "mspace":
+			sb.WriteRune('\u2009') // thin space
+		case "mrow", "mpadded", "mstyle":
+			for _, c := range n.Children {
+				if c != nil && !leafText(c) {
+					return false
+				}
+			}
+		default:
+			return false
+		}
+		return true
+	}
+	if !leafText(n) || sb.Len() == 0 {
+		return n
+	}
+	return NewMMLNode("mo", sb.String())
 }
 
 func cmd_mod(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
 	if len(args) < 1 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	n := NewMMLNode("mrow")
-	if name == "pmod" {
-		space := NewMMLNode("mspace").SetAttr("width", "0.7em")
-		mod := NewMMLNode("mo", "mod").SetAttr("lspace", "0")
-		n.AppendChild(space,
-			NewMMLNode("mo", "("),
-			mod,
-			converter.ParseTex(args[0], ctx),
-			NewMMLNode("mo", ")"),
-		)
-	} else {
-		space := NewMMLNode("mspace").SetAttr("width", "0.5em")
-		mod := NewMMLNode("mo", "mod")
-		n.AppendChild(space,
-			mod,
-			converter.ParseTex(args[0], ctx),
-		)
-	}
-	return n
+	return NewMMLNode("mrow").AppendChild(
+		NewMMLNode("mspace").SetAttr("width", "0.7em"),
+		NewMMLNode("mo", "("),
+		NewMMLNode("mo", "mod").SetAttr("lspace", "0"),
+		converter.parseArg(args[0], ctx),
+		NewMMLNode("mo", ")"),
+	)
 }
 
 func cmd_substack(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
 	if len(args) < 1 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	n := converter.ParseTex(args[0], ctx|ctxTable)
+	n := converter.ParseTex(args[0], ctx|ctxTable, NewMMLNode("mrow"))
+	if n == nil {
+		n = NewMMLNode("mrow")
+	}
 	processTable(n, name)
 	n.SetAttr("rowspacing", "0")
 	n.SetFalse("displaystyle")
@@ -334,7 +373,7 @@ func cmd_underOverBrace(converter *MathMLConverter, name string, star bool, ctx 
 	if len(args) < 1 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	annotation := converter.ParseTex(args[0], ctx)
+	annotation := converter.parseArg(args[0], ctx)
 	n := NewMMLNode()
 	brace := NewMMLNode("mo")
 	brace.SetTrue("stretchy")
@@ -390,10 +429,10 @@ func cmd_sqrt(converter *MathMLConverter, name string, star bool, ctx parseConte
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
 	n := NewMMLNode("msqrt")
-	n.AppendChild(converter.ParseTex(args[0], ctx))
-	if opt != nil {
+	n.AppendChild(converter.parseArg(args[0], ctx))
+	if opt != nil && !opt.Empty() {
 		n.Tag = "mroot"
-		n.AppendChild(converter.ParseTex(opt, ctx))
+		n.AppendChild(converter.parseArg(opt, ctx))
 	}
 	return n
 }
@@ -409,29 +448,36 @@ func cmd_frac(converter *MathMLConverter, name string, star bool, ctx parseConte
 	if len(args) < 2 {
 		return NewMMLNode("mtext", "Error: insufficient arguments")
 	}
-	// for a binomial coefficient, we need to wrap it in parentheses, so the "fraction" must
-	// be a child of parent, and parent must be an mrow.
-	wrapper := NewMMLNode("mrow")
-	frac := NewMMLNode("mfrac")
-	numerator := converter.ParseTex(args[0], ctx)
-	denominator := converter.ParseTex(args[1], ctx)
-	frac.AppendChild(numerator, denominator)
+	return makeFraction(name, converter.parseArg(args[0], ctx), converter.parseArg(args[1], ctx))
+}
+
+// makeFraction returns the fraction of command name (frac, binom...).
+func makeFraction(name string, numerator, denominator *MMLNode) *MMLNode {
+	frac := NewMMLNode("mfrac").AppendChild(numerator, denominator)
 	switch name {
-	case "", "frac":
-		return frac
 	case "cfrac", "dfrac":
 		frac.SetTrue("displaystyle")
-		return frac
 	case "tfrac":
 		frac.SetFalse("displaystyle")
-		return frac
-	case "binom":
+	case "binom", "tbinom":
+		// A binomial coefficient is a fraction with no bar, in
+		// parentheses: the fraction goes in an mrow with them.
 		frac.SetAttr("linethickness", "0")
-		wrapper.AppendChild(strechyOP("("), frac, strechyOP(")"))
-	case "tbinom":
-		wrapper.SetFalse("displaystyle")
-		frac.SetAttr("linethickness", "0")
-		wrapper.AppendChild(strechyOP("("), frac, strechyOP(")"))
+		wrapper := NewMMLNode("mrow").AppendChild(strechyOP("("), frac, strechyOP(")"))
+		if name == "tbinom" {
+			wrapper.SetFalse("displaystyle")
+		}
+		return wrapper
 	}
-	return wrapper
+	return frac
+}
+
+// parseArg parses the argument b of a command. An empty argument is an
+// empty mrow, as an empty group is an empty atom in TeX: elements with a
+// fixed number of children (mfrac, mover...) keep all of them.
+func (converter *MathMLConverter) parseArg(b *TokenBuffer, ctx parseContext) *MMLNode {
+	if n := converter.ParseTex(b, ctx); n != nil {
+		return n
+	}
+	return NewMMLNode("mrow")
 }
