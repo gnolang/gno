@@ -661,9 +661,12 @@ func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.G
 // namespace; a resolved user lists two.
 // Each entry costs a weburl parse and a sort comparison;
 // an unbounded cap turns a single GET into a 10k-iteration amplifier.
+// It equals the node's own qpaths default, the cap this page always got
+// before ListPaths forwarded its limit: lower would drop the tail of a large
+// namespace and count what is left as the total.
 // Exported so external tests assert against the documented cap.
 // TODO: paginate via ?page= when a contributor exceeds this cap.
-const MaxUserContributions = 200
+const MaxUserContributions = 1000
 
 // buildContributions returns the sorted list of contributions (packages and
 // realms) deployed under any of the given namespaces.
