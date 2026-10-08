@@ -3287,11 +3287,11 @@ main.is-dev-mode .b-toc a {
 		}
 
 		&:is(
-			.gno-button-caution,
-			.gno-button-warning,
-			.gno-button-info,
-			.gno-button-note
-		):hover {
+				.gno-button-caution,
+				.gno-button-warning,
+				.gno-button-info,
+				.gno-button-note
+			):hover {
 			border-color: currentColor;
 		}
 
@@ -3301,12 +3301,14 @@ main.is-dev-mode .b-toc a {
 			background-color: transparent;
 			border-color: currentColor;
 
-			&:not(:is(
-				.gno-button-caution,
-				.gno-button-warning,
-				.gno-button-info,
-				.gno-button-note
-			)) {
+			&:not(
+					:is(
+							.gno-button-caution,
+							.gno-button-warning,
+							.gno-button-info,
+							.gno-button-note
+						)
+				) {
 				color: var(--s-color-text-link-hover);
 			}
 
