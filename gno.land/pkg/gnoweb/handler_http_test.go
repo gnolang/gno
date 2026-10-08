@@ -2363,6 +2363,42 @@ func TestHTTPHandler_StaticPageFrontMatter(t *testing.T) {
 	}
 }
 
+// TestHTTPHandler_StaticAliasNamedLikeAFile checks that an alias whose key
+// reads as a file, by its extension or a capital, is still a page of its
+// own: it names itself, not a file under "/", and keeps its front matter.
+func TestHTTPHandler_StaticAliasNamedLikeAFile(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
+	withGnoLandMeta(config)
+	config.Renderer = gnoweb.NewHTMLRenderer(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		gnoweb.NewDefaultRenderConfig(), nil,
+	)
+	page := gnoweb.NewStaticAlias("---\ntitle: Chosen Title\ndescription: The summary we chose.\n---\n\n# Heading\n\nBody.\n")
+	config.Aliases = map[string]gnoweb.AliasTarget{"/license.md": page, "/Terms": page}
+
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})), config)
+	require.NoError(t, err)
+
+	for _, url := range []string{"/license.md", "/Terms"} {
+		t.Run(url, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, url, nil))
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+			assert.Contains(t, head, `<link rel="canonical" href="https://gno.land`+url+`" />`)
+			assert.Contains(t, head, `<meta property="og:url" content="https://gno.land`+url+`" />`)
+			assert.Contains(t, head, "<title>Chosen Title - gno.land</title>")
+			assert.Contains(t, head, `<meta name="description" content="The summary we chose." />`)
+		})
+	}
+}
+
 // TestHTTPHandler_PageDescriptionEscapes pins the escaping of a summary. The
 // text comes from a page anyone may publish and lands in an HTML attribute.
 func TestHTTPHandler_PageDescriptionEscapes(t *testing.T) {
@@ -2409,8 +2445,8 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 		// names the alias rather than compete with it; of two aliases, the
 		// shorter.
 		{"/r/gnoland/pages:p/about", "https://gno.land/about"},
-		// A view of the target is a page of its own.
-		{"/r/gnoland/pages:p/about$source", "https://gno.land/r/gnoland/pages:p/about$source"},
+		// The source of the target is the realm's: args do not reach it.
+		{"/r/gnoland/pages:p/about$source", "https://gno.land/r/gnoland/pages$source"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.url, func(t *testing.T) {
@@ -2422,6 +2458,40 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 			body := rr.Body.String()
 			assert.Contains(t, body, `<link rel="canonical" href="`+tc.canonical+`" />`)
 			assert.Contains(t, body, `<meta property="og:url" content="`+tc.canonical+`" />`)
+		})
+	}
+}
+
+// TestHTTPHandler_CanonicalDropsIgnoredArgs checks that args name a page of
+// their own only where they reach Render. A source view, a file and a pure
+// package show the same bytes whatever args a link adds, so each names the
+// page without them, as a package listing names the package without its
+// trailing slash.
+func TestHTTPHandler_CanonicalDropsIgnoredArgs(t *testing.T) {
+	t.Parallel()
+
+	handler := newTrustHandler(t, gnoweb.IndexAllCommunity)
+
+	cases := []struct{ url, canonical string }{
+		{"/r/gnoland/blog:p/a$source", "/r/gnoland/blog$source"},
+		{"/r/gnoland/blog:p/a$source&file=render.gno", "/r/gnoland/blog$source&amp;file=render.gno"},
+		{"/r/gnoland/blog/render.gno:p/a", "/r/gnoland/blog/render.gno"},
+		{"/p/nym/lib:anything", "/p/nym/lib"},
+		{"/p/nym/lib/", "/p/nym/lib"},
+		// Render reads them, so a realm's args stay.
+		{"/r/gnoland/blog:t/news", "/r/gnoland/blog:t/news"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.url, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+
+			require.Equal(t, http.StatusOK, rr.Code)
+			head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+			assert.Contains(t, head, `<link rel="canonical" href="https://gno.land`+tc.canonical+`" />`)
+			assert.Contains(t, head, `<meta property="og:url" content="https://gno.land`+tc.canonical+`" />`)
 		})
 	}
 }
@@ -2778,6 +2848,11 @@ func TestHTTPHandler_CommunityIndex(t *testing.T) {
 		{name: "community realm with args, as markdown", url: "/r/nym/app:p/x", markdown: true, want: [3]string{nn, nn, ix}},
 		{name: "community realm with a query", url: "/r/nym/app?page=2", want: [3]string{nn, nn, nf}},
 		{name: "community source", url: "/r/nym/app$source", want: [3]string{nn, nn, ix}},
+		// A file or a listing is not the bare page, which alone is indexed
+		// under a registered name, as the source view already is not.
+		{name: "community file", url: "/r/nym/app/render.gno", want: [3]string{nn, nn, ix}},
+		{name: "community directory", url: "/r/nym/app/", want: [3]string{nn, nn, ix}},
+		{name: "community package file", url: "/p/nym/lib/lib.gno", want: [3]string{nn, nn, ix}},
 		{name: "community help", url: "/r/nym/app$help", want: [3]string{nn, nn, nf}},
 		{name: "community state", url: "/r/nym/app$state", want: [3]string{nn, nn, nf}},
 		{name: "official realm", url: "/r/gnoland/blog", want: [3]string{ix, ix, ix}},

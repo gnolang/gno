@@ -139,7 +139,12 @@ never kept: anyone can append one to any page. Of the `$` keys, an indexed
 page carries only `source` and `file`, written in the order gnoweb's own
 links use (`$source&file=<name>`). An alias's target asked for by its own
 path, with no view or query, names the alias: `/r/gnoland/home` is `/`. Of
-two aliases to one target, the shorter wins.
+two aliases to one target, the shorter wins. Args reach only a realm's
+`Render`, so a source view, a file and a pure package drop them, and a pure
+package drops its trailing slash: `/r/gnoland/blog:p/a$source` names
+`/r/gnoland/blog$source`, and `/p/gnoland/lib/` and `/p/gnoland/lib:x` name
+`/p/gnoland/lib`. A static page names its alias key even when the key reads
+as a file, as `/license.md` or `/Terms` do.
 
 ### What search engines may index
 
@@ -168,7 +173,7 @@ For community pages, `-index-community` chooses:
 
 | `-index-community` | community pages indexed |
 |---|---|
-| `registered` (default) | the bare page of a package or user page whose namespace is a registered name: no args, no query, no `$` view |
+| `registered` (default) | the bare page of a package or user page whose namespace is a registered name: no args, no query, no `$` view, no file, no directory listing |
 | `none` | none |
 | `all` | all of them, under the rule of official pages |
 

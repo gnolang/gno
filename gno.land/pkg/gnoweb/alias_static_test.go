@@ -128,6 +128,40 @@ func TestNewStaticAlias(t *testing.T) {
 			body:    "---\ntitle: About\nIntro.\n---\nBody.\n",
 		},
 		{
+			name:        "a folded description joins its lines with spaces",
+			content:     "---\ntitle: About\ndescription: >\n  What gno.land is\n  and why it exists.\n---\nBody.\n",
+			title:       "About",
+			description: "What gno.land is and why it exists.",
+			body:        "Body.\n",
+		},
+		{
+			name:        "a folded description with a chomping indicator",
+			content:     "---\ndescription: >-\n  What gno.land is\n\n  and why it exists.\ntitle: About\n---\nBody.\n",
+			title:       "About",
+			description: "What gno.land is and why it exists.",
+			body:        "Body.\n",
+		},
+		{
+			// A head is one line, so a literal block's newlines fold too.
+			name:        "a literal description is put on one line",
+			content:     "---\ndescription: |\n  What gno.land is.\n  Why it exists.\n---\nBody.\n",
+			description: "What gno.land is. Why it exists.",
+			body:        "Body.\n",
+		},
+		{
+			name:        "a wrapped plain description keeps every line",
+			content:     "---\ndescription: What gno.land is\n  and why it exists.\ntitle: About\n---\nBody.\n",
+			title:       "About",
+			description: "What gno.land is and why it exists.",
+			body:        "Body.\n",
+		},
+		{
+			name:    "a wrapped quoted title loses its quotes",
+			content: "---\ntitle: \"Gno: a\n  language\"\n---\nBody.\n",
+			title:   "Gno: a language",
+			body:    "Body.\n",
+		},
+		{
 			name:    "a thematic break is not front matter",
 			content: "---\n\nBody.\n",
 			body:    "---\n\nBody.\n",

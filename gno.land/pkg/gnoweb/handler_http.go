@@ -307,7 +307,13 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sp := h.classifyPage(w, gnourl)
+	// A static page is named by its alias key, which may read as a file:
+	// /license.md or /Terms would otherwise be a file under "/".
+	classified := gnourl
+	if staticPage {
+		classified = &weburl.GnoURL{Path: requested.Path, Query: gnourl.Query, WebQuery: gnourl.WebQuery}
+	}
+	sp := h.classifyPage(w, classified)
 
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
@@ -326,7 +332,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	case staticPage:
 		// A static page renders the same bytes whatever the query says, so
 		// /about?utm_source=x is /about and may still name itself.
-		u := *gnourl
+		u := *classified
 		u.Query = nil
 		sp.url = &u
 	}
@@ -1432,6 +1438,15 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	}
 	u := *gnourl
 	u.Query, u.WebQuery = nil, nil
+	// Args reach only a realm's Render. A source view, a file and a pure
+	// package show the same bytes whatever args a link adds, and a package
+	// lists the same files with or without a trailing slash.
+	if gnourl.WebQuery.Has("source") || u.IsFile() || u.IsPure() {
+		u.Args = ""
+	}
+	if pkg, ok := packagePath(&u); ok && u.IsPure() {
+		u.Path = "/p/" + pkg
+	}
 	canonical := h.Static.CanonicalOrigin + u.EncodeWebURL()
 	if gnourl.WebQuery.Has("source") {
 		canonical += "$source"

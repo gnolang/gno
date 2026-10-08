@@ -87,11 +87,12 @@ func canonicalViews(q url.Values) bool {
 // robots decides what search engines may do with u, a page of kind k.
 //
 // A community page under "registered" is indexed only as the bare page of a
-// package or user under a registered name: once r/sys/names is enabled the
-// chain lets nobody deploy under a name they do not hold, while anyone may
-// deploy under their own address, which makes address namespaces free to
-// throw away. Under "none" no community page is indexed, and under "all"
-// community pages follow the rule of official ones.
+// package or user under a registered name, not as one of its files or its
+// listing: once r/sys/names is enabled the chain lets nobody deploy under a
+// name they do not hold, while anyone may deploy under their own address,
+// which makes address namespaces free to throw away. Under "none" no
+// community page is indexed, and under "all" community pages follow the rule
+// of official ones.
 //
 // An official page is indexed, but not under a query or a $ view other than
 // its source: both let any link multiply one page into as many URLs as it
@@ -101,7 +102,8 @@ func (p pagePolicy) robots(k pageKind, u *weburl.GnoURL) robots {
 		switch p.index {
 		case IndexAllCommunity:
 		case IndexRegisteredCommunity:
-			if u.Args != "" || len(u.Query) > 0 || len(u.WebQuery) > 0 || isGnoAddress(u.Namespace()) {
+			if u.Args != "" || len(u.Query) > 0 || len(u.WebQuery) > 0 || u.IsFile() || u.IsDir() ||
+				isGnoAddress(u.Namespace()) {
 				return noIndexNoFollow
 			}
 			return indexFollow
