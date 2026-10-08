@@ -129,6 +129,19 @@ names the realm, `-func` the function, and each `-args` one argument, in order.
 `cur realm` parameter. Non-crossing functions are rejected; read them with
 [`vm/qeval`](#vmqeval), or call them from [`Run`](#run).
 
+This calls `Deposit` on the [`wugnot` realm](https://gno.land/r/gnoland/wugnot),
+which turns the `1000ugnot` sent with `-send` into 1000 `wugnot` tokens:
+
+```bash
+gnokey maketx call \
+  -pkgpath gno.land/r/gnoland/wugnot \
+  -func Deposit \
+  -send 1000ugnot \
+  -gas-fee 8000ugnot -gas-wanted 8000000 \
+  -chainid gnoland-1 -remote https://rpc.gno.land:443 \
+  mykey
+```
+
 :::info `Call` always uses gas
 
 `maketx call` spends gas even when the function only reads state. To read without
@@ -160,7 +173,16 @@ own `-args`.
 ### `Send`
 
 `Send` transfers coins between two addresses with `gnokey maketx send`: `-to`
-names the recipient and `-send` the amount, as `<amount><denom>`.
+names the recipient and `-send` the amount, as `<amount><denom>`:
+
+```bash
+gnokey maketx send \
+  -to <recipient-g1-address> \
+  -send 1000000ugnot \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
+  -chainid gnoland-1 -remote https://rpc.gno.land:443 \
+  mykey
+```
 
 ### `Run`
 
@@ -280,15 +302,35 @@ type-checks it, runs it, or can import it until an address listed in the
 an approver can send it. It takes exactly one of `-pkgdir`, a local copy of the
 source you reviewed, which it hashes, and `-pkg-hash`, a hash computed
 elsewhere. `-pkg-height`, the block the reviewed submission landed in, makes any
-re-submission invalidate the approval.
+re-submission invalidate the approval:
+
+```bash
+gnokey maketx enablepkg \
+  -pkgpath gno.land/r/<namespace>/<pkg> \
+  -pkgdir ./reviewed-copy \
+  -gas-fee 10000ugnot -gas-wanted 10000000 \
+  -chainid gnoland-1 -remote https://rpc.gno.land:443 \
+  approverkey
+```
+
+Activating type-checks and runs the package, so a large one needs more gas than
+this; size it with `-simulate only`.
 
 Hash your own reviewed copy, never one read from the chain: the submitter can
 replace the parked bytes at any time, and a hash taken from the chain approves
 whatever is parked at that moment.
 
-`gnokey maketx rejectpkg -pkgpath <path>` removes a parked package. An approver,
-the address that submitted it, or the owner of a live package at the same path
-can send it, and the submission charge is not refunded.
+`gnokey maketx rejectpkg` removes a parked package. An approver, the address
+that submitted it, or the owner of a live package at the same path can send it,
+and the submission charge is not refunded:
+
+```bash
+gnokey maketx rejectpkg \
+  -pkgpath gno.land/r/<namespace>/<pkg> \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
+  -chainid gnoland-1 -remote https://rpc.gno.land:443 \
+  mykey
+```
 
 ## Operator workflows
 
