@@ -164,9 +164,16 @@ func (g *typeDeclGraph) findCycle(keep func(from Name, dep typeDep) bool) []Name
 		if cycle == nil {
 			continue
 		}
+		// Rotate in O(len(cycle)): a lookup per member, not a scan of
+		// g.names per member, which is quadratic on a cycle through
+		// every declaration and ran unmetered.
+		pos := make(map[Name]int, len(g.names))
+		for i, name := range g.names {
+			pos[name] = i
+		}
 		first := 0
 		for i := range cycle {
-			if slices.Index(g.names, cycle[i]) < slices.Index(g.names, cycle[first]) {
+			if pos[cycle[i]] < pos[cycle[first]] {
 				first = i
 			}
 		}
