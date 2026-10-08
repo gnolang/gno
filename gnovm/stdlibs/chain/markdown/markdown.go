@@ -427,9 +427,13 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		// (which only strips ASCII whitespace and form-feed) and
 		// goldmark's Type-7 HTML block detection (which requires the
 		// first non-whitespace char to be `<`, not `\`).
+		// It goes after the indent, right before `<`: an inline tag
+		// (`<gno-button />`) matches wherever its `<` sits.
 		if isExtDelimiter(line) {
+			trimmed := strings.TrimLeft(line, " \t")
+			out.WriteString(line[:len(line)-len(trimmed)])
 			out.WriteByte('\\')
-			out.WriteString(line)
+			out.WriteString(trimmed)
 			if writeNL {
 				out.WriteByte('\n')
 			}
