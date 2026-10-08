@@ -122,13 +122,14 @@ func isButtonHrefAllowed(href []byte) bool {
 
 // buttonClass returns the class attribute for the given variant words.
 func buttonClass(words []string) string {
-	class := buttonClassBase
+	var class strings.Builder
+	class.WriteString(buttonClassBase)
 	for _, v := range buttonVariants {
 		if slices.Contains(words, v) {
-			class += " " + buttonClassBase + "-" + v
+			class.WriteString(" " + buttonClassBase + "-" + v)
 		}
 	}
-	return class
+	return class.String()
 }
 
 // buttonParser is the inline parser for <gno-button … />.
