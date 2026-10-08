@@ -1565,6 +1565,64 @@ func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
 	t.Fatal("no goroutine running runDialLoop found")
 }
 
+// TestMultiplexSwitch_DialLoop_PopsOnlyDueItems guards the dial loop's pop
+// against taking a head that is not due: the redial loop removes a queued dial
+// between the peek and the pop, and the head is then a dial in backoff
+func TestMultiplexSwitch_DialLoop_PopsOnlyDueItems(t *testing.T) {
+	t.Parallel()
+
+	var (
+		addrs = generateNetAddr(t, 2)
+		due   = addrs[0]
+		later = addrs[1]
+
+		dialedLater atomic.Bool
+	)
+
+	sw := NewMultiplexSwitch(&mockTransport{
+		dialFn: func(_ context.Context, address types.NetAddress, _ PeerBehavior) (PeerConn, error) {
+			if address.ID == later.ID {
+				dialedLater.Store(true)
+			}
+
+			return nil, errors.New("dial failed")
+		},
+	})
+	sw.peers = &mockSet{
+		hasFn: func(types.ID) bool { return false },
+	}
+
+	// A dial in backoff, that must never be popped
+	sw.persistentDialQueue.Push(dial.Item{
+		Time:    time.Now().Add(time.Hour),
+		Address: later,
+	})
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		sw.runDialLoop(ctx)
+	}()
+
+	// Queue a due dial and remove it again, so that the removal regularly
+	// lands between the loop's peek and its pop
+	for range 2000 {
+		sw.persistentDialQueue.Push(dial.Item{Time: time.Now(), Address: due})
+		sw.notifyAddPeerToDial()
+		sw.persistentDialQueue.Remove(due)
+	}
+
+	// A pop landing at the very end of the churn counts, so read the flag
+	// once the loop has exited
+	cancel()
+	<-done
+
+	assert.False(t, dialedLater.Load(), "a dial that is not due was popped")
+}
+
 func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
 	t.Parallel()
 
