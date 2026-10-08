@@ -1093,11 +1093,13 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// so that if Receive errors, we will find the peer and remove it.
 	replaced, err := sw.registerPeer(p)
 
-	// Each connection gets its RemovePeer exactly once. The connection p
-	// replaced gets it here, before p's AddPeer, unless its own teardown,
-	// after the remote closed it, began first, in which case that RemovePeer
-	// may run concurrently with p's AddPeer. p holds the entry, so the
-	// teardown leaves that entry alone
+	// The connection p replaced gets its RemovePeer exactly once. It gets it
+	// here, before p's AddPeer, unless its own teardown, after the remote
+	// closed it, began first, in which case that RemovePeer may run
+	// concurrently with p's AddPeer. p holds the entry, so the teardown leaves
+	// that entry alone. A connection refused at registration gets the
+	// RemovePeer of the unwind below instead, which can run after the kept
+	// connection's AddPeer
 	if replaced != nil {
 		sw.Logger.Info(
 			"replacing connection to resolve a simultaneous open",
