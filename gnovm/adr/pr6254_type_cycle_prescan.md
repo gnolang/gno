@@ -56,9 +56,13 @@ Validate the declaration graph first, then predefine.
    `PreprocessGasPerByte` applies, so they bill the tx's preprocess meter
    per unit of work through `chargeCPUGas`, as `embedWalk` does: per
    declaration, per type-expression node (dependency scan, map-key walk)
-   and per graph step (cycle-search edge, `embedDepth` visit). Slopes are dev-box fits from `BenchmarkTypeDeclGroup`
-   (`cmd/calibrate/typedeclgroup_bench_m5_arm64.txt`) times the 2.1 machine
-   factor of #6164, rounded up so every grid shape is a floor. Only
+   and per graph step (cycle-search edge, `embedDepth` visit). Slopes are
+   dev-box fits from `BenchmarkTypeDeclGroup` converted with a machine
+   factor measured the way #6164 did it, gas table divided by measured
+   pure ns over seven flat ops run alongside (1.9 to 2.2 on the dev box;
+   2.1 used), rounded up so every grid shape is a floor. The run is
+   recorded in `cmd/calibrate/typedeclgroup_bench_m5_arm64.txt`; a re-fit
+   on the reference hardware is a follow-up, as for #6164. Only
    `embedDepth` can exceed linear in the source: a subgraph shared by many
    embedders is re-walked once per declaration, which `embed_gas` pins.
 

@@ -1669,12 +1669,15 @@ const (
 	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
 	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
 	// Type-declaration group validation (typecycle.go), at preprocess.
-	// Fits from BenchmarkTypeDeclGroup on the M5 dev box
-	// (cmd/calibrate/typedeclgroup_bench_m5_arm64.txt, machine factor 2.1):
-	// site 106, node 5.0, step 25.7 (cycle edge) and 25.8 (embed visit)
-	// reference-ns, rounded up so every grid shape is a floor. The map-key
-	// walk visits the same nodes as the dependency scan and is billed at
-	// the node slope (fit 1.8).
+	// Dev-box fits from BenchmarkTypeDeclGroup, converted to reference-ns
+	// with a machine factor measured as in #6164 (gas table ÷ measured
+	// pure ns over seven flat ops, run alongside); see the record in
+	// cmd/calibrate. Fits: site 106, node 5.0, step 25.7 (cycle edge) and
+	// 25.8 (embed visit), rounded up so every grid shape is a floor. The
+	// map-key walk visits the nodes the dependency scan already bills and
+	// uses the node slope (fit 1.8).
+	// TODO(calibrate): re-fit on the reference hardware with the rest of
+	// the op table.
 	OpCPUSlopeTypeDeclSite = 230 // typeDeclGraph: per declaration indexed and visited
 	OpCPUSlopeTypeDeclNode = 11  // per type-expression node visited (collectTypeDeps, uncomparableMapKey)
 	OpCPUSlopeTypeDeclStep = 55  // per graph step (findCycle edge examined, embedDepth type or field visited)

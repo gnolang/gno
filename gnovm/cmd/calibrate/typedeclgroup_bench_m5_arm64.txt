@@ -1,6 +1,6 @@
 # go test -run='^$' -bench='BenchmarkTypeDeclGroup' -benchtime=2s -count=3 ./gnovm/pkg/gnolang/
 # Dev-box run (Apple M5, darwin/arm64, go1.26.5) behind OpCPUSlopeTypeDecl{Site,Node,Step} — informational, like embedwalk_bench_m5_arm64.txt.
-# Machine factor 2.1 (see embedwalk_bench_m5_arm64.txt). Fits: leaf shapes give node + per-declaration cost, group minus leaf gives edge + DFS visit cost.
+# Machine factor measured alongside this run as in embedwalk_bench_m5_arm64.txt (gas table ÷ ns/op(pure) over seven flat ops): Add_Int 1.90, Eql_Int 2.08, IfCond_FalseBranch 2.16, IfCond_TrueBranch 2.06, SwitchClause_DefaultMatch 2.07, SwitchClauseCase_Match 1.92, SwitchClauseCase_Miss 1.93; range 1.90-2.16, 2.1 used. Fits: leaf shapes give node + per-declaration cost, group minus leaf gives edge + DFS visit cost.
 goos: darwin
 goarch: arm64
 pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
