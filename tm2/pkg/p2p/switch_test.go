@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -673,6 +674,59 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 		require.True(t, sw.Peers().Has(p.ID()))
 
 		assert.True(t, peerDialed)
+	})
+}
+
+func TestMultiplexSwitch_DialPeer_RejectedBeforeStart(t *testing.T) {
+	t.Parallel()
+
+	// dialRejected dials a peer the switch refuses before starting it,
+	// and returns how many times its connection was closed
+	dialRejected := func(t *testing.T, sw *MultiplexSwitch, p *mock.Peer) int {
+		t.Helper()
+
+		var closed atomic.Int32
+
+		p.IsOutboundFn = func() bool { return true }
+		p.CloseConnFn = func() error {
+			closed.Add(1)
+
+			return nil
+		}
+
+		sw.transport = &mockTransport{
+			dialFn: func(context.Context, types.NetAddress, PeerBehavior) (PeerConn, error) {
+				return p, nil
+			},
+		}
+
+		sw.dialPeer(t.Context(), p.SocketAddr())
+
+		return int(closed.Load())
+	}
+
+	t.Run("outbound limit reached", func(t *testing.T) {
+		t.Parallel()
+
+		sw := NewMultiplexSwitch(nil, WithMaxOutboundPeers(0))
+
+		p := mock.GeneratePeers(t, 1)[0]
+
+		assert.Equal(t, 1, dialRejected(t, sw, p))
+		assert.False(t, sw.Peers().Has(p.ID()))
+	})
+
+	t.Run("duplicate peer", func(t *testing.T) {
+		t.Parallel()
+
+		p := mock.GeneratePeers(t, 1)[0]
+
+		sw := NewMultiplexSwitch(nil)
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool { return id == p.ID() },
+		}
+
+		assert.Equal(t, 1, dialRejected(t, sw, p))
 	})
 }
 

@@ -441,11 +441,13 @@ func (sw *MultiplexSwitch) dialPeer(ctx context.Context, peerAddr *types.NetAddr
 			"err", err,
 		)
 
-		sw.transport.Remove(p)
-
 		if !p.IsRunning() {
+			sw.rejectConn(p)
+
 			return
 		}
+
+		sw.transport.Remove(p)
 
 		if stopErr := p.Stop(); stopErr != nil {
 			sw.Logger.Error(
@@ -797,13 +799,14 @@ func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
 	return false
 }
 
-// rejectInbound drops a connection the accept loop has decided not to keep.
+// rejectConn drops a connection the switch has decided not to keep: an inbound
+// one the accept loop refuses, or a dialed one addPeer refuses before starting it.
 //
 // transport.Remove only forgets the connection; the socket the STS handshake
 // established has to be closed explicitly, or -- since a rejected peer was never
 // started, so no Stop() path runs -- it lingers until the netFD finalizer does
 // it. That lets a host open connections faster than the GC reclaims them.
-func (sw *MultiplexSwitch) rejectInbound(p PeerConn) {
+func (sw *MultiplexSwitch) rejectConn(p PeerConn) {
 	sw.transport.Remove(p)
 
 	if err := p.CloseConn(); err != nil {
@@ -847,7 +850,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"max", sw.maxInboundPeers,
 			)
 
-			sw.rejectInbound(p)
+			sw.rejectConn(p)
 			continue
 		}
 
@@ -859,7 +862,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"id", p.ID(),
 			)
 
-			sw.rejectInbound(p)
+			sw.rejectConn(p)
 			continue
 		}
 
@@ -873,13 +876,13 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"id", p.ID(),
 			)
 
-			sw.rejectInbound(p)
+			sw.rejectConn(p)
 			continue
 		}
 
 		// There are open peer slots, add peers
 		if err := sw.addPeer(p); err != nil {
-			sw.rejectInbound(p)
+			sw.rejectConn(p)
 
 			if p.IsRunning() {
 				_ = p.Stop()
