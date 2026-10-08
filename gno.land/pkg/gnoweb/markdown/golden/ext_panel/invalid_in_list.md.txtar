@@ -6,8 +6,8 @@
 -- output.html --
 <ul>
 <li>item
-<section class="gno-panel">
-<p>inside list</p>
-</section>
+<!-- unexpected/invalid panel tag omitted -->
+inside list
+<!-- unexpected/invalid panel tag omitted -->
 </li>
 </ul>

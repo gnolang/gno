@@ -1,0 +1,26 @@
+-- input.md --
+<gno-columns>
+<gno-panel>
+> ```
+> code
+<gno-columns-sep>
+col2
+</gno-columns>
+after
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<section class="gno-panel">
+<blockquote>
+<pre><code>code
+</code></pre>
+</blockquote>
+</section>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>col2</p>
+</div>
+</div> <!-- </gno-columns> -->
+<p>after</p>

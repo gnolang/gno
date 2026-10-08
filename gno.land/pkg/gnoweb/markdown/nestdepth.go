@@ -8,8 +8,10 @@
 //	<gno-foreign> > <gno-foreign> > <gno-columns> > <gno-columns>
 //
 // reaches depth 4 (the deepest <gno-columns> is allowed); a 5th
-// nested gno-* opener anywhere underneath is refused and falls
-// through to raw HTML, which goldmark safe-mode then strips.
+// nested gno-* opener anywhere underneath is refused. A refused
+// opener either falls through to raw HTML, which goldmark safe-mode
+// strips (columns, alert), or becomes an inert leaf that renders a
+// comment (foreign "stripped", panel "invalid").
 //
 // The depth counter is a stack: every participating Open calls
 // Push, every Close (and the AST-transformer synth-close path)
@@ -50,10 +52,8 @@ func Get(pc parser.Context) int {
 
 // Push increments the depth counter if below the cap. Returns
 // true on success (depth incremented), false if already at the
-// cap (no change made). Callers should refuse to open their
-// block when Push returns false; goldmark will then try the next
-// block parser (typically Type-7 HTML block at priority 900),
-// which safe-mode strips.
+// cap (no change made). Callers refuse to open their block when
+// Push returns false (see the package comment for the two ways).
 func Push(pc parser.Context) bool {
 	d := Get(pc)
 	if d >= MaxGnoNestDepth {

@@ -447,7 +447,7 @@ Block explorer for gno.land, with transactions, realms and accounts.
 
 ---
 
-***Note**: Panels take no attributes and cannot be nested. Columns cannot go inside a panel: a column tag ends the panel.*
+***Note**: Panels take no attributes and open only at the top level of the page or of a column: not inside a list, a quote, an alert or another panel. Columns cannot go inside a panel; a column tag ends the panel.*
 
 ### Forms
 

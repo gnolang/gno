@@ -4,7 +4,7 @@
 > </gno-panel>
 -- output.html --
 <blockquote>
-<section class="gno-panel">
+<!-- unexpected/invalid panel tag omitted -->
 <p>inside quote</p>
-</section>
+<!-- unexpected/invalid panel tag omitted -->
 </blockquote>

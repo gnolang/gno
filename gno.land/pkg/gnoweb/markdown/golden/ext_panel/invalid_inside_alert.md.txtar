@@ -9,8 +9,8 @@
 <svg><use href="#ico-tip"></use></svg>Tip<svg><use href="#ico-arrow"></use></svg>
 </summary>
 <div>
-<section class="gno-panel">
+<!-- unexpected/invalid panel tag omitted -->
 <p>Panel inside an alert.</p>
-</section>
+<!-- unexpected/invalid panel tag omitted -->
 </div>
 </details>

@@ -108,9 +108,10 @@ var _ parser.BlockParser = (*panelParser)(nil)
 
 func (*panelParser) Trigger() []byte { return []byte{'<'} }
 
-// Open opens a panel on `<gno-panel>`. A close tag here is stray (an open
-// panel consumes its own close in Continue); it, a malformed tag, a panel
-// inside a panel and an opener past the nesting cap all yield an invalid
+// Open opens a panel on `<gno-panel>` at document level only (column
+// content and a foreign body count; see the ADR: this keeps sanitized user
+// content from opening one after `> ` or `- `). A stray close tag, a
+// malformed tag, a non-document parent or the depth cap yields an invalid
 // leaf.
 func (*panelParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
@@ -122,52 +123,67 @@ func (*panelParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 	reader.AdvanceToEOL()
 	// Push last: it must only run for a panel that opens. The nesting cap
 	// spans all structural Gno blocks.
-	if kind != panelTagOpen || hasPanelAncestor(parent) || !Push(pc) {
+	if kind != panelTagOpen || parent.Kind() != ast.KindDocument || !Push(pc) {
 		return &GnoPanelNode{invalid: true}, parser.NoChildren
 	}
 	return &GnoPanelNode{}, parser.HasChildren
-}
-
-func hasPanelAncestor(n ast.Node) bool {
-	for ; n != nil; n = n.Parent() {
-		if n.Kind() == KindGnoPanel {
-			return true
-		}
-	}
-	return false
 }
 
 // Continue closes the panel on `</gno-panel>`, consuming the line, and
 // on any gno-columns tag, leaving the line to reopen at the parent so an
 // unclosed panel cannot swallow its column's separator.
 //
-// goldmark asks the panel before its children, so lines owned by an open
-// opaque child must pass through untouched: a fenced code block may show
-// the syntax, and a <gno-foreign> body is untrusted bytes that must not
-// close the host's panel and spill out of the sandbox.
+// goldmark asks the panel before its children, so a tag line that an open
+// opaque child would receive must pass through untouched: a fenced code
+// block may show the syntax, and a <gno-foreign> body is untrusted bytes
+// that must not close the host's panel and spill out of the sandbox.
 func (*panelParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	if node.(*GnoPanelNode).invalid {
 		return parser.Close
 	}
-	switch pc.LastOpenedBlock().Node.Kind() {
-	case ast.KindFencedCodeBlock, KindGnoForeign:
-		return parser.Continue | parser.HasChildren
-	}
 
 	line, _ := reader.PeekLine()
-	line = trimTagLine(line)
-	if len(line) == 0 || line[0] != '<' {
+	tag := trimTagLine(line)
+	if len(tag) == 0 || tag[0] != '<' {
 		return parser.Continue | parser.HasChildren
 	}
-	if parsePanelLineTag(line) == panelTagClose {
+	if opaqueChildTakes(node, reader, pc) {
+		return parser.Continue | parser.HasChildren
+	}
+	if parsePanelLineTag(tag) == panelTagClose {
 		reader.AdvanceToEOL()
 		return parser.Close
 	}
-	if (hasPrefixFold(line, columnsOpenPrefix) || hasPrefixFold(line, columnsClosePrefix)) &&
-		parseLineTag(line) != GnoColumnTagUndefined {
+	if (hasPrefixFold(tag, columnsOpenPrefix) || hasPrefixFold(tag, columnsClosePrefix)) &&
+		parseLineTag(tag) != GnoColumnTagUndefined {
 		return parser.Close
 	}
 	return parser.Continue | parser.HasChildren
+}
+
+// opaqueChildTakes reports whether the current tag line reaches an open
+// fenced code block or <gno-foreign> body inside panel.
+// It mirrors how goldmark continues the containers in between: a
+// blockquote or alert needs a `>` marker, which a line starting with `<`
+// lacks, and a list item needs the line indented to its content offset.
+func opaqueChildTakes(panel ast.Node, reader text.Reader, pc parser.Context) bool {
+	last := pc.LastOpenedBlock().Node
+	if k := last.Kind(); k != ast.KindFencedCodeBlock && k != KindGnoForeign {
+		return false
+	}
+	line, _ := reader.PeekLine()
+	indent, _ := util.IndentWidth(line, reader.LineOffset())
+	need := 0
+	for n := last.Parent(); n != panel; n = n.Parent() {
+		switch n := n.(type) {
+		case *ast.ListItem:
+			need += n.Offset
+		case *ast.List:
+		default:
+			return false
+		}
+	}
+	return indent >= need
 }
 
 // Close pops the depth pushed by Open. goldmark calls Close once per

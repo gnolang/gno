@@ -19,6 +19,7 @@ func buildTestMarkdownWithForeign() goldmark.Markdown {
 	m := goldmark.New()
 	ExtForeign.Extend(m, nil)
 	ExtColumns.Extend(m)
+	ExtPanels.Extend(m)
 	ExtAlerts.Extend(m)
 	return m
 }

@@ -1,0 +1,16 @@
+-- input.md --
+<gno-panel>
+- ```
+  code
+</gno-panel>
+after
+-- output.html --
+<section class="gno-panel">
+<ul>
+<li>
+<pre><code>code
+</code></pre>
+</li>
+</ul>
+</section>
+<p>after</p>

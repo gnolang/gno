@@ -1,0 +1,22 @@
+-- input.md --
+<gno-panel>
+- outer
+  - ```
+    </gno-panel>
+    ```
+</gno-panel>
+after
+-- output.html --
+<section class="gno-panel">
+<ul>
+<li>outer
+<ul>
+<li>
+<pre><code>&lt;/gno-panel&gt;
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+</section>
+<p>after</p>

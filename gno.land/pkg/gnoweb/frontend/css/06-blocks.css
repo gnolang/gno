@@ -2616,12 +2616,14 @@ main.is-dev-mode .b-toc a {
 
 	/* ===== COLUMNS COMPONENT ===== */
 	.gno-columns {
+		--columns-gap: var(--g-space-10);
+		@media (--2xl) {
+			--columns-gap: var(--g-space-12);
+		}
+
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--g-space-10);
-		@media (--2xl) {
-			gap: var(--g-space-12);
-		}
+		gap: var(--columns-gap);
 
 		& > * {
 			flex-grow: 1;
@@ -2655,10 +2657,7 @@ main.is-dev-mode .b-toc a {
 
 	/* Stacked card rows keep the same spacing as the columns gap. */
 	.gno-columns:has(> .gno-column > .gno-panel:only-child) {
-		margin-block: var(--g-space-10);
-		@media (--2xl) {
-			margin-block: var(--g-space-12);
-		}
+		margin-block: var(--columns-gap);
 	}
 }
 

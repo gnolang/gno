@@ -1,0 +1,25 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: <gno-columns>\n%s\n<gno-columns-sep>\nrealm column\n</gno-columns>
+-- input.md --
+> <gno-panel>
+> attacker
+-- output.md --
+
+
+> <gno-panel>
+> attacker
+
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<blockquote>
+<!-- unexpected/invalid panel tag omitted -->
+<p>attacker</p>
+</blockquote>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>realm column</p>
+</div>
+</div> <!-- </gno-columns> -->

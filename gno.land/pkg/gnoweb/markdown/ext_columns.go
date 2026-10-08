@@ -184,7 +184,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 			node.Tag = GnoColumnTagUndefined
 			return node, parser.NoChildren
 		}
-		// Cross-family nesting cap (shared with gno-foreign, gno-alert).
+		// Cross-family nesting cap (shared with gno-foreign, gno-alert, gno-panel).
 		// On refusal, fall through to raw HTML so safe-mode strips it.
 		if !Push(pc) {
 			return nil, parser.NoChildren
