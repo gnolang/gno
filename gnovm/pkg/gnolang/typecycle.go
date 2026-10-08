@@ -321,8 +321,9 @@ func uncomparableMapKeyIn(work *int64, lists ...[]FieldType) Type {
 // them is predefined: a shell of the declared kind, or for an alias of a
 // name in the group, the slot of the declaration the alias chain ends at.
 // A legal cycle can then close on any member, whichever declaration is
-// predefined first. An alias of a name outside the group is left to
-// tryPredefine, which resolves it once that name is defined.
+// predefined first. An alias of a name outside the group (another file,
+// uverse, pkg.T) is left to tryPredefine, which resolves it once that
+// name is defined.
 func reserveTypeDecls(store Store, sites []typeDeclSite) {
 	byName := make(map[Name]typeDeclSite, len(sites))
 	for _, s := range sites {
@@ -363,6 +364,12 @@ func reserveTypeDecls(store Store, sites []typeDeclSite) {
 				if t, ok = reserve(target); !ok {
 					return nil, false
 				}
+			}
+		case *SelectorExpr:
+			// `type A pkg.T`: a declared type whose base is set at
+			// its LEAVE, like `type A B`.
+			if d.IsAlias {
+				return nil, false
 			}
 		default:
 			return nil, false

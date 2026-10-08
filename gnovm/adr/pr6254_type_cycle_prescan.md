@@ -83,8 +83,8 @@ Validate the declaration graph first, then predefine.
 - `findUndefinedV/T/Any` and `tryPredefine` lose the `direct`, `stack` and
   `defining` parameters and the `directR` result: the walk only returns the
   first undefined name, which can now only be a value. `tryPredefine`
-  builds only the shapes `reserveTypeDecls` leaves (an alias of a name
-  outside the group, `pkg.T`). `predefineRecursively2` keeps `stack` and
+  builds nothing: it only resolves an alias of a name outside the group,
+  which reservation cannot bind before imports are predefined. `predefineRecursively2` keeps `stack` and
   `defining` for its value-cycle message; its type-cycle branch is an
   assertion, so the pre-scan is the only verdict and every direct-cycle
   filetest pins it.

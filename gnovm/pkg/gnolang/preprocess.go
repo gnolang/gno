@@ -5756,7 +5756,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 		last2 := skipFile(last)
 		if !isLocallyDefined(last2, d.Name) {
 			// reserveTypeDecls built every other shape; only an alias
-			// of a name outside the group and pkg.T are left.
+			// of a name outside the group is left to resolve here.
 			var t Type
 			switch tx := d.Type.(type) {
 			case *NameExpr:
@@ -5808,15 +5808,10 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 				panic(fmt.Sprintf("should not happen: %v not reserved",
 					reflect.TypeOf(d.Type)))
 			}
-			if d.IsAlias {
-				// use t directly.
-			} else {
-				// create new declared type.
-				pn := packageOf(last)
-				dt := declareWith(pn.PkgPath, last, d.Name, t)
-				t = dt
+			if !d.IsAlias {
+				panic(fmt.Sprintf("should not happen: %v not reserved", d.Name))
 			}
-			// fill in later.
+			// The alias slot holds its target's type.
 			last2.Define2(true, d.Name, t, asValue(t), NameSource{&d.NameExpr, d, NSTypeDecl, -1})
 			d.Path = last.GetPathForName(store, d.Name)
 		} // END if !isLocallyDefined(last2, d.Name) {
