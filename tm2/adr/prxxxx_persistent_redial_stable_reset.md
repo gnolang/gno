@@ -15,8 +15,8 @@ A related gap: a tick can queue a backoff dial while that peer's previous dial i
 
 ## Decision
 
-1. The redial loop subscribes to `PeerConnected` and `PeerDisconnected` for persistent peers, on one channel so they stay in order. It keeps `attempts` and a new `connectedAt` map, both owned by its goroutine.
-2. On connect, it records the time and removes any dial queued for the peer's configured address (`dial.Queue.Remove`). The backoff is left as is.
+1. The redial loop subscribes to `PeerConnected` and `PeerDisconnected` for persistent peers, on one channel so they are handled in the order they are notified. It keeps `attempts` and a new `connectedAt` map, both owned by its goroutine.
+2. On connect, it records the time and removes any dial queued for the peer's configured address (`dial.Queue.Remove`). The backoff is left as is. A connect handled after the peer already dropped is ignored.
 3. On disconnect, it resets the backoff if the connection lasted `persistentStableUptime`, set to the 30-second backoff ceiling, then queues that peer at once: due right away after a stable connection, after the next backoff step otherwise. A disconnect with no recorded connect counts as unstable.
 4. The 5-second tick is unchanged; it covers startup, dropped events and failed dials.
 5. The dial loop pops through `dial.Queue.PopDue`, which checks and pops the head under the queue's lock, since the redial loop's removal can now run between the dial loop's peek and pop.
@@ -33,6 +33,6 @@ A related gap: a tick can queue a backoff dial while that peer's previous dial i
 
 - A persistent peer whose connections last under 30 seconds is redialed after 1, 2, 4, 8, 16, then 30 seconds, instead of every 5 seconds.
 - A persistent peer that drops after 30 seconds or more of uptime is redialed at once, without waiting for the tick, so a validator reconnects to its sentry as fast as before #6292.
-- A queued dial no longer outlives the connection it was meant to establish.
-- A dropped `PeerConnected` event makes the next drop count as unstable; a dropped `PeerDisconnected` event falls back to the tick, within 5 seconds.
-- Events and peer-set changes are not strictly ordered: a disconnect can be handled before the connect it follows, or a reconnect's connect before the previous connection's disconnect. Either way the redial loop may queue one dial with backoff or forget a connection's start time, so that peer's next redial can be delayed, by up to the 5-second tick or the 30-second ceiling, as for a dropped event.
+- A queued dial no longer outlives the connection it was meant to establish, unless that connection's `PeerConnected` event is dropped (see below).
+- A dropped `PeerConnected` event makes the next drop count as unstable, and lets a leftover dial survive, bounded by the 30-second ceiling; a dropped `PeerDisconnected` event falls back to the tick, within 5 seconds.
+- Events and peer-set changes are not strictly ordered, but a connect handled after its connection already dropped is ignored, so it neither stamps a start time nor removes the dial the disconnect queued. The one remaining window is a connection shorter than the event-handling latency, where a leftover dial can survive, bounded by the 30-second ceiling.

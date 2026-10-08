@@ -1857,7 +1857,7 @@ func TestMultiplexSwitch_QueueMissingPersistentPeers(t *testing.T) {
 			now      = time.Now()
 		)
 
-		// The first dial after a disconnect is due right away
+		// With no attempt recorded, the dial is due right away
 		sw.queueMissingPersistentPeers(attempts, now)
 
 		item := sw.persistentDialQueue.Pop()
@@ -1912,8 +1912,7 @@ func TestMultiplexSwitch_QueueMissingPersistentPeers(t *testing.T) {
 			assert.True(t, item.Time.Equal(passTime))
 			assert.Nil(t, sw.persistentDialQueue.Pop())
 
-			// The dial connects, and the connection lasts persistentStableUptime
-			// before it drops: the drop resets the backoff. See
+			// Stands in for the reset a stable connection's drop performs. See
 			// TestMultiplexSwitch_PersistentPeerEvents
 			delete(attempts, addr.ID)
 		}
