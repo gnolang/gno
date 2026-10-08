@@ -7,11 +7,12 @@ next line
 -- output.md --
 
 
-<gno-icon
+\<gno-icon
 name="star" />
 next line
 
 -- output.html --
-<p><!-- raw HTML omitted -->
+<p>&lt;gno-icon
+name=&quot;star&quot; /&gt;
 next line</p>
 <h2>End</h2>

@@ -6,9 +6,9 @@
 -- output.md --
 
 
-<gno-icon name="check-circle" label="Verified" /> at line start
+\<gno-icon name="check-circle" label="Verified" /> at line start
 \</gno-icon>
 
 -- output.html --
-<p><svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Verified"><g fill-rule="evenodd" transform="translate(2 2)"><circle cx="8.5" cy="8.5" r="8"/><path d="m5.5 9.5 2 2 5-5"/></g></svg> at line start
+<p>&lt;gno-icon name=&quot;check-circle&quot; label=&quot;Verified&quot; /&gt; at line start
 &lt;/gno-icon&gt;</p>

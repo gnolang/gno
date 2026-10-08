@@ -381,7 +381,6 @@ func InlineText(s string) string {
 //	------------------------------------------------------|----------------------------------------------------
 //	  --- preserved verbatim ---                          |
 //	[text](url) inline link, ![alt](src) image            | preserved verbatim
-//	<gno-icon name="…" /> inline icon, any position       | preserved → gnoweb renders an allowlisted glyph
 //	------------------------------------------------------|----------------------------------------------------
 //	  --- escaped / stripped / folded ---                 |
 //	# heading at line-start                               | escaped → literal `# heading`
@@ -390,7 +389,7 @@ func InlineText(s string) string {
 //	---, ***, ___ (3+) at line-start                      | escaped
 //	=== or --- on its own line after non-blank text       | escaped (no setext promotion of the line above)
 //	<gno-card>, <gno-columns>, any <gno-…>/</gno-…> at    | escaped (wildcard match) → literal text
-//	  line-start, except the <gno-icon> opener            |
+//	  line-start                                          |
 //	| a | b | GFM table row (line-leading `|`)            | escaped → literal `| a | b |`
 //	<!--, <script>, <pre>, <style>, <textarea>, <?…?>,    | escaped (\<…) → literal text;
 //	  <!DOCTYPE…>, <![CDATA[…]]> at line-start            |   blocks goldmark from opening a
@@ -553,11 +552,9 @@ func Block(s string) string {
 //	| a | b | GFM table row (line-leading |)      | preserved → renders as <table> when followed by
 //	                                              | a delimiter row [CHANGED]
 //	[text](url), ![alt](src)                      | preserved verbatim [SAME]
-//	<gno-icon name="…" />, any position           | preserved [SAME]
 //	----------------------------------------------|--------------------------------------------------
 //	  --- escaped / stripped / folded ---         |
 //	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
-//	  (except the <gno-icon> opener)              |
 //	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — Types 1-5 don't close
 //	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   on blank lines, so `\n\n` envelope
 //	  at line-start (CM §4.6 HTML block types 1-5)|   doesn't isolate them; explicit escape
@@ -895,11 +892,9 @@ func Blockquote(text string) string {
 //	| a | b | GFM table row (line-leading |)      | preserved → renders as <table> inside the
 //	                                              | blockquote when followed by a delimiter row [CHANGED]
 //	[text](url), ![alt](src)                      | preserved verbatim [SAME]
-//	<gno-icon name="…" />, any position           | preserved [SAME]
 //	----------------------------------------------|------------------------------------------------
 //	  --- escaped / stripped / folded ---         |
 //	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
-//	  (except the <gno-icon> opener)              |
 //	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — CM §4.6 Types 1-5
 //	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   don't close on blank lines; without escape
 //	  at line-start                               |   they would swallow chrome past the `> ` quote

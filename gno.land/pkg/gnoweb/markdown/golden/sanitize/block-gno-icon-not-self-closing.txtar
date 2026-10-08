@@ -6,10 +6,10 @@ next line
 -- output.md --
 
 
-<gno-icon name="star">
+\<gno-icon name="star">
 next line
 
 -- output.html --
-<p><!-- gno-icon: write it self-closing, <gno-icon name="…" /> -->
+<p>&lt;gno-icon name=&quot;star&quot;&gt;
 next line</p>
 <h2>End</h2>
