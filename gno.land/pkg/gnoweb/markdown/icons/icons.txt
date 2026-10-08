@@ -1,0 +1,206 @@
+# Icons callable as <gno-icon name="..." />, imported by `make icons`.
+#
+# One icon per line: `name` imports the upstream file of the same name
+# (dashes read as underscores); `name upstream_file` renames it. The icons
+# already in components/ui/icons.html are callable without being listed here,
+# and a name that collides with one of them is rejected.
+
+# Arrows and navigation
+arrow-up
+arrow-up-left arrow_top_left
+arrow-up-right arrow_top_right
+arrow-down-left arrow_bottom_left
+arrow-down-right arrow_bottom_right
+arrow-up-circle
+arrow-down-circle
+arrow-left-circle
+arrow-right-circle
+chevron-up
+chevron-down
+chevron-left
+chevron-right
+chevrons-up chevron_up_double
+chevrons-down chevron_down_double
+chevrons-left chevron_left_double
+chevrons-right chevron_right_double
+expand
+maximize maximise
+minimize minimise
+fullscreen
+move
+enter
+exit exit_right
+directions
+compass
+location
+gps
+
+# Actions
+plus
+minus
+plus-circle
+minus-circle
+close
+close-circle cross_circle
+edit pen
+write
+trash
+duplicate
+clipboard
+clipboard-check
+download
+upload
+share
+filter
+sliders
+zoom-in
+zoom-out
+refresh
+redo
+undo
+swap
+shuffle
+sort
+eye
+eye-closed
+lock
+unlock lock_open
+save floppy
+paperclip
+send paper_plane
+bookmark
+archive
+printer
+
+# Status
+check-circle
+warning-triangle
+warning-circle
+warning-hex
+help question_circle
+ban no_sign
+loader
+bell
+bell-ringing
+bell-off bell_disabled
+flag
+thumbs-up
+thumbs-down
+smile face_happy
+frown face_sad
+
+# Money and commerce
+wallet
+coin
+coins
+credit-card
+receipt
+cart
+bag
+gift
+ticket
+trophy
+tag
+tags
+
+# Documents and content
+document
+document-list
+files files_multi
+folder-open
+folder-add
+book
+book-closed
+notebook
+newspaper
+table
+todo
+list-numbered
+paragraph paragraph_left
+translate
+hash
+
+# Time
+calendar
+calendar-add
+clock
+alarm alarm_clock
+timeline
+
+# Communication
+mail
+mail-open
+message
+chat speech_bubble
+globe
+
+# People
+user
+users
+user-add
+user-circle
+contacts
+home
+briefcase
+
+# Tech and infrastructure
+settings
+nut
+hierarchy
+branch
+fork fork_git
+version
+versions
+database
+server
+harddrive
+cloud
+cloud-upload
+cloud-download
+cube
+cubes
+box
+boxes
+cylinder
+terminal
+keyboard
+laptop
+monitor display
+phone phone_portrait
+wifi
+bluetooth
+battery battery_full
+signal signal_full
+fingerprint
+calculator
+gauge
+chart-bar graph_bar
+chart-line graph_increase
+chart-pie pie_quarter
+
+# Media
+image picture
+camera
+film
+video
+microphone
+volume volume_high
+audio audio_wave
+play play_button
+
+# Misc
+rocket
+lightning
+flame
+lightbulb
+heart
+star
+diamond
+target
+crosshair
+coffee
+support
+scale
+ruler
+hand
+waves

@@ -92,6 +92,13 @@ lint.front:; $(MAKE) -C frontend lint
 # Generate process
 generate: maincss ts static
 
+# Icons callable as <gno-icon />: regenerate the vendored set from
+# markdown/icons/icons.txt, then the ICONS.md catalog from the registry.
+.PHONY: icons
+icons:
+	go -C ./tools run ./cmd/iconset $(CURDIR)
+	go test ./markdown -run 'TestIconRegistry|TestIconCatalog' -update-golden-tests
+
 # Main CSS
 maincss: $(output_maincss)
 $(output_maincss): $(main_css_files) $(templates_files) $(postcss)
