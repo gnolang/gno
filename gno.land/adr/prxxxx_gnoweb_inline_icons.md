@@ -117,7 +117,7 @@ on a renderer that does not know it.
   escape) stays in the ID as any text does. Other inline syntax is left as
   goldmark leaves it. The parser flags the context when an icon lands in a
   heading, so documents without one skip the transformer. The TOC reads
-  heading text nodes, so it shows `Launch` with no markup.
+  heading text nodes and icon labels, so it shows `Launch` with no markup.
 - Icons are allowed inside `<gno-foreign>`. They are static allowlisted
   glyphs with no link or script surface, so foreign content gains nothing it
   could abuse. Brand marks and the link badges are excluded everywhere
@@ -207,8 +207,10 @@ does not grow, there is no asset to fetch and nothing to add to the CSP.
   emphasis) leaves it with no accessible name; the renderer adds
   `<!-- gno-icon: alone in a link or heading, add label="…" to name it -->`
   once, after the first icon (a link inside a heading gets its own), and
-  the docs say a label is required there. A heading holding
-  only an icon has no text, so it gets no TOC entry, label or not.
+  the docs say a label is required there. The TOC titles a heading with
+  its text and its icons' labels, so `## <gno-icon name="star" label="Top" />`
+  is listed as `Top`; a heading holding only unlabeled icons has no title
+  and no TOC entry.
 - No `tabindex`; nothing an icon renders is focusable.
 - Forced colors / high contrast: glyphs use `currentColor` only (fill or
   stroke), so they follow the system text color.

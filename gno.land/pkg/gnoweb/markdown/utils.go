@@ -193,13 +193,16 @@ func nodeText(src []byte, n ast.Node) []byte {
 	return buf.Bytes()
 }
 
-// writeNodeText writes the text content of a node to a buffer.
+// writeNodeText writes the text content of a node to a buffer. An icon
+// writes its label, the name it gives the heading or link it sits in.
 func writeNodeText(src []byte, dst io.Writer, n ast.Node) {
 	switch n := n.(type) {
 	case *ast.Text:
 		_, _ = dst.Write(n.Segment.Value(src))
 	case *ast.String:
 		_, _ = dst.Write(n.Value)
+	case *Icon:
+		_, _ = dst.Write(n.Label)
 	default:
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
 			writeNodeText(src, dst, c)

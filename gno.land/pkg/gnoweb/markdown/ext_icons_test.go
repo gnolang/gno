@@ -265,11 +265,12 @@ func TestIconHeadingIDAndToc(t *testing.T) {
 	assert.Equal(t, []string{
 		"launch=Launch",
 		"launch-1=Launch",
-		"status=Status",
+		"status=Status done",
+		"heading-1=Top",
 		`gno-icon-namestar--syntax=<gno-icon name="star" /> syntax`,
 		`gno-icon-namestar--escaped=<gno-icon name="star" /> escaped`,
 		"plain-heading=Plain heading",
-	}, got, "an icon-only heading has no text, so the TOC drops it, label or not")
+	}, got, "a label names its heading in the TOC; an unlabeled icon-only heading has no title, so the TOC drops it")
 }
 
 // TestIconHeadingIDEmpty checks an empty heading keeps its ID in the
