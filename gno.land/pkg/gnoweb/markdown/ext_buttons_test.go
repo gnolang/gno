@@ -110,7 +110,10 @@ func BenchmarkParseButtonTag(b *testing.B) {
 // benchConvert renders src with the production extension on every iteration.
 func benchConvert(b *testing.B, src []byte) {
 	b.Helper()
-	gnourl, _ := weburl.Parse("https://gno.land/r/test")
+	gnourl, err := weburl.Parse("https://gno.land/r/test")
+	if err != nil {
+		b.Fatal(err)
+	}
 	m := goldmark.New(goldmark.WithExtensions(NewGnoExtension()))
 	b.ReportAllocs()
 	for b.Loop() {
