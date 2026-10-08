@@ -826,33 +826,33 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 	})
 }
 
+// dialRejected dials a peer the switch refuses, and returns how many times
+// its connection was closed
+func dialRejected(t *testing.T, sw *MultiplexSwitch, p *mock.Peer) int {
+	t.Helper()
+
+	var closed int
+
+	p.IsOutboundFn = func() bool { return true }
+	p.CloseConnFn = func() error {
+		closed++
+
+		return nil
+	}
+
+	sw.transport = &mockTransport{
+		dialFn: func(context.Context, types.NetAddress, PeerBehavior) (PeerConn, error) {
+			return p, nil
+		},
+	}
+
+	sw.dialPeer(t.Context(), p.SocketAddr())
+
+	return closed
+}
+
 func TestMultiplexSwitch_DialPeer_Rejected(t *testing.T) {
 	t.Parallel()
-
-	// dialRejected dials a peer the switch refuses, and returns how many times
-	// its connection was closed
-	dialRejected := func(t *testing.T, sw *MultiplexSwitch, p *mock.Peer) int {
-		t.Helper()
-
-		var closed int
-
-		p.IsOutboundFn = func() bool { return true }
-		p.CloseConnFn = func() error {
-			closed++
-
-			return nil
-		}
-
-		sw.transport = &mockTransport{
-			dialFn: func(context.Context, types.NetAddress, PeerBehavior) (PeerConn, error) {
-				return p, nil
-			},
-		}
-
-		sw.dialPeer(t.Context(), p.SocketAddr())
-
-		return closed
-	}
 
 	t.Run("outbound limit reached", func(t *testing.T) {
 		t.Parallel()
@@ -2578,6 +2578,60 @@ func TestMultiplexSwitch_RegisterPeer(t *testing.T) {
 	})
 }
 
+// requireRollbackAnnouncesOneDisconnect has a connection of a peer registered,
+// then a replacing connection of the same peer fail to be added, and requires
+// the peer to be gone with one connect and one disconnect announced for it.
+// wire sets up how the remote's close of the replacing connection lands, and
+// returns the connection to add and a function to run once its add returned
+func requireRollbackAnnouncesOneDisconnect(
+	t *testing.T,
+	wire func(sw *MultiplexSwitch, ours, theirs *mock.Peer) (replacing PeerConn, settle func()),
+) {
+	t.Helper()
+
+	lower, upper := orderedIDs(t)
+
+	var (
+		// Our ID is the higher one, so the peer's connection is kept
+		sw     = switchWithID(upper)
+		ours   = peerWithID(t, lower, true)
+		theirs = peerWithID(t, lower, false)
+	)
+
+	withRealStop(ours)
+	withRealStop(theirs)
+
+	replacing, settle := wire(sw, ours, theirs)
+
+	evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
+	defer unsubFn()
+
+	require.NoError(t, sw.addPeer(ours))
+	require.ErrorIs(t, sw.addPeer(replacing), errPeerStopped)
+
+	if settle != nil {
+		settle()
+	}
+
+	assert.False(t, sw.peers.Has(lower))
+
+	var connected, disconnected int
+
+	for _, ev := range drainEvents(evCh) {
+		switch ev := ev.(type) {
+		case events.PeerConnectedEvent:
+			connected++
+		case events.PeerDisconnectedEvent:
+			disconnected++
+
+			assert.Equal(t, lower, ev.PeerID, "the disconnect names the peer")
+		}
+	}
+
+	assert.Equal(t, 1, connected)
+	assert.Equal(t, 1, disconnected)
+}
+
 func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 	t.Parallel()
 
@@ -2750,161 +2804,88 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 	t.Run("a replacing connection stopped before its registration announces one disconnect", func(t *testing.T) {
 		t.Parallel()
 
-		lower, upper := orderedIDs(t)
+		requireRollbackAnnouncesOneDisconnect(t, func(sw *MultiplexSwitch, _, theirs *mock.Peer) (PeerConn, func()) {
+			replacing := &peerErrorOnStart{Peer: theirs}
 
-		var (
-			// Our ID is the higher one, so the peer's connection is kept
-			sw     = switchWithID(upper)
-			ours   = peerWithID(t, lower, true)
-			theirs = &peerErrorOnStart{Peer: peerWithID(t, lower, false)}
-		)
+			// The remote closes theirs as soon as it starts, so its teardown
+			// runs while ours still holds the entry
+			replacing.startFn = func() error {
+				if err := theirs.Start(); err != nil {
+					return err
+				}
 
-		withRealStop(ours)
-		withRealStop(theirs.Peer)
+				sw.StopPeerForError(replacing, errors.New("EOF"))
 
-		// The remote closes theirs as soon as it starts, so its teardown runs
-		// while ours still holds the entry
-		theirs.startFn = func() error {
-			if err := theirs.Peer.Start(); err != nil {
-				return err
+				return nil
 			}
 
-			sw.StopPeerForError(theirs, errors.New("EOF"))
-
-			return nil
-		}
-
-		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
-		defer unsubFn()
-
-		require.NoError(t, sw.addPeer(ours))
-
-		// theirs replaces ours at registration, and the rollback then removes
-		// it. Neither teardown removed an entry, since each found the other
-		// connection holding it
-		require.ErrorIs(t, sw.addPeer(theirs), errPeerStopped)
-
-		assert.False(t, sw.peers.Has(lower))
-
-		// The peer was announced connected through ours, and is gone
-		var connected, disconnected int
-
-		for _, ev := range drainEvents(evCh) {
-			switch ev := ev.(type) {
-			case events.PeerConnectedEvent:
-				connected++
-			case events.PeerDisconnectedEvent:
-				disconnected++
-
-				assert.Equal(t, lower, ev.PeerID, "the disconnect names the peer")
-			}
-		}
-
-		assert.Equal(t, 1, connected)
-		assert.Equal(t, 1, disconnected)
+			return replacing, nil
+		})
 	})
 
 	t.Run("a replacing connection whose teardown removes it before the rollback announces one disconnect", func(t *testing.T) {
 		t.Parallel()
 
-		lower, upper := orderedIDs(t)
+		requireRollbackAnnouncesOneDisconnect(t, func(sw *MultiplexSwitch, ours, theirs *mock.Peer) (PeerConn, func()) {
+			// The remote closes theirs while addPeer tears ours down, after
+			// theirs registered and before the rollback check. Its teardown
+			// removes the entry theirs holds before ours's teardown looks at it
+			ours.CloseConnFn = func() error {
+				sw.StopPeerForError(theirs, errors.New("EOF"))
 
-		var (
-			sw     = switchWithID(upper)
-			ours   = peerWithID(t, lower, true)
-			theirs = peerWithID(t, lower, false)
-		)
+				return nil
+			}
 
-		withRealStop(ours)
-		withRealStop(theirs)
-
-		// The remote closes theirs while addPeer tears ours down, after theirs
-		// registered and before the rollback check. Its teardown removes the
-		// entry theirs holds before ours's teardown looks at it
-		ours.CloseConnFn = func() error {
-			sw.StopPeerForError(theirs, errors.New("EOF"))
-
-			return nil
-		}
-
-		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
-		defer unsubFn()
-
-		require.NoError(t, sw.addPeer(ours))
-		require.ErrorIs(t, sw.addPeer(theirs), errPeerStopped)
-
-		assert.False(t, sw.peers.Has(lower))
-
-		connected, disconnected := countPeerEvents(evCh)
-
-		assert.Equal(t, 1, connected)
-		assert.Equal(t, 1, disconnected)
+			return theirs, nil
+		})
 	})
 
 	t.Run("a replacing connection the rollback removes before its teardown does announces one disconnect", func(t *testing.T) {
 		t.Parallel()
 
-		lower, upper := orderedIDs(t)
+		requireRollbackAnnouncesOneDisconnect(t, func(sw *MultiplexSwitch, ours, theirs *mock.Peer) (PeerConn, func()) {
+			var (
+				theirsStopped = make(chan struct{})
+				release       = make(chan struct{})
+				tornDown      = make(chan struct{})
+				releaseOnce   sync.Once
+			)
 
-		var (
-			sw     = switchWithID(upper)
-			ours   = peerWithID(t, lower, true)
-			theirs = peerWithID(t, lower, false)
+			// The teardown of theirs stays blocked until release closes, so a
+			// failed requirement must not leave its goroutine behind
+			releaseTeardown := func() { releaseOnce.Do(func() { close(release) }) }
+			t.Cleanup(releaseTeardown)
 
-			theirsStopped = make(chan struct{})
-			release       = make(chan struct{})
-			tornDown      = make(chan struct{})
-			releaseOnce   sync.Once
-		)
+			// The teardown of theirs stops it, then holds on its socket close
+			// until the rollback has run
+			theirs.CloseConnFn = func() error {
+				close(theirsStopped)
+				<-release
 
-		// The teardown of theirs stays blocked until release closes, so a
-		// failed requirement must not leave its goroutine behind
-		releaseTeardown := func() { releaseOnce.Do(func() { close(release) }) }
-		t.Cleanup(releaseTeardown)
+				return nil
+			}
 
-		withRealStop(ours)
-		withRealStop(theirs)
+			// The remote closes theirs while addPeer tears ours down, after
+			// theirs registered. Its teardown runs on its own goroutine, as a
+			// recv routine's report does, and ours's teardown resumes once
+			// theirs is stopped
+			ours.CloseConnFn = func() error {
+				go func() {
+					defer close(tornDown)
 
-		// The teardown of theirs stops it, then holds on its socket close until
-		// the rollback has run
-		theirs.CloseConnFn = func() error {
-			close(theirsStopped)
-			<-release
+					sw.StopPeerForError(theirs, errors.New("EOF"))
+				}()
 
-			return nil
-		}
+				awaitClosed(t, theirsStopped, "the teardown of theirs did not stop it")
 
-		// The remote closes theirs while addPeer tears ours down, after theirs
-		// registered. Its teardown runs on its own goroutine, as a recv
-		// routine's report does, and ours's teardown resumes once theirs is
-		// stopped
-		ours.CloseConnFn = func() error {
-			go func() {
-				defer close(tornDown)
+				return nil
+			}
 
-				sw.StopPeerForError(theirs, errors.New("EOF"))
-			}()
-
-			awaitClosed(t, theirsStopped, "the teardown of theirs did not stop it")
-
-			return nil
-		}
-
-		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
-		defer unsubFn()
-
-		require.NoError(t, sw.addPeer(ours))
-		require.ErrorIs(t, sw.addPeer(theirs), errPeerStopped)
-
-		releaseTeardown()
-		awaitClosed(t, tornDown, "the teardown of theirs did not finish")
-
-		assert.False(t, sw.peers.Has(lower))
-
-		connected, disconnected := countPeerEvents(evCh)
-
-		assert.Equal(t, 1, connected)
-		assert.Equal(t, 1, disconnected)
+			return theirs, func() {
+				releaseTeardown()
+				awaitClosed(t, tornDown, "the teardown of theirs did not finish")
+			}
+		})
 	})
 
 	t.Run("the rollback leaves the entry of a connection that replaced the stopped one", func(t *testing.T) {
@@ -3272,7 +3253,6 @@ func TestMultiplexSwitch_DialPeerTearsDownRefusedPeerOnce(t *testing.T) {
 				}
 			}
 
-			p.IsOutboundFn = func() bool { return true }
 			p.StopFn = func() error {
 				if testCase.atStop {
 					report()
@@ -3291,14 +3271,7 @@ func TestMultiplexSwitch_DialPeerTearsDownRefusedPeerOnce(t *testing.T) {
 				},
 			}
 
-			sw = NewMultiplexSwitch(
-				&mockTransport{
-					dialFn: func(context.Context, types.NetAddress, PeerBehavior) (PeerConn, error) {
-						return p, nil
-					},
-				},
-				WithReactor("mock", reactor),
-			)
+			sw = NewMultiplexSwitch(nil, WithReactor("mock", reactor))
 
 			// The connection loses registration after it was started
 			sw.peers = &mockSet{
@@ -3307,7 +3280,7 @@ func TestMultiplexSwitch_DialPeerTearsDownRefusedPeerOnce(t *testing.T) {
 
 			logs := captureLogs(sw)
 
-			sw.dialPeer(t.Context(), p.SocketAddr())
+			dialRejected(t, sw, p)
 
 			// Whichever stops the refused connection gives back its reactor
 			// state, and the other tears nothing down
