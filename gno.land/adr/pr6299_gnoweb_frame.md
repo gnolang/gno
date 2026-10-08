@@ -94,9 +94,14 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   to goldmark's own parser, so the HTML block checks run once), whatever its type (a `<!--` or `<script>` block
   is cut short too). Safe mode strips that HTML anyway. So a `<div>` right
   above a card's `<gno-frame>` leaves the card's tag to the frame parser
-  (golden `html_block_before_card_open`). Only a tag alone on
-  its line counts: `<div></gno-frame>` stays inside the HTML block
-  (golden `html_same_line_close`).
+  (golden `html_block_before_card_open`). The same cut applies to a
+  `<!-- ... -->` comment that hides a `<gno-columns>` line inside a frame:
+  the comment ends at that line and the grid opens; there the frame's close
+  comes before `</gno-columns>`, so the grid renders after the frame and
+  `-->` as text (golden `html_comment_cut_by_columns`). This is the price of
+  never letting an HTML block hide a tag that changes the frame's structure.
+  Only a tag alone on its line counts: `<div></gno-frame>` stays inside the
+  HTML block (golden `html_same_line_close`).
 - **Bare-CR line endings.** goldmark splits lines on `\n` only, so a page
   with `\r` line endings is one long line. A tag followed by anything, `\r`
   or ` \r` included, is then not treated as a tag line, and the text after
