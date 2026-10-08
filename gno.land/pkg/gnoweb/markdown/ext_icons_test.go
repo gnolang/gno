@@ -149,6 +149,8 @@ func FuzzIconRender(f *testing.F) {
 		`[<gno-icon name="globe" />](https://e.x)`,
 		"<gno-icon name=\"star\r\n\" />",
 		`<GNO-ICON NAME=star/>`,
+		`<gno-icon name="star" label="turn on" />`,
+		`<gno-icon name="star" label="x onclick=y" />`,
 		`<gno-icon name="` + strings.Repeat("a", 600),
 	} {
 		f.Add(seed)
@@ -168,8 +170,14 @@ func FuzzIconRender(f *testing.F) {
 			if !strings.HasPrefix(svg, ` class="gno-icon" `) && !strings.Contains(svg[:min(len(svg), 40)], "<use href=\"#ico-") {
 				t.Fatalf("an <svg> that is neither a gno-icon nor a chrome glyph: %q", svg[:min(len(svg), 80)])
 			}
-			if tag, _, _ := strings.Cut(svg, ">"); strings.Contains(strings.ToLower(tag), " on") {
-				t.Fatalf("event handler in %q", tag)
+			// Attribute names only: a label value may hold " on".
+			tag, _, _ := strings.Cut(svg, ">")
+			toks, err := ParseHTMLTokens(strings.NewReader("<svg" + tag + ">"))
+			require.NoError(t, err)
+			for _, a := range toks[0].Attr {
+				if strings.HasPrefix(a.Key, "on") {
+					t.Fatalf("event handler in %q", tag)
+				}
 			}
 		}
 	})
