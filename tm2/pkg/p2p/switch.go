@@ -783,6 +783,41 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 	return persistent
 }
 
+// keepsRegistered reports whether the connection already registered for a peer
+// is kept over an incoming connection to the same peer. Two connections in
+// opposite directions are resolved the same way on both ends: the one dialed
+// by the node with the lower ID survives. Two connections in the same
+// direction keep the registered one, and so does a switch that does not know
+// its own ID yet
+func (sw *MultiplexSwitch) keepsRegistered(registered, incoming PeerConn) bool {
+	if registered.IsOutbound() == incoming.IsOutbound() {
+		return true
+	}
+
+	var (
+		local  = sw.transport.NetAddress().ID
+		remote = registered.ID()
+	)
+
+	if local == "" || local == remote {
+		return true
+	}
+
+	// The node with the lower ID dialed the connection both ends keep
+	keepOutbound := local < remote
+
+	return registered.IsOutbound() == keepOutbound
+}
+
+// direction names the direction of a peer connection, for logs
+func direction(p PeerConn) string {
+	if p.IsOutbound() {
+		return "outbound"
+	}
+
+	return "inbound"
+}
+
 // hasPeerFromIP returns a flag indicating if the active peer set already
 // contains a peer connected from the given IP
 func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {

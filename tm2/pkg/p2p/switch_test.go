@@ -2136,6 +2136,80 @@ func TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress(t *testing.T) {
 	}
 }
 
+// orderedIDs returns two distinct node IDs, the lower one first
+func orderedIDs(t *testing.T) (types.ID, types.ID) {
+	t.Helper()
+
+	a, b := types.GenerateNodeKey().ID(), types.GenerateNodeKey().ID()
+	require.NotEqual(t, a, b)
+
+	if b < a {
+		a, b = b, a
+	}
+
+	return a, b
+}
+
+// peerWithID returns a mock peer carrying the given ID, in the given direction
+func peerWithID(t *testing.T, id types.ID, outbound bool) *mock.Peer {
+	t.Helper()
+
+	p := mock.GeneratePeers(t, 1)[0]
+	p.IDFn = func() types.ID { return id }
+	p.IsOutboundFn = func() bool { return outbound }
+
+	return p
+}
+
+// switchWithID returns a switch whose own node ID is the given one
+func switchWithID(id types.ID, opts ...SwitchOption) *MultiplexSwitch {
+	return NewMultiplexSwitch(
+		&mockTransport{
+			netAddressFn: func() types.NetAddress {
+				return types.NetAddress{ID: id}
+			},
+		},
+		opts...,
+	)
+}
+
+func TestMultiplexSwitch_KeepsRegistered(t *testing.T) {
+	t.Parallel()
+
+	lower, upper := orderedIDs(t)
+
+	testTable := []struct {
+		name               string
+		local, remote      types.ID
+		registeredOutbound bool
+		incomingOutbound   bool
+		wantKept           bool
+	}{
+		{"same direction, both inbound", lower, upper, false, false, true},
+		{"same direction, both outbound", lower, upper, true, true, true},
+		{"our ID lower, registered outbound", lower, upper, true, false, true},
+		{"our ID lower, registered inbound", lower, upper, false, true, false},
+		{"our ID higher, registered inbound", upper, lower, false, true, true},
+		{"our ID higher, registered outbound", upper, lower, true, false, false},
+		{"equal IDs", lower, lower, true, false, true},
+		{"own ID unknown", "", upper, false, true, true},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				sw         = switchWithID(testCase.local)
+				registered = peerWithID(t, testCase.remote, testCase.registeredOutbound)
+				incoming   = peerWithID(t, testCase.remote, testCase.incomingOutbound)
+			)
+
+			assert.Equal(t, testCase.wantKept, sw.keepsRegistered(registered, incoming))
+		})
+	}
+}
+
 func TestCalculateBackoff(t *testing.T) {
 	t.Parallel()
 
