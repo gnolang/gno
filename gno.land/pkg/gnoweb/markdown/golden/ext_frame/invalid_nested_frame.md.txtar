@@ -11,6 +11,6 @@ after inner close
 <p>outer</p>
 <!-- unexpected/invalid frame tag omitted -->
 <p>inner</p>
-</section>
-<p>after inner close</p>
 <!-- unexpected/invalid frame tag omitted -->
+<p>after inner close</p>
+</section>

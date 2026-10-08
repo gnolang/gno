@@ -1,22 +1,20 @@
 -- input.md --
 <gno-frame>
-<gno-columns>
+<gno-frame x="1">
 <gno-frame>
-<gno-frame>
-x
+inner
 </gno-frame>
-</gno-columns>
 </gno-frame>
+still outer
+</gno-frame>
+after
 -- output.html --
 <section class="gno-frame">
-<div class="gno-columns">
-<!-- Column 0 -->
-<div class="gno-column">
-<section class="gno-frame">
 <!-- unexpected/invalid frame tag omitted -->
-<p>x</p>
 <!-- unexpected/invalid frame tag omitted -->
+<p>inner</p>
+<!-- unexpected/invalid frame tag omitted -->
+<!-- unexpected/invalid frame tag omitted -->
+<p>still outer</p>
 </section>
-</div>
-</div> <!-- </gno-columns> -->
-</section>
+<p>after</p>

@@ -62,10 +62,13 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
 - **Columns interplay.** A frame holds complete grids: a `<gno-columns>`
   opened inside a frame, its separators and its `</gno-columns>` stay inside
   it, and a column of that grid may hold one frame at a time (a card; it
-  ends at its close tag or the next columns tag). A card opener refused
-  there (an attribute, or the depth cap) leaves its `</gno-frame>` an invalid
-  leaf too, so that close does not end the outer frame (goldens
-  `invalid_card_attrs_keeps_frame`, `invalid_card_at_depth_cap`). A stray
+  ends at its close tag or the next columns tag). Every refused opener (an
+  attribute, a frame in a frame or in a card, the depth cap) leaves one
+  `</gno-frame>` after it an invalid leaf too, counted until the next columns
+  tag, so a refused opener's close never ends the frame or card around it
+  (goldens `invalid_card_attrs_keeps_frame`, `invalid_card_at_depth_cap`,
+  `invalid_nested_frame`, `invalid_nested_twice`,
+  `invalid_frame_in_card_keeps_grid`). A stray
   `<gno-columns-sep>` or `</gno-columns>` with no grid open stays inside the
   frame as the invalid comment it renders outside one (golden
   `columns_stray_tags_stay_in_frame`). Any columns tag that would

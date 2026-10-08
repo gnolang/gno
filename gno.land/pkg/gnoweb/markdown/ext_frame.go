@@ -128,13 +128,14 @@ func frameInner(pc parser.Context) bool {
 	return inner
 }
 
-// frameRefusedKey holds whether a card opener was refused (an attribute,
-// the depth cap) in a column of the open frame's grid; its close tag is
-// then an invalid leaf, not the outer frame's close.
+// frameRefusedKey counts the frame openers refused (an attribute, a frame
+// in a frame or in a card, the depth cap) since the open frame opened or
+// since the last gno-columns tag; as many close tags are then invalid
+// leaves, so a refused opener's close never ends an accepted frame.
 var frameRefusedKey = parser.NewContextKey()
 
-func frameRefused(pc parser.Context) bool {
-	refused, _ := pc.Get(frameRefusedKey).(bool)
+func frameRefused(pc parser.Context) int {
+	refused, _ := pc.Get(frameRefusedKey).(int)
 	return refused
 }
 
@@ -147,7 +148,7 @@ func gridOpen(pc parser.Context) bool {
 func endFrame(pc parser.Context) {
 	pc.Set(frameOpenKey, false)
 	pc.Set(frameGridKey, false)
-	pc.Set(frameRefusedKey, false)
+	pc.Set(frameRefusedKey, 0)
 	Pop(pc)
 }
 
@@ -207,10 +208,13 @@ func (*frameParser) Trigger() []byte { return []byte{'<'} }
 // invalid leaf, never nil: nil would hand the line to the type-7 HTML block
 // parser, which swallows every line up to the next blank one. The one frame
 // a frame holds is an inner one, in a column of its grid (a card); a close
-// tag ends it first. A card refused there (an attribute, the depth cap)
-// leaves its close tag an invalid leaf. A gno-columns tag is left to the
-// columns parser, which runs after this one; it ends an inner frame, and
-// ends the outer frame unless frameKeepsColumnsTag keeps it inside.
+// tag ends it first. Each refused opener while a frame is open (an
+// attribute, a frame in a frame or a card, the depth cap) turns the next
+// unmatched close tag into an invalid leaf, ahead of the card's and the
+// frame's own close, up to the next gno-columns tag. A gno-columns tag is
+// left to the columns parser, which runs after this one; it ends an inner
+// frame, and ends the outer frame unless frameKeepsColumnsTag keeps it
+// inside.
 func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
 	line = trimTagLine(line)
@@ -223,7 +227,7 @@ func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 				if frameInner(pc) {
 					endInnerFrame(pc)
 				}
-				pc.Set(frameRefusedKey, false)
+				pc.Set(frameRefusedKey, 0)
 				if !frameKeepsColumnsTag(tag, pc) {
 					endFrame(pc)
 				}
@@ -243,16 +247,16 @@ func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 	case kind == frameTagOpen && frameGrid(pc) && gridOpen(pc) && !frameInner(pc) && Push(pc):
 		node.tag, node.inner = frameTagOpen, true
 		pc.Set(frameInnerKey, true)
+	case kind == frameTagClose && frameRefused(pc) > 0:
+		pc.Set(frameRefusedKey, frameRefused(pc)-1) // a refused opener's close
 	case kind == frameTagClose && frameInner(pc):
 		node.tag, node.inner = frameTagClose, true
 		endInnerFrame(pc)
-	case kind == frameTagClose && frameRefused(pc):
-		pc.Set(frameRefusedKey, false) // the refused card's close
 	case kind == frameTagClose && open:
 		node.tag = frameTagClose
 		endFrame(pc)
-	case line[1] != '/' && open && frameGrid(pc) && gridOpen(pc) && !frameInner(pc):
-		pc.Set(frameRefusedKey, true) // a refused card opener
+	case line[1] != '/' && open:
+		pc.Set(frameRefusedKey, frameRefused(pc)+1) // a refused opener
 	}
 	return node, parser.NoChildren
 }

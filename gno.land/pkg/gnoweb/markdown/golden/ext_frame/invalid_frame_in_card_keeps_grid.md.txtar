@@ -5,8 +5,12 @@
 <gno-frame>
 x
 </gno-frame>
+</gno-frame>
+<gno-columns-sep>
+b
 </gno-columns>
 </gno-frame>
+after
 -- output.html --
 <section class="gno-frame">
 <div class="gno-columns">
@@ -18,5 +22,10 @@ x
 <!-- unexpected/invalid frame tag omitted -->
 </section>
 </div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>b</p>
+</div>
 </div> <!-- </gno-columns> -->
 </section>
+<p>after</p>
