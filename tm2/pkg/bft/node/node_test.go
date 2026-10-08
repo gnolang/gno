@@ -507,11 +507,63 @@ func TestParsePersistentPeerAddrs(t *testing.T) {
 		config := cfg.TestConfig()
 		config.P2P.PersistentPeers = strings.Join([]string{a1, b1, a2}, ",")
 
-		peerAddrs := parsePersistentPeerAddrs(config, log.NewNoopLogger())
+		var buf bytes.Buffer
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
 
 		require.Len(t, peerAddrs, 2)
 		assert.Equal(t, a2, peerAddrs[0].String())
 		assert.Equal(t, b1, peerAddrs[1].String())
+
+		logs := buf.String()
+		assert.Equal(t, 1, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Contains(t, logs, "ignored="+a1)
+		assert.Contains(t, logs, "dialed="+a2)
+	})
+
+	t.Run("an entry repeated after another address is reported against the one kept", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+		a1 := p2pTypes.NetAddressString(id, "127.0.0.1:26656")
+		a2 := p2pTypes.NetAddressString(id, "127.0.0.1:26657")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{a1, a2, a1}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, a1, peerAddrs[0].String())
+
+		logs := buf.String()
+		assert.Equal(t, 1, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Contains(t, logs, "ignored="+a2)
+		assert.Contains(t, logs, "dialed="+a1)
+		assert.NotContains(t, logs, "ignored="+a1)
+	})
+
+	t.Run("every ignored entry is reported against the last address", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+		a1 := p2pTypes.NetAddressString(id, "127.0.0.1:26656")
+		a2 := p2pTypes.NetAddressString(id, "127.0.0.1:26657")
+		a3 := p2pTypes.NetAddressString(id, "127.0.0.1:26658")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{a1, a2, a3}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, a3, peerAddrs[0].String())
+
+		logs := buf.String()
+		assert.Equal(t, 2, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Equal(t, 2, strings.Count(logs, "dialed="+a3))
+		assert.Contains(t, logs, "ignored="+a1)
+		assert.Contains(t, logs, "ignored="+a2)
 	})
 
 	t.Run("an identical repeated entry is not reported", func(t *testing.T) {

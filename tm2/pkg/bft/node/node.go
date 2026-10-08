@@ -419,30 +419,32 @@ func parsePersistentPeerAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTyp
 		logger.Error("invalid persistent peer address", "err", err)
 	}
 
-	var (
-		peerAddrs = make([]*p2pTypes.NetAddress, 0, len(parsed))
-		positions = make(map[p2pTypes.ID]int, len(parsed))
-	)
+	lastAddrs := make(map[p2pTypes.ID]*p2pTypes.NetAddress, len(parsed))
+	for _, addr := range parsed {
+		lastAddrs[addr.ID] = addr
+	}
+
+	peerAddrs := make([]*p2pTypes.NetAddress, 0, len(lastAddrs))
+	seen := make(map[p2pTypes.ID]struct{}, len(lastAddrs))
 
 	for _, addr := range parsed {
-		pos, repeated := positions[addr.ID]
-		if !repeated {
-			positions[addr.ID] = len(peerAddrs)
-			peerAddrs = append(peerAddrs, addr)
+		last := lastAddrs[addr.ID]
 
-			continue
-		}
-
-		if ignored := peerAddrs[pos]; ignored.String() != addr.String() {
+		if !addr.Equals(*last) {
 			logger.Warn(
 				"persistent peer listed more than once, only its last address is dialed",
 				"id", addr.ID,
-				"ignored", ignored.String(),
-				"dialed", addr.String(),
+				"ignored", addr.String(),
+				"dialed", last.String(),
 			)
 		}
 
-		peerAddrs[pos] = addr
+		if _, ok := seen[addr.ID]; ok {
+			continue
+		}
+
+		seen[addr.ID] = struct{}{}
+		peerAddrs = append(peerAddrs, last)
 	}
 
 	return peerAddrs
