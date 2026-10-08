@@ -826,11 +826,11 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 	})
 }
 
-func TestMultiplexSwitch_DialPeer_RejectedBeforeStart(t *testing.T) {
+func TestMultiplexSwitch_DialPeer_Rejected(t *testing.T) {
 	t.Parallel()
 
-	// dialRejected dials a peer the switch refuses before starting it,
-	// and returns how many times its connection was closed
+	// dialRejected dials a peer the switch refuses, and returns how many times
+	// its connection was closed
 	dialRejected := func(t *testing.T, sw *MultiplexSwitch, p *mock.Peer) int {
 		t.Helper()
 
@@ -895,6 +895,34 @@ func TestMultiplexSwitch_DialPeer_RejectedBeforeStart(t *testing.T) {
 		// A refused duplicate logs at Info, since on the dial side it is the
 		// tie-break's designed outcome on one node of every simultaneous open
 		assert.Contains(t, logs.String(), `level=INFO msg="unable to add peer"`)
+	})
+
+	t.Run("peer stopped while being added", func(t *testing.T) {
+		t.Parallel()
+
+		p := mock.GeneratePeers(t, 1)[0]
+		withRealStop(p)
+
+		// A teardown of the peer, such as after the remote closed it, stops it
+		// while it registers
+		sw := NewMultiplexSwitch(nil)
+		sw.peers = &mockSet{
+			addFn: func(PeerConn) error {
+				require.NoError(t, p.Stop())
+
+				return nil
+			},
+		}
+
+		logs := captureLogs(sw)
+
+		assert.Equal(t, 1, dialRejected(t, sw, p))
+
+		// Whatever stopped the peer logged why, and on the dial side a
+		// connection replaced or closed by the remote while being added is a
+		// designed outcome of a simultaneous open
+		assert.Contains(t, logs.String(), `level=INFO msg="unable to add peer"`)
+		assert.Contains(t, logs.String(), errPeerStopped.Error())
 	})
 }
 
