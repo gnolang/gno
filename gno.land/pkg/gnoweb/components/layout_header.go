@@ -172,7 +172,10 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 }
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
-	data.RealmPath = data.RealmURL.EncodeURL()
+	// The root has no path: an empty value shows the placeholder
+	if data.RealmURL.Path != "/" {
+		data.RealmPath = data.RealmURL.EncodeURL()
+	}
 	// A page that names no package still searches — chain-wide.
 	searchBase := data.RealmURL.Path
 	if searchBase == "" {
