@@ -2186,6 +2186,67 @@ func switchWithID(id types.ID, opts ...SwitchOption) *MultiplexSwitch {
 	)
 }
 
+// acceptOnce returns an accept function that hands out p once, then blocks
+// until the context ends
+func acceptOnce(p PeerConn) func(context.Context, PeerBehavior) (PeerConn, error) {
+	incoming := make(chan PeerConn, 1)
+	incoming <- p
+
+	return func(ctx context.Context, _ PeerBehavior) (PeerConn, error) {
+		select {
+		case p := <-incoming:
+			return p, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
+
+// acceptSwitch returns a switch whose own node ID is the given one, and whose
+// transport accepts the incoming connection once
+func acceptSwitch(id types.ID, incoming PeerConn, opts ...SwitchOption) *MultiplexSwitch {
+	return NewMultiplexSwitch(
+		&mockTransport{
+			netAddressFn: func() types.NetAddress {
+				return types.NetAddress{ID: id}
+			},
+			acceptFn: acceptOnce(incoming),
+		},
+		opts...,
+	)
+}
+
+// closedSignal returns a channel closed the first time p's connection is
+// closed
+func closedSignal(p *mock.Peer) <-chan struct{} {
+	var (
+		closed = make(chan struct{})
+		once   sync.Once
+	)
+
+	p.CloseConnFn = func() error {
+		once.Do(func() { close(closed) })
+
+		return nil
+	}
+
+	return closed
+}
+
+// awaitClosed fails the test with msg if closed is not closed in time
+func awaitClosed(t *testing.T, closed <-chan struct{}, msg string) {
+	t.Helper()
+
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+
+	select {
+	case <-closed:
+	case <-timer.C:
+		t.Fatal(msg)
+	}
+}
+
 func TestMultiplexSwitch_KeepsRegistered(t *testing.T) {
 	t.Parallel()
 
@@ -2339,8 +2400,7 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 
 		sw := switchWithID(upper, WithReactor("mock", reactor))
 
-		logs := &lockedBuffer{}
-		sw.SetLogger(slog.New(slog.NewTextHandler(logs, nil)))
+		logs := captureLogs(sw)
 
 		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
 		defer unsubFn()
@@ -2390,45 +2450,47 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 		assert.Same(t, theirs, sw.peers.Get(lower))
 	})
 
-	t.Run("a replacing outbound connection is refused at the outbound limit", func(t *testing.T) {
-		t.Parallel()
+	outboundLimitTable := []struct {
+		name       string
+		persistent bool
+		wantErr    bool
+	}{
+		{"a replacing outbound connection is refused at the outbound limit", false, true},
+		{"a persistent peer's replacing outbound connection passes the outbound limit", true, false},
+	}
 
-		lower, upper := orderedIDs(t)
+	for _, testCase := range outboundLimitTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-		var (
-			// Our ID is the lower one, so our outbound connection would be kept,
-			// but no outbound slot is left
-			sw     = switchWithID(lower, WithMaxOutboundPeers(0))
-			theirs = peerWithID(t, upper, false)
-			ours   = peerWithID(t, upper, true)
-		)
+			lower, upper := orderedIDs(t)
 
-		require.NoError(t, sw.peers.Add(theirs))
+			// Our ID is the lower one, so our outbound connection would be
+			// kept, but no outbound slot is left
+			opts := []SwitchOption{WithMaxOutboundPeers(0)}
+			if testCase.persistent {
+				opts = append(opts, WithPersistentPeers([]*types.NetAddress{{ID: upper}}))
+			}
 
-		require.ErrorIs(t, sw.addPeer(ours), errMaxOutboundPeers)
-		assert.Same(t, theirs, sw.peers.Get(upper))
-	})
-
-	t.Run("a persistent peer's replacing outbound connection passes the outbound limit", func(t *testing.T) {
-		t.Parallel()
-
-		lower, upper := orderedIDs(t)
-
-		var (
-			sw = switchWithID(
-				lower,
-				WithMaxOutboundPeers(0),
-				WithPersistentPeers([]*types.NetAddress{{ID: upper}}),
+			var (
+				sw     = switchWithID(lower, opts...)
+				theirs = peerWithID(t, upper, false)
+				ours   = peerWithID(t, upper, true)
 			)
-			theirs = peerWithID(t, upper, false)
-			ours   = peerWithID(t, upper, true)
-		)
 
-		require.NoError(t, sw.peers.Add(theirs))
+			require.NoError(t, sw.peers.Add(theirs))
 
-		require.NoError(t, sw.addPeer(ours))
-		assert.Same(t, ours, sw.peers.Get(upper))
-	})
+			if testCase.wantErr {
+				require.ErrorIs(t, sw.addPeer(ours), errMaxOutboundPeers)
+				assert.Same(t, theirs, sw.peers.Get(upper))
+
+				return
+			}
+
+			require.NoError(t, sw.addPeer(ours))
+			assert.Same(t, ours, sw.peers.Get(upper))
+		})
+	}
 
 	t.Run("a replacement that fails to start leaves the registered connection", func(t *testing.T) {
 		t.Parallel()
@@ -2526,184 +2588,102 @@ func TestMultiplexSwitch_HasPeerFromIP(t *testing.T) {
 func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 	t.Parallel()
 
-	// acceptOnce returns an accept function that hands out p once, then
-	// blocks until the context ends
-	acceptOnce := func(p PeerConn) func(context.Context, PeerBehavior) (PeerConn, error) {
-		incoming := make(chan PeerConn, 1)
-		incoming <- p
+	// Each row has us at the higher ID, so the peer's inbound connection wins
+	// against our outbound one to the same peer
+	guardTable := []struct {
+		name string
+		// opts returns the switch options, given the peer's ID
+		opts func(peer types.ID) []SwitchOption
+		// sharedIP puts both connections to the peer on one IP
+		sharedIP bool
+		// otherOnIP registers a second peer on that IP
+		otherOnIP    bool
+		wantReplaced bool
+	}{
+		{
+			// No inbound slot left, the duplicate-IP guard on (the default),
+			// and the peer is persistent
+			name: "a persistent peer's winning inbound connection replaces ours at the inbound limit",
+			opts: func(peer types.ID) []SwitchOption {
+				return []SwitchOption{
+					WithMaxInboundPeers(0),
+					WithPersistentPeers([]*types.NetAddress{{ID: peer}}),
+				}
+			},
+			sharedIP:     true,
+			wantReplaced: true,
+		},
+		{
+			// The peer is not persistent, so its replacement needs an inbound slot
+			name: "a winning inbound connection is refused at the inbound limit",
+			opts: func(types.ID) []SwitchOption {
+				return []SwitchOption{WithMaxInboundPeers(0)}
+			},
+		},
+		{
+			// The duplicate-IP guard is on, and the only peer from that IP is
+			// the connection being replaced
+			name:         "a winning inbound connection from the replaced connection's IP replaces it",
+			sharedIP:     true,
+			wantReplaced: true,
+		},
+		{
+			name:      "a winning inbound connection is refused while another peer holds its IP",
+			sharedIP:  true,
+			otherOnIP: true,
+		},
+	}
 
-		return func(ctx context.Context, _ PeerBehavior) (PeerConn, error) {
-			select {
-			case p := <-incoming:
-				return p, nil
-			case <-ctx.Done():
-				return nil, ctx.Err()
+	for _, testCase := range guardTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			lower, upper := orderedIDs(t)
+
+			var (
+				ip = net.ParseIP("127.0.0.1")
+
+				// We dialed the peer while it dialed us
+				ours   = peerWithID(t, lower, true)
+				theirs = peerWithID(t, lower, false)
+				closed = closedSignal(theirs)
+			)
+
+			if testCase.sharedIP {
+				ours.RemoteIPFn = func() net.IP { return ip }
+				theirs.RemoteIPFn = func() net.IP { return ip }
 			}
-		}
-	}
 
-	// closedSignal returns a channel closed the first time p's connection is
-	// closed
-	closedSignal := func(p *mock.Peer) <-chan struct{} {
-		var (
-			closed = make(chan struct{})
-			once   sync.Once
-		)
+			var opts []SwitchOption
+			if testCase.opts != nil {
+				opts = testCase.opts(lower)
+			}
 
-		p.CloseConnFn = func() error {
-			once.Do(func() { close(closed) })
+			sw := acceptSwitch(upper, theirs, opts...)
 
-			return nil
-		}
+			require.NoError(t, sw.peers.Add(ours))
 
-		return closed
-	}
+			if testCase.otherOnIP {
+				other := mock.GeneratePeers(t, 1)[0]
+				other.RemoteIPFn = func() net.IP { return ip }
 
-	t.Run("a persistent peer's winning inbound connection replaces ours at the inbound limit", func(t *testing.T) {
-		t.Parallel()
+				require.NoError(t, sw.peers.Add(other))
+			}
 
-		lower, upper := orderedIDs(t)
+			go sw.runAcceptLoop(t.Context())
 
-		var (
-			ip = net.ParseIP("127.0.0.1")
+			if testCase.wantReplaced {
+				require.Eventually(t, func() bool {
+					return sw.peers.Get(lower) == PeerConn(theirs)
+				}, 5*time.Second, 10*time.Millisecond)
 
-			// We dialed the peer while it dialed us. Our ID is the higher one,
-			// so the peer's connection is kept
-			ours   = peerWithID(t, lower, true)
-			theirs = peerWithID(t, lower, false)
-		)
+				return
+			}
 
-		ours.RemoteIPFn = func() net.IP { return ip }
-		theirs.RemoteIPFn = func() net.IP { return ip }
-
-		// No inbound slot left, the duplicate-IP guard on (the default), and
-		// the peer is persistent
-		sw := NewMultiplexSwitch(
-			&mockTransport{
-				netAddressFn: func() types.NetAddress {
-					return types.NetAddress{ID: upper}
-				},
-				acceptFn: acceptOnce(theirs),
-			},
-			WithMaxInboundPeers(0),
-			WithPersistentPeers([]*types.NetAddress{{ID: lower}}),
-		)
-
-		require.NoError(t, sw.peers.Add(ours))
-
-		go sw.runAcceptLoop(t.Context())
-
-		require.Eventually(t, func() bool {
-			return sw.peers.Get(lower) == PeerConn(theirs)
-		}, 5*time.Second, 10*time.Millisecond)
-	})
-
-	t.Run("a winning inbound connection is refused at the inbound limit", func(t *testing.T) {
-		t.Parallel()
-
-		lower, upper := orderedIDs(t)
-
-		var (
-			ours   = peerWithID(t, lower, true)
-			theirs = peerWithID(t, lower, false)
-			closed = closedSignal(theirs)
-		)
-
-		// The peer is not persistent, so its replacement needs an inbound slot
-		sw := NewMultiplexSwitch(
-			&mockTransport{
-				netAddressFn: func() types.NetAddress {
-					return types.NetAddress{ID: upper}
-				},
-				acceptFn: acceptOnce(theirs),
-			},
-			WithMaxInboundPeers(0),
-		)
-
-		require.NoError(t, sw.peers.Add(ours))
-
-		go sw.runAcceptLoop(t.Context())
-
-		select {
-		case <-closed:
-		case <-time.After(5 * time.Second):
-			t.Fatal("the connection was not refused")
-		}
-
-		assert.Same(t, ours, sw.peers.Get(lower))
-	})
-
-	t.Run("a winning inbound connection from the replaced connection's IP replaces it", func(t *testing.T) {
-		t.Parallel()
-
-		lower, upper := orderedIDs(t)
-
-		var (
-			ip = net.ParseIP("127.0.0.1")
-
-			ours   = peerWithID(t, lower, true)
-			theirs = peerWithID(t, lower, false)
-		)
-
-		ours.RemoteIPFn = func() net.IP { return ip }
-		theirs.RemoteIPFn = func() net.IP { return ip }
-
-		// The duplicate-IP guard is on, and the only peer from that IP is the
-		// connection being replaced
-		sw := NewMultiplexSwitch(&mockTransport{
-			netAddressFn: func() types.NetAddress {
-				return types.NetAddress{ID: upper}
-			},
-			acceptFn: acceptOnce(theirs),
+			awaitClosed(t, closed, "the connection was not refused")
+			assert.Same(t, ours, sw.peers.Get(lower))
 		})
-
-		require.NoError(t, sw.peers.Add(ours))
-
-		go sw.runAcceptLoop(t.Context())
-
-		require.Eventually(t, func() bool {
-			return sw.peers.Get(lower) == PeerConn(theirs)
-		}, 5*time.Second, 10*time.Millisecond)
-	})
-
-	t.Run("a winning inbound connection is refused while another peer holds its IP", func(t *testing.T) {
-		t.Parallel()
-
-		lower, upper := orderedIDs(t)
-
-		var (
-			ip = net.ParseIP("127.0.0.1")
-
-			ours   = peerWithID(t, lower, true)
-			theirs = peerWithID(t, lower, false)
-			other  = mock.GeneratePeers(t, 1)[0]
-			closed = closedSignal(theirs)
-		)
-
-		ours.RemoteIPFn = func() net.IP { return ip }
-		theirs.RemoteIPFn = func() net.IP { return ip }
-		other.RemoteIPFn = func() net.IP { return ip }
-
-		sw := NewMultiplexSwitch(&mockTransport{
-			netAddressFn: func() types.NetAddress {
-				return types.NetAddress{ID: upper}
-			},
-			acceptFn: acceptOnce(theirs),
-		})
-
-		require.NoError(t, sw.peers.Add(ours))
-		require.NoError(t, sw.peers.Add(other))
-
-		go sw.runAcceptLoop(t.Context())
-
-		select {
-		case <-closed:
-		case <-time.After(5 * time.Second):
-			t.Fatal("the connection was not refused")
-		}
-
-		assert.Same(t, ours, sw.peers.Get(lower))
-	})
+	}
 
 	t.Run("a losing inbound connection is rejected and closed", func(t *testing.T) {
 		t.Parallel()
@@ -2717,25 +2697,15 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 			closed = closedSignal(theirs)
 		)
 
-		sw := NewMultiplexSwitch(&mockTransport{
-			netAddressFn: func() types.NetAddress {
-				return types.NetAddress{ID: lower}
-			},
-			acceptFn: acceptOnce(theirs),
-		})
+		sw := acceptSwitch(lower, theirs)
 
-		logs := &lockedBuffer{}
-		sw.SetLogger(slog.New(slog.NewTextHandler(logs, nil)))
+		logs := captureLogs(sw)
 
 		require.NoError(t, sw.peers.Add(ours))
 
 		go sw.runAcceptLoop(t.Context())
 
-		select {
-		case <-closed:
-		case <-time.After(5 * time.Second):
-			t.Fatal("the losing connection was not closed")
-		}
+		awaitClosed(t, closed, "the losing connection was not closed")
 
 		assert.Contains(t, logs.String(), "Ignoring inbound connection: already connected")
 		assert.Contains(t, logs.String(), "kept=outbound")
@@ -2755,25 +2725,24 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 			closed = closedSignal(second)
 		)
 
-		sw := NewMultiplexSwitch(&mockTransport{
-			netAddressFn: func() types.NetAddress {
-				return types.NetAddress{ID: upper}
-			},
-			acceptFn: acceptOnce(second),
-		})
+		sw := acceptSwitch(upper, second)
 
 		require.NoError(t, sw.peers.Add(first))
 
 		go sw.runAcceptLoop(t.Context())
 
-		select {
-		case <-closed:
-		case <-time.After(5 * time.Second):
-			t.Fatal("the second connection was not closed")
-		}
+		awaitClosed(t, closed, "the second connection was not closed")
 
 		assert.Same(t, first, sw.peers.Get(lower))
 	})
+}
+
+// captureLogs makes the switch log into the returned buffer
+func captureLogs(sw *MultiplexSwitch) *lockedBuffer {
+	logs := &lockedBuffer{}
+	sw.SetLogger(slog.New(slog.NewTextHandler(logs, nil)))
+
+	return logs
 }
 
 // lockedBuffer is a bytes.Buffer a logger can write to from another goroutine
