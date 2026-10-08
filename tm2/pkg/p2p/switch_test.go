@@ -1296,20 +1296,8 @@ func TestMultiplexSwitch_DialLoop_BackedOff(t *testing.T) {
 		ctx := t.Context()
 
 		var (
-			dialed = make(chan types.NetAddress, 1)
-			addrs  = generateNetAddr(t, 2)
-
-			mockTransport = &mockTransport{
-				dialFn: func(
-					_ context.Context,
-					addr types.NetAddress,
-					_ PeerBehavior,
-				) (PeerConn, error) {
-					dialed <- addr
-
-					return nil, errors.New("unable to dial")
-				},
-			}
+			mockTransport, dialed = newDialRecorder(1)
+			addrs                 = generateNetAddr(t, 2)
 
 			sw = NewMultiplexSwitch(mockTransport)
 		)
@@ -1371,20 +1359,8 @@ func TestMultiplexSwitch_DialLoop_BackedOff(t *testing.T) {
 		ctx := t.Context()
 
 		var (
-			dialed = make(chan types.NetAddress, 1)
-			addr   = generateNetAddr(t, 1)[0]
-
-			mockTransport = &mockTransport{
-				dialFn: func(
-					_ context.Context,
-					a types.NetAddress,
-					_ PeerBehavior,
-				) (PeerConn, error) {
-					dialed <- a
-
-					return nil, errors.New("unable to dial")
-				},
-			}
+			mockTransport, dialed = newDialRecorder(1)
+			addr                  = generateNetAddr(t, 1)[0]
 
 			sw = NewMultiplexSwitch(mockTransport)
 		)
@@ -1466,11 +1442,16 @@ func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
 		latest = now.Add(2 * time.Hour)
 	)
 
+	var (
+		persistentQueue = func(sw *MultiplexSwitch) *dial.Queue { return sw.persistentDialQueue }
+		generalQueue    = func(sw *MultiplexSwitch) *dial.Queue { return sw.dialQueue }
+	)
+
 	testTable := []struct {
 		name       string
 		persistent []time.Time
 		general    []time.Time
-		want       string // the queue the item comes from, empty for none
+		want       func(*MultiplexSwitch) *dial.Queue // the queue the item comes from, nil for none
 		wantTime   time.Time
 	}{
 		{
@@ -1479,47 +1460,47 @@ func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
 		{
 			name:       "a due persistent peer",
 			persistent: []time.Time{due},
-			want:       "persistent",
+			want:       persistentQueue,
 			wantTime:   due,
 		},
 		{
 			name:     "a due discovered peer",
 			general:  []time.Time{due},
-			want:     "general",
+			want:     generalQueue,
 			wantTime: due,
 		},
 		{
 			name:       "a due persistent peer goes before an earlier discovered peer",
 			persistent: []time.Time{due},
 			general:    []time.Time{due.Add(-time.Minute)},
-			want:       "persistent",
+			want:       persistentQueue,
 			wantTime:   due,
 		},
 		{
 			name:       "a due discovered peer goes while the persistent peer backs off",
 			persistent: []time.Time{later},
 			general:    []time.Time{due},
-			want:       "general",
+			want:       generalQueue,
 			wantTime:   due,
 		},
 		{
 			name:       "nothing due, the persistent peer is due first",
 			persistent: []time.Time{later},
 			general:    []time.Time{latest},
-			want:       "persistent",
+			want:       persistentQueue,
 			wantTime:   later,
 		},
 		{
 			name:       "nothing due, the discovered peer is due first",
 			persistent: []time.Time{latest},
 			general:    []time.Time{later},
-			want:       "general",
+			want:       generalQueue,
 			wantTime:   later,
 		},
 		{
 			name:       "a backed off persistent peer alone",
 			persistent: []time.Time{later},
-			want:       "persistent",
+			want:       persistentQueue,
 			wantTime:   later,
 		},
 	}
@@ -1546,19 +1527,14 @@ func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
 
 			item, queue := sw.peekDialItem()
 
-			if testCase.want == "" {
+			if testCase.want == nil {
 				assert.Nil(t, item)
 
 				return
 			}
 
-			wantQueue := sw.dialQueue
-			if testCase.want == "persistent" {
-				wantQueue = sw.persistentDialQueue
-			}
-
 			require.NotNil(t, item)
-			assert.Same(t, wantQueue, queue)
+			assert.Same(t, testCase.want(sw), queue)
 			assert.True(t, item.Time.Equal(testCase.wantTime))
 		})
 	}
@@ -1571,28 +1547,12 @@ func TestMultiplexSwitch_DialLoop_Persistent(t *testing.T) {
 		t.Parallel()
 
 		var (
-			addrs  = generateNetAddr(t, 3)
-			dialed = make(chan types.NetAddress, len(addrs))
-
-			mockTransport = &mockTransport{
-				dialFn: func(
-					_ context.Context,
-					addr types.NetAddress,
-					_ PeerBehavior,
-				) (PeerConn, error) {
-					dialed <- addr
-
-					return nil, errors.New("unable to dial")
-				},
-			}
+			addrs                 = generateNetAddr(t, 3)
+			mockTransport, dialed = newDialRecorder(len(addrs))
 
 			sw  = NewMultiplexSwitch(mockTransport)
 			now = time.Now()
 		)
-
-		sw.peers = &mockSet{
-			hasFn: func(types.ID) bool { return false },
-		}
 
 		// Discovered peers that have been due for a while
 		sw.dialQueue.Push(dial.Item{Time: now.Add(-2 * time.Second), Address: addrs[0]})
@@ -1617,20 +1577,8 @@ func TestMultiplexSwitch_DialLoop_Persistent(t *testing.T) {
 		t.Parallel()
 
 		var (
-			addrs  = generateNetAddr(t, 2)
-			dialed = make(chan types.NetAddress, len(addrs))
-
-			mockTransport = &mockTransport{
-				dialFn: func(
-					_ context.Context,
-					addr types.NetAddress,
-					_ PeerBehavior,
-				) (PeerConn, error) {
-					dialed <- addr
-
-					return nil, errors.New("unable to dial")
-				},
-			}
+			addrs                 = generateNetAddr(t, 2)
+			mockTransport, dialed = newDialRecorder(len(addrs))
 
 			sw  = NewMultiplexSwitch(mockTransport)
 			now = time.Now()
@@ -1895,11 +1843,7 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 			configured = generateNetAddr(t, 1)[0]
 
 			// The same peer, as another node advertises it
-			learned = &types.NetAddress{
-				ID:   configured.ID,
-				IP:   net.ParseIP("203.0.113.7"),
-				Port: configured.Port,
-			}
+			learned = advertisedElsewhere(configured)
 
 			sw = NewMultiplexSwitch(
 				&mockTransport{},
@@ -1948,11 +1892,7 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 
 		var (
 			addr  = generateNetAddr(t, 1)[0]
-			other = &types.NetAddress{
-				ID:   addr.ID,
-				IP:   net.ParseIP("203.0.113.7"),
-				Port: addr.Port,
-			}
+			other = advertisedElsewhere(addr)
 
 			sw = NewMultiplexSwitch(&mockTransport{})
 		)
@@ -2059,25 +1999,9 @@ func TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress(t *testing.T) {
 		configured = generateNetAddr(t, 1)[0]
 
 		// The same peer, as its public external address
-		learned = &types.NetAddress{
-			ID:   configured.ID,
-			IP:   net.ParseIP("203.0.113.7"),
-			Port: configured.Port,
-		}
+		learned = advertisedElsewhere(configured)
 
-		dialed = make(chan types.NetAddress, 16)
-
-		mockTransport = &mockTransport{
-			dialFn: func(
-				_ context.Context,
-				addr types.NetAddress,
-				_ PeerBehavior,
-			) (PeerConn, error) {
-				dialed <- addr
-
-				return nil, errors.New("unable to dial")
-			},
-		}
+		mockTransport, dialed = newDialRecorder(16)
 
 		sw = NewMultiplexSwitch(
 			mockTransport,
@@ -2086,10 +2010,6 @@ func TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress(t *testing.T) {
 
 		p = mock.GeneratePeers(t, 1)[0]
 	)
-
-	sw.peers = &mockSet{
-		hasFn: func(types.ID) bool { return false },
-	}
 
 	// The connection over the learned address drops
 	p.IDFn = func() types.ID { return configured.ID }
