@@ -419,3 +419,15 @@ func TestDefaultConfigSearchRateLimit(t *testing.T) {
 			"request %d from one IP was rate-limited under the default config", i+1)
 	}
 }
+
+// A URL the client could never reach fails at startup, not behind a log line
+// calling the indexer enabled.
+func TestNewRouterRejectsInvalidIndexerURL(t *testing.T) {
+	for _, raw := range []string{"localhost:8546/graphql", "ftp://indexer.example/q", "http:///graphql"} {
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = sharedNodeRemote(t)
+		cfg.IndexerURL = raw
+		_, err := NewRouter(log.NewTestingLogger(t), cfg)
+		require.Error(t, err, raw)
+	}
+}

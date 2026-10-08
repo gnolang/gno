@@ -24,6 +24,7 @@ type jsonGroup struct {
 	Results   []jsonResult `json:"results"`
 	Error     string       `json:"error,omitempty"`
 	Truncated bool         `json:"truncated,omitempty"`
+	Notice    string       `json:"notice,omitempty"`
 }
 
 type jsonSelector struct {
@@ -75,7 +76,7 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	for _, g := range data.Groups {
 		jg := jsonGroup{
-			Label: g.Label, Source: g.Source, Truncated: g.Truncated,
+			Label: g.Label, Source: g.Source, Truncated: g.Truncated, Notice: g.Notice,
 			Results: make([]jsonResult, 0, len(g.Results)),
 		}
 		if g.Err != nil {

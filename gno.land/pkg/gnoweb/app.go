@@ -192,7 +192,11 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// a typed nil pointer is not nil, and that is exactly how a deployment
 	// with no indexer would end up advertising indexer-backed search.
 	if cfg.IndexerURL != "" {
-		logger.Info("indexer enabled", "url", cfg.IndexerURL)
+		if err := indexer.ValidateURL(cfg.IndexerURL); err != nil {
+			return nil, err
+		}
+		// Redacted: the URL is where an indexer credential would sit.
+		logger.Info("indexer enabled", "url", indexer.Redact(cfg.IndexerURL))
 		handlerCfg.Indexer = indexer.New(cfg.IndexerURL, cfg.IndexerToken)
 	}
 

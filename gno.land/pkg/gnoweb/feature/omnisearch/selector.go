@@ -99,8 +99,10 @@ type Group struct {
 	// not "nothing matched".
 	Err error
 
-	// Truncated marks an answer built from a capped listing.
+	// Truncated marks a partial answer: more may exist than Results holds.
+	// Notice says why, in the reader's terms.
 	Truncated bool
+	Notice    string
 }
 
 // minTerm is the selector's own floor, falling back to the global one.
@@ -112,10 +114,22 @@ func (s *Selector) minTerm() int {
 }
 
 // capResults clones rather than reslices: callers pre-size against the whole
-// package, so a reslice would pin that array for the life of the page.
-func capResults(rs []Result) []Result {
+// package, so a reslice would pin that array for the life of the page. It
+// reports whether it cut, so the cut is never silent.
+func capResults(rs []Result) ([]Result, bool) {
 	if len(rs) > MaxResults {
-		return slices.Clone(rs[:MaxResults])
+		return slices.Clone(rs[:MaxResults]), true
 	}
-	return rs
+	return rs, false
 }
+
+// partialAnswer is a resolver's verdict that its rows are not the whole
+// answer. It travels as an error so every resolver keeps one signature, and
+// Search turns it into a notice rather than a failure.
+type partialAnswer string
+
+func (p partialAnswer) Error() string { return string(p) }
+
+// recentNotice is what a reader is told when the indexer walk stopped short
+// of genesis.
+const recentNotice = "Searched the most recent blocks only: older transactions may exist."

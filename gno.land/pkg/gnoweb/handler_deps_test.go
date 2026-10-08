@@ -51,6 +51,9 @@ func (stubIndexer) Deploys(context.Context, string, int) ([]indexer.Tx, error) {
 func (stubIndexer) SourceContains(context.Context, string, string, int) ([]indexer.Tx, error) {
 	return nil, errUnused
 }
+func (stubIndexer) DeploysImporting(context.Context, string, int) ([]indexer.Tx, error) {
+	return nil, errUnused
+}
 func (s stubIndexer) Block(_ context.Context, height int) (*indexer.Block, error) {
 	if s.calls == nil {
 		return nil, errUnused

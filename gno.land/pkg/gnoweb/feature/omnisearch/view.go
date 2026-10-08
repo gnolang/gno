@@ -17,6 +17,10 @@ type SearchData struct {
 	// names none.
 	PkgPath string
 
+	// WholeChainHref, set on a scoped discovery search, repeats it without
+	// the scope.
+	WholeChainHref string
+
 	// FormAction is explicit rather than `action=""`, which would re-submit
 	// the webargs already in the path and grow the URL on every search.
 	FormAction string
@@ -48,6 +52,17 @@ type IndexerStatus struct {
 func (d SearchData) HasResults() bool {
 	for _, g := range d.Groups {
 		if len(g.Results) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// HasErrors reports a group that could not answer: "Nothing matched." under
+// "Could not answer" would contradict it.
+func (d SearchData) HasErrors() bool {
+	for _, g := range d.Groups {
+		if g.Err != nil {
 			return true
 		}
 	}

@@ -2,6 +2,7 @@ package omnisearch
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -40,6 +41,7 @@ type Indexer interface {
 	RecentByAddress(ctx context.Context, addr string, limit int) ([]indexer.Tx, error)
 	Deploys(ctx context.Context, pkgPath string, limit int) ([]indexer.Tx, error)
 	SourceContains(ctx context.Context, text, author string, limit int) ([]indexer.Tx, error)
+	DeploysImporting(ctx context.Context, pkgPath string, limit int) ([]indexer.Tx, error)
 	Block(ctx context.Context, height int) (*indexer.Block, error)
 	URL() string
 }
@@ -90,7 +92,16 @@ type Handler struct {
 // doc coalesces concurrent callers. The shared fetch is detached from
 // whichever request started it, so a closed tab cannot cancel the others.
 func (h *Handler) doc(ctx context.Context, pkgPath string) (*doc.JSONDocumentation, error) {
-	ch := h.docGroup.DoChan(pkgPath, func() (any, error) {
+	ch := h.docGroup.DoChan(pkgPath, func() (val any, err error) {
+		// DoChan re-panics on a goroutine of its own, out of reach of
+		// net/http's per-request recover: a panic here would end gnoweb.
+		defer func() {
+			if r := recover(); r != nil {
+				h.deps.Logger.Error("omnisearch: qdoc panic recovered",
+					"path", pkgPath, "panic", fmt.Sprintf("%.512v", r))
+				val, err = nil, fmt.Errorf("qdoc %s: panic recovered", pkgPath)
+			}
+		}()
 		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), docTimeout)
 		defer cancel()
 		return h.deps.Client.Doc(fetchCtx, pkgPath, 0)

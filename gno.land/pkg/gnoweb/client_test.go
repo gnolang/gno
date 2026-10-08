@@ -172,6 +172,22 @@ func TestListPathsForwardsLimit(t *testing.T) {
 	}
 }
 
+// Before ListPaths forwarded its limit, /u/<user> got the node's default of
+// 1000 paths per namespace. Forwarding MaxUserContributions must not lower
+// that: the page counts what it receives as the total.
+func TestUserContributionsKeepNodeDefault(t *testing.T) {
+	t.Parallel()
+
+	caller := &pathsCaller{listing: "gno.land/r/alice/a"}
+	c := NewRPCClientAdapter(newDiscardLogger(), client.NewRPCClient(caller), "gno.land", 0)
+	if _, err := c.ListPaths(context.Background(), "@alice", MaxUserContributions); err != nil {
+		t.Fatal(err)
+	}
+	if caller.gotPath != "vm/qpaths?limit=1000" {
+		t.Fatalf("query path = %q, want the node default of 1000", caller.gotPath)
+	}
+}
+
 func TestValidFileName(t *testing.T) {
 	t.Parallel()
 
