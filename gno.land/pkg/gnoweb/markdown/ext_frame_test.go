@@ -204,8 +204,13 @@ func TestFrameGridScanLinear(t *testing.T) {
 		return best
 	}
 	for name, page := range pages {
-		small := render([]byte(strings.Repeat(page, 50)))
-		large := render([]byte(strings.Repeat(page, 200)))
+		// Sizes keep both runs in the milliseconds: sub-millisecond runs on
+		// a CI runner gave 11x on a linear page.
+		small := render([]byte(strings.Repeat(page, 400)))
+		large := render([]byte(strings.Repeat(page, 1600)))
+		if large < 20*time.Millisecond {
+			continue // below this the ratio is noise; nothing quadratic stays there
+		}
 		if ratio := float64(large) / float64(small); ratio > 10 {
 			t.Errorf("%s: 4x the input took %.1fx the time", name, ratio)
 		}
