@@ -1,0 +1,7 @@
+-- input.md --
+What is going on here?????!!!!! This is crazy!!!!!!
+
+A simple question? Just one mark.
+-- output.html --
+<p>[punct]</p>
+<p>A simple question? Just one mark.</p>

@@ -1,0 +1,192 @@
+# Content Filter Patterns - Ultra-Extensive Coverage
+# Each pattern casts the widest net possible (synonyms, typos, leet speak, variations)
+
+DEFAULT_REPLACEMENT=[filtered]
+
+# Credential phishing
+(?i)(?:(enter|provide|share|submit|validate|restore|update|input|reset|recover|unlock|authorize|approve|confirm|verify|send|give|reveal|disclose|type|fill|complete)\s*[_\-\s]*(?:your|ur|the|my)?\s*[_\-\s]*(?:wallet|w4llet|seed\s*phrase|seedphrase|seed|private\s*key|priv4te\s*key|privkey|mnemonic|password|passw0rd|pwd|pass|credentials|recovery\s*phrase|recoveryphrase|login|passphrase|backup|keys?|account|acc0unt|2fa|auth|authenticator|totp|otp)|(connect|link|sync|import|add|attach)\s*[_\-\s]*(?:your|ur|the)?\s*[_\-\s]*(?:wallet|metamask|trust\s*wallet|ledger|trezor|phantom|coinbase\s*wallet)\s*.{0,30}(?:to|for|and|or)?\s*.{0,20}(?:claim|receive|mint|airdrop|reward|bonus|tokens?|nft|prize|gift|giveaway)) -> [credential phish]
+
+
+# Social redirect + contact
+(?i)(?:(telegram|telegr4m|tg|discord|disc0rd|whatsapp|whats4pp|wa|signal|skype|wechat|line|viber|messenger|fb\s*messenger)\s*[_\-\s]*(?:group|gr0up|grp|channel|chan|chat|link|community|server|dm|pm|message)\s*.{0,40}(?:https?://|t\.me|discord\.gg|wa\.me|join|click|tap)|(dm|pm|message|msg|contact|text|reach|write|hit\s*me\s*up|hmu)\s*(?:me|us|admin|support|team)\s*.{0,20}(?:on|at|via|@|through)?\s*.{0,15}(?:telegram|tg|discord|whatsapp|wa|signal|skype|@[\w]+)|(?:my|our|the)\s*(?:telegram|discord|whatsapp)\s*(?:is|:|=|@)\s*@?[\w]+|[\w.+-]{3,}@(?:gmail|yahoo|hotmail|outlook|proton|aol|yandex|mail|gmx|zoho|icloud)\.(?:com|fr|net|org|ru|de|co\.uk)) -> [contact redirect]
+
+# Free crypto + airdrops
+(?i)(?:(?:free|fr33|gratis|gratuit|kostenlos|complimentary|no\s*cost|zero\s*cost)\s*[_\-\s]*(?:airdrop|air\s*drop|drop|token|tokens|t0kens|nft|nfts|mint|mints|crypto|crypt0|coins?|c0ins?|gnot|gno|ethereum|eth|bitcoin|btc|allocation|whitelist|presale|giveaway|give\s*away)|(?:claim|get|receive|grab|collect|redeem|win|earn)\s*[_\-\s]*(?:your|ur)?\s*[_\-\s]*(?:free|fr33)?\s*[_\-\s]*(?:airdrop|tokens?|nft|crypto|coins?|reward|bonus|prize|gift)|(?:exclusive|limited|rare|special|vip|early)\s*[_\-\s]*(?:airdrop|drop|token|nft|mint|allocation|whitelist|presale|access)\s*.{0,30}(?:free|limited|join|register|sign\s*up|claim|grab)) -> [free scam]
+
+# Financial promises
+(?i)(?:(?:guaranteed?|guarant33d|promise[ds]?|assured?|certain|confirmed?|verified|proven|100%|💯)\s*.{0,20}(?:return|profit|income|roi|yield|earning|revenue|gain|payout)s?|(?:\d+|double|triple|quadruple|10x|100x|1000x|moon|🚀)\s*(?:your|ur)?\s*(?:money|investment|deposit|gnot|token|crypto|coins?)|(?:\d+|one\s*hundred|two\s*hundred)%\s*(?:apy|apr|yield|return|profit|gain|roi)\s*.{0,30}(?:guaranteed?|assured?|stable|safe|risk\s*free|no\s*risk)|(?:passive|residual|recurring|automatic|guaranteed?)\s*(?:income|profit|revenue|earnings?|gains?|returns?)\s*.{0,20}(?:daily|weekly|monthly|yearly|forever)) -> [financial scam]
+
+# Transfer + send money
+(?i)(?:(?:send|transfer|wire|deposit|pay|give)\s*[_\-\s]*(?:me|us|now|immediately|asap|quick|fast)?\s*[_\-\s]*\$?\d+\s*.{0,40}(?:get|receive|earn|make|profit|return|multiply|double|triple|\d+x)|(?:double|triple|10x|100x|multiply)\s*(?:your|ur)\s*(?:money|crypto|gnot|tokens?|investment|deposit|coins?)|(?:wire|transfer|send|deposit|remit)\s*[_\-\s]*(?:money|funds|payment|crypto|bitcoin|gnot|eth)\s*[_\-\s]*(?:immediately|urgent|now|asap|quick|fast|today|tonight)) -> [transfer scam]
+
+# Account compromise + urgency
+(?i)(?:(?:your|ur|the)\s*(?:account|wallet|profile|email)\s*(?:has\s*been|is|was)?\s*(?:locked|suspended|compromised|hacked|frozen|disabled|blocked|terminated|closed|flagged|restricted)\s*.{0,40}(?:click|tap|visit|goto|action\s*required|restore|verify|unlock|reactivate)|(?:click|tap|press|hit)\s*(?:here|now|below|this|link)\s*.{0,40}(?:before|or|otherwise)?\s*.{0,20}(?:expire|limited|lose|miss|last\s*chance|account\s*closed)|(?:urgent|emergency|important|critical|immediate|asap)\s*(?:action|attention|response|verification)\s*(?:required|needed)) -> [urgency scam]
+
+# KYC + verification
+(?i)(?:(?:complete|finish|submit|start|begin|update|verify|confirm)\s*(?:your|ur)?\s*(?:kyc|know\s*your\s*customer|verification|identity|id\s*check|document|proof)\s*.{0,40}(?:to|for|before)?\s*.{0,20}(?:claim|unlock|access|withdraw|trade|continue|proceed)|(?:verify|confirm|validate|prove)\s*(?:your|ur)\s*(?:identity|id|account|email|phone|address)\s*.{0,30}(?:now|urgent|required|needed|suspended)) -> [kyc phish]
+
+# Trading signals
+(?i)(?:(?:trading|crypto|forex|stock|binary)\s*[_\-\s]*(?:signal|tip|alert|call|group|channel|bot|advisor)\s*.{0,30}(?:guaranteed?|100%|accurate|win|profit|vip|premium|exclusive|free|join)|(?:pump|moon|gem|100x|1000x|rocket|🚀)\s*(?:alert|signal|coin|token|group|channel|call|pick)|(?:insider|whale|big\s*money)\s*(?:info|tip|signal|trade|buy|move)) -> [trading scam]
+
+# NFT scams
+(?i)(?:(?:mint|claim|buy|get|grab)\s*(?:your|ur)?\s*(?:free|exclusive|limited|rare|og)?\s*(?:nft|pfp|art|collectible|ape|punk|azuki|doodle)\s*.{0,40}(?:click|link|now|hurry|limited|whitelist|presale)|(?:nft|collection|drop|project)\s*(?:just|finally)?\s*(?:launched|dropped|minted|released|live)\s*.{0,30}(?:floor|rare|moon|profit|early|og)|(?:fake|phishing|scam)\s*(?:bored\s*ape|cryptopunk|azuki|moonbird|doodle|clone\s*x)) -> [nft scam]
+
+# DeFi + yield
+(?i)(?:(?:\d+|500|1000|10000)%\s*(?:apy|apr|yield|farming|staking)\s*.{0,30}(?:guaranteed?|stable|safe|risk\s*free|secure)|(?:stake|farm|pool|vault|liquidity)\s*.{0,30}(?:\d+%|high|insane|crazy|massive)\s*(?:apy|apr|yield|return|profit)|(?:defi|yield)\s*(?:farming|mining|staking)\s*.{0,30}(?:guaranteed?|high\s*return|passive|safe)) -> [defi scam]
+
+# Fake apps
+(?i)(?:(?:new|beta|official|updated|latest|v2|version\s*2)\s*(?:exchange|dex|swap|wallet|bridge|dapp)\s*.{0,40}(?:download|install|try|use|join|update)|(?:download|install|update|upgrade)\s*(?:metamask|trust\s*wallet|ledger|trezor|phantom|coinbase)\s*.{0,40}(?:urgent|now|secure|protect|recover)) -> [fake app]
+
+# Ponzi + pyramid + MLM
+(?i)(?:(?:join|recruit|invite|refer|sign\s*up)\s*.{0,30}(?:downline|upline|referral|network|team|structure|matrix|leg)\s*.{0,30}(?:earn|make|profit|income|bonus|commission)|(?:passive|residual|recurring)\s*(?:income|earnings?|revenue)\s*.{0,30}(?:doing\s*nothing|no\s*work|autopilot|while\s*you\s*sleep)|(?:financial|money|economic)\s*(?:freedom|independence|liberty)\s*.{0,30}(?:join|opportunity|system|program)|(?:mlm|multi\s*level|network\s*marketing|pyramid|ponzi|matrix)\s*.{0,30}(?:opportunity|system|scheme|program|platform)) -> [ponzi scam]
+
+# Celebrity + influencer impersonation
+(?i)(?:(?:elon|musk|elon\s*musk|vitalik|buterin|cz|binance|brian\s*armstrong|coinbase\s*ceo|michael\s*saylor|cathie\s*wood|jack\s*dorsey|mark\s*cuban|paris\s*hilton|snoop\s*dogg|eminem|justin\s*bieber|kim\s*kardashian|mr\s*beast|pewdiepie)\s*.{0,40}(?:giving\s*away|airdrop|giveaway|free|gift|send|transfer|double|triple|10x)|(?:verified|official|real)\s*(?:elon|vitalik|cz|michael\s*saylor)\s*.{0,30}(?:account|profile|channel|page|tweet|post)|(?:i\s*am|this\s*is|im)\s*(?:elon|vitalik|cz|the\s*real)\s*.{0,30}(?:give|send|airdrop|gift)) -> [impersonation]
+
+# Fake virus + malware warnings
+(?i)(?:(?:your|ur|this|the)\s*(?:computer|pc|device|phone|mobile|system)\s*(?:is|has\s*been|was)?\s*(?:infected|compromised|hacked|attacked|has\s*virus|has\s*malware|has\s*trojan|has\s*spyware|has\s*ransomware)\s*.{0,40}(?:click|download|install|scan|clean|remove|fix)|(?:virus|malware|trojan|spyware|ransomware|adware|rootkit)\s*(?:detected|found|alert|warning)\s*.{0,40}(?:urgent|immediate|critical|danger|threat)|(?:\d+|multiple|several|many)\s*(?:virus|viruses|threat|threats|infection)\s*(?:detected|found)\s*.{0,30}(?:remove|clean|scan|fix|protect)) -> [fake virus]
+
+# Survey + prize scams
+(?i)(?:(?:take|complete|fill|answer)\s*(?:this|our|a|the)?\s*(?:quick|short|simple|easy|1\s*minute|2\s*minute)?\s*(?:survey|questionnaire|poll|quiz)\s*.{0,40}(?:win|get|receive|claim|earn|free|prize|reward|gift|bonus)|(?:congratulations?|congrats|you\s*won|winner|selected|chosen)\s*.{0,40}(?:prize|reward|gift|iphone|ipad|macbook|playstation|xbox|amazon\s*gift|visa\s*gift|cash|money|\$\d+)|(?:click|tap|visit)\s*.{0,30}(?:to\s*claim|claim\s*your|get\s*your)\s*.{0,20}(?:prize|reward|gift|winnings)) -> [survey scam]
+
+# Tax + IRS + government
+(?i)(?:(?:irs|internal\s*revenue|tax\s*authority|revenue\s*service|taxman|hmrc|government|federal|treasury)\s*.{0,40}(?:owe|debt|refund|payment|penalty|fine|audit|investigation|warrant|arrest)|(?:tax|taxes)\s*(?:refund|rebate|credit|return)\s*.{0,30}(?:pending|waiting|ready|approved|claim|collect)|(?:final|last|urgent)\s*(?:notice|warning|demand)\s*.{0,30}(?:pay|payment|settle|resolve|action)\s*.{0,20}(?:immediately|now|today|asap|or\s*else|before|warrant|arrest|legal\s*action)) -> [tax scam]
+
+# Shipping + package delivery
+(?i)(?:(?:package|parcel|delivery|shipment|order)\s*.{0,30}(?:waiting|pending|held|stuck|delayed|returned|undelivered|failed)\s*.{0,40}(?:click|pay|confirm|verify|update|redelivery|reschedule)|(?:fedex|ups|usps|dhl|amazon|postal\s*service)\s*.{0,40}(?:delivery|package|parcel)\s*.{0,30}(?:failed|pending|action\s*required|confirm|verify|pay|fee|customs|duty)|(?:customs|duty|handling)\s*(?:fee|charge|payment)\s*.{0,30}(?:pay|required|outstanding|pending)) -> [shipping scam]
+
+# Banking + payment processor phishing
+(?i)(?:(?:paypal|p4ypal|venmo|cashapp|zelle|stripe|square|wise|revolut|chime)\s*.{0,40}(?:account|payment|transaction)\s*.{0,30}(?:suspended|locked|limited|hold|frozen|restricted|unusual|verify|confirm)|(?:bank|banking|account)\s*.{0,40}(?:suspended|locked|compromised|unusual\s*activity|verify|security\s*alert|fraud\s*alert)|(?:verify|confirm|update)\s*(?:your|ur)?\s*(?:payment|billing|card|bank)\s*(?:info|information|details|method)) -> [banking phish]
+
+# Legal threats + fake lawsuits
+(?i)(?:(?:lawsuit|legal\s*action|court|attorney|lawyer|law\s*firm)\s*.{0,40}(?:filed|pending|initiated|against\s*you|your\s*name|settlement|judgement)|(?:cease\s*and\s*desist|dmca|copyright|trademark|intellectual\s*property)\s*.{0,40}(?:violation|infringement|notice|complaint|takedown)|(?:subpoena|summons|court\s*order|warrant)\s*.{0,30}(?:issued|served|respond|appear|contact|attorney)) -> [legal threat]
+
+# Blackmail + extortion
+(?i)(?:(?:i\s*have|we\s*have|got)\s*.{0,30}(?:video|footage|recording|photos?|images?|evidence|proof)\s*.{0,40}(?:of\s*you|you\s*were|shows\s*you|watching|visiting|doing)|(?:pay|send|transfer)\s*.{0,30}(?:bitcoin|btc|crypto|money)\s*.{0,40}(?:or|otherwise|else)\s*.{0,20}(?:release|publish|send|expose|reveal|share|leak|distribute)|(?:hacked|compromised|accessed)\s*(?:your|ur)?\s*(?:camera|webcam|email|computer|files|contacts)\s*.{0,40}(?:pay|send|bitcoin|btc|crypto)) -> [blackmail]
+
+# Ransomware + data leak threats
+(?i)(?:(?:your|ur|all|the)\s*(?:files|data|documents|photos|videos)\s*(?:have\s*been|are|were)?\s*(?:encrypted|locked|held|seized)\s*.{0,40}(?:pay|payment|ransom|decrypt|unlock|restore|recover)|(?:pay|send)\s*.{0,30}(?:ransom|bitcoin|btc|crypto)\s*.{0,40}(?:decrypt|unlock|restore|recover|get\s*back)\s*.{0,20}(?:files|data|access)|(?:data|files|information)\s*(?:will\s*be|shall\s*be)?\s*(?:deleted|destroyed|leaked|published|sold)\s*.{0,30}(?:unless|if\s*you|pay|send|transfer)) -> [ransomware]
+
+# Mining scams
+(?i)(?:(?:cloud|crypto|bitcoin|btc|ethereum|eth)\s*[_\-\s]*(?:mining|miner|hash|hashrate)\s*.{0,30}(?:free|guaranteed?|profit|roi|return|passive|contract|lifetime)|(?:mine|earn|generate)\s*.{0,30}(?:bitcoin|btc|ethereum|eth|crypto)\s*.{0,30}(?:free|automatically|passive|daily|guaranteed?)|(?:mining|hash)\s*(?:power|rate|contract)\s*.{0,30}(?:lifetime|forever|guaranteed?|roi|return)) -> [mining scam]
+
+# Staking scams
+(?i)(?:(?:stake|staking|locked\s*staking|flexible\s*staking)\s*.{0,30}(?:\d+%|high|insane|crazy|guaranteed?|safe|secure|risk\s*free)\s*(?:apy|apr|return|yield|reward)|(?:stake|deposit|lock)\s*.{0,30}(?:tokens?|coins?|crypto|gnot|eth|btc)\s*.{0,40}(?:earn|get|receive|guaranteed?|passive|daily|monthly)|(?:validator|node|masternode)\s*.{0,30}(?:guaranteed?|passive|high)\s*(?:return|reward|income|yield)) -> [staking scam]
+
+# DAO + governance manipulation
+(?i)(?:(?:vote|voting|governance|proposal)\s*.{0,30}(?:airdrop|reward|incentive|payment|tokens?)\s*.{0,30}(?:claim|receive|get|earn|free)|(?:dao|governance)\s*(?:token|airdrop|allocation)\s*.{0,40}(?:claim|free|early|whitelist|presale)|(?:snapshot|delegation|delegate)\s*.{0,30}(?:vote|voting)\s*.{0,30}(?:earn|reward|airdrop|tokens?)) -> [dao scam]
+
+# Fake audits + certifications
+(?i)(?:(?:audited|certified|verified|approved)\s*(?:by|from)?\s*(?:certik|peckshield|slowmist|hacken|quantstamp|trail\s*of\s*bits|consensys|openzeppelin)\s*.{0,40}(?:safe|secure|legit|trusted|verified)|(?:security|smart\s*contract)\s*(?:audit|review|assessment)\s*.{0,30}(?:passed|approved|certified|clean|safe)|(?:kyc|doxxed|verified)\s*(?:team|developer|founder)\s*.{0,30}(?:by|from)\s*.{0,20}(?:certik|assure|solidproof)) -> [fake audit]
+
+# Fake partnerships + endorsements
+(?i)(?:(?:partnership|partnered|collaboration|collab)\s*(?:with|announced)?\s*(?:binance|coinbase|kraken|gemini|ftx|opensea|uniswap|metamask|google|microsoft|apple|amazon|tesla)|(?:backed|funded|invested|supported)\s*(?:by|from)?\s*(?:a16z|sequoia|paradigm|binance\s*labs|coinbase\s*ventures|grayscale|pantera)|(?:listed|listing)\s*(?:on|confirmed)?\s*(?:binance|coinbase|kraken|gemini|ftx|kucoin)\s*.{0,30}(?:soon|tomorrow|today|confirmed)) -> [fake partnership]
+
+# Team impersonation
+(?i)(?:(?:official|verified|real)\s*(?:team|admin|moderator|mod|support|developer|founder|ceo)\s*.{0,40}(?:will\s*never|never|won't)\s*.{0,20}(?:dm|pm|message|ask|request)|(?:admin|moderator|mod|support|team)\s*.{0,30}(?:dm|pm|message|contact|reach)\s*.{0,30}(?:first|you|help|issue|problem)|(?:i\s*am|im|this\s*is)\s*(?:official|real|verified)?\s*(?:admin|mod|support|team|founder)) -> [team impersonation]
+
+# Fake events + conferences
+(?i)(?:(?:consensus|devcon|ethdenver|token2049|nft\s*nyc|bitcoin\s*conference|web3\s*summit)\s*.{0,40}(?:airdrop|giveaway|ticket|pass|free|discount|promo)|(?:conference|summit|event|meetup)\s*(?:exclusive|vip|early)?\s*(?:ticket|pass|access|airdrop|token)\s*.{0,30}(?:free|claim|limited|whitelist)|(?:register|sign\s*up|claim)\s*.{0,30}(?:conference|event|summit)\s*.{0,30}(?:airdrop|reward|token|nft|free)) -> [fake event]
+
+# Market manipulation
+(?i)(?:(?:buy|accumulate|ape|fill\s*bags?)\s*(?:now|immediately|asap|quick|fast)?\s*.{0,30}(?:before|pump|moon|explode|rocket|🚀|10x|100x|1000x)|(?:insider|whale|smart\s*money|market\s*maker)\s*(?:buying|accumulating|loading)\s*.{0,40}(?:you|act|move|buy|get\s*in)|(?:last\s*chance|final\s*warning|don't\s*miss)\s*.{0,30}(?:before|pump|moon|explode|takeoff|rocket)) -> [market manipulation]
+
+# Romance scams
+(?i)(?:(?:love|darling|honey|sweetheart|baby|dear)\s*.{0,40}(?:need|help|emergency|hospital|stuck|arrested|robbed|accident)\s*.{0,40}(?:send|money|transfer|western\s*union|bitcoin|crypto)|(?:met\s*you|know\s*you|feelings\s*for\s*you)\s*.{0,40}(?:need|help|situation|problem|emergency)\s*.{0,30}(?:money|funds|help|loan|send)|(?:military|soldier|deployed|overseas|africa|nigeria)\s*.{0,40}(?:love|relationship|future)\s*.{0,30}(?:money|funds|help|transfer|send)) -> [romance scam]
+
+# Job + employment scams
+(?i)(?:(?:work|job|position|opportunity|employment)\s*(?:from|at)?\s*(?:home|remote|online|anywhere)\s*.{0,40}(?:earn|make|\$\d+|easy|simple|no\s*experience|guaranteed?)|(?:hiring|recruiting|looking\s*for)\s*.{0,30}(?:data\s*entry|envelope|package|reshipping|mystery\s*shopper|secret\s*shopper)\s*.{0,30}(?:easy|simple|quick|fast|daily\s*pay)|(?:pay|deposit|fee|training|equipment)\s*.{0,30}(?:upfront|advance|first|before\s*start|required)\s*.{0,30}(?:refund|reimburse|return|guarantee)) -> [job scam]
+
+# Investment scams
+(?i)(?:(?:investment|trading|forex|binary|options)\s*(?:opportunity|platform|system|bot|signal)\s*.{0,40}(?:guaranteed?|no\s*risk|safe|secure|proven|verified|\d+%\s*return)|(?:invest|deposit|fund)\s*.{0,30}(?:\$?\d+|small\s*amount|minimum)\s*.{0,40}(?:return|profit|earn|make|guarantee|\d+%|double|triple|10x)|(?:compound|compounding)\s*(?:interest|return|profit)\s*.{0,30}(?:daily|weekly|guaranteed?|automatic|passive)) -> [investment scam]
+
+# Loan scams
+(?i)(?:(?:loan|credit|mortgage|financing)\s*.{0,30}(?:approved|guaranteed?|pre\s*approved|instant|same\s*day|no\s*credit|bad\s*credit)\s*.{0,40}(?:click|apply|claim|get)|(?:need|want)\s*(?:a|quick|fast|easy)?\s*(?:loan|money|cash|credit)\s*.{0,30}(?:guaranteed?|approval|approved|no\s*check|no\s*credit)|(?:processing|application|insurance|upfront)\s*(?:fee|payment|charge)\s*.{0,30}(?:required|needed|first|before|advance)) -> [loan scam]
+
+# Real estate scams
+(?i)(?:(?:property|house|apartment|condo|land|real\s*estate)\s*.{0,40}(?:incredible|amazing|unbelievable|too\s*good)\s*(?:deal|price|offer|opportunity)|(?:rent|lease|buy|purchase)\s*.{0,30}(?:property|house|apartment)\s*.{0,40}(?:deposit|payment|fee|advance|wire|transfer)\s*.{0,20}(?:before|first|upfront|now|immediately)|(?:foreclosure|distressed|motivated\s*seller|below\s*market)\s*.{0,30}(?:opportunity|deal|price)\s*.{0,30}(?:act\s*fast|limited|hurry|now|today)) -> [real estate scam]
+
+# Insurance scams
+(?i)(?:(?:insurance|health|life|auto|car|home)\s*(?:quote|rate|premium|policy)\s*.{0,40}(?:save|savings|discount|cheap|affordable|low|reduce|\d+%\s*off)|(?:final|last|urgent)\s*(?:notice|reminder)\s*.{0,30}(?:insurance|policy|coverage)\s*.{0,30}(?:lapse|expire|cancel|renew|update)|(?:extended|warranty|protection|coverage)\s*.{0,30}(?:vehicle|car|appliance|electronics)\s*.{0,30}(?:expire|expiring|renew|extend)) -> [insurance scam]
+
+# Tech support scams
+(?i)(?:(?:microsoft|windows|apple|mac|norton|mcafee|tech|technical)\s*(?:support|assistance|help|service)\s*.{0,40}(?:detected|alert|warning|critical|urgent|call|contact)|(?:call|contact|reach)\s*.{0,30}(?:support|help|service|technician)\s*.{0,30}(?:toll\s*free|immediately|urgent|now|asap)|(?:subscription|license|software)\s*.{0,30}(?:expire|expired|expiring|renew|update|reactivate)\s*.{0,30}(?:call|contact|click|urgent)) -> [tech support scam]
+
+# Subscription traps
+(?i)(?:(?:free|fr33)\s*(?:trial|sample|offer|gift)\s*.{0,40}(?:just\s*pay|only\s*pay|cover|shipping|handling|\$\d+\.99)|(?:cancel|cancellation)\s*.{0,30}(?:anytime|any\s*time|before|trial|period)\s*.{0,40}(?:no\s*charge|no\s*fee|free|refund)|(?:recurring|monthly|subscription|membership)\s*.{0,30}(?:charge|billing|payment|fee)\s*.{0,30}(?:will\s*begin|starts|after|trial)) -> [subscription trap]
+
+# Refund scams
+(?i)(?:(?:refund|reimbursement|overpayment|credit)\s*.{0,30}(?:owed|due|pending|approved|ready|waiting)\s*.{0,40}(?:claim|collect|receive|get|process)|(?:entitled|eligible|qualify)\s*.{0,30}(?:refund|rebate|credit|reimbursement)\s*.{0,30}(?:\$?\d+|money|payment)|(?:click|call|verify|confirm)\s*.{0,30}(?:to\s*claim|claim\s*your|get\s*your|receive)\s*.{0,20}(?:refund|rebate|credit|money)) -> [refund scam]
+
+# Upgrade scams
+(?i)(?:(?:upgrade|update)\s*(?:your|ur|to|account|membership|subscription|service)\s*.{0,40}(?:premium|pro|plus|elite|vip|gold|platinum)\s*.{0,30}(?:free|limited|exclusive|special|discount)|(?:account|membership|subscription)\s*(?:upgraded|updated|changed)\s*.{0,40}(?:verify|confirm|click|review|accept)|(?:new|better|improved|enhanced)\s*(?:features?|benefits?|perks?|access)\s*.{0,30}(?:available|unlock|activate|upgrade)) -> [upgrade scam]
+
+# Beta access scams
+(?i)(?:(?:beta|early|exclusive|private|closed)\s*(?:access|invite|invitation|whitelist|testing|tester)\s*.{0,40}(?:limited|spots?|available|claim|join|register|apply)|(?:selected|chosen|invited|qualified)\s*.{0,30}(?:beta|early\s*access|exclusive|testing|whitelist)\s*.{0,30}(?:claim|accept|confirm|register|join)|(?:join|be|become)\s*.{0,30}(?:beta|early)\s*(?:tester|user|adopter|member)\s*.{0,30}(?:limited|exclusive|special|vip)) -> [beta scam]
+
+# Whitelist scams
+(?i)(?:(?:whitelist|wl|guaranteed|confirmed)\s*(?:spot|allocation|access|entry|mint)\s*.{0,40}(?:claim|register|join|apply|secure|reserve)|(?:get|grab|secure)\s*(?:your|ur|a)?\s*(?:whitelist|wl)\s*(?:spot|allocation|access|place)\s*.{0,30}(?:now|limited|exclusive|hurry|fast)|(?:limited|only|last|final)\s*(?:\d+|few|some)?\s*(?:whitelist|wl)\s*(?:spot|allocation|slot)s?\s*.{0,30}(?:available|left|remaining|claim)) -> [whitelist scam]
+
+# Presale scams
+(?i)(?:(?:presale|pre\s*sale|private\s*sale|seed\s*round)\s*.{0,40}(?:live|open|active|happening|started|launching)\s*.{0,30}(?:now|today|limited|exclusive|join|participate)|(?:join|participate|invest|buy)\s*.{0,30}(?:presale|pre\s*sale|private\s*sale)\s*.{0,40}(?:discount|bonus|extra|multiplier|\d+%\s*off|vesting)|(?:minimum|min|maximum|max)\s*(?:buy|investment|contribution)\s*.{0,30}(?:presale|pre\s*sale|private\s*sale)\s*.{0,20}(?:\$?\d+|gnot|eth|btc)) -> [presale scam]
+
+# ICO scams
+(?i)(?:(?:ico|initial\s*coin\s*offering|token\s*sale|token\s*generation)\s*.{0,40}(?:live|launching|starts|begins|happening|open)\s*.{0,30}(?:now|today|soon|tomorrow|limited|bonus)|(?:participate|join|invest|contribute)\s*.{0,30}(?:ico|token\s*sale|token\s*generation)\s*.{0,40}(?:bonus|discount|early|presale|whitelist)|(?:hard\s*cap|soft\s*cap|raised|funding)\s*.{0,30}(?:ico|token\s*sale)\s*.{0,30}(?:reached|filled|selling\s*out|limited)) -> [ico scam]
+
+# Bridge scams
+(?i)(?:(?:bridge|cross\s*chain|multichain|omnichain)\s*.{0,40}(?:tokens?|assets?|nft|funds?)\s*.{0,30}(?:to|from|between)\s*.{0,20}(?:ethereum|polygon|bsc|avalanche|arbitrum|optimism|solana)|(?:new|official|faster|cheaper)\s*(?:bridge|cross\s*chain)\s*.{0,40}(?:launched|available|live|try|use)|(?:approve|authorization|allowance)\s*.{0,30}(?:unlimited|infinite|max)\s*.{0,30}(?:bridge|swap|transfer)) -> [bridge scam]
+
+# Flash loan scams
+(?i)(?:(?:flash\s*loan|flashloan|arbitrage|mev|sandwich)\s*(?:bot|strategy|opportunity|profit|guaranteed?)\s*.{0,40}(?:earn|make|profit|\d+%|risk\s*free|automated)|(?:exploit|vulnerability|loophole)\s*.{0,30}(?:defi|protocol|pool|contract)\s*.{0,40}(?:profit|earn|make|guaranteed?|risk\s*free)|(?:frontrun|backrun|sandwich)\s*(?:attack|bot|strategy)\s*.{0,30}(?:profit|earn|guaranteed?|automated)) -> [flash loan scam]
+
+# Rug pull warnings
+(?i)(?:(?:liquidity|lp|pool)\s*(?:locked|burned|destroyed|removed|pulled)\s*.{0,40}(?:safe|secure|cant\s*rug|no\s*rug|rug\s*proof)|(?:contract|ownership)\s*(?:renounced|burned|locked|revoked)\s*.{0,40}(?:safe|secure|cant\s*rug|rug\s*proof)|(?:anti\s*rug|rug\s*proof|safe|safu|secure)\s*.{0,30}(?:mechanism|protection|locked|burned)) -> [rug pull mention]
+
+# Honeypot warnings
+(?i)(?:(?:not|no)\s*(?:a|an)?\s*(?:honeypot|honey\s*pot)\s*.{0,30}(?:safe|verified|tested|checked|scanned)|(?:honeypot|honey\s*pot)\s*(?:test|check|scan|detector)\s*.{0,30}(?:passed|clean|safe|verified)|(?:can|able\s*to)\s*(?:sell|dump|exit)\s*.{0,30}(?:verified|tested|confirmed|checked)) -> [honeypot mention]
+
+# Gas fee scams
+(?i)(?:(?:gas|transaction|network)\s*(?:fee|fees)\s*.{0,40}(?:refund|rebate|cashback|reimbursement|return)\s*.{0,30}(?:claim|get|receive|eligible)|(?:save|reduce|lower|cut)\s*.{0,30}(?:gas|transaction)\s*(?:fee|fees|cost)\s*.{0,30}(?:\d+%|guaranteed?|special|exclusive)|(?:gas|fee)\s*(?:token|coin|refund)\s*.{0,30}(?:airdrop|claim|free|earn|get)) -> [gas scam]
+
+# Approval scams
+(?i)(?:(?:approve|authorization|allowance|permission)\s*.{0,40}(?:all|unlimited|infinite|maximum|max)\s*.{0,30}(?:tokens?|assets?|spending|transfer)|(?:revoke|remove|check)\s*.{0,30}(?:approval|authorization|allowance|permission)\s*.{0,30}(?:urgent|important|security|protect|safe)|(?:malicious|dangerous|suspicious)\s*(?:approval|authorization|contract|token)\s*.{0,30}(?:revoke|remove|check|scan)) -> [approval mention]
+
+# Slippage manipulation
+(?i)(?:(?:slippage|slip)\s*.{0,30}(?:tolerance|setting|percentage)\s*.{0,40}(?:increase|set|adjust|change)\s*.{0,20}(?:to|\d+%|high|max)|(?:transaction|swap|trade)\s*(?:failed|failing|error)\s*.{0,40}(?:increase|raise|adjust)\s*.{0,20}(?:slippage|tolerance)|(?:set|increase)\s*(?:slippage|tolerance)\s*.{0,30}(?:49%|50%|99%|100%|max|maximum)) -> [slippage warning]
+
+# MEV scams
+(?i)(?:(?:mev|maximal\s*extractable|front\s*run|back\s*run)\s*(?:bot|protection|blocker|defender|shield)\s*.{0,40}(?:guaranteed?|safe|protect|prevent|block)|(?:protect|safe|secure)\s*.{0,30}(?:from|against)\s*.{0,20}(?:mev|front\s*run|sandwich|bot)\s*.{0,20}(?:guaranteed?|verified)|(?:private|protected|dark)\s*(?:pool|transaction|mempool|rpc)\s*.{0,30}(?:mev|front\s*run|bot|sandwich)) -> [mev mention]
+
+# Cross-chain scams
+(?i)(?:(?:wrap|wrapped|pegged)\s*.{0,30}(?:bitcoin|btc|ethereum|eth)\s*.{0,40}(?:on|to)\s*.{0,20}(?:gno|gnot|gnoland|ethereum|polygon|bsc|avalanche)|(?:official|verified|real)\s*(?:wrapped|pegged|bridge)\s*.{0,30}(?:token|asset|coin)\s*.{0,30}(?:contract|address)|(?:claim|receive|get)\s*.{0,30}(?:wrapped|bridged)\s*.{0,20}(?:token|asset|coin)\s*.{0,30}(?:free|airdrop|reward)) -> [cross-chain mention]
+
+# Layer 2 scams
+(?i)(?:(?:layer\s*2|l2|rollup|optimistic|zk|zero\s*knowledge)\s*.{0,40}(?:airdrop|allocation|token|claim|reward|early)\s*.{0,30}(?:free|limited|exclusive|whitelist)|(?:official|new|faster|cheaper)\s*(?:layer\s*2|l2|rollup)\s*.{0,40}(?:launched|available|bridge|migrate|move)|(?:migrate|bridge|move)\s*.{0,30}(?:to|onto)\s*.{0,20}(?:layer\s*2|l2|optimism|arbitrum|zksync|starknet)\s*.{0,30}(?:airdrop|reward|bonus)) -> [layer 2 mention]
+
+# Charity scams
+(?i)(?:(?:donate|help|support|contribute|give|send)\s*.{0,30}(?:ukraine|🇺🇦|gaza|🇵🇸|earthquake|flood|fire|disaster|victims|charity|refugees|children|orphans|sick|poor)\s*.{0,40}(?:crypto|bitcoin|eth|gnot|wallet|address|urgently)|(?:urgent|emergency|critical)\s*(?:donation|help|aid|relief|fund)\s*.{0,30}(?:needed|required|please|desperate)) -> [charity scam]
+
+# Adult content
+(?i)(?:(?:porn|p0rn|pr0n|porno|pornography|pornographic|xxx|adult|nsfw|18\+|plus\s*18|over\s*18)\s*.{0,40}(?:video|videos|vid|vids|movie|movies|film|films|content|pic|pics|picture|pictures|photo|photos|image|images|site|website|link|channel|telegram|discord)|(?:sex|s3x|sexy|sexi|sexual|fuck|fck|f\*ck|fucking|f\*cking|fcking|bang|banging|screw|screwing|smash|smashing)\s*.{0,40}(?:video|videos|pic|pics|tape|tapes|content|link|site|website|channel|telegram|discord|free|watch|download)|(?:nude|nudes|naked|bare|topless|bottomless|undressed|strip|stripper|stripping)\s*.{0,40}(?:pic|pics|photo|photos|image|images|video|videos|content|leak|leaked|private|exclusive|premium|vip|free)|(?:onlyfans|only\s*fans|onlyf4ns|fansly|manyvids|pornhub|xvideos|xhamster|chaturbate|cam4|stripchat|bongacams)\s*.{0,40}(?:free|leak|leaked|premium|content|video|videos|pic|pics|account|login|password|access)|(?:dick|d1ck|cock|c0ck|penis|p3nis|pussy|psy|vagina|v4gina|boob|boobs|tit|tits|titty|titties|breast|breasts|ass|a\$\$|butt|booty)\s*.{0,40}(?:pic|pics|photo|photos|video|videos|show|showing|rate|rating|size|big|huge|massive)|(?:cam|webcam|web\s*cam|livecam|live\s*cam)\s*.{0,40}(?:girl|girls|boy|boys|model|models|show|shows|private|premium|free|watch|join|link|site)|(?:escort|escorts|call\s*girl|call\s*girls|hooker|hookers|prostitute|prostitutes|massage|sensual|erotic|happy\s*ending)\s*.{0,40}(?:service|services|available|booking|book|meet|outcall|incall|rate|rates|price|prices|contact|telegram|whatsapp)|(?:masturbate|masturbating|jerk|jerking|stroke|stroking|cum|cumming|orgasm|climax|edging)\s*.{0,40}(?:video|videos|show|together|buddy|bate|mate|chat|telegram|discord)|(?:hentai|h3ntai|doujin|doujinshi|ecchi|loli|lolicon|shota|shotacon|yaoi|yuri)\s*.{0,40}(?:video|videos|manga|anime|pic|pics|download|free|link|site|channel|telegram)|(?:incest|inc3st|taboo|forbidden|step\s*mom|step\s*dad|step\s*sister|step\s*brother|step\s*daughter|step\s*son)\s*.{0,40}(?:video|videos|content|story|stories|fantasy|fantasies|roleplay|role\s*play)|(?:barely|just|turned)\s*.{0,30}(?:18|legal|age)\s*.{0,40}(?:teen|teens|young|girl|girls|boy|boys|virgin|virgins)) -> [adult content]
+
+# Gore + violence
+(?i)(?:(?:gore|g0re|gory|graphic|disturbing|nsfl|death|dead|die|dying|kill|killing|killed|murder|murdered|murdering|execution|executed)\s*.{0,40}(?:video|videos|footage|clip|clips|pic|pics|photo|photos|image|images|content|link|site|channel|telegram|discord|watch|download)|(?:beheading|beheaded|decapitation|decapitated|dismember|dismembered|dismemberment|torture|tortured|torturing)\s*.{0,40}(?:video|videos|footage|real|actual|graphic|brutal|extreme|watch|link|download|content)|(?:suicide|suicidal|self\s*harm|cutting|cutter|overdose|hanging|jumped|shooting|shot\s*himself|shot\s*herself|killed\s*himself|killed\s*herself)\s*.{0,40}(?:video|videos|footage|pic|pics|stream|streamed|live|watch|link|content)|(?:cartel|isis|terrorist|terrorists|war\s*crime|war\s*crimes|massacre|mass\s*shooting|school\s*shooting)\s*.{0,40}(?:video|videos|footage|execution|executions|beheading|killing|killings|graphic|brutal|watch|link)|(?:accident|crash|fatal|fatality|fatalities|died|victim|victims|casualties)\s*.{0,40}(?:graphic|disturbing|aftermath|scene|video|videos|footage|pic|pics|photo|photos|nsfl|gore|gory)|(?:blood|bloody|bleeding|bleed|wound|wounds|injured|injury|injuries|mangled|mutilated|brutal|brutally)\s*.{0,40}(?:graphic|disturbing|video|videos|pic|pics|photo|photos|footage|aftermath|scene|nsfl)|(?:corpse|corpses|body|bodies|cadaver|cadavers|remains|deceased)\s*.{0,40}(?:graphic|disturbing|decomposed|decomposing|mutilated|video|videos|pic|pics|photo|photos|crime\s*scene)|(?:animal\s*abuse|animal\s*cruelty|crush|crushing|stomping|torture|tortured|torturing)\s*.{0,40}(?:animal|animals|cat|cats|dog|dogs|puppy|kitten|video|videos|footage|graphic|disturbing)|(?:fight|fighting|beat|beating|beaten|assault|assaulting|assaulted|attack|attacking|attacked|knocked\s*out)\s*.{0,40}(?:brutal|brutal|violent|graphic|unconscious|bloody|video|videos|footage|street|real)|(?:snuff|snuff\s*film|real\s*death|actual\s*death|murder\s*tape|killed\s*on\s*camera|died\s*on\s*camera)\s*.{0,40}(?:video|videos|footage|film|films|watch|download|link|real|actual|content)) -> [violence/gore]
+
+# Known scam addresses
+g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -> [blocked address]
+g1us8428u2a5satrlxzagqqa5m6vgwu63u3s5xn8 -> [blocked address]
+
+# Known scam domains
+evil-site\.com -> [blocked URL]
+
+# Unicode abuse
+[\p{M}]{3,}\w+ -> [zalgo]
+[\x{200b}-\x{200f}\x{202a}-\x{202e}\x{2060}-\x{2069}]+ -> [hidden]
+[А-Яа-я]{2,}[A-Za-z]{2,}|[A-Za-z]{2,}[А-Яа-я]{2,} -> [mixed script]
+
+# Content abuse patterns
+[A-Z\s]{20,} -> [caps]
+[!?.]{5,} -> [punct]
+# RE2 does not support backreferences, specific repeats handled by caps/punct patterns
+(?:https?://[^\s]+.*){4,} -> [links]
+^.{0,20}https?://[^\s]+$ -> [link only]

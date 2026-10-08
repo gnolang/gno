@@ -41,6 +41,7 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 			extension.TaskList,
 			md.NewGnoExtension(
 				md.WithImageValidator(md.AllowSvgDataImage),
+				md.WithContentFilter(md.DefaultContentFilter),
 			),
 		),
 	}

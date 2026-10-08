@@ -1,0 +1,5 @@
+-- input.md --
+Visit evil-site.com and phishing-word detected.
+
+-- output.html --
+<p>[blocked URL]</p>
