@@ -2063,6 +2063,29 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		assert.Equal(t, addr, item.Address)
 	})
 
+	t.Run("a connect ignored after the peer dropped clears a stale connect time", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			sw, addr    = newPersistentSwitch(t)
+			now         = time.Now()
+			connectedAt = map[types.ID]time.Time{addr.ID: now.Add(-time.Minute)}
+		)
+
+		// The stamp is left by a connection whose disconnect was lost, and the
+		// peer is not in the peer set, so the connect is ignored
+		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(time.Second), Address: addr})
+
+		sw.persistentPeerConnected(addr.ID, connectedAt, now)
+
+		assert.NotContains(t, connectedAt, addr.ID)
+
+		item := sw.persistentDialQueue.Peek()
+
+		require.NotNil(t, item)
+		assert.Equal(t, addr, item.Address)
+	})
+
 	t.Run("a short connection keeps the backoff", func(t *testing.T) {
 		t.Parallel()
 
