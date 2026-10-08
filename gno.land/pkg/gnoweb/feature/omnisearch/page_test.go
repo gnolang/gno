@@ -6,8 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/gnovm/pkg/doc"
 )
 
 var tagPattern = regexp.MustCompile(`<[^>]+>`)
@@ -118,5 +121,76 @@ func TestFailedGroupIsNotNothingMatched(t *testing.T) {
 	}
 	if strings.Contains(out, "Nothing matched.") {
 		t.Errorf("page says both Could not answer and Nothing matched.:\n%s", out)
+	}
+}
+
+// `imports:json` narrows the imports rather than dropping its value.
+func TestImportsValueNarrows(t *testing.T) {
+	t.Parallel()
+
+	c := &mockClient{doc: &doc.JSONDocumentation{Imports: []string{"encoding/json", "strings", "gno.land/p/nt/avl/v0"}}}
+	h := newHandler(t, c, nil)
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "imports:json", "/r/demo/boards"))
+	if len(groups) != 1 || len(groups[0].Results) != 1 || groups[0].Results[0].Title != "encoding/json" {
+		t.Fatalf("groups = %+v, want encoding/json only", groups)
+	}
+	groups, _ = h.Search(context.Background(), mustQuery(t, h, "imports", "/r/demo/boards"))
+	if len(groups) != 1 || len(groups[0].Results) != 3 {
+		t.Fatalf("groups = %+v, want every import", groups)
+	}
+}
+
+// The provenance footer describes an answer the indexer gave. A group that
+// failed, before or while asking, has none to describe.
+func TestIndexerFooterOnlyOverAnIndexerAnswer(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name, raw, scope string
+		idx              *mockIndexer
+		want             bool
+	}{
+		{"pre-flight error", "content:abc", "", &mockIndexer{}, false},
+		{"needs a package", "activity", "", &mockIndexer{}, false},
+		{"indexer down", "deploys", "/r/demo/boards", &mockIndexer{err: errors.New("dial tcp")}, false},
+		{"answered with nothing", "deploys", "/r/demo/boards", &mockIndexer{}, true},
+	} {
+		h := newHandler(t, &mockClient{}, tc.idx)
+		out := renderText(t, h.build(context.Background(), mustQuery(t, h, tc.raw, tc.scope)))
+		if got := strings.Contains(out, "comes from an indexer"); got != tc.want {
+			t.Errorf("%s: footer = %v, want %v:\n%s", tc.name, got, tc.want, out)
+		}
+	}
+}
+
+// An action is what MsgCall accepts: an exported, crossing, top-level
+// function of a realm.
+func TestActionTagOnlyOnCallableFuncs(t *testing.T) {
+	t.Parallel()
+
+	jdoc := &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{
+		{Name: "helper", Signature: "func helper() int", File: "x.gno", Line: 3},
+		{Name: "GetBoard", Signature: "func GetBoard(id int) string", File: "x.gno", Line: 7},
+		{Name: "Render", Signature: "func Render(path string) string", File: "x.gno", Line: 9},
+		{Name: "CreateBoard", Crossing: true, Signature: "func CreateBoard(cur realm, name string)", File: "x.gno", Line: 11},
+		{Name: "cross", Crossing: true, Signature: "func cross(cur realm)", File: "x.gno", Line: 13},
+	}}
+	h := newHandler(t, &mockClient{doc: jdoc}, nil)
+	for name, want := range map[string]bool{
+		"helper": false, "GetBoard": false, "Render": false, "CreateBoard": true, "cross": false,
+	} {
+		groups, _ := h.Search(context.Background(), mustQuery(t, h, "func:"+name, "/r/demo/boards"))
+		var r *Result
+		for i := range groups[0].Results {
+			if strings.HasPrefix(groups[0].Results[i].Title, "func "+name+"(") {
+				r = &groups[0].Results[i]
+			}
+		}
+		if r == nil {
+			t.Fatalf("func:%s: no result", name)
+		}
+		if got := slices.Contains(r.Tags, "action"); got != want {
+			t.Errorf("func:%s: action tag = %v, want %v", name, got, want)
+		}
 	}
 }

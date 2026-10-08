@@ -3,6 +3,7 @@ package omnisearch
 import (
 	"context"
 	"fmt"
+	"go/token"
 	"html/template"
 	"net/url"
 	"strconv"
@@ -60,6 +61,7 @@ func chainSelectors() []*Selector {
 			},
 		},
 		{
+			// Bare, and narrowed by a value when given: `imports:json`.
 			Name:  "imports",
 			Hint:  "imports",
 			Label: "Imports",
@@ -146,8 +148,10 @@ func (h *Handler) resolveFuncs(ctx context.Context, q *Query, term string) ([]Re
 		if fn.Type != "" {
 			r.Tags = append(r.Tags, "method on "+fn.Type)
 		}
-		// Only realms expose actions, and only on top-level funcs.
-		if fn.Type == "" && fn.Name != "Render" && strings.HasPrefix(q.PkgPath, "/r/") {
+		// Only realms expose actions, and only on exported, crossing
+		// top-level funcs: MsgCall refuses the rest, and the help page
+		// omits them.
+		if fn.Type == "" && fn.Crossing && token.IsExported(fn.Name) && strings.HasPrefix(q.PkgPath, "/r/") {
 			r.Tags = append(r.Tags, "action")
 			if r.Href == "" {
 				r.Href = actionHref(q.PkgPath, fn.Name)

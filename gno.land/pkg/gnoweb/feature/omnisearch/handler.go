@@ -207,11 +207,9 @@ func (h *Handler) selectorFor(q *Query) (*Selector, string) {
 		if !ok {
 			continue
 		}
-		// A bare selector takes no argument, but `activity:foo` plainly
+		// A bare selector needs no argument, but `activity:foo` plainly
 		// wants activity — better than a path search that explains nothing.
-		if sel.Bare {
-			return sel, ""
-		}
+		// The value is passed on: `imports:json` narrows the imports.
 		return sel, f.Value
 	}
 	for _, sel := range h.selectors {
@@ -244,9 +242,11 @@ func (h *Handler) indexerStatus(ctx context.Context, groups []Group) *IndexerSta
 	if h.deps.Indexer == nil {
 		return nil
 	}
+	// A failed group never reached the indexer, or got nothing from it: a
+	// footer would describe an answer the page does not hold.
 	used := false
 	for _, g := range groups {
-		if g.Source == SourceIndexer {
+		if g.Source == SourceIndexer && g.Err == nil {
 			used = true
 			break
 		}
