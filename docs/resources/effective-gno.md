@@ -398,200 +398,6 @@ clear code is better than clever code.
 
 ## Gno good practices
 
-### Package naming and organization
-
-Your package name must match the last element of the package path (ignoring a
-trailing `/vN` version suffix). This keeps imports clear and intuitive, avoiding
-the need for named imports.
-
-Ideally, package names should be short and human-readable. This makes it easier
-for other developers to understand what your package does at a glance. Avoid
-using abbreviations or acronyms unless they are widely understood.
-
-Packages and realms can be organized into subdirectories. However, consider that the
-best place for your main project will likely be `r/NAMESPACE/DAPP`, similar
-to how repositories are organized on GitHub.
-
-If you have multiple sublevels of realms, remember that they are actually
-independent realms and won't share data. A good usage could be to have an
-ecosystem of realms, where one realm is about storing the state, another one
-about configuration, etc. But in general, a single realm makes sense.
-
-You can also create small realms to create your ecosystem. For example, you
-could centralize all the authentication for your whole company/organization in
-`r/NAMESPACE/auth`, and then import it in all your contracts.
-
-The `p/` prefix is different. In general, you should use top-level `p/` like
-`p/NAMESPACE/DAPP` only for things you expect people to use. If your goal is
-just to have internal libraries that you created to centralize your helpers and
-don't expect that other people will use your helpers, then you should probably
-use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
-
-Packages which contain `internal` as an element of the path (ie. at the end, or
-in between, like `gno.land/p/demo/mypackage/internal`, or
-`gno.land/p/demo/mypackage/internal/helpers`) can only be imported by packages
-sharing the same root as the `internal` package. That is, given a package
-structure as follows:
-
-```
-gno.land/p/demo/mypackage
-├── utils
-└── internal
-	├── helpers
-	└── crypto
-```
-
-The `mypackage/internal`, `mypackage/internal/helpers`, and `mypackage/internal/crypto`
-packages can only be imported by `mypackage` and `mypackage/utils`.
-
-This works for both realms and packages, and can be used to create entirely
-restricted packages and realms that are not meant for outside consumption.
-
-### Suggested file names and layout
-
-A realm's source is browsable on-chain, so its file names are part of its
-public interface. Name each file for the one concern it holds, so a reader can
-guess its contents: `<realm>.gno` for the main entrypoints, `render.gno` for
-`Render()`, `admin.gno` for privileged endpoints, `types.gno` and `errors.gno`
-once those grow. [`gno.land/r/sys/cla`](../../examples/gno.land/r/sys/cla)
-splits into `cla.gno`, `admin.gno` and `render.gno`, with tests beside them.
-
-### Define types and interfaces in pure packages (p/)
-
-In Gno, it's common to create `p/NAMESPACE/DAPP` for defining types and
-interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal
-for the realm is to become a standard that could be imported by `p/`.
-
-The reason for this is that `p/` can only import `p/`, while `r/` can import
-anything. This separation allows you to define standards in `p/` that can be
-used across multiple realms and packages.
-
-In general, you can just write your `r/` to be an app. But if for some reason
-you introduce a concept that can be reused, it makes sense to have a
-dedicated `p/` so that people can re-use your logic without depending on
-your realm's data.
-
-For instance, if you want to create a token type in a realm, you can use it, and
-other realms can import the realm and compose it. But if you want to create a
-`p/` helper that will create a pattern, then you need to have your interface and
-types defined in `p/` so anything can import it.
-
-By separating your types and interfaces into `p/` and your runtime into `r/`,
-you can create more modular, reusable, and standardized code in Gno. This
-approach allows you to leverage the composability of Gno to build more powerful
-and flexible applications.
-
-### Versioning and upgrades
-
-An upgrade is a new deployment at a new
-[`/vN` path](./gno-packages.md#version-suffixes), next to the old one; only a
-[`private`](./configuring-gno-projects.md#private) realm, which nothing can
-import, is re-uploaded in place. A realm
-whose callers need one stable address can forward to an implementation it
-swaps, the way
-[`gno.land/r/gov/dao`](../../examples/gno.land/r/gov/dao/proxy.gno) keeps the
-current implementation in a variable. A simpler realm keeps versions side by
-side, as `gno.land/r/sys/validators` keeps `v0` and `v2`. A small, well-tested
-`p/` library may never need a second version at all.
-
-### Design your realm as a public API
-
-In Go, all your packages, including your dependencies, are typically treated as
-part of your safe zone, similar to a secure perimeter. The boundary is drawn
-between your program and the rest of the world, which means you secure the API
-itself, potentially with authentication middlewares.
-
-However, in Gno, your realm is the public API. It's exposed to the outside
-world and can be accessed by other realms. Therefore, it's crucial to design
-your realm with the same level of care and security considerations as you would
-a public API.
-
-One approach is to simulate a secure perimeter within your realm by having
-private functions for the logic, and then writing your API layer by adding some
-front-facing API with authentication. This way, you can control access to your
-realm's functionality and ensure that only authorized callers can execute
-certain operations.
-
-```go
-func PublicMethod(cur realm, nb int) {
-	caller := cur.Previous().Address()
-	privateMethod(caller, nb)
-}
-
-func privateMethod(caller address, nb int) { /* ... */ }
-```
-
-In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `cur.Previous().Address()`, and
-then passes it to `privateMethod`, which is a private function that performs the
-actual logic. This way, `privateMethod` can only be called from within the
-realm, and it can use the caller's address for authentication or authorization
-checks.
-
-### Emit Gno events to make life off-chain easier
-
-Gno provides users the ability to log specific occurrences that happened in their
-on-chain apps. An `event` log is stored in the ABCI results of each block, and
-these logs can be indexed, filtered, and searched by external services, allowing
-them to monitor the behaviour of on-chain apps.
-
-It is good practice to emit events when any major action in your code is
-triggered. For example, good times to emit an event are after a balance transfer,
-ownership change, profile created, etc. Alternatively, you can view event emission
-as a way to include data for monitoring purposes, given the indexable nature of
-events.
-
-Events consist of a type and a slice of strings representing `key:value` pairs.
-They are emitted with the `Emit()` function, contained in the `chain` package in
-the Gno standard library:
-
-```go
-package events
-
-import "chain"
-
-var owner address
-
-func init(cur realm) {
-	owner = cur.Previous().Address()
-}
-
-func ChangeOwner(cur realm, newOwner address) {
-	caller := cur.Previous().Address()
-
-	if caller != owner {
-		panic("access denied")
-	}
-
-	owner = newOwner
-	chain.Emit("OwnershipChange", "newOwner", newOwner.String())
-}
-
-```
-If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
-of block #43 will contain the following data:
-
-```json
-{
-  "Events": [
-	{
-	  "@type": "/tm.gnoEvent",
-	  "type": "OwnershipChange",
-	  "pkg_path": "gno.land/r/demo/example",
-	  "attrs": [
-		{
-		  "key": "newOwner",
-		  "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
-		}
-	  ]
-	}
-	// other events
-  ]
-}
-```
-
-Read more about events [here](./gno-stdlibs.md#events).
-
 ### Contract-level access control
 
 In Gno, it's a good practice to design your contract as an application with its
@@ -687,14 +493,6 @@ invoke a callback or interface value a caller supplies, or give the callback
 a parameter of a type your realm declares, which no `/p/` package can name.
 The [security guide](./gno-security-guide.md#53-accepting-an-attacker-callback-under-your-own-authority)
 covers the vector in full.
-
-### Choose storage types by access pattern
-
-A `map` or slice is stored as one object, so reading or updating one element
-loads or rewrites all of it, while a tree stores each entry as its own node.
-Keep maps and slices for small, bounded state, and put anything that grows in
-a tree; [Gno data structures](./gno-data-structures.md#tree-backed-indexes)
-compares the tree types.
 
 ### Construct "safe" objects
 
@@ -920,6 +718,12 @@ versatility.
 
 See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland/wugnot
 
+### Do not trust on-chain randomness
+
+`math/rand` is a seeded pseudo-random generator, and any seed a contract can
+compute is public, so a lottery with real stakes needs commit-reveal or an
+external source.
+
 ### Bring off-chain data on-chain with oracles
 
 An oracle is an agreement with off-chain agents you choose to trust. The
@@ -932,11 +736,219 @@ gno.land has no built-in price feed, so a realm that moves funds based on a
 fed value is only as secure as whoever provides that value: an attacker does
 not need a bug in your code, only a bad number in the feed.
 
-### Do not trust on-chain randomness
+### Test the attacker, not just the happy path
 
-`math/rand` is a seeded pseudo-random generator, and any seed a contract can
-compute is public, so a lottery with real stakes needs commit-reveal or an
-external source.
+The test kinds are covered in [the testing guide](./gno-testing.md);
+`gno test` does not run benchmarks or `FuzzXxx` functions yet. What
+realm tests add is the execution context: the `testing` package lets you call
+your realm as someone else. `testing.NewUserRealm` and `testing.NewCodeRealm`
+stand in for a user or another contract, `testing.SetRealm` and
+`testing.SetOriginCaller` set the caller, `testing.IssueCoins` and
+`testing.SkipHeights` set up funds and time. Use them to attack your own
+realm: simulate an intermediary contract and prove your
+[payment check](#verifying-inbound-coin-payments) cannot be bypassed.
+
+### Choose storage types by access pattern
+
+A `map` or slice is stored as one object, so reading or updating one element
+loads or rewrites all of it, while a tree stores each entry as its own node.
+Keep maps and slices for small, bounded state, and put anything that grows in
+a tree; [Gno data structures](./gno-data-structures.md#tree-backed-indexes)
+compares the tree types.
+
+### Design your realm as a public API
+
+In Go, all your packages, including your dependencies, are typically treated as
+part of your safe zone, similar to a secure perimeter. The boundary is drawn
+between your program and the rest of the world, which means you secure the API
+itself, potentially with authentication middlewares.
+
+However, in Gno, your realm is the public API. It's exposed to the outside
+world and can be accessed by other realms. Therefore, it's crucial to design
+your realm with the same level of care and security considerations as you would
+a public API.
+
+One approach is to simulate a secure perimeter within your realm by having
+private functions for the logic, and then writing your API layer by adding some
+front-facing API with authentication. This way, you can control access to your
+realm's functionality and ensure that only authorized callers can execute
+certain operations.
+
+```go
+func PublicMethod(cur realm, nb int) {
+	caller := cur.Previous().Address()
+	privateMethod(caller, nb)
+}
+
+func privateMethod(caller address, nb int) { /* ... */ }
+```
+
+In this example, `PublicMethod` is a public function that can be called by other
+realms. It retrieves the caller's address using `cur.Previous().Address()`, and
+then passes it to `privateMethod`, which is a private function that performs the
+actual logic. This way, `privateMethod` can only be called from within the
+realm, and it can use the caller's address for authentication or authorization
+checks.
+
+### Define types and interfaces in pure packages (p/)
+
+In Gno, it's common to create `p/NAMESPACE/DAPP` for defining types and
+interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal
+for the realm is to become a standard that could be imported by `p/`.
+
+The reason for this is that `p/` can only import `p/`, while `r/` can import
+anything. This separation allows you to define standards in `p/` that can be
+used across multiple realms and packages.
+
+In general, you can just write your `r/` to be an app. But if for some reason
+you introduce a concept that can be reused, it makes sense to have a
+dedicated `p/` so that people can re-use your logic without depending on
+your realm's data.
+
+For instance, if you want to create a token type in a realm, you can use it, and
+other realms can import the realm and compose it. But if you want to create a
+`p/` helper that will create a pattern, then you need to have your interface and
+types defined in `p/` so anything can import it.
+
+By separating your types and interfaces into `p/` and your runtime into `r/`,
+you can create more modular, reusable, and standardized code in Gno. This
+approach allows you to leverage the composability of Gno to build more powerful
+and flexible applications.
+
+### Emit Gno events to make life off-chain easier
+
+Gno provides users the ability to log specific occurrences that happened in their
+on-chain apps. An `event` log is stored in the ABCI results of each block, and
+these logs can be indexed, filtered, and searched by external services, allowing
+them to monitor the behaviour of on-chain apps.
+
+It is good practice to emit events when any major action in your code is
+triggered. For example, good times to emit an event are after a balance transfer,
+ownership change, profile created, etc. Alternatively, you can view event emission
+as a way to include data for monitoring purposes, given the indexable nature of
+events.
+
+Events consist of a type and a slice of strings representing `key:value` pairs.
+They are emitted with the `Emit()` function, contained in the `chain` package in
+the Gno standard library:
+
+```go
+package events
+
+import "chain"
+
+var owner address
+
+func init(cur realm) {
+	owner = cur.Previous().Address()
+}
+
+func ChangeOwner(cur realm, newOwner address) {
+	caller := cur.Previous().Address()
+
+	if caller != owner {
+		panic("access denied")
+	}
+
+	owner = newOwner
+	chain.Emit("OwnershipChange", "newOwner", newOwner.String())
+}
+
+```
+If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
+of block #43 will contain the following data:
+
+```json
+{
+  "Events": [
+	{
+	  "@type": "/tm.gnoEvent",
+	  "type": "OwnershipChange",
+	  "pkg_path": "gno.land/r/demo/example",
+	  "attrs": [
+		{
+		  "key": "newOwner",
+		  "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+		}
+	  ]
+	}
+	// other events
+  ]
+}
+```
+
+Read more about events [here](./gno-stdlibs.md#events).
+
+### Package naming and organization
+
+Your package name must match the last element of the package path (ignoring a
+trailing `/vN` version suffix). This keeps imports clear and intuitive, avoiding
+the need for named imports.
+
+Ideally, package names should be short and human-readable. This makes it easier
+for other developers to understand what your package does at a glance. Avoid
+using abbreviations or acronyms unless they are widely understood.
+
+Packages and realms can be organized into subdirectories. However, consider that the
+best place for your main project will likely be `r/NAMESPACE/DAPP`, similar
+to how repositories are organized on GitHub.
+
+If you have multiple sublevels of realms, remember that they are actually
+independent realms and won't share data. A good usage could be to have an
+ecosystem of realms, where one realm is about storing the state, another one
+about configuration, etc. But in general, a single realm makes sense.
+
+You can also create small realms to create your ecosystem. For example, you
+could centralize all the authentication for your whole company/organization in
+`r/NAMESPACE/auth`, and then import it in all your contracts.
+
+The `p/` prefix is different. In general, you should use top-level `p/` like
+`p/NAMESPACE/DAPP` only for things you expect people to use. If your goal is
+just to have internal libraries that you created to centralize your helpers and
+don't expect that other people will use your helpers, then you should probably
+use subdirectories like `p/NAMESPACE/DAPP/foo/bar/baz`.
+
+Packages which contain `internal` as an element of the path (ie. at the end, or
+in between, like `gno.land/p/demo/mypackage/internal`, or
+`gno.land/p/demo/mypackage/internal/helpers`) can only be imported by packages
+sharing the same root as the `internal` package. That is, given a package
+structure as follows:
+
+```
+gno.land/p/demo/mypackage
+├── utils
+└── internal
+	├── helpers
+	└── crypto
+```
+
+The `mypackage/internal`, `mypackage/internal/helpers`, and `mypackage/internal/crypto`
+packages can only be imported by `mypackage` and `mypackage/utils`.
+
+This works for both realms and packages, and can be used to create entirely
+restricted packages and realms that are not meant for outside consumption.
+
+### Suggested file names and layout
+
+A realm's source is browsable on-chain, so its file names are part of its
+public interface. Name each file for the one concern it holds, so a reader can
+guess its contents: `<realm>.gno` for the main entrypoints, `render.gno` for
+`Render()`, `admin.gno` for privileged endpoints, `types.gno` and `errors.gno`
+once those grow. [`gno.land/r/sys/cla`](../../examples/gno.land/r/sys/cla)
+splits into `cla.gno`, `admin.gno` and `render.gno`, with tests beside them.
+
+### Versioning and upgrades
+
+An upgrade is a new deployment at a new
+[`/vN` path](./gno-packages.md#version-suffixes), next to the old one; only a
+[`private`](./configuring-gno-projects.md#private) realm, which nothing can
+import, is re-uploaded in place. A realm
+whose callers need one stable address can forward to an implementation it
+swaps, the way
+[`gno.land/r/gov/dao`](../../examples/gno.land/r/gov/dao/proxy.gno) keeps the
+current implementation in a variable. A simpler realm keeps versions side by
+side, as `gno.land/r/sys/validators` keeps `v0` and `v2`. A small, well-tested
+`p/` library may never need a second version at all.
 
 ### Ship more than code
 
@@ -969,15 +981,3 @@ kept under `examples/quarantined` outside the audited set, works this way:
 `generator.go` writes the same helpers once per numeric type into
 `xmath.gen.gno`, standing in for generics. Readers on-chain see the final
 source, so generated files stay auditable.
-
-### Test the attacker, not just the happy path
-
-The test kinds are covered in [the testing guide](./gno-testing.md);
-`gno test` does not run benchmarks or `FuzzXxx` functions yet. What
-realm tests add is the execution context: the `testing` package lets you call
-your realm as someone else. `testing.NewUserRealm` and `testing.NewCodeRealm`
-stand in for a user or another contract, `testing.SetRealm` and
-`testing.SetOriginCaller` set the caller, `testing.IssueCoins` and
-`testing.SkipHeights` set up funds and time. Use them to attack your own
-realm: simulate an intermediary contract and prove your
-[payment check](#verifying-inbound-coin-payments) cannot be bypassed.
