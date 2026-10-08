@@ -175,7 +175,14 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 
 	g := Group{Label: sel.Label, Source: sel.Source}
 	results, err := sel.resolve(ctx, h, q, term)
-	if err != nil {
+	var part partialAnswer
+	switch {
+	case err == nil:
+	case errors.As(err, &part):
+		g.Truncated, g.Notice = true, part.Error()
+	case errors.Is(err, indexer.ErrPartial):
+		g.Truncated, g.Notice = true, recentNotice
+	default:
 		// Reported, never fatal: a dead indexer degrades to a visible
 		// "could not answer", not a 500.
 		// An input error is the reader's typo, not backend trouble.
@@ -186,7 +193,10 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 		}
 		g.Err = publicError(err, sel.Source)
 	}
-	g.Results = results
+	var cut bool
+	if g.Results, cut = capResults(results); cut && !g.Truncated {
+		g.Truncated, g.Notice = true, fmt.Sprintf("Showing the first %d matches.", MaxResults)
+	}
 	return []Group{g}, ""
 }
 

@@ -704,7 +704,10 @@ func TestCapResultsCopiesRatherThanReslicing(t *testing.T) {
 		oversized = append(oversized, Result{Title: strconv.Itoa(i)})
 	}
 
-	got := capResults(oversized)
+	got, cut := capResults(oversized)
+	if !cut {
+		t.Fatal("capResults cut without saying so")
+	}
 	if len(got) != MaxResults {
 		t.Fatalf("len = %d, want %d", len(got), MaxResults)
 	}

@@ -155,7 +155,7 @@ func (h *Handler) resolveFuncs(ctx context.Context, q *Query, term string) ([]Re
 		}
 		out = append(out, r)
 	}
-	return capResults(out), nil
+	return out, nil
 }
 
 func (h *Handler) resolveTypes(ctx context.Context, q *Query, term string) ([]Result, error) {
@@ -176,7 +176,7 @@ func (h *Handler) resolveTypes(ctx context.Context, q *Query, term string) ([]Re
 			Tags:   typeTags(t),
 		})
 	}
-	return capResults(out), nil
+	return out, nil
 }
 
 func typeTags(t *doc.JSONType) []string {
@@ -210,7 +210,7 @@ func (h *Handler) resolveFiles(ctx context.Context, q *Query, term string) ([]Re
 		}
 		out = append(out, r)
 	}
-	return capResults(out), nil
+	return out, nil
 }
 
 func (h *Handler) resolveImports(ctx context.Context, q *Query, term string) ([]Result, error) {
@@ -231,7 +231,7 @@ func (h *Handler) resolveImports(ctx context.Context, q *Query, term string) ([]
 			Tags:  []string{kind},
 		})
 	}
-	return capResults(out), nil
+	return out, nil
 }
 
 // classifyImport labels a dependency and links it when it is on this chain.

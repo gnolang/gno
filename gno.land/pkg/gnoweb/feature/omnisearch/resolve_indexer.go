@@ -2,6 +2,7 @@ package omnisearch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"strconv"
@@ -39,10 +40,10 @@ func indexerSelectors() []*Selector {
 			Scope: ScopeGlobal,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				txs, err := h.deps.Indexer.RecentByAddress(ctx, term, recentLimit)
-				if err != nil {
+				if err != nil && !errors.Is(err, indexer.ErrPartial) {
 					return nil, err
 				}
-				return h.txResults(txs), nil
+				return h.txResults(txs), err
 			},
 		},
 		{
@@ -78,10 +79,10 @@ func indexerSelectors() []*Selector {
 			Bare:  true,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				txs, err := h.deps.Indexer.RecentByPackage(ctx, q.ChainPath, recentLimit)
-				if err != nil {
+				if err != nil && !errors.Is(err, indexer.ErrPartial) {
 					return nil, err
 				}
-				return h.txResults(txs), nil
+				return h.txResults(txs), err
 			},
 		},
 		{
@@ -92,10 +93,10 @@ func indexerSelectors() []*Selector {
 			Bare:  true,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				txs, err := h.deps.Indexer.Deploys(ctx, q.ChainPath, recentLimit)
-				if err != nil {
+				if err != nil && !errors.Is(err, indexer.ErrPartial) {
 					return nil, err
 				}
-				return h.txResults(txs), nil
+				return h.txResults(txs), err
 			},
 		},
 		{
@@ -133,7 +134,7 @@ func indexerSelectors() []*Selector {
 // block counts too.
 func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, error) {
 	txs, err := h.deps.Indexer.DeploysImporting(ctx, q.ChainPath, recentLimit)
-	if err != nil {
+	if err != nil && !errors.Is(err, indexer.ErrPartial) {
 		return nil, err
 	}
 
@@ -156,7 +157,17 @@ func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, err
 			})
 		}
 	}
-	return capResults(out), nil
+	return out, newestOnly(txs, err)
+}
+
+// newestOnly flags a deploy search that filled its page: older deploys may
+// match too, and the page shows the newest only.
+func newestOnly(txs []indexer.Tx, err error) error {
+	if err == nil && len(txs) >= recentLimit {
+		return partialAnswer(fmt.Sprintf(
+			"Showing the %d newest matching deploys: older ones may match too.", recentLimit))
+	}
+	return err
 }
 
 // deployCount counts the packages a transaction deploys. The indexer returns
@@ -187,7 +198,7 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 	// only thin out the newest matches, and miss the author's older ones.
 	author, _ := q.Get(FilterAuthor)
 	txs, err := h.deps.Indexer.SourceContains(ctx, term, author, recentLimit)
-	if err != nil {
+	if err != nil && !errors.Is(err, indexer.ErrPartial) {
 		return nil, err
 	}
 
@@ -216,7 +227,7 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 			})
 		}
 	}
-	return capResults(out), nil
+	return out, newestOnly(txs, err)
 }
 
 // txResults renders transactions as rows. gnoweb has no transaction page, so
@@ -242,7 +253,7 @@ func (h *Handler) txResults(txs []indexer.Tx) []Result {
 		}
 		out = append(out, r)
 	}
-	return capResults(out)
+	return out
 }
 
 // txTitle summarises by first message, and says when there are more.

@@ -58,6 +58,7 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		}
 
 		g := Group{Label: k.label, Source: SourceChain}
+		matched := 0
 		for _, p := range k.paths {
 			rel := strings.TrimPrefix(p, h.deps.Domain)
 			// Needle first: it rejects most paths and costs nothing.
@@ -76,7 +77,7 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 			if ns != "" {
 				namespaces[ns] = true
 			}
-			if len(g.Results) >= maxDiscoverResults {
+			if matched++; len(g.Results) >= maxDiscoverResults {
 				continue
 			}
 			g.Results = append(g.Results, Result{
@@ -86,6 +87,7 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 				Tags:   []string{k.is},
 			})
 		}
+		markCapped(&g, matched)
 		// An empty group is not an answer. A failed one still renders:
 		// "could not ask" is not "nothing matched".
 		if len(g.Results) > 0 || g.Err != nil {
@@ -99,11 +101,29 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 	if truncated {
 		// The node always drops the same lexicographic tail, so a namespace
 		// late in the alphabet would otherwise look like it does not exist.
+		// With no match in the part listed, the notice is the answer, and
+		// needs a group to carry it.
+		if len(groups) == 0 {
+			groups = append(groups, Group{Label: "Paths", Source: SourceChain})
+		}
 		for i := range groups {
 			groups[i].Truncated = true
+			groups[i].Notice = strings.TrimSpace(groups[i].Notice + " " + listingCapNotice)
 		}
 	}
 	return groups
+}
+
+// listingCapNotice explains a node-capped listing.
+const listingCapNotice = "Showing part of the chain: the node caps this listing, so more may exist."
+
+// markCapped says how many matched when a group shows fewer: the count in
+// its header reads the rows kept, not the matches.
+func markCapped(g *Group, matched int) {
+	if matched > len(g.Results) {
+		g.Truncated = true
+		g.Notice = fmt.Sprintf("Showing %d of %d matches.", len(g.Results), matched)
+	}
 }
 
 // inScope reports whether rel is the scoped package or sits under it. No
@@ -128,6 +148,7 @@ func usersGroup(namespaces map[string]bool) Group {
 		}
 		g.Results = append(g.Results, Result{Title: ns, Href: safeUserHref(ns)})
 	}
+	markCapped(&g, len(names))
 	return g
 }
 

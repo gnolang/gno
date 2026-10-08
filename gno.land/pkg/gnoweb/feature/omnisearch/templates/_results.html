@@ -20,7 +20,7 @@ UI - One answered group
   {{ end }}
 
   {{ if .Truncated }}
-  <p class="b-omni-group__notice">Showing part of the chain — the node caps this listing.</p>
+  <p class="b-omni-group__notice">{{ or .Notice "Showing part of the answer: more may exist." }}</p>
   {{ end }}
 
   {{ if .Results }}
