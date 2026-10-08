@@ -51,4 +51,4 @@ storagePriceDefault = "100ugnot" // cost per byte
 ### Tracking Storage
 
 You can inspect the current storage usage and deposit in a realm.
-See more usage [examples](gnokey-reference.md#vmqstorage).
+See more usage [examples](gnokey.md#vmqstorage).

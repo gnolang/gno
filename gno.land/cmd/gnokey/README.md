@@ -10,7 +10,7 @@
 
 Also, see the [quickstart guide](../../../docs/users/using-gnokey.md).
 For every command, transaction type, and query, see the
-[command reference](../../../docs/resources/gnokey-reference.md).
+[command reference](../../../docs/resources/gnokey.md).
 
 ## Manual Entropy Generation
 
@@ -119,7 +119,7 @@ machine. The flow uses one online machine (`A`) and one offline (`B`):
 3. `B` (offline): sign it
 4. `A` (online): broadcast it
 
-**1. Fetch account information.** Query [`auth/accounts`](../../../docs/resources/gnokey-reference.md#authaccounts) for the
+**1. Fetch account information.** Query [`auth/accounts`](../../../docs/resources/gnokey.md#authaccounts) for the
 signing address and note its `account_number` and `sequence`. Both are folded into
 the signature to prevent replay, so signing needs them:
 

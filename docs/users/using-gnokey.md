@@ -6,7 +6,7 @@ coins, and calling realm functions.
 
 For deploying code, scripting, and the full command and query
 reference, see the
-[gnokey command reference](../resources/gnokey-reference.md). If you'd prefer a graphical
+[gnokey command reference](../resources/gnokey.md). If you'd prefer a graphical
 wallet, see [Third-party wallets](./third-party-wallets.md).
 
 ## Installing gnokey
@@ -125,7 +125,7 @@ broadcasting and prints the gas used, a suggested `-gas-wanted` and a fee.
 to pass.
 
 For the full base configuration, the output format, and every message type, see
-the [gnokey command reference](../resources/gnokey-reference.md#making-transactions).
+the [gnokey command reference](../resources/gnokey.md#making-transactions).
 
 ## Sending coins
 
@@ -164,12 +164,12 @@ end.
 :::
 
 For arguments, variadic functions, return values, and the `Run` scripting message,
-see the [gnokey command reference: `Call`](../resources/gnokey-reference.md#call).
+see the [gnokey command reference: `Call`](../resources/gnokey.md#call).
 
 ## Next steps
 
 - Deploy code, script transactions, or read chain state: the
-  [gnokey command reference](../resources/gnokey-reference.md).
+  [gnokey command reference](../resources/gnokey.md).
 - Sign offline, use a multisig, or set up session accounts: the
   [`gnokey` README](../../gno.land/cmd/gnokey/README.md).
 - Write and ship your first realm end to end:

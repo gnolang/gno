@@ -368,7 +368,7 @@ Two optional flags are worth knowing about:
   the chain may lock; the transaction fails if the cap is exceeded.
 
 For the full flag list, see
-[`addpkg` in the `gnokey` command reference](../resources/gnokey-reference.md#addpackage).
+[`addpkg` in the `gnokey` command reference](../resources/gnokey.md#addpackage).
 You can also deploy via the [Playground](https://play.gno.land) with a browser
 wallet like Adena.
 

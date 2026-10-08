@@ -45,7 +45,7 @@
           "resources/storage-deposit",
           "resources/gno-stdlibs",
           "resources/configuring-gno-projects",
-          "resources/gnokey-reference",
+          "resources/gnokey",
           "resources/gnodev",
           "resources/gno-testing",
           "resources/realms",

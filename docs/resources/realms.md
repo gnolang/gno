@@ -60,7 +60,7 @@ phrase in a key management application, such as
 
 Currently, EOAs are the only realms that can initiate a transaction. They can do
 this by calling any of the possible messages in gno.land, which can be
-found [here](gnokey-reference.md#making-transactions).
+found [here](gnokey.md#making-transactions).
 
 ### Working with Realms
 
