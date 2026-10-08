@@ -92,7 +92,8 @@ func newButtonLink(t buttonTag) *ast.Link {
 // renders is removed: bidi and zero-width characters (the set sanitize
 // strips), format characters (Cf), and control characters, a line break or
 // tab becoming a space. A label with no visible rune left, only spaces and
-// Hangul fillers, is no label: `&#32;`, `&#x200B;` or `&#x3164;`.
+// blank runes (see isVisibleRune), is no label: `&#32;`, `&#x200B;`,
+// `&#x3164;` or `&#x2800;`.
 func buttonLabel(raw []byte) string {
 	decoded := util.ResolveEntityNames(util.ResolveNumericReferences(raw))
 	label := chainmd.StripBidiAndZeroWidth(string(decoded))
@@ -114,14 +115,14 @@ func buttonLabel(raw []byte) string {
 	return label
 }
 
-// isVisibleRune reports whether r draws something: not a space and not a
-// Hangul filler, which is a letter that renders blank.
+// isVisibleRune reports whether r draws something: not a space, not a
+// default-ignorable code point (Hangul fillers and variation selectors
+// included) and not U+2800 BRAILLE PATTERN BLANK.
 func isVisibleRune(r rune) bool {
-	switch r {
-	case 0x115F, 0x1160, 0x3164, 0xFFA0:
+	if r == 0x2800 {
 		return false
 	}
-	return !unicode.IsSpace(r)
+	return !unicode.IsSpace(r) && !unicode.In(r, unicode.Other_Default_Ignorable_Code_Point, unicode.Variation_Selector)
 }
 
 // isButtonHrefAllowed rejects what renderGnoLink would neutralize anyway
