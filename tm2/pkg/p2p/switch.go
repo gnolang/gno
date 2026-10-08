@@ -50,6 +50,10 @@ var (
 
 	// errPeerStopped is returned when a peer is stopped while being added
 	errPeerStopped = errors.New("peer stopped while being added")
+
+	// errSimultaneousOpen is the reason a connection is closed when another
+	// connection to the same peer, in the opposite direction, is kept over it
+	errSimultaneousOpen = errors.New("replaced by the connection kept for a simultaneous open")
 )
 
 type reactorPeerBehavior struct {
@@ -106,6 +110,11 @@ type MultiplexSwitch struct {
 	peerBehavior *reactorPeerBehavior
 
 	peers           PeerSet  // currently active peer set (live connections)
+
+	// registry serializes every step that reads the peer set entry of a peer
+	// ID and then changes it, so no connection is added, kept or removed on a
+	// stale view of that entry
+	registry sync.Mutex
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
 	seeds           sync.Map // ID -> *NetAddress; bootstrap peers, not kept alive
 	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
@@ -304,11 +313,17 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// Alert the reactors of a peer removal
 	sw.removeReactorPeerState(peer, err)
 
-	// A connection that lost the race for the peer set shares its peer ID with
-	// the connection that won it. Its own socket is closed above and its own
-	// reactor state is given back, but the entry under that ID is the live
-	// connection's, and this one never announced itself as connected
-	if sw.isSuperseded(peer) {
+	// Removing a peer should go last to avoid a situation where a peer
+	// reconnect to our node and the switch calls InitPeer before
+	// RemovePeer is finished.
+	// https://github.com/tendermint/tendermint/issues/3338
+	//
+	// A connection superseded by another sharing its peer ID, after losing the
+	// race for the peer set or being replaced to resolve a simultaneous open,
+	// has its own socket closed above and its own reactor state given back,
+	// but the entry under that ID is the live connection's, and this one does
+	// not announce a disconnect for a peer that stays connected
+	if !sw.removeUnlessSuperseded(peer) {
 		sw.Logger.Debug(
 			"not removing the peer set entry of a superseded connection",
 			"peer", peer,
@@ -317,12 +332,6 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 
 		return
 	}
-
-	// Removing a peer should go last to avoid a situation where a peer
-	// reconnect to our node and the switch calls InitPeer before
-	// RemovePeer is finished.
-	// https://github.com/tendermint/tendermint/issues/3338
-	sw.peers.Remove(peer.ID())
 
 	sw.events.Notify(events.PeerDisconnectedEvent{
 		Address: peer.RemoteAddr(),
@@ -818,6 +827,58 @@ func direction(p PeerConn) string {
 	return "inbound"
 }
 
+// resolveDuplicate returns the connection registered for the incoming
+// connection's peer, if any, and whether the tie-break keeps it over the
+// incoming one. kept is false when nothing is registered
+func (sw *MultiplexSwitch) resolveDuplicate(incoming PeerConn) (registered PeerConn, kept bool) {
+	registered = sw.peers.Get(incoming.ID())
+	if registered == nil {
+		return nil, false
+	}
+
+	return registered, sw.keepsRegistered(registered, incoming)
+}
+
+// registerPeer adds the peer to the peer set. When a connection to the same
+// peer is already registered, the tie-break decides: either the registered
+// connection is kept and the peer is refused with errDuplicatePeer, or the
+// peer takes its place and the replaced connection is returned, for the
+// caller to tear down
+func (sw *MultiplexSwitch) registerPeer(p PeerConn) (PeerConn, error) {
+	sw.registry.Lock()
+	defer sw.registry.Unlock()
+
+	registered := sw.peers.Get(p.ID())
+	if registered == nil {
+		return nil, sw.peers.Add(p)
+	}
+
+	if sw.keepsRegistered(registered, p) {
+		return nil, errDuplicatePeer
+	}
+
+	sw.peers.Remove(p.ID())
+
+	return registered, sw.peers.Add(p)
+}
+
+// removeUnlessSuperseded removes the peer set entry of the peer's ID, unless a
+// different connection holds it, and reports whether it removed it. Checking
+// and removing in one step keeps a connection that replaced this one between
+// the two from losing its entry
+func (sw *MultiplexSwitch) removeUnlessSuperseded(p PeerConn) bool {
+	sw.registry.Lock()
+	defer sw.registry.Unlock()
+
+	if sw.isSuperseded(p) {
+		return false
+	}
+
+	sw.peers.Remove(p.ID())
+
+	return true
+}
+
 // hasPeerFromIP returns a flag indicating if the active peer set already
 // contains a peer connected from the given IP
 func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
@@ -941,12 +1002,13 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
-	// Reject a connection sw.peers.Add would refuse anyway before any reactor
+	// Refuse a connection registerPeer would refuse anyway before any reactor
 	// sees it, so it neither starts nor leaves reactor state behind. The dial
 	// loop's own Has check races the dial it guards, so this is the first
-	// point where the check is worth anything. sw.peers.Add stays the
+	// point where the check is worth anything. registerPeer stays the
 	// authoritative one
-	if sw.peers.Has(p.ID()) {
+	registered, kept := sw.resolveDuplicate(p)
+	if kept {
 		return errDuplicatePeer
 	}
 
@@ -954,8 +1016,9 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// only checks it when an address is queued, and NumOutbound cannot change
 	// while that loop runs, so a single batch of queued dials would otherwise
 	// overshoot the limit without bound. Persistent peers are exempt, as
-	// MaxNumOutboundPeers documents
-	if p.IsOutbound() && !sw.isPersistentPeer(p.ID()) {
+	// MaxNumOutboundPeers documents, and so is a connection replacing a
+	// registered one, which adds no peer
+	if p.IsOutbound() && registered == nil && !sw.isPersistentPeer(p.ID()) {
 		if out := sw.peers.NumOutbound(); out >= sw.maxOutboundPeers {
 			sw.Logger.Info(
 				"Ignoring outbound connection: already have max outbound peers",
@@ -986,7 +1049,22 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 
 	// Add the peer to the peer set. Do this before starting the reactors
 	// so that if Receive errors, we will find the peer and remove it.
-	if err := sw.peers.Add(p); err != nil {
+	replaced, err := sw.registerPeer(p)
+
+	// A connection p replaced is torn down before any reactor learns about p,
+	// so reactors see it removed first, as on a reconnect. p holds the entry,
+	// so the teardown leaves that entry alone
+	if replaced != nil {
+		sw.Logger.Info(
+			"replacing connection to resolve a simultaneous open",
+			"peer", p,
+			"kept", direction(p),
+		)
+
+		sw.stopAndRemovePeer(replaced, errSimultaneousOpen)
+	}
+
+	if err != nil {
 		sw.removeReactorPeerState(p, err)
 
 		return err
@@ -995,13 +1073,13 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// The peer can have been stopped while it was being added: the recv
 	// routine p.Start() spawned reports an error to stopAndRemovePeer, which
 	// removes from the peer set last, so its Remove can have run before the
-	// Add above. Adding a stopped peer would hold its slot and its ID for the
-	// lifetime of the process, since nothing removes a peer twice.
+	// registration above. Adding a stopped peer would hold its slot and its ID
+	// for the lifetime of the process, since nothing removes a peer twice.
 	//
 	// Its reactor state needs no unwinding here: whatever stopped the peer
 	// walked the reactors' RemovePeer on the way
 	if !p.IsRunning() {
-		sw.peers.Remove(p.ID())
+		sw.removeUnlessSuperseded(p)
 
 		return errPeerStopped
 	}

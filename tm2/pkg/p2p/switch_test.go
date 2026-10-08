@@ -713,9 +713,20 @@ func TestMultiplexSwitch_DialPeer_RejectedBeforeStart(t *testing.T) {
 
 		p := mock.GeneratePeers(t, 1)[0]
 
+		// A connection in the same direction is already registered, so the
+		// tie-break keeps it and refuses the dialed one
+		registered := peerWithID(t, p.ID(), true)
+
 		sw := NewMultiplexSwitch(nil)
 		sw.peers = &mockSet{
 			hasFn: func(id types.ID) bool { return id == p.ID() },
+			getFn: func(id types.ID) PeerConn {
+				if id == p.ID() {
+					return registered
+				}
+
+				return nil
+			},
 		}
 
 		assert.Equal(t, 1, dialRejected(t, sw, p))
@@ -2208,6 +2219,230 @@ func TestMultiplexSwitch_KeepsRegistered(t *testing.T) {
 			assert.Equal(t, testCase.wantKept, sw.keepsRegistered(registered, incoming))
 		})
 	}
+}
+
+func TestMultiplexSwitch_RegisterPeer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a peer with no registered connection is added", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			sw = switchWithID(upper)
+			p  = peerWithID(t, lower, false)
+		)
+
+		replaced, err := sw.registerPeer(p)
+
+		require.NoError(t, err)
+		assert.Nil(t, replaced)
+		assert.Same(t, p, sw.peers.Get(lower))
+	})
+
+	t.Run("a connection the tie-break refuses leaves the registered one", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			// Our ID is the lower one, so our outbound connection is kept
+			sw       = switchWithID(lower)
+			ours     = peerWithID(t, upper, true)
+			incoming = peerWithID(t, upper, false)
+		)
+
+		require.NoError(t, sw.peers.Add(ours))
+
+		replaced, err := sw.registerPeer(incoming)
+
+		require.ErrorIs(t, err, errDuplicatePeer)
+		assert.Nil(t, replaced)
+		assert.Same(t, ours, sw.peers.Get(upper))
+		assert.EqualValues(t, 1, sw.peers.NumOutbound())
+		assert.EqualValues(t, 0, sw.peers.NumInbound())
+	})
+
+	t.Run("a connection the tie-break keeps replaces the registered one", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			// Our ID is the higher one, so the peer's connection is kept
+			sw     = switchWithID(upper)
+			ours   = peerWithID(t, lower, true)
+			theirs = peerWithID(t, lower, false)
+		)
+
+		require.NoError(t, sw.peers.Add(ours))
+
+		replaced, err := sw.registerPeer(theirs)
+
+		require.NoError(t, err)
+		assert.Same(t, ours, replaced)
+		assert.Same(t, theirs, sw.peers.Get(lower))
+		assert.EqualValues(t, 0, sw.peers.NumOutbound())
+		assert.EqualValues(t, 1, sw.peers.NumInbound())
+	})
+}
+
+func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
+	t.Parallel()
+
+	t.Run("the replaced connection is torn down before the new one reaches reactors", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			calls []string
+
+			// Our ID is the higher one, so the peer's connection is kept
+			ours   = peerWithID(t, lower, true)
+			theirs = peerWithID(t, lower, false)
+
+			label = func(p PeerConn) string {
+				if p == PeerConn(ours) {
+					return "ours"
+				}
+
+				return "theirs"
+			}
+
+			oursClosed, oursStopped bool
+		)
+
+		ours.CloseConnFn = func() error {
+			oursClosed = true
+
+			return nil
+		}
+		ours.StopFn = func() error {
+			oursStopped = true
+
+			return nil
+		}
+
+		reactor := &mockReactor{
+			initPeerFn: func(p PeerConn) PeerConn {
+				calls = append(calls, "InitPeer "+label(p))
+
+				return p
+			},
+			addPeerFn:    func(p PeerConn) { calls = append(calls, "AddPeer "+label(p)) },
+			removePeerFn: func(p PeerConn, _ any) { calls = append(calls, "RemovePeer "+label(p)) },
+		}
+
+		sw := switchWithID(upper, WithReactor("mock", reactor))
+
+		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
+		defer unsubFn()
+
+		require.NoError(t, sw.addPeer(ours))
+		require.NoError(t, sw.addPeer(theirs))
+
+		assert.Equal(t, []string{
+			"InitPeer ours",
+			"AddPeer ours",
+			"InitPeer theirs",
+			"RemovePeer ours",
+			"AddPeer theirs",
+		}, calls)
+
+		assert.True(t, oursClosed)
+		assert.True(t, oursStopped)
+		assert.Same(t, theirs, sw.peers.Get(lower))
+
+		// Each connection announced itself once; the replaced one announces
+		// no disconnect, since the peer stays connected
+		var connected, disconnected int
+
+	drain:
+		for {
+			select {
+			case ev := <-evCh:
+				switch ev.Type() {
+				case events.PeerConnected:
+					connected++
+				case events.PeerDisconnected:
+					disconnected++
+				}
+			default:
+				break drain
+			}
+		}
+
+		assert.Equal(t, 2, connected)
+		assert.Zero(t, disconnected)
+
+		// A late error on the replaced connection leaves the new entry alone
+		sw.StopPeerForError(ours, errors.New("EOF"))
+
+		assert.Same(t, theirs, sw.peers.Get(lower))
+	})
+
+	t.Run("a replacing outbound connection passes the outbound limit", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			// Our ID is the lower one, so our outbound connection is kept
+			sw     = switchWithID(lower, WithMaxOutboundPeers(0))
+			theirs = peerWithID(t, upper, false)
+			ours   = peerWithID(t, upper, true)
+		)
+
+		require.NoError(t, sw.peers.Add(theirs))
+
+		require.NoError(t, sw.addPeer(ours))
+		assert.Same(t, ours, sw.peers.Get(upper))
+	})
+
+	t.Run("a replacement that fails to start leaves the registered connection", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			sw     = switchWithID(upper)
+			ours   = peerWithID(t, lower, true)
+			theirs = peerWithID(t, lower, false)
+		)
+
+		require.NoError(t, sw.peers.Add(ours))
+
+		// Starting an already started peer fails
+		require.NoError(t, theirs.Start())
+
+		require.Error(t, sw.addPeer(theirs))
+		assert.Same(t, ours, sw.peers.Get(lower))
+	})
+
+	t.Run("a concurrent teardown of the replaced connection keeps the new entry", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		for range 200 {
+			var (
+				sw     = switchWithID(upper)
+				ours   = peerWithID(t, lower, true)
+				theirs = peerWithID(t, lower, false)
+				wg     sync.WaitGroup
+			)
+
+			require.NoError(t, sw.peers.Add(ours))
+
+			wg.Go(func() { sw.StopPeerForError(ours, errors.New("EOF")) })
+			wg.Go(func() { assert.NoError(t, sw.addPeer(theirs)) })
+			wg.Wait()
+
+			assert.Same(t, theirs, sw.peers.Get(lower))
+		}
+	})
 }
 
 func TestCalculateBackoff(t *testing.T) {
