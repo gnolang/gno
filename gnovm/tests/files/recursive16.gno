@@ -14,4 +14,4 @@ func main() {}
 // main/recursive16.gno:9:6-14: invalid recursive value: T -> M -> T
 
 // TypeCheckError:
-// main/recursive16.gno:7:7: invalid cycle in declaration of M; main/recursive16.gno:7:7: 	M refers to T; main/recursive16.gno:9:6: 	T refers to M
+// main/recursive16.gno:7:13: cannot convert 0 (untyped int constant) to type T
