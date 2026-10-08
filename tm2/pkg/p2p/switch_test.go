@@ -1025,7 +1025,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		assert.Equal(t, missingAddr, sw.persistentDialQueue.Peek().Address)
 	})
 
-	t.Run("a reconnect clears the backoff", func(t *testing.T) {
+	t.Run("connect and disconnect events drive the redial", func(t *testing.T) {
 		t.Parallel()
 
 		addr := generateNetAddr(t, 1)[0]
@@ -1034,30 +1034,43 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 			&mockTransport{},
 			WithPersistentPeers([]*types.NetAddress{addr}),
 		)
-		sw.redialInterval = 10 * time.Millisecond
+
+		// Only the start pass and the events can queue a dial: the next tick
+		// is an hour away
+		sw.redialInterval = time.Hour
 
 		go sw.runRedialLoop(t.Context())
 
-		// popped pops the queued dial, and reports whether it was due right
-		// away (due) or scheduled after a backoff (!due)
-		popped := func(due bool) func() bool {
-			return func() bool {
-				item := sw.persistentDialQueue.Pop()
+		// The start pass queues the first dial
+		require.Eventually(t, func() bool {
+			return sw.persistentDialQueue.Pop() != nil
+		}, 5*time.Second, 5*time.Millisecond)
 
-				return item != nil && !item.Time.After(time.Now()) == due
-			}
-		}
+		// A dial queued while that one was in flight
+		sw.persistentDialQueue.Push(dial.Item{Time: time.Now().Add(time.Minute), Address: addr})
 
-		// The first pass queues a dial due right away
-		require.Eventually(t, popped(true), 5*time.Second, 5*time.Millisecond)
-
-		// That dial went nowhere, so the next one waits for the backoff
-		require.Eventually(t, popped(false), 5*time.Second, 5*time.Millisecond)
-
-		// The peer connects: once it drops, its next dial is due right away
+		// The peer connects: its queued dial is removed
 		sw.events.Notify(events.PeerConnectedEvent{PeerID: addr.ID})
 
-		require.Eventually(t, popped(true), 5*time.Second, 5*time.Millisecond)
+		require.Eventually(t, func() bool {
+			return sw.persistentDialQueue.Peek() == nil
+		}, 5*time.Second, 5*time.Millisecond)
+
+		// The peer drops: it is queued again without waiting for the tick
+		sent := time.Now()
+
+		sw.events.Notify(events.PeerDisconnectedEvent{PeerID: addr.ID})
+
+		require.Eventually(t, func() bool {
+			return sw.persistentDialQueue.Peek() != nil
+		}, 5*time.Second, 5*time.Millisecond)
+
+		// The connect did not reset the backoff, and the start pass counted
+		// an attempt: the dial waits at least the first backoff step
+		item := sw.persistentDialQueue.Peek()
+
+		require.NotNil(t, item)
+		assert.False(t, item.Time.Before(sent.Add(900*time.Millisecond)))
 	})
 }
 
@@ -1886,12 +1899,222 @@ func TestMultiplexSwitch_QueueMissingPersistentPeers(t *testing.T) {
 			assert.True(t, item.Time.Equal(passTime))
 			assert.Nil(t, sw.persistentDialQueue.Pop())
 
-			// The dial connects and the connection drops at once, and the
-			// redial loop clears the attempts on PeerConnected. The rate limit
-			// comes from the loop calling this method once per tick, pinned at
-			// loop level by "a reconnect clears the backoff"
+			// The dial connects, and the connection lasts persistentStableUptime
+			// before it drops: the drop resets the backoff. See
+			// TestMultiplexSwitch_PersistentPeerEvents
 			delete(attempts, addr.ID)
 		}
+	})
+}
+
+func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
+	t.Parallel()
+
+	// popDelay pops the queued dial, and returns how long after from it is due
+	popDelay := func(t *testing.T, sw *MultiplexSwitch, from time.Time) time.Duration {
+		t.Helper()
+
+		item := sw.persistentDialQueue.Pop()
+		require.NotNil(t, item)
+
+		return item.Time.Sub(from)
+	}
+
+	// assertBackoff asserts a delay is the backoff after the given attempts,
+	// within its 10% jitter
+	assertBackoff := func(t *testing.T, attempts uint, delay time.Duration) {
+		t.Helper()
+
+		want := persistentRedialMaxBackoff
+		if attempts < 5 {
+			want = time.Second << attempts
+		}
+
+		assert.GreaterOrEqual(t, delay, want-want/10, "attempts %d", attempts)
+		assert.LessOrEqual(t, delay, want+want/10, "attempts %d", attempts)
+	}
+
+	t.Run("a connect records the time and drops the peer's queued dial", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addrs = generateNetAddr(t, 2)
+			sw    = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers(addrs),
+			)
+			now         = time.Now()
+			connectedAt = make(map[types.ID]time.Time)
+		)
+
+		// A dial queued while an earlier one was in flight, and another
+		// persistent peer's dial
+		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(20 * time.Second), Address: addrs[0]})
+		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(10 * time.Second), Address: addrs[1]})
+
+		sw.persistentPeerConnected(addrs[0].ID, connectedAt, now)
+
+		assert.True(t, connectedAt[addrs[0].ID].Equal(now))
+
+		item := sw.persistentDialQueue.Pop()
+
+		require.NotNil(t, item)
+		assert.Equal(t, addrs[1], item.Address)
+		assert.Nil(t, sw.persistentDialQueue.Pop())
+	})
+
+	t.Run("a short connection keeps the backoff", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addr = generateNetAddr(t, 1)[0]
+			sw   = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers([]*types.NetAddress{addr}),
+			)
+			now         = time.Now()
+			attempts    = map[types.ID]uint{addr.ID: 2}
+			connectedAt = map[types.ID]time.Time{addr.ID: now}
+			dropped     = now.Add(10 * time.Second)
+		)
+
+		sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
+
+		assertBackoff(t, 2, popDelay(t, sw, dropped))
+		assert.Equal(t, uint(3), attempts[addr.ID])
+		assert.NotContains(t, connectedAt, addr.ID)
+	})
+
+	t.Run("a stable connection resets the backoff", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addr = generateNetAddr(t, 1)[0]
+			sw   = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers([]*types.NetAddress{addr}),
+			)
+			now         = time.Now()
+			attempts    = map[types.ID]uint{addr.ID: 5}
+			connectedAt = map[types.ID]time.Time{addr.ID: now}
+
+			// Exactly the threshold counts as stable
+			dropped = now.Add(persistentStableUptime)
+		)
+
+		sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
+
+		// The dial loop is woken, and the dial is due at once
+		assert.Len(t, sw.dialNotify, 1)
+		assert.Equal(t, time.Duration(0), popDelay(t, sw, dropped))
+		n, ok := attempts[addr.ID]
+
+		require.True(t, ok)
+		assert.Equal(t, uint(0), n)
+	})
+
+	t.Run("a disconnect without a recorded connect keeps the backoff", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addr = generateNetAddr(t, 1)[0]
+			sw   = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers([]*types.NetAddress{addr}),
+			)
+			dropped  = time.Now()
+			attempts = map[types.ID]uint{addr.ID: 1}
+		)
+
+		sw.persistentPeerDisconnected(addr.ID, attempts, make(map[types.ID]time.Time), dropped)
+
+		assertBackoff(t, 1, popDelay(t, sw, dropped))
+	})
+
+	t.Run("a disconnect handled after a reconnect queues nothing", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addr = generateNetAddr(t, 1)[0]
+			sw   = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers([]*types.NetAddress{addr}),
+			)
+			now = time.Now()
+		)
+
+		// The peer is connected again by the time the event is handled
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool { return id == addr.ID },
+		}
+
+		sw.persistentPeerDisconnected(
+			addr.ID,
+			map[types.ID]uint{addr.ID: 0},
+			map[types.ID]time.Time{addr.ID: now},
+			now.Add(time.Second),
+		)
+
+		assert.Nil(t, sw.persistentDialQueue.Peek())
+	})
+
+	t.Run("repeated short connections back off up to the ceiling", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addr = generateNetAddr(t, 1)[0]
+			sw   = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers([]*types.NetAddress{addr}),
+			)
+			now = time.Now()
+
+			// As after the first dial on start
+			attempts    = map[types.ID]uint{addr.ID: 0}
+			connectedAt = make(map[types.ID]time.Time)
+		)
+
+		for cycle := range uint(8) {
+			// Each connection is accepted, then dropped a second later
+			sw.persistentPeerConnected(addr.ID, connectedAt, now)
+
+			dropped := now.Add(time.Second)
+
+			sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
+
+			delay := popDelay(t, sw, dropped)
+			assertBackoff(t, cycle, delay)
+
+			// The next connection happens when that dial is due
+			now = dropped.Add(delay)
+		}
+	})
+
+	t.Run("a leftover dial does not delay the redial of a stable connection", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addr = generateNetAddr(t, 1)[0]
+			sw   = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers([]*types.NetAddress{addr}),
+			)
+			now         = time.Now()
+			attempts    = map[types.ID]uint{addr.ID: 4}
+			connectedAt = make(map[types.ID]time.Time)
+		)
+
+		// Queued by a tick while the dial that is about to connect was in flight
+		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(16 * time.Second), Address: addr})
+
+		sw.persistentPeerConnected(addr.ID, connectedAt, now)
+
+		dropped := now.Add(time.Minute)
+
+		sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
+
+		assert.Equal(t, time.Duration(0), popDelay(t, sw, dropped))
+		assert.Nil(t, sw.persistentDialQueue.Peek())
 	})
 }
 
