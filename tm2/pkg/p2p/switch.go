@@ -109,12 +109,12 @@ type MultiplexSwitch struct {
 	reactors     map[string]Reactor
 	peerBehavior *reactorPeerBehavior
 
-	peers           PeerSet  // currently active peer set (live connections)
+	peers PeerSet // currently active peer set (live connections)
 
 	// registry serializes every step that reads the peer set entry of a peer
 	// ID and then changes it, so no connection is added, kept or removed on a
 	// stale view of that entry
-	registry sync.Mutex
+	registry        sync.Mutex
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
 	seeds           sync.Map // ID -> *NetAddress; bootstrap peers, not kept alive
 	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
