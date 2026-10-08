@@ -3,6 +3,7 @@ package omnisearch
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -322,5 +323,59 @@ func TestIndexerTokenIsOptional(t *testing.T) {
 
 	if len(seen) != 2 || seen[0] != "" || seen[1] != "Bearer s3cret" {
 		t.Fatalf("Authorization headers = %q, want [\"\", \"Bearer s3cret\"]", seen)
+	}
+}
+
+// An indexer behind basic auth works through the URL's userinfo; neither the
+// page footer nor the JSON response may carry it.
+func TestIndexerCredentialsNeverPublished(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if user, pass, ok := r.BasicAuth(); !ok || user != "gnoweb" || pass != "hunter2" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		if strings.Contains(string(body), "latestBlockHeight") {
+			_, _ = io.WriteString(w, `{"data":{"latestBlockHeight":7}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"data":{"getTransactions":[{"hash":"9f2a","block_height":5,"success":true}]}}`)
+	}))
+	defer srv.Close()
+
+	pu, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pu.User = url.UserPassword("gnoweb", "hunter2")
+	pu.Path = "/graphql/query"
+	pu.RawQuery = "apikey=k3y"
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), indexer.New(pu.String(), ""))
+
+	for _, raw := range []string{
+		"/r/alice/blog$search&q=" + url.QueryEscape("tx:9f2a") + "&json",
+		"/r/alice/blog$search&q=" + url.QueryEscape("tx:9f2a"),
+	} {
+		w := httptest.NewRecorder()
+		_, view := h.Handle(context.Background(), w, httptest.NewRequest(http.MethodGet, "/", nil), parseURL(t, raw))
+		out := w.Body.String()
+		if view != nil {
+			var sb strings.Builder
+			if err := view.Render(&sb); err != nil {
+				t.Fatalf("render: %v", err)
+			}
+			out = sb.String()
+		}
+		if !strings.Contains(out, "9f2a") {
+			t.Fatalf("%s: the authenticated indexer did not answer:\n%s", raw, out)
+		}
+		for _, secret := range []string{"hunter2", "gnoweb:", "k3y"} {
+			if strings.Contains(out, secret) {
+				t.Errorf("%s: response carries %q", raw, secret)
+			}
+		}
 	}
 }

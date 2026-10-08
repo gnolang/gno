@@ -523,3 +523,49 @@ func TestSourceContainsFiltersAuthorOnTheIndexer(t *testing.T) {
 		t.Error(`author "b.b" matches namespace "bxb"`)
 	}
 }
+
+// The endpoint is shown to every anonymous reader, and an operator's only
+// place for a basic-auth or query-string credential is the URL itself.
+func TestURLIsRedacted(t *testing.T) {
+	for raw, want := range map[string]string{
+		"https://ops:s3cret@indexer.example/graphql/query":      "https://indexer.example",
+		"https://indexer.example/graphql/query?apikey=s3cret":   "https://indexer.example",
+		"http://127.0.0.1:8546/graphql/query":                   "http://127.0.0.1:8546",
+		"https://indexer.example/s3cret-path-key/graphql/query": "https://indexer.example",
+		"not a url": "(indexer)",
+	} {
+		if got := New(raw, "").URL(); got != want {
+			t.Errorf("URL() for %q = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+// Transport errors are logged; net/http quotes the request URL in them and
+// masks a password but not a query-string key.
+func TestTransportErrorIsRedacted(t *testing.T) {
+	c := New("http://ops:s3cret@127.0.0.1:1/graphql/query?apikey=hunter2", "")
+	_, err := c.LatestBlockHeight(context.Background())
+	if err == nil {
+		t.Fatal("want a connection error")
+	}
+	for _, secret := range []string{"s3cret", "hunter2", "ops"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("error %q carries %q", err, secret)
+		}
+	}
+}
+
+func TestValidateURL(t *testing.T) {
+	for raw, ok := range map[string]bool{
+		"https://indexer.example/graphql/query": true,
+		"http://127.0.0.1:8546/graphql/query":   true,
+		"localhost:8546/graphql":                false,
+		"indexer.example/graphql":               false,
+		"ftp://indexer.example/graphql":         false,
+		"http:///graphql":                       false,
+	} {
+		if err := ValidateURL(raw); (err == nil) != ok {
+			t.Errorf("ValidateURL(%q) = %v, want ok=%v", raw, err, ok)
+		}
+	}
+}
