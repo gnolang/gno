@@ -5838,7 +5838,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 				unbuilt = dep
 			}
 		})
-		chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeTypeDepNode*nodes)
+		chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeTypeDeclNode*nodes)
 		if unbuilt != "" {
 			return unbuilt, true
 		}

@@ -1671,13 +1671,13 @@ const (
 	// Type-declaration group validation (typecycle.go), at preprocess.
 	// Fits from BenchmarkTypeDeclGroup on the M5 dev box
 	// (cmd/calibrate/typedeclgroup_bench_m5_arm64.txt, machine factor 2.1):
-	// site 106, node 5.0, edge 25.7, embed step 25.8, map-key node 1.8
-	// reference-ns, rounded up so every grid shape is a floor.
-	OpCPUSlopeTypeDeclSite   = 230 // typeDeclGraph: per declaration indexed and visited
-	OpCPUSlopeTypeDepNode    = 11  // collectTypeDeps: per type-expression node visited
-	OpCPUSlopeTypeDepEdge    = 55  // findCycle: per edge examined
-	OpCPUSlopeEmbedDepthStep = 55  // embedDepth: per type visited or field scanned
-	OpCPUSlopeMapKeyNode     = 4   // uncomparableMapKey: per type node visited
+	// site 106, node 5.0, step 25.7 (cycle edge) and 25.8 (embed visit)
+	// reference-ns, rounded up so every grid shape is a floor. The map-key
+	// walk visits the same nodes as the dependency scan and is billed at
+	// the node slope (fit 1.8).
+	OpCPUSlopeTypeDeclSite = 230 // typeDeclGraph: per declaration indexed and visited
+	OpCPUSlopeTypeDeclNode = 11  // per type-expression node visited (collectTypeDeps, uncomparableMapKey)
+	OpCPUSlopeTypeDeclStep = 55  // per graph step (findCycle edge examined, embedDepth type or field visited)
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 

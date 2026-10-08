@@ -120,10 +120,10 @@ func TestPreprocess_TypeDeclGroup_GasSufficient(t *testing.T) {
 	}
 }
 
-// TestTypeDeclGroup_MapKeyCharged: the map-key walk bills at least 4 gas
-// per node it visits. Its work is a fraction of the scan charges on the
-// same nodes, so a budget test cannot isolate it; this checks the meter
-// directly on one built declaration.
+// TestTypeDeclGroup_MapKeyCharged: endTypeDeclGroup bills the embed-depth
+// walk per step and the map-key walk per node. The map-key work is a
+// fraction of the scan charges on the same nodes, so a budget test cannot
+// isolate it; this checks the exact charge on one built declaration.
 func TestTypeDeclGroup_MapKeyCharged(t *testing.T) {
 	m := NewMachine("main", nil)
 	fn := m.MustParseFile("main.gno", "package main\n\ntype M struct {\n\ta map[string]int\n\tb [2]map[[3]string]*M\n}\n\nfunc main() {}\n")
@@ -136,5 +136,5 @@ func TestTypeDeclGroup_MapKeyCharged(t *testing.T) {
 	require.Equal(t, int64(10), mapWork) // struct; a: map key value; b: array map key elem value ptr
 	gm := stypes.NewGasMeter(1_000_000)
 	checkBuiltTypeDecl(m.Store, gm, typeDeclSite{td, fn})
-	require.GreaterOrEqual(t, gm.GasConsumed(), OpCPUSlopeEmbedDepthStep*embedWork+4*mapWork)
+	require.Equal(t, OpCPUSlopeTypeDeclStep*embedWork+OpCPUSlopeTypeDeclNode*mapWork, gm.GasConsumed())
 }

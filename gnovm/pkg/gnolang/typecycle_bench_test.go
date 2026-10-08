@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-// Calibration for the OpCPUSlopeTypeDep*, OpCPUSlopeEmbedDepthStep and
-// OpCPUSlopeMapKeyNode constants: each sub-benchmark reports ns per unit of
-// the work it bills, on a grid from narrow to wide shapes.
+// Calibration for the OpCPUSlopeTypeDecl{Site,Node,Step} constants: each
+// sub-benchmark reports ns per unit of the work it bills, on a grid from
+// narrow to wide shapes.
 
 // benchPrescanFile is nDecls struct declarations with refs pointer fields
 // each, pointing at other group members (edges) or at int (leaves).

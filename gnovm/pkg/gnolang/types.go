@@ -1963,7 +1963,7 @@ func isInterfaceMethodEmbed(t Type) bool {
 func validateEmbedDepth(gm store.GasMeter, t Type, displayName string) {
 	var work int64
 	d := embedDepth(t, map[Type]struct{}{}, &work)
-	chargeCPUGas(gm, OpCPUSlopeEmbedDepthStep*work)
+	chargeCPUGas(gm, OpCPUSlopeTypeDeclStep*work)
 	if d > MaxEmbedDepth {
 		panic(fmt.Sprintf(
 			"type %s embed depth %d exceeds max %d",

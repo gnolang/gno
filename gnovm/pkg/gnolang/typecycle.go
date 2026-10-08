@@ -212,7 +212,7 @@ func assertNoTypeDeclCycles(gm store.GasMeter, sites []typeDeclSite) {
 	g := newTypeDeclGraph(sites)
 	cycle := g.invalidCycle()
 	chargeCPUGas(gm, OpCPUSlopeTypeDeclSite*int64(len(g.names))+
-		OpCPUSlopeTypeDepNode*g.nodes+OpCPUSlopeTypeDepEdge*g.edges)
+		OpCPUSlopeTypeDeclNode*g.nodes+OpCPUSlopeTypeDeclStep*g.edges)
 	if cycle == nil {
 		return
 	}
@@ -262,7 +262,7 @@ func checkBuiltTypeDecl(store Store, gm store.GasMeter, s typeDeclSite) {
 	validateEmbedDepth(gm, t, string(s.decl.Name))
 	var work int64
 	key := uncomparableMapKey(baseOf(t), &work)
-	chargeCPUGas(gm, OpCPUSlopeMapKeyNode*work)
+	chargeCPUGas(gm, OpCPUSlopeTypeDeclNode*work)
 	if key != nil {
 		panic(fmt.Sprintf("invalid map key type %s", key.String()))
 	}

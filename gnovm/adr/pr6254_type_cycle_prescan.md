@@ -55,9 +55,8 @@ Validate the declaration graph first, then predefine.
 7. **Gas.** The walks run outside the op loop, where only the flat
    `PreprocessGasPerByte` applies, so they bill the tx's preprocess meter
    per unit of work through `chargeCPUGas`, as `embedWalk` does: per
-   declaration, node and edge in the pre-scan and build-order scan, per
-   type visited or field scanned in `embedDepth`, per node in the map-key
-   walk. Slopes are dev-box fits from `BenchmarkTypeDeclGroup`
+   declaration, per type-expression node (dependency scan, map-key walk)
+   and per graph step (cycle-search edge, `embedDepth` visit). Slopes are dev-box fits from `BenchmarkTypeDeclGroup`
    (`cmd/calibrate/typedeclgroup_bench_m5_arm64.txt`) times the 2.1 machine
    factor of #6164, rounded up so every grid shape is a floor. Only
    `embedDepth` can exceed linear in the source: a subgraph shared by many
@@ -90,7 +89,7 @@ Validate the declaration graph first, then predefine.
   pins each charge with a budget that only the metered walk exceeds.
 - Runtime construction of an inline struct or interface type
   (`doOpStructType`, `doOpInterfaceType`) now bills its embed-depth walk
-  too, 55 gas per type visited or field scanned; eleven `gas/` goldens
+  too, `OpCPUSlopeTypeDeclStep` per type visited or field scanned; eleven `gas/` goldens
   moved by that amount.
 - Forward references among function-local type declarations are invalid
   Go and still fail with `not defined in fileset`, as before.
