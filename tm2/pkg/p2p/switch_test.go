@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -678,11 +677,11 @@ func TestMultiplexSwitch_DialPeer_RejectedBeforeStart(t *testing.T) {
 	dialRejected := func(t *testing.T, sw *MultiplexSwitch, p *mock.Peer) int {
 		t.Helper()
 
-		var closed atomic.Int32
+		var closed int
 
 		p.IsOutboundFn = func() bool { return true }
 		p.CloseConnFn = func() error {
-			closed.Add(1)
+			closed++
 
 			return nil
 		}
@@ -695,7 +694,7 @@ func TestMultiplexSwitch_DialPeer_RejectedBeforeStart(t *testing.T) {
 
 		sw.dialPeer(t.Context(), p.SocketAddr())
 
-		return int(closed.Load())
+		return closed
 	}
 
 	t.Run("outbound limit reached", func(t *testing.T) {
@@ -2113,7 +2112,6 @@ func TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress(t *testing.T) {
 	// The connection over the learned address drops
 	p.IDFn = func() types.ID { return configured.ID }
 	p.SocketAddrFn = func() *types.NetAddress { return learned }
-	p.IsPersistentFn = func() bool { return true }
 	p.IsOutboundFn = func() bool { return true }
 
 	sw.StopPeerForError(p, errors.New("EOF"))
