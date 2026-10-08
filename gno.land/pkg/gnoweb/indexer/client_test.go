@@ -623,3 +623,27 @@ func TestEnvelopeWithoutDataIsAnError(t *testing.T) {
 		}
 	}
 }
+
+// tx-indexer evaluates `like` with regexp.MatchString. The importers pattern
+// must match the path as an import quotes it, not inside a longer path.
+func TestDeploysImportingMatchesTheQuotedPathOnly(t *testing.T) {
+	q := captureTxQuery(t, func(c *Client) {
+		_, _ = c.DeploysImporting(context.Background(), "gno.land/r/demo/foo", 20)
+	})
+	likes := likeValues(t, q)
+	if len(likes) != 1 {
+		t.Fatalf("like filters = %q", likes)
+	}
+	for body, want := range map[string]bool{
+		`import "gno.land/r/demo/foo"`:       true,
+		"import foo `gno.land/r/demo/foo`":   true,
+		`import "gno.land/r/demo/foobar"`:    false,
+		`module = "gno.land/r/demo/foo/sub"`: false,
+		`import "gno.land/r/demo/foo/sub"`:   false,
+		`import "gnoXland/r/demo/foo"`:       false,
+	} {
+		if got, _ := regexp.MatchString(likes[0], body); got != want {
+			t.Errorf("like %q on %q = %v, want %v", likes[0], body, got, want)
+		}
+	}
+}

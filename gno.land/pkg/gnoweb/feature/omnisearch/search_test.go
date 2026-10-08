@@ -83,6 +83,9 @@ type mockIndexer struct {
 	// sourceAuthor records the author SourceContains was asked to filter on.
 	sourceAuthor string
 
+	// importing records the path DeploysImporting was asked about.
+	importing string
+
 	// tipErr fails LatestBlockHeight.
 	tipErr error
 }
@@ -113,6 +116,11 @@ func (m *mockIndexer) Deploys(context.Context, string, int) ([]indexer.Tx, error
 
 func (m *mockIndexer) SourceContains(_ context.Context, _, author string, _ int) ([]indexer.Tx, error) {
 	m.sourceAuthor = author
+	return m.txs, m.err
+}
+
+func (m *mockIndexer) DeploysImporting(_ context.Context, pkgPath string, _ int) ([]indexer.Tx, error) {
+	m.importing = pkgPath
 	return m.txs, m.err
 }
 
@@ -748,5 +756,74 @@ func TestDocPanicFailsTheSearchNotTheProcess(t *testing.T) {
 	groups, _ := h.Search(context.Background(), mustQuery(t, h, "func:Render", "/r/demo/boards"))
 	if len(groups) != 1 || groups[0].Err == nil {
 		t.Fatalf("groups = %+v, want one failed group", groups)
+	}
+}
+
+// tx-indexer returns a matched transaction whole. A realm the transaction
+// only called matched nothing and is not listed; a sibling deploy is listed
+// and marked, since the indexer does not say which deploy matched.
+func TestSourceResultsKeepDeployMessagesOnly(t *testing.T) {
+	t.Parallel()
+
+	txs := []indexer.Tx{{Hash: "h1", Height: 7, Success: true}}
+	for _, m := range []struct{ typ, path string }{
+		{"MsgAddPackage", "gno.land/r/alice/a"},
+		{"MsgCall", "gno.land/r/bob/b"},
+	} {
+		var msg indexer.Message
+		msg.Value.Type = m.typ
+		if m.typ == "MsgCall" {
+			msg.Value.PkgPath = m.path
+		} else {
+			msg.Value.Package = &struct {
+				Path string `json:"path"`
+			}{Path: m.path}
+		}
+		txs[0].Messages = append(txs[0].Messages, msg)
+	}
+
+	for _, tc := range []struct{ raw, scope string }{
+		{"content:avl.Tree", ""},
+		{"importers", "/r/demo/foo"},
+	} {
+		idx := &mockIndexer{txs: txs}
+		h := newHandler(t, &mockClient{}, idx)
+		groups, _ := h.Search(context.Background(), mustQuery(t, h, tc.raw, tc.scope))
+		if len(groups) != 1 || len(groups[0].Results) != 1 || groups[0].Results[0].Title != "gno.land/r/alice/a" {
+			t.Fatalf("%s: groups = %+v, want only gno.land/r/alice/a", tc.raw, groups)
+		}
+		if slices.Contains(groups[0].Results[0].Tags, "batch deploy") {
+			t.Errorf("%s: a single deploy is marked as a batch", tc.raw)
+		}
+	}
+
+	// Two deploys in one transaction: both listed, both marked.
+	var sibling indexer.Message
+	sibling.Value.Type = "MsgAddPackage"
+	sibling.Value.Package = &struct {
+		Path string `json:"path"`
+	}{Path: "gno.land/r/alice/b"}
+	txs[0].Messages = append(txs[0].Messages, sibling)
+	h := newHandler(t, &mockClient{}, &mockIndexer{txs: txs})
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "importers", "/r/demo/foo"))
+	if len(groups) != 1 || len(groups[0].Results) != 2 {
+		t.Fatalf("groups = %+v, want both deploys", groups)
+	}
+	for _, r := range groups[0].Results {
+		if !slices.Contains(r.Tags, "batch deploy") {
+			t.Errorf("%s: not marked as part of a batch deploy", r.Title)
+		}
+	}
+}
+
+// Importers ask for the package's own path, quoted, not a free-text match.
+func TestImportersAskForTheChainPath(t *testing.T) {
+	t.Parallel()
+
+	idx := &mockIndexer{}
+	h := newHandler(t, &mockClient{}, idx)
+	h.Search(context.Background(), mustQuery(t, h, "importers", "/r/demo/foo"))
+	if idx.importing != "gno.land/r/demo/foo" {
+		t.Fatalf("DeploysImporting asked for %q", idx.importing)
 	}
 }

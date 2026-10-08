@@ -212,6 +212,21 @@ func (c *Client) SourceContains(ctx context.Context, text, author string, limit 
 	return c.recent(ctx, where, limit)
 }
 
+// DeploysImporting returns the newest deploys whose source holds pkgPath as
+// a Go string literal, interpreted ("…") or raw (`…`), which is how an import
+// names it. A bare substring would also match gno.land/r/demo/foobar, and the
+// gnomod.toml of every gno.land/r/demo/foo/<sub>.
+//
+// A transaction matches when any package it deploys matches, and comes back
+// whole: the caller keeps the deploy messages and still cannot tell which of
+// a batch matched.
+func (c *Client) DeploysImporting(ctx context.Context, pkgPath string, limit int) ([]Tx, error) {
+	literal := "[\"`]" + regexp.QuoteMeta(pkgPath) + "[\"`]"
+	where := fmt.Sprintf(`messages: { value: { MsgAddPackage: { package: { files: { body: { like: %s } } } } } }`,
+		gqlString(literal))
+	return c.recent(ctx, where, limit)
+}
+
 // Block returns one block's header fields.
 func (c *Client) Block(ctx context.Context, height int) (*Block, error) {
 	var out struct {

@@ -41,6 +41,7 @@ type Indexer interface {
 	RecentByAddress(ctx context.Context, addr string, limit int) ([]indexer.Tx, error)
 	Deploys(ctx context.Context, pkgPath string, limit int) ([]indexer.Tx, error)
 	SourceContains(ctx context.Context, text, author string, limit int) ([]indexer.Tx, error)
+	DeploysImporting(ctx context.Context, pkgPath string, limit int) ([]indexer.Tx, error)
 	Block(ctx context.Context, height int) (*indexer.Block, error)
 	URL() string
 }

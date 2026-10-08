@@ -128,11 +128,11 @@ func indexerSelectors() []*Selector {
 	}
 }
 
-// resolveImporters lists packages whose source mentions this one. Labelled
-// "mentions", not "imports": a substring match counts comments and string
-// literals too.
+// resolveImporters lists packages whose source quotes this one's path.
+// Labelled "mentions", not "imports": a string literal outside an import
+// block counts too.
 func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, error) {
-	txs, err := h.deps.Indexer.SourceContains(ctx, q.ChainPath, "", recentLimit)
+	txs, err := h.deps.Indexer.DeploysImporting(ctx, q.ChainPath, recentLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -140,10 +140,11 @@ func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, err
 	seen := make(map[string]bool, len(txs))
 	out := make([]Result, 0, len(txs))
 	for _, tx := range txs {
+		batch := deployCount(tx) > 1
 		for _, m := range tx.Messages {
 			path := m.Path()
 			// A package always mentions itself; that is not an importer.
-			if path == "" || path == q.ChainPath || seen[path] {
+			if m.Type() != "MsgAddPackage" || path == "" || path == q.ChainPath || seen[path] {
 				continue
 			}
 			seen[path] = true
@@ -151,11 +152,32 @@ func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, err
 				Title:  path,
 				Detail: "deployed by " + m.Signer(),
 				Href:   chainPathHref(path, h.deps.Domain),
-				Tags:   []string{"mentions", "block " + strconv.Itoa(tx.Height)},
+				Tags:   batchTags(batch, "mentions", "block "+strconv.Itoa(tx.Height)),
 			})
 		}
 	}
 	return capResults(out), nil
+}
+
+// deployCount counts the packages a transaction deploys. The indexer returns
+// a matched transaction whole, every message included.
+func deployCount(tx indexer.Tx) int {
+	n := 0
+	for _, m := range tx.Messages {
+		if m.Type() == "MsgAddPackage" {
+			n++
+		}
+	}
+	return n
+}
+
+// batchTags marks a row from a transaction deploying several packages: the
+// indexer matched one of them, and does not say which.
+func batchTags(batch bool, tags ...string) []string {
+	if batch {
+		return append(tags, "batch deploy")
+	}
+	return tags
 }
 
 // resolveContent lists packages whose source contains the term. The indexer
@@ -172,9 +194,12 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 	seen := make(map[string]bool, len(txs))
 	out := make([]Result, 0, len(txs))
 	for _, tx := range txs {
+		batch := deployCount(tx) > 1
 		for _, m := range tx.Messages {
 			path := m.Path()
-			if path == "" || seen[path] {
+			// Only a deploy carries source; a call in the same transaction
+			// matched nothing.
+			if m.Type() != "MsgAddPackage" || path == "" || seen[path] {
 				continue
 			}
 			// Still checked per message: a transaction that matched may
@@ -187,7 +212,7 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 				Title:  path,
 				Detail: "deployed by " + m.Signer(),
 				Href:   chainPathHref(path, h.deps.Domain),
-				Tags:   []string{"contains " + term, "block " + strconv.Itoa(tx.Height)},
+				Tags:   batchTags(batch, "contains "+term, "block "+strconv.Itoa(tx.Height)),
 			})
 		}
 	}
