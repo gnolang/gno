@@ -857,12 +857,12 @@ func (sw *MultiplexSwitch) registerPeer(p PeerConn) (PeerConn, error) {
 	sw.registry.Lock()
 	defer sw.registry.Unlock()
 
-	registered := sw.peers.Get(p.ID())
+	registered, kept := sw.resolveDuplicate(p)
 	if registered == nil {
 		return nil, sw.peers.Add(p)
 	}
 
-	if sw.keepsRegistered(registered, p) {
+	if kept {
 		return nil, errDuplicatePeer
 	}
 
