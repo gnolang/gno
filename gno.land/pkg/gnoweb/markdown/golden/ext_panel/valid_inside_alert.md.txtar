@@ -1,0 +1,16 @@
+-- input.md --
+> [!TIP]
+> <gno-panel>
+> Panel inside an alert.
+> </gno-panel>
+-- output.html --
+<details class="gno-alert gno-alert-tip" open>
+<summary>
+<svg><use href="#ico-tip"></use></svg>Tip<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<section class="gno-panel">
+<p>Panel inside an alert.</p>
+</section>
+</div>
+</details>

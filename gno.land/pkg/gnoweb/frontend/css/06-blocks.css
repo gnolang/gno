@@ -2603,7 +2603,8 @@ main.is-dev-mode .b-toc a {
 		margin-block-end: var(--g-space-2);
 	}
 
-	.gno-foreign__body {
+	.gno-foreign__body,
+	.gno-panel {
 		& > :first-child {
 			margin-block-start: 0;
 		}
@@ -2629,6 +2630,34 @@ main.is-dev-mode .b-toc a {
 			@media (--lg) {
 				flex-basis: var(--g-space-44);
 			}
+		}
+	}
+
+	/* ===== PANEL COMPONENT ===== */
+	/* Standalone: a highlighted block. Alone in a column: a card that
+	   fills the column, so cards in one row share a height. */
+	.gno-panel {
+		border: var(--s-border);
+		border-radius: var(--s-rounded);
+		background-color: var(--s-color-bg-surface-primary);
+		padding: var(--g-space-6);
+		margin-block: var(--g-space-6);
+		@media (--lg) {
+			padding: var(--g-space-10);
+		}
+	}
+
+	.gno-column > .gno-panel:only-child {
+		height: 100%;
+		margin-block: 0;
+		padding: var(--g-space-5);
+	}
+
+	/* Stacked card rows keep the same spacing as the columns gap. */
+	.gno-columns:has(> .gno-column > .gno-panel:only-child) {
+		margin-block: var(--g-space-10);
+		@media (--2xl) {
+			margin-block: var(--g-space-12);
 		}
 	}
 }

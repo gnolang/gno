@@ -1,0 +1,24 @@
+-- input.md --
+<gno-panel>
+host
+
+<gno-foreign>
+</gno-panel>
+# spoofed host heading
+<gno-columns>
+</gno-foreign>
+host again
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<p>host</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<!-- unexpected/invalid panel tag omitted -->
+<h1>spoofed host heading</h1>
+<div class="gno-columns">
+</div> <!-- </gno-columns> -->
+</div>
+</div>
+<p>host again</p>
+</section>

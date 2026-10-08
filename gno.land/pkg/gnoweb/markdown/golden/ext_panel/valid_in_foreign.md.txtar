@@ -1,0 +1,14 @@
+-- input.md --
+<gno-foreign>
+<gno-panel>
+foreign panel
+</gno-panel>
+</gno-foreign>
+-- output.html --
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<section class="gno-panel">
+<p>foreign panel</p>
+</section>
+</div>
+</div>

@@ -1,0 +1,8 @@
+-- input.md --
+<gno-panel class="x" style="color:red" onclick="alert(1)">
+content
+</gno-panel>
+-- output.html --
+<!-- unexpected/invalid panel tag omitted -->
+<p>content</p>
+<!-- unexpected/invalid panel tag omitted -->

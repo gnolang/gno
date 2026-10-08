@@ -1,0 +1,6 @@
+-- input.md --
+<gno-panel/>
+after
+-- output.html --
+<!-- unexpected/invalid panel tag omitted -->
+<p>after</p>

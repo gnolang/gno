@@ -1,0 +1,13 @@
+-- input.md --
+- item
+  <gno-panel>
+  inside list
+  </gno-panel>
+-- output.html --
+<ul>
+<li>item
+<section class="gno-panel">
+<p>inside list</p>
+</section>
+</li>
+</ul>

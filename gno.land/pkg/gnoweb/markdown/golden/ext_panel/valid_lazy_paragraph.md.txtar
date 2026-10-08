@@ -1,0 +1,10 @@
+-- input.md --
+<gno-panel>
+line one
+line two
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<p>line one
+line two</p>
+</section>

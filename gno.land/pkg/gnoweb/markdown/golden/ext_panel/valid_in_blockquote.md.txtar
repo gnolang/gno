@@ -1,0 +1,10 @@
+-- input.md --
+> <gno-panel>
+> inside quote
+> </gno-panel>
+-- output.html --
+<blockquote>
+<section class="gno-panel">
+<p>inside quote</p>
+</section>
+</blockquote>

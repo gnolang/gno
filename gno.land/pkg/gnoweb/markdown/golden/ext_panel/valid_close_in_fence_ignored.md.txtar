@@ -1,0 +1,13 @@
+-- input.md --
+<gno-panel>
+```md
+</gno-panel>
+```
+still inside
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<pre><code class="language-md">&lt;/gno-panel&gt;
+</code></pre>
+<p>still inside</p>
+</section>

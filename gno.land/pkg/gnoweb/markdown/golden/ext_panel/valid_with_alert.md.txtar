@@ -1,0 +1,16 @@
+-- input.md --
+<gno-panel>
+> [!NOTE]
+> Alerts work inside a panel.
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Note<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>Alerts work inside a panel.</p>
+</div>
+</details>
+</section>

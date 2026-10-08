@@ -1,0 +1,23 @@
+-- input.md --
+<gno-panel>
+<img src=x onerror=alert(1)>
+</gno-panel>
+
+<gno-panel>
+<script>alert(1)</script>
+
+[x](javascript:alert(1))
+
+</section><section class="evil">
+</gno-panel>
+after
+-- output.html --
+<section class="gno-panel">
+<!-- raw HTML omitted -->
+</section>
+<section class="gno-panel">
+<!-- raw HTML omitted -->
+<p><a href="" rel="noopener nofollow ugc">x<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
+<!-- raw HTML omitted -->
+</section>
+<p>after</p>

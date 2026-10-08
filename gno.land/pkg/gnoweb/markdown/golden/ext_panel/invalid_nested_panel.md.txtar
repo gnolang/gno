@@ -1,0 +1,16 @@
+-- input.md --
+<gno-panel>
+outer
+<gno-panel>
+inner
+</gno-panel>
+after inner close
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<p>outer</p>
+<!-- unexpected/invalid panel tag omitted -->
+<p>inner</p>
+</section>
+<p>after inner close</p>
+<!-- unexpected/invalid panel tag omitted -->

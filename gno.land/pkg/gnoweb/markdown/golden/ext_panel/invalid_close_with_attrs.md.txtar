@@ -1,0 +1,12 @@
+-- input.md --
+<gno-panel>
+content
+</gno-panel class="x">
+still inside
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<p>content</p>
+</section>
+<p>still inside</p>
+<!-- unexpected/invalid panel tag omitted -->

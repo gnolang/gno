@@ -78,6 +78,9 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add column extension
 	ExtColumns.Extend(m)
 
+	// Add panel extension
+	ExtPanels.Extend(m)
+
 	// Add alert extension
 	ExtAlerts.Extend(m)
 

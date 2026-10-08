@@ -1,0 +1,6 @@
+-- input.md --
+<gno-panel>
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+</section>
