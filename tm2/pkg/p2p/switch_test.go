@@ -633,8 +633,6 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 		var (
 			ch = make(chan struct{}, 1)
 
-			peerDialed bool
-
 			p        = mock.GeneratePeers(t, 1)[0]
 			dialTime = time.Now().Add(-5 * time.Second) // in the past
 
@@ -644,8 +642,6 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 					_ types.NetAddress,
 					_ PeerBehavior,
 				) (PeerConn, error) {
-					peerDialed = true
-
 					cancelFn()
 
 					ch <- struct{}{}
@@ -671,9 +667,13 @@ func TestMultiplexSwitch_DialLoop(t *testing.T) {
 		case <-time.After(5 * time.Second):
 		}
 
-		require.True(t, sw.Peers().Has(p.ID()))
-
-		assert.True(t, peerDialed)
+		// The dial signals before dialPeer registers the peer
+		require.Eventually(
+			t,
+			func() bool { return sw.Peers().Has(p.ID()) },
+			5*time.Second,
+			10*time.Millisecond,
+		)
 	})
 }
 
