@@ -404,3 +404,28 @@ func TestAccentWithoutArgument(t *testing.T) {
 		assert.Regexp(t, `<m(over|under) accent="true"><mrow></mrow><mo stretchy="true">.</mo></m(over|under)>`, out, tex)
 	}
 }
+
+// MathML Core honours movablelimits, lspace and rspace on <mo> only, so
+// operator names are <mo>: the limit of an inline \lim moves to a subscript,
+// and the thin space TeX puts between an operator name and an ordinary
+// neighbour is drawn. Next to an operator, the operator's own spacing
+// applies, and before an opening bracket, as in \sin(x), TeX puts none.
+// Between two names, as in \sin\cos, there is one thin space.
+func TestOperatorNameSpacing(t *testing.T) {
+	for tex, want := range map[string]string{
+		`\sin`:                               `<mo lspace="0" rspace="0">sin</mo>`,
+		`a\sin x`:                            `<mi>a</mi><mo lspace="0.1667em" rspace="0.1667em">sin</mo><mi>x</mi>`,
+		`\sin(x)`:                            `<mo lspace="0" rspace="0">sin</mo><mo form="prefix" stretchy="false">(</mo>`,
+		`2\log_2 n`:                          `<mn>2</mn><msub><mo lspace="0.1667em" rspace="0.1667em">log</mo><mn>2</mn></msub><mi>n</mi>`,
+		`x=\sin^2\theta`:                     `<mo>=</mo><msup><mo lspace="0" rspace="0.1667em">sin</mo><mn>2</mn></msup><mi>θ</mi>`,
+		`\lim_{x\to0} f`:                     `<munder><mo lspace="0" movablelimits="true" rspace="0.1667em">lim</mo>`,
+		`\max\{a,b\}`:                        `<mo lspace="0" movablelimits="true" rspace="0">max</mo><mo stretchy="true">{</mo>`,
+		`\sin\cos x`:                         `<mo lspace="0" rspace="0.1667em">sin</mo><mo lspace="0" rspace="0.1667em">cos</mo>`,
+		`\lim\limits_{n} a`:                  `<munder><mo lspace="0" movablelimits="false" rspace="0.1667em">lim</mo><mi>n</mi></munder></mrow><mi>a</mi>`,
+		`\begin{matrix}a&\sin x\end{matrix}`: `<mtd><mo lspace="0" rspace="0.1667em">sin</mo><mi>x</mi></mtd>`,
+	} {
+		out := convertWithin(t, tex, false)
+		assert.Contains(t, out, want, tex)
+		assert.NotContains(t, out, "<mi lspace", tex)
+	}
+}

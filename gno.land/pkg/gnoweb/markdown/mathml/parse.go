@@ -29,6 +29,7 @@ const (
 	propInfixOver
 	propInfixChoose
 	propInfixAtop
+	propOperatorName
 )
 
 const (
@@ -340,6 +341,7 @@ func (n *MMLNode) doPostProcess() {
 		n.postProcessInfix()
 		n.postProcessLimitSwitch()
 		n.postProcessScripts()
+		n.postProcessOperatorNames()
 		n.postProcessSpace()
 		n.postProcessChars()
 	}
@@ -371,6 +373,83 @@ func (n *MMLNode) postProcessLimitSwitch() {
 			placeholder.Properties = propNonprint
 			n.Children[i-1], n.Children[i] = placeholder, n.Children[i-1]
 		}
+	}
+}
+
+// embellishedCore returns the node whose spacing applies to n: n itself, or
+// the base of n if n is a script or a one-child mrow around one.
+func embellishedCore(n *MMLNode) *MMLNode {
+	for n != nil {
+		switch n.Tag {
+		case "msub", "msup", "msubsup", "munder", "mover", "munderover":
+			if len(n.Children) == 0 {
+				return n
+			}
+			n = n.Children[0]
+		case "mrow":
+			var only *MMLNode
+			for _, c := range n.Children {
+				if c != nil && c.Properties&propNonprint == 0 {
+					if only != nil {
+						return n
+					}
+					only = c
+				}
+			}
+			if only == nil {
+				return n
+			}
+			n = only
+		default:
+			return n
+		}
+	}
+	return nil
+}
+
+// postProcessOperatorNames sets the space TeX puts around an operator name
+// (\sin, \lim...): a thin space on each side that faces an ordinary
+// neighbour (a letter, a number, a fraction, a \left...\right group), and
+// after the name if another name follows. Next to an operator, the
+// operator's own spacing applies; before an opening bracket, as in \sin(x),
+// TeX puts none. The names are <mo> elements, so the space is set as their
+// lspace and rspace, which MathML Core honours on <mo> only.
+func (n *MMLNode) postProcessOperatorNames() {
+	printed := make([]*MMLNode, 0, len(n.Children))
+	for _, c := range n.Children {
+		if c != nil && c.Properties&propNonprint == 0 {
+			printed = append(printed, c)
+		}
+	}
+	// kind is 0 for a cell or row separator, 1 for an operator, 2 for an
+	// operator name and 3 for anything else.
+	kind := func(i int) int {
+		if i < 0 || i >= len(printed) || printed[i].Properties&(propCellSep|propRowSep) > 0 {
+			return 0
+		}
+		core := embellishedCore(printed[i])
+		switch {
+		case core.Properties&propOperatorName > 0:
+			return 2
+		case core.Tag == "mo":
+			return 1
+		}
+		return 3
+	}
+	for i := range printed {
+		if kind(i) != 2 {
+			continue
+		}
+		core := embellishedCore(printed[i])
+		lspace, rspace := "0", "0"
+		if kind(i-1) == 3 {
+			lspace = "0.1667em"
+		}
+		if k := kind(i + 1); k >= 2 {
+			rspace = "0.1667em"
+		}
+		core.SetAttr("lspace", lspace)
+		core.SetAttr("rspace", rspace)
 	}
 }
 

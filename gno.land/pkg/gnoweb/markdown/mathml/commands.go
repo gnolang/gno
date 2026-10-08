@@ -216,10 +216,20 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	}
 
 	if prop, ok := command_identifiers[name]; ok {
-		n := NewMMLNode("mi")
+		// An operator name is an <mo>: MathML Core honours movablelimits,
+		// lspace and rspace on <mo> only. postProcessOperatorNames sets its
+		// space from its neighbours; alone, it has none.
+		n := NewMMLNode("mo")
+		if prop&propNonprint > 0 {
+			// \limits and \nolimits
+			n.Tag = "mi"
+		} else {
+			prop |= propOperatorName
+			n.SetAttr("lspace", "0")
+			n.SetAttr("rspace", "0")
+		}
 		n.Properties = prop
 		n.Text = name
-		n.SetAttr("lspace", "0.11111em")
 		n.Tok = tok
 		n.set_variants_from_context(context)
 		n.setAttribsFromProperties()
