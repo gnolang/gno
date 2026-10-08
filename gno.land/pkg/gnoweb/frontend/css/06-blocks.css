@@ -1085,7 +1085,8 @@
 	}
 }
 
-.b-btn {
+.b-btn,
+:is(.c-realm-view, .c-readme-view) a.gno-button {
 	display: inline-flex;
 	border-radius: var(--s-rounded-sm);
 	border: var(--s-border);
@@ -1103,7 +1104,8 @@
 	}
 }
 
-.b-btn--secondary {
+.b-btn--secondary,
+:is(.c-realm-view, .c-readme-view) a.gno-button {
 	background-color: var(--s-color-bg-surface-secondary);
 
 	&:hover {
@@ -1126,7 +1128,8 @@
 /* Ghost variant — transparent + link-coloured text/border. Calmer
    than `b-btn--secondary` so the primary affordance still wins focus
    on the same surface. For navigation CTAs / escape hatches. */
-.b-btn--ghost {
+.b-btn--ghost,
+:is(.c-realm-view, .c-readme-view) a.gno-button-outline {
 	background-color: transparent;
 	border-color: var(--s-color-border-primary);
 	color: var(--s-color-text-link);
@@ -3227,37 +3230,26 @@ main.is-dev-mode .b-toc a {
 	}
 
 	/* ===== BUTTON COMPONENT ===== */
-	/* <gno-button /> renders a link (<a class="gno-button">), so it keeps the
-	   link icons and rel. Each variant only sets the three colors:
-	   --gb-bg / --gb-on for the solid fill, --gb-text for the outline. */
+	/* <gno-button /> renders a link (<a class="gno-button">) styled by the UI
+	   buttons it is grouped with above: .b-btn + .b-btn--secondary by
+	   default, .b-btn--ghost for `outline`. This only adapts it to content
+	   (wrapping, rhythm, link resets) and maps the variants to the semantic
+	   tokens the alerts use. */
 	a.gno-button {
-		--gb-bg: var(--s-color-bg-brand-default);
-		--gb-on: var(--s-color-text-base);
-		--gb-text: var(--s-color-text-link);
-
-		display: inline-flex;
 		align-items: center;
-		gap: var(--cr-space-1);
+		min-width: 0;
 		max-width: 100%;
 		vertical-align: middle;
 		margin-block: var(--cr-space-0-5);
-		padding: var(--cr-space-1-5) var(--cr-space-3);
-		border: 1px solid var(--gb-bg);
-		border-radius: var(--s-rounded-sm);
-		background-color: var(--gb-bg);
-		color: var(--gb-on);
 		font-weight: var(--g-font-medium);
 		line-height: 1.25;
 		text-decoration: none;
-		transition: background-color var(--g-transition-fast);
+		transition:
+			background-color var(--g-transition-fast),
+			border-color var(--g-transition-fast);
 
 		&:hover {
 			text-decoration: none;
-			background-color: color-mix(
-				in srgb,
-				var(--gb-bg) 85%,
-				var(--s-color-text-primary)
-			);
 		}
 
 		&:focus-visible {
@@ -3269,33 +3261,61 @@ main.is-dev-mode .b-toc a {
 			margin: 0;
 		}
 
+		/* Content links are link-coloured; a filled button reads as text. */
+		&:not(.gno-button-outline) {
+			color: var(--s-color-text-primary);
+		}
+
 		&.gno-button-caution {
-			--gb-bg: var(--s-color-bg-caution-default);
-			--gb-text: var(--s-color-text-caution);
+			background-color: var(--s-color-bg-caution-weak);
+			border-color: var(--s-color-border-error);
+			color: var(--s-color-text-caution);
 		}
 
 		&.gno-button-warning {
-			--gb-bg: var(--s-color-bg-warning-default);
-			--gb-on: var(--g-color-gray-900);
-			--gb-text: var(--s-color-text-warning);
+			background-color: var(--s-color-bg-warning-weak);
+			border-color: var(--s-color-border-warning);
+			color: var(--s-color-text-warning);
 		}
 
 		&.gno-button-info {
-			--gb-bg: var(--s-color-bg-info-default);
-			--gb-text: var(--s-color-text-info);
+			background-color: var(--s-color-bg-info-weak);
+			border-color: var(--s-color-border-info);
+			color: var(--s-color-text-info);
 		}
 
 		&.gno-button-note {
-			--gb-bg: var(--s-color-bg-note-default);
-			--gb-text: var(--s-color-text-note);
+			background-color: var(--s-color-bg-note-weak);
+			border-color: var(--s-color-border-note);
+			color: var(--s-color-text-note);
 		}
 
+		&:is(
+			.gno-button-caution,
+			.gno-button-warning,
+			.gno-button-info,
+			.gno-button-note
+		):hover {
+			border-color: currentColor;
+		}
+
+		/* Outline: the border is the only shape, so it takes the text colour
+		   (>= 4.5:1). link-hover is the link token that passes AA in dark. */
 		&.gno-button-outline {
 			background-color: transparent;
-			color: var(--gb-text);
+			border-color: currentColor;
+
+			&:not(:is(
+				.gno-button-caution,
+				.gno-button-warning,
+				.gno-button-info,
+				.gno-button-note
+			)) {
+				color: var(--s-color-text-link-hover);
+			}
 
 			&:hover {
-				background-color: color-mix(in srgb, var(--gb-text) 8%, transparent);
+				background-color: color-mix(in srgb, currentColor 8%, transparent);
 			}
 		}
 	}
