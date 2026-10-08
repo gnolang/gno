@@ -1,0 +1,10 @@
+-- input.md --
+<gno-panel>
+*a
+</gno-panel>
+b*
+-- output.html --
+<section class="gno-panel">
+<p>*a</p>
+</section>
+<p>b*</p>

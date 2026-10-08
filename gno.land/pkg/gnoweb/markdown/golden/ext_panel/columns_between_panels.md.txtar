@@ -1,0 +1,27 @@
+-- input.md --
+<gno-panel>
+first
+</gno-panel>
+<gno-columns>
+<gno-panel>
+card
+</gno-panel>
+</gno-columns>
+<gno-panel>
+last
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<p>first</p>
+</section>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<section class="gno-panel">
+<p>card</p>
+</section>
+</div>
+</div> <!-- </gno-columns> -->
+<section class="gno-panel">
+<p>last</p>
+</section>

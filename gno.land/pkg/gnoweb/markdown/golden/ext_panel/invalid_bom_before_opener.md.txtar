@@ -1,0 +1,8 @@
+-- input.md --
+﻿<gno-panel>
+x
+</gno-panel>
+-- output.html --
+<p>﻿<!-- raw HTML omitted -->
+x</p>
+<!-- unexpected/invalid panel tag omitted -->

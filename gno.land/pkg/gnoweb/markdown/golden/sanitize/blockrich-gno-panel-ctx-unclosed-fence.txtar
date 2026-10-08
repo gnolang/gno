@@ -1,0 +1,20 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: <gno-panel>\nrealm intro\n%s\nrealm footer\n</gno-panel>\n\nREALM AFTER
+-- input.md --
+```
+code
+-- output.md --
+
+
+```
+code
+```
+
+-- output.html --
+<section class="gno-panel">
+<p>realm intro</p>
+<pre><code>code
+</code></pre>
+<p>realm footer</p>
+</section>
+<p>REALM AFTER</p>

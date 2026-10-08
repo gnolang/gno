@@ -1,0 +1,12 @@
+-- input.md --
+<gno-panel>
+Title
+---
+
+***
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<h2>Title</h2>
+<hr>
+</section>

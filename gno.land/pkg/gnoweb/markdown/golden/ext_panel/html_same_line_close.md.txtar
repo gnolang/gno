@@ -1,0 +1,12 @@
+-- input.md --
+<gno-panel>
+<div></gno-panel>
+after
+
+later
+</gno-panel>
+-- output.html --
+<section class="gno-panel">
+<!-- raw HTML omitted -->
+<p>later</p>
+</section>

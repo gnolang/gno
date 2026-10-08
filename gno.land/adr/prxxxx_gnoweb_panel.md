@@ -64,7 +64,18 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_panel.go`.
   `</gno-panel>` would swallow the close tag and stretch the panel over the
   page. The extension registers goldmark's own HTML block parser wrapped so
   that, while a panel is open, a line that ends the panel also ends a
-  document-level HTML block. Safe mode strips that HTML anyway.
+  document-level HTML block, whatever its type (a `<!--` or `<script>` block
+  is cut short too). Safe mode strips that HTML anyway. Only a tag alone on
+  its line counts: `<div></gno-panel>` stays inside the HTML block
+  (golden `html_same_line_close`).
+- **Bare-CR line endings.** goldmark splits lines on `\n` only, so a page
+  with `\r` line endings is one long line. A tag followed by `\r` is then
+  not treated as a tag line, and the text after it is kept (golden
+  `cr_only_line_endings`).
+- **Accessibility.** The wrapper is a `<section>` with no accessible name, so
+  assistive tech exposes it as a generic group, not a landmark. That fits a
+  visual frame around author content; naming it would mean pointing at a
+  heading id, which the `<gno-foreign>` instance does not generate.
 - **Sandbox parity.** The `<gno-foreign>` inner instance loads the panel
   extension like columns and alerts, so a panel inside foreign content
   renders inside the sandbox, and a `</gno-panel>` in untrusted foreign bytes
@@ -101,11 +112,14 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_panel.go`.
 ## Consequences
 
 - Realms and static pages get heroes and card grids without raw HTML.
-- `p/nt/markdown/sanitize` escapes a line-leading `<gno-…`, and after a `>`
-  or list marker a panel tag stays an inert comment, so sanitized user
-  content cannot open a panel (goldens `blockrich-gno-panel-escaped`,
-  `blockrich-gno-panel-in-blockquote`, `blockrich-gno-panel-in-list`). No
-  sanitizer change.
+- `p/nt/markdown/sanitize` escapes a line-leading `<gno-…` (any case, 1-3
+  space indent), and after a `>` or list marker a panel tag stays an inert
+  comment (goldens `blockrich-gno-panel-*`, `block-gno-panel-escaped`). No
+  sanitizer change in this PR. Known gap on master, fixed separately in
+  `chain/markdown`: a fence indented under a list item makes the sanitizer
+  skip the escape on the next unindented line, which goldmark parses at
+  document level, so user content can open or close a panel there (the same
+  shape already reaches `<gno-columns>` tags today).
 - Panels cannot sit inside a list, a quote or an alert. Alerts, lists, quotes,
   code and forms inside a panel work.
 - An unterminated fenced code block inside a panel runs to the end of the

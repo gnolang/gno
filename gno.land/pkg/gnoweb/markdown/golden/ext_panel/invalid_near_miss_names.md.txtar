@@ -1,0 +1,12 @@
+-- input.md --
+<gno-panelx>
+swallowed
+
+<gno-panel-foo>
+swallowed
+
+after
+-- output.html --
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<p>after</p>
