@@ -26,7 +26,7 @@ type PeerConn interface {
 	RemoteAddr() net.Addr // remote address of the connection
 
 	IsOutbound() bool   // did we dial the peer
-	IsPersistent() bool // do we redial this peer when we disconnect
+	IsPersistent() bool // is the peer in the switch's persistent peer set
 	IsPrivate() bool    // do we share the peer
 
 	CloseConn() error // close original connection

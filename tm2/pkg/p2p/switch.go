@@ -34,8 +34,8 @@ var (
 	// missing persistent peers
 	defaultRedialInterval = 5 * time.Second
 
-	// persistentRedialMaxBackoff is the longest wait between two dials of a
-	// missing persistent peer
+	// persistentRedialMaxBackoff is the ceiling of the backoff between two dials
+	// of a missing persistent peer, before its jitter
 	persistentRedialMaxBackoff = 30 * time.Second
 )
 
