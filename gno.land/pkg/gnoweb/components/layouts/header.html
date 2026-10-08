@@ -23,13 +23,14 @@ LAYOUT - Header component
               gno.land Search
             </label>
             <input id="header-input-search" name="q" data-searchbar-target="input"
-              type="text" value="{{ .RealmPath }}" role="combobox"
-              aria-expanded="false" aria-controls="omnisearch-results"
+              type="text" value="{{ .RealmPath }}" placeholder="Search realms, packages and users"
+              aria-keyshortcuts="/" role="combobox" aria-expanded="false" aria-controls="omnisearch-results"
               aria-autocomplete="list" autocomplete="off"
               data-action="input->searchbar#search" />
+            <kbd class="b-tag shortcut" aria-hidden="true">/</kbd>
           </form>
 
-          {{ template "ui/breadcrumb" .Breadcrumb }}
+          {{ if or .Breadcrumb.Parts .Breadcrumb.ArgParts .Breadcrumb.Queries }}{{ template "ui/breadcrumb" .Breadcrumb }}{{ end }}
         </div>
 
         <div id="omnisearch-results" class="b-omnisearch" data-searchbar-target="results" role="listbox" hidden></div>

@@ -71,8 +71,9 @@ type AppConfig struct {
 	// RenderConfig defines the default configuration for rendering realms and source files.
 	RenderConfig RenderConfig
 	// StateRateLimitPerMinute caps the per-IP request rate against
-	// ?state* URLs (also used as the token-bucket burst). 0 ⇒ the
-	// HTTPHandler default (100/min). ADR-003 §Resource bounds.
+	// ?state* URLs and, in a separate bucket, $search (also used as the
+	// token-bucket burst). 0 ⇒ the HTTPHandler default (1200/min).
+	// ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies is the list of trusted reverse-proxy
 	// CIDRs (or bare IPs) for the per-IP rate limiter. X-Real-IP is honored
@@ -106,15 +107,15 @@ type AppConfig struct {
 func NewDefaultAppConfig() *AppConfig {
 	const localRemote = "127.0.0.1:26657"
 	return &AppConfig{
-		NodeRemote:              localRemote, // local first
-		RemoteHelp:              localRemote, // local first
-		NodeRequestTimeout:      time.Minute,
-		AssetsPath:              "/public/",
-		Domain:                  "gno.land",
-		Aliases:                 DefaultAliases,
-		RenderConfig:            NewDefaultRenderConfig(),
-		StateRateLimitPerMinute: 100,
-		MaxConcurrentRPC:        32,
+		NodeRemote:         localRemote, // local first
+		RemoteHelp:         localRemote, // local first
+		NodeRequestTimeout: time.Minute,
+		AssetsPath:         "/public/",
+		Domain:             "gno.land",
+		Aliases:            DefaultAliases,
+		RenderConfig:       NewDefaultRenderConfig(),
+		// StateRateLimitPerMinute stays 0 so the handler default applies.
+		MaxConcurrentRPC: 32,
 	}
 }
 

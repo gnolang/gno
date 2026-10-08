@@ -399,3 +399,23 @@ func TestHealthEndpoints(t *testing.T) {
 		})
 	})
 }
+
+// The binaries (cmd/gnoweb, gnodev) start from NewDefaultAppConfig, so its
+// rate is the one production runs. Behind a proxy without -trusted-proxies
+// every visitor shares a bucket, and omnibar typeahead must not hit 429 at
+// the old 100/min.
+func TestDefaultConfigSearchRateLimit(t *testing.T) {
+	cfg := NewDefaultAppConfig()
+	cfg.NodeRemote = sharedNodeRemote(t)
+	router, err := NewRouter(log.NewTestingLogger(t), cfg)
+	require.NoError(t, err)
+
+	for i := range 150 {
+		request := httptest.NewRequest(http.MethodGet, "/$search?q=blog&json", nil)
+		request.RemoteAddr = "192.0.2.1:1234"
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		require.NotEqual(t, http.StatusTooManyRequests, response.Code,
+			"request %d from one IP was rate-limited under the default config", i+1)
+	}
+}
