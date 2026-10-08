@@ -61,12 +61,7 @@ package. Every command takes the same base flags, and
 `gnokey maketx <command> -h` lists each with its default. What the help leaves
 out:
 
-- `-gas-fee` is what you pay, in full, once the transaction is in a block, and
-  `-gas-wanted` caps the gas it may use; `gnokey` never fills either in for you.
-  Run the transaction with `-simulate only` to get good values, as shown in
-  [Gas estimation](./gas-fees.md#gas-estimation). The default `-simulate test`
-  then guards them: a transaction that fails simulation is never broadcast, and
-  no fee is spent.
+- `-gas-wanted` and `-gas-fee`: see [Gas fees](./gas-fees.md).
 - `-chainid` defaults to `dev` and `-remote` to `127.0.0.1:26657`, a local node.
   For any other network, set both to the matching pair from
   [Network configuration](./gnoland-networks.md).
@@ -74,9 +69,6 @@ out:
   first step of [airgapped signing](../../gno.land/cmd/gnokey/README.md#airgapped-signing).
 - `-master` names the master account when a
   [session](../../gno.land/cmd/gnokey/README.md#session) key signs.
-
-State-changing calls cost gas paid in GNOT, so on testnets grab some from the
-[Faucet Hub](https://faucet.gno.land) first.
 
 Every successful transaction prints the same summary. The line above `OK!`
 holds a `Call`'s return value, and is empty for a send:
@@ -91,13 +83,6 @@ EVENTS:     [{"from":"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5","to":"g1khhdctaw
 INFO:
 TX HASH:    HFobWN0hrLQzHeNyYgPMigfwgiQ0dtlgOTlltmMl/hg=
 ```
-
-- `GAS WANTED` - the gas units you requested
-- `GAS USED` - the gas actually consumed
-- `HEIGHT` - the block the transaction landed in
-- `EVENTS` - any [Gno events](./gno-stdlibs.md#events) the call emitted
-- `INFO` - extra information from the message handler (usually empty)
-- `TX HASH` - the transaction's hash
 
 Transactions that change [storage deposits](./storage-deposit.md) add
 `STORAGE DELTA`, `STORAGE FEE` (or `STORAGE REFUND`), and `TOTAL TX COST`
@@ -448,11 +433,8 @@ data: {
 }
 ```
 
-`data` holds a `GasPrice`: `gas` is the gas units and `price` is their cost as a
-[coin](./gno-stdlibs.md#coin). The network adjusts the price after each block based
-on demand; this query returns the value from the most recently completed block, the
-minimum for new transactions. For a deeper explanation, see
-[Gas Price](./gas-fees.md#gas-price).
+`data` holds a `GasPrice`: `gas` units cost `price`. How the network moves it is
+in [Gas price](./gas-fees.md#gas-price).
 
 ### `vm/qfuncs`
 
@@ -687,8 +669,5 @@ height: 0
 data: storage: 1297109, deposit: 129710900
 ```
 
-`storage` is the total bytes used; `deposit` is the `ugnot` the realm has locked.
-Dividing the two gives the average price the realm paid per byte, here
-`100ugnot`. That is the current price only while the `vm:p:storage_price`
-parameter has not changed since; query `params/vm:p:storage_price` for the
-current one.
+`storage` is the bytes the realm uses and `deposit` the `ugnot` it has locked;
+see [Storage deposit](./storage-deposit.md).
