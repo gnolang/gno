@@ -291,6 +291,57 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		_, disconnected := countPeerEvents(evCh)
 		assert.Equal(t, 1, disconnected)
 	})
+
+	t.Run("a socket closed by the stop is not logged as an error", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name      string
+			closeErr  error
+			wantError bool
+		}{
+			{
+				"already closed by the stop",
+				&net.OpError{Op: "close", Err: net.ErrClosed},
+				false,
+			},
+			{
+				"any other close error",
+				errors.New("close failed"),
+				true,
+			},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				var (
+					sw = NewMultiplexSwitch(&mockTransport{removeFn: func(PeerConn) {}})
+					p  = mock.GeneratePeers(t, 1)[0]
+				)
+
+				p.CloseConnFn = func() error { return testCase.closeErr }
+				withRealStop(p)
+
+				logs := captureLogs(sw)
+
+				require.NoError(t, sw.addPeer(p))
+
+				sw.StopPeerForError(p, errors.New("peer error"))
+
+				const closeFailure = "unable to gracefully close peer connection"
+
+				if testCase.wantError {
+					assert.Contains(t, logs.String(), closeFailure)
+
+					return
+				}
+
+				assert.NotContains(t, logs.String(), closeFailure)
+			})
+		}
+	})
 }
 
 // peerErrorOnStart reports a peer error to the switch from inside Start, the
@@ -2447,12 +2498,21 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 				return "theirs"
 			}
 
-			oursClosed bool
-			oursReason error
+			sw           *MultiplexSwitch
+			oursClosed   bool
+			oursReported bool
+			oursReason   error
 		)
 
 		ours.CloseConnFn = func() error {
 			oursClosed = true
+
+			// A recv routine still running reports the closed socket, once,
+			// as MConnection.stopForError does
+			if ours.IsRunning() && !oursReported {
+				oursReported = true
+				sw.StopPeerForError(ours, errors.New("EOF"))
+			}
 
 			return nil
 		}
@@ -2474,7 +2534,7 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 			},
 		}
 
-		sw := switchWithID(upper, WithReactor("mock", reactor))
+		sw = switchWithID(upper, WithReactor("mock", reactor))
 
 		logs := captureLogs(sw)
 
