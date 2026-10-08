@@ -941,8 +941,29 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			continue
 		}
 
+		// A second connection to an already connected peer is refused, unless
+		// it wins the tie-break of a simultaneous open and replaces the
+		// registered one
+		registered, kept := sw.resolveDuplicate(p)
+		if kept {
+			sw.Logger.Info(
+				"Ignoring inbound connection: already connected",
+				"address", p.SocketAddr(),
+				"id", p.ID(),
+				"kept", direction(registered),
+			)
+
+			sw.rejectConn(p)
+			continue
+		}
+
+		// A connection replacing a registered one takes no new peer slot, so
+		// the inbound limit and the duplicate-IP guard, which stops a single
+		// host from filling the inbound slots, only apply to a new peer
+		replacing := registered != nil
+
 		// Ignore connection if we already have enough peers.
-		if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
+		if in := sw.Peers().NumInbound(); !replacing && in >= sw.maxInboundPeers {
 			sw.Logger.Info(
 				"Ignoring inbound connection: already have enough inbound peers",
 				"address", p.SocketAddr(),
@@ -954,22 +975,10 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			continue
 		}
 
-		// Reject duplicate peer IDs
-		if sw.peers.Has(p.ID()) {
-			sw.Logger.Info(
-				"Ignoring inbound connection: already connected",
-				"address", p.SocketAddr(),
-				"id", p.ID(),
-			)
-
-			sw.rejectConn(p)
-			continue
-		}
-
 		// Reject a second connection from an IP that already holds a peer slot.
 		// Peer IDs are self-generated node keys, so without this a single host
 		// can mint fresh identities and occupy every inbound slot.
-		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP()) {
+		if !replacing && !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP()) {
 			sw.Logger.Info(
 				"Ignoring inbound connection: peer from this IP already connected",
 				"address", p.SocketAddr(),
