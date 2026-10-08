@@ -116,6 +116,21 @@ func TestFrameEOFWithoutNewline(t *testing.T) {
 	}
 }
 
+// TestFrameNULInTag covers a NUL byte in a tag name, which would make a
+// golden txtar a binary file for git: the line is no tag line, and
+// goldmark renders the NUL as U+FFFD.
+func TestFrameNULInTag(t *testing.T) {
+	const in = "<gno-frame\x00>\n\nafter\n"
+	const want = "<p>&lt;gno-frame\ufffd&gt;</p>\n<p>after</p>\n"
+	var buf bytes.Buffer
+	if err := convertGno(newGnoMarkdown(), []byte(in), &buf); err != nil {
+		t.Fatal(err)
+	}
+	if buf.String() != want {
+		t.Errorf("%q rendered %q, want %q", in, buf.String(), want)
+	}
+}
+
 // TestFrameAllocsScaleLinearly guards against per-frame cost growing with
 // the page: ten times the frames must cost about ten times the allocations.
 // Allocation counts are deterministic, unlike wall-clock ratios; see

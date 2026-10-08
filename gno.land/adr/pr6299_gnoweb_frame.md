@@ -168,6 +168,8 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   inside a frame work.
 - An unterminated fenced code block inside a frame runs to the end of the
   document, as it does at top level.
-- `scanGnoTag` and its test are copied byte for byte from the gno-button
-  branch; whichever PR lands second drops its copy.
+- `scanGnoTag` is shared with the gno-button branch (#6298). This PR adds
+  `trimTagLine` to `utils.go`, and #6298 adds `FuzzScanGnoTag` to
+  `utils_test.go`; whichever PR lands second merges both instead of dropping
+  either copy.
 - Docs: a "Frames" section in `r/docs/markdown`, next to Columns.
