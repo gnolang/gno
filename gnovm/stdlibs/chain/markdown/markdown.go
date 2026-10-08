@@ -584,34 +584,21 @@ func indentColumns(lead string) int {
 const gnoButtonTag = "<gno-button"
 
 // escapeGnoButtonTags backslash-escapes the `<` of every `<gno-button` in
-// line, skipping one already escaped (so escaping is idempotent) and one
-// inside a code span closed on the same line, where the backslash would
-// show. A code span spanning lines is escaped anyway: visible, but safe.
-// Linear in len(line): a backtick opener is matched against the last run of
-// its length, indexed once, so an unclosed opener costs O(1), not a rescan.
+// line that is not already escaped, so escaping stays idempotent. It does not
+// try to spare code spans: whether a backtick opens one depends on goldmark's
+// inline precedence (raw HTML, comments, link destinations and titles, spans
+// across lines), which a line scan cannot model, and a guess that leaves a
+// tag live is a bypass. Inside a real code span the backslash shows.
 func escapeGnoButtonTags(line string) string {
 	if strings.IndexByte(line, '<') < 0 {
 		return line
 	}
-	var (
-		out     []byte
-		last    int
-		lastRun map[int]int // start of the last backtick run of each length
-	)
+	var out []byte
+	last := 0
 	for i := 0; i < len(line); i++ {
 		switch line[i] {
 		case '\\':
 			i++ // the next byte is escaped
-		case '`':
-			if lastRun == nil {
-				lastRun = lastBacktickRuns(line, i)
-			}
-			n := backtickRun(line, i)
-			if lastRun[n] > i {
-				i = closingBacktickRun(line, i+n, n) + n - 1
-			} else {
-				i += n - 1
-			}
 		case '<':
 			if hasCaseInsensitivePrefix(line[i:], gnoButtonTag) {
 				if out == nil {
@@ -626,49 +613,6 @@ func escapeGnoButtonTags(line string) string {
 		return line
 	}
 	return string(append(out, line[last:]...))
-}
-
-// lastBacktickRuns maps each backtick run length in line[from:] to the start
-// of its last run.
-func lastBacktickRuns(line string, from int) map[int]int {
-	runs := map[int]int{}
-	for i := from; i < len(line); {
-		if line[i] != '`' {
-			i++
-			continue
-		}
-		n := backtickRun(line, i)
-		runs[n] = i
-		i += n
-	}
-	return runs
-}
-
-// backtickRun returns the length of the backtick run starting at i.
-func backtickRun(s string, i int) int {
-	n := 0
-	for i+n < len(s) && s[i+n] == '`' {
-		n++
-	}
-	return n
-}
-
-// closingBacktickRun returns the start of the first run of exactly n
-// backticks at or after from, or -1 (CM §6.1: a code span closes on a run
-// of the same length).
-func closingBacktickRun(s string, from, n int) int {
-	for i := from; i < len(s); {
-		if s[i] != '`' {
-			i++
-			continue
-		}
-		m := backtickRun(s, i)
-		if m == n {
-			return i
-		}
-		i += m
-	}
-	return -1
 }
 
 // isHTMLBlockType1to5Opener reports whether line opens a CommonMark

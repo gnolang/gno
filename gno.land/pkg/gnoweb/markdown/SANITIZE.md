@@ -103,12 +103,12 @@ be `kebab-case-describing-what-it-tests.txtar`.
 | Helper | Cases | Threats covered |
 |---|---|---|
 | `InlineText` | 15 | bidi/ZWSP/NEL strip, CR-only fold, NUL→FFFD, backslash-escape-order, ampersand-entity, leading/trailing-`#` in ATX context, link-text bracket breakout, `=` and `\|` carve-outs, inline `<gno-button />` escaped |
-| `Block` | 80 | heading/blockquote/list/thematic/setext injection, fence autoclose, LRD strip, ref-link USE collision, footnote-ref `[^` collision (basic + with preceding backslash, CM §2.4 parity), ext-delim (`<gno-card>`, `</gno-columns>`, `\|\|\|`, indented 2 spaces / 4 spaces / tab); `<gno-button />` escaped everywhere outside code spans: line start, indented, mid-line, after `\f` / `\v` / NBSP, after `- ` / `1. ` / `# ` / `> ` / `\|` markers, inside `**`; literal inside a code span), CR / U+2028 / U+2029 fold, entity-encoded scheme in a link/image destination (`&#x6a;avascript:`, `&#x64;ata:`) neutralized to `%26`, backslash-escaped scheme (`javascript\:`) left verbatim and stopped by the renderer instead |
-| `BlockRich` | 34 | the permissive counterpart: heading / blockquote / list / thematic-break / setext / GFM-table / `\|` all *preserved*, while the realm-binding defenses stay on — LRD strip, ref-link and footnote-ref escape, `<gno-card>` escape (incl. uppercase), `<gno-button />` escape (leading, indented, in a blockquote, list item and heading), fence autoclose + fence-walker LRD bypass + fence-info backtick, HTML block isolation (doctype / CDATA / script / comment), NUL→FFFD, leading-setext neutralization (h1 / h2 / deeper / indented-code), cross-paragraph setext / table / lazy-continuation forward isolation |
-| `Blockquote` | 9 | basic, bidi strip, blank-line preservation, CR normalize, empty input, leading-marker escape, fence autoclose, LRD strip |
-| `BlockquoteRich` | 1 | GFM table preserved inside a blockquote |
+| `Block` | 88 | heading/blockquote/list/thematic/setext injection, fence autoclose, LRD strip, ref-link USE collision, footnote-ref `[^` collision (basic + with preceding backslash, CM §2.4 parity), ext-delim (`<gno-card>`, `</gno-columns>`, `\|\|\|`, indented 2 spaces / 4 spaces / tab); `<gno-button />` escaped everywhere: line start, indented, mid-line, after `\f` / `\v` / NBSP / CRLF / U+2028, after `- ` / `1. ` / `# ` / `> ` / `\|` markers, inside `**`, after a backtick that goldmark gives to raw HTML, a comment, a link destination or title, or to a code span opened on the line before; inside a real code span too (visible backslash, see below)), CR / U+2028 / U+2029 fold, entity-encoded scheme in a link/image destination (`&#x6a;avascript:`, `&#x64;ata:`) neutralized to `%26`, backslash-escaped scheme (`javascript\:`) left verbatim and stopped by the renderer instead |
+| `BlockRich` | 35 | the permissive counterpart: heading / blockquote / list / thematic-break / setext / GFM-table / `\|` all *preserved*, while the realm-binding defenses stay on — LRD strip, ref-link and footnote-ref escape, `<gno-card>` escape (incl. uppercase), `<gno-button />` escape (leading, indented, in a blockquote, list item and heading), fence autoclose + fence-walker LRD bypass + fence-info backtick, HTML block isolation (doctype / CDATA / script / comment), NUL→FFFD, leading-setext neutralization (h1 / h2 / deeper / indented-code), cross-paragraph setext / table / lazy-continuation forward isolation |
+| `Blockquote` | 10 | basic, bidi strip, blank-line preservation, CR normalize, empty input, leading-marker escape, fence autoclose, LRD strip |
+| `BlockquoteRich` | 2 | GFM table preserved inside a blockquote |
 | `LinkTitle` | 4 | quote/apostrophe/paren delimiters, newline fold |
-| `TableCell` | 2 | pipe escape, tab→space |
+| `TableCell` | 3 | pipe escape, tab→space |
 | `HTMLEscape` | 5 | attribute injection, element body, ampersand, comment context, `-->` terminator bypass |
 | `URL` | 13 | `javascript:` (lowercase + mixed case), leading whitespace bypass, protocol-relative, `blob:`, `mailto:` any query (`?body=`/`subject=`/`cc=`/`bcc=`, case-insensitive, percent-encoded, HTML char-ref `&#x3f;`), embedded CRLF, relative + fragment accept |
 | `ImageURL` | 5 | `data:text/html` reject, `data:image/svg+xml` accept, `mailto:` / protocol-relative as image src |
@@ -121,10 +121,10 @@ be `kebab-case-describing-what-it-tests.txtar`.
 | `InlineCode` | 5 | basic, embedded backticks, multi-line fold, NUL, leading/trailing backtick padding |
 | `CodeBlock` | 5 | basic, bidi strip, CR normalize, embedded-fence neutralization, empty content |
 | `LanguageCodeBlock` | 3 | valid tag, rejected tag (silent fallback), embedded fence in body |
-| `FootnoteDefinition` | 3 | basic body, multi-paragraph continuation indentation, rejected name suppresses output |
+| `FootnoteDefinition` | 4 | basic body, multi-paragraph continuation indentation, rejected name suppresses output |
 | `LinkReferenceDefinition` | 3 | basic label/url, with title, rejected URL suppresses output |
 
-207 fixtures total. The Cases column is checked against the corpus by
+220 fixtures total. The Cases column is checked against the corpus by
 `TestSanitizeCoverageTableMatchesCorpus` — add a fixture without updating the
 row and it fails with the delta, so the numbers stay honest without anyone
 recounting by hand. The Threats column is prose and is NOT checked; it is
@@ -133,6 +133,17 @@ illustrative of a helper's threat surface, not an enumeration of its fixtures.
 Grow the corpus by enumerating the threat surface for each helper as new
 attacks/CVEs/audit findings surface — every finding becomes a permanent
 regression test.
+
+## `<gno-button />`: escaped everywhere, backslash may show
+
+`<gno-button />` is an inline tag that renders a first-party styled link, so
+`Block` and `BlockRich` escape the `<` of every `<gno-button` that is not
+already escaped, wherever it sits. Inside a code span the backslash shows
+(`` `<gno-button />` `` renders as `\<gno-button />`), a trade-off accepted on
+purpose: telling a real code span from a backtick that goldmark gives to raw
+HTML, a comment, a link destination or title, or to a span opened on the line
+before cannot be done from a line scan, and a wrong guess leaves the tag live
+(`block-gno-button-after-backtick-*`). Fenced code is left verbatim.
 
 ## Implementation notes
 

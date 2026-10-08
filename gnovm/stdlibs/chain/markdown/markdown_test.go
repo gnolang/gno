@@ -1,7 +1,6 @@
 package markdown
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -250,9 +249,8 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"gno-button-after-formfeed", "\f<gno-button />\n", "\f\\<gno-button />\n"},
 		{"gno-button-already-escaped", "a \\<gno-button />\n", "a \\<gno-button />\n"},
 		{"gno-button-after-escaped-backslash", "a \\\\<gno-button />\n", "a \\\\\\<gno-button />\n"},
-		{"gno-button-in-code-span", "use `<gno-button />` here\n", "use `<gno-button />` here\n"},
-		{"gno-button-after-code-span", "``a`` <gno-button />\n", "``a`` \\<gno-button />\n"},
-		{"gno-button-unclosed-backtick", "`a <gno-button />\n", "`a \\<gno-button />\n"},
+		{"gno-button-in-code-span", "use `<gno-button />` here\n", "use `\\<gno-button />` here\n"}, // backslash shows: safe over pretty
+		{"gno-button-after-backtick-in-html", "a <span title=\"`\"><gno-button /> `\n", "a <span title=\"`\">\\<gno-button /> `\n"},
 		{"gno-button-four-spaces", "    <gno-button />\n", "    \\<gno-button />\n"},
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
 		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
@@ -431,26 +429,6 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 			b.SetBytes(int64(len(c.in)))
 			for i := 0; i < b.N; i++ {
 				_ = EscapeBlockHazardsRich(c.in)
-			}
-		})
-	}
-}
-
-// BenchmarkEscapeGnoButtonTagsBackticks escapes one line of backtick runs of
-// all different lengths, none closed, plus a tag. ns/op must grow linearly
-// with the line: an unclosed opener used to rescan the rest of the line.
-func BenchmarkEscapeGnoButtonTagsBackticks(b *testing.B) {
-	for _, runs := range []int{100, 400} {
-		var sb strings.Builder
-		for n := 1; n <= runs; n++ {
-			sb.WriteString(strings.Repeat("`", n))
-			sb.WriteString("a")
-		}
-		sb.WriteString(" <gno-button />")
-		line := sb.String()
-		b.Run(fmt.Sprintf("bytes=%d", len(line)), func(b *testing.B) {
-			for b.Loop() {
-				escapeGnoButtonTags(line)
 			}
 		})
 	}
