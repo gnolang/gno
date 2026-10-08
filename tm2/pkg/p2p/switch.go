@@ -265,8 +265,9 @@ func (sw *MultiplexSwitch) StopPeerForError(peer PeerConn, err error) {
 
 // isSuperseded reports whether a different connection is registered under this
 // peer's ID. Two connections hold one peer ID while a reconnect races the
-// teardown of the connection it supersedes, and the peer set entry under that
-// ID belongs to whichever won
+// teardown of the connection it supersedes, or while a replacement resolves a
+// simultaneous open, and the peer set entry under that ID belongs to whichever
+// won
 func (sw *MultiplexSwitch) isSuperseded(peer PeerConn) bool {
 	registered := sw.peers.Get(peer.ID())
 
@@ -879,9 +880,10 @@ func (sw *MultiplexSwitch) registerPeer(p PeerConn) (PeerConn, error) {
 }
 
 // removeUnlessSuperseded removes the peer set entry of the peer's ID, unless a
-// different connection holds it, and reports whether it removed it. Checking
-// and removing in one step keeps a connection that replaced this one between
-// the two from losing its entry
+// different connection holds it. It reports false only when a different
+// connection holds the entry, and true otherwise, including when no entry
+// exists. Checking and removing in one step keeps a connection that replaced
+// this one between the two from losing its entry
 func (sw *MultiplexSwitch) removeUnlessSuperseded(p PeerConn) bool {
 	sw.registry.Lock()
 	defer sw.registry.Unlock()
@@ -1089,9 +1091,11 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// so that if Receive errors, we will find the peer and remove it.
 	replaced, err := sw.registerPeer(p)
 
-	// A connection p replaced is torn down before any reactor learns about p,
-	// so reactors see it removed first, as on a reconnect. p holds the entry,
-	// so the teardown leaves that entry alone
+	// Each connection gets its RemovePeer exactly once. The connection p
+	// replaced gets it here, before p's AddPeer, unless its own teardown,
+	// after the remote closed it, began first, in which case that RemovePeer
+	// may run concurrently with p's AddPeer. p holds the entry, so the
+	// teardown leaves that entry alone
 	if replaced != nil {
 		sw.Logger.Info(
 			"replacing connection to resolve a simultaneous open",
