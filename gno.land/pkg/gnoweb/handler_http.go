@@ -307,6 +307,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// dispatch (state, source, package view) and the realm notice must see
 	// the path that is rendered. Aliases do not chain.
 	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
+		indexData.SearchBase = r.URL.Path
 		r.URL.Path = alias.Value
 	}
 

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
@@ -99,4 +101,50 @@ func TestChainWideSearchHasNoPackageTabs(t *testing.T) {
 	handler.ServeHTTP(realm, httptest.NewRequest(http.MethodGet, "/r/mock/path$search?q=blog", nil))
 	require.Contains(t, realm.Body.String(), "$source",
 		"a realm-scoped search keeps the realm tabs")
+}
+
+var headerAction = regexp.MustCompile(`id="header-searchbar"[^>]*?\saction="([^"]*)"`)
+
+// On an alias page the header form must search what the JavaScript omnibar
+// searches, from the path the reader asked for: on "/" the whole chain, not
+// the realm the alias renders.
+func TestAliasHeaderSearchScope(t *testing.T) {
+	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient(&gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/mock/path",
+		Files: map[string]string{
+			"render.gno": `package main; func Render(path string) string { return "body" }`,
+		},
+	}))
+	cfg.Aliases = map[string]gnoweb.AliasTarget{
+		"/":      {Value: "/r/mock/path", Kind: gnoweb.GnowebPath},
+		"/about": {Value: "/r/mock/path:p/about", Kind: gnoweb.GnowebPath},
+	}
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	h, err := gnoweb.NewHTTPHandler(logger, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := func(target string) string {
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, target, nil))
+		return rr.Body.String()
+	}
+	for _, tc := range []struct{ page, jsBase string }{
+		{"/", "/"},
+		{"/about", "/about"},
+	} {
+		m := headerAction.FindStringSubmatch(get(tc.page))
+		if m == nil {
+			t.Fatalf("%s: no header form action", tc.page)
+		}
+		noJS := m[1]
+		js := tc.jsBase + "$search"
+		noJSScoped := strings.Contains(get(noJS+"?q=blog"), "Scoped to")
+		jsScoped := strings.Contains(get(js+"&q=blog"), "Scoped to")
+		t.Logf("page %-7s no-JS action %-22q scoped=%v | JS href %-16q scoped=%v", tc.page, noJS, noJSScoped, js, jsScoped)
+		if noJS != js || noJSScoped != jsScoped {
+			t.Errorf("page %s: no-JS form searches %q (scoped=%v), JS searches %q (scoped=%v)", tc.page, noJS, noJSScoped, js, jsScoped)
+		}
+	}
 }
