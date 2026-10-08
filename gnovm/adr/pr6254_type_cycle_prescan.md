@@ -85,9 +85,11 @@ Validate the declaration graph first, then predefine.
   first undefined name, which can now only be a value. `tryPredefine`
   builds nothing: it only resolves an alias of a name outside the group,
   which reservation cannot bind before imports are predefined. `predefineRecursively2` keeps `stack` and
-  `defining` for its value-cycle message; its type-cycle branch is an
-  assertion, so the pre-scan is the only verdict and every direct-cycle
-  filetest pins it.
+  `defining`: besides value cycles they catch the one type cycle the
+  pre-scan cannot see, one that passes through an array-length constant
+  (`recursive16`, `recursive17`). A type named from a value position
+  (`const N = T(3)` reached from an array length, `len(T{})`) counts as
+  undefined until built, so it is built first (`decltype_constlen*`).
 - `embed_depth1` pins the post-group embed-depth check with a chain
   declared top-down, which `Seal` alone accepted. `typecycle_gas_test.go`
   pins each charge with a budget that only the metered walk exceeds.

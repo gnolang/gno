@@ -5228,6 +5228,13 @@ func typeDeclForName(store Store, last BlockNode, n Name) *TypeDecl {
 	return nil
 }
 
+// unbuiltTypeDecl reports whether n names a type declaration that has a
+// reserved slot but is not preprocessed yet.
+func unbuiltTypeDecl(store Store, last BlockNode, n Name) bool {
+	td := typeDeclForName(store, last, n)
+	return td != nil && td.GetAttribute(ATTR_PREPROCESSED) != true
+}
+
 func findUndefinedAny(store Store, last BlockNode, x Expr, astype bool, elide Type) (un Name) {
 	if debugFind {
 		fmt.Printf("findUndefinedAny(%v, astype=%v, elide=%v\n", x, astype, elide)
@@ -5258,8 +5265,13 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, astype bool, elide Ty
 				}
 		*/
 		// Every type declaration of the group has a slot from
-		// reserveTypeDecls, so only values can still be undefined here.
+		// reserveTypeDecls. A type expression needs only the slot; a
+		// value (`const N = T(3)` reached from an array length) needs
+		// the type built, so an unbuilt one counts as undefined there.
 		if tv := last.GetSlot(store, cx.Name, true); tv != nil {
+			if !astype && unbuiltTypeDecl(store, last, cx.Name) {
+				return cx.Name
+			}
 			return
 		}
 		return cx.Name
@@ -5334,6 +5346,10 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, astype bool, elide Ty
 			un = findUndefinedT(store, last, cx.Type)
 			if un != "" {
 				return
+			}
+			// `T{}` as a value needs T built, not just reserved.
+			if nx, ok := cx.Type.(*NameExpr); ok && unbuiltTypeDecl(store, last, nx.Name) {
+				return nx.Name
 			}
 			// preprocess now for eliding purposes.
 			// TODO recursive preprocessing here is hacky, find a better
@@ -5547,9 +5563,9 @@ func predefineRecursivelyIndexed(store Store, last BlockNode, d Decl, index *pre
 }
 
 // `stack` and `defining` hold the names being predefined, for detecting
-// cycles through values (type cycles are rejected before predefinition).
-// `stack` keeps declaration order for the message; `defining` is the same
-// data as a map.
+// cycles through values; a type cycle reaches here only through an
+// array-length constant, which the pre-scan does not follow. `stack` keeps
+// declaration order for the message; `defining` is the same data as a map.
 func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, index *predefineDeclIndex) bool {
 	pkg := packageOf(last)
 
@@ -5590,9 +5606,10 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			// first, check circularity.
 			if _, exists := defining[un]; exists {
 				if untype {
-					// assertNoTypeDeclCycles rejects every cycle a
-					// TypeDecl can close before predefinition.
-					panic(fmt.Sprintf("should not happen: type cycle %s -> %s",
+					// Only a cycle through an array-length constant
+					// reaches here; assertNoTypeDeclCycles does not
+					// follow values.
+					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
 						Names(stack).Join(" -> "), un))
 				}
 				panic(fmt.Sprintf("invalid recursive value: %s -> %s",
@@ -5828,8 +5845,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 			if unbuilt != "" || !direct {
 				return
 			}
-			if td := typeDeclForName(store, last, dep); td != nil &&
-				td.GetAttribute(ATTR_PREPROCESSED) != true {
+			if unbuiltTypeDecl(store, last, dep) {
 				unbuilt = dep
 			}
 		})
