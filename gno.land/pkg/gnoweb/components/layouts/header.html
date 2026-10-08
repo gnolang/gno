@@ -5,6 +5,14 @@ LAYOUT - Header component
 <header class="b-header">
   <nav class="c-center c-view-grid" aria-label="Package navigation">
     <div class="main-nav {{ if .Mode.IsExplorer }}main-nav--explorer{{ end }}">
+      {{ with .StoreURL }}
+      <a href="{{ . }}" class="store-link"{{ if and (eq $.RealmURL.Path .) (not $.RealmURL.WebQuery) }} aria-current="{{ if $.RealmURL.Args }}true{{ else }}page{{ end }}"{{ end }}>
+        <svg aria-hidden="true">
+          <use href="#ico-apps"></use>
+        </svg>
+        <span class="u-sr-only">Explore</span>
+      </a>
+      {{ end }}
       <a href="/" class="user-picture">
         {{ template "ui/gnome" }}
       </a>

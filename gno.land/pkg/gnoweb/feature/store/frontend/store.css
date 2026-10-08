@@ -1,0 +1,822 @@
+/* ==========================================================================
+   STORE - feature/store Block layer (ADR-004)
+   Calm chrome, colourful content: every colour below is a gnoweb token.
+   Colour on these pages comes only from the generated art and owner images.
+   The chrome reuses gnoweb blocks where one exists (.b-pkg-section__header,
+   .b-pkg-subheader, .b-packages-tabs, .b-pkg-list, .b-action-function,
+   .b-code, .b-btn, .b-tag, .b-link--muted, .b-inline-btn,
+   .b-state-pagination); only what is store-specific lives here.
+   ========================================================================== */
+
+.b-store {
+	min-inline-size: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-8);
+	padding-block: var(--g-space-8) var(--g-space-24);
+	color: var(--s-color-text-primary);
+
+	@media (--md) {
+		gap: var(--g-space-12);
+	}
+
+	/* Covers keep 16:9 whether generated (svg) or owner-supplied (img). */
+	.cover {
+		display: block;
+		inline-size: 100%;
+		block-size: auto;
+		aspect-ratio: 16 / 9;
+		object-fit: cover;
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-surface-secondary);
+	}
+
+	.icon {
+		flex-shrink: 0;
+		inline-size: var(--g-space-10);
+		block-size: var(--g-space-10);
+		border-radius: var(--s-rounded);
+	}
+
+	/* Page title: the size of gnoweb's list-page title (.b-packages .title). */
+	h1 {
+		font-size: var(--g-font-size-700);
+		font-weight: var(--g-font-bold);
+		line-height: var(--g-line-height-tight);
+
+		@media (--md) {
+			font-size: var(--g-font-size-800);
+		}
+	}
+}
+
+/* The page's head: tabs, title, pulse and categories read as one block,
+   closer together than the sections below them. */
+.b-store-head {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-6);
+}
+
+/* Apps | Build: the two doors into the store, gnoweb's anchor tabs
+   (.b-pkg-subheader .b-packages-tabs), left in the flow: the store's own
+   gap spaces them, and two doors need no sticky bar. One rule under the
+   full width, the current door underlined on it, no surface of its own. */
+.b-store-lens {
+	position: static;
+	display: block;
+	align-self: stretch;
+	margin-block-end: 0;
+	padding-block: 0;
+	border-block-end: var(--s-border);
+	background-color: transparent;
+
+	.b-packages-tabs {
+		inline-size: 100%;
+		padding-block-end: var(--g-space-2);
+		border-block-end: none;
+	}
+}
+
+/* The title with the page's one button level with it, at every width,
+   then the lead, at the action page's lead size (.b-action-overview > p). */
+.b-store-intro {
+	.heading {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--g-space-4);
+
+		& > .b-btn {
+			flex-shrink: 0;
+		}
+	}
+
+	p {
+		max-inline-size: 60ch;
+		margin-block-start: var(--g-space-2);
+		font-size: var(--g-font-size-200);
+		color: var(--s-color-text-secondary);
+	}
+}
+
+/* One line under the lead saying the chain is alive, opened by a live
+   dot with a soft halo; every figure names its window. A phone keeps the
+   first figure only. */
+.b-store-intro .b-store-pulse {
+	max-inline-size: none;
+	margin-block-start: var(--g-space-3);
+	color: var(--s-color-text-tertiary);
+	font-size: var(--g-font-size-100);
+
+	&::before {
+		content: "";
+		display: inline-block;
+		inline-size: var(--g-space-2);
+		block-size: var(--g-space-2);
+		margin-inline: var(--g-space-0-5) var(--g-space-2-5);
+		border-radius: var(--s-rounded-full);
+		background-color: var(--s-color-bg-brand-action);
+		box-shadow: 0 0 0 var(--g-space-1)
+			color-mix(in srgb, var(--s-color-bg-brand-action) 25%, transparent);
+		vertical-align: 0.05em;
+	}
+
+	& > span + span::before {
+		content: " · ";
+	}
+
+	strong {
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-semibold);
+	}
+
+	/* The latest event closes the line, a link that looks like one (see
+	   the store's text links below), its underline softer. */
+	a {
+		text-underline-offset: 0.2em;
+		text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+
+		&:hover {
+			text-decoration-color: currentColor;
+		}
+	}
+
+	@media not (--md) {
+		:is(.clock, .moment, .figure ~ .figure) {
+			display: none;
+		}
+
+		.figure::before {
+			content: none;
+		}
+	}
+}
+
+/* The category strip scrolls by snapping, with no script: the reader moves
+   it, nothing moves on its own. Each category is a pill with gnoweb's tag
+   border and radius (.b-tag), at a size a finger can hit; the current one
+   takes the tertiary tag's fill (.b-tag--tertiary). */
+.b-store-nav {
+	& > ul {
+		gap: var(--g-space-2);
+		padding-block-end: var(--g-space-1);
+		scroll-snap-type: inline mandatory;
+
+		& > li {
+			flex-shrink: 0;
+			scroll-snap-align: start;
+		}
+	}
+
+	/* When the strip overflows, its right edge fades out, saying there is
+	   more; once scrolled to its end, it does not. A strip that fits has
+	   no scroll timeline, so no fade. */
+	@supports (animation-timeline: scroll()) {
+		& > ul {
+			mask-image: linear-gradient(
+				to right,
+				#000 calc(100% - var(--store-nav-fade)),
+				transparent
+			);
+			animation: store-nav-fade linear both;
+			animation-timeline: scroll(self inline);
+		}
+	}
+
+	a {
+		gap: var(--g-space-1-5);
+		min-block-size: var(--g-space-8);
+		padding: var(--g-space-1) var(--g-space-3);
+		border: var(--s-border);
+		font-size: var(--g-font-size-100);
+		white-space: nowrap;
+		transition:
+			background-color var(--g-transition-fast),
+			color var(--g-transition-fast);
+
+		&:hover {
+			background-color: var(--s-color-bg-surface-primary-hover);
+		}
+
+		&[aria-current="page"] {
+			border-color: transparent;
+		}
+
+		.count {
+			font-size: var(--g-font-size-50);
+			color: var(--s-color-text-tertiary);
+		}
+	}
+}
+
+@property --store-nav-fade {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+@keyframes store-nav-fade {
+	0%,
+	90% {
+		--store-nav-fade: var(--g-space-12);
+	}
+
+	100% {
+		--store-nav-fade: 0px;
+	}
+}
+
+/* New · Top · Trending · Recently updated: the lists side by side, as one
+   segmented control in the category pills' chrome. */
+.b-store-lists {
+	& > ul {
+		display: inline-flex;
+		flex-wrap: wrap;
+		gap: var(--g-space-0-5);
+		padding: var(--g-space-0-5);
+		border: var(--s-border);
+		border-radius: var(--s-rounded-full);
+		font-size: var(--g-font-size-100);
+	}
+
+	a {
+		min-block-size: var(--g-space-7);
+		padding-inline: var(--g-space-3);
+	}
+}
+
+/* What a category pill and a list segment share: a pill in the secondary
+   tone, the current one filled, tall enough to tap on a touch screen. After
+   both, at their specificity, so the touch height wins. */
+:is(.b-store-nav, .b-store-lists) a {
+	display: inline-flex;
+	align-items: center;
+	border-radius: var(--s-rounded-full);
+	color: var(--s-color-text-secondary);
+
+	&:hover {
+		color: var(--s-color-text-primary);
+	}
+
+	&[aria-current="page"] {
+		background-color: var(--s-color-bg-surface-secondary);
+		color: var(--s-color-text-primary);
+		font-weight: var(--g-font-medium);
+	}
+
+	@media (pointer: coarse) {
+		min-block-size: var(--g-space-10);
+	}
+}
+
+/* One focus ring for the store's own controls, gnoweb's, off their edge. A
+   card's ring goes around the card, over which its one link is stretched. */
+:is(.b-store-nav a, .b-store-lists a, .b-store-btn--primary):focus-visible,
+.b-store-card:has(h3 a:focus-visible) {
+	outline: var(--s-focus-ring);
+	outline-offset: 2px;
+}
+
+/* Links in the store's running text (the pulse, the calls to list, the
+   empty states) look like links, in the link's hover tone, which keeps 4.5:1
+   on the dark theme too. */
+:is(.b-store-pulse, .b-store-cta .description, .b-store-empty) a {
+	color: var(--s-color-text-link-hover);
+	text-decoration-line: underline;
+}
+
+/* A shelf: gnoweb's section header (.b-pkg-section__header) over a grid,
+   its note under the title, above the rule. "See all" is a target a
+   finger can hit. */
+.b-store-shelf {
+	.b-pkg-section__header {
+		align-items: flex-end;
+	}
+
+	.note {
+		margin-block-start: var(--g-space-1);
+		font-size: var(--g-font-size-100);
+		font-weight: var(--g-font-normal);
+		color: var(--s-color-text-secondary);
+	}
+
+	.b-inline-btn {
+		display: inline-flex;
+		align-items: center;
+		min-block-size: var(--g-space-6);
+		font-size: var(--g-font-size-100);
+		font-weight: var(--g-font-normal);
+	}
+}
+
+/* The Spotlight is set apart on a tray, so it reads as the day's pick
+   rather than one more shelf; the first shelf follows closer. */
+.b-store-spotlight {
+	padding: var(--g-space-4);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-surface-primary);
+
+	@media (--md) {
+		padding: var(--g-space-6);
+	}
+
+	.b-pkg-section__header {
+		border-block-end-color: var(--s-color-border-primary);
+	}
+
+	& + .b-store-shelf {
+		margin-block-start: calc(-1 * var(--g-space-4));
+	}
+}
+
+/* Cards share gnoweb's package-card surface: a tinted frame around a
+   base-coloured body (.b-packages article / .article-content). */
+.b-store-card {
+	/* Containing block for anything absolute inside (the stretched link,
+	   .u-sr-only labels): without it they are placed against a box outside
+	   the Spotlight's scrolling row, which then cannot clip them, and they
+	   widen the page. */
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-1);
+	block-size: 100%;
+	padding: var(--g-space-1);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-surface-primary);
+	transition: background-color var(--g-transition-fast);
+
+	&:hover {
+		background-color: var(--s-color-bg-surface-primary-hover);
+	}
+
+	.body {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		gap: var(--g-space-2-5);
+		padding: var(--g-space-3);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-base);
+	}
+
+	/* Icon beside the title and, under it, the path: who published it
+	   is read with the name (ADR-004 T6). */
+	.title {
+		display: flex;
+		gap: var(--g-space-2-5);
+		align-items: center;
+
+		& > div {
+			min-inline-size: 0;
+		}
+	}
+
+	:is(h3, .path) {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	/* .b-packages .article-content h3 */
+	h3 {
+		font-size: var(--g-font-size-200);
+		font-weight: var(--g-font-bold);
+		line-height: var(--g-line-height-tight);
+	}
+
+	/* The path, with "community" after it when the app is neither core nor
+	   established; the path gives way first. */
+	.title .path {
+		display: flex;
+		gap: var(--g-space-1-5);
+		margin-block-start: var(--g-space-0-5);
+		font-size: var(--g-font-size-50);
+		color: var(--s-color-text-tertiary);
+
+		& > .u-font-mono {
+			overflow: hidden;
+			min-inline-size: 0;
+			text-overflow: ellipsis;
+		}
+	}
+
+	.community {
+		flex-shrink: 0;
+		color: var(--s-color-text-tertiary);
+
+		&::before {
+			content: "· ";
+		}
+	}
+
+	/* Two lines at most, so a row of cards keeps one height. */
+	.tagline {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+	}
+
+	/* Title links, and the hero's label, underline on hover. */
+	:is(h2, h3, .label) a:hover {
+		text-decoration: underline;
+	}
+
+	/* One link per card, stretched over it: the card is one tab stop. */
+	h3 a {
+		color: var(--s-color-text-primary);
+
+		&::after {
+			content: "";
+			position: absolute;
+			inset: 0;
+			border-radius: inherit;
+		}
+
+		&:focus-visible {
+			outline: none;
+		}
+	}
+}
+
+/* The page's one hero: the card at full width, the cover beside the text
+   on wide screens, wide and short so the hero leads without taking the
+   whole fold. The text is one stack on the cover's middle: label, a title
+   at the size of a page section, the tagline as a lead, the meta in one
+   row under it (category, stars, path, nothing pushed to an edge), then
+   the buttons. */
+.b-store-hero .b-store-card {
+	@media (--lg) {
+		display: grid;
+		grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+		align-items: stretch;
+	}
+
+	.cover {
+		aspect-ratio: 3 / 1;
+
+		@media (--md) {
+			aspect-ratio: 2 / 1;
+		}
+
+		/* Beside the text, the cover takes the row's height, which the
+		   text sets: contained, it adds no height of its own, and the
+		   art is cropped to fit (preserveAspectRatio slice). */
+		@media (--lg) {
+			contain: size;
+			block-size: 100%;
+			min-block-size: var(--g-space-64);
+			aspect-ratio: auto;
+		}
+	}
+
+	.body {
+		gap: var(--g-space-3);
+		padding: var(--g-space-5) var(--g-space-4);
+
+		@media (--lg) {
+			justify-content: center;
+			padding: var(--g-space-8) var(--g-space-10);
+		}
+	}
+
+	.title {
+		gap: var(--g-space-3);
+	}
+
+	.icon {
+		inline-size: var(--g-space-12);
+		block-size: var(--g-space-12);
+	}
+
+	/* The page title's family, a step under it. */
+	h2 {
+		font-size: var(--g-font-size-600);
+		font-weight: var(--g-font-bold);
+		line-height: var(--g-line-height-tight);
+
+		@media (--md) {
+			font-size: var(--g-font-size-700);
+		}
+	}
+
+	/* The buttons are the hero's links: the title is not stretched. */
+	h2 a {
+		color: var(--s-color-text-primary);
+	}
+
+	/* Kicker set like gnoweb's meta labels (.b-pkg-meta dt.label), in the
+	   link's hover tone, which keeps 4.5:1 on the dark theme too. When it
+	   says why (trending), it opens the list that proves it. */
+	.label {
+		font-size: var(--g-font-size-80);
+		font-weight: var(--g-font-semibold);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--s-color-text-link-hover);
+
+		a {
+			color: inherit;
+		}
+	}
+
+	.tagline {
+		max-inline-size: 48ch;
+		font-size: var(--g-font-size-300);
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+	}
+
+	/* One row, left to right: no star count pushed to the far edge. */
+	.b-store-meta {
+		gap: var(--g-space-2);
+		margin-block-start: 0;
+		font-size: var(--g-font-size-100);
+
+		.stars {
+			margin-inline-start: 0;
+		}
+
+		/* A dot between the figures once the chips are done. */
+		:is(.stars, .momentum, .path) + :is(.stars, .momentum, .path)::before {
+			content: "·";
+			margin-inline-end: var(--g-space-2);
+			color: var(--s-color-text-tertiary);
+		}
+	}
+
+	.b-btns {
+		gap: var(--g-space-2);
+		margin-block-start: var(--g-space-2);
+
+		.b-btn {
+			padding: var(--g-space-1-5) var(--g-space-4);
+		}
+	}
+}
+
+/* The page's primary action: filled with the brand colour. gnoweb has no
+   filled button, so it is the store's own modifier of .b-btn. */
+.b-store .b-store-btn--primary {
+	border-color: transparent;
+	background-color: var(--s-color-bg-brand-default);
+	color: var(--s-color-text-brand-default);
+	font-weight: var(--g-font-medium);
+
+	&:hover {
+		background-color: color-mix(
+			in srgb,
+			var(--s-color-bg-brand-default) 85%,
+			var(--s-color-text-primary)
+		);
+	}
+}
+
+.b-store-meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--g-space-1-5);
+	/* On a card, last before the bottom edge, so a row of cards aligns. */
+	margin-block-start: auto;
+	padding-block-start: var(--g-space-1);
+	font-size: var(--g-font-size-50);
+	color: var(--s-color-text-tertiary);
+
+	/* Above the card's stretched link, and tall enough to tap. */
+	a {
+		position: relative;
+		z-index: var(--g-z-1);
+		display: inline-flex;
+		align-items: center;
+		min-block-size: var(--g-space-6);
+	}
+
+	.momentum {
+		color: var(--s-color-text-link-hover);
+	}
+
+	/* Core or established: a positive badge, the check in the link tone. */
+	.trust {
+		gap: var(--g-space-1);
+		border-color: transparent;
+		background-color: var(--s-color-bg-brand-weak);
+		color: var(--s-color-text-primary);
+
+		.c-icon {
+			inline-size: 1em;
+			block-size: 1em;
+			color: var(--s-color-text-link-hover);
+		}
+	}
+
+	/* The star count is the way to star: it opens the store's Star action,
+	   prefilled, where gnoweb's usual signing flow takes over. */
+	.stars {
+		margin-inline-start: auto;
+	}
+}
+
+/* One per row on a phone, as a flat list: rows split by a rule as in
+   gnoweb's package lists (.b-pkg-list), no card chrome, the cover gives way
+   to the icon, which carries the same art. Then two, then four: a shelf is
+   drawn in full rows of four (view.go rowSize), which also fill rows of two,
+   and so is a page of 24. minmax(0, …) keeps long titles, which do not
+   wrap, from widening a column past the page. On wider screens a card's
+   cover is a thin banner and the icon sits on its lower edge: the art is a
+   backdrop, the text is what is read. */
+.b-store-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--g-space-3);
+
+	@media (--md) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	@media (--xl) {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: var(--g-space-4);
+	}
+
+	.cover {
+		display: none;
+		aspect-ratio: 4 / 1;
+
+		@media (--md) {
+			display: block;
+		}
+	}
+}
+
+.b-store-grid:not(.b-store-grid--spotlight) {
+	@media not (--md) {
+		gap: 0;
+
+		& > li + li {
+			border-block-start: var(--s-border-secondary);
+		}
+
+		.b-store-card {
+			padding: 0;
+			border-radius: 0;
+			background-color: transparent;
+
+			&:hover {
+				background-color: var(--s-color-bg-surface-primary);
+			}
+		}
+
+		.body {
+			padding-inline: var(--g-space-1);
+			background-color: transparent;
+		}
+	}
+
+	/* The icon rides the banner's lower edge, half on it, outlined in the
+	   page colour; the title and path go under it. */
+	@media (--md) {
+		.title {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: var(--g-space-2);
+
+			& > div {
+				align-self: stretch;
+			}
+		}
+
+		.icon {
+			margin-block-start: calc(-1 * (var(--g-space-3) + var(--g-space-5)));
+			outline: 3px solid var(--s-color-bg-base);
+		}
+	}
+}
+
+/* Spotlight apps scroll in a row on small screens and share it on wide
+   ones, however many there are. Three across, their covers are wider
+   still, so the row stays the height of a grid row. */
+.b-store-grid--spotlight {
+	grid-template-columns: none;
+	grid-auto-columns: 85%;
+	grid-auto-flow: column;
+	overflow-x: auto;
+	scroll-snap-type: inline mandatory;
+
+	& > li {
+		scroll-snap-align: start;
+	}
+
+	.cover {
+		display: block;
+		aspect-ratio: 3 / 1;
+
+		@media (--md) {
+			aspect-ratio: 2 / 1;
+		}
+	}
+
+	@media (--md) {
+		grid-auto-columns: 45%;
+	}
+
+	@media (--xl) {
+		grid-template-columns: none;
+		grid-auto-columns: minmax(0, 1fr);
+		overflow-x: visible;
+
+		.cover {
+			aspect-ratio: 5 / 2;
+		}
+	}
+}
+
+/* Two lists side by side on wide screens, stacked below. Each is a gnoweb
+   section header over overview-style rows (.b-pkg-list); the figures read
+   as metadata. */
+.b-store-builders {
+	display: grid;
+	gap: var(--g-space-10);
+
+	@media (--lg) {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--g-space-8);
+	}
+
+	.count {
+		font-size: var(--g-font-size-50);
+		color: var(--s-color-text-tertiary);
+	}
+}
+
+/* The call to list: the action page's card panel (.b-action-function),
+   whose surface gives the .b-code blocks inside its edge, so the copy
+   button sits in the code block's top-right corner as on that page. The
+   page leaves more room above it than between its sections. Code keeps its
+   lines: a long one scrolls rather than wraps mid-string. */
+.b-store-cta {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--g-space-4);
+	margin-block: var(--g-space-6) 0;
+
+	.description {
+		max-inline-size: 70ch;
+		margin-block-start: var(--g-space-2);
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+
+		code {
+			font-size: 0.95em;
+			color: var(--s-color-text-primary);
+		}
+	}
+
+	.how {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--g-space-3);
+
+		h3 {
+			margin-block-start: var(--g-space-2);
+			font-size: var(--g-font-size-100);
+			font-weight: var(--g-font-semibold);
+		}
+	}
+
+	.b-code pre {
+		overflow-x: auto;
+		white-space: pre;
+	}
+
+	/* Wide screens: the why on the left, the code to copy on the right. */
+	@media (--xl) {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+		column-gap: var(--g-space-8);
+		padding: var(--g-space-6);
+	}
+}
+
+/* Empty state, as gnoweb's empty package list (.b-packages .range::after).
+   Its link, if any, is the way out. */
+.b-store-empty {
+	display: grid;
+	gap: var(--g-space-2);
+	padding: var(--g-space-8) var(--g-space-4);
+	border: 1px dashed var(--s-color-border-primary);
+	border-radius: var(--s-rounded);
+	font-size: var(--g-font-size-100);
+	text-align: center;
+	color: var(--s-color-text-tertiary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:is(.b-store-card, .b-store-nav a) {
+		transition: none;
+	}
+}

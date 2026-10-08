@@ -23,6 +23,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/store"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -103,6 +104,8 @@ type HTTPHandlerConfig struct {
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
 	// Also gates X-Forwarded-Host in requestOrigin.
 	StateRateLimitTrustedProxies []string
+	// StoreRealm — see AppConfig field of the same name.
+	StoreRealm string
 }
 
 // defaultStateRateLimitPerMinute is the safe-by-default cap applied when
@@ -136,6 +139,8 @@ type HTTPHandler struct {
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
 	State *state.Handler
+	// Store renders the Content tab of the store realm; nil without one.
+	Store *store.Handler
 	// trustedProxies are the networks whose X-Forwarded-Host is believed.
 	trustedProxies []*net.IPNet
 	// packageText caches the whole-package texts of $download.
@@ -184,6 +189,15 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 			TrustedProxies: trustedProxies,
 		},
 	})
+	if cfg.StoreRealm != "" {
+		h.Store = store.New(store.Deps{
+			Client:    cfg.ClientAdapter,
+			RealmPath: cfg.StoreRealm,
+			Domain:    cfg.Meta.Domain,
+			Trusted:   h.trusted.contains,
+			Logger:    logger,
+		})
+	}
 	return h, nil
 }
 
@@ -509,6 +523,15 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetUserView(ctx, gnourl)
 	}
 
+	// The store realm's own front pages get a richer view; every other path,
+	// tab and render argument keeps the realm's markdown.
+	if h.Store != nil && !wantMarkdown {
+		if view, meta := h.Store.View(ctx, gnourl); view != nil {
+			indexData.HeadData.Title, indexData.HeadData.Description = meta.Title, meta.Description
+			return meta.Status, view
+		}
+	}
+
 	// Ultimately get realm view
 	if wantMarkdown {
 		return h.GetMarkdownRealmView(ctx, gnourl, indexData)
@@ -618,7 +641,7 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, namespaces ...stri
 			realmCount++
 		}
 		contribs = append(contribs, components.UserContribution{
-			Title: displayPackageName(raw),
+			Title: components.PackageName(raw),
 			URL:   raw,
 			Type:  components.UserContributionType(ctype),
 			// TODO: size, description, date...
@@ -754,18 +777,6 @@ func CreateUsernameFromBech32(username string) string {
 	}
 
 	return username[:4] + "..." + username[len(username)-4:]
-}
-
-// displayPackageName returns versioned name for a package path.
-// Examples: "gno.land/r/demo/foo/v2" → "foo/v2", "gno.land/r/demo/foo" → "foo".
-func displayPackageName(pkgPath string) string {
-	base := path.Base(pkgPath)
-	name := gno.LastPathElement(pkgPath)
-	if name != base {
-		// Versioned path: show "name/vN".
-		return name + "/" + base
-	}
-	return name
 }
 
 // GetUserView returns the user profile view for a given GnoURL. The segment
@@ -962,7 +973,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		})
 	}
 
-	realmName := displayPackageName(gnourl.Path)
+	realmName := components.PackageName(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
@@ -1352,6 +1363,9 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
 		Origin:     gnourl.Origin,
+	}
+	if h.Store != nil {
+		indexData.HeaderData.StoreURL = h.Store.RealmPath()
 	}
 	if h.showRealmNotice(gnourl) {
 		indexData.HeaderData.Notice = h.Static.RealmNotice

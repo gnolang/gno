@@ -1,0 +1,93 @@
+# The store is governed by GovDAO: proposals built by the store hide a
+# listing and feature an app as the front page's hero once voted and
+# executed (ADR-004 §3, §5).
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/init/v0
+loadpkg gno.land/r/gnoland/store/v0
+
+gnoland start
+
+# Initialize GovDAO members
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao.gno
+stdout OK!
+
+# The seeded blog is listed
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/category/content-media/1'
+stdout '"slug":"blog"'
+
+# A proposal cannot name an unknown reason
+! gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/bad_reason.gno
+stderr 'unknown hide reason'
+
+# Propose to hide it, vote and execute
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_hide.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'Hide blog from the store'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 0 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 0 -chainid=tendermint_test test1
+stdout OK!
+
+# The blog is gone from the store
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/category/content-media/1'
+! stdout '"slug":"blog"'
+
+# GovDAO features an app as the front page's hero
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_pick.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:1'
+stdout 'Feature boards as the front page''s hero for 7 days'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 1 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 1 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/home'
+stdout '"pick":"boards"'
+
+-- run/init_govdao.gno --
+package main
+
+import dao "gno.land/r/gov/dao/init/v0"
+
+func main(cur realm) {
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/propose_hide.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeHide(cross(cur), "blog", "other"))
+}
+
+-- run/propose_pick.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeSpotlight(cross(cur), "boards", 7))
+}
+
+-- run/bad_reason.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeHide(cross(cur), "blog", "dislike"))
+}

@@ -1,0 +1,153 @@
+{{/* Shared store parts. Every visual falls back to generated art, so no
+     card is ever blank (ADR-004 §4). */}}
+
+{{ define "store/cover" -}}
+{{ if .Cover }}<img class="cover" src="{{ .Cover }}" alt="" width="320" height="180" loading="lazy" decoding="async">{{ else }}{{ .Art }}{{ end }}
+{{- end }}
+
+{{ define "store/icon" -}}
+{{ if .Icon }}<img class="icon" src="{{ .Icon }}" alt="" width="40" height="40" loading="lazy" decoding="async">{{ else }}{{ .Glyph }}{{ end }}
+{{- end }}
+
+{{/* Apps link their category; services and packages say what they are.
+     The card shows its path under its title, the hero in this row. */}}
+{{ define "store/meta" -}}
+<ul class="b-store-meta" aria-label="About this listing">
+  {{ template "store/meta-items" . }}
+</ul>
+{{- end }}
+
+{{ define "store/meta-items" -}}
+{{ with .KindLabel }}
+<li><span class="b-tag--secondary">{{ . }}</span></li>
+{{ else }}{{ with .Category.Key }}
+<li><a class="b-tag--secondary" href="{{ storeURL (print "c/" .) }}">{{ $.Category.Label }}</a></li>
+{{ end }}{{ end }}
+{{ with .Trust }}<li><span class="b-tag trust" title="{{ if eq . "Core" }}One of gno.land's core apps{{ else }}A named builder whose app earned its place{{ end }}"><svg class="c-icon" aria-hidden="true"><use href="#ico-check"></use></svg>{{ . }}</span></li>{{ end }}
+{{ with .Momentum }}<li class="momentum u-font-mono">+{{ . }} this week</li>{{ end }}
+{{ if or .Stars .AllStars }}<li class="stars u-font-mono"><a class="b-link--muted" href="{{ .StarURL }}" title="{{ .Stars }} from accounts with a registered name, {{ .AllStars }} in all. Star it from the store's Actions"><span aria-hidden="true">★</span> {{ .Stars }}<span class="u-sr-only"> stars from named accounts, star it</span></a></li>{{ end }}
+{{- end }}
+
+{{/* Neither core nor established: said quietly, by the path. */}}
+{{ define "store/community" -}}
+<span class="community" title="Deployed by its author. Read the code before you interact.">community</span>
+{{- end }}
+
+{{ define "store/card" -}}
+<article class="b-store-card">
+  {{ template "store/cover" . }}
+  <div class="body">
+    <div class="title">
+      {{ template "store/icon" . }}
+      <div>
+        <h3><a href="{{ .Path }}">{{ .Title }}</a></h3>
+        <p class="path"><span class="u-font-mono" title="{{ .Path }}">{{ .ShortPath }}</span>{{ if .Community }}{{ template "store/community" }}{{ end }}</p>
+      </div>
+    </div>
+    <p class="tagline">{{ .Tagline }}</p>
+    {{ template "store/meta" . }}
+  </div>
+</article>
+{{- end }}
+
+{{/* Cards in a grid; Mod adds a modifier class. */}}
+{{ define "store/grid" -}}
+<ul class="b-store-grid{{ with .Mod }} {{ . }}{{ end }}">{{ range .Cards }}<li>{{ template "store/card" . }}</li>{{ end }}</ul>
+{{- end }}
+
+{{/* A shelf is a grid; its "See all" names its list for screen readers. */}}
+{{ define "store/shelf" -}}
+<section class="b-store-shelf" aria-labelledby="{{ .ID }}">
+  <header class="b-pkg-section__header">
+    <div>
+      <h2 id="{{ .ID }}">{{ .Title }}</h2>
+      {{ with .Note }}<p class="note">{{ . }}</p>{{ end }}
+    </div>
+    {{ range .More }}<a class="b-inline-btn" href="{{ storeURL .Key }}">See all<span class="u-sr-only"> {{ .Title }}</span></a>{{ end }}
+  </header>
+  {{ with .Cards }}
+  {{ template "store/grid" (grid "" .) }}
+  {{ else }}
+  <p class="b-store-empty">{{ .Empty }}</p>
+  {{ end }}
+</section>
+{{- end }}
+
+{{/* Two doors into the store: apps to use, code to build with. The
+     current one is the page itself (Exact), or holds it. */}}
+{{ define "store/lens" -}}
+<nav class="b-pkg-subheader b-store-lens" aria-label="Explore sections">
+  <div class="b-packages-tabs">
+    <a href="{{ storeURL "" }}"{{ if eq .Section "apps" }} aria-current="{{ if .Exact }}page{{ else }}true{{ end }}"{{ end }}>Apps</a>
+    <a href="{{ storeURL "build" }}"{{ if eq .Section "build" }} aria-current="{{ if .Exact }}page{{ else }}true{{ end }}"{{ end }}>Build</a>
+  </div>
+</nav>
+{{- end }}
+
+{{ define "store/nav" -}}
+{{ with .Items }}
+<nav class="b-store-nav" aria-label="Categories">
+  <ul class="c-reel u-no-scrollbar">
+    <li><a href="{{ storeURL "" }}"{{ if not (or $.Active $.NoCurrent) }} aria-current="page"{{ end }}>All</a></li>
+    {{ range . }}{{ if or .Count (eq .Key $.Active) }}
+    <li><a href="{{ storeURL (print "c/" .Key) }}"{{ if eq .Key $.Active }} aria-current="page"{{ end }}>{{ .Label }}{{ if ge .Count 3 }} <span class="count u-font-mono">{{ .Count }}</span>{{ end }}</a></li>
+    {{ end }}{{ end }}
+  </ul>
+</nav>
+{{ end }}
+{{- end }}
+
+{{/* A copyable code block, as on the actions page. */}}
+{{ define "store/snippet" -}}
+<div class="b-code">
+  <button type="button" data-controller="copy" data-action="click->copy#copy" data-copy-remote-value="{{ .ID }}" class="btn-copy" aria-label="Copy snippet">
+    <svg class="c-icon" aria-hidden="true">
+      <use href="#ico-copy" data-copy-target="icon"></use>
+      <use href="#ico-check" class="u-hidden u-color-valid" data-copy-target="icon"></use>
+    </svg>
+  </button>
+  <pre><code data-copy-target="{{ .ID }}">{{ .Code }}</code></pre>
+</div>
+{{- end }}
+
+{{/* Both calls to list share one layout: why on the left, the code to
+     copy on the right. */}}
+{{ define "store/list-your-app" -}}
+<aside class="b-action-function b-store-cta" id="list-your-app" aria-labelledby="store-cta-title">
+  <div class="why">
+    <header><h2 id="store-cta-title">List your app</h2></header>
+    <p class="description">A realm lists itself: deploying it is the proof that you control it. New apps open <em>New</em>, then stay in their category; those of registered names come back through <em>Rediscover</em>.</p>
+    <p class="description">Not showing up? Your deploy transaction carries a <code>StoreRegisterRejected</code> event with the reason.</p>
+    <p class="description">Know Go? You already know most of Gno. <a href="https://docs.gno.land/">Read the docs</a></p>
+  </div>
+  <div class="how">
+    {{ template "store/snippet" (snippet "store-register" (printf `import "%s"
+
+func init(cur realm) {
+	store.Register(cross(cur), "YOUR-SLUG", "Your App Name",
+		"What it does, in one line", "utilities", 0)
+}` storePkg)) }}
+    <h3>Add a star button to your app</h3>
+    {{ template "store/snippet" (snippet "store-badge" (printf `func Render(path string) string {
+	// Your app's stars as Explore counts them, and a link to star it.
+	return store.Badge("%s/r/YOUR-NAMESPACE/your-app")
+}` domain)) }}
+  </div>
+</aside>
+{{- end }}
+
+{{ define "store/list-your-package" -}}
+<aside class="b-action-function b-store-cta" id="list-your-package" aria-labelledby="store-cta-title">
+  <div class="why">
+    <header><h2 id="store-cta-title">List your package</h2></header>
+    <p class="description">A package cannot call into a realm, so its namespace owner lists it with one transaction.</p>
+    <p class="description">Listed packages appear in Build and count toward Top builders.</p>
+  </div>
+  <div class="how">
+    {{ template "store/snippet" (snippet "store-claim" (printf `gnokey maketx call -pkgpath %s -func Claim \
+  -args %s/p/NAMESPACE/mylib -args mylib -args "My lib" \
+  -args "What it does, in one line" -args dev-tools -args 0 -args package \
+  -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -remote RPC KEY` storePkg domain)) }}
+  </div>
+</aside>
+{{- end }}

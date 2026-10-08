@@ -13,6 +13,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/zap"
@@ -61,6 +62,7 @@ type webCfg struct {
 	verbose          bool
 	noRealmNotice    bool
 	trustedPaths     string
+	storeRealm       string
 }
 
 // defaultTrustedPaths are namespaces whose code the gno.land team reviews or
@@ -171,8 +173,15 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedPaths,
 		"trusted-paths",
 		defaultWebOptions.trustedPaths,
-		"comma-separated namespaces or package paths (without /r/ or /p/) exempt from the realm notice; "+
+		"comma-separated namespaces or package paths (without /r/ or /p/) gnoweb trusts: exempt from the realm notice, owner assets shown in the store; "+
 			"the default list assumes namespace enforcement as on mainnet (r/sys/names enabled), set it on other chains",
+	)
+
+	fs.StringVar(
+		&c.storeRealm,
+		"store-realm",
+		defaultWebOptions.storeRealm,
+		"realm behind Explore, the app store at /explore (e.g. /r/gnoland/store/v0); empty disables it",
 	)
 
 	fs.StringVar(
@@ -311,12 +320,22 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 			logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
 		}
 		appcfg.RealmNotice = notice
-		appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
 	}
+	// The trust list also gates what the store shows, notice or not.
+	appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
+	if cfg.storeRealm != "" {
+		if u := (weburl.GnoURL{Path: cfg.storeRealm}); !u.IsRealm() || u.IsDir() {
+			return nil, fmt.Errorf("invalid -store-realm %q: want a realm path such as /r/gnoland/store/v0", cfg.storeRealm)
+		}
+	}
+	appcfg.StoreRealm = cfg.storeRealm
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
 	}
+
+	// Before -aliases, so an operator's own /explore wins.
+	appcfg.Aliases = withStoreAlias(appcfg.Aliases, cfg.storeRealm)
 
 	if cfg.aliases != "" {
 		aliases, err := parseAliases(cfg.aliases)
@@ -362,6 +381,19 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 		return nil
 	}, nil
+}
+
+// withStoreAlias returns a copy of aliases, so neither it nor -aliases,
+// copied in afterwards, ever mutates the shared DefaultAliases; with
+// -store-realm, the copy points /explore at the store realm. The alias comes
+// with -store-realm, not with the default aliases.
+func withStoreAlias(aliases map[string]gnoweb.AliasTarget, storeRealm string) map[string]gnoweb.AliasTarget {
+	out := make(map[string]gnoweb.AliasTarget, len(aliases)+1)
+	maps.Copy(out, aliases)
+	if storeRealm != "" {
+		out["/explore"] = gnoweb.AliasTarget{Value: storeRealm, Kind: gnoweb.GnowebPath}
+	}
+	return out
 }
 
 // parseAliases parses the given aliases string and return an aliases map.

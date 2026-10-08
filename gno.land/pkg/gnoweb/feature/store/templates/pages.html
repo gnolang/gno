@@ -1,0 +1,152 @@
+{{ define "store/home" -}}
+<div class="b-store u-grid-full">
+  <div class="b-store-head">
+    {{ template "store/lens" (lens "apps" true) }}
+    <header class="b-store-intro">
+      <div class="heading">
+        <h1>Explore</h1>
+        {{ with .Surprise }}<a class="b-btn" href="{{ . }}">Surprise me</a>{{ end }}
+      </div>
+      <p>{{ .Intro }}</p>
+      {{ with .Pulse }}{{ if or .Height .Items .Moment }}
+      <p class="b-store-pulse">
+        {{ if .Height }}<span class="clock">Block {{ .Height }}{{ with .Ago }} · {{ . }}{{ end }}</span>{{ end }}
+        {{ range .Items }}<span class="figure"><strong>{{ .Value }}</strong> {{ .Label }}{{ with .Window }} {{ . }}{{ end }}</span>{{ end }}
+        {{ with .Moment }}<span class="moment"><a href="{{ .URL }}">{{ .Text }}</a></span>{{ end }}
+      </p>
+      {{ end }}{{ end }}
+    </header>
+    {{ template "store/nav" .Nav }}
+  </div>
+
+  {{ with .Hero }}
+  <section class="b-store-hero" aria-labelledby="store-hero">
+    <article class="b-store-card">
+      {{ template "store/cover" . }}
+      <div class="body">
+        <p class="label">{{ with .LabelList }}<a href="{{ storeURL . }}">{{ $.Hero.Label }}</a>{{ else }}{{ .Label }}{{ end }}</p>
+        <div class="title">
+          {{ template "store/icon" . }}
+          <h2 id="store-hero"><a href="{{ .Path }}">{{ .Title }}</a></h2>
+        </div>
+        <p class="tagline">{{ .Tagline }}</p>
+        <ul class="b-store-meta" aria-label="About this listing">
+          {{ template "store/meta-items" . }}
+          <li class="path u-font-mono" title="{{ .Path }}">{{ .ShortPath }}</li>
+          {{ if .Community }}<li>{{ template "store/community" }}</li>{{ end }}
+        </ul>
+        <div class="b-btns">
+          <a class="b-btn b-store-btn--primary" href="{{ .Path }}">Open</a>
+          <a class="b-btn c-with-icon" href="{{ .Path }}$source"><svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg><span>Read the code</span></a>
+        </div>
+      </div>
+    </article>
+  </section>
+  {{ end }}
+
+  {{ with .Spotlight }}
+  <section class="b-store-shelf b-store-spotlight" aria-labelledby="store-spotlight">
+    <header class="b-pkg-section__header">
+      <div>
+        <h2 id="store-spotlight">Spotlight</h2>
+        <p class="note">A new set every day, from gno.land's core apps and community apps with a track record.</p>
+      </div>
+    </header>
+    {{ template "store/grid" (grid "b-store-grid--spotlight u-no-scrollbar" .) }}
+  </section>
+  {{ end }}
+
+  {{ range .Shelves }}{{ template "store/shelf" . }}{{ else }}
+  <p class="b-store-empty">No apps are listed yet.</p>
+  {{ end }}
+
+  {{ template "store/list-your-app" }}
+</div>
+{{- end }}
+
+{{ define "store/build" -}}
+<div class="b-store u-grid-full">
+  <div class="b-store-head">
+    {{ template "store/lens" (lens "build" true) }}
+    <header class="b-store-intro">
+      <div class="heading">
+        <h1>Build</h1>
+      </div>
+      <p>{{ .Intro }}</p>
+    </header>
+  </div>
+
+  {{ range .Shelves }}{{ template "store/shelf" . }}{{ else }}
+  <p class="b-store-empty">No packages are listed yet.</p>
+  {{ end }}
+
+  {{ with .Builders }}
+  <div class="b-store-builders">
+    {{ range . }}{{ template "store/builders" . }}{{ end }}
+  </div>
+  {{ end }}
+
+  {{ template "store/list-your-package" }}
+</div>
+{{- end }}
+
+{{ define "store/builders" -}}
+<section aria-label="{{ .Title }}">
+  <h2 class="b-pkg-section__header">{{ .Title }}</h2>
+  <ol class="b-pkg-list">
+    {{ range .People }}
+    <li class="b-pkg-list__item">
+      <a class="b-pkg-list__link" href="{{ .URL }}">
+        <span>{{ .Name }}</span>
+        <span class="count u-font-mono">{{ .Listings }} listed · ★ {{ .Stars }}</span>
+      </a>
+    </li>
+    {{ end }}
+  </ol>
+</section>
+{{- end }}
+
+{{/* One page of a category or of a front-page list, or the page that says
+     one does not exist (Missing). */}}
+{{ define "store/page" -}}
+<div class="b-store u-grid-full">
+  <div class="b-store-head">
+    {{ template "store/lens" (lens "apps" false) }}
+    <header class="b-store-intro">
+      <div class="heading">
+        <h1>{{ .Title }}</h1>
+      </div>
+      {{ with .Note }}<p>{{ . }}</p>{{ end }}
+    </header>
+    {{ with .Lists }}
+    <nav class="b-store-lists" aria-label="Lists">
+      <ul>
+        {{ range . }}<li><a href="{{ storeURL .Key }}"{{ if .Current }} aria-current="page"{{ end }}>{{ .Label }}</a></li>{{ end }}
+      </ul>
+    </nav>
+    {{ end }}
+    {{ template "store/nav" .Nav }}
+  </div>
+
+  {{ with .Cards }}
+  <h2 class="u-sr-only">Apps</h2>
+  {{ template "store/grid" (grid "" .) }}
+  {{ else }}
+  <div class="b-store-empty">
+    <p>{{ .Empty }}</p>
+    {{ if .Missing }}<p><a href="{{ storeURL "" }}">All apps</a></p>
+    {{ else }}<p><a href="{{ storeURL "" }}#list-your-app">List your app</a>: it takes one function in your realm.</p>{{ end }}
+  </div>
+  {{ end }}
+
+  {{ if gt .Pages 1 }}
+  <nav class="b-state-pagination" aria-label="Pages">
+    <p class="summary">Page <strong>{{ .Page }}</strong> of <strong>{{ .Pages }}</strong></p>
+    <div class="b-btns">
+      {{ with .Prev }}<a class="b-btn b-btn--secondary c-with-icon" rel="prev" href="?page={{ . }}"><svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-left"></use></svg><span>Previous</span></a>{{ end }}
+      {{ with .Next }}<a class="b-btn b-btn--secondary c-with-icon" rel="next" href="?page={{ . }}"><span>Next</span><svg class="c-icon" aria-hidden="true"><use href="#ico-arrow-right"></use></svg></a>{{ end }}
+    </div>
+  </nav>
+  {{ end }}
+</div>
+{{- end }}

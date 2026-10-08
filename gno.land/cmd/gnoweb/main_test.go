@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -187,6 +188,32 @@ func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
 	if !strings.Contains(body, "OK") {
 		t.Errorf("Unexpected response body: %s", body)
 	}
+}
+
+// A -store-realm that is not a realm path must refuse to start rather than
+// break the header link and the /explore alias silently.
+func TestSetupWeb_StoreRealm(t *testing.T) {
+	stdio := commands.NewDefaultIO()
+	stdio.SetOut(commands.WriteNopCloser(io.Discard))
+
+	for _, bad := range []string{"gno.land/r/gnoland/store", "r/gnoland/store", "/p/nt/avl/v0", "/r/gnoland/store/"} {
+		opts := defaultWebOptions
+		opts.bind = "127.0.0.1:0"
+		opts.storeRealm = bad
+		_, err := setupWeb(&opts, []string{}, stdio)
+		require.ErrorContains(t, err, "invalid -store-realm", bad)
+	}
+}
+
+func TestWithStoreAlias(t *testing.T) {
+	plain := withStoreAlias(gnoweb.DefaultAliases, "")
+	assert.Equal(t, gnoweb.DefaultAliases, plain, "no store, no alias")
+	plain["/x"] = gnoweb.AliasTarget{}
+	assert.NotContains(t, gnoweb.DefaultAliases, "/x", "a copy even without a store, as -aliases is copied into it")
+
+	got := withStoreAlias(gnoweb.DefaultAliases, "/r/gnoland/store")
+	assert.Equal(t, gnoweb.AliasTarget{Value: "/r/gnoland/store", Kind: gnoweb.GnowebPath}, got["/explore"])
+	assert.NotContains(t, gnoweb.DefaultAliases, "/explore", "the shared defaults are never mutated")
 }
 
 func TestParseAliases(t *testing.T) {
