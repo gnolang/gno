@@ -2,8 +2,11 @@
 #
 # One icon per line: `name` imports the upstream file of the same name
 # (dashes read as underscores); `name upstream_file` renames it. The icons
-# already in components/ui/icons.html are callable without being listed here,
-# and a name that collides with one of them is rejected.
+# already in components/ui/icons.html are callable without being listed here;
+# an upstream icon whose name they already use is imported as `name-outline`.
+# Every upstream icon is imported except the brand marks below.
+#
+# Not imported (third-party brand marks): airplay, bluetooth.
 
 # Arrows and navigation
 arrow-up
@@ -168,7 +171,6 @@ laptop
 monitor display
 phone phone_portrait
 wifi
-bluetooth
 battery battery_full
 signal signal_full
 fingerprint
@@ -204,3 +206,256 @@ scale
 ruler
 hand
 waves
+
+# The rest of the set
+align-horizontal
+align-vertical
+angle
+arrow-down-outline arrow_down
+arrow-left-outline arrow_left
+arrow-right-outline arrow_right
+backspace
+backward
+battery-75
+battery-charging
+battery-empty
+battery-half
+battery-low
+bell-snooze
+book-text
+bookmark-book
+box-add
+box-download
+box-open
+box-remove
+browser
+browser-alt
+button-add
+button-minus
+calendar-date
+calendar-day
+calendar-days
+calendar-last-day
+calendar-month
+calendar-move
+calendar-remove
+calendar-split
+calendar-week
+camera-alt
+camera-noflash
+camera-noflash-alt
+capture
+card-timeline
+card-view
+carousel
+cast
+chain-outline chain
+chat-add
+check-outline check
+check-circle-outside
+checkbox-checked
+checkbox-empty
+chevron-close
+chevron-down-circle
+chevron-left-circle
+chevron-open
+chevron-right-circle
+chevron-up-circle
+circle
+circle-menu
+circle-split
+clipboard-add
+clipboard-copy
+clipboard-cross
+clipboard-notes
+clipboard-remove
+cloud-disconnect
+cloud-download-alt
+cloud-upload-alt
+code-outline code
+component-add
+contract
+create
+crop
+cross-outline cross
+disc
+display-alt
+document-justified
+document-stack
+document-words
+door
+door-alt
+download-alt
+downward
+drag
+drag-circle
+drag-vertical
+duplicate-alt
+enter-alt
+episodes
+exit-left
+expand-height
+expand-width
+external
+eye-no
+face-delighted
+face-neutral
+file-download
+file-upload
+files-history
+files-stack
+filter-circle
+filter-single
+filtering
+flame-alt
+flip-view
+folder-closed
+folder-minus
+forward
+frame
+funnel
+grab
+graph-box
+grid-outline grid
+grid-circles
+grid-circles-add
+grid-small
+grid-squares
+grid-squares-add
+heart-rate
+heart-remove
+height
+home-alt
+home-check
+home-door
+import
+inbox
+inbox-alt
+info-circle-outline info_circle
+iphone-landscape
+iphone-portrait
+jump-backward
+jump-forward
+jump-left
+jump-right
+lightbulb-on
+lightning-alt
+lineweight
+link-outline link
+link-alt
+link-broken
+link-horizontal
+link-vertical
+list-outline list
+list-add
+mail-add
+mail-delete
+mail-minus
+mail-new
+mail-remove
+marquee
+menu-hamburger
+menu-horizontal
+menu-vertical
+message-writing
+microphone-disabled
+microphone-muted
+midpoint
+mini-player
+moon-outline moon
+notification
+pages
+panel-bottom
+panel-center
+panel-left
+panel-right
+panel-sectioned
+panel-top
+paper
+paper-folded
+paper-plane-alt
+paragraph-center
+paragraph-end
+paragraph-right
+paragraph-start
+phone-landscape
+pie-half
+pie-third
+pill
+postcard
+projector
+pull-down
+pull-left
+pull-right
+pull-up
+push-down
+push-left
+push-right
+push-up
+radio-on
+record
+refresh-alt
+replicate
+replicate-alt
+reset
+reset-alt
+reset-forward
+reset-hard
+reset-temporary
+retweet
+reuse
+reverse
+reverse-alt
+revert
+scale-contract
+scale-extend
+scalpel
+search-outline search
+share-alt
+side-menu
+signal-low
+signal-medium
+signal-none
+slash-backward
+slash-forward
+sort-alt
+speaker
+speech-typing
+split
+split-three
+sun-outline sun
+switch
+table-header
+tag-milestone
+thread
+toggle
+toggles
+trash-alt
+tv-mode
+unarchive
+undo-history
+unlink-horizontal
+unlink-vertical
+upload-alt
+upward
+user-male
+user-male-circle
+user-remove
+venn
+volume-0
+volume-add
+volume-disabled
+volume-low
+volume-minus
+volume-muted
+width
+wifi-error
+wifi-none
+window
+window-collapse-left
+window-collapse-right
+window-content
+wrap-back
+wrap-forward
+zoom-cancel
+zoom-reset

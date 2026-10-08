@@ -1,7 +1,0 @@
--- input.md --
-Verified <gno-icon name="check-circle" label="Verified account" /> account.
-
-Empty label stays decorative: <gno-icon name="star" label="" />
--- output.html --
-<p>Verified <svg class="gno-icon" viewBox="0 0 21 21" stroke-width="1.3" role="img" aria-label="Verified account"><g fill="none" fill-rule="evenodd" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" transform="translate(2 2)"><circle cx="8.5" cy="8.5" r="8"/><path d="m5.5 9.5 2 2 5-5"/></g></svg> account.</p>
-<p>Empty label stays decorative: <svg class="gno-icon" viewBox="0 0 21 21" stroke-width="1.3" aria-hidden="true"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" transform="translate(3 3)"/></svg></p>

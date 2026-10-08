@@ -50,7 +50,7 @@ func main() {
 type entry struct{ name, file string }
 
 // run writes the vendored set. A name the chrome or drawn icons already use
-// is caught by TestIconRegistryNoShadowing, which `make icons` runs next.
+// fails TestIconTable, which `make icons` runs next to build the icon table.
 func run(listPath, outPath string) error {
 	entries, err := readList(listPath)
 	if err != nil {
@@ -157,8 +157,8 @@ func fetchUpstream() (map[string][]byte, error) {
 }
 
 // svgBody returns the markup inside the root <svg> element, on one line.
-// The registry in markdown/ext_icons.go re-parses it against an element and
-// attribute allowlist, so this only has to strip the wrapper.
+// The table generator (markdown/ext_icons_gen_test.go) re-parses it against
+// an element and attribute allowlist, so this only has to strip the wrapper.
 func svgBody(src []byte) (string, error) {
 	s := string(src)
 	start := strings.Index(s, "<svg")

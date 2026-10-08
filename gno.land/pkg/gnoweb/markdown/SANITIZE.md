@@ -102,9 +102,9 @@ be `kebab-case-describing-what-it-tests.txtar`.
 
 | Helper | Cases | Threats covered |
 |---|---|---|
-| `InlineText` | 14 | bidi/ZWSP/NEL strip, CR-only fold, NUL→FFFD, backslash-escape-order, ampersand-entity, leading/trailing-`#` in ATX context, link-text bracket breakout, `=` and `\|` carve-outs |
-| `Block` | 64 | heading/blockquote/list/thematic/setext injection, fence autoclose, LRD strip, ref-link USE collision, footnote-ref `[^` collision (basic + with preceding backslash, CM §2.4 parity), ext-delim (`<gno-card>`, `</gno-columns>`, `\|\|\|`), CR / U+2028 / U+2029 fold, entity-encoded scheme in a link/image destination (`&#x6a;avascript:`, `&#x64;ata:`) neutralized to `%26`, backslash-escaped scheme (`javascript\:`) left verbatim and stopped by the renderer instead |
-| `BlockRich` | 30 | the permissive counterpart: heading / blockquote / list / thematic-break / setext / GFM-table / `\|` all *preserved*, while the realm-binding defenses stay on — LRD strip, ref-link and footnote-ref escape, `<gno-card>` escape (incl. uppercase), fence autoclose + fence-walker LRD bypass + fence-info backtick, HTML block isolation (doctype / CDATA / script / comment), NUL→FFFD, leading-setext neutralization (h1 / h2 / deeper / indented-code), cross-paragraph setext / table / lazy-continuation forward isolation |
+| `InlineText` | 15 | bidi/ZWSP/NEL strip, CR-only fold, NUL→FFFD, backslash-escape-order, ampersand-entity, leading/trailing-`#` in ATX context, link-text bracket breakout, `=` and `\|` carve-outs, `<gno-icon />` escaped to text |
+| `Block` | 66 | heading/blockquote/list/thematic/setext injection, fence autoclose, LRD strip, ref-link USE collision, footnote-ref `[^` collision (basic + with preceding backslash, CM §2.4 parity), ext-delim (`<gno-card>`, `</gno-columns>`, `\|\|\|`), `<gno-icon />` kept at line start and mid-line (an inline glyph, not a delimiter; `</gno-icon>` still escaped), CR / U+2028 / U+2029 fold, entity-encoded scheme in a link/image destination (`&#x6a;avascript:`, `&#x64;ata:`) neutralized to `%26`, backslash-escaped scheme (`javascript\:`) left verbatim and stopped by the renderer instead |
+| `BlockRich` | 32 | the permissive counterpart: `<gno-icon />` kept in both positions (uppercase too, `<gno-iconic>` still escaped), heading / blockquote / list / thematic-break / setext / GFM-table / `\|` all *preserved*, while the realm-binding defenses stay on — LRD strip, ref-link and footnote-ref escape, `<gno-card>` escape (incl. uppercase), fence autoclose + fence-walker LRD bypass + fence-info backtick, HTML block isolation (doctype / CDATA / script / comment), NUL→FFFD, leading-setext neutralization (h1 / h2 / deeper / indented-code), cross-paragraph setext / table / lazy-continuation forward isolation |
 | `Blockquote` | 9 | basic, bidi strip, blank-line preservation, CR normalize, empty input, leading-marker escape, fence autoclose, LRD strip |
 | `BlockquoteRich` | 1 | GFM table preserved inside a blockquote |
 | `LinkTitle` | 4 | quote/apostrophe/paren delimiters, newline fold |
@@ -124,7 +124,7 @@ be `kebab-case-describing-what-it-tests.txtar`.
 | `FootnoteDefinition` | 3 | basic body, multi-paragraph continuation indentation, rejected name suppresses output |
 | `LinkReferenceDefinition` | 3 | basic label/url, with title, rejected URL suppresses output |
 
-186 fixtures total. The Cases column is checked against the corpus by
+191 fixtures total. The Cases column is checked against the corpus by
 `TestSanitizeCoverageTableMatchesCorpus` — add a fixture without updating the
 row and it fails with the delta, so the numbers stay honest without anyone
 recounting by hand. The Threats column is prose and is NOT checked; it is

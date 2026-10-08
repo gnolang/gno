@@ -22,9 +22,7 @@ type GnoContext struct {
 
 // NewGnoParserContext creates a new parser context with GnoURL
 func NewGnoParserContext(mdctx GnoContext) parser.Context {
-	// Heading IDs skip gno-icon tags (see iconIDs). goldmark only exposes
-	// its default IDs through a context, hence the throwaway one.
-	ctx := parser.NewContext(parser.WithIDs(iconIDs{parser.NewContext().IDs()}))
+	ctx := parser.NewContext()
 	ctx.Set(gUrlContextKey, mdctx.GnoURL)
 	ctx.Set(gChainIdContextKey, mdctx.ChainId)
 	ctx.Set(gRemoteContextKey, mdctx.Remote)

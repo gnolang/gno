@@ -425,7 +425,8 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 // render_config.go) so user content renders identically inside the
 // sandbox as it would at top level, plus the structural gno-*
 // extensions that exist today (foreign, columns, alert), the link
-// extension, mentions, and icons (static allowlisted glyphs). Image validator is wired through if non-nil.
+// extension, mentions, and icons (static allowlisted glyphs). Image
+// validator is wired through if non-nil.
 //
 // Mentions are loaded: a `@user`/`g1…` mention resolves to a system-
 // built /u/<name> link (the author cannot choose the destination), so it

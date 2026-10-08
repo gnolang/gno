@@ -2613,7 +2613,7 @@ main.is-dev-mode .b-toc a {
 		}
 	}
 
-	/* ===== ICON COMPONENT ===== */
+	/* ===== GNO-ICON COMPONENT ===== */
 	/* Inline <gno-icon />: sized and colored by the surrounding text, so it
 	   follows headings, links and both themes. 1.15em matches .c-icon; the
 	   negative vertical-align centers the glyph on the x-height instead of

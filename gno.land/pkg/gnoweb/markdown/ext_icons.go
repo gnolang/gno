@@ -7,201 +7,44 @@
 // attribute is read.
 //
 // Each icon is written inline as its own <svg>, so a page carries only the
-// icons it uses. The glyphs come from one registry built at init from the
-// same symbols the chrome uses (components/ui/icons.html) plus the vendored
-// and hand-drawn sets under icons/. Every glyph is re-serialized through an
-// element and attribute allowlist, so whatever the source files hold, the
-// output is plain shape markup.
+// icons it uses. The glyphs come from iconRegistry, a Go table generated
+// (`make icons`) from the chrome sprite components/ui/icons.html and the
+// sets under icons/, through an element and attribute allowlist: nothing is
+// parsed at run time, and a lookup is a map read.
 //
-// Only a well-formed self-closing tag is claimed. A tag that is not
-// self-closing falls through to goldmark's raw-HTML parser, which safe mode
-// strips; a self-closing tag with a missing or unknown name renders as an
-// HTML comment saying so.
+// A tag is read by a bounded scanner (maxIconTagLen), on one line. A tag
+// that is not self-closing, or that has a missing or unknown name, renders
+// as an HTML comment saying so; a tag that never ends on its line is left
+// to goldmark, which shows it as text.
 package markdown
 
 import (
 	"bytes"
-	"embed"
-	"fmt"
-	"io"
-	"io/fs"
-	"strings"
+	"strconv"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/renderer"
+	gmhtml "github.com/yuin/goldmark/renderer/html"
 	"github.com/yuin/goldmark/text"
 	"github.com/yuin/goldmark/util"
-	"golang.org/x/net/html"
 )
 
 const iconTagName = "gno-icon"
 
 var iconTagPrefix = []byte("<" + iconTagName)
 
-//go:embed icons/*.svg
-var iconFiles embed.FS
-
-// iconSources lists the symbol files the registry reads. On a name present
-// in several files the first one wins, as it would for an in-page `#ico-…`
-// reference; TestIconRegistryNoShadowing keeps the files from colliding.
-var iconSources = []iconSource{
-	{components.SharedPartialsFS(), "icons.html"},
-	{iconFiles, "icons/drawn.svg"},
-	{iconFiles, "icons/vendored.svg"},
-}
-
-// iconExcluded are chrome symbols that stay out of the registry: third-party
-// brand marks, which a realm must not be able to wear.
-var iconExcluded = map[string]bool{
-	"github":   true,
-	"twitter":  true,
-	"discord":  true,
-	"telegram": true,
-}
-
-// iconElements, iconAttrs and iconRootAttrs are the allowlist a glyph is
-// re-serialized through. The tokenizer lowercases attribute names, so the
-// root's viewbox is written back as viewBox.
-var (
-	iconElements = map[string]bool{
-		"g": true, "path": true, "circle": true, "ellipse": true,
-		"line": true, "polyline": true, "polygon": true, "rect": true,
-	}
-	iconAttrs = map[string]bool{
-		"d": true, "cx": true, "cy": true, "r": true, "rx": true, "ry": true,
-		"x": true, "y": true, "x1": true, "y1": true, "x2": true, "y2": true,
-		"width": true, "height": true, "points": true, "transform": true,
-		"fill": true, "fill-rule": true, "clip-rule": true, "opacity": true,
-		"fill-opacity": true, "stroke": true, "stroke-width": true,
-		"stroke-linecap": true, "stroke-linejoin": true,
-		"stroke-miterlimit": true, "stroke-opacity": true,
-	}
-	iconRootAttrs = map[string]bool{
-		"viewbox": true, "fill": true, "stroke": true, "stroke-width": true,
-		"stroke-linecap": true, "stroke-linejoin": true,
-	}
-)
-
-// iconGlyph is a registry entry, pre-rendered so the renderer only copies
-// bytes: open is `<svg class="gno-icon" viewBox=… …` (unterminated, the
-// renderer appends the accessibility attributes) and body is the shapes plus
-// `</svg>`.
+// iconGlyph is an iconRegistry entry: head holds the root <svg> attributes
+// (viewBox, fill, stroke…) and body the shapes.
 type iconGlyph struct {
-	open, body []byte
+	head, body string
 }
 
-var iconRegistry = mustLoadIcons()
-
-type iconSource struct {
-	fsys fs.FS
-	name string
-}
-
-func mustLoadIcons() map[string]iconGlyph {
-	reg := map[string]iconGlyph{}
-	for _, src := range iconSources {
-		if err := loadIconSource(reg, src); err != nil {
-			panic(fmt.Sprintf("gno-icon: %s: %s", src.name, err))
-		}
-	}
-	return reg
-}
-
-func loadIconSource(reg map[string]iconGlyph, src iconSource) error {
-	f, err := src.fsys.Open(src.name)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return loadIcons(reg, f)
-}
-
-// loadIcons adds every `<symbol id="ico-NAME">` of r to reg, keeping an
-// existing entry on a duplicate name.
-func loadIcons(reg map[string]iconGlyph, r io.Reader) error {
-	toks, err := ParseHTMLTokens(r)
-	if err != nil {
-		return err
-	}
-
-	var (
-		name      string // symbol being read; "" outside a symbol
-		open      bytes.Buffer
-		body      bytes.Buffer
-		skipDepth int // > 0 inside an element dropped by the allowlist
-	)
-	for _, tok := range toks {
-		switch tok.Type {
-		case html.StartTagToken, html.SelfClosingTagToken:
-			if tok.Data == "symbol" {
-				id, _ := ExtractAttr(tok.Attr, "id")
-				var ok bool
-				if name, ok = strings.CutPrefix(id, "ico-"); !ok {
-					name = "" // not an icon symbol
-				}
-				open.Reset()
-				body.Reset()
-				open.WriteString(`<svg class="gno-icon"`)
-				writeIconAttrs(&open, tok.Attr, iconRootAttrs)
-				continue
-			}
-			if name == "" {
-				continue
-			}
-			if skipDepth > 0 || !iconElements[tok.Data] {
-				if tok.Type == html.StartTagToken {
-					skipDepth++
-				}
-				continue
-			}
-			body.WriteString("<" + tok.Data)
-			writeIconAttrs(&body, tok.Attr, iconAttrs)
-			if tok.Type == html.SelfClosingTagToken {
-				body.WriteString("/>")
-			} else {
-				body.WriteByte('>')
-			}
-
-		case html.EndTagToken:
-			switch {
-			case name == "":
-			case tok.Data == "symbol":
-				if _, dup := reg[name]; !dup && !iconExcluded[name] {
-					body.WriteString("</svg>")
-					reg[name] = iconGlyph{
-						open: bytes.Clone(open.Bytes()),
-						body: bytes.Clone(body.Bytes()),
-					}
-				}
-				name = ""
-			case skipDepth > 0:
-				skipDepth--
-			case iconElements[tok.Data]:
-				body.WriteString("</" + tok.Data + ">")
-			}
-		}
-	}
-	return nil
-}
-
-// writeIconAttrs writes the allowed attributes of attrs, escaped. A value
-// referencing another element (url(#…)) is dropped: the referenced element
-// is not copied, and an inline copy per use would duplicate its id.
-func writeIconAttrs(buf *bytes.Buffer, attrs []html.Attribute, allowed map[string]bool) {
-	for _, a := range attrs {
-		if !allowed[a.Key] || strings.Contains(a.Val, "url(") {
-			continue
-		}
-		key := a.Key
-		if key == "viewbox" {
-			key = "viewBox"
-		}
-		fmt.Fprintf(buf, ` %s="%s"`, key, HTMLEscapeString(a.Val))
-	}
-}
+// iconHeadStroke is the head every outline icon shares (the System UIcons
+// set and the icons drawn for it): the generator writes it once here and
+// strips the same values from each body, which inherit them.
+const iconHeadStroke = `viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"`
 
 // ----- AST node -----
 
@@ -211,8 +54,19 @@ var KindIcon = ast.NewNodeKind("GnoIcon")
 // Icon is the inline node for a `<gno-icon />` tag.
 type Icon struct {
 	ast.BaseInline
-	Name  string
-	Label string
+	iconTag
+	// Source is where the tag sits in the document.
+	Source text.Segment
+}
+
+// iconTag is what a tag says. Name and Label are the raw attribute values,
+// aliasing the source. Kept apart from Icon so the scanner returns it on the
+// stack and only a recognized tag allocates a node.
+type iconTag struct {
+	Name, Label []byte
+	// SelfClosing is false for `<gno-icon name="…">`, which renders a hint
+	// instead of the icon.
+	SelfClosing bool
 }
 
 // Kind implements ast.Node.
@@ -221,37 +75,97 @@ func (*Icon) Kind() ast.NodeKind { return KindIcon }
 // Dump implements ast.Node.
 func (n *Icon) Dump(source []byte, level int) {
 	ast.DumpHelper(n, source, level, map[string]string{
-		"name":  n.Name,
-		"label": n.Label,
+		"name":         string(n.Name),
+		"label":        string(n.Label),
+		"self_closing": strconv.FormatBool(n.SelfClosing),
 	}, nil)
 }
 
-// parseIconTag reads a `<gno-icon … />` tag at the start of line. It returns
-// the tag's length in bytes and the node, or 0 and nil when line does not
-// start with a well-formed self-closing gno-icon tag. The tokenizer, which
-// handles quoting (a `>` inside a label), only runs once the prefix matched.
-func parseIconTag(line []byte) (int, *Icon) {
+// ----- tag scanner -----
+
+// maxIconTagLen bounds how far a tag is scanned. It keeps an unterminated
+// `<gno-icon` from costing a scan to the end of the line, which, repeated
+// on one line, made parsing quadratic; it also caps the label length.
+const maxIconTagLen = 512
+
+// parseIconTag reads a `<gno-icon …>` tag at the start of src, without
+// allocating. It returns the tag's length, or 0 when src does not start with
+// a gno-icon tag that ends (`/>` or `>`) on this line within maxIconTagLen
+// bytes. Attribute names are case-insensitive and the first occurrence wins,
+// as in HTML; values are returned raw, without entity decoding.
+func parseIconTag(src []byte) (size int, icon iconTag) {
 	n := len(iconTagPrefix)
-	if len(line) <= n || !bytes.EqualFold(line[:n], iconTagPrefix) {
-		return 0, nil
+	if len(src) <= n || !bytes.EqualFold(src[:n], iconTagPrefix) {
+		return 0, icon
 	}
-	if c := line[n]; c != '/' && !util.IsSpace(c) {
-		return 0, nil // e.g. <gno-iconic>
+	if c := src[n]; c != '/' && c != '>' && !util.IsSpace(c) {
+		return 0, icon // e.g. <gno-iconic>
+	}
+	src = src[:min(len(src), maxIconTagLen)]
+	if eol := bytes.IndexByte(src, '\n'); eol >= 0 {
+		src = src[:eol] // a tag spans one line
 	}
 
-	z := html.NewTokenizer(bytes.NewReader(line))
-	if z.Next() != html.SelfClosingTagToken {
-		return 0, nil
-	}
-	size := len(z.Raw())
-	tok := z.Token()
+	var hasName, hasLabel bool
+	for i := n; i < len(src); {
+		switch c := src[i]; {
+		case util.IsSpace(c):
+			i++
+			continue
+		case c == '>':
+			return i + 1, icon
+		case c == '/':
+			if i+1 < len(src) && src[i+1] == '>' {
+				icon.SelfClosing = true
+				return i + 2, icon
+			}
+			i++
+			continue
+		}
 
-	name, _ := ExtractAttr(tok.Attr, "name")
-	label, _ := ExtractAttr(tok.Attr, "label")
-	return size, &Icon{
-		Name:  strings.TrimSpace(name),
-		Label: strings.TrimSpace(label),
+		// Attribute name, then an optional `= value`.
+		start := i
+		for i++; i < len(src) && !isIconAttrNameEnd(src[i]); i++ {
+		}
+		key := src[start:i]
+		for i < len(src) && util.IsSpace(src[i]) {
+			i++
+		}
+		var val []byte
+		if i < len(src) && src[i] == '=' {
+			for i++; i < len(src) && util.IsSpace(src[i]); i++ {
+			}
+			if i == len(src) {
+				return 0, icon
+			}
+			if q := src[i]; q == '"' || q == '\'' {
+				end := bytes.IndexByte(src[i+1:], q)
+				if end < 0 {
+					return 0, icon
+				}
+				val = src[i+1 : i+1+end]
+				i += end + 2
+			} else {
+				start := i
+				for i < len(src) && !util.IsSpace(src[i]) && src[i] != '>' {
+					i++
+				}
+				val = src[start:i]
+			}
+		}
+
+		switch {
+		case !hasName && bytes.EqualFold(key, []byte("name")):
+			icon.Name, hasName = bytes.TrimSpace(val), true
+		case !hasLabel && bytes.EqualFold(key, []byte("label")):
+			icon.Label, hasLabel = bytes.TrimSpace(val), true
+		}
 	}
+	return 0, icon
+}
+
+func isIconAttrNameEnd(c byte) bool {
+	return c == '/' || c == '>' || c == '=' || util.IsSpace(c)
 }
 
 // ----- parsers -----
@@ -260,16 +174,23 @@ type iconParser struct{}
 
 var _ parser.InlineParser = (*iconParser)(nil)
 
+// iconInHeadingKey is set on the parser context once an icon is parsed in
+// a heading, so iconHeadingIDTransformer only walks documents that need it.
+var iconInHeadingKey = parser.NewContextKey()
+
 func (*iconParser) Trigger() []byte { return []byte{'<'} }
 
-func (*iconParser) Parse(_ ast.Node, block text.Reader, _ parser.Context) ast.Node {
-	line, _ := block.PeekLine()
-	size, icon := parseIconTag(line)
-	if icon == nil {
+func (*iconParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) ast.Node {
+	line, seg := block.PeekLine()
+	size, tag := parseIconTag(line)
+	if size == 0 {
 		return nil
 	}
 	block.Advance(size)
-	return icon
+	if parent.Kind() == ast.KindHeading {
+		pc.Set(iconInHeadingKey, true)
+	}
+	return &Icon{iconTag: tag, Source: text.NewSegment(seg.Start, seg.Start+size)}
 }
 
 // iconParagraphParser opens a paragraph on a line that starts with a
@@ -284,50 +205,63 @@ func (*iconParagraphParser) Trigger() []byte { return []byte{'<'} }
 
 func (p *iconParagraphParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
-	if _, icon := parseIconTag(util.TrimLeftSpace(line)); icon == nil {
+	if size, _ := parseIconTag(util.TrimLeftSpace(line)); size == 0 {
 		return nil, parser.NoChildren
 	}
 	return p.BlockParser.Open(parent, reader, pc)
 }
 
-// iconIDs generates auto heading IDs from the heading's source line with
-// gno-icon tags removed. goldmark derives the ID from the raw line, so
-// `## <gno-icon name="rocket" /> Launch` would get `gno-icon-namerocket-launch`;
-// stripped, it gets `launch`, from the same text the TOC shows. Generating
-// at the usual time, rather than fixing IDs after parsing, keeps duplicate
-// numbering in document order. Installed by NewGnoParserContext.
-//
-// Deliberately narrow: other inline syntax (links, emphasis) also reaches
-// goldmark's IDs through the raw line, and stripping it all would move
-// existing anchors. Only the icon tag, which is new, is taken out.
-type iconIDs struct {
-	parser.IDs
+// iconHeadingIDTransformer rebuilds auto heading IDs without the icon tags.
+// goldmark derives an ID from the heading's raw source line, so
+// `## <gno-icon name="rocket" /> Launch` gets `gno-icon-namerocket-launch`;
+// without the tag it gets `launch`, from the text the TOC shows. The tags
+// removed are the Icon nodes goldmark parsed, so a tag shown as text (code
+// span, backslash escape) stays, as any text does. Every heading is
+// renumbered in document order with fresh IDs, so a `Launch` before or after
+// the icon heading gets the suffix it would without icons. Other inline
+// syntax is left in the ID, as goldmark leaves it.
+type iconHeadingIDTransformer struct{}
+
+func (*iconHeadingIDTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
+	if pc.Get(iconInHeadingKey) == nil {
+		return
+	}
+	ids := parser.NewContext().IDs() // goldmark's generator, fresh
+	src := reader.Source()
+	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		h, ok := n.(*ast.Heading)
+		if !entering || !ok {
+			return ast.WalkContinue, nil
+		}
+		// Only auto IDs: without WithAutoHeadingID there is none to fix.
+		if _, ok := h.AttributeString("id"); ok && h.Lines().Len() > 0 {
+			line := h.Lines().At(h.Lines().Len() - 1) // the line goldmark uses
+			h.SetAttributeString("id", ids.Generate(withoutIcons(h, line, src), ast.KindHeading))
+		}
+		return ast.WalkSkipChildren, nil
+	})
 }
 
-func (ids iconIDs) Generate(value []byte, kind ast.NodeKind) []byte {
-	return ids.IDs.Generate(stripIconTags(value), kind)
-}
-
-// stripIconTags returns value without its gno-icon tags. It returns value
-// itself, without allocating, when there is no '<' to look at.
-func stripIconTags(value []byte) []byte {
-	if bytes.IndexByte(value, '<') < 0 {
-		return value
-	}
-	out := make([]byte, 0, len(value))
-	for {
-		i := bytes.IndexByte(value, '<')
-		if i < 0 {
-			return append(out, value...)
+// withoutIcons returns the source of line minus the Icons under n that sit
+// on it, or the line itself when none does. The walk visits them in source
+// order.
+func withoutIcons(n ast.Node, line text.Segment, src []byte) []byte {
+	var out []byte
+	at := line.Start
+	_ = ast.Walk(n, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
+		if icon, ok := c.(*Icon); ok && entering && icon.Source.Start >= at && icon.Source.Stop <= line.Stop {
+			if out == nil {
+				out = make([]byte, 0, line.Len())
+			}
+			out = append(out, src[at:icon.Source.Start]...)
+			at = icon.Source.Stop
 		}
-		out = append(out, value[:i]...)
-		if size, icon := parseIconTag(value[i:]); icon != nil {
-			value = value[i+size:]
-			continue
-		}
-		out = append(out, '<')
-		value = value[i+1:]
+		return ast.WalkContinue, nil
+	})
+	if out == nil {
+		return src[line.Start:line.Stop]
 	}
+	return append(out, src[at:line.Stop]...)
 }
 
 // ----- renderer -----
@@ -338,30 +272,73 @@ func (*iconRenderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(KindIcon, renderIcon)
 }
 
-func renderIcon(w util.BufWriter, _ []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
-	n, ok := node.(*Icon)
-	if !entering || !ok {
+func renderIcon(w util.BufWriter, source []byte, node ast.Node, entering bool) (ast.WalkStatus, error) {
+	if !entering {
 		return ast.WalkContinue, nil
 	}
+	n := node.(*Icon)
 
-	glyph, ok := iconRegistry[n.Name]
+	glyph, ok := iconRegistry[string(n.Name)]
 	switch {
-	case n.Name == "":
+	case !n.SelfClosing:
+		w.WriteString(`<!-- gno-icon: write it self-closing, <gno-icon name="…" /> -->`)
+		return ast.WalkContinue, nil
+	case len(n.Name) == 0:
 		w.WriteString("<!-- gno-icon: missing name -->")
 		return ast.WalkContinue, nil
 	case !ok:
-		fmt.Fprintf(w, `<!-- gno-icon: unknown name "%s" -->`, HTMLEscapeString(n.Name))
+		w.WriteString(`<!-- gno-icon: unknown name "`)
+		gmhtml.DefaultWriter.RawWrite(w, n.Name)
+		w.WriteString(`" -->`)
 		return ast.WalkContinue, nil
 	}
 
-	w.Write(glyph.open)
-	if n.Label != "" {
-		fmt.Fprintf(w, ` role="img" aria-label="%s">`, HTMLEscapeString(n.Label))
+	w.WriteString(`<svg class="gno-icon" `)
+	w.WriteString(glyph.head)
+	if len(n.Label) > 0 {
+		// The value is raw source: write it as goldmark writes text,
+		// resolving character references and backslash escapes (`\|` in a
+		// table cell), escaped, straight to w.
+		w.WriteString(` role="img" aria-label="`)
+		gmhtml.DefaultWriter.Write(w, n.Label)
+		w.WriteString(`">`)
 	} else {
-		w.WriteString(` aria-hidden="true">`)
+		w.WriteString(` aria-hidden="true" focusable="false">`)
 	}
-	w.Write(glyph.body)
+	w.WriteString(glyph.body)
+	w.WriteString("</svg>")
+
+	// A decorative icon that is all a link or heading holds leaves it with
+	// no accessible name: say so where the author will look.
+	if len(n.Label) == 0 && aloneInNamedParent(n, source) {
+		w.WriteString(`<!-- gno-icon: alone in a link or heading, add label="…" to name it -->`)
+	}
 	return ast.WalkContinue, nil
+}
+
+// aloneInNamedParent reports whether n is the only content, blank text
+// aside, of a link or heading: an element whose accessible name comes from
+// its content.
+func aloneInNamedParent(n ast.Node, source []byte) bool {
+	parent := n.Parent()
+	if parent == nil {
+		return false
+	}
+	switch parent.Kind() {
+	case ast.KindLink, KindGnoLink, ast.KindHeading:
+	default:
+		return false
+	}
+	for c := parent.FirstChild(); c != nil; c = c.NextSibling() {
+		if c == n {
+			continue
+		}
+		t, ok := c.(*ast.Text)
+		if !ok || !util.IsBlank(t.Segment.Value(source)) {
+			return false
+		}
+	}
+	return true
 }
 
 // ----- extension -----
@@ -381,6 +358,9 @@ func (e *iconExtension) Extend(m goldmark.Markdown) {
 		),
 		parser.WithBlockParsers(
 			util.Prioritized(&iconParagraphParser{parser.NewParagraphParser()}, 899),
+		),
+		parser.WithASTTransformers(
+			util.Prioritized(&iconHeadingIDTransformer{}, 500),
 		),
 	)
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(

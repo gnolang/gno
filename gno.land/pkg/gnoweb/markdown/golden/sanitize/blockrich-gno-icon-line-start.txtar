@@ -1,0 +1,17 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+<gno-icon name="star" /> at line start
+<GNO-ICON name="star" /> uppercase
+<gno-iconic> lookalike
+-- output.md --
+
+
+<gno-icon name="star" /> at line start
+<GNO-ICON name="star" /> uppercase
+\<gno-iconic> lookalike
+
+-- output.html --
+<p><svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg> at line start
+<svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg> uppercase
+&lt;gno-iconic&gt; lookalike</p>
