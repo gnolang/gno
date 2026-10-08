@@ -381,6 +381,28 @@ func (p *peerErrorOnStart) Start() error {
 	return p.startFn()
 }
 
+// peerReplacedBeforeRunCheck runs replaceFn the first time its running state
+// is checked, then reports itself stopped. addPeer's rollback check is the
+// first IsRunning call addPeer makes on a peer, so this replaces the peer
+// between its registration and that check.
+type peerReplacedBeforeRunCheck struct {
+	*mock.Peer
+
+	checked   bool
+	replaceFn func()
+}
+
+func (p *peerReplacedBeforeRunCheck) IsRunning() bool {
+	if p.checked {
+		return p.Peer.IsRunning()
+	}
+
+	p.checked = true
+	p.replaceFn()
+
+	return false
+}
+
 func TestMultiplexSwitch_AddPeerRemovedBeforeAdded(t *testing.T) {
 	t.Parallel()
 
@@ -2821,6 +2843,32 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 		assert.Equal(t, 1, disconnected)
 	})
 
+	t.Run("the rollback leaves the entry of a connection that replaced the stopped one", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			// Our ID is the higher one, so the peer's connection replaces ours
+			sw     = switchWithID(upper)
+			ours   = &peerReplacedBeforeRunCheck{Peer: peerWithID(t, lower, true)}
+			theirs = peerWithID(t, lower, false)
+		)
+
+		// theirs replaces ours, and stops it, between the registration of ours
+		// and the rollback check
+		ours.replaceFn = func() {
+			assert.Same(t, ours, sw.peers.Get(lower), "ours is checked after its registration")
+			assert.NoError(t, sw.addPeer(theirs))
+		}
+
+		require.ErrorIs(t, sw.addPeer(ours), errPeerStopped)
+
+		// The rollback of ours removes only an entry ours holds
+		require.True(t, sw.peers.Has(lower), "the rollback of ours removed the entry of theirs")
+		assert.Same(t, theirs, sw.peers.Get(lower))
+	})
+
 	t.Run("a concurrent teardown of the replaced connection keeps the new entry", func(t *testing.T) {
 		t.Parallel()
 
@@ -2899,11 +2947,13 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 	t.Parallel()
 
 	// Each row has us at the higher ID, so the peer's inbound connection wins
-	// against our outbound one to the same peer
+	// against our outbound one to the same peer, when that one is registered
 	guardTable := []struct {
 		name string
 		// opts returns the switch options, given the peer's ID
 		opts func(peer types.ID) []SwitchOption
+		// unregistered leaves our outbound connection out of the peer set
+		unregistered bool
 		// sharedIP puts both connections to the peer on one IP
 		sharedIP bool
 		// otherOnIP registers a second peer on that IP
@@ -2922,6 +2972,18 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 			},
 			sharedIP:     true,
 			wantReplaced: true,
+		},
+		{
+			// No inbound slot left, and the peer is persistent, but it has no
+			// registered connection to replace
+			name: "a persistent peer's inbound connection is refused at the inbound limit when nothing is registered",
+			opts: func(peer types.ID) []SwitchOption {
+				return []SwitchOption{
+					WithMaxInboundPeers(0),
+					WithPersistentPeers([]*types.NetAddress{{ID: peer}}),
+				}
+			},
+			unregistered: true,
 		},
 		{
 			// The peer is not persistent, so its replacement needs an inbound slot
@@ -2971,7 +3033,9 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 
 			sw := acceptSwitch(upper, theirs, opts...)
 
-			require.NoError(t, sw.peers.Add(ours))
+			if !testCase.unregistered {
+				require.NoError(t, sw.peers.Add(ours))
+			}
 
 			if testCase.otherOnIP {
 				other := mock.GeneratePeers(t, 1)[0]
@@ -2991,6 +3055,13 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 			}
 
 			awaitClosed(t, closed, "the connection was not refused")
+
+			if testCase.unregistered {
+				assert.False(t, sw.peers.Has(lower))
+
+				return
+			}
+
 			assert.Same(t, ours, sw.peers.Get(lower))
 		})
 	}
