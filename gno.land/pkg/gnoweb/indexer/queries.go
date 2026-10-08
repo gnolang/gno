@@ -267,8 +267,16 @@ const (
 	minWindowBudget = 900 * time.Millisecond
 )
 
+// ErrPartial reports that a walk stopped short of genesis with fewer rows
+// than asked for: the rows returned are the newest, and older ones may exist
+// below the lowest band searched. It is not a failure, and the rows travel
+// with it.
+var ErrPartial = errors.New("searched the most recent blocks only")
+
 // recent walks DESC over successive height bands until it has `need` rows,
-// reaches genesis, or runs out of steps.
+// reaches genesis, or runs out of steps. Running out of steps, or of the
+// caller's budget, with fewer than `need` rows returns them with ErrPartial:
+// an empty deploy history must not read as "never deployed".
 //
 // Bands, not widening windows: a window restarted from the tip each step, so
 // step n re-scanned everything steps 1..n-1 had already covered and
@@ -288,7 +296,16 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 		found []Tx
 		upper = head + 1 // exclusive: the band below starts here
 		width = initialWindow
+		lower = upper // lowest height searched, exclusive
 	)
+	// partial returns what was found, flagged when it may not be all of it.
+	partial := func(rows []Tx) ([]Tx, error) {
+		rows = trim(rows, need)
+		if len(rows) < need && lower > 0 {
+			return rows, ErrPartial
+		}
+		return rows, nil
+	}
 	for step := 0; step < maxWindowSteps; step, width = step+1, width*windowGrowth {
 		// A band nobody will see costs the indexer what one they read does,
 		// so stop once the caller's budget cannot fit another.
@@ -296,12 +313,12 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 			break
 		}
 
-		lower := max(upper-1-width, 0)
+		bandLower := max(upper-1-width, 0)
 
 		// `gt` excludes its bound, so the bottom band carries none: a chain
 		// launched with packages at genesis keeps them at height 0.
-		bounds := fmt.Sprintf(`block_height: { gt: %d, lt: %d }`, lower, upper)
-		if lower == 0 {
+		bounds := fmt.Sprintf(`block_height: { gt: %d, lt: %d }`, bandLower, upper)
+		if bandLower == 0 {
 			bounds = fmt.Sprintf(`block_height: { lt: %d }`, upper)
 		}
 
@@ -318,24 +335,27 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 		case err == nil:
 		case errors.Is(err, ErrTooLarge):
 			// The answer, not a failure: the walk is DESC, so the rows kept
-			// before the cap are the newest in this band.
-			return trim(append(found, out.Txs...), need), nil
+			// before the cap are the newest in this band. The band held
+			// more than the cap, so its lower part was not searched.
+			lower = max(upper-1, 1)
+			return partial(append(found, out.Txs...))
 		default:
 			// A wide band timing out costs the rows the narrower ones
 			// already found; those are still the newest, so keep them.
 			if len(found) > 0 {
-				return trim(found, need), nil
+				return partial(found)
 			}
 			return nil, err
 		}
 
 		found = append(found, out.Txs...)
+		lower = bandLower
 		if len(found) >= need || lower == 0 {
 			break
 		}
 		upper = lower + 1
 	}
-	return trim(found, need), nil
+	return partial(found)
 }
 
 func trim(txs []Tx, need int) []Tx {

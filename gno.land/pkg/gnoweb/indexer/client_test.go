@@ -389,6 +389,7 @@ func TestOversizedResponseIsRefusedBeforeDecoding(t *testing.T) {
 
 // A band that fails after earlier ones found rows returns those rows: they
 // are the newest, and a reader is better served by them than by an error.
+// They come flagged ErrPartial, since the failed band may have held more.
 func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 	bands := 0
 	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
@@ -409,8 +410,8 @@ func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 	})
 
 	txs, err := c.RecentByPackage(context.Background(), "gno.land/r/demo/boards", 5)
-	if err != nil {
-		t.Fatalf("RecentByPackage: %v, want the first band's rows", err)
+	if !errors.Is(err, ErrPartial) {
+		t.Fatalf("RecentByPackage: %v, want the first band's rows flagged ErrPartial", err)
 	}
 	if len(txs) != 1 || txs[0].Hash != "newest" {
 		t.Fatalf("txs = %+v, want the first band's row", txs)
@@ -645,5 +646,43 @@ func TestDeploysImportingMatchesTheQuotedPathOnly(t *testing.T) {
 		if got, _ := regexp.MatchString(likes[0], body); got != want {
 			t.Errorf("like %q on %q = %v, want %v", likes[0], body, got, want)
 		}
+	}
+}
+
+// A walk that runs out of steps before genesis says so: a deploy below the
+// lowest band must not read as "never deployed".
+func TestRecentReportsAWalkStoppedShortOfGenesis(t *testing.T) {
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":2000000}}`)
+			return
+		}
+		bands++
+		respond(w, `{"data":{"getTransactions":[]}}`)
+	})
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/demo/boards", 20)
+	if !errors.Is(err, ErrPartial) {
+		t.Fatalf("Deploys: rows=%d err=%v, want ErrPartial", len(txs), err)
+	}
+	if bands != maxWindowSteps {
+		t.Fatalf("bands = %d, want %d", bands, maxWindowSteps)
+	}
+
+	// Reaching genesis is the whole answer, however few rows it holds.
+	c, _ = newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":1500}}`)
+			return
+		}
+		respond(w, `{"data":{"getTransactions":[]}}`)
+	})
+	if _, err := c.Deploys(context.Background(), "gno.land/r/demo/boards", 20); err != nil {
+		t.Fatalf("Deploys down to genesis: %v, want no error", err)
 	}
 }
