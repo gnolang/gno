@@ -3265,8 +3265,10 @@ main.is-dev-mode .b-toc a {
 			outline-offset: 2px;
 		}
 
-		/* Link type icon: drawn in the button's own text color. */
-		& > .tooltip {
+		/* Link type icon: drawn in the button's own text color. The doubled
+		   class outranks the link icon spacing rules of .c-realm-view a
+		   (0,3,1), whose margins the button's gap replaces. */
+		&.gno-button > .tooltip {
 			margin: 0;
 			color: inherit;
 			border-color: currentColor;
