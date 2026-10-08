@@ -880,14 +880,15 @@ func (sw *MultiplexSwitch) removeUnlessSuperseded(p PeerConn) bool {
 }
 
 // hasPeerFromIP returns a flag indicating if the active peer set already
-// contains a peer connected from the given IP
-func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
+// contains a peer connected from the given IP, other than the given
+// connection, which may be nil
+func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP, except PeerConn) bool {
 	if ip == nil {
 		return false
 	}
 
 	for _, p := range sw.peers.List() {
-		if ip.Equal(p.RemoteIP()) {
+		if p != except && ip.Equal(p.RemoteIP()) {
 			return true
 		}
 	}
@@ -957,13 +958,16 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			continue
 		}
 
-		// A connection replacing a registered one takes no new peer slot, so
-		// the inbound limit and the duplicate-IP guard, which stops a single
-		// host from filling the inbound slots, only apply to a new peer
-		replacing := registered != nil
+		// A replacement swaps one of our outbound connections for an inbound
+		// one, so it takes an inbound slot like any other connection. Only a
+		// persistent peer's replacement is exempt, so two persistent peers
+		// dialing each other at once converge on a node whose inbound slots
+		// are full; persistent peers are configured by the operator, so no
+		// remote party can use the exemption
+		exempt := registered != nil && sw.isPersistentPeer(p.ID())
 
 		// Ignore connection if we already have enough peers.
-		if in := sw.Peers().NumInbound(); !replacing && in >= sw.maxInboundPeers {
+		if in := sw.Peers().NumInbound(); !exempt && in >= sw.maxInboundPeers {
 			sw.Logger.Info(
 				"Ignoring inbound connection: already have enough inbound peers",
 				"address", p.SocketAddr(),
@@ -977,8 +981,10 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 
 		// Reject a second connection from an IP that already holds a peer slot.
 		// Peer IDs are self-generated node keys, so without this a single host
-		// can mint fresh identities and occupy every inbound slot.
-		if !replacing && !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP()) {
+		// can mint fresh identities and occupy every inbound slot. The
+		// connection a replacement takes over comes from the same host, so it
+		// does not count
+		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP(), registered) {
 			sw.Logger.Info(
 				"Ignoring inbound connection: peer from this IP already connected",
 				"address", p.SocketAddr(),
@@ -1016,7 +1022,7 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// loop's own Has check races the dial it guards, so this is the first
 	// point where the check is worth anything. registerPeer stays the
 	// authoritative one
-	registered, kept := sw.resolveDuplicate(p)
+	_, kept := sw.resolveDuplicate(p)
 	if kept {
 		return errDuplicatePeer
 	}
@@ -1024,10 +1030,10 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// Enforce the outbound limit where the peer is actually added. DialPeers
 	// only checks it when an address is queued, and NumOutbound cannot change
 	// while that loop runs, so a single batch of queued dials would otherwise
-	// overshoot the limit without bound. Persistent peers are exempt, as
-	// MaxNumOutboundPeers documents, and so is a connection replacing a
-	// registered one, which adds no peer
-	if p.IsOutbound() && registered == nil && !sw.isPersistentPeer(p.ID()) {
+	// overshoot the limit without bound. A connection replacing a registered
+	// inbound one takes an outbound slot like any other. Persistent peers are
+	// exempt, as MaxNumOutboundPeers documents
+	if p.IsOutbound() && !sw.isPersistentPeer(p.ID()) {
 		if out := sw.peers.NumOutbound(); out >= sw.maxOutboundPeers {
 			sw.Logger.Info(
 				"Ignoring outbound connection: already have max outbound peers",

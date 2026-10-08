@@ -1,7 +1,9 @@
 package p2p
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"net"
 	"runtime"
 	"strings"
@@ -2337,6 +2339,9 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 
 		sw := switchWithID(upper, WithReactor("mock", reactor))
 
+		logs := &lockedBuffer{}
+		sw.SetLogger(slog.New(slog.NewTextHandler(logs, nil)))
+
 		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
 		defer unsubFn()
 
@@ -2353,6 +2358,8 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 
 		assert.True(t, oursClosed)
 		assert.True(t, oursStopped)
+		assert.Contains(t, logs.String(), "replacing connection to resolve a simultaneous open")
+		assert.Contains(t, logs.String(), "kept=inbound")
 		assert.Same(t, theirs, sw.peers.Get(lower))
 
 		// Each connection announced itself once; the replaced one announces
@@ -2383,14 +2390,36 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 		assert.Same(t, theirs, sw.peers.Get(lower))
 	})
 
-	t.Run("a replacing outbound connection passes the outbound limit", func(t *testing.T) {
+	t.Run("a replacing outbound connection is refused at the outbound limit", func(t *testing.T) {
 		t.Parallel()
 
 		lower, upper := orderedIDs(t)
 
 		var (
-			// Our ID is the lower one, so our outbound connection is kept
+			// Our ID is the lower one, so our outbound connection would be kept,
+			// but no outbound slot is left
 			sw     = switchWithID(lower, WithMaxOutboundPeers(0))
+			theirs = peerWithID(t, upper, false)
+			ours   = peerWithID(t, upper, true)
+		)
+
+		require.NoError(t, sw.peers.Add(theirs))
+
+		require.ErrorIs(t, sw.addPeer(ours), errMaxOutboundPeers)
+		assert.Same(t, theirs, sw.peers.Get(upper))
+	})
+
+	t.Run("a persistent peer's replacing outbound connection passes the outbound limit", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			sw = switchWithID(
+				lower,
+				WithMaxOutboundPeers(0),
+				WithPersistentPeers([]*types.NetAddress{{ID: upper}}),
+			)
 			theirs = peerWithID(t, upper, false)
 			ours   = peerWithID(t, upper, true)
 		)
@@ -2481,7 +2510,7 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 		return closed
 	}
 
-	t.Run("a winning inbound connection replaces ours past the inbound guards", func(t *testing.T) {
+	t.Run("a persistent peer's winning inbound connection replaces ours at the inbound limit", func(t *testing.T) {
 		t.Parallel()
 
 		lower, upper := orderedIDs(t)
@@ -2498,7 +2527,40 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 		ours.RemoteIPFn = func() net.IP { return ip }
 		theirs.RemoteIPFn = func() net.IP { return ip }
 
-		// No inbound slot left, and the duplicate-IP guard on (the default)
+		// No inbound slot left, the duplicate-IP guard on (the default), and
+		// the peer is persistent
+		sw := NewMultiplexSwitch(
+			&mockTransport{
+				netAddressFn: func() types.NetAddress {
+					return types.NetAddress{ID: upper}
+				},
+				acceptFn: acceptOnce(theirs),
+			},
+			WithMaxInboundPeers(0),
+			WithPersistentPeers([]*types.NetAddress{{ID: lower}}),
+		)
+
+		require.NoError(t, sw.peers.Add(ours))
+
+		go sw.runAcceptLoop(t.Context())
+
+		require.Eventually(t, func() bool {
+			return sw.peers.Get(lower) == PeerConn(theirs)
+		}, 5*time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("a winning inbound connection is refused at the inbound limit", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			ours   = peerWithID(t, lower, true)
+			theirs = peerWithID(t, lower, false)
+			closed = closedSignal(theirs)
+		)
+
+		// The peer is not persistent, so its replacement needs an inbound slot
 		sw := NewMultiplexSwitch(
 			&mockTransport{
 				netAddressFn: func() types.NetAddress {
@@ -2513,9 +2575,85 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 
 		go sw.runAcceptLoop(t.Context())
 
+		select {
+		case <-closed:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the connection was not refused")
+		}
+
+		assert.Same(t, ours, sw.peers.Get(lower))
+	})
+
+	t.Run("a winning inbound connection from the replaced connection's IP replaces it", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			ip = net.ParseIP("127.0.0.1")
+
+			ours   = peerWithID(t, lower, true)
+			theirs = peerWithID(t, lower, false)
+		)
+
+		ours.RemoteIPFn = func() net.IP { return ip }
+		theirs.RemoteIPFn = func() net.IP { return ip }
+
+		// The duplicate-IP guard is on, and the only peer from that IP is the
+		// connection being replaced
+		sw := NewMultiplexSwitch(&mockTransport{
+			netAddressFn: func() types.NetAddress {
+				return types.NetAddress{ID: upper}
+			},
+			acceptFn: acceptOnce(theirs),
+		})
+
+		require.NoError(t, sw.peers.Add(ours))
+
+		go sw.runAcceptLoop(t.Context())
+
 		require.Eventually(t, func() bool {
 			return sw.peers.Get(lower) == PeerConn(theirs)
 		}, 5*time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("a winning inbound connection is refused while another peer holds its IP", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			ip = net.ParseIP("127.0.0.1")
+
+			ours   = peerWithID(t, lower, true)
+			theirs = peerWithID(t, lower, false)
+			other  = mock.GeneratePeers(t, 1)[0]
+			closed = closedSignal(theirs)
+		)
+
+		ours.RemoteIPFn = func() net.IP { return ip }
+		theirs.RemoteIPFn = func() net.IP { return ip }
+		other.RemoteIPFn = func() net.IP { return ip }
+
+		sw := NewMultiplexSwitch(&mockTransport{
+			netAddressFn: func() types.NetAddress {
+				return types.NetAddress{ID: upper}
+			},
+			acceptFn: acceptOnce(theirs),
+		})
+
+		require.NoError(t, sw.peers.Add(ours))
+		require.NoError(t, sw.peers.Add(other))
+
+		go sw.runAcceptLoop(t.Context())
+
+		select {
+		case <-closed:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the connection was not refused")
+		}
+
+		assert.Same(t, ours, sw.peers.Get(lower))
 	})
 
 	t.Run("a losing inbound connection is rejected and closed", func(t *testing.T) {
@@ -2537,6 +2675,9 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 			acceptFn: acceptOnce(theirs),
 		})
 
+		logs := &lockedBuffer{}
+		sw.SetLogger(slog.New(slog.NewTextHandler(logs, nil)))
+
 		require.NoError(t, sw.peers.Add(ours))
 
 		go sw.runAcceptLoop(t.Context())
@@ -2546,6 +2687,9 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 		case <-time.After(5 * time.Second):
 			t.Fatal("the losing connection was not closed")
 		}
+
+		assert.Contains(t, logs.String(), "Ignoring inbound connection: already connected")
+		assert.Contains(t, logs.String(), "kept=outbound")
 
 		assert.Same(t, ours, sw.peers.Get(upper))
 	})
@@ -2581,6 +2725,26 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 
 		assert.Same(t, first, sw.peers.Get(lower))
 	})
+}
+
+// lockedBuffer is a bytes.Buffer a logger can write to from another goroutine
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.buf.String()
 }
 
 func TestCalculateBackoff(t *testing.T) {
