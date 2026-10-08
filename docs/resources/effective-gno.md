@@ -481,8 +481,9 @@ modifications. This follows the same principle of making a package an API, but
 for a Gno object that can be directly referenced by other realms.
 
 The goal is an object that other realms can hold and pass around, even by
-pointer, without risk: every mutating method checks its own caller, so the object
-protects itself wherever it is stored.
+pointer. Each mutating method checks who called the realm invoking it. A realm
+holding the object can therefore change it only when the admin calls that realm
+directly.
 
 ```go
 type MySafeStruct struct {
@@ -539,10 +540,12 @@ on individual requirements.
 #### Coins
 
 Coins are balances the chain keeps outside the GnoVM. A realm issues its own
-denom through a [banker](./gno-stdlibs.md#banker). A plain bank transaction
-moves coins, unless the chain's `restricted_denoms` parameter locks that denom,
-and a bank query reads a balance; neither runs contract code. Their rules are
-fixed by the chain, which makes them simple and predictable.
+denom through a [banker](./gno-stdlibs.md#banker), which can also
+[burn](./gno-stdlibs.md#removecoin) that denom from any holder's balance. A
+plain bank transaction moves coins, unless the chain's `restricted_denoms`
+parameter locks that denom, and a bank query reads a balance; neither runs
+contract code. Their rules are fixed by the chain, which makes them simple and
+predictable.
 
 When you only need one balance, ask for it: `GetCoin(addr, denom)` reads a single
 store key, while `GetCoins(addr)` reads every denom the address holds. That
@@ -738,7 +741,7 @@ interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal
 for the realm is to become a standard that could be imported by `p/`.
 
 The reason for this is that `p/` cannot import `r/`, while `r/` can import
-anything. This separation allows you to define standards in `p/` that can be
+both. This separation allows you to define standards in `p/` that can be
 used across multiple realms and packages.
 
 In general, you can just write your `r/` to be an app. But if for some reason
