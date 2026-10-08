@@ -1920,6 +1920,19 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		return item.Time.Sub(from)
 	}
 
+	// newPersistentSwitch returns a switch with a single persistent peer, and
+	// that peer's configured address
+	newPersistentSwitch := func(t *testing.T) (*MultiplexSwitch, *types.NetAddress) {
+		t.Helper()
+
+		addr := generateNetAddr(t, 1)[0]
+
+		return NewMultiplexSwitch(
+			&mockTransport{},
+			WithPersistentPeers([]*types.NetAddress{addr}),
+		), addr
+	}
+
 	// assertBackoff asserts a delay is the backoff after the given attempts,
 	// within its 10% jitter
 	assertBackoff := func(t *testing.T, attempts uint, delay time.Duration) {
@@ -1967,11 +1980,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		t.Parallel()
 
 		var (
-			addr = generateNetAddr(t, 1)[0]
-			sw   = NewMultiplexSwitch(
-				&mockTransport{},
-				WithPersistentPeers([]*types.NetAddress{addr}),
-			)
+			sw, addr = newPersistentSwitch(t)
 			now         = time.Now()
 			attempts    = map[types.ID]uint{addr.ID: 2}
 			connectedAt = map[types.ID]time.Time{addr.ID: now}
@@ -1989,11 +1998,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		t.Parallel()
 
 		var (
-			addr = generateNetAddr(t, 1)[0]
-			sw   = NewMultiplexSwitch(
-				&mockTransport{},
-				WithPersistentPeers([]*types.NetAddress{addr}),
-			)
+			sw, addr = newPersistentSwitch(t)
 			now         = time.Now()
 			attempts    = map[types.ID]uint{addr.ID: 5}
 			connectedAt = map[types.ID]time.Time{addr.ID: now}
@@ -2007,21 +2012,14 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		// The dial loop is woken, and the dial is due at once
 		assert.Len(t, sw.dialNotify, 1)
 		assert.Equal(t, time.Duration(0), popDelay(t, sw, dropped))
-		n, ok := attempts[addr.ID]
-
-		require.True(t, ok)
-		assert.Equal(t, uint(0), n)
+		assert.Equal(t, map[types.ID]uint{addr.ID: 0}, attempts)
 	})
 
 	t.Run("a disconnect without a recorded connect keeps the backoff", func(t *testing.T) {
 		t.Parallel()
 
 		var (
-			addr = generateNetAddr(t, 1)[0]
-			sw   = NewMultiplexSwitch(
-				&mockTransport{},
-				WithPersistentPeers([]*types.NetAddress{addr}),
-			)
+			sw, addr = newPersistentSwitch(t)
 			dropped  = time.Now()
 			attempts = map[types.ID]uint{addr.ID: 1}
 		)
@@ -2035,11 +2033,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		t.Parallel()
 
 		var (
-			addr = generateNetAddr(t, 1)[0]
-			sw   = NewMultiplexSwitch(
-				&mockTransport{},
-				WithPersistentPeers([]*types.NetAddress{addr}),
-			)
+			sw, addr = newPersistentSwitch(t)
 			now = time.Now()
 		)
 
@@ -2062,11 +2056,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		t.Parallel()
 
 		var (
-			addr = generateNetAddr(t, 1)[0]
-			sw   = NewMultiplexSwitch(
-				&mockTransport{},
-				WithPersistentPeers([]*types.NetAddress{addr}),
-			)
+			sw, addr = newPersistentSwitch(t)
 			now = time.Now()
 
 			// As after the first dial on start
@@ -2094,11 +2084,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		t.Parallel()
 
 		var (
-			addr = generateNetAddr(t, 1)[0]
-			sw   = NewMultiplexSwitch(
-				&mockTransport{},
-				WithPersistentPeers([]*types.NetAddress{addr}),
-			)
+			sw, addr = newPersistentSwitch(t)
 			now         = time.Now()
 			attempts    = map[types.ID]uint{addr.ID: 4}
 			connectedAt = make(map[types.ID]time.Time)
