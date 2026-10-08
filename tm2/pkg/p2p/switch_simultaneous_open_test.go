@@ -78,9 +78,9 @@ func describePeers(switches ...*MultiplexSwitch) string {
 // connections, and both must keep the connection dialed by the lower ID. Both
 // nodes dial through dialPeer directly, past the dial loop's check for an
 // already connected peer, so both connections are attempted on every run.
-// Which one each side registers first depends on scheduling, and before the
-// fix about a third of the attempts ended without the lower ID's connection on
-// both sides
+// Which one each side registers first depends on scheduling. Under
+// arrival-order rejection, the orderings where each side registers a different
+// connection first tear both connections down
 func TestMultiplexSwitch_SimultaneousOpen(t *testing.T) {
 	t.Parallel()
 
@@ -118,8 +118,9 @@ func TestMultiplexSwitch_SimultaneousOpen(t *testing.T) {
 				t.Fatalf("not connected through the lower ID's connection: %s", describePeers(a, b))
 			}
 
-			// The connection the tie-break keeps survives once the other is gone
-			time.Sleep(time.Second)
+			// The connection the tie-break keeps survives the late teardown of
+			// the other, which runs within milliseconds of its decision
+			time.Sleep(250 * time.Millisecond)
 
 			if !connectedAsTieBreakKeeps(a, b) {
 				t.Fatalf("the kept connection did not survive: %s", describePeers(a, b))

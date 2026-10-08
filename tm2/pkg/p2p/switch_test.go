@@ -3157,7 +3157,7 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 func TestMultiplexSwitch_AcceptLoopStopsRefusedPeerBeforeClosingIt(t *testing.T) {
 	t.Parallel()
 
-	lower, _ := orderedIDs(t)
+	lower, upper := orderedIDs(t)
 
 	var (
 		removed  atomic.Int64
@@ -3172,7 +3172,7 @@ func TestMultiplexSwitch_AcceptLoopStopsRefusedPeerBeforeClosingIt(t *testing.T)
 			removePeerFn: func(PeerConn, any) { removed.Add(1) },
 		}
 
-		p         = peerWithID(t, lower, false)
+		p         = peerWithID(t, upper, false)
 		closed    = make(chan struct{})
 		closeOnce sync.Once
 	)
