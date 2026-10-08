@@ -1,0 +1,16 @@
+-- input.md --
+Attribute breakout: <gno-icon name="star&quot; onload=&quot;alert(1)" />
+
+Comment breakout: <gno-icon name="x --><script>alert(1)</script>" />
+
+Path: <gno-icon name="../star" />
+
+Fragment: <gno-icon name="#ico-star" />
+
+Prefixed: <gno-icon name="ico-star" />
+-- output.html --
+<p>Attribute breakout: <!-- gno-icon: unknown name "star&#34; onload=&#34;alert(1)" --></p>
+<p>Comment breakout: <!-- gno-icon: unknown name "x --&gt;&lt;script&gt;alert(1)&lt;/script&gt;" --></p>
+<p>Path: <!-- gno-icon: unknown name "../star" --></p>
+<p>Fragment: <!-- gno-icon: unknown name "#ico-star" --></p>
+<p>Prefixed: <!-- gno-icon: unknown name "ico-star" --></p>

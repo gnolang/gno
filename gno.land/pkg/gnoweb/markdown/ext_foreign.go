@@ -425,7 +425,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 // render_config.go) so user content renders identically inside the
 // sandbox as it would at top level, plus the structural gno-*
 // extensions that exist today (foreign, columns, alert), the link
-// extension, and mentions. Image validator is wired through if non-nil.
+// extension, mentions, and icons (static allowlisted glyphs). Image validator is wired through if non-nil.
 //
 // Mentions are loaded: a `@user`/`g1…` mention resolves to a system-
 // built /u/<name> link (the author cannot choose the destination), so it
@@ -456,6 +456,7 @@ func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdow
 	ExtAlerts.Extend(m)
 	ExtLinks.Extend(m)
 	ExtMention.Extend(m)  // @user / g1… mentions (system-resolved, keep chrome)
+	ExtIcons.Extend(m)    // allowlisted static glyphs, no link or script surface
 	ExtEmphasis.Extend(m) // bound emphasis-parsing cost (yuin/goldmark#555)
 	if imgValidator != nil {
 		ExtImageValidator.Extend(m, imgValidator)
