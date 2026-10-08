@@ -42,3 +42,29 @@ func TestScanGnoTag(t *testing.T) {
 		require.Equal(t, c.attrs, got, c.in)
 	}
 }
+
+// FuzzScanGnoTag: no panic, a size within the input and the bound, a found
+// tag that ends in '>', and attributes that are slices of the input.
+func FuzzScanGnoTag(f *testing.F) {
+	for _, seed := range []string{
+		`<gno-x a="1" />`, `<gno-x a='/>' b=c d>`, `<gno-x a="`, `<GNO-X/>`,
+		`<gno-x a="1" <gno-x />`, "<gno-x\ta = \"\n\" />", `<gno-x =/>`, `<gno-`,
+	} {
+		f.Add([]byte(seed))
+	}
+	prefix := []byte("<gno-x")
+	const maxLen = 64
+	f.Fuzz(func(t *testing.T, src []byte) {
+		size, _ := scanGnoTag(src, prefix, maxLen, func(key, val []byte) {
+			if len(key) > len(src) || len(val) > len(src) {
+				t.Fatalf("attribute longer than the input")
+			}
+		})
+		if size < 0 || size > min(len(src), maxLen) {
+			t.Fatalf("size %d out of [0, %d]", size, min(len(src), maxLen))
+		}
+		if size > 0 && src[size-1] != '>' {
+			t.Fatalf("tag %q does not end in '>'", src[:size])
+		}
+	})
+}

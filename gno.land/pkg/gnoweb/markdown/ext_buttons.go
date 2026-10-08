@@ -12,6 +12,9 @@ import (
 	"html"
 	"slices"
 	"strings"
+	"unicode"
+
+	chainmd "github.com/gnolang/gno/gnovm/stdlibs/chain/markdown"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -64,9 +67,7 @@ func parseButtonTag(src []byte) (size int, t buttonTag) {
 // newButtonLink builds the link node for a button tag, or returns nil when
 // a required attribute is missing or the href is not allowed.
 func newButtonLink(t buttonTag) *ast.Link {
-	// The label is attribute text: entities are decoded as HTML does, then
-	// the blank check runs, so `&#32;` is no label.
-	label := strings.TrimSpace(html.UnescapeString(string(t.label)))
+	label := buttonLabel(t.label)
 	if len(t.href) == 0 || label == "" || !isButtonHrefAllowed(t.href) {
 		return nil
 	}
@@ -82,6 +83,26 @@ func newButtonLink(t buttonTag) *ast.Link {
 	labelNode.SetRaw(true)
 	link.AppendChild(link, labelNode)
 	return link
+}
+
+// buttonLabel turns the raw label attribute into the text the button shows.
+// Entities are decoded as HTML decodes attribute text. A button looks like
+// first-party chrome, so what could make it read other than it renders is
+// removed: bidi and zero-width characters (the set sanitize strips), and
+// control characters, a line break or tab becoming a space. Trimming comes
+// last, so `&#32;` or `&#x200B;` is no label.
+func buttonLabel(raw []byte) string {
+	label := chainmd.StripBidiAndZeroWidth(html.UnescapeString(string(raw)))
+	label = strings.Map(func(r rune) rune {
+		switch {
+		case !unicode.IsControl(r):
+			return r
+		case unicode.IsSpace(r):
+			return ' '
+		}
+		return -1
+	}, label)
+	return strings.TrimSpace(label)
 }
 
 // isButtonHrefAllowed rejects what renderGnoLink would neutralize anyway
@@ -119,7 +140,7 @@ func (*buttonParser) Trigger() []byte { return []byte{'<'} }
 // A button inside a link label needs no guard: goldmark does not build a link
 // whose label holds a link (CommonMark: the inner one wins), so the brackets
 // stay text, and an image alt renders its children as text only.
-func (*buttonParser) Parse(_ ast.Node, block text.Reader, _ parser.Context) ast.Node {
+func (*buttonParser) Parse(parent ast.Node, block text.Reader, _ parser.Context) ast.Node {
 	line, _ := block.PeekLine()
 	n, tag := parseButtonTag(line)
 	if n == 0 {
@@ -131,7 +152,23 @@ func (*buttonParser) Parse(_ ast.Node, block text.Reader, _ parser.Context) ast.
 	}
 
 	block.Advance(n)
+	// An alert title renders as <summary>, which must not hold a link
+	// (interactive content): the button is reduced to its label text. Plain
+	// markdown links in a title still render as links, as on master; that
+	// belongs to the alert extension, not here.
+	if inAlertHeader(parent) {
+		label := link.FirstChild()
+		link.RemoveChild(link, label)
+		return label
+	}
 	return link
+}
+
+// inAlertHeader reports whether the block being inline-parsed is an alert
+// title: the alert header holds it directly (see alertHeaderParser.Open).
+func inAlertHeader(block ast.Node) bool {
+	p := block.Parent()
+	return p != nil && p.Kind() == KindAlertHeader
 }
 
 type buttonExtension struct{}

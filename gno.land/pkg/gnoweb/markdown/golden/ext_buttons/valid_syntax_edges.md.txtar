@@ -1,0 +1,16 @@
+-- input.md --
+Unquoted: <gno-button href=/r/test label=Go />
+
+Label without value: <gno-button href="/r/test" label />
+
+Empty variant: <gno-button href="/r/test" label="Plain" variant="" />
+
+Tabs:	<gno-button	href="/r/test"	label="Tabs"	/>
+
+Space inside the closer: <gno-button href="/r/test" label="x" / >
+-- output.html --
+<p>Unquoted: <a href="/r/test" class="gno-button">Go</a></p>
+<p>Label without value: <!-- raw HTML omitted --></p>
+<p>Empty variant: <a href="/r/test" class="gno-button">Plain</a></p>
+<p>Tabs:	<a href="/r/test" class="gno-button">Tabs</a></p>
+<p>Space inside the closer: &lt;gno-button href=&quot;/r/test&quot; label=&quot;x&quot; / &gt;</p>

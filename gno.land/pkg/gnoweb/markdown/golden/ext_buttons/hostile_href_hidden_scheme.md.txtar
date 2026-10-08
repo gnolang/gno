@@ -1,0 +1,10 @@
+-- input.md --
+ZWSP inside: <gno-button href="java​script:alert(1)" label="zw" />
+
+Leading NBSP: <gno-button href=" javascript:alert(1)" label="nbsp" />
+
+Leading BOM: <gno-button href="﻿javascript:alert(1)" label="bom" />
+-- output.html --
+<p>ZWSP inside: <!-- invalid link -->zw</p>
+<p>Leading NBSP: <!-- raw HTML omitted --></p>
+<p>Leading BOM: <!-- invalid link -->bom</p>

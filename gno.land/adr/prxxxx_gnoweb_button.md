@@ -57,6 +57,10 @@ first review point. The whole tag must fit on one line.
   which the earlier `IsInLinkLabel` guard lost. In an image's alt, goldmark
   renders children as text only, so the label becomes alt text. No guard or
   transformer is needed.
+- **Alert titles.** An alert title renders as `<summary>`, which must not hold
+  interactive content: a button there is reduced to its label text. A plain
+  markdown link in a title still renders as a link, as on master; fixing that
+  belongs to the alert extension.
 - **Block parser** on `<` at priority 899, just ahead of the HTML block parser
   (900). A line holding only a tag is a CommonMark type-7 HTML block start, so
   without this a button alone on its line (or as a list item) would be
@@ -105,8 +109,12 @@ scanner keeps the raw bytes, and the link pipeline's `resolveDestination`
 (backslash escapes, then entities) decodes them. `href="?q=&amp;lt;"` yields
 `?q=&lt;` and `href="/r/a\_b"` yields `/r/a_b`, the same destinations
 `[x](?q=&amp;lt;)` and `[x](/r/a\_b)` yield (a golden renders both side by
-side). The label is attribute text: its entities are decoded as HTML does,
-then it is escaped on output and never parsed as markdown.
+side). The label is attribute text: its entities are decoded as HTML does;
+then, since a button looks like first-party chrome, bidi and zero-width
+characters (the set `sanitize` strips) and control characters are removed (a
+line break or tab becomes a space), and the result is trimmed, so a label that
+is blank or invisible after that is no label. It is escaped on output and
+never parsed as markdown.
 
 On top of that, the parser rejects outright (fall-through, stripped):
 `javascript:`/`vbscript:`/`file:` after entity resolution, every `data:` URI
@@ -167,14 +175,18 @@ PR description.
   its backslash because the label is raw text. Documented and tested.
 - Sanitize (`chain/markdown`, used by `p/nt/markdown/sanitize`):
   - `InlineText` escapes `<`, so no button.
-  - `Block`/`BlockRich` escape the `<` of every `<gno-button` outside a code
-    span, wherever it sits: line start, indented, mid-line, after a list,
-    quote, heading or table marker, after `\f`, `\v` or a NBSP, inside
-    emphasis. A line-start-only rule was bypassable by all of those, because
-    the tag is inline. A code span closed on the same line is left alone
-    (the backslash would show); one spanning lines is escaped anyway, which
-    is visible but safe. An already escaped tag is skipped, so `Block` stays
-    idempotent.
+  - `Block`/`BlockRich` escape the `<` of every `<gno-button` that is not
+    already escaped, wherever it sits: line start, indented, mid-line, after
+    a list, quote, heading or table marker, after `\f`, `\v`, a NBSP, CRLF
+    or U+2028, inside emphasis. A line-start-only rule was bypassable by all
+    of those, because the tag is inline. Code spans are not spared: whether
+    a backtick opens one depends on goldmark's inline precedence (raw HTML,
+    comments, link destinations and titles, spans across lines), and a
+    line-scan guess that left the tag live was bypassed six ways. Inside a
+    real code span the backslash shows, which is the accepted cost. Skipping
+    an already escaped tag keeps `Block` idempotent. Fenced code stays
+    verbatim; the fence tracker's list-container gap is shared by every
+    `gno-*` tag on master and is fixed separately.
   - The block-level `<gno-…>` line escape now puts its backslash after an
     indent of under 4 columns (right before the `<`); from 4 columns, where
     the line may be indented code, it keeps the line-start backslash it had.

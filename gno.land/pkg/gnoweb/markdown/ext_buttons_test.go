@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/require"
@@ -17,10 +18,51 @@ func TestButtonInTable(t *testing.T) {
 	out := renderMarkdown(t, "| Action | Button |\n| --- | --- |\n| Read | <gno-button href=\"/r/test\" label=\"Open\" variant=\"outline\" /> |\n")
 	require.Contains(t, out, `<td><a href="/r/test" class="gno-button gno-button-outline">Open</a></td>`)
 
-	// GFM splits cells on '|' before inline parsing; &#124; is the escape
-	// that survives (the label is raw text, so `\|` would keep its backslash).
+	// GFM splits cells on '|' before inline parsing. &#124; gives a pipe;
+	// `\|` survives the split too, but the raw label keeps its backslash.
 	out = renderMarkdown(t, "| A |\n| --- |\n| <gno-button href=\"/r/test\" label=\"a&#124;b\" /> |\n")
 	require.Contains(t, out, `<td><a href="/r/test" class="gno-button">a|b</a></td>`)
+
+	out = renderMarkdown(t, "| A |\n| --- |\n| <gno-button href=\"/r/test\" label=\"a\\|b\" /> |\n")
+	require.Contains(t, out, `<td><a href="/r/test" class="gno-button">a\|b</a></td>`)
+}
+
+// GFM constructs the golden runner does not load.
+func TestButtonInGFM(t *testing.T) {
+	out := renderMarkdown(t, "text[^1]\n\n[^1]: <gno-button href=\"/r/test\" label=\"In a footnote\" />\n")
+	require.Contains(t, out, `<a href="/r/test" class="gno-button">In a footnote</a>`)
+
+	out = renderMarkdown(t, "~~<gno-button href=\"/r/test\" label=\"Struck\" />~~\n")
+	require.Contains(t, out, `<del><a href="/r/test" class="gno-button">Struck</a></del>`)
+}
+
+// Line endings: txtar goldens cannot hold a CR reliably, so they live here.
+func TestButtonLineEndings(t *testing.T) {
+	for name, src := range map[string]string{
+		"crlf":      "<gno-button href=\"/r/test\" label=\"CRLF\" />\r\nnext line\r\n",
+		"bare cr":   "<gno-button href=\"/r/test\" label=\"CRLF\" />\rnext line\r",
+		"cr in tag": "<gno-button\rhref=\"/r/test\" label=\"CRLF\" />\n",
+	} {
+		out := renderMarkdown(t, src)
+		require.Contains(t, out, `<a href="/r/test" class="gno-button">CRLF</a>`, name)
+	}
+}
+
+// Hostile documents render within a time budget. Linear parsing takes tens
+// of milliseconds here; the quadratic scan this guards against took over a
+// second for 4000 tags and about 7 s for 10000. The budget is loose so a slow
+// or -race runner stays green.
+func TestButtonHostileBudget(t *testing.T) {
+	const budget = 5 * time.Second
+	for name, src := range map[string]string{
+		"one line, 10k unterminated tags":       "a " + strings.Repeat(`<gno-button href="/r/x" `, 10_000),
+		"10k lines of unterminated tags":        strings.Repeat("<gno-button href=\"/r/x\"\n", 10_000),
+		"one line, 10k tags with /> in a value": "a " + strings.Repeat(`<gno-button href="/>" `, 10_000),
+	} {
+		start := time.Now()
+		renderMarkdown(t, src)
+		require.Less(t, time.Since(start), budget, name)
+	}
 }
 
 // A parse attempt reads at most maxButtonTagLen bytes, so a line of
