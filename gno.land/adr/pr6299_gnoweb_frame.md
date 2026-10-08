@@ -43,9 +43,11 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   not after `> ` or `- `, so without this rule sanitized user content could
   draw a realm-styled frame inside a quote or a list.
 - **Empty attribute allowlist.** Any attribute (on the open or the close
-  tag), a self-closing form or trailing text makes the tag invalid instead of
-  silently ignored, so a later attribute (a variant, say) cannot be misread by
-  an older gnoweb. Tag names are case-insensitive, as for every gno-* tag.
+  tag) or a self-closing form makes the tag invalid instead of silently
+  ignored, so a later attribute (a variant, say) cannot be misread by an older
+  gnoweb. Text after the tag makes the line no tag line at all, as with
+  gno-columns, so the paragraph keeps the text (`<gno-frame> hello` keeps
+  `hello`). Tag names are case-insensitive, as for every gno-* tag.
   Tags are read with `scanGnoTag` (`utils.go`), the zero-alloc scanner shared
   with the gno-button branch; unlike the HTML tokenizer, it does not drop
   attributes from a close tag.
@@ -65,14 +67,15 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   `</gno-frame>` would swallow the close tag and stretch the frame over the
   page. The extension registers goldmark's own HTML block parser wrapped so
   that, while a frame is open, a line that ends the frame also ends a
-  document-level HTML block, whatever its type (a `<!--` or `<script>` block
+  document-level HTML block (with no frame open, the wrapper leaves the line
+  to goldmark's own parser, so the HTML block checks run once), whatever its type (a `<!--` or `<script>` block
   is cut short too). Safe mode strips that HTML anyway. Only a tag alone on
   its line counts: `<div></gno-frame>` stays inside the HTML block
   (golden `html_same_line_close`).
 - **Bare-CR line endings.** goldmark splits lines on `\n` only, so a page
-  with `\r` line endings is one long line. A tag followed by `\r` is then
-  not treated as a tag line, and the text after it is kept (golden
-  `cr_only_line_endings`).
+  with `\r` line endings is one long line. A tag followed by anything, `\r`
+  or ` \r` included, is then not treated as a tag line, and the text after
+  it is kept (goldens `cr_only_*`).
 - **Accessibility.** The wrapper is a `<section>` with no accessible name, so
   assistive tech exposes it as a generic group, not a landmark. That fits a
   visual frame around author content; naming it would mean pointing at a
@@ -84,7 +87,8 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
 - **Forms (side fix).** `<gno-form>` now consumes its close with
   `AdvanceToEOL`, so a form inside a blockquote no longer opens a nested quote.
 - **Perf.** No regex, and frame tags never reach the HTML tokenizer; one node
-  per frame tag line, nothing on pages without frames (`BenchmarkFrame`,
+  per frame tag line, nothing on pages without frames, `<`-leading lines
+  included (`BenchmarkFrame`,
   `TestParseFrameLineTagNoAlloc`).
 - **Shared helper.** `trimForeignLine` became `trimTagLine` in `utils.go`,
   used by foreign and frame.
@@ -123,8 +127,8 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
 - `p/nt/markdown/sanitize` escapes a line-leading `<gno-…` (any case, 1-3
   space indent), and after a `>` or list marker a frame tag stays an inert
   comment (goldens `blockrich-gno-frame-*`, `block-gno-frame-escaped`). No
-  sanitizer change in this PR. Known gap on master, fixed separately in
-  `chain/markdown`: a fence indented under a list item makes the sanitizer
+  sanitizer change in this PR. Known gap on master, tracked in #6300: a
+  fence indented under a list item makes the sanitizer
   skip the escape on the next unindented line, which goldmark parses at
   document level, so user content can open or close a frame there (the same
   shape already reaches `<gno-columns>` tags today).
