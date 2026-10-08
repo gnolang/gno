@@ -364,7 +364,7 @@ func (b *TokenBuffer) GetNextExpr() (*TokenBuffer, error) {
 	}
 	if b.Expr[b.idx].MatchOffset > 0 && b.Expr[b.idx].Kind&tokEscaped == 0 && b.Expr[b.idx].Value == "{" {
 		end := b.idx + b.Expr[b.idx].MatchOffset
-		result = NewTokenBuffer(b.Expr[b.idx+1 : end])
+		result = NewTokenBuffer(b.Expr[b.idx+1 : end : end])
 		b.idx = end + 1
 	} else {
 		b.idx = temp
@@ -390,7 +390,7 @@ func (b *TokenBuffer) GetOptions(skipWhitespace ...bool) (*TokenBuffer, error) {
 	}
 	if b.Expr[b.idx].MatchOffset > 0 && b.Expr[b.idx].Kind&tokEscaped == 0 && b.Expr[b.idx].Value == "[" {
 		end := b.idx + b.Expr[b.idx].MatchOffset
-		result = NewTokenBuffer(b.Expr[b.idx+1 : end])
+		result = NewTokenBuffer(b.Expr[b.idx+1 : end : end])
 		b.idx = end + 1 // Don't parse closing "]"
 	} else {
 		b.idx = temp
@@ -407,27 +407,36 @@ func (b *TokenBuffer) GetUntil(f func(Token) bool) *TokenBuffer {
 		b.idx++
 	}
 	b.jump = b.idx - start
-	return NewTokenBuffer(b.Expr[start:b.idx])
+	return NewTokenBuffer(b.Expr[start:b.idx:b.idx])
 }
 
-// Get the next n tokens
+// Get the next n tokens. Past the end of the buffer, it returns the rest of
+// the buffer with ErrTokenBufferEnd, and consumes it all the same: a caller
+// that ungets after the error rewinds to where it was, not before it.
+//
+// Sub-buffers are cut with their capacity set to their length, here and in
+// GetNextExpr, GetOptions and GetUntil, so that no offset read inside one
+// can reach the tokens of the buffer around it.
 func (b *TokenBuffer) GetNextN(n int, skipWhitespace ...bool) (*TokenBuffer, error) {
-	if b.idx+n > len(b.Expr) {
-		return NewTokenBuffer(b.Expr[b.idx:len(b.Expr)]), &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
-	}
+	temp := b.idx
 	for b.idx < len(b.Expr) && b.Expr[b.idx].Kind&tokComment > 0 {
 		b.idx++
 	}
-	start := b.idx
 	if skipWhitespace != nil && skipWhitespace[0] {
 		for b.idx < len(b.Expr) && b.Expr[b.idx].Kind&(tokComment|tokWhitespace) > 0 {
 			b.idx++
 		}
-		start = b.idx
 	}
-	b.idx += n
-	b.jump = n
-	return NewTokenBuffer(b.Expr[start:b.idx]), nil
+	start := b.idx
+	end := start + n
+	var err error
+	if end > len(b.Expr) {
+		end = len(b.Expr)
+		err = &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
+	}
+	b.idx = end
+	b.jump = end - temp
+	return NewTokenBuffer(b.Expr[start:end:end]), err
 }
 
 // Unget the last n tokens
@@ -708,5 +717,50 @@ func postProcessTokens(toks []Token) ([]Token, error) {
 		return out, err
 	}
 	matchBracesLazy(out)
-	return out, nil
+	return out, checkGroupNesting(out)
+}
+
+// opensGroup reports whether t opens a group the parser reads as one unit,
+// up to its matching token: a {group}, an environment or a \left fence.
+func opensGroup(t Token) bool {
+	return t.MatchOffset > 0 &&
+		(t.Kind&(tokCurly|tokEnv) > 0 || t.Kind&(tokFence|tokEscaped) == tokFence)
+}
+
+// checkGroupNesting returns an error if a group crosses another, as in
+// {\left( x}\right) or \begin{matrix}{a\end{matrix}}: TeX rejects these
+// ("Extra }"), and reading such a group as one unit runs past the end of the
+// group around it. Pairs of plain brackets are not groups in TeX, so one that
+// straddles a group, as in x^{(} y), is left unpaired instead.
+func checkGroupNesting(tokens []Token) error {
+	// enclosing[i] is the index of the opener of the innermost group around
+	// token i, or -1.
+	enclosing := make([]int, len(tokens))
+	s := newStack[int]()
+	for i, t := range tokens {
+		top := -1
+		if !s.empty() {
+			top = s.Peek()
+		}
+		enclosing[i] = top
+		switch {
+		case opensGroup(t):
+			s.Push(i)
+		case t.MatchOffset < 0 && opensGroup(tokens[i+t.MatchOffset]):
+			if top != i+t.MatchOffset {
+				context := errorContext(t, StringifyTokens(tokens[max(0, i-16):min(i+16, len(tokens))]))
+				return newMismatchedBraceError("group", "<pre>"+context+"</pre>", i)
+			}
+			s.Pop()
+		}
+	}
+	for i, t := range tokens {
+		if t.MatchOffset > 0 && !opensGroup(t) {
+			if j := i + t.MatchOffset; enclosing[i] != enclosing[j] {
+				tokens[i].MatchOffset = 0
+				tokens[j].MatchOffset = 0
+			}
+		}
+	}
+	return nil
 }

@@ -252,6 +252,8 @@ func FuzzConversionTerminates(f *testing.F) {
 		`\sideset{_a^b}{_c}{\sum}`, `\frac{a}{b}`, `\begin{array}{cc}a&b\\c&d\end{array}`,
 		`\left( x \middle| y \right)`, `\color{red} x`, `\newcommand{\x}{y}`,
 		`\sqrt[3]{x}`, `\raisebox{1em}{x}`, `\bigl( x \bigr)`, `a \over b`,
+		`\left(\color x{\right)}`, `\begin{matrix}\color x{a\end{matrix}}`,
+		strings.Repeat(`{\left(`, 8) + "x" + strings.Repeat(`}\right)`, 8),
 	} {
 		f.Add(s)
 	}

@@ -279,7 +279,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 				break
 			}
 		}
-		switchExpressions, _ := b.GetNextN(i - b.idx)
+		switchExpressions, _ := b.GetNextN(min(i, len(b.Expr)) - b.idx)
 
 		n := NewMMLNode("mstyle")
 		if name == "color" {

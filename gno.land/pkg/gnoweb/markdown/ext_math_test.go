@@ -473,10 +473,12 @@ func FuzzMathRender(f *testing.F) {
 		`\sqrt[3]{\frac{a}{b}} \overset{!}{=} \mathop{lim}`,
 		`\raisebox{1em}{x} \textcolor{red}{y} \multirow{2}{a}`,
 		`\begin{aligned}&x&x\\x&x\end{aligned}`,
-		strings.Repeat("$", 64),     // empty $$$$ expressions
-		strings.Repeat("a$$", 64),   // tiny inline expressions
-		strings.Repeat("$a$$$", 64), // tiny display expressions
-		">[!0]",                     // an alert, which draws an <svg> icon
+		strings.Repeat("$", 64),                                            // empty $$$$ expressions
+		strings.Repeat("a$$", 64),                                          // tiny inline expressions
+		strings.Repeat("$a$$$", 64),                                        // tiny display expressions
+		">[!0]",                                                            // an alert, which draws an <svg> icon
+		`\left(\color x{\right)}`,                                          // a group crossing a fence
+		strings.Repeat(`{\left(`, 8) + "x" + strings.Repeat(`}\right)`, 8), // crossing groups, nested
 	} {
 		f.Add(seed)
 	}
