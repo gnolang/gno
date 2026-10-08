@@ -40,7 +40,7 @@ for install methods.
 
 ## Managing key pairs
 
-Every transaction you send is signed by a key pair, which `gnokey` makes from a
+Every transaction you send is signed by a key pair, which `gnokey` derives from a
 [mnemonic phrase](https://en.wikipedia.org/wiki/Cryptocurrency_wallet#Seed_phrases).
 The private key signs your transactions, and the public key gives your `g1...`
 address, the account that holds your coins.
