@@ -159,8 +159,10 @@ func endInnerFrame(pc parser.Context) {
 
 // frameKeepsColumnsTag reports whether a gno-columns tag stays inside the
 // open frame: one that opens a grid (with room left under the depth cap),
-// or a separator or close of a grid opened inside the frame. Any other
-// columns tag would leave a grid half inside, so it ends the frame.
+// a separator or close of a grid opened inside the frame, or a stray
+// separator or close with no grid open (an invalid leaf, as outside a
+// frame). Any other columns tag would leave a grid half inside, so it ends
+// the frame.
 func frameKeepsColumnsTag(tag GnoColumnTag, pc parser.Context) bool {
 	gridOpen := gridOpen(pc)
 	switch tag {
@@ -176,9 +178,12 @@ func frameKeepsColumnsTag(tag GnoColumnTag, pc parser.Context) bool {
 		pc.Set(frameGridKey, true)
 		return true
 	case GnoColumnTagSep:
-		return gridOpen && frameGrid(pc)
+		return !gridOpen || frameGrid(pc)
 	case GnoColumnTagClose:
-		if !gridOpen || !frameGrid(pc) {
+		if !gridOpen {
+			return true
+		}
+		if !frameGrid(pc) {
 			return false
 		}
 		pc.Set(frameGridKey, false)
@@ -328,7 +333,13 @@ func wrapFrames(parent ast.Node) {
 				break
 			}
 			if c.Kind() == KindGnoColumn {
-				end := gridCloseInFrame(c.(*GnoColumnNode))
+				col := c.(*GnoColumnNode)
+				if !frame.inner && col.Tag == GnoColumnTagUndefined && col.inFrame {
+					// A stray columns tag kept inside the frame.
+					frame.AppendChild(frame, c)
+					continue
+				}
+				end := gridCloseInFrame(col)
 				if end == nil {
 					// The frame ended at this tag while parsing, or the
 					// grid closes after the frame.

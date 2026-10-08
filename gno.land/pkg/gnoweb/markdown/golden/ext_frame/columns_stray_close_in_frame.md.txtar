@@ -5,7 +5,6 @@ x
 </gno-frame>
 -- output.html --
 <section class="gno-frame">
-</section>
 <!-- unexpected/invalid columns tag omitted -->
 <p>x</p>
-<!-- unexpected/invalid frame tag omitted -->
+</section>

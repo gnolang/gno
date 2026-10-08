@@ -45,8 +45,9 @@ type GnoColumnNode struct {
 	Index int          // Index of the column associated with the node.
 	Tag   GnoColumnTag // Current Column Tag for this node.
 
-	// inFrame marks an open tag whose grid opened inside a <gno-frame>
-	// (see frameKeepsColumnsTag in ext_frame.go).
+	// inFrame marks an open tag whose grid opened inside a <gno-frame>,
+	// or a stray separator or close kept inside one (see
+	// frameKeepsColumnsTag in ext_frame.go).
 	inFrame bool
 
 	ctx *columnsContext
@@ -201,6 +202,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 	case GnoColumnTagClose:
 		if !cctx.IsOpen {
 			node.Tag = GnoColumnTagUndefined
+			node.inFrame = frameOpen(pc)
 			return node, parser.NoChildren
 		}
 
@@ -210,6 +212,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 	case GnoColumnTagSep:
 		if !cctx.IsOpen {
 			node.Tag = GnoColumnTagUndefined
+			node.inFrame = frameOpen(pc)
 			return node, parser.NoChildren
 		}
 

@@ -65,7 +65,10 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   ends at its close tag or the next columns tag). A card opener refused
   there (an attribute, or the depth cap) leaves its `</gno-frame>` an invalid
   leaf too, so that close does not end the outer frame (goldens
-  `invalid_card_attrs_keeps_frame`, `invalid_card_at_depth_cap`). Any columns tag that would
+  `invalid_card_attrs_keeps_frame`, `invalid_card_at_depth_cap`). A stray
+  `<gno-columns-sep>` or `</gno-columns>` with no grid open stays inside the
+  frame as the invalid comment it renders outside one (golden
+  `columns_stray_tags_stay_in_frame`). Any columns tag that would
   leave a grid half inside ends the frame instead: a separator or close of a
   grid opened before the frame (a frame in a column), and a `<gno-columns>`
   past the depth cap, so that grid still opens. A grid opened in a frame
