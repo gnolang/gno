@@ -22,6 +22,7 @@ Try a wallet, a block explorer and the projects of the Gno.land ecosystem.
 
 **[Explore the ecosystem](/ecosystem)**
 
+- [Get a wallet (Adena)](https://www.adena.app/)
 - [See what is live on mainnet](#live-on-mainnet)
 - [Read the code behind any app](#explore-packages-and-realms)
 
@@ -31,10 +32,11 @@ Try a wallet, a block explorer and the projects of the Gno.land ecosystem.
 
 Write, test and deploy smart contracts in Gno.
 
-**[Read the documentation](https://docs.gno.land)**
+**[Read the getting started guide](https://docs.gno.land/builders/getting-started)**
 
 - [Write Gno in the browser](https://play.gno.land)
 - [Build with AI, using gnomcp](https://mcp.gno.dev)
+- [Get a grant for your project](/partners)
 
 <gno-columns-sep>
 
@@ -44,6 +46,7 @@ Meet the Gno.land community and follow the project.
 
 **[Join the Discord](https://discord.com/invite/gnoland)**
 
+- [Follow Gno.land on X](https://twitter.com/_gnoland)
 - [Subscribe to the newsletter](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
 - [All community channels](#community)
 
@@ -172,7 +175,7 @@ Standard pure packages maintained by the core team.
 ## Community
 
 - [Discord](https://discord.com/invite/gnoland)
-- [Twitter](https://twitter.com/_gnoland)
+- [X (Twitter)](https://twitter.com/_gnoland)
 - [YouTube](https://www.youtube.com/@_gnoland)
 - [Telegram](https://t.me/gnoland)
 - [Bubble Rumble](https://bubblerumble.net/)
