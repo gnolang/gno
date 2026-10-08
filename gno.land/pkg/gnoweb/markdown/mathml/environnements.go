@@ -283,6 +283,8 @@ func processEnv(node *MMLNode, env string, ctx parseContext) *MMLNode {
 		right = NewMMLNode("mo") // Empty mo for proper fence pairing
 	case "align", "align*", "aligned":
 		attrib["displaystyle"] = "true"
+		// The stylesheet pairs up the columns of an aligned table.
+		attrib["class"] = "math-aligned"
 	case "subarray":
 		attrib["displaystyle"] = "false"
 	default:

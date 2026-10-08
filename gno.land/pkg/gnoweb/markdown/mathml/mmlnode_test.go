@@ -429,3 +429,15 @@ func TestOperatorNameSpacing(t *testing.T) {
 		assert.NotContains(t, out, "<mi lspace", tex)
 	}
 }
+
+// Aligned environments carry the class the stylesheet pairs their columns
+// with; other tables keep the cell padding of every <mtd>.
+func TestAlignedTableClass(t *testing.T) {
+	for _, env := range []string{"aligned", "align", "align*"} {
+		out := convertWithin(t, `\begin{`+env+`}a&=b\\c&=d\end{`+env+`}`, true)
+		assert.Contains(t, out, `class="math-aligned"`, env)
+	}
+	for _, tex := range []string{`\begin{array}{rl}10&20\end{array}`, `\begin{bmatrix}10&20\end{bmatrix}`, `\begin{cases}a&b\end{cases}`} {
+		assert.NotContains(t, convertWithin(t, tex, true), "math-aligned", tex)
+	}
+}

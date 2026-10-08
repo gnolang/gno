@@ -515,20 +515,34 @@
 			margin-left: -0.125em;
 		}
 
-		/* Table cell alignment, set by the math renderer as columnalign.
-		   The side padding pairs up the columns of aligned environments;
-		   em keeps it relative to the formula. */
+		/* Table cells get back the padding of the browser's MathML
+		   stylesheet, which the global reset removes: without it the
+		   columns of a matrix touch, and [10 20] reads [1020]. */
+		& mtd {
+			padding: 0.5ex 0.4em;
+		}
+
+		/* Table cell alignment, set by the math renderer as columnalign. */
 		& mtd[columnalign="center"] {
 			text-align: center;
 		}
 
 		& mtd[columnalign="left"] {
 			text-align: left;
-			padding-inline: 0 1em;
 		}
 
 		& mtd[columnalign="right"] {
 			text-align: right;
+		}
+
+		/* The columns of an aligned environment pair up: a right-aligned
+		   left side meets its left-aligned right side, and pairs are 2em
+		   apart; em keeps it relative to the formula. */
+		& .math-aligned > mtr > mtd[columnalign="left"] {
+			padding-inline: 0 1em;
+		}
+
+		& .math-aligned > mtr > mtd[columnalign="right"] {
 			padding-inline: 1em 0;
 		}
 	}
