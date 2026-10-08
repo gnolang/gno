@@ -336,7 +336,7 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// not announce a disconnect for a peer that stays connected. One that
 	// finds no entry under its ID was never announced, or its peer's
 	// disconnect was announced by whichever removed that entry
-	if !sw.removeUnlessSuperseded(peer) {
+	if !sw.removeIfHeld(peer) {
 		sw.Logger.Debug(
 			"not removing a peer set entry the connection does not hold",
 			"peer", peer,
@@ -874,13 +874,13 @@ func (sw *MultiplexSwitch) registerPeer(p PeerConn) (PeerConn, error) {
 	return registered, sw.peers.Add(p)
 }
 
-// removeUnlessSuperseded removes the peer set entry of the peer's ID only if
+// removeIfHeld removes the peer set entry of the peer's ID only if
 // the peer holds it, and reports whether it removed it. Two connections hold
 // one peer ID while a reconnect races the teardown of the connection it
 // supersedes, or while a replacement resolves a simultaneous open, and the
 // entry belongs to whichever won. Checking and removing in one step keeps a
 // connection that replaced this one between the two from losing its entry
-func (sw *MultiplexSwitch) removeUnlessSuperseded(p PeerConn) bool {
+func (sw *MultiplexSwitch) removeIfHeld(p PeerConn) bool {
 	sw.registry.Lock()
 	defer sw.registry.Unlock()
 
@@ -1140,7 +1140,7 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// Its reactor state needs no unwinding here: whatever stopped the peer
 	// walked the reactors' RemovePeer on the way
 	if !p.IsRunning() {
-		removed := sw.removeUnlessSuperseded(p)
+		removed := sw.removeIfHeld(p)
 
 		if removed && replaced != nil {
 			sw.events.Notify(events.PeerDisconnectedEvent{
