@@ -287,7 +287,9 @@ outbound for one peer, and inbound for the other.
 Depending on what kind of security policies or configuration the peer has in place, the connection can be accepted, or
 rejected for a number of reasons:
 
+- the peer is already connected, and the connection already registered is kept (see *Simultaneous open* below)
 - the maximum number of inbound peers is reached
+- another peer is already connected from the same IP, unless `p2p.allow_duplicate_ip` is set
 - the multiplex connection fails upon startup (rare)
 
 The `Switch` relies on the `Transport` to return a **verified and valid** peer connection. After the `Transport`
@@ -334,6 +336,10 @@ it’s been established.
 
 When TM2 modules communicate with the `p2p` module, they communicate *with the `Switch`, not the `Transport`* to execute
 peer-related actions.
+
+###### Simultaneous open
+
+When two nodes dial each other at the same moment, each ends up with two connections to the other: the one it dialed and the one it accepted. Keeping whichever registered first would let each side keep a different one and close the other's, tearing both down. Both sides instead keep the connection dialed by the node with the lower ID: a connection in the opposite direction to the registered one replaces it when it is the one to keep, and is refused otherwise. The decision and the change to the peer set happen in one step, since the accept and dial loops can register the same peer at the same time. A replacement moves a connection from one direction to the other, so it goes through the peer limits like any other connection, with two adjustments: the duplicate-IP guard ignores the connection being replaced, and a persistent peer's replacing inbound connection is exempt from the inbound peer limit, as long as the connection being replaced is still registered when the accept loop checks; if it is already gone, the new connection goes through the inbound limit like a new peer, and the redial loop recovers. A simultaneous open can therefore still end with both connections torn down when the lower-ID peer is not a persistent peer of the higher-ID node and that node is at its inbound peer limit, when the winning connection is refused by the duplicate-IP guard because another peer holds its IP (persistent or not), or, on the dial side, when the node is at its outbound peer limit and the peer is not persistent. Two connections in the same direction keep the registered one.
 
 ##### Dial Service
 
