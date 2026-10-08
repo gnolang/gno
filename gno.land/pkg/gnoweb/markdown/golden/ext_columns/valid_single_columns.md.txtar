@@ -13,7 +13,7 @@ normal content
 <div class="gno-columns">
 <!-- Column 0 -->
 <div class="gno-column">
-<h1>Title 1</h1>
+<h1 id="title-1">Title 1<a href="#title-1" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h1>
 <p>normal content</p>
 </div>
 </div> <!-- </gno-columns> -->

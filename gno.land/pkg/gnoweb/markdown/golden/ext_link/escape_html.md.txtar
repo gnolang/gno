@@ -5,5 +5,5 @@
 [Bad Link]("/></a><button>Hello</button>)
 
 -- output.html --
-<h2>My Realm</h2>
+<h2 id="my-realm">My Realm<a href="#my-realm" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 <p><a href="%22/%3E%3C/a%3E%3Cbutton%3EHello%3C/button%3E">Bad Link</a></p>
