@@ -37,12 +37,19 @@ var iconSources = []struct {
 }
 
 // iconExcluded are chrome symbols kept out of the table: third-party brand
-// marks, which a realm must not be able to wear.
+// marks, which a realm must not be able to wear, and the link badges, which
+// <gno-foreign> content must not be able to add back (getLinkIcons drops
+// them from foreign links).
 var iconExcluded = map[string]bool{
 	"github":   true,
 	"twitter":  true,
 	"discord":  true,
 	"telegram": true,
+
+	"external-link": true,
+	"internal-link": true,
+	"tx-link":       true,
+	"user-link":     true,
 }
 
 // iconElements, iconAttrs and iconRootAttrs are the allowlist every glyph

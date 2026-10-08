@@ -405,3 +405,16 @@ func TestIconBudget(t *testing.T) {
 	out = render(strings.Repeat(tag, half) + "\n\n<gno-foreign>\n" + strings.Repeat(tag, MaxIconsPerConvert) + "\n</gno-foreign>\n")
 	assert.Equal(t, MaxIconsPerConvert, strings.Count(out, "<svg"))
 }
+
+// TestIconLinkBadgesNotCallable pins the link badges out of the table:
+// getLinkIcons drops them from <gno-foreign> links, so foreign content must
+// not be able to add them back as icons.
+func TestIconLinkBadgesNotCallable(t *testing.T) {
+	for _, name := range []string{"external-link", "internal-link", "tx-link", "user-link"} {
+		var buf bytes.Buffer
+		src := "<gno-foreign>\n[Sign <gno-icon name=\"" + name + "\" />](/r/x$help&func=Foo)\n</gno-foreign>\n"
+		require.NoError(t, newProductionLikeMarkdown().Convert([]byte(src), &buf))
+		assert.NotContains(t, buf.String(), "<svg", name)
+		assert.Contains(t, buf.String(), `<!-- gno-icon: unknown name "`+name+`" -->`)
+	}
+}

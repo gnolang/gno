@@ -30,7 +30,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 
 ![Every icon with its name](ICONS.svg)
 
-495 icons:
+491 icons:
 
 | Icon | Name |
 |---|---|
@@ -211,7 +211,6 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="expand-height" /> | `expand-height` |
 | <gno-icon name="expand-width" /> | `expand-width` |
 | <gno-icon name="external" /> | `external` |
-| <gno-icon name="external-link" /> | `external-link` |
 | <gno-icon name="eye" /> | `eye` |
 | <gno-icon name="eye-closed" /> | `eye-closed` |
 | <gno-icon name="eye-no" /> | `eye-no` |
@@ -279,7 +278,6 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="info" /> | `info` |
 | <gno-icon name="info-circle" /> | `info-circle` |
 | <gno-icon name="info-circle-outline" /> | `info-circle-outline` |
-| <gno-icon name="internal-link" /> | `internal-link` |
 | <gno-icon name="iphone-landscape" /> | `iphone-landscape` |
 | <gno-icon name="iphone-portrait" /> | `iphone-portrait` |
 | <gno-icon name="jump-backward" /> | `jump-backward` |
@@ -478,7 +476,6 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="trash-alt" /> | `trash-alt` |
 | <gno-icon name="trophy" /> | `trophy` |
 | <gno-icon name="tv-mode" /> | `tv-mode` |
-| <gno-icon name="tx-link" /> | `tx-link` |
 | <gno-icon name="unarchive" /> | `unarchive` |
 | <gno-icon name="undo" /> | `undo` |
 | <gno-icon name="undo-history" /> | `undo-history` |
@@ -492,7 +489,6 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="user" /> | `user` |
 | <gno-icon name="user-add" /> | `user-add` |
 | <gno-icon name="user-circle" /> | `user-circle` |
-| <gno-icon name="user-link" /> | `user-link` |
 | <gno-icon name="user-male" /> | `user-male` |
 | <gno-icon name="user-male-circle" /> | `user-male-circle` |
 | <gno-icon name="user-remove" /> | `user-remove` |
