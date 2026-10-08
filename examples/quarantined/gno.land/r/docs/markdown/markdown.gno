@@ -900,6 +900,41 @@ This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 
 You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
 
+### Icons
+
+Put a small icon anywhere text goes (a heading, a paragraph, a list item, a table cell, a link label) with a
+self-closing ±<gno-icon />± tag. It takes the size and color of the text around it.
+
+±±±markdown
+## <gno-icon name="rocket" /> Launch
+
+- <gno-icon name="check-circle" label="Done" /> Audit
+- <gno-icon name="clock" label="Pending" /> Mainnet
+
+[<gno-icon name="book" /> Read the docs](/r/docs)
+±±±
+
+- Renders as:
+
+---
+
+## <gno-icon name="rocket" /> Launch
+
+- <gno-icon name="check-circle" label="Done" /> Audit
+- <gno-icon name="clock" label="Pending" /> Mainnet
+
+[<gno-icon name="book" /> Read the docs](/r/docs)
+
+---
+
+Add ±label="…"± when the icon means something on its own (a status, a warning): screen readers announce it.
+Leave it out for a decorative icon. No other attribute is read, and an unknown ±name± renders nothing.
+
+Some of the available names: ±star±, ±heart±, ±check-circle±, ±warning-triangle±, ±info±, ±wallet±, ±coin±,
+±key±, ±lock±, ±shield±, ±user±, ±users±, ±calendar±, ±clock±, ±mail±, ±globe±, ±rocket±, ±lightning±,
+±database±, ±server±, ±terminal±, ±branch±. The full list is in
+[ICONS.md](https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoweb/markdown/ICONS.md).
+
 ### Smart Contract Integration
 
 XXX: TODO
