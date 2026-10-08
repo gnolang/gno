@@ -65,11 +65,13 @@ on a renderer that does not know it.
 ### Parsing
 
 - An inline parser on `<`, priority 399: just ahead of goldmark's raw-HTML
-  parser (400), the same slot as `<gno-button />`. goldmark's autolink parser
+  parser (400), a slot meant for every body-less inline gno-* tag (the
+  `<gno-button />` PR takes it too). goldmark's autolink parser
   (300) runs first but cannot claim the tag: an autolink holds no space and
   needs a scheme or an `@`. The parser checks the `<gno-icon` prefix with a
   byte compare, then reads the tag with `scanGnoTag` (`markdown/utils.go`),
-  the scanner shared with `<gno-button />`: attribute names, quoted or
+  a scanner written to be shared by the body-less inline gno-* tags (the
+  `<gno-button />` PR uses it): attribute names, quoted or
   unquoted values (`label="a > b"` is one value), up to `/>` or `>`. No
   regex, no tokenizer, no allocation: name and label are slices of the
   source, and only a recognized tag allocates its AST node.
@@ -80,7 +82,9 @@ on a renderer that does not know it.
   takes milliseconds (`TestIconParseLinear`, `BenchmarkIconParse/unterminated`).
 - **The icons per render are capped** at 1,000 (`MaxIconsPerConvert`),
   `<gno-foreign>` bodies included: the budget travels into the inner render
-  like the foreign block budget. Each icon writes up to 2.3 KB, so 1 MiB of
+  like the foreign block budget. Each icon writes up to 2.3 KB of glyph,
+  and up to about 5 KB with a label filling the tag bound (`renderIcon`
+  escapes each quote to six bytes), so 1 MiB of
   `<gno-icon name=pure />` made a 105 MB page, and 8 parallel requests on it
   took gnoweb from 40 MB to 4.5 GB RSS. Past the cap a tag falls through to
   goldmark's raw HTML path, as without the extension; the same page is
@@ -97,12 +101,12 @@ on a renderer that does not know it.
   block, which safe mode strips. The shared `gnoTagLineParser`, at priority
   899 (ahead of the HTML block parser, 900), opens a paragraph on a line that
   starts with the tag name, delegating to goldmark's own `NewParagraphParser()`.
-  `<gno-button />` registers the same parser with its own prefix. It opens on
+  It takes the tag prefix as a parameter, so a later body-less gno-* tag
+  (the `<gno-button />` PR) can register it with its own. It opens on
   the name alone, not only on a tag the scanner accepts: a complete tag over
   512 bytes alone on a line used to become an HTML block that took every line
-  up to the next blank one, and safe mode dropped them all, which
-  `sanitize.Block` let through once it stopped escaping the opener. Now such
-  a line is a paragraph where only the over-long tag is omitted.
+  up to the next blank one, and safe mode dropped them all. Now such a line
+  is a paragraph where only the over-long tag is omitted.
 - **Heading IDs.** goldmark derives an auto ID from the heading's raw source
   line, which would give `## <gno-icon name="rocket" /> Launch` the ID
   `gno-icon-namerocket-launch`. An AST transformer rebuilds the IDs of a

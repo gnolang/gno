@@ -93,8 +93,8 @@ const maxIconTagLen = 512
 // parseIconTag reads a `<gno-icon …>` tag at the start of src with the
 // shared scanGnoTag, without allocating. It returns the tag's length, or 0.
 // Attribute names are case-insensitive and the first occurrence wins, as in
-// HTML; values are raw, without entity decoding. Unlike <gno-button>, a tag
-// that is not self-closing is claimed too, so it renders a hint.
+// HTML; values are raw, without entity decoding. A tag that is not
+// self-closing is claimed too, so it renders a hint.
 func parseIconTag(src []byte) (size int, icon iconTag) {
 	var hasName, hasLabel bool
 	size, icon.SelfClosing = scanGnoTag(src, iconTagPrefix, maxIconTagLen, func(key, val []byte) {
@@ -343,8 +343,8 @@ type iconExtension struct{}
 var ExtIcons = &iconExtension{}
 
 // Extend registers the icon parser just ahead of goldmark's raw-HTML inline
-// parser (400), as <gno-button> does, and the shared line parser ahead of
-// the HTML block parser (900).
+// parser (400), and the shared line parser ahead of the HTML block parser
+// (900).
 func (e *iconExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithInlineParsers(

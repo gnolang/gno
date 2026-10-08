@@ -50,7 +50,8 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 // for each attribute in source order with its raw value (no entity decoding),
 // aliasing src, and returns the tag's length, or 0 when src does not start
 // with that tag ending (`/>` or `>`) on this line within maxLen bytes. For the
-// body-less inline gno-* tags (<gno-button />, and <gno-icon /> next).
+// body-less inline gno-* tags: <gno-icon />, and later ones such as
+// <gno-button />.
 func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (size int, selfClosing bool) {
 	if !hasGnoTagPrefix(src, prefix) {
 		return 0, false
@@ -117,7 +118,7 @@ func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (siz
 
 // hasGnoTagPrefix reports whether src starts with prefix ("<name"),
 // case-insensitively, followed by a byte that ends a tag name: whitespace,
-// `/` or `>`, so `<gno-buttons>` is not `<gno-button`.
+// `/` or `>`, so `<gno-icons>` is not `<gno-icon`.
 func hasGnoTagPrefix(src, prefix []byte) bool {
 	n := len(prefix)
 	if len(src) <= n || !bytes.EqualFold(src[:n], prefix) {
@@ -132,7 +133,7 @@ func isGnoTagAttrNameEnd(c byte) bool {
 }
 
 // gnoTagLineParser opens a paragraph on a line that starts with a body-less
-// inline gno-* tag. Without it, a line holding only `<gno-button … />` is a
+// inline gno-* tag. Without it, a line holding only `<gno-icon … />` is a
 // CommonMark type-7 HTML block, which takes the line (and every line up to
 // the next blank one) before the tag's inline parser runs, and safe mode
 // strips it. It delegates to goldmark's own paragraph parser, so the
