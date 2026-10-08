@@ -61,7 +61,7 @@ var (
 	math_variants = map[string]parseContext{
 		"mathbb":     ctxVarBb,
 		"mathbf":     ctxVarBold,
-		"boldsymbol": ctxVarBold,
+		"boldsymbol": ctxVarBold | ctxVarItalic,
 		"mathbfit":   ctxVarBold | ctxVarItalic,
 		"mathcal":    ctxVarScriptChancery,
 		"mathfrak":   ctxVarFrak,
@@ -173,6 +173,16 @@ func isolateMathVariant(ctx parseContext) parseContext {
 	return ctx & ^(ctxVarNormal - 1)
 }
 
+// withVariant returns ctx under the switch or font command v: if v sets a
+// font variant, it replaces the variant of ctx, as an inner font command
+// does in TeX.
+func withVariant(ctx, v parseContext) parseContext {
+	if isolateMathVariant(v) != 0 {
+		ctx &^= isolateMathVariant(ctx)
+	}
+	return ctx | v
+}
+
 // isLaTeXLogo argument is true for \LaTeX and false for \TeX. The kerning
 // that browsers do not apply from the MathML attributes alone comes from the
 // stylesheet, through the math-latex-* and math-tex-* classes: the page CSP
@@ -254,9 +264,9 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		}
 		if err != nil {
 			// treat the remainder of the buffer as argument
-			return converter.ParseTex(b, context|variant, wrapper)
+			return converter.ParseTex(b, withVariant(context, variant), wrapper)
 		}
-		return converter.ParseTex(nextExpr, context|variant, wrapper)
+		return converter.ParseTex(nextExpr, withVariant(context, variant), wrapper)
 	}
 	if width, ok := space_widths[name]; ok {
 		n := NewMMLNode("mspace")
@@ -299,17 +309,17 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 			expr, err := switchExpressions.GetNextExpr()
 			if err == nil {
 				setColor(n, expr.Expr)
-				converter.ParseTex(switchExpressions, context|sw, n)
+				converter.ParseTex(switchExpressions, withVariant(context, sw), n)
 				return n
 			}
 			b.Unget()
 			return NewMMLNode("merror", name).SetAttr("title", fmt.Sprintf("%s expects an argument", name))
 		}
 		if size, ok := sizeSwitches[name]; ok {
-			converter.parseSized(switchExpressions, context|sw, n, size)
+			converter.parseSized(switchExpressions, withVariant(context, sw), n, size)
 			return n
 		}
-		converter.ParseTex(switchExpressions, context|sw, n)
+		converter.ParseTex(switchExpressions, withVariant(context, sw), n)
 		switch name {
 		case "displaystyle":
 			n.SetTrue("displaystyle")
@@ -399,7 +409,14 @@ func makeSymbol(t symbol, tok Token, context parseContext) *MMLNode {
 		n.SetTrue("stretchy")
 	}
 	if n.Properties&propSymUpright > 0 {
-		context |= ctxVarNormal
+		// Upright unless a font command says otherwise. A bold one keeps it
+		// upright: \boldsymbol{\Gamma} is a bold upright Gamma.
+		switch v := isolateMathVariant(context); {
+		case v == 0:
+			context |= ctxVarNormal
+		case v&ctxVarBold != 0:
+			context &^= ctxVarItalic
+		}
 	}
 	switch t.kind {
 	case sym_binaryop, sym_opening, sym_closing, sym_relation, sym_operator:

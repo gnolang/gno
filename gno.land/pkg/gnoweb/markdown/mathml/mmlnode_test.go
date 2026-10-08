@@ -441,3 +441,47 @@ func TestAlignedTableClass(t *testing.T) {
 		assert.NotContains(t, convertWithin(t, tex, true), "math-aligned", tex)
 	}
 }
+
+// \boldsymbol keeps the italic of letters, as in MathJax and KaTeX, and
+// makes digits and upright symbols bold.
+func TestBoldsymbol(t *testing.T) {
+	for tex, want := range map[string]string{
+		`\boldsymbol{x}`:      "<mi>𝒙</mi>",
+		`\boldsymbol{\alpha}`: "<mi>𝜶</mi>",
+		`\boldsymbol{1}`:      "<mn>𝟏</mn>",
+		`\mathbf{x}`:          "<mi>𝐱</mi>",
+	} {
+		assert.Contains(t, convertWithin(t, tex, false), want, tex)
+	}
+}
+
+// A font command on an upright symbol (capital Greek, \nabla...) applies
+// to it, where the symbol's upright default used to cancel both.
+func TestVariantOnUprightSymbol(t *testing.T) {
+	for tex, want := range map[string]string{
+		`\Gamma`:              `<mi mathvariant="normal">Γ</mi>`,
+		`\mathbf{\Gamma}`:     "<mi>𝚪</mi>",
+		`\boldsymbol{\Omega}`: "<mi>𝛀</mi>",
+		`\mathit{\Gamma}`:     "<mi>𝛤</mi>",
+	} {
+		assert.Contains(t, convertWithin(t, tex, false), want, tex)
+	}
+}
+
+// As in TeX, an inner font command replaces the outer one, where OR-ing
+// the two used to drop both.
+func TestNestedFontCommands(t *testing.T) {
+	for tex, want := range map[string]string{
+		`\mathbf{\mathfrak{g}}`:   "<mi>𝔤</mi>",
+		`\mathbf{\mathcal{A}}`:    `<mi class="mathcal">𝒜`,
+		`\mathbb{\mathbf{R}}`:     "<mi>𝐑</mi>",
+		`\mathtt{\mathbf{x}}`:     "<mi>𝐱</mi>",
+		`\mathrm{\mathbf{x}}`:     "<mi>𝐱</mi>",
+		`\mathbf{\mathrm{x}}`:     `<mi mathvariant="normal">x</mi>`,
+		`\boldsymbol{\mathbb{R}}`: "<mi>ℝ</mi>",
+		`{\bf \mathbb{R}}`:        "<mi>ℝ</mi>",
+		`\mathit{\rm x}`:          `<mi mathvariant="normal">x</mi>`,
+	} {
+		assert.Contains(t, convertWithin(t, tex, false), want, tex)
+	}
+}

@@ -177,6 +177,13 @@ var transforms = map[string][]transformRule{
 			exceptions: map[rune]rune{}},
 	},
 	"bold-italic": {
+		// Unicode has no bold italic digits: they are bold, as in MathJax.
+		{
+			begin:      '0',
+			delta:      120734,
+			end:        '9',
+			exceptions: map[rune]rune{},
+		},
 		{
 			begin:      'A',
 			delta:      119847,
