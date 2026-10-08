@@ -70,19 +70,38 @@ func TestParseIconTag(t *testing.T) {
 // (20,000 took 35 s). linearIDs keeps it linear; plain duplicate headings
 // are covered by TestDuplicateHeadingIDsLinear.
 func TestIconHeadingIDsLinear(t *testing.T) {
-	m := newProductionLikeMarkdown()
-	for _, n := range []int{5000, 20000} {
-		for name, src := range map[string]string{
-			"icon-only":      strings.Repeat("## <gno-icon name=\"star\" />\n", n),
-			"icon-text":      strings.Repeat("## <gno-icon name=\"star\" /> a\n", n),
-			"after-one-icon": "## <gno-icon name=\"star\" /> b\n" + strings.Repeat("## a\n", n),
-		} {
-			start := time.Now()
-			var buf bytes.Buffer
-			require.NoError(t, m.Convert([]byte(src), &buf, parser.WithContext(NewGnoParserContext(GnoContext{}))))
-			assert.Less(t, time.Since(start), 2*time.Second, "%d %s headings", n, name)
-		}
+	for name, gen := range map[string]func(n int) string{
+		"icon-only":      func(n int) string { return strings.Repeat("## <gno-icon name=\"star\" />\n", n) },
+		"icon-text":      func(n int) string { return strings.Repeat("## <gno-icon name=\"star\" /> a\n", n) },
+		"after-one-icon": func(n int) string { return "## <gno-icon name=\"star\" /> b\n" + strings.Repeat("## a\n", n) },
+	} {
+		t.Run(name, func(t *testing.T) { assertLinear(t, gen, 5000) })
 	}
+}
+
+// assertLinear renders gen(n) and gen(4n) and fails when the larger input
+// takes more than 8 times as long: 4 times is linear, 16 quadratic. Comparing
+// two sizes on the same machine, rather than against a fixed budget, holds
+// under -race and on slow runners. Each size keeps its fastest of 3 runs.
+func assertLinear(t *testing.T, gen func(n int) string, n int) {
+	t.Helper()
+	m := newProductionLikeMarkdown()
+	measure := func(src []byte) time.Duration {
+		best := time.Duration(1<<63 - 1)
+		for range 3 {
+			var buf bytes.Buffer
+			start := time.Now()
+			require.NoError(t, m.Convert(src, &buf, parser.WithContext(NewGnoParserContext(GnoContext{}))))
+			best = min(best, time.Since(start))
+		}
+		return best
+	}
+	small, large := measure([]byte(gen(n))), measure([]byte(gen(4*n)))
+	// Below a few milliseconds the ratio is noise; nothing quadratic stays there.
+	if large < 20*time.Millisecond {
+		return
+	}
+	assert.Less(t, large, 8*small, "n=%d took %v, 4n took %v", n, small, large)
 }
 
 func TestRenderIconAllocs(t *testing.T) {
@@ -158,27 +177,26 @@ func TestParseIconTagAllocs(t *testing.T) {
 
 // TestIconParseLinear renders inputs that made parsing quadratic when each
 // unterminated `<gno-icon` was scanned to the end of its line: 200 KB in one
-// line took 15 s. Bounded, each takes well under the budget.
+// line took 15 s. Bounded, each grows linearly with its size.
 func TestIconParseLinear(t *testing.T) {
-	m := newProductionLikeMarkdown()
-	for name, src := range map[string]string{
-		"bare":               strings.Repeat("<gno-icon ", 20000),
-		"open-quote":         strings.Repeat(`<gno-icon name="`, 10000),
-		"heading":            "## " + strings.Repeat("<gno-icon x ", 20000),
-		"lines-unterminated": strings.Repeat("<gno-icon name=\"x\n", 20000),
-		"table-cells":        "| a | b |\n|---|---|\n" + strings.Repeat("| <gno-icon name=\"x | y |\n", 10000),
-		"valid":              strings.Repeat(`<gno-icon name="star" />`, 10000),
-		"heading-icons":      "## " + strings.Repeat(`<gno-icon name="star" />`, 10000),
-		"link-icons":         "[" + strings.Repeat(`<gno-icon name="star" />`, 10000) + "](/r/x)",
-		"link-filler-code":   "[" + strings.Repeat("` ` ", 20000) + strings.Repeat(`<gno-icon name="star" />`, 20000) + "](/r/x)",
-		"link-filler-html":   "[" + strings.Repeat("<b></b>", 20000) + strings.Repeat(`<gno-icon name="star" />`, 20000) + "](/r/x)",
+	const icon = `<gno-icon name="star" />`
+	for name, gen := range map[string]func(n int) string{
+		"bare":               func(n int) string { return strings.Repeat("<gno-icon ", 2*n) },
+		"open-quote":         func(n int) string { return strings.Repeat(`<gno-icon name="`, n) },
+		"heading":            func(n int) string { return "## " + strings.Repeat("<gno-icon x ", 2*n) },
+		"lines-unterminated": func(n int) string { return strings.Repeat("<gno-icon name=\"x\n", 2*n) },
+		"table-cells": func(n int) string {
+			return "| a | b |\n|---|---|\n" + strings.Repeat("| <gno-icon name=\"x | y |\n", n)
+		},
+		"valid":            func(n int) string { return strings.Repeat(icon, n) },
+		"heading-icons":    func(n int) string { return "## " + strings.Repeat(icon, n) },
+		"link-icons":       func(n int) string { return "[" + strings.Repeat(icon, n) + "](/r/x)" },
+		"link-filler-code": func(n int) string { return "[" + strings.Repeat("` ` ", 2*n) + strings.Repeat(icon, 2*n) + "](/r/x)" },
+		"link-filler-html": func(n int) string {
+			return "[" + strings.Repeat("<b></b>", 2*n) + strings.Repeat(icon, 2*n) + "](/r/x)"
+		},
 	} {
-		t.Run(name, func(t *testing.T) {
-			start := time.Now()
-			var buf bytes.Buffer
-			require.NoError(t, m.Convert([]byte(src), &buf, parser.WithContext(NewGnoParserContext(GnoContext{}))))
-			assert.Less(t, time.Since(start), 2*time.Second)
-		})
+		t.Run(name, func(t *testing.T) { assertLinear(t, gen, 2500) })
 	}
 }
 
