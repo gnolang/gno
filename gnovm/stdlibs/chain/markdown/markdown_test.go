@@ -234,6 +234,10 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"u2028-fold", "a\u2028b\n", "a\nb\n"},
 		{"nel-fold", "a\u0085b\n", "a\nb\n"},
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
+		{"ext-delimiter-icon-opener-preserved", "<gno-icon name=\"star\" /> text\n", "<gno-icon name=\"star\" /> text\n"},
+		{"ext-delimiter-icon-uppercase-preserved", "<GNO-ICON name=\"star\" />\n", "<GNO-ICON name=\"star\" />\n"},
+		{"ext-delimiter-icon-close-escaped", "</gno-icon>\n", "\\</gno-icon>\n"},
+		{"ext-delimiter-icon-lookalike-escaped", "<gno-iconic>\n", "\\<gno-iconic>\n"},
 		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},        // case-insensitive
 		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"}, // case-insensitive
 		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
@@ -303,6 +307,10 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"gfm-table-full", "| H1 | H2 |\n|---|---|\n| 1 | 2 |\n", "| H1 | H2 |\n|---|---|\n| 1 | 2 |\n"},
 		// Realm-binding defenses STILL ON.
 		{"ext-delimiter", "<gno-card>\n", "\\<gno-card>\n"},
+		{"ext-delimiter-icon-opener-preserved", "<gno-icon name=\"star\" /> text\n", "<gno-icon name=\"star\" /> text\n"},
+		{"ext-delimiter-icon-uppercase-preserved", "<GNO-ICON name=\"star\" />\n", "<GNO-ICON name=\"star\" />\n"},
+		{"ext-delimiter-icon-close-escaped", "</gno-icon>\n", "\\</gno-icon>\n"},
+		{"ext-delimiter-icon-lookalike-escaped", "<gno-iconic>\n", "\\<gno-iconic>\n"},
 		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},
 		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},

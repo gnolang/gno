@@ -545,6 +545,13 @@ func foldUnicodeSeparators(s string) string {
 // NOT matched here — the shorthand has been removed from the columns
 // parser, so user content writing `|||` is now harmless paragraph
 // text and doesn't need neutralisation.
+//
+// The one exemption is the `<gno-icon …>` opener: an inline icon, not a
+// structural delimiter. gnoweb opens a plain paragraph on such a line
+// and renders an allowlisted glyph, exactly as it does mid-line, where
+// this line-start guard never looked. Escaping it here would only make
+// the same tag render or not depending on its position. `</gno-icon>`
+// stays escaped: alone on a line it is an HTML block opener.
 func isExtDelimiter(line string) bool {
 	trim := strings.TrimLeft(line, " \t")
 	if len(trim) == 0 || trim[0] != '<' {
@@ -554,8 +561,24 @@ func isExtDelimiter(line string) bool {
 	// Optional `/` for close tags.
 	if len(rest) > 0 && rest[0] == '/' {
 		rest = rest[1:]
+	} else if hasTagName(rest, "gno-icon") {
+		return false
 	}
 	return hasCaseInsensitivePrefix(rest, "gno-")
+}
+
+// hasTagName reports whether s (a line after its `<`) starts with the tag
+// name, case-insensitively, followed by whitespace, `>`, `/` or the end of
+// the line — so `pre` does not match `prefix` nor `gno-icon` `gno-iconic`.
+func hasTagName(s, name string) bool {
+	if !hasCaseInsensitivePrefix(s, name) {
+		return false
+	}
+	if len(s) == len(name) {
+		return true
+	}
+	c := s[len(name)]
+	return c == ' ' || c == '\t' || c == '>' || c == '/'
 }
 
 // isHTMLBlockType1to5Opener reports whether line opens a CommonMark
@@ -606,15 +629,8 @@ func isHTMLBlockType1to5Opener(line string) bool {
 	}
 	// Type 1: <(script|pre|style|textarea) followed by \s, >, /, or EOL.
 	for _, name := range [...]string{"script", "pre", "style", "textarea"} {
-		if hasCaseInsensitivePrefix(rest, name) {
-			after := rest[len(name):]
-			if len(after) == 0 {
-				return true
-			}
-			c := after[0]
-			if c == ' ' || c == '\t' || c == '>' || c == '/' {
-				return true
-			}
+		if hasTagName(rest, name) {
+			return true
 		}
 	}
 	return false
