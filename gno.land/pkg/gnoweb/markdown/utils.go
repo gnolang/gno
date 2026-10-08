@@ -49,8 +49,8 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 // prefix is "<name", matched case-insensitively. It calls attr, when non-nil,
 // for each attribute in source order with its raw value (no entity decoding),
 // aliasing src, and returns the tag's length, or 0 when src does not start
-// with that tag ending (`/>` or `>`) on this line within maxLen bytes. For the
-// body-less inline gno-* tags (<gno-button />, and <gno-icon /> next).
+// with that tag ending (`/>` or `>`) on this line within maxLen bytes. It
+// stops at a `<` outside a quoted value, so each attempt reads one tag.
 func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (size int, selfClosing bool) {
 	n := len(prefix)
 	if len(src) <= n || !bytes.EqualFold(src[:n], prefix) {

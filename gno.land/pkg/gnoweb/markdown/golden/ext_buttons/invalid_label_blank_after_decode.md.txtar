@@ -1,0 +1,7 @@
+-- input.md --
+<gno-button href="/r/test" label="&#32;" />
+
+Inline <gno-button href="/r/test" label="&nbsp;&#160;" /> and <gno-button href="/r/test" label=" &#x20; &amp; " />
+-- output.html --
+<p><!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --> and <a href="/r/test" class="gno-button">&amp;</a></p>

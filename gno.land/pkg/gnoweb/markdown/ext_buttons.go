@@ -1,9 +1,10 @@
-// Package markdown — gno-button extension.
+// gno-button extension.
 //
 // `<gno-button href="…" label="…" variant="…" />` renders a link styled as a
 // button. The tag is self-closing only; anything else falls through to raw
 // HTML, which safe mode strips. The parser emits a plain *ast.Link, so the
 // link extension owns the href (resolution, rel, icons, dangerous-URL guard).
+
 package markdown
 
 import (
@@ -49,7 +50,7 @@ func parseButtonTag(src []byte) (size int, t buttonTag) {
 		case !hasHref && bytes.EqualFold(key, []byte("href")):
 			t.href, hasHref = bytes.TrimSpace(val), true
 		case !hasLabel && bytes.EqualFold(key, []byte("label")):
-			t.label, hasLabel = bytes.TrimSpace(val), true
+			t.label, hasLabel = val, true
 		case !hasVariant && bytes.EqualFold(key, []byte("variant")):
 			t.variant, hasVariant = val, true
 		}
@@ -63,7 +64,10 @@ func parseButtonTag(src []byte) (size int, t buttonTag) {
 // newButtonLink builds the link node for a button tag, or returns nil when
 // a required attribute is missing or the href is not allowed.
 func newButtonLink(t buttonTag) *ast.Link {
-	if len(t.href) == 0 || len(t.label) == 0 || !isButtonHrefAllowed(t.href) {
+	// The label is attribute text: entities are decoded as HTML does, then
+	// the blank check runs, so `&#32;` is no label.
+	label := strings.TrimSpace(html.UnescapeString(string(t.label)))
+	if len(t.href) == 0 || label == "" || !isButtonHrefAllowed(t.href) {
 		return nil
 	}
 
@@ -73,9 +77,8 @@ func newButtonLink(t buttonTag) *ast.Link {
 	link.Destination = bytes.Clone(t.href)
 	link.SetAttribute(linkClassAttr, buttonClass(strings.Fields(strings.ToLower(string(t.variant)))))
 
-	// The label is attribute text: entities are decoded as HTML does, then it
-	// is escaped on output and never parsed as markdown (raw).
-	labelNode := ast.NewString([]byte(html.UnescapeString(string(t.label))))
+	// Escaped on output, never parsed as markdown (raw).
+	labelNode := ast.NewString([]byte(label))
 	labelNode.SetRaw(true)
 	link.AppendChild(link, labelNode)
 	return link
@@ -113,12 +116,10 @@ var _ parser.InlineParser = (*buttonParser)(nil)
 
 func (*buttonParser) Trigger() []byte { return []byte{'<'} }
 
-func (*buttonParser) Parse(_ ast.Node, block text.Reader, pc parser.Context) ast.Node {
-	// A button inside a link label would nest <a> elements.
-	if pc.IsInLinkLabel() {
-		return nil
-	}
-
+// A button inside a link label needs no guard: goldmark does not build a link
+// whose label holds a link (CommonMark: the inner one wins), so the brackets
+// stay text, and an image alt renders its children as text only.
+func (*buttonParser) Parse(_ ast.Node, block text.Reader, _ parser.Context) ast.Node {
 	line, _ := block.PeekLine()
 	n, tag := parseButtonTag(line)
 	if n == 0 {

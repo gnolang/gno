@@ -47,9 +47,16 @@ first review point. The whole tag must fit on one line.
 
 - **Inline parser** on `<` at priority 399, just ahead of goldmark's raw-HTML
   parser (400). It claims a tag only if it is a self-closing `gno-button`
-  (ending in `/>`) with a non-empty `href` and `label`. Anything else returns nil and goldmark's raw-HTML handling takes
-  over (stripped in safe mode). It declines inside a link label, which would
-  otherwise nest `<a>` elements.
+  (ending in `/>`) with a non-empty `href` and a label that is not blank once
+  its entities are decoded. Anything else returns nil and goldmark's raw-HTML
+  handling takes over (stripped in safe mode).
+- **Links in links.** A button inside a link label behaves like a link there:
+  goldmark keeps the inner link and turns the outer one into text, as
+  CommonMark does for `[a [b](c) d](e)`, so no `<a>` is ever nested. A button
+  inside brackets that never become a link (`[see <gno-button … />]`) is kept,
+  which the earlier `IsInLinkLabel` guard lost. In an image's alt, goldmark
+  renders children as text only, so the label becomes alt text. No guard or
+  transformer is needed.
 - **Block parser** on `<` at priority 899, just ahead of the HTML block parser
   (900). A line holding only a tag is a CommonMark type-7 HTML block start, so
   without this a button alone on its line (or as a list item) would be
@@ -115,10 +122,19 @@ sandbox. Inside foreign content the tag stays raw HTML and is stripped.
 
 ### CSS
 
-`a.gno-button` in `06-blocks.css`, inside the realm/readme view block, built on
-existing semantic tokens. Each variant sets three local properties (fill, text
-on fill, outline text), so light and dark mode come from the token remaps
-already in place. `warning` uses dark text on its light-yellow fill.
+`a.gno-button` follows gnoweb's UI buttons instead of defining its own look.
+In `06-blocks.css` it is grouped with `.b-btn` + `.b-btn--secondary` (default
+look), with `.b-btn--ghost` (`outline`), and with the part of the ghost rule
+every button shares (weight, focus ring, transition), so radius, padding,
+gap, hover and focus come from one place. The realm-view rule only adapts it
+to content (label wrapping, vertical rhythm, no hover underline) and maps the
+variants to the semantic tokens the alerts use: `--s-color-bg-*-weak` fill,
+`--s-color-text-*` text, `--s-color-border-*` border; light and dark come from
+the token remaps already in place. An outline button's border takes its text
+colour, since the border is its only shape, and the default outline uses
+`--s-color-text-link-hover`, the link token that passes AA in dark. Every
+variant passes WCAG AA for text in both themes; the measured ratios are in the
+PR description.
 
 ## Alternatives considered
 
@@ -151,16 +167,17 @@ already in place. `warning` uses dark text on its light-yellow fill.
   its backslash because the label is raw text. Documented and tested.
 - Sanitize (`chain/markdown`, used by `p/nt/markdown/sanitize`):
   - `InlineText` escapes `<`, so no button.
-  - `Block`/`BlockRich` escape a `<gno-button` line start. That escape used to
-    put its backslash before the indent, which was enough for the
-    block-level `gno-*` parsers but left an indented button live (the
-    backslash only escaped a space); it now goes right before the `<`.
-  - A button in the middle of a line still passes through `Block` and
-    renders. It is a link with the same URL checks as the `[text](url)` links
-    `Block` already preserves, but a more prominent one. A sanitize fixture
-    pins that behavior. The general fix is to escape every `<gno-button` in
-    `Block`/`BlockRich` outside code spans, as `InlineText` escapes `<`; that
-    changes the sanitize contract, so it is left for a separate PR.
+  - `Block`/`BlockRich` escape the `<` of every `<gno-button` outside a code
+    span, wherever it sits: line start, indented, mid-line, after a list,
+    quote, heading or table marker, after `\f`, `\v` or a NBSP, inside
+    emphasis. A line-start-only rule was bypassable by all of those, because
+    the tag is inline. A code span closed on the same line is left alone
+    (the backslash would show); one spanning lines is escaped anyway, which
+    is visible but safe. An already escaped tag is skipped, so `Block` stays
+    idempotent.
+  - The block-level `<gno-…>` line escape now puts its backslash after an
+    indent of under 4 columns (right before the `<`); from 4 columns, where
+    the line may be indented code, it keeps the line-start backslash it had.
   - **Button and icon differ on purpose.** The `<gno-icon />` extension
     exempts its tag from this escape, because an icon is an allowlisted
     glyph that carries no link, and escaping it only at line start would

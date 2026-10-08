@@ -95,9 +95,9 @@ func BenchmarkButton(b *testing.B) {
 }
 
 // BenchmarkButtonHostileLine renders one line of n unterminated tags. From
-// n=1000 to n=4000, ns/op must grow about 4x (linear); it grew about 16x
-// (quadratic) before the tag window. The "slash" shape puts `/>` inside each
-// value so every attempt reaches the tokenizer.
+// n=1000 to n=4000, ns/op must grow about 4x (linear): each attempt stops at
+// the scan bound or the next tag. The "slash" shape puts `/>` inside each
+// value.
 func BenchmarkButtonHostileLine(b *testing.B) {
 	for _, shape := range []struct{ name, item string }{
 		{"unterminated", `<gno-button href="/r/x" `},
