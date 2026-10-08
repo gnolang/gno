@@ -378,8 +378,11 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 		continue
 	}
 
-	// Pop the item from its dial queue
-	item = queue.Pop()
+	// Pop the head of its dial queue, if it is still due
+	item = queue.PopDue(time.Now())
+	if item == nil {
+		continue
+	}
 
 	// Dial the peer
 	sw.Logger.Info(

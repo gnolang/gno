@@ -60,7 +60,9 @@ func (q *Queue) Push(items ...Item) {
 	}
 }
 
-// Pop removes an item from the dial queue, if any
+// Pop removes an item from the dial queue, if any. The dial loop pops through
+// PopDue instead, so a removal between its peek and pop cannot hand it an item
+// that is not due
 func (q *Queue) Pop() *Item {
 	q.mux.Lock()
 	defer q.mux.Unlock()
