@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -107,9 +108,27 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 		Selectors: h.selectors,
 	}
 	data.FormAction = q.formAction
+	if sel, _ := h.selectorFor(q); sel == nil && q.PkgPath != "" {
+		// A scoped discovery search is the one answer the same words could
+		// widen; without JavaScript the header form is always scoped.
+		data.WholeChainHref = wholeChainHref(q)
+	}
 	data.Groups, data.UnknownFilter = h.Search(ctx, q)
 	data.Indexer = h.indexerStatus(ctx, data.Groups)
 	return data
+}
+
+// wholeChainHref is the same discovery search without its scope: `in:`
+// dropped, and posted to the root rather than to the page.
+func wholeChainHref(q *Query) string {
+	var kept []string
+	for tok := range strings.FieldsSeq(q.Raw) {
+		if key, _, ok := strings.Cut(tok, ":"); ok && strings.EqualFold(key, FilterIn) {
+			continue
+		}
+		kept = append(kept, tok)
+	}
+	return "/$search?q=" + url.QueryEscape(strings.Join(kept, " "))
 }
 
 // Search answers a query. At most one selector runs: they name different

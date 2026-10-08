@@ -13,6 +13,7 @@ header form submits here and the reader still gets every answer.
     <div class="header-info">
       {{ if .PkgPath }}
       <span>Scoped to <a href="{{ .PkgPath }}">{{ .PkgPath }}</a></span>
+      {{ with .WholeChainHref }}<span>· <a href="{{ . }}">Search the whole chain</a></span>{{ end }}
       {{ else }}
       <span>Whole chain</span>
       {{ end }}
@@ -38,7 +39,7 @@ header form submits here and the reader still gets every answer.
 
   {{ range .Groups }}{{ template "omnisearch/group" . }}{{ end }}
 
-  {{ if and .Query (not .HasResults) (not .UnknownFilter) }}
+  {{ if and .Query (not .HasResults) (not .HasErrors) (not .UnknownFilter) }}
   <p class="b-omni-notice" role="status">Nothing matched.</p>
   {{ end }}
 

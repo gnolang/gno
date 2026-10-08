@@ -2,6 +2,7 @@ package omnisearch
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -13,13 +14,24 @@ const maxDiscoverResults = 10
 // discover answers a query that names no selector. One directory listing,
 // coalesced with every other caller; the users group is derived from the
 // paths already fetched, so it is free.
+//
+// A scope, from `in:` or from the page the search was typed on, narrows the
+// listing to that package and the paths under it: a page headed "Scoped to"
+// must not list the rest of the chain.
 func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 	needle := strings.ToLower(q.Text)
 	author, _ := q.Get(FilterAuthor)
 	// `author:` bypassing the floor meant a bare `author:` — no value at all
-	// — bought a full directory listing and returned nothing.
-	if len(needle) < MinTermLen && len(author) < MinTermLen {
-		return nil
+	// — bought a full directory listing and returned nothing. A scope is
+	// narrow enough on its own.
+	if len(needle) < MinTermLen && len(author) < MinTermLen && q.PkgPath == "" {
+		return []Group{{Label: "Search", Source: SourceChain, Err: inputError(
+			fmt.Sprintf("type at least %d characters, or a qualifier such as author:", MinTermLen))}}
+	}
+	want, hasIs := q.Get(FilterIs)
+	if hasIs && !strings.EqualFold(want, "realm") && !strings.EqualFold(want, "package") {
+		return []Group{{Label: "Search", Source: SourceChain, Err: inputError(
+			fmt.Sprintf("is:%s is not a kind: use is:realm or is:package", want))}}
 	}
 
 	realms, packages, truncated, err := h.deps.Directory.Paths(ctx)
@@ -36,8 +48,6 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		{"Realms", "realm", realms},
 		{"Packages", "package", packages},
 	}
-	want, hasIs := q.Get(FilterIs)
-
 	var (
 		groups     []Group
 		namespaces = map[string]bool{}
@@ -52,6 +62,9 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 			rel := strings.TrimPrefix(p, h.deps.Domain)
 			// Needle first: it rejects most paths and costs nothing.
 			if needle != "" && !strings.Contains(strings.ToLower(rel), needle) {
+				continue
+			}
+			if !inScope(rel, q.PkgPath) {
 				continue
 			}
 			ns := namespaceOf(rel)
@@ -91,6 +104,12 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 		}
 	}
 	return groups
+}
+
+// inScope reports whether rel is the scoped package or sits under it. No
+// scope admits every path.
+func inScope(rel, scope string) bool {
+	return scope == "" || rel == scope || strings.HasPrefix(rel, scope+"/")
 }
 
 // usersGroup is derived, not fetched: every namespace came from a path the
