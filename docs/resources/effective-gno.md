@@ -38,11 +38,9 @@ manage state persistence.
 
 However, it's important to note that this practice is not a blanket
 recommendation for all Gno code. It's specifically beneficial in the context of
-realms due to their persistent characteristics. In other Gno code, such as
-packages, the use of global variables is actually discouraged and may even be
-completely disabled in the future. Instead, packages should use global
-constants, which provide a safe and reliable way to define values that don't
-change.
+realms due to their persistent characteristics. A `p/` package's globals are
+frozen once its `init` has run, so packages should use constants for values
+that don't change.
 
 Also, be mindful not to export your global variables. Doing so would make them
 accessible for everyone to read and write, potentially leading to unintended
@@ -159,8 +157,9 @@ you start a program, in Gno, `init()` is executed once in a realm's lifetime.
 
 In Gno, `init()` primarily serves two purposes:
 1. It establishes the initial state, specifically, setting up global variables.
-	- Note: global variables can often be set up just by assigning their initial value when you're declaring them. See below for an example! \
-	  Deciding when to initialise the variable directly, and when to set it up in `init` can be non-straightforward. As a rule of thumb, though, `init` visually marks the code as executing only when the realm is started, while assigning the variables can be less straightforward.
+	- Note: a global can often be set where it is declared, as `list` is in
+	  the example below. Use `init` when the setup needs the deployment
+	  itself, such as `cur.Previous()` for the deployer, as `admin` does.
 2. It communicates with another realm, for example, to register itself in a registry.
 
 ```go
@@ -182,7 +181,7 @@ import "time"
 var (
 	created time.Time
 	admin   address
-	list	= []string{"foo", "bar", time.Now().Format("15:04:05")}
+	list    = []string{"foo", "bar", time.Now().Format("15:04:05")}
 )
 
 func init(cur realm) {
@@ -230,9 +229,8 @@ clear metrics are lacking, Gno allows for a reputation system not only for the
 called contracts, but also for the dependencies.
 
 For example, you might choose to use well-crafted `p/` packages that have been
-reviewed, audited, and have billions of transactions under their belt, boasting
-super high stability. This approach can make your code footprint smaller and more
-reliable.
+reviewed, audited, and widely used. This approach can make your code footprint
+smaller and more reliable.
 
 In other platforms, an audit usually involves auditing everything, including the
 dependencies. However, in Gno, we can expect that over time, contracts will
@@ -246,6 +244,7 @@ Gno, you can have the certainty that the author of a package cannot overwrite an
 existing, published contract; as that is simply disallowed by the blockchain. In
 other words, using existing and widely-used packages reinforces your security
 rather than harming it.
+
 [sc-attack]: https://en.wikipedia.org/wiki/Supply_chain_attack
 
 So, while you can still adhere to the original philosophy of minimizing
@@ -255,15 +254,15 @@ efficient, and trustworthy Gno contracts.
 
 ```go
 import (
-	"gno.land/p/finance/tokens"
 	"gno.land/p/finance/exchange"
+	"gno.land/p/finance/tokens"
 	"gno.land/p/finance/wallet"
 	"gno.land/p/utils/permissions"
 )
 
 var (
-	myWallet wallet.Wallet
-	myToken tokens.Token
+	myWallet   wallet.Wallet
+	myToken    tokens.Token
 	myExchange exchange.Exchange
 )
 
@@ -273,22 +272,22 @@ func init() {
 	myExchange = exchange.NewExchange(myToken)
 }
 
-func BuyTokens(_ realm, amount int) {
-	caller := permissions.GetCaller()
+func BuyTokens(cur realm, amount int) {
+	caller := cur.Previous().Address()
 	permissions.CheckPermission(caller, "buy")
 	myWallet.Debit(caller, amount)
 	myExchange.Buy(caller, amount)
 }
 
-func SellTokens(_ realm, amount int) {
-	caller := permissions.GetCaller()
+func SellTokens(cur realm, amount int) {
+	caller := cur.Previous().Address()
 	permissions.CheckPermission(caller, "sell")
 	myWallet.Credit(caller, amount)
 	myExchange.Sell(caller, amount)
 }
 ```
 
-##  When Gno takes Go practices to the next level
+## When Gno takes Go practices to the next level
 
 ### Documentation is for users
 
@@ -315,63 +314,25 @@ main purpose in Gno is for discoverability. This shift towards user-centric
 documentation reflects the broader shift in Gno towards making code more
 accessible and understandable for all users, not just developers.
 
-Here's an example from [grc20](https://staging.gno.land/p/nt/grc20/v0$source&file=types.gno)
-to illustrate the concept:
+Here's an excerpt from
+[grc20](../../examples/gno.land/p/nt/grc20/v0/types.gno), where each comment
+tells the caller what a method does for them:
 
 ```go
-// Teller interface defines the methods that a GRC20 token must implement. It
-// extends the TokenMetadata interface to include methods for managing token
-// transfers, allowances, and querying balances.
-//
-// The Teller interface is designed to ensure that any token adhering to this
-// standard provides a consistent API for interacting with fungible tokens.
+// Teller interface defines the methods that a GRC20 token must implement.
 type Teller interface {
-	// Returns the name of the token.
-	GetName() string
-
-	// Returns the symbol of the token, usually a shorter version of the
-	// name.
-	GetSymbol() string
-
-	// Returns the decimals places of the token.
-	GetDecimals() int
-
-	// Returns the amount of tokens in existence.
-	TotalSupply() int64
+	// ...
 
 	// Returns the amount of tokens owned by `account`.
 	BalanceOf(account address) int64
 
-	// Moves `amount` tokens from the caller's account to `to`.
+	// Moves `amount` tokens from the caller's account to `to`. rlm must
+	// be the caller's own captured cur — verified via rlm.IsCurrent().
 	//
 	// Returns an error if the operation failed.
-	Transfer(to address, amount int64) error
+	Transfer(_ int, rlm realm, to address, amount int64) error
 
-	// Returns the remaining number of tokens that `spender` will be
-	// allowed to spend on behalf of `owner` through {transferFrom}. This is
-	// zero by default.
-	//
-	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender address) int64
-
-	// Sets `amount` as the allowance of `spender` over the caller's tokens.
-	//
-	// Returns an error if the operation failed.
-	//
-	// IMPORTANT: Beware that changing an allowance with this method brings
-	// the risk that someone may use both the old and the new allowance by
-	// unfortunate transaction ordering. One possible solution to mitigate
-	// this race condition is to first reduce the spender's allowance to 0
-	// and set the desired value afterwards:
-	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	Approve(spender address, amount int64) error
-
-	// Moves `amount` tokens from `from` to `to` using the
-	// allowance mechanism. `amount` is then deducted from the caller's
-	// allowance.
-	//
-	// Returns an error if the operation failed.
-	TransferFrom(from, to address, amount int64) error
+	// ...
 }
 ```
 
@@ -381,9 +342,11 @@ In Go, there's a well-known saying by Rob Pike: ["Reflection is never
 clear."](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=15m22s) This statement
 emphasizes the complexity and potential pitfalls of using reflection in Go.
 
-In Gno, reflection does not exist (yet). There are technical reasons for this,
-but also a desire to create a Go alternative that is explicitly safer to use
-than Go, with a smaller cognitive difficulty to read, discover, and understand.
+Gno has no `reflect` package yet, which the [standard library
+table](./go-gno-compatibility.md#stdlibs) lists as to be added. There are
+technical reasons for this, but also a desire to create a Go alternative that is
+explicitly safer to use than Go, with a smaller cognitive difficulty to read,
+discover, and understand.
 
 The absence of reflection in Gno is not just about simplicity, but also about
 safety. Reflection can be powerful, but it can also lead to code that is hard to
@@ -391,9 +354,7 @@ understand, hard to debug, and prone to runtime errors. By not supporting
 reflection, Gno encourages you to write code that is explicit, clear, and easy
 to understand.
 
-We're currently in the process of considering whether to add reflection support
-or not, or perhaps add it in a privileged mode for very few libraries. But for now,
-when you're writing Gno code, remember: explicit is better than implicit, and
+When you're writing Gno code, remember: explicit is better than implicit, and
 clear code is better than clever code.
 
 ## Gno good practices
@@ -445,32 +406,14 @@ func AdminOnlyFunction(cur realm) {
 // func UpdateAdminAddress(cur realm, newAddr address) { /* ... */ }
 ```
 
-In this example, `AdminOnlyFunction` is a function that can only be called by
-the admin. It retrieves the caller's address using `cur.Previous().Address()`,
-this can be either another realm contract, or the calling user if there is no
-other intermediary realm. and then checks if the caller is the admin. If not, it
-panics and stops the execution.
+In this example, `AdminOnlyFunction` reads its caller with
+`cur.Previous().Address()`: another realm if one called it, otherwise the
+user. If the caller is not the admin, it panics and the transaction stops.
 
-The goal of this approach is to allow a contract to own assets (like grc20 or
-coins), so that you can create contracts that can be called by another
-contract, reducing the risk of stealing money from the original caller. This is
-the behavior of the default grc20 implementation.
-
-Here's an example:
-
-```go
-func TransferTokens(cur realm, to address, amount int64) {
-	caller := cur.Previous().Address()
-	if caller != admin {
-		panic("permission denied")
-	}
-	// ...
-}
-```
-
-In this example, `TransferTokens` is a function that can only be called by the
-admin. It retrieves the caller's address using `cur.Previous().Address()`, and
-then checks if the caller is the admin. If not, the function panics and execution is stopped.
+Checking the immediate caller rather than the signer lets a contract own
+assets, such as grc20 tokens or coins, and be called by other contracts
+without putting the original caller's funds at risk. The default grc20
+implementation works this way.
 
 By using these access control mechanisms, you can ensure that your contract's
 functionality is accessible only to the intended users, providing a secure and
@@ -559,15 +502,11 @@ on individual requirements.
 
 #### Coins
 
-Coins are managed by the banker module, separate from GnoVM. They're
-simple, strict, and secure. You can create, transfer, and check balances with an
-RPC call, no GnoVM needed.
-
-For example, if you're creating a coin for cross-chain transfers, Coins
-are your best bet. They're IBC-ready and their strict rules offer top-notch
-security.
-
-Read about how to use the Banker module [here](./gno-stdlibs.md#banker).
+Coins are balances the chain keeps outside the GnoVM. A realm issues its own
+denom through a [banker](./gno-stdlibs.md#banker), and a plain bank transaction
+moves coins and a bank query reads a balance, no contract code involved, unless
+the chain's `restricted_denoms` parameter locks that denom. Their rules are
+fixed by the chain, which makes them simple and predictable.
 
 When you only need one balance, ask for it: `GetCoin(addr, denom)` reads a single
 store key, while `GetCoins(addr)` reads every denom the address holds. That
@@ -585,13 +524,13 @@ like this:
 import "chain/runtime/unsafe"
 
 func BuyThing(cur realm, ...) {
-    if !cur.Previous().IsUser() {   // BAD
-        panic("must be called by a user")
-    }
-    if unsafe.OriginSend().AmountOf("ugnot") != price {
-        panic("wrong payment amount")
-    }
-    // ... do the thing ...
+	if !cur.Previous().IsUser() {   // BAD
+		panic("must be called by a user")
+	}
+	if unsafe.OriginSend().AmountOf("ugnot") != price {
+		panic("wrong payment amount")
+	}
+	// ... do the thing ...
 }
 ```
 
@@ -622,13 +561,13 @@ The fix is to use `IsUserCall()` instead of `IsUser()`:
 import "chain/runtime/unsafe"
 
 func BuyThing(cur realm, ...) {
-    if !cur.Previous().IsUserCall() {  // GOOD
-        panic("must be called directly by an EOA (maketx call)")
-    }
-    if unsafe.OriginSend().AmountOf("ugnot") != price {
-        panic("wrong payment amount")
-    }
-    // ... do the thing ...
+	if !cur.Previous().IsUserCall() {  // GOOD
+		panic("must be called directly by an EOA (maketx call)")
+	}
+	if unsafe.OriginSend().AmountOf("ugnot") != price {
+		panic("wrong payment amount")
+	}
+	// ... do the thing ...
 }
 ```
 
@@ -645,8 +584,7 @@ as a pair, and ideally cover the bypass with a regression test using
 Alternatives considered:
 
 - **`runtime.AssertOriginCall()`** — strictly enforces "direct MsgCall, no
-  intermediaries, no MsgRun". Correct, but stricter than most realms want:
-  rejects `testing.NewUserRealm`-based unit tests in some configurations and
+  intermediaries, no MsgRun". Correct, but stricter than most realms want: it
   blocks all `maketx run` usage. Use it when you want to forbid MsgRun entirely
   (e.g. governance-only functions).
 
@@ -655,7 +593,7 @@ Alternatives considered:
   But it's a side-effectful assertion; if you don't need the banker itself,
   `IsUserCall()` is clearer.
 
-- **Pulling coins from the caller** — **not possible** in current gno. Every
+- **Pulling coins from the caller** — **not possible**. Every
   `banker.SendCoins(from, to, amt)` requires `from == pkgAddr` (your own realm's
   address); there is no ERC-20-style `transferFrom`. Payment flow is push-only
   via `-send`. The `OriginSend` amount check + `IsUserCall` guard is the only
@@ -671,12 +609,11 @@ For instance, if you're creating a voting system for a DAO, GRC20 tokens are
 ideal. They're programmable, can be embedded in safe Gno objects, and offer more
 control.
 
-Remember, GRC20 tokens are more gas-intensive and aren't IBC-ready yet. They
-also come with shared ownership, meaning the contract retains some control.
+Every GRC20 transfer runs contract code, and the contract that defines the
+token keeps control over its rules.
 
-In the end, your choice depends on your needs: simplicity and security with
-Coins, or flexibility and control with GRC20 tokens. And if you want the
-best of both worlds, you can wrap a Coins into a GRC20 compatible token.
+In the end, your choice depends on your needs: simplicity with Coins, or
+flexibility and control with GRC20 tokens.
 
 ```go
 import "gno.land/p/nt/grc20/v0"
@@ -707,7 +644,7 @@ func MyBalance(cur realm) int64 {
 }
 ```
 
-See also: https://staging.gno.land/r/demo/defi/foo20
+See also [`gno.land/r/demo/defi/foo20`](../../examples/gno.land/r/demo/defi/foo20).
 
 #### Wrapping Coins
 
@@ -716,7 +653,7 @@ your coins the flexibility of GRC20 while keeping the security of Coins.
 It's a bit more complex, but it's a powerful option that offers great
 versatility.
 
-See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland/wugnot
+See also [`gno.land/r/gnoland/wugnot`](../../examples/gno.land/r/gnoland/wugnot).
 
 ### Do not trust on-chain randomness
 
@@ -796,7 +733,7 @@ In Gno, it's common to create `p/NAMESPACE/DAPP` for defining types and
 interfaces, and `r/NAMESPACE/DAPP` for the runtime, especially when the goal
 for the realm is to become a standard that could be imported by `p/`.
 
-The reason for this is that `p/` can only import `p/`, while `r/` can import
+The reason for this is that `p/` cannot import `r/`, while `r/` can import
 anything. This separation allows you to define standards in `p/` that can be
 used across multiple realms and packages.
 
@@ -833,7 +770,7 @@ They are emitted with the `Emit()` function, contained in the `chain` package in
 the Gno standard library:
 
 ```go
-package events
+package example
 
 import "chain"
 
@@ -853,7 +790,6 @@ func ChangeOwner(cur realm, newOwner address) {
 	owner = newOwner
 	chain.Emit("OwnershipChange", "newOwner", newOwner.String())
 }
-
 ```
 If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
 of block #43 will contain the following data:
@@ -862,7 +798,7 @@ of block #43 will contain the following data:
 {
   "Events": [
 	{
-	  "@type": "/tm.gnoEvent",
+	  "@type": "/tm.Event",
 	  "type": "OwnershipChange",
 	  "pkg_path": "gno.land/r/demo/example",
 	  "attrs": [
