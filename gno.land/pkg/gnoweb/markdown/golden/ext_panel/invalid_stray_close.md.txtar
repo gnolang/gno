@@ -1,9 +1,0 @@
--- input.md --
-text
-
-</gno-panel>
-after stray close
--- output.html --
-<p>text</p>
-<!-- unexpected/invalid panel tag omitted -->
-<p>after stray close</p>

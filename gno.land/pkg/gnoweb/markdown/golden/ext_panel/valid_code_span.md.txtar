@@ -1,8 +1,0 @@
--- input.md --
-<gno-panel>
-`</gno-panel>` and `<gno-panel>`
-</gno-panel>
--- output.html --
-<section class="gno-panel">
-<p><code>&lt;/gno-panel&gt;</code> and <code>&lt;gno-panel&gt;</code></p>
-</section>

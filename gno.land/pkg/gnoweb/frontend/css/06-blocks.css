@@ -2604,7 +2604,7 @@ main.is-dev-mode .b-toc a {
 	}
 
 	.gno-foreign__body,
-	.gno-panel {
+	.gno-frame {
 		& > :first-child {
 			margin-block-start: 0;
 		}
@@ -2635,13 +2635,12 @@ main.is-dev-mode .b-toc a {
 		}
 	}
 
-	/* ===== PANEL COMPONENT ===== */
-	/* Standalone: a highlighted block. Alone in a column: a card that
-	   fills the column, so cards in one row share a height. */
-	.gno-panel {
+	/* ===== FRAME COMPONENT ===== */
+	/* A thin border around author content, no fill. Alone in a column: a card
+	   that fills the column, so cards in one row share a height. */
+	.gno-frame {
 		border: var(--s-border);
 		border-radius: var(--s-rounded);
-		background-color: var(--s-color-bg-surface-primary);
 		padding: var(--g-space-6);
 		margin-block: var(--g-space-6);
 		@media (--lg) {
@@ -2649,14 +2648,14 @@ main.is-dev-mode .b-toc a {
 		}
 	}
 
-	.gno-column > .gno-panel:only-child {
+	.gno-column > .gno-frame:only-child {
 		height: 100%;
 		margin-block: 0;
 		padding: var(--g-space-5);
 	}
 
 	/* Stacked card rows keep the same spacing as the columns gap. */
-	.gno-columns:has(> .gno-column > .gno-panel:only-child) {
+	.gno-columns:has(> .gno-column > .gno-frame:only-child) {
 		margin-block: var(--columns-gap);
 	}
 }

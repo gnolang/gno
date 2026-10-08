@@ -384,46 +384,46 @@ My Image ![Alt](/public/imgs/gnoland.svg)
 
 ---
 
-### Panels
+### Frames
 
-Wrap any markdown in ±<gno-panel>± and ±</gno-panel>± (each on its own line) to draw a framed, padded block,
-e.g. a hero or a call to action.
+Wrap any markdown in ±<gno-frame>± and ±</gno-frame>± (each on its own line) to draw a thin rounded border
+around it, e.g. around a hero or a call to action.
 
 ±±±markdown
-<gno-panel>
+<gno-frame>
 ## Build on gno.land
 
 Write your first realm in minutes. [Get started](/r/docs/home)
-</gno-panel>
+</gno-frame>
 ±±±
 
 - Renders as:
 
 ---
 
-<gno-panel>
+<gno-frame>
 ## Build on gno.land
 
 Write your first realm in minutes. [Get started](/r/docs/home)
-</gno-panel>
+</gno-frame>
 
 ---
 
-A panel alone in a column renders as a card; cards in the same row share a height.
+A frame alone in a column renders as a card; cards in the same row share a height.
 
 ±±±markdown
 <gno-columns>
-<gno-panel>
+<gno-frame>
 **[Adena](https://adena.app)**
 
 Browser wallet for gno.land.
-</gno-panel>
+</gno-frame>
 <gno-columns-sep>
-<gno-panel>
+<gno-frame>
 **[Gnoscan](https://gnoscan.io)**
 
 Block explorer for gno.land, with transactions, realms and accounts.
-</gno-panel>
+</gno-frame>
 </gno-columns>
 ±±±
 
@@ -432,22 +432,22 @@ Block explorer for gno.land, with transactions, realms and accounts.
 ---
 
 <gno-columns>
-<gno-panel>
+<gno-frame>
 **[Adena](https://adena.app)**
 
 Browser wallet for gno.land.
-</gno-panel>
+</gno-frame>
 <gno-columns-sep>
-<gno-panel>
+<gno-frame>
 **[Gnoscan](https://gnoscan.io)**
 
 Block explorer for gno.land, with transactions, realms and accounts.
-</gno-panel>
+</gno-frame>
 </gno-columns>
 
 ---
 
-***Note**: Panels take no attributes and open only at the top level of the page or of a column: not inside a list, a quote, an alert or another panel. Columns cannot go inside a panel; a column tag ends the panel.*
+***Note**: Frames take no attributes and open only at the top level of the page or of a column: not inside a list, a quote, an alert or another frame. Columns cannot go inside a frame; a column tag ends the frame.*
 
 ### Forms
 

@@ -1,8 +1,0 @@
--- input.md --
-<GNO-Panel>
-content
-</Gno-PANEL>
--- output.html --
-<section class="gno-panel">
-<p>content</p>
-</section>

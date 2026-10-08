@@ -1,0 +1,9 @@
+-- input.md --
+<gno-frame>
+never closed
+## heading
+-- output.html --
+<section class="gno-frame">
+<p>never closed</p>
+<h2>heading</h2>
+</section>

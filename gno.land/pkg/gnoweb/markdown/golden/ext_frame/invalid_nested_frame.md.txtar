@@ -1,0 +1,16 @@
+-- input.md --
+<gno-frame>
+outer
+<gno-frame>
+inner
+</gno-frame>
+after inner close
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<p>outer</p>
+<!-- unexpected/invalid frame tag omitted -->
+<p>inner</p>
+</section>
+<p>after inner close</p>
+<!-- unexpected/invalid frame tag omitted -->

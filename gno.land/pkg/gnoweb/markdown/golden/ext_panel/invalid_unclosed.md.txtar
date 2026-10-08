@@ -1,9 +1,0 @@
--- input.md --
-<gno-panel>
-never closed
-## heading
--- output.html --
-<section class="gno-panel">
-<p>never closed</p>
-<h2>heading</h2>
-</section>

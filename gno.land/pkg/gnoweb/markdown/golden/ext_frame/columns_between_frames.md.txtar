@@ -1,0 +1,27 @@
+-- input.md --
+<gno-frame>
+first
+</gno-frame>
+<gno-columns>
+<gno-frame>
+card
+</gno-frame>
+</gno-columns>
+<gno-frame>
+last
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<p>first</p>
+</section>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<section class="gno-frame">
+<p>card</p>
+</section>
+</div>
+</div> <!-- </gno-columns> -->
+<section class="gno-frame">
+<p>last</p>
+</section>

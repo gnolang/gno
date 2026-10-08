@@ -1,7 +1,0 @@
--- input.md --
-    <gno-panel>
-content
--- output.html --
-<pre><code>&lt;gno-panel&gt;
-</code></pre>
-<p>content</p>

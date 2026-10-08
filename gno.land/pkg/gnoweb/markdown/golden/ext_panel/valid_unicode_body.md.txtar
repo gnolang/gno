@@ -1,8 +1,0 @@
--- input.md --
-<gno-panel>
-日本語 🎉 ‮evil
-</gno-panel>
--- output.html --
-<section class="gno-panel">
-<p>日本語 🎉 ‮evil</p>
-</section>

@@ -198,7 +198,7 @@ func (b *alertParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 		return nil, parser.NoChildren
 	}
 
-	// Cross-family nesting cap (shared with gno-foreign, gno-columns, gno-panel).
+	// Cross-family nesting cap (shared with gno-foreign, gno-columns, gno-frame).
 	// On refusal, return nil so the `>` line falls through to the
 	// blockquote parser.
 	if !Push(pc) {

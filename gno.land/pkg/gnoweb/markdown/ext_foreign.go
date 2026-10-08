@@ -412,7 +412,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 // loads (Strikethrough, Table, Footnote, TaskList — see
 // render_config.go) so user content renders identically inside the
 // sandbox as it would at top level, plus the structural gno-*
-// extensions that exist today (foreign, columns, panel, alert), the link
+// extensions that exist today (foreign, columns, frame, alert), the link
 // extension, and mentions. Image validator is wired through if non-nil.
 //
 // Mentions are loaded: a `@user`/`g1…` mention resolves to a system-
@@ -441,7 +441,7 @@ func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdow
 	)
 	ExtForeign.Extend(m, imgValidator) // self — allows nested <gno-foreign>
 	ExtColumns.Extend(m)
-	ExtPanels.Extend(m)
+	ExtFrames.Extend(m)
 	ExtAlerts.Extend(m)
 	ExtLinks.Extend(m)
 	ExtMention.Extend(m)  // @user / g1… mentions (system-resolved, keep chrome)

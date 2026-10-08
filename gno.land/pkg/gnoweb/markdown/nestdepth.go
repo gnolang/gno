@@ -11,7 +11,7 @@
 // nested gno-* opener anywhere underneath is refused. A refused
 // opener either falls through to raw HTML, which goldmark safe-mode
 // strips (columns, alert), or becomes an inert leaf that renders a
-// comment (foreign "stripped", panel "invalid").
+// comment (foreign "stripped", frame "invalid").
 //
 // The depth counter is a stack: every participating Open calls
 // Push, every Close (and the AST-transformer synth-close path)

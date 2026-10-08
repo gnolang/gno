@@ -1,0 +1,22 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: <gno-frame>\nrealm intro\n%s\nrealm footer\n</gno-frame>\n\nREALM AFTER
+-- input.md --
+   <gno-frame>
+x
+   </gno-frame>
+-- output.md --
+
+
+\   <gno-frame>
+x
+\   </gno-frame>
+
+-- output.html --
+<section class="gno-frame">
+<p>realm intro</p>
+<p>\   <!-- raw HTML omitted -->
+x
+\   <!-- raw HTML omitted --></p>
+<p>realm footer</p>
+</section>
+<p>REALM AFTER</p>
