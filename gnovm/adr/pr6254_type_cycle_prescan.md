@@ -88,6 +88,10 @@ Validate the declaration graph first, then predefine.
 - `embed_depth1` pins the post-group embed-depth check with a chain
   declared top-down, which `Seal` alone accepted. `typecycle_gas_test.go`
   pins each charge with a budget that only the metered walk exceeds.
+- Runtime construction of an inline struct or interface type
+  (`doOpStructType`, `doOpInterfaceType`) now bills its embed-depth walk
+  too, 55 gas per type visited or field scanned; eleven `gas/` goldens
+  moved by that amount.
 - Forward references among function-local type declarations are invalid
   Go and still fail with `not defined in fileset`, as before.
 - Bare-name references into a cycle (`type A B` with B pointing back
