@@ -140,3 +140,23 @@ func TestSubBufferCapacity(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, len(n.Expr), cap(n.Expr))
 }
+
+// A style switch applies up to the end of its cell, but the cells of an
+// environment or a fence after it belong to that group, not to the switch.
+func TestSwitchKeepsTheCellsOfAGroupAfterIt(t *testing.T) {
+	for _, tex := range []string{
+		`\displaystyle\begin{pmatrix}a&b\end{pmatrix}`,
+		`\small\begin{matrix}a&b\end{matrix}`,
+		`\color{red}\begin{matrix}a&b\end{matrix}`,
+		`\begin{matrix}\displaystyle\left(\begin{matrix}a&b\end{matrix}\right)&c\end{matrix}`,
+	} {
+		out, err := convertErrWithin(t, tex)
+		require.NoError(t, err, tex)
+		assert.NotContains(t, out, "<mo>&amp;</mo>", tex)
+		assert.Contains(t, out, `<mi>b</mi></mtd>`, tex)
+	}
+	// The switch still ends at the cell it is in.
+	out, err := convertErrWithin(t, `\begin{matrix}\displaystyle a&b\end{matrix}`)
+	require.NoError(t, err)
+	assert.Contains(t, out, `<mtd><mi>b</mi></mtd>`)
+}

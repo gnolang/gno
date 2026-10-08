@@ -268,10 +268,13 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 			}
 			return false
 		}
+		// The switch applies up to the end of the cell or row it is in. The
+		// cells of a group after it ({...}, an environment, a \left...\right
+		// pair) belong to that group.
 		var i int
 		for i = b.idx; i < len(b.Expr); i++ {
 			t := b.Expr[i]
-			if t.Kind&(tokCurly|tokOpen) == tokCurly|tokOpen {
+			if opensGroup(t) {
 				i += t.MatchOffset
 				continue
 			}
