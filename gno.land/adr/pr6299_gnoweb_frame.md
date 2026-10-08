@@ -33,8 +33,8 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   rules: a `</gno-frame>` inside a fenced code block or a `<gno-foreign>` body
   stays content, and one that ends a blockquote or list item closes the frame.
   An AST transformer then moves the blocks after each open marker under it, up
-  to the close marker (removed), the next gno-columns marker or the end of the
-  document. Output is constant markup, `<section class="gno-frame">` …
+  to the close marker (removed), a gno-columns marker that is not part of a
+  grid closing inside the frame, or the end of the document. Output is constant markup, `<section class="gno-frame">` …
   `</section>`; no source byte reaches the wrapper.
 - **Document level only.** A frame tag counts only when its parent is the
   document, like columns. Column content and a `<gno-foreign>` body are both
@@ -52,16 +52,32 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   with the gno-button branch; unlike the HTML tokenizer, it does not drop
   attributes from a close tag.
 - **Fail safe, never swallow.** A stray `</gno-frame>`, a malformed tag, a
-  tag below document level, a frame opened inside a frame, and an opener past
+  tag below document level, a frame opened inside a frame (outside the card
+  case below), and an opener past
   the shared `MaxGnoNestDepth` cap all become an invalid leaf rendered as
   `<!-- unexpected/invalid frame tag omitted -->` (the columns convention).
   Returning nil instead would hand the line to the type-7 HTML block parser,
   which swallows every line up to the next blank one. A frame left open is
   closed at the end of the document.
-- **Columns interplay.** A gno-columns tag ends an open frame. The frame
-  parser runs just ahead of the columns parser (priority 499 vs 500), pops
-  the frame's depth, and leaves the line to columns, so the depth the columns
-  opener sees is the same as if the frame had been closed explicitly.
+- **Columns interplay.** A frame holds complete grids: a `<gno-columns>`
+  opened inside a frame, its separators and its `</gno-columns>` stay inside
+  it, and a column of that grid may hold one frame at a time (a card; it
+  ends at its close tag or the next columns tag). Any columns tag that would
+  leave a grid half inside ends the frame instead: a separator or close of a
+  grid opened before the frame (a frame in a column), and a `<gno-columns>`
+  past the depth cap, so that grid still opens. A grid opened in a frame
+  whose `</gno-frame>` comes before `</gno-columns>` is the other half case:
+  the transformer ends the frame just before the grid, and the stray close
+  renders as a comment. The frame parser runs just ahead of the columns
+  parser (priority 499 vs 500), so when it ends a frame on a columns tag its
+  depth is popped before the columns opener pushes. The columns parser marks
+  an opener kept by a frame (`inFrame`), and the frame transformer runs after
+  the columns one (501 vs 500), so a grid left open at EOF already has its
+  close; the transformer then checks the grid closes before the frame's own
+  close with one forward scan per grid, which never passes that close, so
+  the work stays linear (`TestFrameGridScanLinear`).
+  In CSS, a card grid at the edge of a frame drops its stacked-row margin,
+  so the frame's padding alone spaces it.
 - **HTML blocks.** One exception to "goldmark routes the lines": a type-6/7
   HTML block runs to the next blank line, so a `<div>` line right before
   `</gno-frame>` would swallow the close tag and stretch the frame over the
@@ -115,7 +131,8 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
 - **A `class` / `variant` attribute.** Free-form classes are an injection and
   styling-abuse surface; a fixed variant list can be added later on top of the
   empty allowlist without breaking existing content.
-- **Allowing nested frames.** No use case for a frame inside a frame.
+- **Allowing nested frames.** No use case for a frame directly inside a
+  frame; the one nesting allowed is a card in a column of a framed grid.
 - **Escaping gno-* tags after `>` / list markers in the sanitizer** instead
   of the document-level rule. That changes a Gno stdlib and the realm-side
   package, and every future gno-* tag would have to be checked against the
@@ -133,7 +150,8 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   document level, so user content can open or close a frame there (the same
   shape already reaches `<gno-columns>` tags today).
 - Frames cannot sit inside a list, a quote or an alert. Alerts, lists, quotes,
-  code and forms inside a frame work.
+  code, forms and complete column grids (with one card per column at a time)
+  inside a frame work.
 - An unterminated fenced code block inside a frame runs to the end of the
   document, as it does at top level.
 - `scanGnoTag` and its test are copied byte for byte from the gno-button

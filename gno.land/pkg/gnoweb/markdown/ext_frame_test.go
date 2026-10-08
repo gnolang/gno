@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -67,6 +68,12 @@ func TestFrameNestDepthBalanced(t *testing.T) {
 		"<gno-frame>\n<div></gno-frame>\nafter\n",
 		"> [!NOTE]\n> <gno-frame>\n> x\n",
 		"<gno-form>\n<gno-frame>\n<gno-input name=\"a\" />\n</gno-frame>\n</gno-form>\n",
+		"<gno-frame>\n<gno-columns>\na\n<gno-columns-sep>\nb\n</gno-columns>\n</gno-frame>\n",
+		"<gno-frame>\n<gno-columns>\n<gno-frame>\ncard\n</gno-frame>\n</gno-columns>\n</gno-frame>\n",
+		"<gno-frame>\n<gno-columns>\n<gno-frame>\ncard\n<gno-columns-sep>\nb\n",
+		"<gno-frame>\n<gno-columns>\na\n</gno-frame>\nb\n</gno-columns>\n",
+		"<gno-frame>\n<gno-columns>\n<gno-frame>\n</gno-frame>\n</gno-frame>\n</gno-columns>\n",
+		"<gno-frame>\n<gno-columns>\n<gno-columns>\n</gno-columns>\n</gno-frame>\n",
 	}
 	m := newGnoMarkdown()
 	for _, in := range inputs {
@@ -151,5 +158,38 @@ func TestFrameNoAllocPaths(t *testing.T) {
 		}
 	}); n != 0 {
 		t.Errorf("HTML block wrapper allocates %v times on a close tag", n)
+	}
+}
+
+// TestFrameGridScanLinear guards the look-ahead that checks whether a grid
+// opened in a frame closes inside it: on pages where it never does, or
+// always does, four times the input must not cost much more than four
+// times the time. A scan restarted per block would take about 16 times.
+func TestFrameGridScanLinear(t *testing.T) {
+	body := strings.Repeat("x\n\n", 50)
+	pages := map[string]string{
+		"half inside": "<gno-frame>\n<gno-columns>\n" + body + "</gno-frame>\n" + body + "</gno-columns>\n",
+		"inside":      "<gno-frame>\n<gno-columns>\n<gno-frame>\n" + body + "</gno-frame>\n<gno-columns-sep>\n" + body + "</gno-columns>\n</gno-frame>\n",
+		"unclosed":    "<gno-frame>\n<gno-columns>\n" + body,
+	}
+	m := newGnoMarkdown()
+	render := func(src []byte) time.Duration {
+		best := time.Duration(1<<63 - 1)
+		for range 5 {
+			var buf bytes.Buffer
+			start := time.Now()
+			if err := convertGno(m, src, &buf); err != nil {
+				t.Fatal(err)
+			}
+			best = min(best, time.Since(start))
+		}
+		return best
+	}
+	for name, page := range pages {
+		small := render([]byte(strings.Repeat(page, 50)))
+		large := render([]byte(strings.Repeat(page, 200)))
+		if ratio := float64(large) / float64(small); ratio > 8 {
+			t.Errorf("%s: 4x the input took %.1fx the time", name, ratio)
+		}
 	}
 }

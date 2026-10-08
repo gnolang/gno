@@ -2658,6 +2658,17 @@ main.is-dev-mode .b-toc a {
 	.gno-columns:has(> .gno-column > .gno-frame:only-child) {
 		margin-block: var(--columns-gap);
 	}
+
+	/* In a frame, the frame's padding spaces a card grid at its edges. */
+	.gno-frame > .gno-columns:has(> .gno-column > .gno-frame:only-child) {
+		&:first-child {
+			margin-block-start: 0;
+		}
+
+		&:last-child {
+			margin-block-end: 0;
+		}
+	}
 }
 
 /* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */

@@ -1,22 +1,22 @@
 -- input.md --
 <gno-frame>
+## A
 <gno-columns>
 a
-<gno-columns-sep>
+</gno-frame>
 b
 </gno-columns>
-</gno-frame>
+after
 -- output.html --
 <section class="gno-frame">
+<h2>A</h2>
 </section>
 <div class="gno-columns">
 <!-- Column 0 -->
 <div class="gno-column">
 <p>a</p>
-</div>
-<!-- Column 1 -->
-<div class="gno-column">
+<!-- unexpected/invalid frame tag omitted -->
 <p>b</p>
 </div>
 </div> <!-- </gno-columns> -->
-<!-- unexpected/invalid frame tag omitted -->
+<p>after</p>

@@ -12,7 +12,8 @@ import (
 // KindGnoFrame is the node kind of a `<gno-frame>` block.
 var KindGnoFrame = ast.NewNodeKind("GnoFrame")
 
-// GnoFrameNode is a bordered block of ordinary markdown:
+// GnoFrameNode is a bordered block of ordinary markdown, which may hold
+// complete gno-columns grids:
 //
 //	<gno-frame>
 //	## Any markdown
@@ -27,6 +28,9 @@ type GnoFrameNode struct {
 	// tag is frameTagOpen (the container), frameTagClose or frameTagInvalid
 	// (rendered as a comment).
 	tag frameTagKind
+	// inner marks a frame opened in a column of a grid that is itself
+	// inside a frame, and its close marker.
+	inner bool
 }
 
 // Kind implements ast.Node.
@@ -83,15 +87,16 @@ func parseFrameLineTag(line []byte) frameTagKind {
 	return kind
 }
 
-// isColumnsTagLine reports whether line is a gno-columns tag. The prefix
-// check spares the HTML tokenizer in parseLineTag on every other line.
-func isColumnsTagLine(line []byte) bool {
+// columnsLineTag returns the gno-columns tag on line, or
+// GnoColumnTagUndefined. The prefix check spares the HTML tokenizer in
+// parseLineTag on every other line.
+func columnsLineTag(line []byte) GnoColumnTag {
 	for _, prefix := range columnsTagPrefixes {
 		if hasGnoTagPrefix(line, prefix) {
-			return parseLineTag(line) != GnoColumnTagUndefined
+			return parseLineTag(line)
 		}
 	}
-	return false
+	return GnoColumnTagUndefined
 }
 
 // ----- parse state -----
@@ -103,6 +108,72 @@ var frameOpenKey = parser.NewContextKey()
 func frameOpen(pc parser.Context) bool {
 	open, _ := pc.Get(frameOpenKey).(bool)
 	return open
+}
+
+// frameGridKey holds whether the gno-columns grid open now was opened
+// inside the open frame.
+var frameGridKey = parser.NewContextKey()
+
+func frameGrid(pc parser.Context) bool {
+	grid, _ := pc.Get(frameGridKey).(bool)
+	return grid
+}
+
+// frameInnerKey holds whether a frame is open in a column of the open
+// frame's grid.
+var frameInnerKey = parser.NewContextKey()
+
+func frameInner(pc parser.Context) bool {
+	inner, _ := pc.Get(frameInnerKey).(bool)
+	return inner
+}
+
+func gridOpen(pc parser.Context) bool {
+	cctx, _ := pc.Get(columnContextKey).(*columnsContext)
+	return cctx != nil && cctx.IsOpen
+}
+
+// endFrame marks the open frame as ended at parse time.
+func endFrame(pc parser.Context) {
+	pc.Set(frameOpenKey, false)
+	pc.Set(frameGridKey, false)
+	Pop(pc)
+}
+
+// endInnerFrame marks the frame open in a column as ended at parse time.
+func endInnerFrame(pc parser.Context) {
+	pc.Set(frameInnerKey, false)
+	Pop(pc)
+}
+
+// frameKeepsColumnsTag reports whether a gno-columns tag stays inside the
+// open frame: one that opens a grid (with room left under the depth cap),
+// or a separator or close of a grid opened inside the frame. Any other
+// columns tag would leave a grid half inside, so it ends the frame.
+func frameKeepsColumnsTag(tag GnoColumnTag, pc parser.Context) bool {
+	gridOpen := gridOpen(pc)
+	switch tag {
+	case GnoColumnTagOpen:
+		if gridOpen {
+			// A second opener: an inert comment inside the frame's own
+			// grid, otherwise a frame in a column reaching its grid.
+			return frameGrid(pc)
+		}
+		if Get(pc) >= MaxGnoNestDepth {
+			return false // the frame ends so the grid can open
+		}
+		pc.Set(frameGridKey, true)
+		return true
+	case GnoColumnTagSep:
+		return gridOpen && frameGrid(pc)
+	case GnoColumnTagClose:
+		if !gridOpen || !frameGrid(pc) {
+			return false
+		}
+		pc.Set(frameGridKey, false)
+		return true
+	}
+	return false
 }
 
 // ----- block parser -----
@@ -118,9 +189,11 @@ func (*frameParser) Trigger() []byte { return []byte{'<'} }
 // from opening one after `> ` or `- `). A stray close tag, a malformed tag,
 // a non-document parent, a frame in a frame or the depth cap yields an
 // invalid leaf, never nil: nil would hand the line to the type-7 HTML block
-// parser, which swallows every line up to the next blank one. A gno-columns
-// tag ends an open frame and is left to the columns parser, which runs
-// after this one.
+// parser, which swallows every line up to the next blank one. The one frame
+// a frame holds is an inner one, in a column of its grid (a card); a close
+// tag ends it first. A gno-columns tag is left to the columns parser, which
+// runs after this one; it ends an inner frame, and ends the outer frame
+// unless frameKeepsColumnsTag keeps it inside.
 func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
 	line = trimTagLine(line)
@@ -128,9 +201,15 @@ func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 
 	kind := parseFrameLineTag(line)
 	if kind == frameTagNone {
-		if atDoc && frameOpen(pc) && isColumnsTagLine(line) {
-			pc.Set(frameOpenKey, false)
-			Pop(pc)
+		if atDoc && frameOpen(pc) {
+			if tag := columnsLineTag(line); tag != GnoColumnTagUndefined {
+				if frameInner(pc) {
+					endInnerFrame(pc)
+				}
+				if !frameKeepsColumnsTag(tag, pc) {
+					endFrame(pc)
+				}
+			}
 		}
 		return nil, parser.NoChildren
 	}
@@ -143,10 +222,15 @@ func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 	case kind == frameTagOpen && !open && Push(pc): // the cap spans all gno-* blocks
 		node.tag = frameTagOpen
 		pc.Set(frameOpenKey, true)
+	case kind == frameTagOpen && frameGrid(pc) && gridOpen(pc) && !frameInner(pc) && Push(pc):
+		node.tag, node.inner = frameTagOpen, true
+		pc.Set(frameInnerKey, true)
+	case kind == frameTagClose && frameInner(pc):
+		node.tag, node.inner = frameTagClose, true
+		endInnerFrame(pc)
 	case kind == frameTagClose && open:
 		node.tag = frameTagClose
-		pc.Set(frameOpenKey, false)
-		Pop(pc)
+		endFrame(pc)
 	}
 	return node, parser.NoChildren
 }
@@ -183,7 +267,7 @@ func (p frameHTMLBlockParser) Open(parent ast.Node, reader text.Reader, pc parse
 func (p frameHTMLBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	if node.Parent().Kind() == ast.KindDocument && frameOpen(pc) {
 		line, _ := reader.PeekLine()
-		if tag := trimTagLine(line); parseFrameLineTag(tag) == frameTagClose || isColumnsTagLine(tag) {
+		if tag := trimTagLine(line); parseFrameLineTag(tag) == frameTagClose || columnsLineTag(tag) != GnoColumnTagUndefined {
 			return parser.Close // the line reopens at document level
 		}
 	}
@@ -195,32 +279,80 @@ func (p frameHTMLBlockParser) Continue(node ast.Node, reader text.Reader, pc par
 type frameASTTransformer struct{}
 
 // Transform moves the blocks after each open marker under it, up to its
-// close marker (removed), the next gno-columns marker, or the end of the
-// document; and pops the depth of a frame left open at EOF.
+// close marker (removed), a gno-columns marker that is not part of a grid
+// closing inside the frame, or the end of the document; and pops the depth
+// of the frames left open at EOF. It runs after the columns transformer,
+// so a grid left open at EOF already has its close marker.
 func (*frameASTTransformer) Transform(doc *ast.Document, _ text.Reader, pc parser.Context) {
 	if pc.Get(frameOpenKey) == nil {
 		return // no frame tag on this page
 	}
-	for n := doc.FirstChild(); n != nil; n = n.NextSibling() {
+	wrapFrames(doc)
+	if frameInner(pc) {
+		endInnerFrame(pc)
+	}
+	if frameOpen(pc) {
+		endFrame(pc)
+	}
+}
+
+// wrapFrames gives each open marker among parent's children its blocks. An
+// outer frame then wraps the inner frames in its grids; an inner frame
+// holds no grid, so it stops at the next columns marker.
+func wrapFrames(parent ast.Node) {
+	for n := parent.FirstChild(); n != nil; n = n.NextSibling() {
 		frame, ok := n.(*GnoFrameNode)
 		if !ok || frame.tag != frameTagOpen {
 			continue
 		}
 		for c := frame.NextSibling(); c != nil; c = frame.NextSibling() {
-			if m, ok := c.(*GnoFrameNode); ok && m.tag == frameTagClose {
-				doc.RemoveChild(doc, m)
+			if m, ok := c.(*GnoFrameNode); ok && m.tag == frameTagClose && m.inner == frame.inner {
+				parent.RemoveChild(parent, m)
 				break
 			}
 			if c.Kind() == KindGnoColumn {
-				break
+				end := gridCloseInFrame(c.(*GnoColumnNode))
+				if end == nil {
+					// The frame ended at this tag while parsing, or the
+					// grid closes after the frame.
+					break
+				}
+				for c != end {
+					c = c.NextSibling()
+					frame.AppendChild(frame, c.PreviousSibling())
+				}
 			}
 			frame.AppendChild(frame, c)
 		}
+		if !frame.inner {
+			wrapFrames(frame)
+		}
 	}
-	if frameOpen(pc) {
-		pc.Set(frameOpenKey, false)
-		Pop(pc)
+}
+
+// gridCloseInFrame returns the close marker of the grid that open opened
+// inside the frame, when it comes before the frame's close marker; nil
+// otherwise, and for any other columns marker. Inner frames are only in
+// the frame's grids, so the first outer close marker met is the frame's
+// own and the scan stops there: it reads the blocks the frame then takes,
+// or the rest of a frame that ends at open.
+func gridCloseInFrame(open *GnoColumnNode) ast.Node {
+	if open.Tag != GnoColumnTagOpen || !open.inFrame {
+		return nil
 	}
+	for n := open.NextSibling(); n != nil; n = n.NextSibling() {
+		switch m := n.(type) {
+		case *GnoFrameNode:
+			if m.tag == frameTagClose && !m.inner {
+				return nil
+			}
+		case *GnoColumnNode:
+			if m.Tag == GnoColumnTagClose {
+				return m
+			}
+		}
+	}
+	return nil
 }
 
 // ----- renderer -----
@@ -264,7 +396,9 @@ func (*frames) Extend(m goldmark.Markdown) {
 			util.Prioritized(frameHTMLBlockParser{parser.NewHTMLBlockParser()}, 899),
 		),
 		parser.WithASTTransformers(
-			util.Prioritized(&frameASTTransformer{}, 500),
+			// After the columns transformer (500), which closes a grid
+			// left open at EOF.
+			util.Prioritized(&frameASTTransformer{}, 501),
 		),
 	)
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(

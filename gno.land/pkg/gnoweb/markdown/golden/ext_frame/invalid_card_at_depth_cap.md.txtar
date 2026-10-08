@@ -1,0 +1,32 @@
+-- input.md --
+<gno-foreign>
+<gno-foreign>
+<gno-frame>
+<gno-columns>
+<gno-frame>
+card
+</gno-frame>
+</gno-columns>
+</gno-frame>
+</gno-foreign>
+</gno-foreign>
+-- output.html --
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<section class="gno-frame">
+</section>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<!-- unexpected/invalid frame tag omitted -->
+<p>card</p>
+<!-- unexpected/invalid frame tag omitted -->
+</div>
+</div> <!-- </gno-columns> -->
+<!-- unexpected/invalid frame tag omitted -->
+</div>
+</div>
+</div>
+</div>

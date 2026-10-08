@@ -447,7 +447,43 @@ Block explorer for gno.land, with transactions, realms and accounts.
 
 ---
 
-***Note**: Frames take no attributes and open only at the top level of the page or of a column: not inside a list, a quote, an alert or another frame. Columns cannot go inside a frame; a column tag ends the frame.*
+A frame can also hold a whole grid, cards included:
+
+±±±markdown
+<gno-frame>
+## Apps
+<gno-columns>
+<gno-frame>
+**[Adena](https://adena.app)**
+</gno-frame>
+<gno-columns-sep>
+<gno-frame>
+**[Gnoscan](https://gnoscan.io)**
+</gno-frame>
+</gno-columns>
+</gno-frame>
+±±±
+
+- Renders as:
+
+---
+
+<gno-frame>
+## Apps
+<gno-columns>
+<gno-frame>
+**[Adena](https://adena.app)**
+</gno-frame>
+<gno-columns-sep>
+<gno-frame>
+**[Gnoscan](https://gnoscan.io)**
+</gno-frame>
+</gno-columns>
+</gno-frame>
+
+---
+
+***Note**: Frames take no attributes and open only at the top level of the page or of a column: not inside a list, a quote, an alert or directly inside another frame. A grid inside a frame must close before the frame does; otherwise the frame ends just before the grid.*
 
 ### Forms
 
