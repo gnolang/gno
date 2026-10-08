@@ -124,9 +124,15 @@ The plain function stays flexible for callers who want to recover; the wrapper
 is for realm code that prefers to fail fast and roll back:
 
 ```go
+import "errors"
+
 // Returns an error, so callers decide how to handle it.
 func ParseAddress(s string) (address, error) {
-	// ...
+	addr := address(s)
+	if !addr.IsValid() {
+		return "", errors.New("invalid address: " + s)
+	}
+	return addr, nil
 }
 
 // Panics on failure.
@@ -158,8 +164,8 @@ you start a program, in Gno, `init()` is executed once in a realm's lifetime.
 In Gno, `init()` primarily serves two purposes:
 1. It establishes the initial state, specifically, setting up global variables.
 	- Note: a global can often be set where it is declared, as `list` is in
-	  the example below. Use `init` when the setup needs the deployment
-	  itself, such as `cur.Previous()` for the deployer, as `admin` does.
+	  the second example below. Use `init` when the value comes from the
+	  deployment, such as the deployer from `cur.Previous()`, as `admin` does.
 2. It communicates with another realm, for example, to register itself in a registry.
 
 ```go
@@ -377,18 +383,15 @@ One strategy is to look at the caller with `cur.Previous()` on the `cur realm`
 parameter of a crossing function. The caller could be the EOA (Externally
 Owned Account), or the preceding realm in the call stack.
 
-Another approach is to look specifically at the EOA. For this, you can call
-[`unsafe.OriginCaller()`](./gno-stdlibs.md#origincaller), which returns the
-public address of the account that signed the transaction, whatever realms
-the call passed through on the way to yours.
-
-Do not use `unsafe.OriginCaller()` for access control. It is Gno's
-`tx.origin`: a malicious realm called by the EOA can act as the EOA towards
-your realm. Reserve it for recording who signed, such as in an event. A
+The account that signed the transaction, the EOA, is also available through
+[`unsafe.OriginCaller()`](./gno-stdlibs.md#origincaller), whatever realms the
+call passed through on the way to yours. Do not use it for access control. It is
+Gno's `tx.origin`: a malicious realm called by the EOA can act as the EOA
+towards your realm. Reserve it for recording who signed, such as in an event. A
 function that must run only as a signer's direct call can enforce that with
-[`runtime.AssertOriginCall()`](./gno-stdlibs.md#assertorigincall), which
-panics unless a `maketx call` entered that function directly, so another
-named function in between, or a `maketx run` script, makes it panic.
+[`runtime.AssertOriginCall()`](./gno-stdlibs.md#assertorigincall), which panics
+unless a `maketx call` entered that function directly, so another named function
+in between, or a `maketx run` script, makes it panic.
 
 Here's an example:
 
@@ -421,9 +424,42 @@ reliable way to manage access to your contract.
 
 For common needs, reuse the shared helpers listed in
 [Community packages](./community-packages.md#access-control-helpers) rather
-than rolling your own. To
-tell whether the transaction was signed with a session key, and give it tighter
-limits, call `runtime.GetSessionInfo()`.
+than rolling your own. `runtime.GetSessionInfo()` tells whether a session key
+signed the transaction, so the realm can apply tighter limits to it.
+
+### Design your realm as a public API
+
+In Go, all your packages, including your dependencies, are typically treated as
+part of your safe zone, similar to a secure perimeter. The boundary is drawn
+between your program and the rest of the world, which means you secure the API
+itself, potentially with authentication middlewares.
+
+However, in Gno, your realm is the public API. It's exposed to the outside
+world and can be accessed by other realms. Therefore, it's crucial to design
+your realm with the same level of care and security considerations as you would
+a public API.
+
+One approach is to simulate a secure perimeter within your realm by having
+private functions for the logic, and then writing your API layer by adding some
+front-facing API with authentication. This way, you can control access to your
+realm's functionality and ensure that only authorized callers can execute
+certain operations.
+
+```go
+func PublicMethod(cur realm, nb int) {
+	caller := cur.Previous().Address()
+	privateMethod(caller, nb)
+}
+
+func privateMethod(caller address, nb int) { /* ... */ }
+```
+
+In this example, `PublicMethod` is a public function that can be called by other
+realms. It retrieves the caller's address using `cur.Previous().Address()`, and
+then passes it to `privateMethod`, which is a private function that performs the
+actual logic. This way, `privateMethod` can only be called from within the
+realm, and it can use the caller's address for authentication or authorization
+checks.
 
 ### Never call a caller-supplied function under your own authority
 
@@ -503,9 +539,9 @@ on individual requirements.
 #### Coins
 
 Coins are balances the chain keeps outside the GnoVM. A realm issues its own
-denom through a [banker](./gno-stdlibs.md#banker), and a plain bank transaction
-moves coins and a bank query reads a balance, no contract code involved, unless
-the chain's `restricted_denoms` parameter locks that denom. Their rules are
+denom through a [banker](./gno-stdlibs.md#banker). A plain bank transaction
+moves coins, unless the chain's `restricted_denoms` parameter locks that denom,
+and a bank query reads a balance; neither runs contract code. Their rules are
 fixed by the chain, which makes them simple and predictable.
 
 When you only need one balance, ask for it: `GetCoin(addr, denom)` reads a single
@@ -657,9 +693,10 @@ See also [`gno.land/r/gnoland/wugnot`](../../examples/gno.land/r/gnoland/wugnot)
 
 ### Do not trust on-chain randomness
 
-`math/rand` is a seeded pseudo-random generator, and any seed a contract can
-compute is public, so a lottery with real stakes needs commit-reveal or an
-external source.
+The top-level `math/rand` functions draw from a
+[fixed seed](../../gnovm/stdlibs/math/rand/rand.gno), and any seed a contract
+computes instead is public. A lottery with real stakes therefore needs
+commit-reveal or an external source.
 
 ### Bring off-chain data on-chain with oracles
 
@@ -688,44 +725,11 @@ realm: simulate an intermediary contract and prove your
 ### Choose storage types by access pattern
 
 A `map` or slice is stored as one object, so reading or updating one element
-loads or rewrites all of it, while a tree stores each entry as its own node.
+loads or rewrites all of it, while a tree stores its nodes or leaf pages
+separately, so touching one key loads only the path to it.
 Keep maps and slices for small, bounded state, and put anything that grows in
 a tree; [Gno data structures](./gno-data-structures.md#tree-backed-indexes)
 compares the tree types.
-
-### Design your realm as a public API
-
-In Go, all your packages, including your dependencies, are typically treated as
-part of your safe zone, similar to a secure perimeter. The boundary is drawn
-between your program and the rest of the world, which means you secure the API
-itself, potentially with authentication middlewares.
-
-However, in Gno, your realm is the public API. It's exposed to the outside
-world and can be accessed by other realms. Therefore, it's crucial to design
-your realm with the same level of care and security considerations as you would
-a public API.
-
-One approach is to simulate a secure perimeter within your realm by having
-private functions for the logic, and then writing your API layer by adding some
-front-facing API with authentication. This way, you can control access to your
-realm's functionality and ensure that only authorized callers can execute
-certain operations.
-
-```go
-func PublicMethod(cur realm, nb int) {
-	caller := cur.Previous().Address()
-	privateMethod(caller, nb)
-}
-
-func privateMethod(caller address, nb int) { /* ... */ }
-```
-
-In this example, `PublicMethod` is a public function that can be called by other
-realms. It retrieves the caller's address using `cur.Previous().Address()`, and
-then passes it to `privateMethod`, which is a private function that performs the
-actual logic. This way, `privateMethod` can only be called from within the
-realm, and it can use the caller's address for authentication or authorization
-checks.
 
 ### Define types and interfaces in pure packages (p/)
 
