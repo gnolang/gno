@@ -336,7 +336,7 @@ come from actually run (queried 2026-09-29):
 |----------------|--------|------------|-------|------------|---------------------|
 | Cosmos Hub     | 10 000 | 5%         | 600 s | ~5.7 s     | ~15 h               |
 | AtomOne        | 10 000 | 5%         | 600 s | ~5.8 s     | ~15 h               |
-| gno.land, here | 4 000  | 5%         | 600 s | 5 s        | ~5.3 h              |
+| gno.land, here | 4 000  | 5%         | 600 s | ~3.4 s     | ~3.6 h              |
 
 The shape is theirs: a large window with a low threshold, so that a short
 blip never counts and only a sustained absence does — the operators this set
@@ -346,7 +346,8 @@ the whole margin among five. The quantity to reason about is
 `window × (1 − min_signed/100) × block time`, the continuous silence that
 jails: it must exceed the longest routine maintenance an operator is expected
 to do, and can be loosened toward the Hub's value by proposal as the set
-grows. The 5 s is mainnet's `timeout_commit` (the tm2 default); test5 runs
+grows. Mainnet's ~3.4 s is its required `timeout_commit` of 3 s plus one
+consensus round (averaged over 1 000 blocks on 2026-10-08); test5 runs
 1 s blocks, where the same window jails after about an hour, so networks
 with faster blocks scale the window up.
 
