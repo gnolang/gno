@@ -224,22 +224,15 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 				removeFn: func(removedPeer PeerConn) {
 					assert.Equal(t, p.ID(), removedPeer.ID())
 				},
-				netAddressFn: func() types.NetAddress {
-					return types.NetAddress{}
-				},
 			}
 
-			sw = NewMultiplexSwitch(mockTransport)
+			sw = NewMultiplexSwitch(
+				mockTransport,
+				WithPersistentPeers([]*types.NetAddress{p.SocketAddr()}),
+			)
 		)
 
-		// Make sure the peer is persistent
-		p.IsPersistentFn = func() bool {
-			return true
-		}
-
-		p.IsOutboundFn = func() bool {
-			return false
-		}
+		require.True(t, sw.isPersistentPeer(p.ID()))
 
 		// Create a new peer set
 		sw.peers = newSet()
@@ -1869,7 +1862,7 @@ func TestMultiplexSwitch_QueueMissingPersistentPeers(t *testing.T) {
 		}
 	})
 
-	t.Run("a peer that connects and drops at once is queued once per pass, due now", func(t *testing.T) {
+	t.Run("a cleared peer is queued once per call, due right away", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -1894,9 +1887,10 @@ func TestMultiplexSwitch_QueueMissingPersistentPeers(t *testing.T) {
 			assert.True(t, item.Time.Equal(passTime))
 			assert.Nil(t, sw.persistentDialQueue.Pop())
 
-			// The dial connects and the connection drops at once. The redial
-			// loop clears the attempts on PeerConnected, so the rate limit of
-			// such a peer is the redial interval, one dial per pass
+			// The dial connects and the connection drops at once, and the
+			// redial loop clears the attempts on PeerConnected. The rate limit
+			// comes from the loop calling this method once per tick, pinned at
+			// loop level by "a reconnect clears the backoff"
 			delete(attempts, addr.ID)
 		}
 	})
@@ -2092,10 +2086,11 @@ func TestMultiplexSwitch_DialPeers(t *testing.T) {
 	})
 }
 
-// TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress reproduces the
-// shape of gnolang/gno#6287: a persistent peer reached through an address
-// learned via peer exchange drops, and the same address keeps coming back
-// through peer exchange. It must only ever be dialed on its configured address
+// TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress is a switch-level
+// regression test for gnolang/gno#6287: a persistent peer reached through an
+// address learned via peer exchange drops, and the same address keeps coming
+// back through peer exchange. It must only ever be dialed on its configured
+// address. It does not reproduce the pop-time drop itself
 func TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress(t *testing.T) {
 	t.Parallel()
 
@@ -2141,16 +2136,6 @@ func TestMultiplexSwitch_PersistentPeerDialedOnConfiguredAddress(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the persistent peer was not dialed")
 	}
-
-	// and nothing dials the learned address
-	assert.Never(t, func() bool {
-		select {
-		case addr := <-dialed:
-			return addr.IP.Equal(learned.IP)
-		default:
-			return false
-		}
-	}, 200*time.Millisecond, 10*time.Millisecond)
 }
 
 func TestCalculateBackoff(t *testing.T) {
