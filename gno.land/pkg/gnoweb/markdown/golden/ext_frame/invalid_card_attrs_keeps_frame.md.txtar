@@ -1,20 +1,15 @@
 -- input.md --
-<gno-foreign>
-<gno-foreign>
 <gno-frame>
 <gno-columns>
-<gno-frame>
+<gno-frame x="1">
 card
 </gno-frame>
+<gno-columns-sep>
+b
 </gno-columns>
 </gno-frame>
-</gno-foreign>
-</gno-foreign>
+after
 -- output.html --
-<div class="gno-foreign" role="group">
-<div class="gno-foreign__body">
-<div class="gno-foreign" role="group">
-<div class="gno-foreign__body">
 <section class="gno-frame">
 <div class="gno-columns">
 <!-- Column 0 -->
@@ -23,9 +18,10 @@ card
 <p>card</p>
 <!-- unexpected/invalid frame tag omitted -->
 </div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>b</p>
+</div>
 </div> <!-- </gno-columns> -->
 </section>
-</div>
-</div>
-</div>
-</div>
+<p>after</p>

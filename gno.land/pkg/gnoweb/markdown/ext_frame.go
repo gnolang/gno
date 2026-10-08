@@ -128,6 +128,16 @@ func frameInner(pc parser.Context) bool {
 	return inner
 }
 
+// frameRefusedKey holds whether a card opener was refused (an attribute,
+// the depth cap) in a column of the open frame's grid; its close tag is
+// then an invalid leaf, not the outer frame's close.
+var frameRefusedKey = parser.NewContextKey()
+
+func frameRefused(pc parser.Context) bool {
+	refused, _ := pc.Get(frameRefusedKey).(bool)
+	return refused
+}
+
 func gridOpen(pc parser.Context) bool {
 	cctx, _ := pc.Get(columnContextKey).(*columnsContext)
 	return cctx != nil && cctx.IsOpen
@@ -137,6 +147,7 @@ func gridOpen(pc parser.Context) bool {
 func endFrame(pc parser.Context) {
 	pc.Set(frameOpenKey, false)
 	pc.Set(frameGridKey, false)
+	pc.Set(frameRefusedKey, false)
 	Pop(pc)
 }
 
@@ -191,9 +202,10 @@ func (*frameParser) Trigger() []byte { return []byte{'<'} }
 // invalid leaf, never nil: nil would hand the line to the type-7 HTML block
 // parser, which swallows every line up to the next blank one. The one frame
 // a frame holds is an inner one, in a column of its grid (a card); a close
-// tag ends it first. A gno-columns tag is left to the columns parser, which
-// runs after this one; it ends an inner frame, and ends the outer frame
-// unless frameKeepsColumnsTag keeps it inside.
+// tag ends it first. A card refused there (an attribute, the depth cap)
+// leaves its close tag an invalid leaf. A gno-columns tag is left to the
+// columns parser, which runs after this one; it ends an inner frame, and
+// ends the outer frame unless frameKeepsColumnsTag keeps it inside.
 func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
 	line = trimTagLine(line)
@@ -206,6 +218,7 @@ func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 				if frameInner(pc) {
 					endInnerFrame(pc)
 				}
+				pc.Set(frameRefusedKey, false)
 				if !frameKeepsColumnsTag(tag, pc) {
 					endFrame(pc)
 				}
@@ -228,9 +241,13 @@ func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 	case kind == frameTagClose && frameInner(pc):
 		node.tag, node.inner = frameTagClose, true
 		endInnerFrame(pc)
+	case kind == frameTagClose && frameRefused(pc):
+		pc.Set(frameRefusedKey, false) // the refused card's close
 	case kind == frameTagClose && open:
 		node.tag = frameTagClose
 		endFrame(pc)
+	case line[1] != '/' && open && frameGrid(pc) && gridOpen(pc) && !frameInner(pc):
+		pc.Set(frameRefusedKey, true) // a refused card opener
 	}
 	return node, parser.NoChildren
 }
