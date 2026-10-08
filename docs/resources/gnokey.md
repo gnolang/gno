@@ -111,7 +111,8 @@ gnokey maketx send \
 `AddPackage` uploads new code to the chain with `gnokey maketx addpkg`, from the
 local directory `-pkgdir` to the on-chain path `-pkgpath`. `-max-deposit` caps
 the GNOT locked for [storage deposit](./storage-deposit.md). `-send` is refused
-for a `/p/` package, and under the `inert` policy that mainnet runs.
+for a `/p/` package, and on a chain running the `inert` code submission policy
+described under [`enablepkg` and `rejectpkg`](#enablepkg-and-rejectpkg).
 
 Run it from the package directory, publishing to a path under a
 [namespace](./users-and-teams.md) you own:
@@ -188,15 +189,15 @@ own `-args`.
 
 ### `Run`
 
-`Run` executes a Gno script against on-chain code with `gnokey maketx run`. Write a
-`main` package; its `main()` function is detected and run, and any state changes
-are applied. A chain can limit `Run` to the addresses in its
-`vm:p:run_submitters` parameter, and an empty list lets anyone send it.
-Mainnet's lists three addresses, so `maketx run` fails there for every other
-key. `-send` and `-max-deposit` work as for `Call`.
+`gnokey maketx run` sends a short Gno program instead of a single function call.
+The program is a `main` package with a `main` function. It can call any exported
+function of any realm, and any method of an object a realm exports, which `Call`
+cannot reach. What it prints with `println` comes back in the output. The whole
+program is one transaction: if it panics, none of its changes are kept. For what
+only `Run` can do, see [When to use `Run` over `Call`](#when-to-use-run-over-call).
 
-For example, calling `Increment()` on the
-[Counter realm](https://staging.gno.land/r/demo/counter):
+This program increments the [counter realm](https://staging.gno.land/r/demo/counter)
+and prints the new value:
 
 ```go
 package main
@@ -208,6 +209,8 @@ func main(cur realm) {
 }
 ```
 
+Save it as `script.gno` and send it:
+
 ```bash
 gnokey maketx run \
   -gas-fee 20000ugnot \
@@ -217,45 +220,37 @@ gnokey maketx run \
   mykey ./script.gno
 ```
 
-`println` lets you see the return value: its output is surfaced only in `Run`
-and in tests, and discarded in a `Call`.
+The printed value comes first, above the usual summary:
+
+```console
+1
+OK!
+```
+
+`-send` and `-max-deposit` work as for `Call`.
 
 #### When to use `Run` over `Call`
 
-That example could just as easily have been a `maketx call`. `Run` earns its place
-when a plain call can't express what you need:
-
-1. Passing slices and maps, which `Call` cannot
-2. Calling realm functions repeatedly in a loop
-3. Calling methods on exported variables
-
-**1. Slices and maps.** `-args` only carries primitive values: booleans,
-numbers, strings, and base64-encoded `[]byte` or `[N]byte`. Other slices, maps
-and structs cannot be passed. `Run` is full Gno code, so it can build a slice or
-a map and pass it on:
+**1. Calling a method on an object.** `Call` only reaches a realm's exported
+functions. `Run` can also use the objects a realm exports. If a realm exposes
+`var Pool *Token`, and `Token` has a `Balance()` method:
 
 ```go
 package main
 
 import "gno.land/r/myrealm"
 
-func main(cur realm) {
-	tags := []string{"gno", "blockchain"}
-	myrealm.CreatePost(cross(cur), "Hello", tags)
+func main() {
+	println(myrealm.Pool.Balance())
 }
 ```
 
-A struct type the target realm declares is the exception: only that realm can
-construct one, so a script building `myrealm.Post` panics with
-`cannot allocate gno.land/r/myrealm.Post in realm gno.land/e/<address>/run`. A
-realm that wants a struct takes its fields, as `CreatePost` does here, and
-builds it itself. A struct whose type comes from a `/p/` package, or has no
-declared name, can be built in the script.
+The same goes for a function `Call` refuses because it takes no `cur realm`:
+`Run` calls it like any other.
 
-**2. Looping over a realm function.** `Call` sends one transaction per call.
-`Run` batches multiple calls into a single transaction, saving gas and keeping
-the changes atomic. Using the [counter realm](https://staging.gno.land/r/demo/counter)
-from the example above:
+**2. Several calls in one transaction.** `Call` sends one call per transaction.
+`Run` can loop or chain calls, and they all succeed or fail together. This
+increments the counter five times and prints each new value:
 
 ```go
 package main
@@ -269,28 +264,40 @@ func main(cur realm) {
 }
 ```
 
-This increments the counter five times in one transaction, printing each new
-value.
-
-**3. Methods on exported variables.** `Call` only invokes exported functions;
-`Run` can also call methods on exported variables. For example, if a realm
-exposes `var Pool *Token` with a `Balance()` method:
+**3. Passing a slice or a map.** `-args` carries only booleans, numbers, strings
+and base64-encoded `[]byte` or `[N]byte`. `Run` can build a slice or a map and
+pass it on:
 
 ```go
 package main
 
 import "gno.land/r/myrealm"
 
-func main() {
-	println(myrealm.Pool.Balance())
+func main(cur realm) {
+	tags := []string{"gno", "blockchain"}
+	myrealm.CreatePost(cross(cur), "Hello", tags)
 }
 ```
 
+#### Limits of `Run`
+
+A struct type the target realm declares can only be built inside that realm, so
+a program building `myrealm.Post` panics with
+`cannot allocate gno.land/r/myrealm.Post in realm gno.land/e/<address>/run`. A
+realm that wants a struct takes its fields, as `CreatePost` does above, and
+builds it itself. A struct whose type comes from a `/p/` package, or has no
+declared name, can be built in the program.
+
+A chain can limit `Run` to the addresses in its `vm:p:run_submitters`
+parameter, and an empty list lets anyone send it. Read it with
+`gnokey query params/vm:p:run_submitters -remote <rpc>`.
+
 ### `enablepkg` and `rejectpkg`
 
-On a chain whose `code_submission_policy` parameter is `inert`, as mainnet's is,
-`addpkg` parks the package rather than deploying it: the code is stored, but
-nothing type-checks it, runs it, or can import it until an address listed in the
+On a chain whose `code_submission_policy` parameter is `inert`, which
+`gnokey query params/vm:p:code_submission_policy -remote <rpc>` prints, `addpkg`
+parks the package rather than deploying it: the code is stored, but nothing
+type-checks it, runs it, or can import it until an address listed in the
 `pkg_approvers` parameter activates it. List what is waiting with
 [`vm/qinertpaths`](#vmqinertpaths).
 

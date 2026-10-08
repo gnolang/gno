@@ -1,17 +1,5 @@
 # Using the `gnokey` wallet
 
-## TL;DR
-
-Create a key, check its balance and send coins on mainnet:
-
-```bash
-gnokey add mykey
-gnokey query bank/balances/<your-g1-address> -remote https://rpc.gno.land:443
-gnokey maketx send -to <recipient-g1-address> -send 1000000ugnot \
-  -gas-fee 2000ugnot -gas-wanted 2000000 \
-  -chainid gnoland-1 -remote https://rpc.gno.land:443 mykey
-```
-
 `gnokey` is the official command-line wallet for Gno.land. It covers
 everyday wallet use: creating and managing keys, checking balances, sending
 coins, and calling realm functions.
@@ -20,6 +8,32 @@ For deploying code, scripting, and the full command and query
 reference, see the
 [gnokey command reference](../resources/gnokey.md). If you'd prefer a graphical
 wallet, see [Third-party wallets](./third-party-wallets.md).
+
+## TL;DR
+
+```sh
+# 1. Create a key and write down its mnemonic
+gnokey add mykey
+
+# 2. List the keys in your keybase
+gnokey list
+
+# 3. Restore a key from its mnemonic
+gnokey add --recover mykey
+
+# 4. Check an address's balance
+gnokey query bank/balances/<g1-address> -remote https://rpc.gno.land:443
+
+# 5. Send coins
+gnokey maketx send -to <g1-address> -send 1000000ugnot \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
+  -chainid gnoland-1 -remote https://rpc.gno.land:443 mykey
+
+# 6. Call a realm function: wrap 1000ugnot into wugnot
+gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Deposit -send 1000ugnot \
+  -gas-fee 8000ugnot -gas-wanted 8000000 \
+  -chainid gnoland-1 -remote https://rpc.gno.land:443 mykey
+```
 
 ## Installing gnokey
 
