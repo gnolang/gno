@@ -1,4 +1,4 @@
-# PRxxxx: Resolve a simultaneous open by keeping the lower ID's connection
+# PR6305: Resolve a simultaneous open by keeping the lower ID's connection
 
 ## Status
 
