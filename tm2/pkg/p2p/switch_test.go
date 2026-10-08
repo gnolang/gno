@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2868,6 +2869,61 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 
 		assert.Same(t, first, sw.peers.Get(lower))
 	})
+}
+
+func TestMultiplexSwitch_AcceptLoopStopsRefusedPeerBeforeClosingIt(t *testing.T) {
+	t.Parallel()
+
+	lower, _ := orderedIDs(t)
+
+	var (
+		removed  atomic.Int64
+		reported bool
+
+		// The connection loses registration after it was started
+		mockSet = &mockSet{
+			addFn: func(PeerConn) error { return errDuplicatePeer },
+		}
+
+		reactor = &mockReactor{
+			removePeerFn: func(PeerConn, any) { removed.Add(1) },
+		}
+
+		p         = peerWithID(t, lower, false)
+		closed    = make(chan struct{})
+		closeOnce sync.Once
+	)
+
+	withRealStop(p)
+
+	sw := acceptSwitch(lower, p, WithReactor("mock", reactor))
+	sw.peers = mockSet
+
+	logs := captureLogs(sw)
+
+	// A recv routine still running reports the closed socket, once, as
+	// MConnection.stopForError does
+	p.CloseConnFn = func() error {
+		defer closeOnce.Do(func() { close(closed) })
+
+		if p.IsRunning() && !reported {
+			reported = true
+			sw.StopPeerForError(p, errors.New("EOF"))
+		}
+
+		return nil
+	}
+
+	go sw.runAcceptLoop(t.Context())
+
+	awaitClosed(t, closed, "the refused connection was not closed")
+
+	require.Eventually(t, func() bool {
+		return strings.Contains(logs.String(), "error while adding peer")
+	}, 5*time.Second, time.Millisecond)
+
+	// addPeer's unwind is the only teardown of the refused connection
+	assert.EqualValues(t, 1, removed.Load())
 }
 
 // captureLogs makes the switch log into the returned buffer

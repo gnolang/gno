@@ -1022,11 +1022,13 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 
 		// There are open peer slots, add peers
 		if err := sw.addPeer(p); err != nil {
-			sw.rejectConn(p)
-
+			// Stopped before its socket is closed, for the reason given in
+			// stopAndRemovePeer
 			if p.IsRunning() {
 				_ = p.Stop()
 			}
+
+			sw.rejectConn(p)
 
 			sw.Logger.Info(
 				"Ignoring inbound connection: error while adding peer",
