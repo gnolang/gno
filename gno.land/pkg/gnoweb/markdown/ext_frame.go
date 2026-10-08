@@ -289,7 +289,7 @@ func (p frameHTMLBlockParser) Open(parent ast.Node, reader text.Reader, pc parse
 func (p frameHTMLBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	if node.Parent().Kind() == ast.KindDocument && frameOpen(pc) {
 		line, _ := reader.PeekLine()
-		if tag := trimTagLine(line); parseFrameLineTag(tag) != frameTagNone || columnsLineTag(tag) != GnoColumnTagUndefined {
+		if tag := trimTagLine(line); parseFrameLineTag(tag) == frameTagClose || columnsLineTag(tag) != GnoColumnTagUndefined || (parseFrameLineTag(tag) != frameTagNone && frameGrid(pc) && gridOpen(pc)) {
 			return parser.Close // the line reopens at document level
 		}
 	}
