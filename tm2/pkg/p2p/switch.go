@@ -317,14 +317,17 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// RemovePeer is finished.
 	// https://github.com/tendermint/tendermint/issues/3338
 	//
-	// A connection superseded by another sharing its peer ID, after losing the
+	// A connection announces a disconnect only when it removes the entry it
+	// holds. One superseded by another sharing its peer ID, after losing the
 	// race for the peer set or being replaced to resolve a simultaneous open,
 	// has its own socket closed above and its own reactor state given back,
 	// but the entry under that ID is the live connection's, and this one does
-	// not announce a disconnect for a peer that stays connected
+	// not announce a disconnect for a peer that stays connected. One that
+	// finds no entry under its ID was never announced, or its peer's
+	// disconnect was announced by whichever removed that entry
 	if !sw.removeUnlessSuperseded(peer) {
 		sw.Logger.Debug(
-			"not removing the peer set entry of a superseded connection",
+			"not removing a peer set entry the connection does not hold",
 			"peer", peer,
 			"err", err,
 		)
@@ -868,25 +871,21 @@ func (sw *MultiplexSwitch) registerPeer(p PeerConn) (PeerConn, error) {
 	return registered, sw.peers.Add(p)
 }
 
-// removeUnlessSuperseded removes the peer set entry of the peer's ID, unless a
-// different connection holds it. Two connections hold one peer ID while a
-// reconnect races the teardown of the connection it supersedes, or while a
-// replacement resolves a simultaneous open, and the entry belongs to whichever
-// won. It reports false only when a different connection holds the entry, and
-// true otherwise, including when no entry exists. Checking and removing in one
-// step keeps a connection that replaced this one between the two from losing
-// its entry
+// removeUnlessSuperseded removes the peer set entry of the peer's ID only if
+// the peer holds it, and reports whether it removed it. Two connections hold
+// one peer ID while a reconnect races the teardown of the connection it
+// supersedes, or while a replacement resolves a simultaneous open, and the
+// entry belongs to whichever won. Checking and removing in one step keeps a
+// connection that replaced this one between the two from losing its entry
 func (sw *MultiplexSwitch) removeUnlessSuperseded(p PeerConn) bool {
 	sw.registry.Lock()
 	defer sw.registry.Unlock()
 
-	if registered := sw.peers.Get(p.ID()); registered != nil && registered != p {
+	if sw.peers.Get(p.ID()) != p {
 		return false
 	}
 
-	sw.peers.Remove(p.ID())
-
-	return true
+	return sw.peers.Remove(p.ID())
 }
 
 // hasPeerFromIP returns a flag indicating if the active peer set already
@@ -1088,10 +1087,11 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// The connection p replaced gets its RemovePeer exactly once. It gets it
 	// here, before p's AddPeer, unless its own teardown, after the remote
 	// closed it, began first, in which case that RemovePeer may run
-	// concurrently with p's AddPeer. p holds the entry, so the teardown leaves
-	// that entry alone. A connection refused at registration gets the
-	// RemovePeer of the unwind below instead, which can run after the kept
-	// connection's AddPeer
+	// concurrently with p's AddPeer. That teardown removes no entry and
+	// announces no disconnect: the entry is p's, or whichever removed p's
+	// entry announced the disconnect. A connection refused at registration
+	// gets the RemovePeer of the unwind below instead, which can run after the
+	// kept connection's AddPeer
 	if replaced != nil {
 		sw.Logger.Info(
 			"replacing connection to resolve a simultaneous open",
@@ -1110,14 +1110,30 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 
 	// The peer can have been stopped while it was being added: the recv
 	// routine p.Start() spawned reports an error to stopAndRemovePeer, which
-	// removes from the peer set last, so its Remove can have run before the
-	// registration above. Adding a stopped peer would hold its slot and its ID
-	// for the lifetime of the process, since nothing removes a peer twice.
+	// removes from the peer set last, so its removal step can have run before
+	// the registration above, and found no entry or the connection p then
+	// replaced. Adding a stopped peer would hold its slot and its ID for the
+	// lifetime of the process, since its teardown can be past that step.
+	//
+	// When p replaced a connection, that connection was registered, and
+	// possibly announced, and the peer's disconnect falls to whichever removes
+	// p's entry: the replaced connection's teardown finds p's entry or none,
+	// so it removes nothing. p's teardown announces it when it removes the
+	// entry, and so does the rollback. When p replaced nothing, its peer was
+	// never announced, so its removal announces nothing.
 	//
 	// Its reactor state needs no unwinding here: whatever stopped the peer
 	// walked the reactors' RemovePeer on the way
 	if !p.IsRunning() {
-		sw.removeUnlessSuperseded(p)
+		removed := sw.removeUnlessSuperseded(p)
+
+		if removed && replaced != nil {
+			sw.events.Notify(events.PeerDisconnectedEvent{
+				Address: p.RemoteAddr(),
+				PeerID:  p.ID(),
+				Reason:  errPeerStopped,
+			})
+		}
 
 		return errPeerStopped
 	}

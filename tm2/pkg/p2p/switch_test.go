@@ -293,6 +293,30 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		assert.Equal(t, 1, disconnected)
 	})
 
+	t.Run("a peer the set never held announces no disconnect", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			sw = NewMultiplexSwitch(&mockTransport{removeFn: func(PeerConn) {}})
+			p  = mock.GeneratePeers(t, 1)[0]
+		)
+
+		withRealStop(p)
+		require.NoError(t, p.Start())
+
+		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
+		defer unsubFn()
+
+		// A started connection the peer set does not hold, such as one refused
+		// at registration, reports an error. Its peer was never announced
+		sw.StopPeerForError(p, errors.New("EOF"))
+
+		assert.False(t, p.IsRunning())
+
+		_, disconnected := countPeerEvents(evCh)
+		assert.Zero(t, disconnected)
+	})
+
 	t.Run("a socket closed by the stop is not logged as an error", func(t *testing.T) {
 		t.Parallel()
 
@@ -400,10 +424,19 @@ func TestMultiplexSwitch_AddPeerRemovedBeforeAdded(t *testing.T) {
 		return nil
 	}
 
+	evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
+	defer unsubFn()
+
 	// addPeer must refuse a peer that was stopped while it was being added.
 	// stopAndRemovePeer removes from the peer set last, so its Remove runs
 	// before the Add, and nothing would ever remove the peer again
 	require.ErrorIs(t, sw.addPeer(p), errPeerStopped)
+
+	// The peer was never announced, so neither is its disconnect
+	connected, disconnected := countPeerEvents(evCh)
+
+	assert.Zero(t, connected)
+	assert.Zero(t, disconnected)
 
 	// InitPeer is the hook that runs first, so it is the one that can pair
 	// with the RemovePeer that frees what it took. AddPeer never runs
@@ -2643,6 +2676,149 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 
 		require.Error(t, sw.addPeer(theirs))
 		assert.Same(t, ours, sw.peers.Get(lower))
+	})
+
+	t.Run("a replacing connection stopped before its registration announces one disconnect", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			// Our ID is the higher one, so the peer's connection is kept
+			sw     = switchWithID(upper)
+			ours   = peerWithID(t, lower, true)
+			theirs = &peerErrorOnStart{Peer: peerWithID(t, lower, false)}
+		)
+
+		withRealStop(ours)
+		withRealStop(theirs.Peer)
+
+		// The remote closes theirs as soon as it starts, so its teardown runs
+		// while ours still holds the entry
+		theirs.startFn = func() error {
+			if err := theirs.Peer.Start(); err != nil {
+				return err
+			}
+
+			sw.StopPeerForError(theirs, errors.New("EOF"))
+
+			return nil
+		}
+
+		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
+		defer unsubFn()
+
+		require.NoError(t, sw.addPeer(ours))
+
+		// theirs replaces ours at registration, and the rollback then removes
+		// it. Neither teardown removed an entry, since each found the other
+		// connection holding it
+		require.ErrorIs(t, sw.addPeer(theirs), errPeerStopped)
+
+		assert.False(t, sw.peers.Has(lower))
+
+		// The peer was announced connected through ours, and is gone
+		connected, disconnected := countPeerEvents(evCh)
+
+		assert.Equal(t, 1, connected)
+		assert.Equal(t, 1, disconnected)
+	})
+
+	t.Run("a replacing connection whose teardown removes it before the rollback announces one disconnect", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			sw     = switchWithID(upper)
+			ours   = peerWithID(t, lower, true)
+			theirs = peerWithID(t, lower, false)
+		)
+
+		withRealStop(ours)
+		withRealStop(theirs)
+
+		// The remote closes theirs while addPeer tears ours down, after theirs
+		// registered and before the rollback check. Its teardown removes the
+		// entry theirs holds before ours's teardown looks at it
+		ours.CloseConnFn = func() error {
+			sw.StopPeerForError(theirs, errors.New("EOF"))
+
+			return nil
+		}
+
+		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
+		defer unsubFn()
+
+		require.NoError(t, sw.addPeer(ours))
+		require.ErrorIs(t, sw.addPeer(theirs), errPeerStopped)
+
+		assert.False(t, sw.peers.Has(lower))
+
+		connected, disconnected := countPeerEvents(evCh)
+
+		assert.Equal(t, 1, connected)
+		assert.Equal(t, 1, disconnected)
+	})
+
+	t.Run("a replacing connection the rollback removes before its teardown does announces one disconnect", func(t *testing.T) {
+		t.Parallel()
+
+		lower, upper := orderedIDs(t)
+
+		var (
+			sw     = switchWithID(upper)
+			ours   = peerWithID(t, lower, true)
+			theirs = peerWithID(t, lower, false)
+
+			theirsStopped = make(chan struct{})
+			release       = make(chan struct{})
+			tornDown      = make(chan struct{})
+		)
+
+		withRealStop(ours)
+		withRealStop(theirs)
+
+		// The teardown of theirs stops it, then holds on its socket close until
+		// the rollback has run
+		theirs.CloseConnFn = func() error {
+			close(theirsStopped)
+			<-release
+
+			return nil
+		}
+
+		// The remote closes theirs while addPeer tears ours down, after theirs
+		// registered. Its teardown runs on its own goroutine, as a recv
+		// routine's report does, and ours's teardown resumes once theirs is
+		// stopped
+		ours.CloseConnFn = func() error {
+			go func() {
+				defer close(tornDown)
+
+				sw.StopPeerForError(theirs, errors.New("EOF"))
+			}()
+
+			<-theirsStopped
+
+			return nil
+		}
+
+		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
+		defer unsubFn()
+
+		require.NoError(t, sw.addPeer(ours))
+		require.ErrorIs(t, sw.addPeer(theirs), errPeerStopped)
+
+		close(release)
+		awaitClosed(t, tornDown, "the teardown of theirs did not finish")
+
+		assert.False(t, sw.peers.Has(lower))
+
+		connected, disconnected := countPeerEvents(evCh)
+
+		assert.Equal(t, 1, connected)
+		assert.Equal(t, 1, disconnected)
 	})
 
 	t.Run("a concurrent teardown of the replaced connection keeps the new entry", func(t *testing.T) {
