@@ -308,7 +308,7 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		defer unsubFn()
 
 		// A started connection the peer set does not hold, such as one refused
-		// at registration, reports an error. Its peer was never announced
+		// at registration, reports an error. It was never announced
 		sw.StopPeerForError(p, errors.New("EOF"))
 
 		assert.False(t, p.IsRunning())
@@ -2789,16 +2789,17 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 		var (
 			sw     = switchWithID(upper)
 			ours   = peerWithID(t, lower, true)
-			theirs = peerWithID(t, lower, false)
+			theirs = &peerErrorOnStart{
+				Peer:    peerWithID(t, lower, false),
+				startFn: func() error { return errors.New("start failed") },
+			}
 		)
 
 		require.NoError(t, sw.peers.Add(ours))
 
-		// Starting an already started peer fails
-		require.NoError(t, theirs.Start())
-
 		require.Error(t, sw.addPeer(theirs))
 		assert.Same(t, ours, sw.peers.Get(lower))
+		assert.False(t, theirs.IsRunning())
 	})
 
 	t.Run("a replacing connection stopped before its registration announces one disconnect", func(t *testing.T) {
@@ -3163,7 +3164,7 @@ func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 	})
 }
 
-func TestMultiplexSwitch_AcceptLoopStopsRefusedPeerBeforeClosingIt(t *testing.T) {
+func TestMultiplexSwitch_AcceptLoopTearsDownRefusedPeerOnce(t *testing.T) {
 	t.Parallel()
 
 	lower, upper := orderedIDs(t)

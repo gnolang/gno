@@ -1041,8 +1041,8 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 // the peer is filtered out or failed to start or can't be added.
 //
 // The peer is a connection fresh from the transport, which addPeer alone
-// starts. On error, it is stopped or was never started, and the caller only
-// releases it with rejectConn
+// starts. On error, it is not running: it was never started, failed to start, or
+// was stopped. The caller only releases it with rejectConn
 func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
