@@ -103,8 +103,19 @@ func TestNewNetAddressFromString(t *testing.T) {
 				require.NoError(t, err)
 
 				assert.Equal(t, testCase.expected, addr.String())
+				assert.Empty(t, addr.Hostname)
 			})
 		}
+	})
+
+	t.Run("hostname is kept", func(t *testing.T) {
+		t.Parallel()
+
+		addr, err := NewNetAddressFromString("g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@localhost:8080")
+		require.NoError(t, err)
+
+		assert.Equal(t, "localhost", addr.Hostname)
+		assert.NotNil(t, addr.IP)
 	})
 
 	t.Run("invalid net address", func(t *testing.T) {
@@ -284,90 +295,61 @@ func TestNetAddress_Local(t *testing.T) {
 	}
 }
 
-func TestNetAddressPrepareForDial(t *testing.T) {
+func TestNetAddress_DialContext(t *testing.T) {
 	t.Parallel()
 
-	t.Run("updates IP from IP hostname", func(t *testing.T) {
+	t.Run("dials the hostname, not the stale IP", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			key      = GenerateNodeKey()
-			expected = "127.0.0.2"
-		)
-
-		addr := &NetAddress{
-			ID:       key.ID(),
-			Hostname: expected,
-			IP:       net.ParseIP("127.0.0.1"),
-			Port:     8080,
-		}
-
-		err := addr.PrepareForDial(context.Background())
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
-
-		assert.Equal(t, expected, addr.IP.String())
-	})
-
-	t.Run("resolves hostname to IP", func(t *testing.T) {
-		t.Parallel()
-
-		key := GenerateNodeKey()
+		t.Cleanup(func() { _ = ln.Close() })
 
 		addr := &NetAddress{
-			ID:       key.ID(),
+			ID:       GenerateNodeKey().ID(),
+			IP:       net.ParseIP("192.0.2.1"), // RFC 5737, never answers
 			Hostname: "localhost",
+			Port:     uint16(ln.Addr().(*net.TCPAddr).Port),
+		}
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		conn, err := addr.DialContext(ctx)
+		require.NoError(t, err)
+
+		_ = conn.Close()
+	})
+
+	t.Run("unresolvable hostname", func(t *testing.T) {
+		t.Parallel()
+
+		addr := &NetAddress{
+			ID:       GenerateNodeKey().ID(),
+			IP:       net.ParseIP("127.0.0.1"),
+			Hostname: "peer.invalid", // RFC 6761, never resolves
 			Port:     8080,
 		}
 
-		err := addr.PrepareForDial(context.Background())
-		require.NoError(t, err)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
 
-		require.NotNil(t, addr.IP)
-		assert.NotEmpty(t, addr.IP.String())
+		_, err := addr.DialContext(ctx)
+
+		var dnsErr *net.DNSError
+		assert.ErrorAs(t, err, &dnsErr)
 	})
 }
 
-func TestNetAddressDialContextInvalidHostname(t *testing.T) {
+func TestNetAddress_UnmarshalAminoDropsHostname(t *testing.T) {
 	t.Parallel()
 
-	key := GenerateNodeKey()
+	var addr NetAddress
 
-	addr := &NetAddress{
-		ID:       key.ID(),
-		Hostname: "invalid.invalid.invalid",
-		IP:       net.ParseIP("127.0.0.1"),
-		Port:     8080,
-	}
-
-	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second)
-	defer cancelFn()
-
-	_, err := addr.DialContext(ctx)
-	require.Error(t, err)
-}
-
-func TestNetAddressFromStringHostnamePreserved(t *testing.T) {
-	t.Parallel()
-
-	key := GenerateNodeKey()
-
-	addr, err := NewNetAddressFromString(fmt.Sprintf("%s@localhost:8080", key.ID()))
-	require.NoError(t, err)
-
-	assert.Equal(t, "localhost", addr.Hostname)
-	require.NotNil(t, addr.IP)
-}
-
-func TestNetAddressFromStringHostnameEmptyForIP(t *testing.T) {
-	t.Parallel()
-
-	key := GenerateNodeKey()
-
-	addr, err := NewNetAddressFromString(fmt.Sprintf("%s@127.0.0.1:8080", key.ID()))
-	require.NoError(t, err)
+	require.NoError(t, addr.UnmarshalAmino(fmt.Sprintf("%s@localhost:8080", GenerateNodeKey().ID())))
 
 	assert.Empty(t, addr.Hostname)
-	require.NotNil(t, addr.IP)
+	assert.NotNil(t, addr.IP)
 }
 
 func TestNetAddress_Routable(t *testing.T) {
