@@ -278,6 +278,26 @@ func (sw *MultiplexSwitch) removeReactorPeerState(peer PeerConn, err error) {
 	}
 }
 
+// claimTeardown stops the peer, and reports whether the caller owns its
+// teardown. A peer already stopped is left alone: whichever stopped it owns its
+// teardown. Any other stop error is logged, and the teardown is the caller's
+func (sw *MultiplexSwitch) claimTeardown(peer PeerConn) bool {
+	stopErr := peer.Stop()
+	if errors.Is(stopErr, service.ErrAlreadyStopped) {
+		return false
+	}
+
+	if stopErr != nil {
+		sw.Logger.Error(
+			"unable to gracefully stop peer",
+			"peer", peer,
+			"err", stopErr,
+		)
+	}
+
+	return true
+}
+
 func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// Remove the peer from the transport
 	sw.transport.Remove(peer)
@@ -285,18 +305,9 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// Stop the peer connection multiplexing before closing the socket. Stopping
 	// closes the recv routine's quit channel first, so the recv routine does
 	// not report the close as an error and start a second teardown of this
-	// connection. A peer already stopped is left alone: whichever stopped it
-	// owns its teardown
-	if stopErr := peer.Stop(); stopErr != nil {
-		if errors.Is(stopErr, service.ErrAlreadyStopped) {
-			return
-		}
-
-		sw.Logger.Error(
-			"unable to gracefully stop peer",
-			"peer", peer,
-			"err", stopErr,
-		)
+	// connection
+	if !sw.claimTeardown(peer) {
+		return
 	}
 
 	// Close the (original) peer connection. Stopping a started peer already
@@ -459,21 +470,9 @@ func (sw *MultiplexSwitch) dialPeer(ctx context.Context, peerAddr *types.NetAddr
 			"err", err,
 		)
 
-		if !p.IsRunning() {
-			sw.rejectConn(p)
+		sw.rejectConn(p)
 
-			return
-		}
-
-		sw.transport.Remove(p)
-
-		if stopErr := p.Stop(); stopErr != nil {
-			sw.Logger.Error(
-				"unable to gracefully stop peer",
-				"peer", p,
-				"err", stopErr,
-			)
-		}
+		return
 	}
 
 	// Log the telemetry
@@ -907,16 +906,17 @@ func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP, except types.ID) bool {
 }
 
 // rejectConn drops a connection the switch has decided not to keep: an inbound
-// one the accept loop refuses, or a dialed one addPeer refuses before starting it.
+// one the accept loop refuses, or one addPeer refuses.
 //
 // transport.Remove only forgets the connection; the socket the STS handshake
 // established has to be closed explicitly, or -- since a rejected peer was never
 // started, so no Stop() path runs -- it lingers until the netFD finalizer does
 // it. That lets a host open connections faster than the GC reclaims them.
 //
-// It also covers a dialed peer whose Start failed, which leaks the same way,
-// and one stopped while being added (errPeerStopped), whose connection is
-// already closed: the second close then only yields the Debug line below.
+// It also covers a peer whose Start failed, which leaks the same way, and one
+// stopped while being added (errPeerStopped) or refused at registration, which
+// addPeer stops: its connection is already closed, so the second close only
+// yields the Debug line below.
 func (sw *MultiplexSwitch) rejectConn(p PeerConn) {
 	sw.transport.Remove(p)
 
@@ -1013,12 +1013,6 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 
 		// There are open peer slots, add peers
 		if err := sw.addPeer(p); err != nil {
-			// Stopped before its socket is closed, for the reason given in
-			// stopAndRemovePeer
-			if p.IsRunning() {
-				_ = p.Stop()
-			}
-
 			sw.rejectConn(p)
 
 			sw.Logger.Info(
@@ -1032,6 +1026,10 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 
 // addPeer starts up the Peer and adds it to the MultiplexSwitch. Error is returned if
 // the peer is filtered out or failed to start or can't be added.
+//
+// The peer is a connection fresh from the transport, which addPeer alone
+// starts. On error, it is stopped or was never started, and the caller only
+// releases it with rejectConn
 func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
@@ -1090,8 +1088,9 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// concurrently with p's AddPeer. That teardown removes no entry and
 	// announces no disconnect: the entry is p's, or whichever removed p's
 	// entry announced the disconnect. A connection refused at registration
-	// gets the RemovePeer of the unwind below instead, which can run after the
-	// kept connection's AddPeer
+	// gets its RemovePeer once too, from the unwind below or from the
+	// teardown that stopped it first, and it can run after the kept
+	// connection's AddPeer
 	if replaced != nil {
 		sw.Logger.Info(
 			"replacing connection to resolve a simultaneous open",
@@ -1102,8 +1101,17 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 		sw.stopAndRemovePeer(replaced, errSimultaneousOpen)
 	}
 
+	// A connection refused at registration is stopped before its reactor
+	// state is given back. Otherwise its recv routine can report the socket
+	// close, such as the remote refusing the same connection in a simultaneous
+	// open, and the teardown that follows runs a second RemovePeer for it,
+	// which can drop the kept connection's state in a reactor keying it on the
+	// peer ID. A teardown that stopped the connection first gives the state
+	// back instead
 	if err != nil {
-		sw.removeReactorPeerState(p, err)
+		if sw.claimTeardown(p) {
+			sw.removeReactorPeerState(p, err)
+		}
 
 		return err
 	}

@@ -468,6 +468,7 @@ func TestMultiplexSwitch_AddPeerRemovedBeforeAdded(t *testing.T) {
 	assert.False(t, sw.peers.Has(p.ID()))
 	assert.Zero(t, sw.peers.NumInbound())
 	assert.Empty(t, sw.peers.List())
+	assert.False(t, p.IsRunning())
 }
 
 func TestMultiplexSwitch_AddPeerRejectsDuplicateBeforeInit(t *testing.T) {
@@ -511,6 +512,7 @@ func TestMultiplexSwitch_AddPeerRejectsDuplicateBeforeInit(t *testing.T) {
 	// starts nor leaves reactor state behind
 	require.ErrorIs(t, sw.addPeer(dup), errDuplicatePeer)
 	assert.Equal(t, []string{"InitPeer", "AddPeer"}, calls)
+	assert.False(t, dup.IsRunning())
 
 	// The live peer keeps its peer set entry and its slot
 	assert.Same(t, live, sw.peers.Get(id))
@@ -598,11 +600,16 @@ func TestMultiplexSwitch_AddPeerUnwindsReactorStateOnError(t *testing.T) {
 
 	sw.peers = mockSet
 
+	withRealStop(p)
+
 	require.ErrorIs(t, sw.addPeer(p), errDuplicatePeer)
 
 	// Whatever InitPeer took is given back, so a refused connection does not
 	// hold reactor state for the lifetime of the process
 	assert.Equal(t, []string{"InitPeer", "RemovePeer"}, calls)
+
+	// The refused connection is stopped, so its caller only releases it
+	assert.False(t, p.IsRunning())
 }
 
 func TestMultiplexSwitch_AddPeerOutboundLimit(t *testing.T) {
@@ -628,6 +635,7 @@ func TestMultiplexSwitch_AddPeerOutboundLimit(t *testing.T) {
 		}
 
 		assert.ErrorIs(t, sw.addPeer(p), errMaxOutboundPeers)
+		assert.False(t, p.IsRunning())
 	}
 
 	assert.EqualValues(t, maxOutbound, sw.peers.NumOutbound())
@@ -3171,6 +3179,88 @@ func TestMultiplexSwitch_AcceptLoopStopsRefusedPeerBeforeClosingIt(t *testing.T)
 
 	// addPeer's unwind is the only teardown of the refused connection
 	assert.EqualValues(t, 1, removed.Load())
+}
+
+func TestMultiplexSwitch_DialPeerTearsDownRefusedPeerOnce(t *testing.T) {
+	t.Parallel()
+
+	// The recv routine of a connection refused at registration reports the
+	// remote closing it, once. Each row has the report land at a different
+	// point of addPeer's teardown of that connection
+	testTable := []struct {
+		name string
+		// atStop has the report win addPeer's stop of the connection, instead
+		// of landing while addPeer gives back its reactor state
+		atStop bool
+	}{
+		{"reported while its reactor state is given back", false},
+		{"reported as it is stopped", true},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				removed  int
+				reported bool
+
+				sw *MultiplexSwitch
+				p  = mock.GeneratePeers(t, 1)[0]
+			)
+
+			report := func() {
+				if !reported {
+					reported = true
+					sw.StopPeerForError(p, errors.New("EOF"))
+				}
+			}
+
+			p.IsOutboundFn = func() bool { return true }
+			p.StopFn = func() error {
+				if testCase.atStop {
+					report()
+				}
+
+				return p.BaseService.Stop()
+			}
+
+			reactor := &mockReactor{
+				removePeerFn: func(PeerConn, any) {
+					removed++
+
+					if !testCase.atStop {
+						report()
+					}
+				},
+			}
+
+			sw = NewMultiplexSwitch(
+				&mockTransport{
+					dialFn: func(context.Context, types.NetAddress, PeerBehavior) (PeerConn, error) {
+						return p, nil
+					},
+				},
+				WithReactor("mock", reactor),
+			)
+
+			// The connection loses registration after it was started
+			sw.peers = &mockSet{
+				addFn: func(PeerConn) error { return errDuplicatePeer },
+			}
+
+			logs := captureLogs(sw)
+
+			sw.dialPeer(t.Context(), p.SocketAddr())
+
+			// Whichever stops the refused connection gives back its reactor
+			// state, and the other tears nothing down
+			assert.True(t, reported)
+			assert.Equal(t, 1, removed)
+			assert.False(t, p.IsRunning())
+			assert.NotContains(t, logs.String(), "unable to gracefully stop peer")
+		})
+	}
 }
 
 // captureLogs makes the switch log into the returned buffer
