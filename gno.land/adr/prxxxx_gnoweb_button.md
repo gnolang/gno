@@ -241,4 +241,7 @@ borders match their text (≥ 6:1); filled borders under 3:1 (warning light
     lets `<gno-button` through, and gnoweb renders it as a button. The new
     escape also changes `Block` and `BlockRich` output on chain, bytes nodes
     agree on, so it ships as a MINOR coordinated upgrade (RELEASING.md).
+    The gap is accepted rather than gated behind a flag: sanitized text can
+    already carry a plain link to the same `$help` destination, so a button
+    adds styling, not a capability, and the gap closes with the upgrade.
 - `r/docs/markdown` documents the syntax with copyable examples.
