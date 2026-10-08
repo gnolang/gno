@@ -1,0 +1,11 @@
+-- input.md --
+:::details Indented close
+Body line.
+   :::
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Indented close</summary>
+<div>
+<p>Body line.</p>
+</div>
+</details>

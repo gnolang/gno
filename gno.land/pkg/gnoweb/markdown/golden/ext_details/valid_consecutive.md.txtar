@@ -1,0 +1,20 @@
+-- input.md --
+:::details First
+aaa
+:::
+:::details Second
+bbb
+:::
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>First</summary>
+<div>
+<p>aaa</p>
+</div>
+</details>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Second</summary>
+<div>
+<p>bbb</p>
+</div>
+</details>
