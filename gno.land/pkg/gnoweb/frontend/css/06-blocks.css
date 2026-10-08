@@ -243,6 +243,9 @@
 	.searchbar {
 		position: absolute;
 		inset: 0;
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-1-5);
 		padding: var(--g-space-1-5);
 		padding-inline-end: var(--g-space-8);
 		font-size: var(--g-font-size-200);
@@ -258,6 +261,29 @@
 			width: 100%;
 			background-color: transparent;
 			outline: none;
+
+			&::placeholder {
+				color: var(--s-color-text-input-placeholder);
+				font-weight: var(--g-font-normal);
+			}
+
+			&:placeholder-shown {
+				text-overflow: ellipsis;
+			}
+		}
+
+		/* "/" shortcut hint, from md: no keyboard on mobile */
+		& > .shortcut {
+			order: -1;
+			flex-shrink: 0;
+
+			@media not all and (--md) {
+				display: none;
+			}
+		}
+
+		& > input:is(:focus, :not(:placeholder-shown)) + .shortcut {
+			display: none;
 		}
 
 		&:focus-within + .b-breadcrumb {
@@ -297,9 +323,12 @@
 	/* Submits the search, sits close to the network toggle */
 	.search-icon {
 		display: flex;
-		padding: var(--g-space-1-5) var(--g-space-0-5) var(--g-space-1-5)
-			var(--g-space-1-5);
+		padding: var(--g-space-1-5);
 		cursor: pointer;
+
+		@media (--md) {
+			padding-inline-end: var(--g-space-0-5);
+		}
 
 		&:hover > svg {
 			color: var(--s-color-text-tertiary-hover);
