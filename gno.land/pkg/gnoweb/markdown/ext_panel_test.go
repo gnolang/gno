@@ -59,3 +59,14 @@ func TestPanelNestDepthBalanced(t *testing.T) {
 		}
 	}
 }
+
+// TestParsePanelLineTagNoAlloc backs the ADR's perf claim: classifying a
+// line costs no allocation, panel tag or not.
+func TestParsePanelLineTagNoAlloc(t *testing.T) {
+	for _, line := range []string{"<gno-panel>", "</gno-panel>", `<gno-panel class="x">`, "<div>", "plain"} {
+		b := []byte(line)
+		if n := testing.AllocsPerRun(100, func() { parsePanelLineTag(b) }); n != 0 {
+			t.Errorf("parsePanelLineTag(%q) allocates %v times", line, n)
+		}
+	}
+}

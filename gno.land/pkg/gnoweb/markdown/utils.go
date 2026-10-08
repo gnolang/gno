@@ -43,6 +43,83 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 	}
 }
 
+// scanGnoTag reads a `<name …>` tag at the start of src without allocating;
+// prefix is "<name", matched case-insensitively. It calls attr, when non-nil,
+// for each attribute in source order with its raw value (no entity decoding),
+// aliasing src, and returns the tag's length, or 0 when src does not start
+// with that tag ending (`/>` or `>`) on this line within maxLen bytes. For the
+// body-less inline gno-* tags (<gno-button />, and <gno-icon /> next).
+func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (size int, selfClosing bool) {
+	n := len(prefix)
+	if len(src) <= n || !bytes.EqualFold(src[:n], prefix) {
+		return 0, false
+	}
+	if c := src[n]; c != '/' && c != '>' && !util.IsSpace(c) {
+		return 0, false // e.g. <gno-buttons>
+	}
+	src = src[:min(len(src), maxLen)]
+	if eol := bytes.IndexByte(src, '\n'); eol >= 0 {
+		src = src[:eol] // a tag spans one line
+	}
+
+	for i := n; i < len(src); {
+		switch c := src[i]; {
+		case util.IsSpace(c):
+			i++
+			continue
+		case c == '>':
+			return i + 1, false
+		case c == '<':
+			return 0, false // the next tag: each attempt reads one tag
+		case c == '/':
+			if i+1 < len(src) && src[i+1] == '>' {
+				return i + 2, true
+			}
+			i++
+			continue
+		}
+
+		// Attribute name, then an optional `= value`.
+		start := i
+		for i++; i < len(src) && !isGnoTagAttrNameEnd(src[i]); i++ {
+		}
+		key := src[start:i]
+		for i < len(src) && util.IsSpace(src[i]) {
+			i++
+		}
+		var val []byte
+		if i < len(src) && src[i] == '=' {
+			for i++; i < len(src) && util.IsSpace(src[i]); i++ {
+			}
+			if i == len(src) {
+				return 0, false
+			}
+			if q := src[i]; q == '"' || q == '\'' {
+				end := bytes.IndexByte(src[i+1:], q)
+				if end < 0 {
+					return 0, false
+				}
+				val = src[i+1 : i+1+end]
+				i += end + 2
+			} else {
+				start := i
+				for i < len(src) && !util.IsSpace(src[i]) && src[i] != '>' {
+					i++
+				}
+				val = src[start:i]
+			}
+		}
+		if attr != nil {
+			attr(key, val)
+		}
+	}
+	return 0, false
+}
+
+func isGnoTagAttrNameEnd(c byte) bool {
+	return c == '/' || c == '>' || c == '=' || util.IsSpace(c)
+}
+
 func ExtractAttr(attrs []html.Attribute, key string) (val string, ok bool) {
 	for _, attr := range attrs {
 		if key == attr.Key {

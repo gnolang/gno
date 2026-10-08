@@ -26,54 +26,54 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_panel.go`.
 - **Name.** `gno-card` is already reserved: the sanitizer docs and
   `nestdepth.go` refer to a future opaque-body sandbox under that name.
   `gno-jumbotron` reads wrong for a card in a grid. `gno-panel` covers both.
-- **Container block, like `ext_alert`.** The content is parsed as ordinary
-  markdown children (headings, lists, links, alerts, code). Output is constant
-  markup, `<section class="gno-panel">` … `</section>`; no source byte reaches
-  the wrapper, and children render through the normal, escaped paths.
-- **Empty attribute allowlist.** Any attribute, a self-closing form or
-  trailing text makes the tag invalid instead of silently ignored, so a later
-  attribute (a variant, say) cannot be misread by an older gnoweb. Tag names
-  are case-insensitive, as for every gno-* tag.
-- **Document level only.** A panel opens only when its parent is the
+- **Flat markers, like `ext_columns`.** The open and close tags are one-line
+  leaf nodes at document level, and the content between them is parsed as
+  ordinary top-level blocks. goldmark therefore routes every line by its own
+  rules: a `</gno-panel>` inside a fenced code block or a `<gno-foreign>` body
+  stays content, and one that ends a blockquote or list item closes the panel.
+  An AST transformer then moves the blocks after each open marker under it, up
+  to the close marker (removed), the next gno-columns marker or the end of the
+  document. Output is constant markup, `<section class="gno-panel">` …
+  `</section>`; no source byte reaches the wrapper.
+- **Document level only.** A panel tag counts only when its parent is the
   document, like columns. Column content and a `<gno-foreign>` body are both
-  document level; a blockquote, list item, alert or another panel is not.
-  This keeps the `BlockRich` guarantee: the sanitizer escapes a `<gno-…` at
-  line start but not after `> ` or `- `, so without this rule sanitized user
-  content could draw a realm-styled frame inside a quote or a list.
-- **Fail safe, never swallow.** A stray `</gno-panel>`, a malformed tag, an
-  opener below document level (a panel in a panel included), and an opener
-  past the shared `MaxGnoNestDepth` cap all become an invalid leaf node
-  rendered as
+  document level; a blockquote, list item or alert is not. This keeps the
+  `BlockRich` guarantee: the sanitizer escapes a `<gno-…` at line start but
+  not after `> ` or `- `, so without this rule sanitized user content could
+  draw a realm-styled frame inside a quote or a list.
+- **Empty attribute allowlist.** Any attribute (on the open or the close
+  tag), a self-closing form or trailing text makes the tag invalid instead of
+  silently ignored, so a later attribute (a variant, say) cannot be misread by
+  an older gnoweb. Tag names are case-insensitive, as for every gno-* tag.
+  Tags are read with `scanGnoTag` (`utils.go`), the zero-alloc scanner shared
+  with the gno-button branch; unlike the HTML tokenizer, it does not drop
+  attributes from a close tag.
+- **Fail safe, never swallow.** A stray `</gno-panel>`, a malformed tag, a
+  tag below document level, a panel opened inside a panel, and an opener past
+  the shared `MaxGnoNestDepth` cap all become an invalid leaf rendered as
   `<!-- unexpected/invalid panel tag omitted -->` (the columns convention).
   Returning nil instead would hand the line to the type-7 HTML block parser,
-  which swallows every line up to the next blank one. An unclosed panel is
-  closed at EOF by goldmark.
-- **Columns interplay.** Columns live at document level only, as before. A
-  gno-columns tag inside a panel closes the panel without consuming the line,
-  so an unclosed panel in a column cannot swallow the separator or the
-  columns close tag.
-- **Opaque children.** goldmark asks a container before its children, so the
-  panel passes through tag lines that would reach an open fenced code block
-  (a code sample may show `</gno-panel>`) or an open `<gno-foreign>` block.
-  The second is
-  a security property: without it, `</gno-panel>` in untrusted foreign bytes
-  would close the host's panel and the rest of the foreign body would render
-  as host markdown, outside the sandbox. Golden
-  `hostile_foreign_close_in_panel` covers it and fails if the guard is
-  removed.
-  "Would reach" follows goldmark's own continuation rules for the
-  containers in between: a blockquote or alert needs a `>` marker, which a
-  line starting with `<` lacks, and a list item needs the line indented to
-  its content offset. Otherwise a fence left open in a quote or list would
-  make the panel skip the very tag that ends that quote or list (goldens
-  `hostile_fence_in_*`, `hostile_foreign_in_blockquote`).
-- **Forms.** `<gno-form>` now consumes its close with `AdvanceToEOL`, so a
-  `</gno-panel>` right after `</gno-form>` still reaches the panel.
+  which swallows every line up to the next blank one. A panel left open is
+  closed at the end of the document.
+- **Columns interplay.** A gno-columns tag ends an open panel. The panel
+  parser runs just ahead of the columns parser (priority 499 vs 500), pops
+  the panel's depth, and leaves the line to columns, so the depth the columns
+  opener sees is the same as if the panel had been closed explicitly.
+- **HTML blocks.** One exception to "goldmark routes the lines": a type-6/7
+  HTML block runs to the next blank line, so a `<div>` line right before
+  `</gno-panel>` would swallow the close tag and stretch the panel over the
+  page. The extension registers goldmark's own HTML block parser wrapped so
+  that, while a panel is open, a line that ends the panel also ends a
+  document-level HTML block. Safe mode strips that HTML anyway.
 - **Sandbox parity.** The `<gno-foreign>` inner instance loads the panel
-  extension like columns and alerts, so a panel inside foreign content renders
-  inside the sandbox.
-- **Perf.** No regex; ordinary lines never reach the HTML tokenizer in
-  `Continue` (prefix fast paths). See `BenchmarkPanel`.
+  extension like columns and alerts, so a panel inside foreign content
+  renders inside the sandbox, and a `</gno-panel>` in untrusted foreign bytes
+  never reaches the host's panel.
+- **Forms (side fix).** `<gno-form>` now consumes its close with
+  `AdvanceToEOL`, so a form inside a blockquote no longer opens a nested quote.
+- **Perf.** No regex, and panel tags never reach the HTML tokenizer; one node
+  per panel tag line, nothing on pages without panels (`BenchmarkPanel`,
+  `TestParsePanelLineTagNoAlloc`).
 - **Shared helper.** `trimForeignLine` became `trimTagLine` in `utils.go`,
   used by foreign and panel.
 
@@ -81,17 +81,20 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_panel.go`.
 
 - **Two tags (`<gno-jumbotron>` and `<gno-card>`).** Same parser, two names,
   two sets of docs; the context (in a column or not) already tells them apart.
-- **Flat markers like `ext_columns`** (open/close as sibling nodes, wrapper
-  emitted at render). Simpler parser, but the wrapper could then cross a
-  column boundary and produce mismatched HTML; a container block keeps the
-  HTML well-formed by construction.
+- **A container block, like `ext_alert`** (the first version of this PR). The
+  content was parsed as the panel's children, and the panel's `Continue` was
+  asked about every line before its children. To let a fence or foreign body
+  keep a `</gno-panel>` line, it had to decide whether goldmark would route
+  the line to that child, which meant copying goldmark's continuation rules
+  for blockquotes, alerts and list items (`>` markers, list content offsets).
+  That copy would have to follow goldmark and every new container. Flat
+  markers let goldmark do the routing.
 - **A `class` / `variant` attribute.** Free-form classes are an injection and
   styling-abuse surface; a fixed variant list can be added later on top of the
   empty allowlist without breaking existing content.
-- **Allowing nested panels.** Needs the outer `Continue` to defer to an open
-  inner panel; no use case for a frame inside a frame.
+- **Allowing nested panels.** No use case for a frame inside a frame.
 - **Escaping gno-* tags after `>` / list markers in the sanitizer** instead
-  of the document-level rule. Changes a Gno stdlib and the realm-side
+  of the document-level rule. That changes a Gno stdlib and the realm-side
   package, and every future gno-* tag would have to be checked against the
   same container shapes; the parser rule closes the hole where it opens.
 
@@ -99,14 +102,14 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_panel.go`.
 
 - Realms and static pages get heroes and card grids without raw HTML.
 - `p/nt/markdown/sanitize` escapes a line-leading `<gno-…`, and after a `>`
-  or list marker a panel tag stays an inert comment because panels open at
-  document level only, so sanitized user content cannot open a panel
-  (goldens `blockrich-gno-panel-escaped`, `blockrich-gno-panel-in-blockquote`,
-  `blockrich-gno-panel-in-list`). No sanitizer change.
-- Panels cannot sit inside a list, a quote or an alert. Alerts, lists and
-  quotes inside a panel work.
-- An HTML block inside a panel does not shield `</gno-panel>`; safe mode
-  strips raw HTML anyway, and closing on the tag keeps the frame bounded.
+  or list marker a panel tag stays an inert comment, so sanitized user
+  content cannot open a panel (goldens `blockrich-gno-panel-escaped`,
+  `blockrich-gno-panel-in-blockquote`, `blockrich-gno-panel-in-list`). No
+  sanitizer change.
+- Panels cannot sit inside a list, a quote or an alert. Alerts, lists, quotes,
+  code and forms inside a panel work.
 - An unterminated fenced code block inside a panel runs to the end of the
   document, as it does at top level.
+- `scanGnoTag` and its test are copied byte for byte from the gno-button
+  branch; whichever PR lands second drops its copy.
 - Docs: a "Panels" section in `r/docs/markdown`, next to Columns.

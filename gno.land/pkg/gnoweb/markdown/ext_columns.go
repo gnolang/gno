@@ -317,6 +317,8 @@ var ExtColumns = &columns{}
 
 // Extend adds column functionality to the markdown processor.
 // XXX: Use 500 for priority for now; we will rework these numbers once another extension is implemented.
+// The panel parser runs at 499, just ahead, so an open <gno-panel> ends
+// (and pops its depth) before a columns tag opens; see ext_panel.go.
 func (e *columns) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithBlockParsers(

@@ -1,0 +1,13 @@
+-- input.md --
+<gno-columns>
+<gno-panel>
+a
+-- output.html --
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<section class="gno-panel">
+<p>a</p>
+</section>
+</div>
+</div> <!-- </gno-columns> -->

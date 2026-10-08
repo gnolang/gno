@@ -1,0 +1,34 @@
+-- input.md --
+<gno-foreign>
+<gno-foreign>
+<gno-foreign>
+<gno-panel>
+unclosed at depth 4
+<gno-columns>
+a
+</gno-columns>
+</gno-foreign>
+</gno-foreign>
+</gno-foreign>
+-- output.html --
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<section class="gno-panel">
+<p>unclosed at depth 4</p>
+</section>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<p>a</p>
+</div>
+</div> <!-- </gno-columns> -->
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>

@@ -266,8 +266,8 @@ func (p *FormParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 	if tok.Data == formTagName {
 		if tok.Type == html.EndTagToken {
 			// AdvanceToEOL, not AdvanceLine: the next line must still go
-			// through every ancestor's Continue (a <gno-panel> close tag
-			// right after </gno-form> would otherwise be skipped).
+			// through every ancestor's Continue (in a blockquote, its `>`
+			// would otherwise open a nested quote).
 			reader.AdvanceToEOL()
 			return parser.Close
 		}

@@ -7,6 +7,6 @@ still inside
 -- output.html --
 <section class="gno-panel">
 <p>content</p>
-</section>
-<p>still inside</p>
 <!-- unexpected/invalid panel tag omitted -->
+<p>still inside</p>
+</section>
