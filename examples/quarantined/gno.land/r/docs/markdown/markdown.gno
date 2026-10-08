@@ -384,6 +384,71 @@ My Image ![Alt](/public/imgs/gnoland.svg)
 
 ---
 
+### Panels
+
+Wrap any markdown in ±<gno-panel>± and ±</gno-panel>± (each on its own line) to draw a framed, padded block,
+e.g. a hero or a call to action.
+
+±±±markdown
+<gno-panel>
+## Build on gno.land
+
+Write your first realm in minutes. [Get started](/r/docs/home)
+</gno-panel>
+±±±
+
+- Renders as:
+
+---
+
+<gno-panel>
+## Build on gno.land
+
+Write your first realm in minutes. [Get started](/r/docs/home)
+</gno-panel>
+
+---
+
+A panel alone in a column renders as a card; cards in the same row share a height.
+
+±±±markdown
+<gno-columns>
+<gno-panel>
+**[Adena](https://adena.app)**
+
+Browser wallet for gno.land.
+</gno-panel>
+<gno-columns-sep>
+<gno-panel>
+**[Gnoscan](https://gnoscan.io)**
+
+Block explorer for gno.land, with transactions, realms and accounts.
+</gno-panel>
+</gno-columns>
+±±±
+
+- Renders as:
+
+---
+
+<gno-columns>
+<gno-panel>
+**[Adena](https://adena.app)**
+
+Browser wallet for gno.land.
+</gno-panel>
+<gno-columns-sep>
+<gno-panel>
+**[Gnoscan](https://gnoscan.io)**
+
+Block explorer for gno.land, with transactions, realms and accounts.
+</gno-panel>
+</gno-columns>
+
+---
+
+***Note**: Panels take no attributes and cannot be nested. Columns cannot go inside a panel: a column tag ends the panel.*
+
 ### Forms
 
 Gno-Flavored Markdown introduces a secure form system that integrates directly with realms. The system uses custom HTML-like tags that are rendered with proper styling and validation.
