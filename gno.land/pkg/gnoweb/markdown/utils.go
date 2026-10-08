@@ -49,16 +49,13 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 // prefix is "<name", matched case-insensitively. It calls attr, when non-nil,
 // for each attribute in source order with its raw value (no entity decoding),
 // aliasing src, and returns the tag's length, or 0 when src does not start
-// with that tag ending (`/>` or `>`) on this line within maxLen bytes. It
-// stops at a `<` outside a quoted value, so each attempt reads one tag.
+// with that tag ending (`/>` or `>`) on this line within maxLen bytes. For the
+// body-less inline gno-* tags (<gno-button />, and <gno-icon /> next).
 func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (size int, selfClosing bool) {
-	n := len(prefix)
-	if len(src) <= n || !bytes.EqualFold(src[:n], prefix) {
+	if !hasGnoTagPrefix(src, prefix) {
 		return 0, false
 	}
-	if c := src[n]; c != '/' && c != '>' && !util.IsSpace(c) {
-		return 0, false // e.g. <gno-buttons>
-	}
+	n := len(prefix)
 	src = src[:min(len(src), maxLen)]
 	if eol := bytes.IndexByte(src, '\n'); eol >= 0 {
 		src = src[:eol] // a tag spans one line
@@ -118,6 +115,18 @@ func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (siz
 	return 0, false
 }
 
+// hasGnoTagPrefix reports whether src starts with prefix ("<name"),
+// case-insensitively, followed by a byte that ends a tag name: whitespace,
+// `/` or `>`, so `<gno-buttons>` is not `<gno-button`.
+func hasGnoTagPrefix(src, prefix []byte) bool {
+	n := len(prefix)
+	if len(src) <= n || !bytes.EqualFold(src[:n], prefix) {
+		return false
+	}
+	c := src[n]
+	return c == '/' || c == '>' || util.IsSpace(c)
+}
+
 func isGnoTagAttrNameEnd(c byte) bool {
 	return c == '/' || c == '>' || c == '=' || util.IsSpace(c)
 }
@@ -128,23 +137,26 @@ func isGnoTagAttrNameEnd(c byte) bool {
 // the next blank one) before the tag's inline parser runs, and safe mode
 // strips it. It delegates to goldmark's own paragraph parser, so the
 // paragraph behaves like any other; the inline parser decides the rest.
+//
+// It opens on the tag name alone, not on a tag the inline parser would
+// accept: a tag too long or malformed for scanGnoTag must still not turn the
+// line into an HTML block, which would hide the lines after it.
 type gnoTagLineParser struct {
 	parser.BlockParser
 	prefix []byte
-	maxLen int
 }
 
 var _ parser.BlockParser = (*gnoTagLineParser)(nil)
 
-func newGnoTagLineParser(prefix []byte, maxLen int) *gnoTagLineParser {
-	return &gnoTagLineParser{BlockParser: parser.NewParagraphParser(), prefix: prefix, maxLen: maxLen}
+func newGnoTagLineParser(prefix []byte) *gnoTagLineParser {
+	return &gnoTagLineParser{BlockParser: parser.NewParagraphParser(), prefix: prefix}
 }
 
 func (*gnoTagLineParser) Trigger() []byte { return []byte{'<'} }
 
 func (p *gnoTagLineParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
-	if size, _ := scanGnoTag(util.TrimLeftSpace(line), p.prefix, p.maxLen, nil); size == 0 {
+	if !hasGnoTagPrefix(util.TrimLeftSpace(line), p.prefix) {
 		return nil, parser.NoChildren
 	}
 	return p.BlockParser.Open(parent, reader, pc)

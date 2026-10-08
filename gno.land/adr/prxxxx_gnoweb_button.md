@@ -68,19 +68,20 @@ first review point. The whole tag must fit on one line.
   inline parsing ever ran. The block parser opens a line that starts with the
   tag as a paragraph by delegating to goldmark's own paragraph parser, so the
   result behaves like any paragraph (continuation lines, setext, paragraph
-  transformers). It only checks that a tag is there. Validation stays in the
-  inline parser, so a rejected button is stripped inline instead of taking
-  the following lines with it.
-- **Tag scanner.** Both parsers read the tag with `scanGnoTag` in `utils.go`:
+  transformers). It checks only the tag name (`hasGnoTagPrefix`), so even a
+  tag too long or malformed for the scanner keeps the line out of an HTML
+  block: a rejected button is stripped inline and the lines after it stay
+  visible.
+- **Tag scanner.** The inline parser reads the tag with `scanGnoTag` in `utils.go`:
   a hand-written scanner for one `<name …>` tag on one line, within a byte
   bound (`maxButtonTagLen`, 2 KB), that returns the tag's length and hands
   each attribute to a callback as raw bytes aliasing the source. It allocates
   nothing, valid tag or not (`BenchmarkParseButtonTag`: 0 allocs/op). Tag and
   attribute names are case-insensitive and the first occurrence of an
-  attribute wins, as in HTML. It is taken from the scanner of the
-  `<gno-icon />` PR (a separate branch), generalized by prefix and bound, and
-  the line parser is shared the same way (`gnoTagLineParser`), so that PR can
-  drop its own copy and both body-less inline tags use one implementation.
+  attribute wins, as in HTML. `scanGnoTag`, `hasGnoTagPrefix` and the line
+  parser (`gnoTagLineParser`) live in `utils.go`, identical on this branch and
+  on the `<gno-icon />` PR, so both body-less inline tags use one
+  implementation.
 - **Bound.** Every `<gno-button` prefix in a line is a parse attempt. Reading
   to the end of the line made a long line of unterminated tags quadratic
   (4000 tags, 96 KB: 1.17 s). The scanner stops at the bound and at the next

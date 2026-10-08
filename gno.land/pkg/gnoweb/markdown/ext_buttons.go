@@ -185,7 +185,7 @@ func (e *buttonExtension) Extend(m goldmark.Markdown) {
 			util.Prioritized(&buttonParser{}, 399),
 		),
 		parser.WithBlockParsers(
-			util.Prioritized(newGnoTagLineParser(buttonTagPrefix, maxButtonTagLen), 899),
+			util.Prioritized(newGnoTagLineParser(buttonTagPrefix), 899),
 		),
 	)
 }
