@@ -1080,6 +1080,32 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 		assert.False(t, sw.dialQueue.Has(seedAddr))
 	})
 
+	t.Run("persistent item fully backed off", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addrs    = generateNetAddr(t, 2)
+			seedAddr = addrs[0]
+			peerAddr = addrs[1]
+		)
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithSeeds([]*types.NetAddress{seedAddr}),
+		)
+
+		// A node whose persistent peers are all down holds only backed-off
+		// persistent dials, and must still fall back to its seeds
+		sw.persistentDialQueue.Push(dial.Item{
+			Time:    time.Now().Add(10 * time.Minute),
+			Address: peerAddr,
+		})
+
+		sw.dialSeed()
+
+		assert.True(t, sw.dialQueue.Has(seedAddr))
+	})
+
 	t.Run("queued items fully backed off", func(t *testing.T) {
 		t.Parallel()
 
@@ -1604,6 +1630,30 @@ func TestMultiplexSwitch_DialLoop_Persistent(t *testing.T) {
 		}
 
 		assert.Nil(t, sw.persistentDialQueue.Peek())
+	})
+
+	t.Run("a due discovered peer is dialed while the persistent peer backs off", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			addrs                 = generateNetAddr(t, 2)
+			mockTransport, dialed = newDialRecorder(len(addrs))
+
+			sw  = NewMultiplexSwitch(mockTransport)
+			now = time.Now()
+		)
+
+		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(time.Hour), Address: addrs[0]})
+		sw.dialQueue.Push(dial.Item{Time: now, Address: addrs[1]})
+
+		go sw.runDialLoop(t.Context())
+
+		select {
+		case got := <-dialed:
+			assert.Equal(t, *addrs[1], got)
+		case <-time.After(5 * time.Second):
+			t.Fatal("the dial loop stalled")
+		}
 	})
 }
 
