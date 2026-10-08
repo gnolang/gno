@@ -2,8 +2,11 @@ package markdown
 
 import (
 	"bytes"
+	"encoding/xml"
+	"errors"
 	"fmt"
 	"go/format"
+	"io"
 	"io/fs"
 	"maps"
 	"os"
@@ -73,12 +76,16 @@ var (
 )
 
 // iconStrokeRoot is the root an outline icon declares in its source file
-// (iconset writes it); such an icon gets iconHeadStroke, and its body drops
-// the values that head already sets: iconStrokeInherited, read from the
-// constant so the two cannot drift.
+// (iconset writes it); such an icon gets iconHeadStroke. Its shapes are
+// painted with what they inherit, so the body is written against two sets
+// of inherited values: the source's (SVG initial values under the source
+// root) and the output's (iconHeadStroke's, read from the constant so the
+// two cannot drift). A painting value is written wherever they differ: the
+// head's stroke and round caps do not leak onto a shape the source leaves
+// unstroked or butt-capped, and a value the head already sets is dropped.
 var (
-	iconStrokeRoot      = map[string]string{"viewbox": "0 0 21 21", "stroke-width": "1.3"}
-	iconStrokeInherited = func() map[string]string {
+	iconStrokeRoot   = map[string]string{"viewbox": "0 0 21 21", "stroke-width": "1.3"}
+	iconStrokeOutput = func() map[string]string {
 		toks, _ := ParseHTMLTokens(strings.NewReader("<svg " + iconHeadStroke + ">"))
 		m := map[string]string{}
 		for _, a := range toks[0].Attr {
@@ -88,7 +95,20 @@ var (
 		}
 		return m
 	}()
+	// iconStrokeSource is what the source root passes down: the SVG initial
+	// values, with iconStrokeRoot's stroke width.
+	iconStrokeSource = func() map[string]string {
+		m := maps.Clone(svgInitialPaint)
+		m["stroke-width"] = iconStrokeRoot["stroke-width"]
+		return m
+	}()
+	// iconStrokeKeys is the order the painting values are written in.
+	iconStrokeKeys = slices.Sorted(maps.Keys(iconStrokeOutput))
 )
+
+// iconPaint is what an element of an outline icon inherits, in the source
+// and in the output.
+type iconPaint struct{ src, out map[string]string }
 
 // buildIconTable reads every `<symbol id="ico-NAME">` of the sources into
 // glyphs, in source order.
@@ -115,8 +135,8 @@ func addIconSymbols(table map[string]iconGlyph, toks []html.Token) error {
 		name      string // symbol being read; "" outside a symbol
 		head      string
 		body      strings.Builder
-		skipDepth int                 // > 0 inside an element dropped by the allowlist
-		inherited []map[string]string // stroke icons: values set by enclosing elements
+		skipDepth int         // > 0 inside an element dropped by the allowlist
+		inherited []iconPaint // outline icons: values set by enclosing elements
 	)
 	for _, tok := range toks {
 		switch tok.Type {
@@ -140,31 +160,39 @@ func addIconSymbols(table map[string]iconGlyph, toks []html.Token) error {
 				}
 				continue
 			}
-			var sets map[string]string
+			var paint *iconPaint
 			if inherited != nil {
-				sets = maps.Clone(inherited[len(inherited)-1])
+				top := inherited[len(inherited)-1]
+				paint = &iconPaint{maps.Clone(top.src), maps.Clone(top.out)}
 			}
 			body.WriteString("<" + tok.Data)
 			for _, a := range tok.Attr {
 				if !iconAttrs[a.Key] || strings.Contains(a.Val, "url(") {
 					continue // url(#…) points at an element not copied
 				}
-				if sets != nil {
-					if sets[a.Key] == a.Val {
-						continue // inherited from the head or a parent
-					}
-					if _, ok := iconStrokeInherited[a.Key]; ok {
-						sets[a.Key] = a.Val
-					}
+				if _, ok := iconStrokeOutput[a.Key]; ok && paint != nil {
+					paint.src[a.Key] = a.Val // written below if the output differs
+					continue
 				}
 				fmt.Fprintf(&body, ` %s="%s"`, a.Key, HTMLEscapeString(a.Val))
+			}
+			if paint != nil {
+				for _, key := range iconStrokeKeys {
+					if key != "fill" && key != "stroke" && paint.src["stroke"] == "none" {
+						continue // no stroke to shape; a stroked descendant writes it
+					}
+					if v := paint.src[key]; v != paint.out[key] {
+						fmt.Fprintf(&body, ` %s="%s"`, key, HTMLEscapeString(v))
+						paint.out[key] = v
+					}
+				}
 			}
 			if tok.Type == html.SelfClosingTagToken {
 				body.WriteString("/>")
 			} else {
 				body.WriteByte('>')
-				if sets != nil {
-					inherited = append(inherited, sets)
+				if paint != nil {
+					inherited = append(inherited, *paint)
 				}
 			}
 
@@ -192,7 +220,7 @@ func addIconSymbols(table map[string]iconGlyph, toks []html.Token) error {
 
 // iconHead returns the head for a symbol's attributes, and for an outline
 // icon the values its shapes inherit from it.
-func iconHead(attrs []html.Attribute) (string, []map[string]string) {
+func iconHead(attrs []html.Attribute) (string, []iconPaint) {
 	root := map[string]string{}
 	for _, a := range attrs {
 		if slices.Contains(iconRootAttrs, a.Key) && !strings.Contains(a.Val, "url(") {
@@ -200,7 +228,7 @@ func iconHead(attrs []html.Attribute) (string, []map[string]string) {
 		}
 	}
 	if maps.Equal(root, iconStrokeRoot) {
-		return iconHeadStroke, []map[string]string{iconStrokeInherited}
+		return iconHeadStroke, []iconPaint{{iconStrokeSource, iconStrokeOutput}}
 	}
 	var head []string
 	for _, key := range iconRootAttrs {
@@ -294,10 +322,15 @@ func TestBuildIconTableDuplicate(t *testing.T) {
 
 func TestBuildIconTableStrokeInheritance(t *testing.T) {
 	const src = `<symbol id="ico-s" viewBox="0 0 21 21" stroke-width="1.3">` +
-		`<g fill="none" stroke="currentColor" stroke-linecap="round" transform="translate(3 3)">` +
+		`<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" transform="translate(3 3)">` +
 		`<path d="M0 0" fill="none"/><circle r="1" fill="currentColor"/>` +
 		`<g fill="currentColor"><path d="M1 1" fill="none"/><path d="M2 2" fill="currentColor"/></g>` +
-		`</g></symbol>`
+		`</g></symbol>` +
+		`<symbol id="ico-dots" viewBox="0 0 21 21" stroke-width="1.3">` +
+		`<g fill="currentColor"><circle r="1"/><circle r="2"/></g></symbol>` +
+		`<symbol id="ico-butt" viewBox="0 0 21 21" stroke-width="1.3">` +
+		`<g fill="none" stroke="currentColor"><path d="M0 0" stroke-linecap="round"/><path d="M1 1"/></g>` +
+		`<path d="M2 2" fill="currentColor"/></symbol>`
 	table, err := buildIconTable([]byte(src))
 	require.NoError(t, err)
 	assert.Equal(t, iconGlyph{
@@ -305,4 +338,91 @@ func TestBuildIconTableStrokeInheritance(t *testing.T) {
 		body: `<g transform="translate(3 3)"><path d="M0 0"/><circle r="1" fill="currentColor"/>` +
 			`<g fill="currentColor"><path d="M1 1" fill="none"/><path d="M2 2"/></g></g>`,
 	}, table["s"], "a value is dropped only where the element would inherit it anyway")
+	assert.Equal(t, iconGlyph{
+		head: iconHeadStroke,
+		body: `<g fill="currentColor" stroke="none"><circle r="1"/><circle r="2"/></g>`,
+	}, table["dots"], "a shape the source leaves unstroked stays unstroked")
+	assert.Equal(t, iconGlyph{
+		head: iconHeadStroke,
+		body: `<g stroke-linecap="butt" stroke-linejoin="miter"><path d="M0 0" stroke-linecap="round"/><path d="M1 1"/></g>` +
+			`<path d="M2 2" fill="currentColor" stroke="none"/>`,
+	}, table["butt"], "the source's default caps and joins are kept")
+}
+
+// TestIconTableMatchesSource checks every icon of the icons/ sets paints its
+// shapes as its source symbol does: the same fill and stroke, and on a
+// stroked shape the same width, caps and joins. It resolves inheritance on
+// both sides independently of the generator, so a head value the source
+// never set (iconHeadStroke's stroke, round caps) shows up as a difference.
+func TestIconTableMatchesSource(t *testing.T) {
+	for _, file := range []string{"drawn.svg", "vendored.svg"} {
+		data, err := os.ReadFile("icons/" + file)
+		require.NoError(t, err)
+		dec := xml.NewDecoder(bytes.NewReader(data))
+		for {
+			tok, err := dec.Token()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			require.NoError(t, err)
+			start, ok := tok.(xml.StartElement)
+			if !ok || start.Name.Local != "symbol" {
+				continue
+			}
+			var sym svgPaintNode
+			require.NoError(t, dec.DecodeElement(&sym, &start))
+			name := strings.TrimPrefix(sym.attr("id"), "ico-")
+			g, ok := iconRegistry[name]
+			if !ok {
+				continue
+			}
+			var gen svgPaintNode
+			require.NoError(t, xml.Unmarshal([]byte("<svg "+g.head+">"+g.body+"</svg>"), &gen))
+			assert.Equal(t, sym.paints(svgInitialPaint), gen.paints(svgInitialPaint), "%s: icon %q", file, name)
+		}
+	}
+}
+
+// svgInitialPaint are the SVG initial values of the painting properties
+// iconHeadStroke sets.
+var svgInitialPaint = map[string]string{
+	"fill": "black", "stroke": "none", "stroke-width": "1",
+	"stroke-linecap": "butt", "stroke-linejoin": "miter",
+}
+
+type svgPaintNode struct {
+	XMLName  xml.Name
+	Attrs    []xml.Attr     `xml:",any,attr"`
+	Children []svgPaintNode `xml:",any"`
+}
+
+func (n svgPaintNode) attr(key string) string {
+	for _, a := range n.Attrs {
+		if a.Name.Local == key {
+			return a.Value
+		}
+	}
+	return ""
+}
+
+// paints lists, in document order, how each shape under n is painted.
+func (n svgPaintNode) paints(inherited map[string]string) []string {
+	cur := maps.Clone(inherited)
+	for key := range cur {
+		if v := n.attr(key); v != "" {
+			cur[key] = v
+		}
+	}
+	if iconElements[n.XMLName.Local] && n.XMLName.Local != "g" {
+		p := "fill=" + cur["fill"] + " stroke=" + cur["stroke"]
+		if cur["stroke"] != "none" {
+			p += fmt.Sprintf(" width=%s cap=%s join=%s", cur["stroke-width"], cur["stroke-linecap"], cur["stroke-linejoin"])
+		}
+		return []string{p}
+	}
+	var out []string
+	for _, c := range n.Children {
+		out = append(out, c.paints(cur)...)
+	}
+	return out
 }

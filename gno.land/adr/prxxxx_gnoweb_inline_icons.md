@@ -170,9 +170,13 @@ sorted:
 - Each entry stores only what is its own. The 434 outline icons share
   `iconHeadStroke` (`viewBox="0 0 21 21" fill="none" stroke="currentColor"
   stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"`), which
-  the renderer writes; the generator strips those values from each body
-  wherever an element would inherit them anyway (it tracks inheritance, so a
-  `fill="none"` under a filled group stays). That removes 51 KB of repeats.
+  the renderer writes. The generator tracks what each element inherits in
+  the source and under that head, and writes a fill or stroke value only
+  where the two differ: a value the head already sets is dropped, and a
+  shape the source leaves unstroked or butt-capped gets `stroke="none"` or
+  its caps back, so every glyph paints as its source symbol does
+  (`TestIconTableMatchesSource` checks this against the source files). That
+  removes 48 KB of repeats.
   Chrome icons keep their own `viewBox`/`fill` head.
 - **The generator is the safety boundary.** It re-serializes every glyph
   through an element and attribute allowlist (`g`, `path`, `circle`,

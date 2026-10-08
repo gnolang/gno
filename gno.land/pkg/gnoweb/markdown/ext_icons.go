@@ -42,8 +42,8 @@ type iconGlyph struct {
 }
 
 // iconHeadStroke is the head every outline icon shares (the System UIcons
-// set and the icons drawn for it): the generator writes it once here and
-// strips the same values from each body, which inherit them.
+// set and the icons drawn for it): the generator writes it once here, and
+// each body sets only the values that differ from it.
 const iconHeadStroke = `viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"`
 
 // ----- AST node -----
