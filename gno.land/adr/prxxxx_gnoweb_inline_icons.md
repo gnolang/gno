@@ -206,7 +206,8 @@ does not grow, there is no asset to fetch and nothing to add to the CSP.
   name (no text, no labeled icon, at any depth: several icons, an icon under
   emphasis) leaves it with no accessible name; the renderer adds
   `<!-- gno-icon: alone in a link or heading, add label="…" to name it -->`
-  once, after the first icon, and the docs say a label is required there. A heading holding
+  once, after the first icon (a link inside a heading gets its own), and
+  the docs say a label is required there. A heading holding
   only an icon has no text, so it gets no TOC entry, label or not.
 - No `tabindex`; nothing an icon renders is focusable.
 - Forced colors / high contrast: glyphs use `currentColor` only (fill or

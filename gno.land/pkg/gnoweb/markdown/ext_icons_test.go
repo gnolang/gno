@@ -293,6 +293,25 @@ func TestIconHeadingIDEmpty(t *testing.T) {
 	}
 }
 
+// TestIconHintPerParent checks each link or heading gets its own hint: an
+// icon in a heading does not answer for an icon-only link inside it.
+func TestIconHintPerParent(t *testing.T) {
+	const hint = `<!-- gno-icon: alone in a link or heading`
+	m := newProductionLikeMarkdown()
+	for src, want := range map[string]int{
+		"## Title [<gno-icon name=\"star\" />](/r/x)\n":                                    1,
+		"## <gno-icon name=\"star\" /> Title [<gno-icon name=\"star\" />](/r/x)\n":         1,
+		"## <gno-icon name=\"star\" /> [<gno-icon name=\"star\" />](/r/x)\n":               2,
+		"## [<gno-icon name=\"star\" />](/r/x) <gno-icon name=\"star\" />\n":               2,
+		"## <gno-icon name=\"star\" /> [Title](/r/x)\n":                                    0,
+		"## <gno-icon name=\"star\" /> [<gno-icon name=\"star\" label=\"Top\" />](/r/x)\n": 0,
+	} {
+		var buf bytes.Buffer
+		require.NoError(t, m.Convert([]byte(src), &buf))
+		assert.Equal(t, want, strings.Count(buf.String(), hint), "%q:\n%s", src, buf.String())
+	}
+}
+
 func TestIconInGFM(t *testing.T) {
 	src := []byte(`| Status | Name |
 |---|---|

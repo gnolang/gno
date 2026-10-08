@@ -276,7 +276,9 @@ func renderIcon(w util.BufWriter, source []byte, node ast.Node, entering bool) (
 // aloneInNamedParent reports whether n is the first icon of a link or
 // heading (an element named by its content) that holds nothing else giving
 // it a name: no text and no labeled icon, at any depth (`[*<icon/>*](…)`,
-// `## <icon/><icon/>`). The hint is written once, on that first icon.
+// `## <icon/><icon/>`). The hint is written once, on that first icon. A
+// link inside a heading names the heading, but its icons get their own
+// answer, from the link.
 func aloneInNamedParent(n *Icon, source []byte) bool {
 	parent := n.Parent()
 	for parent != nil && parent.Type() == ast.TypeInline && !namedByContent(parent) {
@@ -293,15 +295,25 @@ func aloneInNamedParent(n *Icon, source []byte) bool {
 	}
 	var first *Icon
 	named := false
+	nested := 0 // depth inside a link or heading under parent
 	_ = ast.Walk(parent, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
+		if c != parent && namedByContent(c) {
+			if entering {
+				nested++
+			} else {
+				nested--
+			}
+		}
 		if !entering {
 			return ast.WalkContinue, nil
 		}
 		switch c := c.(type) {
 		case *Icon:
-			c.hintDone = true
-			if first == nil {
-				first = c
+			if nested == 0 {
+				c.hintDone = true
+				if first == nil {
+					first = c
+				}
 			}
 			named = named || len(c.Label) > 0
 		case *ast.Text:
