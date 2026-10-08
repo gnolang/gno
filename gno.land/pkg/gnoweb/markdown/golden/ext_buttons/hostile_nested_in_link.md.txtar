@@ -1,0 +1,7 @@
+-- input.md --
+[<gno-button href="/r/evil" label="nested" /> link text](/r/test)
+
+![<gno-button href="/r/evil" label="in alt" />](/img.png)
+-- output.html --
+<p><a href="/r/test"><!-- raw HTML omitted --> link text</a></p>
+<p><img src="/img.png" alt=""></p>

@@ -1,0 +1,25 @@
+-- input.md --
+<gno-button href="/r/test/sub" label="Same namespace" />
+
+<gno-button href="/r/other/pkg" label="Internal" />
+
+<gno-button href="https://example.com/path" label="External" />
+
+<gno-button href="/r/test$help&func=Do" label="Tx" />
+
+<gno-button href="/u/alice" label="User" />
+
+<gno-button href="relative" label="Relative" />
+
+<gno-button href="#section" label="Anchor" />
+
+<gno-button href="mailto:a@example.com" label="Mail" />
+-- output.html --
+<p><a href="/r/test/sub" class="gno-button">Same namespace</a></p>
+<p><a href="/r/other/pkg" class="gno-button">Internal<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a></p>
+<p><a href="https://example.com/path" class="gno-button" rel="noopener nofollow ugc">External<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>
+<p><a href="/r/test$help&amp;func=Do" class="gno-button">Tx<span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a></p>
+<p><a href="/u/alice" class="gno-button">User<span class="link-user tooltip" data-tooltip-target="info" data-tooltip="User profile" title="User profile"><svg class="c-icon"><use href="#ico-user-link"></use></svg></span></a></p>
+<p><a href="relative" class="gno-button">Relative</a></p>
+<p><a href="#section" class="gno-button">Anchor</a></p>
+<p><a href="mailto:a@example.com" class="gno-button" rel="noopener nofollow ugc">Mail<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a></p>

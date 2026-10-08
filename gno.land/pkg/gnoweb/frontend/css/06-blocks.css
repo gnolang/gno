@@ -3225,6 +3225,80 @@ main.is-dev-mode .b-toc a {
 			color: var(--s-color-text-tip);
 		}
 	}
+
+	/* ===== BUTTON COMPONENT ===== */
+	/* <gno-button /> renders a link (<a class="gno-button">), so it keeps the
+	   link icons and rel. Each variant only sets the three colors:
+	   --gb-bg / --gb-on for the solid fill, --gb-text for the outline. */
+	a.gno-button {
+		--gb-bg: var(--s-color-bg-brand-default);
+		--gb-on: var(--s-color-text-base);
+		--gb-text: var(--s-color-text-link);
+
+		display: inline-flex;
+		align-items: center;
+		gap: var(--cr-space-1);
+		max-width: 100%;
+		vertical-align: middle;
+		margin-block: var(--cr-space-0-5);
+		padding: var(--cr-space-1-5) var(--cr-space-3);
+		border: 1px solid var(--gb-bg);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--gb-bg);
+		color: var(--gb-on);
+		font-weight: var(--g-font-medium);
+		line-height: 1.25;
+		text-decoration: none;
+		transition: background-color var(--g-transition-fast);
+
+		&:hover {
+			text-decoration: none;
+			background-color: color-mix(
+				in srgb,
+				var(--gb-bg) 85%,
+				var(--s-color-text-primary)
+			);
+		}
+
+		&:focus-visible {
+			outline: var(--s-focus-ring);
+			outline-offset: 2px;
+		}
+
+		& > .tooltip {
+			margin: 0;
+		}
+
+		&.gno-button-caution {
+			--gb-bg: var(--s-color-bg-caution-default);
+			--gb-text: var(--s-color-text-caution);
+		}
+
+		&.gno-button-warning {
+			--gb-bg: var(--s-color-bg-warning-default);
+			--gb-on: var(--g-color-gray-900);
+			--gb-text: var(--s-color-text-warning);
+		}
+
+		&.gno-button-info {
+			--gb-bg: var(--s-color-bg-info-default);
+			--gb-text: var(--s-color-text-info);
+		}
+
+		&.gno-button-note {
+			--gb-bg: var(--s-color-bg-note-default);
+			--gb-text: var(--s-color-text-note);
+		}
+
+		&.gno-button-outline {
+			background-color: transparent;
+			color: var(--gb-text);
+
+			&:hover {
+				background-color: color-mix(in srgb, var(--gb-text) 8%, transparent);
+			}
+		}
+	}
 }
 
 /* State-explorer Block-layer CSS lives co-located with its module under

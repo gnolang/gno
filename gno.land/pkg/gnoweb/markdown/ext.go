@@ -90,6 +90,11 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add mentions extension
 	ExtMention.Extend(m)
 
+	// Add button extension. Like gno-form, it is intentionally NOT loaded
+	// inside the foreign sandbox: a button is first-party call-to-action
+	// chrome, which foreign content must not wear.
+	ExtButtons.Extend(m)
+
 	// If set, setup images filter
 	if e.cfg.imgValidatorFunc != nil {
 		ExtImageValidator.Extend(m, e.cfg.imgValidatorFunc)

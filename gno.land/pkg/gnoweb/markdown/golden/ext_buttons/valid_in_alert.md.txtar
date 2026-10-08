@@ -1,0 +1,15 @@
+-- input.md --
+> [!NOTE]
+> Read more: <gno-button href="/r/test" label="Docs" />
+>
+> <gno-button href="/r/test" label="Alone in alert" variant="note" />
+-- output.html --
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Note<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<p>Read more: <a href="/r/test" class="gno-button">Docs</a></p>
+<p><a href="/r/test" class="gno-button gno-button-note">Alone in alert</a></p>
+</div>
+</details>
