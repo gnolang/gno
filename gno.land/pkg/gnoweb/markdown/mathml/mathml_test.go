@@ -168,44 +168,6 @@ func TestMakeMMLError(t *testing.T) {
 	}
 }
 
-func TestMMLNode_UnsetAttr(t *testing.T) {
-	tests := []struct {
-		name string
-		attr string
-	}{
-		{"existing_attr", "class"},
-		{"non_existing_attr", "nonexistent"},
-		{"empty_attr", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node := NewMMLNode("mi", "x")
-			node.SetAttr(tt.attr, "test")
-			node.UnsetAttr(tt.attr)
-		})
-	}
-}
-
-func TestMMLNode_AddProps(t *testing.T) {
-	tests := []struct {
-		name  string
-		props NodeProperties
-	}{
-		{"zero_props", 0},
-		{"single_prop", 1},
-		{"multiple_props", 3},
-		{"all_props", 0xFFFFFFFF},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			node := NewMMLNode("mi", "x")
-			node.AddProps(tt.props)
-		})
-	}
-}
-
 func TestMakeTexLogo(t *testing.T) {
 	tests := []struct {
 		name  string

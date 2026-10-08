@@ -413,10 +413,6 @@ func (p *texBlockRegionParser) Trigger() []byte {
 }
 
 func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	if _, ok := parent.(*mathInlineNode); ok {
-		return nil, parser.NoChildren
-	}
-
 	// Only display delimiters ($$ and \\[) open a math block. Anything else
 	// (\alpha, \_, $100, ...) is left to the paragraph and inline parsers.
 	// Like a code fence, the opener may be indented by up to three spaces;

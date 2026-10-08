@@ -68,7 +68,7 @@ func makeMMLError() *MMLNode {
 func NewMMLNode(opt ...string) *MMLNode {
 	tagText := make([]string, 2)
 	for i, o := range opt {
-		if i > 2 {
+		if i > 1 {
 			break
 		}
 		tagText[i] = o
@@ -88,12 +88,6 @@ func (n *MMLNode) SetTrue(name string) *MMLNode {
 // set the attribute name to "false"
 func (n *MMLNode) SetFalse(name string) *MMLNode {
 	return n.SetAttr(name, "false")
-}
-
-// remove the attribute entirely
-func (n *MMLNode) UnsetAttr(name string) *MMLNode {
-	delete(n.Attrib, name)
-	return n
 }
 
 // SetAttr sets the attribute name to "value" and returns the same MMLNode.
@@ -116,11 +110,6 @@ func (n *MMLNode) AddClass(class string) *MMLNode {
 
 func (n *MMLNode) SetProps(p NodeProperties) *MMLNode {
 	n.Properties = p
-	return n
-}
-
-func (n *MMLNode) AddProps(p NodeProperties) *MMLNode {
-	n.Properties |= p
 	return n
 }
 

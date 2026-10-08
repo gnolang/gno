@@ -45,7 +45,11 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 			setStyle(ast)
 			ast.Write(&builder)
 			result = builder.String()
-			err = fmt.Errorf("MathML encountered an unexpected error")
+			if e, ok := r.(error); ok && errors.Is(e, errMaxDepth) {
+				err = errMaxDepth
+			} else {
+				err = fmt.Errorf("MathML encountered an unexpected error")
+			}
 		}
 	}()
 	converter.currentExpr = []rune(strings.Clone(tex))

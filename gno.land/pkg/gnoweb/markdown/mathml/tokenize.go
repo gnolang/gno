@@ -39,7 +39,6 @@ const (
 	tokFence
 	tokSubsup
 	tokMacroarg
-	tokBadmacro
 	tokReserved
 	tokBigness1
 	tokBigness2
@@ -527,13 +526,13 @@ func errorContext(t Token, context string) string {
 
 // Find matching {curly braces}
 func matchBracesCritical(tokens []Token, kind TokenKind) error {
-	s := newStack[int]()
+	var s []int // indices of the open braces
 	contextLength := 16
 	for i, t := range tokens {
 		if t.Kind&(tokOpen|kind) == tokOpen|kind {
-			s.Push(i)
+			s = append(s, i)
 		} else if t.Kind&(tokClose|kind) == tokClose|kind {
-			if s.empty() {
+			if len(s) == 0 {
 				var k string
 				if t.Kind&tokCurly > 0 {
 					k = "curly brace"
@@ -542,22 +541,20 @@ func matchBracesCritical(tokens []Token, kind TokenKind) error {
 					k = "environment (" + t.Value + ")"
 				}
 				context := errorContext(t, StringifyTokens(tokens[max(0, i-contextLength):min(i+contextLength, len(tokens))]))
-				return newMismatchedBraceError(k, "<pre>"+context+"</pre>", i)
+				return newMismatchedBraceError(k, context, i)
 			}
-			mate := tokens[s.Peek()]
-			if kind == tokEnv && mate.Value != t.Value {
+			pos := s[len(s)-1]
+			if mate := tokens[pos]; kind == tokEnv && mate.Value != t.Value {
 				context := errorContext(t, StringifyTokens(tokens[max(0, i-contextLength):min(i+contextLength, len(tokens))]))
-				return newMismatchedBraceError("environment ("+mate.Value+")", "<pre>"+context+"</pre>", i)
+				return newMismatchedBraceError("environment ("+mate.Value+")", context, i)
 			}
-			if (mate.Kind&t.Kind)&kind > 0 {
-				pos := s.Pop()
-				tokens[i].MatchOffset = pos - i
-				tokens[pos].MatchOffset = i - pos
-			}
+			s = s[:len(s)-1]
+			tokens[i].MatchOffset = pos - i
+			tokens[pos].MatchOffset = i - pos
 		}
 	}
-	if !s.empty() {
-		pos := s.Pop()
+	if len(s) > 0 {
+		pos := s[len(s)-1]
 		t := tokens[pos]
 		var kind string
 		if t.Kind&tokCurly > 0 {
@@ -567,30 +564,31 @@ func matchBracesCritical(tokens []Token, kind TokenKind) error {
 			kind = "environment (" + t.Value + ")"
 		}
 		context := errorContext(t, StringifyTokens(tokens[max(0, pos-contextLength):min(pos+contextLength, len(tokens))]))
-		return newMismatchedBraceError(kind, "<pre>"+context+"</pre>", pos)
+		return newMismatchedBraceError(kind, context, pos)
 	}
 	return nil
 }
 
 // MatchBracesLazy is a helper function to match braces lazily
 func matchBracesLazy(tokens []Token) {
-	s := newStack[int]()
+	var s []int // indices of the unmatched openers
 	for i, t := range tokens {
 		if t.MatchOffset != 0 {
 			// Critical regions have already been taken care of.
 			continue
 		}
 		if t.Kind&tokOpen > 0 {
-			s.Push(i)
+			s = append(s, i)
 			continue
 		}
 		if t.Kind&tokClose > 0 {
-			if s.empty() {
+			if len(s) == 0 {
 				continue
 			}
-			mate := tokens[s.Peek()]
+			pos := s[len(s)-1]
+			mate := tokens[pos]
 			if (t.Kind&mate.Kind)&tokFence > 0 || brace_match_map[mate.Value] == t.Value {
-				pos := s.Pop()
+				s = s[:len(s)-1]
 				tokens[i].MatchOffset = pos - i
 				tokens[pos].MatchOffset = i - pos
 			}
@@ -736,22 +734,22 @@ func checkGroupNesting(tokens []Token) error {
 	// enclosing[i] is the index of the opener of the innermost group around
 	// token i, or -1.
 	enclosing := make([]int, len(tokens))
-	s := newStack[int]()
+	var s []int // indices of the open groups
 	for i, t := range tokens {
 		top := -1
-		if !s.empty() {
-			top = s.Peek()
+		if len(s) > 0 {
+			top = s[len(s)-1]
 		}
 		enclosing[i] = top
 		switch {
 		case opensGroup(t):
-			s.Push(i)
+			s = append(s, i)
 		case t.MatchOffset < 0 && opensGroup(tokens[i+t.MatchOffset]):
 			if top != i+t.MatchOffset {
 				context := errorContext(t, StringifyTokens(tokens[max(0, i-16):min(i+16, len(tokens))]))
-				return newMismatchedBraceError("group", "<pre>"+context+"</pre>", i)
+				return newMismatchedBraceError("group", context, i)
 			}
-			s.Pop()
+			s = s[:len(s)-1]
 		}
 	}
 	for i, t := range tokens {

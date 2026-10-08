@@ -13,7 +13,6 @@ const (
 	propNull NodeProperties = 1 << iota
 	propNonprint
 	propLargeop
-	propScriptBase
 	propSuperscript
 	propSubscript
 	propMovablelimits
@@ -39,7 +38,6 @@ const (
 	ctxScript
 	ctxScriptscript
 	ctxText
-	ctxBracketed
 	// SIZES (interpreted as a 4-bit unsigned int)
 	ctxSize_1
 	ctxSize_2
@@ -195,9 +193,6 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 			}
 			// tell the next sibling to be a super- or subscript
 			continue
-		case tok.Kind&tokBadmacro > 0:
-			child = NewMMLNode("merror", tok.Value)
-			child.SetAttr("title", "cyclic dependency in macro definition")
 		case tok.Kind&tokMacroarg > 0:
 			child = NewMMLNode("merror", "?"+tok.Value)
 			child.SetAttr("title", "Unexpanded macro argument")
@@ -210,8 +205,6 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 			ctx := setEnvironmentContext(tok, context) &^ ctxRoot
 			env, _ := b.GetNextN(tok.MatchOffset)
 			child = processEnv(converter.ParseTex(env, ctx), tok.Value, ctx)
-		case tok.Kind&(tokOpen|tokCurly) == tokOpen|tokCurly:
-			child = converter.ParseTex(b, context&^ctxRoot)
 		case tok.Kind&tokOpen > 0:
 			child = NewMMLNode("mo")
 			if tok.Kind&tokCommand > 0 {

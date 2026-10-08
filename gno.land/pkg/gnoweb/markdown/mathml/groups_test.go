@@ -75,8 +75,8 @@ func TestPlainBracketsMayStraddleGroups(t *testing.T) {
 // parse work: a few hundred bytes cost seconds and gigabytes. Rejected now,
 // the cost is linear in the input.
 func TestCrossingGroupCostIsLinear(t *testing.T) {
-	nested := func(open, close string, k int) string {
-		return strings.Repeat(open, k) + "x" + strings.Repeat(close, k)
+	nested := func(opener, closer string, k int) string {
+		return strings.Repeat(opener, k) + "x" + strings.Repeat(closer, k)
 	}
 	for _, unit := range [][2]string{
 		{`{\left(`, `}\right)`},
