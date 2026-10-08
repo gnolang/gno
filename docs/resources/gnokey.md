@@ -57,31 +57,24 @@ with a key from your keybase (see
 [Using the `gnokey` wallet](../users/using-gnokey.md#managing-key-pairs)). A
 transaction carrying several messages has to be built in Go, with the
 [`gnoclient`](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)
-package. Every command takes the same base-configuration flags:
+package. Every command takes the same base flags, and
+`gnokey maketx <command> -h` lists each with its default. What the help leaves
+out:
 
-- `-gas-wanted` - the maximum gas units the transaction may consume (required)
-- `-gas-fee` - the fee paid for the transaction, as `<amount>ugnot`
-  (e.g. `2000ugnot`; required)
-- `-chainid` and `-remote` - the network to target; the two must match
-- `-broadcast` - send the transaction to the chain (default `true`; set
-  `-broadcast=false` to build the unsigned transaction without sending it, as
-  in [Airgapped signing](../../gno.land/cmd/gnokey/README.md#airgapped-signing))
-- `-memo` - arbitrary text attached to the transaction (optional)
-- `-simulate` - simulation mode: `test` (default, simulate first, broadcast
-  only on success), `skip` (broadcast without simulating), `only` (dry run,
-  report gas used and exit without broadcasting)
-- `-gas-fee-margin` - percentage added to the estimated gas fee (default `5`;
-  only used with `-simulate only`)
-- `-master` - the master account's key name or address, when signing with a
-  session key (optional; see [Session](../../gno.land/cmd/gnokey/README.md#session))
+- `-gas-fee` is what you pay, in full, once the transaction is in a block, and
+  `-gas-wanted` caps the gas it may use; `gnokey` never fills either in for you.
+  Run the transaction with `-simulate only` to get good values, as shown in
+  [Gas estimation](./gas-fees.md#gas-estimation). The default `-simulate test`
+  then guards them: a transaction that fails simulation is never broadcast, and
+  no fee is spent.
+- `-chainid` defaults to `dev` and `-remote` to `127.0.0.1:26657`, a local node.
+  For any other network, set both to the matching pair from
+  [Network configuration](./gnoland-networks.md).
+- `-broadcast=false` prints the unsigned transaction instead of sending it, the
+  first step of [airgapped signing](../../gno.land/cmd/gnokey/README.md#airgapped-signing).
+- `-master` names the master account when a
+  [session](../../gno.land/cmd/gnokey/README.md#session) key signs.
 
-`-gas-fee` is what you pay, in full, once the transaction is in a block, and
-`-gas-wanted` caps the gas it may use; `gnokey` never fills either in for you.
-Run the transaction with `-simulate only` to get good values, as shown in
-[Gas estimation](./gas-fees.md#gas-estimation). The default `-simulate test`
-then guards them: a transaction that fails simulation is never broadcast, and
-no fee is spent. Find `-chainid` and `-remote` values per network in
-[Network configuration](./gnoland-networks.md).
 State-changing calls cost gas paid in GNOT, so on testnets grab some from the
 [Faucet Hub](https://faucet.gno.land) first.
 
@@ -115,11 +108,8 @@ For an end-to-end deploy-and-call walkthrough, see
 
 ### `Send`
 
-`Send` transfers coins between two addresses with `gnokey maketx send`. Its own
-flags are:
-
-- `-to` - the recipient's bech32 address
-- `-send` - the amount to transfer, as `<amount><denom>` (e.g. `100ugnot`)
+`Send` transfers coins between two addresses with `gnokey maketx send`: `-to`
+names the recipient and `-send` the amount, as `<amount><denom>`:
 
 ```bash
 gnokey maketx send \
@@ -133,14 +123,10 @@ gnokey maketx send \
 
 ### `AddPackage`
 
-`AddPackage` uploads new code to the chain with `gnokey maketx addpkg`. On top of
-the base configuration, it takes flags of its own:
-
-- `-pkgpath` - the on-chain path the code is published to
-- `-pkgdir` - the local directory holding the code
-- `-send` - coins to send to the realm with the deploy (optional; refused for a
-  `/p/` package, and under the `inert` policy that mainnet runs)
-- `-max-deposit` - cap on GNOT locked for [storage deposit](./storage-deposit.md) (optional)
+`AddPackage` uploads new code to the chain with `gnokey maketx addpkg`, from the
+local directory `-pkgdir` to the on-chain path `-pkgpath`. `-max-deposit` caps
+the GNOT locked for [storage deposit](./storage-deposit.md). `-send` is refused
+for a `/p/` package, and under the `inert` policy that mainnet runs.
 
 Run it from the package directory, publishing to a path under a
 [namespace](./users-and-teams.md) you own:
@@ -164,14 +150,9 @@ writing the package and declaring that path, see
 
 ### `Call`
 
-`Call` invokes an exported realm function with `gnokey maketx call`. Its own flags
-are:
-
-- `-pkgpath` - the realm's on-chain path
-- `-func` - the function to call
-- `-args` - one argument (repeat the flag for more; see below)
-- `-send` - coins to send with the call (optional)
-- `-max-deposit` - cap on GNOT locked for [storage deposit](./storage-deposit.md) (optional)
+`Call` invokes an exported realm function with `gnokey maketx call`: `-pkgpath`
+names the realm, `-func` the function, and each `-args` one argument, in order.
+`-send` attaches coins to the call, and `-max-deposit` caps the storage deposit.
 
 `-func` must name an exported crossing function, one declared with a leading
 `cur realm` parameter. Non-crossing functions are rejected; read them with
@@ -227,10 +208,7 @@ own `-args`.
 are applied. A chain can limit `Run` to the addresses in its
 `vm:p:run_submitters` parameter, and an empty list lets anyone send it.
 Mainnet's lists three addresses, so `maketx run` fails there for every other
-key. Its own flags are:
-
-- `-send` - coins to send with the run (optional)
-- `-max-deposit` - cap on GNOT locked for [storage deposit](./storage-deposit.md) (optional)
+key. `-send` and `-max-deposit` work as for `Call`.
 
 For example, calling `Increment()` on the
 [Counter realm](https://staging.gno.land/r/demo/counter):
@@ -331,16 +309,11 @@ nothing type-checks it, runs it, or can import it until an address listed in the
 `pkg_approvers` parameter activates it. List what is waiting with
 [`vm/qinertpaths`](#vmqinertpaths).
 
-`gnokey maketx enablepkg` activates a parked package, and only an approver can
-send it. Its own flags are:
-
-- `-pkgpath` - the parked package's path (required)
-- `-pkgdir` - a local copy of the source you reviewed, hashed so the approval
-  names those exact bytes
-- `-pkg-hash` - the content hash, when it was computed elsewhere; give exactly
-  one of `-pkgdir` and `-pkg-hash`
-- `-pkg-height` - the block the reviewed submission landed in, so any
-  re-submission invalidates the approval (optional)
+`gnokey maketx enablepkg -pkgpath <path>` activates a parked package, and only
+an approver can send it. It takes exactly one of `-pkgdir`, a local copy of the
+source you reviewed, which it hashes, and `-pkg-hash`, a hash computed
+elsewhere. `-pkg-height`, the block the reviewed submission landed in, makes any
+re-submission invalidate the approval.
 
 Hash your own reviewed copy, never one read from the chain: the submitter can
 replace the parked bytes at any time, and a hash taken from the chain approves
