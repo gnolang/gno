@@ -80,7 +80,7 @@ An automated market maker written in Gno, by Onbloc. Swap tokens and provide liq
 
 **[GovDAO](/r/gov/dao)**
 
-The DAO that governs Gno.land. Its members vote on proposals, such as adding validators to the validator set.
+The DAO that governs Gno.land. Its members vote on proposals, like adding validators.
 
 <gno-columns-sep>
 
@@ -163,9 +163,9 @@ Standard pure packages maintained by the core team.
 
 ## For developers
 
-- [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
-- [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
-- [Testnet faucet (no mainnet faucet)](https://faucet.gno.land)
+- [Local development (gnodev)](https://docs.gno.land/resources/gnodev)
+- [Networks documentation](https://docs.gno.land/resources/gnoland-networks/)
+- [Testnet faucet](https://faucet.gno.land)
 - [Awesome Gno projects](https://github.com/gnoverse/awesome-gno)
 - [Contribute](/contribute)
 - [GitHub](https://github.com/gnolang)
