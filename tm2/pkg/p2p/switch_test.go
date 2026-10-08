@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1035,6 +1036,14 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 			WithPersistentPeers([]*types.NetAddress{addr}),
 		)
 
+		// The peer is in the peer set while connected, as the redial loop reads
+		// it from its own goroutine
+		var connected atomic.Bool
+
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool { return connected.Load() && id == addr.ID },
+		}
+
 		// Only the start pass and the events can queue a dial: the next tick
 		// is an hour away
 		sw.redialInterval = time.Hour
@@ -1050,6 +1059,8 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		sw.persistentDialQueue.Push(dial.Item{Time: time.Now().Add(time.Minute), Address: addr})
 
 		// The peer connects: its queued dial is removed
+		connected.Store(true)
+
 		sw.events.Notify(events.PeerConnectedEvent{PeerID: addr.ID})
 
 		require.Eventually(t, func() bool {
@@ -1058,6 +1069,8 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 
 		// The peer drops: it is queued again without waiting for the tick
 		sent := time.Now()
+
+		connected.Store(false)
 
 		sw.events.Notify(events.PeerDisconnectedEvent{PeerID: addr.ID})
 
@@ -1933,6 +1946,18 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		), addr
 	}
 
+	// setConnected makes the switch's peer set report the peer as connected,
+	// or not, following the returned flag
+	setConnected := func(sw *MultiplexSwitch, id types.ID) *bool {
+		connected := new(bool)
+
+		sw.peers = &mockSet{
+			hasFn: func(peerID types.ID) bool { return *connected && peerID == id },
+		}
+
+		return connected
+	}
+
 	// assertBackoff asserts a delay is the backoff after the given attempts,
 	// within its 10% jitter
 	assertBackoff := func(t *testing.T, attempts uint, delay time.Duration) {
@@ -1965,6 +1990,11 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(20 * time.Second), Address: addrs[0]})
 		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(10 * time.Second), Address: addrs[1]})
 
+		// The peer is connected when the event is handled
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool { return id == addrs[0].ID },
+		}
+
 		sw.persistentPeerConnected(addrs[0].ID, connectedAt, now)
 
 		assert.True(t, connectedAt[addrs[0].ID].Equal(now))
@@ -1974,6 +2004,29 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		require.NotNil(t, item)
 		assert.Equal(t, addrs[1], item.Address)
 		assert.Nil(t, sw.persistentDialQueue.Pop())
+	})
+
+	t.Run("a connect handled after the peer dropped is ignored", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			sw, addr    = newPersistentSwitch(t)
+			now         = time.Now()
+			connectedAt = make(map[types.ID]time.Time)
+		)
+
+		// The peer is not in the peer set, and the disconnect handler already
+		// queued its dial
+		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(time.Second), Address: addr})
+
+		sw.persistentPeerConnected(addr.ID, connectedAt, now)
+
+		assert.NotContains(t, connectedAt, addr.ID)
+
+		item := sw.persistentDialQueue.Peek()
+
+		require.NotNil(t, item)
+		assert.Equal(t, addr, item.Address)
 	})
 
 	t.Run("a short connection keeps the backoff", func(t *testing.T) {
@@ -2062,13 +2115,18 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 			// As after the first dial on start
 			attempts    = map[types.ID]uint{addr.ID: 0}
 			connectedAt = make(map[types.ID]time.Time)
+			connected   = setConnected(sw, addr.ID)
 		)
 
 		for cycle := range uint(8) {
 			// Each connection is accepted, then dropped a second later
+			*connected = true
+
 			sw.persistentPeerConnected(addr.ID, connectedAt, now)
 
 			dropped := now.Add(time.Second)
+
+			*connected = false
 
 			sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
 
@@ -2088,14 +2146,19 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 			now         = time.Now()
 			attempts    = map[types.ID]uint{addr.ID: 4}
 			connectedAt = make(map[types.ID]time.Time)
+			connected   = setConnected(sw, addr.ID)
 		)
 
 		// Queued by a tick while the dial that is about to connect was in flight
 		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(16 * time.Second), Address: addr})
 
+		*connected = true
+
 		sw.persistentPeerConnected(addr.ID, connectedAt, now)
 
 		dropped := now.Add(time.Minute)
+
+		*connected = false
 
 		sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
 

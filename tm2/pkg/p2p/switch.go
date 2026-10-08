@@ -527,12 +527,20 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 // persistentPeerConnected records when a persistent peer connected, and
 // removes any dial still queued for it: a dial queued while an earlier one was
 // in flight would otherwise outlive the connection, and delay the redial after
-// a later drop. The backoff is left as is, until the connection proves stable
+// a later drop. The backoff is left as is, until the connection proves stable.
+// A peer that is no longer connected is ignored
 func (sw *MultiplexSwitch) persistentPeerConnected(
 	id types.ID,
 	connectedAt map[types.ID]time.Time,
 	now time.Time,
 ) {
+	// Events and peer set changes are not strictly ordered: a connect handled
+	// after its connection already dropped must neither stamp a start time nor
+	// remove the dial the disconnect queued
+	if !sw.Peers().Has(id) {
+		return
+	}
+
 	connectedAt[id] = now
 
 	addr, ok := sw.persistentPeerAddr(id)
