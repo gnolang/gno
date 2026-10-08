@@ -179,11 +179,11 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		return ast.WalkContinue, nil
 	})
 
+	source := reader.Source()
 	for _, n := range autolinks {
 		// Build a synthetic ast.Link so the existing renderGnoLink handles
 		// IsDangerousURL, rel attributes, and icons for autolinks too.
 		var rawDest []byte
-		source := reader.Source()
 		rawURL := n.URL(source)
 		if n.AutoLinkType == ast.AutoLinkEmail {
 			rawDest = append([]byte("mailto:"), rawURL...)
