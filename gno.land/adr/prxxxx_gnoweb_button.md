@@ -220,6 +220,10 @@ borders match their text (≥ 6:1); filled borders under 3:1 (warning light
     not (a fence line inside an HTML block, or the list-container gap
     tracked in #6300), and such a line would render a live button. The
     backslash shows in real fenced code, the same cost as in a code span.
+    The escape runs on the whole input before the bracket walker: added
+    after it, the backslash broke a pointy link destination
+    `[a](<gno-button x>)` the walker had kept as a link, and `[a]` bound to
+    a realm reference definition.
   - The block-level `<gno-…>` line escape now puts its backslash after an
     indent of under 4 columns (right before the `<`); from 4 columns, where
     the line may be indented code, it keeps the line-start backslash it had.
@@ -230,4 +234,11 @@ borders match their text (≥ 6:1); filled borders under 3:1 (warning light
     styled as first-party call to action, which user content should not be
     able to produce, so `<gno-button` stays escaped wherever the sanitizer
     looks today.
+  - **Upgrade ordering.** `chain/markdown` is a native, so this escape only
+    protects user content on a chain whose binary runs it. gnoweb renders
+    buttons as soon as it is deployed; until the chain is upgraded,
+    `sanitize.Block`, `BlockRich` and `Blockquote` output computed on chain
+    lets `<gno-button` through, and gnoweb renders it as a button. The new
+    escape also changes `Block` and `BlockRich` output on chain, bytes nodes
+    agree on, so it ships as a MINOR coordinated upgrade (RELEASING.md).
 - `r/docs/markdown` documents the syntax with copyable examples.
