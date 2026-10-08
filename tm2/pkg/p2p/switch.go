@@ -961,9 +961,12 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 		// A replacement swaps one of our outbound connections for an inbound
 		// one, so it takes an inbound slot like any other connection. Only a
 		// persistent peer's replacement is exempt, so two persistent peers
-		// dialing each other at once converge on a node whose inbound slots
-		// are full; persistent peers are configured by the operator, so no
-		// remote party can use the exemption
+		// dialing each other at once can still converge on a node whose
+		// inbound slots are full. The exemption holds while the connection
+		// being replaced is still registered when this check runs; if it is
+		// already gone, the new connection goes through the inbound limit
+		// like a new peer and the redial loop recovers. Persistent peers are
+		// configured by the operator, so no remote party can use the exemption
 		exempt := registered != nil && sw.isPersistentPeer(p.ID())
 
 		// Ignore connection if we already have enough peers.
@@ -982,8 +985,10 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 		// Reject a second connection from an IP that already holds a peer slot.
 		// Peer IDs are self-generated node keys, so without this a single host
 		// can mint fresh identities and occupy every inbound slot. The
-		// connection a replacement takes over comes from the same host, so it
-		// does not count
+		// connection a replacement takes over leaves the peer set when the new
+		// one takes its place, so it does not count, even though our dial may
+		// have reached the peer on another IP than its inbound connection
+		// (behind a NAT, or on a multi-homed host)
 		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP(), registered) {
 			sw.Logger.Info(
 				"Ignoring inbound connection: peer from this IP already connected",
