@@ -57,6 +57,9 @@ type Icon struct {
 	iconTag
 	// Source is where the tag sits in the document.
 	Source text.Segment
+	// hintDone and hint memoize aloneInNamedParent for every icon of a
+	// link or heading, so it walks that parent once.
+	hintDone, hint bool
 }
 
 // iconTag is what a tag says. Name and Label are the raw attribute values,
@@ -145,7 +148,7 @@ func (*iconHeadingIDTransformer) Transform(doc *ast.Document, reader text.Reader
 	if pc.Get(iconInHeadingKey) == nil {
 		return
 	}
-	ids := parser.NewContext().IDs() // goldmark's generator, fresh
+	ids := newLinearIDs()
 	src := reader.Source()
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		h, ok := n.(*ast.Heading)
@@ -235,29 +238,54 @@ func renderIcon(w util.BufWriter, source []byte, node ast.Node, entering bool) (
 	return ast.WalkContinue, nil
 }
 
-// aloneInNamedParent reports whether n is the only content, blank text
-// aside, of a link or heading: an element whose accessible name comes from
-// its content.
-func aloneInNamedParent(n ast.Node, source []byte) bool {
+// aloneInNamedParent reports whether n is the first icon of a link or
+// heading (an element named by its content) that holds nothing else giving
+// it a name: no text and no labeled icon, at any depth (`[*<icon/>*](…)`,
+// `## <icon/><icon/>`). The hint is written once, on that first icon.
+func aloneInNamedParent(n *Icon, source []byte) bool {
 	parent := n.Parent()
-	if parent == nil {
+	for parent != nil && parent.Type() == ast.TypeInline && !namedByContent(parent) {
+		parent = parent.Parent() // emphasis and the like
+	}
+	if parent == nil || !namedByContent(parent) {
 		return false
 	}
-	switch parent.Kind() {
+
+	// The first icon to render walks the parent once and answers for every
+	// icon in it, so a parent of k icons and any filler costs O(size).
+	if n.hintDone {
+		return n.hint
+	}
+	var first *Icon
+	named := false
+	_ = ast.Walk(parent, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch c := c.(type) {
+		case *Icon:
+			c.hintDone = true
+			if first == nil {
+				first = c
+			}
+			named = named || len(c.Label) > 0
+		case *ast.Text:
+			named = named || !util.IsBlank(c.Segment.Value(source))
+		case *ast.String:
+			named = named || !util.IsBlank(c.Value)
+		}
+		return ast.WalkContinue, nil
+	})
+	first.hint = !named
+	return n.hint
+}
+
+func namedByContent(n ast.Node) bool {
+	switch n.Kind() {
 	case ast.KindLink, KindGnoLink, ast.KindHeading:
-	default:
-		return false
+		return true
 	}
-	for c := parent.FirstChild(); c != nil; c = c.NextSibling() {
-		if c == n {
-			continue
-		}
-		t, ok := c.(*ast.Text)
-		if !ok || !util.IsBlank(t.Segment.Value(source)) {
-			return false
-		}
-	}
-	return true
+	return false
 }
 
 // ----- extension -----
@@ -276,7 +304,7 @@ func (e *iconExtension) Extend(m goldmark.Markdown) {
 			util.Prioritized(&iconParser{}, 399),
 		),
 		parser.WithBlockParsers(
-			util.Prioritized(newGnoTagLineParser(iconTagPrefix, maxIconTagLen), 899),
+			util.Prioritized(newGnoTagLineParser(iconTagPrefix), 899),
 		),
 		parser.WithASTTransformers(
 			util.Prioritized(&iconHeadingIDTransformer{}, 500),

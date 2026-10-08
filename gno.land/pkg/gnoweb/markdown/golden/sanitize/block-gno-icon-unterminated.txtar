@@ -1,0 +1,15 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s\n\n## End
+-- input.md --
+<gno-icon name="star"
+next line
+-- output.md --
+
+
+<gno-icon name="star"
+next line
+
+-- output.html --
+<p>&lt;gno-icon name=&quot;star&quot;
+next line</p>
+<h2>End</h2>

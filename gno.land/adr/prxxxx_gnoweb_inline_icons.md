@@ -86,14 +86,23 @@ on a renderer that does not know it.
 - A line holding only `<gno-icon … />` would be a CommonMark type-7 HTML
   block, which safe mode strips. The shared `gnoTagLineParser`, at priority
   899 (ahead of the HTML block parser, 900), opens a paragraph on a line that
-  starts with an icon tag, delegating to goldmark's own `NewParagraphParser()`.
-  `<gno-button />` registers the same parser with its own prefix.
+  starts with the tag name, delegating to goldmark's own `NewParagraphParser()`.
+  `<gno-button />` registers the same parser with its own prefix. It opens on
+  the name alone, not only on a tag the scanner accepts: a complete tag over
+  512 bytes alone on a line used to become an HTML block that took every line
+  up to the next blank one, and safe mode dropped them all, which
+  `sanitize.Block` let through once it stopped escaping the opener. Now such
+  a line is a paragraph where only the over-long tag is omitted.
 - **Heading IDs.** goldmark derives an auto ID from the heading's raw source
   line, which would give `## <gno-icon name="rocket" /> Launch` the ID
   `gno-icon-namerocket-launch`. An AST transformer rebuilds the IDs of a
   document that has an icon in a heading: from the raw line minus the byte
   ranges of the `Icon` nodes goldmark actually parsed, with a fresh ID
-  generator walking headings in document order. The ID is `launch`, a later
+  generator walking headings in document order. The generator is
+  `linearIDs` (`markdown/ids.go`, from #6296, copied verbatim): goldmark's
+  default deduplicates in O(n²), and renumbering doubled that (20,000
+  identical headings after one icon heading took 35 s); with `linearIDs`
+  the renumbering is linear (`TestIconHeadingIDsLinear`). The ID is `launch`, a later
   `Launch` gets `launch-1`, and a tag shown as text (code span, backslash
   escape) stays in the ID as any text does. Other inline syntax is left as
   goldmark leaves it. The parser flags the context when an icon lands in a
@@ -175,10 +184,11 @@ does not grow, there is no asset to fetch and nothing to add to the CSP.
 - Decorative (no label): `aria-hidden="true" focusable="false"`.
 - With a label: `role="img" aria-label="…"`. No `<title>`, so no `id` to
   duplicate when the icon repeats.
-- An unlabeled icon that is all a link or a heading holds leaves it with no
-  accessible name; the renderer adds
+- An unlabeled icon in a link or a heading that holds nothing else with a
+  name (no text, no labeled icon, at any depth: several icons, an icon under
+  emphasis) leaves it with no accessible name; the renderer adds
   `<!-- gno-icon: alone in a link or heading, add label="…" to name it -->`
-  next to it, and the docs say a label is required there. A heading holding
+  once, after the first icon, and the docs say a label is required there. A heading holding
   only an icon has no text, so it gets no TOC entry, label or not.
 - No `tabindex`; nothing an icon renders is focusable.
 - Forced colors / high contrast: glyphs use `currentColor` only (fill or
@@ -240,7 +250,8 @@ Apple M4 Max, `go test ./gno.land/pkg/gnoweb/markdown -bench BenchmarkIcon`.
 | Scan one tag (`parseIconTag`) | 0 allocs (`TestParseIconTagAllocs`) |
 | Parse a line of 400 icons | 133 µs, ~2 allocs per icon (the node and goldmark's text segment) |
 | Parse a line of 1,000 non-icon tags | unchanged from the base pipeline (415 KB, 5,020 allocs) |
-| 20,000 unterminated `<gno-icon ` on one line | 15.5 s before the bound; the whole `TestIconParseLinear` now runs in < 0.2 s |
+| 20,000 unterminated `<gno-icon ` on one line | 15.5 s before the bound; the whole `TestIconParseLinear` now runs in < 0.25 s |
+| 20,000 identical headings after one icon heading | 35 s with goldmark's ID generator; 5,000 and 20,000 of each shape in 0.1 s with `linearIDs` |
 
 ## Alternatives considered
 
@@ -278,6 +289,9 @@ Apple M4 Max, `go test ./gno.land/pkg/gnoweb/markdown -bench BenchmarkIcon`.
   line starting with `<gno-icon` no longer gets a leading backslash. Realm
   output built with `sanitize.Block`/`BlockRich` before and after this change
   differs only for such lines.
+- `FuzzIconRender` checks that no input panics, reads a tag past 512 bytes,
+  or writes an `<svg>` that is neither a gno-icon nor a chrome `<use>` glyph,
+  or an event handler (≈950,000 executions locally).
 - `.gno-alert summary svg` sizing now skips `.gno-icon`, so an icon in an
   alert title keeps its inline size.
 - Chrome icon names become a public API for realm content: renaming or

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"maps"
 	"slices"
 	"strings"
@@ -28,6 +29,7 @@ const (
 )
 
 func TestParseIconTag(t *testing.T) {
+	fill := maxIconTagLen - len(`<gno-icon label="" />`) // label bytes for a 512-byte tag
 	for _, tc := range []struct {
 		line        string
 		size        int
@@ -45,7 +47,9 @@ func TestParseIconTag(t *testing.T) {
 		{line: `<gno-icon name="star">`, size: 22, name: "star", open: true},
 		{line: `<gno-icon>`, size: 10, open: true},
 		{line: `<gno-icon name="star`}, // unterminated; the shared scanner's own cases are in TestScanGnoTag
-		{line: `<gno-icon label="` + strings.Repeat("x", maxIconTagLen) + `" />`},
+		// The bound is inclusive: a 512-byte tag is read, a 513-byte one is not.
+		{line: `<gno-icon label="` + strings.Repeat("x", fill) + `" />`, size: maxIconTagLen, label: strings.Repeat("x", fill)},
+		{line: `<gno-icon label="` + strings.Repeat("x", fill+1) + `" />`},
 	} {
 		t.Run(tc.line, func(t *testing.T) {
 			size, icon := parseIconTag([]byte(tc.line))
@@ -60,6 +64,93 @@ func TestParseIconTag(t *testing.T) {
 	}
 }
 
+// TestIconHeadingIDsLinear renders many identical headings holding icons.
+// iconHeadingIDTransformer renumbers every heading once a heading holds an
+// icon; with goldmark's generator that doubled its quadratic deduplication
+// (20,000 took 35 s). linearIDs keeps it linear; plain duplicate headings
+// are covered by TestDuplicateHeadingIDsLinear.
+func TestIconHeadingIDsLinear(t *testing.T) {
+	m := newProductionLikeMarkdown()
+	for _, n := range []int{5000, 20000} {
+		for name, src := range map[string]string{
+			"icon-only":      strings.Repeat("## <gno-icon name=\"star\" />\n", n),
+			"icon-text":      strings.Repeat("## <gno-icon name=\"star\" /> a\n", n),
+			"after-one-icon": "## <gno-icon name=\"star\" /> b\n" + strings.Repeat("## a\n", n),
+		} {
+			start := time.Now()
+			var buf bytes.Buffer
+			require.NoError(t, m.Convert([]byte(src), &buf, parser.WithContext(NewGnoParserContext(GnoContext{}))))
+			assert.Less(t, time.Since(start), 2*time.Second, "%d %s headings", n, name)
+		}
+	}
+}
+
+func TestRenderIconAllocs(t *testing.T) {
+	m := newProductionLikeMarkdown()
+	for _, src := range []string{
+		`<gno-icon name="star" />`,
+		`<gno-icon name="check-circle" label="Tom &amp; Jerry \| ok" />`,
+	} {
+		source := []byte(src)
+		doc := m.Parser().Parse(text.NewReader(source))
+		icon := doc.FirstChild().FirstChild()
+		w := bufio.NewWriter(io.Discard)
+		assert.Zero(t, testing.AllocsPerRun(100, func() { renderIcon(w, source, icon, true) }), src)
+	}
+}
+
+// TestIconCRLF pins CRLF input, which goldens cannot hold (editors normalize
+// line endings): the icon renders, the next line stays, a tag split across
+// lines is not an icon.
+func TestIconCRLF(t *testing.T) {
+	src := "<gno-icon name=\"star\" />\r\nnext\r\n<gno-icon\r\nname=\"star\" />\r\n"
+	var buf bytes.Buffer
+	require.NoError(t, newProductionLikeMarkdown().Convert([]byte(src), &buf))
+	out := buf.String()
+	assert.Equal(t, 1, strings.Count(out, `<svg class="gno-icon"`), out)
+	assert.Contains(t, out, "next")
+	assert.NotContains(t, out, "\r<", "no stray CR inside the tag output")
+}
+
+// FuzzIconRender renders arbitrary input around icon tags and checks the
+// invariants: no panic, a scanned tag is at most maxIconTagLen bytes, and
+// every <svg> written is a gno-icon (or a chrome <use> glyph) carrying no
+// event handler.
+func FuzzIconRender(f *testing.F) {
+	for _, seed := range []string{
+		`<gno-icon name="star" />`,
+		`<gno-icon name="check-circle" label="a > b" />`,
+		`<gno-icon name="x" label='"><script>' onload=x />`,
+		`## <gno-icon name="rocket" /> Launch`,
+		`[<gno-icon name="globe" />](https://e.x)`,
+		"<gno-icon name=\"star\r\n\" />",
+		`<GNO-ICON NAME=star/>`,
+		`<gno-icon name="` + strings.Repeat("a", 600),
+	} {
+		f.Add(seed)
+	}
+	m := newProductionLikeMarkdown()
+	f.Fuzz(func(t *testing.T, src string) {
+		if size, _ := parseIconTag([]byte(src)); size > maxIconTagLen {
+			t.Fatalf("tag of %d bytes read past maxIconTagLen", size)
+		}
+		var buf bytes.Buffer
+		if err := m.Convert([]byte(src), &buf, parser.WithContext(NewGnoParserContext(GnoContext{}))); err != nil {
+			return
+		}
+		for _, svg := range strings.Split(buf.String(), "<svg")[1:] {
+			// gno-icons, or the chrome glyphs other extensions write
+			// (alert kinds, link and form markers), which are <use> refs.
+			if !strings.HasPrefix(svg, ` class="gno-icon" `) && !strings.Contains(svg[:min(len(svg), 40)], "<use href=\"#ico-") {
+				t.Fatalf("an <svg> that is neither a gno-icon nor a chrome glyph: %q", svg[:min(len(svg), 80)])
+			}
+			if tag, _, _ := strings.Cut(svg, ">"); strings.Contains(strings.ToLower(tag), " on") {
+				t.Fatalf("event handler in %q", tag)
+			}
+		}
+	})
+}
+
 func TestParseIconTagAllocs(t *testing.T) {
 	line := []byte(`<gno-icon name="check-circle" label="Verified &amp; signed" /> tail`)
 	assert.Zero(t, testing.AllocsPerRun(100, func() { parseIconTag(line) }))
@@ -71,10 +162,16 @@ func TestParseIconTagAllocs(t *testing.T) {
 func TestIconParseLinear(t *testing.T) {
 	m := newProductionLikeMarkdown()
 	for name, src := range map[string]string{
-		"bare":       strings.Repeat("<gno-icon ", 20000),
-		"open-quote": strings.Repeat(`<gno-icon name="`, 10000),
-		"heading":    "## " + strings.Repeat("<gno-icon x ", 20000),
-		"valid":      strings.Repeat(`<gno-icon name="star" />`, 10000),
+		"bare":               strings.Repeat("<gno-icon ", 20000),
+		"open-quote":         strings.Repeat(`<gno-icon name="`, 10000),
+		"heading":            "## " + strings.Repeat("<gno-icon x ", 20000),
+		"lines-unterminated": strings.Repeat("<gno-icon name=\"x\n", 20000),
+		"table-cells":        "| a | b |\n|---|---|\n" + strings.Repeat("| <gno-icon name=\"x | y |\n", 10000),
+		"valid":              strings.Repeat(`<gno-icon name="star" />`, 10000),
+		"heading-icons":      "## " + strings.Repeat(`<gno-icon name="star" />`, 10000),
+		"link-icons":         "[" + strings.Repeat(`<gno-icon name="star" />`, 10000) + "](/r/x)",
+		"link-filler-code":   "[" + strings.Repeat("` ` ", 20000) + strings.Repeat(`<gno-icon name="star" />`, 20000) + "](/r/x)",
+		"link-filler-html":   "[" + strings.Repeat("<b></b>", 20000) + strings.Repeat(`<gno-icon name="star" />`, 20000) + "](/r/x)",
 	} {
 		t.Run(name, func(t *testing.T) {
 			start := time.Now()
