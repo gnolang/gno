@@ -1,4 +1,4 @@
-# PRxxxx: Reset a persistent peer's backoff only after a stable connection
+# PR6303: Reset a persistent peer's backoff only after a stable connection
 
 ## Status
 
