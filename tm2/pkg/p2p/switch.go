@@ -869,6 +869,8 @@ func (sw *MultiplexSwitch) registerPeer(p PeerConn) (PeerConn, error) {
 
 	sw.peers.Remove(p.ID())
 
+	// The Add cannot fail: the registry lock keeps the ID's entry empty since
+	// the Remove
 	return registered, sw.peers.Add(p)
 }
 
@@ -977,8 +979,11 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 		// inbound slots are full. The exemption holds while the connection
 		// being replaced is still registered when this check runs; if it is
 		// already gone, the new connection goes through the inbound limit
-		// like a new peer and the redial loop recovers. Persistent peers are
-		// configured by the operator, so no remote party can use the exemption
+		// like a new peer and the redial loop recovers. If it leaves between
+		// this check and registration, the new connection is added past the
+		// inbound limit, an overshoot of at most one connection per persistent
+		// peer ID. Persistent peers are configured by the operator, so no
+		// remote party can use the exemption
 		exempt := registered != nil && sw.isPersistentPeer(p.ID())
 
 		// Ignore connection if we already have enough peers.
