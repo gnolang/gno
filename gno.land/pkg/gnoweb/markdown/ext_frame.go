@@ -250,7 +250,7 @@ func (*frameParser) CanInterruptParagraph() bool { return true }
 func (*frameParser) CanAcceptIndentedLine() bool { return false }
 
 // frameHTMLBlockParser is goldmark's HTML block parser, except that while a
-// frame is open, its close tag or a gno-columns tag also ends a
+// frame is open, a frame tag or a gno-columns tag also ends a
 // document-level HTML block, which would otherwise run to the next blank
 // line and swallow it.
 type frameHTMLBlockParser struct{ parser.BlockParser }
@@ -267,7 +267,7 @@ func (p frameHTMLBlockParser) Open(parent ast.Node, reader text.Reader, pc parse
 func (p frameHTMLBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	if node.Parent().Kind() == ast.KindDocument && frameOpen(pc) {
 		line, _ := reader.PeekLine()
-		if tag := trimTagLine(line); parseFrameLineTag(tag) == frameTagClose || columnsLineTag(tag) != GnoColumnTagUndefined {
+		if tag := trimTagLine(line); parseFrameLineTag(tag) != frameTagNone || columnsLineTag(tag) != GnoColumnTagUndefined {
 			return parser.Close // the line reopens at document level
 		}
 	}

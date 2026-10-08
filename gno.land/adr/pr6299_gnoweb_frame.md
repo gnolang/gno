@@ -82,10 +82,13 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   HTML block runs to the next blank line, so a `<div>` line right before
   `</gno-frame>` would swallow the close tag and stretch the frame over the
   page. The extension registers goldmark's own HTML block parser wrapped so
-  that, while a frame is open, a line that ends the frame also ends a
+  that, while a frame is open, a frame tag line (open, close or invalid) or a
+  gno-columns tag line also ends a
   document-level HTML block (with no frame open, the wrapper leaves the line
   to goldmark's own parser, so the HTML block checks run once), whatever its type (a `<!--` or `<script>` block
-  is cut short too). Safe mode strips that HTML anyway. Only a tag alone on
+  is cut short too). Safe mode strips that HTML anyway. So a `<div>` right
+  above a card's `<gno-frame>` leaves the card's tag to the frame parser
+  (golden `html_block_before_card_open`). Only a tag alone on
   its line counts: `<div></gno-frame>` stays inside the HTML block
   (golden `html_same_line_close`).
 - **Bare-CR line endings.** goldmark splits lines on `\n` only, so a page
