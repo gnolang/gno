@@ -1,8 +1,6 @@
 package markdown
 
 import (
-	"bytes"
-
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
@@ -54,9 +52,9 @@ var (
 	panelOpenPrefix  = []byte("<gno-panel")
 	panelClosePrefix = []byte("</gno-panel")
 
-	// Prefixes of every gno-columns tag, separator included.
-	columnsOpenPrefix  = []byte("<gno-columns")
-	columnsClosePrefix = []byte("</gno-columns")
+	// Every gno-columns tag name parseLineTag (ext_columns.go) accepts; a new
+	// columns tag must be added here too.
+	columnsTagPrefixes = [][]byte{[]byte("<gno-columns"), []byte("<gno-columns-sep"), []byte("</gno-columns")}
 )
 
 // parsePanelLineTag classifies a trimmed line. Only a bare `<gno-panel>`
@@ -84,13 +82,15 @@ func parsePanelLineTag(line []byte) panelTagKind {
 	return kind
 }
 
-func hasPrefixFold(s, prefix []byte) bool {
-	return len(s) >= len(prefix) && bytes.EqualFold(s[:len(prefix)], prefix)
-}
-
+// isColumnsTagLine reports whether line is a gno-columns tag. The prefix
+// check spares the HTML tokenizer in parseLineTag on every other line.
 func isColumnsTagLine(line []byte) bool {
-	return (hasPrefixFold(line, columnsOpenPrefix) || hasPrefixFold(line, columnsClosePrefix)) &&
-		parseLineTag(line) != GnoColumnTagUndefined
+	for _, prefix := range columnsTagPrefixes {
+		if hasGnoTagPrefix(line, prefix) {
+			return parseLineTag(line) != GnoColumnTagUndefined
+		}
+	}
+	return false
 }
 
 // ----- parse state -----
