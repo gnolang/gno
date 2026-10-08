@@ -726,3 +726,27 @@ func TestTruncatedListingIsReportedNotSwallowed(t *testing.T) {
 		}
 	}
 }
+
+type panicDocClient struct{ mockClient }
+
+func (*panicDocClient) Doc(context.Context, string, int64) (*doc.JSONDocumentation, error) {
+	panic("boom in Doc")
+}
+
+// Doc runs inside singleflight.DoChan, which re-panics on its own goroutine
+// where no recover of net/http reaches: unrecovered, it ends the process.
+// Reaching the assertion at all is the test.
+func TestDocPanicFailsTheSearchNotTheProcess(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{
+		Client:    &panicDocClient{},
+		Directory: &mockDirectory{},
+		Domain:    "gno.land",
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "func:Render", "/r/demo/boards"))
+	if len(groups) != 1 || groups[0].Err == nil {
+		t.Fatalf("groups = %+v, want one failed group", groups)
+	}
+}
