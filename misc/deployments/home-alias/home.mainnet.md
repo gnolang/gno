@@ -33,7 +33,6 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Events](/events)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
-- [Careers](https://jobs.ashbyhq.com/allinbits)
 
 <gno-columns-sep>
 
@@ -42,6 +41,7 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 - [Write Gno in the browser](https://play.gno.land)
 - [Read about the Gno Language](/gnolang)
 - [Visit the official documentation](https://docs.gno.land)
+- [Build with AI, using gnomcp](https://mcp.gno.dev)
 - [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
 - [Get testnet GNOTs](https://faucet.gno.land)
 
@@ -51,10 +51,8 @@ Explore this ready-to-use Gno dApp, and experience decentralized social media in
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
+- [Akkadia](https://landing.akkadia.land/)
 - [Gno networks documentation](https://docs.gno.land/resources/gnoland-networks/)
-- [Staging](https://staging.gno.land/)
-- [Testnet 12](https://test12.testnets.gno.land/)
-- [Faucet Hub](https://faucet.gno.land)
 
 </gno-columns>
 
@@ -103,11 +101,11 @@ Demo realm packages showcasing what's possible.
 
 <gno-columns-sep>
 
-### p/demo
+### p/nt
 
-Pure packages for demo purposes.
+Standard pure packages maintained by the core team.
 
-[Browse](/p/demo)
+[Browse](/p/nt)
 
 </gno-columns>
 
@@ -117,8 +115,9 @@ Pure packages for demo purposes.
 
 ## Socials
 
-- Check out our [community projects](https://github.com/gnolang/awesome-gno)
+- Check out our [community projects](https://github.com/gnoverse/awesome-gno)
 - [Discord](https://discord.com/invite/gnoland)
+- [Bubble Rumble](https://bubblerumble.net/)
 - [Twitter](https://twitter.com/_gnoland)
 - [Youtube](https://www.youtube.com/@_gnoland)
 - [Telegram](https://t.me/gnoland)

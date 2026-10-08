@@ -22,7 +22,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # describe answers the chain/ one, which gno.land/pkg/gnoland.parseReleaseVersion
 # refuses. The [branch].[N]+[hash] fallback is unparseable on purpose — an
 # off-tag build must not satisfy a governance halt_min_version.
-VERSION ?= $(shell git describe --tags --exact-match --match 'v*' 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
+VERSION ?= $(shell git describe --tags --exact-match --match 'v*' 2>/dev/null || echo "$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
 
 GOBUILD_FLAGS ?= -trimpath -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(VERSION)"
 

@@ -155,6 +155,7 @@ func createOpenBoardPermissions(owner address) *permissions.Permissions {
 	perms.ValidateFunc(PermissionMemberInvite, validateOpenMemberInvite)
 	perms.ValidateFunc(PermissionRoleChange, validateOpenRoleChange)
 	perms.ValidateFunc(PermissionThreadCreate, validateOpenThreadCreate)
+	perms.ValidateFunc(PermissionThreadRepost, validateOpenThreadRepost)
 	perms.ValidateFunc(PermissionReplyCreate, validateOpenReplyCreate)
 	return perms
 }

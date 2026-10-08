@@ -2,6 +2,9 @@ package components
 
 import (
 	"net/url"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -222,6 +225,26 @@ func TestStaticHeaderDevLinks_WithPackageMode(t *testing.T) {
 	assert.Len(t, links, 2, "expected Content and Source links only")
 	assert.Equal(t, "Content", links[0].Label)
 	assert.Equal(t, "Source", links[1].Label)
+}
+
+func TestStaticHeaderDevLinks_SourceKeepsOpenFile(t *testing.T) {
+	t.Parallel()
+
+	u := weburl.GnoURL{
+		Path:     "/r/test/pkg",
+		WebQuery: url.Values{"source": {""}, "file": {"admin.gno"}},
+	}
+
+	links := StaticHeaderDevLinks(u, ViewModeRealm, false)
+	source := links[2]
+	require.Equal(t, "Source", source.Label)
+	assert.Contains(t, source.URL, "file=admin.gno", "the Source tab must not drop the open file")
+	assert.True(t, source.IsActive)
+
+	// With no file open, Source still points at the package overview.
+	u.WebQuery = url.Values{}
+	links = StaticHeaderDevLinks(u, ViewModeRealm, false)
+	assert.NotContains(t, links[2].URL, "file=")
 }
 
 func TestStaticHeaderDevLinks_StaticContent(t *testing.T) {
@@ -598,4 +621,213 @@ func TestIndexLayout_Banner(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewRealmNotice(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name, text, short string
+		wantErr           bool
+	}{
+		{name: "empty", text: "", wantErr: true},
+		{name: "spaces", text: "   ", wantErr: true},
+		{name: "heading only", text: "# heading only", wantErr: true},
+		{name: "first line empty", text: "\nsecond line", wantErr: true},
+		{name: "raw html only", text: "<b></b>", wantErr: true},
+		{name: "zero-width space", text: "\u200b", wantErr: true},
+		{name: "zero-width entity", text: "&#8203;", wantErr: true},
+		{name: "nbsp entity", text: "&nbsp;", wantErr: true},
+		{name: "braille blank", text: "\u2800", wantErr: true},
+		{name: "empty link", text: "[](https://example.com)", wantErr: true},
+		{name: "image only", text: "![warning](https://example.com/w.png)", wantErr: true},
+		{name: "text", text: "Community realm"},
+		{name: "text and short", text: "Community realm, long", short: "Community realm"},
+		{name: "short renders nothing", text: "Community realm", short: "<b></b>", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			n, err := NewRealmNotice(tc.text, tc.short)
+			if tc.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, n.Enabled())
+			assert.Equal(t, tc.short != "", n.Short.Enabled())
+		})
+	}
+}
+
+func TestNewRealmNotice_DropsImages(t *testing.T) {
+	t.Parallel()
+
+	n, err := NewRealmNotice("Read ![logo](https://example.com/l.png) the code", "")
+	require.NoError(t, err)
+	var buf strings.Builder
+	require.NoError(t, n.Text.Render(&buf))
+	assert.Equal(t, "Read  the code", buf.String())
+}
+
+func TestRealmNotice_Lines(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, 0, RealmNotice{}.Lines())
+	short, err := NewRealmNotice("Community realm, long", "Community realm")
+	require.NoError(t, err)
+	assert.Equal(t, 1, short.Lines())
+	custom, err := NewRealmNotice("Operator text", "")
+	require.NoError(t, err)
+	assert.Equal(t, 2, custom.Lines())
+}
+
+// realmNoticeLayout renders a realm page with the given notice and banner.
+func realmNoticeLayout(t *testing.T, notice RealmNotice, banner string) string {
+	t.Helper()
+
+	bannerData, err := NewBannerData(banner, "")
+	require.NoError(t, err)
+	data := IndexData{
+		HeadData:   HeadData{Title: "Test"},
+		HeaderData: HeaderData{Notice: notice},
+		Mode:       ViewModeRealm,
+		Banner:     bannerData,
+		BodyView: &View{
+			Type:      "test-view",
+			Component: NewReaderComponent(strings.NewReader("testdata")),
+		},
+	}
+
+	var buf strings.Builder
+	require.NoError(t, IndexLayout(data).Render(&buf))
+	return buf.String()
+}
+
+// noticeRow returns the realm-notice row's markup, or "" if there is none.
+func noticeRow(out string) string {
+	start := strings.Index(out, `<div class="b-header-notice"`)
+	if start < 0 {
+		return ""
+	}
+	end := strings.Index(out[start:], "</div>")
+	return out[start : start+end]
+}
+
+func TestIndexLayout_RealmNotice(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no notice leaves the page unchanged", func(t *testing.T) {
+		t.Parallel()
+		out := realmNoticeLayout(t, RealmNotice{}, "")
+		assert.Empty(t, noticeRow(out))
+		assert.Contains(t, out, "</nav>\n</header>")
+		assert.Contains(t, out, `<html lang="en">`)
+		assert.NotContains(t, out, "aria-describedby")
+	})
+
+	t.Run("default notice is the header's one-line second row", func(t *testing.T) {
+		t.Parallel()
+		notice, err := NewRealmNotice("**Community realm**, deployed by its author.", "**Community realm.**")
+		require.NoError(t, err)
+		out := realmNoticeLayout(t, notice, "Maintenance")
+
+		header := strings.Index(out, `<header class="b-header">`)
+		require.NotEqual(t, -1, header)
+		assert.Less(t, strings.Index(out, `class="b-banner"`), header, "banner must render above the header")
+		assert.Less(t, strings.Index(out, "</nav>"), strings.Index(out, `<div class="b-header-notice"`), "row follows the nav")
+		assert.Less(t, strings.Index(out, `<div class="b-header-notice"`), strings.Index(out, "</header>\n<main"), "row is inside the header")
+
+		row := noticeRow(out)
+		assert.Contains(t, row, `role="note"`)
+		assert.Contains(t, row, `aria-label="Community realm notice"`)
+		assert.Contains(t, row, `<p id="realm-notice"`)
+		assert.Contains(t, row, `aria-hidden="true"`)
+		assert.Contains(t, row, `<use href="#ico-info-circle"></use>`)
+		assert.Contains(t, row, `<span class="short"><strong>Community realm.</strong></span>`)
+		assert.Contains(t, row, `<span class="long"><strong>Community realm</strong>, deployed by its author.</span>`)
+		assert.Contains(t, out, `<html lang="en" data-realm-notice-lines="1">`)
+		assert.Contains(t, out, `aria-describedby="realm-notice"`)
+	})
+
+	t.Run("operator text shows as-is and reserves two lines", func(t *testing.T) {
+		t.Parallel()
+		notice, err := NewRealmNotice("Operator <script>alert(1)</script> & co", "")
+		require.NoError(t, err)
+		out := realmNoticeLayout(t, notice, "")
+
+		row := noticeRow(out)
+		assert.Contains(t, row, "<span>Operator <!-- raw HTML omitted -->alert(1)<!-- raw HTML omitted --> &amp; co</span>")
+		assert.NotContains(t, row, "<script>")
+		assert.NotContains(t, row, `class="short"`)
+		assert.Contains(t, out, `<html lang="en" data-realm-notice-lines="2">`)
+	})
+}
+
+// headFixture renders the index layout head with the given build version.
+func headFixture(t *testing.T, version string) string {
+	t.Helper()
+
+	data := IndexData{
+		HeadData: HeadData{
+			Title:         "Test",
+			AssetsPath:    "/public/",
+			ChromaPath:    "/public/_chroma/style.css",
+			AssetsVersion: version,
+		},
+		Mode: ViewModeHome,
+		BodyView: &View{
+			Type:      "test-view",
+			Component: NewReaderComponent(strings.NewReader("testdata")),
+		},
+	}
+
+	var buf strings.Builder
+	require.NoError(t, IndexLayout(data).Render(&buf))
+	return buf.String()
+}
+
+// Assets the head requests on its own carry the version: an edge cache keyed on
+// the URL would otherwise serve a stale favicon or chroma stylesheet across
+// releases for as long as its TTL allows.
+func TestIndexLayout_AssetVersioning(t *testing.T) {
+	output := headFixture(t, "20260920120000")
+
+	for _, href := range []string{
+		`href="/public/favicon.ico?v=20260920120000"`,
+		`href="/public/_chroma/style.css?v=20260920120000"`,
+		`href="/public/main.css?v=20260920120000"`,
+	} {
+		assert.Contains(t, output, href)
+	}
+	assert.NotContains(t, output, "/public//", "an asset URL must not carry a doubled slash")
+}
+
+// A preload is claimed only by a request for the very same URL, and the request
+// for a font is issued by the @font-face rule in the built stylesheet. The
+// preload href therefore has to be spelled exactly as the stylesheet spells it:
+// append a version to one side only and the preload is never claimed, so the
+// font is fetched twice on every cold load. Versioning a font means changing the
+// URL the stylesheet emits, which is a build concern rather than a template one.
+func TestIndexLayout_FontPreloadsMatchStylesheet(t *testing.T) {
+	css, err := os.ReadFile(filepath.Join("..", "public", "main.css"))
+	require.NoError(t, err, "the built stylesheet is the source of truth for font URLs")
+
+	matches := regexp.MustCompile(`url\(["']?([^)"']+\.woff2)["']?\)`).FindAllSubmatch(css, -1)
+	require.NotEmpty(t, matches, "no woff2 @font-face URL found in the built stylesheet")
+
+	output := headFixture(t, "20260920120000")
+
+	var matched int
+	for _, m := range matches {
+		// main.css is served from AssetsPath, so a relative url() in it resolves there.
+		stylesheetURL := "/public/" + strings.TrimPrefix(string(m[1]), "./")
+		if !strings.Contains(output, `href="`+stylesheetURL) {
+			continue // the head does not preload this font
+		}
+		assert.Contains(t, output, `href="`+stylesheetURL+`"`,
+			"preload must match the stylesheet URL exactly, with nothing appended")
+		matched++
+	}
+	require.NotZero(t, matched, "expected the head to preload at least one stylesheet font")
 }
