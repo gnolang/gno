@@ -255,9 +255,9 @@ func TestIconHeadingIDAndToc(t *testing.T) {
 	assert.Contains(t, out, `<h2 id="launch"><svg class="gno-icon"`)
 	assert.Contains(t, out, `<h2 id="launch-1">Launch</h2>`)
 	assert.Contains(t, out, `<h1 id="title">Title</h1>`)
-	assert.Contains(t, out, `<h2 id="status">Status <svg class="gno-icon"`)
+	assert.Contains(t, out, `<h2 id="status-done">Status <svg class="gno-icon"`)
 	assert.Contains(t, out, `<h2 id="heading"><svg class="gno-icon"`)
-	assert.Contains(t, out, `<h2 id="heading-1"><svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Top">`)
+	assert.Contains(t, out, `<h2 id="top"><svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Top">`)
 	// A tag shown as text (code span, backslash escape) stays in the ID.
 	assert.Contains(t, out, `<h2 id="gno-icon-namestar--syntax"><code>`)
 	assert.Contains(t, out, `<h2 id="gno-icon-namestar--escaped">&lt;gno-icon`)
@@ -273,12 +273,43 @@ func TestIconHeadingIDAndToc(t *testing.T) {
 	assert.Equal(t, []string{
 		"launch=Launch",
 		"launch-1=Launch",
-		"status=Status done",
-		"heading-1=Top",
+		"status-done=Status done",
+		"top=Top",
 		`gno-icon-namestar--syntax=<gno-icon name="star" /> syntax`,
 		`gno-icon-namestar--escaped=<gno-icon name="star" /> escaped`,
 		"plain-heading=Plain heading",
 	}, got, "a label names its heading in the TOC; an unlabeled icon-only heading has no title, so the TOC drops it")
+}
+
+// TestIconHeadingLabelText checks the TOC title and the ID of a heading
+// take an icon's label only when the icon renders, decoded as its
+// aria-label is, and apart from the text next to it.
+func TestIconHeadingLabelText(t *testing.T) {
+	m := newProductionLikeMarkdown()
+	for src, want := range map[string]string{
+		"## <gno-icon name=\"nope\" label=\"Top\" />\n":             "heading=",
+		"## <gno-icon label=\"Top\" />\n":                           "heading=",
+		"## <gno-icon name=\"star\" label=\"Top\">\n":               "heading=",
+		"## <gno-icon name=\"star\" label=\"Q &amp; A\" />\n":       "q--a=Q & A",
+		"## <gno-icon name=\"star\" label=\"&quot;Hi&quot;\" />\n":  "hi=\"Hi\"",
+		"## Picks<gno-icon name=\"star\" label=\"Top\" />\n":        "picks-top=Picks Top",
+		"## <gno-icon name=\"star\" label=\"Top\" />Picks\n":        "top-picks=Top Picks",
+		"## A <gno-icon name=\"star\" label=\"Top\" /> B\n":         "a-top-b=A Top B",
+		"## ![<gno-icon name=\"star\" label=\"Top\" />](i.png) A\n": "ipng-a= A", // the image source stays in the ID, as goldmark leaves it
+	} {
+		doc := m.Parser().Parse(text.NewReader([]byte(src)), parser.WithContext(NewGnoParserContext(GnoContext{})))
+		var buf bytes.Buffer
+		require.NoError(t, m.Renderer().Render(&buf, []byte(src), doc))
+		toc, err := TocInspect(doc, []byte(src), TocOptions{MinDepth: 2, MaxDepth: 6})
+		require.NoError(t, err)
+		id := regexp.MustCompile(`<h2 id="([^"]*)"`).FindStringSubmatch(buf.String())
+		require.Len(t, id, 2, "%q: %s", src, buf.String())
+		title := ""
+		if len(toc.Items) > 0 {
+			title = toc.Items[0].Title
+		}
+		assert.Equal(t, want, id[1]+"="+title, "%q", src)
+	}
 }
 
 // TestIconHeadingIDEmpty checks an empty heading keeps its ID in the
@@ -289,7 +320,7 @@ func TestIconHeadingIDEmpty(t *testing.T) {
 	for src, want := range map[string][]string{
 		"##\n\n## Heading\n": {"heading", "heading-1"},
 		"##\n\n## Heading\n\n## <gno-icon name=\"star\" /> A\n":                  {"heading", "heading-1", "a"},
-		"##\n\n## <gno-icon name=\"star\" label=\"Top\" />\n":                    {"heading", "heading-1"},
+		"##\n\n## <gno-icon name=\"star\" label=\"Top\" />\n":                    {"heading", "top"},
 		"## <gno-icon name=\"star\" />\n\n##\n\n## <gno-icon name=\"star\" />\n": {"heading", "heading-1", "heading-2"},
 	} {
 		var buf bytes.Buffer
@@ -314,6 +345,9 @@ func TestIconHintPerParent(t *testing.T) {
 		"## [<gno-icon name=\"star\" />](/r/x) <gno-icon name=\"star\" />\n":               2,
 		"## <gno-icon name=\"star\" /> [Title](/r/x)\n":                                    0,
 		"## <gno-icon name=\"star\" /> [<gno-icon name=\"star\" label=\"Top\" />](/r/x)\n": 0,
+		// An icon in an image's alt text renders nothing: it takes no hint.
+		"## ![<gno-icon name=\"star\" />](i.png) <gno-icon name=\"star\" />\n": 1,
+		"## ![<gno-icon name=\"star\" />](i.png)\n":                            0,
 	} {
 		var buf bytes.Buffer
 		require.NoError(t, m.Convert([]byte(src), &buf))

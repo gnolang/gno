@@ -19,7 +19,9 @@
 package markdown
 
 import (
+	"bufio"
 	"bytes"
+	"html"
 	"strconv"
 
 	"github.com/yuin/goldmark"
@@ -82,6 +84,37 @@ func (n *Icon) Dump(source []byte, level int) {
 		"label":        string(n.Label),
 		"self_closing": strconv.FormatBool(n.SelfClosing),
 	}, nil)
+}
+
+// renders reports whether the icon draws its svg, not a hint comment.
+func (n *Icon) renders() bool {
+	_, ok := iconRegistry[string(n.Name)]
+	return ok && n.SelfClosing
+}
+
+// accessibleName returns the aria-label the icon renders, decoded (character
+// references and backslash escapes resolved, as renderIcon writes it), or nil
+// for an icon that is decorative or renders nothing.
+func (n *Icon) accessibleName() []byte {
+	if len(n.Label) == 0 || !n.renders() {
+		return nil
+	}
+	var buf bytes.Buffer
+	w := bufio.NewWriter(&buf)
+	gmhtml.DefaultWriter.Write(w, n.Label)
+	_ = w.Flush()
+	return []byte(html.UnescapeString(buf.String()))
+}
+
+// inImage reports whether n sits in an image's alt text, which renders as
+// plain text: an icon there draws nothing.
+func inImage(n ast.Node) bool {
+	for p := n.Parent(); p != nil; p = p.Parent() {
+		if p.Kind() == ast.KindImage {
+			return true
+		}
+	}
+	return false
 }
 
 // ----- tag scanner -----
@@ -164,11 +197,12 @@ func (*iconParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) 
 	return &Icon{iconTag: tag, Source: text.NewSegment(seg.Start, seg.Start+size)}
 }
 
-// iconHeadingIDTransformer rebuilds auto heading IDs without the icon tags.
-// goldmark derives an ID from the heading's raw source line, so
-// `## <gno-icon name="rocket" /> Launch` gets `gno-icon-namerocket-launch`;
-// without the tag it gets `launch`, from the text the TOC shows. The tags
-// removed are the Icon nodes goldmark parsed, so a tag shown as text (code
+// iconHeadingIDTransformer rebuilds auto heading IDs with each icon tag
+// replaced by what the TOC shows for it. goldmark derives an ID from the
+// heading's raw source line, so `## <gno-icon name="rocket" /> Launch` gets
+// `gno-icon-namerocket-launch`; without the tag it gets `launch`, and
+// `## <gno-icon name="star" label="Top" />` gets `top`, as its TOC entry
+// reads. The tags replaced are the Icon nodes goldmark parsed, so a tag shown as text (code
 // span, backslash escape) stays, as any text does. Every heading is
 // renumbered in document order with fresh IDs, so a `Launch` before or after
 // the icon heading gets the suffix it would without icons. Other inline
@@ -191,7 +225,7 @@ func (*iconHeadingIDTransformer) Transform(doc *ast.Document, reader text.Reader
 			var value []byte // an empty heading: goldmark's ID for no text
 			if h.Lines().Len() > 0 {
 				line := h.Lines().At(h.Lines().Len() - 1) // the line goldmark uses
-				value = withoutIcons(h, line, src)
+				value = withIconLabels(h, line, src)
 			}
 			h.SetAttributeString("id", ids.Generate(value, ast.KindHeading))
 		}
@@ -199,10 +233,11 @@ func (*iconHeadingIDTransformer) Transform(doc *ast.Document, reader text.Reader
 	})
 }
 
-// withoutIcons returns the source of line minus the Icons under n that sit
-// on it, or the line itself when none does. The walk visits them in source
-// order.
-func withoutIcons(n ast.Node, line text.Segment, src []byte) []byte {
+// withIconLabels returns the source of line with each Icon under n that sits
+// on it replaced by the label the TOC shows for it (see writeNodeText),
+// spaced from the text next to it, or the line itself when no icon does.
+// The walk visits them in source order.
+func withIconLabels(n ast.Node, line text.Segment, src []byte) []byte {
 	var out []byte
 	at := line.Start
 	_ = ast.Walk(n, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -212,6 +247,18 @@ func withoutIcons(n ast.Node, line text.Segment, src []byte) []byte {
 			}
 			out = append(out, src[at:icon.Source.Start]...)
 			at = icon.Source.Stop
+			if inImage(icon) {
+				return ast.WalkContinue, nil
+			}
+			if label := icon.accessibleName(); label != nil {
+				if len(out) > 0 && !util.IsSpace(out[len(out)-1]) {
+					out = append(out, ' ')
+				}
+				out = append(out, label...)
+				if at < line.Stop && !util.IsSpace(src[at]) {
+					out = append(out, ' ')
+				}
+			}
 		}
 		return ast.WalkContinue, nil
 	})
@@ -296,6 +343,7 @@ func aloneInNamedParent(n *Icon, source []byte) bool {
 	var first *Icon
 	named := false
 	nested := 0 // depth inside a link or heading under parent
+	images := 0 // depth inside an image, whose alt text draws no icon
 	_ = ast.Walk(parent, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
 		if c != parent && namedByContent(c) {
 			if entering {
@@ -304,18 +352,28 @@ func aloneInNamedParent(n *Icon, source []byte) bool {
 				nested--
 			}
 		}
+		if c.Kind() == ast.KindImage {
+			if entering {
+				images++
+			} else {
+				images--
+			}
+		}
 		if !entering {
 			return ast.WalkContinue, nil
 		}
 		switch c := c.(type) {
 		case *Icon:
+			if images > 0 {
+				break
+			}
 			if nested == 0 {
 				c.hintDone = true
 				if first == nil {
 					first = c
 				}
 			}
-			named = named || len(c.Label) > 0
+			named = named || (len(c.Label) > 0 && c.renders())
 		case *ast.Text:
 			named = named || !util.IsBlank(c.Segment.Value(source))
 		case *ast.String:
@@ -323,6 +381,9 @@ func aloneInNamedParent(n *Icon, source []byte) bool {
 		}
 		return ast.WalkContinue, nil
 	})
+	if first == nil { // n is in an image's alt text, which is not rendered
+		return false
+	}
 	first.hint = !named
 	return n.hint
 }

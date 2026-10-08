@@ -187,28 +187,55 @@ func GetWordArticle(word string) string {
 	return "a"
 }
 
-// nodeText returns the text content of a node, recursively.
+// nodeText returns the text content of a node, recursively, with backslash
+// escapes resolved.
 func nodeText(src []byte, n ast.Node) []byte {
-	var buf bytes.Buffer
-	writeNodeText(src, &buf, n)
-	return buf.Bytes()
+	var w nodeTextWriter
+	w.walk(src, n)
+	return w.buf.Bytes()
 }
 
-// writeNodeText writes the text content of a node to a buffer. An icon
-// writes its label, the name it gives the heading or link it sits in.
-func writeNodeText(src []byte, dst io.Writer, n ast.Node) {
+// nodeTextWriter collects a node's text. An icon that renders adds its
+// decoded label, the name it gives the heading or link it sits in, set apart
+// from the text next to it by a space; an icon that renders nothing, or sits
+// in an image's alt text, adds nothing.
+type nodeTextWriter struct {
+	buf   bytes.Buffer
+	space bool // a label was just written: the next text needs a space
+}
+
+func (w *nodeTextWriter) walk(src []byte, n ast.Node) {
 	switch n := n.(type) {
 	case *ast.Text:
-		_, _ = dst.Write(n.Segment.Value(src))
+		w.text(util.UnescapePunctuations(n.Segment.Value(src)))
 	case *ast.String:
-		_, _ = dst.Write(n.Value)
+		w.text(util.UnescapePunctuations(n.Value))
 	case *Icon:
-		_, _ = dst.Write(n.Label)
+		label := n.accessibleName()
+		if label == nil || inImage(n) {
+			return
+		}
+		if l := w.buf.Len(); l > 0 && !util.IsSpace(w.buf.Bytes()[l-1]) {
+			w.buf.WriteByte(' ')
+		}
+		w.buf.Write(label)
+		w.space = true
 	default:
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-			writeNodeText(src, dst, c)
+			w.walk(src, c)
 		}
 	}
+}
+
+func (w *nodeTextWriter) text(b []byte) {
+	if len(b) == 0 {
+		return
+	}
+	if w.space && !util.IsSpace(b[0]) {
+		w.buf.WriteByte(' ')
+	}
+	w.space = false
+	w.buf.Write(b)
 }
 
 var titleCaser = cases.Title(language.AmericanEnglish)

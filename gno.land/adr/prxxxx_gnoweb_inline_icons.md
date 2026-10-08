@@ -110,13 +110,17 @@ on a renderer that does not know it.
 - **Heading IDs.** goldmark derives an auto ID from the heading's raw source
   line, which would give `## <gno-icon name="rocket" /> Launch` the ID
   `gno-icon-namerocket-launch`. An AST transformer rebuilds the IDs of a
-  document that has an icon in a heading: from the raw line minus the byte
-  ranges of the `Icon` nodes goldmark actually parsed, with a fresh ID
+  document that has an icon in a heading: from the raw line with the byte
+  ranges of the `Icon` nodes goldmark actually parsed replaced by what the
+  TOC shows for them (the decoded label of an icon that renders, set apart
+  by a space, else nothing), with a fresh ID
   generator walking headings in document order. The generator is
   `linearIDs` (`markdown/ids.go`, from #6296, copied verbatim): goldmark's
   default deduplicates in O(n²), and renumbering doubled that (20,000
   identical headings after one icon heading took 35 s); with `linearIDs`
-  the renumbering is linear (`TestIconHeadingIDsLinear`). The ID is `launch`, a later
+  the renumbering is linear (`TestIconHeadingIDsLinear`). The ID is `launch`,
+  `## <gno-icon name="star" label="Top" />` gets `top` rather than a
+  positional `heading-N`, a later
   `Launch` gets `launch-1`, and a tag shown as text (code span, backslash
   escape) stays in the ID as any text does. Other inline syntax is left as
   goldmark leaves it. The parser flags the context when an icon lands in a
@@ -212,9 +216,13 @@ does not grow, there is no asset to fetch and nothing to add to the CSP.
   `<!-- gno-icon: alone in a link or heading, add label="…" to name it -->`
   once, after the first icon (a link inside a heading gets its own), and
   the docs say a label is required there. The TOC titles a heading with
-  its text and its icons' labels, so `## <gno-icon name="star" label="Top" />`
-  is listed as `Top`; a heading holding only unlabeled icons has no title
-  and no TOC entry.
+  its text and the labels of its icons that render, decoded as the
+  aria-label is and spaced from adjacent text, so
+  `## <gno-icon name="star" label="Top" />` is listed as `Top` and
+  `## Picks<gno-icon name="star" label="Top" />` as `Picks Top`; a heading
+  holding only unlabeled icons, or icons that render a hint comment, has no
+  title and no TOC entry. An icon in an image's alt text renders nothing, so
+  it takes no hint, no TOC text and no ID text.
 - No `tabindex`; nothing an icon renders is focusable.
 - Forced colors / high contrast: glyphs use `currentColor` only (fill or
   stroke), so they follow the system text color.
