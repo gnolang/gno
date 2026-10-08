@@ -168,7 +168,10 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 }
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
-	data.RealmPath = data.RealmURL.EncodeURL()
+	// The root has no path: an empty value shows the placeholder
+	if data.RealmURL.Path != "/" {
+		data.RealmPath = data.RealmURL.EncodeURL()
+	}
 	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
 	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
 		data.AI = NewAIMenu(data.Origin, data.RealmURL)
