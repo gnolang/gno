@@ -2053,6 +2053,26 @@ func TestHTTPHandler_StatePageHeaderData(t *testing.T) {
 		"page title must reflect realm path — empty title means HeadData.Title was not set on the state branch")
 }
 
+// TestHTTPHandler_StaticHomeSearchPlaceholder checks that a static home shows
+// the search placeholder, with no empty breadcrumb over it.
+func TestHTTPHandler_StaticHomeSearchPlaceholder(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient())
+	config.Aliases["/"] = gnoweb.AliasTarget{Value: "# Home", Kind: gnoweb.StaticMarkdown}
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, `value="" placeholder="Search realms, packages and users"`)
+	assert.NotContains(t, body, `class="b-breadcrumb"`, "an empty breadcrumb would cover the placeholder")
+}
+
 // TestHTTPHandler_StateJSONErrorOnBadURL checks that a `$state&json`
 // request whose URL fails weburl.ParseFromURL still gets a JSON
 // envelope, not the HTML "invalid path" page — the JSON-in/JSON-out
