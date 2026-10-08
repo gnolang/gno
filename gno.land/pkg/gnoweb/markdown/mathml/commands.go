@@ -322,32 +322,9 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	if spec, ok := command_args[name]; ok {
 		n = converter.processCommandArgs(context, name, star, b, spec)
 	} else if ch, ok := accents[name]; ok {
-		n = NewMMLNode("mover").SetTrue("accent")
-		acc := NewMMLNode("mo", string(ch))
-		acc.SetTrue("stretchy")
-		tempbuf, err := b.GetNextExpr()
-		if errors.Is(err, ErrTokenBufferSingle) {
-			tempbuf, _ = b.GetNextN(1, true)
-		}
-		base := converter.ParseTex(tempbuf, context)
-		if base.Tag == "mi" {
-			// Dotless i and j under the accent, through the stylesheet.
-			base.AddClass("math-dtls-on")
-		}
-		n.AppendChild(base, acc)
+		n = converter.makeAccent("mover", ch, context, b)
 	} else if ch, ok := accents_below[name]; ok {
-		n = NewMMLNode("munder").SetTrue("accent")
-		acc := NewMMLNode("mo", string(ch))
-		acc.SetTrue("stretchy")
-		tempbuf, err := b.GetNextExpr()
-		if errors.Is(err, ErrTokenBufferSingle) {
-			tempbuf, _ = b.GetNextN(1, true)
-		}
-		base := converter.ParseTex(tempbuf, context)
-		if base.Tag == "mi" {
-			base.AddClass("math-dtls-on")
-		}
-		n.AppendChild(base, acc)
+		n = converter.makeAccent("munder", ch, context, b)
 	} else {
 		n = NewMMLNode("merror", tok.Value)
 	}
@@ -355,6 +332,29 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	n.set_variants_from_context(context)
 	n.setAttribsFromProperties()
 	return n
+}
+
+// makeAccent draws the accent ch over (mover) or under (munder) the next
+// {group} or token of b. An accent with no argument, as in \hat{} or a
+// trailing \hat, is drawn over an empty base.
+func (converter *MathMLConverter) makeAccent(tag string, ch rune, context parseContext, b *TokenBuffer) *MMLNode {
+	acc := NewMMLNode("mo", string(ch))
+	acc.SetTrue("stretchy")
+	arg, err := b.GetNextExpr()
+	if errors.Is(err, ErrTokenBufferSingle) {
+		arg, err = b.GetNextN(1, true)
+	}
+	var base *MMLNode
+	if err == nil {
+		base = converter.ParseTex(arg, context)
+	}
+	if base == nil {
+		base = NewMMLNode("mrow")
+	} else if base.Tag == "mi" {
+		// Dotless i and j under the accent, through the stylesheet.
+		base.AddClass("math-dtls-on")
+	}
+	return NewMMLNode(tag).SetTrue("accent").AppendChild(base, acc)
 }
 
 // minSize and maxSize bound the size of math under nested size switches,

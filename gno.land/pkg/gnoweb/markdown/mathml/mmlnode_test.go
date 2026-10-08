@@ -394,3 +394,13 @@ func BenchmarkConvert(b *testing.B) {
 		}
 	}
 }
+
+// An accent over nothing, as in \hat{} or a trailing \hat, draws the accent
+// alone instead of failing the whole formula.
+func TestAccentWithoutArgument(t *testing.T) {
+	for _, tex := range []string{`\hat{}`, `\overline{}`, `x\hat`, `\hat`, `\hat{ }`, `\underline{}`, `x\underline`} {
+		out, err := NewMathMLConverter().ConvertInline(tex)
+		require.NoError(t, err, tex)
+		assert.Regexp(t, `<m(over|under) accent="true"><mrow></mrow><mo stretchy="true">.</mo></m(over|under)>`, out, tex)
+	}
+}
