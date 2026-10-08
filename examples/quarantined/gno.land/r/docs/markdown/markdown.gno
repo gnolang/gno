@@ -869,7 +869,7 @@ A button is a link styled as a call to action. Write it as a single self-closing
 
 - ±href± (required): the destination, resolved like a markdown link (internal, external, ±$help± transaction links). ±javascript:±, ±data:± and other unsafe URLs are rejected.
 - ±label± (required): the button text, shown as plain text (markdown inside it is not interpreted).
-- ±variant± (optional): any of ±outline±, ±caution±, ±warning±, ±info±, ±note±, space-separated. Unknown values are ignored.
+- ±variant± (optional): ±outline±, and the alert kinds ±note±, ±tip±, ±caution±, ±warning±, ±success±, ±info±, space-separated. Unknown values are ignored.
 
 ±±±markdown
 <gno-button href="/r/gnoland/blog" label="Read the blog" />
@@ -884,6 +884,8 @@ A button is a link styled as a call to action. Write it as a single self-closing
 <gno-button href="/r/docs/home" label="Warning" variant="warning" />
 <gno-button href="/r/docs/home" label="Info" variant="info" />
 <gno-button href="/r/docs/home" label="Note" variant="note" />
+<gno-button href="/r/docs/home" label="Tip" variant="tip" />
+<gno-button href="/r/docs/home" label="Success" variant="success" />
 <gno-button href="/r/docs/home" label="Caution outline" variant="caution outline" />
 ±±±
 
@@ -893,6 +895,8 @@ A button is a link styled as a call to action. Write it as a single self-closing
 <gno-button href="/r/docs/home" label="Warning" variant="warning" />
 <gno-button href="/r/docs/home" label="Info" variant="info" />
 <gno-button href="/r/docs/home" label="Note" variant="note" />
+<gno-button href="/r/docs/home" label="Tip" variant="tip" />
+<gno-button href="/r/docs/home" label="Success" variant="success" />
 <gno-button href="/r/docs/home" label="Caution outline" variant="caution outline" />
 
 Buttons are inline, so they also work inside text, lists, tables, alerts and columns:

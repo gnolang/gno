@@ -27,9 +27,10 @@ import (
 const buttonClassBase = "gno-button"
 
 // buttonVariants is the whitelist of `variant` values, in the order their
-// classes are emitted. Values combine (`variant="caution outline"`), match
-// case-insensitively like alert kinds, and anything not listed is ignored.
-var buttonVariants = []string{"outline", "caution", "warning", "info", "note"}
+// classes are emitted: `outline` plus every alert kind. Values combine
+// (`variant="caution outline"`), match case-insensitively like alert kinds,
+// and anything not listed is ignored.
+var buttonVariants = []string{"outline", "caution", "warning", "info", "note", "tip", "success"}
 
 var buttonTagPrefix = []byte("<gno-button")
 

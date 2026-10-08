@@ -3299,6 +3299,27 @@ main.is-dev-mode .b-toc a {
 			--gno-button-outline: var(--s-color-text-note);
 		}
 
+		/* The tip text token alone is under AA in dark (2.94:1 on its fill).
+		   70% of it with the primary text lightens it in dark (4.75:1) and
+		   keeps it purple in light; less tip would read as plain text. */
+		&.gno-button-tip {
+			--gno-button-bg: var(--s-color-bg-tip-weak);
+			--gno-button-border: var(--s-color-border-tip);
+			--gno-button-outline: color-mix(
+				in oklab,
+				var(--s-color-text-tip) 70%,
+				var(--s-color-text-primary)
+			);
+			--gno-button-text: var(--gno-button-outline);
+		}
+
+		&.gno-button-success {
+			--gno-button-bg: var(--s-color-bg-success-weak);
+			--gno-button-border: var(--s-color-border-success);
+			--gno-button-text: var(--s-color-text-success);
+			--gno-button-outline: var(--s-color-text-success);
+		}
+
 		/* Outline: no fill; the border is the only shape, so it takes the
 		   text color. */
 		&.gno-button-outline {
