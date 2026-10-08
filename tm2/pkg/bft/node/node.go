@@ -406,6 +406,40 @@ func parseSeedAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddr
 	return seedAddrs
 }
 
+// parsePersistentPeerAddrs parses the persistent peer addresses from the node
+// configuration. A persistent peer has a single configured address: when the
+// same peer ID is listed more than once, the last entry is the one the switch
+// keeps and dials, so the earlier ones are reported
+func parsePersistentPeerAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
+	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
+		splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "),
+	)
+	for _, err := range errs {
+		logger.Error("invalid persistent peer address", "err", err)
+	}
+
+	lastAddrs := make(map[p2pTypes.ID]*p2pTypes.NetAddress, len(peerAddrs))
+	for _, addr := range peerAddrs {
+		lastAddrs[addr.ID] = addr
+	}
+
+	for _, addr := range peerAddrs {
+		last := lastAddrs[addr.ID]
+		if addr == last {
+			continue
+		}
+
+		logger.Warn(
+			"persistent peer listed more than once, only its last address is dialed",
+			"id", addr.ID,
+			"ignored", addr.String(),
+			"dialed", last.String(),
+		)
+	}
+
+	return peerAddrs
+}
+
 // NewNode returns a new, ready to go, Tendermint Node.
 func NewNode(config *cfg.Config,
 	privValidator types.PrivValidator,
@@ -563,12 +597,7 @@ func NewNode(config *cfg.Config,
 	}
 
 	// Setup MultiplexSwitch.
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
-		splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "),
-	)
-	for _, err = range errs {
-		p2pLogger.Error("invalid persistent peer address", "err", err)
-	}
+	peerAddrs := parsePersistentPeerAddrs(config, p2pLogger)
 
 	// Parse the seed node addresses
 	seedAddrs := parseSeedAddrs(config, p2pLogger)

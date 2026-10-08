@@ -1,7 +1,9 @@
 package node
 
 import (
+	"bytes"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
 	"strings"
@@ -428,6 +430,68 @@ func TestParseSeedAddrs(t *testing.T) {
 		config.P2P.Seeds = ""
 
 		assert.Empty(t, parseSeedAddrs(config, log.NewNoopLogger()))
+	})
+}
+
+// TestParsePersistentPeerAddrs verifies the parsing of config.P2P.PersistentPeers
+// on the node. Invalid entries are dropped, and a peer ID listed more than once
+// is reported, since only the last address of a persistent peer is dialed
+func TestParsePersistentPeerAddrs(t *testing.T) {
+	t.Run("persistent peers are parsed", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		peers := []string{
+			p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), "127.0.0.1:26656"),
+			p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), "127.0.0.1:26657"),
+		}
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join(peers, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, len(peers))
+
+		for index, addr := range peerAddrs {
+			assert.Equal(t, peers[index], addr.String())
+		}
+
+		assert.Empty(t, buf.String())
+	})
+
+	t.Run("invalid persistent peer addresses are dropped", func(t *testing.T) {
+		validPeer := p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), "127.0.0.1:26656")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{"not-a-peer-address", validPeer}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, log.NewNoopLogger())
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, validPeer, peerAddrs[0].String())
+	})
+
+	t.Run("a repeated peer ID is reported", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+		first := p2pTypes.NetAddressString(id, "127.0.0.1:26656")
+		last := p2pTypes.NetAddressString(id, "127.0.0.1:26657")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{first, last}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 2)
+		assert.Equal(t, first, peerAddrs[0].String())
+		assert.Equal(t, last, peerAddrs[1].String())
+
+		logs := buf.String()
+		assert.Equal(t, 1, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Contains(t, logs, "id="+string(id))
+		assert.Contains(t, logs, "ignored="+first)
+		assert.Contains(t, logs, "dialed="+last)
 	})
 }
 
