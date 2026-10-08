@@ -253,6 +253,12 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"gno-button-after-backtick-in-html", "a <span title=\"`\"><gno-button /> `\n", "a <span title=\"`\">\\<gno-button /> `\n"},
 		{"gno-button-four-spaces", "    <gno-button />\n", "    \\<gno-button />\n"},
 		{"gno-button-in-fence", "```\n<gno-button />\n```\n", "```\n\\<gno-button />\n```\n"}, // the tracker may see a fence goldmark does not
+		// A pointy link destination: the backslash must be in place before
+		// the bracket walker runs, or `[evil]` binds to a realm reference.
+		{"gno-button-pointy-link", "[evil](<gno-button x>)\n", "\\[evil\\](\\<gno-button x>)\n"},
+		{"gno-button-pointy-link-bare", "[evil](<gno-button>)\n", "[evil](\\<gno-button>)\n"},
+		{"gno-button-pointy-link-title", "[evil](<gno-button x> \"t\")\n", "\\[evil\\](\\<gno-button x> \"t\")\n"},
+		{"gno-button-pointy-link-upper", "see [evil](<GNO-BUTTON href=/x />) now\n", "see \\[evil\\](\\<GNO-BUTTON href=/x />) now\n"},
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
 		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
 		{"html-type1-pre", "<pre>x</pre>\n", "\\<pre>x</pre>\n"},
@@ -325,6 +331,12 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"gno-button-in-list", "- <gno-button />\n", "- \\<gno-button />\n"},
 		{"gno-button-in-heading", "# <gno-button />\n", "# \\<gno-button />\n"},
 		{"gno-button-in-fence", "```\n<gno-button />\n```\n", "```\n\\<gno-button />\n```\n"},
+		// A pointy link destination: the backslash must be in place before
+		// the bracket walker runs, or `[evil]` binds to a realm reference.
+		{"gno-button-pointy-link", "[evil](<gno-button x>)\n", "\\[evil\\](\\<gno-button x>)\n"},
+		{"gno-button-pointy-link-bare", "[evil](<gno-button>)\n", "[evil](\\<gno-button>)\n"},
+		{"gno-button-pointy-link-title", "[evil](<gno-button x> \"t\")\n", "\\[evil\\](\\<gno-button x> \"t\")\n"},
+		{"gno-button-pointy-link-upper", "see [evil](<GNO-BUTTON href=/x />) now\n", "see \\[evil\\](\\<GNO-BUTTON href=/x />) now\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
 		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},

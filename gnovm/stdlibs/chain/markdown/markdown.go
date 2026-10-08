@@ -378,6 +378,16 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	// internal breaks.
 	s = foldUnicodeSeparators(s)
 
+	// <gno-button /> is an inline tag: it renders wherever its `<` sits
+	// (after a list or quote marker, NBSP, mid-line…), so every occurrence
+	// is escaped, fenced lines included, since the fence tracker can see
+	// fenced code where goldmark does not (a fence line inside an HTML
+	// block or a list item). This runs before the bracket walker, which
+	// must see the backslash: added after it, the backslash would break a
+	// pointy link destination `[a](<gno-button x>)` the walker kept as a
+	// link, and `[a]` would then bind to a realm reference definition.
+	s = escapeGnoButtonTags(s)
+
 	// Pass 1+2: bracket walker. Finds inline link / image / LRD / fence
 	// spans on the whole input, then escapes any unescaped `[` / `]`
 	// outside those spans, and deletes LRD spans entirely. Subsumes the
@@ -407,10 +417,7 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		writeNL := idx < len(lines)-1 || trailingNewline
 
 		if inFence {
-			// The fence tracker can see fenced code where goldmark does
-			// not (a fence line inside an HTML block or a list item), so
-			// a button tag is escaped here too, as in a code span.
-			out.WriteString(escapeGnoButtonTags(line))
+			out.WriteString(line)
 			if writeNL {
 				out.WriteByte('\n')
 			}
@@ -421,17 +428,15 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			continue
 		}
 
-		// <gno-button /> is an inline tag: it renders wherever its `<`
-		// sits (after a list or quote marker, NBSP, mid-line…), so every
-		// occurrence is escaped, not only a line-start one.
-		line = escapeGnoButtonTags(line)
-
 		// Extension delimiter lines: a backslash before the `<` makes it a
 		// CM §2.4 inline escape, so neither a gno-* block parser nor the
 		// Type-7 HTML block detection sees a tag (a leading space would not
 		// do: the parsers call util.TrimLeftSpace). From 4 columns of indent
-		// the line may be indented code, where that backslash would show,
-		// so it goes at line start instead, ahead of the indent.
+		// the line may be indented code, so the backslash keeps its old
+		// place at line start, ahead of the indent. A backslash shows either
+		// way: after the indent it would be literal code text, and at line
+		// start it precedes a space, which it cannot escape, so the line
+		// renders as `\` plus the indent and the tag (dropped as raw HTML).
 		if isExtDelimiter(line) {
 			trimmed := strings.TrimLeft(line, " \t")
 			lead := line[:len(line)-len(trimmed)]
