@@ -12,7 +12,7 @@
 // sets under icons/, through an element and attribute allowlist: nothing is
 // parsed at run time, and a lookup is a map read.
 //
-// A tag is read by a bounded scanner (maxIconTagLen), on one line. A tag
+// A tag is read by the shared bounded scanner (scanGnoTag), on one line. A tag
 // that is not self-closing, or that has a missing or unknown name, renders
 // as an HTML comment saying so; a tag that never ends on its line is left
 // to goldmark, which shows it as text.
@@ -60,7 +60,7 @@ type Icon struct {
 }
 
 // iconTag is what a tag says. Name and Label are the raw attribute values,
-// aliasing the source. Kept apart from Icon so the scanner returns it on the
+// aliasing the source. Kept apart from Icon so parseIconTag returns it on the
 // stack and only a recognized tag allocates a node.
 type iconTag struct {
 	Name, Label []byte
@@ -83,89 +83,26 @@ func (n *Icon) Dump(source []byte, level int) {
 
 // ----- tag scanner -----
 
-// maxIconTagLen bounds how far a tag is scanned. It keeps an unterminated
-// `<gno-icon` from costing a scan to the end of the line, which, repeated
-// on one line, made parsing quadratic; it also caps the label length.
+// maxIconTagLen bounds how far a tag is scanned (see scanGnoTag): an
+// unterminated `<gno-icon` costs at most this much, and it caps the label.
 const maxIconTagLen = 512
 
-// parseIconTag reads a `<gno-icon …>` tag at the start of src, without
-// allocating. It returns the tag's length, or 0 when src does not start with
-// a gno-icon tag that ends (`/>` or `>`) on this line within maxIconTagLen
-// bytes. Attribute names are case-insensitive and the first occurrence wins,
-// as in HTML; values are returned raw, without entity decoding.
+// parseIconTag reads a `<gno-icon …>` tag at the start of src with the
+// shared scanGnoTag, without allocating. It returns the tag's length, or 0.
+// Attribute names are case-insensitive and the first occurrence wins, as in
+// HTML; values are raw, without entity decoding. Unlike <gno-button>, a tag
+// that is not self-closing is claimed too, so it renders a hint.
 func parseIconTag(src []byte) (size int, icon iconTag) {
-	n := len(iconTagPrefix)
-	if len(src) <= n || !bytes.EqualFold(src[:n], iconTagPrefix) {
-		return 0, icon
-	}
-	if c := src[n]; c != '/' && c != '>' && !util.IsSpace(c) {
-		return 0, icon // e.g. <gno-iconic>
-	}
-	src = src[:min(len(src), maxIconTagLen)]
-	if eol := bytes.IndexByte(src, '\n'); eol >= 0 {
-		src = src[:eol] // a tag spans one line
-	}
-
 	var hasName, hasLabel bool
-	for i := n; i < len(src); {
-		switch c := src[i]; {
-		case util.IsSpace(c):
-			i++
-			continue
-		case c == '>':
-			return i + 1, icon
-		case c == '/':
-			if i+1 < len(src) && src[i+1] == '>' {
-				icon.SelfClosing = true
-				return i + 2, icon
-			}
-			i++
-			continue
-		}
-
-		// Attribute name, then an optional `= value`.
-		start := i
-		for i++; i < len(src) && !isIconAttrNameEnd(src[i]); i++ {
-		}
-		key := src[start:i]
-		for i < len(src) && util.IsSpace(src[i]) {
-			i++
-		}
-		var val []byte
-		if i < len(src) && src[i] == '=' {
-			for i++; i < len(src) && util.IsSpace(src[i]); i++ {
-			}
-			if i == len(src) {
-				return 0, icon
-			}
-			if q := src[i]; q == '"' || q == '\'' {
-				end := bytes.IndexByte(src[i+1:], q)
-				if end < 0 {
-					return 0, icon
-				}
-				val = src[i+1 : i+1+end]
-				i += end + 2
-			} else {
-				start := i
-				for i < len(src) && !util.IsSpace(src[i]) && src[i] != '>' {
-					i++
-				}
-				val = src[start:i]
-			}
-		}
-
+	size, icon.SelfClosing = scanGnoTag(src, iconTagPrefix, maxIconTagLen, func(key, val []byte) {
 		switch {
 		case !hasName && bytes.EqualFold(key, []byte("name")):
 			icon.Name, hasName = bytes.TrimSpace(val), true
 		case !hasLabel && bytes.EqualFold(key, []byte("label")):
 			icon.Label, hasLabel = bytes.TrimSpace(val), true
 		}
-	}
-	return 0, icon
-}
-
-func isIconAttrNameEnd(c byte) bool {
-	return c == '/' || c == '>' || c == '=' || util.IsSpace(c)
+	})
+	return size, icon
 }
 
 // ----- parsers -----
@@ -191,24 +128,6 @@ func (*iconParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) 
 		pc.Set(iconInHeadingKey, true)
 	}
 	return &Icon{iconTag: tag, Source: text.NewSegment(seg.Start, seg.Start+size)}
-}
-
-// iconParagraphParser opens a paragraph on a line that starts with a
-// gno-icon tag. Without it, a line holding only `<gno-icon … />` is a
-// CommonMark type-7 HTML block, which safe mode strips. It delegates to
-// goldmark's own paragraph parser, so the paragraph behaves like any other.
-type iconParagraphParser struct {
-	parser.BlockParser
-}
-
-func (*iconParagraphParser) Trigger() []byte { return []byte{'<'} }
-
-func (p *iconParagraphParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	line, _ := reader.PeekLine()
-	if size, _ := parseIconTag(util.TrimLeftSpace(line)); size == 0 {
-		return nil, parser.NoChildren
-	}
-	return p.BlockParser.Open(parent, reader, pc)
 }
 
 // iconHeadingIDTransformer rebuilds auto heading IDs without the icon tags.
@@ -348,16 +267,16 @@ type iconExtension struct{}
 // ExtIcons is the Goldmark extension for `<gno-icon />`.
 var ExtIcons = &iconExtension{}
 
-// Extend registers the icon parsers ahead of goldmark's autolink (300) and
-// raw-HTML (400) inline parsers, and the line parser ahead of the HTML block
-// parser (900).
+// Extend registers the icon parser just ahead of goldmark's raw-HTML inline
+// parser (400), as <gno-button> does, and the shared line parser ahead of
+// the HTML block parser (900).
 func (e *iconExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithInlineParsers(
-			util.Prioritized(&iconParser{}, 250),
+			util.Prioritized(&iconParser{}, 399),
 		),
 		parser.WithBlockParsers(
-			util.Prioritized(&iconParagraphParser{parser.NewParagraphParser()}, 899),
+			util.Prioritized(newGnoTagLineParser(iconTagPrefix, maxIconTagLen), 899),
 		),
 		parser.WithASTTransformers(
 			util.Prioritized(&iconHeadingIDTransformer{}, 500),

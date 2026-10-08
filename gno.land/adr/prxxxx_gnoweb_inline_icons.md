@@ -61,11 +61,14 @@ on a renderer that does not know it.
 
 ### Parsing
 
-- An inline parser on `<`, priority 250: before goldmark's autolink (300) and
-  raw-HTML (400) parsers. It checks the `<gno-icon` prefix with a byte compare,
-  then reads the tag with a small hand-written scanner: attribute names,
-  quoted or unquoted values (`label="a > b"` is one value), up to `/>` or `>`.
-  No regex, no tokenizer, no allocation: name and label are slices of the
+- An inline parser on `<`, priority 399: just ahead of goldmark's raw-HTML
+  parser (400), the same slot as `<gno-button />`. goldmark's autolink parser
+  (300) runs first but cannot claim the tag: an autolink holds no space and
+  needs a scheme or an `@`. The parser checks the `<gno-icon` prefix with a
+  byte compare, then reads the tag with `scanGnoTag` (`markdown/utils.go`),
+  the scanner shared with `<gno-button />`: attribute names, quoted or
+  unquoted values (`label="a > b"` is one value), up to `/>` or `>`. No
+  regex, no tokenizer, no allocation: name and label are slices of the
   source, and only a recognized tag allocates its AST node.
 - **The scan is bounded** to 512 bytes and to the current line. An earlier
   version handed the rest of the line to `x/net/html`'s tokenizer; with no
@@ -81,9 +84,10 @@ on a renderer that does not know it.
 - Code spans, fenced and indented code keep the tag literal: goldmark never
   runs inline parsers inside them.
 - A line holding only `<gno-icon … />` would be a CommonMark type-7 HTML
-  block, which safe mode strips. A block parser at priority 899 (ahead of the
-  HTML block parser, 900) opens a paragraph on a line that starts with an
-  icon tag, delegating to goldmark's own `NewParagraphParser()`.
+  block, which safe mode strips. The shared `gnoTagLineParser`, at priority
+  899 (ahead of the HTML block parser, 900), opens a paragraph on a line that
+  starts with an icon tag, delegating to goldmark's own `NewParagraphParser()`.
+  `<gno-button />` registers the same parser with its own prefix.
 - **Heading IDs.** goldmark derives an auto ID from the heading's raw source
   line, which would give `## <gno-icon name="rocket" /> Launch` the ID
   `gno-icon-namerocket-launch`. An AST transformer rebuilds the IDs of a

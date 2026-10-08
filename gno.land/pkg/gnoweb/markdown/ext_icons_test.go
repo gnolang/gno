@@ -44,16 +44,8 @@ func TestParseIconTag(t *testing.T) {
 		{line: `<gno-icon />`, size: 12},
 		{line: `<gno-icon name="star">`, size: 22, name: "star", open: true},
 		{line: `<gno-icon>`, size: 10, open: true},
-		{line: `</gno-icon>`},
-		{line: `<gno-iconic name="star" />`},
-		{line: `<gno-icon`},
-		{line: `<gno-icon name="star`},
-		{line: `<gno-icon name="star" /`},
-		{line: "<gno-icon name=\"star\"\n/>"},
-		{line: "<gno-icon name=\"st\nar\" />"},
+		{line: `<gno-icon name="star`}, // unterminated; the shared scanner's own cases are in TestScanGnoTag
 		{line: `<gno-icon label="` + strings.Repeat("x", maxIconTagLen) + `" />`},
-		{line: `<gno-ico`},
-		{line: `<p>`},
 	} {
 		t.Run(tc.line, func(t *testing.T) {
 			size, icon := parseIconTag([]byte(tc.line))

@@ -8,6 +8,9 @@ import (
 	"unicode"
 
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 	"golang.org/x/net/html"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -40,6 +43,111 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 
 		toks = append(toks, tok)
 	}
+}
+
+// scanGnoTag reads a `<name …>` tag at the start of src without allocating;
+// prefix is "<name", matched case-insensitively. It calls attr, when non-nil,
+// for each attribute in source order with its raw value (no entity decoding),
+// aliasing src, and returns the tag's length, or 0 when src does not start
+// with that tag ending (`/>` or `>`) on this line within maxLen bytes. For the
+// body-less inline gno-* tags (<gno-button />, and <gno-icon /> next).
+func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (size int, selfClosing bool) {
+	n := len(prefix)
+	if len(src) <= n || !bytes.EqualFold(src[:n], prefix) {
+		return 0, false
+	}
+	if c := src[n]; c != '/' && c != '>' && !util.IsSpace(c) {
+		return 0, false // e.g. <gno-buttons>
+	}
+	src = src[:min(len(src), maxLen)]
+	if eol := bytes.IndexByte(src, '\n'); eol >= 0 {
+		src = src[:eol] // a tag spans one line
+	}
+
+	for i := n; i < len(src); {
+		switch c := src[i]; {
+		case util.IsSpace(c):
+			i++
+			continue
+		case c == '>':
+			return i + 1, false
+		case c == '<':
+			return 0, false // the next tag: each attempt reads one tag
+		case c == '/':
+			if i+1 < len(src) && src[i+1] == '>' {
+				return i + 2, true
+			}
+			i++
+			continue
+		}
+
+		// Attribute name, then an optional `= value`.
+		start := i
+		for i++; i < len(src) && !isGnoTagAttrNameEnd(src[i]); i++ {
+		}
+		key := src[start:i]
+		for i < len(src) && util.IsSpace(src[i]) {
+			i++
+		}
+		var val []byte
+		if i < len(src) && src[i] == '=' {
+			for i++; i < len(src) && util.IsSpace(src[i]); i++ {
+			}
+			if i == len(src) {
+				return 0, false
+			}
+			if q := src[i]; q == '"' || q == '\'' {
+				end := bytes.IndexByte(src[i+1:], q)
+				if end < 0 {
+					return 0, false
+				}
+				val = src[i+1 : i+1+end]
+				i += end + 2
+			} else {
+				start := i
+				for i < len(src) && !util.IsSpace(src[i]) && src[i] != '>' {
+					i++
+				}
+				val = src[start:i]
+			}
+		}
+		if attr != nil {
+			attr(key, val)
+		}
+	}
+	return 0, false
+}
+
+func isGnoTagAttrNameEnd(c byte) bool {
+	return c == '/' || c == '>' || c == '=' || util.IsSpace(c)
+}
+
+// gnoTagLineParser opens a paragraph on a line that starts with a body-less
+// inline gno-* tag. Without it, a line holding only `<gno-button … />` is a
+// CommonMark type-7 HTML block, which takes the line (and every line up to
+// the next blank one) before the tag's inline parser runs, and safe mode
+// strips it. It delegates to goldmark's own paragraph parser, so the
+// paragraph behaves like any other; the inline parser decides the rest.
+type gnoTagLineParser struct {
+	parser.BlockParser
+	prefix []byte
+	maxLen int
+}
+
+var _ parser.BlockParser = (*gnoTagLineParser)(nil)
+
+func newGnoTagLineParser(prefix []byte, maxLen int) *gnoTagLineParser {
+	return &gnoTagLineParser{BlockParser: parser.NewParagraphParser(), prefix: prefix, maxLen: maxLen}
+}
+
+func (*gnoTagLineParser) Trigger() []byte { return []byte{'<'} }
+
+func (p *gnoTagLineParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+	line, _ := reader.PeekLine()
+	if size, _ := scanGnoTag(util.TrimLeftSpace(line), p.prefix, p.maxLen, nil); size == 0 {
+		return nil, parser.NoChildren
+	}
+	return p.BlockParser.Open(parent, reader, pc)
 }
 
 func ExtractAttr(attrs []html.Attribute, key string) (val string, ok bool) {
