@@ -86,19 +86,6 @@ var defaultWebOptions = webCfg{
 	trustedPaths:  defaultTrustedPaths,
 }
 
-// splitAndTrim parses a comma-separated flag value, dropping empty entries so
-// a trailing comma is not read as an empty CIDR.
-func splitAndTrim(v string) []string {
-	parts := strings.Split(v, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
 func main() {
 	var cfg webCfg
 
@@ -308,7 +295,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// the process arguments (ps, /proc/<pid>/cmdline, container specs).
 	appcfg.IndexerToken = os.Getenv("GNOWEB_INDEXER_TOKEN")
 	if cfg.trustedProxies != "" {
-		appcfg.StateRateLimitTrustedProxies = splitAndTrim(cfg.trustedProxies)
+		// ParseTrustedProxies trims and skips empty entries itself.
+		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
 	}
 
 	// Parse banner from env

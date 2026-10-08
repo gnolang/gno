@@ -29,12 +29,17 @@ type SearchGroup = {
 	source: string;
 	results?: SearchResult[];
 	error?: string;
+	// notice says why a partial answer is partial; truncated marks one.
+	notice?: string;
+	truncated?: boolean;
 };
 
 type SearchResponse = {
 	selectors?: Selector[];
 	groups?: SearchGroup[];
 	unknown_filter?: string;
+	// error is the server refusing the query (429, 400), not a group's.
+	error?: string;
 };
 
 type PageMatch = {
@@ -215,6 +220,7 @@ export class SearchbarController extends BaseController {
 				this.pageMatches = pageMatches;
 				this.render(q, res.groups ?? [], pageMatches, {
 					unknownFilter: res.unknown_filter,
+					error: res.error,
 					fullPage: true,
 					highlight: this.highlightTerm(q),
 				});
@@ -299,6 +305,14 @@ export class SearchbarController extends BaseController {
 				this.searchAvailable = false;
 				return null;
 			}
+			// A refusal is the server's answer: shown, not replaced by the
+			// local path filter reading as "No results".
+			if (res.status === 429 || res.status === 400) {
+				const body = (await res.json().catch(() => null)) as {
+					error?: string;
+				} | null;
+				return { error: body?.error || `search refused (${res.status})` };
+			}
 			if (!res.ok) return null;
 			const data = (await res.json()) as SearchResponse;
 			this.searchAvailable = true;
@@ -359,6 +373,7 @@ export class SearchbarController extends BaseController {
 		pageMatches: PageMatch[],
 		opts: {
 			unknownFilter?: string;
+			error?: string;
 			fullPage?: boolean;
 			highlight?: string;
 		} = {},
@@ -366,12 +381,19 @@ export class SearchbarController extends BaseController {
 		const results = this.beginDraw();
 		if (!results) return;
 
+		// A query that could not be answered is not one that found nothing.
+		let unanswered = false;
+		if (opts.error) {
+			results.appendChild(this.buildNotice(opts.error));
+			unanswered = true;
+		}
 		if (opts.unknownFilter) {
 			results.appendChild(
 				this.buildNotice(
 					`"${opts.unknownFilter}:" is not a search qualifier here`,
 				),
 			);
+			unanswered = true;
 		}
 
 		for (const group of groups) {
@@ -381,11 +403,26 @@ export class SearchbarController extends BaseController {
 					: group.label;
 			const section = this.sectionWithLabel(label);
 
-			if (group.error) section.appendChild(this.buildNotice(group.error));
+			if (group.error) {
+				section.appendChild(this.buildNotice(group.error));
+				unanswered = true;
+			}
 			for (const r of group.results ?? []) {
 				section.appendChild(this.buildItem(r, opts.highlight ?? q, group));
 			}
+			if (group.truncated && group.notice) {
+				section.appendChild(this.buildNotice(group.notice));
+			}
 			results.appendChild(section);
+		}
+
+		// Counted before the full-results item, which is always there for a
+		// qualified query and would otherwise hide that nothing matched.
+		const answered =
+			groups.some((g) => (g.results?.length ?? 0) > 0) ||
+			pageMatches.length > 0;
+		if (!answered && !unanswered) {
+			results.appendChild(this.buildNotice("No results"));
 		}
 
 		// A qualified query always offers its own results page, the only view
@@ -394,9 +431,6 @@ export class SearchbarController extends BaseController {
 
 		if (pageMatches.length > 0) {
 			results.appendChild(this.buildPageSection(q, pageMatches));
-		}
-		if (this.items.length === 0) {
-			results.appendChild(this.buildNotice("No results"));
 		}
 		this.endDraw(results);
 	}

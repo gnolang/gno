@@ -389,6 +389,7 @@ func TestOversizedResponseIsRefusedBeforeDecoding(t *testing.T) {
 
 // A band that fails after earlier ones found rows returns those rows: they
 // are the newest, and a reader is better served by them than by an error.
+// They come flagged ErrPartial, since the failed band may have held more.
 func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 	bands := 0
 	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
@@ -409,8 +410,8 @@ func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 	})
 
 	txs, err := c.RecentByPackage(context.Background(), "gno.land/r/demo/boards", 5)
-	if err != nil {
-		t.Fatalf("RecentByPackage: %v, want the first band's rows", err)
+	if !errors.Is(err, ErrPartial) {
+		t.Fatalf("RecentByPackage: %v, want the first band's rows flagged ErrPartial", err)
 	}
 	if len(txs) != 1 || txs[0].Hash != "newest" {
 		t.Fatalf("txs = %+v, want the first band's row", txs)
@@ -521,5 +522,167 @@ func TestSourceContainsFiltersAuthorOnTheIndexer(t *testing.T) {
 	})
 	if regexp.MustCompile(likeValues(t, q)[2]).MatchString("gno.land/r/bxb/x") {
 		t.Error(`author "b.b" matches namespace "bxb"`)
+	}
+}
+
+// The endpoint is shown to every anonymous reader, and an operator's only
+// place for a basic-auth or query-string credential is the URL itself.
+func TestURLIsRedacted(t *testing.T) {
+	for raw, want := range map[string]string{
+		"https://ops:s3cret@indexer.example/graphql/query":      "https://indexer.example",
+		"https://indexer.example/graphql/query?apikey=s3cret":   "https://indexer.example",
+		"http://127.0.0.1:8546/graphql/query":                   "http://127.0.0.1:8546",
+		"https://indexer.example/s3cret-path-key/graphql/query": "https://indexer.example",
+		"not a url": "(indexer)",
+	} {
+		if got := New(raw, "").URL(); got != want {
+			t.Errorf("URL() for %q = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+// Transport errors are logged; net/http quotes the request URL in them and
+// masks a password but not a query-string key.
+func TestTransportErrorIsRedacted(t *testing.T) {
+	c := New("http://ops:s3cret@127.0.0.1:1/graphql/query?apikey=hunter2", "")
+	_, err := c.LatestBlockHeight(context.Background())
+	if err == nil {
+		t.Fatal("want a connection error")
+	}
+	for _, secret := range []string{"s3cret", "hunter2", "ops"} {
+		if strings.Contains(err.Error(), secret) {
+			t.Errorf("error %q carries %q", err, secret)
+		}
+	}
+}
+
+func TestValidateURL(t *testing.T) {
+	for raw, ok := range map[string]bool{
+		"https://indexer.example/graphql/query": true,
+		"http://127.0.0.1:8546/graphql/query":   true,
+		"localhost:8546/graphql":                false,
+		"indexer.example/graphql":               false,
+		"ftp://indexer.example/graphql":         false,
+		"http:///graphql":                       false,
+	} {
+		if err := ValidateURL(raw); (err == nil) != ok {
+			t.Errorf("ValidateURL(%q) = %v, want ok=%v", raw, err, ok)
+		}
+	}
+}
+
+// A caller's deadline is the caller's budget: the omnibar gives up at 3s,
+// below the client's 4s, and three readers typing at once must not close a
+// healthy indexer to everyone for the cooldown. Scaled down: the caller gives
+// up at 50ms, the indexer answers in 300ms.
+func TestCallerDeadlineDoesNotOpenBreaker(t *testing.T) {
+	c, calls := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(300 * time.Millisecond):
+		}
+		respond(w, `{"data":{"latestBlockHeight":5}}`)
+	})
+
+	var out struct {
+		H int `json:"latestBlockHeight"`
+	}
+	for range breakerThreshold + 1 {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		err := c.Query(ctx, `{ latestBlockHeight }`, &out)
+		cancel()
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("err = %v, want the caller's deadline", err)
+		}
+	}
+
+	if err := c.Query(context.Background(), `{ latestBlockHeight }`, &out); err != nil {
+		t.Fatalf("next caller: %v, want an answer", err)
+	}
+	if *calls != breakerThreshold+2 {
+		t.Fatalf("calls = %d, want every query sent", *calls)
+	}
+}
+
+// GraphQL answers `data`, `errors` or both. A body with neither is what an
+// -indexer-url pointing at the wrong endpoint returns; it must not read as
+// "not found" or a tip of 0.
+func TestEnvelopeWithoutDataIsAnError(t *testing.T) {
+	for _, body := range []string{
+		`{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"invalid request"}}`,
+		`{"data":null}`,
+		`{}`,
+	} {
+		c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			respond(w, body)
+		})
+		if h, err := c.LatestBlockHeight(context.Background()); err == nil {
+			t.Errorf("%s: LatestBlockHeight = %d, nil", body, h)
+		}
+		if _, err := c.TxByHash(context.Background(), "deadbeef"); err == nil || errors.Is(err, ErrNotFound) {
+			t.Errorf("%s: TxByHash err = %v, want a failure that is not ErrNotFound", body, err)
+		}
+	}
+}
+
+// tx-indexer evaluates `like` with regexp.MatchString. The importers pattern
+// must match the path as an import quotes it, not inside a longer path.
+func TestDeploysImportingMatchesTheQuotedPathOnly(t *testing.T) {
+	q := captureTxQuery(t, func(c *Client) {
+		_, _ = c.DeploysImporting(context.Background(), "gno.land/r/demo/foo", 20)
+	})
+	likes := likeValues(t, q)
+	if len(likes) != 1 {
+		t.Fatalf("like filters = %q", likes)
+	}
+	for body, want := range map[string]bool{
+		`import "gno.land/r/demo/foo"`:       true,
+		"import foo `gno.land/r/demo/foo`":   true,
+		`import "gno.land/r/demo/foobar"`:    false,
+		`module = "gno.land/r/demo/foo/sub"`: false,
+		`import "gno.land/r/demo/foo/sub"`:   false,
+		`import "gnoXland/r/demo/foo"`:       false,
+	} {
+		if got, _ := regexp.MatchString(likes[0], body); got != want {
+			t.Errorf("like %q on %q = %v, want %v", likes[0], body, got, want)
+		}
+	}
+}
+
+// A walk that runs out of steps before genesis says so: a deploy below the
+// lowest band must not read as "never deployed".
+func TestRecentReportsAWalkStoppedShortOfGenesis(t *testing.T) {
+	bands := 0
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req gqlRequest
+		_ = json.Unmarshal(body, &req)
+		if strings.Contains(req.Query, "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":2000000}}`)
+			return
+		}
+		bands++
+		respond(w, `{"data":{"getTransactions":[]}}`)
+	})
+
+	txs, err := c.Deploys(context.Background(), "gno.land/r/demo/boards", 20)
+	if !errors.Is(err, ErrPartial) {
+		t.Fatalf("Deploys: rows=%d err=%v, want ErrPartial", len(txs), err)
+	}
+	if bands != maxWindowSteps {
+		t.Fatalf("bands = %d, want %d", bands, maxWindowSteps)
+	}
+
+	// Reaching genesis is the whole answer, however few rows it holds.
+	c, _ = newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "latestBlockHeight") {
+			respond(w, `{"data":{"latestBlockHeight":1500}}`)
+			return
+		}
+		respond(w, `{"data":{"getTransactions":[]}}`)
+	})
+	if _, err := c.Deploys(context.Background(), "gno.land/r/demo/boards", 20); err != nil {
+		t.Fatalf("Deploys down to genesis: %v, want no error", err)
 	}
 }

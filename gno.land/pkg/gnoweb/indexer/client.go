@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -66,6 +67,9 @@ const (
 // interface; that nil check is the feature switch.
 type Client struct {
 	url string
+	// display is url with its credentials removed: the only form of the
+	// endpoint that may reach a page, a JSON response or a log line.
+	display string
 	// token, when set, is sent as a bearer credential. Indexers are usually
 	// public, so most deployments leave it empty.
 	token string
@@ -91,14 +95,18 @@ type Client struct {
 // New returns a Client for a tx-indexer GraphQL endpoint, e.g.
 // https://indexer.gno.land/graphql/query. An empty token means no
 // Authorization header is sent.
-func New(url, token string) *Client {
+//
+// The URL may carry credentials, as userinfo or a query-string key; they are
+// sent to the indexer and never shown: URL reports the redacted form.
+func New(rawURL, token string) *Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConnsPerHost = maxIdleConnsPerHost
 
 	return &Client{
-		url:   url,
-		token: token,
-		slots: make(chan struct{}, maxConcurrent),
+		url:     rawURL,
+		display: Redact(rawURL),
+		token:   token,
+		slots:   make(chan struct{}, maxConcurrent),
 		http: &http.Client{
 			Timeout:   defaultTimeout,
 			Transport: transport,
@@ -111,8 +119,38 @@ func New(url, token string) *Client {
 	}
 }
 
-// URL reports the configured endpoint, for display and health reporting.
-func (c *Client) URL() string { return c.url }
+// URL reports the configured endpoint, for display and health reporting,
+// as scheme and host only. See Redact.
+func (c *Client) URL() string { return c.display }
+
+// ValidateURL rejects an endpoint the client could never reach, so a typo
+// fails at startup rather than behind a log line calling the indexer enabled.
+// `localhost:8546/graphql` parses, with "localhost" as its scheme.
+func ValidateURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid indexer URL: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("invalid indexer URL: scheme must be http or https, got %q", u.Scheme)
+	}
+	if u.Host == "" {
+		return errors.New("invalid indexer URL: no host")
+	}
+	return nil
+}
+
+// Redact reduces an endpoint to its scheme and host. Userinfo and a query
+// string are where an operator puts an indexer credential, and the endpoint
+// is shown to every anonymous reader; the path goes too, since a key can sit
+// there as well.
+func Redact(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return "(indexer)"
+	}
+	return u.Scheme + "://" + u.Host
+}
 
 // Query executes a GraphQL document and decodes `data` into out.
 //
@@ -131,8 +169,18 @@ func (c *Client) Query(ctx context.Context, query string, out any) error {
 	c.release()
 
 	// A miss, a cap and a caller giving up say nothing about the indexer's
-	// health. A deadline does, and is the signal the breaker acts on.
-	if !errors.Is(err, ErrNotFound) && !errors.Is(err, ErrTooLarge) && !errors.Is(err, context.Canceled) {
+	// health. The client's own timeout does, and is the signal the breaker
+	// acts on. A caller's deadline is the caller's budget, not the
+	// indexer's: the omnibar gives up at 3s, below the client's 4s, and
+	// three readers typing at once would otherwise close the indexer to
+	// everyone for the cooldown.
+	switch {
+	case err == nil:
+		c.record(nil)
+	case ctx.Err() != nil,
+		errors.Is(err, ErrNotFound),
+		errors.Is(err, ErrTooLarge):
+	default:
 		c.record(err)
 	}
 	return err
@@ -197,6 +245,12 @@ func (c *Client) do(ctx context.Context, query string, out any) error {
 
 	resp, err := c.http.Do(req)
 	if err != nil {
+		// net/http quotes the request URL in its error, masking a password
+		// but not a query-string key. These errors are logged.
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			uerr.URL = c.display
+		}
 		return err
 	}
 	defer resp.Body.Close()
@@ -228,9 +282,12 @@ func (c *Client) do(ctx context.Context, query string, out any) error {
 	if len(gql.Errors) > 0 {
 		return c.gqlError(gql, out)
 	}
-	if len(gql.Data) == 0 {
-		// No errors and no data: an empty answer, not a decode failure.
-		return nil
+	if len(gql.Data) == 0 || string(gql.Data) == "null" {
+		// GraphQL always answers `data`, `errors` or both. Neither is what
+		// an -indexer-url pointing at the wrong endpoint returns, and taking
+		// it as an empty answer read as "not found" and a tip of 0.
+		return fmt.Errorf("indexer answered neither data nor errors (%d bytes of %q)",
+			len(raw), resp.Header.Get("Content-Type"))
 	}
 	return json.Unmarshal(gql.Data, out)
 }

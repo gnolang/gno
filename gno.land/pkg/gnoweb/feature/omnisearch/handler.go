@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -107,9 +108,29 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 		Selectors: h.selectors,
 	}
 	data.FormAction = q.formAction
+	if sel, _ := h.selectorFor(q); sel == nil && q.PkgPath != "" {
+		// A scoped discovery search is the one answer the same words could
+		// widen; without JavaScript the header form is always scoped.
+		data.WholeChainHref = wholeChainHref(q)
+	}
 	data.Groups, data.UnknownFilter = h.Search(ctx, q)
 	data.Indexer = h.indexerStatus(ctx, data.Groups)
 	return data
+}
+
+// wholeChainHref is the same discovery search without its scope: `in:`
+// dropped, and posted to the root rather than to the page.
+func wholeChainHref(q *Query) string {
+	var kept []string
+	for _, f := range q.Filters {
+		if f.Key != FilterIn {
+			kept = append(kept, f.Key+":"+f.Value)
+		}
+	}
+	if q.Text != "" {
+		kept = append(kept, q.Text)
+	}
+	return "/$search?q=" + url.QueryEscape(strings.Join(kept, " "))
 }
 
 // Search answers a query. At most one selector runs: they name different
@@ -156,7 +177,14 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 
 	g := Group{Label: sel.Label, Source: sel.Source}
 	results, err := sel.resolve(ctx, h, q, term)
-	if err != nil {
+	var part partialAnswer
+	switch {
+	case err == nil:
+	case errors.As(err, &part):
+		g.Truncated, g.Notice = true, part.Error()
+	case errors.Is(err, indexer.ErrPartial):
+		g.Truncated, g.Notice = true, recentNotice
+	default:
 		// Reported, never fatal: a dead indexer degrades to a visible
 		// "could not answer", not a 500.
 		// An input error is the reader's typo, not backend trouble.
@@ -167,7 +195,10 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 		}
 		g.Err = publicError(err, sel.Source)
 	}
-	g.Results = results
+	var cut bool
+	if g.Results, cut = capResults(results); cut && !g.Truncated {
+		g.Truncated, g.Notice = true, fmt.Sprintf("Showing the first %d matches.", MaxResults)
+	}
 	return []Group{g}, ""
 }
 
@@ -178,11 +209,9 @@ func (h *Handler) selectorFor(q *Query) (*Selector, string) {
 		if !ok {
 			continue
 		}
-		// A bare selector takes no argument, but `activity:foo` plainly
+		// A bare selector needs no argument, but `activity:foo` plainly
 		// wants activity — better than a path search that explains nothing.
-		if sel.Bare {
-			return sel, ""
-		}
+		// The value is passed on: `imports:json` narrows the imports.
 		return sel, f.Value
 	}
 	for _, sel := range h.selectors {
@@ -215,9 +244,11 @@ func (h *Handler) indexerStatus(ctx context.Context, groups []Group) *IndexerSta
 	if h.deps.Indexer == nil {
 		return nil
 	}
+	// A failed group never reached the indexer, or got nothing from it: a
+	// footer would describe an answer the page does not hold.
 	used := false
 	for _, g := range groups {
-		if g.Source == SourceIndexer {
+		if g.Source == SourceIndexer && g.Err == nil {
 			used = true
 			break
 		}

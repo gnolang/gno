@@ -38,11 +38,9 @@ func indexerSelectors() []*Selector {
 			Label: "Account activity",
 			Scope: ScopeGlobal,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
+				// Rows travel with ErrPartial; Search tells it from a failure.
 				txs, err := h.deps.Indexer.RecentByAddress(ctx, term, recentLimit)
-				if err != nil {
-					return nil, err
-				}
-				return h.txResults(txs), nil
+				return h.txResults(txs), err
 			},
 		},
 		{
@@ -77,11 +75,9 @@ func indexerSelectors() []*Selector {
 			Scope: ScopePackage,
 			Bare:  true,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
+				// Rows travel with ErrPartial; Search tells it from a failure.
 				txs, err := h.deps.Indexer.RecentByPackage(ctx, q.ChainPath, recentLimit)
-				if err != nil {
-					return nil, err
-				}
-				return h.txResults(txs), nil
+				return h.txResults(txs), err
 			},
 		},
 		{
@@ -91,11 +87,9 @@ func indexerSelectors() []*Selector {
 			Scope: ScopePackage,
 			Bare:  true,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
+				// Rows travel with ErrPartial; Search tells it from a failure.
 				txs, err := h.deps.Indexer.Deploys(ctx, q.ChainPath, recentLimit)
-				if err != nil {
-					return nil, err
-				}
-				return h.txResults(txs), nil
+				return h.txResults(txs), err
 			},
 		},
 		{
@@ -128,22 +122,21 @@ func indexerSelectors() []*Selector {
 	}
 }
 
-// resolveImporters lists packages whose source mentions this one. Labelled
-// "mentions", not "imports": a substring match counts comments and string
-// literals too.
+// resolveImporters lists packages whose source quotes this one's path.
+// Labelled "mentions", not "imports": a string literal outside an import
+// block counts too.
 func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, error) {
-	txs, err := h.deps.Indexer.SourceContains(ctx, q.ChainPath, "", recentLimit)
-	if err != nil {
-		return nil, err
-	}
+	// Rows travel with ErrPartial; Search tells it from a failure.
+	txs, err := h.deps.Indexer.DeploysImporting(ctx, q.ChainPath, recentLimit)
 
 	seen := make(map[string]bool, len(txs))
 	out := make([]Result, 0, len(txs))
 	for _, tx := range txs {
+		batch := deployCount(tx) > 1
 		for _, m := range tx.Messages {
 			path := m.Path()
 			// A package always mentions itself; that is not an importer.
-			if path == "" || path == q.ChainPath || seen[path] {
+			if m.Type() != "MsgAddPackage" || path == "" || path == q.ChainPath || seen[path] {
 				continue
 			}
 			seen[path] = true
@@ -151,11 +144,42 @@ func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, err
 				Title:  path,
 				Detail: "deployed by " + m.Signer(),
 				Href:   chainPathHref(path, h.deps.Domain),
-				Tags:   []string{"mentions", "block " + strconv.Itoa(tx.Height)},
+				Tags:   batchTags(batch, "mentions", "block "+strconv.Itoa(tx.Height)),
 			})
 		}
 	}
-	return capResults(out), nil
+	return out, newestOnly(txs, err)
+}
+
+// newestOnly flags a deploy search that filled its page: older deploys may
+// match too, and the page shows the newest only.
+func newestOnly(txs []indexer.Tx, err error) error {
+	if err == nil && len(txs) >= recentLimit {
+		return partialAnswer(fmt.Sprintf(
+			"Showing the %d newest matching deploys: older ones may match too.", recentLimit))
+	}
+	return err
+}
+
+// deployCount counts the packages a transaction deploys. The indexer returns
+// a matched transaction whole, every message included.
+func deployCount(tx indexer.Tx) int {
+	n := 0
+	for _, m := range tx.Messages {
+		if m.Type() == "MsgAddPackage" {
+			n++
+		}
+	}
+	return n
+}
+
+// batchTags marks a row from a transaction deploying several packages: the
+// indexer matched one of them, and does not say which.
+func batchTags(batch bool, tags ...string) []string {
+	if batch {
+		return append(tags, "batch deploy")
+	}
+	return tags
 }
 
 // resolveContent lists packages whose source contains the term. The indexer
@@ -164,17 +188,18 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 	// The author goes into the indexer's filter: applied here alone, it would
 	// only thin out the newest matches, and miss the author's older ones.
 	author, _ := q.Get(FilterAuthor)
+	// Rows travel with ErrPartial; Search tells it from a failure.
 	txs, err := h.deps.Indexer.SourceContains(ctx, term, author, recentLimit)
-	if err != nil {
-		return nil, err
-	}
 
 	seen := make(map[string]bool, len(txs))
 	out := make([]Result, 0, len(txs))
 	for _, tx := range txs {
+		batch := deployCount(tx) > 1
 		for _, m := range tx.Messages {
 			path := m.Path()
-			if path == "" || seen[path] {
+			// Only a deploy carries source; a call in the same transaction
+			// matched nothing.
+			if m.Type() != "MsgAddPackage" || path == "" || seen[path] {
 				continue
 			}
 			// Still checked per message: a transaction that matched may
@@ -187,11 +212,11 @@ func (h *Handler) resolveContent(ctx context.Context, q *Query, term string) ([]
 				Title:  path,
 				Detail: "deployed by " + m.Signer(),
 				Href:   chainPathHref(path, h.deps.Domain),
-				Tags:   []string{"contains " + term, "block " + strconv.Itoa(tx.Height)},
+				Tags:   batchTags(batch, "contains "+term, "block "+strconv.Itoa(tx.Height)),
 			})
 		}
 	}
-	return capResults(out), nil
+	return out, newestOnly(txs, err)
 }
 
 // txResults renders transactions as rows. gnoweb has no transaction page, so
@@ -217,7 +242,7 @@ func (h *Handler) txResults(txs []indexer.Tx) []Result {
 		}
 		out = append(out, r)
 	}
-	return capResults(out)
+	return out
 }
 
 // txTitle summarises by first message, and says when there are more.

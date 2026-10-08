@@ -3,6 +3,7 @@ package omnisearch
 import (
 	"context"
 	"fmt"
+	"go/token"
 	"html/template"
 	"net/url"
 	"strconv"
@@ -60,6 +61,7 @@ func chainSelectors() []*Selector {
 			},
 		},
 		{
+			// Bare, and narrowed by a value when given: `imports:json`.
 			Name:  "imports",
 			Hint:  "imports",
 			Label: "Imports",
@@ -146,8 +148,11 @@ func (h *Handler) resolveFuncs(ctx context.Context, q *Query, term string) ([]Re
 		if fn.Type != "" {
 			r.Tags = append(r.Tags, "method on "+fn.Type)
 		}
-		// Only realms expose actions, and only on top-level funcs.
-		if fn.Type == "" && fn.Name != "Render" && strings.HasPrefix(q.PkgPath, "/r/") {
+		// Only realms expose actions, and only on exported top-level funcs,
+		// the set gnoweb's callableFuncs lists on the Actions page: a
+		// crossing one as a call, any other as a qeval query. An
+		// unexported helper is neither.
+		if fn.Type == "" && fn.Name != "Render" && token.IsExported(fn.Name) && strings.HasPrefix(q.PkgPath, "/r/") {
 			r.Tags = append(r.Tags, "action")
 			if r.Href == "" {
 				r.Href = actionHref(q.PkgPath, fn.Name)
@@ -155,7 +160,7 @@ func (h *Handler) resolveFuncs(ctx context.Context, q *Query, term string) ([]Re
 		}
 		out = append(out, r)
 	}
-	return capResults(out), nil
+	return out, nil
 }
 
 func (h *Handler) resolveTypes(ctx context.Context, q *Query, term string) ([]Result, error) {
@@ -176,7 +181,7 @@ func (h *Handler) resolveTypes(ctx context.Context, q *Query, term string) ([]Re
 			Tags:   typeTags(t),
 		})
 	}
-	return capResults(out), nil
+	return out, nil
 }
 
 func typeTags(t *doc.JSONType) []string {
@@ -210,7 +215,7 @@ func (h *Handler) resolveFiles(ctx context.Context, q *Query, term string) ([]Re
 		}
 		out = append(out, r)
 	}
-	return capResults(out), nil
+	return out, nil
 }
 
 func (h *Handler) resolveImports(ctx context.Context, q *Query, term string) ([]Result, error) {
@@ -231,7 +236,7 @@ func (h *Handler) resolveImports(ctx context.Context, q *Query, term string) ([]
 			Tags:  []string{kind},
 		})
 	}
-	return capResults(out), nil
+	return out, nil
 }
 
 // classifyImport labels a dependency and links it when it is on this chain.
