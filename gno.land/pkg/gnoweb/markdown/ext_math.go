@@ -109,7 +109,7 @@ type mathInlineNode struct {
 type mathBlockNode struct {
 	ast.BaseBlock
 	mathExpr
-	openLen  int // the opening delimiter starts the first line
+	openLen  int // the length of the indentation and opening delimiter that start the first line
 	closeTag []byte
 	closed   bool // the closing delimiter ends the last line
 	fence    bool // a ```math fence, held as the only child
@@ -435,7 +435,14 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 
 	// Only display delimiters ($$ and \\[) open a math block. Anything else
 	// (\alpha, \_, $100, ...) is left to the paragraph and inline parsers.
+	// Like a code fence, the opener may be indented by up to three spaces;
+	// four make an indented code block.
 	line, seg := reader.PeekLine()
+	indent := pc.BlockOffset()
+	if indent < 0 || pc.BlockIndent() > 3 {
+		return nil, parser.NoChildren
+	}
+	line = line[indent:]
 	var open, closeTag []byte
 	var flavor mathFlavor
 	switch {
@@ -460,7 +467,7 @@ func (p *texBlockRegionParser) Open(parent ast.Node, reader text.Reader, pc pars
 		return nil, parser.NoChildren
 	}
 
-	node := &mathBlockNode{mathExpr: mathExpr{flavor: flavor, budget: mathBudgetFrom(pc, len(reader.Source()))}, openLen: len(open), closeTag: closeTag}
+	node := &mathBlockNode{mathExpr: mathExpr{flavor: flavor, budget: mathBudgetFrom(pc, len(reader.Source()))}, openLen: indent + len(open), closeTag: closeTag}
 	node.Lines().Append(seg) // with the delimiter, for a fallback paragraph
 	return node, parser.NoChildren
 }
