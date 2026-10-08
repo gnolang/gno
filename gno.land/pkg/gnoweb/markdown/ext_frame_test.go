@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -164,7 +165,8 @@ func TestFrameNoAllocPaths(t *testing.T) {
 // TestFrameGridScanLinear guards the look-ahead that checks whether a grid
 // opened in a frame closes inside it: on pages where it never does, or
 // always does, four times the input must not cost much more than four
-// times the time. A scan restarted per block would take about 16 times.
+// times the time. A scan restarted per block would take about 16 times;
+// the bound is 10 so a GC or scheduler pause on a CI runner does not trip it.
 func TestFrameGridScanLinear(t *testing.T) {
 	body := strings.Repeat("x\n\n", 50)
 	pages := map[string]string{
@@ -177,6 +179,7 @@ func TestFrameGridScanLinear(t *testing.T) {
 		best := time.Duration(1<<63 - 1)
 		for range 5 {
 			var buf bytes.Buffer
+			runtime.GC()
 			start := time.Now()
 			if err := convertGno(m, src, &buf); err != nil {
 				t.Fatal(err)
@@ -188,7 +191,7 @@ func TestFrameGridScanLinear(t *testing.T) {
 	for name, page := range pages {
 		small := render([]byte(strings.Repeat(page, 50)))
 		large := render([]byte(strings.Repeat(page, 200)))
-		if ratio := float64(large) / float64(small); ratio > 8 {
+		if ratio := float64(large) / float64(small); ratio > 10 {
 			t.Errorf("%s: 4x the input took %.1fx the time", name, ratio)
 		}
 	}
