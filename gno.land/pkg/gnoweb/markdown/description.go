@@ -115,7 +115,10 @@ func visibleText(src []byte, n ast.Node) string {
 // gives the plain text the template escapes again into the attribute.
 func resolveText(text []byte) []byte {
 	var buf bytes.Buffer
-	w := bufio.NewWriter(&buf)
+	// The default 4 KiB buffer, allocated per text node, cost more than
+	// parsing and rendering the document; the smallest one bufio allows
+	// writes through to buf all the same.
+	w := bufio.NewWriterSize(&buf, 16)
 	html.DefaultWriter.Write(w, text)
 	_ = w.Flush()
 	return []byte(stdhtml.UnescapeString(buf.String()))
@@ -134,14 +137,17 @@ func truncateLine(s string, limit int) string {
 	return truncateRunes(oneLine(s), limit)
 }
 
-// truncateRunes cuts on a word boundary so the summary never ends mid-word.
+// truncateRunes cuts on a word boundary so the summary does not end
+// mid-word, unless that boundary would drop more than half of what fits: a
+// long path or address is then cut inside, so "Welcome to gno.land/r/..."
+// keeps what it names instead of becoming "Welcome to…".
 func truncateRunes(s string, limit int) string {
 	runes := []rune(s)
 	if len(runes) <= limit {
 		return s
 	}
 	cut := string(runes[:limit])
-	if i := strings.LastIndexFunc(cut, unicode.IsSpace); i > 0 {
+	if i := strings.LastIndexFunc(cut, unicode.IsSpace); i > len(cut)/2 {
 		cut = cut[:i]
 	}
 	return cut + "…"

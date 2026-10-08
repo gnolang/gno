@@ -20,7 +20,10 @@ import (
 func NewStaticAlias(content string) AliasTarget {
 	target := AliasTarget{Kind: StaticMarkdown, Value: content}
 
-	rest, found := strings.CutPrefix(content, "---\n")
+	// An editor may save the file with CRLF endings or a byte order mark;
+	// neither changes what the block says.
+	normalized := strings.ReplaceAll(strings.TrimPrefix(content, "\uFEFF"), "\r\n", "\n")
+	rest, found := strings.CutPrefix(normalized, "---\n")
 	if !found {
 		return target
 	}
@@ -99,7 +102,7 @@ func isIndented(line string) bool {
 // that continue it. A folded (>) or literal (|) block is its continuation
 // lines; a plain or quoted value is its first line and its continuations.
 // The head puts every field on one line, so the lines are joined with a
-// space either way, and only a plain value loses its quotes.
+// space either way, and a quoted value loses its one wrapping pair of quotes.
 func scalarValue(first string, more []string) string {
 	first = strings.TrimSpace(first)
 	parts := make([]string, 0, len(more)+1)
@@ -116,7 +119,10 @@ func scalarValue(first string, more []string) string {
 	if block {
 		return value
 	}
-	return strings.Trim(value, `"'`)
+	if n := len(value); n >= 2 && (value[0] == '"' || value[0] == '\'') && value[n-1] == value[0] {
+		return value[1 : n-1]
+	}
+	return value
 }
 
 // isBlockIndicator reports whether v opens a YAML block scalar: > or |,

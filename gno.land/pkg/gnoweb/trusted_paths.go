@@ -42,6 +42,8 @@ func (t trustedPaths) contains(pkg string) bool {
 func trustedPathProblem(entry string) string {
 	e := strings.Trim(entry, " /")
 	switch {
+	case e != "*" && strings.Contains(e, "*"):
+		return "contains *: only a bare * is a wildcard, and it trusts every path"
 	case strings.Contains(e, "."):
 		return "contains a dot: drop the domain"
 	case strings.HasPrefix(e, "r/"), strings.HasPrefix(e, "p/"), strings.HasPrefix(e, "u/"):

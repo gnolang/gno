@@ -315,8 +315,11 @@ trusted or not, share their realm's title, as do `$source` and the content
 page of one realm, while their canonicals differ. A realm that answers 200
 for a missing post ("404" as content) stays indexable under its args.
 
-`Renderer.RenderRealm` takes a link policy in its render context, and
-`HeadData.NoIndex` became `Robots`, the meta's content as decided.
+`Renderer.RenderRealm` takes a link policy in its render context and
+returns `md.RealmMeta` (the table of contents, the lifted title and the
+summary) in place of `md.Toc`; an out-of-tree renderer has to follow both.
+`HeadData` gains `Robots`, the robots meta's content as the handler decided
+it, alongside `SiteName` and `ImageAlt`.
 
 Operators must set `-canonical-origin` to get a canonical, og:url and share
 image, and gno.land's own deployment is one of them. `-canonical-origin`

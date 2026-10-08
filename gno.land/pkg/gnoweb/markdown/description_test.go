@@ -120,6 +120,13 @@ func TestTitle(t *testing.T) {
 		// A bidi override reorders what a tab shows; a zero-width space hides.
 		{"format characters are dropped", "# Pay \u202eelpmaxe.live\u202c to \u200bgno\n", "Pay elpmaxe.live to gno"},
 		{"a nested h1 is not the page's", "> # Quoted\n", ""},
+		// Backing off to the last space would leave "Welcome to…", which
+		// names nothing; a long word is cut inside instead.
+		{
+			"a long unbroken word is cut, not dropped",
+			"# Welcome to gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/home\n",
+			"Welcome to gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsq…",
+		},
 		{"empty", "", ""},
 	}
 
@@ -155,4 +162,26 @@ func TestDescriptionTruncates(t *testing.T) {
 	assert.LessOrEqual(t, len([]rune(got)), descriptionMaxRunes+1, "one rune of headroom for the ellipsis")
 	assert.True(t, strings.HasSuffix(got, "…"), "a cut summary must say it was cut")
 	assert.False(t, strings.HasSuffix(strings.TrimSuffix(got, "…"), " "), "the cut must not leave a trailing space")
+}
+
+// A paragraph of many small text nodes resolves each one; a full-size write
+// buffer per node made the lead cost several times the render itself.
+func TestResolveTextAllocatesLittle(t *testing.T) {
+	res := testing.Benchmark(func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			resolveText([]byte("Tom &amp; Jerry"))
+		}
+	})
+	assert.Less(t, res.AllocedBytesPerOp(), int64(256))
+}
+
+func BenchmarkLeadEmphasis(b *testing.B) {
+	src := []byte(strings.Repeat("*word* ", 20000) + "\n")
+	doc := goldmark.New().Parser().Parse(text.NewReader(src))
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Lead(doc, src)
+	}
 }

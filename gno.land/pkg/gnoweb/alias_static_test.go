@@ -162,6 +162,37 @@ func TestNewStaticAlias(t *testing.T) {
 			body:    "Body.\n",
 		},
 		{
+			name:        "front matter with CRLF line endings is lifted off the page",
+			content:     "---\r\ntitle: About\r\ndescription: What gno.land is.\r\n---\r\n\r\n# About\r\n",
+			title:       "About",
+			description: "What gno.land is.",
+			body:        "# About\n",
+		},
+		{
+			name:    "front matter after a byte order mark is lifted off the page",
+			content: "\uFEFF---\ntitle: About\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			name:    "quotes inside a plain title are kept",
+			content: "---\ntitle: Learn \"Gno\"\n---\nBody.\n",
+			title:   "Learn \"Gno\"",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a quoted title loses only its wrapping pair",
+			content: "---\ntitle: \"Learn \"Gno\"\"\n---\nBody.\n",
+			title:   "Learn \"Gno\"",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a title that only ends on a quote keeps it",
+			content: "---\ntitle: 5' tall\n---\nBody.\n",
+			title:   "5' tall",
+			body:    "Body.\n",
+		},
+		{
 			name:    "a thematic break is not front matter",
 			content: "---\n\nBody.\n",
 			body:    "---\n\nBody.\n",
