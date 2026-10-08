@@ -2384,22 +2384,33 @@ func withRealStop(p *mock.Peer) {
 	p.StopFn = p.BaseService.Stop
 }
 
-// countPeerEvents drains the events already delivered to evCh, and counts the
-// peer connections and disconnections among them
-func countPeerEvents(evCh <-chan events.Event) (connected, disconnected int) {
+// drainEvents returns the events already delivered to evCh
+func drainEvents(evCh <-chan events.Event) []events.Event {
+	var drained []events.Event
+
 	for {
 		select {
 		case ev := <-evCh:
-			switch ev.Type() {
-			case events.PeerConnected:
-				connected++
-			case events.PeerDisconnected:
-				disconnected++
-			}
+			drained = append(drained, ev)
 		default:
-			return connected, disconnected
+			return drained
 		}
 	}
+}
+
+// countPeerEvents drains the events already delivered to evCh, and counts the
+// peer connections and disconnections among them
+func countPeerEvents(evCh <-chan events.Event) (connected, disconnected int) {
+	for _, ev := range drainEvents(evCh) {
+		switch ev.Type() {
+		case events.PeerConnected:
+			connected++
+		case events.PeerDisconnected:
+			disconnected++
+		}
+	}
+
+	return connected, disconnected
 }
 
 // acceptOnce returns an accept function that hands out p once, then blocks
@@ -2776,7 +2787,18 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 		assert.False(t, sw.peers.Has(lower))
 
 		// The peer was announced connected through ours, and is gone
-		connected, disconnected := countPeerEvents(evCh)
+		var connected, disconnected int
+
+		for _, ev := range drainEvents(evCh) {
+			switch ev := ev.(type) {
+			case events.PeerConnectedEvent:
+				connected++
+			case events.PeerDisconnectedEvent:
+				disconnected++
+
+				assert.Equal(t, lower, ev.PeerID, "the disconnect names the peer")
+			}
+		}
 
 		assert.Equal(t, 1, connected)
 		assert.Equal(t, 1, disconnected)
@@ -2832,7 +2854,13 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 			theirsStopped = make(chan struct{})
 			release       = make(chan struct{})
 			tornDown      = make(chan struct{})
+			releaseOnce   sync.Once
 		)
+
+		// The teardown of theirs stays blocked until release closes, so a
+		// failed requirement must not leave its goroutine behind
+		releaseTeardown := func() { releaseOnce.Do(func() { close(release) }) }
+		t.Cleanup(releaseTeardown)
 
 		withRealStop(ours)
 		withRealStop(theirs)
@@ -2857,7 +2885,7 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 				sw.StopPeerForError(theirs, errors.New("EOF"))
 			}()
 
-			<-theirsStopped
+			awaitClosed(t, theirsStopped, "the teardown of theirs did not stop it")
 
 			return nil
 		}
@@ -2868,7 +2896,7 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 		require.NoError(t, sw.addPeer(ours))
 		require.ErrorIs(t, sw.addPeer(theirs), errPeerStopped)
 
-		close(release)
+		releaseTeardown()
 		awaitClosed(t, tornDown, "the teardown of theirs did not finish")
 
 		assert.False(t, sw.peers.Has(lower))
