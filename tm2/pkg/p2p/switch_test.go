@@ -2074,7 +2074,7 @@ func TestMultiplexSwitch_QueueMissingPersistentPeers(t *testing.T) {
 func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 	t.Parallel()
 
-	// popDelay pops the queued dial, and returns how long after from it is due
+	// popDelay pops the queued dial, and returns how long after from the dial is due
 	popDelay := func(t *testing.T, sw *MultiplexSwitch, from time.Time) time.Duration {
 		t.Helper()
 

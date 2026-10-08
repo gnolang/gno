@@ -40,8 +40,9 @@ var (
 
 	// persistentStableUptime is how long a persistent peer's connection must
 	// last for its loss to reset the redial backoff. It matches the backoff
-	// ceiling, so a peer that keeps connecting and dropping is dialed about
-	// once per ceiling at most
+	// ceiling: a reset then takes a connection at least as long as the longest
+	// backoff it clears, which keeps a peer that mixes stable and short
+	// connections to about one dial every 9 seconds at worst
 	persistentStableUptime = persistentRedialMaxBackoff
 )
 

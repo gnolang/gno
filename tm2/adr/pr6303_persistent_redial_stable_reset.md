@@ -16,14 +16,15 @@ A related gap: a tick can queue a backoff dial while that peer's previous dial i
 ## Decision
 
 1. The redial loop subscribes to `PeerConnected` and `PeerDisconnected` for persistent peers, on one channel so they are handled in the order they are notified. It keeps `attempts` and a new `connectedAt` map, both owned by its goroutine.
-2. On connect, it records the time and removes any dial queued for the peer's configured address (`dial.Queue.Remove`). The backoff is left as is. A connect handled after the peer already dropped is ignored.
-3. On disconnect, it resets the backoff if the connection lasted `persistentStableUptime`, set to the 30-second backoff ceiling, then queues that peer at once: due right away after a stable connection, after the next backoff step otherwise. A disconnect with no recorded connect counts as unstable.
+2. On connect, it records the time and removes any dial queued for the peer's configured address (`dial.Queue.Remove`). The backoff is left as is. A connect handled after the peer already dropped is ignored, and also drops any connect time left from a connection whose disconnect was missed.
+3. On disconnect, it resets the backoff if the connection lasted the switch's `stableUptime`, which defaults to `persistentStableUptime`, the 30-second backoff ceiling, and which tests shorten; then it queues that peer at once: due right away after a stable connection, after the next backoff step otherwise. A disconnect with no recorded connect counts as unstable.
 4. The 5-second tick is unchanged; it covers startup, dropped events and failed dials.
 5. The dial loop pops through `dial.Queue.PopDue`, which checks and pops the head under the queue's lock, since the redial loop's removal can now run between the dial loop's peek and pop.
+6. The switch notifies a disconnect only when the peer actually left the peer set, so each connect has one matching disconnect.
 
 ## Alternatives considered
 
-- **A 5-second stability threshold** (one redial interval): a broken connection is recognised sooner, but a peer up 6 seconds at a time would be redialed at once every 6 seconds. Tying the threshold to the ceiling bounds the worst case at about one dial per 30 seconds, whatever the uptime pattern.
+- **A 5-second stability threshold** (one redial interval): a broken connection is recognised sooner, but the worst pattern is a stable connection followed by a few short ones, since the stable drop resets the backoff and the short ones walk it up again (dials at 0, 1, 3, 7 and 15 seconds, then a connection of the threshold). With the threshold at the 30-second ceiling that is four short connections per stable one, about one dial every 9 seconds at worst (about 400 an hour), below #6292's one per 5-second tick (720 an hour); with a 5-second threshold the worst such pattern, two short connections per stable one, reaches about one dial every 3 seconds, above it.
 - **Rescheduling the leftover dial on disconnect:** needs a reschedule operation and a re-sort, and stale items stay queued while the peer is connected.
 - **Tracking dials in flight to avoid leftovers:** shared state between the dial loop and the redial loop.
 - **Resetting the backoff on the tick** for peers connected long enough: splits the logic between the tick and the events, and needs the connect times anyway.
@@ -31,8 +32,10 @@ A related gap: a tick can queue a backoff dial while that peer's previous dial i
 
 ## Consequences
 
-- A persistent peer whose connections last under 30 seconds is redialed after 1, 2, 4, 8, 16, then 30 seconds, instead of every 5 seconds.
+- A persistent peer whose connections last under 30 seconds is redialed with a backoff that steps up one per drop from where the attempt count stood, so after a reset 1, 2, 4, 8, 16, then 30 seconds, and a peer that needed several dials before a short connection resumes at that step, instead of every 5 seconds.
+- A link that stays up between 5 and 30 seconds per cycle is, once backed off, reconnected after up to about 33 seconds instead of within the 5-second tick; a link up 20 seconds per cycle is connected about 40% of the time instead of about 80%. That is the price of bounding the dial rate.
 - A persistent peer that drops after 30 seconds or more of uptime is redialed at once, without waiting for the tick, so a validator reconnects to its sentry as fast as before #6292.
 - A queued dial no longer outlives the connection it was meant to establish, unless that connection's `PeerConnected` event is dropped (see below).
-- A dropped `PeerConnected` event makes the next drop count as unstable, and lets a leftover dial survive, bounded by the 30-second ceiling; a dropped `PeerDisconnected` event falls back to the tick, within 5 seconds.
-- Events and peer-set changes are not strictly ordered, but a connect handled after its connection already dropped is ignored, so it neither stamps a start time nor removes the dial the disconnect queued. The one remaining window is a connection shorter than the event-handling latency, where a leftover dial can survive, bounded by the 30-second ceiling.
+- A dropped `PeerConnected` event makes the next drop count as unstable, and lets a leftover dial survive, bounded by the 30-second ceiling; a dropped `PeerDisconnected` event leaves the redial to the tick, which queues the peer with the backoff it had before that connection, so up to about 38 seconds after the drop (the next tick, then the backoff) instead of at once.
+- Events and peer-set changes are not strictly ordered, but a connect handled after its connection already dropped is ignored, so it neither stamps a start time nor removes the dial the disconnect queued. The remaining window is a connection shorter than the event-handling latency, where a leftover dial can survive, bounded by the 30-second ceiling.
+- Two nodes that list each other as persistent peers both redial at once after a stable connection drops, so they can dial each other at the same moment; until #6302 resolves a simultaneous open deterministically, they can tear both connections down and retry with backoff.
