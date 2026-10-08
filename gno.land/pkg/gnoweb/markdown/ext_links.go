@@ -106,6 +106,8 @@ func (*GnoLink) Kind() ast.NodeKind {
 // dangerous scheme. That applies to the dangerous-scheme check, to the
 // link classifier (which drives rel="noopener nofollow ugc" and the
 // external-link icon), and to the image validator.
+//
+// buttonDestEscaper (ext_buttons.go) must stay its inverse.
 func resolveDestination(dst []byte) []byte {
 	return util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(dst)))
 }

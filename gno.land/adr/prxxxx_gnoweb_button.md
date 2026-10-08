@@ -61,6 +61,12 @@ first review point. The whole tag must fit on one line.
   checks the tag shape. Attribute validation stays in the inline parser, so a
   rejected button is stripped inline instead of taking the following lines
   with it.
+- A parse attempt reads at most `MaxButtonTagLen` (2 KB) bytes and never
+  past the next `<gno-button` prefix, and skips the tokenizer when that window
+  holds no `/>`. Every prefix in a line is an attempt, so an unbounded read
+  made a long line of unterminated tags quadratic (4000 tags, 96 KB: 1.17 s);
+  bounded, it is linear (8 ms; `BenchmarkButtonHostileLine`). A longer tag,
+  or one with `<gno-button` inside an attribute value, is not a button.
 - The tag is tokenized with `x/net/html`, the tokenizer behind
   `ParseHTMLTokens`. `ParseHTMLTokens` itself is not called because it
   tokenizes the whole line and drops offsets, while an inline tag has to know
@@ -76,7 +82,15 @@ marker attribute holding the class. The link transformer turns it into a
 `GnoLink`. The button therefore gets, unchanged: destination resolution,
 link-type classification, `rel="noopener nofollow ugc"` on external links, the
 external/internal/tx/user icons, and the dangerous-URL guard in
-`renderGnoLink`. `renderGnoLink` gains a single line that emits the class.
+`renderGnoLink`. `renderGnoLink` gains a generic `gno:class` node attribute
+(not settable from markdown) that it emits as the class.
+
+The href is decoded once, as HTML decodes an attribute: the tokenizer resolves
+its entities, and the parser re-escapes `&` and `\` before storing it, so the
+link pipeline's `resolveDestination` gives the value back unchanged instead of
+decoding it a second time. `href="?q=&amp;lt;"` therefore yields `?q=&lt;`,
+the same destination `[x](?q=&amp;lt;)` yields, and a backslash in an href is
+kept rather than read as a markdown escape.
 
 On top of that, the parser rejects outright (fall-through, stripped):
 `javascript:`/`vbscript:`/`file:` after entity resolution, every `data:` URI
@@ -123,12 +137,19 @@ already in place. `warning` uses dark text on its light-yellow fill.
   ~46 allocations per button in `BenchmarkButton`, against an equivalent
   markdown link). A line holding only a button is tokenized twice (block shape
   check, then inline parse). Non-button `<` bytes cost nothing.
-- A button inside a GFM table cell cannot have `|` in its attributes: the
-  table splits cells before inline parsing.
-- `p/nt/markdown/sanitize` escapes `<` in `InlineText`, and `<gno-…>` only at
-  line start in `Block`/`BlockRich`. A user string passed through `Block` can
-  therefore now produce a styled button mid-line. It is still only a link,
-  with the same URL safety as the `[text](url)` links `Block` already
-  preserves, but it is a more prominent one. Escaping inline `<gno-` in
-  `Block` is left as a follow-up for the sanitize package.
+- A button inside a GFM table cell must write `|` in an attribute as
+  `&#124;`: the table splits cells before inline parsing, and `\|` would keep
+  its backslash because the label is raw text. Documented and tested.
+- Sanitize (`chain/markdown`, used by `p/nt/markdown/sanitize`):
+  `InlineText` escapes `<`; `Block`/`BlockRich` escape a `<gno-…>` line
+  start. That escape used to put its backslash before the indent, which was
+  enough for the block-level `gno-*` parsers but left an indented button live
+  (the backslash only escaped a space). It now goes right before the `<`.
+  A button in the middle of a line still passes through `Block` and renders:
+  it is only a link, with the same URL checks as the `[text](url)` links
+  `Block` already preserves, but a more prominent one. A sanitize fixture
+  pins that behavior. The indent fix is a stopgap: the general fix is to
+  escape every `<gno-button` in `Block`/`BlockRich` outside code spans, as
+  `InlineText` escapes `<`, which is a separate change to the sanitize
+  contract.
 - `r/docs/markdown` documents the syntax with copyable examples.

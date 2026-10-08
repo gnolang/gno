@@ -903,6 +903,8 @@ Ready? <gno-button href="https://gno.land" label="Visit gno.land" variant="outli
 
 Ready? <gno-button href="https://gno.land" label="Visit gno.land" variant="outline" />
 
+Inside a table cell, write a ±|± in an attribute as ±&#124;± (for example ±label="A &#124; B"±): tables split cells on ±|± before the button is read.
+
 A tag that is not self-closing (±<gno-button ...>±), that misses ±href± or ±label±, or that is split over several lines is not a button: it is treated as raw HTML and removed. Buttons are not rendered inside ±<gno-foreign>± content.
 
 ### User Mentions and Bech32 Addresses

@@ -19,7 +19,7 @@ Inline <gno-button href="file:///etc/passwd" label="file" />
 <p>Inline <!-- raw HTML omitted --></p>
 <p>Inline <!-- raw HTML omitted --></p>
 <p>Inline <!-- raw HTML omitted --></p>
-<p>Inline <!-- raw HTML omitted --></p>
+<p>Inline <a href="&amp;#x6a;avascript:alert(1)" class="gno-button">js double entity</a></p>
 <p>Inline <!-- raw HTML omitted --></p>
 <p>Inline <!-- raw HTML omitted --></p>
 <p>Inline <!-- raw HTML omitted --></p>

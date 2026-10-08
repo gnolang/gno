@@ -22,6 +22,12 @@ import (
 
 const buttonClassBase = "gno-button"
 
+// MaxButtonTagLen bounds how many bytes the parser reads for one tag. Every
+// '<gno-button' prefix in a line is a parse attempt, so without a bound a
+// long line of unterminated tags is tokenized to its end once per tag
+// (quadratic). A longer tag is not a button and falls through to raw HTML.
+const MaxButtonTagLen = 2048
+
 // buttonVariants is the whitelist of `variant` values, in the order their
 // classes are emitted. Values combine (`variant="caution outline"`), match
 // case-insensitively like alert kinds, and anything not listed is ignored.
@@ -45,12 +51,40 @@ func parseButtonTag(b []byte) (tok html.Token, n int, ok bool) {
 		return tok, 0, false
 	}
 
+	// No `/>` in the window: not a self-closing tag, skip the tokenizer.
+	b = b[:min(len(b), MaxButtonTagLen)]
+	// Nor past the next tag prefix: that one is its own attempt, so a line
+	// of tags tokenizes each tag once instead of a whole window each time.
+	// A button whose attribute value holds `<gno-button` is not a button.
+	if i := indexButtonPrefix(b[1:]); i >= 0 {
+		b = b[:i+1]
+	}
+	if !bytes.Contains(b, []byte("/>")) {
+		return tok, 0, false
+	}
+
 	z := html.NewTokenizer(bytes.NewReader(b))
 	if z.Next() != html.SelfClosingTagToken {
 		return tok, 0, false
 	}
 	n = len(z.Raw()) // read before Token(), which may reuse the buffer
 	return z.Token(), n, true
+}
+
+// indexButtonPrefix returns the index of the first case-insensitive
+// buttonTagPrefix in b, or -1.
+func indexButtonPrefix(b []byte) int {
+	for i := 0; ; {
+		j := bytes.IndexByte(b[i:], '<')
+		if j < 0 {
+			return -1
+		}
+		i += j
+		if len(b)-i >= len(buttonTagPrefix) && bytes.EqualFold(b[i:i+len(buttonTagPrefix)], buttonTagPrefix) {
+			return i
+		}
+		i++
+	}
 }
 
 // newButtonLink builds the link node for a button tag, or returns nil when
@@ -66,7 +100,7 @@ func newButtonLink(tok html.Token) *ast.Link {
 	variant, _ := ExtractAttr(tok.Attr, "variant")
 
 	link := ast.NewLink()
-	link.Destination = []byte(href)
+	link.Destination = []byte(buttonDestEscaper.Replace(href))
 	link.SetAttribute(linkClassAttr, buttonClass(strings.Fields(strings.ToLower(variant))))
 
 	// Raw: the label is escaped on output but not re-parsed as markdown.
@@ -76,14 +110,21 @@ func newButtonLink(tok html.Token) *ast.Link {
 	return link
 }
 
+// buttonDestEscaper undoes, in advance, the decoding the link pipeline applies
+// to every destination (resolveDestination: backslash escapes, then
+// entities). The tokenizer has already decoded the attribute once, as HTML
+// does, so resolveDestination(escaped) gives back exactly the attribute value:
+// one decode, and `&amp;lt;` or `\_` in an href mean what they mean in HTML.
+var buttonDestEscaper = strings.NewReplacer(`&`, `&amp;`, `\`, `\\`)
+
 // isButtonHrefAllowed rejects what renderGnoLink would neutralize anyway
 // (javascript:, vbscript:, file:), every data: URI, which goldmark allows
 // for images but has no business behind a button, and any control byte:
 // browsers strip tab and newline from a URL, so `java&#x09;script:` is a
-// scheme the prefix check cannot see. It checks the resolved bytes the
-// renderer will emit, see resolveDestination.
+// scheme the prefix check cannot see. href is the decoded attribute value,
+// which is what the renderer emits (see buttonDestEscaper).
 func isButtonHrefAllowed(href string) bool {
-	dest := trimLeadingControlAndSpace(resolveDestination([]byte(href)))
+	dest := trimLeadingControlAndSpace([]byte(href))
 	if bytes.ContainsFunc(dest, func(r rune) bool { return r < ' ' || r == 0x7f }) {
 		return false
 	}
