@@ -1576,7 +1576,7 @@ func (dt *DeclaredType) Seal() {
 
 // MaxEmbedDepth bounds embed-chain depth for declared types, struct fields,
 // and embedded interfaces. The check fires once a declaration group is
-// built (endTypeDeclGroup) and at construction for inline types
+// built (checkBuiltTypeDecl) and at construction for inline types
 // (doOp{Struct,Interface}Type and staticTypeFromAST). Caps the worst-case FindEmbeddedFieldType trail length so that K
 // repeated selector lookups stay O(K * MaxEmbedDepth) instead of O(K * N)
 // for deeply nested source-level embed chains. 8 is well above any observed
@@ -1957,7 +1957,7 @@ func isInterfaceMethodEmbed(t Type) bool {
 }
 
 // validateEmbedDepth panics if t's embed depth exceeds MaxEmbedDepth.
-// Called once a declaration group is built (endTypeDeclGroup) and
+// Called once a declaration group is built (checkBuiltTypeDecl) and
 // immediately after construction for inline struct/interface types.
 // The walk is billed to gm per type visited and field scanned.
 func validateEmbedDepth(gm store.GasMeter, t Type, displayName string) {

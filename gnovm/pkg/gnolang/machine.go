@@ -1668,7 +1668,7 @@ const (
 	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
 	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
 	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
-	// Type-declaration group validation (typecycle.go), at preprocess.
+	// Type-declaration group validation (typedecl_group.go), at preprocess.
 	// Dev-box fits from BenchmarkTypeDeclGroup, converted to reference-ns
 	// with a machine factor measured as in #6164 (gas table ÷ measured
 	// pure ns over seven flat ops, run alongside); see the record in

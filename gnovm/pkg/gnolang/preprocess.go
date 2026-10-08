@@ -47,12 +47,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
-	var sites []typeDeclSite
-	for _, fn := range fset.Files {
-		sites = appendTypeDeclSites(sites, fn, fn.Decls)
-	}
-	beginTypeDeclGroup(store, sites)
-
 	// Predefine all import decls first.
 	// This must be done before TypeDecls, as it may recursively
 	// depend on names (even in other files) that depend on imports.
@@ -74,26 +68,31 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-	// Predefine all type decls decls.
+	// Predefine all type decls, as one group.
+	var sites []typeDeclSite
 	for _, fn := range fset.Files {
-		for i := range fn.Decls {
-			d := fn.Decls[i]
-			switch d.(type) {
-			case *TypeDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) == true {
-					// skip declarations already predefined
-					// (e.g. through recursion for a
-					// dependent)
-					continue
-				}
+		sites = appendTypeDeclSites(sites, fn, fn.Decls)
+	}
+	predefineTypeDeclGroup(store, sites, func() {
+		for _, fn := range fset.Files {
+			for i := range fn.Decls {
+				d := fn.Decls[i]
+				switch d.(type) {
+				case *TypeDecl:
+					if d.GetAttribute(ATTR_PREDEFINED) == true {
+						// skip declarations already predefined
+						// (e.g. through recursion for a
+						// dependent)
+						continue
+					}
 
-				// recursively predefine dependencies.
-				predefineRecursivelyIndexed(store, fn, d, index)
-				fn.Decls[i] = d
+					// recursively predefine dependencies.
+					predefineRecursivelyIndexed(store, fn, d, index)
+					fn.Decls[i] = d
+				}
 			}
 		}
-	}
-	endTypeDeclGroup(store, sites)
+	})
 	// Then, predefine all func/method decls.
 	for _, fn := range fset.Files {
 		for i := range fn.Decls {
@@ -874,15 +873,15 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if cd, ok := d.(*ValueDecl); ok {
 						checkValDefineMismatch(cd)
 					}
-					td, isType := d.(*TypeDecl)
-					if isType {
-						beginTypeDeclGroup(store, []typeDeclSite{{td, last}})
-					}
-
-					// recursively predefine dependencies.
-					preprocessed := predefineRecursively(store, last, d)
-					if isType {
-						endTypeDeclGroup(store, []typeDeclSite{{td, last}})
+					// recursively predefine dependencies; a type
+					// declaration is a group of one.
+					var preprocessed bool
+					if td, ok := d.(*TypeDecl); ok {
+						predefineTypeDeclGroup(store, []typeDeclSite{{td, last}}, func() {
+							preprocessed = predefineRecursively(store, last, d)
+						})
+					} else {
+						preprocessed = predefineRecursively(store, last, d)
 					}
 					if preprocessed {
 						return d, TRANS_SKIP
@@ -1222,27 +1221,27 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-					// Predefine all type decls. After PredefineFileSet
-					// nothing is left to do here.
+					// Predefine all type decls, as one group. After
+					// PredefineFileSet nothing is left to do here.
 					sites := appendTypeDeclSites(nil, n, n.Decls)
-					beginTypeDeclGroup(store, sites)
-					for i := range n.Decls {
-						d := n.Decls[i]
-						switch d.(type) {
-						case *TypeDecl:
-							if d.GetAttribute(ATTR_PREDEFINED) == true {
-								// skip declarations already
-								// predefined (e.g. through
-								// recursion for a dependent)
-							} else {
-								// recursively predefine
-								// dependencies.
-								predefineRecursively(store, n, d)
-								n.Decls[i] = d
+					predefineTypeDeclGroup(store, sites, func() {
+						for i := range n.Decls {
+							d := n.Decls[i]
+							switch d.(type) {
+							case *TypeDecl:
+								if d.GetAttribute(ATTR_PREDEFINED) == true {
+									// skip declarations already
+									// predefined (e.g. through
+									// recursion for a dependent)
+								} else {
+									// recursively predefine
+									// dependencies.
+									predefineRecursively(store, n, d)
+									n.Decls[i] = d
+								}
 							}
 						}
-					}
-					endTypeDeclGroup(store, sites)
+					})
 					// Then, predefine all func/method decls.
 					for i := range n.Decls {
 						d := n.Decls[i]

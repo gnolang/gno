@@ -201,12 +201,20 @@ func (g *typeDeclGraph) invalidCycle() []Name {
 	})
 }
 
-// beginTypeDeclGroup runs before any declaration of a group is
-// predefined: it rejects invalid cycles, then reserves every slot.
-// endTypeDeclGroup closes the group.
-func beginTypeDeclGroup(store Store, sites []typeDeclSite) {
-	assertNoTypeDeclCycles(preprocessGasMeterOf(store), sites)
+// predefineTypeDeclGroup predefines the type declarations in sites as one
+// group: it rejects invalid cycles and reserves every slot, runs predefine,
+// which builds the declarations, then checks what only a built group can
+// answer (embed depth, map keys). The three predefinition sites call it.
+func predefineTypeDeclGroup(store Store, sites []typeDeclSite, predefine func()) {
+	gm := preprocessGasMeterOf(store)
+	assertNoTypeDeclCycles(gm, sites)
 	reserveTypeDecls(store, sites)
+	predefine()
+	for _, s := range sites {
+		if s.decl.Name != blankIdentifier {
+			checkBuiltTypeDecl(store, gm, s)
+		}
+	}
 }
 
 // assertNoTypeDeclCycles panics, located at the first declaration of the
@@ -241,18 +249,9 @@ func appendTypeDeclSites(sites []typeDeclSite, block BlockNode, decls []Decl) []
 	return sites
 }
 
-// endTypeDeclGroup runs the checks that need every type of the group
+// checkBuiltTypeDecl runs the checks that need every type of the group
 // settled: embed depth and map-key comparability. Seal meets a
 // pointer-referenced member before its base is set, so it can judge neither.
-func endTypeDeclGroup(store Store, sites []typeDeclSite) {
-	gm := preprocessGasMeterOf(store)
-	for _, s := range sites {
-		if s.decl.Name != blankIdentifier {
-			checkBuiltTypeDecl(store, gm, s)
-		}
-	}
-}
-
 func checkBuiltTypeDecl(store Store, gm store.GasMeter, s typeDeclSite) {
 	tv := s.block.GetSlot(store, s.decl.Name, true)
 	if tv == nil {

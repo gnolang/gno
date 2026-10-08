@@ -22,7 +22,7 @@ declaration set in `PredefineFileSet` before anything is built.
 
 Validate the declaration graph first, then predefine.
 
-1. **`typecycle.go`** collects, for the type declarations of a group, the
+1. **`typedecl_group.go`** collects, for the type declarations of a group, the
    names each one refers to with a direct flag (struct field, array
    element, embedded interface and bare name are direct; pointer, slice,
    map, chan, func and method signature are not). Names the group does not
@@ -47,7 +47,7 @@ Validate the declaration graph first, then predefine.
 5. **The walk carries no verdict.** Its `direct` flag, the LEAVE check and
    the alias-chain resolver are gone.
 6. **Map-key comparability and embed depth** are checked once per group
-   after its types are built (`endTypeDeclGroup`), since a member
+   after its types are built (`checkBuiltTypeDecl`), since a member
    reached through a pointer may still have a nil base when its container
    is sealed. `Seal` no longer checks embed depth; every key and base is
    settled by then, so the map check cannot poison the `comparable` memo.
@@ -91,7 +91,7 @@ Validate the declaration graph first, then predefine.
   (`const N = T(3)` reached from an array length, `len(T{})`) counts as
   undefined until built, so it is built first (`decltype_constlen*`).
 - `embed_depth1` pins the post-group embed-depth check with a chain
-  declared top-down, which `Seal` alone accepted. `typecycle_gas_test.go`
+  declared top-down, which `Seal` alone accepted. `typedecl_group_gas_test.go`
   pins each charge with a budget that only the metered walk exceeds.
 - Runtime construction of an inline struct or interface type
   (`doOpStructType`, `doOpInterfaceType`) now bills its embed-depth walk

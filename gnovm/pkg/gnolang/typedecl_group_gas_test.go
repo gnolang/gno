@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Gas metering of the type-declaration group walks (typecycle.go): the cycle
+// Gas metering of the type-declaration group walks (typedecl_group.go): the cycle
 // pre-scan, the build-order dependency scan, and the settled-type checks
 // (embed depth, map keys). Each fixture is shaped so one walk's charge
 // dominates and the budget sits between the package's allocation gas and
@@ -120,7 +120,7 @@ func TestPreprocess_TypeDeclGroup_GasSufficient(t *testing.T) {
 	}
 }
 
-// TestTypeDeclGroup_MapKeyCharged: endTypeDeclGroup bills the embed-depth
+// TestTypeDeclGroup_MapKeyCharged: checkBuiltTypeDecl bills the embed-depth
 // walk per step and the map-key walk per node. The map-key work is a
 // fraction of the scan charges on the same nodes, so a budget test cannot
 // isolate it; this checks the exact charge on one built declaration.
