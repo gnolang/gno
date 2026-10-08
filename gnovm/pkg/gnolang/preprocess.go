@@ -3296,21 +3296,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case *StructType:
 					*dstT = *(tmp.(*StructType))
 				case *DeclaredType:
-					if n.IsAlias {
-						// Nothing to do.
-					} else {
-						// Construct a temporary new *DeclaredType
-						// and copy value to dst to keep the original pointer.
-						//
-						// NOTE: this is where the structured value
-						// (e.g.  *ArrayType, *StructType) of declared
-						// types are actually instantiated, not in
-						// machine.go:runDeclaration().
-						tmp2 := declareWith(ctxpn.PkgPath, last, n.Name, tmp)
-						// if !n.IsAlias { // not sure why this was here.
-						tmp2.Seal()
-						// }
-						*dstT = *tmp2
+					if !n.IsAlias {
+						// dstT is the shell reserveTypeDecls made;
+						// give it its base and seal it in place so
+						// every earlier reference stays valid.
+						dstT.Base = baseOf(tmp)
+						dstT.Seal()
 					}
 				case PrimitiveType:
 					dstTV.V = TypeValue{Type: tmp}
