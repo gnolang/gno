@@ -169,8 +169,18 @@ func (c *Client) Query(ctx context.Context, query string, out any) error {
 	c.release()
 
 	// A miss, a cap and a caller giving up say nothing about the indexer's
-	// health. A deadline does, and is the signal the breaker acts on.
-	if !errors.Is(err, ErrNotFound) && !errors.Is(err, ErrTooLarge) && !errors.Is(err, context.Canceled) {
+	// health. The client's own timeout does, and is the signal the breaker
+	// acts on. A caller's deadline is the caller's budget, not the
+	// indexer's: the omnibar gives up at 3s, below the client's 4s, and
+	// three readers typing at once would otherwise close the indexer to
+	// everyone for the cooldown.
+	switch {
+	case err == nil:
+		c.record(nil)
+	case ctx.Err() != nil,
+		errors.Is(err, ErrNotFound),
+		errors.Is(err, ErrTooLarge):
+	default:
 		c.record(err)
 	}
 	return err
@@ -272,9 +282,12 @@ func (c *Client) do(ctx context.Context, query string, out any) error {
 	if len(gql.Errors) > 0 {
 		return c.gqlError(gql, out)
 	}
-	if len(gql.Data) == 0 {
-		// No errors and no data: an empty answer, not a decode failure.
-		return nil
+	if len(gql.Data) == 0 || string(gql.Data) == "null" {
+		// GraphQL always answers `data`, `errors` or both. Neither is what
+		// an -indexer-url pointing at the wrong endpoint returns, and taking
+		// it as an empty answer read as "not found" and a tip of 0.
+		return fmt.Errorf("indexer answered neither data nor errors (%d bytes of %q)",
+			len(raw), resp.Header.Get("Content-Type"))
 	}
 	return json.Unmarshal(gql.Data, out)
 }

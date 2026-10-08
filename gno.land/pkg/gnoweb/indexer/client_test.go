@@ -569,3 +569,57 @@ func TestValidateURL(t *testing.T) {
 		}
 	}
 }
+
+// A caller's deadline is the caller's budget: the omnibar gives up at 3s,
+// below the client's 4s, and three readers typing at once must not close a
+// healthy indexer to everyone for the cooldown. Scaled down: the caller gives
+// up at 50ms, the indexer answers in 300ms.
+func TestCallerDeadlineDoesNotOpenBreaker(t *testing.T) {
+	c, calls := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(300 * time.Millisecond):
+		}
+		respond(w, `{"data":{"latestBlockHeight":5}}`)
+	})
+
+	var out struct {
+		H int `json:"latestBlockHeight"`
+	}
+	for range breakerThreshold + 1 {
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		err := c.Query(ctx, `{ latestBlockHeight }`, &out)
+		cancel()
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("err = %v, want the caller's deadline", err)
+		}
+	}
+
+	if err := c.Query(context.Background(), `{ latestBlockHeight }`, &out); err != nil {
+		t.Fatalf("next caller: %v, want an answer", err)
+	}
+	if *calls != breakerThreshold+2 {
+		t.Fatalf("calls = %d, want every query sent", *calls)
+	}
+}
+
+// GraphQL answers `data`, `errors` or both. A body with neither is what an
+// -indexer-url pointing at the wrong endpoint returns; it must not read as
+// "not found" or a tip of 0.
+func TestEnvelopeWithoutDataIsAnError(t *testing.T) {
+	for _, body := range []string{
+		`{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"invalid request"}}`,
+		`{"data":null}`,
+		`{}`,
+	} {
+		c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+			respond(w, body)
+		})
+		if h, err := c.LatestBlockHeight(context.Background()); err == nil {
+			t.Errorf("%s: LatestBlockHeight = %d, nil", body, h)
+		}
+		if _, err := c.TxByHash(context.Background(), "deadbeef"); err == nil || errors.Is(err, ErrNotFound) {
+			t.Errorf("%s: TxByHash err = %v, want a failure that is not ErrNotFound", body, err)
+		}
+	}
+}
