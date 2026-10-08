@@ -203,6 +203,28 @@ func TestQueue_Remove(t *testing.T) {
 		assert.Equal(t, second, q.Pop().Address)
 	})
 
+	t.Run("the same peer on another address is kept", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			now     = time.Now()
+			target  = generateAddr(t, 26656)
+			sibling = *target
+			q       = NewQueue()
+		)
+
+		// The same peer ID, on another port
+		sibling.Port = 26657
+
+		q.Push(Item{Time: now, Address: target})
+		q.Push(Item{Time: now.Add(time.Second), Address: &sibling})
+
+		q.Remove(target)
+
+		require.Len(t, q.items, 1)
+		assert.Equal(t, &sibling, q.items[0].Address)
+	})
+
 	t.Run("no-op when the address is not queued", func(t *testing.T) {
 		t.Parallel()
 
