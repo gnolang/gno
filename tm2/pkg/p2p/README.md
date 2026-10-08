@@ -342,13 +342,16 @@ Peers are dialed asynchronously in the `Switch`, as is suggested by the `Switch`
 DialPeers(peerAddrs ...*types.NetAddress)
 ```
 
-The `MultiplexSwitch` implementation utilizes a concept called a *dial queue*.
+The `MultiplexSwitch` implementation utilizes a concept called a *dial queue*: a priority-based queue (sorted by dial time, ascending) from which dial requests are taken out of and executed in the form of peer dialing (through the `Transport`, of course). The queue needs to be sorted by the dial time, since some dial requests need to be executed as soon as possible, while others can wait up until a certain point in time.
 
-A dial queue is a priority-based queue (sorted by dial time, ascending) from which dial requests are taken out of and
-executed in the form of peer dialing (through the `Transport`, of course).
+The switch keeps two of them:
 
-The queue needs to be sorted by the dial time, since there are asynchronous dial requests that need to be executed as
-soon as possible, while others can wait to be executed up until a certain point in time.
+- the *persistent dial queue* holds the dials of persistent peers. The redial service is the only one to fill it, always with the peer's configured address.
+- the *dial queue* holds every other dial: addresses learned through peer discovery, the address book replayed on start, and seeds.
+
+`DialPeers` feeds the second one only. It skips an address when it is the node's own, when it belongs to a persistent peer, when that peer is already connected, when the same address is already queued (peer discovery shares the same addresses over and over), or when the maximum number of outbound peers is reached.
+
+A single dial loop drains both queues, one dial at a time. A persistent peer whose dial is due goes first, so persistent peers never wait behind discovered ones; otherwise the loop takes the due head of the dial queue, or waits for whichever item is due first. An item whose peer connected in the meantime is dropped.
 
 ```go
 package p2p
@@ -356,22 +359,26 @@ package p2p
 func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 	// ...
 
-	// Grab a dial item
-	item := sw.dialQueue.Peek()
+	// Grab the next dial item
+	item, queue := sw.peekDialItem()
 	if item == nil {
-		// Nothing to dial
+		// Nothing to dial, wait until something is
+		// added to a queue
+		sw.waitForPeersToDial(ctx)
 		continue
 	}
 
 	// Check if the dial time is right
 	// for the item
-	if time.Now().Before(item.Time) {
-		// Nothing to dial
+	if wait := time.Until(item.Time); wait > 0 {
+		// Nothing to dial yet, wait until the item is due
+		sw.waitForDialTime(ctx, wait)
+
 		continue
 	}
 
-	// Pop the item from the dial queue
-	item = sw.dialQueue.Pop()
+	// Pop the item from its dial queue
+	item = queue.Pop()
 
 	// Dial the peer
 	sw.Logger.Info(
@@ -392,51 +399,48 @@ The TM2 `p2p` module has a concept of something called *persistent peers*.
 Persistent peers are specific peers whose connections must be preserved, at all costs. They are specified in the
 top-level node P2P configuration, under `p2p.persistent_peers`.
 
-These peer connections are special, as they don’t adhere to high-level configuration limits like the maximum peer cap,
-instead, they are monitored and handled actively.
+These peer connections are special: they bypass the maximum outbound peer limit, both when they are queued and when they are added, though they still count toward the number of outbound peers. They are monitored and handled actively by the redial service.
 
 A good candidate for a persistent peer is a bootnode, that bootstraps and facilitates peer discovery for the network.
 
-If a persistent peer connection is lost for whatever reason (for ex, the peer disconnects), the redial service of the
-`MultiplexSwitch` will create a dial request for the dial service, and attempt to re-establish the lost connection.
+The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. Every few seconds, it queues a dial for each persistent peer that is neither connected nor already queued, into the persistent dial queue. The first dial after a disconnect is due right away; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. A reconnect clears the backoff, so a peer that connects and drops at once is redialed at most once per tick.
 
 ```go
 package p2p
 
-func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
-	// ...
-
-	var (
-		peers       = sw.Peers()
-		peersToDial = make([]*types.NetAddress, 0)
-	)
+func (sw *MultiplexSwitch) queueMissingPersistentPeers(attempts map[types.ID]uint, now time.Time) {
+	peers := sw.Peers()
 
 	sw.persistentPeers.Range(func(key, value any) bool {
-		var (
-			id   = key.(types.ID)
-			addr = value.(*types.NetAddress)
-		)
+		// ...
 
-		// Check if the peer is part of the peer set
-		// or is scheduled for dialing
-		if peers.Has(id) || sw.dialQueue.Has(addr) {
+		// Skip peers that are connected or already queued, and our own
+		// address, which a shared persistent peer list can contain
+		if peers.Has(id) ||
+			sw.persistentDialQueue.Has(addr) ||
+			addr.Same(sw.transport.NetAddress()) {
 			return true
 		}
 
-		peersToDial = append(peersToDial, addr)
+		dialTime := now
 
-		return true
+		if n, attempted := attempts[id]; attempted {
+			// Subsequent attempt: apply backoff
+			dialTime = now.Add(calculateBackoff(n, time.Second, persistentRedialMaxBackoff))
+
+			attempts[id] = n + 1
+		} else {
+			// First attempt
+			attempts[id] = 0
+		}
+
+		sw.persistentDialQueue.Push(dial.Item{
+			Time:    dialTime,
+			Address: addr,
+		})
+
+		// ...
 	})
-
-	if len(peersToDial) == 0 {
-		// No persistent peers are missing
-		return
-	}
-
-	// Add the peers to the dial queue
-	sw.DialPeers(peersToDial...)
-
-	// ...
 }
 ```
 
@@ -648,8 +652,7 @@ This background service works in the following (albeit primitive) way:
     - `node A` sends a request to peer `P` for his peer list (max 30 peers)
     - peer `P` responds to the request
 
-3. Once `node A` has the peer list from `P`, it adds the entire peer list into the dial queue, to establish outbound
-   peer connections.
+3. Once `node A` has the peer list from `P`, it passes the entire peer list to `DialPeers`, which queues the addresses it does not already know about, to establish outbound peer connections. Persistent peers in that list are left to the redial service.
 
 This process repeats at specific intervals. It is worth nothing that if the limit of outbound peers is reached, the peer
 dials have no effect.

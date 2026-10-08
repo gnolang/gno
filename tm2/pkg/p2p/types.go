@@ -87,7 +87,8 @@ type Switch interface {
 	// StopPeerForError stops the peer with the given reason
 	StopPeerForError(peer PeerConn, err error)
 
-	// DialPeers marks the given peers as ready for async dialing
+	// DialPeers marks the given peers as ready for async dialing.
+	// Persistent peers are left to the switch's redial loop
 	DialPeers(peerAddrs ...*types.NetAddress)
 }
 

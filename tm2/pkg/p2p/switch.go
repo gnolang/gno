@@ -496,8 +496,8 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 			sw.queueMissingPersistentPeers(attempts, time.Now())
 		case event := <-subCh:
 			// A persistent peer reconnected, clear its backoff.
-			// A peer that connects and drops at once is then redialed once
-			// per tick, never faster: the tick rate-limits it
+			// A peer that connects and drops at once is then redialed at most
+			// once per tick: the tick rate-limits it
 			ev := event.(events.PeerConnectedEvent)
 
 			delete(attempts, ev.PeerID)
