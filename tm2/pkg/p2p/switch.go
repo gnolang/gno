@@ -453,7 +453,14 @@ func (sw *MultiplexSwitch) dialPeer(ctx context.Context, peerAddr *types.NetAddr
 
 	// Register the peer with the switch
 	if err = sw.addPeer(p); err != nil {
-		sw.Logger.Error(
+		// A connection refused as a duplicate logs at Info: it is the
+		// tie-break's designed outcome on one node of every simultaneous open
+		logFn := sw.Logger.Error
+		if errors.Is(err, errDuplicatePeer) {
+			logFn = sw.Logger.Info
+		}
+
+		logFn(
 			"unable to add peer",
 			"peer", p,
 			"err", err,

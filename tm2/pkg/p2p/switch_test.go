@@ -743,11 +743,13 @@ func TestMultiplexSwitch_DialPeer_RejectedBeforeStart(t *testing.T) {
 		t.Parallel()
 
 		sw := NewMultiplexSwitch(nil, WithMaxOutboundPeers(0))
+		logs := captureLogs(sw)
 
 		p := mock.GeneratePeers(t, 1)[0]
 
 		assert.Equal(t, 1, dialRejected(t, sw, p))
 		assert.False(t, sw.Peers().Has(p.ID()))
+		assert.Contains(t, logs.String(), `level=ERROR msg="unable to add peer"`)
 	})
 
 	t.Run("duplicate peer", func(t *testing.T) {
@@ -771,7 +773,13 @@ func TestMultiplexSwitch_DialPeer_RejectedBeforeStart(t *testing.T) {
 			},
 		}
 
+		logs := captureLogs(sw)
+
 		assert.Equal(t, 1, dialRejected(t, sw, p))
+
+		// A refused duplicate logs at Info, since on the dial side it is the
+		// tie-break's designed outcome on one node of every simultaneous open
+		assert.Contains(t, logs.String(), `level=INFO msg="unable to add peer"`)
 	})
 }
 
