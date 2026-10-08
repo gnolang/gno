@@ -74,6 +74,10 @@ func parsePanelLineTag(line []byte) panelTagKind {
 	switch {
 	case size == 0:
 		return panelTagNone
+	case size < len(line) && line[size] == '\r':
+		// goldmark splits lines on '\n' only, so with bare-CR line endings
+		// the whole input is one "line"; consuming it would drop the text.
+		return panelTagNone
 	case size != len(line) || selfClosing || attrs != 0:
 		return panelTagInvalid
 	}
