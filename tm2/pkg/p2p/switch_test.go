@@ -1120,6 +1120,65 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		require.NotNil(t, item)
 		assert.False(t, item.Time.Before(sent.Add(900*time.Millisecond)))
 	})
+
+	t.Run("a stable connection's drop is redialed at once", func(t *testing.T) {
+		t.Parallel()
+
+		addr := generateNetAddr(t, 1)[0]
+
+		sw := NewMultiplexSwitch(
+			&mockTransport{},
+			WithPersistentPeers([]*types.NetAddress{addr}),
+		)
+
+		var connected atomic.Bool
+
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool { return connected.Load() && id == addr.ID },
+		}
+
+		// Only the start pass and the events can queue a dial, and a
+		// connection counts as stable after a short while
+		sw.redialInterval = time.Hour
+		sw.stableUptime = 50 * time.Millisecond
+
+		go sw.runRedialLoop(t.Context())
+
+		// The start pass queues the first dial
+		require.Eventually(t, func() bool {
+			return sw.persistentDialQueue.Pop() != nil
+		}, 5*time.Second, 5*time.Millisecond)
+
+		// A dial queued while that one was in flight
+		sw.persistentDialQueue.Push(dial.Item{Time: time.Now().Add(time.Minute), Address: addr})
+
+		// The peer connects: the connect handler stamps the connect time before
+		// it removes the queued dial, so the stamp exists once the dial is gone
+		connected.Store(true)
+
+		sw.events.Notify(events.PeerConnectedEvent{PeerID: addr.ID})
+
+		require.Eventually(t, func() bool {
+			return sw.persistentDialQueue.Peek() == nil
+		}, 5*time.Second, 5*time.Millisecond)
+
+		// The peer stays connected past the stable uptime
+		time.Sleep(2 * sw.stableUptime)
+
+		// The peer drops: the backoff is reset, so the dial is due at once
+		connected.Store(false)
+
+		sw.events.Notify(events.PeerDisconnectedEvent{PeerID: addr.ID})
+
+		require.Eventually(t, func() bool {
+			return sw.persistentDialQueue.Peek() != nil
+		}, 5*time.Second, 5*time.Millisecond)
+
+		item := sw.persistentDialQueue.Peek()
+
+		require.NotNil(t, item)
+		assert.False(t, item.Time.After(time.Now()))
+	})
 }
 
 func TestMultiplexSwitch_DialSeed(t *testing.T) {

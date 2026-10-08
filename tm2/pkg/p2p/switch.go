@@ -104,6 +104,10 @@ type MultiplexSwitch struct {
 	// persistent peers
 	redialInterval time.Duration
 
+	// stableUptime is how long a persistent peer's connection must last for
+	// its drop to reset the redial backoff
+	stableUptime time.Duration
+
 	// allowDuplicateIP disables the guard that stops a single remote IP from
 	// occupying more than one inbound peer slot
 	allowDuplicateIP bool
@@ -141,6 +145,7 @@ func NewMultiplexSwitch(
 		maxInboundPeers:     defaultCfg.MaxNumInboundPeers,
 		maxOutboundPeers:    defaultCfg.MaxNumOutboundPeers,
 		redialInterval:      defaultRedialInterval,
+		stableUptime:        persistentStableUptime,
 	}
 
 	// Set up the peer dial behavior
@@ -564,7 +569,7 @@ func (sw *MultiplexSwitch) persistentPeerConnected(
 }
 
 // persistentPeerDisconnected queues a persistent peer that just dropped, at
-// once. A connection that lasted persistentStableUptime resets the backoff, so
+// once. A connection that lasted stableUptime resets the backoff, so
 // the dial is due right away; a shorter one, or one whose connect was never
 // reported, keeps the backoff growing, so a peer that keeps connecting and
 // dropping backs off up to the ceiling
@@ -574,7 +579,7 @@ func (sw *MultiplexSwitch) persistentPeerDisconnected(
 	connectedAt map[types.ID]time.Time,
 	now time.Time,
 ) {
-	if since, ok := connectedAt[id]; ok && now.Sub(since) >= persistentStableUptime {
+	if since, ok := connectedAt[id]; ok && now.Sub(since) >= sw.stableUptime {
 		delete(attempts, id)
 	}
 
