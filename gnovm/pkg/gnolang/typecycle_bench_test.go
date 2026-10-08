@@ -13,6 +13,7 @@ import (
 // benchPrescanFile is nDecls struct declarations with refs pointer fields
 // each, pointing at other group members (edges) or at int (leaves).
 func benchPrescanFile(b *testing.B, nDecls, refs int, toGroup bool) *FileNode {
+	b.Helper()
 	var src strings.Builder
 	src.WriteString("package main\n")
 	for i := range nDecls {
@@ -30,6 +31,7 @@ func benchPrescanFile(b *testing.B, nDecls, refs int, toGroup bool) *FileNode {
 }
 
 func benchPrescan(b *testing.B, nDecls, refs int, toGroup bool) {
+	b.Helper()
 	fn := benchPrescanFile(b, nDecls, refs, toGroup)
 	sites := appendTypeDeclSites(nil, fn, fn.Decls)
 	var nodes, edges int64
@@ -73,6 +75,7 @@ func benchEmbedTree(depth, width int) Type {
 }
 
 func benchEmbedDepth(b *testing.B, depth, width int) {
+	b.Helper()
 	t := benchEmbedTree(depth, width)
 	var work int64
 	b.ResetTimer()
@@ -105,6 +108,7 @@ func benchMapKeyType(n int) Type {
 }
 
 func benchMapKey(b *testing.B, n int) {
+	b.Helper()
 	t := benchMapKeyType(n)
 	var work int64
 	b.ResetTimer()
