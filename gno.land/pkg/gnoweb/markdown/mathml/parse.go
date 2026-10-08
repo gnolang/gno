@@ -415,43 +415,55 @@ func embellishedCore(n *MMLNode) *MMLNode {
 // TeX puts none. The names are <mo> elements, so the space is set as their
 // lspace and rspace, which MathML Core honours on <mo> only.
 func (n *MMLNode) postProcessOperatorNames() {
-	printed := make([]*MMLNode, 0, len(n.Children))
+	// kinds holds the kind of each printed child, and cores the node whose
+	// spacing applies to it.
+	const (
+		separator = iota
+		operator
+		name
+		ordinary
+	)
+	var kinds []int
+	var cores []*MMLNode
+	hasName := false
 	for _, c := range n.Children {
-		if c != nil && c.Properties&propNonprint == 0 {
-			printed = append(printed, c)
-		}
-	}
-	// kind is 0 for a cell or row separator, 1 for an operator, 2 for an
-	// operator name and 3 for anything else.
-	kind := func(i int) int {
-		if i < 0 || i >= len(printed) || printed[i].Properties&(propCellSep|propRowSep) > 0 {
-			return 0
-		}
-		core := embellishedCore(printed[i])
-		switch {
-		case core.Properties&propOperatorName > 0:
-			return 2
-		case core.Tag == "mo":
-			return 1
-		}
-		return 3
-	}
-	for i := range printed {
-		if kind(i) != 2 {
+		if c == nil || c.Properties&propNonprint > 0 {
 			continue
 		}
-		core := embellishedCore(printed[i])
+		core := embellishedCore(c)
+		k := ordinary
+		switch {
+		case c.Properties&(propCellSep|propRowSep) > 0:
+			k = separator
+		case core.Properties&propOperatorName > 0:
+			k, hasName = name, true
+		case core.Tag == "mo":
+			k = operator
+		}
+		kinds = append(kinds, k)
+		cores = append(cores, core)
+	}
+	if !hasName {
+		return
+	}
+	for i, k := range kinds {
+		if k != name {
+			continue
+		}
 		lspace, rspace := "0", "0"
-		if kind(i-1) == 3 {
-			lspace = "0.1667em"
+		if i > 0 && kinds[i-1] == ordinary {
+			lspace = thinSpace
 		}
-		if k := kind(i + 1); k >= 2 {
-			rspace = "0.1667em"
+		if i+1 < len(kinds) && kinds[i+1] >= name {
+			rspace = thinSpace
 		}
-		core.SetAttr("lspace", lspace)
-		core.SetAttr("rspace", rspace)
+		cores[i].SetAttr("lspace", lspace)
+		cores[i].SetAttr("rspace", rspace)
 	}
 }
+
+// thinSpace is TeX's \, (3/18 em), the space around an operator name.
+const thinSpace = "0.1667em"
 
 func (n *MMLNode) postProcessSpace() {
 	i := 0

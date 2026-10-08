@@ -355,11 +355,11 @@ func findDollarClose(b []byte) (int, int) {
 	for i := 0; i < len(b); i++ {
 		c := b[i]
 		if depth > 0 {
-			switch {
-			case isEscaped(b, i):
-			case c == '(':
+			// isEscaped only on parentheses: on every byte, it would rescan
+			// a run of backslashes once per backslash.
+			if c == '(' && !isEscaped(b, i) {
 				depth++
-			case c == ')':
+			} else if c == ')' && !isEscaped(b, i) {
 				depth--
 			}
 			continue
@@ -402,26 +402,10 @@ func findDollarClose(b []byte) (int, int) {
 // autolinkEnd returns the index of the > that ends the URI autolink b
 // starts with (<scheme:...>, as CommonMark defines it), or -1.
 func autolinkEnd(b []byte) int {
-	i := 1
-	for i < len(b) && i <= 33 && (isASCIIAlpha(b[i]) || i > 1 && (b[i] >= '0' && b[i] <= '9' || b[i] == '+' || b[i] == '.' || b[i] == '-')) {
-		i++
-	}
-	if i < 3 || i > 33 || i >= len(b) || b[i] != ':' {
-		return -1
-	}
-	for i++; i < len(b); i++ {
-		switch c := b[i]; {
-		case c == '>':
-			return i
-		case c == '<' || c <= ' ':
-			return -1
-		}
+	if end := util.FindURLIndex(b[1:]) + 1; end > 0 && end < len(b) && b[end] == '>' {
+		return end
 	}
 	return -1
-}
-
-func isASCIIAlpha(c byte) bool {
-	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
 func (p *texBlockRegionParser) Trigger() []byte {
