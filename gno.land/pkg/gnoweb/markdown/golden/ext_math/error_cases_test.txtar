@@ -21,6 +21,6 @@ Nested math: $x = $y + z$ + w$ (should not work)
 <p>Single character: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></p>
 <p>Unmatched braces: <span class="math-inline">x^{2</span></p>
 <p>Unmatched parentheses: <span class="math-inline">\frac{a}{b</span></p>
-<p>Invalid commands: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><merror><mtext>unknowncommand</mtext></merror></mrow><annotation encoding="application/x-tex">\unknowncommand</annotation></semantics></math></p>
+<p>Invalid commands: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><merror title="unknown command"><mtext>\unknowncommand</mtext></merror></mrow><annotation encoding="application/x-tex">\unknowncommand</annotation></semantics></math></p>
 <p>Mixed delimiters: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mn>1</mn></mrow><annotation encoding="application/x-tex">x = 1</annotation></semantics></math>$ (should be separate)</p>
 <p>Nested math: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi><mo>=</mo><mo>$</mo><mi>y</mi><mo>+</mo><mi>z</mi></mrow><annotation encoding="application/x-tex">x = $y + z</annotation></semantics></math> + w$ (should not work)</p>

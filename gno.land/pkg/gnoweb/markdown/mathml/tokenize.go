@@ -173,9 +173,10 @@ func getToken(tex []rune, start int) (Token, int) {
 		case lxWasBackslash:
 			switch {
 			case r == '|':
+				// \| is the double bar of a norm.
 				state = lxEnd
 				kind = tokFence | tokEscaped
-				result = append(result, r)
+				result = append(result, '‖')
 			case r == '\\':
 				// \\ is a line break, not an escaped backslash.
 				state = lxEnd

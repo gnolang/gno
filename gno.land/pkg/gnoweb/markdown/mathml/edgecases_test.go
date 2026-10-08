@@ -175,6 +175,45 @@ func TestSwitchRunDepth(t *testing.T) {
 	}
 }
 
+func TestSymbolFixes(t *testing.T) {
+	for _, tc := range []struct{ tex, want string }{
+		{`\eth`, "ð"},
+		{`\upharpoonleft`, "↿"},
+		{`\upharpoonright`, "↾"},
+		{`\restriction`, "↾"},
+		{`\l`, "ł"},
+		{`\L`, "Ł"},
+		{`\|v\|_2`, "‖"},
+		{`\left\| x \right\|`, "‖"},
+		{`\Mu`, `<mi mathvariant="normal">Μ</mi>`},
+		{`\Nu`, `<mi mathvariant="normal">Ν</mi>`},
+		{`a \coloneqq b`, `<mo>≔</mo>`},
+		{`a \dashrightarrow b`, `<mo>⇢</mo>`},
+	} {
+		assert.Contains(t, mathBody(t, tc.tex), tc.want, tc.tex)
+	}
+	for _, tc := range []struct{ tex, bad string }{
+		{`\underbar{x}`, "<mi>X</mi>"},
+		{`\pmb{x}`, "μ"},
+		{`\|`, "|"},
+	} {
+		assert.NotContains(t, mathBody(t, tc.tex), tc.bad, tc.tex)
+	}
+	assert.Contains(t, mathBody(t, `\pmb{x}`), "𝒙")
+	assert.Contains(t, mathBody(t, `\underbar{x}`), `<munder accent="true"><mi`)
+	// \id and \data were placeholders for symbols the table did not have.
+	for _, tex := range []string{`\id`, `\data`} {
+		assert.NotContains(t, mathBody(t, tex), "<mi>x</mi>", tex)
+	}
+}
+
+// An unknown command shows as written, backslash included, whatever the
+// font around it.
+func TestUnknownCommandShownAsWritten(t *testing.T) {
+	assert.Contains(t, mathBody(t, `\unknowncommand`), `<merror title="unknown command"><mtext>\unknowncommand</mtext></merror>`)
+	assert.Contains(t, mathBody(t, `\mathbf{\foo}`), `<merror title="unknown command"><mtext>\foo</mtext></merror>`)
+}
+
 func TestStarredMatrixColumnOption(t *testing.T) {
 	out := mathBody(t, `\begin{pmatrix*}[r] 10 & 2 \\ 1 & 20 \end{pmatrix*}`)
 	assert.NotContains(t, out, "[")

@@ -73,6 +73,7 @@ var (
 		"mathsfbfsl": ctxVarSans | ctxVarBold | ctxVarItalic,
 		"mathsfsl":   ctxVarSans | ctxVarItalic,
 		"mathtt":     ctxVarMono,
+		"pmb":        ctxVarBold | ctxVarItalic,
 	}
 	ctxSizeOffset int = bits.TrailingZeros64(uint64(ctxSize_1))
 	// TODO: Not really using context for switch commands
@@ -134,6 +135,7 @@ var (
 	}
 	accents_below = map[string]rune{
 		"underline": 0x0332,
+		"underbar":  0x0332,
 	}
 )
 
@@ -363,7 +365,11 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	} else if ch, ok := accents_below[name]; ok {
 		n = converter.makeAccent("munder", ch, context, b)
 	} else {
-		n = NewMMLNode("merror", tok.Value)
+		// Shown as written, in no font: the author can search the source
+		// for it.
+		n = NewMMLNode("merror", `\`+name).SetAttr("title", "unknown command")
+		n.Tok = tok
+		return n
 	}
 	n.Tok = tok
 	n.set_variants_from_context(context)
