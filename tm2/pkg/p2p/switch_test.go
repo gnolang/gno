@@ -251,6 +251,46 @@ func TestMultiplexSwitch_StopPeer(t *testing.T) {
 		assert.Nil(t, sw.dialQueue.Peek())
 		assert.Nil(t, sw.persistentDialQueue.Peek())
 	})
+
+	t.Run("a peer stopped twice is torn down once", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			removed = make(map[string]int)
+
+			countingReactor = func(name string) *mockReactor {
+				return &mockReactor{
+					removePeerFn: func(PeerConn, any) { removed[name]++ },
+				}
+			}
+
+			sw = NewMultiplexSwitch(
+				&mockTransport{removeFn: func(PeerConn) {}},
+				WithReactor("first", countingReactor("first")),
+				WithReactor("second", countingReactor("second")),
+			)
+
+			p = mock.GeneratePeers(t, 1)[0]
+		)
+
+		withRealStop(p)
+
+		evCh, unsubFn := sw.Subscribe(func(events.Event) bool { return true })
+		defer unsubFn()
+
+		require.NoError(t, sw.addPeer(p))
+
+		// Two errors on one connection, such as a reactor's and then its recv
+		// routine's, tear it down once: the first stop owns the teardown
+		sw.StopPeerForError(p, errors.New("peer error"))
+		sw.StopPeerForError(p, errors.New("EOF"))
+
+		assert.Equal(t, map[string]int{"first": 1, "second": 1}, removed)
+		assert.False(t, sw.peers.Has(p.ID()))
+
+		_, disconnected := countPeerEvents(evCh)
+		assert.Equal(t, 1, disconnected)
+	})
 }
 
 // peerErrorOnStart reports a peer error to the switch from inside Start, the
@@ -2186,6 +2226,31 @@ func switchWithID(id types.ID, opts ...SwitchOption) *MultiplexSwitch {
 	)
 }
 
+// withRealStop gives a mock peer the Stop of the service it embeds: once
+// started, the first Stop stops it, so IsRunning reports false, and every later
+// one returns service.ErrAlreadyStopped
+func withRealStop(p *mock.Peer) {
+	p.StopFn = p.BaseService.Stop
+}
+
+// countPeerEvents drains the events already delivered to evCh, and counts the
+// peer connections and disconnections among them
+func countPeerEvents(evCh <-chan events.Event) (connected, disconnected int) {
+	for {
+		select {
+		case ev := <-evCh:
+			switch ev.Type() {
+			case events.PeerConnected:
+				connected++
+			case events.PeerDisconnected:
+				disconnected++
+			}
+		default:
+			return connected, disconnected
+		}
+	}
+}
+
 // acceptOnce returns an accept function that hands out p once, then blocks
 // until the context ends
 func acceptOnce(p PeerConn) func(context.Context, PeerBehavior) (PeerConn, error) {
@@ -2374,7 +2439,8 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 				return "theirs"
 			}
 
-			oursClosed, oursStopped bool
+			oursClosed bool
+			oursReason error
 		)
 
 		ours.CloseConnFn = func() error {
@@ -2382,11 +2448,7 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 
 			return nil
 		}
-		ours.StopFn = func() error {
-			oursStopped = true
-
-			return nil
-		}
+		withRealStop(ours)
 
 		reactor := &mockReactor{
 			initPeerFn: func(p PeerConn) PeerConn {
@@ -2394,8 +2456,14 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 
 				return p
 			},
-			addPeerFn:    func(p PeerConn) { calls = append(calls, "AddPeer "+label(p)) },
-			removePeerFn: func(p PeerConn, _ any) { calls = append(calls, "RemovePeer "+label(p)) },
+			addPeerFn: func(p PeerConn) { calls = append(calls, "AddPeer "+label(p)) },
+			removePeerFn: func(p PeerConn, reason any) {
+				calls = append(calls, "RemovePeer "+label(p))
+
+				if p == PeerConn(ours) {
+					oursReason, _ = reason.(error)
+				}
+			},
 		}
 
 		sw := switchWithID(upper, WithReactor("mock", reactor))
@@ -2408,46 +2476,42 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 		require.NoError(t, sw.addPeer(ours))
 		require.NoError(t, sw.addPeer(theirs))
 
-		assert.Equal(t, []string{
+		wantCalls := []string{
 			"InitPeer ours",
 			"AddPeer ours",
 			"InitPeer theirs",
 			"RemovePeer ours",
 			"AddPeer theirs",
-		}, calls)
+		}
+
+		assert.Equal(t, wantCalls, calls)
 
 		assert.True(t, oursClosed)
-		assert.True(t, oursStopped)
+		assert.False(t, ours.IsRunning())
 		assert.Contains(t, logs.String(), "replacing connection to resolve a simultaneous open")
 		assert.Contains(t, logs.String(), "kept=inbound")
 		assert.Same(t, theirs, sw.peers.Get(lower))
 
 		// Each connection announced itself once; the replaced one announces
 		// no disconnect, since the peer stays connected
-		var connected, disconnected int
-
-	drain:
-		for {
-			select {
-			case ev := <-evCh:
-				switch ev.Type() {
-				case events.PeerConnected:
-					connected++
-				case events.PeerDisconnected:
-					disconnected++
-				}
-			default:
-				break drain
-			}
-		}
+		connected, disconnected := countPeerEvents(evCh)
 
 		assert.Equal(t, 2, connected)
 		assert.Zero(t, disconnected)
 
-		// A late error on the replaced connection leaves the new entry alone
+		// A late error on the replaced connection, such as its recv routine
+		// reporting the closed socket, leaves the new entry alone and tears
+		// nothing down a second time: the replacement owns the teardown
 		sw.StopPeerForError(ours, errors.New("EOF"))
 
 		assert.Same(t, theirs, sw.peers.Get(lower))
+		assert.Equal(t, wantCalls, calls)
+		assert.ErrorIs(t, oursReason, errSimultaneousOpen)
+
+		connected, disconnected = countPeerEvents(evCh)
+
+		assert.Zero(t, connected)
+		assert.Zero(t, disconnected)
 	})
 
 	outboundLimitTable := []struct {
@@ -2565,7 +2629,8 @@ func TestMultiplexSwitch_HasPeerFromIP(t *testing.T) {
 		{"the excepted peer's own connection does not hold it", []*mock.Peer{peerAt(lower, ip)}, ip, lower, false},
 		{
 			"a different peer holds it beside the excepted peer's connection",
-			[]*mock.Peer{peerAt(lower, ip), peerAt(upper, ip)}, ip, lower, true,
+			[]*mock.Peer{peerAt(lower, ip), peerAt(upper, ip)},
+			ip, lower, true,
 		},
 		{"a different peer on another IP does not hold it", []*mock.Peer{peerAt(upper, otherIP)}, ip, lower, false},
 	}

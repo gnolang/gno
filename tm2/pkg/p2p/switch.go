@@ -292,21 +292,30 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 	// Remove the peer from the transport
 	sw.transport.Remove(peer)
 
-	// Close the (original) peer connection
-	if closeErr := peer.CloseConn(); closeErr != nil {
-		sw.Logger.Error(
-			"unable to gracefully close peer connection",
-			"peer", peer,
-			"err", closeErr,
-		)
-	}
-
-	// Stop the peer connection multiplexing
+	// Stop the peer connection multiplexing before closing the socket. Stopping
+	// closes the recv routine's quit channel first, so the recv routine does
+	// not report the close as an error and start a second teardown of this
+	// connection. A peer already stopped is left alone: whichever stopped it
+	// owns its teardown
 	if stopErr := peer.Stop(); stopErr != nil {
+		if errors.Is(stopErr, service.ErrAlreadyStopped) {
+			return
+		}
+
 		sw.Logger.Error(
 			"unable to gracefully stop peer",
 			"peer", peer,
 			"err", stopErr,
+		)
+	}
+
+	// Close the (original) peer connection. Stopping a started peer already
+	// closed it, so net.ErrClosed is the expected outcome
+	if closeErr := peer.CloseConn(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+		sw.Logger.Error(
+			"unable to gracefully close peer connection",
+			"peer", peer,
+			"err", closeErr,
 		)
 	}
 
