@@ -189,6 +189,9 @@ func TestSymbolFixes(t *testing.T) {
 		{`\Nu`, `<mi mathvariant="normal">Ν</mi>`},
 		{`a \coloneqq b`, `<mo>≔</mo>`},
 		{`a \dashrightarrow b`, `<mo>⇢</mo>`},
+		{`a,\dotsc,b`, "…"},
+		{`a+\dotsb+b`, "⋯"},
+		{`a\>b`, `<mspace width="0.22em">`},
 	} {
 		assert.Contains(t, mathBody(t, tc.tex), tc.want, tc.tex)
 	}
@@ -196,11 +199,14 @@ func TestSymbolFixes(t *testing.T) {
 		{`\underbar{x}`, "<mi>X</mi>"},
 		{`\pmb{x}`, "μ"},
 		{`\|`, "|"},
+		{`a \hspace{1em} b`, "<mi>e</mi>"},
+		{`a \hspace{2cm} b`, "<mi>c</mi>"},
 	} {
 		assert.NotContains(t, mathBody(t, tc.tex), tc.bad, tc.tex)
 	}
 	assert.Contains(t, mathBody(t, `\pmb{x}`), "𝒙")
 	assert.Contains(t, mathBody(t, `\underbar{x}`), `<munder accent="true"><mi`)
+	assert.Contains(t, mathBody(t, `a \hspace{1em} b`), `<mspace width="1em">`)
 	// \id and \data were placeholders for symbols the table did not have.
 	for _, tex := range []string{`\id`, `\data`} {
 		assert.NotContains(t, mathBody(t, tex), "<mi>x</mi>", tex)
@@ -258,6 +264,31 @@ func TestSubstackRowspacingStaysInside(t *testing.T) {
 	out := mathBody(t, `\begin{matrix} \substack{a\\b} & y \\ c & d \end{matrix}`)
 	assert.Equal(t, 1, strings.Count(out, `rowspacing=`))
 	assert.Contains(t, mathBody(t, `\begin{matrix} a \\[2em] b \end{matrix}`), `rowspacing="2em`)
+}
+
+func TestNewCommands(t *testing.T) {
+	for _, tc := range []struct{ tex, want string }{
+		{`\operatorname{argmax} x`, `<mo lspace="0" rspace="0.1667em">argmax</mo><mi>x</mi>`},
+		{`\operatorname*{argmax}_x f`, `<munder><mo`},
+		{`\phantom{x}`, `<mphantom><mi>x</mi></mphantom>`},
+		{`\hphantom{x}`, `<mpadded depth="0" height="0"><mphantom><mi>x</mi></mphantom></mpadded>`},
+		{`\vphantom{x}`, `<mpadded width="0"><mphantom><mi>x</mi></mphantom></mpadded>`},
+		{`a\kern1em b`, `<mspace width="1em">`},
+		{`a\kern -0.5em b`, `<mspace width="-0.5em">`},
+		{`a\mkern18mu b`, `<mspace width="1em">`},
+		{`a\kern{2pt} b`, `<mspace width="2pt">`},
+		{`a\hspace*{1em} b`, `<mspace width="1em">`},
+		{`E = mc^2 \tag{1}`, `<mtext>(1)</mtext>`},
+		{`E = mc^2 \tag*{A}`, `<mtext>A</mtext>`},
+		{`x \label{eq:1}`, `<mi>x</mi>`},
+	} {
+		out := mathBody(t, tc.tex)
+		assert.Contains(t, out, tc.want, tc.tex)
+		assert.NotContains(t, out, "merror", tc.tex)
+	}
+	// A kern cannot pull the math back over the text before it.
+	assert.NotContains(t, mathBody(t, `a\kern-5em b`), "mspace")
+	assert.NotContains(t, mathBody(t, `x \label{eq:1}`), "eq")
 }
 
 func TestNewMMLNodeExtraArgs(t *testing.T) {

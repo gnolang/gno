@@ -1138,6 +1138,10 @@ Second law: $dS \geq \frac{\delta Q}{T}$
 - **Functions**: ±\sin±, ±\cos±, ±\tan±, ±\log±, ±\ln±, ±\exp±, ±\max±, ±\min±
 - **Matrices**: ±\begin{matrix}...\end{matrix}±, ±\begin{pmatrix}...\end{pmatrix}±
 - **Colours**: ±{\color{blue} ...}±, ±\textcolor{red}{...}±, theme colours only
+- **Operator names**: ±\operatorname{argmax}±, ±\operatorname*{argmax}_x± (limits below), ±\mathop{...}±
+- **Spacing**: ±\,±, ±\:±, ±\>±, ±\;±, ±\quad±, ±\qquad±, ±\kern1em±, ±\mkern18mu±, ±\hspace{1em}±, ±\phantom{x}±
+- **Tags**: ±\tag{1}± is shown after the formula as written; ±\label± is accepted and ignored
+- **Not supported**: ±\ref± and ±\eqref± (there is no equation numbering), and macro expansion (±\newcommand± and ±\def± are accepted but their definitions are not expanded)
 - **Complex equations**: Schrödinger, Maxwell, Fourier transforms, etc.
 
 ### And more...

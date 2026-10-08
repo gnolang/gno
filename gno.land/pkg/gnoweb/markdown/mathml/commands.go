@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/bits"
+	"strings"
 )
 
 type CommandSpec struct {
@@ -141,32 +142,39 @@ var (
 
 func init() {
 	command_args = map[string]CommandSpec{
-		"multirow":    {F: cmd_multirow, argc: 3, optc: 0},
-		"multicolumn": {F: cmd_multirow, argc: 3, optc: 0},
-		"prescript":   {F: cmd_prescript, argc: 3, optc: 0},
-		"sideset":     {F: cmd_sideset, argc: 3, optc: 0},
-		"textcolor":   {F: cmd_textcolor, argc: 2, optc: 0},
-		"frac":        {F: cmd_frac, argc: 2, optc: 0},
-		"cfrac":       {F: cmd_frac, argc: 2, optc: 0},
-		"binom":       {F: cmd_frac, argc: 2, optc: 0},
-		"tbinom":      {F: cmd_frac, argc: 2, optc: 0},
-		"dfrac":       {F: cmd_frac, argc: 2, optc: 0},
-		"tfrac":       {F: cmd_frac, argc: 2, optc: 0},
-		"overset":     {F: cmd_undersetOverset, argc: 2, optc: 0},
-		"underset":    {F: cmd_undersetOverset, argc: 2, optc: 0},
-		"class":       {F: cmd_class, argc: 2, optc: 0},
-		"raisebox":    {F: cmd_raisebox, argc: 2, optc: 0},
-		"cancel":      {F: cmd_cancel, argc: 1, optc: 0},
-		"bcancel":     {F: cmd_cancel, argc: 1, optc: 0},
-		"xcancel":     {F: cmd_cancel, argc: 1, optc: 0},
-		"mathop":      {F: cmd_mathop, argc: 1, optc: 0},
-		"pmod":        {F: cmd_mod, argc: 1, optc: 0},
-		"substack":    {F: cmd_substack, argc: 1, optc: 0},
-		"underbrace":  {F: cmd_underOverBrace, argc: 1, optc: 0},
-		"overbrace":   {F: cmd_underOverBrace, argc: 1, optc: 0},
-		"not":         {F: cmd_not, argc: 1, optc: 0},
-		"sqrt":        {F: cmd_sqrt, argc: 1, optc: 1},
-		"text":        {F: cmd_text, argc: 1, optc: 0},
+		"multirow":     {F: cmd_multirow, argc: 3, optc: 0},
+		"multicolumn":  {F: cmd_multirow, argc: 3, optc: 0},
+		"prescript":    {F: cmd_prescript, argc: 3, optc: 0},
+		"sideset":      {F: cmd_sideset, argc: 3, optc: 0},
+		"textcolor":    {F: cmd_textcolor, argc: 2, optc: 0},
+		"frac":         {F: cmd_frac, argc: 2, optc: 0},
+		"cfrac":        {F: cmd_frac, argc: 2, optc: 0},
+		"binom":        {F: cmd_frac, argc: 2, optc: 0},
+		"tbinom":       {F: cmd_frac, argc: 2, optc: 0},
+		"dfrac":        {F: cmd_frac, argc: 2, optc: 0},
+		"tfrac":        {F: cmd_frac, argc: 2, optc: 0},
+		"overset":      {F: cmd_undersetOverset, argc: 2, optc: 0},
+		"underset":     {F: cmd_undersetOverset, argc: 2, optc: 0},
+		"class":        {F: cmd_class, argc: 2, optc: 0},
+		"raisebox":     {F: cmd_raisebox, argc: 2, optc: 0},
+		"cancel":       {F: cmd_cancel, argc: 1, optc: 0},
+		"bcancel":      {F: cmd_cancel, argc: 1, optc: 0},
+		"xcancel":      {F: cmd_cancel, argc: 1, optc: 0},
+		"mathop":       {F: cmd_mathop, argc: 1, optc: 0},
+		"operatorname": {F: cmd_operatorname, argc: 1, optc: 0},
+		"pmod":         {F: cmd_mod, argc: 1, optc: 0},
+		"phantom":      {F: cmd_phantom, argc: 1, optc: 0},
+		"hphantom":     {F: cmd_phantom, argc: 1, optc: 0},
+		"vphantom":     {F: cmd_phantom, argc: 1, optc: 0},
+		"hspace":       {F: cmd_hspace, argc: 1, optc: 0},
+		"tag":          {F: cmd_tag, argc: 1, optc: 0},
+		"label":        {F: cmd_tag, argc: 1, optc: 0},
+		"substack":     {F: cmd_substack, argc: 1, optc: 0},
+		"underbrace":   {F: cmd_underOverBrace, argc: 1, optc: 0},
+		"overbrace":    {F: cmd_underOverBrace, argc: 1, optc: 0},
+		"not":          {F: cmd_not, argc: 1, optc: 0},
+		"sqrt":         {F: cmd_sqrt, argc: 1, optc: 1},
+		"text":         {F: cmd_text, argc: 1, optc: 0},
 	}
 }
 
@@ -227,6 +235,12 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 	case "bmod":
 		// A binary operator: it takes no argument.
 		return NewMMLNode("mo", "mod").SetAttr("lspace", bmodSpace).SetAttr("rspace", bmodSpace)
+	case "kern", "mkern":
+		if n := converter.makeSpace(readLength(b)); n != nil {
+			n.Tok = tok
+			return n
+		}
+		return nil
 	}
 
 	if prop, ok := command_identifiers[name]; ok {
@@ -406,6 +420,36 @@ const bmodSpace = "0.2778em"
 // maxSwitchDepth bounds the nesting of style switches (\bf, \color,
 // \large...) in one expression.
 const maxSwitchDepth = 256
+
+// readLength reads the length after \kern or \mkern: a {group}, or a
+// signed number and a unit written after the command, as in \kern-1em.
+func readLength(b *TokenBuffer) string {
+	if arg, err := b.GetNextExpr(); err == nil {
+		return StringifyTokens(arg.Expr)
+	}
+	start := b.idx
+	var sb strings.Builder
+	t, err := b.GetNextToken()
+	if err == nil && (t.Value == "-" || t.Value == "+") {
+		sb.WriteString(t.Value)
+		t, err = b.GetNextToken()
+	}
+	if err != nil || t.Kind&tokNumber == 0 {
+		b.idx = start
+		return ""
+	}
+	sb.WriteString(t.Value)
+	// The unit is two letters; without one, the number is taken in em.
+	afterNumber := b.idx
+	u1, err1 := b.GetNextToken()
+	u2, err2 := b.GetNextToken(false)
+	if unit := strings.ToLower(u1.Value + u2.Value); err1 == nil && err2 == nil && u1.Kind&u2.Kind&tokLetter > 0 && texUnits[unit].pt != 0 {
+		sb.WriteString(unit)
+	} else {
+		b.idx = afterNumber
+	}
+	return sb.String()
+}
 
 // minSize and maxSize bound the size of math under nested size switches,
 // relative to the math around it: a mathsize percentage is relative to the

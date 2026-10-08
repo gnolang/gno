@@ -22,6 +22,7 @@ var (
 		`\`:     0, // newline
 		",":     3,
 		":":     4,
+		">":     4,
 		";":     5,
 		" ":     9,
 		"quad":  18,
@@ -1533,11 +1534,6 @@ var symbolTable = map[string]symbol{
 		char:   "ℏ",
 		entity: "&hbar;",
 		kind:   sym_alphabetic,
-	},
-	"hspace": {
-		char:   " ",
-		entity: "&hairsp;",
-		kind:   sym_other,
 	},
 	"iff": {
 		char:   "⟺",
@@ -3497,6 +3493,10 @@ func init() {
 	symbolTable["doteqdot"] = symbolTable["Doteq"]
 	symbolTable["dotproduct"] = symbolTable["cdot"]
 	symbolTable["dotso"] = symbolTable["dots"]
+	symbolTable["dotsc"] = symbolTable["dots"]
+	symbolTable["dotsb"] = symbolTable["cdots"]
+	symbolTable["dotsm"] = symbolTable["cdots"]
+	symbolTable["dotsi"] = symbolTable["cdots"]
 	symbolTable["doublebarwedge"] = symbolTable["perspcorrespond"]
 	symbolTable["doublecap"] = symbolTable["Cap"]
 	symbolTable["doublecup"] = symbolTable["Cup"]

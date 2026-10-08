@@ -15,11 +15,12 @@ var errMaxDepth = errors.New("mathml: expression nested too deeply")
 
 // MathMLConverter manages LaTeX to MathML conversion state
 type MathMLConverter struct {
-	currentExpr []rune  // the expression currently being evaluated
-	depth       int     // current ParseTex recursion depth
-	sizeScale   float64 // cumulative scale of the enclosing size switches; 0 means 1
-	raisePt     float64 // cumulative shift of the enclosing \raisebox commands, in points
-	switchDepth int     // nesting of the enclosing style switches
+	currentExpr []rune   // the expression currently being evaluated
+	depth       int      // current ParseTex recursion depth
+	sizeScale   float64  // cumulative scale of the enclosing size switches; 0 means 1
+	raisePt     float64  // cumulative shift of the enclosing \raisebox commands, in points
+	switchDepth int      // nesting of the enclosing style switches
+	tag         *MMLNode // the \tag of the expression, written after it
 }
 
 // NewMathMLConverter returns a converter. It keeps per-expression state, so
@@ -70,6 +71,9 @@ func (converter *MathMLConverter) render(tex string, displaystyle bool) (result 
 	if breaks && root != nil {
 		processTable(root, "")
 		root.SetAttr("displaystyle", strconv.FormatBool(displaystyle))
+	}
+	if converter.tag != nil {
+		root = NewMMLNode("mrow").AppendChild(root, NewMMLNode("mspace").SetAttr("width", "2em"), converter.tag)
 	}
 	ast = converter.wrapInMathTag(root, tex)
 	ast.SetAttr("xmlns", "http://www.w3.org/1998/Math/MathML")

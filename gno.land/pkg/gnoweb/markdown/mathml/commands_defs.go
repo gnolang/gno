@@ -50,6 +50,14 @@ var texUnits = map[string]struct {
 // move over the page around it, so they are ignored.
 const maxRaisePt = 2 * emPt
 
+// minKernPt and maxKernPt bound a \kern, \mkern or \hspace: a negative
+// space could pull the math over the text before it, as a large shift
+// would.
+const (
+	minKernPt = -2 * emPt
+	maxKernPt = 20 * emPt
+)
+
 // fontScale returns the cumulative scale of the enclosing size switches.
 func (converter *MathMLConverter) fontScale() float64 {
 	if converter.sizeScale == 0 {
@@ -480,4 +488,69 @@ func (converter *MathMLConverter) parseArg(b *TokenBuffer, ctx parseContext) *MM
 		return n
 	}
 	return NewMMLNode("mrow")
+}
+
+func cmd_operatorname(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
+	// Spaced as \sin is; the starred form puts its scripts under and over,
+	// as \lim does.
+	n := converter.operator(args[0], withVariant(ctx, ctxVarNormal))
+	if n.Tag == "mo" {
+		n.Properties |= propOperatorName
+		n.SetAttr("lspace", "0").SetAttr("rspace", "0")
+	}
+	if star {
+		n.Properties |= propLimitsunderover | propMovablelimits
+	}
+	return n
+}
+
+func cmd_phantom(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
+	n := NewMMLNode("mphantom").AppendChild(converter.parseArg(args[0], ctx))
+	switch name {
+	case "hphantom":
+		return NewMMLNode("mpadded").SetAttr("height", "0").SetAttr("depth", "0").AppendChild(n)
+	case "vphantom":
+		return NewMMLNode("mpadded").SetAttr("width", "0").AppendChild(n)
+	}
+	return n
+}
+
+// makeSpace returns the space of a \kern, \mkern or \hspace of length s,
+// or nil if s is not a length within [minKernPt, maxKernPt].
+func (converter *MathMLConverter) makeSpace(s string) *MMLNode {
+	v, pt, ok := converter.parseLength(s)
+	if !ok || pt < minKernPt || pt > maxKernPt {
+		return nil
+	}
+	return NewMMLNode("mspace").SetAttr("width", v)
+}
+
+func cmd_hspace(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if len(args) < 1 {
+		return NewMMLNode("mtext", "Error: insufficient arguments")
+	}
+	if n := converter.makeSpace(StringifyTokens(args[0].Expr)); n != nil {
+		return n
+	}
+	return NewMMLNode("merror", `\`+name).SetAttr("title", "invalid length")
+}
+
+// cmd_tag keeps the tag of the formula, which render writes after it: there
+// is no equation numbering, so the tag is shown as written. \label is read
+// and dropped.
+func cmd_tag(converter *MathMLConverter, name string, star bool, ctx parseContext, args []*TokenBuffer, opt *TokenBuffer) *MMLNode {
+	if name == "tag" && len(args) == 1 {
+		text := stringifyTokensHtml(args[0].Expr)
+		if !star {
+			text = "(" + text + ")"
+		}
+		converter.tag = NewMMLNode("mtext", text)
+	}
+	return NewMMLNode().SetProps(propNonprint)
 }
