@@ -182,7 +182,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			return nil
 		}
 	}
-	find := func(b []byte) int { return bytes.Index(b, end) }
+	find := func(b []byte) (int, int) { return bytes.Index(b, end), len(b) }
 	if flavor == flavorInline|delimiterTeX {
 		find = findDollarClose
 	}
@@ -272,18 +272,30 @@ var (
 
 // closeScan records one search for a closing delimiter on the line that ends
 // at source offset stop: searching from offset from, the first close is at
-// offset found, or there is none before the line end if found is -1.
-type closeScan struct{ stop, from, found int }
+// offset found, or, if found is -1, there is none before offset end (the
+// line end, or a point no expression crosses, see findDollarClose).
+type closeScan struct{ stop, from, found, end int }
+
+// closeFinder searches b for a closing delimiter. It returns its index, or
+// -1 and the index where the search ended: len(b), or a point no expression
+// crosses.
+type closeFinder func(b []byte) (idx, end int)
 
 // findCloseCached returns find(b), where b is the part of a line starting at
 // source offset base and ending at stop, reusing an earlier search of the same
 // line when it answers the question. Whether a delimiter closes depends only
-// on the bytes around it, never on where the search started, so a search from
-// an earlier offset that found its close at or after base, or found none,
-// answers this one too. Without this, every unclosed opener rescans the rest
-// of its line (and the next one), which is quadratic on a line of "$a "
-// openers. Two lines are remembered: the opener's and the next one.
-func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, stop int, find func([]byte) int) int {
+// on the bytes around it, and a point no expression crosses stops every
+// search that reaches it, so a search from an earlier offset that found its
+// close at or after base, or found none before an end after base, answers
+// this one too. Without this, every unclosed opener rescans the rest of its
+// line (and the next one), which is quadratic on a line of "$a " openers.
+// Two lines are remembered: the opener's and the next one.
+func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, stop int, find closeFinder) int {
+	if len(b) == 0 {
+		// Nothing to search, as past the last line: there is no line to
+		// remember either.
+		return -1
+	}
 	cache, _ := pc.Get(key).(*[2]closeScan)
 	if cache == nil {
 		cache = new([2]closeScan)
@@ -294,7 +306,7 @@ func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, s
 		if sc.stop != stop {
 			continue
 		}
-		if sc.from <= base && (sc.found < 0 || sc.found >= base) {
+		if sc.from <= base && (sc.found < 0 && base < sc.end || sc.found >= base) {
 			if sc.found < 0 {
 				return -1
 			}
@@ -308,12 +320,12 @@ func findCloseCached(pc parser.Context, key parser.ContextKey, b []byte, base, s
 			slot = 1
 		}
 	}
-	idx := find(b)
+	idx, end := find(b)
 	found := -1
 	if idx >= 0 {
 		found = base + idx
 	}
-	cache[slot] = closeScan{stop: stop, from: base, found: found}
+	cache[slot] = closeScan{stop: stop, from: base, found: found, end: base + end}
 	return idx
 }
 
@@ -327,23 +339,89 @@ func isEscaped(b []byte, i int) bool {
 }
 
 // findDollarClose returns the index of the first $ in b that can close an
-// inline $...$ expression, or -1. Following pandoc, a closing $ must not be
+// inline $...$ expression, or -1 and the index where the search ended.
+// Following pandoc, a closing $ must not be
 // preceded by a space or an escaping backslash nor followed by a digit, so
 // "$5 and $10" stays plain text.
-func findDollarClose(b []byte) int {
-	for i := range b {
-		if b[i] != '$' {
+//
+// Links are kept whole. gnoweb's links to a realm function are written
+// [label](/r/x$help&func=F), so a $ inside a link destination, or inside an
+// autolink (<scheme:...>), does not close. And an expression that opens in
+// a link label ends there: "[Send $10](/r/x$help&func=Send) ... $" has no
+// closer, so the link stays a link instead of turning into math.
+func findDollarClose(b []byte) (int, int) {
+	labels := 0 // [ opened since the start of the expression
+	depth := 0  // inside a link destination, its parenthesis nesting
+	for i := 0; i < len(b); i++ {
+		c := b[i]
+		if depth > 0 {
+			switch {
+			case isEscaped(b, i):
+			case c == '(':
+				depth++
+			case c == ')':
+				depth--
+			}
 			continue
 		}
-		if i == 0 || util.IsSpace(b[i-1]) || isEscaped(b, i) {
-			continue
+		switch c {
+		case '[':
+			if !isEscaped(b, i) {
+				labels++
+			}
+		case ']':
+			if isEscaped(b, i) {
+				continue
+			}
+			if i+1 < len(b) && b[i+1] == '(' {
+				if labels == 0 {
+					// The label the expression opened in ends here.
+					return -1, i
+				}
+				depth = 1
+				i++
+			}
+			labels = max(labels-1, 0)
+		case '<':
+			if end := autolinkEnd(b[i:]); end > 0 {
+				i += end
+			}
+		case '$':
+			if i == 0 || util.IsSpace(b[i-1]) || isEscaped(b, i) {
+				continue
+			}
+			if i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9' {
+				continue
+			}
+			return i, i
 		}
-		if i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9' {
-			continue
+	}
+	return -1, len(b)
+}
+
+// autolinkEnd returns the index of the > that ends the URI autolink b
+// starts with (<scheme:...>, as CommonMark defines it), or -1.
+func autolinkEnd(b []byte) int {
+	i := 1
+	for i < len(b) && i <= 33 && (isASCIIAlpha(b[i]) || i > 1 && (b[i] >= '0' && b[i] <= '9' || b[i] == '+' || b[i] == '.' || b[i] == '-')) {
+		i++
+	}
+	if i < 3 || i > 33 || i >= len(b) || b[i] != ':' {
+		return -1
+	}
+	for i++; i < len(b); i++ {
+		switch c := b[i]; {
+		case c == '>':
+			return i
+		case c == '<' || c <= ' ':
+			return -1
 		}
-		return i
 	}
 	return -1
+}
+
+func isASCIIAlpha(c byte) bool {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
 func (p *texBlockRegionParser) Trigger() []byte {

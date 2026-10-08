@@ -323,17 +323,22 @@ func TestMathUnclosedInlineOpenersAreLinear(t *testing.T) {
 		unit string
 		open int
 		key  parser.ContextKey
-		find func([]byte) int
+		find closeFinder
 	}{
 		{"$a ", 1, closeDollarInlineKey, findDollarClose},
-		{`\\(a `, 3, closeInlineKey, func(b []byte) int { return bytes.Index(b, _inlineclose) }},
+		{"[$a ](", 2, closeDollarInlineKey, findDollarClose},
+		{`\\(a `, 3, closeInlineKey, func(b []byte) (int, int) { return bytes.Index(b, _inlineclose), len(b) }},
 	} {
 		unit, open, key := tc.unit, tc.open, tc.key
 		line := []byte(strings.Repeat(unit, 1<<12))
 		next := []byte("no closer on the next line either\n")
 		pc := parser.NewContext()
 		scanned := 0
-		counting := func(b []byte) int { scanned += len(b); return tc.find(b) }
+		counting := func(b []byte) (int, int) {
+			idx, end := tc.find(b)
+			scanned += max(idx+1, end) // the bytes read
+			return idx, end
+		}
 		lineStop, nextStart := len(line), len(line)
 		for i := 0; i < len(line); i += len(unit) {
 			if findCloseCached(pc, key, line[i+open:], i+open, lineStop, counting) >= 0 {
