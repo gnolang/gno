@@ -94,17 +94,9 @@ For an end-to-end deploy-and-call walkthrough, see
 ### `Send`
 
 `Send` transfers coins between two addresses with `gnokey maketx send`: `-to`
-names the recipient and `-send` the amount, as `<amount><denom>`:
-
-```bash
-gnokey maketx send \
-  -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
-  -send 100000ugnot \
-  -gas-fee 2000ugnot -gas-wanted 2000000 \
-  -chainid staging \
-  -remote "https://rpc.staging.gno.land:443" \
-  mykey
-```
+names the recipient and `-send` the amount, as `<amount><denom>`.
+[Sending coins](../users/using-gnokey.md#sending-coins) in the wallet guide walks
+through one.
 
 ### `AddPackage`
 
@@ -144,20 +136,8 @@ names the realm, `-func` the function, and each `-args` one argument, in order.
 `cur realm` parameter. Non-crossing functions are rejected; read them with
 [`vm/qeval`](#vmqeval), or call them from [`Run`](#run).
 
-For example, calling `Deposit()` on the `gno.land/r/gnoland/wugnot` realm to wrap
-`1000ugnot` into the GRC20 token `wugnot`:
-
-```bash
-gnokey maketx call \
-  -pkgpath "gno.land/r/gnoland/wugnot" \
-  -func "Deposit" \
-  -send "1000ugnot" \
-  -gas-fee 8000ugnot \
-  -gas-wanted 8000000 \
-  -chainid staging \
-  -remote "https://rpc.staging.gno.land:443" \
-  mykey
-```
+[Calling a realm](../users/using-gnokey.md#calling-a-realm) in the wallet guide
+walks through one call.
 
 :::info `Call` always uses gas
 
