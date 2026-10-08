@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -141,10 +142,11 @@ func newHandlerWithDir(t *testing.T, c *mockClient, dir *mockDirectory, idx Inde
 		Domain:    "gno.land",
 		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
-	// Assigned inside the branch so a nil *mockIndexer never reaches the
-	// interface field as a non-nil interface — the same trap the wire-in
-	// guards against.
-	if idx != nil {
+	// A nil pointer wrapped in the Indexer parameter is not a nil
+	// interface, and would register the indexer selectors over a nil
+	// client — the same trap the wire-in guards against. Only reflection
+	// sees through the wrapping.
+	if idx != nil && !reflect.ValueOf(idx).IsNil() {
 		deps.Indexer = idx
 	}
 	return New(deps)
@@ -828,5 +830,17 @@ func TestImportersAskForTheChainPath(t *testing.T) {
 	h.Search(context.Background(), mustQuery(t, h, "importers", "/r/demo/foo"))
 	if idx.importing != "gno.land/r/demo/foo" {
 		t.Fatalf("DeploysImporting asked for %q", idx.importing)
+	}
+}
+
+// The guard in newHandlerWithDir must catch a typed nil, or a test meaning
+// "no indexer" would run with the indexer selectors registered.
+func TestTypedNilIndexerMeansNoIndexer(t *testing.T) {
+	t.Parallel()
+
+	var idx *mockIndexer
+	h := newHandler(t, &mockClient{}, idx)
+	if h.deps.Indexer != nil {
+		t.Fatal("a nil *mockIndexer reached Deps.Indexer as a non-nil interface")
 	}
 }
