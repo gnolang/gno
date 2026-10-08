@@ -220,6 +220,7 @@ type Switch interface {
 	StopPeerForError(peer Peer, err error)
 
 	// DialPeers marks the given peers as ready for async dialing
+	// Persistent peers are left to the switch's redial loop
 	DialPeers(peerAddrs ...*types.NetAddress)
 }
 
@@ -351,7 +352,7 @@ The switch keeps two of them:
 
 `DialPeers` feeds the second one only. It skips an address when it is the node's own, when it belongs to a persistent peer, when that peer is already connected, when the same address is already queued (peer discovery shares the same addresses over and over), or when the maximum number of outbound peers is reached.
 
-A single dial loop drains both queues, one dial at a time. A persistent peer whose dial is due goes first, so persistent peers never wait behind discovered ones; otherwise the loop takes the due head of the dial queue, or waits for whichever item is due first. An item whose peer connected in the meantime is dropped.
+A single dial loop drains both queues, one dial at a time. A persistent peer whose dial is due goes first, so persistent peers never wait behind queued discovered ones, only behind the one dial already in flight; otherwise the loop takes the due head of the dial queue, or waits for whichever item is due first. An item whose peer connected in the meantime is dropped.
 
 ```go
 package p2p
@@ -403,7 +404,7 @@ These peer connections are special: they bypass the maximum outbound peer limit,
 
 A good candidate for a persistent peer is a bootnode, that bootstraps and facilitates peer discovery for the network.
 
-The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. Every few seconds, it queues a dial for each persistent peer that is neither connected nor already queued, into the persistent dial queue. The first dial after a disconnect is due right away; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. A reconnect clears the backoff, so a peer that connects and drops at once is redialed at most once per tick.
+The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. Every few seconds, it queues a dial for each persistent peer that is neither connected nor already queued, into the persistent dial queue. The first dial after a disconnect is due right away, unless a backoff dial still queued from before the last connection is used instead; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. A reconnect clears the backoff, so a peer that connects and drops at once is redialed at most once per tick. Each persistent peer has one configured address: when the same peer ID is listed more than once, only the last address is dialed, and the node logs a warning.
 
 ```go
 package p2p

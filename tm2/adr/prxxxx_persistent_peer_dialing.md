@@ -8,7 +8,7 @@ Proposed
 
 On 2026-10-06, up to 7 of 8 mainnet RPC nodes stopped following the chain for about 40 minutes after a rolling restart of their sentries and seeds (#6287). The nodes run peer exchange behind a NAT, take no inbound peers and allow 25 outbound; their persistent peers are configured by private hostname and advertise a public `external_address`, with `allow_duplicate_ip = false`.
 
-The trace of one sentry on one stalled node shows its private link dying at 08:40:13.6, which queued a redial of the private address, due right away. That address was never dialed in the following hour, while the node dialed the sentry's public address 8 times, each connection closed by the sentry within a millisecond. The outbound peer limit dropped nothing (the warning it logs appears 0 times), and the dial loop was regularly idle after 08:45, so the private item was not held by a backlog either. What remains is the dial loop's check on a popped item: the item was dropped, without a log line, while the sentry briefly counted as connected over its public address. The spacing of the later public redials (1 minute, then 13.5 minutes, while the loop was mostly idle) is not explained by the trace.
+The trace of one sentry on one stalled node shows its private link dying at 08:40:13.6, which queued a redial of the private address, due right away. That address was never dialed in the following hour, while the node dialed the sentry's public address 8 times, the first of them closed by the sentry within a millisecond, consistent with its duplicate-IP guard refusing a second connection from the shared NAT address. The outbound peer limit dropped nothing (the warning it logs appears 0 times), and the dial loop was regularly idle after 08:45, so the private item was not held by a backlog either. What remains, by elimination, is the dial loop's check on a popped item: the item was most likely dropped there, by a check that logged nothing at the time, while the sentry briefly counted as connected over its public address. This is inferred, not logged. The spacing of the later public redials (1 minute, then 13.5 minutes, while the loop was mostly idle) is not explained by the trace.
 
 Independent of the exact mechanism, the code had these defects:
 
@@ -43,16 +43,18 @@ The persistent redial backoff doubles from one second up to 30 seconds (it was 1
 
 - **Rewrite persistent addresses to the configured one in `DialPeers`** (the proposal in #6287). It fixes the address, but leaves the error path queueing immediately and outside the backoff. Combined with a priority queue, a peer that connects and drops at once would be redialed as fast as the network allows and starve every other dial. Dropping those addresses keeps the backoff in charge of every persistent dial.
 - **Keep one queue, deduplicate and cap it.** A persistent dial would still wait behind discovered peers, and still be droppable at pop time behind a flapping connection.
-- **A goroutine per persistent peer, as CometBFT does.** It isolates persistent dials too, but duplicates the dial path and its concurrency handling for no benefit over a second queue drained by the existing loop.
+- **A goroutine per persistent peer, as CometBFT does.** It isolates persistent dials too, and it isolates persistent and discovered dials from each other in both directions, at the cost of a second dial path with its own concurrency handling. The second queue keeps a single dial path and accepts the trade-off listed under Consequences.
 - **Immediate redial on disconnect, through a signal to the redial loop.** It saves up to one tick (5 seconds) per reconnect, but with the reset on connect, a flapping peer would be redialed in a tight loop again.
 
 ## Consequences
 
-- A dropped persistent peer is first redialed on the next tick, 0 to 5 seconds later, instead of an immediate attempt that could wait behind the shared queue (57 seconds in the incident trace).
+- A dropped persistent peer is first redialed on the next tick, 0 to 5 seconds later, instead of an immediate attempt that could wait behind the shared queue (57 seconds in the incident trace). A backoff dial still queued from before the last connection is used instead when present, so the first redial can then wait up to about 33 seconds.
+- Persistent dials take strict priority in the single dial loop. While several persistent peers are unreachable without a TCP reset, each dial waits for its 3-second timeout, so the loop spends most of its time on their redials until their backoff grows, delaying discovered dials; with about a dozen such peers at the 30-second ceiling it would do nothing else. Conversely, a due persistent dial can wait behind the one discovered dial already in flight, up to about 9 seconds.
 - Peer exchange can no longer stand in for a persistent peer whose configured IP went stale. #5020 proposes re-resolving configured hostnames on each dial, which covers the hostname case; an IP-configured peer needs a configuration update.
 - `max_num_outbound_peers` no longer blocks persistent dials, even at 0. Persistent peers still count toward the number of outbound peers, so the slots left for discovered peers are unchanged.
 - After a restart of a persistent peer, the dialer reconnects within about 38 seconds of it coming back, instead of up to 10 minutes.
 - Repeated peer exchange lists no longer queue the same addresses again.
 - A dial dropped because its peer is already connected is logged at debug level.
+- Each persistent peer has a single configured address. When `p2p.persistent_peers` lists the same peer ID more than once, only the last address is dialed, and the node logs a warning at start for each ignored entry.
 
 Supersedes #6053, which removed the README's claim that persistent peers ignore the peer limit; this change makes that claim true for the outbound limit.
