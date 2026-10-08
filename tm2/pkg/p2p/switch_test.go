@@ -1980,7 +1980,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		t.Parallel()
 
 		var (
-			sw, addr = newPersistentSwitch(t)
+			sw, addr    = newPersistentSwitch(t)
 			now         = time.Now()
 			attempts    = map[types.ID]uint{addr.ID: 2}
 			connectedAt = map[types.ID]time.Time{addr.ID: now}
@@ -1998,7 +1998,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		t.Parallel()
 
 		var (
-			sw, addr = newPersistentSwitch(t)
+			sw, addr    = newPersistentSwitch(t)
 			now         = time.Now()
 			attempts    = map[types.ID]uint{addr.ID: 5}
 			connectedAt = map[types.ID]time.Time{addr.ID: now}
@@ -2034,7 +2034,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 
 		var (
 			sw, addr = newPersistentSwitch(t)
-			now = time.Now()
+			now      = time.Now()
 		)
 
 		// The peer is connected again by the time the event is handled
@@ -2057,7 +2057,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 
 		var (
 			sw, addr = newPersistentSwitch(t)
-			now = time.Now()
+			now      = time.Now()
 
 			// As after the first dial on start
 			attempts    = map[types.ID]uint{addr.ID: 0}
@@ -2084,7 +2084,7 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		t.Parallel()
 
 		var (
-			sw, addr = newPersistentSwitch(t)
+			sw, addr    = newPersistentSwitch(t)
 			now         = time.Now()
 			attempts    = map[types.ID]uint{addr.ID: 4}
 			connectedAt = make(map[types.ID]time.Time)
