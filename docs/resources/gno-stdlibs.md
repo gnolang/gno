@@ -150,9 +150,10 @@ data:
 
 ``` json
 {
-    "@type": "/tm.Event", // TM2 type
+    "@type": "/tm.gnoEvent", // TM2 type
     "type": "OwnershipChange", // Type/name of event defined in Gno
     "pkg_path": "gno.land/r/demo/example", // Path of the emitter
+    "func": "ChangeOwner", // Gno function that emitted the event
     "attrs": [ // Slice of key:value pairs emitted
         {
             "key": "oldOwner",
