@@ -46,34 +46,42 @@ first review point. The whole tag must fit on one line.
 ### Parsing
 
 - **Inline parser** on `<` at priority 399, just ahead of goldmark's raw-HTML
-  parser (400). It claims a token only if it is a well-formed
-  `SelfClosingTagToken` named `gno-button` with a non-empty `href` and
-  `label`. Anything else returns nil and goldmark's raw-HTML handling takes
+  parser (400). It claims a tag only if it is a self-closing `gno-button`
+  (ending in `/>`) with a non-empty `href` and `label`. Anything else returns nil and goldmark's raw-HTML handling takes
   over (stripped in safe mode). It declines inside a link label, which would
   otherwise nest `<a>` elements.
 - **Block parser** on `<` at priority 899, just ahead of the HTML block parser
   (900). A line holding only a tag is a CommonMark type-7 HTML block start, so
   without this a button alone on its line (or as a list item) would be
   swallowed, along with every following line up to the next blank one, before
-  inline parsing ever ran. The block parser opens such a line as a paragraph
-  by delegating to goldmark's own paragraph parser, so the result behaves like
-  any paragraph (continuation lines, setext, paragraph transformers). It only
-  checks the tag shape. Attribute validation stays in the inline parser, so a
-  rejected button is stripped inline instead of taking the following lines
-  with it.
-- A parse attempt reads at most `MaxButtonTagLen` (2 KB) bytes and never
-  past the next `<gno-button` prefix, and skips the tokenizer when that window
-  holds no `/>`. Every prefix in a line is an attempt, so an unbounded read
-  made a long line of unterminated tags quadratic (4000 tags, 96 KB: 1.17 s);
-  bounded, it is linear (8 ms; `BenchmarkButtonHostileLine`). A longer tag,
-  or one with `<gno-button` inside an attribute value, is not a button.
-- The tag is tokenized with `x/net/html`, the tokenizer behind
-  `ParseHTMLTokens`. `ParseHTMLTokens` itself is not called because it
-  tokenizes the whole line and drops offsets, while an inline tag has to know
-  how many bytes it consumed so text after it stays text. `parseButtonTag`
-  reads only the first token and its raw length. A byte-prefix check
-  (case-insensitive, like the other `gno-*` tags) runs first, so a `<` that is
-  not a button costs no allocation (covered by a test).
+  inline parsing ever ran. The block parser opens a line that starts with the
+  tag as a paragraph by delegating to goldmark's own paragraph parser, so the
+  result behaves like any paragraph (continuation lines, setext, paragraph
+  transformers). It only checks that a tag is there. Validation stays in the
+  inline parser, so a rejected button is stripped inline instead of taking
+  the following lines with it.
+- **Tag scanner.** Both parsers read the tag with `scanGnoTag` in `utils.go`:
+  a hand-written scanner for one `<name …>` tag on one line, within a byte
+  bound (`maxButtonTagLen`, 2 KB), that returns the tag's length and hands
+  each attribute to a callback as raw bytes aliasing the source. It allocates
+  nothing, valid tag or not (`BenchmarkParseButtonTag`: 0 allocs/op). Tag and
+  attribute names are case-insensitive and the first occurrence of an
+  attribute wins, as in HTML. It is taken from the scanner of the
+  `<gno-icon />` PR (a separate branch), generalized by prefix and bound, and
+  the line parser is shared the same way (`gnoTagLineParser`), so that PR can
+  drop its own copy and both body-less inline tags use one implementation.
+- **Bound.** Every `<gno-button` prefix in a line is a parse attempt. Reading
+  to the end of the line made a long line of unterminated tags quadratic
+  (4000 tags, 96 KB: 1.17 s). The scanner stops at the bound and at the next
+  `<` outside a quoted value, so each attempt reads one tag and the line is
+  linear (8 ms; `BenchmarkButtonHostileLine`). A longer tag is not a button.
+- **Why not `ParseHTMLTokens`.** The review asked for it, and the first
+  version of this PR used the same `x/net/html` tokenizer. It does not fit an
+  inline tag: `ParseHTMLTokens` tokenizes a whole line and drops offsets,
+  while an inline tag must know how many bytes it consumed so the text after
+  it stays text; the tokenizer also allocates a 4 KB buffer per attempt and
+  decodes attribute values, which the href must not get (see below). The
+  block-level `gno-*` tags that own their line keep using `ParseHTMLTokens`.
 
 ### Rendering and safety
 
@@ -85,12 +93,13 @@ external/internal/tx/user icons, and the dangerous-URL guard in
 `renderGnoLink`. `renderGnoLink` gains a generic `gno:class` node attribute
 (not settable from markdown) that it emits as the class.
 
-The href is decoded once, as HTML decodes an attribute: the tokenizer resolves
-its entities, and the parser re-escapes `&` and `\` before storing it, so the
-link pipeline's `resolveDestination` gives the value back unchanged instead of
-decoding it a second time. `href="?q=&amp;lt;"` therefore yields `?q=&lt;`,
-the same destination `[x](?q=&amp;lt;)` yields, and a backslash in an href is
-kept rather than read as a markdown escape.
+The href is decoded once, exactly as a markdown link destination is: the
+scanner keeps the raw bytes, and the link pipeline's `resolveDestination`
+(backslash escapes, then entities) decodes them. `href="?q=&amp;lt;"` yields
+`?q=&lt;` and `href="/r/a\_b"` yields `/r/a_b`, the same destinations
+`[x](?q=&amp;lt;)` and `[x](/r/a\_b)` yield (a golden renders both side by
+side). The label is attribute text: its entities are decoded as HTML does,
+then it is escaped on output and never parsed as markdown.
 
 On top of that, the parser rejects outright (fall-through, stripped):
 `javascript:`/`vbscript:`/`file:` after entity resolution, every `data:` URI
@@ -133,23 +142,30 @@ already in place. `warning` uses dark text on its light-yellow fill.
 
 - Realms get a button with one obvious syntax. Invalid tags disappear silently
   in safe mode rather than rendering something unexpected.
-- Cost: each claimed tag allocates the `x/net/html` tokenizer buffer (~4 KB,
-  ~46 allocations per button in `BenchmarkButton`, against an equivalent
-  markdown link). A line holding only a button is tokenized twice (block shape
-  check, then inline parse). Non-button `<` bytes cost nothing.
+- Cost: reading a tag allocates nothing. An accepted button costs about 16
+  allocations more than the equivalent markdown link (`BenchmarkButton`): the
+  link node, its class string and the label. A line starting with a button is
+  scanned twice (block check, then inline parse), with no allocation.
 - A button inside a GFM table cell must write `|` in an attribute as
   `&#124;`: the table splits cells before inline parsing, and `\|` would keep
   its backslash because the label is raw text. Documented and tested.
 - Sanitize (`chain/markdown`, used by `p/nt/markdown/sanitize`):
-  `InlineText` escapes `<`; `Block`/`BlockRich` escape a `<gno-…>` line
-  start. That escape used to put its backslash before the indent, which was
-  enough for the block-level `gno-*` parsers but left an indented button live
-  (the backslash only escaped a space). It now goes right before the `<`.
-  A button in the middle of a line still passes through `Block` and renders:
-  it is only a link, with the same URL checks as the `[text](url)` links
-  `Block` already preserves, but a more prominent one. A sanitize fixture
-  pins that behavior. The indent fix is a stopgap: the general fix is to
-  escape every `<gno-button` in `Block`/`BlockRich` outside code spans, as
-  `InlineText` escapes `<`, which is a separate change to the sanitize
-  contract.
+  - `InlineText` escapes `<`, so no button.
+  - `Block`/`BlockRich` escape a `<gno-button` line start. That escape used to
+    put its backslash before the indent, which was enough for the
+    block-level `gno-*` parsers but left an indented button live (the
+    backslash only escaped a space); it now goes right before the `<`.
+  - A button in the middle of a line still passes through `Block` and
+    renders. It is a link with the same URL checks as the `[text](url)` links
+    `Block` already preserves, but a more prominent one. A sanitize fixture
+    pins that behavior. The general fix is to escape every `<gno-button` in
+    `Block`/`BlockRich` outside code spans, as `InlineText` escapes `<`; that
+    changes the sanitize contract, so it is left for a separate PR.
+  - **Button and icon differ on purpose.** The `<gno-icon />` extension
+    exempts its tag from this escape, because an icon is an allowlisted
+    glyph that carries no link, and escaping it only at line start would
+    make it render or not depending on its position. A button is a link
+    styled as first-party call to action, which user content should not be
+    able to produce, so `<gno-button` stays escaped wherever the sanitizer
+    looks today.
 - `r/docs/markdown` documents the syntax with copyable examples.

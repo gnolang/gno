@@ -23,42 +23,45 @@ func TestButtonInTable(t *testing.T) {
 	require.Contains(t, out, `<td><a href="/r/test" class="gno-button">a|b</a></td>`)
 }
 
-// The href is decoded once, by the tokenizer, as HTML decodes attributes; the
-// escaper makes the link pipeline's resolveDestination give it back unchanged.
-func TestButtonDestinationDecodedOnce(t *testing.T) {
-	for _, href := range []string{"/r/a?x=&lt;b&gt;", "&amp;", "&#106;avascript:", `/r/a\_b`, `\\`, "a&b", "&", `\`} {
-		got := resolveDestination([]byte(buttonDestEscaper.Replace(href)))
-		require.Equal(t, href, string(got))
-	}
-}
-
-// A parse attempt reads at most MaxButtonTagLen bytes, so a line of
-// unterminated tags is linear (it was quadratic: each attempt tokenized to
-// the end of the line). A tag whose `/>` lies past the window is not claimed.
-func TestParseButtonTagBoundedWindow(t *testing.T) {
+// A parse attempt reads at most maxButtonTagLen bytes, so a line of
+// unterminated tags is linear (it was quadratic: each attempt read to the end
+// of the line). A tag whose `/>` lies past the bound is not claimed.
+func TestParseButtonTagBound(t *testing.T) {
 	tag := func(pad int) []byte {
 		return []byte(`<gno-button href="/r/x" label="` + strings.Repeat("a", pad) + `" />`)
 	}
 	base := len(tag(0))
 
-	_, n, ok := parseButtonTag(tag(MaxButtonTagLen - base))
-	require.True(t, ok)
-	require.Equal(t, MaxButtonTagLen, n)
+	n, _ := parseButtonTag(tag(maxButtonTagLen - base))
+	require.Equal(t, maxButtonTagLen, n)
 
-	_, _, ok = parseButtonTag(tag(MaxButtonTagLen - base + 1))
-	require.False(t, ok)
+	n, _ = parseButtonTag(tag(maxButtonTagLen - base + 1))
+	require.Zero(t, n)
 }
 
-// Every '<' in a document reaches the button parsers; one that is not a
-// button tag must cost no allocation.
-func TestParseButtonTagNoAllocOnMiss(t *testing.T) {
+// Every '<' in a document reaches the button parsers. Reading a tag, valid or
+// not, allocates nothing; only an accepted button builds a node.
+func TestParseButtonTagNoAlloc(t *testing.T) {
 	for _, in := range []string{
 		"<div>", "<gno-columns>", "<gno-buttons />", "<",
+		`<gno-button href="/r/x" label="Go" variant="outline" />`,
+		`<gno-button href="/r/x" label="Go">`,
 		strings.Repeat(`<gno-button href="/r/x" `, 50_000), // unterminated, huge line
 	} {
 		b := []byte(in)
 		allocs := testing.AllocsPerRun(100, func() { parseButtonTag(b) })
 		require.Zero(t, allocs, in)
+	}
+}
+
+// BenchmarkParseButtonTag times reading a valid tag (0 allocs/op).
+func BenchmarkParseButtonTag(b *testing.B) {
+	src := []byte(`<gno-button href="/r/gnoland/blog" label="Read the blog" variant="outline" /> and text`)
+	b.ReportAllocs()
+	for b.Loop() {
+		if n, _ := parseButtonTag(src); n == 0 {
+			b.Fatal("not parsed")
+		}
 	}
 }
 
