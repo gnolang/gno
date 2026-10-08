@@ -171,6 +171,15 @@ func (*frameParser) CanAcceptIndentedLine() bool { return false }
 // line and swallow it.
 type frameHTMLBlockParser struct{ parser.BlockParser }
 
+// Open leaves the line to goldmark's own HTML block parser while no frame
+// is open, so a page without frames does not run the HTML block checks twice.
+func (p frameHTMLBlockParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+	if !frameOpen(pc) {
+		return nil, parser.NoChildren
+	}
+	return p.BlockParser.Open(parent, reader, pc)
+}
+
 func (p frameHTMLBlockParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	if node.Parent().Kind() == ast.KindDocument && frameOpen(pc) {
 		line, _ := reader.PeekLine()
