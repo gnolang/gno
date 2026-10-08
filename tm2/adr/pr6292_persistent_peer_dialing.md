@@ -1,4 +1,4 @@
-# PRxxxx: Dial persistent peers only from the redial loop
+# PR6292: Dial persistent peers only from the redial loop
 
 ## Status
 
