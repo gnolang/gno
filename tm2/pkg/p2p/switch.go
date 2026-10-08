@@ -535,12 +535,12 @@ func (sw *MultiplexSwitch) persistentPeerConnected(
 ) {
 	connectedAt[id] = now
 
-	addr, ok := sw.persistentPeers.Load(id)
+	addr, ok := sw.persistentPeerAddr(id)
 	if !ok {
 		return
 	}
 
-	sw.persistentDialQueue.Remove(addr.(*types.NetAddress))
+	sw.persistentDialQueue.Remove(addr)
 }
 
 // persistentPeerDisconnected queues a persistent peer that just dropped, at
@@ -560,12 +560,12 @@ func (sw *MultiplexSwitch) persistentPeerDisconnected(
 
 	delete(connectedAt, id)
 
-	addr, ok := sw.persistentPeers.Load(id)
+	addr, ok := sw.persistentPeerAddr(id)
 	if !ok {
 		return
 	}
 
-	sw.queuePersistentPeer(id, addr.(*types.NetAddress), attempts, now)
+	sw.queuePersistentPeer(id, addr, attempts, now)
 }
 
 // queueMissingPersistentPeers queues a dial for every persistent peer that is
@@ -838,6 +838,17 @@ func (sw *MultiplexSwitch) isPersistentPeer(id types.ID) bool {
 	_, persistent := sw.persistentPeers.Load(id)
 
 	return persistent
+}
+
+// persistentPeerAddr returns the configured address of a persistent peer,
+// and false when the ID is not a persistent peer
+func (sw *MultiplexSwitch) persistentPeerAddr(id types.ID) (*types.NetAddress, bool) {
+	addr, ok := sw.persistentPeers.Load(id)
+	if !ok {
+		return nil, false
+	}
+
+	return addr.(*types.NetAddress), true
 }
 
 // isPrivatePeer returns a flag indicating if a peer
