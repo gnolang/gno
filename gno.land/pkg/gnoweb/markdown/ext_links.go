@@ -209,7 +209,9 @@ func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLink
 	// Attempt to parse the destination as a GnoURL.
 	target, err := weburl.ParseFromURL(dest)
 	if err != nil {
-		if dest.Scheme == "" {
+		// A protocol-relative URL (//host/...) has no scheme but names a
+		// host: it is external unless that host is ours.
+		if dest.Scheme == "" && (dest.Host == "" || dest.Host == orig.Domain) {
 			// If there's no scheme, consider it as a relative path.
 			return nil, GnoLinkTypePackage
 		}
