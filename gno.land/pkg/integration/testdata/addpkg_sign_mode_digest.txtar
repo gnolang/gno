@@ -1,0 +1,71 @@
+gnoland start
+
+# A PACKAGE TOO LARGE FOR A LEDGER STILL DEPLOYS. The device parses the
+# signature payload itself, so a file body past its buffer cannot be signed in
+# full mode at all. In digest mode the body reaches the device as a hash, and
+# the chain has to accept that rendering -- including on the simulation path,
+# which signs the tx a second time with the gas raised.
+gnokey maketx addpkg -pkgdir $WORK/big -pkgpath gno.land/r/foobar/big -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test -sign-mode digest test1
+stdout 'OK!'
+
+# And the signer is told what the device will not show them.
+stdout 'sign mode digest'
+stdout 'package\.files\[\d+\]\.body'
+stdout '[0-9]+ bytes'
+
+# A misspelled mode is refused rather than signed in full mode, which is the
+# failure the flag exists to avoid.
+! gnokey maketx addpkg -pkgdir $WORK/small -pkgpath gno.land/r/foobar/small -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test -sign-mode hash test1
+stderr 'invalid sign mode "hash"'
+
+# Digest mode hides nothing in a package that fits, and says so.
+gnokey maketx addpkg -pkgdir $WORK/small -pkgpath gno.land/r/foobar/small -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test -sign-mode digest test1
+stdout 'nothing to digest'
+stdout 'OK!'
+
+# Full mode remains the default.
+gnokey maketx addpkg -pkgdir $WORK/plain -pkgpath gno.land/r/foobar/plain -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout 'OK!'
+! stdout 'sign mode digest'
+
+-- big/gnomod.toml --
+module = "gno.land/r/foobar/big"
+gno = "0.9"
+
+-- big/big.gno --
+package big
+
+// filler line 01 to push this file past the device ceiling
+// filler line 02 to push this file past the device ceiling
+// filler line 03 to push this file past the device ceiling
+// filler line 04 to push this file past the device ceiling
+// filler line 05 to push this file past the device ceiling
+// filler line 06 to push this file past the device ceiling
+// filler line 07 to push this file past the device ceiling
+// filler line 08 to push this file past the device ceiling
+// filler line 09 to push this file past the device ceiling
+// filler line 10 to push this file past the device ceiling
+// filler line 11 to push this file past the device ceiling
+// filler line 12 to push this file past the device ceiling
+// filler line 13 to push this file past the device ceiling
+// filler line 14 to push this file past the device ceiling
+// filler line 15 to push this file past the device ceiling
+func Render(path string) string { return "big" }
+
+-- small/gnomod.toml --
+module = "gno.land/r/foobar/small"
+gno = "0.9"
+
+-- small/small.gno --
+package small
+
+func Render(path string) string { return "small" }
+
+-- plain/gnomod.toml --
+module = "gno.land/r/foobar/plain"
+gno = "0.9"
+
+-- plain/plain.gno --
+package plain
+
+func Render(path string) string { return "plain" }

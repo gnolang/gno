@@ -291,11 +291,10 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				accNum = sigAcc.GetAccountNumber()
 				accSeq = sigAcc.GetSequence()
 			}
-			signBytes, err := tx.GetSignBytes(
-				newCtx.ChainID(),
-				accNum,
-				accSeq,
-			)
+			// The doc is built once and the renderings are derived from it, so
+			// that trying another costs no second pass over the transaction.
+			signDoc := tx.SignDoc(newCtx.ChainID(), accNum, accSeq)
+			signBytes, err := std.GetSignaturePayload(signDoc)
 			if err != nil {
 				return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
 			}
@@ -308,23 +307,27 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			// for why some messages cannot afford that.
 			verifySig := !simulate ||
 				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
-			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
-				// Either payload rendering is accepted; std.VerifySignaturePayload
-				// holds the argument for why that is safe.
+			if verifySig {
+				// Any of the payload renderings is accepted;
+				// std.VerifySignaturePayload holds the argument for why that is
+				// safe.
 				//
-				// Spelled out here rather than delegated to that helper because
-				// the payload is built above, before gas is charged and outside
-				// the simulate gate, and delegating would reorder those steps on
-				// the consensus path. The legacy encoding cannot fail once the
-				// one above succeeded -- the two differ only in the fee's plain
-				// fields -- so lerr carries nothing the first marshal did not
-				// already report. Gas was charged above for one verification.
-				legacySignBytes, lerr := tx.GetSignBytesLegacy(
-					newCtx.ChainID(),
-					accNum,
-					accSeq,
+				// The payload is handed over rather than rebuilt inside, because
+				// it is built above, before gas is charged and outside the
+				// simulate gate, and this must not reorder those steps on the
+				// consensus path. A failure to build one of the other renderings
+				// is reported as a bad signature, as it was when this chain was
+				// spelled out here: those encodings cannot fail once the one
+				// above succeeded, so the error carries nothing the first marshal
+				// did not already report. Gas was charged above for one
+				// verification.
+				rendering, verr := std.VerifySignaturePayloadFrom(
+					pubKey,
+					signDoc,
+					sig.Signature,
+					signBytes,
 				)
-				if lerr != nil || !pubKey.VerifyBytes(legacySignBytes, sig.Signature) {
+				if verr != nil || rendering == std.PayloadRenderingNone {
 					return newCtx, abciResult(std.ErrUnauthorized("signature verification failed; verify correct account, sequence, and chain-id")), true
 				}
 			}

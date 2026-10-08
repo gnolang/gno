@@ -694,6 +694,61 @@ To verify against a separate signature file:
 gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
 ```
 
+## Signing a large transaction on a Ledger
+
+A Ledger does not blind-sign. The Cosmos app gno borrows parses the signature
+payload on the device so it can display what it is about to sign, and it refuses
+a payload larger than its buffer, around 16KB, before displaying anything. A
+realm deployment passes that in a single file, so `gnokey maketx addpkg` with a
+Ledger key fails with no useful explanation.
+
+The device has no instruction for signing a bare hash, so the payload itself has
+to be made smaller. `-sign-mode digest` renders the transaction with every
+string longer than 512 bytes replaced by its SHA-256:
+
+```bash
+gnokey maketx addpkg \
+  -pkgdir ./counter \
+  -pkgpath gno.land/r/myrealm/counter \
+  -gas-fee 2000000ugnot \
+  -gas-wanted 20000000 \
+  -sign-mode digest \
+  mykey
+```
+
+`gnokey` prints each substitution before the device prompts:
+
+```
+sign mode digest: 1 field(s) will reach the device as a digest only.
+Compare each one against the device screen before approving.
+
+  msgs[0].package.files[1].body (19812 bytes)
+    48ed9b0f c9e890e6 2dafb1da 65d24046 4c0bcc3c 3de0c9b4 05dcad87 a4135e8d
+```
+
+The device still shows the chain, the account, the sequence, the fee, the memo,
+the creator, the package path and the name of every file. Only the file bodies
+become hashes, and the one on the screen must match the one printed above.
+
+A few things to know before using it:
+
+- **Compare the hash somewhere you trust.** The whole security of this mode is
+  that comparison, and the terminal printing the hash runs on the machine you
+  are trying not to trust. `gnokey verify` on a second machine recomputes it
+  from the transaction file and prints the same table.
+- **It is not the same as reading the transaction on the device.** You confirm
+  where the code goes and who deploys it on trusted hardware; you take the code
+  text on faith.
+- **It is never selected for you.** `full` is the default, and a misspelled mode
+  is an error rather than a fallback.
+- **Transfers are never affected.** Addresses and coin amounts are far shorter
+  than the threshold, so a `Send` renders identically in both modes and keeps
+  full on-device display.
+- **A session key is often the better answer.** The Ledger signs one small,
+  fully readable `create_session` transaction with an expiry, a path allowlist
+  and a spend limit, and a hot key does the deploying. The device never sees the
+  large payload at all.
+
 ## Using a k-of-n multisig
 
 The multisig being created for this section is a 2-of-3 multisig, with Alice / Bob / Charlie.
