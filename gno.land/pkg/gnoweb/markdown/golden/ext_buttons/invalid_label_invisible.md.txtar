@@ -1,0 +1,10 @@
+-- input.md --
+Format characters: <gno-button href="/r/test" label="&#x2060;" /> <gno-button href="/r/test" label="&#x61C;" /> <gno-button href="/r/test" label="&#x180E;" /> <gno-button href="/r/test" label="&#xAD;" />
+
+Hangul fillers: <gno-button href="/r/test" label="&#x3164;" /> <gno-button href="/r/test" label="&#x115F;&#x1160;" /> <gno-button href="/r/test" label=" &#xFFA0; " />
+
+Visible text keeps its label: <gno-button href="/r/test" label="Go&#x2060;!" /> <gno-button href="/r/test" label="&#x3164;Go" />
+-- output.html --
+<p>Format characters: <!-- raw HTML omitted --> <!-- raw HTML omitted --> <!-- raw HTML omitted --> <!-- raw HTML omitted --></p>
+<p>Hangul fillers: <!-- raw HTML omitted --> <!-- raw HTML omitted --> <!-- raw HTML omitted --></p>
+<p>Visible text keeps its label: <a href="/r/test" class="gno-button">Go!</a> <a href="/r/test" class="gno-button">ㅤGo</a></p>

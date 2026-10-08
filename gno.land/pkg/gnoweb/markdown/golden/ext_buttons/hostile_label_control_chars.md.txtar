@@ -10,4 +10,4 @@ C1 and DEL: <gno-button href="/r/test" label="a&#x85;b&#127;c" />
 <p>Newline: <a href="/r/test" class="gno-button">a b</a></p>
 <p>Tab and CR: <a href="/r/test" class="gno-button">a b c</a></p>
 <p>NUL: <a href="/r/test" class="gno-button">�</a></p>
-<p>C1 and DEL: <a href="/r/test" class="gno-button">a…bc</a></p>
+<p>C1 and DEL: <a href="/r/test" class="gno-button">a bc</a></p>

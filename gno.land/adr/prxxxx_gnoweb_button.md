@@ -48,8 +48,8 @@ first review point. The whole tag must fit on one line.
 
 - **Inline parser** on `<` at priority 399, just ahead of goldmark's raw-HTML
   parser (400). It claims a tag only if it is a self-closing `gno-button`
-  (ending in `/>`) with a non-empty `href` and a label that is not blank once
-  its entities are decoded. Anything else returns nil and goldmark's raw-HTML
+  (ending in `/>`) with an `href` and a label that are not blank once their
+  entities are decoded. Anything else returns nil and goldmark's raw-HTML
   handling takes over (stripped in safe mode).
 - **Links in links.** A button inside a link label behaves like a link there:
   goldmark keeps the inner link and turns the outer one into text, as
@@ -111,11 +111,13 @@ scanner keeps the raw bytes, and the link pipeline's `resolveDestination`
 (backslash escapes, then entities) decodes them. `href="?q=&amp;lt;"` yields
 `?q=&lt;` and `href="/r/a\_b"` yields `/r/a_b`, the same destinations
 `[x](?q=&amp;lt;)` and `[x](/r/a\_b)` yield (a golden renders both side by
-side). The label is attribute text: its entities are decoded as HTML does;
-then, since a button looks like first-party chrome, bidi and zero-width
-characters (the set `sanitize` strips) and control characters are removed (a
-line break or tab becomes a space), and the result is trimmed, so a label that
-is blank or invisible after that is no label. It is escaped on output and
+side); an href blank once decoded (`href="&#32;"`) is no href. The label's
+entities are decoded the same way, named and numeric references ending in `;`
+(`&not=` stays as written); then, since a button looks like first-party
+chrome, bidi and zero-width characters (the set `sanitize` strips), format
+characters (Cf) and control characters are removed (a line break or tab
+becomes a space), and the result is trimmed. A label with no visible rune
+left, only spaces or Hangul fillers (U+3164 and kin), is no label. It is escaped on output and
 never parsed as markdown.
 
 On top of that, the parser rejects outright (fall-through, stripped):

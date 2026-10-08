@@ -9,7 +9,6 @@ package markdown
 
 import (
 	"bytes"
-	"html"
 	"slices"
 	"strings"
 	"unicode"
@@ -69,7 +68,7 @@ func parseButtonTag(src []byte) (size int, t buttonTag) {
 // a required attribute is missing or the href is not allowed.
 func newButtonLink(t buttonTag) *ast.Link {
 	label := buttonLabel(t.label)
-	if len(t.href) == 0 || label == "" || !isButtonHrefAllowed(t.href) {
+	if label == "" || !isButtonHrefAllowed(t.href) {
 		return nil
 	}
 
@@ -87,15 +86,20 @@ func newButtonLink(t buttonTag) *ast.Link {
 }
 
 // buttonLabel turns the raw label attribute into the text the button shows.
-// Entities are decoded as HTML decodes attribute text. A button looks like
-// first-party chrome, so what could make it read other than it renders is
-// removed: bidi and zero-width characters (the set sanitize strips), and
-// control characters, a line break or tab becoming a space. Trimming comes
-// last, so `&#32;` or `&#x200B;` is no label.
+// Entities are decoded as the href is (see resolveDestination): named and
+// numeric references ending in `;`, so `&not=` stays as written. A button
+// looks like first-party chrome, so what could make it read other than it
+// renders is removed: bidi and zero-width characters (the set sanitize
+// strips), format characters (Cf), and control characters, a line break or
+// tab becoming a space. A label with no visible rune left, only spaces and
+// Hangul fillers, is no label: `&#32;`, `&#x200B;` or `&#x3164;`.
 func buttonLabel(raw []byte) string {
-	label := chainmd.StripBidiAndZeroWidth(html.UnescapeString(string(raw)))
+	decoded := util.ResolveEntityNames(util.ResolveNumericReferences(raw))
+	label := chainmd.StripBidiAndZeroWidth(string(decoded))
 	label = strings.Map(func(r rune) rune {
 		switch {
+		case unicode.Is(unicode.Cf, r):
+			return -1
 		case !unicode.IsControl(r):
 			return r
 		case unicode.IsSpace(r):
@@ -103,7 +107,21 @@ func buttonLabel(raw []byte) string {
 		}
 		return -1
 	}, label)
-	return strings.TrimSpace(label)
+	label = strings.TrimSpace(label)
+	if !strings.ContainsFunc(label, isVisibleRune) {
+		return ""
+	}
+	return label
+}
+
+// isVisibleRune reports whether r draws something: not a space and not a
+// Hangul filler, which is a letter that renders blank.
+func isVisibleRune(r rune) bool {
+	switch r {
+	case 0x115F, 0x1160, 0x3164, 0xFFA0:
+		return false
+	}
+	return !unicode.IsSpace(r)
 }
 
 // isButtonHrefAllowed rejects what renderGnoLink would neutralize anyway
@@ -111,10 +129,11 @@ func buttonLabel(raw []byte) string {
 // for images but has no business behind a button, and any control byte:
 // browsers strip tab and newline from a URL, so `java&#x09;script:` is a
 // scheme the prefix check cannot see. It checks the resolved bytes the
-// renderer will emit, see resolveDestination.
+// renderer will emit, see resolveDestination, so an href blank only once
+// decoded (`&#32;`) is no href.
 func isButtonHrefAllowed(href []byte) bool {
 	dest := trimLeadingControlAndSpace(resolveDestination(href))
-	if bytes.ContainsFunc(dest, func(r rune) bool { return r < ' ' || r == 0x7f }) {
+	if len(dest) == 0 || bytes.ContainsFunc(dest, func(r rune) bool { return r < ' ' || r == 0x7f }) {
 		return false
 	}
 	return !mdhtml.IsDangerousURL(dest) && !(len(dest) >= 5 && bytes.EqualFold(dest[:5], []byte("data:")))
