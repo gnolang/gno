@@ -317,8 +317,14 @@ can send it, and the submission charge is not refunded.
 
 ## Operator workflows
 
-Airgapped signing, multisig, session accounts, and key export and import are
-covered in the [`gnokey` README](../../gno.land/cmd/gnokey/README.md).
+These live in the [`gnokey` README](../../gno.land/cmd/gnokey/README.md):
+
+- [Airgapped signing](../../gno.land/cmd/gnokey/README.md#airgapped-signing): sign on an offline machine
+- [Multisig](../../gno.land/cmd/gnokey/README.md#multisig-k-of-n): an account that spends only when k of its n
+  members sign
+- [Session accounts](../../gno.land/cmd/gnokey/README.md#session): let a second key sign chosen messages for you
+- [Exporting and importing keys](../../gno.land/cmd/gnokey/README.md#exporting-and-importing-keys): move a key
+  between keybases
 
 ## Querying a Gno.land network
 

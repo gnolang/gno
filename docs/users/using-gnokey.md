@@ -147,7 +147,8 @@ Transactions cost gas, paid in GNOT. On a testnet, get some from the
 [Realms](../resources/realms.md), Gno.land's smart contracts, expose functions
 you invoke with `gnokey maketx call`. Set `-pkgpath` (the realm's on-chain path)
 and `-func` (the function), pass any arguments with `-args`, and add the base
-flags. This calls `Deposit` on the `wugnot` realm, which turns the `1000ugnot`
+flags. This calls `Deposit` on the
+[`wugnot` realm](https://gno.land/r/gnoland/wugnot), which turns the `1000ugnot`
 sent with `-send` into 1000 `wugnot` tokens. `Deposit` takes no `-args`:
 
 ```bash
