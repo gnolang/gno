@@ -360,10 +360,14 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				continue
 			}
 
-			// Pop the item from its dial queue. The dial loop is the only
-			// consumer, so a push since the peek can only have put an earlier,
-			// also due, item at the head
-			item = queue.Pop()
+			// Pop the head of its dial queue, if it is still due. The redial
+			// loop removes a persistent peer's queued dial when the peer
+			// connects, which can happen between the peek and the pop
+			item = queue.PopDue(time.Now())
+			if item == nil {
+				continue
+			}
+
 			peerAddr := item.Address
 
 			// Check if the peer is already connected

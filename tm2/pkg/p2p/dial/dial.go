@@ -1,6 +1,7 @@
 package dial
 
 import (
+	"slices"
 	"sync"
 	"time"
 
@@ -65,6 +66,30 @@ func (q *Queue) Pop() *Item {
 	defer q.mux.Unlock()
 
 	return q.items.PopFront()
+}
+
+// PopDue removes and returns the first item in the dial queue, if it is due at
+// the given time. The check and the removal happen under one lock, so a
+// concurrent Remove cannot slip an item that is not due to the head in between
+func (q *Queue) PopDue(now time.Time) *Item {
+	q.mux.Lock()
+	defer q.mux.Unlock()
+
+	if q.items.Len() == 0 || now.Before(q.items.Index(0).Time) {
+		return nil
+	}
+
+	return q.items.PopFront()
+}
+
+// Remove removes every item dialing the given address from the dial queue
+func (q *Queue) Remove(addr *types.NetAddress) {
+	q.mux.Lock()
+	defer q.mux.Unlock()
+
+	q.items = slices.DeleteFunc(q.items, func(i Item) bool {
+		return addr.Equals(*i.Address)
+	})
 }
 
 // Has returns a flag indicating if the given
