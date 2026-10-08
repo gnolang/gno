@@ -131,19 +131,40 @@ sandbox. Inside foreign content the tag stays raw HTML and is stripped.
 
 ### CSS
 
-`a.gno-button` follows gnoweb's UI buttons instead of defining its own look.
-In `06-blocks.css` it is grouped with `.b-btn` + `.b-btn--secondary` (default
-look), with `.b-btn--ghost` (`outline`), and with the part of the ghost rule
-every button shares (weight, focus ring, transition), so radius, padding,
-gap, hover and focus come from one place. The realm-view rule only adapts it
-to content (label wrapping, vertical rhythm, no hover underline) and maps the
-variants to the semantic tokens the alerts use: `--s-color-bg-*-weak` fill,
-`--s-color-text-*` text, `--s-color-border-*` border; light and dark come from
-the token remaps already in place. An outline button's border takes its text
-colour, since the border is its only shape, and the default outline uses
-`--s-color-text-link-hover`, the link token that passes AA in dark. Every
-variant passes WCAG AA for text in both themes; the measured ratios are in the
-PR description.
+The button has its own `/* ===== BUTTON COMPONENT ===== */` block in
+`06-blocks.css`, in the same `.c-realm-view, .c-readme-view` scope as the
+FORM, COLUMNS, ALERT and FOREIGN blocks, named like them (`.gno-button`, and
+`.gno-button-<variant>` as `.gno-alert-<variant>`). It shares no selector with
+the UI buttons: an earlier version grouped it into the `.b-btn` rules, which
+tied realm content to chrome styles. The UI buttons are unchanged by this
+block; full-page captures of a `$help` page, an action page and a `$state`
+page (light and dark) differ by 0 pixels before and after, and every
+`.b-btn`'s computed style, hover included, is identical.
+
+One base rule owns the shape, with the `.b-btn` silhouette (radius
+`--s-rounded-sm`, padding `--g-space-1` / `--g-space-2`, gap `--g-space-1-5`,
+1 px border, focus ring `--s-focus-ring`). Variants only set four local custom
+properties the base rule consumes (fill, border, text, and the colour an
+outline uses), all from semantic tokens; light and dark come from the token
+remaps already in place. The default is the brand-green fill of the form
+submit button (`--s-color-bg-brand-default`, `--s-color-border-brand-default`,
+`--s-color-text-base`), so a content button does not read as grey chrome; the
+`caution`, `warning`, `info` and `note` variants use the alert tokens
+(`--s-color-bg-*-weak`, `--s-color-text-*`, `--s-color-border-*`). An outline
+button's border takes its text colour, since the border is its only shape; the
+default outline uses `--s-color-text-link-hover`, the link token that passes
+AA in dark (the link token gives 3.77:1). Hover thickens the border with a
+ring instead of fading the fill: the form submit's `opacity: 0.9` dropped
+`caution` in dark to 4.28:1. The link type icon is drawn in the button's text
+colour, so it stays visible on every fill.
+
+Measured text contrast (light / dark, at rest and on hover): default 6.27 /
+6.27, caution 10.34 / 4.95, warning 7.13 / 9.59, info 8.13 / 6.35, note 17.47 /
+8.77; outline 6.27 / 7.14, caution outline 10.98 / 6.23, warning outline 7.58 /
+12.64, info outline 8.66 / 7.92, note outline 19.91 / 10.28. Every variant
+passes WCAG AA (4.5:1) in both themes. Outline borders match their text
+(≥ 6.2:1); filled borders under 3:1 (warning light 1.67, note dark 2.71) are
+the alert tokens, the label identifying the button.
 
 ## Alternatives considered
 

@@ -1085,8 +1085,7 @@
 	}
 }
 
-.b-btn,
-:is(.c-realm-view, .c-readme-view) a.gno-button {
+.b-btn {
 	display: inline-flex;
 	border-radius: var(--s-rounded-sm);
 	border: var(--s-border);
@@ -1104,8 +1103,7 @@
 	}
 }
 
-.b-btn--secondary,
-:is(.c-realm-view, .c-readme-view) a.gno-button {
+.b-btn--secondary {
 	background-color: var(--s-color-bg-surface-secondary);
 
 	&:hover {
@@ -1128,25 +1126,15 @@
 /* Ghost variant — transparent + link-coloured text/border. Calmer
    than `b-btn--secondary` so the primary affordance still wins focus
    on the same surface. For navigation CTAs / escape hatches. */
-.b-btn--ghost,
-:is(.c-realm-view, .c-readme-view) a.gno-button {
+.b-btn--ghost {
+	background-color: transparent;
+	border-color: var(--s-color-border-primary);
+	color: var(--s-color-text-link);
 	text-decoration: none;
 	font-weight: var(--g-font-medium);
 	transition:
 		background-color var(--g-transition-fast),
 		border-color var(--g-transition-fast);
-
-	&:focus-visible {
-		outline: var(--s-focus-ring);
-		outline-offset: 2px;
-	}
-}
-
-.b-btn--ghost,
-:is(.c-realm-view, .c-readme-view) a.gno-button-outline {
-	background-color: transparent;
-	border-color: var(--s-color-border-primary);
-	color: var(--s-color-text-link);
 
 	&:hover {
 		background-color: color-mix(
@@ -1155,6 +1143,11 @@
 			transparent
 		);
 		border-color: var(--s-color-text-link);
+	}
+
+	&:focus-visible {
+		outline: var(--s-focus-ring);
+		outline-offset: 2px;
 	}
 }
 
@@ -3234,87 +3227,84 @@ main.is-dev-mode .b-toc a {
 	}
 
 	/* ===== BUTTON COMPONENT ===== */
-	/* <gno-button /> renders a link (<a class="gno-button">) styled by the UI
-	   buttons it is grouped with above: .b-btn + .b-btn--secondary by
-	   default, .b-btn--ghost for `outline`, and the shared ghost/button rule
-	   (weight, focus ring, transition). This only adapts it to content
-	   (wrapping, rhythm) and maps the variants to the semantic tokens the
-	   alerts use. */
-	a.gno-button {
+	/* <gno-button /> renders a link (<a class="gno-button">), so it keeps the
+	   link type icon. The rule below owns the shape (the .b-btn silhouette);
+	   each variant only sets the colors it consumes. */
+	.gno-button {
+		--gno-button-bg: var(--s-color-bg-brand-default);
+		--gno-button-border: var(--s-color-border-brand-default);
+		--gno-button-text: var(--s-color-text-base);
+		--gno-button-outline: var(--s-color-text-link-hover);
+
+		display: inline-flex;
 		align-items: center;
-		min-width: 0;
+		gap: var(--g-space-1-5);
 		max-width: 100%;
 		vertical-align: middle;
+		border: var(--g-space-px) solid var(--gno-button-border);
+		border-radius: var(--s-rounded-sm);
+		padding: var(--g-space-1) var(--g-space-2);
 		margin-block: var(--cr-space-0-5);
-		line-height: 1.25;
+		background-color: var(--gno-button-bg);
+		color: var(--gno-button-text);
+		font-weight: var(--g-font-medium);
+		line-height: var(--g-line-height-tight);
+		transition: box-shadow var(--g-transition-fast);
 
-		/* Content links underline on hover; a button does not. */
+		/* Hover thickens the border instead of fading the fill, so text
+		   contrast holds (AA) in every variant. */
 		&:hover {
+			box-shadow: 0 0 0 var(--g-space-px) var(--gno-button-border);
 			text-decoration: none;
 		}
 
+		&:focus-visible {
+			outline: var(--s-focus-ring);
+			outline-offset: 2px;
+		}
+
+		/* Link type icon: drawn in the button's own text color. */
 		& > .tooltip {
 			margin: 0;
+			color: inherit;
+			border-color: currentColor;
 		}
 
-		/* Content links are link-coloured; a filled button reads as text. */
-		&:not(.gno-button-outline) {
-			color: var(--s-color-text-primary);
-		}
-
+		/* Variants */
 		&.gno-button-caution {
-			background-color: var(--s-color-bg-caution-weak);
-			border-color: var(--s-color-border-error);
-			color: var(--s-color-text-caution);
+			--gno-button-bg: var(--s-color-bg-caution-weak);
+			--gno-button-border: var(--s-color-border-error);
+			--gno-button-text: var(--s-color-text-caution);
+			--gno-button-outline: var(--s-color-text-caution);
 		}
 
 		&.gno-button-warning {
-			background-color: var(--s-color-bg-warning-weak);
-			border-color: var(--s-color-border-warning);
-			color: var(--s-color-text-warning);
+			--gno-button-bg: var(--s-color-bg-warning-weak);
+			--gno-button-border: var(--s-color-border-warning);
+			--gno-button-text: var(--s-color-text-warning);
+			--gno-button-outline: var(--s-color-text-warning);
 		}
 
 		&.gno-button-info {
-			background-color: var(--s-color-bg-info-weak);
-			border-color: var(--s-color-border-info);
-			color: var(--s-color-text-info);
+			--gno-button-bg: var(--s-color-bg-info-weak);
+			--gno-button-border: var(--s-color-border-info);
+			--gno-button-text: var(--s-color-text-info);
+			--gno-button-outline: var(--s-color-text-info);
 		}
 
 		&.gno-button-note {
-			background-color: var(--s-color-bg-note-weak);
-			border-color: var(--s-color-border-note);
-			color: var(--s-color-text-note);
+			--gno-button-bg: var(--s-color-bg-note-weak);
+			--gno-button-border: var(--s-color-border-note);
+			--gno-button-text: var(--s-color-text-note);
+			--gno-button-outline: var(--s-color-text-note);
 		}
 
-		&:is(
-				.gno-button-caution,
-				.gno-button-warning,
-				.gno-button-info,
-				.gno-button-note
-			):hover {
-			border-color: currentColor;
-		}
-
-		/* Outline: the border is the only shape, so it takes the text colour
-		   (>= 4.5:1). link-hover is the link token that passes AA in dark. */
+		/* Outline: no fill; the border is the only shape, so it takes the
+		   text color. */
 		&.gno-button-outline {
-			background-color: transparent;
-			border-color: currentColor;
-
-			&:not(
-					:is(
-							.gno-button-caution,
-							.gno-button-warning,
-							.gno-button-info,
-							.gno-button-note
-						)
-				) {
-				color: var(--s-color-text-link-hover);
-			}
-
-			&:hover {
-				background-color: color-mix(in srgb, currentColor 8%, transparent);
-			}
+			--gno-button-bg: transparent;
+			--gno-button-border: var(--gno-button-outline);
+			--gno-button-text: var(--gno-button-outline);
 		}
 	}
 }
