@@ -806,6 +806,10 @@ func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
 // established has to be closed explicitly, or -- since a rejected peer was never
 // started, so no Stop() path runs -- it lingers until the netFD finalizer does
 // it. That lets a host open connections faster than the GC reclaims them.
+//
+// It also covers a dialed peer whose Start failed, which leaks the same way,
+// and one stopped while being added (errPeerStopped), whose connection is
+// already closed: the second close then only yields the Debug line below.
 func (sw *MultiplexSwitch) rejectConn(p PeerConn) {
 	sw.transport.Remove(p)
 
