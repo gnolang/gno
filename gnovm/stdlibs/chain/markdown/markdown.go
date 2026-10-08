@@ -418,24 +418,10 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			continue
 		}
 
-		// Extension delimiter lines: prefix with backslash so the line's
-		// opening `<` becomes a CM §2.4 inline escape. A leading space
-		// would be ineffective because gnoweb's extension parsers call
-		// util.TrimLeftSpace before tag matching (see ext_columns.go,
-		// ext_alert.go etc.) — the space gets stripped and the parser
-		// sees the bare tag. Backslash survives util.TrimLeftSpace
-		// (which only strips ASCII whitespace and form-feed) and
-		// goldmark's Type-7 HTML block detection (which requires the
-		// first non-whitespace char to be `<`, not `\`).
-		if isExtDelimiter(line) {
-			out.WriteByte('\\')
-			out.WriteString(line)
-			if writeNL {
-				out.WriteByte('\n')
-			}
-			prevNonBlank = true
-			continue
-		}
+		// Extension delimiters: backslash-escape <gno-...> and </gno-...>
+		// tags wherever they appear on the line (including after list, quote,
+		// or indent markers) so the opening `<` becomes a CM §2.4 inline escape.
+		line = escapeGnoExtDelimiters(line)
 
 		// CM §4.6 HTML block types 1-5: prefix with backslash so the
 		// leading `<` becomes a CM §2.4 inline escape and goldmark's
@@ -523,39 +509,73 @@ func foldUnicodeSeparators(s string) string {
 	return string(out)
 }
 
-// isExtDelimiter recognises any gnoweb structural-extension delimiter
-// shape via the open/close `<gno-...>` / `</gno-...>` prefixes. The
-// wildcard is intentionally over-permissive: a malformed line like
+// escapeGnoExtDelimiters recognises any gnoweb structural-extension delimiter
+// shape via the open/close `<gno-...>` / `</gno-...>` prefixes wherever they
+// appear on a line (including after list, blockquote, or indentation markers)
+// and prefixes each unescaped `<` with a backslash so it becomes a CM §2.4
+// inline escape.
+//
+// The wildcard is intentionally over-permissive: a malformed line like
 // `<gno-x asdf` still trips it, which is fine — the only effect is
-// that the line gets a leading backslash prepended (rendered as a
+// that the tag gets an escaping backslash prepended (rendered as a
 // literal `<` per CM §2.4). Future extensions (`<gno-card>`,
-// `<gno-foreign>`, anything later) auto-cover without needing a
-// sanitize-side update.
+// `<gno-foreign>`, `<gno-frame>`, anything later) auto-cover without
+// needing a sanitize-side update.
 //
 // Match is case-INsensitive (`<GNO-Card>`, `<Gno-COLUMNS>`, etc. all
 // trip). Go's html.Tokenizer (used by the extension block parsers in
 // gnoweb at ext_columns.go, ext_alert.go, etc.) lowercases tag names
 // before the per-extension matcher runs, so an uppercase or mixed-
 // case opener still opens the block. The sanitizer therefore must
-// match the same byte-shape envelope the parsers do — otherwise
-// `<GNO-columns>` slips past the sanitizer and opens a columns
-// container in goldmark, swallowing realm chrome.
+// match the same byte-shape envelope the parsers do.
 //
-// Bare `|||` (the legacy `<gno-columns>` shorthand) is intentionally
-// NOT matched here — the shorthand has been removed from the columns
-// parser, so user content writing `|||` is now harmless paragraph
-// text and doesn't need neutralisation.
-func isExtDelimiter(line string) bool {
-	trim := strings.TrimLeft(line, " \t")
-	if len(trim) == 0 || trim[0] != '<' {
+// Unescaped occurrences (not preceded by an odd number of backslashes)
+// are escaped; already-escaped tags (e.g. `\<gno-card>`) are left intact
+// to preserve idempotency.
+// isUnescapedGnoTag reports whether line[i] is an unescaped `<` opening a
+// case-insensitive `<gno-...>` or `</gno-...>` tag.
+func isUnescapedGnoTag(line string, i int) bool {
+	if line[i] != '<' {
 		return false
 	}
-	rest := trim[1:]
-	// Optional `/` for close tags.
+	slashes := 0
+	for k := i - 1; k >= 0 && line[k] == '\\'; k-- {
+		slashes++
+	}
+	if slashes%2 != 0 {
+		return false
+	}
+	rest := line[i+1:]
 	if len(rest) > 0 && rest[0] == '/' {
 		rest = rest[1:]
 	}
 	return hasCaseInsensitivePrefix(rest, "gno-")
+}
+
+func escapeGnoExtDelimiters(line string) string {
+	if strings.IndexByte(line, '<') < 0 {
+		return line
+	}
+	hasMatch := false
+	for i := 0; i < len(line); i++ {
+		if isUnescapedGnoTag(line, i) {
+			hasMatch = true
+			break
+		}
+	}
+	if !hasMatch {
+		return line
+	}
+
+	var b strings.Builder
+	b.Grow(len(line) + 4)
+	for i := 0; i < len(line); i++ {
+		if isUnescapedGnoTag(line, i) {
+			b.WriteByte('\\')
+		}
+		b.WriteByte(line[i])
+	}
+	return b.String()
 }
 
 // isHTMLBlockType1to5Opener reports whether line opens a CommonMark
