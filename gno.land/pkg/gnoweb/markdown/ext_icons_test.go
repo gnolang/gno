@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -80,16 +81,19 @@ func TestIconHeadingIDsLinear(t *testing.T) {
 }
 
 // assertLinear renders gen(n) and gen(4n) and fails when the larger input
-// takes more than 8 times as long: 4 times is linear, 16 quadratic. Comparing
+// takes more than 10 times as long: 4 times is linear, 16 quadratic. Comparing
 // two sizes on the same machine, rather than against a fixed budget, holds
-// under -race and on slow runners. Each size keeps its fastest of 3 runs.
+// under -race and on slow runners. Each size keeps its fastest of 5 runs,
+// each after a GC, so a collection or a scheduler pause in one run does not
+// skew the ratio (a CI runner hit 9x on a linear input with 3 runs).
 func assertLinear(t *testing.T, gen func(n int) string, n int) {
 	t.Helper()
 	m := newProductionLikeMarkdown()
 	measure := func(src []byte) time.Duration {
 		best := time.Duration(1<<63 - 1)
-		for range 3 {
+		for range 5 {
 			var buf bytes.Buffer
+			runtime.GC()
 			start := time.Now()
 			require.NoError(t, m.Convert(src, &buf, parser.WithContext(NewGnoParserContext(GnoContext{}))))
 			best = min(best, time.Since(start))
@@ -101,7 +105,7 @@ func assertLinear(t *testing.T, gen func(n int) string, n int) {
 	if large < 20*time.Millisecond {
 		return
 	}
-	assert.Less(t, large, 8*small, "n=%d took %v, 4n took %v", n, small, large)
+	assert.Less(t, large, 10*small, "n=%d took %v, 4n took %v", n, small, large)
 }
 
 func TestRenderIconAllocs(t *testing.T) {
