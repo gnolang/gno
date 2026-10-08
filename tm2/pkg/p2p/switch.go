@@ -880,15 +880,16 @@ func (sw *MultiplexSwitch) removeUnlessSuperseded(p PeerConn) bool {
 }
 
 // hasPeerFromIP returns a flag indicating if the active peer set already
-// contains a peer connected from the given IP, other than the given
-// connection, which may be nil
-func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP, except PeerConn) bool {
+// contains a peer connected from the given IP, other than the peer with the
+// given ID. A connection of that peer does not count, since registering a
+// second connection of one ID either replaces the first or refuses the second
+func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP, except types.ID) bool {
 	if ip == nil {
 		return false
 	}
 
 	for _, p := range sw.peers.List() {
-		if p != except && ip.Equal(p.RemoteIP()) {
+		if p.ID() != except && ip.Equal(p.RemoteIP()) {
 			return true
 		}
 	}
@@ -985,11 +986,12 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 		// Reject a second connection from an IP that already holds a peer slot.
 		// Peer IDs are self-generated node keys, so without this a single host
 		// can mint fresh identities and occupy every inbound slot. The
-		// connection a replacement takes over leaves the peer set when the new
-		// one takes its place, so it does not count, even though our dial may
-		// have reached the peer on another IP than its inbound connection
-		// (behind a NAT, or on a multi-homed host)
-		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP(), registered) {
+		// connection of the arriving peer's own ID does not count: registration
+		// resolves two connections of one ID, either replacing the registered
+		// one, which then leaves the peer set, or refusing the new one. Our dial
+		// may also have reached the peer on another IP than its inbound
+		// connection (behind a NAT, or on a multi-homed host)
+		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP(), p.ID()) {
 			sw.Logger.Info(
 				"Ignoring inbound connection: peer from this IP already connected",
 				"address", p.SocketAddr(),

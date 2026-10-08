@@ -2474,6 +2474,55 @@ func TestMultiplexSwitch_AddPeerSimultaneousOpen(t *testing.T) {
 	})
 }
 
+func TestMultiplexSwitch_HasPeerFromIP(t *testing.T) {
+	t.Parallel()
+
+	var (
+		lower, upper = orderedIDs(t)
+		ip           = net.ParseIP("127.0.0.1")
+		otherIP      = net.ParseIP("127.0.0.2")
+	)
+
+	// peerAt returns a peer with the given ID, connected from the given IP
+	peerAt := func(id types.ID, ip net.IP) *mock.Peer {
+		p := peerWithID(t, id, false)
+		p.RemoteIPFn = func() net.IP { return ip }
+
+		return p
+	}
+
+	testTable := []struct {
+		name   string
+		peers  []*mock.Peer
+		ip     net.IP
+		except types.ID
+		want   bool
+	}{
+		{"a nil IP is held by no peer", []*mock.Peer{peerAt(upper, ip)}, nil, lower, false},
+		{"a different peer on the IP holds it", []*mock.Peer{peerAt(upper, ip)}, ip, lower, true},
+		{"the excepted peer's own connection does not hold it", []*mock.Peer{peerAt(lower, ip)}, ip, lower, false},
+		{
+			"a different peer holds it beside the excepted peer's connection",
+			[]*mock.Peer{peerAt(lower, ip), peerAt(upper, ip)}, ip, lower, true,
+		},
+		{"a different peer on another IP does not hold it", []*mock.Peer{peerAt(upper, otherIP)}, ip, lower, false},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			sw := switchWithID(types.GenerateNodeKey().ID())
+
+			for _, p := range testCase.peers {
+				require.NoError(t, sw.peers.Add(p))
+			}
+
+			assert.Equal(t, testCase.want, sw.hasPeerFromIP(testCase.ip, testCase.except))
+		})
+	}
+}
+
 func TestMultiplexSwitch_AcceptLoop_SimultaneousOpen(t *testing.T) {
 	t.Parallel()
 
