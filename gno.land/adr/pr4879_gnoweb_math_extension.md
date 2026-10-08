@@ -111,7 +111,20 @@ as one unit ran past the end of the group around it (a hang, or work
 doubling per group); operator names (`\sin`, `\lim`) are `<mo>` elements
 spaced from their neighbours as TeX spaces them, because MathML Core
 honours `lspace`, `rspace` and `movablelimits` on `<mo>` only; and nested
-font commands replace one another, as in TeX. The converter is created per expression
+font commands replace one another, as in TeX. Other TeX rules the port
+follows: an empty group or argument (`{}`, `\frac{}{b}`) is an empty
+`<mrow>`, so a script or a fixed-arity element keeps all its parts;
+`\over`, `\atop` and `\choose` take the whole group (or table cell) on each
+side, and a second one in the same group is an error, as in TeX; a `\\`
+outside an environment splits the expression into the rows of a
+one-column table; spaces between `\left` (or `\big`) and its delimiter
+are skipped; a `%` comment changes nothing after its line. An unknown
+command is shown as written, backslash included, in an `<merror>`.
+Supported beyond TreeBlood: `\operatorname` (and `*`), `\phantom`,
+`\hphantom`, `\vphantom`, `\kern`, `\mkern`, `\hspace`, and `\tag`, shown
+after the formula as written since there is no equation numbering;
+`\label` is read and dropped, and `\ref` and `\eqref` are not supported.
+The converter is created per expression
 (`NewMathMLConverter` in `renderMath`), as it keeps per-expression state and
 must not be shared between concurrent renders.
 
@@ -131,9 +144,13 @@ must not be shared between concurrent renders.
   ones that size or move content are parsed and bounded: `\multirow` and
   `\multicolumn` spans must be integers in 1..64 (`maxCellSpan`), and a
   `\raisebox` shift must be a length in a TeX unit or px (a bare number is
-  taken in em) that keeps the sum of the enclosing shifts within 2em
-  (`maxRaisePt`); anything else is dropped and the content rendered
-  unshifted or unspanned. Size switches (`\tiny` … `\Huge`) multiply when
+  taken in em) that keeps the sum of the enclosing shifts within 2em of
+  the text around the formula (`maxRaisePt`), counting the size switches
+  in between (`\Huge\raisebox{1em}` moves 2.49em); anything else is
+  dropped and the content rendered unshifted or unspanned. A `\kern`,
+  `\mkern` or `\hspace` must lie within [-2em, 20em] (`minKernPt`,
+  `maxKernPt`), so a negative space cannot pull the math over the text
+  before it. Size switches (`\tiny` … `\Huge`) multiply when
   nested, so their cumulative scale is clamped to [0.5, 2.488] (`minSize`,
   `maxSize`). An unbounded span would set the minimum size of a stretched
   arrow thousands of em tall; an unbounded shift or size would draw math
@@ -151,11 +168,13 @@ must not be shared between concurrent renders.
   and `math-limsup`, and `math-aligned` (the column pairs of `aligned`).
 - `\color` and `\textcolor` accept only the theme colours red, orange,
   green, blue, purple and gray (or grey), as a `math-color-<name>` class; any
-  other name or value leaves the content in the text colour. An arbitrary
+  other name or value, or a value in a colour model (`\color[RGB]{…}`),
+  leaves the content in the text colour. An arbitrary
   `mathcolor` would allow text in the background colour and ignore the dark
   theme.
-- `\newcommand`, `\renewcommand` and `\def` are accepted but their
-  definitions are not expanded, so there is no macro expansion to bound.
+- `\newcommand`, `\renewcommand` and `\def` are accepted (with their `[n]`
+  argument count and default) but their definitions are not expanded, so
+  there is no macro expansion to bound.
 - `FuzzMathRender` checks that no input produces `<script>`, `<style>`,
   `<iframe>`, `<object>`, `<embed>`, `<use>` or `<svg>` (except gnoweb's own
   alert icon, an `<svg>` holding only `<use href="#ico-…">`), an `on*`
@@ -169,8 +188,13 @@ must not be shared between concurrent renders.
 - Per expression, input: an expression longer than `MaxMathInputLen` (8 KiB)
   is not converted and is rendered as escaped text.
 - Per expression, depth: `ParseTex` panics past `MaxParseDepth` (64) nested
-  levels, and the converter recovers it as a conversion error. The MathML
-  is written on one line, so nesting adds no indentation to the output.
+  levels, and the converter recovers it as a conversion error
+  (`errMaxDepth`). A style switch (`\bf`, `\color`, `\large`) applies to the
+  rest of its group, so a run of switches nests one level per switch: the
+  run counts once against `MaxParseDepth`, and `maxSwitchDepth` (256)
+  bounds it, and with it the number of times switches scan the rest of
+  their cell. The MathML is written on one line, so nesting
+  adds no indentation to the output.
 - Per expression, output: MathML longer than `64·n + 4096` bytes for `n`
   bytes of TeX (`maxMathOutputLen`) is discarded for the escaped source, so
   a table of thousands of tiny cells cannot amplify.
