@@ -152,6 +152,26 @@ func TestExtLinksPolicy(t *testing.T) {
 	}
 }
 
+// TestExtLinksPolicyOffSiteWithoutScheme checks that a link a browser reads
+// as off-site, though it names no scheme or no host, is not followed when
+// only in-site links are.
+func TestExtLinksPolicyOffSiteWithoutScheme(t *testing.T) {
+	t.Parallel()
+
+	for _, dest := range []string{
+		"//casino.example",
+		"https:///casino.example",
+		"///casino.example",
+	} {
+		t.Run(dest, func(t *testing.T) {
+			t.Parallel()
+
+			got := renderLinksWith(t, "[x]("+dest+")", FollowInternalLinks)
+			require.Contains(t, got, `<a href="`+dest+`" rel="noopener nofollow ugc">`)
+		})
+	}
+}
+
 func renderExtLinks(t *testing.T, src string) string {
 	t.Helper()
 	return renderLinksWith(t, src, FollowInternalLinks)
