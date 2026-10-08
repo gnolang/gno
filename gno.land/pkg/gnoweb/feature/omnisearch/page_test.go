@@ -163,8 +163,8 @@ func TestIndexerFooterOnlyOverAnIndexerAnswer(t *testing.T) {
 	}
 }
 
-// An action is what MsgCall accepts: an exported, crossing, top-level
-// function of a realm.
+// An action is what the Actions page lists: an exported top-level function of
+// a realm, crossing (a call) or not (a qeval query). Render has its own page.
 func TestActionTagOnlyOnCallableFuncs(t *testing.T) {
 	t.Parallel()
 
@@ -177,7 +177,7 @@ func TestActionTagOnlyOnCallableFuncs(t *testing.T) {
 	}}
 	h := newHandler(t, &mockClient{doc: jdoc}, nil)
 	for name, want := range map[string]bool{
-		"helper": false, "GetBoard": false, "Render": false, "CreateBoard": true, "cross": false,
+		"helper": false, "GetBoard": true, "Render": false, "CreateBoard": true, "cross": false,
 	} {
 		groups, _ := h.Search(context.Background(), mustQuery(t, h, "func:"+name, "/r/demo/boards"))
 		var r *Result

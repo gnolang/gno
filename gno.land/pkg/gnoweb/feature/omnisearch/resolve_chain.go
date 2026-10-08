@@ -148,10 +148,11 @@ func (h *Handler) resolveFuncs(ctx context.Context, q *Query, term string) ([]Re
 		if fn.Type != "" {
 			r.Tags = append(r.Tags, "method on "+fn.Type)
 		}
-		// Only realms expose actions, and only on exported, crossing
-		// top-level funcs: MsgCall refuses the rest, and the help page
-		// omits them.
-		if fn.Type == "" && fn.Crossing && token.IsExported(fn.Name) && strings.HasPrefix(q.PkgPath, "/r/") {
+		// Only realms expose actions, and only on exported top-level funcs,
+		// the set gnoweb's callableFuncs lists on the Actions page: a
+		// crossing one as a call, any other as a qeval query. An
+		// unexported helper is neither.
+		if fn.Type == "" && fn.Name != "Render" && token.IsExported(fn.Name) && strings.HasPrefix(q.PkgPath, "/r/") {
 			r.Tags = append(r.Tags, "action")
 			if r.Href == "" {
 				r.Href = actionHref(q.PkgPath, fn.Name)
