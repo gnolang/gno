@@ -73,6 +73,8 @@ type ForeignNode struct {
 	DepthAtParse int
 	// blockCounter is the foreign block budget shared with nested renders.
 	blockCounter *foreignBlockCounter
+	// icons is the <gno-icon> budget, shared with nested renders the same way.
+	icons *iconBudget
 	// GnoCtx is the render context (GnoURL, chain id, …) captured at
 	// parse time. The renderer rebuilds the inner instance's
 	// parser.Context from it so links inside the sandbox get the same
@@ -234,6 +236,7 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 		Label:        label,
 		DepthAtParse: depthBefore + 1,
 		blockCounter: counter,
+		icons:        getIconBudget(pc),
 		GnoCtx:       getGnoContext(pc),
 	}
 	// parser.NoChildren — load-bearing opacity invariant: the body must
@@ -390,6 +393,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 	// `<javascript:…>` render as live hrefs inside the sandbox.
 	innerCtx := NewGnoParserContext(n.GnoCtx)
 	innerCtx.Set(gnoForeignBlockKey, n.blockCounter)
+	innerCtx.Set(iconBudgetKey, n.icons)
 	// Flag the inner context as a foreign/untrusted origin so links
 	// inside the sandbox render as user-generated content (rel="ugc",
 	// no first-party tx/internal trust icons) and cannot borrow the

@@ -108,6 +108,32 @@ func parseIconTag(src []byte) (size int, icon iconTag) {
 	return size, icon
 }
 
+// ----- budget -----
+
+// MaxIconsPerConvert caps the icons one Convert call renders, nested
+// <gno-foreign> renders included. Each icon writes its own <svg> (up to a few
+// KB), so without a cap 1 MiB of tags makes a page of over 100 MB. Tags past
+// the cap fall through to goldmark's raw HTML path, as without this extension.
+const MaxIconsPerConvert = 1000
+
+type iconBudget struct {
+	count int
+}
+
+// iconBudgetKey holds the *iconBudget shared by every parser context of one
+// Convert call.
+var iconBudgetKey = parser.NewContextKey()
+
+// getIconBudget returns the icon budget of pc, creating it on first use.
+func getIconBudget(pc parser.Context) *iconBudget {
+	b, _ := pc.Get(iconBudgetKey).(*iconBudget)
+	if b == nil {
+		b = &iconBudget{}
+		pc.Set(iconBudgetKey, b)
+	}
+	return b
+}
+
 // ----- parsers -----
 
 type iconParser struct{}
@@ -126,6 +152,11 @@ func (*iconParser) Parse(parent ast.Node, block text.Reader, pc parser.Context) 
 	if size == 0 {
 		return nil
 	}
+	budget := getIconBudget(pc)
+	if budget.count >= MaxIconsPerConvert {
+		return nil
+	}
+	budget.count++
 	block.Advance(size)
 	if parent.Kind() == ast.KindHeading {
 		pc.Set(iconInHeadingKey, true)

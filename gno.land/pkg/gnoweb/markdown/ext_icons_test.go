@@ -382,3 +382,26 @@ func BenchmarkIconParse(b *testing.B) {
 		})
 	}
 }
+
+// TestIconBudget pins the icon cap: one Convert renders at most
+// MaxIconsPerConvert icons, <gno-foreign> bodies included, and the tags past
+// it take goldmark's raw HTML path, as without the extension. Uncapped, 1 MiB
+// of `<gno-icon name=pure />` made a 105 MB page.
+func TestIconBudget(t *testing.T) {
+	const tag = "<gno-icon name=pure /> "
+	render := func(src string) string {
+		var buf bytes.Buffer
+		require.NoError(t, newProductionLikeMarkdown().Convert([]byte(src), &buf))
+		return buf.String()
+	}
+
+	flood := strings.Repeat(tag, (1<<20)/len(tag))
+	out := render(flood)
+	assert.Equal(t, MaxIconsPerConvert, strings.Count(out, "<svg"))
+	assert.Less(t, len(out), 4<<20)
+
+	// The budget is shared with a foreign body: half outside, the rest inside.
+	half := MaxIconsPerConvert / 2
+	out = render(strings.Repeat(tag, half) + "\n\n<gno-foreign>\n" + strings.Repeat(tag, MaxIconsPerConvert) + "\n</gno-foreign>\n")
+	assert.Equal(t, MaxIconsPerConvert, strings.Count(out, "<svg"))
+}
