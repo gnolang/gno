@@ -35,7 +35,10 @@ Delimiters, as written in the markdown source:
 - `$…$` inline. Pandoc's rules decide what is math: the opening `$` must be
   followed by a non-space, the closing `$` must not follow a space or an
   escaping backslash nor be followed by a digit, so `$5 and $10` and `$ 5`
-  stay text, and `\$` is a literal dollar.
+  stay text, and `\$` is a literal dollar. Links are kept whole: a `$`
+  inside a link destination or an autolink does not close (gnoweb's own
+  realm function links read `/r/x$help&func=F`), and an expression that
+  opens inside a link label ends with it.
 - `$$…$$` display.
 - `\\(…\\)` inline and `\\[…\\]` display. The backslash is doubled because
   `\(` is a CommonMark backslash escape: a single `\(x\)` renders as `(x)`.
@@ -48,7 +51,8 @@ Delimiters, as written in the markdown source:
 A display delimiter written inside a line of text is inline-level: the
 expression is rendered as `<math display="block">` inside the paragraph. A
 display delimiter that opens a line, with its closing delimiter on a later
-line, opens a math block.
+line, opens a math block. Like a code fence, the opener may be indented by
+up to three spaces.
 
 ### Parsing rules
 
@@ -100,7 +104,14 @@ line, opens a math block.
 a pure-Go TeX to MathML converter by Wyatt Sheffield, under the MIT licence.
 The licence and the attribution are kept in `markdown/mathml/LICENCE.MD`.
 The port is vendored in the tree, and gnoweb's changes (escaping, bounds,
-output) are applied to it, so they are reviewed with gnoweb. The converter is created per expression
+output) are applied to it, so they are reviewed with gnoweb. Among them:
+a `{group}` that crosses an environment or a `\left...\right` pair is
+rejected when tokenizing, as TeX rejects it ("Extra }"), since reading it
+as one unit ran past the end of the group around it (a hang, or work
+doubling per group); operator names (`\sin`, `\lim`) are `<mo>` elements
+spaced from their neighbours as TeX spaces them, because MathML Core
+honours `lspace`, `rspace` and `movablelimits` on `<mo>` only; and nested
+font commands replace one another, as in TeX. The converter is created per expression
 (`NewMathMLConverter` in `renderMath`), as it keeps per-expression state and
 must not be shared between concurrent renders.
 
@@ -137,7 +148,7 @@ must not be shared between concurrent renders.
   every `style` attribute, so what the converter used to write as styles is
   a class the stylesheet styles: `math-dtls-on` (dotless letters under
   accents), `math-latex-*` and `math-tex-*` (logo kerning), `math-liminf`
-  and `math-limsup`.
+  and `math-limsup`, and `math-aligned` (the column pairs of `aligned`).
 - `\color` and `\textcolor` accept only the theme colours red, orange,
   green, blue, purple and gray (or grey), as a `math-color-<name>` class; any
   other name or value leaves the content in the text colour. An arbitrary
@@ -185,8 +196,10 @@ realm and readme views), with the theme's tokens:
 
 - Table cell alignment is written as a `columnalign` attribute on each
   `<mtd>`, decided once per logical column (`columnAlign`), and the
-  stylesheet maps it to `text-align` and to the side padding that pairs up
-  the columns of `aligned` environments. Chrome's MathML Core does not
+  stylesheet maps it to `text-align`. Cells get back the browser's default
+  padding (`0.5ex 0.4em`), which the global reset removes, and the tables
+  of `align` and `aligned` (class `math-aligned`) get the side padding that
+  pairs up their columns. Chrome's MathML Core does not
   implement `columnalign`, so the stylesheet is what aligns cells there.
 - Math uses `font-family: math`, the system's math font, at `1.1em`, so it
   follows the text around it (headings, tables); `\text` uses the body font.
