@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"regexp"
 	"runtime"
 	"slices"
 	"strings"
@@ -269,6 +270,27 @@ func TestIconHeadingIDAndToc(t *testing.T) {
 		`gno-icon-namestar--escaped=<gno-icon name="star" /> escaped`,
 		"plain-heading=Plain heading",
 	}, got, "an icon-only heading has no text, so the TOC drops it, label or not")
+}
+
+// TestIconHeadingIDEmpty checks an empty heading keeps its ID in the
+// sequence the icon transformer rebuilds, as goldmark numbers it.
+func TestIconHeadingIDEmpty(t *testing.T) {
+	m := newProductionLikeMarkdown()
+	headingID := regexp.MustCompile(`<h2 id="([^"]*)"`)
+	for src, want := range map[string][]string{
+		"##\n\n## Heading\n": {"heading", "heading-1"},
+		"##\n\n## Heading\n\n## <gno-icon name=\"star\" /> A\n":                  {"heading", "heading-1", "a"},
+		"##\n\n## <gno-icon name=\"star\" label=\"Top\" />\n":                    {"heading", "heading-1"},
+		"## <gno-icon name=\"star\" />\n\n##\n\n## <gno-icon name=\"star\" />\n": {"heading", "heading-1", "heading-2"},
+	} {
+		var buf bytes.Buffer
+		require.NoError(t, m.Convert([]byte(src), &buf, parser.WithContext(NewGnoParserContext(GnoContext{}))))
+		var got []string
+		for _, id := range headingID.FindAllStringSubmatch(buf.String(), -1) {
+			got = append(got, id[1])
+		}
+		assert.Equal(t, want, got, "%q", src)
+	}
 }
 
 func TestIconInGFM(t *testing.T) {

@@ -187,9 +187,13 @@ func (*iconHeadingIDTransformer) Transform(doc *ast.Document, reader text.Reader
 			return ast.WalkContinue, nil
 		}
 		// Only auto IDs: without WithAutoHeadingID there is none to fix.
-		if _, ok := h.AttributeString("id"); ok && h.Lines().Len() > 0 {
-			line := h.Lines().At(h.Lines().Len() - 1) // the line goldmark uses
-			h.SetAttributeString("id", ids.Generate(withoutIcons(h, line, src), ast.KindHeading))
+		if _, ok := h.AttributeString("id"); ok {
+			var value []byte // an empty heading: goldmark's ID for no text
+			if h.Lines().Len() > 0 {
+				line := h.Lines().At(h.Lines().Len() - 1) // the line goldmark uses
+				value = withoutIcons(h, line, src)
+			}
+			h.SetAttributeString("id", ids.Generate(value, ast.KindHeading))
 		}
 		return ast.WalkSkipChildren, nil
 	})
