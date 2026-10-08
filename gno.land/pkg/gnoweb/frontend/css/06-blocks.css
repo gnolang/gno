@@ -3977,15 +3977,6 @@ main.is-dev-mode > section:has(.c-overview-view) {
 }
 
 /* ===== KIND SWITCH MENU (popover, top layer: not clipped by the header reel) ===== */
-/* Without anchor positioning (Firefox today) the menu opens under the header,
-   at the breadcrumb's start, rather than in the middle of the screen. */
-@supports not (top: anchor(bottom)) {
-	.b-kind-switch {
-		top: var(--g-space-14);
-		left: var(--g-space-16);
-	}
-}
-
 .b-kind-switch {
 	position-anchor: --kind-switch;
 	inset: auto;
@@ -4066,5 +4057,15 @@ main.is-dev-mode > section:has(.c-overview-view) {
 
 	& .item:is(:hover, :focus-visible) .item-path {
 		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+/* Without anchor positioning (older browsers) the menu opens under the header,
+   at the breadcrumb's start, rather than in the window's corner. It follows
+   the rule above so that rule's inset reset does not override it. */
+@supports not (top: anchor(bottom)) {
+	.b-kind-switch {
+		top: var(--g-space-14);
+		left: var(--g-space-16);
 	}
 }
