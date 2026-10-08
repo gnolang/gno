@@ -512,53 +512,57 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 }
 
 // queueMissingPersistentPeers queues a dial for every persistent peer that is
-// neither connected nor already queued, on its configured address. The first
-// dial is due right away, and every later one waits for a backoff that doubles
-// with each attempt, up to persistentRedialMaxBackoff. Persistent peers are
-// exempt from the outbound peer limit, as in addPeer
+// neither connected nor already queued, through queuePersistentPeer
 func (sw *MultiplexSwitch) queueMissingPersistentPeers(attempts map[types.ID]uint, now time.Time) {
-	peers := sw.Peers()
-
 	sw.persistentPeers.Range(func(key, value any) bool {
-		var (
-			id   = key.(types.ID)
-			addr = value.(*types.NetAddress)
-		)
-
-		// Skip peers that are connected or already queued, and our own
-		// address, which a shared persistent peer list can contain
-		if peers.Has(id) ||
-			sw.persistentDialQueue.Has(addr) ||
-			addr.Same(sw.transport.NetAddress()) {
-			return true
-		}
-
-		dialTime := now
-
-		if n, attempted := attempts[id]; attempted {
-			// Subsequent attempt: apply backoff
-			dialTime = now.Add(
-				calculateBackoff(
-					n,
-					time.Second,
-					persistentRedialMaxBackoff,
-				),
-			)
-
-			attempts[id] = n + 1
-		} else {
-			// First attempt
-			attempts[id] = 0
-		}
-
-		sw.persistentDialQueue.Push(dial.Item{
-			Time:    dialTime,
-			Address: addr,
-		})
-		sw.notifyAddPeerToDial()
+		sw.queuePersistentPeer(key.(types.ID), value.(*types.NetAddress), attempts, now)
 
 		return true
 	})
+}
+
+// queuePersistentPeer queues a dial of a persistent peer on its configured
+// address, unless the peer is connected or already queued, or the address is
+// our own. The first dial is due right away, and every later one waits for a
+// backoff that doubles with each attempt, up to persistentRedialMaxBackoff.
+// Persistent peers are exempt from the outbound peer limit, as in addPeer
+func (sw *MultiplexSwitch) queuePersistentPeer(
+	id types.ID,
+	addr *types.NetAddress,
+	attempts map[types.ID]uint,
+	now time.Time,
+) {
+	// Skip peers that are connected or already queued, and our own
+	// address, which a shared persistent peer list can contain
+	if sw.Peers().Has(id) ||
+		sw.persistentDialQueue.Has(addr) ||
+		addr.Same(sw.transport.NetAddress()) {
+		return
+	}
+
+	dialTime := now
+
+	if n, attempted := attempts[id]; attempted {
+		// Subsequent attempt: apply backoff
+		dialTime = now.Add(
+			calculateBackoff(
+				n,
+				time.Second,
+				persistentRedialMaxBackoff,
+			),
+		)
+
+		attempts[id] = n + 1
+	} else {
+		// First attempt
+		attempts[id] = 0
+	}
+
+	sw.persistentDialQueue.Push(dial.Item{
+		Time:    dialTime,
+		Address: addr,
+	})
+	sw.notifyAddPeerToDial()
 }
 
 // runSeedDialLoop starts the seed node dial loop.
