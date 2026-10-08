@@ -346,11 +346,7 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 		return
 	}
 
-	sw.events.Notify(events.PeerDisconnectedEvent{
-		Address: peer.RemoteAddr(),
-		PeerID:  peer.ID(),
-		Reason:  err,
-	})
+	sw.announceDisconnect(peer, err)
 }
 
 // ---------------------------------------------------------------------
@@ -891,6 +887,16 @@ func (sw *MultiplexSwitch) removeIfHeld(p PeerConn) bool {
 	return sw.peers.Remove(p.ID())
 }
 
+// announceDisconnect notifies the event listeners that the peer's connection
+// went away for the given reason
+func (sw *MultiplexSwitch) announceDisconnect(p PeerConn, reason error) {
+	sw.events.Notify(events.PeerDisconnectedEvent{
+		Address: p.RemoteAddr(),
+		PeerID:  p.ID(),
+		Reason:  reason,
+	})
+}
+
 // hasPeerFromIP returns a flag indicating if the active peer set already
 // contains a peer connected from the given IP, other than the peer with the
 // given ID. A connection of that peer does not count, since registering a
@@ -1130,24 +1136,18 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	// replaced. Adding a stopped peer would hold its slot and its ID for the
 	// lifetime of the process, since its teardown can be past that step.
 	//
-	// When p replaced a connection, that connection was registered, and
-	// possibly announced, and the peer's disconnect falls to whichever removes
-	// p's entry: the replaced connection's teardown finds p's entry or none,
-	// so it removes nothing. p's teardown announces it when it removes the
-	// entry, and so does the rollback. When p replaced nothing, its peer was
-	// never announced, so its removal announces nothing.
+	// The rollback announces a disconnect only when p took the entry of a
+	// connection, since no teardown announces that one: each found the other
+	// connection holding the entry. When p replaced nothing, no announced
+	// connection leaves with it, so the rollback announces nothing. If p's
+	// own teardown removes the entry first, that teardown announces the
+	// disconnect, even though p itself was never announced connected.
 	//
 	// Its reactor state needs no unwinding here: whatever stopped the peer
 	// walked the reactors' RemovePeer on the way
 	if !p.IsRunning() {
-		removed := sw.removeIfHeld(p)
-
-		if removed && replaced != nil {
-			sw.events.Notify(events.PeerDisconnectedEvent{
-				Address: p.RemoteAddr(),
-				PeerID:  p.ID(),
-				Reason:  errPeerStopped,
-			})
+		if sw.removeIfHeld(p) && replaced != nil {
+			sw.announceDisconnect(p, errPeerStopped)
 		}
 
 		return errPeerStopped
