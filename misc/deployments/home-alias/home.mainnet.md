@@ -100,7 +100,7 @@ News and posts from the Gno.land team, published and stored entirely on-chain in
 ## Boards: on-chain forum
 
 > [!NOTE]
-> Boards is not open on mainnet yet. It opens soon.
+> Boards is deployed on mainnet, but creating boards is not open to the public yet.
 
 Boards is a fully on-chain social forum to create boards, post threads, comment
 and reply. A plug-and-deploy DAO lets communities manage content, permissions

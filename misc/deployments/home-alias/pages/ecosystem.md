@@ -28,9 +28,10 @@ integration. Install Adena via the [official website](https://www.adena.app/)
 
 ### GnoSwap
 
-GnoSwap is currently under development and led by the Onbloc team. GnoSwap will
-be the first DEX on gno.land and is an automated market maker (AMM) protocol
-written in Gno that allows for permissionless token exchanges on the platform.
+GnoSwap, built by the Onbloc team, is a DEX live on gno.land mainnet: an
+automated market maker (AMM) protocol written in Gno that allows for
+permissionless token exchanges on the platform. Visit it at
+[gnoswap.io](https://gnoswap.io).
 
 ### Gno Native Kit
 
