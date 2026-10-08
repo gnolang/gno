@@ -928,11 +928,16 @@ self-closing ±<gno-icon />± tag. It takes the size and color of the text aroun
 ---
 
 Add ±label="…"± when the icon means something on its own (a status, a warning): screen readers announce it.
-Leave it out for a decorative icon. No other attribute is read, and an unknown ±name± renders nothing.
+Leave it out for a decorative icon. A link or a heading that holds only an icon needs the label: it is
+their only name, e.g. ±[<gno-icon name="globe" label="Website" />](https://example.com)±. No other attribute
+is read.
+
+Write the tag on one line, self-closing (±/>±), with a lowercase name exactly as listed. A tag that is not
+self-closing, or whose name is unknown, renders nothing; the page source holds an HTML comment saying why.
 
 Some of the available names: ±star±, ±heart±, ±check-circle±, ±warning-triangle±, ±info±, ±wallet±, ±coin±,
 ±key±, ±lock±, ±shield±, ±user±, ±users±, ±calendar±, ±clock±, ±mail±, ±globe±, ±rocket±, ±lightning±,
-±database±, ±server±, ±terminal±, ±branch±. The full list is in
+±database±, ±server±, ±terminal±, ±branch±. All 495, with a picture of each, are in
 [ICONS.md](https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoweb/markdown/ICONS.md).
 
 ### Smart Contract Integration
