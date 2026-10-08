@@ -1,5 +1,17 @@
 # Using the `gnokey` wallet
 
+## TL;DR
+
+Create a key, check its balance and send coins on mainnet:
+
+```bash
+gnokey add mykey
+gnokey query bank/balances/<your-g1-address> -remote https://rpc.gno.land:443
+gnokey maketx send -to <recipient-g1-address> -send 1000000ugnot \
+  -gas-fee 2000ugnot -gas-wanted 2000000 \
+  -chainid gnoland-1 -remote https://rpc.gno.land:443 mykey
+```
+
 `gnokey` is the official command-line wallet for Gno.land. It covers
 everyday wallet use: creating and managing keys, checking balances, sending
 coins, and calling realm functions.
@@ -12,16 +24,14 @@ wallet, see [Third-party wallets](./third-party-wallets.md).
 ## Installing gnokey
 
 `gnokey` ships with the Gno toolchain. See [Installation](../builders/install.md)
-for install methods and [verifying the binary](../builders/install.md#verify-installation).
+for install methods.
 
 ## Managing key pairs
 
-Every transaction you send is signed by a key pair. `gnokey` derives one from a
-[mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/), 24 words
-when `gnokey add` generates it:
-the private key signs your transactions, and the public key derives your `g1...`
-address. That address is your on-chain identity: every transaction you send
-carries it, and it owns your [coins](../resources/gno-stdlibs.md#coin).
+Every transaction you send is signed by a key pair, which `gnokey` derives from a
+[mnemonic phrase](https://en.wikipedia.org/wiki/Cryptocurrency_wallet#Seed_phrases).
+The private key signs your transactions, and the public key gives your `g1...`
+address, the account that holds your coins.
 
 ### Generating a key
 
@@ -48,17 +58,12 @@ Keys live in a keybase on disk. List the keys in one with:
 gnokey list
 ```
 
-The `-home` flag selects which keybase to use; omit it for the default. Point it
-at different directories to keep separate keybases for separate contexts, for
-example testnet keys apart from mainnet keys, so each `gnokey list` shows only that
-context's keys:
+`-home` picks the keybase directory, so mainnet keys can live apart from test
+keys. Every `gnokey` command takes it:
 
 ```bash
-gnokey list -home ~/.gnokey-testnet
+gnokey list -home ~/.gnokey-mainnet
 ```
-
-Every `gnokey` command takes `-home`, so the same flag keeps later transactions on
-the right keybase.
 
 ### Importing an existing key
 
@@ -91,8 +96,8 @@ For a visual view of a balance, use a block explorer such as
 
 ## Anatomy of a gnokey transaction
 
-Every state-changing command (`maketx send`, `maketx call`, and the rest) shares
-the same base flags. A `send` shows the ones every transaction needs:
+Every `gnokey maketx` command shares the same base flags. A `send` shows the
+ones every transaction needs:
 
 ```bash
 gnokey maketx send \
@@ -105,9 +110,8 @@ gnokey maketx send \
   mykey
 ```
 
-The `-to` and `-send` flags are specific to `send`; each message type has its own
-(see [Sending coins](#sending-coins) and [Calling a realm](#calling-a-realm)
-below). The rest are the base flags every transaction needs:
+`-to` and `-send` belong to `send`. The rest are the base flags every
+transaction needs:
 
 | Flag | What it is | Where to get it |
 |------|-----------|-----------------|
@@ -163,8 +167,8 @@ end.
 
 :::
 
-For arguments, variadic functions, return values, and the `Run` scripting message,
-see the [gnokey command reference: `Call`](../resources/gnokey.md#call).
+For more on arguments and return values, see the
+[gnokey command reference](../resources/gnokey.md#call).
 
 ## Next steps
 
