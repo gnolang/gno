@@ -45,6 +45,10 @@ export class SearchbarController extends BaseController {
 		const input = this.getDOMElement("input");
 		input?.addEventListener("keydown", this.keynav.bind(this));
 		input?.addEventListener("focus", this.selectInput.bind(this));
+		(input as HTMLInputElement | null)?.form?.addEventListener(
+			"mousedown",
+			this.focusFromForm.bind(this),
+		);
 		document.addEventListener("click", this.onOutsideClick.bind(this));
 		document.addEventListener("keydown", this.onKeyShortcut.bind(this));
 	}
@@ -382,6 +386,15 @@ export class SearchbarController extends BaseController {
 		e.preventDefault();
 		(this.getDOMElement("input") as HTMLInputElement | null)?.focus();
 		this.search();
+	}
+
+	// focusFromForm focuses the input when a press lands elsewhere in the bar,
+	// such as the "/" hint or the gap after it, which sit beside the input.
+	private focusFromForm(e: MouseEvent): void {
+		const input = this.getDOMElement("input");
+		if (!input || e.target === input) return;
+		e.preventDefault();
+		input.focus();
 	}
 
 	// selectInput selects the whole input on focus so typing replaces the
