@@ -1384,43 +1384,143 @@
 		}
 	}
 
+	/* Avatar and name side by side below lg, stacked above it; the address
+	   line always spans the full width so it fits on one line. */
 	.user-info {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--g-space-6);
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: end;
+		column-gap: var(--g-space-6);
 
 		@media (--lg) {
-			flex-direction: column;
-		}
-
-		& > div:last-child {
-			align-self: flex-end;
-			@media (--lg) {
-				align-self: flex-start;
-			}
+			grid-template-columns: minmax(0, 1fr);
+			justify-items: start;
 		}
 	}
 
+	.user-identity {
+		/* lets the title wrap instead of pushing the column wider */
+		min-width: 0;
+		max-width: 100%;
+
+		@media (--lg) {
+			margin-block-start: var(--g-space-6);
+		}
+	}
+
+	/* Same eyebrow as the overview sidebar's .b-pkg-meta dt.label. */
+	.label {
+		color: var(--s-color-text-secondary);
+		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-80);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		margin-block-end: var(--g-space-1);
+	}
+
+	/* A name is never cut: lookalike names differ from the real one at the
+	   end, so it wraps (anywhere, names have no spaces) instead. */
 	.title {
-		display: bock;
+		display: block;
 		font-weight: var(--g-font-bold);
 		font-size: var(--g-font-size-700);
 		color: var(--s-color-text-primary);
 		line-height: var(--g-line-height-tight);
-		word-break: break-all;
-		text-transform: capitalize;
+		overflow-wrap: anywhere;
 
 		@media (--md) {
 			font-size: var(--g-font-size-800);
 		}
 	}
 
+	/* A long name (decided in Go) steps down so it holds on two lines. */
+	.title--long {
+		font-size: var(--g-font-size-500);
+	}
+
+	/* A full address as the title: no wrap but at the template's <wbr>, so
+	   one line or two equal halves, sized for 20 mono glyphs per column
+	   width. Beside the avatar a phone leaves the viewport less 152px, too
+	   narrow for a half at 18px below sm, so it starts at 13px there.
+	   Roboto Mono ships one regular cut, so it is not asked for bold. */
+	.title--address {
+		font-weight: var(--g-font-normal);
+		font-size: var(--g-font-size-90);
+		overflow-wrap: normal;
+
+		@media (--sm) {
+			font-size: var(--g-font-size-300);
+		}
+
+		@media (--lg) {
+			font-size: var(--g-font-size-90);
+		}
+
+		@media (--xl) {
+			font-size: var(--g-font-size-300);
+		}
+	}
+
 	.subtitle {
+		grid-column: 1 / -1;
 		display: block;
+		max-width: 100%;
 		color: var(--s-color-text-secondary);
-		font-size: var(--g-font-size-100);
-		line-height: var(--g-line-height-tight);
-		margin-block-start: var(--g-space-2);
+		/* the address and the copy icon fit a lg sidebar together at this size */
+		font-size: var(--g-font-size-80);
+		line-height: 1.4;
+		margin-block-start: var(--g-space-4);
+
+		@media (--lg) {
+			margin-block-start: var(--g-space-2);
+		}
+
+		& + .subtitle {
+			margin-block-start: var(--g-space-1);
+		}
+
+		a {
+			color: var(--s-color-text-link);
+		}
+	}
+
+	/* The full address, never cut: it is what a visitor checks a name
+	   against, and a shortened form is what a lookalike address imitates.
+	   One line where it fits; otherwise the template's <wbr> splits it
+	   into two equal halves, the only place it can break. */
+	.address-end {
+		white-space: nowrap;
+	}
+
+	/* Copy button: a 24px target that takes no more room than its icon, so
+	   the address and the icon still share one 304px line at 12px. */
+	.b-copy-btn {
+		color: var(--s-color-text-secondary);
+		vertical-align: middle;
+		padding-block: calc(var(--g-space-1) * 1.5);
+		margin-block: calc(var(--g-space-1) * -1.5);
+		border-radius: var(--s-rounded-sm);
+
+		&:hover {
+			color: var(--s-color-text-secondary-hover);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--s-color-text-link);
+			outline-offset: 2px;
+		}
+	}
+
+	.address .b-copy-btn {
+		/* 0.25em of gap: a full space-1 tips the 1280 line over by a pixel */
+		padding-inline: 0.25em var(--g-space-2);
+		margin-inline-end: calc(var(--g-space-2) * -1);
+
+		.c-icon {
+			display: block;
+			width: 1em;
+			height: 1em;
+		}
 	}
 
 	& > a {
@@ -3240,7 +3340,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	}
 
 	dt.label {
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-weight: var(--g-font-semibold);
 		font-size: var(--g-font-size-80);
 		text-transform: uppercase;
