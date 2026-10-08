@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
@@ -184,21 +185,17 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 	untrusted := isForeignOrigin(pc)
 	links := getLinkPolicyFromContext(pc)
 
-	// Collect first and replace after: swapping a node out mid-walk clears
-	// the sibling the walk would visit next, so a link after an autolink in
-	// the same paragraph would never be wrapped, nor given its rel.
-	var nodes []ast.Node
-	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
-		switch node.(type) {
-		case *ast.Link, *ast.AutoLink:
-			if entering {
-				nodes = append(nodes, node)
-			}
-		}
-		return ast.WalkContinue, nil
-	})
+	// An autolink is replaced by a new node, which detaches it from its
+	// parent and ends ast.Walk's sibling loop there: every link after it in
+	// the same paragraph would skip this transformer. Replace autolinks once
+	// the walk is done instead.
+	var autolinks []*ast.AutoLink
 
-	for _, node := range nodes {
+	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
 		var (
 			gnoLink *GnoLink
 			rawDest []byte
@@ -220,51 +217,76 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			}
 
 		case *ast.AutoLink:
-			// Build a synthetic ast.Link so the existing renderGnoLink handles
-			// IsDangerousURL, rel attributes, and icons for autolinks too.
-			source := reader.Source()
-			rawURL := n.URL(source)
-			if n.AutoLinkType == ast.AutoLinkEmail {
-				rawDest = append([]byte("mailto:"), rawURL...)
-			} else {
-				rawDest = rawURL
-			}
-			link := ast.NewLink()
-			link.Destination = rawDest
-			labelNode := ast.NewString(n.Label(source))
-			labelNode.SetRaw(true)
-			link.AppendChild(link, labelNode)
-			gnoLink = &GnoLink{Link: link}
+			autolinks = append(autolinks, n)
+			return ast.WalkContinue, nil
+
+		default:
+			return ast.WalkContinue, nil
 		}
 		gnoLink.Untrusted = nodeUntrusted
+		replaceWithGnoLink(node, gnoLink, rawDest, orig, links)
+		return ast.WalkContinue, nil
+	})
 
-		// Replace the original node with the GnoLink wrapper.
-		parent, next := node.Parent(), node.NextSibling()
-		parent.RemoveChild(parent, node)
-		parent.InsertBefore(parent, next, gnoLink)
-
-		// Parse destination URL and check for validity. The classifier
-		// must see the same bytes the renderer will emit — see
-		// resolveDestination.
-		dest, err := url.Parse(string(resolveDestination(rawDest)))
-		if err != nil {
-			gnoLink.LinkType = GnoLinkTypeInvalid
-			continue
+	source := reader.Source()
+	for _, n := range autolinks {
+		// Build a synthetic ast.Link so the existing renderGnoLink handles
+		// IsDangerousURL, rel attributes, and icons for autolinks too.
+		var rawDest []byte
+		rawURL := n.URL(source)
+		if n.AutoLinkType == ast.AutoLinkEmail {
+			rawDest = append([]byte("mailto:"), rawURL...)
+		} else {
+			rawDest = rawURL
 		}
-
-		// Detect and set the GnoLink type.
-		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
-		gnoLink.Followed = !nodeUntrusted && links.follows(gnoLink.LinkType)
+		link := ast.NewLink()
+		link.Destination = rawDest
+		labelNode := ast.NewString(n.Label(source))
+		labelNode.SetRaw(true)
+		link.AppendChild(link, labelNode)
+		gnoLink := &GnoLink{Link: link, Untrusted: untrusted}
+		replaceWithGnoLink(n, gnoLink, rawDest, orig, links)
 	}
+}
+
+// replaceWithGnoLink puts gnoLink in node's place, classifies its
+// destination and decides from links whether search engines may follow it.
+func replaceWithGnoLink(node ast.Node, gnoLink *GnoLink, rawDest []byte, orig *weburl.GnoURL, links LinkPolicy) {
+	parent, next := node.Parent(), node.NextSibling()
+	parent.RemoveChild(parent, node)
+	parent.InsertBefore(parent, next, gnoLink)
+
+	// Parse destination URL and check for validity. The classifier
+	// must see the same bytes the renderer will emit — see
+	// resolveDestination.
+	dest, err := url.Parse(string(resolveDestination(rawDest)))
+	if err != nil {
+		gnoLink.LinkType = GnoLinkTypeInvalid
+		return
+	}
+
+	// Detect and set the GnoLink type.
+	gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
+	gnoLink.Followed = !gnoLink.Untrusted && links.follows(gnoLink.LinkType)
 }
 
 // detectLinkType detects the type of link based on the destination
 func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLinkType) {
+	// A scheme without a host (https:///evil.com) still leads browsers to
+	// a host: they skip the extra slashes.
+	if dest.Scheme != "" && dest.Host == "" {
+		return nil, GnoLinkTypeExternal
+	}
+
 	// Attempt to parse the destination as a GnoURL.
 	target, err := weburl.ParseFromURL(dest)
 	if err != nil {
-		if dest.Scheme == "" {
-			// If there's no scheme, consider it as a relative path.
+		// No scheme: a relative path, unless it names a host. A
+		// protocol-relative URL (//host/...) is external unless the host is
+		// ours, and browsers also read a path starting with "//" (///host)
+		// as a host.
+		if dest.Scheme == "" && !strings.HasPrefix(dest.Path, "//") &&
+			(dest.Host == "" || strings.EqualFold(dest.Hostname(), orig.Domain)) {
 			return nil, GnoLinkTypePackage
 		}
 
