@@ -1,0 +1,12 @@
+-- input.md --
+<gno-frame>
+> quote
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<blockquote>
+<p>quote</p>
+</blockquote>
+</section>
+<p>after</p>

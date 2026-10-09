@@ -243,3 +243,14 @@ var titleCaser = cases.Title(language.AmericanEnglish)
 func titleCase(s string) string {
 	return titleCaser.String(s)
 }
+
+// trimTagLine strips 0-3 leading spaces (CM §4.5 indent tolerance) and
+// trailing ASCII whitespace from a line holding a gno-* block tag. A line
+// indented further keeps a leading space, so it never parses as one tag.
+func trimTagLine(line []byte) []byte {
+	i := 0
+	for i < len(line) && i < 3 && line[i] == ' ' {
+		i++
+	}
+	return util.TrimRightSpace(line[i:])
+}

@@ -384,6 +384,107 @@ My Image ![Alt](/public/imgs/gnoland.svg)
 
 ---
 
+### Frames
+
+Wrap any markdown in ±<gno-frame>± and ±</gno-frame>± (each on its own line) to draw a thin rounded border
+around it, e.g. around a hero or a call to action.
+
+±±±markdown
+<gno-frame>
+## Build on gno.land
+
+Write your first realm in minutes. [Get started](/r/docs/home)
+</gno-frame>
+±±±
+
+- Renders as:
+
+---
+
+<gno-frame>
+## Build on gno.land
+
+Write your first realm in minutes. [Get started](/r/docs/home)
+</gno-frame>
+
+---
+
+A frame alone in a column renders as a card; cards in the same row share a height.
+
+±±±markdown
+<gno-columns>
+<gno-frame>
+**[Adena](https://adena.app)**
+
+Browser wallet for gno.land.
+</gno-frame>
+<gno-columns-sep>
+<gno-frame>
+**[Gnoscan](https://gnoscan.io)**
+
+Block explorer for gno.land, with transactions, realms and accounts.
+</gno-frame>
+</gno-columns>
+±±±
+
+- Renders as:
+
+---
+
+<gno-columns>
+<gno-frame>
+**[Adena](https://adena.app)**
+
+Browser wallet for gno.land.
+</gno-frame>
+<gno-columns-sep>
+<gno-frame>
+**[Gnoscan](https://gnoscan.io)**
+
+Block explorer for gno.land, with transactions, realms and accounts.
+</gno-frame>
+</gno-columns>
+
+---
+
+A frame can also hold a whole grid, cards included:
+
+±±±markdown
+<gno-frame>
+## Apps
+<gno-columns>
+<gno-frame>
+**[Adena](https://adena.app)**
+</gno-frame>
+<gno-columns-sep>
+<gno-frame>
+**[Gnoscan](https://gnoscan.io)**
+</gno-frame>
+</gno-columns>
+</gno-frame>
+±±±
+
+- Renders as:
+
+---
+
+<gno-frame>
+## Apps
+<gno-columns>
+<gno-frame>
+**[Adena](https://adena.app)**
+</gno-frame>
+<gno-columns-sep>
+<gno-frame>
+**[Gnoscan](https://gnoscan.io)**
+</gno-frame>
+</gno-columns>
+</gno-frame>
+
+---
+
+***Note**: Frames take no attributes and open only at the top level of the page or of a column: not inside a list, a quote, an alert or directly inside another frame. A grid inside a frame must close before the frame does; otherwise the frame ends just before the grid.*
+
 ### Forms
 
 Gno-Flavored Markdown introduces a secure form system that integrates directly with realms. The system uses custom HTML-like tags that are rendered with proper styling and validation.
