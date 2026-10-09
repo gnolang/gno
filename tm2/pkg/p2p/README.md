@@ -352,7 +352,9 @@ The switch keeps two of them:
 
 `DialPeers` feeds the second one only. It skips an address when it is the node's own, when it belongs to a persistent peer, when that peer is already connected, when the same address is already queued (peer discovery shares the same addresses over and over), or when the maximum number of outbound peers is reached.
 
-A single dial loop drains both queues, one dial at a time. A persistent peer whose dial is due goes first, so persistent peers never wait behind queued discovered ones, only behind the one dial already in flight; otherwise the loop takes the due head of the dial queue, or waits for whichever item is due first. An item whose peer connected in the meantime is dropped.
+A single dial loop drains both queues, one dial at a time. A persistent peer whose dial is due goes first, except that when both heads are due and the last dial was a persistent one, the discovered peer goes next. The persistent head therefore waits behind at most one discovered dial, and discovered dials are never starved by persistent peers that keep timing out. When nothing is due, the loop waits for whichever item is due first. An item whose peer connected in the meantime is dropped.
+
+The alternation bounds the wait of the persistent head only. A persistent peer that just dropped queues, by due time, behind the dials already due for dead persistent peers, and while discovered dials are due, one discovered dial runs after each of those, so its wait roughly doubles (up to 9 seconds per discovered slot if remotes hang the handshake). In a simulation with 12 dead persistent peers that time out and peer exchange feeding discovered dials, a dropped live persistent peer was redialed after 50s on average and 73s at worst, against 11s and 35s with strict priority; with 4 dead peers, 8s and 17s against 5s and 8s; with peer exchange off, unchanged. The trade is accepted because strict priority let dead persistent peers shut off the seeds and discovered dials indefinitely (zero outbound peers), and the remaining cost is that of serial dials, which only concurrent persistent dials would remove (one dialing goroutine per persistent peer).
 
 ```go
 package p2p
@@ -361,7 +363,7 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 	// ...
 
 	// Grab the next dial item
-	item, queue := sw.peekDialItem()
+	item, queue := sw.peekDialItem(servedPersistent)
 	if item == nil {
 		// Nothing to dial, wait until something is
 		// added to a queue
@@ -384,11 +386,12 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 		continue
 	}
 
+	servedPersistent = queue == sw.persistentDialQueue
+
+	// ...
+
 	// Dial the peer
-	sw.Logger.Info(
-		"dialing peer",
-		"address", item.Address.String(),
-	)
+	sw.Logger.Info("dialing peer", dialAttrs...)
 
 	// ...
 }
@@ -408,6 +411,8 @@ These peer connections are special: they bypass the maximum outbound peer limit,
 A good candidate for a persistent peer is a bootnode, that bootstraps and facilitates peer discovery for the network.
 
 The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. When a persistent peer drops, the redial service queues its dial into the persistent dial queue at once; every few seconds it also queues a dial for each persistent peer that is neither connected nor already queued, which covers startup and failed dials. The first dial is due at once; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. The backoff is reset only when a connection lasted at least 30 seconds, so a peer that keeps connecting and dropping backs off up to the cap, while a peer that drops after a stable connection is redialed at once. When a persistent peer connects, any dial still queued for it is removed, so it cannot delay a later redial; a connect handled after the peer already dropped is ignored. Each persistent peer has one configured address: when the same peer ID is listed more than once, only the last address is dialed, and the node logs a warning for each ignored entry whose address differs from the dialed one.
+
+An entry of `p2p.persistent_peers` whose hostname does not resolve when the node starts is kept, not rejected: the node logs a warning at start, and the hostname is resolved when the entry is dialed, so the redial loop retries it with its backoff until the name resolves.
 
 ```go
 package p2p
@@ -475,8 +480,7 @@ Unlike persistent peers, seed connections are not preserved: a seed exists to ha
 discovery has filled the dial queue, the connection has served its purpose. The node never actively drops it. Closing
 the connection is left to the seed itself.
 
-A node can, however, run out of peers to dial: every discovered address may end up unreachable, and the whole dial
-queue backs off. The seed dial service watches for exactly that situation, and falls back to the configured seeds.
+A node can, however, run out of peers to dial: every discovered address may end up unreachable, and the whole dial queue backs off. The seed dial service watches for exactly that situation, and falls back to the configured seeds. Only the dial queue counts when deciding whether the switch has run out of peers to dial: pending persistent dials do not hold back the seeds, since a persistent dial does not refill peer discovery. A seed whose hostname does not resolve when the node starts is kept with no IP, and its hostname is dialed.
 
 ```go
 package p2p

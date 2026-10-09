@@ -353,6 +353,10 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 // Dialing
 
 func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
+	// Whether the last popped item was a persistent dial, so a due discovered
+	// peer gets the next turn. Only this goroutine reads or writes it
+	servedPersistent := false
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -361,7 +365,7 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 		default:
 			// Grab the next dial item
-			item, queue := sw.peekDialItem()
+			item, queue := sw.peekDialItem(servedPersistent)
 			if item == nil {
 				// Nothing to dial, wait until something is
 				// added to a queue
@@ -386,6 +390,7 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				continue
 			}
 
+			servedPersistent = queue == sw.persistentDialQueue
 			peerAddr := item.Address
 
 			// Check if the peer is already connected
@@ -399,11 +404,13 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				continue
 			}
 
-			// Dial the peer
-			sw.Logger.Info(
-				"dialing peer",
-				"address", item.Address.String(),
-			)
+			// Dial the peer, naming the hostname a configured peer is dialed at
+			dialAttrs := []any{"address", peerAddr.String()}
+			if peerAddr.Hostname != "" {
+				dialAttrs = append(dialAttrs, "hostname", peerAddr.Hostname)
+			}
+
+			sw.Logger.Info("dialing peer", dialAttrs...)
 
 			sw.dialPeer(ctx, peerAddr)
 		}
@@ -411,21 +418,26 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 }
 
 // peekDialItem returns the next item to dial, along with the queue holding it.
-// A persistent peer due for dialing goes first, then a due discovered peer.
-// With nothing due, it returns the item due first, so the dial loop can wait
-// for it. The returned item is nil when both queues are empty
-func (sw *MultiplexSwitch) peekDialItem() (*dial.Item, *dial.Queue) {
+// A persistent peer due for dialing goes first, unless the dial loop's last pop
+// was a persistent one and a discovered peer is due too: when both heads are
+// due they take turns, so neither queue starves the other. With nothing due, it
+// returns the item due first, so the dial loop can wait for it. The returned
+// item is nil when both queues are empty
+func (sw *MultiplexSwitch) peekDialItem(servedPersistent bool) (*dial.Item, *dial.Queue) {
 	var (
 		now        = time.Now()
 		persistent = sw.persistentDialQueue.Peek()
 		general    = sw.dialQueue.Peek()
+
+		persistentDue = persistent != nil && !now.Before(persistent.Time)
+		generalDue    = general != nil && !now.Before(general.Time)
 	)
 
 	switch {
-	case persistent != nil && !now.Before(persistent.Time):
-		// A due persistent peer goes first
+	case persistentDue && !(servedPersistent && generalDue):
+		// A due persistent peer goes first, unless it is the discovered peers' turn
 		return persistent, sw.persistentDialQueue
-	case general != nil && (persistent == nil || !general.Time.After(persistent.Time)):
+	case general != nil && (persistent == nil || generalDue || !general.Time.After(persistent.Time)):
 		// Otherwise the general head, when it is due or due first
 		return general, sw.dialQueue
 	default:
@@ -673,12 +685,13 @@ func (sw *MultiplexSwitch) runSeedDialLoop(ctx context.Context) {
 	}
 }
 
-// hasDialableItem returns a flag indicating if either dial queue holds an item
-// that can be dialed right now. peekDialItem returns a due item whenever there
-// is one, so a returned item scheduled in the future means every queued item is
-// currently backing off
+// hasDialableItem returns a flag indicating if the dial queue holds an item
+// that can be dialed right now. Persistent dials are left out: seeds exist to
+// refill peer discovery, which a pending persistent dial does not do. The queue
+// is time-sorted (ascending), so a head item scheduled in the future means
+// every queued item is currently backing off
 func (sw *MultiplexSwitch) hasDialableItem() bool {
-	item, _ := sw.peekDialItem()
+	item := sw.dialQueue.Peek()
 
 	return item != nil && !time.Now().Before(item.Time)
 }
