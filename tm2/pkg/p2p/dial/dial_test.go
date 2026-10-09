@@ -3,10 +3,12 @@ package dial
 import (
 	"crypto/rand"
 	"math/big"
+	"net"
 	"slices"
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,5 +145,145 @@ func TestQueue_Pop(t *testing.T) {
 
 			assert.Equal(t, item.Time.Unix(), timestamp.Unix())
 		}
+	})
+}
+
+// generateAddr generates a dial address for a fresh peer ID on the given port
+func generateAddr(t *testing.T, port uint16) *types.NetAddress {
+	t.Helper()
+
+	addr := types.NewNetAddressFromIPPort(net.ParseIP("127.0.0.1"), port)
+	addr.ID = types.GenerateNodeKey().ID()
+
+	return addr
+}
+
+func TestQueue_Remove(t *testing.T) {
+	t.Parallel()
+
+	t.Run("every item for the address is removed", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			now    = time.Now()
+			target = generateAddr(t, 26656)
+			other  = generateAddr(t, 26657)
+			q      = NewQueue()
+		)
+
+		q.Push(Item{Time: now, Address: target})
+		q.Push(Item{Time: now.Add(time.Second), Address: other})
+		q.Push(Item{Time: now.Add(2 * time.Second), Address: target})
+
+		q.Remove(target)
+
+		require.Len(t, q.items, 1)
+		assert.Equal(t, other, q.items[0].Address)
+	})
+
+	t.Run("the remaining items keep their order", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			now    = time.Now()
+			target = generateAddr(t, 26656)
+			first  = generateAddr(t, 26657)
+			second = generateAddr(t, 26658)
+			q      = NewQueue()
+		)
+
+		q.Push(Item{Time: now, Address: first})
+		q.Push(Item{Time: now.Add(time.Second), Address: target})
+		q.Push(Item{Time: now.Add(2 * time.Second), Address: second})
+
+		q.Remove(target)
+
+		require.Len(t, q.items, 2)
+		assert.Equal(t, first, q.Pop().Address)
+		assert.Equal(t, second, q.Pop().Address)
+	})
+
+	t.Run("the same peer on another address is kept", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			now     = time.Now()
+			target  = generateAddr(t, 26656)
+			sibling = *target
+			q       = NewQueue()
+		)
+
+		// The same peer ID, on another port
+		sibling.Port = 26657
+
+		q.Push(Item{Time: now, Address: target})
+		q.Push(Item{Time: now.Add(time.Second), Address: &sibling})
+
+		q.Remove(target)
+
+		require.Len(t, q.items, 1)
+		assert.Equal(t, &sibling, q.items[0].Address)
+	})
+
+	t.Run("no-op when the address is not queued", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			queued = generateAddr(t, 26656)
+			q      = NewQueue()
+		)
+
+		q.Push(Item{Time: time.Now(), Address: queued})
+
+		q.Remove(generateAddr(t, 26657))
+
+		require.Len(t, q.items, 1)
+		assert.Equal(t, queued, q.items[0].Address)
+	})
+}
+
+func TestQueue_PopDue(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty queue", func(t *testing.T) {
+		t.Parallel()
+
+		q := NewQueue()
+
+		assert.Nil(t, q.PopDue(time.Now()))
+	})
+
+	t.Run("head not due", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			now = time.Now()
+			q   = NewQueue()
+		)
+
+		q.Push(Item{Time: now.Add(time.Minute), Address: generateAddr(t, 26656)})
+
+		assert.Nil(t, q.PopDue(now))
+		assert.Len(t, q.items, 1)
+	})
+
+	t.Run("head due", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			now   = time.Now()
+			due   = generateAddr(t, 26656)
+			later = generateAddr(t, 26657)
+			q     = NewQueue()
+		)
+
+		q.Push(Item{Time: now, Address: due})
+		q.Push(Item{Time: now.Add(time.Minute), Address: later})
+
+		item := q.PopDue(now)
+
+		require.NotNil(t, item)
+		assert.Equal(t, due, item.Address)
+		assert.Len(t, q.items, 1)
 	})
 }
