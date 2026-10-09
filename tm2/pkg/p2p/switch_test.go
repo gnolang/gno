@@ -1520,11 +1520,12 @@ func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
 	)
 
 	testTable := []struct {
-		name       string
-		persistent []time.Time
-		general    []time.Time
-		want       func(*MultiplexSwitch) *dial.Queue // the queue the item comes from, nil for none
-		wantTime   time.Time
+		name             string
+		persistent       []time.Time
+		general          []time.Time
+		servedPersistent bool                               // whether the dial loop's last pop was persistent
+		want             func(*MultiplexSwitch) *dial.Queue // the queue the item comes from, nil for none
+		wantTime         time.Time
 	}{
 		{
 			name: "both queues empty",
@@ -1547,6 +1548,22 @@ func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
 			general:    []time.Time{due.Add(-time.Minute)},
 			want:       persistentQueue,
 			wantTime:   due,
+		},
+		{
+			name:             "both due, after a persistent dial the discovered peer goes",
+			persistent:       []time.Time{due},
+			general:          []time.Time{due.Add(-time.Minute)},
+			servedPersistent: true,
+			want:             generalQueue,
+			wantTime:         due.Add(-time.Minute),
+		},
+		{
+			name:             "only the persistent peer due, after a persistent dial it still goes",
+			persistent:       []time.Time{due},
+			general:          []time.Time{later},
+			servedPersistent: true,
+			want:             persistentQueue,
+			wantTime:         due,
 		},
 		{
 			name:       "a due discovered peer goes while the persistent peer backs off",
@@ -1597,7 +1614,7 @@ func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
 				})
 			}
 
-			item, queue := sw.peekDialItem()
+			item, queue := sw.peekDialItem(testCase.servedPersistent)
 
 			if testCase.want == nil {
 				assert.Nil(t, item)
@@ -1643,6 +1660,42 @@ func TestMultiplexSwitch_DialLoop_Persistent(t *testing.T) {
 				t.Fatal("the dial loop stalled")
 			}
 		}
+	})
+
+	t.Run("due discovered peers are not starved by due persistent peers", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			persistentAddrs   = generateNetAddr(t, 16)
+			discovered        = generateNetAddr(t, 1)[0]
+			transport, dialed = newDialRecorder(len(persistentAddrs) + 1)
+
+			sw  = NewMultiplexSwitch(transport)
+			now = time.Now()
+		)
+
+		// Sixteen persistent peers that keep timing out leave a due persistent
+		// dial at the head almost all the time
+		for _, addr := range persistentAddrs {
+			sw.persistentDialQueue.Push(dial.Item{Time: now, Address: addr})
+		}
+
+		sw.dialQueue.Push(dial.Item{Time: now, Address: discovered})
+
+		go sw.runDialLoop(t.Context())
+
+		for range 2 {
+			select {
+			case got := <-dialed:
+				if got.ID == discovered.ID {
+					return
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("the dial loop stalled")
+			}
+		}
+
+		t.Fatal("the discovered peer was not dialed within the first two dials")
 	})
 
 	t.Run("a persistent peer connected meanwhile is not dialed", func(t *testing.T) {
