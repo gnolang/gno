@@ -1,0 +1,5 @@
+-- input.md --
+Split tag: <gno-icon
+name="star" />
+-- output.html --
+<p>Split tag: <!-- raw HTML omitted --></p>
