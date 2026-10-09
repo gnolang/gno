@@ -177,7 +177,7 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 
 	g := Group{Label: sel.Label, Source: sel.Source}
 	results, err := sel.resolve(ctx, h, q, term)
-	var part partialAnswer
+	var part partialAnswerError
 	switch {
 	case err == nil:
 	case errors.As(err, &part):
