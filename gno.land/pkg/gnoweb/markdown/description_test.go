@@ -168,6 +168,7 @@ func TestDescriptionTruncates(t *testing.T) {
 // buffer per node made the lead cost several times the render itself.
 func TestResolveTextAllocatesLittle(t *testing.T) {
 	res := testing.Benchmark(func(b *testing.B) {
+		b.Helper()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			resolveText([]byte("Tom &amp; Jerry"))
