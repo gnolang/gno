@@ -29,6 +29,14 @@ var (
 
 	// seedDialInterval is the minimum wait time between two seed dial rounds
 	seedDialInterval = 30 * time.Second
+
+	// defaultRedialInterval is the period at which the redial loop looks for
+	// missing persistent peers
+	defaultRedialInterval = 5 * time.Second
+
+	// persistentRedialMaxBackoff is the ceiling of the backoff between two dials
+	// of a missing persistent peer, before its jitter
+	persistentRedialMaxBackoff = 30 * time.Second
 )
 
 var (
@@ -86,6 +94,10 @@ type MultiplexSwitch struct {
 	maxInboundPeers  uint64
 	maxOutboundPeers uint64
 
+	// redialInterval is the period at which the redial loop looks for missing
+	// persistent peers
+	redialInterval time.Duration
+
 	// allowDuplicateIP disables the guard that stops a single remote IP from
 	// occupying more than one inbound peer slot
 	allowDuplicateIP bool
@@ -99,9 +111,10 @@ type MultiplexSwitch struct {
 	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
 	transport       Transport
 
-	dialQueue  *dial.Queue
-	dialNotify chan struct{}
-	events     *events.Events
+	dialQueue           *dial.Queue // dials of discovered peers and seeds
+	persistentDialQueue *dial.Queue // dials of persistent peers, fed by the redial loop
+	dialNotify          chan struct{}
+	events              *events.Events
 }
 
 // NewMultiplexSwitch creates a new MultiplexSwitch with the given config.
@@ -112,14 +125,16 @@ func NewMultiplexSwitch(
 	defaultCfg := config.DefaultP2PConfig()
 
 	sw := &MultiplexSwitch{
-		reactors:         make(map[string]Reactor),
-		peers:            newSet(),
-		transport:        transport,
-		dialQueue:        dial.NewQueue(),
-		dialNotify:       make(chan struct{}, 1),
-		events:           events.New(),
-		maxInboundPeers:  defaultCfg.MaxNumInboundPeers,
-		maxOutboundPeers: defaultCfg.MaxNumOutboundPeers,
+		reactors:            make(map[string]Reactor),
+		peers:               newSet(),
+		transport:           transport,
+		dialQueue:           dial.NewQueue(),
+		persistentDialQueue: dial.NewQueue(),
+		dialNotify:          make(chan struct{}, 1),
+		events:              events.New(),
+		maxInboundPeers:     defaultCfg.MaxNumInboundPeers,
+		maxOutboundPeers:    defaultCfg.MaxNumOutboundPeers,
+		redialInterval:      defaultRedialInterval,
 	}
 
 	// Set up the peer dial behavior
@@ -232,20 +247,11 @@ func (sw *MultiplexSwitch) Peers() PeerSet {
 }
 
 // StopPeerForError disconnects from a peer due to external error.
-// If the peer is persistent, it will attempt to reconnect
+// A persistent peer is redialed by the redial loop, on its configured address
 func (sw *MultiplexSwitch) StopPeerForError(peer PeerConn, err error) {
 	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", err)
 
 	sw.stopAndRemovePeer(peer, err)
-
-	if !peer.IsPersistent() {
-		// Peer is not a persistent peer,
-		// no need to initiate a redial
-		return
-	}
-
-	// Add the peer to the dial queue
-	sw.DialPeers(peer.SocketAddr())
 }
 
 // isSuperseded reports whether a different connection is registered under this
@@ -329,6 +335,10 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 // Dialing
 
 func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
+	// Whether the last popped item was a persistent dial, so a due discovered
+	// peer gets the next turn. Only this goroutine reads or writes it
+	servedPersistent := false
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -336,11 +346,11 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 			return
 
 		default:
-			// Grab a dial item
-			item := sw.dialQueue.Peek()
+			// Grab the next dial item
+			item, queue := sw.peekDialItem(servedPersistent)
 			if item == nil {
 				// Nothing to dial, wait until something is
-				// added to the queue
+				// added to a queue
 				sw.waitForPeersToDial(ctx)
 				continue
 			}
@@ -354,24 +364,63 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				continue
 			}
 
-			// Pop the item from the dial queue
-			item = sw.dialQueue.Pop()
+			// Pop the item from its dial queue. The dial loop is the only
+			// consumer, so a push since the peek can only have put an earlier,
+			// also due, item at the head
+			item = queue.Pop()
+			servedPersistent = queue == sw.persistentDialQueue
 			peerAddr := item.Address
 
 			// Check if the peer is already connected
 			ps := sw.Peers()
 			if ps.Has(peerAddr.ID) {
+				sw.Logger.Debug(
+					"skipping dial, peer already connected",
+					"address", peerAddr.String(),
+				)
+
 				continue
 			}
 
-			// Dial the peer
-			sw.Logger.Info(
-				"dialing peer",
-				"address", item.Address.String(),
-			)
+			// Dial the peer, naming the hostname a configured peer is dialed at
+			dialAttrs := []any{"address", peerAddr.String()}
+			if peerAddr.Hostname != "" {
+				dialAttrs = append(dialAttrs, "hostname", peerAddr.Hostname)
+			}
+
+			sw.Logger.Info("dialing peer", dialAttrs...)
 
 			sw.dialPeer(ctx, peerAddr)
 		}
+	}
+}
+
+// peekDialItem returns the next item to dial, along with the queue holding it.
+// A persistent peer due for dialing goes first, unless the dial loop's last pop
+// was a persistent one and a discovered peer is due too: when both heads are
+// due they take turns, so neither queue starves the other. With nothing due, it
+// returns the item due first, so the dial loop can wait for it. The returned
+// item is nil when both queues are empty
+func (sw *MultiplexSwitch) peekDialItem(servedPersistent bool) (*dial.Item, *dial.Queue) {
+	var (
+		now        = time.Now()
+		persistent = sw.persistentDialQueue.Peek()
+		general    = sw.dialQueue.Peek()
+
+		persistentDue = persistent != nil && !now.Before(persistent.Time)
+		generalDue    = general != nil && !now.Before(general.Time)
+	)
+
+	switch {
+	case persistentDue && !(servedPersistent && generalDue):
+		// A due persistent peer goes first, unless it is the discovered peers' turn
+		return persistent, sw.persistentDialQueue
+	case general != nil && (persistent == nil || generalDue || !general.Time.After(persistent.Time)):
+		// Otherwise the general head, when it is due or due first
+		return general, sw.dialQueue
+	default:
+		// The persistent head is due first, or both queues are empty
+		return persistent, sw.persistentDialQueue
 	}
 }
 
@@ -404,11 +453,13 @@ func (sw *MultiplexSwitch) dialPeer(ctx context.Context, peerAddr *types.NetAddr
 			"err", err,
 		)
 
-		sw.transport.Remove(p)
-
 		if !p.IsRunning() {
+			sw.rejectConn(p)
+
 			return
 		}
+
+		sw.transport.Remove(p)
 
 		if stopErr := p.Stop(); stopErr != nil {
 			sw.Logger.Error(
@@ -423,42 +474,15 @@ func (sw *MultiplexSwitch) dialPeer(ctx context.Context, peerAddr *types.NetAddr
 	sw.logTelemetry()
 }
 
-// runRedialLoop starts the persistent peer redial loop
+// runRedialLoop starts the persistent peer redial loop.
+// It is the only producer of persistent peer dials
 func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
-	ticker := time.NewTicker(time.Second * 5)
+	ticker := time.NewTicker(sw.redialInterval)
 	defer ticker.Stop()
 
-	type backoffItem struct {
-		lastDialTime time.Time
-		attempts     uint
-	}
-
-	var (
-		backoffMap = make(map[types.ID]*backoffItem)
-
-		mux sync.RWMutex
-	)
-
-	setBackoffItem := func(id types.ID, item *backoffItem) {
-		mux.Lock()
-		defer mux.Unlock()
-
-		backoffMap[id] = item
-	}
-
-	getBackoffItem := func(id types.ID) *backoffItem {
-		mux.RLock()
-		defer mux.RUnlock()
-
-		return backoffMap[id]
-	}
-
-	clearBackoffItem := func(id types.ID) {
-		mux.Lock()
-		defer mux.Unlock()
-
-		delete(backoffMap, id)
-	}
+	// Dial attempts of each persistent peer since it last connected.
+	// Only this goroutine reads or writes it
+	attempts := make(map[types.ID]uint)
 
 	subCh, unsubFn := sw.Subscribe(func(event events.Event) bool {
 		if event.Type() != events.PeerConnected {
@@ -471,91 +495,10 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 	})
 	defer unsubFn()
 
-	// redialFn goes through the persistent peer list
-	// and dials missing peers
-	redialFn := func() {
-		var (
-			peers       = sw.Peers()
-			peersToDial = make([]*types.NetAddress, 0)
-		)
-
-		// Gather addresses of persistent peers that are missing or
-		// not already in the dial queue
-		sw.persistentPeers.Range(func(key, value any) bool {
-			var (
-				id   = key.(types.ID)
-				addr = value.(*types.NetAddress)
-			)
-
-			if !peers.Has(id) && !sw.dialQueue.Has(addr) {
-				peersToDial = append(peersToDial, addr)
-			}
-
-			return true
-		})
-
-		if len(peersToDial) == 0 {
-			// No persistent peers need dialing
-			return
-		}
-
-		// Prepare dial items with the appropriate backoff
-		dialItems := make([]dial.Item, 0, len(peersToDial))
-		for _, addr := range peersToDial {
-			item := getBackoffItem(addr.ID)
-
-			if item == nil {
-				// First attempt
-				now := time.Now()
-
-				dialItems = append(dialItems,
-					dial.Item{
-						Time:    now,
-						Address: addr,
-					},
-				)
-
-				setBackoffItem(addr.ID, &backoffItem{
-					lastDialTime: now,
-					attempts:     0,
-				})
-
-				continue
-			}
-
-			// Subsequent attempt: apply backoff
-			var (
-				attempts = item.attempts + 1
-				dialTime = time.Now().Add(
-					calculateBackoff(
-						item.attempts,
-						time.Second,
-						10*time.Minute,
-					),
-				)
-			)
-
-			dialItems = append(dialItems,
-				dial.Item{
-					Time:    dialTime,
-					Address: addr,
-				},
-			)
-
-			setBackoffItem(addr.ID, &backoffItem{
-				lastDialTime: dialTime,
-				attempts:     attempts,
-			})
-		}
-
-		// Add these items to the dial queue
-		sw.dialItems(dialItems...)
-	}
-
-	// Run the initial redial loop on start,
+	// Run the initial redial pass on start,
 	// in case persistent peer connections are not
 	// active
-	redialFn()
+	sw.queueMissingPersistentPeers(attempts, time.Now())
 
 	for {
 		select {
@@ -564,15 +507,66 @@ func (sw *MultiplexSwitch) runRedialLoop(ctx context.Context) {
 
 			return
 		case <-ticker.C:
-			redialFn()
+			sw.queueMissingPersistentPeers(attempts, time.Now())
 		case event := <-subCh:
-			// A persistent peer reconnected,
-			// clear their redial queue
+			// A persistent peer reconnected, clear its backoff.
+			// A peer that connects and drops at once is then redialed at most
+			// once per tick: the tick rate-limits it
 			ev := event.(events.PeerConnectedEvent)
 
-			clearBackoffItem(ev.PeerID)
+			delete(attempts, ev.PeerID)
 		}
 	}
+}
+
+// queueMissingPersistentPeers queues a dial for every persistent peer that is
+// neither connected nor already queued, on its configured address. The first
+// dial is due right away, and every later one waits for a backoff that doubles
+// with each attempt, up to persistentRedialMaxBackoff. Persistent peers are
+// exempt from the outbound peer limit, as in addPeer
+func (sw *MultiplexSwitch) queueMissingPersistentPeers(attempts map[types.ID]uint, now time.Time) {
+	peers := sw.Peers()
+
+	sw.persistentPeers.Range(func(key, value any) bool {
+		var (
+			id   = key.(types.ID)
+			addr = value.(*types.NetAddress)
+		)
+
+		// Skip peers that are connected or already queued, and our own
+		// address, which a shared persistent peer list can contain
+		if peers.Has(id) ||
+			sw.persistentDialQueue.Has(addr) ||
+			addr.Same(sw.transport.NetAddress()) {
+			return true
+		}
+
+		dialTime := now
+
+		if n, attempted := attempts[id]; attempted {
+			// Subsequent attempt: apply backoff
+			dialTime = now.Add(
+				calculateBackoff(
+					n,
+					time.Second,
+					persistentRedialMaxBackoff,
+				),
+			)
+
+			attempts[id] = n + 1
+		} else {
+			// First attempt
+			attempts[id] = 0
+		}
+
+		sw.persistentDialQueue.Push(dial.Item{
+			Time:    dialTime,
+			Address: addr,
+		})
+		sw.notifyAddPeerToDial()
+
+		return true
+	})
 }
 
 // runSeedDialLoop starts the seed node dial loop.
@@ -601,8 +595,10 @@ func (sw *MultiplexSwitch) runSeedDialLoop(ctx context.Context) {
 }
 
 // hasDialableItem returns a flag indicating if the dial queue holds an item
-// that can be dialed right now. The queue is time-sorted (ascending), so a head
-// item scheduled in the future means every queued item is currently backing off
+// that can be dialed right now. Persistent dials are left out: seeds exist to
+// refill peer discovery, which a pending persistent dial does not do. The queue
+// is time-sorted (ascending), so a head item scheduled in the future means
+// every queued item is currently backing off
 func (sw *MultiplexSwitch) hasDialableItem() bool {
 	item := sw.dialQueue.Peek()
 
@@ -627,7 +623,8 @@ func (sw *MultiplexSwitch) dialSeed() {
 		return
 	}
 
-	// Gather the seeds that are neither connected nor already queued
+	// Gather the seeds that are neither connected nor already queued. A seed
+	// that is also a persistent peer is left to the redial loop
 	candidates := make([]*types.NetAddress, 0)
 
 	sw.seeds.Range(func(key, value any) bool {
@@ -636,7 +633,7 @@ func (sw *MultiplexSwitch) dialSeed() {
 			addr = value.(*types.NetAddress)
 		)
 
-		if !peers.Has(id) && !sw.dialQueue.Has(addr) {
+		if !peers.Has(id) && !sw.dialQueue.Has(addr) && !sw.isPersistentPeer(id) {
 			candidates = append(candidates, addr)
 		}
 
@@ -702,8 +699,13 @@ func calculateBackoff(
 		maxInterval = defaultMaxInterval
 	}
 
-	// Calculate the interval by exponentiating the base interval by the number of attempts.
-	interval := min(baseInterval<<attempts, maxInterval)
+	// Calculate the interval by exponentiating the base interval by the number of attempts,
+	// capped at maxInterval. The shift is only taken when its result fits under maxInterval:
+	// past 63 bits it wraps around, to a negative or a meaningless interval
+	interval := maxInterval
+	if baseInterval <= maxInterval>>attempts {
+		interval = baseInterval << attempts
+	}
 
 	// Below is the code to add a jitter factor to the interval.
 	// Read random bytes into an 8 bytes buffer (size of an int64).
@@ -734,16 +736,31 @@ func calculateBackoff(
 }
 
 // DialPeers adds the peers to the dial queue for async dialing.
+// Persistent peers are left to the redial loop, which dials them on their
+// configured address.
 // To monitor dial progress, subscribe to adequate p2p MultiplexSwitch events
 func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
+	peers := sw.Peers()
+
 	for _, peerAddr := range peerAddrs {
 		// Check if this is our address
 		if peerAddr.Same(sw.transport.NetAddress()) {
 			continue
 		}
 
+		// Check if this is a persistent peer
+		if sw.isPersistentPeer(peerAddr.ID) {
+			continue
+		}
+
+		// Check if the peer is already connected, or the address already
+		// queued. Peer exchange shares the same addresses over and over
+		if peers.Has(peerAddr.ID) || sw.dialQueue.Has(peerAddr) {
+			continue
+		}
+
 		// Ignore dial if the limit is reached
-		if out := sw.Peers().NumOutbound(); out >= sw.maxOutboundPeers {
+		if out := peers.NumOutbound(); out >= sw.maxOutboundPeers {
 			sw.Logger.Warn(
 				"ignoring dial request: already have max outbound peers",
 				"have", out,
@@ -759,30 +776,6 @@ func (sw *MultiplexSwitch) DialPeers(peerAddrs ...*types.NetAddress) {
 		}
 
 		sw.dialQueue.Push(item)
-		sw.notifyAddPeerToDial()
-	}
-}
-
-// dialItems adds custom dial items for the multiplex switch
-func (sw *MultiplexSwitch) dialItems(dialItems ...dial.Item) {
-	for _, dialItem := range dialItems {
-		// Check if this is our address
-		if dialItem.Address.Same(sw.transport.NetAddress()) {
-			continue
-		}
-
-		// Ignore dial if the limit is reached
-		if out := sw.Peers().NumOutbound(); out >= sw.maxOutboundPeers {
-			sw.Logger.Warn(
-				"ignoring dial request: already have max outbound peers",
-				"have", out,
-				"max", sw.maxOutboundPeers,
-			)
-
-			continue
-		}
-
-		sw.dialQueue.Push(dialItem)
 		sw.notifyAddPeerToDial()
 	}
 }
@@ -819,13 +812,18 @@ func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
 	return false
 }
 
-// rejectInbound drops a connection the accept loop has decided not to keep.
+// rejectConn drops a connection the switch has decided not to keep: an inbound
+// one the accept loop refuses, or a dialed one addPeer refuses before starting it.
 //
 // transport.Remove only forgets the connection; the socket the STS handshake
 // established has to be closed explicitly, or -- since a rejected peer was never
 // started, so no Stop() path runs -- it lingers until the netFD finalizer does
 // it. That lets a host open connections faster than the GC reclaims them.
-func (sw *MultiplexSwitch) rejectInbound(p PeerConn) {
+//
+// It also covers a dialed peer whose Start failed, which leaks the same way,
+// and one stopped while being added (errPeerStopped), whose connection is
+// already closed: the second close then only yields the Debug line below.
+func (sw *MultiplexSwitch) rejectConn(p PeerConn) {
 	sw.transport.Remove(p)
 
 	if err := p.CloseConn(); err != nil {
@@ -869,7 +867,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"max", sw.maxInboundPeers,
 			)
 
-			sw.rejectInbound(p)
+			sw.rejectConn(p)
 			continue
 		}
 
@@ -881,7 +879,7 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"id", p.ID(),
 			)
 
-			sw.rejectInbound(p)
+			sw.rejectConn(p)
 			continue
 		}
 
@@ -895,13 +893,13 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 				"id", p.ID(),
 			)
 
-			sw.rejectInbound(p)
+			sw.rejectConn(p)
 			continue
 		}
 
 		// There are open peer slots, add peers
 		if err := sw.addPeer(p); err != nil {
-			sw.rejectInbound(p)
+			sw.rejectConn(p)
 
 			if p.IsRunning() {
 				_ = p.Stop()

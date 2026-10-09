@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -386,13 +387,7 @@ type nodeReactor struct {
 // Seeds are only meaningful alongside peer discovery: a seed connection exists
 // to ask the seed for peers, which requires the discovery reactor
 func parseSeedAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
-	seedAddrs, errs := p2pTypes.NewNetAddressFromStrings(
-		splitAndTrimEmpty(config.P2P.Seeds, ",", " "),
-	)
-	for _, err := range errs {
-		logger.Error("invalid seed address", "err", err)
-	}
-
+	seedAddrs := parseConfiguredAddrs(config.P2P.Seeds, "seed", logger)
 	if len(seedAddrs) == 0 {
 		return nil
 	}
@@ -404,6 +399,87 @@ func parseSeedAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddr
 	}
 
 	return seedAddrs
+}
+
+// parseConfiguredAddrs parses a comma separated list of peer addresses from the
+// node configuration. A malformed entry is reported and dropped. An entry whose
+// hostname does not resolve yet is reported and kept: it is resolved when dialed
+func parseConfiguredAddrs(list, kind string, logger *slog.Logger) []*p2pTypes.NetAddress {
+	entries := splitAndTrimEmpty(list, ",", " ")
+	addrs := make([]*p2pTypes.NetAddress, 0, len(entries))
+
+	for _, entry := range entries {
+		addr, err := p2pTypes.NewConfiguredNetAddress(entry)
+		if err != nil {
+			logger.Error("invalid "+kind+" address", "err", err)
+
+			continue
+		}
+
+		if addr.IP == nil {
+			logger.Warn(
+				kind+" hostname does not resolve yet, it is resolved when dialed",
+				"address", entry,
+			)
+		}
+
+		addrs = append(addrs, addr)
+	}
+
+	return addrs
+}
+
+// configuredString renders a configured address with the host it was listed
+// with, so an address whose hostname has not resolved yet shows that hostname
+func configuredString(addr *p2pTypes.NetAddress) string {
+	if addr.Hostname == "" {
+		return addr.String()
+	}
+
+	return p2pTypes.NetAddressString(
+		addr.ID,
+		net.JoinHostPort(addr.Hostname, strconv.FormatUint(uint64(addr.Port), 10)),
+	)
+}
+
+// parsePersistentPeerAddrs parses the persistent peer addresses from the node
+// configuration. A persistent peer has a single configured address: when the
+// same peer ID is listed more than once, only the last entry is kept, at the
+// position of the ID's first appearance. An earlier entry is reported unless it
+// is identical to the one kept. An address whose hostname does not resolve yet
+// is kept as configured
+func parsePersistentPeerAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
+	parsed := parseConfiguredAddrs(config.P2P.PersistentPeers, "persistent peer", logger)
+
+	lastAddrs := make(map[p2pTypes.ID]*p2pTypes.NetAddress, len(parsed))
+	for _, addr := range parsed {
+		lastAddrs[addr.ID] = addr
+	}
+
+	peerAddrs := make([]*p2pTypes.NetAddress, 0, len(lastAddrs))
+	seen := make(map[p2pTypes.ID]struct{}, len(lastAddrs))
+
+	for _, addr := range parsed {
+		last := lastAddrs[addr.ID]
+
+		if !addr.Equals(*last) || addr.Hostname != last.Hostname {
+			logger.Warn(
+				"persistent peer listed more than once, only its last address is dialed",
+				"id", addr.ID,
+				"ignored", configuredString(addr),
+				"dialed", configuredString(last),
+			)
+		}
+
+		if _, ok := seen[addr.ID]; ok {
+			continue
+		}
+
+		seen[addr.ID] = struct{}{}
+		peerAddrs = append(peerAddrs, last)
+	}
+
+	return peerAddrs
 }
 
 // NewNode returns a new, ready to go, Tendermint Node.
@@ -563,12 +639,7 @@ func NewNode(config *cfg.Config,
 	}
 
 	// Setup MultiplexSwitch.
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(
-		splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "),
-	)
-	for _, err = range errs {
-		p2pLogger.Error("invalid persistent peer address", "err", err)
-	}
+	peerAddrs := parsePersistentPeerAddrs(config, p2pLogger)
 
 	// Parse the seed node addresses
 	seedAddrs := parseSeedAddrs(config, p2pLogger)
@@ -713,15 +784,6 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return err
 	}
-
-	// Always connect to persistent peers
-	peerAddrs, errs := p2pTypes.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
-	for _, err := range errs {
-		n.Logger.Error("invalid persistent peer address", "err", err)
-	}
-
-	// Dial the persistent peers
-	n.sw.DialPeers(peerAddrs...)
 
 	// If early start, wait for genesis time now (RPC+P2P already running).
 	if n.earlyStart {
