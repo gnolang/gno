@@ -382,11 +382,13 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 				continue
 			}
 
-			// Dial the peer
-			sw.Logger.Info(
-				"dialing peer",
-				"address", item.Address.String(),
-			)
+			// Dial the peer, naming the hostname a configured peer is dialed at
+			dialAttrs := []any{"address", peerAddr.String()}
+			if peerAddr.Hostname != "" {
+				dialAttrs = append(dialAttrs, "hostname", peerAddr.Hostname)
+			}
+
+			sw.Logger.Info("dialing peer", dialAttrs...)
 
 			sw.dialPeer(ctx, peerAddr)
 		}
