@@ -49,6 +49,7 @@ type webCfg struct {
 	remoteHelp       string
 	bind             string
 	faucetURL        string
+	indexerURL       string
 	aliases          string
 	trustedProxies   string
 	noDefaultAliases bool
@@ -99,6 +100,7 @@ func main() {
 Environment variables:
   GNOWEB_BANNER_TEXT        Banner content (supports inline markdown). Max 400 chars.
   GNOWEB_BANNER_URL         Optional link for the banner (requires GNOWEB_BANNER_TEXT).
+  GNOWEB_INDEXER_TOKEN      Optional bearer token sent to -indexer-url. Only needed for an endpoint behind authentication.
   GNOWEB_REALM_NOTICE_TEXT  Notice shown on package and user pages outside -trusted-paths (inline markdown,
                             no images). Max 400 chars, shown on up to two lines.
                             Unset or empty keeps the built-in text; a value with no visible text
@@ -140,6 +142,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.indexerURL,
+		"indexer-url",
+		defaultWebOptions.indexerURL,
+		"tx-indexer GraphQL endpoint enabling indexer-backed search qualifiers (transactions, account activity, source search). Empty (the default) keeps gnoweb talking only to its RPC node; indexer results are never consensus data.",
+	)
+
+	fs.StringVar(
 		&c.aliases,
 		"aliases",
 		defaultWebOptions.aliases,
@@ -150,7 +159,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedProxies,
 		"trusted-proxies",
 		defaultWebOptions.trustedProxies,
-		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins",
+		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins. Empty (the default) trusts nothing, which is correct when gnoweb is exposed directly and wrong behind a proxy — there every visitor resolves to the proxy and shares one rate-limit bucket.",
 	)
 
 	fs.BoolVar(
@@ -281,7 +290,12 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	appcfg.IndexerURL = cfg.indexerURL
+	// Read from the environment only, so the credential never shows up in
+	// the process arguments (ps, /proc/<pid>/cmdline, container specs).
+	appcfg.IndexerToken = os.Getenv("GNOWEB_INDEXER_TOKEN")
 	if cfg.trustedProxies != "" {
+		// ParseTrustedProxies trims and skips empty entries itself.
 		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
 	}
 

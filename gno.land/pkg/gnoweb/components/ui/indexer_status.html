@@ -1,0 +1,19 @@
+{{/* ===================================================================================
+UI - Indexer provenance footer
+
+Indexer data is not consensus data. Which endpoint answered and how far it has
+indexed are part of the answer, not a detail: the same gnoweb binary may point
+at a community indexer, a self-hosted one, or none at all. Styled by the
+omnisearch footer's own classes, so both say it the same way.
+=================================================================================== */}}
+{{ define "ui/indexer_status" }}
+<footer class="b-omni-provenance" role="note">
+  <svg class="c-icon" aria-hidden="true"><use href="#ico-info"></use></svg>
+  <span>
+    Parts of this page marked <span class="b-tag b-tag--indexer">indexer</span> come from an indexer,
+    not from the chain. They are best-effort and not consensus data.
+    Indexed by <span class="u-font-mono">{{ .URL }}</span> ·
+    last indexed block {{ .LastBlock }}
+  </span>
+</footer>
+{{ end }}

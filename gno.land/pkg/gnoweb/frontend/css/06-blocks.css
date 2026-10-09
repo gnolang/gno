@@ -82,13 +82,12 @@
 			grid-column: span 7;
 		}
 
-		&--explorer {
-			grid-column: span 10;
+		/* No dev links beside it: the bar takes their columns too. */
+		&.main-nav--full {
+			@media (--lg) {
+				grid-column: span 10;
+			}
 		}
-	}
-
-	.main-nav--explorer {
-		grid-column: span 10;
 	}
 
 	/* Realm notice: second row on community pages, on the header's own
@@ -3306,8 +3305,19 @@ main.is-dev-mode .b-toc a {
 /* ===== PACKAGE OVERVIEW ===== */
 /* Modeled on pkg.go.dev layout, using CUBE CSS blocks with semantic tokens. */
 
-/* `span 99` (not `1 / -1`) so the sidebar spans implicit rows too. */
-main.is-dev-mode > section:has(.c-overview-view) {
+/* A listing's rail opens on its <nav>, whose top margin stood in for the
+   header's when rails started at the top of the page. The rail now starts
+   level with the header, so the margin would push its title below the page's. */
+main.is-dev-mode > section:has(.c-listing-view) .b-sidebar .inner > nav {
+	@media (--lg) {
+		margin-block-start: 0;
+		padding-block-start: 0;
+	}
+}
+
+/* `span 99` (not `1 / -1`) so the sidebar spans implicit rows too. A directory
+   listing has the same header-and-rail layout, so it shares these rules. */
+main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	.b-content-h1 {
 		display: inline-flex;
 		align-items: center;
@@ -3845,6 +3855,206 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	background: var(--s-color-bg-info-weak);
 }
 
+/* ===== LISTING RAIL (ui/listing_rail) ===== */
+/* One rhythm between the rail's parts: the meta cards it reuses carry the
+   overview's bottom margin, which here would space them unevenly. */
+/* Sections sit 48px apart, heading margin included, as the overview rail's
+   Metadata and Package Index do. */
+.b-listing-rail {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-8);
+
+	& > .b-pkg-meta {
+		margin-block-end: 0;
+	}
+}
+
+/* ===== DEPENDENCY GRAPH (ui/pkg_graph) ===== */
+/* The package between what it imports and what imports it, read left to
+   right. From --lg it is two rows: the titles on one line, then the lists,
+   each bracketed by a rule on the side facing the package. The brackets run
+   the row's full height and the package sits at its middle, so the stubs
+   joining them always meet, however long either side runs. Each side spans
+   both rows through a subgrid. Below --lg the sides stack. */
+.b-depgraph {
+	--depgraph-gap: var(--g-space-6);
+	--depgraph-rule: 2px solid var(--s-color-border-secondary);
+
+	display: grid;
+	gap: var(--g-space-4);
+
+	@media (--lg) {
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-rows: auto 1fr;
+		gap: var(--g-space-2) 0;
+	}
+}
+
+.b-depgraph--both {
+	@media (--lg) {
+		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	}
+}
+
+.b-depgraph__side {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+	min-width: 0;
+	padding-block-start: var(--g-space-3);
+	border-block-start: var(--depgraph-rule);
+
+	@media (--lg) {
+		display: grid;
+		grid-row: span 2;
+		grid-template-rows: subgrid;
+		padding-block-start: 0;
+		border-block-start: none;
+	}
+}
+
+.b-depgraph__body {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--g-space-2);
+	min-width: 0;
+
+	/* Lists run the side's width; a button keeps its own, at the size of
+	   the text around it. */
+	& > .b-pkg-list {
+		align-self: stretch;
+	}
+
+	& > .b-btn {
+		font-size: var(--g-font-size-100);
+	}
+}
+
+/* Columns are named outright: the package's explicit row would otherwise
+   place it first, in the first column, ahead of the auto-placed sides. */
+.b-depgraph__side--in {
+	@media (--lg) {
+		grid-column: 1;
+	}
+}
+
+.b-depgraph__side--in .b-depgraph__body {
+	@media (--lg) {
+		padding-inline-end: var(--depgraph-gap);
+		border-inline-end: var(--depgraph-rule);
+	}
+}
+
+.b-depgraph__side--out {
+	@media (--lg) {
+		grid-column: 3;
+
+		& .b-depgraph__title {
+			padding-inline-start: var(--depgraph-gap);
+		}
+
+		& .b-depgraph__body {
+			padding-inline-start: var(--depgraph-gap);
+			border-inline-start: var(--depgraph-rule);
+		}
+	}
+}
+
+.b-depgraph__title {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	margin: 0;
+	font-size: var(--g-font-size-100);
+	font-weight: var(--g-font-semibold);
+}
+
+/* A long side runs its full length, the page scrolling it: a box scrolling
+   inside a page that scrolls hides rows and clips their tags. A long path
+   wraps rather than pushing its kind out of view. */
+.b-depgraph__list {
+	font-size: var(--g-font-size-100);
+
+	& .b-pkg-list__link > :first-child {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	& .b-tag {
+		flex: none;
+	}
+}
+
+.b-depgraph__empty {
+	margin: 0;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}
+
+.b-depgraph__self {
+	display: flex;
+	align-items: center;
+	justify-self: start;
+
+	/* The package as a tag-sized node, at the graph's text size. */
+	& span {
+		padding: var(--g-space-1) var(--g-space-2);
+		border: var(--s-border);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-brand-weak);
+		font-size: var(--g-font-size-100);
+		font-weight: var(--g-font-semibold);
+	}
+
+	/* The stubs joining each bracket to the package. The package stays in
+	   view under the sticky header while a long side scrolls past: the
+	   brackets run the row's full height, so the stubs meet them anywhere. */
+	@media (--lg) {
+		position: sticky;
+		inset-block-start: calc(var(--g-space-16) + var(--g-space-4));
+		grid-row: 2;
+		grid-column: 2;
+		align-self: start;
+		justify-self: center;
+
+		&::before,
+		.b-depgraph--both &::after {
+			content: "";
+			width: var(--depgraph-gap);
+			border-block-start: var(--depgraph-rule);
+		}
+	}
+}
+
+/* A side with nothing to list ("Imports nothing.") gets no bracket and no
+   stub, which would join the package to nothing, and on the wide grid only
+   the width its sentence needs, the rest going to the side that lists. */
+.b-depgraph__side:has(> .b-depgraph__body > .b-depgraph__empty:only-child)
+.b-depgraph__body {
+	border-inline: none;
+}
+
+.b-depgraph:has(
+		.b-depgraph__side--in > .b-depgraph__body > .b-depgraph__empty:only-child
+	)
+	.b-depgraph__self::before,
+.b-depgraph:has(
+		.b-depgraph__side--out > .b-depgraph__body > .b-depgraph__empty:only-child
+	)
+	.b-depgraph__self::after {
+	border-color: transparent;
+}
+
+.b-depgraph--both:has(
+		.b-depgraph__side--in > .b-depgraph__body > .b-depgraph__empty:only-child
+	) {
+	@media (--lg) {
+		grid-template-columns: max-content auto minmax(0, 1fr);
+	}
+}
+
 /* Truncation notice (shown when symbol lists were capped). */
 .b-pkg-notice {
 	margin-block: 0 var(--g-space-6);
@@ -3889,9 +4099,11 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		color: var(--s-color-text-tertiary);
 	}
 
+	/* Carries errors as well as "No results": secondary, not tertiary, so it
+	   clears WCAG AA on both dropdown surfaces. */
 	.b-omnisearch-empty {
 		padding: var(--g-space-2);
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-size: var(--g-font-size-100);
 	}
 

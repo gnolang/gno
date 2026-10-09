@@ -1,0 +1,228 @@
+/* ==========================================================================
+   OMNISEARCH - feature-scoped Block layer (CUBE CSS)
+   Pulled into the Block layer via @import from frontend/css/main.css.
+   ========================================================================== */
+
+.b-omni {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-6);
+}
+
+/* ===== QUERY FORM (the no-JavaScript entry point) ===== */
+.b-omni-form {
+	display: flex;
+	gap: var(--g-space-2);
+	align-items: stretch;
+
+	& input {
+		flex: 1;
+		min-width: 0;
+		padding: var(--g-space-2) var(--g-space-3);
+		border: var(--s-border);
+		border-radius: var(--s-rounded-sm);
+		background-color: var(--s-color-bg-input);
+		color: var(--s-color-text-primary);
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-100);
+
+		&:focus-visible {
+			background-color: var(--s-color-bg-input-focus);
+			border-color: var(--s-color-border-tertiary);
+			outline: 2px solid var(--s-color-focus-ring);
+			outline-offset: 2px;
+		}
+	}
+}
+
+/* ===== NOTICES ===== */
+.b-omni-notice {
+	padding: var(--g-space-3);
+	border: var(--s-border);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-surface-secondary);
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}
+
+/* ===== RESULT GROUPS ===== */
+.b-omni-group {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-2);
+}
+
+.b-omni-group__header {
+	display: flex;
+	align-items: center;
+	gap: var(--g-space-2);
+	padding-block-end: var(--g-space-1);
+	border-block-end: var(--s-border);
+	color: var(--s-color-text-primary);
+	font-size: var(--g-font-size-200);
+	font-weight: var(--g-font-semibold);
+
+	& .count {
+		margin-inline-start: auto;
+		color: var(--s-color-text-tertiary);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-normal);
+	}
+}
+
+.b-omni-group__notice {
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+}
+
+/* An error is not a footnote: rendering "could not answer" smaller and
+   fainter than everything around it inverts the hierarchy. */
+.b-omni-group__error {
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}
+
+/* ===== RESULT ROWS ===== */
+.b-omni-list {
+	display: flex;
+	flex-direction: column;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.b-omni-list__item {
+	min-width: 0;
+}
+
+.b-omni-list__link {
+	display: flex;
+	/* A row that links must read as a link: the hover background alone does
+	   not exist on touch, so it left the two variants identical at rest. */
+	&:is(a) .title {
+		color: var(--s-color-text-link);
+	}
+
+	&:is(a):hover .title,
+	&:is(a):focus-visible .title {
+		text-decoration: underline;
+	}
+
+	&:focus-visible {
+		outline: 2px solid var(--s-color-focus-ring);
+		outline-offset: -2px;
+	}
+
+	align-items: center;
+	gap: var(--g-space-3);
+	padding: var(--g-space-2) var(--g-space-2);
+	border-radius: var(--s-rounded-sm);
+	color: var(--s-color-text-primary);
+	text-decoration: none;
+	transition: background-color var(--g-transition-fast);
+
+	&:hover {
+		background-color: var(--s-color-bg-hover);
+	}
+
+	/* A row with no destination is still an answer; it just must not look
+	   clickable. A transaction has no page in gnoweb. */
+	&.b-omni-list__link--plain {
+		cursor: default;
+
+		&:hover {
+			background-color: transparent;
+		}
+	}
+}
+
+.b-omni-list__text {
+	display: flex;
+	flex-direction: column;
+	gap: var(--g-space-0-5);
+	min-width: 0;
+
+	& .title {
+		overflow-wrap: anywhere;
+		font-size: var(--g-font-size-100);
+	}
+
+	& .detail {
+		color: var(--s-color-text-tertiary);
+		font-size: var(--g-font-size-50);
+		overflow-wrap: anywhere;
+	}
+}
+
+.b-omni-list__tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--g-space-1);
+	margin-inline-start: auto;
+}
+
+/* ===== PROVENANCE ===== */
+/* Indexer results are not consensus data. This footer is the visible half of
+   that contract; the `indexer` tag on each group is the other half. */
+.b-omni-provenance {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--g-space-2);
+	padding: var(--g-space-3);
+	border: var(--s-border);
+	border-radius: var(--s-rounded-sm);
+	background-color: var(--s-color-bg-note-weak);
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+
+	& .c-icon {
+		flex: none;
+		width: 1em;
+		height: 1em;
+		margin-block-start: 0.15em;
+	}
+}
+
+.b-tag--indexer {
+	/* .b-tag carries a border; every other filled variant drops it. */
+	background-color: var(--s-color-bg-note-weak);
+	border-color: transparent;
+	color: var(--s-color-text-secondary);
+}
+
+/* ===== QUALIFIER HINTS ===== */
+.b-omni-hints {
+	& ul {
+		display: flex;
+		flex-direction: column;
+		gap: var(--g-space-1);
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	& li {
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-2);
+		font-size: var(--g-font-size-50);
+	}
+
+	& code {
+		flex: none;
+		min-width: 12ch;
+		font-family: var(--g-font-family-mono);
+		color: var(--s-color-text-primary);
+	}
+}
+
+.b-omni-hints__title {
+	margin-block-end: var(--g-space-2);
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+	font-weight: var(--g-font-semibold);
+}
+
+.b-omni-hints__label {
+	color: var(--s-color-text-tertiary);
+}

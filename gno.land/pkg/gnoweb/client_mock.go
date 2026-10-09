@@ -17,6 +17,8 @@ type MockPackage struct {
 	Domain    string
 	Files     map[string]string // filename -> body
 	Functions []*doc.JSONFunc
+	// Imports are what vm/qdoc reports the package imports.
+	Imports []string
 	// Inert stages a package that was submitted but not yet approved. The
 	// other methods still refuse it the way the chain does -- Render and the
 	// file queries read the live key space -- so a test gets the real shape.
@@ -179,7 +181,7 @@ func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 		// read, so the chain answers not-found for them too.
 		return nil, ErrClientPackageNotFound
 	}
-	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
+	return &doc.JSONDocumentation{Funcs: pkg.Functions, Imports: pkg.Imports}, nil
 }
 
 // StatePkg returns mock package state data for testing.

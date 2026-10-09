@@ -54,6 +54,8 @@ func ClassifyPageType(mode ViewMode, view ViewType) string {
 		return "help"
 	case DirectoryViewType:
 		return "directory"
+	case DepsViewType:
+		return "deps"
 	case StatusViewType:
 		return "status"
 	case RedirectViewType:

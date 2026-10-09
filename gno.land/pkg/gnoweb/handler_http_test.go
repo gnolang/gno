@@ -572,8 +572,8 @@ func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
 
 	body := rr.Body.String()
 	assert.Equal(t, http.StatusOK, rr.Code)
-	// Explorer mode renders the "Packages" counter.
-	assert.Contains(t, body, "Packages")
+	// Explorer mode renders the package counter.
+	assert.Contains(t, body, "1 Package<")
 	// Main entry link points at the render, not the directory listing.
 	assert.Contains(t, body, `href="/r/mock/sub">`)
 	// Right-side inline buttons, including the new Browse (directory listing).
@@ -1810,7 +1810,7 @@ func TestHTTPHandler_GetOverviewView_SuccessRendersAllSections(t *testing.T) {
 	assert.NotContains(t, body, ">internal<", "unexported func should not appear as a symbol")
 	assert.Contains(t, body, "Config", "type should be rendered")
 	assert.Contains(t, body, "foo.gno", "file link should appear")
-	assert.Contains(t, body, "gno.land/p/demo/avl", "qdoc import should be rendered")
+	assert.Contains(t, body, "gno.land/<wbr>p/<wbr>demo/<wbr>avl", "qdoc import should be rendered, breakable after each slash")
 }
 
 // TestHTTPHandler_GetOverviewView_DegradedOnQdocFailure verifies the overview still

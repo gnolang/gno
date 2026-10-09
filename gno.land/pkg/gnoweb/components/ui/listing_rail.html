@@ -1,0 +1,28 @@
+{{/* ===================================================================================
+UI - Listing rail
+
+The right-hand rail of a directory listing, under the tabs as a realm's table of
+contents is: what the listing holds, a filter over it in either rendering, and
+the map's key when the listing is drawn as one. The summary is the overview's
+meta card; the filter is the overview's own, and without JavaScript it does
+nothing and the listing stays whole. On a map it dims what it filters out,
+so the tiles keep their places.
+=================================================================================== */}}
+{{ define "ui/listing_rail" }}
+<div class="b-listing-rail">
+<dl class="b-pkg-meta" aria-label="Listing summary">
+  <div class="row"><dt class="label" title="Packages below this path.">Packages</dt><dd class="value">{{ .Packages }}</dd></div>
+  <div class="row"><dt class="label" title="Path segments right below this path, each a box on the map.">Folders</dt><dd class="value">{{ .Folders }}</dd></div>
+</dl>
+<div class="state-search b-input" role="search">
+  <input type="search" placeholder="Filter packages"
+         data-controller="filter"
+         data-filter-items-value="[data-listing-item]"
+         {{- if .Key }} data-filter-class-value="is-dimmed"{{ end }}
+         data-action="input->filter#filter"
+         aria-label="Filter packages">
+  <svg class="c-icon" aria-hidden="true"><use href="#ico-search"></use></svg>
+</div>
+{{ with .Key }}{{ render . }}{{ end }}
+</div>
+{{ end }}
