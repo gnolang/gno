@@ -164,7 +164,7 @@ func TestSwitchClosesRejectedDuplicateIPConn(t *testing.T) {
 }
 
 // TestSwitchClosesRejectedOverCapacityConn is the same property on the
-// inbound-limit branch, which shares rejectInbound with the same-IP guard.
+// inbound-limit branch, which shares rejectConn with the same-IP guard.
 func TestSwitchClosesRejectedOverCapacityConn(t *testing.T) {
 	t.Parallel()
 

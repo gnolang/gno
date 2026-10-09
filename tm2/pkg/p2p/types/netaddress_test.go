@@ -295,6 +295,77 @@ func TestNetAddress_Local(t *testing.T) {
 	}
 }
 
+func TestNewConfiguredNetAddress(t *testing.T) {
+	t.Parallel()
+
+	id := GenerateNodeKey().ID()
+
+	t.Run("valid addresses", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name             string
+			addr             string
+			expectIP         bool
+			expectedIP       string
+			expectedHostname string
+		}{
+			{"IP literal", fmt.Sprintf("%s@127.0.0.1:8080", id), true, "127.0.0.1", ""},
+			{"resolvable hostname", fmt.Sprintf("%s@localhost:8080", id), true, "", "localhost"},
+			{"unresolvable hostname", fmt.Sprintf("%s@peer.invalid:8080", id), false, "", "peer.invalid"}, // RFC 6761
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				na, err := NewConfiguredNetAddress(testCase.addr)
+				require.NoError(t, err)
+
+				assert.Equal(t, id, na.ID)
+				assert.Equal(t, uint16(8080), na.Port)
+				assert.Equal(t, testCase.expectedHostname, na.Hostname)
+
+				if !testCase.expectIP {
+					assert.Nil(t, na.IP)
+
+					return
+				}
+
+				require.NotNil(t, na.IP)
+
+				if testCase.expectedIP != "" {
+					assert.True(t, na.IP.Equal(net.ParseIP(testCase.expectedIP)))
+				}
+			})
+		}
+	})
+
+	t.Run("malformed addresses", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name string
+			addr string
+		}{
+			{"no ID", "127.0.0.1:8080"},
+			{"bad ID", "deadbeef@127.0.0.1:8080"},
+			{"empty host", fmt.Sprintf("%s@:8080", id)},
+			{"bad port", fmt.Sprintf("%s@localhost:notaport", id)},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				na, err := NewConfiguredNetAddress(testCase.addr)
+				assert.Error(t, err)
+				assert.Nil(t, na)
+			})
+		}
+	})
+}
+
 func TestNetAddress_DialContext(t *testing.T) {
 	t.Parallel()
 
@@ -308,6 +379,28 @@ func TestNetAddress_DialContext(t *testing.T) {
 		addr := &NetAddress{
 			ID:       GenerateNodeKey().ID(),
 			IP:       net.ParseIP("192.0.2.1"), // RFC 5737, never answers
+			Hostname: "localhost",
+			Port:     uint16(ln.Addr().(*net.TCPAddr).Port),
+		}
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		conn, err := addr.DialContext(ctx)
+		require.NoError(t, err)
+
+		_ = conn.Close()
+	})
+
+	t.Run("an address with no IP dials its hostname", func(t *testing.T) {
+		t.Parallel()
+
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = ln.Close() })
+
+		addr := &NetAddress{
+			ID:       GenerateNodeKey().ID(),
 			Hostname: "localhost",
 			Port:     uint16(ln.Addr().(*net.TCPAddr).Port),
 		}
