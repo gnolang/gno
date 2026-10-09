@@ -12,7 +12,7 @@ consensus engine with the Gno application logic.
 ### ABCI Queries
 A set of queries that can be executed to retrieve data from the Gno.land
 blockchain without changing state.
-See [Querying a network](../users/interact-with-gnokey.md#querying-a-gnoland-network).
+See [Querying a network](gnokey.md#querying-a-gnoland-network).
 
 ### Account Number
 A unique number given to each address on a given network, used for transaction
@@ -172,7 +172,7 @@ See [Local development with `gnodev`](./gnodev.md).
 ### gnokey
 The official command-line keychain and client for Gno.land, allowing keypair
 management, transaction signing and sending queries to Gno.land chains.
-See [Interacting with gnokey](../users/interact-with-gnokey.md).
+See [Using the `gnokey` wallet](../users/using-gnokey.md).
 
 ### GnoVM
 The virtual machine that interprets Gno, a custom version of Go optimized for
