@@ -209,7 +209,13 @@ func TestIconParseLinear(t *testing.T) {
 			return "[" + strings.Repeat("<b></b>", 2*n) + strings.Repeat(icon, 2*n) + "](/r/x)"
 		},
 	} {
-		t.Run(name, func(t *testing.T) { assertLinear(t, gen, 2500) })
+		t.Run(name, func(t *testing.T) {
+			n := 2500
+			if strings.Contains(gen(1), icon) {
+				n = MaxIconsPerConvert / 8 // keep 4n under the cap, or a per-icon walk looks linear
+			}
+			assertLinear(t, gen, n)
+		})
 	}
 }
 
