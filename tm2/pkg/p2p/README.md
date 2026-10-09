@@ -352,7 +352,7 @@ The switch keeps two of them:
 
 `DialPeers` feeds the second one only. It skips an address when it is the node's own, when it belongs to a persistent peer, when that peer is already connected, when the same address is already queued (peer discovery shares the same addresses over and over), or when the maximum number of outbound peers is reached.
 
-A single dial loop drains both queues, one dial at a time. A persistent peer whose dial is due goes first, so persistent peers never wait behind queued discovered ones, only behind the one dial already in flight; otherwise the loop takes the due head of the dial queue, or waits for whichever item is due first. An item whose peer connected in the meantime is dropped.
+A single dial loop drains both queues, one dial at a time. A persistent peer whose dial is due goes first, except that when both heads are due and the last dial was a persistent one, the discovered peer goes next. A persistent dial therefore waits behind at most one discovered dial, and discovered dials are never starved by persistent peers that keep timing out. When nothing is due, the loop waits for whichever item is due first. An item whose peer connected in the meantime is dropped.
 
 ```go
 package p2p
@@ -361,7 +361,7 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 	// ...
 
 	// Grab the next dial item
-	item, queue := sw.peekDialItem()
+	item, queue := sw.peekDialItem(servedPersistent)
 	if item == nil {
 		// Nothing to dial, wait until something is
 		// added to a queue
@@ -380,12 +380,12 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 
 	// Pop the item from its dial queue
 	item = queue.Pop()
+	servedPersistent = queue == sw.persistentDialQueue
+
+	// ...
 
 	// Dial the peer
-	sw.Logger.Info(
-		"dialing peer",
-		"address", item.Address.String(),
-	)
+	sw.Logger.Info("dialing peer", dialAttrs...)
 
 	// ...
 }
@@ -405,6 +405,8 @@ These peer connections are special: they bypass the maximum outbound peer limit,
 A good candidate for a persistent peer is a bootnode, that bootstraps and facilitates peer discovery for the network.
 
 The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. Every few seconds, it queues a dial for each persistent peer that is neither connected nor already queued, into the persistent dial queue. The first dial after a disconnect is queued on the next tick, due at once, unless a backoff dial still queued from before the last connection is used instead; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. A reconnect clears the backoff, so a peer that connects and drops at once is redialed at most once per tick. Each persistent peer has one configured address: when the same peer ID is listed more than once, only the last address is dialed, and the node logs a warning for each ignored entry whose address differs from the dialed one.
+
+An entry of `p2p.persistent_peers` whose hostname does not resolve when the node starts is kept, not rejected: the node logs a warning at start, and the hostname is resolved when the entry is dialed, so the redial loop retries it with its backoff until the name resolves.
 
 ```go
 package p2p
@@ -456,7 +458,7 @@ discovery has filled the dial queue, the connection has served its purpose. The 
 the connection is left to the seed itself.
 
 A node can, however, run out of peers to dial: every discovered address may end up unreachable, and the whole dial
-queue backs off. The seed dial service watches for exactly that situation, and falls back to the configured seeds.
+queue backs off. The seed dial service watches for exactly that situation, and falls back to the configured seeds. Only the dial queue counts when deciding whether the switch has run out of peers to dial: pending persistent dials do not hold back the seeds, since a persistent dial does not refill peer discovery. A seed whose hostname does not resolve when the node starts is kept, and resolved when it is dialed.
 
 ```go
 package p2p
