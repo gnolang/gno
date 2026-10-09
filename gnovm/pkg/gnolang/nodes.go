@@ -1316,6 +1316,13 @@ type PackageNode struct {
 	PkgName  Name
 	*FileSet // provides .GetDeclFor*()
 
+	// LangVersion is the gno language version this package's semantics
+	// are pinned to (see semantics.go / [PackageNode.Semantics]).
+	// WIP: defaults to GnoVerLatest (dormant no-op). The real design
+	// sources this at load from the package's already-persisted
+	// gnomod.toml — NOT a new serialized field. See semantics.go header.
+	LangVersion string
+
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
 	// Not serialized.
 	pkgID PkgID
@@ -1338,9 +1345,10 @@ func PackageNodeLocation(path string) Location {
 
 func NewPackageNode(name Name, path string, fset *FileSet) *PackageNode {
 	pn := &PackageNode{
-		PkgPath: path,
-		PkgName: name,
-		FileSet: fset,
+		PkgPath:     path,
+		PkgName:     name,
+		FileSet:     fset,
+		LangVersion: GnoVerLatest, // WIP dormant default; see semantics.go
 	}
 	pn.SetLocation(PackageNodeLocation(path))
 	pn.InitStaticBlock(pn, nil)
