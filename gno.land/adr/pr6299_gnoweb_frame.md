@@ -68,7 +68,9 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   tag, so a refused opener's close never ends the frame or card around it
   (goldens `invalid_card_attrs_keeps_frame`, `invalid_card_at_depth_cap`,
   `invalid_nested_frame`, `invalid_nested_twice`,
-  `invalid_frame_in_card_keeps_grid`). A stray
+  `invalid_frame_in_card_keeps_grid`). A self-closing `<gno-frame/>` has no
+  close, so it is not counted and the frame closes at its own tag
+  (`invalid_self_closing_in_frame`). A stray
   `<gno-columns-sep>` or `</gno-columns>` with no grid open stays inside the
   frame as the invalid comment it renders outside one (golden
   `columns_stray_tags_stay_in_frame`). Any columns tag that would

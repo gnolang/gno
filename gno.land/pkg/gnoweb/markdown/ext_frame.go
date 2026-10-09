@@ -256,7 +256,11 @@ func (*frameParser) Open(parent ast.Node, reader text.Reader, pc parser.Context)
 		node.tag = frameTagClose
 		endFrame(pc)
 	case line[1] != '/' && open:
-		pc.Set(frameRefusedKey, frameRefused(pc)+1) // a refused opener
+		// A self-closing tag has no close to take, so only an opener that
+		// can have one is counted.
+		if _, selfClosing := scanGnoTag(line, frameOpenPrefix, len(line), nil); !selfClosing {
+			pc.Set(frameRefusedKey, frameRefused(pc)+1) // a refused opener
+		}
 	}
 	return node, parser.NoChildren
 }
