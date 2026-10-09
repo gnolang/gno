@@ -1100,7 +1100,7 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 		assert.False(t, sw.dialQueue.Has(seedAddr))
 	})
 
-	t.Run("dialable persistent item in the queue", func(t *testing.T) {
+	t.Run("a due persistent item does not hold back the seeds", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -1114,7 +1114,8 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 			WithSeeds([]*types.NetAddress{seedAddr}),
 		)
 
-		// The switch still has a persistent peer to dial right now
+		// A persistent dial is due, but seeds exist to refill peer discovery,
+		// which a persistent dial does not do
 		sw.persistentDialQueue.Push(dial.Item{
 			Time:    time.Now(),
 			Address: peerAddr,
@@ -1122,8 +1123,7 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 
 		sw.dialSeed()
 
-		// The seed should not have been queued
-		assert.False(t, sw.dialQueue.Has(seedAddr))
+		assert.True(t, sw.dialQueue.Has(seedAddr))
 	})
 
 	t.Run("persistent item fully backed off", func(t *testing.T) {

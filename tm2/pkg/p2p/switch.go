@@ -582,12 +582,13 @@ func (sw *MultiplexSwitch) runSeedDialLoop(ctx context.Context) {
 	}
 }
 
-// hasDialableItem returns a flag indicating if either dial queue holds an item
-// that can be dialed right now. peekDialItem returns a due item whenever there
-// is one, so a returned item scheduled in the future means every queued item is
-// currently backing off
+// hasDialableItem returns a flag indicating if the dial queue holds an item
+// that can be dialed right now. Persistent dials are left out: seeds exist to
+// refill peer discovery, which a pending persistent dial does not do. The queue
+// is time-sorted (ascending), so a head item scheduled in the future means
+// every queued item is currently backing off
 func (sw *MultiplexSwitch) hasDialableItem() bool {
-	item, _ := sw.peekDialItem()
+	item := sw.dialQueue.Peek()
 
 	return item != nil && !time.Now().Before(item.Time)
 }
