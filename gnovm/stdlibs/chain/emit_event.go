@@ -8,6 +8,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -108,6 +109,9 @@ type StorageDepositEvent struct {
 	BytesDelta int64    `json:"bytes_delta"`
 	FeeDelta   std.Coin `json:"fee_delta"`
 	PkgPath    string   `json:"pkg_path"`
+	// Payer is the realm that paid the deposit through runtime.PayStorage, or
+	// empty when the message's caller paid it.
+	Payer crypto.Bech32Address `json:"payer,omitempty"`
 }
 
 func (e StorageDepositEvent) AssertABCIEvent() {}
@@ -120,6 +124,10 @@ type StorageUnlockEvent struct {
 	PkgPath    string   `json:"pkg_path"`
 	// RefundWithheld is true if the refund was retained because of token lock
 	RefundWithheld bool `json:"refund_withheld"`
+	// SponsorRefund is the part of FeeRefund returned to the realm that
+	// sponsored this storage earlier in the same transaction; the caller got
+	// the rest. Nil when the caller got all of it.
+	SponsorRefund *std.Coin `json:"sponsor_refund,omitempty"`
 }
 
 func (e StorageUnlockEvent) AssertABCIEvent() {}

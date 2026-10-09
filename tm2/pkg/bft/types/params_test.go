@@ -203,3 +203,41 @@ func TestConsensusParamsUpdate(t *testing.T) {
 		assert.Equal(t, tc.updatedParams, tc.params.Update(tc.updates))
 	}
 }
+
+func TestConsensusParamsValidationMaxGasCreditPerTx(t *testing.T) {
+	t.Parallel()
+
+	newParams := func(maxGas, credit int64) abci.ConsensusParams {
+		p := makeParams(1, 1024, maxGas, 10, valEd25519)
+		p.Block.MaxGasCreditPerTx = credit
+		return p
+	}
+
+	// The credit window is a 0-fee tx's whole gas budget, so it may not exceed
+	// a block's; with no block bound (MaxGas == -1) only its sign is checked.
+	cases := []struct {
+		name           string
+		maxGas, credit int64
+		valid          bool
+	}{
+		{"disabled", 100, 0, true},
+		{"below MaxGas", 100, 50, true},
+		{"equal to MaxGas", 100, 100, true},
+		{"above MaxGas", 100, 101, false},
+		{"negative", 100, -1, false},
+		{"no block bound", -1, 1_000_000, true},
+		{"negative, no block bound", -1, -1, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := ValidateConsensusParams(newParams(tc.maxGas, tc.credit))
+			if tc.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}

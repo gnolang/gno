@@ -284,6 +284,16 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			if *maxGas > 0 {
 				cfg.Genesis.ConsensusParams.Block.MaxGas = *maxGas
 			}
+			// Open the realm-sponsorship credit window for the paygas_* and
+			// paystorage_* txtars, capped by the block's own limit. It stays
+			// out of the shared defaults because genesis validation rejects a
+			// window larger than Block.MaxGas, which any caller lowering
+			// MaxGas would then trip.
+			bp := cfg.Genesis.ConsensusParams.Block
+			bp.MaxGasCreditPerTx = 10_000_000
+			if bp.MaxGas != -1 && bp.MaxGas < bp.MaxGasCreditPerTx {
+				bp.MaxGasCreditPerTx = bp.MaxGas
+			}
 			tsGenesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)

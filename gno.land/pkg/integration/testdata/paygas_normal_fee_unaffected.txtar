@@ -1,0 +1,36 @@
+# In a normal fee-paying tx, PayGas is a no-op: the user pays gas as usual and
+# the realm pays nothing.
+
+## start a new node
+gnoland start
+
+## deploy realm with PayGas
+gnokey maketx addpkg -pkgdir $WORK/normalfee -pkgpath gno.land/r/test/normalfee -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## fund the realm, so a wrong charge would show
+gnokey maketx send -send 10000000ugnot -to g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+## call with normal fee — PayGas is called but user pays gas normally
+gnokey maketx call -pkgpath gno.land/r/test/normalfee -func DoWork -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '"done" string'
+
+## the realm paid nothing
+gnokey query bank/balances/g1pkhf78w28n9m9cgm4nsn3q3cggjy39nu7m3z0f
+stdout '"10000000ugnot"'
+
+-- normalfee/gnomod.toml --
+module = "normalfee"
+gno = "0.9"
+
+-- normalfee/normalfee.gno --
+package normalfee
+
+import "chain/runtime"
+
+func DoWork(cur realm) string {
+	runtime.PayGas(1000000, cur) // called but user already pays gas
+	return "done"
+}

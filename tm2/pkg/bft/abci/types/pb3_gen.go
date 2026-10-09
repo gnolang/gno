@@ -3274,6 +3274,18 @@ func (goo *ConsensusParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDep
 
 func (goo BlockParams) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	if goo.MaxGasCreditPerTx != 0 {
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.MaxGasCreditPerTx))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 6, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
 	if goo.TimeIotaMS != 0 {
 		{
 			before := offset
@@ -3354,6 +3366,9 @@ func (goo BlockParams) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if goo.TimeIotaMS != 0 {
 		s += 1 + amino.VarintSize(int64(goo.TimeIotaMS))
 	}
+	if goo.MaxGasCreditPerTx != 0 {
+		s += 1 + amino.VarintSize(int64(goo.MaxGasCreditPerTx))
+	}
 	return s, nil
 }
 
@@ -3422,6 +3437,16 @@ func (goo *BlockParams) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth i
 			}
 			bz = bz[n:]
 			goo.TimeIotaMS = int64(v)
+		case 6:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 6: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.MaxGasCreditPerTx = int64(v)
 		default:
 			return fmt.Errorf("unknown field number %d for BlockParams", fnum)
 		}

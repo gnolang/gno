@@ -27,6 +27,7 @@ type InMemoryNodeConfig struct {
 	DB                         db.DB     // will be initialized if nil
 	VMOutput                   io.Writer // optional
 	SkipGenesisSigVerification bool
+	AllowZeroFeeTxs            bool // accept 0-fee txs when realms sponsor gas via PayGas
 
 	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
@@ -113,6 +114,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		InitChainerConfig:          cfg.InitChainerConfig,
 		VMOutput:                   cfg.VMOutput,
 		SkipGenesisSigVerification: cfg.SkipGenesisSigVerification,
+		AllowZeroFeeTxs:            cfg.AllowZeroFeeTxs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
