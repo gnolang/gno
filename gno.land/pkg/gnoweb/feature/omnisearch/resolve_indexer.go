@@ -155,7 +155,7 @@ func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, err
 // match too, and the page shows the newest only.
 func newestOnly(txs []indexer.Tx, err error) error {
 	if err == nil && len(txs) >= recentLimit {
-		return partialAnswer(fmt.Sprintf(
+		return partialAnswerError(fmt.Sprintf(
 			"Showing the %d newest matching deploys: older ones may match too.", recentLimit))
 	}
 	return err

@@ -635,6 +635,7 @@ func TestDeploysImportingMatchesTheQuotedPathOnly(t *testing.T) {
 	if len(likes) != 1 {
 		t.Fatalf("like filters = %q", likes)
 	}
+	like := regexp.MustCompile(likes[0])
 	for body, want := range map[string]bool{
 		`import "gno.land/r/demo/foo"`:       true,
 		"import foo `gno.land/r/demo/foo`":   true,
@@ -643,7 +644,7 @@ func TestDeploysImportingMatchesTheQuotedPathOnly(t *testing.T) {
 		`import "gno.land/r/demo/foo/sub"`:   false,
 		`import "gnoXland/r/demo/foo"`:       false,
 	} {
-		if got, _ := regexp.MatchString(likes[0], body); got != want {
+		if got := like.MatchString(body); got != want {
 			t.Errorf("like %q on %q = %v, want %v", likes[0], body, got, want)
 		}
 	}
