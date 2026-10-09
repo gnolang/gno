@@ -1123,7 +1123,7 @@ func TestMultiplexSwitch_RedialLoop(t *testing.T) {
 		assert.False(t, item.Time.Before(sent.Add(900*time.Millisecond)))
 	})
 
-	t.Run("a stable connection's drop is redialed at once", func(t *testing.T) {
+	t.Run("a stable connection's drop queues a dial due at once", func(t *testing.T) {
 		t.Parallel()
 
 		addr := generateNetAddr(t, 1)[0]
