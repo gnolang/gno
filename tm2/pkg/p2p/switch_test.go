@@ -2305,6 +2305,44 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		assert.Nil(t, sw.persistentDialQueue.Pop())
 	})
 
+	t.Run("a connect drops only its own dial among unresolved persistent peers", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			ids = generateNetAddr(t, 2)
+
+			// Two persistent peers whose hostnames did not resolve at start:
+			// no IP, and the same port
+			addrs = []*types.NetAddress{
+				{ID: ids[0].ID, Hostname: "sentry-a.invalid", Port: 26656},
+				{ID: ids[1].ID, Hostname: "sentry-b.invalid", Port: 26656},
+			}
+
+			sw = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers(addrs),
+			)
+			now         = time.Now()
+			connectedAt = make(map[types.ID]time.Time)
+		)
+
+		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(20 * time.Second), Address: addrs[0]})
+		sw.persistentDialQueue.Push(dial.Item{Time: now.Add(10 * time.Second), Address: addrs[1]})
+
+		// The first peer connects, by its hostname
+		sw.peers = &mockSet{
+			hasFn: func(id types.ID) bool { return id == addrs[0].ID },
+		}
+
+		sw.persistentPeerConnected(addrs[0].ID, connectedAt, now)
+
+		item := sw.persistentDialQueue.Pop()
+
+		require.NotNil(t, item)
+		assert.Equal(t, addrs[1], item.Address, "the other unresolved peer's dial stays queued")
+		assert.Nil(t, sw.persistentDialQueue.Pop(), "the connected peer's dial is removed")
+	})
+
 	t.Run("a connect handled after the peer dropped is ignored", func(t *testing.T) {
 		t.Parallel()
 
