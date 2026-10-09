@@ -68,49 +68,53 @@ func newTypeDeclGraph(sites []typeDeclSite) *typeDeclGraph {
 			}
 			g.deps[name] = append(g.deps[name], typeDep{dep, direct})
 			g.hasAliasEdge = g.hasAliasEdge || (from.IsAlias && to.decl.IsAlias)
-		})
+		}, nil)
 	}
 	return g
 }
 
-// collectTypeDeps calls add for every name that x refers to as a type and
-// returns the number of nodes visited. direct is false once the reference
-// sits behind an indirection.
-func collectTypeDeps(x Expr, direct bool, add func(Name, bool)) (nodes int64) {
+// collectTypeDeps calls add for every name that x refers to as a type, and
+// lens, if not nil, for every array length, which is a value expression.
+// It returns the number of nodes visited. direct is false once the
+// reference sits behind an indirection.
+func collectTypeDeps(x Expr, direct bool, add func(Name, bool), lens func(Expr)) (nodes int64) {
 	nodes = 1
 	switch x := x.(type) {
 	case *NameExpr:
 		add(x.Name, direct)
 	case *StarExpr:
-		nodes += collectTypeDeps(x.X, false, add)
+		nodes += collectTypeDeps(x.X, false, add, lens)
 	case *SliceTypeExpr:
-		nodes += collectTypeDeps(x.Elt, false, add)
+		nodes += collectTypeDeps(x.Elt, false, add, lens)
 	case *ArrayTypeExpr:
-		nodes += collectTypeDeps(x.Elt, direct, add)
+		if lens != nil && x.Len != nil {
+			lens(x.Len)
+		}
+		nodes += collectTypeDeps(x.Elt, direct, add, lens)
 	case *MapTypeExpr:
-		nodes += collectTypeDeps(x.Key, false, add)
-		nodes += collectTypeDeps(x.Value, false, add)
+		nodes += collectTypeDeps(x.Key, false, add, lens)
+		nodes += collectTypeDeps(x.Value, false, add, lens)
 	case *ChanTypeExpr:
-		nodes += collectTypeDeps(x.Value, false, add)
+		nodes += collectTypeDeps(x.Value, false, add, lens)
 	case *FuncTypeExpr:
 		for i := range x.Params {
-			nodes += collectTypeDeps(x.Params[i].Type, false, add)
+			nodes += collectTypeDeps(x.Params[i].Type, false, add, lens)
 		}
 		for i := range x.Results {
-			nodes += collectTypeDeps(x.Results[i].Type, false, add)
+			nodes += collectTypeDeps(x.Results[i].Type, false, add, lens)
 		}
 	case *InterfaceTypeExpr:
 		// An embedded interface is a bare name and direct; a method
 		// signature is a FuncTypeExpr and so indirect.
 		for i := range x.Methods {
-			nodes += collectTypeDeps(x.Methods[i].Type, direct, add)
+			nodes += collectTypeDeps(x.Methods[i].Type, direct, add, lens)
 		}
 	case *StructTypeExpr:
 		for i := range x.Fields {
-			nodes += collectTypeDeps(x.Fields[i].Type, direct, add)
+			nodes += collectTypeDeps(x.Fields[i].Type, direct, add, lens)
 		}
 	case *FieldTypeExpr:
-		nodes += collectTypeDeps(x.Type, direct, add)
+		nodes += collectTypeDeps(x.Type, direct, add, lens)
 	case *SelectorExpr:
 		// pkg.T names another package's type, unless pkg is a member of
 		// this group: `type time time.Duration` with no import.

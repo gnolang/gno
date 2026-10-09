@@ -5254,12 +5254,13 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, astype bool, elide Ty
 					return
 				}
 		*/
-		// Every type declaration of the group has a slot from
-		// reserveTypeDecls. A type expression needs only the slot; a
-		// value (`const N = T(3)` reached from an array length) needs
-		// the type built, so an unbuilt one counts as undefined there.
+		// A type declaration of the group has a slot from
+		// reserveTypeDecls before it is built. Only another type
+		// declaration's expression may use it that way (tryPredefine
+		// walks those itself); anything walked here, a variable's type,
+		// a conversion, a composite literal, needs it built first.
 		if tv := last.GetSlot(store, cx.Name, true); tv != nil {
-			if !astype && unbuiltTypeDecl(store, last, cx.Name) {
+			if unbuiltTypeDecl(store, last, cx.Name) {
 				return cx.Name
 			}
 			return
@@ -5336,10 +5337,6 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, astype bool, elide Ty
 			un = findUndefinedT(store, last, cx.Type)
 			if un != "" {
 				return
-			}
-			// `T{}` as a value needs T built, not just reserved.
-			if nx, ok := cx.Type.(*NameExpr); ok && unbuiltTypeDecl(store, last, nx.Name) {
-				return nx.Name
 			}
 			// preprocess now for eliding purposes.
 			// TODO recursive preprocessing here is hacky, find a better
@@ -5830,25 +5827,34 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Nam
 		// referenced one needs only its slot, which reserveTypeDecls gave
 		// every member of the group. Cycles were validated up front, so a
 		// direct dependency is never still in progress.
-		var unbuilt Name
+		// A type name needs only its slot here, so the walk is not
+		// used for them: a name without a slot is undefined, and the
+		// values in array lengths go through the walk like any value.
+		var unbuilt, undefined Name
+		var lens []Expr
 		nodes := collectTypeDeps(d.Type, true, func(dep Name, direct bool) {
-			if unbuilt != "" || !direct {
+			if _, ok := UverseNode().GetLocalIndex(dep); ok {
 				return
 			}
-			if unbuiltTypeDecl(store, last, dep) {
+			if undefined == "" && last.GetSlot(store, dep, true) == nil {
+				undefined = dep
+			}
+			if unbuilt == "" && direct && unbuiltTypeDecl(store, last, dep) {
 				unbuilt = dep
 			}
-		})
+		}, func(lx Expr) { lens = append(lens, lx) })
 		chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeTypeDeclNode*nodes)
+		if undefined != "" {
+			return undefined, true
+		}
 		if unbuilt != "" {
 			return unbuilt, true
 		}
-		// after predefinitions (for reasonable recursion support),
-		// return any undefined dependencies.
-		un = findUndefinedAny(store, last, d.Type, true, nil)
-		if un != "" {
-			untype = true
-			return
+		for _, lx := range lens {
+			if un = findUndefinedV(store, last, lx, nil); un != "" {
+				untype = true
+				return
+			}
 		}
 		// END *TypeDecl
 	case *FuncDecl:

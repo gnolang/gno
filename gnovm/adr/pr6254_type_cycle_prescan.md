@@ -87,9 +87,11 @@ Validate the declaration graph first, then predefine.
   which reservation cannot bind before imports are predefined. `predefineRecursively2` keeps `stack` and
   `defining`: besides value cycles they catch the one type cycle the
   pre-scan cannot see, one that passes through an array-length constant
-  (`recursive16`, `recursive17`). A type named from a value position
-  (`const N = T(3)` reached from an array length, `len(T{})`) counts as
-  undefined until built, so it is built first (`decltype_constlen*`).
+  (`recursive16`, `recursive17`). Outside a type declaration's own
+  expression a reserved type counts as undefined until built, so a value
+  or variable type that names it (`const N = T(3)` reached from an array
+  length, `len(T{})`, `var x [3]T` behind `len(x)`) builds it first
+  (`decltype_constlen*`).
 - `embed_depth1` pins the post-group embed-depth check with a chain
   declared top-down, which `Seal` alone accepted. `typedecl_group_gas_test.go`
   pins each charge with a budget that only the metered walk exceeds.
