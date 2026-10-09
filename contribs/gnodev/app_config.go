@@ -19,6 +19,7 @@ type AppConfig struct {
 	premineAccounts varPremineAccounts
 
 	// Files
+	contractsDir     string
 	balancesFile     string
 	genesisFile      string
 	txsFile          string
@@ -174,6 +175,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.premineAccounts,
 		"add-account",
 		"add (or set) a premine account in the form `<bech32|name>[=<amount>]`, can be used multiple time",
+	)
+
+	fs.StringVar(
+		&c.contractsDir,
+		"contracts-dir",
+		defaultCfg.contractsDir,
+		"directory of your own packages to load, every package under it (staging defaults to ./contracts, skipped when absent)",
 	)
 
 	fs.StringVar(

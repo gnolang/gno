@@ -31,8 +31,13 @@ var defaultStagingOptions = AppConfig{
 	staging:                    true,
 	noWorkspaceHint:            stagingNoWorkspaceHint,
 	withoutQuarantinedExamples: true,
-	emptyBlocks:                false,
-	emptyBlocksInterval:        1,
+	// The conventional home for the operator's own packages, so a deployment
+	// is "mount your contracts and go" with no flags. Skipped without comment
+	// when it does not exist.
+	contractsDir: defaultContractsDir,
+
+	emptyBlocks:         false,
+	emptyBlocksInterval: 1,
 
 	// As we have no reason to configure this yet, set this to random port
 	// to avoid potential conflict with other app

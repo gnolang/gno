@@ -86,6 +86,7 @@ FLAGS
   -balance-file ...	load the provided balance file (refer to the documentation for format)
   -chain-domain gno.land	set node ChainDomain
   -chain-id dev	set node ChainID
+  -contracts-dir ...	directory of your own packages to load, every package under it (staging defaults to ./contracts, skipped when absent)
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
@@ -136,6 +137,7 @@ FLAGS
   -balance-file ...	load the provided balance file (refer to the documentation for format)
   -chain-domain gno.land	set node ChainDomain
   -chain-id dev	set node ChainID
+  -contracts-dir contracts	directory of your own packages to load, every package under it (staging defaults to ./contracts, skipped when absent)
   -deploy-key g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5	default key name or Bech32 address for deploying packages
   -empty-blocks=false 	enable creation of empty blocks (default: ~1s interval)
   -empty-blocks-interval 1	set the interval for creating empty blocks (in seconds)
