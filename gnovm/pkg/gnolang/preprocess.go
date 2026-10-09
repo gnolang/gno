@@ -68,25 +68,31 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-	// Predefine all type decls decls.
+	// Predefine all type decls, as one group.
+	var sites []typeDeclSite
 	for _, fn := range fset.Files {
-		for i := range fn.Decls {
-			d := fn.Decls[i]
-			switch d.(type) {
-			case *TypeDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) == true {
-					// skip declarations already predefined
-					// (e.g. through recursion for a
-					// dependent)
-					continue
-				}
+		sites = appendTypeDeclSites(sites, fn, fn.Decls)
+	}
+	predefineTypeDeclGroup(store, sites, func() {
+		for _, fn := range fset.Files {
+			for i := range fn.Decls {
+				d := fn.Decls[i]
+				switch d.(type) {
+				case *TypeDecl:
+					if d.GetAttribute(ATTR_PREDEFINED) == true {
+						// skip declarations already predefined
+						// (e.g. through recursion for a
+						// dependent)
+						continue
+					}
 
-				// recursively predefine dependencies.
-				predefineRecursivelyIndexed(store, fn, d, index)
-				fn.Decls[i] = d
+					// recursively predefine dependencies.
+					predefineRecursivelyIndexed(store, fn, d, index)
+					fn.Decls[i] = d
+				}
 			}
 		}
-	}
+	})
 	// Then, predefine all func/method decls.
 	for _, fn := range fset.Files {
 		for i := range fn.Decls {
@@ -867,9 +873,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if cd, ok := d.(*ValueDecl); ok {
 						checkValDefineMismatch(cd)
 					}
-
-					// recursively predefine dependencies.
-					preprocessed := predefineRecursively(store, last, d)
+					// recursively predefine dependencies; a type
+					// declaration is a group of one.
+					var preprocessed bool
+					if td, ok := d.(*TypeDecl); ok {
+						predefineTypeDeclGroup(store, []typeDeclSite{{td, last}}, func() {
+							preprocessed = predefineRecursively(store, last, d)
+						})
+					} else {
+						preprocessed = predefineRecursively(store, last, d)
+					}
 					if preprocessed {
 						return d, TRANS_SKIP
 					} else {
@@ -1208,23 +1221,27 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-					// Predefine all type decls.
-					for i := range n.Decls {
-						d := n.Decls[i]
-						switch d.(type) {
-						case *TypeDecl:
-							if d.GetAttribute(ATTR_PREDEFINED) == true {
-								// skip declarations already
-								// predefined (e.g. through
-								// recursion for a dependent)
-							} else {
-								// recursively predefine
-								// dependencies.
-								predefineRecursively(store, n, d)
-								n.Decls[i] = d
+					// Predefine all type decls, as one group. After
+					// PredefineFileSet nothing is left to do here.
+					sites := appendTypeDeclSites(nil, n, n.Decls)
+					predefineTypeDeclGroup(store, sites, func() {
+						for i := range n.Decls {
+							d := n.Decls[i]
+							switch d.(type) {
+							case *TypeDecl:
+								if d.GetAttribute(ATTR_PREDEFINED) == true {
+									// skip declarations already
+									// predefined (e.g. through
+									// recursion for a dependent)
+								} else {
+									// recursively predefine
+									// dependencies.
+									predefineRecursively(store, n, d)
+									n.Decls[i] = d
+								}
 							}
 						}
-					}
+					})
 					// Then, predefine all func/method decls.
 					for i := range n.Decls {
 						d := n.Decls[i]
@@ -3279,21 +3296,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				case *StructType:
 					*dstT = *(tmp.(*StructType))
 				case *DeclaredType:
-					if n.IsAlias {
-						// Nothing to do.
-					} else {
-						// Construct a temporary new *DeclaredType
-						// and copy value to dst to keep the original pointer.
-						//
-						// NOTE: this is where the structured value
-						// (e.g.  *ArrayType, *StructType) of declared
-						// types are actually instantiated, not in
-						// machine.go:runDeclaration().
-						tmp2 := declareWith(ctxpn.PkgPath, last, n.Name, tmp)
-						// if !n.IsAlias { // not sure why this was here.
-						tmp2.Seal()
-						// }
-						*dstT = *tmp2
+					if !n.IsAlias {
+						// dstT is the shell reserveTypeDecls made;
+						// give it its base and seal it in place so
+						// every earlier reference stays valid.
+						dstT.Base = baseOf(tmp)
+						dstT.Seal()
 					}
 				case PrimitiveType:
 					dstTV.V = TypeValue{Type: tmp}
@@ -4341,7 +4349,7 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 			PkgPath: packageOf(last).PkgPath,
 			Fields:  buildFieldTypesAST(store, last, x.Fields, true),
 		}
-		validateEmbedDepth(st, "<anonymous struct>")
+		validateEmbedDepth(preprocessGasMeterOf(store), st, "<anonymous struct>")
 		validateStructFields(st, "<anonymous struct>")
 		return st, true
 	case *InterfaceTypeExpr:
@@ -4354,7 +4362,7 @@ func staticTypeFromAST(store Store, last BlockNode, x Expr) (Type, bool) {
 			Methods: flattenInterfaceMethods(buildFieldTypesAST(store, last, x.Methods, false), pkgPath),
 			Generic: x.Generic,
 		}
-		validateEmbedDepth(it, "<anonymous interface>")
+		validateEmbedDepth(preprocessGasMeterOf(store), it, "<anonymous interface>")
 		validateInterfaceMethods(it, "<anonymous interface>")
 		return it, true
 	}
@@ -5184,26 +5192,42 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 // composite type eliding to work.
 //
 // Args:
-//   - direct: If true x must not be a *NameExpr in stack/defining (illegal direct recursion).
 //   - elide: For composite type eliding.
 //
 // Returns:
 //   - un: undefined dependency's name if any
-//   - directR: if un != "", `direct` passed to final name expr.
-//     NOTE: 'direct' is passed through, or becomes overridden with false and
-//     passed to higher/later calls in the stack, and the `direct` argument
-//     seen at the top of the stack is returned all the way back.
-func findUndefinedV(store Store, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, direct bool, elide Type) (un Name, directR bool) {
-	return findUndefinedAny(store, last, x, stack, defining, false, direct, false, elide)
+func findUndefinedV(store Store, last BlockNode, x Expr, elide Type) (un Name) {
+	return findUndefinedAny(store, last, x, false, elide)
 }
 
-func findUndefinedT(store Store, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, isalias bool, direct bool) (un Name, directR bool) {
-	return findUndefinedAny(store, last, x, stack, defining, isalias, direct, true, nil)
+func findUndefinedT(store Store, last BlockNode, x Expr) (un Name) {
+	return findUndefinedAny(store, last, x, true, nil)
 }
 
-func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, defining map[Name]struct{}, isalias bool, direct bool, astype bool, elide Type) (un Name, directR bool) {
+// typeDeclForName returns the *TypeDecl that declares n, or nil if n is not
+// declared by a type declaration.
+func typeDeclForName(store Store, last BlockNode, n Name) *TypeDecl {
+	for bn := last; bn != nil; bn = bn.GetParentNode(store) {
+		idx, ok := bn.GetLocalIndex(n)
+		if !ok {
+			continue
+		}
+		td, _ := bn.GetNameSources()[idx].Origin.(*TypeDecl)
+		return td
+	}
+	return nil
+}
+
+// unbuiltTypeDecl reports whether n names a type declaration that has a
+// reserved slot but is not preprocessed yet.
+func unbuiltTypeDecl(store Store, last BlockNode, n Name) bool {
+	td := typeDeclForName(store, last, n)
+	return td != nil && td.GetAttribute(ATTR_PREPROCESSED) != true
+}
+
+func findUndefinedAny(store Store, last BlockNode, x Expr, astype bool, elide Type) (un Name) {
 	if debugFind {
-		fmt.Printf("findUndefinedAny(%v, %v, %v, isalias=%v, direct=%v, astype=%v, elide=%v\n", x, stack, defining, isalias, direct, astype, elide)
+		fmt.Printf("findUndefinedAny(%v, astype=%v, elide=%v\n", x, astype, elide)
 	}
 	if x == nil {
 		return
@@ -5226,88 +5250,75 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				} else {
 					// yet undefined
 					un = tx.Name
-					directR = direct // returns along callstack.
 					untype = true
 					return
 				}
 		*/
-		// XXX simplify
-		if direct {
-			if astype {
-				if _, ok := defining[cx.Name]; ok {
-					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
-						Names(stack).Join(" -> "), cx.Name))
-				}
-				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
-					return
-				}
-			} else {
-				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
-					return
-				}
-				return cx.Name, direct
+		// A type declaration of the group has a slot from
+		// reserveTypeDecls before it is built. Only another type
+		// declaration's expression may use it that way (tryPredefine
+		// walks those itself); anything walked here, a variable's type,
+		// a conversion, a composite literal, needs it built first.
+		if tv := last.GetSlot(store, cx.Name, true); tv != nil {
+			if unbuiltTypeDecl(store, last, cx.Name) {
+				return cx.Name
 			}
-		} else {
-			if tv := last.GetSlot(store, cx.Name, true); tv != nil {
-				return
-			}
+			return
 		}
-		return cx.Name, direct
+		return cx.Name
 	case *BasicLitExpr:
 		return
 	case *BinaryExpr:
-		un, directR = findUndefinedV(store, last, cx.Left, stack, defining, direct, nil)
+		un = findUndefinedV(store, last, cx.Left, nil)
 		if un != "" {
 			return
 		}
-		un, directR = findUndefinedV(store, last, cx.Right, stack, defining, direct, nil)
+		un = findUndefinedV(store, last, cx.Right, nil)
 		if un != "" {
 			return
 		}
 	case *SelectorExpr:
-		return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		return findUndefinedV(store, last, cx.X, nil)
 	case *SliceExpr:
-		un, directR = findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		un = findUndefinedV(store, last, cx.X, nil)
 		if un != "" {
 			return
 		}
 		if cx.Low != nil {
-			un, directR = findUndefinedV(store, last, cx.Low, stack, defining, direct, nil)
+			un = findUndefinedV(store, last, cx.Low, nil)
 			if un != "" {
 				return
 			}
 		}
 		if cx.High != nil {
-			un, directR = findUndefinedV(store, last, cx.High, stack, defining, direct, nil)
+			un = findUndefinedV(store, last, cx.High, nil)
 			if un != "" {
 				return
 			}
 		}
 		if cx.Max != nil {
-			un, directR = findUndefinedV(store, last, cx.Max, stack, defining, direct, nil)
+			un = findUndefinedV(store, last, cx.Max, nil)
 			if un != "" {
 				return
 			}
 		}
 	case *StarExpr: // POINTER & DEREF
 		// NOTE: *StarExpr can either mean dereference, or a pointer type.
-		// It's not only confusing for new developers, it causes complexity
-		// in type checking. A *StarExpr is indirect as a type unless alias.
 		if astype {
-			return findUndefinedT(store, last, cx.X, stack, defining, isalias, isalias)
+			return findUndefinedT(store, last, cx.X)
 		} else {
-			return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+			return findUndefinedV(store, last, cx.X, nil)
 		}
 	case *RefExpr:
-		return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		return findUndefinedV(store, last, cx.X, nil)
 	case *TypeAssertExpr:
-		un, directR = findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		un = findUndefinedV(store, last, cx.X, nil)
 		if un != "" {
 			return
 		}
-		return findUndefinedT(store, last, cx.Type, stack, defining, isalias, direct)
+		return findUndefinedT(store, last, cx.Type)
 	case *UnaryExpr:
-		return findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		return findUndefinedV(store, last, cx.X, nil)
 	case *CompositeLitExpr:
 		var ct Type
 		if cx.Type == nil {
@@ -5323,7 +5334,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				cx.Type = toConstTypeExpr(tx, elide)
 			*/
 		} else {
-			un, directR = findUndefinedT(store, last, cx.Type, stack, defining, isalias, astype && direct)
+			un = findUndefinedT(store, last, cx.Type)
 			if un != "" {
 				return
 			}
@@ -5340,18 +5351,18 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		switch ct.Kind() {
 		case ArrayKind, SliceKind, MapKind:
 			for _, kvx := range cx.Elts {
-				un, directR = findUndefinedV(store, last, kvx.Key, stack, defining, direct, nil)
+				un = findUndefinedV(store, last, kvx.Key, nil)
 				if un != "" {
 					return
 				}
-				un, directR = findUndefinedV(store, last, kvx.Value, stack, defining, direct, ct.Elem())
+				un = findUndefinedV(store, last, kvx.Value, ct.Elem())
 				if un != "" {
 					return
 				}
 			}
 		case StructKind:
 			for _, kvx := range cx.Elts {
-				un, directR = findUndefinedV(store, last, kvx.Value, stack, defining, direct, nil)
+				un = findUndefinedV(store, last, kvx.Value, nil)
 				if un != "" {
 					return
 				}
@@ -5362,7 +5373,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 				ct.String()))
 		}
 	case *FuncLitExpr:
-		un, directR = findUndefinedT(store, last, &cx.Type, stack, defining, isalias, astype && isalias)
+		un = findUndefinedT(store, last, &cx.Type)
 		if un != "" {
 			return
 		}
@@ -5371,79 +5382,70 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 			cx.SetAttribute(ATTR_PREPROCESS_SKIPPED, AttrPreprocessFuncLitExpr)
 		}
 	case *FieldTypeExpr: // FIELD
-		return findUndefinedT(store, last, cx.Type, stack, defining, isalias, direct)
+		return findUndefinedT(store, last, cx.Type)
 	case *ArrayTypeExpr:
 		if cx.Len != nil {
-			un, directR = findUndefinedV(store, last, cx.Len, stack, defining, direct, nil)
+			un = findUndefinedV(store, last, cx.Len, nil)
 			if un != "" {
 				return
 			}
 		}
-		return findUndefinedT(store, last, cx.Elt, stack, defining, isalias, direct)
+		return findUndefinedT(store, last, cx.Elt)
 	case *SliceTypeExpr:
-		return findUndefinedT(store, last, cx.Elt, stack, defining, isalias, astype && isalias)
+		return findUndefinedT(store, last, cx.Elt)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
-			method := &cx.Methods[i]
-			direct2 := false
-			if _, ok := method.Type.(*NameExpr); ok {
-				direct2 = true
-			}
-			un, directR = findUndefinedT(store, last, &cx.Methods[i], stack, defining, isalias, direct2)
+			un = findUndefinedT(store, last, &cx.Methods[i])
 			if un != "" {
 				return
 			}
 		}
 	case *FuncTypeExpr:
 		for i := range cx.Params {
-			un, directR = findUndefinedT(store, last, &cx.Params[i], stack, defining, isalias, astype && isalias)
+			un = findUndefinedT(store, last, &cx.Params[i])
 			if un != "" {
 				return
 			}
 		}
 		for i := range cx.Results {
-			un, directR = findUndefinedT(store, last, &cx.Results[i], stack, defining, isalias, astype && isalias)
+			un = findUndefinedT(store, last, &cx.Results[i])
 			if un != "" {
 				return
 			}
 		}
 	case *MapTypeExpr: // MAP
-		un, directR = findUndefinedT(store, last, cx.Key, stack, defining, isalias, astype && isalias)
+		un = findUndefinedT(store, last, cx.Key)
 		if un != "" {
 			return
 		}
-		// e.g.;
-		// type Int = map[Int]IntIllegal;
-		// type Int = struct{Int};
-		// type Int = *Int;
-		un, directR = findUndefinedT(store, last, cx.Value, stack, defining, isalias, isalias)
+		un = findUndefinedT(store, last, cx.Value)
 		if un != "" {
 			return
 		}
 	case *StructTypeExpr: // STRUCT
 		for i := range cx.Fields {
-			un, directR = findUndefinedT(store, last, &cx.Fields[i], stack, defining, isalias, direct)
+			un = findUndefinedT(store, last, &cx.Fields[i])
 			if un != "" {
 				return
 			}
 		}
 	case *CallExpr:
-		un, directR = findUndefinedV(store, last, cx.Func, stack, defining, direct, nil)
+		un = findUndefinedV(store, last, cx.Func, nil)
 		if un != "" {
 			return
 		}
 		for i := range cx.Args {
-			un, directR = findUndefinedV(store, last, cx.Args[i], stack, defining, direct, nil)
+			un = findUndefinedV(store, last, cx.Args[i], nil)
 			if un != "" {
 				return
 			}
 		}
 	case *IndexExpr:
-		un, directR = findUndefinedV(store, last, cx.X, stack, defining, direct, nil)
+		un = findUndefinedV(store, last, cx.X, nil)
 		if un != "" {
 			return
 		}
-		un, directR = findUndefinedV(store, last, cx.Index, stack, defining, direct, nil)
+		un = findUndefinedV(store, last, cx.Index, nil)
 		if un != "" {
 			return
 		}
@@ -5544,15 +5546,14 @@ func predefineRecursivelyIndexed(store Store, last BlockNode, d Decl, index *pre
 	defer doRecover([]BlockNode{last}, d)
 	stack := []Name{}
 	defining := make(map[Name]struct{})
-	direct := true
-	return predefineRecursively2(store, last, d, stack, defining, direct, index)
+	return predefineRecursively2(store, last, d, stack, defining, index)
 }
 
-// `stack` and `defining` are used for cycle detection. They hold the same data.
-// NOTE: `stack` never truncates; a slice is used instead of a map to show a
-// helpful message when a circular declaration is found. `defining` is also used as
-// a map to ensure best time performance of circular definition detection.
-func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool, index *predefineDeclIndex) bool {
+// `stack` and `defining` hold the names being predefined, for detecting
+// cycles through values; a type cycle reaches here only through an
+// array-length constant, which the pre-scan does not follow. `stack` keeps
+// declaration order for the message; `defining` is the same data as a map.
+func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, index *predefineDeclIndex) bool {
 	pkg := packageOf(last)
 
 	// NOTE: PredefineFileSet splits multi-value decls like `var a, b = c, d`
@@ -5582,24 +5583,24 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	// recursively predefine any dependencies.
 	var un Name // undefined name
 	var untype bool
-	var directR bool
-	// var direct = true // invalid cycle detection
 	for {
-		un, untype, directR = tryPredefine(store, pkg, last, d, stack, defining, direct)
+		un, untype = tryPredefine(store, pkg, last, d)
 		if debugFind {
-			fmt.Printf("tryPredefine(%v, %v, defining=%v, direct=%v)-->un=%v,untype=%v,direct2=%v\n", d, stack, defining, direct, un, untype, directR)
+			fmt.Printf("tryPredefine(%v, %v, defining=%v)-->un=%v,untype=%v\n", d, stack, defining, un, untype)
 		}
 		if un != "" {
 			// `un` is undefined, so define recursively.
 			// first, check circularity.
 			if _, exists := defining[un]; exists {
 				if untype {
+					// Only a cycle through an array-length constant
+					// reaches here; assertNoTypeDeclCycles does not
+					// follow values.
 					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
 						Names(stack).Join(" -> "), un))
-				} else {
-					panic(fmt.Sprintf("invalid recursive value: %s -> %s",
-						Names(stack).Join(" -> "), un))
 				}
+				panic(fmt.Sprintf("invalid recursive value: %s -> %s",
+					Names(stack).Join(" -> "), un))
 			}
 			// Look up the dependency declaration in the fileset.
 			//
@@ -5622,8 +5623,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 				panic("all types from files in file-set should have already been predefined")
 			}
 			// predefine dependency recursively.
-			// `directR` is passed on.
-			predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
+			predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, index)
 		} else {
 			break // predefine successfully performed.
 		}
@@ -5656,7 +5656,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 // If all dependencies are met, constructs and empty definition value (for a
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
-func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
+func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl) (un Name, untype bool) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
@@ -5729,8 +5729,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		if isBlankIdentifier(d.Type) {
 			panic("cannot use _ as value or type")
 		}
-		isalias := false                                                                   // a value decl can't be.
-		un, directR = findUndefinedT(store, last, d.Type, stack, defining, isalias, false) // XXX
+		un = findUndefinedT(store, last, d.Type) // XXX
 		if un != "" {
 			untype = true
 			return
@@ -5739,7 +5738,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// `var a, b, c = 1, a, b` was already split up before reaching
 		// here, whereas they are illegal inside a function.
 		for _, vx := range d.Values {
-			un, directR = findUndefinedV(store, last, vx, stack, defining, direct, nil)
+			un = findUndefinedV(store, last, vx, nil)
 			if un != "" {
 				untype = false
 				return
@@ -5760,23 +5759,10 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		if !isLocallyDefined(last2, d.Name) {
-			// construct empty t type
+			// reserveTypeDecls built every other shape; only an alias
+			// of a name outside the group is left to resolve here.
 			var t Type
 			switch tx := d.Type.(type) {
-			case *FuncTypeExpr:
-				t = &FuncType{}
-			case *ArrayTypeExpr:
-				t = &ArrayType{}
-			case *SliceTypeExpr:
-				t = &SliceType{}
-			case *InterfaceTypeExpr:
-				t = &InterfaceType{}
-			case *MapTypeExpr:
-				t = &MapType{}
-			case *StructTypeExpr:
-				t = &StructType{}
-			case *StarExpr:
-				t = &PointerType{}
 			case *NameExpr:
 				// check for blank identifier in type
 				// e.g., `type T _`
@@ -5787,16 +5773,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				if tx.Name == "nil" {
 					panic("nil is not a type")
 				}
-				// sanity check.
 				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
 					t = tv.GetType()
-					if dt, ok := t.(*DeclaredType); ok {
-						if !dt.sealed {
-							// predefineRecursively should have
-							// already preprocessed dependent types!
-							panic("should not happen")
-						}
-					}
+				} else if !isUverseName(tx.Name) {
+					// Predefine the target first.
+					return tx.Name, true
 				}
 				// set t for proper type.
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
@@ -5807,7 +5788,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				}
 			case *SelectorExpr:
 				// get package value.
-				un, directR = findUndefinedV(store, last, tx.X, stack, defining, false, nil)
+				un = findUndefinedV(store, last, tx.X, nil)
 				if un != "" {
 					untype = true
 					return
@@ -5828,41 +5809,62 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.GetType()
 			default:
-				panic(fmt.Sprintf(
-					"unexpected type declaration type %v",
+				panic(fmt.Sprintf("should not happen: %v not reserved",
 					reflect.TypeOf(d.Type)))
 			}
-			if d.IsAlias {
-				// use t directly.
-			} else {
-				// create new declared type.
-				pn := packageOf(last)
-				dt := declareWith(pn.PkgPath, last, d.Name, t)
-				t = dt
+			if !d.IsAlias {
+				panic(fmt.Sprintf("should not happen: %v not reserved", d.Name))
 			}
-			// fill in later.
+			// The alias slot holds its target's type.
 			last2.Define2(true, d.Name, t, asValue(t), NameSource{&d.NameExpr, d, NSTypeDecl, -1})
 			d.Path = last.GetPathForName(store, d.Name)
 		} // END if !isLocallyDefined(last2, d.Name) {
 		// now it is or was locally defined.
 
-		// after predefinitions (for reasonable recursion support),
-		// return any undefined dependencies.
-		un, directR = findUndefinedAny(
-			store, last, d.Type, stack, defining, d.IsAlias, direct, true, nil)
-		if un != "" {
-			untype = true
-			return
+		// Build order: a directly contained type (a base, an array
+		// element, a struct field, an embedded interface) must be built
+		// before this one, since sealing looks through it. An indirectly
+		// referenced one needs only its slot, which reserveTypeDecls gave
+		// every member of the group. Cycles were validated up front, so a
+		// direct dependency is never still in progress.
+		// A type name needs only its slot here, so the walk is not
+		// used for them: a name without a slot is undefined, and the
+		// values in array lengths go through the walk like any value.
+		var unbuilt, undefined Name
+		var lens []Expr
+		nodes := collectTypeDeps(d.Type, true, func(dep Name, direct bool) {
+			if _, ok := UverseNode().GetLocalIndex(dep); ok {
+				return
+			}
+			if undefined == "" && last.GetSlot(store, dep, true) == nil {
+				undefined = dep
+			}
+			if unbuilt == "" && direct && unbuiltTypeDecl(store, last, dep) {
+				unbuilt = dep
+			}
+		}, func(lx Expr) { lens = append(lens, lx) })
+		chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeTypeDeclNode*nodes)
+		if undefined != "" {
+			return undefined, true
+		}
+		if unbuilt != "" {
+			return unbuilt, true
+		}
+		for _, lx := range lens {
+			if un = findUndefinedV(store, last, lx, nil); un != "" {
+				untype = true
+				return
+			}
 		}
 		// END *TypeDecl
 	case *FuncDecl:
-		un, directR = findUndefinedT(store, last, &d.Type, stack, defining, false, false)
+		un = findUndefinedT(store, last, &d.Type)
 		if un != "" {
 			untype = true
 			return
 		}
 		if d.IsMethod {
-			un, directR = findUndefinedT(store, last, &d.Recv, stack, defining, false, false)
+			un = findUndefinedT(store, last, &d.Recv)
 			if un != "" {
 				untype = true
 				return
@@ -5986,7 +5988,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			d.String()))
 	}
 	// predefine complete.
-	return "", false, false // zero values
+	return "", false // zero values
 }
 
 var reExpectedPkgName = regexp.MustCompile(`(?:^|/)([^/]+)(?:/v\d+)?$`)
