@@ -13,8 +13,6 @@ Extension of [`gno.land/p/nt/ownable/v0`](../..) that adds a second permission l
 package myrealm
 
 import (
-    "chain/runtime"
-
     "gno.land/p/nt/ownable/v0"
     "gno.land/p/nt/ownable/exts/authorizable/v0"
 )
@@ -23,8 +21,8 @@ import (
 // Here: the deployer, captured in init.
 var auth *authorizable.Authorizable
 
-func init() {
-    caller := runtime.PreviousRealm()
+func init(cur realm) {
+    caller := cur.Previous()
     if !caller.IsUserCall() {
         panic("must be deployed by a user")
     }

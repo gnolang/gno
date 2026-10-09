@@ -19,7 +19,6 @@ Treasury management for coin and GRC20 token transfers in Gno realms. A `Treasur
 import (
     "chain"
     "chain/banker"
-    "chain/runtime"
 
     "gno.land/p/nt/grc20/v0"
     "gno.land/p/nt/treasury/v0"
@@ -30,13 +29,13 @@ var (
     tr     *treasury.Treasury
 )
 
-func init() {
-    owner := runtime.CurrentRealm().Address() // this realm holds and sends the funds
+func init(cur realm) {
+    owner := cur.Address() // this realm holds and sends the funds
 
     // Coins banker owned by this realm.
     coinsBanker, err := treasury.NewCoinsBankerWithOwner(
         owner,
-        banker.NewBanker(banker.BankerTypeRealmSend),
+        banker.NewBanker(banker.BankerTypeRealmSend, cur),
     )
     if err != nil {
         panic(err)
@@ -52,7 +51,7 @@ func init() {
 
     tr, err = treasury.New(
         []treasury.Banker{coinsBanker, grc20Banker},
-        runtime.CurrentRealm().PkgPath(),
+        cur.PkgPath(),
     )
     if err != nil {
         panic(err)
