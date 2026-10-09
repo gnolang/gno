@@ -1558,6 +1558,14 @@ func TestMultiplexSwitch_PeekDialItem(t *testing.T) {
 			wantTime:         due.Add(-time.Minute),
 		},
 		{
+			name:             "both due, a later discovered peer goes after a persistent dial",
+			persistent:       []time.Time{due.Add(-time.Minute)},
+			general:          []time.Time{due},
+			servedPersistent: true,
+			want:             generalQueue,
+			wantTime:         due,
+		},
+		{
 			name:             "only the persistent peer due, after a persistent dial it still goes",
 			persistent:       []time.Time{due},
 			general:          []time.Time{later},
@@ -1677,7 +1685,7 @@ func TestMultiplexSwitch_DialLoop_Persistent(t *testing.T) {
 		// Sixteen persistent peers that keep timing out leave a due persistent
 		// dial at the head almost all the time
 		for _, addr := range persistentAddrs {
-			sw.persistentDialQueue.Push(dial.Item{Time: now, Address: addr})
+			sw.persistentDialQueue.Push(dial.Item{Time: now.Add(-time.Minute), Address: addr})
 		}
 
 		sw.dialQueue.Push(dial.Item{Time: now, Address: discovered})
