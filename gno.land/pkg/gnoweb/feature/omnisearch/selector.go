@@ -123,12 +123,12 @@ func capResults(rs []Result) ([]Result, bool) {
 	return rs, false
 }
 
-// partialAnswer is a resolver's verdict that its rows are not the whole
+// partialAnswerError is a resolver's verdict that its rows are not the whole
 // answer. It travels as an error so every resolver keeps one signature, and
 // Search turns it into a notice rather than a failure.
-type partialAnswer string
+type partialAnswerError string
 
-func (p partialAnswer) Error() string { return string(p) }
+func (p partialAnswerError) Error() string { return string(p) }
 
 // recentNotice is what a reader is told when the indexer walk stopped short
 // of genesis.

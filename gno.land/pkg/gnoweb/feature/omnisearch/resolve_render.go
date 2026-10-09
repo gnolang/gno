@@ -173,7 +173,7 @@ func joinNotices(notices []string) error {
 	if len(notices) == 0 {
 		return nil
 	}
-	return partialAnswer(strings.Join(notices, " "))
+	return partialAnswerError(strings.Join(notices, " "))
 }
 
 // snippetAround returns the match with context either side. Bounds are
