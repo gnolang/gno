@@ -2643,6 +2643,18 @@ main.is-dev-mode .b-toc a {
 		}
 	}
 
+	/* ===== GNO-ICON COMPONENT ===== */
+	/* Inline <gno-icon />: sized and colored by the surrounding text, so it
+	   follows headings, links and both themes. 1.15em matches .c-icon; the
+	   negative vertical-align centers the glyph on the x-height instead of
+	   sitting it on the baseline. */
+	.gno-icon {
+		display: inline-block;
+		width: 1.15em;
+		height: 1.15em;
+		vertical-align: -0.2em;
+	}
+
 	/* ===== COLUMNS COMPONENT ===== */
 	.gno-columns {
 		--columns-gap: var(--g-space-10);
@@ -3204,7 +3216,9 @@ main.is-dev-mode .b-toc a {
 			font-weight: var(--g-font-bold);
 			list-style: none;
 
-			svg {
+			/* The kind and chevron glyphs; a <gno-icon /> in the title keeps
+			   its own inline sizing. */
+			svg:not(.gno-icon) {
 				width: var(--g-space-6);
 				height: var(--g-space-6);
 

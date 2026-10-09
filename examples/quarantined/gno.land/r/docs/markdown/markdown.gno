@@ -1001,6 +1001,47 @@ This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 
 You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
 
+### Icons
+
+Put a small icon anywhere text goes (a heading, a paragraph, a list item, a table cell, a link label) with a
+self-closing ±<gno-icon />± tag. It takes the size and color of the text around it.
+
+±±±markdown
+## <gno-icon name="rocket" /> Launch
+
+- <gno-icon name="check-circle" label="Done" /> Audit
+- <gno-icon name="clock" label="Pending" /> Mainnet
+
+[<gno-icon name="book" /> Read the docs](/r/docs)
+±±±
+
+- Renders as:
+
+---
+
+## <gno-icon name="rocket" /> Launch
+
+- <gno-icon name="check-circle" label="Done" /> Audit
+- <gno-icon name="clock" label="Pending" /> Mainnet
+
+[<gno-icon name="book" /> Read the docs](/r/docs)
+
+---
+
+Add ±label="…"± when the icon means something on its own (a status, a warning): screen readers announce it.
+Leave it out for a decorative icon. A link or a heading that holds only an icon needs the label: it is
+their only name, e.g. ±[<gno-icon name="globe" label="Website" />](https://example.com)±. No other attribute
+is read.
+
+Write the tag on one line, self-closing (±/>±), with a lowercase name exactly as listed. A tag that is not
+self-closing, or whose name is unknown, renders nothing; the page source holds an HTML comment saying why.
+A page renders at most 1,000 icons.
+
+Some of the available names: ±star±, ±heart±, ±check-circle±, ±warning-triangle±, ±info±, ±wallet±, ±coin±,
+±key±, ±lock±, ±shield±, ±user±, ±users±, ±calendar±, ±clock±, ±mail±, ±globe±, ±rocket±, ±lightning±,
+±database±, ±server±, ±terminal±, ±branch±. All 491, with a picture of each, are in
+[ICONS.md](https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoweb/markdown/ICONS.md).
+
 ### Smart Contract Integration
 
 XXX: TODO

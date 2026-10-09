@@ -73,6 +73,8 @@ type ForeignNode struct {
 	DepthAtParse int
 	// blockCounter is the foreign block budget shared with nested renders.
 	blockCounter *foreignBlockCounter
+	// icons is the <gno-icon> budget, shared with nested renders the same way.
+	icons *iconBudget
 	// GnoCtx is the render context (GnoURL, chain id, …) captured at
 	// parse time. The renderer rebuilds the inner instance's
 	// parser.Context from it so links inside the sandbox get the same
@@ -222,6 +224,7 @@ func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 		Label:        label,
 		DepthAtParse: depthBefore + 1,
 		blockCounter: counter,
+		icons:        getIconBudget(pc),
 		GnoCtx:       getGnoContext(pc),
 	}
 	// parser.NoChildren — load-bearing opacity invariant: the body must
@@ -378,6 +381,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 	// `<javascript:…>` render as live hrefs inside the sandbox.
 	innerCtx := NewGnoParserContext(n.GnoCtx)
 	innerCtx.Set(gnoForeignBlockKey, n.blockCounter)
+	innerCtx.Set(iconBudgetKey, n.icons)
 	// Flag the inner context as a foreign/untrusted origin so links
 	// inside the sandbox render as user-generated content (rel="ugc",
 	// no first-party tx/internal trust icons) and cannot borrow the
@@ -413,7 +417,8 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 // render_config.go) so user content renders identically inside the
 // sandbox as it would at top level, plus the structural gno-*
 // extensions that exist today (foreign, columns, frame, alert), the link
-// extension, and mentions. Image validator is wired through if non-nil.
+// extension, mentions, and icons (static allowlisted glyphs). Image
+// validator is wired through if non-nil.
 //
 // Mentions are loaded: a `@user`/`g1…` mention resolves to a system-
 // built /u/<name> link (the author cannot choose the destination), so it
@@ -445,6 +450,7 @@ func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdow
 	ExtAlerts.Extend(m)
 	ExtLinks.Extend(m)
 	ExtMention.Extend(m)  // @user / g1… mentions (system-resolved, keep chrome)
+	ExtIcons.Extend(m)    // allowlisted static glyphs, no link or script surface
 	ExtEmphasis.Extend(m) // bound emphasis-parsing cost (yuin/goldmark#555)
 	if imgValidator != nil {
 		ExtImageValidator.Extend(m, imgValidator)
