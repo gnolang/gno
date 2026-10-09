@@ -592,15 +592,20 @@ func (sw *MultiplexSwitch) persistentPeerDisconnected(
 	connectedAt map[types.ID]time.Time,
 	now time.Time,
 ) {
-	if since, ok := connectedAt[id]; ok && now.Sub(since) >= sw.stableUptime {
-		delete(attempts, id)
-	}
-
+	since, connected := connectedAt[id]
 	delete(connectedAt, id)
 
 	addr, ok := sw.persistentPeerAddr(id)
 	if !ok {
 		return
+	}
+
+	if connected && now.Sub(since) >= sw.stableUptime {
+		// A tick handled between the peer's removal from the peer set and this
+		// event queues it with the backoff it had before connecting: that dial
+		// is replaced by one due at once
+		delete(attempts, id)
+		sw.persistentDialQueue.Remove(addr)
 	}
 
 	sw.queuePersistentPeer(id, addr, attempts, now)

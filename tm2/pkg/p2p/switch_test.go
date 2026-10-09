@@ -2428,6 +2428,29 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		assert.Equal(t, map[types.ID]uint{addr.ID: 0}, attempts)
 	})
 
+	t.Run("a stable drop replaces a dial a tick queued with the earlier backoff", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			sw, addr    = newPersistentSwitch(t)
+			now         = time.Now()
+			attempts    = map[types.ID]uint{addr.ID: 3}
+			connectedAt = map[types.ID]time.Time{addr.ID: now}
+			dropped     = now.Add(persistentStableUptime)
+		)
+
+		// A tick handled between the peer's removal from the peer set and its
+		// disconnect event queues it with the backoff it had before connecting
+		sw.queueMissingPersistentPeers(attempts, dropped)
+
+		sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
+
+		// The stable drop still gets a dial due at once, and only that one
+		assert.Equal(t, time.Duration(0), popDelay(t, sw, dropped))
+		assert.Nil(t, sw.persistentDialQueue.Pop())
+		assert.Equal(t, map[types.ID]uint{addr.ID: 0}, attempts)
+	})
+
 	t.Run("a disconnect without a recorded connect keeps the backoff", func(t *testing.T) {
 		t.Parallel()
 
