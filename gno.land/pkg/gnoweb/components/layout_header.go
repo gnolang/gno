@@ -28,18 +28,28 @@ type HeaderLinks struct {
 }
 
 type HeaderData struct {
-	RealmPath  string
-	RealmURL   weburl.GnoURL
-	Breadcrumb BreadcrumbData
-	Links      HeaderLinks
-	ChainId    string
-	Remote     string
-	Mode       ViewMode
-	Static     bool
+	RealmPath string
+	// SearchAction is the omnibar form's target. It exists so the bar works
+	// with JavaScript disabled: the form submits here and the reader gets
+	// the server-rendered results page. With JavaScript the controller
+	// intercepts the submit, so this stays the fallback rather than the
+	// normal path.
+	SearchAction string
+	RealmURL     weburl.GnoURL
+	Breadcrumb   BreadcrumbData
+	Links        HeaderLinks
+	ChainId      string
+	Remote       string
+	Mode         ViewMode
+	Static       bool
 	// Origin is the request scheme+host the AI prompts link to.
 	Origin string
 	AI     *AIMenu
 	Notice RealmNotice
+	// Listing is set on a directory listing, whose tabs it carries.
+	// MapTab is set by a directory listing large enough for a map: it then
+	// offers its Directory and Map renderings as tabs.
+	MapTab bool
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -165,12 +175,51 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	}
 }
 
+// listingTabs are a listing's Directory and Map tabs.
+func listingTabs(u weburl.GnoURL) []HeaderLink {
+	listURL, mapURL := u, u
+	listURL.WebQuery = url.Values{}
+	mapURL.WebQuery = url.Values{"map": {""}}
+	onMap := u.WebQuery.Has("map")
+	return []HeaderLink{
+		{
+			Label:    "Directory",
+			URL:      listURL.EncodeWebURL(),
+			Icon:     "ico-folder",
+			IsActive: !onMap,
+			Tooltip:  "Every package under this path, one per line.",
+		},
+		{
+			Label:    "Map",
+			URL:      mapURL.EncodeWebURL(),
+			Icon:     "ico-grid",
+			IsActive: onMap,
+			Tooltip:  "The same packages drawn as a map, grouped by path.",
+		},
+	}
+}
+
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	// The root has no path: an empty value shows the placeholder
 	if data.RealmURL.Path != "/" {
 		data.RealmPath = data.RealmURL.EncodeURL()
 	}
-	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
+	// A page that names no package still searches — chain-wide.
+	searchBase := data.RealmURL.Path
+	if searchBase == "" {
+		searchBase = "/"
+	}
+	data.SearchAction = searchBase + "$search"
+	switch {
+	case data.MapTab:
+		data.Links.Dev = listingTabs(data.RealmURL)
+	case mode == ViewModeExplorer:
+		// A listing without a map has one rendering: a single tab would
+		// choose between nothing.
+		data.Links.Dev = nil
+	default:
+		data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
+	}
 	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
 		data.AI = NewAIMenu(data.Origin, data.RealmURL)
 	}
@@ -186,11 +235,12 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("state")
+		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("state") && !webQuery.Has("deps")
 	case "State":
 		return webQuery.Has("state")
 	case "Source":
-		return webQuery.Has("source")
+		// The dependencies page extends the overview, which is under Source.
+		return webQuery.Has("source") || webQuery.Has("deps")
 	case "Actions":
 		return webQuery.Has("help")
 	default:

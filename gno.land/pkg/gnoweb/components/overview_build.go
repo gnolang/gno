@@ -158,7 +158,7 @@ func buildSubpackages(self string, paths []string) []SubpackageLink {
 // hasReadmeSection tells whether the README section was actually rendered. The
 // file being listed is not enough: its fetch may have failed, and the #readme
 // entry must not point at a section the template never emitted.
-func buildOverviewTOC(quality PackageQuality, hasReadmeSection bool, funcs []FuncEntry, types []TypeEntry, values []ValueGroup, imports []ImportLink, files []FileLink, subpacks []SubpackageLink) []*TocItem {
+func buildOverviewTOC(quality PackageQuality, hasReadmeSection bool, funcs []FuncEntry, types []TypeEntry, values []ValueGroup, graph DepGraph, calls *CallsSection, files []FileLink, subpacks []SubpackageLink) []*TocItem {
 	var toc []*TocItem
 	if quality.HasPkgDoc {
 		toc = append(toc, &TocItem{Title: "Overview", ID: "overview"})
@@ -199,8 +199,11 @@ func buildOverviewTOC(quality PackageQuality, hasReadmeSection bool, funcs []Fun
 		}
 		toc = append(toc, item)
 	}
-	if len(imports) > 0 {
-		toc = append(toc, &TocItem{Title: "Imports", ID: "imports"})
+	if graph.Shown() {
+		toc = append(toc, &TocItem{Title: "Dependencies", ID: "imports"})
+	}
+	if calls != nil {
+		toc = append(toc, &TocItem{Title: "Recent calls", ID: "calls"})
 	}
 	// The file entries link straight into the source view, so a reader reaches a
 	// file from the sidebar instead of scrolling down to the Files section.
@@ -290,7 +293,7 @@ func BuildOverview(in OverviewInput) OverviewData {
 	if in.Doc != nil {
 		importPaths = in.Doc.Imports
 	}
-	imports := buildImports(importPaths, in.Domain)
+	imports := ImportLinks(importPaths, in.Domain)
 	funcs, types := buildSymbols(in.Doc, in.DocRenderer, in.URL.Path)
 	values := buildValues(in.Doc, in.DocRenderer, in.URL.Path)
 	funcs, fTrunc := capSymbols(funcs, maxOverviewSymbols)
@@ -312,7 +315,8 @@ func BuildOverview(in OverviewInput) OverviewData {
 	stats := computeStats(in.Files, in.Doc, imports)
 	files := buildFileLinks(in.URL.Path, in.Files)
 	subpacks := buildSubpackages(in.URL.Path, in.Subpaths)
-	toc := buildOverviewTOC(quality, in.Readme != nil, funcs, types, values, imports, files, subpacks)
+	graph := DepGraph{Name: in.URL.Path, Imports: imports, LookupURL: in.DepsURL}
+	toc := buildOverviewTOC(quality, in.Readme != nil, funcs, types, values, graph, in.Calls, files, subpacks)
 
 	pkgDocSynopsis := ""
 	var pkgDocComp Component
@@ -339,7 +343,9 @@ func BuildOverview(in OverviewInput) OverviewData {
 		Types:            types,
 		Consts:           consts,
 		Vars:             vars,
-		Imports:          imports,
+		Graph:            graph,
+		Storage:          in.Storage,
+		Calls:            in.Calls,
 		Files:            files,
 		Subpackages:      subpacks,
 		Bugs:             bugs,

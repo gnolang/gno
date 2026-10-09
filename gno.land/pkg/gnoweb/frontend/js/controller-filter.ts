@@ -4,15 +4,18 @@ import { BaseController, debounce } from "./controller.js";
 //   data-controller="filter"
 //   data-filter-items-value="<CSS selector>"   (required)
 //   data-filter-attribute-value="<attr>"       (default: data-name)
+//   data-filter-class-value="<class>"          (default: u-hidden)
 //   data-action="input->filter#filter"
-// Toggles `u-hidden` on non-matching items; no events emitted.
+// Toggles the class on non-matching items; no events emitted.
 export class FilterController extends BaseController {
 	private declare items: HTMLElement[];
 	private declare attribute: string;
+	private declare hiddenClass: string;
 
 	protected connect(): void {
 		this.items = [];
 		this.attribute = "data-name";
+		this.hiddenClass = this.getValue("class") || "u-hidden";
 
 		const itemsSelector = this.getValue("items");
 		if (!itemsSelector) {
@@ -47,7 +50,7 @@ export class FilterController extends BaseController {
 			const match = q === "" || v.includes(q);
 			// `u-hidden` over the HTML `hidden` attr: authored `display:*`
 			// rules outrank the user-agent `[hidden] { display: none }`.
-			el.classList.toggle("u-hidden", !match);
+			el.classList.toggle(this.hiddenClass, !match);
 		}
 	}, 100);
 }

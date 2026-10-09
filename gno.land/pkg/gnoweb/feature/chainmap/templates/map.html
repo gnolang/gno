@@ -1,0 +1,114 @@
+{{/* ===================================================================================
+UI - Map figure
+
+The listing the list view renders, drawn as a treemap: namespaces, then the
+next path segment, then packages. Server-rendered and script-free. The SVG
+draws in a fixed 960 × 600 space it scales to its width, so every label was
+fitted to its box on the server; geometry rides on attributes, since gnoweb's
+Content-Security-Policy drops inline styles. Every tile is a link named by its
+<title>, and every named box that holds more links to its own map. The page
+around it, header and rail included, is the directory view's.
+=================================================================================== */}}
+{{ define "chainmap/figure" }}
+<div class="b-map-figure" data-controller="map">
+{{/* Up to a thousand links: a keyboard reader can pass them all at once. */}}
+<a class="u-skip-link" href="#map-end">Skip the map</a>
+<div class="b-map-frame">
+  <svg class="b-map" viewBox="{{ .ViewBox }}" role="group" aria-label="Packages under {{ .Root }}">
+    {{- range .Groups }}
+    <g class="b-map__group {{ .HueClass }}">
+      {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
+      {{- range .Subgroups }}
+      {{- with .Head }}{{ template "chainmap/head" . }}{{ end }}
+      {{- range .Tiles }}
+      <a class="b-map__tile {{ .ShadeClass }}" href="{{ .Path }}" data-listing-item data-name="{{ .Path }}"><title>{{ .Title }}</title><rect x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+        {{- with .Label }}{{ template "chainmap/text" . }}{{ end }}</a>
+      {{- end }}
+      <rect class="b-map__sub-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+      {{- end }}
+      <rect class="b-map__group-frame" x="{{ .Rect.X }}" y="{{ .Rect.Y }}" width="{{ .Rect.W }}" height="{{ .Rect.H }}" />
+    </g>
+    {{- end }}
+  </svg>
+</div>
+{{/* Filled by the map controller with the tile under the pointer or the
+     keyboard focus; hidden without JavaScript, where each tile's tooltip says
+     the same. Not a live region: it changes on every pointer move. */}}
+<p class="b-map-status" data-map-target="status" hidden></p>
+{{ if and .Window .Gas }}<p class="b-map-metric">Colored by gas used over the last 7 days.</p>{{ end }}
+<p class="b-map-scroll-hint">Scroll sideways to see the whole map.</p>
+<span id="map-end" tabindex="-1"></span>
+</div>
+{{ end }}
+
+{{/* A label, at the font size the layout fitted it to: a presentation
+     attribute, which the Content-Security-Policy allows where style does
+     not. */}}
+{{ define "chainmap/text" }}<text x="{{ .X }}" y="{{ .Y }}" font-size="{{ .Size }}">{{ .Text }}</text>{{ end }}
+
+
+{{/* A name band over the top of a group or subgroup, a link to that box's
+     own map when there is one. */}}
+{{ define "chainmap/head" }}
+{{- if .Zoom }}<a class="{{ .Class }}" href="{{ .Zoom }}$map{{ .Query }}"><title>Open the map of {{ .Zoom }}</title>{{ template "chainmap/band" . }}</a>
+{{- else }}<g class="{{ .Class }}">{{ template "chainmap/band" . }}</g>{{ end }}
+{{- end }}
+
+{{ define "chainmap/band" }}<rect x="{{ .Band.X }}" y="{{ .Band.Y }}" width="{{ .Band.W }}" height="{{ .Band.H }}" />{{ template "chainmap/text" .Label }}{{ end }}
+
+
+{{/* ===================================================================================
+UI - Key: what the map measures and, for activity, what it could not. It sits
+in the listing's rail.
+=================================================================================== */}}
+{{ define "chainmap/key" }}
+<section class="b-map-key" aria-labelledby="map-key-heading">
+<h2 id="map-key-heading" class="b-sidebar-heading">Map key</h2>
+<dl class="b-pkg-meta">
+  {{ with .Up }}<div class="row"><dt class="label">Zoom out</dt><dd class="value"><a href="{{ . }}$map{{ $.Query }}">Map of {{ . }}</a></dd></div>{{ end }}
+  <div class="row"><dt class="label">Tile</dt><dd class="value">One package</dd></div>
+  <div class="row"><dt class="label">Box</dt><dd class="value" title="Select a box's name to open its map.">A folder, zoomable</dd></div>
+  {{ if .Window }}{{ with .Window }}
+  <div class="row"><dt class="label">Color</dt><dd class="value">
+    {{/* Two links, one per metric: no script needed to switch. */}}
+    <span class="b-map-switch" role="group" aria-label="Color tiles by">
+      {{ if $.Gas }}<a href="{{ $.SwitchURL }}" title="Successful calls over the last 7 days.">Calls</a><span aria-current="true" title="Gas used by successful calls over the last 7 days.">Gas</span>
+      {{- else }}<span aria-current="true" title="Successful calls over the last 7 days.">Calls</span><a href="{{ $.SwitchURL }}" title="Gas used by successful calls over the last 7 days.">Gas</a>{{ end }}
+    </span>
+    <span class="b-tag b-tag--indexer">indexer</span></dd></div>
+  <div class="row"><dt class="label">Since</dt><dd class="value">{{ .Since.UTC.Format "Jan 2" }}, 7 days</dd></div>
+  <div class="row"><dt class="label">Blocks</dt><dd class="value">{{ .From }}–{{ .To }}</dd></div>
+  {{ end }}{{ else if eq .Activity "pending" }}
+  <div class="row"><dt class="label">Color</dt><dd class="value">Activity is still being counted. <a href="{{ .Root }}$map{{ .Query }}">Reload</a></dd></div>
+  {{ else if eq .Activity "unavailable" }}
+  <div class="row"><dt class="label">Color</dt><dd class="value">Activity unavailable: the indexer could not be read.</dd></div>
+  {{ else if eq .Activity "not-called" }}
+  <div class="row"><dt class="label">Color</dt><dd class="value">None: nothing calls a pure package.</dd></div>
+  {{ else }}
+  <div class="row"><dt class="label">Color</dt><dd class="value">Tells neighboring boxes apart</dd></div>
+  {{ end }}
+</dl>
+{{ with .Scale }}
+<ul class="b-map-scale" aria-label="{{ if $.Gas }}Gas{{ else }}Calls{{ end }} per color">
+  {{ range . }}<li><span class="b-map-swatch {{ .Class }}" aria-hidden="true"></span>{{ .Range }}</li>{{ end }}
+</ul>
+<p class="b-map-key-note">{{ if $.Gas }}Gas per shade, from this map's lightest realm to its heaviest. A transaction's gas is shared between the calls, runs and deploys it holds, and counted on the realm it calls, not the realms that one calls in turn.{{ else }}Calls per shade, scaled to this map's busiest realm.{{ end }}</p>
+{{ end }}
+{{ with .Window }}{{ if .Partial }}
+<p class="b-map-key-note">Part of the window could not be read: counts are lower bounds, and a tile with a dashed edge has calls unknown.</p>
+{{ end }}{{ end }}
+</section>
+{{ with .Busiest }}
+{{/* The rail's own list style, the Package Index's: no rules of its own
+     under the heading's. */}}
+<section aria-labelledby="map-busiest-heading">
+  <h2 id="map-busiest-heading" class="b-sidebar-heading">{{ if $.Gas }}Most gas{{ else }}Most called{{ end }} · 7 days</h2>
+  <ol class="b-toc b-map-busiest">
+    {{ range . }}
+    <li><a href="{{ .Path }}"><span>{{ range .PathSegments }}{{ . }}<wbr>{{ end }}</span><small>{{ .Amount }}</small></a></li>
+    {{ end }}
+  </ol>
+</section>
+{{ end }}
+{{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
+{{ end }}

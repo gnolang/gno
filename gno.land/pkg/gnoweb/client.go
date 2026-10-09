@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 	gopath "path"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -118,6 +120,47 @@ type ClientAdapter interface {
 	// the client adds its own, and no dot: the node splits pkgPath from expr on
 	// the first dot after the first slash. expr is the caller's to keep safe.
 	Eval(ctx context.Context, pkgPath, expr string) ([]byte, error)
+
+	// Storage reports what a realm keeps on chain and the deposit locked for
+	// it (`vm/qstorage`), at the given height (0 for latest).
+	Storage(ctx context.Context, path string, height int64) (*RealmStorage, error)
+}
+
+// RealmStorage is what a realm keeps on chain, in bytes, and the deposit
+// locked for it, in ugnot.
+type RealmStorage struct {
+	Bytes, Deposit int64
+}
+
+// storageAnswer is the shape of a vm/qstorage answer.
+var storageAnswer = regexp.MustCompile(`^storage: (\d+), deposit: (\d+)$`)
+
+// parseStorage reads a vm/qstorage answer. Anything but the exact shape is an
+// error: a zero would read as an empty realm.
+func parseStorage(raw []byte) (*RealmStorage, error) {
+	m := storageAnswer.FindSubmatch(raw)
+	if m == nil {
+		return nil, fmt.Errorf("unexpected storage answer %q", raw)
+	}
+	bytes, err := strconv.ParseInt(string(m[1]), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("storage size: %w", err)
+	}
+	deposit, err := strconv.ParseInt(string(m[2]), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("storage deposit: %w", err)
+	}
+	return &RealmStorage{Bytes: bytes, Deposit: deposit}, nil
+}
+
+// Storage queries vm/qstorage for the realm at path.
+func (c *rpcClient) Storage(ctx context.Context, path string, height int64) (*RealmStorage, error) {
+	data := fmt.Sprintf("%s/%s", c.domain, strings.Trim(path, "/"))
+	raw, err := c.query(ctx, "vm/qstorage", []byte(data), height)
+	if err != nil {
+		return nil, err
+	}
+	return parseStorage(raw)
 }
 
 type rpcClient struct {
@@ -228,7 +271,14 @@ func (c *rpcClient) ListFiles(ctx context.Context, path string, height int64) ([
 // Sources lists all source files available in a specified
 // package path by querying the RPC client.
 func (c *rpcClient) ListPaths(ctx context.Context, prefix string, limit int) ([]string, error) {
-	const qpath = "vm/qpaths"
+	qpath := "vm/qpaths"
+	// The node reads the cap off the query string and silently applies its
+	// own default (1000) when none is given. Not forwarding it meant `limit`
+	// was a dead parameter and every caller saw the lexicographically first
+	// 1000 paths, with nothing to say the rest existed.
+	if limit > 0 {
+		qpath += "?limit=" + strconv.Itoa(limit)
+	}
 
 	// XXX: Consider moving this into gnoclient
 	res, err := c.query(ctx, qpath, []byte(prefix), 0)

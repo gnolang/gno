@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -17,12 +18,16 @@ type MockPackage struct {
 	Domain    string
 	Files     map[string]string // filename -> body
 	Functions []*doc.JSONFunc
+	// Imports are what vm/qdoc reports the package imports.
+	Imports []string
 	// Inert stages a package that was submitted but not yet approved. The
 	// other methods still refuse it the way the chain does -- Render and the
 	// file queries read the live key space -- so a test gets the real shape.
 	Inert bool
 	// Pending stages a redeploy parked over a live package.
 	Pending bool
+	// Storage is what vm/qstorage reports; nil makes the query fail.
+	Storage *RealmStorage
 	// Reason overrides the parked reason; defaults to awaiting-an-approver.
 	Reason string
 }
@@ -30,6 +35,8 @@ type MockPackage struct {
 // MockClient is a mock implementation of the ClientAdapter interface for testing.
 type MockClient struct {
 	Packages map[string]*MockPackage // path -> package
+	// OnStorage, when set, is told of every Storage query.
+	OnStorage func(path string)
 }
 
 var _ ClientAdapter = (*MockClient)(nil)
@@ -179,7 +186,7 @@ func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 		// read, so the chain answers not-found for them too.
 		return nil, ErrClientPackageNotFound
 	}
-	return &doc.JSONDocumentation{Funcs: pkg.Functions}, nil
+	return &doc.JSONDocumentation{Funcs: pkg.Functions, Imports: pkg.Imports}, nil
 }
 
 // StatePkg returns mock package state data for testing.
@@ -226,4 +233,22 @@ func (m *MockClient) Eval(ctx context.Context, _, _ string) ([]byte, error) {
 		return nil, fmt.Errorf("context error: %w", err)
 	}
 	return nil, ErrClientPackageNotFound
+}
+
+// Storage returns the package's staged storage, or an error when none is set.
+func (m *MockClient) Storage(ctx context.Context, path string, _ int64) (*RealmStorage, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("context error: %w", err)
+	}
+	if m.OnStorage != nil {
+		m.OnStorage(path)
+	}
+	pkg, exists := m.Packages[strings.TrimSuffix(path, "/")]
+	if !exists {
+		return nil, ErrClientPackageNotFound
+	}
+	if pkg.Storage == nil {
+		return nil, errors.New("storage not staged")
+	}
+	return pkg.Storage, nil
 }

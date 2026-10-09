@@ -53,6 +53,10 @@ UI - Package metadata (sidebar card)
   {{ with .Info.License }}{{ if .Kind }}<div class="row"><dt class="label" title="The license detected from the package's LICENSE file.">License</dt><dd class="value"><a href="{{ $.PkgPath }}$source&file={{ .FileName }}">{{ .Kind }}</a></dd></div>{{ end }}{{ end }}
   {{ with .Info.Creator }}<div class="row"><dt class="label" title="The account that deployed this package.">Creator</dt><dd class="value"><a href="/u/{{ . }}" title="{{ . }}">{{ truncMiddle . 6 }}</a></dd></div>{{ end }}
   {{ if .Info.Creator }}<div class="row"><dt class="label" title="The block height at which this package was deployed.">Block</dt><dd class="value">{{ .Info.Height }}</dd></div>{{ end }}
+  {{ with .Storage }}
+  <div class="row"><dt class="label" title="What this realm keeps on chain between transactions.">Storage</dt><dd class="value">{{ .Size }}</dd></div>
+  <div class="row"><dt class="label" title="GNOT locked to pay for that storage at the chain's storage price, refunded as the data is freed.">Storage deposit</dt><dd class="value">{{ .DepositGNOT }}</dd></div>
+  {{ end }}
 
   <dt class="section b-sidebar-heading">Code stats</dt>
   <div class="row"><dt class="label" title="Every file in the package, including tests and configuration.">Files</dt><dd class="value">{{ .Stats.FileCount }}</dd></div>
@@ -106,7 +110,8 @@ UI - Section nav: sticky anchor links (with count pills) + client-side symbol se
     {{ if or .Consts .Vars }}<a href="#{{ if .Consts }}constants{{ else }}variables{{ end }}">Values <span class="b-tag--tertiary">{{ add (len .Consts) (len .Vars) }}</span></a>{{ end }}
     {{ with .Funcs }}<a href="#functions">Funcs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
     {{ with .Types }}<a href="#types">Types <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
-    {{ with .Imports }}<a href="#imports">Imports <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
+    {{ if .Graph.Shown }}<a href="#imports">Dependencies <span class="b-tag--tertiary">{{ len .Graph.Imports }}</span></a>{{ end }}
+    {{ if .Calls }}<a href="#calls">Recent calls</a>{{ end }}
     <a href="#files">Files <span class="b-tag--tertiary">{{ len .Files }}</span></a>
     {{ with .Subpackages }}<a href="#subpackages">Subdirs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
   </div>
@@ -214,32 +219,18 @@ UI - Overview body
 </section>
 {{ end }}
 
-{{/* --- Imports --- */}}
-{{ with .Imports }}
+{{/* --- Dependencies --- */}}
+{{ if .Graph.Shown }}
 <section class="b-pkg-section" id="imports">
   <h2 class="b-pkg-section__header">
-    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Imports</span></span>
-    <span class="count">{{ len . }}</span>
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Dependencies</span></span>
   </h2>
-  <ul class="b-pkg-list b-pkg-section__body">
-    {{ range . }}
-    <li class="b-pkg-list__item">
-      {{ if .Link }}
-      <a href="{{ .Link }}" class="b-pkg-list__link"{{ if .External }} rel="noopener noreferrer" title="External link"{{ end }}>
-        <span class="c-with-icon u-font-mono">{{ .Path }}{{ if .External }}<svg class="c-icon b-pkg-list__outbound" aria-hidden="true"><use href="#ico-external-link"></use></svg>{{ end }}</span>
-        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
-      </a>
-      {{ else }}
-      <span class="b-pkg-list__link b-pkg-list__link--disabled">
-        <span class="u-font-mono">{{ .Path }}</span>
-        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
-      </span>
-      {{ end }}
-    </li>
-    {{ end }}
-  </ul>
+  <div class="b-pkg-section__body">{{ template "ui/pkg_graph" .Graph }}</div>
 </section>
 {{ end }}
+
+{{/* --- Recent calls --- */}}
+{{ with .Calls }}{{ template "ui/pkg_calls" . }}{{ end }}
 
 {{/* --- Files --- */}}
 <section class="b-pkg-section" id="files">
@@ -390,4 +381,40 @@ UI - Value group card (const / var)
   {{ end }}
   {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
 </article>
+{{ end }}
+
+
+{{/* ===================================================================================
+UI - Recent calls: the last calls into a realm, from an indexer. Function and
+caller as plain text and a profile link, never arguments, nor a link that
+signs. A failed lookup is said, so it never reads as a realm nobody calls.
+=================================================================================== */}}
+{{ define "ui/pkg_calls" }}
+<section class="b-pkg-section b-calls" id="calls">
+  <h2 class="b-pkg-section__header">
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-pulse"></use></svg><span>Recent calls</span><span class="b-tag b-tag--indexer">indexer</span></span>
+  </h2>
+  {{ if .Pending }}
+  <p class="b-calls__empty">Recent calls are still being counted. Reload in a moment.</p>
+  {{ else if .Unavailable }}
+  <p class="b-calls__empty">Recent calls unavailable: the indexer could not be read.</p>
+  {{ else if .Empty }}
+  <p class="b-calls__empty">No calls in the last 7 days.</p>
+  {{ else }}
+  {{ if .Partial }}<p class="b-calls__note">Part of the last 7 days could not be read: calls may be missing.</p>{{ end }}
+  {{ with .Rows }}
+  <ul class="b-pkg-list b-pkg-section__body">
+    {{ range . }}
+    <li class="b-pkg-list__item"><div class="b-calls__row">
+      <span class="b-calls__func"><span class="u-font-mono">{{ .Func }}</span>{{ if .Failed }} <span class="b-tag b-tag--failed">failed</span>{{ end }}</span>
+      <span class="b-calls__caller u-font-mono"><span class="u-sr-only">by </span><a href="/u/{{ .Caller }}">{{ .Caller }}</a></span>
+      <span class="b-calls__gas">{{ .Gas }} gas{{ with .Batch }}<small>{{ . }}</small>{{ end }}</span>
+      <span class="b-calls__when">{{ if .Time }}<time datetime="{{ .Time }}" title="Estimated from the block rate">{{ .Ago }}</time>{{ end }}<small>block {{ .Height }}</small></span>
+    </div></li>
+    {{ end }}
+  </ul>
+  {{ end }}
+  {{ end }}
+  {{ with .Indexer }}{{ template "ui/indexer_status" . }}{{ end }}
+</section>
 {{ end }}
