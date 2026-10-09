@@ -13,6 +13,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod/gitsource"
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload/rpcpkgfetcher"
@@ -79,16 +80,31 @@ func newModGraphCmd(io commands.IO) *commands.Command {
 	)
 }
 
+type modInitCfg struct {
+	source bool
+}
+
+func (c *modInitCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.source,
+		"source",
+		false,
+		"fill the [source] section from the git checkout's origin remote",
+	)
+}
+
 func newModInitCmd() *commands.Command {
+	cfg := &modInitCfg{}
+
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "init",
-			ShortUsage: "init <module-path>",
+			ShortUsage: "init [flags] <module-path>",
 			ShortHelp:  "initialize gno.mod file in current directory",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, args []string) error {
-			return execModInit(args)
+			return execModInit(cfg, args)
 		},
 	)
 }
@@ -292,7 +308,7 @@ func parseRemoteOverrides(arg string) (map[string]string, error) {
 	return res, nil
 }
 
-func execModInit(args []string) error {
+func execModInit(cfg *modInitCfg, args []string) error {
 	if len(args) > 1 {
 		return flag.ErrHelp
 	}
@@ -325,14 +341,35 @@ func execModInit(args []string) error {
 	modfile := new(gnomod.File)
 	modfile.Module = modPath
 	modfile.Gno = gno.GnoVerLatest
+	if cfg.source {
+		if err := fillSource(modfile, rootDir); err != nil {
+			return fmt.Errorf("create gnomod.toml: %w", err)
+		}
+	}
 	modfile.WriteFile(filepath.Join(rootDir, "gnomod.toml"))
 
+	return nil
+}
+
+// fillSource sets the repository and path of gm's [source] section from the
+// git checkout holding dir. Any revision is dropped: it is stamped at deploy
+// time (gnokey maketx addpkg), since a committed one goes stale.
+//
+// It is opt-in on purpose. The remote of a private repository is not
+// something to put on chain by accident.
+func fillSource(gm *gnomod.File, dir string) error {
+	src, err := gitsource.Detect(dir)
+	if err != nil {
+		return fmt.Errorf("detect source: %w", err)
+	}
+	gm.Source = src
 	return nil
 }
 
 type modTidyCfg struct {
 	verbose   bool
 	recursive bool
+	source    bool
 }
 
 func (c *modTidyCfg) RegisterFlags(fs *flag.FlagSet) {
@@ -347,6 +384,12 @@ func (c *modTidyCfg) RegisterFlags(fs *flag.FlagSet) {
 		"recursive",
 		false,
 		"walk subdirs for gno.mod files",
+	)
+	fs.BoolVar(
+		&c.source,
+		"source",
+		false,
+		"set or refresh the [source] section from the git checkout's origin remote",
 	)
 }
 
@@ -398,6 +441,12 @@ func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
 		gm, err := gnomod.ParseFilepath(fpath)
 		if err != nil {
 			return err
+		}
+
+		if cfg.source {
+			if err := fillSource(gm, pkgdir); err != nil {
+				return fmt.Errorf("%s: %w", relpath, err)
+			}
 		}
 
 		if fname == "gno.mod" {
