@@ -1,0 +1,18 @@
+-- input.md --
+[working gateway](https://ipfs.filebase.io/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi)
+[other host](https://example.com/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi)
+[no cid](ipfs:///readme.md)
+[dot in cid](ipfs://bafy.example)
+[port](ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi:8080/)
+[userinfo](https://user@ipfs.io/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi)
+[script](javascript:alert(1))
+![relative](/public/logo.png)
+-- output.html --
+<p><a href="https://ipfs.filebase.io/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi" rel="noopener nofollow ugc">working gateway<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>
+<a href="https://example.com/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi" rel="noopener nofollow ugc">other host<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>
+<a href="ipfs:///readme.md">no cid<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a>
+<a href="ipfs://bafy.example" rel="noopener nofollow ugc">dot in cid<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>
+<a href="ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi:8080/" rel="noopener nofollow ugc">port<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>
+<a href="https://user@ipfs.io/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi" rel="noopener nofollow ugc">userinfo<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>
+<a href="" rel="noopener nofollow ugc">script<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>
+<img src="/public/logo.png" alt="relative"></p>

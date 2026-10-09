@@ -85,6 +85,32 @@ Developers can but do not have to provide a `Render()` function in their realms.
 Custom getter methods tailored to the specifics of the realm can be built instead.
 :::
 
+### Images and IPFS content
+
+Rendered pages load images only from gnoweb's own assets, `data:` SVG images and
+a short list of hosts such as imgur and GitHub (`cspImgHost` in
+`gno.land/cmd/gnoweb/main.go`).
+
+To show content stored on IPFS, use an `ipfs://<cid>/<path>` or
+`ipns://<name>/<path>` URL as the target of a markdown link or image. gnoweb
+resolves it through its configured IPFS gateway (`-ipfs-gateway`, Filebase's
+public gateway by default). It also rewrites links to retired public gateways,
+such as ipfs.io and dweb.link, to that gateway. Prefer `ipfs://` to a gateway
+URL, so the gateway can change without touching your realm. The content still
+has to be pinned somewhere on the IPFS network: a gateway only serves what some
+node provides.
+
+:::warning
+The URL helpers in `p/nt/markdown/sanitize/v0`, which `p/moul/md/v0` uses,
+reject `ipfs://` URLs, so write the markdown yourself for a CID your realm
+controls. Never put a CID or URL that comes from users or other realms into
+markdown as is: check that the CID contains only ASCII letters and digits, then
+build `ipfs://<cid>` from it. If you add a path, allow only ASCII letters,
+digits, `-`, `_` and `.` in each segment, and reject `.` and `..` segments.
+Build the alt text or link label with `sanitize.InlineText`, as `md.Image` and
+`md.Link` would.
+:::
+
 ### Viewing source code
 
 All code uploaded to Gno.land is open-source and available for everyone to see,

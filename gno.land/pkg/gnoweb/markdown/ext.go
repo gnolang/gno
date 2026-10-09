@@ -84,6 +84,9 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add link extension
 	ExtLinks.Extend(m)
 
+	// Add IPFS gateway rewriting (no-op unless the context sets a gateway)
+	ExtIPFS.Extend(m)
+
 	// Add form / inputs extension
 	ExtForms.Extend(m)
 

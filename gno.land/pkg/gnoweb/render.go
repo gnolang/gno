@@ -88,6 +88,15 @@ type HTMLRenderer struct {
 }
 
 func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter) *HTMLRenderer {
+	// NewRouter has already rejected an invalid gateway. Without the chain
+	// domain, this only drops a direct caller's malformed one, rather than
+	// rendering it as a relative URL.
+	gateway, err := normalizeIPFSGateway(cfg.IPFSGateway, "")
+	if err != nil {
+		logger.Warn("ignoring invalid IPFS gateway", "gateway", cfg.IPFSGateway, "error", err)
+	}
+	cfg.IPFSGateway = gateway
+
 	gmOpts := append(cfg.GoldmarkOptions, goldmark.WithExtensions(
 		markdown.NewHighlighting(
 			markdown.WithFormatOptions(cfg.ChromaOptions...), // force using chroma config
@@ -128,6 +137,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	mdctx.ChainId = ctx.ChainId
 	mdctx.Remote = ctx.Remote
 	mdctx.Domain = ctx.Domain
+	mdctx.IPFSGateway = r.cfg.IPFSGateway
 
 	pctx := md.NewGnoParserContext(mdctx)
 

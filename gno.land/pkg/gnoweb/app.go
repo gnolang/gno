@@ -110,6 +110,14 @@ func NewDefaultAppConfig() *AppConfig {
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
 
+	// Normalize the IPFS gateway in place: callers building the CSP
+	// (cmd/gnoweb) read the validated origin back from cfg.
+	ipfsGateway, err := normalizeIPFSGateway(cfg.RenderConfig.IPFSGateway, cfg.Domain)
+	if err != nil {
+		return nil, fmt.Errorf("invalid IPFS gateway %q: %w", cfg.RenderConfig.IPFSGateway, err)
+	}
+	cfg.RenderConfig.IPFSGateway = ipfsGateway
+
 	// Initialize RPC Client.
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
 		client.WithRequestTimeout(cfg.NodeRequestTimeout),

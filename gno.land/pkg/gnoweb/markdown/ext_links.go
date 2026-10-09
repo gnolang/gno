@@ -111,6 +111,26 @@ func resolveDestination(dst []byte) []byte {
 	return util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(dst)))
 }
 
+// escapeDestination is the inverse of resolveDestination: it turns a
+// resolved URL back into destination bytes that resolve to that same URL.
+// Backslashes and ampersands are the only bytes the resolution acts on.
+func escapeDestination(resolved string) []byte {
+	resolved = strings.ReplaceAll(resolved, `\`, `\\`)
+	resolved = strings.ReplaceAll(resolved, "&", "&amp;")
+	return []byte(resolved)
+}
+
+// newLinkFromAutoLink builds the ast.Link that stands in for an autolink,
+// pointing at dest and labelled with label, verbatim.
+func newLinkFromAutoLink(dest, label []byte) *ast.Link {
+	link := ast.NewLink()
+	link.Destination = dest
+	text := ast.NewString(label)
+	text.SetRaw(true)
+	link.AppendChild(link, text)
+	return link
+}
+
 // trimLeadingControlAndSpace drops the bytes a URL parser strips before it
 // reads the scheme: leading C0 controls and space (WHATWG URL, "remove any
 // leading and trailing C0 control or space"). Any check that compares a
@@ -191,12 +211,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		} else {
 			rawDest = rawURL
 		}
-		link := ast.NewLink()
-		link.Destination = rawDest
-		labelNode := ast.NewString(n.Label(source))
-		labelNode.SetRaw(true)
-		link.AppendChild(link, labelNode)
-		gnoLink := &GnoLink{Link: link, Untrusted: untrusted}
+		gnoLink := &GnoLink{Link: newLinkFromAutoLink(rawDest, n.Label(source)), Untrusted: untrusted}
 		replaceWithGnoLink(n, gnoLink, rawDest, orig)
 	}
 }
