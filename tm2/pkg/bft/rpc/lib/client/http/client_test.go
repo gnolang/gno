@@ -327,3 +327,57 @@ func TestClient_SendBatchRequest(t *testing.T) {
 		assert.Nil(t, resp.Error)
 	}
 }
+
+// TestClient_toClientAddress_preservesPath covers serving an RPC behind a URL
+// prefix, which is how a chain and its web UI share one hostname and one
+// certificate. The "/" to "." encoding exists for unix sockets, whose address
+// is a filesystem path that has to survive as a hostname; applying it to a
+// tcp/http address turned "http://host:26657/rpc" into "http://host:26657.rpc",
+// which does not parse.
+func TestClient_toClientAddress_preservesPath(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		remoteAddr string
+		want       string
+	}{
+		{"http with a path", "http://127.0.0.1:26657/rpc", "http://127.0.0.1:26657/rpc"},
+		{"https with a path", "https://gno.example/rpc", "https://gno.example:443/rpc"},
+		{"http with a nested path", "http://127.0.0.1:8888/gno/rpc", "http://127.0.0.1:8888/gno/rpc"},
+		{"plain host is unchanged", "http://127.0.0.1:26657", "http://127.0.0.1:26657"},
+		{"tcp is unchanged", "tcp://127.0.0.1:26657", "http://127.0.0.1:26657"},
+		// A unix socket still gets its path encoded into the hostname, which
+		// is what makeHTTPDialer reverses.
+		{"unix socket keeps the encoding", "unix:///var/run/gno.sock", "http://.var.run.gno.sock"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := toClientAddress(tt.remoteAddr)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestClient_makeHTTPDialer_stripsPath: a URL path belongs to the request, not
+// to the dial target. net.Dial("tcp", "127.0.0.1:26657/rpc") reads "/rpc" as
+// the port and fails with "unknown port".
+func TestClient_makeHTTPDialer_stripsPath(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(ts.Close)
+
+	// ts.URL is http://127.0.0.1:PORT; dialing it with a path must still reach
+	// the listener rather than treating the path as part of the address.
+	conn, err := makeHTTPDialer(ts.URL + "/rpc")
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+	require.NoError(t, conn.Close())
+}
