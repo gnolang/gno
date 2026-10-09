@@ -24,7 +24,7 @@ Rules:
 - Keep the tag under 512 bytes. In a table cell, write a `|` in a label as
   `\|`.
 - A link or heading holding only an icon needs `label`: it is its only name.
-  Such a heading has no text, so it gets no table-of-contents entry.
+  The label is also the heading's table-of-contents entry and anchor.
 
 To add an icon, list it in `icons/icons.txt` and run `make icons`.
 
@@ -278,8 +278,6 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="info" /> | `info` |
 | <gno-icon name="info-circle" /> | `info-circle` |
 | <gno-icon name="info-circle-outline" /> | `info-circle-outline` |
-| <gno-icon name="iphone-landscape" /> | `iphone-landscape` |
-| <gno-icon name="iphone-portrait" /> | `iphone-portrait` |
 | <gno-icon name="jump-backward" /> | `jump-backward` |
 | <gno-icon name="jump-forward" /> | `jump-forward` |
 | <gno-icon name="jump-left" /> | `jump-left` |
@@ -374,6 +372,8 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="paragraph-right" /> | `paragraph-right` |
 | <gno-icon name="paragraph-start" /> | `paragraph-start` |
 | <gno-icon name="phone" /> | `phone` |
+| <gno-icon name="phone-button-landscape" /> | `phone-button-landscape` |
+| <gno-icon name="phone-button-portrait" /> | `phone-button-portrait` |
 | <gno-icon name="phone-landscape" /> | `phone-landscape` |
 | <gno-icon name="pie-half" /> | `pie-half` |
 | <gno-icon name="pie-third" /> | `pie-third` |
@@ -403,12 +403,12 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="refresh-alt" /> | `refresh-alt` |
 | <gno-icon name="replicate" /> | `replicate` |
 | <gno-icon name="replicate-alt" /> | `replicate-alt` |
+| <gno-icon name="repost" /> | `repost` |
 | <gno-icon name="reset" /> | `reset` |
 | <gno-icon name="reset-alt" /> | `reset-alt` |
 | <gno-icon name="reset-forward" /> | `reset-forward` |
 | <gno-icon name="reset-hard" /> | `reset-hard` |
 | <gno-icon name="reset-temporary" /> | `reset-temporary` |
-| <gno-icon name="retweet" /> | `retweet` |
 | <gno-icon name="reuse" /> | `reuse` |
 | <gno-icon name="reverse" /> | `reverse` |
 | <gno-icon name="reverse-alt" /> | `reverse-alt` |

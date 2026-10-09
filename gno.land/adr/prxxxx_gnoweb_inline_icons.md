@@ -144,7 +144,9 @@ It was the only general UI set found under a public-domain grant (CC0, 0BSD,
 Unlicense): 430 outline icons on a 21px grid, `fill="none"`,
 `stroke="currentColor"`, round caps and joins, the same construction as the
 chrome icons. **All of it is imported (428 icons)** except two third-party
-brand marks, `airplay` (Apple) and `bluetooth` (Bluetooth SIG). The 1px
+brand marks, `airplay` (Apple) and `bluetooth` (Bluetooth SIG). Three names that carry a trademark are renamed:
+`iphone-landscape`/`iphone-portrait` to `phone-button-landscape`/`phone-button-portrait`
+(a phone with a round button, next to `phone`'s bar) and `retweet` to `repost`. The 1px
 upstream stroke on a 21px grid is set to 1.3, which matches the chrome's 1.5
 on 24px at the same rendered size. Where an upstream name is already a chrome
 icon's (`search`, `check`, `link`, `arrow-down`… 14 of them), the chrome icon

@@ -7,6 +7,8 @@
 # Every upstream icon is imported except the brand marks below.
 #
 # Not imported (third-party brand marks): airplay, bluetooth.
+# Renamed so no name carries a trademark: iphone-* -> phone-button-*,
+# retweet -> repost.
 
 # Arrows and navigation
 arrow-up
@@ -332,8 +334,8 @@ import
 inbox
 inbox-alt
 info-circle-outline info_circle
-iphone-landscape
-iphone-portrait
+phone-button-landscape iphone_landscape
+phone-button-portrait iphone_portrait
 jump-backward
 jump-forward
 jump-left
@@ -402,7 +404,7 @@ reset-alt
 reset-forward
 reset-hard
 reset-temporary
-retweet
+repost retweet
 reuse
 reverse
 reverse-alt

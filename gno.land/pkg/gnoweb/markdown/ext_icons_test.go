@@ -415,7 +415,7 @@ Rules:
 - Keep the tag under 512 bytes. In a table cell, write a ` + "`|`" + ` in a label as
   ` + "`\\|`" + `.
 - A link or heading holding only an icon needs ` + "`label`" + `: it is its only name.
-  Such a heading has no text, so it gets no table-of-contents entry.
+  The label is also the heading's table-of-contents entry and anchor.
 
 To add an icon, list it in ` + "`icons/icons.txt`" + ` and run ` + "`make icons`" + `.
 
