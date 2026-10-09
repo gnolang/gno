@@ -2058,6 +2058,35 @@ func TestMultiplexSwitch_QueueMissingPersistentPeers(t *testing.T) {
 		assert.Equal(t, unresolved, item.Address)
 	})
 
+	t.Run("unresolved peers on the same port are each queued", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			ids = generateNetAddr(t, 2)
+
+			// Two persistent peers whose hostnames did not resolve at start:
+			// no IP, and the same port
+			addrs = []*types.NetAddress{
+				{ID: ids[0].ID, Hostname: "sentry-a.invalid", Port: 26656},
+				{ID: ids[1].ID, Hostname: "sentry-b.invalid", Port: 26656},
+			}
+
+			sw = NewMultiplexSwitch(
+				&mockTransport{},
+				WithPersistentPeers(addrs),
+			)
+		)
+
+		sw.queueMissingPersistentPeers(make(map[types.ID]uint), time.Now())
+
+		queued := make([]*types.NetAddress, 0, len(addrs))
+		for item := sw.persistentDialQueue.Pop(); item != nil; item = sw.persistentDialQueue.Pop() {
+			queued = append(queued, item.Address)
+		}
+
+		assert.ElementsMatch(t, addrs, queued)
+	})
+
 	t.Run("connected peer skipped", func(t *testing.T) {
 		t.Parallel()
 
