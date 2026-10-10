@@ -492,6 +492,8 @@ func TestNewRouter_ChainIDIsValidated(t *testing.T) {
 		{name: "dev", chainID: "dev"},
 		{name: "dotted", chainID: "test6.testnets"},
 		{name: "backtick", chainID: "x`](https://evil.example)`", wantErr: true},
+		// The payload above also has characters the regex rejects on their own.
+		{name: "backtick only", chainID: "pearl`1", wantErr: true},
 		{name: "space", chainID: "pearl 1", wantErr: true},
 		{name: "angle bracket", chainID: "<script>", wantErr: true},
 		{name: "too long", chainID: strings.Repeat("a", 65), wantErr: true},
