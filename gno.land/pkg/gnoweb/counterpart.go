@@ -27,7 +27,9 @@ const maxCounterpartPaths = 100
 
 // counterpartGrace is how long a rendered page waits for a lookup still in
 // flight. The lookup runs alongside the page's own queries, so a node that is
-// slow to list paths costs a missing link, never a slower page.
+// slow to list paths costs a missing link, never a slower page. $state pages
+// are the exception: their lookup starts once the state limiter has let the
+// view through, so they wait up to this long after their own queries.
 const counterpartGrace = 300 * time.Millisecond
 
 // maxCounterpartLookups caps the lookups in flight. A lookup outlives its

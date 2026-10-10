@@ -262,6 +262,32 @@ func TestCounterpart_StateAPISkipsLookup(t *testing.T) {
 	assert.Zero(t, calls.Load())
 }
 
+// A $state view the rate limiter turns away renders no header, so it must
+// not send a lookup to the node. Reported by gfanton on #6262.
+func TestCounterpart_RateLimitedStateSkipsLookup(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	client := &stubClient{
+		listPathsFunc: func(context.Context, string, int) ([]string, error) {
+			calls.Add(1)
+			return nil, nil
+		},
+	}
+	config := newTestHandlerConfig(t, client)
+	config.StateRateLimitPerMinute = 1
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), config)
+	require.NoError(t, err)
+
+	serve(handler, httptest.NewRequest(http.MethodGet, "/r/alice/golf/game$state", nil))
+	rr := serve(handler, httptest.NewRequest(http.MethodGet, "/r/bob/solo/game$state", nil))
+	require.Equal(t, http.StatusTooManyRequests, rr.Code)
+	assert.Equal(t, int32(1), calls.Load())
+	// A lookup runs in the background, so give a stray one time to land.
+	assert.Never(t, func() bool { return calls.Load() > 1 }, 200*time.Millisecond, 10*time.Millisecond,
+		"only the view served looks the other side up")
+}
+
 // A markdown answer (Accept: text/markdown) renders no header either.
 func TestCounterpart_MarkdownAnswerSkipsLookup(t *testing.T) {
 	t.Parallel()

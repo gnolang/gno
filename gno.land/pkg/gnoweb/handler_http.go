@@ -312,12 +312,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// ADR-003 §Architecture wire-in. Body-already-written paths return nil
 	// View; page path returns a non-nil View for chrome composition.
 	if gnourl.WebQuery.Has("state") {
-		// Only the page path renders a header; json and fragment requests
-		// would pay for a lookup nobody sees.
-		counterpart := func() *components.HeaderLink { return nil }
-		if !gnourl.WebQuery.Has("json") && !gnourl.WebQuery.Has("frag") {
-			counterpart = h.startCounterpart(r.Context(), gnourl)
-		}
 		status, view := h.State.Handle(r.Context(), w, r, gnourl)
 		if view == nil {
 			// Direct-write path (json or fragment): body and headers
@@ -331,7 +325,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// values and pointing the tabs at empty URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
-		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
+		// Looked up only once State.Handle returns a view: json, fragment
+		// and rate-limited answers render no header, so they pay for none.
+		indexData.HeaderData.Breadcrumb.Counterpart = h.startCounterpart(r.Context(), gnourl)()
 		scrubHeaderOnError(&indexData, status)
 		indexData.BodyView = view
 		w.WriteHeader(status)
