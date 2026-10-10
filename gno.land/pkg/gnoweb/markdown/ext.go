@@ -101,6 +101,9 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add column extension
 	ExtColumns.Extend(m)
 
+	// Add frame extension
+	ExtFrames.Extend(m)
+
 	// Add alert extension
 	ExtAlerts.Extend(m)
 
@@ -112,6 +115,9 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 
 	// Add mentions extension
 	ExtMention.Extend(m)
+
+	// Add inline icons extension
+	ExtIcons.Extend(m)
 
 	m.SetParser(rec.Parser)
 
