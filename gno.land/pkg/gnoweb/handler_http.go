@@ -1431,22 +1431,25 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	if h.Static.CanonicalOrigin == "" {
 		return ""
 	}
-	// An alias's target, asked for by its own path, is the alias's page:
-	// /r/gnoland/home is /, so both name /.
-	if alias, ok := h.policy.aliasFor(gnourl); ok {
-		return h.Static.CanonicalOrigin + alias
-	}
 	u := *gnourl
-	u.Query, u.WebQuery = nil, nil
-	// Args reach only a realm's Render. A source view, a file and a pure
-	// package show the same bytes whatever args a link adds, and a package
-	// lists the same files with or without a trailing slash.
-	if gnourl.WebQuery.Has("source") || u.IsFile() || u.IsPure() {
+	// Args reach only a realm's Render. A source view, a file, a directory,
+	// a user page and a pure package show the same bytes whatever args a
+	// link adds, and a package lists the same files with or without a
+	// trailing slash. An operator's alias key, as /news:latest, keeps its
+	// args: they are part of the key.
+	if gnourl.WebQuery.Has("source") || u.IsFile() || u.IsDir() || u.IsUser() || u.IsPure() {
 		u.Args = ""
 	}
 	if pkg, ok := packagePath(&u); ok && u.IsPure() {
 		u.Path = "/p/" + pkg
 	}
+	// An alias's target, asked for by its own path, is the alias's page:
+	// /r/gnoland/home is /, so both name /. It is looked up once args are
+	// dropped, so /u/docs:x names /docs as /u/docs does.
+	if alias, ok := h.policy.aliasFor(&u); ok {
+		return h.Static.CanonicalOrigin + alias
+	}
+	u.Query, u.WebQuery = nil, nil
 	canonical := h.Static.CanonicalOrigin + u.EncodeWebURL()
 	if gnourl.WebQuery.Has("source") {
 		canonical += "$source"

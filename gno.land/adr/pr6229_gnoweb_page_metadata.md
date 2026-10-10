@@ -140,11 +140,15 @@ page carries only `source` and `file`, written in the order gnoweb's own
 links use (`$source&file=<name>`). An alias's target asked for by its own
 path, with no view or query, names the alias: `/r/gnoland/home` is `/`. Of
 two aliases to one target, the shorter wins. Args reach only a realm's
-`Render`, so a source view, a file and a pure package drop them, and a pure
-package drops its trailing slash: `/r/gnoland/blog:p/a$source` names
-`/r/gnoland/blog$source`, and `/p/gnoland/lib/` and `/p/gnoland/lib:x` name
-`/p/gnoland/lib`. A static page names its alias key even when the key reads
-as a file, as `/license.md` or `/Terms` do.
+`Render`, so a source view, a file, a directory listing, a user page and a
+pure package drop them, and a pure package drops its trailing slash:
+`/r/gnoland/blog:p/a$source` names `/r/gnoland/blog$source`,
+`/u/gnoland:x` names `/u/gnoland`, `/r/gnoland/blog/:x` names
+`/r/gnoland/blog/`, and `/p/gnoland/lib/` and `/p/gnoland/lib:x` name
+`/p/gnoland/lib`. A namespace listing such as `/r/gnoland:x` keeps them,
+since its URL reads like a realm's, and so does an alias key such as
+`/news:latest`, whose args are the operator's. A static page names its alias
+key even when the key reads as a file, as `/license.md` or `/Terms` do.
 
 ### What search engines may index
 
