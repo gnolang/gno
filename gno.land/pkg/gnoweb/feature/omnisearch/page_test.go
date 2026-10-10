@@ -60,6 +60,11 @@ func TestDiscoveryRespectsScope(t *testing.T) {
 		if !strings.Contains(html, `href="/$search?q=blog"`) {
 			t.Errorf("%s: no link to the same search over the whole chain", raw)
 		}
+		// .header-info already spaces its items; a separator would sit
+		// apart from both.
+		if strings.Contains(html, "· <a") {
+			t.Errorf("%s: the whole-chain link carries a separator", raw)
+		}
 	}
 }
 
