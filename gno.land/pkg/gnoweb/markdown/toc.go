@@ -6,7 +6,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 
 	"github.com/yuin/goldmark/ast"
-	"github.com/yuin/goldmark/util"
 )
 
 const MaxDepth = 6
@@ -93,7 +92,7 @@ func TocInspect(n ast.Node, src []byte, opts TocOptions) (Toc, error) {
 			target = appendChild(parent)
 		}
 
-		target.Title = string(util.UnescapePunctuations(nodeText(src, heading)))
+		target.Title = string(nodeText(src, heading))
 
 		if id, ok := n.AttributeString("id"); ok {
 			if idBytes, ok := id.([]byte); ok {

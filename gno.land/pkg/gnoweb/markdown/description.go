@@ -96,13 +96,23 @@ func visibleText(src []byte, n ast.Node) string {
 				walk(c)
 				continue
 			}
-			text := nodeText(src, c)
+			t, ok := c.(*ast.Text)
+			if !ok {
+				b.Write(nodeText(src, c))
+				continue
+			}
 			// goldmark resolves escapes and entities in text when it writes
 			// HTML, but writes a code span as typed; the summary follows.
-			if c.Kind() == ast.KindText && n.Kind() != ast.KindCodeSpan {
+			// It reads the source, not nodeText, which already resolves
+			// escapes and would let an escaped entity (`\&amp;`) resolve.
+			text := t.Segment.Value(src)
+			if n.Kind() != ast.KindCodeSpan {
 				text = resolveText(text)
 			}
 			b.Write(text)
+			if t.SoftLineBreak() || t.HardLineBreak() {
+				b.WriteByte(' ')
+			}
 		}
 	}
 	walk(n)
