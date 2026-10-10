@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -115,6 +116,11 @@ type config struct {
 	// keystore. When set it takes precedence over home/key.
 	mnemonic string
 
+	// dataDir holds what this run leaves behind for the next one -- today the
+	// last fully verified height, so a restart needs no --start-height. See
+	// state.go.
+	dataDir string
+
 	gnoRoot      string
 	gasFee       string
 	statusListen string
@@ -140,6 +146,10 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.key, "key", "",
 		"name or bech32 address of the approver key in the keystore; "+
 			"its address must be listed in the chain's vm PkgApprovers param")
+	fs.StringVar(&c.dataDir, "data-dir", filepath.Join(gnoenv.HomeDir(), "gpao"),
+		"directory holding the oracle's own state, which is how a restart "+
+			"resumes where the last run stopped instead of needing a "+
+			"--start-height")
 	fs.StringVar(&c.gnoRoot, "gno-root", gnoenv.RootDir(),
 		"path to the gno repository root, used to resolve stdlibs and examples for typechecking")
 	fs.StringVar(&c.statusListen, "status-listen", "",
@@ -163,7 +173,10 @@ func (c *config) RegisterFlags(fs *flag.FlagSet) {
 	fs.DurationVar(&c.pollInterval, "poll-interval", defaultPollInterval,
 		"how often to poll the node for new blocks")
 	fs.Int64Var(&c.startHeight, "start-height", 0,
-		"block height to start watching from (0 = start from the current tip)")
+		"block height to start watching from; 0 resumes past the height "+
+			"recorded in --data-dir, or starts from the current tip when "+
+			"nothing is recorded. A value here overrides that record AND "+
+			"rewrites it, so a later restart resumes from here")
 }
 
 func (c *config) validate() error {
@@ -175,6 +188,9 @@ func (c *config) validate() error {
 	}
 	if c.gnoRoot == "" {
 		return fmt.Errorf("--gno-root is required (could not auto-detect the gno root)")
+	}
+	if c.dataDir == "" {
+		return fmt.Errorf("--data-dir is required (it holds the height a restart resumes from)")
 	}
 	if c.verifyBudget <= 0 {
 		return fmt.Errorf("verify-budget must be positive, got %s", c.verifyBudget)
@@ -191,10 +207,6 @@ func (c *config) validate() error {
 func execOracle(ctx context.Context, cfg *config, io commands.IO) error {
 	// Dev-only signing fallback: a mnemonic via env avoids needing a keystore.
 	cfg.mnemonic = os.Getenv("GPAO_MNEMONIC")
-
-	if err := cfg.validate(); err != nil {
-		return err
-	}
 
 	oracle, err := newOracle(*cfg, io)
 	if err != nil {
