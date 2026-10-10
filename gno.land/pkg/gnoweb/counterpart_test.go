@@ -271,11 +271,9 @@ func TestCounterpartCacheCapsLookupsInFlight(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := range maxCounterpartLookups {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			c.get("/p/slow/"+strconv.Itoa(i), slow)
-		}()
+		})
 		<-entered
 	}
 
