@@ -2070,7 +2070,10 @@ func (sb *StaticBlock) GetNameSources() []NameSource {
 
 // Implemented BlockNode.
 // Convenience for getting name origin and source name expr.
-// Too slow for runtime.
+// Too slow for runtime. The returned *FileNode is nil when the name has
+// no declaring file in the FileSet, which happens for synthetic packages
+// (the REPL defines earlier-statement names directly in the package block
+// over an empty FileSet).
 // The returned *NameExpr is in the context of the filenode if BlockNode is a
 // package node, otherwise is in the block node.  See also usage of `skipFile`.
 // NOTE The returned *NameExpr is used by `gno fix` to store attributes.
@@ -2079,7 +2082,7 @@ func (sb *StaticBlock) GetNameSourceForPath(store Store, path ValuePath) (BlockN
 	nsrc := dbn.GetNameSources()[path.Index]
 	var fn *FileNode
 	if pn, ok := dbn.(*PackageNode); ok {
-		fn, _ = pn.GetDeclFor(nsrc.NameExpr.Name)
+		fn, _, _ = pn.GetDeclForSafe(nsrc.NameExpr.Name)
 	} else {
 		fname := dbn.GetLocation().GetFile()
 		pn := packageOf(dbn)
