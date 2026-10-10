@@ -14,8 +14,8 @@ import (
 // thousands of em tall over the rest of the page.
 const maxCellSpan = 64
 
-// texLength matches the length of a \raisebox, \kern or \hspace: a signed
-// decimal and an optional unit, which TeX lets a space precede.
+// texLength matches the length of a \raisebox, \kern, \hspace or \\[len]:
+// a signed decimal and an optional unit, which TeX lets a space precede.
 var texLength = regexp.MustCompile(`^([+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)) *([a-zA-Z]{2})?$`)
 
 // emPt is the size of an em in TeX points, at TeX's default 10pt font.
@@ -49,6 +49,11 @@ var texUnits = map[string]struct {
 // commands and the size switches in between. Larger shifts would let math
 // move over the page around it, so they are ignored.
 const maxRaisePt = 2 * emPt
+
+// maxRowSpacingPt bounds the space a \\[len] puts after a table row: a
+// negative space would draw the rows over each other and the page above,
+// and a large one would stretch a short formula down the page.
+const maxRowSpacingPt = 2 * emPt
 
 // minKernPt and maxKernPt bound a \kern, \mkern or \hspace: a negative
 // space could pull the math over the text before it, as a large shift

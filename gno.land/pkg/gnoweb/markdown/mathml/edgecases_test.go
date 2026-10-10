@@ -266,6 +266,24 @@ func TestSubstackRowspacingStaysInside(t *testing.T) {
 	assert.Contains(t, mathBody(t, `\begin{matrix} a \\[2em] b \end{matrix}`), `rowspacing="2em`)
 }
 
+// A \\[len] is a length within [0, 2em], as a \raisebox shift is bounded:
+// anything else keeps the default row spacing.
+func TestRowSpacingIsBounded(t *testing.T) {
+	for _, tc := range []struct{ len, want string }{
+		{"2em", `rowspacing="2em 1.0ex"`},
+		{"30em", ""},
+		{"-30em", ""},
+	} {
+		out := mathBody(t, `\begin{matrix}a\\[`+tc.len+`]b\\c\end{matrix}`)
+		if tc.want == "" {
+			assert.NotContains(t, out, "rowspacing=", tc.len)
+		} else {
+			assert.Contains(t, out, tc.want, tc.len)
+		}
+		assert.Contains(t, out, "<mi>b</mi>", tc.len)
+	}
+}
+
 func TestNewCommands(t *testing.T) {
 	for _, tc := range []struct{ tex, want string }{
 		{`\operatorname{argmax} x`, `<mo lspace="0" rspace="0.1667em">argmax</mo><mi>x</mi>`},

@@ -158,12 +158,16 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 			case "\\", "cr":
 				child = NewMMLNode()
 				child.Properties = propRowSep
-				option, err := b.GetOptions()
-				if err == nil {
-					dummy := NewMMLNode("rowspacing")
-					dummy.Properties = propNonprint
-					dummy.SetAttr("rowspacing", StringifyTokens(option.Expr))
-					siblings = append(siblings, dummy)
+				// Like a \raisebox shift, the space of a \\[len] is a parsed
+				// length within bounds, or the row keeps the default spacing.
+				if option, err := b.GetOptions(); err == nil {
+					v, pt, ok := converter.parseLength(StringifyTokens(option.Expr))
+					if ok && pt >= 0 && pt <= maxRowSpacingPt {
+						dummy := NewMMLNode("rowspacing")
+						dummy.Properties = propNonprint
+						dummy.SetAttr("rowspacing", v)
+						siblings = append(siblings, dummy)
+					}
 				}
 				siblings = append(siblings, child)
 				continue

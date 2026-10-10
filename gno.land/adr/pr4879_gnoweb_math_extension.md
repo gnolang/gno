@@ -151,11 +151,14 @@ must not be shared between concurrent renders.
   dropped and the content rendered unshifted or unspanned. A `\kern`,
   `\mkern` or `\hspace` must lie within [-2em, 20em] (`minKernPt`,
   `maxKernPt`), so a negative space cannot pull the math over the text
-  before it. Size switches (`\tiny` … `\Huge`) multiply when
-  nested, so their cumulative scale is clamped to [0.5, 2.488] (`minSize`,
-  `maxSize`). An unbounded span would set the minimum size of a stretched
-  arrow thousands of em tall; an unbounded shift or size would draw math
-  over the page around it.
+  before it. The space of a table row's `\\[len]` must be a length within
+  [0, 2em] (`maxRowSpacingPt`), or the row keeps the default spacing: a
+  negative one would draw the rows over each other and the text above.
+  Size switches (`\tiny` … `\Huge`) multiply when nested, so their
+  cumulative scale is clamped to [0.5, 2.488] (`minSize`, `maxSize`). An
+  unbounded span would set the minimum size of a stretched arrow thousands
+  of em tall; an unbounded shift or size would draw math over the page
+  around it.
 - `\class{name}{x}` renders `x` and drops the class: page authors must not
   apply the site's CSS classes (to overlay the page, for instance). The only
   classes in the output are the converter's own (`math-displaystyle`,
