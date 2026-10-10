@@ -461,6 +461,9 @@ func TestNewRouter_StatusURLIsValidated(t *testing.T) {
 		{name: "no scheme", statusURL: "status.gno.land", wantErr: true},
 		{name: "ftp", statusURL: "ftp://status.gno.land", wantErr: true},
 		{name: "userinfo", statusURL: "https://evil.com@status.gno.land", wantErr: true},
+		// Both parse with an accepted scheme; only the empty-host check refuses them.
+		{name: "empty host", statusURL: "https:///status", wantErr: true},
+		{name: "opaque", statusURL: "https:status.gno.land", wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
