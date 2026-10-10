@@ -82,8 +82,9 @@ func (bh bankHandler) handleMsgMultiSend(ctx sdk.Context, msg MsgMultiSend) sdk.
 
 // Query paths.
 const (
-	QueryBalance = "balances"
-	QuerySupply  = "supply"
+	QueryBalance   = "balances"
+	QuerySupply    = "supply"
+	QuerySpendable = "spendable"
 )
 
 func (bh bankHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -92,6 +93,8 @@ func (bh bankHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Re
 		return bh.queryBalance(ctx, req)
 	case QuerySupply:
 		return bh.querySupply(ctx, req)
+	case QuerySpendable:
+		return bh.querySpendable(ctx, req)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest("unknown bank query endpoint"))
@@ -123,6 +126,95 @@ func (bh bankHandler) queryBalance(ctx sdk.Context, req abci.RequestQuery) (res 
 		return
 	}
 
+	res.Data = bz
+	return
+}
+
+// AccountSpendable is the response of /bank/spendable/{addr}.
+//
+// Coins is the full cross-tier balance, the same set queryBalance returns, so
+// Locked, Spendable and Coins all speak about the same denoms -- which is why
+// this lives in bank and not beside the schedule in auth: only this module can
+// read a denom that lives outside the account object, and a schedule may name
+// one.
+//
+// BlockTime is echoed because the answer is a function of it: a continuous
+// schedule releases coins every second, so the same account queried a moment
+// later reports a different Spendable. Without the timestamp a caller cannot
+// tell a stale answer from a current one, nor reproduce the arithmetic. Note
+// amino renders an int64 as a JSON string, so it is on the wire as
+// "block_time":"1789228670" -- the same trap querySupply documents.
+type AccountSpendable struct {
+	Coins     std.Coins `json:"coins"`
+	Locked    std.Coins `json:"locked"`
+	Spendable std.Coins `json:"spendable"`
+	BlockTime int64     `json:"block_time"`
+}
+
+// querySpendable reports how much of an account's balance its vesting schedule
+// currently permits to be transferred out.
+//
+// It exists because the two facts a caller needs sit in different places and
+// neither of them is the answer: /auth/accounts/{addr} carries the schedule but
+// not what it evaluates to, and queryBalance carries the total with no knowledge
+// that any of it is locked. Computing it off-chain means restating
+// std.VestingSchedule's curve -- which has two variants, short-circuits
+// differently for each, and needs big.Int for grants whose amount*elapsed
+// overflows int64 -- so every reimplementation is somewhere the answer can drift
+// from what this module enforces. This calls the same LockedCoins that
+// SubtractCoins calls, and clamps the same way.
+//
+// Cost note: GetCoins walks the split-tier prefix for a caller-supplied address,
+// so its cost rises with the number of denoms that address holds -- which a third
+// party can grow by sending it new ones. That is the same exposure queryBalance
+// already accepts on this same unmetered path, and the price of reporting a set
+// that agrees with what transfers actually enforce.
+func (bh bankHandler) querySpendable(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	b32addr := thirdPart(req.Path)
+	addr, err := crypto.AddressFromBech32(b32addr)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(
+			std.ErrInvalidAddress("invalid query address " + b32addr))
+	}
+
+	blockTime := ctx.BlockTime()
+	coins := bh.bank.GetCoins(ctx, addr)
+
+	// An address that has never transacted has no account, so no schedule and
+	// nothing locked. Reporting that beats an error: it is the honest answer and
+	// it spares every caller a special case.
+	var locked std.Coins
+	if acc := bh.bank.acck.GetAccount(ctx, addr); acc != nil {
+		locked = acc.LockedCoins(blockTime)
+	}
+
+	// Clamped per denom, the same arithmetic SubtractCoins performs before it
+	// permits a transfer: a schedule can lock more than the account still holds,
+	// once an unrestricted transfer has spent into the locked portion. Without
+	// the clamp this serves a negative rather than failing -- Coins.MarshalAmino
+	// is Coins.String and never errors, so "-990ugnot" goes out on the wire and
+	// blows up in the client's decoder.
+	var spendable std.Coins
+	for _, coin := range coins {
+		amount := max(coin.Amount-locked.AmountOf(coin.Denom), 0)
+		if amount == 0 {
+			continue // Coins carries no zero entries
+		}
+		// coins is sorted and appended in order, so spendable stays sorted --
+		// which Coins.AmountOf's binary search relies on downstream.
+		spendable = append(spendable, std.Coin{Denom: coin.Denom, Amount: amount})
+	}
+
+	bz, err := amino.MarshalJSONIndent(AccountSpendable{
+		Coins:     coins,
+		Locked:    locked,
+		Spendable: spendable,
+		BlockTime: blockTime.Unix(),
+	}, "", "  ")
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(
+			std.ErrInternal(fmt.Sprintf("could not marshal result to JSON: %s", err.Error())))
+	}
 	res.Data = bz
 	return
 }
