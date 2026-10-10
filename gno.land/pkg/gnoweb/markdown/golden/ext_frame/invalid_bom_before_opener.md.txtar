@@ -1,0 +1,8 @@
+-- input.md --
+﻿<gno-frame>
+x
+</gno-frame>
+-- output.html --
+<p>﻿<!-- raw HTML omitted -->
+x</p>
+<!-- unexpected/invalid frame tag omitted -->

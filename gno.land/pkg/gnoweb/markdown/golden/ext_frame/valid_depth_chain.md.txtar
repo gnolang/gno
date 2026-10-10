@@ -1,0 +1,27 @@
+-- input.md --
+<gno-foreign>
+<gno-foreign>
+<gno-columns>
+<gno-frame>
+deepest allowed
+</gno-frame>
+</gno-columns>
+</gno-foreign>
+</gno-foreign>
+-- output.html --
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<section class="gno-frame">
+<p>deepest allowed</p>
+</section>
+</div>
+</div> <!-- </gno-columns> -->
+</div>
+</div>
+</div>
+</div>

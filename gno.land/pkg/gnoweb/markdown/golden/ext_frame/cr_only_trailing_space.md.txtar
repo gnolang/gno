@@ -1,0 +1,7 @@
+-- input.md --
+# Title
+
+<gno-frame> First paragraph.Second paragraph.</gno-frame>Footer.
+-- output.html --
+<h1>Title</h1>
+<p><!-- raw HTML omitted --> First paragraph.Second paragraph.<!-- raw HTML omitted -->Footer.</p>
