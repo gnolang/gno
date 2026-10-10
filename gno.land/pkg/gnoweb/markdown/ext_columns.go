@@ -45,6 +45,11 @@ type GnoColumnNode struct {
 	Index int          // Index of the column associated with the node.
 	Tag   GnoColumnTag // Current Column Tag for this node.
 
+	// inFrame marks an open tag whose grid opened inside a <gno-frame>,
+	// or a stray separator or close kept inside one (see
+	// frameKeepsColumnsTag in ext_frame.go).
+	inFrame bool
+
 	ctx *columnsContext
 }
 
@@ -184,7 +189,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 			node.Tag = GnoColumnTagUndefined
 			return node, parser.NoChildren
 		}
-		// Cross-family nesting cap (shared with gno-foreign, gno-alert).
+		// Cross-family nesting cap (shared with gno-foreign, gno-alert, gno-frame).
 		// On refusal, fall through to raw HTML so safe-mode strips it.
 		if !Push(pc) {
 			return nil, parser.NoChildren
@@ -192,10 +197,12 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 
 		cctx.IsOpen = true
 		cctx.OpenTag = node
+		node.inFrame = frameGrid(pc)
 
 	case GnoColumnTagClose:
 		if !cctx.IsOpen {
 			node.Tag = GnoColumnTagUndefined
+			node.inFrame = frameOpen(pc)
 			return node, parser.NoChildren
 		}
 
@@ -205,6 +212,7 @@ func (p *columnsParser) Open(doc ast.Node, reader text.Reader, pc parser.Context
 	case GnoColumnTagSep:
 		if !cctx.IsOpen {
 			node.Tag = GnoColumnTagUndefined
+			node.inFrame = frameOpen(pc)
 			return node, parser.NoChildren
 		}
 
@@ -317,6 +325,8 @@ var ExtColumns = &columns{}
 
 // Extend adds column functionality to the markdown processor.
 // XXX: Use 500 for priority for now; we will rework these numbers once another extension is implemented.
+// The frame parser runs at 499, just ahead, so an open <gno-frame> ends
+// (and pops its depth) before a columns tag opens; see ext_frame.go.
 func (e *columns) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithBlockParsers(
