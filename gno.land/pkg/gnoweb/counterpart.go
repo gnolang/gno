@@ -2,11 +2,13 @@ package gnoweb
 
 import (
 	"context"
+	"errors"
 	gopath "path"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -27,6 +29,17 @@ const maxCounterpartPaths = 100
 // flight. The lookup runs alongside the page's own queries, so a node that is
 // slow to list paths costs a missing link, never a slower page.
 const counterpartGrace = 300 * time.Millisecond
+
+// maxCounterpartLookups caps the lookups in flight. A lookup outlives its
+// page by up to counterpartTimeout while holding one of the RPC slots every
+// page shares, so without a cap a burst of views on new roots against a slow
+// node would take them all and slow unrelated pages down. Past the cap a view
+// goes without its link; errors are not cached, so the next view retries.
+const maxCounterpartLookups = 4
+
+// errCounterpartBusy reports a lookup skipped because
+// maxCounterpartLookups are already in flight.
+var errCounterpartBusy = errors.New("too many counterpart lookups in flight")
 
 // counterpartTimeout bounds a lookup on its own: a page that stops waiting
 // does not cancel it, so a slow answer still fills the cache.
@@ -221,10 +234,12 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 	}
 }
 
-// counterpartCache keeps each project listing for counterpartTTL and
-// coalesces concurrent lookups of the same root. Errors are not kept: a node
-// that failed once may answer the next request.
+// counterpartCache keeps each project listing for counterpartTTL, coalesces
+// concurrent lookups of the same root and runs at most maxCounterpartLookups
+// at once. Errors are not kept: a node that failed once may answer the next
+// request.
 type counterpartCache struct {
+	lookups atomic.Int32 // lookups in flight
 	mu      sync.Mutex
 	entries map[string]counterpartEntry
 	sf      singleflight.Group
@@ -245,6 +260,11 @@ func (c *counterpartCache) get(root string, list func() ([]string, error)) ([]st
 		if paths, ok := c.lookup(root); ok {
 			return paths, nil
 		}
+		if c.lookups.Add(1) > maxCounterpartLookups {
+			c.lookups.Add(-1)
+			return nil, errCounterpartBusy
+		}
+		defer c.lookups.Add(-1)
 		paths, err := list()
 		if err == nil {
 			c.store(root, paths)

@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"errors"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -215,4 +216,43 @@ func TestCounterpartCacheFull(t *testing.T) {
 	_, ok = c.lookup("late")
 	assert.True(t, ok, "expired entries make room")
 	assert.Len(t, c.entries, 1)
+}
+
+// Lookups outlive their page while holding a shared RPC slot, so a burst of
+// new roots against a slow node must not run more than maxCounterpartLookups
+// at once. Reported by gfanton on #6262.
+func TestCounterpartCacheCapsLookupsInFlight(t *testing.T) {
+	t.Parallel()
+
+	var c counterpartCache
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	slow := func() ([]string, error) {
+		entered <- struct{}{}
+		<-release
+		return nil, nil
+	}
+
+	var wg sync.WaitGroup
+	for i := range maxCounterpartLookups {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c.get("/p/slow/"+strconv.Itoa(i), slow)
+		}()
+		<-entered
+	}
+
+	listed := false
+	_, err := c.get("/p/alice/golf", func() ([]string, error) {
+		listed = true
+		return nil, nil
+	})
+	assert.ErrorIs(t, err, errCounterpartBusy)
+	assert.False(t, listed, "a lookup past the cap must not reach the node")
+
+	close(release)
+	wg.Wait()
+	_, err = c.get("/p/alice/golf", func() ([]string, error) { return nil, nil })
+	assert.NoError(t, err, "a freed slot serves the next view")
 }
