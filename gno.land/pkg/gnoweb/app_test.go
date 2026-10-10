@@ -596,3 +596,73 @@ func TestNewRouter_NetworkBanner(t *testing.T) {
 		})
 	}
 }
+
+// End to end from NewRouter to the page, so dropping a field anywhere on the
+// way (AppConfig, StaticMetadata, the handler, the layout) fails here. /~!1337
+// renders the full layout without querying the node.
+func TestNewRouter_NetworkReachesPage(t *testing.T) {
+	t.Parallel()
+
+	const (
+		faucetLink = `href="https://faucet.gno.land/" data-outbound="faucet"`
+		statusLink = `href="https://status.example" data-outbound="status"`
+	)
+
+	for _, tc := range []struct {
+		name       string
+		kind       components.NetworkKind
+		chainID    string
+		withLinks  bool
+		wantChip   string // empty: no chip at all
+		wantBanner string // empty: no banner at all
+	}{
+		{name: "testnet", kind: components.NetworkTestnet, chainID: "pearl-1", wantChip: `network-chip__id">pearl-1</span> testnet`, wantBanner: "Not gno.land mainnet"},
+		{name: "testnet with links", kind: components.NetworkTestnet, chainID: "pearl-1", withLinks: true, wantChip: `network-chip__id">pearl-1</span> testnet`, wantBanner: "Not gno.land mainnet"},
+		{name: "local", kind: components.NetworkLocal, chainID: "dev", wantChip: `network-chip__id">dev</span> local`, wantBanner: "Local development chain"},
+		{name: "mainnet", kind: components.NetworkMainnet, chainID: "gnoland-1"},
+		{name: "mainnet with links", kind: components.NetworkMainnet, chainID: "gnoland-1", withLinks: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := NewDefaultAppConfig()
+			cfg.ChainID = tc.chainID
+			cfg.NetworkKind = tc.kind
+			if tc.withLinks {
+				// Not the hub: only the presence of -faucet-url reaches the page.
+				cfg.FaucetURL = "https://faucet-api.example"
+				cfg.StatusURL = "https://status.example"
+			}
+
+			router, err := NewRouter(log.NewTestingLogger(t), cfg)
+			require.NoError(t, err)
+			rr := httptest.NewRecorder()
+			router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/~!1337", nil))
+			page := rr.Body.String()
+
+			assert.Contains(t, page, fmt.Sprintf(`<html lang="en" data-network="%s"`, tc.kind))
+
+			if tc.wantChip != "" {
+				assert.Contains(t, page, tc.wantChip)
+			} else {
+				assert.NotContains(t, page, "network-chip")
+			}
+
+			if tc.wantBanner != "" {
+				assert.Contains(t, page, `class="b-banner"`)
+				assert.Contains(t, page, tc.wantBanner)
+			} else {
+				assert.NotContains(t, page, `class="b-banner"`)
+			}
+
+			for _, link := range []string{faucetLink, statusLink} {
+				if tc.withLinks {
+					assert.Contains(t, page, link)
+				} else {
+					assert.NotContains(t, page, link)
+				}
+			}
+			assert.NotContains(t, page, "faucet-api.example")
+		})
+	}
+}
