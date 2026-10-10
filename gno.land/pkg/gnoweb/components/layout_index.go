@@ -44,7 +44,11 @@ func (m ViewMode) ShouldShowGeneralLinks() bool {
 }
 
 type HeadData struct {
-	Title             string
+	Title string
+	// NoIndex asks crawlers to skip the page. Set on result pages, whose
+	// URL space is unbounded and whose every URL costs the most expensive
+	// pair of RPCs gnoweb makes.
+	NoIndex           bool
 	Description       string
 	Canonical         string
 	Image             string
@@ -221,6 +225,11 @@ type IndexData struct {
 	Mode     ViewMode
 	Theme    string
 	Banner   BannerData
+	// SearchBase, when set, is the path the reader asked for before an alias
+	// rewrote it. The header search posts there, as the JavaScript omnibar
+	// does from window.location: on the home page it searches the chain,
+	// not the realm the alias renders.
+	SearchBase string
 }
 
 type indexLayoutParams struct {
@@ -236,6 +245,9 @@ type indexLayoutParams struct {
 func IndexLayout(data IndexData) Component {
 	data.FooterData = EnrichFooterData(data.FooterData)
 	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
+	if data.SearchBase != "" {
+		data.HeaderData.SearchAction = data.SearchBase + "$search"
+	}
 
 	data.FooterData.Analytics.PageType = ClassifyPageType(data.Mode, data.BodyView.Type)
 	data.FooterData.Analytics.Path = analyticsPath(data.HeaderData.RealmURL)

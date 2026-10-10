@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/omnisearch"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -97,17 +98,32 @@ type HTTPHandlerConfig struct {
 	TrustedPaths []string
 	Timeout      time.Duration
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
-	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
+	// 0 ⇒ defaultRateLimitPerMinute. Also used as the token-bucket
 	// burst. ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
 	// Also gates X-Forwarded-Host in requestOrigin.
 	StateRateLimitTrustedProxies []string
+	// Directory lists realm and package paths for the search feature.
+	// Optional: callers that already have one — the router does, for
+	// /search.json — pass it so both share a singleflight group. Nil builds
+	// one here.
+	Directory RealmDirectory
+	// Indexer, when non-nil, enables the indexer-backed search qualifiers.
+	// Leave it nil, never a typed nil pointer: the interface is what
+	// feature/omnisearch tests to decide whether those qualifiers exist.
+	Indexer omnisearch.Indexer
 }
 
-// defaultStateRateLimitPerMinute is the safe-by-default cap applied when
-// no explicit value is configured. Matches the ADR-003 §Resource bounds value.
-const defaultStateRateLimitPerMinute = 100
+// defaultRateLimitPerMinute is the backstop applied when no explicit value is
+// configured.
+//
+// A backstop, not the primary defence: deployments put gnoweb behind Traefik,
+// whose web-ratelimit already caps 20 req/s per IP, and the edge is the only
+// layer that sees the real client address. The previous 100/min was twelve
+// times stricter while being address-blind, so behind a proxy one global
+// bucket throttled everyone at a rate the edge would have allowed.
+const defaultRateLimitPerMinute = 1200
 
 // validate checks if the HTTPHandlerConfig is valid.
 func (cfg *HTTPHandlerConfig) validate() error {
@@ -136,6 +152,8 @@ type HTTPHandler struct {
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
 	State *state.Handler
+	// Search is the feature/omnisearch handler that owns every $search URL.
+	Search *omnisearch.Handler
 	// trustedProxies are the networks whose X-Forwarded-Host is believed.
 	trustedProxies []*net.IPNet
 	// packageText caches the whole-package texts of $download.
@@ -165,7 +183,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
-		rate = defaultStateRateLimitPerMinute
+		rate = defaultRateLimitPerMinute
 	}
 	trustedProxies, err := state.ParseTrustedProxies(cfg.StateRateLimitTrustedProxies)
 	if err != nil {
@@ -184,7 +202,34 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 			TrustedProxies: trustedProxies,
 		},
 	})
+	directory := cfg.Directory
+	if directory == nil {
+		directory = newRPCRealmDirectory(cfg.ClientAdapter, cfg.Meta.Domain, searchMaxConcurrentQueries)
+	}
+	// A second bucket, not a shared one: a reader browsing state and one
+	// typing in the omnibar must not spend each other's budget.
+	h.Search = omnisearch.New(omnisearch.Deps{
+		Client:    cfg.ClientAdapter,
+		Directory: searchDirectory{dir: directory},
+		Indexer:   cfg.Indexer,
+		Domain:    cfg.Meta.Domain,
+		Limiter: state.NewIPLimiter(state.RateLimitConfig{
+			PerMinute:      rate,
+			TrustedProxies: trustedProxies,
+		}),
+		Logger: logger,
+	})
 	return h, nil
+}
+
+// searchDirectory adapts RealmDirectory to the shape feature/omnisearch
+// consumes. The feature cannot import gnoweb (cycle), so it cannot name
+// PathsResult; the adapter lives here, mirroring clientFileFetcher.
+type searchDirectory struct{ dir RealmDirectory }
+
+func (d searchDirectory) Paths(ctx context.Context) ([]string, []string, bool, error) {
+	res, err := d.dir.Paths(ctx)
+	return res.Realms, res.Packages, res.Truncated, err
 }
 
 // clientFileFetcher adapts ClientAdapter to components.FileFetcher (the
@@ -262,6 +307,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// dispatch (state, source, package view) and the realm notice must see
 	// the path that is rendered. Aliases do not chain.
 	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
+		indexData.SearchBase = r.URL.Path
 		r.URL.Path = alias.Value
 	}
 
@@ -273,7 +319,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// A `$state&json` request must get a JSON envelope even when the
 		// URL fails to parse — honor the JSON-in/JSON-out contract instead
 		// of returning an HTML body the client can't decode.
-		if isStateJSONRequest(r.URL) {
+		if isFeatureJSONRequest(r.URL) {
 			writeJSONErrorResponse(w, http.StatusNotFound, "invalid path")
 			return
 		}
@@ -328,6 +374,41 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render state page", "error", err)
+		}
+		return
+	}
+
+	// Scoped search (all $search URLs). Mirrors the state wire-in: the
+	// feature dispatches json vs page internally and returns a nil View when
+	// it has already written the body.
+	if ownsSearchURL(gnourl.WebQuery) {
+		status, view := h.Search.Handle(r.Context(), w, r, gnourl)
+		if view == nil {
+			return
+		}
+		// Search answers on /u/ and chain-wide too, so the chrome follows
+		// the URL rather than assuming a realm. Chain-wide results name no
+		// package: realm tabs there would lead to State/Source/Actions
+		// pages for "/" that do not exist.
+		switch {
+		case gnourl.IsPure():
+			indexData.Mode = components.ViewModePackage
+		case gnourl.IsUser():
+			indexData.Mode = components.ViewModeUser
+		case gnourl.IsRealm():
+			indexData.Mode = components.ViewModeRealm
+		default:
+			indexData.Mode = components.ViewModeExplorer
+		}
+		h.setHeaderForRealm(&indexData, gnourl)
+		// An unbounded URL space where each URL costs a path listing: not
+		// something to invite crawlers into, and cheap to cache briefly.
+		indexData.HeadData.NoIndex = true
+		w.Header().Set("Cache-Control", "max-age=5")
+		indexData.BodyView = view
+		w.WriteHeader(status)
+		if err := components.IndexLayout(indexData).Render(w); err != nil {
+			h.Logger.Error("failed to render search page", "error", err)
 		}
 		return
 	}
@@ -581,9 +662,12 @@ func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.G
 // namespace; a resolved user lists two.
 // Each entry costs a weburl parse and a sort comparison;
 // an unbounded cap turns a single GET into a 10k-iteration amplifier.
+// It equals the node's own qpaths default, the cap this page always got
+// before ListPaths forwarded its limit: lower would drop the tail of a large
+// namespace and count what is left as the total.
 // Exported so external tests assert against the documented cap.
 // TODO: paginate via ?page= when a contributor exceeds this cap.
-const MaxUserContributions = 200
+const MaxUserContributions = 1000
 
 // buildContributions returns the sorted list of contributions (packages and
 // realms) deployed under any of the given namespaces.
@@ -1248,11 +1332,21 @@ func requestOrigin(r *http.Request, trusted []*net.IPNet) string {
 	return scheme + "://" + host
 }
 
-// isStateJSONRequest reports whether u is a `$state&json` request, parsed
-// straight from the raw URL so it works even when weburl.ParseFromURL fails.
+// ownsSearchURL reports whether feature/omnisearch owns these webargs.
+//
+// `search` alone is not enough: feature/state owns `$state&search=`, which
+// carries both keys. Stating it as a rule keeps the two disjoint by
+// definition rather than by the order their dispatch blocks sit in.
+func ownsSearchURL(wq url.Values) bool {
+	return wq.Has("search") && !wq.Has("state")
+}
+
+// isFeatureJSONRequest reports whether u addresses a JSON-serving feature
+// (`$state&json` or `$search&json`), parsed straight from the raw URL so it
+// works even when weburl.ParseFromURL fails.
 // The webargs segment lives after `$` in the path; gnoweb's JSON state API
 // is keyed on the `state` + `json` web flags being present there.
-func isStateJSONRequest(u *url.URL) bool {
+func isFeatureJSONRequest(u *url.URL) bool {
 	_, webargs, found := strings.Cut(u.EscapedPath(), "$")
 	if !found {
 		return false
@@ -1261,7 +1355,7 @@ func isStateJSONRequest(u *url.URL) bool {
 	if err != nil {
 		return false
 	}
-	return q.Has("state") && q.Has("json")
+	return q.Has("json") && (q.Has("state") || q.Has("search"))
 }
 
 // writeJSONErrorResponse emits the `{"error":"…"}` envelope used by the
