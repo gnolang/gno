@@ -46,6 +46,7 @@ func TestCounterpartTarget(t *testing.T) {
 		name   string
 		twin   string
 		paths  []string
+		cut    bool
 		target string
 		n      int
 	}{
@@ -84,6 +85,19 @@ func TestCounterpartTarget(t *testing.T) {
 			twin:   "/p/alice/golf/game",
 			paths:  []string{"/p/alice/golf/physics"},
 			target: "/p/alice/golf/physics", n: 1,
+		},
+		{
+			name:  "one package in a cut listing is not named, the twin may lie past the cut",
+			twin:  "/p/alice/golf/game",
+			paths: []string{"/p/alice/golf/physics"},
+			cut:   true,
+		},
+		{
+			name:   "a twin found in a cut listing still opens",
+			twin:   "/p/alice/golf/game",
+			paths:  []string{"/p/alice/golf/game"},
+			cut:    true,
+			target: "/p/alice/golf/game", n: 1,
 		},
 		{
 			name:   "several packages open the project listing",
@@ -143,7 +157,7 @@ func TestCounterpartTarget(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			target, n := counterpartTarget(tc.twin, root, tc.paths)
+			target, n := counterpartTarget(tc.twin, root, tc.paths, tc.cut)
 			assert.Equal(t, tc.target, target)
 			assert.Equal(t, tc.n, n)
 		})
@@ -166,7 +180,7 @@ func TestCounterpartTargetDeepPathAllocs(t *testing.T) {
 	for i := range paths {
 		paths[i] = fmt.Sprintf("/p/alice/golf/m%03d", i)
 	}
-	allocs := testing.AllocsPerRun(10, func() { counterpartTarget(twin, root, paths) })
+	allocs := testing.AllocsPerRun(10, func() { counterpartTarget(twin, root, paths, false) })
 	assert.Less(t, allocs, float64(levels))
 }
 

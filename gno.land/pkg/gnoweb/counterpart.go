@@ -94,7 +94,11 @@ func counterpartRoots(pkgPath string) (twin, root string, ok bool) {
 // siblings, or, on the twinless walk, the package's own children when two or
 // more match. With fewer the walk names that package alone, since no page
 // lists what lies deeper below it.
-func counterpartTarget(twin, root string, paths []string) (target string, n int) {
+//
+// cut reports a listing that stopped at maxCounterpartPaths inside root. The
+// twin may then lie past the cut, so the twinless walk names no single package
+// rather than the wrong one.
+func counterpartTarget(twin, root string, paths []string, cut bool) (target string, n int) {
 	members := make([]string, 0, len(paths))
 	hasTwin := false
 	for _, p := range paths {
@@ -127,6 +131,8 @@ func counterpartTarget(twin, root string, paths []string) (target string, n int)
 			}
 		}
 		switch {
+		case n == 1 && cut:
+			return "", 0
 		case n == 1:
 			return last, 1
 		case n > 1 && slices.Contains(members, dir):
@@ -220,12 +226,13 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 			done <- nil
 			return
 		}
-		target, n := counterpartTarget(twin, root, paths)
+		cut := len(paths) >= maxCounterpartPaths && isUnder(paths[len(paths)-1], root)
+		target, n := counterpartTarget(twin, root, paths, cut)
 		if n == 0 {
 			done <- nil
 			return
 		}
-		done <- counterpartLink(target, root, n, len(paths) >= maxCounterpartPaths && isUnder(paths[len(paths)-1], root))
+		done <- counterpartLink(target, root, n, cut)
 	}()
 
 	return func() *components.HeaderLink {
