@@ -1,6 +1,7 @@
 package components
 
 import (
+	"bytes"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -630,6 +631,41 @@ func TestIndexLayout_Banner(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The chip and data-network must survive the full render, and the off-mainnet
+// escalation must reach the class attribute. A Go-only test would still pass
+// with a dead CSS selector, so this pins the markup side only.
+func TestIndexLayout_NetworkPropagation(t *testing.T) {
+	t.Parallel()
+
+	render := func(kind NetworkKind, chainID string) string {
+		var buf bytes.Buffer
+		err := IndexLayout(IndexData{
+			HeadData:    HeadData{ChainId: chainID},
+			HeaderData:  HeaderData{ChainId: chainID},
+			BodyView:    NewTemplateView(StatusViewType, "status", StatusData{}),
+			NetworkKind: kind,
+		}).Render(&buf)
+		require.NoError(t, err)
+		return buf.String()
+	}
+
+	testnet := render(NetworkTestnet, "pearl-1")
+	assert.Contains(t, testnet, `data-network="testnet"`)
+	assert.Contains(t, testnet, `class="network-chip"`)
+	// pearl-1 alone is already in the gnoconnect:chainid meta tag; the chip
+	// text pins both the chip and its kind word.
+	assert.Contains(t, testnet, `network-chip__id">pearl-1</span> testnet`)
+
+	local := render(NetworkLocal, "dev")
+	assert.Contains(t, local, `data-network="local"`)
+	assert.Contains(t, local, `network-chip__id">dev</span> local`)
+
+	// Mainnet keeps the header it had before the chip existed.
+	mainnet := render(NetworkMainnet, "gnoland-1")
+	assert.Contains(t, mainnet, `data-network="mainnet"`)
+	assert.NotContains(t, mainnet, "network-chip")
 }
 
 func TestNewRealmNotice(t *testing.T) {

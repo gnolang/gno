@@ -55,6 +55,9 @@ type StaticMetadata struct {
 	AnalyticsHostname string
 	AssetsVersion     string
 	Banner            components.BannerData
+	NetworkKind       components.NetworkKind
+	FaucetURL         string
+	StatusURL         string
 	RealmNotice       components.RealmNotice
 }
 
@@ -119,6 +122,13 @@ func (cfg *HTTPHandlerConfig) validate() error {
 	}
 	if cfg.Aliases == nil {
 		return errors.New("no `Aliases` configured")
+	}
+	// No default here, unlike NewRouter: an empty value means a caller dropped it.
+	if !cfg.Meta.NetworkKind.Valid() {
+		return fmt.Errorf("invalid network kind %q", cfg.Meta.NetworkKind)
+	}
+	if !chainIDRe.MatchString(cfg.Meta.ChainId) {
+		return fmt.Errorf("invalid chain-id %q", cfg.Meta.ChainId)
 	}
 	return nil
 }
@@ -253,9 +263,15 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Analytics: components.AnalyticsData{
 				Enabled: h.Static.Analytics,
 			},
+			HasFaucet: h.Static.FaucetURL != "",
+			StatusURL: h.Static.StatusURL,
 		},
-		Theme:  theme,
-		Banner: h.Static.Banner,
+		// Seeded here, not only in setHeaderForRealm: the early parse-error
+		// page renders IndexLayout without it and would lose the chip.
+		HeaderData:  components.HeaderData{ChainId: h.Static.ChainId},
+		Theme:       theme,
+		Banner:      h.Static.Banner,
+		NetworkKind: h.Static.NetworkKind,
 	}
 
 	// Resolve GnowebPath aliases once, BEFORE parsing: every downstream

@@ -13,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
 
 // countingClient counts the node queries a $download makes.
@@ -46,6 +48,7 @@ func TestServePackageText_Cache(t *testing.T) {
 		ClientAdapter: client,
 		Renderer:      NewHTMLRenderer(slog.New(slog.DiscardHandler), NewDefaultRenderConfig(), client),
 		Aliases:       map[string]AliasTarget{},
+		Meta:          StaticMetadata{NetworkKind: components.NetworkTestnet, ChainId: "dev"},
 	})
 	require.NoError(t, err)
 	now := time.Unix(0, 0)
