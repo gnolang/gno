@@ -7,6 +7,7 @@ package disclosure
 // live here instead.
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -96,6 +97,16 @@ func (e *wsExecutor) String() string { return "" }
 
 func (e *wsExecutor) CreationRealm() string { return strings.Repeat(" ", 20000) }
 
+// pathExecutor reports whatever creation realm it is handed, so one type covers
+// every shape the source link must refuse to build.
+type pathExecutor struct{ path string }
+
+func (e *pathExecutor) Execute(cur realm) error { return nil }
+
+func (e *pathExecutor) String() string { return "" }
+
+func (e *pathExecutor) CreationRealm() string { return e.path }
+
 func main(cur realm) {
 	testing.SetOriginCaller(user)
 
@@ -113,9 +124,15 @@ func main(cur realm) {
 	out := dao.Render(cross(cur), pid.String())
 
 	println("empty-description proposal discloses creation realm:",
-		strings.Contains(out, "Executor created in: `gno.land/r/template/silent`"))
-	println("and prints no empty metadata block:",
-		!strings.Contains(out, "This proposal contains the following metadata"))
+		strings.Contains(out, "Executes: [`gno.land/r/template/silent`](/r/template/silent$source)"))
+	// An executor with nothing to say renders no Execution section at all: the
+	// realm is in the metadata block above, and there is nothing else to show.
+	println("and an executor with nothing to say gets no section:",
+		!strings.Contains(out, "### Execution"))
+	// The DAO's section comes first, and the page's own rule separates it from
+	// the description under it. Nothing the proposer wrote precedes it.
+	println("and the description sits below the rule:",
+		strings.Contains(out, "---\n\n### Description\n\nA proposal whose executor has no description"))
 
 	// 2. CreationRealm() is dispatched through the public dao.Executor
 	// interface, so a third-party executor picks its own value — and the
@@ -126,21 +143,24 @@ func main(cur realm) {
 		"Hostile", "A proposal whose executor forges page structure", &hostileExecutor{}))
 	hout := dao.Render(cross(cur), hpid.String())
 
-	println("only the genuine Stats heading exists:",
-		strings.Count(hout, "\n### Stats") == 1)
+	println("the payload forges no heading:",
+		!strings.Contains(hout, "\n### Stats"))
 	println("no forged acceptance line:",
 		!strings.Contains(hout, "\n- **PROPOSAL HAS BEEN ACCEPTED**"))
 	println("no forged tally line:",
 		!strings.Contains(hout, "\n- YES PERCENT: 100%"))
 	println("genuine tally and status still render:",
-		strings.Contains(hout, "\n- YES PERCENT: 0%") &&
-			strings.Contains(hout, "- **Proposal is open for votes**"))
+		strings.Contains(hout, "Votes: YES 0.00%") &&
+			strings.Contains(hout, "Status: ACTIVE"))
 	// One line, inside a code span: the newlines are folded to spaces, so none
 	// of the payload can start a block. (No pad space before the value now —
 	// TrimSpace removes the payload's trailing newline, so InlineCode does not
 	// need to pad the fence.)
 	println("hostile value is confined to one code-span line:",
-		strings.Contains(hout, "Executor created in: `gno.land/r/sys/params  ### Stats"))
+		strings.Contains(hout, "Executes: `gno.land/r/sys/params  ### Stats"))
+	// It opens with a real realm path and is not one: the value carries the rest
+	// of the payload, so the grammar check rejects it and no link is built.
+	println("and carries no link:", !strings.Contains(hout, "$source"))
 
 	// 3. The upgrade proposal rewrites AllowedDAOs — the sole authorization for
 	// replacing the implementation, mutating the member store and moving
@@ -180,13 +200,13 @@ func main(cur realm) {
 		"Blank", "A proposal whose creation realm strips to nothing", &blankExecutor{}))
 	zout := dao.Render(cross(cur), zpid.String())
 
-	println("a creation realm that strips to nothing prints no bare label:",
-		!strings.Contains(zout, "Executor created in:"))
+	println("a creation realm that strips to nothing says so:",
+		strings.Contains(zout, "Executes: none reported"))
 
 	wpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Whitespace", "A proposal whose creation realm is only whitespace", &whitespaceExecutor{}))
-	println("a whitespace-only creation realm prints no bare label:",
-		!strings.Contains(dao.Render(cross(cur), wpid.String()), "Executor created in:"))
+	println("a whitespace-only creation realm says so too:",
+		strings.Contains(dao.Render(cross(cur), wpid.String()), "Executes: none reported"))
 
 	hupid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Huge", "A proposal whose creation realm is enormous", &hugeExecutor{}))
@@ -208,7 +228,7 @@ func main(cur realm) {
 	fout := dao.Render(cross(cur), fpid.String())
 
 	println("fence outscans the payload's backtick run:",
-		strings.Contains(fout, "Executor created in: ```gno.land/r/evil`` **INJECTED**```"))
+		strings.Contains(fout, "Executes: ```gno.land/r/evil`` **INJECTED**```"))
 	println("no bold text escapes the code span:",
 		!strings.Contains(fout, "\n**INJECTED**"))
 
@@ -222,7 +242,64 @@ func main(cur realm) {
 	wout2 := dao.Render(cross(cur), wpid2.String())
 
 	println("a huge whitespace creation realm is clamped before trimming:",
-		strings.Contains(wout2, "Executor created in: `… truncated`"))
+		strings.Contains(wout2, "Executes: `… truncated`"))
+
+	// 4e. A pure package is linked too: an executor created in one reports that
+	// path, and gnoweb serves its source the same way.
+	ppid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Pure", "A proposal whose executor was created in a pure package",
+		&pathExecutor{path: "gno.land/p/nt/ufmt/v0"}))
+	println("a pure package links to its source too:",
+		strings.Contains(dao.Render(cross(cur), strconv.FormatInt(int64(ppid), 10)),
+			"Executes: [`gno.land/p/nt/ufmt/v0`](/p/nt/ufmt/v0$source)"))
+
+	// 4f. The link is built only for a package path this chain serves, so a
+	// proposal cannot aim it. Everything else keeps its code span.
+	for _, path := range []string{
+		"example.com/r/foo", // another chain
+		"gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run", // an ephemeral realm, which has no source page
+		"gno.land/r/Evil",                     // uppercase, which no deployed path holds
+		"gno.land/r/a--b",                     // two separators in a row
+		"gno.land/r/",                         // nothing after the letter
+		"gno.land/r/x)](javascript:alert(1))", // a destination of the executor's choosing
+	} {
+		lpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+			"Path", "A proposal whose creation realm is not a package path", &pathExecutor{path: path}))
+		// Decimal, not ProposalID.String(): the router parses the page's own
+		// links, and a seqid past 9 carries letters that ParseInt rejects.
+		lout := dao.Render(cross(cur), strconv.FormatInt(int64(lpid), 10))
+
+		// The last case writes a link destination of its own, which stays
+		// literal text between the fences.
+		println("unlinked, and confined to its code span:", path,
+			!strings.Contains(lout, "$source") &&
+				strings.Contains(lout, "Executes: `"+path+"`"))
+	}
+
+	// 4g. A description that draws a rule has it escaped, so the only rules on
+	// the page are the page's own. The forged heading still renders, below the
+	// real section: escaping the mark does not end the imitation.
+	rpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Rule",
+		"Looks fine.\n\n---\n\n### Execution\n\nExecutor created in: `gno.land/r/safe/thing`",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	rout := dao.Render(cross(cur), strconv.FormatInt(int64(rpid), 10))
+
+	println("a description cannot draw the page's rule:",
+		strings.Contains(rout, "\\---") && strings.Count(rout, "\n---\n") == 2)
+	println("and the real disclosure is above the forged one:",
+		strings.Index(rout, "Executes:") < strings.Index(rout, "### Description"))
+
+	// 4h. The same forgery with CRLF endings. gnoweb drops the carriage return
+	// before it reads the line, so the check drops it too.
+	cpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"CRLF",
+		"Looks fine.\r\n\r\n---\r\n\r\n### Execution\r\n",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	cout := dao.Render(cross(cur), strconv.FormatInt(int64(cpid), 10))
+
+	println("a CRLF description cannot draw it either:",
+		strings.Contains(cout, "\\---\r") && strings.Count(cout, "\n---\n") == 2)
 
 	// 5. Proposals live on the proxy but their voting status lives on the
 	// GovDAO instance, so replacing the implementation leaves earlier
@@ -238,21 +315,33 @@ func main(cur realm) {
 
 // Output:
 // empty-description proposal discloses creation realm: true
-// and prints no empty metadata block: true
-// only the genuine Stats heading exists: true
+// and an executor with nothing to say gets no section: true
+// and the description sits below the rule: true
+// the payload forges no heading: true
 // no forged acceptance line: true
 // no forged tally line: true
 // genuine tally and status still render: true
 // hostile value is confined to one code-span line: true
+// and carries no link: true
 // upgrade proposal states the grant: true
 // upgrade proposal names the granted realm: true
 // fence widened to contain the backtick: true
 // no forged acceptance line from the breakout attempt: true
 // no visible backslashes in the path: true
-// a creation realm that strips to nothing prints no bare label: true
-// a whitespace-only creation realm prints no bare label: true
+// a creation realm that strips to nothing says so: true
+// a whitespace-only creation realm says so too: true
 // an enormous creation realm is clamped before escaping: true
 // fence outscans the payload's backtick run: true
 // no bold text escapes the code span: true
 // a huge whitespace creation realm is clamped before trimming: true
+// a pure package links to its source too: true
+// unlinked, and confined to its code span: example.com/r/foo true
+// unlinked, and confined to its code span: gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run true
+// unlinked, and confined to its code span: gno.land/r/Evil true
+// unlinked, and confined to its code span: gno.land/r/a--b true
+// unlinked, and confined to its code span: gno.land/r/ true
+// unlinked, and confined to its code span: gno.land/r/x)](javascript:alert(1)) true
+// a description cannot draw the page's rule: true
+// and the real disclosure is above the forged one: true
+// a CRLF description cannot draw it either: true
 // a proposal orphaned by an upgrade renders instead of panicking: true
