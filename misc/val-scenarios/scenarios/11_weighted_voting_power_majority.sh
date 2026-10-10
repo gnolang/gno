@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCENARIO_CI=true
+# Consensus-only: skip example packages + on-chain PoA valset realm in genesis
+# (validators reach consensus via the genesis validator set).
+SCENARIO_GENESIS_EXAMPLES=false
 
 # 4 validators with unequal voting power: 10 / 1 / 1 / 1 (total = 13).
 # The 2/3 threshold is ceil(2/3 * 13) = 9.
