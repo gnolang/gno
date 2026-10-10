@@ -27,12 +27,12 @@ func TestPubKeyTypeURL(t *testing.T) {
 func TestAssertPubKeyTypeAllowed(t *testing.T) {
 	// Empty allow-list accepts any well-formed type.
 	testing.SetSysParamStrings("node", "valset", "pubkey_types", []string{})
-	uassert.NotPanics(t, cur, func() { assertPubKeyTypeAllowed(testSecp256k1PubKey) })
+	uassert.NotPanics(t, rlm, func() { assertPubKeyTypeAllowed(testSecp256k1PubKey) })
 
 	// ed25519-only allow-list: ed25519 accepted, secp256k1 rejected.
 	testing.SetSysParamStrings("node", "valset", "pubkey_types", []string{"/tm.PubKeyEd25519"})
-	uassert.NotPanics(t, cur, func() { assertPubKeyTypeAllowed(testEd25519PubKey) })
-	uassert.PanicsWithMessage(t, cur, ErrDisallowedPubKeyType.Error(), func() {
+	uassert.NotPanics(t, rlm, func() { assertPubKeyTypeAllowed(testEd25519PubKey) })
+	uassert.PanicsWithMessage(t, rlm, ErrDisallowedPubKeyType.Error(), func() {
 		assertPubKeyTypeAllowed(testSecp256k1PubKey)
 	})
 

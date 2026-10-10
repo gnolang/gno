@@ -18,11 +18,11 @@ import (
 // and (when needed) seed it via testing.SetSysParamUint64.
 var minFee = chain.NewCoin("ugnot", 20*1_000_000)
 
-// cur is a zero-value realm used as a placeholder when forwarding to
+// rlm is a zero-value realm used as a placeholder when forwarding to
 // uassert dispatch helpers that gained an `rlm realm` param. These tests
 // pass `func()` callbacks (no crossing inside the callback), so rlm is
 // ignored — a nil realm here is safe.
-var cur realm
+var rlm realm
 
 // resetState clears realm-level state and zeroes the valoper sys-params
 // so subtests don't leak through valopers (operator slots),

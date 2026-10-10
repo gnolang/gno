@@ -134,6 +134,13 @@ func toTypeValue(t Type) TypeValue {
 
 //----------------------------------------
 // reserved & uverse names
+//
+// Three tiers of names a Gno program may not bind:
+//   - reservedNames: Go keywords; the parser never yields them as identifiers.
+//   - uverse names (isUverseName): builtins and predeclared types; usable,
+//     never re-declarable ("cannot be shadowed").
+//   - contextualKeywords: reserved only as a binding name, usable anywhere
+//     else (like C#'s `var`); `cur` may only be a crossing first parameter.
 
 var reservedNames = map[Name]struct{}{
 	"break": {}, "default": {}, "func": {}, "interface": {}, "select": {},
@@ -168,6 +175,17 @@ var ( // gno2: invar
 // if true, caller should generally panic.
 func isReservedName(n Name) bool {
 	_, ok := reservedNames[n]
+	return ok
+}
+
+var contextualKeywords = map[Name]struct{}{
+	"cur": {},
+}
+
+// isContextualKeyword reports a contextual keyword; see the tiers above.
+// checkDeclName refuses it at every binding site but its one allowed site.
+func isContextualKeyword(n Name) bool {
+	_, ok := contextualKeywords[n]
 	return ok
 }
 

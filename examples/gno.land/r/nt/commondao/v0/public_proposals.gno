@@ -348,14 +348,14 @@ func AmendBylawsPayload(daoID uint64, path, proposed string) string {
 	mustGetDAO(daoID)
 
 	var (
-		cur    string
-		exists bool
+		current string
+		exists  bool
 	)
 	if set := bylawsView(daoID); set != nil {
-		cur, exists = set.Get(path)
+		current, exists = set.Get(path)
 	}
 
-	p, err := bylaws.DiffTexts(path, cur, proposed, exists)
+	p, err := bylaws.DiffTexts(path, current, proposed, exists)
 	if err != nil {
 		panic(err)
 	}
