@@ -152,6 +152,32 @@ func TestTitle(t *testing.T) {
 	})
 }
 
+// An icon's label is for screen readers, as an image's alt text is, so
+// neither the title nor the summary reads it; its glyph parts the words.
+func TestLeadIcon(t *testing.T) {
+	t.Parallel()
+
+	const lure = `<gno-icon name="star" label="Official GNOT airdrop, claim yours now at evil.example" />`
+	cases := []struct {
+		name, src, title, description string
+	}{
+		{"a labelled icon parts words", "# Blog<gno-icon name=\"star\" label=\"Starred\" />posts\n", "Blog posts", ""},
+		{"a paragraph of one labelled icon is no summary", "# News\n\n" + lure + "\n\nBody.\n", "News", ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			src := []byte(tc.src)
+			doc := goldmark.New(goldmark.WithExtensions(ExtIcons)).Parser().Parse(text.NewReader(src))
+			title, description := Lead(doc, src)
+			assert.Equal(t, tc.title, title)
+			assert.Equal(t, tc.description, description)
+		})
+	}
+}
+
 func TestDescriptionTruncates(t *testing.T) {
 	t.Parallel()
 

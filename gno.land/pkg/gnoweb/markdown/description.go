@@ -98,7 +98,13 @@ func visibleText(src []byte, n ast.Node) string {
 			}
 			t, ok := c.(*ast.Text)
 			if !ok {
-				b.Write(nodeText(src, c))
+				// An icon's label is for screen readers, as an image's alt
+				// text is; its glyph only parts the words around it.
+				if _, icon := c.(*Icon); icon {
+					b.WriteByte(' ')
+				} else {
+					b.Write(nodeText(src, c))
+				}
 				continue
 			}
 			// goldmark resolves escapes and entities in text when it writes
