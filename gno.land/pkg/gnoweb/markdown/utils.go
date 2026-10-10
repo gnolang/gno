@@ -50,7 +50,7 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 // for each attribute in source order with its raw value (no entity decoding),
 // aliasing src, and returns the tag's length, or 0 when src does not start
 // with that tag ending (`/>` or `>`) on this line within maxLen bytes. For the
-// body-less inline gno-* tags (<gno-button />, and <gno-icon /> next).
+// body-less inline gno-* tags: <gno-icon /> and <gno-button />.
 func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (size int, selfClosing bool) {
 	if !hasGnoTagPrefix(src, prefix) {
 		return 0, false
@@ -117,7 +117,7 @@ func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (siz
 
 // hasGnoTagPrefix reports whether src starts with prefix ("<name"),
 // case-insensitively, followed by a byte that ends a tag name: whitespace,
-// `/` or `>`, so `<gno-buttons>` is not `<gno-button`.
+// `/` or `>`, so `<gno-icons>` is not `<gno-icon`.
 func hasGnoTagPrefix(src, prefix []byte) bool {
 	n := len(prefix)
 	if len(src) <= n || !bytes.EqualFold(src[:n], prefix) {
@@ -132,7 +132,7 @@ func isGnoTagAttrNameEnd(c byte) bool {
 }
 
 // gnoTagLineParser opens a paragraph on a line that starts with a body-less
-// inline gno-* tag. Without it, a line holding only `<gno-button … />` is a
+// inline gno-* tag. Without it, a line holding only `<gno-icon … />` is a
 // CommonMark type-7 HTML block, which takes the line (and every line up to
 // the next blank one) before the tag's inline parser runs, and safe mode
 // strips it. It delegates to goldmark's own paragraph parser, so the
@@ -186,29 +186,70 @@ func GetWordArticle(word string) string {
 	return "a"
 }
 
-// nodeText returns the text content of a node, recursively.
+// nodeText returns the text content of a node, recursively, with backslash
+// escapes resolved.
 func nodeText(src []byte, n ast.Node) []byte {
-	var buf bytes.Buffer
-	writeNodeText(src, &buf, n)
-	return buf.Bytes()
+	var w nodeTextWriter
+	w.walk(src, n)
+	return w.buf.Bytes()
 }
 
-// writeNodeText writes the text content of a node to a buffer.
-func writeNodeText(src []byte, dst io.Writer, n ast.Node) {
+// nodeTextWriter collects a node's text. An icon that renders adds its
+// decoded label, the name it gives the heading or link it sits in, set apart
+// from the text next to it by a space; an icon that renders nothing, or sits
+// in an image's alt text, adds nothing.
+type nodeTextWriter struct {
+	buf   bytes.Buffer
+	space bool // a label was just written: the next text needs a space
+}
+
+func (w *nodeTextWriter) walk(src []byte, n ast.Node) {
 	switch n := n.(type) {
 	case *ast.Text:
-		_, _ = dst.Write(n.Segment.Value(src))
+		w.text(util.UnescapePunctuations(n.Segment.Value(src)))
 	case *ast.String:
-		_, _ = dst.Write(n.Value)
+		w.text(util.UnescapePunctuations(n.Value))
+	case *Icon:
+		label := n.accessibleName()
+		if label == nil || inImage(n) {
+			return
+		}
+		if l := w.buf.Len(); l > 0 && !util.IsSpace(w.buf.Bytes()[l-1]) {
+			w.buf.WriteByte(' ')
+		}
+		w.buf.Write(label)
+		w.space = true
 	default:
 		for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-			writeNodeText(src, dst, c)
+			w.walk(src, c)
 		}
 	}
+}
+
+func (w *nodeTextWriter) text(b []byte) {
+	if len(b) == 0 {
+		return
+	}
+	if w.space && !util.IsSpace(b[0]) {
+		w.buf.WriteByte(' ')
+	}
+	w.space = false
+	w.buf.Write(b)
 }
 
 var titleCaser = cases.Title(language.AmericanEnglish)
 
 func titleCase(s string) string {
 	return titleCaser.String(s)
+}
+
+// trimTagLine strips 0-3 leading spaces (CM §4.5 indent tolerance) and
+// trailing ASCII whitespace from a line holding a gno-* block tag. A line
+// indented further keeps a leading space, so it never parses as one tag.
+func trimTagLine(line []byte) []byte {
+	i := 0
+	for i < len(line) && i < 3 && line[i] == ' ' {
+		i++
+	}
+	return util.TrimRightSpace(line[i:])
 }

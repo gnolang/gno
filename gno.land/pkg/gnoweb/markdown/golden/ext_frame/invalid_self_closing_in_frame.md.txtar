@@ -1,0 +1,15 @@
+-- input.md --
+<gno-frame>
+Intro
+<gno-frame/>
+more
+</gno-frame>
+
+After the frame.
+-- output.html --
+<section class="gno-frame">
+<p>Intro</p>
+<!-- unexpected/invalid frame tag omitted -->
+<p>more</p>
+</section>
+<p>After the frame.</p>

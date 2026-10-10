@@ -1,0 +1,32 @@
+-- input.md --
+<gno-frame>
+<gno-frame>
+
+<gno-foreign>
+<gno-foreign>
+<gno-foreign>
+<gno-foreign>
+too deep
+</gno-foreign>
+</gno-foreign>
+</gno-foreign>
+</gno-foreign>
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<!-- unexpected/invalid frame tag omitted -->
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<!-- gno-foreign: render budget exceeded; content omitted -->
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- unexpected/invalid frame tag omitted -->
+</section>
