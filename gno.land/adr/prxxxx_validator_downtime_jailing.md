@@ -179,8 +179,13 @@ Per vote, at BeginBlock(H):
    enters it — the Cosmos sliding-window invariant, without a per-validator
    `IndexOffset`.)
 4. If `missed`, `H−1 > StartHeight + window` and
-   `MissedCount > window − window × min_signed_per_window / 100`: **jail**.
-   Add the address to the jailed set with
+   `MissedCount > window − window × min_signed_per_window / 100`, the
+   validator qualifies. Apply the **roster cap** first: if jailing it would
+   take the outstanding jailed power above `max_jailed_percent` of the power
+   in `current` while the jailed set is not empty, refuse — emit
+   `ValidatorJailRefused` with `address` and `jailed_power`, write nothing,
+   and re-evaluate at the validator's next miss. Otherwise **jail**: add the
+   address to the jailed set with
    `jailed_until = header.Time + downtime_jail_duration`, drop its signing
    info and bitmap, set the keeper's dirty flag so the EndBlocker recomputes
    the consensus set this block, and emit a `ValidatorJailed` event in
@@ -198,7 +203,30 @@ it, a validator dark for most of its first window and back online when the
 grace ends would be jailed on a block it signed — the SDK does exactly that.
 With it, a jail always happens on a block the validator missed, that block
 was committed without it, and removing it can never lower the signing share;
-this is what lets the power floor go (see Alternatives).
+this is what lets a liveness floor go (see Alternatives).
+
+`max_jailed_percent` is the **roster cap**, and it protects a different
+property. The `missed` invariant proves a jail never halts the chain; it says
+nothing about how far repeated jails can shrink the live set, because each
+removal restores the margin that makes the next one safe. With equal power a
+round of jails takes `N → N − ⌊(N−1)/3⌋`: `50 → 34 → 23 → 16 → 11 → 8 → 6 →
+5 → 4 → 3`, nine windows, every step honouring the invariant, the chain never
+halting — and the three left are whoever stayed reachable, which in a
+partition is whoever its author left reachable. Tendermint's safety
+assumption is "fewer than 1/3 faulty of the set"; uncapped jailing re-anchors
+that set from the roster governance chose to the subset an outage chose. The
+cap re-anchors it: the outstanding jailed power may not exceed
+`max_jailed_percent` of the power in `current` — measured against
+membership, not the shrinking live set, and counting only jailed entries
+still in `current` — with a floor of one validator so that a small set can
+jail anyone at all (gnoland-1 is 5 validators at power 60; 10% of 300 is
+less than any one of them). At the cap the jail is refused, not traded
+against an older one: a halt is recoverable in hours with the roster intact,
+a captured set is not. Beyond the cap an outage is by definition one the set
+shares, and §5 applies. The constitution caps the roster at 50 and requires
+self-hosted hardware, which makes correlated outages the expected failure;
+the Hub and AtomOne, whose parameters §4 borrows, run no cap but have ten
+times the validators and mostly cloud hosting.
 
 Determinism: `LastCommitInfo` is derived from the committed block,
 `header.Time` is the block time, and every write lands in the deliver state,
@@ -321,6 +349,7 @@ factories (`NewSysParamInt64PropRequest(cur, "liveness", "p", …)`):
 | `signed_blocks_window`   | int64, blocks  | `0` = **disabled** | 0 ≤ w ≤ cap (100 000) |
 | `min_signed_per_window`  | int64, percent | `5`                | 0–100                 |
 | `downtime_jail_duration` | int64, seconds | `600`              | ≥ 0                   |
+| `max_jailed_percent`     | int64, percent | `10`               | 0–100                 |
 
 An integer percent rather than a decimal: the params keeper has no decimal type
 and nothing here needs one.
@@ -332,11 +361,11 @@ proposal, the way the valoper fees are staged.
 Suggested first values, next to what the two chains gno.land's validators
 come from actually run (queried 2026-09-29):
 
-| chain          | window | min signed | jail  | block time | silence before jail |
-|----------------|--------|------------|-------|------------|---------------------|
-| Cosmos Hub     | 10 000 | 5%         | 600 s | ~5.7 s     | ~15 h               |
-| AtomOne        | 10 000 | 5%         | 600 s | ~5.8 s     | ~15 h               |
-| gno.land, here | 4 000  | 5%         | 600 s | ~3.4 s     | ~3.6 h              |
+| chain          | window | min signed | jail  | cap | block time | silence before jail |
+|----------------|--------|------------|-------|-----|------------|---------------------|
+| Cosmos Hub     | 10 000 | 5%         | 600 s | —   | ~5.7 s     | ~15 h               |
+| AtomOne        | 10 000 | 5%         | 600 s | —   | ~5.8 s     | ~15 h               |
+| gno.land, here | 4 000  | 5%         | 600 s | 10% | ~3.4 s     | ~3.6 h              |
 
 The shape is theirs: a large window with a low threshold, so that a short
 blip never counts and only a sustained absence does — the operators this set
@@ -361,7 +390,11 @@ Wall-clock stalls do not count. Misses are recorded only for blocks that were
 committed. If the chain halts (fewer than 2/3 signing), no block is produced,
 nothing is recorded, and nobody is jailed for the outage when it resumes. That
 is the intended reading of "offline": jailing is for validators the rest of the
-set out-lives, not for outages the whole set shares.
+set out-lives, not for outages the whole set shares. The roster cap (§1)
+makes that boundary exact: an outage that would push the jailed power past
+`max_jailed_percent` is a shared outage by definition. Jailing stops at the
+cap, and if the dark validators then exceed the margin the chain halts with
+its roster intact, for operators and governance to resolve.
 
 ### 6. Edge cases, decided
 
@@ -481,17 +514,16 @@ Two things this makes explicit:
   to remove a jailed validator.
 - **Drop offline validators inside tm2.** Rejected: membership policy belongs
   to the ABCI application, where Cosmos keeps it too; tm2 only reports votes.
-- **A power-weighted floor on jailing** ("never jail more than 1/3 of the
-  power in one block", or a cumulative cap on jailed power). Not needed: a
-  validator is jailed only on a block it missed (§1 step 4), that block was
-  committed, so its signers alone held more than 2/3 — and every validator
-  jailed in the same block is a non-signer of it, however many there are.
-  Removing them raises the signers' share; a cap would only keep provably
-  absent power in the denominator. Seven validators with two dead: 5 of 7
-  sign, 5 needed, margin zero, and after both are jailed 5 of 5 sign, 4
-  needed, margin one. A cap protects against a verdict that can be wrong,
-  such as an off-chain monitor's; this one is read from the commits. The
-  existing empty-set floor stays as the backstop.
+- **A liveness floor on jailing** ("never jail more than 1/3 of the power in
+  one block"). Not needed: a validator is jailed only on a block it missed
+  (§1 step 4), that block was committed, so its signers alone held more than
+  2/3 — and every validator jailed in the same block is a non-signer of it,
+  however many there are. Removing them raises the signers' share. Seven
+  validators with two dead: 5 of 7 sign, 5 needed, margin zero, and after
+  both are jailed 5 of 5 sign, 4 needed, margin one. The roster cap (§1) is
+  a different thing: it bounds the cumulative shrinkage across windows, for
+  capture rather than liveness, and the two compose. The existing empty-set
+  floor stays as the backstop.
 
 ## Consequences
 
@@ -504,8 +536,14 @@ Positive:
 - Membership semantics for realms (`IsValidator`, proposal baselines, the
   valopers front-run guard) are unchanged: jailed validators are still members.
 - Disabled by default; existing networks opt in by proposal.
+- Jailing cannot shrink the live set below `100 − max_jailed_percent` percent
+  of the roster's power: the Byzantine assumption stays anchored to the set
+  governance chose.
 
 Negative / trade-offs:
+- A correlated outage beyond the cap halts the chain, by design. The roster
+  stays intact and recovery is `MsgUnjail` and governance, not a set picked
+  by the outage.
 - gno.land gains a BeginBlocker and per-block store writes for absent
   validators, bounded by the 100-entry valset cap. Signers with a clean bit
   cost no write.
@@ -538,7 +576,10 @@ Negative / trade-offs:
 - Unit tests for the tracker: bit set/clear as a miss enters and leaves the
   window, `MissedCount` equals the popcount, grace period, jail exactly at
   `MissedCount > window − window × pct / 100` and never on a signed block,
-  reset on jail, window-change reset, no-op when the window is 0.
+  reset on jail, window-change reset, no-op when the window is 0; the roster
+  cap refuses a jail that would exceed `max_jailed_percent` of `current`
+  power, allows one validator regardless, ignores jailed entries no longer in
+  `current`, and frees room on unjail.
 - `TestEndBlocker` extensions on the existing `valsetState` mock: a jail
   removes from the diff but not from `current`; clearing the entry re-adds
   with the governed power; a governance removal of a jailed validator leaves
