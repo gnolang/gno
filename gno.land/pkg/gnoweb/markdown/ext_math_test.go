@@ -251,6 +251,19 @@ func TestMathNotInCode(t *testing.T) {
 	}
 }
 
+// A $ inside a code span does not close an expression opened before it.
+func TestMathDoesNotCrossCodeSpan(t *testing.T) {
+	for src, code := range map[string]string{
+		"Costs $5: see `foo$bar` in the code.":              "<code>foo$bar</code>",
+		"Costs $5, then open `/r/demo/foo$help` to donate.": "<code>/r/demo/foo$help</code>",
+	} {
+		out := renderMathMarkdown(t, src)
+		assert.NotContains(t, out, "<math", src)
+		assert.Contains(t, out, code, src)
+	}
+	assert.Equal(t, 2, strings.Count(renderMathMarkdown(t, "$n$th and `x$y` and $a$"), "<math"))
+}
+
 func TestMathStillRenders(t *testing.T) {
 	for _, src := range []string{
 		`$E=mc^2$`,

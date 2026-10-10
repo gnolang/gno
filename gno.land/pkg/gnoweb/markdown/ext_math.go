@@ -349,6 +349,8 @@ func isEscaped(b []byte, i int) bool {
 // autolink (<scheme:...>), does not close. And an expression that opens in
 // a link label ends there: "[Send $10](/r/x$help&func=Send) ... $" has no
 // closer, so the link stays a link instead of turning into math.
+// Code spans are kept whole the same way: in "Costs $5: see `foo$bar`", the
+// $ in the code span does not close the price.
 func findDollarClose(b []byte) (int, int) {
 	labels := 0 // [ opened since the start of the expression
 	depth := 0  // inside a link destination, its parenthesis nesting
@@ -394,9 +396,40 @@ func findDollarClose(b []byte) (int, int) {
 				continue
 			}
 			return i, i
+		case '`':
+			// So are code spans: a $ in one is code.
+			if !isEscaped(b, i) {
+				i += codeSpanEnd(b[i:])
+			}
 		}
 	}
 	return -1, len(b)
+}
+
+// codeSpanEnd returns the index of the last backtick of the code span b
+// starts with, or, if no run of as many backticks closes it, of the last
+// backtick of its opening run.
+func codeSpanEnd(b []byte) int {
+	n := 0
+	for n < len(b) && b[n] == '`' {
+		n++
+	}
+	for i := n; i < len(b); {
+		j := bytes.IndexByte(b[i:], '`')
+		if j < 0 {
+			break
+		}
+		i += j
+		run := 0
+		for i < len(b) && b[i] == '`' {
+			i++
+			run++
+		}
+		if run == n {
+			return i - 1
+		}
+	}
+	return n - 1
 }
 
 // autolinkEnd returns the index of the > that ends the URI autolink b

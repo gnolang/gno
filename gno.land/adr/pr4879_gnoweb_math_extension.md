@@ -96,7 +96,8 @@ up to three spaces.
 - An empty expression (`$$$$`, `\\(\\)`, a blank block) is text: it holds no
   math and would cost a whole `<math>` element for a few input bytes.
 - Code spans, indented code and fences other than ` ```math ` keep their `$`
-  literally.
+  literally. A code span on the same line as the closing `$` of an inline
+  `$…$` keeps its `$` too.
 
 ### The converter: a port of TreeBlood
 
