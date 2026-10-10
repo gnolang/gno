@@ -205,7 +205,7 @@ func TestWouldExceedSpend(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			o := &oracle{spent: tt.spent, enableFee: tt.fee, maxSpend: tt.maxSpend}
+			o := &oracle{spent: tt.spent, gasFee: std.NewCoin(ugnotDenom, tt.fee), maxSpend: tt.maxSpend}
 			assert.Equal(t, tt.want, o.wouldExceedSpend())
 		})
 	}
@@ -252,12 +252,22 @@ func TestNewOracleRejectsUnusableSpendBound(t *testing.T) {
 		assert.Contains(t, err.Error(), "gas fees are paid in")
 	})
 
+	// ParseCoin accepts "0ugnot", and a zero fee reaches affordance as a
+	// divisor. Refusing at startup beats panicking on the first balance report.
+	t.Run("a zero gas fee is refused", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.gasFee = "0ugnot"
+		_, err := newOracle(cfg, tio)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be positive")
+	})
+
 	t.Run("a usable bound is accepted", func(t *testing.T) {
 		cfg := baseConfig()
 		cfg.maxSpend = defaultMaxSpend
 		o, err := newOracle(cfg, tio)
 		require.NoError(t, err)
-		assert.Equal(t, int64(1000000), o.enableFee)
+		assert.Equal(t, std.NewCoin(ugnotDenom, 1000000), o.gasFee)
 		assert.Positive(t, o.maxSpend)
 	})
 }
