@@ -1056,6 +1056,236 @@ gno.land/r/boards
 gno.land/r/boards:foo/bar
 gno.land/r/docs/markdown$source
 
+### Mathematics
+
+Supports mathematical expressions using LaTeX syntax, which are rendered as MathML for proper mathematical display. An expression that cannot be converted is shown as its source, like inline code.
+
+#### Inline Math
+
+Mathematical expressions can be written inline using single dollar signs:
+
+±±±markdown
+Einstein's famous equation is $E = mc^2$.
+±±±
+
+Einstein's famous equation is $E = mc^2$.
+
+Greek letters and symbols:
+
+±±±markdown
+Greek letters: $\alpha, \beta, \gamma, \Delta, \Omega$
+
+Mathematical operators: $+ - \times \div \pm \mp = \neq < > \leq \geq$
+
+Functions: $\sin, \cos, \tan, \log, \ln, \exp, \max, \min$
+±±±
+
+Greek letters: $\alpha, \beta, \gamma, \Delta, \Omega$
+
+Mathematical operators: $+ - \times \div \pm \mp = \neq < > \leq \geq$
+
+Functions: $\sin, \cos, \tan, \log, \ln, \exp, \max, \min$
+
+Inline math can also be written between ±\\(± and ±\\)±:
+
+±±±markdown
+The area of a circle is \\(\pi r^2\\).
+±±±
+
+The area of a circle is \\(\pi r^2\\).
+
+#### Block Math
+
+For larger mathematical expressions, use double dollar signs:
+
+±±±markdown
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+±±±
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
+$$
+
+Display math can also be written between ±\\[± and ±\\]±, or in a code fence whose language is ±math±, as on GitHub:
+
+±±±±markdown
+\\[
+e^{i\pi} + 1 = 0
+\\]
+
+±±±math
+\sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+±±±
+±±±±
+
+\\[
+e^{i\pi} + 1 = 0
+\\]
+
+±±±math
+\sum_{k=1}^{n} k = \frac{n(n+1)}{2}
+±±±
+
+A ±math± fence that cannot be converted stays a code block.
+
+#### Dollar Signs
+
+A single ±$± opens inline math only when the next character is not a space, and closes it only when the previous character is not a space and the next one is not a digit. Prices therefore stay text:
+
+±±±markdown
+It costs $5, or $ 10 with shipping, and $5 and $10 together.
+±±±
+
+It costs $5, or $ 10 with shipping, and $5 and $10 together.
+
+The rule cannot tell every price from math: in ±$GNOT/$ATOM± the second ±$± follows a non-space, so the text between the two is read as math. Write ±\$± for a dollar sign that must stay text:
+
+±±±markdown
+The pair \$GNOT/\$ATOM, and a literal dollar in math: $\$5$.
+±±±
+
+The pair \$GNOT/\$ATOM, and a literal dollar in math: $\$5$.
+
+#### Lines That Start a Block
+
+Display math ends at a line that would start another Markdown block, such as a list item (±- ±, ±+ ±, ±1. ±), a quote (±> ±) or a heading (±#±), so that an unclosed ±$$± cannot swallow the rest of the page. A formula line that begins with a minus sign followed by a space is such a line; put an empty group ±{}± in front of it:
+
+±±±markdown
+$$
+a
+{}- b
+$$
+±±±
+
+$$
+a
+{}- b
+$$
+
+#### Colours
+
+±\color± and ±\textcolor± accept the theme colours ±red±, ±orange±, ±green±, ±blue±, ±purple± and ±gray± (or ±grey±), which stay readable in light and dark mode. Other colour names and hex or RGB values are ignored, and the expression keeps the text colour. ±\color± colours everything after it in its group, so put it in braces to colour one term; ±\textcolor± takes the term as its argument:
+
+±±±markdown
+${\color{red} a^2} + {\color{blue} b^2} = \textcolor{green}{c^2}$
+±±±
+
+${\color{red} a^2} + {\color{blue} b^2} = \textcolor{green}{c^2}$
+
+#### Advanced Examples
+
+Matrices:
+
+±±±markdown
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+\begin{pmatrix}
+x \\
+y
+\end{pmatrix} =
+\begin{pmatrix}
+ax + by \\
+cx + dy
+\end{pmatrix}
+$$
+±±±
+
+$$
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix}
+\begin{pmatrix}
+x \\
+y
+\end{pmatrix} =
+\begin{pmatrix}
+ax + by \\
+cx + dy
+\end{pmatrix}
+$$
+
+Complex equations with Greek letters:
+
+±±±markdown
+$$
+\nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t}
+$$
+±±±
+
+$$
+\nabla \times \vec{E} = -\frac{\partial \vec{B}}{\partial t}
+$$
+
+Fractions and roots:
+
+±±±markdown
+Fractions: $\frac{a}{b}$, $\frac{x^2 + y^2}{z^3}$
+
+Square roots: $\sqrt{x}$, $\sqrt[3]{x}$, $\sqrt[n]{x}$
+
+Superscripts and subscripts: $x^2$, $x_1$, $x^{2+3}$, $x_{i+1}$
+±±±
+
+Fractions: $\frac{a}{b}$, $\frac{x^2 + y^2}{z^3}$
+
+Square roots: $\sqrt{x}$, $\sqrt[3]{x}$, $\sqrt[n]{x}$
+
+Superscripts and subscripts: $x^2$, $x_1$, $x^{2+3}$, $x_{i+1}$
+
+#### More complex examples:
+
+Characteristic polynomial: $\det(A - \lambda I) = 0$
+
+Eigenvalue equation: $A\mathbf{v} = \lambda\mathbf{v}$
+
+Schrödinger equation (time-independent): $\hat{H}|\psi\rangle = E|\psi\rangle$
+
+Dirac equation: $(i\gamma^\mu\partial_\mu - m)\psi = 0$
+
+Klein-Gordon equation: $(\partial_\mu\partial^\mu + m^2)\phi = 0$
+
+Maxwell equations in tensor form: $\partial_\mu F^{\mu\nu} = \mu_0 J^\nu$
+
+Einstein field equations: $R_{\mu\nu} - \frac{1}{2}Rg_{\mu\nu} + \Lambda g_{\mu\nu} = \frac{8\pi G}{c^4}T_{\mu\nu}$
+
+Schwarzschild metric: $ds^2 = -\left(1 - \frac{2GM}{c^2r}\right)dt^2 + \left(1 - \frac{2GM}{c^2r}\right)^{-1}dr^2 + r^2(d\theta^2 + \sin^2\theta d\phi^2)$
+
+Boltzmann distribution: $P(E) = \frac{1}{Z}e^{-\beta E}$
+
+Partition function: $Z = \sum_i e^{-\beta E_i}$
+
+Bose-Einstein distribution: $f(E) = \frac{1}{e^{\beta(E-\mu)} - 1}$
+
+First law: $dU = \delta Q - \delta W$
+
+Second law: $dS \geq \frac{\delta Q}{T}$
+
+#### Supported Features
+
+- **Fractions**: ±\frac{numerator}{denominator}±
+- **Superscripts and subscripts**: ±x^2±, ±x_1±, ±x^{2+3}±, ±x_{i+1}±
+- **Square roots**: ±\sqrt{x}±, ±\sqrt[n]{x}±
+- **Greek letters**: ±\alpha±, ±\beta±, ±\gamma±, ±\Delta±, ±\Omega±, etc.
+- **Mathematical operators**: ±\times±, ±\div±, ±\pm±, ±\mp±, ±\leq±, ±\geq±, ±\neq±, ±\approx±, ±\equiv±
+- **Arrows**: ±\rightarrow±, ±\leftarrow±, ±\leftrightarrow±, ±\Rightarrow±, ±\Leftarrow±, ±\Leftrightarrow±
+- **Set theory**: ±\in±, ±\notin±, ±\subset±, ±\supset±, ±\cup±, ±\cap±, ±\emptyset±
+- **Logical operators**: ±\land±, ±\lor±, ±\lnot±, ±\forall±, ±\exists±
+- **Integrals and sums**: ±\int±, ±\sum±, ±\prod±, ±\lim±
+- **Functions**: ±\sin±, ±\cos±, ±\tan±, ±\log±, ±\ln±, ±\exp±, ±\max±, ±\min±
+- **Matrices**: ±\begin{matrix}...\end{matrix}±, ±\begin{pmatrix}...\end{pmatrix}±
+- **Colours**: ±{\color{blue} ...}±, ±\textcolor{red}{...}±, theme colours only
+- **Operator names**: ±\operatorname{argmax}±, ±\operatorname*{argmax}_x± (limits below), ±\mathop{...}±
+- **Spacing**: ±\,±, ±\:±, ±\>±, ±\;±, ±\quad±, ±\qquad±, ±\kern1em±, ±\mkern18mu±, ±\hspace{1em}±, ±\phantom{x}±
+- **Tags**: ±\tag{1}± is shown after the formula as written; ±\label± is accepted and ignored
+- **Not supported**: ±\ref± and ±\eqref± (there is no equation numbering), and macro expansion (±\newcommand± and ±\def± are accepted but their definitions are not expanded)
+- **Complex equations**: Schrödinger, Maxwell, Fourier transforms, etc.
+
 ### And more...
 
 XXX: TODO
