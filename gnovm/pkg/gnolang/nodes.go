@@ -1654,15 +1654,15 @@ var (
 type StaticBlock struct {
 	Block
 	Location
-	Types             []Type
-	NumNames          uint16 // == len(Names); nameIndex is its O(1) co-invariant
-	Names             []Name
-	NameSources       []NameSource
-	HeapItems         []bool
-	UnassignableNames []Name
-	Consts            []Name   // TODO consider merging with Names.
-	_                 struct{} `amino:"reserved"` // was: Externs []Name
-	Parent            BlockNode
+	Types       []Type
+	NumNames    uint16 // == len(Names); nameIndex is its O(1) co-invariant
+	Names       []Name
+	NameSources []NameSource
+	HeapItems   []bool
+	_           struct{} `amino:"reserved"` // was: UnassignableNames []Name, now derived from NameSources
+	Consts      []Name   // TODO consider merging with Names.
+	_           struct{} `amino:"reserved"` // was: Externs []Name
+	Parent      BlockNode
 
 	// temporary storage for rolling back redefinitions.
 	oldValues []oldValue
@@ -1918,26 +1918,6 @@ func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
 // Returns true iff n is a local const defined name.
 func (sb *StaticBlock) getLocalIsConst(n Name) bool {
 	return slices.Contains(sb.Consts, n)
-}
-
-func (sb *StaticBlock) IsAssignable(store Store, n Name) bool {
-	_, ok := sb.GetLocalIndex(n)
-	bp := sb.GetParentNode(store)
-	un := sb.UnassignableNames
-
-	for {
-		if ok {
-			return !slices.Contains(un, n)
-		} else if bp != nil {
-			_, ok = bp.GetLocalIndex(n)
-			un = bp.GetStaticBlock().UnassignableNames
-			bp = bp.GetParentNode(store)
-		} else if _, ok := UverseNode().GetLocalIndex(n); ok {
-			return false
-		} else {
-			return true
-		}
-	}
 }
 
 // Implements BlockNode.
