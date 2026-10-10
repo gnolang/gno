@@ -156,6 +156,38 @@ func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTT
 		ClientAdapter: client,
 		Renderer:      &rawRenderer{},
 		Aliases:       map[string]gnoweb.AliasTarget{},
+		Meta:          gnoweb.StaticMetadata{NetworkKind: components.NetworkTestnet, ChainId: "dev"},
+	}
+}
+
+// NewHTTPHandler is exported, so it checks the network fields itself rather
+// than trusting NewRouter.
+func TestNewHTTPHandler_ValidatesNetworkMeta(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		meta    func(*gnoweb.StaticMetadata)
+		wantErr string
+	}{
+		{name: "valid", meta: func(*gnoweb.StaticMetadata) {}},
+		{name: "empty kind", meta: func(m *gnoweb.StaticMetadata) { m.NetworkKind = "" }, wantErr: "invalid network kind"},
+		{name: "unknown kind", meta: func(m *gnoweb.StaticMetadata) { m.NetworkKind = "prod" }, wantErr: "invalid network kind"},
+		{name: "empty chain-id", meta: func(m *gnoweb.StaticMetadata) { m.ChainId = "" }, wantErr: "invalid chain-id"},
+		{name: "backtick chain-id", meta: func(m *gnoweb.StaticMetadata) { m.ChainId = "pearl`1" }, wantErr: "invalid chain-id"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := newTestHandlerConfig(t, gnoweb.NewMockClient())
+			tc.meta(&cfg.Meta)
+			_, err := gnoweb.NewHTTPHandler(slog.New(slog.DiscardHandler), cfg)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+		})
 	}
 }
 
@@ -165,7 +197,7 @@ func TestHTTPHandler_FooterStatusLink(t *testing.T) {
 	t.Parallel()
 
 	cfg := newTestHandlerConfig(t, gnoweb.NewMockClient())
-	cfg.Meta = gnoweb.StaticMetadata{StatusURL: "https://status.onyx.testnets.gno.land"}
+	cfg.Meta.StatusURL = "https://status.onyx.testnets.gno.land"
 	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), cfg)
 	require.NoError(t, err)
 
@@ -1478,7 +1510,7 @@ func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnow
 			ClientAdapter: client,
 			Renderer:      renderer,
 			Aliases:       map[string]gnoweb.AliasTarget{},
-			Meta:          gnoweb.StaticMetadata{Domain: "gno.land"},
+			Meta:          gnoweb.StaticMetadata{Domain: "gno.land", NetworkKind: components.NetworkTestnet, ChainId: "dev"},
 		},
 	)
 	require.NoError(t, err)
@@ -1645,6 +1677,7 @@ func TestHTTPHandler_MarkdownNegotiation_StaticAlias(t *testing.T) {
 		Aliases: map[string]gnoweb.AliasTarget{
 			"/about": {Value: md, Kind: gnoweb.StaticMarkdown},
 		},
+		Meta: gnoweb.StaticMetadata{NetworkKind: components.NetworkTestnet, ChainId: "dev"},
 	}
 
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))

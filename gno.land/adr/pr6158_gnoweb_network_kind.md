@@ -121,7 +121,7 @@ hover from 7.21:1 to 3.73:1.
 Only identity tokens move. `--s-color-bg-success-default` resolves to the same
 green primitive but stays green: success is a meaning, not a brand.
 
-### The chain-id is validated once, at the source
+### The chain-id is validated at startup, not escaped at each use
 
 The chain-id reaches markdown (the banner) and `<meta name="gnoconnect:chainid">`,
 which wallets read. A backtick in it would close the banner's code span and let
@@ -140,6 +140,11 @@ would mean rendering either an unsafe value or an empty one, and the chain-id
 ends up in the gnokey commands users paste and sign. The regex restricts the
 characters, which tm2 does not (it only requires 1 to 50 of them); every chain-id
 in use today passes it, and an operator can always set `-chainid` explicitly.
+
+`NewHTTPHandler`, which is exported, checks the kind and the chain-id of
+`StaticMetadata` again and defaults neither: an empty value there means a
+caller dropped the field, and rendering it would give a page with no
+`data-network` and a chip naming no kind.
 
 ### One theming mechanism, not two
 

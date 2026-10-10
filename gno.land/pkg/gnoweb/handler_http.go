@@ -123,6 +123,13 @@ func (cfg *HTTPHandlerConfig) validate() error {
 	if cfg.Aliases == nil {
 		return errors.New("no `Aliases` configured")
 	}
+	// No default here, unlike NewRouter: an empty value means a caller dropped it.
+	if !cfg.Meta.NetworkKind.Valid() {
+		return fmt.Errorf("invalid network kind %q", cfg.Meta.NetworkKind)
+	}
+	if !chainIDRe.MatchString(cfg.Meta.ChainId) {
+		return fmt.Errorf("invalid chain-id %q", cfg.Meta.ChainId)
+	}
 	return nil
 }
 
