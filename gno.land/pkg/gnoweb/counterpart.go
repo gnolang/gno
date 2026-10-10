@@ -154,8 +154,9 @@ func isUnder(p, dir string) bool {
 	return p == dir || strings.HasPrefix(p, dir+"/")
 }
 
-// counterpartLink builds the header link for a lookup result.
-func counterpartLink(target, root string, n int) *components.HeaderLink {
+// counterpartLink builds the header link for a lookup result. cut reports a
+// listing that reached maxCounterpartPaths, where n may miss paths past it.
+func counterpartLink(target, root string, n int, cut bool) *components.HeaderLink {
 	kind, icon := "package", "ico-pure"
 	if strings.HasPrefix(root, "/r/") {
 		kind, icon = "realm", "ico-realm"
@@ -163,7 +164,7 @@ func counterpartLink(target, root string, n int) *components.HeaderLink {
 	label := "Matching " + kind
 	if n > 1 {
 		count := strconv.Itoa(n)
-		if n >= maxCounterpartPaths {
+		if cut {
 			count += "+"
 		}
 		label = count + " matching " + kind + "s"
@@ -207,7 +208,7 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 			done <- nil
 			return
 		}
-		done <- counterpartLink(target, root, n)
+		done <- counterpartLink(target, root, n, len(paths) >= maxCounterpartPaths && isUnder(paths[len(paths)-1], root))
 	}()
 
 	return func() *components.HeaderLink {

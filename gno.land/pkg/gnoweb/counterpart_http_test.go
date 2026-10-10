@@ -3,10 +3,13 @@ package gnoweb_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -147,6 +150,35 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 			}
 		})
 	}
+}
+
+// sortedListClient lists paths in key order, as the chain does; the mock
+// ranges over a map.
+type sortedListClient struct{ *gnoweb.MockClient }
+
+func (c sortedListClient) ListPaths(ctx context.Context, prefix string, limit int) ([]string, error) {
+	paths, err := c.MockClient.ListPaths(ctx, prefix, math.MaxInt)
+	slices.Sort(paths)
+	return paths[:min(limit, len(paths))], err
+}
+
+// Sibling projects sharing the root's name prefix fill the listing past the
+// root's own subtree, which is complete, so the count stays exact.
+func TestCounterpart_SiblingProjectsKeepCountExact(t *testing.T) {
+	t.Parallel()
+
+	pkgs := []*gnoweb.MockPackage{
+		{Path: "/r/alice/golf/game", Files: map[string]string{"game.gno": "package game"}, Functions: renderFuncs},
+		{Path: "/p/alice/golf/course", Files: map[string]string{"p.gno": "package p"}},
+		{Path: "/p/alice/golf/physics", Files: map[string]string{"p.gno": "package p"}},
+		{Path: "/p/alice/golf/rules", Files: map[string]string{"p.gno": "package p"}},
+	}
+	for i := range 120 {
+		pkgs = append(pkgs, &gnoweb.MockPackage{Path: fmt.Sprintf("/p/alice/golfclub/m%03d", i), Files: map[string]string{"p.gno": "package p"}})
+	}
+
+	body := serveCounterpart(t, sortedListClient{gnoweb.NewMockClient(pkgs...)}, "/r/alice/golf/game").Body.String()
+	assert.Contains(t, body, `<span class="item-label">3 matching packages</span>`)
 }
 
 func TestCounterpart_LookupFailureKeepsPage(t *testing.T) {
