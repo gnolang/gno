@@ -4058,14 +4058,22 @@ main.is-dev-mode > section:has(.c-overview-view) {
 }
 
 /* ===== KIND SWITCH MENU (popover, top layer: not clipped by the header reel) ===== */
+/* Right-aligned instead when the menu would leave the screen */
+@position-try --kind-switch-end {
+	left: auto;
+	right: 0;
+}
+
 .b-kind-switch {
 	position-anchor: --kind-switch;
+	position-try-fallbacks: --kind-switch-end;
 	inset: auto;
 	top: anchor(bottom);
 	left: anchor(left);
-	margin: var(--g-space-1) 0 0;
+	margin: var(--g-space-1) var(--g-space-4) 0 0;
 	min-width: var(--g-space-64);
 	max-width: calc(100vw - 2 * var(--g-space-4));
+	overflow-wrap: anywhere;
 	padding: var(--g-space-1);
 	border: var(--s-border);
 	border-radius: var(--s-rounded);
