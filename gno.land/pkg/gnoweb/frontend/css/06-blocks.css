@@ -769,7 +769,8 @@
 		}
 
 		/* Common link styles */
-		a {
+		a,
+		.kind-switch {
 			display: inline-block;
 			border: 1px solid var(--s-color-border-transparent);
 			border-radius: var(--s-rounded-sm);
@@ -783,6 +784,38 @@
 				color: var(--s-color-text-base);
 			}
 		}
+	}
+
+	/* First segment (r or p) on a namespaced page: the whole chip opens a
+	   menu, the chevron says so. It shares the link chip above, at the same
+	   specificity so these overrides win. */
+	.element .kind-switch {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-1);
+		padding: var(--g-space-0-5) var(--g-space-1);
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		anchor-name: --kind-switch;
+
+		& > svg {
+			width: var(--g-space-2-5);
+			height: var(--g-space-2-5);
+			color: var(--s-color-text-secondary);
+		}
+	}
+
+	/* Lit on hover, focus, and while its menu is open */
+	.element .kind-switch:focus-visible,
+	&:has(#kind-switch-menu:popover-open) .kind-switch {
+		background-color: var(--s-color-bg-brand-default);
+		color: var(--s-color-text-base);
+	}
+
+	.kind-switch:is(:hover, :focus-visible) > svg,
+	&:has(#kind-switch-menu:popover-open) .kind-switch > svg {
+		color: currentColor;
 	}
 
 	/* Argument specific styles */
@@ -4022,4 +4055,106 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	background-color: var(--s-color-bg-brand-default);
 	color: var(--s-color-text-base);
 	border-radius: var(--s-rounded-sm);
+}
+
+/* ===== KIND SWITCH MENU (popover, top layer: not clipped by the header reel) ===== */
+/* Right-aligned instead when the menu would leave the screen */
+@position-try --kind-switch-end {
+	left: auto;
+	right: 0;
+}
+
+.b-kind-switch {
+	position-anchor: --kind-switch;
+	position-try-fallbacks: --kind-switch-end;
+	inset: auto;
+	top: anchor(bottom);
+	left: anchor(left);
+	margin: var(--g-space-1) var(--g-space-4) 0 0;
+	min-width: var(--g-space-64);
+	max-width: calc(100vw - 2 * var(--g-space-4));
+	overflow-wrap: anywhere;
+	padding: var(--g-space-1);
+	border: var(--s-border);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+
+	& .item {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		column-gap: var(--g-space-2);
+		align-items: center;
+		padding: var(--g-space-2);
+		border-radius: var(--s-rounded-sm);
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+
+		&:hover,
+		&:focus-visible {
+			background-color: var(--s-color-bg-surface-secondary);
+			color: var(--s-color-text-primary);
+		}
+
+		& > svg {
+			grid-row: span 2;
+			align-self: start;
+			width: var(--g-space-5);
+			height: var(--g-space-5);
+		}
+
+		& > .item-label {
+			grid-column: 2;
+		}
+	}
+
+	/* Label and path on one line */
+	& .item--inline {
+		grid-template-columns: auto auto 1fr;
+		align-items: baseline;
+
+		& > svg {
+			grid-row: auto;
+			align-self: center;
+		}
+
+		& > .item-label,
+		& > .item-path {
+			grid-column: auto;
+		}
+	}
+
+	/* Sets the global listing apart from the project's own links */
+	& > hr {
+		margin: var(--g-space-1) calc(-1 * var(--g-space-1));
+		border: 0;
+		border-block-start: var(--s-border);
+	}
+
+	& .item--primary {
+		font-weight: var(--g-font-semibold);
+	}
+
+	& .item-path {
+		grid-column: 2;
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-normal);
+		color: var(--s-color-text-tertiary);
+	}
+
+	& .item:is(:hover, :focus-visible) .item-path {
+		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+/* Without anchor positioning (older browsers) the menu opens under the header,
+   at the breadcrumb's start, rather than in the window's corner. It follows
+   the rule above so that rule's inset reset does not override it. */
+@supports not (top: anchor(bottom)) {
+	.b-kind-switch {
+		top: var(--g-space-14);
+		left: var(--g-space-16);
+	}
 }
