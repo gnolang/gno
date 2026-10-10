@@ -571,6 +571,24 @@ func TestValidateURL(t *testing.T) {
 	}
 }
 
+// ValidateURL's error is printed at startup, so it quotes nothing of the URL.
+func TestValidateURLErrorIsRedacted(t *testing.T) {
+	for _, raw := range []string{
+		"https://ops:s3cret@indexer example/graphql/query?apikey=hunter2",
+		"https://ops:s3cret/x@indexer.example/graphql/query",
+	} {
+		err := ValidateURL(raw)
+		if err == nil {
+			t.Fatalf("ValidateURL(%q): want an error", raw)
+		}
+		for _, secret := range []string{"s3cret", "hunter2"} {
+			if strings.Contains(err.Error(), secret) {
+				t.Errorf("error %q carries %q", err, secret)
+			}
+		}
+	}
+}
+
 // A caller's deadline is the caller's budget: the omnibar gives up at 3s,
 // below the client's 4s, and three readers typing at once must not close a
 // healthy indexer to everyone for the cooldown. Scaled down: the caller gives

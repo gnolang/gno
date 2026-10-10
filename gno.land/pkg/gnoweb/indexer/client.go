@@ -129,7 +129,9 @@ func (c *Client) URL() string { return c.display }
 func ValidateURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return fmt.Errorf("invalid indexer URL: %w", err)
+		// Never quote the parse error: it carries the URL, or the part it
+		// stopped on, which an unescaped '/' in a password makes the password.
+		return errors.New("invalid indexer URL: does not parse (percent-encode reserved characters in credentials)")
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return fmt.Errorf("invalid indexer URL: scheme must be http or https, got %q", u.Scheme)
