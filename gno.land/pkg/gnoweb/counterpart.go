@@ -164,9 +164,11 @@ func countUnder(members []string, dir string) int {
 	return n
 }
 
-// isUnder reports whether p is dir or lies below it.
+// isUnder reports whether p is dir or lies below it. It must not allocate:
+// the twinless walk calls it once per member for every level of a request
+// path up to 4096 bytes long.
 func isUnder(p, dir string) bool {
-	return p == dir || strings.HasPrefix(p, dir+"/")
+	return strings.HasPrefix(p, dir) && (len(p) == len(dir) || p[len(dir)] == '/')
 }
 
 // counterpartLink builds the header link for a lookup result. cut reports a

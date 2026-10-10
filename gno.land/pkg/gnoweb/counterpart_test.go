@@ -2,7 +2,9 @@ package gnoweb
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -146,6 +148,26 @@ func TestCounterpartTarget(t *testing.T) {
 			assert.Equal(t, tc.n, n)
 		})
 	}
+}
+
+// TestCounterpartTargetDeepPathAllocs pins the twinless walk on a request
+// path near the 4096-byte limit: it climbs one level at a time and checks
+// every member at each, so an allocation per check cost hundreds of MB per
+// request. Filtering the members may allocate (regexp state, more of it under
+// -race), but nothing may allocate per level. Not parallel: AllocsPerRun
+// counts every allocation in the process.
+func TestCounterpartTargetDeepPathAllocs(t *testing.T) {
+	const levels = 2040
+	twin, root, ok := counterpartRoots("/r/alice/golf" + strings.Repeat("/a", levels))
+	if !assert.True(t, ok) {
+		return
+	}
+	paths := make([]string, maxCounterpartPaths)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("/p/alice/golf/m%03d", i)
+	}
+	allocs := testing.AllocsPerRun(10, func() { counterpartTarget(twin, root, paths) })
+	assert.Less(t, allocs, float64(levels))
 }
 
 func TestCounterpartLink(t *testing.T) {
