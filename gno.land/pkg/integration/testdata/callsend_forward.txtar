@@ -1,0 +1,68 @@
+# A realm forwards a native-coin payment to another realm within one message
+# by attaching it to the cross: wrap.Deposit(cross(cur, coins)). The
+# payee reads exactly what that call delivered via banker.CallSend().
+# See gnovm/adr/pr6213_per_call_coin_value.md.
+
+loadpkg gno.land/r/test/wrap $WORK/wrap
+loadpkg gno.land/r/test/router $WORK/router
+
+adduser user1
+gnoland start
+
+# user1 -> router.Route with 5000ugnot. The router is the entry call, so
+# CallSend() reports 5000 to it; it crosses into wrap with 5000 attached, and
+# wrap reads 5000 on its own call.
+gnokey maketx call -pkgpath gno.land/r/test/router -func Route -send 5000ugnot -gas-fee 2000000ugnot -gas-wanted 20000000 -chainid=tendermint_test user1
+stdout 'OK!'
+
+gnokey query vm/qeval --data "gno.land/r/test/wrap.GetMinted()"
+stdout '5000 int64'
+
+# and the coins actually moved into wrap's own address:
+gnokey query vm/qeval --data "gno.land/r/test/wrap.Bal()"
+stdout '5000 int64'
+
+-- wrap/gnomod.toml --
+module = "gno.land/r/test/wrap"
+gno = "0.9"
+
+-- wrap/wrap.gno --
+package wrap
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+var minted int64
+
+// Deposit mints against the coins delivered to wrap on THIS call.
+func Deposit(cur realm) {
+	minted += banker.CallSend().AmountOf("ugnot")
+}
+
+func GetMinted() int64 { return minted }
+
+func Bal() int64 {
+	return banker.NewReadonlyBanker().GetCoin(chain.PackageAddress("gno.land/r/test/wrap"), "ugnot")
+}
+
+-- router/gnomod.toml --
+module = "gno.land/r/test/router"
+gno = "0.9"
+
+-- router/router.gno --
+package router
+
+import (
+	"chain"
+	"chain/banker"
+
+	"gno.land/r/test/wrap"
+)
+
+// Route receives the user's ugnot and forwards it to wrap on the cross.
+func Route(cur realm) {
+	got := banker.CallSend().AmountOf("ugnot")
+	wrap.Deposit(cross(cur, chain.Coins{{"ugnot", got}}))
+}

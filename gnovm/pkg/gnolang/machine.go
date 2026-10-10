@@ -1510,6 +1510,8 @@ const (
 	// its numbers are next refreshed.
 	OpCPULazyBoundResolve    = 529
 	OpCPUEnterCrossing       = 520   // XXX arbitrary, not yet benchmarked
+	OpCPUCrossSendBase       = 322   // cross(rlm, coins): mirrors bankerSendCoins; recalibrate
+	OpCPUCrossSendSlope      = 35318 // per 1024 coins, mirrors bankerSendCoins
 	OpCPUCall                = 40    // 0 params/0 captures, sans block creation (now in acquireBlock); ~36-44 measured
 	OpCPUAcquireBlock        = 100   // block setup/recover in acquireBlock; ~91-102 measured (anchor Add_Int=81)
 	OpCPUCallNativeBody      = 2205  // XXX arbitrary, not properly benchmarked

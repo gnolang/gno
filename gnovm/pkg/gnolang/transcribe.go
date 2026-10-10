@@ -104,6 +104,7 @@ const (
 	TRANS_VAR_VALUE
 	TRANS_TYPE_TYPE
 	TRANS_FILE_BODY
+	TRANS_CALL_SEND
 )
 
 // Transform node `n` of `ftype`/`index` in context `ns` during `stage`.
@@ -165,6 +166,12 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 		for idx := range cnn.Args {
 			cnn.Args[idx] = transcribe(t, nns, TRANS_CALL_ARG, idx, cnn.Args[idx], &c).(Expr)
+			if stopOrSkip(nc, c) {
+				return
+			}
+		}
+		if cnn.Send != nil {
+			cnn.Send = transcribe(t, nns, TRANS_CALL_SEND, 0, cnn.Send, &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return
 			}

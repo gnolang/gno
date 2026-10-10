@@ -1162,12 +1162,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OriginSendSpent: new(std.Coins),
 		// send was credited to pkgAddr just above; that is the only
 		// address a BankerTypeOriginSend banker may spend from in this
-		// message.
-		OriginSendRecipient: pkgAddr.Bech32(),
-		Banker:              NewSDKBanker(vm, ctx),
-		Params:              NewSDKParams(vm.prmk, ctx),
-		EventLogger:         ctx.EventLogger(),
-		SessionAccount:      getSessionAccount(ctx, creator),
+		// message, and the realm whose init reads it via CallSend.
+		OriginSendRecipient:     pkgAddr.Bech32(),
+		OriginSendRecipientPath: pkgPath,
+		Banker:                  NewSDKBanker(vm, ctx),
+		Params:                  NewSDKParams(vm.prmk, ctx),
+		EventLogger:             ctx.EventLogger(),
+		SessionAccount:          getSessionAccount(ctx, creator),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(

@@ -54,6 +54,8 @@ func OriginCaller() address {
 
 // OriginSend returns the coin envelope attached at the chain root.
 //
+// For the coins delivered to the current call only, see banker.CallSend().
+//
 // SECURITY: OriginCaller's payment twin. The envelope is shared across
 // every realm in the call chain, so a malicious intermediate realm can
 // consume it after a target's payment-verification check passes
