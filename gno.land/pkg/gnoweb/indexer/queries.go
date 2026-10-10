@@ -99,8 +99,10 @@ func (c *Client) LatestBlockHeight(ctx context.Context) (int, error) {
 
 		// Detached from whichever request started it: singleflight has no
 		// context, so the leader's would cancel every follower's answer.
-		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultTimeout)
-		defer cancel()
+		// No deadline of its own either: one armed next to the client's
+		// equal timeout always fires first and reads as the caller giving
+		// up, so a hung indexer would never open the breaker.
+		fetchCtx := context.WithoutCancel(ctx)
 
 		var out struct {
 			LatestBlockHeight int `json:"latestBlockHeight"`

@@ -705,3 +705,26 @@ func TestRecentReportsAWalkStoppedShortOfGenesis(t *testing.T) {
 		t.Fatalf("Deploys down to genesis: %v, want no error", err)
 	}
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// The tip fetch carries no deadline of its own. One armed next to the
+// client's equal timeout always fires first, reads as the caller giving up,
+// and a hung indexer never opens the breaker.
+func TestTipFetchEndsOnTheClientTimeout(t *testing.T) {
+	c := New("http://indexer.invalid/graphql/query", "")
+	c.http.Timeout = time.Hour
+	var left time.Duration
+	c.http.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		d, _ := r.Context().Deadline()
+		left = time.Until(d)
+		return nil, errors.New("down")
+	})
+
+	_, _ = c.LatestBlockHeight(context.Background())
+	if left < time.Minute {
+		t.Fatalf("tip fetch deadline in %v, want the client's hour", left)
+	}
+}
