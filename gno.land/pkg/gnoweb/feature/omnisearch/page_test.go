@@ -40,14 +40,14 @@ func handlePage(t *testing.T, h *Handler, raw string) string {
 	return b.String()
 }
 
-// A scope, typed as `in:` or taken from the page, narrows the discovery
-// search: the page headed "Scoped to" lists nothing outside it.
+// An `in:` scope narrows the discovery search: the page headed "Scoped to"
+// lists nothing outside it.
 func TestDiscoveryRespectsScope(t *testing.T) {
 	t.Parallel()
 
 	for _, raw := range []string{
 		"/$search&q=blog+in:/r/alice/blog",
-		"/r/alice/blog$search&q=blog",
+		"/r/bob/blog$search&q=blog+in:/r/alice/blog",
 	} {
 		h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
 		html := handlePage(t, h, raw)
@@ -60,6 +60,45 @@ func TestDiscoveryRespectsScope(t *testing.T) {
 		if !strings.Contains(html, `href="/$search?q=blog"`) {
 			t.Errorf("%s: no link to the same search over the whole chain", raw)
 		}
+	}
+}
+
+// The omnibar sends every query from the page path, so the page a discovery
+// search was typed on is not a scope: `author:` and a bare word on a realm
+// page search the whole chain, and the header says so.
+func TestDiscoveryIgnoresThePageScope(t *testing.T) {
+	t.Parallel()
+
+	for raw, want := range map[string][]string{
+		"/r/alice/blog$search&q=author:bob":    {"/r/bob/blog"},
+		"/r/alice/blog$search&q=blog":          {"/r/alice/blog", "/r/bob/blog"},
+		"/p/alice/util$search&q=is:realm+blog": {"/r/alice/blog", "/r/bob/blog"},
+		"/r/alice/blog$search":                 nil,
+	} {
+		h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+		html := handlePage(t, h, raw)
+		for _, p := range want {
+			if !strings.Contains(html, `href="`+p+`"`) {
+				t.Errorf("%s: %s is missing", raw, p)
+			}
+		}
+		text := strings.Join(strings.Fields(tagPattern.ReplaceAllString(html, " ")), " ")
+		if !strings.Contains(text, "Whole chain") || strings.Contains(text, "Scoped to") {
+			t.Errorf("%s: header does not say Whole chain:\n%s", raw, text)
+		}
+		if strings.Contains(html, "Search the whole chain") {
+			t.Errorf("%s: offers to widen a search that is already chain-wide", raw)
+		}
+	}
+
+	// The omnibar's JSON path answers the same, and does not echo the page
+	// as the scope.
+	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), nil)
+	w := httptest.NewRecorder()
+	h.Handle(context.Background(), w, httptest.NewRequest(http.MethodGet, "/", nil),
+		parseURL(t, "/r/alice/blog$search&q=author:bob&json"))
+	if body := w.Body.String(); !strings.Contains(body, `"/r/bob/blog"`) || strings.Contains(body, `"pkg_path"`) {
+		t.Errorf("json: %s", body)
 	}
 }
 

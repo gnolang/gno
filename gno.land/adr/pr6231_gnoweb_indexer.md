@@ -131,10 +131,13 @@ running every registered one would turn a keystroke into a dozen chain and
 indexer queries — the amplification ADR-003 §Resource bounds exists to
 prevent. Without a selector the query falls to the discovery search, which
 costs one directory listing (two `ListPaths` calls in parallel, whatever
-`is:` says: `is:` filters what is rendered, not what is fetched). A scope,
-from `in:` or the page, narrows it to that package and the paths under it,
-and the page offers the same search over the whole chain. The users group is
-derived from paths already fetched, so it is free.
+`is:` says: `is:` filters what is rendered, not what is fetched). Only an
+explicit `in:` narrows it, to that package and the paths under it, and the
+page then offers the same search over the whole chain. The page the search
+was typed on does not: the omnibar sends every query from the page path, so
+taking it as a scope would turn `author:` or a bare word on a realm page into
+a search of that realm alone. Such a search is headed "Whole chain". The
+users group is derived from paths already fetched, so it is free.
 
 ### Provenance is part of the answer
 
