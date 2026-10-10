@@ -77,7 +77,7 @@
 }
 
 .u-color-valid {
-	color: var(--s-color-bg-brand-default);
+	color: var(--s-color-text-success);
 }
 
 .u-color-danger {

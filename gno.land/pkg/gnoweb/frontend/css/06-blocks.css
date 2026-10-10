@@ -742,7 +742,7 @@
 		}
 
 		& > svg {
-			color: var(--s-color-bg-brand-default);
+			color: var(--s-color-text-link);
 		}
 	}
 }

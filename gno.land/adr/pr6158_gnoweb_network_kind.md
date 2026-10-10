@@ -121,6 +121,15 @@ hover from 7.21:1 to 3.73:1.
 Only identity tokens move. `--s-color-bg-success-default` resolves to the same
 green primitive but stays green: success is a meaning, not a brand.
 
+A retinted background token must not paint a foreground: off mainnet,
+`--s-color-bg-brand-default` falls below 3:1 on the dark page. The copy-success
+check (`.u-color-valid`) and the active menu icon (`.link--is-active > svg`)
+read it, so they now read text tokens: `--s-color-text-success`, green on every
+network, and `--s-color-text-link`, which follows the kind. This is the one
+place mainnet is repainted, and only towards more contrast: the check becomes
+`green-900` light and `green-400` dark (was `green-600`), the menu icon
+`green-500` dark.
+
 ### The chain-id is validated at startup, not escaped at each use
 
 The chain-id reaches markdown (the banner) and `<meta name="gnoconnect:chainid">`,
