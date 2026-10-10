@@ -1,0 +1,133 @@
+loadpkg gno.land/p/demo/helper $WORK/p/demo/helper
+loadpkg gno.land/p/demo/hook $WORK/p/demo/hook
+loadpkg gno.land/r/runner $WORK/r/runner
+loadpkg gno.land/r/wug $WORK/r/wug
+loadpkg gno.land/r/relay $WORK/r/relay
+
+gnoland start
+
+## The asserting code must be the entry function itself. A /p/ runner, named
+## or literal, is transparent, but the closure wug hands it is wug's own
+## function above the entry: a value wug could export or return, so a value a
+## script could hand back. All three honest-looking shapes are refused.
+
+## wug.Deposit -> helper.Run (/p/ closure) -> wug's own closure: PANIC
+! gnokey maketx call -pkgpath gno.land/r/wug -func Deposit -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## wug.DepositNamed -> helper.RunNamed (/p/ named) -> wug's own closure: PANIC
+! gnokey maketx call -pkgpath gno.land/r/wug -func DepositNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## wug.DepositLocal -> wug.run (own NAMED helper) -> wug's own closure: PANIC
+## Both run and the closure are wug's own frames above the entry, so each
+## counts on its own; the /p/ helpers in the two cases above never did.
+! gnokey maketx call -pkgpath gno.land/r/wug -func DepositLocal -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## attacker: relay.Go -> helper.Run (/p/ closure) -> wug.Check (wug's exported closure): PANIC
+! gnokey maketx call -pkgpath gno.land/r/relay -func Go -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## attacker: relay.GoNamed -> helper.RunNamed (/p/ named) -> wug.Check: PANIC
+! gnokey maketx call -pkgpath gno.land/r/relay -func GoNamed -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## wug.Deposit's shape, but the closure runner is another realm's named
+## function: runner.Run is a boundary because runner owns storage. PANIC
+! gnokey maketx call -pkgpath gno.land/r/wug -func DepositViaRunner -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## Borrow rule #2: a /p/ method on a wug-stamped object runs as wug and fires
+## wug's stored callback. The method is transparent, the callback is wug's
+## own closure above the entry: PANIC
+! gnokey maketx call -pkgpath gno.land/r/wug -func FireOwn -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## attacker: relay.Fire -> wug.Hook.Fire (/p/ method, borrowed to wug) -> wug's
+## callback. The method and callback run as wug, but relay is on the stack: PANIC
+! gnokey maketx call -pkgpath gno.land/r/relay -func Fire -gas-fee 250001ugnot -gas-wanted 2_500_000 -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+-- p/demo/helper/helper.gno --
+package helper
+
+var Run = func(f func()) { f() }
+
+func RunNamed(f func()) { f() }
+
+-- p/demo/hook/hook.gno --
+package hook
+
+// Hook stores a callback and fires it from a /p/ method, so the method body
+// borrows the realm that constructed the Hook (borrow rule #2).
+type Hook struct{ fn func() }
+
+func New(fn func()) *Hook { return &Hook{fn: fn} }
+
+func (h *Hook) Fire() { h.fn() }
+
+-- r/runner/runner.gno --
+package runner
+
+// Run is a named closure runner in a realm that owns storage, unlike helper's.
+func Run(f func()) { f() }
+
+-- r/wug/wug.gno --
+package wug
+
+import (
+	"chain/runtime"
+
+	"gno.land/p/demo/helper"
+	"gno.land/p/demo/hook"
+	"gno.land/r/runner"
+)
+
+// Hook is constructed in wug's init, so it is stamped wug; its callback is
+// wug's own closure.
+var Hook = hook.New(func() { runtime.AssertOriginCall() })
+
+func FireOwn(cur realm) {
+	Hook.Fire()
+}
+
+func Deposit(cur realm) {
+	helper.Run(func() { runtime.AssertOriginCall() })
+}
+
+func DepositNamed(cur realm) {
+	helper.RunNamed(func() { runtime.AssertOriginCall() })
+}
+
+func DepositLocal(cur realm) {
+	run(func() { runtime.AssertOriginCall() })
+}
+
+func DepositViaRunner(cur realm) {
+	runner.Run(func() { runtime.AssertOriginCall() })
+}
+
+func run(f func()) { f() }
+
+var Check = func() { runtime.AssertOriginCall() }
+
+-- r/relay/relay.gno --
+package relay
+
+import (
+	"gno.land/p/demo/helper"
+	"gno.land/r/wug"
+)
+
+func Go(cur realm) {
+	helper.Run(wug.Check)
+}
+
+func GoNamed(cur realm) {
+	helper.RunNamed(wug.Check)
+}
+
+func Fire(cur realm) {
+	wug.Hook.Fire()
+}
