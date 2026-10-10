@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -18,11 +19,11 @@ import (
 // newTestClient returns a Client pointed at a stub indexer, plus a pointer to
 // the request counter so a test can assert that the breaker really skips the
 // network rather than just swallowing the error.
-func newTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *int) {
+func newTestClient(t *testing.T, handler http.HandlerFunc) (*Client, *atomic.Int32) {
 	t.Helper()
-	calls := 0
+	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
+		calls.Add(1)
 		handler(w, r)
 	}))
 	t.Cleanup(srv.Close)
@@ -58,8 +59,8 @@ func TestLatestBlockHeightCachesWithinTTL(t *testing.T) {
 			t.Fatalf("LatestBlockHeight: %v", err)
 		}
 	}
-	if *calls != 1 {
-		t.Fatalf("requests = %d, want 1 (height must be cached within heightTTL)", *calls)
+	if calls.Load() != 1 {
+		t.Fatalf("requests = %d, want 1 (height must be cached within heightTTL)", calls.Load())
 	}
 }
 
@@ -133,16 +134,16 @@ func TestBreakerSkipsNetworkAfterRepeatedFailures(t *testing.T) {
 	for range breakerThreshold {
 		_ = c.Query(context.Background(), `{ latestBlockHeight }`, &out)
 	}
-	if *calls != breakerThreshold {
-		t.Fatalf("requests before breaker = %d, want %d", *calls, breakerThreshold)
+	if calls.Load() != breakerThreshold {
+		t.Fatalf("requests before breaker = %d, want %d", calls.Load(), breakerThreshold)
 	}
 
 	err := c.Query(context.Background(), `{ latestBlockHeight }`, &out)
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("error = %v, want ErrUnavailable", err)
 	}
-	if *calls != breakerThreshold {
-		t.Fatalf("requests after breaker = %d, want it to stay at %d", *calls, breakerThreshold)
+	if calls.Load() != breakerThreshold {
+		t.Fatalf("requests after breaker = %d, want it to stay at %d", calls.Load(), breakerThreshold)
 	}
 }
 
@@ -159,8 +160,8 @@ func TestNotFoundDoesNotOpenBreaker(t *testing.T) {
 			t.Fatalf("error = %v, want ErrNotFound", err)
 		}
 	}
-	if *calls != breakerThreshold+2 {
-		t.Fatalf("requests = %d, want all %d to reach the network", *calls, breakerThreshold+2)
+	if calls.Load() != breakerThreshold+2 {
+		t.Fatalf("requests = %d, want all %d to reach the network", calls.Load(), breakerThreshold+2)
 	}
 }
 
@@ -358,8 +359,8 @@ func TestConcurrentTipFetchesCoalesce(t *testing.T) {
 			t.Fatalf("caller %d: height = %d, want 99", i, heights[i])
 		}
 	}
-	if *calls != 1 {
-		t.Fatalf("requests = %d, want 1 for %d concurrent callers", *calls, callers)
+	if calls.Load() != 1 {
+		t.Fatalf("requests = %d, want 1 for %d concurrent callers", calls.Load(), callers)
 	}
 }
 
@@ -617,8 +618,8 @@ func TestCallerDeadlineDoesNotOpenBreaker(t *testing.T) {
 	if err := c.Query(context.Background(), `{ latestBlockHeight }`, &out); err != nil {
 		t.Fatalf("next caller: %v, want an answer", err)
 	}
-	if *calls != breakerThreshold+2 {
-		t.Fatalf("calls = %d, want every query sent", *calls)
+	if calls.Load() != breakerThreshold+2 {
+		t.Fatalf("calls = %d, want every query sent", calls.Load())
 	}
 }
 
