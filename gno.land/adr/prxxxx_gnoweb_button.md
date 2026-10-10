@@ -233,13 +233,12 @@ borders match their text (≥ 6:1); filled borders under 3:1 (warning light
   - The block-level `<gno-…>` line escape now puts its backslash after an
     indent of under 4 columns (right before the `<`); from 4 columns, where
     the line may be indented code, it keeps the line-start backslash it had.
-  - **Button and icon differ on purpose.** The `<gno-icon />` extension
-    exempts its tag from this escape, because an icon is an allowlisted
-    glyph that carries no link, and escaping it only at line start would
-    make it render or not depending on its position. A button is a link
-    styled as first-party call to action, which user content should not be
-    able to produce, so `<gno-button` stays escaped wherever the sanitizer
-    looks today.
+  - **Button and icon differ on purpose.** `<gno-icon />` only gets the
+    line-start escape every `<gno-…>` tag gets and stays live mid-line,
+    because an icon is an allowlisted glyph that carries no link. A button
+    is a link styled as first-party call to action, which user content
+    should not be able to produce, so `<gno-button` stays escaped wherever
+    the sanitizer looks today.
   - **Upgrade ordering.** `chain/markdown` is a native, so this escape only
     protects user content on a chain whose binary runs it. gnoweb renders
     buttons as soon as it is deployed; until the chain is upgraded,
