@@ -51,6 +51,12 @@ first review point. The whole tag must fit on one line.
   (ending in `/>`) with an `href` and a label that are not blank once their
   entities are decoded. Anything else returns nil and goldmark's raw-HTML
   handling takes over (stripped in safe mode).
+- **Escaped `<`.** The inline parser also returns nil when an odd run of
+  backslashes precedes the `<` in the source. goldmark can carry a backslash
+  escape over a line break (a line ending in `\` plus two spaces, or in
+  `\\\`), eat the backslash `sanitize.Block` put before `<gno-button` and
+  call the parser on the `<`. The sanitizer cannot mirror goldmark's line
+  handling, so the parser checks the escape itself.
 - **Links in links.** A button inside a link label behaves like a link there:
   goldmark keeps the inner link and turns the outer one into text, as
   CommonMark does for `[a [b](c) d](e)`, so no `<a>` is ever nested. A button

@@ -163,7 +163,18 @@ func (*buttonParser) Trigger() []byte { return []byte{'<'} }
 // whose label holds a link (CommonMark: the inner one wins), so the brackets
 // stay text, and an image alt renders its children as text only.
 func (*buttonParser) Parse(parent ast.Node, block text.Reader, _ parser.Context) ast.Node {
-	line, _ := block.PeekLine()
+	line, seg := block.PeekLine()
+	// goldmark can carry a backslash escape over a line break (a line ending
+	// in `\\\`, or in `\` and two spaces), then try this parser on a `<` the
+	// source escapes, as sanitize's `\<gno-button` is. An odd run of
+	// backslashes before the `<` means escaped, as in CommonMark.
+	src, start := block.Source(), seg.Start
+	for start > 0 && src[start-1] == '\\' {
+		start--
+	}
+	if (seg.Start-start)%2 == 1 {
+		return nil
+	}
 	n, tag := parseButtonTag(line)
 	if n == 0 {
 		return nil
