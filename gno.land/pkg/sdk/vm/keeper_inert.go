@@ -171,14 +171,8 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// AddPackage documents: AddMemPackage's writes are conditional across the
 	// prod and #allbutprod keys and are not a full replace, so a stale sibling
 	// would otherwise survive and be served by qfile.
-	// Probed through the stored blob, NOT GetPackage. Loading the live
-	// PackageValue populates the object cache, and RunMemPackage below then
-	// panics in SetCachePackage because the package is already cached — which
-	// made the private-replacement branch dead on arrival. AddPackage does read
-	// the PackageValue, and escapes only incidentally: checkNamespacePermission
-	// re-enters getGnoTransactionStore, whose ClearObjectCache evicts the entry
-	// between the read and the run. EnablePackage calls neither, so it must not
-	// create the entry in the first place.
+	// Probed through the stored blob rather than GetPackage: the blob is what
+	// the rules below read, and the run reloads the package value itself.
 	//
 	// Blob presence is an exact liveness test here: a parked package is stored
 	// under a different key prefix and is invisible to GetMemPackage, while a
@@ -186,7 +180,6 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// deploy). `private` comes from the same gnomod.toml the deploy stored --
 	// parsed once at the hash check above, not again here.
 	liveBlob := gnostore.GetMemPackage(msg.PkgPath)
-	priorPrivate := false
 	// Kept in scope for the creator binding below, which asks a second question
 	// of the same file. Parsing it twice would be one redundant decode of every
 	// live package's gnomod.toml on a consensus path.
@@ -194,10 +187,9 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	if liveBlob != nil {
 		var perr error
 		liveGm, perr = gnomod.ParseMemPackage(liveBlob)
-		if perr != nil || !liveGm.Private {
+		if perr != nil || !liveGm.Mutable() {
 			return ErrPkgAlreadyExists("package already exists: " + msg.PkgPath)
 		}
-		priorPrivate = true
 	}
 
 	// The full gnomod rule set, re-applied at enable.
@@ -216,7 +208,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// anyway rather than hand-picked. Enable is the second half of a deploy;
 	// enumerating which of a deploy's preconditions it may skip is how the
 	// override rule went missing in the first place.
-	if err := checkGnomodConstraints(gm, memPkg, msg.PkgPath, priorPrivate, ctx.BlockHeight()); err != nil {
+	if err := checkGnomodConstraints(gm, memPkg, msg.PkgPath, liveGm, ctx.BlockHeight()); err != nil {
 		return err
 	}
 	// AddPackage wrote the creator into gnomod.toml before storing (see the
