@@ -165,7 +165,7 @@ COPY        --from=build-gnocore /gnoroot/gnovm/stdlibs                         
 COPY        --from=build-gnocore /gnoroot/gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gnocore /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
-# gnoweb port exposed by default
+# gnoweb, which in staging also serves the RPC (/rpc) and the faucet
 EXPOSE     8888
 ENTRYPOINT  ["/usr/bin/gnodev"]
 
