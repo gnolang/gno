@@ -1,0 +1,23 @@
+-- input.md --
+<gno-frame>
+## Apps
+<gno-columns>
+a
+<gno-columns-sep>
+b
+</gno-columns>
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<h2>Apps</h2>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<p>a</p>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>b</p>
+</div>
+</div> <!-- </gno-columns> -->
+</section>

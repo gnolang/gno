@@ -265,7 +265,10 @@ func (p *FormParser) Continue(node ast.Node, reader text.Reader, pc parser.Conte
 	// Check for closing tag
 	if tok.Data == formTagName {
 		if tok.Type == html.EndTagToken {
-			reader.AdvanceLine()
+			// AdvanceToEOL, not AdvanceLine: the next line must still go
+			// through every ancestor's Continue (in a blockquote, its `>`
+			// would otherwise open a nested quote).
+			reader.AdvanceToEOL()
 			return parser.Close
 		}
 		formNode.addElement(FormInput{Error: ErrFormInvalidTag})

@@ -220,7 +220,7 @@ func hasASCIIFoldPrefix(s, prefix string) bool {
 }
 
 // trimSentinel returns line with the leading 0-3 spaces and trailing
-// ASCII whitespace that the parser's trimForeignLine strips. Mirrors
+// ASCII whitespace that the parser's trimTagLine strips. Mirrors
 // the byte-level trim the parser performs so this helper detects the
 // same sentinel match the parser would.
 func trimSentinel(s string) string {

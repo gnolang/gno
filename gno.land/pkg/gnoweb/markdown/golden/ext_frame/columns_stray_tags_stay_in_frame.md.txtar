@@ -1,0 +1,18 @@
+-- input.md --
+<gno-frame>
+x
+</gno-columns>
+y
+<gno-columns-sep>
+z
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<p>x</p>
+<!-- unexpected/invalid columns tag omitted -->
+<p>y</p>
+<!-- unexpected/invalid columns tag omitted -->
+<p>z</p>
+</section>
+<p>after</p>
