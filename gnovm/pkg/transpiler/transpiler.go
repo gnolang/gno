@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/ast"
+	"go/build/constraint"
 	"go/format"
 	"go/parser"
 	goscanner "go/scanner"
@@ -100,6 +101,174 @@ func Transpile(source, tags, filename string) (*Result, error) {
 	return TranspileWithResolver(source, tags, filename, nil)
 }
 
+// stripInheritedDirectives neutralizes directive comments carried over from
+// the Gno source, so the generated file only carries the directives this
+// function writes itself.
+//
+// A directive means nothing to the VM, but the output is Go, where the
+// toolchain acts on it. Left in place:
+//
+//   - a "//go:build" line collides with the one written below, and `go build`
+//     rejects the file outright: "multiple //go:build comments";
+//   - "//go:generate" makes `go generate` run a command out of contract source;
+//   - "//nolint" suppresses golangci-lint findings for whoever lints the
+//     generated file, which is a poor thing to inherit from an audited
+//     contract;
+//   - "//line" rewrites the positions the compiler reports, competing with the
+//     "//line" written below for the same purpose.
+//
+// The comments are blanked rather than removed, keeping one line per line.
+// Deleting them moved every position after them, which defeats the "//line"
+// header: an error truly on line 7 of the source was reported on line 5.
+// Blanking also keeps each CommentGroup non-empty, so a Doc field still
+// pointing at one cannot become the empty group that ast.CommentGroup.Pos()
+// panics on.
+//
+// The header this function writes is emitted as text around the printed AST,
+// so it is untouched.
+//
+// This cannot reach a directive that is not a comment: "//go:generate" at
+// column 1 inside a raw string is string data here, and `go generate` -- which
+// scans lines rather than parsing -- would still act on it. Rewriting string
+// literals is not something a transpiler may do, so that case belongs to
+// whoever validates the source.
+func stripInheritedDirectives(f *ast.File) {
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			c.Text = neutralizeDirective(c.Text)
+		}
+	}
+}
+
+// neutralizedMarker replaces a neutralized line comment. It is deliberately
+// directive-shaped -- "[a-z0-9]+:[a-z0-9]", which go/ast counts as a directive
+// -- and deliberately not a directive any tool acts on: "gno" is nobody's tool
+// name, and it is neither //line, //extern, //export nor //nolint.
+//
+// The shape is load-bearing. An empty "//" in doc position is erased entirely:
+// go/printer.formatDocComment renders it to nothing and intersperseComments
+// then drops the line, which loses a line and moves every position after it --
+// exactly what blanking exists to prevent. formatDocComment passes a directive
+// through verbatim, so the line survives. Reproduced with an import block
+// present, which is what makes format.Node re-parse and take that path.
+const (
+	directiveMarker = "//gno:removed-directive"
+	// Prose, deliberately: it replaces comments go/ast does not classify as
+	// directives, and the substitution has to leave that classification alone.
+	proseMarker = "// removed directive"
+)
+
+// neutralizeDirective returns the comment with any directive in it rendered
+// inert, preserving its line count so positions do not move.
+func neutralizeDirective(text string) string {
+	if strings.HasPrefix(text, "//") {
+		// constraint.IsPlusBuild covers the legacy "// +build" form, which Go's
+		// directive classifier excludes (it carries a space). Left alone,
+		// go/printer synthesizes a matching "//go:build" line, which then
+		// collides with the header written below and `go build` rejects the
+		// file: "multiple //go:build comments".
+		if gno.IsDirectiveComment(text) {
+			return directiveMarker
+		}
+		// "//nolint" without a colon, "// nolint:...", and legacy "// +build"
+		// are ordinary comments to go/ast even though tools act on them.
+		// Replacing those with a directive-shaped marker would *change* their
+		// classification, and formatDocComment extracts directives out of a doc
+		// group and inserts a separator -- which adds a line and moves every
+		// position after it. Keep each one in the class it started in.
+		if isNolintComment(text) || constraint.IsPlusBuild(text) {
+			return proseMarker
+		}
+		return text
+	}
+	if !strings.HasPrefix(text, "/*") {
+		return text
+	}
+	// A block comment. Two ways it can carry a directive: the block itself is
+	// a "/*line ...*/" directive, or -- because `go generate` scans physical
+	// lines and never parses -- one of its inner lines begins with
+	// "//go:generate", which runs even though it sits inside a comment.
+	lines := strings.Split(text, "\n")
+	if gno.IsDirectiveComment(text) {
+		// Keep the delimiters and the line count, drop the content.
+		return "/*" + strings.Repeat("\n", len(lines)-1) + "*/"
+	}
+	changed := false
+	for i, line := range lines {
+		// Indentation is not protection: go/printer.stripCommonPrefix drops the
+		// common leading prefix of a block comment's interior when printing, so
+		// an indented "//go:generate ..." in the source lands at column 1 in the
+		// output, which is where `go generate` looks. Match the line as it will
+		// be printed, not as it was written.
+		// The opening "/*" does not shelter a directive that follows it on the
+		// same line: formatDocComment moves the opener onto a line of its own,
+		// leaving the directive at column 1. Set it aside before matching, and
+		// put it back when substituting.
+		opener, work := "", line
+		if i == 0 && strings.HasPrefix(work, "/*") {
+			opener, work = "/*", work[2:]
+		}
+		trimmed := trimPrintedCommentPrefix(work)
+		if !strings.HasPrefix(trimmed, "//go:generate ") &&
+			!strings.HasPrefix(trimmed, "//go:generate\t") {
+			continue
+		}
+		// Replace the directive, keep the line. Emptying it costs a line when
+		// the block sits in doc position: formatDocComment re-renders the
+		// comment and a blank interior renders to nothing, which is the drift
+		// this whole approach exists to avoid.
+		//
+		// The leading prefix is preserved byte for byte, because
+		// go/printer.stripCommonPrefix derives the block's indentation from
+		// what its interior lines share. Substituting the whole line instead --
+		// marker included -- changes that shared prefix and re-indents the
+		// block's other lines, which moves more than it fixes.
+		//
+		// A "*/" sharing the line is kept, or the comment would not terminate
+		// and Result.File hands the tree to callers.
+		prefix := work[:len(work)-len(trimmed)]
+		tail := ""
+		if end := strings.Index(work, "*/"); end >= 0 {
+			tail = work[end:]
+		}
+		lines[i] = opener + prefix + directiveMarker + tail
+		changed = true
+	}
+	if !changed {
+		return text
+	}
+	return strings.Join(lines, "\n")
+}
+
+// trimPrintedCommentPrefix drops the leading bytes go/printer may strip from a
+// line inside a block comment, so a directive can be recognised as it will
+// appear in the output rather than as it was written.
+//
+// The predicate is go/printer's own (printer.go, stripCommonPrefix):
+// `a[i] <= ' ' || a[i] == '*'`. Approximating it with a fixed cutset was wrong
+// twice -- once missing tabs, once missing a vertical tab -- so it is copied
+// rather than guessed at.
+func trimPrintedCommentPrefix(line string) string {
+	i := 0
+	for i < len(line) && (line[i] <= ' ' || line[i] == '*') {
+		i++
+	}
+	return line[i:]
+}
+
+// isNolintComment reports whether a comment suppresses golangci-lint findings.
+// Not a directive by Go's rule -- bare "//nolint" carries no colon -- but it
+// steers a Go tool reading the generated file, which is the reason the
+// directives above are neutralized.
+//
+// Leading slashes and spaces are trimmed first because golangci-lint trims them
+// too: "// nolint:gosec" suppresses exactly as "//nolint:gosec" does, so
+// matching only the tight form would leave the spaced one working.
+func isNolintComment(text string) bool {
+	rest, ok := strings.CutPrefix(strings.TrimLeft(text, "/ \t"), "nolint")
+	return ok && (rest == "" || rest[0] == ':' || rest[0] == ' ' || rest[0] == '\t')
+}
+
 // TranspileWithResolver is like [Transpile] but uses the supplied resolver
 // for import lookups. A nil resolver falls back to [DefaultResolver].
 func TranspileWithResolver(source, tags, filename string, resolver ImportResolver) (*Result, error) {
@@ -148,6 +317,7 @@ func TranspileWithResolver(source, tags, filename string, resolver ImportResolve
 	if err != nil {
 		return nil, fmt.Errorf("transpileAST: %w", err)
 	}
+	stripInheritedDirectives(transformed)
 
 	var out bytes.Buffer
 	// Write file header
