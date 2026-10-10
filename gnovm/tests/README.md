@@ -21,15 +21,13 @@ Tests with the `_long` suffix are skipped when the `-short` flag is passed.
 
 These tests are largely derived from Yaegi, licensed under Apache 2.0.
 
-## `stdlibs`: testing standard libraries
+### `files/gocorpus/testdata`: filetests with the `.go` extension
 
-These contain standard libraries which are only available in testing, and
-extensions of them, like `std.TestSkipHeights`.
-
-## other directories
-
-- `backup` has been here since forever; and somebody should come around and delete it at some point.
-- `challenges` contains code that supposedly doesn't work, but should.
-- `integ` contains some files for integration tests which likely should have
-  been in some `testdata` directory to begin with. You guessed it,
-  they're here until someone bothers to move them out.
+`TestFiles` also accepts `.go` files under `files/gocorpus/testdata/`,
+verbatim copies of Go's own test corpus (`$GOROOT/test`). The harness picks
+a mode from the file's content (runnable → run, inline `// ERROR` markers →
+errorcheck, otherwise compile-only), pins both Gno's and Go's behaviour as
+trailing `//` blocks, and ends every file with exactly one verdict line
+(`Clean`, `Unsupported`, `KnownIssue` or `KnownDivergence`). The contract,
+the block vocabulary and the re-sync command are in
+[`files/gocorpus/README.md`](files/gocorpus/README.md).

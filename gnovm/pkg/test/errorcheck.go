@@ -1,0 +1,805 @@
+package test
+
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+// UsesGenerics reports whether source declares any type parameters
+// (generic func or type). Gno has no generics, so such files are a
+// feature gap — but Gno's failure surfaces in varied ways (preprocess
+// "type parameter", or a downstream runtime "name T not declared"), so
+// message matching is unreliable. Parsing the Go AST is exact. Returns
+// false if source doesn't parse (e.g. a deliberately malformed
+// errorcheck file) — then other detectors decide.
+func UsesGenerics(source []byte) bool {
+	f, err := parser.ParseFile(token.NewFileSet(), "", source, parser.SkipObjectResolution)
+	if err != nil {
+		return false
+	}
+	for _, decl := range f.Decls {
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			if d.Type.TypeParams != nil && len(d.Type.TypeParams.List) > 0 {
+				return true
+			}
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				if ts, ok := spec.(*ast.TypeSpec); ok &&
+					ts.TypeParams != nil && len(ts.TypeParams.List) > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// Errorcheck-style support for .go filetests under tests/files/gocorpus/testdata/.
+//
+// When a .go filetest carries inline `// ERROR "regex"` markers (Go's
+// standard test corpus convention) and no explicit `// Error:` directive,
+// the harness:
+//   1. Parses the markers (regex patterns per line).
+//   2. Applies a PKGPATH + synthetic-main rescue so files declaring a
+//      non-main package (typical for declaration-level errorcheck tests)
+//      reach Gno's preprocess+typecheck instead of bailing on the
+//      realm-naming requirement.
+//   3. Runs the file through Gno and captures its preprocess /
+//      typecheck / runtime error output.
+//   4. Verifies at least one marker's regex matches that output.
+//
+// Pass criterion is intentionally loose: Gno's preprocessor stops at
+// the first error, so strict per-line marker matching would fail most
+// corpus errorcheck files. We want the verdict-level signal to be
+// "Gno catches the kind of error gc does", not "Gno enumerates every
+// individual error" — which is too strict given the early-bail
+// behaviour. See [VerifyErrorcheckMarkers] for the three outcomes.
+//
+// To bless an intentional divergence (Gno doesn't reject a file Go's
+// errorcheck flags, or Gno's wording diverges entirely), add an
+// explicit `// Error:` directive with Gno's actual output — the
+// marker verification is then bypassed and the directive serves as
+// documentation of the accepted divergence.
+//
+// The exported entry points ([HasInlineErrorMarkers],
+// [ParseInlineErrors], [MarkerMatches], [VerifyErrorcheckMarkers],
+// [IsRunnable], [PrependPkgPathIfNeeded]) are intended for use by
+// external test drivers that walk a Go test corpus and dispatch
+// files through this harness. The corresponding internal dispatch
+// path in runFiletest uses these same helpers.
+
+// InlineError is one `// ERROR "regex"` marker attached to a source
+// line. Patterns are kept as Go regex strings; alternatives inside a
+// pattern are separated by '|' per Go's errorcheck convention.
+type InlineError struct {
+	// Line is the 1-based source line the marker was attached to.
+	Line int
+	// Patterns lists the quoted regex strings on the marker, in
+	// declaration order. Empty for a bare `// ERROR` with no patterns.
+	Patterns []string
+	// GcOnly marks a `// GC_ERROR` marker: a gc-implementation-specific
+	// diagnostic (backend limit, pragma check, …) that is NOT part of
+	// Gno's contract. GcOnly markers are excluded from leak accounting —
+	// catching one is fine, missing one is not an uncaught error.
+	GcOnly bool
+}
+
+// HasInlineErrorMarkers reports whether source contains any
+// `// ERROR ` or `// GC_ERROR ` marker. Cheap pre-check intended for
+// dispatch logic that decides whether to enter errorcheck mode
+// without paying for full marker parsing first.
+func HasInlineErrorMarkers(source []byte) bool {
+	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+		if bytes.Contains(source, []byte(tag)) {
+			return true
+		}
+	}
+	return false
+}
+
+// ParseInlineErrors scans source for inline `// ERROR "..."` markers
+// and returns one [InlineError] per source line that carries one.
+//
+// Format: any number of double-quoted (or backtick-quoted) strings
+// after `// ERROR`, e.g. `// ERROR "oct|char"` or `// ERROR "a" "b"`.
+// `// GC_ERROR` is accepted as equivalent to `// ERROR` since several
+// corpus files mix the two; gccgo-only markers (`// GCCGO_ERROR`)
+// are intentionally ignored — this harness mirrors gc semantics.
+// LINE/LINE+N substitutions are NOT performed; the literal text
+// stays in the regex (matching is best-effort).
+//
+// Lines that begin with `//` (i.e. pure doc-comment lines that
+// happen to mention `// ERROR "..."` in their prose) are skipped —
+// real markers always trail actual code on the same line.
+func ParseInlineErrors(source []byte) []InlineError {
+	var out []InlineError
+	sc := bufio.NewScanner(bytes.NewReader(source))
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	lineNo := 0
+	for sc.Scan() {
+		lineNo++
+		text := sc.Text()
+		idx := indexErrorMarker(text)
+		if idx < 0 {
+			continue
+		}
+		// Distinguish a real marker from an `// ERROR "..."` mentioned
+		// in narrative prose. Markers come in two valid shapes:
+		//   - trailing a line of code:  `_ = x // ERROR "..."`
+		//   - on its own comment line:  `// ERROR "..."` (used with
+		//     //line remapping, e.g. fixedbugs/bug305.go)
+		// A prose mention (e.g. a doc comment that says "a `// ERROR
+		// \"regex\"` marker …") has other text before the marker on a
+		// comment line. So: if the line is a pure comment, accept it
+		// only when the marker is the FIRST token after `//`.
+		trimmed := strings.TrimLeft(text, " \t")
+		if strings.HasPrefix(trimmed, "//") {
+			isMarkerStart := false
+			for _, p := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+				if strings.HasPrefix(trimmed, p) {
+					isMarkerStart = true
+					break
+				}
+			}
+			if !isMarkerStart {
+				continue
+			}
+		}
+		patterns := extractQuotedStrings(text[idx:])
+		gcOnly := strings.Contains(text[:idx], "GC_ERROR")
+		out = append(out, InlineError{Line: lineNo, Patterns: patterns, GcOnly: gcOnly})
+	}
+	return out
+}
+
+// indexErrorMarker returns the byte index in line where an `// ERROR`
+// or `// GC_ERROR` marker's content begins, or -1.
+func indexErrorMarker(line string) int {
+	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+		if i := strings.Index(line, tag); i >= 0 {
+			return i + len(tag)
+		}
+	}
+	return -1
+}
+
+// extractQuotedStrings pulls every Go-syntax quoted string (double
+// or backtick) out of s, decoding escapes via [strconv.Unquote].
+func extractQuotedStrings(s string) []string {
+	var out []string
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c != '"' && c != '`' {
+			i++
+			continue
+		}
+		end := findClosingQuote(s, i)
+		if end < 0 {
+			break
+		}
+		if v, err := strconv.Unquote(s[i : end+1]); err == nil {
+			out = append(out, v)
+		}
+		i = end + 1
+	}
+	return out
+}
+
+func findClosingQuote(s string, start int) int {
+	open := s[start]
+	if open == '`' {
+		i := strings.IndexByte(s[start+1:], '`')
+		if i < 0 {
+			return -1
+		}
+		return start + 1 + i
+	}
+	for i := start + 1; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+			continue
+		}
+		if s[i] == '"' {
+			return i
+		}
+	}
+	return -1
+}
+
+// MarkerMatches reports whether any of m.Patterns (or any '|'
+// alternative inside one) matches actualErr as a Go regex. A bare
+// marker with no patterns is satisfied by any non-empty error.
+func MarkerMatches(m InlineError, actualErr string) bool {
+	if len(m.Patterns) == 0 {
+		return true
+	}
+	for _, p := range m.Patterns {
+		for alt := range strings.SplitSeq(p, "|") {
+			re, err := regexp.Compile(alt)
+			if err != nil {
+				continue
+			}
+			if re.MatchString(actualErr) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// VerifyErrorcheckMarkers compares markers against the concatenation
+// of Gno's runtime/preprocess error output and any go/types output.
+// Returns nil on PASS; an error describing the divergence otherwise.
+//
+// Outcomes:
+//   - PASS: at least one marker's regex matched. Partial matches
+//     (Gno emits one error matching one of N markers) count as PASS
+//     since Gno's early-bail makes strict per-marker matching too
+//     strict for any meaningful number of corpus files.
+//   - FAIL "Gno accepted file": actualErr is empty; Gno was more
+//     lenient than gc. Real conformance signal — likely a bug.
+//   - FAIL "no marker matched": actualErr is non-empty but no marker
+//     regex matched. Gno errored, but the wording diverges entirely
+//     from gc's. Either a wording difference worth blessing with an
+//     explicit `// Error:` directive, or a sign the test is firing
+//     on a different defect than gc detects.
+func VerifyErrorcheckMarkers(markers []InlineError, actualErr, typeCheckErr string) error {
+	combined := strings.TrimSpace(actualErr + "\n" + typeCheckErr)
+	if combined == "" {
+		return fmt.Errorf("errorcheck: Gno accepted file but %d marker(s) expected an error",
+			len(markers))
+	}
+	for _, m := range markers {
+		if MarkerMatches(m, combined) {
+			return nil
+		}
+	}
+	return fmt.Errorf("errorcheck: Gno errored but no marker matched.\nGno output:\n%s\nmarkers:\n%s",
+		indent(combined, "  "), formatMarkers(markers))
+}
+
+// PrependPkgPathIfNeeded rescues errorcheck and compile-only files
+// declaring a non-main package (e.g. `package p`) so they reach
+// Gno's preprocess+typecheck phase instead of bouncing on the
+// realm-naming requirement. Two transforms:
+//
+//  1. Prepend `// PKGPATH: gno.land/p/filetest/<name>` so Gno's
+//     harness stops bailing with "expected package name [main] but
+//     got [p]".
+//  2. Append `func main() {}` when source has no `main()` of its
+//     own, so Gno's executor doesn't then bail with "name main not
+//     declared" once PKGPATH gets it past the package-name check.
+//
+// No-op when source is already `package main` or already declares
+// its own `// PKGPATH:`. The chosen pkgpath prefix is intentionally
+// neutral — `gno.land/p/filetest/` — so external test drivers can
+// reuse this helper without a namespace clash.
+func PrependPkgPathIfNeeded(source []byte) []byte {
+	if bytes.Contains(source, []byte("// PKGPATH:")) {
+		return source
+	}
+	m := pkgDeclRe.FindSubmatch(source)
+	if m == nil || string(m[1]) == "main" {
+		return source
+	}
+	prefix := fmt.Appendf(nil, "// PKGPATH: gno.land/p/filetest/%s\n", m[1])
+	out := make([]byte, 0, len(prefix)+len(source))
+	out = append(out, prefix...)
+	out = append(out, source...)
+	if !funcMainRe.Match(source) {
+		out = append(out, "\nfunc main() {}\n"...)
+	}
+	return out
+}
+
+// pkgDeclRe matches the Go package declaration; captures the name.
+var pkgDeclRe = regexp.MustCompile(`(?m)^package (\w+)`)
+
+// funcMainRe matches `func main()` at line start. Whitespace — including
+// a newline — is allowed between `func` and `main` (ancient corpus files
+// like ken/*.go and fixedbugs/bug203.go write `func\nmain()`; missing
+// them silently downgraded run-mode files to preprocess-only checking).
+var funcMainRe = regexp.MustCompile(`(?m)^func\s+main\s*\(\)`)
+
+// IsRunnable reports whether source can be `go run` — i.e. declares
+// `package main` AND has a top-level `func main()`. Files lacking
+// either are compile-only by intent: gc accepts and never runs them,
+// and Gno's harness must apply the PKGPATH+synthetic-main rescue (via
+// [PrependPkgPathIfNeeded]) to reach preprocess+typecheck. Used by
+// dispatch logic to route .go files into the compile-only path.
+func IsRunnable(source []byte) bool {
+	m := pkgDeclRe.FindSubmatch(source)
+	if m == nil || string(m[1]) != "main" {
+		return false
+	}
+	return funcMainRe.Match(source)
+}
+
+// reErrorLine pulls the first `:N:` line-number reference out of an
+// error string. Gno errors typically format as `path:line:col: msg`
+// or `[stage] path:line:col: msg`; we anchor on the first ":<digits>:"
+// so prefixed-stage variations still match.
+var reErrorLine = regexp.MustCompile(`:(\d+):`)
+
+// ExtractErrorLine returns the first source-line number referenced by
+// errStr, or 0 if none. Used by the errorcheck multi-pass driver to
+// decide which inline `// ERROR` marker the current pass corresponds
+// to. The number is in source-file coordinates; the caller is
+// responsible for subtracting any prepended-line offset.
+func ExtractErrorLine(errStr string) int {
+	m := reErrorLine.FindStringSubmatch(errStr)
+	if m == nil {
+		return 0
+	}
+	n, _ := strconv.Atoi(m[1])
+	return n
+}
+
+// rePackageDecl matches a top-level package declaration line.
+var rePackageDecl = regexp.MustCompile(`^package \w+`)
+
+// NeutralizeLine neutralizes line N (1-based) so the next multi-pass
+// surfaces the NEXT error, preserving the total line count so later
+// error line numbers still align.
+//
+// A package declaration is rewritten to `package main` rather than
+// commented out: the package clause is the file's one global
+// dependency, so blanking it (e.g. an `// ERROR "invalid package
+// name"` test on `package _`) would leave a structurally-invalid file
+// and block iteration to the remaining markers. Rewriting to a valid
+// `package main` lets the multi-pass continue. Every other line is an
+// independent statement and is simply replaced with `//`.
+//
+// Returns the new source and whether the neutralized line was a
+// package declaration (the caller then switches pkgPath to "main").
+// Out-of-range line returns source unchanged.
+func NeutralizeLine(source []byte, line int) (out []byte, wasPackage bool) {
+	lines := bytes.Split(source, []byte("\n"))
+	if line < 1 || line > len(lines) {
+		return source, false
+	}
+	if rePackageDecl.Match(bytes.TrimLeft(lines[line-1], " \t")) {
+		lines[line-1] = []byte("package main")
+		wasPackage = true
+	} else {
+		lines[line-1] = []byte("//")
+	}
+	return bytes.Join(lines, []byte("\n")), wasPackage
+}
+
+// internalNoise reports whether a Gno error segment is an internal
+// assertion rather than a real diagnostic — these surface when the
+// multi-pass's neutralization pushes Gno into an inconsistent state,
+// and should not be pinned in a golden if a real error for the same
+// line is available.
+func internalNoise(seg string) bool {
+	return strings.Contains(seg, "should not happen") ||
+		strings.Contains(seg, "panic:")
+}
+
+// errorForLine returns the cleaned message for the error keyed on
+// gnoLine, choosing among the `; `-segments Gno reported for that line.
+// Selection priority:
+//  1. a marker-aligned segment (matches marker's regex) — when Gno
+//     reports several errors for one line, this picks the one the gc
+//     marker was about (e.g. go/types' precise "too many arguments"
+//     over a vaguer preprocess "not enough arguments");
+//  2. a non-internal-assertion ("should not happen") segment;
+//  3. any line-keyed segment;
+//  4. the first available segment (error without a position).
+//
+// Preprocess segments are considered before go/types within each tier.
+// marker may be nil (unmarked line) to skip tier 1.
+func errorForLine(errSegs, tcSegs []string, gnoLine int, marker *InlineError) string {
+	key := fmt.Sprintf(":%d:", gnoLine)
+	groups := [][]string{errSegs, tcSegs}
+
+	if marker != nil {
+		for _, group := range groups {
+			for _, seg := range group {
+				if strings.Contains(seg, key) && !internalNoise(seg) && MarkerMatches(*marker, seg) {
+					return CleanErrorMessage(seg)
+				}
+			}
+		}
+	}
+	for _, group := range groups {
+		for _, seg := range group {
+			if strings.Contains(seg, key) && !internalNoise(seg) {
+				return CleanErrorMessage(seg)
+			}
+		}
+	}
+	for _, group := range groups {
+		for _, seg := range group {
+			if strings.Contains(seg, key) {
+				return CleanErrorMessage(seg)
+			}
+		}
+	}
+	for _, group := range groups {
+		if len(group) > 0 {
+			return CleanErrorMessage(group[0])
+		}
+	}
+	return ""
+}
+
+// featureGapErrors maps Gno error-message fragments to a short
+// feature-gap reason. Matched against Gno's ACTUAL preprocess error
+// (not the source text) so it can't false-positive on the word "go"
+// in a comment or a "chan" in a string — these are the messages Gno
+// emits when it hits a Go feature it doesn't implement. Ported from
+// gno-go-conformance's internal/classify feature-gap cases.
+var featureGapErrors = []struct {
+	fragment string
+	reason   string
+}{
+	{"channels are not permitted", "channels not supported in Gno"},
+	{"goroutines are not permitted", "goroutines not supported in Gno"},
+	{"imaginaries are not supported", "imaginary literals not supported in Gno"},
+	{"dot imports not allowed", "dot imports not supported in Gno"},
+	{"builtin identifiers cannot be shadowed", "builtin shadowing not supported in Gno"},
+	{"type parameter", "generics not supported in Gno"},
+	{"unknown Go type", "unsupported Go type in Gno"},
+}
+
+// langGapErrors maps a precise regex over Gno's error to a feature-gap
+// reason, for language features Gno simply lacks (no complex numbers, no
+// uintptr type, no `clear` builtin, no channel ops). These surface as
+// "name X not declared/defined" or "... is not permitted", which a bare
+// substring would over-match (e.g. a user type "complexThing"), so the
+// patterns are anchored to the exact builtin/keyword. 100%-certain gaps
+// only — anything ambiguous stays a // KnownIssue:.
+var langGapErrors = []struct {
+	re     *regexp.Regexp
+	reason string
+}{
+	{regexp.MustCompile(`name complex(64|128)? not (declared|defined)`), "complex numbers not supported in Gno"},
+	{regexp.MustCompile(`name (imag|real) not (declared|defined)`), "complex numbers not supported in Gno"},
+	{regexp.MustCompile(`name uintptr not (declared|defined)`), "uintptr type not supported in Gno"},
+	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
+	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
+}
+
+// reStdlibSymbolGap matches Gno's "name <Sym> not declared/defined" for a
+// known exported stdlib symbol Gno's test context doesn't provide
+// (os/runtime/debug/rand/time/testing). In RUN mode `go run` already
+// succeeded, so the name is a real Go symbol — a capitalized stdlib one
+// is a Gno stdlib gap (route to // Unsupported:), whereas a lowercase
+// user name (`xx`, `i`, `main`) would be a Gno scoping BUG and is
+// deliberately NOT listed here (stays a // KnownIssue:). The symbol is
+// captured so the reason is greppable per-feature: when Gno later adds
+// it, grep that reason, drop the directive, and re-sync to recover the
+// file. The list is explicit (not "any capitalized name") so an
+// unrecognized symbol still surfaces as a bug rather than being hidden.
+var reStdlibSymbolGap = regexp.MustCompile(`name (Exit|Getenv|Args|Environ|Hostname|` +
+	`Caller|Callers|SetFinalizer|KeepAlive|GC|GOMAXPROCS|GOARCH|GOOS|NumCPU|NumGoroutine|` +
+	`Gosched|Goexit|Stack|ReadMemStats|MemProfileRecord|MemProfileRate|MemStats|Frame|Frames|` +
+	`Compiler|Breakpoint|Version|Intn|Int31|Int31n|Int63|Int63n|Float64|Float32|Seed|Perm|Shuffle|` +
+	`Sleep|Tick|AllocsPerRun|Caller) not (declared|defined)`)
+
+// UnsupportedFeatureError returns a feature-gap reason if errStr is one
+// of Gno's "feature not implemented" messages (channels, goroutines,
+// generics, complex, uintptr, …), or "" otherwise. Also recognizes
+// "unknown import path <pkg>" — a stdlib the Gno test context lacks.
+// Used to route such files to `// Unsupported:` instead of
+// `// KnownIssue:`.
+func UnsupportedFeatureError(errStr string) string {
+	if imp := UnsupportedImport(errStr); imp != "" {
+		return "unknown import path " + imp
+	}
+	for _, g := range featureGapErrors {
+		if strings.Contains(errStr, g.fragment) {
+			return g.reason
+		}
+	}
+	for _, g := range langGapErrors {
+		if g.re.MatchString(errStr) {
+			return g.reason
+		}
+	}
+	if m := reStdlibSymbolGap.FindStringSubmatch(errStr); m != nil {
+		return "unsupported stdlib symbol in Gno: " + m[1]
+	}
+	return ""
+}
+
+// nondeterministicMarkers are substrings whose presence in a run-mode
+// program's output means it can't have a stable golden: runtime panic
+// dumps (addresses, signals, goroutine traces) and the harness temp
+// path that `go run` echoes for tests probing their own file/line.
+var nondeterministicMarkers = []string{
+	"signal SIGSEGV", "signal SIGABRT", "signal SIGBUS",
+	"pc=0x", "[signal ", "goroutine 1 [running]",
+	"gno-filetest-go-", // harness temp dir leaked into output
+}
+
+// NondeterministicOutput reports whether out contains a marker that
+// makes it non-reproducible (panic addresses, goroutine dumps, the
+// harness temp path). Such run-mode files are routed to
+// `// Unsupported:` since neither side's output can be pinned.
+func NondeterministicOutput(out string) string {
+	for _, m := range nondeterministicMarkers {
+		if strings.Contains(out, m) {
+			return "non-deterministic runtime output (" + m + ")"
+		}
+	}
+	return ""
+}
+
+// reUnknownImport matches an "unknown import path <path>" error,
+// capturing the import path. Handles both Gno's own preprocess form
+// (`unknown import path reflect`) and the go/types guard's form
+// (`could not import reflect (unknown import path "reflect")`), so the
+// optional quote and trailing `)` are excluded from the capture.
+var reUnknownImport = regexp.MustCompile(`unknown import path "?([^\s;")]+)`)
+
+// UnsupportedImport returns the import path from an "unknown import
+// path <path>" error in errStr, or "" if none. Used to route
+// errorcheck files that fail on a Gno-unsupported stdlib import
+// (unsafe, syscall, net/http, …) to `// Unsupported:` rather than
+// `// KnownIssue:` — Gno can't process the file at all, so it's a
+// feature gap, not an over-strict bug.
+func UnsupportedImport(errStr string) string {
+	m := reUnknownImport.FindStringSubmatch(errStr)
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+// looksLikePackagePath reports whether imp is a normal Go import path
+// (a missing stdlib like "reflect" or "encoding/xml") rather than an
+// invalid-import-path syntax test case ("/foo", "c:/foo", empty,
+// control chars). The go/types guard emits "unknown import path" for
+// both; only the former is a genuine missing-package feature gap worth
+// routing to `// Unsupported:`. The latter is a real errorcheck case
+// (e.g. import6.go) whose golden must be kept.
+func looksLikePackagePath(imp string) bool {
+	if imp == "" || strings.HasPrefix(imp, "/") || strings.HasPrefix(imp, ".") {
+		return false
+	}
+	for _, r := range imp {
+		if r < 0x20 || r == '\\' || r == ':' || r == '"' || r == ' ' {
+			return false
+		}
+	}
+	return true
+}
+
+// CorpusDirective returns the gc test directive word on source's first
+// line ("compile", "run", "errorcheck", …) with any flags stripped, or
+// "" if the first line isn't a recognized directive. Used to route a
+// `// compile` file to compile-mode regardless of whether it happens to
+// be runnable (gc compiles but never runs it).
+func CorpusDirective(source []byte) string {
+	first := source
+	if nl := bytes.IndexByte(source, '\n'); nl >= 0 {
+		first = source[:nl]
+	}
+	s := strings.TrimSpace(string(first))
+	if !strings.HasPrefix(s, "//") {
+		return ""
+	}
+	s = strings.TrimSpace(s[2:])
+	if i := strings.IndexAny(s, " \t"); i >= 0 {
+		s = s[:i]
+	}
+	switch s {
+	case "compile", "run", "errorcheck", "build",
+		"compiledir", "rundir", "errorcheckdir", "runoutput", "errorcheckoutput", "asmcheck":
+		return s
+	}
+	return ""
+}
+
+// PerLineErrors maps source line → cleaned message for each `; `-segment
+// in errStr that carries a position, adjusting Gno's line numbers by
+// prependedLines (the PKGPATH-rescue offset). Used by compile-mode to
+// pin Gno / go/types errors per line.
+func PerLineErrors(errStr string, prependedLines int) map[int]string {
+	out := make(map[int]string)
+	for _, seg := range gnoErrSegments(errStr) {
+		gnoLine := ExtractErrorLine(seg)
+		if gnoLine == 0 || internalNoise(seg) {
+			continue
+		}
+		src := gnoLine - prependedLines
+		if _, ok := out[src]; !ok {
+			out[src] = CleanErrorMessage(seg)
+		}
+	}
+	return out
+}
+
+// segHasLine reports whether any segment is keyed on gnoLine (i.e.
+// contains a `:<gnoLine>:` position).
+func segHasLine(segs []string, gnoLine int) bool {
+	key := fmt.Sprintf(":%d:", gnoLine)
+	for _, s := range segs {
+		if strings.Contains(s, key) {
+			return true
+		}
+	}
+	return false
+}
+
+// gnoErrSegments splits a Gno error string on "; " — Gno joins
+// multiple preprocess errors into one message with that separator.
+// Each segment is an independent `path:line:col: msg`. Whitespace is
+// trimmed; empty segments are dropped.
+func gnoErrSegments(s string) []string {
+	var out []string
+	for _, p := range strings.Split(s, "; ") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// CleanErrorMessage strips a leading `path:line:col:` prefix from
+// errStr, leaving just the message text. Used when recording a Gno
+// error in the `// GnoError:` golden block so the block doesn't pin
+// volatile file paths or column numbers.
+func CleanErrorMessage(errStr string) string {
+	s := strings.TrimSpace(errStr)
+	// Format: file:line:col: text  → split into 4 parts, take the 4th.
+	parts := strings.SplitN(s, ":", 4)
+	if len(parts) == 4 {
+		// Sanity: parts[1] should be a number (line); parts[2] a number (col).
+		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+			return strings.TrimSpace(parts[3])
+		}
+	}
+	// Fall back: try file:line: text (3 parts).
+	parts = strings.SplitN(s, ":", 3)
+	if len(parts) == 3 {
+		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+			return strings.TrimSpace(parts[2])
+		}
+	}
+	return s
+}
+
+// FormatGnoErrorBlock serializes a per-line map of Gno error messages
+// into the multi-line body of a `// GnoError:` directive. Output is
+// one line per entry, in ascending line order, in the form:
+//
+//	line N: <Gno's error message>
+//
+// Empty input yields the empty string (caller writes no directive).
+func FormatGnoErrorBlock(perLine map[int]string) string {
+	if len(perLine) == 0 {
+		return ""
+	}
+	lines := make([]int, 0, len(perLine))
+	for n := range perLine {
+		lines = append(lines, n)
+	}
+	sort.Ints(lines)
+	var buf strings.Builder
+	for _, n := range lines {
+		fmt.Fprintf(&buf, "line %d: %s\n", n, perLine[n])
+	}
+	return strings.TrimRight(buf.String(), "\n")
+}
+
+// indent prefixes every line of s with prefix.
+func indent(s, prefix string) string {
+	if s == "" {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = prefix + l
+	}
+	return strings.Join(lines, "\n")
+}
+
+// formatMarkers renders a marker list one per line for diagnostics.
+func formatMarkers(ms []InlineError) string {
+	var sb strings.Builder
+	for _, m := range ms {
+		fmt.Fprintf(&sb, "  L%d: %s\n", m.Line, strings.Join(m.Patterns, " "))
+	}
+	return strings.TrimRight(sb.String(), "\n")
+}
+
+// FormatLineOnlyBlock serializes the keys of a per-line error map as
+// `line N` entries, dropping the messages. Used for the Go-side blocks
+// (`// GoTypeCheckError:`, `// GoBuildError:`), whose wording changes
+// with the Go release while the set of flagged lines does not.
+func FormatLineOnlyBlock(perLine map[int]string) string {
+	if len(perLine) == 0 {
+		return ""
+	}
+	lines := make([]int, 0, len(perLine))
+	for n := range perLine {
+		lines = append(lines, n)
+	}
+	sort.Ints(lines)
+	var buf strings.Builder
+	for _, n := range lines {
+		fmt.Fprintf(&buf, "line %d\n", n)
+	}
+	return strings.TrimRight(buf.String(), "\n")
+}
+
+var reLineEntry = regexp.MustCompile(`^line (\d+)(?::\s*(.*))?$`)
+
+// ParseLineBlock reads a `// GnoError:`-style block body back into a
+// per-line map; entries without a message (FormatLineOnlyBlock) map to "".
+func ParseLineBlock(block string) map[int]string {
+	out := make(map[int]string)
+	for _, l := range strings.Split(block, "\n") {
+		if m := reLineEntry.FindStringSubmatch(strings.TrimSpace(l)); m != nil {
+			n, _ := strconv.Atoi(m[1])
+			out[n] = m[2]
+		}
+	}
+	return out
+}
+
+// unsupportedTags maps the harness's free-text skip reasons to a fixed
+// tag, first match wins. The tag set is shared with gno-go-conformance's
+// compat detector so both count the same buckets.
+var unsupportedTags = []struct{ tag, needle string }{
+	{"generics", "generics not supported"},
+	{"channel", "channels not supported"},
+	{"goroutine", "goroutines not supported"},
+	{"complex-types", "complex numbers not supported"},
+	{"imaginary-literal", "imaginary literals"},
+	{"uintptr", "uintptr type not supported"},
+	{"builtin-shadow", "builtin shadowing"},
+	{"clear-builtin", "clear builtin"},
+	{"dot-import", "dot import"},
+	{"unsafe", "unknown import path unsafe"},
+	{"reflect", "unknown import path reflect"},
+	{"import", "unknown import path"},
+	{"stdlib-symbol", "unsupported stdlib symbol"},
+	{"gc-diagnostic", "gc optimization-diagnostic"},
+	{"gc-lang-pin", "version-gating"},
+	{"gc-specific", "only gc-specific"},
+	{"gc-specific", "gc runtime-package"},
+	{"gc-specific", "gc pragma-placement"},
+	{"gc-specific", "gc liveness"},
+	{"gc-specific", "gc's "},
+	{"gc-specific", "gc-internal"},
+	{"gc-specific", "//go:"},
+	{"nondeterministic", "non-deterministic"},
+	{"nondeterministic", "nondeterministic"},
+	{"marker-uncheckable", "marker on a non-code line"},
+	{"marker-uncheckable", "not checkable"},
+	{"runtime-vs-compile", "at runtime"},
+}
+
+// TagUnsupportedReason returns `<tag>: <reason>`, leaving a reason that
+// already carries a known tag unchanged.
+func TagUnsupportedReason(reason string) string {
+	reason = strings.TrimSpace(reason)
+	for _, t := range unsupportedTags {
+		if strings.HasPrefix(reason, t.tag+": ") {
+			return reason
+		}
+	}
+	if strings.HasPrefix(reason, "other: ") {
+		return reason
+	}
+	for _, t := range unsupportedTags {
+		if strings.Contains(reason, t.needle) {
+			return t.tag + ": " + reason
+		}
+	}
+	return "other: " + reason
+}
