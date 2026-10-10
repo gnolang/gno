@@ -15,7 +15,9 @@
     crossorigin />
 
   <!-- Meta description -->
+  {{ if .Description }}
   <meta name="description" content="{{ .Description }}" />
+  {{ end }}
 
   <!-- Canonical URL -->
   {{ if .Canonical }}
@@ -23,23 +25,42 @@
   {{ end }}
 
   <!-- Open Graph metadata -->
+  {{ if .SiteName }}
+  <meta property="og:site_name" content="{{ .SiteName }}" />
+  {{ end }}
   <meta property="og:title" content="{{ .Title }}" />
+  {{ if .Description }}
   <meta property="og:description" content="{{ .Description }}" />
+  {{ end }}
+  {{ if .Image }}
   <meta property="og:image" content="{{ .Image }}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="{{ .ImageAlt }}" />
+  {{ end }}
+  {{ if .URL }}
   <meta property="og:url" content="{{ .URL }}" />
+  {{ end }}
   <meta property="og:type" content="website" />
 
   <!-- Twitter Card metadata -->
-  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:card" content="{{ if .Image }}summary_large_image{{ else }}summary{{ end }}" />
   <meta name="twitter:title" content="{{ .Title }}" />
+  {{ if .Description }}
   <meta name="twitter:description" content="{{ .Description }}" />
+  {{ end }}
+  {{ if .Image }}
   <meta name="twitter:image" content="{{ .Image }}" />
+  <meta name="twitter:image:alt" content="{{ .ImageAlt }}" />
+  {{ end }}
 
   <!-- Favicon -->
   <link rel="icon" href="{{ .AssetsPath }}favicon.ico?v={{ .AssetsVersion }}" type="image/x-icon" />
 
   <!-- Robots meta tag -->
-  <meta name="robots" content="index, follow" />
+  {{ if .Robots }}
+  <meta name="robots" content="{{ .Robots }}" />
+  {{ end }}
 
   <!-- chroma stylesheet -->
   <link rel="stylesheet" href="{{ .ChromaPath }}?v={{ .AssetsVersion }}" />

@@ -17,18 +17,25 @@ import (
 )
 
 var DefaultAliases = map[string]AliasTarget{
-	"/":           {"/r/gnoland/home", GnowebPath},
-	"/about":      {"/r/gnoland/pages:p/about", GnowebPath},
-	"/gnolang":    {"/r/gnoland/pages:p/gnolang", GnowebPath},
-	"/ecosystem":  {"/r/gnoland/pages:p/ecosystem", GnowebPath},
-	"/start":      {"/r/gnoland/pages:p/start", GnowebPath},
-	"/license":    {"/r/gnoland/pages:p/license", GnowebPath},
-	"/contribute": {"/r/gnoland/pages:p/contribute", GnowebPath},
-	"/links":      {"/r/gnoland/pages:p/links", GnowebPath},
-	"/events":     {"/r/devrels/events", GnowebPath},
-	"/partners":   {"/r/gnoland/pages:p/partners", GnowebPath},
-	"/docs":       {"/u/docs", GnowebPath},
+	"/":           {Value: "/r/gnoland/home", Kind: GnowebPath},
+	"/about":      {Value: "/r/gnoland/pages:p/about", Kind: GnowebPath},
+	"/gnolang":    {Value: "/r/gnoland/pages:p/gnolang", Kind: GnowebPath},
+	"/ecosystem":  {Value: "/r/gnoland/pages:p/ecosystem", Kind: GnowebPath},
+	"/start":      {Value: "/r/gnoland/pages:p/start", Kind: GnowebPath},
+	"/license":    {Value: "/r/gnoland/pages:p/license", Kind: GnowebPath},
+	"/contribute": {Value: "/r/gnoland/pages:p/contribute", Kind: GnowebPath},
+	"/links":      {Value: "/r/gnoland/pages:p/links", Kind: GnowebPath},
+	"/events":     {Value: "/r/devrels/events", Kind: GnowebPath},
+	"/partners":   {Value: "/r/gnoland/pages:p/partners", Kind: GnowebPath},
+	"/docs":       {Value: "/u/docs", Kind: GnowebPath},
 }
+
+// DefaultTrustedPaths are the namespaces gno.land treats as official, comma
+// separated as -trusted-paths takes them: namespaces whose code the gno.land
+// team reviews or whose deploy key belongs to a party it vouches for (see
+// the realm notice ADR). Trust in a namespace holds only on a chain that
+// enforces who may deploy under it, as r/sys/names does once enabled.
+const DefaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
 
 // AppConfig contains configuration for gnoweb.
 type AppConfig struct {
@@ -57,14 +64,26 @@ type AppConfig struct {
 	FaucetURL string
 	// Domain is the domain used by the node.
 	Domain string
+
+	// CanonicalOrigin is the public origin this deployment is reachable at,
+	// scheme included. Empty means no canonical tag: a canonical naming a host
+	// the visitor did not reach tells a crawler the content belongs elsewhere,
+	// and every deployment but one would be claiming gno.land's.
+	CanonicalOrigin string
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
 	// RealmNotice, if set, is shown as the header's second row on pages of
 	// packages outside TrustedPaths.
 	RealmNotice components.RealmNotice
 	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
-	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice.
+	// no "/r/" or "/p/" prefix), or "*" for every path, whose pages are official: they never show
+	// RealmNotice, may lend their own heading and summary to the page
+	// metadata, keep their internal links followed, and are indexed whatever
+	// IndexCommunity says.
 	TrustedPaths []string
+	// IndexCommunity says which pages outside TrustedPaths search engines may
+	// index; the others get noindex, nofollow and no canonical.
+	IndexCommunity CommunityIndex
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -102,6 +121,8 @@ func NewDefaultAppConfig() *AppConfig {
 		RenderConfig:            NewDefaultRenderConfig(),
 		StateRateLimitPerMinute: 100,
 		MaxConcurrentRPC:        32,
+		TrustedPaths:            strings.Split(DefaultTrustedPaths, ","),
+		IndexCommunity:          IndexRegisteredCommunity,
 	}
 }
 
@@ -109,6 +130,13 @@ func NewDefaultAppConfig() *AppConfig {
 // It sets up all routes, static asset handling, and middleware.
 func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	assetsBase := "/" + strings.Trim(cfg.AssetsPath, "/") + "/" // sanitize
+
+	// A canonical is resolved against the page, so an origin without a scheme
+	// would name a 404 on every page; refuse it here rather than ship it.
+	canonicalOrigin, err := normalizeCanonicalOrigin(cfg.CanonicalOrigin)
+	if err != nil {
+		return nil, err
+	}
 
 	// Initialize RPC Client.
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
@@ -134,6 +162,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	staticMeta := StaticMetadata{
 		Domain:            cfg.Domain,
+		CanonicalOrigin:   canonicalOrigin,
 		AssetsPath:        assetsBase,
 		ChromaPath:        chromaStylePath,
 		RemoteHelp:        cfg.RemoteHelp,
@@ -164,6 +193,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Renderer:                     renderer,
 		Aliases:                      cfg.Aliases,
 		TrustedPaths:                 cfg.TrustedPaths,
+		IndexCommunity:               cfg.IndexCommunity,
 		Timeout:                      cfg.NodeRequestTimeout,
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,

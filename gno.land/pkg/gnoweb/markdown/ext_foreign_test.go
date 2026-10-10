@@ -74,7 +74,7 @@ func TestForeign_LinksRenderAsUntrusted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl, Links: FollowInternalLinks}))
 
 	m := goldmark.New()
 	ExtForeign.Extend(m, nil)
@@ -143,7 +143,7 @@ func TestForeign_MentionKeepsUserChrome(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse url: %v", err)
 	}
-	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl, Links: FollowInternalLinks}))
 
 	m := goldmark.New()
 	ExtForeign.Extend(m, nil)

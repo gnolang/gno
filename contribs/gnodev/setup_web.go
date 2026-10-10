@@ -15,17 +15,7 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 		return http.HandlerFunc(http.NotFound), nil
 	}
 
-	appcfg := gnoweb.NewDefaultAppConfig()
-	appcfg.UnsafeHTML = cfg.webHTML
-	appcfg.Analytics = cfg.webAnalytics
-	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
-	appcfg.NodeRemote = remoteAddr
-	appcfg.ChainID = cfg.chainId
-	if cfg.webRemoteHelperAddr != "" {
-		appcfg.RemoteHelp = cfg.webRemoteHelperAddr
-	} else {
-		appcfg.RemoteHelp = remoteAddr
-	}
+	appcfg := gnoWebAppConfig(cfg, remoteAddr)
 
 	router, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
@@ -40,4 +30,27 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 		"chain_id", cfg.chainId,
 	)
 	return router, nil
+}
+
+// gnoWebAppConfig maps the gnodev AppConfig onto gnoweb's.
+func gnoWebAppConfig(cfg *AppConfig, remoteAddr string) *gnoweb.AppConfig {
+	appcfg := gnoweb.NewDefaultAppConfig()
+	appcfg.UnsafeHTML = cfg.webHTML
+	appcfg.Analytics = cfg.webAnalytics
+	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
+	appcfg.NodeRemote = remoteAddr
+	appcfg.ChainID = cfg.chainId
+	// Every package on a local gnodev chain is the developer's own. A
+	// staging server hosts other deployers' realms, so it keeps gnoweb's
+	// default list.
+	if !cfg.staging {
+		appcfg.TrustedPaths = []string{"*"}
+	}
+	if cfg.webRemoteHelperAddr != "" {
+		appcfg.RemoteHelp = cfg.webRemoteHelperAddr
+	} else {
+		appcfg.RemoteHelp = remoteAddr
+	}
+
+	return appcfg
 }

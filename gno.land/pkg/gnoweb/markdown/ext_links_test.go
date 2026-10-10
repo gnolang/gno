@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -124,14 +125,88 @@ func TestExtLinksClassifiesResolvedDestination(t *testing.T) {
 	}
 }
 
+// TestExtLinksPolicy pins the rel each LinkPolicy gives an internal and an
+// external link. noopener follows the destination; nofollow ugc follows the
+// policy, and the zero value marks every link.
+func TestExtLinksPolicy(t *testing.T) {
+	t.Parallel()
+
+	const src = "[in](/r/other/pkg) [out](https://example.org/)"
+	cases := []struct {
+		name    string
+		policy  LinkPolicy
+		in, out string
+	}{
+		{"zero value", 0, ` rel="nofollow ugc"`, ` rel="noopener nofollow ugc"`},
+		{"follow internal", FollowInternalLinks, ``, ` rel="noopener nofollow ugc"`},
+		{"follow all", FollowAllLinks, ``, ` rel="noopener"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := renderLinksWith(t, src, tc.policy)
+			require.Contains(t, got, `<a href="/r/other/pkg"`+tc.in+`>`)
+			require.Contains(t, got, `<a href="https://example.org/"`+tc.out+`>`)
+		})
+	}
+}
+
+// TestExtLinksPolicyOffSiteWithoutScheme checks that a link a browser reads
+// as off-site, though it names no scheme or no host, is not followed when
+// only in-site links are.
+func TestExtLinksPolicyOffSiteWithoutScheme(t *testing.T) {
+	t.Parallel()
+
+	for _, dest := range []string{
+		"//casino.example",
+		"https:///casino.example",
+		"///casino.example",
+	} {
+		t.Run(dest, func(t *testing.T) {
+			t.Parallel()
+
+			got := renderLinksWith(t, "[x]("+dest+")", FollowInternalLinks)
+			require.Contains(t, got, `<a href="`+dest+`" rel="noopener nofollow ugc">`)
+		})
+	}
+}
+
 func renderExtLinks(t *testing.T, src string) string {
+	t.Helper()
+	return renderLinksWith(t, src, FollowInternalLinks)
+}
+
+func renderLinksWith(t *testing.T, src string, links LinkPolicy) string {
 	t.Helper()
 	gnourl, err := weburl.Parse("https://gno.land/r/test")
 	require.NoError(t, err)
 	m := goldmark.New()
 	ExtLinks.Extend(m)
-	ctx := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+	ctx := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl, Links: links}))
 	var out bytes.Buffer
 	require.NoError(t, m.Convert([]byte(src), &out, ctx))
 	return out.String()
+}
+
+// TestExtLinksAllWrapped checks that every link gets its rel, wherever it
+// sits: after an autolink in the same paragraph, or inside columns.
+func TestExtLinksAllWrapped(t *testing.T) {
+	t.Parallel()
+
+	const src = "Welcome <contact@nym.example> - see [best casino](https://casino.example)\n\n" +
+		"<gno-columns>\n<https://a.example> [b](https://b.example)\n|||\n[c](/r/other/pkg) <https://d.example>\n</gno-columns>\n"
+
+	gnourl, err := weburl.Parse("https://gno.land/r/test")
+	require.NoError(t, err)
+	m := goldmark.New()
+	NewGnoExtension().Extend(m)
+	var out bytes.Buffer
+	require.NoError(t, m.Convert([]byte(src), &out, parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))))
+
+	anchors := regexp.MustCompile(`<a [^>]*>`).FindAllString(out.String(), -1)
+	require.Len(t, anchors, 6, out.String())
+	for _, a := range anchors {
+		require.Contains(t, a, "nofollow ugc", a)
+	}
 }

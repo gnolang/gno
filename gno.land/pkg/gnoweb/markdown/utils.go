@@ -208,6 +208,11 @@ func (w *nodeTextWriter) walk(src []byte, n ast.Node) {
 	switch n := n.(type) {
 	case *ast.Text:
 		w.text(util.UnescapePunctuations(n.Segment.Value(src)))
+		// A line break separates two words; without it they are written
+		// against each other.
+		if n.SoftLineBreak() || n.HardLineBreak() {
+			w.buf.WriteByte(' ')
+		}
 	case *ast.String:
 		w.text(util.UnescapePunctuations(n.Value))
 	case *Icon:
