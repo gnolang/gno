@@ -2844,7 +2844,7 @@ func TestHTTPHandler_PageTrust(t *testing.T) {
 // TestHTTPHandler_CommunityIndex checks what search engines are told about
 // each page under each -index-community setting. A page kept out of the index
 // gets a robots meta and an X-Robots-Tag header (the only signal a markdown
-// response can carry) and no canonical, but keeps its card.
+// or JSON response can carry) and no canonical, but keeps its card.
 func TestHTTPHandler_CommunityIndex(t *testing.T) {
 	t.Parallel()
 
@@ -2856,6 +2856,7 @@ func TestHTTPHandler_CommunityIndex(t *testing.T) {
 	pages := []struct {
 		name, url string
 		markdown  bool      // asked for text/markdown, so there is no head to read
+		json      bool      // a JSON body, with no head either
 		want      [3]string // robots under none, registered, all
 	}{
 		{name: "community realm", url: "/r/nym/app", want: [3]string{nn, ix, ix}},
@@ -2874,6 +2875,7 @@ func TestHTTPHandler_CommunityIndex(t *testing.T) {
 		{name: "community directory", url: "/r/nym/app/", want: [3]string{nn, nn, ix}},
 		{name: "community package file", url: "/p/nym/lib/lib.gno", want: [3]string{nn, nn, ix}},
 		{name: "community help", url: "/r/nym/app$help", want: [3]string{nn, nn, nf}},
+		{name: "community help as JSON", url: "/r/nym/app$help&json", json: true, want: [3]string{nn, nn, nf}},
 		{name: "community state", url: "/r/nym/app$state", want: [3]string{nn, nn, nf}},
 		{name: "official realm", url: "/r/gnoland/blog", want: [3]string{ix, ix, ix}},
 		{name: "official realm with args", url: "/r/gnoland/blog:p/hello", want: [3]string{ix, ix, ix}},
@@ -2882,6 +2884,7 @@ func TestHTTPHandler_CommunityIndex(t *testing.T) {
 		{name: "official source file", url: "/r/gnoland/blog$source&file=render.gno", want: [3]string{ix, ix, ix}},
 		{name: "official unknown view", url: "/r/gnoland/blog$foo=bar", want: [3]string{nf, nf, nf}},
 		{name: "official help", url: "/r/gnoland/blog$help", want: [3]string{nf, nf, nf}},
+		{name: "official help as JSON", url: "/r/gnoland/blog$help&json", json: true, want: [3]string{nf, nf, nf}},
 		{name: "official state", url: "/r/gnoland/blog$state", want: [3]string{nf, nf, nf}},
 		{name: "official second page", url: "/r/gnoland/blog?page=2", want: [3]string{nf, nf, nf}},
 		{name: "operator page", url: "/about", want: [3]string{ix, ix, ix}},
@@ -2907,7 +2910,7 @@ func TestHTTPHandler_CommunityIndex(t *testing.T) {
 				} else {
 					assert.Equal(t, want, rr.Header().Get("X-Robots-Tag"))
 				}
-				if p.markdown {
+				if p.markdown || p.json {
 					return
 				}
 

@@ -301,12 +301,6 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// The state branch builds its header before prepareIndexBodyView does.
 	gnourl.Origin = requestOrigin(r, h.trustedProxies)
 
-	// The function list as JSON, for agents that want to know what to call.
-	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
-		h.ServeHelpJSON(r.Context(), gnourl, w)
-		return
-	}
-
 	// A static page is named by its alias key, which may read as a file:
 	// /license.md or /Terms would otherwise be a file under "/".
 	classified := gnourl
@@ -314,6 +308,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		classified = &weburl.GnoURL{Path: requested.Path, Query: gnourl.Query, WebQuery: gnourl.WebQuery}
 	}
 	sp := h.classifyPage(w, classified)
+
+	// The function list as JSON, for agents that want to know what to call.
+	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
+		h.ServeHelpJSON(r.Context(), gnourl, w)
+		return
+	}
 
 	// Handle download request outside of component rendering flow.
 	if gnourl.WebQuery.Has("download") {
@@ -417,7 +417,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 // alone: the link policy and the robots policy. The community notice reads
 // the same classification, in setHeaderForRealm. The
 // X-Robots-Tag header is set here, before any branch writes, since the
-// markdown and download responses have no head to carry a robots meta. A
+// markdown, JSON and download responses have no head to carry a robots meta. A
 // markdown alias serves bytes the operator wrote; a realm alias serves
 // whatever its target renders, so u is the target and the alias keeps the
 // target's kind.

@@ -154,9 +154,9 @@ key even when the key reads as a file, as `/license.md` or `/Terms` do.
 
 `pagePolicy.robots` in `community_index.go` decides once, in `classifyPage`,
 before any branch writes. A page that may not be indexed gets the robots meta
-and an `X-Robots-Tag` header (the only signal a text/markdown response can
-carry), and no canonical, since a canonical on a noindex page contradicts
-it. It keeps its card: link previews ignore robots.
+and an `X-Robots-Tag` header (the only signal a text/markdown or JSON
+response can carry), and no canonical, since a canonical on a noindex page
+contradicts it. It keeps its card: link previews ignore robots.
 
 | page | robots |
 |---|---|
