@@ -93,8 +93,9 @@ func TestCrossingGroupCostIsLinear(t *testing.T) {
 			}
 			return d
 		}
-		// Large enough for the timings to dominate timer noise.
-		small, large := nested(unit[0], unit[1], 256), nested(unit[0], unit[1], 1024)
+		// Large enough for the timings to dominate timer and CI noise: at 256
+		// levels a run takes a fraction of a millisecond.
+		small, large := nested(unit[0], unit[1], 1024), nested(unit[0], unit[1], 4096)
 		_, err := convertErrWithin(t, large)
 		assert.Error(t, err, unit[0])
 		ratio := float64(best(large)) / float64(best(small))
