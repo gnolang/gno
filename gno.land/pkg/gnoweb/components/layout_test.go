@@ -654,10 +654,13 @@ func TestIndexLayout_NetworkPropagation(t *testing.T) {
 	testnet := render(NetworkTestnet, "pearl-1")
 	assert.Contains(t, testnet, `data-network="testnet"`)
 	assert.Contains(t, testnet, `class="network-chip"`)
-	assert.Contains(t, testnet, "pearl-1")
+	// pearl-1 alone is already in the gnoconnect:chainid meta tag; the chip
+	// text pins both the chip and its kind word.
+	assert.Contains(t, testnet, `network-chip__id">pearl-1</span> testnet`)
 
 	local := render(NetworkLocal, "dev")
-	assert.Contains(t, local, `class="network-chip"`)
+	assert.Contains(t, local, `data-network="local"`)
+	assert.Contains(t, local, `network-chip__id">dev</span> local`)
 
 	// Mainnet keeps the header it had before the chip existed.
 	mainnet := render(NetworkMainnet, "gnoland-1")
