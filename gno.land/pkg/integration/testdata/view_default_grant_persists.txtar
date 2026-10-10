@@ -1,0 +1,84 @@
+# View-by-default: a reference that crosses a realm boundary is read-only
+# unless its owner granted a handle with mutable(x). The grant is a persisted
+# per-object flag, so a handle stored in tx 1 is still a handle in tx 2, and a
+# view stored in tx 1 is still a view in tx 2.
+
+loadpkg gno.land/p/nt/avl/v0
+
+adduser alice 100000000ugnot
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/owner -pkgpath gno.land/r/test/owner -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey maketx addpkg -pkgdir $WORK/holder -pkgpath gno.land/r/test/holder -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+# tx 1: holder stores a view and a handle it got from owner.
+gnokey maketx call -pkgpath gno.land/r/test/holder -func Take -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+
+# tx 2: writing through the stored handle commits to the owner...
+gnokey maketx call -pkgpath gno.land/r/test/holder -func WriteHandle -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/test/owner:'
+stdout 'handle=from-holder view=v0'
+
+# ...and writing through the stored view is still refused.
+! gnokey maketx call -pkgpath gno.land/r/test/holder -func WriteView -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test alice
+stderr 'the owner must hand it out with mutable'
+gnokey query vm/qrender --data 'gno.land/r/test/owner:'
+stdout 'handle=from-holder view=v0'
+
+-- owner/gnomod.toml --
+module = "gno.land/r/test/owner"
+gno = "0.9"
+
+-- owner/owner.gno --
+package owner
+
+import "gno.land/p/nt/avl/v0"
+
+var (
+	view   = avl.NewTree()
+	handle = avl.NewTree()
+)
+
+func init() {
+	view.Set("k", "v0")
+	handle.Set("k", "h0")
+}
+
+func GetView() *avl.Tree   { return view }
+func GetHandle() *avl.Tree { return mutable(handle) }
+
+func Render(string) string {
+	h, _ := handle.Get("k").(string)
+	v, _ := view.Get("k").(string)
+	return "handle=" + h + " view=" + v
+}
+
+-- holder/gnomod.toml --
+module = "gno.land/r/test/holder"
+gno = "0.9"
+
+-- holder/holder.gno --
+package holder
+
+import (
+	"gno.land/p/nt/avl/v0"
+	"gno.land/r/test/owner"
+)
+
+var (
+	view   *avl.Tree
+	handle *avl.Tree
+)
+
+func Take(cur realm) {
+	view = owner.GetView()
+	handle = owner.GetHandle()
+}
+
+func WriteHandle(cur realm) { handle.Set("k", "from-holder") }
+func WriteView(cur realm)   { view.Set("k", "pwned") }

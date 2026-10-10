@@ -89,7 +89,7 @@ func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, to
 		token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
 
 		// Register the token.
-		grc20reg.Register(cross(rlm), token, symbol)
+		grc20reg.Register(cross(rlm), mutable(token), symbol)
 
 		// Mint tokens to the specified address.
 		ledger.Mint(toMint, mintAmount)

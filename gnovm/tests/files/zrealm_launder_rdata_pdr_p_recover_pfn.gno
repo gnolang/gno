@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_pdr_p_recover_pfn
 package launderrh_pdr_p_recover_pfn
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Vector 8b: /p/-method RecoverApply called with a top-level /p/
 // callback (EvilWrite) — the known-open Apply attack, now inside
 // a /p/-RecoverApply scope.
@@ -42,5 +47,5 @@ func main(cur realm) {
 
 // Output:
 // before: ptr-orig
-// rec: nil (no panic, write succeeded)
-// after:  pwnd-via-apply
+// rec: non-nil
+// after:  ptr-orig
