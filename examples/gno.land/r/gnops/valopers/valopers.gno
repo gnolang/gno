@@ -15,6 +15,7 @@ import (
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/combinederr/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ownable/exts/authorizable/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -118,6 +119,9 @@ func (v Valoper) AuthOwner() address {
 }
 
 func AddToAuthList(cur realm, addr address, member address) {
+	if err := validateBech32(member); err != nil {
+		panic(err)
+	}
 	v := GetByAddr(addr)
 	if err := v.auth.AddToAuthList(0, cur, member); err != nil {
 		panic(err)
@@ -125,6 +129,9 @@ func AddToAuthList(cur realm, addr address, member address) {
 }
 
 func DeleteFromAuthList(cur realm, addr address, member address) {
+	if err := validateBech32(member); err != nil {
+		panic(err)
+	}
 	v := GetByAddr(addr)
 	if err := v.auth.DeleteFromAuthList(0, cur, member); err != nil {
 		panic(err)
@@ -494,10 +501,12 @@ func (v *Valoper) Validate() error {
 
 // Render renders a single valoper with their information.
 func (v Valoper) Render() string {
-	output := ufmt.Sprintf("## %s\n", v.Moniker)
+	output := ufmt.Sprintf("## %s", v.Moniker)
 
-	if v.Description != "" {
-		output += ufmt.Sprintf("%s\n\n", v.Description)
+	if body := sanitize.Block(v.Description); body != "" {
+		output += body
+	} else {
+		output += "\n"
 	}
 
 	output += ufmt.Sprintf("- Operator Address: %s\n", v.OperatorAddress.String())
