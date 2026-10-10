@@ -1,0 +1,65 @@
+# Value-containment fan-out routed through a generic instantiation: the generic
+# W holds its type parameter twice by value, and each A_n embeds W[A_{n-1}] by
+# value, so go/types' validType walk would still double per level. Generics are a
+# go1.18 feature Gno (go1.17) does not support, so the package is rejected before
+# go/types runs, NOT allowed to hang the node.
+
+# start a new node
+gnoland start
+
+# adding the generic fan-out package fails: generics are unsupported
+! gnokey maketx addpkg -pkgdir $WORK/fanout -pkgpath gno.land/r/foobar/fanout -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+stderr 'not supported'
+
+-- fanout/gnomod.toml --
+module = "gno.land/r/foobar/fanout"
+gno = "0.9"
+
+-- fanout/fanout.gno --
+package fanout
+
+type W[P any] struct{ a, b [0]P }
+type A0 struct{ v int }
+
+type A1 struct{ x W[A0] }
+type A2 struct{ x W[A1] }
+type A3 struct{ x W[A2] }
+type A4 struct{ x W[A3] }
+type A5 struct{ x W[A4] }
+type A6 struct{ x W[A5] }
+type A7 struct{ x W[A6] }
+type A8 struct{ x W[A7] }
+type A9 struct{ x W[A8] }
+type A10 struct{ x W[A9] }
+type A11 struct{ x W[A10] }
+type A12 struct{ x W[A11] }
+type A13 struct{ x W[A12] }
+type A14 struct{ x W[A13] }
+type A15 struct{ x W[A14] }
+type A16 struct{ x W[A15] }
+type A17 struct{ x W[A16] }
+type A18 struct{ x W[A17] }
+type A19 struct{ x W[A18] }
+type A20 struct{ x W[A19] }
+type A21 struct{ x W[A20] }
+type A22 struct{ x W[A21] }
+type A23 struct{ x W[A22] }
+type A24 struct{ x W[A23] }
+type A25 struct{ x W[A24] }
+type A26 struct{ x W[A25] }
+type A27 struct{ x W[A26] }
+type A28 struct{ x W[A27] }
+type A29 struct{ x W[A28] }
+type A30 struct{ x W[A29] }
+type A31 struct{ x W[A30] }
+type A32 struct{ x W[A31] }
+type A33 struct{ x W[A32] }
+type A34 struct{ x W[A33] }
+type A35 struct{ x W[A34] }
+type A36 struct{ x W[A35] }
+type A37 struct{ x W[A36] }
+type A38 struct{ x W[A37] }
+type A39 struct{ x W[A38] }
+type A40 struct{ x W[A39] }
+
+var Sink A40
