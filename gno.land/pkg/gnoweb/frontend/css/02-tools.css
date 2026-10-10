@@ -102,6 +102,7 @@
 	--s-color-text-tip: var(--g-color-purple-900, #49216b); /* Tip text */
 	--s-color-text-note: var(--g-color-gray-900);
 	--s-color-math-orange: var(--g-color-orange-600); /* \color{orange} in math */
+	--s-color-math-purple: var(--g-color-purple-900); /* \color{purple} in math */
 
 	/* ===== BORDER COLORS ===== */
 	/* Border hierarchy (light to dark) */
@@ -234,6 +235,7 @@
 	--s-color-text-tip: var(--g-color-purple-400);
 	--s-color-text-note: var(--g-color-gray-200);
 	--s-color-math-orange: var(--g-color-orange-400);
+	--s-color-math-purple: var(--g-color-purple-300); /* text-tip is 3.7:1 on bg-base */
 
 	/* Border hierarchy */
 	--s-color-border-primary: var(--g-color-gray-700);

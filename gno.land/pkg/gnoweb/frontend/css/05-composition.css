@@ -472,7 +472,7 @@
 		}
 
 		& .math-color-purple {
-			color: var(--s-color-text-tip);
+			color: var(--s-color-math-purple);
 		}
 
 		& .math-color-gray {

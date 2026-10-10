@@ -229,8 +229,12 @@ realm and readme views), with the theme's tokens:
 - Math uses `font-family: math`, the system's math font, at `1.1em`, so it
   follows the text around it (headings, tables); `\text` uses the body font.
 - The `math-color-*` classes map to the text tokens that have light and dark
-  values (caution, success, info, tip, tertiary); orange, which had none,
-  gets `--g-color-orange-400/600` and `--s-color-math-orange`.
+  values (caution, success, info, tertiary), each at least 4.5:1 on the page
+  background in both themes. Orange, which had none, gets
+  `--g-color-orange-400/600` and `--s-color-math-orange`. Purple gets
+  `--s-color-math-purple`: the tip colour in the light theme, and
+  `--g-color-purple-300` (7.4:1) in the dark one, where the tip colour is
+  3.7:1.
 - Display math scrolls sideways when wider than the column, as code blocks
   and tables do, with block padding so the scroll box does not clip limits
   and descenders.
