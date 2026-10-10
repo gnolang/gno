@@ -1,0 +1,16 @@
+-- input.md --
+RLO: <gno-button href="/r/test" label="a‮evil" />
+
+ZWSP: <gno-button href="/r/test" label="a​b" />
+
+Isolates and BOM: <gno-button href="/r/test" label="⁦x⁩﻿y" />
+
+As entities: <gno-button href="/r/test" label="a&#x202E;b&#8203;c" />
+
+Only invisible: <gno-button href="/r/test" label="​‮" />
+-- output.html --
+<p>RLO: <a href="/r/test" class="gno-button">aevil</a></p>
+<p>ZWSP: <a href="/r/test" class="gno-button">ab</a></p>
+<p>Isolates and BOM: <a href="/r/test" class="gno-button">xy</a></p>
+<p>As entities: <a href="/r/test" class="gno-button">abc</a></p>
+<p>Only invisible: <!-- raw HTML omitted --></p>

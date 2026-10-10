@@ -378,6 +378,16 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	// internal breaks.
 	s = foldUnicodeSeparators(s)
 
+	// <gno-button /> is an inline tag: it renders wherever its `<` sits
+	// (after a list or quote marker, NBSP, mid-line…), so every occurrence
+	// is escaped, fenced lines included, since the fence tracker can see
+	// fenced code where goldmark does not (a fence line inside an HTML
+	// block or a list item). This runs before the bracket walker, which
+	// must see the backslash: added after it, the backslash would break a
+	// pointy link destination `[a](<gno-button x>)` the walker kept as a
+	// link, and `[a]` would then bind to a realm reference definition.
+	s = escapeGnoButtonTags(s)
+
 	// Pass 1+2: bracket walker. Finds inline link / image / LRD / fence
 	// spans on the whole input, then escapes any unescaped `[` / `]`
 	// outside those spans, and deletes LRD spans entirely. Subsumes the
@@ -418,18 +428,24 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			continue
 		}
 
-		// Extension delimiter lines: prefix with backslash so the line's
-		// opening `<` becomes a CM §2.4 inline escape. A leading space
-		// would be ineffective because gnoweb's extension parsers call
-		// util.TrimLeftSpace before tag matching (see ext_columns.go,
-		// ext_alert.go etc.) — the space gets stripped and the parser
-		// sees the bare tag. Backslash survives util.TrimLeftSpace
-		// (which only strips ASCII whitespace and form-feed) and
-		// goldmark's Type-7 HTML block detection (which requires the
-		// first non-whitespace char to be `<`, not `\`).
+		// Extension delimiter lines: a backslash before the `<` makes it a
+		// CM §2.4 inline escape, so neither a gno-* block parser nor the
+		// Type-7 HTML block detection sees a tag (a leading space would not
+		// do: the parsers call util.TrimLeftSpace). From 4 columns of indent
+		// the line may be indented code, so the backslash keeps its old
+		// place at line start, ahead of the indent. A backslash shows either
+		// way: after the indent it would be literal code text, and at line
+		// start it precedes a space, which it cannot escape, so the line
+		// renders as `\` plus the indent and the tag (dropped as raw HTML).
 		if isExtDelimiter(line) {
+			trimmed := strings.TrimLeft(line, " \t")
+			lead := line[:len(line)-len(trimmed)]
+			if indentColumns(lead) >= 4 {
+				lead, trimmed = "", line
+			}
+			out.WriteString(lead)
 			out.WriteByte('\\')
-			out.WriteString(line)
+			out.WriteString(trimmed)
 			if writeNL {
 				out.WriteByte('\n')
 			}
@@ -556,6 +572,55 @@ func isExtDelimiter(line string) bool {
 		rest = rest[1:]
 	}
 	return hasCaseInsensitivePrefix(rest, "gno-")
+}
+
+// indentColumns returns the width of a run of spaces and tabs, a tab
+// advancing to the next multiple of 4 (CM §2.2).
+func indentColumns(lead string) int {
+	cols := 0
+	for i := 0; i < len(lead); i++ {
+		if lead[i] == '\t' {
+			cols += 4 - cols%4
+		} else {
+			cols++
+		}
+	}
+	return cols
+}
+
+// gnoButtonTag is matched case-insensitively, as gnoweb matches it.
+const gnoButtonTag = "<gno-button"
+
+// escapeGnoButtonTags backslash-escapes the `<` of every `<gno-button` in
+// line that is not already escaped, so escaping stays idempotent. It does not
+// try to spare code spans: whether a backtick opens one depends on goldmark's
+// inline precedence (raw HTML, comments, link destinations and titles, spans
+// across lines), which a line scan cannot model, and a guess that leaves a
+// tag live is a bypass. Inside a real code span the backslash shows.
+func escapeGnoButtonTags(line string) string {
+	if strings.IndexByte(line, '<') < 0 {
+		return line
+	}
+	var out []byte
+	last := 0
+	for i := 0; i < len(line); i++ {
+		switch line[i] {
+		case '\\':
+			i++ // the next byte is escaped
+		case '<':
+			if hasCaseInsensitivePrefix(line[i:], gnoButtonTag) {
+				if out == nil {
+					out = make([]byte, 0, len(line)+8)
+				}
+				out = append(append(out, line[last:i]...), '\\')
+				last = i
+			}
+		}
+	}
+	if out == nil {
+		return line
+	}
+	return string(append(out, line[last:]...))
 }
 
 // isHTMLBlockType1to5Opener reports whether line opens a CommonMark

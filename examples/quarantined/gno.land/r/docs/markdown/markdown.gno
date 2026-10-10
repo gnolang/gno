@@ -964,6 +964,54 @@ By default, the alert boxes are opened. The title is optional and if not provide
 > > [!NOTE]
 > > This is a scoped note
 
+### Buttons
+
+A button is a link styled as a call to action. Write it as a single self-closing ±<gno-button />± tag, on one line, with everything in attributes:
+
+- ±href± (required): the destination, resolved like a markdown link (internal, external, ±$help± transaction links). ±javascript:±, ±data:± and other unsafe URLs are rejected.
+- ±label± (required): the button text, shown as plain text (markdown inside it is not interpreted).
+- ±variant± (optional): ±outline±, and the alert kinds ±note±, ±tip±, ±caution±, ±warning±, ±success±, ±info±, space-separated. Unknown values are ignored.
+
+±±±markdown
+<gno-button href="/r/gnoland/blog" label="Read the blog" />
+±±±
+
+<gno-button href="/r/gnoland/blog" label="Read the blog" />
+
+±±±markdown
+<gno-button href="/r/docs/home" label="Default" />
+<gno-button href="/r/docs/home" label="Outline" variant="outline" />
+<gno-button href="/r/docs/home" label="Caution" variant="caution" />
+<gno-button href="/r/docs/home" label="Warning" variant="warning" />
+<gno-button href="/r/docs/home" label="Info" variant="info" />
+<gno-button href="/r/docs/home" label="Note" variant="note" />
+<gno-button href="/r/docs/home" label="Tip" variant="tip" />
+<gno-button href="/r/docs/home" label="Success" variant="success" />
+<gno-button href="/r/docs/home" label="Caution outline" variant="caution outline" />
+±±±
+
+<gno-button href="/r/docs/home" label="Default" />
+<gno-button href="/r/docs/home" label="Outline" variant="outline" />
+<gno-button href="/r/docs/home" label="Caution" variant="caution" />
+<gno-button href="/r/docs/home" label="Warning" variant="warning" />
+<gno-button href="/r/docs/home" label="Info" variant="info" />
+<gno-button href="/r/docs/home" label="Note" variant="note" />
+<gno-button href="/r/docs/home" label="Tip" variant="tip" />
+<gno-button href="/r/docs/home" label="Success" variant="success" />
+<gno-button href="/r/docs/home" label="Caution outline" variant="caution outline" />
+
+Buttons are inline, so they also work inside text, lists, tables, alerts and columns:
+
+±±±markdown
+Ready? <gno-button href="https://gno.land" label="Visit gno.land" variant="outline" />
+±±±
+
+Ready? <gno-button href="https://gno.land" label="Visit gno.land" variant="outline" />
+
+Inside a table cell, write a ±|± in an attribute as ±&#124;± (for example ±label="A &#124; B"±): tables split cells on ±|± before the button is read.
+
+A tag that is not self-closing (±<gno-button ...>±), that misses ±href± or ±label±, or that is split over several lines is not a button: it is treated as raw HTML and removed. Buttons are not rendered inside ±<gno-foreign>± content.
+
 ### User Mentions and Bech32 Addresses
 
 Gno markdown automatically recognizes and renders user mentions and Bech32 addresses as clickable links.

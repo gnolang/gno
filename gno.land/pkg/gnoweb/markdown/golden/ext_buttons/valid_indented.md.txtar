@@ -1,0 +1,8 @@
+-- input.md --
+   <gno-button href="/r/test" label="Three spaces" />
+
+    <gno-button href="/r/test" label="Four spaces is code" />
+-- output.html --
+<p><a href="/r/test" class="gno-button">Three spaces</a></p>
+<pre><code>&lt;gno-button href=&quot;/r/test&quot; label=&quot;Four spaces is code&quot; /&gt;
+</code></pre>

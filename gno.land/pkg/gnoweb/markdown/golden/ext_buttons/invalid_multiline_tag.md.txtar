@@ -1,0 +1,5 @@
+-- input.md --
+<gno-button href="/r/test"
+label="split across lines" />
+-- output.html --
+<p><!-- raw HTML omitted --></p>

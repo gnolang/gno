@@ -7,16 +7,16 @@ x
 -- output.md --
 
 
-\   <gno-frame>
+   \<gno-frame>
 x
-\   </gno-frame>
+   \</gno-frame>
 
 -- output.html --
 <section class="gno-frame">
 <p>realm intro</p>
-<p>\   <!-- raw HTML omitted -->
+<p>&lt;gno-frame&gt;
 x
-\   <!-- raw HTML omitted --></p>
+&lt;/gno-frame&gt;</p>
 <p>realm footer</p>
 </section>
 <p>REALM AFTER</p>

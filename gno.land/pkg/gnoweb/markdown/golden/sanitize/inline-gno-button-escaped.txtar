@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: InlineText
+// CONTEXT: Name: **%s**
+-- input.md --
+<gno-button href="/r/evil" label="Claim" />
+-- output.md --
+\<gno\-button href="/r/evil" label="Claim" /\>
+-- output.html --
+<p>Name: <strong>&lt;gno-button href=&quot;/r/evil&quot; label=&quot;Claim&quot; /&gt;</strong></p>

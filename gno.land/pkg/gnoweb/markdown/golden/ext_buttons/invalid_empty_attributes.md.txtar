@@ -1,0 +1,7 @@
+-- input.md --
+<gno-button href="" label="Empty href" />
+
+<gno-button href="/r/test" label="   " />
+-- output.html --
+<p><!-- raw HTML omitted --></p>
+<p><!-- raw HTML omitted --></p>
