@@ -662,6 +662,31 @@ func TestMathOneExpressionPerLineIsLinear(t *testing.T) {
 	}
 }
 
+// Finding the containers of a $$ opener compared every open block with every
+// ancestor, which is quadratic in the nesting depth: 1 MiB of "$$" in 2000
+// nested list items took 22s, against 2s without math. goldmark is itself
+// quadratic in the depth, so the cost is compared with the same lines
+// without math: the quadratic version took over twenty times as long.
+func TestMathDisplayOpenerInDeepContainersIsLinear(t *testing.T) {
+	best := func(src string) time.Duration {
+		d := time.Duration(1<<63 - 1)
+		for range 3 {
+			runtime.GC()
+			start := time.Now()
+			renderMathMarkdown(t, src)
+			d = min(d, time.Since(start))
+		}
+		return d
+	}
+	for _, prefix := range []string{"- ", "> "} {
+		line := strings.Repeat(prefix, 1000) + "%s\n\n"
+		math := strings.Repeat(fmt.Sprintf(line, "$$"), 64)
+		text := strings.Repeat(fmt.Sprintf(line, "xx"), 64)
+		ratio := float64(best(math)) / float64(best(text))
+		assert.Less(t, ratio, 4.0, "%q: $$ took %.1fx the time of text", prefix, ratio)
+	}
+}
+
 // The expression is read from the parsed lines, without the container
 // prefix of the line it continues on.
 func TestMathInlineAcrossLinesInContainers(t *testing.T) {

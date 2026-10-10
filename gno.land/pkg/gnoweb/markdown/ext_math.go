@@ -714,13 +714,14 @@ func containerBlocks(parent ast.Node, pc parser.Context) []parser.Block {
 	if parent.Kind() == ast.KindDocument {
 		return nil
 	}
+	ancestors := map[ast.Node]bool{}
+	for n := parent; n != nil; n = n.Parent() {
+		ancestors[n] = true
+	}
 	var containers []parser.Block
 	for _, b := range pc.OpenedBlocks() {
-		for n := parent; n != nil; n = n.Parent() {
-			if n == b.Node {
-				containers = append(containers, b)
-				break
-			}
+		if ancestors[b.Node] {
+			containers = append(containers, b)
 		}
 	}
 	return containers
