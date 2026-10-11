@@ -181,9 +181,8 @@ a caller gives you. Return the result instead, and let the caller act on it.
 The [security guide](./gno-security-guide.md#53-accepting-an-attacker-callback-under-your-own-authority)
 covers this in full.
 
-The same holds the other way. Pass `cur` only to code you trust: with it, the
-callee can build a banker over your realm's address and keep it, which lets it
-spend your coins later.
+The same holds the other way. `cur` carries your realm's authority, so pass it
+only to code you trust.
 
 ### Construct "safe" objects
 
