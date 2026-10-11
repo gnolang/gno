@@ -270,7 +270,7 @@ func realmSourcePath(pkgPath string) (string, bool) {
 		return "", false
 	}
 
-	// "/r/gov/dao/v3/impl": the letter directory, then one or more segments.
+	// "/r/gov/dao/impl/v0": the letter directory, then one or more segments.
 	if len(rel) < len("/r/x") || rel[0] != '/' || rel[2] != '/' ||
 		(rel[1] != 'r' && rel[1] != 'p') {
 		return "", false

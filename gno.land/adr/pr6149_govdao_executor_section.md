@@ -2,7 +2,7 @@
 
 ## Context
 
-`r/gov/dao/v3/impl` renders a proposal page as a title, an author line, then
+`r/gov/dao/impl/v0` renders a proposal page as a title, an author line, then
 three blocks of prose with nothing between them: the proposer's description,
 the executor's description, and the line `Executor created in: <path>`. A voter
 reading it cannot tell which words come from the person asking for the vote and
@@ -99,8 +99,8 @@ same section helper rather than carrying its own copy of the disclosure.
 ## Consequences
 
 - Every proposal page and every golden covering one changes shape. Filetests in
-  `r/gov/dao/v3/impl`, `r/sys/namereg/v1` and `r/gnops/valopers` move with it,
-  and so does the render assertion in
+  `r/gov/dao/impl/v0` and `r/sys/namereg/v0` move with it, and so does the
+  render assertion in
   `gno.land/pkg/integration/testdata/govdao_execute_reject_proposal.txtar`.
 - `proposalStatus.String` is gone, replaced by `statusLine` and `tally`. The
   page assembles its own block rather than taking a rendered one from the
