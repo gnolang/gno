@@ -21,12 +21,12 @@ unexported, and change them only through functions you write.
 This applies to realms only. A `p/` package's globals freeze once its `init`
 has run, so a package keeps no state.
 
-An exported function can write your state even without a `realm` parameter,
-and then it cannot tell who called. So give every exported function that writes
-state a `realm` as its first parameter. That makes it a
+Any exported function can change your state, but without a `realm` parameter
+it can't tell who called. So give each exported function that writes state a
+`realm` as its first parameter, which makes it a
 [crossing function](./gno-interrealm-v2.md#5-crossing-functions-and-crossing-methods):
-the call enters your realm, and `cur.Previous()` tells you who called. Name the
-parameter `_` when you don't read it.
+`cur.Previous()` then tells you who called. Name the parameter `_` if you don't
+read it.
 
 ```go
 var counter int
@@ -91,8 +91,8 @@ Go's proverb is ["Documentation is for
 users"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=1147s). In Gno, that user
 may be someone deciding whether to call your realm, not a developer. Write each
 exported function's comment for them: say what the call does for them.
-gnoweb's `$help` page shows that comment next to the function's call form, so
-it is what a user reads before calling. From
+gnoweb's `$help` page shows this comment above the call, so it is the first
+thing a user reads. From
 [grc20](../../examples/gno.land/p/nt/grc20/v0/types.gno):
 
 ```go
@@ -136,14 +136,12 @@ func AdminOnlyFunction(cur realm) {
 ```
 
 - Never authorize with the signer,
-  [`unsafe.OriginCaller()`](./gno-stdlibs.md#origincaller). Any realm the user
+  [`unsafe.OriginCaller()`](./gno-stdlibs.md#origincaller): any realm the user
   calls could then act as that user towards yours, like Solidity's `tx.origin`.
-  Use it only to record who signed. Checking the direct caller is also what
-  lets a realm hold tokens and be called by other realms, as grc20 does.
-- To accept only a user's direct call, with no realm in between, call
+  Use it only to record who signed.
+- To accept only a call a user signed directly, call
   [`runtime.AssertOriginCall()`](./gno-stdlibs.md#assertorigincall). It panics
-  when the call comes through another named function or from a `maketx run`
-  script.
+  when another realm or a `maketx run` script makes the call.
 - A session key passes the same check as its master account. To refuse session
   keys on an endpoint, check `runtime.GetSessionInfo()`.
 - For an owner or a pause switch, reuse the
@@ -174,22 +172,19 @@ explains.
 
 ### Never call a caller-supplied function under your own authority
 
-A top-level function from a `/p/` package has no realm of its own. When your
-realm calls one, it runs as your realm and can change your state. A caller can
-pass you exactly such a function. So never call a callback or interface value
-a caller gives you. Return the result instead, and let the caller act on it.
-The [security guide](./gno-security-guide.md#53-accepting-an-attacker-callback-under-your-own-authority)
+Never call a function or interface value a caller passes you. A `/p/`
+function has no realm of its own, so it runs as your realm and can change your
+state. Return the result and let the caller act on it. Likewise, pass `cur`
+only to code you trust. The
+[security guide](./gno-security-guide.md#53-accepting-an-attacker-callback-under-your-own-authority)
 covers this in full.
-
-The same holds the other way. `cur` carries your realm's authority, so pass it
-only to code you trust.
 
 ### Construct "safe" objects
 
-A safe object is one other realms can hold and pass around without being able
-to misuse it. Each method that changes it takes the calling realm as `rlm` and
-checks two things: that the call comes from the realm that created the object,
-and that the admin called that realm.
+A safe object can be held and passed around by any realm, but only its creator
+can change it. Each method that changes it takes the caller's realm as `rlm`
+and checks that `rlm` is the realm that created the object, and that `rlm` was
+called by the admin.
 
 ```go
 type MySafeStruct struct {
@@ -223,9 +218,7 @@ func (s *MySafeStruct) Inc(_ int, rlm realm) {
 }
 ```
 
-Without the `home` check, any realm the admin calls could change the object.
-grc20's tellers make the same check. A realm creates the object in its `init`
-with `NewSafeStruct(0, cur)`. Other realms can then read it and pass it on.
+A realm creates the object in its `init` with `NewSafeStruct(0, cur)`.
 
 ### Choosing between Coins and GRC20 tokens
 
@@ -265,8 +258,7 @@ import "gno.land/p/nt/grc20/v0"
 var (
 	Token         *grc20.Token
 	privateLedger *grc20.PrivateLedger
-	// Keep the teller unexported: it is a spend capability. It is built from
-	// the ledger, which never leaves this realm, and it only works here.
+	// Unexported: whoever holds a teller can spend from the ledger.
 	userTeller grc20.Teller
 )
 
@@ -307,9 +299,8 @@ checks the outside fact, only that one of your agents reported it, so pick them
 with care. [gnorkle](../../examples/gno.land/p/demo/gnorkle/README.md) is one
 attempt at managing the agent list and the requests.
 
-gno.land has no built-in price feed. A realm that moves funds based on a fed
-value is only as safe as the feed: an attacker needs no bug in your code, just
-a bad number.
+gno.land has no built-in price feed. If a realm moves funds based on an
+outside value, a wrong value is enough to drain it, with no bug in your code.
 
 ### Test the attacker, not just the happy path
 
@@ -392,14 +383,11 @@ r/{namespace}/{name}/        your app and its state
 
 ### Ship more than code
 
-Anyone can read a realm's source and its `Render()` output on gnoweb. Treat
-them as your storefront: give strangers a `Render()` they can navigate, a
-`README.md`, and doc comments [written for users](#documentation-is-for-users).
-Plan for the client, for the indexers your
-[events](#emit-gno-events-to-make-life-off-chain-easier) feed, and for the docs
-they need. A `p/` package is a library for developers; a realm is an app for
-end users. If a realm needs pages of outside docs to be usable, put that text
-in its `Render()`.
+Anyone can read a realm's source and its `Render()` on gnoweb, so treat them
+as your storefront: a `Render()` strangers can navigate, a `README.md`, and doc
+comments [written for users](#documentation-is-for-users). A realm is an app
+for end users; if it needs pages of outside docs, put that text in its
+`Render()`.
 
 `Render()`'s path comes from the caller. Pass path segments and stored user
 strings through
