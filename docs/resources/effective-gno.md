@@ -86,7 +86,9 @@ ecosystem.
 Go's proverb is ["Documentation is for
 users"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=1147s). In Gno, that user
 may be someone deciding whether to call your realm, not a developer. Write each
-exported function's comment for them: say what the call does for them. From
+exported function's comment for them: say what the call does for them.
+gnoweb's `$help` page shows that comment next to the function's call form, so
+it is what a user reads before calling. From
 [grc20](../../examples/gno.land/p/nt/grc20/v0/types.gno):
 
 ```go
@@ -265,20 +267,27 @@ func BuyThing(cur realm) {
 }
 ```
 
-- Don't use `IsUser()`. It also accepts a `maketx run` script, whose coins never
-  leave the user's address. The amount check would pass with nothing paid.
+- Don't use `IsUser()`. It also accepts a `maketx run` script, which runs as the
+  realm `gno.land/e/<addr>/run` and whose coins never leave the user's address.
+  The amount check would pass with nothing paid.
 - Keep both checks. Without the caller check, `OriginSend()` can report coins
   you never got. Without the amount check, a user pays nothing.
 - A realm can't pull coins from its caller: `banker.SendCoins` only sends from
   the realm's own address. So this pair is the only way to take a payment.
 - For the strictest form, also call `runtime.AssertOriginCall()`, as `wugnot`'s
   `Deposit` does.
+- Creating a `BankerTypeOriginSend` banker runs the same `IsUserCall()` check,
+  and panics when it fails.
 
 #### GRC20 tokens
 
 GRC20 is Gno's version of ERC20, with `Approve` and `TransferFrom`. Every
 transfer runs the token's contract, which keeps control of the rules. That lets
 a token gate access, sit in a vault, or count votes in a DAO.
+
+`Approve` replaces the allowance rather than adding to it. To change one that
+isn't zero, set it to 0 first. Otherwise the spender can spend both the old and
+the new amount.
 
 ```go
 import "gno.land/p/nt/grc20/v0"
