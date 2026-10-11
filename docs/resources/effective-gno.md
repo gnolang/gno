@@ -170,6 +170,13 @@ could then use its methods to change your state. Return values instead, as the
 [security guide](./gno-security-guide.md#51-exposing-a-pointer-to-mutable-state)
 explains.
 
+### Script calls with `maketx run`
+
+To make several calls in one transaction, or pass arguments `maketx call`
+can't, write a short Gno script and send it with `maketx run`.
+[`Run`](../users/interact-with-gnokey.md#the-power-of-run) shows when to use
+it.
+
 ### Never call a caller-supplied function under your own authority
 
 Never call a function or interface value a caller passes you. A `/p/`
