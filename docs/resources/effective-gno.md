@@ -358,40 +358,37 @@ func ChangeOwner(cur realm, newOwner address) {
 
 ### Package naming and organization
 
+A project usually looks like this:
+
+```text
+p/{namespace}/{name}/        code other people can import, if any
+r/{namespace}/{name}/        your app and its state
+├── {name}.gno               main entry points
+├── admin.gno                privileged endpoints
+├── render.gno               Render()
+├── types.gno, errors.gno    once they grow
+└── {name}_test.gno
+```
+
+[`gno.land/r/sys/cla`](../../examples/gno.land/r/sys/cla) is laid out this way.
+
 - Name a package after the last part of its
-  [path](./gno-packages.md#package-path-structure), without the `/vN` suffix.
-  `gno.land/p/nt/avl/v0` is `package avl`, so nobody needs an alias to import
-  it. Keep the name short.
-- Put a project in one realm, `r/{namespace}/{name}`. Realms don't share data,
-  so add a second one only when you need it, such as an `r/{namespace}/auth`
-  that your other realms import.
-- Publish `p/{namespace}/{name}` only for code other people should use. Put
-  your own helpers in subdirectories of it.
-- Code in an `internal` directory can be imported only from the directory that
-  holds `internal`, or from below it. `mypackage/internal/helpers` can be
-  imported by `mypackage` and `mypackage/utils`, not from outside `mypackage`.
-
-### Suggested file names and layout
-
-Anyone can browse a realm's source on-chain, so its file names are part of its
-public face. Name each file for the one thing it holds: `<realm>.gno` for the
-main entry points, `render.gno` for `Render()`, `admin.gno` for privileged
-endpoints, then `types.gno` and `errors.gno` once those grow.
-[`gno.land/r/sys/cla`](../../examples/gno.land/r/sys/cla) splits into
-`cla.gno`, `admin.gno` and `render.gno`, with tests beside them.
-
-### Versioning and upgrades
-
-You upgrade by deploying a new version at a new
-[`/vN` path](./gno-packages.md#version-suffixes), next to the old one. Only a
-[`private`](./configuring-gno-projects.md#private) realm, which nothing can
-import, can be re-uploaded in place.
-
-If callers need one stable address, the realm can forward calls to an
-implementation it can swap, the way
-[`gno.land/r/gov/dao`](../../examples/gno.land/r/gov/dao/proxy.gno) keeps the
-current implementation in a variable. A simpler realm keeps its versions side
-by side.
+  [path](./gno-packages.md#package-path-structure), without the `/vN` suffix:
+  `gno.land/p/nt/avl/v0` is `package avl`. Keep the name short.
+- Name each file for the one thing it holds. Anyone can read a realm's source
+  on-chain, so file names are part of its public face.
+- Keep a project in one realm. Realms don't share data, so add a second one
+  only when you need it, such as an `r/{namespace}/auth` that your other realms
+  import.
+- Publish a `p/` package only for code other people should use. Put your own
+  helpers in subdirectories of it. A directory named `internal` can be imported
+  only from the directory that holds it, or from below it.
+- To upgrade, deploy a new version at a new
+  [`/vN` path](./gno-packages.md#version-suffixes) next to the old one. Only a
+  [`private`](./configuring-gno-projects.md#private) realm can be re-uploaded in
+  place. For one stable address, forward calls to an implementation you can
+  swap, as [`gno.land/r/gov/dao`](../../examples/gno.land/r/gov/dao/proxy.gno)
+  does.
 
 ### Ship more than code
 
