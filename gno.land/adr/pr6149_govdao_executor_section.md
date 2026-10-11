@@ -45,11 +45,14 @@ precedes it: the title is escaped and folded to one line. A description
 imitating the disclosure therefore renders below the real one, and a voter
 reading from the top meets the DAO's statement first.
 
-A horizontal rule separates the two sections, and only the page may draw one:
-every line of the description that would render as a thematic break is escaped,
-so it prints its own dashes as text. Nothing else in the description is touched,
-which is what keeps the portfolio headings and the token lists that proposals
-already carry.
+A horizontal rule separates the two sections, and the description cannot draw
+one: every line of it that would render as a thematic break is escaped, so it
+prints its own dashes as text, and a fenced block it leaves open is closed,
+since the page's own rule would otherwise render inside it. Nothing else in the
+description is touched, which is what keeps the portfolio headings and the token
+lists that proposals already carry. One rule on the page is the renderer's
+rather than the DAO's: goldmark's footnote extension draws an `<hr>` above the
+footnote list, at the foot of the document.
 
 That makes the rule a mark of the page's own chrome rather than a decoration.
 It does not make the section unforgeable: a description can still write a line
@@ -105,12 +108,15 @@ same section helper rather than carrying its own copy of the disclosure.
 - `proposalStatus.String` is gone, replaced by `statusLine` and `tally`. The
   page assembles its own block rather than taking a rendered one from the
   status type.
-- Rendering a description now scans it once, to escape the lines that would draw
-  a rule. That is the same order of work as printing it, and descriptions carry
-  no clamp: their length is bounded by what the proposer paid to store.
+- Rendering a description now walks it line by line, to escape the lines that
+  would draw a rule, and the walk is what the page pays for: a 100KB description
+  measured 4,663,607,836 gas against the 3,000,000,000 query cap, and the page
+  crosses it near 64KB. So the description is clamped to `maxRenderedDescription`
+  before the walk, like every other slot on the page; the stored proposal keeps
+  every byte.
 - Adding declarations to a genesis realm shifts the balances asserted in
   `gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar`, which
-  its own note says to re-derive. Both lines move by 666100ugnot here. Comments
+  its own note says to re-derive. Both lines move by 899900ugnot here. Comments
   do not move them: 7001 bytes of them added to `render.gno` leave both
   untouched.
 - A hostile creation realm renders exactly as it did: escaped, on one line,

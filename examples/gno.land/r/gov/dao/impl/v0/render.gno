@@ -133,7 +133,9 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out += renderExecution(p)
 	out += "---\n\n"
 
-	if description := escapeThematicBreaks(p.Description()); description != "" {
+	// Clamped before it is escaped, per clamp.gno: the pass below walks every
+	// line of the description, and the walk is what the render pays for.
+	if description := escapeThematicBreaks(clampField(p.Description(), maxRenderedDescription)); description != "" {
 		out += "### Description\n\n"
 		out += description
 		out += "\n\n---\n\n"
@@ -145,41 +147,116 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 }
 
 // escapeThematicBreaks backslashes every line of the description that would
-// render as a horizontal rule, leaving the rule to the page. Fenced blocks are
-// skipped, where a rule is already literal text.
+// render as a horizontal rule, leaving the rule to the page, and closes a
+// fenced block the description leaves open. Fenced blocks are skipped, where a
+// rule is already literal text.
 func escapeThematicBreaks(description string) string {
-	if !strings.ContainsAny(description, "-_*") {
+	if !strings.ContainsAny(description, "-_*`~") {
 		return description
 	}
 
 	lines := strings.Split(description, "\n")
-	fenced := false
+	fence := ""
+	html := false
+	above := ""
 	for i, line := range lines {
-		// A CRLF description leaves a trailing carriage return on every line,
-		// which gnoweb drops before it reads the line.
-		trimmed := strings.TrimSuffix(line, "\r")
-		if isCodeFence(trimmed) {
-			fenced = !fenced
+		// gnoweb drops every carriage return before it reads the line, so the
+		// checks drop them too: a CRLF description leaves one at the end of
+		// every line, and a hand-written one can carry them inside a run of
+		// dashes, which is still a rule to the renderer.
+		trimmed := strings.ReplaceAll(line, "\r", "")
+
+		if fence != "" {
+			if closesFence(trimmed, fence) {
+				fence = ""
+			}
+			above = trimmed
 			continue
 		}
-		if !fenced && isThematicBreak(trimmed) {
+
+		if html && strings.TrimSpace(trimmed) == "" {
+			html = false
+		}
+
+		if run := openingFence(trimmed); run != "" && !html {
+			fence = run
+		} else if opensHTMLBlock(trimmed) {
+			html = true
+		} else if isThematicBreak(trimmed) && !underlinesSetext(trimmed, above) {
 			lines[i] = "\\" + line
 		}
+
+		above = trimmed
+	}
+
+	if fence != "" {
+		// Everything the page appends below would otherwise land inside the
+		// block the description left open: the page's own rule, the heading
+		// above it and the whole action bar, read as code by the voter.
+		return strings.Join(lines, "\n") + "\n" + fence
 	}
 
 	return strings.Join(lines, "\n")
 }
 
-// isCodeFence reports whether the line opens or closes a fenced code block.
-func isCodeFence(line string) bool {
+// openingFence returns the run of backticks or tildes that opens a fenced
+// block, "" where the line opens none. CommonMark forbids a backtick anywhere
+// in a backtick fence's info string, so a line carrying one opens nothing and
+// the rules under it stay the page's to escape.
+func openingFence(line string) string {
 	line = trimIndent(line)
-	return strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~")
+
+	var mark byte
+	switch {
+	case strings.HasPrefix(line, "```"):
+		mark = '`'
+	case strings.HasPrefix(line, "~~~"):
+		mark = '~'
+	default:
+		return ""
+	}
+
+	run := 0
+	for run < len(line) && line[run] == mark {
+		run++
+	}
+	if mark == '`' && strings.ContainsRune(line[run:], '`') {
+		return ""
+	}
+
+	return line[:run]
+}
+
+// closesFence reports whether the line closes the open block: the same
+// character, a run at least as long as the opener's, and nothing after it but
+// whitespace. A shorter run, or one of the other character, is content.
+func closesFence(line, fence string) bool {
+	line = trimIndent(line)
+
+	run := 0
+	for run < len(line) && line[run] == fence[0] {
+		run++
+	}
+
+	return run >= len(fence) && strings.TrimSpace(line[run:]) == ""
+}
+
+// opensHTMLBlock reports whether the line starts a block of raw HTML, which
+// runs to the next blank line and inside which a fence line opens nothing. Any
+// line opening with a tag counts: the pass only has to stop trusting the fence
+// tracker there, and reading one line too many as HTML costs nothing, since
+// the rules inside it are escaped either way.
+func opensHTMLBlock(line string) bool {
+	return strings.HasPrefix(trimIndent(line), "<")
 }
 
 // isThematicBreak reports whether the line renders as a horizontal rule, by
-// the CommonMark rule. A setext underline is the same run of dashes.
+// the CommonMark rule. Indentation is not measured: goldmark measures it from
+// the enclosing container, so four spaces under a list item is a rule there
+// and indented code at the top level, and escaping both costs a backslash
+// inside an indented code block rather than a rule the page did not draw.
 func isThematicBreak(line string) bool {
-	line = trimIndent(line)
+	line = strings.TrimLeft(line, " \t")
 	if line == "" {
 		return false
 	}
@@ -201,6 +278,37 @@ func isThematicBreak(line string) bool {
 	}
 
 	return count >= 3
+}
+
+// underlinesSetext reports whether a dash run underlines a setext heading
+// rather than drawing a rule, which it does when the line above is paragraph
+// text: CommonMark gives the heading precedence there, so gnoweb draws no rule
+// and escaping the run would cost the proposer a heading they wrote. A line
+// above that opens a block of its own is not paragraph text, and the run
+// closes that block as a rule.
+func underlinesSetext(rule, above string) bool {
+	rule = strings.TrimLeft(rule, " \t")
+	if rule == "" || rule[0] != '-' {
+		return false
+	}
+
+	above = strings.TrimLeft(above, " \t")
+	if above == "" {
+		return false
+	}
+
+	switch above[0] {
+	case '-', '*', '+', '>', '#', '`', '~', '=', '|', '<':
+		return false
+	}
+	if above[0] >= '0' && above[0] <= '9' {
+		rest := strings.TrimLeft(above, "0123456789")
+		if strings.HasPrefix(rest, ". ") || strings.HasPrefix(rest, ") ") {
+			return false
+		}
+	}
+
+	return true
 }
 
 // trimIndent drops the up-to-three leading spaces a block marker may carry. A

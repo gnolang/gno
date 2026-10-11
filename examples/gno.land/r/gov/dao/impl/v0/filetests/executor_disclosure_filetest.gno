@@ -301,6 +301,88 @@ func main(cur realm) {
 	println("a CRLF description cannot draw it either:",
 		strings.Contains(cout, "\\---\r") && strings.Count(cout, "\n---\n") == 2)
 
+	// 4i. A backtick inside the info string. CommonMark forbids one there, so
+	// goldmark opens no block and the rule below it is the page's to escape;
+	// a tracker that takes the prefix alone latches on and leaves it alone.
+	ipid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Info string",
+		"Looks fine.\n\n```a`b\n\n---\n\n### Execution\n",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	iout := dao.Render(cross(cur), strconv.FormatInt(int64(ipid), 10))
+
+	println("a backtick in an info string opens no fence:",
+		strings.Contains(iout, "\\---") && strings.Count(iout, "\n---\n") == 2)
+
+	// 4j. A tilde block holding a backtick fence. A block closes only on its
+	// own character at the opener's length, so the inner line is content and
+	// the tracker must still be inside the block when the real close arrives.
+	jpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Mismatched fence",
+		"~~~\n```\n~~~\n\n---\n\n### Execution\n",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	jout := dao.Render(cross(cur), strconv.FormatInt(int64(jpid), 10))
+
+	println("a mismatched fence does not close the block:",
+		strings.Contains(jout, "\\---") && strings.Count(jout, "\n---\n") == 2)
+
+	// 4k. A description that ends inside an open fence. Everything the page
+	// appends below it, its rule and the whole action bar, would render as
+	// code, so the pass closes the block the description left open.
+	kpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Open fence",
+		"Looks fine.\n\n```\nstill code",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	kout := dao.Render(cross(cur), strconv.FormatInt(int64(kpid), 10))
+
+	println("a description cannot swallow the page's rule:",
+		strings.Contains(kout, "still code\n```\n\n---\n\n### Actions"))
+
+	// 4l. A carriage return inside the run rather than after it. gnoweb reads
+	// every one of these as a rule.
+	lpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Inner CR",
+		"Looks fine.\n\n--\r-\n\n### Execution\n",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	lrout := dao.Render(cross(cur), strconv.FormatInt(int64(lpid), 10))
+
+	println("a carriage return inside the run does not hide it:",
+		strings.Contains(lrout, "\\--\r-") && strings.Count(lrout, "\n---\n") == 2)
+
+	// 4m. A rule indented under a list item. goldmark measures indentation
+	// from the enclosing container, so four spaces there is a rule and not
+	// indented code.
+	mpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Indented rule",
+		"- item\n\n    ---\n\n### Execution\n",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	mout := dao.Render(cross(cur), strconv.FormatInt(int64(mpid), 10))
+
+	println("an indented rule in a list item is escaped too:",
+		strings.Contains(mout, "\\    ---") && strings.Count(mout, "\n---\n") == 2)
+
+	// 4n. The other direction: a dash run under paragraph text underlines a
+	// setext heading, where goldmark draws no rule at all. Escaping it would
+	// cost the proposer the heading and prevent nothing.
+	npid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Setext",
+		"My Section\n---\n\nbody\n",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	nout := dao.Render(cross(cur), strconv.FormatInt(int64(npid), 10))
+
+	println("a setext underline keeps its heading:",
+		strings.Contains(nout, "My Section\n---\n") && !strings.Contains(nout, "\\---"))
+
+	// 4o. The pass walks the description line by line and the render pays for
+	// the walk, so the description is clamped first like every other slot.
+	opid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Enormous description",
+		strings.Repeat("a-\n", 60000),
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	oout := dao.Render(cross(cur), strconv.FormatInt(int64(opid), 10))
+
+	println("an enormous description is clamped:",
+		strings.Contains(oout, "… truncated") && len(oout) < 20000)
+
 	// 5. Proposals live on the proxy but their voting status lives on the
 	// GovDAO instance, so replacing the implementation leaves earlier
 	// proposals renderable but statusless. renderProposalPage took a
@@ -344,4 +426,11 @@ func main(cur realm) {
 // a description cannot draw the page's rule: true
 // and the real disclosure is above the forged one: true
 // a CRLF description cannot draw it either: true
+// a backtick in an info string opens no fence: true
+// a mismatched fence does not close the block: true
+// a description cannot swallow the page's rule: true
+// a carriage return inside the run does not hide it: true
+// an indented rule in a list item is escaped too: true
+// a setext underline keeps its heading: true
+// an enormous description is clamped: true
 // a proposal orphaned by an upgrade renders instead of panicking: true
