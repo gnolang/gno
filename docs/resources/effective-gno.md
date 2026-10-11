@@ -1,37 +1,28 @@
 # Effective Gno
 
-Welcome to the guide for writing effective Gno code. This document is designed
-to help you understand the nuances of Gno and how to use it effectively.
-
-Before we dive in, it's important to note that Gno shares several similarities
-with Go. Therefore, if you haven't already, we highly recommend reading
-["Effective Go"](https://go.dev/doc/effective_go) as a primer.
-
-## Disclaimer
-
-Gno is a young language. The practices we've identified are based on its current
-state. As Gno evolves, new practices will emerge, and some current ones may
-become obsolete. We welcome your contributions and feedback. Stay updated and
-help shape Gno's future!
+This guide covers the practices that make Gno code safe and easy to read. Gno
+is close to Go, so read ["Effective Go"](https://go.dev/doc/effective_go) first
+if you haven't.
 
 ## Counter-intuitive good practices
 
-This section highlights some Gno good practices that might seem
-counter-intuitive, especially if you're coming from a Go background.
+These practices may surprise you if you come from Go.
 
 ### Embrace global variables in realms
 
-A realm's global variables are its state: the GnoVM saves them after each
-transaction and restores them for the next, with no database to set up. Keep
-them unexported, and let callers read or change them only through functions you
-write. This holds for realms alone: a `p/` package's globals are frozen once its
-`init` has run, so a package keeps no state of its own.
+In a realm, global variables are the state. The GnoVM saves them after each
+transaction and loads them for the next, so you need no database. Keep them
+unexported, and change them only through functions you write.
 
-A function other realms or users call to change your state takes a `realm` as
-its first parameter, which makes it a
-[crossing function](./gno-interrealm.md#crossing-functions-and-crossing-methods):
-the call enters your realm, and `cur.Previous()` on that parameter names the
-caller. Write `_` instead of `cur` when the function never reads it.
+This applies to realms only. A `p/` package's globals freeze once its `init`
+has run, so a package keeps no state.
+
+An exported function can write your state even without a `realm` parameter,
+and then it cannot tell who called. So give every exported function that writes
+state a `realm` as its first parameter. That makes it a
+[crossing function](./gno-interrealm-v2.md#5-crossing-functions-and-crossing-methods):
+the call enters your realm, and `cur.Previous()` tells you who called. Name the
+parameter `_` when you don't read it.
 
 ```go
 var counter int
@@ -47,22 +38,25 @@ func IncCounter(_ realm) {
 
 ### Embrace `panic`
 
-An unrecovered `panic` aborts the transaction and discards every change it
-made, while a returned `error` is ordinary data that stops nothing and undoes
-nothing. So a realm panics on invalid input or a failed precondition, where Go
-code would return an error. A reusable `p/` package returns an `error` and lets
-its caller decide, and panics only in a `Must*` or `Assert*` wrapper whose name
-says so, the way
+In Gno, `panic` is the normal way to refuse a call. A panic that nothing
+recovers aborts the transaction and reverts every change it made. A returned
+`error` does neither: it is plain data, and the changes stay.
+
+So a realm panics on bad input or a failed check, where Go would return an
+error. A `p/` package returns an `error` and lets its caller decide. It panics
+only in a wrapper named `Must*` or `Assert*`, the way
 [`gno.land/p/onbloc/uint256/v0`](../../examples/gno.land/p/onbloc/uint256/v0/uint256.gno)
-pairs `FromDecimal` with `MustFromDecimal`. How a panic crosses realms is in
-[the interrealm spec](./gno-interrealm.md#panic-and-revivefn).
+pairs `FromDecimal` with `MustFromDecimal`.
+
+A caller [cannot recover](./gno-interrealm-v2.md#9-panic-and-cross-realm-boundary)
+a panic raised in your realm. The whole transaction aborts.
 
 ### Understand the importance of `init()`
 
-`init()` runs once, when the realm is deployed, so it is the realm's
-constructor rather than a setup step run at every start as in Go. Use it for
-what only the deployment knows, such as the deployer, and to register the realm
-with another one. A value known in advance is set where its global is declared.
+`init()` runs once, when the realm is deployed. It is the realm's constructor.
+Use it for what only the deployment knows, such as who deployed the realm, and
+to register the realm with another one. Set a value you know in advance where
+its global is declared.
 
 ```go
 var admin address
@@ -75,13 +69,13 @@ func init(cur realm) {
 
 ### A little dependency is better than a little copying
 
-Go's proverb runs the other way: ["A little copying is better than a little
-dependency"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=568s). On gno.land a
-published package that others can import can never be overwritten by its author,
-since the chain refuses it, and its source is public. So importing a small,
-widely used and audited `p/` package is safer than maintaining a copy, and a
-user reading your realm sees parts they may already trust. Dependency code still
-needs vetting, [whatever the ecosystem][sc-attack].
+Go says the opposite: ["A little copying is better than a little
+dependency"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=568s). On gno.land,
+a package others can import can never be changed by its author, and its source
+is public. So import a small, widely used, audited `p/` package rather than
+copying it. Users reading your realm then see parts they may already trust.
+Still vet what you import: [supply-chain attacks][sc-attack] happen in every
+ecosystem.
 
 [sc-attack]: https://en.wikipedia.org/wiki/Supply_chain_attack
 
@@ -89,11 +83,10 @@ needs vetting, [whatever the ecosystem][sc-attack].
 
 ### Documentation is for users
 
-Go's ["Documentation is for
-users"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=1147s) goes further in
-Gno, where the reader of a comment can be an end user deciding whether to call
-your realm, not only a developer. Write each exported function's comment for
-that reader: what calling it does for them. Here's an excerpt from
+Go's proverb is ["Documentation is for
+users"](https://www.youtube.com/watch?v=PAAkCSZUG1c&t=1147s). In Gno, that user
+may be someone deciding whether to call your realm, not a developer. Write each
+exported function's comment for them: say what the call does for them. From
 [grc20](../../examples/gno.land/p/nt/grc20/v0/types.gno):
 
 ```go
@@ -111,19 +104,19 @@ type Teller interface {
 
 ### Reflection is never clear
 
-Gno has no `reflect` package, as the [standard library
-table](./go-gno-compatibility.md#stdlibs) shows. Write the explicit code
-instead: users read on-chain code before calling it, and code
-without reflection is easier for them to read and audit.
+Gno has no `reflect` package, as the
+[standard library table](./go-gno-compatibility.md#stdlibs) shows. Write
+explicit code instead. Users read on-chain code before calling it, and explicit
+code is easier for them to check.
 
 ## Gno good practices
 
 ### Contract-level access control
 
-Put each privileged endpoint behind a check of its caller, read with
-`cur.Previous().Address()` on the `cur realm` parameter of a crossing function:
-another realm if one called it, otherwise the user, much like Solidity's
-`msg.sender`.
+Check who called before doing anything privileged. In a crossing function,
+`cur.Previous().Address()` is the caller: the user's address when a user called
+you directly, or the calling realm's address when another realm did. It plays
+the role of Solidity's `msg.sender`.
 
 ```go
 var admin address // set in init(), as above
@@ -136,83 +129,77 @@ func AdminOnlyFunction(cur realm) {
 }
 ```
 
-Checking the immediate caller rather than the signer lets a contract own
-tokens or coins and be called by other contracts without putting the signer's
-funds at risk. The default grc20 implementation works this way.
-
-Never use [`unsafe.OriginCaller()`](./gno-stdlibs.md#origincaller) for access
-control. It is Gno's `tx.origin`: a malicious realm the signer calls can act as
-the signer towards yours, so keep it for recording who signed. A function that
-must run only as a signer's direct call can enforce that with
-[`runtime.AssertOriginCall()`](./gno-stdlibs.md#assertorigincall). It panics
-unless the signer's `gnokey maketx call` entered that function directly: a call
-through another named function, or from a `maketx run` script, panics.
-
-For common needs, reuse the
-[access-control helpers](./community-packages.md#access-control-helpers).
-A session key signs as its master account, so it passes every
-`cur.Previous().Address()` check that account passes. An endpoint that must
-refuse session keys checks `runtime.GetSessionInfo()`.
+- Never authorize with the signer,
+  [`unsafe.OriginCaller()`](./gno-stdlibs.md#origincaller). Any realm the user
+  calls could then act as that user towards yours, like Solidity's `tx.origin`.
+  Use it only to record who signed. Checking the direct caller is also what
+  lets a realm hold tokens and be called by other realms, as grc20 does.
+- To accept only a user's direct call, with no realm in between, call
+  [`runtime.AssertOriginCall()`](./gno-stdlibs.md#assertorigincall). It panics
+  when the call comes through another named function or from a `maketx run`
+  script.
+- A session key passes the same check as its master account. To refuse session
+  keys on an endpoint, check `runtime.GetSessionInfo()`.
+- For an owner or a pause switch, reuse the
+  [access-control helpers](./community-packages.md#access-control-helpers)
+  rather than writing your own.
 
 ### Design your realm as a public API
 
-In Go, the boundary sits around your whole program. In Gno, every exported
-function of a realm is an endpoint any user or realm can call, so check the
-caller there and keep the logic in unexported functions.
+Every exported function of a realm is an endpoint that any user or realm can
+call. Read the caller there, then pass it to unexported functions that do the
+work.
 
 ```go
-var admin address // set in init()
-
 func PublicMethod(cur realm, nb int) {
 	caller := cur.Previous().Address()
-	if caller != admin {
-		panic("caller is not the admin")
-	}
 	privateMethod(caller, nb)
 }
 
 func privateMethod(caller address, nb int) { /* ... */ }
 ```
 
-`privateMethod` is unexported, so no other realm can call it, and it can trust
-the address it receives. An exported function returning a pointer to stored
-state, such as an `*avl.Tree`, hands its mutating methods to every caller, so
-return values instead, per the
-[security guide](./gno-security-guide.md#51-exposing-a-pointer-to-mutable-state).
+No other realm can call `privateMethod`, so it can trust the address it gets.
+
+Never return a pointer to stored state, such as an `*avl.Tree`. Every caller
+could then use its methods to change your state. Return values instead, as the
+[security guide](./gno-security-guide.md#51-exposing-a-pointer-to-mutable-state)
+explains.
 
 ### Never call a caller-supplied function under your own authority
 
-A function declared in a realm runs under that realm's authority, and a
-closure under the authority of the realm that created it, wherever either is
-called from. A top-level function declared in a `/p/` package has no realm of
-its own, so when your realm calls it, it runs as your realm and can rewrite
-your state. A caller can hand you exactly such a function. So never invoke a
-callback or interface value a caller supplies: return the result and let the
-caller act on it.
+A top-level function from a `/p/` package has no realm of its own. When your
+realm calls one, it runs as your realm and can change your state. A caller can
+pass you exactly such a function. So never call a callback or interface value
+a caller gives you. Return the result instead, and let the caller act on it.
 The [security guide](./gno-security-guide.md#53-accepting-an-attacker-callback-under-your-own-authority)
-covers the vector in full.
+covers this in full.
+
+The same holds the other way. Pass `cur` only to code you trust: with it, the
+callee can build a banker over your realm's address and keep it, which lets it
+spend your coins later.
 
 ### Construct "safe" objects
 
-A safe object is one other realms can hold and pass around, even by pointer,
-without being able to misuse it. Each mutating method takes the calling realm
-as `rlm` and checks who called that realm, so any realm the admin is calling
-can change it. To keep writes in the realm that created the object, also
-compare `rlm.PkgPath()` with that realm, as grc20's tellers do.
+A safe object is one other realms can hold and pass around without being able
+to misuse it. Each method that changes it takes the calling realm as `rlm` and
+checks two things: that the call comes from the realm that created the object,
+and that the admin called that realm.
 
 ```go
 type MySafeStruct struct {
 	counter int
 	admin   address
+	home    string // path of the realm that created the object
 }
 
-// A /p/ package cannot declare crossing functions, so the realm comes after a
-// placeholder `_ int` that callers pass 0 for, as p/nt/ownable does.
+// This is /p/ code, which cannot declare crossing functions, so the caller's
+// realm comes after a placeholder `_ int` that callers pass as 0.
 func NewSafeStruct(_ int, rlm realm) *MySafeStruct {
 	if !rlm.IsCurrent() {
 		panic("realm handle is not the live caller")
 	}
-	return &MySafeStruct{admin: rlm.Previous().Address()}
+	return &MySafeStruct{admin: rlm.Previous().Address(), home: rlm.PkgPath()}
 }
 
 func (s *MySafeStruct) Counter() int { return s.counter }
@@ -221,6 +208,9 @@ func (s *MySafeStruct) Inc(_ int, rlm realm) {
 	if !rlm.IsCurrent() {
 		panic("realm handle is not the live caller")
 	}
+	if rlm.PkgPath() != s.home {
+		panic("only the creating realm can change this")
+	}
 	if rlm.Previous().Address() != s.admin {
 		panic("permission denied")
 	}
@@ -228,38 +218,38 @@ func (s *MySafeStruct) Inc(_ int, rlm realm) {
 }
 ```
 
-A realm creates one in its `init` with `NewSafeStruct(0, cur)` and hands it to
-other realms, which can read it and pass it on.
+Without the `home` check, any realm the admin calls could change the object.
+grc20's tellers make the same check. A realm creates the object in its `init`
+with `NewSafeStruct(0, cur)`. Other realms can then read it and pass it on.
 
 ### Choosing between Coins and GRC20 tokens
 
-Coins are simple, and the chain fixes their rules. GRC20 tokens run contract
-code, so they can do whatever their contract allows. Choose by which of the two
-you need.
+Coins are simple, and the chain sets their rules. GRC20 tokens are contracts,
+so they follow whatever rules their code defines. Pick the one your realm
+needs.
 
 #### Coins
 
-Coins are balances the chain keeps outside the GnoVM. A realm issues its own
-denom through a [banker](./gno-stdlibs.md#banker), which can also
-[burn](./gno-stdlibs.md#removecoin) that denom from any holder's balance. A
-plain bank transaction moves coins and a bank query reads a balance; neither
-runs contract code. A denom listed in the chain's `restricted_denoms` parameter
-can be sent only from accounts the chain has whitelisted.
+Coins are balances the chain keeps outside the GnoVM. Sending them or reading a
+balance runs no contract code. A realm can issue its own denom through a
+[banker](./gno-stdlibs.md#banker), and can [burn](./gno-stdlibs.md#removecoin)
+that denom from any holder. A denom listed in the chain's `restricted_denoms`
+parameter can be sent only from whitelisted accounts.
 
-Read one balance with `GetCoin(addr, denom)` rather than `GetCoins(addr)`,
-which reads every denom the address holds. Anyone can send any address a new
-denom, so `GetCoins` on a caller-supplied address costs what a third party
-chose, and enough denoms make your function impossible to call. `GetCoin`
-panics on a malformed denom, so validate one you do not control first.
+To read one balance, use `GetCoin(addr, denom)`, not `GetCoins(addr)`.
+`GetCoins` reads every denom the address holds, and anyone can send an address
+new denoms. Enough of them make your function too expensive to call. `GetCoin`
+panics on a malformed denom, so validate a denom you didn't choose.
 
 #### Verifying inbound Coin payments
 
-Gno has no `payable` keyword: a `maketx call` that attaches coins fails unless
-the called realm reads them with `unsafe.OriginSend()`. That returns the coins
-attached to the transaction, not the coins your realm received. Pair it with
-`cur.Previous().IsUserCall()`, which holds only when a user's `maketx call`
-entered your realm directly, so the `-send` coins are known to have landed at
-your realm's address:
+Gno has no `payable` keyword. A `maketx call` that sends coins fails unless the
+realm reads them with `unsafe.OriginSend()`.
+
+`OriginSend()` returns the coins attached to the transaction, not the coins
+your realm received. So pair it with `cur.Previous().IsUserCall()`. That check
+passes only when a user's `maketx call` reached your realm directly, which is
+when the coins landed at your address.
 
 ```go
 import "chain/runtime/unsafe"
@@ -275,20 +265,20 @@ func BuyThing(cur realm) {
 }
 ```
 
-`IsUser()` is not enough: it also accepts a `maketx run` script, whose `-send`
-coins never leave the signer's address, so the amount check passes while nothing
-reached your realm. Keep both checks: without the guard, `OriginSend()`
-overstates what arrived, and without the amount check, a user pays nothing. A
-realm cannot pull coins from its caller, since `banker.SendCoins` sends only
-from the realm's own address, so this pair is the only way to take a payment.
-For the strictest form, add `runtime.AssertOriginCall()`, as `wugnot`'s
-`Deposit` does.
+- Don't use `IsUser()`. It also accepts a `maketx run` script, whose coins never
+  leave the user's address. The amount check would pass with nothing paid.
+- Keep both checks. Without the caller check, `OriginSend()` can report coins
+  you never got. Without the amount check, a user pays nothing.
+- A realm can't pull coins from its caller: `banker.SendCoins` only sends from
+  the realm's own address. So this pair is the only way to take a payment.
+- For the strictest form, also call `runtime.AssertOriginCall()`, as `wugnot`'s
+  `Deposit` does.
 
 #### GRC20 tokens
 
-GRC20 is Gno's ERC20, `Approve` and `TransferFrom` included. Every transfer runs
-the contract that defines the token, which keeps control over its rules, so a
-token can gate access, sit in a vault or count votes in a DAO.
+GRC20 is Gno's version of ERC20, with `Approve` and `TransferFrom`. Every
+transfer runs the token's contract, which keeps control of the rules. That lets
+a token gate access, sit in a vault, or count votes in a DAO.
 
 ```go
 import "gno.land/p/nt/grc20/v0"
@@ -318,69 +308,67 @@ See also [`gno.land/r/demo/defi/foo20`](../../examples/gno.land/r/demo/defi/foo2
 
 #### Wrapping Coins
 
-A realm can wrap a coin in a GRC20 token: a user deposits the coin and receives
-the token, which then moves under the contract's rules, and withdrawing burns
-the token and returns the coin.
+A realm can wrap a coin in a GRC20 token. A user deposits the coin and gets the
+token, which then follows the contract's rules. Withdrawing burns the token and
+returns the coin.
 [`gno.land/r/gnoland/wugnot`](../../examples/gno.land/r/gnoland/wugnot) wraps
 `ugnot` this way.
 
 ### Do not trust on-chain randomness
 
-The top-level `math/rand` functions draw from a
-[fixed seed](../../gnovm/stdlibs/math/rand/rand.gno), and any seed a contract
-computes instead is public. A lottery with real stakes therefore needs
-commit-reveal or an external source.
+The top-level `math/rand` functions use a
+[fixed seed](../../gnovm/stdlibs/math/rand/rand.gno). Any seed a contract
+computes is public too. So a lottery with real stakes needs commit-reveal or an
+outside source of randomness.
 
 ### Bring off-chain data on-chain with oracles
 
-An oracle is an agreement with off-chain agents you choose to trust. The
-chain never verifies the off-chain fact, only that a whitelisted agent
-attested to it, so choose your agents accordingly.
-[gnorkle](../../examples/gno.land/p/demo/gnorkle/README.md) already manages
-the agent whitelists and requests.
-gno.land has no built-in price feed, so a realm that moves funds based on a
-fed value is only as secure as whoever provides that value: an attacker does
-not need a bug in your code, only a bad number in the feed.
+An oracle is a set of off-chain agents you choose to trust. The chain never
+checks the outside fact, only that one of your agents reported it, so pick them
+with care. [gnorkle](../../examples/gno.land/p/demo/gnorkle/README.md) manages
+the agent list and the requests.
+
+gno.land has no built-in price feed. A realm that moves funds based on a fed
+value is only as safe as the feed: an attacker needs no bug in your code, just
+a bad number.
 
 ### Test the attacker, not just the happy path
 
-The test kinds are covered in [the testing guide](./gno-testing.md). What
-realm tests add is the execution context: the `testing` package lets you call
-your realm as someone else.
+[The testing guide](./gno-testing.md) covers the kinds of tests. In a realm,
+the `testing` package also lets you call your realm as someone else:
 
 - `testing.NewUserRealm` and `testing.NewCodeRealm` stand in for a user or
   another contract.
 - `testing.SetRealm` and `testing.SetOriginCaller` set the caller.
 - `testing.IssueCoins` and `testing.SkipHeights` set up funds and time.
-  `testing.SetOriginSend` only sets what `OriginSend()` reports and moves no
-  coins.
+- `testing.SetOriginSend` sets what `OriginSend()` reports. It moves no coins.
 
-Use them to attack your own realm: simulate an intermediary contract and prove
-your [payment check](#verifying-inbound-coin-payments) cannot be bypassed.
+Use them to attack your own realm. For example, call it through a fake
+intermediary contract and prove your
+[payment check](#verifying-inbound-coin-payments) holds.
 
 ### Choose storage types by access pattern
 
-A `map` or slice is stored as one object, so reading or updating one element
-loads or rewrites all of it, while a tree stores its nodes or leaf pages
-separately, so touching one key loads only the path to it.
-Keep maps and slices for small, bounded state, and put anything that grows in
-a tree; [Gno data structures](./gno-data-structures.md#tree-backed-indexes)
-compares the tree types.
+A `map` or slice is stored as one object. Reading or changing one element loads
+or rewrites the whole thing. A tree stores its nodes separately, so touching
+one key loads only the path to it. Use maps and slices for small, bounded
+state, and a tree for anything that grows.
+[Gno data structures](./gno-data-structures.md#tree-backed-indexes) compares
+the tree types.
 
 ### Define types and interfaces in pure packages (p/)
 
-Put the types and interfaces others should share in `p/NAMESPACE/DAPP`, and the
-realm using them in `r/NAMESPACE/DAPP`. A `p/` package cannot import an `r/`,
-while an `r/` can import both, so only a definition in `p/` can become a
-standard that other packages build on. A realm introducing nothing reusable
-needs no `p/` at all.
+Put shared types and interfaces in `p/NAMESPACE/DAPP`, and the realm that uses
+them in `r/NAMESPACE/DAPP`. A `p/` package can't import an `r/`, but an `r/`
+can import both. So only a definition in `p/` can become a standard that others
+build on. A realm with nothing reusable needs no `p/`.
 
 ### Emit Gno events to make life off-chain easier
 
-Emit an event after each action an indexer would want to know about, such as a
-transfer or an ownership change. [`chain.Emit`](./gno-stdlibs.md#events) writes
-a type and `key`, `value` pairs into the block's results, where off-chain
-services filter and search them.
+Emit an event after each action an indexer would care about, such as a
+transfer or a change of owner. [`chain.Emit`](./gno-stdlibs.md#events) writes
+a type and `key`, `value` pairs into the block results, where off-chain
+services can search them.
 
 ```go
 import "chain"
@@ -398,70 +386,72 @@ func ChangeOwner(cur realm, newOwner address) {
 
 ### Package naming and organization
 
-A package's name matches the last element of its
-[path](./gno-packages.md#package-path-structure), ignoring a `/vN` suffix, so
-imports need no alias. Keep it short and readable. A project usually lives at
-`r/NAMESPACE/DAPP`, and each realm under it is independent and shares no data,
-so split a project only for a reason, such as one `r/NAMESPACE/auth` every
-contract of an organization imports. Publish a top-level `p/NAMESPACE/DAPP`
-only for what others should use, and keep your own helpers in subdirectories
-under it. A path containing an `internal` element can be imported only from
-under the directory holding `internal`: `mypackage/internal/helpers` is open to
-`mypackage` and `mypackage/utils`, and to nothing outside `mypackage`.
+- Name the package after the last element of its
+  [path](./gno-packages.md#package-path-structure), ignoring a `/vN` suffix.
+  Imports then need no alias. Keep the name short.
+- A project usually lives at `r/NAMESPACE/DAPP`. Each realm under it is
+  separate and shares no data, so split a project only for a reason, such as
+  one `r/NAMESPACE/auth` that all your realms import.
+- Publish a top-level `p/NAMESPACE/DAPP` only for code others should use. Keep
+  your own helpers in subdirectories under it.
+- A path with an `internal` element can be imported only from inside the
+  directory above `internal`. `mypackage/internal/helpers` is open to
+  `mypackage` and `mypackage/utils`, and to nothing outside `mypackage`.
 
 ### Suggested file names and layout
 
-A realm's source is browsable on-chain, so its file names are part of its
-public interface. Name each file for the one concern it holds, so a reader can
-guess its contents: `<realm>.gno` for the main entrypoints, `render.gno` for
-`Render()`, `admin.gno` for privileged endpoints, `types.gno` and `errors.gno`
-once those grow. [`gno.land/r/sys/cla`](../../examples/gno.land/r/sys/cla)
-splits into `cla.gno`, `admin.gno` and `render.gno`, with tests beside them.
+Anyone can browse a realm's source on-chain, so its file names are part of its
+public face. Name each file for the one thing it holds: `<realm>.gno` for the
+main entry points, `render.gno` for `Render()`, `admin.gno` for privileged
+endpoints, then `types.gno` and `errors.gno` once those grow.
+[`gno.land/r/sys/cla`](../../examples/gno.land/r/sys/cla) splits into
+`cla.gno`, `admin.gno` and `render.gno`, with tests beside them.
 
 ### Versioning and upgrades
 
-An upgrade is a new deployment at a new
-[`/vN` path](./gno-packages.md#version-suffixes), next to the old one; only a
+You upgrade by deploying a new version at a new
+[`/vN` path](./gno-packages.md#version-suffixes), next to the old one. Only a
 [`private`](./configuring-gno-projects.md#private) realm, which nothing can
-import, is re-uploaded in place. A realm
-whose callers need one stable address can forward to an implementation it
-swaps, the way
+import, can be re-uploaded in place.
+
+If callers need one stable address, the realm can forward calls to an
+implementation it can swap, the way
 [`gno.land/r/gov/dao`](../../examples/gno.land/r/gov/dao/proxy.gno) keeps the
-current implementation in a variable. A simpler realm keeps versions side by
-side, as `gno.land/r/sys/validators` keeps `v0` and `v2`. A small, well-tested
-`p/` library may never need a second version at all.
+current implementation in a variable. A simpler realm keeps its versions side
+by side, as `gno.land/r/sys/validators` keeps `v0` and `v2`. A small,
+well-tested `p/` library may never need a second version.
 
 ### Ship more than code
 
-A realm's source and `Render()` output are public on gnoweb, so treat them as
-your storefront: a `Render()` a stranger can navigate, a `README.md`, and doc
-comments [written for users](#documentation-is-for-users). Around the realm,
-plan for the client, the indexers fed by your
-[events](#emit-gno-events-to-make-life-off-chain-easier), and the docs they
-need. A `p/` package is a library for developers and a realm is an app for
-end users: if a realm needs a wall of external docs to be usable, that text
-belongs in its `Render()`. Its path is caller input, so pass path segments and
-stored user strings through
+Anyone can read a realm's source and its `Render()` output on gnoweb. Treat
+them as your storefront: give strangers a `Render()` they can navigate, a
+`README.md`, and doc comments [written for users](#documentation-is-for-users).
+Plan for the client, for the indexers your
+[events](#emit-gno-events-to-make-life-off-chain-easier) feed, and for the docs
+they need. A `p/` package is a library for developers; a realm is an app for
+end users. If a realm needs pages of outside docs to be usable, put that text
+in its `Render()`.
+
+`Render()`'s path comes from the caller. Pass path segments and stored user
+strings through
 [`sanitize.InlineText`](../../examples/gno.land/p/nt/markdown/sanitize/v0)
 before they reach the markdown.
 
 ### Treat forking as a feature
 
-Every realm and package is published source. Where its license allows, a
-modified copy deployed at a path you control gives users somewhere to go when
-a contract is abandoned or hostile. Keep the
-upstream license file and say where the code came from:
-`gno.land/p/onbloc/uint256/v0` ports
-[holiman/uint256](https://github.com/holiman/uint256) and ships its BSD
-license beside the code.
+Every realm and package is published source. If its license allows, deploy a
+modified copy at a path you control. That gives users somewhere to go when a
+contract is abandoned or hostile. Keep the original license file and say where
+the code came from: `gno.land/p/onbloc/uint256/v0` ports
+[holiman/uint256](https://github.com/holiman/uint256) and ships its BSD license
+beside the code.
 
 ### Generate repetitive code off-chain
 
-Gno [has no generics](./go-gno-compatibility.md#reserved-keywords) and no on-chain
-`go generate`, but nothing stops you from generating `.gno` source before
-deployment and committing the output.
+Gno has [no generics](./go-gno-compatibility.md#reserved-keywords) and no
+on-chain `go generate`. Nothing stops you from generating `.gno` source before
+you deploy and committing the result.
 [`gno.land/p/moul/xmath`](../../examples/quarantined/gno.land/p/moul/xmath)
-works this way:
-`generator.go` writes the same helpers once per numeric type into
-`xmath.gen.gno`, standing in for generics. Readers on-chain see the final
-source, so generated files stay auditable.
+does this: `generator.go` writes the same helpers once per number type into
+`xmath.gen.gno`. Readers on-chain see the final source, so generated code
+stays easy to audit.
