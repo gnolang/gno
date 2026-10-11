@@ -238,44 +238,16 @@ needs.
 Coins are balances the chain keeps outside the GnoVM. Sending them or reading a
 balance runs no contract code. A realm can issue its own denom through a
 [banker](./gno-stdlibs.md#banker), and can [burn](./gno-stdlibs.md#removecoin)
-that denom from any holder. A denom listed in the chain's `restricted_denoms`
+that denom from any holder. A denom listed in the chain's
+[`restricted_denoms`](../../examples/gno.land/r/sys/params/unlock.gno)
 parameter can be sent only from whitelisted accounts.
 
 #### Verifying inbound Coin payments
 
-Gno has no `payable` keyword. A `maketx call` that sends coins fails unless the
-realm reads them with `unsafe.OriginSend()`.
-
-`OriginSend()` returns the coins attached to the transaction, not the coins
-your realm received. So pair it with `cur.Previous().IsUserCall()`. That check
-passes only when a user's `maketx call` reached your realm directly, which is
-when the coins landed at your address.
-
-```go
-import "chain/runtime/unsafe"
-
-func BuyThing(cur realm) {
-	if !cur.Previous().IsUserCall() { // not IsUser()
-		panic("must be called directly by an EOA (maketx call)")
-	}
-	if unsafe.OriginSend().AmountOf("ugnot") != price {
-		panic("wrong payment amount")
-	}
-	// ... do the thing ...
-}
-```
-
-- Don't use `IsUser()`. It also accepts a `maketx run` script, which runs as the
-  realm `gno.land/e/<addr>/run` and whose coins never leave the user's address.
-  The amount check would pass with nothing paid.
-- Keep both checks. Without the caller check, `OriginSend()` can report coins
-  you never got. Without the amount check, a user pays nothing.
-- A realm can't pull coins from its caller: `banker.SendCoins` only sends from
-  the realm's own address. So this pair is the only way to take a payment.
-- For the strictest form, also call `runtime.AssertOriginCall()`, as `wugnot`'s
-  `Deposit` does.
-- Creating a `BankerTypeOriginSend` banker runs the same `IsUserCall()` check,
-  and panics when it fails.
+A realm takes a payment by reading
+[`unsafe.OriginSend()`](./gno-stdlibs.md#originsend) and checking
+`cur.Previous().IsUserCall()`, as the
+[security guide](./gno-security-guide.md#55-isuser-for-payment-guards) shows.
 
 #### GRC20 tokens
 
@@ -332,8 +304,8 @@ outside source of randomness.
 
 An oracle is a set of off-chain agents you choose to trust. The chain never
 checks the outside fact, only that one of your agents reported it, so pick them
-with care. [gnorkle](../../examples/gno.land/p/demo/gnorkle/README.md) manages
-the agent list and the requests.
+with care. [gnorkle](../../examples/gno.land/p/demo/gnorkle/README.md) is one
+attempt at managing the agent list and the requests.
 
 gno.land has no built-in price feed. A realm that moves funds based on a fed
 value is only as safe as the feed: an attacker needs no bug in your code, just
@@ -341,18 +313,11 @@ a bad number.
 
 ### Test the attacker, not just the happy path
 
-[The testing guide](./gno-testing.md) covers the kinds of tests. In a realm,
-the `testing` package also lets you call your realm as someone else:
-
-- `testing.NewUserRealm` and `testing.NewCodeRealm` stand in for a user or
-  another contract.
-- `testing.SetRealm` and `testing.SetOriginCaller` set the caller.
-- `testing.IssueCoins` and `testing.SkipHeights` set up funds and time.
-- `testing.SetOriginSend` sets what `OriginSend()` reports. It moves no coins.
-
-Use them to attack your own realm. For example, call it through a fake
-intermediary contract and prove your
-[payment check](#verifying-inbound-coin-payments) holds.
+Call your realm the way an attacker would: as another user, through a fake
+intermediary contract, with the wrong coins attached. Then prove your
+[payment check](#verifying-inbound-coin-payments) holds. The
+[testing guide](./gno-testing.md#calling-your-realm-as-someone-else) lists the
+`testing` helpers that set the caller, the coins and the block height.
 
 ### Choose storage types by access pattern
 
@@ -365,10 +330,10 @@ the tree types.
 
 ### Define types and interfaces in pure packages (p/)
 
-Put shared types and interfaces in `p/NAMESPACE/DAPP`, and the realm that uses
-them in `r/NAMESPACE/DAPP`. A `p/` package can't import an `r/`, but an `r/`
-can import both. So only a definition in `p/` can become a standard that others
-build on. A realm with nothing reusable needs no `p/`.
+Put shared types and interfaces in `p/{namespace}/{name}`, and the realm that
+uses them in `r/{namespace}/{name}`. A `p/` package can't import an `r/`, but
+an `r/` can import both. So only a definition in `p/` can become a standard
+that others build on. A realm with nothing reusable needs no `p/`.
 
 ### Emit Gno events to make life off-chain easier
 
@@ -393,17 +358,18 @@ func ChangeOwner(cur realm, newOwner address) {
 
 ### Package naming and organization
 
-- Name the package after the last element of its
-  [path](./gno-packages.md#package-path-structure), ignoring a `/vN` suffix.
-  Imports then need no alias. Keep the name short.
-- A project usually lives at `r/NAMESPACE/DAPP`. Each realm under it is
-  separate and shares no data, so split a project only for a reason, such as
-  one `r/NAMESPACE/auth` that all your realms import.
-- Publish a top-level `p/NAMESPACE/DAPP` only for code others should use. Keep
-  your own helpers in subdirectories under it.
-- A path with an `internal` element can be imported only from inside the
-  directory above `internal`. `mypackage/internal/helpers` is open to
-  `mypackage` and `mypackage/utils`, and to nothing outside `mypackage`.
+- Name a package after the last part of its
+  [path](./gno-packages.md#package-path-structure), without the `/vN` suffix.
+  `gno.land/p/nt/avl/v0` is `package avl`, so nobody needs an alias to import
+  it. Keep the name short.
+- Put a project in one realm, `r/{namespace}/{name}`. Realms don't share data,
+  so add a second one only when you need it, such as an `r/{namespace}/auth`
+  that your other realms import.
+- Publish `p/{namespace}/{name}` only for code other people should use. Put
+  your own helpers in subdirectories of it.
+- Code in an `internal` directory can be imported only from the directory that
+  holds `internal`, or from below it. `mypackage/internal/helpers` can be
+  imported by `mypackage` and `mypackage/utils`, not from outside `mypackage`.
 
 ### Suggested file names and layout
 

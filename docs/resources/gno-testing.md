@@ -88,6 +88,20 @@ Your test file can have local helper functions, but `init()` is reserved for oth
 Use something like `initialize()` instead.
 :::
 
+## Calling your realm as someone else
+
+In a realm's tests, the `testing` package sets who calls and with what:
+
+- [`testing.NewUserRealm`](./gno-stdlibs.md#newuserrealm) and
+  [`testing.NewCodeRealm`](./gno-stdlibs.md#newcoderealm) stand in for a user
+  or another contract.
+- [`testing.SetRealm`](./gno-stdlibs.md#setrealm) and
+  [`testing.SetOriginCaller`](./gno-stdlibs.md#setorigincaller) set the caller.
+- [`testing.IssueCoins`](./gno-stdlibs.md#issuecoins) and
+  [`testing.SkipHeights`](./gno-stdlibs.md#skipheights) set up funds and time.
+- [`testing.SetOriginSend`](./gno-stdlibs.md#setoriginsend) sets what
+  `OriginSend()` reports. It moves no coins.
+
 ## Filetests
 
 Filetests are golden tests typically used to test realms. They execute a `main`
