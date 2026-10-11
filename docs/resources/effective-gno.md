@@ -238,11 +238,6 @@ balance runs no contract code. A realm can issue its own denom through a
 that denom from any holder. A denom listed in the chain's `restricted_denoms`
 parameter can be sent only from whitelisted accounts.
 
-To read one balance, use `GetCoin(addr, denom)`, not `GetCoins(addr)`.
-`GetCoins` reads every denom the address holds, and anyone can send an address
-new denoms. Enough of them make your function too expensive to call. `GetCoin`
-panics on a malformed denom, so validate a denom you didn't choose.
-
 #### Verifying inbound Coin payments
 
 Gno has no `payable` keyword. A `maketx call` that sends coins fails unless the
@@ -427,8 +422,7 @@ If callers need one stable address, the realm can forward calls to an
 implementation it can swap, the way
 [`gno.land/r/gov/dao`](../../examples/gno.land/r/gov/dao/proxy.gno) keeps the
 current implementation in a variable. A simpler realm keeps its versions side
-by side, as `gno.land/r/sys/validators` keeps `v0` and `v2`. A small,
-well-tested `p/` library may never need a second version.
+by side.
 
 ### Ship more than code
 
