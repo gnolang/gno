@@ -229,9 +229,15 @@ A realm creates the object in its `init` with `NewSafeStruct(0, cur)`.
 
 ### Choosing between Coins and GRC20 tokens
 
-Coins are simple, and the chain sets their rules. GRC20 tokens are contracts,
-so they follow whatever rules their code defines. Pick the one your realm
-needs.
+Pick Coins when a token only needs to be held and sent. The chain moves them
+with no contract code, and a user attaches them to any call with `-send`.
+
+Pick GRC20 when a token needs rules of its own: an allowance a spender draws
+on, a fee or a cap on transfers, or balances a DAO counts as votes. Those rules
+live in the token's contract.
+
+To get both, wrap a Coin in a GRC20 token, as described
+[below](#wrapping-coins).
 
 #### Coins
 
@@ -244,10 +250,12 @@ parameter can be sent only from whitelisted accounts.
 
 #### Verifying inbound Coin payments
 
-A realm takes a payment by reading
-[`unsafe.OriginSend()`](./gno-stdlibs.md#originsend) and checking
-`cur.Previous().IsUserCall()`, as the
-[security guide](./gno-security-guide.md#55-isuser-for-payment-guards) shows.
+A user pays your realm by attaching coins to a `maketx call` with `-send`.
+In the called function, first check that the user called you directly with
+`cur.Previous().IsUserCall()`, then read the amount sent with
+[`unsafe.OriginSend()`](./gno-stdlibs.md#originsend). The
+[security guide](./gno-security-guide.md#55-isuser-for-payment-guards) explains
+why the first check matters.
 
 #### GRC20 tokens
 
