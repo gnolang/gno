@@ -692,9 +692,7 @@ func (sw *MultiplexSwitch) runSeedDialLoop(ctx context.Context) {
 
 // hasDialableItem returns a flag indicating if the dial queue holds an item
 // that can be dialed right now. Persistent dials are left out: seeds exist to
-// refill peer discovery, which a pending persistent dial does not do. The queue
-// is time-sorted (ascending), so a head item scheduled in the future means
-// every queued item is currently backing off
+// refill peer discovery, which a pending persistent dial does not do
 func (sw *MultiplexSwitch) hasDialableItem() bool {
 	item := sw.dialQueue.Peek()
 

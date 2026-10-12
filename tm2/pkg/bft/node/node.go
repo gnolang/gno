@@ -443,14 +443,21 @@ func configuredString(addr *p2pTypes.NetAddress) string {
 }
 
 // parsePersistentPeerAddrs parses the persistent peer addresses from the node
-// configuration. A persistent peer has a single configured address: when the
-// same peer ID is listed more than once, only the last entry is kept, at the
-// position of the ID's first appearance. An earlier entry is reported unless it
-// is identical to the one kept. An address whose hostname does not resolve yet
-// is kept as configured
+// configuration, keeping one address per peer ID (see dedupePersistentPeerAddrs).
+// An address whose hostname does not resolve yet is kept as configured
 func parsePersistentPeerAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTypes.NetAddress {
 	parsed := parseConfiguredAddrs(config.P2P.PersistentPeers, "persistent peer", logger)
 
+	return dedupePersistentPeerAddrs(parsed, logger)
+}
+
+// dedupePersistentPeerAddrs keeps a single configured address per persistent
+// peer: when the same peer ID is listed more than once, only the last entry is
+// kept, at the position of the ID's first appearance. An earlier entry is
+// reported unless it is listed identically to the one kept: entries are
+// compared as configured, since each hostname is looked up on its own and a
+// round-robin name can resolve to another IP for each entry
+func dedupePersistentPeerAddrs(parsed []*p2pTypes.NetAddress, logger *slog.Logger) []*p2pTypes.NetAddress {
 	lastAddrs := make(map[p2pTypes.ID]*p2pTypes.NetAddress, len(parsed))
 	for _, addr := range parsed {
 		lastAddrs[addr.ID] = addr
@@ -462,7 +469,7 @@ func parsePersistentPeerAddrs(config *cfg.Config, logger *slog.Logger) []*p2pTyp
 	for _, addr := range parsed {
 		last := lastAddrs[addr.ID]
 
-		if !addr.Equals(*last) || addr.Hostname != last.Hostname {
+		if configuredString(addr) != configuredString(last) {
 			logger.Warn(
 				"persistent peer listed more than once, only its last address is dialed",
 				"id", addr.ID,

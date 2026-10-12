@@ -1274,7 +1274,7 @@ func TestMultiplexSwitch_DialSeed(t *testing.T) {
 		assert.True(t, sw.dialQueue.Has(seedAddr))
 	})
 
-	t.Run("queued items fully backed off", func(t *testing.T) {
+	t.Run("queued item not yet due", func(t *testing.T) {
 		t.Parallel()
 
 		var (
