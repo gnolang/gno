@@ -166,7 +166,10 @@ the workflow's identity, not on a key anyone holds. To verify what you are
 about to run:
 
 ```sh
-gh attestation verify gnoland_linux_amd64 --repo gnolang/gno
+gh attestation verify gnoland_linux_amd64 --repo gnolang/gno \
+  --signer-workflow gnolang/gno/.github/workflows/release-chain-tag.yml \
+  --source-ref refs/tags/v1.6.0
+
 cosign verify ghcr.io/gnolang/gno/gnoland:v1.6.0 \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp '^https://github.com/gnolang/gno/\.github/workflows/release-docker\.yml@refs/tags/v'
