@@ -109,19 +109,20 @@ type detailsEntry struct {
 // releaseDetails drops an entry once its container ends.
 var detailsStackKey = parser.NewContextKey()
 
-func detailsStack(pc parser.Context) []detailsEntry {
-	stack, _ := pc.Get(detailsStackKey).([]detailsEntry)
+// detailsStack returns the page's stack, nil before its first opener.
+func detailsStack(pc parser.Context) *[]detailsEntry {
+	stack, _ := pc.Get(detailsStackKey).(*[]detailsEntry)
 	return stack
 }
 
 // endDetails drops the entries from i up and gives back their levels.
-func endDetails(pc parser.Context, stack []detailsEntry, i int) {
-	for _, e := range stack[i:] {
+func endDetails(pc parser.Context, stack *[]detailsEntry, i int) {
+	for _, e := range (*stack)[i:] {
 		if e.node.tag == detailsTagOpen { // a refused opener took no level
 			Pop(pc)
 		}
 	}
-	pc.Set(detailsStackKey, stack[:i])
+	*stack = (*stack)[:i]
 }
 
 // releaseDetails ends the openers whose container a block opening under
@@ -131,11 +132,14 @@ func endDetails(pc parser.Context, stack []detailsEntry, i int) {
 // one measure of which containers are still open.
 func releaseDetails(pc parser.Context, parent ast.Node) {
 	stack := detailsStack(pc)
-	i := len(stack)
-	for i > 0 && !holds(stack[i-1].parent, parent) {
+	if stack == nil {
+		return
+	}
+	i := len(*stack)
+	for i > 0 && !holds((*stack)[i-1].parent, parent) {
 		i--
 	}
-	if i < len(stack) {
+	if i < len(*stack) {
 		endDetails(pc, stack, i)
 	}
 }
@@ -180,7 +184,7 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	tag := util.TrimRightSpace(line[pos:])
 	kind, valid, open, summary := parseDetailsLineTag(tag)
 	if kind == detailsTagNone {
-		if stack := detailsStack(pc); len(stack) > 0 && parent.Kind() == ast.KindDocument &&
+		if stack := detailsStack(pc); stack != nil && len(*stack) > 0 && parent.Kind() == ast.KindDocument &&
 			(columnsLineTag(tag) != GnoColumnTagUndefined || parseFrameLineTag(tag) != frameTagNone) {
 			// Released above, every opener left sits at document level.
 			endDetails(pc, stack, 0)
@@ -196,13 +200,17 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 		if valid && Push(pc) { // the cap spans all gno-* blocks
 			node.tag, node.Open, node.Summary = detailsTagOpen, open, summary
 		}
+		if stack == nil {
+			stack = &[]detailsEntry{}
+			pc.Set(detailsStackKey, stack)
+		}
 		// A refused opener stays on the stack too, so its own close is the
 		// one it takes.
-		pc.Set(detailsStackKey, append(stack, detailsEntry{node, parent}))
-	case valid && len(stack) > 0 && stack[len(stack)-1].parent == parent:
-		top := len(stack) - 1
+		*stack = append(*stack, detailsEntry{node, parent})
+	case valid && stack != nil && len(*stack) > 0 && (*stack)[len(*stack)-1].parent == parent:
+		top := len(*stack) - 1
 		node.tag = detailsTagClose
-		stack[top].node.close = node
+		(*stack)[top].node.close = node
 		endDetails(pc, stack, top)
 	}
 	return node, parser.NoChildren
@@ -231,10 +239,11 @@ type detailsASTTransformer struct{}
 // its parent; and gives back the depth of the blocks left open at EOF. It
 // runs after the frame transformer, so the markers have their final parent.
 func (*detailsASTTransformer) Transform(doc *ast.Document, _ text.Reader, pc parser.Context) {
-	if pc.Get(detailsStackKey) == nil {
+	stack := detailsStack(pc)
+	if stack == nil {
 		return // no details opener on this page
 	}
-	endDetails(pc, detailsStack(pc), 0)
+	endDetails(pc, stack, 0)
 	wrapDetails(doc)
 }
 

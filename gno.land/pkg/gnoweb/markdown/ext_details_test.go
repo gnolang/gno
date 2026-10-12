@@ -6,34 +6,26 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
 )
 
-// parseDetails parses src with the gno extensions and returns the document,
-// its HTML and the gno-* nesting depth left on the parser context.
-func parseDetails(t *testing.T, src string) (ast.Node, string, int) {
+// parseDetails parses src with the gno extensions and returns its HTML and
+// the gno-* nesting depth left on the parser context.
+func parseDetails(t *testing.T, src string) (string, int) {
 	t.Helper()
 	m := newGnoMarkdown()
 	pc := NewGnoParserContext(GnoContext{})
 	doc := m.Parser().Parse(text.NewReader([]byte(src)), parser.WithContext(pc))
 	var buf bytes.Buffer
 	require.NoError(t, m.Renderer().Render(&buf, []byte(src), doc))
-	return doc, buf.String(), Get(pc)
+	return buf.String(), Get(pc)
 }
 
 // A run of openers stops at the shared nesting cap; the rest are refused.
 func TestDetailsNestBounded(t *testing.T) {
-	doc, _, _ := parseDetails(t, strings.Repeat("<gno-details summary=\"a\">\n", 4000))
-	count := 0
-	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if d, ok := n.(*GnoDetailsNode); ok && entering && d.tag == detailsTagOpen {
-			count++
-		}
-		return ast.WalkContinue, nil
-	})
-	require.Equal(t, MaxGnoNestDepth, count)
+	out, _ := parseDetails(t, strings.Repeat("<gno-details summary=\"a\">\n", 4000))
+	require.Equal(t, MaxGnoNestDepth, strings.Count(out, `<details class="gno-details">`))
 }
 
 // Every Push in Open is matched by one Pop, whatever shape ends the block.
@@ -50,7 +42,7 @@ func TestDetailsDepthBalanced(t *testing.T) {
 	}
 	for name, src := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, _, depth := parseDetails(t, src)
+			_, depth := parseDetails(t, src)
 			require.Zero(t, depth)
 		})
 	}
@@ -60,7 +52,7 @@ func TestDetailsDepthBalanced(t *testing.T) {
 // after four of them still opens.
 func TestDetailsSequentialKeepsCap(t *testing.T) {
 	src := strings.Repeat("<gno-details>\nb\n</gno-details>\n", 5) + "> [!NOTE]\n> x\n"
-	_, out, _ := parseDetails(t, src)
+	out, _ := parseDetails(t, src)
 	require.Contains(t, out, "gno-alert")
 }
 
@@ -74,7 +66,7 @@ func TestDetailsReleasedWithContainer(t *testing.T) {
 	}
 	for name, src := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, out, depth := parseDetails(t, src+tail)
+			out, depth := parseDetails(t, src+tail)
 			require.Contains(t, out, `class="gno-columns"`)
 			require.Contains(t, out, "gno-alert")
 			require.Contains(t, out, "<span>After</span>")
@@ -86,8 +78,8 @@ func TestDetailsReleasedWithContainer(t *testing.T) {
 // CRLF line endings parse as LF ones.
 func TestDetailsCRLF(t *testing.T) {
 	src := "<gno-details summary=\"S\" open>\nbody\n</gno-details>\nafter\n"
-	_, lf, _ := parseDetails(t, src)
-	_, crlf, _ := parseDetails(t, strings.ReplaceAll(src, "\n", "\r\n"))
+	lf, _ := parseDetails(t, src)
+	crlf, _ := parseDetails(t, strings.ReplaceAll(src, "\n", "\r\n"))
 	require.Equal(t, lf, crlf)
 }
 
@@ -95,7 +87,7 @@ func TestDetailsCRLF(t *testing.T) {
 // comes, so the release has to run on its `>` line too.
 func TestDetailsReleasedBeforeAlert(t *testing.T) {
 	src := strings.Repeat("> <gno-details>\n", 4) + "\n> [!WARNING]\n> x\n"
-	_, out, _ := parseDetails(t, src)
+	out, _ := parseDetails(t, src)
 	require.Contains(t, out, "gno-alert")
 }
 
@@ -104,7 +96,7 @@ func TestDetailsReleasedBeforeAlert(t *testing.T) {
 func TestDetailsEndsAtGrid(t *testing.T) {
 	src := "<gno-columns>\n<gno-details>\nleft\n<gno-columns-sep>\nB\n</gno-columns>\n\n" +
 		"> [!NOTE]\n> > [!NOTE]\n> > > [!NOTE]\n> > > > [!NOTE]\n> > > > x\n"
-	_, out, depth := parseDetails(t, src)
+	out, depth := parseDetails(t, src)
 	require.Equal(t, 4, strings.Count(out, `class="gno-alert `))
 	require.Zero(t, depth)
 }
