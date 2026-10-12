@@ -38,10 +38,6 @@ type GnoDetailsNode struct {
 	// close is an open marker's close marker, set when the close tag pairs
 	// with it during parsing.
 	close *GnoDetailsNode
-	// refused marks an opener turned down, by the depth cap or an invalid
-	// attribute; it stays on the parse stack so its own close is the one it
-	// takes.
-	refused bool
 }
 
 // Kind implements ast.Node.
@@ -121,7 +117,7 @@ func detailsStack(pc parser.Context) []detailsEntry {
 // endDetails drops the entries from i up and gives back their levels.
 func endDetails(pc parser.Context, stack []detailsEntry, i int) {
 	for _, e := range stack[i:] {
-		if !e.node.refused {
+		if e.node.tag == detailsTagOpen { // a refused opener took no level
 			Pop(pc)
 		}
 	}
@@ -184,9 +180,10 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	tag := util.TrimRightSpace(line[pos:])
 	kind, valid, open, summary := parseDetailsLineTag(tag)
 	if kind == detailsTagNone {
-		if parent.Kind() == ast.KindDocument && (columnsLineTag(tag) != GnoColumnTagUndefined || parseFrameLineTag(tag) != frameTagNone) {
+		if stack := detailsStack(pc); len(stack) > 0 && parent.Kind() == ast.KindDocument &&
+			(columnsLineTag(tag) != GnoColumnTagUndefined || parseFrameLineTag(tag) != frameTagNone) {
 			// Released above, every opener left sits at document level.
-			endDetails(pc, detailsStack(pc), 0)
+			endDetails(pc, stack, 0)
 		}
 		return nil, parser.NoChildren
 	}
@@ -198,9 +195,9 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 	case kind == detailsTagOpen:
 		if valid && Push(pc) { // the cap spans all gno-* blocks
 			node.tag, node.Open, node.Summary = detailsTagOpen, open, summary
-		} else {
-			node.refused = true
 		}
+		// A refused opener stays on the stack too, so its own close is the
+		// one it takes.
 		pc.Set(detailsStackKey, append(stack, detailsEntry{node, parent}))
 	case valid && len(stack) > 0 && stack[len(stack)-1].parent == parent:
 		top := len(stack) - 1
