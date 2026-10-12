@@ -1,0 +1,10 @@
+-- input.md --
+<gno-frame>
+## </gno-frame>
+after
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<h2 id="gno-frame"><!-- raw HTML omitted --><a href="#gno-frame" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
+<p>after</p>
+</section>
