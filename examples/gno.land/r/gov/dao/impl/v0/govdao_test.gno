@@ -73,6 +73,10 @@ func TestCreateProposalAndVote(cur realm, t *testing.T) {
 		dao.MustCreateProposal(cross(cur), NewAddMemberRequest(cur, nm1, memberstore.T3, portfolio))
 	})
 
+	urequire.AbortsWithMessage(t, cur, "proposer is not a member", func(cur realm) {
+		dao.MustCreateProposal(cross(cur), NewAddMemberRequest(cur, nm1, memberstore.T2, portfolio))
+	})
+
 	testing.SetOriginCaller(m1)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/impl/v0"))
 

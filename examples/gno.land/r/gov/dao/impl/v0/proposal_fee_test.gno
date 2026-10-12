@@ -12,49 +12,44 @@ import (
 	"gno.land/r/gov/dao/memberstore/v0"
 )
 
-const feeErr = "non-members must first pay the 1000000ugnot proposal fee with PayProposalFee"
-
 // payer is never a member: TestAbstainVote leaves noMember on T2.
 var payer = testutils.TestAddress("fee payer")
 
-// payFee issues sent to the realm as a msg call would, then pays with it.
-func payFee(cur realm, payer address, sent chain.Coins) {
+// propose calls ProposeAddMember as a msg call from proposer sending sent.
+func propose(cur realm, proposer address, sent chain.Coins) dao.ProposalID {
 	testing.IssueCoins(chain.PackageAddress("gno.land/r/gov/dao/impl/v0"), sent)
-	testing.SetOriginCaller(payer)
-	testing.SetRealm(testing.NewUserRealm(payer))
+	testing.SetOriginCaller(proposer)
+	testing.SetRealm(testing.NewUserRealm(proposer))
 	testing.SetOriginSend(sent)
-	PayProposalFee(cross(cur))
+	return ProposeAddMember(cross(cur), payer, memberstore.T2, "portfolio")
 }
 
-func createAsUser(cur realm, author address) error {
-	testing.SetOriginCaller(author)
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/impl/v0"))
-	req := NewAddMemberRequest(cur, author, memberstore.T2, "portfolio")
-	testing.SetRealm(testing.NewUserRealm(author))
-	_, err := dao.CreateProposal(cross(cur), req)
-	return err
-}
-
-func TestNonMemberSpendsOnePaidFeePerProposal(cur realm, t *testing.T) {
+func TestNonMemberProposesAMemberForTheFee(cur realm, t *testing.T) {
 	loadMembers(cur)
-	proposalCredits = map[address]int{}
 	fee := chain.Coins{chain.NewCoin("ugnot", ProposalFeeAmount)}
 
-	urequire.ErrorContains(t, createAsUser(cur, payer), feeErr)
-
 	before := banker.NewReadonlyBanker().GetCoin(treasuryAddr, "ugnot")
-	payFee(cur, payer, fee)
-	payFee(cur, payer, fee)
+	pid := propose(cur, payer, fee)
 	after := banker.NewReadonlyBanker().GetCoin(treasuryAddr, "ugnot")
-	uassert.Equal(t, 2*ProposalFeeAmount, after-before)
-	urequire.NoError(t, createAsUser(cur, payer))
-	urequire.NoError(t, createAsUser(cur, payer))
-	urequire.ErrorContains(t, createAsUser(cur, payer), feeErr)
+	uassert.Equal(t, ProposalFeeAmount, after-before)
+	p, err := dao.GetProposal(pid)
+	urequire.NoError(t, err)
+	uassert.Equal(t, payer, p.Author())
 }
 
-func TestPayProposalFeeRefusesAnythingButTheExactFee(cur realm, t *testing.T) {
+func TestNonMemberOpensNothingElse(cur realm, t *testing.T) {
 	loadMembers(cur)
-	proposalCredits = map[address]int{}
+
+	testing.SetOriginCaller(payer)
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/impl/v0"))
+	req := NewWithdrawMemberRequest(cur, m4, "inactive")
+	testing.SetRealm(testing.NewUserRealm(payer))
+	_, err := dao.CreateProposal(cross(cur), req)
+	urequire.ErrorContains(t, err, "only members can create new proposals")
+}
+
+func TestProposeAddMemberRefusesAnythingButTheExactFee(cur realm, t *testing.T) {
+	loadMembers(cur)
 
 	for _, sent := range []chain.Coins{
 		nil,
@@ -64,39 +59,42 @@ func TestPayProposalFeeRefusesAnythingButTheExactFee(cur realm, t *testing.T) {
 		{chain.NewCoin("foo", 1), chain.NewCoin("ugnot", ProposalFeeAmount)},
 	} {
 		uassert.AbortsContains(t, cur, "send exactly 1000000ugnot", func(cur realm) {
-			payFee(cur, payer, sent)
+			propose(cur, payer, sent)
 		})
 	}
-	uassert.Equal(t, 0, proposalCredits[payer])
 }
 
-func TestPayProposalFeeRefusesMembersAndIndirectCalls(cur realm, t *testing.T) {
+func TestProposeAddMemberIsFreeForMembers(cur realm, t *testing.T) {
 	loadMembers(cur)
-	fee := chain.Coins{chain.NewCoin("ugnot", ProposalFeeAmount)}
 
-	uassert.AbortsContains(t, cur, "members propose for free", func(cur realm) {
-		payFee(cur, m1, fee)
+	uassert.NotAborts(t, cur, func(cur realm) {
+		propose(cur, m1, nil)
 	})
+	uassert.AbortsContains(t, cur, "no proposal fee is due", func(cur realm) {
+		propose(cur, m1, chain.Coins{chain.NewCoin("ugnot", ProposalFeeAmount)})
+	})
+}
+
+func TestProposeAddMemberRefusesIndirectCalls(cur realm, t *testing.T) {
+	loadMembers(cur)
 
 	// Only a direct msg call lands the coins here; the txtar covers maketx run.
 	testing.SetOriginCaller(payer)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/test/middleman"))
-	testing.SetOriginSend(fee)
-	uassert.AbortsContains(t, cur, "paid with a direct msg call", func(cur realm) {
-		PayProposalFee(cross(cur))
+	testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", ProposalFeeAmount)})
+	uassert.AbortsContains(t, cur, "must be called directly", func(cur realm) {
+		ProposeAddMember(cross(cur), payer, memberstore.T2, "portfolio")
 	})
 }
 
 func TestZeroFeeLetsNonMembersProposeFree(cur realm, t *testing.T) {
 	loadMembers(cur)
-	proposalCredits = map[address]int{}
 	prev := ProposalFeeAmount
 	ProposalFeeAmount = 0
 	defer func() { ProposalFeeAmount = prev }()
 
-	urequire.NoError(t, createAsUser(cur, payer))
-	uassert.AbortsContains(t, cur, "no fee to pay", func(cur realm) {
-		payFee(cur, payer, nil)
+	uassert.NotAborts(t, cur, func(cur realm) {
+		propose(cur, payer, nil)
 	})
 }
 

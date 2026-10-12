@@ -10,30 +10,24 @@ loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
-# a non-member who paid nothing cannot propose
+# a non-member cannot open any other proposal through the proxy
 gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
-stdout 'non-members must first pay the 1000000ugnot proposal fee with PayProposalFee'
+stdout 'only members can create new proposals'
 
-# a maketx run sends its coins back to the signer, so -send on it pays nothing
-gnokey maketx run -send 1000000ugnot -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
-stdout 'non-members must first pay the 1000000ugnot proposal fee with PayProposalFee'
+# a maketx run sends its coins back to the signer, so it cannot pay ProposeAddMember's fee
+! gnokey maketx run -send 1000000ugnot -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/propose_from_run.gno
+stderr 'ProposeAddMember must be called directly with a msg call'
 
-# nor can a maketx run pay the fee itself
-! gnokey maketx run -send 1000000ugnot -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/pay_fee.gno
-stderr 'the proposal fee must be paid with a direct msg call'
+# a direct call without the fee is refused
+! gnokey maketx call -pkgpath gno.land/r/gov/dao/impl/v0 -func ProposeAddMember -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -args T2 -args 'My portfolio' -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember
+stderr 'send exactly 1000000ugnot to pay the proposal fee'
 
-# paying through a direct call moves the fee to the treasury and buys exactly one proposal
-gnokey maketx call -pkgpath gno.land/r/gov/dao/impl/v0 -func PayProposalFee -send 1000000ugnot -gas-fee 1900001ugnot -gas-wanted 21_000_000 -chainid=tendermint_test nonmember
-stdout OK!
+# with the fee, it opens the proposal and moves the fee to the treasury
+gnokey maketx call -pkgpath gno.land/r/gov/dao/impl/v0 -func ProposeAddMember -send 1000000ugnot -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -args T2 -args 'My portfolio' -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember
+stdout '\(0 gno.land/r/gov/dao.ProposalID\)'
 
 gnokey query bank/balances/g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t
 stdout '"1000000ugnot"'
-
-gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
-stdout 'proposal 0'
-
-gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
-stdout 'non-members must first pay the 1000000ugnot proposal fee with PayProposalFee'
 
 # the members vote the fee down to zero
 gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test member $WORK/proposer/create_fee_proposal.gno
@@ -45,9 +39,9 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 26_000_000 -args 1 -chainid=tendermint_test member
 stdout OK!
 
-# with no fee, a non-member proposes free
-gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
-stdout 'proposal 2'
+# with no fee, a non-member proposes a member free
+gnokey maketx call -pkgpath gno.land/r/gov/dao/impl/v0 -func ProposeAddMember -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -args T2 -args 'My portfolio' -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember
+stdout '\(2 gno.land/r/gov/dao.ProposalID\)'
 
 -- proposer/create_proposal.gno --
 package main
@@ -58,7 +52,7 @@ import (
 )
 
 func main(cur realm) {
-	preq := impl.NewAddMemberRequest(cross(cur), address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "My portfolio")
+	preq := impl.NewWithdrawMemberRequest(cross(cur), address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), "inactive")
 	pid, err := dao.CreateProposal(cross(cur), preq)
 	if err != nil {
 		println(err.Error())
@@ -67,13 +61,13 @@ func main(cur realm) {
 	println("proposal", int64(pid))
 }
 
--- proposer/pay_fee.gno --
+-- proposer/propose_from_run.gno --
 package main
 
 import "gno.land/r/gov/dao/impl/v0"
 
 func main(cur realm) {
-	impl.PayProposalFee(cross(cur))
+	impl.ProposeAddMember(cross(cur), address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "My portfolio")
 }
 
 -- proposer/create_fee_proposal.gno --

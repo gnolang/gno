@@ -12,12 +12,9 @@ import (
 
 var ErrMemberNotFound = errors.New("member not found")
 
-// ProposalFeeAmount is the fee, in ugnot, a non-member pays through
-// PayProposalFee for each proposal. Zero lets non-members propose for free.
+// ProposalFeeAmount is the fee, in ugnot, a non-member pays to propose a
+// member through ProposeAddMember. Zero makes it free.
 var ProposalFeeAmount int64 = 1_000_000 // 1 GNOT
-
-// proposalCredits counts, per non-member, the fees paid and not yet spent.
-var proposalCredits = map[address]int{}
 
 type GovDAO struct {
 	pss    ProposalsStatuses
@@ -45,25 +42,22 @@ func NewGovDAO() *GovDAO {
 var _govdao *GovDAO
 
 func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (address, error) {
+	// Only ProposeAddMember creates a proposal from this realm, after checking
+	// its caller and taking the fee: the one route open to non-members.
+	if rlm.IsCurrent() && rlm.PkgPath() == "gno.land/r/gov/dao" && rlm.Previous().PkgPath() == "gno.land/r/gov/dao/impl/v0" {
+		return unsafe.OriginCaller(), nil
+	}
+
 	if !g.isValidCall(0, rlm) {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. caller realm: %v; caller's previous: %v",
 			rlm, rlm.Previous()))
 	}
 
-	// Members propose for free; a non-member spends one paid fee.
+	// Verify that the one creating the proposal is a member.
 	caller := unsafe.OriginCaller()
 	mem, _ := getMembers(cross(rlm)).GetMember(caller)
-	if mem != nil || ProposalFeeAmount == 0 {
-		return caller, nil
-	}
-	credits := proposalCredits[caller]
-	if credits == 0 {
-		return caller, errors.New(ufmt.Sprintf("non-members must first pay the %dugnot proposal fee with PayProposalFee", ProposalFeeAmount))
-	}
-	if credits == 1 {
-		delete(proposalCredits, caller)
-	} else {
-		proposalCredits[caller] = credits - 1
+	if mem == nil {
+		return caller, errors.New("only members can create new proposals; a non-member can propose a member with ProposeAddMember")
 	}
 
 	return caller, nil
