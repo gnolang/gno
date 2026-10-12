@@ -118,3 +118,24 @@ func main() {
 		Preprocess(m.Store, pn, fn)
 	})
 }
+
+func TestPreprocessCollectInitCycle(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var a = f()
+
+func f() int { return a + g() }
+
+func g() int { return g() } // recursion among functions is not a cycle
+
+var b = 1
+
+func main() { println(a, b) }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
