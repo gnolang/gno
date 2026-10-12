@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -629,6 +630,29 @@ func TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved(t *testing.
 	require.NoError(t, err)
 	assert.Equal(t, int64(500), state.LastBlockHeight, "a committed chain's state must not be rebuilt")
 	assert.Equal(t, []byte("committed-app-hash"), state.AppHash)
+}
+
+// A data dir committed before the height-0 responses were saved has no marker,
+// and its doc, saved before AppState was stripped, carries one: it must not reset.
+func TestLoadStateFromDBOrGenesisDocProvider_LegacyDocKeepsCommittedState(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	doc, _ := probeGenesisDocProvider(pk, 1)()
+	doc.AppState = types.MockAppState{AccountOwner: "legacy"}
+	b, err := amino.MarshalJSON(doc)
+	require.NoError(t, err)
+	require.NoError(t, db.SetSync(genesisDocKey, b))
+	state, err := sm.MakeGenesisState(doc)
+	require.NoError(t, err)
+	state.LastBlockHeight = 500
+	sm.SaveState(db, state)
+
+	state, _, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), state.LastBlockHeight, "a legacy committed chain's state must not be rebuilt")
 }
 
 // DB whose Has fails while fail is set.
