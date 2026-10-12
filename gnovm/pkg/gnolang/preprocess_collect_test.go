@@ -139,3 +139,84 @@ func main() { println(a, b) }
 		t.Fatalf("false positive: %v", msgs)
 	}
 }
+
+func TestPreprocessCollectUnused(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+func f() {
+	x := 1 // unused
+	y := 2
+	y = 3 // assignment is not a use
+	z := 4
+	_ = &z
+	var w int
+	w++ // a use
+	s := struct{ f int }{}
+	s.f = 1 // a use of s
+	c := 0
+	func() { c = 1; _ = c }() // used in a closure
+	var k int
+	k += 1 // a use
+L1:
+	for {
+		break L1
+	}
+L2:
+	for {
+		break
+	}
+	var i interface{} = 1
+	switch t := i.(type) {
+	case int:
+	}
+}
+
+func main() { f() }
+`)
+	want := []string{"declared and not used: x", "declared and not used: y", "label L2 defined and not used", "declared and not used: t"}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestPreprocessCollectShortVarDecl(t *testing.T) {
+	// The parser's resolver already rejects `a := 1; a := 2` and `b, b :=`;
+	// the preprocessor rule covers what resolution leaves: range variables.
+	msgs := collectErrors(t, `package main
+
+func f(p int) {
+	for i, v := range []int{1} {
+		i := i // shadows the range variable: new
+		v := v
+		_, _ = i, v
+	}
+	for j := 0; j < 1; j++ {
+		j := j // shadows the init variable: new
+		_ = j
+	}
+	if x := 1; x > 0 {
+		x := x
+		_ = x
+	}
+	for a, a := range []int{1} { // ERROR repeated
+		_ = a
+	}
+}
+
+func main() { f(0) }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "a repeated on left side of :=") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
