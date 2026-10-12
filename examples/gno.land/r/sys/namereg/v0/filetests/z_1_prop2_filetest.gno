@@ -93,7 +93,7 @@ func main(cur realm) {
 //
 // ### Description
 //
-// > delete user test
+//   > delete user test
 //
 // ---
 //
@@ -114,7 +114,7 @@ func main(cur realm) {
 //
 // ### Description
 //
-// > delete user test
+//   > delete user test
 //
 // ---
 //
@@ -135,7 +135,7 @@ func main(cur realm) {
 //
 // ### Description
 //
-// > delete user test
+//   > delete user test
 //
 // ---
 //

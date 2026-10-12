@@ -124,7 +124,7 @@ func quotedSection(page, heading, closing string) bool {
 	}
 
 	for _, line := range strings.Split(page[start+len(heading):end], "\n") {
-		if !strings.HasPrefix(line, ">") {
+		if !strings.HasPrefix(line, "  >") {
 			return false
 		}
 	}
@@ -157,7 +157,7 @@ func main(cur realm) {
 	// The DAO's section comes first, and the page's own rule separates it from
 	// the description under it. Nothing the proposer wrote precedes it.
 	println("and the description sits below the rule:",
-		strings.Contains(out, "---\n\n### Description\n\n> A proposal whose executor has no description"))
+		strings.Contains(out, "---\n\n### Description\n\n  > A proposal whose executor has no description"))
 
 	// 2. CreationRealm() is dispatched through the public dao.Executor
 	// interface, so a third-party executor picks its own value — and the
@@ -341,7 +341,7 @@ func main(cur realm) {
 	println("the real disclosure is above the forged one:",
 		strings.Index(rout, "Executes:") < strings.Index(rout, "### Description"))
 	println("an honest heading is left as written:",
-		strings.Contains(rout, "> My Section\n> ---\n"))
+		strings.Contains(rout, "  > My Section\n  > ---\n"))
 
 	// 4i. The quote rewrites every line and the render pays for it, so the
 	// description is clamped first like every other slot on the page.
@@ -363,8 +363,7 @@ func main(cur realm) {
 	nout := dao.Render(cross(cur), strconv.FormatInt(int64(npid), 10))
 
 	println("a footnote definition stays inside the quote:",
-		quotedBody(nout) && strings.Contains(nout, "> \\[^1]: ### Execution") &&
-			!strings.Contains(strings.ReplaceAll(nout, "\\[^", ""), "[^"))
+		quotedBody(nout) && strings.Contains(nout, "  > \\[^1]: ### Execution"))
 
 	// 4k. gnoweb draws a quote whose first line is `[!KIND]` as an alert box, so
 	// a description opening on one would style the page's quote as a callout.
@@ -374,7 +373,20 @@ func main(cur realm) {
 	aout := dao.Render(cross(cur), strconv.FormatInt(int64(apid), 10))
 
 	println("a leading alert marker stays literal:",
-		strings.Contains(aout, "### Description\n\n> \\[!WARNING]\n> Verified"))
+		strings.Contains(aout, "### Description\n\n  > \\[!WARNING]\n  > Verified"))
+
+	// 4m. Honest markdown renders as the proposer wrote it. A `[^` with no `]:`
+	// after it on its line opens no footnote and keeps its bytes, which a
+	// character class in code depends on, and a tab keeps its width, since the
+	// quote starts each line at column 4: tab-indented code stays code.
+	hpid2 := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Honest", "Matches `[^a-z]` names:\n\n\tre := regexp.MustCompile(\"[^0-9]\")",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	hout2 := dao.Render(cross(cur), strconv.FormatInt(int64(hpid2), 10))
+
+	println("a caret in code keeps its bytes:",
+		strings.Contains(hout2, "  > Matches `[^a-z]` names:") &&
+			strings.Contains(hout2, "  > \tre := regexp.MustCompile(\"[^0-9]\")"))
 
 	// 4l. A built-in executor's description carries what the proposer wrote, so
 	// the Execution section is quoted like the Description below it.
@@ -387,7 +399,7 @@ func main(cur realm) {
 	eout := dao.Render(cross(cur), strconv.FormatInt(int64(epid), 10))
 
 	println("an executor description is contained:",
-		quotedSection(eout, "### Execution\n\n", "\n\n---\n\n### Description\n\n> An honest") &&
+		quotedSection(eout, "### Execution\n\n", "\n\n---\n\n### Description\n\n  > An honest") &&
 			strings.Count(eout, "\n---\n") == 2)
 
 	// 5. Proposals live on the proxy but their voting status lives on the
@@ -449,5 +461,6 @@ func main(cur realm) {
 // an enormous description is clamped: true
 // a footnote definition stays inside the quote: true
 // a leading alert marker stays literal: true
+// a caret in code keeps its bytes: true
 // an executor description is contained: true
 // a proposal orphaned by an upgrade renders instead of panicking: true

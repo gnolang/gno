@@ -104,13 +104,13 @@ func main(cur realm) {
 //
 // ### Proposed by: g1w3jhxazlta047h6lta047h6lta047h6lwmjv0n
 //
-// This is a test proposal description to verify StringifyProposal works correctly.
+//   > This is a test proposal description to verify StringifyProposal works correctly.
 //
 // Executes: [`gno.land/r/template/contract`](/r/template/contract$source)
 //
 // ### Execution
 //
-// > Test executor description
+//   > Test executor description
 //
 //
 // stringify widens the fence too: true

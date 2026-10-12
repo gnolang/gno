@@ -52,12 +52,16 @@ inside a quote the page draws: every line of it is prefixed with `> `, so any
 block it opens, a fence, an HTML block, a list, ends where the quote ends and
 nothing it writes renders outside it. A rule the description draws sits inside
 the quote, while the page's own rule, the Description heading and the action
-bar below it stay the page's. Two markers are escaped and nothing else, which
-is what keeps the portfolio headings and the token lists that proposals already
-carry, now quoted. `[^` is escaped wherever it appears, since a footnote
+bar below it stay the page's. The quote is indented two spaces, so each line
+starts at column 4: a tab keeps its width and tab-indented code stays code.
+
+Two markers are escaped and nothing else, which keeps the portfolio headings
+and the token lists that proposals already carry, now quoted. A footnote
 definition is the one block goldmark lifts out of its container, to the foot of
-the page below the action bar. A leading `[!` is escaped too, since gnoweb draws
-a quote whose first line is `[!KIND]` as an alert box.
+the page below the action bar, and it needs `[^` with `]:` after it, so `[^` is
+escaped wherever a `]:` follows on its line. A `[^` in code with no `]:` after
+it keeps its bytes. A leading `[!` is escaped too, since gnoweb draws a quote
+whose first line is `[!KIND]` as an alert box.
 
 That makes the quote the boundary between the proposer's words and the page's.
 It does not make the section unforgeable: a description can still write a line
@@ -124,12 +128,16 @@ same section helper rather than carrying its own copy of the disclosure.
   status type.
 - Both descriptions render as a quote: indented, under the quote's left
   border, with their markdown otherwise as written. A footnote prints as the
-  text the proposer typed rather than as a note at the foot of the page.
+  text the proposer typed rather than as a note at the foot of the page, and a
+  code span carrying `]:` after a `[^` on its line shows a backslash.
+- `StringifyProposal` escapes the title and clamps and quotes the description
+  the way the page does.
 - Rendering a description now rewrites every line into the quote, and the
-  rewrite is what the page pays for: a 100KB description measured 3,091,196,070
-  gas and a 250KB one 8,894,475,003, against the 3,000,000,000 query cap. So
-  the description is clamped to `maxRenderedDescription` before the quote, like
-  every other slot on the page; the stored proposal keeps every byte.
+  rewrite is what the page pays for: a 100KB description measured
+  3,283,322,158 gas per render, against the 3,000,000,000 query cap. So both
+  descriptions are clamped to `maxRenderedDescription` before the quote, like
+  every other slot on the page, and the worst 8KB shape in both measured
+  1,261,072,084; the stored proposal keeps every byte.
 - Adding declarations to a genesis realm shifts the balances asserted in
   `gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar`, which
   its own note says to re-derive.

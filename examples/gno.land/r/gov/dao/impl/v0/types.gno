@@ -3,6 +3,7 @@ package impl
 import (
 	"strings"
 
+	"gno.land/p/moul/md/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -207,9 +208,13 @@ func StringifyProposal(p *dao.Proposal) string {
 
 ### Proposed by: %s
 
-%s
+`, md.EscapeText(clampField(p.Title(), maxRenderedTitle)), p.Author())
 
-`, p.Title(), p.Author(), p.Description())
+	// Escaped, clamped and quoted as the proposal page renders them, so a realm
+	// printing the text cannot be handed the page's own lines by the proposer.
+	if description := clampField(p.Description(), maxRenderedDescription); description != "" {
+		out += quoteMarkdown(description) + "\n\n"
+	}
 
 	// The same lines the proposal page renders, so a realm printing a proposal
 	// as text names the executor the way gnoweb does.

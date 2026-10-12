@@ -147,16 +147,47 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 // quoteMarkdown puts every line of markdown someone other than the page wrote
 // inside a blockquote the page writes. Any block it opens, a fence, an HTML
 // block, a list, ends where the quote ends, so a rule it draws sits inside the
-// quote and the page's own rule and action bar stay outside it. A footnote is
-// the one construct goldmark lifts out of its container to the foot of the
-// page, so `[^` is escaped and no footnote forms. A leading `[!` is escaped
-// too, since gnoweb would draw the quote itself as an alert box.
+// quote and the page's own rule and action bar stay outside it. Two spaces
+// before the marker start each line at column 4, so a tab keeps its width and
+// tab-indented code stays code. A leading `[!` is escaped, since gnoweb would
+// draw the quote itself as an alert box.
 func quoteMarkdown(markdown string) string {
-	markdown = strings.ReplaceAll(markdown, "[^", "\\[^")
 	if strings.HasPrefix(markdown, "[!") {
 		markdown = "\\" + markdown
 	}
-	return "> " + strings.ReplaceAll(markdown, "\n", "\n> ")
+
+	lines := strings.Split(markdown, "\n")
+	for i, line := range lines {
+		lines[i] = "  > " + escapeFootnotes(line)
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// escapeFootnotes backslashes every `[^` that a `]:` follows on its line. A
+// footnote definition is the one block goldmark lifts out of its container, to
+// the foot of the page, and it cannot form without that pair; a `[^` in code
+// with no `]:` after it renders as written.
+func escapeFootnotes(line string) string {
+	last := strings.LastIndex(line, "]:")
+	if last < 0 {
+		return line
+	}
+
+	var b strings.Builder
+	start := 0
+	for {
+		i := strings.Index(line[start:last], "[^")
+		if i < 0 {
+			break
+		}
+		b.WriteString(line[start : start+i])
+		b.WriteString("\\[^")
+		start += i + 2
+	}
+	b.WriteString(line[start:])
+
+	return b.String()
 }
 
 // executesLine names the realm that runs if the proposal passes. The line is

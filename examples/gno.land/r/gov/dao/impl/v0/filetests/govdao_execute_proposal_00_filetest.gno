@@ -73,7 +73,7 @@ func main(cur realm) {
 //
 // ### Description
 //
-// > This proposal always fails on execution
+//   > This proposal always fails on execution
 //
 // ---
 //
