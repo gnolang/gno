@@ -213,6 +213,13 @@ func (p *detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Cont
 // Continue implements parser.BlockParser.
 func (p *detailsParser) Continue(node ast.Node, reader text.Reader, pc parser.Context) parser.State {
 	line, _ := reader.PeekLine()
+	// An open <gno-foreign> body owns its lines: a `:::` there is the
+	// foreign party's text, never this block's closer.
+	for c := node.LastChild(); c != nil; c = c.LastChild() {
+		if fn, ok := c.(*ForeignNode); ok && !fn.Closed {
+			return parser.Continue | parser.HasChildren
+		}
+	}
 	if isCloseFence(line, node.(*DetailsBlock).Fence) {
 		// Consume the fence up to its newline only; the block loop advances
 		// the newline. Advancing the whole line would swallow the next one.
