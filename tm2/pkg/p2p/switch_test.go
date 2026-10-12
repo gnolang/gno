@@ -2504,11 +2504,7 @@ func orderedIDs(t *testing.T) (types.ID, types.ID) {
 	a, b := types.GenerateNodeKey().ID(), types.GenerateNodeKey().ID()
 	require.NotEqual(t, a, b)
 
-	if b < a {
-		a, b = b, a
-	}
-
-	return a, b
+	return min(a, b), max(a, b)
 }
 
 // peerWithID returns a mock peer carrying the given ID, in the given direction
