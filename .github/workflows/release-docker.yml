@@ -122,7 +122,10 @@ jobs:
 
       # Keyless signature on the pushed image, by digest, so `cosign verify`
       # can tie ghcr.io/gnolang/gno/<tool>:vX.Y.Z to this workflow and tag
-      # (RELEASING.md, "Signing and provenance").
+      # (RELEASING.md, "Signing and provenance"). --recursive signs each
+      # platform manifest as well as the multi-arch index: a host pulls the
+      # manifest for its platform, and a check made against that digest
+      # finds no signature on the index alone.
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
 
       - name: Sign the image
@@ -131,4 +134,4 @@ jobs:
           DIGEST: ${{ fromJSON(steps.bake.outputs.metadata)[matrix.image]['containerimage.digest'] }}
         run: |
           [ -n "${DIGEST}" ] || { echo "::error::bake reported no digest for ${IMAGE}"; exit 1; }
-          cosign sign --yes "${IMAGE}@${DIGEST}"
+          cosign sign --yes --recursive "${IMAGE}@${DIGEST}"
