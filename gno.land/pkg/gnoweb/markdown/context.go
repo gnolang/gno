@@ -22,7 +22,7 @@ type GnoContext struct {
 
 // NewGnoParserContext creates a new parser context with GnoURL
 func NewGnoParserContext(mdctx GnoContext) parser.Context {
-	ctx := parser.NewContext()
+	ctx := parser.NewContext(parser.WithIDs(newLinearIDs()))
 	ctx.Set(gUrlContextKey, mdctx.GnoURL)
 	ctx.Set(gChainIdContextKey, mdctx.ChainId)
 	ctx.Set(gRemoteContextKey, mdctx.Remote)
