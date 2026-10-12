@@ -25,9 +25,8 @@ These tests are largely derived from Yaegi, licensed under Apache 2.0.
 
 `TestFiles` also accepts `.go` files under `files/gocorpus/testdata/`,
 verbatim copies of Go's own test corpus (`$GOROOT/test`). The harness picks
-a mode from the file's content (runnable → run, otherwise compile-only; files
-with inline `// ERROR` markers are refused until the errorcheck mode lands),
-pins both Gno's and Go's behaviour as
+a mode from the file's content (runnable → run, inline `// ERROR` markers →
+errorcheck, otherwise compile-only), pins both Gno's and Go's behaviour as
 trailing `//` blocks, and ends every file with exactly one verdict line
 (`Clean`, `Unsupported`, `KnownIssue` or `KnownDivergence`). The contract,
 the block vocabulary and the re-sync command are in

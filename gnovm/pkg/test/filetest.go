@@ -181,13 +181,25 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		return nil
 	}
 	compileMode := false
+	var errorcheckMarkers []InlineError
 	if isGoFile {
 		hasErrorDir := dirs.First(DirectiveError) != nil
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
 		switch {
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
-			// errorcheck mode lands with the error-accumulating preprocessor.
-			return "", 0, diffs, fmt.Errorf("filetest %s: inline // ERROR markers are not supported yet", fname)
+			errorcheckMarkers = ParseInlineErrors(source)
+			// A marker tag on a full-comment line (a pragma, as in
+			// fixedbugs/issue18882.go) is not checkable: pin the gap.
+			if len(errorcheckMarkers) == 0 {
+				reason := "errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness"
+				if opts.Sync {
+					return writeUnsupportedDirective(originalSource, reason), 0, diffs, nil
+				}
+				return "", 0, diffs, &SkipError{Reason: reason}
+			}
+			if err := prependRescue(); err != nil {
+				return "", 0, diffs, err
+			}
 		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
 			// `// compile`: gc compiles but never runs it. Preprocess
 			// only (regardless of whether it's runnable) and check that
@@ -297,7 +309,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Errorcheck and compile files are not executed (gc doesn't run
 	// them; executing can hang on infinite loops Gno fails to reject) —
 	// preprocess only.
-	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, compileMode)
+	var result runResult
+	if len(errorcheckMarkers) > 0 {
+		result = opts.runErrorcheck(m, pkgPath, fname, source, tcheck)
+	} else {
+		result = opts.runTest(m, pkgPath, fname, source, opslog, tcheck, compileMode)
+	}
 
 	// Collect storage diffs after test execution.
 	diffs = m.Store.RealmStorageDiffs()
@@ -360,6 +377,103 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			}
 			return "", m.GasMeter.GasConsumed(), diffs, &SkipError{Reason: reason}
 		}
+	}
+
+	// Errorcheck mode: gc's inline `// ERROR "regex"` markers name the
+	// lines that must be rejected. One accumulate-mode pass yields every
+	// Gno error with its span; the go/types guard runs as usual. Evidence
+	// blocks are derived from the three sets (markers, Gno spans, guard
+	// lines); the verdict is Clean when Gno is neither over-strict nor
+	// leaves a checkable marker uncaught, KnownIssue otherwise.
+	if len(errorcheckMarkers) > 0 {
+		gas := m.GasMeter.GasConsumed()
+		if reason := gcOnlyErrorcheckReason(originalSource, errorcheckMarkers); reason != "" {
+			if opts.Sync {
+				return writeUnsupportedDirective(originalSource, reason), gas, diffs, nil
+			}
+			return "", gas, diffs, &SkipError{Reason: reason}
+		}
+		var checkable []InlineError
+		for _, mk := range errorcheckMarkers {
+			if !mk.GcOnly {
+				checkable = append(checkable, mk)
+			}
+		}
+		type lineSpan struct{ lo, hi int }
+		var spans []lineSpan
+		gnoErr := make(map[int]string) // start line, source coordinates
+		for _, e := range result.gnoErrors {
+			lo, hi := errorSpan(e)
+			if lo == 0 {
+				continue
+			}
+			lo, hi = lo-prependedLines, hi-prependedLines
+			spans = append(spans, lineSpan{lo, hi})
+			if _, ok := gnoErr[lo]; !ok {
+				gnoErr[lo] = CleanErrorMessage(e)
+			}
+		}
+		covers := func(line int) bool {
+			for _, sp := range spans {
+				if sp.lo <= line && line <= sp.hi {
+					return true
+				}
+			}
+			return false
+		}
+		goTC := PerLineErrors(result.TypeCheckError, prependedLines)
+		marked := make(map[int]bool, len(errorcheckMarkers))
+		for _, mk := range errorcheckMarkers {
+			marked[mk.Line] = true
+		}
+		goTypesOnly, uncaught := make(map[int]string), make(map[int]string)
+		for _, mk := range checkable {
+			expect := "gc expects: " + strings.Join(mk.Patterns, " | ")
+			if len(mk.Patterns) == 0 {
+				expect = "gc expects an error (no pattern)"
+			}
+			_, inGuard := goTC[mk.Line]
+			switch {
+			case covers(mk.Line):
+			case inGuard:
+				goTypesOnly[mk.Line] = expect
+			default:
+				uncaught[mk.Line] = "uncaught; " + expect
+			}
+		}
+		overStrict := make(map[int]string)
+		for _, sp := range spans {
+			coversMarked := false
+			for line := sp.lo; line <= sp.hi; line++ {
+				if marked[line] {
+					coversMarked = true
+					break
+				}
+			}
+			if _, inGuard := goTC[sp.lo]; !coversMarked && !inGuard {
+				overStrict[sp.lo] = gnoErr[sp.lo]
+			}
+		}
+		v := verdict{Kind: VerdictClean, Mode: "errorcheck"}
+		if len(overStrict) != 0 || len(uncaught) != 0 {
+			v = verdict{Kind: VerdictKnownIssue, Mode: "errorcheck",
+				Reason: fmt.Sprintf("%d over-strict line(s), %d uncaught marker(s)", len(overStrict), len(uncaught))}
+			// Keep a human-written reason across re-syncs.
+			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue &&
+				prev.Reason != "" && !strings.HasSuffix(prev.Reason, "marker(s)") {
+				v.Reason = prev.Reason
+			}
+		}
+		sections := []goldenSection{
+			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
+			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTC)},
+			{name: DirectiveGoTypesOnly, block: FormatGnoErrorBlock(goTypesOnly)},
+			{name: DirectiveGnoOverStrictError, block: FormatGnoErrorBlock(overStrict)},
+			{name: DirectiveUncaughtError, block: FormatGnoErrorBlock(uncaught)},
+			{name: DirectiveVerdict, block: v.String(), inline: true},
+		}
+		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+		return newContent, gas, diffs, err
 	}
 
 	// Compile-mode short-circuit. `// compile` files are compiled but
@@ -714,6 +828,7 @@ var goldenRegionStarts = []string{
 	// .gno files keep TypeCheckError in the source the guard sees.
 	DirectiveGnoOutput, DirectiveGoOutput, DirectiveGoError, DirectiveTypeCheckError,
 	DirectiveVerdict,
+	DirectiveGoTypesOnly, DirectiveGnoOverStrictError, DirectiveUncaughtError,
 }
 
 // triageStateMarkers are the standalone triage status lines (`// Fixed:`,
@@ -1059,6 +1174,9 @@ func unifiedDiff(wanted, actual string) string {
 type runResult struct {
 	Output string
 	Error  string
+	// gnoErrors holds every preprocess error of an errorcheck run
+	// (accumulate mode), with location prefixes; Error joins them.
+	gnoErrors []string
 	// Set if there was an issue with type-checking.
 	TypeCheckError string
 	// Set if there was a panic within gno code.
@@ -1315,6 +1433,13 @@ const (
 	// Gno-only bugs from cases where both Gno and Go reject the file
 	// with different wording (a benign KnownDivergence, not a bug).
 	DirectiveGoBuildError = "GoBuildError"
+	// Errorcheck evidence. GoTypesOnly: marker lines only the go/types
+	// guard caught (what Gno's checker still lacks). GnoOverStrictError:
+	// Gno errors on lines gc did not mark and the guard did not flag.
+	// UncaughtError: checkable markers neither checker caught.
+	DirectiveGoTypesOnly        = "GoTypesOnly"
+	DirectiveGnoOverStrictError = "GnoOverStrictError"
+	DirectiveUncaughtError      = "UncaughtError"
 )
 
 // nativeDirectives are the .gno filetest directives; corpusDirectives
@@ -1346,6 +1471,9 @@ var corpusDirectives = []string{
 	DirectiveGoTypeCheckError,
 	DirectiveGnoPreprocessError,
 	DirectiveGoBuildError,
+	DirectiveGoTypesOnly,
+	DirectiveGnoOverStrictError,
+	DirectiveUncaughtError,
 }
 
 var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
@@ -1763,4 +1891,121 @@ func restoreGoExtInError(originalFname, tcError string) string {
 	}
 	base := strings.TrimSuffix(filepath.Base(originalFname), ".go")
 	return strings.ReplaceAll(tcError, base+".gno", base+".go")
+}
+
+// runErrorcheck type-checks content with the go/types guard and
+// preprocesses it in accumulate mode; nothing is executed.
+func (opts *TestOptions) runErrorcheck(m *gno.Machine, pkgPath, fname string, content []byte, tcheck bool) (rr runResult) {
+	pkgName, err := gno.PackageNameFromFileBody(fname, string(content))
+	if err != nil {
+		return runResult{Error: err.Error()}
+	}
+	fname = filepath.Base(fname)
+	if opts.tcCache == nil {
+		opts.tcCache = make(gno.TypeCheckCache)
+	}
+	tcError := ""
+	defer func() {
+		if r := recover(); r != nil { // a syntax error, or a VM bug
+			rr.Error = fmt.Sprint(r)
+			rr.gnoErrors = []string{rr.Error}
+			rr.TypeCheckError = tcError
+		}
+	}()
+	mpkg := &std.MemPackage{
+		Type: gno.MPUserProd,
+		Name: string(pkgName),
+		Path: pkgPath,
+		Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: gno.GenGnoModLatest(pkgPath)},
+			{Name: fname, Body: string(content)},
+		},
+	}
+	if tcheck {
+		if _, err := gno.TypeCheckMemPackage(memPackageForTypeCheck(mpkg), gno.TypeCheckOptions{
+			Getter:     opts.TestStore,
+			TestGetter: m.Store,
+			Mode:       gno.TCLatestRelaxed,
+			Cache:      opts.tcCache,
+		}); err != nil {
+			tcError = restoreGoExtInError(fname, err.Error())
+		}
+	}
+	fn := m.MustParseFile(fname, string(content))
+	fset := &gno.FileSet{Files: []*gno.FileNode{fn}}
+	pn := gno.NewPackageNode(pkgName, pkgPath, fset)
+	pv := pn.NewPackage(m.Alloc)
+	m.Store.SetBlockNode(pn)
+	m.Store.SetCachePackage(pv)
+	m.SetActivePackage(pv)
+	for _, e := range gno.PreprocessFilesCollect(m.Store, pn, fset) {
+		rr.gnoErrors = append(rr.gnoErrors, e.Unwrap().Error())
+	}
+	rr.Error = strings.Join(rr.gnoErrors, "; ")
+	rr.TypeCheckError = tcError
+	return rr
+}
+
+// A located message is "file:L:C: msg", "file:L:C-C2: msg" (same line) or
+// "file:L:C-L2:C2: msg".
+var reErrorSpan = regexp.MustCompile(`:(\d+):\d+(?:-(?:(\d+):)?\d+)?:`)
+
+// errorSpan returns the first and last line of a located error message
+// ("pkg/file.go:12:3-14:2: msg"); 0, 0 when it has no location.
+func errorSpan(msg string) (lo, hi int) {
+	m := reErrorSpan.FindStringSubmatch(msg)
+	if m == nil {
+		return 0, 0
+	}
+	lo, _ = strconv.Atoi(m[1])
+	hi = lo
+	if m[2] != "" {
+		hi, _ = strconv.Atoi(m[2])
+	}
+	return lo, hi
+}
+
+// gcOnlyErrorcheckReason names why an errorcheck file has nothing for
+// Gno to check: gc diagnostic or runtime-package flags, a -lang pin below
+// go1.17, only GC_ERROR markers, or only pragma-placement markers.
+func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
+	if firstLine := strings.SplitN(string(source), "\n", 2)[0]; strings.HasPrefix(firstLine, "//") {
+		flags := strings.Fields(strings.TrimPrefix(firstLine, "//"))
+		if len(flags) > 0 && flags[0] == "errorcheckwithauto" {
+			return "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
+		}
+		for _, fl := range flags[1:] {
+			switch {
+			case fl == "-0" || fl == "-m":
+				return "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
+			case fl == "-+" || strings.HasPrefix(fl, "-p="):
+				return "gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts"
+			case langBelowPin(fl):
+				return "gc -lang version-gating test below Gno's go1.17 pin (" + strings.TrimPrefix(fl, "-lang=") + ")"
+			}
+		}
+	}
+	checkable, pragmaOnly := 0, true
+	for _, mk := range markers {
+		if mk.GcOnly {
+			continue
+		}
+		checkable++
+		hit := false
+		for _, pat := range mk.Patterns {
+			if strings.Contains(pat, "compiler directive") {
+				hit = true
+			}
+		}
+		if !hit {
+			pragmaOnly = false
+		}
+	}
+	if checkable == 0 {
+		return "only gc-specific (GC_ERROR) markers; not part of Gno's contract"
+	}
+	if pragmaOnly {
+		return "gc pragma-placement enforcement; //go: directives are inert comments in Gno"
+	}
+	return ""
 }

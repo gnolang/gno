@@ -1,0 +1,31 @@
+// errorcheck
+
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// Use a different line number for each token so we can
+// check that the error message appears at the correct
+// position.
+var _ = struct{}{ /*line :20:1*/foo /*line :21:1*/: /*line :22:1*/0 }
+
+
+
+
+
+
+
+// ERROR "unknown field foo"
+
+// GnoError:
+// line 19: struct type struct{} has no field foo
+
+// GoTypeCheckError:
+// line 19
+
+// UncaughtError:
+// line 20: uncaught; gc expects: unknown field foo
+
+// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)

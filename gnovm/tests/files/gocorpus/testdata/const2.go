@@ -1,0 +1,50 @@
+// errorcheck
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Verify that large integer constant expressions cause overflow.
+// Does not compile.
+
+package main
+
+const (
+	A int = 1
+	B byte;	// ERROR "type without expr|expected .=.|missing init expr"
+)
+
+const LargeA = 1000000000000000000
+const LargeB = LargeA * LargeA * LargeA
+const LargeC = LargeB * LargeB * LargeB // GC_ERROR "constant multiplication overflow"
+
+const AlsoLargeA = LargeA << 400 << 400 >> 400 >> 400 // GC_ERROR "constant shift overflow"
+
+// Issue #42732.
+
+const a = 1e+500000000
+const b = a * a // ERROR "constant multiplication overflow|not representable"
+const c = b * b
+
+const MaxInt512 = (1<<256 - 1) * (1<<256 + 1)
+const _ = MaxInt512 + 1  // ERROR "constant addition overflow"
+const _ = MaxInt512 ^ -1 // ERROR "constant bitwise XOR overflow"
+const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
+
+// GoTypeCheckError:
+// line 14
+// line 19
+// line 21
+// line 26
+// line 30
+// line 31
+// line 32
+
+// GoTypesOnly:
+// line 14: gc expects: type without expr|expected .=.|missing init expr
+// line 26: gc expects: constant multiplication overflow|not representable
+// line 30: gc expects: constant addition overflow
+// line 31: gc expects: constant bitwise XOR overflow
+// line 32: gc expects: constant bitwise complement overflow
+
+// Verdict: Clean errorcheck

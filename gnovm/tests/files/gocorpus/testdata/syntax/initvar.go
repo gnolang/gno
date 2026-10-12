@@ -1,0 +1,27 @@
+// errorcheck
+
+// Copyright 2010 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+func main() {
+	if var x = 0; x < 10 {}    // ERROR "var declaration not allowed in if initializer"
+
+	switch var x = 0; x {}     // ERROR "var declaration not allowed in switch initializer"
+
+	for var x = 0; x < 10; {}  // ERROR "var declaration not allowed in for initializer"
+}
+
+// GnoError:
+// line 10: var declaration not allowed in if initializer (and 3 more errors)
+
+// GoTypeCheckError:
+// line 10
+
+// UncaughtError:
+// line 12: uncaught; gc expects: var declaration not allowed in switch initializer
+// line 14: uncaught; gc expects: var declaration not allowed in for initializer
+
+// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)

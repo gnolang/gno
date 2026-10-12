@@ -1,0 +1,25 @@
+// errorcheck
+
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 21988: panic on switch case with invalid value
+
+package p
+
+const X = Wrong(0) // ERROR "undefined: Wrong|undefined name .*Wrong"
+
+func _() {
+	switch 0 {
+	case X:
+	}
+}
+
+// GnoError:
+// line 11: name Wrong not defined in fileset with files [issue21988.go]
+
+// GoTypeCheckError:
+// line 11
+
+// Verdict: Clean errorcheck

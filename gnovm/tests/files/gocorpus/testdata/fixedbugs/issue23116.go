@@ -1,0 +1,23 @@
+// errorcheck
+
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+func f(x interface{}) {
+	switch x.(type) {
+	}
+
+	switch t := x.(type) { // ERROR "declared and not used"
+	}
+}
+
+// GoTypeCheckError:
+// line 13
+
+// GoTypesOnly:
+// line 13: gc expects: declared and not used
+
+// Verdict: Clean errorcheck

@@ -1,0 +1,41 @@
+// errorcheck
+
+// Copyright 2017 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Issue 20185: type switching on untyped values (e.g. nil or consts)
+// caused an internal compiler error.
+
+package p
+
+func F() {
+	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value|not an interface"
+	default:
+		_ = t
+	}
+}
+
+const x = 1
+
+func G() {
+	switch t := x.(type) { // ERROR "cannot type switch on non-interface value|declared and not used|not an interface"
+	default:
+	}
+}
+
+// GnoError:
+// line 14: 8: StaticBlock.Define(t) requires non-nil tv.T; use Reserve() for placeholder slots
+
+// GoTypeCheckError:
+// line 13
+// line 22
+
+// GoTypesOnly:
+// line 13: gc expects: cannot type switch on non-interface value|not an interface
+// line 22: gc expects: cannot type switch on non-interface value|declared and not used|not an interface
+
+// GnoOverStrictError:
+// line 14: 8: StaticBlock.Define(t) requires non-nil tv.T; use Reserve() for placeholder slots
+
+// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)

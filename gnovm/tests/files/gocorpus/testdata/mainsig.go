@@ -1,0 +1,29 @@
+// errorcheck
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+func main(int)  {}           // ERROR "func main must have no arguments and no return values"
+func main() int { return 1 } // ERROR "func main must have no arguments and no return values" "main redeclared in this block"
+
+func init(int)  {}           // ERROR "func init must have no arguments and no return values"
+func init() int { return 1 } // ERROR "func init must have no arguments and no return values"
+
+// GnoError:
+// line 10: main redeclared in this block
+// 	previous declaration at mainsig.go:9:6
+
+// GoTypeCheckError:
+// line 13
+
+// GoTypesOnly:
+// line 13: gc expects: func init must have no arguments and no return values
+
+// UncaughtError:
+// line 9: uncaught; gc expects: func main must have no arguments and no return values
+// line 12: uncaught; gc expects: func init must have no arguments and no return values
+
+// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)

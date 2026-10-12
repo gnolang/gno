@@ -14,11 +14,13 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `GnoOutput:` / `GoOutput:` | stdout of Gno and of `go run` (run files) |
 | `GnoError:` | Gno's own errors, per line, wording kept |
 | `GoTypeCheckError:` / `GoBuildError:` | lines the go/types guard / `go build` flagged; lines only, their wording follows the Go release |
+| `GoTypesOnly:` | errorcheck markers only the guard caught: what Gno's checker still lacks |
+| `GnoOverStrictError:` / `UncaughtError:` | Gno rejects a line gc did not mark / a checkable marker neither checker caught |
 | `GnoPreprocessError:` | Gno's errors on compile-only files |
 
 | verdict | meaning |
 |---|---|
-| `Verdict: Clean <mode>` | both checkers reach the same verdict (run \| compile); wording differences stay in the evidence blocks |
+| `Verdict: Clean <mode>` | both checkers reach the same verdict (run \| compile \| errorcheck); wording differences stay in the evidence blocks |
 | `Verdict: Unsupported <tag>: <reason>` | skipped, feature gap or gc-only test; tags in `corpus.go` (`unsupportedTags`) |
 | `Verdict: KnownIssue <mode>: <reason>` | Gno is wrong here, tracked |
 | `Verdict: KnownDivergence <mode>: <reason>` | Gno differs on purpose (a run output or a rule decided for Gno) |
@@ -39,5 +41,9 @@ goldens; `make -C gnovm _test.filetest` does not pin the toolchain unless
 Sync runs `go run` / `go build` for the Go side; the pinned toolchain keeps
 `GoOutput` stable. Bump `VERSION` and re-sync together.
 
-Files with inline `// ERROR` markers (gc's errorcheck tests) are refused for
-now; that mode lands with the error-accumulating preprocessor.
+Files with inline `// ERROR "regex"` markers (gc's errorcheck tests) are
+preprocessed once in accumulate mode (`PreprocessFilesCollect`): every Gno
+error with its span, no execution. A marker is attributed to Gno when a Gno
+error span covers its line, to the guard otherwise (`GoTypesOnly`). The
+verdict is `Clean: errorcheck` unless Gno is over-strict or a checkable
+marker is uncaught, in which case it is `KnownIssue`.

@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -553,4 +554,135 @@ func TagUnsupportedReason(reason string) string {
 		}
 	}
 	return "other: " + reason
+}
+
+// InlineError is one `// ERROR "regex"` marker attached to a source
+// line. Patterns are kept as Go regex strings; alternatives inside a
+// pattern are separated by '|' per Go's errorcheck convention.
+type InlineError struct {
+	// Line is the 1-based source line the marker was attached to.
+	Line int
+	// Patterns lists the quoted regex strings on the marker, in
+	// declaration order. Empty for a bare `// ERROR` with no patterns.
+	Patterns []string
+	// GcOnly marks a `// GC_ERROR` marker: a gc-implementation-specific
+	// diagnostic (backend limit, pragma check, …) that is NOT part of
+	// Gno's contract. GcOnly markers are excluded from leak accounting —
+	// catching one is fine, missing one is not an uncaught error.
+	GcOnly bool
+}
+
+// ParseInlineErrors scans source for inline `// ERROR "..."` markers
+// and returns one [InlineError] per source line that carries one.
+//
+// Format: any number of double-quoted (or backtick-quoted) strings
+// after `// ERROR`, e.g. `// ERROR "oct|char"` or `// ERROR "a" "b"`.
+// `// GC_ERROR` is accepted as equivalent to `// ERROR` since several
+// corpus files mix the two; gccgo-only markers (`// GCCGO_ERROR`)
+// are intentionally ignored — this harness mirrors gc semantics.
+// LINE/LINE+N substitutions are NOT performed; the literal text
+// stays in the regex (matching is best-effort).
+//
+// Lines that begin with `//` (i.e. pure doc-comment lines that
+// happen to mention `// ERROR "..."` in their prose) are skipped —
+// real markers always trail actual code on the same line.
+func ParseInlineErrors(source []byte) []InlineError {
+	var out []InlineError
+	sc := bufio.NewScanner(bytes.NewReader(source))
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	lineNo := 0
+	for sc.Scan() {
+		lineNo++
+		text := sc.Text()
+		idx := indexErrorMarker(text)
+		if idx < 0 {
+			continue
+		}
+		// Distinguish a real marker from an `// ERROR "..."` mentioned
+		// in narrative prose. Markers come in two valid shapes:
+		//   - trailing a line of code:  `_ = x // ERROR "..."`
+		//   - on its own comment line:  `// ERROR "..."` (used with
+		//     //line remapping, e.g. fixedbugs/bug305.go)
+		// A prose mention (e.g. a doc comment that says "a `// ERROR
+		// \"regex\"` marker …") has other text before the marker on a
+		// comment line. So: if the line is a pure comment, accept it
+		// only when the marker is the FIRST token after `//`.
+		trimmed := strings.TrimLeft(text, " \t")
+		if strings.HasPrefix(trimmed, "//") {
+			isMarkerStart := false
+			for _, p := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+				if strings.HasPrefix(trimmed, p) {
+					isMarkerStart = true
+					break
+				}
+			}
+			if !isMarkerStart {
+				continue
+			}
+		}
+		patterns := extractQuotedStrings(text[idx:])
+		gcOnly := strings.Contains(text[:idx], "GC_ERROR")
+		out = append(out, InlineError{Line: lineNo, Patterns: patterns, GcOnly: gcOnly})
+	}
+	return out
+}
+
+// extractQuotedStrings pulls every Go-syntax quoted string (double
+// or backtick) out of s, decoding escapes via [strconv.Unquote].
+func extractQuotedStrings(s string) []string {
+	var out []string
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c != '"' && c != '`' {
+			i++
+			continue
+		}
+		end := findClosingQuote(s, i)
+		if end < 0 {
+			break
+		}
+		if v, err := strconv.Unquote(s[i : end+1]); err == nil {
+			out = append(out, v)
+		}
+		i = end + 1
+	}
+	return out
+}
+
+func findClosingQuote(s string, start int) int {
+	open := s[start]
+	if open == '`' {
+		i := strings.IndexByte(s[start+1:], '`')
+		if i < 0 {
+			return -1
+		}
+		return start + 1 + i
+	}
+	for i := start + 1; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+			continue
+		}
+		if s[i] == '"' {
+			return i
+		}
+	}
+	return -1
+}
+
+// langBelowPin reports whether fl is a `-lang=go1.N` flag with N below
+// Gno's go1.17 pin (numeric compare; lexical would misorder go1.9).
+func langBelowPin(fl string) bool {
+	v, ok := strings.CutPrefix(fl, "-lang=go1.")
+	if !ok {
+		return false
+	}
+	n := 0
+	for _, c := range v {
+		if c < '0' || c > '9' {
+			return false
+		}
+		n = n*10 + int(c-'0')
+	}
+	return n < 17
 }

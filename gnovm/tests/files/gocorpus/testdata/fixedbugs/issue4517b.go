@@ -1,0 +1,17 @@
+// errorcheck
+
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+const init = 1 // ERROR "cannot declare init - must be func"
+
+// GoTypeCheckError:
+// line 9
+
+// GoTypesOnly:
+// line 9: gc expects: cannot declare init - must be func
+
+// Verdict: Clean errorcheck
