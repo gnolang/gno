@@ -144,19 +144,10 @@ func parseOpenFence(line []byte) (fence int, open bool, summaryStart, summaryEnd
 	return n, open, consumed + i, consumed + j, true
 }
 
-// isCloseFence returns true when the line is a run of at least minColons
-// colons followed only by whitespace. Up to three leading spaces are allowed, to
-// match the indentation tolerance of the opening fence.
+// isCloseFence returns true when the line, its indentation already removed,
+// is a run of at least minColons colons followed only by whitespace.
 func isCloseFence(line []byte, minColons int) bool {
 	trimmed := bytes.TrimRight(line, " \t\r\n")
-	pos := 0
-	for pos < len(trimmed) && pos < 4 && trimmed[pos] == ' ' {
-		pos++
-	}
-	if pos == 4 {
-		return false
-	}
-	trimmed = trimmed[pos:]
 	n := 0
 	for n < len(trimmed) && trimmed[n] == ':' {
 		n++
@@ -168,12 +159,10 @@ func isCloseFence(line []byte, minColons int) bool {
 func (p *detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, segment := reader.PeekLine()
 
-	// Allow up to 3 leading spaces per CommonMark indentation rules.
-	pos := 0
-	for pos < len(line) && pos < 4 && line[pos] == ' ' {
-		pos++
-	}
-	if pos == 4 { // 4 spaces is an indented code block
+	// Allow up to 3 columns of indentation per CommonMark; a tab counts to
+	// its next stop from the line's offset after any container prefix.
+	w, pos := util.IndentWidth(line, reader.LineOffset())
+	if w > 3 { // an indented code block
 		return nil, parser.NoChildren
 	}
 	sub := line[pos:]
@@ -220,7 +209,7 @@ func (p *detailsParser) Continue(node ast.Node, reader text.Reader, pc parser.Co
 			return parser.Continue | parser.HasChildren
 		}
 	}
-	if isCloseFence(line, node.(*DetailsBlock).Fence) {
+	if w, pos := util.IndentWidth(line, reader.LineOffset()); w <= 3 && isCloseFence(line[pos:], node.(*DetailsBlock).Fence) {
 		// Consume the fence up to its newline only; the block loop advances
 		// the newline. Advancing the whole line would swallow the next one.
 		reader.AdvanceToEOL()
