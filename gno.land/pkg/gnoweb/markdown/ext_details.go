@@ -38,8 +38,9 @@ type GnoDetailsNode struct {
 	// close is an open marker's close marker, set when the close tag pairs
 	// with it during parsing.
 	close *GnoDetailsNode
-	// refused marks an opener the depth cap turned down; it stays on the
-	// parse stack so that its own close tag is the one it takes.
+	// refused marks an opener turned down, by the depth cap or an invalid
+	// attribute; it stays on the parse stack so its own close is the one it
+	// takes.
 	refused bool
 }
 
@@ -70,11 +71,11 @@ var (
 // parseDetailsLineTag classifies a trimmed line and returns an opener's
 // attributes. The opener takes `summary="…"` and a bare `open`; any other
 // attribute, a valued `open`, a repeated attribute, an attribute on the
-// close tag or a self-closing form makes the line invalid rather than
-// silently ignored. Text after the tag makes it no tag line at all, so the
-// text stays in a paragraph, as with gno-frame. Tag names are
-// case-insensitive, like the other gno-* tags.
-func parseDetailsLineTag(line []byte) (kind detailsTagKind, open bool, summary []byte) {
+// close tag or a self-closing form makes the tag invalid rather than
+// silently ignored, valid reporting false. Text after the tag makes it no
+// tag line at all, so the text stays in a paragraph, as with gno-frame. Tag
+// names are case-insensitive, like the other gno-* tags.
+func parseDetailsLineTag(line []byte) (kind detailsTagKind, valid, open bool, summary []byte) {
 	kind, prefix := detailsTagOpen, detailsOpenPrefix
 	if len(line) > 1 && line[1] == '/' {
 		kind, prefix = detailsTagClose, detailsClosePrefix
@@ -92,22 +93,65 @@ func parseDetailsLineTag(line []byte) (kind detailsTagKind, open bool, summary [
 	})
 	switch {
 	case size == 0, size < len(line):
-		return detailsTagNone, false, nil
-	case selfClosing || !valid:
-		return detailsTagInvalid, false, nil
+		return detailsTagNone, false, false, nil
+	case selfClosing:
+		return kind, false, false, nil
 	}
-	return kind, seenOpen, summary
+	return kind, valid, seenOpen, summary
 }
 
 // ----- parse state -----
 
+// detailsEntry is an opener not yet closed and the container it sits in.
+type detailsEntry struct {
+	node   *GnoDetailsNode
+	parent ast.Node
+}
+
 // detailsStackKey holds the openers not yet closed, refused ones included,
-// innermost last.
+// innermost last. Each entry's container holds the one above it, since
+// releaseDetails drops an entry once its container ends.
 var detailsStackKey = parser.NewContextKey()
 
-func detailsStack(pc parser.Context) []*GnoDetailsNode {
-	stack, _ := pc.Get(detailsStackKey).([]*GnoDetailsNode)
+func detailsStack(pc parser.Context) []detailsEntry {
+	stack, _ := pc.Get(detailsStackKey).([]detailsEntry)
 	return stack
+}
+
+// endDetails drops the entries from i up and gives back their levels.
+func endDetails(pc parser.Context, stack []detailsEntry, i int) {
+	for _, e := range stack[i:] {
+		if !e.node.refused {
+			Pop(pc)
+		}
+	}
+	pc.Set(detailsStackKey, stack[:i])
+}
+
+// releaseDetails ends the openers whose container a block opening under
+// parent no longer sits in: a block left unclosed in a list item or a
+// blockquote ends with it. Goldmark opens a line's new blocks before it
+// closes the containers that line ends, so the parent it hands Open is the
+// one measure of which containers are still open.
+func releaseDetails(pc parser.Context, parent ast.Node) {
+	stack := detailsStack(pc)
+	i := len(stack)
+	for i > 0 && !holds(stack[i-1].parent, parent) {
+		i--
+	}
+	if i < len(stack) {
+		endDetails(pc, stack, i)
+	}
+}
+
+// holds reports whether c is n or one of its ancestors.
+func holds(c, n ast.Node) bool {
+	for ; n != nil; n = n.Parent() {
+		if n == c {
+			return true
+		}
+	}
+	return false
 }
 
 // ----- block parser -----
@@ -116,60 +160,55 @@ type detailsParser struct{}
 
 var _ parser.BlockParser = (*detailsParser)(nil)
 
-func (*detailsParser) Trigger() []byte { return []byte{'<'} }
+// Trigger takes `>` as well as `<`: every gno-* block that takes a depth
+// level opens on one of the two, so Open releases the ended details blocks
+// before any of them reads the depth.
+func (*detailsParser) Trigger() []byte { return []byte{'<', '>'} }
 
 // Open reads a details tag at any level, so a block may sit in a list item,
 // a blockquote, an alert or another details block. An opener takes a level
-// of the gno-* depth cap and is refused past it. A close tag pairs with the
-// innermost opener of the same parent and gives its level back, along with
-// every opener after it, whose own close never came. A refused opener, its
-// close, a stray close tag and a malformed tag each render as a comment.
-// Every tag line yields a leaf, never nil: nil would hand the line to the
-// type-7 HTML block parser, which swallows every line up to the next blank
-// one.
+// of the gno-* depth cap and is refused past it, or for an invalid
+// attribute; a close tag pairs with the innermost opener, when that opener
+// sits in the same container, and gives its level back. A refused opener,
+// its close, a stray close tag and a malformed tag each render as a
+// comment. Every tag line yields a leaf, never nil: nil would hand the line
+// to the type-7 HTML block parser, which swallows every line up to the
+// next blank one. A gno-columns or gno-frame tag at document level ends
+// every open details block, as the transformer stops them there.
 func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
+	releaseDetails(pc, parent)
 	line, _ := reader.PeekLine()
 	// Goldmark never offers a line indented 4 columns or more; a tab after a
 	// container prefix counts to its next stop.
 	_, pos := util.IndentWidth(line, reader.LineOffset())
-	kind, open, summary := parseDetailsLineTag(util.TrimRightSpace(line[pos:]))
+	tag := util.TrimRightSpace(line[pos:])
+	kind, valid, open, summary := parseDetailsLineTag(tag)
 	if kind == detailsTagNone {
+		if parent.Kind() == ast.KindDocument && (columnsLineTag(tag) != GnoColumnTagUndefined || parseFrameLineTag(tag) != frameTagNone) {
+			// Released above, every opener left sits at document level.
+			endDetails(pc, detailsStack(pc), 0)
+		}
 		return nil, parser.NoChildren
 	}
 	reader.AdvanceToEOL()
 
-	node := &GnoDetailsNode{tag: detailsTagInvalid}
 	stack := detailsStack(pc)
-	switch kind {
-	case detailsTagOpen:
-		if Push(pc) { // the cap spans all gno-* blocks
+	node := &GnoDetailsNode{tag: detailsTagInvalid}
+	switch {
+	case kind == detailsTagOpen:
+		if valid && Push(pc) { // the cap spans all gno-* blocks
 			node.tag, node.Open, node.Summary = detailsTagOpen, open, summary
 		} else {
 			node.refused = true
 		}
-		pc.Set(detailsStackKey, append(stack, node))
-	case detailsTagClose:
-		for i := len(stack) - 1; i >= 0; i-- {
-			if stack[i].Parent() != parent {
-				continue
-			}
-			node.tag = detailsTagClose
-			stack[i].close = node
-			popDetails(pc, stack[i:])
-			pc.Set(detailsStackKey, stack[:i])
-			break
-		}
+		pc.Set(detailsStackKey, append(stack, detailsEntry{node, parent}))
+	case valid && len(stack) > 0 && stack[len(stack)-1].parent == parent:
+		top := len(stack) - 1
+		node.tag = detailsTagClose
+		stack[top].node.close = node
+		endDetails(pc, stack, top)
 	}
 	return node, parser.NoChildren
-}
-
-// popDetails gives back the depth of every accepted opener in openers.
-func popDetails(pc parser.Context, openers []*GnoDetailsNode) {
-	for _, d := range openers {
-		if !d.refused {
-			Pop(pc)
-		}
-	}
 }
 
 // Continue implements parser.BlockParser: markers are one line.
@@ -198,7 +237,7 @@ func (*detailsASTTransformer) Transform(doc *ast.Document, _ text.Reader, pc par
 	if pc.Get(detailsStackKey) == nil {
 		return // no details opener on this page
 	}
-	popDetails(pc, detailsStack(pc))
+	endDetails(pc, detailsStack(pc), 0)
 	wrapDetails(doc)
 }
 

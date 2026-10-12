@@ -63,3 +63,48 @@ func TestDetailsSequentialKeepsCap(t *testing.T) {
 	_, out, _ := parseDetails(t, src)
 	require.Contains(t, out, "gno-alert")
 }
+
+// A block left unclosed in a container ends with it and gives its depth
+// back, so the gno-* blocks after it still open.
+func TestDetailsReleasedWithContainer(t *testing.T) {
+	tail := "\n\n<gno-columns>\nA\n<gno-columns-sep>\nB\n</gno-columns>\n\n> [!WARNING]\n> x\n\n<gno-details summary=\"After\">\nb\n</gno-details>\n"
+	cases := map[string]string{
+		"quote": strings.Repeat("> <gno-details>\n", 4),
+		"list":  strings.Repeat("- <gno-details>\n  b\n", 4),
+	}
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, out, depth := parseDetails(t, src+tail)
+			require.Contains(t, out, `class="gno-columns"`)
+			require.Contains(t, out, "gno-alert")
+			require.Contains(t, out, "<span>After</span>")
+			require.Zero(t, depth)
+		})
+	}
+}
+
+// CRLF line endings parse as LF ones.
+func TestDetailsCRLF(t *testing.T) {
+	src := "<gno-details summary=\"S\" open>\nbody\n</gno-details>\nafter\n"
+	_, lf, _ := parseDetails(t, src)
+	_, crlf, _ := parseDetails(t, strings.ReplaceAll(src, "\n", "\r\n"))
+	require.Equal(t, lf, crlf)
+}
+
+// An alert straight after stale blocks reads the depth before any `<` line
+// comes, so the release has to run on its `>` line too.
+func TestDetailsReleasedBeforeAlert(t *testing.T) {
+	src := strings.Repeat("> <gno-details>\n", 4) + "\n> [!WARNING]\n> x\n"
+	_, out, _ := parseDetails(t, src)
+	require.Contains(t, out, "gno-alert")
+}
+
+// A block left unclosed in a column ends at the next grid tag, where the
+// transformer stops it, so four alerts nested after the grid all open.
+func TestDetailsEndsAtGrid(t *testing.T) {
+	src := "<gno-columns>\n<gno-details>\nleft\n<gno-columns-sep>\nB\n</gno-columns>\n\n" +
+		"> [!NOTE]\n> > [!NOTE]\n> > > [!NOTE]\n> > > > [!NOTE]\n> > > > x\n"
+	_, out, depth := parseDetails(t, src)
+	require.Equal(t, 4, strings.Count(out, `class="gno-alert `))
+	require.Zero(t, depth)
+}
