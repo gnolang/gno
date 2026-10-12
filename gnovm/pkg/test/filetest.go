@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go/scanner"
 	"io"
 	"math"
 	"os"
@@ -1931,7 +1932,22 @@ func (opts *TestOptions) runErrorcheck(m *gno.Machine, pkgPath, fname string, co
 			tcError = restoreGoExtInError(fname, err.Error())
 		}
 	}
-	fn := m.MustParseFile(fname, string(content))
+	fn, perr := m.ParseFile(fname, string(content))
+	if perr != nil {
+		// Syntax and declaration errors come as a list with positions;
+		// pin each one so parse-level markers are attributed too.
+		var list scanner.ErrorList
+		if errors.As(perr, &list) {
+			for _, e := range list {
+				rr.gnoErrors = append(rr.gnoErrors, e.Error())
+			}
+		} else {
+			rr.gnoErrors = []string{perr.Error()}
+		}
+		rr.Error = strings.Join(rr.gnoErrors, "; ")
+		rr.TypeCheckError = tcError
+		return rr
+	}
 	fset := &gno.FileSet{Files: []*gno.FileNode{fn}}
 	pn := gno.NewPackageNode(pkgName, pkgPath, fset)
 	pv := pn.NewPackage(m.Alloc)
