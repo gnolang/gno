@@ -28,8 +28,9 @@ again.
 ### Honour the response error in the handshake
 
 `ReplayBlocks` returns `InitChain rejected the genesis: <error>` when
-`res.IsErr()`, before the height-0 responses are saved. The fix sits where
-every app's response passes, so no app has to panic to be heard.
+`res.IsErr()`, before the height-0 responses are saved, and refuses a genesis
+left with no validators before that save too. The fix sits where every app's
+response passes, so no app has to panic to be heard.
 
 ### Let a corrected genesis replace an unapplied one
 
@@ -40,7 +41,8 @@ record from the file and replaces the persisted doc. Once the key exists the
 persisted doc stays authoritative, as before. A failed probe fails the boot:
 read as "not applied", it would rebuild the state record of a committed chain.
 A failed read of the persisted doc fails it too: read as "no doc", it would let
-the file replace that doc past the chain id and app hash checks.
+the file replace that doc past the chain id and app hash checks. So does a
+failed write of the corrected doc, which would leave the refused one in place.
 
 ### Narrow the fork test's guard
 

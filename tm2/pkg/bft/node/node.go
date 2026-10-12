@@ -1081,7 +1081,9 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 		if err != nil {
 			return sm.State{}, nil, err
 		}
-		saveGenesisDoc(stateDB, genDoc)
+		if err := saveGenesisDoc(stateDB, genDoc); err != nil {
+			return sm.State{}, nil, err
+		}
 	} else if genDoc.AppState == nil {
 		freshDoc, perr := genesisDocProvider()
 		if perr != nil {
@@ -1141,7 +1143,9 @@ func resetToGenesisDoc(stateDB dbm.DB, genDoc *types.GenesisDoc) (sm.State, *typ
 	if err != nil {
 		return sm.State{}, nil, err
 	}
-	saveGenesisDoc(stateDB, genDoc)
+	if err := saveGenesisDoc(stateDB, genDoc); err != nil {
+		return sm.State{}, nil, err
+	}
 	sm.SaveState(stateDB, state)
 	return state, genDoc, nil
 }
@@ -1165,16 +1169,16 @@ func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 	return genDoc, nil
 }
 
-// panics if failed to marshal the given genesis document.
+// panics if failed to marshal the given genesis document, and returns the write error.
 // AppState is dropped before persisting (see LoadStateFromDBOrGenesisDocProvider).
-func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
+func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) error {
 	stripped := *genDoc
 	stripped.AppState = nil
 	b, err := amino.MarshalJSON(&stripped)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to save genesis doc due to marshaling error: %v", err))
 	}
-	db.SetSync(genesisDocKey, b)
+	return db.SetSync(genesisDocKey, b)
 }
 
 // splitAndTrimEmpty slices s into all subslices separated by sep and returns a

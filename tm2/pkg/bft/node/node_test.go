@@ -120,7 +120,7 @@ func TestSaveGenesisDoc_OmitsAppState(t *testing.T) {
 		AppState:    types.MockAppState{AccountOwner: "Alice"},
 	}
 
-	saveGenesisDoc(db, original)
+	require.NoError(t, saveGenesisDoc(db, original))
 
 	loaded, err := loadGenesisDoc(db)
 	require.NoError(t, err)
@@ -699,6 +699,35 @@ func TestLoadStateFromDBOrGenesisDocProvider_GenesisDocReadErrorFailsBoot(t *tes
 	persisted, err := loadGenesisDoc(d)
 	require.NoError(t, err)
 	assert.Equal(t, "genesis-doc-test", persisted.ChainID, "the edited file must not replace the persisted doc")
+}
+
+// DB whose SetSync of the genesis doc fails while fail is set.
+type genesisDocSetErrDB struct {
+	*memdb.MemDB
+	fail bool
+}
+
+func (d *genesisDocSetErrDB) SetSync(key, value []byte) error {
+	if d.fail && bytes.Equal(key, genesisDocKey) {
+		return errors.New("injected write error")
+	}
+	return d.MemDB.SetSync(key, value)
+}
+
+// A reset whose genesis doc write fails must fail the boot, never report the
+// corrected doc while the refused one stays persisted.
+func TestLoadStateFromDBOrGenesisDocProvider_ResetDocWriteErrorFailsBoot(t *testing.T) {
+	t.Parallel()
+
+	d := &genesisDocSetErrDB{MemDB: memdb.NewMemDB()}
+	pk := ed25519.GenPrivKey().PubKey()
+
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(d, probeGenesisDocProvider(pk, 1000))
+	require.NoError(t, err)
+
+	d.fail = true
+	_, _, err = LoadStateFromDBOrGenesisDocProvider(d, probeGenesisDocProvider(pk, 100))
+	require.ErrorContains(t, err, "injected write error", "a failed doc write must fail the boot")
 }
 
 // A genesis file that passes the chain identity guards but does not validate
