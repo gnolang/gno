@@ -179,18 +179,6 @@ func parseForeignLineTag(line []byte) (foreignTagKind, string) {
 	return foreignTagNone, ""
 }
 
-// trimForeignLine strips 0-3 leading spaces (CM §4.5 indent
-// tolerance) and trims trailing ASCII whitespace (matches goldmark's
-// util.TrimRightSpace behavior of stripping ' ', '\t', '\n', '\v',
-// '\f', '\r').
-func trimForeignLine(line []byte) []byte {
-	i := 0
-	for i < len(line) && i < 3 && line[i] == ' ' {
-		i++
-	}
-	return util.TrimRightSpace(line[i:])
-}
-
 // ----- block parser -----
 
 type foreignParser struct{}
@@ -201,7 +189,7 @@ func (*foreignParser) Trigger() []byte { return []byte{'<'} }
 
 func (*foreignParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
-	kind, label := parseForeignLineTag(trimForeignLine(line))
+	kind, label := parseForeignLineTag(trimTagLine(line))
 	if kind != foreignTagOpen {
 		return nil, parser.NoChildren
 	}
@@ -256,7 +244,7 @@ func (*foreignParser) Continue(n ast.Node, reader text.Reader, pc parser.Context
 		return parser.Close
 	}
 
-	kind, _ := parseForeignLineTag(trimForeignLine(line))
+	kind, _ := parseForeignLineTag(trimTagLine(line))
 	switch kind {
 	case foreignTagOpen:
 		// Inner opener — opaque to outer parsing, increment body
@@ -428,7 +416,7 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 // loads (Strikethrough, Table, Footnote, TaskList — see
 // render_config.go) so user content renders identically inside the
 // sandbox as it would at top level, plus the structural gno-*
-// extensions that exist today (foreign, columns, alert), the link
+// extensions that exist today (foreign, columns, frame, alert), the link
 // extension, mentions, and icons (static allowlisted glyphs). Image
 // validator is wired through if non-nil.
 //
@@ -458,6 +446,7 @@ func buildInnerForeignMarkdown(imgValidator ImageValidatorFunc) goldmark.Markdow
 	)
 	ExtForeign.Extend(m, imgValidator) // self — allows nested <gno-foreign>
 	ExtColumns.Extend(m)
+	ExtFrames.Extend(m)
 	ExtAlerts.Extend(m)
 	ExtLinks.Extend(m)
 	ExtMention.Extend(m)  // @user / g1… mentions (system-resolved, keep chrome)
