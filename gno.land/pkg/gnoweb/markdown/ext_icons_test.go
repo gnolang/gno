@@ -166,7 +166,8 @@ func FuzzIconRender(f *testing.F) {
 		}
 		for _, svg := range strings.Split(buf.String(), "<svg")[1:] {
 			// gno-icons, or the chrome glyphs other extensions write
-			// (alert kinds, link and form markers), which are <use> refs.
+			// (alert kinds, link and form markers, heading anchors),
+			// which are <use> refs.
 			if !strings.HasPrefix(svg, ` class="gno-icon" `) && !strings.Contains(svg[:min(len(svg), 60)], "<use href=\"#ico-") {
 				t.Fatalf("an <svg> that is neither a gno-icon nor a chrome glyph: %q", svg[:min(len(svg), 80)])
 			}
