@@ -11,6 +11,10 @@ type ViewType string
 // View represents a UI component with a type and underlying component.
 type View struct {
 	Type ViewType
+	// SkipTargetInBody marks views that render their rail before the content
+	// and so carry #main-content themselves, past the rail; <main> carries it
+	// otherwise. Set by the constructor that picks the template.
+	SkipTargetInBody bool
 	Component
 }
 

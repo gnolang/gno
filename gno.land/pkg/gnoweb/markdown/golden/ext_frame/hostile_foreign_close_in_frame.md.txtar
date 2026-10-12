@@ -1,0 +1,24 @@
+-- input.md --
+<gno-frame>
+host
+
+<gno-foreign>
+</gno-frame>
+# spoofed host heading
+<gno-columns>
+</gno-foreign>
+host again
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<p>host</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<!-- unexpected/invalid frame tag omitted -->
+<h1>spoofed host heading</h1>
+<div class="gno-columns">
+</div> <!-- </gno-columns> -->
+</div>
+</div>
+<p>host again</p>
+</section>
