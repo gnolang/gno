@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: HTMLEscape
+// CONTEXT: <span title="%s">x</span>
+-- input.md --
+" onmouseover="alert(1)
+-- output.md --
+&#34; onmouseover=&#34;alert(1)
+-- output.html --
+<p><!-- raw HTML omitted -->x<!-- raw HTML omitted --></p>

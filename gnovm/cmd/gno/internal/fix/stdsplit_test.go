@@ -165,12 +165,15 @@ func main() {
 }`,
 			expected: `package test
 
-import "chain/runtime"
+import (
+	"chain/runtime"
+	"chain/runtime/unsafe"
+)
 
 func main() {
 	runtime.AssertOriginCall()
-	runtime.PreviousRealm()
-	runtime.CurrentRealm()
+	unsafe.PreviousRealm()
+	unsafe.CurrentRealm()
 }`,
 		},
 		{
@@ -236,10 +239,10 @@ func main() {
 }`,
 			expected: `package test
 
-import "chain/runtime"
+import "chain/runtime/unsafe"
 
 func main() {
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 }`,
 		},
 		{
@@ -252,11 +255,14 @@ func main() {
 }`,
 			expected: `package test
 
-import "chain/banker"
+import (
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
 
 func main() {
 	banker_ := banker.NewBanker(banker.BankerTypeReadonly)
-	send := banker.OriginSend()
+	send := unsafe.OriginSend()
 }`,
 		},
 		{
@@ -327,9 +333,12 @@ var (
 func main() {
 	println(std.OriginSend())
 }`,
+			// std.OriginSend now maps to chain/runtime/unsafe.OriginSend, so
+			// the package identifier is "unsafe" — no collision with the
+			// existing banker/banker_ identifiers.
 			expected: `package main
 
-import banker__ "chain/banker"
+import "chain/runtime/unsafe"
 
 var (
 	banker  = 123
@@ -337,7 +346,7 @@ var (
 )
 
 func main() {
-	println(banker__.OriginSend())
+	println(unsafe.OriginSend())
 }`,
 		},
 		{
@@ -354,15 +363,18 @@ func main() {
 	_ = 123 + banker + banker_
 	println(std.OriginSend())
 }`,
+			// std.OriginSend now maps to chain/runtime/unsafe.OriginSend, so
+			// the inserted import is "unsafe" — no collision with the
+			// banker/banker_ locals in func scope.
 			expected: `package main
 
-import "chain/banker"
+import "chain/runtime/unsafe"
 
 func main() {
-	banker__ := 123
+	banker := 123
 	banker_ := 456
-	_ = 123 + banker__ + banker_
-	println(banker.OriginSend())
+	_ = 123 + banker + banker_
+	println(unsafe.OriginSend())
 }`,
 		},
 		{
@@ -419,20 +431,20 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	tokens "gno.land/r/demo/grc20factory"
 )
 
 // Get address of Disperse realm
-var realmAddr = runtime.CurrentRealm().Address()
+var realmAddr = unsafe.CurrentRealm().Address()
 
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 // The function will send out the coins to the addresses and return the leftover coins to the caller
 // if there are any to return
 func DisperseUgnot(addresses []address, coins chain.Coins) {
-	coinSent := banker.OriginSend()
-	caller := runtime.PreviousRealm().Address()
+	coinSent := unsafe.OriginSend()
+	caller := unsafe.PreviousRealm().Address()
 	banker_ := banker.NewBanker(banker.BankerTypeOriginSend)
 
 	if len(addresses) != len(coins) {

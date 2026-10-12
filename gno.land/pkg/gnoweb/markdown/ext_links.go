@@ -3,6 +3,7 @@ package markdown
 import (
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/yuin/goldmark"
@@ -69,6 +70,13 @@ type GnoLink struct {
 	*ast.Link
 	LinkType GnoLinkType
 	GnoURL   *weburl.GnoURL
+	// Untrusted marks a link parsed from a <gno-foreign> sandbox (the
+	// inner instance's context is flagged via markForeignOrigin). Such
+	// links render as user-generated content — rel="noopener nofollow
+	// ugc" and no first-party tx/internal trust icons — so foreign
+	// markdown cannot wear the host realm's link chrome. The href is
+	// still resolved normally; only the trust signals are stripped.
+	Untrusted bool
 }
 
 func (n *GnoLink) Dump(source []byte, level int) {
@@ -76,12 +84,43 @@ func (n *GnoLink) Dump(source []byte, level int) {
 	m["Destination"] = string(n.Destination)
 	m["Title"] = string(n.Title)
 	m["LinkType"] = n.LinkType.String()
+	if n.Untrusted {
+		m["Untrusted"] = "true"
+	}
 	ast.DumpHelper(n, source, level, m, nil)
 }
 
 // Kind implements Node.Kind.
 func (*GnoLink) Kind() ast.NodeKind {
 	return KindGnoLink
+}
+
+// resolveDestination resolves a raw markdown link destination the same way
+// goldmark's util.URLEscape(dst, true) does before an href is emitted:
+// backslash-escaped punctuation, then numeric references, then named
+// entities.
+//
+// Every consumer that inspects a destination must run it through this
+// first. Deciding anything from the raw bytes is a security bug: goldmark
+// resolves `&#x6a;avascript:` to `javascript:` on the way out, so a raw
+// check sees a harmless relative path where the browser will see a
+// dangerous scheme. That applies to the dangerous-scheme check, to the
+// link classifier (which drives rel="noopener nofollow ugc" and the
+// external-link icon), and to the image validator.
+func resolveDestination(dst []byte) []byte {
+	return util.ResolveEntityNames(util.ResolveNumericReferences(util.UnescapePunctuations(dst)))
+}
+
+// trimLeadingControlAndSpace drops the bytes a URL parser strips before it
+// reads the scheme: leading C0 controls and space (WHATWG URL, "remove any
+// leading and trailing C0 control or space"). Any check that compares a
+// scheme or a media type against a prefix has to trim first, or a single
+// leading byte shifts the prefix and the check sees nothing to match.
+func trimLeadingControlAndSpace[T string | []byte](s T) T {
+	for len(s) > 0 && s[0] <= ' ' {
+		s = s[1:]
+	}
+	return s
 }
 
 // linkTransformer implements ASTTransformer
@@ -94,6 +133,16 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		return
 	}
 
+	// Links parsed under a <gno-foreign> sandbox context render as
+	// untrusted (rel="ugc", no first-party trust icons). Read once.
+	untrusted := isForeignOrigin(pc)
+
+	// An autolink is replaced by a new node, which detaches it from its
+	// parent and ends ast.Walk's sibling loop there: every link after it in
+	// the same paragraph would skip this transformer. Replace autolinks once
+	// the walk is done instead.
+	var autolinks []*ast.AutoLink
+
 	ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
@@ -104,59 +153,91 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			rawDest []byte
 		)
 
+		// Per-node trust: ordinary links from a foreign sandbox are
+		// untrusted, but a mention is a system-resolved /u/<name>
+		// reference (not an author-chosen destination), so it keeps its
+		// first-party user chrome — see ext_mentions.go / mentionLinkAttr.
+		nodeUntrusted := untrusted
+
 		switch n := node.(type) {
 		case *ast.Link:
 			// Wrap the existing link node directly.
 			gnoLink = &GnoLink{Link: n}
 			rawDest = n.Destination
+			if _, isMention := n.Attribute(mentionLinkAttr); isMention {
+				nodeUntrusted = false
+			}
 
 		case *ast.AutoLink:
-			// Build a synthetic ast.Link so the existing renderGnoLink handles
-			// IsDangerousURL, rel attributes, and icons for autolinks too.
-			source := reader.Source()
-			rawURL := n.URL(source)
-			if n.AutoLinkType == ast.AutoLinkEmail {
-				rawDest = append([]byte("mailto:"), rawURL...)
-			} else {
-				rawDest = rawURL
-			}
-			link := ast.NewLink()
-			link.Destination = rawDest
-			labelNode := ast.NewString(n.Label(source))
-			labelNode.SetRaw(true)
-			link.AppendChild(link, labelNode)
-			gnoLink = &GnoLink{Link: link}
+			autolinks = append(autolinks, n)
+			return ast.WalkContinue, nil
 
 		default:
 			return ast.WalkContinue, nil
 		}
-
-		// Replace the original node with the GnoLink wrapper.
-		parent, next := node.Parent(), node.NextSibling()
-		parent.RemoveChild(parent, node)
-		parent.InsertBefore(parent, next, gnoLink)
-
-		// Parse destination URL and check for validity.
-		dest, err := url.Parse(string(rawDest))
-		if err != nil {
-			gnoLink.LinkType = GnoLinkTypeInvalid
-			return ast.WalkContinue, nil
-		}
-
-		// Detect and set the GnoLink type.
-		gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
-
+		gnoLink.Untrusted = nodeUntrusted
+		replaceWithGnoLink(node, gnoLink, rawDest, orig)
 		return ast.WalkContinue, nil
 	})
+
+	source := reader.Source()
+	for _, n := range autolinks {
+		// Build a synthetic ast.Link so the existing renderGnoLink handles
+		// IsDangerousURL, rel attributes, and icons for autolinks too.
+		var rawDest []byte
+		rawURL := n.URL(source)
+		if n.AutoLinkType == ast.AutoLinkEmail {
+			rawDest = append([]byte("mailto:"), rawURL...)
+		} else {
+			rawDest = rawURL
+		}
+		link := ast.NewLink()
+		link.Destination = rawDest
+		labelNode := ast.NewString(n.Label(source))
+		labelNode.SetRaw(true)
+		link.AppendChild(link, labelNode)
+		gnoLink := &GnoLink{Link: link, Untrusted: untrusted}
+		replaceWithGnoLink(n, gnoLink, rawDest, orig)
+	}
+}
+
+// replaceWithGnoLink puts gnoLink in node's place and classifies its
+// destination.
+func replaceWithGnoLink(node ast.Node, gnoLink *GnoLink, rawDest []byte, orig *weburl.GnoURL) {
+	parent, next := node.Parent(), node.NextSibling()
+	parent.RemoveChild(parent, node)
+	parent.InsertBefore(parent, next, gnoLink)
+
+	// Parse destination URL and check for validity. The classifier
+	// must see the same bytes the renderer will emit — see
+	// resolveDestination.
+	dest, err := url.Parse(string(resolveDestination(rawDest)))
+	if err != nil {
+		gnoLink.LinkType = GnoLinkTypeInvalid
+		return
+	}
+
+	// Detect and set the GnoLink type.
+	gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
 }
 
 // detectLinkType detects the type of link based on the destination
 func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLinkType) {
+	// A scheme without a host (https:///evil.com) still leads browsers to
+	// a host: they skip the extra slashes.
+	if dest.Scheme != "" && dest.Host == "" {
+		return nil, GnoLinkTypeExternal
+	}
+
 	// Attempt to parse the destination as a GnoURL.
 	target, err := weburl.ParseFromURL(dest)
 	if err != nil {
-		if dest.Scheme == "" {
-			// If there's no scheme, consider it as a relative path.
+		// No scheme: a relative path, unless it names a host. A
+		// protocol-relative URL (//host/...) is external unless the host is
+		// ours, and browsers also read a path starting with "//" (///host)
+		// as a host.
+		if dest.Scheme == "" && !strings.HasPrefix(dest.Path, "//") &&
+			(dest.Host == "" || strings.EqualFold(dest.Hostname(), orig.Domain)) {
 			return nil, GnoLinkTypePackage
 		}
 
@@ -224,6 +305,17 @@ type linkTypeInfo struct {
 func getLinkIcons(n *GnoLink) []linkTypeInfo {
 	var icons []linkTypeInfo
 
+	// Untrusted (foreign-sandbox) links: suppress the first-party
+	// chrome (internal/user/tx icons) so sandboxed content cannot
+	// borrow the host realm's trust signals. The external-link icon is
+	// kept — it is a "leaves the page" safety hint, not a trust badge.
+	if n.Untrusted {
+		if n.LinkType == GnoLinkTypeExternal {
+			icons = append(icons, linkTypeInfo{tooltipExternalLink, iconExternalLink, classLinkExternal})
+		}
+		return icons
+	}
+
 	// Add type-specific icon (external/internal)
 	if n.LinkType != GnoLinkTypePackage {
 		switch n.LinkType {
@@ -252,22 +344,33 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 	}
 
 	if n.LinkType == GnoLinkTypeInvalid {
+		// No <a> is emitted — the destination is unusable, and with no href
+		// there is nothing for a dangerous scheme to reach. The link TEXT is
+		// still realm content, so keep walking children and render it as
+		// plain inline text. Dropping it would delete author-visible copy
+		// for inputs that merely resolve to something net/url rejects
+		// (`&percnt;` in an absolute path, an entity-encoded C0 control),
+		// not just for attacks.
 		if entering {
 			w.WriteString("<!-- invalid link -->")
 		}
-		return ast.WalkSkipChildren, nil
+		return ast.WalkContinue, nil
 	}
 
 	if entering {
 		w.WriteString(`<a href="`)
-		if !html.IsDangerousURL(n.Destination) {
-			w.Write(util.EscapeHTML(util.URLEscape(n.Destination, true)))
+		dest := resolveDestination(n.Destination)
+		if !html.IsDangerousURL(trimLeadingControlAndSpace(dest)) {
+			w.Write(util.EscapeHTML(util.URLEscape(dest, false)))
 		}
 		w.WriteByte('"')
 
-		// Prepare additional link attributes.
+		// Prepare additional link attributes. External links always
+		// carry the rel guard; untrusted (foreign-sandbox) links carry
+		// it regardless of type so internal/tx links from foreign
+		// content are still marked as user-generated.
 		attrs := []attr{}
-		if n.LinkType == GnoLinkTypeExternal {
+		if n.LinkType == GnoLinkTypeExternal || n.Untrusted {
 			attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
 		}
 		if n.Title != nil {

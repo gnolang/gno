@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: before realm chrome\n%s\nafter realm chrome
+-- input.md --
+<!-- user-supplied comment block opener -->
+-- output.md --
+
+
+\<!-- user-supplied comment block opener -->
+
+-- output.html --
+<p>before realm chrome</p>
+<p>&lt;!-- user-supplied comment block opener --&gt;</p>
+<p>after realm chrome</p>

@@ -10,7 +10,7 @@
   </head>
   <body>
     <a href="{{.To}}">{{.To}}</a>
-    {{- if .WithAnalytics -}} {{- template "layout/analytics" }} {{- end -}}
+    {{- if .Analytics.Enabled -}} {{- template "layout/analytics" .Analytics }} {{- end -}}
   </body>
 </html>
 {{- end -}}

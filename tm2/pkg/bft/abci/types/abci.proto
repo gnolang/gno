@@ -38,6 +38,7 @@ message RequestInitChain {
 	ConsensusParams consensus_params = 4 [json_name = "ConsensusParams"];
 	repeated ValidatorUpdate validators = 5 [json_name = "Validators"];
 	google.protobuf.Any app_state = 6 [json_name = "AppState"];
+	sint64 initial_height = 7 [json_name = "InitialHeight"];
 }
 
 message RequestQuery {

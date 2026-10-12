@@ -1,0 +1,109 @@
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduserfrom nonmember 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
+
+gnoland start
+
+# a non-member who paid nothing cannot propose
+gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+stdout 'non-members must first pay the 1000000ugnot proposal fee with PayProposalFee'
+
+# a maketx run sends its coins back to the signer, so -send on it pays nothing
+gnokey maketx run -send 1000000ugnot -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+stdout 'non-members must first pay the 1000000ugnot proposal fee with PayProposalFee'
+
+# nor can a maketx run pay the fee itself
+! gnokey maketx run -send 1000000ugnot -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/pay_fee.gno
+stderr 'the proposal fee must be paid with a direct msg call'
+
+# paying through a direct call moves the fee to the treasury and buys exactly one proposal
+gnokey maketx call -pkgpath gno.land/r/gov/dao/impl/v0 -func PayProposalFee -send 1000000ugnot -gas-fee 1900001ugnot -gas-wanted 21_000_000 -chainid=tendermint_test nonmember
+stdout OK!
+
+gnokey query bank/balances/g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t
+stdout '"1000000ugnot"'
+
+gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+stdout 'proposal 0'
+
+gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+stdout 'non-members must first pay the 1000000ugnot proposal fee with PayProposalFee'
+
+# the members vote the fee down to zero
+gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test member $WORK/proposer/create_fee_proposal.gno
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 21_000_000 -args 1 -args YES -chainid=tendermint_test member
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 26_000_000 -args 1 -chainid=tendermint_test member
+stdout OK!
+
+# with no fee, a non-member proposes free
+gnokey maketx run -gas-fee 3700001ugnot -gas-wanted 44_000_000 -chainid=tendermint_test nonmember $WORK/proposer/create_proposal.gno
+stdout 'proposal 2'
+
+-- proposer/create_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+)
+
+func main(cur realm) {
+	preq := impl.NewAddMemberRequest(cross(cur), address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"), "T2", "My portfolio")
+	pid, err := dao.CreateProposal(cross(cur), preq)
+	if err != nil {
+		println(err.Error())
+		return
+	}
+	println("proposal", int64(pid))
+}
+
+-- proposer/pay_fee.gno --
+package main
+
+import "gno.land/r/gov/dao/impl/v0"
+
+func main(cur realm) {
+	impl.PayProposalFee(cross(cur))
+}
+
+-- proposer/create_fee_proposal.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+)
+
+func main(cur realm) {
+	preq := impl.NewProposalFeeAmountRequest(cross(cur), 0, "Let anyone propose")
+	dao.MustCreateProposal(cross(cur), preq)
+}
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
+}

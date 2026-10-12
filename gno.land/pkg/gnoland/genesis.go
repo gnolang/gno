@@ -22,46 +22,16 @@ import (
 const initGasPrice = "1ugnot/1000gas"
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
+//
+// The file is a balance sheet: one entry per line, with # comments and blank
+// lines allowed. Entries are read by the same parser gnogenesis uses, so an entry
+// may carry a vesting suffix.
 func LoadGenesisBalancesFile(path string) (Balances, error) {
-	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
 	content, err := osm.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(string(content), "\n")
-
-	balances := make(Balances, len(lines))
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// remove comments.
-		line = strings.Split(line, "#")[0]
-		line = strings.TrimSpace(line)
-
-		// skip empty lines.
-		if line == "" {
-			continue
-		}
-
-		parts := strings.Split(line, "=") // <address>=<coin>
-		if len(parts) != 2 {
-			return nil, errors.New("invalid genesis_balance line: " + line)
-		}
-
-		addr, err := crypto.AddressFromBech32(parts[0])
-		if err != nil {
-			return nil, fmt.Errorf("invalid balance addr %s: %w", parts[0], err)
-		}
-
-		coins, err := std.ParseCoins(parts[1])
-		if err != nil {
-			return nil, fmt.Errorf("invalid balance coins %s: %w", parts[1], err)
-		}
-
-		balances.Set(addr, coins)
-	}
-
-	return balances, nil
+	return GetBalancesFromSheet(strings.NewReader(string(content)))
 }
 
 func splitTypedName(typedName string) (name string, type_ string) {
@@ -118,9 +88,13 @@ func LoadGenesisParamsFile(path string, ggs *GnoGenesisState) error {
 		numparts := len(parts)
 		if numparts == 2 {
 			realm := parts[1]
-			// XXX validate realm part.
 			for name, value := range values {
 				name, type_ := splitTypedName(name)
+				// The same rules vm.ValidateGenesis applies at boot, where a bad
+				// key is a node panic. Refusing here names the offending section.
+				if err := vmm.ValidateRealmParamKey(realm + ":" + name); err != nil {
+					return fmt.Errorf("invalid section [%s]: %w", modrlm, err)
+				}
 				if type_ == "strings" {
 					vz := value.([]any)
 					sz := make([]string, len(vz))
@@ -148,8 +122,8 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]Tx
 	if err != nil {
 		return nil, err
 	}
-	txsLines := strings.Split(string(txsBz), "\n")
-	for _, txLine := range txsLines {
+	txsLines := strings.SplitSeq(string(txsBz), "\n")
+	for txLine := range txsLines {
 		if txLine == "" {
 			continue // Skip empty line.
 		}

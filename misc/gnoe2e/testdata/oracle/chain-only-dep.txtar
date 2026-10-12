@@ -1,0 +1,77 @@
+# A package importing a dependency that lives only on the chain, absent from the
+# oracle's examples/, is approved and goes live. The typecheck already resolved
+# such an import over RPC; a failure here means preprocess could not, and a
+# package the validator would enable was rejected for good, keyed on its bytes.
+#
+# **Red on master, green with the fix.**
+
+# Nothing is parked yet.
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/probe/(echo|charlie)'
+
+# Submit the 2 packages
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/echo -pkgpath gno.land/r/probe/echo $USER_NAME
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/charlie -pkgpath gno.land/r/probe/charlie $USER_NAME
+
+# Parked: listed as inert, and neither readable nor callable.
+gnokey query vm/qinertpaths -data ''
+stdout -count=2 'gno.land/r/probe/(echo|charlie)'
+! gnokey query vm/qfile -data gno.land/r/probe/echo
+stdout 'is not available'
+! gnokey query vm/qfile -data gno.land/r/probe/charlie
+stdout 'is not available'
+
+# -start-height 1 makes the oracle scan from the chain's start rather than
+# from its own tip at startup: the submission above already committed before
+# this line runs, so the default (watch from here on) would never see it.
+gpao start -start-height 1
+
+# Assert the oracle has enabled both packages
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/echo '"status":"approved"'
+eventually http_get $GPAO_STATUS/status/gno.land/r/probe/charlie '"status":"approved"'
+
+# Assert package are live on-chain
+gnokey query vm/qrender -data 'gno.land/r/probe/echo:hello'
+stdout 'hello'
+gnokey query vm/qrender -data 'gno.land/r/probe/charlie:hello'
+stdout 'hello'
+
+# Assert packages are no longer inert
+gnokey query vm/qinertpaths -data ''
+! stdout 'gno.land/r/probe/(echo|charlie)'
+
+-- cluster --
+validators: 1
+code-submission-policy: inert
+-- echo/gnomod.toml --
+module = "gno.land/r/probe/echo"
+gno = "0.9"
+
+-- echo/echo.gno --
+package echo
+
+func Render(path string) string {
+	return path
+}
+-- echo/echo_test.gno --
+package echo
+
+import "testing"
+
+func TestRender(t *testing.T) {
+	if Render("hello") != "hello" {
+		t.Fatal("render")
+	}
+}
+-- charlie/gnomod.toml --
+module = "gno.land/r/probe/charlie"
+gno = "0.9"
+
+-- charlie/charlie.gno --
+package charlie
+
+import "gno.land/r/probe/echo"
+
+func Render(path string) string {
+	return echo.Render(path)
+}

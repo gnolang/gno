@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/gnolang/faucet"
-	tm2Client "github.com/gnolang/faucet/client/http"
 	"github.com/gnolang/faucet/config"
 	"github.com/gnolang/faucet/estimate/static"
 	"github.com/gnolang/gno/gno.land/pkg/log"
@@ -22,7 +20,7 @@ import (
 
 const (
 	defaultGasFee        = "1000000ugnot"
-	defaultGasWanted     = "100000"
+	defaultGasWanted     = 100000
 	defaultRemote        = "http://127.0.0.1:26657"
 	defaultListenAddress = "0.0.0.0:5050"
 )
@@ -53,6 +51,9 @@ type serveCfg struct {
 	mnemonic      string
 	maxSendAmount string
 	numAccounts   uint64
+
+	gasFee    string
+	gasWanted int64
 
 	remote            string
 	trustedProxyCount int
@@ -124,6 +125,20 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 		"max-send-amount",
 		"10000000ugnot",
 		"the static max send amount (native currency)",
+	)
+
+	fs.StringVar(
+		&c.gasFee,
+		"gas-fee",
+		defaultGasFee,
+		"the static gas fee for faucet transactions",
+	)
+
+	fs.Int64Var(
+		&c.gasWanted,
+		"gas-wanted",
+		defaultGasWanted,
+		"the static gas wanted for faucet transactions",
 	)
 
 	fs.IntVar(
@@ -198,15 +213,16 @@ func serveFaucet(
 		return errors.New("ratelimit-cleanup-timeout must be >= ratelimit-interval, otherwise cleanup defeats the rate limit")
 	}
 
-	// Parse static gas values.
-	// It is worth noting that this is temporary,
-	// and will be removed once gas estimation is enabled
-	// on gno.land
-	gasFee := std.MustParseCoin(defaultGasFee)
-
-	gasWanted, err := strconv.ParseInt(defaultGasWanted, 10, 64)
+	// Validate the static gas values. The fee only needs to parse as a coin —
+	// a zero fee is valid on chains with no minimum gas price — but gas wanted
+	// must be positive, since a non-positive limit always fails out-of-gas.
+	gasFee, err := std.ParseCoin(cfg.gasFee)
 	if err != nil {
-		return fmt.Errorf("invalid gas wanted, %w", err)
+		return fmt.Errorf("invalid gas fee, %w", err)
+	}
+
+	if cfg.gasWanted <= 0 {
+		return errors.New("gas wanted must be greater than zero")
 	}
 
 	// Parse the send amount
@@ -220,10 +236,9 @@ func serveFaucet(
 		return errors.New("invalid remote address")
 	}
 
-	// Create the client (HTTP)
-	cli, err := tm2Client.NewClient(cfg.remote)
+	cli, err := newNodeClient(cfg.remote)
 	if err != nil {
-		return fmt.Errorf("unable to create TM2 client, %w", err)
+		return err
 	}
 
 	faucetOpts := []faucet.Option{
@@ -235,7 +250,7 @@ func serveFaucet(
 	// Create a new faucet with
 	// static gas estimation
 	f, err := faucet.NewFaucet(
-		static.New(gasFee, gasWanted),
+		static.New(gasFee, cfg.gasWanted),
 		cli,
 		faucetOpts...,
 	)

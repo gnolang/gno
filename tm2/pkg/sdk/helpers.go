@@ -3,11 +3,44 @@ package sdk
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+// Log clipping limits — defense in depth backstop for adversarial
+// content reaching ABCI Log. Per-line cap stops a single huge line
+// (e.g. a wrapped error inlined into a stacktrace); line-count cap
+// stops a tall stacktrace. Net cap: maxLogLines × (maxLogLineBytes
+// + suffix) ≈ 17 KB.
+const (
+	maxLogLineBytes = 1024
+	maxLogLines     = 16
+)
+
+// clipLog enforces two bounds on persisted Log content: per-line
+// byte cap and total line-count cap. Truncated lines and elided
+// tails get explicit markers. Fast-path returns input unchanged
+// when it's small and contains no newlines.
+func clipLog(s string) string {
+	if len(s) <= maxLogLineBytes && !strings.ContainsRune(s, '\n') {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		if len(line) > maxLogLineBytes {
+			lines[i] = line[:maxLogLineBytes] + "...<truncated>"
+		}
+	}
+	if len(lines) > maxLogLines {
+		elided := len(lines) - maxLogLines
+		lines = append(lines[:maxLogLines],
+			fmt.Sprintf("... %d more lines elided", elided))
+	}
+	return strings.Join(lines, "\n")
+}
 
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
 
@@ -21,7 +54,68 @@ func (app *BaseApp) Check(tx Tx) (result Result) {
 }
 
 func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
-	ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
+	// Read header from the atomic snapshot — safe for concurrent access.
+	header := app.getLastBlockHeader()
+	if header == nil {
+		return ABCIResultFromError(
+			std.ErrInternal("cannot simulate: no block header available yet"),
+		)
+	}
+
+	// Pick the committed version to simulate against.
+	//
+	// Once a real block has been committed the header height is that version,
+	// which is what this has always used. Between the genesis commit and the
+	// first BeginBlock it is not: Commit republishes the header it was handed,
+	// and after InitChain that is initHeader, which carries no Height — so the
+	// header reads 0 while the store already holds a committed version.
+	//
+	// That window is reachable. The node starts its RPC listeners before the
+	// P2P switch and the consensus reactor, so the query endpoint is live
+	// before block 1 can exist, `gnoland start -x-early-start` widens the gap
+	// deliberately, and a node with CreateEmptyBlocks=false — gnodev and the
+	// integration harness both set it — sits in the window until a transaction
+	// arrives. It used to be served from app.checkState, whose gas meter is one
+	// pointer shared by every caller and whose cache stores are mutable: fine
+	// while the query connection serialised, a data race the moment it stopped.
+	// Falling through to the same immutable snapshot the committed path uses
+	// removes the shared state rather than locking around it.
+	height := header.GetHeight()
+	if height < 1 {
+		height = app.LastBlockHeight()
+	}
+	if height < 1 {
+		// Nothing has been committed at all, so there is no snapshot to take:
+		// the genesis state still lives only in the uncommitted checkState.
+		// Reached between InitChain and the genesis commit, which the consensus
+		// handshake performs before the node starts its RPC listeners — so no
+		// external caller is here, and the in-process callers that are (tests,
+		// tooling driving BaseApp directly) get a lock rather than a claim that
+		// the window is unreachable. Serialising is correct and costs nothing
+		// measurable: it is a handful of calls, once, at startup.
+		app.preCommitSimulateMu.Lock()
+		defer app.preCommitSimulateMu.Unlock()
+
+		ctx := app.getContextForTx(RunTxModeSimulate, txBytes)
+		return app.runTx(ctx, txBytes)
+	}
+
+	// Load an immutable snapshot of committed state at the given height.
+	// The snapshot is pinned until release() is called, preventing concurrent
+	// Commit() calls from freeing it while we're still reading.
+	cacheMS, release, err := app.cms.MultiImmutableCacheWrapWithVersion(height)
+	if err != nil {
+		return ABCIResultFromError(
+			std.ErrInternal(fmt.Sprintf("failed to load state for simulate at height %d: %s", height, err)),
+		)
+	}
+	defer release()
+
+	ctx := NewContext(RunTxModeSimulate, cacheMS, header, app.logger).
+		WithTxBytes(txBytes).
+		WithMinGasPrices(app.minGasPrices).
+		WithConsensusParams(app.consensusParams)
+
 	return app.runTx(ctx, txBytes)
 }
 
@@ -66,12 +160,12 @@ func ABCIError(err error) abci.Error {
 
 func ABCIResultFromError(err error) (res Result) {
 	res.Error = ABCIError(err)
-	res.Log = fmt.Sprintf("%#v", err)
+	res.Log = clipLog(fmt.Sprintf("%#v", err))
 	return
 }
 
 func ABCIResponseQueryFromError(err error) (res abci.ResponseQuery) {
 	res.Error = ABCIError(err)
-	res.Log = fmt.Sprintf("%#v", err)
+	res.Log = clipLog(fmt.Sprintf("%#v", err))
 	return
 }

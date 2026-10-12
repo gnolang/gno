@@ -59,7 +59,7 @@ func (m *mockSwitch) Subscribe(filter events.EventFilter) (<-chan events.Event, 
 }
 
 type (
-	addDelegate         func(p2p.PeerConn)
+	addDelegate         func(p2p.PeerConn) error
 	removeDelegate      func(types.ID) bool
 	hasDelegate         func(types.ID) bool
 	hasIPDelegate       func(net.IP) bool
@@ -80,10 +80,12 @@ type mockPeerSet struct {
 	numOutboundFn numOutboundDelegate
 }
 
-func (m *mockPeerSet) Add(peer p2p.PeerConn) {
+func (m *mockPeerSet) Add(peer p2p.PeerConn) error {
 	if m.addFn != nil {
-		m.addFn(peer)
+		return m.addFn(peer)
 	}
+
+	return nil
 }
 
 func (m *mockPeerSet) Remove(key types.ID) bool {

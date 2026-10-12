@@ -1,6 +1,8 @@
 package crossrealm_e
 
-import "chain/runtime"
+import (
+	"chain/runtime/unsafe"
+)
 
 var (
 	balance int64
@@ -25,14 +27,14 @@ func GetOwner() address {
 }
 
 func TransferOwnership(cur realm, o address) {
-	if runtime.PreviousRealm().Address() != owner {
+	if unsafe.PreviousRealm().Address() != owner {
 		panic("unauthorized")
 	}
 	owner = o
 }
 
 func TransferToken(cur realm) {
-	caller := runtime.PreviousRealm().Address()
+	caller := unsafe.PreviousRealm().Address()
 	if caller != owner {
 		panic("unauthorized")
 	}

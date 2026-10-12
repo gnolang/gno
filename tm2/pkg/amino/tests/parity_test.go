@@ -26,7 +26,6 @@ func TestCodecParity_AminoFixtures(t *testing.T) {
 	cdc.Seal()
 
 	for i, c := range parityCasesAmino {
-		c := c
 		name := fmt.Sprintf("%d/%s", i, c.name)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

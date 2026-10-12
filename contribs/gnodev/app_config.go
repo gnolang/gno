@@ -1,6 +1,10 @@
 package main
 
-import "flag"
+import (
+	"flag"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
+)
 
 type AppConfig struct {
 	// Listeners
@@ -15,24 +19,31 @@ type AppConfig struct {
 	premineAccounts varPremineAccounts
 
 	// Files
-	balancesFile string
-	genesisFile  string
-	txsFile      string
+	balancesFile     string
+	genesisFile      string
+	txsFile          string
+	validatorKeyFile string
 
 	// Web Configuration
-	noWeb               bool
-	webHTML             bool
-	webListenerAddr     string
-	webRemoteHelperAddr string
-	webWithHTML         bool
-	webHome             string
+	noWeb                bool
+	webHTML              bool
+	webListenerAddr      string
+	webRemoteHelperAddr  string
+	webWithHTML          bool
+	webHome              string
+	webAnalytics         bool
+	webAnalyticsHostname string
 
-	// Resolver
-	resolvers varResolver
+	// Loader
+	noExamples                 bool
+	withoutQuarantinedExamples bool
+	extraRoots                 []string
+	remotes                    map[string]string
 
 	// Node Configuration
 	logFormat           string
-	lazyLoader          bool
+	staging             bool
+	noWorkspaceHint     string // mode's loading consequence in the no-workspace banner; not a flag
 	verbose             bool
 	noWatch             bool
 	noReplay            bool
@@ -112,10 +123,44 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"gnoweb: set default home page, use `/` or `:none:` to use default web home redirect",
 	)
 
+	fs.BoolVar(
+		&c.noExamples,
+		"no-examples",
+		defaultCfg.noExamples,
+		"skip loading $GNOROOT/examples entirely",
+	)
+
+	fs.BoolVar(
+		&c.webAnalytics,
+		"web-analytics",
+		defaultCfg.webAnalytics,
+		"gnoweb: enable SimpleAnalytics tracking",
+	)
+
+	fs.StringVar(
+		&c.webAnalyticsHostname,
+		"web-analytics-hostname",
+		defaultCfg.webAnalyticsHostname,
+		"gnoweb: override the SimpleAnalytics reported hostname (rendered as data-hostname on the SA script tag)",
+	)
+
+	fs.BoolVar(
+		&c.withoutQuarantinedExamples,
+		"without-quarantined-examples",
+		defaultCfg.withoutQuarantinedExamples,
+		"skip loading $GNOROOT/examples/quarantined while keeping the rest of examples (also applies when examples is passed via -extra-root)",
+	)
+
 	fs.Var(
-		&c.resolvers,
-		"resolver",
-		"list of additional resolvers (`root`, `local`, or `remote`) in the form of <resolver>=<location> will be executed in the given order",
+		(*commands.StringArr)(&c.extraRoots),
+		"extra-root",
+		"additional workspace root to include (repeatable); every package under it is eager-loaded",
+	)
+
+	fs.Var(
+		(*remoteArr)(&c.remotes),
+		"remote",
+		"fetch packages of a chain domain from the given RPC, in the form `<domain>=<rpc>` (repeatable); domains without an entry are never fetched",
 	)
 
 	fs.StringVar(
@@ -153,6 +198,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	)
 
 	fs.StringVar(
+		&c.validatorKeyFile,
+		"validator-key-file",
+		defaultCfg.validatorKeyFile,
+		"load the validator key from the given priv_validator_key.json file instead of generating one (no double-sign protection: never use a production key)",
+	)
+
+	fs.StringVar(
 		&c.deployKey,
 		"deploy-key",
 		defaultCfg.deployKey,
@@ -187,13 +239,6 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		"do not replay previous transactions upon reload",
 	)
 
-	fs.BoolVar(
-		&c.lazyLoader,
-		"lazy-loader",
-		defaultCfg.lazyLoader,
-		"enable lazy loader",
-	)
-
 	fs.Int64Var(
 		&c.maxGas,
 		"max-gas",
@@ -219,7 +264,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.paths,
 		"paths",
 		defaultCfg.paths,
-		`additional paths to preload in the form of "gno.land/r/my/realm", separated by commas; glob is supported`,
+		`additional package paths to preload in the form of "gno.land/r/my/realm", separated by commas`,
 	)
 
 	fs.BoolVar(

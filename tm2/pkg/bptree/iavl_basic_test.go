@@ -1,0 +1,425 @@
+package bptree
+
+// Ported from tm2/pkg/iavl/basic_test.go
+
+import (
+	"math/rand"
+	"sort"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+)
+
+func TestBasic(t *testing.T) {
+	tree := getTestTree(0)
+	up, err := tree.Set([]byte("1"), []byte("one"))
+	require.NoError(t, err)
+	if up {
+		t.Error("Did not expect an update (should have been create)")
+	}
+	up, err = tree.Set([]byte("2"), []byte("two"))
+	require.NoError(t, err)
+	if up {
+		t.Error("Did not expect an update (should have been create)")
+	}
+	up, err = tree.Set([]byte("2"), []byte("TWO"))
+	require.NoError(t, err)
+	if !up {
+		t.Error("Expected an update")
+	}
+	up, err = tree.Set([]byte("5"), []byte("five"))
+	require.NoError(t, err)
+	if up {
+		t.Error("Did not expect an update (should have been create)")
+	}
+
+	// Test 0x00
+	{
+		key := []byte{0x00}
+		idx, val, err := tree.GetWithIndex(key)
+		require.NoError(t, err)
+		if val != nil {
+			t.Error("Expected no value to exist")
+		}
+		if idx != 0 {
+			t.Errorf("Unexpected idx %x", idx)
+		}
+
+		val, err = tree.Get(key)
+		require.NoError(t, err)
+		if val != nil {
+			t.Error("Fast method - expected no value to exist")
+		}
+	}
+
+	// Test "1"
+	{
+		key := []byte("1")
+		expected := "one"
+
+		idx, val, err := tree.GetWithIndex(key)
+		require.NoError(t, err)
+		if val == nil {
+			t.Error("Expected value to exist")
+		}
+		if idx != 0 {
+			t.Errorf("Unexpected idx %x", idx)
+		}
+		if string(val) != expected {
+			t.Errorf("Unexpected value %s", val)
+		}
+
+		val, err = tree.Get(key)
+		require.NoError(t, err)
+		if val == nil {
+			t.Error("Fast method - expected value to exist")
+		}
+		if string(val) != expected {
+			t.Errorf("Fast method - Unexpected value %s", val)
+		}
+	}
+
+	// Test "2"
+	{
+		key := []byte("2")
+		expected := "TWO"
+
+		idx, val, err := tree.GetWithIndex(key)
+		require.NoError(t, err)
+		if val == nil {
+			t.Error("Expected value to exist")
+		}
+		if idx != 1 {
+			t.Errorf("Unexpected idx %x", idx)
+		}
+		if string(val) != expected {
+			t.Errorf("Unexpected value %s", val)
+		}
+
+		val, _ = tree.Get(key)
+		if val == nil {
+			t.Error("Fast method - expected value to exist")
+		}
+		if string(val) != expected {
+			t.Errorf("Fast method - Unexpected value %s", val)
+		}
+	}
+
+	// Test "4"
+	{
+		key := []byte("4")
+
+		idx, val, err := tree.GetWithIndex(key)
+		require.NoError(t, err)
+		if val != nil {
+			t.Error("Expected no value to exist")
+		}
+		if idx != 2 {
+			t.Errorf("Unexpected idx %x", idx)
+		}
+
+		val, _ = tree.Get(key)
+		if val != nil {
+			t.Error("Fast method - expected no value to exist")
+		}
+	}
+
+	// Test "6"
+	{
+		key := []byte("6")
+
+		idx, val, err := tree.GetWithIndex(key)
+		require.NoError(t, err)
+		if val != nil {
+			t.Error("Expected no value to exist")
+		}
+		if idx != 3 {
+			t.Errorf("Unexpected idx %x", idx)
+		}
+
+		val, _ = tree.Get(key)
+		if val != nil {
+			t.Error("Fast method - expected no value to exist")
+		}
+	}
+}
+
+func TestRemove(t *testing.T) {
+	size := 10000
+	t1 := getTestTree(size)
+
+	// insert a bunch of random nodes
+	keys := make([][]byte, size)
+	l := int32(len(keys))
+	for i := range size {
+		key := make([]byte, 16)
+		rand.Read(key)
+		t1.Set(key, make([]byte, 40))
+		keys[i] = key
+	}
+
+	for i := range 10 {
+		step := 50 * i
+		for range step {
+			key := keys[rand.Int31n(l)]
+			t1.Remove(key)
+		}
+		t1.SaveVersion()
+	}
+}
+
+func TestIntegration(t *testing.T) {
+	type record struct {
+		key   string
+		value string
+	}
+
+	records := make([]*record, 400)
+	tree := getTestTree(0)
+
+	randomRecord := func() *record {
+		return &record{randstr(20), randstr(20)}
+	}
+
+	for i := range records {
+		r := randomRecord()
+		records[i] = r
+		updated, err := tree.Set([]byte(r.key), []byte{})
+		require.NoError(t, err)
+		if updated {
+			t.Error("should have not been updated")
+		}
+		updated, err = tree.Set([]byte(r.key), []byte(r.value))
+		require.NoError(t, err)
+		if !updated {
+			t.Error("should have been updated")
+		}
+		if tree.Size() != int64(i+1) {
+			t.Error("size was wrong", tree.Size(), i+1)
+		}
+	}
+
+	for _, r := range records {
+		has, err := tree.Has([]byte(r.key))
+		require.NoError(t, err)
+		if !has {
+			t.Error("Missing key", r.key)
+		}
+
+		has, err = tree.Has([]byte(randstr(12)))
+		require.NoError(t, err)
+		if has {
+			t.Error("Table has extra key")
+		}
+
+		val, err := tree.Get([]byte(r.key))
+		require.NoError(t, err)
+		if string(val) != r.value {
+			t.Error("wrong value")
+		}
+	}
+
+	for i, x := range records {
+		val, removed, err := tree.Remove([]byte(x.key))
+		require.NoError(t, err)
+		if !removed {
+			t.Error("Wasn't removed")
+		}
+		if string(val) != x.value {
+			t.Error("Wrong value")
+		}
+		for _, r := range records[i+1:] {
+			has, err := tree.Has([]byte(r.key))
+			require.NoError(t, err)
+			if !has {
+				t.Error("Missing key", r.key)
+			}
+
+			has, err = tree.Has([]byte(randstr(12)))
+			require.NoError(t, err)
+			if has {
+				t.Error("Table has extra key")
+			}
+
+			val, err := tree.Get([]byte(r.key))
+			require.NoError(t, err)
+			if string(val) != r.value {
+				t.Error("wrong value")
+			}
+		}
+		if tree.Size() != int64(len(records)-(i+1)) {
+			t.Error("size was wrong", tree.Size(), (len(records) - (i + 1)))
+		}
+	}
+}
+
+func TestIterateRange(t *testing.T) {
+	type record struct {
+		key   string
+		value string
+	}
+
+	records := []record{
+		{"abc", "123"},
+		{"low", "high"},
+		{"fan", "456"},
+		{"foo", "a"},
+		{"foobaz", "c"},
+		{"good", "bye"},
+		{"foobang", "d"},
+		{"foobar", "b"},
+		{"food", "e"},
+		{"foml", "f"},
+	}
+	keys := make([]string, len(records))
+	for i, r := range records {
+		keys[i] = r.key
+	}
+	sort.Strings(keys)
+
+	tree := getTestTree(0)
+
+	for _, r := range records {
+		updated, err := tree.Set([]byte(r.key), []byte(r.value))
+		require.NoError(t, err)
+		if updated {
+			t.Error("should have not been updated")
+		}
+	}
+
+	// test traversing the whole node works... in order
+	viewed := []string{}
+	tree.Iterate(func(key []byte, _ []byte) bool {
+		viewed = append(viewed, string(key))
+		return false
+	})
+	if len(viewed) != len(keys) {
+		t.Error("not the same number of keys as expected")
+	}
+	for i, v := range viewed {
+		if v != keys[i] {
+			t.Error("Keys out of order", v, keys[i])
+		}
+	}
+
+	trav := traverser{}
+	tree.IterateRange([]byte("foo"), []byte("goo"), true, trav.view)
+	expectTraverse(t, trav, "foo", "food", 5)
+
+	trav = traverser{}
+	tree.IterateRange([]byte("aaa"), []byte("abb"), true, trav.view)
+	expectTraverse(t, trav, "", "", 0)
+
+	trav = traverser{}
+	tree.IterateRange(nil, []byte("flap"), true, trav.view)
+	expectTraverse(t, trav, "abc", "fan", 2)
+
+	trav = traverser{}
+	tree.IterateRange([]byte("foob"), nil, true, trav.view)
+	expectTraverse(t, trav, "foobang", "low", 6)
+
+	trav = traverser{}
+	tree.IterateRange([]byte("very"), nil, true, trav.view)
+	expectTraverse(t, trav, "", "", 0)
+
+	// make sure it doesn't include end
+	trav = traverser{}
+	tree.IterateRange([]byte("fooba"), []byte("food"), true, trav.view)
+	expectTraverse(t, trav, "foobang", "foobaz", 3)
+
+	// make sure backwards also works... (doesn't include end)
+	trav = traverser{}
+	tree.IterateRange([]byte("fooba"), []byte("food"), false, trav.view)
+	expectTraverse(t, trav, "foobaz", "foobang", 3)
+
+	// make sure backwards also works...
+	trav = traverser{}
+	tree.IterateRange([]byte("g"), nil, false, trav.view)
+	expectTraverse(t, trav, "low", "good", 2)
+}
+
+func TestPersistence(t *testing.T) {
+	db := memdb.NewMemDB()
+
+	// Create some random key value pairs
+	records := make(map[string]string)
+	for range 10000 {
+		records[randstr(20)] = randstr(20)
+	}
+
+	// Construct some tree and save it
+	t1 := NewMutableTreeWithDB(db, 0, NewNopLogger())
+	for key, value := range records {
+		t1.Set([]byte(key), []byte(value))
+	}
+	t1.SaveVersion()
+
+	// Load a tree
+	t2 := NewMutableTreeWithDB(db, 0, NewNopLogger())
+	t2.Load()
+	for key, value := range records {
+		t2value, err := t2.Get([]byte(key))
+		require.NoError(t, err)
+		if string(t2value) != value {
+			t.Fatalf("Invalid value. Expected %v, got %v", value, t2value)
+		}
+	}
+}
+
+func TestProof(t *testing.T) {
+	// Construct some random tree
+	tree := getTestTree(100)
+	for range 10 {
+		key, value := randstr(20), randstr(20)
+		tree.Set([]byte(key), []byte(value))
+	}
+
+	// Persist the items so far
+	tree.SaveVersion()
+
+	// Now for each committed item, construct a proof and verify
+	tree.Iterate(func(key []byte, value []byte) bool {
+		proof, err := tree.GetMembershipProof(key)
+		assert.NoError(t, err)
+		if proof == nil {
+			return false
+		}
+		assert.Equal(t, value, proof.GetExist().Value)
+		return false
+	})
+}
+
+func TestTreeProof(t *testing.T) {
+	db := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(db, 100, NewNopLogger())
+
+	// should get error for proof with nil root
+	_, err := tree.GetMembershipProof([]byte("foo"))
+	require.Error(t, err)
+
+	// insert lots of info and store the bytes
+	keys := make([][]byte, 200)
+	for i := range 200 {
+		key := randstr(20)
+		tree.Set([]byte(key), []byte(key))
+		keys[i] = []byte(key)
+	}
+
+	tree.SaveVersion()
+
+	// query random key fails
+	_, err = tree.GetMembershipProof([]byte("foo"))
+	assert.Error(t, err)
+
+	// valid proof for real keys
+	for _, key := range keys {
+		proof, err := tree.GetMembershipProof(key)
+		if assert.NoError(t, err) {
+			require.NotNil(t, proof)
+			assert.Equal(t, key, proof.GetExist().Value)
+		}
+	}
+}

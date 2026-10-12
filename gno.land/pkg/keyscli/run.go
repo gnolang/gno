@@ -10,9 +10,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -68,19 +66,12 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		return errors.New("gas-fee not specified")
 	}
 
-	nameOrBech32 := args[0]
 	sourcePath := args[1] // can be a file path, a dir path, or '-' for stdin
 
-	// read account pubkey.
-	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
+	caller, err := cfg.RootCfg.GetCaller(args[0])
 	if err != nil {
 		return err
 	}
-	info, err := kb.GetByNameOrAddress(nameOrBech32)
-	if err != nil {
-		return err
-	}
-	caller := info.GetAddress()
 
 	// Parse send amount.
 	send, err := std.ParseCoins(cfg.Send)
@@ -157,9 +148,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
-		cfg.RootCfg.RootCfg.OnTxSuccess = func(tx std.Tx, res *ctypes.ResultBroadcastTxCommit) {
-			PrintTxInfo(tx, res, cmdio)
-		}
+		cfg.RootCfg.RootCfg.OnTxSuccess = PrintTxSuccess
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {
 			return err

@@ -104,7 +104,7 @@ func (m *mockConsensus) GetState() sm.State {
 	if m.getStateFn != nil {
 		return m.getStateFn()
 	}
-	return sm.State{}
+	return sm.State{InitialHeight: 1}
 }
 
 func (m *mockConsensus) GetValidators() (int64, []*types.Validator) {

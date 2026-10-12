@@ -22,7 +22,7 @@ import (
 
 type Dummy struct{}
 
-var gopkg = reflect.TypeOf(Dummy{}).PkgPath()
+var gopkg = reflect.TypeFor[Dummy]().PkgPath()
 
 var transportPackage = pkg.NewPackage(gopkg, "amino_test", "").
 	WithTypes(&Transport{}, Car(""), insurancePlan(0), Boat(""), Plane{})
@@ -471,6 +471,54 @@ func (cm customJSONMarshaler) MarshalJSON() ([]byte, error) {
 	return []byte(`"WRONG"`), nil
 }
 
+type failingAminoValue string
+
+func (failingAminoValue) MarshalAmino() (string, error) {
+	return "", fmt.Errorf("concrete encode failed")
+}
+
+type concreteEncodeError struct {
+	Before string
+	Fail   failingAminoValue
+}
+
+func TestMarshalJSONAnyObjectGolden(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(pkg.NewPackage(gopkg, "amino_object_golden_test", "").WithTypes(
+		noFields{}, oneExportedField{}, Plane{},
+	))
+
+	for _, test := range []struct {
+		name string
+		in   any
+		want string
+	}{
+		{"empty", noFields{}, `{"@type":"/amino_object_golden_test.noFields"}`},
+		{"single field", oneExportedField{A: "one"}, `{"@type":"/amino_object_golden_test.oneExportedField","A":"one"}`},
+		{"multiple fields", Plane{Name: "glider", MaxAltitude: 42}, `{"@type":"/amino_object_golden_test.Plane","Name":"glider","MaxAltitude":"42"}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := cdc.MarshalJSONAny(test.in)
+			require.NoError(t, err)
+			require.Equal(t, test.want, string(got))
+		})
+	}
+}
+
+func TestMarshalJSONAnyPropagatesConcreteError(t *testing.T) {
+	t.Parallel()
+
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(pkg.NewPackage(gopkg, "amino_error_test", "").WithTypes(concreteEncodeError{}))
+
+	_, err := cdc.MarshalJSONAny(concreteEncodeError{Before: "written"})
+	require.EqualError(t, err, "concrete encode failed")
+}
+
 type withCustomMarshaler struct {
 	F customJSONMarshaler `json:"fx"`
 	A *aPointerField
@@ -645,7 +693,7 @@ func TestJSONDepthLimitRejected(t *testing.T) {
 
 	// Build nested JSON: ConcreteRecursive has Inner Interface1.
 	inner := `{"@type":"/tests.Concrete1"}`
-	for i := 0; i < 70; i++ {
+	for range 70 {
 		inner = fmt.Sprintf(`{"@type":"/tests.ConcreteRecursive","Inner":%s}`, inner)
 	}
 	var iface tests.Interface1
@@ -714,4 +762,41 @@ func TestJSONRejectsUnknownFields_NestedStruct(t *testing.T) {
 	err := cdc.JSONUnmarshal(bz, &dst)
 	require.Error(t, err, "expected error on unknown key in nested struct")
 	assert.Contains(t, err.Error(), "unknown")
+}
+
+type nestedInterfaceNode struct {
+	Next    any
+	Payload string
+}
+
+func BenchmarkMarshalJSONNestedInterfaces(b *testing.B) {
+	const outputBytes = 10_000_000
+
+	for _, depth := range []int{25, 50} {
+		b.Run(strconv.Itoa(depth), func(b *testing.B) {
+			cdc := amino.NewCodec()
+			cdc.RegisterPackage(pkg.NewPackage(
+				reflect.TypeFor[nestedInterfaceNode]().PkgPath(), "amino_resource_test", "",
+			).WithTypes(nestedInterfaceNode{}))
+
+			var value any
+			payload := strings.Repeat("x", outputBytes/depth)
+			for range depth {
+				value = nestedInterfaceNode{Next: value, Payload: payload}
+			}
+
+			b.SetBytes(outputBytes)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				bz, err := cdc.JSONMarshal(value)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if len(bz) < outputBytes {
+					b.Fatalf("output size %d < %d", len(bz), outputBytes)
+				}
+			}
+		})
+	}
 }

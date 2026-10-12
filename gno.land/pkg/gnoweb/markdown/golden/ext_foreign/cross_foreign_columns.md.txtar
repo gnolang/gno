@@ -1,0 +1,29 @@
+-- input.md --
+before
+
+<gno-foreign>
+<gno-columns>
+column one
+<gno-columns-sep/>
+column two
+</gno-columns>
+</gno-foreign>
+
+after
+-- output.html --
+<p>before</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<p>column one</p>
+</div>
+<!-- Column 1 -->
+<div class="gno-column">
+<p>column two</p>
+</div>
+</div> <!-- </gno-columns> -->
+</div>
+</div>
+<p>after</p>

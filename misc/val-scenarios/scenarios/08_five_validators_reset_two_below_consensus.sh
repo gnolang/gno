@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCENARIO_CI=true
+
+# 5 validators, stop/reset/restart 2.
+# 3/5 remain during the reset (60% < 2/3 threshold) so the chain must halt.
+# After the two validators are restarted the chain must resume.
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${ROOT_DIR}/lib/scenario.sh"
+
+scenario_init "scenario-08"
+trap scenario_finish EXIT
+
+gen_validator val1
+gen_validator val2
+gen_validator val3
+gen_validator val4
+gen_validator val5
+
+prepare_network
+start_all_nodes
+assert_chain_advances val1 120 5
+
+stop_validator val4
+stop_validator val5
+reset_validator val4
+reset_validator val5
+
+# 3/5 validators running — chain must halt.
+# Use delta=4: BFT may commit up to 2 in-flight blocks (already pre-committed
+# by val4/val5 before SIGTERM) before truly halting; delta=4 absorbs that.
+assert_chain_halted val1 30 4
+
+start_validator val4
+start_validator val5
+
+# After reset validators restart they complete block sync and rejoin consensus;
+# the chain resumes and val4/val5 catch up to the tip.
+assert_chain_advances val1 120 2
+sync_target="$(node_height val1)"
+wait_for_height val4 "$sync_target" 120
+wait_for_height val5 "$sync_target" 120
+assert_chain_advances val4 60 2
+assert_chain_advances val5 60 2
+
+print_cluster_status

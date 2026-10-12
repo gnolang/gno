@@ -147,14 +147,14 @@ func Grayf(format string, args ...any) string {
 // don't do this yet, but left as an exercise. :)
 func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string) string {
 	_n := 0
-	s := ""
+	var s strings.Builder
 	buf := ""         // buffer
 	bufIsText := true // is buf text or hex
 	for i, b := range data {
 	RESTART:
 		if 0x21 <= b && b < 0x7F {
 			if !bufIsText {
-				s += bytesColor(buf)
+				s.WriteString(bytesColor(buf))
 				buf = ""
 				bufIsText = true
 				goto RESTART
@@ -164,17 +164,17 @@ func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string
 			if n != 0 && _n >= n {
 				if i == len(data)-1 {
 					// done
-					s += textColor(buf)
+					s.WriteString(textColor(buf))
 					buf = ""
 				} else {
-					s += textColor(buf) + "..."
+					s.WriteString(textColor(buf) + "...")
 					buf = ""
 				}
 				break
 			}
 		} else {
 			if bufIsText {
-				s += textColor(buf)
+				s.WriteString(textColor(buf))
 				buf = ""
 				bufIsText = false
 				goto RESTART
@@ -184,10 +184,10 @@ func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string
 			if n != 0 && _n >= n {
 				if i == len(data)-1 {
 					// done
-					s += bytesColor(buf)
+					s.WriteString(bytesColor(buf))
 					buf = ""
 				} else {
-					s += bytesColor(buf) + "..."
+					s.WriteString(bytesColor(buf) + "...")
 					buf = ""
 				}
 				break
@@ -196,14 +196,14 @@ func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string
 	}
 	if buf != "" {
 		if bufIsText {
-			s += textColor(buf)
+			s.WriteString(textColor(buf))
 			buf = ""
 		} else {
-			s += bytesColor(buf)
+			s.WriteString(bytesColor(buf))
 			buf = ""
 		}
 	}
-	return s
+	return s.String()
 }
 
 func DefaultColoredBytesN(data []byte, n int) string {

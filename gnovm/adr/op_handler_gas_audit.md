@@ -114,7 +114,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 | Op handler | Cost-varying parameters | Pessimistic input | Why pessimistic |
 |---|---|---|---|
 | doOpPrecall | Function type (FuncValue/BoundMethod/TypeValue); IsWithCross; IsCrossing; NumArgs | FuncValue with IsWithCross+IsCrossing requiring realm creation | NewConcreteRealm allocation + Assign |
-| doOpEnterCrossing | Frame stack depth | Deep call stack with realm boundary check | **O(n²)**: PeekCallFrame(i) internally iterates backwards through ALL frames each time. Code has TODO: "O(n²), optimize." |
+| doOpEnterCrossing | Frame stack depth | Deep call stack with realm boundary check | **O(n)** since the single-cursor rewrite; was O(n²) when PeekCallFrame(i) restarted from the top each iteration. Charged linearly via OpCPUSlopeEnterCrossing. |
 | doOpCall | Number of captures; block size (NumNames); return count; param count; native vs Gno; variadic expansion | Gno function with many captures + params + returns + heap-defined results | Captures copy O(n); NewBlock O(NumNames); defaultTypedValue per result O(results); popCopyArgs variadic O(nvar) slice alloc; Store lookups for GetSource/GetType/GetParent |
 | doOpCallNativeBody | None (delegates to native) | Any native call | Cost depends on native implementation |
 | doOpCallDeferNativeBody | None | Any deferred native | Pop + call |
@@ -160,7 +160,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 | Item | Original claim | Correction |
 |---|---|---|
 | doOpRef | "Heap capture count; HeapCaptures iteration O(n)" | HeapCaptures iteration is in doOpFuncLit, NOT doOpRef. doOpRef is O(1) |
-| doOpEnterCrossing | "O(n) frame loop" | Actually **O(n²)** because PeekCallFrame(i) scans backwards each time |
+| doOpEnterCrossing | "O(n) frame loop" | Was **O(n²)** because PeekCallFrame(i) scanned backwards each time; since rewritten to a single cursor pass, so O(n) again |
 | doOpShr BigInt | "Shift behavior similar to Shl" | BigInt right shift has **no maxBigintShift limit** unlike left shift (capped at 10000) |
 | doOpStructLit keyed | "Searches by field index O(el)" | Uses pre-computed fnx.Path.Index for O(1) direct array access |
 | Comparison ops | "lessAssign helper" | No shared helper — 4 separate functions: isLss, isLeq, isGtr, isGeq |
@@ -168,43 +168,43 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 
 ## Benchmark gap analysis
 
-### Status: 350 benchmarks in bench_ops_test.go (as of 2026-03-14)
+### Status: 350 benchmarks in bench_ops_test.go
 
-### Previously missing — now DONE
+### Covered
 
-1. ~~isEql ArrayKind~~ — BenchmarkOpEql_Array_{1,10,100,1000}
-2. ~~isEql StructKind~~ — BenchmarkOpEql_Struct_{1,10,100,1000}
-3. ~~doOpConvert String→[]rune~~ — BenchmarkOpConvert_StringToRunes_{1,10,100,1000}
-4. ~~doOpConvert []rune→String~~ — BenchmarkOpConvert_RunesToString_{1,10,100,1000}
-5. ~~doOpSelector VPValMethod~~ — BenchmarkOpSelector_VPValMethod
-6. ~~doOpSelector VPInterface~~ — BenchmarkOpSelector_VPInterface_{1,10,100}
-7. ~~doOpTypeAssert1 interface~~ — BenchmarkOpTypeAssert1_Interface_{1,10,100}
-8. ~~doOpTypeAssert2 interface~~ — BenchmarkOpTypeAssert2_Interface_{Hit,Miss}
-9. ~~doOpFuncLit with captures~~ — BenchmarkOpFuncLit_Captures_{0,1,10,100,1000}
-10. ~~doOpCall~~ — BenchmarkOpCall_{0-100}Params_{0-100}Captures + BenchmarkOpCall_Method
-11. ~~doOpReturn~~ — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock
-12. ~~doOpDefer~~ — BenchmarkOpDefer_{1,10,100}Args
-13. ~~doOpExec OpForLoop~~ — BenchmarkOpForLoop_HeapCopy_{0,1,10,100,1000}
-14. ~~doOpExec OpRangeIter~~ — BenchmarkOpRangeIter_{1,10,100,1000}
-15. ~~doOpExec OpRangeIterString~~ — BenchmarkOpRangeIterString_{1,10,100,1000}
-16. ~~doOpExec OpRangeIterMap~~ — BenchmarkOpRangeIterMap_{1,10,100,1000}
-17. ~~doOpIfCond~~ — BenchmarkOpIfCond_TrueBranch + FalseBranch
-18. ~~doOpTypeSwitch~~ — BenchmarkOpTypeSwitch_{1,10,100} + Interface_{1,10,100}
-19. ~~doOpSwitchClauseCase~~ — BenchmarkOpSwitchClauseCase_{Match,Miss}
-20. ~~doOpEval NameExpr~~ — BenchmarkOpEval_NameExpr_Depth{1,10,100}
-21. ~~doOpEval BasicLitExpr~~ — BenchmarkOpEval_BasicLitInt_{Small,Large,Hex} + String
-22. ~~doOpValueDecl~~ — BenchmarkOpValueDecl_{DefaultInt,DefaultArray,DefaultStruct}
-23. ~~doOpPrecall~~ — BenchmarkOpPrecall_{FuncValue,TypeConversion,BoundMethod}
-24. ~~doOpPanic2~~ — BenchmarkOpPanic2
-25. ~~BenchmarkOpEql~~ — + Array, Struct, ByteArray, String parameterized
-26. ~~BenchmarkOpSelector~~ — + VPValMethod, VPInterface parameterized
-27. ~~BenchmarkOpArrayLit~~ — + Uint8 variant
-28. ~~BenchmarkOpConvert_StringToBytes~~ — + StringToRunes, RunesToString
-29. ~~BigInt/BigDec~~ — 14 BigInt ops × 4 bit-lengths + 11 asymmetric + 7 BigDec ops × 4 precisions
-30. ~~String ops~~ — Add, Eql, Lss, Convert, Index1_MapStringKey, Slice × 4 lengths
-31. ~~Byte-array ops~~ — Eql, ArrayLit_Uint8, Index1, Slice × 4 sizes
+1. isEql ArrayKind — BenchmarkOpEql_Array_{1,10,100,1000}
+2. isEql StructKind — BenchmarkOpEql_Struct_{1,10,100,1000}
+3. doOpConvert String→[]rune — BenchmarkOpConvert_StringToRunes_{1,10,100,1000}
+4. doOpConvert []rune→String — BenchmarkOpConvert_RunesToString_{1,10,100,1000}
+5. doOpSelector VPValMethod — BenchmarkOpSelector_VPValMethod
+6. doOpSelector VPInterface — BenchmarkOpSelector_VPInterface_{1,10,100}
+7. doOpTypeAssert1 interface — BenchmarkOpTypeAssert1_Interface_{1,10,100}
+8. doOpTypeAssert2 interface — BenchmarkOpTypeAssert2_Interface_{Hit,Miss}
+9. doOpFuncLit with captures — BenchmarkOpFuncLit_Captures_{0,1,10,100,1000}
+10. doOpCall — BenchmarkOpCall_{0-100}Params_{0-100}Captures + BenchmarkOpCall_Method
+11. doOpReturn — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock
+12. doOpDefer — BenchmarkOpDefer_{1,10,100}Args
+13. doOpExec OpForLoop — BenchmarkOpForLoop_HeapCopy_{0,1,10,100,1000}
+14. doOpExec OpRangeIter — BenchmarkOpRangeIter_{1,10,100,1000}
+15. doOpExec OpRangeIterString — BenchmarkOpRangeIterString_{1,10,100,1000}
+16. doOpExec OpRangeIterMap — BenchmarkOpRangeIterMap_{1,10,100,1000}
+17. doOpIfCond — BenchmarkOpIfCond_TrueBranch + FalseBranch
+18. doOpTypeSwitch — BenchmarkOpTypeSwitch_{1,10,100} + Interface_{1,10,100}
+19. doOpSwitchClauseCase — BenchmarkOpSwitchClauseCase_{Match,Miss}
+20. doOpEval NameExpr — BenchmarkOpEval_NameExpr_Depth{1,10,100}
+21. doOpEval BasicLitExpr — BenchmarkOpEval_BasicLitInt_{Small,Large,Hex} + String
+22. doOpValueDecl — BenchmarkOpValueDecl_{DefaultInt,DefaultArray,DefaultStruct}
+23. doOpPrecall — BenchmarkOpPrecall_{FuncValue,TypeConversion,BoundMethod}
+24. doOpPanic2 — BenchmarkOpPanic2
+25. BenchmarkOpEql — + Array, Struct, ByteArray, String parameterized
+26. BenchmarkOpSelector — + VPValMethod, VPInterface parameterized
+27. BenchmarkOpArrayLit — + Uint8 variant
+28. BenchmarkOpConvert_StringToBytes — + StringToRunes, RunesToString
+29. BigInt/BigDec — 14 BigInt ops × 4 bit-lengths + 11 asymmetric + 7 BigDec ops × 4 precisions
+30. String ops — Add, Eql, Lss, Convert, Index1_MapStringKey, Slice × 4 lengths
+31. Byte-array ops — Eql, ArrayLit_Uint8, Index1, Slice × 4 sizes
 
-### Also done (code changes, not just benchmarks)
+### Related code changes (not just benchmarks)
 
 - **bytes.Equal fast path** in `isEql` for byte array comparison (~850x speedup)
 - **gcVisitGasTable** replacing flat `VisitCpuFactor=8` with heap-size-aware lookup table
@@ -214,9 +214,8 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 1. **doOpSliceLit2 sparse** — maxVal amplification attack vector
 2. **doOpSelector VPBlock** — block depth traversal
 3. **doOpReturnCallDefers** with many captures per defer
-4. **doOpEnterCrossing** — O(n²) frame scan
-5. **BenchmarkOpShl_BigInt** — shift values near maxBigintShift=10000
-6. **BenchmarkOpShr_BigInt** — very large shifts (no limit!)
+4. **BenchmarkOpShl_BigInt** — shift values near maxBigintShift=10000
+5. **BenchmarkOpShr_BigInt** — very large shifts (no limit!)
 
 ---
 

@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/z_6_b_filetest
+
+package z_6_b_filetest
 
 import (
 	"testing"
@@ -6,12 +8,12 @@ import (
 	"gno.land/r/nt/commondao/v0"
 )
 
-const owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+const owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 
-func main() {
+func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
 
-	commondao.Execute(cross, 404, 1)
+	commondao.Execute(cross(cur), 404, 1)
 }
 
 // Error:

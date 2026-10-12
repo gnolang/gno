@@ -33,7 +33,7 @@ var Package = pkg.NewPackage(
 	EmbeddedSt3{},
 	EmbeddedSt4{},
 	pkg.Type{ // example of overriding type name.
-		Type:             reflect.TypeOf(EmbeddedSt5{}),
+		Type:             reflect.TypeFor[EmbeddedSt5](),
 		Name:             "EmbeddedSt5NameOverride",
 		PointerPreferred: false,
 	},
@@ -115,4 +115,8 @@ var Package = pkg.NewPackage(
 	CrossPkgBoxedRepr{},
 	// Interface-heavy benchmark type.
 	InterfaceHeavy{},
+	// Reserved-field migration fixtures (see
+	// genproto2/gen_unmarshal_reserved_test.go).
+	FixtureV2Reserved{},
+	FixtureV2Shifted{},
 )

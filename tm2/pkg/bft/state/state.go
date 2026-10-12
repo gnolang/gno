@@ -37,6 +37,12 @@ type State struct {
 	// immutable
 	ChainID string
 
+	// InitialHeight is the height of the first block produced by this chain.
+	// Defaults to 1 (set by MakeGenesisState if GenesisDoc.InitialHeight is 0);
+	// >1 means a hardfork chain produced via genesis replay. Set once at
+	// MakeGenesisState and never mutated. Persisted with the rest of State.
+	InitialHeight int64
+
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
 	LastBlockHeight  int64
 	LastBlockTotalTx int64
@@ -75,6 +81,8 @@ func (state State) Copy() State {
 		AppVersion:      state.AppVersion,
 
 		ChainID: state.ChainID,
+
+		InitialHeight: state.InitialHeight,
 
 		LastBlockHeight:  state.LastBlockHeight,
 		LastBlockTotalTx: state.LastBlockTotalTx,
@@ -123,12 +131,17 @@ func (state State) MakeBlock(
 	commit *types.Commit,
 	proposerAddress crypto.Address,
 ) (*types.Block, *types.PartSet) {
+	if height < state.InitialHeight {
+		panic(fmt.Sprintf("MakeBlock: height %d < state.InitialHeight %d", height, state.InitialHeight))
+	}
 	// Build base block with block data.
 	block := types.MakeBlock(height, txs, commit)
 
-	// Set time.
+	// Set time. The genesis block (height == state.InitialHeight) uses the
+	// genesis time; later blocks use the median time of the previous round's
+	// commit.
 	var timestamp time.Time
-	if height == 1 {
+	if height == state.InitialHeight {
 		timestamp = state.LastBlockTime // genesis time
 	} else {
 		timestamp = MedianTime(commit, state.LastValidators)
@@ -215,23 +228,42 @@ func MakeGenesisState(genDoc *types.GenesisDoc) (State, error) {
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
 	}
 
+	initialHeight := genDoc.InitialHeight
+	if initialHeight == 0 {
+		initialHeight = 1
+	}
+
+	// LastBlockHeight is set so that nextHeight (= LastBlockHeight+1) equals
+	// InitialHeight: the first block produced by this chain. For standard
+	// chains (InitialHeight==1) this evaluates to 0, byte-identical to
+	// pre-PR. For hardfork chains (InitialHeight>1) it is InitialHeight-1
+	// — the "post-handshake" shape, set here so saveState's first-block
+	// branch fires correctly even on the very first SaveState in
+	// LoadStateFromDBOrGenesisDoc.
+	lastBlockHeight := initialHeight - 1
+
 	return State{
 		SoftwareVersion: tmver.Version,
 		BlockVersion:    typesver.BlockVersion,
 		AppVersion:      "", // gets set by Handshaker after RequestInfo..
 		ChainID:         genDoc.ChainID,
 
-		LastBlockHeight: 0,
+		InitialHeight:   initialHeight,
+		LastBlockHeight: lastBlockHeight,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.GenesisTime,
 
-		NextValidators:              nextValidatorSet,
-		Validators:                  validatorSet,
-		LastValidators:              types.NewValidatorSet(nil),
-		LastHeightValidatorsChanged: 1,
+		NextValidators: nextValidatorSet,
+		Validators:     validatorSet,
+		LastValidators: types.NewValidatorSet(nil),
+		// For hardfork chains (InitialHeight > 1), genesis validator/params
+		// are persisted at changeHeight == InitialHeight by saveState's
+		// first-block branch. Hardcoding 1 here would point loadValidatorsInfo /
+		// loadConsensusParamsInfo lookups at a phantom height with no entry.
+		LastHeightValidatorsChanged: initialHeight,
 
 		ConsensusParams:                  genDoc.ConsensusParams,
-		LastHeightConsensusParamsChanged: 1,
+		LastHeightConsensusParamsChanged: initialHeight,
 
 		AppHash: genDoc.AppHash,
 	}, nil
