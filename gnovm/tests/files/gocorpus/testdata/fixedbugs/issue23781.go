@@ -10,4 +10,4 @@ package p
 
 var _ = []int{1 << 31: 1} // ok on machines with 64bit int
 
-// Verdict: Clean compile
+// Verdict: Unsupported other: resource budget; a []int literal indexed at 1<<31 is materialised at preprocess: ~39 s and gigabytes; gc only type-checks or runs it natively
