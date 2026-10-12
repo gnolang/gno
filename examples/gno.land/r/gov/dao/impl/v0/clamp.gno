@@ -46,12 +46,12 @@ const (
 	// A proposal description, the one slot on this page a member fills rather
 	// than a hostile executor. quoteMarkdown rewrites every line of it and the
 	// render pays for the rewrite: measured per render, a 100KB description
-	// costs 3,283,322,158 gas against the 3,000,000,000 cap, so an unclamped
+	// costs 3,085,843,608 gas against the 3,000,000,000 cap, so an unclamped
 	// description leaves a proposal no voter can read. 8KB is around 1,200
 	// words of prose. The worst shape measured inside that bound, 8192 bare
 	// newlines in the description and in the executor's text alike, costs
-	// 1,261,072,084 gas, under half the cap. The stored proposal keeps every
-	// byte; this bounds what one page renders.
+	// 969,999,528 gas, under a third of the cap. The stored proposal keeps
+	// every byte; this bounds what one page renders.
 	maxRenderedDescription = 8192
 	// A Payment's String(). The canonical impls render a coin set or an
 	// amount plus a token key, then " to " and a bech32 address; a coin set

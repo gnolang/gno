@@ -104,6 +104,11 @@ same section helper rather than carrying its own copy of the disclosure.
   both as literal text, and it still lets a forged `Executor created in:` line
   through, because inline links survive by design. The cost is real and it does
   not close the imitation.
+- **Quote the description with `sanitize.BlockquoteRich`.** Rejected, and
+  measured before rejecting: it keeps headings and lists, and it escapes every
+  bracket outside a link, so `a[0]` in a code span renders as `a\[0\]`. It
+  prefixes `> `, which leaves a tab-indented line two columns short of code, and
+  it deletes a link reference definition along with the link that used it.
 - **Escape every line of the description that would draw a rule.** Rejected,
   and measured before rejecting: an escaping pass has to reimplement
   CommonMark's block grammar to know where a rule renders, and each review
@@ -134,10 +139,10 @@ same section helper rather than carrying its own copy of the disclosure.
   the way the page does.
 - Rendering a description now rewrites every line into the quote, and the
   rewrite is what the page pays for: a 100KB description measured
-  3,283,322,158 gas per render, against the 3,000,000,000 query cap. So both
+  3,085,843,608 gas per render, against the 3,000,000,000 query cap. So both
   descriptions are clamped to `maxRenderedDescription` before the quote, like
   every other slot on the page, and the worst 8KB shape in both measured
-  1,261,072,084; the stored proposal keeps every byte.
+  969,999,528; the stored proposal keeps every byte.
 - Adding declarations to a genesis realm shifts the balances asserted in
   `gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar`, which
   its own note says to re-derive.

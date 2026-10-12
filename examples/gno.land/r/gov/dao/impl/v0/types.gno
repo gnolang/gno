@@ -212,8 +212,8 @@ func StringifyProposal(p *dao.Proposal) string {
 
 	// Escaped, clamped and quoted as the proposal page renders them, so a realm
 	// printing the text cannot be handed the page's own lines by the proposer.
-	if description := clampField(p.Description(), maxRenderedDescription); description != "" {
-		out += quoteMarkdown(description) + "\n\n"
+	if description := quoteMarkdown(p.Description()); description != "" {
+		out += description + "\n\n"
 	}
 
 	// The same lines the proposal page renders, so a realm printing a proposal

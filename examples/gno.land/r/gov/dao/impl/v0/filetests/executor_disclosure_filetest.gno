@@ -114,8 +114,8 @@ func quotedBody(page string) bool {
 	return quotedSection(page, "### Description\n\n", "\n\n---\n\n### Actions")
 }
 
-// quotedSection is quotedBody for any section: every line between the heading
-// and the page's own text that closes it carries the quote marker.
+// quotedSection reports the same for any section: every line between the
+// heading and the page's own text that closes it carries the quote marker.
 func quotedSection(page, heading, closing string) bool {
 	start := strings.Index(page, heading)
 	end := strings.LastIndex(page, closing)

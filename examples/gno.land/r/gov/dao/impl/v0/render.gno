@@ -133,10 +133,8 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out += renderExecution(p)
 	out += "---\n\n"
 
-	if description := clampField(p.Description(), maxRenderedDescription); description != "" {
-		out += "### Description\n\n"
-		out += quoteMarkdown(description)
-		out += "\n\n---\n\n"
+	if description := quoteMarkdown(p.Description()); description != "" {
+		out += "### Description\n\n" + description + "\n\n---\n\n"
 	}
 
 	out += renderActionBar(ufmt.Sprintf("%v", pid))
@@ -144,16 +142,25 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	return out
 }
 
-// quoteMarkdown puts every line of markdown someone other than the page wrote
-// inside a blockquote the page writes. Any block it opens, a fence, an HTML
-// block, a list, ends where the quote ends, so a rule it draws sits inside the
-// quote and the page's own rule and action bar stay outside it. Two spaces
-// before the marker start each line at column 4, so a tab keeps its width and
-// tab-indented code stays code. A leading `[!` is escaped, since gnoweb would
-// draw the quote itself as an alert box.
+// quoteMarkdown clamps markdown someone other than the page wrote and puts
+// every line of it inside a blockquote the page writes, "" for an empty one.
+// Any block it opens, a fence, an HTML block, a list, ends where the quote
+// ends, so a rule it draws sits inside the quote and the page's own rule and
+// action bar stay outside it. Two spaces before the marker start each line at
+// column 4, so a tab keeps its width and tab-indented code stays code. A
+// leading `[!` is escaped, since gnoweb would draw the quote itself as an
+// alert box.
 func quoteMarkdown(markdown string) string {
+	markdown = clampField(markdown, maxRenderedDescription)
+	if markdown == "" {
+		return ""
+	}
 	if strings.HasPrefix(markdown, "[!") {
 		markdown = "\\" + markdown
+	}
+	// Without both halves of a footnote definition no line needs escaping.
+	if !strings.Contains(markdown, "]:") || !strings.Contains(markdown, "[^") {
+		return "  > " + strings.ReplaceAll(markdown, "\n", "\n  > ")
 	}
 
 	lines := strings.Split(markdown, "\n")
@@ -205,12 +212,12 @@ func executesLine(p *dao.Proposal) string {
 func renderExecution(p *dao.Proposal) string {
 	// A built-in executor's description can carry what the proposer wrote, a
 	// member's portfolio for one, so it is clamped and quoted like theirs.
-	description := clampField(p.ExecutorString(), maxRenderedDescription)
+	description := quoteMarkdown(p.ExecutorString())
 	if description == "" {
 		return ""
 	}
 
-	return "### Execution\n\n" + quoteMarkdown(description) + "\n\n"
+	return "### Execution\n\n" + description + "\n\n"
 }
 
 // renderCreationRealm renders the realm an executor reports it was created in:
