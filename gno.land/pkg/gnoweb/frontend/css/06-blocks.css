@@ -3320,8 +3320,6 @@ main.is-dev-mode .b-toc a {
 			align-items: center;
 			gap: var(--g-space-2);
 			padding: var(--g-space-3) var(--g-space-4);
-			font-weight: var(--g-font-bold);
-			cursor: pointer;
 			list-style: none;
 
 			&::marker,
@@ -3329,7 +3327,7 @@ main.is-dev-mode .b-toc a {
 				display: none;
 			}
 
-			& > svg:not(.gno-icon) {
+			& > svg {
 				width: var(--g-space-4);
 				height: var(--g-space-4);
 				color: var(--s-color-text-secondary);
@@ -3343,7 +3341,7 @@ main.is-dev-mode .b-toc a {
 			}
 		}
 
-		&[open] > summary > svg:not(.gno-icon) {
+		&[open] > summary > svg {
 			transform: rotate(0);
 		}
 
