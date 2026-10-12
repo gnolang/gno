@@ -525,8 +525,12 @@ connect(opts?: GnoConnectOptions): Promise<UserResponse<GnoAccount & Partial<Gno
 interface GnoAccount {
   address: string;         // bech32
   chainid: string;         // the chain this answer was given against
-  pubkey: string | null;   // gpub, when the wallet exposes one
+  pubkey: string | null;   // gpub, when the wallet exposes one; set with a proof
   features?: string[];     // as the launch link's `features`
+  proof?: {                // with a challenge: what the identity signed
+    signed: TxSignPayload; // the document, as an object (Adena's SignArbitrary `signed`)
+    signature: string;     // base64, 64 bytes R‖S
+  };
 }
 ```
 
@@ -535,6 +539,10 @@ unless it names a key that is not already a session covering the request (see
 Sessions in the browser). A page restoring a session on every navigation would
 otherwise throw a wallet popup on every page load, which makes the feature
 unusable. Re-approval is for origins the user has not already approved.
+
+A `connect` carrying a `challenge` is the other exception: it always prompts,
+since what the user approves is a signature, not an origin (see Proving the
+identity).
 
 #### Optional methods
 
@@ -588,10 +596,9 @@ forward-compatibility contract as launch links applies (see Forward
 compatibility) — capabilities are only ever added, never repurposed, and a page
 degrades on any method it does not recognise.
 
-Message signing is deliberately absent. Everything signable in Gno today is a
-transaction — `gnokey sign` takes a tx document and nothing else — so a
-`signMessage` would have no defined meaning to agree on. When one exists it
-arrives as a new method, not as a re-reading of these.
+Proving the identity goes through `connect` with a `challenge` (see Proving the
+identity), on both transports. Signing an arbitrary statement stays outside
+this standard: everything else signable in Gno is a transaction.
 
 ### One transaction, several messages
 
@@ -752,6 +759,7 @@ interface GnoConnectOptions {
   iat?: number;
   sig?: string;
   oldsig?: string;
+  challenge?: string;  // proves the identity: see Proving the identity; never with pubkey
 }
 
 interface GnoSessionGrant {
