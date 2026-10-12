@@ -7,13 +7,8 @@ name: release / docker
 # launch tag would recreate that name for an image reporting a different
 # version. A runnable node image is always a vX.Y.Z tag (RELEASING.md).
 #
-# No workflow_dispatch: a manual run would build a published version again,
-# attested and signed under a branch's identity rather than the tag's, which
-# RELEASING.md's verify commands refuse. A workflow fault shows up on the
-# release candidate, cut on the same commit first, and is fixed in the next
-# candidate. Do not re-run a published release's run either: these builds
-# are not reproducible, so the new artifacts would no longer match the
-# checksums and digests the upgrade ledgers record.
+# Tag pushes only: no manual trigger, and no re-run once the release is
+# published (RELEASING.md, "Cutting a release").
 on:
   push:
     tags:
