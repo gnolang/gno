@@ -38,7 +38,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // mode (see PreprocessCollect) and returns every error found, in source
 // order of discovery. The nodes must not be executed afterwards.
 func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*PreprocessError {
-	acc := &preprocessAccumulator{poisoned: map[Name]bool{}}
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, referenced: map[Name]bool{}}
 	predefineFileSet(store, pn, fset, acc)
 	for _, fn := range fset.Files {
 		preprocess(store, pn, fn, acc)
@@ -847,14 +847,27 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 // names it declares are poisoned, so "not declared" follow-ons about them
 // are not reported (go/types' invalid-object suppression).
 type preprocessAccumulator struct {
-	errs     []*PreprocessError
-	poisoned map[Name]bool
+	errs       []*PreprocessError
+	poisoned   map[Name]bool // declared by a dropped statement
+	referenced map[Name]bool // mentioned inside a dropped statement
 }
 
 // Both spellings the preprocessor uses for an unknown name.
 var reUndeclaredName = regexp.MustCompile(`name (\S+) not (?:declared|defined)|name not defined: (\S+)`)
 
 func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
+	// The statement is dropped whether or not its error is reported, so
+	// what it declares is poisoned and what it mentions may be a use the
+	// walk will never see.
+	for _, name := range declaredNamesOf(n) {
+		acc.poisoned[name] = true
+	}
+	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if nx, ok := n.(*NameExpr); ok && stage == TRANS_ENTER {
+			acc.referenced[nx.Name] = true
+		}
+		return n, TRANS_CONTINUE
+	})
 	msg := pe.err.Error()
 	if m := reUndeclaredName.FindStringSubmatch(msg); m != nil && acc.poisoned[Name(m[1]+m[2])] {
 		return
@@ -864,8 +877,16 @@ func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
 			return // the same failure reached through another path
 		}
 	}
-	for _, name := range declaredNamesOf(n) {
-		acc.poisoned[name] = true
+	acc.errs = append(acc.errs, pe)
+}
+
+// report records an error that does not drop anything.
+func (acc *preprocessAccumulator) report(pe *PreprocessError) {
+	msg := pe.err.Error()
+	for _, e := range acc.errs {
+		if e.err.Error() == msg {
+			return
+		}
 	}
 	acc.errs = append(acc.errs, pe)
 }
@@ -937,7 +958,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 // must not be executed. The on-chain path uses Preprocess, which keeps
 // the first-error semantics, gas and error text unchanged.
 func PreprocessCollect(store Store, ctx BlockNode, n Node) (Node, []*PreprocessError) {
-	acc := &preprocessAccumulator{poisoned: map[Name]bool{}}
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, referenced: map[Name]bool{}}
 	nn := preprocess(store, ctx, n, acc)
 	return nn, acc.errs
 }
@@ -1088,6 +1109,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				checkValDefineMismatch(n)
 
 				if n.Op == DEFINE {
+					checkShortVarDecl(ns, last, n)
+				}
+				if n.Op == DEFINE {
 					for i, lx := range n.Lhs {
 						lnx := lx.(*NameExpr)
 						if lnx.Name == blankIdentifier {
@@ -1213,6 +1237,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					))
 				}
 				// key value if define.
+				if n.Op == DEFINE && n.Key != nil && n.Value != nil {
+					if kn, vn := n.Key.(*NameExpr).Name, n.Value.(*NameExpr).Name; kn == vn && kn != blankIdentifier {
+						panic(fmt.Sprintf("%s repeated on left side of :=", kn))
+					}
+				}
 				if n.Op == DEFINE {
 					if xt.Kind() == MapKind {
 						if n.Key != nil {
@@ -1386,6 +1415,12 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// retrieve cached function type.
 				// the type and receiver are already set in predefineRecursively.
 				ft := getType(&n.Type).(*FuncType)
+				if !n.IsMethod && strings.HasPrefix(string(n.Name), "init.") {
+					if len(n.Type.Results) > 0 ||
+						(len(n.Type.Params) > 0 && !(len(n.Type.Params) == 1 && n.Type.Params[0].Name == "cur")) {
+						panic("func init must have no arguments and no return values")
+					}
+				}
 				// a crossing function can only be declared in a realm
 				// (or, as a carve-out, in any *_test.gno file so p/ tests
 				// can declare `TestXxx(cur realm, t *testing.T)` to drive
@@ -3328,6 +3363,22 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 
 			// TRANS_LEAVE -----------------------
+			case *FuncDecl:
+				// Unused locals and labels, once the body has its paths.
+				if n.Body != nil && len(stack) >= 2 {
+					for _, u := range checkUnused(stack[len(stack)-2], n) {
+						if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
+							continue // a dropped statement declared or mentioned it
+						}
+						loc := last.GetLocation()
+						loc.SetSpanOverride(u.span)
+						pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg), stack: stack}
+						if acc == nil {
+							panic(pe)
+						}
+						acc.report(pe)
+					}
+				}
 			case *IncDecStmt:
 				n.AssertCompatible(store, last)
 
@@ -5816,6 +5867,14 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			panic(fmt.Sprintf(
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
+		if _, isFunc := d.(*FuncDecl); !isFunc {
+			if dn == "init" {
+				panic("cannot declare init - must be func")
+			}
+			if dn == "main" && pkg.PkgName == "main" {
+				panic("cannot declare main - must be func")
+			}
+		}
 		stack = append(stack, dn)
 		defining[dn] = struct{}{}
 	}
@@ -6169,6 +6228,14 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			// Method FuncValue belongs to the declaring package's
 			// realm.
 			methodFV.ObjectInfo.SetPkgID(PkgIDFromPkgPath(pkg.PkgPath))
+			if st, ok := baseOf(dt).(*StructType); ok {
+				for _, f := range st.Fields {
+					if f.Name == d.Name {
+						packageOf(last).StaticBlock.revertToOld()
+						panic(fmt.Sprintf("type %s has both field and method named %s", dt.Name, d.Name))
+					}
+				}
+			}
 			if !dt.TryDefineMethod(methodFV) {
 				// Revert to old function declarations in the package we're preprocessing.
 				pkg := packageOf(last)
@@ -6743,6 +6810,86 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 }
 
 // if name is is reserved.
+// checkShortVarDecl enforces the two rules of `:=` the resolver does not
+// see after name resolution: no name twice on the left, and at least one
+// new variable in the current Go scope. Gno folds a control statement's
+// header (range variables, `for`/`if`/`switch` init, the type-switch
+// variable, a select case's receive) into the same block as its body,
+// where Go opens a new scope, so a name that header declared may be
+// shadowed; a name declared by a sibling statement or a parameter may
+// not. initStaticBlocks reserved the names on behalf of this statement,
+// so "new" also means reserved by this very node.
+func checkShortVarDecl(ns []Node, last BlockNode, n *AssignStmt) {
+	seen := map[Name]bool{}
+	anyNew := false
+	for _, lx := range n.Lhs {
+		ln := lx.(*NameExpr).Name
+		if ln == blankIdentifier {
+			continue
+		}
+		if strings.HasPrefix(string(ln), ".") {
+			return // synthesized by the preprocessor
+		}
+		if seen[ln] {
+			panic(fmt.Sprintf("%s repeated on left side of :=", ln))
+		}
+		seen[ln] = true
+		src := definedBy(last, ln)
+		if src == nil || src.Origin == n || declaredByHeader(ns, last, src) {
+			anyNew = true
+		}
+	}
+	if !anyNew && len(seen) > 0 {
+		panic("no new variables on left side of :=")
+	}
+}
+
+// declaredByHeader reports whether src was declared by the header of the
+// control statement whose body last holds (see checkShortVarDecl).
+func declaredByHeader(ns []Node, last BlockNode, src *NameSource) bool {
+	switch src.Type {
+	case NSRangeKey, NSRangeValue, NSTypeSwitch:
+		return true
+	}
+	parentOf := func(bn BlockNode) Node {
+		for i := len(ns) - 1; i >= 0; i-- {
+			if ns[i] == bn && i > 0 {
+				return ns[i-1]
+			}
+		}
+		return nil
+	}
+	switch b := last.(type) {
+	case *ForStmt:
+		return b.Init != nil && src.Origin == b.Init
+	case *IfCaseStmt:
+		if p, ok := parentOf(b).(*IfStmt); ok {
+			return p.Init != nil && src.Origin == p.Init
+		}
+	case *SwitchClauseStmt:
+		if p, ok := parentOf(b).(*SwitchStmt); ok {
+			return p.Init != nil && src.Origin == p.Init
+		}
+	case *SelectCaseStmt:
+		return src.Origin == b.Comm
+	}
+	return false
+}
+
+// definedBy returns the name source that reserved name in bn's own static
+// block, nil when the name is not local to bn.
+func definedBy(bn BlockNode, name Name) *NameSource {
+	idx, ok := bn.GetLocalIndex(name)
+	if !ok {
+		return nil
+	}
+	sources := bn.GetStaticBlock().NameSources
+	if int(idx) >= len(sources) {
+		return nil
+	}
+	return &sources[idx]
+}
+
 func isLocallyReserved(bn BlockNode, n Name) bool {
 	_, isLocal := bn.GetLocalIndex(n)
 	return isLocal
