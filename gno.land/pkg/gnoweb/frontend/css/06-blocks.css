@@ -3329,7 +3329,7 @@ main.is-dev-mode .b-toc a {
 				display: none;
 			}
 
-			& > svg {
+			& > svg:not(.gno-icon) {
 				width: var(--g-space-4);
 				height: var(--g-space-4);
 				color: var(--s-color-text-secondary);
@@ -3343,7 +3343,7 @@ main.is-dev-mode .b-toc a {
 			}
 		}
 
-		&[open] > summary > svg {
+		&[open] > summary > svg:not(.gno-icon) {
 			transform: rotate(0);
 		}
 
