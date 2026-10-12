@@ -81,3 +81,53 @@ func TestE2ERejectThenCorrectedGenesisBoots(t *testing.T) {
 	assert.Equal(t, int64(1), n.GenesisDoc().InitialHeight, "corrected doc must be the one in use")
 	assert.Equal(t, []int64{42, 1}, app.seen, "the app must see the corrected InitialHeight on the retry")
 }
+
+// App that returns the validators the request carries.
+type echoValidatorsApp struct {
+	abci.BaseApplication
+}
+
+func (echoValidatorsApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
+	return abci.ResponseInitChain{Validators: req.Validators}
+}
+
+// A genesis refused for having no validators must not mark itself applied, so
+// the corrected file boots on the same data dir.
+func TestE2ENoValidatorGenesisThenCorrectedBoots(t *testing.T) {
+	config, genesisFile := cfg.ResetTestRoot("node_e2e_no_validators_test")
+	defer os.RemoveAll(config.RootDir)
+	config.LocalApp = echoValidatorsApp{}
+
+	opened := map[string]dbm.DB{}
+	dbs := func(ctx *DBContext) (dbm.DB, error) {
+		if db, ok := opened[ctx.ID]; ok {
+			return db, nil
+		}
+		db := memdb.NewMemDB()
+		opened[ctx.ID] = db
+		return db, nil
+	}
+
+	build := func(withValidators bool) (*Node, error) {
+		provider := func() (*types.GenesisDoc, error) {
+			doc, derr := types.GenesisDocFromFile(genesisFile)
+			if derr != nil {
+				return nil, derr
+			}
+			if !withValidators {
+				doc.Validators = nil
+			}
+			doc.AppState = "app-state"
+			return doc, nil
+		}
+		return newNodeWithDBProvider(
+			config, provider, dbs, events.NewEventSwitch(), log.NewNoopLogger())
+	}
+
+	_, err := build(false)
+	require.ErrorContains(t, err, "validator set is nil", "a genesis with no validators must not boot")
+
+	n, err := build(true)
+	require.NoError(t, err, "the corrected genesis must boot")
+	require.NotNil(t, n)
+}
