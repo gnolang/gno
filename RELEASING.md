@@ -173,7 +173,7 @@ gh attestation verify gnoland_linux_amd64 --repo gnolang/gno \
 
 cosign verify ghcr.io/gnolang/gno/gnoland:v1.6.0 \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github.com/gnolang/gno/\.github/workflows/release-docker\.yml@refs/tags/v'
+  --certificate-identity https://github.com/gnolang/gno/.github/workflows/release-docker.yml@refs/tags/v1.6.0
 ```
 
 The release binaries are not reproducible from the tag (they are built
