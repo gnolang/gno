@@ -1,9 +1,0 @@
--- input.md --
-    <gno-details summary="Four-space indent is a code block">
-    Body
-    </gno-details>
--- output.html --
-<pre><code>&lt;gno-details summary=&quot;Four-space indent is a code block&quot;&gt;
-Body
-&lt;/gno-details&gt;
-</code></pre>

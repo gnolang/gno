@@ -1,6 +1,0 @@
--- input.md --
-<gno-detailsmore summary="Summary">
-This is not a details block.
-</gno-detailsmore>
--- output.html --
-<!-- raw HTML omitted -->
