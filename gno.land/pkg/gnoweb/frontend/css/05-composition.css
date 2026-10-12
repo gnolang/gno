@@ -534,7 +534,7 @@
 
 	/* ===== FOOTNOTES ===== */
 
-	:is(h1, h2, h3, h4, sup, .footnote-backref) {
+	:is(h1, h2, h3, h4, h5, h6, sup, .footnote-backref) {
 		scroll-margin-top: var(--cr-space-24);
 	}
 
