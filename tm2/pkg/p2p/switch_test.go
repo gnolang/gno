@@ -2644,6 +2644,37 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		assert.Equal(t, map[types.ID]uint{addr.ID: 0}, attempts)
 	})
 
+	t.Run("a replacing connection restarts the stability timer", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			sw, addr    = newPersistentSwitch(t)
+			connected   = setConnected(sw, addr.ID)
+			now         = time.Now()
+			attempts    = map[types.ID]uint{addr.ID: 2}
+			connectedAt = make(map[types.ID]time.Time)
+
+			// The peer stays connected past the threshold, but the connection
+			// replacing the first one, after a simultaneous open, does not
+			replaced = now.Add(persistentStableUptime * 2 / 3)
+			dropped  = replaced.Add(persistentStableUptime * 2 / 3)
+		)
+
+		*connected = true
+
+		// A replacement is announced as a second connect, with no disconnect
+		// for the connection it replaced
+		sw.persistentPeerConnected(addr.ID, connectedAt, now)
+		sw.persistentPeerConnected(addr.ID, connectedAt, replaced)
+
+		*connected = false
+
+		sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
+
+		assertBackoff(t, 2, popDelay(t, sw, dropped))
+		assert.Equal(t, uint(3), attempts[addr.ID])
+	})
+
 	t.Run("a stable drop replaces a dial a tick queued with the earlier backoff", func(t *testing.T) {
 		t.Parallel()
 
