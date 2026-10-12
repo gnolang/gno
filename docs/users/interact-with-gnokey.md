@@ -694,6 +694,62 @@ To verify against a separate signature file:
 gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
 ```
 
+## Proving you control an address
+
+Some services, such as a website reserving a name for your address, ask you to
+sign a short text, its challenge, to prove that the address is yours. The
+`gnokey sign-data` subcommand signs it without making a transaction: nothing is
+sent to the chain and it costs nothing.
+
+```bash
+gnokey sign-data -chainid gnoland-1 -data "example.com: prove this wallet is yours · 9UQVko4o" mykey
+```
+
+`-chainid` is required: the proof is only good on the chain it names. Use
+`-data-path` instead of `-data` to sign the contents of a file, as they are
+(a final newline included), and `-output-document` to save the proof to a file.
+
+The output is the same JSON as Adena's `SignArbitrary` answer: the signed
+document, your public key and the signature.
+
+```json
+{
+  "signed": {
+    "account_number": "0",
+    "chain_id": "gnoland-1",
+    "fee": {
+      "amount": [],
+      "gas": "0"
+    },
+    "memo": "",
+    "msgs": [
+      {
+        "type": "sign/MsgSignData",
+        "value": {
+          "data": "ZXhhbXBsZS5jb206IHByb3ZlIHRoaXMgd2FsbGV0IGlzIHlvdXJzIMK3IDlVUVZrbzRv",
+          "signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+        }
+      }
+    ],
+    "sequence": "0"
+  },
+  "signature": {
+    "pubKey": {
+      "typeUrl": "/tm.PubKeySecp256k1",
+      "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"
+    },
+    "signature": "m2aMv8VKiB71HhyygS9CgMQ9lG6SCzUjSkmxURjaERYXQBZ9egMXEkz7lo/SBi4bUfVZY3kfbani7C8N0Kbe1w=="
+  }
+}
+```
+
+`data` is the text, base64-encoded. A service checks the signature over the
+document's bytes sorted by key, as Adena signs it.
+
+The signed document is a transaction sign document whose single message,
+`sign/MsgSignData`, no node can decode, so it can never be broadcast as a
+transaction. A service written in Go checks a proof with `std.VerifySignData`.
+
 ## Using a k-of-n multisig
 
 The multisig being created for this section is a 2-of-3 multisig, with Alice / Bob / Charlie.
