@@ -423,14 +423,17 @@ func (sw *MultiplexSwitch) persistentPeerDisconnected(
 	connectedAt map[types.ID]time.Time,
 	now time.Time,
 ) {
-	// A stable connection resets the backoff
-	if since, ok := connectedAt[id]; ok && now.Sub(since) >= persistentStableUptime {
-		delete(attempts, id)
-	}
-
+	since, connected := connectedAt[id]
 	delete(connectedAt, id)
 
 	// ...
+
+	// A stable connection resets the backoff, and replaces a dial a tick
+	// queued with the earlier backoff
+	if connected && now.Sub(since) >= sw.stableUptime {
+		delete(attempts, id)
+		sw.persistentDialQueue.Remove(addr)
+	}
 
 	sw.queuePersistentPeer(id, addr, attempts, now)
 }
