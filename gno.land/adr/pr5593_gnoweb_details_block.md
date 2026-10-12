@@ -52,7 +52,7 @@ arbitrary **markdown**
 The extension is wired into `GnoExtension.Extend` next to `ExtAlerts`. It
 uses the same block-parser priority (799) as the alert parser.
 
-The docs realm (`examples/gno.land/r/docs/markdown/markdown.gno`) gains a
+The docs realm (`examples/quarantined/gno.land/r/docs/markdown/markdown.gno`) gains a
 new "Collapsible blocks" section demonstrating the syntax alongside the
 existing Alerts documentation.
 
