@@ -656,7 +656,6 @@ func TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState(t *te
 
 	d.fail = true
 	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
-	d.fail = false
 	require.Error(t, err, "a failed probe must fail the boot")
 
 	after := sm.LoadState(db)

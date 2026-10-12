@@ -131,6 +131,19 @@ func DefaultNewNodeWithGenesisProvider(
 	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
+	return newNodeWithDBProvider(config, genesisDocProvider, DefaultDBProvider, evsw, logger, options...)
+}
+
+// newNodeWithDBProvider is DefaultNewNodeWithGenesisProvider with the
+// DBProvider left to the caller.
+func newNodeWithDBProvider(
+	config *cfg.Config,
+	genesisDocProvider GenesisDocProvider,
+	dbProvider DBProvider,
+	evsw events.EventSwitch,
+	logger *slog.Logger,
+	options ...Option,
+) (*Node, error) {
 	nodeKey, err := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
@@ -158,7 +171,7 @@ func DefaultNewNodeWithGenesisProvider(
 		nodeKey,
 		appClientCreator,
 		genesisDocProvider,
-		DefaultDBProvider,
+		dbProvider,
 		evsw,
 		logger,
 		options...,

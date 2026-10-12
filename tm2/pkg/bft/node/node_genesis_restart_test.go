@@ -9,14 +9,11 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 // App that refuses any genesis whose InitialHeight is not wantHeight.
@@ -69,18 +66,8 @@ func TestE2ERejectThenCorrectedGenesisBoots(t *testing.T) {
 			doc.AppState = "app-state"
 			return doc, nil
 		}
-		nodeKey, kerr := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
-		if kerr != nil {
-			return nil, kerr
-		}
-		privVal, perr := privval.NewPrivValidatorFromConfig(
-			config.Consensus.PrivValidator, nodeKey.PrivKey, log.NewNoopLogger())
-		if perr != nil {
-			return nil, perr
-		}
-		return NewNode(config, privVal, nodeKey,
-			proxy.DefaultClientCreator(config.LocalApp, config.ProxyApp, config.ABCI, config.DBDir()),
-			provider, dbs, events.NewEventSwitch(), log.NewNoopLogger())
+		return newNodeWithDBProvider(
+			config, provider, dbs, events.NewEventSwitch(), log.NewNoopLogger())
 	}
 
 	// genesis.json says 42; the app wants 1.
