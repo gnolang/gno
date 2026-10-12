@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+<gno-icon name="check-circle" label="Verified" /> at line start
+</gno-icon>
+-- output.md --
+
+
+\<gno-icon name="check-circle" label="Verified" /> at line start
+\</gno-icon>
+
+-- output.html --
+<p>&lt;gno-icon name=&quot;check-circle&quot; label=&quot;Verified&quot; /&gt; at line start
+&lt;/gno-icon&gt;</p>

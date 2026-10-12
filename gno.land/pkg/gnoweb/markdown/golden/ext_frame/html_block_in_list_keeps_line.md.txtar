@@ -1,0 +1,15 @@
+-- input.md --
+<gno-frame>
+- <div>
+  </gno-frame>
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<ul>
+<li>
+<!-- raw HTML omitted -->
+</li>
+</ul>
+</section>
+<p>after</p>
