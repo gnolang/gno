@@ -98,11 +98,7 @@ func (p *detailsParser) Trigger() []byte { return []byte{':'} }
 func parseOpenFence(line []byte) (fence int, open bool, summaryStart, summaryEnd int, matched bool) {
 	trimmed := bytes.TrimRight(line, "\r\n")
 
-	// Count the run of leading colons; a valid fence has at least three.
-	n := 0
-	for n < len(trimmed) && trimmed[n] == ':' {
-		n++
-	}
+	n := countColons(trimmed)
 	if n < minDetailsFence {
 		return 0, false, 0, 0, false
 	}
@@ -121,10 +117,7 @@ func parseOpenFence(line []byte) (fence int, open bool, summaryStart, summaryEnd
 	// After `:::details` (or `:::details[open]`), the rest of the line must
 	// be either empty or begin with a space/tab introducing the summary, so
 	// that identifiers like `:::detailsmore` are rejected.
-	if len(rest) == 0 {
-		return n, open, 0, 0, true
-	}
-	if rest[0] != ' ' && rest[0] != '\t' {
+	if len(rest) > 0 && rest[0] != ' ' && rest[0] != '\t' {
 		return 0, false, 0, 0, false
 	}
 
@@ -148,11 +141,17 @@ func parseOpenFence(line []byte) (fence int, open bool, summaryStart, summaryEnd
 // is a run of at least minColons colons followed only by whitespace.
 func isCloseFence(line []byte, minColons int) bool {
 	trimmed := bytes.TrimRight(line, " \t\r\n")
+	n := countColons(trimmed)
+	return n >= minColons && n == len(trimmed)
+}
+
+// countColons returns the length of the run of colons opening b.
+func countColons(b []byte) int {
 	n := 0
-	for n < len(trimmed) && trimmed[n] == ':' {
+	for n < len(b) && b[n] == ':' {
 		n++
 	}
-	return n >= minColons && n == len(trimmed)
+	return n
 }
 
 // Open implements parser.BlockParser.
@@ -231,7 +230,7 @@ const (
 	detailsOpenTagExpand  = "<details class=\"gno-details\" open>\n"
 	detailsCloseTag       = "</div>\n</details>\n"
 	detailsSummaryOpen    = "<summary><svg><use href=\"#ico-arrow\"></use></svg>"
-	detailsSummaryDefault = detailsSummaryOpen + "Details</summary>\n<div>\n"
+	detailsSummaryDefault = detailsSummaryOpen + "Details" + detailsSummaryClose
 	detailsSummaryClose   = "</summary>\n<div>\n"
 )
 

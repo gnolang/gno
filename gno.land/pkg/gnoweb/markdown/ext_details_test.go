@@ -5,9 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/require"
-	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
@@ -17,11 +15,8 @@ import (
 // its HTML and the gno-* nesting depth left on the parser context.
 func parseDetails(t *testing.T, src string) (ast.Node, string, int) {
 	t.Helper()
-	u, err := weburl.Parse("https://gno.land/r/test")
-	require.NoError(t, err)
-	m := goldmark.New()
-	NewGnoExtension().Extend(m)
-	pc := NewGnoParserContext(GnoContext{GnoURL: u})
+	m := newGnoMarkdown()
+	pc := NewGnoParserContext(GnoContext{})
 	doc := m.Parser().Parse(text.NewReader([]byte(src)), parser.WithContext(pc))
 	var buf bytes.Buffer
 	require.NoError(t, m.Renderer().Render(&buf, []byte(src), doc))
