@@ -30,4 +30,6 @@ errorcheck, otherwise compile-only), pins both Gno's and Go's behaviour as
 trailing `//` blocks, and ends every file with exactly one verdict line
 (`Clean`, `Unsupported`, `KnownIssue` or `KnownDivergence`). The contract,
 the block vocabulary and the re-sync command are in
-[`files/gocorpus/README.md`](files/gocorpus/README.md).
+[`files/gocorpus/README.md`](files/gocorpus/README.md). The corpus files are
+copyright The Go Authors, BSD-3-Clause (`files/gocorpus/LICENSE`); their
+headers are kept verbatim.
