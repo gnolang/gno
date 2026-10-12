@@ -573,10 +573,10 @@ func (sw *MultiplexSwitch) persistentPeerConnected(
 	// Events and peer set changes are not strictly ordered: a connect handled
 	// after its connection already dropped must neither stamp a start time nor
 	// remove the dial the disconnect queued. A connect time still recorded at
-	// this point belongs to an earlier connection whose disconnect was lost or
-	// is not yet handled, and is dropped so that it cannot be measured against
-	// a later disconnect; in the second case, that earlier connection's drop
-	// counts as unstable
+	// this point belongs to an earlier connection, whose disconnect was lost or
+	// is not yet handled, or which this connection replaced to resolve a
+	// simultaneous open. It is dropped so that it cannot be measured against a
+	// later disconnect, which then counts as unstable
 	if !sw.Peers().Has(id) {
 		delete(connectedAt, id)
 
