@@ -759,7 +759,7 @@ type preprocessAccumulator struct {
 }
 
 // Both spellings the preprocessor uses for an unknown name.
-var reUndeclaredName = regexp.MustCompile(`name (\S+) not declared|name not defined: (\S+)`)
+var reUndeclaredName = regexp.MustCompile(`name (\S+) not (?:declared|defined)|name not defined: (\S+)`)
 
 func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
 	msg := pe.err.Error()
