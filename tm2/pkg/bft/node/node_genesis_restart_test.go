@@ -9,9 +9,14 @@ import (
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
+	"github.com/gnolang/gno/tm2/pkg/bft/privval"
+	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 )
 
 // App that refuses any genesis whose InitialHeight is not wantHeight.
@@ -41,6 +46,19 @@ func TestE2ERejectThenCorrectedGenesisBoots(t *testing.T) {
 	app := &pickyApp{wantHeight: 1}
 	config.LocalApp = app
 
+	// The test backend is memdb, which DefaultDBProvider opens empty on every
+	// call; hand both boots the same databases so the restart sees the data
+	// dir the rejected boot left.
+	opened := map[string]dbm.DB{}
+	dbs := func(ctx *DBContext) (dbm.DB, error) {
+		if db, ok := opened[ctx.ID]; ok {
+			return db, nil
+		}
+		db := memdb.NewMemDB()
+		opened[ctx.ID] = db
+		return db, nil
+	}
+
 	build := func(initialHeight int64) (*Node, error) {
 		provider := func() (*types.GenesisDoc, error) {
 			doc, derr := types.GenesisDocFromFile(genesisFile)
@@ -51,8 +69,18 @@ func TestE2ERejectThenCorrectedGenesisBoots(t *testing.T) {
 			doc.AppState = "app-state"
 			return doc, nil
 		}
-		return DefaultNewNodeWithGenesisProvider(
-			config, provider, events.NewEventSwitch(), log.NewNoopLogger())
+		nodeKey, kerr := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
+		if kerr != nil {
+			return nil, kerr
+		}
+		privVal, perr := privval.NewPrivValidatorFromConfig(
+			config.Consensus.PrivValidator, nodeKey.PrivKey, log.NewNoopLogger())
+		if perr != nil {
+			return nil, perr
+		}
+		return NewNode(config, privVal, nodeKey,
+			proxy.DefaultClientCreator(config.LocalApp, config.ProxyApp, config.ABCI, config.DBDir()),
+			provider, dbs, events.NewEventSwitch(), log.NewNoopLogger())
 	}
 
 	// genesis.json says 42; the app wants 1.
