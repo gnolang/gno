@@ -159,11 +159,11 @@ of a hand-built binary; the binary's own `version` output is.
 
 ### Signing and provenance
 
-The binaries `release / chain-tag` attaches carry a build-provenance
-attestation (which workflow built them, from which commit and tag), and the
-images `release / docker` pushes are signed keylessly by digest. Both rely on
-the workflow's identity, not on a key anyone holds. To verify what you are
-about to run:
+The binaries `release / chain-tag` attaches, and the `CHECKSUMS.txt` beside
+them, carry a build-provenance attestation (which workflow built them, from
+which commit and tag), and the images `release / docker` pushes are signed
+keylessly by digest. Both rely on the workflow's identity, not on a key anyone
+holds. To verify what you are about to run:
 
 ```sh
 gh attestation verify gnoland_linux_amd64 --repo gnolang/gno \
