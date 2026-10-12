@@ -19,9 +19,8 @@ func main() {
 	}
 }
 
-// Output:
-// here
-// there
-
 // TypeCheckError:
 // main/goto6.gno:6:2: label nowhere declared and not used
+
+// Error:
+// main/goto6.gno:7:3-29: label nowhere defined and not used

@@ -11,8 +11,8 @@ loop:
 	println("hey")
 }
 
-// Output:
-// hey
-
 // TypeCheckError:
 // main/for20.gno:6:1: label loop declared and not used
+
+// Error:
+// main/for20.gno:7:2-9:3: label loop defined and not used

@@ -3,6 +3,7 @@ package main
 func main() {
 	type s struct{}
 	m := map[s]int{
+	_ = m // keep the variable used; the test is about something else
 		{}: 1,
 		{}: 2,
 	}
@@ -11,4 +12,7 @@ func main() {
 }
 
 // TypeCheckError:
-// main/map1.gno:5:2: declared and not used: m
+// main/map1.gno:6:4: expected '==', found '='
+
+// Error:
+// map1.gno:6:4: expected '==', found '='

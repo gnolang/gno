@@ -5,6 +5,7 @@ type S struct {
 
 func main() {
 	x := (*S)(nil)
+	_ = x // keep the variable used; the test is about something else
 	var y any = (*S)(nil)
 	var znil any = nil
 
@@ -22,5 +23,3 @@ func main() {
 // y == znil true
 // znil == y true
 
-// TypeCheckError:
-// main/comp5.gno:7:2: declared and not used: x

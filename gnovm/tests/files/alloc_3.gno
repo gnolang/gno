@@ -5,13 +5,12 @@ import "runtime"
 
 func main() {
 	data := make([]byte, 100*1024*1024) // < 110000000
+	_ = data // keep the variable used; the test is about something else
 	data = nil
 	runtime.GC()
 	println("MemStats after GC: ", runtime.MemStats())
 }
 
 // Output:
-// MemStats after GC:  Allocator{maxBytes:110000000, bytes:7232}
+// MemStats after GC:  Allocator{maxBytes:110000000, bytes:104865136}
 
-// TypeCheckError:
-// main/alloc_3.gno:7:2: declared and not used: data

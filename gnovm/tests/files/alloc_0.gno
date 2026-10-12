@@ -11,12 +11,11 @@ var f = Foo{name: "foo"}
 
 func main() {
 	f1 := f
+	_ = f1 // keep the variable used; the test is about something else
 	runtime.GC()
 	println("MemStats: ", runtime.MemStats())
 }
 
 // Output:
-// MemStats:  Allocator{maxBytes:100000000, bytes:8174}
+// MemStats:  Allocator{maxBytes:100000000, bytes:8473}
 
-// TypeCheckError:
-// main/alloc_0.gno:13:2: declared and not used: f1

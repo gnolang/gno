@@ -205,10 +205,12 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 			code: `package test
 			func main() {
 				first := a()
+				_ = first // keep the variable used; the test is about returns
 			}
 		
 			func a() int {
 				x := 9
+				_ = x // keep the variable used; the test is about returns
 				return 9
 			}
 		`,
@@ -366,10 +368,12 @@ func TestStaticAnalysisShouldPass(t *testing.T) {
 			code: `package test
 				func main() {
 					z := y()
+					_ = z // keep the variable used; the test is about returns
 				}
 		
 			func y() int{
 				x := 9
+				_ = x // keep the variable used; the test is about returns
 				return 9
 			}
 		`,
