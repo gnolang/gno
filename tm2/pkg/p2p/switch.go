@@ -50,6 +50,10 @@ var (
 
 	// errPeerStopped is returned when a peer is stopped while being added
 	errPeerStopped = errors.New("peer stopped while being added")
+
+	// errSimultaneousOpen is the reason a connection is closed when another
+	// connection to the same peer, in the opposite direction, is kept over it
+	errSimultaneousOpen = errors.New("replaced by the connection kept for a simultaneous open")
 )
 
 type reactorPeerBehavior struct {
@@ -105,7 +109,12 @@ type MultiplexSwitch struct {
 	reactors     map[string]Reactor
 	peerBehavior *reactorPeerBehavior
 
-	peers           PeerSet  // currently active peer set (live connections)
+	peers PeerSet // currently active peer set (live connections)
+
+	// registry serializes every step that reads the peer set entry of a peer
+	// ID and then changes it, so no connection is added, kept or removed on a
+	// stale view of that entry
+	registry        sync.Mutex
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
 	seeds           sync.Map // ID -> *NetAddress; bootstrap peers, not kept alive
 	privatePeers    sync.Map // ID -> nothing; lookup table of peers who are not shared
@@ -254,16 +263,6 @@ func (sw *MultiplexSwitch) StopPeerForError(peer PeerConn, err error) {
 	sw.stopAndRemovePeer(peer, err)
 }
 
-// isSuperseded reports whether a different connection is registered under this
-// peer's ID. Two connections hold one peer ID while a reconnect races the
-// teardown of the connection it supersedes, and the peer set entry under that
-// ID belongs to whichever won
-func (sw *MultiplexSwitch) isSuperseded(peer PeerConn) bool {
-	registered := sw.peers.Get(peer.ID())
-
-	return registered != nil && registered != peer
-}
-
 // removeReactorPeerState walks the reactors' RemovePeer so the state their
 // InitPeer created is given back. Without it, an addPeer path that returns an
 // error after InitPeer has run leaves that state held for the lifetime of the
@@ -279,21 +278,16 @@ func (sw *MultiplexSwitch) removeReactorPeerState(peer PeerConn, err error) {
 	}
 }
 
-func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
-	// Remove the peer from the transport
-	sw.transport.Remove(peer)
-
-	// Close the (original) peer connection
-	if closeErr := peer.CloseConn(); closeErr != nil {
-		sw.Logger.Error(
-			"unable to gracefully close peer connection",
-			"peer", peer,
-			"err", closeErr,
-		)
+// claimTeardown stops the peer, and reports whether the caller owns its
+// teardown. A peer already stopped is left alone: whichever stopped it owns its
+// teardown. Any other stop error is logged, and the teardown is the caller's
+func (sw *MultiplexSwitch) claimTeardown(peer PeerConn) bool {
+	stopErr := peer.Stop()
+	if errors.Is(stopErr, service.ErrAlreadyStopped) {
+		return false
 	}
 
-	// Stop the peer connection multiplexing
-	if stopErr := peer.Stop(); stopErr != nil {
+	if stopErr != nil {
 		sw.Logger.Error(
 			"unable to gracefully stop peer",
 			"peer", peer,
@@ -301,16 +295,50 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 		)
 	}
 
+	return true
+}
+
+func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
+	// Remove the peer from the transport
+	sw.transport.Remove(peer)
+
+	// Stop the peer connection multiplexing before closing the socket. Stopping
+	// closes the recv routine's quit channel first, so the recv routine does
+	// not report the close as an error and start a second teardown of this
+	// connection
+	if !sw.claimTeardown(peer) {
+		return
+	}
+
+	// Close the (original) peer connection. Stopping a started peer already
+	// closed it, so net.ErrClosed is the expected outcome
+	if closeErr := peer.CloseConn(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+		sw.Logger.Error(
+			"unable to gracefully close peer connection",
+			"peer", peer,
+			"err", closeErr,
+		)
+	}
+
 	// Alert the reactors of a peer removal
 	sw.removeReactorPeerState(peer, err)
 
-	// A connection that lost the race for the peer set shares its peer ID with
-	// the connection that won it. Its own socket is closed above and its own
-	// reactor state is given back, but the entry under that ID is the live
-	// connection's, and this one never announced itself as connected
-	if sw.isSuperseded(peer) {
+	// Removing a peer should go last to avoid a situation where a peer
+	// reconnect to our node and the switch calls InitPeer before
+	// RemovePeer is finished.
+	// https://github.com/tendermint/tendermint/issues/3338
+	//
+	// A connection announces a disconnect only when it removes the entry it
+	// holds. One superseded by another sharing its peer ID, after losing the
+	// race for the peer set or being replaced to resolve a simultaneous open,
+	// has its own socket closed above and its own reactor state given back,
+	// but the entry under that ID is the live connection's, and this one does
+	// not announce a disconnect for a peer that stays connected. One that
+	// finds no entry under its ID was never announced, or its peer's
+	// disconnect was announced by whichever removed that entry
+	if !sw.removeIfHeld(peer) {
 		sw.Logger.Debug(
-			"not removing the peer set entry of a superseded connection",
+			"not removing a peer set entry the connection does not hold",
 			"peer", peer,
 			"err", err,
 		)
@@ -318,17 +346,7 @@ func (sw *MultiplexSwitch) stopAndRemovePeer(peer PeerConn, err error) {
 		return
 	}
 
-	// Removing a peer should go last to avoid a situation where a peer
-	// reconnect to our node and the switch calls InitPeer before
-	// RemovePeer is finished.
-	// https://github.com/tendermint/tendermint/issues/3338
-	sw.peers.Remove(peer.ID())
-
-	sw.events.Notify(events.PeerDisconnectedEvent{
-		Address: peer.RemoteAddr(),
-		PeerID:  peer.ID(),
-		Reason:  err,
-	})
+	sw.announceDisconnect(peer, err)
 }
 
 // ---------------------------------------------------------------------
@@ -447,27 +465,24 @@ func (sw *MultiplexSwitch) dialPeer(ctx context.Context, peerAddr *types.NetAddr
 
 	// Register the peer with the switch
 	if err = sw.addPeer(p); err != nil {
-		sw.Logger.Error(
+		// A connection refused as a duplicate logs at Info: it is the
+		// tie-break's designed outcome on one node of every simultaneous open.
+		// So does one stopped while being added, as it is replaced or closed by
+		// the remote in a simultaneous open, and whatever stopped it logged why
+		logFn := sw.Logger.Error
+		if errors.Is(err, errDuplicatePeer) || errors.Is(err, errPeerStopped) {
+			logFn = sw.Logger.Info
+		}
+
+		logFn(
 			"unable to add peer",
 			"peer", p,
 			"err", err,
 		)
 
-		if !p.IsRunning() {
-			sw.rejectConn(p)
+		sw.rejectConn(p)
 
-			return
-		}
-
-		sw.transport.Remove(p)
-
-		if stopErr := p.Stop(); stopErr != nil {
-			sw.Logger.Error(
-				"unable to gracefully stop peer",
-				"peer", p,
-				"err", stopErr,
-			)
-		}
+		return
 	}
 
 	// Log the telemetry
@@ -794,15 +809,116 @@ func (sw *MultiplexSwitch) isPrivatePeer(id types.ID) bool {
 	return persistent
 }
 
+// keepsRegistered reports whether the connection already registered for a peer
+// is kept over an incoming connection to the same peer. Two connections in
+// opposite directions are resolved the same way on both ends: the one dialed
+// by the node with the lower ID survives. Two connections in the same
+// direction keep the registered one, and so does a switch that does not know
+// its own ID yet
+func (sw *MultiplexSwitch) keepsRegistered(registered, incoming PeerConn) bool {
+	if registered.IsOutbound() == incoming.IsOutbound() {
+		return true
+	}
+
+	var (
+		local  = sw.transport.NetAddress().ID
+		remote = registered.ID()
+	)
+
+	if local == "" || local == remote {
+		return true
+	}
+
+	// The node with the lower ID dialed the connection both ends keep
+	keepOutbound := local < remote
+
+	return registered.IsOutbound() == keepOutbound
+}
+
+// direction names the direction of a peer connection, for logs
+func direction(p PeerConn) string {
+	if p.IsOutbound() {
+		return "outbound"
+	}
+
+	return "inbound"
+}
+
+// resolveDuplicate returns the connection registered for the incoming
+// connection's peer, if any, and whether the tie-break keeps it over the
+// incoming one. kept is false when nothing is registered
+func (sw *MultiplexSwitch) resolveDuplicate(incoming PeerConn) (registered PeerConn, kept bool) {
+	registered = sw.peers.Get(incoming.ID())
+	if registered == nil {
+		return nil, false
+	}
+
+	return registered, sw.keepsRegistered(registered, incoming)
+}
+
+// registerPeer adds the peer to the peer set. When a connection to the same
+// peer is already registered, the tie-break decides: either the registered
+// connection is kept and the peer is refused with errDuplicatePeer, or the
+// peer takes its place and the replaced connection is returned, for the
+// caller to tear down
+func (sw *MultiplexSwitch) registerPeer(p PeerConn) (PeerConn, error) {
+	sw.registry.Lock()
+	defer sw.registry.Unlock()
+
+	registered, kept := sw.resolveDuplicate(p)
+	if registered == nil {
+		return nil, sw.peers.Add(p)
+	}
+
+	if kept {
+		return nil, errDuplicatePeer
+	}
+
+	sw.peers.Remove(p.ID())
+
+	// The Add cannot fail: the registry lock keeps the ID's entry empty since
+	// the Remove
+	return registered, sw.peers.Add(p)
+}
+
+// removeIfHeld removes the peer set entry of the peer's ID only if
+// the peer holds it, and reports whether it removed it. Two connections hold
+// one peer ID while a reconnect races the teardown of the connection it
+// supersedes, or while a replacement resolves a simultaneous open, and the
+// entry belongs to whichever won. Checking and removing in one step keeps a
+// connection that replaced this one between the two from losing its entry
+func (sw *MultiplexSwitch) removeIfHeld(p PeerConn) bool {
+	sw.registry.Lock()
+	defer sw.registry.Unlock()
+
+	if sw.peers.Get(p.ID()) != p {
+		return false
+	}
+
+	return sw.peers.Remove(p.ID())
+}
+
+// announceDisconnect notifies the event listeners that the peer's connection
+// went away for the given reason
+func (sw *MultiplexSwitch) announceDisconnect(p PeerConn, reason error) {
+	sw.events.Notify(events.PeerDisconnectedEvent{
+		Address: p.RemoteAddr(),
+		PeerID:  p.ID(),
+		Reason:  reason,
+	})
+}
+
 // hasPeerFromIP returns a flag indicating if the active peer set already
-// contains a peer connected from the given IP
-func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
+// contains a peer connected from the given IP, other than the peer with the
+// given ID. A connection of that peer does not count, since registering a
+// second connection of one ID either replaces the first or refuses the second
+func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP, except types.ID) bool {
 	if ip == nil {
 		return false
 	}
 
 	for _, p := range sw.peers.List() {
-		if ip.Equal(p.RemoteIP()) {
+		if p.ID() != except && ip.Equal(p.RemoteIP()) {
 			return true
 		}
 	}
@@ -811,16 +927,17 @@ func (sw *MultiplexSwitch) hasPeerFromIP(ip net.IP) bool {
 }
 
 // rejectConn drops a connection the switch has decided not to keep: an inbound
-// one the accept loop refuses, or a dialed one addPeer refuses before starting it.
+// one the accept loop refuses, or one addPeer refuses.
 //
 // transport.Remove only forgets the connection; the socket the STS handshake
 // established has to be closed explicitly, or -- since a rejected peer was never
 // started, so no Stop() path runs -- it lingers until the netFD finalizer does
 // it. That lets a host open connections faster than the GC reclaims them.
 //
-// It also covers a dialed peer whose Start failed, which leaks the same way,
-// and one stopped while being added (errPeerStopped), whose connection is
-// already closed: the second close then only yields the Debug line below.
+// It also covers a peer whose Start failed, which leaks the same way, and one
+// stopped while being added (errPeerStopped) or refused at registration, which
+// addPeer stops: its connection is already closed, so the second close only
+// yields the Debug line below.
 func (sw *MultiplexSwitch) rejectConn(p PeerConn) {
 	sw.transport.Remove(p)
 
@@ -856,8 +973,38 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			continue
 		}
 
+		// A second connection to an already connected peer is refused, unless
+		// it wins the tie-break of a simultaneous open and replaces the
+		// registered one
+		registered, kept := sw.resolveDuplicate(p)
+		if kept {
+			sw.Logger.Info(
+				"Ignoring inbound connection: already connected",
+				"address", p.SocketAddr(),
+				"id", p.ID(),
+				"kept", direction(registered),
+			)
+
+			sw.rejectConn(p)
+			continue
+		}
+
+		// A replacement swaps one of our outbound connections for an inbound
+		// one, so it takes an inbound slot like any other connection. Only a
+		// persistent peer's replacement is exempt, so two persistent peers
+		// dialing each other at once can still converge on a node whose
+		// inbound slots are full. The exemption holds while the connection
+		// being replaced is still registered when this check runs; if it is
+		// already gone, the new connection goes through the inbound limit
+		// like a new peer and the redial loop recovers. If it leaves between
+		// this check and registration, the new connection is added past the
+		// inbound limit, an overshoot of at most one connection per persistent
+		// peer ID. Persistent peers are configured by the operator, so no
+		// remote party can use the exemption
+		exempt := registered != nil && sw.isPersistentPeer(p.ID())
+
 		// Ignore connection if we already have enough peers.
-		if in := sw.Peers().NumInbound(); in >= sw.maxInboundPeers {
+		if in := sw.Peers().NumInbound(); !exempt && in >= sw.maxInboundPeers {
 			sw.Logger.Info(
 				"Ignoring inbound connection: already have enough inbound peers",
 				"address", p.SocketAddr(),
@@ -869,22 +1016,15 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 			continue
 		}
 
-		// Reject duplicate peer IDs
-		if sw.peers.Has(p.ID()) {
-			sw.Logger.Info(
-				"Ignoring inbound connection: already connected",
-				"address", p.SocketAddr(),
-				"id", p.ID(),
-			)
-
-			sw.rejectConn(p)
-			continue
-		}
-
 		// Reject a second connection from an IP that already holds a peer slot.
 		// Peer IDs are self-generated node keys, so without this a single host
-		// can mint fresh identities and occupy every inbound slot.
-		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP()) {
+		// can mint fresh identities and occupy every inbound slot. The
+		// connection of the arriving peer's own ID does not count: registration
+		// resolves two connections of one ID, either replacing the registered
+		// one, which then leaves the peer set, or refusing the new one. Our dial
+		// may also have reached the peer on another IP than its inbound
+		// connection (behind a NAT, or on a multi-homed host)
+		if !sw.allowDuplicateIP && sw.hasPeerFromIP(p.RemoteIP(), p.ID()) {
 			sw.Logger.Info(
 				"Ignoring inbound connection: peer from this IP already connected",
 				"address", p.SocketAddr(),
@@ -899,10 +1039,6 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 		if err := sw.addPeer(p); err != nil {
 			sw.rejectConn(p)
 
-			if p.IsRunning() {
-				_ = p.Stop()
-			}
-
 			sw.Logger.Info(
 				"Ignoring inbound connection: error while adding peer",
 				"err", err,
@@ -914,23 +1050,29 @@ func (sw *MultiplexSwitch) runAcceptLoop(ctx context.Context) {
 
 // addPeer starts up the Peer and adds it to the MultiplexSwitch. Error is returned if
 // the peer is filtered out or failed to start or can't be added.
+//
+// The peer is a connection fresh from the transport, which addPeer alone
+// starts. On error, it is not running: it was never started, failed to start, or
+// was stopped. The caller only releases it with rejectConn
 func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
-	// Reject a connection sw.peers.Add would refuse anyway before any reactor
+	// Refuse a connection registerPeer would refuse anyway before any reactor
 	// sees it, so it neither starts nor leaves reactor state behind. The dial
 	// loop's own Has check races the dial it guards, so this is the first
-	// point where the check is worth anything. sw.peers.Add stays the
+	// point where the check is worth anything. registerPeer stays the
 	// authoritative one
-	if sw.peers.Has(p.ID()) {
+	_, kept := sw.resolveDuplicate(p)
+	if kept {
 		return errDuplicatePeer
 	}
 
 	// Enforce the outbound limit where the peer is actually added. DialPeers
 	// only checks it when an address is queued, and NumOutbound cannot change
 	// while that loop runs, so a single batch of queued dials would otherwise
-	// overshoot the limit without bound. Persistent peers are exempt, as
-	// MaxNumOutboundPeers documents
+	// overshoot the limit without bound. A connection replacing a registered
+	// inbound one takes an outbound slot like any other. Persistent peers are
+	// exempt, as MaxNumOutboundPeers documents
 	if p.IsOutbound() && !sw.isPersistentPeer(p.ID()) {
 		if out := sw.peers.NumOutbound(); out >= sw.maxOutboundPeers {
 			sw.Logger.Info(
@@ -962,22 +1104,62 @@ func (sw *MultiplexSwitch) addPeer(p PeerConn) error {
 
 	// Add the peer to the peer set. Do this before starting the reactors
 	// so that if Receive errors, we will find the peer and remove it.
-	if err := sw.peers.Add(p); err != nil {
-		sw.removeReactorPeerState(p, err)
+	replaced, err := sw.registerPeer(p)
+
+	// The connection p replaced gets its RemovePeer exactly once. It gets it
+	// here, before p's AddPeer, unless its own teardown, after the remote
+	// closed it, began first, in which case that RemovePeer may run
+	// concurrently with p's AddPeer. That teardown removes no entry and
+	// announces no disconnect: the entry is p's, or whichever removed p's
+	// entry announced the disconnect. A connection refused at registration
+	// gets its RemovePeer once too, from the unwind below or from the
+	// teardown that stopped it first, and it can run after the kept
+	// connection's AddPeer
+	if replaced != nil {
+		sw.Logger.Info(
+			"replacing connection to resolve a simultaneous open",
+			"peer", p,
+			"kept", direction(p),
+		)
+
+		sw.stopAndRemovePeer(replaced, errSimultaneousOpen)
+	}
+
+	// A connection refused at registration is stopped before its reactor
+	// state is given back. Otherwise its recv routine can report the socket
+	// close, such as the remote refusing the same connection in a simultaneous
+	// open, and the teardown that follows runs a second RemovePeer for it,
+	// which can drop the kept connection's state in a reactor keying it on the
+	// peer ID. A teardown that stopped the connection first gives the state
+	// back instead
+	if err != nil {
+		if sw.claimTeardown(p) {
+			sw.removeReactorPeerState(p, err)
+		}
 
 		return err
 	}
 
 	// The peer can have been stopped while it was being added: the recv
 	// routine p.Start() spawned reports an error to stopAndRemovePeer, which
-	// removes from the peer set last, so its Remove can have run before the
-	// Add above. Adding a stopped peer would hold its slot and its ID for the
-	// lifetime of the process, since nothing removes a peer twice.
+	// removes from the peer set last, so its removal step can have run before
+	// the registration above, and found no entry or the connection p then
+	// replaced. Adding a stopped peer would hold its slot and its ID for the
+	// lifetime of the process, since its teardown can be past that step.
+	//
+	// The rollback announces a disconnect only when p took the entry of a
+	// connection, since no teardown announces that one: each found the other
+	// connection holding the entry. When p replaced nothing, no announced
+	// connection leaves with it, so the rollback announces nothing. If p's
+	// own teardown removes the entry first, that teardown announces the
+	// disconnect, even though p itself was never announced connected.
 	//
 	// Its reactor state needs no unwinding here: whatever stopped the peer
 	// walked the reactors' RemovePeer on the way
 	if !p.IsRunning() {
-		sw.peers.Remove(p.ID())
+		if sw.removeIfHeld(p) && replaced != nil {
+			sw.announceDisconnect(p, errPeerStopped)
+		}
 
 		return errPeerStopped
 	}
