@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// The cost claims in tm2/adr/prxxxx_digest_sign_mode.md are made here, because
+// The cost claims in tm2/adr/pr6312_digest_sign_mode.md are made here, because
 // a third rendering on the consensus path is unmetered work and "it is cheap"
 // is not a reviewable statement. Run with:
 //
