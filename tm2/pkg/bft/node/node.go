@@ -1085,7 +1085,11 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 		// Same chain, so the remaining doc fields are safe to refresh. Before
 		// the genesis is applied nothing is committed, so a corrected genesis
 		// file replaces the persisted doc and state record outright.
-		if !genesisApplied(stateDB) {
+		applied, aerr := genesisApplied(stateDB)
+		if aerr != nil {
+			return sm.State{}, nil, aerr
+		}
+		if !applied {
 			return resetToGenesisDoc(stateDB, freshDoc)
 		}
 		genDoc.AppState = freshDoc.AppState
@@ -1100,10 +1104,15 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 // genesisApplied reports whether InitChain completed for this data dir:
 // ReplayBlocks saves the genesis ABCI responses right after it returns, and
 // height 0 is never pruned. Probed with Has, so a running chain does not pay
-// to decode a blob that holds one entry per genesis tx.
-func genesisApplied(stateDB dbm.DB) bool {
+// to decode a blob that holds one entry per genesis tx. A read error is
+// returned rather than read as "not applied", which would reset the state
+// record of a committed chain.
+func genesisApplied(stateDB dbm.DB) (bool, error) {
 	ok, err := stateDB.Has(sm.CalcABCIResponsesKey(0))
-	return err == nil && ok
+	if err != nil {
+		return false, fmt.Errorf("probing genesis ABCI responses: %w", err)
+	}
+	return ok, nil
 }
 
 // resetToGenesisDoc makes genDoc authoritative, replacing the persisted doc and

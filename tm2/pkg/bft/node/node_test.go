@@ -1,6 +1,7 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -621,6 +622,46 @@ func TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved(t *testing.
 	require.NoError(t, err)
 	assert.Equal(t, int64(500), state.LastBlockHeight, "a committed chain's state must not be rebuilt")
 	assert.Equal(t, []byte("committed-app-hash"), state.AppHash)
+}
+
+// DB whose Has fails while fail is set.
+type hasErrDB struct {
+	*memdb.MemDB
+	fail bool
+}
+
+func (d *hasErrDB) Has(key []byte) (bool, error) {
+	if d.fail {
+		return false, errors.New("injected read error")
+	}
+	return d.MemDB.Has(key)
+}
+
+// A read error on the genesis-applied probe must fail the boot, never read as
+// "not applied" and reset a committed chain's state record.
+func TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState(t *testing.T) {
+	t.Parallel()
+
+	d := &hasErrDB{MemDB: memdb.NewMemDB()}
+	db := dbm.DB(d)
+	pk := ed25519.GenPrivKey().PubKey()
+
+	state, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err)
+
+	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
+	state.LastBlockHeight = 500
+	state.AppHash = []byte("committed-app-hash")
+	sm.SaveState(db, state)
+
+	d.fail = true
+	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	d.fail = false
+	require.Error(t, err, "a failed probe must fail the boot")
+
+	after := sm.LoadState(db)
+	assert.Equal(t, int64(500), after.LastBlockHeight, "a failed probe must not rewrite the state record")
+	assert.Equal(t, []byte("committed-app-hash"), after.AppHash)
 }
 
 // A genesis file that passes the chain identity guards but does not validate
