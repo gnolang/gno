@@ -81,6 +81,10 @@ succeeds. Rejected.
   gnolang/gno#1941, has no height-0 key. It reaches the reset only when its
   persisted genesis doc has no app state, which `saveGenesisDoc` began writing
   in gnolang/gno#5684, after it.
+- `gnoland start` reads the genesis through `StreamingGenesisProvider`, whose
+  loader drops `initial_height` and whose app state path runs neither the
+  `InitialHeight` comparison nor `validateSignerInfo`. It boots a genesis the
+  fork test refuses, from height 1; this change leaves that path as it is.
 
 ## Key Files
 
