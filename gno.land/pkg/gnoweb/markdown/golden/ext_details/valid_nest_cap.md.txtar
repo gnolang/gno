@@ -1,31 +1,31 @@
 -- input.md --
-:::::::details L1
-::::::details L2
-:::::details L3
-::::details L4
-:::details L5
+<gno-details summary="L1">
+<gno-details summary="L2">
+<gno-details summary="L3">
+<gno-details summary="L4">
+<gno-details summary="L5">
 body
-:::
-::::
-:::::
-::::::
-:::::::
+</gno-details>
+</gno-details>
+</gno-details>
+</gno-details>
+</gno-details>
 -- output.html --
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>L1</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>L1</span></summary>
 <div>
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>L2</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>L2</span></summary>
 <div>
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>L3</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>L3</span></summary>
 <div>
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>L4</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>L4</span></summary>
 <div>
-<p>:::details L5
-body
-:::</p>
+<!-- unexpected/invalid details tag omitted -->
+<p>body</p>
+<!-- unexpected/invalid details tag omitted -->
 </div>
 </details>
 </div>

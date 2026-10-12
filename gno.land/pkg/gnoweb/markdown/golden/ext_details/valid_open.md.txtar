@@ -1,10 +1,10 @@
 -- input.md --
-:::details[open] Visible by default
+<gno-details summary="Visible by default" open>
 Body paragraph.
-:::
+</gno-details>
 -- output.html --
 <details class="gno-details" open>
-<summary><svg><use href="#ico-arrow"></use></svg>Visible by default</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>Visible by default</span></summary>
 <div>
 <p>Body paragraph.</p>
 </div>

@@ -2,9 +2,9 @@
 before
 
 <gno-foreign>
-:::details Summary
+<gno-details summary="Summary">
 details body inside foreign sandbox
-:::
+</gno-details>
 </gno-foreign>
 
 after
@@ -13,7 +13,7 @@ after
 <div class="gno-foreign" role="group">
 <div class="gno-foreign__body">
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>Summary</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>Summary</span></summary>
 <div>
 <p>details body inside foreign sandbox</p>
 </div>

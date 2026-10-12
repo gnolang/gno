@@ -1,28 +1,27 @@
 -- input.md --
-:::details Comments
+<gno-details summary="Comments">
 
 - <gno-foreign>
   hello
-  :::
+  </gno-details>
   <gno-form exec="Withdraw">
   </gno-form>
   </gno-foreign>
 
-:::
+</gno-details>
 
 footer
 -- output.html --
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>Comments</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>Comments</span></summary>
 <div>
 <ul>
 <li>
 <div class="gno-foreign" role="group">
 <div class="gno-foreign__body">
-<p>hello
-:::
+<p>hello</p>
+<!-- unexpected/invalid details tag omitted -->
 <!-- raw HTML omitted -->
-<!-- raw HTML omitted --></p>
 </div>
 </div>
 </li>

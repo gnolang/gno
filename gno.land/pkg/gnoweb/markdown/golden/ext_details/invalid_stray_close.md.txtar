@@ -1,0 +1,8 @@
+-- input.md --
+before
+</gno-details>
+after
+-- output.html --
+<p>before</p>
+<!-- unexpected/invalid details tag omitted -->
+<p>after</p>

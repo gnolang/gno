@@ -1,9 +1,9 @@
 -- input.md --
-    :::details Four-space indent is a code block
+    <gno-details summary="Four-space indent is a code block">
     Body
-    :::
+    </gno-details>
 -- output.html --
-<pre><code>:::details Four-space indent is a code block
+<pre><code>&lt;gno-details summary=&quot;Four-space indent is a code block&quot;&gt;
 Body
-:::
+&lt;/gno-details&gt;
 </code></pre>

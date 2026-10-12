@@ -1,8 +1,6 @@
 -- input.md --
-:::foo Summary
+<gno-detailsmore summary="Summary">
 This is not a details block.
-:::
+</gno-detailsmore>
 -- output.html --
-<p>:::foo Summary
-This is not a details block.
-:::</p>
+<!-- raw HTML omitted -->

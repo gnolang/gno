@@ -1,13 +1,13 @@
 -- input.md --
 - item
-  :::details Summary
+  <gno-details summary="Summary">
   body
-  :::
+  </gno-details>
 -- output.html --
 <ul>
 <li>item
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>Summary</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>Summary</span></summary>
 <div>
 <p>body</p>
 </div>

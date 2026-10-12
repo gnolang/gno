@@ -966,57 +966,45 @@ By default, the alert boxes are opened. The title is optional and if not provide
 
 ### Collapsible blocks
 
-For neutral collapsible content — logs, JSON dumps, long changelogs — that should not carry alert styling, use a ±:::details± block. It renders as a bare expandable section.
+For neutral collapsible content (logs, JSON dumps, long changelogs) that should not carry alert styling, wrap the markdown in ±<gno-details>± and ±</gno-details>±, each on its own line. It renders as a bare expandable section.
 
-By default the block is closed. Add ±[open]± right after ±:::details± to start it open. The closing fence is a line of colons matching the opening fence, so ±:::± closes a ±:::details± block.
+The ±summary± attribute sets the plain-text label, ±Details± when it is left out. The block starts closed; add ±open± to start it open.
 
 ±±±markdown
-:::details Summary text
+<gno-details summary="Summary text">
 arbitrary **markdown**
-:::
+</gno-details>
 ±±±
 
-:::details Summary text
+<gno-details summary="Summary text">
 arbitrary **markdown**
-:::
+</gno-details>
 
 ±±±markdown
-:::details[open] Open by default
+<gno-details summary="Open by default" open>
 You can see me without clicking.
-:::
+</gno-details>
 ±±±
 
-:::details[open] Open by default
+<gno-details summary="Open by default" open>
 You can see me without clicking.
-:::
+</gno-details>
+
+Blocks nest, and a close tag inside a code block stays part of the code:
 
 ±±±markdown
-:::details Changelog
-- First entry
-- Second entry
-:::
+<gno-details summary="Outer">
+<gno-details summary="Inner">
+Nested content.
+</gno-details>
+</gno-details>
 ±±±
 
-:::details Changelog
-- First entry
-- Second entry
-:::
-
-To nest blocks, or to show content that itself contains a ±:::± line such as a code sample, open the outer block with more colons than anything inside it. A block closes on the first fence with at least its own colon count.
-
-±±±markdown
-::::details Outer
-:::details Inner
+<gno-details summary="Outer">
+<gno-details summary="Inner">
 Nested content.
-:::
-::::
-±±±
-
-::::details Outer
-:::details Inner
-Nested content.
-:::
-::::
+</gno-details>
+</gno-details>
 
 ### User Mentions and Bech32 Addresses
 

@@ -1,0 +1,8 @@
+-- input.md --
+<gno-details open="false" summary="Summary">
+Body line.
+</gno-details>
+-- output.html --
+<!-- unexpected/invalid details tag omitted -->
+<p>Body line.</p>
+<!-- unexpected/invalid details tag omitted -->

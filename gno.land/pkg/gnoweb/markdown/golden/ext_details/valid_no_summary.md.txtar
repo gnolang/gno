@@ -1,20 +1,20 @@
 -- input.md --
-:::details
-Body with no summary line.
-:::
+<gno-details>
+Body with no summary.
+</gno-details>
 
-:::details[open]
+<gno-details open>
 Open, no summary.
-:::
+</gno-details>
 -- output.html --
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>Details</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>Details</span></summary>
 <div>
-<p>Body with no summary line.</p>
+<p>Body with no summary.</p>
 </div>
 </details>
 <details class="gno-details" open>
-<summary><svg><use href="#ico-arrow"></use></svg>Details</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>Details</span></summary>
 <div>
 <p>Open, no summary.</p>
 </div>

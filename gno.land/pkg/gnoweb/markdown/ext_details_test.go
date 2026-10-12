@@ -23,14 +23,12 @@ func parseDetails(t *testing.T, src string) (ast.Node, string, int) {
 	return doc, buf.String(), Get(pc)
 }
 
-// A run of openers must stop at the shared nesting cap: goldmark keeps
-// per-line state for every open block, so unbounded nesting costs time and
-// memory quadratic in the input.
+// A run of openers stops at the shared nesting cap; the rest are refused.
 func TestDetailsNestBounded(t *testing.T) {
-	doc, _, _ := parseDetails(t, strings.Repeat(":::details a\n", 4000))
+	doc, _, _ := parseDetails(t, strings.Repeat("<gno-details summary=\"a\">\n", 4000))
 	count := 0
 	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if entering && n.Kind() == KindDetailsBlock {
+		if d, ok := n.(*GnoDetailsNode); ok && entering && d.tag == detailsTagOpen {
 			count++
 		}
 		return ast.WalkContinue, nil
@@ -38,15 +36,17 @@ func TestDetailsNestBounded(t *testing.T) {
 	require.Equal(t, MaxGnoNestDepth, count)
 }
 
-// Every Push in Open is matched by one Pop, whatever shape closes the block.
+// Every Push in Open is matched by one Pop, whatever shape ends the block.
 func TestDetailsDepthBalanced(t *testing.T) {
 	cases := map[string]string{
-		"closed":        ":::details a\nb\n:::\n",
-		"unclosed":      ":::details a\nb\n",
-		"over_cap":      strings.Repeat(":::details a\n", 10),
-		"in_quote_lazy": "> :::details a\n> b\n\nafter\n",
-		"in_list_ends":  "- :::details a\n  b\n\npara\n",
-		"sequential":    strings.Repeat(":::details a\nb\n:::\n", 6),
+		"closed":          "<gno-details>\nb\n</gno-details>\n",
+		"unclosed":        "<gno-details>\nb\n",
+		"over_cap":        strings.Repeat("<gno-details>\n", 10),
+		"in_quote_ends":   "> <gno-details>\n> b\n\nafter\n",
+		"in_list_ends":    "- <gno-details>\n  b\n\npara\n",
+		"inner_unclosed":  "<gno-details>\n<gno-details>\nb\n</gno-details>\n",
+		"close_elsewhere": "<gno-details>\n- item\n  </gno-details>\n",
+		"sequential":      strings.Repeat("<gno-details>\nb\n</gno-details>\n", 6),
 	}
 	for name, src := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -56,18 +56,10 @@ func TestDetailsDepthBalanced(t *testing.T) {
 	}
 }
 
-// A container that consumes part of a tab leaves padding on the line, which
-// the summary offsets must skip.
-func TestDetailsTabPadding(t *testing.T) {
-	cases := map[string]string{
-		"quote_tab": ">\t:::details Summary text\n>\tbody\n>\t:::\n",
-		"alert_tab": "> [!NOTE]\n>\t:::details Summary text\n>\tbody\n>\t:::\n",
-		"list_tab":  "- item\n\t:::details Summary text\n\tbody\n\t:::\n",
-	}
-	for name, src := range cases {
-		t.Run(name, func(t *testing.T) {
-			_, out, _ := parseDetails(t, src)
-			require.Contains(t, out, "</svg>Summary text</summary>")
-		})
-	}
+// Closed blocks give their depth back while parsing, so a gno-* block
+// after four of them still opens.
+func TestDetailsSequentialKeepsCap(t *testing.T) {
+	src := strings.Repeat("<gno-details>\nb\n</gno-details>\n", 5) + "> [!NOTE]\n> x\n"
+	_, out, _ := parseDetails(t, src)
+	require.Contains(t, out, "gno-alert")
 }

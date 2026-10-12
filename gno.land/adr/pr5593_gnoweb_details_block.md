@@ -1,99 +1,80 @@
-# ADR: Neutral `:::details` collapsible block in gnoweb markdown
+# ADR: `<gno-details>`, a neutral collapsible block in gnoweb markdown
 
 ## Context
 
-Since #4171, gnoweb renders `> [!INFO]- Title` blockquote-style syntax as a
-collapsible `<details>` element. That path always carries alert chrome — a
-coloured left border, a semantic icon, and a mandatory alert type (INFO,
-NOTE, TIP, SUCCESS, WARNING, CAUTION). Realm authors who want to fold plain
-content (logs, JSON dumps, changelogs, FAQ answers) have no way to do so
-without the alert visuals.
+Since #4171, gnoweb renders `> [!INFO]- Title` as a collapsible `<details>`
+element. That path always carries alert chrome: a coloured left border, a
+semantic icon and a mandatory alert type. Realm authors who want to fold plain
+content, such as logs, JSON dumps, changelogs or FAQ answers, have no way to do
+so without the alert visuals.
 
 Issue #5578 asks for a neutral collapsible block with no alert styling, no
-icon, and no type requirement.
+icon and no type requirement.
 
 ## Decision
 
-Add a new Goldmark extension `ExtDetails` to
-`gno.land/pkg/gnoweb/markdown/ext_details.go` that recognises a
-pandoc-style fenced container block:
+Add one block extension, `<gno-details>` … `</gno-details>`, each tag alone on
+its line, in `gno.land/pkg/gnoweb/markdown/ext_details.go`.
 
 ```
-:::details Summary text
+<gno-details summary="Logs" open>
 arbitrary **markdown**
-:::
+</gno-details>
 ```
 
-- Opening fence: a line starting with at least three colons followed by
-  `details` (`:::details`, `::::details`, …). An optional `[open]` flag
-  directly after `details` (e.g. `:::details[open]`) makes the block render
-  with the HTML `open` attribute. The summary follows after a space and is
-  parsed as inline markdown. A non-space character right after `details` or
-  the flag (e.g. `:::detailsmore`, `:::details[open]Changelog`) is not a
-  details fence and falls through to a normal paragraph.
-- Closing fence: a line of at least as many colons as the opening fence,
-  followed only by whitespace, indented up to three spaces. Matching the
-  opening fence length means an outer block opened with more colons than
-  its content is not closed early by a shorter `:::` line inside it, so a
-  nested block or a code sample containing `:::` can be wrapped with
-  `::::details … ::::`. If the closing fence is missing, the block closes
-  at the end of the document (matching CommonMark fenced code behaviour).
-- Rendered HTML:
-  `<details class="gno-details"><summary><svg><use href="#ico-arrow"></use></svg>…inline
-  summary…</summary><div>…block content…</div></details>`, with the `open`
-  attribute added on the `<details>` when the `[open]` flag is present. The
-  chevron SVG references the bundled `#ico-arrow` symbol; the body is
-  wrapped in a `<div>` to anchor padding without affecting margin collapse
-  on the first child paragraph.
-- When the opening fence has no summary, the renderer emits a default
-  `<summary><svg/>Details</summary>` so the chevron and body wrapper still
-  apply consistently.
+- **Attributes.** `summary` sets the label and `open` renders the block
+  expanded. Any other attribute, a valued `open`, a repeated attribute, an
+  attribute on the close tag or a self-closing form makes the line an invalid
+  tag, rendered as an HTML comment. A missing `summary` renders as `Details`.
+- **Plain-text summary.** The summary is escaped and written inside a
+  `<span>`, so no markup in it reaches the page and the summary row's flex
+  layout treats it as one item beside the chevron.
+- **Flat markers, like `ext_frame`.** Each tag is a one-line leaf. An AST
+  transformer moves the blocks between an open marker and its close marker
+  under the open one. A line therefore belongs to the innermost block that
+  takes it: a close tag inside a code fence, an HTML block or a
+  `<gno-foreign>` body stays that block's text.
+- **Pairing.** A close tag pairs with the innermost opener under the same
+  parent, so nested blocks close inner first. A close tag in another
+  container, such as a list item, never closes a block opened outside it and
+  renders as a comment. An unclosed block runs to the end of its parent.
+- **Any level.** Unlike a frame, a details block may open in a list item, a
+  blockquote, an alert or another details block. It never spans a gno-columns
+  or gno-frame marker; it ends before one.
+- **Depth cap.** An opener takes a level of the shared gno-* cap in
+  `nestdepth.go` and is refused past it; its own close tag is then consumed as
+  a comment, so it cannot close an accepted block.
+- **Sanitizer.** `sanitize.Block` and `sanitize.BlockRich` already escape any
+  line opening on `<gno-` or `</gno-`, so user content can neither open a
+  block around the realm's own content nor close the realm's block early.
+- **Registration.** The extension is registered in `GnoExtension.Extend` and
+  in `buildInnerForeignMarkdown`, so a block also renders inside
+  `<gno-foreign>`.
 
-The extension is wired into `GnoExtension.Extend` next to `ExtAlerts`. It
-uses the same block-parser priority (799) as the alert parser.
-
-The docs realm (`examples/quarantined/gno.land/r/docs/markdown/markdown.gno`) gains a
-new "Collapsible blocks" section demonstrating the syntax alongside the
-existing Alerts documentation.
+The docs realm, `examples/quarantined/gno.land/r/docs/markdown/markdown.gno`,
+gains a "Collapsible blocks" section beside the Alerts documentation.
 
 ## Alternatives Considered
 
-- **Extend the existing alert syntax with a `neutral` / `plain` type.**
-  Rejected: overloads alert semantics, pulls neutral blocks through the
-  alert renderer's icon/summary pipeline, and forces CSS branching. The
-  goal is *no* alert chrome, not a new alert variant.
-- **Raw HTML `<details>`/`<summary>`.** Already possible but verbose and
-  does not play well with markdown parsing inside the summary. Realm
-  authors asked for a markdown-native form.
-- **GitHub-style `<details>`/`<summary>` inside a blockquote.** Same
-  verbosity problem, and still parses as HTML rather than markdown.
-- **Reuse the `|||`/`<gno-columns>` custom-tag approach from the columns
-  extension.** Pandoc-style `:::` fences are more conventional for fenced
-  divs and easier to type; the columns extension is tag-oriented because
-  it tracks multiple separator nodes, which does not apply here.
+- **Pandoc-style `:::details` fences.** Rejected after review. A fenced
+  container decides whether a line closes it before any block inside it sees
+  the line, so a `:::` in a code sample or a foreign body closed the block,
+  and the sanitizer passed `:::` lines through untouched.
+- **Keep `:::` and teach the sanitizer about it.** Rejected: it changes
+  `isExtDelimiter` in the `chain/markdown` stdlib, whose single `<gno-` rule
+  covers every gno-* extension, and leaves the line-ownership problem above.
+- **A `neutral` alert type.** Rejected: it overloads alert semantics and pulls
+  neutral blocks through the alert's icon and summary pipeline.
+- **Raw HTML `<details>`.** Production gnoweb strips raw HTML.
+- **Inline markdown in the summary.** Left out: an attribute value carries no
+  markdown, and a separate summary line would add a second marker.
 
 ## Consequences
 
-- **Positive:** Realm authors can now fold neutral content without opting
-  in to alert styling. Markdown stays readable; output is a single, well
-  understood HTML element.
-- **Positive:** Implementation is isolated to a single file plus a one-
-  line registration in `ext.go`; alert behaviour and existing markdown
-  fixtures are untouched.
-- **Trade-off:** `:::` fences introduce a new namespace in gnoweb
-  markdown. Future extensions (`:::columns`, `:::warning`, …) should pick
-  a consistent grammar — the parser rejects `:::<name>` that does not
-  match `:::details`, falling through to default paragraph rendering, so
-  adding new `:::<name>` blocks later is non-breaking.
-- **Trade-off:** nesting and embedding follow the pandoc convention that a
-  block closes on the first fence of at least its own colon count. A block
-  wrapping content that contains a bare `:::` line must open with more
-  colons (`::::details`); a same-length inner `:::` would close the outer
-  block early and leave the surplus fence as stray text. This keeps the
-  parser a single line-oriented pass with no fence stack.
-- **Styling shipped.** Project styles for `.gno-details` are added to
+- Realm authors fold neutral content without alert styling, with the same
+  tag grammar as `<gno-columns>`, `<gno-frame>` and `<gno-foreign>`.
+- An HTML block runs to the next blank line, so a close tag directly after an
+  HTML line is part of that block; a blank line before the tag closes it.
+- Styles for `.gno-details` live in
   `gno.land/pkg/gnoweb/frontend/css/06-blocks.css`, scoped under
-  `.c-realm-view, .c-readme-view`: bordered, rounded, surface-coloured
-  card with a chevron summary that rotates between `-90deg` (closed) and
-  `0` (open). The shared `#ico-arrow` symbol is reused so no new SVG asset
-  is bundled.
+  `.c-realm-view, .c-readme-view`, and reuse the bundled `#ico-arrow` symbol.

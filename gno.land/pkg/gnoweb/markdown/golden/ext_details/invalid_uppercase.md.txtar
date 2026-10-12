@@ -1,8 +1,0 @@
--- input.md --
-:::DETAILS Summary
-body
-:::
--- output.html --
-<p>:::DETAILS Summary
-body
-:::</p>

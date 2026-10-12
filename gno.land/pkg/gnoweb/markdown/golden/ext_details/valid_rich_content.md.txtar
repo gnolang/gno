@@ -1,5 +1,5 @@
 -- input.md --
-:::details[open] Changelog
+<gno-details open summary="Changelog">
 ## v1.2.3
 
 - First entry
@@ -8,10 +8,10 @@
 ```
 fenced code
 ```
-:::
+</gno-details>
 -- output.html --
 <details class="gno-details" open>
-<summary><svg><use href="#ico-arrow"></use></svg>Changelog</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>Changelog</span></summary>
 <div>
 <h2>v1.2.3</h2>
 <ul>

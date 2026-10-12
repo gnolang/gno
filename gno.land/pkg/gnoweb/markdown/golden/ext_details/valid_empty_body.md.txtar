@@ -1,9 +1,9 @@
 -- input.md --
-:::details Empty body
-:::
+<gno-details summary="Empty body">
+</gno-details>
 -- output.html --
 <details class="gno-details">
-<summary><svg><use href="#ico-arrow"></use></svg>Empty body</summary>
+<summary><svg><use href="#ico-arrow"></use></svg><span>Empty body</span></summary>
 <div>
 </div>
 </details>
