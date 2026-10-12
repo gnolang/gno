@@ -475,7 +475,7 @@ echoing and the answer-every-request duty are identical.
 ### `connect` — request the user's identity
 
 ```
-<scheme>://connect?callback=<url>&state=<token>&rpc=<rpc>&chainid=<chainid>
+<scheme>://connect?callback=<url>&state=<token>&rpc=<rpc>&chainid=<chainid>&challenge=<text>
 ```
 
 Asks the wallet which address the user wants to act as — the sign-in step
@@ -491,6 +491,10 @@ A `connect` may also carry **scope hints** (`allow`, `spend`, `period`,
 of the identity. Both are optional and additive: a `connect` without them means
 exactly what this section says. See Sessions below.
 
+A `connect` may carry a **`challenge`**: a text the producer's backend handed
+out, which the identity signs to prove it controls the address (see Proving the
+identity below). Without it, a `connect` proves nothing.
+
 The wallet MUST ask the user before disclosing anything, and MUST show the
 callback's host: a producer's claimed name is self-asserted and unverifiable,
 so the destination is the only anti-phishing anchor the user has. The protocol
@@ -498,7 +502,7 @@ carries no producer-supplied display name — a producer's identity to the user
 is its callback destination.
 
 ```
-<callback>?status=success&address=<bech32>&session=<bech32>&pubkey=<gpub>&chainid=<id>&features=<tokens>&state=<echoed>
+<callback>?status=success&address=<bech32>&session=<bech32>&pubkey=<gpub>&chainid=<id>&features=<tokens>&signed=<base64url>&signature=<base64url>&state=<echoed>
 <callback>?status=cancelled&state=<echoed>
 <callback>?status=error&code=<code>&state=<echoed>
 ```
@@ -512,7 +516,8 @@ capabilities, letting a producer tailor later requests. v1 tokens: the **hosts**
 the wallet supports — `sendtx` (sign and broadcast) and `signtx` (sign only) —
 plus `multi_msg` (accepts the indexed multi-message form) and `sessions` (grants
 producer-held sessions: `pubkey` and `old` on `connect`, and the `disconnect`
-host — see Sessions). The two tx hosts are
+host — see Sessions) and `challenge` (signs a `challenge`: see Proving the
+identity). The two tx hosts are
 independent, so a pure signer may offer `signtx` without `sendtx`. `multi_msg`
 extends the single-message baseline (every wallet handles at least one message).
 A wallet that omits `features` is making no claim, and a producer should assume
@@ -520,11 +525,51 @@ nothing beyond the single-message baseline. Unknown tokens are ignored. A
 producer may also simply attempt a host and treat `unsupported_host` as the
 negative answer.
 
-The returned identity is **display-level**. It carries no challenge and no
-signature, so it proves nothing about control of the address: treat it as the
-user stating who they are, not as authentication. Authority comes from the
-on-chain `tx` the user reviews and signs. A proof-of-control extension
-(challenge + signature) is left for producers with a backend able to verify one.
+Without a `challenge` the returned identity is **display-level**: it proves
+nothing about control of the address, so treat it as the user stating who they
+are, not as authentication. Authority comes from the on-chain `tx` the user
+reviews and signs.
+
+#### Proving the identity: `challenge`
+
+`challenge` is a text the producer's backend chose: non-empty UTF-8, at most
+4096 bytes, no control character (C0, DEL or C1, as Go's `unicode.IsControl`
+defines them). Anything else is `invalid_request`. A `connect` naming a key
+(`pubkey`) **and** carrying a `challenge` is `invalid_request` too: a `connect`
+either asks for a session or proves the identity, so the identity never signs
+twice in one exchange.
+
+The **identity** signs — never a session key, whose signature proves nothing
+about the address — this document, with `chain_id` the chain of the answer:
+
+```
+{"account_number":"0","chain_id":"<chainid>","fee":{"amount":[],"gas":"0"},"memo":"",
+ "msgs":[{"type":"sign/MsgSignData","value":{"data":"<base64 of the challenge>","signer":"<address>"}}],
+ "sequence":"0"}
+```
+
+The bytes signed are that JSON sorted by key, without spaces, with `<`, `>` and
+`&` escaped as `\u003c`, `\u003e`, `\u0026`: the document Adena's
+`SignArbitrary` signs (ADR-036's off-chain message, with the chain id kept so a
+proof made on one network is none on another). No node decodes
+`sign/MsgSignData`, so the document can never be broadcast as a transaction.
+gno's `std.SignDataPayload` builds these bytes and `std.VerifySignData` checks a
+proof; `gnokey sign-data` signs one.
+
+The reply carries `signed`, the bytes signed, and `signature`, 64 bytes `R‖S`,
+both base64url without padding, and `pubkey`, the identity's key, which is then
+required. It carries no `session`. With a `challenge` the wallet asks the user
+every time, and shows the callback host, the identity, the network, the whole
+text and that nothing goes on chain.
+
+A wallet that does not know `challenge` ignores it (see Forward compatibility)
+and answers without `signed` and `signature`: the producer is proven only when
+the reply carries them, and otherwise falls back to another way rather than
+asking again. `challenge` in `features` says the wallet signs one.
+
+The producer makes the challenge (fresh, single use, naming its own domain),
+checks the signature against `pubkey`, that `pubkey`'s address is `address`, and
+the chain id, and refuses a chain it did not expect.
 
 ### Sessions: `connect` with a key, and `disconnect`
 
@@ -653,6 +698,7 @@ These are gno.land consensus rules today (`tm2/pkg/sdk/auth`,
 | `iat` | — | **required** | — | **required** | issue time, unix seconds |
 | `sig` | — | **required** | — | **required** | proof of possession by `pubkey` |
 | `oldsig` | — | **required** with `old` | — | — | proof of possession by `old` |
+| `challenge` | optional | never: `invalid_request` | — | — | a text for the identity to sign; see Proving the identity |
 
 Rules:
 
