@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -28,7 +29,24 @@ const (
 //
 // This function must be called on *FileSets because declarations
 // in file sets may be unordered.
+// PredefineFileSet predefines every declaration of fset; see Preprocess.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+	predefineFileSet(store, pn, fset, nil)
+}
+
+// PreprocessFilesCollect predefines and preprocesses fset in accumulate
+// mode (see PreprocessCollect) and returns every error found, in source
+// order of discovery. The nodes must not be executed afterwards.
+func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*PreprocessError {
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{}}
+	predefineFileSet(store, pn, fset, acc)
+	for _, fn := range fset.Files {
+		preprocess(store, pn, fn, acc)
+	}
+	return acc.errs
+}
+
+func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preprocessAccumulator) {
 	// First, initialize all file nodes and connect to package node.
 	// This will also reserve names on BlockNode.StaticBlock by
 	// calling StaticBlock.Reserve().
@@ -44,6 +62,26 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 		initStaticBlocks(store, pn, fn)
 	}
 	index := newPredefineDeclIndex(pn.FileSet)
+	// In accumulate mode a declaration that fails to predefine is recorded
+	// and dropped (marked preprocessed, so the walk skips it) instead of
+	// stopping the whole file set.
+	predefineOne := func(fn *FileNode, d Decl, do func()) {
+		if acc == nil {
+			do()
+			return
+		}
+		defer func() {
+			if r := recover(); r != nil {
+				if _, isRuntime := r.(runtime.Error); isRuntime {
+					panic(r)
+				}
+				acc.add(wrapPreprocessPanic([]BlockNode{pn, fn}, d, r), d)
+				d.SetAttribute(ATTR_PREDEFINED, true)
+				d.SetAttribute(ATTR_PREPROCESSED, true)
+			}
+		}()
+		do()
+	}
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -63,7 +101,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursivelyIndexed(store, fn, d, index)
+				predefineOne(fn, d, func() { predefineRecursivelyIndexed(store, fn, d, index) })
 				fn.Decls[i] = d
 			}
 		}
@@ -82,7 +120,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursivelyIndexed(store, fn, d, index)
+				predefineOne(fn, d, func() { predefineRecursivelyIndexed(store, fn, d, index) })
 				fn.Decls[i] = d
 			}
 		}
@@ -101,7 +139,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				}
 
 				// recursively predefine dependencies.
-				predefineRecursivelyIndexed(store, fn, d, index)
+				predefineOne(fn, d, func() { predefineRecursivelyIndexed(store, fn, d, index) })
 				fn.Decls[i] = d
 			}
 		}
@@ -173,7 +211,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				continue
 			} else {
 				// recursively predefine dependencies.
-				predefineRecursivelyIndexed(store, fn, d, index)
+				predefineOne(fn, d, func() { predefineRecursivelyIndexed(store, fn, d, index) })
 				continue
 			}
 		}
@@ -686,31 +724,90 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 
 func doRecover(stack []BlockNode, n Node) {
 	if r := recover(); r != nil {
-		if _, ok := r.(*PreprocessError); ok {
-			// re-panic directly if this is a PreprocessError already.
-			panic(r)
-		}
-		// before re-throwing the error, append location information to message.
-		last := stack[len(stack)-1]
-		loc := last.GetLocation()
-		if !n.GetSpan().IsZero() {
-			loc.SetSpanOverride(n.GetSpan())
-		}
-
-		var err error
-		rerr, ok := r.(error)
-		if ok {
-			err = errors.Wrap(rerr, loc.String())
-		} else {
-			err = fmt.Errorf("%s: %v", loc.String(), r)
-		}
-
-		// Re-throw the error after wrapping it with the preprocessing stack information.
-		panic(&PreprocessError{
-			err:   err,
-			stack: stack,
-		})
+		panic(wrapPreprocessPanic(stack, n, r))
 	}
+}
+
+// wrapPreprocessPanic turns a panic raised while preprocessing n into a
+// *PreprocessError carrying the location and the block stack; a
+// *PreprocessError is returned as is.
+func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
+	if pe, ok := r.(*PreprocessError); ok {
+		return pe
+	}
+	last := stack[len(stack)-1]
+	loc := last.GetLocation()
+	if !n.GetSpan().IsZero() {
+		loc.SetSpanOverride(n.GetSpan())
+	}
+	var err error
+	if rerr, ok := r.(error); ok {
+		err = errors.Wrap(rerr, loc.String())
+	} else {
+		err = fmt.Errorf("%s: %v", loc.String(), r)
+	}
+	return &PreprocessError{err: err, stack: stack}
+}
+
+// preprocessAccumulator collects the errors of one PreprocessCollect run.
+// A statement or declaration that fails is dropped from the walk and the
+// names it declares are poisoned, so "not declared" follow-ons about them
+// are not reported (go/types' invalid-object suppression).
+type preprocessAccumulator struct {
+	errs     []*PreprocessError
+	poisoned map[Name]bool
+}
+
+// Both spellings the preprocessor uses for an unknown name.
+var reUndeclaredName = regexp.MustCompile(`name (\S+) not declared|name not defined: (\S+)`)
+
+func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
+	msg := pe.err.Error()
+	if m := reUndeclaredName.FindStringSubmatch(msg); m != nil && acc.poisoned[Name(m[1]+m[2])] {
+		return
+	}
+	for _, e := range acc.errs {
+		if e.err.Error() == msg {
+			return // the same failure reached through another path
+		}
+	}
+	for _, name := range declaredNamesOf(n) {
+		acc.poisoned[name] = true
+	}
+	acc.errs = append(acc.errs, pe)
+}
+
+// declaredNamesOf lists the names a statement or declaration introduces.
+func declaredNamesOf(n Node) []Name {
+	switch n := n.(type) {
+	case *AssignStmt:
+		if n.Op != DEFINE {
+			return nil
+		}
+		var names []Name
+		for _, lx := range n.Lhs {
+			if nx, ok := lx.(*NameExpr); ok {
+				names = append(names, nx.Name)
+			}
+		}
+		return names
+	case *ValueDecl:
+		return n.GetDeclNames()
+	case *TypeDecl:
+		return []Name{n.Name}
+	case *FuncDecl:
+		if n.IsMethod {
+			return nil
+		}
+		return []Name{n.Name}
+	case *DeclStmt:
+		var names []Name
+		for _, d := range n.Body {
+			names = append(names, declaredNamesOf(d)...)
+		}
+		return names
+	}
+	return nil
 }
 
 // This counter ensures (during testing) that certain functions
@@ -738,6 +835,21 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
+	return preprocess(store, ctx, n, nil)
+}
+
+// PreprocessCollect is Preprocess for static checking off-chain: instead
+// of stopping at the first error, it drops each failing statement or
+// file declaration, records its error, and continues. The returned node
+// must not be executed. The on-chain path uses Preprocess, which keeps
+// the first-error semantics, gas and error text unchanged.
+func PreprocessCollect(store Store, ctx BlockNode, n Node) (Node, []*PreprocessError) {
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{}}
+	nn := preprocess(store, ctx, n, acc)
+	return nn, acc.errs
+}
+
+func preprocess(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator) Node {
 	// First init static blocks of blocknodes.
 	// This may have already happened.
 	// Keep this function idemponent.
@@ -761,7 +873,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	}()
 
 	// Bulk of the preprocessor function
-	n = preprocess1(store, ctx, n)
+	n = preprocess1(store, ctx, n, acc)
 
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
@@ -798,7 +910,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	return n
 }
 
-func preprocess1(store Store, ctx BlockNode, n Node) Node {
+func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator) Node {
 	// Increment preprocessing counter while preprocessing.
 	preprocessing.Add(1)
 	defer preprocessing.Add(-1)
@@ -817,7 +929,53 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	ctxpn := packageOf(ctx)
 
 	// iterate over all nodes recursively
-	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	// In accumulate mode a failed statement is dropped: record the error,
+	// rewind the block stack to the statement's enclosing block, go on.
+	var onPanic PanicHandler
+	if acc != nil {
+		onPanic = func(ns []Node, ftype TransField, index int, n Node, r any) bool {
+			pe, ok := r.(*PreprocessError)
+			if !ok {
+				return false // not a checking error: a VM bug, let it surface
+			}
+			for i := len(ns) - 1; i >= 0; i-- {
+				if bn, ok := ns[i].(BlockNode); ok {
+					for k := len(stack) - 1; k > 0; k-- {
+						if stack[k] == bn {
+							stack = stack[:k+1]
+							break
+						}
+					}
+					break
+				}
+			}
+			last = stack[len(stack)-1]
+			acc.add(pe, n)
+			return true
+		}
+	}
+
+	// predefineGuarded is predefineRecursively with the same drop-and-record
+	// rule for file-level declarations in accumulate mode; a dropped
+	// declaration is marked preprocessed so the walk below skips it.
+	predefineGuarded := func(last BlockNode, d Decl) {
+		if acc == nil {
+			predefineRecursively(store, last, d)
+			return
+		}
+		defer func() {
+			if r := recover(); r != nil {
+				if _, isRuntime := r.(runtime.Error); isRuntime {
+					panic(r) // a VM bug, not a checking error
+				}
+				acc.add(wrapPreprocessPanic(stack, d, r), d)
+				d.SetAttribute(ATTR_PREPROCESSED, true)
+			}
+		}()
+		predefineRecursively(store, last, d)
+	}
+
+	nn := transcribeWith(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// if already preprocessed, skip it.
 		if n.GetAttribute(ATTR_PREPROCESSED) == true {
 			return n, TRANS_SKIP
@@ -1203,7 +1361,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								predefineRecursively(store, n, d)
+								predefineGuarded(n, d)
 								n.Decls[i] = d
 							}
 						}
@@ -1220,7 +1378,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								predefineRecursively(store, n, d)
+								predefineGuarded(n, d)
 								n.Decls[i] = d
 							}
 						}
@@ -1237,7 +1395,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								predefineRecursively(store, n, d)
+								predefineGuarded(n, d)
 								n.Decls[i] = d
 							}
 						}
@@ -1253,7 +1411,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						} else {
 							// recursively predefine
 							// dependencies.
-							predefineRecursively(store, n, d)
+							predefineGuarded(n, d)
 							n.Decls[i] = d
 						}
 					}
@@ -3317,7 +3475,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 		panic(fmt.Sprintf(
 			"unknown stage %v", stage))
-	})
+	}, onPanic)
 
 	return nn
 }
