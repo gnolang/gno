@@ -772,6 +772,14 @@ func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 	return ctx.WithMultiStore(msCache), msCache
 }
 
+// blockMaxGas returns the consensus max gas per block, or -1 when unset.
+func blockMaxGas(ctx Context) int64 {
+	if cp := ctx.ConsensusParams(); cp != nil && cp.Block != nil {
+		return cp.Block.MaxGas
+	}
+	return -1
+}
+
 // runTx processes a transaction. The transactions is processed via an
 // anteHandler. The provided txBytes may be nil in some cases, eg. in tests. For
 // further details on transaction execution, reference the BaseApp SDK
@@ -830,11 +838,12 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 			switch ex := r.(type) {
 			case store.OutOfGasError:
 				gasUsed := ctx.GasMeter().GasConsumed()
-				maxGas := int64(-1)
-				if cp := ctx.ConsensusParams(); cp != nil && cp.Block != nil {
-					maxGas = cp.Block.MaxGas
+				// A simulation runs out of the meter's limit, the block max.
+				limit := gasWanted
+				if mode == RunTxModeSimulate {
+					limit = ctx.GasMeter().Limit()
 				}
-				log := store.OutOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor, true)
+				log := store.OutOfGasLog(gasUsed, limit, blockMaxGas(ctx), ex.Descriptor, true)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
@@ -966,6 +975,13 @@ func (app *BaseApp) runTx(ctx Context, txBytes []byte) (result Result) {
 	// Simulate: return after msg execution. The outer CacheContext
 	// (from getContextForTx) discards everything.
 	if mode != RunTxModeDeliver {
+		// A simulation metered past GasWanted still has to fit it. An
+		// infinite meter reports a limit of 0 and is left alone.
+		meter := ctx.GasMeter()
+		if gasUsed := meter.GasConsumed(); result.IsOK() && meter.Limit() > gasWanted && gasUsed > gasWanted {
+			result.Log = store.OutOfGasLog(gasUsed, gasWanted, blockMaxGas(ctx), "simulation", false)
+			result.Error = ABCIError(std.ErrOutOfGas(result.Log))
+		}
 		return result
 	}
 

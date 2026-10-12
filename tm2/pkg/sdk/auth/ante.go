@@ -88,7 +88,14 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			}
 		}
 
-		newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
+		// Simulation meters at the block max so it reports what the tx uses
+		// without the client re-signing a higher GasWanted; runTx still fails
+		// it when that exceeds GasWanted.
+		gasLimit := tx.Fee.GasWanted
+		if simulate && consParams.Block.MaxGas > 0 {
+			gasLimit = consParams.Block.MaxGas
+		}
+		newCtx = SetGasMeter(ctx, gasLimit)
 
 		// AnteHandlers must have their own defer/recover in order for the BaseApp
 		// to know how much gas was used! This is because the GasMeter is created in
@@ -103,7 +110,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 					if cp := newCtx.ConsensusParams(); cp != nil && cp.Block != nil {
 						maxGas = cp.Block.MaxGas
 					}
-					log := store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor, true)
+					log := store.OutOfGasLog(gasUsed, gasLimit, maxGas, ex.Descriptor, true)
 					res = abciResult(std.ErrOutOfGas(log))
 
 					res.GasWanted = tx.Fee.GasWanted
@@ -634,10 +641,10 @@ func SetGasMeter(ctx sdk.Context, gasLimit int64) sdk.Context {
 	// Phase 2b does not exempt them.
 	//
 	// Simulation is NOT exempt, despite being the case people expect to be.
-	// This function is not told whether it is simulating -- there is one call
-	// site and it is unconditional -- so a simulated tx above height 0 runs
-	// under a real basicGasMeter(GasWanted) like any other. Anything reasoning
-	// about what `.app/simulate` can afford has to account for that.
+	// This function is not told whether it is simulating, so a simulated tx
+	// above height 0 runs under a real basicGasMeter like any other; the
+	// caller passes the block max as its limit. Anything reasoning about what
+	// `.app/simulate` can afford has to account for that.
 	if ctx.BlockHeight() == 0 {
 		return ctx.WithGasMeter(store.NewInfiniteGasMeter())
 	}
