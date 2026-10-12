@@ -159,12 +159,9 @@ func isCloseFence(line []byte, minColons int) bool {
 func (p *detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
 	line, segment := reader.PeekLine()
 
-	// Allow up to 3 columns of indentation per CommonMark; a tab counts to
-	// its next stop from the line's offset after any container prefix.
-	w, pos := util.IndentWidth(line, reader.LineOffset())
-	if w > 3 { // an indented code block
-		return nil, parser.NoChildren
-	}
+	// Goldmark never offers a line indented 4 columns or more, so only the
+	// indentation's width in bytes is needed here.
+	_, pos := util.IndentWidth(line, reader.LineOffset())
 	sub := line[pos:]
 
 	fence, open, sStart, sEnd, ok := parseOpenFence(sub)
