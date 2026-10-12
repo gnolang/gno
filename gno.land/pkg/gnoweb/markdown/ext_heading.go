@@ -32,10 +32,11 @@ func (r *headingRenderer) render(w util.BufWriter, _ []byte, node ast.Node, ente
 	}
 	id, _ := n.AttributeString("id")
 	if idBytes, ok := id.([]byte); ok && len(idBytes) > 0 && n.HasChildren() {
-		// Same icon and label as the ui/pkg_anchor template.
+		// Same icon and label as the ui/pkg_anchor template. The word joiner,
+		// with the anchor's nowrap, keeps the icon on the heading's last word.
 		_, _ = w.WriteString(`<a href="#`)
 		_, _ = w.Write(util.EscapeHTML(idBytes))
-		_, _ = w.WriteString(`" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a>`)
+		_, _ = w.WriteString(`" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a>`)
 	}
 	_, _ = w.WriteString("</h")
 	_ = w.WriteByte(level)

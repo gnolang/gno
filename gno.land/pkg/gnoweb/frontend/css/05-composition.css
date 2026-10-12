@@ -658,6 +658,8 @@
 	display: inline;
 	vertical-align: baseline;
 	margin-inline-start: 0.3em;
+	white-space: nowrap;
+	user-select: none;
 	color: var(--s-color-text-secondary);
 	opacity: 0;
 	transition: opacity 0.1s ease-in-out;

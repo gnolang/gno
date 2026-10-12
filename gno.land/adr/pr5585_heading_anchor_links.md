@@ -9,10 +9,10 @@ Issue [#5579](https://github.com/gnolang/gno/issues/5579): rendered realm and re
 Replace goldmark's heading renderer in `GnoExtension` with one that closes every heading that has an id and some content with a permalink anchor, using the icon and label of the `ui/pkg_anchor` template on package overview cards:
 
 ```html
-<h2 id="title">Title<a href="#title" class="heading-anchor" aria-label="Permalink"><svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
+<h2 id="title">Title<a href="#title" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 ```
 
-The icon is hidden at rest and shown when the heading is hovered or the anchor has keyboard focus. On devices with no hover (`@media (hover: none)`) it is always shown.
+The icon is hidden at rest and shown when the heading is hovered or the anchor has keyboard focus. On devices with no hover (`@media (hover: none)`) it is always shown. A word joiner (U+2060) opens the anchor and the anchor does not wrap, so on a narrow screen the icon moves to the next line with the heading's last word rather than alone. The anchor is excluded from text selection, so copying a heading copies no joiner.
 
 ## Alternatives Considered
 
