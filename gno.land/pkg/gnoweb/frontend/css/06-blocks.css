@@ -3322,7 +3322,6 @@ main.is-dev-mode .b-toc a {
 			padding: var(--g-space-3) var(--g-space-4);
 			font-weight: var(--g-font-bold);
 			cursor: pointer;
-			user-select: none;
 			list-style: none;
 
 			&::marker,
