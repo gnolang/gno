@@ -210,16 +210,14 @@ func StringifyProposal(p *dao.Proposal) string {
 
 `, md.EscapeText(clampField(p.Title(), maxRenderedTitle)), p.Author())
 
-	// Escaped, clamped and quoted as the proposal page renders them, so a realm
-	// printing the text cannot be handed the page's own lines by the proposer.
+	// The same lines in the same order as the proposal page, escaped, clamped
+	// and quoted as it renders them, so a realm printing the text names the
+	// executor first and cannot be handed the page's own lines by the proposer.
+	out += "Executes: " + executesLine(p) + "\n\n"
+	out += renderExecution(p)
 	if description := quoteMarkdown(p.Description()); description != "" {
 		out += description + "\n\n"
 	}
-
-	// The same lines the proposal page renders, so a realm printing a proposal
-	// as text names the executor the way gnoweb does.
-	out += "Executes: " + executesLine(p) + "\n\n"
-	out += renderExecution(p)
 
 	return out
 }

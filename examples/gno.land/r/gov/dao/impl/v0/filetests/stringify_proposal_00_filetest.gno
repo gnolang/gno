@@ -93,6 +93,14 @@ func main(cur realm) {
 	println("stringify widens the fence too:",
 		strings.Contains(hout, "```gno.land/r/evil`` **INJECTED**```"))
 	println("and no bold escapes it:", !strings.Contains(hout, "\n**INJECTED**"))
+
+	// A title is escaped and folded the way the page escapes it, so it cannot
+	// write a heading of its own under the one the text form draws.
+	tpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Hostile\n\n### Proposed by: g1evil", "a title that forges the author line", executor))
+	tout := impl.StringifyProposal(dao.MustGetProposal(tpid))
+
+	println("a title forges no author line:", !strings.Contains(tout, "\n### Proposed by: g1evil"))
 }
 
 // Output:
@@ -104,14 +112,15 @@ func main(cur realm) {
 //
 // ### Proposed by: g1w3jhxazlta047h6lta047h6lta047h6lwmjv0n
 //
-//   > This is a test proposal description to verify StringifyProposal works correctly.
-//
 // Executes: [`gno.land/r/template/contract`](/r/template/contract$source)
 //
 // ### Execution
 //
 //   > Test executor description
 //
+//   > This is a test proposal description to verify StringifyProposal works correctly.
+//
 //
 // stringify widens the fence too: true
 // and no bold escapes it: true
+// a title forges no author line: true

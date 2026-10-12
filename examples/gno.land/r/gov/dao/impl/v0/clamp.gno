@@ -48,10 +48,10 @@ const (
 	// render pays for the rewrite: measured per render, a 100KB description
 	// costs 3,085,843,608 gas against the 3,000,000,000 cap, so an unclamped
 	// description leaves a proposal no voter can read. 8KB is around 1,200
-	// words of prose. The worst shape measured inside that bound, 8192 bare
-	// newlines in the description and in the executor's text alike, costs
-	// 969,999,528 gas, under a third of the cap. The stored proposal keeps
-	// every byte; this bounds what one page renders.
+	// words of prose. The worst shape measured inside that bound, one footnote
+	// marker and 8188 newlines in the description and in the executor's text
+	// alike, costs 1,261,152,226 gas, under half the cap. The stored proposal
+	// keeps every byte; this bounds what one page renders.
 	maxRenderedDescription = 8192
 	// A Payment's String(). The canonical impls render a coin set or an
 	// amount plus a token key, then " to " and a bech32 address; a coin set

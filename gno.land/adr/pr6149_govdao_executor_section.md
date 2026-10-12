@@ -136,13 +136,14 @@ same section helper rather than carrying its own copy of the disclosure.
   text the proposer typed rather than as a note at the foot of the page, and a
   code span carrying `]:` after a `[^` on its line shows a backslash.
 - `StringifyProposal` escapes the title and clamps and quotes the description
-  the way the page does.
+  the way the page does, and prints the executor before the description, in
+  the page's order.
 - Rendering a description now rewrites every line into the quote, and the
   rewrite is what the page pays for: a 100KB description measured
   3,085,843,608 gas per render, against the 3,000,000,000 query cap. So both
   descriptions are clamped to `maxRenderedDescription` before the quote, like
   every other slot on the page, and the worst 8KB shape in both measured
-  969,999,528; the stored proposal keeps every byte.
+  1,261,152,226; the stored proposal keeps every byte.
 - Adding declarations to a genesis realm shifts the balances asserted in
   `gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar`, which
   its own note says to re-derive.
