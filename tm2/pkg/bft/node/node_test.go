@@ -640,6 +640,29 @@ func TestParsePersistentPeerAddrs(t *testing.T) {
 	})
 }
 
+func TestDedupePersistentPeerAddrs(t *testing.T) {
+	t.Run("an entry repeated with another resolved IP is not reported", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		// Each entry is looked up on its own, and a round-robin hostname can
+		// put another address first in the second answer
+		var (
+			id     = p2pTypes.GenerateNodeKey().ID()
+			first  = &p2pTypes.NetAddress{ID: id, IP: net.ParseIP("192.0.2.1"), Port: 26656, Hostname: "pool.example"}
+			second = &p2pTypes.NetAddress{ID: id, IP: net.ParseIP("192.0.2.2"), Port: 26656, Hostname: "pool.example"}
+		)
+
+		peerAddrs := dedupePersistentPeerAddrs(
+			[]*p2pTypes.NetAddress{first, second},
+			slog.New(slog.NewTextHandler(&buf, nil)),
+		)
+
+		require.Len(t, peerAddrs, 1)
+		assert.Same(t, second, peerAddrs[0])
+		assert.Empty(t, buf.String())
+	})
+}
+
 func TestNodeSetPrivValTCP(t *testing.T) {
 	addr := "tcp://" + testFreeAddr(t)
 
