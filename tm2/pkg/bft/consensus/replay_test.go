@@ -1203,11 +1203,8 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	assert.Len(t, res.DeliverTxs, numInitResponses)
 }
 
-// TestHandshakeInitChainError checks that an app rejecting the genesis via
-// ResponseInitChain.Error aborts the handshake, leaving the genesis ABCI
-// responses unsaved. The field is the only channel an app has for "refusing to
-// boot": InitChainSync is a pass-through and never synthesizes a Go-level
-// error.
+// An app rejecting the genesis through ResponseInitChain.Error aborts the
+// handshake and leaves the genesis ABCI responses unsaved.
 func TestHandshakeInitChainError(t *testing.T) {
 	t.Parallel()
 

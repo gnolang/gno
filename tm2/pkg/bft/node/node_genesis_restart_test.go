@@ -73,7 +73,6 @@ func TestE2ERejectThenCorrectedGenesisBoots(t *testing.T) {
 	// genesis.json says 42; the app wants 1.
 	_, err := build(42)
 	require.Error(t, err, "a rejected genesis must not boot")
-	t.Logf("boot1 err=%v", err)
 
 	// Operator corrects the file and restarts against the same data dir.
 	n, err := build(1)

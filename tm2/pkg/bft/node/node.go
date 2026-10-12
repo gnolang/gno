@@ -1114,12 +1114,9 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 	return state, genDoc, nil
 }
 
-// genesisApplied reports whether InitChain completed for this data dir:
-// ReplayBlocks saves the genesis ABCI responses right after it returns, and
-// height 0 is never pruned. Probed with Has, so a running chain does not pay
-// to decode a blob that holds one entry per genesis tx. A read error is
-// returned rather than read as "not applied", which would reset the state
-// record of a committed chain.
+// genesisApplied reports whether InitChain succeeded for this data dir:
+// ReplayBlocks saves the height-0 ABCI responses only then, and never prunes
+// them. A read error is returned, never taken as "not applied".
 func genesisApplied(stateDB dbm.DB) (bool, error) {
 	ok, err := stateDB.Has(sm.CalcABCIResponsesKey(0))
 	if err != nil {

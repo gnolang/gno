@@ -237,6 +237,6 @@ func TestExecTest_InitialHeightMismatch(t *testing.T) {
 	cfg := &testCfg{genesis: path, timeout: 3 * time.Minute}
 
 	err := execTest(context.Background(), cfg, io)
-	require.Error(t, err, "fork test must not report PASS on an InitialHeight mismatch")
-	require.ErrorContains(t, err, "InitialHeight mismatch")
+	require.ErrorContains(t, err, "InitialHeight mismatch",
+		"fork test must not report PASS on an InitialHeight mismatch")
 }

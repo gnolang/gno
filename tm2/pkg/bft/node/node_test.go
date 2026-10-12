@@ -601,6 +601,19 @@ func TestLoadStateFromDBOrGenesisDocProvider_AppliedGenesisWins(t *testing.T) {
 	assert.Equal(t, int64(100), doc.InitialHeight, "persisted genesis doc must win after genesis is applied")
 }
 
+// seedCommittedChain leaves db as a chain that has applied its genesis and
+// committed 500 blocks.
+func seedCommittedChain(t *testing.T, db dbm.DB, pk crypto.PubKey) {
+	t.Helper()
+
+	state, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err)
+	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
+	state.LastBlockHeight = 500
+	state.AppHash = []byte("committed-app-hash")
+	sm.SaveState(db, state)
+}
+
 // A running chain's state must survive a restart untouched, whatever the
 // genesis file now says.
 func TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved(t *testing.T) {
@@ -609,16 +622,9 @@ func TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved(t *testing.
 	db := dbm.DB(memdb.NewMemDB())
 	pk := ed25519.GenPrivKey().PubKey()
 
+	seedCommittedChain(t, db, pk)
+
 	state, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
-	require.NoError(t, err)
-
-	// A chain that has run: the genesis is applied and blocks have committed.
-	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
-	state.LastBlockHeight = 500
-	state.AppHash = []byte("committed-app-hash")
-	sm.SaveState(db, state)
-
-	state, _, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
 	require.NoError(t, err)
 	assert.Equal(t, int64(500), state.LastBlockHeight, "a committed chain's state must not be rebuilt")
 	assert.Equal(t, []byte("committed-app-hash"), state.AppHash)
@@ -646,16 +652,10 @@ func TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState(t *te
 	db := dbm.DB(d)
 	pk := ed25519.GenPrivKey().PubKey()
 
-	state, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
-	require.NoError(t, err)
-
-	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
-	state.LastBlockHeight = 500
-	state.AppHash = []byte("committed-app-hash")
-	sm.SaveState(db, state)
+	seedCommittedChain(t, db, pk)
 
 	d.fail = true
-	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
 	require.Error(t, err, "a failed probe must fail the boot")
 
 	after := sm.LoadState(db)
@@ -677,10 +677,7 @@ func TestGenesisResetKeepsGoodDocOnInvalidFile(t *testing.T) {
 
 	// Same chain and app hash, but a validator with no voting power.
 	invalid := func() (*types.GenesisDoc, error) {
-		d, derr := probeGenesisDocProvider(pk, 100)()
-		if derr != nil {
-			return nil, derr
-		}
+		d, _ := probeGenesisDocProvider(pk, 100)()
 		d.Validators[0].Power = 0
 		return d, nil
 	}
