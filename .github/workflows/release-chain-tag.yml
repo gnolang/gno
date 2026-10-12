@@ -5,12 +5,13 @@
 # binaries, and a binary reporting "chain/<name>" would satisfy no governance
 # halt_min_version anyway.
 #
-# No workflow_dispatch: a manual run would rebuild a published version under
-# its own name, and these builds are not reproducible, so the checksums and
-# digests the upgrade ledgers record would stop matching; its attestations and
-# signatures would also name a branch rather than the tag, which RELEASING.md's
-# verify commands refuse. A workflow fault shows up on the release candidate,
-# cut on the same commit first, and is fixed in the next candidate.
+# No workflow_dispatch: a manual run would build a published version again,
+# attested and signed under a branch's identity rather than the tag's, which
+# RELEASING.md's verify commands refuse. A workflow fault shows up on the
+# release candidate, cut on the same commit first, and is fixed in the next
+# candidate. Do not re-run a published release's run either: these builds
+# are not reproducible, so the new artifacts would no longer match the
+# checksums and digests the upgrade ledgers record.
 #
 # The tag is compiled into the binaries VERBATIM. That matters: the node parses
 # its own version to decide whether it satisfies a governance halt_min_version.

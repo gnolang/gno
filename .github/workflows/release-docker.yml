@@ -7,12 +7,13 @@ name: release / docker
 # launch tag would recreate that name for an image reporting a different
 # version. A runnable node image is always a vX.Y.Z tag (RELEASING.md).
 #
-# No workflow_dispatch: a manual run would rebuild a published version under
-# its own name, and these builds are not reproducible, so the checksums and
-# digests the upgrade ledgers record would stop matching; its attestations and
-# signatures would also name a branch rather than the tag, which RELEASING.md's
-# verify commands refuse. A workflow fault shows up on the release candidate,
-# cut on the same commit first, and is fixed in the next candidate.
+# No workflow_dispatch: a manual run would build a published version again,
+# attested and signed under a branch's identity rather than the tag's, which
+# RELEASING.md's verify commands refuse. A workflow fault shows up on the
+# release candidate, cut on the same commit first, and is fixed in the next
+# candidate. Do not re-run a published release's run either: these builds
+# are not reproducible, so the new artifacts would no longer match the
+# checksums and digests the upgrade ledgers record.
 on:
   push:
     tags:
@@ -124,10 +125,11 @@ jobs:
 
       # Keyless signature on the pushed image, by digest, so `cosign verify`
       # can tie ghcr.io/gnolang/gno/<tool>:vX.Y.Z to this workflow and tag
-      # (RELEASING.md, "Signing and provenance"). --recursive signs each
-      # platform manifest as well as the multi-arch index: a host pulls the
-      # manifest for its platform, and a check made against that digest
-      # finds no signature on the index alone.
+      # (RELEASING.md, "Signing and provenance"). --recursive signs every
+      # manifest in the multi-arch index as well as the index itself: each
+      # platform image, and buildx's provenance and SBOM manifests. A host
+      # pulls the manifest for its platform, and a check made against that
+      # digest finds no signature on the index alone.
       - name: Sign the image
         env:
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
