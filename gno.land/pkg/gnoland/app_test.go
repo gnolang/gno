@@ -408,8 +408,8 @@ func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
 
 // TestInitChainer_PanicsOnValoperCoverageFailure pins that an
 // assertGenesisValopersConsistent failure aborts boot via a Go-level
-// panic, not via the ResponseInitChain.Error field that tm2's
-// consensus/replay.go:339-342 silently discards. Without this guarantee
+// panic rather than the ResponseInitChain.Error field, so it stops boot
+// whether or not the caller inspects the response. Without this guarantee
 // a hardfork chain can boot in a state where genesis validators have no
 // v3 operator-keyed management plane — the safety net would fire but
 // not actually stop the boot.
