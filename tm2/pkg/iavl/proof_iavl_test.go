@@ -36,7 +36,6 @@ func TestProofOp(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(fmt.Sprintf("%02x", tc.key), func(t *testing.T) {
 			key := []byte{tc.key}
 			if tc.expectPresent {

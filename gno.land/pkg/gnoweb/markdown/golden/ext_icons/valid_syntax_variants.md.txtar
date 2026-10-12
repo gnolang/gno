@@ -1,0 +1,25 @@
+-- input.md --
+Uppercase: <GNO-ICON NAME="star" />
+
+No space: <gno-icon name="star"/>
+
+Single quotes: <gno-icon name='star' />
+
+Unquoted: <gno-icon name=star />
+
+Neighbours: foo<gno-icon name="star" />bar
+
+Several: <gno-icon name="star" /><gno-icon name="heart" /> <gno-icon name="flag" />
+
+Lookalike: <gno-iconic name="star" />
+
+Escaped: \<gno-icon name="star" />
+-- output.html --
+<p>Uppercase: <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg></p>
+<p>No space: <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg></p>
+<p>Single quotes: <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg></p>
+<p>Unquoted: <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg></p>
+<p>Neighbours: foo<svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg>bar</p>
+<p>Several: <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg><svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.24264069 2.24264069c.5-2.5 4.34314571-2.65685425 6.00000001-1 1.6034073 1.60340734 1.4999617 4.3343931 0 6l-6.00000001 6.00000001-6-6.00000001c-1.65685425-1.65685425-1.65685425-4.34314575 0-6 1.54996042-1.54996043 5.5-1.5 6 1z" transform="translate(3.257 4.257)"/></svg> <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><g fill-rule="evenodd" transform="translate(5 4)"><path d="m.5 13.5v-11"/><path d="m.5 2.5c.66666667-1.33333333 1.66666667-2 3-2 2 0 2 2 4 2 1.33333333 0 2.33333333-.33333333 3-1v6c-.66666667.66666667-1.66666667 1-3 1-2 0-2-2-4-2-1.33333333 0-2.33333333.66666667-3 2z"/></g></svg></p>
+<p>Lookalike: <!-- raw HTML omitted --></p>
+<p>Escaped: &lt;gno-icon name=&quot;star&quot; /&gt;</p>

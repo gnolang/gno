@@ -617,6 +617,17 @@ message InterfaceHeavy {
 	string name = 5 [json_name = "Name"];
 }
 
+message FixtureV2Reserved {
+	sint32 a = 1 [json_name = "A"];
+	string c = 3 [json_name = "C"];
+	reserved 2;
+}
+
+message FixtureV2Shifted {
+	sint32 a = 1 [json_name = "A"];
+	string c = 2 [json_name = "C"];
+}
+
 message TESTS_BytesList {
 	repeated bytes Value = 1;
 }

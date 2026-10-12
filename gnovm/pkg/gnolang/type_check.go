@@ -177,8 +177,11 @@ func checkSame(at, bt Type, msg string) error {
 	return nil
 }
 
-func mustAssignableTo(n Node, xt, dt Type) {
-	err := checkAssignableTo(n, xt, dt)
+// mustAssignableTo panics if xt is not assignable to dt. store supplies the
+// per-tx preprocess gas meter that bills the interface-satisfaction walk when
+// dt is an interface (see checkAssignableTo).
+func mustAssignableTo(store Store, n Node, xt, dt Type) {
+	err := checkAssignableTo(store, n, xt, dt)
 	if err != nil {
 		if debug {
 			debug.Printf("checkAssignableTo fail: %v\n", err)
@@ -381,13 +384,26 @@ func checkValDefineMismatch(n Node) {
 }
 
 // Assert that xt can be assigned as dt (dest type).
-func checkAssignableTo(n Node, xt, dt Type) (err error) {
+// store supplies the per-tx preprocess gas meter (preprocessGasMeterOf) that
+// bills the interface-satisfaction walk when dt is an interface; a nil store
+// (tests) leaves it unmetered.
+func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 	if debug {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
+	// dt (the destination type) must be non-nil. A nil dt is ambiguous: it
+	// is the static type both of a blank/absent target (`_ = x`, blank range
+	// operands), which should be skipped, and of an untyped-nil lvalue
+	// (`for k, nil = range m`), which must be rejected. Callers disambiguate
+	// upstream — skipping blank operands and guarding "no destination type"
+	// paths with `if t != nil` — so a nil reaching here is a caller bug,
+	// caught loudly instead of silently dropping the check.
+	if dt == nil {
+		panic("should not happen: nil dt in checkAssignableTo (blank targets must be skipped by the caller)")
+	}
 	// case0
-	if xt == nil { // see test/files/types/eql_0f18
-		if dt == nil || dt.Kind() == InterfaceKind {
+	if xt == nil { // untyped nil, see test/files/types/eql_0f18
+		if dt.Kind() == InterfaceKind {
 			return nil
 		}
 		if !mayBeNil(dt) {
@@ -407,16 +423,14 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 			}
 		}
 		return nil
-	} else if dt == nil { // _ = xxx, assign8.gno, 0f31. else cases?
-		return nil
 	}
 	// case3
 	if dt.Kind() == InterfaceKind { // note native interface
 		if idt, ok := baseOf(dt).(*InterfaceType); ok {
-			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
+			if idt.IsEmptyInterface() { // XXX, can this be merged with isImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if err := idt.VerifyImplementedBy(xt); err == nil {
+			} else if err := idt.checkImplementedBy(preprocessGasMeterOf(store), xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
@@ -553,7 +567,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			return checkAssignableTo(n, pt.Elt, cdt.Elt)
+			return checkAssignableTo(store, n, pt.Elt, cdt.Elt)
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
@@ -575,7 +589,7 @@ func checkAssignableTo(n Node, xt, dt Type) (err error) {
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
 			if cdt.Vrd {
-				return checkAssignableTo(n, st.Elt, cdt.Elt)
+				return checkAssignableTo(store, n, st.Elt, cdt.Elt)
 			} else {
 				err := checkSame(st.Elt, cdt.Elt, "")
 				if err != nil {
@@ -701,7 +715,9 @@ func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
 // e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
-func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
+// store supplies the preprocess gas meter for the EQL/NEQ operand check
+// (`S{} == i` runs the same interface-satisfaction walk as an assignment).
+func (x *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 	xt, dt, swapped := lt, rt, false
 	if shouldSwapOnSpecificity(lt, rt) {
 		xt, dt, swapped = dt, xt, true
@@ -721,7 +737,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 					panic(fmt.Sprintf("%v is not comparable", dt))
 				}
 			}
-			err := checkAssignableTo(x, xt, dt)
+			err := checkAssignableTo(store, x, xt, dt)
 			if err != nil {
 				if debug {
 					debug.Printf("checkAssignableTo fail: %v\n", err)
@@ -730,7 +746,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {
-				x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString(), swapped)
+				x.checkCompatibility(store, x, xt, dt, checker, x.Op.TokenString(), swapped)
 			} else {
 				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 			}
@@ -739,7 +755,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		}
 	} else {
 		if checker, ok := binaryChecker[x.Op]; ok {
-			x.checkCompatibility(x, xt, dt, checker, x.Op.TokenString(), swapped)
+			x.checkCompatibility(store, x, xt, dt, checker, x.Op.TokenString(), swapped)
 		} else {
 			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
@@ -767,7 +783,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 // The function checkOrConvertType will be invoked after this check.
 // NOTE: dt is established based on a specificity check between xt and dt,
 // confirming dt as the appropriate destination type for this context.
-func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type) bool, OpStr string, swapped bool) {
+func (x *BinaryExpr) checkCompatibility(store Store, n Node, xt, dt Type, checker func(t Type) bool, OpStr string, swapped bool) {
 	if !checker(dt) {
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
@@ -783,7 +799,7 @@ func (x *BinaryExpr) checkCompatibility(n Node, xt, dt Type, checker func(t Type
 
 	// if both typed
 	if !isUntyped(xt) && !isUntyped(dt) {
-		err := checkAssignableTo(n, xt, dt)
+		err := checkAssignableTo(store, n, xt, dt)
 		if err != nil {
 			if debug {
 				debug.Printf("checkAssignableTo fail: %v\n", err)
@@ -808,7 +824,12 @@ func (x *UnaryExpr) AssertCompatible(t Type) {
 	}
 }
 
-func (x *IncDecStmt) AssertCompatible(t Type) {
+// AssertCompatible checks that x++/x-- is well-formed: the operand's type must
+// support the operator, and the operand must be a valid (addressable, settable)
+// assignment target. The operator/type error is reported first, matching
+// go/types.
+func (x *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
+	t := evalStaticTypeOf(store, last, x.X)
 	// check compatible
 	if checker, ok := IncDecStmtChecker[x.Op]; ok {
 		if !checker(t) {
@@ -817,57 +838,57 @@ func (x *IncDecStmt) AssertCompatible(t Type) {
 	} else {
 		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 	}
+	// like go/types, operator/type errors take precedence over
+	// target assignability.
+	assertValidAssignLhs(store, last, x.X)
 }
 
-func assertIndexTypeIsInt(kt Type) {
-	if kt.Kind() != IntKind {
-		panic(fmt.Sprintf("index type should be int, but got %v", kt))
-	}
-}
-
+// AssertCompatible checks that the range key and value targets are valid
+// assignment targets and that their types are assignable from the range
+// expression's key/element types. Each operand is handled independently
+// (like AssignStmt.AssertCompatible): kt/vt are nil iff that operand is
+// blank, and the type checks are skipped for a nil operand.
 func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op != ASSIGN {
 		return
 	}
-	if isBlankIdentifier(x.Key) && isBlankIdentifier(x.Value) {
-		// both "_"
-		return
-	}
-	assertValidAssignLhs(store, last, x.Key)
-	// if is valid left value
-
-	kt := evalStaticTypeOf(store, last, x.Key)
+	kt := evalAssignLhsType(store, last, x.Key)
 	var vt Type
 	if x.Value != nil {
-		vt = evalStaticTypeOf(store, last, x.Value)
+		vt = evalAssignLhsType(store, last, x.Value)
+	}
+	if kt == nil && vt == nil {
+		return
 	}
 
-	xt := evalStaticTypeOf(store, last, x.X)
-	switch cxt := xt.(type) {
-	case *MapType:
-		mustAssignableTo(x, cxt.Key, kt)
-		if vt != nil {
-			mustAssignableTo(x, cxt.Value, vt)
-		}
-	case *SliceType:
-		assertIndexTypeIsInt(kt)
-		if vt != nil {
-			mustAssignableTo(x, cxt.Elt, vt)
-		}
-	case *ArrayType:
-		assertIndexTypeIsInt(kt)
-		if vt != nil {
-			mustAssignableTo(x, cxt.Elt, vt)
-		}
-	case PrimitiveType:
-		if cxt.Kind() == StringKind {
-			if kt != nil && kt.Kind() != IntKind {
-				panic(fmt.Sprintf("index type should be int, but got %v", kt))
+	xt := baseOf(evalStaticTypeOf(store, last, x.X))
+	// Ranging over a pointer to array iterates the array itself (int keys,
+	// array-element values), so unwrap it to the array type. Mirrors the
+	// PointerKind handling in preprocess.
+	if pt, ok := xt.(*PointerType); ok {
+		xt = baseOf(pt.Elem())
+	}
+	if kt != nil {
+		switch cxt := xt.(type) {
+		case *MapType:
+			mustAssignableTo(store, x, cxt.Key, kt)
+		case *SliceType, *ArrayType:
+			mustAssignableTo(store, x, IntType, kt)
+		case PrimitiveType:
+			if cxt.Kind() == StringKind {
+				mustAssignableTo(store, x, IntType, kt)
 			}
-			if vt != nil {
-				if vt.Kind() != Int32Kind { // rune
-					panic(fmt.Sprintf("value type should be int32, but got %v", kt))
-				}
+		}
+	}
+	if vt != nil {
+		switch cxt := xt.(type) {
+		case *MapType:
+			mustAssignableTo(store, x, cxt.Value, vt)
+		case *SliceType, *ArrayType:
+			mustAssignableTo(store, x, cxt.Elem(), vt)
+		case PrimitiveType:
+			if cxt.Kind() == StringKind {
+				mustAssignableTo(store, x, Int32Type, vt) // rune
 			}
 		}
 	}
@@ -894,10 +915,8 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if x.Op == ASSIGN {
 					// check assignable
 					for i, lx := range x.Lhs {
-						assertValidAssignLhs(store, last, lx)
-						if !isBlankIdentifier(lx) {
-							lxt := evalStaticTypeOf(store, last, lx)
-							mustAssignableTo(x, cft.Results[i].Type, lxt)
+						if lxt := evalAssignLhsType(store, last, lx); lxt != nil {
+							mustAssignableTo(store, x, cft.Results[i].Type, lxt)
 						}
 					}
 				}
@@ -908,16 +927,12 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 				if x.Op == ASSIGN {
 					// check first value
-					assertValidAssignLhs(store, last, x.Lhs[0])
-					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
-						dt := evalStaticTypeOf(store, last, x.Lhs[0])
+					if dt := evalAssignLhsType(store, last, x.Lhs[0]); dt != nil { // see composite3.gno
 						ift := evalStaticTypeOf(store, last, cx)
-						mustAssignableTo(x, ift, dt)
+						mustAssignableTo(store, x, ift, dt)
 					}
 					// check second value
-					assertValidAssignLhs(store, last, x.Lhs[1])
-					if !isBlankIdentifier(x.Lhs[1]) { // see composite3.gno
-						dt := evalStaticTypeOf(store, last, x.Lhs[1])
+					if dt := evalAssignLhsType(store, last, x.Lhs[1]); dt != nil { // see composite3.gno
 						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
@@ -929,28 +944,24 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					panic("should not happen")
 				}
 				if x.Op == ASSIGN {
-					assertValidAssignLhs(store, last, x.Lhs[0])
-					if !isBlankIdentifier(x.Lhs[0]) {
-						lt := evalStaticTypeOf(store, last, x.Lhs[0])
+					if lt := evalAssignLhsType(store, last, x.Lhs[0]); lt != nil {
 						if _, ok := cx.X.(*NameExpr); ok {
-							rt := evalStaticTypeOf(store, last, cx.X)
+							rt := baseOf(evalStaticTypeOf(store, last, cx.X))
 							if mt, ok := rt.(*MapType); ok {
-								mustAssignableTo(x, mt.Value, lt)
+								mustAssignableTo(store, x, mt.Value, lt)
 							}
 						} else if _, ok := cx.X.(*CompositeLitExpr); ok {
-							cpt := evalStaticTypeOf(store, last, cx.X)
+							cpt := baseOf(evalStaticTypeOf(store, last, cx.X))
 							if mt, ok := cpt.(*MapType); ok {
-								mustAssignableTo(x, mt.Value, lt)
+								mustAssignableTo(store, x, mt.Value, lt)
 							} else {
 								panic("should not happen")
 							}
 						}
 					}
 
-					assertValidAssignLhs(store, last, x.Lhs[1])
-					if !isBlankIdentifier(x.Lhs[1]) {
-						dt := evalStaticTypeOf(store, last, x.Lhs[1])
-						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
+					if dt := evalAssignLhsType(store, last, x.Lhs[1]); dt != nil {
+						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
 						}
 					}
@@ -962,11 +973,17 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		} else { // len(Lhs) == len(Rhs)
 			if x.Op == ASSIGN {
 				// assert valid left value
-				for i, lx := range x.Lhs {
-					assertValidAssignLhs(store, last, lx)
-					lt := evalStaticTypeOf(store, last, lx)
-					rt := evalStaticTypeOf(store, last, x.Rhs[i])
-					mustAssignableTo(x, rt, lt)
+				//
+				// Only the left values are validated here. The rt-to-lt
+				// assignability of each pair is checked by the
+				// checkOrConvertType that preprocess runs over every Rhs[i]
+				// right after this call (the ASSIGN/len(Lhs)==len(Rhs)
+				// default branch), against the same lt — and this is the
+				// walk-bearing check: for an interface lt it runs the whole
+				// embedding-graph satisfaction walk, so doing it in both
+				// places billed it (and ran it) twice per assignment.
+				for _, lx := range x.Lhs {
+					evalAssignLhsType(store, last, lx)
 				}
 			}
 		}
@@ -977,6 +994,12 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			panic("assignment operator " + x.Op.TokenString() +
 				" requires only one expression on lhs and rhs")
 		}
+		// `_ += x` reads the target (it desugars to `_ = _ + x`), unlike
+		// plain assignment where blank is a valid (discarded) target.
+		if isBlankIdentifier(x.Lhs[0]) {
+			panic("cannot use _ as value or type")
+		}
+		assertValidAssignRhs(store, last, x)
 		lt := evalStaticTypeOf(store, last, x.Lhs[0])
 		rt := evalStaticTypeOf(store, last, x.Rhs[0])
 
@@ -1012,6 +1035,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		} else {
 			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 		}
+		// like go/types, operator/type errors take precedence over
+		// target assignability.
+		assertValidAssignLhs(store, last, x.Lhs[0])
 	}
 }
 
@@ -1041,6 +1067,17 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	}
 }
 
+// evalAssignLhsType asserts that lx is a valid assignment target and returns
+// its static type, or nil iff lx is blank: blank is a valid target but has no
+// static type, so callers skip type checks on a nil result.
+func evalAssignLhsType(store Store, last BlockNode, lx Expr) Type {
+	assertValidAssignLhs(store, last, lx)
+	if isBlankIdentifier(lx) {
+		return nil
+	}
+	return evalStaticTypeOf(store, last, lx)
+}
+
 func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 	var exps []Expr
 	switch x := n.(type) {
@@ -1052,7 +1089,7 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 		panic(fmt.Sprintf("unexpected node type %T", n))
 	}
 
-	for _, exp := range exps {
+	for i, exp := range exps {
 		tt := evalStaticTypeOfRaw(store, last, exp)
 		if tt == nil {
 			switch x := n.(type) {
@@ -1063,6 +1100,13 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 				panic("use of untyped nil in variable declaration")
 			case *AssignStmt:
 				if x.Op != DEFINE {
+					// Assigning nil to a typed target is judged later by
+					// the assignability check against that target's type.
+					// A blank target has no type and no later check, so
+					// `_ = nil` must be rejected here.
+					if i < len(x.Lhs) && isBlankIdentifier(x.Lhs[i]) && isNilIdentifier(exp) {
+						panic("use of untyped nil in assignment")
+					}
 					continue
 				}
 				panic("use of untyped nil in assignment")
@@ -1163,6 +1207,25 @@ func isBlankIdentifier(x Expr) bool {
 	return false
 }
 
+// isNilIdentifier reports whether x is the bare `nil` keyword. By check time
+// `nil` is always const-folded, so the original syntax is recovered from the
+// ConstExpr's Source; a conversion like `T(nil)` also has a nil static type
+// but a non-NameExpr Source, and reports false.
+func isNilIdentifier(x Expr) bool {
+	switch cx := x.(type) {
+	case *ConstExpr:
+		nx, ok := cx.Source.(*NameExpr)
+		return ok && nx.Name == "nil"
+	case *NameExpr:
+		if cx.Name == "nil" {
+			panic("should not happen: unfolded nil NameExpr in isNilIdentifier")
+		}
+		return false
+	default:
+		return false
+	}
+}
+
 // isComparable returns true if the type can be compared with ==.
 // This is used for map key validation and other comparability checks.
 func isComparable(dt Type) bool {
@@ -1174,12 +1237,25 @@ func isComparable(dt Type) bool {
 	case *ArrayType:
 		return isComparable(cdt.Elt)
 	case *StructType:
+		// Memoized: a struct fans out into all its fields, so without a
+		// cache an interface comparison whose dynamic type is a nested
+		// struct re-walks the field graph exponentially on every compare.
+		// Cycles always pass through a pointer/slice/map/interface leaf
+		// (a direct value cycle is infinite-size and rejected at compile
+		// time), so the recursion bottoms out before re-entering a struct
+		// mid-computation; the write is unconditionally safe.
+		if cdt.comparable != 0 {
+			return cdt.comparable == 1
+		}
+		res := uint8(1)
 		for _, f := range cdt.Fields {
 			if !isComparable(f.Type) {
-				return false
+				res = 2
+				break
 			}
 		}
-		return true
+		cdt.comparable = res
+		return res == 1
 	default:
 		return false
 	}

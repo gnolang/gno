@@ -30,7 +30,7 @@ func TestID_Overflow(t *testing.T) {
 	i.Next()
 }
 
-func TestID_Binary(t *testing.T) {
+func TestID_Binary(cur realm, t *testing.T) {
 	var i ID
 	prev := i.Binary()
 
@@ -43,7 +43,7 @@ func TestID_Binary(t *testing.T) {
 	}
 }
 
-func TestID_String(t *testing.T) {
+func TestID_String(cur realm, t *testing.T) {
 	var i ID
 	prev := i.String()
 

@@ -1,0 +1,50 @@
+--- ./runtime_softfloat64.go
++++ ./runtime_softfloat64.go
+@@ -95,7 +95,6 @@
+ }
+ 
+ func fpack64(sign, mant uint64, exp int, trunc uint64) uint64 {
+-	mant0, exp0, trunc0 := mant, exp, trunc
+ 	if mant == 0 {
+ 		return sign
+ 	}
+@@ -103,6 +102,11 @@
+ 		mant <<= 1
+ 		exp--
+ 	}
++	// Save the normalized mantissa; the denormal path below restores it and
++	// re-aligns to the subnormal exponent. Saving before this loop (as the
++	// code originally did) left a heavily-cancelled add/sub mantissa
++	// un-normalized, which that path then shifted the wrong way. See #79964.
++	mant0, exp0, trunc0 := mant, exp, trunc
+ 	for mant >= 4<<mantbits64 {
+ 		trunc |= mant & 1
+ 		mant >>= 1
+@@ -146,7 +150,6 @@
+ }
+ 
+ func fpack32(sign, mant uint32, exp int, trunc uint32) uint32 {
+-	mant0, exp0, trunc0 := mant, exp, trunc
+ 	if mant == 0 {
+ 		return sign
+ 	}
+@@ -154,6 +157,8 @@
+ 		mant <<= 1
+ 		exp--
+ 	}
++	// See fpack64: save the normalized mantissa for the denormal path below.
++	mant0, exp0, trunc0 := mant, exp, trunc
+ 	for mant >= 4<<mantbits32 {
+ 		trunc |= mant & 1
+ 		mant >>= 1
+--- ./runtime_softfloat64_test.go
++++ ./runtime_softfloat64_test.go
+@@ -46,6 +46,8 @@
+ 		1.3333333333333333,     // 1.010101010101...
+ 		1.1428571428571428,     // 1.001001001001...
+ 		1.112536929253601e-308, // first normal
++		-2.662107816930723e-301, // #79964: two near-equal opposite-sign
++		2.662107858822336e-301,  // normals cancelling to a subnormal
+ 		2,
+ 		4,
+ 		8,

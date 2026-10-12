@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -318,29 +319,32 @@ func (bA *BitArray) StringIndented(indent string) string {
 }
 
 func (bA *BitArray) stringIndented(indent string) string {
-	lines := []string{}
-	bits := ""
-	for i := range bA.Bits {
+	var wr strings.Builder
+	wr.WriteString("BA{")
+	wr.WriteString(strconv.Itoa(bA.Bits))
+	wr.WriteByte(':')
+	numBits := min(len(bA.Elems)*64, bA.Bits)
+	for i := range numBits {
 		if bA.getIndex(i) {
-			bits += "x"
+			wr.WriteByte('x')
 		} else {
-			bits += "_"
+			wr.WriteByte('_')
 		}
-		if i%100 == 99 {
-			lines = append(lines, bits)
-			bits = ""
-		}
-		if i%10 == 9 {
-			bits += indent
-		}
-		if i%50 == 49 {
-			bits += indent
+		if indent != "" && i%10 == 9 && i != numBits-1 {
+			wr.WriteString(indent)
+			if i%50 == 49 {
+				wr.WriteString(indent)
+			}
+			if i%100 == 99 {
+				wr.WriteString(indent)
+			}
 		}
 	}
-	if len(bits) > 0 {
-		lines = append(lines, bits)
+	if bA.Bits > numBits {
+		fmt.Fprintf(&wr, "<%d unset>", bA.Bits-numBits)
 	}
-	return fmt.Sprintf("BA{%v:%v}", bA.Bits, strings.Join(lines, indent))
+	wr.WriteByte('}')
+	return wr.String()
 }
 
 // Bytes returns the byte representation of the bits within the bitarray.
@@ -384,16 +388,21 @@ func (bA *BitArray) MarshalJSON() ([]byte, error) {
 	bA.mtx.Lock()
 	defer bA.mtx.Unlock()
 
-	bits := `"`
+	if numElements(bA.Bits) != len(bA.Elems) {
+		return nil, fmt.Errorf("cannot marshal inconsistent BitArray: %d bits declared, %d elements (expected %d)", bA.Bits, len(bA.Elems), numElements(bA.Bits))
+	}
+
+	var bits strings.Builder
+	bits.WriteString(`"`)
 	for i := range bA.Bits {
 		if bA.getIndex(i) {
-			bits += `x`
+			bits.WriteString(`x`)
 		} else {
-			bits += `_`
+			bits.WriteString(`_`)
 		}
 	}
-	bits += `"`
-	return []byte(bits), nil
+	bits.WriteString(`"`)
+	return []byte(bits.String()), nil
 }
 
 var bitArrayJSONRegexp = regexp.MustCompile(`\A"([_x]*)"\z`)

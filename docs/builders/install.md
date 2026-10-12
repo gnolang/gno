@@ -4,6 +4,8 @@ This page covers how to install the Gno toolchain: `gnokey` (key & transaction C
 `gno` (language tooling), `gnodev` (local development node with hot reload),
 `gnobro` (package browser), and `gnoweb` (realm explorer). 
 
+For IDE / LSP support, see [Editor setup](./editor-setup.md).
+
 ## One-line installer
 
 Install precompiled `gno`, `gnokey`, `gnodev`, `gnobro`, and `gnoweb`
@@ -49,7 +51,7 @@ Scripts used by the one-line installer:
 
 Building from source requires:
 
-- **Go** — version **1.24+** (see [`go.mod`](https://github.com/gnolang/gno/blob/master/go.mod)). Install from [go.dev/dl](https://go.dev/dl/).
+- **Go**: version **1.25+** (see [`go.mod`](https://github.com/gnolang/gno/blob/master/go.mod)). Install from [go.dev/dl](https://go.dev/dl/).
 - **Git**
 - **Make**
 
@@ -71,7 +73,7 @@ make install.gnodev   # Only gnodev
 ```
 
 Make sure `$GOPATH/bin` is in your `PATH` if `gno`/`gnokey`/`gnodev` are not
-found after install — see [Troubleshooting](#troubleshooting).
+found after install. See [Troubleshooting](#troubleshooting).
 
 ## Docker
 
@@ -80,12 +82,17 @@ Official Docker images are published under [`ghcr.io/gnolang/gno`](https://ghcr.
 without installing from source:
 
 ```sh
-# Run gnokey
-docker run -it ghcr.io/gnolang/gno/gnokey --help
+# Run gnokey (the CLI tools have a `latest` tag: the newest release)
+docker run -it ghcr.io/gnolang/gno/gnokey:latest --help
 
-# Run gnoland node
-docker run -it ghcr.io/gnolang/gno/gnoland start
+# Run a gnoland node: always an explicit version, never `latest`
+docker run -it ghcr.io/gnolang/gno/gnoland:v1.5.0 start
 ```
+
+`gnoland` has no `latest` tag on purpose: the version a network runs changes
+at each coordinated upgrade, and a node refuses to start a newer version before
+the upgrade height. Take the version from the network's upgrade ledger — for
+mainnet, `UPGRADES.md` in [`misc/deployments/mainnet.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land).
 
 You can also build locally from the repository root:
 
@@ -101,15 +108,15 @@ After installing, verify that the tools are available:
 # List installed binaries
 ls ~/.gno/bin
 
-# Check binary versions
+# Confirm each binary runs
 gno version
 gnokey version
-gnodev version
+gnodev --help
 ```
 
 ## Troubleshooting
 
-**`command not found`** — the install directory is not in your `PATH`. Add it:
+**`command not found`**: the install directory is not in your `PATH`. Add it:
 
 ```sh
 # One-line installer (default)
@@ -122,13 +129,13 @@ export PATH="$PATH:$(go env GOPATH)/bin"
 Append the `export` line to your shell rc file (`~/.bashrc`, `~/.zshrc`, …) to
 persist it. If you installed to a custom `--dir`, add that directory instead.
 
-**Stale binary on `PATH`** — older install shadows the new one. Check with
+**Stale binary on `PATH`**: older install shadows the new one. Check with
 `command -v gno`; fix by reordering `PATH` or running `hash -r`.
 
-**Go version too old** — `make install` fails on missing language features.
-Requires Go **1.24+**: check with `go version`, upgrade from [go.dev/dl](https://go.dev/dl/).
+**Go version too old**: `make install` fails on missing language features.
+Requires Go **1.25+**: check with `go version`, upgrade from [go.dev/dl](https://go.dev/dl/).
 
-**GitHub API rate limit during one-line install** — anonymous requests are
+**GitHub API rate limit during one-line install**: anonymous requests are
 capped at 60/hour. Set `GITHUB_TOKEN` to authenticate:
 
 ```sh
@@ -137,7 +144,6 @@ GITHUB_TOKEN=<token> curl -fsSL https://raw.githubusercontent.com/gnolang/gno/ma
 
 ## Next steps
 
-- [Anatomy of a Gno package](./anatomy-of-a-gno-package.md) — learn how to write Gno packages
-- [Running a local dev node](./local-dev-with-gnodev.md) — spin up a local environment with `gnodev`
-- [Deploy packages](./deploy-packages.md) — publish to a network
-- [Interacting with gnokey](../users/interact-with-gnokey.md) — manage keys and send transactions
+- [Editor setup](./editor-setup.md): configure your editor with LSP support for `.gno` files
+- [Getting started](./getting-started.md): build, run, and deploy your first realm
+- [Interacting with gnokey](../users/interact-with-gnokey.md): manage keys and send transactions

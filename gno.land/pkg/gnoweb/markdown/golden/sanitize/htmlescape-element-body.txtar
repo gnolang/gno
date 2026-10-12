@@ -1,0 +1,8 @@
+// MARKDOWNFUNC: HTMLEscape
+// CONTEXT: <h5>%s</h5>
+-- input.md --
+<script>alert(1)</script>
+-- output.md --
+&lt;script&gt;alert(1)&lt;/script&gt;
+-- output.html --
+<!-- raw HTML omitted -->

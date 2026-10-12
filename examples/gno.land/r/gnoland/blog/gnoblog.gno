@@ -1,9 +1,9 @@
-package gnoblog
+package blog
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
-	"gno.land/p/demo/blog"
+	"gno.land/p/gnoland/blog/v0"
 )
 
 var b = &blog.Blog{
@@ -15,7 +15,7 @@ func AddComment(_ realm, postSlug, comment string) {
 	assertIsCommenter()
 	assertNotInPause()
 
-	caller := runtime.OriginCaller()
+	caller := unsafe.OriginCaller()
 	err := b.GetPost(postSlug).AddComment(caller, comment)
 	checkErr(err)
 }

@@ -33,11 +33,8 @@ start_validator val2
 start_validator val3
 start_validator val4
 
-# BUG: once block sync works correctly for reset validators, the chain should
-# resume after all 4 validators restart. On unpatched master, the reset
-# validators cannot complete block sync and rejoin consensus, so the chain
-# remains halted. When fixed, replace the assertion below with:
-#   assert_chain_advances val1 120 2
-assert_chain_halted val1 30
+# After reset validators restart they complete block sync and rejoin consensus;
+# the chain resumes once 3/4 validators are back.
+assert_chain_advances val1 120 2
 
 print_cluster_status

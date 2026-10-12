@@ -3,10 +3,9 @@ package treasury
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime"
 	"errors"
 
-	"gno.land/p/aeddi/panictoerr"
+	"gno.land/p/aeddi/panictoerr/v0"
 )
 
 var ErrNonCanonicalBanker = errors.New("inner banker is not the canonical chain/banker.Banker")
@@ -25,8 +24,18 @@ func (CoinsBanker) ID() string {
 }
 
 // Send implements Banker.
-func (cb *CoinsBanker) Send(p Payment) error {
-	if runtime.CurrentRealm().Address() != cb.owner {
+//
+// rlm must be the caller's own captured cur (i.e. the cur of the
+// immediate crossing-function caller). Sending with rlm = cur.Previous()
+// or any other realm value is rejected: rlm.IsCurrent() asserts pointer
+// identity against the topmost crossing frame. Combined with the
+// rlm.Address() == cb.owner check, this restricts Send to the owning
+// realm acting in its own frame.
+func (cb *CoinsBanker) Send(_ int, rlm realm, p Payment) error {
+	if !rlm.IsCurrent() {
+		return ErrSpoofedRealm
+	}
+	if rlm.Address() != cb.owner {
 		return ErrCurrentRealmIsNotOwner
 	}
 	// Check if payment is of type coinsPayment.
@@ -61,14 +70,6 @@ func (cb *CoinsBanker) Balances() []Balance {
 // Address implements Banker.
 func (cb *CoinsBanker) Address() string {
 	return cb.owner.String()
-}
-
-// NewCoinsBanker creates a new CoinsBanker with the current Realm's address
-// as the owner.
-func NewCoinsBanker(banker_ banker.Banker) (*CoinsBanker, error) {
-	owner := runtime.CurrentRealm().Address()
-
-	return NewCoinsBankerWithOwner(owner, banker_)
 }
 
 // NewCoinsBankerWithOwner creates a new CoinsBanker with the given address.
@@ -114,9 +115,23 @@ func (cp coinsPayment) String() string {
 }
 
 // NewCoinsPayment creates a new coinsPayment.
+//
+// The coins are copied, so the caller cannot change the amount after the
+// payment exists, and sorted and joined, so String() renders the set that will
+// actually be paid. A non-positive amount is rejected here rather than by the
+// bank keeper at execution, after a vote. A malformed denom is still only
+// caught by the keeper.
 func NewCoinsPayment(coins chain.Coins, toAddress address) Payment {
+	cz := chain.Coins{}.Add(coins)
+
+	for _, c := range cz {
+		if !c.IsPositive() {
+			panic("coins payment amounts must be positive, got " + c.String())
+		}
+	}
+
 	return coinsPayment{
-		coins:     coins,
+		coins:     cz,
 		toAddress: toAddress,
 	}
 }

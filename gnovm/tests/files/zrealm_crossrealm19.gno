@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"chain/runtime"
+	"chain/runtime/unsafe"
 
 	crossrealm "gno.land/r/tests/vm/crossrealm"
 )
@@ -13,25 +13,25 @@ type fooer struct {
 
 func (f *fooer) Foo(cur realm) {
 	// f.s = "Foo" <-- panics (crossing yet stored in crossrealm)
-	println("hello " + f.s + " " + runtime.CurrentRealm().PkgPath())
+	println("hello " + f.s + " " + unsafe.CurrentRealm().PkgPath())
 }
 
 func (f *fooer) Bar() {
 	f.s = "Bar"
-	println("hello " + f.s + " " + runtime.CurrentRealm().PkgPath())
+	println("hello " + f.s + " " + unsafe.CurrentRealm().PkgPath())
 }
 
 var f *fooer
 
-func init() {
+func init(cur realm) {
 	f = &fooer{s: "A"}
-	crossrealm.SetFooer(cross, f)
-	crossrealm.CallFooerFooCross(cross)
+	crossrealm.SetFooer(cross(cur), f)
+	crossrealm.CallFooerFooCross(cross(cur))
 	// crossrealm.CallFooerFooCur(cross) <-- panics: cannot cross-call to
 	// external realm function gno.land/r/crossrealm_test.Foo from
 	// gno.land/r/tests/vm/crossrealm
 	crossrealm.CallFooerBar()
-	crossrealm.CallFooerBarCrossing(cross)
+	crossrealm.CallFooerBarCrossing(cross(cur))
 }
 
 func main(cur realm) {

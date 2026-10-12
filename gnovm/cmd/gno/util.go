@@ -136,9 +136,9 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 
 		// Check if the pattern includes `/...`
 		if strings.Contains(p, "/...") {
-			index := strings.Index(p, "/...")
-			if index != -1 {
-				dirToSearch = p[:index] // Extract the directory path to search
+			before, _, ok := strings.Cut(p, "/...")
+			if ok {
+				dirToSearch = before // Extract the directory path to search
 			}
 			match = matchPattern(strings.TrimPrefix(p, "./"))
 			patternLookup = true

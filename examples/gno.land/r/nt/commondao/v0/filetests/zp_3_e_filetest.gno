@@ -1,4 +1,6 @@
-package main
+// PKGPATH: gno.land/r/nt/commondao/v0/filetests/zp_3_e_filetest
+
+package zp_3_e_filetest
 
 import (
 	"testing"
@@ -7,31 +9,26 @@ import (
 )
 
 const (
-	owner = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq") // @devx
+	owner = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 	user  = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // @test1
 )
 
 var daoID uint64
 
-func init() {
+func init(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(owner))
-	commondao.Invite(cross, user)
+	commondao.Invite(cross(cur), user)
 
 	testing.SetRealm(testing.NewUserRealm(user))
-	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/test"))
-	dao := commondao.New(cross, "Foo")
+	daoID = commondao.New(cross(cur), "Foo", "Purpose", "", "")
 
-	options := commondao.GetOptions(dao.ID())
-	options.SetAllowDissolutionProposals(true)
-
-	daoID = dao.ID()
 }
 
-func main() {
-	testing.SetRealm(testing.NewUserRealm(user))
+func main(cur realm) {
+	testing.SetRealm(testing.NewUserRealm(owner))
 
-	commondao.CreateDissolutionProposal(cross, daoID)
+	commondao.CreateDissolutionProposal(cross(cur), daoID, owner)
 }
 
 // Error:
-// caller is not a DAO member
+// caller is not a council member

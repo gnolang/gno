@@ -11,9 +11,9 @@ func main() {
 	// The expression is: *(*doublePtr)
 	// The VM/Runtime must evaluate the INNER (*doublePtr) first
 	// to get the address for the OUTER (*).
-	
+
 	// CRASH OCCURS HERE inside the first dereference.
-	val := **doublePtr 
+	val := **doublePtr
 
 	// This line is never reached
 	fmt.Println("2. Success:", val)

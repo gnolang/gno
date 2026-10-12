@@ -26,7 +26,9 @@ safe_reset_validator val3
 safe_reset_validator val4
 
 # 2/4 validators running — chain must halt.
-assert_chain_halted val1 30
+# delta=4: absorbs up to 2 in-flight blocks that val3/val4 may have
+# pre-committed before SIGTERM before the chain truly halts.
+assert_chain_halted val1 30 4
 
 start_validator val3
 start_validator val4

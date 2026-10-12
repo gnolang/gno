@@ -26,7 +26,7 @@ func bareFunc() {
 
 func main(cur realm) {
 	s := &S{Tag: "x"}
-	crossrealm.SetObject(cross, s)
+	crossrealm.SetObject(cross(cur), s)
 
 	defer bareFunc()       // 1st registered, 3rd to fire (LIFO)
 	defer s.Append("-mid") // 2nd registered, 2nd to fire — needs borrow-switch

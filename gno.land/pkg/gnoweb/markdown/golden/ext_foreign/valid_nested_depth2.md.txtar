@@ -1,0 +1,28 @@
+-- input.md --
+before
+
+<gno-foreign>
+outer body
+
+<gno-foreign>
+inner body
+</gno-foreign>
+
+outer trailing
+</gno-foreign>
+
+after
+-- output.html --
+<p>before</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<p>outer body</p>
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<p>inner body</p>
+</div>
+</div>
+<p>outer trailing</p>
+</div>
+</div>
+<p>after</p>

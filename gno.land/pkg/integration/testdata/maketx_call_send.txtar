@@ -31,8 +31,8 @@ stdout '"coins": "42ugnot"'
 -- realm/realm.gno --
 package call_realm
 
-import "chain/banker"
+import "chain/runtime/unsafe"
 
 func GimmeMoney(cur realm) string {
-	return "send: " + banker.OriginSend().String()
+	return "send: " + unsafe.OriginSend().String()
 }

@@ -1,0 +1,83 @@
+// PKGPATH: gno.land/r/archive/groups/filetests/z_2_a
+package z_2_a
+
+// SEND: 1000000ugnot
+
+import (
+	"chain/runtime/unsafe"
+	"testing"
+
+	"gno.land/p/nt/testutils/v0"
+	"gno.land/r/archive/groups"
+	uinit "gno.land/r/sys/users/init"
+)
+
+var gid groups.GroupID
+
+const admin = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+
+func main(cur realm) {
+	caller := unsafe.OriginCaller() // main123
+	testing.SetRealm(testing.NewUserRealm(caller))
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "main123", caller)
+	testing.SetHeight(123)
+
+	test1 := testutils.TestAddress("gnouser1")
+	testing.SetOriginCaller(test1)
+	testing.SetRealm(testing.NewUserRealm(test1))
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "test123", test1)
+	testing.SetHeight(123)
+
+	test2 := testutils.TestAddress("gnouser2")
+	testing.SetOriginCaller(test2)
+	testing.SetRealm(testing.NewUserRealm(test2))
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "test223", test2)
+	testing.SetHeight(123)
+
+	test3 := testutils.TestAddress("gnouser3")
+	testing.SetOriginCaller(test3)
+	testing.SetRealm(testing.NewUserRealm(test3))
+	testing.SetHeight(0)
+	uinit.RegisterUser(cross(cur), "test323", test3)
+	testing.SetHeight(123)
+
+	testing.SetOriginCaller(caller)
+	testing.SetRealm(testing.NewUserRealm(caller))
+
+	gid = groups.CreateGroup(cross(cur), "test_group")
+	println(groups.Render("test_group"))
+
+	groups.AddMember(cross(cur), gid, test2.String(), 42, "metadata3")
+
+	groups.DeleteMember(cross(cur), gid, 0)
+	println(groups.RenderGroup(gid))
+}
+
+// Output:
+// Group ID: 0000000001
+//
+// Group Name: test_group
+//
+// Group Creator: main123
+//
+// Group createdAt: 2009-02-13 23:31:30 +0000 UTC
+//
+// Group Last MemberID: 0000000000
+//
+// Group Members:
+//
+//
+// Group ID: 0000000001
+//
+// Group Name: test_group
+//
+// Group Creator: main123
+//
+// Group createdAt: 2009-02-13 23:31:30 +0000 UTC
+//
+// Group Last MemberID: 0000000001
+//
+// Group Members:

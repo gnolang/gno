@@ -57,7 +57,7 @@ func RegisterGenproto2Type(rt reflect.Type) {
 // HasNativeGenproto2 returns true if the type has its own genproto2 methods
 // (not just promoted from an embedded struct).
 func HasNativeGenproto2(rt reflect.Type) bool {
-	if rt.Kind() == reflect.Ptr {
+	if rt.Kind() == reflect.Pointer {
 		rt = rt.Elem()
 	}
 	genproto2TypesMu.RLock()
@@ -89,7 +89,7 @@ func RegisterPbbindingsType(rt reflect.Type) {
 // HasNativePbbindings returns true if the type has its own pbbindings methods
 // (not just promoted from an embedded struct).
 func HasNativePbbindings(rt reflect.Type) bool {
-	if rt.Kind() == reflect.Ptr {
+	if rt.Kind() == reflect.Pointer {
 		rt = rt.Elem()
 	}
 	pbbindingsTypesMu.RLock()
@@ -436,14 +436,14 @@ func (cdc *Codec) Marshal(o any) ([]byte, error) {
 func (cdc *Codec) MarshalReflect(o any) ([]byte, error) {
 	// Dereference value if pointer.
 	rv := reflect.ValueOf(o)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			panic("Marshal cannot marshal a nil pointer directly. Try wrapping in a struct?")
 			// NOTE: You can still do so by calling
 			// `.MarshalSized(struct{ *SomeType })` or so on.
 		}
 		rv = rv.Elem()
-		if rv.Kind() == reflect.Ptr {
+		if rv.Kind() == reflect.Pointer {
 			panic("nested pointers not allowed")
 		}
 	}
@@ -582,7 +582,7 @@ func (cdc *Codec) MarshalAny(o any) ([]byte, error) {
 func (cdc *Codec) marshalAnyBinary2(o PBMarshaler2) ([]byte, error) {
 	// Get concrete type for TypeURL.
 	rv := reflect.ValueOf(o)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
 	cinfo, err := cdc.getTypeInfoWLock(rv.Type())
@@ -640,7 +640,7 @@ func (cdc *Codec) MarshalAnyBinary2(o any, buf []byte, offset int) (int, error) 
 		return offset, nil
 	}
 	rv := reflect.ValueOf(o)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
 	cinfo, err := cdc.getTypeInfoWLock(rv.Type())
@@ -694,7 +694,7 @@ func (cdc *Codec) SizeAnyBinary2(o any) (int, error) {
 		return len(bz), nil
 	}
 	rv := reflect.ValueOf(o)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
 	cinfo, err := cdc.getTypeInfoWLock(rv.Type())
@@ -741,7 +741,7 @@ func (cdc *Codec) unmarshalAnyBinary2Depth(bz []byte, ptr any, anyDepth int) err
 		return fmt.Errorf("exceeded max Any nesting depth %d", maxAnyDepth)
 	}
 	rv := reflect.ValueOf(ptr)
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return ErrNoPointer
 	}
 	if len(bz) == 0 {
@@ -997,7 +997,7 @@ func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 	// Peel one pointer level, allocating the inner pointer if nil,
 	// so all paths below see *T uniformly.
 	rv := reflect.ValueOf(ptr)
-	if rv.Kind() == reflect.Ptr && rv.Elem().Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer && rv.Elem().Kind() == reflect.Pointer {
 		inner := rv.Elem()
 		if inner.IsNil() {
 			inner.Set(reflect.New(inner.Type().Elem()))
@@ -1027,7 +1027,7 @@ func (cdc *Codec) Unmarshal(bz []byte, ptr any) error {
 // Use reflection.
 func (cdc *Codec) UnmarshalReflect(bz []byte, ptr any) error {
 	rv := reflect.ValueOf(ptr)
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return ErrNoPointer
 	}
 	rv = rv.Elem()
@@ -1147,7 +1147,7 @@ func (cdc *Codec) UnmarshalAny(bz []byte, ptr any) (err error) {
 
 	// Dereference ptr which must be pointer to interface.
 	rv := reflect.ValueOf(ptr)
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return ErrNoPointer
 	}
 	rv = rv.Elem()
@@ -1291,7 +1291,7 @@ func (cdc *Codec) unmarshalAny2Depth(typeURL string, value []byte, ptr any, anyD
 	}
 
 	rv := reflect.ValueOf(ptr)
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return ErrNoPointer
 	}
 	rv = rv.Elem()
@@ -1335,7 +1335,7 @@ func (cdc *Codec) MarshalJSONAny(o any) ([]byte, error) {
 
 	// Dereference value if pointer.
 	rv := reflect.ValueOf(o)
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
 	rt := rv.Type()
@@ -1391,7 +1391,7 @@ func (cdc *Codec) JSONUnmarshal(bz []byte, ptr any) error {
 	}
 
 	rv := reflect.ValueOf(ptr)
-	if rv.Kind() != reflect.Ptr {
+	if rv.Kind() != reflect.Pointer {
 		return errors.New("expected a pointer")
 	}
 	rv = rv.Elem()

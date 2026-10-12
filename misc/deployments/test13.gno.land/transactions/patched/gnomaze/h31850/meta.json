@@ -1,0 +1,63 @@
+{
+  "reason": "API drift fix (post-#5669): chain/runtime moved CurrentRealm to chain/runtime/unsafe; cross changed from magic keyword to a func(realm)->realm. Drop unused cur realm params from GenerateSVG + renderGrid3D since Render is non-crossing and their bodies never referenced cur.",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1773755786",
+    "block_height": "31850",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g19p3yzr3cuhzqa02j0ce6kzvyjqfzwemw3vam0x",
+        "account_num": "3262677",
+        "sequence": "0"
+      }
+    ]
+  },
+  "pkg_dir": "pkg/",
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_addpkg",
+        "creator": "g19p3yzr3cuhzqa02j0ce6kzvyjqfzwemw3vam0x",
+        "package": {
+          "name": "gnomaze",
+          "path": "gno.land/r/g19p3yzr3cuhzqa02j0ce6kzvyjqfzwemw3vam0x/gnomaze",
+          "files": [
+            {
+              "name": "asset.gno",
+              "body": ""
+            },
+            {
+              "name": "gnomod.toml",
+              "body": ""
+            },
+            {
+              "name": "maze.gno",
+              "body": ""
+            }
+          ],
+          "type": {
+            "@type": "/gno.MemPackageType",
+            "value": "MPUserAll"
+          }
+        },
+        "send": "",
+        "max_deposit": ""
+      }
+    ],
+    "fee": {
+      "gas_wanted": "100000000",
+      "gas_fee": "100000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "AvKrR67g+vR/21hxQWnz7fHN4062cIhme0bxmx54ouBX"
+        },
+        "signature": "fR34b5PQrIgoUij+gyxlDev9sYkX6mdzUz0rcjwcg5BImK9b3srr48PU2BpcPlI5cnxhRBLFdOFxDawSXv2+5w=="
+      }
+    ],
+    "memo": ""
+  }
+}

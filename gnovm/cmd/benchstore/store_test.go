@@ -83,7 +83,7 @@ func newBenchEnv(b *testing.B, n int, valSize int) *benchEnv {
 	val := make([]byte, valSize)
 	prng := rand.New(rand.NewSource(0))
 	batch := db.NewBatch()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		key := make([]byte, 8)
 		binary.BigEndian.PutUint64(key, uint64(i))
 		prng.Read(val)
@@ -106,12 +106,9 @@ func newBenchEnv(b *testing.B, n int, valSize int) *benchEnv {
 		if *flagCacheMB > 0 {
 			cacheMB = *flagCacheMB
 		}
-		warmupReads := int(int64(cacheMB) << 20 / 4096)
-		if warmupReads > n {
-			warmupReads = n
-		}
+		warmupReads := min(int(int64(cacheMB)<<20/4096), n)
 		rng := rand.New(rand.NewSource(99))
-		for i := 0; i < warmupReads; i++ {
+		for i := range warmupReads {
 			key := make([]byte, 8)
 			binary.BigEndian.PutUint64(key, uint64(rng.Intn(n)))
 			db.Get(key)
@@ -187,8 +184,8 @@ func repeat(ch byte, n int) []byte {
 // noopLogger suppresses PebbleDB WAL replay log spam.
 type noopLogger struct{}
 
-func (noopLogger) Infof(format string, args ...interface{})  {}
-func (noopLogger) Fatalf(format string, args ...interface{}) { panic(fmt.Sprintf(format, args...)) }
+func (noopLogger) Infof(format string, args ...any)  {}
+func (noopLogger) Fatalf(format string, args ...any) { panic(fmt.Sprintf(format, args...)) }
 
 func dirSize(path string) string {
 	var total int64
@@ -219,7 +216,6 @@ func dirSize(path string) string {
 func BenchmarkStoreGet(b *testing.B) {
 	requireDB(b)
 	for _, n := range keySizes {
-		n := n
 		if *flagMaxKeys > 0 && n > *flagMaxKeys {
 			continue
 		}
@@ -249,13 +245,11 @@ var batchSizes = []int{10, 100, 1000}
 func BenchmarkStoreSetOverwrite(b *testing.B) {
 	requireDB(b)
 	for _, n := range keySizes {
-		n := n
 		if *flagMaxKeys > 0 && n > *flagMaxKeys {
 			continue
 		}
 		var env *benchEnv
 		for _, bs := range batchSizes {
-			bs := bs
 			b.Run(fmt.Sprintf("keys=%d/batch=%d", n, bs), func(b *testing.B) {
 				if env == nil {
 					env = newBenchEnv(b, n, 256)
@@ -266,7 +260,7 @@ func BenchmarkStoreSetOverwrite(b *testing.B) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
 					batch := env.db.NewBatch()
-					for j := 0; j < bs; j++ {
+					for range bs {
 						key := make([]byte, 8)
 						binary.BigEndian.PutUint64(key, uint64(rng.Intn(n)))
 						batch.Set(key, val)
@@ -286,13 +280,11 @@ func BenchmarkStoreSetOverwrite(b *testing.B) {
 func BenchmarkStoreSetInsert(b *testing.B) {
 	requireDB(b)
 	for _, n := range keySizes {
-		n := n
 		if *flagMaxKeys > 0 && n > *flagMaxKeys {
 			continue
 		}
 		var env *benchEnv
 		for _, bs := range batchSizes {
-			bs := bs
 			b.Run(fmt.Sprintf("keys=%d/batch=%d", n, bs), func(b *testing.B) {
 				if env == nil {
 					env = newBenchEnv(b, n, 256)
@@ -302,7 +294,7 @@ func BenchmarkStoreSetInsert(b *testing.B) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
 					batch := env.db.NewBatch()
-					for j := 0; j < bs; j++ {
+					for j := range bs {
 						key := make([]byte, 8)
 						binary.BigEndian.PutUint64(key, uint64(n+i*bs+j))
 						batch.Set(key, val)
@@ -322,13 +314,11 @@ func BenchmarkStoreSetInsert(b *testing.B) {
 func BenchmarkStoreDeleteAndInsert(b *testing.B) {
 	requireDB(b)
 	for _, n := range keySizes {
-		n := n
 		if *flagMaxKeys > 0 && n > *flagMaxKeys {
 			continue
 		}
 		var env *benchEnv
 		for _, bs := range batchSizes {
-			bs := bs
 			b.Run(fmt.Sprintf("keys=%d/batch=%d", n, bs), func(b *testing.B) {
 				if env == nil {
 					env = newBenchEnv(b, n, 256)
@@ -339,7 +329,7 @@ func BenchmarkStoreDeleteAndInsert(b *testing.B) {
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
 					batch := env.db.NewBatch()
-					for j := 0; j < bs; j++ {
+					for range bs {
 						// Delete existing key, re-insert at same key to keep DB stable.
 						key := make([]byte, 8)
 						binary.BigEndian.PutUint64(key, uint64(rng.Intn(n)))
@@ -380,7 +370,6 @@ var iterKeySizes = []int{10_000, 100_000, 1_000_000, 10_000_000, 100_000_000}
 func BenchmarkIterNext(b *testing.B) {
 	requireDB(b)
 	for _, n := range iterKeySizes {
-		n := n
 		if *flagMaxKeys > 0 && n > *flagMaxKeys {
 			continue
 		}
@@ -415,7 +404,6 @@ func BenchmarkIterNext(b *testing.B) {
 func BenchmarkIterSeek(b *testing.B) {
 	requireDB(b)
 	for _, n := range iterKeySizes {
-		n := n
 		if *flagMaxKeys > 0 && n > *flagMaxKeys {
 			continue
 		}
@@ -482,7 +470,7 @@ func BenchmarkStoreGetCacheSweep(b *testing.B) {
 		val := make([]byte, 256)
 		prng := rand.New(rand.NewSource(0))
 		batch := db.NewBatch()
-		for i := 0; i < n; i++ {
+		for i := range n {
 			key := make([]byte, 8)
 			binary.BigEndian.PutUint64(key, uint64(i))
 			prng.Read(val)
@@ -502,8 +490,6 @@ func BenchmarkStoreGetCacheSweep(b *testing.B) {
 	fmt.Fprintf(os.Stderr, "  db size: %s\n", dirSize(dir))
 
 	for _, mb := range cacheSizes {
-		mb := mb
-
 		opts := pebbledb.DefaultPebbleOptions()
 		cache := pebble.NewCache(int64(mb) << 20)
 		opts.Cache = cache
@@ -514,12 +500,9 @@ func BenchmarkStoreGetCacheSweep(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		warmupReads := int(int64(mb) << 20 / 4096)
-		if warmupReads > n {
-			warmupReads = n
-		}
+		warmupReads := min(int(int64(mb)<<20/4096), n)
 		rng := rand.New(rand.NewSource(99))
-		for i := 0; i < warmupReads; i++ {
+		for i := range warmupReads {
 			key := make([]byte, 8)
 			binary.BigEndian.PutUint64(key, uint64(rng.Intn(n)))
 			db.Get(key)
@@ -575,7 +558,6 @@ var valueSizeCases = []struct {
 func BenchmarkValueSizeGet(b *testing.B) {
 	requireDB(b)
 	for _, tc := range valueSizeCases {
-		tc := tc
 		var env *benchEnv
 		b.Run(fmt.Sprintf("val=%dB/keys=%d", tc.valSize, tc.numKeys), func(b *testing.B) {
 			if env == nil {
@@ -600,7 +582,6 @@ func BenchmarkValueSizeGet(b *testing.B) {
 func BenchmarkValueSizeSet(b *testing.B) {
 	requireDB(b)
 	for _, tc := range valueSizeCases {
-		tc := tc
 		var env *benchEnv
 		b.Run(fmt.Sprintf("val=%dB/keys=%d", tc.valSize, tc.numKeys), func(b *testing.B) {
 			if env == nil {
@@ -612,7 +593,7 @@ func BenchmarkValueSizeSet(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				batch := env.db.NewBatch()
-				for j := 0; j < 1000; j++ {
+				for range 1000 {
 					key := make([]byte, 8)
 					binary.BigEndian.PutUint64(key, uint64(rng.Intn(tc.numKeys)))
 					batch.Set(key, val)
@@ -644,7 +625,7 @@ func newBenchEnvWithValSize(b *testing.B, n int, valSize int) *benchEnv {
 	val := make([]byte, valSize)
 	prng := rand.New(rand.NewSource(0))
 	batch := db.NewBatch()
-	for i := 0; i < n; i++ {
+	for i := range n {
 		key := make([]byte, 8)
 		binary.BigEndian.PutUint64(key, uint64(i))
 		prng.Read(val)
@@ -666,12 +647,9 @@ func newBenchEnvWithValSize(b *testing.B, n int, valSize int) *benchEnv {
 		if *flagCacheMB > 0 {
 			cacheMB = *flagCacheMB
 		}
-		warmupReads := int(int64(cacheMB) << 20 / 4096)
-		if warmupReads > n {
-			warmupReads = n
-		}
+		warmupReads := min(int(int64(cacheMB)<<20/4096), n)
 		rng := rand.New(rand.NewSource(99))
-		for i := 0; i < warmupReads; i++ {
+		for i := range warmupReads {
 			key := make([]byte, 8)
 			binary.BigEndian.PutUint64(key, uint64(rng.Intn(n)))
 			db.Get(key)

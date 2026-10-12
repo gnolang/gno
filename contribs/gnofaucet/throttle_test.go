@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"net/netip"
 	"testing"
 	"time"
@@ -62,8 +61,7 @@ func TestIPThrottler_CleanupAllowsNewRequest(t *testing.T) {
 	// only cleanup (removing the stale entry) should allow a new request.
 	th := newIPThrottler(time.Hour, cleanupInterval)
 
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	th.start(ctx)
 

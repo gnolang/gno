@@ -1,0 +1,51 @@
+{
+  "reason": "API drift on params.ProposeRemoveUnrestrictedAcctsRequest (post-#5669): add cur realm to main, wire cross(cur) + dao.NewVoteRequest factory.",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1773674907",
+    "block_height": "7096",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+        "account_num": "3096261",
+        "sequence": "3"
+      }
+    ]
+  },
+  "body_file": "restrict.gno",
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_run",
+        "caller": "g1manfred47kzduec920z88wfr64ylksmdcedlf5",
+        "send": "",
+        "max_deposit": "",
+        "package": {
+          "name": "main",
+          "path": "",
+          "files": [
+            {
+              "name": "restrict.gno",
+              "body": ""
+            }
+          ]
+        }
+      }
+    ],
+    "fee": {
+      "gas_wanted": "50000000",
+      "gas_fee": "1000000ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "AgBSSj+NLAA6icQ/Rf6vbrjtRbbjo197vms7Sf+eLYPI"
+        },
+        "signature": "demb2BvBOrYQnf6FfFHl4yg5E9HfSW8UHLjtHQhhZapaRVsKuXCGkvOnH0PgKmTdxeAUdvXW9ipQVpyltUI0ww=="
+      }
+    ],
+    "memo": ""
+  }
+}

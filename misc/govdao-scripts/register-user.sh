@@ -2,7 +2,7 @@
 # Register a custom username for an address via govDAO proposal.
 #
 # Routes through r/sys/users.ProposeRegisterUser. The proposal
-# bypasses the controller whitelist (where r/sys/namereg/v1 lives)
+# bypasses the controller whitelist (where r/sys/namereg/v0 lives)
 # and the canonical-collision check (decision #3: DAO grants are
 # sovereign). A canonical-collision warning is auto-injected into
 # the proposal description if relevant; voters can NO it.
@@ -49,11 +49,11 @@ import (
 	"gno.land/r/sys/users"
 )
 
-func main() {
+func main(cur realm) {
 	r := users.ProposeRegisterUser("${USERNAME}", address("${ADDR}"))
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 

@@ -10,13 +10,19 @@ import (
 	"gno.land/p/nt/urequire/v0"
 )
 
-func TestResolveName(t *testing.T) {
+// cur is a zero-value realm used as a placeholder when forwarding to
+// uassert/urequire dispatch helpers that gained an `rlm realm` param.
+// These tests pass `func()` callbacks (no crossing inside the callback),
+// so rlm is ignored — a nil realm here is safe.
+var cur realm
+
+func TestResolveName(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		res, isLatest := ResolveName(alice)
 		uassert.Equal(t, aliceAddr, res.Addr())
@@ -27,9 +33,9 @@ func TestResolveName(t *testing.T) {
 	t.Run("name+Alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
-		urequire.NoError(t, data.UpdateName("alice1"))
+		urequire.NoError(t, data.UpdateName(0, cur, "alice1"))
 
 		res, isLatest := ResolveName("alice1")
 		urequire.NotEqual(t, nil, res)
@@ -42,7 +48,7 @@ func TestResolveName(t *testing.T) {
 	t.Run("multiple_aliases", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -52,7 +58,7 @@ func TestResolveName(t *testing.T) {
 			names = append(names, alias)
 
 			data, _ := ResolveName(alice)
-			urequire.NoError(t, data.UpdateName(alias))
+			urequire.NoError(t, data.UpdateName(0, cur, alias))
 		}
 
 		for _, alias := range names {
@@ -65,13 +71,13 @@ func TestResolveName(t *testing.T) {
 	})
 }
 
-func TestResolveAddress(t *testing.T) {
+func TestResolveAddress(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("single_name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		res := ResolveAddress(aliceAddr)
 
@@ -82,9 +88,9 @@ func TestResolveAddress(t *testing.T) {
 	t.Run("name+Alias", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 		data, _ := ResolveName(alice)
-		urequire.NoError(t, data.UpdateName("alice1"))
+		urequire.NoError(t, data.UpdateName(0, cur, "alice1"))
 
 		res := ResolveAddress(aliceAddr)
 		urequire.NotEqual(t, nil, res)
@@ -96,7 +102,7 @@ func TestResolveAddress(t *testing.T) {
 	t.Run("multiple_aliases", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		// RegisterUser and check each Alias
 		var names []string
@@ -106,7 +112,7 @@ func TestResolveAddress(t *testing.T) {
 			alias := "alice" + strconv.Itoa(i)
 			names = append(names, alias)
 			data, _ := ResolveName(alice)
-			urequire.NoError(t, data.UpdateName(alias))
+			urequire.NoError(t, data.UpdateName(0, cur, alias))
 		}
 
 		res := ResolveAddress(aliceAddr)
@@ -115,67 +121,62 @@ func TestResolveAddress(t *testing.T) {
 	})
 }
 
-func TestROStores(t *testing.T) {
+func TestROStores(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 	cleanStore(t)
 
-	urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+	urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 	roNS := GetReadOnlyNameStore()
 	roAS := GetReadonlyAddrStore()
 
 	t.Run("get user data", func(t *testing.T) {
 		// Name store
-		aliceDataRaw, ok := roNS.Get(alice)
-		uassert.True(t, ok)
+		aliceDataRaw := roNS.Get(alice)
+		urequire.NotNil(t, aliceDataRaw)
 
 		roData, ok := aliceDataRaw.(*UserData)
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
 
 		// Try to modify data
-		roData.Delete()
-		raw, ok := nameStore.Get(alice)
+		roData.Delete(0, cur)
+		raw := nameStore.Get(alice)
 		uassert.False(t, raw.(*UserData).deleted)
 
 		// Addr store
-		aliceDataRaw, ok = roAS.Get(aliceAddr.String())
-		uassert.True(t, ok)
+		aliceDataRaw = roAS.Get(aliceAddr.String())
+		urequire.NotNil(t, aliceDataRaw)
 
 		roData, ok = aliceDataRaw.(*UserData)
 		uassert.True(t, ok, "Could not cast data from RO tree to UserData")
 
 		// Try to modify data
-		roData.Delete()
-		raw, ok = nameStore.Get(alice)
+		roData.Delete(0, cur)
+		raw = nameStore.Get(alice)
 		uassert.False(t, raw.(*UserData).deleted)
 	})
 
 	t.Run("get deleted data", func(t *testing.T) {
-		raw, _ := nameStore.Get(alice)
+		raw := nameStore.Get(alice)
 		aliceData := raw.(*UserData)
 
-		urequire.NoError(t, aliceData.Delete())
+		urequire.NoError(t, aliceData.Delete(0, cur))
 		urequire.True(t, aliceData.IsDeleted())
 
-		// Should be nil because of makeSafeFn
-		rawRoData, ok := roNS.Get(alice)
-		// uassert.False(t, ok)
-		// XXX: not sure what to do here, as the tree technically has the data so returns ok
-		// However the data is intercepted and something else (nil in this case) is returned.
-		// should we handle this somehow?
-
+		// Should be nil because of makeSafeFn intercepting the value.
+		rawRoData := roNS.Get(alice)
 		uassert.Equal(t, rawRoData, nil)
-		_, ok = rawRoData.(*UserData) // shouldn't be castable
+		_, ok := rawRoData.(*UserData) // shouldn't be castable
 		uassert.False(t, ok)
 	})
 }
 
-func TestResolveAny(t *testing.T) {
+func TestResolveAny(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("name", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		res, _ := ResolveAny(alice)
 
@@ -186,7 +187,7 @@ func TestResolveAny(t *testing.T) {
 	t.Run("address", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.NoError(t, RegisterUser(cross, alice, aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), alice, aliceAddr))
 
 		res, _ := ResolveAny(aliceAddr.String())
 
@@ -203,24 +204,24 @@ func TestResolveAny(t *testing.T) {
 	})
 }
 
-func TestProposeErrors(t *testing.T) {
+func TestProposeErrors(cur realm, t *testing.T) {
 	t.Run("propose_register_user_errors", func(t *testing.T) {
-		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-			ProposeRegisterUser("bad name", aliceAddr)
+		urequire.PanicsWithMessage(t, cur, ErrInvalidUsername.Error(), func() {
+			ProposeRegisterUser(cur, "bad name", aliceAddr)
 		})
-		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
-			ProposeRegisterUser(alice, "badaddress")
+		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
+			ProposeRegisterUser(cur, alice, "badaddress")
 		})
 	})
 
 	t.Run("propose_update_name_errors", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
-			ProposeUpdateName("badaddress", "alice1")
+		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
+			ProposeUpdateName(cur, "badaddress", "alice1")
 		})
-		urequire.PanicsWithMessage(t, ErrInvalidUsername.Error(), func() {
-			ProposeUpdateName(aliceAddr, "bad name")
+		urequire.PanicsWithMessage(t, cur, ErrInvalidUsername.Error(), func() {
+			ProposeUpdateName(cur, aliceAddr, "bad name")
 		})
 		// Note: unregistered user is not checked at proposal creation time.
 		// The callback handles it at execution time.
@@ -229,8 +230,8 @@ func TestProposeErrors(t *testing.T) {
 	t.Run("propose_delete_user_errors", func(t *testing.T) {
 		cleanStore(t)
 
-		urequire.PanicsWithMessage(t, ErrInvalidAddress.Error(), func() {
-			ProposeDeleteUser("badaddress")
+		urequire.PanicsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
+			ProposeDeleteUser(cur, "badaddress")
 		})
 		// Note: unregistered user is not checked at proposal creation time.
 		// The callback handles it at execution time.
@@ -378,14 +379,14 @@ func TestControllerQueries(t *testing.T) {
 // with an existing registration. The warning surfaces the colliding
 // existing name to voters; the proposal still goes through if voted in
 // (decision #3, DAO grants always bypass).
-func TestProposeRegisterUser_CollisionWarning(t *testing.T) {
+func TestProposeRegisterUser_CollisionWarning(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(initControllerPath))
 
 	t.Run("warning_injected_on_collision", func(t *testing.T) {
 		cleanStore(t)
-		urequire.NoError(t, RegisterUser(cross, "vitalik", aliceAddr))
+		urequire.NoError(t, RegisterUser(cross(cur), "vitalik", aliceAddr))
 
-		req := ProposeRegisterUser("vital1k", bobAddr)
+		req := ProposeRegisterUser(cur, "vital1k", bobAddr)
 		uassert.True(t,
 			strings.Contains(req.Description(), "CANONICAL COLLISION"),
 			"description must include collision warning")
@@ -397,7 +398,7 @@ func TestProposeRegisterUser_CollisionWarning(t *testing.T) {
 	t.Run("no_warning_when_no_collision", func(t *testing.T) {
 		cleanStore(t)
 
-		req := ProposeRegisterUser("freshname", aliceAddr)
+		req := ProposeRegisterUser(cur, "freshname", aliceAddr)
 		uassert.False(t,
 			strings.Contains(req.Description(), "CANONICAL COLLISION"),
 			"description must not include collision warning when name is fresh")
@@ -411,7 +412,7 @@ func TestProposeRegisterUser_CollisionWarning(t *testing.T) {
 // level by TestRegisterUserIgnoreCanonical and TestUpdateName_CanonicalCollision.
 
 // TODO Uncomment after gnoweb /u/ page.
-//func TestUserRenderLink(t *testing.T) {
+//func TestUserRenderLink(cur realm, t *testing.T) {
 //	testing.SetOriginCaller(whitelistedCallerAddr)
 //	cleanStore(t)
 //

@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -17,6 +18,11 @@ type GoldenTests struct {
 	Recurse      bool
 	Update       bool
 	GenerateFunc GenFunc
+	// SkipDirs are subdirectory paths (relative to the walk root) that
+	// should be skipped entirely — used to keep this runner out of
+	// directories that use a different txtar layout (e.g. golden/sanitize,
+	// which has its own driver in sanitize_integration_test.go).
+	SkipDirs []string
 }
 
 func NewGoldentTests(exec GenFunc) *GoldenTests {
@@ -42,6 +48,10 @@ func (g *GoldenTests) Run(t *testing.T, dir string) {
 		}
 
 		if info.IsDir() {
+			rel, _ := filepath.Rel(dir, path)
+			if slices.Contains(g.SkipDirs, rel) {
+				return filepath.SkipDir
+			}
 			return shouldSkipDir
 		}
 
@@ -98,7 +108,7 @@ func (g *GoldenTests) Run(t *testing.T, dir string) {
 			if len(archive.Files) == 1 {
 				// Nothing expected, log generated output and
 				// mark the test as fail
-				require.Fail(t, "file need to be updated with `go test -update-golden-files`")
+				require.Fail(t, "file needs to be updated with `go test -update-golden-tests`")
 			}
 
 			// Ultimatly compare generated output with expected output

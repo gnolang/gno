@@ -1,0 +1,15 @@
+-- input.md --
+before paragraph
+
+\<gno-columns>
+content
+\</gno-columns>
+
+after paragraph
+
+-- output.html --
+<p>before paragraph</p>
+<p>&lt;gno-columns&gt;
+content
+&lt;/gno-columns&gt;</p>
+<p>after paragraph</p>

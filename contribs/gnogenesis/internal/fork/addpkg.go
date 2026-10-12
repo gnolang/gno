@@ -10,6 +10,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -37,7 +38,7 @@ type addpkgCfg struct {
 // newAddpkgCmd builds a deterministic .jsonl of MsgAddPackage txs
 // from one or more local package directories. Used during a hardfork
 // ceremony to deploy realms that don't exist on the source chain
-// (e.g., r/sys/validators/v3 when forking from gnoland-1, where v3
+// (e.g., r/sys/validators/v0 when forking from gnoland-1, where v0
 // was added post-source-launch).
 //
 // Output format matches what `gnogenesis fork generate --migration-tx`
@@ -56,15 +57,15 @@ or more local package directories. Output is intended for
 'gnogenesis fork generate --migration-tx' as a prerequisite step
 when the source chain doesn't have a needed realm deployed.
 
-Example: forking from gnoland-1 (which doesn't have v3) to a chain
-that requires r/sys/validators/v3:
+Example: forking from gnoland-1 (which doesn't have v0) to a chain
+that requires r/sys/validators/v0:
 
   gnogenesis fork addpkg \
-      --output addpkg-v3.jsonl \
-      examples/gno.land/r/sys/validators/v3
+      --output addpkg-v0.jsonl \
+      examples/gno.land/r/sys/validators/v0
   gnogenesis fork generate \
       --source ... \
-      --migration-tx addpkg-v3.jsonl \
+      --migration-tx addpkg-v0.jsonl \
       --migration-tx valoper-seed.jsonl \
       ...
 
@@ -104,30 +105,34 @@ func execAddpkg(_ context.Context, cfg *addpkgCfg, io commands.IO, args []string
 		return fmt.Errorf("invalid --deployer %q: %w", cfg.deployerStr, err)
 	}
 
-	var allTxs []gnoland.TxWithMetadata
+	var allTxs []AnnotatedTx
 	for _, dir := range args {
 		txs, err := gnoland.LoadPackagesFromDir(dir, deployer, genesisDeployFee)
 		if err != nil {
 			return fmt.Errorf("LoadPackagesFromDir %q: %w", dir, err)
 		}
-		// Ensure each tx has Metadata.BlockHeight=0 explicitly,
-		// even though readMigrationTxs forces it at consume time —
-		// keeps the .jsonl self-describing.
-		for i := range txs {
-			if txs[i].Metadata == nil {
-				txs[i].Metadata = &gnoland.GnoTxMetadata{}
+		for _, tx := range txs {
+			if tx.Metadata == nil {
+				tx.Metadata = &gnoland.GnoTxMetadata{}
 			}
-			txs[i].Metadata.BlockHeight = 0
-			// Strip signatures: consumer runs with
-			// --skip-genesis-sig-verification.
-			txs[i].Tx.Signatures = []std.Signature{}
+			// Set BlockHeight=0 so the emitted .jsonl is self-describing as genesis-mode.
+			tx.Metadata.BlockHeight = 0
+			// One zero-value Signature per signer: the consumer runs with
+			// --skip-genesis-sig-verification so sig verification never runs,
+			// but std.Tx.ValidateBasic still requires len(Signatures) > 0 and
+			// equal to len(GetSigners()). Mirrors gno.land/pkg/gnoland/genesis.go.
+			tx.Tx.Signatures = make([]std.Signature, len(tx.Tx.GetSigners()))
+			allTxs = append(allTxs, AnnotatedTx{
+				Tx:       tx.Tx,
+				Metadata: tx.Metadata,
+				Reason:   addpkgReason(tx.Tx),
+			})
 		}
-		allTxs = append(allTxs, txs...)
 	}
 
 	var buf strings.Builder
-	for _, tx := range allTxs {
-		line, err := amino.MarshalJSON(tx)
+	for _, at := range allTxs {
+		line, err := amino.MarshalJSON(at)
 		if err != nil {
 			return fmt.Errorf("marshal tx: %w", err)
 		}
@@ -141,4 +146,15 @@ func execAddpkg(_ context.Context, cfg *addpkgCfg, io commands.IO, args []string
 
 	io.Printfln("wrote %d MsgAddPackage txs to %s", len(allTxs), cfg.output)
 	return nil
+}
+
+// addpkgReason derives a human-readable provenance note from the tx's first
+// MsgAddPackage. Used by the inspect subcommand to label addpkg migration txs.
+func addpkgReason(tx std.Tx) string {
+	for _, msg := range tx.Msgs {
+		if mp, ok := msg.(vm.MsgAddPackage); ok && mp.Package != nil {
+			return "addpkg: " + mp.Package.Path
+		}
+	}
+	return "addpkg"
 }

@@ -3,6 +3,8 @@ package fork
 import (
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
@@ -17,14 +19,16 @@ import (
 // bruteForceSignerSequence can verify it.
 func signTxAt(t *testing.T, priv crypto.PrivKey, tx std.Tx, chainID string, accNum, seq uint64) std.Signature {
 	t.Helper()
-	payload, err := std.GetSignaturePayload(std.SignDoc{
-		ChainID:       chainID,
-		AccountNumber: accNum,
-		Sequence:      seq,
-		Fee:           tx.Fee,
-		Msgs:          tx.Msgs,
-		Memo:          tx.Memo,
-	})
+	return signTxAtWith(t, priv, tx, chainID, accNum, seq, std.GetSignaturePayload)
+}
+
+// signTxAtWith is signTxAt over a chosen payload rendering.
+func signTxAtWith(
+	t *testing.T, priv crypto.PrivKey, tx std.Tx, chainID string, accNum, seq uint64,
+	render func(std.SignDoc) ([]byte, error),
+) std.Signature {
+	t.Helper()
+	payload, err := render(tx.SignDoc(chainID, accNum, seq))
 	require.NoError(t, err)
 
 	sig, err := priv.Sign(payload)
@@ -62,6 +66,21 @@ func TestBruteForceSignerSequence(t *testing.T) {
 		tx := makeTestTx(t, priv)
 		actualSeq := uint64(7)
 		sig := signTxAt(t, priv, tx, chainID, accNum, actualSeq)
+
+		resolved, err := bruteForceSignerSequence(tx, sig, accNum, 0, 20, chainID)
+		require.NoError(t, err)
+		assert.Equal(t, actualSeq, resolved)
+	})
+
+	t.Run("finds sequence for a legacy-rendering signature", func(t *testing.T) {
+		t.Parallel()
+		tx := makeTestTx(t, priv)
+		actualSeq := uint64(7)
+
+		// Signed over the gas_wanted/gas_fee rendering, which is what every
+		// transaction carries on a source chain whose clients produced only
+		// that shape.
+		sig := signTxAtWith(t, priv, tx, chainID, accNum, actualSeq, std.GetSignaturePayloadLegacy)
 
 		resolved, err := bruteForceSignerSequence(tx, sig, accNum, 0, 20, chainID)
 		require.NoError(t, err)
@@ -160,5 +179,113 @@ func TestBruteForceSignerSequence(t *testing.T) {
 
 		_, err := bruteForceSignerSequence(tampered, sig, accNum, 0, 20, chainID)
 		require.Error(t, err)
+	})
+}
+
+// makeGnoAccountWire builds the exact wire bytes that gno.land's auth handler
+// returns for `auth/accounts/<addr>`: amino.MarshalJSONIndent of the concrete
+// *gnoland.GnoAccount that acck.GetAccount yields on a gno.land chain.
+// See tm2/pkg/sdk/auth/handler.go queryAccount.
+func makeGnoAccountWire(t *testing.T, acc *gnoland.GnoAccount) []byte {
+	t.Helper()
+	bz, err := amino.MarshalJSONIndent(acc, "", "  ")
+	require.NoError(t, err)
+	return bz
+}
+
+// TestQueryAccountAtHeight_WireFormatContract guards the regression fixed in
+// this PR: auth/accounts/<addr> on gno.land returns a GnoAccount (BaseAccount
+// + Attributes), and amino's strict-field policy rejects the previous decoders
+// (wrapper-with-BaseAccount and bare std.BaseAccount). queryAccountAtHeight
+// must decode as gnoland.GnoAccount.
+func TestQueryAccountAtHeight_WireFormatContract(t *testing.T) {
+	t.Parallel()
+
+	priv := ed25519.GenPrivKey()
+	pub := priv.PubKey()
+	src := &gnoland.GnoAccount{
+		BaseAccount: std.BaseAccount{
+			Address:       pub.Address(),
+			Coins:         std.NewCoins(std.NewCoin("ugnot", 12345)),
+			PubKey:        pub,
+			AccountNumber: 42,
+			Sequence:      7,
+		},
+		// Non-zero attributes — the field that broke the old decoders.
+		Attributes: gnoland.BitSet(0x3),
+	}
+	wire := makeGnoAccountWire(t, src)
+
+	t.Run("decodes as GnoAccount and round-trips BaseAccount", func(t *testing.T) {
+		t.Parallel()
+		var got gnoland.GnoAccount
+		require.NoError(t, amino.UnmarshalJSON(wire, &got))
+
+		assert.Equal(t, src.Address, got.Address)
+		assert.Equal(t, src.AccountNumber, got.GetAccountNumber())
+		assert.Equal(t, src.Sequence, got.GetSequence())
+		assert.Equal(t, src.Attributes, got.Attributes)
+		assert.True(t, src.Coins.IsEqual(got.Coins), "coins mismatch: want %s, got %s", src.Coins, got.Coins)
+	})
+
+	t.Run("regression: old wrapper-with-BaseAccount decoder errors", func(t *testing.T) {
+		t.Parallel()
+		// First decoder the buggy code tried. amino's strict-field policy
+		// rejects the unknown "attributes" key. The buggy production path was
+		// gated on (err == nil), so the runtime-relevant property is the error
+		// itself — amino does partially populate the BaseAccount field before
+		// failing, but the buggy caller never returned that value.
+		var wrapper struct {
+			BaseAccount std.BaseAccount `json:"BaseAccount"`
+		}
+		err := amino.UnmarshalJSON(wire, &wrapper)
+		require.Error(t, err, "old wrapper decoder must fail on real GnoAccount wire format")
+	})
+
+	t.Run("regression: old bare-BaseAccount fallback errors", func(t *testing.T) {
+		t.Parallel()
+		// Fallback the buggy code tried second. Both "BaseAccount" and
+		// "attributes" are unknown to a bare BaseAccount, so amino rejects the
+		// payload. The buggy caller was gated on err == nil, so the property
+		// we lock in is the error itself; amino's partial-fill behavior on
+		// the target isn't part of the contract we depend on.
+		var bare std.BaseAccount
+		err := amino.UnmarshalJSON(wire, &bare)
+		require.Error(t, err, "old bare-BaseAccount decoder must fail on real GnoAccount wire format")
+	})
+
+	t.Run("decodes a zero-attributes GnoAccount", func(t *testing.T) {
+		t.Parallel()
+		// Common on-chain case: a freshly created account with no flags set.
+		zero := &gnoland.GnoAccount{
+			BaseAccount: std.BaseAccount{
+				Address:       pub.Address(),
+				PubKey:        pub,
+				AccountNumber: 1,
+				Sequence:      0,
+			},
+		}
+		zwire := makeGnoAccountWire(t, zero)
+
+		var got gnoland.GnoAccount
+		require.NoError(t, amino.UnmarshalJSON(zwire, &got))
+		assert.Equal(t, uint64(1), got.GetAccountNumber())
+		assert.Equal(t, uint64(0), got.GetSequence())
+		assert.Equal(t, gnoland.BitSet(0), got.Attributes)
+	})
+
+	t.Run("zero-address GnoAccount decodes with IsZero address", func(t *testing.T) {
+		t.Parallel()
+		// On gno.land, querying an unknown address returns a zero-valued
+		// account rather than an error. queryAccountAtHeight detects this via
+		// acc.Address.IsZero() and returns nil. Lock in the wire-format
+		// assumption that backs that branch.
+		zero := &gnoland.GnoAccount{}
+		zwire := makeGnoAccountWire(t, zero)
+
+		var got gnoland.GnoAccount
+		require.NoError(t, amino.UnmarshalJSON(zwire, &got))
+		assert.True(t, got.Address.IsZero(),
+			"zero-valued GnoAccount must round-trip to an IsZero address")
 	})
 }

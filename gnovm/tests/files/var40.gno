@@ -4,9 +4,9 @@ package main
 
 var (
 	A, B, C = D, E, F
-	D        = 1
-	E        = D
-	F        = E
+	D       = 1
+	E       = D
+	F       = E
 )
 
 func main() {

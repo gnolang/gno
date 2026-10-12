@@ -45,11 +45,11 @@ func makeSplitFuncs() {
 		"std.CoinDenom":     newSplitFunc("chain.CoinDenom"),
 
 		"std.AssertOriginCall": newSplitFunc("chain/runtime.AssertOriginCall"),
-		"std.PreviousRealm":    newSplitFunc("chain/runtime.PreviousRealm"),
-		"std.CurrentRealm":     newSplitFunc("chain/runtime.CurrentRealm"),
+		"std.PreviousRealm":    newSplitFunc("chain/runtime/unsafe.PreviousRealm"),
+		"std.CurrentRealm":     newSplitFunc("chain/runtime/unsafe.CurrentRealm"),
 		"std.NewUserRealm":     newSplitFunc("testing.NewUserRealm"),
 		"std.NewCodeRealm":     newSplitFunc("testing.NewCodeRealm"),
-		"std.OriginCaller":     newSplitFunc("chain/runtime.OriginCaller"),
+		"std.OriginCaller":     newSplitFunc("chain/runtime/unsafe.OriginCaller"),
 		"std.ChainDomain":      newSplitFunc("chain/runtime.ChainDomain"),
 		"std.ChainHeight":      newSplitFunc("chain/runtime.ChainHeight"),
 		"std.ChainID":          newSplitFunc("chain/runtime.ChainID"),
@@ -59,7 +59,7 @@ func makeSplitFuncs() {
 		"std.Banker":               newSplitFunc("chain/banker.Banker"),
 		"std.NewBanker":            newSplitFunc("chain/banker.NewBanker"),
 		"std.BankerType":           newSplitFunc("chain/banker.BankerType"),
-		"std.OriginSend":           newSplitFunc("chain/banker.OriginSend"),
+		"std.OriginSend":           newSplitFunc("chain/runtime/unsafe.OriginSend"),
 		"std.BankerTypeReadonly":   newSplitFunc("chain/banker.BankerTypeReadonly"),
 		"std.BankerTypeOriginSend": newSplitFunc("chain/banker.BankerTypeOriginSend"),
 		"std.BankerTypeRealmSend":  newSplitFunc("chain/banker.BankerTypeRealmSend"),
@@ -102,12 +102,13 @@ func stdsplit(f *ast.File) (fixed bool) {
 	}
 
 	knownImportIdentifiers := map[string]string{
-		"std":           "std",
-		"chain":         "chain",
-		"chain/runtime": "runtime",
-		"chain/params":  "params",
-		"chain/banker":  "banker",
-		"testing":       "testing",
+		"std":                  "std",
+		"chain":                "chain",
+		"chain/runtime":        "runtime",
+		"chain/runtime/unsafe": "unsafe",
+		"chain/params":         "params",
+		"chain/banker":         "banker",
+		"testing":              "testing",
 	}
 
 	var toRename []string

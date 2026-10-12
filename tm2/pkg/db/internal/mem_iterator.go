@@ -5,7 +5,7 @@ import "github.com/gnolang/gno/tm2/pkg/db"
 // We need a copy of all of the keys.
 // Not the best, but probably not a bottleneck depending.
 type MemIterator struct {
-	db    db.DB
+	db    db.Snapshot
 	cur   int
 	keys  []string
 	start []byte
@@ -16,7 +16,7 @@ type MemIterator struct {
 var _ db.Iterator = (*MemIterator)(nil)
 
 // Keys is expected to be in reverse order for reverse iterators.
-func NewMemIterator(db db.DB, keys []string, start, end []byte) *MemIterator {
+func NewMemIterator(db db.Snapshot, keys []string, start, end []byte) *MemIterator {
 	return &MemIterator{
 		db:    db,
 		cur:   0,

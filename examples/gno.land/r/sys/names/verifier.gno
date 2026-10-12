@@ -10,7 +10,7 @@
 //     has a (name → addr) mapping where the resolved address equals the
 //     deployer AND the name is the user's CURRENT name (not a historical
 //     alias from a rename chain). This is the bridge that lets
-//     r/sys/namereg/v1 (or any other DAO-whitelisted controller) grant
+//     r/sys/namereg/v0 (or any other DAO-whitelisted controller) grant
 //     deploy authority via name registration.
 //
 // Authority is unscoped: a registered name owns BOTH r/<name>/* and
@@ -27,11 +27,10 @@ package names
 
 import (
 	"chain"
-	"chain/runtime"
 
 	"gno.land/r/gov/dao"
-	govimpl "gno.land/r/gov/dao/v3/impl"
-	memberstore "gno.land/r/gov/dao/v3/memberstore"
+	govimpl "gno.land/r/gov/dao/impl/v0"
+	memberstore "gno.land/r/gov/dao/memberstore/v0"
 	susers "gno.land/r/sys/users"
 )
 
@@ -57,7 +56,7 @@ var (
 	// model should be replaced with a GovDAO T1 proposal flow that
 	// mirrors ProposeSetPaused. Until then, the hardcoded address is
 	// the smallest viable governance surface for the one-shot use case.
-	admin   = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+	admin   = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 	enabled = false
 	paused  = false
 )
@@ -112,7 +111,10 @@ func resolveCurrentName(name string) (address, bool) {
 // The namespace check is disabled initially to ease txtar and other testing contexts,
 // but this function is meant to be called in the genesis of a chain.
 func Enable(cur realm) {
-	if runtime.PreviousRealm().Address() != admin {
+	if !cur.IsCurrent() {
+		panic("unauthorized: cur is not the caller's live realm")
+	}
+	if cur.Previous().Address() != admin {
 		panic("caller is not admin")
 	}
 	enabled = true
@@ -163,12 +165,12 @@ func IsEnabled() bool {
 // Idempotency: calling ProposeSetPaused(v) when the realm's current
 // paused state already equals v panics at proposal-creation time so
 // voters never see a proposal whose execution would no-op.
-func ProposeSetPaused(v bool) dao.ProposalRequest {
+func ProposeSetPaused(cur realm, v bool) dao.ProposalRequest {
 	if paused == v {
 		panic("paused state already matches requested value; no-op proposal rejected")
 	}
 	cb := func(cur realm) error {
-		setPaused(v)
+		setPaused(0, cur, v)
 		return nil
 	}
 	title := "Unpause Namespace Verifier"
@@ -180,8 +182,8 @@ func ProposeSetPaused(v bool) dao.ProposalRequest {
 	return dao.NewProposalRequestWithFilter(
 		title,
 		desc,
-		dao.NewSimpleExecutor(cb, ""),
-		govimpl.FilterByTier{Tier: memberstore.T1},
+		dao.NewSimpleExecutor(0, cur, cb, ""),
+		govimpl.NewFilterByTier(memberstore.T1),
 	)
 }
 
@@ -191,12 +193,12 @@ func ProposeSetPaused(v bool) dao.ProposalRequest {
 //
 // Emits NamespaceEnforcement{Paused,Unpaused} with the executor's
 // realm path for off-chain audit trails.
-func setPaused(v bool) {
+func setPaused(_ int, rlm realm, v bool) {
 	paused = v
 	if v {
-		chain.Emit("NamespaceEnforcementPaused", "by", runtime.PreviousRealm().PkgPath())
+		chain.Emit("NamespaceEnforcementPaused", "by", rlm.Previous().PkgPath())
 	} else {
-		chain.Emit("NamespaceEnforcementUnpaused", "by", runtime.PreviousRealm().PkgPath())
+		chain.Emit("NamespaceEnforcementUnpaused", "by", rlm.Previous().PkgPath())
 	}
 }
 

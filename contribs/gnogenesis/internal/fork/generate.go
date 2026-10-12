@@ -2,7 +2,6 @@ package fork
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -19,16 +18,99 @@ import (
 )
 
 type generateCfg struct {
-	source          string
+	// txs source — exactly one of these must be set
+	sourceTxsRPC       string
+	sourceTxsJSONLFile string
+	sourceTxsDataDir   string
+
+	// genesis source — exactly one of these must be set
+	sourceGenesisRPC  string
+	sourceGenesisFile string
+
+	rpcWorkersPerEndpoint int
+
 	chainID         string
 	originalChainID string
 	haltHeight      int64
 	output          string
 	txsOutput       string
 	patchRealms     patchRealmList
+	patchTxs        stringList
 	migrationTxs    stringList
 	skipTxs         bool
 	noVerify        bool
+}
+
+// flagChoice pairs a CLI flag name with its current value for pickExactlyOne.
+type flagChoice struct {
+	name  string
+	value string
+}
+
+// pickExactlyOne enforces the mutex+required rule across a group of flags:
+// returns the name of the single set flag, or an error naming the offenders
+// (no flag set / multiple flags set). dimension is included verbatim in the
+// error messages.
+func pickExactlyOne(dimension string, choices []flagChoice) (string, error) {
+	var set []string
+	for _, c := range choices {
+		if c.value != "" {
+			set = append(set, c.name)
+		}
+	}
+	switch len(set) {
+	case 1:
+		return set[0], nil
+	case 0:
+		names := make([]string, len(choices))
+		for i, c := range choices {
+			names[i] = c.name
+		}
+		return "", fmt.Errorf("exactly one %s flag is required (one of %s)", dimension, strings.Join(names, ", "))
+	default:
+		return "", fmt.Errorf("%s flags are mutually exclusive (got %s)", dimension, strings.Join(set, ", "))
+	}
+}
+
+// openTxsSource validates the --source-txs-* flags (exactly one required)
+// and returns the matching TxsSource.
+func (c *generateCfg) openTxsSource() (TxsSource, error) {
+	chosen, err := pickExactlyOne("txs source", []flagChoice{
+		{"--source-txs-rpc", c.sourceTxsRPC},
+		{"--source-txs-jsonl-file", c.sourceTxsJSONLFile},
+		{"--source-txs-data-dir", c.sourceTxsDataDir},
+	})
+	if err != nil {
+		return nil, err
+	}
+	switch chosen {
+	case "--source-txs-rpc":
+		return newRPCTxsSource(c.sourceTxsRPC, c.rpcWorkersPerEndpoint)
+	case "--source-txs-jsonl-file":
+		return newJSONLFileTxsSource(c.sourceTxsJSONLFile)
+	case "--source-txs-data-dir":
+		return newDataDirTxsSource(c.sourceTxsDataDir)
+	}
+	panic("unreachable: txs source flag validated but no constructor matched")
+}
+
+// openGenesisSource validates the --source-genesis-* flags (exactly one
+// required) and returns the matching GenesisSource.
+func (c *generateCfg) openGenesisSource() (GenesisSource, error) {
+	chosen, err := pickExactlyOne("genesis source", []flagChoice{
+		{"--source-genesis-rpc", c.sourceGenesisRPC},
+		{"--source-genesis-file", c.sourceGenesisFile},
+	})
+	if err != nil {
+		return nil, err
+	}
+	switch chosen {
+	case "--source-genesis-rpc":
+		return newRPCGenesisSource(c.sourceGenesisRPC)
+	case "--source-genesis-file":
+		return newFileGenesisSource(c.sourceGenesisFile)
+	}
+	panic("unreachable: genesis source flag validated but no constructor matched")
 }
 
 // patchRealmList accepts repeated --patch-realm flags. Each value is
@@ -66,19 +148,50 @@ The source chain provides the base genesis (balances, validators, auth state)
 and the historical transaction history. Both are embedded in the new genesis
 so the new chain can replay all historical activity starting from the halt height.
 
+The source is specified across two orthogonal dimensions; pick exactly one
+flag from each:
+
+  txs source     --source-txs-rpc <url>
+                 --source-txs-jsonl-file <path>
+                 --source-txs-data-dir <dir>
+
+  genesis source --source-genesis-rpc <url>
+                 --source-genesis-file <path>
+
+Within each dimension flags are mutually exclusive; the two dimensions are
+independent — any txs source pairs with any genesis source.
+
 Examples:
 
-  # From a running or recently-halted node via RPC:
-  gnogenesis fork generate --source http://rpc.gno.land:26657 --chain-id gnoland-1
+  # Everything from one RPC:
+  gnogenesis fork generate \
+    --source-txs-rpc http://rpc.gno.land:26657 \
+    --source-genesis-rpc http://rpc.gno.land:26657 \
+    --chain-id gnoland-1
 
-  # From a local node data directory (offline, reads block store):
-  gnogenesis fork generate --source /var/lib/gnoland --chain-id gnoland-1
+  # Txs from RPC but read the (large) genesis from disk:
+  gnogenesis fork generate \
+    --source-txs-rpc http://rpc.gno.land:26657 \
+    --source-genesis-file /path/to/genesis.json \
+    --chain-id gnoland-1
 
-  # From a pre-exported tarball (genesis.json + txs.jsonl):
-  gnogenesis fork generate --source /tmp/gnoland1-export.tar.gz --chain-id gnoland-1
+  # Everything offline, from a halted gnoland data dir + a separate genesis:
+  gnogenesis fork generate \
+    --source-txs-data-dir /var/lib/gnoland \
+    --source-genesis-file /path/to/genesis.json \
+    --chain-id gnoland-1
+
+  # Reuse a pre-exported txs.jsonl + a stand-alone genesis.json:
+  gnogenesis fork generate \
+    --source-txs-jsonl-file /tmp/gnoland1-txs.jsonl \
+    --source-genesis-file /path/to/genesis.json \
+    --chain-id gnoland-1
 
   # Preview only (skip tx export — fast summary of genesis structure):
-  gnogenesis fork generate --source http://rpc.gno.land:26657 --skip-txs`,
+  gnogenesis fork generate \
+    --source-txs-rpc http://rpc.gno.land:26657 \
+    --source-genesis-rpc http://rpc.gno.land:26657 \
+    --skip-txs`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
@@ -88,7 +201,17 @@ Examples:
 }
 
 func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(&c.source, "source", "", "source: RPC URL, local data dir, or exported file (.json/.jsonl/.tar.gz)")
+	// txs source — exactly one required, mutually exclusive. RPC URLs may be
+	// comma-separated for parallel fetch / failover; the workers-per-endpoint
+	// knob applies only when --source-txs-rpc is selected.
+	fs.StringVar(&c.sourceTxsRPC, "source-txs-rpc", "", "RPC URL (or comma-separated list for failover/parallelism) to fetch historical txs from (Block + BlockResults + account-state ABCIQuery). Mutually exclusive with --source-txs-jsonl-file and --source-txs-data-dir.")
+	fs.StringVar(&c.sourceTxsJSONLFile, "source-txs-jsonl-file", "", "path to a pre-exported amino-JSONL archive of gnoland.TxWithMetadata entries (one per line). Mutually exclusive with --source-txs-rpc and --source-txs-data-dir.")
+	fs.StringVar(&c.sourceTxsDataDir, "source-txs-data-dir", "", "path to a halted gnoland data directory (expects db/{blockstore,state,gnolang}.db, PebbleDB backend). Mutually exclusive with --source-txs-rpc and --source-txs-jsonl-file.")
+	fs.IntVar(&c.rpcWorkersPerEndpoint, "rpc-workers-per-endpoint", defaultWorkersPerEndpoint,
+		"in-flight block fetches per RPC endpoint; only consulted when --source-txs-rpc is set")
+	// genesis source — exactly one required, mutually exclusive
+	fs.StringVar(&c.sourceGenesisRPC, "source-genesis-rpc", "", "RPC URL (or comma-separated list for failover) to fetch the source genesis from (/genesis endpoint). For large chains where /genesis is multi-hundred-MB, prefer --source-genesis-file against a local copy. Mutually exclusive with --source-genesis-file.")
+	fs.StringVar(&c.sourceGenesisFile, "source-genesis-file", "", "path to a local genesis.json file. Mutually exclusive with --source-genesis-rpc.")
 	fs.StringVar(&c.chainID, "chain-id", "gnoland-1", "new chain ID")
 	fs.StringVar(&c.originalChainID, "original-chain-id", "", "source chain ID for signature verification (auto-detected from source genesis if empty)")
 	fs.Int64Var(&c.haltHeight, "halt-height", 0, "block height at which source chain halted (auto-detected from source if 0)")
@@ -106,29 +229,52 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 		"Source genesis on disk is NOT modified; the patch is applied in memory "+
 		"before writing the hardfork genesis. Use this to deliver realm upgrades "+
 		"as part of the fork (e.g. adding a new .gno file to an existing realm).")
+	fs.Var(&c.patchTxs, "patch-txs", "patch historical txs in place: repeatable, PATH to a "+
+		".jsonl file of AnnotatedTx entries. Each entry is matched against the "+
+		"fetched source-tx stream by (block_height, signer_info[0].address, "+
+		"signer_info[0].sequence); the source tx body is replaced by the patch "+
+		"body, the original tx is preserved on metadata.original_tx, and "+
+		"metadata.note / metadata.source are populated from the patch. Fails "+
+		"fast on duplicate keys across files and on patch keys that match no "+
+		"source tx.")
 	fs.BoolVar(&c.skipTxs, "skip-txs", false, "skip tx export (only copy genesis structure — useful for quick preview)")
 	fs.BoolVar(&c.noVerify, "no-verify", false, "skip genesis verification after assembly")
 }
 
 func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
-	if cfg.source == "" {
-		return errors.New("--source is required (RPC URL, local data dir, or exported file)")
+	if cfg.rpcWorkersPerEndpoint < 1 {
+		return fmt.Errorf("--rpc-workers-per-endpoint must be >= 1, got %d", cfg.rpcWorkersPerEndpoint)
 	}
 
-	src, err := openSource(cfg.source)
+	txsSrc, err := cfg.openTxsSource()
 	if err != nil {
-		return fmt.Errorf("opening source %q: %w", cfg.source, err)
+		return err
 	}
-	defer src.Close()
+	defer func() {
+		if cerr := txsSrc.Close(); cerr != nil {
+			io.Printf("WARNING: closing txs source: %v\n", cerr)
+		}
+	}()
 
-	io.Printf("Source: %s (%s)\n", src.Description(), cfg.source)
+	genSrc, err := cfg.openGenesisSource()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := genSrc.Close(); cerr != nil {
+			io.Printf("WARNING: closing genesis source: %v\n", cerr)
+		}
+	}()
+
+	io.Printf("Txs source:     %s\n", txsSrc.Description())
+	io.Printf("Genesis source: %s\n", genSrc.Description())
 
 	// -------------------------------------------------------------------------
-	// Step 1: Fetch base genesis from source
+	// Step 1: Fetch base genesis from genesis source
 	// -------------------------------------------------------------------------
 	io.Println("Step 1/4: Fetching base genesis...")
 
-	baseGenDoc, err := src.FetchGenesis(ctx)
+	baseGenDoc, err := genSrc.FetchGenesis(ctx)
 	if err != nil {
 		return fmt.Errorf("fetching genesis: %w", err)
 	}
@@ -143,9 +289,9 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 		io.Printf("  Original chain ID (auto-detected): %s\n", cfg.originalChainID)
 	}
 
-	// Auto-detect halt height from source
+	// Auto-detect halt height from the txs source
 	if cfg.haltHeight == 0 {
-		h, err := src.LatestHeight(ctx)
+		h, err := txsSrc.LatestHeight(ctx)
 		if err != nil {
 			return fmt.Errorf("detecting halt height: %w", err)
 		}
@@ -163,19 +309,33 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	if !cfg.skipTxs {
 		io.Printf("Step 2/4: Fetching historical transactions (height 1..%d)...\n", cfg.haltHeight)
 
-		txs, err = src.FetchTxs(ctx, 1, cfg.haltHeight, io)
+		// Use originalChainID (not sourceChainID) for the tx fetch's sign-bytes
+		// context: orthogonal source flags let the operator point at one chain's
+		// txs and a different chain's genesis (e.g. test-13 BASE genesis + gnoland1
+		// historical txs). The txs were signed under originalChainID, so that is
+		// what bruteForceSignerSequence must verify against.
+		txs, err = txsSrc.FetchTxs(ctx, cfg.originalChainID, 1, cfg.haltHeight, io)
 		if err != nil {
 			return fmt.Errorf("fetching transactions: %w", err)
 		}
 
 		io.Printf("  Fetched %d successful transactions\n", len(txs))
 
-		// Write txs to separate file if requested
+		// Write txs to separate file if requested — pre-patch, for audit.
 		if cfg.txsOutput != "" {
 			if err := writeTxsJSONL(cfg.txsOutput, txs); err != nil {
 				return fmt.Errorf("writing txs output: %w", err)
 			}
 			io.Printf("  Txs written to: %s\n", cfg.txsOutput)
+		}
+
+		// Annotate historical txs first; --patch-txs below will override to
+		// SourcePatched on matched entries.
+		annotateSource(txs, gnoland.SourceHistorical)
+
+		// Apply --patch-txs rewrites on historical txs (in-memory only).
+		if _, err := applyPatchTxs(txs, cfg.patchTxs, io); err != nil {
+			return fmt.Errorf("--patch-txs: %w", err)
 		}
 	} else {
 		io.Println("Step 2/4: Skipping tx export (--skip-txs)")
@@ -215,10 +375,11 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	// so they go through the genesis-mode path (chain-id via PastChainIDs[0],
 	// sig verify skipped under --skip-genesis-sig-verification).
 	for _, path := range cfg.migrationTxs {
-		migTxs, err := readMigrationTxs(path)
+		migTxs, err := loadMigrationTxs(path)
 		if err != nil {
 			return fmt.Errorf("migration-tx %s: %w", path, err)
 		}
+		annotateSource(migTxs, gnoland.SourceMigration)
 		appState.Txs = append(appState.Txs, migTxs...)
 		io.Printf("  appended %d migration tx(s) from %s\n", len(migTxs), path)
 	}
@@ -229,7 +390,7 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	// -------------------------------------------------------------------------
 	io.Println("Step 4/4: Writing genesis...")
 
-	if err := writeGenesis(cfg.output, newGenDoc, appState); err != nil {
+	if err := writeGenesis(cfg.output, newGenDoc); err != nil {
 		return fmt.Errorf("writing genesis: %w", err)
 	}
 
@@ -265,7 +426,6 @@ func execGenerate(ctx context.Context, cfg *generateCfg, io commands.IO) error {
 	io.Printf("  2. Verify with other validators (share SHA-256):\n")
 	io.Printf("     sha256: $(sha256sum %s | cut -d' ' -f1)\n", cfg.output)
 
-	_ = appState // suppress unused warning (used in summary above)
 	return nil
 }
 
@@ -305,30 +465,29 @@ func buildHardforkGenesis(
 		appState.GasReplayMode = "source"
 	}
 
-	// Source chains generated before the gas-storage refactor (PR #5415)
-	// have no min_*/fixed_*_depth_100 or iter_next_cost_flat fields in
-	// vm.params. When deserialized into the post-refactor Params struct
-	// these default to 0, which fails Validate() (iter_next_cost_flat must
-	// be > 0). Populate from code defaults when every field is unset, so
-	// the resulting genesis boots on a post-refactor node without manual
-	// patching. Do not overwrite if any value is already set — an operator
-	// may have intentionally tuned these.
-	if appState.VM.Params.IterNextCostFlat == 0 &&
-		appState.VM.Params.MinGetReadDepth100 == 0 &&
-		appState.VM.Params.MinSetReadDepth100 == 0 &&
-		appState.VM.Params.MinWriteDepth100 == 0 &&
-		appState.VM.Params.FixedGetReadDepth100 == 0 &&
-		appState.VM.Params.FixedSetReadDepth100 == 0 &&
-		appState.VM.Params.FixedWriteDepth100 == 0 {
-		defaults := vm.DefaultParams()
-		appState.VM.Params.MinGetReadDepth100 = defaults.MinGetReadDepth100
-		appState.VM.Params.MinSetReadDepth100 = defaults.MinSetReadDepth100
-		appState.VM.Params.MinWriteDepth100 = defaults.MinWriteDepth100
-		appState.VM.Params.FixedGetReadDepth100 = defaults.FixedGetReadDepth100
-		appState.VM.Params.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
-		appState.VM.Params.FixedWriteDepth100 = defaults.FixedWriteDepth100
-		appState.VM.Params.IterNextCostFlat = defaults.IterNextCostFlat
+	// Rewrite untuned depth/iteration gas params to the current defaults.
+	// A source genesis matching an era fingerprint EXACTLY is untuned by
+	// definition; any deviation means an operator tuned the values, which
+	// carry over verbatim. See untunedDepthFingerprints for the eras.
+	for _, fp := range untunedDepthFingerprints {
+		if depthParamsMatch(appState.VM.Params, fp) {
+			applyDefaultDepthParams(&appState.VM.Params)
+			break
+		}
 	}
+
+	// preprocess_gas_per_byte (PR #5892) is not covered by the depth-param
+	// legacy fill above (fingerprint-matched), so a source chain that
+	// predates #5892 leaves it 0 — which Validate() rejects (must be > 0).
+	// Fill it independently so the emitted genesis is self-contained
+	// rather than relying on the node's applyLegacyDefaults tolerance.
+	if appState.VM.Params.PreprocessGasPerByte == 0 {
+		appState.VM.Params.PreprocessGasPerByte = vm.DefaultParams().PreprocessGasPerByte
+	}
+
+	// Tag base-genesis txs (SourceBase) before the historical stream is
+	// appended; historical and patched txs already carry their own Source.
+	annotateSource(appState.Txs, gnoland.SourceBase)
 
 	// Append historical txs after existing genesis-mode txs
 	// Genesis-mode txs (no metadata or BlockHeight==0): package deploys, setup
@@ -344,42 +503,24 @@ func buildHardforkGenesis(
 	return &newGenDoc, &appState, nil
 }
 
-// writeGenesis serializes and writes the genesis to a file.
-func writeGenesis(path string, genDoc *bftypes.GenesisDoc, _ *gnoland.GnoGenesisState) error {
+// writeGenesis serializes and writes the genesis to disk atomically: write
+// to <path>.tmp first, then rename. A mid-write crash leaves the .tmp file
+// behind but never a half-written destination file (which the subsequent
+// verify step would read as garbage).
+func writeGenesis(path string, genDoc *bftypes.GenesisDoc) error {
 	data, err := amino.MarshalJSONIndent(genDoc, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshalling genesis: %w", err)
 	}
-	return os.WriteFile(path, data, 0o644)
-}
-
-// readMigrationTxs reads a .jsonl file of gnoland.TxWithMetadata entries.
-// BlockHeight is forced to 0 so each line is treated as a genesis-mode tx
-// when replayed (uses PastChainIDs[0] for chain-id; sig verify skipped under
-// --skip-genesis-sig-verification). Blank lines and # comments are ignored.
-func readMigrationTxs(path string) ([]gnoland.TxWithMetadata, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", tmp, err)
 	}
-	lines := strings.Split(string(data), "\n")
-	out := make([]gnoland.TxWithMetadata, 0, len(lines))
-	for i, line := range lines {
-		trim := strings.TrimSpace(line)
-		if trim == "" || strings.HasPrefix(trim, "#") {
-			continue
-		}
-		var tx gnoland.TxWithMetadata
-		if err := amino.UnmarshalJSON([]byte(line), &tx); err != nil {
-			return nil, fmt.Errorf("line %d: %w", i+1, err)
-		}
-		if tx.Metadata == nil {
-			tx.Metadata = &gnoland.GnoTxMetadata{}
-		}
-		tx.Metadata.BlockHeight = 0 // always genesis-mode
-		out = append(out, tx)
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("renaming %s -> %s: %w", tmp, path, err)
 	}
-	return out, nil
+	return nil
 }
 
 // writeTxsJSONL writes transactions to a file, one amino JSON per line.
@@ -522,10 +663,10 @@ func loadGnoPackageFiles(srcDir string) ([]*std.MemFile, error) {
 // file. Returns "" if not found. (Intentionally lightweight — avoids pulling
 // in the gnovm parser.)
 func gnoPackageNameFromFileBody(_ string, body string) string {
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		l := strings.TrimSpace(line)
-		if strings.HasPrefix(l, "package ") {
-			rest := strings.TrimPrefix(l, "package ")
+		if after, ok := strings.CutPrefix(l, "package "); ok {
+			rest := after
 			if i := strings.IndexAny(rest, " \t/"); i >= 0 {
 				rest = rest[:i]
 			}
@@ -533,4 +674,53 @@ func gnoPackageNameFromFileBody(_ string, body string) string {
 		}
 	}
 	return ""
+}
+
+// untunedDepthFingerprints are the exact depth/iteration gas params (only
+// those seven fields are compared) that identify an UNTUNED source genesis of
+// each historical era. A new era fingerprint must be appended whenever the
+// vm defaults change (see the note on the defaults in
+// gno.land/pkg/sdk/vm/params.go).
+var untunedDepthFingerprints = []vm.Params{
+	// Pre-#5415 (gas-storage refactor): the fields did not exist; they
+	// deserialize to zero, which fails Validate() (iter_next_cost_flat
+	// must be > 0) without the rewrite.
+	{},
+	// Post-#5415, pre-bptree-mount: IAVL-era untuned defaults. Left as-is
+	// on a bptree+fast-index fork they are simply wrong prices (GET 3×
+	// overcharged, writes missing the fast-index cost).
+	{
+		MinGetReadDepth100:   300,
+		MinSetReadDepth100:   200,
+		MinWriteDepth100:     440,
+		FixedGetReadDepth100: 300,
+		FixedSetReadDepth100: 200,
+		FixedWriteDepth100:   440,
+		IterNextCostFlat:     1_000,
+	},
+}
+
+// depthParamsMatch reports whether p's seven depth/iteration gas params equal
+// fp's exactly (all other Params fields are ignored).
+func depthParamsMatch(p, fp vm.Params) bool {
+	return p.MinGetReadDepth100 == fp.MinGetReadDepth100 &&
+		p.MinSetReadDepth100 == fp.MinSetReadDepth100 &&
+		p.MinWriteDepth100 == fp.MinWriteDepth100 &&
+		p.FixedGetReadDepth100 == fp.FixedGetReadDepth100 &&
+		p.FixedSetReadDepth100 == fp.FixedSetReadDepth100 &&
+		p.FixedWriteDepth100 == fp.FixedWriteDepth100 &&
+		p.IterNextCostFlat == fp.IterNextCostFlat
+}
+
+// applyDefaultDepthParams copies the current default depth/iteration gas
+// params into p.
+func applyDefaultDepthParams(p *vm.Params) {
+	defaults := vm.DefaultParams()
+	p.MinGetReadDepth100 = defaults.MinGetReadDepth100
+	p.MinSetReadDepth100 = defaults.MinSetReadDepth100
+	p.MinWriteDepth100 = defaults.MinWriteDepth100
+	p.FixedGetReadDepth100 = defaults.FixedGetReadDepth100
+	p.FixedSetReadDepth100 = defaults.FixedSetReadDepth100
+	p.FixedWriteDepth100 = defaults.FixedWriteDepth100
+	p.IterNextCostFlat = defaults.IterNextCostFlat
 }

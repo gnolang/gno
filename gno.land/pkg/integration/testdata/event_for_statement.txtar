@@ -57,7 +57,7 @@ func Bar(cur realm) {
 	a := &contractA{}
 	b := &contractB{}
 	for i := 0; i < 2; i++ {
-		a.Foo(cross, func() {
+		a.Foo(cross(cur), func() {
 			b.subBar()
 		})
 	}

@@ -30,12 +30,12 @@ cat >"$TMPDIR/rm_validator.gno" <<GOEOF
 package main
 
 import (
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 	"gno.land/r/gov/dao"
 	valr "gno.land/r/sys/validators/v2"
 )
 
-func main() {
+func main(cur realm) {
 	r := valr.NewPropRequest(
 		func() []validators.Validator {
 			return []validators.Validator{
@@ -48,9 +48,9 @@ func main() {
 		"Remove validator ${ADDR}",
 		"Remove validator ${ADDR} from the validator set",
 	)
-	pid := dao.MustCreateProposal(cross, r)
-	dao.MustVoteOnProposal(cross, dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
-	dao.ExecuteProposal(cross, pid)
+	pid := dao.MustCreateProposal(cross(cur), r)
+	dao.MustVoteOnProposal(cross(cur), dao.VoteRequest{Option: dao.YesVote, ProposalID: pid})
+	dao.ExecuteProposal(cross(cur), pid)
 }
 GOEOF
 

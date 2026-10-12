@@ -162,6 +162,23 @@ func TestStaticAnalysisShouldPanic(t *testing.T) {
 				}
 		`,
 		},
+		{
+			name: "Test Case 8",
+			code: `package test
+				func main() {
+					nonLastDefault(1)
+				}
+
+				func nonLastDefault(x int) int {
+					switch x {
+					default:
+						println("no return")
+					case 1:
+						return 1
+					}
+				}
+		`,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

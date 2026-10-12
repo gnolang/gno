@@ -115,13 +115,13 @@ this Constitution for Gno.land.
 
 At Gno.land Genesis there will be 1.333 billion $GNOT tokens.
 
- * Airdrop1:               350M - from partial Cosmos governance snapshot 3 years ago
- * Airdrop2:               231M - from recent AtomOne snapshot prior to launch
- * Core Treasury:           40M - for paying for core development
- * Ecosystem Treasury:      60M - for prior and future Gno.land ecosystem development
- * Validator Treasury:      20M - for paying validators 
- * Investors:              300M - for past and future investors
- * NT,LLC:                 332M - for use at NT,LLC discretion
+ * Airdrop1:               350M (26.26%) - from partial Cosmos governance snapshot 3 years ago
+ * Airdrop2:               231M (17.33%) - from recent AtomOne snapshot prior to launch
+ * Core Treasury:           40M  (3.00%) - for paying for core development
+ * Ecosystem Treasury:      60M  (4.50%) - for prior and future Gno.land ecosystem development
+ * Validator Treasury:      20M  (1.50%) - for paying validators 
+ * Investors:              300M (22.51%) - for past and future investors
+ * NT,LLC:                 332M (24.91%) - for use at NT,LLC discretion
 
 $GNOT will not be transferrable initially except for whitelisted addresses.
 Whitelisted addresses include "Ecosystem" and "Investors" funds and any
@@ -129,9 +129,13 @@ additional addresses needed for the operation of the chain, and funding needs or
 payment of investors. Whitelisted funds remain subject to the vesting schedule
 below.
 
-All Genesis $GNOT allocations vest on a common schedule: 7% released on the day
-$GNOT becomes transferrable (aka the mainnet), 7% each subsequent month, and 9%
-in the final month (fully vested 13 months after the mainnet).
+All Genesis $GNOT allocations vest on a common schedule: 4% unlocked on the day
+$GNOT becomes transferrable (aka the mainnet), and a 4% unlock every subsequent
+month for 24 months (fully vested 24 months after the mainnet).
+
+As an exception, 150,000,000 tokens from the Investors allocation are unlocked
+at the mainnet, with the remaining Investors tokens subject to the same vesting
+schedule.
 
 GovDAO is responsible for distributing the $GNOT of the Ecosystem Treasury
 allocation to prior and future Gno.land ecosystem contributors (as well as
@@ -174,7 +178,7 @@ token.
    will require a bond deposit of $GNOT.
  * Every transaction that ends up freeing up persistent state space will
    receive a refund of $GNOT.
- * One billion $GNOT corresponds to 10TB of persistent state space.
+ * 1.333 billion $GNOT corresponds to 13.33TB of persistent state space.
  * The $GNOT will not inflate, thus the total created $GNOT
    will never exceed 1.333 billion $GNOT.
  * The $GNOT Storage Deposit Price (per byte) will never increase.
@@ -323,9 +327,10 @@ Documents and Gno software not already paid for by other means. Recognizing
 and rewarding contributors is essential to the long-term health of Gno.land
 and its ecosystem.
 
-At most 1/4 of the GovDAO 11.9% genesis allocation may be distributed to prior
-contributors by GovDAO Supermajority Decision. Present GovDAO members are not
-eligible for any allocation from the Ecosystem Treasury genesis allocation.
+At most 1/4 of the GovDAO-managed Ecosystem Treasury 4.50% (60M) genesis
+allocation may be distributed to prior contributors by GovDAO Supermajority
+Decision. Present GovDAO members are not eligible for any allocation from the
+Ecosystem Treasury genesis allocation.
 
 All funding decisions from the Ecosystem Treasury require a Supermajority
 Decision by GovDAO. 
@@ -1276,9 +1281,8 @@ and the following:
    the beginning of each month.
 
  * In no case may the total amount of $GNOT sold for all treasuries per month
-   for diversification purposes exceed 50% of the average of ($GNOT inflation
-   rate, and the past month's transaction fee revenue), with priority given to
-   ValTreasury, then to CoreTreasury.
+   for diversification purposes exceed 50% of the past month's transaction fee
+   revenue, with priority given to ValTreasury, then to CoreTreasury.
 
  * All trades for diversification purposes must be performed by audited and
    approved Gno logic for Gno AMM contracts running on Gno.land. No person or
@@ -1528,7 +1532,9 @@ following rules apply for Council membership election:
   vote.
 
 Each DAO may have an associated crypto address which can hold any number of
-tokens.  
+tokens. (On gno.land this is realized by sub-realm identities: the hosting
+realm mints `cur.Sub(<dao-id>)`, giving each DAO its own chain-derived
+address — see `docs/resources/gno-interrealm-v2.md` §5.5.)  
 
 DAOs may operate with logic on Gno.land, or, represented as a m-of-n
 multisig account on Gno.land where the signers are each members of the

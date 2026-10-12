@@ -1,0 +1,21 @@
+// MARKDOWNFUNC: TableCell
+// CONTEXT: | %s | b |\n|---|---|\n| c | d |
+-- input.md --
+evil|cell|injection
+-- output.md --
+evil\|cell\|injection
+-- output.html --
+<table>
+<thead>
+<tr>
+<th>evil|cell|injection</th>
+<th>b</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c</td>
+<td>d</td>
+</tr>
+</tbody>
+</table>

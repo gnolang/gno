@@ -1,0 +1,368 @@
+# Wide-embedding interface satisfaction during preprocess type-checking.
+# A 32-method interface, a struct S embedding 32 types (each providing one
+# method), and 100 `var xN I = S{}` assignments inside Check(). Each assignment
+# runs the checkImplementedBy walk — 32 types expanded, 32×32 entries scanned,
+# 32 one-hop trails ≈ 36K gas of walk charge — so the 100 assignments add ≈3.6M
+# gas to the deploy (≈14.2M with the walk charge, ≈10.6M without). A 12M budget
+# therefore fails only because the walk is billed.
+
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/p1 -pkgpath gno.land/r/test/p1 -gas-fee 1000000ugnot -gas-wanted 12000000 -chainid tendermint_test test1
+stderr 'Data: out of gas error'
+
+# With a budget that covers the walk the same package deploys and runs.
+gnokey maketx addpkg -pkgdir $WORK/p1 -pkgpath gno.land/r/test/p1 -gas-fee 1000000ugnot -gas-wanted 80000000 -chainid tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/test/p1.Check()"
+stdout 'true bool'
+
+-- p1/gnomod.toml --
+module = "gno.land/r/test/p1"
+gno = "0.9"
+
+-- p1/p1.gno --
+package p1
+
+type I interface {
+	M0()
+	M1()
+	M2()
+	M3()
+	M4()
+	M5()
+	M6()
+	M7()
+	M8()
+	M9()
+	M10()
+	M11()
+	M12()
+	M13()
+	M14()
+	M15()
+	M16()
+	M17()
+	M18()
+	M19()
+	M20()
+	M21()
+	M22()
+	M23()
+	M24()
+	M25()
+	M26()
+	M27()
+	M28()
+	M29()
+	M30()
+	M31()
+}
+
+type T0 struct{}
+func (T0) M0() {}
+type T1 struct{}
+func (T1) M1() {}
+type T2 struct{}
+func (T2) M2() {}
+type T3 struct{}
+func (T3) M3() {}
+type T4 struct{}
+func (T4) M4() {}
+type T5 struct{}
+func (T5) M5() {}
+type T6 struct{}
+func (T6) M6() {}
+type T7 struct{}
+func (T7) M7() {}
+type T8 struct{}
+func (T8) M8() {}
+type T9 struct{}
+func (T9) M9() {}
+type T10 struct{}
+func (T10) M10() {}
+type T11 struct{}
+func (T11) M11() {}
+type T12 struct{}
+func (T12) M12() {}
+type T13 struct{}
+func (T13) M13() {}
+type T14 struct{}
+func (T14) M14() {}
+type T15 struct{}
+func (T15) M15() {}
+type T16 struct{}
+func (T16) M16() {}
+type T17 struct{}
+func (T17) M17() {}
+type T18 struct{}
+func (T18) M18() {}
+type T19 struct{}
+func (T19) M19() {}
+type T20 struct{}
+func (T20) M20() {}
+type T21 struct{}
+func (T21) M21() {}
+type T22 struct{}
+func (T22) M22() {}
+type T23 struct{}
+func (T23) M23() {}
+type T24 struct{}
+func (T24) M24() {}
+type T25 struct{}
+func (T25) M25() {}
+type T26 struct{}
+func (T26) M26() {}
+type T27 struct{}
+func (T27) M27() {}
+type T28 struct{}
+func (T28) M28() {}
+type T29 struct{}
+func (T29) M29() {}
+type T30 struct{}
+func (T30) M30() {}
+type T31 struct{}
+func (T31) M31() {}
+
+type S struct {
+	T0
+	T1
+	T2
+	T3
+	T4
+	T5
+	T6
+	T7
+	T8
+	T9
+	T10
+	T11
+	T12
+	T13
+	T14
+	T15
+	T16
+	T17
+	T18
+	T19
+	T20
+	T21
+	T22
+	T23
+	T24
+	T25
+	T26
+	T27
+	T28
+	T29
+	T30
+	T31
+}
+
+// Check performs 100 interface-satisfaction checks; they are type-checked
+// (and their embedding walks billed) when the package is deployed.
+func Check() bool {
+	var x0 I = S{}
+	_ = x0
+	var x1 I = S{}
+	_ = x1
+	var x2 I = S{}
+	_ = x2
+	var x3 I = S{}
+	_ = x3
+	var x4 I = S{}
+	_ = x4
+	var x5 I = S{}
+	_ = x5
+	var x6 I = S{}
+	_ = x6
+	var x7 I = S{}
+	_ = x7
+	var x8 I = S{}
+	_ = x8
+	var x9 I = S{}
+	_ = x9
+	var x10 I = S{}
+	_ = x10
+	var x11 I = S{}
+	_ = x11
+	var x12 I = S{}
+	_ = x12
+	var x13 I = S{}
+	_ = x13
+	var x14 I = S{}
+	_ = x14
+	var x15 I = S{}
+	_ = x15
+	var x16 I = S{}
+	_ = x16
+	var x17 I = S{}
+	_ = x17
+	var x18 I = S{}
+	_ = x18
+	var x19 I = S{}
+	_ = x19
+	var x20 I = S{}
+	_ = x20
+	var x21 I = S{}
+	_ = x21
+	var x22 I = S{}
+	_ = x22
+	var x23 I = S{}
+	_ = x23
+	var x24 I = S{}
+	_ = x24
+	var x25 I = S{}
+	_ = x25
+	var x26 I = S{}
+	_ = x26
+	var x27 I = S{}
+	_ = x27
+	var x28 I = S{}
+	_ = x28
+	var x29 I = S{}
+	_ = x29
+	var x30 I = S{}
+	_ = x30
+	var x31 I = S{}
+	_ = x31
+	var x32 I = S{}
+	_ = x32
+	var x33 I = S{}
+	_ = x33
+	var x34 I = S{}
+	_ = x34
+	var x35 I = S{}
+	_ = x35
+	var x36 I = S{}
+	_ = x36
+	var x37 I = S{}
+	_ = x37
+	var x38 I = S{}
+	_ = x38
+	var x39 I = S{}
+	_ = x39
+	var x40 I = S{}
+	_ = x40
+	var x41 I = S{}
+	_ = x41
+	var x42 I = S{}
+	_ = x42
+	var x43 I = S{}
+	_ = x43
+	var x44 I = S{}
+	_ = x44
+	var x45 I = S{}
+	_ = x45
+	var x46 I = S{}
+	_ = x46
+	var x47 I = S{}
+	_ = x47
+	var x48 I = S{}
+	_ = x48
+	var x49 I = S{}
+	_ = x49
+	var x50 I = S{}
+	_ = x50
+	var x51 I = S{}
+	_ = x51
+	var x52 I = S{}
+	_ = x52
+	var x53 I = S{}
+	_ = x53
+	var x54 I = S{}
+	_ = x54
+	var x55 I = S{}
+	_ = x55
+	var x56 I = S{}
+	_ = x56
+	var x57 I = S{}
+	_ = x57
+	var x58 I = S{}
+	_ = x58
+	var x59 I = S{}
+	_ = x59
+	var x60 I = S{}
+	_ = x60
+	var x61 I = S{}
+	_ = x61
+	var x62 I = S{}
+	_ = x62
+	var x63 I = S{}
+	_ = x63
+	var x64 I = S{}
+	_ = x64
+	var x65 I = S{}
+	_ = x65
+	var x66 I = S{}
+	_ = x66
+	var x67 I = S{}
+	_ = x67
+	var x68 I = S{}
+	_ = x68
+	var x69 I = S{}
+	_ = x69
+	var x70 I = S{}
+	_ = x70
+	var x71 I = S{}
+	_ = x71
+	var x72 I = S{}
+	_ = x72
+	var x73 I = S{}
+	_ = x73
+	var x74 I = S{}
+	_ = x74
+	var x75 I = S{}
+	_ = x75
+	var x76 I = S{}
+	_ = x76
+	var x77 I = S{}
+	_ = x77
+	var x78 I = S{}
+	_ = x78
+	var x79 I = S{}
+	_ = x79
+	var x80 I = S{}
+	_ = x80
+	var x81 I = S{}
+	_ = x81
+	var x82 I = S{}
+	_ = x82
+	var x83 I = S{}
+	_ = x83
+	var x84 I = S{}
+	_ = x84
+	var x85 I = S{}
+	_ = x85
+	var x86 I = S{}
+	_ = x86
+	var x87 I = S{}
+	_ = x87
+	var x88 I = S{}
+	_ = x88
+	var x89 I = S{}
+	_ = x89
+	var x90 I = S{}
+	_ = x90
+	var x91 I = S{}
+	_ = x91
+	var x92 I = S{}
+	_ = x92
+	var x93 I = S{}
+	_ = x93
+	var x94 I = S{}
+	_ = x94
+	var x95 I = S{}
+	_ = x95
+	var x96 I = S{}
+	_ = x96
+	var x97 I = S{}
+	_ = x97
+	var x98 I = S{}
+	_ = x98
+	var x99 I = S{}
+	_ = x99
+	return true
+}
+

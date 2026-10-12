@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/gnops/valopers_test
+// PKGPATH: gno.land/r/gnops/valopers/filetests/z_1
 // SEND: 20000000ugnot
 
-package valopers_test
+package z_1
 
 import (
 	"testing"
@@ -20,12 +20,12 @@ const (
 	validPubKey      = "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqwpdwpd0f9fvqla089ndw5g9hcsufad77fml2vlu73fk8q8sh8v72cza5p"
 )
 
-func init() {
+func init(cur realm) {
 	// OriginCaller must equal the operator address (post-genesis squat guard).
 	testing.SetOriginCaller(validAddress)
 
 	// Register a validator and add the proposal
-	valopers.Register(cross, validMoniker, validDescription, validServerType, validAddress, validPubKey)
+	valopers.Register(cross(cur), validMoniker, validDescription, validServerType, validAddress, validPubKey)
 }
 
 func main() {
@@ -64,11 +64,13 @@ func main() {
 //     - **on-prem**: For validators running on on-premises infrastructure
 //     - **data-center**: For validators running in dedicated data centers
 //
-// - **Validator Address**
-//   - Your validator node's address
+// - **Operator Address**
+//   - The `g1...` address of your operator account (from your `gnokey` keyring)
+//   - **Must be controlled by the signer** of this transaction — the realm rejects the call if the signer doesn't control that address
 //
-// - **Validator Public Key**
-//   - Your validator node's public key
+// - **Validator Consensus Public Key**
+//   - Your validator node's consensus public key, in the `gpub1...` format
+//   - Retrieve it by running: `gnoland secrets get validator_key`
 //
 // ### ✍️ Required Information for the Description
 //
@@ -101,7 +103,7 @@ func main() {
 //
 // 🚀 **Register now and become a part of gno.land’s validator ecosystem!**
 //
-// Read more: [How to become a testnet validator](https://gnops.io/articles/guides/become-testnet-validator/) <!-- XXX: replace with a r/gnops/blog:xxx link -->
+// Read more: [How to become a validator](https://github.com/gnolang/gno/tree/master/gno.land/cmd/gnoland#become-a-validator)
 //
 // Disclaimer: Please note, registering your validator profile and/or validating on testnets does not guarantee a validator slot on the gno.land beta mainnet. However, active participation and contributions to testnets will help establish credibility and may improve your chances for future validator acceptance. The initial validator amount and valset will ultimately be selected through GovDAO governance proposals and acceptance.
 //

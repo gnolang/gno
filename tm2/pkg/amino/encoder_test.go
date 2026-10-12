@@ -26,7 +26,6 @@ func TestUvarintSize(t *testing.T) {
 		{"64 bits", 1 << 63, 10},
 	}
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

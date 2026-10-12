@@ -24,10 +24,13 @@ type SourceData struct {
 	FileSource   Component
 }
 
-// WrappedSource returns a Component: raw for README.md, or code_wrapper otherwise.
+// WrappedSource wraps the rendered file content in an element carrying the
+// copy target. README.md is rendered markdown (not code), so it uses a plain
+// wrapper; every other file uses the code frame. Both expose data-copy-target
+// so the header Copy button has something to read.
 func (d SourceData) WrappedSource() Component {
 	if d.FileName == ReadmeFileName {
-		return d.FileSource
+		return NewTemplateComponent("ui/readme_wrapper", d.FileSource)
 	}
 	return NewTemplateComponent("ui/code_wrapper", d.FileSource)
 }
@@ -116,5 +119,7 @@ func SourceView(data SourceData) *View {
 		FileDownload: data.FileDownload,
 	}
 
-	return NewTemplateView(SourceViewType, "renderSource", viewData)
+	view := NewTemplateView(SourceViewType, "renderSource", viewData)
+	view.SkipTargetInBody = true // on the content header
+	return view
 }

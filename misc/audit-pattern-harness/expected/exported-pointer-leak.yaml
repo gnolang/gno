@@ -1,0 +1,12 @@
+id: exported-pointer-leak
+title: Exported pointer exposes mutable state
+rule: exported_pointer_leak
+fixtures:
+  - name: vulnerable
+    path: ../fixtures/exported-pointer-leak/vulnerable
+    want_gno_test: pass
+    want_pattern_hits: 2
+  - name: fixed
+    path: ../fixtures/exported-pointer-leak/fixed
+    want_gno_test: pass
+    want_pattern_hits: 0

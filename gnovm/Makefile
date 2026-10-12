@@ -33,7 +33,7 @@ GOBUILD_FLAGS ?= -ldflags "-X github.com/gnolang/gno/tm2/pkg/version.Version=$(V
 GOTEST_COVER_PROFILE ?= cmd-profile.out
 
 # user for gno version [branch].[N]+[hash]
-VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
+VERSION ?= $(shell git describe --tags --exact-match --match 'v*' 2>/dev/null || echo "$(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)")
 
 ########################################
 # Dev tools
@@ -58,7 +58,7 @@ lint:
 .PHONY: fmt
 fmt:
 	go fmt ./...
-	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/...
+	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/... ./tests/files/...
 	$(rundep) golang.org/x/tools/cmd/goimports -w .
 
 ########################################

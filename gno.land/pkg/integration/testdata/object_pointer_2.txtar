@@ -46,7 +46,7 @@ func SaveObject(cur realm) {
 	ptr := &PkgObject{
 		value: "A",
 	}
-	ext_realm.SetObject(cross, ptr) // GetPackage, cache will be cleared before next tx.
+	ext_realm.SetObject(cross(cur), ptr) // GetPackage, cache will be cleared before next tx.
 	callerPtr = ptr
 }
 

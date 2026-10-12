@@ -29,8 +29,8 @@ func IsNameTaken(name string) bool {
 // through ProposeRegisterUser/ProposeUpdateName) overwrites a prior
 // canonical entry, this returns the most-recently-written original.
 func IsCanonicalTaken(name string) (existing string, taken bool) {
-	v, ok := canonicalStore.Get(Canonicalize(name))
-	if !ok {
+	v := canonicalStore.Get(Canonicalize(name))
+	if v == nil {
 		return "", false
 	}
 	return v.(string), true

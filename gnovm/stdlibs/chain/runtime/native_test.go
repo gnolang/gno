@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs/chain/runtime/unsafe"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -196,7 +197,7 @@ func TestPreviousRealmIsOrigin(t *testing.T) {
 			}()
 			assert := assert.New(t)
 
-			addr, pkgPath := X_getRealm(tt.machine, 1)
+			addr, pkgPath := unsafe.X_getRealm(tt.machine, 1)
 			isOrigin := isOriginCall(tt.machine)
 
 			assert.Equal(string(tt.expectedAddr), addr)

@@ -25,7 +25,6 @@ func TestValidateGasReplayMode(t *testing.T) {
 		{"STRICT", true}, // case-sensitive
 		{"garbage", true},
 	} {
-		tc := tc
 		t.Run(tc.mode, func(t *testing.T) {
 			t.Parallel()
 			err := validateGasReplayMode(tc.mode)
