@@ -131,22 +131,20 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 	// Every build that is not a release compiles in a version that must not
 	// parse, or it would satisfy a governance halt_min_version — the goreleaser
-	// nightlies once shipped v0.0.0, which does. Three files compute that
-	// fallback; this pins them to one shell expression and checks the result.
+	// nightlies once shipped v0.0.0, which does. Two files compute that
+	// fallback; this pins them to one expression and checks the result.
 	t.Run("off-tag builds agree on one unparseable shape", func(t *testing.T) {
 		t.Parallel()
 
 		const (
 			makefile   = "gno.land/Makefile"
-			docker     = ".github/workflows/release-docker.yml"
 			nightly    = ".github/workflows/release-goreleaser.yml"
 			goreleaser = ".github/goreleaser.yaml"
-			// What the two workflows evaluate when no v* tag matches.
+			// What the nightly workflow evaluates.
 			shellExpr = `${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)`
 			// The same thing in make syntax.
 			makeExpr = `$(or $(shell git branch --show-current),HEAD).$(shell git rev-list --count HEAD)+$(shell git rev-parse --short HEAD)`
 		)
-		assert.Contains(t, repoFile(t, docker), `echo "`+shellExpr+`"`, "%s computes a different fallback", docker)
 		assert.Contains(t, repoFile(t, nightly), `echo "version=`+shellExpr+`"`, "%s computes a different fallback", nightly)
 		assert.Contains(t, repoFile(t, makefile), makeExpr, "%s computes a different fallback", makefile)
 
@@ -163,6 +161,22 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			_, parses := parseReleaseVersion(v)
 			assert.False(t, parses, "%q must not satisfy a halt_min_version", v)
 		}
+	})
+
+	// The image workflow runs on v* tag pushes only and stamps the tag that
+	// triggered it verbatim, as release-chain-tag.yml does. Not git describe:
+	// a final release is tagged on its last candidate's commit, describe
+	// answers with whichever of the two tags is newer, and a re-run of the
+	// candidate's build would then compile the final's version into an rc
+	// image — one that satisfies the final's halt_min_version.
+	t.Run("release images carry the tag that triggered them", func(t *testing.T) {
+		t.Parallel()
+
+		const docker = ".github/workflows/release-docker.yml"
+		yml := repoFile(t, docker)
+		assert.Contains(t, yml, `echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"`,
+			"%s must stamp the tag that triggered the run", docker)
+		assert.NotContains(t, yml, "git describe", "%s must not derive the version from git describe", docker)
 	})
 
 	// The upgrade ledger records versions the node has to order against

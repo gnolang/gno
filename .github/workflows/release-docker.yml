@@ -51,17 +51,14 @@ jobs:
       - name: Compute build version
         id: build_version
         run: |
-          # Prefer the release tag: a launch commit carries both chain/<name>
-          # and v<X.Y.Z>, and only the latter is a version the node can order.
-          # The branch fallback deliberately produces something unparseable —
-          # a branch build must not satisfy an upgrade gate.
-          BRANCH=$(git branch --show-current)
-          V=$(git describe --tags --exact-match --match 'v*' 2>/dev/null \
-              || git describe --tags --exact-match 2>/dev/null \
-              || echo "${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
-          echo "version=$V" >> "$GITHUB_OUTPUT"
-          # The sha of what is built, read from the checkout rather than from
-          # the event, so the sha-<commit> image tag names the built tree.
+          # The tag that triggered the run, verbatim, as release-chain-tag.yml
+          # stamps it. Not derived from the checkout: a final release is tagged
+          # on its last candidate's commit, and asking git which tag the commit
+          # carries answers with whichever of the two is newer, so a re-run of
+          # the candidate's build would stamp the final's version into an rc
+          # image. Pinned by gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser.
+          echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          # The built commit's short sha, for the sha-<commit> image tag.
           echo "short_sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
           # `latest` may only move forward. Gate it on being the highest final
           # v* tag, not merely a final one: a backport cut after a newer line
