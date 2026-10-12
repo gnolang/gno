@@ -28,8 +28,9 @@ Verify (`go test ./gnovm/pkg/gnolang -run TestFiles/gocorpus`) runs Gno only
 and compares with the pinned Go side; it never shells out to `go`. One
 dependency on the Go release remains: the go/types guard runs in-process, so
 the *set of lines* in `GoTypeCheckError:` / `GoTypesOnly:` follows the Go that
-built the test binary. Run with `GOTOOLCHAIN=$(cat VERSION)` (what
-`make -C gnovm _test.filetest` does for every filetest) to match the goldens.
+built the test binary. Run with `GOTOOLCHAIN=$(cat VERSION)` to match the
+goldens; `make -C gnovm _test.filetest` does not pin the toolchain unless
+`go.mod` carries a `toolchain` line, so set it explicitly.
 
 ## Re-sync
 

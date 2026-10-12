@@ -70,13 +70,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	if err != nil {
 		return "", 0, nil, fmt.Errorf("error parsing directives: %w", err)
 	}
+	isGoFile := strings.HasSuffix(fname, ".go")
 
 	// Unsupported short-circuit: declared via a top-level
 	// `// Unsupported: <reason>` directive. Surfaces as a SkipError
 	// the walker turns into t.Skip. Checked before any dispatch /
 	// rescue / machine construction so unsupported files cost nothing.
-	if u := dirs.First(DirectiveUnsupported); u != nil {
-		if opts.Sync && strings.HasSuffix(fname, ".go") {
+	// Corpus vocabulary only: in a .gno file the line stays a comment.
+	if u := dirs.First(DirectiveUnsupported); isGoFile && u != nil {
+		if opts.Sync {
 			// Normalise: tag the reason, drop goldens from before the
 			// file was marked (they are never read again).
 			if nc := writeUnsupportedDirective(source, u.Content); nc != string(source) {
@@ -86,7 +88,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		return "", 0, diffs, &SkipError{Reason: u.Content}
 	}
 	// One verdict per .go corpus file; sync writes it, verify demands it.
-	if strings.HasSuffix(fname, ".go") && !opts.Sync {
+	if isGoFile && !opts.Sync {
 		var found []string
 		for _, n := range verdictDirectives {
 			if dirs.First(n) != nil {
@@ -116,7 +118,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// without a golden (first sync) and the same file with the golden
 	// stripped (later verify) must be byte-identical, or the synthetic
 	// `func main(){}` the rescue appends lands on a different line.
-	isGoFile := strings.HasSuffix(fname, ".go")
 	if isGoFile {
 		source = []byte(stripTrailingGoldenRegion(string(source)))
 		source = append(bytes.TrimRight(source, "\n"), '\n')
@@ -1248,11 +1249,15 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 		// Rebuild the region: drop the old golden directives, re-append
 		// the freshly-computed ones, then the verdict if the sides
 		// differ (preserving the human's tag + reason).
-		out := removeDirectives(dirs,
+		stale := []string{
 			DirectiveGnoOutput, DirectiveGnoError, DirectiveGoOutput,
 			DirectiveKnownIssue, DirectiveKnownDivergence,
-			DirectiveGoTypeCheckError, DirectiveTypeCheckError, DirectiveClean)
-		out = append(out, want...)
+			DirectiveGoTypeCheckError, DirectiveClean,
+		}
+		if isGoFile { // a .gno file keeps its native TypeCheckError golden
+			stale = append(stale, DirectiveTypeCheckError)
+		}
+		out := append(removeDirectives(dirs, stale...), want...)
 		if diverges {
 			name, reason := runVerdict(dirs, gnoErr != "")
 			out = append(out, Directive{Name: name, Content: reason, Complete: true})
@@ -1749,7 +1754,11 @@ const (
 // verdictDirectives are the four mutually exclusive per-file verdicts.
 var verdictDirectives = []string{DirectiveClean, DirectiveUnsupported, DirectiveKnownIssue, DirectiveKnownDivergence}
 
-var allDirectives = []string{
+// nativeDirectives are the .gno filetest directives; corpusDirectives
+// are the .go corpus additions. Only corpus directives accept the
+// inline `// Name: content` form, so `// Output: foo` in a .gno comment
+// stays a comment.
+var nativeDirectives = []string{
 	DirectivePkgPath,
 	DirectiveMaxAlloc,
 	DirectiveSend,
@@ -1763,6 +1772,9 @@ var allDirectives = []string{
 	DirectiveStorage,
 	DirectiveTypes,
 	DirectiveTypeCheckError,
+}
+
+var corpusDirectives = []string{
 	DirectiveUnsupported,
 	DirectiveKnownDivergence,
 	DirectiveGnoStaticIncomplete,
@@ -1780,6 +1792,8 @@ var allDirectives = []string{
 	DirectiveGoTypesOnly,
 }
 
+var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
+
 // singleLinePascalDirectives holds PascalCase directives whose content
 // is ALWAYS single-line — even when empty — and that must be parsed
 // without the bare-PascalCase multi-line absorbing behavior. Members
@@ -1789,8 +1803,8 @@ var allDirectives = []string{
 // GnoError / GoError / Realm / …) are multi-line markers by default,
 // matching the .gno convention: directive on its own line, then
 // `//`-prefixed content lines, terminated by a blank line or end of
-// file. Inline-content single-line form (`// Output: foo`) is also
-// accepted via the same parser path — see ParseDirectives.
+// file. Corpus directives also accept the inline `// Name: foo` form
+// — see ParseDirectives.
 var singleLinePascalDirectives = map[string]bool{
 	DirectiveUnsupported:         true,
 	DirectiveGnoStaticIncomplete: true,
@@ -1920,11 +1934,9 @@ var reDirectiveLine = regexp.MustCompile("^(?:([A-Za-z]*):|([A-Z]+): ?(.*))$")
 // `Divergence:` / `GnoOutput:` / `GoOutput:` whose payload is a short
 // single-line value (often empty for `GoOutput:` when Go produces no
 // stdout). PascalCase distinguishes them from the ALLCAPS
-// input-parameter family (PKGPATH/MAXALLOC/SEND); single-line-vs-
-// multi-line discrimination is by the directive name's membership in
-// [singleLinePascalDirectives] — without that set, the parser's
-// PascalCase-bare rule would absorb the next comment line as the
-// directive's content.
+// input-parameter family (PKGPATH/MAXALLOC/SEND); a bare `Name:` is
+// single-line only for [singleLinePascalDirectives], an inline
+// `Name: content` only for [corpusDirectives] — see ParseDirectives.
 var reDirectiveSingleLinePascal = regexp.MustCompile(`^([A-Z][a-z][A-Za-z]*):(?: (.*))?$`)
 
 // ParseDirectives parses all the directives in the filetest given at source.
@@ -1975,17 +1987,16 @@ func ParseDirectives(source io.Reader) (Directives, error) {
 		// PascalCase single-line directive. Two acceptance paths:
 		//   1. Name is in [singleLinePascalDirectives] (Unsupported,
 		//      Divergence) — always single-line, content may be empty.
-		//   2. Inline content is non-empty — `// Name: foo` for any
-		//      known PascalCase directive collapses to single-line
-		//      form. Bare `// Name:` falls through to the multi-line
-		//      marker rule below.
+		//   2. Inline content is non-empty and Name is a corpus
+		//      directive ([corpusDirectives]). Bare `// Name:` falls
+		//      through to the multi-line marker rule below.
 		// Checked before reDirectiveLine so multi-line absorption
 		// doesn't eat the next comment line for case 1.
 		if subm2 := reDirectiveSingleLinePascal.FindStringSubmatch(comment); subm2 != nil {
 			name := subm2[1]
 			content := subm2[2]
 			isSingle := singleLinePascalDirectives[name] ||
-				(content != "" && slices.Contains(allDirectives, name))
+				(content != "" && slices.Contains(corpusDirectives, name))
 			if isSingle {
 				parsed = append(parsed,
 					Directive{
