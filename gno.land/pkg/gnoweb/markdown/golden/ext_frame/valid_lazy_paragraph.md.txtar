@@ -1,0 +1,10 @@
+-- input.md --
+<gno-frame>
+line one
+line two
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<p>line one
+line two</p>
+</section>
