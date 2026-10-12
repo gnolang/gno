@@ -1940,6 +1940,12 @@ func (opts *TestOptions) runErrorcheck(m *gno.Machine, pkgPath, fname string, co
 		if errors.As(perr, &list) {
 			for _, e := range list {
 				rr.gnoErrors = append(rr.gnoErrors, e.Error())
+				// After a syntax error the parser resynchronises and
+				// reports cascades ("expected '}', found 'EOF'") that
+				// gc never does; declaration errors before it are real.
+				if strings.HasPrefix(e.Msg, "expected ") || strings.HasPrefix(e.Msg, "missing ") {
+					break
+				}
 			}
 		} else {
 			rr.gnoErrors = []string{perr.Error()}
