@@ -232,7 +232,8 @@ import (
 // Re-derived for the merge of master into the math/big stdlib PR: the new
 // math/big stdlib package adds its source to the genesis stdlib set, so the
 // committed multistore root moves again on top of master's value.
-const expectedCrossrealm38Hash = "db00166eeb99b83f82dcd13a610b61225969e3577155bf13b5d51c45c19ce567"
+// Re-derived once more for the MaxBytes bound in math/big's int.gno.
+const expectedCrossrealm38Hash = "a4703499b4041a282153e9b54fcc0583fc922055a4396e36e41d4f6a7fea89f7"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

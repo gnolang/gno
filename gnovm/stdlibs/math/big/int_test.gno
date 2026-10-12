@@ -3,6 +3,7 @@ package big_test
 import (
 	"math/big"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -676,5 +677,39 @@ func TestZeroCanonical(t *testing.T) {
 			t.Errorf("%s: sign=%d str=%q, want 0/\"0\"",
 				tc.name, tc.z.Sign(), tc.z.String())
 		}
+	}
+}
+
+func TestMaxBytes(t *testing.T) {
+	full := make([]byte, big.MaxBytes)
+	for i := range full {
+		full[i] = 0xff
+	}
+	max := new(big.Int).SetBytes(full)
+	one := big.NewInt(1)
+
+	// The largest value round-trips through the longest string it can print.
+	s := "-0b" + max.Text(2)
+	if got, ok := new(big.Int).SetString(s, 0); !ok || got.Cmp(new(big.Int).Neg(max)) != 0 {
+		t.Errorf("SetString(%d chars) = %v, %v; want -max", len(s), got, ok)
+	}
+
+	const msg = "big: magnitude exceeds MaxBytes"
+	mustPanicWith(t, "Add", msg, func() { new(big.Int).Add(max, one) })
+	mustPanicWith(t, "Sub", msg, func() { new(big.Int).Sub(new(big.Int).Neg(max), one) })
+	mustPanicWith(t, "Mul", msg, func() { new(big.Int).Mul(max, max) })
+	mustPanicWith(t, "SetBytes", msg, func() { new(big.Int).SetBytes(append([]byte{1}, full...)) })
+
+	// Leading zeros do not count toward the bound.
+	if got := new(big.Int).SetBytes(append([]byte{0}, full...)); got.Cmp(max) != 0 {
+		t.Errorf("SetBytes with a leading zero = %v, want max", got)
+	}
+	// A string past the length bound fails even when its value is small.
+	zeros := strings.Repeat("0", len(s)) + "1"
+	if _, ok := new(big.Int).SetString(zeros, 10); ok {
+		t.Errorf("SetString(%d chars) succeeded, want too long", len(zeros))
+	}
+	if _, ok := new(big.Int).SetString("1"+max.Text(16), 16); ok {
+		t.Errorf("SetString of a value over MaxBytes succeeded")
 	}
 }

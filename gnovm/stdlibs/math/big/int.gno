@@ -32,6 +32,20 @@ func divCheck(y *Int) {
 	}
 }
 
+// MaxBytes bounds the magnitude of every Int at 8192 bits. The natives' gas is
+// linear in operand bytes and covers their cost only up to this size.
+const MaxBytes = 1024
+
+// maxStringLen admits a MaxBytes value in base 2 with a sign and a prefix.
+const maxStringLen = 8*MaxBytes + 3
+
+// boundCheck panics on the Gno side, recoverable like divCheck.
+func boundCheck(abs []byte) {
+	if len(abs) > MaxBytes {
+		panic("big: magnitude exceeds MaxBytes")
+	}
+}
+
 // An Int represents a signed multi-precision integer. The zero value
 // for Int represents the value 0.
 //
@@ -215,13 +229,15 @@ func (x *Int) Bytes() []byte {
 }
 
 // SetBytes interprets buf as the bytes of a big-endian unsigned
-// integer, sets z to that value, and returns z.
+// integer, sets z to that value, and returns z. It panics if the value
+// exceeds MaxBytes.
 func (z *Int) SetBytes(buf []byte) *Int {
 	// Skip leading zeros so the abs invariant is maintained.
 	i := 0
 	for i < len(buf) && buf[i] == 0 {
 		i++
 	}
+	boundCheck(buf[i:])
 	z.abs = append(z.abs[:0], buf[i:]...)
 	z.neg = false
 	return z
@@ -299,7 +315,8 @@ func (x *Int) Text(base int) string {
 // SetString sets z to the value of s, interpreted in the given base,
 // and returns z and a boolean indicating success. The entire string
 // (not just a prefix) must be valid for success. If SetString fails,
-// the value of z is undefined but the returned value is nil.
+// the value of z is undefined but the returned value is nil. A string
+// longer than 8*MaxBytes+3 or a value over MaxBytes fails.
 //
 // The base argument must be 0 or a value between 2 and 62, inclusive;
 // otherwise SetString panics. For base 0, the number prefix determines
@@ -310,8 +327,11 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 	if base != 0 && (base < 2 || base > 62) {
 		panic("invalid number base " + strconv.Itoa(base))
 	}
+	if len(s) > maxStringLen {
+		return nil, false
+	}
 	neg, abs, ok := setString(s, base)
-	if !ok {
+	if !ok || len(abs) > MaxBytes {
 		return nil, false
 	}
 	z.neg = neg && len(abs) > 0
@@ -320,20 +340,29 @@ func (z *Int) SetString(s string, base int) (*Int, bool) {
 }
 
 // Add sets z to the sum x+y and returns z.
+// It panics if the sum exceeds MaxBytes.
 func (z *Int) Add(x, y *Int) *Int {
-	z.neg, z.abs = add(x.neg, x.abs, y.neg, y.abs)
+	neg, abs := add(x.neg, x.abs, y.neg, y.abs)
+	boundCheck(abs)
+	z.neg, z.abs = neg, abs
 	return z
 }
 
 // Sub sets z to the difference x-y and returns z.
+// It panics if the difference exceeds MaxBytes.
 func (z *Int) Sub(x, y *Int) *Int {
-	z.neg, z.abs = sub(x.neg, x.abs, y.neg, y.abs)
+	neg, abs := sub(x.neg, x.abs, y.neg, y.abs)
+	boundCheck(abs)
+	z.neg, z.abs = neg, abs
 	return z
 }
 
 // Mul sets z to the product x*y and returns z.
+// It panics if the product exceeds MaxBytes.
 func (z *Int) Mul(x, y *Int) *Int {
-	z.neg, z.abs = mul(x.neg, x.abs, y.neg, y.abs)
+	neg, abs := mul(x.neg, x.abs, y.neg, y.abs)
+	boundCheck(abs)
+	z.neg, z.abs = neg, abs
 	return z
 }
 

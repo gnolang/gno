@@ -140,6 +140,34 @@ it; only the placeholder rows here use the single-slope form.
 not a sign `bool`, so its row uses `SlopeIdx=0` (sloping on the length
 of `s`) rather than `SlopeIdx=1`.
 
+### Size bound
+
+Every `Int` holds at most `MaxBytes` = 1024 bytes of magnitude, 8192
+bits, the bound `crypto/modexp` already uses. `SetBytes`, `Add`, `Sub`
+and `Mul` panic past it, and `SetString` fails on a value past it or on
+a string longer than `8*MaxBytes+3`. Every value is then an operand the
+rows were measured against, so no input reaches the sizes where they
+stop covering the work.
+
+Without the bound the rows cannot cover the work: they are linear in
+operand bytes, while `Mul`, division and base conversion grow faster.
+Measured with Go 1.25.9 on an x86-64 machine, a base-10 `SetString` of
+315,653 digits ran 130 ms and was charged 24,662,890 gas, at one gas
+per nanosecond. At the bound, every native is charged at least 2.7
+times its run time:
+
+| Call at the bound | Run time | Gas charged |
+| --- | --- | --- |
+| `mul`, 1024 × 1024 bytes | 5 µs | 203,000 |
+| `quoRem`, 1024 / 512 bytes | 4 µs | 183,500 |
+| `text`, base 3 | 31 µs | 82,500 |
+| `text`, base 10 | 18 µs | 82,500 |
+| `setString`, 8195 chars, base 10 | 118 µs | 642,734 |
+
+The bound panics rather than wrapping, so code that overflows it fails
+loudly instead of computing a wrong value. A realm can recover the
+panic, since it is raised in Gno like the division-by-zero check.
+
 ### Note on PR #5646
 
 This PR does **not** make PR #5646's `BigintKind` operator metering

@@ -120,10 +120,9 @@ type nativeGasEntry struct {
 //
 // math/big rows (7) are placeholders, NOT calibrated: real values must
 // come from a benchmark run before any consensus-relevant deployment.
-// They over-charge small balanced operands but the linear slopes still
-// under-charge large or super-linear inputs (mul O(n*m), decimal
-// conversion O(n^2)) — safe to exercise from tests, NOT mainnet-safe.
-// See ADR.
+// The linear slopes over-charge only because math/big caps every value
+// at MaxBytes, 1024 bytes; past it mul and decimal conversion outgrow
+// them. See gnovm/adr/pr5678_math_big_stdlib.md.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
@@ -260,19 +259,17 @@ var calibratedNativeGas = []nativeGasEntry{
 	// operands (Slope on a=p1, Slope2 on b=p3) so an asymmetric call
 	// (tiny a, huge b, or vice versa) is metered on the larger operand
 	// rather than escaping the slope entirely. Bases are conservative so
-	// trivial cases over-charge. These slopes are still linear: mul is
-	// O(n*m) and setString/text decimal conversion is O(n^2), so a long
-	// enough operand still under-charges — a length cap or a quadratic
-	// term (not expressible in this schema) is the real follow-up.
-	// Re-run gnovm/cmd/calibrate with a math/big-aware benchmark before
-	// consensus-relevant deployment and replace this block.
+	// trivial cases over-charge. The slopes are linear and cover mul and
+	// decimal conversion only up to math/big's MaxBytes, which every
+	// value stays under. Re-run gnovm/cmd/calibrate with a math/big-aware
+	// benchmark before consensus-relevant deployment and replace this block.
 	{Pkg: "math/big", Fn: "add", Base: 2000, Slope: 20000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 20000, Slope2Idx: 3, Slope2Kind: SizeLenBytes},      // TODO: calibrate
 	{Pkg: "math/big", Fn: "sub", Base: 2000, Slope: 20000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 20000, Slope2Idx: 3, Slope2Kind: SizeLenBytes},      // TODO: calibrate
-	{Pkg: "math/big", Fn: "mul", Base: 3000, Slope: 100000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 100000, Slope2Idx: 3, Slope2Kind: SizeLenBytes},    // TODO: calibrate; mul is O(n*m), linear slopes still underestimate
+	{Pkg: "math/big", Fn: "mul", Base: 3000, Slope: 100000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 100000, Slope2Idx: 3, Slope2Kind: SizeLenBytes},    // TODO: calibrate
 	{Pkg: "math/big", Fn: "quoRem", Base: 3500, Slope: 120000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 120000, Slope2Idx: 3, Slope2Kind: SizeLenBytes}, // TODO: calibrate
 	{Pkg: "math/big", Fn: "divMod", Base: 3500, Slope: 120000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 120000, Slope2Idx: 3, Slope2Kind: SizeLenBytes}, // TODO: calibrate
-	{Pkg: "math/big", Fn: "setString", Base: 2500, Slope: 80000, SlopeIdx: 0, SlopeKind: SizeLenString},                                                      // TODO: calibrate; decimal parse is O(n^2)
-	{Pkg: "math/big", Fn: "text", Base: 2500, Slope: 80000, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                            // TODO: calibrate; decimal format is O(n^2)
+	{Pkg: "math/big", Fn: "setString", Base: 2500, Slope: 80000, SlopeIdx: 0, SlopeKind: SizeLenString},                                                      // TODO: calibrate
+	{Pkg: "math/big", Fn: "text", Base: 2500, Slope: 80000, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                            // TODO: calibrate
 }
 
 // validateRow cross-checks a row against the native's actual signature before
