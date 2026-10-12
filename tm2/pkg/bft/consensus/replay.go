@@ -340,6 +340,16 @@ func (h *Handshaker) ReplayBlocks(
 		if err != nil {
 			return nil, err
 		}
+		// An app rejects the genesis through the response Error field:
+		// InitChainSync is a pass-through down to the local client and never
+		// turns it into a Go-level error.
+		if res.IsErr() {
+			return nil, fmt.Errorf("InitChain rejected the genesis: %w", res.Error)
+		}
+		// Refused before the save below, which marks the genesis applied.
+		if wasStateFresh && len(res.Validators) == 0 && len(h.genDoc.Validators) == 0 {
+			return nil, fmt.Errorf("validator set is nil in genesis and still empty after InitChain")
+		}
 
 		// Save the results by height
 		abciResponse := sm.NewABCIResponsesFromNum(int64(len(res.TxResponses)))
@@ -358,9 +368,6 @@ func (h *Handshaker) ReplayBlocks(
 				vals := types.NewValidatorSetFromABCIValidatorUpdates(res.Validators)
 				state.Validators = vals
 				state.NextValidators = vals.Copy()
-			} else if len(h.genDoc.Validators) == 0 {
-				// If validator set is not set in genesis and still empty after InitChain, exit.
-				return nil, fmt.Errorf("validator set is nil in genesis and still empty after InitChain")
 			}
 
 			if res.ConsensusParams != nil {

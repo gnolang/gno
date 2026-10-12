@@ -1,6 +1,8 @@
 package node
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -21,6 +24,7 @@ import (
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -119,7 +123,7 @@ func TestSaveGenesisDoc_OmitsAppState(t *testing.T) {
 		AppState:    types.MockAppState{AccountOwner: "Alice"},
 	}
 
-	saveGenesisDoc(db, original)
+	require.NoError(t, saveGenesisDoc(db, original))
 
 	loaded, err := loadGenesisDoc(db)
 	require.NoError(t, err)
@@ -597,4 +601,277 @@ func state(nVals int, height int64) (sm.State, dbm.DB) {
 		sm.SaveState(stateDB, s)
 	}
 	return s, stateDB
+}
+
+func probeGenesisDocProvider(pk crypto.PubKey, initialHeight int64) GenesisDocProvider {
+	return func() (*types.GenesisDoc, error) {
+		return &types.GenesisDoc{
+			GenesisTime:     time.Unix(0, 0),
+			ChainID:         "genesis-doc-test",
+			InitialHeight:   initialHeight,
+			ConsensusParams: types.DefaultConsensusParams(),
+			Validators: []types.GenesisValidator{
+				{Address: pk.Address(), PubKey: pk, Power: 10, Name: "test"},
+			},
+			AppState: "app-state",
+		}, nil
+	}
+}
+
+// A genesis the app rejected leaves a persisted doc and a state record behind,
+// but no committed block. Correcting the genesis file and booting again must
+// take the corrected doc, heights included, rather than the stale copy.
+func TestLoadStateFromDBOrGenesisDocProvider_RejectedGenesisRetry(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	state, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 999))
+	require.NoError(t, err)
+	require.Equal(t, int64(999), doc.InitialHeight)
+
+	// ReplayBlocks aligns the state to the genesis InitialHeight before
+	// calling InitChain; the rejection then returns before anything else is
+	// saved, so the alignment survives and no block is ever committed.
+	state.InitialHeight = 999
+	state.LastBlockHeight = 998
+	sm.SaveState(db, state)
+
+	state, doc, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
+	require.NoError(t, err)
+	assert.Equal(t, int64(100), doc.InitialHeight, "corrected genesis doc must win")
+	assert.Equal(t, int64(100), state.InitialHeight, "state must be rebuilt from the corrected doc")
+	assert.Equal(t, int64(99), state.LastBlockHeight)
+}
+
+// Once the genesis has been applied the persisted doc is authoritative, so a
+// genesis file edited afterwards must not silently move the chain.
+func TestLoadStateFromDBOrGenesisDocProvider_AppliedGenesisWins(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	_, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
+	require.NoError(t, err)
+	require.Equal(t, int64(100), doc.InitialHeight)
+
+	// InitChain completed: ReplayBlocks saves the genesis ABCI responses.
+	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
+
+	_, doc, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 555))
+	require.NoError(t, err)
+	assert.Equal(t, int64(100), doc.InitialHeight, "persisted genesis doc must win after genesis is applied")
+}
+
+// seedCommittedChain leaves db as a chain that has applied its genesis and
+// committed 500 blocks.
+func seedCommittedChain(t *testing.T, db dbm.DB, pk crypto.PubKey) {
+	t.Helper()
+
+	state, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err)
+	sm.SaveABCIResponses(db, 0, sm.NewABCIResponsesFromNum(0))
+	state.LastBlockHeight = 500
+	state.AppHash = []byte("committed-app-hash")
+	sm.SaveState(db, state)
+}
+
+// A running chain's state must survive a restart untouched, whatever the
+// genesis file now says.
+func TestLoadStateFromDBOrGenesisDocProvider_CommittedStatePreserved(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	seedCommittedChain(t, db, pk)
+
+	state, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), state.LastBlockHeight, "a committed chain's state must not be rebuilt")
+	assert.Equal(t, []byte("committed-app-hash"), state.AppHash)
+}
+
+// A data dir committed before the height-0 responses were saved has no marker,
+// and its doc, saved before AppState was stripped, carries one: it must not reset.
+func TestLoadStateFromDBOrGenesisDocProvider_LegacyDocKeepsCommittedState(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	doc, _ := probeGenesisDocProvider(pk, 1)()
+	doc.AppState = types.MockAppState{AccountOwner: "legacy"}
+	b, err := amino.MarshalJSON(doc)
+	require.NoError(t, err)
+	require.NoError(t, db.SetSync(genesisDocKey, b))
+	state, err := sm.MakeGenesisState(doc)
+	require.NoError(t, err)
+	state.LastBlockHeight = 500
+	sm.SaveState(db, state)
+
+	state, _, err = LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err)
+	assert.Equal(t, int64(500), state.LastBlockHeight, "a legacy committed chain's state must not be rebuilt")
+}
+
+// DB whose Has fails while fail is set.
+type hasErrDB struct {
+	*memdb.MemDB
+	fail bool
+}
+
+func (d *hasErrDB) Has(key []byte) (bool, error) {
+	if d.fail {
+		return false, errors.New("injected read error")
+	}
+	return d.MemDB.Has(key)
+}
+
+// A read error on the genesis-applied probe must fail the boot, never read as
+// "not applied" and reset a committed chain's state record.
+func TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState(t *testing.T) {
+	t.Parallel()
+
+	d := &hasErrDB{MemDB: memdb.NewMemDB()}
+	db := dbm.DB(d)
+	pk := ed25519.GenPrivKey().PubKey()
+
+	seedCommittedChain(t, db, pk)
+
+	d.fail = true
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.Error(t, err, "a failed probe must fail the boot")
+
+	after := sm.LoadState(db)
+	assert.Equal(t, int64(500), after.LastBlockHeight, "a failed probe must not rewrite the state record")
+	assert.Equal(t, []byte("committed-app-hash"), after.AppHash)
+}
+
+// DB whose Get of the persisted genesis doc fails while fail is set.
+type genesisDocGetErrDB struct {
+	*memdb.MemDB
+	fail bool
+}
+
+func (d *genesisDocGetErrDB) Get(key []byte) ([]byte, error) {
+	if d.fail && bytes.Equal(key, genesisDocKey) {
+		return nil, errors.New("injected read error")
+	}
+	return d.MemDB.Get(key)
+}
+
+// A read error on the persisted genesis doc must fail the boot, never read as
+// "no doc" and let an edited genesis file replace it.
+func TestLoadStateFromDBOrGenesisDocProvider_GenesisDocReadErrorFailsBoot(t *testing.T) {
+	t.Parallel()
+
+	d := &genesisDocGetErrDB{MemDB: memdb.NewMemDB()}
+	pk := ed25519.GenPrivKey().PubKey()
+	seedCommittedChain(t, d, pk)
+
+	edited := func() (*types.GenesisDoc, error) {
+		doc, _ := probeGenesisDocProvider(pk, 1)()
+		doc.ChainID = "edited-chain"
+		return doc, nil
+	}
+	d.fail = true
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(d, edited)
+	require.ErrorContains(t, err, "injected read error", "a failed read must fail the boot")
+	d.fail = false
+
+	persisted, err := loadGenesisDoc(d)
+	require.NoError(t, err)
+	assert.Equal(t, "genesis-doc-test", persisted.ChainID, "the edited file must not replace the persisted doc")
+}
+
+// DB whose SetSync of the genesis doc fails while fail is set.
+type genesisDocSetErrDB struct {
+	*memdb.MemDB
+	fail bool
+}
+
+func (d *genesisDocSetErrDB) SetSync(key, value []byte) error {
+	if d.fail && bytes.Equal(key, genesisDocKey) {
+		return errors.New("injected write error")
+	}
+	return d.MemDB.SetSync(key, value)
+}
+
+// A reset whose genesis doc write fails must fail the boot, never report the
+// corrected doc while the refused one stays persisted.
+func TestLoadStateFromDBOrGenesisDocProvider_ResetDocWriteErrorFailsBoot(t *testing.T) {
+	t.Parallel()
+
+	d := &genesisDocSetErrDB{MemDB: memdb.NewMemDB()}
+	pk := ed25519.GenPrivKey().PubKey()
+
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(d, probeGenesisDocProvider(pk, 1000))
+	require.NoError(t, err)
+
+	d.fail = true
+	_, _, err = LoadStateFromDBOrGenesisDocProvider(d, probeGenesisDocProvider(pk, 100))
+	require.ErrorContains(t, err, "injected write error", "a failed doc write must fail the boot")
+}
+
+// A first boot whose genesis doc write fails must fail, never boot a data dir
+// that holds no doc.
+func TestLoadStateFromDBOrGenesisDocProvider_FirstBootDocWriteErrorFailsBoot(t *testing.T) {
+	t.Parallel()
+
+	d := &genesisDocSetErrDB{MemDB: memdb.NewMemDB(), fail: true}
+	pk := ed25519.GenPrivKey().PubKey()
+
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(d, probeGenesisDocProvider(pk, 1))
+	require.ErrorContains(t, err, "injected write error", "a failed doc write must fail the first boot")
+}
+
+// A first boot on a genesis that does not validate must persist nothing, so the
+// corrected file boots on the same data dir.
+func TestLoadStateFromDBOrGenesisDocProvider_FirstBootInvalidDocNotPersisted(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	noChainID := func() (*types.GenesisDoc, error) {
+		d, _ := probeGenesisDocProvider(pk, 1)()
+		d.ChainID = ""
+		return d, nil
+	}
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(db, noChainID)
+	require.ErrorContains(t, err, "chain_id", "an invalid genesis must be refused")
+
+	_, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 1))
+	require.NoError(t, err, "the corrected genesis must boot")
+	assert.Equal(t, "genesis-doc-test", doc.ChainID)
+}
+
+// A genesis file that passes the chain identity guards but does not validate
+// must not replace the persisted doc: the reset writes only after it validates.
+func TestGenesisResetKeepsGoodDocOnInvalidFile(t *testing.T) {
+	t.Parallel()
+
+	db := dbm.DB(memdb.NewMemDB())
+	pk := ed25519.GenPrivKey().PubKey()
+
+	_, doc, err := LoadStateFromDBOrGenesisDocProvider(db, probeGenesisDocProvider(pk, 100))
+	require.NoError(t, err)
+	require.Equal(t, int64(100), doc.InitialHeight)
+
+	// Same chain and app hash, but a validator with no voting power.
+	invalid := func() (*types.GenesisDoc, error) {
+		d, _ := probeGenesisDocProvider(pk, 100)()
+		d.Validators[0].Power = 0
+		return d, nil
+	}
+	_, _, err = LoadStateFromDBOrGenesisDocProvider(db, invalid)
+	require.Error(t, err, "an invalid genesis must be refused")
+
+	persisted, lerr := loadGenesisDoc(db)
+	require.NoError(t, lerr)
+	assert.Equal(t, int64(10), persisted.Validators[0].Power,
+		"the invalid doc must not have replaced the persisted one")
 }

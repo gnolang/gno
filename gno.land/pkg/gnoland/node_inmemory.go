@@ -40,7 +40,9 @@ func NewDefaultGenesisConfig(chainid, chaindomain string) *bft.GenesisDoc {
 		ConsensusParams: abci.ConsensusParams{
 			Block: defaultBlockParams(),
 		},
-		AppState: &GnoGenesisState{
+		// Value, not a pointer: loadAppState rejects a *GnoGenesisState as an
+		// invalid AppState.
+		AppState: GnoGenesisState{
 			Balances: []Balance{},
 			Txs:      []TxWithMetadata{},
 			VM: vm.GenesisState{

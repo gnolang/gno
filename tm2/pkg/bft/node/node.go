@@ -5,6 +5,7 @@ package node
 
 import (
 	"bytes"
+	goerrors "errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -131,6 +132,19 @@ func DefaultNewNodeWithGenesisProvider(
 	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
+	return newNodeWithDBProvider(config, genesisDocProvider, DefaultDBProvider, evsw, logger, options...)
+}
+
+// newNodeWithDBProvider is DefaultNewNodeWithGenesisProvider with the
+// DBProvider left to the caller.
+func newNodeWithDBProvider(
+	config *cfg.Config,
+	genesisDocProvider GenesisDocProvider,
+	dbProvider DBProvider,
+	evsw events.EventSwitch,
+	logger *slog.Logger,
+	options ...Option,
+) (*Node, error) {
 	nodeKey, err := p2pTypes.LoadOrMakeNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return nil, err
@@ -158,7 +172,7 @@ func DefaultNewNodeWithGenesisProvider(
 		nodeKey,
 		appClientCreator,
 		genesisDocProvider,
-		DefaultDBProvider,
+		dbProvider,
 		evsw,
 		logger,
 		options...,
@@ -1087,12 +1101,24 @@ var genesisDocKey = []byte("genesisDoc")
 // — beyond that height the field is unused.
 func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider GenesisDocProvider) (sm.State, *types.GenesisDoc, error) {
 	genDoc, err := loadGenesisDoc(stateDB)
+	if err != nil && !goerrors.Is(err, errGenesisDocNotFound) {
+		// A read error is not an absence: taken as one, the file's doc would
+		// replace the persisted one past the chain identity checks below.
+		return sm.State{}, nil, err
+	}
 	if err != nil {
 		genDoc, err = genesisDocProvider()
 		if err != nil {
 			return sm.State{}, nil, err
 		}
-		saveGenesisDoc(stateDB, genDoc)
+		// Validated before the save: persisted, a doc with no chain id would
+		// fail every later boot on the chain id check, whatever the file says.
+		if err := genDoc.ValidateAndComplete(); err != nil {
+			return sm.State{}, nil, fmt.Errorf("error in genesis file: %w", err)
+		}
+		if err := saveGenesisDoc(stateDB, genDoc); err != nil {
+			return sm.State{}, nil, err
+		}
 	} else if genDoc.AppState == nil {
 		freshDoc, perr := genesisDocProvider()
 		if perr != nil {
@@ -1112,6 +1138,16 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 				"genesis app_hash mismatch between persisted state (%X) and source genesis (%X): the genesis file backing this data dir has changed",
 				genDoc.AppHash, freshDoc.AppHash)
 		}
+		// Same chain, so the remaining doc fields are safe to refresh. Before
+		// the genesis is applied nothing is committed, so a corrected genesis
+		// file replaces the persisted doc and state record outright.
+		applied, aerr := genesisApplied(stateDB)
+		if aerr != nil {
+			return sm.State{}, nil, aerr
+		}
+		if !applied {
+			return resetToGenesisDoc(stateDB, freshDoc)
+		}
 		genDoc.AppState = freshDoc.AppState
 	}
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
@@ -1121,6 +1157,36 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 	return state, genDoc, nil
 }
 
+// genesisApplied reports whether InitChain succeeded for this data dir:
+// ReplayBlocks saves the height-0 ABCI responses only then, and never prunes
+// them. A read error is returned, never taken as "not applied".
+func genesisApplied(stateDB dbm.DB) (bool, error) {
+	ok, err := stateDB.Has(sm.CalcABCIResponsesKey(0))
+	if err != nil {
+		return false, fmt.Errorf("probing genesis ABCI responses: %w", err)
+	}
+	return ok, nil
+}
+
+// resetToGenesisDoc makes genDoc authoritative, replacing the persisted doc and
+// rebuilding the state record from it. Only valid before the genesis is
+// applied: the stale records then include the InitialHeight alignment
+// ReplayBlocks writes before calling InitChain, and booting a corrected genesis
+// against the old heights is exactly what this undoes.
+func resetToGenesisDoc(stateDB dbm.DB, genDoc *types.GenesisDoc) (sm.State, *types.GenesisDoc, error) {
+	state, err := sm.MakeGenesisState(genDoc)
+	if err != nil {
+		return sm.State{}, nil, err
+	}
+	if err := saveGenesisDoc(stateDB, genDoc); err != nil {
+		return sm.State{}, nil, err
+	}
+	sm.SaveState(stateDB, state)
+	return state, genDoc, nil
+}
+
+var errGenesisDocNotFound = goerrors.New("genesis doc not found")
+
 // panics if failed to unmarshal bytes
 func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 	b, err := db.Get(genesisDocKey)
@@ -1128,7 +1194,7 @@ func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 		return nil, fmt.Errorf("error while getting Genesis doc: %w", err)
 	}
 	if len(b) == 0 {
-		return nil, errors.New("Genesis doc not found")
+		return nil, errGenesisDocNotFound
 	}
 	var genDoc *types.GenesisDoc
 	err = amino.UnmarshalJSON(b, &genDoc)
@@ -1138,16 +1204,16 @@ func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 	return genDoc, nil
 }
 
-// panics if failed to marshal the given genesis document.
+// panics if failed to marshal the given genesis document, and returns the write error.
 // AppState is dropped before persisting (see LoadStateFromDBOrGenesisDocProvider).
-func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) {
+func saveGenesisDoc(db dbm.DB, genDoc *types.GenesisDoc) error {
 	stripped := *genDoc
 	stripped.AppState = nil
 	b, err := amino.MarshalJSON(&stripped)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to save genesis doc due to marshaling error: %v", err))
 	}
-	db.SetSync(genesisDocKey, b)
+	return db.SetSync(genesisDocKey, b)
 }
 
 // splitAndTrimEmpty slices s into all subslices separated by sep and returns a
