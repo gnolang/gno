@@ -182,6 +182,10 @@ func (p *detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Cont
 	if !ok {
 		return nil, parser.NoChildren
 	}
+	// Share the gno-* nesting cap: a refused opener renders as a paragraph.
+	if !Push(pc) {
+		return nil, parser.NoChildren
+	}
 
 	block := &DetailsBlock{Open: open, Fence: fence}
 
@@ -219,7 +223,7 @@ func (p *detailsParser) Continue(node ast.Node, reader text.Reader, pc parser.Co
 }
 
 // Close implements parser.BlockParser.
-func (p *detailsParser) Close(node ast.Node, reader text.Reader, pc parser.Context) {}
+func (p *detailsParser) Close(node ast.Node, reader text.Reader, pc parser.Context) { Pop(pc) }
 
 // CanInterruptParagraph implements parser.BlockParser.
 func (p *detailsParser) CanInterruptParagraph() bool { return true }
