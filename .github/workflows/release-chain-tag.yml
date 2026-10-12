@@ -29,10 +29,11 @@ concurrency:
 
 permissions: {}
 
+env:
+  TAG: ${{ github.ref_name }}
+
 jobs:
   binaries:
-    env:
-      TAG: ${{ github.ref_name }}
     strategy:
       matrix:
         include:
@@ -132,8 +133,6 @@ jobs:
   release:
     needs: binaries
     runs-on: ubuntu-latest
-    env:
-      TAG: ${{ github.ref_name }}
     permissions:
       contents: write # to create/upload release assets
       id-token: write # to sign the provenance attestation (keyless, sigstore)

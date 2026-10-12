@@ -47,20 +47,13 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          # Every tag, for the ordering below; blob:none keeps that cheap.
           fetch-depth: 0
+          filter: blob:none
 
-      - name: Compute build version
-        id: build_version
+      - name: Decide whether this is the highest release
+        id: release_order
         run: |
-          # The tag that triggered the run, verbatim, as release-chain-tag.yml
-          # stamps it. Not derived from the checkout: a final release is tagged
-          # on its last candidate's commit, and asking git which tag the commit
-          # carries answers with whichever of the two is newer, so a re-run of
-          # the candidate's build would stamp the final's version into an rc
-          # image. Pinned by gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser.
-          echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-          # The built commit's short sha, for the sha-<commit> image tag.
-          echo "short_sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
           # `latest` may only move forward. Gate it on being the highest final
           # v* tag, not merely a final one: a backport cut after a newer line
           # must not re-point latest at the older line.
@@ -89,8 +82,8 @@ jobs:
           images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=tag
-            type=raw,value=sha-${{ steps.build_version.outputs.short_sha }}
-            type=raw,value=latest,enable=${{ matrix.latest && steps.build_version.outputs.is_highest == 'true' }}
+            type=sha
+            type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}
           flavor: |
             latest=false
           labels: |
@@ -105,7 +98,10 @@ jobs:
         id: bake
         uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         env:
-          BUILD_VERSION: ${{ steps.build_version.outputs.version }}
+          # The tag that triggered the run, verbatim, never a version derived
+          # from the checkout: a final release shares its last candidate's
+          # commit. Pinned by gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser.
+          BUILD_VERSION: ${{ github.ref_name }}
         with:
           source: . # use checked-out code, not git URL at GITHUB_SHA
           files: |

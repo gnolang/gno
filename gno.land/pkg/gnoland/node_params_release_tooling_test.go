@@ -163,20 +163,20 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		}
 	})
 
-	// The image workflow runs on v* tag pushes only and stamps the tag that
-	// triggered it verbatim, as release-chain-tag.yml does. Not git describe:
-	// a final release is tagged on its last candidate's commit, describe
+	// Both release workflows run on v* tag pushes only and stamp the tag that
+	// triggered the run, verbatim. Never a version derived from the checkout:
+	// a final release is tagged on its last candidate's commit, git describe
 	// answers with whichever of the two tags is newer, and a re-run of the
 	// candidate's build would then compile the final's version into an rc
-	// image — one that satisfies the final's halt_min_version.
-	t.Run("release images carry the tag that triggered them", func(t *testing.T) {
+	// artifact — one that satisfies the final's halt_min_version.
+	t.Run("release builds carry the tag that triggered them", func(t *testing.T) {
 		t.Parallel()
 
 		const docker = ".github/workflows/release-docker.yml"
-		yml := repoFile(t, docker)
-		assert.Contains(t, yml, `echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"`,
+		assert.Contains(t, repoFile(t, workflow), "\n  TAG: ${{ github.ref_name }}\n",
+			"%s must build the tag that triggered the run, set once for every job", workflow)
+		assert.Contains(t, repoFile(t, docker), "BUILD_VERSION: ${{ github.ref_name }}\n",
 			"%s must stamp the tag that triggered the run", docker)
-		assert.NotContains(t, yml, "git describe", "%s must not derive the version from git describe", docker)
 	})
 
 	// The upgrade ledger records versions the node has to order against
