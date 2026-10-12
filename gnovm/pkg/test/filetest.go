@@ -100,14 +100,13 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 	}
 
-	// Capture the `// GnoError:` golden block and `// GnoStaticIncomplete:`
-	// golden region now, before any strip or re-parse below loses them
-	// (prependRescue re-parses dirs from the stripped source). Used by
-	// the errorcheck verdict.
+	// Capture the golden region now, before any strip or re-parse below
+	// loses it (prependRescue re-parses dirs from the stripped source).
+	// Used by the compile-mode verdict.
 	origDirs := dirs
 
-	// Strip the trailing golden region (`// GnoStaticIncomplete:` /
-	// `// GnoError:` / `// GoTypeCheckError:` blocks) from the source
+	// Strip the trailing golden region (`// GnoError:` /
+	// `// GoTypeCheckError:` blocks, verdict lines) from the source
 	// fed to Gno. Leaving it in would extend the file and shift the
 	// line number of any EOF-positioned error (e.g. `expected ')',
 	// found 'EOF'`), making the golden unstable across runs. Trailing
@@ -138,7 +137,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	//     blessing triple (// GnoOutput: / // GoOutput: / // Divergence:);
 	//     stale or missing-blessing cases FAIL. See finalizeGoRunDivergence
 	//     below.
-	var errorcheckMarkers []InlineError
 	var divergenceReason string // legacy errorcheck/compile inversion path only
 	var isGoRunMode bool
 	var goStdout string
@@ -185,22 +183,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
 		switch {
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
-			errorcheckMarkers = ParseInlineErrors(source)
-			// A marker tag present but no parseable marker (e.g. the
-			// `// ERROR` sits on a full-comment pragma line, as in
-			// fixedbugs/issue18882.go) must NOT silently fall through
-			// to a pure-Gno run with no marker checking — route to
-			// `// Unsupported:` so the gap is pinned and greppable.
-			if len(errorcheckMarkers) == 0 {
-				reason := "errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness"
-				if opts.Sync {
-					return writeUnsupportedDirective(originalSource, reason), 0, diffs, nil
-				}
-				return "", 0, diffs, &SkipError{Reason: reason}
-			}
-			if err := prependRescue(); err != nil {
-				return "", 0, diffs, err
-			}
+			// errorcheck mode lands with the error-accumulating preprocessor.
+			return "", 0, diffs, fmt.Errorf("filetest %s: inline // ERROR markers are not supported yet", fname)
 		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
 			// `// compile`: gc compiles but never runs it. Preprocess
 			// only (regardless of whether it's runnable) and check that
@@ -310,7 +294,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Errorcheck and compile files are not executed (gc doesn't run
 	// them; executing can hang on infinite loops Gno fails to reject) —
 	// preprocess only.
-	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, len(errorcheckMarkers) > 0 || compileMode)
+	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, compileMode)
 
 	// Collect storage diffs after test execution.
 	diffs = m.Store.RealmStorageDiffs()
@@ -416,7 +400,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				{name: DirectiveKnownDivergence},
 				{name: DirectiveClean, block: "compile", inline: true},
 			}
-			newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, sections)
+			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
 			return newContent, gas, diffs, err
 		}
 		// `go build` only under sync; verify reuses the pinned lines.
@@ -471,7 +455,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				block: verdict,
 			})
 		}
-		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, sections)
+		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
 		return newContent, gas, diffs, err
 	}
 
@@ -480,182 +464,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// opts.Sync). Declared here so the errorcheck short-circuit below
 	// can also set it for `// GnoError:` golden refresh.
 	updated := false
-
-	// Errorcheck-mode short-circuit: golden-snapshot multi-pass.
-	// The inline `// ERROR` markers are upstream (gc) provenance, NOT a
-	// pass/fail gate. The harness walks Gno's per-line errors and pins
-	// them in a `// GnoError:` golden block; the test passes iff that
-	// block matches Gno's current behavior. So Gno's wording may differ
-	// from gc's marker (the known-divergence case) — what's verified is
-	// that Gno's behavior hasn't *changed*. See [runErrorcheckMultiPass].
-	//
-	// A file Gno doesn't reject at all (no error anywhere) is a real
-	// leniency divergence — fail, so it's noticed (mark `// Unsupported:`
-	// if intentional). Files Gno can't run (feature gaps) are skipped
-	// via `// Unsupported:` before dispatch.
-	if len(errorcheckMarkers) > 0 {
-		// divergenceReason is a compile-only concept; clear it so the
-		// verdict-inversion defer doesn't process this branch's return.
-		divergenceReason = ""
-
-		gnoErrLines, goTCLines := opts.runErrorcheckMultiPass(
-			result, source, fname, pkgPath, errorcheckMarkers,
-			prependedLines, tgs, tcheck)
-		gas := m.GasMeter.GasConsumed()
-
-		// gc optimization-diagnostic tests (`errorcheck -0 -m …`,
-		// `errorcheckwithauto`): their ERROR markers assert compiler
-		// diagnostics (inlining, escape analysis, prove/BCE debug), not
-		// invalid code — no Gno checker can or should match them.
-		// Route to Unsupported instead of counting them as leaks.
-		if firstLine := strings.SplitN(string(originalSource), "\n", 2)[0]; strings.HasPrefix(firstLine, "//") {
-			flags := strings.Fields(strings.TrimPrefix(firstLine, "//"))
-			reason := ""
-			if len(flags) > 0 && flags[0] == "errorcheckwithauto" {
-				reason = "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
-			}
-			for _, fl := range flags[1:] {
-				switch {
-				case fl == "-0" || fl == "-m":
-					reason = "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
-				case fl == "-+" || strings.HasPrefix(fl, "-p="):
-					// runtime-package mode: write-barrier / runtime escape
-					// rules — gc-internal contracts, no Gno equivalent.
-					reason = "gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts"
-				case langBelowPin(fl):
-					// version-gating test BELOW Gno's go1.17 pin: the
-					// markers assert errors of an older language version.
-					reason = "gc -lang version-gating test below Gno's go1.17 pin (" + strings.TrimPrefix(fl, "-lang=") + ")"
-				}
-			}
-			if reason != "" {
-				if opts.Sync {
-					return writeUnsupportedDirective(originalSource, reason), gas, diffs, nil
-				}
-				return "", gas, diffs, &SkipError{Reason: reason}
-			}
-		}
-		// checkable = the markers that are part of Gno's contract.
-		// GC_ERROR markers are gc-implementation diagnostics (backend
-		// limits, pragma checks) — catching them is fine, missing them
-		// is NOT a leak. A file whose markers are all gc-only has
-		// nothing for Gno to verify → Unsupported (skip), same class
-		// as the pragma-comment markers.
-		var checkable []InlineError
-		for _, mk := range errorcheckMarkers {
-			if !mk.GcOnly {
-				checkable = append(checkable, mk)
-			}
-		}
-		if len(checkable) == 0 {
-			reason := "only gc-specific (GC_ERROR) markers; not part of Gno's contract"
-			if opts.Sync {
-				return writeUnsupportedDirective(originalSource, reason), gas, diffs, nil
-			}
-			return "", gas, diffs, &SkipError{Reason: reason}
-		}
-		// Pragma-placement enforcement tests: every checkable marker
-		// asserts gc's "misplaced compiler directive" — //go: pragmas
-		// are inert comments in Gno, so there is nothing to check.
-		allPragma := true
-		for _, mk := range checkable {
-			hit := false
-			for _, pat := range mk.Patterns {
-				if strings.Contains(pat, "compiler directive") {
-					hit = true
-					break
-				}
-			}
-			if !hit {
-				allPragma = false
-				break
-			}
-		}
-		if allPragma {
-			reason := "gc pragma-placement enforcement; //go: directives are inert comments in Gno"
-			if opts.Sync {
-				return writeUnsupportedDirective(originalSource, reason), gas, diffs, nil
-			}
-			return "", gas, diffs, &SkipError{Reason: reason}
-		}
-
-		// Evidence vs verdict, set-relation model:
-		//
-		//   Evidence (raw per-line output from each checker):
-		//     // GnoError:          Gno's own catches, unfiltered
-		//     // GoTypeCheckError:  go/types guard's catches, unfiltered
-		//
-		//   Verdicts (DERIVED from the sets; no prose block):
-		//     // GnoOverStrictError:   Gno lines OUTSIDE markers ∪ guard —
-		//                              Gno rejects code both gc and go/types
-		//                              accept (over-strict; the deferred-
-		//                              KnownIssue equivalent for errorcheck)
-		//     // GnoStaticIncomplete:  markers not fully covered by
-		//                              Gno ∪ guard (coverage-gap note)
-		//
-		// Production-safe ⟺ markers ⊆ Gno ∪ guard (both gate deploy).
-		marked := make(map[int]bool, len(errorcheckMarkers))
-		for _, mk := range errorcheckMarkers {
-			marked[mk.Line] = true
-		}
-		gnoErr := gnoErrLines
-		overStrict := make(map[int]string)
-		for ln, msg := range gnoErrLines {
-			_, inGuard := goTCLines[ln]
-			if !marked[ln] && !inGuard {
-				overStrict[ln] = msg
-			}
-		}
-
-		// Leak accounting: a checkable marker caught by NEITHER Gno nor
-		// the guard is an UNCAUGHT error — gc-invalid code the whole Gno
-		// stack would deploy. Pinned per-line in `// UncaughtError:`
-		// (under-rejection; strictly worse than over-strictness).
-		uncaught := make(map[int]string)
-		for _, mk := range checkable {
-			_, a := gnoErr[mk.Line]
-			_, b := goTCLines[mk.Line]
-			if !a && !b {
-				uncaught[mk.Line] = "uncaught; gc expects: " + strings.Join(mk.Patterns, " | ")
-			}
-		}
-
-		// Evidence blocks are raw; GnoOverStrictError is the derived
-		// verdict (its lines repeat the offending GnoError entries so
-		// the deferred bucket is greppable). Triage prose lives in plain
-		// comments + state markers, exactly like run mode — errorcheck
-		// files carry no `// KnownIssue:` block.
-		// Markers only the go/types guard caught: what the Gno checker
-		// still lacks. Evidence, derived from the two sets above.
-		goTypesOnly := make(map[int]string)
-		for _, mk := range checkable {
-			_, a := gnoErr[mk.Line]
-			_, b := goTCLines[mk.Line]
-			if !a && b {
-				goTypesOnly[mk.Line] = "gc expects: " + strings.Join(mk.Patterns, " | ")
-				if len(mk.Patterns) == 0 {
-					goTypesOnly[mk.Line] = "gc expects an error (no pattern)"
-				}
-			}
-		}
-		clean := ""
-		if len(overStrict) == 0 && len(uncaught) == 0 {
-			clean = "errorcheck"
-		}
-		sections := []goldenSection{
-			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
-			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTCLines)},
-			{name: DirectiveGoTypesOnly, block: FormatGnoErrorBlock(goTypesOnly)},
-			{name: DirectiveGnoOverStrictError, block: FormatGnoErrorBlock(overStrict)},
-			{name: DirectiveUncaughtError, block: FormatGnoErrorBlock(uncaught)},
-			// Empty block ⇒ "must be absent": scrubs the legacy per-file
-			// KnownIssue verdicts errorcheck files used to carry.
-			{name: DirectiveKnownIssue, block: ""},
-			{name: DirectiveClean, block: clean, inline: true},
-		}
-		newContent, err := opts.resolveErrorcheckGolden(originalSource, origDirs, sections)
-		return newContent, gas, diffs, err
-	}
 
 	// returnErr is used as the return value, and may be a MultiError if
 	// multiple mismatches occurred. `updated` is declared above the
@@ -819,19 +627,15 @@ type goldenSection struct {
 	inline bool   // single-line `// Name: block` (verdicts)
 }
 
-// resolveErrorcheckGolden reconciles the trailing golden region — an
-// optional `// GnoStaticIncomplete:` tag plus the named per-line blocks —
-// against the freshly-computed values. `dirs` is the file's parsed
-// directives (to look up the on-disk blocks/tag).
+// resolveStaticGolden reconciles the trailing golden region — the named
+// per-line blocks and the verdict line — against the freshly-computed
+// values. `dirs` is the file's parsed directives (the on-disk blocks).
 //
 // Returns (newContent, err): newContent is non-empty only when sync
 // rewrote the file. Non-sync failures report the first diff / missing
 // block.
-func (opts *TestOptions) resolveErrorcheckGolden(originalSource []byte, dirs Directives, sections []goldenSection) (string, error) {
-	// GnoStaticIncomplete is a retired legacy tag: never written anymore,
-	// but still recognized (allDirectives/goldenRegionStarts) so a stray
-	// one is scrubbed on sync rather than absorbed as file body.
-	allOK := dirs.First(DirectiveGnoStaticIncomplete) == nil
+func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directives, sections []goldenSection) (string, error) {
+	allOK := true
 	for _, s := range sections {
 		d := dirs.First(s.name)
 		ok := (s.block == "" && d == nil) || (d != nil && strings.TrimRight(d.Content, "\n") == s.block)
@@ -841,7 +645,7 @@ func (opts *TestOptions) resolveErrorcheckGolden(originalSource []byte, dirs Dir
 		return "", nil
 	}
 	if opts.Sync {
-		return writeErrorcheckGolden(originalSource, sections), nil
+		return writeStaticGolden(originalSource, sections), nil
 	}
 	for _, s := range sections {
 		d := dirs.First(s.name)
@@ -856,8 +660,7 @@ func (opts *TestOptions) resolveErrorcheckGolden(originalSource []byte, dirs Dir
 			return "", fmt.Errorf("// %s: diff:\n%s", s.name, unifiedDiff(d.Content, s.block))
 		}
 	}
-	// Only the tag differs.
-	return "", fmt.Errorf("errorcheck: stale legacy `// GnoStaticIncomplete:` tag; re-run with --update-golden-tests")
+	return "", nil
 }
 
 // writeUnsupportedDirective returns originalSource (golden region
@@ -869,13 +672,12 @@ func writeUnsupportedDirective(originalSource []byte, reason string) string {
 	return body + "\n\n// " + DirectiveUnsupported + ": " + TagUnsupportedReason(reason) + "\n"
 }
 
-// writeErrorcheckGolden returns the file content for an errorcheck
-// golden update: originalSource (upstream-verbatim — NOT the
-// rescued source, so in-memory transforms aren't persisted) with a
-// trailing golden region appended — an optional `// GnoStaticIncomplete:`
-// tag followed by each non-empty section, blank-line separated. Any
-// existing trailing golden region is replaced rather than duplicated.
-func writeErrorcheckGolden(originalSource []byte, sections []goldenSection) string {
+// writeStaticGolden returns the file content for a compile-mode golden
+// update: originalSource (upstream-verbatim — NOT the rescued source, so
+// in-memory transforms aren't persisted) with a trailing golden region
+// appended, each non-empty section blank-line separated. Any existing
+// trailing golden region is replaced rather than duplicated.
+func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
 	// Capture triage state marker lines before stripping so a golden
 	// refresh never drops manual triage status.
 	var stateLines []string
@@ -925,22 +727,20 @@ func writeErrorcheckGolden(originalSource []byte, sections []goldenSection) stri
 // goldenRegionStarts are the directive names that can begin the trailing
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
-	DirectiveGnoStaticIncomplete, DirectiveGnoError, DirectiveGoTypeCheckError, DirectiveKnownIssue,
+	DirectiveGnoError, DirectiveGoTypeCheckError, DirectiveKnownIssue,
 	DirectiveGnoPreprocessError, DirectiveGoBuildError, DirectiveKnownDivergence,
-	DirectiveGnoOverStrictError, DirectiveUncaughtError,
 	// .go corpus files only: the run-mode goldens and the verdict lines,
 	// so a rewrite (Unsupported, Clean) leaves no stale block behind.
 	// .gno files keep TypeCheckError in the source the guard sees.
 	DirectiveGnoOutput, DirectiveGoOutput, DirectiveGoError, DirectiveTypeCheckError,
-	DirectiveUnsupported, DirectiveClean, DirectiveGoTypesOnly,
-}
+	DirectiveUnsupported, DirectiveClean}
 
 // triageStateMarkers are the standalone triage status lines (`// Fixed:`,
 // `// Fixing:`, `// Tracked:`) written by manual triage after the golden
 // region. They are NOT harness directives (never add them to
 // allDirectives) but the golden writer must carry them across re-syncs:
 // stripTrailingGoldenRegion treats a trailing marker block as strippable
-// and writeErrorcheckGolden re-appends the captured lines at the end.
+// and writeStaticGolden re-appends the captured lines at the end.
 var triageStateMarkers = []string{"Fixed", "Fixing", "Tracked"}
 
 // stripTrailingGoldenRegion removes the trailing golden region — one or
@@ -983,209 +783,44 @@ func stripTrailingGoldenRegion(src string) string {
 	return src
 }
 
-// runErrorcheckMultiPass walks Gno's per-line errors and records them
-// into a golden snapshot. The inline `// ERROR` markers are NOT used
-// as a pass/fail gate — they're upstream (gc) provenance. The contract
-// is "Gno errors at this line, with this wording", captured per line
-// so the snapshot detects any change in Gno's behavior.
-//
-// Each pass:
-//  1. Reads Gno's error (preprocess + go/types) from the prior run.
-//  2. Extracts the source line, records Gno's clean per-line message.
-//  3. Neutralizes that line (package decls → `package main`, else
-//     commented out) so the next pass surfaces the next error.
-//
-// Iteration stops when Gno accepts the (progressively-neutralized)
-// file, when it errors on a line WITHOUT a marker (see below), or when
-// neutralizing fails to clear a line (cycle guard).
-//
-// Unmarked-line handling distinguishes signal from artifact:
-//   - On pass 1 (original file, no neutralization yet) an unmarked
-//     error is Gno's genuine first error — recorded, then stop. This
-//     captures files where Gno bails before the marked lines (e.g. a
-//     too-large constant the markers don't cover).
-//   - On a later pass an unmarked error is almost always a neutralize
-//     artifact (a commented-out func signature orphaning its body) —
-//     stop WITHOUT recording, to keep the golden clean.
-//
-// Pass 1 reuses `initial`; later passes spin up a fresh machine each
-// (Gno's preprocess state is not idempotent across runs).
-//
-// prependedLines is how many lines the PKGPATH rescue added at the top
-// (0 or 1) — used to translate Gno's line numbers to source coords.
-func (opts *TestOptions) runErrorcheckMultiPass(
-	initial runResult, source []byte, fname, pkgPath string,
-	markers []InlineError, prependedLines int,
-	tgs gno.Store, tcheck bool,
-) (gnoErrLines, goTCLines map[int]string) {
-	gnoErrLines = make(map[int]string) // GnoVM's own preprocess/runtime errors
-	goTCLines = make(map[int]string)   // the go/types guard's errors
-	seen := make(map[int]bool)
-	markerByLine := make(map[int]InlineError, len(markers))
-	for _, mk := range markers {
-		markerByLine[mk.Line] = mk
-	}
+// GnoVM's own preprocess/runtime errors
+// the go/types guard's errors
 
-	// recordGoTypes folds the go/types guard's per-line catches for any
-	// not-yet-covered marker into goTCLines. go/types reports ALL its
-	// errors in one pass (no first-error bail) and is run every pass —
-	// some catches only surface AFTER neutralization (e.g. a method on a
-	// non-local type, reachable only once an invalid `package _` is
-	// rewritten to `package main`). First pass to catch a line wins
-	// (the initial, un-neutralized run is most authoritative for the
-	// lines it does reach).
-	recordGoTypes := func(r runResult) {
-		tcSegs := gnoErrSegments(r.TypeCheckError)
-		for _, mk := range markers {
-			if _, done := goTCLines[mk.Line]; done {
-				continue
-			}
-			gnoLn := mk.Line + prependedLines
-			if segHasLine(tcSegs, gnoLn) {
-				m := mk
-				goTCLines[mk.Line] = errorForLine(nil, tcSegs, gnoLn, &m)
-			}
-		}
-	}
+// recordGoTypes folds the go/types guard's per-line catches for any
+// not-yet-covered marker into goTCLines. go/types reports ALL its
+// errors in one pass (no first-error bail) and is run every pass —
+// some catches only surface AFTER neutralization (e.g. a method on a
+// non-local type, reachable only once an invalid `package _` is
+// rewritten to `package main`). First pass to catch a line wins
+// (the initial, un-neutralized run is most authoritative for the
+// lines it does reach).
 
-	// GnoVM preprocess iteration — Gno's OWN static errors. Preprocess
-	// bails on the first error, so neutralize that line and re-run to
-	// surface the next (package decls → `package main`, else commented
-	// out). Each pass also sweeps the go/types guard (recordGoTypes).
-	// GnoVM errors go to gnoErrLines (the `// GnoError:` block); an
-	// internal "should not happen" assertion is not a real diagnostic,
-	// so it's skipped there (the real error, if any, is go/types').
-	// The walk continues PAST unmarked (over-strict) errors so Gno's
-	// behavior on every marker line is still measured — a single
-	// over-strict reject must not mask the file's whole native-coverage
-	// picture. Neutralizing a line removes any declarations it carried,
-	// so later "name X not declared"-style errors that merely reference
-	// a neutralized declaration are CASCADE ARTIFACTS: they are
-	// neutralized and skipped, never pinned (the affected marker line
-	// simply stays uncovered by Gno and shows up in the coverage note).
-	artifactIDs := map[string]bool{}
-	isArtifact := func(msg string) bool {
-		m := reUndeclaredIdent.FindStringSubmatch(msg)
-		if m == nil {
-			return false
-		}
-		id := m[1]
-		if id == "" {
-			id = m[2]
-		}
-		return artifactIDs[id]
-	}
-	currentSource := source
-	currentPkgPath := pkgPath
-	result := initial
-	for pass := 1; pass <= 2*len(markers)+8; pass++ {
-		recordGoTypes(result)
+// GnoVM preprocess iteration — Gno's OWN static errors. Preprocess
+// bails on the first error, so neutralize that line and re-run to
+// surface the next (package decls → `package main`, else commented
+// out). Each pass also sweeps the go/types guard (recordGoTypes).
+// GnoVM errors go to gnoErrLines (the `// GnoError:` block); an
+// internal "should not happen" assertion is not a real diagnostic,
+// so it's skipped there (the real error, if any, is go/types').
+// The walk continues PAST unmarked (over-strict) errors so Gno's
+// behavior on every marker line is still measured — a single
+// over-strict reject must not mask the file's whole native-coverage
+// picture. Neutralizing a line removes any declarations it carried,
+// so later "name X not declared"-style errors that merely reference
+// a neutralized declaration are CASCADE ARTIFACTS: they are
+// neutralized and skipped, never pinned (the affected marker line
+// simply stays uncovered by Gno and shows up in the coverage note).
 
-		gnoLine := ExtractErrorLine(result.Error)
-		if gnoLine == 0 {
-			return gnoErrLines, goTCLines // no preprocess error left
-		}
-		sourceLine := gnoLine - prependedLines
-		if seen[sourceLine] {
-			return gnoErrLines, goTCLines // neutralizing didn't clear it; cycle guard
-		}
-		seen[sourceLine] = true
+// no preprocess error left
 
-		errSegs := gnoErrSegments(result.Error)
-		marker, marked := markerByLine[sourceLine]
-		var mkPtr *InlineError
-		if marked {
-			mkPtr = &marker
-		}
-		if _, done := gnoErrLines[sourceLine]; !done {
-			if msg := errorForLine(errSegs, nil, gnoLine, mkPtr); msg != "" &&
-				!internalNoise(msg) && !isArtifact(msg) {
-				gnoErrLines[sourceLine] = msg
-			}
-		}
+// neutralizing didn't clear it; cycle guard
 
-		// Neutralize and continue. gnoLine is post-prepend coords,
-		// which is what indexes into currentSource. Remember the
-		// identifiers the neutralized line declared, so their cascade
-		// errors are recognized as artifacts on later passes.
-		for _, id := range declaredIdents(lineAt(currentSource, gnoLine)) {
-			artifactIDs[id] = true
-		}
-		var wasPkg bool
-		currentSource, wasPkg = NeutralizeLine(currentSource, gnoLine)
-		if wasPkg {
-			currentPkgPath = "main"
-		}
-		result = opts.runErrorcheckPass(currentSource, fname, currentPkgPath, tgs, tcheck)
-	}
-	return gnoErrLines, goTCLines
-}
+// Neutralize and continue. gnoLine is post-prepend coords,
+// which is what indexes into currentSource. Remember the
+// identifiers the neutralized line declared, so their cascade
+// errors are recognized as artifacts on later passes.
 
-// reUndeclaredIdent matches Gno's undefined-reference wordings and
-// captures the identifier — used to recognize cascade artifacts after a
-// declaration-carrying line was neutralized.
-var reUndeclaredIdent = regexp.MustCompile(`(?:name (\w+) not (?:declared|defined)|undefined: (\w+))`)
-
-// lineAt returns the 1-indexed line of src, or "" when out of range.
-func lineAt(src []byte, line int) string {
-	lines := strings.Split(string(src), "\n")
-	if line < 1 || line > len(lines) {
-		return ""
-	}
-	return lines[line-1]
-}
-
-// declaredIdents extracts the identifiers a source line declares:
-// `const/var/type/func NAME ...`, a keywordless const/var-block entry
-// (`NAME = ...`, `NAME TYPE = ...`, or a bare iota-continuation `NAME`),
-// including comma-separated name lists. Heuristic by design — it feeds
-// artifact suppression, where over-matching a name only risks skipping a
-// cascade error that was garbage anyway.
-func declaredIdents(line string) []string {
-	s := strings.TrimSpace(line)
-	if i := strings.Index(s, "//"); i >= 0 {
-		s = strings.TrimSpace(s[:i])
-	}
-	for _, kw := range []string{"const ", "var ", "type ", "func "} {
-		if rest, ok := strings.CutPrefix(s, kw); ok {
-			s = rest
-			break
-		}
-	}
-	m := regexp.MustCompile(`^([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)\s*(?:=|$|[([{ \t])`).FindStringSubmatch(s)
-	if m == nil {
-		return nil
-	}
-	var ids []string
-	for _, id := range strings.Split(m[1], ",") {
-		id = strings.TrimSpace(id)
-		if id != "" && id != "_" {
-			ids = append(ids, id)
-		}
-	}
-	return ids
-}
-
-// runErrorcheckPass executes one fresh-machine pass for the
-// errorcheck multi-pass driver. Each pass needs its own machine and
-// transaction store because Gno's preprocess records package state
-// that would otherwise carry over between passes (and re-surface as
-// a different error than the source line the caller expects).
-func (opts *TestOptions) runErrorcheckPass(source []byte, fname, pkgPath string, tgs gno.Store, tcheck bool) runResult {
-	tcw := opts.BaseStore.CacheWrap()
-	gasMeter := store.NewInfiniteGasMeter()
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Output:        &opts.outWriter,
-		Store:         tgs.BeginTransaction(tcw, tcw, nil, gasMeter),
-		Context:       Context("", pkgPath, nil),
-		GasMeter:      gasMeter,
-		Debug:         opts.Debug,
-		ReviveEnabled: true,
-	})
-	defer m.Release()
-	// Errorcheck passes are always preprocess-only (no main execution).
-	return opts.runTest(m, pkgPath, fname, source, nil, tcheck, true)
-}
+// Errorcheck passes are always preprocess-only (no main execution).
 
 // finalizeGoRunDivergence drives the symmetric Gno-vs-Go verdict for a
 // run-mode file (a .go corpus file, or a .gno file with the
@@ -1671,15 +1306,6 @@ const (
 	// order, error wording, …). It is NOT a bug: a real Gno bug is a
 	// `// KnownIssue:` instead. Single-line `<category>: <reason>`.
 	DirectiveKnownDivergence = "KnownDivergence"
-	// DirectiveGnoStaticIncomplete tags an errorcheck file whose golden
-	// covers only SOME of its inline markers: Gno bailed (or stayed
-	// lenient) before the rest were reached. STATIC-only — errorcheck
-	// files are preprocess-only, never run, so there's no runtime
-	// dimension. The file still passes (its golden is pinned); the tag
-	// flags it as a candidate for a future runnable variant that would
-	// exercise the unreached markers. Auto-written under
-	// --update-golden-tests.
-	DirectiveGnoStaticIncomplete = "GnoStaticIncomplete"
 
 	// Symmetric Gno-vs-Go golden directives for .go corpus files.
 	// They mirror existing native directives but split the actual
@@ -1703,16 +1329,6 @@ const (
 	// not Gno — even when GnoVM preprocess is permissive, this guard
 	// still rejects, and that's worth pinning on its own.
 	DirectiveGoTypeCheckError = "GoTypeCheckError"
-	// DirectiveGnoOverStrictError pins, on errorcheck files, Gno's
-	// per-line preprocess errors on lines that neither the gc markers
-	// nor the go/types guard flag — the evidence of Gno-only
-	// (over-strict) rejection backing a `// KnownIssue:` verdict.
-	DirectiveGnoOverStrictError = "GnoOverStrictError"
-	// DirectiveUncaughtError pins, on errorcheck files, the checkable
-	// (non-GC_ERROR) marker lines caught by NEITHER Gno's preprocess
-	// nor the go/types guard — gc-invalid code the Gno stack would
-	// deploy (a leak / under-rejection; worse than over-strictness).
-	DirectiveUncaughtError = "UncaughtError"
 	// DirectiveGnoPreprocessError pins Gno's per-line preprocess errors
 	// in compile-mode files. Evidence-only — the fact that Gno rejects
 	// these lines. The VERDICT (bug vs benign divergence) is separate:
@@ -1745,10 +1361,6 @@ const (
 	// Every .go corpus file ends with exactly one verdict line: Clean,
 	// Unsupported, KnownIssue or KnownDivergence.
 	DirectiveClean = "Clean"
-	// DirectiveGoTypesOnly pins, on errorcheck files, the marker lines
-	// only the go/types guard caught (Gno preprocess did not): the gap
-	// the Gno type checker must close before go/types can leave.
-	DirectiveGoTypesOnly = "GoTypesOnly"
 )
 
 // verdictDirectives are the four mutually exclusive per-file verdicts.
@@ -1777,19 +1389,15 @@ var nativeDirectives = []string{
 var corpusDirectives = []string{
 	DirectiveUnsupported,
 	DirectiveKnownDivergence,
-	DirectiveGnoStaticIncomplete,
 	DirectiveGnoOutput,
 	DirectiveGoOutput,
 	DirectiveGnoError,
 	DirectiveGoError,
 	DirectiveGoTypeCheckError,
-	DirectiveGnoOverStrictError,
-	DirectiveUncaughtError,
 	DirectiveGnoPreprocessError,
 	DirectiveGoBuildError,
 	DirectiveKnownIssue,
 	DirectiveClean,
-	DirectiveGoTypesOnly,
 }
 
 var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
@@ -1806,9 +1414,8 @@ var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
 // file. Corpus directives also accept the inline `// Name: foo` form
 // — see ParseDirectives.
 var singleLinePascalDirectives = map[string]bool{
-	DirectiveUnsupported:         true,
-	DirectiveGnoStaticIncomplete: true,
-	DirectiveClean:               true,
+	DirectiveUnsupported: true,
+	DirectiveClean:       true,
 	// KnownDivergence is deliberately NOT here: like KnownIssue it is a
 	// verdict that carries multi-line human prose, so a bare
 	// `// KnownDivergence:` must absorb its following comment lines.
@@ -2215,21 +1822,4 @@ func restoreGoExtInError(originalFname, tcError string) string {
 	}
 	base := strings.TrimSuffix(filepath.Base(originalFname), ".go")
 	return strings.ReplaceAll(tcError, base+".gno", base+".go")
-}
-
-// langBelowPin reports whether fl is a `-lang=go1.N` flag with N below
-// Gno's go1.17 pin (numeric compare; lexical would misorder go1.9).
-func langBelowPin(fl string) bool {
-	v, ok := strings.CutPrefix(fl, "-lang=go1.")
-	if !ok {
-		return false
-	}
-	n := 0
-	for _, c := range v {
-		if c < '0' || c > '9' {
-			return false
-		}
-		n = n*10 + int(c-'0')
-	}
-	return n < 17
 }
