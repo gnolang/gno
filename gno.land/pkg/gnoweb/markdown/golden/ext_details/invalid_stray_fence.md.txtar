@@ -1,0 +1,10 @@
+-- input.md --
+before
+:::
+::::
+after
+-- output.html --
+<p>before
+:::
+::::
+after</p>

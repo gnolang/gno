@@ -1,0 +1,19 @@
+-- input.md --
+> [!NOTE]
+> :::details Summary
+> body
+> :::
+-- output.html --
+<details class="gno-alert gno-alert-note" open>
+<summary>
+<svg><use href="#ico-note"></use></svg>Note<svg><use href="#ico-arrow"></use></svg>
+</summary>
+<div>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg>Summary</summary>
+<div>
+<p>body</p>
+</div>
+</details>
+</div>
+</details>
