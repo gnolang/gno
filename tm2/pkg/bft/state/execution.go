@@ -335,9 +335,21 @@ func getBeginBlockLastCommitInfo(block *types.Block, state State, stateDB dbm.DB
 	// For a genesis block (block.Height == state.InitialHeight) there are
 	// no previous validators to attribute votes to.
 	if block.Height > state.InitialHeight {
-		lastValSet, err = LoadValidators(stateDB, block.Height-1)
-		if err != nil {
-			panic(err) // shouldn't happen
+		if state.LastBlockHeight == block.Height-1 {
+			// state is the state this block builds on (ApplyBlock, after
+			// state.ValidateBlock): its LastValidators are the validators of
+			// block.Height-1, the set that signed block.LastCommit, so there
+			// is nothing to load. Loading them instead replayed
+			// IncrementProposerPriority from the last stored checkpoint, up
+			// to valSetCheckpointInterval steps, on every block.
+			lastValSet = state.LastValidators
+		} else {
+			// ExecCommitBlock replays the blocks the app is missing against
+			// the latest state, whose LastValidators belong to another height.
+			lastValSet, err = LoadValidators(stateDB, block.Height-1)
+			if err != nil {
+				panic(err) // shouldn't happen
+			}
 		}
 
 		// Sanity check that commit length matches validator set size -

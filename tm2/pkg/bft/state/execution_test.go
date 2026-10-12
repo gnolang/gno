@@ -453,3 +453,52 @@ func TestGetBeginBlockLastCommitInfo_InitialHeight(t *testing.T) {
 		assert.Empty(t, info.Votes)
 	})
 }
+
+// TestGetBeginBlockLastCommitInfo_LastValidators verifies that the validators
+// a block's LastCommit is attributed to are taken from state.LastValidators,
+// with nothing loaded from the stateDB, when state is the state the block
+// builds on, and are loaded from the stateDB otherwise (ExecCommitBlock
+// replays the blocks the app is missing against the latest state), and that
+// both give the same votes.
+func TestGetBeginBlockLastCommitInfo_LastValidators(t *testing.T) {
+	t.Parallel()
+
+	const height = int64(5)
+	state, stateDB, _ := makeState(3, int(height))
+
+	now := tmtime.Now()
+	precommits := []*types.CommitSig{
+		(&types.Vote{ValidatorIndex: 0, Timestamp: now, Type: types.PrecommitType}).CommitSig(),
+		nil,
+		(&types.Vote{ValidatorIndex: 2, Timestamp: now, Type: types.PrecommitType}).CommitSig(),
+	}
+	lastCommit := types.NewCommit(state.LastBlockID, precommits)
+	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, state.Validators.GetProposer().Address)
+
+	// The votes the app must see: the validators of height-1 as stored, in
+	// order, each flagged by whether its precommit is present.
+	stored, err := sm.LoadValidators(stateDB, height-1)
+	require.NoError(t, err)
+	expected := make([]abci.VoteInfo, 0, stored.Size())
+	for i, val := range stored.Validators {
+		expected = append(expected, abci.VoteInfo{
+			Address:         val.Address,
+			Power:           val.VotingPower,
+			SignedLastBlock: precommits[i] != nil,
+		})
+	}
+
+	// A state the block does not build on, as ExecCommitBlock hands one to a
+	// block it replays: a later height, with other validators behind it. The
+	// stored validators are used, not its LastValidators.
+	stale := state.Copy()
+	stale.LastBlockHeight = height
+	stale.LastValidators = genValSet(3)
+	assert.Equal(t, expected, sm.GetBeginBlockLastCommitInfo(block, stale, stateDB).Votes)
+
+	// The state the block builds on: the same votes, and no load — with the
+	// stored validators gone, a load could only panic.
+	require.NoError(t, stateDB.Delete(sm.CalcValidatorsKey(height-1)))
+	assert.Equal(t, expected, sm.GetBeginBlockLastCommitInfo(block, state, stateDB).Votes)
+	assert.Panics(t, func() { sm.GetBeginBlockLastCommitInfo(block, stale, stateDB) })
+}
