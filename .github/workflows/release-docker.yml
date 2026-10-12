@@ -98,6 +98,11 @@ jobs:
           labels: |
             org.opencontainers.image.authors=Gno Core Team
 
+      # Installed before anything is pushed: an installer failure after the push
+      # would leave published images with no signature.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
       - name: Bake build and push
         id: bake
         uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
@@ -126,8 +131,6 @@ jobs:
       # platform manifest as well as the multi-arch index: a host pulls the
       # manifest for its platform, and a check made against that digest
       # finds no signature on the index alone.
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-
       - name: Sign the image
         env:
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
