@@ -5,7 +5,7 @@ import (
 	"context"
 	"log/slog"
 	"net"
-	"runtime"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1604,7 +1604,10 @@ func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
 	// Give the loop time to settle on the backed off item
 	time.Sleep(100 * time.Millisecond)
 
-	for g := range strings.SplitSeq(goroutineDump(), "\n\n") {
+	var dump strings.Builder
+	require.NoError(t, pprof.Lookup("goroutine").WriteTo(&dump, 2))
+
+	for g := range strings.SplitSeq(dump.String(), "\n\n") {
 		if !strings.Contains(g, "runDialLoop") {
 			continue
 		}
@@ -1621,23 +1624,6 @@ func TestMultiplexSwitch_DialLoop_DoesNotSpin(t *testing.T) {
 	}
 
 	t.Fatal("no goroutine running runDialLoop found")
-}
-
-// goroutineDump returns the stacks of every goroutine in the test binary. The
-// dump also holds the goroutines other tests leave behind, so its size has no
-// fixed bound: the buffer doubles until the dump fits, as a truncated dump can
-// miss the goroutine a test looks for
-func goroutineDump() string {
-	buf := make([]byte, 64<<10)
-
-	for {
-		n := runtime.Stack(buf, true)
-		if n < len(buf) {
-			return string(buf[:n])
-		}
-
-		buf = make([]byte, 2*len(buf))
-	}
 }
 
 // TestMultiplexSwitch_DialLoop_PopsOnlyDueItems guards the dial loop's pop
