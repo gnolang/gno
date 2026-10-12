@@ -44,14 +44,14 @@ const (
 	// oversized title from pricing the whole list out of the query cap.
 	maxRenderedTitle = 512
 	// A proposal description, the one slot on this page a member fills rather
-	// than a hostile executor. escapeThematicBreaks walks it line by line and
-	// the render pays for the walk: measured on the real render path, a 100KB
-	// description costs 4,663,607,836 gas against the 3,000,000,000 cap and the
-	// page crosses it near 64KB, so an unclamped description leaves a proposal
-	// no voter can read. 8KB is around 1,200 words of prose, and the worst shape
-	// inside that bound, 4096 one-byte lines, measured 812,890,487 gas, just
-	// over a quarter of the cap. The stored proposal keeps every byte; this
-	// bounds what one page renders.
+	// than a hostile executor. quoteMarkdown rewrites every line of it and
+	// the render pays for the rewrite: measured on the real render path, a
+	// 100KB description costs 3,091,196,070 gas and a 250KB one 8,894,475,003,
+	// against the 3,000,000,000 cap, so an unclamped description leaves a
+	// proposal no voter can read. 8KB is around 1,200 words of prose, and the
+	// worst shape measured inside that bound, a footnote marker on every line,
+	// costs 541,967,761 gas, under a fifth of the cap. The stored proposal
+	// keeps every byte; this bounds what one page renders.
 	maxRenderedDescription = 8192
 	// A Payment's String(). The canonical impls render a coin set or an
 	// amount plus a token key, then " to " and a bech32 address; a coin set

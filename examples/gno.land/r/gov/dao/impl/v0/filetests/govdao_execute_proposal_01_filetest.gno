@@ -72,7 +72,7 @@ func main(cur realm) {
 //
 // ### Description
 //
-// This proposal always pass on execution
+// > This proposal always pass on execution
 //
 // ---
 //

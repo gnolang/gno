@@ -38,25 +38,30 @@ and the vote list carries the detail.
 
 `### Execution` holds the executor's own description of what it does.
 `### Description` holds the proposer's prose. A proposal whose executor
-describes nothing renders no Execution section.
+describes nothing renders no Execution section. A built-in executor's
+description carries text the proposer chose, a member's portfolio for one, so
+both sections are clamped and quoted the same way.
 
 Everything the page writes comes first, and nothing the proposer controls
 precedes it: the title is escaped and folded to one line. A description
 imitating the disclosure therefore renders below the real one, and a voter
 reading from the top meets the DAO's statement first.
 
-A horizontal rule separates the two sections, and the description cannot draw
-one: every line of it that would render as a thematic break is escaped, so it
-prints its own dashes as text, and a fenced block it leaves open is closed,
-since the page's own rule would otherwise render inside it. Nothing else in the
-description is touched, which is what keeps the portfolio headings and the token
-lists that proposals already carry. One rule on the page is the renderer's
-rather than the DAO's: goldmark's footnote extension draws an `<hr>` above the
-footnote list, at the foot of the document.
+A horizontal rule separates the two sections, and the description renders
+inside a quote the page draws: every line of it is prefixed with `> `, so any
+block it opens, a fence, an HTML block, a list, ends where the quote ends and
+nothing it writes renders outside it. A rule the description draws sits inside
+the quote, while the page's own rule, the Description heading and the action
+bar below it stay the page's. Two markers are escaped and nothing else, which
+is what keeps the portfolio headings and the token lists that proposals already
+carry, now quoted. `[^` is escaped wherever it appears, since a footnote
+definition is the one block goldmark lifts out of its container, to the foot of
+the page below the action bar. A leading `[!` is escaped too, since gnoweb draws
+a quote whose first line is `[!KIND]` as an alert box.
 
-That makes the rule a mark of the page's own chrome rather than a decoration.
+That makes the quote the boundary between the proposer's words and the page's.
 It does not make the section unforgeable: a description can still write a line
-that reads like the disclosure, and a heading above it.
+that reads like the disclosure, and a heading above it, inside its quote.
 
 The creation realm keeps the escaping it has: `sanitize.InlineCode` still
 produces the code span, clamped first per `clamp.gno`. The span becomes the
@@ -95,6 +100,14 @@ same section helper rather than carrying its own copy of the disclosure.
   both as literal text, and it still lets a forged `Executor created in:` line
   through, because inline links survive by design. The cost is real and it does
   not close the imitation.
+- **Escape every line of the description that would draw a rule.** Rejected,
+  and measured before rejecting: an escaping pass has to reimplement
+  CommonMark's block grammar to know where a rule renders, and each review
+  round found shapes that got past the last one, among them a backtick in an
+  info string, a fence of the other character, a carriage return inside a dash
+  run, an HTML block left open and a rule indented under a list item. Each
+  either drew the page's rule or swallowed its action bar. The quote holds on
+  every one of them, through gnoweb's own goldmark options.
 - **Verify that the named realm is the one whose code runs.** Out of scope, and
   not possible from the page: the proposal holds an `Executor` interface value,
   and the realm behind it is only recoverable for the built-in implementation.
@@ -102,23 +115,24 @@ same section helper rather than carrying its own copy of the disclosure.
 ## Consequences
 
 - Every proposal page and every golden covering one changes shape. Filetests in
-  `r/gov/dao/impl/v0` and `r/sys/namereg/v0` move with it, and so does the
-  render assertion in
-  `gno.land/pkg/integration/testdata/govdao_execute_reject_proposal.txtar`.
+  `r/gov/dao/impl/v0` and `r/sys/namereg/v0` move with it, and so do the
+  render assertions in `govdao_execute_reject_proposal.txtar` and
+  `govdao_treasury_payment_reason_cannot_forge_label.txtar`, under
+  `gno.land/pkg/integration/testdata/`.
 - `proposalStatus.String` is gone, replaced by `statusLine` and `tally`. The
   page assembles its own block rather than taking a rendered one from the
   status type.
-- Rendering a description now walks it line by line, to escape the lines that
-  would draw a rule, and the walk is what the page pays for: a 100KB description
-  measured 4,663,607,836 gas against the 3,000,000,000 query cap, and the page
-  crosses it near 64KB. So the description is clamped to `maxRenderedDescription`
-  before the walk, like every other slot on the page; the stored proposal keeps
-  every byte.
+- Both descriptions render as a quote: indented, under the quote's left
+  border, with their markdown otherwise as written. A footnote prints as the
+  text the proposer typed rather than as a note at the foot of the page.
+- Rendering a description now rewrites every line into the quote, and the
+  rewrite is what the page pays for: a 100KB description measured 3,091,196,070
+  gas and a 250KB one 8,894,475,003, against the 3,000,000,000 query cap. So
+  the description is clamped to `maxRenderedDescription` before the quote, like
+  every other slot on the page; the stored proposal keeps every byte.
 - Adding declarations to a genesis realm shifts the balances asserted in
   `gno.land/pkg/integration/testdata/storage_deposit_price_change.txtar`, which
-  its own note says to re-derive. Both lines move by 899900ugnot here. Comments
-  do not move them: 7001 bytes of them added to `render.gno` leave both
-  untouched.
+  its own note says to re-derive.
 - A hostile creation realm renders exactly as it did: escaped, on one line,
   inside a code span, with no link.
 - A creation realm the check rejects renders with no link rather than with a
@@ -127,7 +141,7 @@ same section helper rather than carrying its own copy of the disclosure.
 - The link is reachability, not trust. It does not assert the named realm is the
   one whose code runs, which the page has never asserted either.
 - A proposal can still write a second `### Execution` section of its own. It
-  renders below the real one, without the rule above it, and it cannot be moved
-  higher. Ending the imitation outright means the page stops rendering proposer
-  markdown, which is a decision about the proposal format rather than about
-  this page.
+  renders below the real one and inside the description's quote, and it cannot
+  be moved higher or out of the quote. Ending the imitation outright means the
+  page stops rendering proposer markdown, which is a decision about the
+  proposal format rather than about this page.

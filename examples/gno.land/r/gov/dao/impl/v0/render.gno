@@ -128,16 +128,14 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	out += ps.tally(0, rlm)
 	out += ufmt.Sprintf(" ([detail](%v:%v/votes))\n\n", ren.relativeRealmPath, pid)
 
-	// The page draws every rule on it, and escapeThematicBreaks takes the mark
-	// out of the description, so an imitation can only render below this one.
+	// Everything an executor or the proposer wrote renders inside a quote, so
+	// the headings, the rules and the action bar are the page's alone.
 	out += renderExecution(p)
 	out += "---\n\n"
 
-	// Clamped before it is escaped, per clamp.gno: the pass below walks every
-	// line of the description, and the walk is what the render pays for.
-	if description := escapeThematicBreaks(clampField(p.Description(), maxRenderedDescription)); description != "" {
+	if description := clampField(p.Description(), maxRenderedDescription); description != "" {
 		out += "### Description\n\n"
-		out += description
+		out += quoteMarkdown(description)
 		out += "\n\n---\n\n"
 	}
 
@@ -146,184 +144,19 @@ func (ren *render) renderProposalPage(_ int, rlm realm, sPid string, d *GovDAO) 
 	return out
 }
 
-// escapeThematicBreaks backslashes every line of the description that would
-// render as a horizontal rule, leaving the rule to the page, and closes a
-// fenced block the description leaves open. Fenced blocks are skipped, where a
-// rule is already literal text.
-func escapeThematicBreaks(description string) string {
-	if !strings.ContainsAny(description, "-_*`~") {
-		return description
+// quoteMarkdown puts every line of markdown someone other than the page wrote
+// inside a blockquote the page writes. Any block it opens, a fence, an HTML
+// block, a list, ends where the quote ends, so a rule it draws sits inside the
+// quote and the page's own rule and action bar stay outside it. A footnote is
+// the one construct goldmark lifts out of its container to the foot of the
+// page, so `[^` is escaped and no footnote forms. A leading `[!` is escaped
+// too, since gnoweb would draw the quote itself as an alert box.
+func quoteMarkdown(markdown string) string {
+	markdown = strings.ReplaceAll(markdown, "[^", "\\[^")
+	if strings.HasPrefix(markdown, "[!") {
+		markdown = "\\" + markdown
 	}
-
-	lines := strings.Split(description, "\n")
-	fence := ""
-	html := false
-	above := ""
-	for i, line := range lines {
-		// gnoweb drops every carriage return before it reads the line, so the
-		// checks drop them too: a CRLF description leaves one at the end of
-		// every line, and a hand-written one can carry them inside a run of
-		// dashes, which is still a rule to the renderer.
-		trimmed := strings.ReplaceAll(line, "\r", "")
-
-		if fence != "" {
-			if closesFence(trimmed, fence) {
-				fence = ""
-			}
-			above = trimmed
-			continue
-		}
-
-		if html && strings.TrimSpace(trimmed) == "" {
-			html = false
-		}
-
-		if run := openingFence(trimmed); run != "" && !html {
-			fence = run
-		} else if opensHTMLBlock(trimmed) {
-			html = true
-		} else if isThematicBreak(trimmed) && !underlinesSetext(trimmed, above) {
-			lines[i] = "\\" + line
-		}
-
-		above = trimmed
-	}
-
-	if fence != "" {
-		// Everything the page appends below would otherwise land inside the
-		// block the description left open: the page's own rule, the heading
-		// above it and the whole action bar, read as code by the voter.
-		return strings.Join(lines, "\n") + "\n" + fence
-	}
-
-	return strings.Join(lines, "\n")
-}
-
-// openingFence returns the run of backticks or tildes that opens a fenced
-// block, "" where the line opens none. CommonMark forbids a backtick anywhere
-// in a backtick fence's info string, so a line carrying one opens nothing and
-// the rules under it stay the page's to escape.
-func openingFence(line string) string {
-	line = trimIndent(line)
-
-	var mark byte
-	switch {
-	case strings.HasPrefix(line, "```"):
-		mark = '`'
-	case strings.HasPrefix(line, "~~~"):
-		mark = '~'
-	default:
-		return ""
-	}
-
-	run := 0
-	for run < len(line) && line[run] == mark {
-		run++
-	}
-	if mark == '`' && strings.ContainsRune(line[run:], '`') {
-		return ""
-	}
-
-	return line[:run]
-}
-
-// closesFence reports whether the line closes the open block: the same
-// character, a run at least as long as the opener's, and nothing after it but
-// whitespace. A shorter run, or one of the other character, is content.
-func closesFence(line, fence string) bool {
-	line = trimIndent(line)
-
-	run := 0
-	for run < len(line) && line[run] == fence[0] {
-		run++
-	}
-
-	return run >= len(fence) && strings.TrimSpace(line[run:]) == ""
-}
-
-// opensHTMLBlock reports whether the line starts a block of raw HTML, which
-// runs to the next blank line and inside which a fence line opens nothing. Any
-// line opening with a tag counts: the pass only has to stop trusting the fence
-// tracker there, and reading one line too many as HTML costs nothing, since
-// the rules inside it are escaped either way.
-func opensHTMLBlock(line string) bool {
-	return strings.HasPrefix(trimIndent(line), "<")
-}
-
-// isThematicBreak reports whether the line renders as a horizontal rule, by
-// the CommonMark rule. Indentation is not measured: goldmark measures it from
-// the enclosing container, so four spaces under a list item is a rule there
-// and indented code at the top level, and escaping both costs a backslash
-// inside an indented code block rather than a rule the page did not draw.
-func isThematicBreak(line string) bool {
-	line = strings.TrimLeft(line, " \t")
-	if line == "" {
-		return false
-	}
-
-	mark := line[0]
-	if mark != '-' && mark != '_' && mark != '*' {
-		return false
-	}
-
-	count := 0
-	for i := 0; i < len(line); i++ {
-		switch c := line[i]; {
-		case c == mark:
-			count++
-		case c == ' ' || c == '\t':
-		default:
-			return false
-		}
-	}
-
-	return count >= 3
-}
-
-// underlinesSetext reports whether a dash run underlines a setext heading
-// rather than drawing a rule, which it does when the line above is paragraph
-// text: CommonMark gives the heading precedence there, so gnoweb draws no rule
-// and escaping the run would cost the proposer a heading they wrote. A line
-// above that opens a block of its own is not paragraph text, and the run
-// closes that block as a rule.
-func underlinesSetext(rule, above string) bool {
-	rule = strings.TrimLeft(rule, " \t")
-	if rule == "" || rule[0] != '-' {
-		return false
-	}
-
-	above = strings.TrimLeft(above, " \t")
-	if above == "" {
-		return false
-	}
-
-	switch above[0] {
-	case '-', '*', '+', '>', '#', '`', '~', '=', '|', '<':
-		return false
-	}
-	if above[0] >= '0' && above[0] <= '9' {
-		rest := strings.TrimLeft(above, "0123456789")
-		if strings.HasPrefix(rest, ". ") || strings.HasPrefix(rest, ") ") {
-			return false
-		}
-	}
-
-	return true
-}
-
-// trimIndent drops the up-to-three leading spaces a block marker may carry. A
-// fourth space makes the line indented code, which renders literally.
-func trimIndent(line string) string {
-	for i := 0; i < 3 && i < len(line); i++ {
-		if line[i] != ' ' {
-			return line[i:]
-		}
-	}
-	if len(line) >= 3 {
-		return line[3:]
-	}
-
-	return ""
+	return "> " + strings.ReplaceAll(markdown, "\n", "\n> ")
 }
 
 // executesLine names the realm that runs if the proposal passes. The line is
@@ -339,12 +172,14 @@ func executesLine(p *dao.Proposal) string {
 // renderExecution returns the executor's own account of what runs, under a
 // heading of its own, and "" for an executor with nothing to say.
 func renderExecution(p *dao.Proposal) string {
-	description := p.ExecutorString()
+	// A built-in executor's description can carry what the proposer wrote, a
+	// member's portfolio for one, so it is clamped and quoted like theirs.
+	description := clampField(p.ExecutorString(), maxRenderedDescription)
 	if description == "" {
 		return ""
 	}
 
-	return "### Execution\n\n" + description + "\n\n"
+	return "### Execution\n\n" + quoteMarkdown(description) + "\n\n"
 }
 
 // renderCreationRealm renders the realm an executor reports it was created in:

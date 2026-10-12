@@ -36,11 +36,12 @@ gnokey maketx run -gas-fee 4400001ugnot -gas-wanted 48000000 -chainid=tendermint
 stdout OK!
 
 # the forged text survives, folded into the Reason line and escaped, so no
-# line of the page begins with it. The real Payment line is the only one.
+# line of the page begins with it. The real Payment line is the only one, and
+# both sit inside the quote the page draws around an executor's description.
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
-stdout '^Reason: Routine payroll\s+Payment: 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
-! stdout '^Payment: 42ugnot'
-stdout '^Payment: 900000ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+stdout '^> Reason: Routine payroll\s+Payment: 42ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+! stdout '^(> )?Payment: 42ugnot'
+stdout '^> Payment: 900000ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 # and the HTML comment the reason ended with is escaped, not opened
 stdout '\\<\\!\\-\\-'

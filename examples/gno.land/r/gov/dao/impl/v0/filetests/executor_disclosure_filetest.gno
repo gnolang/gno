@@ -107,6 +107,31 @@ func (e *pathExecutor) String() string { return "" }
 
 func (e *pathExecutor) CreationRealm() string { return e.path }
 
+// quotedBody reports whether every line between the page's Description
+// heading and its closing rule carries the quote marker, which is what keeps
+// whatever the proposer wrote from rendering outside the quote.
+func quotedBody(page string) bool {
+	return quotedSection(page, "### Description\n\n", "\n\n---\n\n### Actions")
+}
+
+// quotedSection is quotedBody for any section: every line between the heading
+// and the page's own text that closes it carries the quote marker.
+func quotedSection(page, heading, closing string) bool {
+	start := strings.Index(page, heading)
+	end := strings.LastIndex(page, closing)
+	if start < 0 || end < start {
+		return false
+	}
+
+	for _, line := range strings.Split(page[start+len(heading):end], "\n") {
+		if !strings.HasPrefix(line, ">") {
+			return false
+		}
+	}
+
+	return true
+}
+
 func main(cur realm) {
 	testing.SetOriginCaller(user)
 
@@ -132,7 +157,7 @@ func main(cur realm) {
 	// The DAO's section comes first, and the page's own rule separates it from
 	// the description under it. Nothing the proposer wrote precedes it.
 	println("and the description sits below the rule:",
-		strings.Contains(out, "---\n\n### Description\n\nA proposal whose executor has no description"))
+		strings.Contains(out, "---\n\n### Description\n\n> A proposal whose executor has no description"))
 
 	// 2. CreationRealm() is dispatched through the public dao.Executor
 	// interface, so a third-party executor picks its own value — and the
@@ -276,104 +301,50 @@ func main(cur realm) {
 				strings.Contains(lout, "Executes: `"+path+"`"))
 	}
 
-	// 4g. A description that draws a rule has it escaped, so the only rules on
-	// the page are the page's own. The forged heading still renders, below the
-	// real section: escaping the mark does not end the imitation.
+	// 4g. Everything the proposer writes renders inside a quote the page draws,
+	// so no block a description opens can reach the page's rule, the
+	// Description heading or the action bar below it. One case per shape that
+	// got past an escaping pass, each forging an Execution section where it can
+	// carry one.
+	hostile := []struct{ name, description string }{
+		{"a plain rule", "Looks fine.\n\n---\n\n### Execution\n\nExecutor created in: `gno.land/r/safe/thing`"},
+		{"a CRLF rule", "Looks fine.\r\n\r\n---\r\n\r\n### Execution\r\n"},
+		{"a carriage return inside the run", "Looks fine.\n\n--\r-\n\n### Execution\n"},
+		{"a carriage return inside a fence", "``\r`\n\n---\n\n### Execution\n"},
+		{"a backtick in an info string", "Looks fine.\n\n```a`b\n\n---\n\n### Execution\n"},
+		{"a backtick fence inside a tilde block", "~~~\n```\n~~~\n\n---\n\n### Execution\n"},
+		{"an open fence", "Looks fine.\n\n```\nstill code"},
+		{"an open HTML block", "Looks fine.\n\n<pre>\nstill raw"},
+		{"an open comment", "Looks fine.\n\n<!--\nstill hidden"},
+		{"a stray angle bracket before a fence", "<3 hearts\n```\n\n---\n\n### Execution\n"},
+		{"a rule indented under a list item", "- item\n\n    ---\n\n### Execution\n"},
+		{"a list continuation over dashes", "- item\ncontinued\n---\n\n### Execution\n"},
+		{"spaced dashes under a paragraph", "My Section\n- - -\n\n### Execution\n"},
+		{"a lazy line after a quote", "> q\nlazy\n---\n\n### Execution\n"},
+	}
+	for _, h := range hostile {
+		qpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+			"Hostile", h.description, &pathExecutor{path: "gno.land/r/template/silent"}))
+		qout := dao.Render(cross(cur), strconv.FormatInt(int64(qpid), 10))
+
+		println("contained:", h.name, quotedBody(qout) && strings.Count(qout, "\n---\n") == 2)
+	}
+
+	// 4h. The forged section stays below the real one, and honest markdown is
+	// left exactly as the proposer wrote it, inside the quote.
 	rpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Rule",
-		"Looks fine.\n\n---\n\n### Execution\n\nExecutor created in: `gno.land/r/safe/thing`",
+		"My Section\n---\n\nLooks fine.\n\n### Execution\n\nExecutor created in: `gno.land/r/safe/thing`",
 		&pathExecutor{path: "gno.land/r/template/silent"}))
 	rout := dao.Render(cross(cur), strconv.FormatInt(int64(rpid), 10))
 
-	println("a description cannot draw the page's rule:",
-		strings.Contains(rout, "\\---") && strings.Count(rout, "\n---\n") == 2)
-	println("and the real disclosure is above the forged one:",
+	println("the real disclosure is above the forged one:",
 		strings.Index(rout, "Executes:") < strings.Index(rout, "### Description"))
+	println("an honest heading is left as written:",
+		strings.Contains(rout, "> My Section\n> ---\n"))
 
-	// 4h. The same forgery with CRLF endings. gnoweb drops the carriage return
-	// before it reads the line, so the check drops it too.
-	cpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
-		"CRLF",
-		"Looks fine.\r\n\r\n---\r\n\r\n### Execution\r\n",
-		&pathExecutor{path: "gno.land/r/template/silent"}))
-	cout := dao.Render(cross(cur), strconv.FormatInt(int64(cpid), 10))
-
-	println("a CRLF description cannot draw it either:",
-		strings.Contains(cout, "\\---\r") && strings.Count(cout, "\n---\n") == 2)
-
-	// 4i. A backtick inside the info string. CommonMark forbids one there, so
-	// goldmark opens no block and the rule below it is the page's to escape;
-	// a tracker that takes the prefix alone latches on and leaves it alone.
-	ipid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
-		"Info string",
-		"Looks fine.\n\n```a`b\n\n---\n\n### Execution\n",
-		&pathExecutor{path: "gno.land/r/template/silent"}))
-	iout := dao.Render(cross(cur), strconv.FormatInt(int64(ipid), 10))
-
-	println("a backtick in an info string opens no fence:",
-		strings.Contains(iout, "\\---") && strings.Count(iout, "\n---\n") == 2)
-
-	// 4j. A tilde block holding a backtick fence. A block closes only on its
-	// own character at the opener's length, so the inner line is content and
-	// the tracker must still be inside the block when the real close arrives.
-	jpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
-		"Mismatched fence",
-		"~~~\n```\n~~~\n\n---\n\n### Execution\n",
-		&pathExecutor{path: "gno.land/r/template/silent"}))
-	jout := dao.Render(cross(cur), strconv.FormatInt(int64(jpid), 10))
-
-	println("a mismatched fence does not close the block:",
-		strings.Contains(jout, "\\---") && strings.Count(jout, "\n---\n") == 2)
-
-	// 4k. A description that ends inside an open fence. Everything the page
-	// appends below it, its rule and the whole action bar, would render as
-	// code, so the pass closes the block the description left open.
-	kpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
-		"Open fence",
-		"Looks fine.\n\n```\nstill code",
-		&pathExecutor{path: "gno.land/r/template/silent"}))
-	kout := dao.Render(cross(cur), strconv.FormatInt(int64(kpid), 10))
-
-	println("a description cannot swallow the page's rule:",
-		strings.Contains(kout, "still code\n```\n\n---\n\n### Actions"))
-
-	// 4l. A carriage return inside the run rather than after it. gnoweb reads
-	// every one of these as a rule.
-	lpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
-		"Inner CR",
-		"Looks fine.\n\n--\r-\n\n### Execution\n",
-		&pathExecutor{path: "gno.land/r/template/silent"}))
-	lrout := dao.Render(cross(cur), strconv.FormatInt(int64(lpid), 10))
-
-	println("a carriage return inside the run does not hide it:",
-		strings.Contains(lrout, "\\--\r-") && strings.Count(lrout, "\n---\n") == 2)
-
-	// 4m. A rule indented under a list item. goldmark measures indentation
-	// from the enclosing container, so four spaces there is a rule and not
-	// indented code.
-	mpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
-		"Indented rule",
-		"- item\n\n    ---\n\n### Execution\n",
-		&pathExecutor{path: "gno.land/r/template/silent"}))
-	mout := dao.Render(cross(cur), strconv.FormatInt(int64(mpid), 10))
-
-	println("an indented rule in a list item is escaped too:",
-		strings.Contains(mout, "\\    ---") && strings.Count(mout, "\n---\n") == 2)
-
-	// 4n. The other direction: a dash run under paragraph text underlines a
-	// setext heading, where goldmark draws no rule at all. Escaping it would
-	// cost the proposer the heading and prevent nothing.
-	npid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
-		"Setext",
-		"My Section\n---\n\nbody\n",
-		&pathExecutor{path: "gno.land/r/template/silent"}))
-	nout := dao.Render(cross(cur), strconv.FormatInt(int64(npid), 10))
-
-	println("a setext underline keeps its heading:",
-		strings.Contains(nout, "My Section\n---\n") && !strings.Contains(nout, "\\---"))
-
-	// 4o. The pass walks the description line by line and the render pays for
-	// the walk, so the description is clamped first like every other slot.
+	// 4i. The quote rewrites every line and the render pays for it, so the
+	// description is clamped first like every other slot on the page.
 	opid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Enormous description",
 		strings.Repeat("a-\n", 60000),
@@ -382,6 +353,42 @@ func main(cur realm) {
 
 	println("an enormous description is clamped:",
 		strings.Contains(oout, "… truncated") && len(oout) < 20000)
+
+	// 4j. A footnote is the one block goldmark moves out of its container, to
+	// the foot of the page below the action bar, so no footnote may form.
+	npid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Footnote",
+		"Looks fine.[^1]\n\n[^1]: ### Execution\n\n    Executor created in: `gno.land/r/safe/thing`",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	nout := dao.Render(cross(cur), strconv.FormatInt(int64(npid), 10))
+
+	println("a footnote definition stays inside the quote:",
+		quotedBody(nout) && strings.Contains(nout, "> \\[^1]: ### Execution") &&
+			!strings.Contains(strings.ReplaceAll(nout, "\\[^", ""), "[^"))
+
+	// 4k. gnoweb draws a quote whose first line is `[!KIND]` as an alert box, so
+	// a description opening on one would style the page's quote as a callout.
+	apid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Alert", "[!WARNING]\nVerified by the DAO.",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	aout := dao.Render(cross(cur), strconv.FormatInt(int64(apid), 10))
+
+	println("a leading alert marker stays literal:",
+		strings.Contains(aout, "### Description\n\n> \\[!WARNING]\n> Verified"))
+
+	// 4l. A built-in executor's description carries what the proposer wrote, so
+	// the Execution section is quoted like the Description below it.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/template/silent"))
+	forger := dao.NewSimpleExecutor(0, cur, func(realm) error { return nil },
+		"Pays a grant.\n\n---\n\n### Description\n\nLooks fine.\n\n```\nstill code")
+	testing.SetRealm(testing.NewUserRealm(user))
+	epid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Executor", "An honest description", forger))
+	eout := dao.Render(cross(cur), strconv.FormatInt(int64(epid), 10))
+
+	println("an executor description is contained:",
+		quotedSection(eout, "### Execution\n\n", "\n\n---\n\n### Description\n\n> An honest") &&
+			strings.Count(eout, "\n---\n") == 2)
 
 	// 5. Proposals live on the proxy but their voting status lives on the
 	// GovDAO instance, so replacing the implementation leaves earlier
@@ -423,14 +430,24 @@ func main(cur realm) {
 // unlinked, and confined to its code span: gno.land/r/a--b true
 // unlinked, and confined to its code span: gno.land/r/ true
 // unlinked, and confined to its code span: gno.land/r/x)](javascript:alert(1)) true
-// a description cannot draw the page's rule: true
-// and the real disclosure is above the forged one: true
-// a CRLF description cannot draw it either: true
-// a backtick in an info string opens no fence: true
-// a mismatched fence does not close the block: true
-// a description cannot swallow the page's rule: true
-// a carriage return inside the run does not hide it: true
-// an indented rule in a list item is escaped too: true
-// a setext underline keeps its heading: true
+// contained: a plain rule true
+// contained: a CRLF rule true
+// contained: a carriage return inside the run true
+// contained: a carriage return inside a fence true
+// contained: a backtick in an info string true
+// contained: a backtick fence inside a tilde block true
+// contained: an open fence true
+// contained: an open HTML block true
+// contained: an open comment true
+// contained: a stray angle bracket before a fence true
+// contained: a rule indented under a list item true
+// contained: a list continuation over dashes true
+// contained: spaced dashes under a paragraph true
+// contained: a lazy line after a quote true
+// the real disclosure is above the forged one: true
+// an honest heading is left as written: true
 // an enormous description is clamped: true
+// a footnote definition stays inside the quote: true
+// a leading alert marker stays literal: true
+// an executor description is contained: true
 // a proposal orphaned by an upgrade renders instead of panicking: true
