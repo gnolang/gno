@@ -5,6 +5,7 @@ package node
 
 import (
 	"bytes"
+	goerrors "errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -1070,6 +1071,11 @@ var genesisDocKey = []byte("genesisDoc")
 // — beyond that height the field is unused.
 func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider GenesisDocProvider) (sm.State, *types.GenesisDoc, error) {
 	genDoc, err := loadGenesisDoc(stateDB)
+	if err != nil && !goerrors.Is(err, errGenesisDocNotFound) {
+		// A read error is not an absence: taken as one, the file's doc would
+		// replace the persisted one past the chain identity checks below.
+		return sm.State{}, nil, err
+	}
 	if err != nil {
 		genDoc, err = genesisDocProvider()
 		if err != nil {
@@ -1140,6 +1146,8 @@ func resetToGenesisDoc(stateDB dbm.DB, genDoc *types.GenesisDoc) (sm.State, *typ
 	return state, genDoc, nil
 }
 
+var errGenesisDocNotFound = goerrors.New("genesis doc not found")
+
 // panics if failed to unmarshal bytes
 func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 	b, err := db.Get(genesisDocKey)
@@ -1147,7 +1155,7 @@ func loadGenesisDoc(db dbm.DB) (*types.GenesisDoc, error) {
 		return nil, fmt.Errorf("error while getting Genesis doc: %w", err)
 	}
 	if len(b) == 0 {
-		return nil, errors.New("Genesis doc not found")
+		return nil, errGenesisDocNotFound
 	}
 	var genDoc *types.GenesisDoc
 	err = amino.UnmarshalJSON(b, &genDoc)

@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -661,6 +662,43 @@ func TestLoadStateFromDBOrGenesisDocProvider_ProbeErrorKeepsCommittedState(t *te
 	after := sm.LoadState(db)
 	assert.Equal(t, int64(500), after.LastBlockHeight, "a failed probe must not rewrite the state record")
 	assert.Equal(t, []byte("committed-app-hash"), after.AppHash)
+}
+
+// DB whose Get of the persisted genesis doc fails while fail is set.
+type genesisDocGetErrDB struct {
+	*memdb.MemDB
+	fail bool
+}
+
+func (d *genesisDocGetErrDB) Get(key []byte) ([]byte, error) {
+	if d.fail && bytes.Equal(key, genesisDocKey) {
+		return nil, errors.New("injected read error")
+	}
+	return d.MemDB.Get(key)
+}
+
+// A read error on the persisted genesis doc must fail the boot, never read as
+// "no doc" and let an edited genesis file replace it.
+func TestLoadStateFromDBOrGenesisDocProvider_GenesisDocReadErrorFailsBoot(t *testing.T) {
+	t.Parallel()
+
+	d := &genesisDocGetErrDB{MemDB: memdb.NewMemDB()}
+	pk := ed25519.GenPrivKey().PubKey()
+	seedCommittedChain(t, d, pk)
+
+	edited := func() (*types.GenesisDoc, error) {
+		doc, _ := probeGenesisDocProvider(pk, 1)()
+		doc.ChainID = "edited-chain"
+		return doc, nil
+	}
+	d.fail = true
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(d, edited)
+	require.ErrorContains(t, err, "injected read error", "a failed read must fail the boot")
+	d.fail = false
+
+	persisted, err := loadGenesisDoc(d)
+	require.NoError(t, err)
+	assert.Equal(t, "genesis-doc-test", persisted.ChainID, "the edited file must not replace the persisted doc")
 }
 
 // A genesis file that passes the chain identity guards but does not validate

@@ -39,6 +39,8 @@ names the same chain id and app hash, `resetToGenesisDoc` rebuilds the state
 record from the file and replaces the persisted doc. Once the key exists the
 persisted doc stays authoritative, as before. A failed probe fails the boot:
 read as "not applied", it would rebuild the state record of a committed chain.
+A failed read of the persisted doc fails it too: read as "no doc", it would let
+the file replace that doc past the chain id and app hash checks.
 
 ### Narrow the fork test's guard
 
