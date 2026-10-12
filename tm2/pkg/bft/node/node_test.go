@@ -730,6 +730,18 @@ func TestLoadStateFromDBOrGenesisDocProvider_ResetDocWriteErrorFailsBoot(t *test
 	require.ErrorContains(t, err, "injected write error", "a failed doc write must fail the boot")
 }
 
+// A first boot whose genesis doc write fails must fail, never boot a data dir
+// that holds no doc.
+func TestLoadStateFromDBOrGenesisDocProvider_FirstBootDocWriteErrorFailsBoot(t *testing.T) {
+	t.Parallel()
+
+	d := &genesisDocSetErrDB{MemDB: memdb.NewMemDB(), fail: true}
+	pk := ed25519.GenPrivKey().PubKey()
+
+	_, _, err := LoadStateFromDBOrGenesisDocProvider(d, probeGenesisDocProvider(pk, 1))
+	require.ErrorContains(t, err, "injected write error", "a failed doc write must fail the first boot")
+}
+
 // A genesis file that passes the chain identity guards but does not validate
 // must not replace the persisted doc: the reset writes only after it validates.
 func TestGenesisResetKeepsGoodDocOnInvalidFile(t *testing.T) {
