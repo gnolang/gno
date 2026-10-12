@@ -2661,6 +2661,8 @@ func TestMultiplexSwitch_PersistentPeerEvents(t *testing.T) {
 		sw.persistentPeerConnected(addr.ID, connectedAt, now)
 		sw.persistentPeerConnected(addr.ID, connectedAt, replaced)
 
+		assert.True(t, connectedAt[addr.ID].Equal(replaced))
+
 		*connected = false
 
 		sw.persistentPeerDisconnected(addr.ID, attempts, connectedAt, dropped)
