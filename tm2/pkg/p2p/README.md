@@ -459,7 +459,7 @@ Unlike persistent peers, seed connections are not preserved: a seed exists to ha
 discovery has filled the dial queue, the connection has served its purpose. The node never actively drops it. Closing
 the connection is left to the seed itself.
 
-A node can, however, run out of peers to dial: every discovered address may end up unreachable, and the whole dial queue backs off. The seed dial service watches for exactly that situation, and falls back to the configured seeds. Only the dial queue counts when deciding whether the switch has run out of peers to dial: pending persistent dials do not hold back the seeds, since a persistent dial does not refill peer discovery. A seed whose hostname does not resolve when the node starts is kept with no IP, and its hostname is dialed.
+A node can, however, run out of peers to dial: every discovered address may end up unreachable, and the dial queue runs empty. The seed dial service watches for exactly that situation, and falls back to the configured seeds. Only the dial queue counts when deciding whether the switch has run out of peers to dial: pending persistent dials do not hold back the seeds, since a persistent dial does not refill peer discovery. A seed whose hostname does not resolve when the node starts is kept with no IP, and its hostname is dialed.
 
 ```go
 package p2p
