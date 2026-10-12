@@ -190,8 +190,8 @@ func (p *detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Cont
 	block := &DetailsBlock{Open: open, Fence: fence}
 
 	if sEnd > sStart {
-		absStart := segment.Start + pos + sStart
-		absEnd := segment.Start + pos + sEnd
+		absStart := segment.Start + pos + sStart - segment.Padding
+		absEnd := segment.Start + pos + sEnd - segment.Padding
 		summarySeg := text.NewSegment(absStart, absEnd)
 
 		segments := text.Segments{}
