@@ -79,6 +79,9 @@ succeeds. Rejected.
   app's message, and `gnogenesis fork test` reports it as a failure.
 - An operator can correct `genesis.json` and restart on the same data dir, as
   long as the chain id and app hash are unchanged.
+- A `NewInMemoryNode` caller whose genesis has a nil `AppState` used to boot
+  with no genesis state applied. It now fails the handshake with
+  `invalid AppState of type <nil>`.
 - A data dir where an older binary already booted past a refusal carries the
   height-0 key, so the corrected file is ignored there until it is wiped.
 - The reset leaves the refused genesis's validator and consensus-parameter
