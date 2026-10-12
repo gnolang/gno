@@ -43,6 +43,8 @@ read as "not applied", it would rebuild the state record of a committed chain.
 A failed read of the persisted doc fails it too: read as "no doc", it would let
 the file replace that doc past the chain id and app hash checks. So does a
 failed write of the corrected doc, which would leave the refused one in place.
+A first boot validates the file before persisting it: a doc saved with no
+chain id would fail every later boot on the chain id check.
 
 ### Narrow the fork test's guard
 

@@ -1081,6 +1081,11 @@ func LoadStateFromDBOrGenesisDocProvider(stateDB dbm.DB, genesisDocProvider Gene
 		if err != nil {
 			return sm.State{}, nil, err
 		}
+		// Validated before the save: persisted, a doc with no chain id would
+		// fail every later boot on the chain id check, whatever the file says.
+		if err := genDoc.ValidateAndComplete(); err != nil {
+			return sm.State{}, nil, fmt.Errorf("error in genesis file: %w", err)
+		}
 		if err := saveGenesisDoc(stateDB, genDoc); err != nil {
 			return sm.State{}, nil, err
 		}
