@@ -643,6 +643,11 @@ func extractQuotedStrings(s string) []string {
 		}
 		if v, err := strconv.Unquote(s[i : end+1]); err == nil {
 			out = append(out, v)
+		} else {
+			// gc's markers are regexes, not Go literals: `\(` and `\.`
+			// are regex escapes. Keep the raw text, unescaping only the
+			// quote itself, as go/test's run.go does.
+			out = append(out, strings.ReplaceAll(s[i+1:end], `\"`, `"`))
 		}
 		i = end + 1
 	}

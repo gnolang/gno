@@ -33,10 +33,10 @@ func f() {
 // line 10
 
 // UncaughtError:
-// line 13: uncaught; gc expects an error (no pattern)
-// line 16: uncaught; gc expects an error (no pattern)
-// line 19: uncaught; gc expects an error (no pattern)
-// line 22: uncaught; gc expects an error (no pattern)
-// line 25: uncaught; gc expects an error (no pattern)
+// line 13: uncaught; gc expects: unexpected \]
+// line 16: uncaught; gc expects: unexpected \)
+// line 19: uncaught; gc expects: unexpected \]
+// line 22: uncaught; gc expects: unexpected \)
+// line 25: uncaught; gc expects: unexpected \]
 
 // Verdict: KnownIssue errorcheck: 0 over-strict line(s), 5 uncaught marker(s)

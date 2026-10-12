@@ -62,7 +62,7 @@ func main() {
 // line 41
 
 // GoTypesOnly:
-// line 35: gc expects an error (no pattern)
+// line 35: gc expects: not enough arguments in call to g\(\)|not enough arguments
 
 // GnoOverStrictError:
 // line 27: function g does not have a body but is not natively defined (did you build after pulling from the repository?)

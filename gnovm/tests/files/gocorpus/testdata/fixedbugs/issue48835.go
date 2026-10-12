@@ -40,13 +40,13 @@ func f() {
 // line 22
 
 // GoTypesOnly:
-// line 16: gc expects an error (no pattern)
-// line 17: gc expects an error (no pattern)
-// line 18: gc expects an error (no pattern)
-// line 19: gc expects an error (no pattern)
-// line 20: gc expects an error (no pattern)
-// line 21: gc expects an error (no pattern)
-// line 22: gc expects an error (no pattern)
+// line 16: gc expects: too many arguments in call to f0\n\thave \(number\)\n\twant \(\)
+// line 17: gc expects: too many arguments in call to f0\n\thave \(int\)\n\twant \(\)
+// line 18: gc expects: not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)
+// line 19: gc expects: too many arguments in call to f1\n\thave \(number, number\)\n\twant \(int\)
+// line 20: gc expects: not enough arguments in call to f2\n\thave \(number\)\n\twant \(int, int\)
+// line 21: gc expects: too many arguments in call to f2\n\thave \(number, string, bool\)\n\twant \(int, int\)
+// line 22: gc expects: not enough arguments in call to f2ddd\n\thave \(number\)\n\twant \(int, int, \.\.\.int\)
 
 // GnoOverStrictError:
 // line 9: function f0 does not have a body but is not natively defined (did you build after pulling from the repository?)

@@ -27,7 +27,7 @@ const (
 
 // UncaughtError:
 // line 11: uncaught; gc expects: newline in character literal|newline in rune literal
-// line 12: uncaught; gc expects an error (no pattern)
-// line 17: uncaught; gc expects an error (no pattern)
+// line 12: uncaught; gc expects: invalid character literal \(missing closing '\)|rune literal not terminated
+// line 17: uncaught; gc expects: invalid character literal \(more than one character\)|more than one character in rune literal
 
 // Verdict: KnownIssue errorcheck: 0 over-strict line(s), 3 uncaught marker(s)

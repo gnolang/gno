@@ -147,8 +147,8 @@ func _() {
 // line 42: gc expects: assignment mismatch: 2 variables but f1 returns 1 value
 // line 43: gc expects: assignment mismatch: 3 variables but f2 returns 2 values
 // line 82: gc expects: assignment mismatch: 1 variable but 2 values
-// line 83: gc expects an error (no pattern)
-// line 84: gc expects an error (no pattern)
+// line 83: gc expects: multiple-value f2\(\) .*in single-value context
+// line 84: gc expects: assignment mismatch: 3 variables but 2 values|multiple-value f3\(\) .*in single-value context
 
 // GnoOverStrictError:
 // line 23: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)

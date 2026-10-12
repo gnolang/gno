@@ -80,11 +80,11 @@ func g() {
 // line 54
 
 // GoTypesOnly:
-// line 36: gc expects an error (no pattern)
-// line 48: gc expects an error (no pattern)
-// line 49: gc expects an error (no pattern)
+// line 36: gc expects: cannot use new\(T\) \(.*type \*T\) as I value in argument to f: \*T does not implement I \(missing method M\)
+// line 48: gc expects: impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)
+// line 49: gc expects: impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)
 // line 50: gc expects: 
-// line 51: gc expects an error (no pattern)
+// line 51: gc expects: impossible type assertion: i.\(T6\)\n\tT6 does not implement I \(missing method M\)\n\t\thave m\(int\) string\n\t\twant M\(int\)
 
 // GnoOverStrictError:
 // line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)

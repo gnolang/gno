@@ -11,6 +11,6 @@ type _ interface {
 }
 
 // UncaughtError:
-// line 10: uncaught; gc expects an error (no pattern)
+// line 10: uncaught; gc expects: embedding non-interface type int requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)
 
 // Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)

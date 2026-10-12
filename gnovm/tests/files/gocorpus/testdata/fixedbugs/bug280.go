@@ -14,6 +14,6 @@ type A [...]int	// ERROR "outside of array literal|invalid use of \[\.\.\.\]"
 // line 11
 
 // GoTypesOnly:
-// line 11: gc expects an error (no pattern)
+// line 11: gc expects: outside of array literal|invalid use of \[\.\.\.\]
 
 // Verdict: Clean errorcheck

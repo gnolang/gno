@@ -131,15 +131,15 @@ func f8(r rune) {
 // line 35: gc expects: duplicate case (.. in switch)?
 // line 37: gc expects: duplicate case (.abc. in switch)?
 // line 44: gc expects: duplicate case (0 in switch)?
-// line 47: gc expects an error (no pattern)
-// line 49: gc expects an error (no pattern)
+// line 47: gc expects: duplicate case (float32\(10\) .value 10. in switch)?
+// line 49: gc expects: duplicate case (float64\(10\) .value 10. in switch)?
 // line 75: gc expects: duplicate case 0
 // line 76: gc expects: duplicate case 1
 // line 85: gc expects: duplicate case (33 in switch)?
 // line 86: gc expects: duplicate case '
 // line 87: gc expects: duplicate case (rune.'#'. .value 35. in switch)?
 // line 88: gc expects: duplicate case (rune.36. .value 36. in switch)?
-// line 89: gc expects an error (no pattern)
+// line 89: gc expects: duplicate case ('\$' \+ 1 .value 37. in switch)?
 // line 91: gc expects: duplicate case ('b' .value 98.)?
 // line 92: gc expects: duplicate case (x .value 10.)?
 

@@ -24,6 +24,6 @@ func f(int, int) {
 // line 12
 
 // UncaughtError:
-// line 16: uncaught; gc expects an error (no pattern)
+// line 16: uncaught; gc expects: expecting \)|possibly missing comma or \)
 
 // Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)

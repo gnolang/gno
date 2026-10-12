@@ -29,8 +29,8 @@ func Recursive() (x interface{}, y int) {
 // line 21
 
 // GoTypesOnly:
-// line 16: gc expects an error (no pattern)
-// line 21: gc expects an error (no pattern)
+// line 16: gc expects: single-value context|2\-valued
+// line 21: gc expects: single-value context|2\-valued
 
 // GnoOverStrictError:
 // line 12: function Two does not have a body but is not natively defined (did you build after pulling from the repository?)

@@ -20,7 +20,7 @@ const _ = 1e+1000000000 // ERROR "malformed constant: 1e\+1000000000"
 // line 12
 
 // GoTypesOnly:
-// line 12: gc expects an error (no pattern)
+// line 12: gc expects: malformed constant: 1e\+1000000000
 
 // GnoOverStrictError:
 // line 10: decl node already predefined! const x<!VPBlock(2,0)> = 6e5518446744

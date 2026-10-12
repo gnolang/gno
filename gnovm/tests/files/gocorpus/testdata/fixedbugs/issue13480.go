@@ -57,8 +57,8 @@ func bug() {
 // line 36
 
 // GoTypesOnly:
-// line 24: gc expects an error (no pattern)
-// line 30: gc expects an error (no pattern)
-// line 36: gc expects an error (no pattern)
+// line 24: gc expects: compare.*to nil|operator \=\= not defined for .|cannot compare
+// line 30: gc expects: compare.*to nil|operator \=\= not defined for .|cannot compare
+// line 36: gc expects: compare.*to nil|operator \=\= not defined for .|cannot compare
 
 // Verdict: Clean errorcheck

@@ -30,7 +30,7 @@ func main() {
 // line 22
 
 // GoTypesOnly:
-// line 22: gc expects: interface contains embedded non-interface|embedding non-interface type int requires
+// line 22: gc expects: interface contains embedded non-interface|embedding non-interface type int requires | type interface { int } is not an expression|\(interface{int}\) \(type\) is not an expression
 
 // UncaughtError:
 // line 14: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type int requires

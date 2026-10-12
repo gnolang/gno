@@ -21,6 +21,6 @@ func main() {
 // line 17
 
 // GoTypesOnly:
-// line 17: gc expects an error (no pattern)
+// line 17: gc expects: 1 \+ 2 evaluated but not used|value computed is not used|is not used
 
 // Verdict: Clean errorcheck

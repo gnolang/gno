@@ -23,7 +23,7 @@ func s(x interface{}) {
 // line 15
 
 // GoTypesOnly:
-// line 15: gc expects an error (no pattern)
+// line 15: gc expects: invalid case f \(type func\(\)\) in switch \(incomparable type\)|can only be compared to nil
 
 // GnoOverStrictError:
 // line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)

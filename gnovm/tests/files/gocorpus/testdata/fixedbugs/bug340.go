@@ -23,6 +23,6 @@ func main() {
 
 // GoTypesOnly:
 // line 14: gc expects: type
-// line 16: gc expects an error (no pattern)
+// line 16: gc expects: type interface \{\}|reference to undefined field or method|interface with no methods|undefined
 
 // Verdict: Clean errorcheck
