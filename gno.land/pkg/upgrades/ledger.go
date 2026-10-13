@@ -285,7 +285,7 @@ func (l *Ledger) Validate() error {
 		// was built, and a replaying supervisor needs its downloads.
 		switch {
 		case e.Binaries == nil && i != len(l.Upgrades)-1:
-			fail("%s: binaries is null, but only the last entry can still be pending its build", at)
+			fail("%s: binaries is null or missing, but only the last entry can still be pending its build", at)
 		case e.Binaries != nil && len(e.Binaries) == 0:
 			fail("%s: binaries is an empty object; use null until CI has built the release, then one download per platform", at)
 		}
