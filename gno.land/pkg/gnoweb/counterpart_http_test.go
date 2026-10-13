@@ -83,7 +83,7 @@ func TestCounterpart_HeaderLink(t *testing.T) {
 				`popovertarget="kind-switch-menu"`,
 				`<a href="/p/alice/golf" class="item item--primary">`,
 				`<span class="item-label">2 matching packages</span>`,
-				`<span class="item-path">/p/alice/golf</span>`,
+				`<span class="item-path">/<wbr>p/<wbr>alice/<wbr>golf</span>`,
 				`<use href="#ico-pure"></use>`,
 				`<a href="/r/" class="item item--inline">`,
 				`<a href="/u/alice" class="item item--inline">`,
@@ -306,7 +306,7 @@ func TestCounterpart_MarkdownAnswerSkipsLookup(t *testing.T) {
 	assert.Zero(t, calls.Load())
 }
 
-var rePrimaryLink = regexp.MustCompile(`<a href="([^"]*)" class="item item--primary">\s*<svg[^>]*><use[^>]*></use></svg>\s*<span class="item-label">([^<]*)</span>\s*<span class="item-path">([^<]*)</span>`)
+var rePrimaryLink = regexp.MustCompile(`<a href="([^"]*)" class="item item--primary">\s*<svg[^>]*><use[^>]*></use></svg>\s*<span class="item-label">([^<]*)</span>\s*<span class="item-path">((?:[^<]|<wbr>)*)</span>`)
 
 // The "N matching" line must open a page that lists exactly those N paths. A
 // directory that is itself a package or realm opens that one package, so the
@@ -383,7 +383,7 @@ func TestCounterpart_LinkOpensWhatItCounts(t *testing.T) {
 			assert.Equal(t, tc.label, m[2])
 			// The grey path line shows the plain path, without the tab or anchor.
 			plain, _, _ := strings.Cut(tc.href, "$")
-			assert.Equal(t, plain, m[3])
+			assert.Equal(t, plain, strings.ReplaceAll(m[3], "<wbr>", ""))
 
 			target, fragment, _ := strings.Cut(tc.href, "#")
 			rr := serve(h, httptest.NewRequest(http.MethodGet, target, nil))

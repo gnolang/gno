@@ -95,9 +95,9 @@ func counterpartRoots(pkgPath string) (twin, root string, ok bool) {
 // more match. With fewer the walk names that package alone, since no page
 // lists what lies deeper below it.
 //
-// cut reports a listing that stopped at maxCounterpartPaths inside root. The
-// twin may then lie past the cut, so the twinless walk names no single package
-// rather than the wrong one.
+// cut reports a listing that stopped at maxCounterpartPaths before root's
+// subtree ended. The twin may then lie past the cut, so the twinless walk
+// names no single package rather than the wrong one.
 func counterpartTarget(twin, root string, paths []string, cut bool) (target string, n int) {
 	members := make([]string, 0, len(paths))
 	hasTwin := false
@@ -131,7 +131,9 @@ func counterpartTarget(twin, root string, paths []string, cut bool) (target stri
 			}
 		}
 		switch {
-		case n == 1 && cut:
+		// The listing is in key order: a cut past dir's subtree ('0' sorts
+		// right after '/') leaves dir listed whole.
+		case n == 1 && cut && paths[len(paths)-1] < dir+"0":
 			return "", 0
 		case n == 1:
 			return last, 1
@@ -226,7 +228,7 @@ func (h *HTTPHandler) startCounterpart(ctx context.Context, gnourl *weburl.GnoUR
 			done <- nil
 			return
 		}
-		cut := len(paths) >= maxCounterpartPaths && isUnder(paths[len(paths)-1], root)
+		cut := listingCut(paths, root)
 		target, n := counterpartTarget(twin, root, paths, cut)
 		if n == 0 {
 			done <- nil
@@ -328,4 +330,13 @@ func (c *counterpartCache) store(root string, paths []string) {
 		}
 	}
 	c.entries[root] = counterpartEntry{paths: paths, expires: now.Add(counterpartTTL)}
+}
+
+// listingCut reports whether a listing stopped at maxCounterpartPaths before
+// root's subtree ended. The node lists in key order, where '-' sorts before
+// '/', so a sibling such as root+"-x" comes first: comparing against the end
+// of root's subtree ('0' sorts right after '/') catches a cut inside it or
+// before it.
+func listingCut(paths []string, root string) bool {
+	return len(paths) >= maxCounterpartPaths && paths[len(paths)-1] < root+"0"
 }

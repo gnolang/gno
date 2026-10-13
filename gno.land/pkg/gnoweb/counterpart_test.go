@@ -51,6 +51,13 @@ func TestCounterpartTarget(t *testing.T) {
 		n      int
 	}{
 		{
+			name:   "one package in a directory listed whole before the cut still opens",
+			twin:   "/p/alice/golf/x/game",
+			paths:  []string{"/p/alice/golf/x/physics", "/p/alice/golf/z/m000"},
+			cut:    true,
+			target: "/p/alice/golf/x/physics", n: 1,
+		},
+		{
 			name:   "twin without siblings opens directly",
 			twin:   "/p/alice/golf/game",
 			paths:  []string{"/p/alice/golf/game", "/p/alice/golf/ui/board"},
@@ -289,4 +296,30 @@ func TestCounterpartCacheCapsLookupsInFlight(t *testing.T) {
 	wg.Wait()
 	_, err = c.get("/p/alice/golf", func() ([]string, error) { return nil, nil })
 	assert.NoError(t, err, "a freed slot serves the next view")
+}
+
+// TestListingCut checks a listing reads as cut while it stopped before the end
+// of root's subtree, including inside a sibling that sorts first ('-' before
+// '/'), and as whole once it went past it.
+func TestListingCut(t *testing.T) {
+	t.Parallel()
+
+	const root = "/p/alice/golf"
+	full := func(last string) []string {
+		paths := make([]string, maxCounterpartPaths)
+		for i := range paths {
+			paths[i] = root + "-x/m"
+		}
+		paths[len(paths)-1] = last
+		return paths
+	}
+	for last, cut := range map[string]bool{
+		root + "/game":    true,  // stopped inside root
+		root + "-x/m099":  true,  // stopped inside a sibling sorted before root
+		root + "club/m00": false, // went past root's subtree
+		root + "_x/m00":   false,
+	} {
+		assert.Equal(t, cut, listingCut(full(last), root), last)
+	}
+	assert.False(t, listingCut([]string{root + "/game"}, root), "a short listing is whole")
 }
