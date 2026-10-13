@@ -166,10 +166,12 @@ already serves the version tag. These builds are not reproducible, so a
 rebuild would replace the binaries, `CHECKSUMS.txt` and images the upgrade
 ledgers record, under the same version. The release is created as a draft and
 published only once every asset is attached, so re-running a run that failed
-before publishing finishes it. A fault in either workflow surfaces on the
-release candidate, cut first on the same commit, and is fixed in the next
-candidate. A manual trigger would also attest and sign under a branch's
-identity, which the verify commands below refuse.
+before publishing finishes it. Images differ: a re-run finishes only the legs
+that failed before their push, and an image pushed but left unsigned stays
+unsigned, so it is replaced by the next candidate or patch. A fault in either
+workflow surfaces on the release candidate, cut first on the same commit, and
+is fixed in the next candidate. A manual trigger would also attest and sign
+under a branch's identity, which the verify commands below refuse.
 
 ### Signing and provenance
 

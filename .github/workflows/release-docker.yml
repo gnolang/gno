@@ -143,9 +143,11 @@ jobs:
           # entries are global (not scoped). When matrix jobs export concurrently,
           # they race on the shared blob namespace, corrupting each other's cache.
           # type=registry gives each image a fully independent OCI cache manifest.
+          # ignore-error: the cache only saves build time, and a failed export
+          # would otherwise fail a run whose image is pushed but not yet signed.
           set: |
             *.cache-from=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }}
-            *.cache-to=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }},mode=max
+            *.cache-to=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }},mode=max,ignore-error=true
             *.context=.
 
       # Keyless signature on the pushed image, by digest, so `cosign verify`
@@ -157,21 +159,22 @@ jobs:
       # pulls the manifest for its platform, and a check made against that
       # digest finds no signature on the index alone.
       - name: Sign the image
+        timeout-minutes: 15
         env:
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           DIGEST: ${{ fromJSON(steps.bake.outputs.metadata)[matrix.image]['containerimage.digest'] }}
         run: |
           [ -n "${DIGEST}" ] || { echo "::error::bake reported no digest for ${IMAGE}"; exit 1; }
           # The image is pushed by now and its tag is never pushed again, so a
-          # transient Sigstore or registry error must not end the job. Signing
-          # again is additive.
-          for attempt in 1 2 3; do
+          # Sigstore or registry outage must not end the job: five attempts
+          # over about ten minutes. Signing again is additive.
+          for attempt in 1 2 3 4 5; do
             if cosign sign --yes --recursive "${IMAGE}@${DIGEST}"; then
               exit 0
             fi
-            if [ "${attempt}" -lt 3 ]; then
-              echo "::warning::cosign sign failed (attempt ${attempt} of 3); retrying in $((attempt * 30))s"
-              sleep $((attempt * 30))
+            if [ "${attempt}" -lt 5 ]; then
+              echo "::warning::cosign sign failed (attempt ${attempt} of 5); retrying in $((attempt * 60))s"
+              sleep $((attempt * 60))
             fi
           done
           echo "::error::${IMAGE}@${DIGEST} is pushed but could not be signed"
