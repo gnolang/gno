@@ -9,7 +9,7 @@ go run ./misc/deployments/upgrades check  misc/deployments/onyx.gno.land   # wha
 
 An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEASING.md)); the image digest and the binaries are filled in once CI has built the release, the proposal once it exists, the halt time once the halt has happened. Until then they are null, and the table shows the digest, proposal and halt time as *(pending)*.
 
-- **To run a node today:** the version in the last row, pinned — the native binary from its release page (checksums in `binaries`), or `ghcr.io/gnolang/gno/gnoland:<version>`. Never a floating tag. Configuration: [`VALIDATOR.md`](./VALIDATOR.md).
+- **To run a node today:** the version in the last row with no *(pending)* cell, pinned — the native binary from its release page (checksums in `binaries`), or `ghcr.io/gnolang/gno/gnoland:<version>`. Never a floating tag. Configuration: [`VALIDATOR.md`](./VALIDATOR.md).
 - **Joining from genesis:** the node stops at every halt height below (the historical governance halts fire during replay too); restart it with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version.
 - **How a coordinated upgrade works** (halt height, `halt_min_version`, what the node refuses): [`gno.land/cmd/gnoland/UPGRADES.md`](../../../gno.land/cmd/gnoland/UPGRADES.md).
 - A version runs the blocks from the previous row's halt height + 1 (1 for genesis) up to and including the next row's halt height. A *rolling* row is a patch with no halt: it can serve the same blocks as the row before it. Halt time is the block time of the halt block.
