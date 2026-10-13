@@ -2235,8 +2235,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						case "copy":
 							if len(n.Args) == 2 {
 								assertCopyArgs(
-									evalStaticTypeOf(store, last, n.Args[0]),
-									evalStaticTypeOf(store, last, n.Args[1]))
+									operandOf(store, last, n.Args[0]),
+									operandOf(store, last, n.Args[1]))
 								// If the second argument is a string,
 								// convert to byteslice.
 								args1 := n.Args[1]
@@ -3604,15 +3604,14 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				assertSingleDefault(n.Clauses)
 				if !n.IsTypeSwitch {
 					// Each case is compared to the tag with ==.
-					var tt Type = BoolType
+					tag := operand{mode: opValue, typ: BoolType}
 					if n.X != nil {
-						tt = evalStaticTypeOf(store, last, n.X)
-						assertSwitchTag(n.X, tt)
+						tag = operandOf(store, last, n.X)
+						assertSwitchTag(tag)
 					}
 					for _, clause := range n.Clauses {
 						for _, cx := range clause.Cases {
-							ct := evalStaticTypeOf(store, last, cx)
-							assertComparableTo(tt, ct, isNilLiteral(n.X), isNilLiteral(cx))
+							assertComparableTo(tag, operandOf(store, last, cx))
 						}
 					}
 					for _, dup := range duplicateSwitchCases(store, n.Clauses) {

@@ -59,13 +59,20 @@ func operandOf(store Store, last BlockNode, x Expr) operand {
 		o.mode, o.typ = opType, cx.Type
 		return o
 	case *ConstExpr:
+		// The static type may live on the node: a nil interface value
+		// has T == nil in its TypedValue.
+		t := evalStaticTypeOfRaw(store, last, cx)
 		switch {
-		case cx.T == nil && cx.V == nil:
-			o.mode = opNil
+		case isNilLiteral(cx):
+			// The nil literal, also once converted to its context type;
+			// a typed nil such as (func())(nil) is a value.
+			o.mode, o.typ = opNil, t
+		case cx.V == nil && t != nil && mayBeNil(t):
+			o.mode, o.typ = opValue, t
 		case isTypeValue(cx.T):
 			o.mode, o.typ = opType, cx.GetType()
 		case isBuiltinFunc(cx):
-			o.mode, o.typ = opBuiltin, cx.T
+			o.mode, o.typ, o.val = opBuiltin, cx.T, &cx.TypedValue
 		default:
 			o.mode, o.typ, o.val = opConstant, cx.T, &cx.TypedValue
 		}
@@ -115,8 +122,9 @@ func valueMode(store Store, last BlockNode, x Expr, t Type) opMode {
 		return opVariable
 	case *SelectorExpr:
 		xt := evalStaticTypeOf(store, last, cx.X)
-		if _, ok := baseOf(xt).(*PointerType); ok {
-			return opVariable
+		switch baseOf(xt).(type) {
+		case *PointerType, *PackageType:
+			return opVariable // pkg.Var: a package member is addressable
 		}
 		if _, ok := baseOf(xt).(*StructType); ok && valueMode(store, last, cx.X, xt) == opVariable {
 			return opVariable

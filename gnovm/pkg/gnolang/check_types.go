@@ -315,7 +315,8 @@ func dynamicTypeError(it, ct Type) error {
 
 // assertCopyArgs checks copy(dst, src): dst a slice, src a slice of the
 // same element type, or a string when dst is a byte slice.
-func assertCopyArgs(dt, st Type) {
+func assertCopyArgs(dst, src operand) {
+	dt, st := dst.typ, src.typ
 	ds, dok := baseOf(dt).(*SliceType)
 	ss, sok := baseOf(st).(*SliceType)
 	isString := st != nil && st.Kind() == StringKind
@@ -334,16 +335,16 @@ func assertCopyArgs(dt, st Type) {
 // assertSwitchTag rejects a switch on an untyped nil or on a value that
 // == cannot compare; a slice, map or func tag is allowed, its cases must
 // be nil.
-func assertSwitchTag(x Expr, tt Type) {
-	if tt == nil {
-		fail(CodeSwitchTag, "use of untyped nil in switch expression", x)
+func assertSwitchTag(tag operand) {
+	if tag.mode == opNil && tag.typ == nil {
+		fail(CodeSwitchTag, "use of untyped nil in switch expression", tag.expr)
 	}
-	switch baseOf(tt).(type) {
-	case *SliceType, *MapType, *FuncType:
+	switch baseOf(tag.typ).(type) {
+	case nil, *SliceType, *MapType, *FuncType:
 		return
 	}
-	if !isComparable(tt) {
-		failf(CodeSwitchTag, []Node{x}, "cannot switch on %s (%v is not comparable)", exprString(x), tt)
+	if !isComparable(tag.typ) {
+		failf(CodeSwitchTag, []Node{tag.expr}, "cannot switch on %s (%v is not comparable)", exprString(tag.expr), tag.typ)
 	}
 }
 

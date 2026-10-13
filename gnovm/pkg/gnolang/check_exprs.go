@@ -21,11 +21,9 @@ func isNilLiteral(x Expr) bool {
 	return ok && nx.Name == "nil"
 }
 
-// assertComparableTo checks a == b between the types at and bt, where
-// aNil / bNil say whether the operand is the untyped nil literal. A slice,
-// map or func compares only to nil, also when the other side is an
-// interface.
-func assertComparableTo(at, bt Type, aNil, bNil bool) {
+// assertComparableTo checks a == b. A slice, map or func compares only
+// to the nil literal, also when the other side is an interface.
+func assertComparableTo(a, b operand) {
 	check := func(t Type, selfNil, otherNil bool) {
 		if t == nil || selfNil || otherNil {
 			return
@@ -38,8 +36,8 @@ func assertComparableTo(at, bt Type, aNil, bNil bool) {
 			failf(CodeNotComparable, nil, "%v is not comparable", t)
 		}
 	}
-	check(at, aNil, bNil)
-	check(bt, bNil, aNil)
+	check(a.typ, a.mode == opNil, b.mode == opNil)
+	check(b.typ, b.mode == opNil, a.mode == opNil)
 }
 
 // assertLenCapArg checks the operand of len or cap: a string (len only),
@@ -179,24 +177,24 @@ func assertExprStmtUsed(store Store, last BlockNode, n *ExprStmt) {
 		if _, ok := n.X.(*TypeAssertExpr); ok {
 			return
 		}
-		notUsed(store, last, n.X)
+		notUsed(operandOf(store, last, n.X))
 	}
-	switch fx := call.Func.(type) {
-	case *constTypeExpr:
-		notUsed(store, last, n.X)
-	case *ConstExpr:
-		if fv := fx.GetFunc(); fv != nil && fv.PkgPath == uversePkgPath && valueBuiltins[fv.Name] {
-			notUsed(store, last, n.X)
+	fn := operandOf(store, last, call.Func)
+	switch fn.mode {
+	case opType:
+		notUsed(operandOf(store, last, n.X))
+	case opBuiltin:
+		if valueBuiltins[fn.val.GetFunc().Name] {
+			notUsed(operandOf(store, last, n.X))
 		}
 	}
 }
 
-func notUsed(store Store, last BlockNode, x Expr) {
-	t := evalStaticTypeOf(store, last, x)
-	if _, ok := t.(*TypeType); ok {
-		failf(CodeNotExpression, nil, "%s (type) is not an expression", exprString(x))
+func notUsed(o operand) {
+	if o.mode == opType {
+		failf(CodeNotExpression, nil, "%s (type) is not an expression", exprString(o.expr))
 	}
-	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", exprString(x), typeString(t))
+	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", exprString(o.expr), typeString(o.typ))
 }
 
 // constStringLen folds len of a constant string into an int constant.

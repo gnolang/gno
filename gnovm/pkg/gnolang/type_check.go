@@ -1058,38 +1058,29 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 
 // misc
 func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
-	shouldPanic := true
-	switch clx := lx.(type) {
-	case *NameExpr:
-		if clx.Name == blankIdentifier {
-			shouldPanic = false
-		} else if clx.Path.Type == VPUverse {
-			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
-		} else if last.GetIsConst(store, clx.Name) {
-			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
-		} else if isFuncDeclName(last, clx) {
-			failf(CodeNotAssignable, nil, "cannot assign to %s (neither addressable nor a map index expression)", clx.Name)
-		} else {
-			shouldPanic = false
+	if nx, ok := lx.(*NameExpr); ok {
+		switch {
+		case nx.Name == blankIdentifier:
+			return
+		case nx.Path.Type == VPUverse:
+			panic(fmt.Sprintf("cannot assign to uverse %v", nx.Name))
+		case last.GetIsConst(store, nx.Name):
+			panic(fmt.Sprintf("cannot assign to const %v", nx.Name))
 		}
-	case *StarExpr:
-		shouldPanic = false
+	}
+	// The target is a variable or a map index expression.
+	if o := operandOf(store, last, lx); o.assignable() {
+		return
+	}
+	switch clx := lx.(type) {
 	case *SelectorExpr:
 		if inMapValue(store, last, clx) {
 			failf(CodeMapValueAssign, nil, "cannot assign to struct field %s in map", exprString(lx))
 		}
-		shouldPanic = false
-	case *IndexExpr:
-		xt := evalStaticTypeOf(store, last, clx.X)
-		shouldPanic = xt != nil && xt.Kind() == StringKind
-		if !shouldPanic && inMapValue(store, last, clx) {
-			failf(CodeMapValueAssign, nil, "cannot assign to %s (neither addressable nor a map index expression)", exprString(lx))
-		}
-	default:
+	case *IndexExpr, *NameExpr:
+		failf(CodeNotAssignable, nil, "cannot assign to %s (neither addressable nor a map index expression)", exprString(lx))
 	}
-	if shouldPanic {
-		panic(fmt.Sprintf("cannot assign to %s", exprString(lx)))
-	}
+	panic(fmt.Sprintf("cannot assign to %s", exprString(lx)))
 }
 
 // evalAssignLhsType asserts that lx is a valid assignment target and returns
