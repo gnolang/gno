@@ -44,16 +44,10 @@ func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 // The returned account's Coins field holds only the chain's gas denom. Every
 // other denom lives in its own store key; query bank/balances for the full set.
 func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return nil, nil, err
-	}
-
 	path := fmt.Sprintf("auth/accounts/%s", crypto.AddressToBech32(addr))
-	data := []byte{}
-
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.queryHelper(path, []byte{}, "query account")
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "query account")
+		return nil, nil, err
 	}
 	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
 		return nil, nil, std.ErrUnknownAddress("unknown address: " + crypto.AddressToBech32(addr))
@@ -77,17 +71,10 @@ func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Re
 // Costs grow with the number of denoms the address holds, and anyone can send an
 // address a new denom without its consent, so treat the cost as caller-influenced.
 func (c *Client) QueryBalance(addr crypto.Address) (std.Coins, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return nil, nil, err
-	}
-
 	path := fmt.Sprintf("bank/balances/%s", crypto.AddressToBech32(addr))
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, []byte{})
+	qres, err := c.queryHelper(path, []byte{}, "query balance")
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "query balance")
-	}
-	if qres.Response.Error != nil {
-		return nil, nil, errors.Wrap(qres.Response.Error, "query balance")
+		return nil, nil, err
 	}
 
 	var coins std.Coins
@@ -102,9 +89,6 @@ func (c *Client) QueryBalance(addr crypto.Address) (std.Coins, *ctypes.ResultABC
 // A denomination nobody holds reports zero, which is also what an unknown
 // denomination reports; the two are indistinguishable.
 func (c *Client) QuerySupply(denom string) (int64, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return 0, nil, err
-	}
 	if err := std.ValidateDenom(denom); err != nil {
 		return 0, nil, errors.Wrap(err, "query supply")
 	}
@@ -113,12 +97,9 @@ func (c *Client) QuerySupply(denom string) (int64, *ctypes.ResultABCIQuery, erro
 	// "/pkgPath:base" and the route takes the path remainder, so its slashes are
 	// part of the denom rather than path separators.
 	path := "bank/supply/" + denom
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, []byte{})
+	qres, err := c.queryHelper(path, []byte{}, "query supply")
 	if err != nil {
-		return 0, nil, errors.Wrap(err, "query supply")
-	}
-	if qres.Response.Error != nil {
-		return 0, nil, errors.Wrap(qres.Response.Error, "query supply")
+		return 0, nil, err
 	}
 
 	var supply int64
@@ -130,16 +111,10 @@ func (c *Client) QuerySupply(denom string) (int64, *ctypes.ResultABCIQuery, erro
 
 // QuerySessionAccount retrieves session account information for a given masterAddr and sessionAddr.
 func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*gnoland.GnoSessionAccount, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return nil, nil, err
-	}
-
 	path := fmt.Sprintf("auth/accounts/%s/session/%s", crypto.AddressToBech32(masterAddr), crypto.AddressToBech32(sessionAddr))
-	data := []byte{}
-
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.queryHelper(path, []byte{}, "query session account")
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "query session account")
+		return nil, nil, err
 	}
 	if len(qres.Response.Data) == 0 || string(qres.Response.Data) == "null" {
 		return nil, nil, std.ErrUnknownAddress("unknown master address: " + crypto.AddressToBech32(masterAddr) +
@@ -157,16 +132,10 @@ func (c *Client) QuerySessionAccount(masterAddr, sessionAddr crypto.Address) (*g
 
 // QueryAppVersion retrieves information about the app version
 func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return "", nil, err
-	}
-
 	path := ".app/version"
-	data := []byte{}
-
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.queryHelper(path, []byte{}, "query app version")
 	if err != nil {
-		return "", nil, errors.Wrap(err, "query app version")
+		return "", nil, err
 	}
 
 	version := string(qres.Response.Value)
@@ -177,19 +146,11 @@ func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 // include the prefix like "gno.land/". This is similar to using a browser URL
 // <testnet>/<pkgPath>:<args> where <pkgPath> doesn't have the prefix like "gno.land/".
 func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return "", nil, err
-	}
-
 	path := "vm/qrender"
 	data := fmt.Appendf(nil, "%s:%s", pkgPath, args)
-
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.queryHelper(path, data, "query render")
 	if err != nil {
-		return "", nil, errors.Wrap(err, "query render")
-	}
-	if qres.Response.Error != nil {
-		return "", nil, errors.Wrapf(qres.Response.Error, "Render failed: log:%s", qres.Response.Log)
+		return "", nil, err
 	}
 
 	return string(qres.Response.Data), qres, nil
@@ -200,19 +161,11 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 // "IsBoardFrozen(1)". The return value is a typed expression like
 // "(false bool)".
 func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return "", nil, err
-	}
-
 	path := "vm/qeval"
 	data := fmt.Appendf(nil, "%s.%s", pkgPath, expression)
-
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.queryHelper(path, data, "query eval")
 	if err != nil {
-		return "", nil, errors.Wrap(err, "query qeval")
-	}
-	if qres.Response.Error != nil {
-		return "", nil, errors.Wrapf(qres.Response.Error, "QEval failed: log:%s", qres.Response.Log)
+		return "", nil, err
 	}
 
 	return string(qres.Response.Data), qres, nil
@@ -223,19 +176,11 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 // "IsBoardFrozen(1)". The return value is a JSON string like
 // "{\"results\":[{\"T\":{\"@type\":\"/gno.PrimitiveType\",\"value\":\"4\"}}]}".
 func (c *Client) QEvalJSON(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return "", nil, err
-	}
-
 	path := "vm/qeval_json"
 	data := fmt.Appendf(nil, "%s.%s", pkgPath, expression)
-
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.queryHelper(path, data, "query qeval_json")
 	if err != nil {
-		return "", nil, errors.Wrap(err, "query qeval_json")
-	}
-	if qres.Response.Error != nil {
-		return "", nil, errors.Wrapf(qres.Response.Error, "QEvalJSON failed: log:%s", qres.Response.Log)
+		return "", nil, err
 	}
 
 	return string(qres.Response.Data), qres, nil
@@ -245,19 +190,11 @@ func (c *Client) QEvalJSON(pkgPath string, expression string) (string, *ctypes.R
 // "0ed754d80e40da2645666583e74d4ab093970a6a:534". The return value is a JSON
 // string like "{\"objectid\":\"...\",\"value\":{...}}".
 func (c *Client) QObjectJSON(objectID string) (string, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return "", nil, err
-	}
-
 	path := "vm/qobject_json"
 	data := []byte(objectID)
-
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.queryHelper(path, data, "query qobject_json")
 	if err != nil {
-		return "", nil, errors.Wrap(err, "query qobject_json")
-	}
-	if qres.Response.Error != nil {
-		return "", nil, errors.Wrapf(qres.Response.Error, "QObjectJSON failed: log:%s", qres.Response.Log)
+		return "", nil, err
 	}
 
 	return string(qres.Response.Data), qres, nil
@@ -267,19 +204,11 @@ func (c *Client) QObjectJSON(objectID string) (string, *ctypes.ResultABCIQuery, 
 // "gno.land/r/sys/users.UserData". The return value is a JSON string like
 // "{\"typeid\":\"...\",\"type\":{...}}".
 func (c *Client) QTypeJSON(typeID string) (string, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return "", nil, err
-	}
-
 	path := "vm/qtype_json"
 	data := []byte(typeID)
-
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.queryHelper(path, data, "query qtype_json")
 	if err != nil {
-		return "", nil, errors.Wrap(err, "query qtype_json")
-	}
-	if qres.Response.Error != nil {
-		return "", nil, errors.Wrapf(qres.Response.Error, "QTypeJSON failed: log:%s", qres.Response.Log)
+		return "", nil, err
 	}
 
 	return string(qres.Response.Data), qres, nil
@@ -289,22 +218,30 @@ func (c *Client) QTypeJSON(typeID string) (string, *ctypes.ResultABCIQuery, erro
 // pkgPath should include the prefix like "gno.land/". The return value is a JSON
 // string like "{\"names\":[...],\"values\":[...]}".
 func (c *Client) QPkgJSON(pkgPath string) (string, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
+	path := "vm/qpkg_json"
+	data := []byte(pkgPath)
+	qres, err := c.queryHelper(path, data, "query qpkg_json")
+	if err != nil {
 		return "", nil, err
 	}
 
-	path := "vm/qpkg_json"
-	data := []byte(pkgPath)
+	return string(qres.Response.Data), qres, nil
+}
+
+func (c *Client) queryHelper(path string, data []byte, errorLabel string) (*ctypes.ResultABCIQuery, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
 
 	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
 	if err != nil {
-		return "", nil, errors.Wrap(err, "query qpkg_json")
+		return nil, errors.Wrap(err, errorLabel)
 	}
 	if qres.Response.Error != nil {
-		return "", nil, errors.Wrapf(qres.Response.Error, "QPkgJSON failed: log:%s", qres.Response.Log)
+		return nil, errors.Wrapf(qres.Response.Error, "%s failed: log:%s", errorLabel, qres.Response.Log)
 	}
 
-	return string(qres.Response.Data), qres, nil
+	return qres, nil
 }
 
 // Block gets the latest block at height, if any
