@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -71,6 +72,10 @@ type AppConfig struct {
 	// the visitor did not reach tells a crawler the content belongs elsewhere,
 	// and every deployment but one would be claiming gno.land's.
 	CanonicalOrigin string
+	// NoIndex keeps this deployment out of search engines (testnets, staging):
+	// every page is noindex, nofollow with no canonical, and no sitemap is
+	// served. Off by default, so a forgotten flag never drops a site from search.
+	NoIndex bool
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
 	// RealmNotice, if set, is shown as the header's second row on pages of
@@ -138,6 +143,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	logger.Info("crawl policy", "noindex", cfg.NoIndex, "canonical_origin", canonicalOrigin)
 
 	// Initialize RPC Client.
 	rpcclient, err := client.NewHTTPClient(cfg.NodeRemote,
@@ -195,6 +201,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Aliases:                      cfg.Aliases,
 		TrustedPaths:                 cfg.TrustedPaths,
 		IndexCommunity:               cfg.IndexCommunity,
+		NoIndex:                      cfg.NoIndex,
 		Timeout:                      cfg.NodeRequestTimeout,
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
@@ -252,6 +259,28 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Handle realm/package discovery search (browser fetches the list once and filters locally)
 	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
+
+	// The sitemap needs an origin for absolute URLs and is never served under
+	// -no-index; robots.txt names it only when it is.
+	sitemapOrigin, sitemap := "", http.NotFoundHandler()
+	if canonicalOrigin != "" && !cfg.NoIndex {
+		// A route registered on mux shadows an alias of the same path, and
+		// mux redirects a path it would clean, such as /a/../b.
+		servedByHandler := func(p string) bool {
+			_, pattern := mux.Handler(&http.Request{Method: http.MethodGet, URL: &url.URL{Path: p}})
+			clean := path.Clean(p)
+			if strings.HasSuffix(p, "/") && clean != "/" {
+				clean += "/"
+			}
+			return pattern == "/" && clean == p
+		}
+		sitemapOrigin, sitemap = canonicalOrigin, handlerSitemapXML(httphandler, servedByHandler)
+	}
+	mux.Handle("/robots.txt", handlerRobotsTXT(cfg.NoIndex, sitemapOrigin))
+	mux.Handle("/sitemap.xml", sitemap)
+	if cfg.NoIndex {
+		return noIndexMiddleware(mux), nil
+	}
 
 	return mux, nil
 }

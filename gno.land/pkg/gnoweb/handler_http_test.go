@@ -2783,7 +2783,7 @@ const trustEmptyUser = "claim-free-gnot-at-evil-example"
 // nym and an address, and an operator page at /about, with the HTML
 // renderer and the given community index. r/sys/users knows trustEmptyUser
 // and the longest name it allows, neither of which holds anything.
-func newTrustHandler(t *testing.T, index gnoweb.CommunityIndex) *gnoweb.HTTPHandler {
+func newTrustHandler(t *testing.T, index gnoweb.CommunityIndex, tweaks ...func(*gnoweb.HTTPHandlerConfig)) *gnoweb.HTTPHandler {
 	t.Helper()
 
 	files := map[string]string{"render.gno": `package main; func Render(path string) string { return "" }`}
@@ -2831,6 +2831,9 @@ func newTrustHandler(t *testing.T, index gnoweb.CommunityIndex) *gnoweb.HTTPHand
 	}
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
 	config.Renderer = gnoweb.NewHTMLRenderer(logger, gnoweb.NewDefaultRenderConfig(), nil)
+	for _, tweak := range tweaks {
+		tweak(config)
+	}
 	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err)
 	return handler
@@ -3034,6 +3037,109 @@ func TestHTTPHandler_CommunityIndex(t *testing.T) {
 				assert.Contains(t, head, `<meta property="og:image"`, "a link preview ignores robots, so the card stays")
 				assert.Contains(t, head, `<meta property="og:url"`)
 			})
+		}
+	}
+}
+
+// TestHTTPHandler_NoIndex checks -no-index overrides the robots policy: every
+// page, even one the loosest setting indexes, is noindex, nofollow with no
+// canonical, in the header and the meta alike. The card stays, as on any page
+// kept out of the index.
+func TestHTTPHandler_NoIndex(t *testing.T) {
+	t.Parallel()
+
+	handler := newTrustHandler(t, gnoweb.IndexAllCommunity, func(c *gnoweb.HTTPHandlerConfig) { c.NoIndex = true })
+	for _, p := range []struct {
+		url      string
+		markdown bool
+	}{
+		{url: "/r/gnoland/blog"},
+		{url: "/r/gnoland/blog", markdown: true},
+		{url: "/r/gnoland/blog$source"},
+		{url: "/r/gnoland/blog$help"}, // noindex, follow without -no-index
+		{url: "/r/gnoland/blog?page=2"},
+		{url: "/r/gnoland/blog$state"},
+		{url: "/r/nym/app"},
+		{url: "/about"},
+		{url: "/hello"},
+	} {
+		t.Run(p.url, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequest(http.MethodGet, p.url, nil)
+			if p.markdown {
+				req.Header.Set("Accept", "text/markdown")
+			}
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			require.Equal(t, http.StatusOK, rr.Code)
+			assert.Equal(t, "noindex, nofollow", rr.Result().Header.Get("X-Robots-Tag"))
+			if p.markdown {
+				return
+			}
+
+			head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+			assert.Contains(t, head, `<meta name="robots" content="noindex, nofollow" />`)
+			assert.NotContains(t, head, `rel="canonical"`)
+			assert.Contains(t, head, `<meta property="og:image"`)
+		})
+	}
+}
+
+// TestHTTPHandler_SitemapMatchesPages checks the sitemap against the pages
+// themselves, both ways: every URL it lists opens as an indexed page naming
+// that URL as its canonical, and every alias page that names itself so is
+// listed. The sitemap classifies aliases apart from Get; this keeps them in step.
+func TestHTTPHandler_SitemapMatchesPages(t *testing.T) {
+	t.Parallel()
+
+	const origin = "https://gno.land"
+	aliases := map[string]gnoweb.AliasTarget{
+		"/about":      {Value: "# About\n\nA page the operator wrote.\n", Kind: gnoweb.StaticMarkdown},
+		"/hello":      {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath},
+		"/hi":         {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath}, // same target, its own name
+		"/src":        {Value: "/r/gnoland/blog$source", Kind: gnoweb.GnowebPath},
+		"/help":       {Value: "/r/gnoland/blog$help", Kind: gnoweb.GnowebPath}, // noindex view
+		"/nymalias":   {Value: "/r/nym/app", Kind: gnoweb.GnowebPath},
+		"/nym":        {Value: "/u/nym", Kind: gnoweb.GnowebPath},
+		"/empty":      {Value: "/u/" + trustEmptyUser, Kind: gnoweb.GnowebPath},    // a name with nothing to show: noindex
+		"/addr":       {Value: trustAddrRealm, Kind: gnoweb.GnowebPath},            // address namespace: noindex
+		"/gone":       {Value: "/r/gnoland/gone", Kind: gnoweb.GnowebPath},         // no such realm
+		"/Hello.md":   {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath}, // a file-like key names itself
+		"/realms":     {Value: "/r/", Kind: gnoweb.GnowebPath},
+		"/blog:t/x":   {Value: "/r/gnoland/blog:t/x", Kind: gnoweb.GnowebPath},
+		"/license.md": {Value: "# License\n", Kind: gnoweb.StaticMarkdown},
+		"/Terms":      {Value: "# Terms\n", Kind: gnoweb.StaticMarkdown},
+		"/foo bar":    {Value: "# Foo\n", Kind: gnoweb.StaticMarkdown},
+		"/a@b":        {Value: "# At\n", Kind: gnoweb.StaticMarkdown},
+		"/x$source":   {Value: "# X\n", Kind: gnoweb.StaticMarkdown},
+		"/a$b":        {Value: "# Ab\n", Kind: gnoweb.StaticMarkdown},
+	}
+	handler := newTrustHandler(t, gnoweb.IndexRegisteredCommunity, func(c *gnoweb.HTTPHandlerConfig) { c.Aliases = aliases })
+	open := func(t *testing.T, path string) (int, string, string) {
+		t.Helper()
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, (&url.URL{Path: path}).EscapedPath(), nil))
+		head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+		return rr.Code, rr.Result().Header.Get("X-Robots-Tag"), head
+	}
+
+	locs := handler.SitemapLocs(context.Background())
+	assert.Equal(t, []string{
+		origin + "/Hello.md", origin + "/Terms", origin + "/about", origin + "/blog:t/x", origin + "/hello", origin + "/hi",
+		origin + "/license.md", origin + "/nym", origin + "/nymalias", origin + "/src",
+	}, locs)
+
+	for _, loc := range locs {
+		status, robots, head := open(t, strings.TrimPrefix(loc, origin))
+		assert.Equal(t, http.StatusOK, status, loc)
+		assert.Empty(t, robots, loc)
+		assert.Contains(t, head, `<link rel="canonical" href="`+loc+`"`, loc)
+	}
+	for key := range aliases {
+		status, robots, head := open(t, key)
+		if status == http.StatusOK && robots == "" && strings.Contains(head, `<link rel="canonical" href="`+origin+key+`"`) {
+			assert.Contains(t, locs, origin+key, "an indexed page naming itself is listed")
 		}
 	}
 }

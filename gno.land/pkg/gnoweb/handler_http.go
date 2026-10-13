@@ -104,6 +104,8 @@ type HTTPHandlerConfig struct {
 	// IndexCommunity — see AppConfig field of the same name.
 	IndexCommunity CommunityIndex
 	Timeout        time.Duration
+	// NoIndex — see AppConfig field of the same name.
+	NoIndex bool
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
 	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
 	// burst. ADR-003 §Resource bounds.
@@ -169,7 +171,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
-		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity),
+		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity, cfg.NoIndex),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
