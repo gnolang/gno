@@ -170,6 +170,12 @@ func trimLeadingControlAndSpace[T string | []byte](s T) T {
 	return s
 }
 
+// linkClassAttr carries a class for the rendered <a>, set by parsers that
+// emit a styled link (see ext_buttons.go). Like mentionLinkAttr, the name is
+// not "data-"-prefixed, so goldmark never serializes it on its own and a
+// markdown `{.class}` attribute cannot set it.
+var linkClassAttr = []byte("gno:class")
+
 // linkTransformer implements ASTTransformer
 type linkTransformer struct{}
 
@@ -414,6 +420,9 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 
 		// Prepare additional link attributes.
 		attrs := []attr{}
+		if class, ok := n.Attribute(linkClassAttr); ok {
+			attrs = append(attrs, attr{"class", class.(string)})
+		}
 		if rel := n.rel(); rel != "" {
 			attrs = append(attrs, attr{"rel", rel})
 		}
