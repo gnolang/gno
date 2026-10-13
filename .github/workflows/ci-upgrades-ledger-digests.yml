@@ -1,5 +1,6 @@
-# Checks every value the upgrade ledgers record against the registry and the
-# releases (RELEASING.md, "Signing and provenance"). Read-only, public data.
+# Checks the digests and checksums the upgrade ledgers record against the
+# registry and the releases (RELEASING.md, "Signing and provenance").
+# Read-only, public data.
 name: ci / upgrades-ledger-digests
 
 on:
