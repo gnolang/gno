@@ -123,7 +123,7 @@ func NewDefaultAppConfig() *AppConfig {
 		StateRateLimitPerMinute: 100,
 		MaxConcurrentRPC:        32,
 		TrustedPaths:            strings.Split(DefaultTrustedPaths, ","),
-		IndexCommunity:          IndexRegisteredCommunity,
+		IndexCommunity:          IndexNoCommunity, // names are free: see the ADR
 	}
 }
 
