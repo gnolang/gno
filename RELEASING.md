@@ -115,8 +115,10 @@ runs, and the two are not the same thing:
 # dry run: every check, no push
 misc/release/cut-release.sh v1.3.0
 
-# a coordinated upgrade: also prints the GovDAO halt proposal to go with it
-misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
+# a coordinated upgrade: also prints the GovDAO halt proposal to go with it.
+# --commit names the code commit, the one the ledger entry names (item 6)
+misc/release/cut-release.sh v1.3.0 --commit <code-commit> \
+  --halt-height 120000 --push
 ```
 
 The script checks that a tag would work as a release, and each check
@@ -139,15 +141,17 @@ corresponds to something that has gone wrong before. All but one are refusals:
    reproducible from the tag, until the `v1.2.0` release replaced them; this
    check is what catches that class of mistake before validators download it.
 6. **The upgrade ledger passes `upgrades check` and has an entry for the
-   version** (`misc/deployments/<chain>.gno.land/upgrades.json`). The check is
-   the one CI runs: the ledger validates and its `UPGRADES.md` is current. The
-   entry is written before the release is cut, with its image digest and
-   binaries null until CI has built them. The script reads the ledger from the
-   checkout it runs in, not from the commit it tags: commit the entry on top of
-   the code being released, and cut from that checkout with `--commit` naming
-   the code commit. A release candidate only warns, since it rehearses the
-   final version's entry; a final release without one, or with a ledger that
-   fails the check, is refused.
+   version, naming the commit being tagged**
+   (`misc/deployments/<chain>.gno.land/upgrades.json`). The check is the one CI
+   runs: the ledger validates and its `UPGRADES.md` is current. The entry is
+   written before the release is cut, with its image digest and binaries null
+   until CI has built them. The script reads the ledger from the checkout it
+   runs in, not from the commit it tags: commit the entry on top of the code
+   being released, and cut from that checkout with `--commit` naming the code
+   commit, which is the commit the entry names. A release candidate only warns,
+   since it rehearses the final version's entry; a final release without one,
+   with a ledger that fails the check, or whose entry names another commit, is
+   refused.
 
 Pushing a `v*` tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
