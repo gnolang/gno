@@ -13,12 +13,12 @@ type unusedName struct {
 	span Span
 }
 
-// checkUnused reports the unused local variables and labels of fd, which
-// must be preprocessed (every name has its path). parent is fd's parent
-// block. A variable is used by any occurrence except as a target of `=` or
+// checkUnused reports the unused local variables and labels of the
+// function fn (a declaration or literal), which must be preprocessed
+// (every name has its path). parent is fn's parent block. A variable is used by any occurrence except as a target of `=` or
 // `:=`; a label by a goto, break or continue naming it. The variable of a
 // type switch counts as used when any clause uses it.
-func checkUnused(parent BlockNode, fd *FuncDecl) []unusedName {
+func checkUnused(parent BlockNode, fn Node) []unusedName {
 	// Keyed by the declaring statement: faux blocks (if, switch) copy the
 	// name sources of their init statement into each case block.
 	type key struct {
@@ -31,7 +31,7 @@ func checkUnused(parent BlockNode, fd *FuncDecl) []unusedName {
 	branched := map[Name]bool{}
 	plain := func(n Name) Name { return Name(strings.TrimSuffix(string(n), ".loopvar")) }
 
-	TranscribeB(parent, fd, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	TranscribeB(parent, fn, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		switch stage {
 		case TRANS_BLOCK:
 			blocks = append(blocks, n.(BlockNode))
