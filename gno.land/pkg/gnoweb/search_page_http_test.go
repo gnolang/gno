@@ -136,6 +136,9 @@ func TestAliasHeaderSearchScope(t *testing.T) {
 	for _, tc := range []struct{ page, jsBase string }{
 		{"/", "/"},
 		{"/about", "/about"},
+		// A path the server cannot parse searches chain-wide: the omnibar
+		// builds its requests on this action, and `<path>$search` is a 404.
+		{"/r/mock/a,b", "/"},
 	} {
 		m := headerAction.FindStringSubmatch(get(tc.page))
 		if m == nil {

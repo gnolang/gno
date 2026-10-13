@@ -4111,6 +4111,13 @@ main.is-dev-mode > section:has(.c-overview-view) {
 			background-color: var(--s-color-bg-base);
 			color: var(--s-color-text-primary);
 		}
+
+		/* Options stay out of the tab order, so this is the only focus cue:
+		   the background alone is ~1.2:1 and vanishes in forced colors. */
+		&[aria-selected="true"] {
+			outline: 2px solid var(--s-color-border-focus);
+			outline-offset: -2px;
+		}
 	}
 
 	.b-omnisearch-text {
@@ -4148,6 +4155,11 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		&[data-type="p"] {
 			background-color: var(--s-color-bg-info-default);
 			color: var(--s-color-text-base);
+		}
+
+		/* Indexer provenance: secondary on the tertiary surface is 3.8:1. */
+		&[data-type="i"] {
+			color: var(--s-color-text-primary);
 		}
 	}
 }
