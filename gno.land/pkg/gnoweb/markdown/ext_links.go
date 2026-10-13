@@ -294,11 +294,6 @@ func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLink
 		return nil, GnoLinkTypeExternal
 	}
 
-	// Check if it's a user link first
-	if target.IsUser() {
-		return target, GnoLinkTypeUser
-	}
-
 	// Extract domain and namespace from the target.
 	targetDomain := target.Domain
 	targetName := target.Namespace()
@@ -307,6 +302,9 @@ func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLink
 	case targetDomain != "" && targetDomain != orig.Domain:
 		// External: the domain does not match the origin's domain.
 		return target, GnoLinkTypeExternal
+	case target.IsUser():
+		// User: checked after the host, so an off-site /u/ path is external.
+		return target, GnoLinkTypeUser
 	case targetName != "" && targetName == orig.Namespace():
 		// Package: the namespace matches the origin's namespace.
 		return target, GnoLinkTypePackage

@@ -210,3 +210,15 @@ func TestExtLinksAllWrapped(t *testing.T) {
 		require.Contains(t, a, "nofollow ugc", a)
 	}
 }
+
+// TestExtLinksOffSiteUserPath checks the host is compared before the path:
+// an off-site /u/ link is external, an on-site one stays a user link.
+func TestExtLinksOffSiteUserPath(t *testing.T) {
+	t.Parallel()
+
+	for _, dest := range []string{"https://casino.example/u/promo", "//casino.example/u/promo"} {
+		got := renderLinksWith(t, "[x]("+dest+")", FollowInternalLinks)
+		require.Contains(t, got, `<a href="`+dest+`" rel="noopener nofollow ugc">`, dest)
+	}
+	require.NotContains(t, renderLinksWith(t, "[x](/u/nym)", FollowInternalLinks), "nofollow")
+}
