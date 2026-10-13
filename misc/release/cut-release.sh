@@ -232,11 +232,25 @@ check_on_master() {
 
 # The ledger is what operators read to know which version to run and what a
 # replaying node follows; a final release without an entry is invisible to
-# both, so it is refused. A release candidate only warns: it rehearses the
-# final version's entry, which may not be written yet.
+# both, so it is refused, and so is one whose ledger does not validate: a
+# supervisor or the daily ledger check reads the whole file, not one row. The
+# entry is written before the cut, its image digest and binaries null until CI
+# has built them. A release candidate only warns: it rehearses the final
+# version's entry, which may not be written yet.
 check_ledger_entry() {
 	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land"
 	[[ -f ${dir}/upgrades.json ]] || return 0
+	local out
+	if ! out="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades validate "${dir}" 2>&1)"; then
+		out="$(printf '%s\n' "${out}" | sed 's/^/       /')"
+		if [[ ${VERSION} == *-* ]]; then
+			warn "misc/deployments/${CHAIN}.gno.land/upgrades.json does not validate:"
+			printf '%s\n' "${out}" >&2
+		else
+			die "misc/deployments/${CHAIN}.gno.land/upgrades.json does not validate:
+${out}"
+		fi
+	fi
 	if (cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades has "${dir}" "${VERSION}" >/dev/null 2>&1); then
 		ok "upgrades.json has an entry for ${VERSION}"
 		return
