@@ -911,7 +911,11 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					lastType = tipe
 				}
 
-				if s.Values == nil {
+				if s.Values == nil && s.Type != nil {
+					// A type without values repeats nothing: rejected at
+					// preprocess as a missing init expr.
+					values = nil
+				} else if s.Values == nil {
 					// Does not work unless len(s.Names) == len(lastValues)
 					if len(s.Names) != len(lastValues) {
 						lastValues = nil
