@@ -47,6 +47,17 @@ func TestHTMLRenderer_RenderDocumentation_FencedBlock(t *testing.T) {
 	require.Contains(t, out, `<details class="b-doc-example">`)
 }
 
+// A doc comment is its package author's: no link in it passes on authority,
+// autolinks included.
+func TestHTMLRenderer_RenderDocumentation_LinksAreUGC(t *testing.T) {
+	t.Parallel()
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	require.NoError(t, r.RenderDocumentation(&buf, []byte("See [x](https://example.org/), <https://example.net/> and [in](/r/x).\n")))
+	out := buf.String()
+	require.Equal(t, 3, strings.Count(out, `rel="noopener nofollow ugc"`), out)
+}
+
 func TestHTMLRenderer_RenderDocumentation_StripsRawHTML(t *testing.T) {
 	t.Parallel()
 	// Raw HTML in doc strings is stripped by Goldmark's default safe mode
@@ -121,7 +132,7 @@ func TestRenderRealm_OverSizeCapServesEscapedPlainText(t *testing.T) {
 	u := &weburl.GnoURL{Path: "/r/mock/path"}
 	toc, err := r.RenderRealm(&buf, u, src, RealmRenderContext{})
 	require.NoError(t, err)
-	assert.Empty(t, toc.Items)
+	assert.Empty(t, toc.Toc.Items)
 	out := buf.String()
 	assert.NotContains(t, out, "<h1", "goldmark must not run on oversize input")
 	assert.NotContains(t, out, "<script>", "raw content must be escaped")
