@@ -158,20 +158,23 @@ version at all. Note that `-ldflags` is only recorded in `go version -m` output
 for builds without `-trimpath`, so its absence there is not on its own evidence
 of a hand-built binary; the binary's own `version` output is.
 
-**A published release is never rebuilt.** The `release / chain-tag` and
+**A published release is never replaced.** The `release / chain-tag` and
 `release / docker` workflows run on `v*` tag pushes only, with no manual
-trigger, and both refuse to rebuild what is already out: `release / chain-tag`
-stops when the release is published, `release / docker` when the registry
-already serves the version tag. These builds are not reproducible, so a
-rebuild would replace the binaries, `CHECKSUMS.txt` and images the upgrade
-ledgers record, under the same version. The release is created as a draft and
-published only once every asset is attached, so re-running a run that failed
-before publishing finishes it. Images differ: a re-run finishes only the legs
-that failed before their push, and an image pushed but left unsigned stays
-unsigned, so it is replaced by the next candidate or patch. A fault in either
-workflow surfaces on the release candidate, cut first on the same commit, and
-is fixed in the next candidate. A manual trigger would also attest and sign
-under a branch's identity, which the verify commands below refuse.
+trigger, and both refuse to replace what is already out: `release / chain-tag`
+stops before attesting when the release is published, `release / docker`
+before building when the registry already serves the version tag. These
+builds are not reproducible, so a replacement would swap the binaries,
+`CHECKSUMS.txt` and images the upgrade ledgers record for others under the
+same version. The release is created as a draft and published only once every
+asset is attached, so a run that failed before publishing can be re-run, and
+the re-run publishes the draft. Images differ: *Re-run failed jobs* builds
+only the images whose job failed before its push (with *Re-run all jobs*, the
+images already pushed fail their check and the run ends red), and an image
+pushed but left unsigned stays unsigned: the next candidate or patch
+supersedes it. A fault in either workflow surfaces on the release candidate,
+cut first on the same commit, and is fixed in the next candidate. A manual
+trigger would also attest and sign under a branch's identity, which the
+verify commands below refuse.
 
 ### Signing and provenance
 

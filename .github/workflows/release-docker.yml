@@ -7,8 +7,8 @@ name: release / docker
 # launch tag would recreate that name for an image reporting a different
 # version. A runnable node image is always a vX.Y.Z tag (RELEASING.md).
 #
-# Tag pushes only, with no manual trigger, and a published release is refused
-# rather than rebuilt (RELEASING.md, "Cutting a release").
+# Tag pushes only, with no manual trigger, and a published release is never
+# replaced (RELEASING.md, "Cutting a release").
 on:
   push:
     tags:
