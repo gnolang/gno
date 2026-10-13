@@ -14,7 +14,7 @@ The flow:
 
 ## 1. Binaries
 
-Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) — `v1.5.0` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
+Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) with no *(pending)* cell — `v1.5.0` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height.
 
 **Native binary (recommended for validators).** Download `gnoland` for your platform from the version's [release page](https://github.com/gnolang/gno/releases/tag/v1.5.0), check it against `CHECKSUMS.txt` there (the same checksums are in `upgrades.json`), and point `GNOROOT` at a checkout of the same tag — the node reads `gnovm/stdlibs` from it:
 
