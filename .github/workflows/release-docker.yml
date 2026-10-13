@@ -99,11 +99,9 @@ jobs:
           # Authenticated, so a package never pushed before answers 404 instead
           # of refusing an anonymous token. Credentials go through curl's
           # config on stdin, not its argument list.
-          resp="$(printf 'user = "%s:%s"\n' "${GITHUB_REPOSITORY_OWNER}" "${GH_TOKEN}" \
-            | curl -fsS -K - "https://ghcr.io/token?scope=repository:${REPO}:pull")" \
+          token="$(printf 'user = "%s:%s"\n' "${GITHUB_REPOSITORY_OWNER}" "${GH_TOKEN}" \
+            | curl -fsS -K - "https://ghcr.io/token?scope=repository:${REPO}:pull" | jq -er .token)" \
             || { echo "::error::cannot get a token to read ghcr.io/${REPO}"; exit 1; }
-          token="$(jq -r '.token // empty' <<<"${resp}")"
-          [ -n "${token}" ] || { echo "::error::ghcr gave no token to read ghcr.io/${REPO}"; exit 1; }
           code="$(printf 'header = "Authorization: Bearer %s"\n' "${token}" \
             | curl -sS -K - -o /dev/null -w '%{http_code}' -I \
               -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
