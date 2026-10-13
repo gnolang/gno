@@ -409,3 +409,12 @@ func TestNewDefaultAppConfigCopiesAliases(t *testing.T) {
 	cfg.Aliases["/only-mine"] = AliasTarget{Value: "# Mine", Kind: StaticMarkdown}
 	assert.NotContains(t, DefaultAliases, "/only-mine")
 }
+
+// TestNewDefaultAppConfigIndexesNoCommunity checks community pages stay out of
+// search unless an operator opts in: a name costs nothing to register, so
+// indexing pages under one would publish scams under gno.land.
+func TestNewDefaultAppConfigIndexesNoCommunity(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, IndexNoCommunity, NewDefaultAppConfig().IndexCommunity)
+}

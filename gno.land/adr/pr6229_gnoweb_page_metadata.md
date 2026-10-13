@@ -185,8 +185,8 @@ For community pages, `-index-community` chooses:
 
 | `-index-community` | community pages indexed |
 |---|---|
-| `registered` (default) | the bare page of a package or user page whose namespace is a registered name: no args, no query, no `$` view, no file, no directory or namespace listing |
-| `none` | none |
+| `registered` | the bare page of a package or user page whose namespace is a registered name: no args, no query, no `$` view, no file, no directory or namespace listing |
+| `none` (default) | none |
 | `all` | all of them, under the rule of official pages |
 
 The `registered` line rests on the chain. `checkNamespacePermission`
@@ -203,6 +203,14 @@ gnoweb tells the two apart by the path alone, with the bech32 check the user
 page already uses, and makes no RPC. A chain that never enables
 `r/sys/names` lets anyone deploy under any name: it should run
 `-index-community=none`, and its `-trusted-paths` mean nothing either.
+
+The default is `none`, because on mainnet a name costs nothing either:
+`r/sys/namereg` registers any `nym-<stem><3 digits>` for free until
+governance sets a price. Under `registered`, a scam page under a name made
+for it would be indexed under gno.land, and a search engine judges a site
+by the third-party pages it hosts. `registered` is for a chain where a name
+costs something or content is filtered (#5185); it is a flag, not a code
+change.
 
 ### Links pass on authority only where gno.land answers for them
 
@@ -243,14 +251,14 @@ can tell gno.land's pages from user realms, and that risk come before SEO.
 
 | concern | this change | what remains, and where |
 |---|---|---|
-| SEO bombing under gno.land's name | community titles and summaries come from the path, cards say the page is community content; community args, query and `$` views are noindex; every link in a community document is `nofollow ugc` | the bare page of a registered-name realm stays indexable, with that fixed head, under `registered` |
+| SEO bombing under gno.land's name | community titles and summaries come from the path, cards say the page is community content; community args, query and `$` views are noindex; every link in a community document is `nofollow ugc` | none by default; under `registered`, the bare page of a registered-name realm is indexable, with that fixed head |
 | Unbounded URLs from one page | official queries and `$` views other than source are noindex, canonicals drop the query and other keys, alias targets name their alias | args on official pages stay indexed, soft 404s included |
 | Throwaway scam realms | address namespaces, free to create and discard, are noindex; empty user pages too | the page itself still renders |
-| Scams under a registered name | indexable, but with a path title, a path summary, a community card and the #6191 notice on the page | content filtering in #5185; `-index-community=none` if that is not enough |
+| Scams under a registered name | not indexed by default; under `registered`, indexable with a path title, a path summary, a community card and the #6191 notice on the page | content filtering in #5185 before turning `registered` on |
 | Dilution of the site's authority through links | every link in a community document or a doc comment, and every external link in a trusted one, is `nofollow ugc` | none for rendered documents |
 | Scams and phishing through metadata | the head repeats a document only on official pages, only its lead, never with args or a query; user pages are one name; format characters are dropped | a trusted realm whose own lead shows user text would lend it; the trusted list is the control |
 | Phishing through page content | out of scope for metadata | the community notice of #6191; content filtering in #5185 |
-| Crawlers telling main pages from user realms | robots meta and `X-Robots-Tag`, `ugc` links, distinct cards and summaries, all from one classification usable outside a request | the sitemap of #6256 should use `pagePolicy` and never list a noindex page; no structured data |
+| Crawlers telling main pages from user realms | robots meta and `X-Robots-Tag`, `ugc` links, distinct cards and summaries, all from one classification usable outside a request | the sitemap of #6256 uses `pagePolicy` and never lists a noindex page; no structured data |
 | Front matter as authored metadata (#3797, reverted by #3924) | front matter is read only from files an operator passes to `-aliases` | none |
 | Who counts as official | `-trusted-paths`, default `DefaultTrustedPaths` | governance of that list |
 
@@ -316,8 +324,8 @@ Every page now carries a title, a description and, with an origin set, a
 share image. Every indexed page also names a canonical URL; no other page
 does.
 
-Community realms beyond the bare pages under registered names leave search
-results under gno.land, and with `none` all of them do. That costs the
+By default every community realm leaves search results under gno.land;
+`registered` lets the bare pages under registered names back in. That costs the
 ecosystem the discoverability #5769 asks for; the trusted list, and the
 bare-page rule, are the way back in.
 

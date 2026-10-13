@@ -125,16 +125,18 @@ func TestSetupTrust(t *testing.T) {
 	}
 }
 
-// TestIndexCommunityFlag checks the flag reaches the config; the values
-// themselves are TestCommunityIndexText's.
+// TestIndexCommunityFlag checks the flag reaches the config and defaults to
+// none; the values themselves are TestCommunityIndexText's.
 func TestIndexCommunityFlag(t *testing.T) {
 	t.Parallel()
 
 	cfg := defaultWebOptions
 	fs := flag.NewFlagSet("gnoweb", flag.ContinueOnError)
 	cfg.RegisterFlags(fs)
-	require.NoError(t, fs.Parse([]string{"-index-community=none"}))
-	assert.Equal(t, gnoweb.IndexNoCommunity, cfg.indexCommunity)
+	require.NoError(t, fs.Parse(nil))
+	assert.Equal(t, gnoweb.IndexNoCommunity, cfg.indexCommunity, "names are free: community pages stay out of search by default")
+	require.NoError(t, fs.Parse([]string{"-index-community=registered"}))
+	assert.Equal(t, gnoweb.IndexRegisteredCommunity, cfg.indexCommunity)
 }
 
 // TestNoIndexFlag checks -no-index reaches the app: a testnet that loses it
