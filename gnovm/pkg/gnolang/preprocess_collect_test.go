@@ -707,3 +707,53 @@ func main() {}
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
 	}
 }
+
+func TestPreprocessCollectMethodExprs(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type T0 struct{}
+
+func (T0) v0() int    { return 1 }
+func (*T0) p0() int   { return 2 }
+func (T0) sum(xs ...int) (n int) {
+	for _, x := range xs {
+		n += x
+	}
+	return
+}
+
+type T3 struct {
+	T0
+}
+
+func main() {
+	_ = T0.p0 // needs *T0
+	_ = T3.p0 // promoted, still needs a pointer
+	_ = T3.nope
+	var f func(T3) int = T3.v0
+	var g func(*T3) int = (*T3).p0
+	var g2 func(*T0) int = (*T0).v0 // value method through a pointer
+	var h func(T3, ...int) int = T3.sum
+	_, _, _, _ = f, g, h, g2
+}
+`)
+	want := []string{
+		"invalid method expression T0.p0 (needs pointer receiver (*T0).p0)",
+		"invalid method expression T3.p0 (needs pointer receiver (*T3).p0)",
+		"T3.nope undefined (type main.T3 has no method nope)",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}

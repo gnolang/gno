@@ -3104,7 +3104,24 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						panic(fmt.Sprintf("cannot access unexported method %s.%s from %s",
 							dt.PkgPath, n.Sel, ctxpn.PkgPath))
 					}
-					n.Path = dt.GetUnboundPathForName(n.Sel)
+					_, isPtr := xt.(*PointerType)
+					if i, ok := dt.lookupMethod(n.Sel); ok {
+						fv := dt.Methods[i].V.(*FuncValue)
+						recv := fv.GetType(store).Params[0].Type
+						assertMethodExprReceiver(xt, dt, n.Sel, recv, isPtr)
+						if _, ptrRecv := recv.(*PointerType); isPtr && !ptrRecv {
+							// (*T).m with a value receiver has type
+							// func(*T, ...): the literal dereferences.
+							lit := promotedMethodExpr(store, last, ctxpn.PkgPath, n, xt, isPtr)
+							return Preprocess(store, last, lit).(Expr), TRANS_CONTINUE
+						}
+						n.Path = dt.GetUnboundPathForName(n.Sel)
+					} else {
+						// Promoted through an embedded field: a function
+						// literal that selects it on its receiver.
+						lit := promotedMethodExpr(store, last, ctxpn.PkgPath, n, xt, isPtr)
+						return Preprocess(store, last, lit).(Expr), TRANS_CONTINUE
+					}
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector expression type %v",

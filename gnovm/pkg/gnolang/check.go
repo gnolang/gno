@@ -62,6 +62,8 @@ const (
 	CodeRepeatedDefine     ErrCode = "repeated-define"
 	CodeSwitchTag          ErrCode = "switch-tag"
 	CodeConversionSpread   ErrCode = "conversion-spread"
+	CodeMethodExprReceiver ErrCode = "method-expr-receiver"
+	CodeNoMethod           ErrCode = "no-method"
 
 	// Assignability.
 	CodeMapValueAssign ErrCode = "map-value-assign"
