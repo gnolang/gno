@@ -182,10 +182,12 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			assert.Regexp(t, `\A  push:\n    tags:\n      - "?v\*"?\n\n\z`, on, "%s must run on v* tag pushes only", path)
 		}
 
-		// Every line that sets TAG, so a job-level env or a shell
-		// reassignment cannot shadow the workflow-level value.
+		// Every line that assigns TAG (a job or step env, `TAG=`, `export TAG=`,
+		// `TAG+=`, a GITHUB_ENV line), so none can shadow the workflow-level
+		// value. A `read TAG` is not matched; the native binaries' assertion
+		// compares against GITHUB_REF_NAME, which catches drift at run time.
 		assert.Equal(t, []string{"  TAG: ${{ github.ref_name }}"},
-			regexp.MustCompile(`(?m)^[ \t]*TAG[:=].*$`).FindAllString(chain, -1),
+			regexp.MustCompile(`(?m)^.*(?:^|[^A-Za-z0-9_$\{])TAG\s*\+?[:=].*$`).FindAllString(chain, -1),
 			"%s must set TAG once, for every job, to the tag that triggered the run", workflow)
 
 		// Every line naming BUILD_VERSION, so a second env scope, a comment
