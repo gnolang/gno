@@ -32,6 +32,9 @@ type HelpData struct {
 	Doc         Component
 	Domain      string
 	Origin      string // request scheme+host; makes help URLs shareable
+	// Community is set on packages outside the trusted paths, the pages that
+	// show the realm notice.
+	Community bool
 }
 
 type HelpTocData struct {
@@ -84,6 +87,10 @@ func registerHelpFuncs(funcs template.FuncMap) {
 			}
 		}
 		return url.String()
+	}
+
+	funcs["aiFuncAction"] = func(data HelpData, fn HelpFunction) *AIAction {
+		return NewAIFuncAction(data.Origin, strings.TrimPrefix(data.PkgPath, data.Domain), fn.Name)
 	}
 
 	funcs["buildCommandData"] = func(data HelpData, fn HelpFunction) CommandData {

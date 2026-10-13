@@ -8,14 +8,18 @@ this page is what to type.
 Tags a release, after checking it is one.
 
 ```sh
-# dry run — every check runs, nothing is pushed
-misc/release/cut-release.sh v1.3.0
+# dry run — every check runs, nothing is pushed. Once the ledger entry is
+# pushed on top of the code, the branch tip is the ledger commit: name the code
+# commit
+misc/release/cut-release.sh v1.3.0 --commit <code-commit>
 
 # tag a specific commit rather than the branch tip
 misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
 
-# a coordinated upgrade: also prints the GovDAO halt proposal, then pushes
-misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
+# a coordinated upgrade: also prints the GovDAO halt proposal, then pushes.
+# --commit names the code commit, the one the ledger entry names
+misc/release/cut-release.sh v1.3.0 --commit <code-commit> \
+  --halt-height 120000 --push
 ```
 
 | Option | |
@@ -46,6 +50,13 @@ and `origin/chain/*`, and uses local tags to find the previous release.
   `origin/chain/<name>`, and drift that exists only there is drift validators run.
 - **A binary that does not report the tag.** The script builds `gnoland` the way
   CI does and asks it. `chain/mainnet`'s published binaries answer `develop`.
+- **A final release its chain's upgrade ledger does not record**, or a ledger
+  that fails `upgrades check`, the check CI runs
+  (`misc/deployments/<chain>.gno.land/upgrades.json` and its `UPGRADES.md`).
+  Write the entry before the cut, with its image digest and binaries null until
+  CI has built them, commit it on top of the code being released, and cut from
+  that checkout with `--commit` naming the code commit. The entry must name the
+  commit being tagged. A release candidate only warns.
 
 It *warns*, rather than refusing, when the commit is not on `master` (listing
 what is missing, since a squash-merge shows up here even though its content

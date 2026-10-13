@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net"
 	"net/http"
@@ -43,6 +44,7 @@ var cspImgHost = []string{
 }
 
 type webCfg struct {
+	canonicalOrigin  string
 	chainid          string
 	remote           string
 	remoteTimeout    time.Duration
@@ -50,6 +52,7 @@ type webCfg struct {
 	bind             string
 	faucetURL        string
 	aliases          string
+	trustedProxies   string
 	noDefaultAliases bool
 	noCache          bool
 	timeout          time.Duration
@@ -58,14 +61,28 @@ type webCfg struct {
 	html             bool
 	noStrict         bool
 	verbose          bool
+	noRealmNotice    bool
+	indexCommunity   gnoweb.CommunityIndex
+	trustedPaths     string
 }
 
+// The default realm notice, and the short variant shown below the lg
+// breakpoint. Each fits one line of the header row from 320px up where it is
+// shown, so the row reserves one line. An operator's GNOWEB_REALM_NOTICE_TEXT
+// has no short variant, shows at every width and is clamped to two lines.
+const (
+	defaultRealmNoticeText  = "**Community realm**, deployed by its author. Read the code before you interact or send coins."
+	defaultRealmNoticeShort = "**Community realm.** Read the code first."
+)
+
 var defaultWebOptions = webCfg{
-	chainid:       "dev",
-	remote:        "127.0.0.1:26657",
-	bind:          ":8888",
-	remoteTimeout: time.Minute,
-	timeout:       time.Minute,
+	chainid:        "dev",
+	remote:         "127.0.0.1:26657",
+	bind:           ":8888",
+	remoteTimeout:  time.Minute,
+	timeout:        time.Minute,
+	trustedPaths:   gnoweb.DefaultTrustedPaths,
+	indexCommunity: gnoweb.NewDefaultAppConfig().IndexCommunity,
 }
 
 func main() {
@@ -80,8 +97,12 @@ func main() {
 			LongHelp: `gnoweb web interface
 
 Environment variables:
-  GNOWEB_BANNER_TEXT  Banner content (supports inline markdown). Max 400 chars.
-  GNOWEB_BANNER_URL   Optional link for the banner (requires GNOWEB_BANNER_TEXT).`,
+  GNOWEB_BANNER_TEXT        Banner content (supports inline markdown). Max 400 chars.
+  GNOWEB_BANNER_URL         Optional link for the banner (requires GNOWEB_BANNER_TEXT).
+  GNOWEB_REALM_NOTICE_TEXT  Notice shown on package and user pages outside -trusted-paths (inline markdown,
+                            no images). Max 400 chars, shown on up to two lines.
+                            Unset or empty keeps the built-in text; a value with no visible text
+                            refuses to start. Disable the notice with -no-realm-notice.`,
 		},
 		&cfg,
 		func(ctx context.Context, args []string) error {
@@ -125,11 +146,46 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"comma-separated list of aliases in the form: '<path>=<realm-path>' or '<path>=static:<markdown-file>'",
 	)
 
+	fs.StringVar(
+		&c.trustedProxies,
+		"trusted-proxies",
+		defaultWebOptions.trustedProxies,
+		"comma-separated CIDRs or IPs of the reverse proxies whose X-Real-IP and X-Forwarded-Host are believed; only safe behind a proxy that replaces X-Forwarded-Host, as its leftmost value wins",
+	)
+
 	fs.BoolVar(
 		&c.noDefaultAliases,
 		"no-default-aliases",
 		defaultWebOptions.noDefaultAliases,
 		"discard default aliases",
+	)
+
+	fs.BoolVar(
+		&c.noRealmNotice,
+		"no-realm-notice",
+		defaultWebOptions.noRealmNotice,
+		"disable the notice shown on package and user pages outside -trusted-paths",
+	)
+
+	fs.StringVar(
+		&c.trustedPaths,
+		"trusted-paths",
+		defaultWebOptions.trustedPaths,
+		"comma-separated namespaces or package paths (without /r/ or /p/), or *, treated as official; only as safe as the chain's namespace enforcement (r/sys/names)",
+	)
+
+	fs.TextVar(
+		&c.indexCommunity,
+		"index-community",
+		defaultWebOptions.indexCommunity,
+		"which pages outside -trusted-paths search engines may index: none, registered (bare pages under a registered name) or all",
+	)
+
+	fs.StringVar(
+		&c.canonicalOrigin,
+		"canonical-origin",
+		defaultWebOptions.canonicalOrigin,
+		"public origin of this deployment, scheme included; empty emits no canonical, og:url or share image",
 	)
 
 	fs.StringVar(
@@ -210,6 +266,29 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+// setupTrust passes appcfg the trusted paths and, unless -no-realm-notice is
+// set, the realm notice. The trusted list also decides what a page's <head>
+// may repeat, so it applies with the notice off.
+func setupTrust(cfg *webCfg, appcfg *gnoweb.AppConfig, logger *slog.Logger) error {
+	appcfg.TrustedPaths = strings.Split(cfg.trustedPaths, ",")
+	if cfg.noRealmNotice {
+		return nil
+	}
+	text, short := defaultRealmNoticeText, defaultRealmNoticeShort
+	if env := os.Getenv("GNOWEB_REALM_NOTICE_TEXT"); env != "" {
+		text, short = env, ""
+	}
+	notice, err := components.NewRealmNotice(text, short)
+	if err != nil {
+		return fmt.Errorf("invalid GNOWEB_REALM_NOTICE_TEXT: %w", err)
+	}
+	if cfg.html {
+		logger.Warn("unsafe html lets a realm restyle or spoof the realm notice")
+	}
+	appcfg.RealmNotice = notice
+	return nil
+}
+
 func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup logger
 	level := zapcore.InfoLevel
@@ -229,6 +308,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	// Setup app
 	appcfg := gnoweb.NewDefaultAppConfig()
 	appcfg.ChainID = cfg.chainid
+	appcfg.CanonicalOrigin = cfg.canonicalOrigin
+	appcfg.IndexCommunity = cfg.indexCommunity
 	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)
@@ -238,6 +319,9 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.Analytics = cfg.analytics
 	appcfg.UnsafeHTML = cfg.html
 	appcfg.FaucetURL = cfg.faucetURL
+	if cfg.trustedProxies != "" {
+		appcfg.StateRateLimitTrustedProxies = strings.Split(cfg.trustedProxies, ",")
+	}
 
 	// Parse banner from env
 	if text := os.Getenv("GNOWEB_BANNER_TEXT"); text != "" {
@@ -250,6 +334,10 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 		}
 	} else if os.Getenv("GNOWEB_BANNER_URL") != "" {
 		logger.Warn("GNOWEB_BANNER_URL is set but GNOWEB_BANNER_TEXT is empty; banner will not be shown")
+	}
+
+	if err := setupTrust(cfg, appcfg, logger); err != nil {
+		return nil, err
 	}
 
 	if cfg.noDefaultAliases {
@@ -328,7 +416,7 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
 			}
 
-			aliases[parts[0]] = gnoweb.AliasTarget{Value: string(content), Kind: gnoweb.StaticMarkdown}
+			aliases[parts[0]] = gnoweb.NewStaticAlias(string(content))
 		} else { // Otherwise, treat it as a normal alias.
 			aliases[parts[0]] = gnoweb.AliasTarget{Value: parts[1], Kind: gnoweb.GnowebPath}
 		}

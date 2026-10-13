@@ -13,6 +13,7 @@ import (
 // Exported so gnoweb pins the pact in a test (see TestStateErrorSentinelPact).
 const (
 	ClientErrPackageNotFound  = "package not found"
+	ClientErrFileNotFound     = "file not found"
 	ClientErrObjectNotFound   = "object not found"
 	ClientErrTimeout          = "RPC node request timeout"
 	ClientErrBadRequest       = "bad request"
@@ -29,7 +30,8 @@ func mapClientError(err error) (status int, message string) {
 	}
 	// Substring match (not errors.Is) — see sentinel constants above.
 	msg := err.Error()
-	if strings.Contains(msg, ClientErrPackageNotFound) || strings.Contains(msg, ClientErrObjectNotFound) {
+	if strings.Contains(msg, ClientErrPackageNotFound) || strings.Contains(msg, ClientErrFileNotFound) ||
+		strings.Contains(msg, ClientErrObjectNotFound) {
 		return http.StatusNotFound, msg
 	}
 	if strings.Contains(msg, ClientErrResponseTooLarge) {

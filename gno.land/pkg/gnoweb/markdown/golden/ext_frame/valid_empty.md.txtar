@@ -1,0 +1,6 @@
+-- input.md --
+<gno-frame>
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+</section>

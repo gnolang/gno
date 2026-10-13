@@ -423,7 +423,7 @@
 	sup {
 		font-size: var(--g-font-size-50);
 		vertical-align: middle;
-		padding-left: var(--space-px);
+		padding-left: var(--g-space-px);
 	}
 
 	sup > a {
@@ -642,11 +642,11 @@
 		border-radius: var(--s-rounded-sm);
 	}
 
-	/* Trim outer margin when a <details class="doc-example"> bookends the block */
-	& > .doc-example:first-child {
+	/* Trim outer margin when a <details class="b-doc-example"> bookends the block */
+	& > .b-doc-example:first-child {
 		margin-block-start: 0;
 	}
-	& > .doc-example:last-child {
+	& > .b-doc-example:last-child {
 		margin-block-end: 0;
 	}
 }

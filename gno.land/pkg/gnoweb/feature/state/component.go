@@ -26,7 +26,8 @@ func (c *stateComponent) Render(w io.Writer) error {
 // standard (status, *components.View) return shape.
 func NewPageView(data StateData) *components.View {
 	return &components.View{
-		Type:      StateViewType,
-		Component: &stateComponent{tmpl: PageTemplate, name: "renderPage", data: data},
+		Type:             StateViewType,
+		SkipTargetInBody: true, // on the content header
+		Component:        &stateComponent{tmpl: PageTemplate, name: "renderPage", data: data},
 	}
 }

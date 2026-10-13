@@ -134,7 +134,14 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 		{"halt times not increasing", func(l *Ledger) { t2 := l.Upgrades[1].HaltTime.Add(-1); l.Upgrades[2].HaltTime = &t2 }, "halt_time"},
 		{"negative proposal", func(l *Ledger) { p := int64(-1); l.Upgrades[1].Proposal = &p }, "proposal"},
 		{"image ref for another version", func(l *Ledger) { l.Upgrades[1].Image.Ref = "ghcr.io/gnolang/gno/gnoland:v1.9.0" }, "image.ref"},
-		{"no binaries", func(l *Ledger) { l.Upgrades[1].Binaries = nil }, "binaries"},
+		{"empty binaries", func(l *Ledger) { l.Upgrades[1].Binaries = map[string]string{} }, "binaries"},
+		{"binaries pending on an entry that is not the last", func(l *Ledger) { l.Upgrades[1].Binaries = nil }, "binaries"},
+		{"binaries pending on the entry before the last", func(l *Ledger) { l.Upgrades[len(l.Upgrades)-2].Binaries = nil }, "binaries"},
+		{"image digest filled in while the binaries are pending", func(l *Ledger) {
+			last := &l.Upgrades[len(l.Upgrades)-1]
+			d := "sha256:" + strings.Repeat("a", 64)
+			last.Image.Digest, last.Binaries = &d, nil
+		}, "binaries"},
 		{"binary without checksum", func(l *Ledger) { l.Upgrades[1].Binaries["linux/amd64"] = "https://example.com/gnoland" }, "checksum"},
 		{"binary platform not os/arch", func(l *Ledger) { l.Upgrades[1].Binaries["linux"] = l.Upgrades[1].Binaries["linux/amd64"] }, "platform"},
 		{"ran_as malformed", func(l *Ledger) { s := "sha-31b6650"; l.Upgrades[1].RanAs = &s }, "ran_as"},
@@ -159,6 +166,32 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 			assert.Contains(t, err.Error(), tc.want)
 		})
 	}
+}
+
+// A release's binaries exist only once CI has built it, and its entry is
+// written before that: cut-release.sh refuses a final release without one.
+// null says "not built yet", as it does for the image digest; an empty object
+// is refused, so a pending entry cannot pass for a built one with no
+// downloads.
+func TestValidate_binariesArePendingUntilTheBuild(t *testing.T) {
+	t.Parallel()
+
+	const built = `"binaries": {
+        "linux/amd64": "https://github.com/gnolang/gno/releases/download/v1.4.1/gnoland_linux_amd64?checksum=sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },`
+	require.Contains(t, validLedger, built, "the fixture's last entry has moved")
+
+	pending, err := Parse([]byte(strings.Replace(validLedger, built, `"binaries": null,`, 1)))
+	require.NoError(t, err)
+	require.Nil(t, pending.Upgrades[3].Binaries)
+	assert.NoError(t, pending.Validate(), "null binaries are pending, not missing")
+
+	empty, err := Parse([]byte(strings.Replace(validLedger, built, `"binaries": {},`, 1)))
+	require.NoError(t, err)
+	require.NotNil(t, empty.Upgrades[3].Binaries)
+	err = empty.Validate()
+	require.Error(t, err, "an empty object is not a pending value")
+	assert.Contains(t, err.Error(), "binaries")
 }
 
 func TestValidate_reportsEveryProblemAtOnce(t *testing.T) {
@@ -230,6 +263,52 @@ func TestCheck_detectsAStaleDocument(t *testing.T) {
 	require.NoError(t, Render(dir))
 	after, _ := os.ReadFile(filepath.Join(dir, DocFile))
 	assert.Equal(t, string(before), string(after), "rendering is idempotent")
+}
+
+// cut-release.sh compares the entry a release is recorded under with the
+// commit it tags, so the lookup must find the same entry Has does: the
+// version's own entry first, else the entry of the same final version.
+func TestEntry_findsTheEntryAReleaseIsRecordedUnder(t *testing.T) {
+	t.Parallel()
+	l := parseValid(t)
+	cases := []struct {
+		version, commit string
+	}{
+		{"v1.3.0", "31b6650a100d9baf14e7669f8f0df924f1f841e0"},
+		{"v1.3.0-rc.2", "31b6650a100d9baf14e7669f8f0df924f1f841e0"}, // an rc rehearses its final's entry
+		{"v1.4.0-rc.1", "00417a1be97b9a311d9669ae7aa9585b277ee594"}, // its own entry
+		{"v1.4.0", "00417a1be97b9a311d9669ae7aa9585b277ee594"},      // the final of a recorded rc
+		{"v1.4.0-rc.2", "00417a1be97b9a311d9669ae7aa9585b277ee594"}, // another rc of the same final
+	}
+	for _, tc := range cases {
+		e, ok := l.Entry(tc.version)
+		require.True(t, ok, "no entry for %s", tc.version)
+		assert.Equal(t, tc.commit, e.Commit, "entry for %s", tc.version)
+	}
+	_, ok := l.Entry("v1.9.0")
+	assert.False(t, ok)
+}
+
+// With several candidates of a version recorded and no final entry yet, the
+// final is cut on the last candidate's commit, so that is the entry it and any
+// later candidate are recorded under.
+func TestEntry_fallsBackToTheLastCandidate(t *testing.T) {
+	t.Parallel()
+	rc1, rc2 := strings.Repeat("a", 40), strings.Repeat("b", 40)
+	l := &Ledger{Upgrades: []Entry{
+		{Version: "v1.6.0-rc.1", Commit: rc1},
+		{Version: "v1.6.0-rc.2", Commit: rc2},
+	}}
+	for v, want := range map[string]string{
+		"v1.6.0-rc.1": rc1, // its own entry
+		"v1.6.0-rc.2": rc2, // its own entry
+		"v1.6.0":      rc2, // the final, cut on the last candidate
+		"v1.6.0-rc.3": rc2, // a later candidate
+	} {
+		e, ok := l.Entry(v)
+		require.True(t, ok, "no entry for %s", v)
+		assert.Equal(t, want, e.Commit, "entry for %s", v)
+	}
 }
 
 func TestHasVersion_stripsThePreReleaseSuffix(t *testing.T) {
