@@ -209,7 +209,8 @@ attestation, the checksums and the ledger's recorded digests are the
 operator's anchors. `ci / upgrades-ledger-digests` checks, daily, the digests
 and checksums the ledgers record for each version: each image digest against
 the registry, each `ran_as` image still resolving, each binary checksum
-against its release asset. It reports every difference and fails at the end.
+against its release asset. It reports every difference and fails at the end;
+a value still pending the build is listed, not checked.
 
 ### Rehearse on the testnet first
 

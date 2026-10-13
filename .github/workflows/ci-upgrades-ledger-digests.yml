@@ -39,7 +39,8 @@ jobs:
             echo "== ${ledger}"
             # One line per recorded value: what it is, the reference to look
             # up, the value it must have. A digest or binaries still null are
-            # pending the build and skipped. ran_as is checked by its own digest:
+            # pending the build: listed as notices, so a forgotten fill-in
+            # shows, but not checked. ran_as is checked by its own digest:
             # untagged or on a mutable sha- tag, it is what a registry
             # clean-up takes, and the ledger is the only record of what ran.
             # Read in full first: a jq error inside a process substitution
@@ -48,10 +49,16 @@ jobs:
               .upgrades[]
               | (select(.image.digest != null) | "image \(.image.ref) \(.image.digest)"),
                 (select(.ran_as != null) | "ran_as \(.image.ref | sub(":[^:]*$"; ""))@\(.ran_as) \(.ran_as)"),
-                (select(.binaries != null) | .binaries | to_entries[] | "binary \(.value)")
+                (select(.binaries != null) | .binaries | to_entries[] | "binary \(.value)"),
+                (select(.image.digest == null) | "pending \(.version) image.digest"),
+                (select(.binaries == null) | "pending \(.version) binaries")
             ' "${ledger}" 2>"${err}")" || { fail "${ledger}: cannot read the ledger: $(cat "${err}")"; continue; }
             while read -r kind a b; do
               [ -n "${kind}" ] || continue
+              if [ "${kind}" = pending ]; then
+                echo "::notice::${ledger}: ${a} ${b} is pending the build"
+                continue
+              fi
               checked=$((checked + 1))
               case "${kind}" in
               image | ran_as)
