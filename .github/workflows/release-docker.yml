@@ -20,6 +20,9 @@ permissions:
 jobs:
   bake:
     strategy:
+      # Every image runs to its end: a failing leg must not cancel a sibling
+      # between its push and its signature.
+      fail-fast: false
       matrix:
         # `latest` only for the CLI tools: a node image that moves by itself
         # breaks coordinated upgrades (RELEASING.md, "Container images").
@@ -151,7 +154,8 @@ jobs:
       # can tie ghcr.io/gnolang/gno/<tool>:vX.Y.Z to this workflow and tag
       # (RELEASING.md, "Signing and provenance"). --recursive signs every
       # manifest in the multi-arch index as well as the index itself: each
-      # platform image, and buildx's provenance and SBOM manifests. A host
+      # platform image, and the attestation manifest buildx adds for each
+      # platform, which carries both its provenance and its SBOM. A host
       # pulls the manifest for its platform, and a check made against that
       # digest finds no signature on the index alone.
       - name: Sign the image
@@ -160,4 +164,17 @@ jobs:
           DIGEST: ${{ fromJSON(steps.bake.outputs.metadata)[matrix.image]['containerimage.digest'] }}
         run: |
           [ -n "${DIGEST}" ] || { echo "::error::bake reported no digest for ${IMAGE}"; exit 1; }
-          cosign sign --yes --recursive "${IMAGE}@${DIGEST}"
+          # The image is pushed by now and its tag is never pushed again, so a
+          # transient Sigstore or registry error must not end the job. Signing
+          # again is additive.
+          for attempt in 1 2 3; do
+            if cosign sign --yes --recursive "${IMAGE}@${DIGEST}"; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 3 ]; then
+              echo "::warning::cosign sign failed (attempt ${attempt} of 3); retrying in $((attempt * 30))s"
+              sleep $((attempt * 30))
+            fi
+          done
+          echo "::error::${IMAGE}@${DIGEST} is pushed but could not be signed"
+          exit 1
