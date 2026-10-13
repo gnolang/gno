@@ -157,14 +157,18 @@ version at all. Note that `-ldflags` is only recorded in `go version -m` output
 for builds without `-trimpath`, so its absence there is not on its own evidence
 of a hand-built binary; the binary's own `version` output is.
 
-**Never re-run a release run once its release is published.** The
-`release / chain-tag` and `release / docker` workflows run on `v*` tag pushes
-only, with no manual trigger. A re-run rebuilds, and these builds are not
-reproducible, so it would replace the binaries, `CHECKSUMS.txt` and images the
-upgrade ledgers record, under the same version. A fault in either workflow
-surfaces on the release candidate, cut first on the same commit, and is fixed
-in the next candidate. A manual trigger would also attest and sign under a
-branch's identity, which the verify commands below refuse.
+**A published release is never rebuilt.** The `release / chain-tag` and
+`release / docker` workflows run on `v*` tag pushes only, with no manual
+trigger, and both refuse to rebuild what is already out: `release / chain-tag`
+stops when the release is published, `release / docker` when the registry
+already serves the version tag. These builds are not reproducible, so a
+rebuild would replace the binaries, `CHECKSUMS.txt` and images the upgrade
+ledgers record, under the same version. The release is created as a draft and
+published only once every asset is attached, so re-running a run that failed
+before publishing finishes it. A fault in either workflow surfaces on the
+release candidate, cut first on the same commit, and is fixed in the next
+candidate. A manual trigger would also attest and sign under a branch's
+identity, which the verify commands below refuse.
 
 ### Signing and provenance
 

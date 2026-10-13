@@ -7,8 +7,8 @@ name: release / docker
 # launch tag would recreate that name for an image reporting a different
 # version. A runnable node image is always a vX.Y.Z tag (RELEASING.md).
 #
-# Tag pushes only: no manual trigger, and no re-run once the release is
-# published (RELEASING.md, "Cutting a release").
+# Tag pushes only, with no manual trigger, and a published release is refused
+# rather than rebuilt (RELEASING.md, "Cutting a release").
 on:
   push:
     tags:
@@ -83,6 +83,39 @@ jobs:
             latest=false
           labels: |
             org.opencontainers.image.authors=Gno Core Team
+
+      # A published image tag is never re-pushed: its digest is what the upgrade
+      # ledgers record (RELEASING.md, "Cutting a release"). Asked of the
+      # registry by HTTP status rather than by parsing a tool's message: 404 is
+      # the only answer that lets the build go on.
+      - name: Refuse a published image tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}/${{ matrix.image }}
+        run: |
+          # Authenticated, so a package never pushed before answers 404 instead
+          # of refusing an anonymous token. Credentials go through curl's
+          # config on stdin, not its argument list.
+          resp="$(printf 'user = "%s:%s"\n' "${GITHUB_REPOSITORY_OWNER}" "${GH_TOKEN}" \
+            | curl -fsS -K - "https://ghcr.io/token?scope=repository:${REPO}:pull")" \
+            || { echo "::error::cannot get a token to read ghcr.io/${REPO}"; exit 1; }
+          token="$(jq -r '.token // empty' <<<"${resp}")"
+          [ -n "${token}" ] || { echo "::error::ghcr gave no token to read ghcr.io/${REPO}"; exit 1; }
+          code="$(printf 'header = "Authorization: Bearer %s"\n' "${token}" \
+            | curl -sS -K - -o /dev/null -w '%{http_code}' -I \
+              -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
+              "https://ghcr.io/v2/${REPO}/manifests/${GITHUB_REF_NAME}")"
+          case "${code}" in
+          404) echo "ghcr.io/${REPO}:${GITHUB_REF_NAME} is not published yet" ;;
+          200)
+            echo "::error::ghcr.io/${REPO}:${GITHUB_REF_NAME} is already published, and a published image tag is never re-pushed (RELEASING.md, \"Cutting a release\")"
+            exit 1
+            ;;
+          *)
+            echo "::error::cannot tell whether ghcr.io/${REPO}:${GITHUB_REF_NAME} is published: HTTP ${code}"
+            exit 1
+            ;;
+          esac
 
       # Installed before anything is pushed: an installer failure after the push
       # would leave published images with no signature.

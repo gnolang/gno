@@ -5,8 +5,8 @@
 # binaries, and a binary reporting "chain/<name>" would satisfy no governance
 # halt_min_version anyway.
 #
-# Tag pushes only: no manual trigger, and no re-run once the release is
-# published (RELEASING.md, "Cutting a release").
+# Tag pushes only, with no manual trigger, and a published release is refused
+# rather than rebuilt (RELEASING.md, "Cutting a release").
 #
 # The tag is compiled into the binaries VERBATIM. That matters: the node parses
 # its own version to decide whether it satisfies a governance halt_min_version.
