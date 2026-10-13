@@ -23,12 +23,18 @@ func NewStaticAlias(content string) AliasTarget {
 	// An editor may save the file with CRLF endings or a byte order mark;
 	// neither changes what the block says.
 	normalized := strings.ReplaceAll(strings.TrimPrefix(content, "\uFEFF"), "\r\n", "\n")
+	if !strings.HasSuffix(normalized, "\n") {
+		normalized += "\n" // a file of front matter alone may end on its rule
+	}
 	rest, found := strings.CutPrefix(normalized, "---\n")
 	if !found {
 		return target
 	}
+	// A paragraph right above a rule needs a blank line between them, or
+	// the rule makes it a heading: a block ending on a blank line is page
+	// content, whatever its lines look like.
 	head, body, found := strings.Cut(rest, "\n---\n")
-	if !found {
+	if !found || strings.HasSuffix(strings.TrimRight(head, " \t"), "\n") {
 		return target
 	}
 
@@ -107,7 +113,7 @@ func scalarValue(first string, more []string) string {
 	first = strings.TrimSpace(first)
 	parts := make([]string, 0, len(more)+1)
 	block := isBlockIndicator(first)
-	if !block {
+	if !block && first != "" {
 		parts = append(parts, first)
 	}
 	for _, line := range more {
@@ -119,9 +125,18 @@ func scalarValue(first string, more []string) string {
 	if block {
 		return value
 	}
-	if n := len(value); n >= 2 && (value[0] == '"' || value[0] == '\'') && value[n-1] == value[0] {
-		return value[1 : n-1]
+	// A quoted value loses its wrapping pair, which a comment may follow.
+	if value != "" && (value[0] == '"' || value[0] == '\'') {
+		end := strings.LastIndexByte(value, value[0])
+		if after := value[end+1:]; end > 0 && (after == "" || strings.HasPrefix(after, " #")) {
+			if value[0] == '\'' {
+				return strings.ReplaceAll(value[1:end], "''", "'")
+			}
+			return value[1:end]
+		}
 	}
+	// A plain value ends at a comment.
+	value, _, _ = strings.Cut(value, " #")
 	return value
 }
 
