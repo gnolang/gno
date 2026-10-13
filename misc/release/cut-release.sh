@@ -258,13 +258,14 @@ ${out}"
 		# misleading "no entry" warning.
 		return
 	fi
-	if (cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades has "${dir}" "${VERSION}" >/dev/null 2>&1); then
+	# The ledger validated above, so `upgrades commit` fails only when it has no
+	# entry for the version: one call finds the entry and the commit it names.
+	local named
+	if named="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades commit "${dir}" "${VERSION}" 2>/dev/null)"; then
 		ok "upgrades.json has an entry for ${VERSION}"
 		# The entry is committed on top of the code it names, so the branch tip
 		# is the ledger commit: cutting without --commit would tag that one
 		# while the entry names the code.
-		local named
-		named="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades commit "${dir}" "${VERSION}" 2>/dev/null)" || named=""
 		if [[ ${named} == "${COMMIT}" ]]; then
 			ok "the entry names the commit being tagged"
 			return
