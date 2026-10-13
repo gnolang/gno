@@ -380,7 +380,8 @@ and nothing here needs one.
 
 Absent keys read as zero, so a node that upgrades to this code changes nothing
 until governance sets a window. That is the rollout: ship, then enable by
-proposal, the way the valoper fees are staged.
+proposal, the way the valoper fees are staged. How the shipping itself
+happens on a live chain is §8.
 
 Suggested first values, next to what the two chains gno.land's validators
 come from actually run (queried 2026-09-29):
@@ -439,7 +440,8 @@ its roster intact, for operators and governance to resolve.
 - **Hardfork / genesis.** `InitChainer` seeds
   `consensus = current = req.Validators`; the jailed set starts empty. Signing
   infos are built lazily from the first commits. Nothing is replayed and
-  nothing is migrated, so `valset_checkpoint_replay.md` is unaffected.
+  nothing is migrated, so `valset_checkpoint_replay.md` is unaffected. An
+  in-place upgrade of a running chain is §8.
 - **Late precommits.** A validator that is online but whose precommit the next
   proposer did not include is recorded absent for that block. That is noise,
   not downtime, and it is why the threshold is a fraction of a window and not a
@@ -495,6 +497,36 @@ Two things this makes explicit:
   hole; a test pins the emit in `cache.gno` the way
   `TestValsetConstsDoNotDrift` pins the param keys, and the package-path
   gate moves with the realm version, like `valsetAuthorizedRealm`.
+
+### 8. Upgrade path
+
+The release changes consensus — a new BeginBlocker, new EndBlocker logic, a
+new route — so it ships as a coordinated halt with `halt_min_version` set,
+the way the mainnet upgrades of September 2026 did. It does not need a state
+migration in the sense of `prxxxx_inplace_state_migration.md` (#6224): no
+stored data changes shape, which is the case that ADR describes as "a floor
+and nothing else". What is new at the boundary:
+
+| new state                | on an upgraded chain                                                         | upgrade handler? |
+|--------------------------|------------------------------------------------------------------------------|------------------|
+| `liveness:p:*`           | absent; `GetParams` returns the defaults, window `0` keeps tracking off (§4) | no               |
+| `/liveness/…`            | empty; records appear with the first votes (§1)                              | no               |
+| `validSessionRouteTypes` | code, not state                                                              | no               |
+| `node:valset:consensus`  | absent: only `InitChainer` seeds it, at genesis                              | see below        |
+
+The last one needs an answer. The first EndBlocker that does work would
+compute `diff = consensus.UpdatesFrom(target)` against an empty `consensus`
+and emit an add for every validator already in the set; tm2 treats those as
+same-power updates and nothing breaks, but §2's invariant that `consensus` is
+what tm2 was last handed would be false until then, and the fast path would
+hide it until the first jail or proposal. So the EndBlocker reads an absent
+`node:valset:consensus` as `current`. At the moment of the upgrade nothing is
+jailed, so the two are identical and the seed is exact; the same fallback
+covers a test or dev chain that reaches the EndBlocker without an InitChain.
+If the upgrade-handler registry of #6224 exists by then, a handler that
+writes `consensus := current` and the default `liveness:p:*` values at
+`halt_height + 1` is the explicit form of the same seed, and the fallback
+stays as its backstop.
 
 ## Alternatives considered
 
@@ -614,8 +646,9 @@ Negative / trade-offs:
   removes from the diff but not from `current`; clearing the entry re-adds
   with the governed power; a governance removal of a jailed validator leaves
   the entry and a re-add stays masked; a rotation moves the record and the
-  jail to the new key and a rejected proposal drops the rename (§7); the
-  empty-set floor holds.
+  jail to the new key and a rejected proposal drops the rename (§7); an
+  absent `consensus` is read as `current` and emits no spurious adds (§8);
+  the empty-set floor holds.
 - A drift test that pins the `ValoperRotated` emit in v0's `cache.gno`: event
   type, attribute names, and the `applied` flag (§7).
 - Handler unit tests for `MsgUnjail`, one per rejection in §3 plus the accept
