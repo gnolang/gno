@@ -58,8 +58,10 @@ policy; no view classifies again. The notice, the head, the robots policy and
 the link policy all read that one classification.
 
 `DefaultTrustedPaths` ships with the gnoweb package and
-`NewDefaultAppConfig` uses it. A `*` entry trusts every path; gnodev sets it,
-since every package on its chain is the developer's own. Trust in a
+`NewDefaultAppConfig` uses it. A `*` entry trusts every path; gnodev sets it
+in local mode, since every package on its chain is the developer's own.
+`gnodev staging` trusts no path and indexes no community page, since its
+chain reserves no namespace. Trust in a
 namespace holds only on a chain that enforces who may deploy under it (see
 below); an entry that can match no package (an `/r/` or domain prefix, an
 uppercase letter) is logged at startup and still matches nothing.

@@ -610,7 +610,7 @@ func (h *HTTPHandler) fetchRealm(ctx context.Context, gnourl *weburl.GnoURL, ind
 		return nil, status, view, false
 	case errors.Is(err, ErrClientPackageNotFound):
 		// No realm exists here, try to display underlying paths
-		pr.argsIgnored = true
+		pr.argsIgnored, pr.listing = true, true
 		status, view := h.GetPathsListView(ctx, gnourl, indexData)
 		return nil, status, view, false
 	default:
@@ -1204,6 +1204,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
 			return GetClientErrorStatusView(gnourl, err, height)
 		}
+		pr.listing = true
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	}
 
@@ -1487,6 +1488,13 @@ const errorDescription = "This page is not available."
 // comes from the path alone: arguments and query are typed by whoever wrote
 // the link, on any realm, trusted or not.
 func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, sp *servedPage, status int) {
+	// A listing is classified as the directory it lists, as /r/nym/ is: a
+	// package at /r/nym is a page of its own, the listing there is not.
+	if sp.render.listing {
+		dir := *sp.target
+		dir.Path = strings.TrimSuffix(dir.Path, "/") + "/"
+		sp.robots = h.policy.robots(sp.kind, &dir)
+	}
 	r := finalRobots(w, sp, status)
 	head.Robots = r.String()
 	if status != http.StatusOK {

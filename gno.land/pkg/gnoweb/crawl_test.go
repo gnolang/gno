@@ -122,6 +122,8 @@ func TestHandlerSitemapXML(t *testing.T) {
 		"/docs":          {Value: "/u/docs", Kind: GnowebPath},                  // a user page whose namespace holds a package
 		"/nobody":        {Value: "/u/nobody", Kind: GnowebPath},                // a user page with nothing to show
 		"/nym":           {Value: "/r/nym/app", Kind: GnowebPath},               // a community realm, indexed under a registered name
+		"/solo":          {Value: "/r/solo", Kind: GnowebPath},                  // a package at a namespace root
+		"/ns":            {Value: "/r/nym", Kind: GnowebPath},                   // a namespace listing: no package there
 		"/addr":          {Value: addrRealm, Kind: GnowebPath},                  // an address namespace: noindex, never queried
 		"/src":           {Value: "/r/gnoland/home$source", Kind: GnowebPath},   // an indexed view, named by its key
 		"/help":          {Value: "/r/gnoland/home$help", Kind: GnowebPath},     // a noindex view
@@ -144,6 +146,7 @@ func TestHandlerSitemapXML(t *testing.T) {
 			&MockPackage{Path: "/p/gnoland/lib"},
 			&MockPackage{Path: "/r/docs/home"},
 			&MockPackage{Path: "/r/nym/app"},
+			&MockPackage{Path: "/r/solo"},
 			&MockPackage{Path: addrRealm},
 			&MockPackage{Path: "/r/devrels/events", Inert: true},
 		)}
@@ -199,6 +202,7 @@ func TestHandlerSitemapXML(t *testing.T) {
 			"https://gno.land/news:latest",
 			"https://gno.land/nym",
 			"https://gno.land/r/demo/boards",
+			"https://gno.land/solo",
 			"https://gno.land/src",
 			"https://gno.land/start",
 			"https://gno.land/terms",
@@ -232,7 +236,7 @@ func TestHandlerSitemapXML(t *testing.T) {
 		require.Equal(t, http.StatusOK, serve(http.MethodGet, c).Code)
 		assert.ElementsMatch(t, []string{
 			"/r/gnoland/home", "/r/gnoland/pages", "/r/devrels/events", "/p/gnoland/lib", "/p/gnoland/gone",
-			"/r/nym/app", "@docs", "@nobody",
+			"/r/nym/app", "/r/solo", "/r/nym", "@docs", "@nobody",
 		}, c.calls)
 	})
 

@@ -44,7 +44,7 @@ func gnoWebAppConfig(cfg *AppConfig, remoteAddr string) *gnoweb.AppConfig {
 	appcfg.NoIndex = true
 	// Every package on a local gnodev chain is the developer's own. A
 	// staging server hosts other deployers' realms on a chain that reserves
-	// no namespace (gnodev runs no r/sys/names), so it trusts and indexes
+	// no namespace (gnodev never enables r/sys/names), so it trusts and indexes
 	// none of them.
 	if cfg.staging {
 		appcfg.TrustedPaths = nil

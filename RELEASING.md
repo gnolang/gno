@@ -97,8 +97,10 @@ runs, and the two are not the same thing:
   decided per release and written in the tag message. A merge that touches
   consensus code is refused by `cut-release.sh` unless `--allow-merge` says the
   operator knows it ships everything `master` had. Between releases the branch
-  tip is the latest tag, plus at most a documentation commit, so an operator
-  can check it out blindly.
+  tip is the latest tag, plus at most documentation or release-tooling commits
+  that change no node code (the ledger, `VALIDATOR.md`, the release workflows,
+  `cut-release.sh`). Operators still run the tag, never the tip: a build of
+  anything but the tag reports a version no `halt_min_version` accepts.
 - **Where this ends up.** Merging `master` is the natural default while mainnet
   tracks it closely. The day `master` carries work mainnet must not ship yet,
   the default flips to cherry-picking and the branch becomes a maintained
@@ -155,6 +157,53 @@ reproducible from the tag and generally lacks the `-ldflags` that give it a
 version at all. Note that `-ldflags` is only recorded in `go version -m` output
 for builds without `-trimpath`, so its absence there is not on its own evidence
 of a hand-built binary; the binary's own `version` output is.
+
+**A published release is never replaced.** The `release / chain-tag` and
+`release / docker` workflows run on `v*` tag pushes only, with no manual
+trigger, and both refuse to replace what is already out: `release / chain-tag`
+stops before attesting when the release is published, `release / docker`
+before building when the registry already serves the version tag. These
+builds are not reproducible, so a replacement would swap the binaries,
+`CHECKSUMS.txt` and images the upgrade ledgers record for others under the
+same version. The release is created as a draft and published only once every
+asset is attached, so a run that failed before publishing can be re-run, and
+the re-run publishes the draft. Images differ: *Re-run failed jobs* builds
+only the images whose job failed before its push (with *Re-run all jobs*, the
+images already pushed fail their check and the run ends red), and an image
+pushed but left unsigned stays unsigned: the next candidate or patch
+supersedes it. A fault in either workflow surfaces on the release candidate,
+cut first on the same commit, and is fixed in the next candidate. A manual
+trigger would also attest and sign under a branch's identity, which the
+verify commands below refuse.
+
+### Signing and provenance
+
+The binaries `release / chain-tag` attaches, and the `CHECKSUMS.txt` beside
+them, carry a build-provenance attestation (which workflow built them, from
+which commit and tag), and the images `release / docker` pushes are signed
+keylessly by digest, the multi-arch index and each platform image in it. Both
+rely on the workflow's identity, not on a key anyone holds. `v1.5.0` and every
+earlier release carry neither: their tagged commits predate these steps. To
+verify what you are about to run:
+
+```sh
+gh attestation verify gnoland_linux_amd64 --repo gnolang/gno \
+  --signer-workflow gnolang/gno/.github/workflows/release-chain-tag.yml \
+  --source-ref refs/tags/v1.6.0
+
+# cosign v3 or later: the signatures are in the Sigstore bundle format
+cosign verify ghcr.io/gnolang/gno/gnoland:v1.6.0 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity https://github.com/gnolang/gno/.github/workflows/release-docker.yml@refs/tags/v1.6.0
+```
+
+The release binaries are not reproducible from the tag (they are built
+without `-trimpath`, so `gnoland` can find `GNOROOT`), which is why the
+attestation, the checksums and the ledger's recorded digests are the
+operator's anchors. `ci / upgrades-ledger-digests` checks, daily, the digests
+and checksums the ledgers record for each version: each image digest against
+the registry, each `ran_as` image still resolving, each binary checksum
+against its release asset. It reports every difference and fails at the end.
 
 ### Rehearse on the testnet first
 

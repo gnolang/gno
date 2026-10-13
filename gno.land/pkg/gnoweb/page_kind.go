@@ -77,7 +77,7 @@ func aliasTargets(aliases map[string]AliasTarget) map[string]string {
 		// Parsed as Get parses it, and only a bare page: an alias to a view
 		// or a query does not name its target's page.
 		u, err := weburl.ParseFromURL(&url.URL{Path: target.Value})
-		if err != nil || len(u.WebQuery) > 0 || len(u.Query) > 0 {
+		if err != nil || len(u.WebQuery) > 0 {
 			continue
 		}
 		key := aliasKey(u)
@@ -218,6 +218,9 @@ type pageRender struct {
 	empty bool
 	// argsIgnored is set when no Render ran, so the args showed nothing.
 	argsIgnored bool
+	// listing is set when the page lists the paths under it: no package
+	// lives there.
+	listing bool
 }
 
 // servedPage is what Get learns about the page it serves, for the head.

@@ -2498,6 +2498,72 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 	}
 }
 
+// listingClient lists paths the way the node does: the prefix carries the
+// domain, which the mock's paths do not.
+type listingClient struct{ *gnoweb.MockClient }
+
+func (c listingClient) ListPaths(ctx context.Context, prefix string, limit int) ([]string, error) {
+	return c.MockClient.ListPaths(ctx, strings.TrimPrefix(prefix, "gno.land"), limit)
+}
+
+// TestHTTPHandler_NamespaceRoot checks the page served decides, not the URL:
+// under registered, the listing at /r/nym stays out of the index, while a
+// package deployed at a namespace root, which the package path allows, is a
+// page of its own. An official listing, and every listing under all, stay
+// indexed.
+func TestHTTPHandler_NamespaceRoot(t *testing.T) {
+	t.Parallel()
+
+	render := []*doc.JSONFunc{
+		{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Name: "", Type: "string"}}},
+	}
+	pkg := func(path string) *gnoweb.MockPackage {
+		return &gnoweb.MockPackage{Domain: "gno.land", Path: path, Files: map[string]string{"render.gno": "package x"}, Functions: render}
+	}
+	handler := func(index gnoweb.CommunityIndex) *gnoweb.HTTPHandler {
+		config := newTestHandlerConfig(t, listingClient{gnoweb.NewMockClient(
+			pkg("/r/nym/app"), pkg("/p/nym/lib"), pkg("/r/solo"), pkg("/r/gnoland/blog"),
+		)})
+		withGnoLandMeta(config)
+		config.TrustedPaths = []string{"gnoland"}
+		config.IndexCommunity = index
+		h, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), config)
+		require.NoError(t, err)
+		return h
+	}
+
+	for _, tc := range []struct {
+		index   gnoweb.CommunityIndex
+		url     string
+		indexed bool
+	}{
+		{gnoweb.IndexRegisteredCommunity, "/r/nym", false},
+		{gnoweb.IndexRegisteredCommunity, "/r/nym/", false},
+		{gnoweb.IndexRegisteredCommunity, "/p/nym", false},
+		{gnoweb.IndexRegisteredCommunity, "/r/solo", true},
+		{gnoweb.IndexRegisteredCommunity, "/r/nym/app", true},
+		{gnoweb.IndexRegisteredCommunity, "/r/gnoland", true},
+		{gnoweb.IndexAllCommunity, "/r/nym", true},
+	} {
+		t.Run(tc.index.String()+tc.url, func(t *testing.T) {
+			t.Parallel()
+
+			rr := httptest.NewRecorder()
+			handler(tc.index).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, tc.url, nil))
+			require.Equal(t, http.StatusOK, rr.Code)
+			head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+			if tc.indexed {
+				assert.Empty(t, rr.Result().Header.Get("X-Robots-Tag"))
+				assert.Contains(t, head, `<link rel="canonical"`)
+			} else {
+				assert.Equal(t, "noindex, nofollow", rr.Result().Header.Get("X-Robots-Tag"))
+				assert.Contains(t, head, `<meta name="robots" content="noindex, nofollow" />`)
+				assert.NotContains(t, head, `rel="canonical"`)
+			}
+		})
+	}
+}
+
 // TestHTTPHandler_CanonicalWithoutRender checks a realm with no Render names
 // its bare path: the args a link adds reach nothing, so they must not name a
 // page of their own under gno.land.
