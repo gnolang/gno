@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"maps"
 	"math"
 	"math/big"
@@ -2835,9 +2836,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
-					assertUniqueLiteralIndices(n)
+					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 					if !cclt.Vrd {
-						assertLiteralIndicesFit(n, cclt.Len)
+						assertLiteralIndicesFit(preprocessGasMeterOf(store), n, cclt.Len)
 					}
 				case *SliceType:
 					for i := range n.Elts {
@@ -2848,7 +2849,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
-					assertUniqueLiteralIndices(n)
+					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 				case *MapType:
 					// kset tracks seen const keys for duplicate detection.
 					// checkOrConvertType must be called before the check so that
@@ -3230,7 +3231,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *MapTypeExpr:
-				if msg := mapKeyError(evalStaticType(store, last, n).(*MapType).Key); msg != "" {
+				if msg := mapKeyError(preprocessGasMeterOf(store), evalStaticType(store, last, n).(*MapType).Key); msg != "" {
 					fail(CodeMapKey, msg, n.Key, n)
 				}
 
@@ -3749,8 +3750,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
 				if dt, ok := dstT.(*DeclaredType); ok && !n.IsAlias {
-					checkTypeExprShape(n.Type)
-					checkTypeShape(dt)
+					checkTypeExprShape(preprocessGasMeterOf(store), n.Type)
+					checkTypeShape(preprocessGasMeterOf(store), dt)
 				}
 				n.Type = toConstTypeExpr(last, n.Type, dstT)
 			}
@@ -6179,9 +6180,12 @@ func packageDeclOf(last BlockNode, name Name) (d Decl) {
 // carryIota stamps the iota of a constant declaration on the type of
 // every composite literal among its values: the literal's type is
 // preprocessed on its own and would otherwise not see it.
-func carryIota(values Exprs, io int) {
+func carryIota(gm store.GasMeter, values Exprs, io int) {
 	for _, v := range values {
 		Transcribe(v, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage == TRANS_ENTER {
+				chargeCPUGas(gm, OpCPUSlopeCheckNode)
+			}
 			if cl, ok := n.(*CompositeLitExpr); ok && stage == TRANS_ENTER && cl.Type != nil {
 				cl.Type.SetAttribute(ATTR_IOTA, io)
 			}
@@ -6291,7 +6295,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// `var a, b, c = 1, a, b` was already split up before reaching
 		// here, whereas they are illegal inside a function.
 		if io, ok := d.GetAttribute(ATTR_IOTA).(int); ok {
-			carryIota(d.Values, io)
+			carryIota(preprocessGasMeterOf(store), d.Values, io)
 		}
 		for _, vx := range d.Values {
 			un, directR = findUndefinedV(store, last, vx, stack, defining, direct, nil)
