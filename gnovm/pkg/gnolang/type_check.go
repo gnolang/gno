@@ -1064,7 +1064,7 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		} else if last.GetIsConst(store, clx.Name) {
 			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
 		} else if isFuncDeclName(last, clx) {
-			panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", clx.Name))
+			failf(CodeNotAssignable, nil, "cannot assign to %s (neither addressable nor a map index expression)", clx.Name)
 		} else {
 			shouldPanic = false
 		}
@@ -1072,14 +1072,14 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		shouldPanic = false
 	case *SelectorExpr:
 		if inMapValue(store, last, clx) {
-			panic(fmt.Sprintf("cannot assign to struct field %s in map", exprString(lx)))
+			failf(CodeMapValueAssign, nil, "cannot assign to struct field %s in map", exprString(lx))
 		}
 		shouldPanic = false
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, clx.X)
 		shouldPanic = xt != nil && xt.Kind() == StringKind
 		if !shouldPanic && inMapValue(store, last, clx) {
-			panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", exprString(lx)))
+			failf(CodeMapValueAssign, nil, "cannot assign to %s (neither addressable nor a map index expression)", exprString(lx))
 		}
 	default:
 	}

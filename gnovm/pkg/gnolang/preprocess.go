@@ -847,10 +847,12 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 	if !n.GetSpan().IsZero() {
 		loc.SetSpanOverride(n.GetSpan())
 	}
+	var code ErrCode
 	if sp, ok := r.(*spanPanic); ok {
 		if !sp.span.IsZero() {
 			loc.SetSpanOverride(sp.span)
 		}
+		code = sp.code
 		r = sp.msg
 	}
 	var err error
@@ -859,37 +861,7 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 	} else {
 		err = fmt.Errorf("%s: %v", loc.String(), r)
 	}
-	return &PreprocessError{err: err, stack: stack}
-}
-
-// spanPanic is a checking error positioned at a node other than the one
-// being transcribed; see panicAt.
-type spanPanic struct {
-	span Span
-	msg  string
-}
-
-func (p *spanPanic) Error() string { return p.msg }
-
-// panicAt raises a preprocess error positioned at the first of at with
-// a span; a folded constant borrows its source's.
-func panicAt(msg string, at ...Node) {
-	for _, x := range at {
-		for x != nil && x.GetSpan().IsZero() {
-			switch cx := x.(type) {
-			case *ConstExpr:
-				x = cx.Source
-			case *constTypeExpr:
-				x = cx.Source
-			default:
-				x = nil
-			}
-		}
-		if x != nil {
-			panic(&spanPanic{span: x.GetSpan(), msg: msg})
-		}
-	}
-	panic(msg)
+	return &PreprocessError{err: err, stack: stack, code: code}
 }
 
 // preprocessAccumulator collects the errors of one PreprocessCollect run.
@@ -1095,82 +1067,14 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 	stack := append(make([]BlockNode, 0, 32), last)
 	ctxpn := packageOf(ctx)
 
-	// iterate over all nodes recursively
-	// In accumulate mode a failed statement is dropped: record the error,
-	// rewind the block stack to the statement's enclosing block, go on.
+	// The run context: the rule files report through it.
+	c := &checkRun{store: store, acc: acc, stack: &stack, last: &last}
 	var onPanic PanicHandler
 	if acc != nil {
-		onPanic = func(ns []Node, ftype TransField, index int, n Node, r any) bool {
-			pe, ok := r.(*PreprocessError)
-			if !ok {
-				return false // not a checking error: a VM bug, let it surface
-			}
-			for i := len(ns) - 1; i >= 0; i-- {
-				if bn, ok := ns[i].(BlockNode); ok {
-					for k := len(stack) - 1; k > 0; k-- {
-						if stack[k] == bn {
-							stack = stack[:k+1]
-							break
-						}
-					}
-					break
-				}
-			}
-			last = stack[len(stack)-1]
-			acc.add(pe, n)
-			return true
-		}
+		onPanic = c.onPanic
 	}
-
-	// predefineGuarded is predefineRecursively with the same drop-and-record
-	// rule for file-level declarations in accumulate mode; a dropped
-	// declaration is marked preprocessed so the walk below skips it.
-	predefineGuarded := func(last BlockNode, d Decl) {
-		if acc == nil {
-			predefineRecursively(store, last, d)
-			return
-		}
-		defer func() {
-			if r := recover(); r != nil {
-				if _, isRuntime := r.(runtime.Error); isRuntime {
-					panic(r) // a VM bug, not a checking error
-				}
-				acc.add(wrapPreprocessPanic(stack, d, r), d)
-				d.SetAttribute(ATTR_PREPROCESSED, true)
-			}
-		}()
-		predefineRecursively(store, last, d)
-	}
-
-	// report raises a checking error. In accumulate mode it is recorded
-	// and the walk goes on, so a node can report more than one.
-	report := func(msg string, at ...Node) {
-		if acc == nil {
-			panicAt(msg, at...)
-		}
-		func() {
-			defer func() {
-				acc.report(wrapPreprocessPanic(stack, stack[len(stack)-1], recover()))
-			}()
-			panicAt(msg, at...)
-		}()
-	}
-
-	// reportUnused raises the unused locals and labels of a function.
-	reportUnused := func(parent BlockNode, fn Node, last BlockNode, stack []BlockNode) {
-		for _, u := range checkUnused(parent, fn) {
-			if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
-				continue // a dropped statement declared or mentioned it
-			}
-			loc := last.GetLocation()
-			loc.SetSpanOverride(u.span)
-			pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg), stack: stack}
-			if acc == nil {
-				panic(pe)
-			}
-			acc.report(pe)
-		}
-	}
+	report := c.report
+	predefineGuarded := c.predefineGuarded
 
 	nn := transcribeWith(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// if already preprocessed, skip it.
@@ -1269,7 +1173,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
 				if as, ok := n.Post.(*AssignStmt); ok && as.Op == DEFINE {
-					panicAt("cannot declare in post statement of for loop", as)
+					fail(CodeForPostDecl, "cannot declare in post statement of for loop", as)
 				}
 				pushInitBlock(n, &last, &stack)
 
@@ -1459,7 +1363,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 								} else if _, ok := cxx.T.(*TypeType); ok {
 									ct = cxx.GetType()
 								} else {
-									panic(fmt.Sprintf("%s is not a type", constString(cxx)))
+									failf(CodeNotAType, nil, "%s is not a type", constString(cxx))
 								}
 							} else {
 								ct = evalStaticType(store, last, cx)
@@ -1654,8 +1558,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				if n.IsTypeSwitch {
 					tt := evalStaticTypeOf(store, last, n.X)
 					if _, ok := baseOf(tt).(*InterfaceType); !ok {
-						panic(fmt.Sprintf("cannot type switch on non-interface value %s (type %s)",
-							exprString(n.X), typeString(tt)))
+						failf(CodeTypeSwitchTag, nil, "cannot type switch on non-interface value %s (type %s)",
+							exprString(n.X), typeString(tt))
 					}
 				}
 			}
@@ -2225,7 +2129,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 					if fv != nil && fv.PkgPath == uversePkgPath {
 						if n.Varg && fv.Name != "append" {
-							panic(fmt.Sprintf("invalid use of ... with built-in %s", fv.Name))
+							failf(CodeBuiltinSpread, nil, "invalid use of ... with built-in %s", fv.Name)
 						}
 						switch fv.Name {
 						case "len", "cap":
@@ -2238,7 +2142,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							}
 						case "append":
 							if len(n.Args) > 0 && evalStaticTypeOf(store, last, n.Args[0]) == nil {
-								panic("first argument to append must be a typed slice; have untyped nil")
+								fail(CodeAppendNil, "first argument to append must be a typed slice; have untyped nil")
 							}
 						}
 						switch fv.Name {
@@ -2826,7 +2730,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 				if at := evalStaticType(store, last, n.Type); at != nil {
 					if err := dynamicTypeError(t, at); err != nil {
-						panic(fmt.Sprintf("impossible type assertion: %v does not implement %v (%v)", at, t, err))
+						failf(CodeImpossibleAssert, nil, "impossible type assertion: %v does not implement %v (%v)", at, t, err)
 					}
 				}
 
@@ -2987,7 +2891,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// the runtime type, which is wrong for interface variables).
 				xt := evalStaticTypeOf(store, last, n.X)
 				if nx, ok := n.X.(*NameExpr); ok && isFuncDeclName(last, nx) {
-					panic(fmt.Sprintf("invalid operation: cannot take address of %s (value of type %v)", nx.Name, xt))
+					failf(CodeFuncAddress, nil, "invalid operation: cannot take address of %s (value of type %v)", nx.Name, xt)
 				}
 				// Refuse a pointer to a realm-typed `cur`.
 				//
@@ -3268,7 +3172,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *MapTypeExpr:
 				if msg := mapKeyError(evalStaticType(store, last, n).(*MapType).Key); msg != "" {
-					panicAt(msg, n.Key, n)
+					fail(CodeMapKey, msg, n.Key, n)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -3513,14 +3417,14 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			case *FuncDecl:
 				// Unused locals and labels, once the body has its paths.
 				if n.Body != nil && len(stack) >= 2 {
-					reportUnused(stack[len(stack)-2], n, last, stack)
+					c.reportUnused(stack[len(stack)-2], n)
 				}
 
 			// TRANS_LEAVE -----------------------
 			case *FuncLitExpr:
 				// A literal inside a function is covered by that function.
 				if len(stack) >= 2 && !inFunction(stack[len(stack)-2]) {
-					reportUnused(stack[len(stack)-2], n, last, stack)
+					c.reportUnused(stack[len(stack)-2], n)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -3651,7 +3555,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 					}
 					for _, dup := range duplicateSwitchCases(store, n.Clauses) {
-						report(dup.msg, dup.at...)
+						report(CodeDuplicateCase, dup.msg, dup.at...)
 					}
 				}
 				// Ensure type switch cases are unique and possible.
@@ -3667,9 +3571,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							} else {
 								ctstr = casetype.(*constTypeExpr).Type.String()
 								if err := dynamicTypeError(tt, ctype); err != nil {
-									panicAt(fmt.Sprintf(
+									failf(CodeImpossibleCase, []Node{casetype, &clause},
 										"impossible type switch case: %s cannot have dynamic type %v (%v)",
-										exprString(n.X), ctype, err), casetype, &clause)
+										exprString(n.X), ctype, err)
 								}
 							}
 							if _, exists := types[ctstr]; exists {
@@ -3682,7 +3586,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 					// With clauses, checkUnused sees the variable in them.
 					if n.VarName != "" && len(n.Clauses) == 0 {
-						panic(fmt.Sprintf("declared and not used: %s", n.VarName))
+						failf(CodeUnusedVar, nil, "declared and not used: %s", n.VarName)
 					}
 				}
 
@@ -3826,7 +3730,7 @@ func defineOrDecl(
 		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but 0 value(s)", numNames))
 	}
 	if isConst && numVals == 0 && numNames > 0 {
-		panic("missing init expr for const declaration")
+		fail(CodeMissingConstInit, "missing init expr for const declaration")
 	}
 	if isDefine {
 		checkRedefinedTargets(store, bn, n, nameExprs, valueExprs)
@@ -4866,7 +4770,7 @@ func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed b
 		if embed {
 			fillEmbeddedName(&ft, fx.Type)
 			if msg := embeddedFieldError(ft); ft.Embedded && msg != "" {
-				panicAt(msg, fx)
+				fail(CodeEmbeddedField, msg, fx)
 			}
 		}
 		fts[i] = ft
@@ -5725,7 +5629,7 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		if direct {
 			if astype {
 				if _, ok := defining[cx.Name]; ok {
-					panicAt(fmt.Sprintf("invalid recursive type: %s", cycleString(stack, cx.Name)),
+					fail(CodeRecursiveType, fmt.Sprintf("invalid recursive type: %s", cycleString(stack, cx.Name)),
 						packageDeclOf(last, cx.Name))
 				}
 				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
@@ -6048,8 +5952,13 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	// not at the declaration that depended on it.
 	defer func() {
 		if r := recover(); r != nil {
-			if msg, ok := r.(string); ok {
-				panic(&spanPanic{span: d.GetSpan(), msg: msg})
+			switch p := r.(type) {
+			case string:
+				panic(&spanPanic{span: d.GetSpan(), msg: p})
+			case *spanPanic:
+				if p.span.IsZero() {
+					p.span = d.GetSpan()
+				}
 			}
 			panic(r)
 		}
@@ -6102,9 +6011,9 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			// first, check circularity. The error names the cycle only and
 			// sits at the declaration that starts it, as in Go.
 			if _, exists := defining[un]; exists {
-				what := "value"
+				what, code := "value", CodeRecursiveValue
 				if untype {
-					what = "type"
+					what, code = "type", CodeRecursiveType
 				}
 				msg := fmt.Sprintf("invalid recursive %s: %s", what, cycleString(stack, un))
 				var at Decl
@@ -6113,7 +6022,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 				} else {
 					at = index.lookup(un).decl
 				}
-				panicAt(msg, at)
+				fail(code, msg, at)
 			}
 			// Look up the dependency declaration in the fileset.
 			//
