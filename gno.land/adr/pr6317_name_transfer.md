@@ -25,9 +25,8 @@ name and namespace with them.
 ### Who controls deployed packages today
 
 The keeper writes the deploying address into `gnomod.toml` as
-`[addpkg] creator`. That stamp is also the identity `init()` runs as and the
-address that paid the storage deposit. Five checks decide who may act on a
-path:
+`[addpkg] creator`. That stamp is also the identity `init()` runs as. Five
+checks decide who may act on a path:
 
 | Operation | Current rule | Location |
 |---|---|---|
@@ -47,6 +46,11 @@ does have one right: rejecting parked submissions at its path. This ADR gives
 that right to the effective owner. Parked submissions follow their own rules,
 whether the path is public or private.
 
+`GetParams` replaces an empty stored `SysNamesPkgPath` with the default
+`gno.land/r/sys/names` (`params.go`). Clearing the parameter therefore does
+**not** turn namespace enforcement off; only pointing it at a path where
+nothing is deployed does.
+
 ## Decision
 
 A user record (its current name plus every alias it gathered through renames)
@@ -62,30 +66,48 @@ Moving a record changes who is authorized. It never rewrites who authored
 existing bytes: stamps on live and parked packages stay as they are until the
 owner redeploys.
 
+Every realm-level change below is **dormant until activation** (section 6).
+Before activation the three realms behave exactly as they do today, so
+replayed history executes the same way it did on the source chain.
+
 ### 1. `r/sys/users`: record identity and the move
 
-- `UserData` gains `id uint64`, assigned once at registration and never
-  reused, and `rev uint64`. Every rename, delete and transfer increments
-  `rev`. New read-only accessors are `ID()` and `Rev()`, plus
-  `ResolveID(id) *UserData`, backed by a new `id → *UserData` index.
-  - Existing records need ids too. Under the genesis-replay upgrade
-    (`pr5511_chain_upgrade_genesis_replay.md`), registrations replay against
-    the new code and get ids in history order. Any other upgrade route needs
-    an explicit backfill.
-- Internal `(u *UserData) transferTo(newAddr address) error`:
-  - `u` must be the **authoritative** record, meaning
-    `addressStore.Get(u.addr) == u`. The read-only trees hand out copies
-    (`makeUserDataSafe`), and moving a copy would leave the name keys
-    pointing at the original. The same check is added to `UpdateName` and
-    `Delete`, which have the same latent problem today.
-  - It rejects a deleted record, an invalid `newAddr`, and
-    `newAddr == u.addr`.
-  - It checks recipient eligibility against the **raw** `addressStore`:
-    any entry, live or deleted, is refused (`ErrAlreadyHasName` /
+- **Record identity.** Each record gets an `id uint64`, which is never
+  reused, and a `rev uint64`.
+  - Both live in new B+ trees (`idStore: id → *UserData`,
+    `metaStore: address → {id, rev}`), **not** as new `UserData` fields
+    written at registration. Code that runs before activation writes
+    nothing new, so the storage and deposit charges of historical
+    transactions do not change on replay.
+  - Activation assigns ids to every existing record, deleted ones included,
+    one id per record (not per alias), in `addressStore` key order.
+    Registrations after activation take the next id.
+  - Every rename, delete and transfer after activation increments `rev`.
+    Incrementing an id or rev past its maximum is refused, never wrapped.
+  - New read-only API: `ID()`, `Rev()`, `ResolveID(id) *UserData`.
+- **Authoritative-record guard.** The read-only trees hand out copies
+  (`makeUserDataSafe`). A controller that calls a mutator on a copy writes
+  name keys that point at the copy. This affects the exported
+  `UpdateName`, `UpdateNameIgnoreCanonical` and `Delete` today, and would
+  affect `TransferTo`.
+  - The guard goes in the **internal** mutators (`updateName`, `delete`,
+    `transferTo`), so every entry point is covered, including the
+    canonical-bypass and governance paths.
+  - After the nil and deleted checks, they require
+    `addressStore.Get(u.addr.String()) == u`. Checking the id alone is not
+    enough, because a copy carries the same id.
+  - Before activation, verify that every name and alias points at its
+    authoritative record. Any split left by an earlier mutation of a copy is
+    repaired explicitly as part of the migration.
+- **Internal `(u *UserData) transferTo(newAddr address) error`:**
+  - it rejects a deleted record, an invalid `newAddr`, and
+    `newAddr == u.addr`;
+  - it checks recipient eligibility against the **raw** `addressStore`: any
+    entry, live or deleted, is refused (`ErrAlreadyHasName` /
     `ErrDeletedUser`). `ResolveAddress` hides deleted records, so it cannot
-    be used here.
-  - In one transaction it removes the old address key, sets `u.addr`, writes
-    the new key, increments `rev`, and emits
+    be used here;
+  - in one transaction it removes the old address key, sets `u.addr`, writes
+    the new key, moves the `metaStore` entry, increments `rev`, and emits
     `Transferred(id, name, from, to)`. No alias walk is needed, because every
     alias key points at `u`.
 - `(u *UserData) TransferTo(_ int, rlm realm, newAddr address) error` is the
@@ -93,42 +115,63 @@ owner redeploys.
   authorizes **`rlm.Address()`** against the controller whitelist.
 - `IsAddressEligible(addr address) bool` is a read-only query of the raw
   store, so controllers can refuse an ineligible recipient early.
-- `ProposeTransferUser(cur realm, id uint64, to address)` is GovDAO's path for
-  recovering a lost or compromised key.
+- **Recovery proposal:**
+  `ProposeTransferUser(cur realm, from address, to address) dao.ProposalRequest`.
+  - When the proposal is created, it resolves `from` to a live authoritative
+    record and captures that record's `id`. When it runs, it calls
+    `ResolveID(id)` and refuses a deleted record.
+  - It binds to `id`, **not** to `rev`. Holders cannot rename themselves in
+    namereg/v0, but a thief holding the key could transfer the record back
+    and forth between addresses they control. Every transfer increments
+    `rev`, so binding to `rev` would let them invalidate the recovery vote.
   - It uses `NewFilterByTier(memberstore.T1)`. That filter restricts
     **voting** to T1; any DAO member can still **create** the proposal.
-  - It binds to the record `id`, **not** to `rev`. Holders cannot rename
-    themselves in namereg/v0, but a thief holding the key could transfer the
-    record back and forth between addresses they control. Every transfer
-    increments `rev`, so binding to `rev` would let them invalidate the
-    recovery vote.
-  - When it runs, it calls `ResolveID(id)` and refuses a deleted record.
-  - The description states that every private package under the record's
-    names becomes controllable by `to`, and that the current holder loses
-    that control.
-- `users.ProposeUpdateName`, `namereg.ProposeNewName` and both
-  `ProposeDeleteUser` functions bind to `id` and call `ResolveID` when they
-  run.
-  - They keep their address parameters and resolve the address to an `id`
-    when the proposal is **created**, so existing callers and scripts keep
-    working. `ProposeTransferUser` takes `from address` the same way.
-  - The users versions look up by address when they run. After the address
-    is reused, that lookup can land on a different record from the one
-    voters saw.
-  - The namereg versions keep the pointer they captured at creation. That
-    still targets the right record, but the name shown in the proposal can
-    go stale. Binding to `id` makes all four behave the same way.
+  - The proposal text names the id, the name and address when the proposal
+    was created, and that recovery follows this identity through later
+    renames and transfers. It also states that every private package under
+    the record's names becomes controllable by `to`, and that the current
+    holder loses that control.
+- **Other DAO proposals on records.** `users.ProposeUpdateName`,
+  `namereg.ProposeNewName` and both `ProposeDeleteUser` functions keep their
+  address parameters. After activation they resolve the address to an `id`
+  when the proposal is **created**, and call `ResolveID` when it runs.
+  - Today the users versions look up by address when they run. After the
+    address is reused, that lookup can land on a different record from the
+    one voters saw.
+  - The namereg versions capture a pointer at creation, so they already hit
+    the right record. Binding them to `id` makes all four behave the same.
+  - Proposal text the DAO has already stored is not refreshed.
+  - Proposals created before activation keep their current behaviour.
 - After a transfer, the old address has no entry in `addressStore`. It may
   register a new name like any fresh address, and gets a new `id`.
 
-### 2. Controller trust
+### 2. Controller trust and the limits of T1
 
 Any whitelisted controller can call `TransferTo` on any record, just as any
-controller can already rename or delete any record. Once this ADR lands, a
-controller can therefore also hand out control of private packages. Since
-the T1 filter on `ProposeTransferUser` would otherwise be easy to route
-around, `ProposeNewController` and `ProposeControllerAdditionAndRemoval` move
-to the same T1 voter filter.
+controller can already rename or delete any record. Once this ADR lands,
+controllers also control who holds private packages, so they are trust roots
+for both identity and packages.
+
+After activation, `ProposeNewController` and
+`ProposeControllerAdditionAndRemoval` take the same T1 voter filter as
+`ProposeTransferUser`. Within the current DAO implementation, these filters
+limit who votes on those proposal types. They do **not** make T1 the final
+authority:
+- the wider electorate can still delete a record through either registry,
+  which permanently freezes its packages under this design and defeats
+  recovery;
+- it can also remove controllers, and replace the DAO implementation with
+  one that ignores the filters.
+
+**Required before activation:** decide the voter policy for
+- rename and delete proposals in both registries;
+- `ProposeRegisterUser`;
+- controller removal;
+- replacing the DAO implementation.
+
+These are security decisions this design depends on, not consistency
+tweaks. Audit the existing controllers and any open proposals against the
+chosen policy.
 
 ### 3. `r/sys/namereg/v0`: two-step transfer for users
 
@@ -136,12 +179,17 @@ The owner offers, and the recipient accepts by sending a transaction.
 Accepting proves the recipient holds the key, so a mistyped address cannot
 swallow a name.
 
-- `pendingTransfers`: record `id` → `{to address, rev uint64, expiresAt int64}`.
-  There is at most one offer per record, and a new offer replaces the old
-  one. It is removed on accept or cancel. Stale offers are never iterated, so
-  they cost nothing to leave behind.
-- Who can call: `OfferTransfer`, `CancelTransfer` and `AcceptTransfer` must
-  be **direct account calls not signed with a delegated session key**.
+- **Storage.** `pendingTransfers` is a B+ tree keyed by the record `id` in a
+  fixed-width encoding: `id → {to address, rev uint64, expiresAt int64}`.
+  - It is **not** a native Gno map. A persisted map is rebuilt and
+    re-serialized in full on every write, so a growing map would make every
+    call more expensive.
+  - Each operation touches one key. There is at most one offer per record;
+    a new offer replaces the old one, and accept or cancel removes it.
+  - Stale offers still occupy deposited storage, so `PruneTransfer(id)` lets
+    anyone remove one offer that has expired or whose `rev` is stale.
+- **Who can call.** `OfferTransfer`, `CancelTransfer` and `AcceptTransfer`
+  must be **direct account calls not signed with a delegated session key**.
   - The direct-call part is `cur.Previous().IsUserCall()`.
   - The no-session part needs `runtime.GetSessionInfo()` to return
     `isSession == false`. `IsUserCall` only checks how the call was made,
@@ -182,11 +230,12 @@ recognizes only current names.
 ```go
 // NamespaceOwner reports who owns existing packages under namespace.
 //
-//   status "disabled": the verifier is not enabled yet
-//   status "unowned":  not a registered name (address namespaces included)
-//   status "deleted":  the name belongs to a deleted record
-//   status "owned":    owner is the record's address; the name may be the
-//                      record's current name or any of its aliases
+//   status "disabled":     the verifier is not enabled yet
+//   status "address":      namespace is an address
+//   status "unregistered": a name-shaped namespace nobody has registered
+//   status "deleted":      the name belongs to a deleted record
+//   status "owned":        owner is the record's address; the name may be
+//                          the record's current name or any of its aliases
 //
 // paused reports the verifier's pause flag (only meaningful once enabled),
 // so the keeper needs one call, not two. Pause does not change owner or
@@ -201,24 +250,26 @@ taken but resolves to nil belongs to a deleted record. An alias resolves with
 
 ### 5. Keeper: effective ownership
 
-Every row of the table in Context, except new deploys, goes through one
-resolver:
+Every ownership-dependent decision goes through one resolver. A sender who
+is authorized for some other reason never triggers it: for example, the
+parked submitter or an approver rejecting a parked package.
 
 ```go
 // effectiveOwner returns who owns pkgPath's namespace for ownership-gated
 // operations. stamped is the live package's creator, or empty when nothing
-// is live; an empty stamped with a fallback status means "no owner".
+// is live. An empty owner means nobody holds owner standing.
 func (vm *VMKeeper) effectiveOwner(ctx sdk.Context, st gno.TransactionStore,
     params Params, pkgPath string, stamped crypto.Address) (owner crypto.Address, paused bool, err error)
 ```
 
-| `NamespaceOwner` status | Effective owner |
+| `NamespaceOwner` result | Effective owner |
 |---|---|
 | `owned` | the record's address |
-| `unowned` | the stamped creator, as today |
-| `deleted` | none: ownership-gated writes are refused (frozen; recovery is a governance matter) |
-| `disabled`, names realm not deployed, or `SysNamesPkgPath` empty | the stamped creator, as today |
-| the call errors (missing function, wrong return shape, panic) | **none**: the write is refused. An error never falls back to the creator |
+| `deleted` | none: owner-gated writes are refused (frozen) |
+| `unregistered` | none, as today: the namespace check already refuses everyone once names is enabled |
+| `address` | the address itself if nothing is live, or if it is also the stamped creator (today's combined rule). A legacy package whose creator differs from its address namespace gains no new rights |
+| `disabled`, or the configured names realm is not deployed | the stamped creator, as today |
+| the call errors (missing function, wrong return shape, panic) | **none**: the owner branch is refused. An error never falls back to the creator |
 
 Applied per operation:
 
@@ -233,32 +284,43 @@ Applied per operation:
   and blocked on another. The namespace check still runs, unchanged, when
   nothing is live at the path.
 - **Pause.** Today pause is enforced *inside*
-  `IsAuthorizedAddressForNamespace`. Dropping that call on the redeploy path
-  would therefore drop pause as well. The keeper adds an explicit check:
-  when names is deployed and `names.IsEnabled() && names.IsPaused()`, it
-  refuses every submission, park and activation, including ones authorized
-  by ownership. Before `Enable` there is no pause, as today.
+  `IsAuthorizedAddressForNamespace`. Dropping that call on the replacement
+  path would therefore drop pause as well. The keeper refuses every
+  submission, park and activation when the resolver reports `paused` and
+  names is enabled, including ones authorized by ownership. Before `Enable`
+  there is no pause, as today.
 - **Parking.** A park is a deploy, so it first passes the deploy gate that
   applies to its path: the namespace check if nothing is live there, or the
   effective-owner check if a private package is live. The park guard then
   applies as well: if another submission is already parked at the path, the
   new submitter must be that parked submitter, as today, or the effective
   owner. Ownership does not put the owner's address on the old bytes. The
-  owner's submission replaces them and carries its own stamp, deposit and
-  `init()` identity.
+  owner's submission replaces them and carries its own stamp and `init()`
+  identity.
 - **Activating.** Over a live private package, the parked creator must be the
   effective owner *when the package is activated*, because the name may have
   moved since it was parked. With nothing live, activation keeps today's
   namespace check on the parked creator. A first deploy parked by the old key
   before a transfer therefore fails to activate afterwards, and the new owner
-  can reject it. `redeployBlockedReason` mirrors this, and
-  `ReasonOwnerMismatch` is reworded from "can never be enabled" to
-  "currently blocked by owner mismatch", since the mismatch can now go away.
-- **Rejecting.** Allowed for the parked submitter (they can always withdraw
-  their own bytes), an approver, or the effective owner of the namespace
-  whether or not anything is live there. This keeps the existing reason for
-  the live owner's standing (a stranger's parked blob blocks the owner) and
-  extends it to the namespace owner.
+  can reject it.
+- **Rejecting.** `RejectPackage` first accepts the parked submitter (who can
+  always withdraw their own bytes) or an approver, without calling the
+  resolver. Only a sender relying on owner standing reaches it, and an error
+  refuses only that branch. Deletion, pause and resolver errors never take
+  away the submitter's or the approver's right to reject. Owner standing
+  applies whether or not anything is live.
+- **`QueryPackageMeta`.** It evaluates the new blockers for **both** first
+  deploys and live redeploys, using its throwaway store:
+  - pause;
+  - failed namespace authorization;
+  - deleted ownership;
+  - owner mismatch;
+  - a resolver error.
+
+  A first deploy whose creator has lost the namespace must not report only
+  "waiting for an approver". `ReasonOwnerMismatch` is reworded from "can
+  never be enabled" to "currently blocked by owner mismatch", since the
+  mismatch can now go away.
 
 Implementation constraints:
 
@@ -268,32 +330,87 @@ Implementation constraints:
 - **Ordering.** It runs before `init()` and before storage-deposit
   accounting, under the same read-only contract as `callRealmBool`.
   `NamespaceOwner` must stay a pure read.
-- **Genesis replay.** During `IsGenesisReplay` (every InitChain-delivered
-  transaction, not just height 0), the resolver is **not called**, so replay
-  never needs a query API that did not exist yet. The live-redeploy checks
-  stay waived as they are today.
-  - The park guard and the owner branch of `RejectPackage` are waived too.
-    Otherwise a cross-address re-park or reject that ownership allowed after
-    the upgrade would fail on replay.
-  - This is safe because replay re-delivers only transactions the source
-    chain accepted. `pr5511_chain_upgrade_genesis_replay.md` marks failed
-    transactions `Failed` and skips them. The flag is also true for a fresh
-    chain's own genesis transactions. Waiving the checks there is consistent
-    with the existing genesis waivers.
+- **Genesis replay.** During `IsGenesisReplay`, the resolver and every
+  ownership gate this ADR adds are skipped. The live-redeploy waivers stay
+  as they are, and the park guard and the owner branch of `RejectPackage`
+  are waived too.
+  - `pr5511_chain_upgrade_genesis_replay.md` marks failed transactions
+    `Failed` and skips them, so only transactions the source chain accepted
+    are re-delivered.
+  - This is necessary but not sufficient. The upgrade replaces the sys
+    realms' source in their original genesis transactions
+    (`contribs/gnogenesis/internal/fork`), so all of history runs against
+    the **new** realm code. Section 6 keeps that code dormant until
+    activation for this reason.
 - **Gas.**
-  - Ownership-gated paths (live private redeploy, park over a park, activate
-    over a live package, reject) pay for a metered realm call instead of a
-    string compare.
+  - Owner-gated paths (live private redeploy, park over a park, activate
+    over a live package, rejection by owner standing) pay for a metered
+    realm call instead of a string compare.
   - Replacing or activating over a live public package is still refused
-    before that call. Rejecting a parked submission at a live public path
-    may still need it.
-  - Measure with identical workloads, with both warm and restarted stores.
+    before that call.
+  - Measure with identical workloads, with warm and restarted stores, and
+    with growing registry and offer indexes.
 
-On the `disabled` / unset row: falling back to the stamped creator could hand
-control back to a compromised old key if governance cleared
-`SysNamesPkgPath`. We accept that. Clearing it already lets *any* address
-deploy into *any* namespace (`checkNamespacePermission` returns nil), so the
-fallback is not the weakest point in that state.
+**Accepted risk: the stamped-creator fallback.** It applies when names is
+disabled or not deployed. Governance can reach that state by pointing
+`SysNamesPkgPath` at an undeployed path, which hands control back to the
+stamped creator, possibly a compromised old key. We accept this. That same
+state already lets *any* address deploy into *any* namespace
+(`checkNamespacePermission` returns nil), so the fallback is not the weakest
+point. Making an empty parameter mean "disabled" would be a separate change.
+
+### 6. Activation
+
+The sys realms are public (none sets `private = true`), so they cannot be
+replaced in place. `r/sys/users` holds the registry state and is not
+versioned, so this change ships as a **chain upgrade** using genesis replay.
+That has one consequence the code must respect: history replays against the
+new realm code.
+
+- **Dormant until activated.** Every new realm behaviour stays switched off
+  until a single activation transaction runs. That covers:
+  - id and rev bookkeeping;
+  - the authoritative guard;
+  - binding proposals to an id;
+  - T1 filters on controller proposals;
+  - transfers.
+
+  Before activation, the realms' code paths must produce the same results,
+  storage and events as the source chain. Otherwise strict replay fails: a
+  historical controller proposal passed by T2/T3 votes would be refused
+  under a T1 filter, and a proposal created before its target was
+  registered would fail an id lookup.
+- **The activation transaction.** It is appended after the replayed history
+  in the upgrade's genesis file, and gated at height 0 in the same way as
+  `AddControllerAtGenesis`. It:
+  - assigns ids;
+  - checks and repairs the authoritative records;
+  - reserves the namespaces the audit names;
+  - sets the activation flag.
+- **Open proposals keep their rules.** GovDAO stores a proposal's voter
+  filter when the proposal is created, so a proposal still open at
+  activation keeps the voters it was created with.
+- **Ids must stay stable across future upgrades.** Once ids appear in
+  transactions and proposals, a later replay-based upgrade must not change
+  anything that renumbers them. That rules out reordering or removing
+  pre-registrations, or adding records before the activation point.
+  - New reservations, and dropping `test1`, go into transactions appended
+    after history.
+  - Before boot, compare the source chain's and the replayed chain's
+    id → record mappings, deleted records included.
+- **Strict replay.** Run with `StrictReplay = true` over the full source
+  history. `GasReplayMode = "source"` only changes gas metering; it does not
+  waive realm authorization failures or storage-deposit limits. Do not skip
+  historical transactions that newly fail just to get the chain to boot.
+- **Keeper and transfers go live together.** The keeper rule takes effect
+  for live transactions as soon as the chain starts. Transfers become
+  callable only after activation, so a transferred namespace is never left
+  without anyone able to redeploy its packages.
+
+PRs can still be split for review: realms (sections 1–4 and the activation
+step), keeper (section 5), the approver changes (`PkgCreator`, see
+Consequences), and the audit tool or report. They merge behind the same
+upgrade.
 
 ### Authorization matrix after this ADR
 
@@ -301,22 +418,23 @@ Namespace states:
 - **current**: the record's current name;
 - **alias**: a name the record has renamed away from;
 - **deleted**: a name belonging to a deleted record;
+- **unregistered**: a name-shaped namespace nobody holds;
 - **address**: an address namespace;
-- **off**: names realm disabled, not deployed, or `SysNamesPkgPath` unset.
+- **off**: names disabled, or the configured names realm is not deployed.
 
-| Operation | current | alias | deleted | address | off |
-|---|---|---|---|---|---|
-| New deploy | owner | nobody | nobody | that address | anyone |
-| Redeploy live private | owner | owner | nobody | stamped creator | stamped creator |
-| Park | the deploy row that applies (new deploy, or redeploy live private), **and** if something is already parked there: its submitter or the owner | same | same (owner: nobody) | same (owner: stamped creator) | same (owner: stamped creator) |
-| Activate (nothing live) | parked creator must pass the new-deploy row | same | same | same | same |
-| Activate over live private | parked creator must be owner | same | refused | parked creator must be stamped creator | same as address |
-| Reject parked | submitter, approver, owner | same | submitter, approver | submitter, approver, stamped live creator | same as address |
+| | current | alias | deleted | unregistered | address | off |
+|---|---|---|---|---|---|---|
+| **Effective owner** | record's address | record's address | none | none | the address, if nothing is live or it is the stamped creator | stamped creator |
+| New deploy | owner | nobody | nobody | nobody | that address | anyone |
+| Replace live private | owner | owner | nobody | nobody | owner | owner |
+| Park | the deploy gate that applies (new deploy, or replace live private); if something is already parked there, also its submitter or the owner | same | same | same | same | same |
+| Activate (nothing live) | parked creator must pass "New deploy" | same | same | same | same | same |
+| Activate over live private | parked creator must be the owner | same | refused | refused | same as current | same as current |
+| Reject parked | submitter, approver, owner | same | submitter, approver | submitter, approver | submitter, approver, owner | submitter, approver, owner |
 
-"owner" means the record's current address; in the address and off columns
-it is the stamped creator. When names is deployed, enabled and paused, it
-blocks every deploy, park and activation. The off column keeps today's
-behaviour, where pause has no effect. Rejection is never paused.
+When names is enabled and paused, every deploy, park and activation is
+refused, in every column except off, where pause has no effect today either.
+Rejection is never paused.
 
 ## Alternatives considered
 
@@ -332,6 +450,10 @@ behaviour, where pause has no effect. Rejection is never paused.
   each rename and keep upgrade rights in several namespaces. In namereg/v0
   every rename needs a governance vote, which limits this. The ADR accepts
   that trade-off in exchange for being able to recover aliases.
+- **The stamped creator owns address and unregistered namespaces.** This
+  would give a legacy creator rights the namespace check denies them today,
+  for example on a package deployed before `Enable` under someone else's
+  address namespace. Rejected; those namespaces keep today's combined rule.
 - **Move only the current name** and leave the aliases on the old address.
   This splits one identity's history across two records. Rejected.
 - **Merge into a recipient that already has a name.** That needs merging two
@@ -346,9 +468,12 @@ behaviour, where pause has no effect. Rejection is never paused.
   a per-record flag and a second ownership rule. Rejected in favour of
   T1-voted proposals whose text states what they grant.
 - **Rewriting the stamped creator when ownership moves.** The stamp is also
-  the `init()` identity and the deposit payer. Rewriting it would
-  misattribute bytes and deposits the new owner never consented to.
-  Rejected.
+  the `init()` identity. Rewriting it would attribute bytes to an owner who
+  never submitted them. Rejected.
+- **New fields on `UserData`, written at registration.** These would change
+  storage charges for every historical registration on replay, and could
+  push signed deposit ceilings over their limits. Rejected in favour of
+  side indexes filled in at activation.
 
 ## Consequences
 
@@ -360,33 +485,33 @@ behaviour, where pause has no effect. Rejection is never paused.
   `archive`, `x`, `gnolang`, `test1`) are the main exposure.
   - **Required as part of the upgrade proposal:** list every live private
     package in a namespace that is, or could become, a registered name. That
-    includes namespaces that are `unowned` today, because a later
-    registration (or a DAO rename onto that name) would take their packages
-    over.
+    includes `unregistered` namespaces, because a later registration (or a
+    DAO rename onto that name) would take their packages over.
   - Each case where owner and creator differ must be explicitly accepted.
-  - Every unowned namespace that has legacy packages must be **reserved**
-    for an agreed owner (pre-registered) before the rule is turned on.
+  - The activation transaction reserves every unregistered namespace that
+    holds legacy packages for an agreed owner.
   - Under the new rule the owner can redeploy directly, so no separate
     re-stamping route is needed. The audit decides who gains control.
 - **Renamed users regain control of their old namespaces.** Today a rename
   locks the user out of their own private packages under the old name. With
   aliases recognized, they can redeploy them again. New deploys under an
   alias stay refused.
-- **Deleting a record freezes its packages.** Ownership-gated operations on
-  private packages under a deleted record's names are refused until
-  governance acts.
+- **Deleting a record freezes its packages, with no way back.** Transfer
+  refuses deleted records, registration cannot reclaim their names, and
+  there is no undelete. Their packages stay frozen unless a later upgrade
+  adds a recovery mechanism.
 - **T1 voters gain a new power.** They can hand control of a record's private
-  packages to another address. That is the price of key recovery. Adding a
-  controller now also needs a T1 vote.
+  packages to another address. That is the price of key recovery. See
+  section 2 for why this is not a hard T1 boundary.
 - **A stolen key can now evict the owner.** Today a thief who holds a
   user's key shares the name with them. With transfer, the thief can offer
   the record to an address they control and accept straight away, locking
   the user out. Only the T1 recovery proposal can undo that. This is the main
   cost of user-led transfer; see the open question on a delay.
-- **Address namespaces never move.** `gno.land/r/<address>/...` belongs to
-  that address for good. A user recovering from a stolen key leaves those
-  packages with the thief. The docs should steer users who care about
-  recovery towards deploying under a name.
+- **Address namespaces never move.** `gno.land/r/<address>/...` stays with
+  that address. A user recovering from a stolen key leaves those packages
+  with the thief. The docs should steer users who care about recovery
+  towards deploying under a name.
 - **Address-keyed state outside the registry does not move.** `ownable`
   owners, admin lists and balances in other realms stay with the old address.
   The docs must say so.
@@ -395,10 +520,18 @@ behaviour, where pause has no effect. Rejection is never paused.
     creator (`pr6164_redeploy_continues_realm.md`), so an `ownable` owner set
     in `init()` follows the redeployer. That is existing redeploy behaviour,
     not something this ADR adds.
-- **Storage deposits are not stranded.** Released storage is refunded to the
-  sender of the transaction that frees it, not to the stamped creator
-  (`processStorageDeposit`). Moving ownership therefore changes nobody's
-  refund rights.
+- **Deposits stay with the realm's accounting.** A transfer neither refunds
+  deposits nor attributes them to the new holder.
+  - A private redeploy keeps the previous deployment's objects and their
+    deposit (`pr6164`). It charges for the new objects and recovers nothing
+    from the old, unreachable ones.
+  - Released storage is refunded to the caller passed to
+    `processStorageDeposit`: the message sender on a normal deploy, and the
+    parked creator on activation. While ugnot is restricted, refunds go to
+    `StorageFeeCollector` instead.
+  - There is no ledger of who deposited what. Moving control can therefore
+    change who is able to free storage and collect refunds that earlier
+    writers paid for. This is the same for any private redeployer today.
 - **The CLA still applies.** The new address must have a valid
   `r/sys/cla` signature before it can deploy, park or redeploy
   (`checkCLASignature` runs on all three paths). A transfer does not carry
@@ -407,8 +540,9 @@ behaviour, where pause has no effect. Rejection is never paused.
   (`DefaultAccount_Address` in `gno.land/pkg/integration`). The
   pre-registration list has no chain-id gate. On a production chain, anyone
   can already deploy under `r/test1/*`, and with this ADR anyone could also
-  transfer the record away. The upgrade should drop or reserve `test1` on
-  production chains.
+  transfer the record away. The activation transaction should deal with
+  `test1` on production chains, without changing ids that are already in
+  use.
 - **Off-chain consumers** (indexers, gnoweb `/u/<name>`) that cache
   address ↔ name need to handle `Transferred`.
 - **Approvals bind source, not submitter.**
@@ -417,24 +551,20 @@ behaviour, where pause has no effect. Rejection is never paused.
     matches.
   - `PkgHeight` catches a re-park in a later block, but submissions in the
     same block share a height.
-  - `init()` runs as the parked creator. An approval that needs a specific
-    `init()` identity must therefore bind the parked creator explicitly.
-    That calls for an optional `PkgCreator` field on `MsgEnablePackage`,
-    which is in scope for the keeper PR.
+  - `init()` runs as the parked creator, so approvals need a way to pin it.
+    Add an optional `PkgCreator` field to `MsgEnablePackage`:
+    - append it after the existing fields, so Amino field numbers do not
+      change;
+    - reject a supplied value that does not match the parked creator, before
+      type-checking or execution;
+    - skip it during genesis replay.
+  - The same release must:
+    - update approval producers (`contribs/gpao`) to keep and sign the
+      reviewed submission's creator;
+    - make `QueryPackageMeta` report the **parked** submission's creator and
+      height separately from the live package's.
 
-## Rollout
-
-`r/sys/users`, `r/sys/names` and `r/sys/namereg/v0` are public packages
-(none sets `private = true`), so they cannot be replaced in place.
-`r/sys/users` holds the registry state and is not versioned. The change
-therefore ships as **one coordinated chain upgrade**: realm changes, keeper
-rule and migration audit together. Transfers must not be callable before the
-keeper rule is live; otherwise a transferred namespace would leave its
-private packages with no one able to redeploy them.
-
-PRs can still be split for review: realms (sections 1–4), keeper
-(section 5), and the audit tool or report. They merge behind the same
-upgrade.
+    Approvals that leave `PkgCreator` out keep today's source-only meaning.
 
 ## Testing
 
@@ -445,15 +575,19 @@ upgrade.
   - live and deleted recipients are refused;
   - a deleted user cannot transfer;
   - a non-controller is refused;
-  - a copy from the read-only tree is refused by `TransferTo`,
-    `UpdateName` and `Delete`;
+  - copies from both read-only trees are refused by `TransferTo`,
+    `UpdateName`, `UpdateNameIgnoreCanonical` and `Delete`, without changing
+    any index;
   - `canonicalStore` and the exact-name reservations are unchanged;
-  - `rev` increments on rename, delete and transfer;
+  - `rev` increments on rename, delete and transfer, and refuses overflow;
   - the event is emitted;
-  - the T1 proposal works end to end, survives a rename by the thief while
-    the vote is open, and is refused if the record is deleted;
+  - the T1 proposal works end to end, survives a DAO or controller rename and
+    repeated holder-led transfers while the vote is open, and is refused if
+    the record is deleted;
   - an id-bound rename or delete proposal does not touch a different
-    identity after address reuse.
+    identity after address reuse;
+  - before activation, every path produces the same results, storage and
+    events as the current code.
 - **`r/sys/namereg/v0` filetests:**
   - offer → accept;
   - accept by the wrong address;
@@ -466,22 +600,37 @@ upgrade.
   - a DAO rename, delete or transfer during an open offer invalidates it;
   - transferring away and back invalidates an old offer;
   - an offer made, then the address reused, cannot be accepted against the
-    new record.
+    new record;
+  - pruning expired and stale offers;
+  - gas stays flat as the offer index grows.
 - **`r/sys/names`:** `NamespaceOwner` for each status: before `Enable`, while
-  paused (unchanged answer), an address namespace, an alias, a deleted
-  record, and a current name.
+  paused (unchanged answer), an address namespace, an unregistered name, an
+  alias, a deleted record, and a current name.
 - **Keeper:** every cell of the authorization matrix, plus:
-  - an error from the names call refuses the write;
-  - `QueryPackageMeta` uses its throwaway store and reports the reworded
-    reason;
+  - a resolver error refuses the owner branch, while the submitter and the
+    approver can still reject;
+  - `QueryPackageMeta` uses its throwaway store and reports the new blockers
+    for first deploys and live redeploys, before and after transfer, rename,
+    deletion, pause and resolver failure;
   - parking and approving public paths;
   - a first deploy parked by the old key before a transfer cannot be
     activated afterwards, and the new owner can reject it;
   - a new owner without a CLA signature is refused;
   - an address namespace stays with its address after the record moves;
-  - an old approval after a re-park by a new owner;
-  - genesis replay of a history containing cross-address parks and private
-    redeploys, before and after the upgrade.
+  - a legacy package whose creator differs from its address namespace gains
+    no rights;
+  - `PkgCreator`: left out, matching, mismatched, replaced within the same
+    block, and older messages on replay.
+- **Upgrade:**
+  - full-history strict replay with the new code dormant, including
+    successful historical T2/T3 votes on controller proposals, proposals
+    created before their target was registered, and any history of
+    mutations on copies;
+  - the activation transaction assigns the expected ids and its storage cost
+    is accounted for;
+  - the id → record mapping matches between source and replayed chains;
+  - an A → B → C upgrade, where chain B has transfers and id-bound
+    proposals, keeps every id stable.
 - **Integration `.txtar`:** register → deploy a private realm → offer/accept
   → redeploy from the new key → old key refused, for both the current name
   and an alias.
@@ -496,8 +645,7 @@ upgrade.
   freeze it? A delay does not stop a thief who holds the same key, but it
   gives the T1 recovery path time to act before packages change hands.
 - Should transfers cost a fee, or have a cooldown?
-- Deleted records: should freezing be the end state, or should there be a
-  governance path that assigns a deleted record's packages to a new owner
+- Deleted records: should freezing be the end state, or should a later
+  mechanism let governance assign a deleted record's packages to a new owner
   without bringing the name back?
-- Should `ProposeRegisterUser`, `ProposeUpdateName` and `ProposeDeleteUser`
-  also move to T1 voters, for consistency with controller admission?
+- The voter policies listed in section 2 must be settled before activation.
