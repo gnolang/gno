@@ -428,6 +428,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			marked[mk.Line] = true
 		}
 		goTypesOnly, uncaught := make(map[int]string), make(map[int]string)
+		parseBlocked, wording := make(map[int]string), make(map[int]string)
+		messageAt := func(line int) string {
+			for _, sp := range spans {
+				if sp.lo <= line && line <= sp.hi {
+					return gnoErr[sp.lo]
+				}
+			}
+			return ""
+		}
 		for _, mk := range checkable {
 			expect := "gc expects: " + strings.Join(mk.Patterns, " | ")
 			if len(mk.Patterns) == 0 {
@@ -436,6 +445,11 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			_, inGuard := goTC[mk.Line]
 			switch {
 			case covers(mk.Line):
+				if msg := messageAt(mk.Line); len(mk.Patterns) > 0 && !wordingMatches(mk.Patterns, msg) {
+					wording[mk.Line] = expect + "; gno: " + msg
+				}
+			case result.parseBlocked:
+				parseBlocked[mk.Line] = expect
 			case inGuard:
 				goTypesOnly[mk.Line] = expect
 			default:
@@ -471,6 +485,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			{name: DirectiveGoTypesOnly, block: FormatGnoErrorBlock(goTypesOnly)},
 			{name: DirectiveGnoOverStrictError, block: FormatGnoErrorBlock(overStrict)},
 			{name: DirectiveUncaughtError, block: FormatGnoErrorBlock(uncaught)},
+			{name: DirectiveParseBlocked, block: FormatGnoErrorBlock(parseBlocked)},
+			{name: DirectiveGnoWordingDiffers, block: FormatGnoErrorBlock(wording)},
 			{name: DirectiveVerdict, block: v.String(), inline: true},
 		}
 		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
@@ -830,6 +846,7 @@ var goldenRegionStarts = []string{
 	DirectiveGnoOutput, DirectiveGoOutput, DirectiveGoError, DirectiveTypeCheckError,
 	DirectiveVerdict,
 	DirectiveGoTypesOnly, DirectiveGnoOverStrictError, DirectiveUncaughtError,
+	DirectiveParseBlocked, DirectiveGnoWordingDiffers,
 }
 
 // triageStateMarkers are the standalone triage status lines (`// Fixed:`,
@@ -1178,6 +1195,9 @@ type runResult struct {
 	// gnoErrors holds every preprocess error of an errorcheck run
 	// (accumulate mode), with location prefixes; Error joins them.
 	gnoErrors []string
+	// parseBlocked: the file did not parse, so Gno's checker never ran
+	// and markers it did not reach say nothing about it.
+	parseBlocked bool
 	// Set if there was an issue with type-checking.
 	TypeCheckError string
 	// Set if there was a panic within gno code.
@@ -1441,6 +1461,12 @@ const (
 	DirectiveGoTypesOnly        = "GoTypesOnly"
 	DirectiveGnoOverStrictError = "GnoOverStrictError"
 	DirectiveUncaughtError      = "UncaughtError"
+	// ParseBlocked: checkable markers in a file Gno could not parse; the
+	// checker never ran, so they are neither caught nor missed.
+	// GnoWordingDiffers: attributed lines whose Gno message matches none
+	// of gc's patterns, where line attribution may be a coincidence.
+	DirectiveParseBlocked      = "ParseBlocked"
+	DirectiveGnoWordingDiffers = "GnoWordingDiffers"
 )
 
 // nativeDirectives are the .gno filetest directives; corpusDirectives
@@ -1475,6 +1501,8 @@ var corpusDirectives = []string{
 	DirectiveGoTypesOnly,
 	DirectiveGnoOverStrictError,
 	DirectiveUncaughtError,
+	DirectiveParseBlocked,
+	DirectiveGnoWordingDiffers,
 }
 
 var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
@@ -1950,6 +1978,7 @@ func (opts *TestOptions) runErrorcheck(m *gno.Machine, pkgPath, fname string, co
 		} else {
 			rr.gnoErrors = []string{perr.Error()}
 		}
+		rr.parseBlocked = true
 		rr.Error = strings.Join(rr.gnoErrors, "; ")
 		rr.TypeCheckError = tcError
 		return rr

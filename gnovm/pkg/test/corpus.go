@@ -736,3 +736,18 @@ func langBelowPin(fl string) bool {
 	}
 	return n < 17
 }
+
+// wordingMatches reports whether msg matches any of gc's marker patterns,
+// as a regexp when the pattern compiles and as a substring otherwise.
+func wordingMatches(patterns []string, msg string) bool {
+	for _, p := range patterns {
+		if re, err := regexp.Compile(p); err == nil {
+			if re.MatchString(msg) {
+				return true
+			}
+		} else if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
+}

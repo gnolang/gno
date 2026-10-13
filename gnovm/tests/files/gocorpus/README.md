@@ -25,6 +25,8 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `GoTypeCheckError:` / `GoBuildError:` | lines the go/types guard / `go build` flagged; lines only, their wording follows the Go release |
 | `GoTypesOnly:` | errorcheck markers only the guard caught: what Gno's checker still lacks |
 | `GnoOverStrictError:` / `UncaughtError:` | Gno rejects a line gc did not mark / a checkable marker neither checker caught |
+| `ParseBlocked:` | checkable markers in a file Gno could not parse: the checker never ran, so they count as neither caught nor missed |
+| `GnoWordingDiffers:` | attributed lines whose Gno message matches none of gc's patterns: the line agreed, the wording did not; read these when a line match may be a coincidence |
 | `GnoPreprocessError:` | Gno's errors on compile-only files |
 
 | verdict | meaning |
