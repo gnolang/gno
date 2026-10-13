@@ -3,6 +3,7 @@ package gnoweb
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 )
@@ -102,7 +103,7 @@ func (p pagePolicy) robots(k pageKind, u *weburl.GnoURL) robots {
 		switch p.index {
 		case IndexAllCommunity:
 		case IndexRegisteredCommunity:
-			if u.Args != "" || len(u.Query) > 0 || len(u.WebQuery) > 0 || u.IsFile() || u.IsDir() ||
+			if u.Args != "" || len(u.Query) > 0 || len(u.WebQuery) > 0 || u.IsFile() || u.IsDir() || isNamespaceRoot(u) ||
 				isGnoAddress(u.Namespace()) {
 				return noIndexNoFollow
 			}
@@ -115,4 +116,11 @@ func (p pagePolicy) robots(k pageKind, u *weburl.GnoURL) robots {
 		return noIndexFollow
 	}
 	return indexFollow
+}
+
+// isNamespaceRoot reports whether u is /r/<ns> or /p/<ns>: a listing, with
+// or without its trailing slash.
+func isNamespaceRoot(u *weburl.GnoURL) bool {
+	pkg, ok := packagePath(u)
+	return ok && !u.IsUser() && !strings.Contains(pkg, "/")
 }

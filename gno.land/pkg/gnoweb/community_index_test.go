@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -61,5 +62,24 @@ func TestFinalRobots(t *testing.T) {
 				assert.Equal(t, tc.want.String(), rr.Header().Get("X-Robots-Tag"))
 			}
 		})
+	}
+}
+
+// TestRobotsNamespaceListing checks a namespace listing is not a bare page
+// under registered, with or without its trailing slash.
+func TestRobotsNamespaceListing(t *testing.T) {
+	t.Parallel()
+
+	p := newPagePolicy(nil, nil, IndexRegisteredCommunity)
+	for in, want := range map[string]robots{
+		"/r/nym":     noIndexNoFollow,
+		"/r/nym/":    noIndexNoFollow,
+		"/p/nym":     noIndexNoFollow,
+		"/r/nym/app": indexFollow,
+		"/u/nym":     indexFollow,
+	} {
+		u, err := weburl.Parse(in)
+		require.NoError(t, err, in)
+		assert.Equal(t, want, p.robots(p.kind(u), u), in)
 	}
 }
