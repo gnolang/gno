@@ -190,7 +190,7 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		expansion := regexp.MustCompile(`\$\{TAG[^}]*\}|\$TAG\b|env\.TAG\b`)
 		bare := regexp.MustCompile(`\bTAG\b`)
 		var sets []string
-		for _, line := range strings.Split(chain, "\n") {
+		for line := range strings.SplitSeq(chain, "\n") {
 			if !strings.HasPrefix(strings.TrimSpace(line), "#") && bare.MatchString(expansion.ReplaceAllString(line, "")) {
 				sets = append(sets, line)
 			}
