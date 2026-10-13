@@ -112,11 +112,14 @@ runs, and the two are not the same thing:
 ## Cutting a release
 
 ```sh
-# dry run: every check, no push
-misc/release/cut-release.sh v1.3.0
+# dry run: every check, no push. Once the ledger entry is pushed on top of the
+# code, the branch tip is the ledger commit, so every cut names the code commit
+misc/release/cut-release.sh v1.3.0 --commit <code-commit>
 
-# a coordinated upgrade: also prints the GovDAO halt proposal to go with it
-misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
+# a coordinated upgrade: also prints the GovDAO halt proposal to go with it.
+# --commit names the code commit, the one the ledger entry names (item 6)
+misc/release/cut-release.sh v1.3.0 --commit <code-commit> \
+  --halt-height 120000 --push
 ```
 
 The script checks that a tag would work as a release, and each check
@@ -134,14 +137,22 @@ corresponds to something that has gone wrong before. All but one are refusals:
    outright — a consensus change is a MINOR.
 4. **The protocol-version constants agree** (see below).
 5. **The built binary reports the tag.** Built the way CI builds it, then asked.
-6. **The upgrade ledger has an entry for the version**
-   (`misc/deployments/<chain>.gno.land/upgrades.json`). A release candidate
-   only warns, since it rehearses the final version's entry; a final release
-   without one is refused.
    Mainnet's launch-day binaries were hand-built without the `-ldflags`: they
    reported `develop`, satisfied no `halt_min_version`, and were not
    reproducible from the tag, until the `v1.2.0` release replaced them; this
    check is what catches that class of mistake before validators download it.
+6. **The upgrade ledger passes `upgrades check` and has an entry for the
+   version, naming the commit being tagged**
+   (`misc/deployments/<chain>.gno.land/upgrades.json`). The check is the one CI
+   runs: the ledger validates and its `UPGRADES.md` is current. The entry is
+   written before the release is cut, with its image digest and binaries null
+   until CI has built them. The script reads the ledger from the checkout it
+   runs in, not from the commit it tags: commit the entry on top of the code
+   being released, and cut from that checkout with `--commit` naming the code
+   commit, which is the commit the entry names. A release candidate only warns,
+   since it rehearses the final version's entry; a final release without one,
+   with a ledger that fails the check, or whose entry names another commit, is
+   refused.
 
 Pushing a `v*` tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
@@ -203,14 +214,16 @@ attestation, the checksums and the ledger's recorded digests are the
 operator's anchors. `ci / upgrades-ledger-digests` checks, daily, the digests
 and checksums the ledgers record for each version: each image digest against
 the registry, each `ran_as` image still resolving, each binary checksum
-against its release asset. It reports every difference and fails at the end.
+against its release asset. It reports every difference and fails at the end;
+a value still pending the build is listed, not checked.
 
 ### Rehearse on the testnet first
 
 The testnet runs the same binary as mainnet; only the genesis balances and the
 on-chain transactions differ. Every mainnet release is therefore first cut as
-a release candidate on the same commit (`cut-release.sh v1.6.0-rc.1 --push`),
-deployed to the testnet through the operator procedure (`set-halt` naming the
+a release candidate on the same commit
+(`cut-release.sh v1.6.0-rc.1 --commit <code-commit> --push`), deployed to the
+testnet through the operator procedure (`set-halt` naming the
 rc, validators switch at the height), and checked there: the halt fires, an
 early start is refused, blocks are produced after the restart, a fresh node
 syncs from genesis with the rc. A fix means a new commit and `rc.2`. Only then
@@ -259,9 +272,12 @@ go run ./misc/deployments/upgrades render misc/deployments/mainnet.gno.land   # 
 go run ./misc/deployments/upgrades check  misc/deployments/mainnet.gno.land   # what CI runs
 ```
 
-Add the entry when cutting the release, fill in the digest once the image is
-built and the halt time once the halt has happened, render, and port both files
-to `master`. A testnet's ledger names what it ran, release candidates included.
+Add the entry before cutting the release, with the image digest and the
+binaries null; fill both in, together, once CI has built the release, the
+proposal once it exists, and the halt time as soon as the halt has happened;
+render, and port both files to `master`. Only the last entry may still have
+null binaries, so they are filled in before the next release's entry is added.
+A testnet's ledger names what it ran, release candidates included.
 Every halt proposal names the version being released — `set-halt.sh` refuses a
 value the node cannot parse, and an empty one leaves the restart gate off.
 
