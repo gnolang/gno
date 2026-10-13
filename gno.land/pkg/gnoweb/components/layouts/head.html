@@ -35,8 +35,10 @@
   <meta name="twitter:description" content="{{ .Description }}" />
   <meta name="twitter:image" content="{{ .Image }}" />
 
-  <!-- Favicon -->
-  <link rel="icon" href="{{ .AssetsPath }}favicon.ico?v={{ .AssetsVersion }}" type="image/x-icon" />
+  <!-- Favicon: SVG where supported, the .ico otherwise, and the touch icon iOS reads -->
+  <link rel="icon" href="{{ .AssetsPath }}favicon.ico?v={{ .AssetsVersion }}" sizes="32x32" />
+  <link rel="icon" href="{{ .AssetsPath }}favicon.svg?v={{ .AssetsVersion }}" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="{{ .AssetsPath }}apple-touch-icon.png?v={{ .AssetsVersion }}" />
 
   <!-- Robots meta tag -->
   <meta name="robots" content="index, follow" />
