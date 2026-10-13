@@ -163,17 +163,18 @@ jobs:
       # pulls the manifest for its platform, and a check made against that
       # digest finds no signature on the index alone.
       - name: Sign the image
-        timeout-minutes: 15
+        timeout-minutes: 30
         env:
           IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           DIGEST: ${{ fromJSON(steps.bake.outputs.metadata)[matrix.image]['containerimage.digest'] }}
         run: |
           [ -n "${DIGEST}" ] || { echo "::error::bake reported no digest for ${IMAGE}"; exit 1; }
           # The image is pushed by now and its tag is never pushed again, so a
-          # Sigstore or registry outage must not end the job: five attempts
-          # over about ten minutes. Signing again is additive.
+          # Sigstore or registry outage must not end the job: five attempts of
+          # at most three minutes each, ten minutes of pauses between them, 25
+          # minutes in all, inside the step's 30. Signing again is additive.
           for attempt in 1 2 3 4 5; do
-            if cosign sign --yes --recursive "${IMAGE}@${DIGEST}"; then
+            if cosign sign --yes --recursive --timeout 3m "${IMAGE}@${DIGEST}"; then
               exit 0
             fi
             if [ "${attempt}" -lt 5 ]; then
