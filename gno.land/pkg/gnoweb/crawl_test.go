@@ -125,10 +125,10 @@ func TestHandlerSitemapXML(t *testing.T) {
 		"/addr":          {Value: addrRealm, Kind: GnowebPath},                  // an address namespace: noindex, never queried
 		"/src":           {Value: "/r/gnoland/home$source", Kind: GnowebPath},   // an indexed view, named by its key
 		"/help":          {Value: "/r/gnoland/home$help", Kind: GnowebPath},     // a noindex view
-		"/Hello.md":      {Value: "/r/gnoland/home", Kind: GnowebPath},          // names //Hello.md, not itself
+		"/Hello.md":      {Value: "/r/gnoland/home", Kind: GnowebPath},          // a file-like key names itself
 		"/terms":         {Value: "# Terms", Kind: StaticMarkdown},              // operator page
 		"/license.md":    {Value: "# License", Kind: StaticMarkdown},            // a static key may read as a file
-		"/foo bar":       {Value: "# Foo", Kind: StaticMarkdown},                // #6229 names it unescaped, not itself
+		"/foo bar":       {Value: "# Foo", Kind: StaticMarkdown},                // gnoweb cannot parse it: a 404
 		"/ready":         {Value: "# Ready", Kind: StaticMarkdown},              // shadowed by the router's own route
 		"relative":       {Value: "# Relative", Kind: StaticMarkdown},           // no leading slash: never requested
 		"/blog":          {Value: "# Blog", Kind: StaticMarkdown},               // redirected before aliases
@@ -190,6 +190,7 @@ func TestHandlerSitemapXML(t *testing.T) {
 		assert.NotContains(t, body, "evil.example")
 		assert.Equal(t, []string{
 			"https://gno.land/",
+			"https://gno.land/Hello.md",
 			"https://gno.land/about",
 			"https://gno.land/docs",
 			"https://gno.land/home",

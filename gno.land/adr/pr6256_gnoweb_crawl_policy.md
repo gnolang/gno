@@ -51,11 +51,10 @@ through links. An alias is listed when all of these hold:
 - gnoweb parses the key, no router route or `Redirects` entry owns it, and the
   router would not clean and redirect it (`/a/..`);
 - its page names its own URL as canonical (`canonicalURL` of the key, as `Get`
-  names it). A static key may read as a file (`/license.md`); a realm alias
-  keyed `/x.md` names `//x.md` and is left out;
+  names it). A key may read as a file (`/license.md`): it names itself;
 - `pagePolicy` indexes it, classified as `Get` classifies it: a static page by
-  its key, a realm alias by its target. A `$help` target or an address
-  namespace is left out;
+  its key, a realm alias by its target. A `$help` target, a namespace
+  listing or an address namespace is left out;
 - its target has something to show: one `vm/qfile` query for a `/r/` or `/p/`
   target, one namespace listing for a `/u/` target. One query per target, not
   the full listing, which the node caps at 1000 entries. A target that is no

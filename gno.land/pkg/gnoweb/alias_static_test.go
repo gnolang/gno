@@ -26,6 +26,41 @@ func TestNewStaticAlias(t *testing.T) {
 			body:        "# About\n\nBody.\n",
 		},
 		{
+			name:    "prose between rules keeps its page",
+			content: "---\n# Welcome to my node\n\nnote: this is a testnet.\n\n---\n\nRest.\n",
+			body:    "---\n# Welcome to my node\n\nnote: this is a testnet.\n\n---\n\nRest.\n",
+		},
+		{
+			name:    "a blank line of spaces keeps the page too",
+			content: "---\n# Welcome\n\nnote: testnet.\n  \n---\nRest.\n",
+			body:    "---\n# Welcome\n\nnote: testnet.\n  \n---\nRest.\n",
+		},
+		{
+			name:        "a quoted value before a comment",
+			content:     "---\ntitle: \"About # us\" # c\ndescription: 'a'' b' # c\n---\nBody.\n",
+			title:       "About # us",
+			description: "a' b",
+			body:        "Body.\n",
+		},
+		{
+			name:    "front matter alone, with no final newline",
+			content: "---\ntitle: About\n---",
+			title:   "About",
+		},
+		{
+			name:    "a quoted title on the next line",
+			content: "---\ntitle:\n  \"About\"\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			name:        "a comment and a doubled single quote",
+			content:     "---\ntitle: About # shipped with the node\ndescription: 'It''s gno'\n---\nBody.\n",
+			title:       "About",
+			description: "It's gno",
+			body:        "Body.\n",
+		},
+		{
 			name:    "a page without front matter is untouched",
 			content: "# About\n\nBody.\n",
 			body:    "# About\n\nBody.\n",

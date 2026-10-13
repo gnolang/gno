@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"path"
 	"slices"
 	"strings"
 
@@ -123,9 +124,10 @@ func (h *HTTPHandler) sitemapLocs(ctx context.Context, served func(string) bool)
 			named = page
 		} else if page, err = weburl.ParseFromURL(&url.URL{Path: target.Value}); err != nil {
 			continue
+		} else if named.IsFile() { // as in Get: a key such as /x.md is no file under "/"
+			named.Path, named.File = path.Join(named.Path, named.File), ""
 		}
-		// Only a page whose canonical is its own URL is listed: a realm alias
-		// keyed /x.md names //x.md.
+		// Only a page whose canonical is its own URL is listed.
 		loc := h.canonicalURL(named)
 		if loc != h.Static.CanonicalOrigin+(&url.URL{Path: key}).EscapedPath() ||
 			h.policy.robots(h.policy.kind(page), page) != indexFollow {

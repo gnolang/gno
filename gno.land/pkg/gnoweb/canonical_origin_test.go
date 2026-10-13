@@ -55,6 +55,7 @@ func TestNormalizeCanonicalOrigin(t *testing.T) {
 		"https://gno.land:65536",
 		"https://gno.land:99999",
 		"http://[::1]:99999",
+		"https://:8443",
 	} {
 		_, err := normalizeCanonicalOrigin(in)
 		assert.Error(t, err, "origin %q", in)

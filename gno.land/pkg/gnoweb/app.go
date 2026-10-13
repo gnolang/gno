@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"path"
@@ -122,7 +123,7 @@ func NewDefaultAppConfig() *AppConfig {
 		NodeRequestTimeout:      time.Minute,
 		AssetsPath:              "/public/",
 		Domain:                  "gno.land",
-		Aliases:                 DefaultAliases,
+		Aliases:                 maps.Clone(DefaultAliases), // callers add their own
 		RenderConfig:            NewDefaultRenderConfig(),
 		StateRateLimitPerMinute: 100,
 		MaxConcurrentRPC:        32,

@@ -75,8 +75,9 @@ matter, instead of writing `HeadData` themselves.
 `markdown.Lead` reads the lead as plain text: the title is a leading h1, the
 first block of the document, and the summary the first paragraph long enough
 to summarise between that h1, or the document start, and the next heading or
-rule. Text further down belongs to a section, a list or a post a trusted
-realm shows on behalf of its users; a forum's "# Claim your airdrop" post
+rule. Text inside a list, a quote or a table never counts, though a
+paragraph after one does. Text below that heading or rule belongs to a
+section or a post a trusted realm shows on behalf of its users; a forum's "# Claim your airdrop" post
 must not title the forum. `r/gov/dao` opens on `# GovDAO` then
 `## Members`, so it keeps its title and gets the site sentence instead of an
 `Author: g1...` line. Format characters (bidi overrides, zero-width joiners)
@@ -137,18 +138,23 @@ that is not a bare `scheme://host[:port]` stops gnoweb at startup.
 encoder gnoweb's own links use, and ignores `X-Forwarded-Host`. The query is
 never kept: anyone can append one to any page. Of the `$` keys, an indexed
 page carries only `source` and `file`, written in the order gnoweb's own
-links use (`$source&file=<name>`). An alias's target asked for by its own
-path, with no view or query, names the alias: `/r/gnoland/home` is `/`. Of
-two aliases to one target, the shorter wins. Args reach only a realm's
+links use (`$source&file=<name>`), and a file is named by that view:
+`/r/gnoland/blog/render.gno` names `/r/gnoland/blog$source&file=render.gno`.
+An alias's target asked for by its own path, with no view or query, names
+the alias: `/r/gnoland/home` is `/`. Of two aliases to one target, the
+shorter wins; an alias to a view or a query names nothing. Args reach only a realm's
 `Render`, so a source view, a file, a directory listing, a user page and a
 pure package drop them, and a pure package drops its trailing slash:
 `/r/gnoland/blog:p/a$source` names `/r/gnoland/blog$source`,
 `/u/gnoland:x` names `/u/gnoland`, `/r/gnoland/blog/:x` names
 `/r/gnoland/blog/`, and `/p/gnoland/lib/` and `/p/gnoland/lib:x` name
-`/p/gnoland/lib`. A namespace listing such as `/r/gnoland:x` keeps them,
-since its URL reads like a realm's, and so does an alias key such as
-`/news:latest`, whose args are the operator's. A static page names its alias
-key even when the key reads as a file, as `/license.md` or `/Terms` do.
+`/p/gnoland/lib`. A path that reads like a realm, such as `/r/gnoland:x`,
+keeps them unless no `Render` ran (no realm there, or one without
+`Render`): then its args showed nothing and the page names its bare path.
+An alias key such as `/news:latest` keeps its args, which are the
+operator's. A page behind an alias, static
+or realm, names its alias key even when the key reads as a file, as
+`/license.md` or `/Terms` do.
 
 ### What search engines may index
 
@@ -177,7 +183,7 @@ For community pages, `-index-community` chooses:
 
 | `-index-community` | community pages indexed |
 |---|---|
-| `registered` (default) | the bare page of a package or user page whose namespace is a registered name: no args, no query, no `$` view, no file, no directory listing |
+| `registered` (default) | the bare page of a package or user page whose namespace is a registered name: no args, no query, no `$` view, no file, no directory or namespace listing |
 | `none` | none |
 | `all` | all of them, under the rule of official pages |
 

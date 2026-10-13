@@ -2272,6 +2272,9 @@ func newMetadataHandler(t *testing.T, realmPath string, aliases map[string]gnowe
 		Domain: "example.com",
 		Path:   realmPath,
 		Files:  map[string]string{"render.gno": `package main; func Render(path string) string { return "body" }`},
+		Functions: []*doc.JSONFunc{
+			{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Name: "", Type: "string"}}},
+		},
 	}))
 	withGnoLandMeta(config)
 	config.TrustedPaths = []string{"gnoland"}
@@ -2457,6 +2460,13 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 	handler := newMetadataHandler(t, "/r/gnoland/pages", map[string]gnoweb.AliasTarget{
 		"/about":      {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
 		"/about-long": {Value: "/r/gnoland/pages:p/about", Kind: gnoweb.GnowebPath},
+		"/license.md": {Value: "/r/gnoland/pages:p/license", Kind: gnoweb.GnowebPath},
+		"/Terms":      {Value: "/r/gnoland/pages:p/terms", Kind: gnoweb.GnowebPath},
+		"/x.md:v2":    {Value: "/r/gnoland/pages:p/x", Kind: gnoweb.GnowebPath},
+		// Views and queries name no page: the realm keeps its own name.
+		"/src":     {Value: "/r/gnoland/pages$source", Kind: gnoweb.GnowebPath},
+		"/actions": {Value: "/r/gnoland/pages$help", Kind: gnoweb.GnowebPath},
+		"/q":       {Value: "/r/gnoland/pages?x=1", Kind: gnoweb.GnowebPath},
 	})
 
 	cases := []struct{ url, canonical string }{
@@ -2467,6 +2477,12 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 		{"/r/gnoland/pages:p/about", "https://gno.land/about"},
 		// The source of the target is the realm's: args do not reach it.
 		{"/r/gnoland/pages:p/about$source", "https://gno.land/r/gnoland/pages$source"},
+		// A realm alias keyed like a file is no file under "/".
+		{"/license.md", "https://gno.land/license.md"},
+		{"/Terms", "https://gno.land/Terms"},
+		{"/r/gnoland/pages:p/license", "https://gno.land/license.md"},
+		{"/x.md:v2", "https://gno.land/x.md:v2"},
+		{"/r/gnoland/pages", "https://gno.land/r/gnoland/pages"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.url, func(t *testing.T) {
@@ -2482,6 +2498,30 @@ func TestHTTPHandler_AliasCanonical(t *testing.T) {
 	}
 }
 
+// TestHTTPHandler_CanonicalWithoutRender checks a realm with no Render names
+// its bare path: the args a link adds reach nothing, so they must not name a
+// page of their own under gno.land.
+func TestHTTPHandler_CanonicalWithoutRender(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(&gnoweb.MockPackage{
+		Domain: "example.com",
+		Path:   "/r/gnoland/norender",
+		Files:  map[string]string{"lib.gno": "package norender"},
+	}))
+	withGnoLandMeta(config)
+	config.TrustedPaths = []string{"gnoland"}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, nil)), config)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/gnoland/norender:Official_GNOT_airdrop_claim_at_evil.example", nil))
+	require.Equal(t, http.StatusOK, rr.Code)
+	head, _, _ := strings.Cut(rr.Body.String(), "</head>")
+	assert.Contains(t, head, `<link rel="canonical" href="https://gno.land/r/gnoland/norender" />`)
+	assert.NotContains(t, head, "airdrop")
+}
+
 // TestHTTPHandler_CanonicalDropsIgnoredArgs checks that args name a page of
 // their own only where they reach Render. A source view, a file and a pure
 // package show the same bytes whatever args a link adds, so each names the
@@ -2495,7 +2535,11 @@ func TestHTTPHandler_CanonicalDropsIgnoredArgs(t *testing.T) {
 	cases := []struct{ url, canonical string }{
 		{"/r/gnoland/blog:p/a$source", "/r/gnoland/blog$source"},
 		{"/r/gnoland/blog:p/a$source&file=render.gno", "/r/gnoland/blog$source&amp;file=render.gno"},
-		{"/r/gnoland/blog/render.gno:p/a", "/r/gnoland/blog/render.gno"},
+		// A file is named by its source view, the URL gnoweb links to.
+		{"/r/gnoland/blog/render.gno:p/a", "/r/gnoland/blog$source&amp;file=render.gno"},
+		{"/r/gnoland/blog/render.gno", "/r/gnoland/blog$source&amp;file=render.gno"},
+		// $file means nothing without $source: the page is the realm's.
+		{"/r/gnoland/blog$file=render.gno", "/r/gnoland/blog"},
 		{"/p/nym/lib:anything", "/p/nym/lib"},
 		{"/p/nym/lib/", "/p/nym/lib"},
 		// Render reads them, so a realm's args stay.
@@ -2995,7 +3039,7 @@ func TestHTTPHandler_SitemapMatchesPages(t *testing.T) {
 		"/empty":      {Value: "/u/" + trustEmptyUser, Kind: gnoweb.GnowebPath},    // a name with nothing to show: noindex
 		"/addr":       {Value: trustAddrRealm, Kind: gnoweb.GnowebPath},            // address namespace: noindex
 		"/gone":       {Value: "/r/gnoland/gone", Kind: gnoweb.GnowebPath},         // no such realm
-		"/Hello.md":   {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath}, // names //Hello.md
+		"/Hello.md":   {Value: "/r/gnoland/blog:p/hello", Kind: gnoweb.GnowebPath}, // a file-like key names itself
 		"/realms":     {Value: "/r/", Kind: gnoweb.GnowebPath},
 		"/blog:t/x":   {Value: "/r/gnoland/blog:t/x", Kind: gnoweb.GnowebPath},
 		"/license.md": {Value: "# License\n", Kind: gnoweb.StaticMarkdown},
@@ -3016,7 +3060,7 @@ func TestHTTPHandler_SitemapMatchesPages(t *testing.T) {
 
 	locs := handler.SitemapLocs(context.Background())
 	assert.Equal(t, []string{
-		origin + "/Terms", origin + "/about", origin + "/blog:t/x", origin + "/hello", origin + "/hi",
+		origin + "/Hello.md", origin + "/Terms", origin + "/about", origin + "/blog:t/x", origin + "/hello", origin + "/hi",
 		origin + "/license.md", origin + "/nym", origin + "/nymalias", origin + "/src",
 	}, locs)
 
