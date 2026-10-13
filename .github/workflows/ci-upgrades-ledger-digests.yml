@@ -48,7 +48,7 @@ jobs:
               .upgrades[]
               | (select(.image.digest != null) | "image \(.image.ref) \(.image.digest)"),
                 (select(.ran_as != null) | "ran_as \(.image.ref | sub(":[^:]*$"; ""))@\(.ran_as) \(.ran_as)"),
-                (.binaries // {} | to_entries[] | "binary \(.value)")
+                (select(.binaries != null) | .binaries | to_entries[] | "binary \(.value)")
             ' "${ledger}" 2>"${err}")" || { fail "${ledger}: cannot read the ledger: $(cat "${err}")"; continue; }
             while read -r kind a b; do
               [ -n "${kind}" ] || continue
