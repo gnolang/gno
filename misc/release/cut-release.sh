@@ -232,24 +232,25 @@ check_on_master() {
 
 # The ledger is what operators read to know which version to run and what a
 # replaying node follows; a final release without an entry is invisible to
-# both, so it is refused, and so is one whose ledger does not validate: a
-# supervisor or the daily ledger check reads the whole file, not one row. The
-# entry is written before the cut, its image digest and binaries null until CI
-# has built them. A release candidate only warns: it rehearses the final
-# version's entry, which may not be written yet.
+# both, so it is refused, and so is one whose ledger fails `upgrades check`, the
+# check CI runs: a supervisor or the daily ledger job reads the whole file, not
+# one row, and operators read the UPGRADES.md rendered from it. The entry is
+# written before the cut, its image digest and binaries null until CI has built
+# them. A release candidate only warns: it rehearses the final version's entry,
+# which may not be written yet.
 check_ledger_entry() {
 	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land"
 	[[ -f ${dir}/upgrades.json ]] || return 0
 	local out
-	if out="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades validate "${dir}" 2>&1)"; then
-		ok "upgrades.json validates"
+	if out="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades check "${dir}" 2>&1)"; then
+		ok "upgrades.json validates and UPGRADES.md is current"
 	else
 		out="$(printf '%s\n' "${out}" | sed 's/^/       /')"
 		if [[ ${VERSION} == *-* ]]; then
-			warn "could not validate misc/deployments/${CHAIN}.gno.land/upgrades.json:"
+			warn "could not check misc/deployments/${CHAIN}.gno.land/upgrades.json:"
 			printf '%s\n' "${out}" >&2
 		else
-			die "could not validate misc/deployments/${CHAIN}.gno.land/upgrades.json:
+			die "could not check misc/deployments/${CHAIN}.gno.land/upgrades.json:
 ${out}"
 		fi
 	fi
