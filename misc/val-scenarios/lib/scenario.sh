@@ -1270,6 +1270,7 @@ rotate_sentry_ip() {
   local bumper2
 
   old_ip="$(node_ip "$sentry" || true)"
+  [ -n "$old_ip" ] || die "failed to read the current IP of sentry ${sentry}"
   bumper="${PROJECT_NAME}-${sentry}-bump-1"
   bumper2="${PROJECT_NAME}-${sentry}-bump-2"
 
@@ -1287,7 +1288,7 @@ rotate_sentry_ip() {
   wait_for_rpc "$sentry" 120
   new_ip="$(node_ip "$sentry" || true)"
 
-  if [ -n "$old_ip" ] && [ "$old_ip" = "$new_ip" ]; then
+  if [ "$old_ip" = "$new_ip" ]; then
     compose stop "$sentry" >/dev/null
     compose rm -f "$sentry" >/dev/null
     docker run -d --rm --entrypoint sh --name "$bumper2" --network "$(docker_network_name)" "$IMAGE_NAME" -c 'sleep 300' >/dev/null
@@ -1299,10 +1300,10 @@ rotate_sentry_ip() {
 
   docker rm -f "$bumper" "$bumper2" >/dev/null 2>&1 || true
   [ -n "$new_ip" ] || die "failed to resolve a new IP for sentry ${sentry}"
-  if [ -n "$old_ip" ] && [ "$old_ip" = "$new_ip" ]; then
+  if [ "$old_ip" = "$new_ip" ]; then
     die "sentry ${sentry} kept IP ${new_ip} after recreation; rotation scenario was not exercised"
   fi
-  log "sentry ${sentry} IP ${old_ip:-unknown} -> ${new_ip:-unknown}"
+  log "sentry ${sentry} IP ${old_ip} -> ${new_ip}"
 }
 
 print_cluster_status() {

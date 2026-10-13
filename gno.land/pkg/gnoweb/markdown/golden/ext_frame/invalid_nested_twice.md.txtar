@@ -1,0 +1,20 @@
+-- input.md --
+<gno-frame>
+<gno-frame x="1">
+<gno-frame>
+inner
+</gno-frame>
+</gno-frame>
+still outer
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<!-- unexpected/invalid frame tag omitted -->
+<!-- unexpected/invalid frame tag omitted -->
+<p>inner</p>
+<!-- unexpected/invalid frame tag omitted -->
+<!-- unexpected/invalid frame tag omitted -->
+<p>still outer</p>
+</section>
+<p>after</p>

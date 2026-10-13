@@ -12,6 +12,7 @@ var (
 	gDomainContextKey        = parser.NewContextKey()
 	gIPFSGatewayContextKey   = parser.NewContextKey()
 	gForeignOriginContextKey = parser.NewContextKey()
+	gLinkPolicyContextKey    = parser.NewContextKey()
 )
 
 type GnoContext struct {
@@ -23,6 +24,8 @@ type GnoContext struct {
 	// that ipfs:// URLs and retired gateway URLs are rewritten to. Empty
 	// disables the rewrite.
 	IPFSGateway string
+	// Links says which links search engines may follow; see LinkPolicy.
+	Links LinkPolicy
 }
 
 // NewGnoParserContext creates a new parser context with GnoURL
@@ -33,6 +36,7 @@ func NewGnoParserContext(mdctx GnoContext) parser.Context {
 	ctx.Set(gRemoteContextKey, mdctx.Remote)
 	ctx.Set(gDomainContextKey, mdctx.Domain)
 	ctx.Set(gIPFSGatewayContextKey, mdctx.IPFSGateway)
+	ctx.Set(gLinkPolicyContextKey, mdctx.Links)
 	return ctx
 }
 
@@ -46,7 +50,10 @@ func getGnoContext(ctx parser.Context) GnoContext {
 	remote, _ := getRemoteFromContext(ctx)
 	domain, _ := getDomainFromContext(ctx)
 	gateway, _ := getIPFSGatewayFromContext(ctx)
-	return GnoContext{GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain, IPFSGateway: gateway}
+	return GnoContext{
+		GnoURL: url, ChainId: chainId, Remote: remote, Domain: domain,
+		IPFSGateway: gateway, Links: getLinkPolicyFromContext(ctx),
+	}
 }
 
 // getUrlFromContext retrieves the GnoURL from the parser context
@@ -88,6 +95,13 @@ func getIPFSGatewayFromContext(ctx parser.Context) (gateway string, ok bool) {
 		return "", false
 	}
 	return
+}
+
+// getLinkPolicyFromContext retrieves the LinkPolicy from the parser context. A context
+// that carries none gets the zero value, which follows no link.
+func getLinkPolicyFromContext(ctx parser.Context) LinkPolicy {
+	p, _ := ctx.Get(gLinkPolicyContextKey).(LinkPolicy)
+	return p
 }
 
 // markForeignOrigin flags ctx as the parser context of a <gno-foreign>

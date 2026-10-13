@@ -63,6 +63,34 @@ func (t GnoLinkType) String() string {
 	return "unknown"
 }
 
+// LinkPolicy says which links of a document search engines may follow. A
+// link they may not follow renders with rel="nofollow ugc": it was written by
+// someone the site does not answer for. The zero value follows none, so a
+// document rendered without a policy is treated as user content.
+type LinkPolicy int
+
+const (
+	// FollowNoLinks marks every link as user content: a community document.
+	FollowNoLinks LinkPolicy = iota
+	// FollowInternalLinks follows links within the site and marks the others:
+	// a trusted realm may still show what its users wrote.
+	FollowInternalLinks
+	// FollowAllLinks follows every link: a page the operator wrote.
+	FollowAllLinks
+)
+
+// follows reports whether a link of type t may be followed under p.
+func (p LinkPolicy) follows(t GnoLinkType) bool {
+	switch p {
+	case FollowAllLinks:
+		return true
+	case FollowInternalLinks:
+		return t != GnoLinkTypeExternal
+	default:
+		return false
+	}
+}
+
 var KindGnoLink = ast.NewNodeKind("GnoLink")
 
 // GnoLink represents a link with Gno-specific metadata
@@ -77,6 +105,25 @@ type GnoLink struct {
 	// markdown cannot wear the host realm's link chrome. The href is
 	// still resolved normally; only the trust signals are stripped.
 	Untrusted bool
+	// Followed reports whether search engines may follow the link, from the
+	// document's LinkPolicy. An untrusted link is never followed.
+	Followed bool
+}
+
+// rel is the link's rel attribute: noopener on a link to another site or
+// out of a sandbox, nofollow ugc on a link search engines may not follow.
+func (n *GnoLink) rel() string {
+	opener := n.Untrusted || n.LinkType == GnoLinkTypeExternal
+	switch {
+	case opener && !n.Followed:
+		return "noopener nofollow ugc"
+	case opener:
+		return "noopener"
+	case !n.Followed:
+		return "nofollow ugc"
+	default:
+		return ""
+	}
 }
 
 func (n *GnoLink) Dump(source []byte, level int) {
@@ -156,6 +203,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 	// Links parsed under a <gno-foreign> sandbox context render as
 	// untrusted (rel="ugc", no first-party trust icons). Read once.
 	untrusted := isForeignOrigin(pc)
+	links := getLinkPolicyFromContext(pc)
 
 	// An autolink is replaced by a new node, which detaches it from its
 	// parent and ends ast.Walk's sibling loop there: every link after it in
@@ -196,7 +244,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			return ast.WalkContinue, nil
 		}
 		gnoLink.Untrusted = nodeUntrusted
-		replaceWithGnoLink(node, gnoLink, rawDest, orig)
+		replaceWithGnoLink(node, gnoLink, rawDest, orig, links)
 		return ast.WalkContinue, nil
 	})
 
@@ -212,13 +260,13 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 			rawDest = rawURL
 		}
 		gnoLink := &GnoLink{Link: newLinkFromAutoLink(rawDest, n.Label(source)), Untrusted: untrusted}
-		replaceWithGnoLink(n, gnoLink, rawDest, orig)
+		replaceWithGnoLink(n, gnoLink, rawDest, orig, links)
 	}
 }
 
-// replaceWithGnoLink puts gnoLink in node's place and classifies its
-// destination.
-func replaceWithGnoLink(node ast.Node, gnoLink *GnoLink, rawDest []byte, orig *weburl.GnoURL) {
+// replaceWithGnoLink puts gnoLink in node's place, classifies its
+// destination and decides from links whether search engines may follow it.
+func replaceWithGnoLink(node ast.Node, gnoLink *GnoLink, rawDest []byte, orig *weburl.GnoURL, links LinkPolicy) {
 	parent, next := node.Parent(), node.NextSibling()
 	parent.RemoveChild(parent, node)
 	parent.InsertBefore(parent, next, gnoLink)
@@ -234,25 +282,31 @@ func replaceWithGnoLink(node ast.Node, gnoLink *GnoLink, rawDest []byte, orig *w
 
 	// Detect and set the GnoLink type.
 	gnoLink.GnoURL, gnoLink.LinkType = detectLinkType(dest, orig)
+	gnoLink.Followed = !gnoLink.Untrusted && links.follows(gnoLink.LinkType)
 }
 
 // detectLinkType detects the type of link based on the destination
 func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLinkType) {
+	// A scheme without a host (https:///evil.com) still leads browsers to
+	// a host: they skip the extra slashes.
+	if dest.Scheme != "" && dest.Host == "" {
+		return nil, GnoLinkTypeExternal
+	}
+
 	// Attempt to parse the destination as a GnoURL.
 	target, err := weburl.ParseFromURL(dest)
 	if err != nil {
-		if dest.Scheme == "" {
-			// If there's no scheme, consider it as a relative path.
+		// No scheme: a relative path, unless it names a host. A
+		// protocol-relative URL (//host/...) is external unless the host is
+		// ours, and browsers also read a path starting with "//" (///host)
+		// as a host.
+		if dest.Scheme == "" && !strings.HasPrefix(dest.Path, "//") &&
+			(dest.Host == "" || strings.EqualFold(dest.Hostname(), orig.Domain)) {
 			return nil, GnoLinkTypePackage
 		}
 
 		// Otherwise, treat it as an external URL.
 		return nil, GnoLinkTypeExternal
-	}
-
-	// Check if it's a user link first
-	if target.IsUser() {
-		return target, GnoLinkTypeUser
 	}
 
 	// Extract domain and namespace from the target.
@@ -263,6 +317,9 @@ func detectLinkType(dest *url.URL, orig *weburl.GnoURL) (*weburl.GnoURL, GnoLink
 	case targetDomain != "" && targetDomain != orig.Domain:
 		// External: the domain does not match the origin's domain.
 		return target, GnoLinkTypeExternal
+	case target.IsUser():
+		// User: checked after the host, so an off-site /u/ path is external.
+		return target, GnoLinkTypeUser
 	case targetName != "" && targetName == orig.Namespace():
 		// Package: the namespace matches the origin's namespace.
 		return target, GnoLinkTypePackage
@@ -370,13 +427,10 @@ func (r *linkRenderer) renderGnoLink(w util.BufWriter, source []byte, node ast.N
 		}
 		w.WriteByte('"')
 
-		// Prepare additional link attributes. External links always
-		// carry the rel guard; untrusted (foreign-sandbox) links carry
-		// it regardless of type so internal/tx links from foreign
-		// content are still marked as user-generated.
+		// Prepare additional link attributes.
 		attrs := []attr{}
-		if n.LinkType == GnoLinkTypeExternal || n.Untrusted {
-			attrs = append(attrs, attr{"rel", "noopener nofollow ugc"})
+		if rel := n.rel(); rel != "" {
+			attrs = append(attrs, attr{"rel", rel})
 		}
 		if n.Title != nil {
 			attrs = append(attrs, attr{"title", string(n.Title)})
@@ -427,4 +481,30 @@ func (l *linkExtension) Extend(m goldmark.Markdown) {
 	m.Renderer().AddOptions(renderer.WithNodeRenderers(
 		util.Prioritized(&linkRenderer{}, 500),
 	))
+}
+
+// docLinks marks every link of a doc comment as user content. Doc comments
+// are the package author's, and the doc renderer is shared by pages of every
+// kind with no link policy of its own, so it treats each link as one from a
+// community document.
+type docLinks struct{}
+
+// ExtDocLinks adds rel="noopener nofollow ugc" to every link of a doc
+// comment.
+var ExtDocLinks goldmark.Extender = docLinks{}
+
+func (e docLinks) Extend(m goldmark.Markdown) {
+	m.Parser().AddOptions(parser.WithASTTransformers(util.Prioritized(e, 999)))
+}
+
+func (docLinks) Transform(doc *ast.Document, _ text.Reader, _ parser.Context) {
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		switch n.(type) {
+		case *ast.Link, *ast.AutoLink:
+			if entering {
+				n.SetAttributeString("rel", []byte("noopener nofollow ugc"))
+			}
+		}
+		return ast.WalkContinue, nil
+	})
 }
