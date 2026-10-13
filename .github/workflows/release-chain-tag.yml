@@ -163,21 +163,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! draft="$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq .isDraft 2>&1)"; then
-            if [ "${draft}" = "release not found" ]; then
-              echo "no release for ${TAG} yet"
-              echo "state=none" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "::error::cannot read the release for ${TAG}: ${draft}"
-            exit 1
-          fi
-          if [ "${draft}" != "true" ]; then
+          # One GraphQL query, whose release(tagName:) also returns drafts. Not
+          # gh release view: it answers "release not found" whenever its lookup
+          # of a published release fails, whatever the reason, which would
+          # read as "go on" for a release that is in fact published.
+          # shellcheck disable=SC2016 # $owner, $name, $tag are GraphQL variables
+          state="$(gh api graphql \
+            -f owner="${GITHUB_REPOSITORY_OWNER}" -f name="${GITHUB_REPOSITORY#*/}" -f tag="${TAG}" \
+            -f query='query($owner: String!, $name: String!, $tag: String!) { repository(owner: $owner, name: $name) { release(tagName: $tag) { isDraft } } }' \
+            --jq '.data.repository.release | if . == null then "none" elif .isDraft then "draft" else "published" end')" \
+            || { echo "::error::cannot read the release for ${TAG} (gh's error is above)"; exit 1; }
+          case "${state}" in
+          none) echo "no release for ${TAG} yet" ;;
+          draft) echo "${TAG} has a draft release from an earlier run; this run finishes it" ;;
+          published)
             echo "::error::${TAG} is already published, and a published release is never rebuilt (RELEASING.md, \"Cutting a release\")"
             exit 1
-          fi
-          echo "${TAG} has a draft release from an earlier run; this run finishes it"
-          echo "state=draft" >> "$GITHUB_OUTPUT"
+            ;;
+          *)
+            echo "::error::unexpected release state for ${TAG}: ${state}"
+            exit 1
+            ;;
+          esac
+          echo "state=${state}" >> "$GITHUB_OUTPUT"
 
       # Provenance: which workflow built every asset, from which commit and
       # tag. Attested here, once CHECKSUMS.txt exists, so the checksum file is
