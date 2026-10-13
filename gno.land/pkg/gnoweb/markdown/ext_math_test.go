@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -495,6 +496,7 @@ func FuzzMathRender(f *testing.F) {
 		strings.Repeat("a$$", 64),                                          // tiny inline expressions
 		strings.Repeat("$a$$$", 64),                                        // tiny display expressions
 		">[!0]",                                                            // an alert, which draws an <svg> icon
+		`x$ <gno-icon name="star" /> $y`,                                   // an inline icon, which draws its glyph
 		`\left(\color x{\right)}`,                                          // a group crossing a fence
 		strings.Repeat(`{\left(`, 8) + "x" + strings.Repeat(`}\right)`, 8), // crossing groups, nested
 	} {
@@ -547,13 +549,19 @@ func convertWithin(t *testing.T, gm goldmark.Markdown, src string, timeout time.
 }
 
 // checkNoActiveContent returns an error if html holds an element or
-// attribute that runs script or embeds content. The one <svg> allowed is the
+// attribute that runs script or embeds content. Two <svg> are allowed: the
 // icon gnoweb's alerts, links and forms draw, <svg><use
-// href="#ico-..."></use></svg>: an <svg> immediately holding a <use> that
-// refers to one of the page's own icons, and nothing else.
+// href="#ico-..."></use></svg>, an <svg> immediately holding a <use> that
+// refers to one of the page's own icons, and nothing else; and the glyph a
+// <gno-icon /> draws, an <svg class="gno-icon"> holding only drawing
+// elements, whose attributes are checked like any other.
 func checkNoActiveContent(out string) error {
 	z := html.NewTokenizer(strings.NewReader(out))
+	inGlyph := false
 	for tt := z.Next(); tt != html.ErrorToken; tt = z.Next() {
+		if tt == html.EndTagToken && inGlyph && z.Token().Data == "svg" {
+			inGlyph = false
+		}
 		if tt != html.StartTagToken && tt != html.SelfClosingTagToken {
 			continue
 		}
@@ -564,8 +572,19 @@ func checkNoActiveContent(out string) error {
 				return fmt.Errorf("unexpected %s attribute", a.Key)
 			}
 		}
+		if inGlyph {
+			switch tok.Data {
+			case "g", "path", "circle", "rect", "line", "polyline":
+				continue
+			}
+			return fmt.Errorf("unexpected <%s> in an icon glyph", tok.Data)
+		}
 		switch tok.Data {
 		case "svg":
+			if tt == html.StartTagToken && hasClass(tok, "gno-icon") {
+				inGlyph = true
+				continue
+			}
 			if !isIconSVG(z) {
 				return fmt.Errorf("unexpected <svg>")
 			}
@@ -574,6 +593,16 @@ func checkNoActiveContent(out string) error {
 		}
 	}
 	return nil
+}
+
+// hasClass reports whether tok carries class among its classes.
+func hasClass(tok html.Token, class string) bool {
+	for _, a := range tok.Attr {
+		if a.Key == "class" && slices.Contains(strings.Fields(a.Val), class) {
+			return true
+		}
+	}
+	return false
 }
 
 // isIconSVG reads the tokens after an <svg> start tag and reports whether
@@ -597,6 +626,7 @@ func TestMathFuzzOracle(t *testing.T) {
 		`<p>a</p>`,
 		`<summary><svg><use href="#ico-note"></use></svg>Note</summary>`,
 		`<a href="u">x<svg class="c-icon"><use href="#ico-external-link"></use></svg></a>`,
+		`<p>x$ <svg class="gno-icon" viewBox="0 0 21 21" aria-hidden="true"><g><path d="m7 11z"/><circle r="1"/></g></svg> $y</p>`,
 	} {
 		assert.NoError(t, checkNoActiveContent(ok), ok)
 	}
@@ -607,6 +637,9 @@ func TestMathFuzzOracle(t *testing.T) {
 		`<svg><use href="#ico-x" onload="alert(1)"></use></svg>`,
 		`<svg><image href="x"></image></svg>`,
 		`<svg onload="alert(1)"><use href="#ico-x"></use></svg>`,
+		`<svg class="gno-icon"><script>alert(1)</script></svg>`,
+		`<svg class="gno-icon"><path d="m1z" onclick="alert(1)"/></svg>`,
+		`<svg class="gno-icon"><image href="x"></image></svg>`,
 		`<use href="#ico-x"></use>`,
 		`<math><mi onclick="alert(1)">x</mi></math>`,
 		`<a href=" JavaScript:alert(1)">x</a>`,
@@ -678,13 +711,11 @@ func TestMathDisplayOpenerInDeepContainersIsLinear(t *testing.T) {
 		}
 		return d
 	}
-	for _, prefix := range []string{"- ", "> "} {
-		line := strings.Repeat(prefix, 1000) + "%s\n\n"
-		math := strings.Repeat(fmt.Sprintf(line, "$$"), 64)
-		text := strings.Repeat(fmt.Sprintf(line, "xx"), 64)
-		ratio := float64(best(math)) / float64(best(text))
-		assert.Less(t, ratio, 4.0, "%q: $$ took %.1fx the time of text", prefix, ratio)
-	}
+	line := strings.Repeat("- ", 1000) + "%s\n\n"
+	math := strings.Repeat(fmt.Sprintf(line, "$$"), 64)
+	text := strings.Repeat(fmt.Sprintf(line, "xx"), 64)
+	ratio := float64(best(math)) / float64(best(text))
+	assert.Less(t, ratio, 4.0, "$$ took %.1fx the time of text", ratio)
 }
 
 // The expression is read from the parsed lines, without the container

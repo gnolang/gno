@@ -181,7 +181,9 @@ must not be shared between concurrent renders.
   there is no macro expansion to bound.
 - `FuzzMathRender` checks that no input produces `<script>`, `<style>`,
   `<iframe>`, `<object>`, `<embed>`, `<use>` or `<svg>` (except gnoweb's own
-  alert icon, an `<svg>` holding only `<use href="#ico-…">`), an `on*`
+  alert icon, an `<svg>` holding only `<use href="#ico-…">`, and the glyph
+  of a `<gno-icon />`, an `<svg class="gno-icon">` holding only drawing
+  elements), an `on*`
   attribute or a `javascript:` value, and that the output stays within the
   size bounds below. Each render runs under a timeout, and
   `FuzzConversionTerminates` checks the converter alone the same way: a
