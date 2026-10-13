@@ -99,6 +99,26 @@ make fmt                        # Format all code
 
 ---
 
+## Removing or Weakening a Safeguard
+
+A disk flush, a lock, a validation check, a gas charge, a retry or a recovery record exists because something relies on it, often far from the code that has it. Before removing, skipping, deferring or loosening one, usually for speed:
+
+- List everything that relies on what it protects, each with the code the reliance rests on: grep the readers of the data it guards, and check crashes and kills, clean stops, power cuts, governance halts, binary upgrades and downgrades, restores, operator tools (`contribs/gnobr`, `contribs/gnogenesis`), event consumers, and each database backend. A recovery path that can rebuild the data answers only the crash case.
+- Back each claim about how a dependency behaves with the code that implements it, reading the path that would prove the claim wrong as well as the one that supports it, or with a small experiment. Write down the rest as unverified.
+- Test each failure class separately (power cut, exit without `Close`, halt, restart with another binary), and run the tests against deliberately broken versions to show they can fail.
+- Get a review aimed only at breaking the change before marking the PR ready.
+
+Facts that are easy to get wrong:
+
+- `PebbleDB.Set` writes with `pebble.NoSync`, and such a write can stay in the process's memory until the next sync, so it can be lost on any exit, not only a power cut. `PebbleDB` batches' `Write()` syncs, like `WriteSync()`. `Node.OnStop` does not close the state or block-store database.
+- A governance halt panics in `BaseApp.BeginBlock` of the block after the halt height, so that the halt height is fully on disk for the binary started next, which in an upgrade is a different one. In block sync the panic ends the process.
+- goleveldb switches journals without syncing the old one, so a later `SetSync` does not cover writes left in it; pebbledb syncs the old log first.
+- In the VM, a gas charge, an allocation limit or a determinism guard can decide whether a transaction succeeds, so changing one can change what a node computes when it replays past blocks.
+
+Example: #6316 first stopped flushing the state record every block, since the restart could rebuild it; halts, `gnobr` and older binaries rely on that record too, so only a redundant block-store flush was removed.
+
+---
+
 ## Gno Security Semantics
 
 - Before writing or reviewing any caller-authentication, access-control, or cross-realm code in Gno (`/r/`, `/p/`, `/e/` packages), read `docs/resources/gno-interrealm.md`. Do not pattern-match from Solidity `msg.sender` or other-language intuition.
