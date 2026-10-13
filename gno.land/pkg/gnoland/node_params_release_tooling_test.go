@@ -121,8 +121,9 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		t.Parallel()
 
 		pkg := grepOne(t, cutRelease, `(?m)^readonly VERSION_PKG="(.+)"$`)
-		assert.True(t, strings.Contains(repoFile(t, workflow), "-X "+pkg+"=${TAG}\""),
-			"%s does not compile TAG into %s's VERSION_PKG (%s)", workflow, cutRelease, pkg)
+		assert.Equal(t, []string{`          LDFLAGS="-w -s -X ` + pkg + `=${TAG}"`},
+			regexp.MustCompile(`(?m)^.*\bLDFLAGS=.*$`).FindAllString(repoFile(t, workflow), -1),
+			"%s must set LDFLAGS once, compiling TAG into %s's VERSION_PKG (%s)", workflow, cutRelease, pkg)
 
 		// And the symbol has to be the one the node actually reports.
 		assert.True(t, strings.HasPrefix(pkg, "github.com/gnolang/gno/tm2/pkg/version."),
@@ -176,25 +177,37 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		chain, image := repoFile(t, workflow), repoFile(t, docker)
 
 		// github.ref_name is the tag only when nothing but a tag push can
-		// start the run: a dispatch or a branch push names a branch.
+		// start the run: a dispatch or a branch push names a branch. The block
+		// ends at the next top-level key, not at a comment line inside it.
 		for _, path := range []string{workflow, docker} {
-			on := grepOne(t, path, `(?ms)^on:\n(.*?)^\S`)
-			assert.Regexp(t, `\A  push:\n    tags:\n      - "?v\*"?\n\n\z`, on, "%s must run on v* tag pushes only", path)
+			on := grepOne(t, path, `(?ms)^on:\n(.*?)^[^\s#]`)
+			assert.Regexp(t, `\A  push:\n    tags:\n      - ["']?v\*["']?\n+\z`, on, "%s must run on v* tag pushes only", path)
 		}
 
-		// Every line that assigns TAG (a job or step env, `TAG=`, `export TAG=`,
-		// `TAG+=`, a GITHUB_ENV line), so none can shadow the workflow-level
-		// value. A `read TAG` is not matched; the native binaries' assertion
-		// compares against GITHUB_REF_NAME, which catches drift at run time.
-		assert.Equal(t, []string{"  TAG: ${{ github.ref_name }}"},
-			regexp.MustCompile(`(?m)^.*(?:^|[^A-Za-z0-9_$\{])TAG\s*\+?[:=].*$`).FindAllString(chain, -1),
+		// Every line that names TAG other than to expand it, comments aside:
+		// an env key in any YAML style, an assignment, a read, a loop variable
+		// or a GITHUB_ENV line could each shadow the workflow-level value.
+		expansion := regexp.MustCompile(`\$\{TAG[^}]*\}|\$TAG\b|env\.TAG\b`)
+		bare := regexp.MustCompile(`\bTAG\b`)
+		var sets []string
+		for _, line := range strings.Split(chain, "\n") {
+			if !strings.HasPrefix(strings.TrimSpace(line), "#") && bare.MatchString(expansion.ReplaceAllString(line, "")) {
+				sets = append(sets, line)
+			}
+		}
+		assert.Equal(t, []string{"  TAG: ${{ github.ref_name }}"}, sets,
 			"%s must set TAG once, for every job, to the tag that triggered the run", workflow)
+		assert.True(t, strings.Contains(chain, `if [ "$got" != "$GITHUB_REF_NAME" ]`),
+			"%s must check the binaries against the ref that started the run, not against TAG", workflow)
 
 		// Every line naming BUILD_VERSION, so a second env scope, a comment
-		// or a bake --set override cannot leave the pinned line inert.
+		// or a bake --set override cannot leave the pinned line inert; and
+		// that line in the bake step's env, where bake reads it.
 		assert.Equal(t, []string{"          BUILD_VERSION: ${{ github.ref_name }}"},
 			regexp.MustCompile(`(?m)^.*BUILD_VERSION.*$`).FindAllString(image, -1),
 			"%s must stamp the tag that triggered the run, and nothing else", docker)
+		assert.True(t, regexp.MustCompile(`(?m)^        uses: docker/bake-action@.*\n        env:\n(?:          #.*\n)*          BUILD_VERSION: `).MatchString(image),
+			"%s must set BUILD_VERSION in the bake step's env, where bake reads it", docker)
 	})
 
 	// The upgrade ledger records versions the node has to order against
