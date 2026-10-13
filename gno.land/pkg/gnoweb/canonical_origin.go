@@ -31,7 +31,7 @@ func normalizeCanonicalOrigin(origin string) (string, error) {
 		n, err := strconv.Atoi(p)
 		badPort = err != nil || n < 1 || n > 65535
 	}
-	if (scheme != "http" && scheme != "https") || host == "" || strings.HasSuffix(host, ":") || strayColon || badPort ||
+	if (scheme != "http" && scheme != "https") || u.Hostname() == "" || strings.HasSuffix(host, ":") || strayColon || badPort ||
 		!strings.EqualFold((&url.URL{Scheme: u.Scheme, Host: u.Host}).String(), origin) {
 		return "", fmt.Errorf("invalid canonical origin %q: want scheme://host[:port]", origin)
 	}
