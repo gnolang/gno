@@ -1,7 +1,10 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,6 +105,57 @@ func TestSetupWeb_RealmNoticeText(t *testing.T) {
 	opts.noRealmNotice = true
 	_, err = setupWeb(&opts, []string{}, stdio)
 	require.NoError(t, err)
+}
+
+// TestSetupTrust checks that the trusted paths reach the app with the realm
+// notice on or off: they also decide what a page's head may repeat.
+func TestSetupTrust(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "")
+
+	for _, noNotice := range []bool{false, true} {
+		t.Run(fmt.Sprintf("no-realm-notice=%v", noNotice), func(t *testing.T) {
+			cfg := defaultWebOptions
+			cfg.noRealmNotice = noNotice
+			appcfg := gnoweb.NewDefaultAppConfig()
+
+			require.NoError(t, setupTrust(&cfg, appcfg, slog.New(slog.DiscardHandler)))
+			assert.Equal(t, strings.Split(gnoweb.DefaultTrustedPaths, ","), appcfg.TrustedPaths)
+			assert.Equal(t, !noNotice, appcfg.RealmNotice.Enabled())
+		})
+	}
+}
+
+// TestIndexCommunityFlag checks the flag reaches the config; the values
+// themselves are TestCommunityIndexText's.
+func TestIndexCommunityFlag(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultWebOptions
+	fs := flag.NewFlagSet("gnoweb", flag.ContinueOnError)
+	cfg.RegisterFlags(fs)
+	require.NoError(t, fs.Parse([]string{"-index-community=none"}))
+	assert.Equal(t, gnoweb.IndexNoCommunity, cfg.indexCommunity)
+}
+
+// TestNoIndexFlag checks -no-index reaches the app: a testnet that loses it
+// silently stays in search. The startup log reports the policy in effect.
+func TestNoIndexFlag(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "")
+
+	for _, args := range [][]string{nil, {"-no-index"}} {
+		cfg := defaultWebOptions
+		fs := flag.NewFlagSet("gnoweb", flag.ContinueOnError)
+		cfg.RegisterFlags(fs)
+		require.NoError(t, fs.Parse(args))
+		cfg.bind = "127.0.0.1:0"
+
+		var out strings.Builder
+		stdio := commands.NewDefaultIO()
+		stdio.SetOut(commands.WriteNopCloser(&out))
+		_, err := setupWeb(&cfg, nil, stdio)
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), fmt.Sprintf(`"noindex": %v`, args != nil), args)
+	}
 }
 
 // Dummy handler to simulate the processing chain.

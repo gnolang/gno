@@ -47,10 +47,11 @@ type HeadData struct {
 	Title       string
 	Description string
 	Canonical   string
-	// NoIndex keeps an error shell out of a search index: the head is built
-	// before the body knows the page is missing.
-	NoIndex           bool
+	// Robots is the content of the robots meta, as the handler decided it.
+	Robots            string
+	SiteName          string
 	Image             string
+	ImageAlt          string
 	URL               string
 	ChromaPath        string
 	AssetsPath        string

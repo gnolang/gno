@@ -74,6 +74,8 @@ type RealmRenderContext struct {
 	ChainId string
 	Remote  string
 	Domain  string
+	// Links says which links of the document search engines may follow.
+	Links md.LinkPolicy
 }
 
 // HTMLRenderer implements the Renderer interface for HTML output.
@@ -103,6 +105,7 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 			markdown.NewHighlighting(markdown.WithFormatOptions(cfg.ChromaOptions...)),
 			md.ExtCodeExpand(docFormatter, cfg.ChromaStyle),
 			md.ExtEmphasis, // bound emphasis-parsing cost (yuin/goldmark#555)
+			md.ExtDocLinks,
 		),
 		goldmark.WithParserOptions(parser.WithAttribute()),
 	}
@@ -118,7 +121,7 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 }
 
 // RenderRealm renders a realm to HTML and returns what the document says
-// about itself: its table of contents and its summary.
+// about itself: its table of contents, its heading and its summary.
 func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx RealmRenderContext) (md.RealmMeta, error) {
 	if handled, err := writeMarkdownPlainText(w, src); handled {
 		return md.RealmMeta{}, err
@@ -129,6 +132,7 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	mdctx.ChainId = ctx.ChainId
 	mdctx.Remote = ctx.Remote
 	mdctx.Domain = ctx.Domain
+	mdctx.Links = ctx.Links
 
 	pctx := md.NewGnoParserContext(mdctx)
 
@@ -143,7 +147,9 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 		r.logger.Warn("unable to inspect for TOC elements", "error", err)
 	}
 
-	return md.RealmMeta{Toc: toc, Description: md.Description(doc, src)}, nil
+	meta := md.RealmMeta{Toc: toc}
+	meta.Title, meta.Description = md.Lead(doc, src)
+	return meta, nil
 }
 
 // RenderSource renders a source file into HTML with syntax highlighting based on its extension.

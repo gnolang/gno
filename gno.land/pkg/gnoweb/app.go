@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 	"time"
@@ -29,6 +30,13 @@ var DefaultAliases = map[string]AliasTarget{
 	"/partners":   {Value: "/r/gnoland/pages:p/partners", Kind: GnowebPath},
 	"/docs":       {Value: "/u/docs", Kind: GnowebPath},
 }
+
+// DefaultTrustedPaths are the namespaces gno.land treats as official, comma
+// separated as -trusted-paths takes them: namespaces whose code the gno.land
+// team reviews or whose deploy key belongs to a party it vouches for (see
+// the realm notice ADR). Trust in a namespace holds only on a chain that
+// enforces who may deploy under it, as r/sys/names does once enabled.
+const DefaultTrustedPaths = "gnoland,sys,gov,nt,docs,demo,tests,gnops,devrels,moul,aeddi,aib,howl,leon,jeronimoalbi,mason,samcrew,onbloc,gnoswap"
 
 // AppConfig contains configuration for gnoweb.
 type AppConfig struct {
@@ -63,8 +71,9 @@ type AppConfig struct {
 	// the visitor did not reach tells a crawler the content belongs elsewhere,
 	// and every deployment but one would be claiming gno.land's.
 	CanonicalOrigin string
-	// NoIndex keeps this deployment out of search engines (testnets, staging).
-	// Off by default, so a forgotten flag never drops a site from search.
+	// NoIndex keeps this deployment out of search engines (testnets, staging):
+	// every page is noindex, nofollow with no canonical, and no sitemap is
+	// served. Off by default, so a forgotten flag never drops a site from search.
 	NoIndex bool
 	// Banner, if set, displays a site-wide banner above the header.
 	Banner components.BannerData
@@ -72,8 +81,14 @@ type AppConfig struct {
 	// packages outside TrustedPaths.
 	RealmNotice components.RealmNotice
 	// TrustedPaths are namespaces or package paths ("gnoland", "gnoswap/v1/pool";
-	// no "/r/" or "/p/" prefix) whose pages never show RealmNotice.
+	// no "/r/" or "/p/" prefix), or "*" for every path, whose pages are official: they never show
+	// RealmNotice, may lend their own heading and summary to the page
+	// metadata, keep their internal links followed, and are indexed whatever
+	// IndexCommunity says.
 	TrustedPaths []string
+	// IndexCommunity says which pages outside TrustedPaths search engines may
+	// index; the others get noindex, nofollow and no canonical.
+	IndexCommunity CommunityIndex
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -111,6 +126,8 @@ func NewDefaultAppConfig() *AppConfig {
 		RenderConfig:            NewDefaultRenderConfig(),
 		StateRateLimitPerMinute: 100,
 		MaxConcurrentRPC:        32,
+		TrustedPaths:            strings.Split(DefaultTrustedPaths, ","),
+		IndexCommunity:          IndexRegisteredCommunity,
 	}
 }
 
@@ -152,7 +169,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	staticMeta := StaticMetadata{
 		Domain:            cfg.Domain,
 		CanonicalOrigin:   canonicalOrigin,
-		NoIndex:           cfg.NoIndex,
 		AssetsPath:        assetsBase,
 		ChromaPath:        chromaStylePath,
 		RemoteHelp:        cfg.RemoteHelp,
@@ -162,11 +178,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		AssetsVersion:     AssetsVersion(),
 		Banner:            cfg.Banner,
 		RealmNotice:       cfg.RealmNotice,
-	}
-	// Google may carry a noindex over to the canonical target, so a noindex
-	// deployment names none, even with mainnet's -canonical-origin.
-	if cfg.NoIndex {
-		staticMeta.CanonicalOrigin = ""
 	}
 
 	// Configure Markdown renderer
@@ -188,6 +199,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		Renderer:                     renderer,
 		Aliases:                      cfg.Aliases,
 		TrustedPaths:                 cfg.TrustedPaths,
+		IndexCommunity:               cfg.IndexCommunity,
+		NoIndex:                      cfg.NoIndex,
 		Timeout:                      cfg.NodeRequestTimeout,
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
@@ -246,13 +259,24 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
 
-	// The sitemap needs an origin for absolute URLs and is never served under -no-index.
-	sitemapOrigin := canonicalOrigin
-	if cfg.NoIndex {
-		sitemapOrigin = ""
+	// The sitemap needs an origin for absolute URLs and is never served under
+	// -no-index; robots.txt names it only when it is.
+	sitemapOrigin, sitemap := "", http.NotFoundHandler()
+	if canonicalOrigin != "" && !cfg.NoIndex {
+		// A route registered on mux shadows an alias of the same path, and
+		// mux redirects a path it would clean, such as /a/../b.
+		servedByHandler := func(p string) bool {
+			_, pattern := mux.Handler(&http.Request{Method: http.MethodGet, URL: &url.URL{Path: p}})
+			clean := path.Clean(p)
+			if strings.HasSuffix(p, "/") && clean != "/" {
+				clean += "/"
+			}
+			return pattern == "/" && clean == p
+		}
+		sitemapOrigin, sitemap = canonicalOrigin, handlerSitemapXML(httphandler, servedByHandler)
 	}
 	mux.Handle("/robots.txt", handlerRobotsTXT(cfg.NoIndex, sitemapOrigin))
-	mux.Handle("/sitemap.xml", handlerSitemapXML(logger, sitemapOrigin, cfg.Aliases, adpcli))
+	mux.Handle("/sitemap.xml", sitemap)
 	if cfg.NoIndex {
 		return noIndexMiddleware(mux), nil
 	}

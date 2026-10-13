@@ -53,6 +53,12 @@ func TestNewStaticAlias(t *testing.T) {
 			body:        "Body.\n",
 		},
 		{
+			name:    "an overlong title is capped like a derived one",
+			content: "---\ntitle: " + strings.Repeat("word ", 50) + "\n---\nBody.\n",
+			title:   strings.TrimSpace(strings.Repeat("word ", 12)) + "…",
+			body:    "Body.\n",
+		},
+		{
 			// A page may open on a rule and draw another further down; the
 			// prose between them is content, not a header to strip.
 			name:    "prose between two thematic breaks is not front matter",
@@ -78,6 +84,34 @@ func TestNewStaticAlias(t *testing.T) {
 			body:    "---\n\nSee https://gno.land for more.\n\n---\n\nMore.\n",
 		},
 		{
+			name:    "a line opening on a URL between two thematic breaks is not front matter",
+			content: "---\n\nhttps://gno.land/r/gnoland/blog\n\n---\n\nMore.\n",
+			body:    "---\n\nhttps://gno.land/r/gnoland/blog\n\n---\n\nMore.\n",
+		},
+		{
+			name:    "a line opening on a mailto link between two thematic breaks is not front matter",
+			content: "---\n\nmailto:hello@gno.land\n\n---\n\nMore.\n",
+			body:    "---\n\nmailto:hello@gno.land\n\n---\n\nMore.\n",
+		},
+		{
+			name:    "a key padded before its colon still sets its field",
+			content: "---\ntitle : About\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a key with an empty value ends the line on its colon",
+			content: "---\ntitle: About\ndescription:\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a key followed by a tab is a key",
+			content: "---\ntitle:\tAbout\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
 			name:    "a heading between two thematic breaks is not front matter",
 			content: "---\n\n## Section\n\n    indented code\n\n---\n\nMore.\n",
 			body:    "---\n\n## Section\n\n    indented code\n\n---\n\nMore.\n",
@@ -92,6 +126,71 @@ func TestNewStaticAlias(t *testing.T) {
 			name:    "a title is not taken from a block that is not front matter",
 			content: "---\ntitle: About\nIntro.\n---\nBody.\n",
 			body:    "---\ntitle: About\nIntro.\n---\nBody.\n",
+		},
+		{
+			name:        "a folded description joins its lines with spaces",
+			content:     "---\ntitle: About\ndescription: >\n  What gno.land is\n  and why it exists.\n---\nBody.\n",
+			title:       "About",
+			description: "What gno.land is and why it exists.",
+			body:        "Body.\n",
+		},
+		{
+			name:        "a folded description with a chomping indicator",
+			content:     "---\ndescription: >-\n  What gno.land is\n\n  and why it exists.\ntitle: About\n---\nBody.\n",
+			title:       "About",
+			description: "What gno.land is and why it exists.",
+			body:        "Body.\n",
+		},
+		{
+			// A head is one line, so a literal block's newlines fold too.
+			name:        "a literal description is put on one line",
+			content:     "---\ndescription: |\n  What gno.land is.\n  Why it exists.\n---\nBody.\n",
+			description: "What gno.land is. Why it exists.",
+			body:        "Body.\n",
+		},
+		{
+			name:        "a wrapped plain description keeps every line",
+			content:     "---\ndescription: What gno.land is\n  and why it exists.\ntitle: About\n---\nBody.\n",
+			title:       "About",
+			description: "What gno.land is and why it exists.",
+			body:        "Body.\n",
+		},
+		{
+			name:    "a wrapped quoted title loses its quotes",
+			content: "---\ntitle: \"Gno: a\n  language\"\n---\nBody.\n",
+			title:   "Gno: a language",
+			body:    "Body.\n",
+		},
+		{
+			name:        "front matter with CRLF line endings is lifted off the page",
+			content:     "---\r\ntitle: About\r\ndescription: What gno.land is.\r\n---\r\n\r\n# About\r\n",
+			title:       "About",
+			description: "What gno.land is.",
+			body:        "# About\n",
+		},
+		{
+			name:    "front matter after a byte order mark is lifted off the page",
+			content: "\uFEFF---\ntitle: About\n---\nBody.\n",
+			title:   "About",
+			body:    "Body.\n",
+		},
+		{
+			name:    "quotes inside a plain title are kept",
+			content: "---\ntitle: Learn \"Gno\"\n---\nBody.\n",
+			title:   "Learn \"Gno\"",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a quoted title loses only its wrapping pair",
+			content: "---\ntitle: \"Learn \"Gno\"\"\n---\nBody.\n",
+			title:   "Learn \"Gno\"",
+			body:    "Body.\n",
+		},
+		{
+			name:    "a title that only ends on a quote keeps it",
+			content: "---\ntitle: 5' tall\n---\nBody.\n",
+			title:   "5' tall",
+			body:    "Body.\n",
 		},
 		{
 			name:    "a thematic break is not front matter",

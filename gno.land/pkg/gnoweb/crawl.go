@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
-	"fmt"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"slices"
@@ -18,29 +16,42 @@ import (
 // crawling, or crawlers never see it.
 func noIndexMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+		w.Header().Set("X-Robots-Tag", noIndexNoFollow.String())
 		next.ServeHTTP(w, r)
 	})
 }
 
+// robotsDisallow keeps crawlers off the routes that query the node and are
+// not pages, on every deployment. A page must never be listed: blocking it
+// hides its noindex, and a URL already indexed then stays listed.
+const robotsDisallow = "User-agent: *\nDisallow: /search.json\nDisallow: /status.json\nDisallow: /ready\n"
+
+// crawlCacheControl lets a proxy hold robots.txt and the sitemap for an hour.
+const crawlCacheControl = "public, max-age=3600"
+
 // handlerRobotsTXT serves robots.txt; sitemapOrigin is empty without a sitemap.
-func handlerRobotsTXT(noindex bool, sitemapOrigin string) http.Handler {
-	body := "User-agent: *\nDisallow: /search.json\nDisallow: /status.json\n"
-	switch {
-	case noindex:
-		body = "# Not indexed: every response carries X-Robots-Tag: noindex.\nUser-agent: *\nAllow: /\n"
-	case sitemapOrigin != "":
+func handlerRobotsTXT(noIndex bool, sitemapOrigin string) http.Handler {
+	body := robotsDisallow
+	if noIndex {
+		body = "# Not indexed: every response carries X-Robots-Tag: noindex, nofollow.\n" + body
+	}
+	if sitemapOrigin != "" {
 		body += "\nSitemap: " + sitemapOrigin + "/sitemap.xml\n"
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			methodNotAllowed(w)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", crawlCacheControl)
 		_, _ = w.Write([]byte(body))
 	})
+}
+
+func methodNotAllowed(w http.ResponseWriter) {
+	w.Header().Set("Allow", "GET, HEAD")
+	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 }
 
 type sitemapURL struct {
@@ -52,86 +63,119 @@ type sitemapURLSet struct {
 	URLs    []sitemapURL `xml:"url"`
 }
 
-// fileLister is the subset of ClientAdapter the sitemap depends on.
-type fileLister interface {
-	ListFiles(ctx context.Context, path string, height int64) ([]string, error)
-}
-
 // handlerSitemapXML lists the alias pages only: most realms are demos or near
-// empty, and crawlers reach the rest through links.
-func handlerSitemapXML(logger *slog.Logger, origin string, aliases map[string]AliasTarget, client fileLister) http.Handler {
+// empty, and crawlers reach the rest through links. served reports whether h
+// answers a path, since a route of the router's own shadows an alias. The
+// router mounts it only with a canonical origin and without -no-index.
+func handlerSitemapXML(h *HTTPHandler, served func(path string) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if origin == "" {
-			http.NotFound(w, r)
-			return
-		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			methodNotAllowed(w)
 			return
 		}
-
-		paths, err := sitemapAliases(r.Context(), aliases, client)
-		if err != nil {
-			logger.Error("sitemap: unable to check alias realms", "error", err)
-			http.Error(w, "sitemap unavailable", http.StatusBadGateway)
-			return
-		}
-
-		var set sitemapURLSet
-		for _, p := range paths {
-			set.URLs = append(set.URLs, sitemapURL{Loc: origin + (&url.URL{Path: p}).EscapedPath()})
-		}
-
 		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		if r.Method == http.MethodHead {
+			return // the headers alone are not worth a node query
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), h.requestTimeout())
+		defer cancel()
+		locs, complete := h.sitemapLocs(ctx, served)
+		// A list cut short by a node failure must not be held for an hour.
+		if complete {
+			w.Header().Set("Cache-Control", crawlCacheControl)
+		} else {
+			w.Header().Set("Cache-Control", "no-store")
+		}
+		var set sitemapURLSet
+		for _, loc := range locs {
+			set.URLs = append(set.URLs, sitemapURL{Loc: loc})
+		}
 		_, _ = w.Write([]byte(xml.Header))
 		if err := xml.NewEncoder(w).Encode(set); err != nil {
-			logger.Error("sitemap: unable to encode", "error", err)
+			h.Logger.Error("sitemap: unable to encode", "error", err)
 		}
 	})
 }
 
-// sitemapAliases returns the sorted aliases to list: static pages, and path
-// aliases whose realm exists on this chain, so no 404 is published. Each
-// target realm is checked with its own query: the full listing is capped at
-// 1000 entries, and r/gnoland/* sorts after every r/g1... user realm. vm/qfile
-// is used over vm/qpkgmeta_json because every node version answers it.
-func sitemapAliases(ctx context.Context, aliases map[string]AliasTarget, client fileLister) ([]string, error) {
-	var paths []string
-	byRealm := map[string][]string{}
-	for alias, target := range aliases {
-		// A key gnoweb redirects or rewrites is not the URL of the page served.
-		if _, redirected := Redirects[alias]; redirected || !isCleanWebPath(alias) {
+// sitemapLocs returns the sorted canonical URLs of the alias pages the robots
+// policy indexes and that name themselves as canonical, and whether every
+// target could be checked. A realm alias is listed only if its target has
+// something to show; a page a realm renders as missing still is.
+// Classification and naming follow Get: keep them in step.
+func (h *HTTPHandler) sitemapLocs(ctx context.Context, served func(string) bool) ([]string, bool) {
+	var locs, failed []string
+	exists := map[string]bool{} // by target path: aliases share realms
+	for key, target := range h.Aliases {
+		if _, redirected := Redirects[key]; redirected || !strings.HasPrefix(key, "/") || !served(key) {
 			continue
 		}
-		switch target.Kind {
-		case StaticMarkdown:
-			paths = append(paths, alias)
-		case GnowebPath:
-			realm, _, _ := strings.Cut(target.Value, ":")
-			realm, _, _ = strings.Cut(realm, "$")
-			if strings.HasPrefix(realm, "/r/") {
-				byRealm[realm] = append(byRealm[realm], alias)
+		// As in Get: a key gnoweb cannot parse is a 404; a static page is
+		// classified and named by its key, a realm alias classified by its
+		// target and named by its key.
+		named, err := weburl.ParseFromURL(&url.URL{Path: key})
+		if err != nil {
+			continue
+		}
+		page := named
+		if target.Kind == StaticMarkdown {
+			page = &weburl.GnoURL{Path: key, WebQuery: named.WebQuery}
+			named = page
+		} else if page, err = weburl.ParseFromURL(&url.URL{Path: target.Value}); err != nil {
+			continue
+		}
+		// Only a page whose canonical is its own URL is listed: a realm alias
+		// keyed /x.md names //x.md.
+		loc := h.canonicalURL(named)
+		if loc != h.Static.CanonicalOrigin+(&url.URL{Path: key}).EscapedPath() ||
+			h.policy.robots(h.policy.kind(page), page) != indexFollow {
+			continue
+		}
+		if target.Kind == GnowebPath {
+			ok, checked := exists[page.Path]
+			if !checked {
+				ok, err = h.sitemapTargetExists(ctx, page)
+				if err != nil {
+					failed = append(failed, page.Path)
+				}
+				exists[page.Path] = ok
+			}
+			if !ok {
+				continue
 			}
 		}
+		locs = append(locs, loc)
 	}
-
-	for realm, realmAliases := range byRealm {
-		_, err := client.ListFiles(ctx, realm, 0)
-		switch {
-		case err == nil:
-			paths = append(paths, realmAliases...)
-		// A target with a file-like last segment is a bad alias, not an outage.
-		case !errors.Is(err, ErrClientPackageNotFound) && !errors.Is(err, ErrClientFileNotFound):
-			return nil, fmt.Errorf("%s: %w", realm, err)
-		}
+	if len(failed) > 0 {
+		// The client logs each failed query; one line here says what the
+		// sitemap left out.
+		h.Logger.Warn("sitemap: unable to check alias targets", "targets", failed)
 	}
-	slices.Sort(paths)
-	return paths, nil
+	slices.Sort(locs)
+	return locs, len(failed) == 0
 }
 
-// isCleanWebPath reports whether gnoweb parses p and encodes it back unchanged.
-func isCleanWebPath(p string) bool {
-	u, err := weburl.ParseFromURL(&url.URL{Path: p})
-	return err == nil && u.EncodeWebURL() == p
+// sitemapTargetExists reports whether a realm alias's target has something to
+// show: its package exists, or for a user page, its namespace holds one (the
+// page also lists the address half of a registered name; a name whose
+// packages all sit there is left out). Each is one query: the full listing is
+// capped at 1000 entries, and r/gnoland/* sorts after every r/g1... user
+// realm. A missing target is no error.
+func (h *HTTPHandler) sitemapTargetExists(ctx context.Context, u *weburl.GnoURL) (bool, error) {
+	switch _, isPackage := packagePath(u); {
+	case !isPackage:
+		// A listing such as /r/, or another alias, is left out.
+		return false, nil
+	case u.IsUser():
+		paths, err := h.Client.ListPaths(ctx, "@"+u.Username(), 1)
+		// An empty listing is a single blank line.
+		return slices.ContainsFunc(paths, func(p string) bool { return p != "" }), err
+	default:
+		_, err := h.Client.ListFiles(ctx, u.Path, 0)
+		// A target with a file-like last segment is a bad alias, not an outage.
+		if errors.Is(err, ErrClientPackageNotFound) || errors.Is(err, ErrClientFileNotFound) {
+			return false, nil
+		}
+		return err == nil, err
+	}
 }
