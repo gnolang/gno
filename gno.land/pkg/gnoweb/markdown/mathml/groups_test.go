@@ -1,7 +1,6 @@
 package mathml
 
 import (
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -73,7 +72,9 @@ func TestPlainBracketsMayStraddleGroups(t *testing.T) {
 
 // Each \left( or \begin closing outside its {group} used to double the
 // parse work: a few hundred bytes cost seconds and gigabytes. Rejected now,
-// the cost is linear in the input.
+// the cost is linear in the input. Allocations are counted rather than time:
+// they measure the work without a shared runner's noise, and the old code
+// made thousands of times more of them at 4x the input.
 func TestCrossingGroupCostIsLinear(t *testing.T) {
 	nested := func(opener, closer string, k int) string {
 		return strings.Repeat(opener, k) + "x" + strings.Repeat(closer, k)
@@ -83,23 +84,14 @@ func TestCrossingGroupCostIsLinear(t *testing.T) {
 		{`{\begin{matrix}`, `}\end{matrix}`},
 		{`\left({`, `\right)}`},
 	} {
-		best := func(tex string) time.Duration {
-			d := time.Duration(1<<63 - 1)
-			for range 3 {
-				runtime.GC()
-				start := time.Now()
-				convertErrWithin(t, tex)
-				d = min(d, time.Since(start))
-			}
-			return d
+		allocs := func(tex string) float64 {
+			return testing.AllocsPerRun(3, func() { convertErrWithin(t, tex) })
 		}
-		// Large enough for the timings to dominate timer and CI noise: at 256
-		// levels a run takes a fraction of a millisecond.
 		small, large := nested(unit[0], unit[1], 1024), nested(unit[0], unit[1], 4096)
 		_, err := convertErrWithin(t, large)
 		assert.Error(t, err, unit[0])
-		ratio := float64(best(large)) / float64(best(small))
-		assert.Less(t, ratio, 16.0, "%q: 4x the input took %.1fx the time", unit[0], ratio)
+		ratio := allocs(large) / allocs(small)
+		assert.Less(t, ratio, 8.0, "%q: 4x the input made %.1fx the allocations", unit[0], ratio)
 	}
 }
 
