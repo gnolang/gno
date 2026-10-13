@@ -1049,6 +1049,9 @@ func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 		if status != embedLookupFound {
 			return fmt.Errorf("missing method %s", mname)
 		}
+		if lt := trail[len(trail)-1].Type; lt == VPField || lt == VPDerefField {
+			return fmt.Errorf("%v.%s is a field, not a method", ot, mname)
+		}
 		// Seal enforcement: a dot-named marker method (e.g. `.seal` on the
 		// uverse `realm` interface) is undeclarable in user source — the
 		// parser rejects identifiers beginning with `.` — so the only types
@@ -2637,6 +2640,9 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 	if !hasEmbed {
 		names := make(map[Name]bool, len(fts))
 		for _, ft := range fts {
+			if ft.Name == "" {
+				assertEmbeddableInterface(ft.Type)
+			}
 			if ft.Name == "_" {
 				panic("methods must have a unique non-blank name")
 			}
@@ -2686,9 +2692,24 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 			}
 			continue
 		}
+		if fts[i].Name == "" {
+			assertEmbeddableInterface(fts[i].Type)
+		}
 		add(fts[i].Name, fts[i].Type, pkgPath)
 	}
 	return out
+}
+
+// assertEmbeddableInterface rejects a non-interface type embedded in an
+// interface. A declared type whose base is not yet set is let through:
+// it is being defined and is checked once complete.
+func assertEmbeddableInterface(t Type) {
+	if dt, ok := t.(*DeclaredType); ok && dt.Base == nil {
+		return
+	}
+	if embeddedInterface(t) == nil {
+		panic(fmt.Sprintf("interface contains embedded non-interface %v", t))
+	}
 }
 
 // isImplementedBy reports whether ot satisfies interface type it, charging the

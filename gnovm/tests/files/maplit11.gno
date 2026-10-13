@@ -9,7 +9,7 @@ func main() {
 }
 
 // Error:
-// main/maplit11.gno:8:6-32: invalid map key type main.S
+// main/maplit11.gno:8:10-11: invalid map key type main.S
 
 // TypeCheckError:
 // main/maplit11.gno:8:10: invalid map key type S
