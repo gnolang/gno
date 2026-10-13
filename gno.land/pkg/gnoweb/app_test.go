@@ -399,3 +399,13 @@ func TestHealthEndpoints(t *testing.T) {
 		})
 	})
 }
+
+// TestNewDefaultAppConfigCopiesAliases checks a config's aliases are its own:
+// adding one must not reach DefaultAliases, which other configs read.
+func TestNewDefaultAppConfigCopiesAliases(t *testing.T) {
+	t.Parallel()
+
+	cfg := NewDefaultAppConfig()
+	cfg.Aliases["/only-mine"] = AliasTarget{Value: "# Mine", Kind: StaticMarkdown}
+	assert.NotContains(t, DefaultAliases, "/only-mine")
+}
