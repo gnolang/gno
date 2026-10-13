@@ -1,9 +1,5 @@
-# The upgrade ledgers record, for every version a network has run, the digest
-# its gnoland image tag resolved to, the image it actually ran when that
-# differs (ran_as), and the sha256 of every release binary. A re-pushed tag, a
-# replaced release asset or a registry clean-up changes those silently. This
-# checks each recorded value against the registry and the release, reports
-# every difference, and fails at the end. Read-only, public data.
+# Checks every value the upgrade ledgers record against the registry and the
+# releases (RELEASING.md, "Signing and provenance"). Read-only, public data.
 name: ci / upgrades-ledger-digests
 
 on:
@@ -32,46 +28,36 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s nullglob
-          ledgers=(misc/deployments/*/upgrades.json)
-          [ "${#ledgers[@]}" -gt 0 ] || { echo "::error::no ledger matches misc/deployments/*/upgrades.json"; exit 1; }
           status=0
           checked=0
           fail() { echo "::error::$*"; status=1; }
-          for ledger in "${ledgers[@]}"; do
+          for ledger in misc/deployments/*/upgrades.json; do
             echo "== ${ledger}"
-            # One line per recorded value: what it is, then what to check.
+            # One line per recorded value: what it is, the reference to look
+            # up, the value it must have. ran_as is checked by its own digest:
+            # untagged or on a mutable sha- tag, it is what a registry
+            # clean-up takes, and the ledger is the only record of what ran.
             # Read in full first: a jq error inside a process substitution
             # would be swallowed and the ledger skipped as if it were empty.
             values="$(jq -r '
               .upgrades[]
               | (select(.image.digest != null) | "image \(.image.ref) \(.image.digest)"),
-                (select(.ran_as != null) | "ran_as \(.image.ref) \(.ran_as)"),
+                (select(.ran_as != null) | "ran_as \(.image.ref | sub(":[^:]*$"; ""))@\(.ran_as) \(.ran_as)"),
                 (.binaries | to_entries[] | "binary \(.value)")
             ' "${ledger}" 2>&1)" || { fail "${ledger}: cannot read the ledger: ${values}"; continue; }
             while read -r kind a b; do
               [ -n "${kind}" ] || continue
               checked=$((checked + 1))
               case "${kind}" in
-              image)
-                if ! out="$(docker buildx imagetools inspect "${a}" --format '{{json .Manifest}}' 2>&1)"; then
-                  fail "${ledger}: cannot resolve ${a}: ${out}"
+              image | ran_as)
+                if ! actual="$(docker buildx imagetools inspect "${a}" --format '{{.Manifest.Digest}}' 2>&1)"; then
+                  fail "${ledger}: cannot resolve ${a}: ${actual}"
                   continue
                 fi
-                actual="$(jq -r .digest <<<"${out}")"
                 if [ "${actual}" = "${b}" ]; then
-                  echo "   ok  image   ${a} ${b}"
+                  printf '   ok  %-7s %s\n' "${kind}" "${a}"
                 else
                   fail "${ledger}: ${a} is recorded as ${b} but the registry serves ${actual}"
-                fi
-                ;;
-              ran_as)
-                # Untagged or on a mutable sha- tag, so a registry clean-up
-                # can take it: the ledger is the only record of what ran.
-                ref="${a%:*}@${b}"
-                if out="$(docker buildx imagetools inspect "${ref}" --format '{{json .Manifest}}' 2>&1)"; then
-                  echo "   ok  ran_as  ${ref}"
-                else
-                  fail "${ledger}: ran_as ${ref} no longer resolves: ${out}"
                 fi
                 ;;
               binary)
@@ -89,7 +75,7 @@ jobs:
                   continue
                 fi
                 if [ "${actual}" = "${want}" ]; then
-                  echo "   ok  binary  ${tag}/${asset}"
+                  printf '   ok  %-7s %s\n' "${kind}" "${tag}/${asset}"
                 else
                   fail "${ledger}: ${tag}/${asset} is recorded as ${want} but the release serves ${actual:-nothing}"
                 fi
@@ -97,5 +83,5 @@ jobs:
               esac
             done <<<"${values}"
           done
-          [ "${checked}" -gt 0 ] || { echo "::error::nothing in the ledgers was checked"; exit 1; }
+          [ "${checked}" -gt 0 ] || { echo "::error::nothing in the ledgers was checked (none under misc/deployments/*/upgrades.json, or all empty)"; exit 1; }
           exit "${status}"
