@@ -248,10 +248,10 @@ check_ledger_entry() {
 		# go run appends its own "exit status N"; the tool's message says it all.
 		out="$(printf '%s\n' "${out}" | sed -e '/^exit status [0-9]*$/d' -e 's/^/       /')"
 		if [[ ${VERSION} != *-* ]]; then
-			die "could not check misc/deployments/${CHAIN}.gno.land/upgrades.json:
+			die "could not check the ledger in misc/deployments/${CHAIN}.gno.land:
 ${out}"
 		fi
-		warn "could not check misc/deployments/${CHAIN}.gno.land/upgrades.json:"
+		warn "could not check the ledger in misc/deployments/${CHAIN}.gno.land:"
 		printf '%s\n' "${out}" >&2
 		# The entry lookup below would trip on the same problem and add a
 		# misleading "no entry" warning.
