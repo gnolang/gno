@@ -360,7 +360,7 @@ The switch keeps two of them:
 
 A single dial loop drains both queues, one dial at a time. A persistent peer whose dial is due goes first, except that when both heads are due and the last dial was a persistent one, the discovered peer goes next. The persistent head therefore waits behind at most one discovered dial, and discovered dials are never starved by persistent peers that keep timing out. When nothing is due, the loop waits for whichever item is due first. An item whose peer connected in the meantime is dropped.
 
-The alternation bounds the wait of the persistent head only. A persistent peer that just dropped queues, by due time, behind the dials already due for dead persistent peers, and while discovered dials are due, one discovered dial runs after each of those, so its wait roughly doubles (up to 9 seconds per discovered slot if remotes hang the handshake). In a simulation with 12 dead persistent peers that time out and peer exchange feeding discovered dials, a dropped live persistent peer was redialed after 50s on average and 73s at worst, against 11s and 35s with strict priority; with 4 dead peers, 8s and 17s against 5s and 8s; with peer exchange off, unchanged. The trade is accepted because strict priority let dead persistent peers shut off the seeds and discovered dials indefinitely (zero outbound peers), and the remaining cost is that of serial dials, which only concurrent persistent dials would remove (one dialing goroutine per persistent peer).
+The alternation bounds the wait of the persistent head only. A persistent peer that just dropped queues, by due time, behind the dials already due for dead persistent peers, and while discovered dials are due, at most one discovered dial runs before each of those persistent dials, its own included. Its wait therefore roughly doubles while the loop keeps up with the dials falling due (up to 9 seconds per discovered slot if remotes hang the handshake), and grows with the backlog once it does not. In a simulation where a live persistent peer drops every 97 seconds while dead persistent peers time out: with 12 dead peers and peer exchange feeding discovered dials, its dial was served about 47s after the drop on average and up to 73s, against about 8s and up to 32s with strict priority; with 4 dead peers, 5s and up to 14s against 2s and up to 7s; with peer exchange off, the same either way: about 8s and up to 32s with 12 dead peers, at once with none. The trade is accepted because strict priority let dead persistent peers shut off the seeds and discovered dials indefinitely (zero outbound peers), and the remaining cost is that of serial dials, which only concurrent persistent dials would remove (one dialing goroutine per persistent peer).
 
 ```go
 package p2p
@@ -386,8 +386,12 @@ func (sw *MultiplexSwitch) runDialLoop(ctx context.Context) {
 		continue
 	}
 
-	// Pop the item from its dial queue
-	item = queue.Pop()
+	// Pop the head of its dial queue, if it is still due
+	item = queue.PopDue(time.Now())
+	if item == nil {
+		continue
+	}
+
 	servedPersistent = queue == sw.persistentDialQueue
 
 	// ...
@@ -412,46 +416,66 @@ These peer connections are special: they bypass the maximum outbound peer limit,
 
 A good candidate for a persistent peer is a bootnode, that bootstraps and facilitates peer discovery for the network.
 
-The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. Every few seconds, it queues a dial for each persistent peer that is neither connected nor already queued, into the persistent dial queue. The first dial after a disconnect is queued on the next tick, due at once, unless a backoff dial still queued from before the last connection is used instead; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. A reconnect clears the backoff, so a peer that connects and drops at once is redialed at most once per tick. Each persistent peer has one configured address: when the same peer ID is listed more than once, only the last address is dialed, and the node logs a warning for each ignored entry whose address differs from the dialed one.
+The redial service is the only one to dial persistent peers, and always on the address configured in `p2p.persistent_peers`: not on the address of a connection that just dropped, nor on another address peer discovery learned for the same peer. When a persistent peer drops, the redial service queues its dial into the persistent dial queue at once; every few seconds it also queues a dial for each persistent peer that is neither connected nor already queued, which covers startup and failed dials. The first dial is due at once; every later one waits for a backoff that doubles with each attempt, capped at 30 seconds, with a jitter of 10%. The backoff is reset only when a connection lasted at least 30 seconds, so a peer that keeps connecting and dropping backs off up to the cap, while a peer that drops after a stable connection has its dial queued due at once. The dial service then serves it in turn: behind the persistent dials already due and, while discovered dials are due, after at most one discovered dial before each persistent dial, its own included (see the alternation above). When a persistent peer connects, any dial still queued for it is removed, so it cannot delay a later redial; a connect handled after the peer already dropped is ignored. Each persistent peer has one configured address: when the same peer ID is listed more than once, only the last address is dialed, and the node logs a warning for each ignored entry whose address differs from the dialed one.
 
 An entry of `p2p.persistent_peers` whose hostname does not resolve when the node starts is kept, not rejected: the node logs a warning at start, and the hostname is resolved when the entry is dialed, so the redial loop retries it with its backoff until the name resolves.
 
 ```go
 package p2p
 
-func (sw *MultiplexSwitch) queueMissingPersistentPeers(attempts map[types.ID]uint, now time.Time) {
-	peers := sw.Peers()
+func (sw *MultiplexSwitch) persistentPeerDisconnected(
+	id types.ID,
+	attempts map[types.ID]uint,
+	connectedAt map[types.ID]time.Time,
+	now time.Time,
+) {
+	since, connected := connectedAt[id]
+	delete(connectedAt, id)
 
-	sw.persistentPeers.Range(func(key, value any) bool {
-		// ...
+	// ...
 
-		// Skip peers that are connected or already queued, and our own
-		// address, which a shared persistent peer list can contain
-		if peers.Has(id) ||
-			sw.persistentDialQueue.Has(addr) ||
-			addr.Same(sw.transport.NetAddress()) {
-			return true
-		}
+	// A stable connection resets the backoff, and replaces a dial a tick
+	// queued with the earlier backoff
+	if connected && now.Sub(since) >= sw.stableUptime {
+		delete(attempts, id)
+		sw.persistentDialQueue.Remove(addr)
+	}
 
-		dialTime := now
+	sw.queuePersistentPeer(id, addr, attempts, now)
+}
 
-		if n, attempted := attempts[id]; attempted {
-			// Subsequent attempt: apply backoff
-			dialTime = now.Add(calculateBackoff(n, time.Second, persistentRedialMaxBackoff))
+func (sw *MultiplexSwitch) queuePersistentPeer(
+	id types.ID,
+	addr *types.NetAddress,
+	attempts map[types.ID]uint,
+	now time.Time,
+) {
+	// Skip peers that are connected or already queued, and our own
+	// address, which a shared persistent peer list can contain
+	if sw.Peers().Has(id) ||
+		sw.persistentDialQueue.Has(addr) ||
+		addr.Same(sw.transport.NetAddress()) {
+		return
+	}
 
-			attempts[id] = n + 1
-		} else {
-			// First attempt
-			attempts[id] = 0
-		}
+	dialTime := now
 
-		sw.persistentDialQueue.Push(dial.Item{
-			Time:    dialTime,
-			Address: addr,
-		})
+	if n, attempted := attempts[id]; attempted {
+		// Subsequent attempt: apply backoff
+		dialTime = now.Add(calculateBackoff(n, time.Second, persistentRedialMaxBackoff))
 
-		// ...
+		attempts[id] = n + 1
+	} else {
+		// First attempt
+		attempts[id] = 0
+	}
+
+	sw.persistentDialQueue.Push(dial.Item{
+		Time:    dialTime,
+		Address: addr,
 	})
+
+	// ...
 }
 ```
 
