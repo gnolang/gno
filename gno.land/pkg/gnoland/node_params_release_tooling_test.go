@@ -121,8 +121,8 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		t.Parallel()
 
 		pkg := grepOne(t, cutRelease, `(?m)^readonly VERSION_PKG="(.+)"$`)
-		assert.True(t, strings.Contains(repoFile(t, workflow), "-X "+pkg+"="),
-			"%s injects a different symbol than %s's VERSION_PKG (%s)", workflow, cutRelease, pkg)
+		assert.True(t, strings.Contains(repoFile(t, workflow), "-X "+pkg+"=${TAG}\""),
+			"%s does not compile TAG into %s's VERSION_PKG (%s)", workflow, cutRelease, pkg)
 
 		// And the symbol has to be the one the node actually reports.
 		assert.True(t, strings.HasPrefix(pkg, "github.com/gnolang/gno/tm2/pkg/version."),
@@ -177,10 +177,9 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 		// github.ref_name is the tag only when nothing but a tag push can
 		// start the run: a dispatch or a branch push names a branch.
-		for _, f := range []struct{ path, text string }{{workflow, chain}, {docker, image}} {
-			on := regexp.MustCompile(`(?ms)^on:\n(.*?)^\S`).FindStringSubmatch(f.text)
-			require.Len(t, on, 2, "%s: no top-level on: block", f.path)
-			assert.Regexp(t, `\A  push:\n    tags:\n      - "?v\*"?\n\n\z`, on[1], "%s must run on v* tag pushes only", f.path)
+		for _, path := range []string{workflow, docker} {
+			on := grepOne(t, path, `(?ms)^on:\n(.*?)^\S`)
+			assert.Regexp(t, `\A  push:\n    tags:\n      - "?v\*"?\n\n\z`, on, "%s must run on v* tag pushes only", path)
 		}
 
 		// Every line that sets TAG, so a job-level env or a shell
@@ -188,8 +187,6 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		assert.Equal(t, []string{"  TAG: ${{ github.ref_name }}"},
 			regexp.MustCompile(`(?m)^[ \t]*TAG[:=].*$`).FindAllString(chain, -1),
 			"%s must set TAG once, for every job, to the tag that triggered the run", workflow)
-		assert.True(t, strings.Contains(chain, `version.Version=${TAG}"`),
-			"%s must compile TAG into the binaries", workflow)
 
 		// Every line naming BUILD_VERSION, so a second env scope, a comment
 		// or a bake --set override cannot leave the pinned line inert.
