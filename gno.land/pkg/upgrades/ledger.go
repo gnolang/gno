@@ -314,17 +314,30 @@ func (l *Ledger) Validate() error {
 	return errors.New(strings.Join(problems, "\n"))
 }
 
-// Has reports whether the ledger has an entry for v, ignoring a pre-release
-// suffix on either side: a release candidate rehearses the final version's
-// entry rather than getting one of its own.
-func (l *Ledger) Has(v string) bool {
-	want := finalVersion(v)
+// Entry returns the entry a release of v is recorded under: the entry for v
+// itself, or else the first entry for the same final version, since a release
+// candidate rehearses the final version's entry rather than getting one of its
+// own.
+func (l *Ledger) Entry(v string) (Entry, bool) {
 	for _, e := range l.Upgrades {
-		if e.Version == v || finalVersion(e.Version) == want {
-			return true
+		if e.Version == v {
+			return e, true
 		}
 	}
-	return false
+	want := finalVersion(v)
+	for _, e := range l.Upgrades {
+		if finalVersion(e.Version) == want {
+			return e, true
+		}
+	}
+	return Entry{}, false
+}
+
+// Has reports whether the ledger has an entry for v, ignoring a pre-release
+// suffix on either side (see Entry).
+func (l *Ledger) Has(v string) bool {
+	_, ok := l.Entry(v)
+	return ok
 }
 
 // BlockRanges is the contract made explicit: which version produced which

@@ -260,6 +260,30 @@ func TestCheck_detectsAStaleDocument(t *testing.T) {
 	assert.Equal(t, string(before), string(after), "rendering is idempotent")
 }
 
+// cut-release.sh compares the entry a release is recorded under with the
+// commit it tags, so the lookup must find the same entry Has does: the
+// version's own entry first, else the entry of the same final version.
+func TestEntry_findsTheEntryAReleaseIsRecordedUnder(t *testing.T) {
+	t.Parallel()
+	l := parseValid(t)
+	cases := []struct {
+		version, commit string
+	}{
+		{"v1.3.0", "31b6650a100d9baf14e7669f8f0df924f1f841e0"},
+		{"v1.3.0-rc.2", "31b6650a100d9baf14e7669f8f0df924f1f841e0"}, // an rc rehearses its final's entry
+		{"v1.4.0-rc.1", "00417a1be97b9a311d9669ae7aa9585b277ee594"}, // its own entry
+		{"v1.4.0", "00417a1be97b9a311d9669ae7aa9585b277ee594"},      // the final of a recorded rc
+		{"v1.4.0-rc.2", "00417a1be97b9a311d9669ae7aa9585b277ee594"}, // another rc of the same final
+	}
+	for _, tc := range cases {
+		e, ok := l.Entry(tc.version)
+		require.True(t, ok, "no entry for %s", tc.version)
+		assert.Equal(t, tc.commit, e.Commit, "entry for %s", tc.version)
+	}
+	_, ok := l.Entry("v1.9.0")
+	assert.False(t, ok)
+}
+
 func TestHasVersion_stripsThePreReleaseSuffix(t *testing.T) {
 	t.Parallel()
 	l := parseValid(t)
