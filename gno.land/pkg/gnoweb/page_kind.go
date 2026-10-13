@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"net/url"
 	"strings"
 
 	md "github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
@@ -70,8 +71,10 @@ func aliasTargets(aliases map[string]AliasTarget) map[string]string {
 		if target.Kind != GnowebPath {
 			continue
 		}
-		u, err := weburl.Parse(target.Value)
-		if err != nil {
+		// Parsed as Get parses it, and only a bare page: an alias to a view
+		// or a query does not name its target's page.
+		u, err := weburl.ParseFromURL(&url.URL{Path: target.Value})
+		if err != nil || len(u.WebQuery) > 0 || len(u.Query) > 0 {
 			continue
 		}
 		key := aliasKey(u)
@@ -210,6 +213,8 @@ type pageRender struct {
 	lead pageLead
 	// empty is set by a view whose page shows nothing of its own.
 	empty bool
+	// argsIgnored is set when no Render ran, so the args showed nothing.
+	argsIgnored bool
 }
 
 // servedPage is what Get learns about the page it serves, for the head.

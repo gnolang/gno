@@ -327,6 +327,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case realmAlias:
 		if u, err := weburl.ParseFromURL(&requested); err == nil {
+			if u.IsFile() { // an alias key, as /license.md, is no file under "/"
+				u.Path, u.File = path.Join(u.Path, u.File), ""
+			}
 			sp.url = u
 		}
 	case staticPage:
@@ -600,10 +603,12 @@ func (h *HTTPHandler) fetchRealm(ctx context.Context, gnourl *weburl.GnoURL, ind
 		return raw, 0, nil, true
 	case errors.Is(err, ErrClientRenderNotDeclared):
 		// No Render() declared: fall back to directory view (which will show README.md if present)
+		pr.argsIgnored = true
 		status, view := h.GetDirectoryView(ctx, gnourl, indexData, pr)
 		return nil, status, view, false
 	case errors.Is(err, ErrClientPackageNotFound):
 		// No realm exists here, try to display underlying paths
+		pr.argsIgnored = true
 		status, view := h.GetPathsListView(ctx, gnourl, indexData)
 		return nil, status, view, false
 	default:
@@ -1449,11 +1454,19 @@ func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
 	if alias, ok := h.policy.aliasFor(&u); ok {
 		return h.Static.CanonicalOrigin + alias
 	}
+	// A file is its source view: /r/x/a.gno is /r/x$source&file=a.gno.
+	var file string
+	if gnourl.WebQuery.Has("source") {
+		file = gnourl.WebQuery.Get("file")
+	}
+	if u.IsFile() && isPackageURL(&u) {
+		file, u.File = u.File, ""
+	}
 	u.Query, u.WebQuery = nil, nil
 	canonical := h.Static.CanonicalOrigin + u.EncodeWebURL()
-	if gnourl.WebQuery.Has("source") {
+	if gnourl.WebQuery.Has("source") || file != "" {
 		canonical += "$source"
-		if file := gnourl.WebQuery.Get("file"); file != "" {
+		if file != "" {
 			canonical += "&file=" + url.QueryEscape(file)
 		}
 	}
@@ -1494,7 +1507,15 @@ func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, 
 
 	// A page kept out of the index names no canonical, but keeps its card:
 	// link previews ignore robots, and an empty card looks broken.
-	canonical := h.canonicalURL(sp.url)
+	// No Render ran, so the args showed nothing: the page is the bare path.
+	// An alias key keeps its args, which are the operator's.
+	named := sp.url
+	if sp.render.argsIgnored && sp.url == sp.target {
+		u := *sp.url
+		u.Args = ""
+		named = &u
+	}
+	canonical := h.canonicalURL(named)
 	head.URL = canonical
 	if r == indexFollow {
 		head.Canonical = canonical
