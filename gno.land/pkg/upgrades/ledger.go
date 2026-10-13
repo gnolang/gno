@@ -320,9 +320,9 @@ func (l *Ledger) Validate() error {
 }
 
 // Entry returns the entry a release of v is recorded under: the entry for v
-// itself, or else the first entry for the same final version, since a release
+// itself, or else the last entry for the same final version, since a release
 // candidate rehearses the final version's entry rather than getting one of its
-// own.
+// own, and a final is cut on its last candidate's commit.
 func (l *Ledger) Entry(v string) (Entry, bool) {
 	for _, e := range l.Upgrades {
 		if e.Version == v {
@@ -330,8 +330,8 @@ func (l *Ledger) Entry(v string) (Entry, bool) {
 		}
 	}
 	want := finalVersion(v)
-	for _, e := range l.Upgrades {
-		if finalVersion(e.Version) == want {
+	for i := len(l.Upgrades) - 1; i >= 0; i-- {
+		if e := l.Upgrades[i]; finalVersion(e.Version) == want {
 			return e, true
 		}
 	}

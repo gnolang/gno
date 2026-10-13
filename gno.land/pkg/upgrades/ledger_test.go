@@ -289,6 +289,28 @@ func TestEntry_findsTheEntryAReleaseIsRecordedUnder(t *testing.T) {
 	assert.False(t, ok)
 }
 
+// With several candidates of a version recorded and no final entry yet, the
+// final is cut on the last candidate's commit, so that is the entry it and any
+// later candidate are recorded under.
+func TestEntry_fallsBackToTheLastCandidate(t *testing.T) {
+	t.Parallel()
+	rc1, rc2 := strings.Repeat("a", 40), strings.Repeat("b", 40)
+	l := &Ledger{Upgrades: []Entry{
+		{Version: "v1.6.0-rc.1", Commit: rc1},
+		{Version: "v1.6.0-rc.2", Commit: rc2},
+	}}
+	for v, want := range map[string]string{
+		"v1.6.0-rc.1": rc1, // its own entry
+		"v1.6.0-rc.2": rc2, // its own entry
+		"v1.6.0":      rc2, // the final, cut on the last candidate
+		"v1.6.0-rc.3": rc2, // a later candidate
+	} {
+		e, ok := l.Entry(v)
+		require.True(t, ok, "no entry for %s", v)
+		assert.Equal(t, want, e.Commit, "entry for %s", v)
+	}
+}
+
 func TestHasVersion_stripsThePreReleaseSuffix(t *testing.T) {
 	t.Parallel()
 	l := parseValid(t)
