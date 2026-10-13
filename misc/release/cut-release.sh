@@ -259,6 +259,21 @@ ${out}"
 	fi
 	if (cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades has "${dir}" "${VERSION}" >/dev/null 2>&1); then
 		ok "upgrades.json has an entry for ${VERSION}"
+		# The entry is committed on top of the code it names, so the branch tip
+		# is the ledger commit: cutting without --commit would tag that one
+		# while the entry names the code.
+		local named
+		named="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades commit "${dir}" "${VERSION}" 2>/dev/null)" || named=""
+		if [[ ${named} == "${COMMIT}" ]]; then
+			ok "the entry names the commit being tagged"
+			return
+		fi
+		local msg="the entry for ${VERSION%%-*} names ${named:0:9}, but the tag would land on ${COMMIT:0:9}: cut with --commit ${named:0:9}, or correct the entry's commit"
+		if [[ ${VERSION} == *-* ]]; then
+			warn "${msg}"
+		else
+			die "${msg}"
+		fi
 		return
 	fi
 	local hint="add the entry to misc/deployments/${CHAIN}.gno.land/upgrades.json and run
