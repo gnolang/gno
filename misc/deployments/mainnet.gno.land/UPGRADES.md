@@ -21,7 +21,7 @@ An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEA
 | [v1.3.0](https://github.com/gnolang/gno/releases/tag/v1.3.0) | [31b6650a1](https://github.com/gnolang/gno/commit/31b6650a100d9baf14e7669f8f0df924f1f841e0) | 36300 | 2026-09-14T09:17:06Z | *(not set)* | [#0](https://gno.land/r/gov/dao:0) | `sha256:897a5c0f75e6…` |
 | [v1.4.0](https://github.com/gnolang/gno/releases/tag/v1.4.0) | [00417a1be](https://github.com/gnolang/gno/commit/00417a1be97b9a311d9669ae7aa9585b277ee594) | 113000 | 2026-09-17T13:24:04Z | *(not set)* | [#5](https://gno.land/r/gov/dao:5) | `sha256:a41395a8cf39…` |
 | [v1.5.0](https://github.com/gnolang/gno/releases/tag/v1.5.0) | [e75fef82c](https://github.com/gnolang/gno/commit/e75fef82c02876a4df92ad6e325c5479b9532168) | 162200 | 2026-09-19T10:37:10Z | *(not set)* | [#7](https://gno.land/r/gov/dao:7) | `sha256:6ae099c2828c…` |
-| [v1.5.1](https://github.com/gnolang/gno/releases/tag/v1.5.1) | [07e44776c](https://github.com/gnolang/gno/commit/07e44776c26187830b7dcbd2454991b5a1960378) | rolling | — | — | — | *(pending)* |
+| [v1.5.1](https://github.com/gnolang/gno/releases/tag/v1.5.1) | [07e44776c](https://github.com/gnolang/gno/commit/07e44776c26187830b7dcbd2454991b5a1960378) | rolling | — | — | — | `sha256:810c3d57395d…` |
 <!-- END GENERATED -->
 
 Notes
