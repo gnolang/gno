@@ -31,6 +31,9 @@ jobs:
           status=0
           checked=0
           fail() { echo "::error::$*"; status=1; }
+          # A tool's stderr goes here, not into the value it is compared on:
+          # a warning from a call that succeeds must not read as drift.
+          err="$(mktemp)"
           for ledger in misc/deployments/*/upgrades.json; do
             echo "== ${ledger}"
             # One line per recorded value: what it is, the reference to look
@@ -44,14 +47,14 @@ jobs:
               | (select(.image.digest != null) | "image \(.image.ref) \(.image.digest)"),
                 (select(.ran_as != null) | "ran_as \(.image.ref | sub(":[^:]*$"; ""))@\(.ran_as) \(.ran_as)"),
                 (.binaries | to_entries[] | "binary \(.value)")
-            ' "${ledger}" 2>&1)" || { fail "${ledger}: cannot read the ledger: ${values}"; continue; }
+            ' "${ledger}" 2>"${err}")" || { fail "${ledger}: cannot read the ledger: $(cat "${err}")"; continue; }
             while read -r kind a b; do
               [ -n "${kind}" ] || continue
               checked=$((checked + 1))
               case "${kind}" in
               image | ran_as)
-                if ! actual="$(docker buildx imagetools inspect "${a}" --format '{{.Manifest.Digest}}' 2>&1)"; then
-                  fail "${ledger}: cannot resolve ${a}: ${actual}"
+                if ! actual="$(docker buildx imagetools inspect "${a}" --format '{{.Manifest.Digest}}' 2>"${err}")"; then
+                  fail "${ledger}: cannot resolve ${a}: $(cat "${err}")"
                   continue
                 fi
                 if [ "${actual}" = "${b}" ]; then
@@ -70,8 +73,8 @@ jobs:
                   continue
                 fi
                 if ! actual="$(gh api "repos/${owner}/${repo}/releases/tags/${tag}" \
-                  --jq ".assets[] | select(.name == \"${asset}\") | .digest" 2>&1)"; then
-                  fail "${ledger}: cannot read release ${tag}: ${actual}"
+                  --jq ".assets[] | select(.name == \"${asset}\") | .digest" 2>"${err}")"; then
+                  fail "${ledger}: cannot read release ${tag}: $(cat "${err}")"
                   continue
                 fi
                 if [ "${actual}" = "${want}" ]; then
@@ -79,6 +82,9 @@ jobs:
                 else
                   fail "${ledger}: ${tag}/${asset} is recorded as ${want} but the release serves ${actual:-nothing}"
                 fi
+                ;;
+              *)
+                fail "${ledger}: unexpected value line: ${kind} ${a} ${b}"
                 ;;
               esac
             done <<<"${values}"
