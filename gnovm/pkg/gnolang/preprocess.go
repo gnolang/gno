@@ -149,12 +149,6 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 	// later after this for-loop is a partial definition for *FuncDecl
 	// function declarations which will get filled out later during
 	// preprocessing.
-	for _, fn := range fset.Files {
-		setNodeLines(fn)
-		setNodeLocations(pn.PkgPath, fn.FileName, fn)
-		initStaticBlocks(store, pn, fn)
-	}
-	index := newPredefineDeclIndex(pn.FileSet)
 	// In accumulate mode a declaration that fails to predefine is recorded
 	// and dropped (marked preprocessed, so the walk skips it) instead of
 	// stopping the whole file set.
@@ -175,6 +169,18 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 		}()
 		do()
 	}
+	for _, fn := range fset.Files {
+		setNodeLines(fn)
+		setNodeLocations(pn.PkgPath, fn.FileName, fn)
+		// Before the static blocks, which look the packages up.
+		for _, d := range fn.Decls {
+			if id, ok := d.(*ImportDecl); ok {
+				predefineOne(fn, id, func() { assertValidImportPath(id.PkgPath) })
+			}
+		}
+		initStaticBlocks(store, pn, fn)
+	}
+	index := newPredefineDeclIndex(pn.FileSet)
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -617,6 +623,9 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 					}
 				}
 			case *ImportDecl:
+				if n.GetAttribute(ATTR_PREPROCESSED) == true {
+					return n, TRANS_SKIP // dropped by accumulate mode
+				}
 				nx := &n.NameExpr
 				nn := nx.Name
 				if nn == "." {
@@ -3412,7 +3421,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						// Make sure that the label exists, either for a switch or a
 						// BranchStmt.
 						if !isSwitchLabel(ns, n.Label) {
-							findBranchLabel(last, n.Label)
+							bn, _, _ := findBranchLabel(last, n.Label)
+							assertBranchTarget(n, bn)
 						}
 					}
 				case CONTINUE:
@@ -3420,9 +3430,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						findContinuableNode(last, store)
 					} else {
 						if isSwitchLabel(ns, n.Label) {
-							panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
+							panic(fmt.Sprintf("invalid continue label %s", n.Label))
 						}
-						findBranchLabel(last, n.Label)
+						bn, _, _ := findBranchLabel(last, n.Label)
+						assertBranchTarget(n, bn)
 					}
 				case GOTO:
 					_, blockDepth, frameDepth, index := findGotoLabel(last, n.Label)
@@ -5074,6 +5085,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 				}
 			}
 		}
+		assertConstWidth(x, &cv)
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,

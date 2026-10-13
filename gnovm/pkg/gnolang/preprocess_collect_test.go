@@ -491,3 +491,57 @@ func main() {}
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
 	}
 }
+
+func TestPreprocessCollectConsts(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+import ""
+import "a b"
+import "/foo"
+
+const big = 1 << 600 // 601 bits
+const sum = 1<<511 + 1<<511 // 513 bits
+const prod = (1 << 300) * (1 << 300)
+const fine = 1<<511 - 1
+
+func f() {
+L:
+	{
+		break L // a block
+		for {
+			continue L
+		}
+	}
+M:
+	for {
+		break M
+	}
+}
+
+func main() {}
+`)
+	want := []string{
+		"invalid import path (empty string)",
+		"invalid import path \"a b\": invalid character ' '",
+		"import path cannot be absolute path: \"/foo\"",
+		"constant shift overflow",
+		"constant addition overflow",
+		"constant multiplication overflow",
+		"invalid break label L",
+		"invalid continue label L",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
