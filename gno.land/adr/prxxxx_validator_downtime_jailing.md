@@ -181,9 +181,9 @@ Per vote, at BeginBlock(H):
 4. If `missed`, `H−1 > StartHeight + window` and
    `MissedCount > window − window × min_signed_per_window / 100`, the
    validator qualifies. Apply the **roster cap** first: if jailing it would
-   take the outstanding jailed power above `max_jailed_percent` of the power
-   in `current`, **or** the outstanding jailed count above
-   `max_jailed_count` percent of the number of entries in `current`, while
+   take the outstanding jailed power above `max_jailed_power_percent` of the
+   power in `current`, **or** the outstanding jailed count above
+   `max_jailed_count_percent` of the number of entries in `current`, while
    the jailed set is not empty, refuse — emit `ValidatorJailRefused` with
    `address`, `jailed_power`, `jailed_count` and `bound` (`power` or
    `count`, so an operator can read which one tripped), write nothing,
@@ -208,7 +208,7 @@ With it, a jail always happens on a block the validator missed, that block
 was committed without it, and removing it can never lower the signing share;
 this is what lets a liveness floor go (see Alternatives).
 
-`max_jailed_percent` is the **roster cap**, and it protects a different
+`max_jailed_power_percent` is the **roster cap**, and it protects a different
 property. The `missed` invariant proves a jail never halts the chain; it says
 nothing about how far repeated jails can shrink the live set, because each
 removal restores the margin that makes the next one safe. With equal power a
@@ -219,18 +219,19 @@ partition is whoever its author left reachable. Tendermint's safety
 assumption is "fewer than 1/3 faulty of the set"; uncapped jailing re-anchors
 that set from the roster governance chose to the subset an outage chose. The
 cap re-anchors it: the outstanding jailed power may not exceed
-`max_jailed_percent` of the power in `current`, and the outstanding jailed
-count may not exceed `max_jailed_count` percent of its entries — both
+`max_jailed_power_percent` of the power in `current`, and the outstanding jailed
+count may not exceed `max_jailed_count_percent` of its entries — both
 measured against membership, not the shrinking live set, and counting only
 jailed entries still in `current` — each with a floor of one validator so
 that a small set can jail anyone at all (gnoland-1 is 5 validators at power
-60; 10% of 300 is less than any one of them). At the cap the jail is refused, not traded
-against an older one: a halt is recoverable in hours with the roster intact,
-a captured set is not. Beyond the cap an outage is by definition one the set
-shares, and §5 applies. The constitution caps the roster at 50 and requires
-self-hosted hardware, which makes correlated outages the expected failure;
-the Hub and AtomOne, whose parameters §4 borrows, run no cap but have ten
-times the validators and mostly cloud hosting.
+60; 10% of 300 is less than any one of them). At the cap the jail is
+refused, not traded against an older one: a halt is recoverable in hours
+with the roster intact, a captured set is not. Beyond the cap an outage is by
+definition one the set shares, and §5 applies. The constitution caps the
+roster at 50 and requires self-hosted hardware, which makes correlated
+outages the expected failure; the Hub and AtomOne, whose parameters §4
+borrows, run no cap but have ten times the validators and mostly cloud
+hosting.
 
 **Two bounds, because unequal power opens two directions and neither closes
 the other.** A count-only cap is unsafe the obvious way: two validators out of
@@ -238,17 +239,17 @@ twenty are 10% of the membership and can be a third of the power, so a bound
 that permits them is worse than no bound, which is why the power cap is the
 primary one. A power-only cap is unsafe the mirror way, and only when powers
 are unequal. Take a roster of 3 validators at power 60 and 20 at power 1,
-total 200: `max_jailed_percent = 10` permits 20 jailed power, which is every
-power-1 validator. The live set goes from 23 entries to 3, the 1/3 threshold
-holds at every step exactly as the `missed` invariant promises, and the cap
-never binds once, because the shrinkage was cheap in power and expensive in
-count. That roster is not contrived: parking most of the set at a nominal
-power while a core keeps its weight is a normal way to run a coordinated
-upgrade, since every operator stays visibly signing without any of them being
-load-bearing for the window, and it is also the window in which correlated
-downtime is most likely. With equal powers the two bounds are the same
-comparison and the second costs nothing, which is the argument for having it
-before a roster first goes lopsided rather than after.
+total 200: `max_jailed_power_percent = 10` permits 20 jailed power, which is
+every power-1 validator. The live set goes from 23 entries to 3, the 1/3
+threshold holds at every step exactly as the `missed` invariant promises, and
+the cap never binds once, because the shrinkage was cheap in power and
+expensive in count. That roster is not contrived: parking most of the set at
+a nominal power while a core keeps its weight is a normal way to run a
+coordinated upgrade, since every operator stays visibly signing without any
+of them being load-bearing for the window, and it is also the window in
+which correlated downtime is most likely. With equal powers the two bounds
+are the same comparison and the second costs nothing, which is the argument
+for having it before a roster first goes lopsided rather than after.
 
 Determinism: `LastCommitInfo` is derived from the committed block,
 `header.Time` is the block time, and every write lands in the deliver state,
@@ -366,13 +367,13 @@ struct read with `lk.GetParams(ctx)`, are validated by the keeper's own
 `WillSetParam`, and are set by GovDAO through the generic `r/sys/params`
 factories (`NewSysParamInt64PropRequest(cur, "liveness", "p", …)`):
 
-| Key                      | Type           | Default            | Constraint            |
-|--------------------------|----------------|--------------------|-----------------------|
-| `signed_blocks_window`   | int64, blocks  | `0` = **disabled** | 0 ≤ w ≤ cap (100 000) |
-| `min_signed_per_window`  | int64, percent | `5`                | 0–100                 |
-| `downtime_jail_duration` | int64, seconds | `600`              | ≥ 0                   |
-| `max_jailed_percent`     | int64, percent | `10`               | 0–100                 |
-| `max_jailed_count`       | int64, percent | `10`               | 0–100                 |
+| Key                        | Type           | Default            | Constraint            |
+|----------------------------|----------------|--------------------|-----------------------|
+| `signed_blocks_window`     | int64, blocks  | `0` = **disabled** | 0 ≤ w ≤ cap (100 000) |
+| `min_signed_per_window`    | int64, percent | `5`                | 0–100                 |
+| `downtime_jail_duration`   | int64, seconds | `600`              | ≥ 0                   |
+| `max_jailed_power_percent` | int64, percent | `10`               | 0–100                 |
+| `max_jailed_count_percent` | int64, percent | `10`               | 0–100                 |
 
 An integer percent rather than a decimal: the params keeper has no decimal type
 and nothing here needs one.
@@ -559,11 +560,11 @@ Positive:
 - Membership semantics for realms (`IsValidator`, proposal baselines, the
   valopers front-run guard) are unchanged: jailed validators are still members.
 - Disabled by default; existing networks opt in by proposal.
-- Jailing cannot shrink the live set below `100 − max_jailed_percent` percent
-  of the roster's power, **or** below `100 − max_jailed_count` percent of its
-  membership: the Byzantine assumption stays anchored to the set governance
-  chose, on both axes, so a roster with unequal power cannot be emptied of its
-  light validators at negligible power cost.
+- Jailing cannot shrink the live set below `100 − max_jailed_power_percent`
+  percent of the roster's power, **or** below `100 − max_jailed_count_percent`
+  percent of its membership: the Byzantine assumption stays anchored to the
+  set governance chose, on both axes, so a roster with unequal power cannot
+  be emptied of its light validators at negligible power cost.
 
 Negative / trade-offs:
 - A correlated outage beyond the cap halts the chain, by design. The roster
@@ -602,12 +603,13 @@ Negative / trade-offs:
   window, `MissedCount` equals the popcount, grace period, jail exactly at
   `MissedCount > window − window × pct / 100` and never on a signed block,
   reset on jail, window-change reset, no-op when the window is 0; the roster
-  cap refuses a jail that would exceed `max_jailed_percent` of `current`
-  power **or** `max_jailed_count` percent of its entries, allows one validator
-  regardless of either, ignores jailed entries no longer in `current`, and
-  frees room on unjail. One case per bound, and a lopsided-roster case where
-  the count bound trips while the power bound is nowhere near: 3 validators at
-  power 60 plus 20 at power 1, jailing the light ones, refused at the third.
+  cap refuses a jail that would exceed `max_jailed_power_percent` of `current`
+  power **or** `max_jailed_count_percent` of its entries, allows one
+  validator regardless of either, ignores jailed entries no longer in
+  `current`, and frees room on unjail. One case per bound, and a
+  lopsided-roster case where the count bound trips while the power bound is
+  nowhere near: 3 validators at power 60 plus 20 at power 1, jailing the light
+  ones, refused at the third.
 - `TestEndBlocker` extensions on the existing `valsetState` mock: a jail
   removes from the diff but not from `current`; clearing the entry re-adds
   with the governed power; a governance removal of a jailed validator leaves
