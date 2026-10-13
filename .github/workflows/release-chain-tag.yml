@@ -298,7 +298,10 @@ jobs:
         run: |
           # "Latest" may only move forward: GitHub would otherwise give it to
           # whichever release was published last, so a backport cut after a
-          # newer line would take it. Only the highest final tag gets it.
+          # newer line would take it. Only the highest final tag gets it. The
+          # tags are fetched again: the checkout's are minutes old by now, and
+          # a final tag pushed meanwhile must keep Latest from this one.
+          git fetch --quiet --force --tags origin
           HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
           LATEST="--latest=false"
           [ -n "${HIGHEST}" ] && [ "${HIGHEST}" = "${TAG}" ] && LATEST="--latest"
