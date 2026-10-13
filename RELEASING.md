@@ -99,8 +99,8 @@ runs, and the two are not the same thing:
   operator knows it ships everything `master` had. Between releases the branch
   tip is the latest tag, plus at most documentation or release-tooling commits
   that change no node code (the ledger, `VALIDATOR.md`, the release workflows,
-  `cut-release.sh`). Operators still run the tag, never the tip: a build off
-  the tag reports a version no `halt_min_version` accepts.
+  `cut-release.sh`). Operators still run the tag, never the tip: a build of
+  anything but the tag reports a version no `halt_min_version` accepts.
 - **Where this ends up.** Merging `master` is the natural default while mainnet
   tracks it closely. The day `master` carries work mainnet must not ship yet,
   the default flips to cherry-picking and the branch becomes a maintained
