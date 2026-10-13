@@ -1996,6 +1996,11 @@ func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
 		if len(flags) > 0 && flags[0] == "errorcheckwithauto" {
 			return "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
 		}
+		// go/types testdata: `// -lang=go1.N` and `// -gotypesalias=N`
+		// headers configure the checker itself.
+		if len(flags) > 0 && strings.HasPrefix(flags[0], "-") {
+			flags = append([]string{""}, flags...)
+		}
 		for _, fl := range flags[1:] {
 			switch {
 			case fl == "-0" || fl == "-m":
@@ -2004,6 +2009,8 @@ func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
 				return "gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts"
 			case langBelowPin(fl):
 				return "gc -lang version-gating test below Gno's go1.17 pin (" + strings.TrimPrefix(fl, "-lang=") + ")"
+			case fl == "-gotypesalias=0":
+				return "go/types -gotypesalias=0 configuration test; Gno has one alias representation"
 			}
 		}
 	}

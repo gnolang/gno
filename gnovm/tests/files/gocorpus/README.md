@@ -5,6 +5,15 @@ release in `UPSTREAM`, each followed by a comment tail the harness writes
 (`gnovm/pkg/test/filetest.go`). Nothing above the tail is edited. `VERSION`
 is the Go toolchain the Go-side evidence was recorded with.
 
+`testdata/gotypes/` is the type checker's own suite, lifted the same way
+from `$GOROOT/src/internal/types/testdata` (`check`, `fixedbugs`, `spec`,
+`examples`): one rule per file, markers in go/types' block form
+(`/* ERROR "text" */`, `/* ERRORx "regex" */`, several per line), checked
+by the same errorcheck mode; a file without markers must preprocess
+cleanly (compile mode). `// -lang=` and `// -gotypesalias=` headers
+configure go/types; those below Gno's go1.17 pin or disabling alias
+nodes are `Unsupported`.
+
 ## Per-file contract
 
 Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
