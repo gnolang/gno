@@ -4,10 +4,19 @@ package gnolang
 // operators", "Index expressions", "Slice expressions", "Composite
 // literals", "Length and capacity").
 
-// isNilLiteral reports whether x is the untyped nil constant.
+// isNilLiteral reports whether x is the nil constant as written, also
+// after its conversion to the context type; a typed nil such as
+// (func())(nil) is not the literal.
 func isNilLiteral(x Expr) bool {
 	cx, ok := x.(*ConstExpr)
-	return ok && cx.T == nil && cx.V == nil
+	if !ok || cx.V != nil {
+		return false
+	}
+	if cx.T == nil {
+		return true
+	}
+	nx, ok := cx.Source.(*NameExpr)
+	return ok && nx.Name == "nil"
 }
 
 // assertComparableTo checks a == b between the types at and bt, where
@@ -15,8 +24,8 @@ func isNilLiteral(x Expr) bool {
 // map or func compares only to nil, also when the other side is an
 // interface.
 func assertComparableTo(at, bt Type, aNil, bNil bool) {
-	check := func(t Type, otherNil bool) {
-		if t == nil || otherNil {
+	check := func(t Type, selfNil, otherNil bool) {
+		if t == nil || selfNil || otherNil {
 			return
 		}
 		switch baseOf(t).(type) {
@@ -27,8 +36,8 @@ func assertComparableTo(at, bt Type, aNil, bNil bool) {
 			failf(CodeNotComparable, nil, "%v is not comparable", t)
 		}
 	}
-	check(at, bNil)
-	check(bt, aNil)
+	check(at, aNil, bNil)
+	check(bt, bNil, aNil)
 }
 
 // assertLenCapArg checks the operand of len or cap: a string (len only),
