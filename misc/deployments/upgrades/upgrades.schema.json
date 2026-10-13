@@ -41,11 +41,11 @@
           }
         },
         "binaries": {
-          "type": "object",
+          "type": ["object", "null"],
           "minProperties": 1,
           "propertyNames": { "pattern": "^[a-z0-9]+/[a-z0-9]+$" },
           "additionalProperties": { "type": "string", "pattern": "[?&]checksum=sha256:[0-9a-f]{64}$" },
-          "description": "os/arch → download URL with a ?checksum=sha256:<hex> suffix (the cosmovisor convention)"
+          "description": "os/arch → download URL with a ?checksum=sha256:<hex> suffix (the cosmovisor convention); null until CI has built the release, never an empty object"
         },
         "ran_as": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$", "description": "the image digest the network actually ran when it differs from image.digest (versions tagged after the fact)" },
         "release": { "type": "string", "format": "uri", "description": "the vX.Y.Z release page: binaries, checksums, changelog" }

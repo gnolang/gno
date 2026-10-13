@@ -134,7 +134,7 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 		{"halt times not increasing", func(l *Ledger) { t2 := l.Upgrades[1].HaltTime.Add(-1); l.Upgrades[2].HaltTime = &t2 }, "halt_time"},
 		{"negative proposal", func(l *Ledger) { p := int64(-1); l.Upgrades[1].Proposal = &p }, "proposal"},
 		{"image ref for another version", func(l *Ledger) { l.Upgrades[1].Image.Ref = "ghcr.io/gnolang/gno/gnoland:v1.9.0" }, "image.ref"},
-		{"no binaries", func(l *Ledger) { l.Upgrades[1].Binaries = nil }, "binaries"},
+		{"empty binaries", func(l *Ledger) { l.Upgrades[1].Binaries = map[string]string{} }, "binaries"},
 		{"binary without checksum", func(l *Ledger) { l.Upgrades[1].Binaries["linux/amd64"] = "https://example.com/gnoland" }, "checksum"},
 		{"binary platform not os/arch", func(l *Ledger) { l.Upgrades[1].Binaries["linux"] = l.Upgrades[1].Binaries["linux/amd64"] }, "platform"},
 		{"ran_as malformed", func(l *Ledger) { s := "sha-31b6650"; l.Upgrades[1].RanAs = &s }, "ran_as"},
@@ -159,6 +159,32 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 			assert.Contains(t, err.Error(), tc.want)
 		})
 	}
+}
+
+// A release's binaries exist only once CI has built it, and its entry is
+// written before that: cut-release.sh refuses a final release without one.
+// null says "not built yet", as it does for the image digest; an empty object
+// is still refused, so a pending entry cannot pass for a built one with no
+// downloads.
+func TestValidate_binariesArePendingUntilTheBuild(t *testing.T) {
+	t.Parallel()
+
+	const built = `"binaries": {
+        "linux/amd64": "https://github.com/gnolang/gno/releases/download/v1.4.1/gnoland_linux_amd64?checksum=sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },`
+	require.Contains(t, validLedger, built, "the fixture's last entry has moved")
+
+	pending, err := Parse([]byte(strings.Replace(validLedger, built, `"binaries": null,`, 1)))
+	require.NoError(t, err)
+	require.Nil(t, pending.Upgrades[3].Binaries)
+	assert.NoError(t, pending.Validate(), "null binaries are pending, not missing")
+
+	empty, err := Parse([]byte(strings.Replace(validLedger, built, `"binaries": {},`, 1)))
+	require.NoError(t, err)
+	require.NotNil(t, empty.Upgrades[3].Binaries)
+	err = empty.Validate()
+	require.Error(t, err, "an empty object is not a pending value")
+	assert.Contains(t, err.Error(), "binaries")
 }
 
 func TestValidate_reportsEveryProblemAtOnce(t *testing.T) {
