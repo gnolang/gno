@@ -241,13 +241,15 @@ check_ledger_entry() {
 	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land"
 	[[ -f ${dir}/upgrades.json ]] || return 0
 	local out
-	if ! out="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades validate "${dir}" 2>&1)"; then
+	if out="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades validate "${dir}" 2>&1)"; then
+		ok "upgrades.json validates"
+	else
 		out="$(printf '%s\n' "${out}" | sed 's/^/       /')"
 		if [[ ${VERSION} == *-* ]]; then
-			warn "misc/deployments/${CHAIN}.gno.land/upgrades.json does not validate:"
+			warn "could not validate misc/deployments/${CHAIN}.gno.land/upgrades.json:"
 			printf '%s\n' "${out}" >&2
 		else
-			die "misc/deployments/${CHAIN}.gno.land/upgrades.json does not validate:
+			die "could not validate misc/deployments/${CHAIN}.gno.land/upgrades.json:
 ${out}"
 		fi
 	fi
