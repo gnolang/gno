@@ -1,0 +1,27 @@
+// Copyright 2024 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+func _() {
+	var values []int
+	vf(values /* ERROR "(variable of type []int) as string value" */)
+	vf(values...) /* ERROR "have ([]int...)\n\twant (string, ...int)" */
+	vf("ab", "cd", values /* ERROR "have (string, string, []int...)\n\twant (string, ...int)" */ ...)
+}
+
+func vf(method string, values ...int) {
+}
+
+// GnoError:
+// line 9: cannot use []int as string
+// line 10: not enough arguments in call to vf<VPBlock(3,1)>; want 2 (including variadic) got 1
+// line 11: not enough arguments in call to vf<VPBlock(3,1)>; want 2 (including variadic) got 3
+
+// GoTypeCheckError:
+// line 9
+// line 10
+// line 11
+
+// Clean: errorcheck
