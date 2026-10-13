@@ -757,3 +757,40 @@ func main() {
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
 	}
 }
+
+func TestPreprocessCollectOverStrict(t *testing.T) {
+	// Programs Go accepts that Gno used to refuse.
+	msgs := collectErrors(t, `package main
+
+type mybool bool
+
+const (
+	c = len([1 - iota]int{}) // iota inside a literal's type
+	d
+)
+
+func f(x, y int, i interface{}, s string) {
+	var b mybool
+	b = true && x < y // && of untyped bools stays untyped
+	b = x < y || x < y
+	_ = b
+	switch x {
+	case 0:
+		fallthrough
+		; // an empty statement may follow
+	case 1:
+	}
+	switch i {
+	case s: // a concrete case against an interface tag
+	}
+	switch s {
+	case i:
+	}
+}
+
+func main() {}
+`)
+	if len(msgs) != 0 {
+		t.Errorf("want no errors, got %v", msgs)
+	}
+}

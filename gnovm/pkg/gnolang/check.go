@@ -64,6 +64,7 @@ const (
 	CodeConversionSpread   ErrCode = "conversion-spread"
 	CodeMethodExprReceiver ErrCode = "method-expr-receiver"
 	CodeNoMethod           ErrCode = "no-method"
+	CodeNotCallable        ErrCode = "not-callable"
 
 	// Assignability.
 	CodeMapValueAssign ErrCode = "map-value-assign"
