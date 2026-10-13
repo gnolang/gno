@@ -1,0 +1,25 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s\n\nREALM AFTER
+-- input.md --
+- a
+  ```
+<gno-form path="x">
+```
+-- output.md --
+
+
+- a
+  ```
+\<gno-form path="x">
+```
+```
+
+-- output.html --
+<ul>
+<li>a
+<pre><code></code></pre>
+</li>
+</ul>
+<p>&lt;gno-form path=&quot;x&quot;&gt;</p>
+<pre><code></code></pre>
+<p>REALM AFTER</p>

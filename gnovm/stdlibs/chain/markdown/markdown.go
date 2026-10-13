@@ -509,29 +509,6 @@ func foldUnicodeSeparators(s string) string {
 	return string(out)
 }
 
-// escapeGnoExtDelimiters recognises any gnoweb structural-extension delimiter
-// shape via the open/close `<gno-...>` / `</gno-...>` prefixes wherever they
-// appear on a line (including after list, blockquote, or indentation markers)
-// and prefixes each unescaped `<` with a backslash so it becomes a CM §2.4
-// inline escape.
-//
-// The wildcard is intentionally over-permissive: a malformed line like
-// `<gno-x asdf` still trips it, which is fine — the only effect is
-// that the tag gets an escaping backslash prepended (rendered as a
-// literal `<` per CM §2.4). Future extensions (`<gno-card>`,
-// `<gno-foreign>`, `<gno-frame>`, anything later) auto-cover without
-// needing a sanitize-side update.
-//
-// Match is case-INsensitive (`<GNO-Card>`, `<Gno-COLUMNS>`, etc. all
-// trip). Go's html.Tokenizer (used by the extension block parsers in
-// gnoweb at ext_columns.go, ext_alert.go, etc.) lowercases tag names
-// before the per-extension matcher runs, so an uppercase or mixed-
-// case opener still opens the block. The sanitizer therefore must
-// match the same byte-shape envelope the parsers do.
-//
-// Unescaped occurrences (not preceded by an odd number of backslashes)
-// are escaped; already-escaped tags (e.g. `\<gno-card>`) are left intact
-// to preserve idempotency.
 // isUnescapedGnoTag reports whether line[i] is an unescaped `<` opening a
 // case-insensitive `<gno-...>` or `</gno-...>` tag.
 func isUnescapedGnoTag(line string, i int) bool {
@@ -552,30 +529,73 @@ func isUnescapedGnoTag(line string, i int) bool {
 	return hasCaseInsensitivePrefix(rest, "gno-")
 }
 
-func escapeGnoExtDelimiters(line string) string {
-	if strings.IndexByte(line, '<') < 0 {
-		return line
-	}
-	hasMatch := false
-	for i := 0; i < len(line); i++ {
-		if isUnescapedGnoTag(line, i) {
-			hasMatch = true
+// findBlockStart returns the index in line where a block-level element could start,
+// skipping leading indentation and any run of CommonMark container markers:
+// blockquotes (>), bullet lists (-, *, +), and ordered lists (1. or 1)).
+func findBlockStart(line string) int {
+	i := 0
+	for i < len(line) {
+		for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
+			i++
+		}
+		if i >= len(line) {
 			break
 		}
+		if line[i] == '>' {
+			i++
+			continue
+		}
+		if (line[i] == '-' || line[i] == '*' || line[i] == '+') &&
+			i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
+			i++
+			continue
+		}
+		if line[i] >= '0' && line[i] <= '9' {
+			j := i
+			for j < len(line) && j-i < 9 && line[j] >= '0' && line[j] <= '9' {
+				j++
+			}
+			if j < len(line) && (line[j] == '.' || line[j] == ')') &&
+				j+1 < len(line) && (line[j+1] == ' ' || line[j+1] == '\t') {
+				i = j + 1
+				continue
+			}
+		}
+		break
 	}
-	if !hasMatch {
+	return i
+}
+
+// escapeGnoExtDelimiters recognises any gnoweb structural-extension delimiter
+// shape via the open/close `<gno-...>` / `</gno-...>` prefixes where a block
+// can open (at line start, after indentation, or after container markers like
+// `>`, `-`, `*`, `+`, `1.`, `1)`) and prefixes the unescaped `<` with a
+// backslash so it becomes a CM §2.4 inline escape.
+//
+// The wildcard is intentionally over-permissive: a malformed line like
+// `<gno-x asdf` still trips it, which is fine — the only effect is
+// that the tag gets an escaping backslash prepended (rendered as a
+// literal `<` per CM §2.4). Future extensions (`<gno-card>`,
+// `<gno-foreign>`, `<gno-frame>`, anything later) auto-cover without
+// needing a sanitize-side update.
+//
+// Match is case-INsensitive (`<GNO-Card>`, `<Gno-COLUMNS>`, etc. all
+// trip). Go's html.Tokenizer (used by the extension block parsers in
+// gnoweb at ext_columns.go, ext_alert.go, etc.) lowercases tag names
+// before the per-extension matcher runs, so an uppercase or mixed-
+// case opener still opens the block. The sanitizer therefore must
+// match the same byte-shape envelope the parsers do.
+//
+// Unescaped occurrences (not preceded by an odd number of backslashes)
+// are escaped; already-escaped tags (e.g. `\<gno-card>`) are left intact
+// to preserve idempotency. Mid-line tags (e.g. `<gno-icon />`) are not
+// at block start and remain unescaped.
+func escapeGnoExtDelimiters(line string) string {
+	pos := findBlockStart(line)
+	if pos >= len(line) || !isUnescapedGnoTag(line, pos) {
 		return line
 	}
-
-	var b strings.Builder
-	b.Grow(len(line) + 4)
-	for i := 0; i < len(line); i++ {
-		if isUnescapedGnoTag(line, i) {
-			b.WriteByte('\\')
-		}
-		b.WriteByte(line[i])
-	}
-	return b.String()
+	return line[:pos] + "\\" + line[pos:]
 }
 
 // isHTMLBlockType1to5Opener reports whether line opens a CommonMark
@@ -588,8 +608,7 @@ func escapeGnoExtDelimiters(line string) string {
 // Detection mirrors goldmark's regexes at parser/html_block.go:79-92
 // (case-insensitive Type 1 tag name; case-sensitive Types 2/3/4/5;
 // ASCII space-only indent of 0-3 columns — tabs are deliberately NOT
-// allowed since goldmark uses `[ ]{0,3}` literal, divergent from
-// isExtDelimiter's `TrimLeft(line, " \t")`).
+// allowed since goldmark uses `[ ]{0,3}` literal).
 //
 // Type 4 uses `[A-Z]` (one uppercase letter) where goldmark's regex
 // is `[A-Z]+` — equivalent for opener detection because any line
@@ -767,6 +786,14 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte,
 		// Just mark the fence as open so the EOF auto-close can fire if
 		// the user never closes it.
 		//
+		// Only fences at column 0 (i == 0) are tracked as document-level
+		// fences. Fences indented under list items or blockquotes must NOT
+		// be tracked as document-level fences, or an indented fence inside
+		// a list item would suppress escaping of dangerous tags on subsequent
+		// unindented lines (which goldmark parses at document level, issue #6300).
+		if i != 0 {
+			return line, 0, 0
+		}
 		// CM §4.5: for BACKTICK fences only, the info string MUST NOT
 		// contain another backtick. Goldmark enforces this — if the
 		// info string contains a `, no fence opens (the line is paragraph
@@ -923,20 +950,15 @@ func findBracketSpans(s string) []bracketSpan {
 				nextClose = i + rel
 			}
 		}
-		// Fence open at line-start (0-3 lead spaces, ≥3 backticks or tildes)?
+		// Fence open at column 0 (≥3 backticks or tildes)?
 		if atLineStart {
-			j := i
-			// skip up to 3 leading spaces
-			for j < len(s) && j-i < 3 && s[j] == ' ' {
-				j++
-			}
-			if j < len(s) && (s[j] == '`' || s[j] == '~') {
-				fenceChar := s[j]
-				k := j
+			if i < len(s) && (s[i] == '`' || s[i] == '~') {
+				fenceChar := s[i]
+				k := i
 				for k < len(s) && s[k] == fenceChar {
 					k++
 				}
-				if k-j >= 3 {
+				if k-i >= 3 {
 					// CM §4.5: backtick fences with a backtick in the
 					// info string do NOT open. Without this check the
 					// walker treats subsequent lines as fence interior
@@ -950,7 +972,7 @@ func findBracketSpans(s string) []bracketSpan {
 						continue
 					}
 					// Fence opens. Find close.
-					fenceLen := k - j
+					fenceLen := k - i
 					end := findFenceClose(s, k, fenceChar, fenceLen)
 					spans = append(spans, bracketSpan{start: i, end: end, kind: spanFence})
 					i = end
