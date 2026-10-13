@@ -304,6 +304,9 @@ delegated or session key whose on-chain authority derives from the pinned
 identity; that transaction is still authorised by the identity, which is what the
 producer pinned. Key selection is the wallet's business, and a wallet that
 rotates session keys could not honour a pin at all if it were not.
+With a `challenge` there is no such latitude: the identity itself signs (see
+Proving the identity), since a session key's signature proves nothing about the
+address.
 
 This is also what the chain records. A delegated key acts on the identity's
 behalf: the message's caller and the state changes are credited to the identity,
@@ -539,6 +542,11 @@ unless it names a key that is not already a session covering the request (see
 Sessions in the browser). A page restoring a session on every navigation would
 otherwise throw a wallet popup on every page load, which makes the feature
 unusable. Re-approval is for origins the user has not already approved.
+
+In the browser `proof.signed` is the document as an object; the producer
+rebuilds the canonical bytes from it — sorted by key, no spaces, `<`, `>` and `&`
+escaped — before verifying, as it decodes `signed` from base64url on a launch
+link.
 
 A `connect` carrying a `challenge` is the other exception: it always prompts,
 since what the user approves is a signature, not an origin (see Proving the
