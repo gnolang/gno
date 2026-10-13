@@ -18,6 +18,7 @@ An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEA
 | Version | Commit | Halt height | Halt time (UTC) | halt_min_version | GovDAO proposal | gnoland image digest |
 |---|---|---|---|---|---|---|
 | [v1.5.0](https://github.com/gnolang/gno/releases/tag/v1.5.0) | [e75fef82c](https://github.com/gnolang/gno/commit/e75fef82c02876a4df92ad6e325c5479b9532168) | genesis | 2026-09-28T00:00:00Z | — | — | `sha256:6ae099c2828c…` |
+| [v1.5.1-rc.1](https://github.com/gnolang/gno/releases/tag/v1.5.1-rc.1) | [07e44776c](https://github.com/gnolang/gno/commit/07e44776c26187830b7dcbd2454991b5a1960378) | rolling | — | — | — | `sha256:231eedbda83b…` |
 <!-- END GENERATED -->
 
 Notes
