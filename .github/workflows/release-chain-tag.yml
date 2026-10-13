@@ -157,12 +157,14 @@ jobs:
       # run that failed before publishing leaves behind, and this run finishes
       # it. Placed before the attestation, so a refused run attests nothing.
       - name: Refuse a published release
+        id: release_state
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ! draft="$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq .isDraft 2>&1)"; then
             if [ "${draft}" = "release not found" ]; then
               echo "no release for ${TAG} yet"
+              echo "state=none" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             echo "::error::cannot read the release for ${TAG}: ${draft}"
@@ -173,6 +175,7 @@ jobs:
             exit 1
           fi
           echo "${TAG} has a draft release from an earlier run; this run finishes it"
+          echo "state=draft" >> "$GITHUB_OUTPUT"
 
       # Provenance: which workflow built every asset, from which commit and
       # tag. Attested here, once CHECKSUMS.txt exists, so the checksum file is
@@ -251,6 +254,7 @@ jobs:
       # without its assets, and none is added once it is published, which is
       # also the order GitHub's immutable releases require.
       - name: Create the draft release
+        if: steps.release_state.outputs.state == 'none'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -262,14 +266,13 @@ jobs:
           case "${TAG}" in
             v*-*) PRERELEASE="--prerelease" ;;
           esac
-          gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
-            gh release create "${TAG}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --draft \
-              --title "${TAG}" \
-              --notes-file notes.md \
-              --verify-tag \
-              ${PRERELEASE}
+          gh release create "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --draft \
+            --title "${TAG}" \
+            --notes-file notes.md \
+            --verify-tag \
+            ${PRERELEASE}
 
       - name: Upload release assets
         env:
