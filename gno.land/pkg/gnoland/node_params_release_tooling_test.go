@@ -173,10 +173,29 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		t.Parallel()
 
 		const docker = ".github/workflows/release-docker.yml"
-		assert.Contains(t, repoFile(t, workflow), "\n  TAG: ${{ github.ref_name }}\n",
-			"%s must build the tag that triggered the run, set once for every job", workflow)
-		assert.Contains(t, repoFile(t, docker), "BUILD_VERSION: ${{ github.ref_name }}\n",
-			"%s must stamp the tag that triggered the run", docker)
+		chain, image := repoFile(t, workflow), repoFile(t, docker)
+
+		// github.ref_name is the tag only when nothing but a tag push can
+		// start the run: a dispatch or a branch push names a branch.
+		for _, f := range []struct{ path, text string }{{workflow, chain}, {docker, image}} {
+			on := regexp.MustCompile(`(?ms)^on:\n(.*?)^\S`).FindStringSubmatch(f.text)
+			require.Len(t, on, 2, "%s: no top-level on: block", f.path)
+			assert.Regexp(t, `\A  push:\n    tags:\n      - "?v\*"?\n\n\z`, on[1], "%s must run on v* tag pushes only", f.path)
+		}
+
+		// Every line that sets TAG, so a job-level env or a shell
+		// reassignment cannot shadow the workflow-level value.
+		assert.Equal(t, []string{"  TAG: ${{ github.ref_name }}"},
+			regexp.MustCompile(`(?m)^[ \t]*TAG[:=].*$`).FindAllString(chain, -1),
+			"%s must set TAG once, for every job, to the tag that triggered the run", workflow)
+		assert.True(t, strings.Contains(chain, `version.Version=${TAG}"`),
+			"%s must compile TAG into the binaries", workflow)
+
+		// Every line naming BUILD_VERSION, so a second env scope, a comment
+		// or a bake --set override cannot leave the pinned line inert.
+		assert.Equal(t, []string{"          BUILD_VERSION: ${{ github.ref_name }}"},
+			regexp.MustCompile(`(?m)^.*BUILD_VERSION.*$`).FindAllString(image, -1),
+			"%s must stamp the tag that triggered the run, and nothing else", docker)
 	})
 
 	// The upgrade ledger records versions the node has to order against
