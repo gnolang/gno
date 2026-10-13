@@ -247,13 +247,15 @@ check_ledger_entry() {
 	else
 		# go run appends its own "exit status N"; the tool's message says it all.
 		out="$(printf '%s\n' "${out}" | sed -e '/^exit status [0-9]*$/d' -e 's/^/       /')"
-		if [[ ${VERSION} == *-* ]]; then
-			warn "could not check misc/deployments/${CHAIN}.gno.land/upgrades.json:"
-			printf '%s\n' "${out}" >&2
-		else
+		if [[ ${VERSION} != *-* ]]; then
 			die "could not check misc/deployments/${CHAIN}.gno.land/upgrades.json:
 ${out}"
 		fi
+		warn "could not check misc/deployments/${CHAIN}.gno.land/upgrades.json:"
+		printf '%s\n' "${out}" >&2
+		# The entry lookup below would trip on the same problem and add a
+		# misleading "no entry" warning.
+		return
 	fi
 	if (cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades has "${dir}" "${VERSION}" >/dev/null 2>&1); then
 		ok "upgrades.json has an entry for ${VERSION}"
