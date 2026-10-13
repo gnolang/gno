@@ -119,6 +119,11 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add inline icons extension
 	ExtIcons.Extend(m)
 
+	// Add button extension. Like gno-form, it is intentionally NOT loaded
+	// inside the foreign sandbox: a button is first-party call-to-action
+	// chrome, which foreign content must not wear.
+	ExtButtons.Extend(m)
+
 	m.SetParser(rec.Parser)
 
 	// Add math extension
