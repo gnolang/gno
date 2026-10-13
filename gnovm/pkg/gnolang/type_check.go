@@ -737,6 +737,14 @@ func (x *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 					panic(fmt.Sprintf("%v is not comparable", dt))
 				}
 			}
+			// An interface operand does not make a slice, map or func
+			// on the other side comparable.
+			if xt != nil {
+				switch baseOf(xt).(type) {
+				case *SliceType, *FuncType, *MapType:
+					panic(fmt.Sprintf("%v can only be compared to nil", xt))
+				}
+			}
 			err := checkAssignableTo(store, x, xt, dt)
 			if err != nil {
 				if debug {
