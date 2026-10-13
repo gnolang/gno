@@ -44,14 +44,14 @@ func (m ViewMode) ShouldShowGeneralLinks() bool {
 }
 
 type HeadData struct {
-	Title string
-	// NoIndex asks crawlers to skip the page. Set on result pages, whose
-	// URL space is unbounded and whose every URL costs the most expensive
-	// pair of RPCs gnoweb makes.
-	NoIndex           bool
-	Description       string
-	Canonical         string
+	Title       string
+	Description string
+	Canonical   string
+	// Robots is the content of the robots meta, as the handler decided it.
+	Robots            string
+	SiteName          string
 	Image             string
+	ImageAlt          string
 	URL               string
 	ChromaPath        string
 	AssetsPath        string

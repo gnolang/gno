@@ -23,7 +23,7 @@ func TestImgValidatorSeesResolvedDestination(t *testing.T) {
 		require.NoError(t, err)
 		m := goldmark.New()
 		NewGnoExtension(WithImageValidator(AllowSvgDataImage)).Extend(m)
-		ctx := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl}))
+		ctx := parser.WithContext(NewGnoParserContext(GnoContext{GnoURL: gnourl, Links: FollowInternalLinks}))
 		var out bytes.Buffer
 		require.NoError(t, m.Convert([]byte(src), &out, ctx))
 		return out.String()

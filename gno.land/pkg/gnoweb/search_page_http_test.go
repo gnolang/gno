@@ -23,6 +23,9 @@ func newSearchPageHandler(t *testing.T) *gnoweb.HTTPHandler {
 			"render.gno": `package main; func Render(path string) string { return "body" }`,
 		},
 	}))
+	// An official realm, so its plain page is indexed and the search page's
+	// noindex has something to differ from.
+	config.TrustedPaths = []string{"mock"}
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
 	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err)
