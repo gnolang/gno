@@ -138,12 +138,16 @@ corresponds to something that has gone wrong before. All but one are refusals:
    reported `develop`, satisfied no `halt_min_version`, and were not
    reproducible from the tag, until the `v1.2.0` release replaced them; this
    check is what catches that class of mistake before validators download it.
-6. **The upgrade ledger validates and has an entry for the version**
-   (`misc/deployments/<chain>.gno.land/upgrades.json`). The entry is written
-   before the release is cut, with its image digest and binaries null until CI
-   has built them. A release candidate only warns, since it rehearses the final
-   version's entry; a final release without one, or with a ledger that does not
-   validate, is refused.
+6. **The upgrade ledger passes `upgrades check` and has an entry for the
+   version** (`misc/deployments/<chain>.gno.land/upgrades.json`). The check is
+   the one CI runs: the ledger validates and its `UPGRADES.md` is current. The
+   entry is written before the release is cut, with its image digest and
+   binaries null until CI has built them. The script reads the ledger from the
+   checkout it runs in, not from the commit it tags: commit the entry on top of
+   the code being released, and cut from that checkout with `--commit` naming
+   the code commit. A release candidate only warns, since it rehearses the
+   final version's entry; a final release without one, or with a ledger that
+   fails the check, is refused.
 
 Pushing a `v*` tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
@@ -262,11 +266,11 @@ go run ./misc/deployments/upgrades check  misc/deployments/mainnet.gno.land   # 
 ```
 
 Add the entry before cutting the release, with the image digest and the
-binaries null; fill them in once CI has built the release, and the halt time
-once the halt has happened; render, and port both files to `master`. Only the
-last entry may still have null binaries, so they are filled in before the next
-release's entry is added. A testnet's ledger names what it ran, release
-candidates included.
+binaries null; fill them in once CI has built the release, the proposal once it
+exists, and the halt time once the halt has happened; render, and port both
+files to `master`. Only the last entry may still have null binaries, so they
+are filled in before the next release's entry is added. A testnet's ledger
+names what it ran, release candidates included.
 Every halt proposal names the version being released — `set-halt.sh` refuses a
 value the node cannot parse, and an empty one leaves the restart gate off.
 
