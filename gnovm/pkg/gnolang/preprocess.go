@@ -286,6 +286,11 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 					if iota_ != nil {
 						part.SetAttribute(ATTR_IOTA, iota_)
 					}
+					// Positioned at its name, so an error names the line;
+					// the part contains the name (see Span.Union).
+					span := vd.NameExprs[j].GetSpan()
+					span.Num--
+					part.SetSpan(span)
 					parts = append(parts, part)
 				}
 				// Apply the split to fn.Decls BEFORE calling predefineRecursively,
@@ -5658,8 +5663,8 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		if direct {
 			if astype {
 				if _, ok := defining[cx.Name]; ok {
-					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
-						Names(stack).Join(" -> "), cx.Name))
+					panicAt(fmt.Sprintf("invalid recursive type: %s", cycleString(stack, cx.Name)),
+						packageDeclOf(last, cx.Name))
 				}
 				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 					return
@@ -5977,6 +5982,16 @@ func predefineRecursivelyIndexed(store Store, last BlockNode, d Decl, index *pre
 // a map to ensure best time performance of circular definition detection.
 func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool, index *predefineDeclIndex) bool {
 	pkg := packageOf(last)
+	// A plain panic while predefining d is about d: position it there,
+	// not at the declaration that depended on it.
+	defer func() {
+		if r := recover(); r != nil {
+			if msg, ok := r.(string); ok {
+				panic(&spanPanic{span: d.GetSpan(), msg: msg})
+			}
+			panic(r)
+		}
+	}()
 
 	// NOTE: PredefineFileSet splits multi-value decls like `var a, b = c, d`
 	// into individual decls before calling this function, so that GetDeclFor
@@ -6022,15 +6037,21 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		}
 		if un != "" {
 			// `un` is undefined, so define recursively.
-			// first, check circularity.
+			// first, check circularity. The error names the cycle only and
+			// sits at the declaration that starts it, as in Go.
 			if _, exists := defining[un]; exists {
+				what := "value"
 				if untype {
-					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
-						Names(stack).Join(" -> "), un))
-				} else {
-					panic(fmt.Sprintf("invalid recursive value: %s -> %s",
-						Names(stack).Join(" -> "), un))
+					what = "type"
 				}
+				msg := fmt.Sprintf("invalid recursive %s: %s", what, cycleString(stack, un))
+				var at Decl
+				if index == nil {
+					at = lookupPredefineDecl(pkg.FileSet, un).decl
+				} else {
+					at = index.lookup(un).decl
+				}
+				panicAt(msg, at)
 			}
 			// Look up the dependency declaration in the fileset.
 			//
@@ -6101,6 +6122,29 @@ func preprocessDependency(store Store, last BlockNode, d Decl) Node {
 		}
 	}()
 	return Preprocess(store, last, d)
+}
+
+// packageDeclOf returns the package-level declaration of name, or nil
+// for a local or unknown one.
+func packageDeclOf(last BlockNode, name Name) (d Decl) {
+	defer func() {
+		if recover() != nil {
+			d = nil
+		}
+	}()
+	return lookupPredefineDecl(packageOf(last).FileSet, name).decl
+}
+
+// cycleString prints the declaration cycle closed by name: the part of
+// stack from name's first occurrence, then name again.
+func cycleString(stack []Name, name Name) string {
+	for i, n := range stack {
+		if n == name {
+			stack = stack[i:]
+			break
+		}
+	}
+	return Names(append(append([]Name{}, stack...), name)).Join(" -> ")
 }
 
 // If a dependent name is not yet defined, that name is returned; this return
