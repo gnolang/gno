@@ -76,9 +76,13 @@ replayed history executes the same way it did on the source chain.
   reused, and a `rev uint64`.
   - Both live in new B+ trees (`idStore: id → *UserData`,
     `metaStore: address → {id, rev}`), **not** as new `UserData` fields
-    written at registration. Code that runs before activation writes
-    nothing new, so the storage and deposit charges of historical
-    transactions do not change on replay.
+    written at registration. Their roots stay empty until activation, and
+    historical registrations, renames and deletes do no index bookkeeping.
+  - That avoids per-record growth on replay, but storage charges can still
+    differ: the patched realms persist changed package blocks, declarations
+    and functions. Full-history replay must check signed deposit ceilings
+    and payer balances, and document every difference in storage
+    accounting.
   - Activation assigns ids to every existing record, deleted ones included,
     one id per record (not per alias), in `addressStore` key order.
     Registrations after activation take the next id.
@@ -86,10 +90,14 @@ replayed history executes the same way it did on the source chain.
     Incrementing an id or rev past its maximum is refused, never wrapped.
   - New read-only API: `ID()`, `Rev()`, `ResolveID(id) *UserData`.
 - **Authoritative-record guard.** The read-only trees hand out copies
-  (`makeUserDataSafe`). A controller that calls a mutator on a copy writes
-  name keys that point at the copy. This affects the exported
-  `UpdateName`, `UpdateNameIgnoreCanonical` and `Delete` today, and would
-  affect `TransferTo`.
+  (`makeUserDataSafe`). Two problems follow today, and transfer would add a
+  third:
+  - renaming a copy (`UpdateName`, `UpdateNameIgnoreCanonical`) inserts a
+    name key that points at the detached copy, splitting the registry;
+  - deleting a copy (`Delete`) marks only the copy and emits a deletion
+    event, while the real record stays live;
+  - transferring a copy (`TransferTo`) would move the copy and leave the
+    name keys on the real record.
   - The guard goes in the **internal** mutators (`updateName`, `delete`,
     `transferTo`), so every entry point is covered, including the
     canonical-bypass and governance paths.
@@ -141,7 +149,14 @@ replayed history executes the same way it did on the source chain.
   - The namereg versions capture a pointer at creation, so they already hit
     the right record. Binding them to `id` makes all four behave the same.
   - Proposal text the DAO has already stored is not refreshed.
-  - Proposals created before activation keep their current behaviour.
+  - Proposals created before activation keep their current behaviour
+    during replay. **Before transfers are enabled**, every still-open users
+    rename or delete proposal is executed or rejected, or migrated to a
+    record `id` through an explicitly approved procedure. Activation refuses
+    to run while unresolved address-bound proposals remain. Otherwise this
+    sequence mutates the wrong record: proposal against address A →
+    activation → A's record transfers to B → a fresh record registers at A
+    → the old proposal executes on the fresh record.
 - After a transfer, the old address has no entry in `addressStore`. It may
   register a new name like any fresh address, and gets a new `id`.
 
@@ -158,8 +173,8 @@ After activation, `ProposeNewController` and
 limit who votes on those proposal types. They do **not** make T1 the final
 authority:
 - the wider electorate can still delete a record through either registry,
-  which permanently freezes its packages under this design and defeats
-  recovery;
+  which freezes owner-gated package writes while namespace enforcement
+  stays on, and defeats recovery;
 - it can also remove controllers, and replace the DAO implementation with
   one that ignores the filters.
 
@@ -274,15 +289,20 @@ func (vm *VMKeeper) effectiveOwner(ctx sdk.Context, st gno.TransactionStore,
 Applied per operation:
 
 - **Replacing a live private package.** The submitter must be the effective
-  owner. This **replaces** the namespace check in all three places it runs
-  for this case:
-  - the normal path (`checkNamespacePermission`, `keeper.go` AddPackage);
-  - the inert park path (`keeper.go`, inert branch);
-  - `EnablePackage` (`keeper_inert.go`), which checks the parked creator.
+  owner. This **replaces both** of today's checks, `checkRedeployPermission`
+  (stamped creator) and `checkNamespacePermission`, with no stamped-creator
+  equality kept as an extra condition. It does so in all three places they
+  run:
+  - the normal path (`keeper.go` AddPackage), checking the submitter;
+  - the inert park path (`keeper.go`, inert branch), checking the
+    submitter;
+  - `EnablePackage` (`keeper_inert.go`), checking the parked creator.
 
   Missing any one of them would leave alias packages updatable on one path
-  and blocked on another. The namespace check still runs, unchanged, when
-  nothing is live at the path.
+  and blocked on another. Keeping the creator check would stop every new
+  owner. The refusal of public packages, the gnomod constraints, the CLA
+  check and pause all stay. When nothing is live at the path, the namespace
+  check still runs unchanged.
 - **Pause.** Today pause is enforced *inside*
   `IsAuthorizedAddressForNamespace`. Dropping that call on the replacement
   path would therefore drop pause as well. The keeper refuses every
@@ -309,6 +329,12 @@ Applied per operation:
   refuses only that branch. Deletion, pause and resolver errors never take
   away the submitter's or the approver's right to reject. Owner standing
   applies whether or not anything is live.
+  - When the status is `owned`, the effective owner **replaces** the live
+    stamped creator for rejection, so an old key loses this right too.
+  - For every other status (`deleted`, `unregistered`, `address`, `off`),
+    the live stamped creator keeps today's right to reject. Rejection is
+    cleanup, and taking it away would be a regression with no security
+    benefit.
 - **`QueryPackageMeta`.** It evaluates the new blockers for **both** first
   deploys and live redeploys, using its throwaway store:
   - pause;
@@ -375,29 +401,57 @@ new realm code.
   - T1 filters on controller proposals;
   - transfers.
 
-  Before activation, the realms' code paths must produce the same results,
-  storage and events as the source chain. Otherwise strict replay fails: a
+  Before activation, existing entry points keep their old authorization,
+  proposal-targeting and registry-mutation behaviour. Package storage can
+  differ (section 1), and that difference is measured and accounted for.
+  Without dormancy, strict replay fails: a
   historical controller proposal passed by T2/T3 votes would be refused
   under a T1 filter, and a proposal created before its target was
   registered would fail an id lookup.
-- **The activation transaction.** It is appended after the replayed history
-  in the upgrade's genesis file, and gated at height 0 in the same way as
-  `AddControllerAtGenesis`. It:
-  - assigns ids;
-  - checks and repairs the authoritative records;
-  - reserves the namespaces the audit names;
-  - sets the activation flag.
-- **Open proposals keep their rules.** GovDAO stores a proposal's voter
-  filter when the proposal is created, so a proposal still open at
-  activation keeps the voters it was created with.
+- **The activation transaction.** It is appended after all replayed
+  history in the upgrade's genesis file, with migration metadata setting
+  height 0.
+  - Its entry point requires height 0 and refuses to run if the registry is
+    already activated.
+  - Height 0 does not mean "after history": every genesis transaction can
+    run at height 0, and `IsGenesisReplay` is true for this one too. Its
+    position comes from the approved genesis transaction list, checked
+    against an audited registry manifest. Historical height metadata is
+    kept as it is.
+  - In order, it:
+    1. repairs the authoritative records;
+    2. assigns ids to existing records in raw `addressStore` key order;
+    3. creates the approved reservations through a migration-only helper
+       that gives each one the next id and an initial `rev`;
+    4. checks both indexes;
+    5. sets the activation flag, last.
+  - Transfer entry points require the flag, even at height 0 and during
+    genesis replay. The keeper's replay waivers never bypass a realm's
+    activation check.
+- **Open proposals keep their voter rules.** GovDAO stores a proposal's
+  voter filter when the proposal is created, so a proposal still open at
+  activation keeps the voters it was created with, unless the approved
+  migration closes it. Keeping voter rules does not allow keeping an unsafe
+  address-bound target (section 1).
 - **Ids must stay stable across future upgrades.** Once ids appear in
   transactions and proposals, a later replay-based upgrade must not change
   anything that renumbers them. That rules out reordering or removing
   pre-registrations, or adding records before the activation point.
   - New reservations, and dropping `test1`, go into transactions appended
     after history.
-  - Before boot, compare the source chain's and the replayed chain's
-    id → record mappings, deleted records included.
+  - The first upgrade has no ids on the source chain to compare against.
+    Compare the replayed result with an audited manifest of expected ids,
+    derived from the source registry and including deleted records and
+    reserved names. For later upgrades, compare the source chain's and the
+    replayed chain's id → record mappings.
+  - Multi-hop upgrades depend on the fork tool keeping earlier chain ids.
+    Today `buildHardforkGenesis` replaces `PastChainIDs` with only the
+    immediate predecessor (`contribs/gnogenesis/internal/fork/generate.go`).
+    On a second hop, transactions inherited from the first chain would then
+    lose their chain-id override. The fork tool must keep inherited
+    `PastChainIDs`, add the predecessor without duplicates, and keep each
+    transaction's chain id and the activation transaction's position and
+    contents.
 - **Strict replay.** Run with `StrictReplay = true` over the full source
   history. `GasReplayMode = "source"` only changes gas metering; it does not
   waive realm authorization failures or storage-deposit limits. Do not skip
@@ -430,7 +484,7 @@ Namespace states:
 | Park | the deploy gate that applies (new deploy, or replace live private); if something is already parked there, also its submitter or the owner | same | same | same | same | same |
 | Activate (nothing live) | parked creator must pass "New deploy" | same | same | same | same | same |
 | Activate over live private | parked creator must be the owner | same | refused | refused | same as current | same as current |
-| Reject parked | submitter, approver, owner | same | submitter, approver | submitter, approver | submitter, approver, owner | submitter, approver, owner |
+| Reject parked | submitter, approver, owner | same | submitter, approver, live stamped creator | submitter, approver, live stamped creator | submitter, approver, owner or live stamped creator | submitter, approver, owner |
 
 When names is enabled and paused, every deploy, park and activation is
 refused, in every column except off, where pause has no effect today either.
@@ -496,10 +550,14 @@ Rejection is never paused.
   locks the user out of their own private packages under the old name. With
   aliases recognized, they can redeploy them again. New deploys under an
   alias stay refused.
-- **Deleting a record freezes its packages, with no way back.** Transfer
-  refuses deleted records, registration cannot reclaim their names, and
-  there is no undelete. Their packages stay frozen unless a later upgrade
-  adds a recovery mechanism.
+- **Deleting a record is irreversible, and freezes its packages while
+  enforcement is on.** Transfer refuses deleted records, registration
+  cannot reclaim their names, and there is no undelete. Owner-gated package
+  writes are refused while the names verifier is enabled.
+  - Governance can still reach the accepted stamped-creator fallback
+    without an upgrade, by pointing names at an undeployed path. That is
+    the "off" column.
+  - So the freeze holds only as long as namespace enforcement does.
 - **T1 voters gain a new power.** They can hand control of a record's private
   packages to another address. That is the price of key recovery. See
   section 2 for why this is not a hard T1 boundary.
@@ -520,8 +578,12 @@ Rejection is never paused.
     creator (`pr6164_redeploy_continues_realm.md`), so an `ownable` owner set
     in `init()` follows the redeployer. That is existing redeploy behaviour,
     not something this ADR adds.
-- **Deposits stay with the realm's accounting.** A transfer neither refunds
-  deposits nor attributes them to the new holder.
+- **Deposits stay with the realm's accounting.** A transfer does not move
+  or refund the deposits behind existing deployed packages.
+  - Registry and offer storage go through normal deposit accounting.
+    Accepting, cancelling or pruning an offer, and rebalancing the B+ trees,
+    can free storage and refund the transaction's caller, or
+    `StorageFeeCollector` while ugnot is restricted.
   - A private redeploy keeps the previous deployment's objects and their
     deposit (`pr6164`). It charges for the new objects and recovers nothing
     from the old, unreachable ones.
@@ -552,15 +614,31 @@ Rejection is never paused.
   - `PkgHeight` catches a re-park in a later block, but submissions in the
     same block share a height.
   - `init()` runs as the parked creator, so approvals need a way to pin it.
-    Add an optional `PkgCreator` field to `MsgEnablePackage`:
-    - append it after the existing fields, so Amino field numbers do not
-      change;
-    - reject a supplied value that does not match the parked creator, before
-      type-checking or execution;
-    - skip it during genesis replay.
+    Add `PkgCreator crypto.Address` to `MsgEnablePackage`:
+    - place it after `PkgHeight`, tagged
+      `json:"pkg_creator,omitempty" yaml:"pkg_creator,omitempty"`. Without
+      `omitempty`, Amino JSON writes the zero value, which changes the sign
+      bytes of messages that leave it out and breaks their historical
+      signatures;
+    - update `vm.proto` and the generated binary marshal, size and unmarshal
+      code (`pb3_gen.go`), keeping fields 1–4. A field missing from the
+      binary encoding is dropped on the wire, and signature verification
+      then fails (see the wire test in `msgs_test.go`);
+    - before type-checking or execution, reject a non-zero value that does
+      not match the parked creator. Skip that comparison during genesis
+      replay.
+
+    Test non-zero binary round trips, sign-byte equality after decoding,
+    and that leaving it out keeps the old sign bytes.
   - The same release must:
-    - update approval producers (`contribs/gpao`) to keep and sign the
-      reviewed submission's creator;
+    - update approval producers (`contribs/gpao`) to read the creator from
+      `MsgAddPackage.Creator` and keep it with the submitted bytes and
+      height, then sign that reviewed creator;
+    - change gpao's deduplication. Its key today hashes only the
+      `MemPackage`, so it would silently skip a new owner's submission of
+      the same bytes. Keep a content-verification cache, but decide
+      activation separately: a different creator or submission height gets
+      a fresh decision even when the bytes match;
     - make `QueryPackageMeta` report the **parked** submission's creator and
       height separately from the live package's.
 
@@ -586,8 +664,15 @@ Rejection is never paused.
     the record is deleted;
   - an id-bound rename or delete proposal does not touch a different
     identity after address reuse;
-  - before activation, every path produces the same results, storage and
-    events as the current code.
+  - before activation, authorization, results and registry mutations match
+    the previous code. Differences in package layout, storage deposits and
+    storage events are measured and accounted for separately;
+  - a proposal created before activation, followed by a transfer and reuse
+    of the address, cannot mutate the wrong record. Activation refuses to
+    run while such proposals are open;
+  - the activation entry point refuses a second call;
+  - transfers are refused before the activation flag is set, including at
+    height 0;
 - **`r/sys/namereg/v0` filetests:**
   - offer → accept;
   - accept by the wrong address;
@@ -602,7 +687,10 @@ Rejection is never paused.
   - an offer made, then the address reused, cannot be accepted against the
     new record;
   - pruning expired and stale offers;
-  - gas stays flat as the offer index grows.
+  - identical offer, accept, cancel and prune workloads, measured as the
+    index grows (cold stores, split and merge boundaries). Gas should grow
+    logarithmically with no whole-index scan or serialization; constant gas
+    is not expected.
 - **`r/sys/names`:** `NamespaceOwner` for each status: before `Enable`, while
   paused (unchanged answer), an address namespace, an unregistered name, an
   alias, a deleted record, and a current name.
@@ -618,7 +706,12 @@ Rejection is never paused.
   - a new owner without a CLA signature is refused;
   - an address namespace stays with its address after the record moves;
   - a legacy package whose creator differs from its address namespace gains
-    no rights;
+    no rights to replace or activate, and its stamped creator can still
+    reject;
+  - under an `owned` namespace, the old stamped creator loses its right to
+    reject;
+  - gpao gives a fresh decision for a new owner's submission of the same
+    bytes, including within the same block;
   - `PkgCreator`: left out, matching, mismatched, replaced within the same
     block, and older messages on replay.
 - **Upgrade:**
@@ -628,9 +721,12 @@ Rejection is never paused.
     mutations on copies;
   - the activation transaction assigns the expected ids and its storage cost
     is accounted for;
-  - the id → record mapping matches between source and replayed chains;
-  - an A → B → C upgrade, where chain B has transfers and id-bound
-    proposals, keeps every id stable.
+  - ids match the audited manifest on the first upgrade, and the source
+    chain's mapping on later ones;
+  - an A → B → C upgrade through the real fork-generation path keeps
+    inherited `PastChainIDs`, each transaction's chain id, and every id,
+    including after B-era transfers and id-bound proposals;
+  - historical signatures still verify with `PkgCreator` left out.
 - **Integration `.txtar`:** register → deploy a private realm → offer/accept
   → redeploy from the new key → old key refused, for both the current name
   and an alias.
