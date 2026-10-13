@@ -1,6 +1,9 @@
 package gnolang
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Type rules the preprocessor enforces (Go spec: "Map types", "Struct
 // types", "Interface types", "Array types", "Switch statements", "Type
@@ -210,13 +213,25 @@ func isInterfaceConversion(c *ConstExpr) bool {
 }
 
 // exprString prints an expression for a message: names bare, constants
-// as written.
+// as written, selectors and indexes composed from their parts.
 func exprString(x Expr) string {
 	switch x := x.(type) {
 	case *NameExpr:
 		return string(x.Name)
 	case *ConstExpr:
 		return constString(x)
+	case *SelectorExpr:
+		return exprString(x.X) + "." + string(x.Sel)
+	case *IndexExpr:
+		return exprString(x.X) + "[" + exprString(x.Index) + "]"
+	case *StarExpr:
+		return "*" + exprString(x.X)
+	case *CallExpr:
+		args := make([]string, len(x.Args))
+		for i, a := range x.Args {
+			args[i] = exprString(a)
+		}
+		return exprString(x.Func) + "(" + strings.Join(args, ", ") + ")"
 	}
 	return x.String()
 }
