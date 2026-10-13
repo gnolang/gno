@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"maps"
-	"slices"
 	"sync"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -254,7 +253,6 @@ type unsyncedWriteDB struct {
 	mu       sync.Mutex
 	unsynced map[string][]byte
 	durable  map[string][]byte
-	flushed  [][]byte // the keys written with SetSync, in order
 }
 
 func newUnsyncedWriteDB() *unsyncedWriteDB {
@@ -280,18 +278,9 @@ func (db *unsyncedWriteDB) SetSync(key, value []byte) error {
 	maps.Copy(db.durable, db.unsynced)
 	clear(db.unsynced)
 	db.durable[string(key)] = value
-	db.flushed = append(db.flushed, key)
 	db.mu.Unlock()
 
 	return db.DB.SetSync(key, value)
-}
-
-// Flushed returns the keys written with SetSync so far, in order.
-func (db *unsyncedWriteDB) Flushed() [][]byte {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-
-	return slices.Clone(db.flushed)
 }
 
 // Durable returns the store as a process restarting after an abrupt death at

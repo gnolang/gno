@@ -58,16 +58,13 @@ func TestApplyBlock(t *testing.T) {
 }
 
 // TestApplyBlockFlushesABCIResponsesBeforeAppCommit pins that the responses for
-// a height are on disk by the time the application commits that height, and
-// that they are the block's only flush of the state database: the state saved
-// after the commit is not flushed (see SaveState).
+// a height are on disk by the time the application commits that height.
 func TestApplyBlockFlushesABCIResponsesBeforeAppCommit(t *testing.T) {
 	t.Parallel()
 
 	state, _, _ := makeState(1, 1)
 	stateDB := newUnsyncedWriteDB()
 	sm.SaveState(stateDB, state)
-	flushedBefore := len(stateDB.Flushed())
 
 	var atAppCommit dbm.DB
 	app := &commitHookApp{onCommit: func() { atAppCommit = stateDB.Durable() }}
@@ -93,12 +90,6 @@ func TestApplyBlockFlushesABCIResponsesBeforeAppCommit(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, loaded.DeliverTxs, len(block.Txs))
 	assert.Equal(t, []byte(block.Txs[0]), loaded.DeliverTxs[0].Data)
-
-	// The responses record is the block's only flush; the state is written
-	// after it, and on disk still stops at the previous block.
-	require.Equal(t, [][]byte{sm.CalcABCIResponsesKey(block.Height)}, stateDB.Flushed()[flushedBefore:])
-	require.Equal(t, block.Height, sm.LoadState(stateDB).LastBlockHeight)
-	require.Equal(t, block.Height-1, sm.LoadState(stateDB.Durable()).LastBlockHeight)
 }
 
 // TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError pins that a failed

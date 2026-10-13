@@ -197,7 +197,7 @@ func (bs *BlockStore) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 	seenCommitBytes := amino.MustMarshal(seenCommit)
 	bs.db.Set(calcSeenCommitKey(height), seenCommitBytes)
 
-	// Save new BlockStoreStateJSON descriptor, last: its flush covers the writes above.
+	// Save new BlockStoreStateJSON descriptor. This also flushes the database.
 	BlockStoreStateJSON{Height: height}.Save(bs.db)
 
 	// Done!
@@ -242,9 +242,7 @@ type BlockStoreStateJSON struct {
 	Height int64 `json:"height"`
 }
 
-// Save persists the blockStore state to the database as JSON and flushes it.
-// SaveBlock writes it last, so the flush makes the whole block durable (see
-// dbm.DB.SetSync): the one flush a saved block costs.
+// Save persists the blockStore state to the database as JSON.
 func (bsj BlockStoreStateJSON) Save(db dbm.DB) {
 	bytes, err := amino.MarshalJSON(bsj)
 	if err != nil {

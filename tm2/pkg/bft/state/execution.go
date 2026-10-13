@@ -190,7 +190,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 		return state, fmt.Errorf("Commit failed for application: %w", err)
 	}
 
-	// Update the app hash and save the state (not flushed: see SaveState).
+	// Update the app hash and save the state.
 	state.AppHash = appHash
 	SaveState(blockExec.db, state)
 

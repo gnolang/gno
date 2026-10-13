@@ -274,10 +274,8 @@ func (h *Handshaker) Handshake(proxyApp appconn.AppConns) error {
 	return nil
 }
 
-// ReplayBlocks brings the application and the state up to the block store by
-// replaying stored blocks, and ensures the application's hash matches the
-// state's. It accepts every combination of app, store and state heights a
-// crash can leave behind (see the comments after the InitChain step).
+// ReplayBlocks replays all blocks since appBlockHeight and ensures the result
+// matches the current state.
 // Returns the final AppHash or an error.
 func (h *Handshaker) ReplayBlocks(
 	state sm.State,
@@ -308,8 +306,8 @@ func (h *Handshaker) ReplayBlocks(
 	// MakeGenesisState already sets the post-handshake shape on a fresh
 	// run; this branch covers (1) restart with a state that pre-dates
 	// the InitialHeight field, and (2) the cms-ahead-of-state crash
-	// window. Persist immediately (if the record is lost in a crash, the next
-	// start recomputes it here).
+	// window. Persist immediately (sm.SaveState SetSyncs the state-record
+	// key).
 	if genDocInitialHeight > 1 && state.LastBlockHeight < genDocInitialHeight-1 {
 		state.InitialHeight = genDocInitialHeight
 		state.LastBlockHeight = genDocInitialHeight - 1
@@ -387,78 +385,95 @@ func (h *Handshaker) ReplayBlocks(
 	case storeBlockHeight < stateBlockHeight:
 		// the state should never be ahead of the store (this is under tendermint's control)
 		panic(fmt.Sprintf("StateBlockHeight (%d) > StoreBlockHeight (%d)", stateBlockHeight, storeBlockHeight))
+
+	case storeBlockHeight > stateBlockHeight+1:
+		// store should be at most one ahead of the state (this is under tendermint's control)
+		panic(fmt.Sprintf("StoreBlockHeight (%d) > StateBlockHeight + 1 (%d)", storeBlockHeight, stateBlockHeight+1))
 	}
 
-	// Now app <= store and state <= store, with any gaps: the store is flushed
-	// before the app commits a height, and the state is saved after the commit
-	// without a flush (sm.SaveState), so a crash can leave the store ahead of
-	// both, and the state behind the app, by any number of blocks. The block
-	// store and the ABCI responses flushed before each commit hold everything
-	// needed to rebuild the rest.
-	//
-	// First bring the app up to the state.
 	var err error
-	appHash, err = h.replayBlocks(state, proxyApp.Consensus(), appHash, appBlockHeight)
-	if err != nil {
-		return nil, err
-	}
+	// Now either store is equal to state, or one ahead.
+	// For each, consider all cases of where the app could be, given app <= store
+	switch storeBlockHeight {
+	case stateBlockHeight:
+		// Tendermint ran Commit and saved the state.
+		// Either the app is asking for replay, or we're all synced up.
+		if appBlockHeight < storeBlockHeight {
+			// the app is behind, so replay blocks, but no need to go through WAL (state is already synced to store)
+			return h.replayBlocks(state, proxyApp, appBlockHeight, storeBlockHeight, false)
+		} else if appBlockHeight == storeBlockHeight {
+			// We're good!
+			assertAppHashEqualsOneFromState(appHash, state)
+			return appHash, nil
+		}
+	case stateBlockHeight + 1:
+		// We saved the block in the store but haven't updated the state,
+		// so we'll need to replay a block using the WAL.
+		switch {
+		case appBlockHeight < stateBlockHeight:
+			// the app is further behind than it should be, so replay blocks
+			// but leave the last block to go through the WAL
+			return h.replayBlocks(state, proxyApp, appBlockHeight, storeBlockHeight, true)
 
-	if stateBlockHeight == storeBlockHeight {
-		// The state is complete, and the app now agrees with it, or always did.
-		assertAppHashEqualsOneFromState(appHash, state)
-		return appHash, nil
-	}
+		case appBlockHeight == stateBlockHeight:
+			// We haven't run Commit (both the state and app are one block behind),
+			// so replayBlock with the real app.
+			// NOTE: We could instead use the cs.WAL on cs.Start,
+			// but we'd have to allow the WAL to replay a block that wrote it's #ENDHEIGHT
+			h.logger.Info("Replay last block using real app")
+			state, err = h.replayBlock(state, storeBlockHeight, proxyApp.Consensus())
+			return state.AppHash, err
 
-	// Then bring the state up to the store, one block at a time, through
-	// ApplyBlock, which saves the responses and the state as a live node does.
-	// The heights past the app run on the real app; a height the app has
-	// already committed cannot, so it runs on a mock app (see mockAppAt).
-	for height := stateBlockHeight + 1; height <= storeBlockHeight; height++ {
-		app := proxyApp.Consensus()
-		if height <= appBlockHeight {
-			if app, err = h.mockAppAt(height, appBlockHeight, appHash); err != nil {
+		case appBlockHeight == storeBlockHeight:
+			// We ran Commit, but didn't save the state, so replayBlock with mock app.
+			abciResponses, err := sm.LoadABCIResponses(h.stateDB, storeBlockHeight)
+			if err != nil {
 				return nil, err
 			}
-		}
-		h.logger.Info("Replay block", "height", height, "mock_app", height <= appBlockHeight)
-		state, err = h.replayBlock(state, height, app)
-		if err != nil {
-			return nil, err
+			mockApp := newMockProxyApp(appHash, abciResponses)
+			h.logger.Info("Replay last block using mock app")
+			state, err = h.replayBlock(state, storeBlockHeight, mockApp)
+			return state.AppHash, err
 		}
 	}
 
-	return state.AppHash, nil
+	panic(fmt.Sprintf("uncovered case! appHeight: %d, storeHeight: %d, stateHeight: %d",
+		appBlockHeight, storeBlockHeight, stateBlockHeight))
 }
 
-// replayBlocks executes the stored blocks in (appBlockHeight, state.LastBlockHeight]
-// on the app and returns its hash after the last one, or appHash when there is
-// none. The state already covers these heights, so they run without validating
-// or mutating it.
-func (h *Handshaker) replayBlocks(state sm.State, app appconn.Consensus, appHash []byte, appBlockHeight int64) ([]byte, error) {
+func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, appBlockHeight, storeBlockHeight int64, mutateState bool) ([]byte, error) {
+	// App is further behind than it should be, so we need to replay blocks.
+	// We replay all blocks from appBlockHeight+1.
+	//
 	// Note that we don't have an old version of the state,
 	// so we by-pass state validation/mutation using sm.ExecCommitBlock.
 	// This also means we won't be saving validator sets if they change during this period.
 	// TODO: Load the historical information to fix this and just use state.ApplyBlock
+	//
+	// If mutateState == true, the final block is replayed with h.replayBlock()
 
+	var appHash []byte
 	var err error
+	finalBlock := storeBlockHeight
+	if mutateState {
+		finalBlock--
+	}
 	// When the chain starts at InitialHeight > 1 (e.g. a hardfork upgrade),
 	// heights in [1, InitialHeight-1] are phantom — they never had a block.
 	// Clamp the replay cursor so we don't try to LoadBlock on those heights.
 	startHeight := max(h.genDoc.InitialHeight, appBlockHeight+1)
-	for i := startHeight; i <= state.LastBlockHeight; i++ {
+	for i := startHeight; i <= finalBlock; i++ {
 		h.logger.Info("Applying block", "height", i)
 		block := h.store.LoadBlock(i)
 		if block == nil {
 			return nil, fmt.Errorf("block not found for height %d", i)
 		}
 		// Extra check to ensure the app was not changed in a way it shouldn't have.
-		// A fresh app's hash predates the InitChain just sent, so its first block
-		// is not checked against it.
-		if i > startHeight || appBlockHeight > 0 {
+		if len(appHash) > 0 {
 			assertAppHashEqualsOneFromBlock(appHash, block)
 		}
 
-		appHash, err = sm.ExecCommitBlock(app, block, state, h.logger, h.stateDB)
+		appHash, err = sm.ExecCommitBlock(proxyApp.Consensus(), block, state, h.logger, h.stateDB)
 		if err != nil {
 			return nil, err
 		}
@@ -466,32 +481,20 @@ func (h *Handshaker) replayBlocks(state sm.State, app appconn.Consensus, appHash
 		h.nBlocks++
 	}
 
+	if mutateState {
+		// sync the final block
+		state, err = h.replayBlock(state, storeBlockHeight, proxyApp.Consensus())
+		if err != nil {
+			return nil, err
+		}
+		appHash = state.AppHash
+	}
+
+	assertAppHashEqualsOneFromState(appHash, state)
 	return appHash, nil
 }
 
-// mockAppAt returns the mock app that replays height, which the real app has
-// already committed: it answers with the ABCI responses saved before that
-// commit and with the app hash that followed it, which the next block's header
-// carries, except for the app's latest height, whose hash the app gave in the
-// handshake.
-func (h *Handshaker) mockAppAt(height, appBlockHeight int64, appHash []byte) (appconn.Consensus, error) {
-	abciResponses, err := sm.LoadABCIResponses(h.stateDB, height)
-	if err != nil {
-		return nil, err
-	}
-	if height < appBlockHeight {
-		meta := h.store.LoadBlockMeta(height + 1)
-		if meta == nil {
-			return nil, fmt.Errorf("block meta not found for height %d", height+1)
-		}
-		appHash = meta.Header.AppHash
-	}
-
-	return newMockProxyApp(appHash, abciResponses), nil
-}
-
-// replayBlock applies the stored block at height on proxyApp through
-// ApplyBlock, which saves the ABCI responses and the state as a live node does.
+// ApplyBlock on the proxyApp with the last block.
 func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp appconn.Consensus) (sm.State, error) {
 	block := h.store.LoadBlock(height)
 	if block == nil {
