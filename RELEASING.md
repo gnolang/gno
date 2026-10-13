@@ -198,7 +198,7 @@ The release binaries are not reproducible from the tag (they are built
 without `-trimpath`, so `gnoland` can find `GNOROOT`), which is why the
 attestation, the checksums and the ledger's recorded digests are the
 operator's anchors. `ci / upgrades-ledger-digests` checks every value the
-ledgers record, weekly: each image digest against the registry, each `ran_as`
+ledgers record, daily: each image digest against the registry, each `ran_as`
 image still resolving, each binary checksum against its release asset. It
 reports every difference and fails at the end.
 
