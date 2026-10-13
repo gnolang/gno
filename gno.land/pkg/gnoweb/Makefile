@@ -92,6 +92,12 @@ lint.front:; $(MAKE) -C frontend lint
 # Generate process
 generate: maincss ts static
 
+# Community share cards, from their wording in frontend/og-cards/generate.sh
+# (macOS only). Run `make static` after to copy them to public/.
+.PHONY: og-cards
+og-cards:
+	./frontend/og-cards/generate.sh
+
 # Icons callable as <gno-icon />: regenerate the vendored set from
 # markdown/icons/icons.txt, then the icon table (markdown/icons_gen.go) and
 # the catalog (ICONS.md, ICONS.svg). Two test runs: the catalog reads the
