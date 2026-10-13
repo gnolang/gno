@@ -177,14 +177,16 @@ The binaries `release / chain-tag` attaches, and the `CHECKSUMS.txt` beside
 them, carry a build-provenance attestation (which workflow built them, from
 which commit and tag), and the images `release / docker` pushes are signed
 keylessly by digest, the multi-arch index and each platform image in it. Both
-rely on the workflow's identity, not on a key anyone holds. To verify what you
-are about to run:
+rely on the workflow's identity, not on a key anyone holds. `v1.5.0` and every
+earlier release carry neither: their tagged commits predate these steps. To
+verify what you are about to run:
 
 ```sh
 gh attestation verify gnoland_linux_amd64 --repo gnolang/gno \
   --signer-workflow gnolang/gno/.github/workflows/release-chain-tag.yml \
   --source-ref refs/tags/v1.6.0
 
+# cosign v3 or later: the signatures are in the Sigstore bundle format
 cosign verify ghcr.io/gnolang/gno/gnoland:v1.6.0 \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity https://github.com/gnolang/gno/.github/workflows/release-docker.yml@refs/tags/v1.6.0
