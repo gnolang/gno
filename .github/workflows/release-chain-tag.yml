@@ -152,6 +152,28 @@ jobs:
           cat checksums_*.txt | sort > CHECKSUMS.txt
           rm -f checksums_*.txt
 
+      # A published release is never rebuilt: its assets are what the upgrade
+      # ledgers record (RELEASING.md, "Cutting a release"). A draft is what a
+      # run that failed before publishing leaves behind, and this run finishes
+      # it. Placed before the attestation, so a refused run attests nothing.
+      - name: Refuse a published release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! draft="$(gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq .isDraft 2>&1)"; then
+            if [ "${draft}" = "release not found" ]; then
+              echo "no release for ${TAG} yet"
+              exit 0
+            fi
+            echo "::error::cannot read the release for ${TAG}: ${draft}"
+            exit 1
+          fi
+          if [ "${draft}" != "true" ]; then
+            echo "::error::${TAG} is already published, and a published release is never rebuilt (RELEASING.md, \"Cutting a release\")"
+            exit 1
+          fi
+          echo "${TAG} has a draft release from an earlier run; this run finishes it"
+
       # Provenance: which workflow built every asset, from which commit and
       # tag. Attested here, once CHECKSUMS.txt exists, so the checksum file is
       # covered along with the binaries, and before the release is created, so
@@ -225,34 +247,46 @@ jobs:
           fi
           echo "release body: $(wc -c <notes.md) characters"
 
-      - name: Ensure release exists
+      # Draft first, assets next, publication last: a release is never visible
+      # without its assets, and none is added once it is published, which is
+      # also the order GitHub's immutable releases require.
+      - name: Create the draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # RELEASING.md allows v1.3.0-rc.1, and GitHub ranks a plain release as
           # "Latest" — the page misc/deployments/*/VALIDATOR.md sends operators
           # to. Mark pre-releases as such, matching goreleaser's `prerelease:
-          # auto`. "Latest" may only move forward, too: GitHub would otherwise
-          # give it to whichever release was created last, so a backport cut
-          # after a newer line would take it. Only the highest final tag gets it.
+          # auto`.
           PRERELEASE=""
           case "${TAG}" in
             v*-*) PRERELEASE="--prerelease" ;;
           esac
-          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
-          LATEST="--latest=false"
-          [ -n "${HIGHEST}" ] && [ "${HIGHEST}" = "${TAG}" ] && LATEST="--latest"
           gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
             gh release create "${TAG}" \
               --repo "${GITHUB_REPOSITORY}" \
+              --draft \
               --title "${TAG}" \
               --notes-file notes.md \
               --verify-tag \
-              ${LATEST} \
               ${PRERELEASE}
 
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # --clobber only ever replaces assets on the draft: a published
+          # release was refused before the attestation.
           gh release upload "${TAG}" dist/* --repo "${GITHUB_REPOSITORY}" --clobber
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # "Latest" may only move forward: GitHub would otherwise give it to
+          # whichever release was published last, so a backport cut after a
+          # newer line would take it. Only the highest final tag gets it.
+          HIGHEST=$(git -c versionsort.suffix=- tag --list 'v*' --sort=-v:refname | grep -v -- '-' | head -1 || true)
+          LATEST="--latest=false"
+          [ -n "${HIGHEST}" ] && [ "${HIGHEST}" = "${TAG}" ] && LATEST="--latest"
+          gh release edit "${TAG}" --repo "${GITHUB_REPOSITORY}" --draft=false ${LATEST}
