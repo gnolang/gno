@@ -263,8 +263,10 @@ go run ./misc/deployments/upgrades check  misc/deployments/mainnet.gno.land   # 
 
 Add the entry before cutting the release, with the image digest and the
 binaries null; fill them in once CI has built the release, and the halt time
-once the halt has happened; render, and port both files to `master`. A
-testnet's ledger names what it ran, release candidates included.
+once the halt has happened; render, and port both files to `master`. Only the
+last entry may still have null binaries, so they are filled in before the next
+release's entry is added. A testnet's ledger names what it ran, release
+candidates included.
 Every halt proposal names the version being released — `set-halt.sh` refuses a
 value the node cannot parse, and an empty one leaves the restart gate off.
 

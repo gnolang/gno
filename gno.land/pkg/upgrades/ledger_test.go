@@ -135,6 +135,7 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 		{"negative proposal", func(l *Ledger) { p := int64(-1); l.Upgrades[1].Proposal = &p }, "proposal"},
 		{"image ref for another version", func(l *Ledger) { l.Upgrades[1].Image.Ref = "ghcr.io/gnolang/gno/gnoland:v1.9.0" }, "image.ref"},
 		{"empty binaries", func(l *Ledger) { l.Upgrades[1].Binaries = map[string]string{} }, "binaries"},
+		{"binaries pending on an entry that is not the last", func(l *Ledger) { l.Upgrades[1].Binaries = nil }, "binaries"},
 		{"binary without checksum", func(l *Ledger) { l.Upgrades[1].Binaries["linux/amd64"] = "https://example.com/gnoland" }, "checksum"},
 		{"binary platform not os/arch", func(l *Ledger) { l.Upgrades[1].Binaries["linux"] = l.Upgrades[1].Binaries["linux/amd64"] }, "platform"},
 		{"ran_as malformed", func(l *Ledger) { s := "sha-31b6650"; l.Upgrades[1].RanAs = &s }, "ran_as"},
@@ -164,7 +165,7 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 // A release's binaries exist only once CI has built it, and its entry is
 // written before that: cut-release.sh refuses a final release without one.
 // null says "not built yet", as it does for the image digest; an empty object
-// is still refused, so a pending entry cannot pass for a built one with no
+// is refused, so a pending entry cannot pass for a built one with no
 // downloads.
 func TestValidate_binariesArePendingUntilTheBuild(t *testing.T) {
 	t.Parallel()

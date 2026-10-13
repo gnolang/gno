@@ -72,9 +72,10 @@ type Ledger struct {
 // Entry is one binary the network ran. Pointer fields are null in the JSON
 // until the fact they record has happened: the digest until CI built the
 // image, the halt time until the halt, the proposal until it was created.
-// Binaries follows the same rule as a map: null until CI built the release,
-// which comes after the entry is written, and never an empty object, so a
-// pending entry cannot pass for a built one with no downloads.
+// Binaries is null by the same rule, until CI built the release, which comes
+// after the entry is written; only the last entry may still be pending, and
+// it is never an empty object, so a pending entry cannot pass for a built one
+// with no downloads.
 // HaltMinVersion is null when the proposal set no floor; an empty string is
 // refused, so "the gate was off" and "someone forgot" cannot be confused.
 type Entry struct {
@@ -279,8 +280,13 @@ func (l *Ledger) Validate() error {
 		if e.Image.Digest != nil && !digestRE.MatchString(*e.Image.Digest) {
 			fail("%s: image.digest %q is not sha256: followed by 64 hex characters", at, *e.Image.Digest)
 		}
-		// nil is JSON null, pending the build; a decoded {} is an empty map.
-		if e.Binaries != nil && len(e.Binaries) == 0 {
+		// nil is JSON null or an absent key, pending the build; a decoded {} is
+		// an empty map. Only the entry being cut can be pending: an earlier one
+		// was built, and a replaying supervisor needs its downloads.
+		switch {
+		case e.Binaries == nil && i != len(l.Upgrades)-1:
+			fail("%s: binaries is null, but only the last entry can still be pending its build", at)
+		case e.Binaries != nil && len(e.Binaries) == 0:
 			fail("%s: binaries is an empty object; use null until CI has built the release, then one download per platform", at)
 		}
 		for plat, url := range e.Binaries {
