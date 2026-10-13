@@ -245,7 +245,8 @@ check_ledger_entry() {
 	if out="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades check "${dir}" 2>&1)"; then
 		ok "upgrades.json validates and UPGRADES.md is current"
 	else
-		out="$(printf '%s\n' "${out}" | sed 's/^/       /')"
+		# go run appends its own "exit status N"; the tool's message says it all.
+		out="$(printf '%s\n' "${out}" | sed -e '/^exit status [0-9]*$/d' -e 's/^/       /')"
 		if [[ ${VERSION} == *-* ]]; then
 			warn "could not check misc/deployments/${CHAIN}.gno.land/upgrades.json:"
 			printf '%s\n' "${out}" >&2
