@@ -137,6 +137,11 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 		{"empty binaries", func(l *Ledger) { l.Upgrades[1].Binaries = map[string]string{} }, "binaries"},
 		{"binaries pending on an entry that is not the last", func(l *Ledger) { l.Upgrades[1].Binaries = nil }, "binaries"},
 		{"binaries pending on the entry before the last", func(l *Ledger) { l.Upgrades[len(l.Upgrades)-2].Binaries = nil }, "binaries"},
+		{"image digest filled in while the binaries are pending", func(l *Ledger) {
+			last := &l.Upgrades[len(l.Upgrades)-1]
+			d := "sha256:" + strings.Repeat("a", 64)
+			last.Image.Digest, last.Binaries = &d, nil
+		}, "binaries"},
 		{"binary without checksum", func(l *Ledger) { l.Upgrades[1].Binaries["linux/amd64"] = "https://example.com/gnoland" }, "checksum"},
 		{"binary platform not os/arch", func(l *Ledger) { l.Upgrades[1].Binaries["linux"] = l.Upgrades[1].Binaries["linux/amd64"] }, "platform"},
 		{"ran_as malformed", func(l *Ledger) { s := "sha-31b6650"; l.Upgrades[1].RanAs = &s }, "ran_as"},

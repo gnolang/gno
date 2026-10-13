@@ -75,7 +75,7 @@ type Ledger struct {
 // Binaries is null by the same rule, until CI built the release, which comes
 // after the entry is written; only the last entry may still be pending, and
 // it is never an empty object, so a pending entry cannot pass for a built one
-// with no downloads.
+// with no downloads. The image digest is never filled in before the binaries.
 // HaltMinVersion is null when the proposal set no floor; an empty string is
 // refused, so "the gate was off" and "someone forgot" cannot be confused.
 type Entry struct {
@@ -286,6 +286,11 @@ func (l *Ledger) Validate() error {
 		switch {
 		case e.Binaries == nil && i != len(l.Upgrades)-1:
 			fail("%s: binaries is null or missing, but only the last entry can still be pending its build", at)
+		case e.Binaries == nil && e.Image.Digest != nil:
+			// Both come from the same build and are filled in together; a
+			// digest alone would make the row look built in UPGRADES.md,
+			// which does not show the binaries.
+			fail("%s: image.digest is set but binaries is null; fill both in once CI has built the release", at)
 		case e.Binaries != nil && len(e.Binaries) == 0:
 			fail("%s: binaries is an empty object; use null until CI has built the release, then one download per platform", at)
 		}
