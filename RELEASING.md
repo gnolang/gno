@@ -134,14 +134,16 @@ corresponds to something that has gone wrong before. All but one are refusals:
    outright — a consensus change is a MINOR.
 4. **The protocol-version constants agree** (see below).
 5. **The built binary reports the tag.** Built the way CI builds it, then asked.
-6. **The upgrade ledger has an entry for the version**
-   (`misc/deployments/<chain>.gno.land/upgrades.json`). A release candidate
-   only warns, since it rehearses the final version's entry; a final release
-   without one is refused.
    Mainnet's launch-day binaries were hand-built without the `-ldflags`: they
    reported `develop`, satisfied no `halt_min_version`, and were not
    reproducible from the tag, until the `v1.2.0` release replaced them; this
    check is what catches that class of mistake before validators download it.
+6. **The upgrade ledger validates and has an entry for the version**
+   (`misc/deployments/<chain>.gno.land/upgrades.json`). The entry is written
+   before the release is cut, with its image digest and binaries null until CI
+   has built them. A release candidate only warns, since it rehearses the final
+   version's entry; a final release without one, or with a ledger that does not
+   validate, is refused.
 
 Pushing a `v*` tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
@@ -259,9 +261,10 @@ go run ./misc/deployments/upgrades render misc/deployments/mainnet.gno.land   # 
 go run ./misc/deployments/upgrades check  misc/deployments/mainnet.gno.land   # what CI runs
 ```
 
-Add the entry when cutting the release, fill in the digest once the image is
-built and the halt time once the halt has happened, render, and port both files
-to `master`. A testnet's ledger names what it ran, release candidates included.
+Add the entry before cutting the release, with the image digest and the
+binaries null; fill them in once CI has built the release, and the halt time
+once the halt has happened; render, and port both files to `master`. A
+testnet's ledger names what it ran, release candidates included.
 Every halt proposal names the version being released — `set-halt.sh` refuses a
 value the node cannot parse, and an empty one leaves the restart gate off.
 

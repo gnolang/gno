@@ -46,6 +46,10 @@ and `origin/chain/*`, and uses local tags to find the previous release.
   `origin/chain/<name>`, and drift that exists only there is drift validators run.
 - **A binary that does not report the tag.** The script builds `gnoland` the way
   CI does and asks it. `chain/mainnet`'s published binaries answer `develop`.
+- **A final release its chain's upgrade ledger does not record**, or a ledger
+  that does not validate (`misc/deployments/<chain>.gno.land/upgrades.json`).
+  Write the entry before the cut, with its image digest and binaries null until
+  CI has built them. A release candidate only warns.
 
 It *warns*, rather than refusing, when the commit is not on `master` (listing
 what is missing, since a squash-merge shows up here even though its content
