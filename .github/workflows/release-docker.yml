@@ -95,7 +95,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}/${{ matrix.image }}
+          # The tag bake pushes: the git tag, with what a registry tag cannot
+          # hold replaced by metadata-action.
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
+          [ -n "${VERSION}" ] || { echo "::error::metadata-action gave no version to check"; exit 1; }
           # Authenticated, so a package never pushed before answers 404 instead
           # of refusing an anonymous token. Credentials go through curl's
           # config on stdin, not its argument list.
@@ -105,15 +109,15 @@ jobs:
           code="$(printf 'header = "Authorization: Bearer %s"\n' "${token}" \
             | curl -sS -K - -o /dev/null -w '%{http_code}' -I \
               -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
-              "https://ghcr.io/v2/${REPO}/manifests/${GITHUB_REF_NAME}")"
+              "https://ghcr.io/v2/${REPO}/manifests/${VERSION}")"
           case "${code}" in
-          404) echo "ghcr.io/${REPO}:${GITHUB_REF_NAME} is not published yet" ;;
+          404) echo "ghcr.io/${REPO}:${VERSION} is not published yet" ;;
           200)
-            echo "::error::ghcr.io/${REPO}:${GITHUB_REF_NAME} is already published, and a published image tag is never re-pushed (RELEASING.md, \"Cutting a release\")"
+            echo "::error::ghcr.io/${REPO}:${VERSION} is already published, and a published image tag is never re-pushed (RELEASING.md, \"Cutting a release\")"
             exit 1
             ;;
           *)
-            echo "::error::cannot tell whether ghcr.io/${REPO}:${GITHUB_REF_NAME} is published: HTTP ${code}"
+            echo "::error::cannot tell whether ghcr.io/${REPO}:${VERSION} is published: HTTP ${code}"
             exit 1
             ;;
           esac
