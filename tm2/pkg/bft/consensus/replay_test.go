@@ -338,7 +338,17 @@ var mempool = mock.Mempool{}
 // 0 - all synced up
 // 1 - saved block but app and state are behind
 // 2 - save block and committed but state is behind
-var modes = []uint{0, 1, 2}
+// 3 - saved two blocks the state is behind, as unflushed state records let a
+// crash lose more than one; the app is at nBlocks: behind the state, between,
+// or level with the store
+// 4 - the state is back at genesis: a block store copied onto a fresh state
+// (and a fresh app when nBlocks is 0), or the app far ahead of the state
+var modes = []uint{0, 1, 2, 3, 4}
+
+// stateBehind is how many blocks buildTMStateFromChain keeps the state behind
+// the chain in each mode. Those blocks' responses and app hashes are saved
+// anyway, as if their state records never reached the disk.
+var stateBehind = [...]int{0, 1, 1, 2, numBlocks}
 
 // Caller should call `defer sim.CleanupFunc()`
 func makeTestSim(t *testing.T, name string) (sim testSim) {
@@ -703,20 +713,21 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 	state := genesisState.Copy()
 	// run the chain through state.ApplyBlock to build up the tendermint state
 	state = buildTMStateFromChain(config, stateDB, state, chain, nBlocks, mode)
-	latestAppHash := state.AppHash
+	stateHeight := int(state.LastBlockHeight)
 
 	// make a new client creator
 	kvstoreApp := kvstore.NewPersistentKVStoreApplication(filepath.Join(config.DBDir(), fmt.Sprintf("replay_test_%d_%d_a", nBlocks, mode)))
 	defer kvstoreApp.Close()
 
 	clientCreator2 := proxy.NewLocalClientCreator(kvstoreApp)
+	appHeight := 0
 	if nBlocks > 0 {
 		// run nBlocks against a new client to build up the app state.
 		// use a throwaway tendermint state
 		proxyApp := appconn.NewAppConns(clientCreator2)
 		stateDB1 := memdb.NewMemDB()
 		sm.SaveState(stateDB1, genesisState)
-		buildAppStateFromChain(proxyApp, stateDB1, genesisState, chain, nBlocks, mode)
+		appHeight = buildAppStateFromChain(proxyApp, stateDB1, genesisState, chain, nBlocks, mode)
 	}
 
 	// now start the app using the handshake - it should sync
@@ -739,17 +750,16 @@ func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uin
 		t.Fatal(err)
 	}
 
-	// the app hash should be synced up
+	// the app hash should be synced up to the chain's latest, which the state
+	// record holds whether the builders or the handshake wrote it
+	latestAppHash := sm.LoadState(stateDB).AppHash
 	if !bytes.Equal(latestAppHash, res.LastBlockAppHash) {
 		t.Fatalf("Expected app hashes to match after handshake/replay. got %X, expected %X", res.LastBlockAppHash, latestAppHash)
 	}
 
-	expectedBlocksToSync := numBlocks - nBlocks
-	if nBlocks == numBlocks && mode > 0 {
-		expectedBlocksToSync++
-	} else if nBlocks > 0 && mode == 1 {
-		expectedBlocksToSync++
-	}
+	// The handshake replays every height the app is behind the state, then
+	// every height the state is behind the store.
+	expectedBlocksToSync := max(0, stateHeight-appHeight) + (int(store.Height()) - stateHeight)
 
 	if handshaker.NBlocks() != expectedBlocksToSync {
 		t.Fatalf("Expected handshake to sync %d blocks, got %d", expectedBlocksToSync, handshaker.NBlocks())
@@ -768,9 +778,10 @@ func applyBlock(stateDB dbm.DB, st sm.State, blk *types.Block, proxyApp appconn.
 	return newState
 }
 
+// buildAppStateFromChain plays nBlocks blocks on the app and returns its height.
 func buildAppStateFromChain(proxyApp appconn.AppConns, stateDB dbm.DB,
 	state sm.State, chain []*types.Block, nBlocks int, mode uint,
-) {
+) int {
 	// start a new app without handshake, play nBlocks blocks
 	if err := proxyApp.Start(); err != nil {
 		panic(err)
@@ -786,24 +797,16 @@ func buildAppStateFromChain(proxyApp appconn.AppConns, stateDB dbm.DB,
 	}
 	sm.SaveState(stateDB, state) // save height 1's validatorsInfo
 
-	switch mode {
-	case 0:
-		for i := range nBlocks {
-			block := chain[i]
-			state = applyBlock(stateDB, state, block, proxyApp)
-		}
-	case 1, 2:
-		for i := range nBlocks - 1 {
-			block := chain[i]
-			state = applyBlock(stateDB, state, block, proxyApp)
-		}
-
-		if mode == 2 {
-			// update the kvstore height and apphash
-			// as if we ran commit but not
-			state = applyBlock(stateDB, state, chain[nBlocks-1], proxyApp)
-		}
+	// in mode 1 the last block was saved but never run, so the app stops one short
+	applied := nBlocks
+	if mode == 1 {
+		applied = max(nBlocks-1, 0)
 	}
+	for _, block := range chain[:applied] {
+		state = applyBlock(stateDB, state, block, proxyApp)
+	}
+
+	return int(state.LastBlockHeight)
 }
 
 func buildTMStateFromChain(config *cfg.Config, stateDB dbm.DB, state sm.State, chain []*types.Block, nBlocks int, mode uint) sm.State {
@@ -826,23 +829,17 @@ func buildTMStateFromChain(config *cfg.Config, stateDB dbm.DB, state sm.State, c
 	}
 	sm.SaveState(stateDB, state) // save height 1's validatorsInfo
 
-	switch mode {
-	case 0:
-		// sync right up
-		for _, block := range chain {
-			state = applyBlock(stateDB, state, block, proxyApp)
-		}
+	// sync up to where the mode keeps the state, as if the rest were stored
+	behind := stateBehind[mode]
+	for _, block := range chain[:len(chain)-behind] {
+		state = applyBlock(stateDB, state, block, proxyApp)
+	}
 
-	case 1, 2:
-		// sync up to the penultimate as if we stored the block.
-		// whether we commit or not depends on the appHash
-		for _, block := range chain[:len(chain)-1] {
-			state = applyBlock(stateDB, state, block, proxyApp)
-		}
-
-		// apply the final block to a state copy so we can
-		// get the right next appHash but keep the state back
-		applyBlock(stateDB, state, chain[len(chain)-1], proxyApp)
+	// apply the rest to a state copy so their responses and app hashes are
+	// saved, but keep the state back
+	ahead := state
+	for _, block := range chain[len(chain)-behind:] {
+		ahead = applyBlock(stateDB, ahead, block, proxyApp)
 	}
 
 	return state

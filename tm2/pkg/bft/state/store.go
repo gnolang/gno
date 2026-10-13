@@ -99,12 +99,13 @@ func loadState(db dbm.DB, key []byte) (state State) {
 }
 
 // SaveState persists the State, the ValidatorsInfo, and the ConsensusParamsInfo to the database.
-// This flushes the writes (e.g. calls SetSync).
+// The writes are not flushed. The state database is flushed once per block, by
+// SaveABCIResponses before the application commits, and that flush makes every
+// record written before it durable (see dbm.DB.SetSync). A record lost in a
+// crash is either recomputed on the next start (the genesis state, the state
+// after InitChain, the app version) or rebuilt by replaying the block store
+// against the saved responses (consensus.Handshaker.ReplayBlocks).
 func SaveState(db dbm.DB, state State) {
-	saveState(db, state, stateKey)
-}
-
-func saveState(db dbm.DB, state State, key []byte) {
 	nextHeight := state.LastBlockHeight + 1
 	// Defensive guard: a state with LastBlockHeight in the open interval
 	// (0, InitialHeight-1) is invalid for hardfork chains. nextHeight==1 is
@@ -112,7 +113,7 @@ func saveState(db dbm.DB, state State, key []byte) {
 	// saves the genesis state before the handshaker hoists
 	// LastBlockHeight to InitialHeight-1).
 	if nextHeight > 1 && nextHeight < state.InitialHeight {
-		panic(fmt.Sprintf("saveState: nextHeight %d in invalid range (1, state.InitialHeight=%d)", nextHeight, state.InitialHeight))
+		panic(fmt.Sprintf("SaveState: nextHeight %d in invalid range (1, state.InitialHeight=%d)", nextHeight, state.InitialHeight))
 	}
 	// If first block (standard genesis at InitialHeight==1 or hardfork at
 	// InitialHeight>1), save the full validator set and consensus params at
@@ -131,7 +132,7 @@ func saveState(db dbm.DB, state State, key []byte) {
 	}
 	// Save next validators.
 	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
-	db.SetSync(key, state.Bytes())
+	db.Set(stateKey, state.Bytes())
 }
 
 // ------------------------------------------------------------------------
@@ -200,11 +201,11 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
 //
 // The write is flushed (SetSync) because ApplyBlock writes this before the
-// application commit and flushes the state store only afterwards, in SaveState,
-// so an unsynced write is lost in exactly the window the record exists for. The
-// only reader for that window is ReplayBlocks' storeBlockHeight ==
-// stateBlockHeight+1, appBlockHeight == storeBlockHeight case, which replays the
-// height against a mock application and has no other source for its state.
+// application commit, and nothing after the commit flushes the state database
+// (SaveState does not), so an unsynced write could be lost in exactly the
+// window the record exists for. Its readers for that window are the heights in
+// (state, app] that ReplayBlocks replays against a mock application, which has
+// no other source for its state update.
 //
 // A write failure is returned rather than swallowed for the same reason: the
 // caller must stop the block before the application commits a height whose

@@ -71,6 +71,50 @@ func TestLoadBlockStoreStateJSON(t *testing.T) {
 	assert.Equal(t, *bsj, retrBSJ, "expected the retrieved DBs to match")
 }
 
+// writeLogDB records every write to the store, in order, and whether it was flushed.
+type writeLogDB struct {
+	dbm.DB
+
+	writes []loggedWrite
+}
+
+type loggedWrite struct {
+	key     []byte
+	flushed bool
+}
+
+func (db *writeLogDB) Set(key, value []byte) error {
+	db.writes = append(db.writes, loggedWrite{key: key})
+	return db.DB.Set(key, value)
+}
+
+func (db *writeLogDB) SetSync(key, value []byte) error {
+	db.writes = append(db.writes, loggedWrite{key: key, flushed: true})
+	return db.DB.SetSync(key, value)
+}
+
+// TestSaveBlockFlushesOnlyTheHeightRecord pins that a saved block costs one
+// flush, on the height record, and that the record is the last write: a flush
+// makes every earlier write durable (dbm.DB.SetSync), so a height record that
+// survives a crash always comes with its block, and a second flush would only
+// add a disk sync per block.
+func TestSaveBlockFlushesOnlyTheHeightRecord(t *testing.T) {
+	t.Parallel()
+
+	db := &writeLogDB{DB: memdb.NewMemDB()}
+	bs := NewBlockStore(db)
+	bs.SaveBlock(block, partSet, seenCommit1)
+
+	require.NotEmpty(t, db.writes)
+	last := db.writes[len(db.writes)-1]
+	require.Equal(t, blockStoreKey, last.key)
+	require.True(t, last.flushed)
+	for _, w := range db.writes[:len(db.writes)-1] {
+		require.False(t, w.flushed, "flushed %q before the height record", w.key)
+	}
+	require.Equal(t, block.Height, LoadBlockStoreStateJSON(db).Height)
+}
+
 func TestNewBlockStore(t *testing.T) {
 	t.Parallel()
 

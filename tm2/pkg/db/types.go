@@ -16,12 +16,18 @@ type DB interface {
 	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key, value readonly []byte
 	Set([]byte, []byte) error
+	// SetSync sets the key and flushes the write to disk. When it returns, the
+	// write and every earlier write to this DB are durable (the disk backends
+	// keep a sequential log), so one flush covers all the writes before it. A
+	// write without a flush (Set, Delete, Batch.Write) can be lost in a crash
+	// until a later flush covers it.
 	SetSync([]byte, []byte) error
 
 	// Delete deletes the key.
 	// A nil key is interpreted as an empty byteslice.
 	// CONTRACT: key readonly []byte
 	Delete([]byte) error
+	// DeleteSync deletes the key and flushes, with SetSync's guarantee.
 	DeleteSync([]byte) error
 
 	// Iterate over a domain of keys in ascending order. End is exclusive.
@@ -81,7 +87,8 @@ type Batch interface {
 	// other methods will error.
 	Write() error
 
-	// WriteSync writes the batch and flushes it to disk. Only Close() can be called after, other
+	// WriteSync writes the batch and flushes it to disk, with DB.SetSync's guarantee: every
+	// earlier write to the DB is durable too. Only Close() can be called after, other
 	// methods will error.
 	WriteSync() error
 
