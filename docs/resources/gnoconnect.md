@@ -475,7 +475,7 @@ echoing and the answer-every-request duty are identical.
 ### `connect` — request the user's identity
 
 ```
-<scheme>://connect?callback=<url>&state=<token>&rpc=<rpc>&chainid=<chainid>&challenge=<text>
+<scheme>://connect?callback=<url>&state=<token>&rpc=<rpc>&chainid=<chainid>&signer=<address>&challenge=<text>
 ```
 
 Asks the wallet which address the user wants to act as — the sign-in step
@@ -495,6 +495,11 @@ A `connect` may carry a **`challenge`**: a text the producer's backend handed
 out, which the identity signs to prove it controls the address (see Proving the
 identity below). Without it, a `connect` proves nothing.
 
+`signer` (optional) pins the identity the answer is about, as it does for
+`sendtx`: a producer that already knows the address — to prove it with a
+`challenge`, or to sign in again as the same account — names it, and the wallet
+answers as that identity or with `signer_unavailable`, never with another one.
+
 The wallet MUST ask the user before disclosing anything, and MUST show the
 callback's host: a producer's claimed name is self-asserted and unverifiable,
 so the destination is the only anti-phishing anchor the user has. The protocol
@@ -507,8 +512,9 @@ is its callback destination.
 <callback>?status=error&code=<code>&state=<echoed>
 ```
 
-Error codes (`code`): `no_signer`, `network_declined`, `invalid_request`, and for
-a `connect` naming a key the session codes listed under Sessions. As on `tx`,
+Error codes (`code`): `no_signer`, `signer_unavailable`, `network_declined`,
+`invalid_request`, and for a `connect` naming a key the session codes listed
+under Sessions. As on `tx`,
 `status` is the closed outcome class and `code` the enumerated reason.
 
 `features` (optional) is a comma-separated list of the wallet's optional
@@ -567,9 +573,16 @@ and answers without `signed` and `signature`: the producer is proven only when
 the reply carries them, and otherwise falls back to another way rather than
 asking again. `challenge` in `features` says the wallet signs one.
 
-The producer makes the challenge (fresh, single use, naming its own domain),
-checks the signature against `pubkey`, that `pubkey`'s address is `address`, and
-the chain id, and refuses a chain it did not expect.
+The producer makes the challenge (fresh, single use, naming its own domain)
+and checks the reply as a sign-data document, not as a bare signature: `signed`
+MUST parse as the document above — the same shape, `sign/MsgSignData` its only
+message — whose `data` is the challenge it handed out and has not seen used,
+whose `signer` is `address`, and whose `chain_id` is the chain it expected;
+`signature` MUST verify over those bytes with `pubkey`, whose address is
+`address`. `std.VerifySignData` makes the shape and signature checks and returns
+the chain id, signer and data to compare. Checking the signature alone is not
+enough: any signature that key ever made — a transaction on chain, say — would
+then pass for a proof.
 
 ### Sessions: `connect` with a key, and `disconnect`
 
@@ -692,7 +705,7 @@ These are gno.land consensus rules today (`tm2/pkg/sdk/auth`,
 | `expires` | optional hint | required | — | — | lifetime in **seconds**, `1`–`126144000` |
 | `chainid` | required | required | — | required | network, resolved as in Network resolution |
 | `rpc` | optional | optional | — | optional | advisory, as everywhere |
-| `signer` | — | optional; **required** with `old` | — | **required** | the identity (`address` from a previous `connect`) |
+| `signer` | optional | optional; **required** with `old` | — | **required** | the identity (`address` from a previous `connect`) |
 | `callback` | required | required | optional | optional | where the wallet answers |
 | `state` | optional, RECOMMENDED | **required** | optional, RECOMMENDED | **required** | opaque correlation token, at most 256 characters |
 | `iat` | — | **required** | — | **required** | issue time, unix seconds |
