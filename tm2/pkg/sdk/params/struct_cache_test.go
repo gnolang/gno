@@ -134,9 +134,7 @@ func TestStructCacheConcurrent(t *testing.T) {
 	var wg sync.WaitGroup
 	var wrong atomic.Int32
 	for range 8 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for i := range 200 {
 				var p cacheParams
 				if !c.fill(cacheKey, &p, kvz) {
@@ -150,7 +148,7 @@ func TestStructCacheConcurrent(t *testing.T) {
 					c.remember(cacheKey, &a, kvz)
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	require.Zero(t, wrong.Load())
