@@ -35,9 +35,11 @@ type RealmMeta struct {
 // Lead returns what the top of a document says about it, as plain text: the
 // title is a leading h1, and the description the first paragraph long enough
 // to summarise between that h1, or the document start, and the next heading
-// or rule. Text further down belongs to a section, a list or a post someone
-// else wrote, not to the page, so it never names the page. A paragraph with
-// no visible text, such as a banner image, does not count as leading.
+// or rule. Text inside a list, a quote or a table never counts, though a
+// paragraph after one does; text below the next heading or rule belongs to a
+// section or a post someone else wrote, not to the page, so it never names
+// it. A paragraph with no visible text, such as a banner image, does not
+// count as leading.
 func Lead(doc ast.Node, src []byte) (title, description string) {
 	n := doc.FirstChild()
 	for n != nil && n.Kind() == ast.KindParagraph && plainText(src, n) == "" {
@@ -158,13 +160,16 @@ func truncateLine(s string, limit int) string {
 // long path or address is then cut inside, so "Welcome to gno.land/r/..."
 // keeps what it names instead of becoming "Welcome to…".
 func truncateRunes(s string, limit int) string {
-	runes := []rune(s)
-	if len(runes) <= limit {
-		return s
+	n := 0
+	for i := range s {
+		if n == limit {
+			cut := s[:i]
+			if j := strings.LastIndexFunc(cut, unicode.IsSpace); j > len(cut)/2 {
+				cut = cut[:j]
+			}
+			return cut + "…"
+		}
+		n++
 	}
-	cut := string(runes[:limit])
-	if i := strings.LastIndexFunc(cut, unicode.IsSpace); i > len(cut)/2 {
-		cut = cut[:i]
-	}
-	return cut + "…"
+	return s
 }

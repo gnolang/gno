@@ -212,3 +212,14 @@ func BenchmarkLeadEmphasis(b *testing.B) {
 		Lead(doc, src)
 	}
 }
+
+// TestTruncateRunesCopiesNothingLong checks a long text is cut without being
+// copied whole: the summary of a long paragraph costs its own length only.
+func TestTruncateRunesCopiesNothingLong(t *testing.T) {
+	long := strings.Repeat("word ", 20000)
+	allocs := testing.AllocsPerRun(10, func() { truncateRunes(long, descriptionMaxRunes) })
+	assert.LessOrEqual(t, allocs, float64(1))
+	assert.Equal(t, "ab…", truncateRunes("abc", 2))
+	assert.Equal(t, "abc", truncateRunes("abc", 3))
+	assert.Equal(t, "éé…", truncateRunes("ééé", 2))
+}
