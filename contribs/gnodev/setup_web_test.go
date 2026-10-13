@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,6 +16,7 @@ func TestGnoWebAppConfigTrustsEveryPathLocallyOnly(t *testing.T) {
 		"every package on a local chain is the developer's own")
 
 	staging := defaultStagingOptions
-	assert.NotContains(t, gnoWebAppConfig(&staging, "").TrustedPaths, "*",
-		"a staging server hosts other deployers' realms")
+	appcfg := gnoWebAppConfig(&staging, "")
+	assert.Empty(t, appcfg.TrustedPaths, "a staging chain reserves no namespace")
+	assert.Equal(t, gnoweb.IndexNoCommunity, appcfg.IndexCommunity)
 }
