@@ -8,8 +8,10 @@ this page is what to type.
 Tags a release, after checking it is one.
 
 ```sh
-# dry run — every check runs, nothing is pushed
-misc/release/cut-release.sh v1.3.0
+# dry run — every check runs, nothing is pushed. Once the ledger entry is
+# pushed on top of the code, the branch tip is the ledger commit: name the code
+# commit
+misc/release/cut-release.sh v1.3.0 --commit <code-commit>
 
 # tag a specific commit rather than the branch tip
 misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e

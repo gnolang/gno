@@ -32,8 +32,9 @@
 #   # what the mainnet launch should have been tagged with
 #   misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
 #
-#   # a consensus-breaking upgrade, with the halt proposal to go with it
-#   misc/release/cut-release.sh v1.3.0 --halt-height 120000 --push
+#   # a consensus-breaking upgrade, with the halt proposal to go with it; the
+#   # commit is the code commit the ledger entry names, not the branch tip
+#   misc/release/cut-release.sh v1.3.0 --commit <code-commit> --halt-height 120000 --push
 
 set -euo pipefail
 

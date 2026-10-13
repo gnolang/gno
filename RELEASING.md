@@ -112,8 +112,9 @@ runs, and the two are not the same thing:
 ## Cutting a release
 
 ```sh
-# dry run: every check, no push
-misc/release/cut-release.sh v1.3.0
+# dry run: every check, no push. Once the ledger entry is pushed on top of the
+# code, the branch tip is the ledger commit, so every cut names the code commit
+misc/release/cut-release.sh v1.3.0 --commit <code-commit>
 
 # a coordinated upgrade: also prints the GovDAO halt proposal to go with it.
 # --commit names the code commit, the one the ledger entry names (item 6)
@@ -220,8 +221,9 @@ a value still pending the build is listed, not checked.
 
 The testnet runs the same binary as mainnet; only the genesis balances and the
 on-chain transactions differ. Every mainnet release is therefore first cut as
-a release candidate on the same commit (`cut-release.sh v1.6.0-rc.1 --push`),
-deployed to the testnet through the operator procedure (`set-halt` naming the
+a release candidate on the same commit
+(`cut-release.sh v1.6.0-rc.1 --commit <code-commit> --push`), deployed to the
+testnet through the operator procedure (`set-halt` naming the
 rc, validators switch at the height), and checked there: the halt fires, an
 early start is refused, blocks are produced after the restart, a fresh node
 syncs from genesis with the rc. A fix means a new commit and `rc.2`. Only then
