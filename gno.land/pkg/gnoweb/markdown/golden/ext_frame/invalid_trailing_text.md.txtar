@@ -1,0 +1,6 @@
+-- input.md --
+<gno-frame> hello
+after
+-- output.html --
+<p><!-- raw HTML omitted --> hello
+after</p>
