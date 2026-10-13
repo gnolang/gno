@@ -2179,7 +2179,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						switch fv.Name {
 						case "len", "cap":
 							if len(n.Args) == 1 {
-								assertLenCapArg(fv.Name, evalStaticTypeOf(store, last, n.Args[0]))
+								assertLenCapArg(fv.Name, operandOf(store, last, n.Args[0]))
 								if cx := constStringLen(fv.Name, n.Args[0]); cx != nil {
 									cx.Source = n
 									return cx, TRANS_CONTINUE
@@ -2829,7 +2829,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 				case *ArrayType:
 					for i := range n.Elts {
-						assertConstLiteralKey(n.Elts[i].Key)
+						assertConstLiteralKey(store, last, n.Elts[i].Key)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
 						}
@@ -2842,7 +2842,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 				case *SliceType:
 					for i := range n.Elts {
-						assertConstLiteralKey(n.Elts[i].Key)
+						assertConstLiteralKey(store, last, n.Elts[i].Key)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
 						}

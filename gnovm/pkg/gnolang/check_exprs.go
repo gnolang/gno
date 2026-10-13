@@ -46,7 +46,8 @@ func assertComparableTo(a, b operand) {
 
 // assertLenCapArg checks the operand of len or cap: a string (len only),
 // array, pointer to array, slice, map (len only) or channel.
-func assertLenCapArg(name Name, t Type) {
+func assertLenCapArg(name Name, arg operand) {
+	t := arg.typ
 	if t == nil {
 		return
 	}
@@ -213,11 +214,11 @@ func constStringLen(name Name, arg Expr) *ConstExpr {
 }
 
 // assertConstLiteralKey: an array or slice literal index is a constant.
-func assertConstLiteralKey(key Expr) {
+func assertConstLiteralKey(store Store, last BlockNode, key Expr) {
 	if key == nil {
 		return
 	}
-	if _, ok := key.(*ConstExpr); !ok {
+	if operandOf(store, last, key).mode != opConstant {
 		failf(CodeLiteralKeyConst, []Node{key}, "index %s must be integer constant", exprString(key))
 	}
 }
