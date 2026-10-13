@@ -113,8 +113,10 @@ jobs:
               exit 1
             fi
             got="$(echo "${out}" | awk -v n="$name" '$1 == n && $2 == "version:" {print $3}')"
-            if [ "$got" != "$TAG" ]; then
-              echo "::error::${name} reports '${got}', expected '${TAG}' — the -ldflags did not apply"
+            # Against the ref that started the run rather than TAG, so a TAG
+            # that drifted from it fails here instead of passing its own test.
+            if [ "$got" != "$GITHUB_REF_NAME" ]; then
+              echo "::error::${name} reports '${got}', expected '${GITHUB_REF_NAME}' — the -ldflags did not apply"
               exit 1
             fi
             echo "${name}: ${got}"
