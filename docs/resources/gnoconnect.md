@@ -543,14 +543,14 @@ Sessions in the browser). A page restoring a session on every navigation would
 otherwise throw a wallet popup on every page load, which makes the feature
 unusable. Re-approval is for origins the user has not already approved.
 
+A `connect` carrying a `challenge` is the other exception: it always prompts,
+since what the user approves is a signature, not an origin (see Proving the
+identity).
+
 In the browser `proof.signed` is the document as an object; the producer
 rebuilds the canonical bytes from it — sorted by key, no spaces, `<`, `>` and `&`
 escaped — before verifying, as it decodes `signed` from base64url on a launch
 link.
-
-A `connect` carrying a `challenge` is the other exception: it always prompts,
-since what the user approves is a signature, not an origin (see Proving the
-identity).
 
 #### Optional methods
 
