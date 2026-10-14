@@ -1,27 +1,44 @@
 package db
 
-import "sync"
+import (
+	"errors"
+	"fmt"
+	"sync"
+	"sync/atomic"
+)
+
+// ErrIteratorOverHeldWrites is the panic value of an iterator opened on a
+// CollectingDB while its collector holds writes across blocks: the iterator
+// reads only the underlying database, so it would miss them.
+var ErrIteratorOverHeldWrites = errors.New("db: iterator would miss the writes held in memory")
 
 // BatchCollector accumulates Set/Delete operations in memory without touching
 // disk. It backs CollectingDB and lets rootmulti fuse multiple sub-store write
 // sites (dbadapter flush, IAVL/bptree SaveVersion, rootmulti metadata) into
 // one atomic disk write: direct DB writes enter the collector immediately,
-// batch writes enter when their batch is Written (see batchHandle), and the
-// caller drains the accumulated ops into a real Batch at the end of the
-// commit.
+// batch writes enter when their batch is Written (see batchHandle), and
+// WriteTo writes the accumulated ops as one synced batch, at the end of a
+// commit or, while holding, at a flush point.
 //
 // pending indexes the last op per key so CollectingDB can serve read-your-
 // writes without touching the underlying DB — required when a caller writes
 // and then reads back before the next drain (e.g. deploying a package in one
 // tx and importing it in the next, before the block-level Commit runs).
 //
-// Set/Delete/Get are safe for concurrent use. Reset and Drain must not race
-// with writers; they are called before/after the commit window when no writer
-// is active.
+// Set/Delete/Get are safe for concurrent use. WriteTo, Drain and Reset must
+// not race with writers; they run when no writer is active.
+//
+// While holding (SetHolding), the collector keeps its ops across commits and
+// CollectingDB's iterators refuse to run (see ErrIteratorOverHeldWrites); a
+// refused iterator is recorded for TakeRefusedIterator.
 type BatchCollector struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	ops     []collectOp
 	pending map[string]int // key → index into ops of the latest op for that key
+	size    int            // sum of the ops' key and value lengths
+
+	holding atomic.Bool
+	refused atomic.Bool
 }
 
 type collectOp struct {
@@ -35,21 +52,30 @@ func NewBatchCollector() *BatchCollector {
 	return &BatchCollector{pending: make(map[string]int)}
 }
 
-// Reset drops all accumulated ops. Call at the start of a commit window.
+// Reset drops all accumulated ops, and the memory they held. Call it once the
+// batch they were drained into is written.
 func (c *BatchCollector) Reset() {
 	c.mu.Lock()
-	c.ops = c.ops[:0]
-	clear(c.pending)
+	c.ops = nil
+	c.pending = make(map[string]int)
+	c.size = 0
 	c.mu.Unlock()
 }
 
-// Drain replays every collected op into dst in the order recorded, then clears
-// the collector. The caller flushes dst (typically via WriteSync) to persist
-// them atomically.
+// Drain replays the collected ops into dst in the order recorded, but for an
+// op a later one on the same key overrides: dst is written as one batch, so
+// only the last op on each key can reach the disk. The caller flushes dst
+// (typically via WriteSync) to persist them atomically, then calls Reset:
+// until then the ops stay readable through CollectingDB, so a concurrent
+// reader finds each record in the collector or on disk. WriteTo does all of
+// it.
 func (c *BatchCollector) Drain(dst Batch) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	for _, op := range c.ops {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for i, op := range c.ops {
+		if c.pending[string(op.key)] != i {
+			continue
+		}
 		if op.del {
 			if err := dst.Delete(op.key); err != nil {
 				return err
@@ -60,8 +86,21 @@ func (c *BatchCollector) Drain(dst Batch) error {
 			return err
 		}
 	}
-	c.ops = c.ops[:0]
-	clear(c.pending)
+	return nil
+}
+
+// WriteTo writes the collected ops to db as one synced batch (see Drain), and
+// only then drops them.
+func (c *BatchCollector) WriteTo(db DB) error {
+	batch := db.NewBatchWithSize(c.Size())
+	defer batch.Close()
+	if err := c.Drain(batch); err != nil {
+		return err
+	}
+	if err := batch.WriteSync(); err != nil {
+		return err
+	}
+	c.Reset()
 	return nil
 }
 
@@ -69,8 +108,8 @@ func (c *BatchCollector) Drain(dst Batch) error {
 // true when the collector has any op for key; when it also has del=true the
 // caller must treat the key as absent (a pending delete masks any real value).
 func (c *BatchCollector) get(key []byte) (val []byte, del, found bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	idx, ok := c.pending[string(key)]
 	if !ok {
 		return nil, false, false
@@ -81,10 +120,35 @@ func (c *BatchCollector) get(key []byte) (val []byte, del, found bool) {
 
 // Len returns the number of ops currently buffered.
 func (c *BatchCollector) Len() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return len(c.ops)
 }
+
+// Size returns the bytes of keys and values currently buffered, counting
+// every op, overwrites included.
+func (c *BatchCollector) Size() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.size
+}
+
+// SetHolding turns holding on or off; see BatchCollector. It panics when
+// turned on or off with ops collected: on, they would be held as part of the
+// commits that follow; off, they would be lost, or written with later ones.
+func (c *BatchCollector) SetHolding(on bool) {
+	if n := c.Len(); n > 0 {
+		panic(fmt.Sprintf("db: holding turned on=%t with %d writes collected", on, n))
+	}
+	c.holding.Store(on)
+}
+
+// Holding reports whether the collector holds its ops across commits.
+func (c *BatchCollector) Holding() bool { return c.holding.Load() }
+
+// TakeRefusedIterator reports whether an iterator was refused since the last
+// call, and clears the record.
+func (c *BatchCollector) TakeRefusedIterator() bool { return c.refused.Swap(false) }
 
 // NewBatch returns a Batch that flushes into this collector on Write. Callers
 // use it to write into the same op-log as CollectingDB-wrapped sub-stores; it
@@ -105,26 +169,19 @@ func (c *BatchCollector) appendOps(ops []collectOp) {
 	for _, op := range ops {
 		c.ops = append(c.ops, op)
 		c.pending[string(op.key)] = len(c.ops) - 1
+		c.size += len(op.key) + len(op.val)
 	}
 	c.mu.Unlock()
 }
 
 func (c *BatchCollector) set(key, value []byte) {
-	// Copy inputs — callers (BatchWithFlusher, cache flush) reuse buffers.
-	k := append([]byte(nil), key...)
-	v := append([]byte(nil), value...)
-	c.mu.Lock()
-	c.ops = append(c.ops, collectOp{key: k, val: v})
-	c.pending[string(k)] = len(c.ops) - 1
-	c.mu.Unlock()
+	// Copy inputs — callers (BatchWithFlusher, cache flush) reuse buffers. cp,
+	// not append: an empty value must stay non-nil, or Get reports it missing.
+	c.appendOps([]collectOp{{key: cp(key), val: cp(value)}})
 }
 
 func (c *BatchCollector) delete(key []byte) {
-	k := append([]byte(nil), key...)
-	c.mu.Lock()
-	c.ops = append(c.ops, collectOp{del: true, key: k})
-	c.pending[string(k)] = len(c.ops) - 1
-	c.mu.Unlock()
+	c.appendOps([]collectOp{{del: true, key: cp(key)}})
 }
 
 // CollectingDB wraps a real DB and routes every write through a shared
@@ -178,13 +235,24 @@ func (c *CollectingDB) Has(key []byte) (bool, error) {
 // Callers that iterate before the next Drain will miss pending Sets and see
 // stale keys through pending Deletes. Current consumers (IAVL SaveVersion,
 // dbadapter cache flush, rootmulti metadata) don't iterate during a commit
-// window, so this is safe today; revisit if that changes.
+// window, so this is safe today; revisit if that changes. While the
+// collector holds writes across commits they panic instead, with
+// ErrIteratorOverHeldWrites, and record it.
 func (c *CollectingDB) Iterator(start, end []byte) (Iterator, error) {
+	c.refuseWhileHolding()
 	return c.real.Iterator(start, end)
 }
 
 func (c *CollectingDB) ReverseIterator(start, end []byte) (Iterator, error) {
+	c.refuseWhileHolding()
 	return c.real.ReverseIterator(start, end)
+}
+
+func (c *CollectingDB) refuseWhileHolding() {
+	if c.collector.Holding() {
+		c.collector.refused.Store(true)
+		panic(ErrIteratorOverHeldWrites)
+	}
 }
 
 func (c *CollectingDB) NewSnapshot() (Snapshot, error) { return c.real.NewSnapshot() }
