@@ -15,7 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
-// fakeGnoDevice answers like the Gno app (docs/APDU.md in ledger-app-gno) for
+// fakeGnoDevice answers like the Gno.land app (docs/APDU.md in ledger-app-gno) for
 // a single secp256k1 key, and reports errors as ledger-go does.
 type fakeGnoDevice struct {
 	name    string

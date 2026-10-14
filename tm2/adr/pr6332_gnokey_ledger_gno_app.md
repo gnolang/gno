@@ -1,4 +1,4 @@
-# Support the Gno Ledger app in gnokey
+# Support the Gno.land Ledger app in gnokey
 
 ## Context
 
@@ -7,13 +7,13 @@
 document. It knows nothing of gno messages, and its field allowlist is what
 forced the fee rendering in [pr6173](pr6173_ledger_compatible_sign_doc.md).
 
-[ledger-app-gno](https://github.com/clockworkgr/ledger-app-gno) is a Ledger app
+[ledger-app-gno](https://github.com/gnolang/ledger-app-gno) is a Ledger app
 for gno.land. It parses `std.GetSignaturePayload` output itself and shows each
 supported message field by field: `bank.MsgSend`, `vm.m_call`, `vm.m_addpkg`,
 `vm.m_run`, the package-enabling messages and sessions. It speaks its own
 protocol (`docs/APDU.md` in that repository):
 
-| | Cosmos app | Gno app |
+| | Cosmos app | Gno.land app |
 |---|---|---|
 | CLA | `0x55` | `0xE0` |
 | path | `m/44'/118'/a'/0/i` | the same, and nothing else |
@@ -26,11 +26,11 @@ and its signatures are identical whichever app is used.
 
 ## Decision
 
-Add a client for the Gno app, `GnoApp` in `tm2/pkg/crypto/internal/ledger`,
+Add a client for the Gno.land app, `GnoApp` in `tm2/pkg/crypto/internal/ledger`,
 behind the existing `SECP256K1` device interface, and choose the app at
 discovery:
 
-1. `DiscoverDefault` connects to the first Ledger device and sends the Gno app's
+1. `DiscoverDefault` connects to the first Ledger device and sends the Gno.land app's
    `GET_APP_NAME`. If the answer is `Gno`, it returns a `GnoApp`.
 2. If the device answers with another name or with a status word, as the
    Cosmos app, other apps and the dashboard do, it closes the connection and
@@ -39,7 +39,7 @@ discovery:
    and a failed USB transfer are returned as they are. Falling through to the
    Cosmos lookup would replace them with an error pointing at the wrong cause.
 
-`GnoApp` adapts the Gno app to what callers already expect, so `crypto/ledger`,
+`GnoApp` adapts the Gno.land app to what callers already expect, so `crypto/ledger`,
 the keybase and every `gnokey` command are unchanged:
 
 - `GetPublicKeySECP256K1` returns the compressed key. `getPubKeyUnsafe` already
@@ -74,14 +74,14 @@ the keybase and every `gnokey` command are unchanged:
 - **Return `R ‖ S` from the device interface.** It would change the contract
   the Cosmos client satisfies, for no gain over a lossless DER wrap.
 - **Detect the app with the BOLOS `GET_APP_AND_VERSION` command (`CLA 0xB0`).**
-  Asking the Gno app directly also proves it speaks the protocol expected.
+  Asking the Gno.land app directly also proves it speaks the protocol expected.
 
 ## Consequences
 
-- Users with the Gno app open get gno-aware review on the device; users with
+- Users with the Gno.land app open get gno-aware review on the device; users with
   the Cosmos app see no change.
 - `zondax/ledger-go` becomes a direct dependency (it was already indirect).
-- Tests use a fake device that follows the Gno app's protocol and session rules
+- Tests use a fake device that follows the Gno.land app's protocol and session rules
   with a real secp256k1 key, and fake HID reports for the transport. The client
   was also run against the app itself, in Speculos and on a Nano S Plus:
   `gnokey add ledger` with the address approved on the device, then

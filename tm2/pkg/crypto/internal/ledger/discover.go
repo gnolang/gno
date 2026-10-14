@@ -27,7 +27,7 @@ type SECP256K1 interface {
 // a connected Ledger device.
 var Discover DiscoverFn = DiscoverDefault
 
-// DiscoverDefault is the default function for [Discover]. It uses the Gno app
+// DiscoverDefault is the default function for [Discover]. It uses the Gno.land app
 // if it is the one open on the first Ledger device, and the Cosmos app
 // otherwise.
 func DiscoverDefault() (SECP256K1, error) {
@@ -50,7 +50,7 @@ func DiscoverDefault() (SECP256K1, error) {
 
 	cosmos, err := ledger_cosmos.FindLedgerCosmosUserApp()
 	if err != nil {
-		return nil, fmt.Errorf("open the Gno or the Cosmos app on the Ledger device: %w", err)
+		return nil, fmt.Errorf("open the Gno.land or the Cosmos app on the Ledger device: %w", err)
 	}
 
 	return cosmos, nil

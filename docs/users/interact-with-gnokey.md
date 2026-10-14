@@ -74,7 +74,7 @@ send you [coins](../resources/gno-stdlibs.md#coin), etc.
 `gnokey` can keep a key on a Ledger device instead of in the keybase. It works
 with two Ledger apps and uses whichever one is open:
 
-- the [Gno app](https://github.com/clockworkgr/ledger-app-gno), which shows
+- the [Gno.land app](https://github.com/gnolang/ledger-app-gno), which shows
   each gno message (sends, calls, sessions, packages) field by field before
   signing;
 - the Cosmos app, which signs gno transactions as generic amino documents.
@@ -90,7 +90,7 @@ gnokey add ledger -account 0 -index 0 MyLedgerKey
 
 The device shows the address for `m/44'/118'/0'/0/0`; approve it there. The
 keybase stores only the public key. Transactions signed with `MyLedgerKey` are
-then reviewed and approved on the device. With the Gno app, transactions that
+then reviewed and approved on the device. With the Gno.land app, transactions that
 deploy or run code (`addpkg`, `run`) also need the app's "Packages" setting.
 
 ## Making transactions

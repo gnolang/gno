@@ -12,10 +12,10 @@ import (
 	ledger_go "github.com/zondax/ledger-go"
 )
 
-// GnoAppName is the name the Gno Ledger app returns for GET_APP_NAME.
-const GnoAppName = "Gno"
+// GnoAppName is the name the Gno.land Ledger app returns for GET_APP_NAME.
+const GnoAppName = "Gno.land"
 
-// APDU protocol of the Gno Ledger app (github.com/clockworkgr/ledger-app-gno,
+// APDU protocol of the Gno.land Ledger app (github.com/gnolang/ledger-app-gno,
 // docs/APDU.md).
 const (
 	gnoCLA = 0xE0
@@ -37,7 +37,7 @@ const (
 	gnoSignatureLen = 64
 )
 
-// Status words the Gno app returns, besides 0x9000.
+// Status words the Gno.land app returns, besides 0x9000.
 const (
 	gnoSWCommandNotAccepted = 0x6901
 	swDeviceLocked          = 0x5515
@@ -52,7 +52,7 @@ var gnoStatusWords = map[uint16]string{
 	0x6E00:                  "CLA not supported",
 	0x6E03:                  "malformed data length",
 	0xB002:                  "the address could not be displayed",
-	0xB005:                  "the transaction is not one the Gno app accepts",
+	0xB005:                  "the transaction is not one the Gno.land app accepts",
 	0xB008:                  "signing failed",
 	0xB009:                  "key derivation failed",
 	0xB00A:                  "the app version could not be encoded",
@@ -60,10 +60,10 @@ var gnoStatusWords = map[uint16]string{
 	0xB00C:                  "no signing session is open",
 	0xB00D:                  "a message is signed by an address other than the device's",
 	0xB00E:                  "a displayed value or the review exceeds the device's limits",
-	0xB00F:                  "the transaction can run code: enable \"Packages\" in the Gno app's settings",
+	0xB00F:                  "the transaction can run code: enable \"Packages\" in the Gno.land app's settings",
 }
 
-// GnoStatusError is a status word other than 0x9000 returned by the Gno app
+// GnoStatusError is a status word other than 0x9000 returned by the Gno.land app
 // or by the device.
 type GnoStatusError struct {
 	SW uint16
@@ -101,7 +101,7 @@ func statusWord(err error) (uint16, bool) {
 	return 0, false
 }
 
-// GnoApp talks to the Gno Ledger app. It implements [SECP256K1].
+// GnoApp talks to the Gno.land Ledger app. It implements [SECP256K1].
 type GnoApp struct {
 	device ledger_go.LedgerDevice
 
@@ -112,9 +112,9 @@ type GnoApp struct {
 	sleep       func(time.Duration)
 }
 
-var errNotGnoApp = errors.New("the open Ledger app is not the Gno app")
+var errNotGnoApp = errors.New("the open Ledger app is not the Gno.land app")
 
-// openGnoApp returns a [GnoApp] on device if the Gno app is the one open, and
+// openGnoApp returns a [GnoApp] on device if the Gno.land app is the one open, and
 // errNotGnoApp if the device answered as another app, or the dashboard, would.
 // A locked or busy device and transport failures are returned as they are.
 func openGnoApp(device ledger_go.LedgerDevice) (*GnoApp, error) {
@@ -221,17 +221,17 @@ func (a *GnoApp) GetAddressPubKeySECP256K1(path []uint32, hrp string) ([]byte, s
 		return nil, "", err
 	}
 	if !strings.HasPrefix(addr, hrp+"1") {
-		return nil, "", fmt.Errorf("the Gno Ledger app shows %s, not an address with prefix %q", addr, hrp)
+		return nil, "", fmt.Errorf("the Gno.land Ledger app shows %s, not an address with prefix %q", addr, hrp)
 	}
 	return pub, addr, nil
 }
 
 // SignSECP256K1 has the user review msg, a transaction's signature payload,
-// and returns its DER-encoded signature. The Gno app has a single signing
+// and returns its DER-encoded signature. The Gno.land app has a single signing
 // mode, so p2 must be 0.
 func (a *GnoApp) SignSECP256K1(path []uint32, msg []byte, p2 byte) ([]byte, error) {
 	if p2 != 0 {
-		return nil, fmt.Errorf("the Gno Ledger app has no signing mode %d", p2)
+		return nil, fmt.Errorf("the Gno.land Ledger app has no signing mode %d", p2)
 	}
 	if len(msg) == 0 {
 		return nil, errors.New("nothing to sign")

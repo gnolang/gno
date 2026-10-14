@@ -14,7 +14,7 @@ import (
 //
 // ledger-go's own transport passes every report of an APDU to a single write.
 // On macOS, after such a write for an APDU spanning several reports (over 57
-// bytes), the next write to a device running the Gno app times out, and the
+// bytes), the next write to a device running the Gno.land app times out, and the
 // device stops receiving until it is unplugged.
 type hidDevice struct {
 	dev reportIO
