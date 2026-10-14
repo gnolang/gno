@@ -1263,3 +1263,48 @@ func TestCoreFlag(t *testing.T) {
 	contains(t, listingJSON("blog"), `"core":true`)
 	contains(t, listingJSON("starred-app"), `"core":false`)
 }
+
+// A shelf cut from a computed list keeps one count per app.
+func TestTrendingShelfKeepsItsCounts(cur realm, t *testing.T) {
+	setEpoch(6000) // after every other trending app
+	for i := 0; i <= gridPool; i++ {
+		ns := "shelfcut" + strconv.Itoa(i)
+		registerFrom(cur, "gno.land/r/"+ns+"/app", ns, "Shelf Cut "+strconv.Itoa(i))
+		starFrom(cur, ns, "shelfcuta", "shelfcutb")
+	}
+	s := listShelf(mustList("trending", blockTime()))
+	uassert.Equal(t, gridPool, len(s.Items))
+	uassert.Equal(t, len(s.Items), len(s.Counts))
+}
+
+// Hiding a namespace's oldest listing moves its builder's First, in the
+// ranking ordered by it too.
+func TestBuilderFirstFollowsTheOldest(cur realm, t *testing.T) {
+	registerFrom(cur, "gno.land/r/firstns/one", "firstns-one", "First One")
+	skip(1)
+	registerFrom(cur, "gno.land/r/firstns/two", "firstns-two", "First Two")
+	one, two := bySlugOrPanic("firstns-one"), bySlugOrPanic("firstns-two")
+	b := builders.Get("firstns").(*builder)
+	uassert.Equal(t, one.Created, b.First)
+
+	uassert.NoError(t, hide("firstns-one", "other"))
+	uassert.Equal(t, two.Created, b.First)
+	uassert.True(t, buildersByFirst.Has(descKey(two.Created, "firstns")))
+	uassert.False(t, buildersByFirst.Has(descKey(one.Created, "firstns")))
+}
+
+// Unstarring a star older than the trending window leaves the window's
+// count alone.
+func TestUnstarAnOldStar(cur realm, t *testing.T) {
+	registerFrom(cur, "gno.land/r/oldstar/app", "old-star", "Old Star")
+	l := bySlugOrPanic("old-star")
+	starFrom(cur, "old-star", "oldstara")
+	skip((trendEpochs + 1) * epochLength)
+	starFrom(cur, "old-star", "oldstarb")
+	uassert.Equal(t, 1, l.stars7d(blockTime()))
+
+	testing.SetRealm(testing.NewUserRealm(nameUser(cur, "oldstara")))
+	Unstar(cross(cur), "old-star")
+	uassert.Equal(t, 1, l.stars7d(blockTime()))
+	uassert.Equal(t, 1, l.rankedCount())
+}

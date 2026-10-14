@@ -1,6 +1,7 @@
-# The store is governed by GovDAO: proposals built by the store hide a
-# listing and feature an app as the front page's hero once voted and
-# executed (ADR-004 §3, §5).
+# The store is governed by GovDAO: proposals built by the store hide and
+# unhide a listing, feature an app as the front page's hero, pause and
+# unpause listings and name a successor once voted and executed (ADR-004 §3,
+# §5).
 
 loadpkg gno.land/r/gov/dao
 loadpkg gno.land/r/gov/dao/impl/v0
@@ -47,6 +48,62 @@ stdout OK!
 gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/home'
 stdout '"pick":"boards"'
 
+# An app's own realm lists itself from its init
+gnokey maketx addpkg -pkgdir $WORK/myapp -pkgpath gno.land/r/acme/myapp -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/category/utilities/1'
+stdout '"slug":"acme-app"'
+
+# Hiding the picked app, in a later transaction, ends the pick
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_hide_boards.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 2 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 2 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/home'
+! stdout '"pick":'
+
+# Unhiding restores the blog
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unhide_blog.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 3 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 3 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/category/content-media/1'
+stdout '"slug":"blog"'
+
+# A pause refuses claims; an unpause lets them in again
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_pause.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 4 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 4 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gnoland/store/v0 -func Claim -args gno.land/p/$test1_user_addr/lib -args my-lib -args 'My Lib' -args 'A tagline' -args dev-tools -args 0 -args package -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stderr 'store: paused'
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unpause.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 5 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 5 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gnoland/store/v0 -func Claim -args gno.land/p/$test1_user_addr/lib -args my-lib -args 'My Lib' -args 'A tagline' -args dev-tools -args 0 -args package -gas-fee 1000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# A successor is shown once GovDAO names it
+gnokey maketx run -gas-fee 3000001ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/propose_successor.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 40_000_000 -args 6 -args YES -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2300001ugnot -gas-wanted 80_000_000 -args 6 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:api/v1/home'
+stdout '"moved_to":"gno.land/r/gnoland/store/v1"'
+gnokey query vm/qrender --data 'gno.land/r/gnoland/store/v0:'
+stdout 'Explore has moved'
+
 -- run/init_govdao.gno --
 package main
 
@@ -91,3 +148,78 @@ import (
 func main(cur realm) {
 	dao.MustCreateProposal(cross(cur), store.ProposeHide(cross(cur), "blog", "dislike"))
 }
+
+-- run/propose_hide_boards.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeHide(cross(cur), "boards", "other"))
+}
+
+-- run/propose_unhide_blog.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeUnhide(cross(cur), "gno.land/r/gnoland/blog"))
+}
+
+-- run/propose_pause.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposePause(cross(cur)))
+}
+
+-- run/propose_unpause.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeUnpause(cross(cur)))
+}
+
+-- run/propose_successor.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	store "gno.land/r/gnoland/store/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), store.ProposeSuccessor(cross(cur), "gno.land/r/gnoland/store/v1"))
+}
+
+-- myapp/gnomod.toml --
+module = "gno.land/r/acme/myapp"
+gno = "0.9"
+
+-- myapp/myapp.gno --
+package myapp
+
+import store "gno.land/r/gnoland/store/v0"
+
+func init(cur realm) {
+	store.Register(cross(cur), "acme-app", "Acme App", "A tagline", "utilities", 0)
+}
+
+func Render(string) string { return "Acme" }
