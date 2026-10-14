@@ -148,14 +148,14 @@ func TestSetMembersReplaces(cur realm, t *testing.T) {
 	uassert.Equal(t, 2, len(MembersOf("set", 0, MaxMembers)), "still two members")
 }
 
-func TestSeedMembersIsIdempotent(cur realm, t *testing.T) {
+func TestSeedMembersOnceIsIdempotent(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/seed/home"))
 
-	uassert.True(t, SeedMembers(cross(cur), []address{alice}), "first seed writes")
+	uassert.True(t, SeedMembersOnce(cross(cur), []address{alice}), "first seed writes")
 	AddMember(cross(cur), bob)
 
 	// This is what a redeploy does: init() runs again over existing state.
-	uassert.False(t, SeedMembers(cross(cur), []address{alice}), "re-seed is a no-op")
+	uassert.False(t, SeedMembersOnce(cross(cur), []address{alice}), "re-seed is a no-op")
 	uassert.True(t, IsMember("seed", bob), "a redeploy must not drop bob")
 }
 
@@ -239,4 +239,16 @@ func TestRenderShowsStateAndRetirement(cur realm, t *testing.T) {
 	Retire(cross(cur))
 	uassert.True(t, strings.Contains(Render("shown"), "**retired**"), "retirement is visible")
 	uassert.True(t, strings.Contains(Render("absent"), "No team"), "unknown namespace")
+}
+
+func TestHasTeamIsFalseAfterTheLastMemberLeaves(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/hollow/home"))
+
+	AddMember(cross(cur), alice)
+	uassert.True(t, HasTeam("hollow"), "a team with a member")
+
+	RemoveMember(cross(cur), alice)
+	uassert.False(t, HasTeam("hollow"),
+		"an emptied record is not a team: HasTeam must agree with IsMember")
+	uassert.False(t, IsMember("hollow", alice), "and nobody is authorized")
 }

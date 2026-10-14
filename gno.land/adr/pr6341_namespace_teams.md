@@ -2,10 +2,13 @@
 
 ## Status
 
-Proposed. Design only, no code, so the shape can be settled before anything is
-built. Companion to #6317 rather than a competitor to it: the two cover
-different halves of the same problem, and the section "What this does not solve"
-says which half is whose.
+Proposed, with a **draft implementation** in this PR so the shape can be argued
+against running code rather than prose. Companion to #6317 rather than a
+competitor to it: the two cover different halves of the same problem, and the
+section "What this does not solve" says which half is whose.
+
+The code is a draft in the literal sense. The tests are adversarial, but nothing
+in it has run on a chain and the open questions at the end are still open.
 
 ## The problem
 
@@ -99,18 +102,31 @@ is implemented rather than re-derived:
 2. **An empty path denies, explicitly, before anything parses it.** A direct
    user `MsgCall` presents the empty package path. `r/sys/params` calls this
    check "load-bearing, not defensive" and points at `r/gov/dao`'s allowlist as
-   the mirror-image bug. Here the failure mode differs and is just as bad: a
-   design that *derives* the namespace from the caller must refuse the empty
-   path rather than parse it into an empty namespace.
+   the mirror-image bug. The general warning is that a design which *derives*
+   the namespace from the caller must refuse the empty path rather than parse it
+   into an empty namespace.
+
+   **In the code here that check is not load bearing, and an earlier draft of
+   this ADR claimed it was.** Deriving the prefix from the chain domain means
+   the empty path already fails the prefix test, so deleting the empty check
+   changes the error message and nothing else. It stays because a named refusal
+   beats a generic one and because a refactor could make it load bearing again.
+   The claim did not survive being tested, so it is corrected rather than
+   quietly dropped.
 3. **Exact matching, never a prefix.** `cur.Sub(subpath)` presents the
    synthesized identity `host#subpath`, so `gno.land/r/<ns>/home#anything` is a
    genuinely presentable caller. Whether sub-realms of `home` inherit the
    namespace is a decision to take, and the proposed default is no.
 
-The accepted caller grammar is therefore `gno.land/r/` followed by exactly one
-path segment, followed by `/home`, with no `#`. That grammar is a security
-boundary and not a naming convention: `maketx run` realms present
-`gno.land/e/<addr>/run`, so a looser "is this code" test would admit them.
+The accepted caller grammar is therefore the chain domain, `/r/`, exactly one
+path segment, then `/home`, with no `#`. That grammar is a security boundary and
+not a naming convention: `maketx run` realms present `<domain>/e/<addr>/run`, so
+a looser "is this code" test would admit them.
+
+The prefix is **derived from `runtime.ChainDomain()` rather than hardcoded**. A
+hardcoded `gno.land/` makes the realm refuse every caller on a chain configured
+with any other domain, silently, which reads as a dead realm rather than as a
+misconfiguration.
 
 `r/sys/teams` must also **never call back into `r/<name>/home`**. Membership is
 pushed in as arguments. Beyond the fact that gno has no dynamic dispatch by
@@ -144,6 +160,23 @@ survives its first key retirement:
 - Only the stamped original creator may ever redeploy a private realm, so once
   the first key is retired the `init()` route is gone for good. **The helpers
   must exist and work before that point, not after.**
+
+### `r/sys/teams` carries no version suffix, deliberately
+
+This is the one decision here that cannot be walked back later, so it belongs in
+the record rather than in a comment.
+
+A namespace that has retired its registered-name path can no longer redeploy its
+own `r/<ns>/home`, because only a private realm's stamped original creator may
+replace it. If this realm were versioned and a `v1` appeared, every such
+namespace would be pinned to `v0` for good: it could not redeploy `home` to
+point at `v1`, and nothing else may write its ACL. **A design whose purpose is
+removing that kind of permanence must not reintroduce it one layer up.**
+
+So `r/sys/teams` is a state holder and nothing else. Policy lives in the
+`r/sys/names` successor that reads it, and that realm is swappable, because the
+keeper reaches it through `vm:p:sysnames_pkgpath`. Upgrades happen there.
+Anything added to `r/sys/teams` has to keep that division, or the pin returns.
 
 ### Rollout: one parameter proposal, no binary change
 
@@ -248,23 +281,46 @@ costs a hardfork.
 
 ## Validation
 
-Design-only, so this is what an implementation would have to demonstrate rather
-than what has been run:
+The draft in this PR has tests, and each gate below was **broken on purpose and
+the suite re-run**, because a passing test is not evidence until it has been
+seen to fail. Two of the first four gates turned out to be uncovered, which is
+the reason this section reports the method rather than a count.
 
-- A `home` realm writes its own namespace's ACL, and fails to write any other
-  namespace's.
-- A direct user `MsgCall` into `r/sys/teams` is refused, with the empty path
-  tested explicitly rather than implicitly.
-- A third realm calling `r/sys/teams` is refused, including one whose path is a
-  prefix of a valid `home` path, and including the `host#subpath` form.
-- A stashed or non-current realm value is refused.
-- A team member deploys a new package under the namespace; a non-member is
-  refused; a removed member is refused from the next block.
-- After the registered-name path is retired, the original address is refused,
-  and the team is not.
-- A redeploy re-runs `init()` without resetting an ACL the helpers have since
-  changed.
-- Every one of the above is asserted to fail before it is asserted to pass.
+Covered and break-verified in `r/sys/teams`:
+
+- A `home` realm writes its own namespace and no other.
+- A direct user `MsgCall` is refused, with the empty path asserted explicitly.
+- A non-`home` realm is refused, and the package-path parser refuses a nested
+  `home`, a pure package, a `run` realm, a foreign domain and the `host#subpath`
+  sub-realm identity. The last one was **not** covered until breaking the guard
+  showed the suite still green.
+- A stashed, non-live realm value is refused. This one needs
+  `testing.MakeRealm` to build a synthetic realm whose `Previous()` names an
+  authorized `home`; the exported crossing functions cannot reach it, since the
+  compiler already guarantees their `cur` is live.
+- Seeding is idempotent, so a redeploy re-running `init()` does not reset a team
+  the helpers have since changed.
+- Retiring with an empty team is refused, and so is emptying or removing the
+  last member of a retired namespace: the combination is a namespace nobody can
+  ever deploy under again.
+- The member cap is enforced on both write paths, and re-adding an existing
+  member at the cap still passes, because that is not growth.
+
+Covered and break-verified in `r/sys/names`:
+
+- A team member deploys; a non-member does not; a team covers only its own
+  namespace.
+- Paths 2 and 3 are OR'd before retirement, which is what lets a migration
+  publish `home` while the original key still works.
+- After retirement the registered-name holder is refused and the team is not.
+- Retirement does not touch personal-address namespaces, since the PA check sits
+  above both.
+- Pause and the pre-`Enable` bypass still outrank teams in both directions.
+
+Not covered, and worth saying so: nothing here has run against a real keeper, so
+the interaction with `checkNamespacePermission` is argued rather than
+demonstrated. The `r/<ns>/home` side has no template yet, which matters because
+`home` is the ACL root under this design.
 
 ## AI assistance
 

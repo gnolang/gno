@@ -15,6 +15,22 @@
 // arguments. Besides the fact that gno has no dynamic dispatch by package path,
 // a callback would make home see this realm as its previous realm, which is the
 // confused-deputy shape r/sys/validators/v0 documents having eliminated.
+// # Why this realm has no version suffix
+//
+// Deliberate, and the one design decision here that cannot be reversed later.
+//
+// A namespace that has retired its registered-name path can no longer redeploy
+// its own r/<ns>/home, because only a private realm's stamped original creator
+// may replace it. If this realm were versioned and a v1 appeared, every such
+// namespace would be pinned to v0 forever: it could not redeploy home to point
+// at v1, and nothing else may write its ACL. The design exists to remove that
+// kind of permanence, so reintroducing it one layer up would be self-defeating.
+//
+// The resolution is that this realm is a state holder and nothing else. Policy
+// lives in the r/sys/names successor that reads it, and that realm IS
+// swappable: the keeper reaches it through the vm:p:sysnames_pkgpath
+// parameter, which GovDAO can repoint without a binary change. Upgrades happen
+// there. Anything added here must keep that division, or the pin comes back.
 package teams
 
 import (
@@ -144,7 +160,9 @@ func get(ns string) (*team, bool) {
 	return v, ok
 }
 
-// SeedMembers sets the member list only if this namespace has no record yet.
+// SeedMembersOnce sets the member list only if this namespace has no record
+// yet. The name says "Once" because the distinction from SetMembers is the
+// whole point and a reader must not have to look it up.
 //
 // This is the function init() should call. init() re-runs on every redeploy,
 // over the prior realm's state, so an init() calling SetMembers would turn a
@@ -152,7 +170,7 @@ func get(ns string) (*team, bool) {
 // idempotent, so the same init() is safe to re-run forever.
 //
 // Returns true if it wrote.
-func SeedMembers(cur realm, members []address) bool {
+func SeedMembersOnce(cur realm, members []address) bool {
 	ns := assertHome(0, cur)
 	if _, exists := get(ns); exists {
 		return false
@@ -163,7 +181,7 @@ func SeedMembers(cur realm, members []address) bool {
 
 // SetMembers replaces this namespace's member list.
 //
-// Call it from an exported helper on home, never from init(): see SeedMembers.
+// Call it from an exported helper on home, never from init(): see SeedMembersOnce.
 func SetMembers(cur realm, members []address) {
 	ns := assertHome(0, cur)
 	t := getOrCreate(ns)
@@ -286,10 +304,14 @@ func IsRetired(ns string) bool {
 	return t.retired
 }
 
-// HasTeam reports whether ns has a record at all.
+// HasTeam reports whether ns has a team that could authorize anyone.
+//
+// A record whose members have all been removed is not a team: reporting true
+// for it would make "has a team" and "anyone can deploy by team" disagree,
+// which is the kind of gap an authorization caller reads once and trusts.
 func HasTeam(ns string) bool {
-	_, ok := get(ns)
-	return ok
+	t, ok := get(ns)
+	return ok && t.members.Size() > 0
 }
 
 // MaxMembers caps a team.
