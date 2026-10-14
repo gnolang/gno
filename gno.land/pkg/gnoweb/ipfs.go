@@ -26,12 +26,14 @@ var gatewayHost = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9](
 // The origin goes into the CSP, so it must be a plain DNS name or IPv4
 // address with an optional valid port. The gateway must be https (http only
 // on loopback, for local dev) and must carry no credentials, path, query or
-// fragment. It must also not be on domain, the chain domain (gno.land), nor
-// a subdomain of it: gno.land's own gnoweb is served there, and a path
-// gateway on that site would serve any author's HTML from it. gnoweb does
-// not know the host it is actually served from, so this is the only site it
-// can check.
-func normalizeIPFSGateway(raw, domain string) (string, error) {
+// fragment. It must also not be on a host gnoweb is served from, nor a
+// subdomain of one, where a path gateway would serve any author's HTML as
+// that host: domain, the chain domain (gno.land), where gno.land's own gnoweb
+// runs, and canonicalHost, the host of AppConfig.CanonicalOrigin when a
+// deployment declares one. Either may be empty. A sibling host under the
+// same registrable domain is not detected; that would need the public
+// suffix list.
+func normalizeIPFSGateway(raw, domain, canonicalHost string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return "", nil
@@ -43,7 +45,6 @@ func normalizeIPFSGateway(raw, domain string) (string, error) {
 	}
 
 	host := strings.ToLower(u.Hostname())
-	domain = strings.ToLower(domain)
 	switch {
 	case !gatewayHost.MatchString(host):
 		return "", errors.New("host must be a DNS name or an IPv4 address")
@@ -55,11 +56,30 @@ func normalizeIPFSGateway(raw, domain string) (string, error) {
 		return "", errors.New("must not contain credentials")
 	case (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery || u.Fragment != "":
 		return "", errors.New("must be an origin, without path, query or fragment")
-	case domain != "" && (host == domain || strings.HasSuffix(host, "."+domain)):
+	case onHost(host, domain):
 		return "", fmt.Errorf("must not be on the chain domain %q", domain)
+	case onHost(host, canonicalHost):
+		return "", fmt.Errorf("must not be on the canonical origin's host %q", canonicalHost)
 	}
 
 	return u.Scheme + "://" + strings.ToLower(u.Host), nil
+}
+
+// originHost returns the host of an origin such as normalizeCanonicalOrigin
+// returns, or "" for an empty one.
+func originHost(origin string) string {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return ""
+	}
+	return u.Hostname()
+}
+
+// onHost reports whether host is base or a subdomain of it. An empty base
+// matches nothing; a trailing dot on base is ignored.
+func onHost(host, base string) bool {
+	base = strings.TrimSuffix(strings.ToLower(base), ".")
+	return base != "" && (host == base || strings.HasSuffix(host, "."+base))
 }
 
 func validPort(port string) bool {

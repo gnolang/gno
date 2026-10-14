@@ -26,8 +26,8 @@ cannot open, and images were blocked by the CSP.
   `https://ipfs.filebase.io` (`DefaultIPFSGateway`). `NewDefaultAppConfig`
   leaves it empty, like the realm notice, so library callers opt in. Empty
   disables everything below. `NewRouter` rejects an invalid value.
-  `NewHTMLRenderer`, which does not know the chain domain, ignores a malformed
-  one, so no caller renders relative URLs.
+  `NewHTMLRenderer`, which knows neither the chain domain nor the canonical
+  origin, ignores a malformed one, so no caller renders relative URLs.
 - A markdown AST transformer (`markdown/ext_ipfs.go`, priority 400, so it runs
   before link classification and image validation at 500) rewrites links,
   autolinks, reference links and images, including inside `<gno-foreign>`:
@@ -60,11 +60,13 @@ cannot open, and images were blocked by the CSP.
 - The gateway must be `https` (`http` only on loopback), with no credentials,
   path, query or fragment. Its host must be a DNS name or an IPv4 address,
   with an optional port in 1..65535 (the CSP has no IPv6 host-source). It
-  must not be on the chain domain (`AppConfig.Domain`, `gno.land`) or a
-  subdomain of it: gno.land's own gnoweb is served there, and a path gateway
-  on that site would serve any author's HTML from it. gnoweb does not know
-  the host it is actually served from, so other deployments must not point
-  the gateway at their own site.
+  must not be on a host gnoweb is served from, nor a subdomain of one, where
+  a path gateway would serve any author's HTML as that host: the chain
+  domain (`AppConfig.Domain`, `gno.land`), where gno.land's own gnoweb runs,
+  and the host of `AppConfig.CanonicalOrigin` when a deployment declares
+  one. A sibling host under the same registrable domain is not detected,
+  and a deployment that declares no canonical origin must not point the
+  gateway at its own host.
 
 The default was measured on 2026-09-23 over 16 CIDs (example-realm images,
 public-gateway-checker fixtures, NFT metadata directories, xkcd, the Wikipedia

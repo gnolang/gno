@@ -29,7 +29,7 @@ func TestNormalizeIPFSGateway(t *testing.T) {
 		{"http://ipfs.localhost:8080", "http://ipfs.localhost:8080"},
 	}
 	for _, tc := range valid {
-		got, err := normalizeIPFSGateway(tc.in, "gno.land")
+		got, err := normalizeIPFSGateway(tc.in, "gno.land", "")
 		require.NoError(t, err, "input %q", tc.in)
 		assert.Equal(t, tc.want, got, "input %q", tc.in)
 	}
@@ -59,9 +59,20 @@ func TestNormalizeIPFSGateway(t *testing.T) {
 		"https://[2001:db8::1]",              // IPv6
 	}
 	for _, in := range invalid {
-		_, err := normalizeIPFSGateway(in, "gno.land")
+		_, err := normalizeIPFSGateway(in, "gno.land", "")
 		assert.Error(t, err, "input %q", in)
 	}
+
+	// A deployment's canonical host is off-limits, like the chain domain.
+	for _, in := range []string{"https://web.example.org", "https://ipfs.WEB.example.org"} {
+		_, err := normalizeIPFSGateway(in, "gno.land", "web.example.org")
+		assert.ErrorContains(t, err, "canonical origin", "input %q", in)
+	}
+	_, err := normalizeIPFSGateway("https://ipfs.gno.example.org", "gno.land", "gno.example.org.")
+	assert.ErrorContains(t, err, "canonical origin", "a trailing dot on the canonical host")
+	got, err := normalizeIPFSGateway("https://ipfs.filebase.io", "gno.land", "web.example.org")
+	require.NoError(t, err)
+	assert.Equal(t, "https://ipfs.filebase.io", got)
 }
 
 func TestNewRouterIPFSGateway(t *testing.T) {
@@ -95,6 +106,13 @@ func TestNewRouterIPFSGateway(t *testing.T) {
 	bad.RenderConfig.IPFSGateway = "http://gw.example"
 	_, err := NewRouter(log.NewTestingLogger(t), bad)
 	assert.ErrorContains(t, err, "invalid IPFS gateway")
+
+	onCanonical := NewDefaultAppConfig()
+	onCanonical.ChainID = "dev"
+	onCanonical.CanonicalOrigin = "https://web.example.org"
+	onCanonical.RenderConfig.IPFSGateway = "https://ipfs.web.example.org"
+	_, err = NewRouter(log.NewTestingLogger(t), onCanonical)
+	assert.ErrorContains(t, err, "canonical origin")
 
 	// Only the gnoweb and gnodev flags default to a gateway.
 	assert.Empty(t, NewDefaultAppConfig().RenderConfig.IPFSGateway)

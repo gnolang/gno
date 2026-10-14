@@ -22,8 +22,8 @@ type RenderConfig struct {
 	// IPFSGateway is the gateway origin that ipfs:// URLs and URLs on
 	// retired IPFS gateways are rewritten to in realm markdown, such as
 	// DefaultIPFSGateway. Empty disables the rewrite. NewRouter rejects an
-	// invalid value; NewHTMLRenderer, which does not know the chain domain,
-	// ignores a malformed one.
+	// invalid value; NewHTMLRenderer, which knows neither the chain domain
+	// nor the canonical origin, ignores a malformed one.
 	IPFSGateway string
 }
 

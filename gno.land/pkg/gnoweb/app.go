@@ -141,7 +141,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 
 	// Normalize the IPFS gateway in place: callers building the CSP
 	// (cmd/gnoweb) read the validated origin back from cfg.
-	ipfsGateway, err := normalizeIPFSGateway(cfg.RenderConfig.IPFSGateway, cfg.Domain)
+	ipfsGateway, err := normalizeIPFSGateway(cfg.RenderConfig.IPFSGateway, cfg.Domain, originHost(canonicalOrigin))
 	if err != nil {
 		return nil, fmt.Errorf("invalid IPFS gateway %q: %w", cfg.RenderConfig.IPFSGateway, err)
 	}
