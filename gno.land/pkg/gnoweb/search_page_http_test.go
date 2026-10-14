@@ -23,6 +23,9 @@ func newSearchPageHandler(t *testing.T) *gnoweb.HTTPHandler {
 			"render.gno": `package main; func Render(path string) string { return "body" }`,
 		},
 	}))
+	// An official realm, so its plain page is indexed and the search page's
+	// noindex has something to differ from.
+	config.TrustedPaths = []string{"mock"}
 	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
 	handler, err := gnoweb.NewHTTPHandler(logger, config)
 	require.NoError(t, err)
@@ -82,6 +85,21 @@ func TestSearchPageAcceptsAPlainFormSubmission(t *testing.T) {
 		"the query must round-trip into the form, or the no-JS path silently searched for nothing")
 }
 
+// The `?q=` a no-JS search adds is the search's, not the realm's: left in
+// the header input, Enter with JavaScript on navigates to the realm with it.
+func TestSearchPageHeaderInputHoldsThePathOnly(t *testing.T) {
+	t.Parallel()
+
+	handler := newSearchPageHandler(t)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/mock/path$search?q=mock", nil))
+
+	m := regexp.MustCompile(`id="header-input-search"[^>]*?\svalue="([^"]*)"`).FindStringSubmatch(rr.Body.String())
+	require.NotNil(t, m, "header input not found")
+	require.Equal(t, "/r/mock/path", m[1])
+}
+
 // Chain-wide results name no package, so the header must not offer the
 // realm tabs: State, Source and Actions for "/" are all error pages.
 func TestChainWideSearchHasNoPackageTabs(t *testing.T) {
@@ -133,6 +151,9 @@ func TestAliasHeaderSearchScope(t *testing.T) {
 	for _, tc := range []struct{ page, jsBase string }{
 		{"/", "/"},
 		{"/about", "/about"},
+		// A path the server cannot parse searches chain-wide: the omnibar
+		// builds its requests on this action, and `<path>$search` is a 404.
+		{"/r/mock/a,b", "/"},
 	} {
 		m := headerAction.FindStringSubmatch(get(tc.page))
 		if m == nil {

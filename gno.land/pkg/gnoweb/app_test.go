@@ -431,3 +431,22 @@ func TestNewRouterRejectsInvalidIndexerURL(t *testing.T) {
 		require.Error(t, err, raw)
 	}
 }
+
+// TestNewDefaultAppConfigCopiesAliases checks a config's aliases are its own:
+// adding one must not reach DefaultAliases, which other configs read.
+func TestNewDefaultAppConfigCopiesAliases(t *testing.T) {
+	t.Parallel()
+
+	cfg := NewDefaultAppConfig()
+	cfg.Aliases["/only-mine"] = AliasTarget{Value: "# Mine", Kind: StaticMarkdown}
+	assert.NotContains(t, DefaultAliases, "/only-mine")
+}
+
+// TestNewDefaultAppConfigIndexesNoCommunity checks community pages stay out of
+// search unless an operator opts in: a name costs nothing to register, so
+// indexing pages under one would publish scams under gno.land.
+func TestNewDefaultAppConfigIndexesNoCommunity(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, IndexNoCommunity, NewDefaultAppConfig().IndexCommunity)
+}

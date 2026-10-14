@@ -108,10 +108,22 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 		Selectors: h.selectors,
 	}
 	data.FormAction = q.formAction
-	if sel, _ := h.selectorFor(q); sel == nil && q.PkgPath != "" {
-		// A scoped discovery search is the one answer the same words could
-		// widen; without JavaScript the header form is always scoped.
-		data.WholeChainHref = wholeChainHref(q)
+	if sel, _ := h.selectorFor(q); sel == nil {
+		// A discovery search ignores the page it was typed on, so the header
+		// must not claim that scope, nor on the empty page, where most
+		// queries typed are discovery ones. An `in:` scope is the one answer
+		// the same words could widen.
+		data.PkgPath = q.discoveryScope()
+		if data.PkgPath != "" {
+			data.WholeChainHref = wholeChainHref(q)
+		}
+	} else if sel.Scope == ScopeGlobal {
+		// A chain-wide selector ignores the page and in:; render: names the
+		// one realm it renders, when it renders one.
+		data.PkgPath = ""
+		if sel.Name == "render" {
+			data.PkgPath = q.renderScope()
+		}
 	}
 	data.Groups, data.UnknownFilter = h.Search(ctx, q)
 	data.Indexer = h.indexerStatus(ctx, data.Groups)
@@ -184,6 +196,11 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 		g.Truncated, g.Notice = true, part.Error()
 	case errors.Is(err, indexer.ErrPartial):
 		g.Truncated, g.Notice = true, recentNotice
+		// Bare, the walk ran out of steps; wrapped, a band failed.
+		if err != indexer.ErrPartial { //nolint:errorlint // identity is the question
+			h.deps.Logger.Warn("omnisearch: partial answer",
+				"selector", sel.Name, "term_length", len(term), "error", err)
+		}
 	default:
 		// Reported, never fatal: a dead indexer degrades to a visible
 		// "could not answer", not a 500.

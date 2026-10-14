@@ -14,12 +14,8 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 )
 
-func serve(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
-	t.Helper()
-	req := httptest.NewRequest(http.MethodGet, path, nil)
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-	return rr
+func serveGet(h http.Handler, path string) *httptest.ResponseRecorder {
+	return serve(h, httptest.NewRequest(http.MethodGet, path, nil))
 }
 
 func newMapHandler(t *testing.T, paths ...string) http.Handler {
@@ -47,8 +43,8 @@ func TestHTTPHandler_MapAndListShowTheSameListing(t *testing.T) {
 
 	h := newMapHandler(t, append(manyPaths("/r/demo/p", 10), "/r/other/x", "/p/demo/lib")...)
 
-	list := serve(t, h, "/r/")
-	mapped := serve(t, h, "/r/$map")
+	list := serveGet(h, "/r/")
+	mapped := serveGet(h, "/r/$map")
 	if list.Code != http.StatusOK || mapped.Code != http.StatusOK {
 		t.Fatalf("status list=%d map=%d, want 200", list.Code, mapped.Code)
 	}
@@ -75,7 +71,7 @@ func TestHTTPHandler_ExplorerHasListAndMapTabs(t *testing.T) {
 
 	h := newMapHandler(t, manyPaths("/r/demo/p", 10)...)
 	for path, active := range map[string]string{"/r/demo": "Directory", "/r/demo$map": "Map"} {
-		body := serve(t, h, path).Body.String()
+		body := serveGet(h, path).Body.String()
 		if !strings.Contains(body, `href="/r/demo"`) || !strings.Contains(body, `href="/r/demo$map"`) {
 			t.Errorf("%s: missing the List or Map tab", path)
 		}
@@ -101,15 +97,15 @@ func TestHTTPHandler_ListingSaysWhenItStops(t *testing.T) {
 	over := newMapHandler(t, paths(listCap+1)...)
 	const notice = "Only the first 1000 paths are listed"
 	for _, path := range []string{"/r/many/", "/r/many/$map"} {
-		if body := serve(t, full, path).Body.String(); strings.Contains(body, notice) {
+		if body := serveGet(full, path).Body.String(); strings.Contains(body, notice) {
 			t.Errorf("%s: exactly the cap is complete, yet the page says it stopped", path)
 		}
-		body := serve(t, over, path).Body.String()
+		body := serveGet(over, path).Body.String()
 		if !strings.Contains(body, notice) {
 			t.Errorf("%s: past the cap, the page must say it stopped", path)
 		}
 	}
-	if n := len(mapTileRe.FindAllString(serve(t, over, "/r/many/$map").Body.String(), -1)); n != listCap {
+	if n := len(mapTileRe.FindAllString(serveGet(over, "/r/many/$map").Body.String(), -1)); n != listCap {
 		t.Errorf("map drew %d tiles, want the %d listed", n, listCap)
 	}
 }
@@ -125,7 +121,7 @@ func TestHTTPHandler_MapStatuses(t *testing.T) {
 		"/$map":          http.StatusBadRequest,
 	}
 	for path, want := range cases {
-		if got := serve(t, h, path).Code; got != want {
+		if got := serveGet(h, path).Code; got != want {
 			t.Errorf("%s: status %d, want %d", path, got, want)
 		}
 	}
@@ -137,10 +133,10 @@ func TestHTTPHandler_NoMapOnAPackageWithSubpackages(t *testing.T) {
 	t.Parallel()
 
 	h := newMapHandler(t, append(manyPaths("/p/demo/lib/sub", 10), "/p/demo/lib")...)
-	if got := serve(t, h, "/p/demo/lib$map").Code; got != http.StatusNotFound {
+	if got := serveGet(h, "/p/demo/lib$map").Code; got != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404 on a package path", got)
 	}
-	if got := serve(t, h, "/p/demo$map").Code; got != http.StatusOK {
+	if got := serveGet(h, "/p/demo$map").Code; got != http.StatusOK {
 		t.Fatalf("status = %d, want 200 on the listing above it", got)
 	}
 }
@@ -162,7 +158,7 @@ func TestHTTPHandler_SmallListingHasNoMap(t *testing.T) {
 
 	h := newMapHandler(t, "/r/demo/a", "/r/demo/b")
 	for _, path := range []string{"/r/demo", "/r/demo$map"} {
-		rr := serve(t, h, path)
+		rr := serveGet(h, path)
 		body := rr.Body.String()
 		if rr.Code != http.StatusOK || !strings.Contains(body, `class="b-list"`) {
 			t.Errorf("%s: status %d, want the list", path, rr.Code)
@@ -180,12 +176,12 @@ func TestHTTPHandler_ListingHasARailWithAFilter(t *testing.T) {
 
 	h := newMapHandler(t, manyPaths("/r/demo/p", 10)...)
 	for _, path := range []string{"/r/demo", "/r/demo$map"} {
-		body := serve(t, h, path).Body.String()
+		body := serveGet(h, path).Body.String()
 		if !strings.Contains(body, `class="b-sidebar sidebar"`) || !strings.Contains(body, `data-filter-items-value="[data-listing-item]"`) {
 			t.Errorf("%s: no listing rail with its filter", path)
 		}
 	}
-	if body := serve(t, h, "/r/demo$map").Body.String(); !strings.Contains(body, "Map key") {
+	if body := serveGet(h, "/r/demo$map").Body.String(); !strings.Contains(body, "Map key") {
 		t.Error("the map's key belongs in the rail")
 	}
 }
@@ -203,7 +199,7 @@ func TestHTTPHandler_MapZoomsOutToAListing(t *testing.T) {
 		"/r/p/x$map":  "",
 		"/r/$map":     "",
 	} {
-		body := serve(t, h, path).Body.String()
+		body := serveGet(h, path).Body.String()
 		if !strings.Contains(body, "b-map__tile") {
 			t.Errorf("%s: no map drawn", path)
 			continue
@@ -223,7 +219,7 @@ func TestHTTPHandler_GasMapWithoutIndexer(t *testing.T) {
 	t.Parallel()
 
 	h := newMapHandler(t, manyPaths("/r/demo/p", 10)...)
-	rr := serve(t, h, "/r/demo$map&color=gas")
+	rr := serveGet(h, "/r/demo$map&color=gas")
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
 	}
@@ -260,7 +256,7 @@ func TestHTTPHandler_MapColorsByGasWithIndexer(t *testing.T) {
 		t.Fatalf("NewHTTPHandler: %v", err)
 	}
 
-	body := serve(t, h, "/r/demo$map&color=gas").Body.String()
+	body := serveGet(h, "/r/demo$map&color=gas").Body.String()
 	for _, want := range []string{`<span aria-current="true" title="Gas used`, "Most gas · 7 days"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("gas map lacks %q", want)
@@ -269,7 +265,7 @@ func TestHTTPHandler_MapColorsByGasWithIndexer(t *testing.T) {
 	if i, j := strings.Index(body, "<small>9.0 bn</small>"), strings.Index(body, "<small>3.0 M</small>"); i < 0 || j < 0 || i > j {
 		t.Error("the gas list must put p0001 (9 bn gas, 1 call) before p0000 (3 M gas, 3 calls)")
 	}
-	if calls := serve(t, h, "/r/demo$map").Body.String(); !strings.Contains(calls, "Most called · 7 days") {
+	if calls := serveGet(h, "/r/demo$map").Body.String(); !strings.Contains(calls, "Most called · 7 days") {
 		t.Error("$map without color must stay the call map")
 	}
 }

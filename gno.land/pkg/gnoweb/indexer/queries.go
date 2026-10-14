@@ -99,8 +99,10 @@ func (c *Client) LatestBlockHeight(ctx context.Context) (int, error) {
 
 		// Detached from whichever request started it: singleflight has no
 		// context, so the leader's would cancel every follower's answer.
-		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultTimeout)
-		defer cancel()
+		// No deadline of its own either: one armed next to the client's
+		// equal timeout always fires first and reads as the caller giving
+		// up, so a hung indexer would never open the breaker.
+		fetchCtx := context.WithoutCancel(ctx)
 
 		var out struct {
 			LatestBlockHeight int `json:"latestBlockHeight"`
@@ -330,7 +332,10 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 			order: { heightAndIndex: DESC }
 		) { %s } }`, bounds, where, txFields)
 
-		err := c.Query(ctx, q, &out)
+		// Unrecorded: a wide band outliving the client's timeout describes
+		// the band, not the indexer. The tip fetch above, which every
+		// windowed search makes first, is the health signal.
+		err := c.query(ctx, q, &out, false)
 		switch {
 		case err == nil:
 		case errors.Is(err, ErrTooLarge):
@@ -342,8 +347,9 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 		default:
 			// A wide band timing out costs the rows the narrower ones
 			// already found; those are still the newest, so keep them.
+			// The cause rides along for the log.
 			if len(found) > 0 {
-				return partial(found)
+				return found, fmt.Errorf("%w: %w", ErrPartial, err)
 			}
 			return nil, err
 		}

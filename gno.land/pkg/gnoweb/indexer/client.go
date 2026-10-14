@@ -129,10 +129,12 @@ func (c *Client) URL() string { return c.display }
 func ValidateURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil {
-		return fmt.Errorf("invalid indexer URL: %w", err)
+		// Never quote the parse error: it carries the URL, or the part it
+		// stopped on, which an unescaped '/' in a password makes the password.
+		return errors.New("invalid indexer URL: does not parse (percent-encode reserved characters in credentials)")
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("invalid indexer URL: scheme must be http or https, got %q", u.Scheme)
+		return errors.New("invalid indexer URL: scheme must be http or https")
 	}
 	if u.Host == "" {
 		return errors.New("invalid indexer URL: no host")
@@ -158,6 +160,11 @@ func Redact(raw string) string {
 // Values are interpolated through gqlString — deliberately the only escaping
 // mechanism here.
 func (c *Client) Query(ctx context.Context, query string, out any) error {
+	return c.query(ctx, query, out, true)
+}
+
+// query is Query, with the breaker fed only when record is set.
+func (c *Client) query(ctx context.Context, query string, out any, record bool) error {
 	if c.breakerOpen() {
 		return ErrUnavailable
 	}
@@ -167,6 +174,9 @@ func (c *Client) Query(ctx context.Context, query string, out any) error {
 	}
 	err := c.do(ctx, query, out)
 	c.release()
+	if !record {
+		return err
+	}
 
 	// A miss, a cap and a caller giving up say nothing about the indexer's
 	// health. The client's own timeout does, and is the signal the breaker

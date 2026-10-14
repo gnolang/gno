@@ -68,10 +68,9 @@ func (r importReader) Imports(ctx context.Context, pkgPath string) ([]string, er
 }
 
 // GetDepsView renders a package's dependencies: what it imports, and what
-// imports it. The answer costs an indexer scan per package, so it is not a
-// page for crawlers to walk.
+// imports it. The answer costs an indexer scan per package, so Get keeps it
+// from crawlers.
 func (h *HTTPHandler) GetDepsView(r *http.Request, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	indexData.HeadData.NoIndex = true
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	status, view, err := h.ChainMap.DepsView(r, pkgPath, displayPackageName(pkgPath))
 	if err != nil {

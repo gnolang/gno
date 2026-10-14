@@ -5,7 +5,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.0.5",
-		"@fullhuman/postcss-purgecss": "^7.0.2",
+		"@fullhuman/postcss-purgecss": "^8.0.0",
 		"chokidar-cli": "^3.0.0",
 		"cssnano": "^7.1.0",
 		"esbuild": "0.28.1",

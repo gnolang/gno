@@ -15,16 +15,15 @@ const maxDiscoverResults = 10
 // coalesced with every other caller; the users group is derived from the
 // paths already fetched, so it is free.
 //
-// A scope, from `in:` or from the page the search was typed on, narrows the
-// listing to that package and the paths under it: a page headed "Scoped to"
-// must not list the rest of the chain.
+// Only an explicit `in:` narrows it (see discoveryScope).
 func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 	needle := strings.ToLower(q.Text)
 	author, _ := q.Get(FilterAuthor)
+	scope := q.discoveryScope()
 	// `author:` bypassing the floor meant a bare `author:` — no value at all
 	// — bought a full directory listing and returned nothing. A scope is
 	// narrow enough on its own.
-	if len(needle) < MinTermLen && len(author) < MinTermLen && q.PkgPath == "" {
+	if len(needle) < MinTermLen && len(author) < MinTermLen && scope == "" {
 		return refused(fmt.Sprintf("type at least %d characters, or a qualifier such as author:", MinTermLen))
 	}
 	want, hasIs := q.Get(FilterIs)
@@ -61,7 +60,7 @@ func (h *Handler) discover(ctx context.Context, q *Query) []Group {
 			rel := strings.TrimPrefix(p, h.deps.Domain)
 			// Scope first, then the needle: both reject most paths, and the
 			// scope check does not allocate.
-			if !inScope(rel, q.PkgPath) {
+			if !inScope(rel, scope) {
 				continue
 			}
 			if needle != "" && !strings.Contains(strings.ToLower(rel), needle) {
@@ -129,6 +128,18 @@ func markCapped(g *Group, matched int) {
 // "Nothing matched.".
 func refused(why string) []Group {
 	return []Group{{Label: "Search", Source: SourceChain, Err: inputError(why)}}
+}
+
+// discoveryScope is the package a discovery search is narrowed to: the one
+// named by `in:`, never the page the search was typed on. The omnibar sends
+// every query from the page path, so taking the page as a scope would turn
+// `author:demo` or a bare word on a realm page into a search of that realm
+// alone.
+func (q *Query) discoveryScope() string {
+	if _, ok := q.Get(FilterIn); !ok {
+		return ""
+	}
+	return q.PkgPath
 }
 
 // inScope reports whether rel is the scoped package or sits under it. No

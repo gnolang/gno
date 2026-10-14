@@ -42,6 +42,32 @@ type SearchResponse = {
 	error?: string;
 };
 
+// isSearchResponse checks the fields the renderer dereferences. The answer
+// crosses a network (a proxy, a version skew), and one malformed field used
+// to throw on every keystroke for the life of the page.
+function isSearchResponse(v: unknown): v is SearchResponse {
+	const obj = (x: unknown): x is Record<string, unknown> =>
+		typeof x === "object" && x !== null;
+	const list = (x: unknown, ok: (e: unknown) => boolean): boolean =>
+		x === undefined || (Array.isArray(x) && x.every(ok));
+	return (
+		obj(v) &&
+		list(v.selectors, (s) => obj(s) && typeof s.name === "string") &&
+		list(
+			v.groups,
+			(g) =>
+				obj(g) &&
+				list(
+					g.results,
+					(r) =>
+						obj(r) &&
+						typeof r.title === "string" &&
+						(r.href === undefined || typeof r.href === "string"),
+				),
+		)
+	);
+}
+
 type PageMatch = {
 	node: Text;
 	index: number;
@@ -85,6 +111,9 @@ export class SearchbarController extends BaseController {
 	private searchAvailable: boolean | null = null;
 	private selectorProbe: Promise<void> | null = null;
 	private timer: ReturnType<typeof setTimeout> | undefined;
+	// The in-flight `$search&json` request. Aborting it also cancels the
+	// server's r.Context(), which matters for indexer-backed selectors.
+	private inflight: AbortController | null = null;
 
 	protected connect(): void {
 		this.initializeDOM({
@@ -107,6 +136,11 @@ export class SearchbarController extends BaseController {
 	// asks the server when the input carries a qualifier.
 	public search(): void {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		// The list on screen no longer answers the input: Enter before the
+		// next render must submit what was typed, not open an old row.
+		this.deselect();
+		this.activeIndex = -1;
+		input?.removeAttribute("aria-activedescendant");
 		this.schedule(input?.value.trim() ?? "");
 	}
 
@@ -122,6 +156,7 @@ export class SearchbarController extends BaseController {
 
 		const go = (href: string): void => {
 			e.preventDefault();
+			clearTimeout(this.timer);
 			window.location.href = href;
 		};
 
@@ -195,6 +230,7 @@ export class SearchbarController extends BaseController {
 	// requests, and two rate-limit tokens for one search.
 	private schedule(q: string): void {
 		clearTimeout(this.timer);
+		this.inflight?.abort();
 		this.timer = setTimeout(
 			() => {
 				const input = this.getDOMElement("input") as HTMLInputElement | null;
@@ -214,8 +250,11 @@ export class SearchbarController extends BaseController {
 		const pageMatches = this.scanPage(q);
 
 		if (this.isQualified(q)) {
-			const res = await this.fetchSearch(q);
-			if (id !== this.runId) return; // a newer keystroke superseded us
+			const ctl = new AbortController();
+			this.inflight = ctl;
+			const res = await this.fetchSearch(q, ctl.signal);
+			// A newer keystroke, or close(), superseded us.
+			if (id !== this.runId || ctl.signal.aborted) return;
 			if (res) {
 				this.pageMatches = pageMatches;
 				this.render(q, res.groups ?? [], pageMatches, {
@@ -236,15 +275,13 @@ export class SearchbarController extends BaseController {
 		this.render(q, this.filter(q), pageMatches);
 	}
 
-	// scopeBase strips any `$webquery` so `$search` hangs off the bare path.
-	private scopeBase(): string {
-		const p = window.location.pathname;
-		const at = p.indexOf("$");
-		return at >= 0 ? p.slice(0, at) : p;
-	}
-
+	// searchHref builds on the form's action, the server's `SearchAction`, so
+	// the JS and no-JS paths share one source. The server already falls back
+	// to `/$search` on a path it cannot parse, where `<path>$search` is a 404.
 	private searchHref(q: string): string {
-		return `${this.scopeBase()}$search&q=${encodeURIComponent(q)}`;
+		const input = this.getDOMElement("input") as HTMLInputElement | null;
+		const action = input?.form?.getAttribute("action") || "/$search";
+		return `${action}&q=${encodeURIComponent(q)}`;
 	}
 
 	// isQualified reports whether a query carries a `key:value` token or names
@@ -296,10 +333,14 @@ export class SearchbarController extends BaseController {
 	// for the life of the page when the endpoint itself is absent: an older
 	// gnoweb, or one behind a proxy that does not route `$search`, must not
 	// cost a request per keystroke.
-	private async fetchSearch(q: string): Promise<SearchResponse | null> {
+	private async fetchSearch(
+		q: string,
+		signal?: AbortSignal,
+	): Promise<SearchResponse | null> {
 		try {
 			const res = await fetch(`${this.searchHref(q)}&json`, {
 				headers: { Accept: "application/json" },
+				signal,
 			});
 			if (res.status === 404) {
 				this.searchAvailable = false;
@@ -314,7 +355,8 @@ export class SearchbarController extends BaseController {
 				return { error: body?.error || `search refused (${res.status})` };
 			}
 			if (!res.ok) return null;
-			const data = (await res.json()) as SearchResponse;
+			const data: unknown = await res.json();
+			if (!isSearchResponse(data)) return null;
 			this.searchAvailable = true;
 			if (data.selectors) {
 				this.selectors = data.selectors;
@@ -454,15 +496,16 @@ export class SearchbarController extends BaseController {
 			// no page in gnoweb — so it must not inflate the option count.
 			item.setAttribute("aria-disabled", "true");
 		}
-		item.setAttribute(
-			"aria-label",
-			group.source === "indexer"
-				? `from indexer: ${r.title}`
-				: `${group.label}: ${r.title}`,
-		);
-
+		// The name comes from the row's content, so the detail is read too;
+		// an aria-label would replace it. Provenance is spoken, not shown.
 		const tag = this.buildTag(r, group);
 		if (tag) item.appendChild(tag);
+		if (group.source === "indexer") {
+			const from = document.createElement("span");
+			from.className = "u-sr-only";
+			from.textContent = "from indexer: ";
+			item.appendChild(from);
+		}
 
 		const text = document.createElement("span");
 		text.className = "b-omnisearch-text";
@@ -489,7 +532,7 @@ export class SearchbarController extends BaseController {
 		tag.className = "b-omnisearch-tag";
 		tag.dataset.type = type;
 		tag.textContent = type;
-		// The row's aria-label already carries this; the glyph is decoration.
+		// buildItem speaks the provenance; the glyph is decoration.
 		tag.setAttribute("aria-hidden", "true");
 		if (indexer) tag.title = "From an indexer, not from the chain";
 		return tag;
@@ -668,9 +711,7 @@ export class SearchbarController extends BaseController {
 
 	private move(delta: number): void {
 		if (this.items.length === 0) return;
-		const prev = this.items[this.activeIndex];
-		prev?.removeAttribute("aria-selected");
-		prev?.removeAttribute("id");
+		this.deselect();
 		this.activeIndex =
 			(this.activeIndex + delta + this.items.length) % this.items.length;
 		const active = this.items[this.activeIndex];
@@ -684,7 +725,16 @@ export class SearchbarController extends BaseController {
 		);
 	}
 
+	// deselect drops the active row's option state; the list stays.
+	private deselect(): void {
+		const prev = this.items[this.activeIndex];
+		prev?.removeAttribute("aria-selected");
+		prev?.removeAttribute("id");
+	}
+
 	private close(): void {
+		clearTimeout(this.timer);
+		this.inflight?.abort();
 		this.runId++;
 		const results = this.getDOMElement("results");
 		if (results) {

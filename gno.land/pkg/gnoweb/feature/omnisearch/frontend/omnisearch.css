@@ -26,6 +26,10 @@
 		font-family: var(--g-font-family-mono);
 		font-size: var(--g-font-size-100);
 
+		&::placeholder {
+			color: var(--s-color-text-input-placeholder);
+		}
+
 		&:focus-visible {
 			background-color: var(--s-color-bg-input-focus);
 			border-color: var(--s-color-border-tertiary);
@@ -147,8 +151,9 @@
 		font-size: var(--g-font-size-100);
 	}
 
+	/* Secondary, not tertiary: 12px tertiary falls under AA on a hovered row. */
 	& .detail {
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-size: var(--g-font-size-50);
 		overflow-wrap: anywhere;
 	}
@@ -201,8 +206,10 @@
 		padding: 0;
 	}
 
+	/* Wraps: an indexer qualifier carries two pills, which overflow at 320px. */
 	& li {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--g-space-2);
 		font-size: var(--g-font-size-50);

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 // recentLimit matches MaxResults: fetching more than the page shows spends
@@ -38,6 +39,11 @@ func indexerSelectors() []*Selector {
 			Label: "Account activity",
 			Scope: ScopeGlobal,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
+				// A partial address never matches, yet walks every height
+				// band: one per debounced keystroke while it is typed.
+				if _, err := crypto.AddressFromBech32(term); err != nil {
+					return nil, inputError(fmt.Sprintf("%q is not an address", term))
+				}
 				// Rows travel with ErrPartial; Search tells it from a failure.
 				txs, err := h.deps.Indexer.RecentByAddress(ctx, term, recentLimit)
 				return h.txResults(txs), err
@@ -123,8 +129,8 @@ func indexerSelectors() []*Selector {
 }
 
 // resolveImporters lists packages whose source quotes this one's path.
-// Labelled "mentions", not "imports": a string literal outside an import
-// block counts too.
+// Labelled "Imported by", but a string literal outside an import block
+// counts too.
 func (h *Handler) resolveImporters(ctx context.Context, q *Query) ([]Result, error) {
 	// Rows travel with ErrPartial; Search tells it from a failure.
 	txs, err := h.deps.Indexer.DeploysImporting(ctx, q.ChainPath, recentLimit)

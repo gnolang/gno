@@ -129,16 +129,30 @@ func (h *Handler) resolveRender(ctx context.Context, q *Query, term string) ([]R
 	return hits, joinNotices(notices)
 }
 
+// renderScope is the one realm a render: search renders without a listing:
+// the in: scope, or the page's own realm when no author: widens the field.
+// A package page has nothing to render, so it names none.
+func (q *Query) renderScope() string {
+	if scope := q.discoveryScope(); scope != "" {
+		return scope
+	}
+	if author, _ := q.Get(FilterAuthor); author != "" || !strings.HasPrefix(q.PkgPath, "/r/") {
+		return ""
+	}
+	return q.PkgPath
+}
+
 // renderCandidates is the field this search may render: `in:` names one
-// realm, `author:` costs one listing and is then capped. The notices say
-// where the field was cut.
+// realm, `author:` costs one listing and is then capped, and the page's own
+// realm answers only when neither is given, since the omnibar sends every
+// query from the page path. The notices say where the field was cut.
 func (h *Handler) renderCandidates(ctx context.Context, q *Query) ([]string, []string, error) {
-	if q.PkgPath != "" {
-		return []string{q.PkgPath}, nil, nil
+	if scope := q.renderScope(); scope != "" {
+		return []string{scope}, nil, nil
 	}
 
-	author, ok := q.Get(FilterAuthor)
-	if !ok || author == "" {
+	author, _ := q.Get(FilterAuthor)
+	if author == "" {
 		return nil, nil, errRenderNeedsNarrowing
 	}
 
