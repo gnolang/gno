@@ -27,7 +27,7 @@ export GNOROOT=~/gno
 chmod +x gnoland_linux_amd64 && ./gnoland_linux_amd64 version   # must print v1.5.1-rc.1
 ```
 
-Or build it from the tag (`git checkout v1.5.1-rc.1 && make -C gno.land install.gnoland install.gnokey`; `gnoland version` must print `v1.5.1-rc.1`). Never from `master` or from a branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
+Or build it from the tag (`git checkout v1.5.1-rc.1 && make -C gno.land VERSION=v1.5.1-rc.1 install.gnoland install.gnokey`; `gnoland version` must print `v1.5.1-rc.1`). Name the version: a candidate shares its commit with the final release, and without `VERSION` the build reports the final. Never from `master` or from a branch tip: such a binary reaches no consensus with the network and satisfies no upgrade gate.
 
 **Container image.** `ghcr.io/gnolang/gno/gnoland:v1.5.1-rc.1` is the same binary with `GNOROOT` preset. Weigh what it adds before running a validator on it: a base image you also have to trust, a registry that must be reachable when you restart, a root daemon in the path, and one more way to end up with two instances of your validator signing at once — a restart policy, a `compose up` on a second host, a forgotten container. Double-signing is not punished today; it will be. If you use it: never `latest`, never a restart policy, and mount `secrets/` read-only.
 
