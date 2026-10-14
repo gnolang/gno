@@ -70,7 +70,7 @@ You can also install individual tools:
 make install.gno      # Only gno
 make install.gnokey   # Only gnokey
 make install.gnodev   # Only gnodev
-make install.gnobro   # Only gnobro (not in the installer)
+make install.gnobro   # Only gnobro (not among the installer's precompiled binaries)
 ```
 
 Make sure `$GOPATH/bin` is in your `PATH` if `gno`/`gnokey`/`gnodev` are not
