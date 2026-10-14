@@ -18,6 +18,10 @@ func main() {
 
 // GnoError:
 // line 12: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// line 13: index 0 out of bounds [0:0]
+// line 14: index 5 out of bounds [0:0]
+// line 15: index 15 out of bounds [0:10]
+// line 16: index 12 out of bounds [0:10]
 
 // GoTypeCheckError:
 // line 12
@@ -25,11 +29,5 @@ func main() {
 // line 14
 // line 15
 // line 16
-
-// GoTypesOnly:
-// line 13: gc expects: index 0 out of bounds \[0:0\]|out of range
-// line 14: gc expects: index 5 out of bounds \[0:0\]|out of range
-// line 15: gc expects: index 15 out of bounds \[0:10\]|out of range
-// line 16: gc expects: index 12 out of bounds \[0:10\]|out of range
 
 // Verdict: Clean errorcheck

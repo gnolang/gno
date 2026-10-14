@@ -31,6 +31,9 @@ const _ = MaxInt512 + 1  // ERROR "constant addition overflow"
 const _ = MaxInt512 ^ -1 // ERROR "constant bitwise XOR overflow"
 const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
 
+// GnoError:
+// line 14: missing init expr for const declaration
+
 // GoTypeCheckError:
 // line 14
 // line 19
@@ -41,7 +44,6 @@ const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
 // line 32
 
 // GoTypesOnly:
-// line 14: gc expects: type without expr|expected .=.|missing init expr
 // line 26: gc expects: constant multiplication overflow|not representable
 // line 30: gc expects: constant addition overflow
 // line 31: gc expects: constant bitwise XOR overflow

@@ -28,6 +28,7 @@ func main() {
 // line 14: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 15: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 16: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// line 19: index 100 out of bounds [0:10]
 // line 22: cannot use struct{} as int
 // line 23: cannot use struct{} as int
 // line 24: cannot use struct{} as int
@@ -40,8 +41,5 @@ func main() {
 // line 22
 // line 23
 // line 24
-
-// GoTypesOnly:
-// line 19: gc expects: index 100 out of bounds|out of range
 
 // Verdict: Clean errorcheck

@@ -17,10 +17,10 @@ func main() {
 	_, _, _ = s1, s3, s2;
 }
 
+// GnoError:
+// line 16: too few values in struct literal of type main.S
+
 // GoTypeCheckError:
 // line 16
-
-// GoTypesOnly:
-// line 16: gc expects: too few
 
 // Verdict: Clean errorcheck

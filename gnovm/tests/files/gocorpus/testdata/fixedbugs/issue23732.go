@@ -41,14 +41,15 @@ func main() {
 	} // GC_ERROR "too few values in"
 }
 
+// GnoError:
+// line 24: 3: too few values in struct literal of type main.Foo
+// line 34: too many values in struct literal of type main.Bar
+// line 40: too many values in struct literal of type main.Bar
+
 // GoTypeCheckError:
 // line 28
 // line 34
 // line 40
 // line 41
-
-// GoTypesOnly:
-// line 34: gc expects: too many values in|too many expressions
-// line 40: gc expects: too many values in|too many expressions
 
 // Verdict: Clean errorcheck

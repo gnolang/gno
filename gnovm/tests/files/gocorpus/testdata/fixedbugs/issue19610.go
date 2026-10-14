@@ -13,10 +13,10 @@ func main() {
 	}
 }
 
+// GnoError:
+// line 10: cannot declare in post statement of for loop
+
 // GoTypeCheckError:
 // line 10
-
-// GoTypesOnly:
-// line 10: gc expects: cannot declare in post statement
 
 // Verdict: Clean errorcheck
