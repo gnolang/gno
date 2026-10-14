@@ -16,11 +16,4 @@ func f(err error) {
 	}
 }
 
-// GnoPreprocessError:
-// line 13: name PathError not declared
-
-// GoTypeCheckError:
-// line 13
-// line 14
-
-// Verdict: Clean compile
+// Verdict: Unsupported stdlib-symbol: unsupported stdlib symbol PathError (the go/types guard rejects it too)

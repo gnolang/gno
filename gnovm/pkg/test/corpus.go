@@ -177,6 +177,11 @@ var langGapErrors = []struct {
 	{regexp.MustCompile(`select statements are not permitted`), "channels not supported in Gno (select)"},
 }
 
+// reGuardSymbolGap captures the name in Gno's "name <Sym> not
+// declared/defined" when the go/types guard rejects the same file: the
+// symbol is then a Go stdlib member Gno's stdlibs lack, whatever its name.
+var reGuardSymbolGap = regexp.MustCompile(`name (\w+) not (?:declared|defined)`)
+
 // reStdlibSymbolGap matches Gno's "name <Sym> not declared/defined" for a
 // known exported stdlib symbol Gno's test context doesn't provide
 // (os/runtime/debug/rand/time/testing). In RUN mode `go run` already

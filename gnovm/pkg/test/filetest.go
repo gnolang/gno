@@ -363,10 +363,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 
 	// Compile mode: three evidence blocks (GnoPreprocessError /
 	// GoBuildError / GoTypeCheckError, the Go-side ones as line numbers
-	// only) and one verdict. `Clean compile` when the checkers agree,
-	// including both rejecting; `KnownIssue compile` when only Gno
-	// rejects. The verdict's reason obeys the same rules as run mode
-	// (verdict.check: no TODO, a KnownIssue cites its issue).
+	// only) and one verdict. `Clean compile` when gc agrees with Gno,
+	// accepting or rejecting; `KnownIssue compile` when only Gno rejects;
+	// Unsupported when gc accepts but Gno and the go/types guard both
+	// reject (a shared gap, not a bug). The verdict's reason obeys the
+	// same rules as run mode (verdict.check: no TODO, a KnownIssue cites
+	// its issue).
 	if compileMode {
 		gas := m.GasMeter.GasConsumed()
 		gnoErr := PerLineErrors(result.Error, prependedLines)
@@ -381,19 +383,36 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
 			return newContent, gas, diffs, err
 		}
-		// `go build` only under sync; verify reuses the pinned lines.
+		// gc is the reference: `// compile` upstream means gc accepts the
+		// file. Whenever Gno rejects, ask `go build` (sync; verify reuses
+		// the pinned lines, and an absent block means gc accepted).
 		var goBuildErr map[int]string
 		if len(gnoErr) > 0 {
 			if opts.Sync {
-				if buildOut, err := runGoToolchain(source); err == nil {
-					goBuildErr = PerLineErrors(buildOut, prependedLines)
+				buildOut, err := runGoToolchain(source)
+				if err != nil {
+					return "", gas, diffs, fmt.Errorf("filetest %s: cannot build via Go toolchain "+"(install go, or mark file `// Unsupported:`): %w", fname, err)
 				}
+				goBuildErr = PerLineErrors(buildOut, prependedLines)
 			} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
 				goBuildErr = ParseLineBlock(d.Content)
 			}
 		}
 		v := verdict{Kind: VerdictClean, Mode: "compile"}
-		if len(gnoErr) > 0 && len(goBuildErr) == 0 && len(goTC) == 0 {
+		switch {
+		case len(gnoErr) > 0 && len(goBuildErr) == 0 && len(goTC) > 0:
+			// gc accepts, Gno and the go/types guard reject: not a Gno
+			// bug but a gap the guard shares, a stdlib symbol Gno lacks
+			// or the guard's language-version pin. Route to Unsupported.
+			reason := "version-gating: the go1.18-pinned go/types guard rejects it too"
+			if m := reGuardSymbolGap.FindStringSubmatch(result.Error); m != nil {
+				reason = "unsupported stdlib symbol " + m[1] + " (the go/types guard rejects it too)"
+			}
+			if opts.Sync {
+				return writeUnsupportedDirective(originalSource, reason), gas, diffs, nil
+			}
+			return "", gas, diffs, fmt.Errorf("filetest %s: gc accepts but Gno and the go/types guard reject; "+"re-run with --update-golden-tests to mark it `// Verdict: Unsupported %s`", fname, TagUnsupportedReason(reason))
+		case len(gnoErr) > 0 && len(goBuildErr) == 0:
 			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc + go/types accept)"}
 			// Keep a human-written reason across re-syncs.
 			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue && prev.check() == nil {
