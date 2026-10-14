@@ -103,6 +103,11 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 	}
 
+	// Capture the golden region now, before any strip or re-parse below
+	// loses it (prependRescue re-parses dirs from the stripped source).
+	// Used by the compile-mode verdict.
+	origDirs := dirs
+
 	// Strip the trailing golden region (`// GnoError:` /
 	// `// GoTypeCheckError:` blocks, verdict lines) from the source
 	// fed to Gno. Leaving it in would extend the file and shift the
@@ -143,6 +148,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// THIS, never the rescued source — the rescue transforms must
 	// not be persisted (gocorpus files stay upstream-verbatim).
 	originalSource := source
+	// prependedLines is how many lines the rescue added at the top
+	// (0 or 1), used to translate Gno's error line numbers back into
+	// original-file coordinates for marker lookup.
+	prependedLines := 0
 	// .gno files opt INTO Gno-vs-Go comparison by declaring at least
 	// one of `// GoOutput:` / `// GoError:` / `// Divergence:`. Without
 	// such a directive, .gno files keep their pure-Gno behavior — the
@@ -150,9 +159,28 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	hasGoOptIn := dirs.First(DirectiveGoOutput) != nil ||
 		dirs.First(DirectiveGoError) != nil ||
 		verdictKind(dirs) == VerdictKnownDivergence
-	if v, ok := verdictIn(dirs); ok && v.Kind == VerdictKnownDivergence {
-		divergenceReason = v.Reason
+	prependRescue := func() error {
+		source = PrependPkgPathIfNeeded(source)
+		// We prepended a PKGPATH line iff source now starts with one
+		// and the original didn't — detect by-construction rather than
+		// sniffing (a file that legitimately ships its own PKGPATH
+		// must not be miscounted).
+		if bytes.HasPrefix(source, []byte("// PKGPATH:")) &&
+			!bytes.HasPrefix(originalSource, []byte("// PKGPATH:")) {
+			prependedLines = 1
+		}
+		// Re-parse: the prepended `// PKGPATH:` line must be visible to
+		// the directive parser.
+		dirs, err = ParseDirectives(bytes.NewReader(source))
+		if err != nil {
+			return fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
+		}
+		if v, ok := verdictIn(dirs); ok && v.Kind == VerdictKnownDivergence {
+			divergenceReason = v.Reason
+		}
+		return nil
 	}
+	compileMode := false
 	if isGoFile {
 		hasErrorDir := dirs.First(DirectiveError) != nil
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
@@ -160,9 +188,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
 			// errorcheck mode lands with the error-accumulating preprocessor.
 			return "", 0, diffs, fmt.Errorf("filetest %s: inline // ERROR markers are not supported yet", fname)
-		case CorpusDirective(source) == "compile" || (!IsRunnable(source) && !hasErrorDir && !hasTypeCheckErrorDir):
-			// compile mode lands with the compile files.
-			return "", 0, diffs, fmt.Errorf("filetest %s: compile-only corpus files are not supported yet", fname)
+		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
+			// `// compile`: gc compiles but never runs it. Preprocess
+			// only (regardless of whether it's runnable) and check that
+			// Gno + go/types accept it. Takes precedence over run-mode.
+			compileMode = true
+			if err := prependRescue(); err != nil {
+				return "", 0, diffs, err
+			}
+		case !IsRunnable(source) && !hasErrorDir && !hasTypeCheckErrorDir:
+			// No main to run and no markers to check: compile-only,
+			// whatever the header says.
+			compileMode = true
+			if err := prependRescue(); err != nil {
+				return "", 0, diffs, err
+			}
 		default:
 			// Runnable .go corpus file: symmetric Gno-vs-Go.
 			isGoRunMode = true
@@ -257,7 +297,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Errorcheck and compile files are not executed (gc doesn't run
 	// them; executing can hang on infinite loops Gno fails to reject) —
 	// preprocess only.
-	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, false)
+	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, compileMode)
 
 	// Collect storage diffs after test execution.
 	diffs = m.Store.RealmStorageDiffs()
@@ -320,6 +360,83 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			}
 			return "", m.GasMeter.GasConsumed(), diffs, &SkipError{Reason: reason}
 		}
+	}
+
+	// Compile-mode short-circuit. `// compile` files are compiled but
+	// never run. The old model dumped Gno's preprocess output straight
+	// into `// KnownIssue:`, conflating evidence (what Gno actually
+	// said) with the verdict (is Gno buggy or not).
+	//
+	// New model — three EVIDENCE blocks + one VERDICT:
+	//
+	//   Evidence (raw per-line output from each checker):
+	//     // GnoPreprocessError:  Gno's own preprocess errors
+	//     // GoBuildError:        `go build`'s errors (full Go pipeline)
+	//     // GoTypeCheckError:    go/types guard's errors
+	//
+	//   Verdict (one of):
+	//     // KnownIssue:          Gno-only rejection — real bug (gc + guard
+	//                             accept, Gno rejects)
+	//     // KnownDivergence:     both Gno and Go pipelines reject —
+	//                             wording/stage differ; not a bug
+	//     (none)                  all four accept — file is Clean, no
+	//                             golden section written
+	//
+	// The verdict is auto-classified from evidence; a human can refine
+	// KnownDivergence's category note or reclassify to Unsupported when
+	// the file's construct is fundamentally not user-relevant on-chain.
+	if compileMode {
+		gas := m.GasMeter.GasConsumed()
+		gnoErr := PerLineErrors(result.Error, prependedLines)
+		goTC := PerLineErrors(result.TypeCheckError, prependedLines)
+		// Fast path: if Gno accepts AND go/types accepts, the file is
+		// Clean — no verdict needed, so no need to run the expensive
+		// `go build` (which ~doubles the per-file test time across 467
+		// files). We only need go-build evidence to distinguish "real
+		// Gno bug" from "both reject" when Gno rejects.
+		if len(gnoErr) == 0 && len(goTC) == 0 {
+			// Clean: everyone accepts. Written out, so a pass is as
+			// explicit and greppable as a skip or a divergence.
+			sections := []goldenSection{
+				{name: DirectiveGnoPreprocessError}, {name: DirectiveGoBuildError},
+				{name: DirectiveGoTypeCheckError},
+				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
+			}
+			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+			return newContent, gas, diffs, err
+		}
+		// `go build` only under sync; verify reuses the pinned lines.
+		var goBuildErr map[int]string
+		if len(gnoErr) > 0 {
+			if opts.Sync {
+				if _, buildStderr, err := runGoToolchain(source); err == nil {
+					goBuildErr = PerLineErrors(buildStderr, prependedLines)
+				}
+			} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
+				goBuildErr = ParseLineBlock(d.Content)
+			}
+		}
+		// Verdict: KnownIssue when only Gno rejects; both rejecting is
+		// agreement (Clean), their wording stays in the evidence blocks.
+		v := verdict{Kind: VerdictClean, Mode: "compile"}
+		if len(gnoErr) > 0 && len(goBuildErr) == 0 && len(goTC) == 0 {
+			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: explain the Gno bug (Gno rejects code gc + go/types accept)"}
+			// Keep a human-written reason across re-syncs.
+			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue &&
+				prev.Reason != "" && !strings.HasPrefix(prev.Reason, "TODO") {
+				v.Reason = prev.Reason
+			}
+		}
+		// Go-side blocks pin line numbers only: their wording follows
+		// the Go release, Gno's does not.
+		sections := []goldenSection{
+			{name: DirectiveGnoPreprocessError, block: FormatGnoErrorBlock(gnoErr)},
+			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
+			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTC)},
+			{name: DirectiveVerdict, block: v.String(), inline: true},
+		}
+		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+		return newContent, gas, diffs, err
 	}
 
 	// updated tells whether the directives have been mutated and the
@@ -591,6 +708,7 @@ func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
 	DirectiveGnoError, DirectiveGoTypeCheckError,
+	DirectiveGnoPreprocessError, DirectiveGoBuildError,
 	// .go corpus files only: the run-mode goldens and the verdict line,
 	// so a rewrite leaves no stale block behind.
 	// .gno files keep TypeCheckError in the source the guard sees.
@@ -1183,6 +1301,20 @@ const (
 	// not Gno — even when GnoVM preprocess is permissive, this guard
 	// still rejects, and that's worth pinning on its own.
 	DirectiveGoTypeCheckError = "GoTypeCheckError"
+	// DirectiveGnoPreprocessError pins Gno's per-line preprocess errors
+	// in compile-mode files. Evidence-only — the fact that Gno rejects
+	// these lines. The VERDICT (bug vs benign divergence) is separate:
+	// see `// KnownIssue:` / `// KnownDivergence:`. Previously the
+	// harness dumped Gno's preprocess output into `// KnownIssue:`
+	// itself, conflating evidence with verdict.
+	DirectiveGnoPreprocessError = "GnoPreprocessError"
+	// DirectiveGoBuildError pins the Go toolchain's `go build` output
+	// for compile-mode files — evidence of whether the file's rejection
+	// is Gno-only or shared with the Go build/link pipeline. Populated
+	// automatically alongside GoTypeCheckError. Distinguishes real
+	// Gno-only bugs from cases where both Gno and Go reject the file
+	// with different wording (a benign KnownDivergence, not a bug).
+	DirectiveGoBuildError = "GoBuildError"
 )
 
 // nativeDirectives are the .gno filetest directives; corpusDirectives
@@ -1212,6 +1344,8 @@ var corpusDirectives = []string{
 	DirectiveGnoError,
 	DirectiveGoError,
 	DirectiveGoTypeCheckError,
+	DirectiveGnoPreprocessError,
+	DirectiveGoBuildError,
 }
 
 var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
@@ -1236,11 +1370,13 @@ var singleLinePascalDirectives = map[string]bool{
 // skipped). `// GoOutput:` with no lines means "Go produces no stdout"
 // — a pinned-golden assertion we want visible in the file.
 var pinnedGoldenDirectives = map[string]bool{
-	DirectiveGnoOutput:        true,
-	DirectiveGoOutput:         true,
-	DirectiveGnoError:         true,
-	DirectiveGoError:          true,
-	DirectiveGoTypeCheckError: true,
+	DirectiveGnoOutput:          true,
+	DirectiveGoOutput:           true,
+	DirectiveGnoError:           true,
+	DirectiveGoError:            true,
+	DirectiveGnoPreprocessError: true,
+	DirectiveGoBuildError:       true,
+	DirectiveGoTypeCheckError:   true,
 }
 
 // Directives contains the directives of a file.
