@@ -107,20 +107,30 @@ func Claim(cur realm, path, slug, title, tagline, category string, palette int, 
 	if ns == "" || !ownsNamespace(caller.Address(), ns) {
 		panic("store: caller does not own the namespace")
 	}
+	if l := lookup(&byPath, path); l != nil && l.core {
+		panic("store: a core listing cannot be claimed") // frozen in code (ADR §4)
+	}
 	if reason := upsert(newListing(path, slug, title, tagline, category, palette, kind), blockTime()); reason != "" {
 		panic("store: " + reason)
 	}
 }
 
-// ownsNamespace reports whether addr may list paths of namespace ns.
-// r/sys/names authorises everyone until a chain enables it (dev chains,
-// tests), so the store then accepts personal-address namespaces only: one
-// user can never edit another's listing.
+// ownsNamespace reports whether addr owns namespace ns: its own address, or
+// a name it currently holds in r/sys/users, as r/sys/names decides deploys.
+// The store asks r/sys/users itself because r/sys/names answers no for
+// everyone while GovDAO pauses deploys, which would make owners strangers to
+// Star and refuse every Claim. Until a chain enables r/sys/names anyone may
+// deploy under a name (dev chains, tests), so only an address counts then:
+// one user can never edit another's listing.
 func ownsNamespace(addr address, ns string) bool {
-	if !names.IsEnabled() {
-		return addr.String() == ns
+	if addr.String() == ns {
+		return true
 	}
-	return names.IsAuthorizedAddressForNamespace(addr, ns)
+	if !names.IsEnabled() {
+		return false
+	}
+	u, current := users.ResolveName(ns)
+	return u != nil && current && u.Addr() == addr
 }
 
 func newListing(path, slug, title, tagline, category string, palette int, kind string) *listing {
@@ -142,6 +152,9 @@ func SubmitRich(cur realm, icon, cover string) {
 	// The delay is richDelay (T1, T8). Owner functions are authorised by
 	// realm path, not by an address: Register usually runs from the app's
 	// init, where no user identity worth keeping as owner is available.
+	if paused {
+		panic("store: paused")
+	}
 	l := byPathOrPanic(cur.Previous().PkgPath())
 	r := rich{Icon: icon, Cover: cover}
 	if reason := validateRich(r); reason != "" {
@@ -152,8 +165,9 @@ func SubmitRich(cur realm, icon, cover string) {
 
 // Star an app you like. One star per app, up to 20 new stars a day. Your
 // star counts toward an app's rank once your address has a registered @name
-// the store has seen for 3 days; until then it shows in the app's total.
-// Stars on apps in your own namespace never rank.
+// the store has seen for 3 days; until then it shows in the app's total, and
+// starring the app again once it would count makes it count. Stars on apps
+// in your own namespace never rank.
 func Star(cur realm, slug string) {
 	// Only direct user calls are accepted (starTarget), so a `maketx run`
 	// script or another realm cannot star on a user's behalf. There are no
@@ -167,13 +181,18 @@ func Star(cur realm, slug string) {
 	// registration height, so a name's first star only starts the clock.
 	l, caller := starTarget(cur, slug)
 	addr := caller.String()
-	if l.starred(addr) {
-		panic("store: already starred")
-	}
 	now := blockTime()
 	named := users.ResolveAddress(caller) != nil
 	nameSeen := spendStar(addr, now, named)
 	ranked := named && now-nameSeen >= nameMaturity && !ownsNamespace(caller, l.Namespace)
+	if l.starred(addr) {
+		// Starring again is how a star given before the name counted comes
+		// to rank: the first one only starts the name's clock.
+		if l.starOf(addr).Ranked || !ranked {
+			panic("store: already starred")
+		}
+		l.removeStar(addr, now)
+	}
 	l.addStar(addr, star{At: now, Ranked: ranked})
 }
 

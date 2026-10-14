@@ -1,6 +1,7 @@
 package store
 
 import (
+	"chain"
 	"chain/runtime"
 	"math"
 	"strconv"
@@ -26,6 +27,10 @@ type listing struct {
 	// feed and the builders: a claimed path is not verified, so a claim
 	// alone buys no exposure (T11).
 	Confirmed bool
+	// selfListed listings were listed by their own realm or the seed: their
+	// confirmation stands for good. A claim confirmed by stars keeps it only
+	// while it has confirmStars ranked stars.
+	selfListed bool
 
 	core       bool   // listed by the seed: shown in gno.land essentials, kept off New, Top and Rediscover
 	icon       string // rich fields currently in effect, kept flat: a rich value is one more stored object
@@ -181,19 +186,27 @@ func upsert(l *listing, now int64) string {
 		return reason
 	}
 	if existing != nil {
-		if owner, _ := byTitle.Get(titleKey(l.Title)).(string); owner != "" && owner != l.Slug {
-			return reasonTitleTaken
+		if owner := titleHolder(l); owner != "" && owner != l.Slug {
+			if !l.Confirmed || !evictClaim(owner) {
+				return reasonTitleTaken
+			}
 		}
 		existing.update(l, now)
 		if l.Confirmed {
+			existing.selfListed = true
 			existing.confirm(now)
 		}
 		return ""
 	}
 
+	if l.Confirmed { // an unverified claim of l's slug or title gives way
+		evictClaim(l.Slug)
+		evictClaim(titleHolder(l))
+	}
 	if reason := available(l); reason != "" {
 		return reason
 	}
+	l.selfListed = l.Confirmed
 	l.Created, l.Updated = now, now
 	listings.Set(l.Slug, l)
 	byPath.Set(l.Path, l)
@@ -201,6 +214,30 @@ func upsert(l *listing, now int64) string {
 	l.index()
 	track("listed", l, now)
 	return ""
+}
+
+// titleHolder returns the slug of the visible listing using l's title, or "".
+func titleHolder(l *listing) string {
+	slug, _ := byTitle.Get(titleKey(l.Title)).(string)
+	return slug
+}
+
+// evictClaim drops the listing under slug if it is an unconfirmed claim,
+// and reports whether it did. It runs when an app's own Register or the seed
+// wants its slug or title: a claim proves nothing (T11), and an app whose
+// init is refused never calls Register again, so the claim would keep it out
+// for good.
+func evictClaim(slug string) bool {
+	c := lookup(&listings, slug)
+	if c == nil || c.Confirmed {
+		return false
+	}
+	c.unindex()
+	listings.Remove(c.Slug)
+	byTitle.Remove(titleKey(c.Title))
+	byPath.Remove(c.Path)
+	chain.Emit("StoreClaimDropped", "slug", c.Slug, "path", c.Path)
+	return true
 }
 
 // available returns why l, not visible, cannot take its slug, its title or
@@ -211,8 +248,8 @@ func available(l *listing) string {
 		return reasonSlugTaken
 	case byTitle.Has(titleKey(l.Title)):
 		return reasonTitleTaken
-	case visibleInNamespace(l.Namespace) >= maxPerNamespace:
-		return reasonNamespaceFull
+	case !isCoreNamespace(l.Namespace) && visibleInNamespace(l.Namespace) >= maxPerNamespace:
+		return reasonNamespaceFull // the core namespaces hold the seed, and room for what follows it
 	}
 	return ""
 }
@@ -513,6 +550,9 @@ func (l *listing) removeStar(addr string, now int64) {
 	}
 	l.book.recent.add(epoch, -1)
 	l.restar(now, func() { l.book.ranked.Remove(descKey(s.At, addr)) })
+	if l.Confirmed && !l.selfListed && l.rankedCount() < confirmStars {
+		l.reindex(func() { l.Confirmed = false }) // its backers left: a claim again
+	}
 }
 
 // descKey orders by n descending, then key ascending, in a forward

@@ -46,8 +46,8 @@ var (
 )
 
 // ProposePause returns a GovDAO proposal that pauses new listings and
-// listing updates: Register is refused (it emits StoreRegisterRejected) and
-// Claim panics. Stars, SubmitRich and hiding keep working.
+// listing updates: Register is refused (it emits StoreRegisterRejected),
+// Claim and SubmitRich panic. Stars and hiding keep working.
 func ProposePause(cur realm) dao.ProposalRequest {
 	return proposal(cur, "Pause the store", "Pauses new listings and listing updates in the store.",
 		func() error { paused = true; return nil })

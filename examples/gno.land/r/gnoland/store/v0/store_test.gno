@@ -1140,3 +1140,85 @@ func TestTrendingReadsEverySlot(cur realm, t *testing.T) {
 	top := trending(blockTime(), 10)
 	uassert.True(t, len(top.items) > 0 && top.items[0].Slug == "hotslot-app", jsonSlugs(top.items))
 }
+
+// A core listing is frozen in code: its namespace's owner cannot rewrite it.
+func TestClaimRefusesCoreListing(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(nameUser(cur, "demo")))
+	uassert.AbortsContains(t, cur, "core listing cannot be claimed", func() {
+		Claim(cross(cur), "gno.land/r/demo/defi/grc20factory", "token-factory", "Free GNOT Airdrop", "A tagline", "defi", 1, kindApp)
+	})
+	uassert.Equal(t, "Token Factory", bySlugOrPanic("token-factory").Title)
+}
+
+// An app's own Register takes its slug and title from an unconfirmed claim
+// holding them: the app's init runs once, the claim proves nothing.
+func TestRegisterEvictsSquattingClaim(cur realm, t *testing.T) {
+	squatter := testutils.TestAddress("squatter")
+	squat := "gno.land/r/" + squatter.String() + "/squat"
+	testing.SetRealm(testing.NewUserRealm(squatter))
+	Claim(cross(cur), squat, "real-app", "Real App", "A tagline", "utilities", 1, kindApp)
+
+	registerFrom(cur, "gno.land/r/realns/app", "real-app", "Real App")
+	uassert.Equal(t, "gno.land/r/realns/app", bySlugOrPanic("real-app").Path)
+	uassert.False(t, byPath.Has(squat), "the claim is dropped")
+
+	// A confirmed listing still holds its title.
+	registerFrom(cur, "gno.land/r/realcopy/app", "real-copy", "Real App")
+	uassert.False(t, listings.Has("real-copy"))
+}
+
+// A claim confirmed by stars is a claim again once its backers leave; a
+// listing its own realm listed stays confirmed.
+func TestClaimLosesConfirmationWithItsStars(cur realm, t *testing.T) {
+	owner := testutils.TestAddress("backed")
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), "gno.land/p/"+owner.String()+"/lib", "backed-lib", "Backed Lib", "A tagline", "dev-tools", 1, kindPackage)
+	starFrom(cur, "backed-lib", "backfana", "backfanb", "backfanc")
+	l := bySlugOrPanic("backed-lib")
+	uassert.True(t, l.Confirmed)
+	testing.SetRealm(testing.NewUserRealm(nameUser(cur, "backfana")))
+	Unstar(cross(cur), "backed-lib")
+	uassert.False(t, l.Confirmed)
+	uassert.False(t, toolbox.created.Has(descKey(l.Created, l.Slug)), "off the shelves")
+
+	registerFrom(cur, "gno.land/r/selflisted/app", "self-listed", "Self Listed")
+	starFrom(cur, "self-listed", "selffana", "selffanb", "selffanc")
+	testing.SetRealm(testing.NewUserRealm(nameUser(cur, "selffana")))
+	Unstar(cross(cur), "self-listed")
+	uassert.True(t, bySlugOrPanic("self-listed").Confirmed)
+}
+
+// A star given before the name counted ranks once starred again.
+func TestStarAgainOnceTheNameCounts(cur realm, t *testing.T) {
+	registerFrom(cur, "gno.land/r/starlater/app", "star-later", "Star Later")
+	fan := nameUser(cur, "laterfan")
+	testing.SetRealm(testing.NewUserRealm(fan))
+	Star(cross(cur), "star-later")
+	l := bySlugOrPanic("star-later")
+	uassert.Equal(t, 0, l.rankedCount(), "a name's first star only starts its clock")
+
+	skip(nameMaturity)
+	testing.SetRealm(testing.NewUserRealm(fan))
+	Star(cross(cur), "star-later")
+	uassert.Equal(t, 1, l.rankedCount())
+	uassert.Equal(t, 1, l.starCount())
+	uassert.AbortsContains(t, cur, "already starred", func() { Star(cross(cur), "star-later") })
+}
+
+// A pause stops every listing update, the icon and cover included.
+func TestPauseStopsSubmitRich(cur realm, t *testing.T) {
+	registerFrom(cur, "gno.land/r/pauserich/app", "pause-rich", "Pause Rich")
+	paused = true
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/pauserich/app"))
+	uassert.AbortsContains(t, cur, "paused", func() { SubmitRich(cross(cur), testIcon, "") })
+	paused = false
+}
+
+// The core namespaces hold the seed: the cap leaves them room.
+func TestCoreNamespacesHaveNoCap(cur realm, t *testing.T) {
+	for i := 0; i < maxPerNamespace; i++ {
+		n := strconv.Itoa(i)
+		registerFrom(cur, "gno.land/r/gnoland/extra"+n, "gnoland-extra-"+n, "Gnoland Extra "+n)
+		uassert.True(t, listings.Has("gnoland-extra-"+n), n)
+	}
+}
