@@ -38,8 +38,9 @@ func TestEscapeInline(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"plain", "plain"},
 		{"a*b", `a\*b`},
-		{"a|b", "a|b"}, // | NOT in inline set
-		{"a=b", "a=b"}, // = NOT in inline set
+		{"a|b", "a|b"},   // | NOT in inline set
+		{"a=b", "a=b"},   // = NOT in inline set
+		{"$x$", `\$x\$`}, // gnoweb math delimiter
 		{"a\x00b", "a\xef\xbf\xbdb"},
 		{"\\*", `\\\*`},
 	}

@@ -30,8 +30,9 @@ func NormalizeBreaks(s string) string // injected
 // EscapeInline backslash-escapes the inline-active CM punctuation set
 // with \ always first. Replaces NUL with U+FFFD per CM §2.3.
 //
-// Set: \ * _ [ ] ( ) ~ > - + . ! ` # < &
-// Intentionally excludes | (only table-active in GFM) and = (only
+// Set: \ * _ [ ] ( ) ~ > - + . ! ` # < & $
+// $ is gnoweb's math delimiter: unescaped, a $ in user text could open a
+// formula. Intentionally excludes | (only table-active in GFM) and = (only
 // block-active for setext underline).
 //
 // INTERNAL. Used by p/nt/md/sanitize.InlineText.
