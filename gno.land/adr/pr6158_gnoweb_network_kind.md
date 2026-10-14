@@ -113,10 +113,11 @@ one thing rather than an amber banner over a green page.
 Measured, foreground over background: mainnet keeps green (6.27:1 light,
 **3.77:1 dark**, an existing AA failure left untouched because fixing it would
 repaint mainnet); testnet purple is 6.62:1 light and 5.60:1 dark; local blue is
-8.66:1 light and 7.92:1 dark. Two purple steps were added to the palette
-(`purple-200`, `purple-300`) because the scale had no equivalent of
-`green-400`/`green-500`, and collapsing both onto `purple-400` dropped the dark
-hover from 7.21:1 to 3.73:1.
+8.66:1 light and 7.92:1 dark. The scale had no equivalent of
+`green-400`/`green-500`, and collapsing link and hover onto `purple-400`
+dropped the dark hover to 3.73:1. So the dark link takes a new `purple-350`
+(5.60:1) and its hover reuses `purple-300`, the step #4879 added for math
+(7.43:1).
 
 Only identity tokens move. `--s-color-bg-success-default` resolves to the same
 green primitive but stays green: success is a meaning, not a brand.
