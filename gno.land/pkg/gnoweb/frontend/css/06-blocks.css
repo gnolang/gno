@@ -243,6 +243,9 @@
 	.searchbar {
 		position: absolute;
 		inset: 0;
+		display: flex;
+		align-items: center;
+		gap: var(--g-space-1-5);
 		padding: var(--g-space-1-5);
 		padding-inline-end: var(--g-space-8);
 		font-size: var(--g-font-size-200);
@@ -258,6 +261,29 @@
 			width: 100%;
 			background-color: transparent;
 			outline: none;
+
+			&::placeholder {
+				color: var(--s-color-text-input-placeholder);
+				font-weight: var(--g-font-normal);
+			}
+
+			&:placeholder-shown {
+				text-overflow: ellipsis;
+			}
+		}
+
+		/* "/" shortcut hint, from md: no keyboard on mobile */
+		& > .shortcut {
+			order: -1;
+			flex-shrink: 0;
+
+			@media not all and (--md) {
+				display: none;
+			}
+		}
+
+		& > input:is(:focus, :not(:placeholder-shown)) + .shortcut {
+			display: none;
 		}
 
 		&:focus-within + .b-breadcrumb {
@@ -297,9 +323,12 @@
 	/* Submits the search, sits close to the network toggle */
 	.search-icon {
 		display: flex;
-		padding: var(--g-space-1-5) var(--g-space-0-5) var(--g-space-1-5)
-			var(--g-space-1-5);
+		padding: var(--g-space-1-5);
 		cursor: pointer;
+
+		@media (--md) {
+			padding-inline-end: var(--g-space-0-5);
+		}
 
 		&:hover > svg {
 			color: var(--s-color-text-tertiary-hover);
@@ -740,7 +769,8 @@
 		}
 
 		/* Common link styles */
-		a {
+		a,
+		.kind-switch {
 			display: inline-block;
 			border: 1px solid var(--s-color-border-transparent);
 			border-radius: var(--s-rounded-sm);
@@ -754,6 +784,38 @@
 				color: var(--s-color-text-base);
 			}
 		}
+	}
+
+	/* First segment (r or p) on a namespaced page: the whole chip opens a
+	   menu, the chevron says so. It shares the link chip above, at the same
+	   specificity so these overrides win. */
+	.element .kind-switch {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-1);
+		padding: var(--g-space-0-5) var(--g-space-1);
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		anchor-name: --kind-switch;
+
+		& > svg {
+			width: var(--g-space-2-5);
+			height: var(--g-space-2-5);
+			color: var(--s-color-text-secondary);
+		}
+	}
+
+	/* Lit on hover, focus, and while its menu is open */
+	.element .kind-switch:focus-visible,
+	&:has(#kind-switch-menu:popover-open) .kind-switch {
+		background-color: var(--s-color-bg-brand-default);
+		color: var(--s-color-text-base);
+	}
+
+	.kind-switch:is(:hover, :focus-visible) > svg,
+	&:has(#kind-switch-menu:popover-open) .kind-switch > svg {
+		color: currentColor;
 	}
 
 	/* Argument specific styles */
@@ -1384,43 +1446,143 @@
 		}
 	}
 
+	/* Avatar and name side by side below lg, stacked above it; the address
+	   line always spans the full width so it fits on one line. */
 	.user-info {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--g-space-6);
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		align-items: end;
+		column-gap: var(--g-space-6);
 
 		@media (--lg) {
-			flex-direction: column;
-		}
-
-		& > div:last-child {
-			align-self: flex-end;
-			@media (--lg) {
-				align-self: flex-start;
-			}
+			grid-template-columns: minmax(0, 1fr);
+			justify-items: start;
 		}
 	}
 
+	.user-identity {
+		/* lets the title wrap instead of pushing the column wider */
+		min-width: 0;
+		max-width: 100%;
+
+		@media (--lg) {
+			margin-block-start: var(--g-space-6);
+		}
+	}
+
+	/* Same eyebrow as the overview sidebar's .b-pkg-meta dt.label. */
+	.label {
+		color: var(--s-color-text-secondary);
+		font-weight: var(--g-font-semibold);
+		font-size: var(--g-font-size-80);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		margin-block-end: var(--g-space-1);
+	}
+
+	/* A name is never cut: lookalike names differ from the real one at the
+	   end, so it wraps (anywhere, names have no spaces) instead. */
 	.title {
-		display: bock;
+		display: block;
 		font-weight: var(--g-font-bold);
 		font-size: var(--g-font-size-700);
 		color: var(--s-color-text-primary);
 		line-height: var(--g-line-height-tight);
-		word-break: break-all;
-		text-transform: capitalize;
+		overflow-wrap: anywhere;
 
 		@media (--md) {
 			font-size: var(--g-font-size-800);
 		}
 	}
 
+	/* A long name (decided in Go) steps down so it holds on two lines. */
+	.title--long {
+		font-size: var(--g-font-size-500);
+	}
+
+	/* A full address as the title: no wrap but at the template's <wbr>, so
+	   one line or two equal halves, sized for 20 mono glyphs per column
+	   width. Beside the avatar a phone leaves the viewport less 152px, too
+	   narrow for a half at 18px below sm, so it starts at 13px there.
+	   Roboto Mono ships one regular cut, so it is not asked for bold. */
+	.title--address {
+		font-weight: var(--g-font-normal);
+		font-size: var(--g-font-size-90);
+		overflow-wrap: normal;
+
+		@media (--sm) {
+			font-size: var(--g-font-size-300);
+		}
+
+		@media (--lg) {
+			font-size: var(--g-font-size-90);
+		}
+
+		@media (--xl) {
+			font-size: var(--g-font-size-300);
+		}
+	}
+
 	.subtitle {
+		grid-column: 1 / -1;
 		display: block;
+		max-width: 100%;
 		color: var(--s-color-text-secondary);
-		font-size: var(--g-font-size-100);
-		line-height: var(--g-line-height-tight);
-		margin-block-start: var(--g-space-2);
+		/* the address and the copy icon fit a lg sidebar together at this size */
+		font-size: var(--g-font-size-80);
+		line-height: 1.4;
+		margin-block-start: var(--g-space-4);
+
+		@media (--lg) {
+			margin-block-start: var(--g-space-2);
+		}
+
+		& + .subtitle {
+			margin-block-start: var(--g-space-1);
+		}
+
+		a {
+			color: var(--s-color-text-link);
+		}
+	}
+
+	/* The full address, never cut: it is what a visitor checks a name
+	   against, and a shortened form is what a lookalike address imitates.
+	   One line where it fits; otherwise the template's <wbr> splits it
+	   into two equal halves, the only place it can break. */
+	.address-end {
+		white-space: nowrap;
+	}
+
+	/* Copy button: a 24px target that takes no more room than its icon, so
+	   the address and the icon still share one 304px line at 12px. */
+	.b-copy-btn {
+		color: var(--s-color-text-secondary);
+		vertical-align: middle;
+		padding-block: calc(var(--g-space-1) * 1.5);
+		margin-block: calc(var(--g-space-1) * -1.5);
+		border-radius: var(--s-rounded-sm);
+
+		&:hover {
+			color: var(--s-color-text-secondary-hover);
+		}
+
+		&:focus-visible {
+			outline: 2px solid var(--s-color-text-link);
+			outline-offset: 2px;
+		}
+	}
+
+	.address .b-copy-btn {
+		/* 0.25em of gap: a full space-1 tips the 1280 line over by a pixel */
+		padding-inline: 0.25em var(--g-space-2);
+		margin-inline-end: calc(var(--g-space-2) * -1);
+
+		.c-icon {
+			display: block;
+			width: 1em;
+			height: 1em;
+		}
 	}
 
 	& > a {
@@ -2503,7 +2665,8 @@ main.is-dev-mode .b-toc a {
 		margin-block-end: var(--g-space-2);
 	}
 
-	.gno-foreign__body {
+	.gno-foreign__body,
+	.gno-frame {
 		& > :first-child {
 			margin-block-start: 0;
 		}
@@ -2513,14 +2676,28 @@ main.is-dev-mode .b-toc a {
 		}
 	}
 
+	/* ===== GNO-ICON COMPONENT ===== */
+	/* Inline <gno-icon />: sized and colored by the surrounding text, so it
+	   follows headings, links and both themes. 1.15em matches .c-icon; the
+	   negative vertical-align centers the glyph on the x-height instead of
+	   sitting it on the baseline. */
+	.gno-icon {
+		display: inline-block;
+		width: 1.15em;
+		height: 1.15em;
+		vertical-align: -0.2em;
+	}
+
 	/* ===== COLUMNS COMPONENT ===== */
 	.gno-columns {
+		--columns-gap: var(--g-space-10);
+		@media (--2xl) {
+			--columns-gap: var(--g-space-12);
+		}
+
 		display: flex;
 		flex-wrap: wrap;
-		gap: var(--g-space-10);
-		@media (--2xl) {
-			gap: var(--g-space-12);
-		}
+		gap: var(--columns-gap);
 
 		& > * {
 			flex-grow: 1;
@@ -2529,6 +2706,41 @@ main.is-dev-mode .b-toc a {
 			@media (--lg) {
 				flex-basis: var(--g-space-44);
 			}
+		}
+	}
+
+	/* ===== FRAME COMPONENT ===== */
+	/* A thin border around author content, no fill. Alone in a column: a card
+	   that fills the column, so cards in one row share a height. */
+	.gno-frame {
+		border: var(--s-border);
+		border-radius: var(--s-rounded);
+		padding: var(--g-space-6);
+		margin-block: var(--g-space-6);
+		@media (--lg) {
+			padding: var(--g-space-10);
+		}
+	}
+
+	.gno-column > .gno-frame:only-child {
+		height: 100%;
+		margin-block: 0;
+		padding: var(--g-space-5);
+	}
+
+	/* Stacked card rows keep the same spacing as the columns gap. */
+	.gno-columns:has(> .gno-column > .gno-frame:only-child) {
+		margin-block: var(--columns-gap);
+	}
+
+	/* In a frame, the frame's padding spaces a card grid at its edges. */
+	.gno-frame > .gno-columns:has(> .gno-column > .gno-frame:only-child) {
+		&:first-child {
+			margin-block-start: 0;
+		}
+
+		&:last-child {
+			margin-block-end: 0;
 		}
 	}
 }
@@ -3037,7 +3249,9 @@ main.is-dev-mode .b-toc a {
 			font-weight: var(--g-font-bold);
 			list-style: none;
 
-			svg {
+			/* The kind and chevron glyphs; a <gno-icon /> in the title keeps
+			   its own inline sizing. */
+			svg:not(.gno-icon) {
 				width: var(--g-space-6);
 				height: var(--g-space-6);
 
@@ -3123,6 +3337,113 @@ main.is-dev-mode .b-toc a {
 				transparent
 			);
 			color: var(--s-color-text-tip);
+		}
+	}
+
+	/* ===== BUTTON COMPONENT ===== */
+	/* <gno-button /> renders a link (<a class="gno-button">), so it keeps the
+	   link type icon. The rule below owns the shape (the .b-btn silhouette);
+	   each variant only sets the colors it consumes. */
+	.gno-button {
+		--gno-button-bg: var(--s-color-bg-brand-default);
+		--gno-button-border: var(--s-color-border-brand-default);
+		--gno-button-text: var(--s-color-text-base);
+		/* Neutral, not green: in dark the only green text that passes AA is
+		   the success token, so a green outline matched success outline. */
+		--gno-button-outline: var(--s-color-text-secondary);
+
+		display: inline-flex;
+		align-items: center;
+		gap: var(--g-space-1-5);
+		max-width: 100%;
+		vertical-align: middle;
+		border: var(--g-space-px) solid var(--gno-button-border);
+		border-radius: var(--s-rounded-sm);
+		padding: var(--g-space-1) var(--g-space-2);
+		margin-block: var(--cr-space-0-5);
+		background-color: var(--gno-button-bg);
+		color: var(--gno-button-text);
+		font-weight: var(--g-font-medium);
+		line-height: var(--g-line-height-tight);
+		transition: box-shadow var(--g-transition-fast);
+
+		/* Hover thickens the border instead of fading the fill, so text
+		   contrast holds (AA) in every variant. */
+		&:hover {
+			box-shadow: 0 0 0 var(--g-space-px) var(--gno-button-border);
+			text-decoration: none;
+		}
+
+		&:focus-visible {
+			outline: var(--s-focus-ring);
+			outline-offset: 2px;
+		}
+
+		/* Link type icon: drawn in the button's own text color. The doubled
+		   class outranks the link icon spacing rules of .c-realm-view a
+		   (0,3,1), whose margins the button's gap replaces. */
+		&.gno-button > .tooltip {
+			margin: 0;
+			color: inherit;
+			border-color: currentColor;
+		}
+
+		/* Variants */
+		&.gno-button-caution {
+			--gno-button-bg: var(--s-color-bg-caution-weak);
+			--gno-button-border: var(--s-color-border-error);
+			--gno-button-text: var(--s-color-text-caution);
+			--gno-button-outline: var(--s-color-text-caution);
+		}
+
+		&.gno-button-warning {
+			--gno-button-bg: var(--s-color-bg-warning-weak);
+			--gno-button-border: var(--s-color-border-warning);
+			--gno-button-text: var(--s-color-text-warning);
+			--gno-button-outline: var(--s-color-text-warning);
+		}
+
+		&.gno-button-info {
+			--gno-button-bg: var(--s-color-bg-info-weak);
+			--gno-button-border: var(--s-color-border-info);
+			--gno-button-text: var(--s-color-text-info);
+			--gno-button-outline: var(--s-color-text-info);
+		}
+
+		&.gno-button-note {
+			--gno-button-bg: var(--s-color-bg-note-weak);
+			--gno-button-border: var(--s-color-border-note);
+			--gno-button-text: var(--s-color-text-note);
+			--gno-button-outline: var(--s-color-text-note);
+		}
+
+		/* The tip text token alone is under AA in dark (2.94:1 on its fill).
+		   70% of it with the primary text lightens it in dark (4.75:1) and
+		   keeps it purple in light; less tip would read as plain text. */
+		&.gno-button-tip {
+			--gno-button-bg: var(--s-color-bg-tip-weak);
+			--gno-button-border: var(--s-color-border-tip);
+			--gno-button-outline: color-mix(
+				in oklab,
+				var(--s-color-text-tip) 70%,
+				var(--s-color-text-primary)
+			);
+			--gno-button-text: var(--gno-button-outline);
+		}
+
+		&.gno-button-success {
+			--gno-button-bg: var(--s-color-bg-success-weak);
+			--gno-button-border: var(--s-color-border-success);
+			--gno-button-text: var(--s-color-text-success);
+			--gno-button-outline: var(--s-color-text-success);
+		}
+
+		/* Outline: no fill; the border is the only shape, so it takes the
+		   text color. */
+		&.gno-button-outline {
+			--gno-button-bg: transparent;
+			--gno-button-border: var(--gno-button-outline);
+			--gno-button-text: var(--gno-button-outline);
 		}
 	}
 }
@@ -3240,7 +3561,7 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	}
 
 	dt.label {
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-weight: var(--g-font-semibold);
 		font-size: var(--g-font-size-80);
 		text-transform: uppercase;
@@ -3841,4 +4162,106 @@ main.is-dev-mode > section:has(.c-overview-view) {
 	background-color: var(--s-color-bg-brand-default);
 	color: var(--s-color-text-base);
 	border-radius: var(--s-rounded-sm);
+}
+
+/* ===== KIND SWITCH MENU (popover, top layer: not clipped by the header reel) ===== */
+/* Right-aligned instead when the menu would leave the screen */
+@position-try --kind-switch-end {
+	left: auto;
+	right: 0;
+}
+
+.b-kind-switch {
+	position-anchor: --kind-switch;
+	position-try-fallbacks: --kind-switch-end;
+	inset: auto;
+	top: anchor(bottom);
+	left: anchor(left);
+	margin: var(--g-space-1) var(--g-space-4) 0 0;
+	min-width: var(--g-space-64);
+	max-width: calc(100vw - 2 * var(--g-space-4));
+	overflow-wrap: anywhere;
+	padding: var(--g-space-1);
+	border: var(--s-border);
+	border-radius: var(--s-rounded);
+	background-color: var(--s-color-bg-base);
+	color: var(--s-color-text-primary);
+	box-shadow: 0 6px 24px rgb(0 0 0 / 12%);
+
+	& .item {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		column-gap: var(--g-space-2);
+		align-items: center;
+		padding: var(--g-space-2);
+		border-radius: var(--s-rounded-sm);
+		font-size: var(--g-font-size-100);
+		color: var(--s-color-text-secondary);
+
+		&:hover,
+		&:focus-visible {
+			background-color: var(--s-color-bg-surface-secondary);
+			color: var(--s-color-text-primary);
+		}
+
+		& > svg {
+			grid-row: span 2;
+			align-self: start;
+			width: var(--g-space-5);
+			height: var(--g-space-5);
+		}
+
+		& > .item-label {
+			grid-column: 2;
+		}
+	}
+
+	/* Label and path on one line */
+	& .item--inline {
+		grid-template-columns: auto auto 1fr;
+		align-items: baseline;
+
+		& > svg {
+			grid-row: auto;
+			align-self: center;
+		}
+
+		& > .item-label,
+		& > .item-path {
+			grid-column: auto;
+		}
+	}
+
+	/* Sets the global listing apart from the project's own links */
+	& > hr {
+		margin: var(--g-space-1) calc(-1 * var(--g-space-1));
+		border: 0;
+		border-block-start: var(--s-border);
+	}
+
+	& .item--primary {
+		font-weight: var(--g-font-semibold);
+	}
+
+	& .item-path {
+		grid-column: 2;
+		font-family: var(--g-font-family-mono);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-normal);
+		color: var(--s-color-text-tertiary);
+	}
+
+	& .item:is(:hover, :focus-visible) .item-path {
+		color: var(--s-color-text-tertiary-hover);
+	}
+}
+
+/* Without anchor positioning (older browsers) the menu opens under the header,
+   at the breadcrumb's start, rather than in the window's corner. It follows
+   the rule above so that rule's inset reset does not override it. */
+@supports not (top: anchor(bottom)) {
+	.b-kind-switch {
+		top: var(--g-space-14);
+		left: var(--g-space-16);
+	}
 }

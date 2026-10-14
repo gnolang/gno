@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -26,7 +28,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/bech32"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -37,9 +39,16 @@ const ReadmeFileName = "README.md"
 // can fan out to many RPC calls — an unbounded request is an unbounded-work vector).
 const defaultRequestTimeout = 30 * time.Second
 
+// maxUserLookupTimeout caps the r/sys/users lookup behind every /u/ page. The
+// lookup runs before the listing and the home realm, on the same deadline, so
+// a slow registry or a busy RPC pool left unbounded would spend all of it and
+// fail the page. The budget covers the wait for an RPC slot as well.
+const maxUserLookupTimeout = 2 * time.Second
+
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
 	Domain            string
+	CanonicalOrigin   string
 	AssetsPath        string
 	ChromaPath        string
 	RemoteHelp        string
@@ -78,6 +87,10 @@ const (
 type AliasTarget struct {
 	Value string
 	Kind  AliasKind
+	// Title and Description come from a static page's front matter, and are
+	// empty for every other alias.
+	Title       string
+	Description string
 }
 
 // HTTPHandlerConfig configures an HTTPHandler.
@@ -88,7 +101,11 @@ type HTTPHandlerConfig struct {
 	Aliases       map[string]AliasTarget
 	// TrustedPaths — see AppConfig field of the same name.
 	TrustedPaths []string
-	Timeout      time.Duration
+	// IndexCommunity — see AppConfig field of the same name.
+	IndexCommunity CommunityIndex
+	Timeout        time.Duration
+	// NoIndex — see AppConfig field of the same name.
+	NoIndex bool
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
 	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
 	// burst. ADR-003 §Resource bounds.
@@ -124,7 +141,7 @@ type HTTPHandler struct {
 	Renderer Renderer
 	Aliases  map[string]AliasTarget
 	Timeout  time.Duration
-	trusted  trustedPaths
+	policy   pagePolicy
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
@@ -133,6 +150,8 @@ type HTTPHandler struct {
 	trustedProxies []*net.IPNet
 	// packageText caches the whole-package texts of $download.
 	packageText packageTextCache
+	// counterparts caches the project listings behind the breadcrumb switch.
+	counterparts counterpartCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -154,7 +173,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
-		trusted:  newTrustedPaths(cfg.TrustedPaths),
+		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity, cfg.NoIndex),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
@@ -209,6 +228,14 @@ func (h *HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// requestTimeout is the deadline every GET runs under.
+func (h *HTTPHandler) requestTimeout() time.Duration {
+	if h.Timeout <= 0 {
+		return defaultRequestTimeout
+	}
+	return h.Timeout
+}
+
 // Get processes a GET HTTP request and renders the appropriate page.
 func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -218,11 +245,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			"elapsed", time.Since(start).String())
 	}()
 
-	timeout := h.Timeout
-	if timeout <= 0 {
-		timeout = defaultRequestTimeout
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.requestTimeout())
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -250,7 +273,11 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	// Resolve GnowebPath aliases once, BEFORE parsing: every downstream
 	// dispatch (state, source, package view) and the realm notice must see
 	// the path that is rendered. Aliases do not chain.
-	if alias, ok := h.Aliases[r.URL.Path]; ok && alias.Kind == GnowebPath {
+	requested := *r.URL
+	alias, aliased := h.Aliases[r.URL.Path]
+	staticPage := aliased && alias.Kind == StaticMarkdown
+	realmAlias := aliased && alias.Kind == GnowebPath
+	if realmAlias {
 		r.URL.Path = alias.Value
 	}
 
@@ -267,8 +294,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		indexData.HeadData.Title = "gno.land — invalid path"
 		indexData.BodyView = components.StatusErrorComponent("invalid path")
+		h.setHead(w, &indexData.HeadData, &servedPage{}, http.StatusNotFound)
 		w.WriteHeader(http.StatusNotFound)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render error view", "error", err)
@@ -277,6 +304,14 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	// The state branch builds its header before prepareIndexBodyView does.
 	gnourl.Origin = requestOrigin(r, h.trustedProxies)
+
+	// A static page is named by its alias key, which may read as a file:
+	// /license.md or /Terms would otherwise be a file under "/".
+	classified := gnourl
+	if staticPage {
+		classified = &weburl.GnoURL{Path: requested.Path, Query: gnourl.Query, WebQuery: gnourl.WebQuery}
+	}
+	sp := h.classifyPage(w, classified)
 
 	// The function list as JSON, for agents that want to know what to call.
 	if gnourl.WebQuery.Has("help") && gnourl.WebQuery.Has("json") {
@@ -288,6 +323,25 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	if gnourl.WebQuery.Has("download") {
 		h.ServeSourceDownload(r.Context(), gnourl, w, r)
 		return
+	}
+
+	// Head metadata names the URL the client asked for, not the alias
+	// target: /about and /r/gnoland/pages:p/about serve one page, and
+	// /about is the address to publish.
+	switch {
+	case realmAlias:
+		if u, err := weburl.ParseFromURL(&requested); err == nil {
+			if u.IsFile() { // an alias key, as /license.md, is no file under "/"
+				u.Path, u.File = path.Join(u.Path, u.File), ""
+			}
+			sp.url = u
+		}
+	case staticPage:
+		// A static page renders the same bytes whatever the query says, so
+		// /about?utm_source=x is /about and may still name itself.
+		u := *classified
+		u.Query = nil
+		sp.url = &u
 	}
 
 	// State explorer (all ?state* URLs). The feature/state.Handler.Handle
@@ -306,14 +360,18 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Page path: wrap the state body in IndexLayout chrome. Set
-		// HeaderData/Title here (mirroring prepareIndexBodyView) so the
-		// global header — breadcrumb + Content/State/Source/Actions
-		// tabs — renders against this realm instead of inheriting zero
-		// values and pointing the tabs at empty URLs.
+		// HeaderData here so the global header — breadcrumb +
+		// Content/State/Source/Actions tabs — renders against this realm
+		// instead of inheriting zero values and pointing the tabs at empty
+		// URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
+		// Looked up only once State.Handle returns a view: json, fragment
+		// and rate-limited answers render no header, so they pay for none.
+		indexData.HeaderData.Breadcrumb.Counterpart = h.startCounterpart(r.Context(), gnourl)()
 		scrubHeaderOnError(&indexData, status)
 		indexData.BodyView = view
+		h.setHead(w, &indexData.HeadData, &sp, status)
 		w.WriteHeader(status)
 		if err := components.IndexLayout(indexData).Render(w); err != nil {
 			h.Logger.Error("failed to render state page", "error", err)
@@ -333,9 +391,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 	}
 
-	wantMarkdown := negotiatesMarkdown(r.Header.Get("Accept"))
-
-	status, bodyView := h.prepareIndexBodyView(r, &indexData, wantMarkdown)
+	sp.render.markdown = negotiatesMarkdown(r.Header.Get("Accept"))
+	status, bodyView := h.prepareIndexBodyView(r, &indexData, &sp.render)
 	scrubHeaderOnError(&indexData, status)
 
 	// The realm and static-markdown paths return a markdown view; serve its
@@ -357,12 +414,46 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	indexData.BodyView = bodyView
+	h.setHead(w, &indexData.HeadData, &sp, status)
 
 	// Render the final page with the rendered body
 	w.WriteHeader(status)
 	if err := components.IndexLayout(indexData).Render(w); err != nil {
 		h.Logger.Error("failed to render index component", "error", err)
 	}
+}
+
+// classifyPage classifies the page at u and sets what follows from its kind
+// alone: the link policy and the robots policy. The community notice reads
+// the same classification, in setHeaderForRealm. The
+// X-Robots-Tag header is set here, before any branch writes, since the
+// markdown, JSON and download responses have no head to carry a robots meta. A
+// markdown alias serves bytes the operator wrote; a realm alias serves
+// whatever its target renders, so u is the target and the alias keeps the
+// target's kind.
+func (h *HTTPHandler) classifyPage(w http.ResponseWriter, u *weburl.GnoURL) servedPage {
+	sp := servedPage{url: u, target: u, kind: h.policy.kind(u)}
+	sp.robots = h.policy.robots(sp.kind, u)
+	sp.render.links = sp.kind.links()
+	if sp.robots != indexFollow {
+		w.Header().Set("X-Robots-Tag", sp.robots.String())
+	}
+	return sp
+}
+
+// finalRobots is what the page tells search engines once its status is
+// known, and sets the X-Robots-Tag header to match. An error, a user page
+// with nothing to show, or a state explorer page that asked for less, is
+// noindex, nofollow whatever the policy granted.
+func finalRobots(w http.ResponseWriter, sp *servedPage, status int) robots {
+	r := sp.robots
+	if status != http.StatusOK || sp.render.empty || w.Header().Get("X-Robots-Tag") == noIndexNoFollow.String() {
+		r = noIndexNoFollow
+	}
+	if r != indexFollow {
+		w.Header().Set("X-Robots-Tag", r.String())
+	}
+	return r
 }
 
 // maxPostFormBytes caps r.Body for the redirect form. The form carries
@@ -422,7 +513,9 @@ func (h *HTTPHandler) Post(w http.ResponseWriter, r *http.Request) {
 }
 
 // prepareIndexBodyView prepares the data and main view for the index page.
-func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
+// An HTML page that renders a document records what it says about itself in
+// pr.lead; a markdown response has no head, so it leaves it empty.
+func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *components.IndexData, pr *pageRender) (int, *components.View) {
 	ctx := r.Context()
 
 	// Get already resolved GnowebPath aliases; only StaticMarkdown is left.
@@ -439,13 +532,20 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
-		if wantMarkdown {
+		if pr.markdown {
 			return http.StatusOK, components.MarkdownView([]byte(aliasTarget.Value))
 		}
 		indexData.HeaderData.Static = true
-		return h.GetMarkdownView(gnourl, aliasTarget.Value)
-	case gnourl.IsRealm(), gnourl.IsPure(), gnourl.IsUser():
-		return h.GetPackageView(ctx, gnourl, indexData, wantMarkdown)
+		return h.GetMarkdownView(gnourl, aliasTarget, pr)
+	case isPackageURL(gnourl):
+		// A markdown answer has no header, so it skips the counterpart lookup.
+		if pr.markdown {
+			return h.GetPackageView(ctx, gnourl, indexData, pr)
+		}
+		counterpart := h.startCounterpart(ctx, gnourl)
+		status, view := h.GetPackageView(ctx, gnourl, indexData, pr)
+		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
+		return status, view
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -453,28 +553,30 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 }
 
 // GetMarkdownView handles rendering of markdown files.
-func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, mdContent string) (int, *components.View) {
+func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, pr *pageRender) (int, *components.View) {
 	var content bytes.Buffer
 
 	// Use Goldmark for Markdown parsing
-	toc, err := h.Renderer.RenderRealm(&content, gnourl, []byte(mdContent), RealmRenderContext{
-		ChainId: h.Static.ChainId,
-		Remote:  h.Static.RemoteHelp,
-		Domain:  h.Static.Domain,
-	})
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, []byte(alias.Value), h.renderContext(pr))
 	if err != nil {
 		h.Logger.Error("unable to render markdown file", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
+	// A page the operator ships may name itself; anything else is read off
+	// what the page displays.
+	pr.lead = pageLead{
+		title:       cmp.Or(alias.Title, meta.Title),
+		description: cmp.Or(alias.Description, meta.Description),
+	}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
-		TocItems:         &components.RealmTOCData{Items: toc.Items},
+		TocItems:         &components.RealmTOCData{Items: meta.Toc.Items},
 		ComponentContent: components.NewReaderComponent(&content),
 	})
 }
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
-func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, wantMarkdown bool) (int, *components.View) {
+func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, pr *pageRender) (int, *components.View) {
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -483,42 +585,44 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// Handle Source page: with a file -> source code view; without -> package overview.
 	if gnourl.WebQuery.Has("source") || gnourl.IsFile() {
 		if gnourl.IsFile() || gnourl.WebQuery.Get("file") != "" {
-			return h.GetSourceView(ctx, gnourl)
+			return h.GetSourceView(ctx, gnourl, pr)
 		}
-		return h.GetOverviewView(ctx, gnourl)
+		return h.GetOverviewView(ctx, gnourl, pr)
 	}
 
 	// Handle Source page
 	if gnourl.IsDir() || gnourl.IsPure() {
-		return h.GetDirectoryView(ctx, gnourl, indexData)
+		return h.GetDirectoryView(ctx, gnourl, indexData, pr)
 	}
 
 	// Handle User page
 	if gnourl.IsUser() {
-		return h.GetUserView(ctx, gnourl)
+		return h.GetUserView(ctx, gnourl, pr)
 	}
 
 	// Ultimately get realm view
-	if wantMarkdown {
-		return h.GetMarkdownRealmView(ctx, gnourl, indexData)
+	if pr.markdown {
+		return h.GetMarkdownRealmView(ctx, gnourl, indexData, pr)
 	}
-	return h.GetRealmView(ctx, gnourl, indexData)
+	return h.GetRealmView(ctx, gnourl, indexData, pr)
 }
 
 // fetchRealm fetches a realm's raw Render() output. On success it returns the
 // bytes with ok=true and the status/fallback unset. When the realm cannot be
 // rendered it returns ok=false with the HTML fallback view and status to send as-is.
-func (h *HTTPHandler) fetchRealm(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) ([]byte, int, *components.View, bool) {
+func (h *HTTPHandler) fetchRealm(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, pr *pageRender) ([]byte, int, *components.View, bool) {
 	raw, err := h.Client.Realm(ctx, gnourl.Path, gnourl.EncodeArgs())
 	switch {
 	case err == nil:
 		return raw, 0, nil, true
 	case errors.Is(err, ErrClientRenderNotDeclared):
 		// No Render() declared: fall back to directory view (which will show README.md if present)
-		status, view := h.GetDirectoryView(ctx, gnourl, indexData)
+		pr.argsIgnored = true
+		status, view := h.GetDirectoryView(ctx, gnourl, indexData, pr)
 		return nil, status, view, false
 	case errors.Is(err, ErrClientPackageNotFound):
 		// No realm exists here, try to display underlying paths
+		pr.argsIgnored, pr.listing = true, true
 		status, view := h.GetPathsListView(ctx, gnourl, indexData)
 		return nil, status, view, false
 	default:
@@ -529,26 +633,23 @@ func (h *HTTPHandler) fetchRealm(ctx context.Context, gnourl *weburl.GnoURL, ind
 }
 
 // GetRealmView renders a realm page as HTML, or returns an error/status if not available.
-func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData)
+func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, pr *pageRender) (int, *components.View) {
+	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData, pr)
 	if !ok {
 		return status, fallback
 	}
 
 	var content bytes.Buffer
-	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
-		ChainId: h.Static.ChainId,
-		Remote:  h.Static.RemoteHelp,
-		Domain:  h.Static.Domain,
-	})
+	meta, err := h.Renderer.RenderRealm(&content, gnourl, raw, h.renderContext(pr))
 	if err != nil {
 		h.Logger.Error("unable to render realm", "error", err, "path", gnourl.EncodeURL())
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
+	pr.lead = pageLead{title: meta.Title, description: meta.Description}
 
 	return http.StatusOK, components.RealmView(components.RealmData{
 		TocItems: &components.RealmTOCData{
-			Items: meta.Items,
+			Items: meta.Toc.Items,
 		},
 		// NOTE: `RenderRealm` should ensure that HTML content is
 		// sanitized before rendering
@@ -558,34 +659,43 @@ func (h *HTTPHandler) GetRealmView(ctx context.Context, gnourl *weburl.GnoURL, i
 
 // GetMarkdownRealmView serves a realm's raw Render() output as text/markdown. It
 // falls back to the directory, paths-list, or error view when the realm cannot be fetched.
-func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData)
+func (h *HTTPHandler) GetMarkdownRealmView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, pr *pageRender) (int, *components.View) {
+	raw, status, fallback, ok := h.fetchRealm(ctx, gnourl, indexData, pr)
 	if !ok {
 		return status, fallback
 	}
 	return http.StatusOK, components.MarkdownView(raw)
 }
 
-// MaxUserContributions caps how many contributions /u/<user> renders.
-// Each entry costs a bech32 decode, a weburl parse, and a sort comparison;
+// MaxUserContributions caps how many contributions /u/<user> renders per
+// namespace; a resolved user lists two.
+// Each entry costs a weburl parse and a sort comparison;
 // an unbounded cap turns a single GET into a 10k-iteration amplifier.
 // Exported so external tests assert against the documented cap.
 // TODO: paginate via ?page= when a contributor exceeds this cap.
 const MaxUserContributions = 200
 
-// buildContributions returns the sorted list of contributions (packages and realms) for a user.
-func (h *HTTPHandler) buildContributions(ctx context.Context, username string) ([]components.UserContribution, int, error) {
-	prefix := "@" + username
-
-	paths, err := h.Client.ListPaths(ctx, prefix, MaxUserContributions)
-	if err != nil {
-		h.Logger.Error("unable to query contributions", "user", username, "error", err)
-		return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", username, err)
+// buildContributions returns the sorted list of contributions (packages and
+// realms) deployed under any of the given namespaces.
+func (h *HTTPHandler) buildContributions(ctx context.Context, namespaces ...string) ([]components.UserContribution, int, error) {
+	var paths []string
+	for _, ns := range namespaces {
+		nsPaths, err := h.Client.ListPaths(ctx, "@"+ns, MaxUserContributions)
+		if err != nil {
+			h.Logger.Error("unable to query contributions", "user", ns, "error", err)
+			return nil, 0, fmt.Errorf("unable to query contributions for user %q: %w", ns, err)
+		}
+		paths = append(paths, nsPaths...)
 	}
 
 	contribs := make([]components.UserContribution, 0, len(paths))
 	realmCount := 0
 	for _, raw := range paths {
+		// An empty listing is a single blank line, not a malformed path.
+		if raw == "" {
+			continue
+		}
+
 		trimmed := strings.TrimPrefix(raw, h.Static.Domain)
 		u, err := weburl.Parse(trimmed)
 		if err != nil {
@@ -606,21 +716,134 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, username string) (
 	}
 
 	sort.Slice(contribs, func(i, j int) bool {
-		return contribs[i].Title < contribs[j].Title
+		if contribs[i].Title != contribs[j].Title {
+			return contribs[i].Title < contribs[j].Title
+		}
+		return contribs[i].URL < contribs[j].URL
 	})
 	return slices.Clip(contribs), realmCount, nil
 }
 
-// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
-func CreateUsernameFromBech32(username string) string {
-	_, _, err := bech32.Decode(username)
-	if err == nil {
-		// If it's a valid bech32 address, create a shortened version
-		username = username[:4] + "..." + username[len(username)-4:]
+// reUsername is the shape r/sys/users accepts: it mirrors gnolang, so gnoweb
+// reads the same source rather than a copy that could drift out of it.
+var reUsername = gno.Re_name.Compile()
+
+// maxUsernameLen mirrors maxNameLen in r/sys/users, which caps a name in
+// bytes on top of the shape reUsername checks.
+const maxUsernameLen = 64
+
+// UserRegistryPath is the realm that maps gno.land names to addresses, and the
+// only source gnoweb has for either side of the pair.
+const UserRegistryPath = "/r/sys/users"
+
+// userIdentity is the pair behind a /u/ path segment. Each field is empty when
+// the registry could not confirm it, so a chain that does not deploy the
+// registry yields the zero value and every caller falls back to the segment.
+type userIdentity struct {
+	Name    string // the user's current registered name
+	Address string // the bech32 address that name belongs to
+	// Registration is whether the registry answered at all: an empty Name
+	// is the same for "nobody holds it" and "no answer".
+	Registration components.UserRegistration
+}
+
+// reUserData reads the pair out of the value repr vm/qeval prints for a
+// *UserData:
+//
+//	(&(struct{("g1…" .uverse.address),("alice" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)
+//
+// The realm exports no string-returning resolver, and .Name() on the returned
+// pointer panics when it is nil, so one qeval plus this match is the cheapest
+// lookup that cannot fault. Matching on each field's type tag means a field
+// added before or after the pair does not shift the result (one inserted
+// between them, or swapping them, would), and an unrecognized shape is an
+// error rather than a silent "no user".
+var reUserData = regexp.MustCompile(`\("(g1[a-z0-9]+)" \.uverse\.address\),\("([a-z0-9_-]*)" string\)`)
+
+// resolveUser asks r/sys/users which name and address stand behind a /u/
+// segment, accepting either form as input. ResolveAny answers both questions
+// the page has in a single qeval: whether the user exists at all, which gates
+// the page, and the other half of the pair, which the page prints.
+//
+// A chain without the registry answers the zero value and no error, which is
+// the gnodev case; a chain that could not be asked returns an error, since a
+// 404 published on a timeout deletes a real user's page for as long as a
+// crawler remembers it.
+func (h *HTTPHandler) resolveUser(ctx context.Context, input string) (userIdentity, error) {
+	// An address is its own answer for half the pair, registry or not: it is
+	// already the address, and it is a namespace by construction.
+	identity := userIdentity{}
+	if isGnoAddress(input) {
+		identity.Address = input
 	}
 
-	return username
+	// A quarter of the request budget at most, so a hung registry leaves the
+	// rest of the page the time it needs; a timeout here is an ordinary
+	// lookup error.
+	lookupCtx, cancel := context.WithTimeout(ctx, min(h.requestTimeout()/4, maxUserLookupTimeout))
+	defer cancel()
+	res, err := h.Client.Eval(lookupCtx, UserRegistryPath, fmt.Sprintf("ResolveAny(%q)", input))
+	switch {
+	case errors.Is(err, ErrClientPackageNotFound):
+		h.Logger.Debug("no user registry on this chain", "error", err)
+		return identity, nil
+	case err != nil:
+		return identity, err
+	}
+
+	// ResolveAny returns (*UserData, bool); the pointer is the first line, and
+	// it is the only one that carries the pair.
+	line, _, _ := bytes.Cut(bytes.TrimSpace(res), []byte("\n"))
+	if bytes.HasPrefix(line, []byte("(nil ")) {
+		identity.Registration = components.UserRegistrationNone
+		return identity, nil
+	}
+
+	match := reUserData.FindSubmatch(line)
+	if match == nil {
+		// Reading an unknown shape as "no user" would 404 every registered
+		// user at once, and in silence.
+		return identity, fmt.Errorf("%w: unexpected ResolveAny result %q", ErrClientResponse, line)
+	}
+	// An address resolves to itself or not at all; a registry naming another
+	// one would have the page print two different addresses as one user.
+	if identity.Address != "" && string(match[1]) != identity.Address {
+		return identity, fmt.Errorf("%w: ResolveAny(%q) answered for %q", ErrClientResponse, input, match[1])
+	}
+	return userIdentity{
+		Name:         string(match[2]),
+		Address:      string(match[1]),
+		Registration: components.UserRegistrationRegistered,
+	}, nil
+}
+
+// isAliasTarget reports whether one of this gnoweb's own aliases points at
+// path. The operator published it on purpose, so the gate below must not 404 a
+// URL gnoweb itself advertises: "/docs" maps to "/u/docs", and `docs` is
+// neither a registered user nor a namespace holding a package.
+func (h *HTTPHandler) isAliasTarget(path string) bool {
+	for _, target := range h.Aliases {
+		if target.Kind == GnowebPath && target.Value == path {
+			return true
+		}
+	}
+	return false
+}
+
+// isGnoAddress reports whether s is a gno bech32 address, which is a namespace
+// by construction.
+func isGnoAddress(s string) bool {
+	_, err := crypto.AddressFromBech32(s)
+	return err == nil
+}
+
+// CreateUsernameFromBech32 creates a shortened version of the username if it's a valid bech32 address.
+func CreateUsernameFromBech32(username string) string {
+	if !isGnoAddress(username) {
+		return username
+	}
+
+	return username[:4] + "..." + username[len(username)-4:]
 }
 
 // displayPackageName returns versioned name for a package path.
@@ -635,47 +858,102 @@ func displayPackageName(pkgPath string) string {
 	return name
 }
 
-// GetUserView returns the user profile view for a given GnoURL.
-func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
-	username := strings.TrimPrefix(gnourl.Path, "/u/")
+// GetUserView returns the user profile view for a given GnoURL. The segment
+// may be either half of the pair: /u/<name> and /u/<address> serve the same
+// page, and each prints the other half. A page is served only for an address,
+// a namespace holding packages, a current name r/sys/users resolves to itself,
+// or a path this gnoweb's own aliases publish; anything else would be a
+// fabricated profile.
+func (h *HTTPHandler) GetUserView(ctx context.Context, gnourl *weburl.GnoURL, pr *pageRender) (int, *components.View) {
+	segment := gnourl.Username()
 
-	var content bytes.Buffer
-
-	// Render user profile realm
-	raw, err := h.Client.Realm(ctx, "/r/"+username+"/home", "")
-	if err == nil {
-		_, err = h.Renderer.RenderRealm(&content, gnourl, raw, RealmRenderContext{
-			ChainId: h.Static.ChainId,
-			Remote:  h.Static.RemoteHelp,
-			Domain:  h.Static.Domain,
-		})
+	isAddress := isGnoAddress(segment)
+	if !isAddress && (len(segment) > maxUsernameLen || !reUsername.Matches(segment)) {
+		return http.StatusNotFound, components.StatusUserNotFoundComponent("")
 	}
 
-	if content.Len() == 0 {
-		h.Logger.Debug("unable to fetch user realm", "username", username, "error", err)
+	// A failed lookup is only fatal where the gate needs it, below: an address
+	// or a namespace holding packages is served without the registry.
+	identity, resolveErr := h.resolveUser(ctx, segment)
+	if resolveErr != nil {
+		h.Logger.Warn("unable to resolve user", "user", segment, "error", resolveErr)
 	}
 
-	// Build contributions
-	contribs, realmCount, err := h.buildContributions(ctx, username)
+	// A resolved user may deploy under both halves of the pair, since
+	// r/sys/names lets any address deploy under its own address namespace, so
+	// /u/<name> and /u/<address> both list both. The name comes first: its
+	// home realm is tried first and it is what the page is titled by. An old alias
+	// resolves to the current name, not to itself, so it keeps its own
+	// segment and still shows what the old name holds.
+	namespaces := []string{segment}
+	if identity.Name != "" && (segment == identity.Name || segment == identity.Address) {
+		namespaces = []string{identity.Name, identity.Address}
+	}
+
+	contribs, realmCount, err := h.buildContributions(ctx, namespaces...)
 	if err != nil {
 		h.Logger.Error("unable to build contributions", "error", err)
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
+	// Only the current name of a live user counts, which is the rule
+	// r/sys/names applies before authorizing a deploy: unknown, deleted and
+	// renamed-away names do not.
+	isCurrentName := identity.Name != "" && identity.Name == segment
+	if !isAddress && !isCurrentName && len(contribs) == 0 && !h.isAliasTarget(gnourl.Path) {
+		if resolveErr != nil {
+			return GetClientErrorStatusView(gnourl, resolveErr, 0)
+		}
+		return http.StatusNotFound, components.StatusUserNotFoundComponent(segment)
+	}
+
+	var content bytes.Buffer
+
+	// Render the first home realm the pair has; the link under the avatar
+	// points at the same one.
+	namespace := namespaces[0]
+	for _, ns := range namespaces {
+		raw, err := h.Client.Realm(ctx, "/r/"+ns+"/home", "")
+		if err != nil {
+			h.Logger.Debug("unable to fetch user realm", "username", ns, "error", err)
+			continue
+		}
+		namespace = ns
+		if _, err := h.Renderer.RenderRealm(&content, gnourl, raw, h.renderContext(pr)); err != nil {
+			h.Logger.Debug("unable to render user realm", "username", ns, "error", err)
+		}
+		break
+	}
+
+	// Nothing rendered and nothing published: the page shows only the name
+	// the link typed, so it is not worth an index entry.
+	pr.empty = content.Len() == 0 && len(contribs) == 0
+
 	// Compute package counts
 	pkgCount := len(contribs)
 	pureCount := pkgCount - realmCount
 
-	// TODO: Check username from r/sys/users in addition to bech32 address test (username + gno address to be used)
-	// Try to decode the bech32 address
-	username = CreateUsernameFromBech32(username)
+	// The page is titled by the name; an address with no name behind it has
+	// none, and the view titles it by the address instead.
+	// TODO: get a display name from r/profile.
+	username := namespaces[0]
+	if username == identity.Address {
+		username = ""
+	}
 
-	// TODO: get from user r/profile and use placeholder if not set
-	handlename := "Gnome " + username
+	// An old name resolves to the current one, which the page points at.
+	var currentName string
+	if username != "" && identity.Name != "" && identity.Name != username {
+		currentName = identity.Name
+	}
 
 	data := components.UserData{
 		Username:      username,
-		Handlename:    handlename,
+		Namespace:     namespace,
+		HomeLabel:     CreateUsernameFromBech32(namespace),
+		Address:       identity.Address,
+		CurrentName:   currentName,
+		Registration:  identity.Registration,
 		Contributions: contribs,
 		PackageCount:  pkgCount,
 		RealmCount:    realmCount,
@@ -793,7 +1071,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 }
 
 // renderReadme renders the README.md file and returns the component and the raw content
-func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, pkgPath string) (components.Component, []byte) {
+func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, pkgPath string, pr *pageRender) (components.Component, []byte) {
 	file, _, err := h.Client.File(ctx, pkgPath, ReadmeFileName, 0)
 	if err != nil {
 		h.Logger.Warn("fetch README.md", "path", pkgPath, "error", err)
@@ -801,18 +1079,14 @@ func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, p
 	}
 
 	var buf bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, RealmRenderContext{
-		ChainId: h.Static.ChainId,
-		Remote:  h.Static.RemoteHelp,
-		Domain:  h.Static.Domain,
-	}); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, h.renderContext(pr)); err != nil {
 		h.Logger.Error("render README.md", "error", err)
 		return nil, nil
 	}
 	return components.NewReaderComponent(&buf), file
 }
 
-func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, pr *pageRender) (int, *components.View) {
 	pkgPath := gnourl.Path
 	height := gnourl.Height()
 
@@ -853,7 +1127,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL) 
 	switch fileName {
 	case ReadmeFileName:
 		// Try to render README.md with markdown processing
-		readmeComp, raw := h.renderReadme(ctx, gnourl, pkgPath)
+		readmeComp, raw := h.renderReadme(ctx, gnourl, pkgPath, pr)
 		if readmeComp != nil && raw != nil {
 			fileSource = readmeComp
 			fileLines = bytes.Count(raw, []byte("\n")) + 1
@@ -933,7 +1207,7 @@ func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoUR
 }
 
 // GetDirectoryView renders the directory view for a package, showing available files.
-func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
+func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, pr *pageRender) (int, *components.View) {
 	pkgPath := strings.TrimSuffix(gnourl.Path, "/")
 	height := gnourl.Height()
 	files, err := h.Client.ListFiles(ctx, pkgPath, height)
@@ -942,6 +1216,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 			h.Logger.Error("unable to list sources file", "path", pkgPath, "error", err)
 			return GetClientErrorStatusView(gnourl, err, height)
 		}
+		pr.listing = true
 		return h.GetPathsListView(ctx, gnourl, indexData)
 	}
 
@@ -955,7 +1230,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 	}
 
 	// Get README.md file if it exists
-	readmeComp, _ := h.renderReadme(ctx, gnourl, pkgPath)
+	readmeComp, _ := h.renderReadme(ctx, gnourl, pkgPath, pr)
 	return http.StatusOK, components.DirectoryView(
 		pkgPath,
 		files,
@@ -1150,13 +1425,153 @@ func GetClientErrorStatusView(_ *weburl.GnoURL, err error, height int64) (int, *
 	return status, components.StatusErrorComponent(msg)
 }
 
-// setHeaderForRealm seeds IndexData.HeadData.Title + IndexData.HeaderData,
-// realm notice included, from the parsed realm URL. Shared by the state-page
-// wire-in and the generic prepareIndexBodyView path so the global header
-// (breadcrumb + Content/State/Source/Actions tabs) always renders against the
-// same realm. Mode must be set on indexData before calling.
+// titleWithDomain puts the domain last, where a tab strip and a search result
+// both cut, unless the title already names it.
+func (h *HTTPHandler) titleWithDomain(page string) string {
+	switch {
+	case page == "":
+		return h.Static.Domain
+	case h.Static.Domain == "", strings.Contains(strings.ToLower(page), strings.ToLower(h.Static.Domain)):
+		return page
+	default:
+		return page + " - " + h.Static.Domain
+	}
+}
+
+// canonicalURL addresses the page under the configured domain, through the
+// encoder gnoweb's own links use, so the canonical matches the URL a crawler
+// followed. The request host is deliberately unused: X-Forwarded-Host is
+// caller-supplied, so a canonical built from it sends crawlers wherever the
+// caller asked. The query is dropped: anyone can append one to any page, and
+// keeping it would publish one page under as many URLs as there are queries.
+//
+// An indexed page carries no $ key but source and file (see robots), and
+// they are written in the order gnoweb's own links use: $source&file=<name>.
+func (h *HTTPHandler) canonicalURL(gnourl *weburl.GnoURL) string {
+	if h.Static.CanonicalOrigin == "" {
+		return ""
+	}
+	u := *gnourl
+	// Args reach only a realm's Render. A source view, a file, a directory,
+	// a user page and a pure package show the same bytes whatever args a
+	// link adds, and a package lists the same files with or without a
+	// trailing slash. An operator's alias key, as /news:latest, keeps its
+	// args: they are part of the key.
+	if gnourl.WebQuery.Has("source") || u.IsFile() || u.IsDir() || u.IsUser() || u.IsPure() {
+		u.Args = ""
+	}
+	if pkg, ok := packagePath(&u); ok && u.IsPure() {
+		u.Path = "/p/" + pkg
+	}
+	// An alias's target, asked for by its own path, is the alias's page:
+	// /r/gnoland/home is /, so both name /. It is looked up once args are
+	// dropped, so /u/docs:x names /docs as /u/docs does.
+	if alias, ok := h.policy.aliasFor(&u); ok {
+		return h.Static.CanonicalOrigin + alias
+	}
+	// A file is its source view: /r/x/a.gno is /r/x$source&file=a.gno.
+	var file string
+	if gnourl.WebQuery.Has("source") {
+		file = gnourl.WebQuery.Get("file")
+	}
+	if u.IsFile() && isPackageURL(&u) {
+		file, u.File = u.File, ""
+	}
+	u.Query, u.WebQuery = nil, nil
+	canonical := h.Static.CanonicalOrigin + u.EncodeWebURL()
+	if gnourl.WebQuery.Has("source") || file != "" {
+		canonical += "$source"
+		if file != "" {
+			canonical += "&file=" + url.QueryEscape(file)
+		}
+	}
+	return canonical
+}
+
+// errorDescription is the summary of every error page: it says nothing of
+// the URL, which whoever wrote the link chose.
+const errorDescription = "This page is not available."
+
+// setHead settles the <head> once the body is rendered and its status known,
+// and is its only writer. An error page gets a fixed title and summary, and
+// no canonical, og:url or card: the head is built from the URL, and a
+// mistyped one must not publish itself or its words. Otherwise the
+// document's lead reaches the head only if mayRepeat allows, and the title
+// comes from the path alone: arguments and query are typed by whoever wrote
+// the link, on any realm, trusted or not.
+func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, sp *servedPage, status int) {
+	// A listing is classified as the directory it lists, as /r/nym/ is: a
+	// package at /r/nym is a page of its own, the listing there is not.
+	if sp.render.listing {
+		dir := *sp.target
+		dir.Path = strings.TrimSuffix(dir.Path, "/") + "/"
+		sp.robots = h.policy.robots(sp.kind, &dir)
+	}
+	r := finalRobots(w, sp, status)
+	head.Robots = r.String()
+	if status != http.StatusOK {
+		head.Title = h.titleWithDomain(errorTitle(status))
+		head.Description = errorDescription
+		return
+	}
+
+	lead := sp.render.lead
+	if !sp.kind.mayRepeat(sp.url) {
+		lead = pageLead{}
+	}
+	if lead.title == "" {
+		lead.title = pathTitle(sp.url)
+	}
+	head.Title = h.titleWithDomain(lead.title)
+	card := sp.kind.card(sp.target, h.Static.Domain)
+	head.Description = cmp.Or(lead.description, card.description)
+	head.SiteName = h.Static.Domain
+
+	// A page kept out of the index names no canonical, but keeps its card:
+	// link previews ignore robots, and an empty card looks broken.
+	// No Render ran, so the args showed nothing: the page is the bare path.
+	// An alias key keeps its args, which are the operator's.
+	named := sp.url
+	if sp.render.argsIgnored && sp.url == sp.target {
+		u := *sp.url
+		u.Args = ""
+		named = &u
+	}
+	canonical := h.canonicalURL(named)
+	head.URL = canonical
+	if r == indexFollow {
+		head.Canonical = canonical
+	}
+	// A crawler fetches og:image as given, with no page to resolve it
+	// against, so it needs the same declared origin as the canonical.
+	// The version makes a preview cache fetch a redrawn card.
+	if h.Static.CanonicalOrigin != "" {
+		head.Image = h.Static.CanonicalOrigin + path.Join("/", h.Static.AssetsPath, card.image)
+		if h.Static.AssetsVersion != "" {
+			head.Image += "?v=" + url.QueryEscape(h.Static.AssetsVersion)
+		}
+		head.ImageAlt = card.imageAlt
+	}
+}
+
+// errorTitle names an error page by its status alone.
+func errorTitle(status int) string {
+	switch status {
+	case http.StatusNotFound:
+		return "Page not found"
+	case http.StatusBadRequest:
+		return "Invalid path"
+	default:
+		return http.StatusText(status)
+	}
+}
+
+// setHeaderForRealm seeds IndexData.HeaderData from the parsed realm URL.
+// Shared by the state-page wire-in and the generic prepareIndexBodyView path
+// so the global header (breadcrumb + Content/State/Source/Actions tabs)
+// always renders against the same realm, realm notice included. Mode must be set on indexData
+// before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
-	indexData.HeadData.Title = h.Static.Domain + " - " + gnourl.Path
 	indexData.HeaderData = components.HeaderData{
 		Breadcrumb: generateBreadcrumbPaths(gnourl),
 		RealmURL:   *gnourl,
@@ -1204,6 +1619,10 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 		})
 	}
 
+	if url.IsRealm() || url.IsPure() {
+		data.Namespace = url.Namespace()
+	}
+
 	// Add args
 	if url.Args != "" {
 		argSplit := strings.Split(url.Args, "/")
@@ -1235,7 +1654,7 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 // GetOverviewView renders the package overview landing page at /r/<pkg>$source.
 // It fans out ListFiles, Doc, README and ListPaths in parallel, then builds
 // a pure OverviewData that the template renders.
-func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL) (int, *components.View) {
+func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL, pr *pageRender) (int, *components.View) {
 	pkgPath := gnourl.Path
 	height := gnourl.Height()
 
@@ -1270,7 +1689,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 	g.Go(func() error {
 		// A missing or unrenderable README must not fail the whole overview;
 		// the error is intentionally dropped so the page degrades to no README.
-		readme, _ = h.renderReadme(gctx, gnourl, pkgPath)
+		readme, _ = h.renderReadme(gctx, gnourl, pkgPath, pr)
 		return nil
 	})
 	g.Go(func() error {
