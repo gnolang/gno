@@ -74,8 +74,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      # Tags: the git tag itself, the built commit's sha,
-      # and `latest` for the images the matrix marks, only when this tag is the
+      # Tags: the git tag itself (never the commit: a final release shares its
+      # last candidate's commit, so a commit tag would move between them), and
+      # `latest` for the images the matrix marks, only when this tag is the
       # highest final release. The action's own default adds `latest` to every
       # tag build, gnoland included, so it is turned off and the raw rule below
       # is the only `latest` published. See RELEASING.md, "Container images".
