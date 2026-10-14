@@ -10,4 +10,4 @@ package p
 
 var _ = []int{1 << 31: 1} // ok on machines with 64bit int
 
-// Verdict: Clean compile
+// Verdict: Unsupported long: the []int{1<<31: 1} literal is built at package init, 16 GB in the interpreter
