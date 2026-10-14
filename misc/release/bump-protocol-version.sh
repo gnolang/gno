@@ -13,9 +13,9 @@
 #
 # This is NOT the release version. `tm2/pkg/version.Version` is compiled in from
 # the git tag and is what halt_min_version compares; see cut-release.sh. The
-# constants here are the protocol version negotiated with peers, and
-# VersionSet.CompatibleWith refuses a peer whose MAJOR differs — so bumping the
-# major partitions the network and is a coordinated upgrade in its own right.
+# constants here are the protocol version, carried in every block header:
+# nodes refuse a block whose version differs, so any bump splits the network
+# (a MAJOR bump also stops peering) and is a coordinated upgrade of its own.
 #
 # Usage:
 #   misc/release/bump-protocol-version.sh <version>
