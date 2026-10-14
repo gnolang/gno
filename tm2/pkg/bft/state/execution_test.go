@@ -499,6 +499,11 @@ func TestGetBeginBlockLastCommitInfo_LastValidators(t *testing.T) {
 	// The state the block builds on: the same votes, and no load — with the
 	// stored validators gone, a load could only panic.
 	require.NoError(t, stateDB.Delete(sm.CalcValidatorsKey(height-1)))
-	assert.Equal(t, expected, sm.GetBeginBlockLastCommitInfo(block, state, stateDB).Votes)
+	// Only LastValidators can give these votes.
+	state.Validators = genValSet(3)
+	state.NextValidators = genValSet(3)
+	require.NotPanics(t, func() {
+		assert.Equal(t, expected, sm.GetBeginBlockLastCommitInfo(block, state, stateDB).Votes)
+	})
 	assert.Panics(t, func() { sm.GetBeginBlockLastCommitInfo(block, stale, stateDB) })
 }

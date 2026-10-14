@@ -338,10 +338,9 @@ func getBeginBlockLastCommitInfo(block *types.Block, state State, stateDB dbm.DB
 		if state.LastBlockHeight == block.Height-1 {
 			// state is the state this block builds on (ApplyBlock, after
 			// state.ValidateBlock): its LastValidators are the validators of
-			// block.Height-1, the set that signed block.LastCommit, so there
-			// is nothing to load. Loading them instead replayed
-			// IncrementProposerPriority from the last stored checkpoint, up
-			// to valSetCheckpointInterval steps, on every block.
+			// block.Height-1, the set that signed block.LastCommit. Loading
+			// them would replay IncrementProposerPriority from the last stored
+			// set, up to valSetCheckpointInterval steps, on every block.
 			lastValSet = state.LastValidators
 		} else {
 			// ExecCommitBlock replays the blocks the app is missing against

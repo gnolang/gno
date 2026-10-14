@@ -21,14 +21,18 @@ proposer priorities at `height`, so its cost is linear in the distance from
 the last stored set and in the number of validators. Across a checkpoint
 window the per-block cost climbs from nothing to up to 100000 increments.
 
-Measured with pprof on a gno.land mainnet node (v1.5.0, 8 vCPU, 6 validators)
-while it synced from genesis, `LoadValidators` under
-`getBeginBlockLastCommitInfo` was 49% of CPU at height ~80000 (80000 blocks
-past the checkpoint at 0) and 13% at ~116000 (16000 past the one at 100000).
-A micro-benchmark of `IncrementProposerPriority(k)` on n validators runs at
-2.6–3.6 ns per step per validator (Apple M-series), linear in both. None of
-the work reached the app: the commit info reads addresses, powers and
-positions, and proposer priorities are the one thing the replay computes.
+Measured with pprof on a gno.land mainnet node (v1.5.0, 8 vCPU) while it
+synced from genesis, `LoadValidators` under `getBeginBlockLastCommitInfo` was
+49% of CPU at height ~80000 (80000 blocks past the checkpoint at 0) and 13% at
+~116000 (16000 past the one at 100000). At both heights gnoland-1 had 4
+validators, each of power 60. A micro-benchmark of
+`IncrementProposerPriority(k)` costs, per step per validator, about 9 ns
+(Apple M4 Pro) to 16 ns (Ryzen 7 7840U) with 4 validators of equal power,
+since every tie in `CompareProposerPriority` is broken by comparing addresses,
+and 4–7 ns with distinct powers. It is linear in k and close to linear in the
+number of validators. None of the work reached the app: the commit info reads
+addresses, powers and positions, and proposer priorities are the one thing the
+replay computes.
 
 The set is already in memory. For the state `ApplyBlock` is given,
 `state.LastValidators` are the validators of `block.Height-1`, the set that
@@ -56,7 +60,7 @@ The existing sanity check that the commit has one slot per validator is kept.
 ## Alternatives considered
 
 - Lower `valSetCheckpointInterval`, for example to 1000. It bounds every load
-  that remains (RPC `/validators`, evidence validation, the restart replay)
+  that remains (RPC `/validators`, the restart replay)
   and is backward compatible, since `LoadValidators` already falls back to
   the last change height when a checkpoint is missing. But it keeps a load,
   and so a disk read and a replay, on every block, and on data written by
