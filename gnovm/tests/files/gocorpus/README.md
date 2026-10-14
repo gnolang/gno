@@ -36,7 +36,8 @@ goldens; `make -C gnovm _test.filetest` does not pin the toolchain unless
       go test ./gnovm/pkg/gnolang -run TestFiles/gocorpus -short -update-golden-tests
 
 Sync runs `go run` / `go build` for the Go side; the pinned toolchain keeps
-`GoOutput` stable. Bump `VERSION` and re-sync together.
+`GoOutput` stable. `VERSION` is kept equal to the `go` line in the root
+`go.mod`, so CI needs one toolchain; bump both together and re-sync.
 
 Files with inline `// ERROR` markers (gc's errorcheck tests) are refused for
 now; that mode lands with the error-accumulating preprocessor.
