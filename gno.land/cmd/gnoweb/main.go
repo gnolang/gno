@@ -63,6 +63,7 @@ type webCfg struct {
 	verbose          bool
 	noRealmNotice    bool
 	indexCommunity   gnoweb.CommunityIndex
+	noIndex          bool
 	trustedPaths     string
 }
 
@@ -185,7 +186,14 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.canonicalOrigin,
 		"canonical-origin",
 		defaultWebOptions.canonicalOrigin,
-		"public origin of this deployment, scheme included; empty emits no canonical, og:url or share image",
+		"public origin of this deployment, scheme included; empty emits no canonical, og:url, share image or sitemap",
+	)
+
+	fs.BoolVar(
+		&c.noIndex,
+		"no-index",
+		defaultWebOptions.noIndex,
+		"keep this deployment out of search engines (testnets, staging); never on mainnet",
 	)
 
 	fs.StringVar(
@@ -310,6 +318,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	appcfg.ChainID = cfg.chainid
 	appcfg.CanonicalOrigin = cfg.canonicalOrigin
 	appcfg.IndexCommunity = cfg.indexCommunity
+	appcfg.NoIndex = cfg.noIndex
 	appcfg.NodeRemote = normalizeRemoteURL(cfg.remote)
 	appcfg.NodeRequestTimeout = cfg.remoteTimeout
 	appcfg.RemoteHelp = normalizeRemoteURL(cfg.remoteHelp)

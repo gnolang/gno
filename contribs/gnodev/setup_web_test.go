@@ -20,3 +20,11 @@ func TestGnoWebAppConfigTrustsEveryPathLocallyOnly(t *testing.T) {
 	assert.Empty(t, appcfg.TrustedPaths, "a staging chain reserves no namespace")
 	assert.Equal(t, gnoweb.IndexNoCommunity, appcfg.IndexCommunity)
 }
+
+func TestGnoWebAppConfigNoIndex(t *testing.T) {
+	t.Parallel()
+
+	for _, cfg := range []AppConfig{defaultLocalAppConfig, defaultStagingOptions} {
+		assert.True(t, gnoWebAppConfig(&cfg, "").NoIndex, "a dev or staging chain is never the canonical site")
+	}
+}

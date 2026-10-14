@@ -104,6 +104,8 @@ type HTTPHandlerConfig struct {
 	// IndexCommunity — see AppConfig field of the same name.
 	IndexCommunity CommunityIndex
 	Timeout        time.Duration
+	// NoIndex — see AppConfig field of the same name.
+	NoIndex bool
 	// StateRateLimitPerMinute caps per-IP requests against ?state* URLs.
 	// 0 ⇒ defaultStateRateLimitPerMinute. Also used as the token-bucket
 	// burst. ADR-003 §Resource bounds.
@@ -148,6 +150,8 @@ type HTTPHandler struct {
 	trustedProxies []*net.IPNet
 	// packageText caches the whole-package texts of $download.
 	packageText packageTextCache
+	// counterparts caches the project listings behind the breadcrumb switch.
+	counterparts counterpartCache
 }
 
 // NewHTTPHandler creates a new HTTPHandler.
@@ -169,7 +173,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		Aliases:  cfg.Aliases,
 		Timeout:  cfg.Timeout,
 		Logger:   logger,
-		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity),
+		policy:   newPagePolicy(cfg.TrustedPaths, cfg.Aliases, cfg.IndexCommunity, cfg.NoIndex),
 	}
 	rate := cfg.StateRateLimitPerMinute
 	if rate <= 0 {
@@ -362,6 +366,9 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// URLs.
 		indexData.Mode = components.ViewModeRealm
 		h.setHeaderForRealm(&indexData, gnourl)
+		// Looked up only once State.Handle returns a view: json, fragment
+		// and rate-limited answers render no header, so they pay for none.
+		indexData.HeaderData.Breadcrumb.Counterpart = h.startCounterpart(r.Context(), gnourl)()
 		scrubHeaderOnError(&indexData, status)
 		indexData.BodyView = view
 		h.setHead(w, &indexData.HeadData, &sp, status)
@@ -531,7 +538,14 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget, pr)
 	case isPackageURL(gnourl):
-		return h.GetPackageView(ctx, gnourl, indexData, pr)
+		// A markdown answer has no header, so it skips the counterpart lookup.
+		if pr.markdown {
+			return h.GetPackageView(ctx, gnourl, indexData, pr)
+		}
+		counterpart := h.startCounterpart(ctx, gnourl)
+		status, view := h.GetPackageView(ctx, gnourl, indexData, pr)
+		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
+		return status, view
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -1603,6 +1617,10 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 			Name: name,
 			URL:  strings.Join(split[:i+1], "/"),
 		})
+	}
+
+	if url.IsRealm() || url.IsPure() {
+		data.Namespace = url.Namespace()
 	}
 
 	// Add args
