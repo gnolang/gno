@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Harness in this PR; the run-mode files (942) follow in a stacked PR.
+Proposed in #6328; the run-mode files (942) follow in a stacked PR.
 
 ## Context
 
