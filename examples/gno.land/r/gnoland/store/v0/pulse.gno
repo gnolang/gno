@@ -20,7 +20,8 @@ var (
 type event struct {
 	Kind    string // listed, updated or milestone
 	Listing *listing
-	Stars   int // ranked stars at the time
+	Stars   int   // ranked stars at the time
+	At      int64 // when it happened
 }
 
 // activity holds the last activitySize events in a fixed ring.
@@ -62,7 +63,7 @@ func track(kind string, l *listing, now int64) {
 		pulseListed.add(now/epochLength, 1)
 	}
 	if l.namedApp() {
-		activity.push(event{kind, l, l.rankedCount()})
+		activity.push(event{kind, l, l.rankedCount(), now})
 	}
 }
 

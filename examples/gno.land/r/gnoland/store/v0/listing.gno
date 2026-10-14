@@ -806,21 +806,17 @@ func (l *listing) stars7d(now int64) int {
 	return l.book.recent.sum(now/epochLength, trendEpochs)
 }
 
-// earned reports earned reputation (ADR §2) from chain data alone. Only
-// ranked stars at least starMaturity old count (T8). Ranked stars are kept
-// newest first, so the check reads one entry: the earnStars-th oldest must
-// be starMaturity old.
-func (l *listing) earned(now int64) bool {
-	if now-l.Created < earnAge || l.rankedCount() < earnStars {
-		return false
+// fifthRanked returns when l got its earnStars-th oldest ranked star, or 0
+// with fewer: the one entry earned reputation needs, as ranked stars are
+// kept newest first.
+func (l *listing) fifthRanked() int64 {
+	if l.rankedCount() < earnStars {
+		return 0
 	}
-	if _, pending := l.effective(now); pending {
-		return false
-	}
-	mature := false
+	var at int64
 	l.book.ranked.ReverseIterateByOffset(earnStars-1, 1, func(_ string, v any) bool {
-		mature = now-v.(int64) >= starMaturity
+		at = v.(int64)
 		return true
 	})
-	return mature
+	return at
 }

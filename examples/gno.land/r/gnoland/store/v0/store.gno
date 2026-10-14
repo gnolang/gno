@@ -26,12 +26,11 @@ const (
 	newWindow   = 14 * day // an app is new for Rediscover and "New to build with"
 	epochLength = day      // rotation and counter period
 	richDelay   = day      // publication delay of rich fields (T1, T8)
-	// Launch values for a young chain (ADR §2): earned reputation only gates
-	// owner assets and the Spotlight, so it may be reachable early. They are
-	// constants: a realm upgrade raises them as the chain grows.
-	earnAge      = 14 * day // minimum listing age for earned reputation
-	starMaturity = 3 * day  // a star counts towards reputation after this
-	earnStars    = 5        // qualifying stars needed for earned reputation
+	// earnStars is the ranked star whose time the API reports
+	// (fifth_ranked). gnoweb decides earned reputation (ADR §2) from it, the
+	// listing's age and its pending changes, so its thresholds can rise with
+	// the chain: these constants are permanent for this path.
+	earnStars = 5
 	// nameMaturity is how long the store must have known an address's name
 	// before its stars rank: names are free on a young chain, so a name made
 	// for one campaign has to wait (T8).

@@ -91,7 +91,7 @@ func TestRegisterFromRealm(cur realm, t *testing.T) {
 	uassert.Equal(t, "gno.land/r/acme/swap", l.Path)
 	uassert.Equal(t, kindApp, l.Kind)
 	uassert.Equal(t, "acme", l.Namespace)
-	contains(t, listingJSON("acme-swap"), `{"slug":"acme-swap","kind":"app","path":"gno.land/r/acme/swap","title":"Acme Swap","tagline":"A tagline","category":"utilities","palette":4,"stars":0,"ranked":0,"earned":false,"icon":"","cover":""}`)
+	contains(t, listingJSON("acme-swap"), `{"slug":"acme-swap","kind":"app","path":"gno.land/r/acme/swap","title":"Acme Swap","tagline":"A tagline","category":"utilities","palette":4,"stars":0,"ranked":0,"fifth_ranked":0,"created":`+strconv.FormatInt(bySlugOrPanic("acme-swap").Created, 10)+`,"pending":false,"core":false,"icon":"","cover":""}`)
 	contains(t, Render("api/v1/category/utilities/1"), `"slug":"acme-swap"`)
 	contains(t, Render("c/utilities"), "**[Acme Swap](/r/acme/swap)** — A tagline")
 }
@@ -548,16 +548,19 @@ func TestStarsAndEarned(cur realm, t *testing.T) {
 	starAnon(cur, id, "anonymous")
 	uassert.AbortsContains(t, cur, "already starred", func() { Star(cross(cur), id) })
 
-	skip(earnAge)
-	uassert.False(t, l.earned(blockTime()), "the anonymous star must not count")
+	skip(day)
+	uassert.Equal(t, int64(0), l.fifthRanked(), "the anonymous star must not count")
 	starFrom(cur, id, fans[earnStars-1])
-	uassert.False(t, l.earned(blockTime()), "a fresh star must not count")
-	skip(starMaturity)
-	uassert.True(t, l.earned(blockTime()))
+	fifth := blockTime()
+	uassert.Equal(t, fifth, l.fifthRanked())
+	skip(day)
+	starFrom(cur, id, "starfanf")
+	uassert.Equal(t, fifth, l.fifthRanked(), "a newer star leaves the fifth oldest")
+	contains(t, listingJSON(id), `"fifth_ranked":`+strconv.FormatInt(fifth, 10))
 
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress(fans[0])))
 	Unstar(cross(cur), id)
-	uassert.False(t, l.earned(blockTime()), "back below the threshold")
+	uassert.True(t, l.fifthRanked() > fifth, "the fifth oldest is now a newer star")
 	uassert.AbortsContains(t, cur, "not starred", func() { Unstar(cross(cur), id) })
 }
 
@@ -725,7 +728,7 @@ func TestActivity(cur realm, t *testing.T) {
 	uassert.Equal(t, "listed", activity.newestFirst()[1].Kind)
 
 	home := Render("api/v1/home")
-	contains(t, home, `"activity":[{"kind":"milestone","slug":"`+id+`","stars":10}`)
+	contains(t, home, `"activity":[{"kind":"milestone","slug":"`+id+`","stars":10,"time":`+strconv.FormatInt(blockTime(), 10)+`}`)
 	_, refs, _ := strings.Cut(home, `"listings":`)
 	contains(t, refs, `"slug":"`+id+`"`)
 }
@@ -841,8 +844,9 @@ func listingJSON(slug string) string {
 }
 
 // ev is the event of kind for the listing with this slug.
+// ev is the event expected now.
 func ev(kind, slug string, stars int) event {
-	return event{kind, bySlugOrPanic(slug), stars}
+	return event{kind, bySlugOrPanic(slug), stars, blockTime()}
 }
 
 func TestLists(t *testing.T) {
@@ -1251,4 +1255,11 @@ func TestSuccessor(cur realm, t *testing.T) {
 	contains(t, Block("latest", 1), moved)
 	uassert.Equal(t, moved, Badge("gno.land/r/gnoland/blog"))
 	contains(t, Render("api/v1/home"), `"moved_to":"gno.land/r/gnoland/store/v1"`)
+}
+
+// Only the seed's listings are core: gnoweb's Core badge reads this flag,
+// not its trust list.
+func TestCoreFlag(t *testing.T) {
+	contains(t, listingJSON("blog"), `"core":true`)
+	contains(t, listingJSON("starred-app"), `"core":false`)
 }

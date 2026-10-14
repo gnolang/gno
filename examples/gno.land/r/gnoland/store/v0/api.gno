@@ -206,6 +206,8 @@ func writeActivity(b *strings.Builder) []*listing {
 		writeString(b, e.Listing.Slug)
 		writeKey(b, "stars")
 		writeInt(b, int64(e.Stars))
+		writeKey(b, "time")
+		writeInt(b, e.At)
 		b.WriteByte('}')
 		refs[i] = e.Listing
 	})
@@ -279,7 +281,7 @@ func writeArray(b *strings.Builder, n int, item func(i int)) {
 }
 
 func writeListing(b *strings.Builder, l *listing, now int64) {
-	r, _ := l.effective(now)
+	r, pending := l.effective(now)
 	b.WriteString(`{"slug":`)
 	writeString(b, l.Slug)
 	for _, f := range [][2]string{
@@ -298,8 +300,14 @@ func writeListing(b *strings.Builder, l *listing, now int64) {
 	writeInt(b, int64(l.starCount()))
 	writeKey(b, "ranked")
 	writeInt(b, int64(l.rankedCount()))
-	writeKey(b, "earned")
-	b.WriteString(strconv.FormatBool(l.earned(now)))
+	writeKey(b, "fifth_ranked")
+	writeInt(b, l.fifthRanked())
+	writeKey(b, "created")
+	writeInt(b, l.Created)
+	writeKey(b, "pending")
+	b.WriteString(strconv.FormatBool(pending))
+	writeKey(b, "core")
+	b.WriteString(strconv.FormatBool(l.core))
 	writeKey(b, "icon")
 	writeString(b, r.Icon)
 	writeKey(b, "cover")
