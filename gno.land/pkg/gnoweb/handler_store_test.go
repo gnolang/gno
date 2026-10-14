@@ -116,7 +116,10 @@ func TestStoreViewIsServed(t *testing.T) {
 			Files:     map[string]string{"render.gno": `package store; func Render(string) string { return "store" }`},
 			Functions: []*doc.JSONFunc{{Name: "Render", Params: []*doc.JSONField{{Name: "path", Type: "string"}}, Results: []*doc.JSONField{{Type: "string"}}}},
 		}),
-		api: map[string]string{"api/v1/home": `{"version":1,"categories":[],"shelves":[],"listings":[]}`},
+		api: map[string]string{
+			"api/v1/home":  `{"version":1,"categories":[],"shelves":[],"listings":[]}`,
+			"api/v1/build": `{"version":1,"shelves":[],"builders":{"top":[],"new":[]},"listings":[]}`,
+		},
 	}
 	h, err := NewHTTPHandler(slog.New(slog.DiscardHandler), &HTTPHandlerConfig{
 		ClientAdapter: client,
@@ -134,6 +137,8 @@ func TestStoreViewIsServed(t *testing.T) {
 		want, notWant      string
 	}{
 		{"front page", "/r/gnoland/store", "", http.StatusOK, "<title>Explore · gno.land</title>", "[gno.land]/r/gnoland/store"},
+		// gnoweb writes these titles itself: they hold under render args too.
+		{"build lens", "/r/gnoland/store:build", "", http.StatusOK, "<title>Build · Explore - gno.land</title>", "store · realm by"},
 		{"not found", "/r/gnoland/store:nope", "", http.StatusNotFound, "There is no such page in Explore.", "[gno.land]/r/gnoland/store"},
 		{"markdown", "/r/gnoland/store", "text/markdown", http.StatusOK, "[gno.land]/r/gnoland/store", "b-store"},
 	} {

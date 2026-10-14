@@ -110,6 +110,7 @@ func TestHome(t *testing.T) {
 	html := render(t, h, "")
 	require.NotEmpty(t, html)
 
+	assert.Contains(t, html, `Explore has moved: <a href="/r/gnoland/store/v1">`, "a successor named by GovDAO is shown")
 	assert.NotContains(t, html, "spoof", "a bidi override in a title drops the listing")
 	assert.NotContains(t, html, "GnoSwap", "a kind that does not match the path drops the listing")
 	assert.Equal(t, 1, strings.Count(html, `class="icon" src=`), "only the trusted listing shows its owner icon")
@@ -482,7 +483,7 @@ func TestFeatured(t *testing.T) {
 	assert.Equal(t, "In the spotlight today", label)
 	assert.Equal(t, []string{"e1", "e2", "e3"}, slugs(spot), "eligible only, the operator's apps one place at most, hero included")
 
-	res.Height = blocksPerDay
+	res.Time = secondsPerDay
 	hero2, _, _ := featured(res, bySlug)
 	assert.NotEqual(t, hero.Slug, hero2.Slug, "next day, next hero")
 
@@ -735,6 +736,7 @@ func TestCoreKeysOffTheRealm(t *testing.T) {
 	assert.Equal(t, "Established", h.card(&established, nil).Trust)
 	seed := listing{Slug: "z", Kind: kindApp, tier: tierRegistered, Core: true}
 	assert.Equal(t, "Core", h.card(&seed, nil).Trust, "the realm's seeds, whatever the trust list")
+	assert.False(t, h.card(&seed, nil).Community, "a core app is not a community one")
 }
 
 func TestEarned(t *testing.T) {
@@ -773,7 +775,7 @@ func TestFeaturedPoolIsDecidedByEligibility(t *testing.T) {
 	top := shelf{Slugs: []string{"e1", "e2", "e3", "e4"}}
 	for day := range int64(4) {
 		res := &homeResponse{Shelves: []shelf{{Slugs: trusted}, top}}
-		res.Height = day * blocksPerDay
+		res.Time = day * secondsPerDay
 		hero, _, spot := featured(res, bySlug)
 		require.Len(t, spot, spotlightSize, "day %d", day)
 		n := 0
@@ -834,4 +836,46 @@ func TestCacheCoalescesConcurrentMisses(t *testing.T) {
 		wg.Wait()
 		assert.Equal(t, int32(1), loads.Load())
 	})
+}
+
+// A hero the pool did not give, such as a GovDAO pick of an operator app,
+// still counts toward the operator's one place once apps have earned theirs.
+func TestPickedOperatorHeroKeepsTheCap(t *testing.T) {
+	var ls []listing
+	var trusted []string
+	for i := 1; i <= 3; i++ {
+		s := fmt.Sprintf("t%02d", i)
+		ls = append(ls, listing{Slug: s, Kind: kindApp, tier: tierTrusted})
+		trusted = append(trusted, s)
+	}
+	for _, s := range []string{"e1", "e2", "e3"} {
+		ls = append(ls, listing{Slug: s, Kind: kindApp, tier: tierRegistered, earned: true})
+	}
+	bySlug := indexListings(ls)
+	for day := range int64(4) {
+		res := &homeResponse{Pick: "t03", Shelves: []shelf{{Slugs: trusted}, {Slugs: []string{"e1", "e2", "e3"}}}}
+		res.Time = day * secondsPerDay
+		hero, _, spot := featured(res, bySlug)
+		n := 0
+		for _, l := range append(spot, hero) {
+			if l.tier == tierTrusted {
+				n++
+			}
+		}
+		assert.LessOrEqual(t, n, 1, "day %d", day)
+	}
+}
+
+// Only a realm path on this chain is shown as the successor.
+func TestMovedToIsARealmPath(t *testing.T) {
+	h := &Handler{deps: Deps{Domain: "gno.land"}}
+	for path, want := range map[string]string{
+		"gno.land/r/gnoland/store/v1": "/r/gnoland/store/v1",
+		"gno.land/p/gnoland/store/v1": "",
+		"evil.land/r/gnoland/store":   "",
+		"https://evil.example/x":      "",
+		"":                            "",
+	} {
+		assert.Equal(t, want, h.realmWebPath(path), path)
+	}
 }

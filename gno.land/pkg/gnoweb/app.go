@@ -94,7 +94,7 @@ type AppConfig struct {
 	// Its front pages get a richer view. Empty disables the store.
 	StoreRealm string
 	// IPFSGateway is the origin of the IPFS path gateway that serves the
-	// store's owner images ("https://dweb.link"); it must be in the CSP
+	// store's owner images ("https://ipfs-gateway.example"); it must be in the CSP
 	// img-src. Empty shows the generated visuals only.
 	IPFSGateway string
 	// Aliases is a map of aliases pointing to another path or a static file.

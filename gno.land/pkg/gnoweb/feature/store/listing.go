@@ -114,6 +114,16 @@ func (h *Handler) validCore(l *listing) bool {
 		l.Palette >= 0 && l.Palette < paletteSize && l.Ranked >= 0 && l.Ranked <= l.Stars
 }
 
+// realmWebPath returns path, a realm path on this chain, as a web path
+// ("/r/gnoland/store/v1"), or "" if it is not one.
+func (h *Handler) realmWebPath(path string) string {
+	web, ok := strings.CutPrefix(path, h.deps.Domain)
+	if u := (weburl.GnoURL{Path: web}); !ok || !u.IsValidPath() || !u.IsRealm() {
+		return ""
+	}
+	return web
+}
+
 // displayable reports whether s is short enough to lay out and free of the
 // characters that break or spoof rendering: controls, bidi overrides,
 // zero-width marks, blank fillers and doubled spaces. Plain spaces separate
@@ -202,9 +212,9 @@ func (l *listing) eligible() bool {
 	return l.Kind == kindApp && l.tier.rich(l.earned)
 }
 
-// community reports whether a listing is neither the operator's nor
-// established: the store says so, and search engines do not credit its
-// links (rel="nofollow ugc").
+// community reports whether a listing is neither the operator's, nor
+// established, nor one of the realm's core apps: the store says so, and
+// search engines do not credit its links (rel="nofollow ugc").
 func (l *listing) community() bool {
-	return !l.tier.rich(l.earned)
+	return !l.Core && !l.tier.rich(l.earned)
 }

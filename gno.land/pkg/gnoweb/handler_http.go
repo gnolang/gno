@@ -144,7 +144,7 @@ func (cfg *HTTPHandlerConfig) validate() error {
 		}
 	}
 	if cfg.IPFSGateway != "" && !isOrigin(cfg.IPFSGateway) {
-		return fmt.Errorf("invalid `IPFSGateway` %q: want an origin such as https://dweb.link", cfg.IPFSGateway)
+		return fmt.Errorf("invalid `IPFSGateway` %q: want an origin such as https://ipfs-gateway.example", cfg.IPFSGateway)
 	}
 	return nil
 }
@@ -645,7 +645,7 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// tab and render argument keeps the realm's markdown.
 	if h.Store != nil && !pr.markdown {
 		if view, meta := h.Store.View(ctx, gnourl); view != nil {
-			pr.lead = pageLead{title: meta.Title, description: meta.Description}
+			pr.lead = pageLead{title: meta.Title, description: meta.Description, fixed: true}
 			return meta.Status, view
 		}
 	}
@@ -1554,7 +1554,7 @@ func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, 
 	}
 
 	lead := sp.render.lead
-	if !sp.kind.mayRepeat(sp.url) {
+	if !lead.fixed && !sp.kind.mayRepeat(sp.url) {
 		lead = pageLead{}
 	}
 	if lead.title == "" {

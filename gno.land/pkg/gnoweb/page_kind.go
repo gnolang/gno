@@ -39,8 +39,12 @@ const (
 )
 
 // pageLead is what a rendered document says about itself: its leading h1
-// and its summary. setHeadMetadata decides whether the head repeats it.
-type pageLead struct{ title, description string }
+// and its summary. setHeadMetadata decides whether the head repeats it,
+// unless gnoweb wrote it itself (fixed), as for the store's pages.
+type pageLead struct {
+	title, description string
+	fixed              bool
+}
 
 // pagePolicy decides, from a page's URL alone, who answers for it and what
 // search engines may do with it. It needs no request and no RPC, so anything

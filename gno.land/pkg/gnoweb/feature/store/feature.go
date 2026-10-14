@@ -36,7 +36,7 @@ type Deps struct {
 	Remote  string
 
 	// IPFSGateway is the origin of the IPFS path gateway that serves owner
-	// images ("https://dweb.link"), also in gnoweb's CSP img-src. Empty
+	// images ("https://ipfs-gateway.example"), also in gnoweb's CSP img-src. Empty
 	// shows the generated visuals only.
 	IPFSGateway string
 

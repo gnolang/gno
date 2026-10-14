@@ -281,7 +281,6 @@ func TestSetupWeb_AliasesKeepDefaults(t *testing.T) {
 	opts.bind = "127.0.0.1:0"
 	opts.aliases = "/zz=/r/demo/x"
 	opts.storeRealm = "/r/gnoland/store/v0"
-	opts.ipfsGateway = "https://dweb.link"
 	_, err := setupWeb(&opts, []string{}, stdio)
 	require.NoError(t, err)
 	assert.NotContains(t, gnoweb.DefaultAliases, "/zz")

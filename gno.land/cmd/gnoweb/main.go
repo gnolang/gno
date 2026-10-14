@@ -209,7 +209,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.ipfsGateway,
 		"ipfs-gateway",
 		defaultWebOptions.ipfsGateway,
-		"origin of the IPFS path gateway serving Explore's owner images, added to the CSP img-src (e.g. https://dweb.link); empty shows the generated art only",
+		"origin of the IPFS path gateway serving Explore's owner images, added to the CSP img-src (e.g. https://ipfs-gateway.example; a subdomain gateway would redirect out of the CSP); empty shows the generated art only",
 	)
 
 	fs.StringVar(

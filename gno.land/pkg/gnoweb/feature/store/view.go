@@ -21,7 +21,7 @@ const (
 	spotlightSize = 3
 	spotlightPool = 12
 	spotlightMin  = 2 // below this, the Spotlight is left out
-	blocksPerDay  = 17280
+	secondsPerDay = 24 * 60 * 60
 
 	gridSize = 8 // cards of a grid shelf
 	rowSize  = 4 // cards of a full grid row on wide screens
@@ -128,6 +128,7 @@ type homeData struct {
 	Intro     string // the lead, also the head description
 	Nav       catNav
 	Surprise  *appLink // a random app
+	MovedTo   string   // the successor store's web path, if GovDAO named one
 	Pulse     pulseView
 	Hero      *heroView
 	Spotlight []card
@@ -311,10 +312,10 @@ const (
 // spotlightSize apps have earned their place, the operator's own apps take
 // one place at most, hero included: the store must not look like it
 // promotes its host; until then, at launch, they fill it. Everything moves
-// with the chain's height, so every gnoweb shows the same and caches it.
+// with the chain's block time, so every gnoweb shows the same and caches it.
 func featured(res *homeResponse, bySlug map[string]*listing) (hero *listing, label string, spot []*listing) {
 	pool, capped := eligiblePool(res.Shelves, bySlug)
-	day := int(res.Height / blocksPerDay)
+	day := int(res.Time / secondsPerDay)
 	if pick := bySlug[res.Pick]; pick != nil && pick.Kind == kindApp {
 		hero, label = pick, labelPick
 	} else if l := trending(res.Shelves, bySlug); l != nil {
@@ -397,6 +398,7 @@ func (h *Handler) buildHome(res *homeResponse) homeData {
 		Intro:     introLine,
 		Nav:       catNav{Items: res.Categories},
 		Pulse:     newPulse(res.chainClock, res.Pulse, latestMoment(res.Activity, bySlug, time.Now())),
+		MovedTo:   res.MovedTo,
 		Spotlight: h.cards(spot, labels),
 		Shelves:   h.shelves(res.Shelves, bySlug, labels, skip),
 	}

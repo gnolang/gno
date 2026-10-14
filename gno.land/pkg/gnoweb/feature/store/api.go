@@ -116,6 +116,9 @@ type homeResponse struct {
 	Activity   []activity `json:"activity"`
 	Pick       string     `json:"pick"` // the app GovDAO picked, if any
 	Listings   []listing  `json:"listings"`
+	// MovedTo is the store GovDAO named as this one's successor, a realm
+	// path on this chain, if any; the web path once validated.
+	MovedTo string `json:"moved_to"`
 }
 
 type buildResponse struct {
@@ -173,7 +176,8 @@ func (h *Handler) home(ctx context.Context) (*homeResponse, error) {
 		if err := h.decode(ctx, "home", &res); err != nil {
 			return nil, err
 		}
-		res.Height = max(res.Height, 0) // drives the Spotlight's window
+		res.Time = max(res.Time, 0) // drives the Spotlight's window
+		res.MovedTo = h.realmWebPath(res.MovedTo)
 		res.Categories = slices.DeleteFunc(res.Categories, func(c category) bool { return !validRef(c.Key, c.Label, c.Count) })
 		res.Shelves = validShelves(res.Shelves)
 		res.Listings = h.sanitize(res.Listings)
