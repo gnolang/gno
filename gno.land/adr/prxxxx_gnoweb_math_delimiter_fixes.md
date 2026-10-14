@@ -8,9 +8,10 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
 1. `sanitize.InlineText`, the helper AGENTS.md prescribes for attacker
    input in `Render`, escapes through the `chain/markdown` native
    `EscapeInline`, whose set did not hold `$`. A user name such as
-   `$\color{red}{\text{ADMIN}}$` went through the sanitizer intact and
-   rendered as styled math in the realm's own text: a spoofed label or
-   price on a realm that follows the rule.
+   `$x^{2} + ADMIN_{verified}$` went through the sanitizer intact and
+   rendered as a formula (italics, superscripts, subscripts) in the realm's
+   own text. Commands such as `\color` stay out of reach, since the
+   sanitizer already escapes `\`, but the text is no longer literal.
 2. The closer of `$$`, `\\(` and `\\[` was found with `bytes.Index`, so it
    could sit inside a code span or a link destination:
    ``\\(a `x\\)y` b\\)`` cut the code span in two, and
