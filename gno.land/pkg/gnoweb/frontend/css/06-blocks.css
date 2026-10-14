@@ -178,7 +178,9 @@
 	}
 
 	/* Explore entry, left of the logo (ADR-004 §6): an outline icon in
-	   the header's tab colours, green on the store's pages. */
+	   the header's tab colours, green on the store's pages. Below lg the
+	   header has no room for it that the omnibar would not lose: Explore
+	   stays at /explore and its other links. */
 	.store-link {
 		display: grid;
 		place-items: center;
@@ -195,6 +197,10 @@
 
 		&[aria-current] {
 			color: var(--s-color-bg-brand-default);
+		}
+
+		@media not all and (--lg) {
+			display: none;
 		}
 	}
 }

@@ -30,6 +30,16 @@ type Deps struct {
 	// Domain prefixes on-chain package paths ("gno.land").
 	Domain string
 
+	// ChainID and Remote are the chain and node the store's snippets sign
+	// for and broadcast to, as on the Actions page.
+	ChainID string
+	Remote  string
+
+	// IPFSGateway is the origin of the IPFS path gateway that serves owner
+	// images ("https://dweb.link"), also in gnoweb's CSP img-src. Empty
+	// shows the generated visuals only.
+	IPFSGateway string
+
 	// Trusted reports whether a package path, without domain and "/r/" or
 	// "/p/" ("gnoland/blog"), is under the operator's trusted list. It is
 	// the same predicate that drives the community-realm notice.
@@ -59,7 +69,7 @@ func New(deps Deps) *Handler {
 	if deps.Logger == nil {
 		deps.Logger = slog.Default()
 	}
-	return &Handler{deps: deps, cache: newResponseCache(), templates: newTemplates(deps.RealmPath, deps.Domain)}
+	return &Handler{deps: deps, cache: newResponseCache(), templates: newTemplates(deps)}
 }
 
 // RealmPath is the path the store owns; gnoweb links to it from the header.

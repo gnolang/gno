@@ -91,6 +91,7 @@ type activity struct {
 	Kind  string `json:"kind"`
 	Slug  string `json:"slug"`
 	Stars int    `json:"stars"`
+	Time  int64  `json:"time"` // unix seconds
 }
 
 // builder aggregates a namespace's listings.
@@ -142,11 +143,7 @@ type pageResponse struct {
 // logged here, once per load (the cache keeps failures briefly), not once
 // per reader; a missing entry is not a failure.
 func (h *Handler) decode(ctx context.Context, endpoint string, dst interface{ check() error }) (err error) {
-	defer func() {
-		if err != nil && !errors.Is(err, errNotFound) {
-			h.deps.Logger.Warn("store: realm query failed", "endpoint", endpoint, "error", err)
-		}
-	}()
+	defer func() { h.logFailure(endpoint, err) }()
 	body, err := h.deps.Client.Realm(ctx, h.deps.RealmPath, "api/v1/"+endpoint)
 	if err != nil {
 		return err
@@ -158,6 +155,13 @@ func (h *Handler) decode(ctx context.Context, endpoint string, dst interface{ ch
 		return fmt.Errorf("store: decode %s: %w", endpoint, err)
 	}
 	return dst.check()
+}
+
+// logFailure logs a failed realm query; a missing entry is not a failure.
+func (h *Handler) logFailure(endpoint string, err error) {
+	if err != nil && !errors.Is(err, errNotFound) {
+		h.deps.Logger.Warn("store: realm query failed", "endpoint", endpoint, "error", err)
+	}
 }
 
 // The endpoint accessors below cache the decoded and sanitised response, so
@@ -205,7 +209,9 @@ func (h *Handler) paged(ctx context.Context, kind, key string, page int) (*pageR
 			echoed = res.Category.Key
 		}
 		if echoed != key || res.Page != page || res.Pages < page {
-			return nil, fmt.Errorf("store: %s answered %s/%d of %d", endpoint, echoed, res.Page, res.Pages)
+			err := fmt.Errorf("store: %s answered %s/%d of %d", endpoint, echoed, res.Page, res.Pages)
+			h.logFailure(endpoint, err)
+			return nil, err
 		}
 		res.Listings = h.sanitize(res.Listings)
 		return &res, nil

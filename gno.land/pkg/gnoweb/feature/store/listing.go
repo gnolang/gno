@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
@@ -23,15 +24,22 @@ type listing struct {
 	Palette  int    `json:"palette"`
 	Stars    int    `json:"stars"`  // every star
 	Ranked   int    `json:"ranked"` // stars from accounts with a registered name, the ones that rank
-	Earned   bool   `json:"earned"`
+	Core     bool   `json:"core"`   // one of the realm's seeded listings
 	Icon     string `json:"icon"`
 	Cover    string `json:"cover"`
+
+	// Unix seconds of block time: when the listing was created, and when
+	// its 5th-oldest ranked star was given (0 below 5 ranked stars).
+	Created     int64 `json:"created"`
+	FifthRanked int64 `json:"fifth_ranked"`
+	Pending     bool  `json:"pending"` // an icon or cover change awaits its publication delay
 
 	// Derived once per cache fill (validCore and sanitize), so a request
 	// only reads them: webPath is Path without the domain ("/r/acme/swap").
 	webPath   string
 	shortPath string
 	tier      tier
+	earned    bool
 	art       template.HTML
 	glyph     template.HTML
 }
@@ -49,7 +57,16 @@ const (
 	maxTaglineRunes = 80
 	maxEmptyRunes   = 160
 	paletteSize     = 12
-	ipfsGateway     = "https://ipfs.io/ipfs/" // in gnoweb's CSP img-src
+)
+
+// What earns a registered namespace's app owner assets and the Spotlight
+// (ADR-004 §2): ranked stars, the age of the listing, and the age of the
+// star that made it 5. gnoweb decides it, not the realm, so these launch
+// values can be raised by a gnoweb release.
+const (
+	earnStars    = 5
+	earnAge      = 14 * 24 * time.Hour
+	earnStarsAge = 3 * 24 * time.Hour
 )
 
 var (
@@ -63,14 +80,15 @@ var (
 // fields that are. Rich fields fail closed: a bad image is not shown, the
 // app still is.
 func (h *Handler) sanitize(in []listing) []listing {
+	now := time.Now()
 	out := in[:0]
 	for _, l := range in {
 		if !h.validCore(&l) {
 			h.deps.Logger.Debug("store: dropping invalid listing", "slug", l.Slug)
 			continue
 		}
-		l.Icon, l.Cover = assetURL(l.Icon), assetURL(l.Cover)
-		l.shortPath, l.tier = shortPath(l.pkgPath()), h.tierOf(&l)
+		l.Icon, l.Cover = h.assetURL(l.Icon), h.assetURL(l.Cover)
+		l.shortPath, l.tier, l.earned = shortPath(l.pkgPath()), h.tierOf(&l), earned(&l, now)
 		l.art, l.glyph = cover(&l), icon(&l)
 		out = append(out, l)
 	}
@@ -114,12 +132,22 @@ func displayable(s string, maxRunes int) bool {
 	return true
 }
 
-// assetURL maps an owner image to the IPFS gateway, or "" if it is not a
-// content id. Only content-addressed images are accepted: a mutable URL
-// could change after review, and inline data would bloat every page.
-func assetURL(s string) string {
-	if m := reIPFS.FindStringSubmatch(s); m != nil {
-		return ipfsGateway + m[1]
+// earned reports whether a listing earned its reputation by now: enough
+// ranked stars, held long enough on a listing old enough, with no image
+// change waiting to be published.
+func earned(l *listing, now time.Time) bool {
+	return l.Ranked >= earnStars && l.FifthRanked > 0 && !l.Pending &&
+		now.Sub(time.Unix(l.Created, 0)) >= earnAge &&
+		now.Sub(time.Unix(l.FifthRanked, 0)) >= earnStarsAge
+}
+
+// assetURL maps an owner image to the operator's IPFS gateway, or "" if it
+// is not a content id or no gateway is set. Only content-addressed images
+// are accepted: a mutable URL could change after review, and inline data
+// would bloat every page.
+func (h *Handler) assetURL(s string) string {
+	if m := reIPFS.FindStringSubmatch(s); m != nil && h.deps.IPFSGateway != "" {
+		return h.deps.IPFSGateway + "/ipfs/" + m[1]
 	}
 	return ""
 }
@@ -166,4 +194,17 @@ func isAddress(ns string) bool {
 // rich reports whether owner-supplied assets and the Spotlight are allowed.
 func (t tier) rich(earned bool) bool {
 	return t == tierTrusted || (t == tierRegistered && earned)
+}
+
+// eligible reports whether a listing may take the hero or the Spotlight:
+// an app allowed to look official (trusted or earned).
+func (l *listing) eligible() bool {
+	return l.Kind == kindApp && l.tier.rich(l.earned)
+}
+
+// community reports whether a listing is neither the operator's nor
+// established: the store says so, and search engines do not credit its
+// links (rel="nofollow ugc").
+func (l *listing) community() bool {
+	return !l.tier.rich(l.earned)
 }

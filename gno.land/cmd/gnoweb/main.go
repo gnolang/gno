@@ -14,7 +14,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"go.uber.org/zap"
@@ -67,6 +66,7 @@ type webCfg struct {
 	noIndex          bool
 	trustedPaths     string
 	storeRealm       string
+	ipfsGateway      string
 }
 
 // The default realm notice, and the short variant shown below the lg
@@ -203,6 +203,13 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"store-realm",
 		defaultWebOptions.storeRealm,
 		"realm behind Explore, the app store at /explore (e.g. /r/gnoland/store/v0); empty disables it",
+	)
+
+	fs.StringVar(
+		&c.ipfsGateway,
+		"ipfs-gateway",
+		defaultWebOptions.ipfsGateway,
+		"origin of the IPFS path gateway serving Explore's owner images, added to the CSP img-src (e.g. https://dweb.link); empty shows the generated art only",
 	)
 
 	fs.StringVar(
@@ -357,12 +364,8 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	if err := setupTrust(cfg, appcfg, logger); err != nil {
 		return nil, err
 	}
-	if cfg.storeRealm != "" {
-		if u := (weburl.GnoURL{Path: cfg.storeRealm}); !u.IsRealm() || u.IsDir() {
-			return nil, fmt.Errorf("invalid -store-realm %q: want a realm path such as /r/gnoland/store/v0", cfg.storeRealm)
-		}
-	}
 	appcfg.StoreRealm = cfg.storeRealm
+	appcfg.IPFSGateway = cfg.ipfsGateway
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
@@ -394,7 +397,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, cfg.ipfsGateway)
 
 	// Setup server
 	server := &http.Server{
@@ -465,13 +468,19 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
+// SecureHeadersMiddleware sets gnoweb's security headers. ipfsGateway, the
+// store's IPFS gateway origin (validated by gnoweb), joins the CSP img-src
+// when set.
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
 	imgSrc.WriteString("'self' data:")
 
 	for _, host := range cspImgHost {
 		imgSrc.WriteString(" " + host)
+	}
+	if ipfsGateway != "" {
+		imgSrc.WriteString(" " + ipfsGateway)
 	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of

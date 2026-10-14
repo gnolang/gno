@@ -38,6 +38,13 @@
 		border-radius: var(--s-rounded);
 	}
 
+	/* An owner image hides the generated art drawn after it; gnoweb's
+	   script drops an image that fails to load, which uncovers the art. */
+	img.cover + svg.cover,
+	img.icon + svg.icon {
+		display: none;
+	}
+
 	/* Page title: the size of gnoweb's list-page title (.b-packages .title). */
 	h1 {
 		font-size: var(--g-font-size-700);
@@ -101,8 +108,8 @@
 }
 
 /* One line under the lead saying the chain is alive, opened by a live
-   dot with a soft halo; every figure names its window. A phone keeps the
-   first figure only. */
+   dot with a soft halo; every figure names its window. A phone keeps one
+   text: the first figure, else the clock, else the latest event. */
 .b-store-intro .b-store-pulse {
 	max-inline-size: none;
 	margin-block-start: var(--g-space-3);
@@ -143,7 +150,9 @@
 	}
 
 	@media not (--md) {
-		:is(.clock, .moment, .figure ~ .figure) {
+		.figure ~ .figure,
+		.clock:has(~ .figure),
+		span ~ .moment {
 			display: none;
 		}
 
@@ -158,9 +167,14 @@
    border and radius (.b-tag), at a size a finger can hit; the current one
    takes the tertiary tag's fill (.b-tag--tertiary). */
 .b-store-nav {
+	/* The padding, taken back by the margin but for the block end, is room
+	   for the pills' focus ring, which the scroll box would clip. */
 	& > ul {
 		gap: var(--g-space-2);
-		padding-block-end: var(--g-space-1);
+		margin: calc(-1 * var(--g-space-1));
+		margin-block-end: 0;
+		padding: var(--g-space-1);
+		scroll-padding-inline: var(--g-space-1);
 		scroll-snap-type: inline mandatory;
 
 		& > li {
@@ -409,6 +423,14 @@
 		&::before {
 			content: "· ";
 		}
+	}
+
+	/* Above the stretched link, so hovering them shows their title. */
+	.trust,
+	.community,
+	.path > [title] {
+		position: relative;
+		z-index: var(--g-z-1);
 	}
 
 	/* Two lines at most, so a row of cards keeps one height. */
@@ -705,7 +727,12 @@
 	grid-template-columns: none;
 	grid-auto-columns: 85%;
 	grid-auto-flow: column;
+	/* The padding, taken back by the margin, is room for the cards' focus
+	   ring, which the scroll box would clip. */
+	margin: calc(-1 * var(--g-space-1));
+	padding: var(--g-space-1);
 	overflow-x: auto;
+	scroll-padding-inline: var(--g-space-1);
 	scroll-snap-type: inline mandatory;
 
 	& > li {

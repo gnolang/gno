@@ -3,12 +3,17 @@ package store
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,7 +44,7 @@ func listingJSON(slug, ns, kind, title, extra string) string {
 		tree = "p"
 	}
 	s := fmt.Sprintf(`"slug":%q,"kind":%q,"path":"gno.land/%s/%s/%s","title":%q,`+
-		`"tagline":"Does things","category":"defi","palette":1,"stars":0,"earned":false,`+
+		`"tagline":"Does things","category":"defi","palette":1,"stars":0,`+
 		`"icon":"ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG","cover":""`,
 		slug, kind, tree, ns, slug, title)
 	if extra != "" {
@@ -49,7 +54,7 @@ func listingJSON(slug, ns, kind, title, extra string) string {
 }
 
 var (
-	trustedApp   = listingJSON("blog", "gnoland", kindApp, "Blog", `"stars":12`)
+	trustedApp   = listingJSON("blog", "gnoland", kindApp, "Blog", `"stars":12,"core":true`)
 	communityApp = listingJSON("pixels", "nym-acmex123", kindApp, "Pixels", "")
 	hostileApp   = listingJSON("spoof", "nym-x", kindApp, "Gno\u202eSwap", "")
 	// A package kind on a realm path does not hold together.
@@ -57,11 +62,11 @@ var (
 )
 
 func homeBody(listings ...string) string {
-	return `{"version":1,"height":1000,"time":1759538400,` +
+	return `{"version":1,"height":1000,"time":1759538400,"moved_to":"gno.land/r/gnoland/store/v1",` +
 		`"pulse":{"listed_7d":0,"stars_7d":41,"updated_7d":0,"listed_30d":9,"stars_30d":120,"updated_30d":0},` +
 		`"categories":[{"key":"defi","label":"DeFi","count":4},{"key":"games","label":"Games","count":0}],` +
 		`"shelves":[{"title":"New","pinned":true,"slugs":["blog","pixels","spoof","gnoswap","blog","two","three"]}],` +
-		`"activity":[{"kind":"milestone","slug":"blog","stars":10},{"kind":"listed","slug":"spoof"}],` +
+		fmt.Sprintf(`"activity":[{"kind":"milestone","slug":"blog","stars":10,"time":%d},{"kind":"listed","slug":"spoof"}],`, time.Now().Unix()) +
 		`"listings":[` + strings.Join(listings, ",") + `]}`
 }
 
@@ -69,10 +74,13 @@ func newTestHandler(t *testing.T, responses map[string]string) (*Handler, *fakeC
 	t.Helper()
 	c := &fakeClient{responses: responses}
 	h := New(Deps{
-		Client:    c,
-		RealmPath: "/r/gnoland/store",
-		Domain:    "gno.land",
-		Trusted:   func(pkg string) bool { return strings.HasPrefix(pkg, "gnoland/") },
+		Client:      c,
+		RealmPath:   "/r/gnoland/store",
+		Domain:      "gno.land",
+		ChainID:     "test-chain",
+		Remote:      "https://rpc.example:443",
+		IPFSGateway: "https://ipfs.example",
+		Trusted:     func(pkg string) bool { return strings.HasPrefix(pkg, "gnoland/") },
 	})
 	return h, c
 }
@@ -152,7 +160,7 @@ func TestCategory(t *testing.T) {
 	})
 	html := render(t, h, ":c/defi?page=2")
 	assert.Contains(t, html, "<h1>DeFi</h1>")
-	assert.Contains(t, html, `<h3><a href="/r/nym-acmex123/pixels">Pixels</a></h3>`)
+	assert.Contains(t, html, `<h3><a href="/r/nym-acmex123/pixels" rel="nofollow ugc">Pixels</a></h3>`)
 	assert.Contains(t, html, `rel="prev" href="?page=1"`)
 	assert.NotContains(t, html, `rel="next"`)
 	assert.Contains(t, html, `aria-current="page">DeFi`)
@@ -238,6 +246,13 @@ func TestBuild(t *testing.T) {
 	assert.NotContains(t, html, "New builders", "an empty section is not drawn")
 	assert.Contains(t, html, "List your package")
 	assert.Equal(t, int32(1), c.calls.Load(), "build needs no category labels")
+
+	// The Claim command runs as copied: enough gas for Claim (see
+	// integration/testdata/store_claim_snippet.txtar), and the configured
+	// chain and node rather than gnokey's defaults.
+	assert.Contains(t, html, `-gas-wanted 50000000 -broadcast \
+  -chainid &#34;test-chain&#34; -remote &#34;https://rpc.example:443&#34; KEY`)
+	assert.Contains(t, html, "once it has 3 stars from accounts with a registered name", "a claim lists nothing until confirmed")
 }
 
 // Everything the store does not own stays the realm's own page. Other tabs
@@ -260,7 +275,7 @@ func TestFallsBackToTheRealm(t *testing.T) {
 	assert.Nil(t, view, "other realms are never touched")
 }
 
-func TestCacheCoalesces(t *testing.T) {
+func TestCacheServesHitsWithinTTL(t *testing.T) {
 	h, c := newTestHandler(t, map[string]string{"api/v1/home": homeBody(trustedApp)})
 	for range 3 {
 		render(t, h, "")
@@ -293,16 +308,20 @@ func TestTiers(t *testing.T) {
 }
 
 func TestAssetURL(t *testing.T) {
-	assert.Equal(t, "https://ipfs.io/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG",
-		assetURL("ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"))
+	h, _ := newTestHandler(t, nil)
+	const cid = "ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+	assert.Equal(t, "https://ipfs.example/ipfs/QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG", h.assetURL(cid), "the operator's gateway")
 	for _, s := range []string{
 		"https://imgur.com/a.png",            // mutable URL
 		"data:image/png;base64,iVBORw0KGgo=", // inline data bloats every page
 		"ipfs://short",
-		"ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG/../x",
+		cid + "/../x",
 	} {
-		assert.Empty(t, assetURL(s), s)
+		assert.Empty(t, h.assetURL(s), s)
 	}
+
+	h.deps.IPFSGateway = ""
+	assert.Empty(t, h.assetURL(cid), "no gateway, no owner image")
 }
 
 func TestDisplayableRejectsSpoofing(t *testing.T) {
@@ -329,7 +348,7 @@ func TestShortPathKeepsNamespace(t *testing.T) {
 	assert.Equal(t, "nt/avl/v0", shortPath("nt/avl/v0"), "three segments stay whole")
 	assert.Equal(t, "gnoland/boards/v0", shortPath("gnoland/boards/v0"))
 	assert.Equal(t, "acme/…/swap/v2", shortPath("acme/apps/swap/v2"), "a version keeps its name")
-	assert.Equal(t, "g17zyd…9cxg/poll", shortPath("g17zyd8dhz9v7ndecx4wxc4z3ufmc6e43nex9cxg/poll"))
+	assert.Equal(t, "g17zyd8dhz…ex9cxg/poll", shortPath("g17zyd8dhz9v7ndecx4wxc4z3ufmc6e43nex9cxg/poll"), "8 data and 6 checksum characters: no vanity search finds a twin")
 	assert.Equal(t, "g1lpzvdyl5f4pqyyw5dd7h6p0klz5yejqmt9z2az/poll", shortPath("g1lpzvdyl5f4pqyyw5dd7h6p0klz5yejqmt9z2az/poll"), "not an address: kept whole")
 }
 
@@ -371,6 +390,8 @@ func TestInitials(t *testing.T) {
 		"Ελληνικά":      "ΕΛ",
 		"★★★":           "★",
 		"\u200b":        noGlyph,
+		"(Beta) Swap":   "BS",
+		"#1 Wallet":     "1W",
 	} {
 		assert.Equal(t, want, initials(name), name)
 	}
@@ -425,7 +446,7 @@ func TestLists(t *testing.T) {
 	assert.NotContains(t, page, `aria-current="page">All`, "no category is current on a list")
 	assert.Equal(t, "New apps · Explore", meta(t, h, ":latest?page=2").Title)
 	assert.Contains(t, page, "<p>30 apps</p>")
-	assert.Contains(t, page, `<h3><a href="/r/nym-acmex123/pixels">Pixels</a></h3>`)
+	assert.Contains(t, page, `<h3><a href="/r/nym-acmex123/pixels" rel="nofollow ugc">Pixels</a></h3>`)
 	assert.Contains(t, page, `rel="prev" href="?page=1"`)
 
 	// Lists and pages the front page does not have never reach the node.
@@ -433,16 +454,13 @@ func TestLists(t *testing.T) {
 	for _, target := range []string{":top", ":latest?page=3", ":latest?page=0"} {
 		assert.Contains(t, render(t, h, target), "<h1>Not found</h1>", target)
 	}
-	for _, target := range []string{":nope", ":Bad Key", ":latest/x"} {
-		assert.Empty(t, render(t, h, target), target)
-	}
 	assert.Equal(t, calls, c.calls.Load(), "no query for a list or page that does not exist")
 }
 
 func TestFeatured(t *testing.T) {
 	trusted := func(slug string) listing { return listing{Slug: slug, Kind: kindApp, tier: tierTrusted} }
 	earned := func(slug string) listing {
-		return listing{Slug: slug, Kind: kindApp, tier: tierRegistered, Earned: true}
+		return listing{Slug: slug, Kind: kindApp, tier: tierRegistered, earned: true}
 	}
 	plain := listing{Slug: "plain", Kind: kindApp, tier: tierRegistered}
 	ls := []listing{plain, trusted("t1"), trusted("t2"), trusted("t3"), earned("e1"), earned("e2"), earned("e3"), earned("e4")}
@@ -607,4 +625,213 @@ func TestPickIsTheHero(t *testing.T) {
 	// A pick that sanitize dropped, or none, draws no hero.
 	h, _ = newTestHandler(t, map[string]string{"api/v1/home": `{"version":1,"categories":[],"shelves":[],"pick":"spoof","listings":[` + hostileApp + `]}`})
 	assert.NotContains(t, render(t, h, ""), "Picked by GovDAO")
+}
+
+// A realm answer for another key or page falls back to the markdown, and
+// says why in the log, as a decode failure does.
+func TestPagedMismatchIsLogged(t *testing.T) {
+	var logs bytes.Buffer
+	h, _ := newTestHandler(t, map[string]string{
+		"api/v1/home":            `{"version":1,"categories":[{"key":"defi","label":"DeFi","count":30}],"shelves":[],"listings":[]}`,
+		"api/v1/category/defi/1": `{"version":1,"category":{"key":"games","label":"Games","count":30},"page":1,"pages":2,"listings":[]}`,
+	})
+	h.deps.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+	assert.Empty(t, render(t, h, ":c/defi"))
+	assert.Contains(t, logs.String(), "category/defi/1 answered games/1 of 2")
+}
+
+// The front page's count decides which pages exist, so a fresher page that
+// counts more never links to a page the store then refuses.
+func TestNextStaysWithinTheFrontPageCount(t *testing.T) {
+	h, _ := newTestHandler(t, map[string]string{
+		"api/v1/home":            `{"version":1,"categories":[{"key":"defi","label":"DeFi","count":24}],"shelves":[],"listings":[]}`,
+		"api/v1/category/defi/1": `{"version":1,"category":{"key":"defi","label":"DeFi","count":25},"page":1,"pages":2,"listings":[` + communityApp + `]}`,
+	})
+	html := render(t, h, ":c/defi")
+	assert.Contains(t, html, "Pixels")
+	assert.NotContains(t, html, `rel="next"`)
+	assert.Contains(t, render(t, h, ":c/defi?page=2"), "<h1>Not found</h1>")
+}
+
+// Every render path the store does not own but the raw API is the store's
+// own Not found page, as an unknown category is.
+func TestOtherArgsAreNotFound(t *testing.T) {
+	h, c := newTestHandler(t, map[string]string{"api/v1/home": homeBody(trustedApp)})
+	for _, target := range []string{":nope", ":app/blog", ":buildx", ":latest/x", ":api"} {
+		assert.Contains(t, render(t, h, target), "<h1>Not found</h1>", target)
+		assert.Equal(t, http.StatusNotFound, meta(t, h, target).Status, target)
+	}
+	assert.Empty(t, render(t, h, ":api/v1/home"), "the raw API stays the realm's")
+	assert.Equal(t, int32(1), c.calls.Load(), "the cached front page only")
+}
+
+// Links into a community app are not followed, wherever the store draws
+// one: the hero, the pulse's latest event and "Surprise me".
+func TestCommunityLinksAreNotFollowed(t *testing.T) {
+	home := fmt.Sprintf(`{"version":1,"categories":[],"shelves":[],"pick":"pixels",`+
+		`"activity":[{"kind":"listed","slug":"pixels","time":%d}],"listings":[%s]}`, time.Now().Unix(), communityApp)
+	h, _ := newTestHandler(t, map[string]string{"api/v1/home": home})
+	html := render(t, h, "")
+	for _, link := range []string{
+		`<h2 id="store-hero"><a href="/r/nym-acmex123/pixels" rel="nofollow ugc">Pixels</a></h2>`,
+		`href="/r/nym-acmex123/pixels" rel="nofollow ugc">Open</a>`,
+		`href="/r/nym-acmex123/pixels$source" rel="nofollow ugc">`,
+		`<a href="/r/nym-acmex123/pixels" rel="nofollow ugc">Pixels just joined</a>`,
+		`href="/r/nym-acmex123/pixels" rel="nofollow ugc">Surprise me</a>`,
+	} {
+		assert.Contains(t, html, link)
+	}
+
+	h, _ = newTestHandler(t, map[string]string{"api/v1/home": homeBody(trustedApp)})
+	assert.NotContains(t, render(t, h, ""), "nofollow", "the operator's apps keep their links")
+}
+
+// An event older than momentAge does not close the pulse: on an idle
+// store, no app "just joined" for months.
+func TestMomentIsBounded(t *testing.T) {
+	now := time.Now()
+	l := listing{Slug: "blog", Title: "Blog", webPath: "/r/gnoland/blog"}
+	by := indexListings([]listing{l})
+	event := func(age time.Duration) []activity {
+		return []activity{{Kind: "listed", Slug: "blog", Time: now.Add(-age).Unix()}}
+	}
+	require.NotNil(t, latestMoment(event(time.Hour), by, now))
+	assert.Equal(t, "Blog just joined", latestMoment(event(time.Hour), by, now).Text)
+	assert.Nil(t, latestMoment(event(momentAge+time.Hour), by, now))
+	assert.Nil(t, latestMoment([]activity{{Kind: "listed", Slug: "blog"}}, by, now), "an event with no time is not news")
+}
+
+// An owner image is drawn over the generated visual it hides, which
+// gnoweb's script uncovers when the image fails to load; with no gateway
+// set, only the generated visual is drawn.
+func TestOwnerImagesFallBack(t *testing.T) {
+	app := listingJSON("blog", "gnoland", kindApp, "Blog", `"cover":"ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"`)
+	h, _ := newTestHandler(t, map[string]string{"api/v1/home": homeBody(app)})
+	html := render(t, h, "")
+	assert.Contains(t, html, `data-fallback><svg class="cover"`)
+	assert.Contains(t, html, `data-fallback><svg class="icon"`)
+
+	h.deps.IPFSGateway = ""
+	h.cache = newResponseCache()
+	html = render(t, h, "")
+	assert.NotContains(t, html, "<img")
+	assert.Contains(t, html, `<svg class="cover"`)
+}
+
+// Core is the realm's word: an app under the operator's trust list shows
+// its owner images, but is not called one of gno.land's core apps.
+func TestCoreKeysOffTheRealm(t *testing.T) {
+	h, _ := newTestHandler(t, nil)
+	trusted := listing{Slug: "x", Kind: kindApp, tier: tierTrusted, Icon: "https://ipfs.example/ipfs/x"}
+	c := h.card(&trusted, nil)
+	assert.Empty(t, c.Trust)
+	assert.False(t, c.Community)
+	assert.NotEmpty(t, c.Icon, "trust still lets owner images show")
+
+	trusted.Core = true
+	assert.Equal(t, "Core", h.card(&trusted, nil).Trust)
+
+	established := listing{Slug: "y", Kind: kindApp, tier: tierRegistered, earned: true}
+	assert.Equal(t, "Established", h.card(&established, nil).Trust)
+	seed := listing{Slug: "z", Kind: kindApp, tier: tierRegistered, Core: true}
+	assert.Equal(t, "Core", h.card(&seed, nil).Trust, "the realm's seeds, whatever the trust list")
+}
+
+func TestEarned(t *testing.T) {
+	now := time.Now()
+	ago := func(d time.Duration) int64 { return now.Add(-d).Unix() }
+	ok := listing{Ranked: earnStars, Created: ago(earnAge), FifthRanked: ago(earnStarsAge)}
+	assert.True(t, earned(&ok, now))
+	for name, mod := range map[string]func(l *listing){
+		"too few ranked stars":    func(l *listing) { l.Ranked = earnStars - 1 },
+		"no fifth ranked star":    func(l *listing) { l.FifthRanked = 0 },
+		"listing too young":       func(l *listing) { l.Created = ago(earnAge - time.Minute) },
+		"fifth star too young":    func(l *listing) { l.FifthRanked = ago(earnStarsAge - time.Minute) },
+		"image change in waiting": func(l *listing) { l.Pending = true },
+	} {
+		l := ok
+		mod(&l)
+		assert.False(t, earned(&l, now), name)
+	}
+}
+
+// Eligibility, not the shelf an app sits on, decides the operator's cap
+// and the trending hero: a shelf of trusted apps ahead of the earned ones
+// fills neither the pool nor the hero.
+func TestFeaturedPoolIsDecidedByEligibility(t *testing.T) {
+	var ls []listing
+	var trusted []string
+	for i := 1; i <= spotlightPool; i++ {
+		s := fmt.Sprintf("t%02d", i)
+		ls = append(ls, listing{Slug: s, Kind: kindApp, tier: tierTrusted})
+		trusted = append(trusted, s)
+	}
+	for _, s := range []string{"e1", "e2", "e3", "e4"} {
+		ls = append(ls, listing{Slug: s, Kind: kindApp, tier: tierRegistered, earned: true})
+	}
+	bySlug := indexListings(ls)
+	top := shelf{Slugs: []string{"e1", "e2", "e3", "e4"}}
+	for day := range int64(4) {
+		res := &homeResponse{Shelves: []shelf{{Slugs: trusted}, top}}
+		res.Height = day * blocksPerDay
+		hero, _, spot := featured(res, bySlug)
+		require.Len(t, spot, spotlightSize, "day %d", day)
+		n := 0
+		for _, l := range append(spot, hero) {
+			if l.tier == tierTrusted {
+				n++
+			}
+		}
+		assert.LessOrEqual(t, n, 1, "day %d: the operator's apps take one place at most", day)
+	}
+
+	hot := shelf{Slugs: []string{"e1"}, Stars7d: []int{50}, More: []listRef{{Key: "trending"}}}
+	hero, label, _ := featured(&homeResponse{Shelves: []shelf{{Slugs: trusted}, hot}}, bySlug)
+	assert.Equal(t, "e1", hero.Slug, "the eligible app with the most momentum")
+	assert.Equal(t, labelTrending, label)
+}
+
+func TestCacheRecoversAPanickingLoad(t *testing.T) {
+	c := newResponseCache()
+	_, err := cached(context.Background(), c, "k", func(context.Context) (int, error) { panic("boom") })
+	require.ErrorContains(t, err, "boom")
+	_, err = cached(context.Background(), c, "k", func(context.Context) (int, error) { return 1, nil })
+	assert.ErrorContains(t, err, "boom", "remembered as a failure, briefly")
+}
+
+// A failure is remembered for errorTTL, not cacheTTL: a store realm back
+// up shows within seconds.
+func TestCacheKeepsFailuresBriefly(t *testing.T) {
+	c := newResponseCache()
+	c.put("ok", 1, nil)
+	c.put("failed", nil, errors.New("down"))
+	now := time.Now()
+	assert.WithinDuration(t, now.Add(cacheTTL), c.entries["ok"].expires, time.Second)
+	assert.WithinDuration(t, now.Add(errorTTL), c.entries["failed"].expires, time.Second)
+}
+
+// Concurrent misses of one key share a single load.
+func TestCacheCoalescesConcurrentMisses(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		c := newResponseCache()
+		release := make(chan struct{})
+		var loads atomic.Int32
+		load := func(context.Context) (int, error) {
+			loads.Add(1)
+			<-release
+			return 1, nil
+		}
+		var wg sync.WaitGroup
+		for range 8 {
+			wg.Go(func() {
+				v, err := cached(context.Background(), c, "k", load)
+				assert.NoError(t, err)
+				assert.Equal(t, 1, v)
+			})
+		}
+		synctest.Wait() // every reader waits on the key
+		close(release)
+		wg.Wait()
+		assert.Equal(t, int32(1), loads.Load())
+	})
 }

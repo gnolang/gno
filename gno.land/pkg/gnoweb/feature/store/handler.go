@@ -61,15 +61,15 @@ const (
 // View renders the store realm's Content tab for the render paths it owns:
 // "" (the front page), "c/<key>" (a category), the lists the front page
 // opens onto ("top", "latest", "trending", "updated") and "build". It returns
-// nil for anything else, so gnoweb falls back to the realm's own markdown:
-// other tabs, other render paths and markdown clients see the realm as it
-// is. Under "c/", a key that is not a category the front page offers, valid
-// or not, and a page of a category or list that does not exist are drawn as
-// a store page that says so, with status 404, without querying the node.
-// gnoweb calls it on the Content tab only, after every other tab dispatch.
-// A store API failure also returns nil: it must never break the realm page,
-// and is logged once when loaded (see decode), never shown, as it can carry
-// the node's address.
+// nil for the realm's raw API ("api/..."), so gnoweb falls back to the
+// realm's own markdown, as it does for other tabs and markdown clients. Any
+// other render path, a key under "c/" that is not a category the front page
+// offers, valid or not, and a page of a category or list that does not
+// exist are drawn as a store page that says so, with status 404, without
+// querying the node. gnoweb calls it on the Content tab only, after every
+// other tab dispatch. A store API failure also returns nil: it must never
+// break the realm page, and is logged once when loaded (see decode), never
+// shown, as it can carry the node's address.
 func (h *Handler) View(ctx context.Context, u *weburl.GnoURL) (*components.View, Meta) {
 	if u.Path != h.deps.RealmPath {
 		return nil, Meta{}
@@ -83,8 +83,14 @@ func (h *Handler) View(ctx context.Context, u *weburl.GnoURL) (*components.View,
 		return h.servePage(ctx, u, pagedCategory, args[len("c/"):])
 	case isList(args):
 		return h.servePage(ctx, u, pagedList, args)
+	case strings.HasPrefix(args, "api/"):
+		return nil, Meta{}
 	}
-	return nil, Meta{}
+	home, err := h.home(ctx)
+	if err != nil {
+		return nil, Meta{} // logged once by decode
+	}
+	return h.notFound(home)
 }
 
 func (h *Handler) meta(title, desc string) Meta {
@@ -118,15 +124,12 @@ func (h *Handler) servePage(ctx context.Context, u *weburl.GnoURL, kind, key str
 	if err != nil {
 		return nil, Meta{} // logged once by decode
 	}
-	data := pageData{Nav: catNav{Items: home.Categories}}
 	title, count, ok := offered(home, kind, key)
-	page, valid := pageParam(u, count)
+	page, pages, valid := pageParam(u, count)
 	if !ok || !valid {
-		data.Nav.NoCurrent = true
-		data.Title, data.Missing = "Not found", true
-		data.Empty = "There is no such page in Explore. Pick a category above, or go back to all apps."
-		return h.ok("store/page", data), Meta{Status: http.StatusNotFound, Title: "Not found · Explore", Description: introLine}
+		return h.notFound(home)
 	}
+	data := pageData{Nav: catNav{Items: home.Categories}}
 	var m Meta
 	if kind == pagedCategory {
 		data.Nav.Active = key
@@ -154,14 +157,28 @@ func (h *Handler) servePage(ctx context.Context, u *weburl.GnoURL, kind, key str
 	} else {
 		data.Empty = "Nothing here yet."
 	}
-	data.Page, data.Pages = res.Page, res.Pages
+	// The front page's count decides which pages exist (pageParam): a
+	// fresher answer that counts more must not offer a page it refuses.
+	data.Page, data.Pages = res.Page, min(res.Pages, pages)
 	if page > 1 {
 		data.Prev = page - 1
 	}
-	if page < res.Pages {
+	if page < data.Pages {
 		data.Next = page + 1
 	}
 	return h.ok("store/page", data), m
+}
+
+// notFound is the store page saying that a render path, category, list or
+// page does not exist, with status 404. No category is current on it.
+func (h *Handler) notFound(home *homeResponse) (*components.View, Meta) {
+	data := pageData{
+		Nav:     catNav{Items: home.Categories, NoCurrent: true},
+		Title:   "Not found",
+		Missing: true,
+		Empty:   "There is no such page in Explore. Pick a category above, or go back to all apps.",
+	}
+	return h.ok("store/page", data), Meta{Status: http.StatusNotFound, Title: "Not found · Explore", Description: introLine}
 }
 
 // listTabs are the lists the front page offers, current one marked.
@@ -183,18 +200,18 @@ func (h *Handler) ok(tmpl string, data any) *components.View {
 }
 
 // pageParam reads ?page=N (1 when absent) and reports whether that page
-// exists for a category or a list of count apps.
-func pageParam(u *weburl.GnoURL, count int) (int, bool) {
-	page := 1
+// exists for a category or a list of count apps, out of how many pages.
+func pageParam(u *weburl.GnoURL, count int) (page, pages int, ok bool) {
+	pages = max(1, (count+pageSize-1)/pageSize)
+	page = 1
 	if q := u.Query.Get("page"); q != "" {
 		n, err := strconv.Atoi(q)
 		if err != nil {
-			return 0, false
+			return 0, pages, false
 		}
 		page = n
 	}
-	pages := max(1, (count+pageSize-1)/pageSize)
-	return page, page >= 1 && page <= pages
+	return page, pages, page >= 1 && page <= pages
 }
 
 // offered returns the title and count of a category or a list the front

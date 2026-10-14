@@ -15,12 +15,14 @@ var templateFS embed.FS
 // newTemplates parses the store templates bound to the configured realm:
 // storeURL "" is its front page, storeURL "c/defi" a render path, and
 // storePkg its package path and domain the chain's, as builders import and
-// call them.
-func newTemplates(realmPath, domain string) *template.Template {
+// call them; chainID and remote are what their transactions need.
+func newTemplates(deps Deps) *template.Template {
 	return template.Must(template.New("store").Funcs(template.FuncMap{
-		"storeURL": func(args string) string { return weburl.GnoURL{Path: realmPath, Args: args}.EncodeURL() },
-		"storePkg": func() string { return domain + realmPath },
-		"domain":   func() string { return domain },
+		"storeURL": func(args string) string { return weburl.GnoURL{Path: deps.RealmPath, Args: args}.EncodeURL() },
+		"storePkg": func() string { return deps.Domain + deps.RealmPath },
+		"domain":   func() string { return deps.Domain },
+		"chainID":  func() string { return deps.ChainID },
+		"remote":   func() string { return deps.Remote },
 		// snippet pairs a code block with the id its copy button targets.
 		"snippet": func(id, code string) any { return struct{ ID, Code string }{id, code} },
 		// lens names the current lens, and whether the page is the lens

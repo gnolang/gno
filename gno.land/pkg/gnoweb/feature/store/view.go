@@ -33,6 +33,10 @@ const (
 	// momentumMin is the weekly count worth showing: "+2 this week" reads
 	// as a quiet chain, so smaller counts show nothing.
 	momentumMin = 5
+
+	// momentAge bounds how old the latest event may be to close the pulse:
+	// on an idle store, an app is not "just joined" for months.
+	momentAge = 7 * 24 * time.Hour
 )
 
 // card is one listing as every template draws it. It links to the
@@ -48,8 +52,8 @@ type card struct {
 	Stars     int    // ranked stars, the ones that order the store
 	AllStars  int    // every star
 	StarURL   string // the store's Star action, prefilled for this listing
-	Community bool   // neither the operator's nor established: says so on the path line
-	Trust     string // "Core" or "Established", the positive badge of the other tiers
+	Community bool   // neither the operator's nor established: says so on the path line, its links not followed
+	Trust     string // "Core" (the realm's core apps) or "Established" (earned), a positive badge
 	Momentum  int    // ranked stars this week, when worth showing
 
 	// Owner assets, set only when the tier allows them.
@@ -100,10 +104,16 @@ type pulseView struct {
 	Moment *moment // the latest store event
 }
 
+// appLink links to a listing's own page; Community as on card.
+type appLink struct {
+	URL       string
+	Community bool
+}
+
 // moment is the latest store event, closing the pulse line.
 type moment struct {
 	Text string
-	URL  string
+	appLink
 }
 
 // heroView is the page's one hero, with why it is there. LabelList, if
@@ -117,7 +127,7 @@ type heroView struct {
 type homeData struct {
 	Intro     string // the lead, also the head description
 	Nav       catNav
-	Surprise  string // path of a random app
+	Surprise  *appLink // a random app
 	Pulse     pulseView
 	Hero      *heroView
 	Spotlight []card
@@ -172,16 +182,18 @@ func (h *Handler) card(l *listing, labels map[string]string) card {
 		Art:       l.art,
 		Glyph:     l.glyph,
 	}
-	if l.tier.rich(l.Earned) {
+	// Core is the realm's word for its seeded apps, never the operator's
+	// trust list, which only lets owner assets show.
+	switch {
+	case l.Core:
+		c.Trust = "Core"
+	case l.tier == tierRegistered && l.earned:
 		c.Trust = "Established"
-		if l.tier == tierTrusted {
-			c.Trust = "Core"
-		}
+	}
+	if c.Community = l.community(); !c.Community {
 		// Validated by sanitize: IPFS gateway URLs only.
 		c.Icon = template.URL(l.Icon)   //nolint:gosec
 		c.Cover = template.URL(l.Cover) //nolint:gosec
-	} else {
-		c.Community = true
 	}
 	if c.Category.Label == "" {
 		c.Category.Label = l.Category
@@ -245,27 +257,41 @@ func (h *Handler) shelves(src []shelf, bySlug map[string]*listing, labels map[st
 	return out
 }
 
-// eligible returns the first spotlightPool apps allowed to look official
-// (trusted or earned), in the realm's shelf order, which puts quality first,
-// and how many of them earned their place rather than being the operator's.
-func eligible(src []shelf, bySlug map[string]*listing) (pool []*listing, earned int) {
+// eligiblePool returns up to spotlightPool eligible apps in the realm's
+// shelf order, and whether spotlightSize of all eligible apps, wherever
+// they sit, earned their place rather than being the operator's (capped).
+// Once capped, the pool keeps the operator's first app only, so a shelf of
+// them ahead of the earned ones cannot fill it.
+func eligiblePool(src []shelf, bySlug map[string]*listing) (pool []*listing, capped bool) {
+	var all []*listing
 	used := make(map[string]bool)
+	earned := 0
 	for _, s := range src {
 		for _, slug := range s.Slugs {
 			l, ok := bySlug[slug]
-			if !ok || used[slug] || l.Kind != kindApp || !l.tier.rich(l.Earned) {
+			if !ok || used[slug] || !l.eligible() {
 				continue
 			}
 			used[slug] = true
 			if l.tier != tierTrusted {
 				earned++
 			}
-			if pool = append(pool, l); len(pool) == spotlightPool {
-				return pool, earned
-			}
+			all = append(all, l)
 		}
 	}
-	return pool, earned
+	capped = earned >= spotlightSize
+	trusted := 0
+	for _, l := range all {
+		if capped && l.tier == tierTrusted {
+			if trusted++; trusted > 1 {
+				continue
+			}
+		}
+		if pool = append(pool, l); len(pool) == spotlightPool {
+			break
+		}
+	}
+	return pool, capped
 }
 
 // Why the hero is there.
@@ -287,11 +313,11 @@ const (
 // promotes its host; until then, at launch, they fill it. Everything moves
 // with the chain's height, so every gnoweb shows the same and caches it.
 func featured(res *homeResponse, bySlug map[string]*listing) (hero *listing, label string, spot []*listing) {
-	pool, earned := eligible(res.Shelves, bySlug)
+	pool, capped := eligiblePool(res.Shelves, bySlug)
 	day := int(res.Height / blocksPerDay)
 	if pick := bySlug[res.Pick]; pick != nil && pick.Kind == kindApp {
 		hero, label = pick, labelPick
-	} else if l := trending(res.Shelves, bySlug, pool); l != nil {
+	} else if l := trending(res.Shelves, bySlug); l != nil {
 		hero, label = l, labelPopular
 		if leads(res.Shelves, l.Slug) {
 			label = labelTrending
@@ -309,7 +335,6 @@ func featured(res *homeResponse, bySlug map[string]*listing) (hero *listing, lab
 	for i := range pool {
 		candidates = append(candidates, pool[(day*spotlightSize+i)%len(pool)])
 	}
-	capped := earned >= spotlightSize
 	trusted := 0
 	kept := make([]*listing, 0, 1+spotlightSize)
 	for _, l := range candidates {
@@ -331,11 +356,11 @@ func featured(res *homeResponse, bySlug map[string]*listing) (hero *listing, lab
 
 // trending returns the eligible app with the most stars this week, if that
 // is worth showing (momentumMin).
-func trending(src []shelf, bySlug map[string]*listing, pool []*listing) (best *listing) {
+func trending(src []shelf, bySlug map[string]*listing) (best *listing) {
 	most := momentumMin - 1
 	for _, s := range src {
 		for i, n := range s.Stars7d {
-			if l := bySlug[s.Slugs[i]]; l != nil && n > most && slices.Contains(pool, l) {
+			if l := bySlug[s.Slugs[i]]; l != nil && n > most && l.eligible() {
 				best, most = l, n
 			}
 		}
@@ -371,7 +396,7 @@ func (h *Handler) buildHome(res *homeResponse) homeData {
 	data := homeData{
 		Intro:     introLine,
 		Nav:       catNav{Items: res.Categories},
-		Pulse:     newPulse(res.chainClock, res.Pulse, latestMoment(res.Activity, bySlug)),
+		Pulse:     newPulse(res.chainClock, res.Pulse, latestMoment(res.Activity, bySlug, time.Now())),
 		Spotlight: h.cards(spot, labels),
 		Shelves:   h.shelves(res.Shelves, bySlug, labels, skip),
 	}
@@ -382,7 +407,8 @@ func (h *Handler) buildHome(res *homeResponse) homeData {
 		}
 	}
 	if n := len(res.Listings); n > 0 {
-		data.Surprise = res.Listings[rand.IntN(n)].webPath //nolint:gosec // a random app to visit, not a secret
+		surprise := res.Listings[rand.IntN(n)].link() //nolint:gosec // a random app to visit, not a secret
+		data.Surprise = &surprise
 	}
 	return data
 }
@@ -442,8 +468,12 @@ func newPulse(clock chainClock, p pulse, m *moment) pulseView {
 
 // latestMoment phrases the newest store event it can with fixed templates;
 // only titles come from listings, and only listings that passed sanitize.
-func latestMoment(events []activity, bySlug map[string]*listing) *moment {
+// Events come newest first: none older than momentAge is told.
+func latestMoment(events []activity, bySlug map[string]*listing, now time.Time) *moment {
 	for _, e := range events {
+		if now.Sub(time.Unix(e.Time, 0)) > momentAge {
+			return nil
+		}
 		l, ok := bySlug[e.Slug]
 		if !ok {
 			continue
@@ -462,9 +492,14 @@ func latestMoment(events []activity, bySlug map[string]*listing) *moment {
 		default:
 			continue
 		}
-		return &moment{Text: text, URL: l.webPath}
+		return &moment{Text: text, appLink: l.link()}
 	}
 	return nil
+}
+
+// link is the way to a listing's own page.
+func (l *listing) link() appLink {
+	return appLink{URL: l.webPath, Community: l.community()}
 }
 
 func builders(bs []builder) []builderView {
@@ -484,13 +519,14 @@ func builders(bs []builder) []builderView {
 // only, down to the package's name, with its version if it has one:
 // "acme/apps/v2/swap" → "acme/…/swap", "acme/x/swap/v2" → "acme/…/swap/v2",
 // while "gnoland/boards/v0" stays as it is. A namespace that is an address
-// is cut in its middle ("g17zyd…9cxg"), its two ends kept: a look-alike
-// namespace must never be hidden by truncation (ADR-004 T6). The full path
-// is in the element's title.
+// is cut in its middle ("g17zyd8dhz…ex9cxg"), its two ends kept: a
+// look-alike namespace must never be hidden by truncation (ADR-004 T6). The
+// 8 data and 6 checksum characters kept are 70 bits, out of reach of a
+// vanity key search. The full path is in the element's title.
 func shortPath(pkgPath string) string {
 	ns, rest, _ := strings.Cut(pkgPath, "/")
 	if isAddress(ns) {
-		ns = components.TruncMiddle(ns, 6, 4)
+		ns = components.TruncMiddle(ns, 10, 6)
 	}
 	if strings.Count(rest, "/") < 2 {
 		return ns + "/" + rest

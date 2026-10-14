@@ -72,11 +72,12 @@ func icon(l *listing) template.HTML {
 }
 
 // initials returns a monogram of two letters or digits, never empty: the
-// first of each of the first two words ("DAO Forge" → "DF"); for a single
-// word, of its first two camel-case or punctuated parts ("GnoSwap" → "GS",
-// "GovDAO" → "GD", "Gno.land" → "GL"), or its first two letters when it has
-// no such parts ("Gnotify" → "GN"). A title with no letter or digit shows
-// its first visible rune ("★★★" → "★"), and noGlyph if it has none.
+// first letter or digit of each of the first two words ("DAO Forge" → "DF",
+// "(Beta) Swap" → "BS"); for a single word, of its first two camel-case or
+// punctuated parts ("GnoSwap" → "GS", "GovDAO" → "GD", "Gno.land" → "GL"),
+// or its first two letters when it has no such parts ("Gnotify" → "GN"). A
+// title with no letter or digit shows its first visible rune ("★★★" → "★"),
+// and noGlyph if it has none.
 func initials(name string) string {
 	parts := slices.DeleteFunc(strings.Fields(name), func(w string) bool { return strings.IndexFunc(w, isAlnum) < 0 })
 	if len(parts) == 1 {
@@ -98,7 +99,7 @@ func initials(name string) string {
 		}
 	default:
 		for _, p := range parts[:2] {
-			r, _ := utf8.DecodeRuneInString(p)
+			r, _ := utf8.DecodeRuneInString(p[strings.IndexFunc(p, isAlnum):])
 			out = append(out, unicode.ToUpper(r))
 		}
 	}

@@ -93,6 +93,10 @@ type AppConfig struct {
 	// StoreRealm is the Explore realm as a gnoweb path ("/r/gnoland/store/v0").
 	// Its front pages get a richer view. Empty disables the store.
 	StoreRealm string
+	// IPFSGateway is the origin of the IPFS path gateway that serves the
+	// store's owner images ("https://dweb.link"); it must be in the CSP
+	// img-src. Empty shows the generated visuals only.
+	IPFSGateway string
 	// Aliases is a map of aliases pointing to another path or a static file.
 	Aliases map[string]AliasTarget
 	// RenderConfig defines the default configuration for rendering realms and source files.
@@ -209,6 +213,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		StateRateLimitPerMinute:      cfg.StateRateLimitPerMinute,
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
 		StoreRealm:                   cfg.StoreRealm,
+		IPFSGateway:                  cfg.IPFSGateway,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)

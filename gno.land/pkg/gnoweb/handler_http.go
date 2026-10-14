@@ -116,6 +116,8 @@ type HTTPHandlerConfig struct {
 	StateRateLimitTrustedProxies []string
 	// StoreRealm — see AppConfig field of the same name.
 	StoreRealm string
+	// IPFSGateway: see AppConfig field of the same name.
+	IPFSGateway string
 }
 
 // defaultStateRateLimitPerMinute is the safe-by-default cap applied when
@@ -133,8 +135,30 @@ func (cfg *HTTPHandlerConfig) validate() error {
 	if cfg.Aliases == nil {
 		return errors.New("no `Aliases` configured")
 	}
+	if cfg.StoreRealm != "" {
+		if u := (weburl.GnoURL{Path: cfg.StoreRealm}); !u.IsRealm() || u.IsDir() {
+			return fmt.Errorf("invalid `StoreRealm` %q: want a realm path such as /r/gnoland/store/v0", cfg.StoreRealm)
+		}
+		if cfg.Meta.Domain == "" {
+			return errors.New("a `StoreRealm` needs a `Meta.Domain`")
+		}
+	}
+	if cfg.IPFSGateway != "" && !isOrigin(cfg.IPFSGateway) {
+		return fmt.Errorf("invalid `IPFSGateway` %q: want an origin such as https://dweb.link", cfg.IPFSGateway)
+	}
 	return nil
 }
+
+// isOrigin reports whether s is an http(s) origin and nothing more. The
+// host is held to hostname characters: it goes into the CSP header, where a
+// ';' or a quote would start another directive.
+func isOrigin(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && (u.Scheme == "https" || u.Scheme == "http") && reOriginHost.MatchString(u.Host) &&
+		u.User == nil && u.Path == "" && u.RawQuery == "" && u.Fragment == "" && !u.ForceQuery
+}
+
+var reOriginHost = regexp.MustCompile(`^[A-Za-z0-9.-]+(:[0-9]+)?$`)
 
 // HTTPHandler processes HTTP requests for gnoweb.
 type HTTPHandler struct {
@@ -203,11 +227,14 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 	})
 	if cfg.StoreRealm != "" {
 		h.Store = store.New(store.Deps{
-			Client:    cfg.ClientAdapter,
-			RealmPath: cfg.StoreRealm,
-			Domain:    cfg.Meta.Domain,
-			Trusted:   h.policy.trusted.contains,
-			Logger:    logger,
+			Client:      cfg.ClientAdapter,
+			RealmPath:   cfg.StoreRealm,
+			Domain:      cfg.Meta.Domain,
+			ChainID:     cfg.Meta.ChainId,
+			Remote:      cfg.Meta.RemoteHelp,
+			IPFSGateway: cfg.IPFSGateway,
+			Trusted:     h.policy.trusted.contains,
+			Logger:      logger,
 		})
 	}
 	return h, nil
@@ -618,7 +645,7 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// tab and render argument keeps the realm's markdown.
 	if h.Store != nil && !pr.markdown {
 		if view, meta := h.Store.View(ctx, gnourl); view != nil {
-			indexData.HeadData.Title, indexData.HeadData.Description = meta.Title, meta.Description
+			pr.lead = pageLead{title: meta.Title, description: meta.Description}
 			return meta.Status, view
 		}
 	}

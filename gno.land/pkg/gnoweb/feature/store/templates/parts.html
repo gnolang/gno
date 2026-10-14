@@ -1,13 +1,19 @@
 {{/* Shared store parts. Every visual falls back to generated art, so no
-     card is ever blank (ADR-004 §4). */}}
+     card is ever blank (ADR-004 §4): an owner image hides the art drawn
+     after it, until gnoweb's script drops the image that fails to load
+     (data-fallback). */}}
 
 {{ define "store/cover" -}}
-{{ if .Cover }}<img class="cover" src="{{ .Cover }}" alt="" width="320" height="180" loading="lazy" decoding="async">{{ else }}{{ .Art }}{{ end }}
+{{ with .Cover }}<img class="cover" src="{{ . }}" alt="" width="320" height="180" loading="lazy" decoding="async" data-fallback>{{ end }}{{ .Art }}
 {{- end }}
 
 {{ define "store/icon" -}}
-{{ if .Icon }}<img class="icon" src="{{ .Icon }}" alt="" width="40" height="40" loading="lazy" decoding="async">{{ else }}{{ .Glyph }}{{ end }}
+{{ with .Icon }}<img class="icon" src="{{ . }}" alt="" width="40" height="40" loading="lazy" decoding="async" data-fallback>{{ end }}{{ .Glyph }}
 {{- end }}
+
+{{/* Links into a community app are not credited to it by search engines,
+     as links in a realm's own content are not. */}}
+{{ define "store/rel" }}{{ if . }} rel="nofollow ugc"{{ end }}{{ end }}
 
 {{/* Apps link their category; services and packages say what they are.
      The card shows its path under its title, the hero in this row. */}}
@@ -40,7 +46,7 @@
     <div class="title">
       {{ template "store/icon" . }}
       <div>
-        <h3><a href="{{ .Path }}">{{ .Title }}</a></h3>
+        <h3><a href="{{ .Path }}"{{ template "store/rel" .Community }}>{{ .Title }}</a></h3>
         <p class="path"><span class="u-font-mono" title="{{ .Path }}">{{ .ShortPath }}</span>{{ if .Community }}{{ template "store/community" }}{{ end }}</p>
       </div>
     </div>
@@ -141,13 +147,14 @@ func init(cur realm) {
   <div class="why">
     <header><h2 id="store-cta-title">List your package</h2></header>
     <p class="description">A package cannot call into a realm, so its namespace owner lists it with one transaction.</p>
-    <p class="description">Listed packages appear in Build and count toward Top builders.</p>
+    <p class="description">A claimed package shows in Build, and counts toward Top builders, once it has 3 stars from accounts with a registered name.</p>
   </div>
   <div class="how">
     {{ template "store/snippet" (snippet "store-claim" (printf `gnokey maketx call -pkgpath %s -func Claim \
   -args %s/p/NAMESPACE/mylib -args mylib -args "My lib" \
   -args "What it does, in one line" -args dev-tools -args 0 -args package \
-  -gas-fee 1000000ugnot -gas-wanted 20000000 -broadcast -remote RPC KEY` storePkg domain)) }}
+  -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast \
+  -chainid "%s" -remote "%s" KEY` storePkg domain chainID remote)) }}
   </div>
 </aside>
 {{- end }}

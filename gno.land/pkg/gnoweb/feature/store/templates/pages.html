@@ -5,14 +5,14 @@
     <header class="b-store-intro">
       <div class="heading">
         <h1>Explore</h1>
-        {{ with .Surprise }}<a class="b-btn" href="{{ . }}">Surprise me</a>{{ end }}
+        {{ with .Surprise }}<a class="b-btn" href="{{ .URL }}"{{ template "store/rel" .Community }}>Surprise me</a>{{ end }}
       </div>
       <p>{{ .Intro }}</p>
       {{ with .Pulse }}{{ if or .Height .Items .Moment }}
       <p class="b-store-pulse">
         {{ if .Height }}<span class="clock">Block {{ .Height }}{{ with .Ago }} · {{ . }}{{ end }}</span>{{ end }}
         {{ range .Items }}<span class="figure"><strong>{{ .Value }}</strong> {{ .Label }}{{ with .Window }} {{ . }}{{ end }}</span>{{ end }}
-        {{ with .Moment }}<span class="moment"><a href="{{ .URL }}">{{ .Text }}</a></span>{{ end }}
+        {{ with .Moment }}<span class="moment"><a href="{{ .URL }}"{{ template "store/rel" .Community }}>{{ .Text }}</a></span>{{ end }}
       </p>
       {{ end }}{{ end }}
     </header>
@@ -27,7 +27,7 @@
         <p class="label">{{ with .LabelList }}<a href="{{ storeURL . }}">{{ $.Hero.Label }}</a>{{ else }}{{ .Label }}{{ end }}</p>
         <div class="title">
           {{ template "store/icon" . }}
-          <h2 id="store-hero"><a href="{{ .Path }}">{{ .Title }}</a></h2>
+          <h2 id="store-hero"><a href="{{ .Path }}"{{ template "store/rel" .Community }}>{{ .Title }}</a></h2>
         </div>
         <p class="tagline">{{ .Tagline }}</p>
         <ul class="b-store-meta" aria-label="About this listing">
@@ -36,8 +36,8 @@
           {{ if .Community }}<li>{{ template "store/community" }}</li>{{ end }}
         </ul>
         <div class="b-btns">
-          <a class="b-btn b-store-btn--primary" href="{{ .Path }}">Open</a>
-          <a class="b-btn c-with-icon" href="{{ .Path }}$source"><svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg><span>Read the code</span></a>
+          <a class="b-btn b-store-btn--primary" href="{{ .Path }}"{{ template "store/rel" .Community }}>Open</a>
+          <a class="b-btn c-with-icon" href="{{ .Path }}$source"{{ template "store/rel" .Community }}><svg class="c-icon" aria-hidden="true"><use href="#ico-code"></use></svg><span>Read the code</span></a>
         </div>
       </div>
     </article>
@@ -49,7 +49,7 @@
     <header class="b-pkg-section__header">
       <div>
         <h2 id="store-spotlight">Spotlight</h2>
-        <p class="note">A new set every day, from gno.land's core apps and community apps with a track record.</p>
+        <p class="note">A new set every day, from apps gno.land vouches for and community apps with a track record.</p>
       </div>
     </header>
     {{ template "store/grid" (grid "b-store-grid--spotlight u-no-scrollbar" .) }}

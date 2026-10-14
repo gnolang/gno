@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -61,7 +62,7 @@ func cached[T any](ctx context.Context, c *responseCache, key string, load func(
 		}
 		lctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), fetchTimeout)
 		defer cancel()
-		v, err := load(lctx)
+		v, err := recovered(lctx, load)
 		c.put(key, v, err)
 		return v, err
 	})
@@ -75,6 +76,18 @@ func cached[T any](ctx context.Context, c *responseCache, key string, load func(
 	case <-ctx.Done():
 		return zero, ctx.Err()
 	}
+}
+
+// recovered runs load and turns a panic into its error: singleflight
+// re-raises a panic on a goroutine of its own, out of any recover's reach,
+// which would end the process rather than fail one key.
+func recovered[T any](ctx context.Context, load func(context.Context) (T, error)) (v T, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("store: load panicked: %v", r)
+		}
+	}()
+	return load(ctx)
 }
 
 func (c *responseCache) lookup(key string) (cacheEntry, bool) {
