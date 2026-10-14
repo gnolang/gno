@@ -13,11 +13,10 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `GnoOutput:` / `GoOutput:` | stdout of Gno and of `go run` (run files) |
 | `GnoError:` | Gno's own errors, per line, wording kept |
 | `GoTypeCheckError:` / `GoBuildError:` | lines the go/types guard / `go build` flagged; lines only, their wording follows the Go release |
-| `GnoPreprocessError:` | Gno's errors on compile-only files |
 
 | verdict | meaning |
 |---|---|
-| `Verdict: Clean <mode>` | both checkers reach the same verdict (run \| compile); wording differences stay in the evidence blocks |
+| `Verdict: Clean <mode>` | both checkers reach the same verdict (`run`); wording differences stay in the evidence blocks |
 | `Verdict: Unsupported <tag>: <reason>` | skipped, feature gap or gc-only test; tags in `corpus.go` (`unsupportedTags`) |
 | `Verdict: KnownIssue <mode>: <reason>` | Gno is wrong here, tracked |
 | `Verdict: KnownDivergence <mode>: <reason>` | Gno differs on purpose (a run output or a rule decided for Gno) |
