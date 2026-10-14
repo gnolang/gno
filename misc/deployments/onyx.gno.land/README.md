@@ -16,7 +16,7 @@ Builds the **onyx** genesis. Onyx is the testnet on the mainnet line: it runs **
 - **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1. The admin is the gnolang/multisigs `[govdao]` multisig, as on mainnet; the build asserts the configured value against the admin compiled into `r/sys/names/verifier.gno`.
 - **Inert packages**: ACTIVE at genesis, exactly as on mainnet — `code_submission_policy=inert`, the gpao approvals oracle (`g1yaee4f…`) as sole `pkg_approvers` entry, `run_submitters` restricted to the seeded T1 member (so only aeddi can `maketx run`; a developer who needs it goes into `RUN_SUBMITTERS_EXTRA` by name), submission charge off. A post-genesis `MsgAddPackage` parks until gpao enables it; genesis replay is exempt.
 
-Not set at genesis, deliberately (chain defaults apply; adjustable post-genesis via GovDAO proposals, see `misc/govdao-scripts/`): CLA and minimum gas price. No vested accounts.
+Not set at genesis, deliberately (chain defaults apply; adjustable post-genesis via GovDAO proposals): CLA (`misc/govdao-scripts/set-cla.sh`) and minimum gas price (no script in `misc/govdao-scripts/` yet). No vested accounts.
 
 ## Quick start
 
