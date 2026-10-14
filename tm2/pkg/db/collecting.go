@@ -52,12 +52,20 @@ func NewBatchCollector() *BatchCollector {
 	return &BatchCollector{pending: make(map[string]int)}
 }
 
-// Reset drops all accumulated ops, and the memory they held. Call it once the
-// batch they were drained into is written.
+// Reset drops all accumulated ops. Call it once the batch they were drained
+// into is written. While holding it also frees the memory they held; outside
+// it keeps it for the next commit.
 func (c *BatchCollector) Reset() {
 	c.mu.Lock()
-	c.ops = nil
-	c.pending = make(map[string]int)
+	if c.holding.Load() {
+		// A held window can reach 64 MiB: give its memory back.
+		c.ops = nil
+		c.pending = make(map[string]int)
+	} else {
+		clear(c.ops)
+		c.ops = c.ops[:0]
+		clear(c.pending)
+	}
 	c.size = 0
 	c.mu.Unlock()
 }

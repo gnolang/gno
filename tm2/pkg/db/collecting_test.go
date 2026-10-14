@@ -164,6 +164,45 @@ func TestBatchCollector_Size(t *testing.T) {
 	}
 }
 
+// TestBatchCollector_WriteToKeepsMemory pins that, outside holding, a write
+// keeps the collector's memory for the next commit: every consensus commit
+// goes through WriteTo, and one after the first must not grow the op log and
+// the key index again.
+func TestBatchCollector_WriteToKeepsMemory(t *testing.T) {
+	const runs = 5
+	keys := make([][]byte, 1000)
+	for i := range keys {
+		keys[i] = fmt.Appendf(nil, "key-%04d", i)
+	}
+	db := memdb.NewMemDB()
+	commit := func(c *dbm.BatchCollector) {
+		cdb := dbm.NewCollectingDB(db, c)
+		for _, k := range keys {
+			cdb.Set(k, k)
+		}
+		if err := c.WriteTo(db); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit(dbm.NewBatchCollector()) // the keys are on disk for every run below
+
+	// AllocsPerRun calls its function runs+1 times.
+	fresh := make([]*dbm.BatchCollector, runs+1)
+	for i := range fresh {
+		fresh[i] = dbm.NewBatchCollector()
+	}
+	first := testing.AllocsPerRun(runs, func() {
+		commit(fresh[0])
+		fresh = fresh[1:]
+	})
+	c := dbm.NewBatchCollector()
+	later := testing.AllocsPerRun(runs, func() { commit(c) })
+	// Growing a log of 1,000 ops from nothing reallocates it at least 10 times.
+	if first-later < 10 {
+		t.Fatalf("a later commit allocates %v times, a first one %v: WriteTo dropped the collector's memory", later, first)
+	}
+}
+
 // TestCollectingDB_IteratorRefusedWhileHolding pins that, while the collector
 // holds writes across commits, an iterator panics instead of silently reading
 // only the underlying database, and that the refusal is recorded once.
