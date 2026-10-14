@@ -1,6 +1,6 @@
 # onyx genesis
 
-Builds the **onyx** genesis. Onyx is the testnet on the mainnet line: it runs **mainnet's code, one release candidate ahead** (the version in [`UPGRADES.md`](./UPGRADES.md); `v1.5.0` exactly at launch) and is upgraded whenever mainnet is, so mainnet's upgrades are rehearsed here first. Its genesis is mainnet's shape with a testnet's money — a fresh chain, not a hardfork of pearl.
+Builds the **onyx** genesis. Onyx is the testnet on the mainnet line: it runs **mainnet's code** (the version in [`UPGRADES.md`](./UPGRADES.md); `v1.5.0` exactly at launch) and takes every mainnet release first, as a release candidate on the same commit, so mainnet's upgrades are rehearsed here. Its genesis is mainnet's shape with a testnet's money — a fresh chain, not a hardfork of pearl.
 
 > Launch: **2026-09-28T00:00:00Z**, chain-id `onyx-1`.
 >
