@@ -79,8 +79,9 @@ a `vX.Y.Z` tag there instead.
 **Tagging rules.** Tags are immutable: never move one, and never reuse a name.
 New tags are annotated (`git tag -a`), so plain `git describe` finds them;
 `v1.0.0` predates the rule and is lightweight, which is one reason every
-`describe` in the tree passes `--tags --match 'v*'` — the other being that a
-release commit also carries the chain's launch tag, which is not a version.
+`describe` the build and release tooling runs passes `--tags --match 'v*'` —
+the other being that a release commit also carries the chain's launch tag,
+which is not a version.
 Pre-release tags (`v1.3.0-rc.1`) are allowed; they sort *below* the release they
 lead to, and are published as GitHub pre-releases so they do not become the
 "Latest" release operators and `misc/install.sh` land on.
@@ -326,8 +327,9 @@ import cycles rather than because the parts may differ:
 | `tm2/pkg/p2p/version/version.go` | `Version` |
 | `tm2/pkg/bft/version/version.go` | `Version` |
 
-Each guards the next in an `init()`, so a bump that misses one panics every node
-at startup. Move them together:
+Three `init()` checks chain them together (`types` checks `crypto`,
+`blockchain` checks `types`, and `bft` checks `blockchain`, `abci` and `p2p`),
+so a bump that misses one panics every node at startup. Move them together:
 
 ```sh
 misc/release/bump-protocol-version.sh --check   # are they consistent?
