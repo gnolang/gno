@@ -125,11 +125,11 @@ runs, and the two are not the same thing:
 ```sh
 # dry run: every check, no push. Once the ledger entry is pushed on top of the
 # code, the branch tip is the ledger commit, so every cut names the code commit
-misc/release/cut-release.sh v1.3.0 --commit <code-commit>
+misc/release/cut-release.sh v1.6.0 --commit <code-commit>
 
 # a coordinated upgrade: also prints the GovDAO halt proposal to go with it.
 # --commit names the code commit, the one the ledger entry names (item 6)
-misc/release/cut-release.sh v1.3.0 --commit <code-commit> \
+misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
   --halt-height 120000 --push
 ```
 
@@ -163,16 +163,17 @@ corresponds to something that has gone wrong before. All but one are refusals:
    commit, which is the commit the entry names. A release candidate only warns,
    since it rehearses the final version's entry; a final release without one,
    with a ledger that fails the check, or whose entry names another commit, is
-   refused.
+   refused. A chain with no `upgrades.json` skips this check.
 
 Pushing a `v*` tag triggers
 [`release / chain-tag`](.github/workflows/release-chain-tag.yml), which builds
-the four platforms, asserts each native binary carries the tag, and attaches
-them to the release. It also triggers
-[`release / docker`](.github/workflows/release-docker.yml), which publishes the
-matching images to `ghcr.io/gnolang/gno/*`. A `chain/<name>` launch tag
-triggers nothing: its release is the genesis record, created by hand with the
-`genesis.json` and its checksums attached, and no binaries.
+the four platforms, asserts that `gnoland`, `gnokey` and `gno` carry the tag on
+the two platforms its runners can execute, and attaches them to the release.
+It also triggers [`release / docker`](.github/workflows/release-docker.yml),
+which publishes the matching images to `ghcr.io/gnolang/gno/*`. A
+`chain/<name>` launch tag triggers nothing: its release is the genesis record,
+created by hand with the `genesis.json` and its checksums attached, and no
+binaries.
 
 **Do not hand-upload release binaries** — an artifact built outside CI is not
 reproducible from the tag and generally lacks the `-ldflags` that give it a
@@ -270,7 +271,8 @@ Two kinds of release page, one job each:
   checksums, and a description of the chain at birth. Frozen; no binaries.
 - `vX.Y.Z` is a binary you can run: the CI-built binaries and `CHECKSUMS.txt`,
   for a coordinated upgrade the halt height and `halt_min_version` that made it
-  live, the eight image URLs, and the changelog.
+  live, the eight image URLs, and the changelog. The workflow attaches the
+  binaries with generated notes; the rest is written by hand.
 
 `misc/deployments/<chain>.gno.land/upgrades.json` is the ledger: one entry per
 version the network has run — the genesis, one per coordinated halt, and one
@@ -296,7 +298,8 @@ render, and port both files to `master`. Only the last entry may still have
 null binaries, so they are filled in before the next release's entry is added.
 A testnet's ledger names what it ran, release candidates included.
 Every halt proposal names the version being released — `set-halt.sh` refuses a
-value the node cannot parse, and an empty one leaves the restart gate off.
+value the node cannot parse and an empty one, which would leave the restart
+gate off.
 
 ### Coordinated upgrades
 
@@ -306,7 +309,7 @@ proposal to go with the tag, with `halt_min_version` set to the tag being cut,
 and the command that creates it:
 
 ```sh
-misc/deployments/mainnet.gno.land/govdao-exec.sh set-halt 120000 v1.3.0
+misc/deployments/mainnet.gno.land/govdao-exec.sh set-halt 120000 v1.6.0
 ```
 
 The mechanism, the failure modes, and what a halt looks like in the logs are
