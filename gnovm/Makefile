@@ -59,7 +59,9 @@ lint:
 fmt:
 	go fmt ./...
 	go run ./cmd/gno fmt -w ./stdlibs/... ./tests/stdlibs/... ./tests/files/...
-	$(rundep) golang.org/x/tools/cmd/goimports -w .
+	# gocorpus/testdata holds Go's corpus files verbatim: reformatting them
+	# would shift the line numbers their goldens pin.
+	$(rundep) golang.org/x/tools/cmd/goimports -w $$(find . -name '*.go' -not -path './tests/files/gocorpus/testdata/*')
 
 ########################################
 # Gas calibration analysis
