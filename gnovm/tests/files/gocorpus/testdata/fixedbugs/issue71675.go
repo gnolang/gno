@@ -98,30 +98,4 @@ func main() {
 
 }
 
-// GnoOutput:
-
-// GnoError:
-// main/issue71675.go:9:2-14:3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
-
-// GoOutput:
-// f recover:called
-// F first
-// f returned
-// g recover:called
-// G first
-// g returned
-// h recover:called
-// H third
-// H second
-// H first
-// h returned
-// I
-// i returned
-
-// GoTypeCheckError:
-// line 9
-// line 25
-// line 33
-// line 53
-
 // Verdict: Unsupported gc-lang-pin: range-over-func (Go 1.23) not supported in Gno

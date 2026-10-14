@@ -89,18 +89,4 @@ func main() {
 	testint5()
 }
 
-// GnoOutput:
-
-// GnoError:
-// main/range3.go:14:2-20:3: range iteration requires map, string, array, slice, or pointer to array; got IntKind
-
-// GoOutput:
-
-// GoTypeCheckError:
-// line 14
-// line 33
-// line 53
-// line 71
-// line 79
-
 // Verdict: Unsupported gc-lang-pin: range over int (Go 1.22) not supported in Gno
