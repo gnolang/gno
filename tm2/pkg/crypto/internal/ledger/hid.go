@@ -4,60 +4,87 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"github.com/zondax/hid"
-	ledger_go "github.com/zondax/ledger-go"
 )
 
-// hidDevice exchanges APDUs with a Ledger device over HID, in ledger-go's
-// framing, writing one 64-byte report per call.
+// device exchanges APDUs with a Ledger app. Exchange returns the response
+// data; a status word other than 0x9000 is returned as a *statusError.
+type device interface {
+	Exchange(apdu []byte) ([]byte, error)
+	Close() error
+}
+
+// swDeviceLocked is the status word the device answers with while locked,
+// whichever app is open.
+const swDeviceLocked = 0x5515
+
+// statusError is a status word other than 0x9000 and the data sent with it.
+type statusError struct {
+	sw   uint16
+	data []byte
+}
+
+func (e *statusError) Error() string {
+	return fmt.Sprintf("Ledger status word 0x%04X", e.sw)
+}
+
+// HID framing of APDUs, as Ledger devices expect it: each 64-byte report
+// carries the channel, a tag, a sequence number and, in the first report, the
+// length of the whole APDU.
+const (
+	hidReportSize = 64
+	hidChannel    = 0x0101
+	hidTag        = 0x05
+)
+
+// frameAPDU splits apdu into the reports that carry it.
+func frameAPDU(apdu []byte) [][]byte {
+	var reports [][]byte
+	rest := apdu
+	for seq := uint16(0); seq == 0 || len(rest) > 0; seq++ {
+		report := make([]byte, hidReportSize)
+		binary.BigEndian.PutUint16(report, hidChannel)
+		report[2] = hidTag
+		binary.BigEndian.PutUint16(report[3:], seq)
+		header := 5
+		if seq == 0 {
+			binary.BigEndian.PutUint16(report[5:], uint16(len(apdu)))
+			header = 7
+		}
+		n := copy(report[header:], rest)
+		rest = rest[n:]
+		reports = append(reports, report)
+	}
+	return reports
+}
+
+// hidDevice exchanges APDUs over HID, writing one report per call.
 //
-// ledger-go's own transport passes every report of an APDU to a single write.
-// On macOS, after such a write for an APDU spanning several reports (over 57
-// bytes), the next write to a device running the Gno.land app times out, and the
-// device stops receiving until it is unplugged.
+// ledger-go passed every report of an APDU to a single write. On macOS,
+// after such a write for an APDU spanning several reports (over 57 bytes),
+// the next write to a device running the Gno.land app timed out, and the
+// device stopped receiving until it was unplugged. Pure-Go HID backends
+// refuse writes longer than a report outright.
 type hidDevice struct {
 	dev reportIO
 }
 
-// reportIO is the part of [hid.Device] hidDevice uses.
+// reportIO reads and writes single HID reports.
 type reportIO interface {
-	Write([]byte) (int, error)
-	Read([]byte) (int, error)
+	Write(report []byte) (int, error)
+	Read(report []byte) (int, error)
 	Close() error
 }
 
-var _ ledger_go.LedgerDevice = (*hidDevice)(nil)
-
-// connectHID opens the APDU interface of the first Ledger device, chosen as
-// ledger-go chooses it.
-func connectHID() (*hidDevice, error) {
-	for _, info := range hid.Enumerate(ledger_go.VendorLedger, 0) {
-		if info.UsagePage != ledger_go.UsagePageLedgerNanoS && info.Interface != 0 {
-			continue
-		}
-		dev, err := info.Open()
-		if err != nil {
-			return nil, err
-		}
-		return &hidDevice{dev: dev}, nil
-	}
-	return nil, errors.New("no Ledger device found: it may be locked or in use by another application")
-}
+var _ device = (*hidDevice)(nil)
 
 func (d *hidDevice) Exchange(apdu []byte) ([]byte, error) {
 	if len(apdu) < 5 || int(apdu[4]) != len(apdu)-5 {
 		return nil, errors.New("malformed APDU")
 	}
-	reports, err := ledger_go.WrapCommandAPDU(ledger_go.Channel, apdu, ledger_go.PacketSize)
-	if err != nil {
-		return nil, err
-	}
-	for len(reports) > 0 {
-		if _, err := d.dev.Write(reports[:ledger_go.PacketSize]); err != nil {
+	for _, report := range frameAPDU(apdu) {
+		if _, err := d.dev.Write(report); err != nil {
 			return nil, err
 		}
-		reports = reports[ledger_go.PacketSize:]
 	}
 
 	resp, err := d.read()
@@ -69,8 +96,7 @@ func (d *hidDevice) Exchange(apdu []byte) ([]byte, error) {
 	}
 	data, sw := resp[:len(resp)-2], binary.BigEndian.Uint16(resp[len(resp)-2:])
 	if sw != 0x9000 {
-		// As ledger-go reports it, so that statusWord recovers it.
-		return data, errors.New(ledger_go.ErrorMessage(sw))
+		return data, &statusError{sw: sw, data: data}
 	}
 	return data, nil
 }
@@ -83,24 +109,29 @@ func (d *hidDevice) read() ([]byte, error) {
 		seq  uint16
 	)
 	for {
-		report := make([]byte, ledger_go.PacketSize)
+		report := make([]byte, hidReportSize)
 		n, err := d.dev.Read(report)
 		if err != nil {
 			return nil, err
 		}
-		chunk, total, _, err := ledger_go.DeserializePacket(ledger_go.Channel, report[:n], seq)
-		if err != nil {
+		report = report[:n]
+		header := 5
+		if seq == 0 {
+			header = 7
+		}
+		if len(report) < header || binary.BigEndian.Uint16(report) != hidChannel ||
+			report[2] != hidTag || binary.BigEndian.Uint16(report[3:]) != seq {
 			if seq == 0 {
 				// Not the start of a response, such as an empty report some
 				// devices send on macOS: wait for the next one.
 				continue
 			}
-			return nil, err
+			return nil, fmt.Errorf("unexpected HID report %d of a response", seq)
 		}
 		if seq == 0 {
-			size = int(total)
+			size = int(binary.BigEndian.Uint16(report[5:]))
 		}
-		resp = append(resp, chunk...)
+		resp = append(resp, report[header:]...)
 		seq++
 		if len(resp) >= size {
 			return resp[:size], nil

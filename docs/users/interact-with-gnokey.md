@@ -79,8 +79,8 @@ with two Ledger apps and uses whichever one is open:
   signing;
 - the Cosmos app, which signs gno transactions as generic amino documents.
 
-Ledger support needs a `gnokey` built with CGO; see
-[CGO + Ledger support](#cgo--ledger-support).
+Ledger support is built into every `gnokey` on Linux, macOS and Windows; it
+needs no CGO or other build options.
 
 To add a reference to a Ledger key, open the app on the device and run:
 
@@ -979,18 +979,8 @@ go env GOOS GOARCH
 
 If those don't match the airgapped target, **set `GOOS=linux` and `GOARCH=<...>` explicitly**.
 
-> Important: because Ledger support requires **CGO**, cross-compiling with `CGO_ENABLED=1` is often painful and may not
-> work without a proper cross C toolchain. The simplest safe approach is:
-> **build on a machine that matches the airgapped machine's OS/arch/distro baseline**.
-
-### CGO + Ledger support
-
-Ledger support requires **CGO**.
-CGO is **off by default** in this repo's build setup, so you must explicitly enable it when building `gnokey`.
-
-See [#2737](https://github.com/gnolang/gno/issues/2737).
-
-To enable CGO, simply add this before the `go build` command: `CGO_ENABLED=1`
+Ledger support needs no CGO, so `gnokey` cross-compiles for the airgapped machine like any
+other Go binary.
 
 ### 1. Build on a trusted online machine
 

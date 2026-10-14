@@ -9,7 +9,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	secp "github.com/decred/dcrd/dcrec/secp256k1/v4"
-	ledger_go "github.com/zondax/ledger-go"
 )
 
 // GnoAppName is the name the Gno.land Ledger app returns for GET_APP_NAME.
@@ -40,7 +39,6 @@ const (
 // Status words the Gno.land app returns, besides 0x9000.
 const (
 	gnoSWCommandNotAccepted = 0x6901
-	swDeviceLocked          = 0x5515
 )
 
 var gnoStatusWords = map[uint16]string{
@@ -77,33 +75,9 @@ func (e *GnoStatusError) Error() string {
 	return fmt.Sprintf("Ledger: %s (0x%04X)", meaning, e.SW)
 }
 
-// ledgerGoStatusWords are the status words ledger-go's ErrorMessage names;
-// it reports any other one as "APDU Error Code from Ledger Device: 0x%04x".
-var ledgerGoStatusWords = []uint16{
-	0x6400, 0x6700, 0x6982, 0x6983, 0x6984, 0x6985, 0x6986, 0x6A80,
-	0x6B00, 0x6D00, 0x6E00, 0x6E01, 0x6F00, 0x6F01,
-}
-
-// statusWord recovers the status word behind an error from ledger-go, which
-// reports only the text of ErrorMessage(sw). It returns false for errors that
-// are not a status word, such as a failed USB transfer.
-func statusWord(err error) (uint16, bool) {
-	for _, sw := range ledgerGoStatusWords {
-		if err.Error() == ledger_go.ErrorMessage(sw) {
-			return sw, true
-		}
-	}
-	var sw uint16
-	if _, scanErr := fmt.Sscanf(err.Error(), "APDU Error Code from Ledger Device: 0x%04x", &sw); scanErr == nil &&
-		err.Error() == ledger_go.ErrorMessage(sw) {
-		return sw, true
-	}
-	return 0, false
-}
-
 // GnoApp talks to the Gno.land Ledger app. It implements [SECP256K1].
 type GnoApp struct {
-	device ledger_go.LedgerDevice
+	device device
 
 	// After a review, the device answers 0x6901 until its status page closes.
 	// Such commands were not processed, so they are resent.
@@ -117,9 +91,9 @@ var errNotGnoApp = errors.New("the open Ledger app is not the Gno.land app")
 // openGnoApp returns a [GnoApp] on device if the Gno.land app is the one open, and
 // errNotGnoApp if the device answered as another app, or the dashboard, would.
 // A locked or busy device and transport failures are returned as they are.
-func openGnoApp(device ledger_go.LedgerDevice) (*GnoApp, error) {
+func openGnoApp(dev device) (*GnoApp, error) {
 	app := &GnoApp{
-		device:      device,
+		device:      dev,
 		busyRetry:   250 * time.Millisecond,
 		busyTimeout: 10 * time.Second,
 		sleep:       time.Sleep,
@@ -151,16 +125,16 @@ func (a *GnoApp) exchange(ins, p1, p2 byte, data []byte) ([]byte, error) {
 		if err == nil {
 			return resp, nil
 		}
-		sw, ok := statusWord(err)
-		if !ok {
+		var status *statusError
+		if !errors.As(err, &status) {
 			return nil, err
 		}
-		if sw == gnoSWCommandNotAccepted && waited < a.busyTimeout {
+		if status.sw == gnoSWCommandNotAccepted && waited < a.busyTimeout {
 			a.sleep(a.busyRetry)
 			waited += a.busyRetry
 			continue
 		}
-		return nil, &GnoStatusError{SW: sw}
+		return nil, &GnoStatusError{SW: status.sw}
 	}
 }
 

@@ -9,14 +9,13 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	ledger_go "github.com/zondax/ledger-go"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
 // fakeGnoDevice answers like the Gno.land app (docs/APDU.md in ledger-app-gno) for
-// a single secp256k1 key, and reports errors as ledger-go does.
+// a single secp256k1 key, and reports errors as the transport does.
 type fakeGnoDevice struct {
 	name    string
 	key     secp256k1.PrivKeySecp256k1
@@ -31,8 +30,9 @@ func newFakeGnoDevice() *fakeGnoDevice {
 	return &fakeGnoDevice{name: GnoAppName, key: secp256k1.GenPrivKey()}
 }
 
-func statusError(sw uint16) error {
-	return errors.New(ledger_go.ErrorMessage(sw))
+// swError is how the transport reports a status word other than 0x9000.
+func swError(sw uint16) error {
+	return &statusError{sw: sw}
 }
 
 func (d *fakeGnoDevice) address() string {
@@ -41,13 +41,13 @@ func (d *fakeGnoDevice) address() string {
 
 func (d *fakeGnoDevice) checkPath(data []byte) error {
 	if len(data) != 21 || data[0] != 5 {
-		return statusError(0x6E03)
+		return swError(0x6E03)
 	}
 	// m/44'/118'/account'/0/index
 	c := func(i int) uint32 { return binary.BigEndian.Uint32(data[1+4*i:]) }
 	if c(0) != 44|0x8000_0000 || c(1) != 118|0x8000_0000 || c(2) < 0x8000_0000 ||
 		c(3) != 0 || c(4) >= 0x8000_0000 {
-		return statusError(0xB00B)
+		return swError(0xB00B)
 	}
 	return nil
 }
@@ -56,10 +56,10 @@ func (d *fakeGnoDevice) Exchange(apdu []byte) ([]byte, error) {
 	d.apdus = append(d.apdus, apdu)
 	if d.busy > 0 {
 		d.busy--
-		return nil, statusError(gnoSWCommandNotAccepted)
+		return nil, swError(gnoSWCommandNotAccepted)
 	}
 	if apdu[0] != gnoCLA {
-		return nil, statusError(0x6E00)
+		return nil, swError(0x6E00)
 	}
 	ins, p1, p2, data := apdu[1], apdu[2], apdu[3], apdu[5:]
 	switch ins {
@@ -70,7 +70,7 @@ func (d *fakeGnoDevice) Exchange(apdu []byte) ([]byte, error) {
 			return nil, err
 		}
 		if p1 == gnoP1PubKeyDisplay && d.reject {
-			return nil, statusError(0x6985)
+			return nil, swError(0x6985)
 		}
 		pub := d.key.PubKey().(secp256k1.PubKeySecp256k1)
 		resp := append([]byte{gnoPubKeyLen}, pub[:]...)
@@ -85,18 +85,18 @@ func (d *fakeGnoDevice) Exchange(apdu []byte) ([]byte, error) {
 			d.session, d.open = nil, true
 			return nil, nil
 		case !d.open:
-			return nil, statusError(0xB00C)
+			return nil, swError(0xB00C)
 		case p2 == gnoP2SignMore:
 			d.session = append(d.session, data...)
 			return nil, nil
 		}
 		d.open = false
 		if d.reject {
-			return nil, statusError(0x6985)
+			return nil, swError(0x6985)
 		}
 		return d.key.Sign(append(d.session, data...))
 	}
-	return nil, statusError(0x6D00)
+	return nil, swError(0x6D00)
 }
 
 func (*fakeGnoDevice) Close() error { return nil }
@@ -287,7 +287,7 @@ func TestGnoAppMalformedResponses(t *testing.T) {
 // errorDevice answers every command with the same status word.
 type errorDevice struct{ sw uint16 }
 
-func (d errorDevice) Exchange([]byte) ([]byte, error) { return nil, statusError(d.sw) }
+func (d errorDevice) Exchange([]byte) ([]byte, error) { return nil, swError(d.sw) }
 func (errorDevice) Close() error                      { return nil }
 
 // failingDevice fails every transfer, as an unresponsive device does.
