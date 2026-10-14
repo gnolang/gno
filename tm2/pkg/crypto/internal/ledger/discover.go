@@ -10,7 +10,6 @@ import (
 	ledger_cosmos "github.com/cosmos/ledger-cosmos-go"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/zondax/hid"
-	ledger_go "github.com/zondax/ledger-go"
 )
 
 // SECP256K1 reflects an interface a Ledger API must implement for SECP256K1
@@ -36,7 +35,7 @@ func DiscoverDefault() (SECP256K1, error) {
 		return nil, errors.New("ledger support is not enabled, try building with CGO_ENABLED=1")
 	}
 
-	device, err := ledger_go.NewLedgerAdmin().Connect(0)
+	device, err := connectHID()
 	if err != nil {
 		return nil, err
 	}

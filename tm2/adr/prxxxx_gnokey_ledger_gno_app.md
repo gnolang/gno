@@ -53,10 +53,18 @@ the keybase and every `gnokey` command are unchanged:
 - Right after a review the device answers `0x6901` (COMMAND_NOT_ACCEPTED) until
   its status page closes. Such a command was not processed, so it is resent
   every 250 ms for up to 10 s.
+- It reaches the device through `hidDevice`, a small HID transport using
+  ledger-go's framing but writing one 64-byte report per call. ledger-go's own
+  transport passes all the reports of an APDU to a single write. On macOS with
+  a Nano S Plus, after such a write for a 255-byte payload chunk (five
+  reports), the next write timed out and the device stopped receiving until
+  unplugged; `gnokey sign` failed with `hidapi: unknown failure`. Writing one
+  report per call, as Ledger's Python tooling does, signs normally. The Cosmos
+  app keeps ledger-cosmos-go's transport.
 - Status words become `*GnoStatusError` with a readable meaning (rejected on
   the device, Packages setting off, payload not accepted, ...). ledger-go
-  reports only `ErrorMessage(sw)`'s text, so the code is recovered by matching
-  that text for the status words the app defines.
+  reports only `ErrorMessage(sw)`'s text, so the code is recovered from that
+  text; `hidDevice` reports status words the same way.
 
 ## Alternatives considered
 
@@ -74,6 +82,8 @@ the keybase and every `gnokey` command are unchanged:
   the Cosmos app see no change.
 - `zondax/ledger-go` becomes a direct dependency (it was already indirect).
 - Tests use a fake device that follows the Gno app's protocol and session rules
-  with a real secp256k1 key. The client was also run against the app itself in
-  Speculos: a key added with on-device approval, and a `bank.MsgSend` signed
-  after the full review, verified by `std.VerifySignaturePayload`.
+  with a real secp256k1 key, and fake HID reports for the transport. The client
+  was also run against the app itself, in Speculos and on a Nano S Plus:
+  `gnokey add ledger` with the address approved on the device, then
+  `gnokey sign` of a `bank.MsgSend` after the full review, which
+  `gnokey verify` accepts.
