@@ -19,6 +19,15 @@ The purpose of this solution is either:
 - allowing overriding the current home alias, using a file called `home-override.md` placed in the same folder of currently aliased home file
 - adding extra blocks to the current home, by placing them in a file called `extra-blocks.md`. The latter file should be placed in the same folder of currently aliased home file too.
 
+## Latest blog posts
+
+A line `<!-- latest-blogposts -->` in `home-override.md` is replaced by the three
+most recent posts of `r/gnoland/blog`, refreshed on every round of `gnoalias.sh`
+(hourly). gnoweb restarts only when the posts change; if the query fails, the
+current page stays as it is. The posts come from mainnet; on a testnet, set
+`BLOG_LINK_BASE=https://gno.land` (see [docker-compose.yml](docker-compose.yml))
+so their links lead there.
+
 ## Prerequisites
 
 In any environment used:
