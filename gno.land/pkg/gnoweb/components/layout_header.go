@@ -20,6 +20,9 @@ type HeaderLink struct {
 	// data-outbound on the link so SimpleAnalytics fires a named
 	// outbound_<label> event instead of an anonymous outbound click.
 	Outbound string
+	// Path is the plain path a menu item shows under its label, where URL
+	// may carry a tab and an anchor ($source#subpackages).
+	Path string
 }
 
 type HeaderLinks struct {
@@ -166,7 +169,10 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 }
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
-	data.RealmPath = data.RealmURL.EncodeURL()
+	// The root has no path: an empty value shows the placeholder
+	if data.RealmURL.Path != "/" {
+		data.RealmPath = data.RealmURL.EncodeURL()
+	}
 	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
 	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
 		data.AI = NewAIMenu(data.Origin, data.RealmURL)
