@@ -216,9 +216,10 @@ branch/count/hash form when the commit is not tagged. The `--match` keeps a
 launch tag out of the answer: one can sit on a release commit (`chain/mainnet`
 is on the same commit as `v1.2.0`), and its name is a string the comparison
 below refuses. `chain/mainnet` is lightweight, so `describe` prefers the
-annotated `v1.2.0` anyway; an annotated launch tag would win. The release
-workflow injects the tag verbatim for the same reason: a binary built on a
-release tag has to report exactly the shape the comparison understands.
+annotated `v1.2.0` anyway, as it would an annotated launch tag tagged before
+`v1.2.0`; one tagged after would win. The release workflow injects the tag
+verbatim for the same reason: a binary built on a release tag has to report
+exactly the shape the comparison understands.
 
 Two shapes parse (`meetsMinVersion`, and see [RELEASING.md](../../../RELEASING.md)):
 
