@@ -87,22 +87,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		return "", 0, diffs, &SkipError{Reason: v.Mode + ": " + v.Reason}
 	}
-	// One verdict line per .go corpus file; sync writes it, verify demands it.
-	if isGoFile && !opts.Sync {
-		n := 0
-		for _, d := range dirs {
-			if d.Name == DirectiveVerdict {
-				n++
-			}
-		}
-		if n != 1 {
-			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
-		}
-		if _, ok := verdictIn(dirs); !ok {
-			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
-		}
-	}
-
 	// Strip the trailing golden region (`// GnoError:` /
 	// `// GoTypeCheckError:` blocks, verdict lines) from the source
 	// fed to Gno. Leaving it in would extend the file and shift the
@@ -173,6 +157,26 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		// golden (handled by the main match loop); the new triple
 		// directives drive the Gno-vs-Go finalize at the end.
 		isGoRunMode = true
+	}
+	// One verdict line per Go-compared file (.go corpus files and
+	// opted-in .gno files alike); sync writes it, verify demands it.
+	if isGoRunMode && !opts.Sync {
+		n := 0
+		for _, d := range dirs {
+			if d.Name == DirectiveVerdict {
+				n++
+			}
+		}
+		if n != 1 {
+			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
+		}
+		v, ok := verdictIn(dirs)
+		if !ok {
+			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
+		}
+		if err := v.check(); err != nil {
+			return "", 0, diffs, err
+		}
 	}
 	// The Go side is a golden: `go run` only under sync (with the toolchain
 	// pinned in gocorpus/VERSION); verify compares against `// GoOutput:`
@@ -482,50 +486,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	return "", m.GasMeter.GasConsumed(), diffs, returnErr
 }
 
-// goldenSection is one named per-line golden block (`// GnoError:` or
-// `// GoTypeCheckError:`) to (re)write at the bottom of an errorcheck file.
-type goldenSection struct {
-	name   string // directive name, e.g. DirectiveGnoError
-	block  string // FormatGnoErrorBlock output (may be empty → omitted)
-	inline bool   // single-line `// Name: block` (verdicts)
-}
-
-// resolveStaticGolden reconciles the trailing golden region — the named
-// per-line blocks and the verdict line — against the freshly-computed
-// values. `dirs` is the file's parsed directives (the on-disk blocks).
-//
-// Returns (newContent, err): newContent is non-empty only when sync
-// rewrote the file. Non-sync failures report the first diff / missing
-// block.
-func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directives, sections []goldenSection) (string, error) {
-	allOK := true
-	for _, s := range sections {
-		d := dirs.First(s.name)
-		ok := (s.block == "" && d == nil) || (d != nil && strings.TrimRight(d.Content, "\n") == s.block)
-		allOK = allOK && ok
-	}
-	if allOK {
-		return "", nil
-	}
-	if opts.Sync {
-		return writeStaticGolden(originalSource, sections), nil
-	}
-	for _, s := range sections {
-		d := dirs.First(s.name)
-		switch {
-		case s.block != "" && d == nil:
-			return "", fmt.Errorf(
-				"errorcheck: no `// %s:` block present; re-run with "+
-					"--update-golden-tests to record it:\n%s", s.name, indent(s.block, "  "))
-		case s.block == "" && d != nil:
-			return "", fmt.Errorf("errorcheck: stale `// %s:` block; re-run with --update-golden-tests to remove it", s.name)
-		case d != nil && strings.TrimRight(d.Content, "\n") != s.block:
-			return "", fmt.Errorf("// %s: diff:\n%s", s.name, unifiedDiff(d.Content, s.block))
-		}
-	}
-	return "", nil
-}
-
 // writeUnsupportedDirective returns originalSource (golden region
 // stripped) with a trailing `// Unsupported: <reason>` directive, so a
 // file that fails on a Gno-unsupported import is skipped on future
@@ -533,58 +493,6 @@ func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directi
 func writeUnsupportedDirective(originalSource []byte, reason string) string {
 	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
 	return body + "\n\n// " + DirectiveVerdict + ": " + VerdictUnsupported + " " + TagUnsupportedReason(reason) + "\n"
-}
-
-// writeStaticGolden returns the file content for a compile-mode golden
-// update: originalSource (upstream-verbatim — NOT the rescued source, so
-// in-memory transforms aren't persisted) with a trailing golden region
-// appended, each non-empty section blank-line separated. Any existing
-// trailing golden region is replaced rather than duplicated.
-func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
-	// Capture triage state marker lines before stripping so a golden
-	// refresh never drops manual triage status.
-	var stateLines []string
-	for _, ln := range strings.Split(string(originalSource), "\n") {
-		t := strings.TrimSpace(ln)
-		for _, name := range triageStateMarkers {
-			if strings.HasPrefix(t, "// "+name+":") {
-				stateLines = append(stateLines, t)
-			}
-		}
-	}
-	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
-	var sb strings.Builder
-	sb.WriteString(body)
-	sb.WriteString("\n")
-	// Canonical marker position: between the code body and the pinned
-	// golden region (same place the run-mode writer keeps them).
-	for _, ln := range stateLines {
-		sb.WriteString("\n")
-		sb.WriteString(ln)
-		sb.WriteString("\n")
-	}
-	for _, s := range sections {
-		if s.block == "" {
-			continue
-		}
-		if s.inline {
-			sb.WriteString("\n// " + s.name + ": " + s.block + "\n")
-			continue
-		}
-		sb.WriteString("\n// ")
-		sb.WriteString(s.name)
-		sb.WriteString(":\n")
-		for _, line := range strings.Split(s.block, "\n") {
-			if line == "" {
-				sb.WriteString("//\n")
-				continue
-			}
-			sb.WriteString("// ")
-			sb.WriteString(line)
-			sb.WriteString("\n")
-		}
-	}
-	return sb.String()
 }
 
 // goldenRegionStarts are the directive names that can begin the trailing
@@ -601,9 +509,8 @@ var goldenRegionStarts = []string{
 // triageStateMarkers are the standalone triage status lines (`// Fixed:`,
 // `// Fixing:`, `// Tracked:`) written by manual triage after the golden
 // region. They are NOT harness directives (never add them to
-// allDirectives) but the golden writer must carry them across re-syncs:
-// stripTrailingGoldenRegion treats a trailing marker block as strippable
-// and writeStaticGolden re-appends the captured lines at the end.
+// allDirectives); stripTrailingGoldenRegion treats a trailing marker
+// block as strippable so a re-sync replaces rather than duplicates it.
 var triageStateMarkers = []string{"Fixed", "Fixing", "Tracked"}
 
 // stripTrailingGoldenRegion removes the trailing golden region — one or
@@ -699,14 +606,15 @@ func stripTrailingGoldenRegion(src string) string {
 //     .gno files reuse their existing // Output: golden.
 //   - // GnoError:  Gno's panic/error — only when non-empty (.go only).
 //   - // GoOutput:  Go's combined stdout+stderr — always (even empty).
-//   - // Divergence: present iff the two sides differ; its reason text
-//     blesses the diff (a human-written reason is preserved on re-sync).
+//   - // Verdict:   exactly one, for .go and opted-in .gno alike: `Clean run`
+//     when the sides match, `KnownIssue` / `KnownDivergence` when they
+//     differ (a human-written reason is preserved on re-sync).
 //
 // Gno's panic lands in gnoError, not gnoStdout; it is folded into the
 // comparison to mirror Go's combined stream — otherwise a Gno panic with
 // no prior stdout would compare equal to a clean Go run (both "") and
-// silently pass a real bug. (bug446.go: Gno mis-orders package init and
-// panics where Go exits 0.)
+// silently pass a real bug (a panicking main with no prior output is
+// exactly that shape).
 //
 // Returns (newDirs, err). In run mode sync always rewrites (both sides
 // are re-pinned), so newDirs is non-nil under opts.Sync.
@@ -738,9 +646,9 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 		if tc := FormatLineOnlyBlock(PerLineErrors(tcError, 0)); tc != "" {
 			want = append(want, Directive{Name: DirectiveGoTypeCheckError, Content: tc})
 		}
-		if !diverges {
-			want = append(want, verdict{Kind: VerdictClean, Mode: "run"}.directive())
-		}
+	}
+	if !diverges {
+		want = append(want, verdict{Kind: VerdictClean, Mode: "run"}.directive())
 	}
 
 	if sync {
@@ -784,7 +692,7 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 			"stale `// GoTypeCheckError:` golden (the guard no longer errors) — re-run with --update-golden-tests"))
 	}
 	kind := verdictKind(dirs)
-	if isGoFile && diverges && kind == VerdictClean {
+	if diverges && kind == VerdictClean {
 		prior = multierr.Append(prior, fmt.Errorf(
 			"stale `// Verdict: Clean run`: Gno now diverges from Go — re-run with --update-golden-tests"))
 	}
@@ -1157,8 +1065,8 @@ const (
 	DirectiveTypes          = "Types"
 	DirectiveTypeCheckError = "TypeCheckError"
 
-	// DirectiveVerdict is the one verdict line every .go corpus file
-	// ends with; see verdict.go for its grammar.
+	// DirectiveVerdict is the one verdict line every Go-compared file
+	// (.go corpus file or opted-in .gno) ends with; see verdict.go.
 	DirectiveVerdict = "Verdict"
 
 	// Symmetric Gno-vs-Go golden directives for .go corpus files.
