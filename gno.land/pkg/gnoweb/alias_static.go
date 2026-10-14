@@ -1,10 +1,7 @@
 package gnoweb
 
 import (
-	"os"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown"
 )
@@ -151,48 +148,4 @@ func isBlockIndicator(v string) bool {
 	}
 	v, _, _ = strings.Cut(v[1:], "#")
 	return strings.Trim(v, "+-0123456789 \t") == ""
-}
-
-// NewStaticFileAlias reads a static-markdown alias from path. The page is
-// re-read whenever the file's size or modification time changes, so the file
-// can be replaced (ideally by renaming a new one over it) without restarting
-// gnoweb. If a later read fails, the last content read is kept.
-func NewStaticFileAlias(path string) (AliasTarget, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return AliasTarget{}, err
-	}
-	f := &staticFile{path: path, target: NewStaticAlias(string(content))}
-	return f.current(), nil
-}
-
-type staticFile struct {
-	path string
-
-	mu      sync.Mutex
-	modTime time.Time // zero: read the file again on the next request
-	size    int64
-	target  AliasTarget
-}
-
-// staticFileSettle is how old a file's modification time must be before a
-// read of it is trusted. A write within the same timestamp tick as the read
-// (coarse filesystem clocks, an in-place write caught halfway) would
-// otherwise leave stale content until the next change.
-const staticFileSettle = 2 * time.Second
-
-func (f *staticFile) current() AliasTarget {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if info, err := os.Stat(f.path); err == nil && (!info.ModTime().Equal(f.modTime) || info.Size() != f.size) {
-		if content, err := os.ReadFile(f.path); err == nil {
-			f.target, f.size, f.modTime = NewStaticAlias(string(content)), info.Size(), info.ModTime()
-			if time.Since(f.modTime) < staticFileSettle {
-				f.modTime = time.Time{}
-			}
-		}
-	}
-	t := f.target
-	t.file = f
-	return t
 }

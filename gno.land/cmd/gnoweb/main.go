@@ -420,12 +420,12 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 
 		// Check if the value is a path to a static file.
 		if staticFilePath, found := strings.CutPrefix(parts[1], "static:"); found {
-			target, err := gnoweb.NewStaticFileAlias(staticFilePath)
+			content, err := os.ReadFile(staticFilePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read static file %s: %w", staticFilePath, err)
 			}
 
-			aliases[parts[0]] = target
+			aliases[parts[0]] = gnoweb.NewStaticAlias(string(content))
 		} else { // Otherwise, treat it as a normal alias.
 			aliases[parts[0]] = gnoweb.AliasTarget{Value: parts[1], Kind: gnoweb.GnowebPath}
 		}
