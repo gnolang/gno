@@ -39,10 +39,26 @@ import "/foo"  // ERROR "import path cannot be absolute path|not used"
 import "c:/foo"  // ERROR "import path contains invalid character|invalid character"
 
 // GnoError:
-// line 17: invalid zero package path in testStore().pkgGetter:
-// --- preprocess stack ---
-// stack 1: file main/import6.go:10:1-39:16
-// ------------------------
+// line 17: invalid import path (empty string)
+// line 18: invalid import path (empty string)
+// line 19: invalid import path "\x00": invalid character '\x00'
+// line 20: invalid import path "\\x00": invalid character '\\'
+// line 21: invalid import path "\x7f": invalid character '\x7f'
+// line 22: invalid import path "\\x7f": invalid character '\\'
+// line 23: invalid import path "a!": invalid character '!'
+// line 24: invalid import path "a!": invalid character '!'
+// line 25: invalid import path "a b": invalid character ' '
+// line 26: invalid import path "a b": invalid character ' '
+// line 27: invalid import path "a\\b": invalid character '\\'
+// line 28: invalid import path "a\\\\b": invalid character '\\'
+// line 29: invalid import path "\"`a`\"": invalid character '"'
+// line 30: invalid import path "\\\"a\\\"": invalid character '\\'
+// line 31: import path contains invalid UTF-8 character: "\x80\x80"
+// line 32: invalid import path "\\x80\\x80": invalid character '\\'
+// line 33: import path contains invalid UTF-8 character: "\xffFD"
+// line 34: invalid import path "\\xFFFD": invalid character '\\'
+// line 38: import path cannot be absolute path: "/foo"
+// line 39: invalid import path "c:/foo": invalid character ':'
 
 // GoTypeCheckError:
 // line 17
@@ -65,26 +81,5 @@ import "c:/foo"  // ERROR "import path contains invalid character|invalid charac
 // line 34
 // line 38
 // line 39
-
-// GoTypesOnly:
-// line 18: gc expects: import path
-// line 19: gc expects: import path
-// line 20: gc expects: import path
-// line 21: gc expects: import path
-// line 22: gc expects: import path
-// line 23: gc expects: import path
-// line 24: gc expects: import path
-// line 25: gc expects: import path
-// line 26: gc expects: import path
-// line 27: gc expects: import path
-// line 28: gc expects: import path
-// line 29: gc expects: import path
-// line 30: gc expects: import path
-// line 31: gc expects: import path
-// line 32: gc expects: import path
-// line 33: gc expects: import path
-// line 34: gc expects: import path
-// line 38: gc expects: import path cannot be absolute path|not used
-// line 39: gc expects: import path contains invalid character|invalid character
 
 // Verdict: Clean errorcheck

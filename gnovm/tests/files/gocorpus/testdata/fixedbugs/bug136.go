@@ -23,14 +23,12 @@ func main() {
 
 // GnoError:
 // line 13: cannot find branch label "L"
+// line 19: invalid break label L1
 
 // GoTypeCheckError:
 // line 10
 // line 13
 // line 16
 // line 19
-
-// GoTypesOnly:
-// line 19: gc expects: L1
 
 // Verdict: Clean errorcheck
