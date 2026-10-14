@@ -6,7 +6,8 @@ import { BaseController, debounce } from "./controller.js";
 //   data-filter-attribute-value="<attr>"       (default: data-name)
 //   data-filter-class-value="<class>"          (default: u-hidden)
 //   data-action="input->filter#filter"
-// Toggles the class on non-matching items; no events emitted.
+// Toggles the class on non-matching items and takes them out of the tab order
+// and the accessibility tree; no events emitted.
 export class FilterController extends BaseController {
 	private declare items: HTMLElement[];
 	private declare attribute: string;
@@ -51,6 +52,15 @@ export class FilterController extends BaseController {
 			// `u-hidden` over the HTML `hidden` attr: authored `display:*`
 			// rules outrank the user-agent `[hidden] { display: none }`.
 			el.classList.toggle(this.hiddenClass, !match);
+			// A dimmed item is still drawn: it leaves the tab order and the
+			// accessibility tree all the same.
+			if (match) {
+				el.removeAttribute("tabindex");
+				el.removeAttribute("aria-hidden");
+			} else {
+				el.setAttribute("tabindex", "-1");
+				el.setAttribute("aria-hidden", "true");
+			}
 		}
 	}, 100);
 }

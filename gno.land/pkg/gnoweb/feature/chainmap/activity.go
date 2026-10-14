@@ -201,8 +201,8 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 		g.Go(func() error {
 			// Checked here, not before g.Go, which may block on the limit
 			// past the moment the refresh gave up: a band started then would
-			// only fail, against the indexer client's breaker. A refresh out
-			// of time fails as a whole, and the last good week stays served.
+			// only fail. A refresh out of time fails as a whole, and the last
+			// good week stays served.
 			if err := gctx.Err(); err != nil {
 				return err
 			}

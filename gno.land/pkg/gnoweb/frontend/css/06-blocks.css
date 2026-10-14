@@ -4205,11 +4205,16 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	   brackets run the row's full height, so the stubs meet them anywhere. */
 	@media (--lg) {
 		position: sticky;
-		inset-block-start: calc(var(--g-space-16) + var(--g-space-4));
+		inset-block-start: calc(var(--s-header-offset) + var(--g-space-4));
 		grid-row: 2;
 		grid-column: 2;
 		align-self: start;
 		justify-self: center;
+
+		/* The overview's own sticky bar has no fixed height to clear. */
+		.c-overview-view & {
+			position: static;
+		}
 
 		&::before,
 		.b-depgraph--both &::after {

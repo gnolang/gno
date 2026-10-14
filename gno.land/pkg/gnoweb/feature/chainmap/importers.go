@@ -28,9 +28,7 @@ const (
 
 	// scanBand is the height span of one candidate query. A whole-chain scan
 	// took 4.9 s on gnoland-1 in October 2026, past the indexer client's 4 s
-	// request timeout; bands of this width took 0.6 to 1.6 s unloaded. The
-	// margin matters: that client's breaker counts timeouts, and an open
-	// breaker turns off search for every reader too.
+	// request timeout; bands of this width took 0.6 to 1.6 s unloaded.
 	scanBand = 75_000
 
 	// scanConcurrency bounds the band queries in flight for one lookup.
@@ -225,7 +223,7 @@ func (h *Handler) scanCandidates(ctx context.Context, pkgPath string, tip int) (
 		g.Go(func() error {
 			// Checked here, not before g.Go, which may block on the limit
 			// past the moment the lookup gave up: a band started then would
-			// only fail, against the indexer client's breaker.
+			// only fail.
 			if err := gctx.Err(); err != nil {
 				return err
 			}

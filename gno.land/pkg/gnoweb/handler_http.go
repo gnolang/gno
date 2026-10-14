@@ -636,6 +636,17 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	h.setHeaderForRealm(indexData, gnourl)
 
+	// Only a deployment that can list importers serves $deps; without an
+	// indexer the overview's graph is all there is, and $deps falls through
+	// to the package like any web query gnoweb does not know. The header's
+	// tabs then follow the page that renders.
+	servesDeps := gnourl.WebQuery.Has("deps") && h.ChainMap.HasIndexer() && (gnourl.IsRealm() || gnourl.IsPure())
+	if gnourl.WebQuery.Has("deps") && !servesDeps {
+		u := &indexData.HeaderData.RealmURL
+		u.WebQuery = maps.Clone(u.WebQuery)
+		u.WebQuery.Del("deps")
+	}
+
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		if pr.markdown {
@@ -643,11 +654,8 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		}
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget, pr)
-	case gnourl.WebQuery.Has("deps") && h.ChainMap.HasIndexer() && (gnourl.IsRealm() || gnourl.IsPure()):
-		// Only a deployment that can list importers serves the page; without
-		// an indexer the overview's graph is all there is, and $deps falls
-		// through to the package like any web query gnoweb does not know.
-		return h.GetDepsView(r, gnourl, indexData)
+	case servesDeps:
+		return h.GetDepsView(r, gnourl)
 	case isPackageURL(gnourl):
 		// A markdown answer has no header, so it skips the counterpart lookup.
 		if pr.markdown {

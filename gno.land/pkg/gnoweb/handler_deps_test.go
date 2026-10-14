@@ -83,6 +83,9 @@ func newDepsHandler(t *testing.T, idx *stubIndexer) http.Handler {
 		&gnoweb.MockPackage{Path: "/r/demo/mention", Files: map[string]string{"m.gno": "package m"}, Imports: []string{"strings"}},
 	)
 	cfg := newTestHandlerConfig(t, client)
+	// Trusted, so the crawl policy alone would index these pages: what keeps
+	// $deps out is its own header.
+	cfg.TrustedPaths = []string{"*"}
 	if idx != nil {
 		cfg.Indexer = idx
 	}
@@ -108,8 +111,12 @@ func TestHTTPHandler_DepsWithoutIndexer(t *testing.T) {
 		t.Error("without an indexer the overview must not offer importers")
 	}
 
-	if body := serveGet(h, "/p/demo/lib$deps").Body.String(); strings.Contains(body, "b-deps-view") || strings.Contains(body, "Imported by") {
+	body := serveGet(h, "/p/demo/lib$deps").Body.String()
+	if strings.Contains(body, "b-deps-view") || strings.Contains(body, "Imported by") {
 		t.Error("without an indexer $deps must fall through to the package")
+	}
+	if !activeTab(body, "Content") {
+		t.Error("the page renders the package's Content, so its tab must be the active one")
 	}
 }
 

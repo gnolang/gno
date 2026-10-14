@@ -18,6 +18,12 @@ func serveGet(h http.Handler, path string) *httptest.ResponseRecorder {
 	return serve(h, httptest.NewRequest(http.MethodGet, path, nil))
 }
 
+// activeTab reports whether label is the header's active tab in body.
+func activeTab(body, label string) bool {
+	re := regexp.MustCompile(`link--is-active[^"]*">\s*<svg>\s*<use href="#ico-[a-z]+"></use>\s*</svg>\s*<span class="link-label">` + regexp.QuoteMeta(label) + `<`)
+	return re.MatchString(body)
+}
+
 func newMapHandler(t *testing.T, paths ...string) http.Handler {
 	t.Helper()
 	pkgs := make([]*gnoweb.MockPackage, len(paths))
@@ -75,8 +81,7 @@ func TestHTTPHandler_ExplorerHasListAndMapTabs(t *testing.T) {
 		if !strings.Contains(body, `href="/r/demo"`) || !strings.Contains(body, `href="/r/demo$map"`) {
 			t.Errorf("%s: missing the List or Map tab", path)
 		}
-		activeRe := regexp.MustCompile(`link--is-active[^"]*">\s*<svg>\s*<use href="#ico-[a-z]+"></use>\s*</svg>\s*<span class="link-label">` + active + `<`)
-		if !activeRe.MatchString(body) {
+		if !activeTab(body, active) {
 			t.Errorf("%s: %s is not the active tab", path, active)
 		}
 		if strings.Contains(body, `<span class="link-label">Actions<`) {

@@ -323,6 +323,33 @@ func TestGasLegendGivesUpperBounds(t *testing.T) {
 	}
 }
 
+// Every shade a tile is drawn in is in the key: realms whose bounds round to
+// the same number share the step that prints it.
+func TestGasTilesUseOnlyShadesInTheKey(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Indexer: &fakeIndexer{}, Imports: fakeImports{}, Domain: "gno.land"})
+	gas := map[string]int64{"gno.land/r/a/p1": 1_900_000, "gno.land/r/a/p2": 1_920_000, "gno.land/r/a/p3": 1_940_000}
+	calls := map[string]int{}
+	for p := range gas {
+		calls[p] = 1
+	}
+	h.activity.store("activity", &Activity{Calls: calls, Gas: gas, From: 10, To: 20, Since: time.Unix(0, 0)}, nil)
+	out := render(t, h, Listing{Path: "/r/a", Paths: []string{"/r/a/p1", "/r/a/p2", "/r/a/p3"}, Metric: MetricGas})
+
+	for _, p := range []string{"/r/a/p1", "/r/a/p2", "/r/a/p3"} {
+		i := strings.Index(out, `href="`+p+`"`)
+		j := strings.LastIndex(out[:i], "b-map__tile--")
+		shade := out[j : j+len("b-map__tile--l0")]
+		if !strings.Contains(out, `b-map-swatch `+shade) {
+			t.Errorf("%s is drawn %s, which the key does not show", p, shade)
+		}
+		if p == "/r/a/p3" && shade != shadeClasses[len(shadeClasses)-1] {
+			t.Errorf("the heaviest realm is drawn %s, want the darkest shade", shade)
+		}
+	}
+}
+
 // A map whose heaviest realm used under a million gas still tells its realms
 // apart: whole millions would put every called tile in the top shade.
 func TestLightGasMapKeepsShadesApart(t *testing.T) {

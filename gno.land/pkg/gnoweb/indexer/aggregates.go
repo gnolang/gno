@@ -12,6 +12,10 @@ import (
 // aggregates (a week of calls, every importer of a package), which their
 // callers build band by band, rather than a page of recent rows.
 //
+// They leave the breaker alone, as recent's bands do: a band too wide or too
+// slow describes the band, and any reader can ask for one. The tip and block
+// fetches a caller makes first are the health signal.
+//
 // tx-indexer lets a transaction whose message it could not decode
 // (__typename UnexpectedMessage) through any message filter: on gnoland-1 in
 // October 2026, 19 of the 20 rows a deploy filter for one package returned
@@ -58,7 +62,7 @@ func (c *Client) CallsBetween(ctx context.Context, lower, upper int) ([]Tx, erro
 		%s
 		messages: { value: { MsgCall: { pkg_path: { like: "." } } } }
 	}) { %s } }`, heightBand(lower, upper), callFields)
-	if err := c.Query(ctx, q, &out); err != nil {
+	if err := c.query(ctx, q, &out, false); err != nil {
 		return nil, err
 	}
 	return keepMatching(out.Txs, func(m Message) bool {
@@ -92,7 +96,7 @@ func (c *Client) DeploysQuoting(ctx context.Context, pkgPath string, lower, uppe
 		%s
 		messages: { value: { MsgAddPackage: { package: { files: { body: { like: %s } } } } } }
 	}) { %s } }`, heightBand(lower, upper), gqlString(literal), deployFields)
-	err := c.Query(ctx, q, &out)
+	err := c.query(ctx, q, &out, false)
 	if err != nil && !errors.Is(err, ErrTooLarge) {
 		return nil, err
 	}

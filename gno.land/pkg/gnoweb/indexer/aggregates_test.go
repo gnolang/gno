@@ -43,6 +43,28 @@ func TestCallsBetweenKeepsOnlyDecodedCalls(t *testing.T) {
 	}
 }
 
+// A failing aggregate band leaves the breaker closed: one reader's $map or
+// $deps must not turn indexer search off for everyone.
+func TestAggregateBandsDoNotOpenBreaker(t *testing.T) {
+	t.Parallel()
+
+	c, calls := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	for range breakerThreshold {
+		if _, err := c.CallsBetween(context.Background(), 0, 100); err == nil {
+			t.Fatal("CallsBetween: want an error")
+		}
+		if _, err := c.DeploysQuoting(context.Background(), "gno.land/p/a", 0, 100); err == nil {
+			t.Fatal("DeploysQuoting: want an error")
+		}
+	}
+	_, _ = c.TxByHash(context.Background(), "deadbeef")
+	if got := calls.Load(); got != 2*breakerThreshold+1 {
+		t.Fatalf("requests = %d, want the lookup after the bands to reach the network", got)
+	}
+}
+
 // A capped band is refused whole: counting part of it would read as complete.
 func TestCallsBetweenRefusesACappedBand(t *testing.T) {
 	t.Parallel()
