@@ -320,8 +320,10 @@ documented in [`gno.land/cmd/gnoland/UPGRADES.md`](gno.land/cmd/gnoland/UPGRADES
 
 ### Hotfix
 
-A critical fix that cannot wait for the `master`-first flow: commit on the
-`chain/` branch, tag, deploy, and **back-port to `master` immediately**. The
+A critical fix that cannot wait for the `master`-first flow: commit it on its
+own `chain-upgrade/…` branch off the chain branch, open the CI-only pull request
+and fast-forward once green (see "Chain branches are not master"), then tag,
+deploy, and **back-port to `master` immediately**. The
 back-port is the part that gets skipped, and it is the part that matters — until
 it lands, the chain is running code nobody can review on `master`.
 
