@@ -50,8 +50,7 @@ func ParseHTMLTokens(r io.Reader) ([]html.Token, error) {
 // for each attribute in source order with its raw value (no entity decoding),
 // aliasing src, and returns the tag's length, or 0 when src does not start
 // with that tag ending (`/>` or `>`) on this line within maxLen bytes. For the
-// body-less inline gno-* tags: <gno-icon />, and later ones such as
-// <gno-button />.
+// body-less inline gno-* tags: <gno-icon /> and <gno-button />.
 func scanGnoTag(src, prefix []byte, maxLen int, attr func(key, val []byte)) (size int, selfClosing bool) {
 	if !hasGnoTagPrefix(src, prefix) {
 		return 0, false
@@ -208,6 +207,11 @@ func (w *nodeTextWriter) walk(src []byte, n ast.Node) {
 	switch n := n.(type) {
 	case *ast.Text:
 		w.text(util.UnescapePunctuations(n.Segment.Value(src)))
+		// A line break separates two words; without it they are written
+		// against each other.
+		if n.SoftLineBreak() || n.HardLineBreak() {
+			w.buf.WriteByte(' ')
+		}
 	case *ast.String:
 		w.text(util.UnescapePunctuations(n.Value))
 	case *Icon:
