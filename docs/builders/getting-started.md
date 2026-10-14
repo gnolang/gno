@@ -8,7 +8,7 @@ goroutines, no `os`, no networking, and only standard-library or
 [Go vs Gno compatibility](../resources/go-gno-compatibility.md) for the
 full list.
 
-This page walks you from zero to a working local chain and your first
+You'll go from zero to a working local chain and your first
 on-chain transaction. For just the commands, see [Quick Start](./quickstart.md).
 
 :::tip
@@ -182,8 +182,9 @@ Keys created this way are **development-only**. Do not reuse the
 mnemonic for real funds.
 :::
 
-For key import, derivation, and the full keybase reference, see
-[Interact with gnokey](../users/interact-with-gnokey.md#managing-key-pairs).
+For importing an existing key, managing multiple keybases, and the full key
+workflow, see
+[Using the `gnokey` wallet](../users/using-gnokey.md#managing-key-pairs).
 
 ### 5. Run a local chain
 
@@ -228,9 +229,9 @@ gnokey maketx call \
 ```
 
 `-pkgpath` is the realm's on-chain path, the same one you passed to
-`gno mod init`. `-gas-wanted` is the maximum units the transaction
-may consume; `-gas-fee` is the price per unit, in `ugnot`, the smallest
-GNOT denomination. Together they cap what you'll pay. See
+`gno mod init`. `-gas-wanted` is the maximum gas units the transaction
+may consume; `-gas-fee` is the total fee you pay for it, in `ugnot`,
+the smallest GNOT denomination. See
 [Gas fees](../resources/gas-fees.md) for estimation and tuning.
 
 The signer at the end is the `alice` key you just created. You'll
@@ -242,9 +243,13 @@ On success you'll see:
 (1 int)
 OK!
 GAS WANTED: 1000000000
-GAS USED:   234567
+GAS USED:   1685054
 HEIGHT:     42
-EVENTS:     []
+STORAGE DELTA:  10 bytes
+STORAGE FEE:    1000ugnot
+TOTAL TX COST:  1001000ugnot
+EVENTS:     [{"bytes_delta":10,"fee_delta":{"denom":"ugnot","amount":1000},"pkg_path":"gno.land/r/myname/myrealm"}]
+INFO:
 TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
 ```
 
@@ -344,7 +349,11 @@ OK!
 GAS WANTED: 20000000
 GAS USED:   3456789
 HEIGHT:     12345
-EVENTS:     []
+STORAGE DELTA:  1873 bytes
+STORAGE FEE:    187300ugnot
+TOTAL TX COST:  1187300ugnot
+EVENTS:     [{"bytes_delta":1873,"fee_delta":{"denom":"ugnot","amount":187300},"pkg_path":"gno.land/r/<your-g1-addr>/myrealm"}]
+INFO:
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
@@ -359,7 +368,7 @@ Two optional flags are worth knowing about:
   the chain may lock; the transaction fails if the cap is exceeded.
 
 For the full flag list, see
-[`addpkg` in Interact with gnokey](../users/interact-with-gnokey.md#addpackage).
+[`addpkg` in the `gnokey` command reference](../resources/gnokey.md#addpackage).
 You can also deploy via the [Playground](https://play.gno.land) with a browser
 wallet like Adena.
 
@@ -385,9 +394,13 @@ receipt:
 (1 int)
 OK!
 GAS WANTED: 2000000
-GAS USED:   234567
+GAS USED:   1685054
 HEIGHT:     12346
-EVENTS:     []
+STORAGE DELTA:  10 bytes
+STORAGE FEE:    1000ugnot
+TOTAL TX COST:  1001000ugnot
+EVENTS:     [{"bytes_delta":10,"fee_delta":{"denom":"ugnot","amount":1000},"pkg_path":"gno.land/r/<your-g1-addr>/myrealm"}]
+INFO:
 TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
 ```
 
@@ -395,13 +408,14 @@ To read the state without spending gas, query the realm's render:
 
 ```sh
 gnokey query vm/qrender \
-  -pkgpath "gno.land/r/<your-g1-addr>/myrealm" -data "" \
+  -data "gno.land/r/<your-g1-addr>/myrealm:" \
   -remote https://rpc.staging.gno.land:443
 ```
 
 This returns the `Render` output ("Count: 1"), a free, read-only
-view of your realm's state. For the full `maketx call` and `gnokey`
-reference, see [Interact with gnokey](../users/interact-with-gnokey.md).
+view of your realm's state. `-data` takes `<pkgpath>:<render path>`,
+where the trailing colon means the empty path. For the full `maketx call` and `gnokey`
+reference, see [Using the `gnokey` wallet](../users/using-gnokey.md).
 
 ## Next steps
 
