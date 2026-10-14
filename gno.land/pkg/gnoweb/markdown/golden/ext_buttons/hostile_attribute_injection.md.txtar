@@ -1,0 +1,10 @@
+-- input.md --
+<gno-button href="/r/test&quot; onmouseover=&quot;alert(1)" label="x&quot; onclick=&quot;alert(1)" variant="info&quot; onclick=&quot;x" />
+
+<gno-button href="/r/test" label="<img src=x onerror=alert(1)>" />
+
+<gno-button href="/r/test" label="</a><script>alert(1)</script>" />
+-- output.html --
+<p><a href="/r/test%22%20onmouseover=%22alert(1)" class="gno-button">x&quot; onclick=&quot;alert(1)</a></p>
+<p><a href="/r/test" class="gno-button">&lt;img src=x onerror=alert(1)&gt;</a></p>
+<p><a href="/r/test" class="gno-button">&lt;/a&gt;&lt;script&gt;alert(1)&lt;/script&gt;</a></p>

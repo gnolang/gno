@@ -44,10 +44,14 @@ func (m ViewMode) ShouldShowGeneralLinks() bool {
 }
 
 type HeadData struct {
-	Title             string
-	Description       string
-	Canonical         string
+	Title       string
+	Description string
+	Canonical   string
+	// Robots is the content of the robots meta, as the handler decided it.
+	Robots            string
+	SiteName          string
 	Image             string
+	ImageAlt          string
 	URL               string
 	ChromaPath        string
 	AssetsPath        string
