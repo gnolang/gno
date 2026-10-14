@@ -332,7 +332,10 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 			order: { heightAndIndex: DESC }
 		) { %s } }`, bounds, where, txFields)
 
-		err := c.Query(ctx, q, &out)
+		// Unrecorded: a wide band outliving the client's timeout describes
+		// the band, not the indexer. The tip fetch above, which every
+		// windowed search makes first, is the health signal.
+		err := c.query(ctx, q, &out, false)
 		switch {
 		case err == nil:
 		case errors.Is(err, ErrTooLarge):
@@ -344,8 +347,9 @@ func (c *Client) recent(ctx context.Context, where string, need int) ([]Tx, erro
 		default:
 			// A wide band timing out costs the rows the narrower ones
 			// already found; those are still the newest, so keep them.
+			// The cause rides along for the log.
 			if len(found) > 0 {
-				return partial(found)
+				return found, fmt.Errorf("%w: %w", ErrPartial, err)
 			}
 			return nil, err
 		}

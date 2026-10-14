@@ -105,8 +105,8 @@ func (h *Handler) serveJSON(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 
 	// The omnibar re-asks the same question constantly — retyping a
-	// character, reopening the dropdown. An ETag turns a repeat into a 304
-	// instead of a re-render, which max-age alone cannot do once it lapses.
+	// character, reopening the dropdown. An ETag turns a repeat into a 304:
+	// the search still runs, but the body is not sent again.
 	etag := `"` + strconv.FormatUint(bodyHash(body), 16) + `"`
 	writeJSONHeaders(w)
 	w.Header().Set("ETag", etag)

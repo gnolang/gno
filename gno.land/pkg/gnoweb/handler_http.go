@@ -448,6 +448,13 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			indexData.Mode = components.ViewModeExplorer
 		}
 		h.setHeaderForRealm(&indexData, gnourl)
+		// The `?q=` a no-JS search adds is the search's, not the realm's:
+		// left in, the header input reads `/r/x?q=…` and Enter navigates
+		// there. Clone: the map is shared with the request's GnoURL.
+		if u := &indexData.HeaderData.RealmURL; u.Query.Has("q") {
+			u.Query = maps.Clone(u.Query)
+			u.Query.Del("q")
+		}
 		// An unbounded URL space where each URL costs a path listing: not
 		// something to invite crawlers into, and cheap to cache briefly.
 		// finalRobots keeps a page that asked for less at noindex, nofollow.

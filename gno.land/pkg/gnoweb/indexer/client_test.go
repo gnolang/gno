@@ -417,6 +417,10 @@ func TestRecentKeepsRowsWhenALaterBandFails(t *testing.T) {
 	if len(txs) != 1 || txs[0].Hash != "newest" {
 		t.Fatalf("txs = %+v, want the first band's row", txs)
 	}
+	// The cause travels with it, for the log.
+	if !strings.Contains(err.Error(), "502") {
+		t.Fatalf("err = %v, want the band's failure named", err)
+	}
 }
 
 // likeValues pulls every `like: "..."` literal back out of a query, decoded
@@ -577,12 +581,15 @@ func TestValidateURLErrorIsRedacted(t *testing.T) {
 	for _, raw := range []string{
 		"https://ops:s3cret@indexer example/graphql/query?apikey=hunter2",
 		"https://ops:s3cret/x@indexer.example/graphql/query",
+		// Scheme-less: the user part parses as the scheme.
+		"ops:s3cret@indexer.example/graphql/query",
+		"hunter2:@indexer.example/graphql/query",
 	} {
 		err := ValidateURL(raw)
 		if err == nil {
 			t.Fatalf("ValidateURL(%q): want an error", raw)
 		}
-		for _, secret := range []string{"s3cret", "hunter2"} {
+		for _, secret := range []string{"ops", "s3cret", "hunter2"} {
 			if strings.Contains(err.Error(), secret) {
 				t.Errorf("error %q carries %q", err, secret)
 			}
@@ -724,8 +731,149 @@ func TestTipFetchEndsOnTheClientTimeout(t *testing.T) {
 		return nil, errors.New("down")
 	})
 
-	_, _ = c.LatestBlockHeight(context.Background())
+	// A leader with a short deadline must not hand it to the shared fetch.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, _ = c.LatestBlockHeight(ctx)
 	if left < time.Minute {
 		t.Fatalf("tip fetch deadline in %v, want the client's hour", left)
+	}
+}
+
+// A band slower than the client's timeout on a healthy indexer is the band's
+// width, not the indexer's health: it must not close every other lookup for
+// the cooldown. The tip fetch, which every windowed search makes first, is
+// the health signal. Scaled down: the client gives up at 100ms.
+func TestSlowBandDoesNotOpenBreaker(t *testing.T) {
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		switch {
+		case strings.Contains(string(body), "latestBlockHeight"):
+			respond(w, `{"data":{"latestBlockHeight":100000}}`)
+		case strings.Contains(string(body), "block_height: {"):
+			select {
+			case <-r.Context().Done():
+			case <-time.After(time.Second):
+			}
+		default:
+			respond(w, `{"data":{"getTransactions":[{"hash":"abc"}]}}`)
+		}
+	})
+	c.http.Timeout = 100 * time.Millisecond
+
+	for range breakerThreshold {
+		if _, err := c.SourceContains(context.Background(), "avl.Tree", "", 5); err == nil {
+			t.Fatal("SourceContains: want the band's timeout")
+		}
+	}
+	if _, err := c.TxByHash(context.Background(), "abc"); err != nil {
+		t.Fatalf("TxByHash after slow bands: %v, want an answer", err)
+	}
+}
+
+// gqlString is the only guard on a raw `tx:` or `account:` term: every `eq:`
+// value must reach the indexer as one string literal holding the input.
+func TestEqValuesAreEscaped(t *testing.T) {
+	const hostile = `x" } } }) { hash } evil: getBlocks { hash } # \`
+	eqLiteral := regexp.MustCompile(`eq: ("(?:[^"\\]|\\.)*")`)
+	for name, run := range map[string]func(c *Client){
+		"TxByHash":        func(c *Client) { _, _ = c.TxByHash(context.Background(), hostile) },
+		"RecentByAddress": func(c *Client) { _, _ = c.RecentByAddress(context.Background(), hostile, 5) },
+		"RecentByPackage": func(c *Client) { _, _ = c.RecentByPackage(context.Background(), hostile, 5) },
+		"Deploys":         func(c *Client) { _, _ = c.Deploys(context.Background(), hostile, 5) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			q := captureTxQuery(t, run)
+			eqs := eqLiteral.FindAllStringSubmatch(q, -1)
+			if len(eqs) == 0 || strings.Count(q, "eq:") != len(eqs) {
+				t.Fatalf("eq: values are not all string literals:\n%s", q)
+			}
+			for _, m := range eqs {
+				var v string
+				if err := json.Unmarshal([]byte(m[1]), &v); err != nil || v != hostile {
+					t.Fatalf("eq: %s decodes to %q (%v), want the input", m[1], v, err)
+				}
+			}
+		})
+	}
+}
+
+// A redirect would aim gnoweb at a host nobody configured.
+func TestRedirectIsNotFollowed(t *testing.T) {
+	var followed atomic.Int32
+	elsewhere := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		followed.Add(1)
+		respond(w, `{"data":{"latestBlockHeight":1}}`)
+	}))
+	t.Cleanup(elsewhere.Close)
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, elsewhere.URL, http.StatusFound)
+	})
+
+	if _, err := c.LatestBlockHeight(context.Background()); err == nil {
+		t.Fatal("LatestBlockHeight: want the redirect refused")
+	}
+	if followed.Load() != 0 {
+		t.Fatal("the redirect was followed")
+	}
+}
+
+// countingBody yields four times the cap of 'a' and counts what was read.
+type countingBody struct{ n int }
+
+func (b *countingBody) Read(p []byte) (int, error) {
+	if b.n >= 4*maxResponseSize {
+		return 0, io.EOF
+	}
+	p = p[:min(len(p), 4*maxResponseSize-b.n)]
+	for i := range p {
+		p[i] = 'a'
+	}
+	b.n += len(p)
+	return len(p), nil
+}
+func (*countingBody) Close() error { return nil }
+
+// The cap bounds the read itself, not just the decode: an oversized body is
+// read no further than one byte past it.
+func TestResponseReadIsBounded(t *testing.T) {
+	body := &countingBody{}
+	c := New("http://indexer.invalid/graphql/query", "")
+	c.http.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: body, Header: http.Header{}}, nil
+	})
+
+	var out struct{}
+	if err := c.Query(context.Background(), `{ latestBlockHeight }`, &out); !errors.Is(err, ErrResponseTooLarge) {
+		t.Fatalf("error = %v, want ErrResponseTooLarge", err)
+	}
+	if body.n > maxResponseSize+1 {
+		t.Fatalf("read %d bytes, want at most %d", body.n, maxResponseSize+1)
+	}
+}
+
+// At most maxConcurrent requests are in flight; the next waits for a slot.
+func TestInFlightRequestsAreCapped(t *testing.T) {
+	release := make(chan struct{})
+	var inFlight atomic.Int32
+	c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		inFlight.Add(1)
+		<-release
+		respond(w, `{"data":{"latestBlockHeight":1}}`)
+	})
+
+	var wg sync.WaitGroup
+	for range maxConcurrent + 1 {
+		wg.Go(func() {
+			var out struct{}
+			_ = c.Query(context.Background(), `{ latestBlockHeight }`, &out)
+		})
+	}
+	time.Sleep(200 * time.Millisecond)
+	got := inFlight.Load()
+	close(release)
+	wg.Wait()
+	if got != maxConcurrent {
+		t.Fatalf("in flight = %d, want %d", got, maxConcurrent)
 	}
 }

@@ -117,6 +117,13 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 		if data.PkgPath != "" {
 			data.WholeChainHref = wholeChainHref(q)
 		}
+	} else if sel.Scope == ScopeGlobal {
+		// A chain-wide selector answers the same on every page; render: names
+		// the one realm it renders, when it renders one.
+		data.PkgPath = q.discoveryScope()
+		if sel.Name == "render" {
+			data.PkgPath = q.renderScope()
+		}
 	}
 	data.Groups, data.UnknownFilter = h.Search(ctx, q)
 	data.Indexer = h.indexerStatus(ctx, data.Groups)
@@ -189,6 +196,11 @@ func (h *Handler) Search(ctx context.Context, q *Query) (groups []Group, unknown
 		g.Truncated, g.Notice = true, part.Error()
 	case errors.Is(err, indexer.ErrPartial):
 		g.Truncated, g.Notice = true, recentNotice
+		// Bare, the walk ran out of steps; wrapped, a band failed.
+		if err != indexer.ErrPartial { //nolint:errorlint // identity is the question
+			h.deps.Logger.Warn("omnisearch: partial answer",
+				"selector", sel.Name, "term_length", len(term), "error", err)
+		}
 	default:
 		// Reported, never fatal: a dead indexer degrades to a visible
 		// "could not answer", not a 500.

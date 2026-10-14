@@ -125,7 +125,7 @@ func TestIndexerResultsAreMarkedInTheMarkup(t *testing.T) {
 	t.Parallel()
 
 	h := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(), &mockIndexer{})
-	u := parseURL(t, "/r/alice/blog$search&q=account:g1abc")
+	u := parseURL(t, "/r/alice/blog$search&q=account:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	r := httptest.NewRequest(http.MethodGet, "/r/alice/blog", nil)
 	w := httptest.NewRecorder()
 

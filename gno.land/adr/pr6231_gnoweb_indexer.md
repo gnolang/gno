@@ -116,10 +116,10 @@ split into **selectors** (choose what is searched) and **narrowing** keywords
 | Selector | Source | Answers |
 |---|---|---|
 | `func:` `type:` `file:` `imports` | chain | qdoc / file listing for the scoped package |
-| `state:` | chain | hands off to `feature/state`'s own `?state&search=` |
+| `state:` | chain | hands off to `feature/state`'s own `$state&search=` |
 | `render:` | chain | text in what realms actually **display** — see below |
 | `tx:` `account:` `block:` | indexer | transaction, account activity, block header |
-| `activity` `deploys` `importers` | indexer | scoped package's recent calls, deploy history, mentions |
+| `activity` `deploys` `importers` | indexer | scoped package's recent calls, deploy history, packages quoting its path |
 | `content:` | indexer | text across deployed **source** |
 
 Provenance is stamped at registration, from which table a selector is in,
@@ -149,9 +149,10 @@ basic-auth password or a query-string key, and the footer is public. A
 chain-only answer, or an indexer group that failed before answering, never
 queries the indexer just to stamp a footer.
 
-`importers` and `content:` are labelled as **mentions** and **source**, not
-imports and content: the indexer answers with a match over deployed file
-bodies, so a string literal outside an import block matches too. `importers`
+`content:` is labelled **Source code**, not content: the indexer answers with
+a match over deployed file bodies. `importers` is labelled **Imported by**, but
+it is the same kind of match, so a string literal outside an import block
+matches too. `importers`
 matches the path as Go quotes it, so `gno.land/r/demo/foo` does not match
 inside `gno.land/r/demo/foobar`; only the deploy messages of a matched
 transaction are listed, and a batch deploy is marked as such, since the
@@ -189,7 +190,8 @@ and `render:` does not attempt it. Nothing indexes rendered output, and
 producing it would mean executing `Render` on every realm.
 
 What `render:` does instead is search a field somebody else has already
-narrowed: it refuses to run without `author:` or `in:`, caps the result at
+narrowed: `in:` first, then `author:`, then the realm page it was typed on;
+with none of them it refuses to run. It caps the result at
 `maxRenderCandidates = 8` packages, fetches them 4 at a time, and — because
 one execution costs what serving a page view costs — never runs on the
 omnibar's per-keystroke JSON path at all. That gate is a `Selector.PageOnly`
@@ -203,7 +205,7 @@ work. The tip is fetched per request, coalesced through a singleflight group
 and cached for 5 s on the client struct.
 
 **A stricter in-process rate limit.** Rejected once the edge configuration was
-read. See the section above: the layer that can tell clients apart already
+read. See the section below: the layer that can tell clients apart already
 caps them, and a second, stricter, address-blind bucket underneath it only
 produces outages that look like attacks.
 
@@ -211,19 +213,20 @@ produces outages that look like attacks.
 
 ### Positive
 
-- Default behaviour is unchanged for a deployment with no `-indexer-url`: no
-  outbound request beyond the RPC node, and no UI change beyond the header
-  form gaining `method`/`action`/`name`. One pre-existing test was updated —
-  `handler_search_test.go`, because `RealmDirectory.Paths` now returns a
-  result struct carrying truncation.
+- A deployment with no `-indexer-url` makes no outbound request beyond the
+  RPC node. One pre-existing test was updated: `handler_search_test.go`,
+  because `RealmDirectory.Paths` now returns a result struct carrying
+  truncation.
 - The indexer's own footprint in core is ~39 lines across three files, most
   of them comments: one `AppConfig` field, one guarded constructor call, one
   `HTTPHandlerConfig` field, one flag. Deleting them leaves a compiling
   binary. The feature's total footprint is larger — a second config field
   (`Directory`), a `HTTPHandler.Search` field, the `$search` dispatch block,
   the `isStateJSONRequest` → `isFeatureJSONRequest` widening,
-  `HeaderData.SearchAction` and the header form's `method`/`action`/`name`,
-  one CSS import and one purge entry.
+  `HeaderData.SearchAction`, `IndexData.SearchBase` and the header form's
+  `method`/`action`/`name`, the path-listing changes (`ListPaths` limit,
+  truncation, cache), the `feature/state` limiter move, the `Namespace()`
+  fix, and the search CSS. The files are listed below.
 - Chain-backed qualifiers work with no indexer, so the omnibar gets better
   even on a deployment that never configures one.
 - The results page works without JavaScript.
@@ -232,6 +235,17 @@ produces outages that look like attacks.
 
 ### Negative
 
+- Behaviour changes for every deployment, `-indexer-url` or not. gnoweb has
+  no flag for the per-IP rate, so these apply as is:
+  - the state explorer's per-IP limit goes from 100 to 1200 requests per
+    minute (burst likewise), twelve times the previous budget;
+  - `$search` exists everywhere, as a results page and a `$search&json`
+    endpoint, with the chain qualifiers and its own 1200/min bucket;
+    `render:` there executes up to 8 `Render` calls per committed search;
+  - Enter on free text that names no path opens the `$search` results page,
+    and without JavaScript the header form submits there;
+  - `/search.json` and discovery ask the node for up to 10000 paths per kind
+    instead of the 1000 the dropped `limit` used to leave in place.
 - `content:` and `importers` are substring matches over source, with the
   false positives that implies. Labelled, not hidden.
 - Result freshness is an indexer's, not the chain's. Stated per page, but a
@@ -246,8 +260,9 @@ produces outages that look like attacks.
 - Path listings are capped by the node at 10000 per kind. Above that the
   answer says it is truncated, but it cannot page past it: `qpaths` has no
   cursor.
-- The `$search` webquery key sits next to `feature/state`'s `?state&search=`
-  parameter. Different positions, similar names.
+- `$search` and `feature/state`'s `$state&search=` share the webquery
+  position, which is why `ownsSearchURL` exists: `search` alone does not
+  decide which feature owns the URL.
 - Without JavaScript, a path typed into the bar submits as a search rather
   than navigating. The results page answers that with its path groups, but it
   is a behaviour change for a reader with scripts disabled.
@@ -276,17 +291,24 @@ Touched in the core:
 - `gno.land/pkg/gnoweb/app.go` — `AppConfig.IndexerURL`, client construction
 - `gno.land/pkg/gnoweb/handler_http.go` — `HTTPHandlerConfig.Indexer`, handler
   construction, `$search` dispatch
+- `gno.land/pkg/gnoweb/client.go`, `realm_directory.go`, `handler_search.go`:
+  `ListPaths` forwards its limit, `PathsResult.Truncated`, the shared
+  listing cache, `/search.json`'s `truncated`
+- `gno.land/pkg/gnoweb/weburl/url.go`: the `Namespace()` fix
 - `gno.land/cmd/gnoweb/main.go` — `-indexer-url`, `-trusted-proxies`
 - `gno.land/pkg/gnoweb/components/layout_header.go`,
-  `components/layouts/header.html` — `SearchAction`, and the `method`/`action`
+  `components/layout_index.go`, `components/layouts/header.html`:
+  `SearchAction`, `SearchBase` for alias pages, and the `method`/`action`
   /`name` that make the bar work without JavaScript
-- `gno.land/pkg/gnoweb/feature/state/ratelimit.go` — `IPLimiter.AllowRequest`,
-  which moves the trusted-proxy rule `feature/state` applied through
-  `extractIP` into the limiter, without changing behaviour
+- `gno.land/pkg/gnoweb/feature/state/ratelimit.go`, `handler.go`,
+  `errors.go`: `IPLimiter.AllowRequest`, which moves the trusted-proxy rule
+  `feature/state` applied through `extractIP` into the limiter, without
+  changing behaviour; the client-error pact shared with omnisearch
 - `gno.land/pkg/gnoweb/frontend/js/controller-searchbar.ts` — qualifier-aware
   querying, group rendering, submit to the results page
-- `gno.land/pkg/gnoweb/frontend/css/main.css`,
-  `frontend/postcss.config.cjs` — feature CSS import and purge safelist
+- `gno.land/pkg/gnoweb/frontend/css/main.css`, `frontend/css/06-blocks.css`,
+  `frontend/postcss.config.cjs`: feature CSS import, omnibar dropdown
+  styles, purge safelist
 
 ## Where a bound belongs: the edge bounds rate, gnoweb bounds cost
 
@@ -364,7 +386,12 @@ independently of anything gnoweb does.
 - indexer breaker: 3 consecutive failures, 30 s cooldown; a miss, a capped
   result set or the caller's own deadline or cancellation never counts
   against it, since the omnibar's 3 s budget is below the client's 4 s
-  timeout
+  timeout. Nor does a height band: a wide one can outlive the client's
+  timeout on a healthy indexer, so the tip fetch every windowed search makes
+  first is the health signal. A band failing after earlier rows carries its
+  cause inside `ErrPartial`, for the log
+- `account:` refuses a term that is not a bech32 address before any fetch: a
+  partial address matches nothing and would walk every band per keystroke
 - chain tip cached 5 s per client and fetched through a singleflight group, so
   a cold cache costs one round trip for all concurrent callers rather than one
   each; fetched on request, never by a ticker
