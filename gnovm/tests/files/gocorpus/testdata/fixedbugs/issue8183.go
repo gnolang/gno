@@ -22,9 +22,6 @@ const (
 	f // ERROR "array bound must be non-negative|negative array bound|invalid array length"
 )
 
-// GnoError:
-// line 19: cannot use iota outside constant declaration
-
 // GoTypeCheckError:
 // line 15
 // line 21
@@ -35,7 +32,4 @@ const (
 // line 21: gc expects: array bound must be non-negative|negative array bound|invalid array length
 // line 22: gc expects: array bound must be non-negative|negative array bound|invalid array length
 
-// GnoOverStrictError:
-// line 19: cannot use iota outside constant declaration
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Clean errorcheck

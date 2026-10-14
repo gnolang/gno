@@ -32,8 +32,8 @@ func _() {
 // GnoError:
 // line 19: type T has both field and method named b
 // line 20: type T has both field and method named E
-// line 26: unexpected func type int (gnolang.PrimitiveType)
-// line 29: unexpected func type gno.land/p/filetest/p.E (*gnolang.DeclaredType)
+// line 26: cannot call non-function x.b (variable of type int)
+// line 29: cannot call non-function x.E (variable of type gno.land/p/filetest/p.E)
 
 // GoTypeCheckError:
 // line 13
@@ -42,7 +42,7 @@ func _() {
 // line 20
 
 // GnoOverStrictError:
-// line 26: unexpected func type int (gnolang.PrimitiveType)
-// line 29: unexpected func type gno.land/p/filetest/p.E (*gnolang.DeclaredType)
+// line 26: cannot call non-function x.b (variable of type int)
+// line 29: cannot call non-function x.E (variable of type gno.land/p/filetest/p.E)
 
 // Verdict: KnownIssue errorcheck: 2 over-strict line(s), 0 uncaught marker(s)
