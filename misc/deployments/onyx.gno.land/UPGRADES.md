@@ -23,4 +23,4 @@ An entry is added before the release is cut (see [`RELEASING.md`](../../../RELEA
 
 Notes
 
-- Onyx launched on `v1.5.0`, the version mainnet was running on launch day, with no release candidate: there was no new code to rehearse. From the next mainnet release on, the row here names the candidate onyx actually ran (`v1.6.0-rc.N`), and mainnet's names the final tag on the same commit.
+- Onyx launched on `v1.5.0`, the version mainnet was running on launch day, with no release candidate: there was no new code to rehearse. Since `v1.5.1`, the row here names the candidate onyx actually ran (`v1.5.1-rc.1`), and mainnet's names the final tag on the same commit.
