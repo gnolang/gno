@@ -42,7 +42,9 @@ var _ = map[Key]string{
 
 // GnoError:
 // line 21: mixed keyed and unkeyed elements
+// line 22: duplicate field name Y in struct literal
 // line 25: slice/array literals may not contain non-const keys
+// line 26: duplicate index 1 in array or slice literal
 
 // GoTypeCheckError:
 // line 21
@@ -53,9 +55,7 @@ var _ = map[Key]string{
 // line 26
 
 // GoTypesOnly:
-// line 22: gc expects: duplicate
 // line 23: gc expects: convert|too many
 // line 24: gc expects: index|too many
-// line 26: gc expects: duplicate
 
 // Verdict: Clean errorcheck

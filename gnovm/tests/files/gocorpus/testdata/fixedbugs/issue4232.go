@@ -59,6 +59,9 @@ func f() {
 // line 14: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 15: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 16: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// line 17: invalid argument: index 10 out of bounds [0:10]
+// line 20: invalid argument: index 12 out of bounds [0:11]
+// line 21: invalid argument: index 11 out of bounds [0:11]
 // line 22: bigint overflows target kind
 // line 25: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 26: invalid argument: index must not be negative: (-1 <untyped> bigint)
@@ -67,6 +70,9 @@ func f() {
 // line 36: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 37: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 38: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// line 39: invalid argument: index 10 out of bounds [0:10]
+// line 42: invalid argument: index 12 out of bounds [0:11]
+// line 43: invalid argument: index 11 out of bounds [0:11]
 // line 44: bigint overflows target kind
 // line 47: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 48: invalid argument: index must not be negative: (-1 <untyped> bigint)
@@ -96,13 +102,5 @@ func f() {
 // line 48
 // line 49
 // line 55
-
-// GoTypesOnly:
-// line 17: gc expects: invalid array index 10|index .*out of bounds
-// line 20: gc expects: invalid slice index 12|index .*out of bounds
-// line 21: gc expects: invalid slice index 11|index .*out of bounds
-// line 39: gc expects: invalid string index 10|index .*out of bounds
-// line 42: gc expects: invalid slice index 12|index .*out of bounds
-// line 43: gc expects: invalid slice index 11|index .*out of bounds
 
 // Verdict: Clean errorcheck

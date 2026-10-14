@@ -147,17 +147,29 @@ var (
 // line 73: invalid operation: (mismatched types <untyped> bigint and main.I)
 // line 74: invalid operation: (mismatched types <untyped> bigint and main.I)
 // line 75: operator >= not defined on: InterfaceKind
+// line 77: func() can only be compared to nil
+// line 78: func() can only be compared to nil
 // line 79: operator >= not defined on: InterfaceKind
+// line 80: func() can only be compared to nil
+// line 81: func() can only be compared to nil
 // line 82: operator >= not defined on: InterfaceKind
-// line 84: invalid operation: (mismatched types func() and main.I)
-// line 85: invalid operation: (mismatched types func() and main.I)
+// line 84: func() can only be compared to nil
+// line 85: func() can only be compared to nil
 // line 86: operator >= not defined on: InterfaceKind
-// line 87: invalid operation: (mismatched types func() and main.I)
-// line 88: invalid operation: (mismatched types func() and main.I)
+// line 87: func() can only be compared to nil
+// line 88: func() can only be compared to nil
 // line 89: operator >= not defined on: InterfaceKind
+// line 91: main.G can only be compared to nil
+// line 92: main.G can only be compared to nil
 // line 93: operator >= not defined on: InterfaceKind
+// line 94: main.G can only be compared to nil
+// line 95: main.G can only be compared to nil
 // line 96: operator >= not defined on: InterfaceKind
+// line 98: main.G can only be compared to nil
+// line 99: main.G can only be compared to nil
 // line 100: operator >= not defined on: InterfaceKind
+// line 101: main.G can only be compared to nil
+// line 102: main.G can only be compared to nil
 // line 103: operator >= not defined on: InterfaceKind
 // line 105: name _ not defined in fileset with files [issue9370.go]
 // line 106: name _ not defined in fileset with files [issue9370.go]
@@ -239,19 +251,5 @@ var (
 // line 122
 // line 123
 // line 124
-
-// GoTypesOnly:
-// line 77: gc expects: invalid operation.*not defined|invalid operation
-// line 78: gc expects: invalid operation.*not defined|invalid operation
-// line 80: gc expects: invalid operation.*not defined|invalid operation
-// line 81: gc expects: invalid operation.*not defined|invalid operation
-// line 91: gc expects: invalid operation.*not defined|invalid operation
-// line 92: gc expects: invalid operation.*not defined|invalid operation
-// line 94: gc expects: invalid operation.*not defined|invalid operation
-// line 95: gc expects: invalid operation.*not defined|invalid operation
-// line 98: gc expects: invalid operation.*not defined|invalid operation
-// line 99: gc expects: invalid operation.*not defined|invalid operation
-// line 101: gc expects: invalid operation.*not defined|invalid operation
-// line 102: gc expects: invalid operation.*not defined|invalid operation
 
 // Verdict: Clean errorcheck

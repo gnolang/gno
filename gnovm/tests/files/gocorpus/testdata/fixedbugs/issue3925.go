@@ -22,13 +22,11 @@ var _ = []string{
 }
 
 // GnoError:
+// line 13: 2: missing key in map literal
 // line 18: 2: cannot use untyped Bigint as StringKind
 
 // GoTypeCheckError:
 // line 15
 // line 21
-
-// GoTypesOnly:
-// line 15: gc expects: missing key|must have keys
 
 // Verdict: Clean errorcheck

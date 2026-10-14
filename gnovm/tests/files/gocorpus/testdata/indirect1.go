@@ -71,6 +71,9 @@ func f() {
 	_ = x
 }
 
+// GnoError:
+// line 41: invalid argument: *map[string]int for built-in len
+
 // GoTypeCheckError:
 // line 41
 // line 42
@@ -86,7 +89,6 @@ func f() {
 // line 70
 
 // GoTypesOnly:
-// line 41: gc expects: illegal|invalid|must be
 // line 42: gc expects: illegal|invalid|must be
 // line 44: gc expects: illegal|invalid|must be
 // line 47: gc expects: illegal|invalid|must be
