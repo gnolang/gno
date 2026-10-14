@@ -264,8 +264,9 @@ built from tags, not from branch pushes; `:master` images are development
 builds whose version does not parse. A release image carries its version tag
 only (and `latest` for the CLI tools), never a tag named after its commit: a
 final release shares its commit with its last candidate, so such a tag would
-move from the candidate's images to the final's. Images from releases before
-`v1.5.2` still carry a `sha-<commit>` tag; pin a `vX.Y.Z` tag or a digest.
+move from the candidate's images to the final's. Some earlier images also
+answer to a `sha-<commit>` tag, which can name another build of that commit:
+pin a `vX.Y.Z` tag or a digest.
 
 ### Release pages and the upgrade ledger
 
