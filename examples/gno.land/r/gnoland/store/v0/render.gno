@@ -26,14 +26,14 @@ func Render(path string) string {
 	if api, ok := strings.CutPrefix(path, "api/"); ok {
 		return renderAPI(api)
 	}
-	h := runtime.ChainHeight()
+	now := blockTime()
 	switch path {
 	case "":
-		return renderHome(h)
+		return renderHome(now)
 	case "build":
-		return renderBuild(h)
+		return renderBuild(now)
 	}
-	if l, ok := findList(path, h); ok {
+	if l, ok := findList(path, now); ok {
 		return renderPaged(l, storeURL+":"+l.Key, query)
 	}
 	if key, ok := strings.CutPrefix(path, "c/"); ok {
@@ -44,7 +44,7 @@ func Render(path string) string {
 	return md.H1("Not found") + "\n" + md.Link("Back to Explore", storeURL) + "\n"
 }
 
-func renderHome(h int64) string {
+func renderHome(now int64) string {
 	var b strings.Builder
 	b.WriteString(md.H1("Explore") + "\n")
 	b.WriteString("Apps you can read. Everything here runs on gno.land and its code is public: try an app, or read how it works first. " +
@@ -53,18 +53,18 @@ func renderHome(h int64) string {
 	for _, c := range categories {
 		b.WriteString(md.BulletItem(md.Link(c.Label, storeURL+":c/"+c.Key) + " (" + strconv.Itoa(appCount(c.Key)) + ")"))
 	}
-	if l := picked(h); l != nil {
+	if l := picked(now); l != nil {
 		b.WriteString("\n" + md.H2("Picked by GovDAO") + "\n")
 		writeItems(&b, []*listing{l})
 	}
-	writeMarkdownShelves(&b, homeShelves(h))
+	writeMarkdownShelves(&b, homeShelves(now))
 	return b.String()
 }
 
-func renderBuild(h int64) string {
+func renderBuild(now int64) string {
 	var b strings.Builder
 	b.WriteString(md.H1("Build") + "\nPackages and services to build on.\n")
-	writeMarkdownShelves(&b, buildShelves(h))
+	writeMarkdownShelves(&b, buildShelves(now))
 	b.WriteString("\n" + md.Link("Back to Explore", storeURL) + "\n")
 	return b.String()
 }
@@ -153,7 +153,7 @@ func Block(list string, n int) string {
 	case "top":
 		items = topApps(n)
 	case "trending":
-		items = trending(runtime.ChainHeight(), n).items
+		items = trending(blockTime(), n).items
 	default:
 		return ""
 	}

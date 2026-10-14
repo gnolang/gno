@@ -10,34 +10,36 @@ package store
 
 import (
 	"chain"
-	"chain/runtime"
+	"time"
 
 	"gno.land/p/nt/avl/v0"
 	"gno.land/r/sys/names"
 	"gno.land/r/sys/users"
 )
 
+// Durations are measured in block time, so they mean what they say whatever
+// the chain's block rate; heights only order. blockTime is the one clock.
 const (
-	blocksPerDay = 17280 // 5 s blocks
+	day = 24 * 60 * 60 // seconds
 
-	newWindow   = 14 * blocksPerDay // an app is new for Rediscover and "New to build with"
-	epochBlocks = blocksPerDay      // rotation and counter period
-	richDelay   = blocksPerDay      // publication delay of rich fields (T1, T8)
+	newWindow   = 14 * day // an app is new for Rediscover and "New to build with"
+	epochLength = day      // rotation and counter period
+	richDelay   = day      // publication delay of rich fields (T1, T8)
 	// Launch values for a young chain (ADR §2): earned reputation only gates
 	// owner assets and the Spotlight, so it may be reachable early. They are
 	// constants: a realm upgrade raises them as the chain grows.
-	earnAge      = 14 * blocksPerDay // minimum listing age for earned reputation
-	starMaturity = 3 * blocksPerDay  // a star counts towards reputation after this
-	earnStars    = 5                 // qualifying stars needed for earned reputation
+	earnAge      = 14 * day // minimum listing age for earned reputation
+	starMaturity = 3 * day  // a star counts towards reputation after this
+	earnStars    = 5        // qualifying stars needed for earned reputation
 	// nameMaturity is how long the store must have known an address's name
 	// before its stars rank: names are free on a young chain, so a name made
 	// for one campaign has to wait (T8).
-	nameMaturity = 3 * blocksPerDay
+	nameMaturity = 3 * day
 	// confirmStars ranked stars confirm a claimed listing (T11).
 	confirmStars = 3
 	// updateCooldown is the least time between two "updated" announcements of
 	// a listing, so that re-registering in a loop buys no visibility.
-	updateCooldown = 7 * epochBlocks
+	updateCooldown = 7 * epochLength
 
 	// No global cap: reads are bounded by shelf sizes, trendingScan and
 	// pagination, and storage deposits price every write.
@@ -45,13 +47,17 @@ const (
 	maxStarsPerEpoch = 20 // per address, against star bombing
 )
 
+func blockTime() int64 {
+	return time.Now().Unix()
+}
+
 // voters holds what the store keeps per starring address.
 var voters avl.Tree // address -> voter, a value: a pointer would store one more object per address
 
 type voter struct {
 	Epoch    int64 // of the last star
 	Spent    int   // stars spent in Epoch
-	NameSeen int64 // height the store first saw the address with a registered name, 0 if never
+	NameSeen int64 // when the store first saw the address with a registered name, 0 if never
 }
 
 // Register lists the calling realm as an app. It must be cross-called by the
@@ -60,7 +66,7 @@ type voter struct {
 //	store.Register(cross(cur), "acme-swap", "Acme Swap", "Swap tokens in one click", "defi", 3)
 //
 // Calling Register again, as an upgraded realm's init does, updates the
-// listing: the original slug and creation height are kept and the slug
+// listing: the original slug and creation time are kept and the slug
 // argument is ignored. A real change is announced as an update at most once
 // a week. Register never panics, so it cannot break the caller's init; a
 // refused call emits StoreRegisterRejected with the path and a short reason.
@@ -75,7 +81,7 @@ func Register(cur realm, slug, title, tagline, category string, palette int) {
 	}
 	l := newListing(path, slug, title, tagline, category, palette, kind)
 	l.Confirmed = true // deploying the realm proves it exists
-	reason := upsert(l, runtime.ChainHeight())
+	reason := upsert(l, blockTime())
 	if reason != "" {
 		chain.Emit("StoreRegisterRejected", "path", path, "reason", reason)
 	}
@@ -101,7 +107,7 @@ func Claim(cur realm, path, slug, title, tagline, category string, palette int, 
 	if ns == "" || !ownsNamespace(caller.Address(), ns) {
 		panic("store: caller does not own the namespace")
 	}
-	if reason := upsert(newListing(path, slug, title, tagline, category, palette, kind), runtime.ChainHeight()); reason != "" {
+	if reason := upsert(newListing(path, slug, title, tagline, category, palette, kind), blockTime()); reason != "" {
 		panic("store: " + reason)
 	}
 }
@@ -141,7 +147,7 @@ func SubmitRich(cur realm, icon, cover string) {
 	if reason := validateRich(r); reason != "" {
 		panic("store: " + reason)
 	}
-	l.submitRich(r, runtime.ChainHeight())
+	l.submitRich(r, blockTime())
 }
 
 // Star an app you like. One star per app, up to 20 new stars a day. Your
@@ -164,11 +170,11 @@ func Star(cur realm, slug string) {
 	if l.starred(addr) {
 		panic("store: already starred")
 	}
-	h := runtime.ChainHeight()
+	now := blockTime()
 	named := users.ResolveAddress(caller) != nil
-	nameSeen := spendStar(addr, h, named)
-	ranked := named && h-nameSeen >= nameMaturity && !ownsNamespace(caller, l.Namespace)
-	l.addStar(addr, star{Height: h, Ranked: ranked})
+	nameSeen := spendStar(addr, now, named)
+	ranked := named && now-nameSeen >= nameMaturity && !ownsNamespace(caller, l.Namespace)
+	l.addStar(addr, star{At: now, Ranked: ranked})
 }
 
 // Unstar removes your star from an app. It does not give back that day's
@@ -178,7 +184,7 @@ func Unstar(cur realm, slug string) {
 	if !l.starred(caller.String()) {
 		panic("store: not starred")
 	}
-	l.removeStar(caller.String(), runtime.ChainHeight())
+	l.removeStar(caller.String(), blockTime())
 }
 
 func starTarget(cur realm, slug string) (*listing, address) {
@@ -189,12 +195,12 @@ func starTarget(cur realm, slug string) (*listing, address) {
 	return bySlugOrPanic(slug), caller.Address()
 }
 
-// spendStar charges one star to addr's budget for the epoch of h, records
-// h as the height the store first saw addr named if it is the first, and
-// returns that height (0 if never).
-func spendStar(addr string, h int64, named bool) int64 {
+// spendStar charges one star to addr's budget for the epoch of now, records
+// now as the time the store first saw addr named if it is the first, and
+// returns that time (0 if never).
+func spendStar(addr string, now int64, named bool) int64 {
 	v, _ := voters.Get(addr).(voter)
-	if epoch := h / epochBlocks; v.Epoch != epoch {
+	if epoch := now / epochLength; v.Epoch != epoch {
 		v.Epoch, v.Spent = epoch, 0
 	}
 	if v.Spent >= maxStarsPerEpoch {
@@ -202,7 +208,7 @@ func spendStar(addr string, h int64, named bool) int64 {
 	}
 	v.Spent++
 	if named && v.NameSeen == 0 {
-		v.NameSeen = h
+		v.NameSeen = now
 	}
 	voters.Set(addr, v)
 	return v.NameSeen

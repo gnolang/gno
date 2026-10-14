@@ -2,7 +2,6 @@ package store
 
 import (
 	"chain"
-	"chain/runtime"
 	"errors"
 	"strconv"
 
@@ -18,7 +17,7 @@ import (
 // paused refuses new listings and listing updates.
 var paused bool
 
-// pick is the app GovDAO features as the front page's hero, until a height;
+// pick is the app GovDAO features as the front page's hero, until a time;
 // the only editorial act in the store, voted, labelled and bounded in time.
 // It is bound to the title the app had when picked: a rename ends it
 // (dropPick), and picked checks the title too, so a renamed app is never
@@ -100,7 +99,7 @@ func ProposeSpotlight(cur realm, slug string, days int) dao.ProposalRequest {
 	n := strconv.Itoa(days)
 	return proposal(cur, "Feature "+slug+" as the front page's hero for "+n+" days",
 		"Features "+slug+" ("+path+") as the store front page's hero for "+n+" days, labelled as picked by GovDAO.",
-		func() error { return pickBound(slug, path, title, days, runtime.ChainHeight()) })
+		func() error { return pickBound(slug, path, title, days, blockTime()) })
 }
 
 // hideBound and pickBound execute a hide or a pick proposed for the listing
@@ -113,14 +112,14 @@ func hideBound(slug, path, reason string) error {
 	return hide(slug, reason)
 }
 
-func pickBound(slug, path, title string, days int, h int64) error {
+func pickBound(slug, path, title string, days int, now int64) error {
 	if err := checkSlugPath(slug, path); err != nil {
 		return err
 	}
 	if titleKey(lookup(&listings, slug).Title) != title {
 		return errTitleChanged
 	}
-	return setPick(slug, days, h)
+	return setPick(slug, days, now)
 }
 
 // checkSlugPath checks that slug still names the visible listing of path. A
@@ -154,21 +153,21 @@ func checkPick(slug string, days int) error {
 	return nil
 }
 
-// setPick picks slug from height h for days days, under its current title.
-func setPick(slug string, days int, h int64) error {
+// setPick picks slug from time now for days days, under its current title.
+func setPick(slug string, days int, now int64) error {
 	if err := checkPick(slug, days); err != nil {
 		return err
 	}
 	l := lookup(&listings, slug)
-	pick.listing, pick.title, pick.until = l, titleKey(l.Title), h+int64(days)*blocksPerDay
+	pick.listing, pick.title, pick.until = l, titleKey(l.Title), now+int64(days)*day
 	chain.Emit("StorePicked", "slug", slug, "days", strconv.Itoa(days))
 	return nil
 }
 
 // picked returns the app GovDAO picked, while the pick lasts and the app is
 // still shown as an app under the title it was picked with, or nil.
-func picked(h int64) *listing {
-	if l := pick.listing; l != nil && h < pick.until && l.shownApp() && titleKey(l.Title) == pick.title {
+func picked(now int64) *listing {
+	if l := pick.listing; l != nil && now < pick.until && l.shownApp() && titleKey(l.Title) == pick.title {
 		return l
 	}
 	return nil

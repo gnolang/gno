@@ -5,12 +5,33 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/r/sys/names"
 	"gno.land/r/sys/users"
 )
+
+// origin is the epoch the tests' clock starts from: past the default test
+// block time, so setEpoch only ever moves the clock forward.
+const origin = 20000
+
+// setEpoch moves the block time to the start of epoch origin+e.
+func setEpoch(e int64) {
+	setClock((origin + e) * epochLength)
+}
+
+// skip moves the block time d seconds forward.
+func skip(d int64) {
+	setClock(blockTime() + d)
+}
+
+func setClock(t int64) {
+	ctx := testing.GetContext()
+	ctx.Time = time.Unix(t, 0)
+	testing.SetContext(ctx)
+}
 
 const testIcon = "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
 
@@ -87,6 +108,19 @@ func TestRegisterRejectsCallersSilently(cur realm, t *testing.T) {
 	uassert.False(t, byPath.Has(run))
 }
 
+// Durations follow block time, not heights: a chain faster or slower than
+// a block every 5 s still waits a real day for a day.
+func TestDurationsAreBlockTime(cur realm, t *testing.T) {
+	registerFrom(cur, "gno.land/r/clock/app", "clock-app", "Clock App")
+	l := bySlugOrPanic("clock-app")
+
+	testing.SetHeight(runtime.ChainHeight() + newWindow) // blocks, no time
+	uassert.True(t, l.isNew(blockTime()), "heights alone must not age a listing")
+
+	skip(newWindow)
+	uassert.False(t, l.isNew(blockTime()), "newWindow of block time ages it")
+}
+
 func TestRegisterUpsert(cur realm, t *testing.T) {
 	const path = "gno.land/r/upsert/app"
 	registerFrom(cur, path, "upsert-app", "Upsert App")
@@ -95,7 +129,7 @@ func TestRegisterUpsert(cur realm, t *testing.T) {
 	education := appCount("education")
 	utilities := appCount("utilities")
 
-	testing.SkipHeights(updateCooldown)
+	skip(updateCooldown)
 	testing.SetRealm(testing.NewCodeRealm(path))
 	Register(cross(cur), "other-slug", "Upsert App v2", "New tagline", "education", 5)
 
@@ -129,14 +163,14 @@ func registerSpam(cur realm, tagline string) {
 // unchanged listing is not bumped, and a real change bumps it at most once
 // per updateCooldown, though the change itself is applied.
 func TestUpdateSpam(cur realm, t *testing.T) {
-	testing.SetHeight(900 * epochBlocks) // after every other update
+	setEpoch(900) // after every other update
 	registerSpam(cur, "Version 1")
 	l := bySlugOrPanic("spam-app")
 	updatedShelf := func() string { return jsonSlugs(window(&apps.updated, 0, 10)) }
 	shelf, feed := updatedShelf(), activity
 
 	for i := 0; i < 5; i++ {
-		testing.SkipHeights(1)
+		skip(1)
 		registerSpam(cur, "Version 1") // nothing changes
 	}
 	registerSpam(cur, "Version 2") // a real change, too soon
@@ -149,11 +183,11 @@ func TestUpdateSpam(cur realm, t *testing.T) {
 	SubmitRich(cross(cur), testIcon, "")
 	uassert.Equal(t, l.Created, l.Updated, "SubmitRich obeys the same cooldown")
 
-	testing.SkipHeights(updateCooldown)
+	skip(updateCooldown)
 	registerSpam(cur, "Version 2") // unchanged: still no bump
 	uassert.Equal(t, l.Created, l.Updated)
 	registerSpam(cur, "Version 3")
-	uassert.Equal(t, runtime.ChainHeight(), l.Updated)
+	uassert.Equal(t, blockTime(), l.Updated)
 	uassert.True(t, activity.newestFirst()[0] == ev("updated", "spam-app", 0))
 	registerSpam(cur, "Version 4")
 	uassert.Equal(t, "Version 4", l.Tagline)
@@ -162,7 +196,7 @@ func TestUpdateSpam(cur realm, t *testing.T) {
 	// Resubmitting the latest rich fields changes nothing.
 	testing.SetRealm(testing.NewCodeRealm(spamPath))
 	nextAt := l.nextAt
-	testing.SkipHeights(1)
+	skip(1)
 	SubmitRich(cross(cur), testIcon, "")
 	uassert.Equal(t, nextAt, l.nextAt)
 }
@@ -222,7 +256,7 @@ func TestRegisterValidation(cur realm, t *testing.T) {
 		Register(cross(cur), tc.slug, tc.title, tc.tagline, tc.category, tc.palette)
 		uassert.False(t, byPath.Has(path), tc.label)
 		l := newListing(path, tc.slug, tc.title, tc.tagline, tc.category, tc.palette, kindApp)
-		uassert.Equal(t, tc.want, upsert(l, runtime.ChainHeight()), tc.label)
+		uassert.Equal(t, tc.want, upsert(l, blockTime()), tc.label)
 	}
 }
 
@@ -334,11 +368,11 @@ func TestClaimedAppConfirmedByRegister(cur realm, t *testing.T) {
 func TestUnconfirmedAnnouncesNothing(cur realm, t *testing.T) {
 	owner := testutils.TestAddress("ghostowner")
 	path := "gno.land/r/" + owner.String() + "/ghost"
-	feed, epoch := activity, runtime.ChainHeight()/epochBlocks
+	feed, epoch := activity, blockTime()/epochLength
 	listed := pulseListed.sum(epoch, 30)
 	testing.SetRealm(testing.NewUserRealm(owner))
 	Claim(cross(cur), path, "ghost-app", "Ghost App", "A tagline", "nft-art", 1, kindApp)
-	testing.SkipHeights(updateCooldown)
+	skip(updateCooldown)
 	Claim(cross(cur), path, "ghost-app", "Ghost App", "Another tagline", "nft-art", 1, kindApp)
 	uassert.Equal(t, "Another tagline", bySlugOrPanic("ghost-app").Tagline)
 	uassert.True(t, feed == activity, "no event")
@@ -399,7 +433,7 @@ func TestHideUnhide(cur realm, t *testing.T) {
 
 	// A hidden listing's changes are not announced.
 	feed := activity
-	testing.SkipHeights(updateCooldown)
+	skip(updateCooldown)
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gnoland/coins"))
 	SubmitRich(cross(cur), testIcon, "")
 	uassert.True(t, feed == activity, "no event")
@@ -471,16 +505,16 @@ func TestSubmitRich(cur realm, t *testing.T) {
 	SubmitRich(cross(cur), testIcon, cover)
 	l := bySlugOrPanic("rich-app")
 	contains(t, listingJSON("rich-app"), `"icon":"","cover":""}`)
-	_, pending := l.effective(runtime.ChainHeight())
+	_, pending := l.effective(blockTime())
 	uassert.True(t, pending)
 
-	testing.SkipHeights(richDelay)
+	skip(richDelay)
 	contains(t, listingJSON("rich-app"), `"icon":"`+testIcon+`","cover":"`+cover+`"}`)
 
 	// A new submission replaces nothing visible until its own delay passes.
 	SubmitRich(cross(cur), "", "")
 	contains(t, listingJSON("rich-app"), `"icon":"`+testIcon+`"`)
-	_, pending = l.effective(runtime.ChainHeight())
+	_, pending = l.effective(blockTime())
 	uassert.True(t, pending)
 }
 
@@ -497,21 +531,21 @@ func TestStarsAndEarned(cur realm, t *testing.T) {
 	starAnon(cur, id, "anonymous")
 	uassert.AbortsContains(t, cur, "already starred", func() { Star(cross(cur), id) })
 
-	testing.SkipHeights(earnAge)
-	uassert.False(t, l.earned(runtime.ChainHeight()), "the anonymous star must not count")
+	skip(earnAge)
+	uassert.False(t, l.earned(blockTime()), "the anonymous star must not count")
 	starFrom(cur, id, fans[earnStars-1])
-	uassert.False(t, l.earned(runtime.ChainHeight()), "a fresh star must not count")
-	testing.SkipHeights(starMaturity)
-	uassert.True(t, l.earned(runtime.ChainHeight()))
+	uassert.False(t, l.earned(blockTime()), "a fresh star must not count")
+	skip(starMaturity)
+	uassert.True(t, l.earned(blockTime()))
 
 	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress(fans[0])))
 	Unstar(cross(cur), id)
-	uassert.False(t, l.earned(runtime.ChainHeight()), "back below the threshold")
+	uassert.False(t, l.earned(blockTime()), "back below the threshold")
 	uassert.AbortsContains(t, cur, "not starred", func() { Unstar(cross(cur), id) })
 }
 
 func TestStarRateLimit(cur realm, t *testing.T) {
-	testing.SetHeight(500 * epochBlocks) // start of an epoch
+	setEpoch(500) // start of an epoch
 	var slugs []string
 	for i := 0; i <= maxStarsPerEpoch; i++ {
 		ns := "ratens" + strconv.Itoa(i)
@@ -527,7 +561,7 @@ func TestStarRateLimit(cur realm, t *testing.T) {
 	Unstar(cross(cur), slugs[0])
 	uassert.AbortsContains(t, cur, "star rate limit", func() { Star(cross(cur), last) }, "unstar does not refund")
 
-	testing.SkipHeights(epochBlocks)
+	skip(epochLength)
 	Star(cross(cur), last)
 }
 
@@ -551,7 +585,7 @@ func TestStarsIndex(cur realm, t *testing.T) {
 // TestSybilStars checks that stars from addresses without a registered name
 // are displayed but rank nothing.
 func TestSybilStars(cur realm, t *testing.T) {
-	testing.SetHeight(650 * epochBlocks)
+	setEpoch(650)
 	registerFrom(cur, "gno.land/r/sybil/app", "sybil-app", "Sybil Target")
 	var bots []string
 	for i := 0; i < milestones[0]; i++ {
@@ -561,9 +595,9 @@ func TestSybilStars(cur realm, t *testing.T) {
 
 	l := bySlugOrPanic("sybil-app")
 	contains(t, listingJSON("sybil-app"), `"stars":10`)
-	uassert.Equal(t, 0, l.stars7d(runtime.ChainHeight()))
+	uassert.Equal(t, 0, l.stars7d(blockTime()))
 	uassert.False(t, strings.Contains(jsonSlugs(window(&apps.stars, 0, 100)), "sybil-app"), "not in Top")
-	uassert.False(t, strings.Contains(jsonSlugs(trending(runtime.ChainHeight(), 10).items), "sybil-app"), "not trending")
+	uassert.False(t, strings.Contains(jsonSlugs(trending(blockTime(), 10).items), "sybil-app"), "not trending")
 	uassert.True(t, activity.newestFirst()[0].Kind != "milestone", "no milestone")
 	top, _ := topBuilders()
 	for _, row := range top {
@@ -581,26 +615,26 @@ func TestNameMaturity(cur realm, t *testing.T) {
 	Star(cross(cur), "mature-one")
 	uassert.Equal(t, 0, bySlugOrPanic("mature-one").rankedCount(), "a new name's star does not rank")
 
-	testing.SkipHeights(nameMaturity)
+	skip(nameMaturity)
 	testing.SetRealm(testing.NewUserRealm(addr))
 	Star(cross(cur), "mature-two")
 	uassert.Equal(t, 1, bySlugOrPanic("mature-two").rankedCount())
 }
 
 func TestStars7dAndTrending(cur realm, t *testing.T) {
-	testing.SetHeight(600 * epochBlocks)
+	setEpoch(600)
 	const id = "weekly-app"
 	registerFrom(cur, "gno.land/r/weekly/app", "weekly-app", "Weekly")
 	l := bySlugOrPanic(id)
 
 	starFrom(cur, id, "weeklya", "weeklyb", "weeklyc")
-	testing.SkipHeights(epochBlocks)
+	skip(epochLength)
 	starFrom(cur, id, "weeklyd")
-	uassert.Equal(t, 4, l.stars7d(runtime.ChainHeight()))
+	uassert.Equal(t, 4, l.stars7d(blockTime()))
 	contains(t, Render("api/v1/home"), `{"title":"Trending this week","slugs":["`+id+`"`)
 
-	testing.SkipHeights(6 * epochBlocks) // the first epoch leaves the 7-epoch window
-	uassert.Equal(t, 1, l.stars7d(runtime.ChainHeight()))
+	skip(6 * epochLength) // the first epoch leaves the 7-epoch window
+	uassert.Equal(t, 1, l.stars7d(blockTime()))
 	uassert.Equal(t, 4, l.starCount())
 	contains(t, Render("api/v1/home"), `{"title":"Trending this week","slugs":[]`)
 }
@@ -608,48 +642,48 @@ func TestStars7dAndTrending(cur realm, t *testing.T) {
 // TestTrendingIgnoresStaleScores checks that apps that trended long ago,
 // more than trendingScan of them, never hide an app trending now.
 func TestTrendingIgnoresStaleScores(cur realm, t *testing.T) {
-	testing.SetHeight(800 * epochBlocks) // heights only grow until TestTrendingIsExact
+	setEpoch(800) // heights only grow until TestTrendingIsExact
 	for i := 0; i <= trendingScan; i++ {
 		ns := "stale" + strconv.Itoa(i)
 		registerFrom(cur, "gno.land/r/"+ns+"/app", ns, "Stale "+strconv.Itoa(i))
 		starFrom(cur, ns, "stalefana", "stalefanb", "stalefanc")
 		if (i+1)%(maxStarsPerEpoch/3) == 0 {
-			testing.SkipHeights(epochBlocks) // the fans' star budget
+			skip(epochLength) // the fans' star budget
 		}
 	}
-	testing.SkipHeights(30 * epochBlocks)
+	skip(30 * epochLength)
 	registerFrom(cur, "gno.land/r/fresh/app", "fresh-app", "Fresh App")
 	starFrom(cur, "fresh-app", "freshfana", "freshfanb")
-	top := trending(runtime.ChainHeight(), 10).items
+	top := trending(blockTime(), 10).items
 	uassert.Equal(t, `["fresh-app"]`, jsonSlugs(top))
 }
 
 // TestTrendingIsExact checks that an app with more stars this week trends
 // ahead of apps starred more recently.
 func TestTrendingIsExact(cur realm, t *testing.T) {
-	testing.SetHeight(960 * epochBlocks) // before TestBuilders, which needs the newest namespaces
+	setEpoch(960) // before TestBuilders, which needs the newest namespaces
 	registerFrom(cur, "gno.land/r/hot/app", "hot-app", "Hot App")
 	starFrom(cur, "hot-app", "hota", "hotb", "hotc", "hotd", "hote")
-	testing.SkipHeights(epochBlocks)
+	skip(epochLength)
 	const n = 10
 	for i := 0; i < n+2; i++ {
 		ns := "warm" + strconv.Itoa(i)
 		registerFrom(cur, "gno.land/r/"+ns+"/app", ns, "Warm "+strconv.Itoa(i))
 		starFrom(cur, ns, ns+"a", ns+"b")
 	}
-	top := trending(runtime.ChainHeight(), n).items
+	top := trending(blockTime(), n).items
 	uassert.Equal(t, n, len(top))
 	uassert.Equal(t, "hot-app", top[0].Slug)
 }
 
 func TestPulse(cur realm, t *testing.T) {
-	testing.SetHeight(700 * epochBlocks) // earlier events are out of every window
+	setEpoch(700) // earlier events are out of every window
 	registerFrom(cur, "gno.land/r/pulse/one", "pulse-one", "Pulse One")
 	registerFrom(cur, "gno.land/r/pulse/two", "pulse-two", "Pulse Two")
 	starFrom(cur, "pulse-one", "pulsea", "pulseb", "pulsec")
 	contains(t, Render("api/v1/home"), `"pulse":{"listed_7d":2,"stars_7d":3,"listed_30d":2,"stars_30d":3}`)
 
-	testing.SkipHeights(updateCooldown) // the first epoch leaves the 7d window
+	skip(updateCooldown) // the first epoch leaves the 7d window
 	contains(t, Render("api/v1/home"), `"pulse":{"listed_7d":0,"stars_7d":0,"listed_30d":2,"stars_30d":3}`)
 }
 
@@ -680,9 +714,9 @@ func TestActivity(cur realm, t *testing.T) {
 }
 
 func TestBuilders(cur realm, t *testing.T) {
-	testing.SetHeight(1000 * epochBlocks) // after every other listing
+	setEpoch(1000) // after every other listing
 	registerFrom(cur, "gno.land/r/builderns/one", "builderns-one", "Builder One")
-	testing.SkipHeights(1)
+	skip(1)
 	registerFrom(cur, "gno.land/r/builderns/two", "builderns-two", "Builder Two")
 	starFrom(cur, "builderns-two", "buildera", "builderb", "builderc")
 
@@ -699,19 +733,19 @@ func TestBuilders(cur realm, t *testing.T) {
 }
 
 func TestRotation(t *testing.T) {
-	const h = 10000 * epochBlocks // every app is old by then
+	const now = (origin + 10000) * epochLength // every app is old by then
 	old := namedApps.Size()
-	first := rotation(h)
+	first := rotation(now)
 	uassert.True(t, len(first) > 0 && len(first) <= rediscoverSize)
-	uassert.Equal(t, jsonSlugs(first), jsonSlugs(rotation(h+1)), "same epoch, same window")
-	uassert.NotEqual(t, jsonSlugs(first), jsonSlugs(rotation(h+epochBlocks)), "next epoch, next window")
+	uassert.Equal(t, jsonSlugs(first), jsonSlugs(rotation(now+1)), "same epoch, same window")
+	uassert.NotEqual(t, jsonSlugs(first), jsonSlugs(rotation(now+epochLength)), "next epoch, next window")
 
 	// Every app of a named namespace but the core ones is in the first half
 	// of a window within ceil(old/rediscoverStep) epochs; address
 	// namespaces and core apps never are.
 	shown := map[string]bool{}
 	for e := int64(0); e < int64((old+rediscoverStep-1)/rediscoverStep); e++ {
-		w := rotation(h + e*epochBlocks)
+		w := rotation(now + e*epochLength)
 		for i, l := range w {
 			uassert.False(t, address(l.Namespace).IsValid(), l.Slug)
 			uassert.False(t, l.core, l.Slug)
@@ -785,7 +819,7 @@ func jsonSlugs(ls []*listing) string {
 // listingJSON is a listing's object as the API lists it.
 func listingJSON(slug string) string {
 	var b strings.Builder
-	writeListing(&b, bySlugOrPanic(slug), runtime.ChainHeight())
+	writeListing(&b, bySlugOrPanic(slug), blockTime())
 	return b.String()
 }
 
@@ -822,7 +856,7 @@ func TestBuilderRankFits(t *testing.T) {
 // TestTopFloor checks that the front's Top holds only community apps with
 // topStars ranked stars, while its list goes on below.
 func TestTopFloor(t *testing.T) {
-	for _, s := range homeShelves(runtime.ChainHeight()) {
+	for _, s := range homeShelves(blockTime()) {
 		if s.Title != "Top" {
 			continue
 		}
@@ -855,7 +889,7 @@ func TestCategoryMarkdownPages(cur realm, t *testing.T) {
 // namespaces to its list.
 func TestFrontSections(t *testing.T) {
 	var titles []string
-	for _, s := range homeShelves(runtime.ChainHeight()) {
+	for _, s := range homeShelves(blockTime()) {
 		titles = append(titles, s.Title)
 		switch s.Title {
 		case "New":
@@ -887,23 +921,23 @@ func TestProposals(cur realm, t *testing.T) {
 // TestPick checks a GovDAO pick: an app only, for a bounded time, ended by
 // a hide, and served first.
 func TestPick(cur realm, t *testing.T) {
-	h := runtime.ChainHeight()
-	uassert.ErrorContains(t, setPick("nope", 7, h), "unknown listing")
-	uassert.ErrorContains(t, setPick("avl", 7, h), "only an app")
-	uassert.ErrorContains(t, setPick("blog", 0, h), "1 to 30 days")
-	uassert.ErrorContains(t, setPick("blog", maxPickDays+1, h), "1 to 30 days")
+	now := blockTime()
+	uassert.ErrorContains(t, setPick("nope", 7, now), "unknown listing")
+	uassert.ErrorContains(t, setPick("avl", 7, now), "only an app")
+	uassert.ErrorContains(t, setPick("blog", 0, now), "1 to 30 days")
+	uassert.ErrorContains(t, setPick("blog", maxPickDays+1, now), "1 to 30 days")
 	uassert.AbortsContains(t, cur, "1 to 30 days", func() { ProposeSpotlight(cross(cur), "blog", 31) })
 
-	uassert.NoError(t, setPick("boards", 7, h))
-	uassert.True(t, picked(h) == bySlugOrPanic("boards"))
+	uassert.NoError(t, setPick("boards", 7, now))
+	uassert.True(t, picked(now) == bySlugOrPanic("boards"))
 	contains(t, Render("api/v1/home"), `"pick":"boards"`)
 	contains(t, Render(""), "## Picked by GovDAO")
-	uassert.True(t, picked(h+7*blocksPerDay) == nil, "the pick ends")
+	uassert.True(t, picked(now+7*day) == nil, "the pick ends")
 
 	uassert.NoError(t, hide("boards", "other"))
-	uassert.True(t, picked(h) == nil, "a hidden app is no longer picked")
+	uassert.True(t, picked(now) == nil, "a hidden app is no longer picked")
 	uassert.NoError(t, unhide("gno.land/r/gnoland/boards2/v0"))
-	uassert.True(t, picked(h) == nil, "nor once unhidden: the hide ended the pick")
+	uassert.True(t, picked(now) == nil, "nor once unhidden: the hide ended the pick")
 	ProposeSpotlight(cross(cur), "boards", 7)
 }
 
@@ -914,40 +948,40 @@ func TestPickEndsWithTheShownApp(cur realm, t *testing.T) {
 	owner := testutils.TestAddress("heroowner")
 	path := "gno.land/r/" + owner.String() + "/hero"
 	registerFrom(cur, path, "hero-app", "Hero App")
-	h := runtime.ChainHeight()
+	now := blockTime()
 
 	// A kind change app -> service -> app.
-	uassert.NoError(t, setPick("hero-app", 7, h))
+	uassert.NoError(t, setPick("hero-app", 7, now))
 	testing.SetRealm(testing.NewUserRealm(owner))
 	Claim(cross(cur), path, "hero-app", "Hero App", "A tagline", "utilities", 4, kindService)
-	uassert.True(t, picked(h) == nil, "a service is not picked")
+	uassert.True(t, picked(now) == nil, "a service is not picked")
 	Claim(cross(cur), path, "hero-app", "Hero App", "A tagline", "utilities", 4, kindApp)
-	uassert.True(t, picked(h) == nil, "nor once an app again")
+	uassert.True(t, picked(now) == nil, "nor once an app again")
 
 	// A rename, even undone.
-	uassert.NoError(t, setPick("hero-app", 7, h))
-	uassert.True(t, picked(h) == bySlugOrPanic("hero-app"))
+	uassert.NoError(t, setPick("hero-app", 7, now))
+	uassert.True(t, picked(now) == bySlugOrPanic("hero-app"))
 	registerFrom(cur, path, "hero-app", "Hero App Renamed")
-	uassert.True(t, picked(h) == nil, "a renamed app is not the one picked")
+	uassert.True(t, picked(now) == nil, "a renamed app is not the one picked")
 	registerFrom(cur, path, "hero-app", "Hero App")
-	uassert.True(t, picked(h) == nil, "nor once renamed back")
+	uassert.True(t, picked(now) == nil, "nor once renamed back")
 
 	// A proposal is bound to the title it was made for.
-	uassert.ErrorContains(t, pickBound("hero-app", path, titleKey("Other Title"), 7, h), "changed its title")
-	uassert.NoError(t, pickBound("hero-app", path, titleKey("Hero App"), 7, h))
-	uassert.True(t, picked(h) == bySlugOrPanic("hero-app"))
+	uassert.ErrorContains(t, pickBound("hero-app", path, titleKey("Other Title"), 7, now), "changed its title")
+	uassert.NoError(t, pickBound("hero-app", path, titleKey("Hero App"), 7, now))
+	uassert.True(t, picked(now) == bySlugOrPanic("hero-app"))
 }
 
 // TestNewSkipsAddressNamespaces checks that an app of a g1… namespace, even
 // the newest, is not on the front's New but is on its list, :latest.
 func TestNewSkipsAddressNamespaces(cur realm, t *testing.T) {
-	testing.SetHeight(2000 * epochBlocks) // after every other listing
+	setEpoch(2000) // after every other listing
 	path := "gno.land/r/" + testutils.TestAddress("newanon").String() + "/app"
 	registerFrom(cur, path, "anon-new", "Anon New")
-	testing.SkipHeights(1)
+	skip(1)
 	registerFrom(cur, "gno.land/r/newnamed/app", "named-new", "Named New")
 
-	front := homeShelves(runtime.ChainHeight())[0]
+	front := homeShelves(blockTime())[0]
 	uassert.Equal(t, "New", front.Title)
 	uassert.Equal(t, "named-new", front.Items[0].Slug)
 	uassert.False(t, strings.Contains(jsonSlugs(front.Items), `"anon-new"`))
@@ -959,10 +993,10 @@ func TestNewSkipsAddressNamespaces(cur realm, t *testing.T) {
 // both builder rankings, even with a community listing among them, while a
 // personal namespace the seed lists a package of (moul) is a builder.
 func TestSeedNamespacesNotBuilders(cur realm, t *testing.T) {
-	testing.SetHeight(3000 * epochBlocks) // after every other listing
+	setEpoch(3000) // after every other listing
 	registerFrom(cur, "gno.land/r/gnoland/extra", "gnoland-extra", "Gnoland Extra")
 	starFrom(cur, "gnoland-extra", "seedfana", "seedfanb", "seedfanc")
-	testing.SkipHeights(1)
+	skip(1)
 	registerFrom(cur, "gno.land/r/community/app", "community-app", "Community App")
 
 	top, fresh := topBuilders()
@@ -993,10 +1027,10 @@ func TestProposalBoundToPath(cur realm, t *testing.T) {
 	registerFrom(cur, squatter, "bound-app", "Bound App")
 
 	uassert.ErrorContains(t, hideBound("bound-app", victim, "other"), "another listing")
-	uassert.ErrorContains(t, pickBound("bound-app", victim, titleKey("Bound App"), 7, runtime.ChainHeight()), "another listing")
+	uassert.ErrorContains(t, pickBound("bound-app", victim, titleKey("Bound App"), 7, blockTime()), "another listing")
 	uassert.False(t, bySlugOrPanic("bound-app").hidden)
-	uassert.True(t, picked(runtime.ChainHeight()) == nil || picked(runtime.ChainHeight()).Path != squatter)
-	uassert.NoError(t, pickBound("bound-app", squatter, titleKey("Bound App"), 1, runtime.ChainHeight()))
+	uassert.True(t, picked(blockTime()) == nil || picked(blockTime()).Path != squatter)
+	uassert.NoError(t, pickBound("bound-app", squatter, titleKey("Bound App"), 1, blockTime()))
 	uassert.NoError(t, hideBound("bound-app", squatter, "other"))
 }
 
@@ -1006,14 +1040,14 @@ func TestPickNeedsConfirmed(cur realm, t *testing.T) {
 	owner := testutils.TestAddress("pickowner")
 	testing.SetRealm(testing.NewUserRealm(owner))
 	Claim(cross(cur), "gno.land/r/"+owner.String()+"/app", "unconfirmed-pick", "Unconfirmed Pick", "A tagline", "nft-art", 1, kindApp)
-	uassert.ErrorContains(t, setPick("unconfirmed-pick", 7, runtime.ChainHeight()), "only a confirmed app")
+	uassert.ErrorContains(t, setPick("unconfirmed-pick", 7, blockTime()), "only a confirmed app")
 	uassert.AbortsContains(t, cur, "only a confirmed app", func() { ProposeSpotlight(cross(cur), "unconfirmed-pick", 7) })
 }
 
 // TestBlock checks the embeddable lists: the front's rules, n clamped, the
 // titles sanitized, and nothing for an unknown list.
 func TestBlock(cur realm, t *testing.T) {
-	testing.SetHeight(4000 * epochBlocks) // after every other listing
+	setEpoch(4000) // after every other listing
 	registerFrom(cur, "gno.land/r/blockns/app", "block-app", "Block *App* [x](y)")
 	latest := Block("latest", 0)
 	uassert.Equal(t, 1, strings.Count(latest, "- "), "n clamped to 1")

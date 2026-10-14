@@ -23,7 +23,7 @@ func init() {
 		{Kind: kindPackage, Slug: "ownable", Path: d + "/p/nt/ownable/v0", Title: "Ownable", Tagline: "Single-owner access control for realms", Category: "dev-tools", Palette: 3},
 		{Kind: kindPackage, Slug: "markdown", Path: d + "/p/moul/md/v0", Title: "Markdown Helpers", Tagline: "Build markdown for Render without string soup", Category: "dev-tools", Palette: 7},
 	}
-	h := runtime.ChainHeight()
+	now := blockTime()
 	for _, seed := range seeds {
 		l := seed          // its own object, not a pointer into the seeds array
 		l.Confirmed = true // curated, like a Register
@@ -32,7 +32,7 @@ func init() {
 		// gno.land essentials.
 		l.core = true
 		essentials = append(essentials, &l)
-		if reason := upsert(&l, h); reason != "" {
+		if reason := upsert(&l, now); reason != "" {
 			panic("store: seed " + l.Path + ": " + reason)
 		}
 	}

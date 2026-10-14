@@ -4,7 +4,6 @@ import (
 	"chain/runtime"
 	"strconv"
 	"strings"
-	"time"
 )
 
 const notFound = `{"version":1,"error":"not_found"}`
@@ -16,43 +15,43 @@ func renderAPI(path string) string {
 	if len(parts) < 2 || parts[0] != "v1" {
 		return notFound
 	}
-	h := runtime.ChainHeight()
+	now := blockTime()
 	switch {
 	case path == "v1/home":
-		return apiHome(h)
+		return apiHome(now)
 	case path == "v1/build":
-		return apiBuild(h)
+		return apiBuild(now)
 	case parts[1] == "category" && len(parts) == 4:
-		return apiCategory(parts[2], parts[3], h)
+		return apiCategory(parts[2], parts[3], now)
 	case parts[1] == "list" && len(parts) == 4:
-		return apiList(parts[2], parts[3], h)
+		return apiList(parts[2], parts[3], now)
 	}
 	return notFound
 }
 
-func apiHome(h int64) string {
+func apiHome(now int64) string {
 	var b strings.Builder
-	writeHeader(&b, h)
+	writeHeader(&b, now)
 	b.WriteString(`,"pulse":`)
-	writePulse(&b, h/epochBlocks)
+	writePulse(&b, now/epochLength)
 	writeCategories(&b)
-	refs := writeShelves(&b, homeShelves(h))
-	if l := picked(h); l != nil {
+	refs := writeShelves(&b, homeShelves(now))
+	if l := picked(now); l != nil {
 		writeKey(&b, "pick")
 		writeString(&b, l.Slug)
 		refs = append(refs, l)
 	}
 	refs = append(refs, writeActivity(&b)...)
 	writeKey(&b, "listings")
-	writeListings(&b, refs, h)
+	writeListings(&b, refs, now)
 	b.WriteByte('}')
 	return b.String()
 }
 
-func apiBuild(h int64) string {
+func apiBuild(now int64) string {
 	var b strings.Builder
 	b.WriteString(`{"version":1`)
-	refs := writeShelves(&b, buildShelves(h))
+	refs := writeShelves(&b, buildShelves(now))
 	top, fresh := topBuilders()
 	b.WriteString(`,"builders":{"top":`)
 	writeBuilders(&b, top)
@@ -60,35 +59,35 @@ func apiBuild(h int64) string {
 	writeBuilders(&b, fresh)
 	b.WriteByte('}')
 	writeKey(&b, "listings")
-	writeListings(&b, refs, h)
+	writeListings(&b, refs, now)
 	b.WriteByte('}')
 	return b.String()
 }
 
-func apiCategory(key, pageParam string, h int64) string {
+func apiCategory(key, pageParam string, now int64) string {
 	c, ok := findCategory(key)
 	if !ok {
 		return notFound
 	}
-	return apiPage(list{Index: categoryMembers(key)}, pageParam, h, func(b *strings.Builder) {
+	return apiPage(list{Index: categoryMembers(key)}, pageParam, now, func(b *strings.Builder) {
 		b.WriteString(`{"version":1,"category":`)
 		writeCategory(b, c)
 	})
 }
 
-func apiList(key, pageParam string, h int64) string {
-	l, ok := findList(key, h)
+func apiList(key, pageParam string, now int64) string {
+	l, ok := findList(key, now)
 	if !ok {
 		return notFound
 	}
-	return apiPage(l, pageParam, h, func(b *strings.Builder) {
+	return apiPage(l, pageParam, now, func(b *strings.Builder) {
 		b.WriteString(`{"version":1,"list":`)
 		writeList(b, l)
 	})
 }
 
 // apiPage answers one page of l, after the head head writes.
-func apiPage(l list, pageParam string, h int64, head func(*strings.Builder)) string {
+func apiPage(l list, pageParam string, now int64, head func(*strings.Builder)) string {
 	n, err := strconv.Atoi(pageParam)
 	if err != nil || n < 1 {
 		return notFound
@@ -104,7 +103,7 @@ func apiPage(l list, pageParam string, h int64, head func(*strings.Builder)) str
 	writeKey(&b, "pages")
 	writeInt(&b, int64(pages))
 	writeKey(&b, "listings")
-	writeListings(&b, members, h)
+	writeListings(&b, members, now)
 	b.WriteByte('}')
 	return b.String()
 }
@@ -119,12 +118,13 @@ func writeList(b *strings.Builder, l list) {
 	b.WriteByte('}')
 }
 
-// writeHeader opens a response with its version, height and block time.
-func writeHeader(b *strings.Builder, h int64) {
+// writeHeader opens a response with its version, the block height and the
+// block time now.
+func writeHeader(b *strings.Builder, now int64) {
 	b.WriteString(`{"version":1,"height":`)
-	writeInt(b, h)
+	writeInt(b, runtime.ChainHeight())
 	writeKey(b, "time")
-	writeInt(b, time.Now().Unix())
+	writeInt(b, now)
 }
 
 func writePulse(b *strings.Builder, epoch int64) {
@@ -238,9 +238,9 @@ func writeCategory(b *strings.Builder, c category) {
 }
 
 // writeListings writes each listing once, in first-seen order.
-func writeListings(b *strings.Builder, ls []*listing, h int64) {
+func writeListings(b *strings.Builder, ls []*listing, now int64) {
 	ls = unique(ls)
-	writeArray(b, len(ls), func(i int) { writeListing(b, ls[i], h) })
+	writeArray(b, len(ls), func(i int) { writeListing(b, ls[i], now) })
 }
 
 // unique drops repeated listings, keeping first-seen order. ls holds about
@@ -274,8 +274,8 @@ func writeArray(b *strings.Builder, n int, item func(i int)) {
 	b.WriteByte(']')
 }
 
-func writeListing(b *strings.Builder, l *listing, h int64) {
-	r, _ := l.effective(h)
+func writeListing(b *strings.Builder, l *listing, now int64) {
+	r, _ := l.effective(now)
 	b.WriteString(`{"slug":`)
 	writeString(b, l.Slug)
 	for _, f := range [][2]string{
@@ -295,7 +295,7 @@ func writeListing(b *strings.Builder, l *listing, h int64) {
 	writeKey(b, "ranked")
 	writeInt(b, int64(l.rankedCount()))
 	writeKey(b, "earned")
-	b.WriteString(strconv.FormatBool(l.earned(h)))
+	b.WriteString(strconv.FormatBool(l.earned(now)))
 	writeKey(b, "icon")
 	writeString(b, r.Icon)
 	writeKey(b, "cover")

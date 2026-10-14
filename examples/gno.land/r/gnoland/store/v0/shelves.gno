@@ -41,8 +41,8 @@ type list struct {
 	Counts []int      // computed lists: each item's ranked stars this week, which its shelf shows
 }
 
-// findList returns the list with this key at height h.
-func findList(key string, h int64) (list, bool) {
+// findList returns the list with this key at time now.
+func findList(key string, now int64) (list, bool) {
 	switch key {
 	case "top":
 		return list{Key: key, Title: "Top", Index: &apps.stars}, true
@@ -51,14 +51,14 @@ func findList(key string, h int64) (list, bool) {
 	case "updated":
 		return list{Key: key, Title: "Recently updated", Index: &apps.updated}, true
 	case "trending":
-		t := trending(h, pageSize)
+		t := trending(now, pageSize)
 		return list{Key: key, Title: "Trending this week", Items: t.items, Counts: t.scores}, true
 	}
 	return list{}, false
 }
 
-func mustList(key string, h int64) list {
-	l, ok := findList(key, h)
+func mustList(key string, now int64) list {
+	l, ok := findList(key, now)
 	if !ok {
 		panic("store: unknown list " + key)
 	}
@@ -85,9 +85,9 @@ func (l list) count() int {
 
 // buildShelves computes the build lens shelves, over services and packages,
 // for api/v1/build and the markdown build page.
-func buildShelves(h int64) []shelf {
+func buildShelves(now int64) []shelf {
 	return []shelf{
-		{Title: "New to build with", Items: takeWhile(&toolbox.created, gridPool, func(l *listing) bool { return l.isNew(h) })},
+		{Title: "New to build with", Items: takeWhile(&toolbox.created, gridPool, func(l *listing) bool { return l.isNew(now) })},
 		{Title: "Recently updated", Items: window(&toolbox.updated, 0, gridPool)},
 		{Title: "Most starred", Items: window(&toolbox.stars, 0, gridPool)},
 	}
@@ -139,8 +139,8 @@ func pageOf(index *avl.Tree, n int) ([]*listing, int) {
 // is below minTrending or the n-th best real score, no later app of that
 // slot can enter, so the result is exact unless trendingScan, which bounds
 // the reads whatever the store's size, cuts it short.
-func trending(h int64, n int) *topN {
-	best, scanned, epoch := &topN{n: n}, 0, h/epochBlocks
+func trending(now int64, n int) *topN {
+	best, scanned, epoch := &topN{n: n}, 0, now/epochLength
 	for _, s := range appTrend.slots {
 		if s.byScore == nil || epoch-s.epoch >= trendEpochs {
 			continue
@@ -151,7 +151,7 @@ func trending(h int64, n int) *topN {
 				return true
 			}
 			l := v.(*listing)
-			if n := l.stars7d(h); n >= minTrending {
+			if n := l.stars7d(now); n >= minTrending {
 				best.offer(n, l)
 			}
 			scanned++
@@ -174,17 +174,17 @@ func trending(h int64, n int) *topN {
 // category and the lists. The core apps stay in gno.land essentials. The
 // index is newest first, so the new apps are a prefix, found by binary
 // search.
-func rotation(h int64) []*listing {
+func rotation(now int64) []*listing {
 	ix := &namedApps
 	fresh := sort.Search(ix.Size(), func(i int) bool {
 		_, v := ix.GetByIndex(i)
-		return !v.(*listing).isNew(h)
+		return !v.(*listing).isNew(now)
 	})
 	old := ix.Size() - fresh
 	if old == 0 {
 		return nil
 	}
-	start := int((h / epochBlocks * rediscoverStep) % int64(old))
+	start := int((now / epochLength * rediscoverStep) % int64(old))
 	out := window(ix, fresh+start, rediscoverSize)
 	if wrap := rediscoverSize - len(out); wrap > 0 {
 		if wrap > start {

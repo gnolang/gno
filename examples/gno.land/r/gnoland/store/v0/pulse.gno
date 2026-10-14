@@ -52,12 +52,12 @@ func (r *eventRing) newestFirst() []event {
 // track records a listing event in the activity feed and the pulse
 // counters. It is the single gate of both: hidden and unconfirmed listings
 // announce nothing.
-func track(kind string, l *listing, h int64) {
+func track(kind string, l *listing, now int64) {
 	if !l.indexed() {
 		return
 	}
 	if kind == "listed" {
-		pulseListed.add(h/epochBlocks, 1)
+		pulseListed.add(now/epochLength, 1)
 	}
 	activity.push(event{kind, l, l.rankedCount()})
 }
@@ -79,7 +79,7 @@ func newEpochRing(n int) epochRing {
 // left the ring is dropped: that epoch no longer counts anywhere.
 func (r *epochRing) add(epoch int64, delta int) {
 	n := int64(len(r.counts))
-	if delta > 0 && epoch <= r.last-n { // only a test moves the height back: restart
+	if delta > 0 && epoch <= r.last-n { // only a test moves the clock back: restart
 		r.last = epoch - n
 	}
 	if epoch > r.last {

@@ -42,21 +42,21 @@ type listing struct {
 // a first star stores one object fewer per tree.
 type starBook struct {
 	all    avl.Tree  // user address -> packed star, all of them (the displayed count)
-	ranked avl.Tree  // descKey(star height, address) -> star height, ranked stars only
+	ranked avl.Tree  // descKey(star time, address) -> star time, ranked stars only
 	recent epochRing // ranked stars per epoch, for trending; empty until the first ranked star
 }
 
 type star struct {
-	Height int64
+	At int64 // block time of the star
 	// Ranked records whether the star counts in rankings (see Star).
 	// Judged once, at star time, so reads need no cross-realm call.
 	Ranked bool
 }
 
-// pack stores s as one int64, its height doubled plus its rank bit: a
+// pack stores s as one int64, its time doubled plus its rank bit: a
 // struct value would be one more stored object per star.
 func (s star) pack() int64 {
-	v := s.Height * 2
+	v := s.At * 2
 	if s.Ranked {
 		v++
 	}
@@ -66,7 +66,7 @@ func (s star) pack() int64 {
 // starOf returns addr's star on l, which must exist.
 func (l *listing) starOf(addr string) star {
 	v := l.book.all.Get(addr).(int64)
-	return star{Height: v / 2, Ranked: v%2 == 1}
+	return star{At: v / 2, Ranked: v%2 == 1}
 }
 
 // starCount is the displayed number of stars; rankedCount, the number that
@@ -140,7 +140,7 @@ type builder struct {
 	Namespace string
 	Listings  int
 	Stars     int   // their ranked stars
-	First     int64 // creation height of the oldest
+	First     int64 // creation time of the oldest
 }
 
 var (
@@ -163,10 +163,10 @@ var (
 )
 
 // upsert lists l, or updates the listing of the same path in place, keeping
-// its slug and creation height; a confirmed l confirms the listing. It
+// its slug and creation time; a confirmed l confirms the listing. It
 // returns a short reason when it refuses. It is the single write path for
 // listing data, shared by Register, Claim and the genesis seed.
-func upsert(l *listing, h int64) string {
+func upsert(l *listing, now int64) string {
 	if paused {
 		return "paused"
 	}
@@ -182,9 +182,9 @@ func upsert(l *listing, h int64) string {
 		if owner, _ := byTitle.Get(titleKey(l.Title)).(string); owner != "" && owner != l.Slug {
 			return reasonTitleTaken
 		}
-		existing.update(l, h)
+		existing.update(l, now)
 		if l.Confirmed {
-			existing.confirm(h)
+			existing.confirm(now)
 		}
 		return ""
 	}
@@ -192,12 +192,12 @@ func upsert(l *listing, h int64) string {
 	if reason := available(l); reason != "" {
 		return reason
 	}
-	l.Created, l.Updated = h, h
+	l.Created, l.Updated = now, now
 	listings.Set(l.Slug, l)
 	byPath.Set(l.Path, l)
 	byTitle.Set(titleKey(l.Title), l.Slug)
 	l.index()
-	track("listed", l, h)
+	track("listed", l, now)
 	return ""
 }
 
@@ -220,7 +220,7 @@ func available(l *listing) string {
 // must not buy a place in "Recently updated" (the fields still change, so a
 // fix is never blocked). Only a kind or category change moves the listing
 // in the indexes.
-func (l *listing) update(next *listing, h int64) {
+func (l *listing) update(next *listing, now int64) {
 	if l.Kind == next.Kind && l.Title == next.Title && l.Tagline == next.Tagline &&
 		l.Category == next.Category && l.Palette == next.Palette {
 		return
@@ -236,32 +236,32 @@ func (l *listing) update(next *listing, h int64) {
 		l.reindex(func() { l.Kind, l.Category = next.Kind, next.Category })
 	}
 	l.Title, l.Tagline, l.Palette = next.Title, next.Tagline, next.Palette
-	l.touch(h)
+	l.touch(now)
 }
 
-// touch records a real change at height h, unless one was already recorded
+// touch records a real change at time now, unless one was already recorded
 // less than updateCooldown ago.
-func (l *listing) touch(h int64) {
-	if h-l.Updated < updateCooldown {
+func (l *listing) touch(now int64) {
+	if now-l.Updated < updateCooldown {
 		return
 	}
 	if l.indexed() {
 		ix := l.shelves()
 		ix.updated.Remove(descKey(l.Updated, l.Slug))
-		ix.updated.Set(descKey(h, l.Slug), l)
+		ix.updated.Set(descKey(now, l.Slug), l)
 	}
-	l.Updated = h
-	track("updated", l, h)
+	l.Updated = now
+	track("updated", l, now)
 }
 
 // confirm promotes a claimed listing to the shelves, the feed and the
 // builders, and announces it.
-func (l *listing) confirm(h int64) {
+func (l *listing) confirm(now int64) {
 	if l.Confirmed {
 		return
 	}
 	l.reindex(func() { l.Confirmed = true })
-	track("listed", l, h)
+	track("listed", l, now)
 }
 
 // indexed reports whether l is on the shelves and counts for its builder.
@@ -398,7 +398,7 @@ func rekey(tree *avl.Tree, old, next string, v any) {
 	tree.Set(next, v)
 }
 
-// firstCreated is the creation height of the oldest visible, confirmed
+// firstCreated is the creation time of the oldest visible, confirmed
 // listing of ns other than except; a namespace has few listings.
 func firstCreated(ns string, except *listing) int64 {
 	first := int64(math.MaxInt64)
@@ -426,16 +426,16 @@ func (l *listing) reindex(change func()) {
 	}
 }
 
-// restar applies a change to l's ranked stars at height h and moves l in
+// restar applies a change to l's ranked stars at time now and moves l in
 // the star indexes and its builder's total only, so a star costs O(log n),
 // not a full reindex.
-func (l *listing) restar(h int64, change func()) {
+func (l *listing) restar(now int64, change func()) {
 	shown, ix, before := l.indexed(), l.shelves(), l.rankedCount()
 	if shown {
 		l.unindexStars(ix)
 	}
 	change()
-	l.trendScore, l.trendEpoch = l.stars7d(h), h/epochBlocks
+	l.trendScore, l.trendEpoch = l.stars7d(now), now/epochLength
 	if !shown {
 		return
 	}
@@ -448,7 +448,7 @@ func (l *listing) restar(h int64, change func()) {
 // from unnamed, newly named or owner addresses, only count in the displayed
 // total.
 func (l *listing) addStar(addr string, s star) {
-	epoch := s.Height / epochBlocks
+	epoch := s.At / epochLength
 	if l.book == nil {
 		l.book = &starBook{}
 	}
@@ -461,31 +461,31 @@ func (l *listing) addStar(addr string, s star) {
 		l.book.recent = newEpochRing(trendEpochs)
 	}
 	l.book.recent.add(epoch, 1)
-	l.restar(s.Height, func() { l.book.ranked.Set(descKey(s.Height, addr), s.Height) })
+	l.restar(s.At, func() { l.book.ranked.Set(descKey(s.At, addr), s.At) })
 	n := l.rankedCount()
 	if n >= confirmStars {
-		l.confirm(s.Height)
+		l.confirm(s.At)
 	}
 	for _, m := range milestones {
 		if n == m && m > l.milestone {
 			l.milestone = m
-			track("milestone", l, s.Height)
+			track("milestone", l, s.At)
 		}
 	}
 }
 
-// removeStar drops addr's star at height h. Once the star's epoch has left
+// removeStar drops addr's star at time now. Once the star's epoch has left
 // the rings, it no longer counts there, so nothing is subtracted.
-func (l *listing) removeStar(addr string, h int64) {
+func (l *listing) removeStar(addr string, now int64) {
 	s := l.starOf(addr)
-	epoch := s.Height / epochBlocks
+	epoch := s.At / epochLength
 	l.book.all.Remove(addr)
 	pulseStars.add(epoch, -1)
 	if !s.Ranked {
 		return
 	}
 	l.book.recent.add(epoch, -1)
-	l.restar(h, func() { l.book.ranked.Remove(descKey(s.Height, addr)) })
+	l.restar(now, func() { l.book.ranked.Remove(descKey(s.At, addr)) })
 }
 
 // descKey orders by n descending, then key ascending, in a forward
@@ -640,13 +640,13 @@ func (l *listing) live() rich {
 	return rich{Icon: l.icon, Cover: l.cover}
 }
 
-// effective returns the rich fields in effect at height h, and whether a
+// effective returns the rich fields in effect at time now, and whether a
 // newer change is still waiting for its publication delay.
-func (l *listing) effective(h int64) (rich, bool) {
+func (l *listing) effective(now int64) (rich, bool) {
 	switch {
 	case l.next == nil:
 		return l.live(), false
-	case h-l.nextAt >= richDelay:
+	case now-l.nextAt >= richDelay:
 		return *l.next, false
 	default:
 		return l.live(), true
@@ -655,7 +655,7 @@ func (l *listing) effective(h int64) (rich, bool) {
 
 // submitRich replaces any change still pending: the delay restarts.
 // Resubmitting the latest values changes nothing.
-func (l *listing) submitRich(r rich, h int64) {
+func (l *listing) submitRich(r rich, now int64) {
 	latest := l.live()
 	if l.next != nil {
 		latest = *l.next
@@ -663,38 +663,38 @@ func (l *listing) submitRich(r rich, h int64) {
 	if r == latest {
 		return
 	}
-	live, _ := l.effective(h)
+	live, _ := l.effective(now)
 	l.icon, l.cover = live.Icon, live.Cover
 	l.next = &r
-	l.nextAt = h
-	l.touch(h)
+	l.nextAt = now
+	l.touch(now)
 }
 
-func (l *listing) isNew(h int64) bool {
-	return h-l.Created < newWindow
+func (l *listing) isNew(now int64) bool {
+	return now-l.Created < newWindow
 }
 
-func (l *listing) stars7d(h int64) int {
+func (l *listing) stars7d(now int64) int {
 	if l.book == nil {
 		return 0
 	}
-	return l.book.recent.sum(h/epochBlocks, trendEpochs)
+	return l.book.recent.sum(now/epochLength, trendEpochs)
 }
 
 // earned reports earned reputation (ADR §2) from chain data alone. Only
 // ranked stars at least starMaturity old count (T8). Ranked stars are kept
 // newest first, so the check reads one entry: the earnStars-th oldest must
 // be starMaturity old.
-func (l *listing) earned(h int64) bool {
-	if h-l.Created < earnAge || l.rankedCount() < earnStars {
+func (l *listing) earned(now int64) bool {
+	if now-l.Created < earnAge || l.rankedCount() < earnStars {
 		return false
 	}
-	if _, pending := l.effective(h); pending {
+	if _, pending := l.effective(now); pending {
 		return false
 	}
 	mature := false
 	l.book.ranked.ReverseIterateByOffset(earnStars-1, 1, func(_ string, v any) bool {
-		mature = h-v.(int64) >= starMaturity
+		mature = now-v.(int64) >= starMaturity
 		return true
 	})
 	return mature
