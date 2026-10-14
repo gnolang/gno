@@ -255,8 +255,8 @@ func looksLikePackagePath(imp string) bool {
 // be runnable (gc compiles but never runs it).
 func CorpusDirective(source []byte) string {
 	first := source
-	if nl := bytes.IndexByte(source, '\n'); nl >= 0 {
-		first = source[:nl]
+	if before, _, ok := bytes.Cut(source, []byte{'\n'}); ok {
+		first = before
 	}
 	s := strings.TrimSpace(string(first))
 	if !strings.HasPrefix(s, "//") {
@@ -299,7 +299,7 @@ func PerLineErrors(errStr string, prependedLines int) map[int]string {
 // trimmed; empty segments are dropped.
 func gnoErrSegments(s string) []string {
 	var out []string
-	for _, p := range strings.Split(s, "; ") {
+	for p := range strings.SplitSeq(s, "; ") {
 		if p = strings.TrimSpace(p); p != "" {
 			out = append(out, p)
 		}
@@ -380,7 +380,7 @@ var reLineEntry = regexp.MustCompile(`^line (\d+)(?::\s*(.*))?$`)
 // per-line map; entries without a message (FormatLineOnlyBlock) map to "".
 func ParseLineBlock(block string) map[int]string {
 	out := make(map[int]string)
-	for _, l := range strings.Split(block, "\n") {
+	for l := range strings.SplitSeq(block, "\n") {
 		if m := reLineEntry.FindStringSubmatch(strings.TrimSpace(l)); m != nil {
 			n, _ := strconv.Atoi(m[1])
 			out[n] = m[2]
