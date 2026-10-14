@@ -87,27 +87,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		return "", 0, diffs, &SkipError{Reason: v.Mode + ": " + v.Reason}
 	}
-	// One verdict line per .go corpus file; sync writes it, verify demands it.
-	if isGoFile && !opts.Sync {
-		n := 0
-		for _, d := range dirs {
-			if d.Name == DirectiveVerdict {
-				n++
-			}
-		}
-		if n != 1 {
-			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
-		}
-		if _, ok := verdictIn(dirs); !ok {
-			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
-		}
-	}
-
-	// Capture the golden region now, before any strip or re-parse below
-	// loses it (prependRescue re-parses dirs from the stripped source).
-	// Used by the compile-mode verdict.
-	origDirs := dirs
-
 	// Strip the trailing golden region (`// GnoError:` /
 	// `// GoTypeCheckError:` blocks, verdict lines) from the source
 	// fed to Gno. Leaving it in would extend the file and shift the
@@ -148,10 +127,27 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// THIS, never the rescued source — the rescue transforms must
 	// not be persisted (gocorpus files stay upstream-verbatim).
 	originalSource := source
-	// prependedLines is how many lines the rescue added at the top
-	// (0 or 1), used to translate Gno's error line numbers back into
-	// original-file coordinates for marker lookup.
+	// Capture the golden region now, before the compile-mode rescue
+	// re-parses dirs from the rescued source.
+	origDirs := dirs
+	// prependedLines is how many lines the rescue added at the top (0 or
+	// 1), used to map Gno's error lines back to original-file coordinates.
 	prependedLines := 0
+	prependRescue := func() error {
+		source = PrependPkgPathIfNeeded(source)
+		if bytes.HasPrefix(source, []byte("// PKGPATH:")) &&
+			!bytes.HasPrefix(originalSource, []byte("// PKGPATH:")) {
+			prependedLines = 1
+		}
+		// Re-parse so the prepended `// PKGPATH:` line reaches the
+		// directive parser.
+		dirs, err = ParseDirectives(bytes.NewReader(source))
+		if err != nil {
+			return fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
+		}
+		return nil
+	}
+	compileMode := false
 	// .gno files opt INTO Gno-vs-Go comparison by declaring at least
 	// one of `// GoOutput:` / `// GoError:` / `// Divergence:`. Without
 	// such a directive, .gno files keep their pure-Gno behavior — the
@@ -159,28 +155,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	hasGoOptIn := dirs.First(DirectiveGoOutput) != nil ||
 		dirs.First(DirectiveGoError) != nil ||
 		verdictKind(dirs) == VerdictKnownDivergence
-	prependRescue := func() error {
-		source = PrependPkgPathIfNeeded(source)
-		// We prepended a PKGPATH line iff source now starts with one
-		// and the original didn't — detect by-construction rather than
-		// sniffing (a file that legitimately ships its own PKGPATH
-		// must not be miscounted).
-		if bytes.HasPrefix(source, []byte("// PKGPATH:")) &&
-			!bytes.HasPrefix(originalSource, []byte("// PKGPATH:")) {
-			prependedLines = 1
-		}
-		// Re-parse: the prepended `// PKGPATH:` line must be visible to
-		// the directive parser.
-		dirs, err = ParseDirectives(bytes.NewReader(source))
-		if err != nil {
-			return fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
-		}
-		if v, ok := verdictIn(dirs); ok && v.Kind == VerdictKnownDivergence {
-			divergenceReason = v.Reason
-		}
-		return nil
+	if v, ok := verdictIn(dirs); ok && v.Kind == VerdictKnownDivergence {
+		divergenceReason = v.Reason
 	}
-	compileMode := false
 	if isGoFile {
 		hasErrorDir := dirs.First(DirectiveError) != nil
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
@@ -189,9 +166,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			// errorcheck mode lands with the error-accumulating preprocessor.
 			return "", 0, diffs, fmt.Errorf("filetest %s: inline // ERROR markers are not supported yet", fname)
 		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
-			// `// compile`: gc compiles but never runs it. Preprocess
-			// only (regardless of whether it's runnable) and check that
-			// Gno + go/types accept it. Takes precedence over run-mode.
+			// `// compile`: gc compiles but never runs it. Preprocess only
+			// and check that Gno and go/types accept it; takes precedence
+			// over run mode even when the file is runnable.
 			compileMode = true
 			if err := prependRescue(); err != nil {
 				return "", 0, diffs, err
@@ -214,12 +191,34 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		// directives drive the Gno-vs-Go finalize at the end.
 		isGoRunMode = true
 	}
+	// One verdict line per Go-compared file (.go corpus files in run or
+	// compile mode, opted-in .gno files); sync writes it, verify demands it.
+	// origDirs: the compile-mode rescue appends a synthetic main after
+	// the golden tail, so the re-parsed dirs no longer see the verdict.
+	if (isGoRunMode || compileMode) && !opts.Sync {
+		n := 0
+		for _, d := range origDirs {
+			if d.Name == DirectiveVerdict {
+				n++
+			}
+		}
+		if n != 1 {
+			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
+		}
+		v, ok := verdictIn(origDirs)
+		if !ok {
+			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
+		}
+		if err := v.check(); err != nil {
+			return "", 0, diffs, err
+		}
+	}
 	// The Go side is a golden: `go run` only under sync (with the toolchain
 	// pinned in gocorpus/VERSION); verify compares against `// GoOutput:`
 	// offline, so the host's Go version cannot move the result.
 	if isGoRunMode {
 		if opts.Sync {
-			out, _, runErr := runGoToolchain(source)
+			out, runErr := runGoToolchain(source)
 			if runErr != nil {
 				return "", 0, diffs, fmt.Errorf("filetest %s: cannot run via Go toolchain "+"(install go, or mark file `// Unsupported:`): %w", fname, runErr)
 			}
@@ -302,6 +301,55 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Collect storage diffs after test execution.
 	diffs = m.Store.RealmStorageDiffs()
 
+	// Compile mode: three evidence blocks (GnoPreprocessError /
+	// GoBuildError / GoTypeCheckError, the Go-side ones as line numbers
+	// only) and one verdict. `Clean compile` when the checkers agree,
+	// including both rejecting; `KnownIssue compile` when only Gno
+	// rejects. The verdict's reason obeys the same rules as run mode
+	// (verdict.check: no TODO, a KnownIssue cites its issue).
+	if compileMode {
+		gas := m.GasMeter.GasConsumed()
+		gnoErr := PerLineErrors(result.Error, prependedLines)
+		goTC := PerLineErrors(result.TypeCheckError, prependedLines)
+		if len(gnoErr) == 0 && len(goTC) == 0 {
+			// Everyone accepts: no `go build` needed, the file is Clean.
+			sections := []goldenSection{
+				{name: DirectiveGnoPreprocessError}, {name: DirectiveGoBuildError},
+				{name: DirectiveGoTypeCheckError},
+				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
+			}
+			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+			return newContent, gas, diffs, err
+		}
+		// `go build` only under sync; verify reuses the pinned lines.
+		var goBuildErr map[int]string
+		if len(gnoErr) > 0 {
+			if opts.Sync {
+				if buildOut, err := runGoToolchain(source); err == nil {
+					goBuildErr = PerLineErrors(buildOut, prependedLines)
+				}
+			} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
+				goBuildErr = ParseLineBlock(d.Content)
+			}
+		}
+		v := verdict{Kind: VerdictClean, Mode: "compile"}
+		if len(gnoErr) > 0 && len(goBuildErr) == 0 && len(goTC) == 0 {
+			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc + go/types accept)"}
+			// Keep a human-written reason across re-syncs.
+			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue && prev.check() == nil {
+				v.Reason = prev.Reason
+			}
+		}
+		sections := []goldenSection{
+			{name: DirectiveGnoPreprocessError, block: FormatGnoErrorBlock(gnoErr)},
+			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
+			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTC)},
+			{name: DirectiveVerdict, block: v.String(), inline: true},
+		}
+		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+		return newContent, gas, diffs, err
+	}
+
 	// Feature gap: a .go corpus file whose Gno error is a "feature not
 	// implemented" message (channels, goroutines, generics, imaginary
 	// literals, dot imports, …) or an unsupported stdlib import — Gno
@@ -360,83 +408,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			}
 			return "", m.GasMeter.GasConsumed(), diffs, &SkipError{Reason: reason}
 		}
-	}
-
-	// Compile-mode short-circuit. `// compile` files are compiled but
-	// never run. The old model dumped Gno's preprocess output straight
-	// into `// KnownIssue:`, conflating evidence (what Gno actually
-	// said) with the verdict (is Gno buggy or not).
-	//
-	// New model — three EVIDENCE blocks + one VERDICT:
-	//
-	//   Evidence (raw per-line output from each checker):
-	//     // GnoPreprocessError:  Gno's own preprocess errors
-	//     // GoBuildError:        `go build`'s errors (full Go pipeline)
-	//     // GoTypeCheckError:    go/types guard's errors
-	//
-	//   Verdict (one of):
-	//     // KnownIssue:          Gno-only rejection — real bug (gc + guard
-	//                             accept, Gno rejects)
-	//     // KnownDivergence:     both Gno and Go pipelines reject —
-	//                             wording/stage differ; not a bug
-	//     (none)                  all four accept — file is Clean, no
-	//                             golden section written
-	//
-	// The verdict is auto-classified from evidence; a human can refine
-	// KnownDivergence's category note or reclassify to Unsupported when
-	// the file's construct is fundamentally not user-relevant on-chain.
-	if compileMode {
-		gas := m.GasMeter.GasConsumed()
-		gnoErr := PerLineErrors(result.Error, prependedLines)
-		goTC := PerLineErrors(result.TypeCheckError, prependedLines)
-		// Fast path: if Gno accepts AND go/types accepts, the file is
-		// Clean — no verdict needed, so no need to run the expensive
-		// `go build` (which ~doubles the per-file test time across 467
-		// files). We only need go-build evidence to distinguish "real
-		// Gno bug" from "both reject" when Gno rejects.
-		if len(gnoErr) == 0 && len(goTC) == 0 {
-			// Clean: everyone accepts. Written out, so a pass is as
-			// explicit and greppable as a skip or a divergence.
-			sections := []goldenSection{
-				{name: DirectiveGnoPreprocessError}, {name: DirectiveGoBuildError},
-				{name: DirectiveGoTypeCheckError},
-				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
-			}
-			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
-			return newContent, gas, diffs, err
-		}
-		// `go build` only under sync; verify reuses the pinned lines.
-		var goBuildErr map[int]string
-		if len(gnoErr) > 0 {
-			if opts.Sync {
-				if _, buildStderr, err := runGoToolchain(source); err == nil {
-					goBuildErr = PerLineErrors(buildStderr, prependedLines)
-				}
-			} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
-				goBuildErr = ParseLineBlock(d.Content)
-			}
-		}
-		// Verdict: KnownIssue when only Gno rejects; both rejecting is
-		// agreement (Clean), their wording stays in the evidence blocks.
-		v := verdict{Kind: VerdictClean, Mode: "compile"}
-		if len(gnoErr) > 0 && len(goBuildErr) == 0 && len(goTC) == 0 {
-			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: explain the Gno bug (Gno rejects code gc + go/types accept)"}
-			// Keep a human-written reason across re-syncs.
-			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue &&
-				prev.Reason != "" && !strings.HasPrefix(prev.Reason, "TODO") {
-				v.Reason = prev.Reason
-			}
-		}
-		// Go-side blocks pin line numbers only: their wording follows
-		// the Go release, Gno's does not.
-		sections := []goldenSection{
-			{name: DirectiveGnoPreprocessError, block: FormatGnoErrorBlock(gnoErr)},
-			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
-			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTC)},
-			{name: DirectiveVerdict, block: v.String(), inline: true},
-		}
-		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
-		return newContent, gas, diffs, err
 	}
 
 	// updated tells whether the directives have been mutated and the
@@ -600,7 +571,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 }
 
 // goldenSection is one named per-line golden block (`// GnoError:` or
-// `// GoTypeCheckError:`) to (re)write at the bottom of an errorcheck file.
+// `// GoTypeCheckError:`) to (re)write at the bottom of a compile-mode file.
 type goldenSection struct {
 	name   string // directive name, e.g. DirectiveGnoError
 	block  string // FormatGnoErrorBlock output (may be empty → omitted)
@@ -632,10 +603,10 @@ func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directi
 		switch {
 		case s.block != "" && d == nil:
 			return "", fmt.Errorf(
-				"errorcheck: no `// %s:` block present; re-run with "+
+				"compile: no `// %s:` block present; re-run with "+
 					"--update-golden-tests to record it:\n%s", s.name, indent(s.block, "  "))
 		case s.block == "" && d != nil:
-			return "", fmt.Errorf("errorcheck: stale `// %s:` block; re-run with --update-golden-tests to remove it", s.name)
+			return "", fmt.Errorf("compile: stale `// %s:` block; re-run with --update-golden-tests to remove it", s.name)
 		case d != nil && strings.TrimRight(d.Content, "\n") != s.block:
 			return "", fmt.Errorf("// %s: diff:\n%s", s.name, unifiedDiff(d.Content, s.block))
 		}
@@ -661,7 +632,7 @@ func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
 	// Capture triage state marker lines before stripping so a golden
 	// refresh never drops manual triage status.
 	var stateLines []string
-	for _, ln := range strings.Split(string(originalSource), "\n") {
+	for ln := range strings.SplitSeq(string(originalSource), "\n") {
 		t := strings.TrimSpace(ln)
 		for _, name := range triageStateMarkers {
 			if strings.HasPrefix(t, "// "+name+":") {
@@ -691,7 +662,7 @@ func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
 		sb.WriteString("\n// ")
 		sb.WriteString(s.name)
 		sb.WriteString(":\n")
-		for _, line := range strings.Split(s.block, "\n") {
+		for line := range strings.SplitSeq(s.block, "\n") {
 			if line == "" {
 				sb.WriteString("//\n")
 				continue
@@ -719,9 +690,8 @@ var goldenRegionStarts = []string{
 // triageStateMarkers are the standalone triage status lines (`// Fixed:`,
 // `// Fixing:`, `// Tracked:`) written by manual triage after the golden
 // region. They are NOT harness directives (never add them to
-// allDirectives) but the golden writer must carry them across re-syncs:
-// stripTrailingGoldenRegion treats a trailing marker block as strippable
-// and writeStaticGolden re-appends the captured lines at the end.
+// allDirectives); stripTrailingGoldenRegion treats a trailing marker
+// block as strippable and writeStaticGolden re-appends it on re-sync.
 var triageStateMarkers = []string{"Fixed", "Fixing", "Tracked"}
 
 // stripTrailingGoldenRegion removes the trailing golden region — one or
@@ -817,14 +787,15 @@ func stripTrailingGoldenRegion(src string) string {
 //     .gno files reuse their existing // Output: golden.
 //   - // GnoError:  Gno's panic/error — only when non-empty (.go only).
 //   - // GoOutput:  Go's combined stdout+stderr — always (even empty).
-//   - // Divergence: present iff the two sides differ; its reason text
-//     blesses the diff (a human-written reason is preserved on re-sync).
+//   - // Verdict:   exactly one, for .go and opted-in .gno alike: `Clean run`
+//     when the sides match, `KnownIssue` / `KnownDivergence` when they
+//     differ (a human-written reason is preserved on re-sync).
 //
 // Gno's panic lands in gnoError, not gnoStdout; it is folded into the
 // comparison to mirror Go's combined stream — otherwise a Gno panic with
 // no prior stdout would compare equal to a clean Go run (both "") and
-// silently pass a real bug. (bug446.go: Gno mis-orders package init and
-// panics where Go exits 0.)
+// silently pass a real bug (a panicking main with no prior output is
+// exactly that shape).
 //
 // Returns (newDirs, err). In run mode sync always rewrites (both sides
 // are re-pinned), so newDirs is non-nil under opts.Sync.
@@ -856,9 +827,9 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 		if tc := FormatLineOnlyBlock(PerLineErrors(tcError, 0)); tc != "" {
 			want = append(want, Directive{Name: DirectiveGoTypeCheckError, Content: tc})
 		}
-		if !diverges {
-			want = append(want, verdict{Kind: VerdictClean, Mode: "run"}.directive())
-		}
+	}
+	if !diverges {
+		want = append(want, verdict{Kind: VerdictClean, Mode: "run"}.directive())
 	}
 
 	if sync {
@@ -902,7 +873,7 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 			"stale `// GoTypeCheckError:` golden (the guard no longer errors) — re-run with --update-golden-tests"))
 	}
 	kind := verdictKind(dirs)
-	if isGoFile && diverges && kind == VerdictClean {
+	if diverges && kind == VerdictClean {
 		prior = multierr.Append(prior, fmt.Errorf(
 			"stale `// Verdict: Clean run`: Gno now diverges from Go — re-run with --update-golden-tests"))
 	}
@@ -1275,8 +1246,8 @@ const (
 	DirectiveTypes          = "Types"
 	DirectiveTypeCheckError = "TypeCheckError"
 
-	// DirectiveVerdict is the one verdict line every .go corpus file
-	// ends with; see verdict.go for its grammar.
+	// DirectiveVerdict is the one verdict line every Go-compared file
+	// (.go corpus file or opted-in .gno) ends with; see verdict.go.
 	DirectiveVerdict = "Verdict"
 
 	// Symmetric Gno-vs-Go golden directives for .go corpus files.
@@ -1301,20 +1272,11 @@ const (
 	// not Gno — even when GnoVM preprocess is permissive, this guard
 	// still rejects, and that's worth pinning on its own.
 	DirectiveGoTypeCheckError = "GoTypeCheckError"
-	// DirectiveGnoPreprocessError pins Gno's per-line preprocess errors
-	// in compile-mode files. Evidence-only — the fact that Gno rejects
-	// these lines. The VERDICT (bug vs benign divergence) is separate:
-	// see `// KnownIssue:` / `// KnownDivergence:`. Previously the
-	// harness dumped Gno's preprocess output into `// KnownIssue:`
-	// itself, conflating evidence with verdict.
+	// Compile-mode evidence: Gno's per-line preprocess errors, and the
+	// lines `go build` flagged (numbers only, wording follows the Go
+	// release). The verdict (bug or agreement) is separate.
 	DirectiveGnoPreprocessError = "GnoPreprocessError"
-	// DirectiveGoBuildError pins the Go toolchain's `go build` output
-	// for compile-mode files — evidence of whether the file's rejection
-	// is Gno-only or shared with the Go build/link pipeline. Populated
-	// automatically alongside GoTypeCheckError. Distinguishes real
-	// Gno-only bugs from cases where both Gno and Go reject the file
-	// with different wording (a benign KnownDivergence, not a bug).
-	DirectiveGoBuildError = "GoBuildError"
+	DirectiveGoBuildError       = "GoBuildError"
 )
 
 // nativeDirectives are the .gno filetest directives; corpusDirectives
@@ -1629,24 +1591,24 @@ var goSubprocessTimeout = 30 * time.Second
 // (package main + func main) go through `go run`; non-runnable files
 // go through `go build` so non-main packages also compile cleanly.
 //
-// Stdout and stderr are combined because Gno's runtime exposes one
-// output stream — comparing only Go's stdout would flag the builtin
-// `println` (Go: stderr; Gno: stdout) as a divergence purely from
-// the stream choice, not a real semantic difference. Combining puts
-// the comparison on the same footing as `go test`'s default.
+// Stdout and stderr are combined, in the order the program wrote them,
+// because Gno's runtime exposes one output stream — comparing only Go's
+// stdout would flag the builtin `println` (Go: stderr; Gno: stdout) as
+// a divergence purely from the stream choice. Both streams share one
+// file descriptor; two buffers would lose the interleaving.
 //
 // Non-zero exit (panic, compile error) is NOT a function-level error
 // — it's the corpus file's expected behavior. The only error returned
 // is a genuine exec failure (Go toolchain not on PATH, timeout).
-func runGoToolchain(source []byte) (output, stderr string, err error) {
+func runGoToolchain(source []byte) (output string, err error) {
 	dir, mkErr := os.MkdirTemp("", "gno-filetest-go-*")
 	if mkErr != nil {
-		return "", "", fmt.Errorf("mkdir temp: %w", mkErr)
+		return "", fmt.Errorf("mkdir temp: %w", mkErr)
 	}
 	defer os.RemoveAll(dir)
 	srcPath := filepath.Join(dir, "main.go")
 	if err := os.WriteFile(srcPath, source, 0o644); err != nil {
-		return "", "", fmt.Errorf("write temp source: %w", err)
+		return "", fmt.Errorf("write temp source: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), goSubprocessTimeout)
 	defer cancel()
@@ -1660,7 +1622,7 @@ func runGoToolchain(source []byte) (output, stderr string, err error) {
 	if !IsRunnable(source) {
 		modPath := filepath.Join(dir, "go.mod")
 		if err := os.WriteFile(modPath, []byte("module gnofiletest\n\ngo 1.17\n"), 0o644); err != nil {
-			return "", "", fmt.Errorf("write temp go.mod: %w", err)
+			return "", fmt.Errorf("write temp go.mod: %w", err)
 		}
 	}
 	var args []string
@@ -1683,31 +1645,33 @@ func runGoToolchain(source []byte) (output, stderr string, err error) {
 	// open. E.g. fixedbugs/bug137.go's compile spun >19min on this.
 	// 5s is well past any legitimate reap time.
 	cmd.WaitDelay = 5 * time.Second
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
+	outPath := filepath.Join(dir, "output")
+	outFile, createErr := os.Create(outPath)
+	if createErr != nil {
+		return "", fmt.Errorf("create temp output: %w", createErr)
+	}
+	cmd.Stdout = outFile
+	cmd.Stderr = outFile
 	runErr := cmd.Run()
+	outFile.Close()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return "", "", fmt.Errorf("`go %s` exceeded %s timeout — mark the file with `// Unsupported:`",
+		return "", fmt.Errorf("`go %s` exceeded %s timeout — mark the file with `// Unsupported:`",
 			args[0], goSubprocessTimeout)
 	}
-	// Combine stdout and stderr into one user-visible stream — Gno's
-	// runtime has a single output channel, so this puts comparison on
-	// the same footing. Stderr is also returned separately for callers
-	// that want to distinguish (e.g. errorcheck/compile modes that
-	// look at compiler diagnostics specifically).
-	combined := outBuf.String() + errBuf.String()
-	output = strings.TrimRight(combined, "\n")
-	stderr = strings.TrimRight(errBuf.String(), "\n")
+	combined, readErr := os.ReadFile(outPath)
+	if readErr != nil {
+		return "", fmt.Errorf("read temp output: %w", readErr)
+	}
+	output = strings.TrimRight(string(combined), "\n")
 	if runErr != nil {
 		var ee *exec.ExitError
 		if !errors.As(runErr, &ee) {
-			return "", "", fmt.Errorf("`go %s` failed (is `go` on PATH?): %w", args[0], runErr)
+			return "", fmt.Errorf("`go %s` failed (is `go` on PATH?): %w", args[0], runErr)
 		}
-		// Non-zero exit is expected for errorcheck / panic-class
-		// corpus files; stderr carries the diagnostics.
+		// Non-zero exit is expected for panic-class corpus files; the
+		// diagnostics are part of the captured output.
 	}
-	return output, stderr, nil
+	return output, nil
 }
 
 // memPackageForTypeCheck wraps mpkg so its files are visible to

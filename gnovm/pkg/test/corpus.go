@@ -42,53 +42,9 @@ func UsesGenerics(source []byte) bool {
 	return false
 }
 
-// Errorcheck-style support for .go filetests under tests/files/gocorpus/testdata/.
-//
-// When a .go filetest carries inline `// ERROR "regex"` markers (Go's
-// standard test corpus convention) and no explicit `// Error:` directive,
-// the harness:
-//   1. Parses the markers (regex patterns per line).
-//   2. Applies a PKGPATH + synthetic-main rescue so files declaring a
-//      non-main package (typical for declaration-level errorcheck tests)
-//      reach Gno's preprocess+typecheck instead of bailing on the
-//      realm-naming requirement.
-//   3. Runs the file through Gno and captures its preprocess /
-//      typecheck / runtime error output.
-//   4. Verifies at least one marker's regex matches that output.
-//
-// Pass criterion is intentionally loose: Gno's preprocessor stops at
-// the first error, so strict per-line marker matching would fail most
-// corpus errorcheck files. We want the verdict-level signal to be
-// "Gno catches the kind of error gc does", not "Gno enumerates every
-// individual error" — which is too strict given the early-bail
-// behaviour. See [VerifyErrorcheckMarkers] for the three outcomes.
-//
-// To bless an intentional divergence (Gno doesn't reject a file Go's
-// errorcheck flags, or Gno's wording diverges entirely), add an
-// explicit `// Error:` directive with Gno's actual output — the
-// marker verification is then bypassed and the directive serves as
-// documentation of the accepted divergence.
-//
-// The exported entry points ([HasInlineErrorMarkers], [IsRunnable],
-// [PrependPkgPathIfNeeded]) are intended for use by
-// external test drivers that walk a Go test corpus and dispatch
-// files through this harness. The corresponding internal dispatch
-// path in runFiletest uses these same helpers.
-
-// Line is the 1-based source line the marker was attached to.
-
-// Patterns lists the quoted regex strings on the marker, in
-// declaration order. Empty for a bare `// ERROR` with no patterns.
-
-// GcOnly marks a `// GC_ERROR` marker: a gc-implementation-specific
-// diagnostic (backend limit, pragma check, …) that is NOT part of
-// Gno's contract. GcOnly markers are excluded from leak accounting —
-// catching one is fine, missing one is not an uncaught error.
-
 // HasInlineErrorMarkers reports whether source contains any
-// `// ERROR ` or `// GC_ERROR ` marker. Cheap pre-check intended for
-// dispatch logic that decides whether to enter errorcheck mode
-// without paying for full marker parsing first.
+// `// ERROR ` or `// GC_ERROR ` marker (Go's errorcheck convention).
+// The harness refuses such files until errorcheck mode lands.
 func HasInlineErrorMarkers(source []byte) bool {
 	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
 		if bytes.Contains(source, []byte(tag)) {
@@ -98,28 +54,7 @@ func HasInlineErrorMarkers(source []byte) bool {
 	return false
 }
 
-// Distinguish a real marker from an `// ERROR "..."` mentioned
-// in narrative prose. Markers come in two valid shapes:
-//   - trailing a line of code:  `_ = x // ERROR "..."`
-//   - on its own comment line:  `// ERROR "..."` (used with
-//     //line remapping, e.g. fixedbugs/bug305.go)
-// A prose mention (e.g. a doc comment that says "a `// ERROR
-// \"regex\"` marker …") has other text before the marker on a
-// comment line. So: if the line is a pure comment, accept it
-// only when the marker is the FIRST token after `//`.
-
-// indexErrorMarker returns the byte index in line where an `// ERROR`
-// or `// GC_ERROR` marker's content begins, or -1.
-func indexErrorMarker(line string) int {
-	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
-		if i := strings.Index(line, tag); i >= 0 {
-			return i + len(tag)
-		}
-	}
-	return -1
-}
-
-// PrependPkgPathIfNeeded rescues errorcheck and compile-only files
+// PrependPkgPathIfNeeded rescues compile-only files
 // declaring a non-main package (e.g. `package p`) so they reach
 // Gno's preprocess+typecheck phase instead of bouncing on the
 // realm-naming requirement. Two transforms:
@@ -165,9 +100,7 @@ var funcMainRe = regexp.MustCompile(`(?m)^func\s+main\s*\(\)`)
 // IsRunnable reports whether source can be `go run` — i.e. declares
 // `package main` AND has a top-level `func main()`. Files lacking
 // either are compile-only by intent: gc accepts and never runs them,
-// and Gno's harness must apply the PKGPATH+synthetic-main rescue (via
-// [PrependPkgPathIfNeeded]) to reach preprocess+typecheck. Used by
-// dispatch logic to route .go files into the compile-only path.
+// and the harness takes them through compile mode.
 func IsRunnable(source []byte) bool {
 	m := pkgDeclRe.FindSubmatch(source)
 	if m == nil || string(m[1]) != "main" {
@@ -356,8 +289,8 @@ func looksLikePackagePath(imp string) bool {
 // be runnable (gc compiles but never runs it).
 func CorpusDirective(source []byte) string {
 	first := source
-	if nl := bytes.IndexByte(source, '\n'); nl >= 0 {
-		first = source[:nl]
+	if before, _, ok := bytes.Cut(source, []byte{'\n'}); ok {
+		first = before
 	}
 	s := strings.TrimSpace(string(first))
 	if !strings.HasPrefix(s, "//") {
@@ -400,7 +333,7 @@ func PerLineErrors(errStr string, prependedLines int) map[int]string {
 // trimmed; empty segments are dropped.
 func gnoErrSegments(s string) []string {
 	var out []string
-	for _, p := range strings.Split(s, "; ") {
+	for p := range strings.SplitSeq(s, "; ") {
 		if p = strings.TrimSpace(p); p != "" {
 			out = append(out, p)
 		}
@@ -493,7 +426,7 @@ var reLineEntry = regexp.MustCompile(`^line (\d+)(?::\s*(.*))?$`)
 // per-line map; entries without a message (FormatLineOnlyBlock) map to "".
 func ParseLineBlock(block string) map[int]string {
 	out := make(map[int]string)
-	for _, l := range strings.Split(block, "\n") {
+	for l := range strings.SplitSeq(block, "\n") {
 		if m := reLineEntry.FindStringSubmatch(strings.TrimSpace(l)); m != nil {
 			n, _ := strconv.Atoi(m[1])
 			out[n] = m[2]
@@ -528,6 +461,7 @@ var unsupportedTags = []struct{ tag, needle string }{
 	{"gc-specific", "gc's "},
 	{"gc-specific", "gc-internal"},
 	{"gc-specific", "//go:"},
+	{"long", "in the interpreter"},
 	{"nondeterministic", "non-deterministic"},
 	{"nondeterministic", "nondeterministic"},
 	{"marker-uncheckable", "marker on a non-code line"},

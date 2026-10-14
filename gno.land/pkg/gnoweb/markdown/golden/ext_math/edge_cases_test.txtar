@@ -1,0 +1,32 @@
+-- input.md --
+Colour one term: ${\color{red} a^2} + {\color{blue} b^2} = \textcolor{green}{c^2}$
+
+Infix scope: $x^2 \over 2$ and $1 \over \int\limits_0^1 f$
+
+Single cell: $\begin{pmatrix} \frac{1}{2} \end{pmatrix}$
+
+Script at cell start: $\begin{matrix} a & ^2 b \\ c & d \end{matrix}$
+
+Spaced delimiters: $\left ( \frac{a}{b} \right )$ and $\big ( x \big )$
+
+Substack in a cell: $\begin{matrix} \substack{a\\b} & y \\ c & d \end{matrix}$
+
+Line break:
+
+$$
+a = 1 \\ b = 2
+$$
+
+Operator: $\operatorname*{argmax}_x f(x) = \mathop{\mathrm{arg\,max}}_x f(x) \tag{1}$
+-- output.html --
+<p>Colour one term: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mstyle class="math-color-red"><msup><mi>a</mi><mn>2</mn></msup></mstyle><mo>+</mo><mstyle class="math-color-blue"><msup><mi>b</mi><mn>2</mn></msup></mstyle><mo>=</mo><mstyle class="math-color-green"><msup><mi>c</mi><mn>2</mn></msup></mstyle></mrow><annotation encoding="application/x-tex">{\color{red} a^2} + {\color{blue} b^2} = \textcolor{green}{c^2}</annotation></semantics></math></p>
+<p>Infix scope: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><msup><mi>x</mi><mn>2</mn></msup><mn>2</mn></mfrac></mrow><annotation encoding="application/x-tex">x^2 \over 2</annotation></semantics></math> and <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mfrac><mn>1</mn><mrow><mrow><munderover><mo largeop="true" movablelimits="false">∫</mo><mn>0</mn><mn>1</mn></munderover></mrow><mi>f</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">1 \over \int\limits_0^1 f</annotation></semantics></math></p>
+<p>Single cell: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo fence="true" stretchy="true">(</mo><mtable columnalign="center" rowalign="center"><mtr><mtd columnalign="center"><mfrac><mn>1</mn><mn>2</mn></mfrac></mtd></mtr></mtable><mo fence="true" stretchy="true">)</mo></mrow><annotation encoding="application/x-tex">\begin{pmatrix} \frac{1}{2} \end{pmatrix}</annotation></semantics></math></p>
+<p>Script at cell start: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtable columnalign="center" rowalign="center"><mtr><mtd><mi>a</mi></mtd><mtd><msup><none></none><mn>2</mn></msup><mi>b</mi></mtd></mtr><mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable></mrow><annotation encoding="application/x-tex">\begin{matrix} a &amp; ^2 b \\ c &amp; d \end{matrix}</annotation></semantics></math></p>
+<p>Spaced delimiters: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mfrac><mi>a</mi><mi>b</mi></mfrac><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><annotation encoding="application/x-tex">\left ( \frac{a}{b} \right )</annotation></semantics></math> and <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo scriptlevel="-1" stretchy="false">(</mo><mi>x</mi><mo scriptlevel="-1" stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">\big ( x \big )</annotation></semantics></math></p>
+<p>Substack in a cell: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtable columnalign="center" rowalign="center"><mtr><mtd><mtable columnalign="center" displaystyle="false" rowalign="center" rowspacing="0"><mtr><mtd><mi>a</mi></mtd></mtr><mtr><mtd><mi>b</mi></mtd></mtr></mtable></mtd><mtd><mi>y</mi></mtd></mtr><mtr><mtd><mi>c</mi></mtd><mtd><mi>d</mi></mtd></mtr></mtable></mrow><annotation encoding="application/x-tex">\begin{matrix} \substack{a\\b} &amp; y \\ c &amp; d \end{matrix}</annotation></semantics></math></p>
+<p>Line break:</p>
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtable columnalign="center" displaystyle="true" rowalign="center"><mtr><mtd><mi>a</mi><mo>=</mo><mn>1</mn></mtd></mtr><mtr><mtd><mi>b</mi><mo>=</mo><mn>2</mn></mtd></mtr></mtable></mrow><annotation encoding="application/x-tex">
+a = 1 \\ b = 2
+</annotation></semantics></math>
+<p>Operator: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mrow><mrow><munder><mo lspace="0" movablelimits="true" rspace="0.1667em">argmax</mo><mi>x</mi></munder></mrow><mi>f</mi><mo form="prefix" stretchy="false">(</mo><mi>x</mi><mo form="postfix" stretchy="false">)</mo><mo>=</mo><mrow><munder><mo movablelimits="true" rspace="0">arg max</mo><mi>x</mi></munder></mrow><mi>f</mi><mo form="prefix" stretchy="false">(</mo><mi>x</mi><mo form="postfix" stretchy="false">)</mo></mrow><mspace width="2em"></mspace><mtext>(1)</mtext></mrow><annotation encoding="application/x-tex">\operatorname*{argmax}_x f(x) = \mathop{\mathrm{arg\,max}}_x f(x) \tag{1}</annotation></semantics></math></p>
