@@ -14,17 +14,4 @@ func main() {
 	}
 }
 
-// GnoOutput:
-
-// GnoError:
-// main/issue64565.go:12:7-10: name max not declared
-
-// GoOutput:
-// 3
-// 3
-// 3
-
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Unsupported gc-lang-pin: max builtin (Go 1.21) not supported in Gno

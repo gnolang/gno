@@ -32,14 +32,4 @@ func main() {
 	}
 }
 
-// GnoOutput:
-
-// GnoError:
-// main/issue67255.go:27:2-32:3: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
-
-// GoOutput:
-
-// GoTypeCheckError:
-// line 27
-
 // Verdict: Unsupported gc-lang-pin: range-over-func (Go 1.23) not supported in Gno

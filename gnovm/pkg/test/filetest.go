@@ -301,55 +301,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Collect storage diffs after test execution.
 	diffs = m.Store.RealmStorageDiffs()
 
-	// Compile mode: three evidence blocks (GnoPreprocessError /
-	// GoBuildError / GoTypeCheckError, the Go-side ones as line numbers
-	// only) and one verdict. `Clean compile` when the checkers agree,
-	// including both rejecting; `KnownIssue compile` when only Gno
-	// rejects. The verdict's reason obeys the same rules as run mode
-	// (verdict.check: no TODO, a KnownIssue cites its issue).
-	if compileMode {
-		gas := m.GasMeter.GasConsumed()
-		gnoErr := PerLineErrors(result.Error, prependedLines)
-		goTC := PerLineErrors(result.TypeCheckError, prependedLines)
-		if len(gnoErr) == 0 && len(goTC) == 0 {
-			// Everyone accepts: no `go build` needed, the file is Clean.
-			sections := []goldenSection{
-				{name: DirectiveGnoPreprocessError}, {name: DirectiveGoBuildError},
-				{name: DirectiveGoTypeCheckError},
-				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
-			}
-			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
-			return newContent, gas, diffs, err
-		}
-		// `go build` only under sync; verify reuses the pinned lines.
-		var goBuildErr map[int]string
-		if len(gnoErr) > 0 {
-			if opts.Sync {
-				if buildOut, err := runGoToolchain(source); err == nil {
-					goBuildErr = PerLineErrors(buildOut, prependedLines)
-				}
-			} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
-				goBuildErr = ParseLineBlock(d.Content)
-			}
-		}
-		v := verdict{Kind: VerdictClean, Mode: "compile"}
-		if len(gnoErr) > 0 && len(goBuildErr) == 0 && len(goTC) == 0 {
-			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc + go/types accept)"}
-			// Keep a human-written reason across re-syncs.
-			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue && prev.check() == nil {
-				v.Reason = prev.Reason
-			}
-		}
-		sections := []goldenSection{
-			{name: DirectiveGnoPreprocessError, block: FormatGnoErrorBlock(gnoErr)},
-			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
-			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTC)},
-			{name: DirectiveVerdict, block: v.String(), inline: true},
-		}
-		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
-		return newContent, gas, diffs, err
-	}
-
 	// Feature gap: a .go corpus file whose Gno error is a "feature not
 	// implemented" message (channels, goroutines, generics, imaginary
 	// literals, dot imports, …) or an unsupported stdlib import — Gno
@@ -408,6 +359,55 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			}
 			return "", m.GasMeter.GasConsumed(), diffs, &SkipError{Reason: reason}
 		}
+	}
+
+	// Compile mode: three evidence blocks (GnoPreprocessError /
+	// GoBuildError / GoTypeCheckError, the Go-side ones as line numbers
+	// only) and one verdict. `Clean compile` when the checkers agree,
+	// including both rejecting; `KnownIssue compile` when only Gno
+	// rejects. The verdict's reason obeys the same rules as run mode
+	// (verdict.check: no TODO, a KnownIssue cites its issue).
+	if compileMode {
+		gas := m.GasMeter.GasConsumed()
+		gnoErr := PerLineErrors(result.Error, prependedLines)
+		goTC := PerLineErrors(result.TypeCheckError, prependedLines)
+		if len(gnoErr) == 0 && len(goTC) == 0 {
+			// Everyone accepts: no `go build` needed, the file is Clean.
+			sections := []goldenSection{
+				{name: DirectiveGnoPreprocessError}, {name: DirectiveGoBuildError},
+				{name: DirectiveGoTypeCheckError},
+				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
+			}
+			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+			return newContent, gas, diffs, err
+		}
+		// `go build` only under sync; verify reuses the pinned lines.
+		var goBuildErr map[int]string
+		if len(gnoErr) > 0 {
+			if opts.Sync {
+				if buildOut, err := runGoToolchain(source); err == nil {
+					goBuildErr = PerLineErrors(buildOut, prependedLines)
+				}
+			} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
+				goBuildErr = ParseLineBlock(d.Content)
+			}
+		}
+		v := verdict{Kind: VerdictClean, Mode: "compile"}
+		if len(gnoErr) > 0 && len(goBuildErr) == 0 && len(goTC) == 0 {
+			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc + go/types accept)"}
+			// Keep a human-written reason across re-syncs.
+			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue && prev.check() == nil {
+				v.Reason = prev.Reason
+			}
+		}
+		sections := []goldenSection{
+			{name: DirectiveGnoPreprocessError, block: FormatGnoErrorBlock(gnoErr)},
+			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
+			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTC)},
+			{name: DirectiveVerdict, block: v.String(), inline: true},
+		}
+		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+		return newContent, gas, diffs, err
 	}
 
 	// updated tells whether the directives have been mutated and the

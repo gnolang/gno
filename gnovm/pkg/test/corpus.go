@@ -174,6 +174,7 @@ var langGapErrors = []struct {
 	{regexp.MustCompile(`name uintptr not (declared|defined)`), "uintptr type not supported in Gno"},
 	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
 	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
+	{regexp.MustCompile(`select statements are not permitted`), "channels not supported in Gno (select)"},
 }
 
 // reStdlibSymbolGap matches Gno's "name <Sym> not declared/defined" for a
