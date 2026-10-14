@@ -1,6 +1,9 @@
 #!/bin/sh
 
-# Usage: ./gnoalias <alias_folder> <reload_cmd> <rpc_url>
+# Usage: ./gnoalias <alias_folder> [reload_cmd] [rpc_url]
+#
+# gnoweb re-reads a static alias file when it changes, so writing home.md is
+# enough. reload_cmd is only for a gnoweb older than that.
 #
 # BLOG_LINK_BASE (optional): prefix for the blog post links, https://gno.land on
 # a testnet. The posts always come from mainnet: the testnet blogs are empty.
@@ -12,15 +15,7 @@ ALIAS_HOME_FOLDER="${1:-./home}"
 RPC_NODE_URL="${3:-https://rpc.gno.land}"
 # line of home-override.md replaced by the latest blog posts
 BLOG_MARKER="<!-- latest-blogposts -->"
-# docker restart gnoweb
-DEFAULT_RELOAD_CMD="docker ps -a --filter ancestor=\"ghcr.io/gnolang/gno/gnoweb:master\" --format \"{{.ID}}\" | \
-  xargs -r docker restart"
-# Command executed when reload is needed
-if [ -n "$2" ]; then
-  RELOAD_CMD="$2"
-else
-  RELOAD_CMD="$DEFAULT_RELOAD_CMD"
-fi
+RELOAD_CMD="$2"
 
 # qrender <rpc> <pkgpath:path> prints the realm's markdown, without the
 # "height:" line and "data: " prefix gnokey adds.
@@ -101,8 +96,8 @@ check_gnoland_home() {
 while true; do
   echo "Checking home"
   if check_gnoland_home; then
-    echo "Restarting Gnoweb service deliberately"
-    eval "$RELOAD_CMD"
+    echo "Home updated"
+    [ -n "$RELOAD_CMD" ] && eval "$RELOAD_CMD"
   fi
   echo "Sleeping for ${SLEEPING_TIME} seconds..."
   sleep ${SLEEPING_TIME} # wait next round

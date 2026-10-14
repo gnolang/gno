@@ -25,13 +25,10 @@ services:
     image: ghcr.io/gnolang/gno/gnokey:master
     entrypoint: sh
     command: >
-      -c "echo Installing docker... &&
-          apk add --no-cache docker &&
-          sh gnoalias.sh /gnoroot/home"
+      -c "sh gnoalias.sh /gnoroot/home"
     environment:
       # https://gno.land on a testnet, so the latest blog posts link to mainnet
       - BLOG_LINK_BASE=
     volumes:
       - ./home:/gnoroot/home
       - ./gnoalias.sh:/gnoroot/gnoalias.sh
-      - /var/run/docker.sock:/var/run/docker.sock:ro
