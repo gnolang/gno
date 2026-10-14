@@ -8,10 +8,10 @@ package p
 
 var f = func() { f() } // ERROR "initialization cycle|initialization expression for .*f.* depends upon itself"
 
+// GnoError:
+// line 9: initialization cycle: f refers to f
+
 // GoTypeCheckError:
 // line 9
-
-// GoTypesOnly:
-// line 9: gc expects: initialization cycle|initialization expression for .*f.* depends upon itself
 
 // Verdict: Clean errorcheck

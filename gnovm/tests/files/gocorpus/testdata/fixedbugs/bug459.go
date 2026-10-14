@@ -34,14 +34,14 @@ func (f *FlagSet) setErrorHandling(b bool) {
 	f.failf("DIE")
 }
 
+// GnoError:
+// line 12: initialization cycle: commandLine refers to NewFlagSet refers to FlagSet.setErrorHandling refers to FlagSet.failf refers to FlagSet.usage refers to commandLine
+
 // GoTypeCheckError:
 // line 12
 // line 17
 // line 21
 // line 27
 // line 33
-
-// GoTypesOnly:
-// line 12: gc expects: initialization cycle|depends upon itself
 
 // Verdict: Clean errorcheck

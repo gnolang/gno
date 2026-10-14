@@ -17,11 +17,11 @@ func (*T) pm() int {
 
 var x = (*T)(nil).pm() // ERROR "initialization cycle|depends upon itself"
 
+// GnoError:
+// line 18: initialization cycle: x refers to T.pm refers to x
+
 // GoTypeCheckError:
 // line 13
 // line 18
-
-// GoTypesOnly:
-// line 18: gc expects: initialization cycle|depends upon itself
 
 // Verdict: Clean errorcheck

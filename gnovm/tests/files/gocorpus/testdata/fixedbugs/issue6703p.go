@@ -22,11 +22,11 @@ var (
 	x = e.m() // ERROR "initialization cycle|depends upon itself" 
 )
 
+// GnoError:
+// line 22: initialization cycle: x refers to T.m refers to x
+
 // GoTypeCheckError:
 // line 13
 // line 22
-
-// GoTypesOnly:
-// line 22: gc expects: initialization cycle|depends upon itself
 
 // Verdict: Clean errorcheck

@@ -17,11 +17,11 @@ func (T) m() int {
 
 var x = T.m(0) // ERROR "initialization cycle|depends upon itself"
 
+// GnoError:
+// line 18: initialization cycle: x refers to T.m refers to x
+
 // GoTypeCheckError:
 // line 13
 // line 18
-
-// GoTypesOnly:
-// line 18: gc expects: initialization cycle|depends upon itself
 
 // Verdict: Clean errorcheck

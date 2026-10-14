@@ -17,12 +17,12 @@ func f() (int, int) {
 
 func main() {}
 
+// GnoError:
+// line 10: initialization cycle: a refers to f refers to c refers to b
+
 // GoTypeCheckError:
 // line 10
 // line 11
 // line 14
-
-// GoTypesOnly:
-// line 10: gc expects: initialization cycle|depends upon itself|depend upon each other
 
 // Verdict: Clean errorcheck

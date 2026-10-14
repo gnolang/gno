@@ -20,11 +20,11 @@ var (
 	x = p.pm() // ERROR "initialization cycle|depends upon itself"
 )
 
+// GnoError:
+// line 20: initialization cycle: x refers to T.pm refers to x
+
 // GoTypeCheckError:
 // line 13
 // line 20
-
-// GoTypesOnly:
-// line 20: gc expects: initialization cycle|depends upon itself
 
 // Verdict: Clean errorcheck
