@@ -1465,8 +1465,8 @@ gnoweb only queries category pages that exist in the cached taxonomy.
   16-slot gate, 8 MiB cap and breaker unchanged.
 - Realm JSON capped at 2 MiB before decoding.
 - Storage, measured in an integration test at 100 ugnot per byte:
-  deploying the realm with its 12-listing seed stores about 314 KB (about
-  31 GNOT of deposit): about 110 KB of code (each top-level function
+  deploying the realm with its 12-listing seed stores about 332 KB (about
+  33 GNOT of deposit): about 110 KB of code (each top-level function
   stores about 850 bytes, its function value and its package-block entry),
   49 KB of empty indexes and rings, and about 13 KB per seeded listing. A
   `Register` adds about 12.8 KB (1.3 GNOT), about 20 KB for a namespace's
