@@ -28,7 +28,7 @@ Try a wallet, a block explorer and the Gno.land ecosystem.
 
 <gno-columns-sep>
 
-## <gno-icon name="code" /> Build with Gno
+## <gno-icon name="code-outline" /> Build with Gno
 
 Write, test and deploy smart contracts in Gno.
 
@@ -54,7 +54,7 @@ Meet the Gno.land community and follow the project.
 
 ---
 
-## <gno-icon name="apps" /> Live on mainnet
+## <gno-icon name="grid-outline" /> Live on mainnet
 
 <gno-columns>
 <gno-frame>
@@ -120,7 +120,7 @@ and moderation their way. Until it opens, join the conversation on
 
 ---
 
-## <gno-icon name="search" /> Explore packages and realms
+## <gno-icon name="search-outline" /> Explore packages and realms
 
 Every app on Gno.land is open source and readable on-chain. All code in
 Gno.land is organized in packages, and each package lives at a unique package
