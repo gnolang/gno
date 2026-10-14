@@ -20,7 +20,7 @@ Not set at genesis, deliberately (chain defaults apply; adjustable post-genesis 
 
 ## Quick start
 
-Build from the tree of the version onyx launches on — the [`chain/onyx`](https://github.com/gnolang/gno/releases/tag/chain%2Fonyx) tag, which sits on that version's commit on `chain/mainnet` — not from `master`: the package set is read from `examples/`, and `master`'s already differs from what the network runs. The script builds the binaries from the worktree, assembles the genesis txs, measures fee-payer balances on a temp node, and verifies sha256 of the locked build artifacts.
+Build from the tree of the version onyx launches on — the [`chain/onyx`](https://github.com/gnolang/gno/releases/tag/chain%2Fonyx) tag, which sits on `chain/mainnet` at the commit that added this folder, on top of that version's code — not from `master`: the package set is read from `examples/`, and `master`'s already differs from what the network runs. The script builds the binaries from the worktree, assembles the genesis txs, measures fee-payer balances on a temp node, and verifies sha256 of the locked build artifacts.
 
 ```bash
 ./gen-genesis.sh                # full build
