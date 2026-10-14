@@ -68,9 +68,9 @@ func verdictIn(dirs Directives) (verdict, bool) {
 
 var (
 	reIssueRef = regexp.MustCompile(`#\d+|github\.com/[\w.-]+/[\w.-]+/issues/\d+`)
-	// Where a divergence decision can be recorded: the Go spec, a docs
-	// page, or an issue / PR / URL.
-	reDecisionRef = regexp.MustCompile(`(?i)go spec|\bdocs/[\w./-]+|#\d+|https?://`)
+	// Where a Gno decision can be recorded: a docs page, or an issue /
+	// PR / URL. The Go spec permitting a difference is not a decision.
+	reDecisionRef = regexp.MustCompile(`\bdocs/[\w./-]+|#\d+|https?://`)
 )
 
 // check enforces that a Known* verdict is a human decision: sync's TODO
@@ -88,7 +88,7 @@ func (v verdict) check() error {
 	case v.Kind == VerdictKnownIssue && !reIssueRef.MatchString(v.Reason):
 		return fmt.Errorf("`// Verdict: KnownIssue` must cite its tracking issue (#NNNN or an issue URL): %q", v.Reason)
 	case v.Kind == VerdictKnownDivergence && !reDecisionRef.MatchString(v.Reason):
-		return fmt.Errorf("`// Verdict: KnownDivergence` must cite the decision it rests on (Go spec, a docs/ page, #NNNN or a URL), else file it as a KnownIssue: %q", v.Reason)
+		return fmt.Errorf("`// Verdict: KnownDivergence` must cite the Gno decision it rests on (a docs/ page, #NNNN or a URL), else file it as a KnownIssue: %q", v.Reason)
 	}
 	return nil
 }

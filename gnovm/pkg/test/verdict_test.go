@@ -38,10 +38,10 @@ func TestVerdictCheck(t *testing.T) {
 	}{
 		{"Clean run", ""},
 		{"Unsupported channel: channels not supported", ""},
-		{"KnownDivergence run: println format is implementation-defined (Go spec)", ""},
+		{"KnownDivergence run: println format is implementation-defined (Go spec)", "must cite the Gno decision"},
 		{"KnownDivergence run: see docs/resources/go-gno-compatibility.md", ""},
 		{"KnownDivergence run: decided in #42", ""},
-		{"KnownDivergence run: println format is implementation-defined", "must cite the decision"},
+		{"KnownDivergence run: println format is implementation-defined", "must cite the Gno decision"},
 		{"KnownDivergence run:", "needs a reason"},
 		{"KnownIssue run: #1234 init order", ""},
 		{"KnownIssue run: https://github.com/gnolang/gno/issues/1234 init order", ""},
@@ -86,7 +86,7 @@ func TestFinalizeGoRunDivergence_Verify(t *testing.T) {
 		wantErrContains string // "" means verify passes
 	}{
 		{"clean", goldens("x", "", "x", "Clean run"), "x", "", "x", ""},
-		{"known divergence", goldens("1.5", "", "+1.5e+000", "KnownDivergence run: fmt (Go spec)"), "1.5", "", "+1.5e+000", ""},
+		{"known divergence", goldens("1.5", "", "+1.5e+000", "KnownDivergence run: fmt, docs/resources/go-gno-compatibility.md"), "1.5", "", "+1.5e+000", ""},
 		{"known issue, gno errors", goldens("", "boom", "x", "KnownIssue run: #1 bug"), "", "boom", "x", ""},
 		{"divergence without verdict", goldens("a", "", "b", ""), "a", "", "b", "classify as"},
 		{"stale clean", goldens("a", "", "b", "Clean run"), "a", "", "b", "stale `// Verdict: Clean run`"},
