@@ -60,7 +60,7 @@ holding the old ref then has an identical one.
 | `master` | none | Continuous integration; the development tree |
 | `chain/mainnet` | `v1.x.x`, plus the `chain/mainnet` launch tag | Mainnet (`gnoland-1`) — moves only by releases, coordinated or rolling; never rebased |
 | `chain/gnoland1` | `chain/gnoland1.0`, `chain/gnoland1.1` | Retired. Frozen at what betanet ran; the tags keep their original names because they are compiled into those binaries. The branch is to be renamed `chain/betanet` — until it is, `--chain betanet` has no branch to resolve |
-| *(none)* | `chain/<name>` | A testnet on the mainnet line, onyx first: it runs mainnet's `vX.Y.Z` binaries, so it has no branch. Its launch tag sits on the commit of the version it launched on (its folder `misc/deployments/<name>.gno.land/` lands on `chain/mainnet` before that version is cut), and the tag's release carries its `genesis.json` |
+| *(none)* | `chain/<name>` | A testnet on the mainnet line, onyx first: it runs mainnet's `vX.Y.Z` binaries, so it has no branch. Its launch tag sits on `chain/mainnet` at the commit that adds its folder `misc/deployments/<name>.gno.land/`, on top of the version it launched on (for onyx, `v1.5.0`), and the tag's release carries its `genesis.json` |
 | `chain/pearl`, `chain/test13`, … | `chain/<name>` | Earlier testnets, each on its own code line. Frozen |
 
 Two tag shapes exist, and the node parses both
@@ -77,10 +77,11 @@ version**: it does not order, so it cannot be used as a `halt_min_version`. Name
 a `vX.Y.Z` tag there instead.
 
 **Tagging rules.** Tags are immutable: never move one, and never reuse a name.
-New tags are annotated (`git tag -a`), so plain `git describe` finds them;
-`v1.0.0` predates the rule and is lightweight, which is one reason every
+New `v*` tags are annotated (`git tag -a`), so plain `git describe` finds them;
+launch tags (`chain/<name>`) are lightweight. `v1.0.0` predates the rule and is
+lightweight too, which is one reason every
 `describe` the build and release tooling runs passes `--tags --match 'v*'` —
-the other being that a release commit also carries the chain's launch tag,
+the other being that a release commit can also carry the chain's launch tag,
 which is not a version.
 Pre-release tags (`v1.3.0-rc.1`) are allowed; they sort *below* the release they
 lead to, and are published as GitHub pre-releases so they do not become the

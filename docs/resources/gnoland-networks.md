@@ -57,7 +57,7 @@ Two conventions to know:
   not on `master` — that's the branch the chain's release is cut from. A
   testnet on the mainnet line (onyx) has no branch of its own: its directory
   sits on `chain/mainnet`, and its `chain/<name>` launch tag marks the commit
-  of the mainnet version it launched on. The `master` copy is where the next
+  that added its directory, on top of the mainnet version it launched on. The `master` copy is where the next
   network is prepared, plus the archives of past ones.
 - The `chain/<name>` [release](https://github.com/gnolang/gno/releases)
   carries the network's `genesis.json` and its checksum, nothing else. Binaries
