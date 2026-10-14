@@ -72,7 +72,7 @@ func main() {
 		return
 	}
 
-	if err := checkRollbackable(bsHeight, state.LastBlockHeight, targetHeight); err != nil {
+	if err := checkRollbackable(bsHeight, state.LastBlockHeight, targetHeight); err != nil && !state.IsEmpty() {
 		bsDB.Close()
 		stDB.Close()
 		log.Fatal(err)
