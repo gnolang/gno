@@ -75,6 +75,13 @@ func TestDetailsReleasedWithContainer(t *testing.T) {
 	}
 }
 
+// A `<` line continuing a paragraph lazily keeps its container open, so the
+// block in it pairs with its close tag.
+func TestDetailsLazyLineKeepsBlock(t *testing.T) {
+	out, _ := parseDetails(t, "> <gno-details>\n> p\n<i>x</i>\n> </gno-details>\n> after\n")
+	require.Less(t, strings.Index(out, "</details>"), strings.Index(out, "<p>after</p>"))
+}
+
 // CRLF line endings parse as LF ones.
 func TestDetailsCRLF(t *testing.T) {
 	src := "<gno-details summary=\"S\" open>\nbody\n</gno-details>\nafter\n"
@@ -86,9 +93,16 @@ func TestDetailsCRLF(t *testing.T) {
 // An alert straight after stale blocks reads the depth before any `<` line
 // comes, so the release has to run on its `>` line too.
 func TestDetailsReleasedBeforeAlert(t *testing.T) {
-	src := strings.Repeat("> <gno-details>\n", 4) + "\n> [!WARNING]\n> x\n"
-	out, _ := parseDetails(t, src)
-	require.Contains(t, out, "gno-alert")
+	cases := map[string]string{
+		"after_blank":     strings.Repeat("> <gno-details>\n", 4) + "\n> [!WARNING]\n> x\n",
+		"after_paragraph": "- <gno-details>\n" + strings.Repeat("  <gno-details>\n", 3) + "  p\n> [!WARNING]\n> x\n",
+	}
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			out, _ := parseDetails(t, src)
+			require.Contains(t, out, "gno-alert")
+		})
+	}
 }
 
 // A block left unclosed in a column ends at the next grid tag, where the

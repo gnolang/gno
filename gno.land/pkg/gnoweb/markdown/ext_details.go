@@ -176,17 +176,23 @@ func (*detailsParser) Trigger() []byte { return []byte{'<', '>'} }
 // next blank one. A gno-columns or gno-frame tag at document level ends
 // every open details block, as the transformer stops them there.
 func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Context) (ast.Node, parser.State) {
-	releaseDetails(pc, parent)
 	line, _ := reader.PeekLine()
 	// Goldmark never offers a line indented 4 columns or more; a tab after a
 	// container prefix counts to its next stop.
 	_, pos := util.IndentWidth(line, reader.LineOffset())
 	tag := util.TrimRightSpace(line[pos:])
 	kind, valid, open, summary := parseDetailsLineTag(tag)
+	// After a paragraph, goldmark may still take the line as its lazy
+	// continuation, which keeps the paragraph's container open; a details tag
+	// line yields a leaf and a `>` line opens a blockquote, so neither is one.
+	if kind != detailsTagNone || tag[0] == '>' || !ast.IsParagraph(pc.LastOpenedBlock().Node) {
+		releaseDetails(pc, parent)
+	}
 	if kind == detailsTagNone {
 		if stack := detailsStack(pc); stack != nil && len(*stack) > 0 && parent.Kind() == ast.KindDocument &&
 			(columnsLineTag(tag) != GnoColumnTagUndefined || parseFrameLineTag(tag) != frameTagNone) {
-			// Released above, every opener left sits at document level.
+			// The grid tag opens at document level, so the containers of the
+			// openers left end on this line too.
 			endDetails(pc, stack, 0)
 		}
 		return nil, parser.NoChildren
