@@ -32,10 +32,12 @@ discovery:
 
 1. `DiscoverDefault` connects to the first Ledger device and sends the Gno app's
    `GET_APP_NAME`. If the answer is `Gno`, it returns a `GnoApp`.
-2. Otherwise (another app, the dashboard), it closes the connection and falls
-   back to `FindLedgerCosmosUserApp`, exactly as before.
-3. A locked device (`0x5515`) is reported as such rather than falling through
-   to the Cosmos lookup, whose error would point at the wrong cause.
+2. If the device answers with another name or with a status word, as the
+   Cosmos app, other apps and the dashboard do, it closes the connection and
+   falls back to `FindLedgerCosmosUserApp`, exactly as before.
+3. A locked device (`0x5515`), a device still busy after a review (`0x6901`)
+   and a failed USB transfer are returned as they are. Falling through to the
+   Cosmos lookup would replace them with an error pointing at the wrong cause.
 
 `GnoApp` adapts the Gno app to what callers already expect, so `crypto/ledger`,
 the keybase and every `gnokey` command are unchanged:

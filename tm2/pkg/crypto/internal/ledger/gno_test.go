@@ -140,9 +140,17 @@ func TestOpenGnoApp(t *testing.T) {
 	_, err = openGnoApp(other)
 	assert.ErrorIs(t, err, errNotGnoApp)
 
-	// The Cosmos app and the dashboard do not know CLA 0xE0.
-	_, err = openGnoApp(errorDevice{sw: 0x6E00})
-	assert.ErrorIs(t, err, errNotGnoApp)
+	// The Cosmos app and the dashboard do not know CLA 0xE0; other apps answer
+	// INS 0x04 with status words of their own.
+	for _, sw := range []uint16{0x6E00, 0x6D00, 0x6511, 0x6A80} {
+		_, err = openGnoApp(errorDevice{sw: sw})
+		assert.ErrorIs(t, err, errNotGnoApp, "0x%04X", sw)
+	}
+
+	// A failed transfer is not an answer from another app.
+	_, err = openGnoApp(failingDevice{})
+	assert.ErrorContains(t, err, "hidapi")
+	assert.NotErrorIs(t, err, errNotGnoApp)
 
 	_, err = openGnoApp(errorDevice{sw: swDeviceLocked})
 	var status *GnoStatusError
@@ -281,6 +289,14 @@ type errorDevice struct{ sw uint16 }
 
 func (d errorDevice) Exchange([]byte) ([]byte, error) { return nil, statusError(d.sw) }
 func (errorDevice) Close() error                      { return nil }
+
+// failingDevice fails every transfer, as an unresponsive device does.
+type failingDevice struct{}
+
+func (failingDevice) Exchange([]byte) ([]byte, error) {
+	return nil, errors.New("hidapi: unknown failure")
+}
+func (failingDevice) Close() error { return nil }
 
 // replyDevice answers every command with the same reply.
 type replyDevice struct{ reply []byte }
