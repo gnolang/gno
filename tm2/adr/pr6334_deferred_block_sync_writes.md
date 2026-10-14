@@ -1,4 +1,4 @@
-# PRxxxx: Deferred writes during block sync, with ordered flush points
+# PR6334: Deferred writes during block sync, with ordered flush points
 
 ## Status
 
@@ -419,10 +419,13 @@ change keeps it (verified against the code cited):
 ## Consequences
 
 - During block sync no block waits for the disk; a flush point costs three
-  flushes per window. Expected (estimate from the measurements above): ~2.6 ms
-  instead of ~7.2 ms per light block; over the whole chain ~1.4-1.5× against
-  master, and ~1.8× on top of #6308 and #6315, which remove other per-block
-  costs. With the opt-in file tx event store on, each of its results is still
+  flushes per window. Measured on a mainnet sync from genesis to height
+  ~25,000 (light blocks; master and this change, two interleaved runs each, on
+  one box with the same peers): 8.4-9.8 ms per block on master, 3.2-3.4 ms
+  with this change, 2.6-2.9× faster, close to the ~2.6 ms measured with every
+  flush disabled. Over the whole chain, where a transaction-heavy block costs
+  10-15 ms of CPU, the estimate is ~1.4-1.5× against master, and ~1.8× on top
+  of #6308 and #6315, which remove other per-block costs. With the opt-in file tx event store on, each of its results is still
   synced on its own (`tm2/pkg/events/subscribe.go:23-26`,
   `state/eventstore/file/file.go:86-89`), now at flush points.
 - A crash or a stop during block sync costs up to one window of work again. RPC
@@ -499,6 +502,12 @@ was checked by review.
   `BeginBlock` or `EndBlock` ends the block though a recover swallowed it,
   while one in `CheckTx` only fails its transaction and does not end the next
   call; `Close` writes nothing.
+- **A real crash** (gnoland-1 on a devbox): the binary synced mainnet and was
+  killed with `kill -9` mid-sync five times. One kill landed between a flush
+  point's first two writes (block store at 34,751, state at 34,516): the
+  restart lowered the block store to 34,517 and synced on. The chain's
+  governance halt at 36,300 was on disk when the node halted: the next start
+  found the application, the block store and the state at 36,300.
 - **gno.land** (`gnoland/app_test.go`): `TestAppDefersCommits` runs real blocks
   with commits held, deploying a realm and calling it to write the halt
   height, which asks for a flush point that puts the halt height on disk;
