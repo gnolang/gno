@@ -37,9 +37,10 @@ every commit.
 
 **If a change alters the bytes nodes agree on, it is at least a MINOR**, whatever
 it looks like otherwise. A one-line fix to the signing payload is a coordinated
-upgrade; a thousand-line refactor of `gnoweb` is a patch. `cut-release.sh` warns
-when a range tagged as a patch contains commits marked `feat!:`/`BREAKING`, but
-the judgement is yours.
+upgrade; a thousand-line refactor of `gnoweb` is a patch. `cut-release.sh`
+refuses a range tagged as a patch that contains commits marked
+`feat!:`/`BREAKING`, but an unmarked consensus change passes it: the judgement
+is yours.
 
 ### The `v` line is continuous across networks
 
@@ -94,7 +95,7 @@ runs, and the two are not the same thing:
 - `master` may be ahead, and usually is. That is fine and expected.
 - **A chain branch moves only when a release is cut, and every move is
   tagged.** Whether a release merges `master` or cherry-picks a set of PRs is
-  decided per release and written in the tag message. A merge that touches
+  decided per release and stated in its release notes. A merge that touches
   consensus code is refused by `cut-release.sh` unless `--allow-merge` says the
   operator knows it ships everything `master` had. Between releases the branch
   tip is the latest tag, plus at most documentation or release-tooling commits
