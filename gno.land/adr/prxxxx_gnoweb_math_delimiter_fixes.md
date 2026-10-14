@@ -19,9 +19,11 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
 
 ## Decision
 
-- Add `$` to the inline escape set of `chain/markdown` (`EscapeInline`, and
-  so `EscapeTitle`, which builds on it). gnoweb renders `\$` as a literal
-  dollar, so escaped text reads the same; it can no longer open math.
+- Add `$` to the inline escape set of `chain/markdown` (`EscapeInline`).
+  gnoweb renders `\$` as a literal dollar, so escaped text reads the same;
+  it can no longer open math. `EscapeTitle` (`LinkTitle`) keeps `$` as is:
+  a link title is an HTML attribute, never parsed as math, and gnoweb shows
+  its backslashes, so "Price $5" would have read "Price \$5".
 - Split the scan of `findDollarClose` into `findClose`: the code span, link
   and autolink skipping is shared, and only the test for a closer differs.
   Single `$` keeps its pandoc rules and its stop at a `](` that closes a
@@ -43,14 +45,22 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
 
 ## Consequences
 
-- `chain/markdown` is a VM native: realms that call `sanitize.InlineText`,
-  `TableCell` or `LinkTitle` now get `\$` where they got `$`. The rendered
+- `chain/markdown` is a VM native: realms that call `sanitize.InlineText` or
+  `TableCell` now get `\$` where they got `$`. The rendered
   page is unchanged except that the dollar no longer opens math. The Gno
   examples suite passes.
 - A `$$`, `\\(` or `\\[` expression now keeps a code span or a link
   destination whole, as `$` already did; golden cases are added to
   `golden/ext_math/dollar_link_test.txtar`, and the linear-scan test now
   runs the finders the parser uses for `\\(` and `\\[`.
+- A formula opened inside a link label (`[Send $$10](/r/x$$help)`) still
+  closes there, as on master: ending `$$`, `\\(` and `\\[` at the label's
+  `](` would turn `$$ (0,1](x) $$` into text. In ``$$a` b$$ c``, the code
+  span now wins over the closer, as CommonMark has it.
+- Known limit, unchanged for `$`, now shared by the other closers: the
+  search cache can answer "no closer" for an opener placed after a link
+  destination that never closes on its line (`$$[0,1](x … $$y$$`), leaving
+  that math as text. It never makes a formula cross a link.
 - Known limit, unchanged: `sanitize.Block`, `BlockRich`, `Blockquote*` and
   `FootnoteDefinition` keep user math (their escaping targets block
   structure, not `$`). Math in a user post stays inside its blank-line

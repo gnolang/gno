@@ -55,6 +55,7 @@ func TestEscapeTitle(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{`he said "hi"`, `he said \"hi\"`},
 		{`it's a (test)`, `it\'s a \(test\)`},
+		{"Price $5", "Price $5"}, // a title is never parsed as math
 	}
 	for _, c := range cases {
 		if got := EscapeTitle(c.in); got != c.want {
