@@ -87,22 +87,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		return "", 0, diffs, &SkipError{Reason: v.Mode + ": " + v.Reason}
 	}
-	// One verdict line per .go corpus file; sync writes it, verify demands it.
-	if isGoFile && !opts.Sync {
-		n := 0
-		for _, d := range dirs {
-			if d.Name == DirectiveVerdict {
-				n++
-			}
-		}
-		if n != 1 {
-			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
-		}
-		if _, ok := verdictIn(dirs); !ok {
-			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
-		}
-	}
-
 	// Strip the trailing golden region (`// GnoError:` /
 	// `// GoTypeCheckError:` blocks, verdict lines) from the source
 	// fed to Gno. Leaving it in would extend the file and shift the
@@ -173,6 +157,22 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		// golden (handled by the main match loop); the new triple
 		// directives drive the Gno-vs-Go finalize at the end.
 		isGoRunMode = true
+	}
+	// One verdict line per Go-compared file (.go corpus files and
+	// opted-in .gno files alike); sync writes it, verify demands it.
+	if isGoRunMode && !opts.Sync {
+		n := 0
+		for _, d := range dirs {
+			if d.Name == DirectiveVerdict {
+				n++
+			}
+		}
+		if n != 1 {
+			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
+		}
+		if _, ok := verdictIn(dirs); !ok {
+			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
+		}
 	}
 	// The Go side is a golden: `go run` only under sync (with the toolchain
 	// pinned in gocorpus/VERSION); verify compares against `// GoOutput:`
@@ -699,8 +699,9 @@ func stripTrailingGoldenRegion(src string) string {
 //     .gno files reuse their existing // Output: golden.
 //   - // GnoError:  Gno's panic/error — only when non-empty (.go only).
 //   - // GoOutput:  Go's combined stdout+stderr — always (even empty).
-//   - // Divergence: present iff the two sides differ; its reason text
-//     blesses the diff (a human-written reason is preserved on re-sync).
+//   - // Verdict:   exactly one, for .go and opted-in .gno alike: `Clean run`
+//     when the sides match, `KnownIssue` / `KnownDivergence` when they
+//     differ (a human-written reason is preserved on re-sync).
 //
 // Gno's panic lands in gnoError, not gnoStdout; it is folded into the
 // comparison to mirror Go's combined stream — otherwise a Gno panic with
@@ -738,9 +739,9 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 		if tc := FormatLineOnlyBlock(PerLineErrors(tcError, 0)); tc != "" {
 			want = append(want, Directive{Name: DirectiveGoTypeCheckError, Content: tc})
 		}
-		if !diverges {
-			want = append(want, verdict{Kind: VerdictClean, Mode: "run"}.directive())
-		}
+	}
+	if !diverges {
+		want = append(want, verdict{Kind: VerdictClean, Mode: "run"}.directive())
 	}
 
 	if sync {
@@ -784,7 +785,7 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 			"stale `// GoTypeCheckError:` golden (the guard no longer errors) — re-run with --update-golden-tests"))
 	}
 	kind := verdictKind(dirs)
-	if isGoFile && diverges && kind == VerdictClean {
+	if diverges && kind == VerdictClean {
 		prior = multierr.Append(prior, fmt.Errorf(
 			"stale `// Verdict: Clean run`: Gno now diverges from Go — re-run with --update-golden-tests"))
 	}
@@ -1157,8 +1158,8 @@ const (
 	DirectiveTypes          = "Types"
 	DirectiveTypeCheckError = "TypeCheckError"
 
-	// DirectiveVerdict is the one verdict line every .go corpus file
-	// ends with; see verdict.go for its grammar.
+	// DirectiveVerdict is the one verdict line every Go-compared file
+	// (.go corpus file or opted-in .gno) ends with; see verdict.go.
 	DirectiveVerdict = "Verdict"
 
 	// Symmetric Gno-vs-Go golden directives for .go corpus files.

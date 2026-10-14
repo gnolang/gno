@@ -11,6 +11,7 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | block | meaning |
 |---|---|
 | `GnoOutput:` / `GoOutput:` | stdout of Gno and of `go run` (run files) |
+| `Output:` / `GoOutput:` | the same pair for a native `.gno` filetest that opts in: adding `GoOutput:` makes the harness run Go too and demand the `Verdict:` line; `.gno` files without it are untouched |
 | `GnoError:` | Gno's own errors, per line, wording kept |
 | `GoTypeCheckError:` / `GoBuildError:` | lines the go/types guard / `go build` flagged; lines only, their wording follows the Go release |
 
