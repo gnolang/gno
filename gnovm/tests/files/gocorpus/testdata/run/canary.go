@@ -32,4 +32,4 @@ func main() {
 // GoOutput:
 // canary: .go filetest accepted
 
-// Clean: run
+// Verdict: Clean run

@@ -6,7 +6,7 @@ release in `VERSION`), each followed by a comment tail the harness writes
 
 ## Per-file contract
 
-Evidence blocks (raw, auto-written), then exactly one verdict line, last:
+Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 
 | block | meaning |
 |---|---|
@@ -17,10 +17,10 @@ Evidence blocks (raw, auto-written), then exactly one verdict line, last:
 
 | verdict | meaning |
 |---|---|
-| `Clean: run\|compile` | Gno matches Go, nothing to bless |
-| `Unsupported: <tag>: <reason>` | skipped, feature gap or gc-only test; tags in `corpus.go` (`unsupportedTags`) |
-| `KnownDivergence: <category>: <reason>` | accepted difference |
-| `KnownIssue: <category>: <reason>` | a Gno bug, pinned so it is greppable |
+| `Verdict: Clean <mode>` | both checkers reach the same verdict (run \| compile); wording differences stay in the evidence blocks |
+| `Verdict: Unsupported <tag>: <reason>` | skipped, feature gap or gc-only test; tags in `corpus.go` (`unsupportedTags`) |
+| `Verdict: KnownIssue <mode>: <reason>` | Gno is wrong here, tracked |
+| `Verdict: KnownDivergence <mode>: <reason>` | Gno differs on purpose (a run output or a rule decided for Gno) |
 
 Verify (`go test ./gnovm/pkg/gnolang -run TestFiles/gocorpus`) runs Gno only
 and compares with the pinned Go side; it never shells out to `go`. One

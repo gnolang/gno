@@ -77,26 +77,29 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// the walker turns into t.Skip. Checked before any dispatch /
 	// rescue / machine construction so unsupported files cost nothing.
 	// Corpus vocabulary only: in a .gno file the line stays a comment.
-	if u := dirs.First(DirectiveUnsupported); isGoFile && u != nil {
+	if v, ok := verdictIn(dirs); isGoFile && ok && v.Kind == VerdictUnsupported {
 		if opts.Sync {
 			// Normalise: tag the reason, drop goldens from before the
 			// file was marked (they are never read again).
-			if nc := writeUnsupportedDirective(source, u.Content); nc != string(source) {
+			if nc := writeUnsupportedDirective(source, v.Mode+": "+v.Reason); nc != string(source) {
 				return nc, 0, diffs, nil
 			}
 		}
-		return "", 0, diffs, &SkipError{Reason: u.Content}
+		return "", 0, diffs, &SkipError{Reason: v.Mode + ": " + v.Reason}
 	}
-	// One verdict per .go corpus file; sync writes it, verify demands it.
+	// One verdict line per .go corpus file; sync writes it, verify demands it.
 	if isGoFile && !opts.Sync {
-		var found []string
-		for _, n := range verdictDirectives {
-			if dirs.First(n) != nil {
-				found = append(found, n)
+		n := 0
+		for _, d := range dirs {
+			if d.Name == DirectiveVerdict {
+				n++
 			}
 		}
-		if len(found) != 1 {
-			return "", 0, diffs, fmt.Errorf("expected exactly one verdict directive (%s), found %v; "+"re-run with --update-golden-tests", strings.Join(verdictDirectives, "/"), found)
+		if n != 1 {
+			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
+		}
+		if _, ok := verdictIn(dirs); !ok {
+			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
 		}
 	}
 
@@ -155,7 +158,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// 1600+ existing files are untouched.
 	hasGoOptIn := dirs.First(DirectiveGoOutput) != nil ||
 		dirs.First(DirectiveGoError) != nil ||
-		dirs.First(DirectiveKnownDivergence) != nil
+		verdictKind(dirs) == VerdictKnownDivergence
 	prependRescue := func() error {
 		source = PrependPkgPathIfNeeded(source)
 		// We prepended a PKGPATH line iff source now starts with one
@@ -172,8 +175,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		if err != nil {
 			return fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
 		}
-		if d := dirs.First(DirectiveKnownDivergence); d != nil {
-			divergenceReason = d.Content
+		if v, ok := verdictIn(dirs); ok && v.Kind == VerdictKnownDivergence {
+			divergenceReason = v.Reason
 		}
 		return nil
 	}
@@ -396,9 +399,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			// explicit and greppable as a skip or a divergence.
 			sections := []goldenSection{
 				{name: DirectiveGnoPreprocessError}, {name: DirectiveGoBuildError},
-				{name: DirectiveGoTypeCheckError}, {name: DirectiveKnownIssue},
-				{name: DirectiveKnownDivergence},
-				{name: DirectiveClean, block: "compile", inline: true},
+				{name: DirectiveGoTypeCheckError},
+				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
 			}
 			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
 			return newContent, gas, diffs, err
@@ -414,31 +416,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				goBuildErr = ParseLineBlock(d.Content)
 			}
 		}
-		// Verdict: KnownIssue only when Gno-only rejects; otherwise
-		// KnownDivergence (both reject, wording differs).
-		verdict := ""
-		verdictName := ""
-		if len(gnoErr) > 0 {
-			if len(goBuildErr) == 0 && len(goTC) == 0 {
-				verdictName = DirectiveKnownIssue
-				verdict = "TODO: explain the Gno bug (Gno rejects code gc + go/types accept)"
-			} else {
-				verdictName = DirectiveKnownDivergence
-				verdict = "compile-error-wording: both Gno and Go reject; wording/stage differ"
-			}
-		}
-		// Preserve a human-refined verdict across re-sync. Skip preservation
-		// when the existing content looks like the LEGACY per-line dump
-		// (`line N: ...` form — that was the old harness's evidence-in-
-		// verdict format, not human-written). Skip TODO placeholders.
-		if verdictName != "" {
-			if d := origDirs.First(verdictName); d != nil {
-				c := strings.TrimSpace(d.Content)
-				if c != "" &&
-					!strings.HasPrefix(c, "TODO") &&
-					!regexp.MustCompile(`^line \d+:`).MatchString(c) {
-					verdict = strings.TrimRight(d.Content, "\n")
-				}
+		// Verdict: KnownIssue when only Gno rejects; both rejecting is
+		// agreement (Clean), their wording stays in the evidence blocks.
+		v := verdict{Kind: VerdictClean, Mode: "compile"}
+		if len(gnoErr) > 0 && len(goBuildErr) == 0 && len(goTC) == 0 {
+			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: explain the Gno bug (Gno rejects code gc + go/types accept)"}
+			// Keep a human-written reason across re-syncs.
+			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue &&
+				prev.Reason != "" && !strings.HasPrefix(prev.Reason, "TODO") {
+				v.Reason = prev.Reason
 			}
 		}
 		// Go-side blocks pin line numbers only: their wording follows
@@ -447,13 +433,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			{name: DirectiveGnoPreprocessError, block: FormatGnoErrorBlock(gnoErr)},
 			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
 			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTC)},
-			{name: DirectiveClean}, // must be absent: a verdict follows
-		}
-		if verdictName != "" {
-			sections = append(sections, goldenSection{
-				name:  verdictName,
-				block: verdict,
-			})
+			{name: DirectiveVerdict, block: v.String(), inline: true},
 		}
 		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
 		return newContent, gas, diffs, err
@@ -669,7 +649,7 @@ func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directi
 // runs (the directive is detected pre-dispatch) and self-documents why.
 func writeUnsupportedDirective(originalSource []byte, reason string) string {
 	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
-	return body + "\n\n// " + DirectiveUnsupported + ": " + TagUnsupportedReason(reason) + "\n"
+	return body + "\n\n// " + DirectiveVerdict + ": " + VerdictUnsupported + " " + TagUnsupportedReason(reason) + "\n"
 }
 
 // writeStaticGolden returns the file content for a compile-mode golden
@@ -727,13 +707,14 @@ func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
 // goldenRegionStarts are the directive names that can begin the trailing
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
-	DirectiveGnoError, DirectiveGoTypeCheckError, DirectiveKnownIssue,
-	DirectiveGnoPreprocessError, DirectiveGoBuildError, DirectiveKnownDivergence,
-	// .go corpus files only: the run-mode goldens and the verdict lines,
-	// so a rewrite (Unsupported, Clean) leaves no stale block behind.
+	DirectiveGnoError, DirectiveGoTypeCheckError,
+	DirectiveGnoPreprocessError, DirectiveGoBuildError,
+	// .go corpus files only: the run-mode goldens and the verdict line,
+	// so a rewrite leaves no stale block behind.
 	// .gno files keep TypeCheckError in the source the guard sees.
 	DirectiveGnoOutput, DirectiveGoOutput, DirectiveGoError, DirectiveTypeCheckError,
-	DirectiveUnsupported, DirectiveClean}
+	DirectiveVerdict,
+}
 
 // triageStateMarkers are the standalone triage status lines (`// Fixed:`,
 // `// Fixing:`, `// Tracked:`) written by manual triage after the golden
@@ -876,7 +857,7 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 			want = append(want, Directive{Name: DirectiveGoTypeCheckError, Content: tc})
 		}
 		if !diverges {
-			want = append(want, Directive{Name: DirectiveClean, Content: "run", Complete: true})
+			want = append(want, verdict{Kind: VerdictClean, Mode: "run"}.directive())
 		}
 	}
 
@@ -886,16 +867,14 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 		// differ (preserving the human's tag + reason).
 		stale := []string{
 			DirectiveGnoOutput, DirectiveGnoError, DirectiveGoOutput,
-			DirectiveKnownIssue, DirectiveKnownDivergence,
-			DirectiveGoTypeCheckError, DirectiveClean,
+			DirectiveGoTypeCheckError, DirectiveVerdict,
 		}
 		if isGoFile { // a .gno file keeps its native TypeCheckError golden
 			stale = append(stale, DirectiveTypeCheckError)
 		}
 		out := append(removeDirectives(dirs, stale...), want...)
 		if diverges {
-			name, reason := runVerdict(dirs, gnoErr != "")
-			out = append(out, Directive{Name: name, Content: reason, Complete: true})
+			out = append(out, runVerdict(dirs, gnoErr != "").directive())
 		}
 		return out, prior
 	}
@@ -922,21 +901,22 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 		prior = multierr.Append(prior, fmt.Errorf(
 			"stale `// GoTypeCheckError:` golden (the guard no longer errors) — re-run with --update-golden-tests"))
 	}
-	if isGoFile && diverges && dirs.First(DirectiveClean) != nil {
+	kind := verdictKind(dirs)
+	if isGoFile && diverges && kind == VerdictClean {
 		prior = multierr.Append(prior, fmt.Errorf(
-			"stale `// Clean:` verdict: Gno now diverges from Go — re-run with --update-golden-tests"))
+			"stale `// Verdict: Clean run`: Gno now diverges from Go — re-run with --update-golden-tests"))
 	}
-	hasVerdict := dirs.First(DirectiveKnownIssue) != nil || dirs.First(DirectiveKnownDivergence) != nil
+	hasVerdict := kind == VerdictKnownIssue || kind == VerdictKnownDivergence
 	switch {
 	case diverges && !hasVerdict:
 		prior = multierr.Append(prior, fmt.Errorf(
-			"Gno-vs-Go divergence detected — classify as `// KnownIssue:` (a Gno bug) or "+
-				"`// KnownDivergence:` (accepted), or re-run with --update-golden-tests:\n%s",
+			"Gno-vs-Go divergence detected — classify as `// Verdict: KnownIssue run: ...` (a Gno bug) or "+
+				"`// Verdict: KnownDivergence run: ...` (accepted), or re-run with --update-golden-tests:\n%s",
 			unifiedDiff(goExp, gnoCombined)))
 	case !diverges && hasVerdict:
 		prior = multierr.Append(prior, fmt.Errorf(
-			"stale verdict: Gno's output now matches Go's — remove the `// KnownIssue:` / "+
-				"`// KnownDivergence:` directive (or re-run with --update-golden-tests)"))
+			"stale verdict: Gno's output now matches Go's — remove the KnownIssue / "+
+				"KnownDivergence verdict (or re-run with --update-golden-tests)"))
 	}
 	return nil, prior
 }
@@ -948,18 +928,15 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 // gnoErrored here means a one-sided Gno failure) is a bug → KnownIssue;
 // any other difference is provisionally an accepted KnownDivergence the
 // contributor reclassifies if it's actually a bug.
-func runVerdict(dirs Directives, gnoErrored bool) (name, reason string) {
-	for _, n := range []string{DirectiveKnownIssue, DirectiveKnownDivergence} {
-		if d := dirs.First(n); d != nil {
-			if r := strings.TrimSpace(d.Content); r != "" && !strings.HasPrefix(r, "TODO") {
-				return n, d.Content
-			}
-		}
+func runVerdict(dirs Directives, gnoErrored bool) verdict {
+	if v, ok := verdictIn(dirs); ok && (v.Kind == VerdictKnownIssue || v.Kind == VerdictKnownDivergence) &&
+		v.Reason != "" && !strings.HasPrefix(v.Reason, "TODO") {
+		return v
 	}
 	if gnoErrored {
-		return DirectiveKnownIssue, "TODO: explain the Gno bug (Gno errors where Go runs clean)"
+		return verdict{Kind: VerdictKnownIssue, Mode: "run", Reason: "TODO: explain the Gno bug (Gno errors where Go runs clean)"}
 	}
-	return DirectiveKnownDivergence, "TODO: <category>: explain why this divergence is acceptable"
+	return verdict{Kind: VerdictKnownDivergence, Mode: "run", Reason: "TODO: <category>: explain why this divergence is acceptable"}
 }
 
 // removeDirectives returns a copy of dirs with all entries whose Name
@@ -1298,14 +1275,9 @@ const (
 	DirectiveTypes          = "Types"
 	DirectiveTypeCheckError = "TypeCheckError"
 
-	// Single-line PascalCase meta-directives that short-circuit the
-	// match logic. Reason is the single-line text after the colon.
-	DirectiveUnsupported = "Unsupported"
-	// DirectiveKnownDivergence blesses an ACCEPTED run-mode difference
-	// (Gno's output legitimately differs from Go's — formatting, map
-	// order, error wording, …). It is NOT a bug: a real Gno bug is a
-	// `// KnownIssue:` instead. Single-line `<category>: <reason>`.
-	DirectiveKnownDivergence = "KnownDivergence"
+	// DirectiveVerdict is the one verdict line every .go corpus file
+	// ends with; see verdict.go for its grammar.
+	DirectiveVerdict = "Verdict"
 
 	// Symmetric Gno-vs-Go golden directives for .go corpus files.
 	// They mirror existing native directives but split the actual
@@ -1343,28 +1315,7 @@ const (
 	// Gno-only bugs from cases where both Gno and Go reject the file
 	// with different wording (a benign KnownDivergence, not a bug).
 	DirectiveGoBuildError = "GoBuildError"
-	// DirectiveKnownIssue marks a Gno BUG — Gno disagrees with reality
-	// and it matters. Two shapes share the tag:
-	//   - errorcheck/compile (static): a per-line block of Gno errors at
-	//     lines carrying NO gc marker — Gno rejects code gc accepts
-	//     (over-strict).
-	//   - run (runtime): a free-text reason — Gno's run result diverges
-	//     from Go's in a way that's a bug, not an accepted difference
-	//     (contrast `// KnownDivergence:`). e.g. bug446: Gno panics where
-	//     Go exits 0.
-	// The file still passes (the behavior is pinned); the tag makes the
-	// bug greppable. Urgency (fix-now vs defer) is DERIVED by the ledger
-	// from the facts, not stored here.
-	DirectiveKnownIssue = "KnownIssue"
-	// DirectiveClean is the positive verdict: the file matched Go with
-	// nothing to bless. Single line, `// Clean: run|compile|errorcheck`.
-	// Every .go corpus file ends with exactly one verdict line: Clean,
-	// Unsupported, KnownIssue or KnownDivergence.
-	DirectiveClean = "Clean"
 )
-
-// verdictDirectives are the four mutually exclusive per-file verdicts.
-var verdictDirectives = []string{DirectiveClean, DirectiveUnsupported, DirectiveKnownIssue, DirectiveKnownDivergence}
 
 // nativeDirectives are the .gno filetest directives; corpusDirectives
 // are the .go corpus additions. Only corpus directives accept the
@@ -1387,8 +1338,7 @@ var nativeDirectives = []string{
 }
 
 var corpusDirectives = []string{
-	DirectiveUnsupported,
-	DirectiveKnownDivergence,
+	DirectiveVerdict,
 	DirectiveGnoOutput,
 	DirectiveGoOutput,
 	DirectiveGnoError,
@@ -1396,8 +1346,6 @@ var corpusDirectives = []string{
 	DirectiveGoTypeCheckError,
 	DirectiveGnoPreprocessError,
 	DirectiveGoBuildError,
-	DirectiveKnownIssue,
-	DirectiveClean,
 }
 
 var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
@@ -1405,7 +1353,7 @@ var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
 // singleLinePascalDirectives holds PascalCase directives whose content
 // is ALWAYS single-line — even when empty — and that must be parsed
 // without the bare-PascalCase multi-line absorbing behavior. Members
-// (currently `Unsupported`, `Divergence`) carry one-line reason text.
+// (the verdict line) carry one-line text.
 //
 // Other PascalCase directives (Output / Error / GnoOutput / GoOutput /
 // GnoError / GoError / Realm / …) are multi-line markers by default,
@@ -1414,14 +1362,7 @@ var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
 // file. Corpus directives also accept the inline `// Name: foo` form
 // — see ParseDirectives.
 var singleLinePascalDirectives = map[string]bool{
-	DirectiveUnsupported: true,
-	DirectiveClean:       true,
-	// KnownDivergence is deliberately NOT here: like KnownIssue it is a
-	// verdict that carries multi-line human prose, so a bare
-	// `// KnownDivergence:` must absorb its following comment lines.
-	// (When it was single-line, a multi-line human verdict parsed as an
-	// EMPTY directive + orphan comment, and golden sync clobbered the
-	// human's classification back to an auto KnownIssue.)
+	DirectiveVerdict: true,
 }
 
 // pinnedGoldenDirectives lists PascalCase directives whose empty

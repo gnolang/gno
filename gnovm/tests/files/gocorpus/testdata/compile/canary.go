@@ -15,4 +15,4 @@ func F(t T) int {
 	return t.X + t.Y
 }
 
-// Clean: compile
+// Verdict: Clean compile
