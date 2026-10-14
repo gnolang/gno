@@ -42,53 +42,9 @@ func UsesGenerics(source []byte) bool {
 	return false
 }
 
-// Errorcheck-style support for .go filetests under tests/files/gocorpus/testdata/.
-//
-// When a .go filetest carries inline `// ERROR "regex"` markers (Go's
-// standard test corpus convention) and no explicit `// Error:` directive,
-// the harness:
-//   1. Parses the markers (regex patterns per line).
-//   2. Applies a PKGPATH + synthetic-main rescue so files declaring a
-//      non-main package (typical for declaration-level errorcheck tests)
-//      reach Gno's preprocess+typecheck instead of bailing on the
-//      realm-naming requirement.
-//   3. Runs the file through Gno and captures its preprocess /
-//      typecheck / runtime error output.
-//   4. Verifies at least one marker's regex matches that output.
-//
-// Pass criterion is intentionally loose: Gno's preprocessor stops at
-// the first error, so strict per-line marker matching would fail most
-// corpus errorcheck files. We want the verdict-level signal to be
-// "Gno catches the kind of error gc does", not "Gno enumerates every
-// individual error" — which is too strict given the early-bail
-// behaviour. See [VerifyErrorcheckMarkers] for the three outcomes.
-//
-// To bless an intentional divergence (Gno doesn't reject a file Go's
-// errorcheck flags, or Gno's wording diverges entirely), add an
-// explicit `// Error:` directive with Gno's actual output — the
-// marker verification is then bypassed and the directive serves as
-// documentation of the accepted divergence.
-//
-// The exported entry points ([HasInlineErrorMarkers], [IsRunnable],
-// [PrependPkgPathIfNeeded]) are intended for use by
-// external test drivers that walk a Go test corpus and dispatch
-// files through this harness. The corresponding internal dispatch
-// path in runFiletest uses these same helpers.
-
-// Line is the 1-based source line the marker was attached to.
-
-// Patterns lists the quoted regex strings on the marker, in
-// declaration order. Empty for a bare `// ERROR` with no patterns.
-
-// GcOnly marks a `// GC_ERROR` marker: a gc-implementation-specific
-// diagnostic (backend limit, pragma check, …) that is NOT part of
-// Gno's contract. GcOnly markers are excluded from leak accounting —
-// catching one is fine, missing one is not an uncaught error.
-
 // HasInlineErrorMarkers reports whether source contains any
-// `// ERROR ` or `// GC_ERROR ` marker. Cheap pre-check intended for
-// dispatch logic that decides whether to enter errorcheck mode
-// without paying for full marker parsing first.
+// `// ERROR ` or `// GC_ERROR ` marker (Go's errorcheck convention).
+// The harness refuses such files until errorcheck mode lands.
 func HasInlineErrorMarkers(source []byte) bool {
 	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
 		if bytes.Contains(source, []byte(tag)) {
@@ -119,40 +75,6 @@ func indexErrorMarker(line string) int {
 	return -1
 }
 
-// PrependPkgPathIfNeeded rescues errorcheck and compile-only files
-// declaring a non-main package (e.g. `package p`) so they reach
-// Gno's preprocess+typecheck phase instead of bouncing on the
-// realm-naming requirement. Two transforms:
-//
-//  1. Prepend `// PKGPATH: gno.land/p/filetest/<name>` so Gno's
-//     harness stops bailing with "expected package name [main] but
-//     got [p]".
-//  2. Append `func main() {}` when source has no `main()` of its
-//     own, so Gno's executor doesn't then bail with "name main not
-//     declared" once PKGPATH gets it past the package-name check.
-//
-// No-op when source is already `package main` or already declares
-// its own `// PKGPATH:`. The chosen pkgpath prefix is intentionally
-// neutral — `gno.land/p/filetest/` — so external test drivers can
-// reuse this helper without a namespace clash.
-func PrependPkgPathIfNeeded(source []byte) []byte {
-	if bytes.Contains(source, []byte("// PKGPATH:")) {
-		return source
-	}
-	m := pkgDeclRe.FindSubmatch(source)
-	if m == nil || string(m[1]) == "main" {
-		return source
-	}
-	prefix := fmt.Appendf(nil, "// PKGPATH: gno.land/p/filetest/%s\n", m[1])
-	out := make([]byte, 0, len(prefix)+len(source))
-	out = append(out, prefix...)
-	out = append(out, source...)
-	if !funcMainRe.Match(source) {
-		out = append(out, "\nfunc main() {}\n"...)
-	}
-	return out
-}
-
 // pkgDeclRe matches the Go package declaration; captures the name.
 var pkgDeclRe = regexp.MustCompile(`(?m)^package (\w+)`)
 
@@ -164,10 +86,8 @@ var funcMainRe = regexp.MustCompile(`(?m)^func\s+main\s*\(\)`)
 
 // IsRunnable reports whether source can be `go run` — i.e. declares
 // `package main` AND has a top-level `func main()`. Files lacking
-// either are compile-only by intent: gc accepts and never runs them,
-// and Gno's harness must apply the PKGPATH+synthetic-main rescue (via
-// [PrependPkgPathIfNeeded]) to reach preprocess+typecheck. Used by
-// dispatch logic to route .go files into the compile-only path.
+// either are compile-only by intent: gc accepts and never runs them.
+// The harness refuses such files until compile mode lands.
 func IsRunnable(source []byte) bool {
 	m := pkgDeclRe.FindSubmatch(source)
 	if m == nil || string(m[1]) != "main" {
