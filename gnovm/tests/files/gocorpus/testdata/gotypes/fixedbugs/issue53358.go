@@ -19,9 +19,8 @@ var _ = (*B).m
 var _ = struct{ A }.m // ERROR "invalid method expression struct{A}.m (needs pointer receiver (*struct{A}).m)"
 
 // GnoError:
-// line 11: wrong argument count in call to typeval{gno.land/p/filetest/p.A}.m; want 1 got 0
-// line 16: unknown *DeclaredType method named m
-// line 17: unknown *DeclaredType method named m
+// line 11: invalid method expression A.m (needs pointer receiver (*A).m)
+// line 16: invalid method expression B.m (needs pointer receiver (*B).m)
 // line 19: unexpected selector expression type value struct{A gno.land/p/filetest/p.A}
 
 // GoTypeCheckError:
@@ -29,12 +28,7 @@ var _ = struct{ A }.m // ERROR "invalid method expression struct{A}.m (needs poi
 // line 16
 // line 19
 
-// GnoOverStrictError:
-// line 17: unknown *DeclaredType method named m
-
 // GnoWordingDiffers:
-// line 11: gc expects: invalid method expression A.m (needs pointer receiver (*A).m); gno: wrong argument count in call to typeval{gno.land/p/filetest/p.A}.m; want 1 got 0
-// line 16: gc expects: invalid method expression B.m (needs pointer receiver (*B).m); gno: unknown *DeclaredType method named m
 // line 19: gc expects: invalid method expression struct{A}.m (needs pointer receiver (*struct{A}).m); gno: unexpected selector expression type value struct{A gno.land/p/filetest/p.A}
 
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Clean errorcheck
