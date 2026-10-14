@@ -261,8 +261,8 @@ func TestRegisterValidation(cur realm, t *testing.T) {
 }
 
 func TestTitleRules(t *testing.T) {
-	for _, ok := range []string{"Café", "Gno 東京", "Ελληνικά", "Ştiri", "Tiếng Việt", "नमस्ते Gno", "A1"} {
-		uassert.True(t, validText(ok, maxTitle), ok)
+	for _, ok := range []string{"Café", "Gno 東京", "Ελληνικά", "Ştiri", "Tiếng Việt", "नमस्ते Gno", "A1", "Rock ’n’ Roll"} {
+		uassert.True(t, validTitle(ok), ok)
 	}
 	for _, pair := range [][2]string{
 		{"Gnoland", "Gno land"},
@@ -276,6 +276,23 @@ func TestTitleRules(t *testing.T) {
 		uassert.Equal(t, titleKey(pair[0]), titleKey(pair[1]), pair[1])
 	}
 	uassert.NotEqual(t, titleKey("Gnoland"), titleKey("Gnome"))
+}
+
+// Each copy the reviews found of a listed title is refused, or keys as the
+// original does: none can list beside it.
+func TestTitleLookalikes(t *testing.T) {
+	for _, pair := range [][2]string{
+		{"TOKEN", "ΤΟΚΕΝ"}, {"ZONE", "ΖΟΝΕ"}, {"MINT", "ΜΙΝΤ"}, {"KEY", "ΚΕΥ"}, // Greek capitals
+		{"ACME", "ꓮꓚꓟꓰ"}, {"ACME", "ᎪᏟᎷᎬ"}, // Lisu, Cherokee
+		{"Boards", "B၀ards"}, {"Gno.land Blog", "Gn०.land Blog"}, {"Gnoland Swap", "Gn০land Swap"}, // foreign zeros
+		{"Gno.land Blog", "Gno.∣and Blog"}, {"Gnoland Swap", "Gno׀and Swap"}, // bars
+		{"Gnoland Swap", "Gnoاand Swap"}, {"Gnoland Swap", "Gnסland Swap"}, // Arabic alef, Hebrew samekh
+		{"Gnoland Pay", "GnoƖand Pay"}, {"Gnoland Pay", "Gnoland ƿay"}, // Latin Extended-B
+		{"Zoom", "ℤℴℴℳ"}, {"CHN", "ℂℍℕ"}, // Letterlike Symbols
+		{"Boards", "Bóards"}, {"Gno.land Blog", "Gno.land Blòg"}, {"Coin Balances", "Cöin Balances"}, {"GovDAO", "GovDAÖ"}, // precomposed accents
+	} {
+		uassert.True(t, !validTitle(pair[1]) || titleKey(pair[1]) == titleKey(pair[0]), pair[1])
+	}
 }
 
 func TestNamespaceCap(cur realm, t *testing.T) {

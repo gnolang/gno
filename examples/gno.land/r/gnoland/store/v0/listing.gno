@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"gno.land/p/nt/avl/v0"
 )
@@ -544,14 +545,24 @@ func visibleInNamespace(ns string) int {
 	return n
 }
 
-// titleKey makes title uniqueness blind to what validText cannot refuse
+// titleKey makes title uniqueness blind to what validTitle cannot refuse
 // (T6): case, spaces and separators, and the dashes and dots that look like
-// them ("Gno-Land", "Gno‐Land", "Gno land", "gnoland"), and
-// look-alike letters, folded to one Latin letter, so "GnoIand", "Gno1and",
-// "Gnoiand" and a Cyrillic "АСМЕ" collide with "Gnoland" and "ACME".
+// them ("Gno-Land", "Gno‐Land", "Gno land", "gnoland"), accents ("Bóards"),
+// and look-alike letters, folded to one Latin letter, so "GnoIand",
+// "Gno1and", "Gnoiand" and a Cyrillic "АСМЕ" or Greek "ΤΟΚΕΝ" collide with
+// "Gnoland", "ACME" and "TOKEN". Capitals are folded before lower-casing:
+// a Greek capital Nu draws as an N, its lower case as a v.
 func titleKey(title string) string {
 	var b strings.Builder
-	for _, r := range strings.ToLower(title) {
+	for _, r := range title {
+		if c := foldCapital(r); c != 0 {
+			r = c
+		} else {
+			r = unicode.ToLower(r)
+		}
+		if base := latinBase(r); base != 0 {
+			r = base
+		}
 		if r = foldRune(r); r != 0 {
 			b.WriteRune(r)
 		}
@@ -559,6 +570,54 @@ func titleKey(title string) string {
 	k := b.String()
 	k = strings.ReplaceAll(k, "rn", "m")
 	return strings.ReplaceAll(k, "vv", "w")
+}
+
+// foldCapital maps a Greek or Cyrillic capital drawn as a Latin capital to
+// that Latin letter, lower-case, or returns 0.
+func foldCapital(r rune) rune {
+	switch r {
+	case 'Α', 'Ά', 'А':
+		return 'a'
+	case 'Β', 'В':
+		return 'b'
+	case 'С':
+		return 'c'
+	case 'Ε', 'Έ', 'Е':
+		return 'e'
+	case 'Η', 'Ή', 'Н', 'Һ':
+		return 'h'
+	case 'Ι', 'Ί', 'І', 'Ӏ':
+		return 'l'
+	case 'Ј':
+		return 'j'
+	case 'Κ', 'К':
+		return 'k'
+	case 'Μ', 'М':
+		return 'm'
+	case 'Ν':
+		return 'n'
+	case 'Ο', 'Ό', 'О':
+		return 'o'
+	case 'Ρ', 'Р':
+		return 'p'
+	case 'Ԛ':
+		return 'q'
+	case 'Ѕ':
+		return 's'
+	case 'Τ', 'Т':
+		return 't'
+	case 'Ѵ':
+		return 'v'
+	case 'Ԝ':
+		return 'w'
+	case 'Χ', 'Х':
+		return 'x'
+	case 'Υ', 'Ύ', 'У', 'Ү':
+		return 'y'
+	case 'Ζ':
+		return 'z'
+	}
+	return 0
 }
 
 // foldRune maps a lower-case rune to the Latin letter it looks like, or to
@@ -569,23 +628,23 @@ func foldRune(r rune) rune {
 		'\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\u2015', '\u2043', '\u2212', '\uFE58', '\uFE63',
 		'\u00B7', '\u2024', '\u2027', '\u2219', '\u22C5', '\u30FB':
 		return 0
-	case 'i', '1', '|', 'ı', 'і', 'ι':
+	case 'i', '1', '|', 'ı', 'і', 'ι', 'ӏ', 'ا', 'ו', 'ן': // Arabic alef, Hebrew vav and final nun
 		return 'l'
-	case '0', 'о', 'ο':
+	case '0', 'о', 'ο', 'ס': // Hebrew samekh
 		return 'o'
 	case 'а', 'α':
 		return 'a'
 	case 'в', 'β':
 		return 'b'
-	case 'с':
+	case 'с', 'ϲ':
 		return 'c'
 	case 'ԁ':
 		return 'd'
 	case 'е', 'ε':
 		return 'e'
-	case 'н', 'η':
+	case 'н', 'η', 'һ':
 		return 'h'
-	case 'ј':
+	case 'ј', 'ϳ':
 		return 'j'
 	case 'к', 'κ':
 		return 'k'
@@ -601,13 +660,13 @@ func foldRune(r rune) rune {
 		return 't'
 	case 'υ':
 		return 'u'
-	case 'ν':
+	case 'ν', 'ѵ':
 		return 'v'
 	case 'ԝ':
 		return 'w'
 	case 'х', 'χ':
 		return 'x'
-	case 'у':
+	case 'у', 'ү', 'γ':
 		return 'y'
 	}
 	return r

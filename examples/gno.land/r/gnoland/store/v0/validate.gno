@@ -35,7 +35,7 @@ func validateListing(l *listing) string {
 		return "bad_kind"
 	case !validSlug(l.Slug):
 		return "bad_slug"
-	case !validText(l.Title, maxTitle):
+	case !validTitle(l.Title):
 		return "bad_title"
 	case !validText(l.Tagline, maxTagline):
 		return "bad_tagline"
@@ -151,6 +151,41 @@ func validText(s string, maxRunes int) bool {
 	return alnum && (!latin || !foreign)
 }
 
+// validTitle is validText for a title, the field titleKey keeps unique, so
+// held to what titleKey can fold: letters of the scripts below only (Lisu
+// and Cherokee, for one, are drawn as Latin capitals and fold to nothing),
+// ASCII digits only (a Myanmar or Devanagari zero draws as an o), and no
+// punctuation or symbol beyond ASCII, the separators titleKey drops and
+// typographic quotes (U+2223 DIVIDES draws as an l).
+func validTitle(s string) bool {
+	if !validText(s, maxTitle) {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case unicode.IsLetter(r):
+			if !unicode.Is(unicode.Latin, r) && !unicode.In(r, titleScripts...) {
+				return false
+			}
+		case unicode.IsDigit(r):
+			if r > '9' {
+				return false
+			}
+		case r > 0x7E && !unicode.IsMark(r) && foldRune(r) != 0 && (r < 0x2018 || r > 0x201D):
+			return false
+		}
+	}
+	return true
+}
+
+// titleScripts are the scripts a title may use besides Latin: those whose
+// letters drawn like Latin ones titleKey folds, and those with none.
+var titleScripts = []*unicode.RangeTable{
+	unicode.Greek, unicode.Cyrillic,
+	unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul,
+	unicode.Arabic, unicode.Hebrew, unicode.Devanagari, unicode.Thai,
+}
+
 // mixesWithLatin are the scripts a title may mix with Latin letters: none
 // of their letters looks like a Latin one. Their own combining marks are
 // accepted on their letters.
@@ -171,18 +206,58 @@ func sameMixingScript(prev, mark rune) bool {
 }
 
 // commonLatin reports Latin letters of the alphabets in use: Basic Latin,
-// Latin-1, Extended-A and -B (Romanian, Pinyin) but for the click letters,
-// and the precomposed Vietnamese letters.
+// and the letters of Latin-1, Extended-A and -B and Latin Extended
+// Additional that latinBase folds (French, Romanian, Pinyin, Vietnamese...).
+// The others, such as IPA, small capitals and LATIN CAPITAL LETTER IOTA,
+// have no base letter to fold to, so each would key apart from the letter it
+// draws like.
 func commonLatin(r rune) bool {
-	return r < 0x0250 && (r < 0x01C0 || r > 0x01C3) || r >= 0x1E00 && r <= 0x1EFF
+	return r < 0x80 || latinBase(r) != 0
 }
 
+// latinBase returns the ASCII letter a Latin letter above U+00BF is drawn
+// from, lower-case, or 0 if it has none. One byte per code point, '.' for
+// none, from Unicode's canonical decompositions (the letter before the
+// marks), plus the letters drawn as one without a decomposition (Æ, Ø, Ł,
+// ß...).
+func latinBase(r rune) rune {
+	var c byte
+	switch {
+	case r >= 0x00C0 && r < 0x0250:
+		c = latinBaseC0[r-0x00C0]
+	case r >= 0x1E00 && r < 0x1F00:
+		c = latinBase1E[r-0x1E00]
+	}
+	if c == 0 || c == '.' {
+		return 0
+	}
+	return rune(c)
+}
+
+const (
+	latinBaseC0 = "" +
+		"aaaaaaaceeeeiiiidnooooo.ouuuuypbaaaaaaaceeeeiiiidnooooo.ouuuuypy" +
+		"aaaaaaccccccccddddeeeeeeeeeegggggggghhhhiiiiiiiiillljjkkklllllll" +
+		"lllnnnnnnnnnoooooooorrrrrrssssssssttttttuuuuuuuuuuuuwwyyyzzzzzzf" +
+		"................................oo.............uu..............." +
+		".............aaiioouuuuuuuuuu.aaaa....ggkkoooo..j...gg..nnaa...." +
+		"aaaaeeeeiiiioooorrrruuuusstt..hh......aaeeooooooooyy............" +
+		"................"
+	latinBase1E = "" +
+		"aabbbbbbccddddddddddeeeeeeeeeeffgghhhhhhhhhhiiiikkkkkkllllllllmm" +
+		"mmmmnnnnnnnnoooooooopppprrrrrrrrssssssssssttttttttuuuuuuuuuuvvvv" +
+		"wwwwwwwwwwxxxxyyzzzzzzhtwy....b.aaaaaaaaaaaaaaaaaaaaaaaaeeeeeeee" +
+		"eeeeeeeeiiiioooooooooooooooooooooooouuuuuuuuuuuuuuyyyyyyyy......"
+)
+
 // isMimic reports enclosing marks and the letters that mimic ASCII:
-// fullwidth forms and mathematical alphanumerics.
+// fullwidth forms, mathematical alphanumerics, and the double-struck,
+// script and fraktur letters of Letterlike Symbols the latter leaves out.
 func isMimic(r rune) bool {
 	return unicode.Is(unicode.Me, r) ||
 		r >= 0xFF01 && r <= 0xFF5E ||
-		r >= 0x1D400 && r <= 0x1D7FF
+		r >= 0x1D400 && r <= 0x1D7FF ||
+		r >= 0x2100 && r <= 0x214F && unicode.IsLetter(r)
 }
 
 // isBlankFiller reports letters and symbols that draw as blank space;
