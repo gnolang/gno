@@ -58,7 +58,7 @@ holding the old ref then has an identical one.
 | Branch | Tags | Purpose |
 |--------|------|---------|
 | `master` | none | Continuous integration; the development tree |
-| `chain/mainnet` | `v1.x.x`, plus the `chain/mainnet` launch tag | Mainnet (`gnoland-1`) — moves only by releases, coordinated or rolling; never rebased |
+| `chain/mainnet` | `v1.x.x`, plus the `chain/mainnet` launch tag | Mainnet (`gnoland-1`) — releases, coordinated or rolling, plus the documentation and release-tooling commits between them; never rebased |
 | `chain/gnoland1` | `chain/gnoland1.0`, `chain/gnoland1.1` | Retired. Frozen at what betanet ran; the tags keep their original names because they are compiled into those binaries. The branch is to be renamed `chain/betanet` — until it is, `--chain betanet` has no branch to resolve |
 | *(none)* | `chain/<name>` | A testnet on the mainnet line, onyx first: it runs mainnet's `vX.Y.Z` binaries, so it has no branch. Its launch tag sits on `chain/mainnet` at the commit that adds its folder `misc/deployments/<name>.gno.land/`, on top of the version it launched on (for onyx, `v1.5.0`), and the tag's release carries its `genesis.json` |
 | `chain/pearl`, `chain/test13`, … | `chain/<name>` | Earlier testnets, each on its own code line. Frozen |
@@ -79,10 +79,9 @@ a `vX.Y.Z` tag there instead.
 **Tagging rules.** Tags are immutable: never move one, and never reuse a name.
 New `v*` tags are annotated (`git tag -a`), so plain `git describe` finds them;
 launch tags (`chain/<name>`) are lightweight. `v1.0.0` predates the rule and is
-lightweight too, which is one reason every
-`describe` the build and release tooling runs passes `--tags --match 'v*'` —
-the other being that a release commit can also carry the chain's launch tag,
-which is not a version.
+lightweight too, which is one reason every `describe` that stamps a binary's
+version passes `--tags --match 'v*'` — the other being that a release commit
+can also carry the chain's launch tag, which is not a version.
 Pre-release tags (`v1.3.0-rc.1`) are allowed; they sort *below* the release they
 lead to, and are published as GitHub pre-releases so they do not become the
 "Latest" release operators and `misc/install.sh` land on.
@@ -356,10 +355,10 @@ misc/release/bump-protocol-version.sh v1.0.0    # move all six
 fails in CI if they drift.
 
 **Any bump here splits the network, not only a MAJOR one.** `BlockVersion` is
-written into every block header, and `ApplyBlock` refuses a block whose
+written into every block header, and a node refuses a block whose
 `Header.Version` differs from the binary's own constant
-(`tm2/pkg/bft/state/validation.go`), on fast sync and on replay alike: nodes on
-either side of a bump reject each other's blocks, and a bumped binary cannot
+(`tm2/pkg/bft/state/validation.go`), in consensus and on fast sync alike: nodes
+on either side of a bump reject each other's blocks, and a bumped binary cannot
 sync blocks produced before it. Nothing gates that check by height, so a bump
 needs such code first, then a coordinated upgrade with every validator
 switching at the same block, rehearsed on a testnet. A MAJOR bump also stops
