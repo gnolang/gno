@@ -45,7 +45,7 @@ type (
 )
 */
 
-// GnoPreprocessError:
+// GnoError:
 // line 10: invalid recursive type: a -> b -> a
 
 // Verdict: KnownIssue compile: #6036 valid recursive type declarations are rejected

@@ -14,7 +14,7 @@ func Get(ss []string) *[2]string {
 	return (*[2]string)(ss)
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 14: cannot convert ss<VPBlock(1,0)> (of type []string) to type *[2]string
 
 // Verdict: KnownIssue compile: #5599 slice-to-array-pointer conversion is rejected

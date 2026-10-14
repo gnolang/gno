@@ -12,7 +12,7 @@ func F(p *[]byte) {
 	*(*[1]byte)(*p) = *(*[1]byte)((*p)[1:])
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 12: cannot convert *(p<VPBlock(1,0)>)[(const (1 int)):] (of type []uint8) to type *[1]uint8
 
 // Verdict: KnownIssue compile: #5599 slice-to-array-pointer conversion is rejected

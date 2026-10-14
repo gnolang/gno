@@ -361,7 +361,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 	}
 
-	// Compile mode: three evidence blocks (GnoPreprocessError /
+	// Compile mode: three evidence blocks (GnoError /
 	// GoBuildError / GoTypeCheckError, the Go-side ones as line numbers
 	// only) and one verdict. `Clean compile` when gc agrees with Gno,
 	// accepting or rejecting; `KnownIssue compile` when only Gno rejects;
@@ -376,7 +376,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		if len(gnoErr) == 0 && len(goTC) == 0 {
 			// Everyone accepts: no `go build` needed, the file is Clean.
 			sections := []goldenSection{
-				{name: DirectiveGnoPreprocessError}, {name: DirectiveGoBuildError},
+				{name: DirectiveGnoError}, {name: DirectiveGoBuildError},
 				{name: DirectiveGoTypeCheckError},
 				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
 			}
@@ -420,7 +420,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			}
 		}
 		sections := []goldenSection{
-			{name: DirectiveGnoPreprocessError, block: FormatGnoErrorBlock(gnoErr)},
+			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
 			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
 			{name: DirectiveGoTypeCheckError, block: FormatLineOnlyBlock(goTC)},
 			{name: DirectiveVerdict, block: v.String(), inline: true},
@@ -698,7 +698,7 @@ func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
 	DirectiveGnoError, DirectiveGoTypeCheckError,
-	DirectiveGnoPreprocessError, DirectiveGoBuildError,
+	DirectiveGoBuildError,
 	// .go corpus files only: the run-mode goldens and the verdict line,
 	// so a rewrite leaves no stale block behind.
 	// .gno files keep TypeCheckError in the source the guard sees.
@@ -1291,11 +1291,11 @@ const (
 	// not Gno — even when GnoVM preprocess is permissive, this guard
 	// still rejects, and that's worth pinning on its own.
 	DirectiveGoTypeCheckError = "GoTypeCheckError"
-	// Compile-mode evidence: Gno's per-line preprocess errors, and the
-	// lines `go build` flagged (numbers only, wording follows the Go
-	// release). The verdict (bug or agreement) is separate.
-	DirectiveGnoPreprocessError = "GnoPreprocessError"
-	DirectiveGoBuildError       = "GoBuildError"
+	// DirectiveGoBuildError pins the lines `go build` flagged on a
+	// compile-mode file (numbers only, wording follows the Go release).
+	// Gno's side of a compile file is the same `// GnoError:` block run
+	// mode uses; the verdict's mode says which stage produced it.
+	DirectiveGoBuildError = "GoBuildError"
 )
 
 // nativeDirectives are the .gno filetest directives; corpusDirectives
@@ -1325,7 +1325,6 @@ var corpusDirectives = []string{
 	DirectiveGnoError,
 	DirectiveGoError,
 	DirectiveGoTypeCheckError,
-	DirectiveGnoPreprocessError,
 	DirectiveGoBuildError,
 }
 
@@ -1351,13 +1350,12 @@ var singleLinePascalDirectives = map[string]bool{
 // skipped). `// GoOutput:` with no lines means "Go produces no stdout"
 // — a pinned-golden assertion we want visible in the file.
 var pinnedGoldenDirectives = map[string]bool{
-	DirectiveGnoOutput:          true,
-	DirectiveGoOutput:           true,
-	DirectiveGnoError:           true,
-	DirectiveGoError:            true,
-	DirectiveGnoPreprocessError: true,
-	DirectiveGoBuildError:       true,
-	DirectiveGoTypeCheckError:   true,
+	DirectiveGnoOutput:        true,
+	DirectiveGoOutput:         true,
+	DirectiveGnoError:         true,
+	DirectiveGoError:          true,
+	DirectiveGoBuildError:     true,
+	DirectiveGoTypeCheckError: true,
 }
 
 // Directives contains the directives of a file.

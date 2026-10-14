@@ -18,7 +18,7 @@ func g(v interface{}) (interface{}, int) {
 	return v, x
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 13: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoBuildError:

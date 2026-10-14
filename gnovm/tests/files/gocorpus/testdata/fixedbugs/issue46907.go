@@ -10,7 +10,7 @@ func f(b []byte) []byte {
 	return (*[32]byte)(b[:32])[:]
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 10: cannot convert b<VPBlock(1,0)>[:(const (32 int))] (of type []uint8) to type *[32]uint8
 
 // Verdict: KnownIssue compile: #5599 slice-to-array-pointer conversion is rejected

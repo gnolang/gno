@@ -21,7 +21,7 @@ func F() {
 	_ = struct { I }.M
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 20: unexpected selector expression type value struct{I gno.land/p/filetest/p.I}
 
 // Verdict: KnownIssue compile: #5787 method expression on a promoted method is rejected at preprocess

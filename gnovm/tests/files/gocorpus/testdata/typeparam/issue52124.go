@@ -20,7 +20,7 @@ var (
 type A interface{ *B | int }
 type B interface{ A | any }
 
-// GnoPreprocessError:
+// GnoError:
 // line 10: operator | not defined on: TypeKind
 
 // GoBuildError:

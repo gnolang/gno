@@ -20,7 +20,7 @@ main() {
 	i2 = e().(I2);	// bug089.go:16: fatal error: agen_inter i2i
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 12: function e does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoBuildError:

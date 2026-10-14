@@ -2022,7 +2022,7 @@ func f(x int, b bool) int {
 	return 0
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 13: name max not declared
 
 // GoBuildError:

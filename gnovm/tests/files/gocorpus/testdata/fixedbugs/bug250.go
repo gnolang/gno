@@ -18,7 +18,7 @@ var i1 I1 = i2
 var i2 I2
 var i2a I2 = i1
 
-// GnoPreprocessError:
+// GnoError:
 // line 9: 2: invalid recursive type: I1 -> I2 -> I1
 
 // Verdict: KnownIssue compile: #6036 valid recursive type declarations are rejected

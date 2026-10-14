@@ -32,7 +32,7 @@ func f11(t1 string) string {
 	return t1
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 16: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoBuildError:

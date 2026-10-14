@@ -14,7 +14,7 @@ func f() {
 //go:noinline
 func g(*[24]byte) {}
 
-// GnoPreprocessError:
+// GnoError:
 // line 11: cannot convert nonce<VPBlock(1,0)> (of type []uint8) to type *[24]uint8
 
 // Verdict: KnownIssue compile: #5599 slice-to-array-pointer conversion is rejected

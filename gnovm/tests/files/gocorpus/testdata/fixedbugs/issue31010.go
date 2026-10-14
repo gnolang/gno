@@ -23,7 +23,7 @@ func d() (int, error) {
 	return c(b())
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 14: function a does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoBuildError:

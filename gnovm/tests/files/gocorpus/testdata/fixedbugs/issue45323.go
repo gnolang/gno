@@ -23,7 +23,7 @@ func f(y int) bool {
 	return b
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 9: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoBuildError:

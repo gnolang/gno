@@ -20,7 +20,7 @@ type S struct {
 	p P
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 10: invalid recursive type: F -> E -> F
 
 // Verdict: KnownIssue compile: #6036 valid recursive type declarations are rejected

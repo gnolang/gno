@@ -22,7 +22,7 @@ func F() {
 
 func G(uint8)
 
-// GnoPreprocessError:
+// GnoError:
 // line 23: function G does not have a body but is not natively defined (did you build after pulling from the repository?)
 
 // GoBuildError:

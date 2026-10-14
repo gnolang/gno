@@ -8,7 +8,7 @@ package p
 
 type C comparable
 
-// GnoPreprocessError:
+// GnoError:
 // line 9: name comparable not defined in fileset with files [issue47966.go]
 
 // GoBuildError:

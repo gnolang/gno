@@ -29,7 +29,7 @@ type S13 struct{ S12 }
 var _ = S13{}.f
 var _ = S13.m
 
-// GnoPreprocessError:
+// GnoError:
 // line 23: type <anonymous struct> embed depth 9 exceeds max 8
 
 // Verdict: KnownDivergence compile: MaxEmbedDepth caps struct embedding depth at 8, a preprocess hardening cap (#5642)

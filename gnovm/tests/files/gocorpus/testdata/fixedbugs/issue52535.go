@@ -15,7 +15,7 @@ func F() {
 	_ = ok
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 14: want bool type got interface {}
 
 // GoBuildError:
