@@ -17,8 +17,8 @@ goldens were Gno-only, and a Gno-vs-Go difference had nowhere to be recorded.
 Corpus files are copied verbatim under `gnovm/tests/files/gocorpus/testdata/`
 (a `testdata/` segment keeps `go build ./...` away from them) and run by the
 existing `TestFiles` walker, which now accepts `.go` there. Nothing above the
-harness-written tail is edited; `VERSION` pins the Go release the files came
-from and equals the `go` line in `go.mod`, so CI needs one toolchain.
+harness-written tail is edited; `VERSION` pins the Go toolchain that records
+the Go side and equals the `go` line in `go.mod`, so CI needs one toolchain.
 
 Each file ends with evidence blocks and exactly one `// Verdict:` line:
 

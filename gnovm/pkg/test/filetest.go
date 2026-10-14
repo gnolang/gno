@@ -486,50 +486,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	return "", m.GasMeter.GasConsumed(), diffs, returnErr
 }
 
-// goldenSection is one named per-line golden block (`// GnoError:` or
-// `// GoTypeCheckError:`) to (re)write at the bottom of an errorcheck file.
-type goldenSection struct {
-	name   string // directive name, e.g. DirectiveGnoError
-	block  string // FormatGnoErrorBlock output (may be empty → omitted)
-	inline bool   // single-line `// Name: block` (verdicts)
-}
-
-// resolveStaticGolden reconciles the trailing golden region — the named
-// per-line blocks and the verdict line — against the freshly-computed
-// values. `dirs` is the file's parsed directives (the on-disk blocks).
-//
-// Returns (newContent, err): newContent is non-empty only when sync
-// rewrote the file. Non-sync failures report the first diff / missing
-// block.
-func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directives, sections []goldenSection) (string, error) {
-	allOK := true
-	for _, s := range sections {
-		d := dirs.First(s.name)
-		ok := (s.block == "" && d == nil) || (d != nil && strings.TrimRight(d.Content, "\n") == s.block)
-		allOK = allOK && ok
-	}
-	if allOK {
-		return "", nil
-	}
-	if opts.Sync {
-		return writeStaticGolden(originalSource, sections), nil
-	}
-	for _, s := range sections {
-		d := dirs.First(s.name)
-		switch {
-		case s.block != "" && d == nil:
-			return "", fmt.Errorf(
-				"errorcheck: no `// %s:` block present; re-run with "+
-					"--update-golden-tests to record it:\n%s", s.name, indent(s.block, "  "))
-		case s.block == "" && d != nil:
-			return "", fmt.Errorf("errorcheck: stale `// %s:` block; re-run with --update-golden-tests to remove it", s.name)
-		case d != nil && strings.TrimRight(d.Content, "\n") != s.block:
-			return "", fmt.Errorf("// %s: diff:\n%s", s.name, unifiedDiff(d.Content, s.block))
-		}
-	}
-	return "", nil
-}
-
 // writeUnsupportedDirective returns originalSource (golden region
 // stripped) with a trailing `// Unsupported: <reason>` directive, so a
 // file that fails on a Gno-unsupported import is skipped on future
@@ -537,58 +493,6 @@ func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directi
 func writeUnsupportedDirective(originalSource []byte, reason string) string {
 	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
 	return body + "\n\n// " + DirectiveVerdict + ": " + VerdictUnsupported + " " + TagUnsupportedReason(reason) + "\n"
-}
-
-// writeStaticGolden returns the file content for a compile-mode golden
-// update: originalSource (upstream-verbatim — NOT the rescued source, so
-// in-memory transforms aren't persisted) with a trailing golden region
-// appended, each non-empty section blank-line separated. Any existing
-// trailing golden region is replaced rather than duplicated.
-func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
-	// Capture triage state marker lines before stripping so a golden
-	// refresh never drops manual triage status.
-	var stateLines []string
-	for _, ln := range strings.Split(string(originalSource), "\n") {
-		t := strings.TrimSpace(ln)
-		for _, name := range triageStateMarkers {
-			if strings.HasPrefix(t, "// "+name+":") {
-				stateLines = append(stateLines, t)
-			}
-		}
-	}
-	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
-	var sb strings.Builder
-	sb.WriteString(body)
-	sb.WriteString("\n")
-	// Canonical marker position: between the code body and the pinned
-	// golden region (same place the run-mode writer keeps them).
-	for _, ln := range stateLines {
-		sb.WriteString("\n")
-		sb.WriteString(ln)
-		sb.WriteString("\n")
-	}
-	for _, s := range sections {
-		if s.block == "" {
-			continue
-		}
-		if s.inline {
-			sb.WriteString("\n// " + s.name + ": " + s.block + "\n")
-			continue
-		}
-		sb.WriteString("\n// ")
-		sb.WriteString(s.name)
-		sb.WriteString(":\n")
-		for _, line := range strings.Split(s.block, "\n") {
-			if line == "" {
-				sb.WriteString("//\n")
-				continue
-			}
-			sb.WriteString("// ")
-			sb.WriteString(line)
-			sb.WriteString("\n")
-		}
-	}
-	return sb.String()
 }
 
 // goldenRegionStarts are the directive names that can begin the trailing
@@ -605,9 +509,8 @@ var goldenRegionStarts = []string{
 // triageStateMarkers are the standalone triage status lines (`// Fixed:`,
 // `// Fixing:`, `// Tracked:`) written by manual triage after the golden
 // region. They are NOT harness directives (never add them to
-// allDirectives) but the golden writer must carry them across re-syncs:
-// stripTrailingGoldenRegion treats a trailing marker block as strippable
-// and writeStaticGolden re-appends the captured lines at the end.
+// allDirectives); stripTrailingGoldenRegion treats a trailing marker
+// block as strippable so a re-sync replaces rather than duplicates it.
 var triageStateMarkers = []string{"Fixed", "Fixing", "Tracked"}
 
 // stripTrailingGoldenRegion removes the trailing golden region — one or

@@ -54,27 +54,6 @@ func HasInlineErrorMarkers(source []byte) bool {
 	return false
 }
 
-// Distinguish a real marker from an `// ERROR "..."` mentioned
-// in narrative prose. Markers come in two valid shapes:
-//   - trailing a line of code:  `_ = x // ERROR "..."`
-//   - on its own comment line:  `// ERROR "..."` (used with
-//     //line remapping, e.g. fixedbugs/bug305.go)
-// A prose mention (e.g. a doc comment that says "a `// ERROR
-// \"regex\"` marker …") has other text before the marker on a
-// comment line. So: if the line is a pure comment, accept it
-// only when the marker is the FIRST token after `//`.
-
-// indexErrorMarker returns the byte index in line where an `// ERROR`
-// or `// GC_ERROR` marker's content begins, or -1.
-func indexErrorMarker(line string) int {
-	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
-		if i := strings.Index(line, tag); i >= 0 {
-			return i + len(tag)
-		}
-	}
-	return -1
-}
-
 // pkgDeclRe matches the Go package declaration; captures the name.
 var pkgDeclRe = regexp.MustCompile(`(?m)^package (\w+)`)
 
@@ -373,18 +352,6 @@ func FormatGnoErrorBlock(perLine map[int]string) string {
 		fmt.Fprintf(&buf, "line %d: %s\n", n, perLine[n])
 	}
 	return strings.TrimRight(buf.String(), "\n")
-}
-
-// indent prefixes every line of s with prefix.
-func indent(s, prefix string) string {
-	if s == "" {
-		return s
-	}
-	lines := strings.Split(s, "\n")
-	for i, l := range lines {
-		lines[i] = prefix + l
-	}
-	return strings.Join(lines, "\n")
 }
 
 // FormatLineOnlyBlock serializes the keys of a per-line error map as
