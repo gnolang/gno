@@ -66,19 +66,29 @@ func verdictIn(dirs Directives) (verdict, bool) {
 	return parseVerdict(d.Content)
 }
 
-var reIssueRef = regexp.MustCompile(`#\d+|github\.com/[\w.-]+/[\w.-]+/issues/\d+`)
+var (
+	reIssueRef = regexp.MustCompile(`#\d+|github\.com/[\w.-]+/[\w.-]+/issues/\d+`)
+	// Where a divergence decision can be recorded: the Go spec, a docs
+	// page, or an issue / PR / URL.
+	reDecisionRef = regexp.MustCompile(`(?i)go spec|\bdocs/[\w./-]+|#\d+|https?://`)
+)
 
 // check enforces that a Known* verdict is a human decision: sync's TODO
-// placeholder never passes verify, and a KnownIssue names its issue.
+// placeholder never passes verify, a KnownIssue names its issue, and a
+// KnownDivergence cites the decision it rests on — without one it is an
+// issue, not a blessing.
 func (v verdict) check() error {
 	switch v.Kind {
 	case VerdictKnownIssue, VerdictKnownDivergence:
-		if strings.HasPrefix(v.Reason, "TODO") {
-			return fmt.Errorf("`// Verdict: %s` still carries sync's TODO placeholder; write the reason", v.Kind)
+		if v.Reason == "" || strings.HasPrefix(v.Reason, "TODO") {
+			return fmt.Errorf("`// Verdict: %s` needs a reason (sync's TODO placeholder does not count)", v.Kind)
 		}
 	}
-	if v.Kind == VerdictKnownIssue && !reIssueRef.MatchString(v.Reason) {
+	switch {
+	case v.Kind == VerdictKnownIssue && !reIssueRef.MatchString(v.Reason):
 		return fmt.Errorf("`// Verdict: KnownIssue` must cite its tracking issue (#NNNN or an issue URL): %q", v.Reason)
+	case v.Kind == VerdictKnownDivergence && !reDecisionRef.MatchString(v.Reason):
+		return fmt.Errorf("`// Verdict: KnownDivergence` must cite the decision it rests on (Go spec, a docs/ page, #NNNN or a URL), else file it as a KnownIssue: %q", v.Reason)
 	}
 	return nil
 }

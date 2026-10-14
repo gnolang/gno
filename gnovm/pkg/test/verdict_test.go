@@ -38,11 +38,15 @@ func TestVerdictCheck(t *testing.T) {
 	}{
 		{"Clean run", ""},
 		{"Unsupported channel: channels not supported", ""},
-		{"KnownDivergence run: println format is implementation-defined", ""},
+		{"KnownDivergence run: println format is implementation-defined (Go spec)", ""},
+		{"KnownDivergence run: see docs/resources/go-gno-compatibility.md", ""},
+		{"KnownDivergence run: decided in #42", ""},
+		{"KnownDivergence run: println format is implementation-defined", "must cite the decision"},
+		{"KnownDivergence run:", "needs a reason"},
 		{"KnownIssue run: #1234 init order", ""},
 		{"KnownIssue run: https://github.com/gnolang/gno/issues/1234 init order", ""},
-		{"KnownDivergence run: TODO: <category>: explain", "TODO placeholder"},
-		{"KnownIssue run: TODO: explain the Gno bug", "TODO placeholder"},
+		{"KnownDivergence run: TODO: <category>: explain", "needs a reason"},
+		{"KnownIssue run: TODO: explain the Gno bug", "needs a reason"},
 		{"KnownIssue run: init order, no ticket", "must cite its tracking issue"},
 	} {
 		v, ok := parseVerdict(tc.in)
@@ -82,12 +86,12 @@ func TestFinalizeGoRunDivergence_Verify(t *testing.T) {
 		wantErrContains string // "" means verify passes
 	}{
 		{"clean", goldens("x", "", "x", "Clean run"), "x", "", "x", ""},
-		{"known divergence", goldens("1.5", "", "+1.5e+000", "KnownDivergence run: fmt"), "1.5", "", "+1.5e+000", ""},
+		{"known divergence", goldens("1.5", "", "+1.5e+000", "KnownDivergence run: fmt (Go spec)"), "1.5", "", "+1.5e+000", ""},
 		{"known issue, gno errors", goldens("", "boom", "x", "KnownIssue run: #1 bug"), "", "boom", "x", ""},
 		{"divergence without verdict", goldens("a", "", "b", ""), "a", "", "b", "classify as"},
 		{"stale clean", goldens("a", "", "b", "Clean run"), "a", "", "b", "stale `// Verdict: Clean run`"},
 		{"stale known issue", goldens("x", "", "x", "KnownIssue run: #1 fixed"), "x", "", "x", "stale verdict"},
-		{"gno output drifted", goldens("old", "", "b", "KnownDivergence run: r"), "new", "", "b", "GnoOutput: diff"},
+		{"gno output drifted", goldens("old", "", "b", "KnownDivergence run: #7"), "new", "", "b", "GnoOutput: diff"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -125,7 +129,7 @@ func TestFinalizeGoRunDivergence_Sync(t *testing.T) {
 		{"match writes Clean for opted-in .gno", nil, "x", "", "x", false, "Clean run"},
 		{"gno error proposes KnownIssue", nil, "", "boom", "x", true, "KnownIssue run: TODO: explain the Gno bug (Gno errors where Go runs clean)"},
 		{"output diff proposes KnownDivergence", nil, "a", "", "b", true, "KnownDivergence run: TODO: <category>: explain why this divergence is acceptable"},
-		{"human reason survives re-sync", goldens("a", "", "b", "KnownDivergence run: on purpose"), "a", "", "b", true, "KnownDivergence run: on purpose"},
+		{"human reason survives re-sync", goldens("a", "", "b", "KnownDivergence run: on purpose, #7"), "a", "", "b", true, "KnownDivergence run: on purpose, #7"},
 		{"stale KnownIssue replaced by Clean", goldens("x", "", "x", "KnownIssue run: #1 fixed"), "x", "", "x", true, "Clean run"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
