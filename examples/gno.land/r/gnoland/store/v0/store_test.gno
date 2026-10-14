@@ -983,10 +983,24 @@ func TestPickEndsWithTheShownApp(cur realm, t *testing.T) {
 	registerFrom(cur, path, "hero-app", "Hero App")
 	uassert.True(t, picked(now) == nil, "nor once renamed back")
 
-	// A proposal is bound to the title it was made for.
-	uassert.ErrorContains(t, pickBound("hero-app", path, titleKey("Other Title"), 7, now), "changed its title")
-	uassert.NoError(t, pickBound("hero-app", path, titleKey("Hero App"), 7, now))
-	uassert.True(t, picked(now) == bySlugOrPanic("hero-app"))
+	// A proposal is bound to the app as it was shown when proposed.
+	l := bySlugOrPanic("hero-app")
+	shown := pickedAs(l, now)
+	testing.SetRealm(testing.NewCodeRealm(path))
+	Register(cross(cur), "", "Hero App", "Official GovDAO airdrop, claim yours now", "utilities", 4)
+	uassert.ErrorContains(t, pickBound("hero-app", path, shown, 7, now), "changed since the proposal")
+	uassert.NoError(t, pickBound("hero-app", path, pickedAs(l, now), 7, now))
+	uassert.True(t, picked(now) == l)
+
+	// Once picked, a new tagline or new art ends the pick.
+	registerFrom(cur, path, "hero-app", "Hero App")
+	uassert.True(t, picked(now) == nil, "a new tagline is not what was voted on")
+	uassert.NoError(t, setPick("hero-app", 7, blockTime()))
+	testing.SetRealm(testing.NewCodeRealm(path))
+	SubmitRich(cross(cur), testIcon, "")
+	uassert.True(t, picked(blockTime()) == l, "a change still pending is not shown yet")
+	skip(richDelay)
+	uassert.True(t, picked(blockTime()) == nil, "new art is not what was voted on")
 }
 
 // TestNewSkipsAddressNamespaces checks that an app of a g1… namespace, even
@@ -1044,10 +1058,10 @@ func TestProposalBoundToPath(cur realm, t *testing.T) {
 	registerFrom(cur, squatter, "bound-app", "Bound App")
 
 	uassert.ErrorContains(t, hideBound("bound-app", victim, "other"), "another listing")
-	uassert.ErrorContains(t, pickBound("bound-app", victim, titleKey("Bound App"), 7, blockTime()), "another listing")
+	uassert.ErrorContains(t, pickBound("bound-app", victim, pickedAs(bySlugOrPanic("bound-app"), blockTime()), 7, blockTime()), "another listing")
 	uassert.False(t, bySlugOrPanic("bound-app").hidden)
 	uassert.True(t, picked(blockTime()) == nil || picked(blockTime()).Path != squatter)
-	uassert.NoError(t, pickBound("bound-app", squatter, titleKey("Bound App"), 1, blockTime()))
+	uassert.NoError(t, pickBound("bound-app", squatter, pickedAs(bySlugOrPanic("bound-app"), blockTime()), 1, blockTime()))
 	uassert.NoError(t, hideBound("bound-app", squatter, "other"))
 }
 
@@ -1221,4 +1235,20 @@ func TestCoreNamespacesHaveNoCap(cur realm, t *testing.T) {
 		registerFrom(cur, "gno.land/r/gnoland/extra"+n, "gnoland-extra-"+n, "Gnoland Extra "+n)
 		uassert.True(t, listings.Has("gnoland-extra-"+n), n)
 	}
+}
+
+// A successor points readers, embedding realms and gnoweb to the new store.
+func TestSuccessor(cur realm, t *testing.T) {
+	uassert.AbortsContains(t, cur, "a successor is a realm path", func() { ProposeSuccessor(cross(cur), "gno.land/p/gnoland/store/v1") })
+	uassert.AbortsContains(t, cur, "a successor is a realm path", func() { ProposeSuccessor(cross(cur), "/r/gnoland/store/v1") })
+	ProposeSuccessor(cross(cur), "gno.land/r/gnoland/store/v1")
+
+	successor = "gno.land/r/gnoland/store/v1"
+	defer func() { successor = "" }()
+	moved := "Explore has moved: [/r/gnoland/store/v1](/r/gnoland/store/v1)"
+	contains(t, Render(""), moved)
+	contains(t, Render("top"), moved)
+	contains(t, Block("latest", 1), moved)
+	uassert.Equal(t, moved, Badge("gno.land/r/gnoland/blog"))
+	contains(t, Render("api/v1/home"), `"moved_to":"gno.land/r/gnoland/store/v1"`)
 }

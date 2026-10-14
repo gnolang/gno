@@ -2,8 +2,10 @@ package store
 
 import (
 	"chain"
+	"chain/runtime"
 	"errors"
 	"strconv"
+	"strings"
 
 	"gno.land/r/gov/dao"
 )
@@ -19,14 +21,20 @@ var paused bool
 
 // pick is the app GovDAO features as the front page's hero, until a time;
 // the only editorial act in the store, voted, labelled and bounded in time.
-// It is bound to the title the app had when picked: a rename ends it
-// (dropPick), and picked checks the title too, so a renamed app is never
-// shown as the one voted on.
+// It is bound to the app as it was shown when picked: a rename ends it
+// (dropPick), and picked checks the title, the tagline, the icon and the
+// cover, so an app changed since is never shown as the one voted on.
 var pick struct {
 	listing *listing
-	title   string // titleKey of the app's title when picked
+	shown   string // pickedAs of the app when picked
 	until   int64
 }
+
+// successor is the realm path of the store that replaces this one, set by
+// GovDAO, or "". This version can never be redeployed, and the realms that
+// embed Block or Badge import it for good: Render, Block, Badge and the API
+// point readers, those realms and gnoweb to the successor.
+var successor string
 
 // maxPickDays bounds a pick, so none outlives the vote that made it.
 const maxPickDays = 30
@@ -39,10 +47,11 @@ var (
 	errNotAnApp       = errors.New("store: only an app can be picked")
 	errNotConfirmed   = errors.New("store: only a confirmed app can be picked")
 	errSlugMoved      = errors.New("store: the slug now names another listing")
-	errTitleChanged   = errors.New("store: the app changed its title since the proposal")
+	errChanged        = errors.New("store: the app changed since the proposal")
 	errBadPickDays    = errors.New("store: a pick lasts 1 to " + strconv.Itoa(maxPickDays) + " days")
 	errUnknownReason  = errors.New("store: unknown hide reason")
 	errNotHidden      = errors.New("store: not hidden")
+	errBadSuccessor   = errors.New("store: a successor is a realm path on this chain")
 )
 
 // ProposePause returns a GovDAO proposal that pauses new listings and
@@ -88,23 +97,39 @@ func ProposeUnhide(cur realm, path string) dao.ProposalRequest {
 // the store front page's hero for days days (1 to maxPickDays), labelled as
 // picked by GovDAO. A later pick replaces it; hiding the app, or its ceasing
 // to be a shown app, ends it. Like a hide, it is bound to the app's path,
-// and also to its title: an app renamed before or after execution is not
-// the one voted on.
+// and also to how the app is shown (pickedAs): an app changed before or
+// after execution is not the one voted on.
 func ProposeSpotlight(cur realm, slug string, days int) dao.ProposalRequest {
 	if err := checkPick(slug, days); err != nil {
 		panic(err)
 	}
 	l := lookup(&listings, slug)
-	path, title := l.Path, titleKey(l.Title)
+	path, shown := l.Path, pickedAs(l, blockTime())
 	n := strconv.Itoa(days)
 	return proposal(cur, "Feature "+slug+" as the front page's hero for "+n+" days",
 		"Features "+slug+" ("+path+") as the store front page's hero for "+n+" days, labelled as picked by GovDAO.",
-		func() error { return pickBound(slug, path, title, days, blockTime()) })
+		func() error { return pickBound(slug, path, shown, days, blockTime()) })
+}
+
+// ProposeSuccessor returns a GovDAO proposal that names path, the realm path
+// of a newer store ("gno.land/r/gnoland/store/v1"), as this store's
+// successor. Another proposal can name another one.
+func ProposeSuccessor(cur realm, path string) dao.ProposalRequest {
+	if !strings.HasPrefix(path, runtime.ChainDomain()+"/r/") || namespaceOf(path) == "" {
+		panic(errBadSuccessor)
+	}
+	return proposal(cur, "Point the store to "+path,
+		"Tells the store's readers, the realms that embed it and gnoweb that it moved to "+path+".",
+		func() error {
+			successor = path
+			chain.Emit("StoreMoved", "path", path)
+			return nil
+		})
 }
 
 // hideBound and pickBound execute a hide or a pick proposed for the listing
-// of path under slug; a pick, for that listing under the title it had then
-// (a titleKey).
+// of path under slug; a pick, for that listing as it was shown then
+// (pickedAs).
 func hideBound(slug, path, reason string) error {
 	if err := checkSlugPath(slug, path); err != nil {
 		return err
@@ -112,12 +137,12 @@ func hideBound(slug, path, reason string) error {
 	return hide(slug, reason)
 }
 
-func pickBound(slug, path, title string, days int, now int64) error {
+func pickBound(slug, path, shown string, days int, now int64) error {
 	if err := checkSlugPath(slug, path); err != nil {
 		return err
 	}
-	if titleKey(lookup(&listings, slug).Title) != title {
-		return errTitleChanged
+	if pickedAs(lookup(&listings, slug), now) != shown {
+		return errChanged
 	}
 	return setPick(slug, days, now)
 }
@@ -159,18 +184,25 @@ func setPick(slug string, days int, now int64) error {
 		return err
 	}
 	l := lookup(&listings, slug)
-	pick.listing, pick.title, pick.until = l, titleKey(l.Title), now+int64(days)*day
+	pick.listing, pick.shown, pick.until = l, pickedAs(l, now), now+int64(days)*day
 	chain.Emit("StorePicked", "slug", slug, "days", strconv.Itoa(days))
 	return nil
 }
 
 // picked returns the app GovDAO picked, while the pick lasts and the app is
-// still shown as an app under the title it was picked with, or nil.
+// still shown as an app as it was when picked, or nil.
 func picked(now int64) *listing {
-	if l := pick.listing; l != nil && now < pick.until && l.shownApp() && titleKey(l.Title) == pick.title {
+	if l := pick.listing; l != nil && now < pick.until && l.shownApp() && pickedAs(l, now) == pick.shown {
 		return l
 	}
 	return nil
+}
+
+// pickedAs is what voters saw of l at time now: its title, as titleKey
+// folds it, its tagline, and the icon and cover in effect.
+func pickedAs(l *listing, now int64) string {
+	r, _ := l.effective(now)
+	return titleKey(l.Title) + "\n" + l.Tagline + "\n" + r.Icon + "\n" + r.Cover
 }
 
 // dropPick ends the pick of l, if it is the picked app. A hide or a change
@@ -199,7 +231,7 @@ func hide(slug, reason string) error {
 	listings.Remove(l.Slug)
 	byTitle.Remove(titleKey(l.Title))
 	l.hidden = true
-	chain.Emit("StoreHidden", "slug", slug, "reason", reason)
+	chain.Emit("StoreHidden", "slug", slug, "path", l.Path, "reason", reason)
 	return nil
 }
 

@@ -10,6 +10,7 @@ package store
 
 import (
 	"chain"
+	"strconv"
 	"time"
 
 	"gno.land/p/nt/avl/v0"
@@ -68,8 +69,10 @@ type voter struct {
 // Calling Register again, as an upgraded realm's init does, updates the
 // listing: the original slug and creation time are kept and the slug
 // argument is ignored. A real change is announced as an update at most once
-// a week. Register never panics, so it cannot break the caller's init; a
-// refused call emits StoreRegisterRejected with the path and a short reason.
+// a week. Register never panics, but the deploying transaction pays for what
+// it stores here (about 2 GNOT for a namespace's first listing), so the
+// deploy's -max-deposit must cover it. A refused call emits
+// StoreRegisterRejected with the path and a short reason.
 // The namespace owner can then list the realm with Claim, and the realm's
 // next Register confirms it.
 func Register(cur realm, slug, title, tagline, category string, palette int) {
@@ -81,10 +84,11 @@ func Register(cur realm, slug, title, tagline, category string, palette int) {
 	}
 	l := newListing(path, slug, title, tagline, category, palette, kind)
 	l.Confirmed = true // deploying the realm proves it exists
-	reason := upsert(l, blockTime())
-	if reason != "" {
+	if reason := upsert(l, blockTime()); reason != "" {
 		chain.Emit("StoreRegisterRejected", "path", path, "reason", reason)
+		return
 	}
+	chain.Emit("StoreRegistered", "path", path, "slug", lookup(&byPath, path).Slug)
 }
 
 // Claim lists, or updates, path on behalf of its namespace owner: a /p/
@@ -113,6 +117,7 @@ func Claim(cur realm, path, slug, title, tagline, category string, palette int, 
 	if reason := upsert(newListing(path, slug, title, tagline, category, palette, kind), blockTime()); reason != "" {
 		panic("store: " + reason)
 	}
+	chain.Emit("StoreClaimed", "path", path, "slug", lookup(&byPath, path).Slug, "kind", kind)
 }
 
 // ownsNamespace reports whether addr owns namespace ns: its own address, or
@@ -161,6 +166,7 @@ func SubmitRich(cur realm, icon, cover string) {
 		panic("store: " + reason)
 	}
 	l.submitRich(r, blockTime())
+	chain.Emit("StoreRichSubmitted", "slug", l.Slug, "path", l.Path)
 }
 
 // Star an app you like. One star per app, up to 20 new stars a day. Your
@@ -194,6 +200,7 @@ func Star(cur realm, slug string) {
 		l.removeStar(addr, now)
 	}
 	l.addStar(addr, star{At: now, Ranked: ranked})
+	chain.Emit("StoreStarred", "slug", slug, "ranked", strconv.FormatBool(ranked))
 }
 
 // Unstar removes your star from an app. It does not give back that day's
@@ -204,6 +211,7 @@ func Unstar(cur realm, slug string) {
 		panic("store: not starred")
 	}
 	l.removeStar(caller.String(), blockTime())
+	chain.Emit("StoreUnstarred", "slug", slug)
 }
 
 func starTarget(cur realm, slug string) (*listing, address) {

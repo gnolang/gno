@@ -26,6 +26,19 @@ func Render(path string) string {
 	if api, ok := strings.CutPrefix(path, "api/"); ok {
 		return renderAPI(api)
 	}
+	return movedNote() + renderMarkdown(path, query)
+}
+
+// movedNote is the line pointing to the store's successor, or "".
+func movedNote() string {
+	if successor == "" {
+		return ""
+	}
+	href := strings.TrimPrefix(successor, runtime.ChainDomain())
+	return "Explore has moved: " + md.Link(href, href) + "\n\n"
+}
+
+func renderMarkdown(path, query string) string {
 	now := blockTime()
 	switch path {
 	case "":
@@ -160,13 +173,20 @@ func Block(list string, n int) string {
 	var b strings.Builder
 	writeItems(&b, items)
 	b.WriteString("\n" + md.Link("See all on Explore", storeURL+":"+list) + "\n")
+	if note := movedNote(); note != "" {
+		b.WriteString("\n" + note)
+	}
 	return b.String()
 }
 
 // Badge returns a markdown line for the shown app listed at path, with its
 // ranked stars as the store counts them and a link to star it, or "". An
-// app shows it in its own Render instead of a count of its own.
+// app shows it in its own Render instead of a count of its own. Once the
+// store has a successor, its stars no longer count: the line points there.
 func Badge(path string) string {
+	if successor != "" {
+		return strings.TrimSpace(movedNote())
+	}
 	l := lookup(&byPath, path)
 	if l == nil || !l.shownApp() {
 		return ""

@@ -125,6 +125,10 @@ func writeHeader(b *strings.Builder, now int64) {
 	writeInt(b, runtime.ChainHeight())
 	writeKey(b, "time")
 	writeInt(b, now)
+	if successor != "" {
+		writeKey(b, "moved_to")
+		writeString(b, successor)
+	}
 }
 
 func writePulse(b *strings.Builder, epoch int64) {
