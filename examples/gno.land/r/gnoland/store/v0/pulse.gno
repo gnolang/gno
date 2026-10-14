@@ -51,7 +51,9 @@ func (r *eventRing) newestFirst() []event {
 
 // track records a listing event in the activity feed and the pulse
 // counters. It is the single gate of both: hidden and unconfirmed listings
-// announce nothing.
+// announce nothing. The feed keeps only what it may serve, apps of named
+// namespaces, so services, packages and free g1… namespaces cannot push its
+// events out.
 func track(kind string, l *listing, now int64) {
 	if !l.indexed() {
 		return
@@ -59,7 +61,9 @@ func track(kind string, l *listing, now int64) {
 	if kind == "listed" {
 		pulseListed.add(now/epochLength, 1)
 	}
-	activity.push(event{kind, l, l.rankedCount()})
+	if l.namedApp() {
+		activity.push(event{kind, l, l.rankedCount()})
+	}
 }
 
 // epochRing counts events per epoch over the last len(counts) epochs, in

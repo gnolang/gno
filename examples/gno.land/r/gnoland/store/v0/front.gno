@@ -46,7 +46,7 @@ func newApps(n int) []*listing {
 
 // homeShelves composes the store front at time now, over apps only.
 func homeShelves(now int64) []shelf {
-	newList, top := mustList("latest", now), mustList("top", now)
+	newList, top, updated := mustList("latest", now), mustList("top", now), mustList("updated", now)
 	return []shelf{
 		{
 			Title: newList.Title, More: newList, Pinned: true,
@@ -61,7 +61,11 @@ func homeShelves(now int64) []shelf {
 			Empty: "No app has " + strconv.Itoa(topStars) + " stars from named accounts yet. Found one you like? Star it: that's how apps get here.",
 		},
 		listShelf(mustList("trending", now)),
-		listShelf(mustList("updated", now)),
+		{
+			Title: updated.Title, More: updated,
+			// Like New's: :updated lists every app, its shelf named ones.
+			Items: window(&namedUpdated, 0, gridPool),
+		},
 		{Title: "Rediscover", Note: "Older apps, a new set every day.", Items: rotation(now)},
 		{Title: "gno.land essentials", Note: "Built by the core team. Good first stops.", Items: essentialApps(), Pinned: true, Empty: "No core app is listed."},
 	}

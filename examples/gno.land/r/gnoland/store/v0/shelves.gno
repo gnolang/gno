@@ -13,7 +13,7 @@ const (
 	rediscoverStep = rediscoverSize / 2
 	pageSize       = 24
 	minTrending    = 2   // stars_7d needed to trend
-	trendingScan   = 200 // apps read at most for trending
+	trendingScan   = 200 // apps read at most for trending, shared evenly by the slots
 )
 
 // shelf is one section of the store front or the build lens, drawn as a
@@ -137,14 +137,16 @@ func pageOf(index *avl.Tree, n int) ([]*listing, int) {
 // slot of the trend index orders its apps by a score that can only have
 // decayed since it was filed: reading a slot downwards, once a stored score
 // is below minTrending or the n-th best real score, no later app of that
-// slot can enter, so the result is exact unless trendingScan, which bounds
-// the reads whatever the store's size, cuts it short.
+// slot can enter, so the result is exact unless the budget, which bounds the
+// reads whatever the store's size, cuts it short. Each slot gets its share,
+// so a crowd of ties in one day cannot keep the head of another unread.
 func trending(now int64, n int) *topN {
-	best, scanned, epoch := &topN{n: n}, 0, now/epochLength
+	best, epoch := &topN{n: n}, now/epochLength
 	for _, s := range appTrend.slots {
 		if s.byScore == nil || epoch-s.epoch >= trendEpochs {
 			continue
 		}
+		scanned := 0
 		s.byScore.Iterate("", "", func(key string, v any) bool {
 			bound := int(descValue(key))
 			if bound < minTrending || len(best.items) == best.n && bound < best.scores[best.n-1] {
@@ -155,11 +157,8 @@ func trending(now int64, n int) *topN {
 				best.offer(n, l)
 			}
 			scanned++
-			return scanned >= trendingScan
+			return scanned >= trendingScan/trendEpochs
 		})
-		if scanned >= trendingScan {
-			break
-		}
 	}
 	return best
 }

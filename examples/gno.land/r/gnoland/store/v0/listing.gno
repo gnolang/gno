@@ -151,11 +151,12 @@ var (
 
 	// Visible listings only, maintained by index and unindex; the shelf
 	// indexes and the builders hold confirmed ones only.
-	byCategory avl.Tree // category -> *avl.Tree of descKey(Created) -> *listing, apps only; made by a category's first app
-	apps       shelfIndex
-	toolbox    shelfIndex // services and packages, for api/v1/build
-	namedApps  avl.Tree   // descKey(Created) -> *listing, named namespaces' apps but the core ones: New's and Rediscover's ground
-	appTrend   trendIndex // the build lens has no trending shelf
+	byCategory   avl.Tree // category -> *avl.Tree of descKey(Created) -> *listing, apps only; made by a category's first app
+	apps         shelfIndex
+	toolbox      shelfIndex // services and packages, for api/v1/build
+	namedApps    avl.Tree   // descKey(Created) -> *listing, named namespaces' apps but the core ones: New's and Rediscover's ground
+	namedUpdated avl.Tree   // descKey(Updated) -> *listing, named namespaces' apps: Recently updated's ground
+	appTrend     trendIndex // the build lens has no trending shelf
 
 	// Builders, kept ranked on every write so reads never scan namespaces.
 	builders        avl.Tree // namespace -> *builder
@@ -246,13 +247,38 @@ func (l *listing) touch(now int64) {
 	if now-l.Updated < updateCooldown {
 		return
 	}
-	if l.indexed() {
-		ix := l.shelves()
-		ix.updated.Remove(descKey(l.Updated, l.Slug))
-		ix.updated.Set(descKey(now, l.Slug), l)
+	shown := l.indexed()
+	if shown {
+		l.removeUpdated(l.shelves())
 	}
 	l.Updated = now
+	if shown {
+		l.setUpdated(l.shelves())
+	}
 	track("updated", l, now)
+}
+
+// setUpdated and removeUpdated keep l's entries in the indexes ordered by
+// Updated.
+func (l *listing) setUpdated(ix *shelfIndex) {
+	key := descKey(l.Updated, l.Slug)
+	ix.updated.Set(key, l)
+	if l.namedApp() {
+		namedUpdated.Set(key, l)
+	}
+}
+
+func (l *listing) removeUpdated(ix *shelfIndex) {
+	key := descKey(l.Updated, l.Slug)
+	ix.updated.Remove(key)
+	namedUpdated.Remove(key)
+}
+
+// namedApp reports an app under a named namespace: a free g1… address
+// namespace earns no front-page slot (New, Recently updated, Rediscover) and
+// no place in the activity feed.
+func (l *listing) namedApp() bool {
+	return l.Kind == kindApp && !address(l.Namespace).IsValid()
 }
 
 // confirm promotes a claimed listing to the shelves, the feed and the
@@ -299,11 +325,11 @@ func (l *listing) index() {
 	}
 	ix := l.shelves()
 	ix.created.Set(key, l)
-	if l.Kind == kindApp && !address(l.Namespace).IsValid() && !l.core {
+	if l.namedApp() && !l.core {
 		namedApps.Set(key, l)
 	}
 	if l.Updated != l.Created {
-		ix.updated.Set(descKey(l.Updated, l.Slug), l)
+		l.setUpdated(ix)
 	}
 	l.indexStars(ix)
 	updateBuilder(l.Namespace, func(b *builder) {
@@ -326,7 +352,7 @@ func (l *listing) unindex() {
 	ix := l.shelves()
 	ix.created.Remove(key)
 	namedApps.Remove(key)
-	ix.updated.Remove(descKey(l.Updated, l.Slug))
+	l.removeUpdated(ix)
 	l.unindexStars(ix)
 	updateBuilder(l.Namespace, func(b *builder) {
 		b.Listings--

@@ -376,8 +376,8 @@ func TestClaimedAppConfirmedByRegister(cur realm, t *testing.T) {
 
 	registerIn(cur, path, "ignored", "Owned App", "nft-art")
 	uassert.True(t, l.Confirmed)
-	uassert.True(t, activity.newestFirst()[0] == ev("listed", "owned-app", 0))
 	uassert.True(t, apps.created.Has(descKey(l.Created, l.Slug)), "on the shelves")
+	uassert.True(t, activity.newestFirst()[0].Listing != l, "a g1… namespace is not announced")
 }
 
 // TestUnconfirmedAnnouncesNothing checks that a claim stays out of the feed
@@ -1089,4 +1089,54 @@ func TestBadge(cur realm, t *testing.T) {
 	uassert.Equal(t, "", Badge("gno.land/p/nt/avl/v0"), "not an app")
 	uassert.NoError(t, hide("badge-app", "other"))
 	uassert.Equal(t, "", Badge("gno.land/r/badgens/app"))
+}
+
+// A free g1… namespace earns no front-page slot: an update keeps its app on
+// :updated but off Recently updated, and out of the feed.
+func TestFrontLeavesAddressNamespacesOut(cur realm, t *testing.T) {
+	setEpoch(5000) // after every other listing
+	path := "gno.land/r/" + testutils.TestAddress("freeanon").String() + "/app"
+	registerFrom(cur, path, "anon-app", "Anon App")
+	skip(updateCooldown)
+	testing.SetRealm(testing.NewCodeRealm(path))
+	Register(cross(cur), "", "Anon App", "Changed tagline", "utilities", 4)
+
+	l := bySlugOrPanic("anon-app")
+	uassert.True(t, apps.updated.Has(descKey(l.Updated, l.Slug)), ":updated lists every app")
+	for _, e := range activity.newestFirst() {
+		uassert.True(t, e.Listing != l, "not in the feed")
+	}
+	uassert.False(t, strings.Contains(Render(""), "Anon App"), "on no front-page shelf")
+	uassert.False(t, strings.Contains(Render("api/v1/home"), `"slug":"anon-app"`))
+}
+
+// Listings the feed never serves cannot push an app's event out of it.
+func TestFeedKeepsAppEvents(cur realm, t *testing.T) {
+	registerFrom(cur, "gno.land/r/feedapp/app", "feed-app", "Feed App")
+	for i := 0; i < activitySize; i++ {
+		n := strconv.Itoa(i)
+		owner := testutils.TestAddress("svcflood" + n)
+		path := "gno.land/r/" + owner.String() + "/svc"
+		testing.SetRealm(testing.NewUserRealm(owner))
+		Claim(cross(cur), path, "flood-svc-"+n, "Flood Service "+n, "A tagline", "infrastructure", 1, kindService)
+		registerIn(cur, path, "ignored", "Flood Service "+n, "infrastructure")
+	}
+	uassert.Equal(t, "feed-app", activity.newestFirst()[0].Listing.Slug)
+}
+
+// Every slot of the trending window is read: a crowd of tied two-star apps
+// filed one day cannot hide the week's top app, filed another.
+func TestTrendingReadsEverySlot(cur realm, t *testing.T) {
+	const e = 5010 // (origin+e)%trendEpochs == 6: the last slot read
+	setEpoch(e)
+	registerFrom(cur, "gno.land/r/hotslot/app", "hotslot-app", "Hot Slot")
+	starFrom(cur, "hotslot-app", "hsa", "hsb", "hsc", "hsd", "hse")
+	setEpoch(e + 1) // slot 0, read first
+	for i := 0; i < trendingScan; i++ {
+		ns, fan := "slotfill"+strconv.Itoa(i), "fill"+strconv.Itoa(i/10)
+		registerFrom(cur, "gno.land/r/"+ns+"/app", ns, "Slot Fill "+strconv.Itoa(i))
+		starFrom(cur, ns, fan+"a", fan+"b")
+	}
+	top := trending(blockTime(), 10)
+	uassert.True(t, len(top.items) > 0 && top.items[0].Slug == "hotslot-app", jsonSlugs(top.items))
 }
