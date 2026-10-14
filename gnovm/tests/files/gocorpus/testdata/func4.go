@@ -18,13 +18,11 @@ func main() {
 }
 
 // GnoError:
-// line 16: not assignable
+// line 15: invalid operation: cannot take address of main (value of type func())
+// line 16: cannot assign to main (neither addressable nor a map index expression)
 
 // GoTypeCheckError:
 // line 15
 // line 16
-
-// GoTypesOnly:
-// line 15: gc expects: address of|invalid
 
 // Verdict: Clean errorcheck

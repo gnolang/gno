@@ -22,7 +22,7 @@ func f() {
 // GnoError:
 // line 14: duplicate case uint8(0) in expression switch
 // line 16: duplicate case int32(0) in expression switch
-// line 18: duplicate case int(0) in expression switch
+// line 18: duplicate case intAlias(0) in expression switch
 
 // GoTypeCheckError:
 // line 13

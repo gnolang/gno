@@ -17,10 +17,10 @@ func main() {
 	1 + 2 // ERROR "1 \+ 2 evaluated but not used|value computed is not used|is not used"
 }
 
+// GnoError:
+// line 17: 1 + 2 (value of type <untyped> bigint) is not used
+
 // GoTypeCheckError:
 // line 17
-
-// GoTypesOnly:
-// line 17: gc expects: 1 \+ 2 evaluated but not used|value computed is not used|is not used
 
 // Verdict: Clean errorcheck

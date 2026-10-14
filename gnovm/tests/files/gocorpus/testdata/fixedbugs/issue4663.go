@@ -14,10 +14,10 @@ func a(b int) int64 {
   return 0
 }
 
+// GnoError:
+// line 13: b (value of type int) is not used
+
 // GoTypeCheckError:
 // line 13
-
-// GoTypesOnly:
-// line 13: gc expects: not used
 
 // Verdict: Clean errorcheck

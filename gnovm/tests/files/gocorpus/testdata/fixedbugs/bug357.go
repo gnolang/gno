@@ -25,10 +25,10 @@ func main() {
 	_ = x
 }
 
+// GnoError:
+// line 18: false (value of type <untyped> bool) is not used
+
 // GoTypeCheckError:
 // line 18
-
-// GoTypesOnly:
-// line 18: gc expects: false evaluated but not used|value computed is not used|is not used
 
 // Verdict: Clean errorcheck

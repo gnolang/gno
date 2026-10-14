@@ -17,10 +17,10 @@ func main() {
 	len("foo")	// ERROR "len|value computed is not used"
 }
 
+// GnoError:
+// line 17: len("foo") (value of type int) is not used
+
 // GoTypeCheckError:
 // line 17
-
-// GoTypesOnly:
-// line 17: gc expects: len|value computed is not used
 
 // Verdict: Clean errorcheck

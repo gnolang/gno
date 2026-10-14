@@ -34,17 +34,17 @@ func main() {
 
 // GnoError:
 // line 13: cannot assign to s<VPBlock(1,0)>[(const (1 int)):(const (2 int))]
-// line 14: cannot assign to s<VPBlock(1,0)>[(const (3 int))]
+// line 14: cannot assign to s[3]
 // line 18: cannot assign to const n
 // line 19: cannot assign to const cs
 // line 20: cannot assign to uverse true
 // line 23: cannot assign to struct field m[0].n in map
-// line 25: cannot assign to (const (1 <untyped> bigint))
-// line 26: cannot assign to (const ("hi" <untyped> string))
+// line 25: cannot assign to 1
+// line 26: cannot assign to "hi"
 // line 27: cannot assign to uverse nil
-// line 28: cannot assign to (const (len func(interface {}) int))((const ("" string)))
+// line 28: cannot assign to len("")
 // line 29: cannot assign to (const-type []int){}
-// line 32: cannot assign to x<VPBlock(1,4)> + (const (1 int))
+// line 32: cannot assign to x + 1
 
 // GoTypeCheckError:
 // line 13
