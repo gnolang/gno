@@ -186,8 +186,12 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 		// A final release is cut on its last candidate's commit, so an image tag
 		// named after the commit would move from the candidate's images to the
-		// final's. Images carry their version tag only (and latest for the CLIs).
-		assert.NotContains(t, image, "type=sha", "%s must not tag images by commit", docker)
+		// final's. Images carry their version tag only (and latest for the CLIs):
+		// the whole tag list is pinned, so no rule of any form can add one.
+		tags := grepOne(t, docker, `(?ms)^          tags: \|\n(.*?)^          flavor:`)
+		assert.Equal(t, "            type=ref,event=tag\n"+
+			"            type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}\n",
+			tags, "%s must tag images by version only, and latest for the CLIs, never by commit", docker)
 
 		// Every line that names TAG other than to expand it, comments aside:
 		// an env key in any YAML style, an assignment, a read, a loop variable
