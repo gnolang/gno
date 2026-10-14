@@ -263,10 +263,10 @@ Two kinds of release page, one job each:
   the halt height and `halt_min_version` of the upgrade that made it live, the
   eight image URLs, and the changelog.
 
-`misc/deployments/<chain>/upgrades.json` is the ledger: one entry per version
-the network has run — the genesis, one per coordinated halt, and one per
-rolling patch (`kind: rolling`: no halt, no floor, no proposal, same MINOR as
-its predecessor) — with commit, halt height and time, `halt_min_version`,
+`misc/deployments/<chain>.gno.land/upgrades.json` is the ledger: one entry per
+version the network has run — the genesis, one per coordinated halt, and one
+per rolling patch (`kind: rolling`: no halt, no floor, no proposal, same MINOR
+as its predecessor) — with commit, halt height and time, `halt_min_version`,
 GovDAO proposal, image digest, and a per-platform map of binary downloads with
 checksums. The format is
 [`misc/deployments/upgrades/upgrades.schema.json`](misc/deployments/upgrades/upgrades.schema.json);
@@ -297,7 +297,7 @@ proposal to go with the tag, with `halt_min_version` set to the tag being cut,
 and the command that creates it:
 
 ```sh
-misc/deployments/mainnet.gno.land/govdao set-halt 120000 v1.3.0
+misc/deployments/mainnet.gno.land/govdao-exec.sh set-halt 120000 v1.3.0
 ```
 
 The mechanism, the failure modes, and what a halt looks like in the logs are
