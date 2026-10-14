@@ -155,7 +155,8 @@ func validText(s string, maxRunes int) bool {
 // held to what titleKey can fold: letters of the scripts below only (Lisu
 // and Cherokee, for one, are drawn as Latin capitals and fold to nothing),
 // and of the modern Greek and Cyrillic alphabets only (archaic letters such
-// as DIGAMMA draw as Latin ones too), ASCII digits only (a Myanmar or
+// as DIGAMMA draw as Latin ones too) and never both in one title, no
+// compatibility form (isCompatibilityForm), ASCII digits only (a Myanmar or
 // Devanagari zero draws as an o), and no punctuation or symbol beyond ASCII,
 // the separators titleKey drops and typographic quotes (U+2223 DIVIDES draws
 // as an l).
@@ -163,8 +164,13 @@ func validTitle(s string) bool {
 	if !validText(s, maxTitle) {
 		return false
 	}
+	var greek, cyrillic bool
 	for _, r := range s {
+		greek = greek || unicode.Is(unicode.Greek, r)
+		cyrillic = cyrillic || unicode.Is(unicode.Cyrillic, r)
 		switch {
+		case isCompatibilityForm(r):
+			return false
 		case unicode.IsLetter(r):
 			if !unicode.Is(unicode.Latin, r) && !unicode.In(r, titleScripts...) || !modernGreekCyrillic(r) {
 				return false
@@ -177,7 +183,16 @@ func validTitle(s string) bool {
 			return false
 		}
 	}
-	return true
+	return !greek || !cyrillic // their capitals draw alike: Π and П, Φ and Ф
+}
+
+// isCompatibilityForm reports the second encodings of letters a title may
+// use: Hebrew and Arabic presentation forms, halfwidth Hangul and the
+// conjoining jamo. Each draws as a base letter titleKey folds, but would key
+// apart from it; the base letters and composed syllables stay allowed.
+func isCompatibilityForm(r rune) bool {
+	return r >= 0xFB1D && r <= 0xFDFF || r >= 0xFE70 && r <= 0xFEFF ||
+		r >= 0xFFA0 && r <= 0xFFDC || r >= 0x1100 && r <= 0x11FF
 }
 
 // modernGreekCyrillic reports whether r, if Greek or Cyrillic, is a letter

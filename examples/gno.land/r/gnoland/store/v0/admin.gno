@@ -250,6 +250,7 @@ func unhide(path string) error {
 	listings.Set(l.Slug, l)
 	byTitle.Set(titleKey(l.Title), l.Slug)
 	l.index()
+	l.announce(blockTime()) // a claim confirmed while hidden was never announced
 	chain.Emit("StoreUnhidden", "slug", l.Slug)
 	return nil
 }

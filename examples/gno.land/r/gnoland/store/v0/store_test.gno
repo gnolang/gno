@@ -264,6 +264,7 @@ func TestTitleRules(t *testing.T) {
 	for _, ok := range []string{"Café", "Gno 東京", "Ελληνικά", "Ştiri", "Tiếng Việt", "नमस्ते Gno", "A1", "Rock ’n’ Roll"} {
 		uassert.True(t, validTitle(ok), ok)
 	}
+	uassert.False(t, validTitle("\u03A0\u041E\u0420\u0422"), "Greek Pi among Cyrillic letters")
 	for _, pair := range [][2]string{
 		{"Gnoland", "Gno land"},
 		{"Gnoland", "Gno-Land"},
@@ -294,6 +295,11 @@ func TestTitleLookalikes(t *testing.T) {
 		{"Gnoland", "Gno\u05D5\u05B9and"},                                                                          // Hebrew vav with a mark, drawn as an i
 		{"Gno.land Blog", "Gno.ㅣand Blog"}, {"Gnoland", "Gno丨and"}, {"Gnoland", "Gnㅇland"}, {"Gnoland", "Gnهland"}, // Hangul, Han, Arabic
 		{"AEON", "ÆON"}, {"OEIL", "ŒIL"}, // ligatures
+		{"Gnoland", "Gnoﺍand"}, {"Gnoland", "Gno\uFB4Band"}, {"Gnoland", "Gnoￜand"}, {"Gnoland", "Gno\u1175and"}, // compatibility forms
+		{"Gnoland", "Gnoأand"},                             // alef with hamza
+		{"ПОРТ", "ΠΟΡΤ"}, {"ГОРА", "ΓΟΡΑ"}, {"ПОРТ", "ΠОРТ"}, // Greek and Cyrillic, alike or mixed
+		{"カメラ", "力メラ"}, {"ヘルプ", "へルプ"}, // Han and hiragana drawn as katakana
+		{"Bob's Swap", "Bob’s Swap"}, // a typographic apostrophe
 	} {
 		uassert.True(t, !validTitle(pair[1]) || titleKey(pair[1]) == titleKey(pair[0]), pair[1])
 	}
@@ -1353,4 +1359,19 @@ func TestReconfirmedClaimIsAnnouncedOnce(cur realm, t *testing.T) {
 		}
 	}
 	uassert.Equal(t, 1, n)
+}
+
+// A claim confirmed while hidden is announced once GovDAO unhides it.
+func TestUnhiddenClaimIsAnnounced(cur realm, t *testing.T) {
+	owner := nameUser(cur, "hiddenowner")
+	path := "gno.land/r/hiddenowner/app"
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), path, "hidden-claim", "Hidden Claim", "A tagline", "utilities", 1, kindApp)
+	uassert.NoError(t, hide("hidden-claim", "other"))
+	registerIn(cur, path, "ignored", "Hidden Claim", "utilities") // confirmed while hidden
+	uassert.NoError(t, unhide(path))
+
+	l := lookup(&byPath, path)
+	uassert.True(t, l.Confirmed && l.announced)
+	uassert.True(t, activity.newestFirst()[0].Listing == l)
 }

@@ -278,7 +278,8 @@ claimed service stays a service). Only confirmed listings reach the shelves (New
 Top, Trending, Recently updated, Rediscover, the Build lens), the activity
 feed, the pulse and the builders: one function, `track`, gates the feed and
 the pulse, and hidden or unconfirmed listings announce nothing, re-claims
-included. A listing is announced as listed once: a claim that drops below
+included. A listing is announced as listed once, including a claim
+confirmed while hidden, when GovDAO unhides it: a claim that drops below
 three ranked stars and is confirmed again is not news, so unstarring and
 starring in a loop buys no feed slot. Until it is confirmed, a claimed package or service shows
 nowhere, and a claimed app only on its category page. Flooding
@@ -1310,7 +1311,10 @@ Latin. A title is further held to what its folded key can catch: letters
 of Latin, the modern Greek and Cyrillic alphabets and the allowlist only
 (Lisu and Cherokee draw as Latin capitals and fold to nothing, and so do
 archaic Greek letters such as digamma; the double-struck and script
-letters of Letterlike Symbols are refused this way too), ASCII digits only (a Myanmar or
+letters of Letterlike Symbols are refused this way too), never Greek and
+Cyrillic in one title (Π and П draw alike), no second encoding of an
+allowed letter (Hebrew and Arabic presentation forms, halfwidth Hangul,
+conjoining jamo), ASCII digits only (a Myanmar or
 Devanagari zero draws as an `o`), and no punctuation or symbol past ASCII
 but the separators the key drops and typographic quotes (U+2223 DIVIDES
 draws as an `l`). Titles are unique store-wide on a folded key: Greek and
@@ -1321,8 +1325,11 @@ accented Latin letters → their base letter ("Bóards" collides with
 dropped (a mark only redraws its letter); spaces, `-` `_` `.` and the
 dashes and dots drawn like them (‐ ‑ ‒ – — ― ⁃ − ﹘ ﹣ · ․ ‧ ∙ ⋅ ・, Hangul
 ㅡ, Han 一) dropped; `i`, `1`, `|`, `ı`, Cyrillic `і`, Greek `ι`, Arabic
-alef, Hebrew vav and final nun, Hangul ㅣ, Han 丨 → `l`; `0`, Hebrew
-samekh, Arabic heh, Hangul ㅇ → `o`; Cyrillic and
+alef (with its hamza and madda forms), Hebrew vav and final nun, Hangul ㅣ,
+Han 丨 → `l`; `0`, Hebrew samekh, Arabic heh, Hangul ㅇ → `o`; the Greek
+capitals and letters that only draw as Cyrillic ones (Γ, Π, Φ) → those;
+the Han and hiragana letters drawn as katakana (力, 口, へ...) → those;
+typographic quotes → the ASCII ones; Cyrillic and
 Greek letters that look Latin → that letter (an all-Cyrillic "АСМЕ"
 collides with "ACME"); `rn` → `m`; `vv` → `w`. The i/l and separator folds
 match `r/sys/users`' canonical names, so "Mail" and "Mall" collide, an

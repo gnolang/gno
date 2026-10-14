@@ -643,7 +643,7 @@ func titleKey(title string) string {
 	var b strings.Builder
 	for _, r := range title {
 		switch {
-		case unicode.Is(unicode.Mn, r): // a mark only redraws its letter
+		case unicode.IsMark(r): // a mark only redraws its letter
 			continue
 		case r == 'Æ' || r == 'æ':
 			b.WriteString("ae")
@@ -696,6 +696,12 @@ func foldCapital(r rune) rune {
 		return 'y'
 	case 'Ζ':
 		return 'z'
+	case 'Γ': // Greek capitals that only draw as Cyrillic ones
+		return 'г'
+	case 'Π':
+		return 'п'
+	case 'Φ':
+		return 'ф'
 	}
 	return 0
 }
@@ -710,7 +716,7 @@ func foldRune(r rune) rune {
 		'ㅡ', '一': // Hangul eu and Han one, drawn as a dash
 		return 0
 	case 'i', '1', '|', 'ı', 'і', 'ї', 'ι', 'ί', 'ϊ', 'ΐ',
-		'ا', 'ו', 'ן', 'ㅣ', '丨': // Arabic alef, Hebrew vav and final nun, Hangul i, Han stroke
+		'ا', 'أ', 'إ', 'آ', 'ٱ', 'ו', 'ן', 'ㅣ', '丨': // Arabic alef, Hebrew vav and final nun, Hangul i, Han stroke
 		return 'l'
 	case '0', 'о', 'ο', 'ό', 'ס', 'ه', 'ە', 'ہ', 'ㅇ': // Hebrew samekh, Arabic heh, Hangul ieung
 		return 'o'
@@ -746,6 +752,34 @@ func foldRune(r rune) rune {
 		return 'x'
 	case 'у', 'ў', 'γ':
 		return 'y'
+	case 'π': // Greek and Cyrillic letters drawn alike
+		return 'п'
+	case 'φ':
+		return 'ф'
+	case '‘', '’': // typographic quotes and the ASCII ones
+		return '\''
+	case '“', '”':
+		return '"'
+	case '力': // Han and hiragana drawn as katakana
+		return 'カ'
+	case '口':
+		return 'ロ'
+	case '工':
+		return 'エ'
+	case '二':
+		return 'ニ'
+	case '八':
+		return 'ハ'
+	case '夕':
+		return 'タ'
+	case '卜':
+		return 'ト'
+	case 'へ':
+		return 'ヘ'
+	case 'べ':
+		return 'ベ'
+	case 'ぺ':
+		return 'ペ'
 	}
 	return r
 }
