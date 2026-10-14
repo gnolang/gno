@@ -101,6 +101,14 @@ runs, and the two are not the same thing:
   that change no node code (the ledger, `VALIDATOR.md`, the release workflows,
   `cut-release.sh`). Operators still run the tag, never the tip: a build of
   anything but the tag reports a version no `halt_min_version` accepts.
+- **The commits a release is cut from reach the chain branch through a pull
+  request that is never merged.** They are a subset of `master` on an older
+  base, a tree no CI run has seen as a whole. Push them, with the ledger entry
+  on top, to a branch `chain-upgrade/vX.Y.Z-rc.N`, open a pull request into the
+  chain branch labelled `don't merge`, and once CI is green fast-forward the
+  chain branch to it with a plain push; GitHub then marks the pull request
+  merged. Never squash-merge it: that folds the cherry-picks into one commit
+  and changes the commit the ledger entry names.
 - **Where this ends up.** Merging `master` is the natural default while mainnet
   tracks it closely. The day `master` carries work mainnet must not ship yet,
   the default flips to cherry-picking and the branch becomes a maintained
