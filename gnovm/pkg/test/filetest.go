@@ -170,8 +170,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		if n != 1 {
 			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
 		}
-		if _, ok := verdictIn(dirs); !ok {
+		v, ok := verdictIn(dirs)
+		if !ok {
 			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
+		}
+		if err := v.check(); err != nil {
+			return "", 0, diffs, err
 		}
 	}
 	// The Go side is a golden: `go run` only under sync (with the toolchain

@@ -19,8 +19,11 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 |---|---|
 | `Verdict: Clean <mode>` | both checkers reach the same verdict (`run`); wording differences stay in the evidence blocks |
 | `Verdict: Unsupported <tag>: <reason>` | skipped, feature gap or gc-only test; tags in `corpus.go` (`unsupportedTags`) |
-| `Verdict: KnownIssue <mode>: <reason>` | Gno is wrong here, tracked |
+| `Verdict: KnownIssue <mode>: <reason>` | Gno is wrong here; the reason must cite the tracking issue (`#NNNN` or an issue URL) |
 | `Verdict: KnownDivergence <mode>: <reason>` | Gno differs on purpose (a run output or a rule decided for Gno) |
+
+Sync proposes a `Known*` verdict with a `TODO:` reason; verify refuses it until
+a human replaces the reason, so a divergence is never blessed by accident.
 
 Verify (`go test ./gnovm/pkg/gnolang -run TestFiles/gocorpus`) runs Gno only
 and compares with the pinned Go side; it never shells out to `go`. One

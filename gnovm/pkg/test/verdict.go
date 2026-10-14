@@ -1,6 +1,10 @@
 package test
 
-import "strings"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+)
 
 // The verdict line of a .go corpus file: exactly one, last in the file,
 //
@@ -8,8 +12,9 @@ import "strings"
 //
 // Kinds: Clean (both checkers reach the same verdict), Unsupported
 // (feature gap or gc-only test; mode is the tag from unsupportedTags),
-// KnownIssue (Gno is wrong, tracked) and KnownDivergence (Gno differs
-// on purpose). Wording differences are evidence, never a verdict.
+// KnownIssue (Gno is wrong; the reason cites the tracking issue) and
+// KnownDivergence (Gno differs on purpose). Wording differences are
+// evidence, never a verdict.
 const (
 	VerdictClean           = "Clean"
 	VerdictUnsupported     = "Unsupported"
@@ -59,6 +64,23 @@ func verdictIn(dirs Directives) (verdict, bool) {
 		return verdict{}, false
 	}
 	return parseVerdict(d.Content)
+}
+
+var reIssueRef = regexp.MustCompile(`#\d+|github\.com/[\w.-]+/[\w.-]+/issues/\d+`)
+
+// check enforces that a Known* verdict is a human decision: sync's TODO
+// placeholder never passes verify, and a KnownIssue names its issue.
+func (v verdict) check() error {
+	switch v.Kind {
+	case VerdictKnownIssue, VerdictKnownDivergence:
+		if strings.HasPrefix(v.Reason, "TODO") {
+			return fmt.Errorf("`// Verdict: %s` still carries sync's TODO placeholder; write the reason", v.Kind)
+		}
+	}
+	if v.Kind == VerdictKnownIssue && !reIssueRef.MatchString(v.Reason) {
+		return fmt.Errorf("`// Verdict: KnownIssue` must cite its tracking issue (#NNNN or an issue URL): %q", v.Reason)
+	}
+	return nil
 }
 
 // verdictKind returns the file's verdict kind, or "" without one.
