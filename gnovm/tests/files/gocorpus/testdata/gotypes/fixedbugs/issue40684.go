@@ -14,4 +14,4 @@ func _() {
 	_ = g[T /* ERROR "without instantiation" */ , T /* ERROR "without instantiation" */ ]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

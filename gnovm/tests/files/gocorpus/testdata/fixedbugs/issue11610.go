@@ -22,4 +22,7 @@ func main() {
 // GoTypeCheckError:
 // line 11
 
+// GnoWordingDiffers:
+// line 11: gc expects: invalid character U\+003F '\?'|invalid character 0x3f in input file; gno: illegal character U+003F '?'
+
 // Verdict: Clean errorcheck

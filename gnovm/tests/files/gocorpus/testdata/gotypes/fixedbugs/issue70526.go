@@ -12,4 +12,4 @@ func _(x int, s []int) {
 	f(0, 0 /* ERROR "have (number, number...)\n\twant (...any)" */ ...)
 }
 
-// Unsupported: bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

@@ -26,4 +26,11 @@ func _() {
 // line 11
 // line 12
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 8: gc expects: invalid use of len (built-in) in selector expression; gno: use of builtin len not in function call
+// line 9: gc expects: invalid use of len (built-in) in selector expression; gno: use of builtin len not in function call
+// line 10: gc expects: invalid use of len (built-in) in selector expression; gno: use of builtin len not in function call
+// line 11: gc expects: cannot index len; gno: use of builtin len not in function call
+// line 12: gc expects: cannot indirect len; gno: use of builtin len not in function call
+
+// Verdict: Clean errorcheck

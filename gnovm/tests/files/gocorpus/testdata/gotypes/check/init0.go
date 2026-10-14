@@ -168,4 +168,25 @@ var x12 /* ERROR "initialization cycle for x12" */ = t1.m
 // line 103
 // line 106
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 11: gc expects: initialization cycle: s0 refers to itself; gno: invalid recursive value: s0 -> s0
+// line 13: gc expects: initialization cycle for x0; gno: invalid recursive value: x0 -> y0 -> x0
+// line 17: gc expects: initialization cycle for b0; gno: invalid recursive value: b0 -> c0 -> d0 -> b0
+// line 23: gc expects: initialization cycle: s1 refers to itself; gno: invalid recursive value: s1 -> s1
+// line 25: gc expects: initialization cycle for x1; gno: invalid recursive value: x1 -> y1 -> x1
+// line 29: gc expects: initialization cycle for b1; gno: invalid recursive value: b1 -> c1 -> d1 -> b1
+// line 36: gc expects: initialization cycle: s2 refers to itself; gno: invalid recursive value: s2 -> s2
+// line 38: gc expects: initialization cycle for x2; gno: invalid recursive value: x2 -> y2 -> x2
+// line 42: gc expects: initialization cycle for b2; gno: invalid recursive value: b2 -> c2 -> d2 -> b2
+// line 48: gc expects: initialization cycle: s3 refers to itself; gno: invalid recursive value: s3 -> s3
+// line 50: gc expects: initialization cycle for x3; gno: invalid recursive value: x3 -> y3 -> x3
+// line 54: gc expects: initialization cycle for b3; gno: invalid recursive value: b3 -> c3 -> d3 -> b3
+// line 64: gc expects: invalid constant type; gno: invalid recursive value: cx3 -> cx3
+// line 65: gc expects: initialization cycle: vx3 refers to itself; gno: invalid recursive value: vx3 -> vx3
+// line 70: gc expects: initialization cycle for x5; gno: initialization cycle: x5 refers to f1 refers to x5
+// line 80: gc expects: initialization cycle: x9 refers to itself; gno: initialization cycle: x9 refers to x9
+// line 82: gc expects: initialization cycle for x10; gno: initialization cycle: x10 refers to f4 refers to x10
+// line 97: gc expects: initialization cycle for x11; gno: initialization cycle: x11 refers to T1.m refers to x11
+// line 106: gc expects: initialization cycle for x12; gno: initialization cycle: x12 refers to T2.m refers to x12
+
+// Verdict: Clean errorcheck

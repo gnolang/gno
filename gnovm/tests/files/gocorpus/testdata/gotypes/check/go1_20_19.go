@@ -22,5 +22,4 @@ var p = (Array)(s /* ok because file versions below go1.21 set the language vers
 // GoTypeCheckError:
 // line 17
 
-// KnownDivergence:
-// compile-error-wording: both Gno and Go reject; wording/stage differ
+// Verdict: Clean compile

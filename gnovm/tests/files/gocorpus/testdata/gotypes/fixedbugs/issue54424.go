@@ -11,4 +11,4 @@ func f[P ~*T, T any]() {
 	_ = tp
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

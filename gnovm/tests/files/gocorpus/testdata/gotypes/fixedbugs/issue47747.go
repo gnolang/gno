@@ -70,4 +70,4 @@ type Barer[t any] interface {
 // 	_ = Fooer2[t](&f)
 // }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

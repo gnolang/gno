@@ -23,4 +23,8 @@ func f(i int) int {
 // line 10
 // line 14
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 10: gc expects: invalid operation: s + i (mismatched types string and int); gno: invalid operation: s<VPBlock(1,0)> + i<VPBlock(1,1)> (mismatched types string and int)
+// line 14: gc expects: invalid operation: i += "1" (mismatched types int and untyped string); gno: cannot use untyped string as IntKind
+
+// Verdict: Clean errorcheck

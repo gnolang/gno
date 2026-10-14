@@ -28,4 +28,7 @@ uetli:~/Source/go1/usr/gri/gosrc gri$ 6g bug.go && 6l bug.6 && 6.out
 // GoTypeCheckError:
 // line 14
 
+// GnoWordingDiffers:
+// line 14: gc expects: return; gno: 2: [function "f" does not terminate]
+
 // Verdict: Clean errorcheck

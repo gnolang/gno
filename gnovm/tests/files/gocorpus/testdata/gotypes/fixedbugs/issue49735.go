@@ -10,4 +10,4 @@ func _[P1 any, P2 ~byte](s1 P1, s2 P2) {
         _ = append(s2 /* ERRORx `s2 .* has core type byte` */ , 0)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

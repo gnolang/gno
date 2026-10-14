@@ -30,4 +30,4 @@ func _[C C /* ERROR "cannot use a type parameter as constraint" */]() {}
 // This code is correct.
 func _(C C) {} // okay
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

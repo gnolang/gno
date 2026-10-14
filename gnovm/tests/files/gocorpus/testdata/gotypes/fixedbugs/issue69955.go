@@ -41,4 +41,4 @@ const (
 
 var _ int = w /* ERROR "cannot use w + 1 (value of uint type big.Word) as int value in variable declaration" */ + 1
 
-// Unsupported: import: unknown import path math/big:
+// Verdict: Unsupported import: unknown import path math/big:

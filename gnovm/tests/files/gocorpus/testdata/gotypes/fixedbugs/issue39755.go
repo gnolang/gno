@@ -22,4 +22,4 @@ func (pp *PathParams[T]) IsNil() bool {
 	return pp.t == nil // this must succeed
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

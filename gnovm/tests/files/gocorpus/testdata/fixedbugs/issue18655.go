@@ -41,4 +41,14 @@ func (*B) m() {} // ERROR "already declared|redefinition"
 // line 21
 // line 22
 
+// GnoWordingDiffers:
+// line 14: gc expects: already declared|redefinition; gno: redeclaration of method T.m
+// line 15: gc expects: already declared|redefinition; gno: redeclaration of method T.m
+// line 16: gc expects: already declared|redefinition; gno: redeclaration of method T.m
+// line 17: gc expects: already declared|redefinition; gno: redeclaration of method T.m
+// line 18: gc expects: already declared|redefinition; gno: redeclaration of method T.m
+// line 20: gc expects: already declared|redefinition; gno: redeclaration of method T.m
+// line 21: gc expects: already declared|redefinition; gno: redeclaration of method T.m
+// line 22: gc expects: already declared|redefinition; gno: redeclaration of method T.m
+
 // Verdict: Clean errorcheck

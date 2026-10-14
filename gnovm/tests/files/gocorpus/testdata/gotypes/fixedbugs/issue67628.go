@@ -16,4 +16,4 @@ func _() {
 	_ = b /* ERROR "mismatched types A and untyped string" */ + "foo"
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

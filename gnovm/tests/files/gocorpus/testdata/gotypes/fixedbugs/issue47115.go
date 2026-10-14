@@ -39,4 +39,4 @@ func _[T C5[X], X any](ch T, x X) {
 	ch <- x
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

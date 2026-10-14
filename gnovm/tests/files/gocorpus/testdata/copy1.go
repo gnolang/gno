@@ -44,4 +44,8 @@ func main() {
 // line 24
 // line 25
 
+// GnoWordingDiffers:
+// line 17: gc expects: not enough arguments; gno: wrong argument count in call to (const (copy func(<X>{}, <Y>{}) int)); want 2 got 0
+// line 18: gc expects: too many arguments; gno: wrong argument count in call to (const (copy func(<X>{}, <Y>{}) int)); want 2 got 3
+
 // Verdict: Clean errorcheck

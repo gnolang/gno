@@ -18,4 +18,4 @@ type (
         _ = interface {~[]byte | ~string}
 )
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

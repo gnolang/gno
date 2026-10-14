@@ -17,4 +17,7 @@ func main() {
 // GoTypeCheckError:
 // line 8
 
+// GnoWordingDiffers:
+// line 8: gc expects: undefined; gno: name T not defined in fileset with files [bug198.go]
+
 // Verdict: Clean errorcheck

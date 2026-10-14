@@ -22,4 +22,4 @@ func Add2[T Number2](a, b T) T {
 	return a + b
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

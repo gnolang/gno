@@ -30,4 +30,14 @@ func _() {
 // line 21
 // line 22
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 21: gc expects: impossible type assertion: i.(T1)
+// 	T1 does not implement I (missing method Foo)
+// 		have foo()
+// 		want Foo(); gno: impossible type assertion: gno.land/p/filetest/pkg.T1 does not implement gno.land/p/filetest/pkg.I (missing method Foo)
+// line 22: gc expects: impossible type assertion: i.(T2)
+// 	T2 does not implement I (missing method Foo)
+// 		have foo() string
+// 		want Foo(); gno: impossible type assertion: gno.land/p/filetest/pkg.T2 does not implement gno.land/p/filetest/pkg.I (missing method Foo)
+
+// Verdict: Clean errorcheck

@@ -37,7 +37,7 @@ L1:
 // line 22
 // line 23
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 22: gc expects: L1
 // line 23: gc expects: L1
 

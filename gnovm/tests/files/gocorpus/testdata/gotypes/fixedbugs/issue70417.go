@@ -57,4 +57,4 @@ type C2 = *C1[int]
 func (C2 /* ERROR "cannot define new methods on instantiated type C1[int]" */) m()  {}
 func (*C2 /* ERROR "cannot define new methods on instantiated type C1[int]" */) m() {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

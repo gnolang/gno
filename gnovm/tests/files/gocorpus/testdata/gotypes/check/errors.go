@@ -65,4 +65,4 @@ func _(x *missing /* ERROR "undefined: missing" */ ) {
 	x.m() // there shouldn't be an error here referring to *invalid type
 }
 
-// Unsupported: complex-types: complex numbers not supported in Gno
+// Verdict: Unsupported complex-types: complex numbers not supported in Gno

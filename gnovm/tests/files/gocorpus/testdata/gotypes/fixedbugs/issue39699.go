@@ -28,4 +28,4 @@ func _() {
 	_ = T3 /* ERROR "cannot use interface T3 in conversion" */ (3)
 }
 
-// Unsupported: other: generics (type set constraints) not supported in Gno
+// Verdict: Unsupported other: generics (type set constraints) not supported in Gno

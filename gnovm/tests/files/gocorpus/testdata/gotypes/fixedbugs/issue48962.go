@@ -12,4 +12,4 @@ type T1 /* ERROR "invalid recursive type" */ struct {
 	_ T0[T1]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

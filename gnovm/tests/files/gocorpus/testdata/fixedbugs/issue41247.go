@@ -16,4 +16,7 @@ func f() [2]int {
 // GoTypeCheckError:
 // line 10
 
+// GnoWordingDiffers:
+// line 10: gc expects: cannot use \[\.\.\.\]int{.*} \(.*type \[3\]int\); gno: cannot use [3]int as [2]int
+
 // Verdict: Clean errorcheck

@@ -29,4 +29,4 @@ type A2[P any] [10]A2 /* ERROR "invalid recursive type" */ [*P]
 
 var _ A2[int]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

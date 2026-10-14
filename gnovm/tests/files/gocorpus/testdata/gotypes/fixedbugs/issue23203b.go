@@ -13,4 +13,4 @@ func (T) m1()                         {}
 
 func main() {}
 
-// Unsupported: unsafe: unknown import path unsafe
+// Verdict: Unsupported unsafe: unknown import path unsafe

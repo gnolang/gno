@@ -259,4 +259,4 @@ func funcs() {
 	_ = f /* ERROR "< not defined" */ < f
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

@@ -27,4 +27,7 @@ func main() {
 // GoTypeCheckError:
 // line 20
 
+// GnoWordingDiffers:
+// line 20: gc expects: unknown field updates in struct literal of type|unknown field .*updates.* in .*unnamed struct.*; gno: struct type struct{about string; before map[string]uint; update map[string]int; updateTime time.Time; expect map[string]int} has no field updates
+
 // Verdict: Clean errorcheck

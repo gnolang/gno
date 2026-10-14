@@ -25,4 +25,4 @@ func AppendByteString[source byteseq](buf []byte, s source) []byte {
 	return append(buf, s[1:6]...)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

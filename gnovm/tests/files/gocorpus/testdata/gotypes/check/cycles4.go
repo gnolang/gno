@@ -120,4 +120,4 @@ type T8 interface {
 
 var _ = T8.m // no error expected here
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

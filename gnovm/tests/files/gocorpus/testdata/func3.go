@@ -25,8 +25,8 @@ func f4() (t1 t1)	// legal - scope of parameter named t1 starts in body of f4.
 // GoTypeCheckError:
 // line 16
 
-// UncaughtError:
-// line 17: uncaught; gc expects: missing parameter name
-// line 18: uncaught; gc expects: missing parameter name
+// ParseBlocked:
+// line 17: gc expects: missing parameter name
+// line 18: gc expects: missing parameter name
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: Clean errorcheck

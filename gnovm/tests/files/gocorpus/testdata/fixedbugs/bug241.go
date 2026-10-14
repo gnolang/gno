@@ -15,4 +15,7 @@ var x = c.String()	// ERROR "String"
 // GoTypeCheckError:
 // line 10
 
+// GnoWordingDiffers:
+// line 10: gc expects: String; gno: unexpected selector expression type gnolang.PrimitiveType
+
 // Verdict: Clean errorcheck

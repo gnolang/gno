@@ -29,4 +29,7 @@ func T(fn F) {
 // GnoOverStrictError:
 // line 18: wrong argument count in call to fn<VPBlock(2,0)>; want 0 got 1
 
+// GnoWordingDiffers:
+// line 14: gc expects: T .*is not a type|expected type; gno: T<VPBlock(2,1)> is not a type
+
 // Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)

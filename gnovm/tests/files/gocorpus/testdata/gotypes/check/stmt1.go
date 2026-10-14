@@ -258,4 +258,4 @@ func issue23218b() int {
 	}
 } /* ERROR "missing return" */
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

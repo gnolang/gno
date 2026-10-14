@@ -10,4 +10,4 @@ package p
 
 type _ comparable // ERROR "predeclared comparable"
 
-// Unsupported: other: generics (comparable constraint) not supported in Gno
+// Verdict: Unsupported other: generics (comparable constraint) not supported in Gno

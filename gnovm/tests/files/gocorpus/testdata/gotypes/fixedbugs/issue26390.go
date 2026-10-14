@@ -15,5 +15,4 @@ type T struct{}
 // GnoPreprocessError:
 // line 9: StaticBlock.Define2(A) cannot change .V
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
+// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

@@ -26,4 +26,7 @@ func main() {
 // GoTypeCheckError:
 // line 20
 
+// GnoWordingDiffers:
+// line 20: gc expects: unexported|undefined; gno: cannot access runtime.printbool from main
+
 // Verdict: Clean errorcheck

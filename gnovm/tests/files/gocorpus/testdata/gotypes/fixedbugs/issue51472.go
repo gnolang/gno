@@ -53,4 +53,4 @@ func _(s []byte) {
         _ = f[[ /* ERROR "does not satisfy" */ ]byte]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

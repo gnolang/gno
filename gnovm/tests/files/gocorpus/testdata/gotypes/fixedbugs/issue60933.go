@@ -66,4 +66,4 @@ func _() {
 	f(j, i)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

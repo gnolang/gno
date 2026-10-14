@@ -34,4 +34,4 @@ type G[P any] struct {
 	undefined // ERROR "undefined: undefined"
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

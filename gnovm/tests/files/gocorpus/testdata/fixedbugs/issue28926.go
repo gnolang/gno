@@ -35,4 +35,7 @@ func main() {
 // line 18: gc expects: undefined: E|undefined type .*E
 // line 22: gc expects: undefined: T|undefined type .*T
 
+// GnoWordingDiffers:
+// line 16: gc expects: undefined: G|undefined type .*G; gno: name G not declared
+
 // Verdict: Clean errorcheck

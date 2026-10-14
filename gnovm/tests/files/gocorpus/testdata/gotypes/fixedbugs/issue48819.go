@@ -14,4 +14,4 @@ func _(t T) {
 	_ = unsafe.Sizeof(t) // should not go into infinite recursion here
 }
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

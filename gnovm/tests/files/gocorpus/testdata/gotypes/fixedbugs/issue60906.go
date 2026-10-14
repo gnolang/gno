@@ -16,4 +16,7 @@ func _() {
 // GoTypeCheckError:
 // line 10
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 10: gc expects: cannot index f; gno: unexpected index base kind for type func() []int
+
+// Verdict: Clean errorcheck

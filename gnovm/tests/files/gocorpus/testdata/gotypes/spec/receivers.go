@@ -13,4 +13,4 @@ type A[P any] = G[P]
 
 func (a A /* ERROR "cannot define new methods on generic alias type A[P any]" */ [P]) m() {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

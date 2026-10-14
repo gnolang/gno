@@ -15,4 +15,4 @@ var (
 	_ T2         // ERROR "cannot use type T2 outside a type constraint: interface contains type constraints"
 )
 
-// Unsupported: other: generics (comparable constraint) not supported in Gno
+// Verdict: Unsupported other: generics (comparable constraint) not supported in Gno

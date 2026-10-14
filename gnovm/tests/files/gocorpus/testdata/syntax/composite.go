@@ -16,4 +16,7 @@ var a = []int{
 // GoTypeCheckError:
 // line 10
 
+// GnoWordingDiffers:
+// line 10: gc expects: need trailing comma before newline in composite literal|possibly missing comma or }; gno: missing ',' before newline in composite literal
+
 // Verdict: Clean errorcheck

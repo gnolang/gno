@@ -381,4 +381,4 @@ const _ = 1 << /* ERROR "constant shift overflow" */ prec
 
 const _ = ^ /* ERROR "constant bitwise complement overflow" */ maxInt
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

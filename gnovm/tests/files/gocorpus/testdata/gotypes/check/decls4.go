@@ -198,4 +198,4 @@ var (
 	_ interface{ xm() } = eD /* ERROR "ambiguous selector eD.xm" */ {}
 )
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

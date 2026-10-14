@@ -28,4 +28,8 @@ func main() {
 // line 13
 // line 16
 
+// GnoWordingDiffers:
+// line 13: gc expects: shift of type float64|invalid.*shift; gno: operator << not defined on: BigdecKind
+// line 16: gc expects: shift of type float64|invalid.*shift; gno: operator << not defined on: BigdecKind
+
 // Verdict: Clean errorcheck

@@ -16,7 +16,10 @@ type T2 /* // ERROR "(semicolon.*|EOF) in type declaration" */
 // GoTypeCheckError:
 // line 9
 
-// UncaughtError:
-// line 11: uncaught; gc expects: (semicolon.*|EOF) in type declaration
+// ParseBlocked:
+// line 11: gc expects: (semicolon.*|EOF) in type declaration
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// GnoWordingDiffers:
+// line 9: gc expects: newline in type declaration; gno: expected type, found newline
+
+// Verdict: Clean errorcheck

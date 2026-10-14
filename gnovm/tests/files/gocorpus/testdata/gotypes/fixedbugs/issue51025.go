@@ -51,4 +51,4 @@ func _() {
 // line 19
 // line 36
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

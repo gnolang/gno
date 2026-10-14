@@ -12,4 +12,4 @@ package P
 // 	type _ [_ any] T // ERROR "cannot use function type parameter T as RHS in type declaration"
 // }
 
-// Unsupported: marker-uncheckable: errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness
+// Verdict: Unsupported marker-uncheckable: errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness

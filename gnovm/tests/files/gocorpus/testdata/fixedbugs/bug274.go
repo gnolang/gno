@@ -36,8 +36,8 @@ func main() {
 // GoTypeCheckError:
 // line 24
 
-// UncaughtError:
-// line 23: uncaught; gc expects: statement
-// line 25: uncaught; gc expects: statement
+// ParseBlocked:
+// line 23: gc expects: statement
+// line 25: gc expects: statement
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: Clean errorcheck

@@ -14,4 +14,4 @@ func _[A interface{ ~int }, B A /* ERROR "cannot use a type parameter as constra
 // GoTypesOnly:
 // line 9: gc expects: cannot use a type parameter as constraint
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

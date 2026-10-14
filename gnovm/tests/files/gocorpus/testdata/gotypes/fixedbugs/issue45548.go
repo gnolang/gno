@@ -12,4 +12,4 @@ func _() {
 	f(1, 2)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

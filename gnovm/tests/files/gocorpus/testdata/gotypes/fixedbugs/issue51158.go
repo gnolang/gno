@@ -17,4 +17,4 @@ func f2[M map[K]int, K comparable](m M) {
         f1(m)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

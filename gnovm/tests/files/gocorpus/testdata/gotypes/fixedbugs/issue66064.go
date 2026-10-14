@@ -14,4 +14,4 @@ func main() {
 	_ = slices.Clone([]string{}) // no error should be reported here
 }
 
-// Unsupported: import: unknown import path slices
+// Verdict: Unsupported import: unknown import path slices

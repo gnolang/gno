@@ -15,4 +15,4 @@ func _[P *S1|S1]() {
 	_= []P{{ /* ERROR "invalid composite literal element type P (no core type)" */ }}
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

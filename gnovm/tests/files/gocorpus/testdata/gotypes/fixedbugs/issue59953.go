@@ -8,4 +8,4 @@ func _()         { f(g) }
 func f[P any](P) {}
 func g[Q int](Q) {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -18,4 +18,4 @@ func main() {
 	_ = Reduce(s, 0, f2)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

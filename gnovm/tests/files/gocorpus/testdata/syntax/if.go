@@ -23,7 +23,7 @@ func main() {
 // GoTypeCheckError:
 // line 13
 
-// UncaughtError:
-// line 16: uncaught; gc expects: missing condition
+// ParseBlocked:
+// line 16: gc expects: missing condition
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: Clean errorcheck

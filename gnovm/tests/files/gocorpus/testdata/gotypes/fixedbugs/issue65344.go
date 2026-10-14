@@ -28,4 +28,4 @@ func _() {
 // line 10: gc expects: cannot convert 0 (untyped int constant) to type T1
 // line 12: gc expects: V is not a type
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

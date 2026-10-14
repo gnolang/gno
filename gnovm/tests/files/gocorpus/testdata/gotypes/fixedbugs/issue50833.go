@@ -15,4 +15,4 @@ func b() []PS { return []PS{{f: 1}} }
 func c[P *S]() []P { return []P{{f: 1}} }
 func d[P PS]() []P { return []P{{f: 1}} }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

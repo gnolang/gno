@@ -23,4 +23,4 @@ func _[M1 ~map[K]V, M2 map[K]V, K comparable, V any]() {
         g /* ERROR "Map does not satisfy map[string]int" */ (m3) // M in g does not have tilde
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

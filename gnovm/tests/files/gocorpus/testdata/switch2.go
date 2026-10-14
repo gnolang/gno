@@ -44,10 +44,13 @@ func f() {
 // GoTypeCheckError:
 // line 14
 
-// UncaughtError:
-// line 18: uncaught; gc expects: expecting := or = or : or comma|expected :
-// line 28: uncaught; gc expects: unexpected keyword case at end of statement
-// line 33: uncaught; gc expects: unexpected keyword default at end of statement
-// line 37: uncaught; gc expects: expected case or default or }
+// ParseBlocked:
+// line 18: gc expects: expecting := or = or : or comma|expected :
+// line 28: gc expects: unexpected keyword case at end of statement
+// line 33: gc expects: unexpected keyword default at end of statement
+// line 37: gc expects: expected case or default or }
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 4 uncaught marker(s)
+// GnoWordingDiffers:
+// line 14: gc expects: expecting := or = or : or comma|expected :; gno: expected ':', found ';'
+
+// Verdict: Clean errorcheck

@@ -60,9 +60,9 @@ func f() {
 // GoTypeCheckError:
 // line 50
 
-// UncaughtError:
-// line 51: uncaught; gc expects: unexpected <-, expected chan|expecting {
-// line 53: uncaught; gc expects: unexpected int, expected chan|expected .*chan.*|expected chan|expected .*;.* or .*}.* or newline
-// line 54: uncaught; gc expects: unexpected int, expected chan|expecting {
+// ParseBlocked:
+// line 51: gc expects: unexpected <-, expected chan|expecting {
+// line 53: gc expects: unexpected int, expected chan|expected .*chan.*|expected chan|expected .*;.* or .*}.* or newline
+// line 54: gc expects: unexpected int, expected chan|expecting {
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 3 uncaught marker(s)
+// Verdict: Clean errorcheck

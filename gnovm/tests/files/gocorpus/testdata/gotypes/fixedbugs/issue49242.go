@@ -26,4 +26,4 @@ func F[G interface{ uint }]() int {
 	return f(G /* ERRORx `cannot use G\(1\) .* as uint value in argument to f` */ (1))
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

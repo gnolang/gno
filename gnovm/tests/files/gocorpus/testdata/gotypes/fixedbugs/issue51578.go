@@ -16,4 +16,4 @@ func _() {
 
 func f(any) {}
 
-// Unsupported: other: generics (type set unions) not supported in Gno
+// Verdict: Unsupported other: generics (type set unions) not supported in Gno

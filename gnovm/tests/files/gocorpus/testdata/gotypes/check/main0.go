@@ -14,4 +14,4 @@ func main /* ERROR "no arguments and no return values" */ /* ERROR "redeclared" 
 // line 9: main redeclared in this block
 // 	previous declaration at main0.go:7:6
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

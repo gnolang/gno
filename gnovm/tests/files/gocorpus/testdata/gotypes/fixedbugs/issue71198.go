@@ -24,4 +24,4 @@ func _[_ T /* ERROR "too many type arguments for type T: have 2, want 1" */ [int
 // line 12: gc expects: too many type arguments for type A: have 2, want 1
 // line 16: gc expects: too many type arguments for type T: have 2, want 1
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

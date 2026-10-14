@@ -14,4 +14,4 @@ func _() {
 	WithLocking2 /* ERROR "cannot infer V" */ [string](LRU[string, int]{})
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

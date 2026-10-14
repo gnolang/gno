@@ -20,4 +20,7 @@ func _(x int) {
 // GoTypeCheckError:
 // line 14
 
+// GnoWordingDiffers:
+// line 14: gc expects: unexpected ~ at end of statement; gno: expected ';', found '~'
+
 // Verdict: Clean errorcheck

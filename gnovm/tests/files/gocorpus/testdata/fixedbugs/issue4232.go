@@ -103,4 +103,10 @@ func f() {
 // line 49
 // line 55
 
+// GnoWordingDiffers:
+// line 22: gc expects: overflows int|integer constant overflow|invalid slice index 1 << 100|index out of bounds; gno: bigint overflows target kind
+// line 33: gc expects: overflows int|integer constant overflow|invalid slice index 1 << 100|index out of bounds; gno: bigint overflows target kind
+// line 44: gc expects: overflows int|integer constant overflow|invalid slice index 1 << 100|index out of bounds; gno: bigint overflows target kind
+// line 55: gc expects: overflows int|integer constant overflow|invalid slice index 1 << 100|index out of bounds; gno: bigint overflows target kind
+
 // Verdict: Clean errorcheck

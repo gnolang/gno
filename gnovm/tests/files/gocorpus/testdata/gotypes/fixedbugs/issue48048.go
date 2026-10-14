@@ -14,4 +14,4 @@ var _ = (*T[int]).A
 var _ = (T /* ERROR "cannot use generic type" */).A
 var _ = (*T /* ERROR "cannot use generic type" */).A
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -25,4 +25,4 @@ func _[P comparable,
         _ = g[R /* ERROR "R does not satisfy interface{interface{comparable; ~int | ~string}" */ ]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

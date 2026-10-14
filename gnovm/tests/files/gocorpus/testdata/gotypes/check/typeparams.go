@@ -507,4 +507,4 @@ func _[P any] (x P) {
 	x.m /* ERROR "type P has no field or method m" */ ()
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

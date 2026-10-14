@@ -16,4 +16,7 @@ func (*i) bar() // ERROR "not a type|expected type"
 // GoTypeCheckError:
 // line 11
 
+// GnoWordingDiffers:
+// line 11: gc expects: not a type|expected type; gno: invalid operation: cannot indirect i<VPBlock(2,0)> (variable of type int)
+
 // Verdict: Clean errorcheck

@@ -61,4 +61,4 @@ func (r *Receiver[T]) finalize() {
 	close(r.done)
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

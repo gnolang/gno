@@ -87,4 +87,4 @@ func (r testRules2) SameRules(other Rules[string]) bool {
 	return ok
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

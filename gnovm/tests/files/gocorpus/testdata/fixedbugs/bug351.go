@@ -18,4 +18,7 @@ func main() {
 // GoTypeCheckError:
 // line 12
 
+// GnoWordingDiffers:
+// line 12: gc expects: non-name [(]x[)]|non-name on left side; gno: no new variables on left side of :=
+
 // Verdict: Clean errorcheck

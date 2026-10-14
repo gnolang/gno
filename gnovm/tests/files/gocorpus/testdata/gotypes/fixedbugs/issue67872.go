@@ -13,4 +13,4 @@ func g(e E) {
 	f(e)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

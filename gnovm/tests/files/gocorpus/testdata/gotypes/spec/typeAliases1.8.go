@@ -9,4 +9,4 @@ package aliasTypes
 type _ = /* ERROR "type alias requires go1.9 or later" */ int
 type _[P /* ERROR "generic type alias requires go1.23 or later" */ interface{}] = int
 
-// Unsupported: gc-lang-pin: gc -lang version-gating test below Gno's go1.17 pin (go1.8)
+// Verdict: Unsupported gc-lang-pin: gc -lang version-gating test below Gno's go1.17 pin (go1.8)

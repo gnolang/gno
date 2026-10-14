@@ -25,4 +25,4 @@ func _() {
 	var _ I = n2
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

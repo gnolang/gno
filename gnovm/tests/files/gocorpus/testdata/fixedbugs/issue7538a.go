@@ -20,4 +20,7 @@ _:
 // GoTypeCheckError:
 // line 14
 
+// GnoWordingDiffers:
+// line 14: gc expects: not defined|undefined label; gno: label _ undefined
+
 // Verdict: Clean errorcheck

@@ -22,12 +22,10 @@ const (
 // GoTypeCheckError:
 // line 15
 
-// GoTypesOnly:
+// ParseBlocked:
+// line 11: gc expects: newline in character literal|newline in rune literal
+// line 12: gc expects: invalid character literal \(missing closing '\)|rune literal not terminated
 // line 15: gc expects: empty character literal or unescaped ' in character literal|empty rune literal
+// line 17: gc expects: invalid character literal \(more than one character\)|more than one character in rune literal
 
-// UncaughtError:
-// line 11: uncaught; gc expects: newline in character literal|newline in rune literal
-// line 12: uncaught; gc expects: invalid character literal \(missing closing '\)|rune literal not terminated
-// line 17: uncaught; gc expects: invalid character literal \(more than one character\)|more than one character in rune literal
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 3 uncaught marker(s)
+// Verdict: Clean errorcheck

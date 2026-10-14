@@ -15,4 +15,4 @@ func g[P any](P, string) {}
 // error from an assignment mismatch.
 var f func(int, String) = g // ERROR "inferred type func(int, string) for func(P, string) does not match type func(int, String) of f"
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

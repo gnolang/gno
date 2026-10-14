@@ -17,4 +17,8 @@ var _ = interface{
 // line 8
 // line 9
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 9: gc expects: duplicate method; gno: m redeclared in this block
+// 	previous declaration at issue48234.go:9:2
+
+// Verdict: Clean errorcheck

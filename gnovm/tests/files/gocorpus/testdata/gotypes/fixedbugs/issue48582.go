@@ -28,4 +28,4 @@ type P interface {
 	*P // ERROR "interface contains type constraints"
 }
 
-// Unsupported: other: generics (type set unions) not supported in Gno
+// Verdict: Unsupported other: generics (type set unions) not supported in Gno

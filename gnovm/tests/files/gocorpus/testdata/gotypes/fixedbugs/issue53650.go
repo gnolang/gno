@@ -58,4 +58,4 @@ func fooT2(t2 Type2) {
 
 }
 
-// Unsupported: reflect: unknown import path reflect
+// Verdict: Unsupported reflect: unknown import path reflect

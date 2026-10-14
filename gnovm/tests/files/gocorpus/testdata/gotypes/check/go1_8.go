@@ -11,4 +11,4 @@ package p
 // type alias declarations
 type any = /* ERROR "type alias requires go1.9 or later" */ interface{}
 
-// Unsupported: builtin-shadow: builtin shadowing not supported in Gno
+// Verdict: Unsupported builtin-shadow: builtin shadowing not supported in Gno

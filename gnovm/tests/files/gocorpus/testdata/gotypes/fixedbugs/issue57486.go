@@ -28,4 +28,4 @@ func F2[V [2]any](v V) {
 	_ = G2[int]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

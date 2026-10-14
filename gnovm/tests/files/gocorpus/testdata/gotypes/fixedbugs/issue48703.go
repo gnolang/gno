@@ -26,4 +26,4 @@ type M[P any] int
 func (R[P]) m5(M[M[P]]) {}
 func (M[P]) m(R[R[P]])  {}
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

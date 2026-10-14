@@ -56,4 +56,8 @@ func _() {
 // line 12: gc expects: cannot switch on a
 // line 36: gc expects: use of untyped nil in switch expression
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 15: gc expects: cannot switch on a; gno: 3: struct{_ func()} is not comparable
+// line 33: gc expects: invalid case f in switch on .* \(func can only be compared to nil\); gno: 3: func() can only be compared to nil
+
+// Verdict: Clean errorcheck

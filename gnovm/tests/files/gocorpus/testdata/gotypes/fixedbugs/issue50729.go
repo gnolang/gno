@@ -18,4 +18,4 @@ type B2 = T2[A2]
 
 var x2 T2[B2]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

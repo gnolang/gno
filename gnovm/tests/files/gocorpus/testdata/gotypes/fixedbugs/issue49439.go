@@ -25,4 +25,4 @@ type TC[P [unsafe.Sizeof(func() {
 // test case from issue
 type X /* ERROR "invalid recursive type" */ [T any, PT X[T]] interface{}
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

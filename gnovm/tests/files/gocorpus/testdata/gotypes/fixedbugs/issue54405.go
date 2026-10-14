@@ -23,4 +23,8 @@ var _ = y == nil // no error expected here
 // line 11
 // line 15
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 11: gc expects: undefined; gno: 2: name NotAType not defined in fileset with files [issue54405.go]
+// line 15: gc expects: undefined; gno: name NotAType not defined in fileset with files [issue54405.go]
+
+// Verdict: Clean errorcheck

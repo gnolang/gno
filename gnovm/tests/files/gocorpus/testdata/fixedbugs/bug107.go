@@ -23,4 +23,7 @@ func f() (os int) {
 // line 9
 // line 13
 
+// GnoWordingDiffers:
+// line 13: gc expects: undefined; gno: unexpected selector expression type gnolang.PrimitiveType
+
 // Verdict: Clean errorcheck

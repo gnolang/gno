@@ -20,4 +20,4 @@ type (
         I3[P any] interface{ *I3 /* ERROR "interface contains type constraints" */ [P] }
 )
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

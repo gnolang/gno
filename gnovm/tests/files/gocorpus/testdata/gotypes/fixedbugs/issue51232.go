@@ -29,4 +29,4 @@ func NewConcrete[RCT RC[RG], RG any](Rc RCT) F /* ERROR "not enough type argumen
 	}
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

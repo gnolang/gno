@@ -6,4 +6,4 @@ package issue48082
 
 import "init" /* ERROR "init must be a func" */ /* ERROR "could not import init" */
 
-// Unsupported: import: unknown import path init:
+// Verdict: Unsupported import: unknown import path init:

@@ -79,4 +79,4 @@ type (
 	_ interface{ Ordered | comparable /* ERROR "cannot use comparable in union" */ }
 )
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

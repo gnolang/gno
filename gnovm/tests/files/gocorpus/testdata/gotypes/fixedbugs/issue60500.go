@@ -10,4 +10,4 @@ func _() {
 
 func log(enabled bool, format string, args ...any)
 
-// Unsupported: bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

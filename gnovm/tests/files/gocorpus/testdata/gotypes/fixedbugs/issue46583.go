@@ -39,4 +39,10 @@ func _() {
 // line 26
 // line 27
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 24: gc expects: func(T1, int); gno: cannot use func(gno.land/p/filetest/p.T1, int) as func(gno.land/p/filetest/p.T1)
+// line 25: gc expects: func(t T2, x int); gno: cannot use func(gno.land/p/filetest/p.T2, int) as func(gno.land/p/filetest/p.T2)
+// line 26: gc expects: func(T3, int); gno: cannot use func(gno.land/p/filetest/p.T3, int) as func(gno.land/p/filetest/p.T3)
+// line 27: gc expects: func(_ T4, x int); gno: cannot use func(gno.land/p/filetest/p.T4, int) as func(gno.land/p/filetest/p.T4)
+
+// Verdict: Clean errorcheck

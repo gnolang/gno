@@ -94,9 +94,13 @@ var _ = x.m
 // line 37
 // line 38
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 36: gc expects: duplicate method
 // line 37: gc expects: duplicate method
 // line 38: gc expects: duplicate method
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 35: gc expects: duplicate method; gno: m redeclared in this block
+// 	previous declaration at issue6977.go:36:21
+
+// Verdict: Clean errorcheck

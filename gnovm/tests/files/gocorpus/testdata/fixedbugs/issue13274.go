@@ -16,7 +16,7 @@ var f = func() { // ERROR "unexpected EOF|expected .*}.*"
 // GoTypeCheckError:
 // line 13
 
-// UncaughtError:
-// line 11: uncaught; gc expects: unexpected EOF|expected .*}.*
+// ParseBlocked:
+// line 11: gc expects: unexpected EOF|expected .*}.*
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: Clean errorcheck

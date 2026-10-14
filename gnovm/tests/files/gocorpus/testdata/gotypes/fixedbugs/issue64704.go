@@ -17,4 +17,7 @@ func _() {
 // GoTypeCheckError:
 // line 10
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 10: gc expects: cannot range over 10 (untyped int constant): requires go1.22 or later; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+
+// Verdict: Clean errorcheck

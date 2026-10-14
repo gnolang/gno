@@ -7,4 +7,4 @@ package p
 func Ln[A A /* ERROR "cannot use a type parameter as constraint" */ ](p A) {
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

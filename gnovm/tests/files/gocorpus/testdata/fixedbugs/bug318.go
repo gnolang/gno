@@ -17,4 +17,7 @@ const i int = ui // ERROR "type"
 // GoTypeCheckError:
 // line 12
 
+// GnoWordingDiffers:
+// line 12: gc expects: type; gno: cannot use uint as int
+
 // Verdict: Clean errorcheck

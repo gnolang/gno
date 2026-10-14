@@ -21,4 +21,4 @@ func g[P any](a, b P) {
 	g[[]P]([]P{}, []P{})
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

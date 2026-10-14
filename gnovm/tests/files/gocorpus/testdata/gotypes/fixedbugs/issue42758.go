@@ -32,4 +32,4 @@ func _(x constraint /* ERROR "contains type constraints" */ ) {
 	}
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

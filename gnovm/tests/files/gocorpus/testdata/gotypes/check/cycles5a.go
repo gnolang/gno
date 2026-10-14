@@ -201,4 +201,4 @@ type T16 struct {
 	T15
 }
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

@@ -24,4 +24,8 @@ func F2() bool {
 // line 12
 // line 16
 
+// GnoWordingDiffers:
+// line 12: gc expects: invalid; gno: <nil> is not comparable
+// line 16: gc expects: invalid; gno: <nil> is not comparable
+
 // Verdict: Clean errorcheck

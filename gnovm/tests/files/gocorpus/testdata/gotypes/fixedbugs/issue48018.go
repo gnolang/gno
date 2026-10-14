@@ -19,4 +19,4 @@ func main() {
 	Nest(Box[int]{0}, 10)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

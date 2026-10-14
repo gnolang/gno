@@ -28,4 +28,7 @@ func main() {
 // GoTypesOnly:
 // line 16: gc expects: invalid operation|non-integer type|incompatible type
 
+// GnoWordingDiffers:
+// line 17: gc expects: invalid operation|non-integer type; gno: operator << not defined on: BigdecKind
+
 // Verdict: Clean errorcheck

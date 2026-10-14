@@ -57,4 +57,4 @@ func _(ch chan int) {
 	_ = x
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

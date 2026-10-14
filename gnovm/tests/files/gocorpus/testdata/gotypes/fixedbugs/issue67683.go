@@ -18,4 +18,4 @@ var _ = A /* ERROR "cannot use generic type A without instantiation" */ (nil)
 var _ = B /* ERROR "cannot use generic type B without instantiation" */ (nil)
 var _ = C /* ERROR "cannot use generic type C without instantiation" */ (nil)
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

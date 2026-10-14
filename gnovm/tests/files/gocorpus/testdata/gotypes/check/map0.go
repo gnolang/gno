@@ -112,4 +112,4 @@ func (it *Iterator[K, V]) Next() (K, V, bool) {
 	return keyval.key, keyval.val, true
 }
 
-// Unsupported: import: unknown import path chans
+// Verdict: Unsupported import: unknown import path chans

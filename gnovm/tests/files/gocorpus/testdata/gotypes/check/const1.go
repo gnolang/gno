@@ -333,4 +333,4 @@ const (
 	_ = uint32 /* ERROR "overflows" */ (1) << 32
 )
 
-// Unsupported: complex-types: complex numbers not supported in Gno
+// Verdict: Unsupported complex-types: complex numbers not supported in Gno

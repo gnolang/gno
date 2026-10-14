@@ -220,58 +220,57 @@ func _() {
 // GoTypeCheckError:
 // line 17
 
-// UncaughtError:
-// line 18: uncaught; gc expects: expected type
-// line 19: uncaught; gc expects: expected type
-// line 22: uncaught; gc expects: not an expression
-// line 23: uncaught; gc expects: used as value
-// line 27: uncaught; gc expects: extra init expr 2
-// line 28: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 29: uncaught; gc expects: missing init expr for _
-// line 31: uncaught; gc expects: multiple-value g
-// line 33: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 37: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 40: uncaught; gc expects: extra init expr 2
-// line 41: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 42: uncaught; gc expects: missing init expr for _
-// line 46: uncaught; gc expects: extra init expr 2
-// line 47: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 48: uncaught; gc expects: missing init expr for _
-// line 50: uncaught; gc expects: multiple-value g
-// line 52: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 56: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 59: uncaught; gc expects: extra init expr 2
-// line 60: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 61: uncaught; gc expects: missing init expr for _
-// line 67: uncaught; gc expects: declared and not used
-// line 68: uncaught; gc expects: declared and not used
-// line 72: uncaught; gc expects: declared and not used
-// line 73: uncaught; gc expects: declared and not used
-// line 78: uncaught; gc expects: declared and not used
-// line 79: uncaught; gc expects: declared and not used
-// line 83: uncaught; gc expects: declared and not used
-// line 84: uncaught; gc expects: declared and not used
-// line 89: uncaught; gc expects: declared and not used
-// line 91: uncaught; gc expects: declared and not used
-// line 95: uncaught; gc expects: declared and not used
-// line 99: uncaught; gc expects: declared and not used
-// line 101: uncaught; gc expects: declared and not used
-// line 105: uncaught; gc expects: declared and not used
-// line 126: uncaught; gc expects: declared and not used
-// line 128: uncaught; gc expects: declared and not used
-// line 138: uncaught; gc expects: declared and not used
-// line 143: uncaught; gc expects: declared and not used
-// line 154: uncaught; gc expects: declared and not used
-// line 174: uncaught; gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
-// line 181: uncaught; gc expects: too many return values
-// line 182: uncaught; gc expects: too many return values
-// line 187: uncaught; gc expects: too many return values
-// line 192: uncaught; gc expects: no new variables
-// line 194: uncaught; gc expects: no new variables
-// line 196: uncaught; gc expects: no new variables
-// line 203: uncaught; gc expects: initialization cycle
-// line 207: uncaught; gc expects: undefined
-// line 211: uncaught; gc expects: undefined | undefined | undefined
+// ParseBlocked:
+// line 18: gc expects: expected type
+// line 19: gc expects: expected type
+// line 22: gc expects: not an expression
+// line 23: gc expects: used as value
+// line 27: gc expects: extra init expr 2
+// line 28: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 29: gc expects: missing init expr for _
+// line 31: gc expects: multiple-value g
+// line 33: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 37: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 40: gc expects: extra init expr 2
+// line 41: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 42: gc expects: missing init expr for _
+// line 46: gc expects: extra init expr 2
+// line 47: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 48: gc expects: missing init expr for _
+// line 50: gc expects: multiple-value g
+// line 52: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 56: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 59: gc expects: extra init expr 2
+// line 60: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 61: gc expects: missing init expr for _
+// line 67: gc expects: declared and not used
+// line 68: gc expects: declared and not used
+// line 72: gc expects: declared and not used
+// line 73: gc expects: declared and not used
+// line 78: gc expects: declared and not used
+// line 79: gc expects: declared and not used
+// line 83: gc expects: declared and not used
+// line 84: gc expects: declared and not used
+// line 89: gc expects: declared and not used
+// line 91: gc expects: declared and not used
+// line 95: gc expects: declared and not used
+// line 99: gc expects: declared and not used
+// line 101: gc expects: declared and not used
+// line 105: gc expects: declared and not used
+// line 126: gc expects: declared and not used
+// line 128: gc expects: declared and not used
+// line 138: gc expects: declared and not used
+// line 143: gc expects: declared and not used
+// line 154: gc expects: declared and not used
+// line 174: gc expects: assignment mismatch: [1-9]+ variables but.*[1-9]+ value(s)?
+// line 181: gc expects: too many return values
+// line 182: gc expects: too many return values
+// line 187: gc expects: too many return values
+// line 192: gc expects: no new variables
+// line 194: gc expects: no new variables
+// line 196: gc expects: no new variables
+// line 203: gc expects: initialization cycle
+// line 207: gc expects: undefined
+// line 211: gc expects: undefined | undefined | undefined
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 51 uncaught marker(s)
+// Verdict: Clean errorcheck

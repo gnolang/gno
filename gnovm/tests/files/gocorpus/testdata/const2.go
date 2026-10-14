@@ -48,4 +48,10 @@ const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
 // line 31
 // line 32
 
+// GnoWordingDiffers:
+// line 26: gc expects: constant multiplication overflow|not representable; gno: 21: constant shift overflow
+// line 30: gc expects: constant addition overflow; gno: 21: constant shift overflow
+// line 31: gc expects: constant bitwise XOR overflow; gno: 21: constant shift overflow
+// line 32: gc expects: constant bitwise complement overflow; gno: 21: constant shift overflow
+
 // Verdict: Clean errorcheck

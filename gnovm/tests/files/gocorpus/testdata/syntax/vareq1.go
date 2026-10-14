@@ -14,4 +14,7 @@ var x map[string]string{"a":"b"}		// ERROR "unexpected { at end of statement|une
 // GoTypeCheckError:
 // line 9
 
+// GnoWordingDiffers:
+// line 9: gc expects: unexpected { at end of statement|unexpected { after top level declaration|expected ';' or newline after top level declaration; gno: expected ';', found '{'
+
 // Verdict: Clean errorcheck

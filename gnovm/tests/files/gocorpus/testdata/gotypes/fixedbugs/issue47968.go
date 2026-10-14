@@ -22,4 +22,4 @@ func (_ A2 /* ERROR "cannot define new methods on instantiated type T[int]" */) 
 func (T[int]) m5()                                       {} // int is the type parameter name, not an instantiation
 func (T[* /* ERROR "must be an identifier" */ int]) m6() {} // syntax error
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

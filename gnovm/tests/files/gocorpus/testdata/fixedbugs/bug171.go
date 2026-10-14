@@ -17,4 +17,8 @@ func g() (foo int) { }	// ERROR "return|control"
 // line 9
 // line 10
 
+// GnoWordingDiffers:
+// line 9: gc expects: return|control; gno: [function "f" does not terminate]
+// line 10: gc expects: return|control; gno: [function "g" does not terminate]
+
 // Verdict: Clean errorcheck

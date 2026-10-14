@@ -25,4 +25,7 @@ func main() {
 // line 11
 // line 13
 
+// GnoWordingDiffers:
+// line 8: gc expects: illegal|nil|invalid; gno: cannot convert (const (undefined)) to ArrayKind
+
 // Verdict: Clean errorcheck

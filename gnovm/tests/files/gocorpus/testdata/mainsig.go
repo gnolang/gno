@@ -19,11 +19,9 @@ func init() int { return 1 } // ERROR "func init must have no arguments and no r
 // GoTypeCheckError:
 // line 13
 
-// GoTypesOnly:
+// ParseBlocked:
+// line 9: gc expects: func main must have no arguments and no return values
+// line 12: gc expects: func init must have no arguments and no return values
 // line 13: gc expects: func init must have no arguments and no return values
 
-// UncaughtError:
-// line 9: uncaught; gc expects: func main must have no arguments and no return values
-// line 12: uncaught; gc expects: func init must have no arguments and no return values
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: Clean errorcheck

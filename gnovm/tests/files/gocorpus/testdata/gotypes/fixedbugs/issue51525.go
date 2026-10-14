@@ -19,4 +19,4 @@ func _[T interface{ int | []byte }](x T) {
 	_ = x /* ERROR "incomparable types in type set" */ == x
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

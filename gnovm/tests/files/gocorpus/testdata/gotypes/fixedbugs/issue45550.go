@@ -9,4 +9,4 @@ type myBuilder struct {
 	Builder[myBuilder]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

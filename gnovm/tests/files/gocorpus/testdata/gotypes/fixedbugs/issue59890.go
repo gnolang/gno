@@ -16,4 +16,4 @@ func f[T any]() (_ /* ERROR "cannot use _" */, _ /* ERROR "cannot use _" */, int
 	panic("not implemented")
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

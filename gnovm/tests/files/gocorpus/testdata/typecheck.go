@@ -34,4 +34,8 @@ func main() {
 // line 20: gc expects: not enough arguments
 // line 21: gc expects: undefined.*c|not enough arguments
 
+// GnoWordingDiffers:
+// line 15: gc expects: undefined.*b; gno: 2: name b not defined in fileset with files [typecheck.go]
+// line 16: gc expects: undefined.*b; gno: 2: name b not defined in fileset with files [typecheck.go]
+
 // Verdict: Clean errorcheck

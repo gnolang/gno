@@ -65,4 +65,4 @@ type u200 interface {
         u100a /* ERROR "cannot handle more than 100 union terms" */ |u100b
 }
 
-// Unsupported: other: generics (type set unions) not supported in Gno
+// Verdict: Unsupported other: generics (type set unions) not supported in Gno

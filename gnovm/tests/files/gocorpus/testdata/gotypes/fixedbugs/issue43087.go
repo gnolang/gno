@@ -53,9 +53,12 @@ func _() {
 // line 34
 // line 40
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 8: gc expects: b repeated on left side of :=
 // line 20: gc expects: b repeated on left side of :=
 // line 27: gc expects: non-name .* on left side of :=
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 34: gc expects: a repeated on left side of :=; gno: no new variables on left side of :=
+
+// Verdict: Clean errorcheck

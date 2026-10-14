@@ -23,7 +23,10 @@ func f(int, int) {
 // GoTypeCheckError:
 // line 12
 
-// UncaughtError:
-// line 16: uncaught; gc expects: expecting \)|possibly missing comma or \)
+// ParseBlocked:
+// line 16: gc expects: expecting \)|possibly missing comma or \)
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// GnoWordingDiffers:
+// line 12: gc expects: expecting \)|possibly missing comma or \); gno: missing ',' before newline in argument list
+
+// Verdict: Clean errorcheck

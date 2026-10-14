@@ -16,4 +16,4 @@ type g[F any] struct{}
 
 func (*g[F]) Q(*any) {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

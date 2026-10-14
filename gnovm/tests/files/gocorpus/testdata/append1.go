@@ -37,4 +37,10 @@ func main() {
 // GoTypesOnly:
 // line 16: gc expects: missing arguments to append|not enough arguments for append
 
+// GnoWordingDiffers:
+// line 17: gc expects: cannot use ... on first argument|not enough arguments in call to append; gno: not enough arguments in call to (const (append func(<X>{}, ...<X.Elem()>{}) <X>{})); want 2 (including variadic) got 1
+// line 18: gc expects: too many arguments to append|too many arguments in call to append; gno: not enough arguments in call to (const (append func(<X>{}, ...<X.Elem()>{}) <X>{})); want 2 (including variadic) got 3
+// line 20: gc expects: cannot use make\(\[\]int, 0\) \(value of type \[\]int\) as int value in argument to append; gno: cannot use []int as int
+// line 21: gc expects: negative len argument in make|index -1.* must not be negative; gno: invalid argument: index (-1 <untyped> bigint) must not be negative
+
 // Verdict: Clean errorcheck

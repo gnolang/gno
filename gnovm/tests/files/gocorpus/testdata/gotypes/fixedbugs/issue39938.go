@@ -53,4 +53,4 @@ type T9 /* ERROR "invalid recursive type" */ [10]E2[E5[E2[T9]]]
 
 type T10 [10]E2[E5[E2[func(T10)]]]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

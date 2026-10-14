@@ -95,4 +95,4 @@ func _() {
 	_ = (*T)(p)
 }
 
-// Unsupported: clear-builtin: clear builtin not supported in Gno
+// Verdict: Unsupported clear-builtin: clear builtin not supported in Gno

@@ -17,4 +17,7 @@ func f(s string) int {
 // GoTypeCheckError:
 // line 12
 
+// GnoWordingDiffers:
+// line 12: gc expects: missing return; gno: 2: [function "f" does not terminate]
+
 // Verdict: Clean errorcheck

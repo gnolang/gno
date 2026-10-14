@@ -16,4 +16,4 @@ type S[T any] struct {}
 
 func (_ S[T]) m()
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

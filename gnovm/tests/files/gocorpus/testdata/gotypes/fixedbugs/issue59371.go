@@ -24,4 +24,8 @@ func _() {
 // line 10
 // line 14
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 10: gc expects: undefined: ok; gno: name ok not declared
+// line 14: gc expects: undefined: undef; gno: name undef not defined in fileset with files [issue59371.go]
+
+// Verdict: Clean errorcheck

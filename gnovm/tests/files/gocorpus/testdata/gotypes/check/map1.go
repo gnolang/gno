@@ -145,4 +145,4 @@ func (r *chans_Receiver[T]) Next() (T, bool) {
 	return v, ok
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

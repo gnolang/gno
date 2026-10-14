@@ -46,4 +46,4 @@ func _(a B[string]) {
 	a.r /* ERROR "a.r undefined (type B[string] has no field or method r)" */ = 0
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

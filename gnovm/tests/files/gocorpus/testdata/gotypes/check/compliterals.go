@@ -21,4 +21,4 @@ func struct_literals[S struct{f int}|myStruct]() {
         _ = slice[S]{{}, {0}, {f:0}}
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

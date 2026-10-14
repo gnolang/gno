@@ -10,4 +10,4 @@ type X int
 
 func (X) M() T[X] { return 0 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

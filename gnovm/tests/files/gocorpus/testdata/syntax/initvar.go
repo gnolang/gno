@@ -21,7 +21,10 @@ func main() {
 // GoTypeCheckError:
 // line 10
 
-// UncaughtError:
-// line 14: uncaught; gc expects: var declaration not allowed in for initializer
+// ParseBlocked:
+// line 14: gc expects: var declaration not allowed in for initializer
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// GnoWordingDiffers:
+// line 12: gc expects: var declaration not allowed in switch initializer; gno: expected operand, found 'var'
+
+// Verdict: Clean errorcheck

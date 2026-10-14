@@ -32,4 +32,12 @@ var _ = f(6e5518446744 /* ERROR "malformed constant" */ )
 // line 14
 // line 17
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 7: gc expects: malformed constant; gno: invalid decimal constant: 6e5518446744
+// line 8: gc expects: malformed constant; gno: invalid decimal constant: 6e5518446744
+// line 10: gc expects: malformed constant; gno: invalid decimal constant: 6e5518446744
+// line 11: gc expects: malformed constant; gno: invalid decimal constant: 6e5518446744
+// line 14: gc expects: malformed constant; gno: invalid decimal constant: 6e5518446744
+// line 17: gc expects: malformed constant; gno: invalid decimal constant: 6e5518446744
+
+// Verdict: Clean errorcheck

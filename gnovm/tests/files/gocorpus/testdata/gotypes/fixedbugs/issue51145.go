@@ -17,4 +17,4 @@ func f()
 
 var _ fmt.Stringer // use fmt
 
-// Unsupported: bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

@@ -21,4 +21,4 @@ type A2 /* ERROR "invalid recursive type" */ [U interface{ A2[U] }] interface{ M
 
 type I interface{ A2[I]; M() A2[I] }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

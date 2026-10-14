@@ -19,4 +19,4 @@ func f[T interface{ int8 }]() {
 	println(T(1024 /* ERROR "cannot convert 1024 (untyped int value) to type T" */))
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

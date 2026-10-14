@@ -13,4 +13,4 @@ func (T) m2([unsafe.Sizeof(T.m1)]int) {}
 
 func main() {}
 
-// Unsupported: unsafe: unknown import path unsafe
+// Verdict: Unsupported unsafe: unknown import path unsafe

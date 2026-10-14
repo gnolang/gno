@@ -14,4 +14,4 @@ func NewS[T any]() *S { panic(0) }
 
 func (_ *S /* ERROR "S is not a generic type" */ [T]) M()
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

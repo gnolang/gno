@@ -28,4 +28,7 @@ func main() {
 // line 11
 // line 19
 
+// GnoWordingDiffers:
+// line 19: gc expects: invalid field name os.File|unknown field; gno: name File not declared
+
 // Verdict: Clean errorcheck

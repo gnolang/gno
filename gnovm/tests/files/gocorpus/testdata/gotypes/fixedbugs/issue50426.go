@@ -43,4 +43,4 @@ func _() {
 func h[E any, R []E](v E) R { return R{v} }
 func _() []int              { return h(0) }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

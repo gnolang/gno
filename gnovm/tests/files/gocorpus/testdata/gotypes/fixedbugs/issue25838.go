@@ -42,5 +42,4 @@ type funcAlias = func(B)
 // GnoPreprocessError:
 // line 10: invalid recursive type: e -> f -> g -> h -> i -> j -> e
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
+// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

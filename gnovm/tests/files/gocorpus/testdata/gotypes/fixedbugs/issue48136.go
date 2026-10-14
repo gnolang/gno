@@ -35,4 +35,4 @@ func _() {
         foo /* ERROR "cannot infer Src" */ ()
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -64,4 +64,4 @@ type _ interface {
 	interface {bool; int} | interface {bool; string}
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

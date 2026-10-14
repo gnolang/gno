@@ -29,4 +29,7 @@ var t = T{
 // GoTypesOnly:
 // line 19: gc expects: field name
 
+// GnoWordingDiffers:
+// line 18: gc expects: field name; gno: name foo not declared
+
 // Verdict: Clean errorcheck

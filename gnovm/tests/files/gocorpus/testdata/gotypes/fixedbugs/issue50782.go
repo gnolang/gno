@@ -46,4 +46,4 @@ func _[P C[C /* ERROR "C[Q] does not satisfy comparable" */ [Q /* ERROR "Q does 
 func _[P [10]C[P]]() {}
 func _[P struct{ f C[C[P]]}]() {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

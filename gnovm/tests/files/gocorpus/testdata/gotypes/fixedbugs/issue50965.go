@@ -24,4 +24,8 @@ func _(x, c []int) {
 // line 9
 // line 15
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 9: gc expects: invalid case c in switch on x (mismatched types string and int); gno: cannot use string as int
+// line 15: gc expects: invalid case c in switch on x (slice can only be compared to nil); gno: 3: []int can only be compared to nil
+
+// Verdict: Clean errorcheck

@@ -559,4 +559,4 @@ func _() {
 	}
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

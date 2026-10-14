@@ -31,4 +31,7 @@ func main() {
 // GoTypeCheckError:
 // line 20
 
+// GnoWordingDiffers:
+// line 20: gc expects: undef; gno: name c not declared
+
 // Verdict: Clean errorcheck

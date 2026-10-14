@@ -22,4 +22,4 @@ func _[P any]() {
 //           We should try to avoid it.
 const _ = unsafe /* ERROR "not constant" */ .Sizeof(T[int]{})
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

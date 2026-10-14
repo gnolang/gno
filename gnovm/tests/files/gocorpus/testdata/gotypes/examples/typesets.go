@@ -58,4 +58,4 @@ func _[T int | string](x T) T {
 	return x /* ERROR "constrained by int | string" */ * x
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

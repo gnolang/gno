@@ -19,4 +19,4 @@ func f[T interface{[]int}]() {
 	_ = T(1 /* ERROR "cannot convert" */ )
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

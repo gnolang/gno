@@ -24,4 +24,4 @@ func nums[T any](t T) List[T] {
 	return cons(t, cons(t, nil /* ERROR "type func(n T, _ List[T]) T of nil[T] does not match inferred type List[T] for List[T]" */ [T]))
 }
 
-// Unsupported: builtin-shadow: builtin shadowing not supported in Gno
+// Verdict: Unsupported builtin-shadow: builtin shadowing not supported in Gno

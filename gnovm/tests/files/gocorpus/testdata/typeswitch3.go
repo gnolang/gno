@@ -64,7 +64,7 @@ func noninterface() {
 // line 45
 // line 54
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 24: gc expects: impossible
 // line 45: gc expects: cannot type switch on non-interface value|not an interface
 // line 54: gc expects: cannot type switch on non-interface value|not an interface

@@ -15,4 +15,8 @@ var _ = new(1 /* ERROR "not a type" */ + 1)
 // line 7
 // line 8
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 7: gc expects: not a type; gno: generic <T.(type)> requires type kind, got BigintKind
+// line 8: gc expects: not a type; gno: generic <T.(type)> requires type kind, got BigintKind
+
+// Verdict: Clean errorcheck

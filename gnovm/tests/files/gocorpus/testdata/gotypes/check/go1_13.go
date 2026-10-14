@@ -22,4 +22,4 @@ type _ interface {
 	I // ERROR "duplicate method m"
 }
 
-// Unsupported: gc-lang-pin: gc -lang version-gating test below Gno's go1.17 pin (go1.13)
+// Verdict: Unsupported gc-lang-pin: gc -lang version-gating test below Gno's go1.17 pin (go1.13)

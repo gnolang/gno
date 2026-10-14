@@ -49,9 +49,13 @@ type U9 interface { M32; M64 } // ERROR "duplicate method .*m"
 // line 39
 // line 40
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 38: gc expects: duplicate method .*m
 // line 39: gc expects: duplicate method .*m
 // line 40: gc expects: duplicate method .*m
+
+// GnoWordingDiffers:
+// line 37: gc expects: duplicate method .*m; gno: m redeclared in this block
+// 	previous declaration at issue6977.go:38:21
 
 // Verdict: Clean errorcheck

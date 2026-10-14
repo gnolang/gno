@@ -15,4 +15,7 @@ import . "/foo" // ERROR "could not import /foo"
 // GoTypeCheckError:
 // line 10
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 10: gc expects: could not import /foo; gno: import path cannot be absolute path: "/foo"
+
+// Verdict: Clean errorcheck

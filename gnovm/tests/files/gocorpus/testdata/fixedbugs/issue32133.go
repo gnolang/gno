@@ -55,10 +55,15 @@ func _() {
 // GnoOverStrictError:
 // line 14: expected '}', found 'EOF'
 
-// UncaughtError:
-// line 13: uncaught; gc expects: string not terminated
-// line 20: uncaught; gc expects: hexadecimal literal has no digits
-// line 24: uncaught; gc expects: hexadecimal mantissa requires a 'p' exponent
-// line 28: uncaught; gc expects: '_' must separate successive digits
+// ParseBlocked:
+// line 13: gc expects: string not terminated
+// line 20: gc expects: hexadecimal literal has no digits
+// line 24: gc expects: hexadecimal mantissa requires a 'p' exponent
+// line 28: gc expects: '_' must separate successive digits
 
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 4 uncaught marker(s)
+// GnoWordingDiffers:
+// line 10: gc expects: newline in string; gno: rune literal not terminated
+// line 11: gc expects: newline in character literal|newline in rune literal; gno: string literal not terminated
+// line 12: gc expects: newline in string; gno: raw string literal not terminated
+
+// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)

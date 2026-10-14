@@ -28,4 +28,8 @@ func _() {
 // line 17
 // line 20
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 17: gc expects: struct containing []string cannot be compared; gno: gno.land/p/filetest/p.thing1 is not comparable
+// line 20: gc expects: struct containing []thing1 cannot be compared; gno: gno.land/p/filetest/p.thing2 is not comparable
+
+// Verdict: Clean errorcheck

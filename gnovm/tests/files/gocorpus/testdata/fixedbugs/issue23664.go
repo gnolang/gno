@@ -22,7 +22,10 @@ func f() {
 // GoTypeCheckError:
 // line 12
 
-// UncaughtError:
-// line 15: uncaught; gc expects: unexpected name true, expected {
+// ParseBlocked:
+// line 15: gc expects: unexpected name true, expected {
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// GnoWordingDiffers:
+// line 12: gc expects: unexpected name true, expected {; gno: expected ';', found true
+
+// Verdict: Clean errorcheck

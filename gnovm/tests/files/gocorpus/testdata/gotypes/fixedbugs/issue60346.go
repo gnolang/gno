@@ -16,4 +16,4 @@ func _() {
 	G(F[int])
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

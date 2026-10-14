@@ -159,4 +159,4 @@ func _() {
 
 // TODO(gri) move extra tests from testdata/const0.src into here
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

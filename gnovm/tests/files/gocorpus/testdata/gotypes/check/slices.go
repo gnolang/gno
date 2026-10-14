@@ -66,4 +66,4 @@ func filter(x int) bool {
 var filtered1 = Filter[int](input, filter)
 var filtered2 = Filter(input, filter) // using type inference
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

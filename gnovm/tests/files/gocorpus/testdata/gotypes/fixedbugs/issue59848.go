@@ -15,4 +15,4 @@ func (T) m() {}
 // GoTypeCheckError:
 // line 9
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

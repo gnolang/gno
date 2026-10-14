@@ -33,4 +33,8 @@ func main() {
 // GoTypesOnly:
 // line 20: gc expects: cannot (use type|assign|use.*type) string|
 
+// GnoWordingDiffers:
+// line 9: gc expects: undefined; gno: 2: name T not defined in fileset with files [issue6572.go]
+// line 13: gc expects: undefined; gno: 2: name T not defined in fileset with files [issue6572.go]
+
 // Verdict: Clean errorcheck

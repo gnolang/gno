@@ -16,4 +16,4 @@ func _() {
 	_ = big.Float{form /* ERROR "cannot refer to unexported field form in struct literal of type big.Float" */ : 0}
 }
 
-// Unsupported: import: unknown import path math/big:
+// Verdict: Unsupported import: unknown import path math/big:

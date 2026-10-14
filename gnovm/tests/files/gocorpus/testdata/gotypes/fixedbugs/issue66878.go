@@ -20,4 +20,4 @@ func _[T ~bool](m map[int]T) {
 	println(x, ok)
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

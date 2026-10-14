@@ -24,4 +24,9 @@ func _() {
 // line 11
 // line 13
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 9: gc expects: yield func returns user-defined boolean, not bool; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 11: gc expects: yield func returns user-defined boolean, not bool; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 13: gc expects: yield func returns user-defined boolean, not bool; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+
+// Verdict: Clean errorcheck

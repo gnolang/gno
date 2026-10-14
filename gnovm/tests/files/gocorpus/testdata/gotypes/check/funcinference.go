@@ -111,4 +111,4 @@ func _(s string) {
 	f8[int](s /* ERROR "cannot use s (variable of type string) as int value in argument to f8[int]" */ , s)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

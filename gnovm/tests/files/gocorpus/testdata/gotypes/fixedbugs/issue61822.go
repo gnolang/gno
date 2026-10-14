@@ -18,4 +18,4 @@ func _[P I[string]]() {
 	var _ error = x
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -44,4 +44,4 @@ type F[A, B any] struct{}
 
 func (f *F[A, B]) Q() {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

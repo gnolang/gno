@@ -60,4 +60,4 @@ func _() {
 	f5[int](x) // ok
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

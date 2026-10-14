@@ -10,4 +10,4 @@ package _ /* ERROR "invalid package name" */
 // GoTypeCheckError:
 // line 5
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

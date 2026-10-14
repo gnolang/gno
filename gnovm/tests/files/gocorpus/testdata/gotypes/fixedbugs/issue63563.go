@@ -36,4 +36,4 @@ func _[P int64 | uint64]() {
 	_ = P(1 /* ERROR "constant 18446744073709551615 overflows int64 (in P)" */ <<64 - 1)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

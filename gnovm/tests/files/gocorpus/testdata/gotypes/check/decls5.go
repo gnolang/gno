@@ -20,7 +20,13 @@ var _, main /* ERROR "cannot declare main" */ int
 // line 9
 // line 10
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 8: gc expects: cannot declare main
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 9: gc expects: cannot declare main; gno: main redeclared in this block
+// 	previous declaration at decls5.go:8:10
+// line 10: gc expects: cannot declare main; gno: main redeclared in this block
+// 	previous declaration at decls5.go:8:10
+
+// Verdict: Clean errorcheck

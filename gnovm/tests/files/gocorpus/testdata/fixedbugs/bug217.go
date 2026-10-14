@@ -22,7 +22,7 @@ type b int
 // line 12
 // line 14
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 14: gc expects: multiple receiver
 
 // Verdict: Clean errorcheck

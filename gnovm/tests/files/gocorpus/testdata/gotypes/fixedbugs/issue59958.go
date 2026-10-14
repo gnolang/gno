@@ -21,4 +21,4 @@ func _() {
 	var _ func(int) string = g2[int]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -8,4 +8,4 @@ func _[P ~int, Q any](p P) {
 	_ = Q(p /* ERROR "cannot convert" */ )
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

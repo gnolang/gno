@@ -207,4 +207,4 @@ type Complex interface {
 	~complex64 | ~complex128
 }
 
-// Unsupported: unsafe: unknown import path unsafe
+// Verdict: Unsupported unsafe: unknown import path unsafe

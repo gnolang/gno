@@ -18,4 +18,4 @@ func Complex[P ~float64](x P) {
 	_ = complex(x /* ERROR "not supported" */ , x)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

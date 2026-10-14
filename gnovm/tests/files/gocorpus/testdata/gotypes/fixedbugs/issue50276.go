@@ -38,4 +38,4 @@ type Step = Pair[Box, interface{}]
 // This line also does not break the compile
 var fourth Transform[Step]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

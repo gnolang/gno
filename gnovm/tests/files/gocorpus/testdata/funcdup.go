@@ -64,7 +64,7 @@ func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition
 // line 26
 // line 27
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 27: gc expects: duplicate argument i|redefinition|previous|redeclared
 
 // Verdict: Clean errorcheck

@@ -61,4 +61,4 @@ func _() {
 	CallM2(X{}) // should be able to infer R
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

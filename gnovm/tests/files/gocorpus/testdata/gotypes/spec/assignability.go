@@ -263,4 +263,4 @@ var (
 	D Defined
 )
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

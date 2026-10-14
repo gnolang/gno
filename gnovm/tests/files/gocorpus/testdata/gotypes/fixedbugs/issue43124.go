@@ -23,4 +23,4 @@ var (
 // line 7: gc expects: invalid use of ... in conversion to int
 // line 15: gc expects: invalid use of ... in conversion to M
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

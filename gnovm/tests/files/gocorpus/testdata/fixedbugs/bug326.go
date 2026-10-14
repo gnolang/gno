@@ -44,4 +44,7 @@ func ii() (int, error) {
 // GoTypeCheckError:
 // line 22
 
+// GnoWordingDiffers:
+// line 22: gc expects: not enough return values|not enough arguments to return; gno: expected 2 return values; got 0
+
 // Verdict: Clean errorcheck

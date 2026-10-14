@@ -56,4 +56,4 @@ func Bar() {
 	Foo(m) // panic here
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

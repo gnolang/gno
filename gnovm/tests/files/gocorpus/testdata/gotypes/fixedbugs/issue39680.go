@@ -30,4 +30,4 @@ func f() {
 }
 */
 
-// Clean: compile
+// Verdict: Clean compile

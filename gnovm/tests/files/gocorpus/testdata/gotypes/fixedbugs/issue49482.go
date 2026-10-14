@@ -25,4 +25,4 @@ type _[P interface{(*int)}] int
 type _[P *struct{} | int] struct{}
 type _[P *struct{} | ~int] struct{}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -27,4 +27,4 @@ type H[t any] interface { F[t] }
 type T struct{}
 func (n T) f(b G[T]) { b.g(n) }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

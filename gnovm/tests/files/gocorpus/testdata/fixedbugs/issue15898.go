@@ -26,4 +26,8 @@ func f(e interface{}) {
 // line 15
 // line 16
 
+// GnoWordingDiffers:
+// line 11: gc expects: multiple nil cases in type switch|duplicate type in switch|duplicate case nil in type switch; gno: 3: duplicate type nil in type switch
+// line 16: gc expects: multiple nil cases in type switch|duplicate type in switch|duplicate case nil in type switch; gno: 3: duplicate type nil in type switch
+
 // Verdict: Clean errorcheck

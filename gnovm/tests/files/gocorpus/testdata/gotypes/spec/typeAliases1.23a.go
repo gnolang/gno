@@ -9,4 +9,4 @@ package aliasTypes
 type _ = int
 type _ /* ERROR "generic type alias requires GODEBUG=gotypesalias=1" */ [P any] = int
 
-// Unsupported: other: go/types -gotypesalias=0 configuration test; Gno has one alias representation
+// Verdict: Unsupported other: go/types -gotypesalias=0 configuration test; Gno has one alias representation

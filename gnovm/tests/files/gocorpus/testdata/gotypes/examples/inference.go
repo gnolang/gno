@@ -162,4 +162,4 @@ func f[P any](P) {}
 // This must not crash.
 var _ func(int) = f // ERROR "implicitly instantiated function in assignment requires go1.21 or later"
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

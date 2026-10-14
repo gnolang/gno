@@ -16,4 +16,7 @@ type T x.T // ERROR "undefined|expected package"
 // GoTypeCheckError:
 // line 9
 
+// GnoWordingDiffers:
+// line 9: gc expects: undefined|expected package; gno: name x not defined in fileset with files [bug451.go]
+
 // Verdict: Clean errorcheck

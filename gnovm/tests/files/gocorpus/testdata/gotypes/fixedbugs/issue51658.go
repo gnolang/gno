@@ -48,10 +48,9 @@ func GetDefaultNumber[T Number](value, defaultValue T) T {
 // GoTypeCheckError:
 // line 11
 
-// UncaughtError:
-// line 13: uncaught; gc expects: expected declaration|non-declaration statement
-// line 21: uncaught; gc expects: expected type|type declaration
-// line 23: uncaught; gc expects: expected declaration|non-declaration statement
+// ParseBlocked:
+// line 13: gc expects: expected declaration|non-declaration statement
+// line 21: gc expects: expected type|type declaration
+// line 23: gc expects: expected declaration|non-declaration statement
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 3 uncaught marker(s)
+// Verdict: Clean errorcheck

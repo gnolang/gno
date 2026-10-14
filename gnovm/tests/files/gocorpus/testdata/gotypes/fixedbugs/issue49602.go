@@ -18,4 +18,4 @@ type _ interface {
 	int | C          // ERROR "cannot use p.C in union (p.C embeds comparable)"
 }
 
-// Unsupported: other: generics (type set unions) not supported in Gno
+// Verdict: Unsupported other: generics (type set unions) not supported in Gno

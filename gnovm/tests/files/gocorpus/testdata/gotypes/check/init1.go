@@ -126,4 +126,4 @@ func matchAnyFn(s *S) (err E) { return matchAny(s) }
 // line 95
 // line 97
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

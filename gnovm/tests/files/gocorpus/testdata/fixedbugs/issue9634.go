@@ -23,4 +23,7 @@ func main() {
 // GoTypeCheckError:
 // line 17
 
+// GnoWordingDiffers:
+// line 17: gc expects: must be a slice|must be slice|not a slice; gno: struct types have no (universal) elements
+
 // Verdict: Clean errorcheck

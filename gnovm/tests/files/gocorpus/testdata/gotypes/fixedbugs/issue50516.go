@@ -12,4 +12,4 @@ func _[P struct{ f int } | struct{ g int }](x P) {
 	_ = x.g // ERROR "type P has no field or method g"
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

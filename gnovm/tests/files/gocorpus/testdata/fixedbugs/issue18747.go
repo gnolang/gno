@@ -33,11 +33,11 @@ func _ () {
 // GoTypeCheckError:
 // line 10
 
-// UncaughtError:
-// line 13: uncaught; gc expects: missing condition in if statement
-// line 15: uncaught; gc expects: missing condition in if statement
-// line 17: uncaught; gc expects: missing condition in if statement
-// line 19: uncaught; gc expects: missing condition in if statement
-// line 26: uncaught; gc expects: unexpected newline, expected { after if clause
+// ParseBlocked:
+// line 13: gc expects: missing condition in if statement
+// line 15: gc expects: missing condition in if statement
+// line 17: gc expects: missing condition in if statement
+// line 19: gc expects: missing condition in if statement
+// line 26: gc expects: unexpected newline, expected { after if clause
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 5 uncaught marker(s)
+// Verdict: Clean errorcheck

@@ -20,4 +20,4 @@ func _() {
 	f2(0, g /* ERROR "implicitly instantiated function as argument requires go1.21 or later" */)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

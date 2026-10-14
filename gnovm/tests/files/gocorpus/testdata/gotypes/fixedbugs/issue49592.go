@@ -10,4 +10,4 @@ func _() {
 	_ = x == y
 }
 
-// Clean: compile
+// Verdict: Clean compile

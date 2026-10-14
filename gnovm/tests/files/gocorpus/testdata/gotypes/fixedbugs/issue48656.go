@@ -12,4 +12,4 @@ func f2[P /* ERROR "instantiation cycle" */ *Q, Q any](P, Q) {
 	_ = f2[*P]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

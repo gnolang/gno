@@ -19,4 +19,4 @@ func (T[_, _]) m2() {}
 func (T /* ERROR "receiver declares 3 type parameters, but receiver base type declares 2" */ [_, _, _]) m3() {
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

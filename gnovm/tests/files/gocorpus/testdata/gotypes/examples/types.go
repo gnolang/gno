@@ -320,34 +320,33 @@ func _[P MyInts]() P {
 // GoTypeCheckError:
 // line 109
 
-// UncaughtError:
-// line 56: uncaught; gc expects: assignment
-// line 81: uncaught; gc expects: assignment
-// line 100: uncaught; gc expects: assignment
-// line 104: uncaught; gc expects: cannot use generic type T
-// line 105: uncaught; gc expects: cannot use generic type T
-// line 117: uncaught; gc expects: invalid use of '...'
-// line 149: uncaught; gc expects: cannot parenthesize
-// line 150: uncaught; gc expects: cannot parenthesize
-// line 151: uncaught; gc expects: cannot parenthesize
-// line 154: uncaught; gc expects: int8 redeclared
-// line 155: uncaught; gc expects: int16 redeclared
-// line 156: uncaught; gc expects: List redeclared
-// line 223: uncaught; gc expects: cannot use generic type .* without instantiation
-// line 227: uncaught; gc expects: cannot use generic type .* without instantiation
-// line 251: uncaught; gc expects: contains type constraints
-// line 252: uncaught; gc expects: contains type constraints
-// line 255: uncaught; gc expects: contains type constraints
-// line 256: uncaught; gc expects: contains type constraints
-// line 257: uncaught; gc expects: contains type constraints
-// line 260: uncaught; gc expects: contains type constraints
-// line 267: uncaught; gc expects: comparable
-// line 268: uncaught; gc expects: comparable
-// line 270: uncaught; gc expects: comparable | comparable
-// line 273: uncaught; gc expects: comparable
-// line 274: uncaught; gc expects: comparable
-// line 284: uncaught; gc expects: not constant
-// line 285: uncaught; gc expects: invalid constant type T
+// ParseBlocked:
+// line 56: gc expects: assignment
+// line 81: gc expects: assignment
+// line 100: gc expects: assignment
+// line 104: gc expects: cannot use generic type T
+// line 105: gc expects: cannot use generic type T
+// line 117: gc expects: invalid use of '...'
+// line 149: gc expects: cannot parenthesize
+// line 150: gc expects: cannot parenthesize
+// line 151: gc expects: cannot parenthesize
+// line 154: gc expects: int8 redeclared
+// line 155: gc expects: int16 redeclared
+// line 156: gc expects: List redeclared
+// line 223: gc expects: cannot use generic type .* without instantiation
+// line 227: gc expects: cannot use generic type .* without instantiation
+// line 251: gc expects: contains type constraints
+// line 252: gc expects: contains type constraints
+// line 255: gc expects: contains type constraints
+// line 256: gc expects: contains type constraints
+// line 257: gc expects: contains type constraints
+// line 260: gc expects: contains type constraints
+// line 267: gc expects: comparable
+// line 268: gc expects: comparable
+// line 270: gc expects: comparable | comparable
+// line 273: gc expects: comparable
+// line 274: gc expects: comparable
+// line 284: gc expects: not constant
+// line 285: gc expects: invalid constant type T
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 27 uncaught marker(s)
+// Verdict: Clean errorcheck

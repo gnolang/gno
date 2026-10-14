@@ -119,4 +119,4 @@ func _[
 	_ = c /* ERROR "type parameter C cannot use operator <" */ < c
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

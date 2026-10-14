@@ -195,4 +195,4 @@ var (
 	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint" */ i0
 )
 
-// Unsupported: other: generics (type set constraints) not supported in Gno
+// Verdict: Unsupported other: generics (type set constraints) not supported in Gno

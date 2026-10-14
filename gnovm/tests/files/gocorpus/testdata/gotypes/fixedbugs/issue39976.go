@@ -15,4 +15,4 @@ func _() {
 	NewCache /* ERROR "cannot infer K" */ (&lru)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -16,4 +16,4 @@ func _() {
 // GoTypeCheckError:
 // line 10
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

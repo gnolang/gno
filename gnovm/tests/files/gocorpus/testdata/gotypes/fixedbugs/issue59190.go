@@ -35,4 +35,4 @@ func _() {
 	_ = unsafe.Sizeof(t /* ERROR "too large" */ )
 }
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

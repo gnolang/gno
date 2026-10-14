@@ -17,4 +17,8 @@ func _(x *int) {
 // line 8
 // line 9
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 8: gc expects: invalid operation; gno: operator < not defined on: PointerKind
+// line 9: gc expects: invalid operation; gno: operator < not defined on: PointerKind
+
+// Verdict: Clean errorcheck

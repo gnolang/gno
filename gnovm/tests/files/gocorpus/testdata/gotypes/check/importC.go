@@ -55,4 +55,4 @@ func _() {
 	a = b // should be valid
 }
 
-// Unsupported: import: unknown import path C:
+// Verdict: Unsupported import: unknown import path C:

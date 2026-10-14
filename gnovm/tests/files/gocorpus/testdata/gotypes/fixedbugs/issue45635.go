@@ -36,12 +36,11 @@ func _[T I](i, j int) {
 // GoTypeCheckError:
 // line 13
 
-// UncaughtError:
-// line 8: uncaught; gc expects: undefined
-// line 21: uncaught; gc expects: more than one index
-// line 24: uncaught; gc expects: more than one index
-// line 27: uncaught; gc expects: more than one index
-// line 30: uncaught; gc expects: more than one index
+// ParseBlocked:
+// line 8: gc expects: undefined
+// line 21: gc expects: more than one index
+// line 24: gc expects: more than one index
+// line 27: gc expects: more than one index
+// line 30: gc expects: more than one index
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 5 uncaught marker(s)
+// Verdict: Clean errorcheck

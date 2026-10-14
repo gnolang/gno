@@ -19,4 +19,4 @@ func _() {
 	f2(t, s /* ERROR "type string of s does not match inferred type int for P" */)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

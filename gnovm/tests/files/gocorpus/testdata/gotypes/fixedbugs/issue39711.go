@@ -12,4 +12,4 @@ type _ interface {
 	// type interface{ Error() string }, interface{ String() string }
 }
 
-// Clean: compile
+// Verdict: Clean compile

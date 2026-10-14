@@ -8,4 +8,4 @@ type T[P any] interface{
 	P // ERROR "term cannot be a type parameter"
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

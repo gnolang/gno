@@ -35,4 +35,4 @@ var (
 	_ = 1 >> s // ERROR "signed shift count"
 )
 
-// Unsupported: imaginary-literal: imaginary literals not supported in Gno
+// Verdict: Unsupported imaginary-literal: imaginary literals not supported in Gno

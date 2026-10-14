@@ -189,4 +189,4 @@ func issue67027() {
 	}
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

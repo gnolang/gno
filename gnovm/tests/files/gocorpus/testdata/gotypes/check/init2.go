@@ -220,4 +220,10 @@ var x10pv /* ERROR "initialization cycle" */ = x10pvar.m()
 // line 137
 // line 139
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 40: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
+// line 45: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
+// line 50: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
+// line 55: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
+
+// Verdict: Clean errorcheck

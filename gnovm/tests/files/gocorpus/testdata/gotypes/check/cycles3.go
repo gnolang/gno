@@ -59,4 +59,4 @@ type (
 
 var u U
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

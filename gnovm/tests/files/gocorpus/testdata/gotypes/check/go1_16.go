@@ -14,4 +14,4 @@ type Array [8]byte
 var s Slice
 var p = (*Array)(s /* ERROR "requires go1.17 or later" */ )
 
-// Unsupported: gc-lang-pin: gc -lang version-gating test below Gno's go1.17 pin (go1.16)
+// Verdict: Unsupported gc-lang-pin: gc -lang version-gating test below Gno's go1.17 pin (go1.16)

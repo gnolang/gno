@@ -37,11 +37,11 @@ func main() {
 // GoTypeCheckError:
 // line 10
 
-// UncaughtError:
-// line 16: uncaught; gc expects: methods on non-local type
-// line 25: uncaught; gc expects: cannot use .* as value
-// line 26: uncaught; gc expects: cannot use .* as value
-// line 28: uncaught; gc expects: cannot refer to blank field|invalid use of|t._ undefined
-// line 31: uncaught; gc expects: cannot be compared|non-comparable|cannot compare v1 == v2
+// ParseBlocked:
+// line 16: gc expects: methods on non-local type
+// line 25: gc expects: cannot use .* as value
+// line 26: gc expects: cannot use .* as value
+// line 28: gc expects: cannot refer to blank field|invalid use of|t._ undefined
+// line 31: gc expects: cannot be compared|non-comparable|cannot compare v1 == v2
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 5 uncaught marker(s)
+// Verdict: Clean errorcheck

@@ -15,4 +15,4 @@ type _[P /* ERROR "generic type alias requires go1.23 or later" */ any] = int
 // GoTypesOnly:
 // line 10: gc expects: generic type alias requires go1.23 or later
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

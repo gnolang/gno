@@ -21,4 +21,4 @@ type FooerImpl[F Fooer] struct {
 
 func (fi *FooerImpl[F]) Foo() {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

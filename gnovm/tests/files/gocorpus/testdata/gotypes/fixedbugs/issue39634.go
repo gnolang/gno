@@ -93,4 +93,4 @@ func F26[Z any]() T26 { return F26[] /* ERROR "operand" */ }
 func e27[T any]() interface{ x27 /* ERROR "not a type" */ } { panic(0) }
 func x27() { e27 /* ERROR "cannot infer T" */ () }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

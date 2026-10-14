@@ -19,4 +19,4 @@ func _[P T](p *P) {
 	p.m /* ERROR "type *P is pointer to type parameter, not type parameter" */ ()
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

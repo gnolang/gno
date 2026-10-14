@@ -25,4 +25,4 @@ func _() {
 	_ = Make[N]()
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

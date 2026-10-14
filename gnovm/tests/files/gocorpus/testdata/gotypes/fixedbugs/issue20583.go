@@ -13,4 +13,4 @@ const (
 	_ = x*x*x*x*x*x* /* ERROR "not representable" */ x
 )
 
-// Unsupported: imaginary-literal: imaginary literals not supported in Gno
+// Verdict: Unsupported imaginary-literal: imaginary literals not supported in Gno

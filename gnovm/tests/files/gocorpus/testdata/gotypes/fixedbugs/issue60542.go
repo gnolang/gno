@@ -11,4 +11,4 @@ func Clip[S ~[]E, E any](s S) S {
 var versions func()
 var _ = Clip /* ERROR "in call to Clip, S (type func()) does not satisfy ~[]E" */ (versions)
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

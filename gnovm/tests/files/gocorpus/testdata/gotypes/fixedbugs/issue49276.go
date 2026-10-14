@@ -45,4 +45,4 @@ type a struct {
 	_ [42 - unsafe.Sizeof(a /* ERROR "invalid recursive type" */ {})]byte
 }
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

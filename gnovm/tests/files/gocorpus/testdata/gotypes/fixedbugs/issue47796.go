@@ -32,4 +32,4 @@ type Eq /* ERROR "invalid recursive type" */ [a Eq[a]] interface {
 	Equal(that a) bool
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -27,4 +27,4 @@ func _[P comparable, Q ~int, R any]() {
 	_ = f2[R /* ERROR "R does not satisfy comparable" */]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

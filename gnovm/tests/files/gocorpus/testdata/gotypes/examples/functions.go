@@ -218,4 +218,4 @@ func _() {
 
 func _ /* ERROR "generic function is missing function body" */ [P any]()
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

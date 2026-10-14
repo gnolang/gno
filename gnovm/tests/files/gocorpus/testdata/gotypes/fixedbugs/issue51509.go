@@ -12,4 +12,4 @@ type T /* ERROR "invalid recursive type" */ T.x
 // GoTypeCheckError:
 // line 7
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

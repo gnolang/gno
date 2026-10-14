@@ -32,11 +32,10 @@ func _(s chan int) {
 // GoTypeCheckError:
 // line 14
 
-// UncaughtError:
-// line 15: uncaught; gc expects: range clause permits at most two iteration variables|at most 2 expressions
-// line 24: uncaught; gc expects: range over .* permits only one iteration variable
-// line 25: uncaught; gc expects: range over .* permits only one iteration variable|at most 2 expressions
-// line 26: uncaught; gc expects: range over .* permits only one iteration variable|at most 2 expressions
+// ParseBlocked:
+// line 15: gc expects: range clause permits at most two iteration variables|at most 2 expressions
+// line 24: gc expects: range over .* permits only one iteration variable
+// line 25: gc expects: range over .* permits only one iteration variable|at most 2 expressions
+// line 26: gc expects: range over .* permits only one iteration variable|at most 2 expressions
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 4 uncaught marker(s)
+// Verdict: Clean errorcheck

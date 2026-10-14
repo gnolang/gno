@@ -20,8 +20,11 @@ type T ...int;		// ERROR "[.][.][.]|syntax|type"
 // GoTypeCheckError:
 // line 11
 
-// UncaughtError:
-// line 13: uncaught; gc expects: [.][.][.]|syntax|type
-// line 15: uncaught; gc expects: [.][.][.]|syntax|type
+// ParseBlocked:
+// line 13: gc expects: [.][.][.]|syntax|type
+// line 15: gc expects: [.][.][.]|syntax|type
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// GnoWordingDiffers:
+// line 11: gc expects: [.][.][.]; gno: expected type, found ')'
+
+// Verdict: Clean errorcheck

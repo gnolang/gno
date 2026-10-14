@@ -10,4 +10,4 @@ func f[P /* ERROR "requires go1.18" */ interface{}](P) {}
 
 var v func(int) = f /* ERROR "requires go1.18" */
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

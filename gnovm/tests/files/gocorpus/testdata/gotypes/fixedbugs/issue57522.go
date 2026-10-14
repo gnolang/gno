@@ -22,4 +22,4 @@ func (fs *S2[T]) M(x V2.M /* ERROR "V2.M is not a type" */ ) {}
 // type X[T any] int
 // func (X[T]) M(x [X[int].M]int) {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

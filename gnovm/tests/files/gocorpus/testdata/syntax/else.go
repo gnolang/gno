@@ -17,4 +17,7 @@ func main() {
 // GoTypeCheckError:
 // line 11
 
+// GnoWordingDiffers:
+// line 11: gc expects: else must be followed by if or statement block|expected .if. or .{.; gno: expected if statement or block, found ';'
+
 // Verdict: Clean errorcheck

@@ -17,4 +17,4 @@ type Box[T any] struct{}
 type Step = Box[StepBox]
 type StepBox Box[Step]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

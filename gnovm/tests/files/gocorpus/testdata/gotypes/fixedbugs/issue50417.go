@@ -67,4 +67,4 @@ func f3[P interface{ PSfm }](p P) {
 
 var _ = f3[PSfm]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

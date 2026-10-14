@@ -11,4 +11,4 @@ func _[T any](x T) {
 	_ = unsafe.Sizeof(x)
 }
 
-// Unsupported: unsafe: unknown import path unsafe
+// Verdict: Unsupported unsafe: unknown import path unsafe

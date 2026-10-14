@@ -14,4 +14,4 @@ func (v *Bar[R]) M() {
 	_ = (*Foo[R])(v)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

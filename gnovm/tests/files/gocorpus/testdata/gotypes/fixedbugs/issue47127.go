@@ -36,4 +36,4 @@ func _[P any, Q interface{ ~P /* ERROR "type in term ~P cannot be a type paramet
 func _[P any, Q interface{ int | P /* ERROR "term cannot be a type parameter" */ }]() {}
 func _[P any, Q interface{ int | ~P /* ERROR "type in term ~P cannot be a type parameter" */ }]() {}
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

@@ -22,4 +22,7 @@ func main() {
 // GoTypeCheckError:
 // line 13
 
+// GnoWordingDiffers:
+// line 13: gc expects: outside type switch; gno: should not happen
+
 // Verdict: Clean errorcheck

@@ -32,4 +32,4 @@ const _ = (1 << 1.2 /* ERROR "truncated to uint" */)
 var y float64
 var _ = (1 << y /* ERROR "must be integer" */)
 
-// Unsupported: gc-lang-pin: gc -lang version-gating test below Gno's go1.17 pin (go1.12)
+// Verdict: Unsupported gc-lang-pin: gc -lang version-gating test below Gno's go1.17 pin (go1.12)

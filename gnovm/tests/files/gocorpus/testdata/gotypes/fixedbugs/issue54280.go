@@ -12,4 +12,4 @@ const C = 912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_91
 // GoTypeCheckError:
 // line 7
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

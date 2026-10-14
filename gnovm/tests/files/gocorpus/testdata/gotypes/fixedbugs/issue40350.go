@@ -15,4 +15,4 @@ func _() {
 	_ = f[int /* ERROR "int does not satisfy number (number mentions int, but int is not in the type set of number)" */]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

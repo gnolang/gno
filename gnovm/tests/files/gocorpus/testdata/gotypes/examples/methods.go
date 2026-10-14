@@ -111,4 +111,4 @@ func (T1[A]) _() {}
 // 
 // func (T3c /* ERROR "invalid receiver" */ [_]) m() {}
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -81,4 +81,4 @@ type Complex interface {
 // 	return T(AbsDifference(ComplexAbs[T](a), ComplexAbs[T](b)))
 // }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

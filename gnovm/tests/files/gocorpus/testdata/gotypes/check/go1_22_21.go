@@ -21,4 +21,7 @@ func f() {
 // GoTypeCheckError:
 // line 14
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 14: gc expects: requires go1.22 or later; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+
+// Verdict: Clean errorcheck

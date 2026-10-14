@@ -209,4 +209,4 @@ func (BlankT) _(int) {}
 func (BlankT) _() int { return 0 }
 func (BlankT) _(int) int { return 0}
 
-// Unsupported: unsafe: unknown import path unsafe
+// Verdict: Unsupported unsafe: unknown import path unsafe

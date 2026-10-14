@@ -378,87 +378,86 @@ func issue42989(s uint) {
 // GoTypeCheckError:
 // line 263
 
-// UncaughtError:
-// line 28: uncaught; gc expects: cannot convert
-// line 34: uncaught; gc expects: undefined
-// line 40: uncaught; gc expects: undefined
-// line 46: uncaught; gc expects: undefined
-// line 62: uncaught; gc expects: cannot use .* in argument
-// line 63: uncaught; gc expects: cannot use ...
-// line 64: uncaught; gc expects: multiple-value f1
-// line 65: uncaught; gc expects: multiple-value f2
-// line 66: uncaught; gc expects: multiple-value f1
-// line 67: uncaught; gc expects: multiple-value f2
-// line 73: uncaught; gc expects: cannot use .* in argument
-// line 74: uncaught; gc expects: cannot use ...
-// line 75: uncaught; gc expects: multiple-value f1
-// line 76: uncaught; gc expects: multiple-value f2
-// line 77: uncaught; gc expects: multiple-value f1
-// line 78: uncaught; gc expects: multiple-value f2
-// line 84: uncaught; gc expects: non-interface type int
-// line 88: uncaught; gc expects: non-interface type T
-// line 91: uncaught; gc expects: undefined: nosuchtype
-// line 94: uncaught; gc expects: undefined: fmt.Nosuchtype
-// line 97: uncaught; gc expects: undefined: nosuchpkg
-// line 100: uncaught; gc expects: I.m is not a type
-// line 107: uncaught; gc expects: cycle | b1 is not a type
-// line 108: uncaught; gc expects: cycle | assignment mismatch | assignment mismatch
-// line 109: uncaught; gc expects: cycle | assignment mismatch | assignment mismatch
-// line 136: uncaught; gc expects: cannot use T1{} .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\)
-// line 137: uncaught; gc expects: impossible type assertion: x.(T1)
+// ParseBlocked:
+// line 28: gc expects: cannot convert
+// line 34: gc expects: undefined
+// line 40: gc expects: undefined
+// line 46: gc expects: undefined
+// line 62: gc expects: cannot use .* in argument
+// line 63: gc expects: cannot use ...
+// line 64: gc expects: multiple-value f1
+// line 65: gc expects: multiple-value f2
+// line 66: gc expects: multiple-value f1
+// line 67: gc expects: multiple-value f2
+// line 73: gc expects: cannot use .* in argument
+// line 74: gc expects: cannot use ...
+// line 75: gc expects: multiple-value f1
+// line 76: gc expects: multiple-value f2
+// line 77: gc expects: multiple-value f1
+// line 78: gc expects: multiple-value f2
+// line 84: gc expects: non-interface type int
+// line 88: gc expects: non-interface type T
+// line 91: gc expects: undefined: nosuchtype
+// line 94: gc expects: undefined: fmt.Nosuchtype
+// line 97: gc expects: undefined: nosuchpkg
+// line 100: gc expects: I.m is not a type
+// line 107: gc expects: cycle | b1 is not a type
+// line 108: gc expects: cycle | assignment mismatch | assignment mismatch
+// line 109: gc expects: cycle | assignment mismatch | assignment mismatch
+// line 136: gc expects: cannot use T1{} .* as I1 value in assignment: T1 does not implement I1 \(method foo has pointer receiver\)
+// line 137: gc expects: impossible type assertion: x.(T1)
 // 	T1 does not implement I1 (method foo has pointer receiver)
-// line 139: uncaught; gc expects: cannot call pointer method foo on T1
-// line 140: uncaught; gc expects: x.Foo undefined (type I1 has no field or method Foo, but does have method foo)
-// line 142: uncaught; gc expects: impossible type assertion: i2.(*T1)
+// line 139: gc expects: cannot call pointer method foo on T1
+// line 140: gc expects: x.Foo undefined (type I1 has no field or method Foo, but does have method foo)
+// line 142: gc expects: impossible type assertion: i2.(*T1)
 // 	*T1 does not implement I2 (wrong type for method foo)
 // 		have foo()
 // 		want foo(int)
-// line 144: uncaught; gc expects: cannot use i0 .* as I1 value in assignment: I0 does not implement I1 \(missing method foo\)
-// line 145: uncaught; gc expects: .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\)
-// line 146: uncaught; gc expects: .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
-// line 147: uncaught; gc expects: .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
-// line 148: uncaught; gc expects: .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)
-// line 149: uncaught; gc expects: .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)
-// line 151: uncaught; gc expects: cannot use i0 .* as I1 value in return statement: I0 does not implement I1 \(missing method foo\)
-// line 152: uncaught; gc expects: .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\)
-// line 153: uncaught; gc expects: .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
-// line 154: uncaught; gc expects: .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
-// line 155: uncaught; gc expects: .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)
-// line 156: uncaught; gc expects: .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)
-// line 161: uncaught; gc expects: missing method foo | wrong type for method foo
-// line 163: uncaught; gc expects: cannot use i0 .* as I1 value in array or slice literal: I0 does not implement I1 \(missing method foo\)
-// line 164: uncaught; gc expects: cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
-// line 165: uncaught; gc expects: missing method foo
-// line 166: uncaught; gc expects: wrong type for method foo
-// line 167: uncaught; gc expects: missing method foo
-// line 168: uncaught; gc expects: wrong type for method foo
-// line 170: uncaught; gc expects: missing method foo
-// line 171: uncaught; gc expects: wrong type for method foo
-// line 202: uncaught; gc expects: cannot use f1
-// line 210: uncaught; gc expects: undefined
-// line 211: uncaught; gc expects: undefined
-// line 212: uncaught; gc expects: undefined
-// line 213: uncaught; gc expects: undefined
-// line 214: uncaught; gc expects: undefined
-// line 243: uncaught; gc expects: undefined | undefined
-// line 264: uncaught; gc expects: missing condition
-// line 266: uncaught; gc expects: missing condition
-// line 280: uncaught; gc expects: invalid recursive type
-// line 285: uncaught; gc expects: non-interface type (struct{}|notE)
-// line 316: uncaught; gc expects: undefined
-// line 320: uncaught; gc expects: invalid use of [...] array
-// line 326: uncaught; gc expects: can only use ... with final parameter
-// line 327: uncaught; gc expects: can only use ... with final parameter
-// line 328: uncaught; gc expects: can only use ... with final parameter
-// line 329: uncaught; gc expects: can only use ... with final parameter | can only use ... with final parameter
-// line 330: uncaught; gc expects: invalid use of '...'
-// line 331: uncaught; gc expects: can only use ... with final parameter
-// line 337: uncaught; gc expects: f.foo undefined (type *syntax.Prog has no field or method foo)
-// line 350: uncaught; gc expects: ambiguous selector x.f
-// line 354: uncaught; gc expects: T.x undefined (type T has no method x)
-// line 359: uncaught; gc expects: cannot use 0 (untyped int constant) as T
-// line 362: uncaught; gc expects: cannot use 0 (untyped int constant) as *syntax.Prog
-// line 366: uncaught; gc expects: cannot use .* \(value of struct type .html/template.\.Template\) as .text/template.\.Template
+// line 144: gc expects: cannot use i0 .* as I1 value in assignment: I0 does not implement I1 \(missing method foo\)
+// line 145: gc expects: .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\)
+// line 146: gc expects: .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
+// line 147: gc expects: .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
+// line 148: gc expects: .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)
+// line 149: gc expects: .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)
+// line 151: gc expects: cannot use i0 .* as I1 value in return statement: I0 does not implement I1 \(missing method foo\)
+// line 152: gc expects: .* t0 .* as I1 .*: \*T0 does not implement I1 \(missing method foo\)
+// line 153: gc expects: .* i2 .* as I1 .*: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
+// line 154: gc expects: .* t2 .* as I1 .*: \*T2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
+// line 155: gc expects: .* i1 .* as I2 .*: I1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)
+// line 156: gc expects: .* t1 .* as I2 .*: \*T1 does not implement I2 \(wrong type for method foo\)\n\t\thave foo\(\)\n\t\twant foo\(int\)
+// line 161: gc expects: missing method foo | wrong type for method foo
+// line 163: gc expects: cannot use i0 .* as I1 value in array or slice literal: I0 does not implement I1 \(missing method foo\)
+// line 164: gc expects: cannot use i2 .* as I1 value in array or slice literal: I2 does not implement I1 \(wrong type for method foo\)\n\t\thave foo\(int\)\n\t\twant foo\(\)
+// line 165: gc expects: missing method foo
+// line 166: gc expects: wrong type for method foo
+// line 167: gc expects: missing method foo
+// line 168: gc expects: wrong type for method foo
+// line 170: gc expects: missing method foo
+// line 171: gc expects: wrong type for method foo
+// line 202: gc expects: cannot use f1
+// line 210: gc expects: undefined
+// line 211: gc expects: undefined
+// line 212: gc expects: undefined
+// line 213: gc expects: undefined
+// line 214: gc expects: undefined
+// line 243: gc expects: undefined | undefined
+// line 264: gc expects: missing condition
+// line 266: gc expects: missing condition
+// line 280: gc expects: invalid recursive type
+// line 285: gc expects: non-interface type (struct{}|notE)
+// line 316: gc expects: undefined
+// line 320: gc expects: invalid use of [...] array
+// line 326: gc expects: can only use ... with final parameter
+// line 327: gc expects: can only use ... with final parameter
+// line 328: gc expects: can only use ... with final parameter
+// line 329: gc expects: can only use ... with final parameter | can only use ... with final parameter
+// line 330: gc expects: invalid use of '...'
+// line 331: gc expects: can only use ... with final parameter
+// line 337: gc expects: f.foo undefined (type *syntax.Prog has no field or method foo)
+// line 350: gc expects: ambiguous selector x.f
+// line 354: gc expects: T.x undefined (type T has no method x)
+// line 359: gc expects: cannot use 0 (untyped int constant) as T
+// line 362: gc expects: cannot use 0 (untyped int constant) as *syntax.Prog
+// line 366: gc expects: cannot use .* \(value of struct type .html/template.\.Template\) as .text/template.\.Template
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 76 uncaught marker(s)
+// Verdict: Clean errorcheck

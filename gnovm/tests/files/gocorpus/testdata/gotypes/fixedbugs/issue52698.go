@@ -61,4 +61,4 @@ type T15 struct {
 	Field0 T13[string]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

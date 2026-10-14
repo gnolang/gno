@@ -25,4 +25,4 @@ func _() {
         _ = Append(x, new(int))
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

@@ -97,4 +97,4 @@ var _ = cast4(x4.m)
 
 type cast4 func()
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

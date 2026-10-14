@@ -23,4 +23,4 @@ type (
 	M1[P any] *N1[P]
 )
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

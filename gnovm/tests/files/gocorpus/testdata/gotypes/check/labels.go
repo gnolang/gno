@@ -250,7 +250,7 @@ _:
 // line 197
 // line 205
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 13: gc expects: label L1 declared and not used
 // line 16: gc expects: label L2 declared and not used
 // line 19: gc expects: label L3 declared and not used
@@ -280,4 +280,12 @@ _:
 // line 176: gc expects: invalid continue label L1
 // line 177: gc expects: invalid continue label L2
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 29: gc expects: label L6 already declared; gno: L6 redeclared in this block
+// 	previous declaration at labels.go:28:1
+// line 190: gc expects: label _ not declared; gno: label _ undefined
+// line 196: gc expects: invalid break label _; gno: label _ undefined
+// line 197: gc expects: invalid continue label _; gno: label _ undefined
+// line 205: gc expects: invalid break label _; gno: label _ undefined
+
+// Verdict: Clean errorcheck

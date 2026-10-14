@@ -27,4 +27,4 @@ func _(x any) {
 // line 10
 // line 17
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

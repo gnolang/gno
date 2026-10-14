@@ -142,7 +142,7 @@ L5:
 // line 111
 // line 113
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 18: gc expects: continue is not in a loop$|continue statement not within for
 // line 22: gc expects: continue is not in a loop$|continue statement not within for
 // line 46: gc expects: invalid continue label .*L2|continue is not in a loop$
@@ -156,5 +156,9 @@ L5:
 // line 99: gc expects: invalid continue label .*L1
 // line 106: gc expects: continue is not in a loop$|continue statement not within for
 // line 111: gc expects: break is not in a loop, switch, or select|break statement not within for or switch or select
+
+// GnoWordingDiffers:
+// line 108: gc expects: continue label not defined: on|invalid continue label .*on; gno: label on undefined
+// line 113: gc expects: break label not defined: dance|invalid break label .*dance; gno: label dance undefined
 
 // Verdict: Clean errorcheck

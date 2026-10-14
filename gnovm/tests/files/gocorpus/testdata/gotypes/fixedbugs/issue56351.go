@@ -10,4 +10,4 @@ func _(s []int) {
 	clear /* ERROR "clear requires go1.21 or later" */ (s)
 }
 
-// Unsupported: clear-builtin: clear builtin not supported in Gno
+// Verdict: Unsupported clear-builtin: clear builtin not supported in Gno

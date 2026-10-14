@@ -31,4 +31,7 @@ func main() {
 // GnoOverStrictError:
 // line 21: missing field Num in main.S
 
+// GnoWordingDiffers:
+// line 15: gc expects: undefined|expected package; gno: 2: name foo not defined in fileset with files [bug365.go]
+
 // Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)

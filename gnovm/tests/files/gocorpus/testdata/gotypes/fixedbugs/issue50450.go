@@ -10,4 +10,4 @@ func f[P S]() {}
 
 var _ = f[S]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

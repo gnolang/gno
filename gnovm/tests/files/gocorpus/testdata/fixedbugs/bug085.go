@@ -32,4 +32,7 @@ local scopes (function scopes)
 // GoTypeCheckError:
 // line 12
 
+// GnoWordingDiffers:
+// line 12: gc expects: undefined; gno: name P not declared
+
 // Verdict: Clean errorcheck

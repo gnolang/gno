@@ -28,4 +28,4 @@ func _[P interface{ *int | intPtr } ](p P) {
         var _ int = *p
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -36,4 +36,4 @@ func f[B A[X], X comparable]() B {
 	return nil
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -24,8 +24,8 @@ x,y := 1, 2	// ERROR "non-declaration statement outside function body|expected d
 // GoTypeCheckError:
 // line 9
 
-// UncaughtError:
-// line 14: uncaught; gc expects: non-declaration statement outside function body|expected declaration
-// line 19: uncaught; gc expects: non-declaration statement outside function body|expected declaration
+// ParseBlocked:
+// line 14: gc expects: non-declaration statement outside function body|expected declaration
+// line 19: gc expects: non-declaration statement outside function body|expected declaration
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: Clean errorcheck

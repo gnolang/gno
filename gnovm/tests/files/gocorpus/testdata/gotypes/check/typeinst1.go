@@ -281,4 +281,4 @@ func _[T none]() {
 	_ = hh[T]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

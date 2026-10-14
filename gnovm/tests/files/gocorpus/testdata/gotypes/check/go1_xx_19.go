@@ -20,5 +20,4 @@ var p = (Array)(s /* ok because Go 1.X prior to Go 1.21 ignored the //go:build g
 // GoTypeCheckError:
 // line 15
 
-// KnownDivergence:
-// compile-error-wording: both Gno and Go reject; wording/stage differ
+// Verdict: Clean compile

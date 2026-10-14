@@ -17,4 +17,7 @@ import (
 // GoTypeCheckError:
 // line 10
 
+// GnoWordingDiffers:
+// line 10: gc expects: unexpected comma; gno: expected ';', found ','
+
 // Verdict: Clean errorcheck

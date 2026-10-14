@@ -16,4 +16,7 @@ func f() {
 // GoTypeCheckError:
 // line 10
 
+// GnoWordingDiffers:
+// line 10: gc expects: unexpected literal \.3, expected name or \(; gno: expected selector or type assertion, found .3
+
 // Verdict: Clean errorcheck

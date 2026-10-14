@@ -174,4 +174,4 @@ func _() {
 	type T3 /* ERROR "invalid recursive type" */ = chan [unsafe.Sizeof(func(ch T3){ _ = <-ch })]byte
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

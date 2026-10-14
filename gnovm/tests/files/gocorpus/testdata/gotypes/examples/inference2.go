@@ -103,4 +103,4 @@ func _() {
 	h(p[int], p[string])
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

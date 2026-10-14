@@ -15,4 +15,7 @@ func main() {
 // GoTypeCheckError:
 // line 10
 
+// GnoWordingDiffers:
+// line 10: gc expects: unexpected { at end of statement|expected ';' or '}' or newline; gno: expected ';', found '{'
+
 // Verdict: Clean errorcheck

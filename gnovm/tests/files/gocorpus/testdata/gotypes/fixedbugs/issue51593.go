@@ -12,4 +12,4 @@ func _() {
 	_ = f[T]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

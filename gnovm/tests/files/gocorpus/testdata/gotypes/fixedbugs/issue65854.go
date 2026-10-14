@@ -12,4 +12,4 @@ type T[P any] *A
 
 var _ T[int]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -13,4 +13,4 @@ func shl[I Integer](n int) I {
 	return 1 << n
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

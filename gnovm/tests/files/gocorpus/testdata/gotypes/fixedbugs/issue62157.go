@@ -127,4 +127,4 @@ func _() {
 	Assert2(ch, Produces(""))
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

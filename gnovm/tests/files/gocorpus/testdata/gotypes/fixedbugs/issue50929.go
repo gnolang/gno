@@ -67,4 +67,4 @@ func MMD[Rc RC /* ERROR "not enough type arguments for type RC: have 1, want 2" 
 	return M /* ERROR "not enough type arguments for type M: have 2, want 3" */ [Rc, RG]{}
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

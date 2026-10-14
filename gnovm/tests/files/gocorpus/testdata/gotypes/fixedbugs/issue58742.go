@@ -30,4 +30,18 @@ func _() UndefinedType /* ERROR "undefined: UndefinedType" */ {
 // line 16
 // line 17
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 7: gc expects: undefined: UndefinedType; gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 8: gc expects: not enough return values
+// 	have (number)
+// 	want (int, unknown type, string); gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 11: gc expects: undefined: UndefinedType; gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 12: gc expects: too many return values
+// 	have (number, number, number)
+// 	want (int, unknown type); gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 16: gc expects: undefined: UndefinedType; gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 17: gc expects: not enough return values
+// 	have ()
+// 	want (unknown type); gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+
+// Verdict: Clean errorcheck

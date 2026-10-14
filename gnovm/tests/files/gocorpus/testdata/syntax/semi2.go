@@ -17,4 +17,7 @@ func main() {
 // GoTypeCheckError:
 // line 10
 
+// GnoWordingDiffers:
+// line 10: gc expects: missing .*{.* after switch clause|undefined; gno: expected '{', found newline
+
 // Verdict: Clean errorcheck

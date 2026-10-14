@@ -26,4 +26,4 @@ func (c *concreteF[RCT, RG]) Fn() Fn /* ERROR "not enough type arguments for typ
 	return c.makeFn()
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

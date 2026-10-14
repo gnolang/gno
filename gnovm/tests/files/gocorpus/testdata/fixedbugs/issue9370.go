@@ -252,4 +252,59 @@ var (
 // line 123
 // line 124
 
+// GnoWordingDiffers:
+// line 36: gc expects: invalid operation.*not defined|invalid comparison|cannot compare; gno: operator >= not defined on: InterfaceKind
+// line 39: gc expects: invalid operation.*not defined|invalid comparison|cannot compare; gno: operator >= not defined on: InterfaceKind
+// line 43: gc expects: invalid operation.*not defined|invalid comparison|cannot compare; gno: operator >= not defined on: InterfaceKind
+// line 46: gc expects: invalid operation.*not defined|invalid comparison|cannot compare; gno: operator >= not defined on: InterfaceKind
+// line 50: gc expects: invalid operation.*not defined|invalid comparison|cannot compare; gno: operator >= not defined on: InterfaceKind
+// line 53: gc expects: invalid operation.*not defined|invalid comparison|cannot compare; gno: operator >= not defined on: InterfaceKind
+// line 58: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator >= not defined on: InterfaceKind
+// line 61: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator >= not defined on: InterfaceKind
+// line 65: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
+// line 68: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
+// line 72: gc expects: invalid operation.*mismatched types|incompatible types|cannot convert; gno: operator >= not defined on: InterfaceKind
+// line 75: gc expects: invalid operation.*mismatched types|incompatible types|cannot convert; gno: operator >= not defined on: InterfaceKind
+// line 77: gc expects: invalid operation.*not defined|invalid operation; gno: func() can only be compared to nil
+// line 78: gc expects: invalid operation.*not defined|invalid operation; gno: func() can only be compared to nil
+// line 79: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
+// line 80: gc expects: invalid operation.*not defined|invalid operation; gno: func() can only be compared to nil
+// line 81: gc expects: invalid operation.*not defined|invalid operation; gno: func() can only be compared to nil
+// line 82: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
+// line 84: gc expects: invalid operation.*mismatched types|incompatible types; gno: func() can only be compared to nil
+// line 85: gc expects: invalid operation.*mismatched types|incompatible types; gno: func() can only be compared to nil
+// line 86: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator >= not defined on: InterfaceKind
+// line 87: gc expects: invalid operation.*mismatched types|incompatible types; gno: func() can only be compared to nil
+// line 88: gc expects: invalid operation.*mismatched types|incompatible types; gno: func() can only be compared to nil
+// line 89: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator >= not defined on: InterfaceKind
+// line 91: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
+// line 92: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
+// line 93: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
+// line 94: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
+// line 95: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
+// line 96: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
+// line 98: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
+// line 99: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
+// line 100: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
+// line 101: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
+// line 102: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
+// line 103: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
+// line 105: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 106: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 107: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 108: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 109: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 110: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 112: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 113: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 114: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 115: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 116: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 117: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 119: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 121: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator ^ not defined on: InterfaceKind
+// line 122: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator ^ not defined on: InterfaceKind
+// line 123: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator ^ not defined on: InterfaceKind
+// line 124: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator ^ not defined on: InterfaceKind
+
 // Verdict: Clean errorcheck

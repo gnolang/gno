@@ -92,4 +92,4 @@ func issue6326() {
 	_ = uintptr(x) // see issue 6326
 }
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

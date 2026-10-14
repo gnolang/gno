@@ -572,192 +572,191 @@ func issue6344() {
 // GoTypeCheckError:
 // line 22
 
-// UncaughtError:
-// line 10: uncaught; gc expects: cannot index
-// line 11: uncaught; gc expects: cannot index
-// line 12: uncaught; gc expects: cannot slice
-// line 15: uncaught; gc expects: cannot convert
-// line 16: uncaught; gc expects: cannot convert
-// line 17: uncaught; gc expects: truncated
-// line 19: uncaught; gc expects: negative
-// line 20: uncaught; gc expects: negative
-// line 21: uncaught; gc expects: negative
-// line 31: uncaught; gc expects: cannot use .* in assignment
-// line 35: uncaught; gc expects: index .* out of bounds
-// line 36: uncaught; gc expects: overflows
-// line 37: uncaught; gc expects: constant shift overflow
-// line 41: uncaught; gc expects: index .* out of bounds
-// line 42: uncaught; gc expects: index .* out of bounds
-// line 43: uncaught; gc expects: overflows
-// line 45: uncaught; gc expects: index .* out of bounds
-// line 46: uncaught; gc expects: index .* out of bounds
-// line 47: uncaught; gc expects: invalid slice indices
-// line 48: uncaught; gc expects: invalid slice indices
-// line 49: uncaught; gc expects: invalid slice indices
-// line 50: uncaught; gc expects: cannot take address
-// line 54: uncaught; gc expects: index .* out of bounds
-// line 55: uncaught; gc expects: overflows
-// line 59: uncaught; gc expects: index .* out of bounds
-// line 60: uncaught; gc expects: index .* out of bounds
-// line 61: uncaught; gc expects: overflows
-// line 63: uncaught; gc expects: index .* out of bounds
-// line 64: uncaught; gc expects: index .* out of bounds
-// line 65: uncaught; gc expects: invalid slice indices
-// line 66: uncaught; gc expects: invalid slice indices
-// line 67: uncaught; gc expects: invalid slice indices
-// line 68: uncaught; gc expects: cannot take address
-// line 71: uncaught; gc expects: index .* out of bounds
-// line 77: uncaught; gc expects: index .* out of bounds
-// line 80: uncaught; gc expects: negative
-// line 81: uncaught; gc expects: negative
-// line 82: uncaught; gc expects: negative
-// line 85: uncaught; gc expects: invalid slice indices
-// line 87: uncaught; gc expects: overflows
-// line 88: uncaught; gc expects: overflows
-// line 89: uncaught; gc expects: overflows | overflows
-// line 92: uncaught; gc expects: invalid slice indices
-// line 93: uncaught; gc expects: invalid slice indices
-// line 94: uncaught; gc expects: invalid slice indices
-// line 95: uncaught; gc expects: cannot take address
-// line 98: uncaught; gc expects: cannot use .* in map index
-// line 99: uncaught; gc expects: cannot slice
-// line 106: uncaught; gc expects: mismatched types int and untyped string | cannot use 0
-// line 109: uncaught; gc expects: negative
-// line 110: uncaught; gc expects: negative
-// line 111: uncaught; gc expects: negative
-// line 112: uncaught; gc expects: 3-index slice of string
-// line 113: uncaught; gc expects: 3-index slice of string
-// line 118: uncaught; gc expects: cannot use .* in assignment
-// line 121: uncaught; gc expects: index .* out of bounds
-// line 124: uncaught; gc expects: negative
-// line 125: uncaught; gc expects: negative
-// line 126: uncaught; gc expects: negative
-// line 131: uncaught; gc expects: cannot use .* in assignment
-// line 132: uncaught; gc expects: index .* out of bounds
-// line 133: uncaught; gc expects: index .* out of bounds
-// line 145: uncaught; gc expects: cannot use .* in assignment
-// line 146: uncaught; gc expects: cannot use .* in assignment
-// line 158: uncaught; gc expects: no field or method
-// line 159: uncaught; gc expects: has no method
-// line 160: uncaught; gc expects: invalid method expression T.m (needs pointer receiver (*T).m)
-// line 163: uncaught; gc expects: invalid method expression T.m (needs pointer receiver (*T).m)
-// line 167: uncaught; gc expects: has no method
-// line 168: uncaught; gc expects: has no method
-// line 185: uncaught; gc expects: mixture of .* elements
-// line 186: uncaught; gc expects: unknown field
-// line 187: uncaught; gc expects: invalid field name
-// line 188: uncaught; gc expects: duplicate field
-// line 189: uncaught; gc expects: cannot use .* in struct literal
-// line 190: uncaught; gc expects: unknown field
-// line 191: uncaught; gc expects: missing type
-// line 193: uncaught; gc expects: invalid field name
-// line 197: uncaught; gc expects: mixture
-// line 198: uncaught; gc expects: too few values
-// line 199: uncaught; gc expects: too many values
-// line 200: uncaught; gc expects: cannot use .* in struct literal | cannot use .*\(truncated\)
-// line 206: uncaught; gc expects: invalid composite literal type
-// line 210: uncaught; gc expects: unknown field
-// line 212: uncaught; gc expects: implicit assignment to unexported field wall in struct literal
-// line 213: uncaught; gc expects: implicit assignment
-// line 214: uncaught; gc expects: implicit assignment
-// line 221: uncaught; gc expects: index .* out of bounds
-// line 222: uncaught; gc expects: index .* out of bounds
-// line 228: uncaught; gc expects: index .* out of bounds
-// line 229: uncaught; gc expects: negative
-// line 231: uncaught; gc expects: index .* out of bounds
-// line 232: uncaught; gc expects: duplicate index
-// line 234: uncaught; gc expects: duplicate index
-// line 235: uncaught; gc expects: index .* out of bounds | index .* out of bounds
-// line 236: uncaught; gc expects: overflows | duplicate index
-// line 237: uncaught; gc expects: overflows
-// line 239: uncaught; gc expects: truncated
-// line 240: uncaught; gc expects: cannot use .* in array or slice literal
-// line 246: uncaught; gc expects: index i must be integer constant
-// line 247: uncaught; gc expects: truncated
-// line 248: uncaught; gc expects: cannot convert
-// line 258: uncaught; gc expects: cannot use .* in assignment
-// line 261: uncaught; gc expects: negative
-// line 264: uncaught; gc expects: duplicate index
-// line 295: uncaught; gc expects: negative
-// line 298: uncaught; gc expects: duplicate index
-// line 300: uncaught; gc expects: duplicate index
-// line 301: uncaught; gc expects: duplicate index
-// line 302: uncaught; gc expects: overflows | duplicate index
-// line 303: uncaught; gc expects: overflows
-// line 305: uncaught; gc expects: truncated
-// line 306: uncaught; gc expects: cannot use .* in array or slice literal
-// line 312: uncaught; gc expects: undefined
-// line 318: uncaught; gc expects: index i must be integer constant
-// line 319: uncaught; gc expects: truncated
-// line 320: uncaught; gc expects: cannot convert
-// line 358: uncaught; gc expects: missing key
-// line 359: uncaught; gc expects: cannot use .* in map literal
-// line 360: uncaught; gc expects: cannot use .* in map literal
-// line 361: uncaught; gc expects: duplicate key
-// line 363: uncaught; gc expects: duplicate key
-// line 365: uncaught; gc expects: duplicate key
-// line 369: uncaught; gc expects: duplicate key
-// line 371: uncaught; gc expects: duplicate key
-// line 372: uncaught; gc expects: duplicate key
-// line 373: uncaught; gc expects: duplicate key
-// line 374: uncaught; gc expects: duplicate key
-// line 375: uncaught; gc expects: duplicate key
-// line 382: uncaught; gc expects: duplicate key
-// line 388: uncaught; gc expects: undefined
-// line 447: uncaught; gc expects: not an interface
-// line 460: uncaught; gc expects: use of .* outside type switch
-// line 461: uncaught; gc expects: m has pointer receiver
-// line 463: uncaught; gc expects: missing method m
-// line 464: uncaught; gc expects: wrong type for method m
-// line 490: uncaught; gc expects: used as value
-// line 491: uncaught; gc expects: too many arguments
-// line 496: uncaught; gc expects: not enough arguments in call to f1
+// ParseBlocked:
+// line 10: gc expects: cannot index
+// line 11: gc expects: cannot index
+// line 12: gc expects: cannot slice
+// line 15: gc expects: cannot convert
+// line 16: gc expects: cannot convert
+// line 17: gc expects: truncated
+// line 19: gc expects: negative
+// line 20: gc expects: negative
+// line 21: gc expects: negative
+// line 31: gc expects: cannot use .* in assignment
+// line 35: gc expects: index .* out of bounds
+// line 36: gc expects: overflows
+// line 37: gc expects: constant shift overflow
+// line 41: gc expects: index .* out of bounds
+// line 42: gc expects: index .* out of bounds
+// line 43: gc expects: overflows
+// line 45: gc expects: index .* out of bounds
+// line 46: gc expects: index .* out of bounds
+// line 47: gc expects: invalid slice indices
+// line 48: gc expects: invalid slice indices
+// line 49: gc expects: invalid slice indices
+// line 50: gc expects: cannot take address
+// line 54: gc expects: index .* out of bounds
+// line 55: gc expects: overflows
+// line 59: gc expects: index .* out of bounds
+// line 60: gc expects: index .* out of bounds
+// line 61: gc expects: overflows
+// line 63: gc expects: index .* out of bounds
+// line 64: gc expects: index .* out of bounds
+// line 65: gc expects: invalid slice indices
+// line 66: gc expects: invalid slice indices
+// line 67: gc expects: invalid slice indices
+// line 68: gc expects: cannot take address
+// line 71: gc expects: index .* out of bounds
+// line 77: gc expects: index .* out of bounds
+// line 80: gc expects: negative
+// line 81: gc expects: negative
+// line 82: gc expects: negative
+// line 85: gc expects: invalid slice indices
+// line 87: gc expects: overflows
+// line 88: gc expects: overflows
+// line 89: gc expects: overflows | overflows
+// line 92: gc expects: invalid slice indices
+// line 93: gc expects: invalid slice indices
+// line 94: gc expects: invalid slice indices
+// line 95: gc expects: cannot take address
+// line 98: gc expects: cannot use .* in map index
+// line 99: gc expects: cannot slice
+// line 106: gc expects: mismatched types int and untyped string | cannot use 0
+// line 109: gc expects: negative
+// line 110: gc expects: negative
+// line 111: gc expects: negative
+// line 112: gc expects: 3-index slice of string
+// line 113: gc expects: 3-index slice of string
+// line 118: gc expects: cannot use .* in assignment
+// line 121: gc expects: index .* out of bounds
+// line 124: gc expects: negative
+// line 125: gc expects: negative
+// line 126: gc expects: negative
+// line 131: gc expects: cannot use .* in assignment
+// line 132: gc expects: index .* out of bounds
+// line 133: gc expects: index .* out of bounds
+// line 145: gc expects: cannot use .* in assignment
+// line 146: gc expects: cannot use .* in assignment
+// line 158: gc expects: no field or method
+// line 159: gc expects: has no method
+// line 160: gc expects: invalid method expression T.m (needs pointer receiver (*T).m)
+// line 163: gc expects: invalid method expression T.m (needs pointer receiver (*T).m)
+// line 167: gc expects: has no method
+// line 168: gc expects: has no method
+// line 185: gc expects: mixture of .* elements
+// line 186: gc expects: unknown field
+// line 187: gc expects: invalid field name
+// line 188: gc expects: duplicate field
+// line 189: gc expects: cannot use .* in struct literal
+// line 190: gc expects: unknown field
+// line 191: gc expects: missing type
+// line 193: gc expects: invalid field name
+// line 197: gc expects: mixture
+// line 198: gc expects: too few values
+// line 199: gc expects: too many values
+// line 200: gc expects: cannot use .* in struct literal | cannot use .*\(truncated\)
+// line 206: gc expects: invalid composite literal type
+// line 210: gc expects: unknown field
+// line 212: gc expects: implicit assignment to unexported field wall in struct literal
+// line 213: gc expects: implicit assignment
+// line 214: gc expects: implicit assignment
+// line 221: gc expects: index .* out of bounds
+// line 222: gc expects: index .* out of bounds
+// line 228: gc expects: index .* out of bounds
+// line 229: gc expects: negative
+// line 231: gc expects: index .* out of bounds
+// line 232: gc expects: duplicate index
+// line 234: gc expects: duplicate index
+// line 235: gc expects: index .* out of bounds | index .* out of bounds
+// line 236: gc expects: overflows | duplicate index
+// line 237: gc expects: overflows
+// line 239: gc expects: truncated
+// line 240: gc expects: cannot use .* in array or slice literal
+// line 246: gc expects: index i must be integer constant
+// line 247: gc expects: truncated
+// line 248: gc expects: cannot convert
+// line 258: gc expects: cannot use .* in assignment
+// line 261: gc expects: negative
+// line 264: gc expects: duplicate index
+// line 295: gc expects: negative
+// line 298: gc expects: duplicate index
+// line 300: gc expects: duplicate index
+// line 301: gc expects: duplicate index
+// line 302: gc expects: overflows | duplicate index
+// line 303: gc expects: overflows
+// line 305: gc expects: truncated
+// line 306: gc expects: cannot use .* in array or slice literal
+// line 312: gc expects: undefined
+// line 318: gc expects: index i must be integer constant
+// line 319: gc expects: truncated
+// line 320: gc expects: cannot convert
+// line 358: gc expects: missing key
+// line 359: gc expects: cannot use .* in map literal
+// line 360: gc expects: cannot use .* in map literal
+// line 361: gc expects: duplicate key
+// line 363: gc expects: duplicate key
+// line 365: gc expects: duplicate key
+// line 369: gc expects: duplicate key
+// line 371: gc expects: duplicate key
+// line 372: gc expects: duplicate key
+// line 373: gc expects: duplicate key
+// line 374: gc expects: duplicate key
+// line 375: gc expects: duplicate key
+// line 382: gc expects: duplicate key
+// line 388: gc expects: undefined
+// line 447: gc expects: not an interface
+// line 460: gc expects: use of .* outside type switch
+// line 461: gc expects: m has pointer receiver
+// line 463: gc expects: missing method m
+// line 464: gc expects: wrong type for method m
+// line 490: gc expects: used as value
+// line 491: gc expects: too many arguments
+// line 496: gc expects: not enough arguments in call to f1
 // 	have ()
 // 	want (int)
-// line 497: uncaught; gc expects: too many arguments in call to f1
+// line 497: gc expects: too many arguments in call to f1
 // 	have (int, float32)
 // 	want (int)
-// line 498: uncaught; gc expects: cannot use .* in argument
-// line 499: uncaught; gc expects: cannot use ...
-// line 500: uncaught; gc expects: used as value
-// line 502: uncaught; gc expects: too many arguments in call to f1
+// line 498: gc expects: cannot use .* in argument
+// line 499: gc expects: cannot use ...
+// line 500: gc expects: used as value
+// line 502: gc expects: too many arguments in call to f1
 // 	have (float32, string)
 // 	want (int)
-// line 504: uncaught; gc expects: not enough arguments in call to f2
+// line 504: gc expects: not enough arguments in call to f2
 // 	have ()
 // 	want (float32, string)
-// line 505: uncaught; gc expects: not enough arguments in call to f2
+// line 505: gc expects: not enough arguments in call to f2
 // 	have (number)
 // 	want (float32, string)
-// line 507: uncaught; gc expects: cannot use .* in argument
-// line 508: uncaught; gc expects: used as value | not enough arguments in call to f2
+// line 507: gc expects: cannot use .* in argument
+// line 508: gc expects: used as value | not enough arguments in call to f2
 // 	have (func())
 // 	want (float32, string)
-// line 509: uncaught; gc expects: not enough arguments in call to f2
+// line 509: gc expects: not enough arguments in call to f2
 // 	have (int)
 // 	want (float32, string)
-// line 512: uncaught; gc expects: not enough arguments
-// line 513: uncaught; gc expects: used as value
-// line 514: uncaught; gc expects: cannot use .* in argument
-// line 515: uncaught; gc expects: too many arguments
-// line 520: uncaught; gc expects: cannot use .* in argument
-// line 522: uncaught; gc expects: cannot use
-// line 523: uncaught; gc expects: too many arguments
-// line 524: uncaught; gc expects: cannot use .* in argument
-// line 525: uncaught; gc expects: cannot use .* in argument
-// line 530: uncaught; gc expects: cannot use .* in argument
-// line 532: uncaught; gc expects: too many arguments
-// line 533: uncaught; gc expects: cannot use .* in argument
-// line 534: uncaught; gc expects: cannot use .* in argument
-// line 538: uncaught; gc expects: cannot use .* in argument
-// line 540: uncaught; gc expects: too many arguments
-// line 541: uncaught; gc expects: cannot use .* in argument
-// line 542: uncaught; gc expects: cannot use .* in argument
-// line 547: uncaught; gc expects: cannot use .* in argument
-// line 549: uncaught; gc expects: too many arguments
-// line 550: uncaught; gc expects: cannot use .* in argument
-// line 551: uncaught; gc expects: cannot use .* in argument
-// line 557: uncaught; gc expects: multiple-value g2
+// line 512: gc expects: not enough arguments
+// line 513: gc expects: used as value
+// line 514: gc expects: cannot use .* in argument
+// line 515: gc expects: too many arguments
+// line 520: gc expects: cannot use .* in argument
+// line 522: gc expects: cannot use
+// line 523: gc expects: too many arguments
+// line 524: gc expects: cannot use .* in argument
+// line 525: gc expects: cannot use .* in argument
+// line 530: gc expects: cannot use .* in argument
+// line 532: gc expects: too many arguments
+// line 533: gc expects: cannot use .* in argument
+// line 534: gc expects: cannot use .* in argument
+// line 538: gc expects: cannot use .* in argument
+// line 540: gc expects: too many arguments
+// line 541: gc expects: cannot use .* in argument
+// line 542: gc expects: cannot use .* in argument
+// line 547: gc expects: cannot use .* in argument
+// line 549: gc expects: too many arguments
+// line 550: gc expects: cannot use .* in argument
+// line 551: gc expects: cannot use .* in argument
+// line 557: gc expects: multiple-value g2
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 171 uncaught marker(s)
+// Verdict: Clean errorcheck

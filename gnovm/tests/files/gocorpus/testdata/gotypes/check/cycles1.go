@@ -82,5 +82,4 @@ func _() {
 // GoBuildError:
 // line 8
 
-// KnownDivergence:
-// compile-error-wording: both Gno and Go reject; wording/stage differ
+// Verdict: Clean compile

@@ -24,10 +24,9 @@ func _() {
 // GoTypeCheckError:
 // line 18
 
-// UncaughtError:
-// line 11: uncaught; gc expects: cannot use.*without instantiation
-// line 12: uncaught; gc expects: invalid operation: bool[int] (bool is not a generic type)
-// line 13: uncaught; gc expects: invalid operation: bool[G] (bool is not a generic type)
+// ParseBlocked:
+// line 11: gc expects: cannot use.*without instantiation
+// line 12: gc expects: invalid operation: bool[int] (bool is not a generic type)
+// line 13: gc expects: invalid operation: bool[G] (bool is not a generic type)
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 3 uncaught marker(s)
+// Verdict: Clean errorcheck

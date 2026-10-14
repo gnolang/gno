@@ -16,4 +16,4 @@ func _(ch chan int)   { f2(ch) }
 func _(ch <-chan int) { f2 /* ERROR "<-chan int does not satisfy chan int | chan<- int" */ (ch) }
 func _(ch chan<- int) { f2(ch) }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

@@ -16,4 +16,4 @@ func _() {
 	f(1 /* ERROR "cannot convert 1" */ / s)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -22,4 +22,7 @@ func _() {
 // GoTypeCheckError:
 // line 11
 
+// GnoWordingDiffers:
+// line 11: gc expects: undefined: Wrong|undefined name .*Wrong; gno: name Wrong not defined in fileset with files [issue21988.go]
+
 // Verdict: Clean errorcheck

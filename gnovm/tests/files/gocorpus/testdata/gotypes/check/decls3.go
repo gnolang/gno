@@ -308,4 +308,4 @@ type R24 R21
 
 var _ = R0{}.X /* ERROR "ambiguous selector R0{}.X" */
 
-// Unsupported: unsafe: unknown import path unsafe:
+// Verdict: Unsupported unsafe: unknown import path unsafe:

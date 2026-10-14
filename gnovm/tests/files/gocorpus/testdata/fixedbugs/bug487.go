@@ -35,4 +35,7 @@ func H() (int, int) {
 // GoTypesOnly:
 // line 18: gc expects: mismatch|cannot assign
 
+// GnoWordingDiffers:
+// line 23: gc expects: too many|mismatch|wrong number; gno: expected 2 return values; got 3
+
 // Verdict: Clean errorcheck

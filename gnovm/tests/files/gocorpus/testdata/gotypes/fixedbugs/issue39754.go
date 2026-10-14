@@ -20,4 +20,4 @@ func _() {
 	_ = f[int, Optional[int], Optional /* ERRORx "Optional.* does not satisfy Box.*" */ [string]]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

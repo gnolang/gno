@@ -26,4 +26,4 @@ func (s *Set[string]) String() string {
 	return strings /* ERROR "cannot use strings.Join" */ .Join(keys /* ERRORx "cannot use keys.*with string declared at.*|type parameter" */ , ",")
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

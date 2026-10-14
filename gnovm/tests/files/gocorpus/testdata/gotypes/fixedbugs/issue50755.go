@@ -46,4 +46,4 @@ func Merge[MM ~map[KM]VM, KM comparable, VM any](ms ...MM) MM {
 	return result
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

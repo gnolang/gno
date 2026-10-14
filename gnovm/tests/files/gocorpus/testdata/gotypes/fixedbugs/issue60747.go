@@ -12,4 +12,4 @@ func _() func(string) int {
 	return f // ERROR "inferred type func(string) string for func(P) P does not match type func(string) int of result variable"
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

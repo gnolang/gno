@@ -37,4 +37,7 @@ func main() {
 // line 16
 // line 28
 
+// GnoWordingDiffers:
+// line 16: gc expects: undefined.*io.ReadWriterCloser; gno: name ReadWriterCloser not declared
+
 // Verdict: Clean errorcheck

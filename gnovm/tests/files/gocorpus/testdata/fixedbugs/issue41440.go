@@ -19,4 +19,7 @@ func g() {
 // GoTypeCheckError:
 // line 13
 
+// GnoWordingDiffers:
+// line 13: gc expects: have \(\[\]int, \.\.\.int\)|too many arguments; gno: not enough arguments in call to f<VPBlock(3,0)>; want 1 (including variadic) got 2
+
 // Verdict: Clean errorcheck

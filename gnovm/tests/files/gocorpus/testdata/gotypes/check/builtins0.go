@@ -1077,4 +1077,4 @@ func trace2() {
 	// trace(f3(), 1, 2, 3, 4)
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

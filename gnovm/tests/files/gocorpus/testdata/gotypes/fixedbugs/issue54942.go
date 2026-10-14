@@ -37,4 +37,4 @@ func (_ *myExecutor) Execute(ctx context.Context, stmt sql.Stmt, maxrows int, ar
 
 var ex Executor = new /* ERROR "have Execute(context.Context, sql.Stmt, int, []sql.NamedArg, int) (*Result, error)\n\t\twant Execute(context.Context, sql.Stmt, int, []sql.NamedArg, int) (Result, error)" */ (myExecutor)
 
-// Unsupported: import: unknown import path context:
+// Verdict: Unsupported import: unknown import path context:

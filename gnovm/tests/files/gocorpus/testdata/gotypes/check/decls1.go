@@ -250,5 +250,4 @@ func (T) init(int) int { return 0 }
 // UncaughtError:
 // line 143: uncaught; gc expects: no arguments and no return values
 
-// KnownIssue:
-// errorcheck: 1 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 1 uncaught marker(s)

@@ -72,4 +72,4 @@ func _() {
 	_ = x.FOrm // ERROR "x.FOrm undefined (type big.Float has no field or method FOrm)"
 }
 
-// Unsupported: import: unknown import path math/big:
+// Verdict: Unsupported import: unknown import path math/big:

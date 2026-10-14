@@ -16,4 +16,4 @@ func f(x T) {
 	}
 }
 
-// Clean: compile
+// Verdict: Clean compile

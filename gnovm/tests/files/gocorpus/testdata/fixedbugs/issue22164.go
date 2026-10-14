@@ -31,8 +31,11 @@ func i() {
 // GoTypeCheckError:
 // line 12
 
-// UncaughtError:
-// line 20: uncaught; gc expects: unexpected newline
-// line 24: uncaught; gc expects: unexpected newline
+// ParseBlocked:
+// line 20: gc expects: unexpected newline
+// line 24: gc expects: unexpected newline
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// GnoWordingDiffers:
+// line 12: gc expects: unexpected newline; gno: missing ',' before newline in argument list
+
+// Verdict: Clean errorcheck

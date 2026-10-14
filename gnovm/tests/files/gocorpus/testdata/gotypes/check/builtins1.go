@@ -329,4 +329,4 @@ func _[T comparable]() {
 	const _ = unsafe /* ERROR "not constant" */ .Alignof(t)
 }
 
-// Unsupported: channel: channels not supported in Gno
+// Verdict: Unsupported channel: channels not supported in Gno

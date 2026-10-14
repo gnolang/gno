@@ -37,4 +37,4 @@ func _() {
 	g(t1, t2 /* ERROR "does not match" */, tn)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

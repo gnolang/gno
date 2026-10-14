@@ -22,4 +22,4 @@ func f() {
 	_ = slice(&s)
 }
 
-// Unsupported: unsafe: unknown import path unsafe
+// Verdict: Unsupported unsafe: unknown import path unsafe

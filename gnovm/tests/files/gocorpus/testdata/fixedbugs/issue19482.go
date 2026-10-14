@@ -45,4 +45,10 @@ func bad() {
 // line 31
 // line 33
 
+// GnoWordingDiffers:
+// line 25: gc expects: invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T; gno: cannot use _ as value or type
+// line 27: gc expects: invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T; gno: cannot use _ as value or type
+// line 31: gc expects: invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T; gno: cannot use _ as value or type
+// line 33: gc expects: invalid field name _ in struct initializer|expected struct field name|unknown field _ in struct literal of type T; gno: cannot use _ as value or type
+
 // Verdict: Clean errorcheck

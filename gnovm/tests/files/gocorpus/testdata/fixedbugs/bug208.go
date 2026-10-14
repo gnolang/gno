@@ -24,4 +24,7 @@ var _ = T{f: 1}
 // GoTypeCheckError:
 // line 17
 
+// GnoWordingDiffers:
+// line 17: gc expects: undefined; gno: name f not defined in fileset with files [bug208.go]
+
 // Verdict: Clean errorcheck

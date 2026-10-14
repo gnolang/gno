@@ -23,4 +23,4 @@ func _[W ~B](a interface{}) {
 	_ = a.(W)["key"]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

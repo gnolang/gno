@@ -84,7 +84,7 @@ func main() {
 // line 58
 // line 64
 
-// GoTypesOnly:
+// ParseBlocked:
 // line 26: gc expects: redeclared|cannot assign|incompatible|cannot use
 // line 32: gc expects: redeclared|cannot assign|incompatible|cannot use
 

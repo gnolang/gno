@@ -22,4 +22,8 @@ func main() {
 // line 13
 // line 14
 
+// GnoWordingDiffers:
+// line 13: gc expects: cannot assign to true|invalid left hand side; gno: cannot assign to uverse true
+// line 14: gc expects: not an expression|invalid left hand side|invalid use of type; gno: cannot assign to uverse byte
+
 // Verdict: Clean errorcheck

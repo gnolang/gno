@@ -202,4 +202,23 @@ func _(x int) {
 // line 125
 // line 126
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 32: gc expects: truncated to int; gno: cannot convert untyped bigdec to integer -- 1.1 not an exact integer
+// line 43: gc expects: truncated to int; gno: cannot convert untyped bigdec to integer -- 1.1 not an exact integer
+// line 57: gc expects: overflows uint; gno: bigint underflows target kind
+// line 59: gc expects: truncated to uint; gno: cannot convert untyped bigdec to integer -- 1.1 not an exact integer
+// line 69: gc expects: overflows uint; gno: bigint underflows target kind
+// line 71: gc expects: truncated to uint; gno: cannot convert untyped bigdec to integer -- 1.1 not an exact integer
+// line 93: gc expects: operand x .* must be integer; gno: invalid operation: invalid shift count: y<VPBlock(1,1)>
+// line 94: gc expects: operand x .* must be integer; gno: invalid operation: invalid shift count: y<VPBlock(1,1)>
+// line 104: gc expects: mismatched types; gno: operator % not defined on: Float64Kind
+// line 105: gc expects: operand z .* must be integer; gno: invalid operation: invalid shift count: y<VPBlock(1,1)>
+// line 106: gc expects: operand z .* must be integer; gno: invalid operation: invalid shift count: y<VPBlock(1,1)>
+// line 114: gc expects: mismatched types string and untyped int; gno: cannot use untyped Bigint as StringKind
+// line 117: gc expects: mismatched types string and untyped int; gno: operator * not defined on: StringKind
+// line 123: gc expects: multiple-value f; gno: operator + not defined on: TupleKind
+// line 124: gc expects: multiple-value f; gno: operator + not defined on: TupleKind
+// line 125: gc expects: multiple-value f; gno: operator + not defined on: FuncKind
+// line 126: gc expects: multiple-value f | multiple-value f; gno: operator + not defined on: TupleKind
+
+// Verdict: Clean errorcheck

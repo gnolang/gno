@@ -58,4 +58,4 @@ func _() {
 	var _ Tf1 /* ERROR "not enough type arguments for type Tf1: have 1, want 3" */ [int]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

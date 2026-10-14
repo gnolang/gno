@@ -31,4 +31,8 @@ func main() {
 // line 17
 // line 18
 
+// GnoWordingDiffers:
+// line 12: gc expects: refers to itself|definition loop|initialization cycle; gno: invalid recursive value: a -> a
+// line 16: gc expects: refers to itself|definition loop|initialization cycle; gno: invalid recursive value: A -> B -> C -> D -> A
+
 // Verdict: Clean errorcheck

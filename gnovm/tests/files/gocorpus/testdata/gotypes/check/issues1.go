@@ -249,4 +249,4 @@ var _ = g[int]
 var _ = g[nil /* ERROR "is not a type" */ ]
 var _ = g(0)
 
-// Unsupported: import: unknown import path context
+// Verdict: Unsupported import: unknown import path context

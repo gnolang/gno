@@ -16,4 +16,7 @@ var a [len(a)]int // ERROR "\[len\(a\)\]int|initialization cycle"
 // GoTypeCheckError:
 // line 11
 
+// GnoWordingDiffers:
+// line 11: gc expects: \[len\(a\)\]int|initialization cycle; gno: invalid recursive type: a -> a
+
 // Verdict: Clean errorcheck

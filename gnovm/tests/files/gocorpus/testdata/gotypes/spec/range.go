@@ -190,19 +190,18 @@ func _() {
 // GoTypeCheckError:
 // line 183
 
-// UncaughtError:
-// line 30: uncaught; gc expects: cannot range over m1 (variable of type func(T)): func must be func(yield func(...) bool): argument is not func
-// line 33: uncaught; gc expects: cannot range over m2 (variable of type func(*T)): func must be func(yield func(...) bool): argument is not func
-// line 35: uncaught; gc expects: cannot range over f1 (value of type func()): func must be func(yield func(...) bool): wrong argument count
-// line 37: uncaught; gc expects: cannot range over f2 (value of type func(func())): func must be func(yield func(...) bool): yield func does not return bool
-// line 59: uncaught; gc expects: cannot range over 1.0 (untyped float constant 1)
-// line 105: uncaught; gc expects: cannot use i (value of int32 type MyInt) as int value in assignment | cannot use s (value of string type MyString) as string value in assignment
-// line 109: uncaught; gc expects: cannot use mi (variable of int32 type MyInt) as int value in assignment | cannot use ms (variable of string type MyString) as string value in assignment
-// line 121: uncaught; gc expects: range over 10 (untyped int constant) permits only one iteration variable
-// line 133: uncaught; gc expects: cannot range over x (variable of type T constrained by int | string): no core type
-// line 138: uncaught; gc expects: cannot range over x (variable of type T constrained by int | int64): no core type
-// line 166: uncaught; gc expects: range over seq0 (value of type func(func() bool)) permits no iteration variables
-// line 173: uncaught; gc expects: range over seq1 (value of type func(func(int) bool)) permits only one iteration variable
+// ParseBlocked:
+// line 30: gc expects: cannot range over m1 (variable of type func(T)): func must be func(yield func(...) bool): argument is not func
+// line 33: gc expects: cannot range over m2 (variable of type func(*T)): func must be func(yield func(...) bool): argument is not func
+// line 35: gc expects: cannot range over f1 (value of type func()): func must be func(yield func(...) bool): wrong argument count
+// line 37: gc expects: cannot range over f2 (value of type func(func())): func must be func(yield func(...) bool): yield func does not return bool
+// line 59: gc expects: cannot range over 1.0 (untyped float constant 1)
+// line 105: gc expects: cannot use i (value of int32 type MyInt) as int value in assignment | cannot use s (value of string type MyString) as string value in assignment
+// line 109: gc expects: cannot use mi (variable of int32 type MyInt) as int value in assignment | cannot use ms (variable of string type MyString) as string value in assignment
+// line 121: gc expects: range over 10 (untyped int constant) permits only one iteration variable
+// line 133: gc expects: cannot range over x (variable of type T constrained by int | string): no core type
+// line 138: gc expects: cannot range over x (variable of type T constrained by int | int64): no core type
+// line 166: gc expects: range over seq0 (value of type func(func() bool)) permits no iteration variables
+// line 173: gc expects: range over seq1 (value of type func(func(int) bool)) permits only one iteration variable
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 12 uncaught marker(s)
+// Verdict: Clean errorcheck

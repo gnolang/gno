@@ -10,5 +10,4 @@ var _ = 0 << s
 // GnoPreprocessError:
 // line 8: invalid operation: invalid shift count: (const (0 float32))
 
-// KnownIssue:
-// TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
+// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

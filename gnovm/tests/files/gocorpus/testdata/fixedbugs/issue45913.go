@@ -22,4 +22,7 @@ func main() {
 // GoTypeCheckError:
 // line 16
 
+// GnoWordingDiffers:
+// line 16: gc expects: invalid use of .*[.][.][.]|cannot use [.][.][.] in call to non-variadic; gno: wrong argument count in call to f<VPBlock(3,0)>; want 2 got 1
+
 // Verdict: Clean errorcheck

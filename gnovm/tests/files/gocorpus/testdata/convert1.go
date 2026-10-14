@@ -166,4 +166,14 @@ func main() {
 // line 96
 // line 97
 
+// GnoWordingDiffers:
+// line 39: gc expects: cannot convert.*\[\]rune|invalid type conversion; gno: cannot convert sb<VPBlock(1,1)> (of type []uint8) to type []int32
+// line 47: gc expects: cannot convert.*\[\]byte|invalid type conversion; gno: cannot convert sr<VPBlock(1,2)> (of type []int32) to type []uint8
+// line 56: gc expects: cannot convert.*\[\]byte|invalid type conversion; gno: cannot convert si<VPBlock(1,3)> (of type []int64) to type []uint8
+// line 57: gc expects: cannot convert.*\[\]rune|invalid type conversion; gno: cannot convert si<VPBlock(1,3)> (of type []int64) to type []int32
+// line 75: gc expects: cannot convert.*\[\]rune|invalid type conversion; gno: cannot convert tsb<VPBlock(1,5)> (of type main.Tbyte) to type []int32
+// line 83: gc expects: cannot convert.*\[\]byte|invalid type conversion; gno: cannot convert tsr<VPBlock(1,6)> (of type main.Trune) to type []uint8
+// line 92: gc expects: cannot convert.*\[\]byte|invalid type conversion; gno: cannot convert tsi<VPBlock(1,7)> (of type main.Tint64) to type []uint8
+// line 93: gc expects: cannot convert.*\[\]rune|invalid type conversion; gno: cannot convert tsi<VPBlock(1,7)> (of type main.Tint64) to type []int32
+
 // Verdict: Clean errorcheck

@@ -14,4 +14,4 @@ func _() {
 	_ = x
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

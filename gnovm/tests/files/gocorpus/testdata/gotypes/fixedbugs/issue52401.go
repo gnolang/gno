@@ -18,4 +18,7 @@ func _() {
 // line 9
 // line 10
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 9: gc expects: cannot assign to x; gno: cannot assign to const x
+
+// Verdict: Clean errorcheck

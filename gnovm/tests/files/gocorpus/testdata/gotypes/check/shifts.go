@@ -398,4 +398,4 @@ func issue22969() {
 	var _ int32 = 0x80000000 /* ERROR "overflows int32" */ << s
 }
 
-// Unsupported: imaginary-literal: imaginary literals not supported in Gno
+// Verdict: Unsupported imaginary-literal: imaginary literals not supported in Gno

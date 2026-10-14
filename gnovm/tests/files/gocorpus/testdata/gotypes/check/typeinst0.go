@@ -63,15 +63,14 @@ type self2[P any] *self2[P] // this is ok
 // GoTypeCheckError:
 // line 35
 
-// UncaughtError:
-// line 12: uncaught; gc expects: cannot use a type parameter as RHS in type declaration
-// line 23: uncaught; gc expects: cannot use generic type
-// line 33: uncaught; gc expects: not a type
-// line 36: uncaught; gc expects: not a generic type | expected type argument list
-// line 39: uncaught; gc expects: expected type argument list
-// line 40: uncaught; gc expects: not a type
-// line 41: uncaught; gc expects: too many type arguments for type T1: have 2, want 1
-// line 57: uncaught; gc expects: invalid recursive type
+// ParseBlocked:
+// line 12: gc expects: cannot use a type parameter as RHS in type declaration
+// line 23: gc expects: cannot use generic type
+// line 33: gc expects: not a type
+// line 36: gc expects: not a generic type | expected type argument list
+// line 39: gc expects: expected type argument list
+// line 40: gc expects: not a type
+// line 41: gc expects: too many type arguments for type T1: have 2, want 1
+// line 57: gc expects: invalid recursive type
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 8 uncaught marker(s)
+// Verdict: Clean errorcheck

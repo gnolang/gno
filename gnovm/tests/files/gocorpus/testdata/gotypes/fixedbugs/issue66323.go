@@ -16,4 +16,4 @@ type S[T any] struct {
 
 var _ S[time.Time]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

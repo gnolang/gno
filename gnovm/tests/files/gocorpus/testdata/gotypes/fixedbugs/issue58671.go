@@ -19,4 +19,4 @@ func _() {
 	g(1, 2.3, "bar" /* ERROR "mismatched types untyped float and untyped string (cannot infer P)" */)
 }
 
-// Unsupported: complex-types: complex numbers not supported in Gno
+// Verdict: Unsupported complex-types: complex numbers not supported in Gno

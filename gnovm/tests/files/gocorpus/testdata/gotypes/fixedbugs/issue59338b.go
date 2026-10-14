@@ -18,4 +18,4 @@ func _() {
 	f2(0, g)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

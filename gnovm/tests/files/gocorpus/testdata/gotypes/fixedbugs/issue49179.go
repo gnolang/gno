@@ -36,4 +36,4 @@ func f(s MySlice) {
 	Map[MySlice /* ERROR "MySlice does not satisfy SliceConstraint[int] (possibly missing ~ for []int in SliceConstraint[int])" */, int](s, nil)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

@@ -15,4 +15,4 @@ func _() {
 	f2([]string{}, func /* ERROR "does not match inferred type func(string)" */ (f []byte) {})
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

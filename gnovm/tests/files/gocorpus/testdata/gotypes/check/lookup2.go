@@ -93,4 +93,4 @@ func _() {
 	_ = big.Float{forM /* ERROR "unknown field forM in struct literal of type big.Float" */ : 0}
 }
 
-// Unsupported: import: unknown import path go/ast:
+// Verdict: Unsupported import: unknown import path go/ast:

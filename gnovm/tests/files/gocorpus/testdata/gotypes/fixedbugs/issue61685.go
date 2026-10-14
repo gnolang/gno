@@ -14,4 +14,4 @@ type I[T any] interface {
 	m(T)
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

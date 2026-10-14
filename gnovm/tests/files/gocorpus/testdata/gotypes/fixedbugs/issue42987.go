@@ -13,4 +13,7 @@ var _ = [ ... /* ERROR "invalid use of [...] array" */ ]byte("foo")
 // GoTypeCheckError:
 // line 8
 
-// Clean: errorcheck
+// GnoWordingDiffers:
+// line 8: gc expects: invalid use of [...] array; gno: invalid use of [...] array (outside a composite literal)
+
+// Verdict: Clean errorcheck

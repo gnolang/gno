@@ -40,4 +40,4 @@ func _[P any](x P, y any) {
 	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

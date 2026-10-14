@@ -14,4 +14,4 @@ type (
 type a = func(c)
 type c struct{ a }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

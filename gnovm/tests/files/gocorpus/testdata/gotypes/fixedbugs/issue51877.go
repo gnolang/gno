@@ -29,4 +29,4 @@ var (
 // line 16
 // line 17
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

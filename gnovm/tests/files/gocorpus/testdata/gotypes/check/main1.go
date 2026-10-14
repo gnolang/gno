@@ -12,4 +12,4 @@ func main[T /* ERROR "func main must have no type parameters" */ any]() {}
 // GoTypesOnly:
 // line 7: gc expects: func main must have no type parameters
 
-// Clean: errorcheck
+// Verdict: Clean errorcheck

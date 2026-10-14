@@ -90,4 +90,4 @@ func _(x interface{}) {
 	}
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

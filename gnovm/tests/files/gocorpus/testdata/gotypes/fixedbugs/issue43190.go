@@ -36,15 +36,14 @@ import _ "math"
 // GoTypeCheckError:
 // line 10
 
-// UncaughtError:
-// line 11: uncaught; gc expects: invalid import path (empty string)
-// line 13: uncaught; gc expects: missing import path
-// line 14: uncaught; gc expects: missing import path
-// line 15: uncaught; gc expects: import path must be a string
-// line 17: uncaught; gc expects: imports must appear before other declarations
-// line 21: uncaught; gc expects: missing import path
-// line 25: uncaught; gc expects: missing import path
-// line 30: uncaught; gc expects: imports must appear before other declarations
+// ParseBlocked:
+// line 11: gc expects: invalid import path (empty string)
+// line 13: gc expects: missing import path
+// line 14: gc expects: missing import path
+// line 15: gc expects: import path must be a string
+// line 17: gc expects: imports must appear before other declarations
+// line 21: gc expects: missing import path
+// line 25: gc expects: missing import path
+// line 30: gc expects: imports must appear before other declarations
 
-// KnownIssue:
-// errorcheck: 0 over-strict line(s), 8 uncaught marker(s)
+// Verdict: Clean errorcheck

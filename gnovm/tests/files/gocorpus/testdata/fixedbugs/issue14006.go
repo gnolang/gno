@@ -76,12 +76,15 @@ func g() {
 // GnoOverStrictError:
 // line 25: expected ';', found 'case'
 
-// UncaughtError:
-// line 30: uncaught; gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
-// line 37: uncaught; gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
-// line 43: uncaught; gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
-// line 50: uncaught; gc expects: missing statement after label
-// line 59: uncaught; gc expects: label labelname defined and not used|previous definition|defined and not used
-// line 64: uncaught; gc expects: label labelname already defined at LINE-5|label .*labelname.* already defined
+// ParseBlocked:
+// line 30: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
+// line 37: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
+// line 43: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
+// line 50: gc expects: missing statement after label
+// line 59: gc expects: label labelname defined and not used|previous definition|defined and not used
+// line 64: gc expects: label labelname already defined at LINE-5|label .*labelname.* already defined
 
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 6 uncaught marker(s)
+// GnoWordingDiffers:
+// line 24: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+
+// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)

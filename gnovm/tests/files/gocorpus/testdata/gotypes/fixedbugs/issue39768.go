@@ -20,4 +20,4 @@ type Vector[T any] []T
 type VectorAlias = Vector // ERROR "cannot use generic type"
 var v Vector[int]
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

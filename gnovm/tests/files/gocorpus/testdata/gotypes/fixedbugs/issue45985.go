@@ -12,4 +12,4 @@ func _() {
 	_ = app /* ERROR "S (type int) does not satisfy interface{~[]T}" */ [int] // TODO(gri) better error message
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno

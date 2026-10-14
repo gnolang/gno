@@ -24,4 +24,4 @@ type Baz /* ERROR "invalid recursive type" */ struct {
 	bar Bar[Baz]
 }
 
-// Unsupported: generics: generics not supported in Gno
+// Verdict: Unsupported generics: generics not supported in Gno
