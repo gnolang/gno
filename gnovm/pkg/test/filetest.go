@@ -183,7 +183,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// offline, so the host's Go version cannot move the result.
 	if isGoRunMode {
 		if opts.Sync {
-			out, _, runErr := runGoToolchain(source)
+			out, runErr := runGoToolchain(source)
 			if runErr != nil {
 				return "", 0, diffs, fmt.Errorf("filetest %s: cannot run via Go toolchain "+"(install go, or mark file `// Unsupported:`): %w", fname, runErr)
 			}
@@ -1401,24 +1401,24 @@ var goSubprocessTimeout = 30 * time.Second
 // (package main + func main) go through `go run`; non-runnable files
 // go through `go build` so non-main packages also compile cleanly.
 //
-// Stdout and stderr are combined because Gno's runtime exposes one
-// output stream — comparing only Go's stdout would flag the builtin
-// `println` (Go: stderr; Gno: stdout) as a divergence purely from
-// the stream choice, not a real semantic difference. Combining puts
-// the comparison on the same footing as `go test`'s default.
+// Stdout and stderr are combined, in the order the program wrote them,
+// because Gno's runtime exposes one output stream — comparing only Go's
+// stdout would flag the builtin `println` (Go: stderr; Gno: stdout) as
+// a divergence purely from the stream choice. Both streams share one
+// file descriptor; two buffers would lose the interleaving.
 //
 // Non-zero exit (panic, compile error) is NOT a function-level error
 // — it's the corpus file's expected behavior. The only error returned
 // is a genuine exec failure (Go toolchain not on PATH, timeout).
-func runGoToolchain(source []byte) (output, stderr string, err error) {
+func runGoToolchain(source []byte) (output string, err error) {
 	dir, mkErr := os.MkdirTemp("", "gno-filetest-go-*")
 	if mkErr != nil {
-		return "", "", fmt.Errorf("mkdir temp: %w", mkErr)
+		return "", fmt.Errorf("mkdir temp: %w", mkErr)
 	}
 	defer os.RemoveAll(dir)
 	srcPath := filepath.Join(dir, "main.go")
 	if err := os.WriteFile(srcPath, source, 0o644); err != nil {
-		return "", "", fmt.Errorf("write temp source: %w", err)
+		return "", fmt.Errorf("write temp source: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), goSubprocessTimeout)
 	defer cancel()
@@ -1432,7 +1432,7 @@ func runGoToolchain(source []byte) (output, stderr string, err error) {
 	if !IsRunnable(source) {
 		modPath := filepath.Join(dir, "go.mod")
 		if err := os.WriteFile(modPath, []byte("module gnofiletest\n\ngo 1.17\n"), 0o644); err != nil {
-			return "", "", fmt.Errorf("write temp go.mod: %w", err)
+			return "", fmt.Errorf("write temp go.mod: %w", err)
 		}
 	}
 	var args []string
@@ -1455,31 +1455,33 @@ func runGoToolchain(source []byte) (output, stderr string, err error) {
 	// open. E.g. fixedbugs/bug137.go's compile spun >19min on this.
 	// 5s is well past any legitimate reap time.
 	cmd.WaitDelay = 5 * time.Second
-	var outBuf, errBuf bytes.Buffer
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
+	outPath := filepath.Join(dir, "output")
+	outFile, createErr := os.Create(outPath)
+	if createErr != nil {
+		return "", fmt.Errorf("create temp output: %w", createErr)
+	}
+	cmd.Stdout = outFile
+	cmd.Stderr = outFile
 	runErr := cmd.Run()
+	outFile.Close()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return "", "", fmt.Errorf("`go %s` exceeded %s timeout — mark the file with `// Unsupported:`",
+		return "", fmt.Errorf("`go %s` exceeded %s timeout — mark the file with `// Unsupported:`",
 			args[0], goSubprocessTimeout)
 	}
-	// Combine stdout and stderr into one user-visible stream — Gno's
-	// runtime has a single output channel, so this puts comparison on
-	// the same footing. Stderr is also returned separately for callers
-	// that want to distinguish (e.g. errorcheck/compile modes that
-	// look at compiler diagnostics specifically).
-	combined := outBuf.String() + errBuf.String()
-	output = strings.TrimRight(combined, "\n")
-	stderr = strings.TrimRight(errBuf.String(), "\n")
+	combined, readErr := os.ReadFile(outPath)
+	if readErr != nil {
+		return "", fmt.Errorf("read temp output: %w", readErr)
+	}
+	output = strings.TrimRight(string(combined), "\n")
 	if runErr != nil {
 		var ee *exec.ExitError
 		if !errors.As(runErr, &ee) {
-			return "", "", fmt.Errorf("`go %s` failed (is `go` on PATH?): %w", args[0], runErr)
+			return "", fmt.Errorf("`go %s` failed (is `go` on PATH?): %w", args[0], runErr)
 		}
-		// Non-zero exit is expected for errorcheck / panic-class
-		// corpus files; stderr carries the diagnostics.
+		// Non-zero exit is expected for panic-class corpus files; the
+		// diagnostics are part of the captured output.
 	}
-	return output, stderr, nil
+	return output, nil
 }
 
 // memPackageForTypeCheck wraps mpkg so its files are visible to
