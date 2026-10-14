@@ -75,6 +75,14 @@ The registry of validator profiles. GovDAO members read it before voting on new 
 
 ---
 
+## <gno-icon name="newspaper" /> Latest from the blog
+
+<!-- latest-blogposts -->
+
+<gno-button href="https://gno.land/r/gnoland/blog" label="Read the blog" variant="outline" />
+
+---
+
 ## <gno-icon name="chat" /> Boards: on-chain forum
 
 > [!NOTE]
