@@ -27,14 +27,12 @@ import 3.14  // ERROR "import path must be a string"
 import 0.25i // ERROR "import path must be a string"
 
 // GnoError:
-// line 24: import path must be a string (and 3 more errors)
+// line 24: import path must be a string
+// line 25: import path must be a string
+// line 26: import path must be a string
+// line 27: import path must be a string
 
 // GoTypeCheckError:
 // line 24
 
-// UncaughtError:
-// line 25: uncaught; gc expects: import path must be a string
-// line 26: uncaught; gc expects: import path must be a string
-// line 27: uncaught; gc expects: import path must be a string
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 3 uncaught marker(s)
+// Verdict: Clean errorcheck

@@ -12,7 +12,7 @@ func main() {
 		z
 
 // GnoError:
-// line 10: expected '{', found newline (and 2 more errors)
+// line 10: expected '{', found newline
 
 // GoTypeCheckError:
 // line 10

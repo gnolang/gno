@@ -29,7 +29,7 @@ func main() {
 }
 
 // GnoError:
-// line 12: missing parameter name (and 2 more errors)
+// line 12: missing parameter name
 
 // GoTypeCheckError:
 // line 12

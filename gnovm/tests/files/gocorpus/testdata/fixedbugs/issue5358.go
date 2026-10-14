@@ -16,16 +16,4 @@ func main() {
 	f(g()) // ERROR "as int value in|incompatible type"
 }
 
-// GnoError:
-// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoTypeCheckError:
-// line 16
-
-// GoTypesOnly:
-// line 16: gc expects: as int value in|incompatible type
-
-// GnoOverStrictError:
-// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

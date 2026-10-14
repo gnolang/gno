@@ -121,22 +121,22 @@ func f() {
 }
 
 // GnoError:
-// line 20: middle index required in 3-index slice (and 10 more errors)
+// line 20: middle index required in 3-index slice
+// line 21: middle index required in 3-index slice
+// line 22: final index required in 3-index slice
+// line 23: final index required in 3-index slice
+// line 24: middle index required in 3-index slice
+// line 25: middle index required in 3-index slice
+// line 33: middle index required in 3-index slice
+// line 34: middle index required in 3-index slice
+// line 35: final index required in 3-index slice
+// line 36: final index required in 3-index slice
+// line 37: middle index required in 3-index slice
 
 // GoTypeCheckError:
 // line 20
 
 // UncaughtError:
-// line 21: uncaught; gc expects: middle index required in 3-index slice|invalid slice indices | final index required in 3-index slice
-// line 22: uncaught; gc expects: final index required in 3-index slice|invalid slice indices
-// line 23: uncaught; gc expects: final index required in 3-index slice|invalid slice indices
-// line 24: uncaught; gc expects: middle index required in 3-index slice|invalid slice indices
-// line 25: uncaught; gc expects: middle index required in 3-index slice|invalid slice indices
-// line 33: uncaught; gc expects: middle index required in 3-index slice|invalid slice indices | final index required in 3-index slice
-// line 34: uncaught; gc expects: middle index required in 3-index slice|invalid slice indices | final index required in 3-index slice
-// line 35: uncaught; gc expects: final index required in 3-index slice|invalid slice indices
-// line 36: uncaught; gc expects: final index required in 3-index slice|invalid slice indices
-// line 37: uncaught; gc expects: middle index required in 3-index slice|invalid slice indices
 // line 38: uncaught; gc expects: middle index required in 3-index slice|invalid slice indices
 // line 46: uncaught; gc expects: 3-index slice of string | middle index required in 3-index slice | final index required in 3-index slice
 // line 47: uncaught; gc expects: 3-index slice of string | middle index required in 3-index slice | final index required in 3-index slice
@@ -178,4 +178,4 @@ func f() {
 // line 118: uncaught; gc expects: invalid slice index|invalid slice indices
 // line 119: uncaught; gc expects: invalid slice index|invalid slice indices|inverted slice
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 50 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 40 uncaught marker(s)

@@ -16,12 +16,10 @@ func main() {
 }
 
 // GnoError:
-// line 11: illegal character U+003F '?' (and 1 more errors)
+// line 11: illegal character U+003F '?'
+// line 13: expected type, found 'var'
 
 // GoTypeCheckError:
 // line 11
 
-// UncaughtError:
-// line 13: uncaught; gc expects: unexpected keyword var|expected identifier|expected type
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: Clean errorcheck

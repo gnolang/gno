@@ -18,7 +18,7 @@ func f(int, int) {
 }
 
 // GnoError:
-// line 12: missing ',' before newline in argument list (and 2 more errors)
+// line 12: missing ',' before newline in argument list
 
 // GoTypeCheckError:
 // line 12

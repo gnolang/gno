@@ -29,16 +29,14 @@ func main() {
 }
 
 // GnoError:
-// line 23: cannot parenthesize type in composite literal (and 5 more errors)
+// line 23: cannot parenthesize type in composite literal
+// line 24: cannot parenthesize type in composite literal
+// line 25: cannot parenthesize type in composite literal
+// line 26: cannot parenthesize type in composite literal
+// line 27: cannot parenthesize type in composite literal
+// line 28: cannot parenthesize type in composite literal
 
 // GoTypeCheckError:
 // line 23
 
-// UncaughtError:
-// line 24: uncaught; gc expects: parenthesize
-// line 25: uncaught; gc expects: parenthesize
-// line 26: uncaught; gc expects: parenthesize
-// line 27: uncaught; gc expects: parenthesize
-// line 28: uncaught; gc expects: parenthesize
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 5 uncaught marker(s)
+// Verdict: Clean errorcheck

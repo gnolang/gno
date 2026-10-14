@@ -15,13 +15,13 @@ func main() {
 }
 
 // GnoError:
-// line 10: var declaration not allowed in if initializer (and 3 more errors)
+// line 10: var declaration not allowed in if initializer
+// line 12: expected operand, found 'var'
 
 // GoTypeCheckError:
 // line 10
 
 // UncaughtError:
-// line 12: uncaught; gc expects: var declaration not allowed in switch initializer
 // line 14: uncaught; gc expects: var declaration not allowed in for initializer
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)

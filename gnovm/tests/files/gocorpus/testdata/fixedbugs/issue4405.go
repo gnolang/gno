@@ -15,14 +15,16 @@ const (
 )
 
 // GnoError:
-// line 11: illegal character U+0007 (and 4 more errors)
+// line 11: illegal character U+0007
+// line 12: illegal character U+0008
+// line 13: illegal character U+000B
+// line 14: illegal character U+000C
+// line 17: expected ')', found 'EOF'
 
 // GoTypeCheckError:
 // line 11
 
-// UncaughtError:
-// line 12: uncaught; gc expects: illegal character|invalid character
-// line 13: uncaught; gc expects: illegal character|invalid character
-// line 14: uncaught; gc expects: illegal character|invalid character
+// GnoOverStrictError:
+// line 17: expected ')', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 3 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)

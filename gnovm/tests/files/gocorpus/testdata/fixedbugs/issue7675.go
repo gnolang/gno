@@ -23,26 +23,4 @@ func main() {
 	g(1, 0.5, "hello", 4, []int{5, 6}...) // ERROR "too many arguments|truncated to integer"
 }
 
-// GnoError:
-// line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoTypeCheckError:
-// line 16
-// line 18
-// line 19
-// line 21
-// line 23
-
-// GoTypesOnly:
-// line 16: gc expects: not enough arguments|incompatible type
-// line 18: gc expects: too many arguments|incompatible type
-// line 19: gc expects: not enough arguments|incompatible type
-// line 21: gc expects: not enough arguments|incompatible type
-// line 23: gc expects: too many arguments|truncated to integer
-
-// GnoOverStrictError:
-// line 11: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 13: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// Verdict: KnownIssue errorcheck: 2 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

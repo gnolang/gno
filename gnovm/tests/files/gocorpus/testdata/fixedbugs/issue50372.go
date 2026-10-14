@@ -29,7 +29,7 @@ func _(s chan int) {
 }
 
 // GnoError:
-// line 16: expected at most 2 expressions (and 3 more errors)
+// line 16: expected at most 2 expressions
 
 // GoTypeCheckError:
 // line 16

@@ -18,7 +18,17 @@ var T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous|re
 
 // GnoError:
 // line 10: i redeclared in this block
-// 	previous declaration at funcdup2.go:11:5 (and 5 more errors)
+// 	previous declaration at funcdup2.go:11:5
+// line 11: i redeclared in this block
+// 	previous declaration at funcdup2.go:12:5
+// line 12: i redeclared in this block
+// 	previous declaration at funcdup2.go:13:8
+// line 15: i redeclared in this block
+// 	previous declaration at funcdup2.go:16:13
+// line 16: i redeclared in this block
+// 	previous declaration at funcdup2.go:17:13
+// line 17: i redeclared in this block
+// 	previous declaration at funcdup2.go:18:16
 
 // GoTypeCheckError:
 // line 10
@@ -27,12 +37,5 @@ var T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous|re
 // line 15
 // line 16
 // line 17
-
-// GoTypesOnly:
-// line 11: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 12: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 15: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 16: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 17: gc expects: duplicate argument i|redefinition|previous|redeclared
 
 // Verdict: Clean errorcheck

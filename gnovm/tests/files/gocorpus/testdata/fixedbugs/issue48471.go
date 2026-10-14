@@ -55,38 +55,4 @@ func g() {
 	_ = t
 }
 
-// GnoError:
-// line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 39: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
-// line 40: *gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
-// line 41: *gno.land/p/filetest/p.T2 does not implement gno.land/p/filetest/p.I (missing method M)
-// line 43: *gno.land/p/filetest/p.T3 does not implement gno.land/p/filetest/p.I (wrong type for method M)
-// line 45: gno.land/p/filetest/p.T4 does not implement gno.land/p/filetest/p.I (method M has pointer receiver)
-// line 46: should not happen
-// line 54: cannot use interface {M func(int)} as *gno.land/p/filetest/p.T4
-
-// GoTypeCheckError:
-// line 36
-// line 39
-// line 40
-// line 41
-// line 43
-// line 45
-// line 46
-// line 48
-// line 49
-// line 50
-// line 51
-// line 54
-
-// GoTypesOnly:
-// line 36: gc expects: cannot use new\(T\) \(.*type \*T\) as I value in argument to f: \*T does not implement I \(missing method M\)
-// line 48: gc expects: impossible type assertion: i.\(\*T2\)\n\t\*T2 does not implement I \(missing method M\)\n\t\thave m\(int\)\n\t\twant M\(int\)
-// line 49: gc expects: impossible type assertion: i.\(\*T3\)\n\t\*T3 does not implement I \(wrong type for method M\)\n\t\thave M\(string\)\n\t\twant M\(int\)
-// line 50: gc expects: 
-// line 51: gc expects: impossible type assertion: i.\(T6\)\n\tT6 does not implement I \(missing method M\)\n\t\thave m\(int\) string\n\t\twant M\(int\)
-
-// GnoOverStrictError:
-// line 33: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

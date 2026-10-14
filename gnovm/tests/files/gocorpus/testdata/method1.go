@@ -25,7 +25,9 @@ func g(a int, c string) // ERROR "redeclared|redefinition"
 
 // GnoError:
 // line 21: f redeclared in this block
-// 	previous declaration at method1.go:20:6 (and 1 more errors)
+// 	previous declaration at method1.go:20:6
+// line 24: g redeclared in this block
+// 	previous declaration at method1.go:23:6
 
 // GoTypeCheckError:
 // line 15
@@ -35,7 +37,4 @@ func g(a int, c string) // ERROR "redeclared|redefinition"
 // line 15: gc expects: already declared|redefinition
 // line 18: gc expects: already declared|redefinition
 
-// UncaughtError:
-// line 24: uncaught; gc expects: redeclared|redefinition
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: Clean errorcheck

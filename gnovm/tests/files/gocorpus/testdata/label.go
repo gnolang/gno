@@ -66,7 +66,8 @@ L10:
 
 // GnoError:
 // line 31: L6 redeclared in this block
-// 	previous declaration at label.go:29:1 (and 1 more errors)
+// 	previous declaration at label.go:29:1
+// line 64: label go2 undefined
 
 // GoTypeCheckError:
 // line 16
@@ -86,6 +87,5 @@ L10:
 // line 24: gc expects: label .*L4.* defined and not used
 // line 27: gc expects: label .*L5.* defined and not used
 // line 53: gc expects: label .*defalt.* defined and not used
-// line 64: gc expects: label go2 not defined|reference to undefined label .*go2
 
 // Verdict: Clean errorcheck

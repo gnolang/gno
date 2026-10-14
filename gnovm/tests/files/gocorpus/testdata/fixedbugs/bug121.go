@@ -17,7 +17,7 @@ type J interface {
 }
 
 // GnoError:
-// line 12: expected ';', found ',' (and 2 more errors)
+// line 12: expected ';', found ','
 
 // GoTypeCheckError:
 // line 12

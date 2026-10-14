@@ -28,7 +28,27 @@ func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition
 
 // GnoError:
 // line 10: i redeclared in this block
-// 	previous declaration at funcdup.go:11:5 (and 10 more errors)
+// 	previous declaration at funcdup.go:11:5
+// line 11: i redeclared in this block
+// 	previous declaration at funcdup.go:12:5
+// line 12: i redeclared in this block
+// 	previous declaration at funcdup.go:13:8
+// line 15: i redeclared in this block
+// 	previous declaration at funcdup.go:16:14
+// line 16: i redeclared in this block
+// 	previous declaration at funcdup.go:17:14
+// line 17: i redeclared in this block
+// 	previous declaration at funcdup.go:18:17
+// line 21: i redeclared in this block
+// 	previous declaration at funcdup.go:22:7
+// line 22: i redeclared in this block
+// 	previous declaration at funcdup.go:23:7
+// line 23: j redeclared in this block
+// 	previous declaration at funcdup.go:24:16
+// line 25: i redeclared in this block
+// 	previous declaration at funcdup.go:26:9
+// line 26: i redeclared in this block
+// 	previous declaration at funcdup.go:27:9
 
 // GoTypeCheckError:
 // line 10
@@ -45,16 +65,6 @@ func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition
 // line 27
 
 // GoTypesOnly:
-// line 11: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 12: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 15: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 16: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 17: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 21: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 22: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 23: gc expects: duplicate argument j|redefinition|previous|redeclared
-// line 25: gc expects: duplicate argument i|redefinition|previous|redeclared
-// line 26: gc expects: duplicate argument i|redefinition|previous|redeclared
 // line 27: gc expects: duplicate argument i|redefinition|previous|redeclared
 
 // Verdict: Clean errorcheck

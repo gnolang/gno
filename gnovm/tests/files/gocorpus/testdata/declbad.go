@@ -67,7 +67,12 @@ func main() {
 }
 
 // GnoError:
-// line 20: no new variables on left side of := (and 5 more errors)
+// line 20: no new variables on left side of :=
+// line 38: no new variables on left side of :=
+// line 44: no new variables on left side of :=
+// line 52: no new variables on left side of :=
+// line 58: no new variables on left side of :=
+// line 64: no new variables on left side of :=
 
 // GoTypeCheckError:
 // line 20
@@ -82,10 +87,5 @@ func main() {
 // GoTypesOnly:
 // line 26: gc expects: redeclared|cannot assign|incompatible|cannot use
 // line 32: gc expects: redeclared|cannot assign|incompatible|cannot use
-// line 38: gc expects: redeclared|no new
-// line 44: gc expects: redeclared|no new|incompatible
-// line 52: gc expects: redeclared|no new|incompatible
-// line 58: gc expects: redeclared|no new
-// line 64: gc expects: redeclared|no new
 
 // Verdict: Clean errorcheck

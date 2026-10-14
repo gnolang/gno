@@ -23,7 +23,8 @@ func main() {
 }
 
 // GnoError:
-// line 13: no new variables on left side of := (and 1 more errors)
+// line 13: no new variables on left side of :=
+// line 18: no new variables on left side of :=
 
 // GoTypeCheckError:
 // line 13
@@ -33,7 +34,6 @@ func main() {
 
 // GoTypesOnly:
 // line 14: gc expects: invalid use of type|undefined
-// line 18: gc expects: non-name main.i|non-name on left side|undefined
 // line 19: gc expects: no fields or methods|undefined
 
 // Verdict: Clean errorcheck

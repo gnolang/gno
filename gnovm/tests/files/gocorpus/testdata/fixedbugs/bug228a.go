@@ -12,15 +12,4 @@ func h(x, y ...int) // ERROR "[.][.][.]"
 
 func i(x int, y ...int, z float32) // ERROR "[.][.][.]"
 
-// GnoError:
-// line 9: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 11: function h does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 13: function i does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoTypeCheckError:
-// line 11
-
-// GnoOverStrictError:
-// line 9: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

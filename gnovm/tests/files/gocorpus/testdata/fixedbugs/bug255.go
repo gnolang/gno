@@ -20,24 +20,4 @@ func ff() string
 
 var i [len([1]string{ff()})]int // ERROR "non-constant array bound|not constant|must be constant"
 
-// GnoError:
-// line 11: cannot convert untyped bigdec to integer -- 1.5 not an exact integer
-// line 12: cannot convert StringKind to IntKind
-// line 13: cannot convert (undefined) to int
-// line 15: name ee not defined in fileset with files [bug255.go]
-// line 16: bigint overflows target kind
-// line 19: function ff does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 21: decl node already predefined! func ff() .res.0 string<VPInvalid(0)> {  }
-
-// GoTypeCheckError:
-// line 11
-// line 12
-// line 13
-// line 15
-// line 16
-// line 21
-
-// GnoOverStrictError:
-// line 19: function ff does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

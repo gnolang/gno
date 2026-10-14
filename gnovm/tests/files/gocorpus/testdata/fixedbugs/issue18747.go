@@ -28,7 +28,7 @@ func _ () {
 }
 
 // GnoError:
-// line 10: missing condition in if statement (and 5 more errors)
+// line 10: missing condition in if statement
 
 // GoTypeCheckError:
 // line 10

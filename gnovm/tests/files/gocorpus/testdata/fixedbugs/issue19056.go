@@ -9,7 +9,7 @@ package p
 var _ = ... . // ERROR "unexpected ...|expected operand|expected .*;"
 
 // GnoError:
-// line 9: expected operand, found '...' (and 1 more errors)
+// line 9: expected operand, found '...'
 
 // GoTypeCheckError:
 // line 9

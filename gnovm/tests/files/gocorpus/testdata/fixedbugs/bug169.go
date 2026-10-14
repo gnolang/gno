@@ -8,7 +8,7 @@ package main
 var x = ''';		// ERROR "char|rune"
 
 // GnoError:
-// line 8: illegal rune literal (and 1 more errors)
+// line 8: illegal rune literal
 
 // GoTypeCheckError:
 // line 8

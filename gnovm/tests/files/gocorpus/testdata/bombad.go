@@ -18,13 +18,17 @@ func main() {
 }
 
 // GnoError:
-// line 14: illegal byte order mark (and 4 more errors)
+// line 14: illegal byte order mark
+// line 15: illegal byte order mark
+// line 16: illegal byte order mark
+// line 17: illegal byte order mark
+// line 18: expected '}', found 'EOF'
 
 // GoTypeCheckError:
 // line 14
 
-// UncaughtError:
-// line 16: uncaught; gc expects: BOM
-// line 17: uncaught; gc expects: BOM
+// GnoOverStrictError:
+// line 15: illegal byte order mark
+// line 18: expected '}', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: 2 over-strict line(s), 0 uncaught marker(s)

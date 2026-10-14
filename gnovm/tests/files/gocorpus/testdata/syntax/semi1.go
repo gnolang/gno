@@ -12,7 +12,7 @@ func main() {
 		z	// GCCGO_ERROR "undefined"
 
 // GnoError:
-// line 10: expected '{', found newline (and 1 more errors)
+// line 10: expected '{', found newline
 
 // GoTypeCheckError:
 // line 10

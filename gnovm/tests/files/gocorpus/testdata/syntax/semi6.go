@@ -11,7 +11,7 @@ type T1	// ERROR "newline in type declaration"
 type T2 /* // ERROR "(semicolon.*|EOF) in type declaration" */
 
 // GnoError:
-// line 9: expected type, found newline (and 1 more errors)
+// line 9: expected type, found newline
 
 // GoTypeCheckError:
 // line 9

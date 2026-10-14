@@ -15,14 +15,12 @@ func main() {
 }
 
 // GnoError:
-// line 10: illegal character U+0027 ''' in escape sequence (and 3 more errors)
+// line 10: illegal character U+0027 ''' in escape sequence
+// line 11: illegal character U+0027 ''' in escape sequence
+// line 12: illegal character U+0027 ''' in escape sequence
+// line 13: illegal character U+0027 ''' in escape sequence
 
 // GoTypeCheckError:
 // line 10
 
-// UncaughtError:
-// line 11: uncaught; gc expects: oct|char
-// line 12: uncaught; gc expects: hex|char
-// line 13: uncaught; gc expects: hex|char
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 3 uncaught marker(s)
+// Verdict: Clean errorcheck

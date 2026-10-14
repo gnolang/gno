@@ -11,10 +11,4 @@ func F() // ERROR "missing function body"
 //go:noescape
 func f() {} // ERROR "can only use //go:noescape with external func implementations"
 
-// GnoError:
-// line 9: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// UncaughtError:
-// line 12: uncaught; gc expects: can only use //go:noescape with external func implementations
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

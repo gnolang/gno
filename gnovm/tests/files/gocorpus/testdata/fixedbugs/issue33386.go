@@ -29,7 +29,7 @@ func _() {
 }
 
 // GnoError:
-// line 16: expected operand, found '}' (and 5 more errors)
+// line 16: expected operand, found '}'
 
 // GoTypeCheckError:
 // line 16

@@ -18,20 +18,4 @@ func f() {
 	}
 }
 
-// GnoError:
-// line 9: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 10: function h does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 16: name did not declared
-
-// GoTypeCheckError:
-// line 16
-// line 17
-
-// GoTypesOnly:
-// line 17: gc expects: undefined
-
-// GnoOverStrictError:
-// line 9: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 10: function h does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// Verdict: KnownIssue errorcheck: 2 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

@@ -29,13 +29,11 @@ func (p (*(T))) i() {}
 func ((T),) j() {}
 
 // GnoError:
-// line 16: cannot parenthesize embedded type (and 2 more errors)
+// line 16: cannot parenthesize embedded type
+// line 17: cannot parenthesize embedded type
+// line 18: cannot parenthesize embedded type
 
 // GoTypeCheckError:
 // line 16
 
-// UncaughtError:
-// line 17: uncaught; gc expects: non-declaration|expected|parenthesize
-// line 18: uncaught; gc expects: non-declaration|expected|parenthesize
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: Clean errorcheck

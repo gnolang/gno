@@ -17,15 +17,13 @@ const (
 )
 
 // GnoError:
-// line 12: '_' must separate successive digits (and 4 more errors)
+// line 12: '_' must separate successive digits
+// line 13: binary literal has no digits
+// line 14: octal literal has no digits
+// line 15: hexadecimal literal has no digits
+// line 16: '_' must separate successive digits
 
 // GoTypeCheckError:
 // line 12
 
-// UncaughtError:
-// line 13: uncaught; gc expects: binary literal has no digits|invalid numeric literal
-// line 14: uncaught; gc expects: octal literal has no digits|invalid numeric literal
-// line 15: uncaught; gc expects: hexadecimal literal has no digits|invalid numeric literal
-// line 16: uncaught; gc expects: '_' must separate successive digits
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 4 uncaught marker(s)
+// Verdict: Clean errorcheck

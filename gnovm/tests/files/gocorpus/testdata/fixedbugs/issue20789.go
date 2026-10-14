@@ -13,7 +13,7 @@ package e
 func([<-chan<-[func u){go // ERROR "unexpected name u"
 
 // GnoError:
-// line 13: expected channel type (and 3 more errors)
+// line 13: expected channel type
 
 // GoTypeCheckError:
 // line 13

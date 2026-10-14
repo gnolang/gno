@@ -55,7 +55,7 @@ func f() {
 }
 
 // GnoError:
-// line 50: expected 'chan', found '<-' (and 3 more errors)
+// line 50: expected 'chan', found '<-'
 
 // GoTypeCheckError:
 // line 50

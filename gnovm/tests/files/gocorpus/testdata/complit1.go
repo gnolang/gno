@@ -64,38 +64,4 @@ type M1 map[S]int
 
 var _ = M1{{s: [1]*M1{&M1{{}: 1}}}: 2}
 
-// GnoError:
-// line 14: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 16: function fp does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 23: decl node already predefined! func f() .res.0 [3]int<VPInvalid(0)> {  }
-// line 25: cannot slice variable of type <untyped> bigint
-// line 26: cannot slice variable of type <untyped> bigdec
-// line 27: cannot slice variable of type <untyped> bool
-// line 32: decl node already predefined! func fp() .res.0 *([3]int<VPInvalid(0)>) {  }
-// line 47: types cannot be elided in composite literals for struct types
-// line 48: types cannot be elided in composite literals for struct types
-// line 49: unexpected composite lit type *main.T
-// line 50: unexpected composite lit type int
-
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 23
-// line 25
-// line 26
-// line 27
-// line 47
-// line 48
-// line 49
-// line 50
-
-// GoTypesOnly:
-// line 21: gc expects: slice of unaddressable value
-// line 22: gc expects: slice of unaddressable value
-
-// GnoOverStrictError:
-// line 14: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 16: function fp does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 32: decl node already predefined! func fp() .res.0 *([3]int<VPInvalid(0)>) {  }
-
-// Verdict: KnownIssue errorcheck: 3 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

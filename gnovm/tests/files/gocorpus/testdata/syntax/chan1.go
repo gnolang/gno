@@ -17,7 +17,7 @@ func main() {
 var _ = c <- v // ERROR "unexpected <-|send statement used as value"
 
 // GnoError:
-// line 13: expected boolean expression, found simple statement (missing parentheses around composite literal?) (and 1 more errors)
+// line 13: expected boolean expression, found simple statement (missing parentheses around composite literal?)
 
 // GoTypeCheckError:
 // line 13

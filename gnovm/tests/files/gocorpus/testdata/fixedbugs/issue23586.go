@@ -24,13 +24,11 @@ func f() {
 }
 
 // GnoError:
-// line 21: expression in defer must be function call (and 2 more errors)
+// line 21: expression in defer must be function call
+// line 22: expression in go must be function call
+// line 23: expression in go must be function call
 
 // GoTypeCheckError:
 // line 21
 
-// UncaughtError:
-// line 22: uncaught; gc expects: must be function call
-// line 23: uncaught; gc expects: must be function call
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: Clean errorcheck

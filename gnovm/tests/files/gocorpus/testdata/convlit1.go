@@ -19,20 +19,4 @@ func main() {
 	if f < 1 { }	// ERROR "conver|incompatible|invalid"
 }
 
-// GnoError:
-// line 12: cannot use untyped string as IntKind
-// line 13: unexpected composite lit type int
-// line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 19
-
-// GoTypesOnly:
-// line 19: gc expects: conver|incompatible|invalid
-
-// GnoOverStrictError:
-// line 16: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

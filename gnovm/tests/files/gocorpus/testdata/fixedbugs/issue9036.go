@@ -31,12 +31,10 @@ func main() {
 }
 
 // GnoError:
-// line 21: 'p' exponent requires hexadecimal mantissa (and 1 more errors)
+// line 21: 'p' exponent requires hexadecimal mantissa
+// line 22: 'P' exponent requires hexadecimal mantissa
 
 // GoTypeCheckError:
 // line 21
 
-// UncaughtError:
-// line 22: uncaught; gc expects: 'P' exponent requires hexadecimal mantissa|invalid prefix
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: Clean errorcheck

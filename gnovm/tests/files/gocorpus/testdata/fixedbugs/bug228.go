@@ -15,7 +15,7 @@ var x ...int;		// ERROR "[.][.][.]|syntax|type"
 type T ...int;		// ERROR "[.][.][.]|syntax|type"
 
 // GnoError:
-// line 11: expected type, found ')' (and 2 more errors)
+// line 11: expected type, found ')'
 
 // GoTypeCheckError:
 // line 11

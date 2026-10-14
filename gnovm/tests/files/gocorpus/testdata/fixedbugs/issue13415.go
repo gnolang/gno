@@ -18,16 +18,4 @@ func f() {
     }
 }
 
-// GnoError:
-// line 13: select statements are not permitted
-
-// GoTypeCheckError:
-// line 14
-
-// GoTypesOnly:
-// line 14: gc expects: x repeated on left side of :=|redefinition|declared and not used
-
-// GnoOverStrictError:
-// line 13: select statements are not permitted
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported select: select statements not supported in Gno

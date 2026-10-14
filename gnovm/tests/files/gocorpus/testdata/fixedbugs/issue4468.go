@@ -32,16 +32,14 @@ func F() {
 }
 
 // GnoError:
-// line 22: expression in go must be function call (and 5 more errors)
+// line 22: expression in go must be function call
+// line 23: expression in defer must be function call
+// line 24: expression in go must not be parenthesized
+// line 25: expression in defer must not be parenthesized
+// line 26: expression in go must not be parenthesized
+// line 27: expression in defer must not be parenthesized
 
 // GoTypeCheckError:
 // line 22
 
-// UncaughtError:
-// line 23: uncaught; gc expects: must be function call
-// line 24: uncaught; gc expects: must be function call|must not be parenthesized
-// line 25: uncaught; gc expects: must be function call|must not be parenthesized
-// line 26: uncaught; gc expects: must be function call|must not be parenthesized
-// line 27: uncaught; gc expects: must be function call|must not be parenthesized
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 5 uncaught marker(s)
+// Verdict: Clean errorcheck

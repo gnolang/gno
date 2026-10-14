@@ -39,7 +39,7 @@ func f() {
 }
 
 // GnoError:
-// line 14: expected ':', found ';' (and 5 more errors)
+// line 14: expected ':', found ';'
 
 // GoTypeCheckError:
 // line 14

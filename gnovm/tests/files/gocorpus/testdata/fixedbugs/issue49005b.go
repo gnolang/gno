@@ -14,14 +14,4 @@ var _ = F().(*X) // ERROR "impossible type assertion:( F\(\).\(\*X\))?\n\t\*X do
 
 type X struct{}
 
-// GnoError:
-// line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
-// line 13: decl node already predefined! func F() .res.0 T<VPInvalid(0)> {  }
-
-// GoTypeCheckError:
-// line 13
-
-// GnoOverStrictError:
-// line 11: function F does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

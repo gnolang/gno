@@ -13,7 +13,7 @@ func f() {
 } // ERROR "unexpected }, expected expression|expected operand|missing .*\)|expected .*;|expected .*{"
 
 // GnoError:
-// line 13: expected operand, found '}' (and 1 more errors)
+// line 13: expected operand, found '}'
 
 // GoTypeCheckError:
 // line 13

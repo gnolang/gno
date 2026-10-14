@@ -26,7 +26,7 @@ func i() {
 }
 
 // GnoError:
-// line 12: missing ',' before newline in argument list (and 3 more errors)
+// line 12: missing ',' before newline in argument list
 
 // GoTypeCheckError:
 // line 12

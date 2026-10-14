@@ -27,18 +27,16 @@ const (
 )
 
 // GnoError:
-// line 16: escape sequence is invalid Unicode code point (and 7 more errors)
+// line 16: escape sequence is invalid Unicode code point
+// line 17: escape sequence is invalid Unicode code point
+// line 18: escape sequence is invalid Unicode code point
+// line 19: escape sequence is invalid Unicode code point
+// line 20: escape sequence is invalid Unicode code point
+// line 23: escape sequence is invalid Unicode code point
+// line 25: escape sequence is invalid Unicode code point
+// line 26: escape sequence is invalid Unicode code point
 
 // GoTypeCheckError:
 // line 16
 
-// UncaughtError:
-// line 17: uncaught; gc expects: Unicode|unicode
-// line 18: uncaught; gc expects: Unicode|unicode
-// line 19: uncaught; gc expects: Unicode|unicode
-// line 20: uncaught; gc expects: Unicode|unicode
-// line 23: uncaught; gc expects: Unicode|unicode
-// line 25: uncaught; gc expects: Unicode|unicode
-// line 26: uncaught; gc expects: Unicode|unicode
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 7 uncaught marker(s)
+// Verdict: Clean errorcheck

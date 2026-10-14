@@ -8,10 +8,4 @@ package p
 
 func init() // ERROR "missing function body|cannot declare init"
 
-// GnoError:
-// line 9: function init.0 does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoTypeCheckError:
-// line 9
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

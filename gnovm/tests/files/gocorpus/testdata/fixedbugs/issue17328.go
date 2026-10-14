@@ -13,7 +13,7 @@ func main() {
 } // GCCGO_ERROR "expected declaration"
 
 // GnoError:
-// line 11: expected '{', found ')' (and 1 more errors)
+// line 11: expected '{', found ')'
 
 // GoTypeCheckError:
 // line 11

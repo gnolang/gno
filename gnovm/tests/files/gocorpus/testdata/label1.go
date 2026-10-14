@@ -122,7 +122,8 @@ L5:
 }
 
 // GnoError:
-// line 108: label on undefined (and 1 more errors)
+// line 108: label on undefined
+// line 113: label dance undefined
 
 // GoTypeCheckError:
 // line 18
@@ -155,6 +156,5 @@ L5:
 // line 99: gc expects: invalid continue label .*L1
 // line 106: gc expects: continue is not in a loop$|continue statement not within for
 // line 111: gc expects: break is not in a loop, switch, or select|break statement not within for or switch or select
-// line 113: gc expects: break label not defined: dance|invalid break label .*dance
 
 // Verdict: Clean errorcheck

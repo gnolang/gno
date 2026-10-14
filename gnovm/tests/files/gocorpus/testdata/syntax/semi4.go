@@ -12,7 +12,7 @@ func main() {
 		z	// GCCGO_ERROR "undefined"
 
 // GnoError:
-// line 11: expected operand, found '{' (and 1 more errors)
+// line 11: expected operand, found '{'
 
 // GoTypeCheckError:
 // line 11

@@ -34,7 +34,11 @@ var h interface{} // ERROR "issue20415.go:31: previous declaration|redefinition|
 
 // GnoError:
 // line 14: f redeclared in this block
-// 	previous declaration at issue20415.go:13:5 (and 2 more errors)
+// 	previous declaration at issue20415.go:13:5
+// line 25: g redeclared in this block
+// 	previous declaration at issue20415.go:21:5
+// line 33: h redeclared in this block
+// 	previous declaration at issue20415.go:32:5
 
 // GoTypeCheckError:
 // line 12
@@ -43,9 +47,5 @@ var h interface{} // ERROR "issue20415.go:31: previous declaration|redefinition|
 // line 25
 // line 31
 // line 33
-
-// GoTypesOnly:
-// line 25: gc expects: issue20415.go:20: previous declaration|redefinition|g redeclared
-// line 33: gc expects: issue20415.go:31: previous declaration|redefinition|h redeclared
 
 // Verdict: Clean errorcheck

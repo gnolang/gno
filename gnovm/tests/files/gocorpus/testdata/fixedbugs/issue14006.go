@@ -67,10 +67,14 @@ func g() {
 }
 
 // GnoError:
-// line 24: illegal label declaration (and 9 more errors)
+// line 24: illegal label declaration
+// line 25: expected ';', found 'case'
 
 // GoTypeCheckError:
 // line 24
+
+// GnoOverStrictError:
+// line 25: expected ';', found 'case'
 
 // UncaughtError:
 // line 30: uncaught; gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
@@ -80,4 +84,4 @@ func g() {
 // line 59: uncaught; gc expects: label labelname defined and not used|previous definition|defined and not used
 // line 64: uncaught; gc expects: label labelname already defined at LINE-5|label .*labelname.* already defined
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 6 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 6 uncaught marker(s)

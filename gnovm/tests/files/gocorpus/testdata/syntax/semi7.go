@@ -12,7 +12,7 @@ func main() {
 }
 
 // GnoError:
-// line 11: expected statement, found 'else' (and 1 more errors)
+// line 11: expected statement, found 'else'
 
 // GoTypeCheckError:
 // line 11

@@ -27,7 +27,8 @@ L1:
 }
 
 // GnoError:
-// line 13: label L2 undefined (and 1 more errors)
+// line 13: label L2 undefined
+// line 14: label L2 undefined
 
 // GoTypeCheckError:
 // line 13
@@ -37,7 +38,6 @@ L1:
 // line 23
 
 // GoTypesOnly:
-// line 14: gc expects: L2
 // line 22: gc expects: L1
 // line 23: gc expects: L1
 
