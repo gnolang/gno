@@ -186,11 +186,11 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 			info.GetPubKey().String(),
 			base64.StdEncoding.EncodeToString(sig),
 		)
-		// Only the amount/gas rendering is one the Ledger Cosmos app will
-		// sign, so a signature over the other is worth pointing out.
+		// Only the amount/gas rendering is one the Ledger Gno and Cosmos apps
+		// will sign, so a signature over the other is worth pointing out.
 		if rendering == std.PayloadRenderingLegacy {
 			io.Printfln("Note: signed over the legacy payload rendering (fee as " +
-				"gas_wanted/gas_fee), which the Ledger Cosmos app refuses to sign")
+				"gas_wanted/gas_fee), which the Ledger Gno and Cosmos apps refuse to sign")
 		}
 	}
 

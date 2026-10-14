@@ -232,7 +232,7 @@ func sign(device ledger.SECP256K1, pkl PrivKeyLedgerSecp256k1, msg []byte) ([]by
 func getPubKeyUnsafe(device ledger.SECP256K1, path hd.BIP44Params) (crypto.PubKey, error) {
 	publicKey, err := device.GetPublicKeySECP256K1(path.DerivationPath())
 	if err != nil {
-		return nil, fmt.Errorf("please open Cosmos app on the Ledger device - error: %w", err)
+		return nil, fmt.Errorf("please open the Gno or the Cosmos app on the Ledger device - error: %w", err)
 	}
 
 	// re-serialize in the 33-byte compressed format
