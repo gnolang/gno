@@ -23,7 +23,11 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `Verdict: KnownDivergence <mode>: <reason>` | Gno differs on purpose; the reason must cite the Gno decision it rests on (a `docs/` page, `#NNNN` or a URL); the Go spec merely permitting a difference is not one. A divergence nobody has decided is a `KnownIssue` |
 
 Sync proposes a `Known*` verdict with a `TODO:` reason; verify refuses it until
-a human replaces the reason, so a divergence is never blessed by accident.
+a human replaces the reason, so a divergence is never blessed by accident. File
+one issue per cause and list the corpus files it covers: the same `#NNNN` goes
+into each of them, and the fix PR flips those files to `Clean` (verify fails
+them as "stale verdict" until it does). A file whose cause has no issue yet
+stays out of the tree.
 
 Verify (`go test ./gnovm/pkg/gnolang -run TestFiles/gocorpus`) runs Gno only
 and compares with the pinned Go side; it never shells out to `go`. One
