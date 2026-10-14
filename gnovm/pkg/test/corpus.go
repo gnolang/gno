@@ -448,6 +448,7 @@ var unsupportedTags = []struct{ tag, needle string }{
 	{"gc-specific", "gc's "},
 	{"gc-specific", "gc-internal"},
 	{"gc-specific", "//go:"},
+	{"long", "in the interpreter"},
 	{"nondeterministic", "non-deterministic"},
 	{"nondeterministic", "nondeterministic"},
 	{"marker-uncheckable", "marker on a non-code line"},
