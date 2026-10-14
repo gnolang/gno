@@ -14,6 +14,12 @@ on:
     tags:
       - v*
 
+concurrency:
+  # One run per tag at a time. GitHub can start two runs for a single tag
+  # push, and two concurrent runs both pass the registry check below before
+  # either pushes; serialized, the second meets the version tag and refuses.
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 permissions:
   contents: read
 

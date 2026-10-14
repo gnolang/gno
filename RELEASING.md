@@ -183,7 +183,9 @@ of a hand-built binary; the binary's own `version` output is.
 `release / docker` workflows run on `v*` tag pushes only, with no manual
 trigger, and both refuse to replace what is already out: `release / chain-tag`
 stops before attesting when the release is published, `release / docker`
-before building when the registry already serves the version tag. These
+before building when the registry already serves the version tag. Runs for one
+tag never overlap: GitHub can start two for a single push, and the second waits
+for the first, then meets those checks. These
 builds are not reproducible, so a replacement would swap the binaries,
 `CHECKSUMS.txt` and images the upgrade ledgers record for others under the
 same version. The release is created as a draft and published only once every
