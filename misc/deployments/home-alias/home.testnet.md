@@ -16,7 +16,7 @@ the foundations of a fairer and freer world, join us today.
 
 <gno-columns>
 
-## <gno-icon name="wallet" /> Use Gno.land apps
+## <gno-icon name="browser" /> Use Gno.land apps
 
 Get free testnet GNOTs and try the realms deployed on this testnet.
 
