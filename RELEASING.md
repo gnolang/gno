@@ -57,7 +57,7 @@ holding the old ref then has an identical one.
 | Branch | Tags | Purpose |
 |--------|------|---------|
 | `master` | none | Continuous integration; the development tree |
-| `chain/mainnet` | `v1.x.x`, plus the `chain/mainnet` launch tag | Mainnet (`gnoland-1`) — coordinated upgrades only, never rebased |
+| `chain/mainnet` | `v1.x.x`, plus the `chain/mainnet` launch tag | Mainnet (`gnoland-1`) — moves only by releases, coordinated or rolling; never rebased |
 | `chain/gnoland1` | `chain/gnoland1.0`, `chain/gnoland1.1` | Retired. Frozen at what betanet ran; the tags keep their original names because they are compiled into those binaries. The branch is to be renamed `chain/betanet` — until it is, `--chain betanet` has no branch to resolve |
 | *(none)* | `chain/<name>` | A testnet on the mainnet line, onyx first: it runs mainnet's `vX.Y.Z` binaries, so it has no branch. Its launch tag sits on the commit of the version it launched on (its folder `misc/deployments/<name>.gno.land/` lands on `chain/mainnet` before that version is cut), and the tag's release carries its `genesis.json` |
 | `chain/pearl`, `chain/test13`, … | `chain/<name>` | Earlier testnets, each on its own code line. Frozen |
@@ -231,10 +231,11 @@ The testnet runs the same binary as mainnet; only the genesis balances and the
 on-chain transactions differ. Every mainnet release is therefore first cut as
 a release candidate on the same commit
 (`cut-release.sh v1.6.0-rc.1 --commit <code-commit> --push`), deployed to the
-testnet through the operator procedure (`set-halt` naming the
-rc, validators switch at the height), and checked there: the halt fires, an
-early start is refused, blocks are produced after the restart, a fresh node
-syncs from genesis with the rc. A fix means a new commit and `rc.2`. Only then
+testnet the way mainnet will take it, and checked there. A patch is switched to
+node by node; a coordinated upgrade goes through `set-halt` naming the rc, and
+the rehearsal checks that the halt fires, an early start is refused and blocks
+are produced after the restart. Either way, the nodes report the rc and a fresh
+node syncs from genesis with it. A fix means a new commit and `rc.2`. Only then
 is the final tag cut, on the same commit as the last rc.
 
 ### Container images
@@ -260,8 +261,8 @@ Two kinds of release page, one job each:
 - `chain/<name>` is the genesis record: `genesis.json`, its `.gz`, their
   checksums, and a description of the chain at birth. Frozen; no binaries.
 - `vX.Y.Z` is a binary you can run: the CI-built binaries and `CHECKSUMS.txt`,
-  the halt height and `halt_min_version` of the upgrade that made it live, the
-  eight image URLs, and the changelog.
+  for a coordinated upgrade the halt height and `halt_min_version` that made it
+  live, the eight image URLs, and the changelog.
 
 `misc/deployments/<chain>.gno.land/upgrades.json` is the ledger: one entry per
 version the network has run — the genesis, one per coordinated halt, and one
