@@ -19,6 +19,11 @@ func f() {
 	}
 }
 
+// GnoError:
+// line 14: duplicate case uint8(0) in expression switch
+// line 16: duplicate case int32(0) in expression switch
+// line 18: duplicate case int(0) in expression switch
+
 // GoTypeCheckError:
 // line 13
 // line 14
@@ -26,10 +31,5 @@ func f() {
 // line 16
 // line 17
 // line 18
-
-// GoTypesOnly:
-// line 14: gc expects: duplicate case
-// line 16: gc expects: duplicate case
-// line 18: gc expects: duplicate case
 
 // Verdict: Clean errorcheck

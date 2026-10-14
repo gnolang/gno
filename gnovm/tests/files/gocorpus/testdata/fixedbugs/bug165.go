@@ -14,10 +14,10 @@ type S struct {
 	m map[S] bool;	// ERROR "map key type"
 }
 
+// GnoError:
+// line 14: invalid map key type main.S
+
 // GoTypeCheckError:
 // line 14
-
-// GoTypesOnly:
-// line 14: gc expects: map key type
 
 // Verdict: Clean errorcheck

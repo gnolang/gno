@@ -17,10 +17,10 @@ type Val struct{}
 
 type Map map[Key]Val // ERROR "invalid map key type"
 
+// GnoError:
+// line 18: invalid map key type main.Key
+
 // GoTypeCheckError:
 // line 18
-
-// GoTypesOnly:
-// line 18: gc expects: invalid map key type
 
 // Verdict: Clean errorcheck

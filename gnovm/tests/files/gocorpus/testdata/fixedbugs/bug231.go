@@ -23,10 +23,10 @@ func main() {
 	_ = i
 }
 
+// GnoError:
+// line 22: main.T does not implement main.I (main.T.m is a field, not a method)
+
 // GoTypeCheckError:
 // line 22
-
-// GoTypesOnly:
-// line 22: gc expects: not a method|has no methods|does not implement I
 
 // Verdict: Clean errorcheck

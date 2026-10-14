@@ -12,13 +12,9 @@ var (
 )
 
 // GnoError:
-// line 10: cannot convert StringKind to ArrayKind
-// line 11: decl node already predefined! var b<!VPBlock(2,0)> = [...](const-type uint8)((const ("abc" string)))
+// line 10: invalid use of [...] array (outside a composite literal)
 
 // GoTypeCheckError:
 // line 10
 
-// GnoOverStrictError:
-// line 11: decl node already predefined! var b<!VPBlock(2,0)> = [...](const-type uint8)((const ("abc" string)))
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Clean errorcheck

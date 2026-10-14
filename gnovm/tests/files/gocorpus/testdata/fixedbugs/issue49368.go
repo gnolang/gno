@@ -10,7 +10,7 @@ type _ interface {
 	int // ERROR "embedding non-interface type int requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)"
 }
 
-// UncaughtError:
-// line 10: uncaught; gc expects: embedding non-interface type int requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)
+// GnoError:
+// line 9: 2: interface contains embedded non-interface int
 
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: Clean errorcheck

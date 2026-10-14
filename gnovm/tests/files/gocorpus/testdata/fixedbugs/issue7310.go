@@ -15,15 +15,13 @@ func main() {
 }
 
 // GnoError:
+// line 12: invalid argument: copy expects slice arguments; found untyped nil and []int
+// line 13: invalid argument: copy expects slice arguments; found []int and untyped nil
 // line 14: cannot use untyped bool as BigintKind
 
 // GoTypeCheckError:
 // line 12
 // line 13
 // line 14
-
-// GoTypesOnly:
-// line 12: gc expects: use of untyped nil|left argument must be a slice|expects slice arguments
-// line 13: gc expects: use of untyped nil|second argument must be slice or string|expects slice arguments
 
 // Verdict: Clean errorcheck

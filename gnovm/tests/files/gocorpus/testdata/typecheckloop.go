@@ -15,12 +15,15 @@ const C = A + B + 1
 
 // GnoError:
 // line 12: invalid recursive value: A -> B -> C -> A
-// line 13: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
-// line 14: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
 
 // GoTypeCheckError:
 // line 12
 // line 13
 // line 14
+
+// GoTypesOnly:
+// line 13: gc expects: constant definition loop
+// .*B uses C
+// .*C uses B|initialization cycle
 
 // Verdict: Clean errorcheck

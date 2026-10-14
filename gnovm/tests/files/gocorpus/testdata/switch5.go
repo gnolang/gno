@@ -93,6 +93,26 @@ func f8(r rune) {
 	}
 }
 
+// GnoError:
+// line 15: duplicate case 0 in expression switch
+// line 20: duplicate case int(0) in expression switch
+// line 27: duplicate case 5 in expression switch
+// line 28: duplicate case 5.0 in expression switch
+// line 35: duplicate case "" in expression switch
+// line 37: duplicate case "abc" in expression switch
+// line 44: duplicate case 0 in expression switch
+// line 47: duplicate case float32(10) in expression switch
+// line 49: duplicate case float64(10) in expression switch
+// line 75: duplicate case 0 in expression switch
+// line 76: duplicate case 1 in expression switch
+// line 85: duplicate case 33 in expression switch
+// line 86: duplicate case '"' in expression switch
+// line 87: duplicate case int32(35) in expression switch
+// line 88: duplicate case int32(36) in expression switch
+// line 89: duplicate case int32(37) in expression switch
+// line 91: duplicate case 'b' in expression switch
+// line 92: duplicate case int32(10) in expression switch
+
 // GoTypeCheckError:
 // line 14
 // line 15
@@ -122,25 +142,5 @@ func f8(r rune) {
 // line 90
 // line 91
 // line 92
-
-// GoTypesOnly:
-// line 15: gc expects: duplicate case (0 in switch)?
-// line 20: gc expects: duplicate case (int.0. .value 0. in switch)?
-// line 27: gc expects: duplicate case (5 in switch)?
-// line 28: gc expects: duplicate case (5 in switch)?
-// line 35: gc expects: duplicate case (.. in switch)?
-// line 37: gc expects: duplicate case (.abc. in switch)?
-// line 44: gc expects: duplicate case (0 in switch)?
-// line 47: gc expects: duplicate case (float32\(10\) .value 10. in switch)?
-// line 49: gc expects: duplicate case (float64\(10\) .value 10. in switch)?
-// line 75: gc expects: duplicate case 0
-// line 76: gc expects: duplicate case 1
-// line 85: gc expects: duplicate case (33 in switch)?
-// line 86: gc expects: duplicate case '
-// line 87: gc expects: duplicate case (rune.'#'. .value 35. in switch)?
-// line 88: gc expects: duplicate case (rune.36. .value 36. in switch)?
-// line 89: gc expects: duplicate case ('\$' \+ 1 .value 37. in switch)?
-// line 91: gc expects: duplicate case ('b' .value 98.)?
-// line 92: gc expects: duplicate case (x .value 10.)?
 
 // Verdict: Clean errorcheck

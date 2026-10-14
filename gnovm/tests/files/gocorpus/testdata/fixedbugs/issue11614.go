@@ -25,14 +25,12 @@ func m() {
 func main() {
 }
 
+// GnoError:
+// line 13: 2: interface contains embedded non-interface int
+// line 22: interface contains embedded non-interface int
+
 // GoTypeCheckError:
 // line 18
 // line 22
 
-// GoTypesOnly:
-// line 22: gc expects: interface contains embedded non-interface|embedding non-interface type int requires | type interface { int } is not an expression|\(interface{int}\) \(type\) is not an expression
-
-// UncaughtError:
-// line 14: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type int requires
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: Clean errorcheck

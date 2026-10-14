@@ -12,12 +12,12 @@ package main
 var x map[func()]int // ERROR "invalid map key type"
 var X map[func()]int // ERROR "invalid map key type"
 
+// GnoError:
+// line 12: invalid map key type func()
+// line 13: invalid map key type func()
+
 // GoTypeCheckError:
 // line 12
 // line 13
-
-// GoTypesOnly:
-// line 12: gc expects: invalid map key type
-// line 13: gc expects: invalid map key type
 
 // Verdict: Clean errorcheck

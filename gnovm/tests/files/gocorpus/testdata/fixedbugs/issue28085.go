@@ -30,17 +30,11 @@ func _() {
 
 // GnoError:
 // line 9: 2: duplicate key (0 int) in map literal
-// line 14: 2: duplicate key (0 int) in map literal
+// line 22: duplicate case 0 in expression switch
 
 // GoTypeCheckError:
 // line 11
 // line 21
 // line 22
 
-// GoTypesOnly:
-// line 22: gc expects: duplicate
-
-// GnoOverStrictError:
-// line 14: 2: duplicate key (0 int) in map literal
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Clean errorcheck

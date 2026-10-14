@@ -113,6 +113,9 @@ var b2 B2 = &T2{}
 // line 53: main.I does not implement main.I2 (missing method N)
 // line 56: cannot convert main.E to main.T: need type assertion
 // line 60: invalid operation: f<VPBlock(1,0)> (variable of type float64) is not an interface
+// line 70: impossible type assertion: int does not implement main.M (missing method M)
+// line 76: impossible type assertion: main.Int does not implement main.M (wrong type for method M)
+// line 78: impossible type assertion: main.X does not implement main.M (method M has pointer receiver)
 // line 83: int does not implement main.M (missing method M)
 // line 84: main.Int does not implement main.M (wrong type for method M)
 // line 86: int does not implement main.M (missing method M)
@@ -137,10 +140,5 @@ var b2 B2 = &T2{}
 // line 87
 // line 90
 // line 95
-
-// GoTypesOnly:
-// line 70: gc expects: impossible type assertion
-// line 76: gc expects: impossible type assertion
-// line 78: gc expects: pointer receiver
 
 // Verdict: Clean errorcheck

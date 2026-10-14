@@ -29,6 +29,11 @@ func main() {
 // GnoError:
 // line 17: wrong argument count in call to (const (copy func(<X>{}, <Y>{}) int)); want 2 got 0
 // line 18: wrong argument count in call to (const (copy func(<X>{}, <Y>{}) int)); want 2 got 3
+// line 20: arguments to copy have different element types int and byte
+// line 21: arguments to copy have different element types int and float64
+// line 23: invalid argument: copy expects slice arguments; found <untyped> bigint and <untyped> bigint
+// line 24: invalid argument: copy expects slice arguments; found <untyped> bigint and []int
+// line 25: invalid argument: copy expects slice arguments; found []int and <untyped> bigint
 
 // GoTypeCheckError:
 // line 17
@@ -38,12 +43,5 @@ func main() {
 // line 23
 // line 24
 // line 25
-
-// GoTypesOnly:
-// line 20: gc expects: have different element types(.*int.*string| int and byte)
-// line 21: gc expects: have different element types.*int.*float64
-// line 23: gc expects: must be slices; have int, int|expects slice arguments
-// line 24: gc expects: first argument to copy should be|expects slice arguments
-// line 25: gc expects: second argument to copy should be|expects slice arguments
 
 // Verdict: Clean errorcheck
