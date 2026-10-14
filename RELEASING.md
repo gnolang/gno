@@ -261,10 +261,11 @@ validator restarting for an unrelated reason between "release built" and
 "halt height" would pull the new binary, and the node would refuse to start it
 until the halt. Operators pin the version the halt proposal names. Images are
 built from tags, not from branch pushes; `:master` images are development
-builds whose version does not parse. The `sha-<commit>` tag the workflow also
-pushes is not a version and moves: a final release shares its commit with its
-last candidate, so the final's images take that tag over from the
-candidate's. Pin a `vX.Y.Z` tag or a digest.
+builds whose version does not parse. A release image carries its version tag
+only (and `latest` for the CLI tools), never a tag named after its commit: a
+final release shares its commit with its last candidate, so such a tag would
+move from the candidate's images to the final's. Images from releases before
+`v1.5.2` still carry a `sha-<commit>` tag; pin a `vX.Y.Z` tag or a digest.
 
 ### Release pages and the upgrade ledger
 

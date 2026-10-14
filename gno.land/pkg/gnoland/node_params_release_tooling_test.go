@@ -184,6 +184,11 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 			assert.Regexp(t, `\A  push:\n    tags:\n      - ["']?v\*["']?\n+\z`, on, "%s must run on v* tag pushes only", path)
 		}
 
+		// A final release is cut on its last candidate's commit, so an image tag
+		// named after the commit would move from the candidate's images to the
+		// final's. Images carry their version tag only (and latest for the CLIs).
+		assert.NotContains(t, image, "type=sha", "%s must not tag images by commit", docker)
+
 		// Every line that names TAG other than to expand it, comments aside:
 		// an env key in any YAML style, an assignment, a read, a loop variable
 		// or a GITHUB_ENV line could each shadow the workflow-level value.
