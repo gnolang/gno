@@ -13,8 +13,8 @@ the source of most release incidents, so they are named separately here.
 | Surface | Where it lives | What it controls | When it moves |
 |---|---|---|---|
 | **Release version** | a git tag, compiled into `tm2/pkg/version.Version` via `-ldflags` | what `gnoland version` reports, and what a governance `halt_min_version` is compared against | every release |
-| **Protocol version** | six constants under `tm2/`, see [Protocol versions](#protocol-versions) | the versionset exchanged in the p2p handshake; peers whose MAJOR differs cannot connect | rarely, and never on its own |
-| **App version** | `baseApp.SetAppVersion` in `gno.land/pkg/gnoland/app.go` | the `app` entry of the versionset, persisted onto consensus state at the ABCI handshake | rarely |
+| **Protocol version** | six constants under `tm2/`, see [Protocol versions](#protocol-versions) | the versionset exchanged in the p2p handshake, where peers whose MAJOR differs cannot connect; and the version in every block header, which nodes check for equality | rarely, never on its own, and always as a coordinated upgrade |
+| **App version** | `baseApp.SetAppVersion` in `gno.land/pkg/gnoland/app.go` | the `app` entry of the versionset, persisted onto consensus state at the ABCI handshake; also in every block header, which nodes check for equality | rarely, and always as a coordinated upgrade |
 
 Only the first is what people usually mean by "the version". The tooling in
 [`misc/release/`](misc/release) covers the first two: `cut-release.sh` for the
@@ -341,15 +341,20 @@ misc/release/bump-protocol-version.sh v1.0.0    # move all six
 `TestProtocolVersionsAgree` in `tm2/pkg/bft/version/version_test.go` is what
 fails in CI if they drift.
 
-**A MAJOR bump here partitions the network.** `VersionSet.CompatibleWith`
-compares major.minor and refuses a peer whose major differs, so old and new
-nodes cannot gossip — independently of any halt height. It must ride a
-coordinated upgrade, with every validator switching at the same block.
-`TestVersionSetCompatibleWith` covers the refusal and the negotiated minor;
-treat a MAJOR bump as needing a rehearsal on a testnet anyway.
+**Any bump here splits the network, not only a MAJOR one.** `BlockVersion` is
+written into every block header, and `ApplyBlock` refuses a block whose
+`Header.Version` differs from the binary's own constant
+(`tm2/pkg/bft/state/validation.go`), on fast sync and on replay alike: nodes on
+either side of a bump reject each other's blocks, and a bumped binary cannot
+sync blocks produced before it. Nothing gates that check by height, so a bump
+needs such code first, then a coordinated upgrade with every validator
+switching at the same block, rehearsed on a testnet. A MAJOR bump also stops
+old and new nodes from peering: `VersionSet.CompatibleWith` refuses a peer
+whose major differs (`TestVersionSetCompatibleWith` covers it).
 
-These constants have never been bumped: they still read `v1.0.0-rc.0`, the value
-they were given in 2023. Mainnet launched on it.
+These constants have never been bumped: they still read `v1.0.0-rc.0`,
+unchanged since before the 2023 reorganisation that created `tm2/`. Mainnet
+launched on it.
 
 ## New network
 
