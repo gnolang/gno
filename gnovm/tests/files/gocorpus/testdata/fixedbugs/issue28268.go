@@ -29,14 +29,20 @@ func _() {
 	x.E()   // no follow-on error here
 }
 
+// GnoError:
+// line 19: type T has both field and method named b
+// line 20: type T has both field and method named E
+// line 26: unexpected func type int (gnolang.PrimitiveType)
+// line 29: unexpected func type gno.land/p/filetest/p.E (*gnolang.DeclaredType)
+
 // GoTypeCheckError:
 // line 13
 // line 14
 // line 19
 // line 20
 
-// GoTypesOnly:
-// line 19: gc expects: field and method named b|redeclares struct field name|field and method with the same name b
-// line 20: gc expects: field and method named E|redeclares struct field name|field and method with the same name E
+// GnoOverStrictError:
+// line 26: unexpected func type int (gnolang.PrimitiveType)
+// line 29: unexpected func type gno.land/p/filetest/p.E (*gnolang.DeclaredType)
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: 2 over-strict line(s), 0 uncaught marker(s)

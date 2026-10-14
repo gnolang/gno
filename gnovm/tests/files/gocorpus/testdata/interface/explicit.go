@@ -117,6 +117,8 @@ var b2 B2 = &T2{}
 // line 84: main.Int does not implement main.M (wrong type for method M)
 // line 86: int does not implement main.M (missing method M)
 // line 87: main.Int does not implement main.M (wrong type for method M)
+// line 89: 2: methods must have a unique non-blank name
+// line 93: 2: methods must have a unique non-blank name
 
 // GoTypeCheckError:
 // line 41
@@ -140,7 +142,5 @@ var b2 B2 = &T2{}
 // line 70: gc expects: impossible type assertion
 // line 76: gc expects: impossible type assertion
 // line 78: gc expects: pointer receiver
-// line 90: gc expects: methods must have a unique non-blank name
-// line 95: gc expects: methods must have a unique non-blank name
 
 // Verdict: Clean errorcheck

@@ -8,10 +8,10 @@ package p
 
 import init "fmt" // ERROR "cannot import package as init|cannot declare init"
 
+// GnoError:
+// line 9: cannot declare init - must be func
+
 // GoTypeCheckError:
 // line 9
-
-// GoTypesOnly:
-// line 9: gc expects: cannot import package as init|cannot declare init
 
 // Verdict: Clean errorcheck

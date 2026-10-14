@@ -31,10 +31,10 @@ func h(x interface{}) {
 	}
 }
 
+// GnoError:
+// line 12: 3: declared and not used: t
+
 // GoTypeCheckError:
 // line 12
-
-// GoTypesOnly:
-// line 12: gc expects: declared and not used
 
 // Verdict: Clean errorcheck

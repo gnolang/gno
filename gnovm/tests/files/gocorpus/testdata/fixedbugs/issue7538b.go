@@ -12,4 +12,7 @@ func f() {
 _:
 }
 
-// Verdict: Clean compile
+// GnoPreprocessError:
+// line 13: label _ defined and not used
+
+// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)

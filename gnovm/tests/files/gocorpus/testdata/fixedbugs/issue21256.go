@@ -8,10 +8,10 @@ package main
 
 var main = func() {} // ERROR "must be func|redefinition"
 
+// GnoError:
+// line 9: cannot declare main - must be func
+
 // GoTypeCheckError:
 // line 9
-
-// GoTypesOnly:
-// line 9: gc expects: must be func|redefinition
 
 // Verdict: Clean errorcheck

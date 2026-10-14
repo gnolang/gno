@@ -13,10 +13,10 @@ func _() {
 	x := 7 // ERROR "declared and not used"
 }
 
+// GnoError:
+// line 13: declared and not used: x
+
 // GoTypeCheckError:
 // line 13
-
-// GoTypesOnly:
-// line 13: gc expects: declared and not used
 
 // Verdict: Clean errorcheck
