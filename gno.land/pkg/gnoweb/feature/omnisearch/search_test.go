@@ -886,8 +886,6 @@ func TestAccountRefusesANonAddressBeforeAnyFetch(t *testing.T) {
 	}
 }
 
-// A chain-wide selector answers the same on every page, so its header must
-// not claim the page it was typed on as its scope.
 // TestRenderScopeNamesWhatItRenders checks render: names the realm it
 // renders: the page's own with no author:, none when author: widens it, and
 // the in: scope when given.
@@ -906,15 +904,29 @@ func TestRenderScopeNamesWhatItRenders(t *testing.T) {
 			t.Errorf("%q: PkgPath = %q, want %q", raw, got, want)
 		}
 	}
+
+	// A package does not render: asked to narrow, never told the node is down.
+	c := &mockClient{}
+	h = newHandler(t, c, nil)
+	q := mustQuery(t, h, "render:voting", "")
+	h.scope(q, parseURL(t, "/p/demo/avl$search"))
+	data := h.build(context.Background(), q)
+	if data.PkgPath != "" || len(data.Groups) != 1 || !errors.Is(data.Groups[0].Err, errRenderNeedsNarrowing) || c.realmCalls != 0 {
+		t.Errorf("on a package page: PkgPath = %q, groups = %+v, Realm calls = %d", data.PkgPath, data.Groups, c.realmCalls)
+	}
 }
 
+// A chain-wide selector answers the same on every page and ignores in:, so
+// its header must claim neither as its scope.
 func TestGlobalSelectorDoesNotClaimThePageAsScope(t *testing.T) {
 	t.Parallel()
 
 	h := newHandler(t, &mockClient{}, &mockIndexer{tx: &indexer.Tx{Hash: "abc"}})
-	q := mustQuery(t, h, "tx:abc", "")
-	h.scope(q, parseURL(t, "/r/demo/boards$search"))
-	if got := h.build(context.Background(), q).PkgPath; got != "" {
-		t.Fatalf("PkgPath = %q, want none for a chain-wide selector", got)
+	for _, raw := range []string{"tx:abc", "tx:abc in:/r/demo/boards"} {
+		q := mustQuery(t, h, raw, "")
+		h.scope(q, parseURL(t, "/r/demo/boards$search"))
+		if got := h.build(context.Background(), q).PkgPath; got != "" {
+			t.Errorf("%q: PkgPath = %q, want none for a chain-wide selector", raw, got)
+		}
 	}
 }

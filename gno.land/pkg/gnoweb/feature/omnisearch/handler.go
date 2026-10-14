@@ -118,9 +118,9 @@ func (h *Handler) build(ctx context.Context, q *Query) SearchData {
 			data.WholeChainHref = wholeChainHref(q)
 		}
 	} else if sel.Scope == ScopeGlobal {
-		// A chain-wide selector answers the same on every page; render: names
-		// the one realm it renders, when it renders one.
-		data.PkgPath = q.discoveryScope()
+		// A chain-wide selector ignores the page and in:; render: names the
+		// one realm it renders, when it renders one.
+		data.PkgPath = ""
 		if sel.Name == "render" {
 			data.PkgPath = q.renderScope()
 		}

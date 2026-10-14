@@ -131,11 +131,12 @@ func (h *Handler) resolveRender(ctx context.Context, q *Query, term string) ([]R
 
 // renderScope is the one realm a render: search renders without a listing:
 // the in: scope, or the page's own realm when no author: widens the field.
+// A package page has nothing to render, so it names none.
 func (q *Query) renderScope() string {
 	if scope := q.discoveryScope(); scope != "" {
 		return scope
 	}
-	if author, _ := q.Get(FilterAuthor); author != "" {
+	if author, _ := q.Get(FilterAuthor); author != "" || !strings.HasPrefix(q.PkgPath, "/r/") {
 		return ""
 	}
 	return q.PkgPath

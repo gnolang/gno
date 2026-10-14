@@ -138,7 +138,7 @@ export class SearchbarController extends BaseController {
 		const input = this.getDOMElement("input") as HTMLInputElement | null;
 		// The list on screen no longer answers the input: Enter before the
 		// next render must submit what was typed, not open an old row.
-		this.items[this.activeIndex]?.removeAttribute("aria-selected");
+		this.deselect();
 		this.activeIndex = -1;
 		input?.removeAttribute("aria-activedescendant");
 		this.schedule(input?.value.trim() ?? "");
@@ -711,9 +711,7 @@ export class SearchbarController extends BaseController {
 
 	private move(delta: number): void {
 		if (this.items.length === 0) return;
-		const prev = this.items[this.activeIndex];
-		prev?.removeAttribute("aria-selected");
-		prev?.removeAttribute("id");
+		this.deselect();
 		this.activeIndex =
 			(this.activeIndex + delta + this.items.length) % this.items.length;
 		const active = this.items[this.activeIndex];
@@ -725,6 +723,13 @@ export class SearchbarController extends BaseController {
 			"aria-activedescendant",
 			active.id,
 		);
+	}
+
+	// deselect drops the active row's option state; the list stays.
+	private deselect(): void {
+		const prev = this.items[this.activeIndex];
+		prev?.removeAttribute("aria-selected");
+		prev?.removeAttribute("id");
 	}
 
 	private close(): void {
