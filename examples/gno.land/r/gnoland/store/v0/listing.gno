@@ -31,6 +31,9 @@ type listing struct {
 	// confirmation stands for good. A claim confirmed by stars keeps it only
 	// while it has confirmStars ranked stars.
 	selfListed bool
+	// announced listings have had their "listed" event: a claim unconfirmed
+	// and confirmed again is not news, and must not buy feed slots in a loop.
+	announced bool
 
 	core       bool   // listed by the seed: shown in gno.land essentials, kept off New, Top and Rediscover
 	icon       string // rich fields currently in effect, kept flat: a rich value is one more stored object
@@ -187,9 +190,11 @@ func upsert(l *listing, now int64) string {
 	}
 	if existing != nil {
 		if owner := titleHolder(l); owner != "" && owner != l.Slug {
-			if !l.Confirmed || !evictClaim(owner) {
+			// A hidden listing holds no title: it takes none from a claim.
+			if existing.hidden || blocks(lookup(&listings, owner), l) {
 				return reasonTitleTaken
 			}
+			evictClaim(owner)
 		}
 		existing.update(l, now)
 		if l.Confirmed {
@@ -199,20 +204,17 @@ func upsert(l *listing, now int64) string {
 		return ""
 	}
 
-	if l.Confirmed { // an unverified claim of l's slug or title gives way
-		evictClaim(l.Slug)
-		evictClaim(titleHolder(l))
-	}
 	if reason := available(l); reason != "" {
 		return reason
 	}
+	takeFromClaims(l)
 	l.selfListed = l.Confirmed
 	l.Created, l.Updated = now, now
 	listings.Set(l.Slug, l)
 	byPath.Set(l.Path, l)
 	byTitle.Set(titleKey(l.Title), l.Slug)
 	l.index()
-	track("listed", l, now)
+	l.announce(now)
 	return ""
 }
 
@@ -222,31 +224,42 @@ func titleHolder(l *listing) string {
 	return slug
 }
 
-// evictClaim drops the listing under slug if it is an unconfirmed claim,
-// and reports whether it did. It runs when an app's own Register or the seed
-// wants its slug or title: a claim proves nothing (T11), and an app whose
-// init is refused never calls Register again, so the claim would keep it out
-// for good.
-func evictClaim(slug string) bool {
+// blocks reports whether holder keeps l from a slug or title it holds. Any
+// listing does, but an unconfirmed claim gives way to a confirmed listing:
+// a claim proves nothing (T11), and an app whose init is refused never
+// calls Register again, so the claim would keep it out for good.
+func blocks(holder, l *listing) bool {
+	return holder != nil && (holder.Confirmed || !l.Confirmed)
+}
+
+// takeFromClaims drops the claims holding l's slug or title, once available
+// has let l take them: only unconfirmed ones can be left.
+func takeFromClaims(l *listing) {
+	evictClaim(l.Slug)
+	evictClaim(titleHolder(l))
+}
+
+// evictClaim drops the listing under slug if it is an unconfirmed claim.
+func evictClaim(slug string) {
 	c := lookup(&listings, slug)
 	if c == nil || c.Confirmed {
-		return false
+		return
 	}
 	c.unindex()
 	listings.Remove(c.Slug)
 	byTitle.Remove(titleKey(c.Title))
 	byPath.Remove(c.Path)
 	chain.Emit("StoreClaimDropped", "slug", c.Slug, "path", c.Path)
-	return true
 }
 
 // available returns why l, not visible, cannot take its slug, its title or
-// a slot of its namespace, or "".
+// a slot of its namespace, or "". takeFromClaims then frees what an
+// unconfirmed claim holds of it.
 func available(l *listing) string {
 	switch {
-	case listings.Has(l.Slug):
+	case blocks(lookup(&listings, l.Slug), l):
 		return reasonSlugTaken
-	case byTitle.Has(titleKey(l.Title)):
+	case blocks(lookup(&listings, titleHolder(l)), l):
 		return reasonTitleTaken
 	case !isCoreNamespace(l.Namespace) && visibleInNamespace(l.Namespace) >= maxPerNamespace:
 		return reasonNamespaceFull // the core namespaces hold the seed, and room for what follows it
@@ -325,7 +338,15 @@ func (l *listing) confirm(now int64) {
 		return
 	}
 	l.reindex(func() { l.Confirmed = true })
-	track("listed", l, now)
+	l.announce(now)
+}
+
+// announce records l's "listed" event, once.
+func (l *listing) announce(now int64) {
+	if !l.announced && l.indexed() {
+		l.announced = true
+		track("listed", l, now)
+	}
 }
 
 // indexed reports whether l is on the shelves and counts for its builder.
@@ -621,6 +642,19 @@ func visibleInNamespace(ns string) int {
 func titleKey(title string) string {
 	var b strings.Builder
 	for _, r := range title {
+		switch {
+		case unicode.Is(unicode.Mn, r): // a mark only redraws its letter
+			continue
+		case r == 'Æ' || r == 'æ':
+			b.WriteString("ae")
+			continue
+		case r == 'Œ' || r == 'œ':
+			b.WriteString("oe")
+			continue
+		case r == 'Ĳ' || r == 'ĳ':
+			b.WriteString("lj")
+			continue
+		}
 		if c := foldCapital(r); c != 0 {
 			r = c
 		} else {
@@ -638,47 +672,27 @@ func titleKey(title string) string {
 	return strings.ReplaceAll(k, "vv", "w")
 }
 
-// foldCapital maps a Greek or Cyrillic capital drawn as a Latin capital to
-// that Latin letter, lower-case, or returns 0.
+// foldCapital maps the Greek capitals drawn as Latin ones whose lower case
+// foldRune does not fold to that letter, or returns 0: Nu is an N, its
+// lower case a v. The other Greek and Cyrillic capitals lower-case to a
+// letter foldRune folds.
 func foldCapital(r rune) rune {
 	switch r {
-	case 'Α', 'Ά', 'А':
+	case 'Ά':
 		return 'a'
-	case 'Β', 'В':
-		return 'b'
-	case 'С':
-		return 'c'
-	case 'Ε', 'Έ', 'Е':
+	case 'Έ':
 		return 'e'
-	case 'Η', 'Ή', 'Н', 'Һ':
+	case 'Ή':
 		return 'h'
-	case 'Ι', 'Ί', 'І', 'Ӏ':
+	case 'Ί':
 		return 'l'
-	case 'Ј':
-		return 'j'
-	case 'Κ', 'К':
-		return 'k'
-	case 'Μ', 'М':
+	case 'Μ':
 		return 'm'
 	case 'Ν':
 		return 'n'
-	case 'Ο', 'Ό', 'О':
+	case 'Ό':
 		return 'o'
-	case 'Ρ', 'Р':
-		return 'p'
-	case 'Ԛ':
-		return 'q'
-	case 'Ѕ':
-		return 's'
-	case 'Τ', 'Т':
-		return 't'
-	case 'Ѵ':
-		return 'v'
-	case 'Ԝ':
-		return 'w'
-	case 'Χ', 'Х':
-		return 'x'
-	case 'Υ', 'Ύ', 'У', 'Ү':
+	case 'Υ', 'Ύ', 'Ϋ':
 		return 'y'
 	case 'Ζ':
 		return 'z'
@@ -692,47 +706,45 @@ func foldRune(r rune) rune {
 	switch r {
 	case ' ', '-', '_', '.', // separators, and the dashes and dots drawn like them
 		'\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\u2015', '\u2043', '\u2212', '\uFE58', '\uFE63',
-		'\u00B7', '\u2024', '\u2027', '\u2219', '\u22C5', '\u30FB':
+		'\u00B7', '\u2024', '\u2027', '\u2219', '\u22C5', '\u30FB',
+		'ㅡ', '一': // Hangul eu and Han one, drawn as a dash
 		return 0
-	case 'i', '1', '|', 'ı', 'і', 'ι', 'ӏ', 'ا', 'ו', 'ן': // Arabic alef, Hebrew vav and final nun
+	case 'i', '1', '|', 'ı', 'і', 'ї', 'ι', 'ί', 'ϊ', 'ΐ',
+		'ا', 'ו', 'ן', 'ㅣ', '丨': // Arabic alef, Hebrew vav and final nun, Hangul i, Han stroke
 		return 'l'
-	case '0', 'о', 'ο', 'ס': // Hebrew samekh
+	case '0', 'о', 'ο', 'ό', 'ס', 'ه', 'ە', 'ہ', 'ㅇ': // Hebrew samekh, Arabic heh, Hangul ieung
 		return 'o'
-	case 'а', 'α':
+	case 'а', 'α', 'ά':
 		return 'a'
 	case 'в', 'β':
 		return 'b'
-	case 'с', 'ϲ':
+	case 'с':
 		return 'c'
-	case 'ԁ':
-		return 'd'
-	case 'е', 'ε':
+	case 'е', 'ё', 'ѐ', 'ε', 'έ':
 		return 'e'
-	case 'н', 'η', 'һ':
+	case 'н', 'ћ', 'η', 'ή':
 		return 'h'
-	case 'ј', 'ϳ':
+	case 'ј':
 		return 'j'
-	case 'к', 'κ':
+	case 'к', 'ќ', 'κ':
 		return 'k'
 	case 'м':
 		return 'm'
 	case 'р', 'ρ':
 		return 'p'
-	case 'ԛ':
-		return 'q'
 	case 'ѕ':
 		return 's'
 	case 'т', 'τ':
 		return 't'
-	case 'υ':
+	case 'υ', 'ύ', 'ϋ', 'ΰ', 'μ':
 		return 'u'
-	case 'ν', 'ѵ':
+	case 'ν':
 		return 'v'
-	case 'ԝ':
+	case 'ω', 'ώ':
 		return 'w'
 	case 'х', 'χ':
 		return 'x'
-	case 'у', 'ү', 'γ':
+	case 'у', 'ў', 'γ':
 		return 'y'
 	}
 	return r

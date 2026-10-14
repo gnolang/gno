@@ -178,7 +178,7 @@ func checkPick(slug string, days int) error {
 	return nil
 }
 
-// setPick picks slug from time now for days days, under its current title.
+// setPick picks slug from time now for days days, as it is shown now.
 func setPick(slug string, days int, now int64) error {
 	if err := checkPick(slug, days); err != nil {
 		return err
@@ -245,6 +245,7 @@ func unhide(path string) error {
 	if reason := available(l); reason != "" {
 		return errors.New("store: " + reason)
 	}
+	takeFromClaims(l)
 	l.hidden = false
 	listings.Set(l.Slug, l)
 	byTitle.Set(titleKey(l.Title), l.Slug)

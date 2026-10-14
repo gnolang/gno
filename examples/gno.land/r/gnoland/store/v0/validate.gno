@@ -154,9 +154,11 @@ func validText(s string, maxRunes int) bool {
 // validTitle is validText for a title, the field titleKey keeps unique, so
 // held to what titleKey can fold: letters of the scripts below only (Lisu
 // and Cherokee, for one, are drawn as Latin capitals and fold to nothing),
-// ASCII digits only (a Myanmar or Devanagari zero draws as an o), and no
-// punctuation or symbol beyond ASCII, the separators titleKey drops and
-// typographic quotes (U+2223 DIVIDES draws as an l).
+// and of the modern Greek and Cyrillic alphabets only (archaic letters such
+// as DIGAMMA draw as Latin ones too), ASCII digits only (a Myanmar or
+// Devanagari zero draws as an o), and no punctuation or symbol beyond ASCII,
+// the separators titleKey drops and typographic quotes (U+2223 DIVIDES draws
+// as an l).
 func validTitle(s string) bool {
 	if !validText(s, maxTitle) {
 		return false
@@ -164,7 +166,7 @@ func validTitle(s string) bool {
 	for _, r := range s {
 		switch {
 		case unicode.IsLetter(r):
-			if !unicode.Is(unicode.Latin, r) && !unicode.In(r, titleScripts...) {
+			if !unicode.Is(unicode.Latin, r) && !unicode.In(r, titleScripts...) || !modernGreekCyrillic(r) {
 				return false
 			}
 		case unicode.IsDigit(r):
@@ -174,6 +176,20 @@ func validTitle(s string) bool {
 		case r > 0x7E && !unicode.IsMark(r) && foldRune(r) != 0 && (r < 0x2018 || r > 0x201D):
 			return false
 		}
+	}
+	return true
+}
+
+// modernGreekCyrillic reports whether r, if Greek or Cyrillic, is a letter
+// of the modern alphabets: Greek with its tonos letters, and the Cyrillic
+// letters of Russian, Ukrainian, Belarusian, Serbian, Macedonian and
+// Bulgarian.
+func modernGreekCyrillic(r rune) bool {
+	switch {
+	case unicode.Is(unicode.Greek, r):
+		return r >= 0x0386 && r <= 0x03CE
+	case unicode.Is(unicode.Cyrillic, r):
+		return r >= 0x0400 && r <= 0x045F || r == 'Ґ' || r == 'ґ'
 	}
 	return true
 }
@@ -251,13 +267,11 @@ const (
 )
 
 // isMimic reports enclosing marks and the letters that mimic ASCII:
-// fullwidth forms, mathematical alphanumerics, and the double-struck,
-// script and fraktur letters of Letterlike Symbols the latter leaves out.
+// fullwidth forms and mathematical alphanumerics.
 func isMimic(r rune) bool {
 	return unicode.Is(unicode.Me, r) ||
 		r >= 0xFF01 && r <= 0xFF5E ||
-		r >= 0x1D400 && r <= 0x1D7FF ||
-		r >= 0x2100 && r <= 0x214F && unicode.IsLetter(r)
+		r >= 0x1D400 && r <= 0x1D7FF
 }
 
 // isBlankFiller reports letters and symbols that draw as blank space;

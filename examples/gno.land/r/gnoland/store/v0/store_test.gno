@@ -290,6 +290,10 @@ func TestTitleLookalikes(t *testing.T) {
 		{"Gnoland Pay", "GnoƖand Pay"}, {"Gnoland Pay", "Gnoland ƿay"}, // Latin Extended-B
 		{"Zoom", "ℤℴℴℳ"}, {"CHN", "ℂℍℕ"}, // Letterlike Symbols
 		{"Boards", "Bóards"}, {"Gno.land Blog", "Gno.land Blòg"}, {"Coin Balances", "Cöin Balances"}, {"GovDAO", "GovDAÖ"}, // precomposed accents
+		{"FOX", "ϜΟΧ"}, {"MAP", "ϺΑΡ"}, {"YES", "ϒΕS"}, // archaic Greek capitals
+		{"Gnoland", "Gno\u05D5\u05B9and"},                                                                          // Hebrew vav with a mark, drawn as an i
+		{"Gno.land Blog", "Gno.ㅣand Blog"}, {"Gnoland", "Gno丨and"}, {"Gnoland", "Gnㅇland"}, {"Gnoland", "Gnهland"}, // Hangul, Han, Arabic
+		{"AEON", "ÆON"}, {"OEIL", "ŒIL"}, // ligatures
 	} {
 		uassert.True(t, !validTitle(pair[1]) || titleKey(pair[1]) == titleKey(pair[0]), pair[1])
 	}
@@ -535,7 +539,7 @@ func TestSubmitRich(cur realm, t *testing.T) {
 	uassert.True(t, pending)
 }
 
-func TestStarsAndEarned(cur realm, t *testing.T) {
+func TestStarsAndFifthRanked(cur realm, t *testing.T) {
 	const id = "starred-app"
 	registerFrom(cur, "gno.land/r/starred/app", "starred-app", "Starred App")
 	l := bySlugOrPanic(id)
@@ -843,8 +847,7 @@ func listingJSON(slug string) string {
 	return b.String()
 }
 
-// ev is the event of kind for the listing with this slug.
-// ev is the event expected now.
+// ev is the event of kind for the listing with this slug, at the current time.
 func ev(kind, slug string, stars int) event {
 	return event{kind, bySlugOrPanic(slug), stars, blockTime()}
 }
@@ -1183,6 +1186,20 @@ func TestRegisterEvictsSquattingClaim(cur realm, t *testing.T) {
 	// A confirmed listing still holds its title.
 	registerFrom(cur, "gno.land/r/realcopy/app", "real-copy", "Real App")
 	uassert.False(t, listings.Has("real-copy"))
+
+	// A refused Register takes nothing: a claim survives a Register that
+	// names its slug and a confirmed listing's title...
+	claimed := "gno.land/r/" + squatter.String() + "/other"
+	testing.SetRealm(testing.NewUserRealm(squatter))
+	Claim(cross(cur), claimed, "kept-claim", "Kept Claim", "A tagline", "utilities", 1, kindApp)
+	registerFrom(cur, "gno.land/r/thief/app", "kept-claim", "Boards")
+	uassert.True(t, byPath.Has(claimed), "the claim survives a refused Register")
+	// ...and a hidden listing's Register, which takes no title.
+	registerFrom(cur, "gno.land/r/hiddenthief/app", "hidden-thief", "Hidden Thief")
+	uassert.NoError(t, hide("hidden-thief", "phishing"))
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/hiddenthief/app"))
+	Register(cross(cur), "", "Kept Claim", "A tagline", "utilities", 4)
+	uassert.True(t, byPath.Has(claimed), "a hidden listing evicts nothing")
 }
 
 // A claim confirmed by stars is a claim again once its backers leave; a
@@ -1307,4 +1324,33 @@ func TestUnstarAnOldStar(cur realm, t *testing.T) {
 	Unstar(cross(cur), "old-star")
 	uassert.Equal(t, 1, l.stars7d(blockTime()))
 	uassert.Equal(t, 1, l.rankedCount())
+}
+
+// A claim confirmed again after its backers left is not announced again:
+// unstarring and starring in a loop buys no feed slot.
+func TestReconfirmedClaimIsAnnouncedOnce(cur realm, t *testing.T) {
+	owner := nameUser(cur, "loopowner")
+	testing.SetRealm(testing.NewUserRealm(owner))
+	Claim(cross(cur), "gno.land/r/loopowner/app", "loop-app", "Loop App", "A tagline", "utilities", 1, kindApp)
+	starFrom(cur, "loop-app", "loopfana", "loopfanb", "loopfanc")
+	l := bySlugOrPanic("loop-app")
+	uassert.True(t, l.Confirmed)
+	listed := pulseListed.sum(blockTime()/epochLength, 7)
+
+	fan := nameUser(cur, "loopfana")
+	for i := 0; i < 3; i++ {
+		testing.SetRealm(testing.NewUserRealm(fan))
+		Unstar(cross(cur), "loop-app")
+		testing.SetRealm(testing.NewUserRealm(fan))
+		Star(cross(cur), "loop-app")
+	}
+	uassert.True(t, l.Confirmed)
+	uassert.Equal(t, listed, pulseListed.sum(blockTime()/epochLength, 7))
+	n := 0
+	for _, e := range activity.newestFirst() {
+		if e.Listing == l && e.Kind == "listed" {
+			n++
+		}
+	}
+	uassert.Equal(t, 1, n)
 }

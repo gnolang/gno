@@ -71,7 +71,8 @@ type voter struct {
 // a week. Register never panics, but the deploying transaction pays for what
 // it stores here (about 2 GNOT for a namespace's first listing), so the
 // deploy's -max-deposit must cover it. A refused call emits
-// StoreRegisterRejected with the path and a short reason.
+// StoreRegisterRejected with the path, a short reason and, when another
+// listing holds the slug or title, its slug (holder).
 // The namespace owner can then list the realm with Claim, and the realm's
 // next Register confirms it.
 func Register(cur realm, slug, title, tagline, category string, palette int) {
@@ -84,10 +85,26 @@ func Register(cur realm, slug, title, tagline, category string, palette int) {
 	l := newListing(path, slug, title, tagline, category, palette, kind)
 	l.Confirmed = true // deploying the realm proves it exists
 	if reason := upsert(l, blockTime()); reason != "" {
-		chain.Emit("StoreRegisterRejected", "path", path, "reason", reason)
+		attrs := []string{"path", path, "reason", reason}
+		if holder := holderOf(l, reason); holder != "" {
+			attrs = append(attrs, "holder", holder) // what GovDAO would hide, if a squat
+		}
+		chain.Emit("StoreRegisterRejected", attrs...)
 		return
 	}
 	chain.Emit("StoreRegistered", "path", path, "slug", lookup(&byPath, path).Slug)
+}
+
+// holderOf returns the slug of the listing holding what l was refused for,
+// its slug or its title, or "".
+func holderOf(l *listing, reason string) string {
+	switch reason {
+	case reasonSlugTaken:
+		return l.Slug
+	case reasonTitleTaken:
+		return titleHolder(l)
+	}
+	return ""
 }
 
 // Claim lists, or updates, path on behalf of its namespace owner: a /p/
@@ -111,7 +128,7 @@ func Claim(cur realm, path, slug, title, tagline, category string, palette int, 
 		panic("store: caller does not own the namespace")
 	}
 	if l := lookup(&byPath, path); l != nil && l.core {
-		panic("store: a core listing cannot be claimed") // frozen in code (ADR §4)
+		panic("store: a core listing cannot be claimed") // frozen in code (ADR §5)
 	}
 	if reason := upsert(newListing(path, slug, title, tagline, category, palette, kind), blockTime()); reason != "" {
 		panic("store: " + reason)
