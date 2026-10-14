@@ -111,7 +111,9 @@ runs, and the two are not the same thing:
   chain branch labelled `don't merge`, and once CI is green fast-forward the
   chain branch to it with a plain push; GitHub then marks the pull request
   merged. Never squash-merge it: that folds the cherry-picks into one commit
-  and changes the commit the ledger entry names.
+  and changes the commit the ledger entry names. A fix for a failed candidate
+  goes the same way, on its own `chain-upgrade/vX.Y.Z-rc.N+1` branch and pull
+  request.
 - **Where this ends up.** Merging `master` is the natural default while mainnet
   tracks it closely. The day `master` carries work mainnet must not ship yet,
   the default flips to cherry-picking and the branch becomes a maintained
@@ -241,8 +243,9 @@ testnet the way mainnet will take it, and checked there. A patch is switched to
 node by node; a coordinated upgrade goes through `set-halt` naming the rc, and
 the rehearsal checks that the halt fires, an early start is refused and blocks
 are produced after the restart. Either way, the nodes report the rc and a fresh
-node syncs from genesis with it. A fix means a new commit and `rc.2`. Only then
-is the final tag cut, on the same commit as the last rc.
+node syncs from genesis with it. A fix means a new commit, through its own
+pull request, and `rc.2`. Only then is the final tag cut, on the same commit as
+the last rc.
 
 ### Container images
 
