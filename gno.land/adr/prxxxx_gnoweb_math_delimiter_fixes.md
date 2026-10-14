@@ -22,10 +22,15 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
 - Add `$` to the inline escape set of `chain/markdown` (`EscapeInline`, and
   so `EscapeTitle`, which builds on it). gnoweb renders `\$` as a literal
   dollar, so escaped text reads the same; it can no longer open math.
-- Split the scan of `findDollarClose` into `findClose(b, closes)`: the code
-  span, link and autolink skipping is shared, and only the test for a
-  closer differs. Single `$` keeps its pandoc rules; `$$`, `\\)` and `\\]`
-  match their bytes at a position the scan reaches.
+- Split the scan of `findDollarClose` into `findClose`: the code span, link
+  and autolink skipping is shared, and only the test for a closer differs.
+  Single `$` keeps its pandoc rules and its stop at a `](` that closes a
+  label opened before it (`[Send $10](...)`). `$$`, `\\)` and `\\]` do not
+  stop there: `$$ (0,1](x) $$` is a half-open interval, and stopping would
+  turn formulas that render today into text.
+- Keep the escape set's explanation in `markdown.go` only: stdlib `.gno`
+  files are part of genesis, and even a comment change there moves the app
+  hash pinned by `TestAppHashCrossrealm38`.
 
 ## Alternatives considered
 
@@ -44,4 +49,9 @@ The math extension (`pr4879_gnoweb_math_extension.md`) made `$`, `$$`,
   examples suite passes.
 - A `$$`, `\\(` or `\\[` expression now keeps a code span or a link
   destination whole, as `$` already did; golden cases are added to
-  `golden/ext_math/dollar_link_test.txtar`.
+  `golden/ext_math/dollar_link_test.txtar`, and the linear-scan test now
+  runs the finders the parser uses for `\\(` and `\\[`.
+- Known limit, unchanged: `sanitize.Block`, `BlockRich`, `Blockquote*` and
+  `FootnoteDefinition` keep user math (their escaping targets block
+  structure, not `$`). Math in a user post stays inside its blank-line
+  envelope; whether posts may hold math is left to a follow-up.

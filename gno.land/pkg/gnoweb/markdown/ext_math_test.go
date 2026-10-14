@@ -341,7 +341,9 @@ func TestMathUnclosedInlineOpenersAreLinear(t *testing.T) {
 	}{
 		{"$a ", 1, closeDollarInlineKey, findDollarClose},
 		{"[$a ](", 2, closeDollarInlineKey, findDollarClose},
-		{`\\(a `, 3, closeInlineKey, func(b []byte) (int, int) { return bytes.Index(b, _inlineclose), len(b) }},
+		{`\\(a `, 3, closeInlineKey, findDelimClose(_inlineclose)},
+		{`[\\(a ](`, 4, closeInlineKey, findDelimClose(_inlineclose)},
+		{`\\[a `, 3, closeDisplayKey, findDelimClose(_displayclose)},
 	} {
 		unit, open, key := tc.unit, tc.open, tc.key
 		line := []byte(strings.Repeat(unit, 1<<12))

@@ -182,9 +182,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			return nil
 		}
 	}
-	find := func(b []byte) (int, int) {
-		return findClose(b, func(b []byte, i int) bool { return bytes.HasPrefix(b[i:], end) })
-	}
+	find := findDelimClose(end)
 	if flavor == flavorInline|delimiterTeX {
 		find = findDollarClose
 	}
@@ -346,10 +344,20 @@ func isEscaped(b []byte, i int) bool {
 // preceded by a space or an escaping backslash nor followed by a digit, so
 // "$5 and $10" stays plain text.
 func findDollarClose(b []byte) (int, int) {
-	return findClose(b, func(b []byte, i int) bool {
+	return findClose(b, true, func(b []byte, i int) bool {
 		return b[i] == '$' && i > 0 && !util.IsSpace(b[i-1]) && !isEscaped(b, i) &&
 			!(i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9')
 	})
+}
+
+// findDelimClose returns the search for the $$, \\) or \\] closer end. It
+// keeps code spans and the links inside the expression whole, but, unlike
+// findDollarClose, does not end the expression at a "](" it did not open:
+// "$$ (0,1](x) $$" is a half-open interval, not the end of a link label.
+func findDelimClose(end []byte) closeFinder {
+	return func(b []byte) (int, int) {
+		return findClose(b, false, func(b []byte, i int) bool { return bytes.HasPrefix(b[i:], end) })
+	}
 }
 
 // findClose returns the index of the first byte of b at which closes reports
@@ -361,9 +369,9 @@ func findDollarClose(b []byte) (int, int) {
 // a link label ends there: "[Send $10](/r/x$help&func=Send) ... $" has no
 // closer, so the link stays a link instead of turning into math.
 // Code spans are kept whole the same way: in "Costs $5: see `foo$bar`", the
-// $ in the code span does not close the price. The same holds for the $$,
-// \) and \] closers: "$$a [l](/r/x$$help) b$$" closes after b.
-func findClose(b []byte, closes func(b []byte, i int) bool) (int, int) {
+// $ in the code span does not close the price. stopAtLabel ends the
+// expression at a "](" that closes a label opened before it.
+func findClose(b []byte, stopAtLabel bool, closes func(b []byte, i int) bool) (int, int) {
 	labels := 0 // [ opened since the start of the expression
 	depth := 0  // inside a link destination, its parenthesis nesting
 	for i := 0; i < len(b); i++ {
@@ -389,8 +397,11 @@ func findClose(b []byte, closes func(b []byte, i int) bool) (int, int) {
 			}
 			if i+1 < len(b) && b[i+1] == '(' {
 				if labels == 0 {
-					// The label the expression opened in ends here.
-					return -1, i
+					if stopAtLabel {
+						// The label the expression opened in ends here.
+						return -1, i
+					}
+					continue
 				}
 				depth = 1
 				i++
