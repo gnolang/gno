@@ -10,4 +10,4 @@ func f[T any]() {
 	var ()
 }
 
-// Verdict: Clean compile
+// Verdict: Unsupported generics: generics not supported in Gno

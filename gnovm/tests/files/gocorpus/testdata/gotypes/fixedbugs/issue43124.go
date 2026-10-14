@@ -15,12 +15,15 @@ var (
 	_ = M(x /* ERROR "invalid use of ... in conversion to M" */ ...)
 )
 
+// GnoError:
+// line 7: invalid use of ... in conversion to int
+// line 15: invalid use of ... in conversion to gno.land/p/filetest/p.M
+
 // GoTypeCheckError:
 // line 7
 // line 15
 
-// GoTypesOnly:
-// line 7: gc expects: invalid use of ... in conversion to int
-// line 15: gc expects: invalid use of ... in conversion to M
+// GnoWordingDiffers:
+// line 15: gc expects: invalid use of ... in conversion to M; gno: invalid use of ... in conversion to gno.land/p/filetest/p.M
 
 // Verdict: Clean errorcheck

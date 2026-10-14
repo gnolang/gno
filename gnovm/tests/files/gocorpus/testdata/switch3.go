@@ -77,8 +77,8 @@ func good() {
 // line 29: 3: map[int]int can only be compared to nil
 // line 36: 3: []int can only be compared to nil
 // line 43: 3: func() can only be compared to nil
-// line 50: 3: [4]func() is not comparable
-// line 56: 3: struct{f func()} is not comparable
+// line 50: cannot switch on ar ([4]func() is not comparable)
+// line 56: cannot switch on st (struct{f func()} is not comparable)
 // line 70: cannot use interface {} as string
 
 // GoTypeCheckError:
@@ -99,7 +99,5 @@ func good() {
 // line 31: gc expects: can only compare map m to nil|map can only be compared to nil|cannot compare; gno: 3: map[int]int can only be compared to nil
 // line 38: gc expects: can only compare slice a to nil|slice can only be compared to nil|cannot compare; gno: 3: []int can only be compared to nil
 // line 45: gc expects: can only compare func f to nil|func can only be compared to nil|cannot compare; gno: 3: func() can only be compared to nil
-// line 50: gc expects: cannot switch on; gno: 3: [4]func() is not comparable
-// line 56: gc expects: cannot switch on; gno: 3: struct{f func()} is not comparable
 
 // Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)

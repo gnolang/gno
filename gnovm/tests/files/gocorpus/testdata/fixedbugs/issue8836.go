@@ -23,22 +23,4 @@ func main() {
 	)
 }
 
-// GnoError:
-// line 19: expected block type value path but got VPInvalid:
-// --- preprocess stack ---
-// stack 2: func main/issue8836.go:15:1-24:2
-// ------------------------
-
-// GoTypeCheckError:
-// line 22
-
-// GoTypesOnly:
-// line 22: gc expects: .*
-
-// GnoOverStrictError:
-// line 19: expected block type value path but got VPInvalid:
-// --- preprocess stack ---
-// stack 2: func main/issue8836.go:15:1-24:2
-// ------------------------
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

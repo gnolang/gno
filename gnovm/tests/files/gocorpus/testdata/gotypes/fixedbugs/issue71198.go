@@ -15,13 +15,4 @@ type T[_ any] any
 
 func _[_ T /* ERROR "too many type arguments for type T: have 2, want 1" */ [int, string]]() {}
 
-// GoTypeCheckError:
-// line 9
-// line 12
-// line 16
-
-// GoTypesOnly:
-// line 12: gc expects: too many type arguments for type A: have 2, want 1
-// line 16: gc expects: too many type arguments for type T: have 2, want 1
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported generics: generics not supported in Gno
