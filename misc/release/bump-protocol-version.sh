@@ -147,15 +147,21 @@ main() {
 		exit 0
 	fi
 
-	# A major bump is a network partition, not a version bump: peers that
-	# disagree on the major are refused by VersionSet.CompatibleWith, so old and
-	# new nodes cannot gossip at all. Say so before it happens.
+	# Any bump splits the network: BlockVersion is in every block header, and
+	# ApplyBlock refuses a header whose version differs from the binary's own,
+	# so nodes on either side reject each other's blocks and a bumped binary
+	# cannot sync older ones. A major bump also stops peering, since
+	# VersionSet.CompatibleWith refuses a peer whose major differs. Say so
+	# before it happens.
+	warn "protocol version ${now} -> ${target} splits the network:"
+	warn "  nodes on either side reject each other's blocks (Block.Header.Version),"
+	warn "  and a bumped binary cannot sync blocks produced before it."
+	warn "  It needs height-gated code first, then a coordinated halt."
 	local now_major="${now%%.*}" target_major="${target%%.*}"
 	if [[ ${now_major} != "${target_major}" ]]; then
-		warn "MAJOR bump ${now_major} -> ${target_major}: nodes on the old major will not"
-		warn "peer with nodes on the new one. This must ride a coordinated halt, and"
-		warn "every validator must switch at the same height. See RELEASING.md."
+		warn "MAJOR bump ${now_major} -> ${target_major}: old and new nodes will not peer either."
 	fi
+	warn "See RELEASING.md, \"Protocol versions\"."
 
 	info "bumping protocol version ${now} -> ${target}"
 	# A failure part-way leaves the tree with the constants disagreeing, which is

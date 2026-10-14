@@ -78,6 +78,8 @@ It edits the constants, verifies each write, and runs
 `TestProtocolVersionsAgree` before reporting success. It does not commit — it
 prints the commit command.
 
-A MAJOR bump here is a network partition: `VersionSet.CompatibleWith` refuses a
-peer whose major differs, so nodes on either side cannot gossip at all. The
-script says so, loudly, before doing it.
+Any bump here splits the network: the version is in every block header, and
+nodes refuse blocks whose version differs from theirs, so nodes on either side
+reject each other's blocks and a bumped binary cannot sync older ones. A MAJOR
+bump also stops them peering. The script says so, loudly, before doing it
+(RELEASING.md, "Protocol versions").
