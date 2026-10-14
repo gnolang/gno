@@ -124,18 +124,30 @@ func _() {
 }
 
 // GnoError:
+// line 40: missing field Mv in gno.land/p/filetest/p.P3
 // line 41: should not happen
-// line 46: should not happen
+// line 42: missing field Mv in gno.land/p/filetest/p.P3
+// line 46: missing field Mp in gno.land/p/filetest/p.P3
 // line 47: should not happen
-// line 48: should not happen
+// line 48: missing field Mp in gno.land/p/filetest/p.P3
+// line 55: missing field Mv in gno.land/p/filetest/p.P4
 // line 56: should not happen
+// line 57: missing field Mv in gno.land/p/filetest/p.P4
+// line 61: missing field Mp in gno.land/p/filetest/p.P4
 // line 62: should not happen
+// line 63: missing field Mp in gno.land/p/filetest/p.P4
+// line 96: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
 // line 97: should not happen
-// line 102: should not happen
+// line 98: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 102: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
 // line 103: should not happen
-// line 104: should not happen
+// line 104: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 111: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 // line 112: should not happen
+// line 113: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 117: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 // line 118: should not happen
+// line 119: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 
 // GoTypeCheckError:
 // line 40
@@ -162,19 +174,5 @@ func _() {
 // line 117
 // line 118
 // line 119
-
-// GoTypesOnly:
-// line 40: gc expects: undefined
-// line 42: gc expects: undefined
-// line 55: gc expects: undefined
-// line 57: gc expects: undefined
-// line 61: gc expects: undefined
-// line 63: gc expects: undefined
-// line 96: gc expects: undefined
-// line 98: gc expects: undefined
-// line 111: gc expects: undefined
-// line 113: gc expects: undefined
-// line 117: gc expects: undefined
-// line 119: gc expects: undefined
 
 // Verdict: Clean errorcheck

@@ -38,6 +38,7 @@ func main() {
 // line 18: cannot assign to const n
 // line 19: cannot assign to const cs
 // line 20: cannot assign to uverse true
+// line 23: cannot assign to struct field m[0].n in map
 // line 25: cannot assign to (const (1 <untyped> bigint))
 // line 26: cannot assign to (const ("hi" <untyped> string))
 // line 27: cannot assign to uverse nil
@@ -58,8 +59,5 @@ func main() {
 // line 28
 // line 29
 // line 32
-
-// GoTypesOnly:
-// line 23: gc expects: cannot assign to struct field .* in map$
 
 // Verdict: Clean errorcheck

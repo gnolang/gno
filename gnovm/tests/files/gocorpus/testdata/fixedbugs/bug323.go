@@ -20,8 +20,8 @@ func main() {
 }
 
 // GnoError:
-// line 18: should not happen
-// line 19: should not happen
+// line 18: missing field Meth in main.P
+// line 19: missing field Meth2 in main.P
 
 // GoTypeCheckError:
 // line 18

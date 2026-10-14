@@ -26,11 +26,13 @@ func main() {
 }
 
 // GnoError:
-// line 22: should not happen
 // line 25: missing field f in main.PP
 
 // GoTypeCheckError:
 // line 22
 // line 25
+
+// GoTypesOnly:
+// line 22: gc expects: x\.f undefined \(type P has no field or method f\)
 
 // Verdict: Clean errorcheck

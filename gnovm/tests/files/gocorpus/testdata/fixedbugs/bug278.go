@@ -24,6 +24,7 @@ func main() {
 
 // GnoError:
 // line 21: cannot assign to x<VPBlock(1,0)>[(const (2 int))]
+// line 22: cannot assign to m[0][5] (neither addressable nor a map index expression)
 
 // GoTypeCheckError:
 // line 18
@@ -34,6 +35,5 @@ func main() {
 // GoTypesOnly:
 // line 18: gc expects: cannot|invalid
 // line 19: gc expects: cannot|addressable
-// line 22: gc expects: cannot|invalid
 
 // Verdict: Clean errorcheck
