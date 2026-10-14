@@ -710,8 +710,8 @@ func stripTrailingGoldenRegion(src string) string {
 // Gno's panic lands in gnoError, not gnoStdout; it is folded into the
 // comparison to mirror Go's combined stream — otherwise a Gno panic with
 // no prior stdout would compare equal to a clean Go run (both "") and
-// silently pass a real bug. (bug446.go: Gno mis-orders package init and
-// panics where Go exits 0.)
+// silently pass a real bug (a panicking main with no prior output is
+// exactly that shape).
 //
 // Returns (newDirs, err). In run mode sync always rewrites (both sides
 // are re-pinned), so newDirs is non-nil under opts.Sync.
