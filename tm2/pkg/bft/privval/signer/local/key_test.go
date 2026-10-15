@@ -7,6 +7,8 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -182,5 +184,48 @@ func TestNewFileKey(t *testing.T) {
 		fk, err := LoadOrMakeFileKey(filePath)
 		require.Nil(t, fk)
 		assert.Error(t, err)
+	})
+}
+
+func TestGenerateFileKeyOfType(t *testing.T) {
+	t.Parallel()
+
+	t.Run("default is secp256k1", func(t *testing.T) {
+		t.Parallel()
+
+		fk := GenerateFileKey()
+
+		assert.IsType(t, secp256k1.PrivKeySecp256k1{}, fk.PrivKey)
+	})
+
+	t.Run("ed25519", func(t *testing.T) {
+		t.Parallel()
+
+		fk, err := GenerateFileKeyOfType(KeyTypeEd25519)
+		require.NoError(t, err)
+
+		assert.IsType(t, ed25519.PrivKeyEd25519{}, fk.PrivKey)
+		assert.NoError(t, fk.validate())
+	})
+
+	t.Run("unknown type", func(t *testing.T) {
+		t.Parallel()
+
+		fk, err := GenerateFileKeyOfType("rsa")
+
+		assert.Nil(t, fk)
+		assert.ErrorIs(t, err, errUnknownKeyType)
+	})
+
+	t.Run("persisted secp256k1 key round-trips", func(t *testing.T) {
+		t.Parallel()
+
+		filePath := path.Join(t.TempDir(), "key.json")
+		fk, err := GeneratePersistedFileKeyOfType(filePath, KeyTypeSecp256k1)
+		require.NoError(t, err)
+
+		loaded, err := LoadFileKey(filePath)
+		require.NoError(t, err)
+		assert.True(t, fk.PrivKey.Equals(loaded.PrivKey))
 	})
 }

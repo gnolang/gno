@@ -587,6 +587,13 @@ func randConsensusNet(nValidators int, testName string, tickerFunc func() Timeou
 	appFunc func() abci.Application, configOpts ...func(*cfg.Config),
 ) ([]*ConsensusState, cleanupFunc) {
 	genDoc, privVals := randGenesisDoc(nValidators, false, 30)
+	return consensusNetFromGenesis(genDoc, privVals, testName, tickerFunc, appFunc, configOpts...)
+}
+
+func consensusNetFromGenesis(genDoc *types.GenesisDoc, privVals []types.PrivValidator, testName string,
+	tickerFunc func() TimeoutTicker, appFunc func() abci.Application, configOpts ...func(*cfg.Config),
+) ([]*ConsensusState, cleanupFunc) {
+	nValidators := len(privVals)
 	css := make([]*ConsensusState, nValidators)
 	apps := make([]abci.Application, nValidators)
 	logger := log.NewNoopLogger()
@@ -703,10 +710,17 @@ func randConsensusNetWithPeers(nValidators, nPeers int, testName string, tickerF
 // genesis
 
 func randGenesisDoc(numValidators int, randPower bool, minPower int64) (*types.GenesisDoc, []types.PrivValidator) {
+	return genesisDocWithKeys(numValidators, func() (*types.Validator, types.PrivValidator) {
+		return types.RandValidator(randPower, minPower)
+	})
+}
+
+// genesisDocWithKeys builds a genesis doc from validators produced by genVal.
+func genesisDocWithKeys(numValidators int, genVal func() (*types.Validator, types.PrivValidator)) (*types.GenesisDoc, []types.PrivValidator) {
 	validators := make([]types.GenesisValidator, numValidators)
 	privValidators := make([]types.PrivValidator, numValidators)
 	for i := range numValidators {
-		val, privVal := types.RandValidator(randPower, minPower)
+		val, privVal := genVal()
 		validators[i] = types.GenesisValidator{
 			PubKey: val.PubKey,
 			Power:  val.VotingPower,

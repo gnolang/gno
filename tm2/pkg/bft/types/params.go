@@ -4,6 +4,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -56,7 +57,8 @@ const (
 )
 
 var validatorPubKeyTypeURLs = map[string]struct{}{
-	amino.GetTypeURL(ed25519.PubKeyEd25519{}): {},
+	amino.GetTypeURL(ed25519.PubKeyEd25519{}):     {},
+	amino.GetTypeURL(secp256k1.PubKeySecp256k1{}): {},
 }
 
 func DefaultConsensusParams() abci.ConsensusParams {
@@ -75,8 +77,12 @@ func DefaultBlockParams() *abci.BlockParams {
 	}
 }
 
+// DefaultValidatorParams allows both secp256k1 and ed25519 consensus keys.
+// A chain whose headers must be verified on Ethereum (ecrecover) should
+// restrict this to secp256k1 in its genesis.
 func DefaultValidatorParams() *abci.ValidatorParams {
 	return &abci.ValidatorParams{PubKeyTypeURLs: []string{
+		amino.GetTypeURL(secp256k1.PubKeySecp256k1{}),
 		amino.GetTypeURL(ed25519.PubKeyEd25519{}),
 	}}
 }

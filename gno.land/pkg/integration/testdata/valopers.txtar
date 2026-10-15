@@ -25,11 +25,9 @@ stderr 'caller must equal operator address'
 ! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 200000000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40zzz -chainid=tendermint_test test1
 stderr 'panic: invalid checksum'
 
-# A secp256k1 signing key is rejected at registration: it is not in the
-# validator pubkey-type allow-list (ed25519-only), so Register fails fast
-# rather than letting the EndBlocker silently drop the eventual valset update.
-! gnokey maketx call -pkgpath gno.land/r/gnops/valopers -func Register -gas-fee 5000000ugnot -gas-wanted 55_000_000 -send 20000000ugnot -args berty -args "My validator description" -args on-prem -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -args gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pq0skzdkmzu0r9h6gny6eg8c9dc303xrrudee6z4he4y7cs5rnjwmyf40yaj -chainid=tendermint_test test1
-stderr 'consensus pubkey type is not allowed for validators'
+# secp256k1 signing keys are in the default validator pubkey-type allow-list,
+# so there is no default-params rejection to exercise here; rejection against
+# a restricted list is covered by r/gnops/valopers/pubkey_type_test.gno.
 
 # add a valoper with a valid ed25519 signing key. The address arg is the
 # test1 user's address (= operator) and matches OriginCaller, so the squat
