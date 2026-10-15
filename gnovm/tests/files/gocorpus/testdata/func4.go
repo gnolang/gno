@@ -18,6 +18,7 @@ func main() {
 }
 
 // GnoError:
-// line 16: not assignable
+// line 15: invalid operation: cannot take address of main (value of type func())
+// line 16: cannot assign to main (neither addressable nor a map index expression)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15
+// Verdict: Clean errorcheck
