@@ -1,6 +1,7 @@
 // Verifies .gno opt-in: presence of // GoOutput: triggers the
-// symmetric Gno-vs-Go comparison. Here Gno matches Go (fmt.Println
-// produces the same line in both), so no // Divergence: is needed.
+// symmetric Gno-vs-Go comparison. Gno's side stays the native
+// // Output: golden; like a .go corpus file, the opted-in file ends
+// with exactly one // Verdict: line.
 
 package main
 
@@ -15,3 +16,5 @@ func main() {
 
 // GoOutput:
 // hello from .gno
+
+// Verdict: Clean run
