@@ -25,4 +25,8 @@ func main() {
 // line 17: wrong argument count in call to (const (new func(<T.(type)>{}) <*T>{})); want 1 got 0
 // line 18: wrong argument count in call to (const (new func(<T.(type)>{}) <*T>{})); want 1 got 2
 
+// GnoWordingDiffers:
+// line 17: gc expects: missing argument|not enough arguments; gno: wrong argument count in call to (const (new func(<T.(type)>{}) <*T>{})); want 1 got 0
+// line 18: gc expects: too many arguments; gno: wrong argument count in call to (const (new func(<T.(type)>{}) <*T>{})); want 1 got 2
+
 // Verdict: Clean errorcheck

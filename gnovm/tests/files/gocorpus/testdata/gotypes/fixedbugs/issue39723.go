@@ -8,10 +8,4 @@ package p
 // be a type parameter, for instance.
 func _[A interface{ ~int }, B A /* ERROR "cannot use a type parameter as constraint" */ ]() {}
 
-// GoTypeCheckError:
-// line 9
-
-// GoTypesOnly:
-// line 9: gc expects: cannot use a type parameter as constraint
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9

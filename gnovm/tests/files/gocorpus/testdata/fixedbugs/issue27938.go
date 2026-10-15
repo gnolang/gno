@@ -27,4 +27,9 @@ type _ interface {
 // line 18: name sync not declared
 // line 22: name sync not declared
 
+// GnoWordingDiffers:
+// line 14: gc expects: undefined: sync|expected package|reference to undefined name; gno: name sync not declared
+// line 18: gc expects: undefined: sync|expected package|reference to undefined name; gno: name sync not declared
+// line 22: gc expects: undefined: sync|expected package|expected signature or type name|reference to undefined name; gno: name sync not declared
+
 // Verdict: Clean errorcheck

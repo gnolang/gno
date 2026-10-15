@@ -74,4 +74,8 @@ func main() {
 // line 58: no new variables on left side of :=
 // line 64: no new variables on left side of :=
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 26, 32
+// ParseBlocked:
+// line 26: gc expects: redeclared|cannot assign|incompatible|cannot use
+// line 32: gc expects: redeclared|cannot assign|incompatible|cannot use
+
+// Verdict: Clean errorcheck

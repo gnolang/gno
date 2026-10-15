@@ -49,4 +49,7 @@ var x = []interface{}{
 // GnoError:
 // line 32: cannot convert untyped bigdec to float32 -- too close to +-Inf
 
+// GnoWordingDiffers:
+// line 32: gc expects: constant 3\.40282e\+38 overflows float32|cannot convert.*to type float32; gno: cannot convert untyped bigdec to float32 -- too close to +-Inf
+
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 36, 42, 46

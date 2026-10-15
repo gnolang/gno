@@ -23,4 +23,8 @@ var x     // error on line 24, not 30
 
 // ERROR "syntax error: unexpected newline, expecting type|expected type"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20, 24
+// ParseBlocked:
+// line 20: gc expects: import path must be a string
+// line 24: gc expects: syntax error: unexpected newline, expecting type|expected type
+
+// Verdict: Clean errorcheck

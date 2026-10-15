@@ -19,4 +19,7 @@ func f() (os int) {
 // line 9: name FileInfo not declared
 // line 13: unexpected selector expression type gnolang.PrimitiveType
 
+// GnoWordingDiffers:
+// line 13: gc expects: undefined; gno: unexpected selector expression type gnolang.PrimitiveType
+
 // Verdict: KnownIssue errorcheck: #6344; over-strict: lines 9

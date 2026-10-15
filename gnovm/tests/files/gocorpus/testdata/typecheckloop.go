@@ -16,4 +16,10 @@ const C = A + B + 1
 // GnoError:
 // line 12: invalid recursive value: A -> B -> C -> A
 
+// GnoWordingDiffers:
+// line 12: gc expects: constant definition loop
+// .*A uses B
+// .*B uses C
+// .*C uses A|initialization cycle; gno: invalid recursive value: A -> B -> C -> A
+
 // Verdict: KnownIssue errorcheck: #6344; over-strict: lines 14

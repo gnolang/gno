@@ -30,4 +30,11 @@ func _ () {
 // GnoError:
 // line 10: missing condition in if statement
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 15, 17, 19, 26
+// ParseBlocked:
+// line 13: gc expects: missing condition in if statement
+// line 15: gc expects: missing condition in if statement
+// line 17: gc expects: missing condition in if statement
+// line 19: gc expects: missing condition in if statement
+// line 26: gc expects: unexpected newline, expected { after if clause
+
+// Verdict: Clean errorcheck

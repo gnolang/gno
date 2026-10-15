@@ -33,9 +33,6 @@ func _[T I](i, j int) {
 // GnoError:
 // line 13: expected type argument list
 
-// GoTypeCheckError:
-// line 13
-
 // ParseBlocked:
 // line 8: gc expects: undefined
 // line 21: gc expects: more than one index

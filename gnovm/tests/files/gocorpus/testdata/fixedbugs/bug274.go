@@ -33,4 +33,8 @@ func main() {
 // GnoError:
 // line 24: expected statement, found 'case'
 
+// ParseBlocked:
+// line 23: gc expects: statement
+// line 25: gc expects: statement
+
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 25; over-strict: lines 24

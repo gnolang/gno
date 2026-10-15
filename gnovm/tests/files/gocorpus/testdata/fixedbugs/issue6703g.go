@@ -22,4 +22,7 @@ var x = E.m // ERROR "initialization cycle|depends upon itself"
 // GnoError:
 // line 20: unknown *DeclaredType method named m
 
+// GnoWordingDiffers:
+// line 20: gc expects: initialization cycle|depends upon itself; gno: unknown *DeclaredType method named m
+
 // Verdict: Clean errorcheck

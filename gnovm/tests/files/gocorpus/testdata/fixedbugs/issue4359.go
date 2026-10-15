@@ -22,4 +22,7 @@ func f() {
 // line 12: 2: name T1 not defined in fileset with files [issue4359.go]
 // line 18: missing field x in *main.T
 
+// GnoWordingDiffers:
+// line 13: gc expects: undefined; gno: 2: name T1 not defined in fileset with files [issue4359.go]
+
 // Verdict: KnownIssue errorcheck: #6344; over-strict: lines 18

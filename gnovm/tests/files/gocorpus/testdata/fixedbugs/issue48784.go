@@ -29,4 +29,11 @@ var (
 // line 21: invalid operation: (mismatched types <nil> and gno.land/p/filetest/p.T)
 // line 22: invalid operation: (mismatched types <nil> and [1]int)
 
+// GnoWordingDiffers:
+// line 18: gc expects: invalid operation:.*mismatched types string and (untyped )?nil; gno: invalid operation: (mismatched types <nil> and string)
+// line 19: gc expects: invalid operation:.*mismatched types bool and (untyped )?nil; gno: invalid operation: (mismatched types <nil> and bool)
+// line 20: gc expects: invalid operation:.*mismatched types int and (untyped )?nil; gno: invalid operation: (mismatched types <nil> and int)
+// line 21: gc expects: invalid operation:.*mismatched types T and (untyped )?nil; gno: invalid operation: (mismatched types <nil> and gno.land/p/filetest/p.T)
+// line 22: gc expects: invalid operation:.*mismatched types \[1\]int and (untyped )?nil; gno: invalid operation: (mismatched types <nil> and [1]int)
+
 // Verdict: Clean errorcheck

@@ -359,59 +359,6 @@ func _() {
 // line 311: cannot use struct{f func(gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:291:1-314:2].E)} as struct{f func(*struct{x int})}
 // line 312: cannot convert u<VPBlock(1,5)> (of type *struct{f func(gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:291:1-314:2].E)}) to type *gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:291:1-314:2].T
 
-// GoTypeCheckError:
-// line 23
-// line 43
-// line 44
-// line 48
-// line 64
-// line 65
-// line 69
-// line 92
-// line 93
-// line 97
-// line 118
-// line 119
-// line 121
-// line 122
-// line 123
-// line 143
-// line 144
-// line 147
-// line 148
-// line 149
-// line 161
-// line 162
-// line 166
-// line 181
-// line 182
-// line 186
-// line 202
-// line 203
-// line 207
-// line 230
-// line 231
-// line 235
-// line 256
-// line 257
-// line 259
-// line 260
-// line 261
-// line 281
-// line 282
-// line 285
-// line 286
-// line 287
-// line 306
-// line 307
-// line 310
-// line 311
-// line 312
-
-// GoTypesOnly:
-// line 162: gc expects: cannot use .* in assignment
-// line 166: gc expects: cannot use .* in assignment
-
 // GnoWordingDiffers:
 // line 23: gc expects: cannot use .* in assignment; gno: cannot use gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:17:1-31:2].T as gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:17:1-31:2].S without explicit conversion
 // line 43: gc expects: cannot use .* in assignment; gno: cannot use gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:33:1-51:2].T as gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:33:1-51:2].S without explicit conversion
@@ -449,4 +396,4 @@ func _() {
 // line 307: gc expects: cannot use .* in assignment; gno: cannot use struct{f func(gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:291:1-314:2].E)} as struct{f func(*struct{x int})}
 // line 311: gc expects: cannot use .* in assignment; gno: cannot use struct{f func(gno.land/p/filetest/conversions2[gno.land/p/filetest/conversions2/conversions1.go:291:1-314:2].E)} as struct{f func(*struct{x int})}
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 162, 166

@@ -13,4 +13,7 @@ const n = fmt // ERROR "fmt without selector|unexpected reference to package|use
 // GnoError:
 // line 11: package fmt cannot only be referred to in a selector expression
 
+// GnoWordingDiffers:
+// line 11: gc expects: fmt without selector|unexpected reference to package|use of package fmt not in selector; gno: package fmt cannot only be referred to in a selector expression
+
 // Verdict: Clean errorcheck

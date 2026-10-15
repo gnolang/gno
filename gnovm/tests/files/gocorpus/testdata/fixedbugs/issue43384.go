@@ -149,4 +149,30 @@ func _() {
 // line 118: should not happen
 // line 119: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 
+// GnoWordingDiffers:
+// line 40: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P3
+// line 41: gc expects: undefined; gno: should not happen
+// line 42: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P3
+// line 46: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P3
+// line 47: gc expects: undefined; gno: should not happen
+// line 48: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P3
+// line 55: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P4
+// line 56: gc expects: undefined; gno: should not happen
+// line 57: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P4
+// line 61: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P4
+// line 62: gc expects: undefined; gno: should not happen
+// line 63: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P4
+// line 96: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 97: gc expects: undefined; gno: should not happen
+// line 98: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 102: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 103: gc expects: undefined; gno: should not happen
+// line 104: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 111: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 112: gc expects: undefined; gno: should not happen
+// line 113: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 117: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 118: gc expects: undefined; gno: should not happen
+// line 119: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+
 // Verdict: Clean errorcheck

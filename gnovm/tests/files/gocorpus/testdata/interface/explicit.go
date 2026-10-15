@@ -123,4 +123,10 @@ var b2 B2 = &T2{}
 // line 89: 2: methods must have a unique non-blank name
 // line 93: 2: methods must have a unique non-blank name
 
+// GnoWordingDiffers:
+// line 41: gc expects: need explicit|need type assertion; gno: cannot use interface {} as *main.T
+// line 47: gc expects: incompatible|assignment$; gno: cannot use interface {M func()} as *main.T
+// line 53: gc expects: invalid|missing N method|cannot convert; gno: main.I does not implement main.I2 (missing method N)
+// line 87: gc expects: invalid|wrong type for M method|cannot convert; gno: main.Int does not implement main.M (wrong type for method M)
+
 // Verdict: Clean errorcheck

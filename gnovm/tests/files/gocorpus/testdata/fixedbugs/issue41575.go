@@ -44,4 +44,9 @@ type w2 w // refer to the type loop again
 // line 32: invalid recursive type: x -> y -> z -> x
 // line 36: should not happen
 
+// GnoWordingDiffers:
+// line 18: gc expects: invalid recursive type b
+// .*b refers to c
+// .*c refers to b|invalid recursive type|invalid recursive type; gno: name c not declared
+
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 32; over-strict: lines 17, 21, 31, 36

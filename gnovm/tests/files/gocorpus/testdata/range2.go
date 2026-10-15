@@ -27,4 +27,8 @@ func test() {
 // line 20: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 // line 22: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 
+// GnoWordingDiffers:
+// line 20: gc expects: cannot range over T.M \(value of type func\(T\)\): func must be func\(yield func\(...\) bool\): argument is not func; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 22: gc expects: cannot range over \(\*T\).PM \(value of type func\(\*T\)\): func must be func\(yield func\(...\) bool\): argument is not func; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+
 // Verdict: Clean errorcheck

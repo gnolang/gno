@@ -21,9 +21,6 @@ func _() {
 // GnoError:
 // line 18: expected type, found 1
 
-// GoTypeCheckError:
-// line 18
-
 // ParseBlocked:
 // line 11: gc expects: cannot use.*without instantiation
 // line 12: gc expects: invalid operation: bool[int] (bool is not a generic type)

@@ -24,4 +24,9 @@ func main() {
 // line 17: illegal byte order mark
 // line 18: expected '}', found 'EOF'
 
+// GnoWordingDiffers:
+// line 14: gc expects: BOM; gno: illegal byte order mark
+// line 16: gc expects: BOM; gno: illegal byte order mark
+// line 17: gc expects: BOM; gno: illegal byte order mark
+
 // Verdict: KnownIssue errorcheck: #6344; over-strict: lines 15, 18

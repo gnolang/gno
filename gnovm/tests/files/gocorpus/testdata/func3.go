@@ -22,4 +22,8 @@ func f4() (t1 t1)	// legal - scope of parameter named t1 starts in body of f4.
 // GnoError:
 // line 16: missing parameter name
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 18
+// ParseBlocked:
+// line 17: gc expects: missing parameter name
+// line 18: gc expects: missing parameter name
+
+// Verdict: Clean errorcheck

@@ -7,7 +7,4 @@ package _ /* ERROR "invalid package name" */
 // GnoError:
 // line 5: invalid package name _
 
-// GoTypeCheckError:
-// line 5
-
 // Verdict: Clean errorcheck

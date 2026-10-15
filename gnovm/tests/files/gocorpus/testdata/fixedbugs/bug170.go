@@ -19,4 +19,7 @@ func main() {
 // line 11: use of untyped nil in variable declaration
 // line 13: cannot use nil as [10]int value in assignment
 
+// GnoWordingDiffers:
+// line 8: gc expects: illegal|nil|invalid; gno: cannot convert (const (undefined)) to ArrayKind
+
 // Verdict: Clean errorcheck

@@ -11,4 +11,7 @@ var x⊛y int	// ERROR "invalid character .* in identifier"
 // GnoError:
 // line 9: illegal character U+229B '⊛'
 
+// GnoWordingDiffers:
+// line 9: gc expects: invalid character .* in identifier; gno: illegal character U+229B '⊛'
+
 // Verdict: Clean errorcheck

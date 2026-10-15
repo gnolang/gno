@@ -29,4 +29,14 @@ func f() {
 // GnoError:
 // line 10: expected ';', found ')'
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 16, 19, 22, 25
+// ParseBlocked:
+// line 13: gc expects: unexpected \]
+// line 16: gc expects: unexpected \)
+// line 19: gc expects: unexpected \]
+// line 22: gc expects: unexpected \)
+// line 25: gc expects: unexpected \]
+
+// GnoWordingDiffers:
+// line 10: gc expects: unexpected \); gno: expected ';', found ')'
+
+// Verdict: Clean errorcheck

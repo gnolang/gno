@@ -15,12 +15,4 @@ var (
 	_ = M(x /* ERROR "invalid use of ... in conversion to M" */ ...)
 )
 
-// GoTypeCheckError:
-// line 7
-// line 15
-
-// GoTypesOnly:
-// line 7: gc expects: invalid use of ... in conversion to int
-// line 15: gc expects: invalid use of ... in conversion to M
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7, 15

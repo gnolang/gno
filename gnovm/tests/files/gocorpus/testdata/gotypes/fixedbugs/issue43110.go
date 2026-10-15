@@ -46,18 +46,8 @@ func _() {
 // line 15: 3: struct{_ func()} is not comparable
 // line 32: 3: func() can only be compared to nil
 
-// GoTypeCheckError:
-// line 12
-// line 15
-// line 33
-// line 36
-
-// GoTypesOnly:
-// line 12: gc expects: cannot switch on a
-// line 36: gc expects: use of untyped nil in switch expression
-
 // GnoWordingDiffers:
 // line 15: gc expects: cannot switch on a; gno: 3: struct{_ func()} is not comparable
 // line 33: gc expects: invalid case f in switch on .* \(func can only be compared to nil\); gno: 3: func() can only be compared to nil
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 36

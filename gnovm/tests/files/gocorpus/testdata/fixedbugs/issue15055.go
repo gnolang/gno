@@ -28,4 +28,14 @@ func main() {
 // line 17: type conversion requires single argument
 // line 18: type conversion requires single argument
 
+// GnoWordingDiffers:
+// line 11: gc expects: too many arguments (to conversion to \[\]byte: \(\[\]byte\)\(.abc., .def., 12\))?; gno: type conversion requires single argument
+// line 12: gc expects: too many arguments (to conversion to string: string\(.a., .b., nil\))?; gno: type conversion requires single argument
+// line 13: gc expects: missing argument (to conversion to \[\]byte: \(\[\]byte\)\(\))?; gno: type conversion requires single argument
+// line 14: gc expects: missing argument (to conversion to string: string\(\))?; gno: type conversion requires single argument
+// line 15: gc expects: missing argument (to conversion to int: int\(\))?; gno: type conversion requires single argument
+// line 16: gc expects: missing argument (to conversion to \*int: \(\*int\)\(\))?; gno: type conversion requires single argument
+// line 17: gc expects: too many arguments (to conversion to name: name\(.a., 1, 3.3\))?; gno: type conversion requires single argument
+// line 18: gc expects: too many arguments (to conversion to map\[string\]string: \(map\[string\]string\)\(nil, nil\))?; gno: type conversion requires single argument
+
 // Verdict: Clean errorcheck

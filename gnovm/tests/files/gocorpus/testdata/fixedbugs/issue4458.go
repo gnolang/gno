@@ -25,4 +25,10 @@ func main() {
 // stack 2: func main/issue4458.go:16:1-20:2
 // ------------------------
 
+// GnoWordingDiffers:
+// line 19: gc expects: no method .*foo|requires named type or pointer to named|undefined; gno: expected block type value path but got VPInvalid:
+// --- preprocess stack ---
+// stack 2: func main/issue4458.go:16:1-20:2
+// ------------------------
+
 // Verdict: Clean errorcheck

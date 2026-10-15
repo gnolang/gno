@@ -18,4 +18,7 @@ type b int
 // GnoError:
 // line 12: method has no receiver
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14
+// ParseBlocked:
+// line 14: gc expects: multiple receiver
+
+// Verdict: Clean errorcheck

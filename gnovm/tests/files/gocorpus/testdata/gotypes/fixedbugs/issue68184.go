@@ -41,10 +41,6 @@ func _() {
 // line 35: missing field B2 in gno.land/p/filetest/p.VeryLongStruct
 // line 37: struct type struct{A1 int; A2 int; A3 int; A4 int; A5 int; A6 int; A7 int; A8 int; A9 int; A10 int; A11 int; A12 int; A13 int; A14 int; A15 int; A16 int; A17 int; A18 int; A19 int; A20 int} has no field B2
 
-// GoTypeCheckError:
-// line 35
-// line 37
-
 // GnoWordingDiffers:
 // line 35: gc expects: x.B2 undefined (type VeryLongStruct has no field or method B2); gno: missing field B2 in gno.land/p/filetest/p.VeryLongStruct
 // line 37: gc expects: unknown field B2 in struct literal of type VeryLongStruct; gno: struct type struct{A1 int; A2 int; A3 int; A4 int; A5 int; A6 int; A7 int; A8 int; A9 int; A10 int; A11 int; A12 int; A13 int; A14 int; A15 int; A16 int; A17 int; A18 int; A19 int; A20 int} has no field B2

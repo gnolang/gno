@@ -13,4 +13,7 @@ func main() {
 // GnoError:
 // line 10: name n not declared
 
+// GnoWordingDiffers:
+// line 10: gc expects: undefined: n in n.foo|undefined name .*n|undefined: n; gno: name n not declared
+
 // Verdict: Clean errorcheck

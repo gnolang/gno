@@ -18,14 +18,4 @@ func _() {
 	_ = C + V
 }
 
-// GoTypeCheckError:
-// line 7
-// line 10
-// line 12
-
-// GoTypesOnly:
-// line 7: gc expects: C is not a type
-// line 10: gc expects: cannot convert 0 (untyped int constant) to type T1
-// line 12: gc expects: V is not a type
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7, 10, 12

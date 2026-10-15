@@ -6,10 +6,4 @@ package main
 
 func main[T /* ERROR "func main must have no type parameters" */ any]() {}
 
-// GoTypeCheckError:
-// line 7
-
-// GoTypesOnly:
-// line 7: gc expects: func main must have no type parameters
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7

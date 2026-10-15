@@ -33,9 +33,6 @@ import _ "math"
 // GnoError:
 // line 10: missing import path
 
-// GoTypeCheckError:
-// line 10
-
 // ParseBlocked:
 // line 11: gc expects: invalid import path (empty string)
 // line 13: gc expects: missing import path

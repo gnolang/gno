@@ -29,4 +29,10 @@ func _() {
 // line 19: expected 1 return values; got 2
 // line 23: expected 0 return values; got 1
 
+// GnoWordingDiffers:
+// line 10: gc expects: not enough (arguments to return|return values)\n\thave \(number\)\n\twant \(int, error\); gno: expected 2 return values; got 1
+// line 15: gc expects: not enough (arguments to return|return values)\n\thave \(int\)\n\twant \(int, error\); gno: expected 2 return values; got 1
+// line 19: gc expects: too many (arguments to return|return values)\n\thave \(number, number\)\n\twant \(int\); gno: expected 1 return values; got 2
+// line 23: gc expects: too many (arguments to return|return values)\n\thave \(number\)\n\twant \(\); gno: expected 0 return values; got 1
+
 // Verdict: Clean errorcheck

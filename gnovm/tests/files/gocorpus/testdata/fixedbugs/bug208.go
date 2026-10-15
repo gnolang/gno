@@ -21,4 +21,7 @@ var _ = T{f: 1}
 // GnoError:
 // line 17: name f not defined in fileset with files [bug208.go]
 
+// GnoWordingDiffers:
+// line 17: gc expects: undefined; gno: name f not defined in fileset with files [bug208.go]
+
 // Verdict: Clean errorcheck

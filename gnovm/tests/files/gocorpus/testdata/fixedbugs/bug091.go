@@ -28,4 +28,7 @@ func main() {
 // GnoError:
 // line 20: name c not declared
 
+// GnoWordingDiffers:
+// line 20: gc expects: undef; gno: name c not declared
+
 // Verdict: Clean errorcheck

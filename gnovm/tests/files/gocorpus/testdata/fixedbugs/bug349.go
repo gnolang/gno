@@ -15,4 +15,7 @@ func foo() (a, b, c int) {
 // GnoError:
 // line 12: expected ';', found 2.01
 
+// GnoWordingDiffers:
+// line 12: gc expects: unexpected literal 2.01|expected ';' or '}' or newline|not enough arguments to return; gno: expected ';', found 2.01
+
 // Verdict: Clean errorcheck

@@ -46,13 +46,6 @@ func _() {
 // line 34: no new variables on left side of :=
 // line 40: no new variables on left side of :=
 
-// GoTypeCheckError:
-// line 8
-// line 20
-// line 27
-// line 34
-// line 40
-
 // ParseBlocked:
 // line 8: gc expects: b repeated on left side of :=
 // line 20: gc expects: b repeated on left side of :=

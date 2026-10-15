@@ -25,4 +25,7 @@ func main() {
 // line 14: 2: name foo not defined in fileset with files [bug365.go]
 // line 21: missing field Num in main.S
 
+// GnoWordingDiffers:
+// line 15: gc expects: undefined|expected package; gno: 2: name foo not defined in fileset with files [bug365.go]
+
 // Verdict: KnownIssue errorcheck: #6344; over-strict: lines 21

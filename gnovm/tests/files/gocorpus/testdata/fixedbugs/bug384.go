@@ -14,4 +14,7 @@ func (r *indexWriter) foo() {}  // ERROR "undefined.*indexWriter"
 // GnoError:
 // line 12: name indexWriter not defined in fileset with files [bug384.go]
 
+// GnoWordingDiffers:
+// line 12: gc expects: undefined.*indexWriter; gno: name indexWriter not defined in fileset with files [bug384.go]
+
 // Verdict: Clean errorcheck
