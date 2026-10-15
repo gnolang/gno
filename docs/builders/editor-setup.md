@@ -29,7 +29,8 @@ actually talking to it, open any `.gno` file and check:
 - **Diagnostics**: break something on purpose (e.g. a typo in an import
   path); the editor should underline it within a second or two.
 
-If none of that happens, the editor isn't connected to `gnopls`. Check
+If none of that happens, the editor isn't connected to `gnopls`. If you
+installed `gnopls` manually, make sure it is on your `PATH`, then check
 the language server logs in your editor.
 
 ## Next steps
