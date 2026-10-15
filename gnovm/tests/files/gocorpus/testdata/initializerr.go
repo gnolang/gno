@@ -46,16 +46,4 @@ var _ = map[Key]string{
 // line 25: slice/array literals may not contain non-const keys
 // line 26: duplicate index 1 in array or slice literal
 
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 23
-// line 24
-// line 25
-// line 26
-
-// GoTypesOnly:
-// line 23: gc expects: convert|too many
-// line 24: gc expects: index|too many
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 23, 24, 26

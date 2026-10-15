@@ -22,8 +22,4 @@ func f2() {
 // line 12: cannot slice variable of type ()
 // line 18: cannot slice variable of type ([]uint8,[]uint8)
 
-// GoTypeCheckError:
-// line 12
-// line 18
-
 // Verdict: Clean errorcheck

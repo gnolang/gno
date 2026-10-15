@@ -44,18 +44,4 @@ type w2 w // refer to the type loop again
 // line 32: invalid recursive type: x -> y -> z -> x
 // line 36: should not happen
 
-// GoTypeCheckError:
-// line 9
-// line 13
-// line 18
-// line 19
-// line 23
-// line 25
-// line 32
-// line 33
-// line 34
-
-// GnoOverStrictError:
-// line 36: should not happen
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 32; over-strict: lines 17, 21, 31, 36

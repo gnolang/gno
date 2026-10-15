@@ -25,4 +25,3 @@ func makeClosure(a int) (b int, c func(bool)) {
 // Output:
 // 1 2 0
 // 1 2 0
-

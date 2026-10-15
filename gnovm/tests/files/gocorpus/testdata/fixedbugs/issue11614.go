@@ -29,8 +29,4 @@ func main() {
 // line 13: 2: interface contains embedded non-interface int
 // line 22: interface contains embedded non-interface int
 
-// GoTypeCheckError:
-// line 18
-// line 22
-
 // Verdict: Clean errorcheck

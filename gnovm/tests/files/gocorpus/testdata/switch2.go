@@ -41,13 +41,4 @@ func f() {
 // GnoError:
 // line 14: expected ':', found ';'
 
-// GoTypeCheckError:
-// line 14
-
-// UncaughtError:
-// line 18: uncaught; gc expects: expecting := or = or : or comma|expected :
-// line 28: uncaught; gc expects: unexpected keyword case at end of statement
-// line 33: uncaught; gc expects: unexpected keyword default at end of statement
-// line 37: uncaught; gc expects: expected case or default or }
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 4 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 28, 33, 37

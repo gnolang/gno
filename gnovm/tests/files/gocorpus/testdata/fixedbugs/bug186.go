@@ -19,7 +19,4 @@ func main() {
 // GnoError:
 // line 15: cannot use iota outside constant declaration
 
-// GoTypeCheckError:
-// line 15
-
 // Verdict: Clean errorcheck

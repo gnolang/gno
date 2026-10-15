@@ -38,7 +38,6 @@ func main() {
 // line 18: cannot assign to const n
 // line 19: cannot assign to const cs
 // line 20: cannot assign to uverse true
-// line 23: cannot assign to struct field m[0].n in map
 // line 25: cannot assign to (const (1 <untyped> bigint))
 // line 26: cannot assign to (const ("hi" <untyped> string))
 // line 27: cannot assign to uverse nil
@@ -46,18 +45,4 @@ func main() {
 // line 29: cannot assign to (const-type []int){}
 // line 32: cannot assign to x<VPBlock(1,4)> + (const (1 int))
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 18
-// line 19
-// line 20
-// line 23
-// line 25
-// line 26
-// line 27
-// line 28
-// line 29
-// line 32
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23

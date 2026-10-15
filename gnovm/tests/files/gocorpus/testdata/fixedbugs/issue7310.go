@@ -19,9 +19,4 @@ func main() {
 // line 13: invalid argument: copy expects slice arguments; found []int and untyped nil
 // line 14: cannot use untyped bool as BigintKind
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 14
-
 // Verdict: Clean errorcheck

@@ -25,10 +25,4 @@ func main() {
 // line 14: 2: name foo not defined in fileset with files [bug365.go]
 // line 21: missing field Num in main.S
 
-// GoTypeCheckError:
-// line 15
-
-// GnoOverStrictError:
-// line 21: missing field Num in main.S
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 21

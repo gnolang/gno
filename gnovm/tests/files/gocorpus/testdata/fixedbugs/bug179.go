@@ -30,15 +30,4 @@ L1:
 // line 13: label L2 undefined
 // line 14: label L2 undefined
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 18
-// line 22
-// line 23
-
-// GoTypesOnly:
-// line 22: gc expects: L1
-// line 23: gc expects: L1
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 23

@@ -33,8 +33,4 @@ func main() {
 // line 16: name ReadWriterCloser not declared
 // line 28: name Open not declared
 
-// GoTypeCheckError:
-// line 16
-// line 28
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 28

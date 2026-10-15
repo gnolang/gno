@@ -35,13 +35,4 @@ func main() {
 // line 24: invalid argument: copy expects slice arguments; found <untyped> bigint and []int
 // line 25: invalid argument: copy expects slice arguments; found []int and <untyped> bigint
 
-// GoTypeCheckError:
-// line 17
-// line 18
-// line 20
-// line 21
-// line 23
-// line 24
-// line 25
-
 // Verdict: Clean errorcheck

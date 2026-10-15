@@ -24,7 +24,4 @@ func main() {
 // GnoError:
 // line 21: not enough arguments in call to printmany<VPBlock(3,0)>; want 1 (including variadic) got 3
 
-// GoTypeCheckError:
-// line 21
-
 // Verdict: Clean errorcheck

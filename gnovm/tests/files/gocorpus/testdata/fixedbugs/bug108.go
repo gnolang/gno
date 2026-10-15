@@ -13,7 +13,4 @@ func f() {
 // GnoError:
 // line 9: bigint overflows target kind
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

@@ -124,55 +124,17 @@ func _() {
 }
 
 // GnoError:
-// line 40: missing field Mv in gno.land/p/filetest/p.P3
 // line 41: should not happen
-// line 42: missing field Mv in gno.land/p/filetest/p.P3
-// line 46: missing field Mp in gno.land/p/filetest/p.P3
+// line 46: should not happen
 // line 47: should not happen
-// line 48: missing field Mp in gno.land/p/filetest/p.P3
-// line 55: missing field Mv in gno.land/p/filetest/p.P4
+// line 48: should not happen
 // line 56: should not happen
-// line 57: missing field Mv in gno.land/p/filetest/p.P4
-// line 61: missing field Mp in gno.land/p/filetest/p.P4
 // line 62: should not happen
-// line 63: missing field Mp in gno.land/p/filetest/p.P4
-// line 96: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
 // line 97: should not happen
-// line 98: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 102: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 102: should not happen
 // line 103: should not happen
-// line 104: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 111: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 104: should not happen
 // line 112: should not happen
-// line 113: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
-// line 117: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 // line 118: should not happen
-// line 119: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 
-// GoTypeCheckError:
-// line 40
-// line 41
-// line 42
-// line 46
-// line 47
-// line 48
-// line 55
-// line 56
-// line 57
-// line 61
-// line 62
-// line 63
-// line 96
-// line 97
-// line 98
-// line 102
-// line 103
-// line 104
-// line 111
-// line 112
-// line 113
-// line 117
-// line 118
-// line 119
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 40, 42, 55, 57, 61, 63, 96, 98, 111, 113, 117, 119

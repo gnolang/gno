@@ -459,4 +459,4 @@ func idiv(x, y int64) (q, r int64) {
 	return q, r
 }
 
-// Verdict: Unsupported other: infinite loop in Gno where Go terminates (harness timeout); tracked with the run divergences
+// Verdict: Unsupported long: 4e6 division checks take minutes in the interpreter (gc finishes in under a second)

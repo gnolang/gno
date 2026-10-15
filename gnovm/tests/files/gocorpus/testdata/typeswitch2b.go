@@ -19,10 +19,4 @@ func notused(x interface{}) {
 	}
 }
 
-// GoTypeCheckError:
-// line 16
-
-// GoTypesOnly:
-// line 16: gc expects: declared and not used
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

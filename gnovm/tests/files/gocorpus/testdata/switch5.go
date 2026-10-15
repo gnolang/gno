@@ -113,34 +113,4 @@ func f8(r rune) {
 // line 91: duplicate case 'b' in expression switch
 // line 92: duplicate case int32(10) in expression switch
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 19
-// line 20
-// line 26
-// line 27
-// line 28
-// line 34
-// line 35
-// line 36
-// line 37
-// line 43
-// line 44
-// line 46
-// line 47
-// line 48
-// line 49
-// line 74
-// line 75
-// line 76
-// line 85
-// line 86
-// line 87
-// line 88
-// line 89
-// line 90
-// line 91
-// line 92
-
 // Verdict: Clean errorcheck

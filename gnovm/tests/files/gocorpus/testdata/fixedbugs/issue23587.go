@@ -17,7 +17,4 @@ func _(x int) {
 // GnoError:
 // line 14: expected ';', found '~'
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

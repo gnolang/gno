@@ -23,7 +23,4 @@ func _(p P) {
 // GnoError:
 // line 20: unknown *DeclaredType method named t
 
-// GoTypeCheckError:
-// line 20
-
 // Verdict: Clean errorcheck

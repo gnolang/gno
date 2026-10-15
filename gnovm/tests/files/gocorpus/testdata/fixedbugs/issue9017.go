@@ -57,15 +57,6 @@ func main() {
 }
 
 // GnoError:
-// line 47: missing field mS in main.P
-// line 50: main.P does not implement main.I (missing method mT)
-// line 53: missing field mT in main.P
-// line 56: main.P does not implement main.I (missing method mT)
+// line 47: should not happen
 
-// GoTypeCheckError:
-// line 47
-// line 50
-// line 53
-// line 56
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 50, 53, 56

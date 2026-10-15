@@ -13,7 +13,4 @@ var a [len(a)]int // ERROR "\[len\(a\)\]int|initialization cycle"
 // GnoError:
 // line 11: invalid recursive type: a -> a
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

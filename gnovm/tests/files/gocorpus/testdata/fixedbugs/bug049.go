@@ -21,7 +21,4 @@ bug047.go:4: fatal error: stringpool: not string
 // GnoError:
 // line 10: invalid operation: (mismatched types <nil> and string)
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

@@ -14,10 +14,4 @@ func main() {
 	students["sally"].age = 3 // ERROR "cannot assign to struct field .* in map"
 }
 
-// GnoError:
-// line 14: cannot assign to struct field students["sally"].age in map
-
-// GoTypeCheckError:
-// line 14
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14

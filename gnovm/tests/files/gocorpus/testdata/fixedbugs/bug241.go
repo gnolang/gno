@@ -12,7 +12,4 @@ var x = c.String()	// ERROR "String"
 // GnoError:
 // line 10: unexpected selector expression type gnolang.PrimitiveType
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

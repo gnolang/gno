@@ -15,7 +15,4 @@ func main() {
 // GnoError:
 // line 12: not enough arguments in call to f<VPBlock(3,0)>; want 2 (including variadic) got 1
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

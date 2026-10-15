@@ -32,7 +32,4 @@ import 0.25i // ERROR "import path must be a string"
 // line 26: import path must be a string
 // line 27: import path must be a string
 
-// GoTypeCheckError:
-// line 24
-
 // Verdict: Clean errorcheck

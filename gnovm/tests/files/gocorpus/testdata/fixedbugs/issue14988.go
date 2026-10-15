@@ -15,7 +15,4 @@ type k [1]m
 // GnoError:
 // line 12: invalid map key type main.k
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck
