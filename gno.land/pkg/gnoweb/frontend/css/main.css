@@ -22,4 +22,5 @@
    07-utilities — cascade order preserved). */
 @import "../../feature/state/frontend/state.css";
 @import "../../feature/omnisearch/frontend/omnisearch.css";
+@import "../../feature/chainmap/frontend/chainmap.css";
 @import "./07-utilities.css";

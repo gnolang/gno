@@ -49,6 +49,10 @@ type HeaderData struct {
 	Origin string
 	AI     *AIMenu
 	Notice RealmNotice
+	// Listing is set on a directory listing, whose tabs it carries.
+	// MapTab is set by a directory listing large enough for a map: it then
+	// offers its Directory and Map renderings as tabs.
+	MapTab bool
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -174,6 +178,30 @@ func StaticHeaderDevLinks(u weburl.GnoURL, mode ViewMode, static bool) []HeaderL
 	}
 }
 
+// listingTabs are a listing's Directory and Map tabs.
+func listingTabs(u weburl.GnoURL) []HeaderLink {
+	listURL, mapURL := u, u
+	listURL.WebQuery = url.Values{}
+	mapURL.WebQuery = url.Values{"map": {""}}
+	onMap := u.WebQuery.Has("map")
+	return []HeaderLink{
+		{
+			Label:    "Directory",
+			URL:      listURL.EncodeWebURL(),
+			Icon:     "ico-folder",
+			IsActive: !onMap,
+			Tooltip:  "Every package under this path, one per line.",
+		},
+		{
+			Label:    "Map",
+			URL:      mapURL.EncodeWebURL(),
+			Icon:     "ico-grid",
+			IsActive: onMap,
+			Tooltip:  "The same packages drawn as a map, grouped by path.",
+		},
+	}
+}
+
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 	// The root has no path: an empty value shows the placeholder
 	if data.RealmURL.Path != "/" {
@@ -185,7 +213,16 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 		searchBase = "/"
 	}
 	data.SearchAction = searchBase + "$search"
-	data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
+	switch {
+	case data.MapTab:
+		data.Links.Dev = listingTabs(data.RealmURL)
+	case mode == ViewModeExplorer:
+		// A listing without a map has one rendering: a single tab would
+		// choose between nothing.
+		data.Links.Dev = nil
+	default:
+		data.Links.Dev = StaticHeaderDevLinks(data.RealmURL, mode, data.Static)
+	}
 	if !data.Static && (mode == ViewModeRealm || mode == ViewModePackage) {
 		data.AI = NewAIMenu(data.Origin, data.RealmURL)
 	}
@@ -201,11 +238,12 @@ func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
 func isActive(webQuery url.Values, label string) bool {
 	switch label {
 	case "Content":
-		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("state")
+		return !webQuery.Has("source") && !webQuery.Has("help") && !webQuery.Has("state") && !webQuery.Has("deps")
 	case "State":
 		return webQuery.Has("state")
 	case "Source":
-		return webQuery.Has("source")
+		// The dependencies page extends the overview, which is under Source.
+		return webQuery.Has("source") || webQuery.Has("deps")
 	case "Actions":
 		return webQuery.Has("help")
 	default:
