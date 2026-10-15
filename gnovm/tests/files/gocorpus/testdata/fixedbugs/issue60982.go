@@ -2022,15 +2022,4 @@ func f(x int, b bool) int {
 	return 0
 }
 
-// GnoError:
-// line 13: name max not declared
-
-// GoBuildError:
-// line 13
-// line 16
-
-// GoTypeCheckError:
-// line 13
-// line 16
-
-// Verdict: Clean compile
+// Verdict: Unsupported stdlib-symbol: unsupported stdlib symbol max (the go/types guard rejects it too)

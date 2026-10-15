@@ -18,7 +18,4 @@ func F() {
 // GnoError:
 // line 14: want bool type got interface {}
 
-// GoBuildError:
-// line 13
-
-// Verdict: Clean compile
+// Verdict: KnownIssue compile: #6343 comma-ok result assigned to an interface-typed variable is rejected

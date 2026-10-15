@@ -20,14 +20,4 @@ var (
 type A interface{ *B | int }
 type B interface{ A | any }
 
-// GnoError:
-// line 10: operator | not defined on: TypeKind
-
-// GoBuildError:
-// line 9
-// line 10
-// line 12
-// line 20
-// line 21
-
-// Verdict: Clean compile
+// Verdict: Unsupported generics: generics not supported in Gno

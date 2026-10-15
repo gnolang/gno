@@ -8,10 +8,4 @@ package p
 
 type C comparable
 
-// GnoError:
-// line 9: name comparable not defined in fileset with files [issue47966.go]
-
-// GoBuildError:
-// line 9
-
-// Verdict: Clean compile
+// Verdict: Unsupported generics: generics not supported in Gno

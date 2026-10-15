@@ -14,11 +14,4 @@ type I2 interface {
 	int | any
 }
 
-// GnoError:
-// line 10: operator | not defined on: TypeKind
-
-// GoBuildError:
-// line 10
-// line 14
-
-// Verdict: Clean compile
+// Verdict: Unsupported generics: generics not supported in Gno
