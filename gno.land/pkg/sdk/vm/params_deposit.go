@@ -187,7 +187,9 @@ func realmFromKey(key string) (string, bool) {
 		return "", false
 	}
 	rest := key[len(userRealmKeyPrefix):]
-	colon := strings.LastIndex(rest, ":")
+	// Package paths contain no colon, so the first one ends the realm path;
+	// the param name after it may contain more.
+	colon := strings.Index(rest, ":")
 	if colon < 0 {
 		return "", false
 	}
