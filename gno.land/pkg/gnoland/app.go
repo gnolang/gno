@@ -261,17 +261,20 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		// bounded by the credit window and the "PayGas was called" enforcement.
 		// See gno.land/adr/pr5382_realm_transaction_sponsorship.md.
 		//
-		// baseapp also runs this at 0-fee mempool admission (CheckExecute), where
-		// it acts as a DRY RUN: every write below lands in the discarded cache, so
-		// a tx that cannot settle is rejected before it is gossiped rather than
-		// being included and failing at nobody's expense. Nothing here may write
-		// outside that cache — the gno store commit lives in SetCommitTxHook.
+		// baseapp also runs this at 0-fee mempool admission (CheckExecute) and in
+		// Simulate, where it acts as a DRY RUN: every write below lands in a
+		// discarded cache, so a tx that cannot settle is rejected before it is
+		// gossiped rather than being included and failing at nobody's expense,
+		// and a simulation shows the same. Nothing here may write outside that
+		// cache — the gno store commit lives in SetCommitTxHook.
 		//
 		// Settlement runs on a fresh infinite gas meter: it is deterministic
-		// protocol bookkeeping (like the ante's fee deduction), not user
-		// computation, so it should not consume the tx's (tightened) gas budget
-		// or inflate its reported GasUsed. gasUsed for the fee is read from the
-		// REAL tx meter before the swap.
+		// protocol bookkeeping, not user computation. Metering it, in the tx's
+		// gas or the block's, could fail a tx after its messages succeeded, and
+		// a failed sponsored tx pays nothing. So unlike the ante's fee
+		// deduction, which a fee-paying tx is charged for, this one bank
+		// transfer counts in neither GasUsed nor block gas. gasUsed for the fee
+		// is read from the REAL tx meter before the swap.
 		gasUsed := ctx.GasMeter().GasConsumed()
 		settleCtx := ctx.WithGasMeter(store.NewInfiniteGasMeter())
 

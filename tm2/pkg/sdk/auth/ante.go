@@ -115,14 +115,17 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		}
 
 		// Set gas meter: credit window for 0-fee txs, GasWanted for normal txs.
+		// The ante reports that limit as GasWanted whether the tx passes or
+		// runs out of gas below. (baseapp keeps the ante's GasWanted only for a
+		// tx the ante passes; for an aborted one, clients see it in the log.)
+		// For a 0-fee tx the meter is never infinite outside DeliverTx: the
+		// height-0 admission check above already rejected the only non-Deliver
+		// case where SetGasMeter would hand one out.
+		gasWanted := tx.Fee.GasWanted
 		if isZeroFeeTx {
-			// Never infinite outside DeliverTx: the height-0 admission check
-			// above already rejected the only non-Deliver case where
-			// SetGasMeter would hand one out.
-			newCtx = SetGasMeter(ctx, consParams.Block.MaxGasCreditPerTx)
-		} else {
-			newCtx = SetGasMeter(ctx, tx.Fee.GasWanted)
+			gasWanted = consParams.Block.MaxGasCreditPerTx
 		}
+		newCtx = SetGasMeter(ctx, gasWanted)
 
 		// AnteHandlers must have their own defer/recover in order for the BaseApp
 		// to know how much gas was used! This is because the GasMeter is created in
@@ -137,10 +140,12 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 					if cp := newCtx.ConsensusParams(); cp != nil && cp.Block != nil {
 						maxGas = cp.Block.MaxGas
 					}
-					log := store.OutOfGasLog(gasUsed, tx.Fee.GasWanted, maxGas, ex.Descriptor, true)
+					// Simulating with a higher gas-wanted cannot help a 0-fee
+					// tx: it runs on the credit window whatever it declares.
+					log := store.OutOfGasLog(gasUsed, gasWanted, maxGas, ex.Descriptor, !isZeroFeeTx)
 					res = abciResult(std.ErrOutOfGas(log))
 
-					res.GasWanted = tx.Fee.GasWanted
+					res.GasWanted = gasWanted
 					res.GasUsed = gasUsed
 					abort = true
 				default:
@@ -396,11 +401,7 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 		// against Block.MaxGas when packing a block, so reporting the credit window
 		// keeps block packing bounded by real worst-case consumption; reporting the
 		// client value (which can be 0) would let a proposer overfill the block.
-		reportedGasWanted := tx.Fee.GasWanted
-		if isZeroFeeTx {
-			reportedGasWanted = consParams.Block.MaxGasCreditPerTx
-		}
-		return newCtx, sdk.Result{GasWanted: reportedGasWanted}, false
+		return newCtx, sdk.Result{GasWanted: gasWanted}, false
 	}
 }
 

@@ -670,6 +670,8 @@ func TestZeroFeeTxWithoutPayGasRejectedAtCheckExecute(t *testing.T) {
 	// Admission must reject it, even though the header height is still 0.
 	r := app.CheckTx(abci.RequestCheckTx{Tx: txBytes})
 	require.False(t, r.IsOK(), "0-fee tx without PayGas must not be admitted: %v", r)
+	// The error keeps only its type; the log says why.
+	require.Contains(t, r.Log, "PayGas not called in 0-fee transaction")
 
 	// And a rejected tx reports no events: its writes are reverted, so surfacing
 	// the message's events would describe state that does not exist.
@@ -793,6 +795,52 @@ func TestOutOfGasLogReportsPayGasLimit(t *testing.T) {
 	require.IsType(t, std.OutOfGasError{}, r.Error)
 	require.Equal(t, int64(window), r.GasWanted)
 	require.Contains(t, r.Log, fmt.Sprintf("exceeds tx's gas wanted (%d)", payGasLimit))
+	require.NotContains(t, r.Log, "simulate with consensus maximum")
+}
+
+// TestSettlementDryRuns: admission (CheckExecute) dry-runs a sponsored tx's
+// settlement, so a sponsor that cannot pay keeps the tx out of the mempool, and
+// Simulate does the same, so a wallet estimating the tx learns why instead of
+// seeing a success that broadcast then refuses.
+func TestSettlementDryRuns(t *testing.T) {
+	t.Parallel()
+
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.PayGasInfo().MaxFee = 1 // what runtime.PayGas does
+			return Result{}
+		}))
+	}
+	endTxOpt := func(bapp *BaseApp) {
+		bapp.SetEndTxHook(func(ctx Context, result Result) error {
+			return std.ErrInsufficientCoins("the sponsor cannot pay")
+		})
+	}
+
+	allowOpt := func(bapp *BaseApp) { bapp.SetAllowZeroFeeTxs(true) }
+
+	app := setupBaseApp(t, routerOpt, endTxOpt, allowOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID: "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:        1_000_000,
+				MaxGas:            10_000_000,
+				MaxGasCreditPerTx: 1_000_000,
+			},
+		},
+	})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	txBytes, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+	c := app.CheckTx(abci.RequestCheckTx{Tx: txBytes})
+	require.IsType(t, std.InsufficientCoinsError{}, c.Error, "CheckTx: %v", c)
+	s := app.Simulate(txBytes)
+	require.IsType(t, std.InsufficientCoinsError{}, s.Error, "Simulate: %v", s)
+	require.Contains(t, s.Log, "the sponsor cannot pay")
 }
 
 // TestCheckTxMalformedTypeURL verifies that CheckTx returns a decode error

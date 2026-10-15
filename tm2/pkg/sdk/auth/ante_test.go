@@ -399,6 +399,36 @@ func TestAnteHandlerRejectsSponsoredTxBeforeFirstBlock(t *testing.T) {
 	require.False(t, abort, "sponsored tx must be admissible at height 1: %v", res)
 }
 
+// TestAnteHandlerZeroFeeOutOfGasReportsWindow: a 0-fee tx runs on the credit
+// window, not on its own GasWanted, and running out of gas in the ante reports
+// the window, as success does.
+func TestAnteHandlerZeroFeeOutOfGasReportsWindow(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	cp := env.ctx.ConsensusParams()
+	cp.Block.MaxGasCreditPerTx = 300 // below the signature check's cost
+	ctx := env.ctx.WithConsensusParams(cp).
+		WithBlockHeader(&bft.Header{ChainID: env.ctx.ChainID(), Height: 1}).
+		WithValue(GasPriceContextKey{}, std.GasPrice{})
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	priv, _, addr := tu.KeyTestPubAddr()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+	fee := std.NewFee(cp.Block.MaxGas+1, std.NewCoin("ugnot", 0)) // ignored: 0-fee
+	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
+		[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, fee)
+
+	_, res, abort := anteHandler(ctx.WithMode(sdk.RunTxModeDeliver), tx, false)
+	require.True(t, abort)
+	require.IsType(t, std.OutOfGasError{}, res.Error)
+	require.Equal(t, cp.Block.MaxGasCreditPerTx, res.GasWanted)
+	require.Contains(t, res.Log, "exceeds tx's gas wanted (300)")
+	require.NotContains(t, res.Log, "simulate with consensus maximum")
+}
+
 // TestAnteHandlerRejectsZeroFeeWhenCreditWindowDisabled verifies that with the
 // credit window OFF (MaxGasCreditPerTx == 0 — the default and the kill switch) a
 // 0-fee tx is rejected in EVERY mode, not just CheckTx.

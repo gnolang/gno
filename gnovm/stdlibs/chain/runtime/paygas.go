@@ -1,11 +1,13 @@
 package runtime
 
 import (
+	"math"
+	"math/bits"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
-	"github.com/gnolang/gno/tm2/pkg/overflow"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // X_payGas records pkgPath's gas commitment. PayGas has already checked that
@@ -41,12 +43,7 @@ func X_payGas(m *gno.Machine, pkgPath string, maxFee int64) {
 		m.Panic(typedString("PayGas: gas price not set"))
 		return
 	}
-	product, ok := overflow.Mul(maxFee, gp.Gas)
-	if !ok {
-		m.Panic(typedString("PayGas: maxFee * gas price overflows"))
-		return
-	}
-	limit := product / gp.Price.Amount
+	limit := gasBought(maxFee, gp)
 
 	// Tighten the meter to what maxFee buys, never past the credit window the
 	// ante granted. An infinite meter (source-gas replay) reports Limit() == 0
@@ -63,4 +60,19 @@ func X_payGas(m *gno.Machine, pkgPath string, maxFee int64) {
 
 	pgi.RealmAddr = gno.DerivePkgCryptoAddr(pkgPath)
 	pgi.MaxFee = maxFee
+}
+
+// gasBought is the gas maxFee buys at gp (both positive). maxFee * gp.Gas is
+// computed in 128 bits, so it may exceed int64, and a quotient too large for
+// int64 saturates at MaxInt64, above any meter limit. Refusing either would
+// only show on chain, since PayGas returns before this outside a sponsored tx,
+// as under gno test.
+func gasBought(maxFee int64, gp std.GasPrice) int64 {
+	hi, lo := bits.Mul64(uint64(maxFee), uint64(gp.Gas))
+	price := uint64(gp.Price.Amount)
+	if hi >= price {
+		return math.MaxInt64
+	}
+	q, _ := bits.Div64(hi, lo, price)
+	return int64(min(q, math.MaxInt64))
 }

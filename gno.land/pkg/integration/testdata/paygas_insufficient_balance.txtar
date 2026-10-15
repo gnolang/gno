@@ -1,5 +1,5 @@
 # A sponsor that cannot pay is rejected at admission: CheckTx dry-runs the
-# settlement, and the bank refuses the debit.
+# settlement, and the bank refuses the debit. Simulate runs the same dry run.
 
 ## start a new node
 gnoland start
@@ -10,8 +10,15 @@ stdout OK!
 
 ## do NOT fund the realm — it has 0 gnot
 
-## call with 0-fee — realm calls PayGas but has no balance
-! gnokey maketx call -pkgpath gno.land/r/test/broke -func DoWork -gas-fee 0ugnot -gas-wanted 5000000 -broadcast -chainid=tendermint_test test1
+## call with 0-fee — realm calls PayGas but has no balance. Skip gnokey's own
+## simulation so the tx reaches admission, which refuses it.
+! gnokey maketx call -pkgpath gno.land/r/test/broke -func DoWork -gas-fee 0ugnot -gas-wanted 5000000 -simulate skip -broadcast -chainid=tendermint_test test1
+stderr 'check transaction failed'
+stderr 'insufficient coins'
+stderr 'insufficient account funds'
+
+## a wallet's simulation already shows it (a dry run, never broadcast)
+! gnokey maketx call -pkgpath gno.land/r/test/broke -func DoWork -gas-fee 0ugnot -gas-wanted 5000000 -simulate only -broadcast -chainid=tendermint_test test1
 stderr 'insufficient coins'
 
 -- broke/gnomod.toml --

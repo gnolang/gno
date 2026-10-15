@@ -290,10 +290,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			// window larger than Block.MaxGas, which any caller lowering
 			// MaxGas would then trip.
 			bp := cfg.Genesis.ConsensusParams.Block
-			bp.MaxGasCreditPerTx = 10_000_000
-			if bp.MaxGas != -1 && bp.MaxGas < bp.MaxGasCreditPerTx {
-				bp.MaxGasCreditPerTx = bp.MaxGas
-			}
+			bp.MaxGasCreditPerTx = min(bp.MaxGas, 10_000_000)
 			tsGenesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 			genesis := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
 			genesis.Txs = append(genesis.Txs, append(pkgsTxs, tsGenesis.Txs...)...)

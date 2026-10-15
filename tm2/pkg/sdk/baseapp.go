@@ -789,6 +789,14 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	return result
 }
 
+// failAfterMsgs fails a tx whose messages succeeded. ABCIError keeps only the
+// error's type, so the reason is added to the messages' log.
+func failAfterMsgs(result *Result, err error) {
+	fail := ABCIResultFromError(err)
+	result.Error = fail.Error
+	result.Log += "\n" + fail.Log
+}
+
 // decodeTx is amino.Unmarshal with a decode panic turned into an error. CheckTx
 // decodes before runTx's recover is in place, to pick the run mode.
 func decodeTx(bz []byte, tx *Tx) (err error) {
@@ -892,6 +900,10 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 		startingGas = ctx.BlockGasMeter().GasConsumed()
 	}
 
+	// A 0-fee tx runs on the credit window whatever gas it declares, so its
+	// out-of-gas log must not tell it to simulate with more. Set once decoded.
+	var zeroFee bool
+
 	defer func() {
 		if r := recover(); r != nil {
 			// A recovered tx is a FAILED tx: its writes are reverted, so it must
@@ -916,7 +928,7 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 				if l := ctx.GasMeter().Limit(); l > 0 && l < limit {
 					limit = l
 				}
-				log := store.OutOfGasLog(gasUsed, limit, maxGas, ex.Descriptor, true)
+				log := store.OutOfGasLog(gasUsed, limit, maxGas, ex.Descriptor, !zeroFee)
 				result.Error = ABCIError(std.ErrOutOfGas(log))
 				result.Log = log
 				result.GasWanted = gasWanted
@@ -982,6 +994,7 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 		result.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	}
+	zeroFee = app.isSponsoredTx(tx)
 
 	msgs := tx.GetMsgs()
 	if err := validateBasicTxMsgs(msgs); err != nil {
@@ -1088,7 +1101,7 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	// reverts). A proposer can still include one, burning the gas its messages
 	// used at no one's expense; see the tm2 ADR's open item.
 	if sponsored && !payGasCalled && result.IsOK() {
-		result.Error = ABCIError(std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
+		failAfterMsgs(&result, std.ErrUnauthorized("PayGas not called in 0-fee transaction"))
 	}
 
 	// End-of-tx settlement runs ONLY on success. On failure every message write
@@ -1096,20 +1109,18 @@ func (app *BaseApp) runTxWithDecoded(ctx Context, txBytes []byte, decoded *Tx) (
 	// tm2/adr/pr5382_zero_fee_tx_admission_and_settlement.md. A settlement error fails the tx,
 	// which then takes the revert branch below.
 	//
-	// It runs for CheckExecute as well as DeliverTx. A tx whose settlement cannot
+	// It runs in every mode that reaches here (RunTxModeCheck returned after the
+	// ante): DeliverTx, CheckExecute and Simulate. A tx whose settlement cannot
 	// succeed is deterministically doomed, and because a FAILED sponsored tx
 	// charges nobody, admitting one would let any user burn block gas for free
-	// (and make every opting-in validator re-run its VM). Settling here is a dry
-	// run: under CheckExecute every write lands in msCache, which is discarded
-	// below — only the ante checkpoint is kept.
-	//
-	// Simulate is deliberately excluded: it is unauthenticated RPC gas estimation,
-	// and a caller asking "what would this cost" must not be answered with a
-	// settlement failure (nor pay the cost of running one).
-	if (mode == RunTxModeDeliver || mode == RunTxModeCheckExecute) &&
-		result.IsOK() && app.endTxHook != nil {
+	// (and make every opting-in validator re-run its VM). Under CheckExecute and
+	// Simulate settling is a dry run whose writes are discarded below, so a
+	// wallet simulating a tx whose sponsor cannot pay sees the failure that
+	// admission would give it. Settlement is one bank transfer, small next to
+	// the messages Simulate has already run, and does not change GasUsed.
+	if result.IsOK() && app.endTxHook != nil {
 		if err := app.endTxHook(runMsgCtx, result); err != nil {
-			result.Error = ABCIError(err)
+			failAfterMsgs(&result, err)
 		}
 
 		// Events emitted by settlement (e.g. storage deposit/unlock) are appended

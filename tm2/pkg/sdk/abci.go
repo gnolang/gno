@@ -28,12 +28,14 @@ type BeginTxHook func(ctx Context) Context
 // fails the tx: its writes are reverted and the error surfaces as a typed ABCI
 // error instead of a panic.
 //
-// It runs in BOTH RunTxModeDeliver and RunTxModeCheckExecute. Running it at
-// mempool admission is what keeps a tx that cannot possibly settle (e.g. an
-// insolvent sponsor) out of the mempool: such a tx is deterministically doomed, and
-// admitting it would let anyone burn block gas for free, since a failed
-// sponsored tx charges nobody. Under CheckExecute every write the hook makes
-// lands in a cache that is discarded, so settlement there is a dry run.
+// It runs in RunTxModeDeliver, RunTxModeCheckExecute and RunTxModeSimulate.
+// Running it at mempool admission is what keeps a tx that cannot possibly
+// settle (e.g. an insolvent sponsor) out of the mempool: such a tx is
+// deterministically doomed, and admitting it would let anyone burn block gas
+// for free, since a failed sponsored tx charges nobody. Simulate runs it so a
+// caller estimating the tx sees the same outcome. Under CheckExecute and
+// Simulate every write the hook makes lands in a cache that is discarded, so
+// settlement there is a dry run.
 //
 // Because of that, the hook MUST NOT write outside the cache-wrapped store —
 // in particular it must not commit an app-side transaction store. Do that in

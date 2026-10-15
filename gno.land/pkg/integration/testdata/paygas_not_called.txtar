@@ -10,6 +10,7 @@ stdout OK!
 ## call the realm with 0 gas fee — PayGas not called, should be rejected
 ! gnokey maketx call -pkgpath gno.land/r/test/nopay -func DoWork -gas-fee 0ugnot -gas-wanted 500000 -broadcast -chainid=tendermint_test test1
 stderr 'unauthorized error'
+stderr 'PayGas not called in 0-fee transaction'
 
 -- nopay/gnomod.toml --
 module = "nopay"

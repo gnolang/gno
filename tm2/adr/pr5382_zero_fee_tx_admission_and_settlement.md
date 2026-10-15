@@ -78,11 +78,18 @@ block gas that nobody pays for (see Open below).
 ### 5. Settlement via a success-only `EndTxHook`; `CommitTxHook`; `GasMeter.SetLimit`
 
 `EndTxHook(ctx, result) error` runs only on success, and gno.land implements the
-debit there. A returned error fails the tx. It runs in both `RunTxModeDeliver`
-and `RunTxModeCheckExecute`: at admission it is a dry run whose writes land in
-the discarded cache, and it is what rejects an insolvent sponsor before the tx
-is gossiped. (Storage over the sponsor's budget already fails the message during
-CheckExecute.) Simulate (RPC gas estimation) does not run it.
+debit there. A returned error fails the tx. It runs in `RunTxModeDeliver`,
+`RunTxModeCheckExecute` and `RunTxModeSimulate`: at admission it is a dry run
+whose writes land in the discarded cache, and it is what rejects an insolvent
+sponsor before the tx is gossiped. (Storage over the sponsor's budget already
+fails the message during CheckExecute.) Simulate runs the same dry run, so a
+wallet estimating a sponsored tx sees the failure admission would give.
+
+The debit is one bank transfer on its own infinite meter, so it counts in
+neither the tx's gas nor the block's: metering it could fail a tx after its
+messages succeeded, and a failed sponsored tx pays nothing. A fee-paying tx is
+charged for its fee deduction, so the same call uses about 300K more gas, net,
+when its signer pays than when a realm sponsors it.
 
 Because of the dry run, the hook must not write outside the cache-wrapped
 store. Committing gno.land's transaction store does, so it moved to a new
@@ -132,8 +139,14 @@ cap is only known after execution), so a block holds at most
   cross-validates `MaxGasCreditPerTx` against `auth.initial_gasprice`; `PayGas`
   then panics "gas price not set". Loud, and an operator configuration issue.
 - **Hardfork replay of a sponsored tx does not reproduce the source debit.**
-  Settlement recomputes it from the replay's gas and the target chain's gas
-  price. Unreachable today: no chain has sponsored txs.
+  A replayed tx keeps its source height, so it runs as sponsored again: on the
+  credit window in strict replay (`GasReplayMode` unset or `"strict"`), or on
+  an infinite meter in source-gas replay mode, which `gnogenesis fork generate`
+  writes by default. Settlement then debits the sponsor for the new VM's gas at
+  the target chain's gas price, so its balance can differ from the source
+  chain's. If the sponsor can no longer cover that debit the tx fails, and by
+  default a failing genesis tx stops `InitChain`. Unreachable today: no chain
+  has sponsored txs.
 - **`MaxGasCreditPerTx` is fixed at genesis.** The app reads block params from
   the copy stored at InitChain, so a change takes a chain upgrade.
 - **Feature off.** With the window closed a well-formed 0-fee tx is rejected

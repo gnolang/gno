@@ -97,10 +97,11 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 
 			// ValidateBasic accepts a zero fee because a realm-sponsored tx
 			// carries one, but the node's ante still rejects a zero-fee tx
-			// unless the credit window is open, and a rejected genesis tx
-			// stops InitChain.
-			if bp := genesis.ConsensusParams.Block; tx.Tx.Fee.GasFee.IsZero() &&
-				(bp == nil || bp.MaxGasCreditPerTx == 0) {
+			// unless the credit window is open, and by default a rejected
+			// genesis tx stops InitChain. The node does not run txs marked
+			// Failed. (GenesisDocFromFile fills in the Block params.)
+			if tx.Tx.Fee.GasFee.IsZero() && genesis.ConsensusParams.Block.MaxGasCreditPerTx == 0 &&
+				(tx.Metadata == nil || !tx.Metadata.Failed) {
 				return fmt.Errorf(
 					"invalid transaction #%d: a zero fee needs Block.MaxGasCreditPerTx > 0",
 					index,
