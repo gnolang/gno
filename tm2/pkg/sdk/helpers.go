@@ -80,9 +80,15 @@ func (app *BaseApp) Simulate(txBytes []byte) (result Result) {
 	// while the query connection serialised, a data race the moment it stopped.
 	// Falling through to the same immutable snapshot the committed path uses
 	// removes the shared state rather than locking around it.
+	if app.nothingWritten() {
+		// The uncommitted state below is the live one, written to by block
+		// sync's held commits; there is nothing on disk to simulate against.
+		return ABCIResultFromError(errNothingWritten)
+	}
+
 	height := header.GetHeight()
 	if height < 1 {
-		height = app.LastBlockHeight()
+		height = app.writtenCommitID().Version
 	}
 	if height < 1 {
 		// Nothing has been committed at all, so there is no snapshot to take:

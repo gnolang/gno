@@ -262,6 +262,16 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 
 		// ——— Phase 3: Verify signatures, increment sequences ———
 
+		// Simulate normally skips verification; see RequireSigForSimulate
+		// for why some messages cannot afford that. Nothing below changes
+		// the predicate's answer, so it is asked once, not once per signature.
+		//
+		// CheckTx admission of 0-fee sponsored txs runs in
+		// RunTxModeCheckExecute, not Simulate, so simulate is false there
+		// and forged-signature txs are rejected before entering the mempool.
+		verifySig := !simulate ||
+			(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
+
 		for i, sig := range stdSigs {
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				continue
@@ -339,38 +349,36 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				accNum = sigAcc.GetAccountNumber()
 				accSeq = sigAcc.GetSequence()
 			}
-			signBytes, err := tx.GetSignBytes(
-				newCtx.ChainID(),
-				accNum,
-				accSeq,
-			)
-			if err != nil {
-				return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+			// Built only when verified: the build is unmetered and simulate skips
+			// verification. verifySig is true on every consensus path.
+			var signBytes []byte
+			if verifySig {
+				var err error
+				signBytes, err = tx.GetSignBytes(
+					newCtx.ChainID(),
+					accNum,
+					accSeq,
+				)
+				if err != nil {
+					return newCtx, abciResult(std.ErrInternal("getting sign bytes")), true
+				}
 			}
 
 			if res := sigGasConsumer(newCtx.GasMeter(), sig.Signature, pubKey, params); !res.IsOK() {
 				return newCtx, res, true
 			}
 
-			// Simulate normally skips verification; see RequireSigForSimulate
-			// for why some messages cannot afford that.
-			//
-			// CheckTx admission of 0-fee sponsored txs runs in
-			// RunTxModeCheckExecute, not Simulate, so simulate is false there
-			// and forged-signature txs are rejected before entering the mempool.
-			verifySig := !simulate ||
-				(opts.RequireSigForSimulate != nil && opts.RequireSigForSimulate(tx))
 			if verifySig && !pubKey.VerifyBytes(signBytes, sig.Signature) {
 				// Either payload rendering is accepted; std.VerifySignaturePayload
 				// holds the argument for why that is safe.
 				//
 				// Spelled out here rather than delegated to that helper because
-				// the payload is built above, before gas is charged and outside
-				// the simulate gate, and delegating would reorder those steps on
-				// the consensus path. The legacy encoding cannot fail once the
-				// one above succeeded -- the two differ only in the fee's plain
-				// fields -- so lerr carries nothing the first marshal did not
-				// already report. Gas was charged above for one verification.
+				// the payload is built above, before gas is charged, and
+				// delegating would reorder those steps on the consensus path.
+				// The legacy encoding cannot fail once the one above succeeded
+				// -- the two differ only in the fee's plain fields -- so lerr
+				// carries nothing the first marshal did not already report.
+				// Gas was charged above for one verification.
 				legacySignBytes, lerr := tx.GetSignBytesLegacy(
 					newCtx.ChainID(),
 					accNum,

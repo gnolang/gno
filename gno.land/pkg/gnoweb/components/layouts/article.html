@@ -1,4 +1,4 @@
 {{ define "layout/article" }}
-<md-renderer {{ if .Classes }}class="{{ .Classes }}" {{ end }} data-controller="tooltip">{{ render .ComponentContent
+<md-renderer {{ if .Classes }}class="{{ .Classes }}" {{ end }}{{ if .SkipTarget }}id="main-content" tabindex="-1" {{ end }}data-controller="tooltip">{{ render .ComponentContent
    }}</md-renderer>
 {{ end }}
