@@ -14,7 +14,4 @@ var (
 // GnoError:
 // line 10: invalid use of [...] array (outside a composite literal)
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

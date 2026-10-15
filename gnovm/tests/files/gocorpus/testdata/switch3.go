@@ -81,16 +81,4 @@ func good() {
 // line 56: 3: struct{f func()} is not comparable
 // line 70: cannot use interface {} as string
 
-// GoTypeCheckError:
-// line 21
-// line 25
-// line 31
-// line 38
-// line 45
-// line 50
-// line 56
-
-// GnoOverStrictError:
-// line 70: cannot use interface {} as string
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 38, 45, 50, 56; over-strict: lines 70

@@ -14,7 +14,4 @@ const i int = ui // ERROR "type"
 // GnoError:
 // line 12: cannot use uint as int
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

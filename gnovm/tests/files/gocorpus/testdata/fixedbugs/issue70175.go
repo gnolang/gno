@@ -16,7 +16,4 @@ func main() {
 	f()
 }
 
-// GnoPreprocessError:
-// line 13: label _ defined and not used
-
-// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
+// Verdict: Clean compile

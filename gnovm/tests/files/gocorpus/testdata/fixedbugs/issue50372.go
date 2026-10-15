@@ -31,13 +31,4 @@ func _(s chan int) {
 // GnoError:
 // line 16: expected at most 2 expressions
 
-// GoTypeCheckError:
-// line 16
-
-// UncaughtError:
-// line 17: uncaught; gc expects: range clause permits at most two iteration variables
-// line 26: uncaught; gc expects: range over .* permits only one iteration variable
-// line 27: uncaught; gc expects: range over .* permits only one iteration variable
-// line 28: uncaught; gc expects: range over .* permits only one iteration variable
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 4 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 26, 27, 28

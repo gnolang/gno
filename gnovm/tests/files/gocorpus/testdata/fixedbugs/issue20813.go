@@ -13,7 +13,4 @@ func f() {
 // GnoError:
 // line 10: cannot assign to (const (1 <untyped> bigint))
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

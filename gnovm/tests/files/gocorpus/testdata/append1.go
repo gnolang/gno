@@ -27,14 +27,4 @@ func main() {
 // line 20: cannot use []int as int
 // line 21: invalid argument: index (-1 <untyped> bigint) must not be negative
 
-// GoTypeCheckError:
-// line 16
-// line 17
-// line 18
-// line 20
-// line 21
-
-// GoTypesOnly:
-// line 16: gc expects: missing arguments to append|not enough arguments for append
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

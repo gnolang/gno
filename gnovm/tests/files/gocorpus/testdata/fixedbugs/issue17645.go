@@ -18,7 +18,4 @@ func main() {
 // GnoError:
 // line 15: cannot use untyped string as IntKind
 
-// GoTypeCheckError:
-// line 15
-
 // Verdict: Clean errorcheck

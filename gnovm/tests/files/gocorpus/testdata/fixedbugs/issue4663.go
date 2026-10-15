@@ -14,10 +14,4 @@ func a(b int) int64 {
   return 0
 }
 
-// GoTypeCheckError:
-// line 13
-
-// GoTypesOnly:
-// line 13: gc expects: not used
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

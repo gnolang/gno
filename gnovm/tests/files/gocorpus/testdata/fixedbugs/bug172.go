@@ -14,7 +14,4 @@ func f() {
 // GnoError:
 // line 11: operator |= not defined on: BoolKind
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

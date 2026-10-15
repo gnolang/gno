@@ -17,7 +17,4 @@ bug046.go:7: illegal <this> pointer
 // GnoError:
 // line 11: invalid receiver type main.T (base type is pointer type)
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

@@ -33,10 +33,4 @@ type I6 interface {
 // line 17: 2: invalid recursive type: I4 -> I4
 // line 21: 2: invalid recursive type: I5 -> I6 -> I5
 
-// GoTypeCheckError:
-// line 14
-// line 17
-// line 21
-// line 25
-
 // Verdict: Clean errorcheck

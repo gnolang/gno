@@ -17,7 +17,4 @@ const C = uint32(34)
 // GnoError:
 // line 12: invalid operation: (mismatched types int32 and uint32)
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

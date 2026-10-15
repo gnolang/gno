@@ -30,12 +30,4 @@ var T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous|re
 // line 17: i redeclared in this block
 // 	previous declaration at funcdup2.go:18:16
 
-// GoTypeCheckError:
-// line 10
-// line 11
-// line 12
-// line 15
-// line 16
-// line 17
-
 // Verdict: Clean errorcheck

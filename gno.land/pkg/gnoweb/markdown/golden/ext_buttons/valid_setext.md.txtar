@@ -1,0 +1,5 @@
+-- input.md --
+<gno-button href="/r/test" label="Setext" />
+---
+-- output.html --
+<h2><a href="/r/test" class="gno-button">Setext</a></h2>

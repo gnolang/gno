@@ -27,8 +27,4 @@ func test() {
 // line 20: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 // line 22: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 
-// GoTypeCheckError:
-// line 20
-// line 22
-
 // Verdict: Clean errorcheck

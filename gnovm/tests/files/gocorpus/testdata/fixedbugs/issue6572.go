@@ -25,12 +25,4 @@ func main() {
 // line 9: 2: name T not defined in fileset with files [issue6572.go]
 // line 13: 2: name T not defined in fileset with files [issue6572.go]
 
-// GoTypeCheckError:
-// line 9
-// line 13
-// line 20
-
-// GoTypesOnly:
-// line 20: gc expects: cannot (use type|assign|use.*type) string|
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20

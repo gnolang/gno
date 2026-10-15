@@ -14,7 +14,4 @@ func main() {
 // GnoError:
 // line 11: cannot use uint64 as int64
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

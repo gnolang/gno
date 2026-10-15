@@ -18,7 +18,4 @@ func main() {
 // GnoError:
 // line 12: cannot fallthrough in type switch
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

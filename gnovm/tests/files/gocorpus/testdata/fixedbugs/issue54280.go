@@ -10,10 +10,4 @@ package p
 
 const C = 912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_912 // ERROR "constant overflow"
 
-// GnoError:
-// line 11: constant overflow
-
-// GoTypeCheckError:
-// line 11
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11

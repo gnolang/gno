@@ -19,8 +19,4 @@ func main() {
 // line 13: operator << not defined on: Float64Kind
 // line 14: operator << not defined on: StringKind
 
-// GoTypeCheckError:
-// line 13
-// line 14
-
 // Verdict: Clean errorcheck

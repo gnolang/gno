@@ -25,9 +25,4 @@ func main() {
 // line 18: struct type struct{Floats bool; inner string} has no field floats
 // line 19: struct type struct{Floats bool; inner string} has no field InneR
 
-// GoTypeCheckError:
-// line 16
-// line 18
-// line 19
-
 // Verdict: Clean errorcheck

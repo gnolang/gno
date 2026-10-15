@@ -17,11 +17,4 @@ type T ...int;		// ERROR "[.][.][.]|syntax|type"
 // GnoError:
 // line 11: expected type, found ')'
 
-// GoTypeCheckError:
-// line 11
-
-// UncaughtError:
-// line 13: uncaught; gc expects: [.][.][.]|syntax|type
-// line 15: uncaught; gc expects: [.][.][.]|syntax|type
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 15
