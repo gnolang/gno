@@ -67,6 +67,7 @@ func (e *SkipError) Error() string { return "skipped: " + e.Reason }
 // Go type-checking in filetests is only available for gnovm internal filetests
 // in test/files.
 func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (newContent string, gas types.Gas, diffs gno.StorageDiffs, retErr error) {
+	rawSource := source // as on disk, golden region included
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", 0, nil, fmt.Errorf("error parsing directives: %w", err)
@@ -334,7 +335,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				{name: DirectiveGnoError}, {name: DirectiveGoBuildError},
 				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
 			}
-			newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+			newContent, err := opts.resolveStaticGolden(rawSource, originalSource, origDirs, sections)
 			return newContent, gas, diffs, err
 		}
 		// gc is the reference: `// compile` upstream means gc accepts the
@@ -342,7 +343,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		// the pinned lines, and an absent block means gc accepted).
 		var goBuildErr map[int]string
 		if opts.Sync {
-			buildOut, err := runGoToolchain(source)
+			buildOut, err := runGoToolchain(source, true)
 			if err != nil {
 				return "", gas, diffs, fmt.Errorf("filetest %s: cannot build via Go toolchain "+"(install go, or mark file `// Unsupported:`): %w", fname, err)
 			}
@@ -353,9 +354,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		v := verdict{Kind: VerdictClean, Mode: "compile"}
 		if len(goBuildErr) == 0 {
 			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc accepts)"}
-			// Keep a human-written reason across re-syncs.
-			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue && prev.check() == nil {
-				v.Reason = prev.Reason
+			// Keep a cited human verdict (KnownIssue or KnownDivergence) across re-syncs.
+			if prev, ok := verdictIn(origDirs); ok && prev.Kind != VerdictClean && prev.Kind != VerdictUnsupported && prev.check() == nil {
+				v = prev
 			}
 		}
 		sections := []goldenSection{
@@ -363,7 +364,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
 			{name: DirectiveVerdict, block: v.String(), inline: true},
 		}
-		newContent, err := opts.resolveStaticGolden(originalSource, origDirs, sections)
+		newContent, err := opts.resolveStaticGolden(rawSource, originalSource, origDirs, sections)
 		return newContent, gas, diffs, err
 	}
 
@@ -534,21 +535,22 @@ type goldenSection struct {
 	inline bool   // single-line `// Name: block` (verdicts)
 }
 
-// resolveStaticGolden reconciles the trailing golden region — the named
-// per-line blocks and the verdict line — against the freshly-computed
-// values. `dirs` is the file's parsed directives (the on-disk blocks).
-//
-// Returns (newContent, err): newContent is non-empty only when sync
-// rewrote the file. Non-sync failures report the first diff / missing
-// block.
-func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directives, sections []goldenSection) (string, error) {
+// resolveStaticGolden compares the wanted golden sections with the ones
+// on disk. Verify fails on a missing, stale or differing block and on a
+// stray block from an older ledger format; sync rewrites the region.
+func (opts *TestOptions) resolveStaticGolden(rawSource, originalSource []byte, dirs Directives, sections []goldenSection) (string, error) {
 	allOK := true
 	for _, s := range sections {
 		d := dirs.First(s.name)
 		ok := (s.block == "" && d == nil) || (d != nil && strings.TrimRight(d.Content, "\n") == s.block)
 		allOK = allOK && ok
 	}
-	if allOK {
+	allowed := make([]string, 0, len(sections))
+	for _, s := range sections {
+		allowed = append(allowed, s.name)
+	}
+	stray := strayGoldenBlocks(string(rawSource), allowed)
+	if allOK && len(stray) == 0 {
 		return "", nil
 	}
 	if opts.Sync {
@@ -559,15 +561,32 @@ func (opts *TestOptions) resolveStaticGolden(originalSource []byte, dirs Directi
 		switch {
 		case s.block != "" && d == nil:
 			return "", fmt.Errorf(
-				"compile: no `// %s:` block present; re-run with "+
+				"no `// %s:` block present; re-run with "+
 					"--update-golden-tests to record it:\n%s", s.name, indent(s.block, "  "))
 		case s.block == "" && d != nil:
-			return "", fmt.Errorf("compile: stale `// %s:` block; re-run with --update-golden-tests to remove it", s.name)
+			return "", fmt.Errorf("stale `// %s:` block; re-run with --update-golden-tests to remove it", s.name)
 		case d != nil && strings.TrimRight(d.Content, "\n") != s.block:
 			return "", fmt.Errorf("// %s: diff:\n%s", s.name, unifiedDiff(d.Content, s.block))
 		}
 	}
-	return "", nil
+	return "", fmt.Errorf("stray `// %s:` block in the golden region; re-run with --update-golden-tests to drop it", stray[0])
+}
+
+var reGoldenHeader = regexp.MustCompile(`^// ([A-Z][A-Za-z]*):`)
+
+// strayGoldenBlocks lists the `// Name:` headers in src's trailing golden
+// region that are not in allowed (blocks an older ledger format wrote).
+func strayGoldenBlocks(src string, allowed []string) []string {
+	region := strings.TrimPrefix(src, stripTrailingGoldenRegion(src))
+	var stray []string
+	for l := range strings.SplitSeq(region, "\n") {
+		m := reGoldenHeader.FindStringSubmatch(l)
+		if m == nil || slices.Contains(allowed, m[1]) || slices.Contains(triageStateMarkers, m[1]) {
+			continue
+		}
+		stray = append(stray, m[1])
+	}
+	return stray
 }
 
 // writeUnsupportedDirective returns originalSource (golden region
