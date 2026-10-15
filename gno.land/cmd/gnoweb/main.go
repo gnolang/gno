@@ -390,7 +390,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.RemoteHelp)
 
 	// Setup server
 	server := &http.Server{
