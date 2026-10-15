@@ -20,10 +20,4 @@ func main() {
 // GnoError:
 // line 17: f<VPBlock(1,0)> is not a type
 
-// GoTypeCheckError:
-// line 17
-
-// GnoWordingDiffers:
-// line 17: gc expects: f .*is not a type; gno: f<VPBlock(1,0)> is not a type
-
 // Verdict: Clean errorcheck

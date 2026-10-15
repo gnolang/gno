@@ -21,10 +21,4 @@ const (
 // line 14: illegal character U+000C
 // line 17: expected ')', found 'EOF'
 
-// GoTypeCheckError:
-// line 11
-
-// GnoOverStrictError:
-// line 17: expected ')', found 'EOF'
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 17

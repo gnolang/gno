@@ -51,14 +51,4 @@ func f2() {
 // line 30: multiple defaults in switch
 // line 44: impossible type switch case: i cannot have dynamic type main.X (method Foo has pointer receiver)
 
-// GoTypeCheckError:
-// line 18
-// line 26
-// line 30
-// line 44
-
-// GnoWordingDiffers:
-// line 18: gc expects: impossible type switch case: (int\n\t)?e \(.*type error\) cannot have dynamic type int \(missing method Error\); gno: impossible type switch case: e cannot have dynamic type int (missing method Error)
-// line 44: gc expects: impossible type switch case: (X\n\t)?i \(.*type I\) cannot have dynamic type X \(method Foo has pointer receiver\); gno: impossible type switch case: i cannot have dynamic type main.X (method Foo has pointer receiver)
-
 // Verdict: Clean errorcheck

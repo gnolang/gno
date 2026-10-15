@@ -18,10 +18,4 @@ func Foo() {
 // GnoError:
 // line 12: name a not declared
 
-// GoTypeCheckError:
-// line 12
-
-// GnoWordingDiffers:
-// line 12: gc expects: undefined: a|reference to undefined name .*a; gno: name a not declared
-
 // Verdict: Clean errorcheck

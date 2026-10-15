@@ -15,10 +15,4 @@ func f(s string) {
 // GnoError:
 // line 12: cannot use uint8 as float64
 
-// GoTypeCheckError:
-// line 12
-
-// GnoWordingDiffers:
-// line 12: gc expects: cannot use.*type byte.*as type float64|cannot use .* as float64 value; gno: cannot use uint8 as float64
-
 // Verdict: Clean errorcheck

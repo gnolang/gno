@@ -16,12 +16,4 @@ func init() int { return 1 } // ERROR "func init must have no arguments and no r
 // line 10: main redeclared in this block
 // 	previous declaration at mainsig.go:9:6
 
-// GoTypeCheckError:
-// line 13
-
-// ParseBlocked:
-// line 9: gc expects: func main must have no arguments and no return values
-// line 12: gc expects: func init must have no arguments and no return values
-// line 13: gc expects: func init must have no arguments and no return values
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9, 12, 13

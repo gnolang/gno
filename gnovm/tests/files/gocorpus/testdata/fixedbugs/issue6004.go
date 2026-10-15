@@ -19,10 +19,4 @@ func main() {
 // line 12: use of untyped nil in assignment
 // line 13: first argument to append must be a typed slice; have untyped nil
 
-// GoTypeCheckError:
-// line 10
-// line 11
-// line 12
-// line 13
-
 // Verdict: Clean errorcheck

@@ -9,10 +9,4 @@ package foo
 var s [][10]int
 const m = len(s[len(s)-1]) // ERROR "is not a constant|is not constant" 
 
-// GoTypeCheckError:
-// line 10
-
-// GoTypesOnly:
-// line 10: gc expects: is not a constant|is not constant
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10

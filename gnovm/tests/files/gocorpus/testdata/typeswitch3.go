@@ -58,15 +58,4 @@ func noninterface() {
 // GnoError:
 // line 39: no new variables on left side of :=
 
-// GoTypeCheckError:
-// line 24
-// line 39
-// line 45
-// line 54
-
-// ParseBlocked:
-// line 24: gc expects: impossible
-// line 45: gc expects: cannot type switch on non-interface value|not an interface
-// line 54: gc expects: cannot type switch on non-interface value|not an interface
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 24, 45, 54

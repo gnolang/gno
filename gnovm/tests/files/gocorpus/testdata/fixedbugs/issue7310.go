@@ -19,12 +19,4 @@ func main() {
 // line 13: invalid argument: copy expects slice arguments; found []int and untyped nil
 // line 14: cannot use untyped bool as BigintKind
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 14
-
-// GnoWordingDiffers:
-// line 14: gc expects: mismatched types untyped int and untyped bool|incompatible types|cannot convert; gno: cannot use untyped bool as BigintKind
-
 // Verdict: Clean errorcheck

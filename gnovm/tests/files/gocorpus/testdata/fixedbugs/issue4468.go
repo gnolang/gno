@@ -39,7 +39,4 @@ func F() {
 // line 26: expression in go must not be parenthesized
 // line 27: expression in defer must not be parenthesized
 
-// GoTypeCheckError:
-// line 22
-
 // Verdict: Clean errorcheck

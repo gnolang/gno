@@ -19,13 +19,4 @@ const (
 	_ = '
 	_ = '
 
-// GoTypeCheckError:
-// line 15
-
-// ParseBlocked:
-// line 11: gc expects: newline in character literal|newline in rune literal
-// line 12: gc expects: invalid character literal \(missing closing '\)|rune literal not terminated
-// line 15: gc expects: empty character literal or unescaped ' in character literal|empty rune literal
-// line 17: gc expects: invalid character literal \(more than one character\)|more than one character in rune literal
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11, 12

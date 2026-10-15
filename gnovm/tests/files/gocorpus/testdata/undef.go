@@ -51,18 +51,4 @@ func f2(val interface{}) {
 // line 23: name y not declared
 // line 43: name v not declared
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 15
-// line 23
-// line 43
-
-// GnoWordingDiffers:
-// line 13: gc expects: undefined.*x; gno: name x not defined in fileset with files [undef.go]
-// line 14: gc expects: undefined.*x; gno: name x not defined in fileset with files [undef.go]
-// line 15: gc expects: undefined.*x; gno: name x not defined in fileset with files [undef.go]
-// line 23: gc expects: undefined.*y; gno: name y not declared
-// line 43: gc expects: undefined.*v; gno: name v not declared
-
 // Verdict: Clean errorcheck

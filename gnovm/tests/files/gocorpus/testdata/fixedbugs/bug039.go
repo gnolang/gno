@@ -14,8 +14,4 @@ func f (x int) {	// GCCGO_ERROR "previous"
 // line 10: x redeclared in this block
 // 	previous declaration at bug039.go:9:9
 
-// GoTypeCheckError:
-// line 9
-// line 10
-
 // Verdict: Clean errorcheck

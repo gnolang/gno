@@ -31,10 +31,4 @@ func main() {
 // GnoError:
 // line 22: missing field get in main.PS
 
-// GoTypeCheckError:
-// line 22
-
-// GnoWordingDiffers:
-// line 22: gc expects: undefined; gno: missing field get in main.PS
-
 // Verdict: Clean errorcheck

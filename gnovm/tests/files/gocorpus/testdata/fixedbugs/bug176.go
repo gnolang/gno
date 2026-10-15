@@ -16,12 +16,4 @@ var c = map[int]int{x: 1}
 // line 11: slice/array literals may not contain non-const keys
 // line 12: slice/array literals may not contain non-const keys
 
-// GoTypeCheckError:
-// line 11
-// line 12
-
-// GnoWordingDiffers:
-// line 11: gc expects: constant; gno: slice/array literals may not contain non-const keys
-// line 12: gc expects: constant; gno: slice/array literals may not contain non-const keys
-
 // Verdict: Clean errorcheck

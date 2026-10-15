@@ -40,12 +40,4 @@ func main() {
 // line 34: should not happen
 // line 36: main.Start does not implement main.Inst (method Next has pointer receiver)
 
-// GoTypeCheckError:
-// line 34
-// line 36
-
-// GnoWordingDiffers:
-// line 34: gc expects: pointer to interface|incompatible type; gno: should not happen
-// line 36: gc expects: pointer to interface|incompatible type; gno: main.Start does not implement main.Inst (method Next has pointer receiver)
-
 // Verdict: Clean errorcheck

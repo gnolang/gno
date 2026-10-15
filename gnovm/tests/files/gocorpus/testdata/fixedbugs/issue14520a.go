@@ -12,7 +12,4 @@ bogus`
 // GnoError:
 // line 9: 7: invalid import path "\nbogus": invalid character '\n'
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

@@ -20,7 +20,4 @@ func main() {
 // GnoError:
 // line 17: 1 + 2 (value of type <untyped> bigint) is not used
 
-// GoTypeCheckError:
-// line 17
-
 // Verdict: Clean errorcheck

@@ -16,7 +16,4 @@ var s = []string{
 // GnoError:
 // line 11: 2: duplicate index 1 in array or slice literal
 
-// GoTypeCheckError:
-// line 13
-
 // Verdict: Clean errorcheck

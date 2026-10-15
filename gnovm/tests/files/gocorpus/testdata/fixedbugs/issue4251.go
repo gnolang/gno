@@ -25,9 +25,4 @@ func F3(s string) string {
 // line 16: invalid slice indices: 1 < 2
 // line 20: invalid slice indices: 1 < 2
 
-// GoTypeCheckError:
-// line 12
-// line 16
-// line 20
-
 // Verdict: Clean errorcheck

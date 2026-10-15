@@ -18,10 +18,4 @@ func f() {
 // GnoError:
 // line 14: operator ++ not defined on: SliceKind
 
-// GoTypeCheckError:
-// line 14
-
-// GnoWordingDiffers:
-// line 14: gc expects: invalid operation: x[+][+]|non-numeric type; gno: operator ++ not defined on: SliceKind
-
 // Verdict: Clean errorcheck

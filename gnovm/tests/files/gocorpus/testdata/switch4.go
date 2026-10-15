@@ -39,10 +39,4 @@ func good() {
 // line 21: cannot fallthrough final case in switch
 // line 34: cannot use interface {} as string
 
-// GoTypeCheckError:
-// line 21
-
-// GnoOverStrictError:
-// line 34: cannot use interface {} as string
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 34

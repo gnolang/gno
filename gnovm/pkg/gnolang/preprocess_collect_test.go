@@ -650,3 +650,41 @@ func main() {}
 		}
 	}
 }
+
+func TestPreprocessCollectUnusedExempt(t *testing.T) {
+	// A name only a folded constant uses, and a blank label, are not unused.
+	src := `package main
+
+func main() {
+	var a [10]int
+	const ca = len(a)
+	_ = ca
+_:
+}
+`
+	if msgs := collectErrors(t, src); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectNamedPointerShadow(t *testing.T) {
+	// Through a declared pointer type a method is still the shallowest
+	// provider, so it shadows the promoted field and the selector fails.
+	msgs := collectErrors(t, `package main
+
+type E struct{ f int }
+type T struct{ E }
+
+func (*T) f() int { return 0 }
+
+type P *T
+
+func main() {
+	var x P
+	_ = x.f
+}
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "missing field f") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}

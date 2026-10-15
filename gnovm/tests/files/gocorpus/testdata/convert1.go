@@ -132,48 +132,4 @@ func main() {
 // line 96: cannot convert tsi<VPBlock(1,7)> (of type main.Tint64) to type main.Tbyte
 // line 97: cannot convert tsi<VPBlock(1,7)> (of type main.Tint64) to type main.Trune
 
-// GoTypeCheckError:
-// line 31
-// line 35
-// line 39
-// line 40
-// line 43
-// line 44
-// line 47
-// line 49
-// line 51
-// line 53
-// line 55
-// line 56
-// line 57
-// line 59
-// line 60
-// line 61
-// line 67
-// line 71
-// line 75
-// line 76
-// line 79
-// line 80
-// line 83
-// line 85
-// line 87
-// line 89
-// line 91
-// line 92
-// line 93
-// line 95
-// line 96
-// line 97
-
-// GnoWordingDiffers:
-// line 39: gc expects: cannot convert.*\[\]rune|invalid type conversion; gno: cannot convert sb<VPBlock(1,1)> (of type []uint8) to type []int32
-// line 47: gc expects: cannot convert.*\[\]byte|invalid type conversion; gno: cannot convert sr<VPBlock(1,2)> (of type []int32) to type []uint8
-// line 56: gc expects: cannot convert.*\[\]byte|invalid type conversion; gno: cannot convert si<VPBlock(1,3)> (of type []int64) to type []uint8
-// line 57: gc expects: cannot convert.*\[\]rune|invalid type conversion; gno: cannot convert si<VPBlock(1,3)> (of type []int64) to type []int32
-// line 75: gc expects: cannot convert.*\[\]rune|invalid type conversion; gno: cannot convert tsb<VPBlock(1,5)> (of type main.Tbyte) to type []int32
-// line 83: gc expects: cannot convert.*\[\]byte|invalid type conversion; gno: cannot convert tsr<VPBlock(1,6)> (of type main.Trune) to type []uint8
-// line 92: gc expects: cannot convert.*\[\]byte|invalid type conversion; gno: cannot convert tsi<VPBlock(1,7)> (of type main.Tint64) to type []uint8
-// line 93: gc expects: cannot convert.*\[\]rune|invalid type conversion; gno: cannot convert tsi<VPBlock(1,7)> (of type main.Tint64) to type []int32
-
 // Verdict: Clean errorcheck

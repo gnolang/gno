@@ -31,13 +31,4 @@ func _() {
 // GnoError:
 // line 16: expected operand, found '}'
 
-// GoTypeCheckError:
-// line 16
-
-// ParseBlocked:
-// line 22: gc expects: expected expression|expected operand
-// line 26: gc expects: expected expression|expected operand
-// line 27: gc expects: expected expression|expected operand|undefined name
-// line 28: gc expects: expected expression|expected operand
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 26, 27, 28

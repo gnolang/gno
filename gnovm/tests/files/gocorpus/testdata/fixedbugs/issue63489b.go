@@ -22,10 +22,4 @@ func f() {
 // GnoError:
 // line 18: 3: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
 
-// GoTypeCheckError:
-// line 18
-
-// GnoWordingDiffers:
-// line 18: gc expects: file declares //go:build go1.21; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
-
 // Verdict: Clean errorcheck

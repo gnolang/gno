@@ -51,32 +51,4 @@ var (
 // line 35: operator + not defined on: InterfaceKind
 // line 36: operator + not defined on: InterfaceKind
 
-// GoTypeCheckError:
-// line 15
-// line 16
-// line 17
-// line 21
-// line 22
-// line 23
-// line 27
-// line 28
-// line 32
-// line 33
-// line 34
-// line 35
-// line 36
-
-// GnoWordingDiffers:
-// line 15: gc expects: invalid operation.*mismatched types.*untyped string and bool; gno: operator + not defined on: BoolKind
-// line 16: gc expects: invalid operation.*mismatched types.*untyped string and int; gno: cannot use untyped string as IntKind
-// line 21: gc expects: invalid operation.*mismatched types.*string and untyped bool; gno: cannot use untyped bool as StringKind
-// line 22: gc expects: invalid operation.*mismatched types.*string and untyped int; gno: cannot use untyped Bigint as StringKind
-// line 27: gc expects: invalid operation.*mismatched types.*untyped string and untyped bool; gno: cannot use untyped bool as StringKind
-// line 28: gc expects: invalid operation.*mismatched types.*untyped string and untyped int; gno: cannot use untyped string as BigintKind
-// line 32: gc expects: invalid operation.*mismatched types.*bool and untyped int; gno: operator + not defined on: BoolKind
-// line 33: gc expects: invalid operation.*mismatched types.*int and untyped bool; gno: cannot use untyped bool as IntKind
-// line 34: gc expects: invalid operation.*mismatched types.*interface *{} and int; gno: operator + not defined on: InterfaceKind
-// line 35: gc expects: invalid operation.*mismatched types.*interface *{} and float64; gno: operator + not defined on: InterfaceKind
-// line 36: gc expects: invalid operation.*mismatched types.*interface *{} and bool; gno: operator + not defined on: InterfaceKind
-
 // Verdict: Clean errorcheck

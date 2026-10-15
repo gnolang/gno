@@ -16,12 +16,4 @@ func main() {
 // line 11: operator + not defined on: StringKind
 // line 12: operator + not defined on: StringKind
 
-// GoTypeCheckError:
-// line 11
-// line 12
-
-// GnoWordingDiffers:
-// line 11: gc expects: invalid operation.*string|expected numeric; gno: operator + not defined on: StringKind
-// line 12: gc expects: invalid operation.*string|expected numeric; gno: operator + not defined on: StringKind
-
 // Verdict: Clean errorcheck

@@ -27,18 +27,4 @@ func main() {
 // line 19: cannot use (true <untyped> bool) as type int in argument to make
 // line 20: cannot use ("abc" <untyped> string) as type int in argument to make
 
-// GoTypeCheckError:
-// line 16
-// line 17
-// line 18
-// line 19
-// line 20
-
-// GnoWordingDiffers:
-// line 16: gc expects: non-integer.*len|nil; gno: cannot use (undefined) as type int in argument to make
-// line 17: gc expects: non-integer.*len|nil; gno: cannot use (undefined) as type int in argument to make
-// line 18: gc expects: non-integer.*cap|nil; gno: cannot use (undefined) as type int in argument to make
-// line 19: gc expects: non-integer.*len|untyped bool; gno: cannot use (true <untyped> bool) as type int in argument to make
-// line 20: gc expects: non-integer.*len|untyped string; gno: cannot use ("abc" <untyped> string) as type int in argument to make
-
 // Verdict: Clean errorcheck

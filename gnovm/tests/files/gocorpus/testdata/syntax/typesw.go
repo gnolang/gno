@@ -15,10 +15,4 @@ func main() {
 // GnoError:
 // line 10: no new variables on left side of :=
 
-// GoTypeCheckError:
-// line 10
-
-// GnoWordingDiffers:
-// line 10: gc expects: invalid variable name|cannot use .* as value; gno: no new variables on left side of :=
-
 // Verdict: Clean errorcheck

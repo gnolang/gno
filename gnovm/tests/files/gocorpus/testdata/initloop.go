@@ -19,14 +19,4 @@ var (
 // GnoError:
 // line 14: invalid recursive value: a -> b -> c -> a
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 16
-
-// GnoWordingDiffers:
-// line 14: gc expects: a refers to b
-// .*b refers to c
-// .*c refers to a|initialization loop; gno: invalid recursive value: a -> b -> c -> a
-
 // Verdict: Clean errorcheck

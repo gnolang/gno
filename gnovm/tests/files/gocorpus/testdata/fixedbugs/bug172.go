@@ -14,10 +14,4 @@ func f() {
 // GnoError:
 // line 11: operator |= not defined on: BoolKind
 
-// GoTypeCheckError:
-// line 11
-
-// GnoWordingDiffers:
-// line 11: gc expects: illegal.*OR|bool|expected; gno: operator |= not defined on: BoolKind
-
 // Verdict: Clean errorcheck

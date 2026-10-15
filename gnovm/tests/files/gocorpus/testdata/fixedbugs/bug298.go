@@ -12,7 +12,4 @@ func Sum() int
 // GnoError:
 // line 10: expected declaration, found 'for'
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

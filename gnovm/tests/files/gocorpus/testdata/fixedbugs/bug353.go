@@ -33,11 +33,4 @@ func main() {
 // line 16: name ReadWriterCloser not declared
 // line 28: name Open not declared
 
-// GoTypeCheckError:
-// line 16
-// line 28
-
-// GnoWordingDiffers:
-// line 16: gc expects: undefined.*io.ReadWriterCloser; gno: name ReadWriterCloser not declared
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 28

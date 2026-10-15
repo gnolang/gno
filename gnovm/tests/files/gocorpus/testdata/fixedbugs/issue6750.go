@@ -24,10 +24,4 @@ func main() {
 // GnoError:
 // line 21: not enough arguments in call to printmany<VPBlock(3,0)>; want 1 (including variadic) got 3
 
-// GoTypeCheckError:
-// line 21
-
-// GnoWordingDiffers:
-// line 21: gc expects: too many arguments in call( to printmany\n\thave \(number, string, \.\.\.int\)\n\twant \(...int\))?; gno: not enough arguments in call to printmany<VPBlock(3,0)>; want 1 (including variadic) got 3
-
 // Verdict: Clean errorcheck

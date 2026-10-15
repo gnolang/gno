@@ -26,16 +26,7 @@ func main() {
 }
 
 // GnoError:
+// line 22: missing field f in main.P
 // line 25: missing field f in main.PP
-
-// GoTypeCheckError:
-// line 22
-// line 25
-
-// GoTypesOnly:
-// line 22: gc expects: x\.f undefined \(type P has no field or method f\)
-
-// GnoWordingDiffers:
-// line 25: gc expects: y\.f undefined \(type PP has no field or method f\); gno: missing field f in main.PP
 
 // Verdict: Clean errorcheck

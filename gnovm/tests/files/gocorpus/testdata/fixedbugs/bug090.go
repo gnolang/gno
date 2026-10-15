@@ -52,15 +52,4 @@ func main() {
 // line 44: cannot use float64 as int
 // line 45: cannot convert constant of type Float64Kind to IntKind
 
-// GoTypeCheckError:
-// line 36
-// line 38
-// line 41
-// line 44
-// line 45
-
-// GnoWordingDiffers:
-// line 36: gc expects: truncate; gno: cannot convert untyped bigdec to integer -- 1.5 not an exact integer
-// line 38: gc expects: truncate; gno: cannot convert untyped bigdec to integer -- 1.5 not an exact integer
-
 // Verdict: Clean errorcheck

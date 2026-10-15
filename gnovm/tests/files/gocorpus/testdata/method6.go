@@ -21,10 +21,4 @@ var _ = func() {
 	A(a).g() // ERROR "cannot call pointer method .*on|cannot take the address of"
 }
 
-// GoTypeCheckError:
-// line 21
-
-// GoTypesOnly:
-// line 21: gc expects: cannot call pointer method .*on|cannot take the address of
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 21
