@@ -342,7 +342,7 @@ consume the origin-send envelope before calling your function,
 bypassing your payment check.
 
 **Rule**: For payment-guarded entry points: `IsUserCall()`. See
-[effective-gno.md § Verifying inbound Coin payments](./effective-gno.md#verifying-inbound-coin-payments).
+[coins-and-tokens.md § Verifying inbound Coin payments](./coins-and-tokens.md#verifying-inbound-coin-payments).
 
 ### 5.6 `cur` skipped for caller identity
 

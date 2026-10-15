@@ -38,7 +38,7 @@ func CreateBoard(cur realm, name string) BoardID {
 // checkAnonFee reads unsafe.OriginSend() to verify the anonymous-posting
 // fee was attached to the tx. Callers MUST also assert
 // cur.Previous().IsUserCall() before calling — see
-// docs/resources/effective-gno.md#verifying-inbound-coin-payments.
+// docs/resources/coins-and-tokens.md#verifying-inbound-coin-payments.
 func checkAnonFee() bool {
 	sent := unsafe.OriginSend()
 	anonFeeCoin := chain.NewCoin("ugnot", int64(gDefaultAnonFee))

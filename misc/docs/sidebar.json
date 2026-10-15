@@ -41,6 +41,7 @@
           "resources/gnoland-networks",
           "resources/rpc-endpoints",
           "resources/users-and-teams",
+          "resources/coins-and-tokens",
           "resources/gas-fees",
           "resources/storage-deposit",
           "resources/gno-stdlibs",
