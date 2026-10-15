@@ -17,10 +17,4 @@ type Val struct{}
 
 type Map map[Key]Val // ERROR "invalid map key type"
 
-// GoTypeCheckError:
-// line 18
-
-// GoTypesOnly:
-// line 18: gc expects: invalid map key type
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18

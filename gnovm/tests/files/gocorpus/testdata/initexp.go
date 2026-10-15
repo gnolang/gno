@@ -35,11 +35,4 @@ func b6() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 func b7() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 func b8() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 
-// GoTypeCheckError:
-// line 15
-// line 18
-
-// GoTypesOnly:
-// line 15: gc expects: initialization cycle
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15

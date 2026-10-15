@@ -20,10 +20,4 @@ func f(int, int) {
 // GnoError:
 // line 12: missing ',' before newline in argument list
 
-// GoTypeCheckError:
-// line 12
-
-// UncaughtError:
-// line 16: uncaught; gc expects: expecting \)|possibly missing comma or \)
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

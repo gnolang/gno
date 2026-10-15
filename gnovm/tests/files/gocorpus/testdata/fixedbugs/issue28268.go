@@ -29,14 +29,4 @@ func _() {
 	x.E()   // no follow-on error here
 }
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 19
-// line 20
-
-// GoTypesOnly:
-// line 19: gc expects: field and method named b|redeclares struct field name|field and method with the same name b
-// line 20: gc expects: field and method named E|redeclares struct field name|field and method with the same name E
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19, 20

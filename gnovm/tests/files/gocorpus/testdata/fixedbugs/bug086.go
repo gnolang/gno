@@ -25,7 +25,4 @@ uetli:~/Source/go1/usr/gri/gosrc gri$ 6g bug.go && 6l bug.6 && 6.out
 // GnoError:
 // line 9: 2: [function "f" does not terminate]
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

@@ -49,16 +49,4 @@ func _() {
 // line 12: raw string literal not terminated
 // line 14: expected '}', found 'EOF'
 
-// GoTypeCheckError:
-// line 9
-
-// GnoOverStrictError:
-// line 14: expected '}', found 'EOF'
-
-// UncaughtError:
-// line 13: uncaught; gc expects: string not terminated
-// line 20: uncaught; gc expects: hexadecimal literal has no digits
-// line 24: uncaught; gc expects: hexadecimal mantissa requires a 'p' exponent
-// line 28: uncaught; gc expects: '_' must separate successive digits
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 4 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 20, 24, 28; over-strict: lines 9, 14

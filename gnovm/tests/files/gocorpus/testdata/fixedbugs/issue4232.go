@@ -73,36 +73,4 @@ func f() {
 // line 49: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 55: bigint overflows target kind
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 16
-// line 17
-// line 20
-// line 21
-// line 22
-// line 25
-// line 26
-// line 27
-// line 33
-// line 36
-// line 37
-// line 38
-// line 39
-// line 42
-// line 43
-// line 44
-// line 47
-// line 48
-// line 49
-// line 55
-
-// GoTypesOnly:
-// line 17: gc expects: invalid array index 10|index .*out of bounds
-// line 20: gc expects: invalid slice index 12|index .*out of bounds
-// line 21: gc expects: invalid slice index 11|index .*out of bounds
-// line 39: gc expects: invalid string index 10|index .*out of bounds
-// line 42: gc expects: invalid slice index 12|index .*out of bounds
-// line 43: gc expects: invalid slice index 11|index .*out of bounds
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 20, 21, 39, 42, 43

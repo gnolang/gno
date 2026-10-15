@@ -22,11 +22,4 @@ func pf() *T {
 
 var x = pf().pm() // ERROR "initialization cycle|depends upon itself" 
 
-// GoTypeCheckError:
-// line 14
-// line 23
-
-// GoTypesOnly:
-// line 23: gc expects: initialization cycle|depends upon itself
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23

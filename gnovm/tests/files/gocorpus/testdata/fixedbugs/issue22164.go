@@ -28,11 +28,4 @@ func i() {
 // GnoError:
 // line 12: missing ',' before newline in argument list
 
-// GoTypeCheckError:
-// line 12
-
-// UncaughtError:
-// line 20: uncaught; gc expects: unexpected newline
-// line 24: uncaught; gc expects: unexpected newline
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20, 24

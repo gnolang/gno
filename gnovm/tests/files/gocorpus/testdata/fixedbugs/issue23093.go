@@ -8,10 +8,4 @@ package p
 
 var f = func() { f() } // ERROR "initialization cycle|initialization expression for .*f.* depends upon itself"
 
-// GoTypeCheckError:
-// line 9
-
-// GoTypesOnly:
-// line 9: gc expects: initialization cycle|initialization expression for .*f.* depends upon itself
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9

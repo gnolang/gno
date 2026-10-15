@@ -14,7 +14,4 @@ type T struct {
 // line 10: x redeclared in this block
 // 	previous declaration at bug132.go:10:2
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

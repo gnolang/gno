@@ -39,12 +39,4 @@ var r4 = string("hello") + r
 // line 24: invalid operation: s<VPBlock(2,8)> + (const ("hello" string)) (mismatched types main.S and string)
 // line 25: invalid operation: (const ("hello" string)) + s<VPBlock(2,8)> (mismatched types string and main.S)
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 16
-// line 17
-// line 24
-// line 25
-
 // Verdict: Clean errorcheck

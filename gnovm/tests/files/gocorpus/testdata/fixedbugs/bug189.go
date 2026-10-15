@@ -17,10 +17,4 @@ func main() {
 	_, _, _ = s1, s3, s2;
 }
 
-// GoTypeCheckError:
-// line 16
-
-// GoTypesOnly:
-// line 16: gc expects: too few
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

@@ -16,7 +16,4 @@ type V V	// ERROR "invalid recursive type"
 // GnoError:
 // line 14: invalid recursive type: V -> V
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

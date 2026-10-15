@@ -17,12 +17,4 @@ func f() (int, int) {
 
 func main() {}
 
-// GoTypeCheckError:
-// line 10
-// line 11
-// line 14
-
-// GoTypesOnly:
-// line 10: gc expects: initialization cycle|depends upon itself|depend upon each other
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10

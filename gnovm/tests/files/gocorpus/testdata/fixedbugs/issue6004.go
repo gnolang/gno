@@ -18,13 +18,4 @@ func main() {
 // line 11: use of untyped nil in assignment
 // line 12: use of untyped nil in assignment
 
-// GoTypeCheckError:
-// line 10
-// line 11
-// line 12
-// line 13
-
-// GoTypesOnly:
-// line 13: gc expects: untyped nil|nil
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

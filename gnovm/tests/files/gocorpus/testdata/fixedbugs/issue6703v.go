@@ -17,11 +17,4 @@ func (*T) pm() int {
 
 var x = (*T)(nil).pm() // ERROR "initialization cycle|depends upon itself"
 
-// GoTypeCheckError:
-// line 13
-// line 18
-
-// GoTypesOnly:
-// line 18: gc expects: initialization cycle|depends upon itself
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18

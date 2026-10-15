@@ -76,23 +76,4 @@ func good() {
 // line 25: cannot use main.I as string without explicit conversion
 // line 70: cannot use interface {} as string
 
-// GoTypeCheckError:
-// line 21
-// line 25
-// line 31
-// line 38
-// line 45
-// line 50
-// line 56
-
-// GoTypesOnly:
-// line 31: gc expects: can only compare map m to nil|map can only be compared to nil|cannot compare
-// line 38: gc expects: can only compare slice a to nil|slice can only be compared to nil|cannot compare
-// line 45: gc expects: can only compare func f to nil|func can only be compared to nil|cannot compare
-// line 50: gc expects: cannot switch on
-// line 56: gc expects: cannot switch on
-
-// GnoOverStrictError:
-// line 70: cannot use interface {} as string
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 38, 45, 50, 56; over-strict: lines 70

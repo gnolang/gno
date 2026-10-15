@@ -17,10 +17,4 @@ func main() {
 	1 + 2 // ERROR "1 \+ 2 evaluated but not used|value computed is not used|is not used"
 }
 
-// GoTypeCheckError:
-// line 17
-
-// GoTypesOnly:
-// line 17: gc expects: 1 \+ 2 evaluated but not used|value computed is not used|is not used
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17

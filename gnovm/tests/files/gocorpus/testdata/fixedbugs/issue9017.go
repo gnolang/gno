@@ -59,15 +59,4 @@ func main() {
 // GnoError:
 // line 47: should not happen
 
-// GoTypeCheckError:
-// line 47
-// line 50
-// line 53
-// line 56
-
-// GoTypesOnly:
-// line 50: gc expects: cannot use|incompatible types
-// line 53: gc expects: undefined
-// line 56: gc expects: cannot use|incompatible types
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 50, 53, 56

@@ -32,16 +32,4 @@ func main() {
 // line 23: cannot use struct{} as int
 // line 24: cannot use struct{} as int
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 16
-// line 19
-// line 22
-// line 23
-// line 24
-
-// GoTypesOnly:
-// line 19: gc expects: index 100 out of bounds|out of range
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19

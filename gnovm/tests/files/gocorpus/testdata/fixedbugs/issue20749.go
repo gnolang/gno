@@ -14,12 +14,4 @@ var _ = a[2:] // ERROR "invalid slice index 2|array index out of bounds|index 2 
 var b [1]int
 var _ = b[2:] // ERROR "invalid slice index 2|array index out of bounds|index 2 out of bounds"
 
-// GoTypeCheckError:
-// line 12
-// line 15
-
-// GoTypesOnly:
-// line 12: gc expects: invalid slice index 2|array index out of bounds|index 2 out of bounds
-// line 15: gc expects: invalid slice index 2|array index out of bounds|index 2 out of bounds
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 15

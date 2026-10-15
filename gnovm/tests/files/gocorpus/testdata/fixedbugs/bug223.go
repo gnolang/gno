@@ -20,11 +20,4 @@ func f() {
 
 var m = map[string]F{"f": f} // ERROR "initialization cycle|depends upon itself|initialization cycle"
 
-// GoTypeCheckError:
-// line 15
-// line 21
-
-// GoTypesOnly:
-// line 21: gc expects: initialization cycle|depends upon itself|initialization cycle
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 21

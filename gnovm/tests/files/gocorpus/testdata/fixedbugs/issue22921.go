@@ -22,9 +22,4 @@ func main() {
 // line 13: cannot access bytes.nonexist from main
 // line 17: cannot access bytes.buffer from main
 
-// GoTypeCheckError:
-// line 11
-// line 13
-// line 17
-
 // Verdict: Clean errorcheck

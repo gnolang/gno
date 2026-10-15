@@ -15,11 +15,4 @@ func fx() int {
 
 var x = fx // ERROR "initialization cycle|depends upon itself"
 
-// GoTypeCheckError:
-// line 11
-// line 16
-
-// GoTypesOnly:
-// line 16: gc expects: initialization cycle|depends upon itself
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

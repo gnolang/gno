@@ -24,11 +24,4 @@ var _ = []string{
 // GnoError:
 // line 18: 2: cannot use untyped Bigint as StringKind
 
-// GoTypeCheckError:
-// line 15
-// line 21
-
-// GoTypesOnly:
-// line 15: gc expects: missing key|must have keys
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15

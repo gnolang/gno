@@ -15,10 +15,4 @@ func main() {
 // line 8: name T not defined in fileset with files [bug198.go]
 // line 11: name x not declared
 
-// GoTypeCheckError:
-// line 8
-
-// GnoOverStrictError:
-// line 11: name x not declared
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 11

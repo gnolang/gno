@@ -27,11 +27,4 @@ var (
 	x = g().m // ERROR "initialization cycle|depends upon itself" 
 )
 
-// GoTypeCheckError:
-// line 14
-// line 27
-
-// GoTypesOnly:
-// line 27: gc expects: initialization cycle|depends upon itself
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 27

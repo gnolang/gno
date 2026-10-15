@@ -20,11 +20,4 @@ var (
 	x = t.m() // ERROR "initialization cycle|depends upon itself"
 )
 
-// GoTypeCheckError:
-// line 13
-// line 20
-
-// GoTypesOnly:
-// line 20: gc expects: initialization cycle|depends upon itself
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20

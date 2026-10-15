@@ -40,14 +40,4 @@ func main() {
 // line 27: cannot convert untyped bigdec to float64 -- too close to +-Inf
 // line 28: cannot convert untyped bigdec to float64 -- too close to +-Inf
 
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 23
-// line 24
-// line 25
-// line 26
-// line 27
-// line 28
-
 // Verdict: Clean errorcheck

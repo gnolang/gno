@@ -12,11 +12,4 @@ var _ = fmt.Println // avoid imported and not used error
 
 var fmt int	// ERROR "redecl|redefinition|fmt already declared"
 
-// GoTypeCheckError:
-// line 9
-// line 13
-
-// GoTypesOnly:
-// line 13: gc expects: redecl|redefinition|fmt already declared
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

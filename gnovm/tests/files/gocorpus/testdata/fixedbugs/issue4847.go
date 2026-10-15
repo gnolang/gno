@@ -23,12 +23,4 @@ var matchAny = matcher(matchList) // ERROR "initialization cycle|depends upon it
 
 func matchAnyFn(s *S) (err E) { return matchAny(s) }
 
-// GoTypeCheckError:
-// line 18
-// line 22
-// line 24
-
-// GoTypesOnly:
-// line 22: gc expects: initialization cycle|depends upon itself
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22

@@ -23,8 +23,4 @@ func main() {
 // line 17: missing field common in testing.T
 // line 19: cannot access testing.anyLowercaseName from main
 
-// GoTypeCheckError:
-// line 17
-// line 19
-
 // Verdict: Clean errorcheck

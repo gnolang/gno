@@ -19,17 +19,4 @@ func f() {
 	}
 }
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 15
-// line 16
-// line 17
-// line 18
-
-// GoTypesOnly:
-// line 14: gc expects: duplicate case
-// line 16: gc expects: duplicate case
-// line 18: gc expects: duplicate case
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 16, 18

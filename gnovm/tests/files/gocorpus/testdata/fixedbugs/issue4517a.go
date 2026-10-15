@@ -8,10 +8,4 @@ package p
 
 var init = 1 // ERROR "cannot declare init - must be func"
 
-// GoTypeCheckError:
-// line 9
-
-// GoTypesOnly:
-// line 9: gc expects: cannot declare init - must be func
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9

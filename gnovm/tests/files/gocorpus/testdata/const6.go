@@ -37,12 +37,4 @@ var (
 // line 28: invalid operation: c2<VPBlock(2,5)> && c6<VPBlock(2,9)> (mismatched types gno.land/p/filetest/p.mybool and gno.land/p/filetest/p.mybool1)
 // line 29: invalid operation: c1<VPBlock(2,4)> && c6<VPBlock(2,9)> (mismatched types bool and gno.land/p/filetest/p.mybool1)
 
-// GoTypeCheckError:
-// line 22
-// line 23
-// line 24
-// line 27
-// line 28
-// line 29
-
 // Verdict: Clean errorcheck

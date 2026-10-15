@@ -24,11 +24,4 @@ func main() {
 // line 16: invalid argument: index (-1 <untyped> bigint) must not be negative
 // line 17: invalid argument: len larger than cap in make(main.T)
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 15
-// line 16
-// line 17
-
 // Verdict: Clean errorcheck

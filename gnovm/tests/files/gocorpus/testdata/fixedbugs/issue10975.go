@@ -20,11 +20,4 @@ func New() I {
 // GnoError:
 // line 17: struct{} does not implement main.I (missing method )
 
-// GoTypeCheckError:
-// line 16
-// line 17
-
-// UncaughtError:
-// line 13: uncaught; gc expects: interface contains embedded non-interface|embedding non-interface type
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13; over-strict: lines 17
