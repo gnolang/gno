@@ -2028,8 +2028,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// the outer crossing-call's LEAVE handler will pick
 							// it up — preventing the "virtual function" panic
 							// or the silent-identity-return paths.
-							if len(n.Args) != 1 {
-								panic("cross takes exactly one argument: the in-scope realm")
+							if len(n.Args) != 1 && len(n.Args) != 2 {
+								panic("cross takes the in-scope realm and optionally the chain.Coins to send")
 							}
 							if _, ok := n.Args[0].(*NameExpr); !ok {
 								panic("cross argument must be a bare realm-typed identifier (a name, not an expression)")
@@ -2048,6 +2048,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							pft, _ := baseOf(evalStaticTypeOf(store, last, pc.Func)).(*FuncType)
 							if pft == nil || !pft.IsCrossing() {
 								panic("cross(rlm) can only be used as the first argument to a crossing-function call")
+							}
+							//  (d) cross(rlm, coins): the coins expression moves
+							//      to the outer call's Send, evaluated after the
+							//      args and consumed by doOpPrecall. At runtime
+							//      cross keeps its one-argument form.
+							if len(n.Args) == 2 {
+								if n.Varg || !isChainCoinsType(evalStaticTypeOf(store, last, n.Args[1])) {
+									panic("the second argument of cross must be a chain.Coins value")
+								}
+								pc.Send = n.Args[1]
+								n.Args = n.Args[:1]
 							}
 						case "crossing":
 							panic("crossing() is reserved and deprecated")
@@ -6619,4 +6630,10 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		return n, TRANS_CONTINUE
 	})
 	store.SetBlockNodes(bns)
+}
+
+// isChainCoinsType reports whether t is the stdlib chain.Coins type.
+func isChainCoinsType(t Type) bool {
+	dt, ok := t.(*DeclaredType)
+	return ok && dt.PkgPath == "chain" && dt.Name == "Coins"
 }
