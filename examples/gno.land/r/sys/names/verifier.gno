@@ -13,6 +13,14 @@
 //     r/sys/namereg/v0 (or any other DAO-whitelisted controller) grant
 //     deploy authority via name registration.
 //
+//  3. Team namespaces — gno.land/{r,p}/<name>/* where r/sys/teams holds a
+//     member set for <name> that contains the deployer. The set is written
+//     by r/<name>/home and by nothing else; see that realm for the gate.
+//     A namespace may additionally RETIRE path 2 for itself, after which
+//     the address r/sys/users resolves loses deploy authority and only the
+//     team keeps it. That is what makes a key rotation possible without the
+//     name moving.
+//
 // Authority is unscoped: a registered name owns BOTH r/<name>/* and
 // p/<name>/* paths. There is no sub-prefix isolation (e.g. r/u/<name>/*).
 //
@@ -31,6 +39,7 @@ import (
 	"gno.land/r/gov/dao"
 	govimpl "gno.land/r/gov/dao/impl/v0"
 	memberstore "gno.land/r/gov/dao/memberstore/v0"
+	steams "gno.land/r/sys/teams"
 	susers "gno.land/r/sys/users"
 )
 
@@ -67,13 +76,20 @@ var (
 // nil (PA-only) or a fake.
 type nameLookupFn func(name string) (addr address, ok bool)
 
+// teamLookupFn reports whether addr belongs to namespace's team, and whether
+// namespace has retired its registered-name path. Returned together because
+// the verifier needs both for one namespace and two calls would read the tree
+// twice. nil disables path 3 entirely, which is what the unit tests pass when
+// they are exercising paths 1 and 2.
+type teamLookupFn func(namespace string, addr address) (member, retired bool)
+
 // IsAuthorizedAddressForNamespace checks if the given address can deploy
 // to the given namespace. See package doc for the two authorization paths
 // and the pause semantic.
 //
 // Pre-Enable, all checks pass (testing/dev convenience).
 func IsAuthorizedAddressForNamespace(address_XXX address, namespace string) bool {
-	return verifier(enabled, paused, address_XXX, namespace, resolveCurrentName)
+	return verifier(enabled, paused, address_XXX, namespace, resolveCurrentName, resolveTeam)
 }
 
 // resolveCurrentName is the production nameLookupFn, backed by r/sys/users.
@@ -105,6 +121,15 @@ func resolveCurrentName(name string) (address, bool) {
 		return "", false
 	}
 	return data.Addr(), true
+}
+
+// resolveTeam is the production teamLookupFn, backed by r/sys/teams.
+//
+// Read-only: this realm never writes there. Authority to write a namespace's
+// member set belongs to r/<namespace>/home and is enforced on that side, which
+// is why nothing here needs to know who the caller is.
+func resolveTeam(namespace string, addr address) (member, retired bool) {
+	return steams.IsMember(namespace, addr), steams.IsRetired(namespace)
 }
 
 // Enable enables the namespace check for this realm.
@@ -218,12 +243,18 @@ func IsPaused() bool {
 //  2. isPaused   → return false  (emergency halt — INCLUDES PA)
 //  3. invalid input → return false
 //  4. PA match (addr.String() == namespace) → return true
-//  5. Registered-name lookup match → return true
-//  6. otherwise → return false
+//  5. Registered-name lookup match, unless the namespace retired it → true
+//  6. Team membership match → return true
+//  7. otherwise → return false
+//
+// Path 5 is skipped for a retired namespace and path 6 is not, so retiring
+// narrows authority to the team rather than widening it. The two paths are
+// otherwise OR'd: adopting a team does not cost a namespace the authority it
+// already had, which is what lets a migration publish home before it retires.
 //
 // The pause check is intentionally above the PA check. A SetPaused(true)
 // halts every deploy regardless of namespace shape.
-func verifier(isEnabled, isPaused bool, address_XXX address, namespace string, lookup nameLookupFn) bool {
+func verifier(isEnabled, isPaused bool, address_XXX address, namespace string, lookup nameLookupFn, team teamLookupFn) bool {
 	if !isEnabled {
 		return true // pre-genesis / dev convenience: bypass everything
 	}
@@ -242,11 +273,25 @@ func verifier(isEnabled, isPaused bool, address_XXX address, namespace string, l
 		return true
 	}
 
-	// Path 2: registered-name namespace via r/sys/users.
-	if lookup != nil {
+	// Read the team once: path 2 needs the retirement flag and path 3 needs
+	// the membership bit, and both describe the same namespace.
+	member, retired := false, false
+	if team != nil {
+		member, retired = team(namespace, address_XXX)
+	}
+
+	// Path 2: registered-name namespace via r/sys/users, unless this namespace
+	// has retired it. Retiring is how an original key stops being able to
+	// deploy once its team is in place.
+	if lookup != nil && !retired {
 		if owner, ok := lookup(namespace); ok && owner == address_XXX {
 			return true
 		}
+	}
+
+	// Path 3: team membership, written by r/<namespace>/home.
+	if member {
+		return true
 	}
 
 	return false
