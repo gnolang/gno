@@ -151,7 +151,11 @@
 .b-map__group--hue1,
 .b-map__group--hue2,
 .b-map__group--hue3 {
-	--map-tile: color-mix(in oklab, var(--s-map-hue) var(--map-hue-step), var(--s-map-hue-ground));
+	--map-tile: color-mix(
+		in oklab,
+		var(--s-map-hue) var(--map-hue-step),
+		var(--s-map-hue-ground)
+	);
 }
 .b-map__group--hue0 {
 	--map-hue-step: 20%;
