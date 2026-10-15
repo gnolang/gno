@@ -51,14 +51,17 @@ type pagePolicy struct {
 	// aliasOf maps a realm alias's target, path and args, to the alias.
 	aliasOf map[string]string
 	index   CommunityIndex
+	// noIndex keeps every page of this deployment out of search engines.
+	noIndex bool
 }
 
-func newPagePolicy(trusted []string, aliases map[string]AliasTarget, index CommunityIndex) pagePolicy {
+func newPagePolicy(trusted []string, aliases map[string]AliasTarget, index CommunityIndex, noIndex bool) pagePolicy {
 	return pagePolicy{
 		trusted: newTrustedPaths(trusted),
 		aliases: aliases,
 		aliasOf: aliasTargets(aliases),
 		index:   index,
+		noIndex: noIndex,
 	}
 }
 

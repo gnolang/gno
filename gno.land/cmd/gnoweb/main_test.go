@@ -139,6 +139,27 @@ func TestIndexCommunityFlag(t *testing.T) {
 	assert.Equal(t, gnoweb.IndexRegisteredCommunity, cfg.indexCommunity)
 }
 
+// TestNoIndexFlag checks -no-index reaches the app: a testnet that loses it
+// silently stays in search. The startup log reports the policy in effect.
+func TestNoIndexFlag(t *testing.T) {
+	t.Setenv("GNOWEB_REALM_NOTICE_TEXT", "")
+
+	for _, args := range [][]string{nil, {"-no-index"}} {
+		cfg := defaultWebOptions
+		fs := flag.NewFlagSet("gnoweb", flag.ContinueOnError)
+		cfg.RegisterFlags(fs)
+		require.NoError(t, fs.Parse(args))
+		cfg.bind = "127.0.0.1:0"
+
+		var out strings.Builder
+		stdio := commands.NewDefaultIO()
+		stdio.SetOut(commands.WriteNopCloser(&out))
+		_, err := setupWeb(&cfg, nil, stdio)
+		require.NoError(t, err)
+		assert.Contains(t, out.String(), fmt.Sprintf(`"noindex": %v`, args != nil), args)
+	}
+}
+
 // Dummy handler to simulate the processing chain.
 // It now returns a more detailed message in the response body.
 func dummyHandler(w http.ResponseWriter, r *http.Request) {

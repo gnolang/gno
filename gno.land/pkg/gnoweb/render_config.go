@@ -47,6 +47,8 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 			extension.TaskList,
 			md.NewGnoExtension(
 				md.WithImageValidator(md.AllowSvgDataImage),
+				// Display math must end at a footnote definition.
+				md.WithPeerBlockParsers(extension.NewFootnoteBlockParser()),
 			),
 		),
 	}
