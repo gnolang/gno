@@ -17,6 +17,8 @@ import (
 	"github.com/rs/xid"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -672,6 +674,38 @@ func TestNewRouter_NetworkReachesPage(t *testing.T) {
 	}
 }
 
+// The binaries (cmd/gnoweb, gnodev) start from NewDefaultAppConfig, so its
+// rate is the one production runs. Behind a proxy without -trusted-proxies
+// every visitor shares a bucket, and omnibar typeahead must not hit 429 at
+// the old 100/min.
+func TestDefaultConfigSearchRateLimit(t *testing.T) {
+	cfg := NewDefaultAppConfig()
+	cfg.NodeRemote = sharedNodeRemote(t)
+	router, err := NewRouter(log.NewTestingLogger(t), cfg)
+	require.NoError(t, err)
+
+	for i := range 150 {
+		request := httptest.NewRequest(http.MethodGet, "/$search?q=blog&json", nil)
+		request.RemoteAddr = "192.0.2.1:1234"
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		require.NotEqual(t, http.StatusTooManyRequests, response.Code,
+			"request %d from one IP was rate-limited under the default config", i+1)
+	}
+}
+
+// A URL the client could never reach fails at startup, not behind a log line
+// calling the indexer enabled.
+func TestNewRouterRejectsInvalidIndexerURL(t *testing.T) {
+	for _, raw := range []string{"localhost:8546/graphql", "ftp://indexer.example/q", "http:///graphql"} {
+		cfg := NewDefaultAppConfig()
+		cfg.NodeRemote = sharedNodeRemote(t)
+		cfg.IndexerURL = raw
+		_, err := NewRouter(log.NewTestingLogger(t), cfg)
+		require.Error(t, err, raw)
+	}
+}
+
 // TestNewDefaultAppConfigCopiesAliases checks a config's aliases are its own:
 // adding one must not reach DefaultAliases, which other configs read.
 func TestNewDefaultAppConfigCopiesAliases(t *testing.T) {
@@ -689,4 +723,19 @@ func TestNewDefaultAppConfigIndexesNoCommunity(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, IndexNoCommunity, NewDefaultAppConfig().IndexCommunity)
+}
+
+// With an indexer, importer lookups get their own narrow bucket: the general
+// rate would let one address start hundreds of whole-chain scans a minute.
+func TestChainmapDepsLimitsLookups(t *testing.T) {
+	t.Parallel()
+
+	cfg := &HTTPHandlerConfig{Indexer: indexer.New("http://indexer.invalid/graphql/query", "")}
+	deps := chainmapDeps(cfg, log.NewTestingLogger(t), nil)
+	require.NotNil(t, deps.Limiter)
+	r := httptest.NewRequest(http.MethodGet, "/p/demo/lib$deps", nil)
+	for range chainmap.LookupsBurst {
+		require.True(t, deps.Limiter.AllowRequest(r))
+	}
+	assert.False(t, deps.Limiter.AllowRequest(r), "past the burst a lookup must be refused")
 }
