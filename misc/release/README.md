@@ -11,14 +11,11 @@ Tags a release, after checking it is one.
 # dry run — every check runs, nothing is pushed. Once the ledger entry is
 # pushed on top of the code, the branch tip is the ledger commit: name the code
 # commit
-misc/release/cut-release.sh v1.3.0 --commit <code-commit>
-
-# tag a specific commit rather than the branch tip
-misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
+misc/release/cut-release.sh v1.6.0 --commit <code-commit>
 
 # a coordinated upgrade: also prints the GovDAO halt proposal, then pushes.
 # --commit names the code commit, the one the ledger entry names
-misc/release/cut-release.sh v1.3.0 --commit <code-commit> \
+misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
   --halt-height 120000 --push
 ```
 
@@ -26,10 +23,11 @@ misc/release/cut-release.sh v1.3.0 --commit <code-commit> \
 |---|---|
 | `--chain <name>` | chain branch to cut from (default `mainnet` → `chain/mainnet`) |
 | `--commit <ref>` | commit to tag (default: the branch tip) |
-| `--previous <version>` | previous release, for the change summary (default: newest `v*` tag) |
-| `--halt-height <H>` | print the GovDAO halt proposal gating the restart on this release, and the `./govdao set-halt` command that creates it (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)) |
+| `--previous <version>` | previous release, for the change summary (default: the newest final `v*` tag reachable from the commit) |
+| `--halt-height <H>` | print the GovDAO halt proposal gating the restart on this release, and the `govdao-exec.sh set-halt` command that creates it (mechanics: [`UPGRADES.md`](../../gno.land/cmd/gnoland/UPGRADES.md)) |
 | `--push` | create and push the tag (without it, nothing is created at all) |
 | `--allow-dirty` | skip the clean-worktree check — local rehearsal only |
+| `--allow-merge` | cut a range that merges `master` and touches consensus code, which is otherwise refused |
 
 Without `--push` nothing is created — not even locally. A local tag left behind
 by a rehearsal would make the next run refuse the version as already released,
@@ -40,16 +38,18 @@ and `origin/chain/*`, and uses local tags to find the previous release.
 
 ### What it refuses, and why
 
-- **A version that does not parse.** The node understands `vX.Y.Z` and betanet's
-  `chain/gnolandX.Y`, and nothing else. Name an unparseable tag in a halt
-  proposal and `halt_min_version` falls back to byte equality, which refuses the
-  upgraded binary and leaves the chain unable to restart.
+- **A version that does not parse.** The script accepts `vX.Y.Z[-pre]` only;
+  the node also parses betanet's retired `chain/gnolandX.Y`, which no new
+  release uses. Name an unparseable tag in a halt proposal and
+  `halt_min_version` falls back to byte equality, which refuses the upgraded
+  binary and leaves the chain unable to restart.
 - **A tag that already exists**, locally or on origin. Tags are immutable.
 - **Protocol-version constants that disagree** — see below. Read from a worktree
-  of the commit being tagged, not from your checkout: that commit is usually
-  `origin/chain/<name>`, and drift that exists only there is drift validators run.
+  of the commit being tagged, not from your checkout: that is the code commit
+  `--commit` names, below the ledger commit you have checked out, and drift that
+  exists only there is drift validators run.
 - **A binary that does not report the tag.** The script builds `gnoland` the way
-  CI does and asks it. `chain/mainnet`'s published binaries answer `develop`.
+  CI does and asks it. Mainnet's launch-day binaries answered `develop`.
 - **A final release its chain's upgrade ledger does not record**, or a ledger
   that fails `upgrades check`, the check CI runs
   (`misc/deployments/<chain>.gno.land/upgrades.json` and its `UPGRADES.md`).
@@ -57,12 +57,15 @@ and `origin/chain/*`, and uses local tags to find the previous release.
   CI has built them, commit it on top of the code being released, and cut from
   that checkout with `--commit` naming the code commit. The entry must name the
   commit being tagged. A release candidate only warns.
+- **A commit marked breaking in a PATCH range** (`feat!:`/`BREAKING`). A
+  consensus change is a MINOR, and getting that wrong is how a coordinated
+  upgrade goes out as a rolling one.
+- **A range that merges `master` and touches consensus code**, unless
+  `--allow-merge` says the operator knows it ships everything `master` had.
 
 It *warns*, rather than refusing, when the commit is not on `master` (listing
 what is missing, since a squash-merge shows up here even though its content
-landed), and when a range tagged as a PATCH contains commits marked
-`feat!:`/`BREAKING` — a consensus change is a MINOR, and getting that wrong is
-how a coordinated upgrade goes out as a rolling one.
+landed).
 
 ## `bump-protocol-version.sh`
 
@@ -78,6 +81,8 @@ It edits the constants, verifies each write, and runs
 `TestProtocolVersionsAgree` before reporting success. It does not commit — it
 prints the commit command.
 
-A MAJOR bump here is a network partition: `VersionSet.CompatibleWith` refuses a
-peer whose major differs, so nodes on either side cannot gossip at all. The
-script says so, loudly, before doing it.
+Any bump here splits the network: the version is in every block header, and
+nodes refuse blocks whose version differs from theirs, so nodes on either side
+reject each other's blocks and a bumped binary cannot sync older ones. A MAJOR
+bump also stops them peering. The script says so, loudly, before doing it
+(RELEASING.md, "Protocol versions").
