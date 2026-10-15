@@ -73,6 +73,19 @@ fmt:
 tidy:
 	go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy -v --recursive
 
+# gnopm keeps a package's version in its gnomod.toml module line rather than in
+# its directory name, and gnomod.lock keeps superseded versions resolvable from
+# git history. `tool ci` is the guard: the lock describes the tree, every pin
+# reproduces, no pin is lost to a squash merge, and nothing edited a version the
+# chain already published.
+.PHONY: gnopm
+gnopm:
+	$(rundep) moul.io/gnopm tool ci
+
+.PHONY: gnopm-sync
+gnopm-sync:
+	$(rundep) moul.io/gnopm sync
+
 .PHONY: generate
 generate:
 	go generate ./...
