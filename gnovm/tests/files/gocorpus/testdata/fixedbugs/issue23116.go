@@ -14,10 +14,4 @@ func f(x interface{}) {
 	}
 }
 
-// GoTypeCheckError:
-// line 13
-
-// GoTypesOnly:
-// line 13: gc expects: declared and not used
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

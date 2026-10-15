@@ -15,9 +15,4 @@ var _ = true == '\n' // ERROR "invalid operation: (cannot compare true)|(true) =
 // line 10: invalid operation: (mismatched types <untyped> bool and <untyped> int32)
 // line 11: invalid operation: (mismatched types <untyped> bool and <untyped> int32)
 
-// GoTypeCheckError:
-// line 9
-// line 10
-// line 11
-
 // Verdict: Clean errorcheck

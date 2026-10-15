@@ -29,7 +29,4 @@ func main() {
 // GnoError:
 // line 25: main.Foo does not implement main.T (main.Foo.M is a field, not a method)
 
-// GoTypeCheckError:
-// line 25
-
 // Verdict: Clean errorcheck

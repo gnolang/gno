@@ -16,7 +16,4 @@ func f() bool {
 // GnoError:
 // line 9: 2: [function "f" does not terminate]
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

@@ -29,16 +29,4 @@ func main() {
 // stack 2: func main/issue8836.go:15:1-24:2
 // ------------------------
 
-// GoTypeCheckError:
-// line 22
-
-// GoTypesOnly:
-// line 22: gc expects: .*
-
-// GnoOverStrictError:
-// line 19: expected block type value path but got VPInvalid:
-// --- preprocess stack ---
-// stack 2: func main/issue8836.go:15:1-24:2
-// ------------------------
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22; over-strict: lines 19

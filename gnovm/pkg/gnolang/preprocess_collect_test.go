@@ -373,3 +373,19 @@ func main() {}
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
 	}
 }
+
+func TestPreprocessCollectUnusedExempt(t *testing.T) {
+	// A name only a folded constant uses, and a blank label, are not unused.
+	src := `package main
+
+func main() {
+	var a [10]int
+	const ca = len(a)
+	_ = ca
+_:
+}
+`
+	if msgs := collectErrors(t, src); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}

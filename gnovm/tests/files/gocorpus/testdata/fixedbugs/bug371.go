@@ -27,8 +27,4 @@ func main() {
 // line 22: missing field m in **main.T
 // line 23: missing field pm in **main.T
 
-// GoTypeCheckError:
-// line 22
-// line 23
-
 // Verdict: Clean errorcheck

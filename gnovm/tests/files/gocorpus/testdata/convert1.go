@@ -132,38 +132,4 @@ func main() {
 // line 96: cannot convert tsi<VPBlock(1,7)> (of type main.Tint64) to type main.Tbyte
 // line 97: cannot convert tsi<VPBlock(1,7)> (of type main.Tint64) to type main.Trune
 
-// GoTypeCheckError:
-// line 31
-// line 35
-// line 39
-// line 40
-// line 43
-// line 44
-// line 47
-// line 49
-// line 51
-// line 53
-// line 55
-// line 56
-// line 57
-// line 59
-// line 60
-// line 61
-// line 67
-// line 71
-// line 75
-// line 76
-// line 79
-// line 80
-// line 83
-// line 85
-// line 87
-// line 89
-// line 91
-// line 92
-// line 93
-// line 95
-// line 96
-// line 97
-
 // Verdict: Clean errorcheck

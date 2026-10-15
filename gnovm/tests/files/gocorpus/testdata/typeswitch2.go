@@ -39,12 +39,4 @@ func whatis(x interface{}) string {
 // GnoError:
 // line 15: 3: duplicate type int in type switch
 
-// GoTypeCheckError:
-// line 16
-// line 18
-// line 20
-// line 22
-// line 24
-// line 29
-
 // Verdict: Clean errorcheck

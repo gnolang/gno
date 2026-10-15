@@ -23,8 +23,4 @@ func main() {
 // line 18: should not happen
 // line 19: should not happen
 
-// GoTypeCheckError:
-// line 18
-// line 19
-
 // Verdict: Clean errorcheck

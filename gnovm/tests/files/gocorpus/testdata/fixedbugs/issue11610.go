@@ -19,7 +19,4 @@ func main() {
 // line 11: illegal character U+003F '?'
 // line 13: expected type, found 'var'
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

@@ -15,7 +15,4 @@ func main() {
 // GnoError:
 // line 13: expected operand, found '}'
 
-// GoTypeCheckError:
-// line 13
-
 // Verdict: Clean errorcheck

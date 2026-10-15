@@ -19,7 +19,4 @@ func main() {
 // GnoError:
 // line 16: wrong argument count in call to f<VPBlock(3,0)>; want 2 got 1
 
-// GoTypeCheckError:
-// line 16
-
 // Verdict: Clean errorcheck

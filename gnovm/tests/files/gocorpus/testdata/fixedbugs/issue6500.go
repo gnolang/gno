@@ -31,7 +31,4 @@ func main() {
 // GnoError:
 // line 16: fallthrough statement out of place
 
-// GoTypeCheckError:
-// line 16
-
 // Verdict: Clean errorcheck

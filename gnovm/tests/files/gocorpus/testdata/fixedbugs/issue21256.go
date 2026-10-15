@@ -11,7 +11,4 @@ var main = func() {} // ERROR "must be func|redefinition"
 // GnoError:
 // line 9: cannot declare main - must be func
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

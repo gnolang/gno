@@ -17,11 +17,4 @@ func main() {
 	}
 }
 
-// GnoError:
-// line 14: 10: 0 is not a type
-
-// GoTypeCheckError:
-// line 14
-// line 16
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 16

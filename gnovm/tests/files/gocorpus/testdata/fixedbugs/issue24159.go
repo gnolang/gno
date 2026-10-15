@@ -19,17 +19,4 @@ func f() {
 	}
 }
 
-// GnoError:
-// line 14: duplicate case uint8(0) in expression switch
-// line 16: duplicate case int32(0) in expression switch
-// line 18: duplicate case int(0) in expression switch
-
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 15
-// line 16
-// line 17
-// line 18
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 16, 18

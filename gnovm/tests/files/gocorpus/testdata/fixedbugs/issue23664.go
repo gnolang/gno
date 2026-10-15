@@ -19,10 +19,4 @@ func f() {
 // GnoError:
 // line 12: expected ';', found true
 
-// GoTypeCheckError:
-// line 12
-
-// UncaughtError:
-// line 15: uncaught; gc expects: unexpected name true, expected {
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15

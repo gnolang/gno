@@ -24,13 +24,4 @@ func main() {
 // GnoError:
 // line 13: cannot find branch label "L"
 
-// GoTypeCheckError:
-// line 10
-// line 13
-// line 16
-// line 19
-
-// GoTypesOnly:
-// line 19: gc expects: L1
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19

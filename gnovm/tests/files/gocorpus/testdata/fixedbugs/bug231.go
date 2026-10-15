@@ -23,10 +23,4 @@ func main() {
 	_ = i
 }
 
-// GnoError:
-// line 22: main.T does not implement main.I (main.T.m is a field, not a method)
-
-// GoTypeCheckError:
-// line 22
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22

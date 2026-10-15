@@ -16,7 +16,4 @@ bogus`
 // stack 1: file gno.land/p/filetest/f/issue14520a.go:8:1-13:15
 // ------------------------
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

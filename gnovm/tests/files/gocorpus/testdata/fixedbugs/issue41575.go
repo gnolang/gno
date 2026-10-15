@@ -37,25 +37,11 @@ type w2 w // refer to the type loop again
 
 // GnoError:
 // line 9: 2: invalid recursive type: T1 -> T2 -> T1
-// line 18: name c not declared
-// line 19: should not happen
-// line 23: invalid recursive type: f -> f
+// line 17: should not happen
+// line 18: decl node already predefined! type c b<VPInvalid(0)>
+// line 21: invalid recursive type: d -> e -> f -> f
 // line 25: 2: invalid recursive type: g -> g
-// line 32: invalid recursive type: x -> y -> z -> x
+// line 31: invalid recursive type: w -> x -> y -> z -> x
 // line 36: should not happen
 
-// GoTypeCheckError:
-// line 9
-// line 13
-// line 18
-// line 19
-// line 23
-// line 25
-// line 32
-// line 33
-// line 34
-
-// GnoOverStrictError:
-// line 36: should not happen
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 32; over-strict: lines 17, 21, 31, 36

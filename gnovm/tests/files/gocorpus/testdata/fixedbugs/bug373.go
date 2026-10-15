@@ -34,7 +34,4 @@ func h(x interface{}) {
 // GnoError:
 // line 12: 3: declared and not used: t
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

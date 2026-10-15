@@ -29,10 +29,4 @@ func _() {
 // line 19: expected 1 return values; got 2
 // line 23: expected 0 return values; got 1
 
-// GoTypeCheckError:
-// line 10
-// line 15
-// line 19
-// line 23
-
 // Verdict: Clean errorcheck

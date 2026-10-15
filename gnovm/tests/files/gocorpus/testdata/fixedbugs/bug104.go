@@ -12,7 +12,4 @@ func f() string {
 // GnoError:
 // line 9: cannot use untyped Bigint as StringKind
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

@@ -20,7 +20,4 @@ func main() {
 // GnoError:
 // line 17: struct types have no (universal) elements
 
-// GoTypeCheckError:
-// line 17
-
 // Verdict: Clean errorcheck

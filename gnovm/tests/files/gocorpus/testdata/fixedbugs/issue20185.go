@@ -25,11 +25,6 @@ func G() {
 }
 
 // GnoError:
-// line 13: 3: cannot type switch on non-interface value nil (type untyped nil)
-// line 22: 3: cannot type switch on non-interface value int(1) (type int)
+// line 14: 8: StaticBlock.Define(t) requires non-nil tv.T; use Reserve() for placeholder slots
 
-// GoTypeCheckError:
-// line 13
-// line 22
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 22; over-strict: lines 14

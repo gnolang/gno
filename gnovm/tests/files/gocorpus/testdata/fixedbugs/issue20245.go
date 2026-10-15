@@ -13,7 +13,4 @@ var e = interface{ I1 } // ERROR "undefined: I1"
 // GnoError:
 // line 11: name I1 not defined in fileset with files [issue20245.go]
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

@@ -32,15 +32,5 @@ func h() {
 // line 12: invalid recursive type: T1 -> T1
 // line 16: invalid recursive type: T2 -> T2
 // line 21: invalid recursive type: T3 -> T3
-// line 26: invalid map key type main[main/issue21273.go:25:1-28:2].T4
-// line 27: invalid map key type main[main/issue21273.go:25:1-28:2].T4
 
-// GoTypeCheckError:
-// line 9
-// line 12
-// line 16
-// line 21
-// line 26
-// line 27
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 26

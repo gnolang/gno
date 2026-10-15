@@ -5,7 +5,7 @@ import "runtime"
 
 func main() {
 	data := make([]byte, 100*1024*1024) // < 110000000
-	_ = data // keep the variable used; the test is about something else
+	_ = data                            // keep the variable used; the test is about something else
 	data = nil
 	runtime.GC()
 	println("MemStats after GC: ", runtime.MemStats())
@@ -13,4 +13,3 @@ func main() {
 
 // Output:
 // MemStats after GC:  Allocator{maxBytes:110000000, bytes:104865136}
-

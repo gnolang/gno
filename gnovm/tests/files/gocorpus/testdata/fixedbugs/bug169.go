@@ -10,7 +10,4 @@ var x = ''';		// ERROR "char|rune"
 // GnoError:
 // line 8: illegal rune literal
 
-// GoTypeCheckError:
-// line 8
-
 // Verdict: Clean errorcheck

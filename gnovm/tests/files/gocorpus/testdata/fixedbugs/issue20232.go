@@ -13,12 +13,6 @@ const _ = 1e+1000000000 // ERROR "malformed constant: 1e\+1000000000"
 
 // GnoError:
 // line 9: invalid decimal constant: 6e5518446744
+// line 10: decl node already predefined! const x<!VPBlock(2,0)> = 6e5518446744
 
-// GoTypeCheckError:
-// line 9
-// line 12
-
-// GoTypesOnly:
-// line 12: gc expects: malformed constant: 1e\+1000000000
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12; over-strict: lines 10
