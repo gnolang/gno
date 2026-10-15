@@ -23,10 +23,4 @@ func d() (int, error) {
 	return c(b())
 }
 
-// GnoError:
-// line 14: function a does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoBuildError:
-// line 14
-
-// Verdict: Clean compile
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

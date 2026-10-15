@@ -183,7 +183,6 @@ var featureGapErrors = []struct {
 	reason   string
 }{
 	{"channels are not permitted", "channels not supported in Gno"},
-	{"select statements are not permitted", "select statements not supported in Gno"},
 	{"does not have a body but is not natively defined", "bodiless function declarations (assembly-backed in gc) not supported in Gno"},
 	{"goroutines are not permitted", "goroutines not supported in Gno"},
 	{"imaginaries are not supported", "imaginary literals not supported in Gno"},
@@ -500,7 +499,6 @@ func ParseLineBlock(block string) map[int]string {
 var unsupportedTags = []struct{ tag, needle string }{
 	{"generics", "generics not supported"},
 	{"channel", "channels not supported"},
-	{"select", "select statements not supported"},
 	{"bodiless-func", "bodiless function declarations"},
 	{"goroutine", "goroutines not supported"},
 	{"complex-types", "complex numbers not supported"},
