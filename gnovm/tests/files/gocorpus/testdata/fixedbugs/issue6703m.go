@@ -27,8 +27,4 @@ var (
 // GnoError:
 // line 24: initialization cycle: x refers to T.m refers to x
 
-// GoTypeCheckError:
-// line 13
-// line 24
-
 // Verdict: Clean errorcheck

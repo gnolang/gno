@@ -166,60 +166,6 @@ var x10pv /* ERROR "initialization cycle" */ = x10pvar.m()
 // line 133: initialization cycle: x9pv refers to E9pv.m refers to x9pv
 // line 139: initialization cycle: x10pv refers to E10pv.m refers to x10pv
 
-// GoTypeCheckError:
-// line 11
-// line 12
-// line 14
-// line 15
-// line 20
-// line 21
-// line 24
-// line 25
-// line 28
-// line 29
-// line 32
-// line 33
-// line 39
-// line 40
-// line 44
-// line 45
-// line 49
-// line 50
-// line 54
-// line 55
-// line 60
-// line 61
-// line 64
-// line 65
-// line 68
-// line 69
-// line 72
-// line 73
-// line 76
-// line 78
-// line 81
-// line 83
-// line 86
-// line 88
-// line 91
-// line 93
-// line 99
-// line 100
-// line 104
-// line 105
-// line 109
-// line 110
-// line 114
-// line 115
-// line 119
-// line 121
-// line 125
-// line 127
-// line 131
-// line 133
-// line 137
-// line 139
-
 // GnoWordingDiffers:
 // line 40: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
 // line 45: gc expects: initialization cycle; gno: unknown *DeclaredType method named m

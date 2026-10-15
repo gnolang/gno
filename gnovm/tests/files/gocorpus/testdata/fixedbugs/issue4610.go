@@ -18,7 +18,4 @@ func main() {
 // GnoError:
 // line 15: foo<VPBlock(1,0)> is not a type
 
-// GoTypeCheckError:
-// line 15
-
 // Verdict: Clean errorcheck

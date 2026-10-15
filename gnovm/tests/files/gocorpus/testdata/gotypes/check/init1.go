@@ -105,25 +105,4 @@ func matchAnyFn(s *S) (err E) { return matchAny(s) }
 // line 79: initialization cycle: y6 refers to f6 refers to y6
 // line 95: initialization cycle: matchAny refers to matchList refers to matchAnyFn refers to matchAny
 
-// GoTypeCheckError:
-// line 13
-// line 17
-// line 31
-// line 33
-// line 37
-// line 42
-// line 44
-// line 48
-// line 53
-// line 55
-// line 59
-// line 64
-// line 66
-// line 70
-// line 79
-// line 80
-// line 91
-// line 95
-// line 97
-
 // Verdict: Clean errorcheck

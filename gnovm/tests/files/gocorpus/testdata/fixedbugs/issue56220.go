@@ -18,10 +18,6 @@ func g() int64 {
 // line 10: cannot convert (const (0.9999999 <untyped> bigdec)) to integer type
 // line 14: cannot convert constant of type Float64Kind to Int64Kind
 
-// GoTypeCheckError:
-// line 10
-// line 14
-
 // GnoWordingDiffers:
 // line 10: gc expects: cannot convert 1 - \.0000001 \(untyped float constant 0\.9999999\) to type int; gno: cannot convert (const (0.9999999 <untyped> bigdec)) to integer type
 // line 14: gc expects: cannot convert \(float64\(0\.03\) - float64\(0\.02\)\) \* 1_000_000 \(constant 9999\.999999999998 of type float64\) to type int64; gno: cannot convert constant of type Float64Kind to Int64Kind

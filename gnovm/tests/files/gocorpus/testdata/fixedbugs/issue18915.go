@@ -23,9 +23,6 @@ func _() {
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?)
 
-// GoTypeCheckError:
-// line 13
-
 // ParseBlocked:
 // line 16: gc expects: cannot use b := 10 as value|parse error|declared and not used
 // line 19: gc expects: cannot use c := 10 as value|expected .*;|declared and not used

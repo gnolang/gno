@@ -18,10 +18,6 @@ type b int
 // GnoError:
 // line 12: method has no receiver
 
-// GoTypeCheckError:
-// line 12
-// line 14
-
 // ParseBlocked:
 // line 14: gc expects: multiple receiver
 

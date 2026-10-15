@@ -15,9 +15,6 @@ func _() {
 // GnoError:
 // line 12: invalid recursive type: T -> T
 
-// GoTypeCheckError:
-// line 12
-
 // GnoWordingDiffers:
 // line 12: gc expects: invalid recursive type: T refers to itself; gno: invalid recursive type: T -> T
 

@@ -217,9 +217,6 @@ func _() {
 // GnoError:
 // line 17: expected type, found ';'
 
-// GoTypeCheckError:
-// line 17
-
 // ParseBlocked:
 // line 18: gc expects: expected type
 // line 19: gc expects: expected type

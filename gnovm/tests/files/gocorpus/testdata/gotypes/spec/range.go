@@ -187,9 +187,6 @@ func _() {
 // GnoError:
 // line 183: expected at most 2 expressions
 
-// GoTypeCheckError:
-// line 183
-
 // ParseBlocked:
 // line 30: gc expects: cannot range over m1 (variable of type func(T)): func must be func(yield func(...) bool): argument is not func
 // line 33: gc expects: cannot range over m2 (variable of type func(*T)): func must be func(yield func(...) bool): argument is not func

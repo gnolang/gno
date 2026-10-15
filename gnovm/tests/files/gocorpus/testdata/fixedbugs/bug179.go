@@ -30,13 +30,6 @@ L1:
 // line 13: label L2 undefined
 // line 14: label L2 undefined
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 18
-// line 22
-// line 23
-
 // ParseBlocked:
 // line 22: gc expects: L1
 // line 23: gc expects: L1

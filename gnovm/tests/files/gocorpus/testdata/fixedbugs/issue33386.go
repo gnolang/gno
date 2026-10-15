@@ -31,9 +31,6 @@ func _() {
 // GnoError:
 // line 16: expected operand, found '}'
 
-// GoTypeCheckError:
-// line 16
-
 // ParseBlocked:
 // line 22: gc expects: expected expression|expected operand
 // line 26: gc expects: expected expression|expected operand

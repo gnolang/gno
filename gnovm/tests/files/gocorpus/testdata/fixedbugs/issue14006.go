@@ -70,12 +70,6 @@ func g() {
 // line 24: illegal label declaration
 // line 25: expected ';', found 'case'
 
-// GoTypeCheckError:
-// line 24
-
-// GnoOverStrictError:
-// line 25: expected ';', found 'case'
-
 // ParseBlocked:
 // line 30: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
 // line 37: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
@@ -87,4 +81,4 @@ func g() {
 // GnoWordingDiffers:
 // line 24: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
 
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 30, 37, 43, 50, 59, 64; over-strict: lines 25

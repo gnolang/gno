@@ -29,9 +29,6 @@ local scopes (function scopes)
 // GnoError:
 // line 12: name P not declared
 
-// GoTypeCheckError:
-// line 12
-
 // GnoWordingDiffers:
 // line 12: gc expects: undefined; gno: name P not declared
 

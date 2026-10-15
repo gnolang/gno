@@ -12,7 +12,4 @@ func main()
 // GnoError:
 // line 10: unexpected semicolon or newline before {
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

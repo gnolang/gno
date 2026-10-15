@@ -12,7 +12,4 @@ func (T) m() {}
 // GnoError:
 // line 9: gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (missing method M)
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

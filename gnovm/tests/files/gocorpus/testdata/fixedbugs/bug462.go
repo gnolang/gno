@@ -24,11 +24,7 @@ func main() {
 // line 11: name Open not declared
 // line 19: name File not declared
 
-// GoTypeCheckError:
-// line 11
-// line 19
-
 // GnoWordingDiffers:
 // line 19: gc expects: invalid field name os.File|unknown field; gno: name File not declared
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 11

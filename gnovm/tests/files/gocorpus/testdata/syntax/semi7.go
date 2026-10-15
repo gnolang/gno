@@ -14,9 +14,6 @@ func main() {
 // GnoError:
 // line 11: expected statement, found 'else'
 
-// GoTypeCheckError:
-// line 11
-
 // GnoWordingDiffers:
 // line 11: gc expects: unexpected semicolon or newline before .?else.?|unexpected keyword else; gno: expected statement, found 'else'
 

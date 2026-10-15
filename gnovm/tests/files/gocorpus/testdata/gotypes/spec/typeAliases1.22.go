@@ -9,4 +9,4 @@ package aliasTypes
 type _ = int
 type _[P /* ERROR "generic type alias requires go1.23 or later" */ any] = int
 
-// Verdict: Unsupported generics: generics not supported in Gno
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10

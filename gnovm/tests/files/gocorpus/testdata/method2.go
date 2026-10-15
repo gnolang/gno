@@ -50,16 +50,6 @@ var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires point
 // line 37: should not happen
 // line 41: wrong argument count in call to typeval{main.T}.g; want 1 got 0
 
-// GoTypeCheckError:
-// line 18
-// line 19
-// line 24
-// line 25
-// line 31
-// line 36
-// line 37
-// line 41
-
 // GnoWordingDiffers:
 // line 36: gc expects: undefined|pointer to interface; gno: should not happen
 // line 37: gc expects: undefined|pointer to interface; gno: should not happen

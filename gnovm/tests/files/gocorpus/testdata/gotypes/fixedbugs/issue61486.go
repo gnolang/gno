@@ -8,13 +8,4 @@ func _(s uint) {
 	_ = min(1 << s)
 }
 
-// GnoPreprocessError:
-// line 8: name min not declared
-
-// GoBuildError:
-// line 8
-
-// GoTypeCheckError:
-// line 8
-
-// Verdict: Clean compile
+// Verdict: Unsupported gc-lang-pin: version-gating: min/max builtins (Go 1.21) not supported in Gno

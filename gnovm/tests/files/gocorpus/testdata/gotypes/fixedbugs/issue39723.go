@@ -8,4 +8,4 @@ package p
 // be a type parameter, for instance.
 func _[A interface{ ~int }, B A /* ERROR "cannot use a type parameter as constraint" */ ]() {}
 
-// Verdict: Unsupported generics: generics not supported in Gno
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9

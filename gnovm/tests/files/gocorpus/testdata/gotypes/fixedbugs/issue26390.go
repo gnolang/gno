@@ -12,7 +12,7 @@ func (t *T) m() *A { return t }
 
 type T struct{}
 
-// GnoPreprocessError:
+// GnoError:
 // line 9: StaticBlock.Define2(A) cannot change .V
 
-// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
+// Verdict: KnownIssue compile: #6344 an alias of a type declared later panics in Define2

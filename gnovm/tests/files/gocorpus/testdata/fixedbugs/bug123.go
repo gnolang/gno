@@ -16,7 +16,4 @@ func fn(i int) int {
 // GnoError:
 // line 10: unexpected func type <untyped> bigint (gnolang.PrimitiveType)
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

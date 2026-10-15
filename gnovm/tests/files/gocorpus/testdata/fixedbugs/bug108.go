@@ -13,7 +13,4 @@ func f() {
 // GnoError:
 // line 8: 2: constant shift overflow
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

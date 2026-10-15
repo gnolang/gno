@@ -81,18 +81,6 @@ func good() {
 // line 56: cannot switch on st (struct{f func()} is not comparable)
 // line 70: cannot use interface {} as string
 
-// GoTypeCheckError:
-// line 21
-// line 25
-// line 31
-// line 38
-// line 45
-// line 50
-// line 56
-
-// GnoOverStrictError:
-// line 70: cannot use interface {} as string
-
 // GnoWordingDiffers:
 // line 21: gc expects: mismatched types string and I|incompatible types; gno: string does not implement main.I (missing method M)
 // line 25: gc expects: mismatched types I and string|incompatible types; gno: cannot use main.I as string without explicit conversion
@@ -100,4 +88,4 @@ func good() {
 // line 38: gc expects: can only compare slice a to nil|slice can only be compared to nil|cannot compare; gno: 3: []int can only be compared to nil
 // line 45: gc expects: can only compare func f to nil|func can only be compared to nil|cannot compare; gno: 3: func() can only be compared to nil
 
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 38, 45, 50, 56; over-strict: lines 70

@@ -23,9 +23,6 @@ var _ AB = AAB /* ERROR "ambiguous selector AAB.a" */ {}
 // GnoError:
 // line 21: gno.land/p/filetest/p.AAB does not implement gno.land/p/filetest/p.AB (missing method a)
 
-// GoTypeCheckError:
-// line 21
-
 // GnoWordingDiffers:
 // line 21: gc expects: ambiguous selector AAB.a; gno: gno.land/p/filetest/p.AAB does not implement gno.land/p/filetest/p.AB (missing method a)
 

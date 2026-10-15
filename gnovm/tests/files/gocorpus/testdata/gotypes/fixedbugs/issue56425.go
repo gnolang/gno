@@ -7,7 +7,7 @@ package p
 const s float32 = 0
 var _ = 0 << s
 
-// GnoPreprocessError:
+// GnoError:
 // line 8: invalid operation: invalid shift count: (const (0 float32))
 
-// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
+// Verdict: KnownIssue compile: #6344 an untyped float constant shift count representable as uint is rejected

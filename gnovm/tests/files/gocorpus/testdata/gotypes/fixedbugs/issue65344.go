@@ -18,19 +18,4 @@ func _() {
 	_ = C + V
 }
 
-// GnoError:
-// line 10: cannot convert 0 to type gno.land/p/filetest/p.T1: gno.land/p/filetest/p.T1 refers to itself
-
-// GoTypeCheckError:
-// line 7
-// line 10
-// line 12
-
-// GoTypesOnly:
-// line 7: gc expects: C is not a type
-// line 12: gc expects: V is not a type
-
-// GnoWordingDiffers:
-// line 10: gc expects: cannot convert 0 (untyped int constant) to type T1; gno: cannot convert 0 to type gno.land/p/filetest/p.T1: gno.land/p/filetest/p.T1 refers to itself
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7, 10, 12

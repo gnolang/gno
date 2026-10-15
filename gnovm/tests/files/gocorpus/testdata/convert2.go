@@ -349,32 +349,30 @@ func _() {
 // line 149: cannot convert u<VPBlock(1,5)> (of type struct{f func(main[main/convert2.go:129:1-152:2].E)}) to type main[main/convert2.go:129:1-152:2].S
 // line 150: cannot use struct{f func(main[main/convert2.go:129:1-152:2].E)} as struct{f func(struct{x int})}
 // line 151: cannot convert u<VPBlock(1,5)> (of type struct{f func(main[main/convert2.go:129:1-152:2].E)}) to type main[main/convert2.go:129:1-152:2].T
-// line 163: cannot use *main[main/convert2.go:156:1-170:2].T as *main[main/convert2.go:156:1-170:2].S
-// line 164: cannot use *struct{} as *main[main/convert2.go:156:1-170:2].S
-// line 168: cannot use *struct{} as *main[main/convert2.go:156:1-170:2].T
-// line 183: cannot use *main[main/convert2.go:172:1-190:2].T as *main[main/convert2.go:172:1-190:2].S
-// line 184: cannot use *struct{x int} as *main[main/convert2.go:172:1-190:2].S
-// line 188: cannot use *struct{x int} as *main[main/convert2.go:172:1-190:2].T
-// line 204: cannot use *main[main/convert2.go:192:1-211:2].T as *main[main/convert2.go:192:1-211:2].S
-// line 205: cannot use *struct{x main[main/convert2.go:192:1-211:2].E} as *main[main/convert2.go:192:1-211:2].S
-// line 209: cannot use *struct{x main[main/convert2.go:192:1-211:2].E} as *main[main/convert2.go:192:1-211:2].T
-// line 232: cannot use *main[main/convert2.go:213:1-239:2].T as *main[main/convert2.go:213:1-239:2].S
-// line 233: cannot use *struct{x struct{x int}} as *main[main/convert2.go:213:1-239:2].S
-// line 237: cannot use *struct{x struct{x int}} as *main[main/convert2.go:213:1-239:2].T
-// line 258: cannot use *main[main/convert2.go:241:1-265:2].T as *main[main/convert2.go:241:1-265:2].S
-// line 259: cannot use *struct{x main[main/convert2.go:241:1-265:2].E2} as *main[main/convert2.go:241:1-265:2].S
+// line 163: cannot use main[main/convert2.go:156:1-170:2].T as main[main/convert2.go:156:1-170:2].S without explicit conversion
+// line 183: cannot use main[main/convert2.go:172:1-190:2].T as main[main/convert2.go:172:1-190:2].S without explicit conversion
+// line 184: cannot use struct{x int} as struct{x int}: struct tags differ
+// line 188: cannot use struct{x int} as struct{x int}: struct tags differ
+// line 204: cannot use main[main/convert2.go:192:1-211:2].T as main[main/convert2.go:192:1-211:2].S without explicit conversion
+// line 205: cannot use struct{x main[main/convert2.go:192:1-211:2].E} as struct{x main[main/convert2.go:192:1-211:2].E}: struct tags differ
+// line 209: cannot use struct{x main[main/convert2.go:192:1-211:2].E} as struct{x main[main/convert2.go:192:1-211:2].E}: struct tags differ
+// line 232: cannot use main[main/convert2.go:213:1-239:2].T as main[main/convert2.go:213:1-239:2].S without explicit conversion
+// line 233: cannot use struct{x struct{x int}} as struct{x struct{x int}}: struct tags differ
+// line 237: cannot use struct{x struct{x int}} as struct{x struct{x int}}: struct tags differ
+// line 258: cannot use main[main/convert2.go:241:1-265:2].T as main[main/convert2.go:241:1-265:2].S without explicit conversion
+// line 259: cannot use struct{x main[main/convert2.go:241:1-265:2].E2} as struct{x main[main/convert2.go:241:1-265:2].E1}
 // line 261: cannot convert t<VPBlock(1,5)> (of type *main[main/convert2.go:241:1-265:2].T) to type *main[main/convert2.go:241:1-265:2].S
 // line 262: cannot convert u<VPBlock(1,6)> (of type *struct{x main[main/convert2.go:241:1-265:2].E2}) to type *main[main/convert2.go:241:1-265:2].S
-// line 263: cannot use *struct{x main[main/convert2.go:241:1-265:2].E2} as *main[main/convert2.go:241:1-265:2].T
-// line 283: cannot use *main[main/convert2.go:267:1-290:2].T as *main[main/convert2.go:267:1-290:2].S
-// line 284: cannot use *struct{f func(main[main/convert2.go:267:1-290:2].E)} as *main[main/convert2.go:267:1-290:2].S
+// line 263: cannot use struct{x main[main/convert2.go:241:1-265:2].E2} as struct{x main[main/convert2.go:241:1-265:2].E2}: struct tags differ
+// line 283: cannot use main[main/convert2.go:267:1-290:2].T as main[main/convert2.go:267:1-290:2].S without explicit conversion
+// line 284: cannot use struct{f func(main[main/convert2.go:267:1-290:2].E)} as struct{f func(struct{x int})}
 // line 287: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:267:1-290:2].E)}) to type *main[main/convert2.go:267:1-290:2].S
-// line 288: cannot use *struct{f func(main[main/convert2.go:267:1-290:2].E)} as *main[main/convert2.go:267:1-290:2].T
+// line 288: cannot use struct{f func(main[main/convert2.go:267:1-290:2].E)} as struct{f func(struct{x int})}
 // line 289: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:267:1-290:2].E)}) to type *main[main/convert2.go:267:1-290:2].T
-// line 308: cannot use *main[main/convert2.go:292:1-315:2].T as *main[main/convert2.go:292:1-315:2].S
-// line 309: cannot use *struct{f func(main[main/convert2.go:292:1-315:2].E)} as *main[main/convert2.go:292:1-315:2].S
+// line 308: cannot use main[main/convert2.go:292:1-315:2].T as main[main/convert2.go:292:1-315:2].S without explicit conversion
+// line 309: cannot use struct{f func(main[main/convert2.go:292:1-315:2].E)} as struct{f func(*struct{x int})}
 // line 312: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:292:1-315:2].E)}) to type *main[main/convert2.go:292:1-315:2].S
-// line 313: cannot use *struct{f func(main[main/convert2.go:292:1-315:2].E)} as *main[main/convert2.go:292:1-315:2].T
+// line 313: cannot use struct{f func(main[main/convert2.go:292:1-315:2].E)} as struct{f func(*struct{x int})}
 // line 314: cannot convert u<VPBlock(1,5)> (of type *struct{f func(main[main/convert2.go:292:1-315:2].E)}) to type *main[main/convert2.go:292:1-315:2].T
 // line 319: cannot convert s<VPBlock(1,0)> (of type []uint8) to type [4]uint8
 // line 320: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *[4]uint8
@@ -382,63 +380,6 @@ func _() {
 // line 324: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *main[main/convert2.go:317:1-329:2].A
 // line 327: cannot convert s<VPBlock(1,0)> (of type []uint8) to type main[main/convert2.go:317:1-329:2].P
 // line 328: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *main[main/convert2.go:317:1-329:2].P
-
-// GoTypeCheckError:
-// line 25
-// line 45
-// line 46
-// line 50
-// line 66
-// line 67
-// line 71
-// line 94
-// line 95
-// line 99
-// line 120
-// line 121
-// line 123
-// line 124
-// line 125
-// line 145
-// line 146
-// line 149
-// line 150
-// line 151
-// line 163
-// line 164
-// line 168
-// line 183
-// line 184
-// line 188
-// line 204
-// line 205
-// line 209
-// line 232
-// line 233
-// line 237
-// line 258
-// line 259
-// line 261
-// line 262
-// line 263
-// line 283
-// line 284
-// line 287
-// line 288
-// line 289
-// line 308
-// line 309
-// line 312
-// line 313
-// line 314
-// line 319
-// line 323
-// line 328
-
-// GnoOverStrictError:
-// line 320: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *[4]uint8
-// line 324: cannot convert s<VPBlock(1,0)> (of type []uint8) to type *main[main/convert2.go:317:1-329:2].A
-// line 327: cannot convert s<VPBlock(1,0)> (of type []uint8) to type main[main/convert2.go:317:1-329:2].P
 
 // GnoWordingDiffers:
 // line 25: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:18:1-32:2].T as main[main/convert2.go:18:1-32:2].S without explicit conversion
@@ -457,26 +398,24 @@ func _() {
 // line 145: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:129:1-152:2].T as main[main/convert2.go:129:1-152:2].S without explicit conversion
 // line 146: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{f func(main[main/convert2.go:129:1-152:2].E)} as struct{f func(struct{x int})}
 // line 150: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{f func(main[main/convert2.go:129:1-152:2].E)} as struct{f func(struct{x int})}
-// line 163: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *main[main/convert2.go:156:1-170:2].T as *main[main/convert2.go:156:1-170:2].S
-// line 164: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{} as *main[main/convert2.go:156:1-170:2].S
-// line 168: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{} as *main[main/convert2.go:156:1-170:2].T
-// line 183: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *main[main/convert2.go:172:1-190:2].T as *main[main/convert2.go:172:1-190:2].S
-// line 184: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{x int} as *main[main/convert2.go:172:1-190:2].S
-// line 188: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{x int} as *main[main/convert2.go:172:1-190:2].T
-// line 204: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *main[main/convert2.go:192:1-211:2].T as *main[main/convert2.go:192:1-211:2].S
-// line 205: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{x main[main/convert2.go:192:1-211:2].E} as *main[main/convert2.go:192:1-211:2].S
-// line 209: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{x main[main/convert2.go:192:1-211:2].E} as *main[main/convert2.go:192:1-211:2].T
-// line 232: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *main[main/convert2.go:213:1-239:2].T as *main[main/convert2.go:213:1-239:2].S
-// line 233: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{x struct{x int}} as *main[main/convert2.go:213:1-239:2].S
-// line 237: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{x struct{x int}} as *main[main/convert2.go:213:1-239:2].T
-// line 258: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *main[main/convert2.go:241:1-265:2].T as *main[main/convert2.go:241:1-265:2].S
-// line 259: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{x main[main/convert2.go:241:1-265:2].E2} as *main[main/convert2.go:241:1-265:2].S
-// line 263: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{x main[main/convert2.go:241:1-265:2].E2} as *main[main/convert2.go:241:1-265:2].T
-// line 283: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *main[main/convert2.go:267:1-290:2].T as *main[main/convert2.go:267:1-290:2].S
-// line 284: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{f func(main[main/convert2.go:267:1-290:2].E)} as *main[main/convert2.go:267:1-290:2].S
-// line 288: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{f func(main[main/convert2.go:267:1-290:2].E)} as *main[main/convert2.go:267:1-290:2].T
-// line 308: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *main[main/convert2.go:292:1-315:2].T as *main[main/convert2.go:292:1-315:2].S
-// line 309: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{f func(main[main/convert2.go:292:1-315:2].E)} as *main[main/convert2.go:292:1-315:2].S
-// line 313: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use *struct{f func(main[main/convert2.go:292:1-315:2].E)} as *main[main/convert2.go:292:1-315:2].T
+// line 163: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:156:1-170:2].T as main[main/convert2.go:156:1-170:2].S without explicit conversion
+// line 183: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:172:1-190:2].T as main[main/convert2.go:172:1-190:2].S without explicit conversion
+// line 184: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{x int} as struct{x int}: struct tags differ
+// line 188: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{x int} as struct{x int}: struct tags differ
+// line 204: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:192:1-211:2].T as main[main/convert2.go:192:1-211:2].S without explicit conversion
+// line 205: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{x main[main/convert2.go:192:1-211:2].E} as struct{x main[main/convert2.go:192:1-211:2].E}: struct tags differ
+// line 209: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{x main[main/convert2.go:192:1-211:2].E} as struct{x main[main/convert2.go:192:1-211:2].E}: struct tags differ
+// line 232: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:213:1-239:2].T as main[main/convert2.go:213:1-239:2].S without explicit conversion
+// line 233: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{x struct{x int}} as struct{x struct{x int}}: struct tags differ
+// line 237: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{x struct{x int}} as struct{x struct{x int}}: struct tags differ
+// line 258: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:241:1-265:2].T as main[main/convert2.go:241:1-265:2].S without explicit conversion
+// line 259: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{x main[main/convert2.go:241:1-265:2].E2} as struct{x main[main/convert2.go:241:1-265:2].E1}
+// line 263: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{x main[main/convert2.go:241:1-265:2].E2} as struct{x main[main/convert2.go:241:1-265:2].E2}: struct tags differ
+// line 283: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:267:1-290:2].T as main[main/convert2.go:267:1-290:2].S without explicit conversion
+// line 284: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{f func(main[main/convert2.go:267:1-290:2].E)} as struct{f func(struct{x int})}
+// line 288: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{f func(main[main/convert2.go:267:1-290:2].E)} as struct{f func(struct{x int})}
+// line 308: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use main[main/convert2.go:292:1-315:2].T as main[main/convert2.go:292:1-315:2].S without explicit conversion
+// line 309: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{f func(main[main/convert2.go:292:1-315:2].E)} as struct{f func(*struct{x int})}
+// line 313: gc expects: cannot use .* in assignment|incompatible type; gno: cannot use struct{f func(main[main/convert2.go:292:1-315:2].E)} as struct{f func(*struct{x int})}
 
-// Verdict: KnownIssue errorcheck: 3 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 46, 50, 67, 71, 95, 99, 125, 164, 168, 184, 188, 205, 209, 233, 237, 263; over-strict: lines 319, 320, 323, 324, 327

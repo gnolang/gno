@@ -133,9 +133,6 @@ func f() {
 // line 36: final index required in 3-index slice
 // line 37: middle index required in 3-index slice
 
-// GoTypeCheckError:
-// line 20
-
 // ParseBlocked:
 // line 38: gc expects: middle index required in 3-index slice|invalid slice indices
 // line 46: gc expects: 3-index slice of string | middle index required in 3-index slice | final index required in 3-index slice

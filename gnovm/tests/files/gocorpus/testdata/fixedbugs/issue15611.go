@@ -19,9 +19,6 @@ const (
 	_ = '
 	_ = '
 
-// GoTypeCheckError:
-// line 15
-
 // ParseBlocked:
 // line 11: gc expects: newline in character literal|newline in rune literal
 // line 12: gc expects: invalid character literal \(missing closing '\)|rune literal not terminated

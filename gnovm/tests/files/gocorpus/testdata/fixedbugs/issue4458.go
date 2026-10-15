@@ -19,10 +19,16 @@ func main() {
 	(**T).foo(&pav) // ERROR "no method .*foo|requires named type or pointer to named|undefined"
 }
 
-// GoTypeCheckError:
-// line 19
+// GnoError:
+// line 19: expected block type value path but got VPInvalid:
+// --- preprocess stack ---
+// stack 2: func main/issue4458.go:16:1-20:2
+// ------------------------
 
-// GoTypesOnly:
-// line 19: gc expects: no method .*foo|requires named type or pointer to named|undefined
+// GnoWordingDiffers:
+// line 19: gc expects: no method .*foo|requires named type or pointer to named|undefined; gno: expected block type value path but got VPInvalid:
+// --- preprocess stack ---
+// stack 2: func main/issue4458.go:16:1-20:2
+// ------------------------
 
 // Verdict: Clean errorcheck

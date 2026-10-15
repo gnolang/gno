@@ -13,7 +13,4 @@ var mult [3][...]byte = [3][5]byte{}	// ERROR "\.\.\."
 // GnoError:
 // line 11: invalid use of [...] array (outside a composite literal)
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

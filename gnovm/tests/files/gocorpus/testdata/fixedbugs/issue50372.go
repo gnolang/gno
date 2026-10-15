@@ -31,9 +31,6 @@ func _(s chan int) {
 // GnoError:
 // line 16: expected at most 2 expressions
 
-// GoTypeCheckError:
-// line 16
-
 // ParseBlocked:
 // line 17: gc expects: range clause permits at most two iteration variables
 // line 26: gc expects: range over .* permits only one iteration variable

@@ -11,7 +11,4 @@ func main() {
 	const ca = len(a)
 }
 
-// GnoPreprocessError:
-// line 10: declared and not used: a
-
-// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
+// Verdict: Clean compile

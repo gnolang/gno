@@ -16,9 +16,4 @@ var v3 = S{ make(map[uint]int) }	// ERROR "cannot|illegal|incompatible|wrong"
 // line 11: cannot use map[int]int as map[main.I]int
 // line 12: cannot use map[uint]int as map[main.I]int
 
-// GoTypeCheckError:
-// line 10
-// line 11
-// line 12
-
 // Verdict: Clean errorcheck

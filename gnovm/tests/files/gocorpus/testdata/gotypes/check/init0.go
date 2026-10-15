@@ -127,47 +127,6 @@ var x12 /* ERROR "initialization cycle for x12" */ = t1.m
 // line 97: initialization cycle: x11 refers to T1.m refers to x11
 // line 106: initialization cycle: x12 refers to T2.m refers to x12
 
-// GoTypeCheckError:
-// line 11
-// line 13
-// line 14
-// line 17
-// line 18
-// line 19
-// line 23
-// line 25
-// line 26
-// line 29
-// line 30
-// line 31
-// line 36
-// line 38
-// line 39
-// line 42
-// line 43
-// line 44
-// line 48
-// line 50
-// line 51
-// line 54
-// line 55
-// line 56
-// line 64
-// line 65
-// line 70
-// line 71
-// line 73
-// line 74
-// line 75
-// line 76
-// line 80
-// line 82
-// line 84
-// line 95
-// line 97
-// line 103
-// line 106
-
 // GnoWordingDiffers:
 // line 11: gc expects: initialization cycle: s0 refers to itself; gno: invalid recursive value: s0 -> s0
 // line 13: gc expects: initialization cycle for x0; gno: invalid recursive value: x0 -> y0 -> x0
