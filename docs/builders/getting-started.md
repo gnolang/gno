@@ -273,14 +273,15 @@ network dropdown and every `gnokey` command's `-remote` and
 | Testnet    | `onyx-1`     | `https://rpc.onyx.testnets.gno.land:443`      |
 | Mainnet    | `gnoland-1`  | `https://rpc.gno.land:443`                    |
 
-Onyx is the current testnet: it runs mainnet's code (one release candidate ahead) and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
+Onyx is the current testnet: it runs mainnet's code (each mainnet release first, as its release candidate) and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
 Examples below use **staging** because it resets on a short cadence,
 fine for a throwaway first deploy. For anything you want to keep around,
 use the current **testnet** instead; staging wipes regularly and your
 realm will disappear with it. **Mainnet** (`gnoland-1`) is the production
-network: no faucet, and token transfers start locked per Constitution
-§126 — deploying there means holding GNOT from the genesis allocation.
+network: no faucet, and token transfers, locked at launch per Constitution
+§126, have since been unlocked by GovDAO: deploying there means holding
+unlocked GNOT, from the genesis allocation or a transfer.
 
 ### 1. Get test tokens
 
