@@ -182,7 +182,7 @@ func (p *texInlineRegionParser) Parse(parent ast.Node, block text.Reader, pc par
 			return nil
 		}
 	}
-	find := func(b []byte) (int, int) { return bytes.Index(b, end), len(b) }
+	find := findDelimClose(end)
 	if flavor == flavorInline|delimiterTeX {
 		find = findDollarClose
 	}
@@ -343,6 +343,25 @@ func isEscaped(b []byte, i int) bool {
 // Following pandoc, a closing $ must not be
 // preceded by a space or an escaping backslash nor followed by a digit, so
 // "$5 and $10" stays plain text.
+func findDollarClose(b []byte) (int, int) {
+	return findClose(b, true, func(b []byte, i int) bool {
+		return b[i] == '$' && i > 0 && !util.IsSpace(b[i-1]) && !isEscaped(b, i) &&
+			!(i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9')
+	})
+}
+
+// findDelimClose returns the search for the $$, \\) or \\] closer end. It
+// keeps code spans and the links inside the expression whole, but, unlike
+// findDollarClose, does not end the expression at a "](" it did not open:
+// "$$ (0,1](x) $$" is a half-open interval, not the end of a link label.
+func findDelimClose(end []byte) closeFinder {
+	return func(b []byte) (int, int) {
+		return findClose(b, false, func(b []byte, i int) bool { return bytes.HasPrefix(b[i:], end) })
+	}
+}
+
+// findClose returns the index of the first byte of b at which closes reports
+// a closing delimiter, or -1 and the index where the search ended.
 //
 // Links are kept whole. gnoweb's links to a realm function are written
 // [label](/r/x$help&func=F), so a $ inside a link destination, or inside an
@@ -350,8 +369,9 @@ func isEscaped(b []byte, i int) bool {
 // a link label ends there: "[Send $10](/r/x$help&func=Send) ... $" has no
 // closer, so the link stays a link instead of turning into math.
 // Code spans are kept whole the same way: in "Costs $5: see `foo$bar`", the
-// $ in the code span does not close the price.
-func findDollarClose(b []byte) (int, int) {
+// $ in the code span does not close the price. stopAtLabel ends the
+// expression at a "](" that closes a label opened before it.
+func findClose(b []byte, stopAtLabel bool, closes func(b []byte, i int) bool) (int, int) {
 	labels := 0 // [ opened since the start of the expression
 	depth := 0  // inside a link destination, its parenthesis nesting
 	for i := 0; i < len(b); i++ {
@@ -377,8 +397,11 @@ func findDollarClose(b []byte) (int, int) {
 			}
 			if i+1 < len(b) && b[i+1] == '(' {
 				if labels == 0 {
-					// The label the expression opened in ends here.
-					return -1, i
+					if stopAtLabel {
+						// The label the expression opened in ends here.
+						return -1, i
+					}
+					continue
 				}
 				depth = 1
 				i++
@@ -388,19 +411,15 @@ func findDollarClose(b []byte) (int, int) {
 			if end := autolinkEnd(b[i:]); end > 0 {
 				i += end
 			}
-		case '$':
-			if i == 0 || util.IsSpace(b[i-1]) || isEscaped(b, i) {
-				continue
-			}
-			if i+1 < len(b) && b[i+1] >= '0' && b[i+1] <= '9' {
-				continue
-			}
-			return i, i
 		case '`':
 			// So are code spans: a $ in one is code.
 			if !isEscaped(b, i) {
 				i += codeSpanEnd(b[i:])
+				continue
 			}
+		}
+		if closes(b, i) {
+			return i, i
 		}
 	}
 	return -1, len(b)
