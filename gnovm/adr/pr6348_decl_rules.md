@@ -1,4 +1,4 @@
-# PRxxxx: declaration rules and unused names at preprocess
+# PR6348: declaration rules and unused names at preprocess
 
 ## Context
 
