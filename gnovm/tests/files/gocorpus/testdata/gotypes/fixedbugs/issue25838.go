@@ -39,7 +39,7 @@ type A struct {
 
 type funcAlias = func(B)
 
-// GnoPreprocessError:
+// GnoError:
 // line 10: invalid recursive type: e -> f -> g -> h -> i -> j -> e
 
-// Verdict: KnownIssue compile: TODO: explain the Gno bug (Gno rejects code gc + go/types accept)
+// Verdict: KnownIssue compile: #6254 a chain of type aliases is reported as a recursive type

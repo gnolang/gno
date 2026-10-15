@@ -34,9 +34,6 @@ func main() {
 // GnoError:
 // line 10: invalid package name _
 
-// GoTypeCheckError:
-// line 10
-
 // ParseBlocked:
 // line 16: gc expects: methods on non-local type
 // line 25: gc expects: cannot use .* as value

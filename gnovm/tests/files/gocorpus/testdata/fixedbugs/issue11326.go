@@ -40,16 +40,6 @@ func main() {
 // line 27: cannot convert untyped bigdec to float64 -- too close to +-Inf
 // line 28: cannot convert untyped bigdec to float64 -- too close to +-Inf
 
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 23
-// line 24
-// line 25
-// line 26
-// line 27
-// line 28
-
 // GnoWordingDiffers:
 // line 21: gc expects: 1e\+646456992 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
 // line 22: gc expects: 1e\+64645699 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf

@@ -11,7 +11,4 @@ type T T		// ERROR "recursive|cycle"
 // GnoError:
 // line 9: invalid recursive type: T -> T
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

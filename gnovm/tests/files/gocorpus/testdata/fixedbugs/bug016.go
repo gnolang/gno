@@ -20,7 +20,4 @@ fixedbugs/bug016.go:7: illegal types for operand: AS
 // GnoError:
 // line 11: invalid operation: negative shift count: (const (-3 <untyped> bigint))
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

@@ -15,7 +15,4 @@ func main() {
 // GnoError:
 // line 11: invalid operation: make([]int) expects 2 or 3 arguments; found 5
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

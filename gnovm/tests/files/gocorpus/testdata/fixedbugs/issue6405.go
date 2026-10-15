@@ -15,9 +15,6 @@ func Open() (int, error) {
 // GnoError:
 // line 12: name OpenFile not declared
 
-// GoTypeCheckError:
-// line 12
-
 // GnoWordingDiffers:
 // line 12: gc expects: undefined: OpenFile; gno: name OpenFile not declared
 

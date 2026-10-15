@@ -19,11 +19,6 @@ func _() {
 // line 11: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 // line 13: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 
-// GoTypeCheckError:
-// line 9
-// line 11
-// line 13
-
 // GnoWordingDiffers:
 // line 9: gc expects: yield func returns user-defined boolean, not bool; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 // line 11: gc expects: yield func returns user-defined boolean, not bool; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind

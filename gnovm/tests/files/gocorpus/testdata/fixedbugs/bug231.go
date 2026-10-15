@@ -26,7 +26,4 @@ func main() {
 // GnoError:
 // line 22: main.T does not implement main.I (main.T.m is a field, not a method)
 
-// GoTypeCheckError:
-// line 22
-
 // Verdict: Clean errorcheck

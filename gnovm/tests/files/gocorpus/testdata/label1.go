@@ -125,23 +125,6 @@ L5:
 // line 108: label on undefined
 // line 113: label dance undefined
 
-// GoTypeCheckError:
-// line 18
-// line 22
-// line 46
-// line 53
-// line 64
-// line 72
-// line 75
-// line 85
-// line 88
-// line 96
-// line 99
-// line 106
-// line 108
-// line 111
-// line 113
-
 // ParseBlocked:
 // line 18: gc expects: continue is not in a loop$|continue statement not within for
 // line 22: gc expects: continue is not in a loop$|continue statement not within for

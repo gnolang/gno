@@ -74,16 +74,6 @@ func main() {
 // line 58: no new variables on left side of :=
 // line 64: no new variables on left side of :=
 
-// GoTypeCheckError:
-// line 20
-// line 26
-// line 32
-// line 38
-// line 44
-// line 52
-// line 58
-// line 64
-
 // ParseBlocked:
 // line 26: gc expects: redeclared|cannot assign|incompatible|cannot use
 // line 32: gc expects: redeclared|cannot assign|incompatible|cannot use

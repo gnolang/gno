@@ -9,7 +9,4 @@ type T /* ERROR "invalid recursive type" */ T.x
 // GnoError:
 // line 7: invalid recursive type: T -> T
 
-// GoTypeCheckError:
-// line 7
-
 // Verdict: Clean errorcheck

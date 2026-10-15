@@ -10,9 +10,6 @@ var _ = string(1 /* ERRORx `shifted operand 1 .* must be integer` */ << s)
 // GnoError:
 // line 8: operator << not defined on: StringKind
 
-// GoTypeCheckError:
-// line 8
-
 // GnoWordingDiffers:
 // line 8: gc expects: shifted operand 1 .* must be integer; gno: operator << not defined on: StringKind
 

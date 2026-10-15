@@ -24,14 +24,6 @@ const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|floating-
 // line 16: cannot convert untyped bigdec to integer -- 1.00000001 not an exact integer
 // line 17: cannot convert untyped bigdec to integer -- 0.00000001 not an exact integer
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 14
-// line 15
-// line 16
-// line 17
-
 // GnoWordingDiffers:
 // line 12: gc expects: constant 1.1 truncated to integer|floating-point constant truncated to integer|truncated to int|truncated; gno: cannot convert untyped bigdec to integer -- 1.1 not an exact integer
 // line 13: gc expects: overflows int|integer constant overflow|truncated to int|truncated; gno: bigint overflows target kind

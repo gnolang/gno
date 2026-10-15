@@ -23,8 +23,4 @@ func _(x any) {
 // line 10: fallthrough statement out of place
 // line 17: cannot fallthrough in type switch
 
-// GoTypeCheckError:
-// line 10
-// line 17
-
 // Verdict: Clean errorcheck

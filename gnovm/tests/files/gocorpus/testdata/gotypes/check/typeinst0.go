@@ -60,9 +60,6 @@ type self2[P any] *self2[P] // this is ok
 // GnoError:
 // line 35: expected type argument list
 
-// GoTypeCheckError:
-// line 35
-
 // ParseBlocked:
 // line 12: gc expects: cannot use a type parameter as RHS in type declaration
 // line 23: gc expects: cannot use generic type

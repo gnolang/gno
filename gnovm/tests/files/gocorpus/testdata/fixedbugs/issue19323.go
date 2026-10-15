@@ -22,10 +22,6 @@ func f2() {
 // line 12: cannot slice variable of type ()
 // line 18: cannot slice variable of type ([]uint8,[]uint8)
 
-// GoTypeCheckError:
-// line 12
-// line 18
-
 // GnoWordingDiffers:
 // line 12: gc expects: g.* used as value|attempt to slice object that is not; gno: cannot slice variable of type ()
 // line 18: gc expects: multiple-value g2.* in single-value context|attempt to slice object that is not|2\-valued g; gno: cannot slice variable of type ([]uint8,[]uint8)

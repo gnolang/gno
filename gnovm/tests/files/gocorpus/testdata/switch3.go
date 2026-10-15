@@ -73,27 +73,19 @@ func good() {
 
 // GnoError:
 // line 21: string does not implement main.I (missing method M)
-// line 25: string does not implement main.I (missing method M)
+// line 25: cannot use main.I as string without explicit conversion
 // line 29: 3: map[int]int can only be compared to nil
 // line 36: 3: []int can only be compared to nil
 // line 43: 3: func() can only be compared to nil
 // line 50: cannot switch on ar ([4]func() is not comparable)
 // line 56: cannot switch on st (struct{f func()} is not comparable)
-
-// GoTypeCheckError:
-// line 21
-// line 25
-// line 31
-// line 38
-// line 45
-// line 50
-// line 56
+// line 70: cannot use interface {} as string
 
 // GnoWordingDiffers:
 // line 21: gc expects: mismatched types string and I|incompatible types; gno: string does not implement main.I (missing method M)
-// line 25: gc expects: mismatched types I and string|incompatible types; gno: string does not implement main.I (missing method M)
+// line 25: gc expects: mismatched types I and string|incompatible types; gno: cannot use main.I as string without explicit conversion
 // line 31: gc expects: can only compare map m to nil|map can only be compared to nil|cannot compare; gno: 3: map[int]int can only be compared to nil
 // line 38: gc expects: can only compare slice a to nil|slice can only be compared to nil|cannot compare; gno: 3: []int can only be compared to nil
 // line 45: gc expects: can only compare func f to nil|func can only be compared to nil|cannot compare; gno: 3: func() can only be compared to nil
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 38, 45, 50, 56; over-strict: lines 70

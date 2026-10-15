@@ -14,7 +14,4 @@ func main() {
 // GnoError:
 // line 10: unexpected composite lit type string
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

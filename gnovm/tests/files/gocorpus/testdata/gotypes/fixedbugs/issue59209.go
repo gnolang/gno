@@ -14,10 +14,6 @@ type (
 // line 8: bigint overflows target kind
 // line 10: cannot convert untyped bigdec to integer -- 1.1 not an exact integer
 
-// GoTypeCheckError:
-// line 8
-// line 10
-
 // GnoWordingDiffers:
 // line 8: gc expects: invalid array length; gno: bigint overflows target kind
 // line 10: gc expects: must be integer; gno: cannot convert untyped bigdec to integer -- 1.1 not an exact integer

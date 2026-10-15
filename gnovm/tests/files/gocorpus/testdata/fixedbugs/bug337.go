@@ -20,7 +20,4 @@ func main() {
 // GnoError:
 // line 17: len("foo") (value of type int) is not used
 
-// GoTypeCheckError:
-// line 17
-
 // Verdict: Clean errorcheck

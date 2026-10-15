@@ -569,9 +569,6 @@ func issue6344() {
 // line 24: middle index required in 3-index slice
 // line 90: middle index required in 3-index slice
 
-// GoTypeCheckError:
-// line 22
-
 // ParseBlocked:
 // line 10: gc expects: cannot index
 // line 11: gc expects: cannot index

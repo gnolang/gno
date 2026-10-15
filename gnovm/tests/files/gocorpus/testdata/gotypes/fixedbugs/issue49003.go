@@ -12,9 +12,6 @@ func f(s string) int {
 // GnoError:
 // line 7: 2: [function "f" does not terminate]
 
-// GoTypeCheckError:
-// line 10
-
 // GnoWordingDiffers:
 // line 10: gc expects: missing return; gno: 2: [function "f" does not terminate]
 

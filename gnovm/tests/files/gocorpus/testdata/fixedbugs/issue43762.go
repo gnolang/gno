@@ -15,11 +15,6 @@ var _ = true == '\n' // ERROR "invalid operation: (cannot compare true)|(true) =
 // line 10: invalid operation: (mismatched types <untyped> bool and <untyped> int32)
 // line 11: invalid operation: (mismatched types <untyped> bool and <untyped> int32)
 
-// GoTypeCheckError:
-// line 9
-// line 10
-// line 11
-
 // GnoWordingDiffers:
 // line 9: gc expects: invalid operation: (cannot compare true)|(true) == '\\\\' \(mismatched types untyped bool and untyped rune\); gno: invalid operation: (mismatched types <untyped> bool and <untyped> int32)
 // line 10: gc expects: invalid operation: (cannot compare true)|(true) == '\\'' \(mismatched types untyped bool and untyped rune\); gno: invalid operation: (mismatched types <untyped> bool and <untyped> int32)

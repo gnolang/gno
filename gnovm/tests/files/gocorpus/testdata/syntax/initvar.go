@@ -18,9 +18,6 @@ func main() {
 // line 10: var declaration not allowed in if initializer
 // line 12: expected operand, found 'var'
 
-// GoTypeCheckError:
-// line 10
-
 // ParseBlocked:
 // line 14: gc expects: var declaration not allowed in for initializer
 

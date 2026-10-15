@@ -19,9 +19,6 @@ func (t T) Name() string {
 // GnoError:
 // line 13: struct type struct{GlobalName string} has no field Name
 
-// GoTypeCheckError:
-// line 13
-
 // GnoWordingDiffers:
 // line 13: gc expects: unknown field 'Name' in struct literal of type T|unknown field .*Name.* in .*T; gno: struct type struct{GlobalName string} has no field Name
 

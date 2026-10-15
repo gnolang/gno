@@ -51,21 +51,6 @@ var (
 // line 35: operator + not defined on: InterfaceKind
 // line 36: operator + not defined on: InterfaceKind
 
-// GoTypeCheckError:
-// line 15
-// line 16
-// line 17
-// line 21
-// line 22
-// line 23
-// line 27
-// line 28
-// line 32
-// line 33
-// line 34
-// line 35
-// line 36
-
 // GnoWordingDiffers:
 // line 15: gc expects: invalid operation.*mismatched types.*untyped string and bool; gno: operator + not defined on: BoolKind
 // line 16: gc expects: invalid operation.*mismatched types.*untyped string and int; gno: cannot use untyped string as IntKind

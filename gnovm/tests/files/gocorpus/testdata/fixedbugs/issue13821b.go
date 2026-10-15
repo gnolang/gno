@@ -31,14 +31,6 @@ var x8 = b && !B2(true) // ERROR "mismatched types B and B2|incompatible types"
 // line 22: invalid operation: b2<VPBlock(2,3)> && x2<VPBlock(2,5)> (mismatched types gno.land/p/filetest/p.B2 and gno.land/p/filetest/p.B)
 // line 24: invalid operation: b<VPBlock(2,2)> && (const (false gno.land/p/filetest/p.B2)) (mismatched types gno.land/p/filetest/p.B and gno.land/p/filetest/p.B2)
 
-// GoTypeCheckError:
-// line 18
-// line 19
-// line 20
-// line 21
-// line 22
-// line 24
-
 // GnoWordingDiffers:
 // line 18: gc expects: mismatched types B and B2|incompatible types; gno: invalid operation: b<VPBlock(2,2)> && b2<VPBlock(2,3)> (mismatched types gno.land/p/filetest/p.B and gno.land/p/filetest/p.B2)
 // line 19: gc expects: mismatched types B and B2|incompatible types; gno: invalid operation: x1<VPBlock(2,4)> && b2<VPBlock(2,3)> (mismatched types gno.land/p/filetest/p.B and gno.land/p/filetest/p.B2)

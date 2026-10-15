@@ -24,14 +24,6 @@ var _ = f(6e5518446744 /* ERROR "malformed constant" */ )
 // line 14: invalid decimal constant: 6e5518446744
 // line 17: invalid decimal constant: 6e5518446744
 
-// GoTypeCheckError:
-// line 7
-// line 8
-// line 10
-// line 11
-// line 14
-// line 17
-
 // GnoWordingDiffers:
 // line 7: gc expects: malformed constant; gno: invalid decimal constant: 6e5518446744
 // line 8: gc expects: malformed constant; gno: invalid decimal constant: 6e5518446744
