@@ -17,12 +17,4 @@ func main() {
 	}
 }
 
-// GoTypeCheckError:
-// line 14
-// line 16
-
-// GoTypesOnly:
-// line 14: gc expects: type
-// line 16: gc expects: type interface \{\}|reference to undefined field or method|interface with no methods|undefined
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 16

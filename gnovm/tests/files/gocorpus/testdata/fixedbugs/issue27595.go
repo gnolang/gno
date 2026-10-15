@@ -23,9 +23,4 @@ func oneResult() int {
 // line 10: assignment mismatch: 3 variable(s) but twoResults<VPBlock(2,6)>() returns 2 value(s)
 // line 11: assignment mismatch: 2 variable(s) but oneResult<VPBlock(2,7)>() returns 1 value(s)
 
-// GoTypeCheckError:
-// line 9
-// line 10
-// line 11
-
 // Verdict: Clean errorcheck

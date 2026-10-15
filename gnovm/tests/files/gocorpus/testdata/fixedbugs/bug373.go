@@ -31,10 +31,4 @@ func h(x interface{}) {
 	}
 }
 
-// GoTypeCheckError:
-// line 12
-
-// GoTypesOnly:
-// line 12: gc expects: declared and not used
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12

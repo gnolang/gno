@@ -20,12 +20,4 @@ func f2() {
 	println(a)
 }
 
-// GoTypeCheckError:
-// line 10
-// line 17
-
-// GoTypesOnly:
-// line 10: gc expects: a.* repeated on left side of :=|a redeclared
-// line 17: gc expects: a.* repeated on left side of :=|a redeclared
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10, 17

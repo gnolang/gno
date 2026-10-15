@@ -22,7 +22,4 @@ func main() {
 // GnoError:
 // line 18: invalid operation: (const ("B" main.N)) + (const ("C" main.M)) (mismatched types main.N and main.M)
 
-// GoTypeCheckError:
-// line 18
-
 // Verdict: Clean errorcheck

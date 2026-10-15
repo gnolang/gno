@@ -23,12 +23,4 @@ var matchAny = matcher(matchList) // ERROR "initialization cycle|depends upon it
 
 func matchAnyFn(s *S) (err E) { return matchAny(s) }
 
-// GnoError:
-// line 22: initialization cycle: matchAny refers to matchList refers to matchAnyFn refers to matchAny
-
-// GoTypeCheckError:
-// line 18
-// line 22
-// line 24
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22

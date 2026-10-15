@@ -13,7 +13,4 @@ func f() {
 // GnoError:
 // line 10: expected selector or type assertion, found .3
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

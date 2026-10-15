@@ -16,8 +16,4 @@ var c = map[int]int{x: 1}
 // line 11: slice/array literals may not contain non-const keys
 // line 12: slice/array literals may not contain non-const keys
 
-// GoTypeCheckError:
-// line 11
-// line 12
-
 // Verdict: Clean errorcheck

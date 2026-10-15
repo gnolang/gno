@@ -36,11 +36,4 @@ var _ = map[I]int{N(2): 1, N(2): 1} // ERROR "duplicate key"
 // line 19: duplicate key ("a" gno.land/p/filetest/p.S) in map literal
 // line 30: duplicate key (2 gno.land/p/filetest/p.N) in map literal
 
-// GoTypeCheckError:
-// line 11
-// line 13
-// line 17
-// line 19
-// line 30
-
 // Verdict: Clean errorcheck

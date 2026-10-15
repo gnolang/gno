@@ -27,15 +27,4 @@ func G() {
 // GnoError:
 // line 14: 8: StaticBlock.Define(t) requires non-nil tv.T; use Reserve() for placeholder slots
 
-// GoTypeCheckError:
-// line 13
-// line 22
-
-// GoTypesOnly:
-// line 13: gc expects: cannot type switch on non-interface value|not an interface
-// line 22: gc expects: cannot type switch on non-interface value|declared and not used|not an interface
-
-// GnoOverStrictError:
-// line 14: 8: StaticBlock.Define(t) requires non-nil tv.T; use Reserve() for placeholder slots
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 22; over-strict: lines 14

@@ -20,10 +20,4 @@ func main() {
 // GnoError:
 // line 13: missing condition in if statement
 
-// GoTypeCheckError:
-// line 13
-
-// UncaughtError:
-// line 16: uncaught; gc expects: missing condition
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

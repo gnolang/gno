@@ -16,7 +16,4 @@ Bus error
 // GnoError:
 // line 9: invalid recursive type: x -> x
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

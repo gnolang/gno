@@ -20,8 +20,4 @@ func F2() bool {
 // line 12: <nil> is not comparable
 // line 16: <nil> is not comparable
 
-// GoTypeCheckError:
-// line 12
-// line 16
-
 // Verdict: Clean errorcheck

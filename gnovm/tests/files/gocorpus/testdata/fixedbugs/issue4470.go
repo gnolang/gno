@@ -19,7 +19,4 @@ func main() {
 // GnoError:
 // line 13: should not happen
 
-// GoTypeCheckError:
-// line 13
-
 // Verdict: Clean errorcheck

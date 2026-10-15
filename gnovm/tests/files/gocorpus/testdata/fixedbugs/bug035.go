@@ -16,8 +16,4 @@ func f9(a int) (i int, f float64) {
 // line 10: no new variables on left side of :=
 // line 11: no new variables on left side of :=
 
-// GoTypeCheckError:
-// line 10
-// line 11
-
 // Verdict: Clean errorcheck

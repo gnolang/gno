@@ -40,8 +40,4 @@ func main() {
 // line 34: should not happen
 // line 36: main.Start does not implement main.Inst (method Next has pointer receiver)
 
-// GoTypeCheckError:
-// line 34
-// line 36
-
 // Verdict: Clean errorcheck

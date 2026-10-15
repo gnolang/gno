@@ -14,7 +14,4 @@ func f(s string) int {
 // GnoError:
 // line 9: 2: [function "f" does not terminate]
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

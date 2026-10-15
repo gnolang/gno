@@ -19,10 +19,4 @@ var _ = c <- v // ERROR "unexpected <-|send statement used as value"
 // GnoError:
 // line 13: expected boolean expression, found simple statement (missing parentheses around composite literal?)
 
-// GoTypeCheckError:
-// line 13
-
-// UncaughtError:
-// line 17: uncaught; gc expects: unexpected <-|send statement used as value
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17

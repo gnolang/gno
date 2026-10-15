@@ -20,11 +20,4 @@ func f() {
 
 var m = map[string]F{"f": f} // ERROR "initialization cycle|depends upon itself|initialization cycle"
 
-// GnoError:
-// line 21: initialization cycle: m refers to f refers to m
-
-// GoTypeCheckError:
-// line 15
-// line 21
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 21

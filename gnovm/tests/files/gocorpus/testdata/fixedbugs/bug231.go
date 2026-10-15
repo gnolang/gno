@@ -23,10 +23,4 @@ func main() {
 	_ = i
 }
 
-// GoTypeCheckError:
-// line 22
-
-// GoTypesOnly:
-// line 22: gc expects: not a method|has no methods|does not implement I
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22

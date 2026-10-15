@@ -22,7 +22,4 @@ func b() {
 // GnoError:
 // line 14: gno.land/p/filetest/p.T (type) is not an expression
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

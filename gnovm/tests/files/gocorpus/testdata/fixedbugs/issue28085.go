@@ -32,15 +32,4 @@ func _() {
 // line 9: 2: duplicate key (0 int) in map literal
 // line 14: 2: duplicate key (0 int) in map literal
 
-// GoTypeCheckError:
-// line 11
-// line 21
-// line 22
-
-// GoTypesOnly:
-// line 22: gc expects: duplicate
-
-// GnoOverStrictError:
-// line 14: 2: duplicate key (0 int) in map literal
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22; over-strict: lines 14

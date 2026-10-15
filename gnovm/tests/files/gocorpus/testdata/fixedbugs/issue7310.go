@@ -17,13 +17,4 @@ func main() {
 // GnoError:
 // line 14: cannot use untyped bool as BigintKind
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 14
-
-// GoTypesOnly:
-// line 12: gc expects: use of untyped nil|left argument must be a slice|expects slice arguments
-// line 13: gc expects: use of untyped nil|second argument must be slice or string|expects slice arguments
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 13

@@ -25,10 +25,4 @@ func main() {
 	_ = x
 }
 
-// GoTypeCheckError:
-// line 18
-
-// GoTypesOnly:
-// line 18: gc expects: false evaluated but not used|value computed is not used|is not used
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18

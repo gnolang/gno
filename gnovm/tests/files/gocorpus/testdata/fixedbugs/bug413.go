@@ -10,10 +10,4 @@ func f(i int) int { return i }
 
 var i = func() int {a := f(i); return a}()  // ERROR "initialization cycle|depends upon itself"
 
-// GnoError:
-// line 11: initialization cycle: i refers to i
-
-// GoTypeCheckError:
-// line 11
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11

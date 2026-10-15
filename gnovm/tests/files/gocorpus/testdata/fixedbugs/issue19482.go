@@ -39,10 +39,4 @@ func bad() {
 // line 31: cannot use _ as value or type
 // line 33: cannot use _ as value or type
 
-// GoTypeCheckError:
-// line 25
-// line 27
-// line 31
-// line 33
-
 // Verdict: Clean errorcheck

@@ -8,10 +8,4 @@ package p
 
 import init "fmt" // ERROR "cannot import package as init|cannot declare init"
 
-// GoTypeCheckError:
-// line 9
-
-// GoTypesOnly:
-// line 9: gc expects: cannot import package as init|cannot declare init
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9

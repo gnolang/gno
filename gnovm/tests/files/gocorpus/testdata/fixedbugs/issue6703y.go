@@ -22,11 +22,4 @@ func pf() *T {
 
 var x = pf().pm // ERROR "initialization cycle|depends upon itself" 
 
-// GnoError:
-// line 23: initialization cycle: x refers to T.pm refers to x
-
-// GoTypeCheckError:
-// line 14
-// line 23
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23

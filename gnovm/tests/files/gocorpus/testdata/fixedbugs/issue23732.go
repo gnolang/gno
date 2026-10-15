@@ -41,14 +41,4 @@ func main() {
 	} // GC_ERROR "too few values in"
 }
 
-// GoTypeCheckError:
-// line 28
-// line 34
-// line 40
-// line 41
-
-// GoTypesOnly:
-// line 34: gc expects: too many values in|too many expressions
-// line 40: gc expects: too many values in|too many expressions
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 34, 40

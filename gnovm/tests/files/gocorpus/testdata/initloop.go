@@ -22,12 +22,4 @@ var (
 // line 15: decl node already predefined! var a<!VPInvalid(0)> int<VPInvalid(0)> = b<VPInvalid(0)>
 // line 16: decl node already predefined! var a<!VPInvalid(0)> int<VPInvalid(0)> = b<VPInvalid(0)>
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 16
-
-// GnoOverStrictError:
-// line 13: invalid recursive value: x -> a -> b -> c -> a
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 13, 15, 16

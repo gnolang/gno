@@ -20,11 +20,4 @@ var (
 	x = t.m // ERROR "initialization cycle|depends upon itself"
 )
 
-// GnoError:
-// line 20: initialization cycle: x refers to T.m refers to x
-
-// GoTypeCheckError:
-// line 13
-// line 20
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20

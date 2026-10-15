@@ -27,11 +27,4 @@ var (
 	x = g().m() // ERROR "initialization cycle|depends upon itself" 
 )
 
-// GnoError:
-// line 27: initialization cycle: x refers to T.m refers to x
-
-// GoTypeCheckError:
-// line 14
-// line 27
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 27

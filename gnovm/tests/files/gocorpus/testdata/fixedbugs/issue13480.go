@@ -45,20 +45,4 @@ func bug() {
 // line 33: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 // line 34: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 24
-// line 27
-// line 28
-// line 30
-// line 33
-// line 34
-// line 36
-
-// GoTypesOnly:
-// line 24: gc expects: compare.*to nil|operator \=\= not defined for .|cannot compare
-// line 30: gc expects: compare.*to nil|operator \=\= not defined for .|cannot compare
-// line 36: gc expects: compare.*to nil|operator \=\= not defined for .|cannot compare
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 24, 30, 36

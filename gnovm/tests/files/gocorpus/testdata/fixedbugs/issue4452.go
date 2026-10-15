@@ -15,7 +15,4 @@ func main() {
 // GnoError:
 // line 12: cannot convert IntKind to ArrayKind
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

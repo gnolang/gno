@@ -18,9 +18,4 @@ const C = A + B + 1
 // line 13: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
 // line 14: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 14
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 14

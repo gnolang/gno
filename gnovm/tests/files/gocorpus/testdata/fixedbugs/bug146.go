@@ -17,7 +17,4 @@ func main() {
 // GnoError:
 // line 13: cannot convert a<VPBlock(1,1)> (of type [1]uint8) to type main[main/bug146.go:9:1-15:2].Slice
 
-// GoTypeCheckError:
-// line 13
-
 // Verdict: Clean errorcheck
