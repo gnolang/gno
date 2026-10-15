@@ -1383,10 +1383,14 @@
 			border-top: var(--s-border);
 		}
 
+		/* On a narrow screen the actions wrap under the name rather than
+		   squeezing it to nothing. */
 		& > :where(a, div) {
 			display: flex;
+			flex-wrap: wrap;
 			justify-content: space-between;
 			align-items: center;
+			gap: var(--g-space-1) var(--g-space-3);
 			padding: var(--g-space-2);
 
 			&:hover {
@@ -1398,7 +1402,7 @@
 			}
 
 			& > a {
-				flex: 1;
+				flex: 1 1 12rem;
 				min-width: 0;
 
 				&:hover {
@@ -1408,7 +1412,14 @@
 		}
 	}
 
+	/* Flex items keep their text's width by default: let a long path
+	   shrink to its ellipsis instead of running under the actions. */
+	.c-with-icon {
+		max-width: 100%;
+	}
+
 	.name {
+		min-width: 0;
 		display: -webkit-box;
 		-webkit-line-clamp: 1;
 		-webkit-box-orient: vertical;
