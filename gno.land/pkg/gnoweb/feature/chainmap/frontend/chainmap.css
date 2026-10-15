@@ -145,18 +145,25 @@
 
 /* ===== GROUP HUES (no activity) ===== */
 /* Decoration only, telling neighboring namespaces apart. Tints only: a plain
-   surface beside them would read as "no activity". */
+   surface beside them would read as "no activity". Steps of gno green,
+   ordered so neighbours alternate light and dark. */
+.b-map__group--hue0,
+.b-map__group--hue1,
+.b-map__group--hue2,
+.b-map__group--hue3 {
+	--map-tile: color-mix(in oklab, var(--s-map-hue) var(--map-hue-step), var(--s-map-hue-ground));
+}
 .b-map__group--hue0 {
-	--map-tile: var(--s-color-bg-info-weak);
+	--map-hue-step: 20%;
 }
 .b-map__group--hue1 {
-	--map-tile: var(--s-color-bg-success-weak);
+	--map-hue-step: 70%;
 }
 .b-map__group--hue2 {
-	--map-tile: var(--s-color-bg-tip-weak);
+	--map-hue-step: 45%;
 }
 .b-map__group--hue3 {
-	--map-tile: var(--s-color-bg-note-weak);
+	--map-hue-step: 100%;
 }
 
 /* ===== ACTIVITY ===== */
