@@ -89,7 +89,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		return "", 0, diffs, &SkipError{Reason: v.Mode + ": " + v.Reason}
 	}
 	// Strip the trailing golden region (`// GnoError:` /
-	// `// GoTypeCheckError:` blocks, verdict lines) from the source
+	// `// GoBuildError:` blocks, verdict lines) from the source
 	// fed to Gno. Leaving it in would extend the file and shift the
 	// line number of any EOF-positioned error (e.g. `expected ')',
 	// found 'EOF'`), making the golden unstable across runs. Trailing
@@ -128,12 +128,11 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// THIS, never the rescued source — the rescue transforms must
 	// not be persisted (gocorpus files stay upstream-verbatim).
 	originalSource := source
-	// .gno files opt INTO Gno-vs-Go comparison by declaring at least
-	// one of `// GoOutput:` / `// GoError:` / `// Divergence:`. Without
-	// such a directive, .gno files keep their pure-Gno behavior — the
-	// 1600+ existing files are untouched.
+	// .gno files opt INTO Gno-vs-Go comparison by declaring
+	// `// GoOutput:` (or a KnownDivergence verdict). Without it, .gno
+	// files keep their pure-Gno behavior — the 1600+ existing files
+	// are untouched.
 	hasGoOptIn := dirs.First(DirectiveGoOutput) != nil ||
-		dirs.First(DirectiveGoError) != nil ||
 		verdictKind(dirs) == VerdictKnownDivergence
 	if v, ok := verdictIn(dirs); ok && v.Kind == VerdictKnownDivergence {
 		divergenceReason = v.Reason
@@ -276,25 +275,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// it. Auto-written under sync; thereafter skipped pre-dispatch.
 	if isGoFile {
 		reason := UnsupportedFeatureError(result.Error)
-		// Gno's own preprocess can stay lenient about an import it
-		// lacks — it may surface an unrelated error first (or none
-		// line-mappable) instead of "unknown import path". But if the
-		// go/types guard couldn't import a package, the file can't be
-		// type-checked in Gno's universe at all, so it's a feature gap,
-		// not a divergence to pin. (e.g. alias2.go imports `reflect`,
-		// which Gno has no stdlib for; Gno preprocess reports a
-		// package-level redeclaration instead, so the gap only shows in
-		// the guard's TypeCheckError.)
-		//
-		// Two guards keep this narrow: (1) only a normal package path
-		// counts — an invalid-import-path syntax test like `import
-		// "/foo"` also yields "unknown import path" but is a real
-		// errorcheck case to pin, not a missing stdlib; (2) a file that
-		// already pins its behavior with a native `// Error:` /
+		// Gno's preprocess may surface an unrelated error before the
+		// "unknown import path" (alias2.go imports `reflect` and gets a
+		// redeclaration error first), so also look at the import list:
+		// a stdlib Gno lacks is a feature gap, not a divergence to pin.
+		// A file pinning its behavior with a native `// Error:` /
 		// `// TypeCheckError:` directive is left alone.
 		nativePin := dirs.First(DirectiveError) != nil || dirs.First(DirectiveTypeCheckError) != nil
 		if reason == "" && !nativePin {
-			if imp := UnsupportedImport(result.TypeCheckError); imp != "" && looksLikePackagePath(imp) {
+			if imp := MissingStdlibImport(source, opts.RootDir); imp != "" {
 				reason = "unknown import path " + imp
 			}
 		}
@@ -445,9 +434,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case DirectiveTypeCheckError:
 			hasTypeCheckErrorDirective = true
 			if isGoFile {
-				// Corpus files pin the guard as `// GoTypeCheckError:`
-				// (lines only) in finalizeGoRunDivergence; sync drops
-				// this native form.
+				// Corpus files compare Gno with gc only; the native
+				// go/types block is not part of their ledger.
 				continue
 			}
 			match(dir, result.TypeCheckError)
@@ -473,7 +461,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// directive name per extension.
 	if isGoRunMode {
 		var newDirs Directives
-		newDirs, returnErr = finalizeGoRunDivergence(dirs, result.Output, result.Error, goStdout, result.TypeCheckError, returnErr, opts.Sync, isGoFile)
+		newDirs, returnErr = finalizeGoRunDivergence(dirs, result.Output, result.Error, goStdout, returnErr, opts.Sync, isGoFile)
 		if newDirs != nil {
 			dirs = newDirs
 			updated = true
@@ -499,11 +487,10 @@ func writeUnsupportedDirective(originalSource []byte, reason string) string {
 // goldenRegionStarts are the directive names that can begin the trailing
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
-	DirectiveGnoError, DirectiveGoTypeCheckError,
+	DirectiveGnoError,
 	// .go corpus files only: the run-mode goldens and the verdict line,
 	// so a rewrite leaves no stale block behind.
-	// .gno files keep TypeCheckError in the source the guard sees.
-	DirectiveGnoOutput, DirectiveGoOutput, DirectiveGoError, DirectiveTypeCheckError,
+	DirectiveGnoOutput, DirectiveGoOutput, DirectiveTypeCheckError,
 	DirectiveVerdict,
 }
 
@@ -516,8 +503,8 @@ var triageStateMarkers = []string{"Fixed", "Fixing", "Tracked"}
 
 // stripTrailingGoldenRegion removes the trailing golden region — one or
 // more blank-line-separated `//`-comment blocks each beginning with a
-// golden directive (GnoStaticIncomplete / GnoError / GoTypeCheckError) — so a
-// refresh replaces rather than appends. Returns src unchanged if the
+// golden directive (goldenRegionStarts) — so a refresh replaces rather
+// than appends. Returns src unchanged if the
 // trailing comment block isn't a golden block.
 func stripTrailingGoldenRegion(src string) string {
 	lines := strings.Split(src, "\n")
@@ -554,45 +541,6 @@ func stripTrailingGoldenRegion(src string) string {
 	return src
 }
 
-// GnoVM's own preprocess/runtime errors
-// the go/types guard's errors
-
-// recordGoTypes folds the go/types guard's per-line catches for any
-// not-yet-covered marker into goTCLines. go/types reports ALL its
-// errors in one pass (no first-error bail) and is run every pass —
-// some catches only surface AFTER neutralization (e.g. a method on a
-// non-local type, reachable only once an invalid `package _` is
-// rewritten to `package main`). First pass to catch a line wins
-// (the initial, un-neutralized run is most authoritative for the
-// lines it does reach).
-
-// GnoVM preprocess iteration — Gno's OWN static errors. Preprocess
-// bails on the first error, so neutralize that line and re-run to
-// surface the next (package decls → `package main`, else commented
-// out). Each pass also sweeps the go/types guard (recordGoTypes).
-// GnoVM errors go to gnoErrLines (the `// GnoError:` block); an
-// internal "should not happen" assertion is not a real diagnostic,
-// so it's skipped there (the real error, if any, is go/types').
-// The walk continues PAST unmarked (over-strict) errors so Gno's
-// behavior on every marker line is still measured — a single
-// over-strict reject must not mask the file's whole native-coverage
-// picture. Neutralizing a line removes any declarations it carried,
-// so later "name X not declared"-style errors that merely reference
-// a neutralized declaration are CASCADE ARTIFACTS: they are
-// neutralized and skipped, never pinned (the affected marker line
-// simply stays uncovered by Gno and shows up in the coverage note).
-
-// no preprocess error left
-
-// neutralizing didn't clear it; cycle guard
-
-// Neutralize and continue. gnoLine is post-prepend coords,
-// which is what indexes into currentSource. Remember the
-// identifiers the neutralized line declared, so their cascade
-// errors are recognized as artifacts on later passes.
-
-// Errorcheck passes are always preprocess-only (no main execution).
-
 // finalizeGoRunDivergence drives the symmetric Gno-vs-Go verdict for a
 // run-mode file (a .go corpus file, or a .gno file with the
 // Go-comparison opt-in) once both outputs are known. It is the sole
@@ -619,7 +567,7 @@ func stripTrailingGoldenRegion(src string) string {
 //
 // Returns (newDirs, err). In run mode sync always rewrites (both sides
 // are re-pinned), so newDirs is non-nil under opts.Sync.
-func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcError string, prior error, sync, isGoFile bool) (Directives, error) {
+func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout string, prior error, sync, isGoFile bool) (Directives, error) {
 	gnoOut := strings.TrimRight(trimTrailingSpaces(gnoStdout), "\n")
 	gnoErr := strings.TrimRight(gnoError, "\n")
 	goExp := strings.TrimRight(goStdout, "\n")
@@ -642,12 +590,6 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 		}
 	}
 	want = append(want, Directive{Name: DirectiveGoOutput, Content: goExp})
-	if isGoFile {
-		// The guard's catches on a program Go runs: lines only.
-		if tc := FormatLineOnlyBlock(PerLineErrors(tcError, 0)); tc != "" {
-			want = append(want, Directive{Name: DirectiveGoTypeCheckError, Content: tc})
-		}
-	}
 	if !diverges {
 		want = append(want, verdict{Kind: VerdictClean, Mode: "run"}.directive())
 	}
@@ -657,8 +599,7 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 		// the freshly-computed ones, then the verdict if the sides
 		// differ (preserving the human's tag + reason).
 		stale := []string{
-			DirectiveGnoOutput, DirectiveGnoError, DirectiveGoOutput,
-			DirectiveGoTypeCheckError, DirectiveVerdict,
+			DirectiveGnoOutput, DirectiveGnoError, DirectiveGoOutput, DirectiveVerdict,
 		}
 		if isGoFile { // a .gno file keeps its native TypeCheckError golden
 			stale = append(stale, DirectiveTypeCheckError)
@@ -687,10 +628,6 @@ func finalizeGoRunDivergence(dirs Directives, gnoStdout, gnoError, goStdout, tcE
 	if isGoFile && gnoErr == "" && dirs.First(DirectiveGnoError) != nil {
 		prior = multierr.Append(prior, fmt.Errorf(
 			"stale `// GnoError:` golden (Gno no longer errors) — re-run with --update-golden-tests"))
-	}
-	if isGoFile && tcError == "" && dirs.First(DirectiveGoTypeCheckError) != nil {
-		prior = multierr.Append(prior, fmt.Errorf(
-			"stale `// GoTypeCheckError:` golden (the guard no longer errors) — re-run with --update-golden-tests"))
 	}
 	kind := verdictKind(dirs)
 	if diverges && kind == VerdictClean {
@@ -1084,14 +1021,6 @@ const (
 	DirectiveGnoOutput = "GnoOutput"
 	DirectiveGoOutput  = "GoOutput"
 	DirectiveGnoError  = "GnoError"
-	DirectiveGoError   = "GoError"
-	// DirectiveGoTypeCheckError pins the per-line errors from the
-	// go/types guard (the Go type checker gno.land's deploy gate runs
-	// ahead of GnoVM preprocess). Kept separate from `// GnoError:`
-	// (which is Gno's OWN static/runtime behavior) because go/types is
-	// not Gno — even when GnoVM preprocess is permissive, this guard
-	// still rejects, and that's worth pinning on its own.
-	DirectiveGoTypeCheckError = "GoTypeCheckError"
 )
 
 // nativeDirectives are the .gno filetest directives; corpusDirectives
@@ -1119,8 +1048,6 @@ var corpusDirectives = []string{
 	DirectiveGnoOutput,
 	DirectiveGoOutput,
 	DirectiveGnoError,
-	DirectiveGoError,
-	DirectiveGoTypeCheckError,
 }
 
 var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
@@ -1145,11 +1072,9 @@ var singleLinePascalDirectives = map[string]bool{
 // skipped). `// GoOutput:` with no lines means "Go produces no stdout"
 // — a pinned-golden assertion we want visible in the file.
 var pinnedGoldenDirectives = map[string]bool{
-	DirectiveGnoOutput:        true,
-	DirectiveGoOutput:         true,
-	DirectiveGnoError:         true,
-	DirectiveGoError:          true,
-	DirectiveGoTypeCheckError: true,
+	DirectiveGnoOutput: true,
+	DirectiveGoOutput:  true,
+	DirectiveGnoError:  true,
 }
 
 // Directives contains the directives of a file.
