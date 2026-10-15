@@ -14,6 +14,12 @@ on:
     tags:
       - v*
 
+concurrency:
+  # One run per tag at a time. GitHub can start two runs for a single tag
+  # push, and two concurrent runs both pass the registry check below before
+  # either pushes; serialized, the second meets the version tag and refuses.
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 permissions:
   contents: read
 
@@ -68,8 +74,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      # Tags: the git tag itself, the built commit's sha,
-      # and `latest` for the images the matrix marks, only when this tag is the
+      # Tags: the git tag itself (never the commit: a final release shares its
+      # last candidate's commit, so a commit tag would move between them), and
+      # `latest` for the images the matrix marks, only when this tag is the
       # highest final release. The action's own default adds `latest` to every
       # tag build, gnoland included, so it is turned off and the raw rule below
       # is the only `latest` published. See RELEASING.md, "Container images".
@@ -80,7 +87,6 @@ jobs:
           images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=tag
-            type=sha
             type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}
           flavor: |
             latest=false
