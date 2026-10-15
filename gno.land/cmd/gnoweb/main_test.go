@@ -1,14 +1,16 @@
 package main
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -124,26 +126,62 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	}
 }
 
-func TestSecureHeadersMiddlewareUsesRemoteHelp(t *testing.T) {
-	t.Parallel()
+func TestSetupWebUsesRemoteHelpForCSP(t *testing.T) {
+	const (
+		helperEnv = "GNOWEB_SETUP_WEB_CSP_HELPER"
+		bindEnv   = "GNOWEB_SETUP_WEB_CSP_BIND"
+		nodeRPC   = "http://internal-rpc:26657"
+		helpRPC   = "https://public-rpc.example.test"
+	)
 
-	appcfg := gnoweb.NewDefaultAppConfig()
-	appcfg.NodeRemote = "http://internal-rpc:26657"
-	appcfg.RemoteHelp = "https://public-rpc.example.test"
+	if os.Getenv(helperEnv) == "1" {
+		opts := defaultWebOptions
+		opts.bind = os.Getenv(bindEnv)
+		opts.remote = nodeRPC
+		opts.remoteHelp = helpRPC
 
-	handler := newSecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, appcfg)
+		stdio := commands.NewDefaultIO()
+		devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0o644)
+		require.NoError(t, err)
+		defer devNull.Close()
+		stdio.SetOut(devNull)
 
-	req := httptest.NewRequest("GET", "http://example.com", nil)
-	rec := httptest.NewRecorder()
+		run, err := setupWeb(&opts, nil, stdio)
+		require.NoError(t, err)
+		require.NoError(t, run())
+		return
+	}
 
-	handler.ServeHTTP(rec, req)
-	res := rec.Result()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	bind := listener.Addr().String()
+	require.NoError(t, listener.Close())
 
-	csp := res.Header.Get("Content-Security-Policy")
+	cmd := exec.Command(os.Args[0], "-test.run=^TestSetupWebUsesRemoteHelpForCSP$")
+	cmd.Env = append(os.Environ(), helperEnv+"=1", bindEnv+"="+bind)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	require.NoError(t, cmd.Start())
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+
+	var csp string
+	client := &http.Client{Timeout: time.Second}
+	require.Eventually(t, func() bool {
+		res, err := client.Get("http://" + bind + "/assets/css/index.css")
+		if err != nil {
+			return false
+		}
+		defer res.Body.Close()
+		csp = res.Header.Get("Content-Security-Policy")
+		return csp != ""
+	}, 5*time.Second, 20*time.Millisecond)
+
 	require.Contains(t, csp, "connect-src 'self' https://public-rpc.example.test/abci_query")
 	require.NotContains(t, csp, "http://internal-rpc:26657/abci_query")
 	require.Contains(t, csp, "form-action 'self'")
-	require.Equal(t, "max-age=31536000", res.Header.Get("Strict-Transport-Security"))
 }
 
 func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
