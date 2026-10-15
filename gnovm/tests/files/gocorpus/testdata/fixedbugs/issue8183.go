@@ -22,7 +22,4 @@ const (
 	f // ERROR "array bound must be non-negative|negative array bound|invalid array length"
 )
 
-// GnoError:
-// line 19: cannot use iota outside constant declaration
-
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15, 21, 22; over-strict: lines 19
