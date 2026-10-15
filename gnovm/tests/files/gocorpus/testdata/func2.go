@@ -32,10 +32,4 @@ func f11(t1 string) string {
 	return t1
 }
 
-// GnoError:
-// line 16: function f1 does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoBuildError:
-// line 16
-
-// Verdict: Clean compile
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

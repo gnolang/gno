@@ -88,10 +88,4 @@ func MainTest(x T1, y T8, z T6) float64 {
 }
 func Test(a T2, b T5, c T4, d T7, e T3, f T5, g T4, h T7, i T3, j T5, k T4, l T7) float64
 
-// GnoError:
-// line 89: function Test does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoBuildError:
-// line 89
-
-// Verdict: Clean compile
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

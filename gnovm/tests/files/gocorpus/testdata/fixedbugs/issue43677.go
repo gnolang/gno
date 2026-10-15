@@ -17,10 +17,4 @@ var _ = struct{ x, y *int }{nil, f()}
 
 var _ interface{} = f()
 
-// GnoError:
-// line 12: function f does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoBuildError:
-// line 12
-
-// Verdict: Clean compile
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
