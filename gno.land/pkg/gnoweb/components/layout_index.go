@@ -225,6 +225,8 @@ type IndexData struct {
 	Mode     ViewMode
 	Theme    string
 	Banner   BannerData
+	// NetworkKind reaches the document as data-network and drives the header chip.
+	NetworkKind NetworkKind
 	// SearchBase, when set, is the path the reader asked for before an alias
 	// rewrote it. The header search posts there, as the JavaScript omnibar
 	// does from window.location: on the home page it searches the chain,
@@ -240,9 +242,12 @@ type indexLayoutParams struct {
 	ViewType     string
 	JSController string
 	Theme        string
+	NetworkKind  NetworkKind
 }
 
 func IndexLayout(data IndexData) Component {
+	data.HeaderData.NetworkKind = data.NetworkKind
+
 	data.FooterData = EnrichFooterData(data.FooterData)
 	data.HeaderData = EnrichHeaderData(data.HeaderData, data.Mode)
 	if data.SearchBase != "" {
@@ -257,9 +262,10 @@ func IndexLayout(data IndexData) Component {
 	data.FooterData.Analytics.Hostname = data.HeadData.AnalyticsHostname
 
 	dataLayout := indexLayoutParams{
-		IndexData: data,
-		ViewType:  data.BodyView.String(),
-		Theme:     data.Theme,
+		IndexData:   data,
+		ViewType:    data.BodyView.String(),
+		Theme:       data.Theme,
+		NetworkKind: data.NetworkKind,
 	}
 
 	// Set dev mode based on view type and mode

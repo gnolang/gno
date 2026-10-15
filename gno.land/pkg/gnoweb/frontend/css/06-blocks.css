@@ -44,7 +44,8 @@
 	& code {
 		padding: var(--g-space-0-5) var(--g-space-1);
 		border-radius: var(--g-border-radius-sm);
-		background-color: var(--s-color-bg-brand-action);
+		/* Tint from the banner text so the chip follows any background. */
+		background-color: color-mix(in srgb, currentColor 12%, transparent);
 		font-size: 0.96em;
 	}
 }
@@ -87,6 +88,33 @@
 			@media (--lg) {
 				grid-column: span 10;
 			}
+		}
+	}
+
+	/* Chain-id chip, off mainnet only: mainnet keeps the header as it was. */
+	.network-chip {
+		display: inline-flex;
+		align-items: center;
+
+		/* Flex would collapse the whitespace between the id and the kind. */
+		gap: var(--g-space-1);
+
+		flex-shrink: 0;
+		padding-inline: var(--g-space-2);
+		border-radius: var(--s-rounded);
+		background-color: var(--s-color-bg-network);
+		color: var(--s-color-text-network);
+		font-size: var(--g-font-size-50);
+		font-weight: var(--g-font-semibold);
+		white-space: nowrap;
+
+		/* Cap the unbounded value, not the chip: that truncated the kind. */
+		& .network-chip__id {
+			display: inline-block;
+			max-inline-size: 14ch;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			vertical-align: bottom;
 		}
 	}
 
@@ -214,7 +242,9 @@
 	position: relative;
 	height: auto;
 	width: 100%;
-	/* A long path scrolls inside the bar instead of widening the page */
+
+	/* Shrink beside the network chip; a long path scrolls inside the bar
+	   instead of pushing the header past the viewport at 320px. */
 	min-width: 0;
 	color: var(--s-color-text-quaternary);
 
@@ -715,7 +745,7 @@
 		}
 
 		& > svg {
-			color: var(--s-color-bg-brand-default);
+			color: var(--s-color-text-link);
 		}
 	}
 }
