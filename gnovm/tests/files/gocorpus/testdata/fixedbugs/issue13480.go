@@ -40,23 +40,9 @@ func bug() {
 // GnoError:
 // line 21: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].S can only be compared to nil
 // line 22: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].S can only be compared to nil
-// line 23: 3: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].S can only be compared to nil
 // line 27: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].M can only be compared to nil
 // line 28: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].M can only be compared to nil
-// line 29: 3: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].M can only be compared to nil
 // line 33: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 // line 34: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
-// line 35: 3: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 24
-// line 27
-// line 28
-// line 30
-// line 33
-// line 34
-// line 36
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 24, 30, 36

@@ -13,7 +13,4 @@ type T x.T // ERROR "undefined|expected package"
 // GnoError:
 // line 9: name x not defined in fileset with files [bug451.go]
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

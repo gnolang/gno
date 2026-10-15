@@ -36,7 +36,4 @@ func main() {
 // line 27: cannot parenthesize type in composite literal
 // line 28: cannot parenthesize type in composite literal
 
-// GoTypeCheckError:
-// line 23
-
 // Verdict: Clean errorcheck

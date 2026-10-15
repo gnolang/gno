@@ -17,7 +17,4 @@ func foo() {
 // GnoError:
 // line 15: expected ')', found 'EOF'
 
-// GoTypeCheckError:
-// line 15
-
 // Verdict: Clean errorcheck

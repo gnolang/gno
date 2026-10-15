@@ -21,9 +21,4 @@ func main() {
 // line 15: type should be numeric
 // line 16: cannot use untyped Bigint as StringKind
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 16
-
 // Verdict: Clean errorcheck

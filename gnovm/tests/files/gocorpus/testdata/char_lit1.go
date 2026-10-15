@@ -36,7 +36,4 @@ const (
 // line 25: escape sequence is invalid Unicode code point
 // line 26: escape sequence is invalid Unicode code point
 
-// GoTypeCheckError:
-// line 16
-
 // Verdict: Clean errorcheck

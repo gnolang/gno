@@ -31,9 +31,4 @@ var (
 // line 25: struct type struct{t3f1 int; t2 *main.t2} has no field t1f2
 // line 26: struct type struct{t3f1 int; t2 *main.t2} has no field t2f1
 
-// GoTypeCheckError:
-// line 24
-// line 25
-// line 26
-
 // Verdict: Clean errorcheck

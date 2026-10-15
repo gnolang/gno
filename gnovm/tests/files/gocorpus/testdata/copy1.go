@@ -30,20 +30,4 @@ func main() {
 // line 17: wrong argument count in call to (const (copy func(<X>{}, <Y>{}) int)); want 2 got 0
 // line 18: wrong argument count in call to (const (copy func(<X>{}, <Y>{}) int)); want 2 got 3
 
-// GoTypeCheckError:
-// line 17
-// line 18
-// line 20
-// line 21
-// line 23
-// line 24
-// line 25
-
-// GoTypesOnly:
-// line 20: gc expects: have different element types(.*int.*string| int and byte)
-// line 21: gc expects: have different element types.*int.*float64
-// line 23: gc expects: must be slices; have int, int|expects slice arguments
-// line 24: gc expects: first argument to copy should be|expects slice arguments
-// line 25: gc expects: second argument to copy should be|expects slice arguments
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20, 21, 23, 24, 25

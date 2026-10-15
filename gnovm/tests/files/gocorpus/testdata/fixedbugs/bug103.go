@@ -16,7 +16,4 @@ func main() {
 // GnoError:
 // line 12: f<VPBlock(3,0)> (no value) used as value
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

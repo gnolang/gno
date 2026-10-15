@@ -13,10 +13,4 @@ var s = []string{
 	1: "dup", // ERROR "duplicate index in slice literal: 1|duplicate value for index 1|duplicate index 1"
 }
 
-// GnoError:
-// line 11: 2: duplicate index 1 in array or slice literal
-
-// GoTypeCheckError:
-// line 13
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

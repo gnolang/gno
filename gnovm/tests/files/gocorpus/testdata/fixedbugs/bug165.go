@@ -14,10 +14,4 @@ type S struct {
 	m map[S] bool;	// ERROR "map key type"
 }
 
-// GoTypeCheckError:
-// line 14
-
-// GoTypesOnly:
-// line 14: gc expects: map key type
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14

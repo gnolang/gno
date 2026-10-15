@@ -18,10 +18,4 @@ func main() {
 // line 10: var declaration not allowed in if initializer
 // line 12: expected operand, found 'var'
 
-// GoTypeCheckError:
-// line 10
-
-// UncaughtError:
-// line 14: uncaught; gc expects: var declaration not allowed in for initializer
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14

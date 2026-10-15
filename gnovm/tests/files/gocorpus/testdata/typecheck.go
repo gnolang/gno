@@ -24,14 +24,4 @@ func main() {
 // GnoError:
 // line 15: 2: name b not defined in fileset with files [typecheck.go]
 
-// GoTypeCheckError:
-// line 15
-// line 16
-// line 20
-// line 21
-
-// GoTypesOnly:
-// line 20: gc expects: not enough arguments
-// line 21: gc expects: undefined.*c|not enough arguments
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20, 21

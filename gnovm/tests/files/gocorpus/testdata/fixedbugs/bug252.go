@@ -17,7 +17,4 @@ func g(args ...interface{}) {
 // GnoError:
 // line 14: cannot use ...interface {} as int
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

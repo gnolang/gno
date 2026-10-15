@@ -33,7 +33,4 @@ func ((T),) j() {}
 // line 17: cannot parenthesize embedded type
 // line 18: cannot parenthesize embedded type
 
-// GoTypeCheckError:
-// line 16
-
 // Verdict: Clean errorcheck

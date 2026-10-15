@@ -15,7 +15,4 @@ func([<-chan<-[func u){go // ERROR "unexpected name u"
 // GnoError:
 // line 13: expected channel type
 
-// GoTypeCheckError:
-// line 13
-
 // Verdict: Clean errorcheck

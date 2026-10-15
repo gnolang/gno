@@ -15,7 +15,4 @@ func main() {
 // GnoError:
 // line 10: no new variables on left side of :=
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

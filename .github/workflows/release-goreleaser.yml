@@ -72,8 +72,8 @@ jobs:
 
       # These builds are never releases, so the version compiled in must not
       # parse: a parseable one (the dummy v0.0.0 tag used to leak in) would
-      # satisfy a governance halt_min_version. Same shape and same shell as
-      # gno.land/Makefile and release-docker.yml's fallback, pinned by
+      # satisfy a governance halt_min_version. Same shape as gno.land/Makefile's
+      # off-tag fallback, pinned by
       # gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser.
       - name: Compute build version
         id: build_version

@@ -29,8 +29,4 @@ func main() {
 // line 22: should not happen
 // line 25: missing field f in main.PP
 
-// GoTypeCheckError:
-// line 22
-// line 25
-
 // Verdict: Clean errorcheck

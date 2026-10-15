@@ -11,7 +11,4 @@ var f = func() { f() } // ERROR "initialization cycle|initialization expression 
 // GnoError:
 // line 9: initialization cycle: f refers to f
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

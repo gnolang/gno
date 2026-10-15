@@ -23,10 +23,4 @@ func T(fn F) {
 // line 14: T<VPBlock(2,1)> is not a type
 // line 18: wrong argument count in call to fn<VPBlock(2,0)>; want 0 got 1
 
-// GoTypeCheckError:
-// line 14
-
-// GnoOverStrictError:
-// line 18: wrong argument count in call to fn<VPBlock(2,0)>; want 0 got 1
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 18

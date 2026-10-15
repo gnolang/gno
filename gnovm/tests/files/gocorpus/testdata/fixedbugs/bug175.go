@@ -16,7 +16,4 @@ func main() {
 // GnoError:
 // line 12: multiple-value f<VPBlock(3,0)> (value of type [int bool]) in single-value context
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

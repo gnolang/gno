@@ -51,11 +51,4 @@ func f2(val interface{}) {
 // line 23: name y not declared
 // line 43: name v not declared
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 15
-// line 23
-// line 43
-
 // Verdict: Clean errorcheck

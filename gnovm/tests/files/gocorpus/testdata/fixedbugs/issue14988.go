@@ -12,10 +12,4 @@ package main
 type m map[k]int // ERROR "invalid map key type"
 type k [1]m
 
-// GoTypeCheckError:
-// line 12
-
-// GoTypesOnly:
-// line 12: gc expects: invalid map key type
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12
