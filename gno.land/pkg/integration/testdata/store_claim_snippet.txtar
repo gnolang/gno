@@ -1,0 +1,11 @@
+# The Build page's "List your package" command, as gnoweb prints it
+# (feature/store/templates/parts.html, store/list-your-package), lists a
+# package: its gas covers Claim, and it signs for the chain's own ID. Only
+# the namespace and the chain ID are filled in, as a reader would.
+
+loadpkg gno.land/r/gnoland/store/v0
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/gnoland/store/v0 -func Claim -args gno.land/p/$test1_user_addr/mylib -args mylib -args 'My lib' -args 'What it does, in one line' -args dev-tools -args 0 -args package -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'

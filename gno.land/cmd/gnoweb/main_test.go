@@ -167,7 +167,7 @@ func dummyHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestSecureHeadersMiddlewareStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), true, "http://example.com", "https://dweb.link")
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
@@ -191,6 +191,10 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 	if !strings.Contains(csp, "img-src 'self' data: https://gnolang.github.io") {
 		t.Errorf("Expected Content-Security-Policy img-src to carry the image host allowlist, got '%s'", csp)
 	}
+	// The store's owner images come from the operator's IPFS gateway.
+	if !strings.Contains(csp, " https://dweb.link;") {
+		t.Errorf("Expected Content-Security-Policy img-src to carry the IPFS gateway, got '%s'", csp)
+	}
 	// assets.gnoteam.com has no DNS record, so it must not be allowlisted as an image source.
 	if strings.Contains(csp, "assets.gnoteam.com") {
 		t.Errorf("Expected Content-Security-Policy not to allowlist 'assets.gnoteam.com', got '%s'", csp)
@@ -212,7 +216,7 @@ func TestSecureHeadersMiddlewareStrict(t *testing.T) {
 }
 
 func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
-	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com")
+	handler := SecureHeadersMiddleware(http.HandlerFunc(dummyHandler), false, "http://example.com", "")
 
 	req := httptest.NewRequest("GET", "http://example.com", nil)
 	rec := httptest.NewRecorder()
@@ -244,6 +248,54 @@ func TestSecureHeadersMiddlewareNonStrict(t *testing.T) {
 	if !strings.Contains(body, "OK") {
 		t.Errorf("Unexpected response body: %s", body)
 	}
+}
+
+// A -store-realm that is not a realm path, or an -ipfs-gateway that is not
+// an origin, must refuse to start rather than break the store silently.
+func TestSetupWeb_StoreRealm(t *testing.T) {
+	stdio := commands.NewDefaultIO()
+	stdio.SetOut(commands.WriteNopCloser(io.Discard))
+
+	for _, bad := range []string{"gno.land/r/gnoland/store", "r/gnoland/store", "/p/nt/avl/v0", "/r/gnoland/store/"} {
+		opts := defaultWebOptions
+		opts.bind = "127.0.0.1:0"
+		opts.storeRealm = bad
+		_, err := setupWeb(&opts, []string{}, stdio)
+		require.ErrorContains(t, err, "invalid `StoreRealm`", bad)
+	}
+
+	opts := defaultWebOptions
+	opts.bind = "127.0.0.1:0"
+	opts.storeRealm = "/r/gnoland/store/v0"
+	opts.ipfsGateway = "https://dweb.link/ipfs/"
+	_, err := setupWeb(&opts, []string{}, stdio)
+	require.ErrorContains(t, err, "invalid `IPFSGateway`")
+}
+
+// -aliases and -store-realm must not write into the shared defaults.
+func TestSetupWeb_AliasesKeepDefaults(t *testing.T) {
+	stdio := commands.NewDefaultIO()
+	stdio.SetOut(commands.WriteNopCloser(io.Discard))
+
+	opts := defaultWebOptions
+	opts.bind = "127.0.0.1:0"
+	opts.aliases = "/zz=/r/demo/x"
+	opts.storeRealm = "/r/gnoland/store/v0"
+	_, err := setupWeb(&opts, []string{}, stdio)
+	require.NoError(t, err)
+	assert.NotContains(t, gnoweb.DefaultAliases, "/zz")
+	assert.NotContains(t, gnoweb.DefaultAliases, "/explore")
+}
+
+func TestWithStoreAlias(t *testing.T) {
+	plain := withStoreAlias(gnoweb.DefaultAliases, "")
+	assert.Equal(t, gnoweb.DefaultAliases, plain, "no store, no alias")
+	plain["/x"] = gnoweb.AliasTarget{}
+	assert.NotContains(t, gnoweb.DefaultAliases, "/x", "a copy even without a store, as -aliases is copied into it")
+
+	got := withStoreAlias(gnoweb.DefaultAliases, "/r/gnoland/store")
+	assert.Equal(t, gnoweb.AliasTarget{Value: "/r/gnoland/store", Kind: gnoweb.GnowebPath}, got["/explore"])
+	assert.NotContains(t, gnoweb.DefaultAliases, "/explore", "the shared defaults are never mutated")
 }
 
 func TestParseAliases(t *testing.T) {

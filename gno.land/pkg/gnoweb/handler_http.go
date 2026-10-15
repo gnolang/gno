@@ -26,6 +26,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/omnisearch"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/store"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -119,6 +120,10 @@ type HTTPHandlerConfig struct {
 	// StateRateLimitTrustedProxies — see AppConfig field of the same name.
 	// Also gates X-Forwarded-Host in requestOrigin.
 	StateRateLimitTrustedProxies []string
+	// StoreRealm — see AppConfig field of the same name.
+	StoreRealm string
+	// IPFSGateway: see AppConfig field of the same name.
+	IPFSGateway string
 	// Directory lists realm and package paths for the search feature.
 	// Optional: callers that already have one — the router does, for
 	// /search.json — pass it so both share a singleflight group. Nil builds
@@ -151,8 +156,30 @@ func (cfg *HTTPHandlerConfig) validate() error {
 	if cfg.Aliases == nil {
 		return errors.New("no `Aliases` configured")
 	}
+	if cfg.StoreRealm != "" {
+		if u := (weburl.GnoURL{Path: cfg.StoreRealm}); !u.IsRealm() || u.IsDir() {
+			return fmt.Errorf("invalid `StoreRealm` %q: want a realm path such as /r/gnoland/store/v0", cfg.StoreRealm)
+		}
+		if cfg.Meta.Domain == "" {
+			return errors.New("a `StoreRealm` needs a `Meta.Domain`")
+		}
+	}
+	if cfg.IPFSGateway != "" && !isOrigin(cfg.IPFSGateway) {
+		return fmt.Errorf("invalid `IPFSGateway` %q: want an origin such as https://ipfs-gateway.example", cfg.IPFSGateway)
+	}
 	return nil
 }
+
+// isOrigin reports whether s is an http(s) origin and nothing more. The
+// host is held to hostname characters: it goes into the CSP header, where a
+// ';' or a quote would start another directive.
+func isOrigin(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && (u.Scheme == "https" || u.Scheme == "http") && reOriginHost.MatchString(u.Host) &&
+		u.User == nil && u.Path == "" && u.RawQuery == "" && u.Fragment == "" && !u.ForceQuery
+}
+
+var reOriginHost = regexp.MustCompile(`^[A-Za-z0-9.-]+(:[0-9]+)?$`)
 
 // HTTPHandler processes HTTP requests for gnoweb.
 type HTTPHandler struct {
@@ -167,6 +194,8 @@ type HTTPHandler struct {
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
 	State *state.Handler
+	// Store renders the Content tab of the store realm; nil without one.
+	Store *store.Handler
 	// Search is the feature/omnisearch handler that owns every $search URL.
 	Search *omnisearch.Handler
 	// ChainMap is the feature/chainmap handler: the map of a listing, and the
@@ -222,6 +251,18 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 			TrustedProxies: trustedProxies,
 		},
 	})
+	if cfg.StoreRealm != "" {
+		h.Store = store.New(store.Deps{
+			Client:      cfg.ClientAdapter,
+			RealmPath:   cfg.StoreRealm,
+			Domain:      cfg.Meta.Domain,
+			ChainID:     cfg.Meta.ChainId,
+			Remote:      cfg.Meta.RemoteHelp,
+			IPFSGateway: cfg.IPFSGateway,
+			Trusted:     h.policy.trusted.contains,
+			Logger:      logger,
+		})
+	}
 	directory := cfg.Directory
 	if directory == nil {
 		directory = newRPCRealmDirectory(cfg.ClientAdapter, cfg.Meta.Domain, searchMaxConcurrentQueries)
@@ -724,6 +765,15 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 		return h.GetUserView(ctx, gnourl, pr)
 	}
 
+	// The store realm's own front pages get a richer view; every other path,
+	// tab and render argument keeps the realm's markdown.
+	if h.Store != nil && !pr.markdown {
+		if view, meta := h.Store.View(ctx, gnourl); view != nil {
+			pr.lead = pageLead{title: meta.Title, description: meta.Description, fixed: true}
+			return meta.Status, view
+		}
+	}
+
 	// Ultimately get realm view
 	if pr.markdown {
 		return h.GetMarkdownRealmView(ctx, gnourl, indexData, pr)
@@ -835,7 +885,7 @@ func (h *HTTPHandler) buildContributions(ctx context.Context, namespaces ...stri
 			realmCount++
 		}
 		contribs = append(contribs, components.UserContribution{
-			Title: displayPackageName(raw),
+			Title: components.PackageName(raw),
 			URL:   raw,
 			Type:  components.UserContributionType(ctype),
 			// TODO: size, description, date...
@@ -971,18 +1021,6 @@ func CreateUsernameFromBech32(username string) string {
 	}
 
 	return username[:4] + "..." + username[len(username)-4:]
-}
-
-// displayPackageName returns versioned name for a package path.
-// Examples: "gno.land/r/demo/foo/v2" → "foo/v2", "gno.land/r/demo/foo" → "foo".
-func displayPackageName(pkgPath string) string {
-	base := path.Base(pkgPath)
-	name := gno.LastPathElement(pkgPath)
-	if name != base {
-		// Versioned path: show "name/vN".
-		return name + "/" + base
-	}
-	return name
 }
 
 // GetUserView returns the user profile view for a given GnoURL. The segment
@@ -1179,7 +1217,7 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		})
 	}
 
-	realmName := displayPackageName(gnourl.Path)
+	realmName := components.PackageName(gnourl.Path)
 	return http.StatusOK, components.HelpView(components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
@@ -1622,7 +1660,7 @@ func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, 
 	}
 
 	lead := sp.render.lead
-	if !sp.kind.mayRepeat(sp.url) {
+	if !lead.fixed && !sp.kind.mayRepeat(sp.url) {
 		lead = pageLead{}
 	}
 	if lead.title == "" {
@@ -1685,6 +1723,9 @@ func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl 
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
 		Origin:     gnourl.Origin,
+	}
+	if h.Store != nil {
+		indexData.HeaderData.StoreURL = h.Store.RealmPath()
 	}
 	if h.showRealmNotice(gnourl) {
 		indexData.HeaderData.Notice = h.Static.RealmNotice

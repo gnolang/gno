@@ -66,6 +66,8 @@ type webCfg struct {
 	indexCommunity   gnoweb.CommunityIndex
 	noIndex          bool
 	trustedPaths     string
+	storeRealm       string
+	ipfsGateway      string
 }
 
 // The default realm notice, and the short variant shown below the lg
@@ -181,7 +183,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.trustedPaths,
 		"trusted-paths",
 		defaultWebOptions.trustedPaths,
-		"comma-separated namespaces or package paths (without /r/ or /p/), or *, treated as official; only as safe as the chain's namespace enforcement (r/sys/names)",
+		"comma-separated namespaces or package paths (without /r/ or /p/), or *, treated as official, owner assets shown in the store included; only as safe as the chain's namespace enforcement (r/sys/names)",
 	)
 
 	fs.TextVar(
@@ -203,6 +205,20 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		"no-index",
 		defaultWebOptions.noIndex,
 		"keep this deployment out of search engines (testnets, staging); never on mainnet",
+	)
+
+	fs.StringVar(
+		&c.storeRealm,
+		"store-realm",
+		defaultWebOptions.storeRealm,
+		"realm behind Explore, the app store at /explore (e.g. /r/gnoland/store/v0); empty disables it",
+	)
+
+	fs.StringVar(
+		&c.ipfsGateway,
+		"ipfs-gateway",
+		defaultWebOptions.ipfsGateway,
+		"origin of the IPFS path gateway serving Explore's owner images, added to the CSP img-src (e.g. https://ipfs-gateway.example; a subdomain gateway would redirect out of the CSP); empty shows the generated art only",
 	)
 
 	fs.StringVar(
@@ -362,10 +378,15 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	if err := setupTrust(cfg, appcfg, logger); err != nil {
 		return nil, err
 	}
+	appcfg.StoreRealm = cfg.storeRealm
+	appcfg.IPFSGateway = cfg.ipfsGateway
 
 	if cfg.noDefaultAliases {
 		appcfg.Aliases = map[string]gnoweb.AliasTarget{}
 	}
+
+	// Before -aliases, so an operator's own /explore wins.
+	appcfg.Aliases = withStoreAlias(appcfg.Aliases, cfg.storeRealm)
 
 	if cfg.aliases != "" {
 		aliases, err := parseAliases(cfg.aliases)
@@ -390,7 +411,7 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 	logger.Info("Running", "listener", bindaddr.String())
 
 	// Setup security headers
-	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote)
+	secureHandler := SecureHeadersMiddleware(app, !cfg.noStrict, appcfg.NodeRemote, cfg.ipfsGateway)
 
 	// Setup server
 	server := &http.Server{
@@ -411,6 +432,19 @@ func setupWeb(cfg *webCfg, _ []string, io commands.IO) (func() error, error) {
 
 		return nil
 	}, nil
+}
+
+// withStoreAlias returns a copy of aliases, so neither it nor -aliases,
+// copied in afterwards, ever mutates the shared DefaultAliases; with
+// -store-realm, the copy points /explore at the store realm. The alias comes
+// with -store-realm, not with the default aliases.
+func withStoreAlias(aliases map[string]gnoweb.AliasTarget, storeRealm string) map[string]gnoweb.AliasTarget {
+	out := make(map[string]gnoweb.AliasTarget, len(aliases)+1)
+	maps.Copy(out, aliases)
+	if storeRealm != "" {
+		out["/explore"] = gnoweb.AliasTarget{Value: storeRealm, Kind: gnoweb.GnowebPath}
+	}
+	return out
 }
 
 // parseAliases parses the given aliases string and return an aliases map.
@@ -448,13 +482,19 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
-func SecureHeadersMiddleware(next http.Handler, strict bool, remote string) http.Handler {
+// SecureHeadersMiddleware sets gnoweb's security headers. ipfsGateway, the
+// store's IPFS gateway origin (validated by gnoweb), joins the CSP img-src
+// when set.
+func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway string) http.Handler {
 	// Build img-src CSP directive
 	var imgSrc strings.Builder
 	imgSrc.WriteString("'self' data:")
 
 	for _, host := range cspImgHost {
 		imgSrc.WriteString(" " + host)
+	}
+	if ipfsGateway != "" {
+		imgSrc.WriteString(" " + ipfsGateway)
 	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of
