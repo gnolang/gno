@@ -13,7 +13,4 @@ import""  // ERROR "import path is empty|invalid import path \(empty string\)"
 // GnoError:
 // line 11: invalid import path (empty string)
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

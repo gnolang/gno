@@ -16,7 +16,4 @@ func (a A) bar()	{}
 // GnoError:
 // line 12: invalid recursive type: A -> A
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

@@ -48,12 +48,4 @@ var _ = map[Key]string{
 // line 25: slice/array literals may not contain non-const keys
 // line 26: duplicate index 1 in array or slice literal
 
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 23
-// line 24
-// line 25
-// line 26
-
 // Verdict: Clean errorcheck

@@ -21,9 +21,4 @@ func main() {
 // line 14: cannot use untyped string as IntKind
 // line 15: cannot use untyped string as Int32Kind
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 15
-
 // Verdict: Clean errorcheck

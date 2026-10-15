@@ -39,13 +39,4 @@ const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
 // line 31: constant bitwise XOR overflow
 // line 32: constant bitwise complement overflow
 
-// GoTypeCheckError:
-// line 14
-// line 19
-// line 21
-// line 26
-// line 30
-// line 31
-// line 32
-
 // Verdict: Clean errorcheck

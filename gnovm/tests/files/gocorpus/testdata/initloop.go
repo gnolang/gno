@@ -19,9 +19,4 @@ var (
 // GnoError:
 // line 14: invalid recursive value: a -> b -> c -> a
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 16
-
 // Verdict: Clean errorcheck

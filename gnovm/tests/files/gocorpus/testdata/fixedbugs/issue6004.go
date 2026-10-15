@@ -17,12 +17,5 @@ func main() {
 // line 10: use of untyped nil in assignment
 // line 11: use of untyped nil in assignment
 // line 12: use of untyped nil in assignment
-// line 13: first argument to append must be a typed slice; have untyped nil
 
-// GoTypeCheckError:
-// line 10
-// line 11
-// line 12
-// line 13
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

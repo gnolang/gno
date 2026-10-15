@@ -18,8 +18,4 @@ func (*T) p() {} // ERROR "T\.p already declared|redefinition"
 // line 12: redeclaration of method T.m
 // line 15: redeclaration of method T.p
 
-// GoTypeCheckError:
-// line 12
-// line 15
-
 // Verdict: Clean errorcheck

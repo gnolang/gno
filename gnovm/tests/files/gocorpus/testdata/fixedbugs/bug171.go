@@ -13,8 +13,4 @@ func g() (foo int) { }	// ERROR "return|control"
 // line 9: [function "f" does not terminate]
 // line 10: [function "g" does not terminate]
 
-// GoTypeCheckError:
-// line 9
-// line 10
-
 // Verdict: Clean errorcheck

@@ -123,22 +123,4 @@ var b2 B2 = &T2{}
 // line 89: 2: methods must have a unique non-blank name
 // line 93: 2: methods must have a unique non-blank name
 
-// GoTypeCheckError:
-// line 41
-// line 46
-// line 47
-// line 50
-// line 53
-// line 56
-// line 60
-// line 70
-// line 76
-// line 78
-// line 83
-// line 84
-// line 86
-// line 87
-// line 90
-// line 95
-
 // Verdict: Clean errorcheck

@@ -15,8 +15,4 @@ func main() {
 // line 10: name s not declared
 // line 11: name s not declared
 
-// GoTypeCheckError:
-// line 10
-// line 11
-
 // Verdict: Clean errorcheck

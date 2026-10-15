@@ -24,11 +24,4 @@ func main() {
 // line 17: illegal byte order mark
 // line 18: expected '}', found 'EOF'
 
-// GoTypeCheckError:
-// line 14
-
-// GnoOverStrictError:
-// line 15: illegal byte order mark
-// line 18: expected '}', found 'EOF'
-
-// Verdict: KnownIssue errorcheck: 2 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 15, 18

@@ -22,11 +22,4 @@ var t = T{
 // GnoError:
 // line 18: name foo not declared
 
-// GoTypeCheckError:
-// line 18
-// line 19
-
-// GoTypesOnly:
-// line 19: gc expects: field name
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19

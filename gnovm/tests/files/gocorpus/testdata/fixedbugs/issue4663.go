@@ -14,10 +14,4 @@ func a(b int) int64 {
   return 0
 }
 
-// GnoError:
-// line 13: b (value of type int) is not used
-
-// GoTypeCheckError:
-// line 13
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

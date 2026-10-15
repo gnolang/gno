@@ -21,11 +21,4 @@ func f() {
 // line 13: cannot convert BoolKind to IntKind
 // line 14: cannot convert BoolKind to StringKind
 
-// GoTypeCheckError:
-// line 10
-// line 11
-// line 12
-// line 13
-// line 14
-
 // Verdict: Clean errorcheck

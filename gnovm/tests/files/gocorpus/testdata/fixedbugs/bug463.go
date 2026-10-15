@@ -25,10 +25,4 @@ func main() {
 // line 12: invalid recursive value: a -> a
 // line 16: invalid recursive value: A -> B -> C -> D -> A
 
-// GoTypeCheckError:
-// line 12
-// line 16
-// line 17
-// line 18
-
 // Verdict: Clean errorcheck

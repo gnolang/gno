@@ -23,11 +23,4 @@ func main() {
 // line 15: index 15 out of bounds [0:10]
 // line 16: index 12 out of bounds [0:10]
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 14
-// line 15
-// line 16
-
 // Verdict: Clean errorcheck

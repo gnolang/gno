@@ -48,15 +48,4 @@ func bug() {
 // line 34: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 // line 35: 3: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 24
-// line 27
-// line 28
-// line 30
-// line 33
-// line 34
-// line 36
-
 // Verdict: Clean errorcheck

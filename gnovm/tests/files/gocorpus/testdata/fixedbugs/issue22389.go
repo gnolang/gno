@@ -20,7 +20,4 @@ func main() {
 // GnoError:
 // line 17: f<VPBlock(1,0)> is not a type
 
-// GoTypeCheckError:
-// line 17
-
 // Verdict: Clean errorcheck
