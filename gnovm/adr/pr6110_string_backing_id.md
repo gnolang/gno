@@ -90,9 +90,12 @@ master, and a bounded undercount, not a misattribution.
 compares the backing pointer, so equal strings from different mints
 differ. String comparison paths were audited: `isEql` and
 `ComputeMapKey`/`MapKeyBytes` go through `GetString()` (safe); the one
-direct-equality site — map-literal duplicate-key detection in
-`preprocess.go` (`kset`) — now keys by `ComputeMapKey`, the runtime map's
-own notion of key equality. New direct `==` on `TypedValue`/`.V` holding
+two direct-equality sites — map-literal duplicate-key detection in
+`preprocess.go` (`kset`), now keyed by `ComputeMapKey`, the runtime map's
+own notion of key equality (skipping typed-nil slice/map/func keys, which
+are not Go constants and would make `ComputeMapKey` panic), and
+`StaticBlock.Define2`'s redefinition check, now comparing strings by
+`Str` — are the only ones that needed a change. New direct `==` on `TypedValue`/`.V` holding
 strings must not be introduced; compare `Str`.
 
 ### Behavior deltas vs #4885

@@ -2506,7 +2506,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					for i, elt := range n.Elts {
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
+						// A typed nil slice/map/func folds to a ConstExpr but is
+						// no Go constant: Go skips it, and ComputeMapKey would panic.
+						cx, ok := elt.Key.(*ConstExpr)
+						if ok && !cx.TypedValue.IsUndefined() && (cx.T == nil || isComparable(cx.T)) {
 							mk, isNaN := cx.TypedValue.ComputeMapKey(nil, store, false)
 							if isNaN {
 								continue // NaN never equals itself

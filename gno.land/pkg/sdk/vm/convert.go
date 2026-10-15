@@ -200,9 +200,7 @@ func convertArgToGno(alloc *gno.Allocator, arg string, argT gno.Type) (tv gno.Ty
 					"array length mismatch: declared [%d]byte, got %d bytes",
 					bt.Len, len(bz)))
 			}
-			tv.V = &gno.ArrayValue{
-				Data: bz,
-			}
+			tv.V = alloc.NewArrayFromData(bt, bz)
 			return
 		} else {
 			panic("unexpected array type in contract arg")
@@ -215,14 +213,7 @@ func convertArgToGno(alloc *gno.Allocator, arg string, argT gno.Type) (tv gno.Ty
 					"error parsing byte array %q: %v",
 					arg, err))
 			}
-			tv.V = &gno.SliceValue{
-				Base: &gno.ArrayValue{
-					Data: bz,
-				},
-				Offset: 0,
-				Length: len(bz),
-				Maxcap: len(bz),
-			}
+			tv.V = alloc.NewSliceFromData(bz)
 			return
 		} else {
 			panic("unexpected slice type in contract arg")
