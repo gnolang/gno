@@ -117,11 +117,4 @@ func init() {
 
 // GoOutput:
 
-// GoTypeCheckError:
-// line 32
-// line 43
-// line 52
-// line 58
-// line 63
-
 // Verdict: KnownIssue run: #5599 slice-to-array-pointer conversion is rejected
