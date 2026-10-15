@@ -18,7 +18,7 @@ the foundations of a fairer and freer world, join us today.
 
 ## <gno-icon name="browser" /> Use Gno.land apps
 
-Try a wallet, a block explorer and the Gno.land ecosystem.
+Use live apps and read the code behind them.
 
 <gno-button href="/ecosystem" label="Explore the ecosystem" />
 
