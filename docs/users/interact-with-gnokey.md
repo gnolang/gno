@@ -702,67 +702,43 @@ sign a short text, its challenge, to prove that the address is yours. The
 sent to the chain and it costs nothing.
 
 ```bash
-gnokey sign-data -chainid gnoland-1 -data "example.com: prove this wallet is yours · 9UQVko4o" mykey
+gnokey sign-data -chainid gnoland-1 \
+  -data "example.com: prove this wallet is yours · 9UQVko4o" \
+  -output-document proof.json mykey
 ```
 
 `-chainid` is required: the proof is only good on the chain it names. Use
-`-data-path` instead of `-data` to sign the contents of a file, as they are
-(a final newline included), and `-output-document` to save the proof to a file.
+`-data-path` instead of `-data` to sign the contents of a file, as they are,
+a final newline included. Without `-output-document`, the proof is printed.
+Only secp256k1 keys can sign, which excludes multisig keys.
 
-The output is the same JSON as Adena's `SignArbitrary` answer: the signed
-document, your public key and the signature.
+The proof is a JSON file holding the signed text, your public key and the
+signature, in the same format as Adena's `SignArbitrary` answer, so a service
+handles both the same way. It can never be broadcast as a transaction.
 
-```json
-{
-  "signed": {
-    "account_number": "0",
-    "chain_id": "gnoland-1",
-    "fee": {
-      "amount": [],
-      "gas": "0"
-    },
-    "memo": "",
-    "msgs": [
-      {
-        "type": "sign/MsgSignData",
-        "value": {
-          "data": "ZXhhbXBsZS5jb206IHByb3ZlIHRoaXMgd2FsbGV0IGlzIHlvdXJzIMK3IDlVUVZrbzRv",
-          "signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
-        }
-      }
-    ],
-    "sequence": "0"
-  },
-  "signature": {
-    "pubKey": {
-      "typeUrl": "/tm.PubKeySecp256k1",
-      "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"
-    },
-    "signature": "m2aMv8VKiB71HhyygS9CgMQ9lG6SCzUjSkmxURjaERYXQBZ9egMXEkz7lo/SBi4bUfVZY3kfbani7C8N0Kbe1w=="
-  }
-}
-```
-
-`data` is the text, base64-encoded. A service checks the signature over the
-document's bytes sorted by key, as Adena signs it.
-
-The signed document is a transaction sign document whose single message,
-`sign/MsgSignData`, no node can decode, so it can never be broadcast as a
-transaction.
-
-To check a proof, from `gnokey sign-data` or from Adena, give `gnokey verify-data`
-what you expect: the chain, the text you handed out and the address. The proof
-holds the public key, so the address needs no key in your keybase.
+To check a proof, give `gnokey verify-data` what you expect: the chain, the
+text you handed out and the address. Say `mykey`'s address is
+`g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`:
 
 ```bash
-gnokey verify-data -chainid gnoland-1 -data "example.com: prove this wallet is yours · 9UQVko4o" \
+gnokey verify-data -chainid gnoland-1 \
+  -data "example.com: prove this wallet is yours · 9UQVko4o" \
   -proof-path proof.json g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 ```
 
 It fails unless the proof is signed by that address's key and signs exactly
-that text on that chain. Use `-proof-path -` to read the proof from stdin. A
-service written in Go checks a proof with `std.VerifySignDataProof`, then compares
-the chain, the signer and the data itself.
+that text on that chain. The proof holds the public key, so the address needs
+no key in your keybase. Use `-proof-path -` to read the proof from stdin. A
+service written in Go checks a proof with `std.VerifySignDataProof`, then
+compares the chain, the signer and the text itself.
+
+A proof stays valid forever, so anyone holding it can present it again. A
+service that accepts proofs must make each challenge unusable twice:
+
+- issue a fresh, unpredictable challenge for each attempt;
+- give it an expiry, and refuse it afterwards;
+- name the service and the session in it, so a proof made for one is refused by another;
+- accept it once, then forget it.
 
 ## Using a k-of-n multisig
 

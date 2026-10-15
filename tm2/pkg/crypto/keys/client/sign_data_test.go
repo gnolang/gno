@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"flag"
 	"os"
 	"path/filepath"
@@ -10,10 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/internal/ledger"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -196,4 +201,50 @@ func TestSignData(t *testing.T) {
 		_, err := st.run(t, "--chainid", "dev", "--data", "hello", st.keyName)
 		assert.Error(t, err)
 	})
+}
+
+// ledgerDevice is a mock Ledger holding priv.
+type ledgerDevice struct {
+	ledger.MockLedger
+	priv secp256k1.PrivKeySecp256k1
+}
+
+func (d ledgerDevice) GetPublicKeySECP256K1([]uint32) ([]byte, error) {
+	_, pub := btcec.PrivKeyFromBytes(d.priv[:])
+	return pub.SerializeUncompressed(), nil
+}
+
+func (d ledgerDevice) GetAddressPubKeySECP256K1([]uint32, string) ([]byte, string, error) {
+	_, pub := btcec.PrivKeyFromBytes(d.priv[:])
+	return pub.SerializeCompressed(), d.priv.PubKey().Address().String(), nil
+}
+
+func (d ledgerDevice) SignSECP256K1(_ []uint32, msg []byte, _ byte) ([]byte, error) {
+	priv, _ := btcec.PrivKeyFromBytes(d.priv[:])
+	hash := sha256.Sum256(msg)
+	return ecdsa.Sign(priv, hash[:]).Serialize(), nil
+}
+
+// A Ledger signs with the device plugged in, so a proof by another device must
+// not come out as the key's.
+func TestSignData_AnotherLedger(t *testing.T) {
+	plugged := ledgerDevice{priv: secp256k1.GenPrivKey()}
+	ledger.Discover = func() (ledger.SECP256K1, error) { return plugged, nil }
+	t.Cleanup(func() { ledger.Discover = ledger.DiscoverDefault })
+
+	kbHome := t.TempDir()
+	kb, err := keys.NewKeyBaseFromDir(kbHome)
+	require.NoError(t, err)
+	info, err := kb.CreateLedger("ledger-key", keys.Secp256k1, crypto.Bech32AddrPrefix(), 0, 0)
+	require.NoError(t, err)
+
+	out, err := runKeysCmd(t, kbHome, "", "sign-data", "--chainid", "dev", "--data", "hello", "ledger-key")
+	require.NoError(t, err)
+	assert.Equal(t, info.GetAddress(), verifySignDataOutput(t, out).Signer)
+
+	plugged = ledgerDevice{priv: secp256k1.GenPrivKey()}
+
+	out, err = runKeysCmd(t, kbHome, "", "sign-data", "--chainid", "dev", "--data", "hello", "ledger-key")
+	assert.ErrorContains(t, err, "connect the device that holds it")
+	assert.NotContains(t, string(out), `"signed"`)
 }

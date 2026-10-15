@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"unicode/utf8"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -82,42 +81,29 @@ func SignDataPayload(chainID string, signer crypto.Address, data string) ([]byte
 	})
 }
 
-// signDataDoc reads a sign-data document as a verifier receives it, in any key
-// order or spacing. Numbers stay strings, as amino JSON writes them.
+// signDataDoc reads the values of a sign-data document; VerifySignData checks
+// the rest of it against the canonical bytes.
 type signDataDoc struct {
-	ChainID       string `json:"chain_id"`
-	AccountNumber string `json:"account_number"`
-	Sequence      string `json:"sequence"`
-	Fee           struct {
-		Amount []json.RawMessage `json:"amount"`
-		Gas    string            `json:"gas"`
-	} `json:"fee"`
-	Msgs []signDataMsg `json:"msgs"`
-	Memo string        `json:"memo"`
+	ChainID string        `json:"chain_id"`
+	Msgs    []signDataMsg `json:"msgs"`
 }
 
 // VerifySignData checks that sig, by pubKey, signs the sign-data document doc,
 // and that pubKey is the key of the document's signer. It returns what the
 // document says; the caller still checks the chain id and the data it expects.
 //
-// The signature is checked over the document's canonical bytes, rebuilt from
-// its values, so doc may come in any key order or spacing. Its shape is fixed:
-// anything but zeros, an empty fee, no memo and one sign/MsgSignData message is
-// refused, so no other document passes for one.
+// doc may come in any key order or spacing, but must otherwise be the canonical
+// document: sorted by key and compacted, it must equal the bytes rebuilt from
+// its values, and no object may repeat a key. Missing or extra fields, numbers
+// for strings, a null for the empty fee, non-canonical base64 and a duplicate
+// key are refused, so no other document passes for one, whatever parser reads
+// it.
 func VerifySignData(doc []byte, pubKey crypto.PubKey, sig []byte) (SignedData, error) {
 	var d signDataDoc
-	dec := json.NewDecoder(bytes.NewReader(doc))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&d); err != nil {
+	if err := unmarshalStrict(doc, &d); err != nil {
 		return SignedData{}, fmt.Errorf("unable to read sign-data document, %w", err)
 	}
-	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
-		return SignedData{}, errors.New("unexpected data after the sign-data document")
-	}
-
-	if d.AccountNumber != "0" || d.Sequence != "0" || d.Fee.Gas != "0" ||
-		len(d.Fee.Amount) != 0 || d.Memo != "" ||
-		len(d.Msgs) != 1 || d.Msgs[0].Type != SignDataMsgType {
+	if len(d.Msgs) != 1 {
 		return SignedData{}, errors.New("not a sign-data document")
 	}
 
@@ -133,6 +119,11 @@ func VerifySignData(doc []byte, pubKey crypto.PubKey, sig []byte) (SignedData, e
 	payload, err := SignDataPayload(d.ChainID, signer, string(data))
 	if err != nil {
 		return SignedData{}, err
+	}
+
+	// doc already parsed, so sortJSON cannot fail.
+	if canonical, _ := sortJSON(doc); !bytes.Equal(canonical, payload) {
+		return SignedData{}, errors.New("not a sign-data document")
 	}
 
 	if pubKey == nil {
@@ -184,9 +175,11 @@ func NewSignDataProof(payload []byte, pubKey secp256k1.PubKeySecp256k1, sig []by
 
 // VerifySignDataProof checks a proof in SignDataProof's JSON with
 // VerifySignData; the caller still checks the chain id and the data it expects.
+// Its cost grows with the proof's size, so a service bounds what it accepts
+// (a proof of a short challenge is under 1 KiB).
 func VerifySignDataProof(proof []byte) (SignedData, error) {
 	var p SignDataProof
-	if err := json.Unmarshal(proof, &p); err != nil {
+	if err := unmarshalStrict(proof, &p); err != nil {
 		return SignedData{}, fmt.Errorf("unable to read sign-data proof, %w", err)
 	}
 

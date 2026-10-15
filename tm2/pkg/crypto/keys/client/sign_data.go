@@ -160,6 +160,11 @@ func execSignData(cfg *SignDataCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to sign data, %w", err)
 	}
 
+	// A Ledger signs with the device plugged in, whichever key it holds.
+	if !pub.VerifyBytes(payload, sig) {
+		return fmt.Errorf("the signature is not by %s's key; for a Ledger, connect the device that holds it", args[0])
+	}
+
 	proof, err := json.MarshalIndent(std.NewSignDataProof(payload, pub, sig), "", "  ")
 	if err != nil {
 		return fmt.Errorf("unable to marshal proof to JSON, %w", err)

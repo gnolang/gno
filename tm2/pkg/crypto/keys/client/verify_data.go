@@ -39,7 +39,8 @@ key in the keybase; a key name is looked up in it.
 
 The proof passes only if it is signed by the address's key and signs exactly
 -data on -chainid: a valid signature over another chain or another text is
-refused.`,
+refused. A proof stays valid forever: a service hands out each challenge once,
+with an expiry, and accepts it once.`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

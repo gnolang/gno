@@ -228,6 +228,20 @@ func TestVerifySignData_Rejects(t *testing.T) {
 		{"data that is not base64", replace(`"aGVsbG8="`, `"not base64!"`), pub, sig},
 		{"a signer that is not an address", replace(signDataTestSigner, "g1nope"), pub, sig},
 		{"not JSON", "hello", pub, sig},
+		// Beyond key order and spacing, a document must be the canonical one,
+		// even where Go would read the same values from it.
+		{"a missing memo", replace(`"memo":"",`, ``), pub, sig},
+		{"a null fee amount", replace(`"amount":[]`, `"amount":null`), pub, sig},
+		{"a number for a string", replace(`"account_number":"0"`, `"account_number":0`), pub, sig},
+		{"a key in another case", replace(`"chain_id"`, `"Chain_ID"`), pub, sig},
+		{"non-canonical base64", replace(`"aGVsbG8="`, `"aGVsbG9="`), pub, sig},
+		{"data after the document", v.payload + "{}", pub, sig},
+		// Parsers disagree on which value a repeated key holds.
+		{"a repeated chain id", replace(`"chain_id":"gnoland-1"`, `"chain_id":"evil","chain_id":"gnoland-1"`), pub, sig},
+		{"repeated data", replace(`"data":"aGVsbG8="`, `"data":"ZXZpbA==","data":"aGVsbG8="`), pub, sig},
+		// Nested past Unmarshal's depth limit, so the duplicate-key walk never
+		// recurses that deep.
+		{"deep nesting", strings.Repeat("[", 3_000_000) + strings.Repeat("]", 3_000_000), pub, sig},
 	}
 
 	for _, testCase := range testTable {
@@ -300,6 +314,7 @@ func TestVerifySignDataProof_Rejects(t *testing.T) {
 		{"a corrupted signature", replace(signDataVectors[0].sig, "9"+signDataVectors[0].sig[1:]), "invalid sign-data signature"},
 		{"tampered data", replace(`"aGVsbG8="`, `"aGVsbG8h"`), "invalid sign-data signature"},
 		{"not JSON", "hello", "unable to read sign-data proof"},
+		{"a repeated signed document", replace(`"signed": `, `"signed": {}, "signed": `), `duplicate key "signed"`},
 	}
 
 	for _, testCase := range testTable {
