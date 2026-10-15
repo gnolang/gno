@@ -39,7 +39,26 @@ func UsesGenerics(source []byte) bool {
 			}
 		}
 	}
-	return false
+	// Constraint interfaces (`int | bool`, `~int`, `comparable`) are the
+	// generics feature too, even with no type parameter in the file.
+	found := false
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.InterfaceType:
+			for _, m := range n.Methods.List {
+				switch t := m.Type.(type) {
+				case *ast.BinaryExpr, *ast.UnaryExpr:
+					found = true
+				case *ast.Ident:
+					found = found || t.Name == "comparable"
+				}
+			}
+		case *ast.Ident:
+			found = found || n.Name == "comparable"
+		}
+		return !found
+	})
+	return found
 }
 
 // HasInlineErrorMarkers reports whether source contains any
