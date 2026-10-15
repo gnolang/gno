@@ -1386,7 +1386,7 @@
 		& > :where(a, div) {
 			display: flex;
 			flex-wrap: wrap;
-			row-gap: var(--g-space-1);
+			gap: var(--g-space-1) var(--g-space-3);
 			justify-content: space-between;
 			align-items: center;
 			padding: var(--g-space-2);
