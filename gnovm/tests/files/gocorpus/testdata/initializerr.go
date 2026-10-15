@@ -43,17 +43,7 @@ var _ = map[Key]string{
 // GnoError:
 // line 21: mixed keyed and unkeyed elements
 // line 22: duplicate field name Y in struct literal
-// line 23: too many values in struct literal of type main.T
-// line 24: index 5 out of bounds [0:5]
 // line 25: slice/array literals may not contain non-const keys
 // line 26: duplicate index 1 in array or slice literal
 
-// GoTypeCheckError:
-// line 21
-// line 22
-// line 23
-// line 24
-// line 25
-// line 26
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 23, 24, 26

@@ -42,14 +42,4 @@ var _ = map[string]int{
 // line 25: duplicate case int(3) in expression switch
 // line 31: 2: duplicate key ("a" string) in map literal
 
-// GoTypeCheckError:
-// line 20
-// line 21
-// line 23
-// line 24
-// line 25
-// line 34
-// line 35
-// line 36
-
 // Verdict: Clean errorcheck

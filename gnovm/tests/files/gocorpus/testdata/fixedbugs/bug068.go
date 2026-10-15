@@ -21,7 +21,4 @@ bug068.go:6: unknown escape sequence: '
 // GnoError:
 // line 12: unknown escape sequence
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

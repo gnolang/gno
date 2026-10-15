@@ -7,7 +7,4 @@
 func main() {	// ERROR "package"
 }
 
-// UncaughtError:
-// line 7: uncaught; gc expects: package
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7

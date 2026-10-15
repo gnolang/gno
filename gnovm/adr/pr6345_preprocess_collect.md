@@ -1,4 +1,4 @@
-# PRxxxx: Preprocess in accumulate mode, off-chain
+# PR6345: Preprocess in accumulate mode, off-chain
 
 ## Context
 

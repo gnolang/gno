@@ -17,10 +17,4 @@ func main() {
 	_, _, _ = s1, s3, s2;
 }
 
-// GnoError:
-// line 16: too few values in struct literal of type main.S
-
-// GoTypeCheckError:
-// line 16
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

@@ -13,7 +13,4 @@ func main() {
 // GnoError:
 // line 10: cannot use nil as string value in variable declaration
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

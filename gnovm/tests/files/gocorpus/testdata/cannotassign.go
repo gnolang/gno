@@ -46,18 +46,4 @@ func main() {
 // line 29: cannot assign to (const-type []int){}
 // line 32: cannot assign to x<VPBlock(1,4)> + (const (1 int))
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 18
-// line 19
-// line 20
-// line 23
-// line 25
-// line 26
-// line 27
-// line 28
-// line 29
-// line 32
-
 // Verdict: Clean errorcheck

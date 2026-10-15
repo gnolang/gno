@@ -13,10 +13,4 @@ var f = func() { // ERROR "unexpected EOF|expected .*}.*"
 // GnoError:
 // line 13: expected '(', found main
 
-// GoTypeCheckError:
-// line 13
-
-// UncaughtError:
-// line 11: uncaught; gc expects: unexpected EOF|expected .*}.*
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11; over-strict: lines 13

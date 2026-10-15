@@ -24,8 +24,4 @@ func main() {
 // line 13: operator << not defined on: BigdecKind
 // line 16: operator << not defined on: BigdecKind
 
-// GoTypeCheckError:
-// line 13
-// line 16
-
 // Verdict: Clean errorcheck

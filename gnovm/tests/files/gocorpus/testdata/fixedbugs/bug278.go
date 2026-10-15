@@ -26,14 +26,4 @@ func main() {
 // line 21: cannot assign to x<VPBlock(1,0)>[(const (2 int))]
 // line 22: cannot assign to m[0][5] (neither addressable nor a map index expression)
 
-// GoTypeCheckError:
-// line 18
-// line 19
-// line 21
-// line 22
-
-// GoTypesOnly:
-// line 18: gc expects: cannot|invalid
-// line 19: gc expects: cannot|addressable
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 19, 22

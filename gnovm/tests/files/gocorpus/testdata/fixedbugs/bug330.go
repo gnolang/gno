@@ -16,8 +16,4 @@ func main() {
 // line 11: operator + not defined on: StringKind
 // line 12: operator + not defined on: StringKind
 
-// GoTypeCheckError:
-// line 11
-// line 12
-
 // Verdict: Clean errorcheck

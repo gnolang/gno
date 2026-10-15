@@ -27,9 +27,4 @@ type _ interface {
 // line 18: name sync not declared
 // line 22: name sync not declared
 
-// GoTypeCheckError:
-// line 14
-// line 18
-// line 22
-
 // Verdict: Clean errorcheck

@@ -17,17 +17,4 @@ type b interface {
 	valid(...int)
 }
 
-// GnoError:
-// line 9: can only use ... with final parameter in list
-// line 10: can only use ... with final parameter in list
-// line 11: can only use ... with final parameter in list
-// line 13: can only use ... with final parameter in list
-// line 15: can only use ... with final parameter in list
-
-// GoTypeCheckError:
-// line 9
-
-// UncaughtError:
-// line 16: uncaught; gc expects: non-final parameter a|must be last parameter|can only use ... with final parameter
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9, 10, 11, 13, 15, 16

@@ -13,7 +13,4 @@ func f() [2]int {
 // GnoError:
 // line 10: cannot use [3]int as [2]int
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

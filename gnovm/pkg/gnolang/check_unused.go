@@ -37,7 +37,7 @@ func checkUnused(parent BlockNode, fd *FuncDecl) []unusedName {
 			blocks = append(blocks, n.(BlockNode))
 		case TRANS_ENTER:
 			if st, ok := n.(Stmt); ok {
-				if l := st.GetLabel(); l != "" {
+				if l := st.GetLabel(); l != "" && l != blankIdentifier {
 					labels[l] = n.GetSpan()
 				}
 			}
@@ -45,6 +45,22 @@ func checkUnused(parent BlockNode, fd *FuncDecl) []unusedName {
 				branched[bs.Label] = true
 			}
 		case TRANS_LEAVE:
+			// A folded constant (`len(a)` of an array) hides the names its
+			// source expression used; they count as uses.
+			if cx, ok := n.(*ConstExpr); ok && cx.Source != nil {
+				Transcribe(cx.Source, func(_ []Node, _ TransField, _ int, sn Node, st TransStage) (Node, TransCtrl) {
+					if snx, ok := sn.(*NameExpr); ok && st == TRANS_LEAVE && snx.Path.Type == VPBlock {
+						if dbn := last.GetBlockNodeForPath(nil, snx.Path); dbn != nil {
+							sources := dbn.GetStaticBlock().NameSources
+							if idx, ok := dbn.GetLocalIndex(snx.Name); ok && int(idx) < len(sources) {
+								used[key{sources[idx].Origin, plain(snx.Name)}] = true
+							}
+						}
+					}
+					return sn, TRANS_CONTINUE
+				})
+				break
+			}
 			nx, ok := n.(*NameExpr)
 			if !ok || nx.Path.Type != VPBlock || nx.Name == blankIdentifier || strings.HasPrefix(string(nx.Name), ".") {
 				break

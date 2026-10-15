@@ -21,8 +21,4 @@ func f() {
 // GnoError:
 // line 12: invalid recursive type: a -> b -> a
 
-// GoTypeCheckError:
-// line 12
-// line 13
-
 // Verdict: Clean errorcheck

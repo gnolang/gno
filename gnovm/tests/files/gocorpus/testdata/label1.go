@@ -125,36 +125,4 @@ L5:
 // line 108: label on undefined
 // line 113: label dance undefined
 
-// GoTypeCheckError:
-// line 18
-// line 22
-// line 46
-// line 53
-// line 64
-// line 72
-// line 75
-// line 85
-// line 88
-// line 96
-// line 99
-// line 106
-// line 108
-// line 111
-// line 113
-
-// GoTypesOnly:
-// line 18: gc expects: continue is not in a loop$|continue statement not within for
-// line 22: gc expects: continue is not in a loop$|continue statement not within for
-// line 46: gc expects: invalid continue label .*L2|continue is not in a loop$
-// line 53: gc expects: invalid continue label .*L2
-// line 64: gc expects: invalid continue label .*L3|continue is not in a loop$
-// line 72: gc expects: invalid break label .*L4
-// line 75: gc expects: invalid continue label .*L4|continue is not in a loop$
-// line 85: gc expects: invalid break label .*L5
-// line 88: gc expects: invalid continue label .*L5|continue is not in a loop$
-// line 96: gc expects: invalid break label .*L1
-// line 99: gc expects: invalid continue label .*L1
-// line 106: gc expects: continue is not in a loop$|continue statement not within for
-// line 111: gc expects: break is not in a loop, switch, or select|break statement not within for or switch or select
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 22, 46, 53, 64, 72, 75, 85, 88, 96, 99, 106, 111

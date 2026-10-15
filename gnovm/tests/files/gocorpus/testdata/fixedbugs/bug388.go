@@ -31,11 +31,4 @@ func main() {
 // GnoError:
 // line 12: missing parameter name
 
-// GoTypeCheckError:
-// line 12
-
-// UncaughtError:
-// line 17: uncaught; gc expects: unexpected [.]|expected type
-// line 22: uncaught; gc expects: unexpected [.]|expected type
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 22

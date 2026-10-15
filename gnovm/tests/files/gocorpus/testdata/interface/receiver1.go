@@ -62,8 +62,4 @@ func main() {
 // line 40: main.T does not implement main.P (method P has pointer receiver)
 // line 47: main.S does not implement main.P (method P has pointer receiver)
 
-// GoTypeCheckError:
-// line 40
-// line 47
-
 // Verdict: Clean errorcheck

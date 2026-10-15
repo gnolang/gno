@@ -17,7 +17,4 @@ type S struct {
 // GnoError:
 // line 14: invalid map key type main.S
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck
