@@ -69,17 +69,6 @@ L10:
 // 	previous declaration at label.go:29:1
 // line 64: label go2 undefined
 
-// GoTypeCheckError:
-// line 16
-// line 19
-// line 21
-// line 24
-// line 27
-// line 29
-// line 31
-// line 53
-// line 64
-
 // ParseBlocked:
 // line 16: gc expects: label .*L1.* defined and not used
 // line 19: gc expects: label .*L2.* defined and not used

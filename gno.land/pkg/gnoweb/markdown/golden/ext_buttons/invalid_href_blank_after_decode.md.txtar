@@ -1,0 +1,7 @@
+-- input.md --
+<gno-button href="&#32;" label="Blank" />
+
+Inline <gno-button href=" &#32; " label="Blank" /> and <gno-button href="&#x9;&#32;" label="Tab" />
+-- output.html --
+<p><!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --> and <!-- raw HTML omitted --></p>

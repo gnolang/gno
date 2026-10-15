@@ -21,7 +21,4 @@ func (*T) F() {
 // GnoError:
 // line 16: (const (nil *gno.land/p/filetest/p.T)) (variable of type gno.land/p/filetest/p.I) is not constant
 
-// GoTypeCheckError:
-// line 16
-
 // Verdict: Clean errorcheck

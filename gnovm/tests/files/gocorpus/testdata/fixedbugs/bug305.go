@@ -26,10 +26,4 @@ var a int = "bogus"
 // GnoError:
 // line 23: cannot use untyped string as IntKind
 
-// GoTypeCheckError:
-// line 23
-
-// UncaughtError:
-// line 24: uncaught; gc expects: cannot|incompatible
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 24; over-strict: lines 23

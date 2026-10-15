@@ -16,7 +16,4 @@ type A interface {
 // GnoError:
 // line 13: A.Fn undefined (type gno.land/p/filetest/p.A has no method Fn)
 
-// GoTypeCheckError:
-// line 13
-
 // Verdict: Clean errorcheck

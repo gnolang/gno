@@ -11,7 +11,4 @@ var init = 1 // ERROR "cannot declare init - must be func"
 // GnoError:
 // line 9: cannot declare init - must be func
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

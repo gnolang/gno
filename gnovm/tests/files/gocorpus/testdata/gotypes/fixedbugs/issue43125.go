@@ -11,10 +11,6 @@ var _ = new(1 /* ERROR "not a type" */ + 1)
 // line 7: generic <T.(type)> requires type kind, got BigintKind
 // line 8: generic <T.(type)> requires type kind, got BigintKind
 
-// GoTypeCheckError:
-// line 7
-// line 8
-
 // GnoWordingDiffers:
 // line 7: gc expects: not a type; gno: generic <T.(type)> requires type kind, got BigintKind
 // line 8: gc expects: not a type; gno: generic <T.(type)> requires type kind, got BigintKind

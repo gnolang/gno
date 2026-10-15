@@ -24,10 +24,6 @@ func main() {
 // line 17: struct type struct{} has no field X
 // line 19: cannot use untyped Bigint as StringKind
 
-// GoTypeCheckError:
-// line 17
-// line 19
-
 // GnoWordingDiffers:
 // line 17: gc expects: unknown field 'X' in struct literal of type T|unknown field .*X.* in .*T.*; gno: struct type struct{} has no field X
 // line 19: gc expects: cannot use 1|incompatible type|cannot convert; gno: cannot use untyped Bigint as StringKind

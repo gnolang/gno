@@ -23,8 +23,4 @@ func f() {
 // line 16: missing field f in **struct{f int}
 // line 19: missing field f in gno.land/p/filetest/p.PP
 
-// GoTypeCheckError:
-// line 16
-// line 19
-
 // Verdict: Clean errorcheck

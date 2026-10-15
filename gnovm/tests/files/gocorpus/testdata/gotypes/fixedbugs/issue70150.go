@@ -19,11 +19,6 @@ func vf(method string, values ...int) {
 // line 10: not enough arguments in call to vf<VPBlock(3,1)>; want 2 (including variadic) got 1
 // line 11: not enough arguments in call to vf<VPBlock(3,1)>; want 2 (including variadic) got 3
 
-// GoTypeCheckError:
-// line 9
-// line 10
-// line 11
-
 // GnoWordingDiffers:
 // line 9: gc expects: (variable of type []int) as string value; gno: cannot use []int as string
 // line 10: gc expects: have ([]int...)

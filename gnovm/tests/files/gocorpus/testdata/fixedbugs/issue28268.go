@@ -35,14 +35,4 @@ func _() {
 // line 26: cannot call non-function x.b (variable of type int)
 // line 29: cannot call non-function x.E (variable of type gno.land/p/filetest/p.E)
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 19
-// line 20
-
-// GnoOverStrictError:
-// line 26: cannot call non-function x.b (variable of type int)
-// line 29: cannot call non-function x.E (variable of type gno.land/p/filetest/p.E)
-
-// Verdict: KnownIssue errorcheck: 2 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19, 20

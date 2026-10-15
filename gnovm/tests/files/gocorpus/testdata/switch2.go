@@ -41,9 +41,6 @@ func f() {
 // GnoError:
 // line 14: expected ':', found ';'
 
-// GoTypeCheckError:
-// line 14
-
 // ParseBlocked:
 // line 18: gc expects: expecting := or = or : or comma|expected :
 // line 28: gc expects: unexpected keyword case at end of statement

@@ -13,13 +13,7 @@ type (
 // line 8: name not defined: A
 // line 9: invalid recursive type: A -> A
 
-// GoTypeCheckError:
-// line 9
-
-// GnoOverStrictError:
-// line 8: name not defined: A
-
 // GnoWordingDiffers:
 // line 9: gc expects: invalid recursive type: A refers to itself; gno: invalid recursive type: A -> A
 
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 8

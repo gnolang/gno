@@ -21,10 +21,6 @@ func main() {
 // line 16: cannot use []int as int
 // line 17: cannot use float64 as int
 
-// GoTypeCheckError:
-// line 16
-// line 17
-
 // GnoWordingDiffers:
 // line 16: gc expects: cannot use \[\]int value as type int in append|cannot use.*type \[\]int.*to append; gno: cannot use []int as int
 // line 17: gc expects: cannot use float64 value as type int in append|cannot use.*type float64.*to append; gno: cannot use float64 as int

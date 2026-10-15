@@ -22,8 +22,4 @@ var x = E.m // ERROR "initialization cycle|depends upon itself"
 // GnoError:
 // line 20: initialization cycle: x refers to T.m refers to x
 
-// GoTypeCheckError:
-// line 13
-// line 20
-
 // Verdict: Clean errorcheck

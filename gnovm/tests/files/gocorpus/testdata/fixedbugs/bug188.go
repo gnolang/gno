@@ -17,7 +17,4 @@ func main() {
 // GnoError:
 // line 14: package sort cannot only be referred to in a selector expression
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

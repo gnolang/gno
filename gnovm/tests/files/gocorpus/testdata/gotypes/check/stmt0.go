@@ -1006,9 +1006,6 @@ func expression_statements(ch chan int) {
 // line 973: L0 redeclared in this block
 // 	previous declaration at stmt0.go:968:2
 
-// GoTypeCheckError:
-// line 232
-
 // ParseBlocked:
 // line 18: gc expects: assignment mismatch: 3 variables but 2 values
 // line 19: gc expects: assignment mismatch: 3 variables but 4 values

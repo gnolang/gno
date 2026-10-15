@@ -38,8 +38,4 @@ func b8() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 // GnoError:
 // line 15: initialization cycle: x refers to z refers to x
 
-// GoTypeCheckError:
-// line 15
-// line 18
-
 // Verdict: Clean errorcheck

@@ -17,9 +17,6 @@ var p = (Array)(s /* ERROR "requires go1.20 or later" */)
 // GnoError:
 // line 15: cannot convert s<VPBlock(2,2)> (of type gno.land/p/filetest/p.Slice) to type gno.land/p/filetest/p.Array
 
-// GoTypeCheckError:
-// line 15
-
 // GnoWordingDiffers:
 // line 15: gc expects: requires go1.20 or later; gno: cannot convert s<VPBlock(2,2)> (of type gno.land/p/filetest/p.Slice) to type gno.land/p/filetest/p.Array
 

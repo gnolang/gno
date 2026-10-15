@@ -23,8 +23,4 @@ func f(x int) {
 // line 15: fallthrough statement out of place
 // line 18: cannot fallthrough final case in switch
 
-// GoTypeCheckError:
-// line 15
-// line 18
-
 // Verdict: Clean errorcheck

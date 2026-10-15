@@ -23,10 +23,4 @@ var (
 // line 16: too many values in struct literal of type gno.land/p/filetest/p.S
 // line 17: too many values in struct literal of type struct{f1 int; f2 int}
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 16
-// line 17
-
 // Verdict: Clean errorcheck

@@ -23,11 +23,6 @@ var _ = struct{ A }.m // ERROR "invalid method expression struct{A}.m (needs poi
 // line 16: invalid method expression B.m (needs pointer receiver (*B).m)
 // line 19: unexpected selector expression type value struct{A gno.land/p/filetest/p.A}
 
-// GoTypeCheckError:
-// line 11
-// line 16
-// line 19
-
 // GnoWordingDiffers:
 // line 19: gc expects: invalid method expression struct{A}.m (needs pointer receiver (*struct{A}).m); gno: unexpected selector expression type value struct{A gno.land/p/filetest/p.A}
 

@@ -40,12 +40,4 @@ var h interface{} // ERROR "issue20415.go:31: previous declaration|redefinition|
 // line 33: h redeclared in this block
 // 	previous declaration at issue20415.go:32:5
 
-// GoTypeCheckError:
-// line 12
-// line 14
-// line 20
-// line 25
-// line 31
-// line 33
-
 // Verdict: Clean errorcheck

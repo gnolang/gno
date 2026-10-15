@@ -38,12 +38,6 @@ var _ = C.I // ERROR "no method .*I.*|C.I undefined"
 // line 32: C.H undefined (type gno.land/p/filetest/p.C has no method H)
 // line 33: C.I undefined (type gno.land/p/filetest/p.C has no method I)
 
-// GoTypeCheckError:
-// line 30
-// line 31
-// line 32
-// line 33
-
 // GnoWordingDiffers:
 // line 30: gc expects: ambiguous; gno: C.F undefined (type gno.land/p/filetest/p.C has no method F)
 // line 31: gc expects: ambiguous; gno: C.G undefined (type gno.land/p/filetest/p.C has no method G)

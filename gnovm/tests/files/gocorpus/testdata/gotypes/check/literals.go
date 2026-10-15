@@ -110,80 +110,10 @@ func _() {
 	assert(01_23.e123i == 123e123i)
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 13: name assert not declared
 
 // GoBuildError:
 // line 13
-
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 17
-// line 18
-// line 21
-// line 22
-// line 23
-// line 26
-// line 27
-// line 28
-// line 30
-// line 31
-// line 32
-// line 34
-// line 35
-// line 36
-// line 38
-// line 39
-// line 40
-// line 43
-// line 44
-// line 45
-// line 47
-// line 48
-// line 49
-// line 51
-// line 52
-// line 53
-// line 56
-// line 57
-// line 59
-// line 60
-// line 61
-// line 63
-// line 64
-// line 65
-// line 67
-// line 68
-// line 69
-// line 71
-// line 72
-// line 73
-// line 75
-// line 76
-// line 79
-// line 80
-// line 81
-// line 83
-// line 84
-// line 85
-// line 87
-// line 88
-// line 89
-// line 91
-// line 92
-// line 93
-// line 95
-// line 96
-// line 98
-// line 99
-// line 101
-// line 102
-// line 104
-// line 105
-// line 106
-// line 108
-// line 109
-// line 110
 
 // Verdict: Clean compile

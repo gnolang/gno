@@ -31,8 +31,4 @@ func _(x, y int) {
 // line 17: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion
 // line 19: cannot use bool as gno.land/p/filetest/p[gno.land/p/filetest/p/issue6671.go:14:1-29:2].mybool without explicit conversion
 
-// GoTypeCheckError:
-// line 17
-// line 19
-
 // Verdict: Clean errorcheck

@@ -19,13 +19,6 @@ func _() {
 // line 11: use of builtin len not in function call
 // line 12: use of builtin len not in function call
 
-// GoTypeCheckError:
-// line 8
-// line 9
-// line 10
-// line 11
-// line 12
-
 // GnoWordingDiffers:
 // line 8: gc expects: invalid use of len (built-in) in selector expression; gno: use of builtin len not in function call
 // line 9: gc expects: invalid use of len (built-in) in selector expression; gno: use of builtin len not in function call

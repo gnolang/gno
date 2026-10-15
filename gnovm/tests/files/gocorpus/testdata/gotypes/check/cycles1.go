@@ -76,7 +76,7 @@ func _() {
 	x3 = x3.c()
 }
 
-// GnoPreprocessError:
+// GnoError:
 // line 8: 3: invalid recursive type: A -> ABC1 -> A
 
 // GoBuildError:

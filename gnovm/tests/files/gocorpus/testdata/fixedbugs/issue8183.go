@@ -22,14 +22,4 @@ const (
 	f // ERROR "array bound must be non-negative|negative array bound|invalid array length"
 )
 
-// GoTypeCheckError:
-// line 15
-// line 21
-// line 22
-
-// GoTypesOnly:
-// line 15: gc expects: constant 256 overflows byte|integer constant overflow|cannot convert
-// line 21: gc expects: array bound must be non-negative|negative array bound|invalid array length
-// line 22: gc expects: array bound must be non-negative|negative array bound|invalid array length
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15, 21, 22; over-strict: lines 19

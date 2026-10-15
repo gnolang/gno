@@ -14,9 +14,6 @@ var x = []byte((1 << v) + 1) // ERROR "cannot convert|non-integer type for left 
 // GnoError:
 // line 12: cannot use <untyped> bigint as []uint8
 
-// GoTypeCheckError:
-// line 12
-
 // GnoWordingDiffers:
 // line 12: gc expects: cannot convert|non-integer type for left operand of shift; gno: cannot use <untyped> bigint as []uint8
 

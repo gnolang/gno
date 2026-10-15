@@ -317,9 +317,6 @@ func _[P MyInts]() P {
 // GnoError:
 // line 109: expected ';', found '['
 
-// GoTypeCheckError:
-// line 109
-
 // ParseBlocked:
 // line 56: gc expects: assignment
 // line 81: gc expects: assignment

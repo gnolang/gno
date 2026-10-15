@@ -2,9 +2,15 @@ package main
 
 type T0 struct{ n int }
 
-func (t T0) v0() int           { return t.n }
-func (t *T0) p0() int          { t.n++; return t.n }
-func (t T0) sum(xs ...int) int { s := t.n; for _, x := range xs { s += x }; return s }
+func (t T0) v0() int  { return t.n }
+func (t *T0) p0() int { t.n++; return t.n }
+func (t T0) sum(xs ...int) int {
+	s := t.n
+	for _, x := range xs {
+		s += x
+	}
+	return s
+}
 
 type T1 struct{ m int }
 

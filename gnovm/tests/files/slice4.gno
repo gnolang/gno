@@ -8,4 +8,3 @@ func main() {
 
 // Error:
 // allocation limit exceeded
-

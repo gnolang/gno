@@ -9,7 +9,4 @@ const C = 912_345_678_901_234_567_890_123_456_789_012_345_678_901_234_567_890_91
 // GnoError:
 // line 7: constant overflow
 
-// GoTypeCheckError:
-// line 7
-
 // Verdict: Clean errorcheck

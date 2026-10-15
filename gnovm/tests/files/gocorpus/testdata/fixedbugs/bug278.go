@@ -23,17 +23,7 @@ func main() {
 }
 
 // GnoError:
-// line 18: cannot assign to f()[1] (neither addressable nor a map index expression)
-// line 21: cannot assign to x[2] (neither addressable nor a map index expression)
+// line 21: cannot assign to x[2]
 // line 22: cannot assign to m[0][5] (neither addressable nor a map index expression)
 
-// GoTypeCheckError:
-// line 18
-// line 19
-// line 21
-// line 22
-
-// GoTypesOnly:
-// line 19: gc expects: cannot|addressable
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 19, 22
