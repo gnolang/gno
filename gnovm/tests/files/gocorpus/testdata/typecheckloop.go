@@ -15,7 +15,5 @@ const C = A + B + 1
 
 // GnoError:
 // line 12: invalid recursive value: A -> B -> C -> A
-// line 13: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
-// line 14: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
 
 // Verdict: KnownIssue errorcheck: #6344; over-strict: lines 14

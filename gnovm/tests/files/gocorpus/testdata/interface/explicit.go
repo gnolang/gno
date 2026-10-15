@@ -113,6 +113,9 @@ var b2 B2 = &T2{}
 // line 53: main.I does not implement main.I2 (missing method N)
 // line 56: cannot convert main.E to main.T: need type assertion
 // line 60: invalid operation: f<VPBlock(1,0)> (variable of type float64) is not an interface
+// line 70: impossible type assertion: int does not implement main.M (missing method M)
+// line 76: impossible type assertion: main.Int does not implement main.M (wrong type for method M)
+// line 78: impossible type assertion: main.X does not implement main.M (method M has pointer receiver)
 // line 83: int does not implement main.M (missing method M)
 // line 84: main.Int does not implement main.M (wrong type for method M)
 // line 86: int does not implement main.M (missing method M)
@@ -120,4 +123,4 @@ var b2 B2 = &T2{}
 // line 89: 2: methods must have a unique non-blank name
 // line 93: 2: methods must have a unique non-blank name
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 70, 76, 78, 90, 95
+// Verdict: Clean errorcheck

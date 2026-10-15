@@ -37,6 +37,9 @@ var _ = map[string]int{
 }
 
 // GnoError:
+// line 21: duplicate case int(1) in expression switch
+// line 24: duplicate case 3 in expression switch
+// line 25: duplicate case int(3) in expression switch
 // line 31: 2: duplicate key ("a" string) in map literal
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 21, 24, 25
+// Verdict: Clean errorcheck

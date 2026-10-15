@@ -10,4 +10,7 @@ type T *struct {
 	T;	// ERROR "embed.*pointer"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10
+// GnoError:
+// line 10: embedded field type cannot be a pointer
+
+// Verdict: Clean errorcheck

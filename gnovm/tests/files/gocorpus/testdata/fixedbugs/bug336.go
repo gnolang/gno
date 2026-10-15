@@ -88,7 +88,7 @@ func main() {
 // GnoOutput:
 
 // GnoError:
-// main/bug336.go:9:6-11:2: should not happen
+// main/bug336.go:13:6-11: should not happen
 
 // GoOutput:
 
