@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm/utils"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
@@ -55,7 +56,7 @@ func DecodeObject(ctx context.Context, raw []byte, cfg RenderConfig) (root State
 	}
 	cfg = clampRenderConfig(cfg)
 
-	var resp objectResponse
+	var resp utils.ObjectResponse
 	if cerr := amino.UnmarshalJSON(raw, &resp); cerr != nil {
 		return StateNode{}, fmt.Errorf("decode object JSON: %w", cerr)
 	}
@@ -87,7 +88,7 @@ func DecodePackage(ctx context.Context, raw []byte, cfg RenderConfig, offset, li
 	if limit <= 0 {
 		limit = maxTopLevelDecls
 	}
-	start, end := clampSliceWindow(offset, limit, total)
+	start, end := utils.ClampSliceWindow(offset, limit, total)
 	indices := make([]int, 0, end-start)
 	for i := start; i < end; i++ {
 		indices = append(indices, i)
@@ -101,20 +102,20 @@ func DecodePackage(ctx context.Context, raw []byte, cfg RenderConfig, offset, li
 // every Value) from a single parse, instead of decoding the package twice.
 // recoverToErr keeps an amino panic on hostile chain bytes inside the
 // function; the caller sees a clean error and returns 500.
-func parsePackage(raw []byte) (resp pkgResponse, err error) {
+func parsePackage(raw []byte) (resp utils.PkgResponse, err error) {
 	defer recoverToErr(nil, "decode pkg JSON", &err)
 	if cerr := amino.UnmarshalJSON(raw, &resp); cerr != nil {
-		return pkgResponse{}, fmt.Errorf("decode pkg JSON: %w", cerr)
+		return utils.PkgResponse{}, fmt.Errorf("decode pkg JSON: %w", cerr)
 	}
 	return resp, nil
 }
 
 // decodePackageSlice walks the selected top-level indices of an already-
-// parsed pkgResponse, bounded by cfg. indices is consumed positionally so
+// parsed utils.PkgResponse, bounded by cfg. indices is consumed positionally so
 // the caller can align anchors/kinds with the returned nodes slice.
 // recoverToErr catches walker panics on hostile values so a single
 // malformed top-level decl cannot tear the whole page response.
-func decodePackageSlice(ctx context.Context, resp pkgResponse, cfg RenderConfig, indices []int) (nodes []StateNode, err error) {
+func decodePackageSlice(ctx context.Context, resp utils.PkgResponse, cfg RenderConfig, indices []int) (nodes []StateNode, err error) {
 	defer recoverToErr(nil, "decode pkg slice", &err)
 	if cerr := ctx.Err(); cerr != nil {
 		return nil, cerr
