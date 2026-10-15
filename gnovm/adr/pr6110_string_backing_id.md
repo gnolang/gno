@@ -53,6 +53,14 @@ type StringValue struct {
   re-mint through `fillTypesOfValue`. Only the partition "which values
   came from the same mint" matters, and that is a pure function of VM
   execution — identical on every node regardless of pointer values.
+  `evalConst` mints a fresh backing for every folded string, because a
+  `ConstExpr` outlives the tx (`OpEval` pushes its value by copy for the
+  node's lifetime). Otherwise a folded `pp.A` would inherit the backing
+  of whichever in-memory `pp` load preprocessed it, so folds in two
+  realms would share one after a restart (one load) but not on a
+  long-running node (one load per addpkg tx), and every runtime copy
+  would carry that split into the GC recount. Pinned by
+  `TestConstBackingPartitionSurvivesRestart`.
 - **Loads charge strings atomically.** `fillTypesOfValue` re-mints each
   loaded string's identity with `mintString` and allocates nothing; the
   bytes are summed by `internalStringSize` (a walk that mirrors the fill)

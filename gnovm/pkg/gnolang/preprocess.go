@@ -4528,6 +4528,12 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 				}
 			}
 		}
+		// A folded string owns its backing: the ConstExpr outlives the
+		// tx (see OpEval *ConstExpr), so inheriting one from a cached
+		// PackageValue would tie GC dedup to node cache history.
+		if sv, ok := cv.V.(StringValue); ok {
+			cv.V = mintString(sv.Str)
+		}
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,

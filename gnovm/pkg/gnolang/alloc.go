@@ -591,9 +591,10 @@ func (alloc *Allocator) NewString(s string) StringValue {
 	return mintString(s)
 }
 
-// mintString builds a tracked StringValue without charging. Only two
-// callers may use it: NewString (which charges first) and the load path,
-// where loadObjectSafe has already charged every string of the object via
+// mintString builds a tracked StringValue without charging. Only three
+// callers may use it: NewString (which charges first), evalConst (the
+// fold already charged or shares the bytes) and the load path, where
+// loadObjectSafe has already charged every string of the object via
 // internalStringSize in its single atomic Allocate — the fill must not
 // allocate, or a GC in mid-load evicts the half-registered object.
 func mintString(s string) StringValue {

@@ -104,7 +104,8 @@ type stringBacking struct {
 // The pointer never reaches consensus (amino persists Str alone; loads
 // re-mint via fillTypesOfValue) — only the partition "which values came
 // from the same mint" matters, and that is a pure function of VM
-// execution, identical on every node.
+// execution, identical on every node. Preprocess-time folds re-mint
+// too; see evalConst.
 //
 // NOTE: compare strings by Str, never by struct equality — equal strings
 // from different mints differ in B.
