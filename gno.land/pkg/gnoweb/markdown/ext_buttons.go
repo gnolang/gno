@@ -211,14 +211,15 @@ var ExtButtons = &buttonExtension{}
 
 // Extend registers the button parsers. Priorities sit just ahead of the
 // goldmark parsers they must pre-empt: raw HTML inline (400) and the HTML
-// block (900). Rendering goes through the link extension.
+// block (900), and ahead of the frame's HTML block wrapper (899). Rendering
+// goes through the link extension.
 func (e *buttonExtension) Extend(m goldmark.Markdown) {
 	m.Parser().AddOptions(
 		parser.WithInlineParsers(
 			util.Prioritized(&buttonParser{}, 399),
 		),
 		parser.WithBlockParsers(
-			util.Prioritized(newGnoTagLineParser(buttonTagPrefix), 899),
+			util.Prioritized(newGnoTagLineParser(buttonTagPrefix), 898),
 		),
 	)
 }
