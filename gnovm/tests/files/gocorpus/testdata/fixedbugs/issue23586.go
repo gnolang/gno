@@ -28,7 +28,4 @@ func f() {
 // line 22: expression in go must be function call
 // line 23: expression in go must be function call
 
-// GoTypeCheckError:
-// line 21
-
 // Verdict: Clean errorcheck

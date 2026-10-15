@@ -26,7 +26,4 @@ func main() {
 // GnoError:
 // line 17: cannot find GOTO label "start" within current function
 
-// GoTypeCheckError:
-// line 17
-
 // Verdict: Clean errorcheck

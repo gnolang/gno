@@ -13,10 +13,4 @@ func main() {
 	}
 }
 
-// GoTypeCheckError:
-// line 10
-
-// GoTypesOnly:
-// line 10: gc expects: cannot declare in post statement
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10

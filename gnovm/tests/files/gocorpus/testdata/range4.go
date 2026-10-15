@@ -350,4 +350,4 @@ func main() {
 	testcalls1()
 }
 
-// Verdict: Unsupported other: range-over-func not supported in Gno
+// Verdict: Unsupported gc-lang-pin: range-over-func (Go 1.23) not supported in Gno

@@ -34,7 +34,4 @@ func main() {
 // line 21: 'p' exponent requires hexadecimal mantissa
 // line 22: 'P' exponent requires hexadecimal mantissa
 
-// GoTypeCheckError:
-// line 21
-
 // Verdict: Clean errorcheck

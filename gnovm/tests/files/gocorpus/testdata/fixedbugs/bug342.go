@@ -23,7 +23,4 @@ bug.go:1 x redclared in this block
 // line 12: x redeclared in this block
 // 	previous declaration at bug342.go:13:6
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

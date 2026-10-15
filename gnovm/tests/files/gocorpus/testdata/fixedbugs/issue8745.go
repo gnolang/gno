@@ -15,7 +15,4 @@ func f(s string) {
 // GnoError:
 // line 12: cannot use uint8 as float64
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

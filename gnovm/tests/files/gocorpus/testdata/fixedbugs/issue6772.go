@@ -20,12 +20,4 @@ func f2() {
 	println(a)
 }
 
-// GnoError:
-// line 10: 3: a repeated on left side of :=
-// line 17: 3: a repeated on left side of :=
-
-// GoTypeCheckError:
-// line 10
-// line 17
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10, 17

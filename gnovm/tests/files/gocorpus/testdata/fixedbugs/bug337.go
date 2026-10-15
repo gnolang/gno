@@ -17,10 +17,4 @@ func main() {
 	len("foo")	// ERROR "len|value computed is not used"
 }
 
-// GoTypeCheckError:
-// line 17
-
-// GoTypesOnly:
-// line 17: gc expects: len|value computed is not used
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17

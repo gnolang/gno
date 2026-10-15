@@ -25,9 +25,4 @@ func main() {
 // line 19: cannot use untyped bool as IntKind
 // line 20: cannot use untyped bool as IntKind
 
-// GoTypeCheckError:
-// line 18
-// line 19
-// line 20
-
 // Verdict: Clean errorcheck

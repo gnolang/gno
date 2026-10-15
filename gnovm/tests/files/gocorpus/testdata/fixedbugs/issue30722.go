@@ -23,7 +23,4 @@ const (
 // line 15: hexadecimal literal has no digits
 // line 16: '_' must separate successive digits
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

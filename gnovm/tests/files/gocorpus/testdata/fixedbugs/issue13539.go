@@ -19,10 +19,4 @@ math:
 	}
 }
 
-// GoTypeCheckError:
-// line 13
-
-// GoTypesOnly:
-// line 13: gc expects: imported and not used
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

@@ -137,44 +137,4 @@ func _() {
 // line 112: should not happen
 // line 118: should not happen
 
-// GoTypeCheckError:
-// line 40
-// line 41
-// line 42
-// line 46
-// line 47
-// line 48
-// line 55
-// line 56
-// line 57
-// line 61
-// line 62
-// line 63
-// line 96
-// line 97
-// line 98
-// line 102
-// line 103
-// line 104
-// line 111
-// line 112
-// line 113
-// line 117
-// line 118
-// line 119
-
-// GoTypesOnly:
-// line 40: gc expects: undefined
-// line 42: gc expects: undefined
-// line 55: gc expects: undefined
-// line 57: gc expects: undefined
-// line 61: gc expects: undefined
-// line 63: gc expects: undefined
-// line 96: gc expects: undefined
-// line 98: gc expects: undefined
-// line 111: gc expects: undefined
-// line 113: gc expects: undefined
-// line 117: gc expects: undefined
-// line 119: gc expects: undefined
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 40, 42, 55, 57, 61, 63, 96, 98, 111, 113, 117, 119

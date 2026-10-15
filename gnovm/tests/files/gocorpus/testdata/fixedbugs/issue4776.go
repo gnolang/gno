@@ -8,7 +8,4 @@
 
 type MyInt int32 // ERROR "package statement must be first|package clause"
 
-// UncaughtError:
-// line 9: uncaught; gc expects: package statement must be first|package clause
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9

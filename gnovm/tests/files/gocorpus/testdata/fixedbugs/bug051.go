@@ -17,7 +17,4 @@ func main() {
 // GnoError:
 // line 14: f<VPBlock(3,0)>() (value of type int) is not constant
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

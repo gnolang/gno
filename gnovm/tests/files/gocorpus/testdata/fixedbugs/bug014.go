@@ -20,7 +20,4 @@ func main() {
 // line 12: illegal character U+0027 ''' in escape sequence
 // line 13: illegal character U+0027 ''' in escape sequence
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

@@ -20,9 +20,4 @@ var (
 // line 14: cannot use iota outside constant declaration
 // line 15: cannot use iota outside constant declaration
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 15
-
 // Verdict: Clean errorcheck

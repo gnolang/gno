@@ -12,8 +12,4 @@ type Foo[T empty] int // ERROR "type parameter requires go1\.18 or later \(-lang
 
 func Bar[T empty]() {} // ERROR "type parameter requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)"
 
-// UncaughtError:
-// line 11: uncaught; gc expects: type parameter requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)
-// line 13: uncaught; gc expects: type parameter requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\)
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11, 13

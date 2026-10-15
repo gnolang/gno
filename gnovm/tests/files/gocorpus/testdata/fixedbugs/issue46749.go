@@ -51,19 +51,4 @@ var (
 // line 35: operator + not defined on: InterfaceKind
 // line 36: operator + not defined on: InterfaceKind
 
-// GoTypeCheckError:
-// line 15
-// line 16
-// line 17
-// line 21
-// line 22
-// line 23
-// line 27
-// line 28
-// line 32
-// line 33
-// line 34
-// line 35
-// line 36
-
 // Verdict: Clean errorcheck

@@ -22,7 +22,4 @@ func f2(a int) (a int, b float32) { // ERROR "duplicate argument a|definition|re
 // line 17: a redeclared in this block
 // 	previous declaration at func1.go:17:9
 
-// GoTypeCheckError:
-// line 17
-
 // Verdict: Clean errorcheck

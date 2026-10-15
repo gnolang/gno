@@ -20,7 +20,4 @@ bug209.go:5: Bus error
 // GnoError:
 // line 11: 3: expected typed bool kind, but got IntKind
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

@@ -14,7 +14,4 @@ func main() {
 // GnoError:
 // line 10: name bug not declared
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

@@ -28,11 +28,4 @@ func g() {
 // GnoError:
 // line 24: cannot use main.T2 as main.T1 without explicit conversion
 
-// GoTypeCheckError:
-// line 14
-// line 24
-
-// GoTypesOnly:
-// line 14: gc expects: cannot|incompatible
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14

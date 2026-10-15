@@ -16,7 +16,4 @@ import""  // ERROR "import path is empty|invalid import path \(empty string\)"
 // stack 1: file gno.land/p/filetest/a/issue11610a.go:11:1-14:15
 // ------------------------
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

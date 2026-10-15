@@ -12,7 +12,4 @@ return nil // ERROR "non-declaration statement outside function body|expected de
 // GnoError:
 // line 10: expected declaration, found 'return'
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

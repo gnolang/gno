@@ -27,10 +27,4 @@ func main() {
 // stack 0: file main/bug463.go:10:1-22:2
 // ------------------------
 
-// GoTypeCheckError:
-// line 12
-// line 16
-// line 17
-// line 18
-
 // Verdict: Clean errorcheck

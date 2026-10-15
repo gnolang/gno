@@ -21,8 +21,4 @@ func main() {
 // GnoError:
 // line 15: 3: duplicate type func(int) in type switch
 
-// GoTypeCheckError:
-// line 16
-// line 17
-
 // Verdict: Clean errorcheck

@@ -18,7 +18,4 @@ func f() {
 // GnoError:
 // line 14: operator ++ not defined on: SliceKind
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

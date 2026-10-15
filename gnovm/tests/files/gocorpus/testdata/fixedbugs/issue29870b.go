@@ -13,10 +13,4 @@ func _() {
 	x := 7 // ERROR "declared and not used"
 }
 
-// GnoError:
-// line 13: declared and not used: x
-
-// GoTypeCheckError:
-// line 13
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

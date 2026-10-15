@@ -20,14 +20,4 @@ func F3(s string) string {
 	return s[2:1]		// ERROR "invalid slice index|inverted slice range|invalid slice indices"
 }
 
-// GoTypeCheckError:
-// line 12
-// line 16
-// line 20
-
-// GoTypesOnly:
-// line 12: gc expects: invalid slice index|inverted slice range|invalid slice indices
-// line 16: gc expects: invalid slice index|inverted slice range|invalid slice indices
-// line 20: gc expects: invalid slice index|inverted slice range|invalid slice indices
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 16, 20

@@ -9,7 +9,4 @@
 
 package% // ERROR "unexpected %|package name must be an identifier|after package clause|expected declaration"
 
-// UncaughtError:
-// line 10: uncaught; gc expects: unexpected %|package name must be an identifier|after package clause|expected declaration
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 1 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10

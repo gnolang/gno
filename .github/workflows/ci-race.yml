@@ -26,6 +26,7 @@ on:
       - gnovm/pkg/gnolang/**
       - gno.land/pkg/gnoland/**
       - gno.land/pkg/sdk/vm/**
+      - gno.land/pkg/gnoweb/markdown/**
       - go.mod
       - .github/workflows/ci-race.yml
       - '!**/*.md'
@@ -57,3 +58,5 @@ jobs:
           go test -race -covermode=atomic -timeout 30m \
             -run 'TestParallelQueries|TestParallelVMQueries|TestQueryRace|TestConcurrentInitChain' \
             ./gno.land/pkg/gnoland/
+      - name: gnoweb markdown concurrent rendering
+        run: go test -race -covermode=atomic -timeout 10m -run 'TestMathConcurrentRender' ./gno.land/pkg/gnoweb/markdown/

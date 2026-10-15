@@ -20,11 +20,4 @@ func main() {
 // GnoError:
 // line 16: not assignable
 
-// GoTypeCheckError:
-// line 15
-// line 16
-
-// GoTypesOnly:
-// line 15: gc expects: address of|invalid
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15

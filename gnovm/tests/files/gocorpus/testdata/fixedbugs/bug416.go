@@ -12,11 +12,4 @@ type T struct {
 
 func (t *T) X() {} // ERROR "type T has both field and method named X|redeclares struct field name|field and method with the same name"
 
-// GnoError:
-// line 13: type T has both field and method named X
-
-// GoTypeCheckError:
-// line 10
-// line 13
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

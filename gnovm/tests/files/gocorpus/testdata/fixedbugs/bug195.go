@@ -31,14 +31,4 @@ type I6 interface {
 // line 17: 2: invalid recursive type: I4 -> I4
 // line 21: 2: invalid recursive type: I5 -> I6 -> I5
 
-// GoTypeCheckError:
-// line 14
-// line 17
-// line 21
-// line 25
-
-// UncaughtError:
-// line 9: uncaught; gc expects: interface
-// line 12: uncaught; gc expects: interface
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9, 12

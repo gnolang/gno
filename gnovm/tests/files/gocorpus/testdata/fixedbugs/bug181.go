@@ -10,10 +10,4 @@ type T *struct {
 	T;	// ERROR "embed.*pointer"
 }
 
-// GoTypeCheckError:
-// line 10
-
-// GoTypesOnly:
-// line 10: gc expects: embed.*pointer
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10

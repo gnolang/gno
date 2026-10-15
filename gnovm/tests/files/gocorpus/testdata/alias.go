@@ -38,10 +38,4 @@ func main() {
 // line 30: cannot use float64 as int32
 // line 32: cannot use float64 as uint8
 
-// GoTypeCheckError:
-// line 23
-// line 24
-// line 30
-// line 32
-
 // Verdict: Clean errorcheck
