@@ -147,7 +147,7 @@ func TestVerifySignData_AcceptsOtherImplementations(t *testing.T) {
 }
 
 // A verifier gets the document back as an object (Adena's `signed`) and may
-// serialize it in any key order or spacing; the signature is over the canonical
+// serialize it in any key order, spacing or escaping; the signature is over the canonical
 // bytes, which the verifier rebuilds.
 func TestVerifySignData_AcceptsAnyRenderingOfTheDocument(t *testing.T) {
 	t.Parallel()
@@ -228,7 +228,7 @@ func TestVerifySignData_Rejects(t *testing.T) {
 		{"data that is not base64", replace(`"aGVsbG8="`, `"not base64!"`), pub, sig},
 		{"a signer that is not an address", replace(signDataTestSigner, "g1nope"), pub, sig},
 		{"not JSON", "hello", pub, sig},
-		// Beyond key order and spacing, a document must be the canonical one,
+		// Beyond its JSON rendering, a document must be the canonical one,
 		// even where Go would read the same values from it.
 		{"a missing memo", replace(`"memo":"",`, ``), pub, sig},
 		{"a null fee amount", replace(`"amount":[]`, `"amount":null`), pub, sig},

@@ -13,9 +13,11 @@ import (
 )
 
 // SignDataMsgType is the one message of a sign-data document: ADR-036's message
-// for off-chain data. Nothing registers it with amino, so no node can decode a
-// transaction carrying it: a signature over the document proves control of an
-// address and can never be broadcast as a transaction.
+// for off-chain data. A node rebuilds a transaction's sign bytes from the
+// decoded transaction, and amino writes every message there as {"@type": ...}:
+// a document whose message is {"type", "value"} is no transaction's sign
+// document, so a signature over it proves control of an address and can never
+// be broadcast.
 const SignDataMsgType = "sign/MsgSignData"
 
 // A sign-data document is a transaction sign document with every field fixed
@@ -92,12 +94,12 @@ type signDataDoc struct {
 // and that pubKey is the key of the document's signer. It returns what the
 // document says; the caller still checks the chain id and the data it expects.
 //
-// doc may come in any key order or spacing, but must otherwise be the canonical
-// document: sorted by key and compacted, it must equal the bytes rebuilt from
-// its values, and no object may repeat a key. Missing or extra fields, numbers
-// for strings, a null for the empty fee, non-canonical base64 and a duplicate
-// key are refused, so no other document passes for one, whatever parser reads
-// it.
+// doc may come in any JSON rendering (key order, spacing, string escapes), but
+// must otherwise be the canonical document: re-encoded sorted by key and
+// compacted, it must equal the bytes rebuilt from its values, and no object may
+// repeat a key. Missing or extra fields, numbers for strings, a null for the
+// empty fee, non-canonical base64 in the data and a duplicate key are refused,
+// so no other document passes for one, whatever parser reads it.
 func VerifySignData(doc []byte, pubKey crypto.PubKey, sig []byte) (SignedData, error) {
 	var d signDataDoc
 	if err := unmarshalStrict(doc, &d); err != nil {
@@ -177,6 +179,12 @@ func NewSignDataProof(payload []byte, pubKey secp256k1.PubKeySecp256k1, sig []by
 // VerifySignData; the caller still checks the chain id and the data it expects.
 // Its cost grows with the proof's size, so a service bounds what it accepts
 // (a proof of a short challenge is under 1 KiB).
+//
+// A proof stays valid forever, and the same proof can be written in many byte
+// forms (the document's rendering, the envelope's base64 and key spelling). A
+// service therefore refuses a replay by its challenge, never by the proof's
+// bytes: it hands out a fresh, unpredictable challenge naming the service and
+// the session, gives it an expiry, and accepts it once.
 func VerifySignDataProof(proof []byte) (SignedData, error) {
 	var p SignDataProof
 	if err := unmarshalStrict(proof, &p); err != nil {

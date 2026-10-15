@@ -36,7 +36,7 @@ func NewSignDataCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			LongHelp: `Signs a text, typically a challenge handed out by a service, to prove that the
 key's address is yours. The signed document is the one Adena's SignArbitrary
 signs (ADR-036's sign/MsgSignData, bound to -chainid): it is not a transaction,
-and no node can decode it as one.
+and can never be broadcast as one.
 
 The output is Adena's SignArbitrary answer, as JSON: the signed document, the
 public key and the signature. Check it with gnokey verify-data, or with

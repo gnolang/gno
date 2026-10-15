@@ -26,8 +26,10 @@ sorted by key. These are the bytes Adena signs, pinned against signatures from
 `@cosmjs/crypto` (Adena's signing stack) and in Adena's `sign-arbitrary.spec.ts`,
 so a service handles a proof from either the same way.
 
-`sign/MsgSignData` is registered nowhere with amino, so no node can decode the
-document as a transaction: a proof can never be broadcast.
+A node rebuilds a transaction's sign bytes from the decoded transaction, and
+amino writes every message there as `{"@type": …}`. A document whose message is
+`{"type", "value"}` is no transaction's sign document, so a proof can never be
+broadcast.
 
 ### 2. Keep the chain id
 
@@ -37,16 +39,17 @@ so a proof made on one network is refused on another.
 ### 3. Verify against rebuilt bytes, and only the canonical document
 
 A verifier gets the document back as a JSON object and may reserialize it in any
-key order or spacing. `std.VerifySignData` reads its values, rebuilds the
-canonical bytes with `SignDataPayload`, and checks the signature over those. It
-also checks that the public key is the signer's, and returns
+key order, spacing or string escaping. `std.VerifySignData` reads its values,
+rebuilds the canonical bytes with `SignDataPayload`, and checks the signature
+over those. It also checks that the public key is the signer's, and returns
 `{ChainID, Signer, Data}`, leaving the comparison with what it expects to the
 caller.
 
-Only key order and spacing may differ. The document, sorted by key and
-compacted as the payload is, must equal the rebuilt bytes, so a missing or extra
-field, a key in another case, a number for a string, a null for the empty fee or
-non-canonical base64 is refused. No object in the document or in the proof
+Only the JSON rendering may differ: key order, spacing and string escapes. The
+document, re-encoded sorted by key and compacted as the payload is, must equal
+the rebuilt bytes, so a missing or extra field, a key in another case, a number
+for a string, a null for the empty fee or non-canonical base64 in the data is
+refused. No object in the document or in the proof
 around it may repeat a key either: Go keeps a repeated key's last value and
 other parsers its first, so a service reading the document with another parser
 would see other values than the ones verified.
@@ -104,7 +107,10 @@ the reader cannot drift apart.
 
 - A proof is not bound to a time or a use. Replay protection is the service's
   job: a challenge carries its own nonce, expiry, service and session, and the
-  service accepts each one once. The user docs say so.
+  service accepts each one once. It keys on the challenge, not on the proof's
+  bytes: the envelope around the document is read leniently (its base64 skips
+  newlines, its keys match in any case), so one proof has many byte forms.
+  `VerifySignDataProof`'s doc says so.
 - Verifying costs time and memory in proportion to the proof's size; a service
   bounds what it accepts.
 - Multisig and non-secp256k1 keys cannot make a proof.

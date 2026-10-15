@@ -710,15 +710,13 @@ gnokey sign-data -chainid gnoland-1 \
 `-chainid` is required: the proof is only good on the chain it names. Use
 `-data-path` instead of `-data` to sign the contents of a file, as they are,
 a final newline included. Without `-output-document`, the proof is printed.
-Only secp256k1 keys can sign, which excludes multisig keys.
 
-The proof is a JSON file holding the signed text, your public key and the
-signature, in the same format as Adena's `SignArbitrary` answer, so a service
-handles both the same way. It can never be broadcast as a transaction.
+The proof holds the signed text, your public key and the signature, in the same
+format as Adena's `SignArbitrary` answer. It is not a transaction and can never
+be broadcast as one.
 
-To check a proof, give `gnokey verify-data` what you expect: the chain, the
-text you handed out and the address. Say `mykey`'s address is
-`g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`:
+To check a proof, give `gnokey verify-data` the chain, the text and the address
+you expect (here `mykey`'s):
 
 ```bash
 gnokey verify-data -chainid gnoland-1 \
@@ -727,18 +725,11 @@ gnokey verify-data -chainid gnoland-1 \
 ```
 
 It fails unless the proof is signed by that address's key and signs exactly
-that text on that chain. The proof holds the public key, so the address needs
-no key in your keybase. Use `-proof-path -` to read the proof from stdin. A
-service written in Go checks a proof with `std.VerifySignDataProof`, then
-compares the chain, the signer and the text itself.
+that text on that chain. The address needs no key in your keybase, and
+`-proof-path -` reads the proof from stdin.
 
-A proof stays valid forever, so anyone holding it can present it again. A
-service that accepts proofs must make each challenge unusable twice:
-
-- issue a fresh, unpredictable challenge for each attempt;
-- give it an expiry, and refuse it afterwards;
-- name the service and the session in it, so a proof made for one is refused by another;
-- accept it once, then forget it.
+A proof stays valid forever and anyone holding it can present it again, so
+only give it to the service that asked for it.
 
 ## Using a k-of-n multisig
 
