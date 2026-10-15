@@ -162,3 +162,18 @@ func TestGoModLangVersion(t *testing.T) {
 		}
 	}
 }
+
+func TestUsesGenerics(t *testing.T) {
+	for src, want := range map[string]bool{
+		"package p\nfunc F[T any]() {}":                    true,
+		"package p\ntype I interface{ int | bool }":        true,
+		"package p\ntype I interface{ ~int }":              true,
+		"package p\ntype C comparable":                     true,
+		"package p\ntype I interface{ M() }\nvar x any":    false,
+		"package p\nfunc F(a, b int) int { return a | b }": false,
+	} {
+		if got := UsesGenerics([]byte(src)); got != want {
+			t.Errorf("UsesGenerics(%q) = %v, want %v", src, got, want)
+		}
+	}
+}
