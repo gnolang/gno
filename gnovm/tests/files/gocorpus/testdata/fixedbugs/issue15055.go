@@ -28,16 +28,6 @@ func main() {
 // line 17: type conversion requires single argument
 // line 18: type conversion requires single argument
 
-// GoTypeCheckError:
-// line 11
-// line 12
-// line 13
-// line 14
-// line 15
-// line 16
-// line 17
-// line 18
-
 // GnoWordingDiffers:
 // line 11: gc expects: too many arguments (to conversion to \[\]byte: \(\[\]byte\)\(.abc., .def., 12\))?; gno: type conversion requires single argument
 // line 12: gc expects: too many arguments (to conversion to string: string\(.a., .b., nil\))?; gno: type conversion requires single argument

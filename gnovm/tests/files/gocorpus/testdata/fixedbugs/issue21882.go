@@ -11,7 +11,4 @@ type T [2]T // ERROR "invalid recursive type"
 // GnoError:
 // line 9: invalid recursive type: T -> T
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

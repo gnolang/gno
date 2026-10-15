@@ -25,10 +25,4 @@ bug022.go:8: illegal types for operand
 	(<uint8>UINT8) AS
 */
 
-// GoTypeCheckError:
-// line 12
-
-// GoTypesOnly:
-// line 12: gc expects: illegal|is not|invalid
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12

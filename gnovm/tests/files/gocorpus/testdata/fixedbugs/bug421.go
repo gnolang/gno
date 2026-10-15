@@ -20,8 +20,4 @@ func main() {
 // line 13: invalid operation: (mismatched types int and uint)
 // line 16: invalid operation: (mismatched types int and uint)
 
-// GoTypeCheckError:
-// line 13
-// line 16
-
 // Verdict: Clean errorcheck

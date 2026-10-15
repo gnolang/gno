@@ -48,12 +48,6 @@ func _() {
 // line 32: 3: func() can only be compared to nil
 // line 36: use of untyped nil in switch expression
 
-// GoTypeCheckError:
-// line 12
-// line 15
-// line 33
-// line 36
-
 // GnoWordingDiffers:
 // line 33: gc expects: invalid case f in switch on .* \(func can only be compared to nil\); gno: 3: func() can only be compared to nil
 

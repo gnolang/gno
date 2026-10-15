@@ -16,10 +16,4 @@ type Array [8]byte
 var s Slice
 var p = (Array)(s /* ok because file versions below go1.21 set the language version to go1.21 */)
 
-// GnoPreprocessError:
-// line 17: cannot convert s<VPBlock(2,2)> (of type gno.land/p/filetest/p.Slice) to type gno.land/p/filetest/p.Array
-
-// GoTypeCheckError:
-// line 17
-
-// Verdict: Clean compile
+// Verdict: Unsupported gc-lang-pin: slice-to-array conversion (Go 1.20) not supported in Gno

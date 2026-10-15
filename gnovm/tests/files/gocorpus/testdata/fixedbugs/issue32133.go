@@ -49,12 +49,6 @@ func _() {
 // line 12: raw string literal not terminated
 // line 14: expected '}', found 'EOF'
 
-// GoTypeCheckError:
-// line 9
-
-// GnoOverStrictError:
-// line 14: expected '}', found 'EOF'
-
 // ParseBlocked:
 // line 13: gc expects: string not terminated
 // line 20: gc expects: hexadecimal literal has no digits
@@ -66,4 +60,4 @@ func _() {
 // line 11: gc expects: newline in character literal|newline in rune literal; gno: string literal not terminated
 // line 12: gc expects: newline in string; gno: raw string literal not terminated
 
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 20, 24, 28; over-strict: lines 9, 14

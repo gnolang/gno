@@ -14,9 +14,6 @@ func main() {
 // GnoError:
 // line 10: expected '{', found newline
 
-// GoTypeCheckError:
-// line 10
-
 // GnoWordingDiffers:
 // line 10: gc expects: expected .*{.* after for clause|undefined; gno: expected '{', found newline
 

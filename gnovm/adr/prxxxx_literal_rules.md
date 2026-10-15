@@ -1,0 +1,35 @@
+# PRxxxx: declaration and literal rules at preprocess
+
+## Context
+
+The errorcheck ledger (#6346) lists marker lines gc rejects and Gno's
+preprocess accepts. A group of them are rules on `:=` redeclaration,
+const specs, variadic parameters, composite literals, `for` post
+statements and type switch variables.
+
+## Decision
+
+Checks in `check_decls.go`, called from preprocess on the preprocessed
+tree:
+
+- A name on the left of `:=` that the block already declares is
+  assigned, not redeclared: the value must be assignable to its type and
+  an untyped constant converts to it.
+- A const spec with a type and no value does not repeat the previous
+  spec.
+- A variadic parameter must be last.
+- An unkeyed struct literal gives every field a value; array literal
+  indices stay below the length.
+- A `for` post statement may not declare.
+- A type switch variable with no clause is unused.
+
+Two native filetests take the preprocess-time message as their golden.
+
+## Alternatives considered
+
+- Leaving these to the go/types guard: temporary, and errorcheck files
+  never reach it.
+
+## Consequences
+
+- 7 errorcheck corpus files flip to `Clean`.

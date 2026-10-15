@@ -13,9 +13,6 @@ var _ = []int{a: true, true} // ERROR "undefined: a" "cannot use true \(type unt
 // GnoError:
 // line 11: name a not defined in fileset with files [issue7153.go]
 
-// GoTypeCheckError:
-// line 11
-
 // GnoWordingDiffers:
 // line 11: gc expects: undefined: a | cannot use true \(type untyped bool\) as type int in slice literal|undefined name .*a|incompatible type|cannot use; gno: name a not defined in fileset with files [issue7153.go]
 

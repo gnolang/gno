@@ -15,11 +15,6 @@ var _, main /* ERROR "cannot declare main" */ int
 // line 10: main redeclared in this block
 // 	previous declaration at decls5.go:8:10
 
-// GoTypeCheckError:
-// line 8
-// line 9
-// line 10
-
 // ParseBlocked:
 // line 8: gc expects: cannot declare main
 

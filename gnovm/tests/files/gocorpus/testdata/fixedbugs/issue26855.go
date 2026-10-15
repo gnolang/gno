@@ -31,10 +31,6 @@ var _ = P{
 // line 22: 2: cannot use *gno.land/p/filetest/p.T as struct{}
 // line 26: 2: cannot use struct{} as *gno.land/p/filetest/p.T
 
-// GoTypeCheckError:
-// line 23
-// line 27
-
 // GnoWordingDiffers:
 // line 23: gc expects: cannot use &T{}|incompatible type; gno: 2: cannot use *gno.land/p/filetest/p.T as struct{}
 // line 27: gc expects: cannot use T{}|incompatible type; gno: 2: cannot use struct{} as *gno.land/p/filetest/p.T

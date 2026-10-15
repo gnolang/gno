@@ -29,9 +29,6 @@ func f() {
 // GnoError:
 // line 10: expected ';', found ')'
 
-// GoTypeCheckError:
-// line 10
-
 // ParseBlocked:
 // line 13: gc expects: unexpected \]
 // line 16: gc expects: unexpected \)

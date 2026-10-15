@@ -30,9 +30,6 @@ func _ () {
 // GnoError:
 // line 10: missing condition in if statement
 
-// GoTypeCheckError:
-// line 10
-
 // ParseBlocked:
 // line 13: gc expects: missing condition in if statement
 // line 15: gc expects: missing condition in if statement

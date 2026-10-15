@@ -13,7 +13,4 @@ func f() {
 // GnoError:
 // line 10: cannot assign to 1
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

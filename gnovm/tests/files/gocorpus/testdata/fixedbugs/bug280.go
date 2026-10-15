@@ -13,7 +13,4 @@ type A [...]int	// ERROR "outside of array literal|invalid use of \[\.\.\.\]"
 // GnoError:
 // line 11: invalid use of [...] array (outside a composite literal)
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

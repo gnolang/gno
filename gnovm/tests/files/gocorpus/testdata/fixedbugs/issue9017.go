@@ -62,12 +62,6 @@ func main() {
 // line 53: missing field mT in main.P
 // line 56: main.P does not implement main.I (missing method mT)
 
-// GoTypeCheckError:
-// line 47
-// line 50
-// line 53
-// line 56
-
 // GnoWordingDiffers:
 // line 47: gc expects: undefined; gno: missing field mS in main.P
 // line 50: gc expects: cannot use|incompatible types; gno: main.P does not implement main.I (missing method mT)

@@ -44,11 +44,4 @@ func _() {
 // line 19: 4: *struct{m func()} does not implement interface {M func()} (missing method M)
 // line 36: gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (gno.land/p/filetest/p.T.m is a field, not a method)
 
-// GoTypeCheckError:
-// line 7
-// line 11
-// line 15
-// line 19
-// line 36
-
 // Verdict: Clean errorcheck

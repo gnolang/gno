@@ -214,42 +214,6 @@ _:
 // line 197: label _ undefined
 // line 205: label _ undefined
 
-// GoTypeCheckError:
-// line 13
-// line 16
-// line 19
-// line 22
-// line 25
-// line 27
-// line 29
-// line 38
-// line 44
-// line 46
-// line 47
-// line 55
-// line 63
-// line 70
-// line 77
-// line 79
-// line 102
-// line 114
-// line 122
-// line 125
-// line 135
-// line 138
-// line 146
-// line 149
-// line 160
-// line 163
-// line 173
-// line 174
-// line 176
-// line 177
-// line 190
-// line 196
-// line 197
-// line 205
-
 // ParseBlocked:
 // line 13: gc expects: label L1 declared and not used
 // line 16: gc expects: label L2 declared and not used
