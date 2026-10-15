@@ -14,9 +14,6 @@ type A interface {
 }
 
 // GnoError:
-// line 13: unknown *DeclaredType method named Fn
-
-// GnoWordingDiffers:
-// line 13: gc expects: type A has no method Fn|A.Fn undefined|A.Fn is not a type; gno: unknown *DeclaredType method named Fn
+// line 13: A.Fn undefined (type gno.land/p/filetest/p.A has no method Fn)
 
 // Verdict: Clean errorcheck

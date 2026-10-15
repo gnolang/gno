@@ -311,9 +311,6 @@ func promotion() {
 
 // GnoOutput:
 
-// GnoError:
-// main/method.go:51:5-17: cannot use *main.S as string
-
 // GoOutput:
 
-// Verdict: KnownIssue run: #5787 method expression on an interface or mixed-receiver type is rejected at preprocess
+// Verdict: Clean run

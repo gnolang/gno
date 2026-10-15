@@ -23,9 +23,6 @@ func main() {
 
 // GnoOutput:
 
-// GnoError:
-// main/issue29304.go:16:5-16: unknown *DeclaredType method named Error
-
 // GoOutput:
 
-// Verdict: KnownIssue run: #5787 method expression on an interface or mixed-receiver type is rejected at preprocess
+// Verdict: Clean run
