@@ -41,4 +41,9 @@ func main() {
 	} // GC_ERROR "too few values in"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 34, 40
+// GnoError:
+// line 24: 3: too few values in struct literal of type main.Foo
+// line 34: too many values in struct literal of type main.Bar
+// line 40: too many values in struct literal of type main.Bar
+
+// Verdict: Clean errorcheck

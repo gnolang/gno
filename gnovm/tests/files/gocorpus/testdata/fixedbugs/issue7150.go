@@ -18,5 +18,9 @@ func main() {
 
 // GnoError:
 // line 12: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// line 13: index 0 out of bounds [0:0]
+// line 14: index 5 out of bounds [0:0]
+// line 15: index 15 out of bounds [0:10]
+// line 16: index 12 out of bounds [0:10]
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 14, 15, 16
+// Verdict: Clean errorcheck
