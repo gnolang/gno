@@ -12,7 +12,7 @@ import (
 const (
 	addr1 = address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	addr2 = address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
-	addr3 = address("g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq")
+	addr3 = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 )
 
 func TestSetBasics(t *testing.T) {
@@ -43,14 +43,14 @@ func TestSetIteration(t *testing.T) {
 	set.Add(addr2)
 	set.Add(addr3)
 
-	// Sorted (bech32-string) order: addr3 < addr1 < addr2.
+	// Sorted (bech32-string) order: addr1 < addr2 < addr3.
 	var got []address
 	set.IterateByOffset(0, set.Size(), func(a address) bool {
 		got = append(got, a)
 		return false
 	})
 	urequire.Equal(t, 3, len(got))
-	uassert.True(t, got[0] == addr3 && got[1] == addr1 && got[2] == addr2, "expect sorted order")
+	uassert.True(t, got[0] == addr1 && got[1] == addr2 && got[2] == addr3, "expect sorted order")
 
 	// Offset and count window.
 	got = nil
@@ -59,7 +59,7 @@ func TestSetIteration(t *testing.T) {
 		return false
 	})
 	urequire.Equal(t, 1, len(got))
-	uassert.True(t, got[0] == addr1, "expect the middle element")
+	uassert.True(t, got[0] == addr2, "expect the middle element")
 
 	// Early stop.
 	count := 0
@@ -76,7 +76,7 @@ func TestSetIteration(t *testing.T) {
 		return false
 	})
 	urequire.Equal(t, 3, len(got))
-	uassert.True(t, got[0] == addr2 && got[2] == addr3, "expect reverse order")
+	uassert.True(t, got[0] == addr3 && got[2] == addr1, "expect reverse order")
 }
 
 func TestSetIterationLimits(t *testing.T) {
@@ -98,14 +98,14 @@ func TestSetIterationLimits(t *testing.T) {
 	uassert.Equal(t, 2, visits)
 
 	// The reverse offset counts from the END: offset 1, count 1 is the
-	// second-to-last address in sorted order (addr1: addr3 < addr1 < addr2).
+	// second-to-last address in sorted order (addr2: addr1 < addr2 < addr3).
 	var got []address
 	set.ReverseIterateByOffset(1, 1, func(a address) bool {
 		got = append(got, a)
 		return false
 	})
 	urequire.Equal(t, 1, len(got))
-	uassert.True(t, got[0] == addr1, "expect reverse offset anchored at the end")
+	uassert.True(t, got[0] == addr2, "expect reverse offset anchored at the end")
 }
 
 // TestSetAcrossLeafSplits exercises the wrapper over a multi-leaf tree

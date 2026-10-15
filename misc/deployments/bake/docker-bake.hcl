@@ -28,7 +28,8 @@ group "default" {
 group "contribs" {
   targets = [
     "gnodev",
-    "gnocontribs"
+    "gnocontribs",
+    "gpao"
   ]
 }
 
@@ -120,6 +121,14 @@ target "gnocontribs" {
   target = "gnocontribs"
   labels = {
     "org.opencontainers.image.title" = "${PROJECT_NAME}/gnocontribs"
+  }
+}
+
+target "gpao" {
+  inherits = ["common"]
+  target = "gpao"
+  labels = {
+    "org.opencontainers.image.title" = "${PROJECT_NAME}/gpao"
   }
 }
 

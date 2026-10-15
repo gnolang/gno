@@ -292,6 +292,28 @@ type MsgEnablePackage struct {
 	// anywhere else would renumber the fields above and change how every
 	// existing transaction decodes.
 	PkgHash string `json:"pkg_hash" yaml:"pkg_hash"`
+	// PkgHeight pins the SUBMISSION being approved, as AddPkg.Height recorded
+	// it at submit.
+	//
+	// PkgHash covers what the author's directory declares. It cannot cover the
+	// [addpkg] section, because the approver's local copy does not have one --
+	// the keeper writes it. So a creator can re-park byte-identical sources and
+	// keep the hash while changing creator, height and max_deposit. Lowering
+	// max_deposit under a standing approval is the sharp end: the enable passes
+	// the hash gate, runs init(), and only then aborts on the deposit, so the
+	// approver pays gas for a transaction that could never have succeeded, and
+	// the creator can repeat it for the price of a submission.
+	//
+	// Pinning the height closes the whole class rather than one field at a
+	// time: every re-park lands at a new height, so any of them invalidates the
+	// approval, including a creator swap after a MsgRejectPackage.
+	//
+	// Zero means unpinned. That is what every transaction predating this field
+	// decodes as, and what genesis replay carries, so it cannot be required
+	// here -- see the replay exemptions in EnablePackage.
+	//
+	// Appended last, for the reason above.
+	PkgHeight int64 `json:"pkg_height" yaml:"pkg_height"`
 }
 
 var _ std.Msg = MsgEnablePackage{}
@@ -321,14 +343,6 @@ func (msg MsgEnablePackage) GetReceived() std.Coins { return nil }
 
 func (msg MsgEnablePackage) SpendForSigner(_ crypto.Address) std.Coins { return nil }
 
-//----------------------------------------
-// MsgDisablePackage
-
-// MsgDisablePackage moves an active package back to inert state, preventing
-// further calls. Only addresses listed in Params.PkgApprovers may send this.
-//
-// NOTE: full disable (cleaning up executed objects from the base store) is not
-// yet implemented; the handler returns an error until a follow-up PR completes it.
 //----------------------------------------
 // MsgRejectPackage
 
@@ -374,38 +388,3 @@ func (msg MsgRejectPackage) GetSigners() []crypto.Address {
 func (msg MsgRejectPackage) GetReceived() std.Coins { return nil }
 
 func (msg MsgRejectPackage) SpendForSigner(_ crypto.Address) std.Coins { return nil }
-
-//----------------------------------------
-// MsgDisablePackage
-
-type MsgDisablePackage struct {
-	Approver crypto.Address `json:"approver" yaml:"approver"`
-	PkgPath  string         `json:"pkg_path" yaml:"pkg_path"`
-}
-
-var _ std.Msg = MsgDisablePackage{}
-
-func (msg MsgDisablePackage) Route() string { return RouterKey }
-func (msg MsgDisablePackage) Type() string  { return "disable_package" }
-
-func (msg MsgDisablePackage) ValidateBasic() error {
-	if msg.Approver.IsZero() {
-		return std.ErrInvalidAddress("missing approver address")
-	}
-	if msg.PkgPath == "" {
-		return ErrInvalidPkgPath("missing package path")
-	}
-	return nil
-}
-
-func (msg MsgDisablePackage) GetSignBytes() []byte {
-	return std.MustSortJSON(amino.MustMarshalJSON(msg))
-}
-
-func (msg MsgDisablePackage) GetSigners() []crypto.Address {
-	return []crypto.Address{msg.Approver}
-}
-
-func (msg MsgDisablePackage) GetReceived() std.Coins { return nil }
-
-func (msg MsgDisablePackage) SpendForSigner(_ crypto.Address) std.Coins { return nil }

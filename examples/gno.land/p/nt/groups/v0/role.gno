@@ -1,6 +1,6 @@
 package groups
 
-import "gno.land/p/moul/addrset"
+import "gno.land/p/moul/addrset/v0"
 
 // Role is a named bucket of addresses with optional metadata.
 //

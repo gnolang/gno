@@ -1,0 +1,22 @@
+-- input.md --
+<gno-frame>
+intro
+<!--
+draft
+<gno-columns>
+hidden
+-->
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<p>intro</p>
+<!-- raw HTML omitted -->
+</section>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<p>hidden
+--&gt;</p>
+<!-- unexpected/invalid frame tag omitted -->
+</div>
+</div> <!-- </gno-columns> -->

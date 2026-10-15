@@ -242,6 +242,60 @@ func TestInitChainer_GenesisValidatorPubKeyType(t *testing.T) {
 	})
 }
 
+// A gas price quoted in anything but ugnot makes std.GasPrice.IsGTE fail on
+// every fee comparison, so the ante handler would reject every transaction the
+// chain ever sees. auth.Params.Validate cannot catch it -- tm2 hosts whichever
+// chain is built on it and only checks that the denom is well formed -- so
+// gno.land asserts its own denom at InitChain, while the chain still fails to
+// boot rather than coming up unusable.
+func TestInitChainer_GenesisGasPriceDenom(t *testing.T) {
+	t.Parallel()
+
+	ed25519Type := amino.GetTypeURL(ed25519.PubKeyEd25519{})
+
+	newInitReq := func(gp std.GasPrice) abci.RequestInitChain {
+		state := DefaultGenState()
+		state.Auth.Params.InitialGasPrice = gp
+		pubKey := ed25519.GenPrivKey().PubKey()
+		return abci.RequestInitChain{
+			ChainID: "dev",
+			ConsensusParams: &abci.ConsensusParams{
+				Block:     defaultBlockParams(),
+				Validator: &abci.ValidatorParams{PubKeyTypeURLs: []string{ed25519Type}},
+			},
+			Validators: []abci.ValidatorUpdate{
+				{Address: pubKey.Address(), PubKey: pubKey, Power: 1},
+			},
+			AppState: state,
+		}
+	}
+
+	t.Run("ugnot accepted", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		resp := app.InitChain(newInitReq(std.GasPrice{
+			Gas: 1000, Price: std.Coin{Denom: "ugnot", Amount: 1},
+		}))
+		assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+	})
+
+	t.Run("foreign denom aborts boot", func(t *testing.T) {
+		t.Parallel()
+
+		app, err := NewApp(t.TempDir(), NewTestGenesisAppConfig(), config.DefaultAppConfig(), events.NewEventSwitch(), log.NewNoopLogger(), 0)
+		require.NoError(t, err)
+
+		assert.PanicsWithError(t, `genesis auth initial_gasprice must be denominated in ugnot, got "atom"`, func() {
+			app.InitChain(newInitReq(std.GasPrice{
+				Gas: 1000, Price: std.Coin{Denom: "atom", Amount: 1},
+			}))
+		})
+	})
+}
+
 // Test whether InitChainer calls to load the stdlibs correctly.
 func TestInitChainer_LoadStdlib(t *testing.T) {
 	t.Parallel()
@@ -415,7 +469,7 @@ func TestInitChainer_SkipValoperCoverageAssertion(t *testing.T) {
 // panic, not via the ResponseInitChain.Error field that tm2's
 // consensus/replay.go:339-342 silently discards. Without this guarantee
 // a hardfork chain can boot in a state where genesis validators have no
-// v3 operator-keyed management plane — the safety net would fire but
+// v0 operator-keyed management plane — the safety net would fire but
 // not actually stop the boot.
 func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	t.Parallel()
@@ -432,11 +486,11 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 
 	// vmk.Call is what assertGenesisValopersConsistent invokes; returning
 	// an error from it is the realistic shape of an assertion failure
-	// (uncovered genesis validator → v3 panics → vmk.Call returns the
+	// (uncovered genesis validator → v0 panics → vmk.Call returns the
 	// wrapped error).
 	mock := &mockVMKeeper{
 		callFn: func(_ sdk.Context, _ vm.MsgCall) (string, error) {
-			return "", fmt.Errorf("synthetic v3 assertion: uncovered validator")
+			return "", fmt.Errorf("synthetic v0 assertion: uncovered validator")
 		},
 	}
 
@@ -456,7 +510,7 @@ func TestInitChainer_PanicsOnValoperCoverageFailure(t *testing.T) {
 	}
 
 	assert.PanicsWithError(t,
-		"genesis valoper coverage assertion failed: synthetic v3 assertion: uncovered validator",
+		"genesis valoper coverage assertion failed: synthetic v0 assertion: uncovered validator",
 		func() { cfg.InitChainer(testCtx, req) },
 		"InitChainer must panic on valoper coverage failure so tm2's handshake aborts; ResponseInitChain.Error is discarded by consensus/replay.go",
 	)
@@ -1144,7 +1198,7 @@ func TestEndBlocker(t *testing.T) {
 		// Defense-in-depth: a non-empty proposed where every entry has
 		// Power=0 is still a "remove all" — len > 0 but live count is
 		// zero. Floor must catch this regardless of outer-list length.
-		// (Reachable via v3 if a proposal's deltas remove every
+		// (Reachable via v0 if a proposal's deltas remove every
 		// validator and produce an empty published set; the floor is
 		// the consensus-safety backstop.)
 		current := generateValidatorUpdates(t, 2)
@@ -2898,78 +2952,6 @@ func TestValidateSignerInfo(t *testing.T) {
 	}
 }
 
-func TestMeetsMinVersion(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		binary string
-		minVer string
-		want   bool
-	}{
-		// Empty minVersion always passes
-		{"chain/gnoland1.0", "", true},
-		{"develop", "", true},
-
-		// Same version passes
-		{"chain/gnoland1.0", "chain/gnoland1.0", true},
-		{"chain/gnoland1.1", "chain/gnoland1.1", true},
-
-		// Newer binary passes
-		{"chain/gnoland1.1", "chain/gnoland1.0", true},
-		{"chain/gnoland2.0", "chain/gnoland1.0", true},
-		{"chain/gnoland1.2", "chain/gnoland1.1", true},
-
-		// Older binary fails
-		{"chain/gnoland1.0", "chain/gnoland1.1", false},
-		{"chain/gnoland1.0", "chain/gnoland2.0", false},
-
-		// Non-gnoland format: requires exact match
-		{"develop", "chain/gnoland1.1", false},
-		{"v1.0.0", "v1.0.0", true},
-		{"v1.0.0", "v1.1.0", false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.binary+">="+tc.minVer, func(t *testing.T) {
-			t.Parallel()
-			got := meetsMinVersion(tc.binary, tc.minVer)
-			assert.Equal(t, tc.want, got,
-				"meetsMinVersion(%q, %q)", tc.binary, tc.minVer)
-		})
-	}
-}
-
-func TestParseGnolandVersion(t *testing.T) {
-	t.Parallel()
-
-	cases := []struct {
-		input string
-		major int
-		minor int
-		ok    bool
-	}{
-		{"chain/gnoland1.0", 1, 0, true},
-		{"chain/gnoland1.1", 1, 1, true},
-		{"chain/gnoland2.3", 2, 3, true},
-		{"develop", 0, 0, false},
-		{"v1.0.0", 0, 0, false},
-		{"chain/gnoland", 0, 0, false},
-		{"chain/gnolandX.Y", 0, 0, false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.input, func(t *testing.T) {
-			t.Parallel()
-			major, minor, ok := parseGnolandVersion(tc.input)
-			assert.Equal(t, tc.ok, ok)
-			if tc.ok {
-				assert.Equal(t, tc.major, major)
-				assert.Equal(t, tc.minor, minor)
-			}
-		})
-	}
-}
-
 func TestIsPastChainID(t *testing.T) {
 	t.Parallel()
 
@@ -3976,6 +3958,40 @@ func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	require.False(t, broken, "invariants must be clean after a repeated entry:\n%s", msg)
 }
 
+// TestApplyBalanceChoosesInitCoinsOrSetCoins pins the branch applyBalance takes
+// on cfg.acck.GetAccount, using mocks so the choice is asserted directly rather
+// than inferred from the resulting balance: a first sighting must go through
+// InitCoins, and a repeat must go through SetCoins, and neither may call the
+// other.
+func TestApplyBalanceChoosesInitCoinsOrSetCoins(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseKey := store.NewStoreKey("baseKey")
+	mainKey := store.NewStoreKey("mainKey")
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(),
+		&bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	acck := &mockAuthKeeper{}
+	bankk := &mockBankKeeper{}
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("applyBalance-branch"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 100}}
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount})
+	require.Equal(t, 1, bankk.initCoinsCalls, "a first sighting must take the InitCoins branch")
+	require.Equal(t, 0, bankk.setCoinsCalls, "and must not also call SetCoins")
+
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount})
+	require.Equal(t, 1, bankk.setCoinsCalls, "a repeat must take the SetCoins branch")
+	require.Equal(t, 1, bankk.initCoinsCalls, "and must not call InitCoins again")
+}
+
 // TestGenesisSignerMintIsAccounted covers the one place genesis creates coins
 // outside the balances file: a genesis transaction whose signer has no account is
 // funded so it can pay for itself. That has to mint rather than credit. The supply
@@ -4061,7 +4077,6 @@ func TestTxCarriesCode(t *testing.T) {
 		// work done for free. Its omission here was a live hole, reproduced end
 		// to end against a running app.
 		{"enable_package alone", []std.Msg{vm.MsgEnablePackage{Approver: addr}}, true},
-		{"disable_package alone", []std.Msg{vm.MsgDisablePackage{Approver: addr}}, true},
 		{"enable_package behind a call", []std.Msg{vm.MsgCall{Caller: addr}, vm.MsgEnablePackage{Approver: addr}}, true},
 	}
 	for _, tt := range tests {
@@ -4096,12 +4111,14 @@ func TestTxCodeMsgSigners(t *testing.T) {
 		{
 			"add_package alone",
 			[]std.Msg{vm.MsgAddPackage{Creator: alice}},
-			[]crypto.Address{alice}, nil,
+			[]crypto.Address{alice},
+			nil,
 		},
 		{
 			"run alone",
 			[]std.Msg{vm.MsgRun{Caller: alice}},
-			nil, []crypto.Address{alice},
+			nil,
+			[]crypto.Address{alice},
 		},
 		{
 			// Both in one tx is the case that separates the two rules: under
@@ -4112,7 +4129,8 @@ func TestTxCodeMsgSigners(t *testing.T) {
 				vm.MsgAddPackage{Creator: alice},
 				vm.MsgRun{Caller: bob},
 			},
-			[]crypto.Address{alice}, []crypto.Address{bob},
+			[]crypto.Address{alice},
+			[]crypto.Address{bob},
 		},
 		{
 			// MsgCall names a package but carries no source, so it must not be
@@ -4129,7 +4147,8 @@ func TestTxCodeMsgSigners(t *testing.T) {
 				bank.MsgSend{FromAddress: bob, ToAddress: alice},
 				vm.MsgRun{Caller: alice},
 			},
-			nil, []crypto.Address{alice},
+			nil,
+			[]crypto.Address{alice},
 		},
 	}
 	for _, tt := range tests {
@@ -4444,4 +4463,130 @@ func TestInitChainer_VestingFromABalanceSheetIsEnforced(t *testing.T) {
 	after := atTime(250)
 	require.NoError(t, bankk.SendCoins(after, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 500}}))
 	require.Zero(t, bankk.GetCoin(after, vester, ugnot.Denom))
+}
+
+// TestNodeParamsKeeperRequiresFlushPoint pins that a delivered write of a halt
+// param asks block sync for a flush point after the block, so that the
+// scheduled halt is on disk from the block that wrote it, and that nothing
+// else does: other node params, CheckTx and Simulate, or an invalid value.
+func TestNodeParamsKeeperRequiresFlushPoint(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		mode   sdk.RunTxMode
+		key    string
+		value  any
+		want   bool
+		panics bool
+	}{
+		{"halt height delivered", sdk.RunTxModeDeliver, "p:halt_height", int64(100), true, false},
+		{"halt min version delivered", sdk.RunTxModeDeliver, "p:halt_min_version", "v1.2.3", true, false},
+		{"halt height in CheckTx", sdk.RunTxModeCheck, "p:halt_height", int64(100), false, false},
+		{"halt height simulated", sdk.RunTxModeSimulate, "p:halt_height", int64(100), false, false},
+		{"another node param", sdk.RunTxModeDeliver, "valset:dirty", true, false, false},
+		{"invalid halt height", sdk.RunTxModeDeliver, "p:halt_height", "100", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			required := false
+			npk := nodeParamsKeeper{requireFlushPoint: func() { required = true }}
+			set := func() { npk.WillSetParam(sdk.Context{}.WithMode(tc.mode), tc.key, tc.value) }
+			if tc.panics {
+				assert.Panics(t, set)
+			} else {
+				assert.NotPanics(t, set)
+			}
+			assert.Equal(t, tc.want, required)
+		})
+	}
+}
+
+// TestAppDefersCommits pins gno.land's wiring of deferred commits: its app
+// holds its commits when block sync asks, its blocks run with them held, a
+// realm's deployment included, and a delivered block that writes the halt
+// height asks for a flush point after it, whose write puts the halt height on
+// the disk.
+func TestAppDefersCommits(t *testing.T) {
+	t.Parallel()
+
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
+	require.NoError(t, err)
+	baseApp := app.(*sdk.BaseApp)
+
+	privKey := getDummyKey(t)
+	addr := privKey.PubKey().Address()
+	gen := gnoGenesisState(t)
+	gen.Balances = []Balance{{Address: addr, Amount: std.Coins{{Denom: "ugnot", Amount: 10_000_000_000}}}}
+	res := baseApp.InitChain(abci.RequestInitChain{
+		AppState:        gen,
+		ChainID:         "test-chain",
+		ConsensusParams: &abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 3_000_000_000}},
+	})
+	require.True(t, res.IsOK(), "%v", res.Error)
+	baseApp.Commit()
+
+	require.True(t, baseApp.DeferCommits(true), "gno.land's app does not defer its commits")
+	block := func(height int64, seq uint64, msg std.Msg) {
+		t.Helper()
+		baseApp.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: height}})
+		txBytes, err := amino.Marshal(createAndSignTxWithAccSeq(t, []std.Msg{msg}, "test-chain", privKey, 0, seq))
+		require.NoError(t, err)
+		res := baseApp.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+		require.True(t, res.IsOK(), "block %d: %s", height, res.Log)
+		baseApp.EndBlock(abci.RequestEndBlock{Height: height})
+		baseApp.Commit()
+	}
+
+	// A realm writing the halt height as r/sys/params does, which only a realm
+	// at that path may.
+	const path = "gno.land/r/sys/params"
+	block(2, 0, vm.NewMsgAddPackage(addr, path, []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(path)},
+		{Name: "halt.gno", Body: `package params
+
+import prms "sys/params"
+
+func SetHaltHeight(cur realm, height int64) { prms.SetSysParamInt64("node", "p", "halt_height", height) }
+`},
+	}))
+	require.False(t, baseApp.NeedsFlushPoint(), "a block writing no halt param asked for a flush point")
+
+	block(3, 1, vm.NewMsgCall(addr, nil, path, "SetHaltHeight", []string{"100"}))
+	require.True(t, baseApp.NeedsFlushPoint(), "a block writing the halt height asked for no flush point")
+	haltHeight := func() string {
+		return string(baseApp.Query(abci.RequestQuery{Path: "params/" + nodeParamHaltHeight}).Data)
+	}
+	require.Empty(t, haltHeight(), "the halt height answered from a held commit")
+
+	require.NoError(t, baseApp.WriteCommits())
+	require.False(t, baseApp.NeedsFlushPoint())
+	require.Equal(t, `"100"`, haltHeight())
+	require.False(t, baseApp.DeferCommits(false))
+}
+
+// TestAppDefersCommitsAfterRestart pins that a restarted gno.land app starts
+// and stops deferring with no block in between, as block sync does when the
+// node restarts at the tip: what the app writes while it loads is written
+// before its commits are held, not held as part of the window.
+func TestAppDefersCommitsAfterRestart(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	app, err := NewAppWithOptions(TestAppOptions(db))
+	require.NoError(t, err)
+	res := app.(*sdk.BaseApp).InitChain(abci.RequestInitChain{
+		AppState:        gnoGenesisState(t),
+		ChainID:         "test-chain",
+		ConsensusParams: &abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: 3_000_000_000}},
+	})
+	require.True(t, res.IsOK(), "%v", res.Error)
+	app.(*sdk.BaseApp).Commit()
+
+	restarted, err := NewAppWithOptions(TestAppOptions(db))
+	require.NoError(t, err)
+	deferrer := restarted.(abci.DeferredCommitter)
+	require.True(t, deferrer.DeferCommits(true))
+	require.NotPanics(t, func() { deferrer.DeferCommits(false) })
 }

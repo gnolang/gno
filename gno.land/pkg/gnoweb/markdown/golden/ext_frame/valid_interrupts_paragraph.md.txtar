@@ -1,0 +1,12 @@
+-- input.md --
+A paragraph
+<gno-frame>
+inside
+</gno-frame>
+after
+-- output.html --
+<p>A paragraph</p>
+<section class="gno-frame">
+<p>inside</p>
+</section>
+<p>after</p>
