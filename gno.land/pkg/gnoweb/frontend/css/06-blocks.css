@@ -4081,9 +4081,11 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		color: var(--s-color-text-tertiary);
 	}
 
+	/* Carries errors as well as "No results": secondary, not tertiary, so it
+	   clears WCAG AA on both dropdown surfaces. */
 	.b-omnisearch-empty {
 		padding: var(--g-space-2);
-		color: var(--s-color-text-tertiary);
+		color: var(--s-color-text-secondary);
 		font-size: var(--g-font-size-100);
 	}
 
@@ -4108,6 +4110,13 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		&[aria-selected="true"] {
 			background-color: var(--s-color-bg-base);
 			color: var(--s-color-text-primary);
+		}
+
+		/* Options stay out of the tab order, so this is the only focus cue:
+		   the background alone is ~1.2:1 and vanishes in forced colors. */
+		&[aria-selected="true"] {
+			outline: 2px solid var(--s-color-border-focus);
+			outline-offset: -2px;
 		}
 	}
 
@@ -4146,6 +4155,11 @@ main.is-dev-mode > section:has(.c-overview-view) {
 		&[data-type="p"] {
 			background-color: var(--s-color-bg-info-default);
 			color: var(--s-color-text-base);
+		}
+
+		/* Indexer provenance: secondary on the tertiary surface is 3.8:1. */
+		&[data-type="i"] {
+			color: var(--s-color-text-primary);
 		}
 	}
 }
