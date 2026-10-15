@@ -6,4 +6,4 @@ package main
 
 func main[T /* ERROR "func main must have no type parameters" */ any]() {}
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7
+// Verdict: Unsupported generics: generics not supported in Gno

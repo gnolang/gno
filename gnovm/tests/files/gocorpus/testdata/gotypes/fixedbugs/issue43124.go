@@ -15,4 +15,11 @@ var (
 	_ = M(x /* ERROR "invalid use of ... in conversion to M" */ ...)
 )
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7, 15
+// GnoError:
+// line 7: invalid use of ... in conversion to int
+// line 15: invalid use of ... in conversion to gno.land/p/filetest/p.M
+
+// GnoWordingDiffers:
+// line 15: gc expects: invalid use of ... in conversion to M; gno: invalid use of ... in conversion to gno.land/p/filetest/p.M
+
+// Verdict: Clean errorcheck
