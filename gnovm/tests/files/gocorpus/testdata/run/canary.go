@@ -8,12 +8,10 @@
 // the walker additionally enforces that `.go` filetests must live
 // under such a segment.
 //
-// This file ships with no `// Output:` directive — the harness
-// auto-derives the expected output by running it through `go run`
-// and compares Gno's output to that. To bless an intentional
-// Gno-vs-Go divergence, add an explicit `// Output:` line with
-// Gno's actual output; the directive bypasses the auto-derive
-// step and serves as documentation.
+// The tail below is harness-written: `// GnoOutput:` pins Gno's
+// stdout, `// GoOutput:` pins `go run`'s, and the `// Verdict:` line
+// records whether they match. An intentional Gno-vs-Go divergence is
+// blessed by a `// Verdict: KnownDivergence run: <reason>` line.
 
 package main
 

@@ -108,6 +108,13 @@ Pointers to two distinct zero-sized variables are never equal in Gno, even where
 Go may report them equal. See [the memory
 model](gno-memory-model.md#pointer-equality).
 
+## Float formatting in the builtin `print` and `println`
+
+The builtins format floats the way `fmt`'s `%v` does (`1.5`), not in gc's
+exponent form (`+1.500000e+000`). The Go spec leaves this format
+implementation-specific; Gno keeps one float formatter for `fmt`, `Render` and
+the builtins by choice.
+
 ## Stdlibs
 
 Legend:
