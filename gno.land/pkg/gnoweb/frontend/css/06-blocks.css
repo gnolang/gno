@@ -4021,13 +4021,15 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 /* Two axes side by side: status on caution/success, visibility on warning/info.
    Yellow against blue survives red-green deficiency. */
 .b-tag--draft,
+.b-tag--failed,
 .b-tag--published,
 .b-tag--private,
 .b-tag--public {
 	border-color: transparent;
 }
 
-.b-tag--draft {
+.b-tag--draft,
+.b-tag--failed {
 	color: var(--s-color-text-caution);
 	background: var(--s-color-bg-caution-weak);
 }
@@ -4250,6 +4252,99 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	@media (--lg) {
 		grid-template-columns: max-content auto minmax(0, 1fr);
 	}
+}
+
+/* ===== RECENT CALLS (ui/pkg_calls) ===== */
+/* One row per call: function, caller, gas, when. The caller is a full address,
+   never shortened: it wraps instead. Below --md the caller takes its own line. */
+.b-calls__row {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: var(--g-space-1) var(--g-space-3);
+	align-items: baseline;
+	padding: var(--g-space-2);
+	font-size: var(--g-font-size-100);
+
+	/* Each row is its own grid, so the gas and time columns get fixed
+	   widths: auto ones would line up only on rows of the same content. */
+	@media (--md) {
+		grid-template-columns: minmax(0, 10rem) minmax(0, 1fr) 6rem 9rem;
+	}
+}
+
+/* The indexer tag follows the title. */
+.b-calls .b-pkg-section__header .b-tag--indexer {
+	align-self: center;
+	margin-inline-start: var(--g-space-2);
+	font-weight: var(--g-font-normal);
+}
+
+/* A function name is a Go identifier of any length: it wraps rather than
+   running over the caller. */
+.b-calls__func {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	color: var(--s-color-text-primary);
+}
+
+.b-calls__caller {
+	grid-column: 1 / -1;
+	grid-row: 2;
+	min-width: 0;
+	overflow-wrap: anywhere;
+	font-size: var(--g-font-size-50);
+
+	& a {
+		color: var(--s-color-text-link);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
+	}
+
+	@media (--md) {
+		grid-column: auto;
+		grid-row: auto;
+	}
+}
+
+.b-calls__gas,
+.b-calls__when {
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-50);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	text-align: end;
+}
+
+/* The batch note sits under the gas it qualifies. Below --md the time takes
+   its own line under the caller. */
+.b-calls__gas small,
+.b-calls__when small {
+	display: block;
+	font-size: var(--g-font-size-50);
+}
+
+.b-calls__when {
+	grid-column: 1 / -1;
+	text-align: start;
+
+	@media (--md) {
+		grid-column: auto;
+		text-align: end;
+	}
+}
+
+.b-calls__empty,
+.b-calls__note {
+	margin: 0;
+	color: var(--s-color-text-secondary);
+	font-size: var(--g-font-size-100);
+}
+
+.b-calls > .b-omni-provenance {
+	margin-block-start: var(--g-space-3);
 }
 
 /* Truncation notice (shown when symbol lists were capped). */

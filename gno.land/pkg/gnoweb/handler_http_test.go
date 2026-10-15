@@ -110,6 +110,10 @@ func (s *stubClient) PackageMeta(_ context.Context, path string) (*vm.PackageMet
 	return &vm.PackageMeta{Path: path, Status: vm.PackageStatusAbsent}, nil
 }
 
+func (s *stubClient) Storage(context.Context, string, int64) (*gnoweb.RealmStorage, error) {
+	return nil, errors.New("storage not stubbed")
+}
+
 type rawRenderer struct{}
 
 func (rawRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ctx gnoweb.RealmRenderContext) (md.RealmMeta, error) {

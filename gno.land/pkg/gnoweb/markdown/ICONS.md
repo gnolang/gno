@@ -30,7 +30,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 
 ![Every icon with its name](ICONS.svg)
 
-491 icons:
+492 icons:
 
 | Icon | Name |
 |---|---|
@@ -388,6 +388,7 @@ To add an icon, list it in `icons/icons.txt` and run `make icons`.
 | <gno-icon name="pull-left" /> | `pull-left` |
 | <gno-icon name="pull-right" /> | `pull-right` |
 | <gno-icon name="pull-up" /> | `pull-up` |
+| <gno-icon name="pulse" /> | `pulse` |
 | <gno-icon name="pure" /> | `pure` |
 | <gno-icon name="push-down" /> | `push-down` |
 | <gno-icon name="push-left" /> | `push-left` |

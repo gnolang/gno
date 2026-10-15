@@ -31,7 +31,7 @@ const callFields = `
 	messages {
 		value {
 			__typename
-			... on MsgCall { caller pkg_path }
+			... on MsgCall { caller pkg_path func }
 		}
 	}`
 

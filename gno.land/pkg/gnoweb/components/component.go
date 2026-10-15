@@ -36,8 +36,14 @@ func (c *readerComponent) Render(w io.Writer) (err error) {
 	return err
 }
 
+// FormatRelativeTimeSince writes how long ago t was, from now.
 func FormatRelativeTimeSince(t time.Time) string {
-	diff := time.Since(t)
+	return FormatRelativeTime(time.Now(), t)
+}
+
+// FormatRelativeTime writes how long before now t was ("3 minutes ago").
+func FormatRelativeTime(now, t time.Time) string {
+	diff := now.Sub(t)
 
 	units := []struct {
 		unit  time.Duration

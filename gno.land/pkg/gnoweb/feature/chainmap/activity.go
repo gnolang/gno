@@ -56,11 +56,14 @@ type Activity struct {
 	Calls   map[string]int
 	Callers map[string]int
 	Gas     map[string]int64
+	// Recent are each realm's newest calls in the window, newest first,
+	// failed ones included: what the overview lists.
+	Recent map[string][]Call
 
 	// From and To are the heights counted, both inclusive.
 	From, To int
-	// Since is when block From was produced.
-	Since time.Time
+	// Since is when block From was produced, Until when block To was.
+	Since, Until time.Time
 
 	// Partial is set when part of the window could not be read. A count is
 	// then a lower bound, and a zero says nothing.
@@ -74,38 +77,34 @@ func newActivityFlight() *flight[*Activity] {
 	return &flight[*Activity]{ttl: activityTTL, errTTL: failureTTL, timeout: activityTimeout, max: 1, stale: true}
 }
 
-// bandCounts are the successful calls of one band, per package.
+// bandCounts are one band's calls per realm: counts, callers and gas of the
+// successful ones, and the newest calls, failed ones included.
 type bandCounts struct {
 	calls   map[string]int
 	callers map[string]map[string]struct{}
 	gas     map[string]int64
+	recent  map[string][]Call
 	// complete is false when part of the band stayed over the indexer's cap.
 	complete bool
 }
 
 func countBand(txs []indexer.Tx, complete bool) *bandCounts {
-	b := &bandCounts{calls: make(map[string]int), callers: make(map[string]map[string]struct{}), gas: make(map[string]int64), complete: complete}
+	b := &bandCounts{calls: make(map[string]int), callers: make(map[string]map[string]struct{}), gas: make(map[string]int64), recent: make(map[string][]Call), complete: complete}
+	failed := make(map[string][]Call)
 	for _, tx := range txs {
 		if !tx.Success {
+			recordCalls(failed, tx)
 			continue
 		}
+		recordCalls(b.recent, tx)
 		// The gas is shared between the messages that run code: a call
 		// batched with a run or a deploy gets its share, not the whole.
-		var calls []indexer.Message
-		workers := 0
+		workers := workingMessages(tx)
 		for _, m := range tx.Messages {
-			switch m.Type() {
-			case "MsgCall":
-				workers++
-				if m.Path() != "" {
-					calls = append(calls, m)
-				}
-			case "MsgRun", "MsgAddPackage":
-				workers++
-			}
-		}
-		for _, m := range calls {
 			p := m.Path()
+			if m.Type() != "MsgCall" || p == "" {
+				continue
+			}
 			b.gas[p] += int64(tx.GasUsed) / int64(workers)
 			b.calls[p]++
 			if b.callers[p] == nil {
@@ -114,7 +113,28 @@ func countBand(txs []indexer.Tx, complete bool) *bandCounts {
 			b.callers[p][m.Value.Caller] = struct{}{}
 		}
 	}
+	// A failed call costs its sender little and may name any realm path:
+	// it is kept only beside a successful call into the same realm, so it
+	// can neither grow the aggregate nor stand alone for a realm.
+	for p, calls := range failed {
+		if len(b.recent[p]) > 0 {
+			b.recent[p] = newest(append(b.recent[p], calls...))
+		}
+	}
 	return b
+}
+
+// workingMessages counts the messages of tx that run code (calls, runs and
+// deploys), the ones its gas pays for.
+func workingMessages(tx indexer.Tx) int {
+	n := 0
+	for _, m := range tx.Messages {
+		switch m.Type() {
+		case "MsgCall", "MsgRun", "MsgAddPackage":
+			n++
+		}
+	}
+	return n
 }
 
 // closedBands keeps the counts of whole bands below the indexer's tip, keyed
@@ -170,7 +190,7 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 	if err != nil {
 		return nil, err
 	}
-	from, since, err := windowStart(ctx, idx, tip)
+	from, since, until, err := windowStart(ctx, idx, tip)
 	if err != nil {
 		return nil, err
 	}
@@ -228,9 +248,11 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 		Calls:   make(map[string]int),
 		Callers: make(map[string]int),
 		Gas:     make(map[string]int64),
+		Recent:  make(map[string][]Call),
 		From:    from,
 		To:      tip,
 		Since:   since,
+		Until:   until,
 	}
 	callers := make(map[string]map[string]struct{})
 	for _, b := range bands {
@@ -241,6 +263,9 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 		for p, g := range b.gas {
 			a.Gas[p] += g
 		}
+		for p, calls := range b.recent {
+			a.Recent[p] = append(a.Recent[p], calls...)
+		}
 		for p, set := range b.callers {
 			if callers[p] == nil {
 				callers[p] = make(map[string]struct{}, len(set))
@@ -250,6 +275,9 @@ func computeActivity(ctx context.Context, idx Indexer, closed *closedBands) (*Ac
 	}
 	for p, set := range callers {
 		a.Callers[p] = len(set)
+	}
+	for p, calls := range a.Recent {
+		a.Recent[p] = newest(calls)
 	}
 	return a, nil
 }
@@ -289,27 +317,27 @@ func readBand(ctx context.Context, idx Indexer, lower, upper int) ([]indexer.Tx,
 // over the last rateProbe blocks, then reads that block's time so the map can
 // say exactly where its window starts. A chain younger than the probe is
 // counted from its first block.
-func windowStart(ctx context.Context, idx Indexer, tip int) (int, time.Time, error) {
-	from := 1
+func windowStart(ctx context.Context, idx Indexer, tip int) (from int, since, until time.Time, err error) {
+	head, err := idx.Block(ctx, tip)
+	if err != nil {
+		return 0, time.Time{}, time.Time{}, err
+	}
+	from = 1
 	if tip > rateProbe {
-		head, err := idx.Block(ctx, tip)
-		if err != nil {
-			return 0, time.Time{}, err
-		}
 		probe, err := idx.Block(ctx, tip-rateProbe)
 		if err != nil {
-			return 0, time.Time{}, err
+			return 0, time.Time{}, time.Time{}, err
 		}
 		elapsed := head.Time.Sub(probe.Time)
 		if elapsed <= 0 {
-			return 0, time.Time{}, errors.New("indexer block times do not increase")
+			return 0, time.Time{}, time.Time{}, errors.New("indexer block times do not increase")
 		}
 		blocks := int(float64(rateProbe) * float64(activityWindow) / float64(elapsed))
 		from = max(tip-blocks, 1)
 	}
 	start, err := idx.Block(ctx, from)
 	if err != nil {
-		return 0, time.Time{}, err
+		return 0, time.Time{}, time.Time{}, err
 	}
-	return from, start.Time, nil
+	return from, start.Time, head.Time, nil
 }

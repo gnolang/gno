@@ -140,6 +140,11 @@ type OverviewInput struct {
 	// DepsURL is the page listing the package's importers, set only when
 	// this deployment can compute them.
 	DepsURL string
+	// Storage is the realm's stored size and deposit; nil when the node did
+	// not say.
+	Storage *PackageStorage
+	// Calls is the Recent calls section; nil without an indexer.
+	Calls *CallsSection
 }
 
 // OverviewData is the full payload passed to the overview template.
@@ -169,6 +174,10 @@ type OverviewData struct {
 	// Graph draws the package between what it imports and, when an indexer
 	// can tell, what imports it.
 	Graph DepGraph
+
+	// Storage and Calls are passed through from OverviewInput.
+	Storage *PackageStorage
+	Calls   *CallsSection
 
 	ComponentTOC Component
 }

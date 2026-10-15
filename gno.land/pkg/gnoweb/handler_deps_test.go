@@ -15,7 +15,8 @@ import (
 )
 
 // stubIndexer is the *indexer.Client surface both indexer-backed features
-// read. Only the importer search answers; the rest is never reached here.
+// read. The importer search answers, and with calls set the activity scan
+// does; the rest is never reached here.
 type stubIndexer struct {
 	deploys []indexer.Tx
 	scans   *atomic.Int32
