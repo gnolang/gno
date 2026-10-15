@@ -16,9 +16,9 @@ the foundations of a fairer and freer world, join us today.
 
 <gno-columns>
 
-## <gno-icon name="browser" /> Use Gno.land apps
+## <gno-icon name="browser" /> Use apps
 
-Get free testnet GNOTs and try the realms deployed on this testnet.
+Get free testnet GNOTs and try the realms on this testnet.
 
 <gno-button href="https://faucet.gno.land" label="Get testnet GNOTs" />
 
@@ -41,7 +41,7 @@ Write, test and deploy smart contracts in Gno.
 
 <gno-columns-sep>
 
-## <gno-icon name="users" /> Join the community
+## <gno-icon name="users" /> Community
 
 Meet the Gno.land community and follow the project.
 
@@ -152,7 +152,6 @@ Standard pure packages maintained by the core team.
 - [Discord](https://discord.com/invite/gnoland)
 - [X (Twitter)](https://twitter.com/_gnoland)
 - [YouTube](https://www.youtube.com/@_gnoland)
-- [Telegram](https://t.me/gnoland)
 - [gno.world](https://gno.world)
 - [Newsletter](https://land.us18.list-manage.com/subscribe?u=8befe3303cf82796d2c1a1aff&id=271812000b)
 
