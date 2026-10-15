@@ -66,8 +66,7 @@ error-accumulating preprocessor and arrive with it.
 
 - `gnovm/tests/files/gocorpus/LICENSE` carries Go's BSD notice, as the files'
   headers require.
-- Bumping `VERSION` means bumping `go.mod` and re-syncing; `GoTypeCheckError:`
-  line sets follow the Go that built the test binary.
+- Bumping `VERSION` means bumping `go.mod` and re-syncing the Go-side goldens.
 - Verify cost per corpus file equals a native filetest's; sync is the slow,
   opt-in path.
 - One canary per verdict kind lives in `testdata/run/` (plus a `.gno` opt-in
