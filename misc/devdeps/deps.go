@@ -32,4 +32,8 @@ import (
 
 	// required to generate mocks (see `make mocks`)
 	_ "github.com/golang/mock/mockgen"
+
+	// package manager: keeps a package's version in gnomod.toml rather than
+	// in its directory name (see `make -C examples gnopm`)
+	_ "moul.io/gnopm"
 )

@@ -76,6 +76,22 @@ jobs:
             echo "'make generate' rule not found, skipping."
           fi
 
+  gnopm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          # gnopm rebuilds superseded versions from history and checks that no
+          # pin would be discarded by a squash merge; both need the full log.
+          fetch-depth: 0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: go.mod
+      - working-directory: ./examples
+        run: make gnopm
+
   mod-tidy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
