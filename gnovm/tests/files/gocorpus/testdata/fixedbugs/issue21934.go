@@ -26,7 +26,7 @@ func main() {
 }
 
 // GnoError:
-// line 22: should not happen
+// line 22: missing field f in main.P
 // line 25: missing field f in main.PP
 
 // Verdict: Clean errorcheck
