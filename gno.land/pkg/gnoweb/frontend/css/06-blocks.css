@@ -1382,8 +1382,11 @@
 			border-top: var(--s-border);
 		}
 
+		/* Narrow screens: the actions wrap under the path. */
 		& > :where(a, div) {
 			display: flex;
+			flex-wrap: wrap;
+			gap: var(--g-space-1) var(--g-space-3);
 			justify-content: space-between;
 			align-items: center;
 			padding: var(--g-space-2);
@@ -1397,7 +1400,7 @@
 			}
 
 			& > a {
-				flex: 1;
+				flex: 1 1 12rem;
 				min-width: 0;
 
 				&:hover {
@@ -1405,6 +1408,11 @@
 				}
 			}
 		}
+	}
+
+	/* Inline-flex keeps a long path at full width: cap it so it ellipsizes. */
+	.c-with-icon {
+		max-width: 100%;
 	}
 
 	.name {
