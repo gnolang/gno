@@ -3352,12 +3352,6 @@ main.is-dev-mode .b-toc a {
 			align-items: center;
 			gap: var(--g-space-2);
 			padding: var(--g-space-3) var(--g-space-4);
-			list-style: none;
-
-			&::marker,
-			&::-webkit-details-marker {
-				display: none;
-			}
 
 			& > svg {
 				width: var(--g-space-4);
