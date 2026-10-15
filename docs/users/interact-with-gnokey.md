@@ -748,7 +748,21 @@ document's bytes sorted by key, as Adena signs it.
 
 The signed document is a transaction sign document whose single message,
 `sign/MsgSignData`, no node can decode, so it can never be broadcast as a
-transaction. A service written in Go checks a proof with `std.VerifySignData`.
+transaction.
+
+To check a proof, from `gnokey sign-data` or from Adena, give `gnokey verify-data`
+what you expect: the chain, the text you handed out and the address. The proof
+holds the public key, so the address needs no key in your keybase.
+
+```bash
+gnokey verify-data -chainid gnoland-1 -data "example.com: prove this wallet is yours · 9UQVko4o" \
+  -proof-path proof.json g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+```
+
+It fails unless the proof is signed by that address's key and signs exactly
+that text on that chain. Use `-proof-path -` to read the proof from stdin. A
+service written in Go checks a proof with `std.VerifySignDataProof`, then compares
+the chain, the signer and the data itself.
 
 ## Using a k-of-n multisig
 

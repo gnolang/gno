@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
 // SignDataMsgType is the one message of a sign-data document: ADR-036's message
@@ -145,4 +146,66 @@ func VerifySignData(doc []byte, pubKey crypto.PubKey, sig []byte) (SignedData, e
 	}
 
 	return SignedData{ChainID: d.ChainID, Signer: signer, Data: string(data)}, nil
+}
+
+// SignDataPubKeyType is the type URL of a sign-data proof's public key.
+const SignDataPubKeyType = "/tm.PubKeySecp256k1"
+
+// SignDataProof is a sign-data proof as Adena's SignArbitrary answers it: the
+// signed document, the public key and the signature.
+type SignDataProof struct {
+	Signed    json.RawMessage   `json:"signed"`
+	Signature SignDataSignature `json:"signature"`
+}
+
+type SignDataSignature struct {
+	PubKey    SignDataPubKey `json:"pubKey"`
+	Signature string         `json:"signature"` // base64, 64 bytes R||S
+}
+
+type SignDataPubKey struct {
+	TypeURL string `json:"typeUrl"`
+	Value   string `json:"value"` // base64 of the compressed key itself
+}
+
+// NewSignDataProof returns the proof that sig, by pubKey, signs payload.
+func NewSignDataProof(payload []byte, pubKey secp256k1.PubKeySecp256k1, sig []byte) SignDataProof {
+	return SignDataProof{
+		Signed: payload,
+		Signature: SignDataSignature{
+			PubKey: SignDataPubKey{
+				TypeURL: SignDataPubKeyType,
+				Value:   base64.StdEncoding.EncodeToString(pubKey[:]),
+			},
+			Signature: base64.StdEncoding.EncodeToString(sig),
+		},
+	}
+}
+
+// VerifySignDataProof checks a proof in SignDataProof's JSON with
+// VerifySignData; the caller still checks the chain id and the data it expects.
+func VerifySignDataProof(proof []byte) (SignedData, error) {
+	var p SignDataProof
+	if err := json.Unmarshal(proof, &p); err != nil {
+		return SignedData{}, fmt.Errorf("unable to read sign-data proof, %w", err)
+	}
+
+	if p.Signature.PubKey.TypeURL != SignDataPubKeyType {
+		return SignedData{}, fmt.Errorf("the proof's key is a %q, not a %s", p.Signature.PubKey.TypeURL, SignDataPubKeyType)
+	}
+
+	key, err := base64.StdEncoding.DecodeString(p.Signature.PubKey.Value)
+	if err != nil || len(key) != secp256k1.PubKeySecp256k1Size {
+		return SignedData{}, errors.New("the proof's public key is not a base64 compressed secp256k1 key")
+	}
+
+	var pubKey secp256k1.PubKeySecp256k1
+	copy(pubKey[:], key)
+
+	sig, err := base64.StdEncoding.DecodeString(p.Signature.Signature)
+	if err != nil {
+		return SignedData{}, fmt.Errorf("the proof's signature is not base64, %w", err)
+	}
+
+	return VerifySignData(p.Signed, pubKey, sig)
 }

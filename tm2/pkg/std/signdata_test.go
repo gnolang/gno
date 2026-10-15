@@ -2,6 +2,7 @@ package std
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -235,6 +236,78 @@ func TestVerifySignData_Rejects(t *testing.T) {
 
 			_, err := VerifySignData([]byte(testCase.doc), testCase.pub, testCase.sig)
 			assert.Error(t, err)
+		})
+	}
+}
+
+// signDataTestProof is Adena's SignArbitrary answer for the first vector.
+var signDataTestProof = `{
+  "signed": ` + signDataVectors[0].payload + `,
+  "signature": {
+    "pubKey": {"typeUrl": "/tm.PubKeySecp256k1", "value": "` + signDataTestPubKey + `"},
+    "signature": "` + signDataVectors[0].sig + `"
+  }
+}`
+
+func TestVerifySignDataProof_AcceptsAdenasAnswer(t *testing.T) {
+	t.Parallel()
+
+	signed, err := VerifySignDataProof([]byte(signDataTestProof))
+	require.NoError(t, err)
+	assert.Equal(t, "gnoland-1", signed.ChainID)
+	assert.Equal(t, signDataTestSigner, signed.Signer.String())
+	assert.Equal(t, "hello", signed.Data)
+}
+
+func TestVerifySignDataProof_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	priv := secp256k1.GenPrivKey()
+	pub := priv.PubKey().(secp256k1.PubKeySecp256k1)
+
+	payload, err := SignDataPayload("dev", pub.Address(), "prove it")
+	require.NoError(t, err)
+	sig, err := priv.Sign(payload)
+	require.NoError(t, err)
+
+	proof, err := json.Marshal(NewSignDataProof(payload, pub, sig))
+	require.NoError(t, err)
+
+	signed, err := VerifySignDataProof(proof)
+	require.NoError(t, err)
+	assert.Equal(t, pub.Address(), signed.Signer)
+	assert.Equal(t, "prove it", signed.Data)
+}
+
+func TestVerifySignDataProof_Rejects(t *testing.T) {
+	t.Parallel()
+
+	// replace returns the proof with one substring changed.
+	replace := func(from, to string) string {
+		require.Contains(t, signDataTestProof, from)
+		return strings.Replace(signDataTestProof, from, to, 1)
+	}
+
+	testTable := []struct {
+		name    string
+		proof   string
+		wantErr string
+	}{
+		{"another key type", replace(SignDataPubKeyType, "/tm.PubKeyEd25519"), `"/tm.PubKeyEd25519"`},
+		{"a key that is not base64", replace(signDataTestPubKey, "not base64!"), "public key"},
+		{"a truncated key", replace(signDataTestPubKey, signDataTestPubKey[:40]), "public key"},
+		{"a signature that is not base64", replace(signDataVectors[0].sig, "not base64!"), "signature is not base64"},
+		{"a corrupted signature", replace(signDataVectors[0].sig, "9"+signDataVectors[0].sig[1:]), "invalid sign-data signature"},
+		{"tampered data", replace(`"aGVsbG8="`, `"aGVsbG8h"`), "invalid sign-data signature"},
+		{"not JSON", "hello", "unable to read sign-data proof"},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := VerifySignDataProof([]byte(testCase.proof))
+			assert.ErrorContains(t, err, testCase.wantErr)
 		})
 	}
 }

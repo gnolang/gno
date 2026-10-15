@@ -1,0 +1,168 @@
+package client
+
+import (
+	"flag"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// adenaProof is Adena's SignArbitrary answer for "hello" on gnoland-1, by the
+// test1 key, signed by @cosmjs/crypto (see tm2/pkg/std/signdata_test.go).
+const adenaProof = `{
+  "signed": {
+    "chain_id": "gnoland-1", "account_number": "0", "sequence": "0",
+    "fee": {"amount": [], "gas": "0"},
+    "msgs": [{"type": "sign/MsgSignData", "value": {"signer": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "data": "aGVsbG8="}}],
+    "memo": ""
+  },
+  "signature": {
+    "pubKey": {"typeUrl": "/tm.PubKeySecp256k1", "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"},
+    "signature": "8hpjD4/il8opyBcDRI3Uax7RawxfahpY7agfp3fbv8V0OI1lPGBmIJ7epkRjGfFbyl57udqJHErR3q79qmwEZg=="
+  }
+}`
+
+const adenaProofSigner = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+func writeProof(t *testing.T, proof string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "proof.json")
+	require.NoError(t, os.WriteFile(path, []byte(proof), 0o644))
+
+	return path
+}
+
+func TestVerifyData(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no address provided", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := runKeysCmd(t, t.TempDir(), "", "verify-data",
+			"--chainid", "gnoland-1", "--data", "hello", "--proof-path", writeProof(t, adenaProof))
+		assert.ErrorIs(t, err, flag.ErrHelp)
+	})
+
+	t.Run("accepts Adena's proof", func(t *testing.T) {
+		t.Parallel()
+
+		out, err := runKeysCmd(t, t.TempDir(), "", "verify-data",
+			"--chainid", "gnoland-1", "--data", "hello", "--proof-path", writeProof(t, adenaProof), adenaProofSigner)
+		require.NoError(t, err)
+		assert.Contains(t, string(out), adenaProofSigner)
+	})
+
+	t.Run("reads the proof from stdin", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := runKeysCmd(t, t.TempDir(), adenaProof, "verify-data",
+			"--chainid", "gnoland-1", "--data", "hello", "--proof-path", "-", adenaProofSigner)
+		require.NoError(t, err)
+	})
+
+	// The file is compared as it is, a final newline included.
+	t.Run("compares a data file as it is", func(t *testing.T) {
+		t.Parallel()
+
+		path := filepath.Join(t.TempDir(), "data.txt")
+		require.NoError(t, os.WriteFile(path, []byte("hello\n"), 0o644))
+
+		_, err := runKeysCmd(t, t.TempDir(), "", "verify-data",
+			"--chainid", "gnoland-1", "--data-path", path, "--proof-path", writeProof(t, adenaProof), adenaProofSigner)
+		assert.ErrorContains(t, err, "signs other data")
+	})
+
+	t.Run("verifies a proof from sign-data, by key name", func(t *testing.T) {
+		t.Parallel()
+
+		st := newSignDataTest(t)
+		path := filepath.Join(t.TempDir(), "proof.json")
+
+		_, err := st.run(t, "--chainid", "dev", "--data", "challenge", "--output-document", path, st.keyName)
+		require.NoError(t, err)
+
+		out, err := runKeysCmd(t, st.kbHome, "", "verify-data",
+			"--chainid", "dev", "--data", "challenge", "--proof-path", path, st.keyName)
+		require.NoError(t, err)
+		assert.Contains(t, string(out), st.address.String())
+	})
+
+	// Without the expectations, a valid signature over another chain, an old
+	// challenge or someone else's address would pass for a proof. Each case
+	// runs on Adena's proof unless it gives its own.
+	for _, testCase := range []struct {
+		name    string
+		args    []string
+		proof   string
+		wantErr string
+	}{
+		{
+			name:    "no chain id",
+			args:    []string{"--data", "hello", adenaProofSigner},
+			wantErr: "chainid",
+		},
+		{
+			name:    "no data",
+			args:    []string{"--chainid", "gnoland-1", adenaProofSigner},
+			wantErr: "no data",
+		},
+		{
+			name:    "unknown key name",
+			args:    []string{"--chainid", "gnoland-1", "--data", "hello", "TotallyExistingKey"},
+			wantErr: "TotallyExistingKey",
+		},
+		{
+			name:    "another chain",
+			args:    []string{"--chainid", "test12", "--data", "hello", adenaProofSigner},
+			wantErr: `for chain "gnoland-1", not "test12"`,
+		},
+		{
+			name:    "other data",
+			args:    []string{"--chainid", "gnoland-1", "--data", "hello again", adenaProofSigner},
+			wantErr: "signs other data",
+		},
+		{
+			name:    "another address",
+			args:    []string{"--chainid", "gnoland-1", "--data", "hello", "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"},
+			wantErr: "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj",
+		},
+		{
+			name:    "tampered signature",
+			args:    []string{"--chainid", "gnoland-1", "--data", "hello", adenaProofSigner},
+			proof:   strings.Replace(adenaProof, "8hpjD4", "9hpjD4", 1),
+			wantErr: "invalid sign-data signature",
+		},
+		{
+			name:    "not a proof",
+			args:    []string{"--chainid", "gnoland-1", "--data", "hello", adenaProofSigner},
+			proof:   "hello",
+			wantErr: "unable to read sign-data proof",
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			proof := testCase.proof
+			if proof == "" {
+				proof = adenaProof
+			}
+
+			args := append([]string{"verify-data", "--proof-path", writeProof(t, proof)}, testCase.args...)
+			_, err := runKeysCmd(t, t.TempDir(), "", args...)
+			assert.ErrorContains(t, err, testCase.wantErr)
+		})
+	}
+
+	t.Run("no proof", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := runKeysCmd(t, t.TempDir(), "", "verify-data",
+			"--chainid", "gnoland-1", "--data", "hello", adenaProofSigner)
+		assert.ErrorContains(t, err, "proof-path")
+	})
+}

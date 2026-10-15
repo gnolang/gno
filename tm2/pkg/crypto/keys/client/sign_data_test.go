@@ -3,8 +3,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"flag"
 	"os"
 	"path/filepath"
@@ -16,45 +14,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
-	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// signDataOutput is what sign-data writes, in the shape of Adena's
-// SignArbitrary response.
-type signDataOutput struct {
-	Signed    json.RawMessage `json:"signed"`
-	Signature struct {
-		PubKey struct {
-			TypeURL string `json:"typeUrl"`
-			Value   string `json:"value"`
-		} `json:"pubKey"`
-		Signature string `json:"signature"`
-	} `json:"signature"`
-}
-
-// verifySignDataOutput checks out with std.VerifySignData and returns what the
-// document says.
+// verifySignDataOutput checks out with std.VerifySignDataProof and returns what
+// the document says.
 func verifySignDataOutput(t *testing.T, out []byte) std.SignedData {
 	t.Helper()
 
-	var o signDataOutput
-	require.NoError(t, json.Unmarshal(out, &o))
-	assert.Equal(t, "/tm.PubKeySecp256k1", o.Signature.PubKey.TypeURL)
-
-	raw, err := base64.StdEncoding.DecodeString(o.Signature.PubKey.Value)
-	require.NoError(t, err)
-	require.Len(t, raw, secp256k1.PubKeySecp256k1Size)
-
-	var pub secp256k1.PubKeySecp256k1
-	copy(pub[:], raw)
-
-	sig, err := base64.StdEncoding.DecodeString(o.Signature.Signature)
-	require.NoError(t, err)
-
-	signed, err := std.VerifySignData(o.Signed, pub, sig)
+	signed, err := std.VerifySignDataProof(out)
 	require.NoError(t, err)
 
 	return signed
@@ -82,9 +52,9 @@ func newSignDataTest(t *testing.T) signDataTest {
 	return st
 }
 
-// run runs sign-data with args (the key name last, if any) and returns its
-// standard output.
-func (st signDataTest) run(t *testing.T, args ...string) ([]byte, error) {
+// runKeysCmd runs the subcommand args[0] with the rest of args, on the keybase
+// in home and with stdin as its input, and returns its standard output.
+func runKeysCmd(t *testing.T, home, stdin string, args ...string) ([]byte, error) {
 	t.Helper()
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
@@ -92,14 +62,22 @@ func (st signDataTest) run(t *testing.T, args ...string) ([]byte, error) {
 
 	var out bytes.Buffer
 	io := commands.NewTestIO()
-	io.SetIn(strings.NewReader(st.password + "\n"))
+	io.SetIn(strings.NewReader(stdin))
 	io.SetOut(commands.WriteNopCloser(&out))
 
-	cmd := NewRootCmdWithBaseConfig(io, BaseOptions{InsecurePasswordStdin: true, Home: st.kbHome})
+	cmd := NewRootCmdWithBaseConfig(io, BaseOptions{Home: home})
 
-	err := cmd.ParseAndRun(ctx, append([]string{"sign-data", "--insecure-password-stdin", "--home", st.kbHome}, args...))
+	err := cmd.ParseAndRun(ctx, append([]string{args[0], "--home", home}, args[1:]...))
 
 	return out.Bytes(), err
+}
+
+// run runs sign-data with args (the key name last, if any) and returns its
+// standard output.
+func (st signDataTest) run(t *testing.T, args ...string) ([]byte, error) {
+	t.Helper()
+
+	return runKeysCmd(t, st.kbHome, st.password+"\n", append([]string{"sign-data", "--insecure-password-stdin"}, args...)...)
 }
 
 func TestSignData(t *testing.T) {

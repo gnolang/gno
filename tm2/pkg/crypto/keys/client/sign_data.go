@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -40,7 +39,8 @@ signs (ADR-036's sign/MsgSignData, bound to -chainid): it is not a transaction,
 and no node can decode it as one.
 
 The output is Adena's SignArbitrary answer, as JSON: the signed document, the
-public key and the signature. Check it with std.VerifySignData.`,
+public key and the signature. Check it with gnokey verify-data, or with
+std.VerifySignDataProof.`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -79,21 +79,23 @@ func (c *SignDataCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-// signDataProof is Adena's SignArbitrary answer, so that a verifier handles a
-// proof from either the same way.
-type signDataProof struct {
-	Signed    json.RawMessage   `json:"signed"`
-	Signature signDataSignature `json:"signature"`
-}
+// readSignDataText returns the text given with -data, or read as it is from
+// -data-path.
+func readSignDataText(data, dataPath string) (string, error) {
+	switch {
+	case data != "" && dataPath != "":
+		return "", errors.New("give the data with -data or -data-path, not both")
+	case dataPath != "":
+		raw, err := os.ReadFile(dataPath)
+		if err != nil {
+			return "", fmt.Errorf("unable to read data file, %w", err)
+		}
+		return string(raw), nil
+	case data == "":
+		return "", errors.New("no data: give it with -data or -data-path")
+	}
 
-type signDataSignature struct {
-	PubKey    signDataPubKey `json:"pubKey"`
-	Signature string         `json:"signature"` // base64, 64 bytes R||S
-}
-
-type signDataPubKey struct {
-	TypeURL string `json:"typeUrl"`
-	Value   string `json:"value"` // base64 of the compressed key itself
+	return data, nil
 }
 
 func execSignData(cfg *SignDataCfg, args []string, io commands.IO) error {
@@ -106,18 +108,9 @@ func execSignData(cfg *SignDataCfg, args []string, io commands.IO) error {
 		return errors.New("-chainid is required: a proof is only good on the chain it names")
 	}
 
-	data := cfg.Data
-	switch {
-	case cfg.Data != "" && cfg.DataPath != "":
-		return errors.New("give the data with -data or -data-path, not both")
-	case cfg.DataPath != "":
-		raw, err := os.ReadFile(cfg.DataPath)
-		if err != nil {
-			return fmt.Errorf("unable to read data file, %w", err)
-		}
-		data = string(raw)
-	case cfg.Data == "":
-		return errors.New("no data to sign: give it with -data or -data-path")
+	data, err := readSignDataText(cfg.Data, cfg.DataPath)
+	if err != nil {
+		return err
 	}
 
 	// Load the keybase
@@ -167,16 +160,7 @@ func execSignData(cfg *SignDataCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to sign data, %w", err)
 	}
 
-	proof, err := json.MarshalIndent(signDataProof{
-		Signed: payload,
-		Signature: signDataSignature{
-			PubKey: signDataPubKey{
-				TypeURL: "/tm.PubKeySecp256k1",
-				Value:   base64.StdEncoding.EncodeToString(pub[:]),
-			},
-			Signature: base64.StdEncoding.EncodeToString(sig),
-		},
-	}, "", "  ")
+	proof, err := json.MarshalIndent(std.NewSignDataProof(payload, pub, sig), "", "  ")
 	if err != nil {
 		return fmt.Errorf("unable to marshal proof to JSON, %w", err)
 	}
