@@ -694,6 +694,43 @@ To verify against a separate signature file:
 gnokey verify -tx-path counter.tx -sig-path counter-sig.json mykey
 ```
 
+## Proving you control an address
+
+Some services, such as a website reserving a name for your address, ask you to
+sign a short text, its challenge, to prove that the address is yours. The
+`gnokey sign-data` subcommand signs it without making a transaction: nothing is
+sent to the chain and it costs nothing.
+
+```bash
+gnokey sign-data -chainid gnoland-1 \
+  -data "example.com: prove this wallet is yours · 9UQVko4o" \
+  -output-document proof.json mykey
+```
+
+`-chainid` is required: the proof is only good on the chain it names. Use
+`-data-path` instead of `-data` to sign the contents of a file, as they are,
+a final newline included. Without `-output-document`, the proof is printed.
+
+The proof holds the signed text, your public key and the signature, in the same
+format as Adena's `SignArbitrary` answer. It is not a transaction and can never
+be broadcast as one.
+
+To check a proof, give `gnokey verify-data` the chain, the text and the address
+you expect (here `mykey`'s):
+
+```bash
+gnokey verify-data -chainid gnoland-1 \
+  -data "example.com: prove this wallet is yours · 9UQVko4o" \
+  -proof-path proof.json g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+```
+
+It fails unless the proof is signed by that address's key and signs exactly
+that text on that chain. The address needs no key in your keybase, and
+`-proof-path -` reads the proof from stdin.
+
+A proof stays valid forever and anyone holding it can present it again, so
+only give it to the service that asked for it.
+
 ## Using a k-of-n multisig
 
 The multisig being created for this section is a 2-of-3 multisig, with Alice / Bob / Charlie.
