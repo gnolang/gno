@@ -189,11 +189,10 @@ func realmFromKey(key string) (string, bool) {
 	rest := key[len(userRealmKeyPrefix):]
 	// Package paths contain no colon, so the first one ends the realm path;
 	// the param name after it may contain more.
-	colon := strings.Index(rest, ":")
-	if colon < 0 {
+	rlm, _, ok := strings.Cut(rest, ":")
+	if !ok {
 		return "", false
 	}
-	rlm := rest[:colon]
 	if !strings.Contains(rlm, "/") {
 		return "", false
 	}
