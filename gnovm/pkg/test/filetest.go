@@ -105,22 +105,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		source = append(bytes.TrimRight(source, "\n"), '\n')
 	}
 
-	// .go filetests under tests/files/gocorpus/testdata/ are regression tests for
-	// files lifted from Go's standard test corpus. Three dispatch modes,
-	// detected from source content:
-	//
-	//   - errorcheck (inline `// ERROR "regex"` markers): legacy loose
-	//     marker matching. PKGPATH+synthetic-main rescue applies. The
-	//     verdict-inversion `// Divergence:` flow still drives this mode.
-	//
-	//   - compile-only (not runnable): same legacy flow.
-	//
-	//   - run (runnable): symmetric Gno-vs-Go comparison. Both runtimes
-	//     are run, their stdouts compared. A divergence requires the
-	//     blessing triple (// GnoOutput: / // GoOutput: / // Divergence:);
-	//     stale or missing-blessing cases FAIL. See finalizeGoRunDivergence
-	//     below.
-	var divergenceReason string // legacy errorcheck/compile inversion path only
+	// .go filetests under tests/files/gocorpus/testdata/ are files lifted
+	// from Go's test corpus; the mode comes from the source (gc's
+	// directive word and inline markers). Run mode compares both
+	// runtimes' output, see finalizeGoRunDivergence.
 	var isGoRunMode bool
 	var goStdout string
 	// originalSource is the file as-authored, before any in-memory
@@ -134,9 +122,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// are untouched.
 	hasGoOptIn := dirs.First(DirectiveGoOutput) != nil ||
 		verdictKind(dirs) == VerdictKnownDivergence
-	if v, ok := verdictIn(dirs); ok && v.Kind == VerdictKnownDivergence {
-		divergenceReason = v.Reason
-	}
 	if isGoFile {
 		hasErrorDir := dirs.First(DirectiveError) != nil
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
@@ -183,7 +168,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// offline, so the host's Go version cannot move the result.
 	if isGoRunMode {
 		if opts.Sync {
-			out, runErr := runGoToolchain(source)
+			out, runErr := runGoToolchain(source, false)
 			if runErr != nil {
 				return "", 0, diffs, fmt.Errorf("filetest %s: cannot run via Go toolchain "+"(install go, or mark file `// Unsupported:`): %w", fname, runErr)
 			}
@@ -196,23 +181,6 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			goStdout = d.Content
 		}
 	}
-
-	// Legacy verdict-inversion for the errorcheck/compile-only modes
-	// (run mode uses the explicit triple via finalizeGoRunDivergence
-	// at the end). When `// Divergence:` was set above for those two
-	// modes, suppress a match-path error (real divergence) or surface
-	// a "stale directive" failure if Gno turned out to match.
-	defer func() {
-		if isGoRunMode || divergenceReason == "" {
-			return
-		}
-		if retErr == nil {
-			retErr = fmt.Errorf("stale `// Divergence: %s` directive: Gno's behavior now matches Go; remove the directive",
-				divergenceReason)
-			return
-		}
-		retErr = nil
-	}()
 
 	// Sanity check: type-check directives are not available
 	// with `gno test` of user packages.
@@ -1013,11 +981,11 @@ const (
 	//
 	//   // GnoOutput: <Gno's actual stdout>
 	//   // GoOutput:  <`go run`'s actual stdout>
-	//   // Divergence: <category>: <reason>
+	//   // Verdict:   Clean run, or KnownIssue / KnownDivergence with a reason
 	//
-	// Same for errors (// GnoError: / // GoError:). Both are
-	// auto-writable via `--update-golden-tests`; `// Divergence:`
-	// gets an auto-filled TODO placeholder the contributor refines.
+	// Gno's panic goes to // GnoError:. All are written by
+	// `--update-golden-tests`; a Known* verdict gets a TODO placeholder
+	// the contributor replaces.
 	DirectiveGnoOutput = "GnoOutput"
 	DirectiveGoOutput  = "GoOutput"
 	DirectiveGnoError  = "GnoError"
@@ -1176,8 +1144,8 @@ type Directive struct {
 var reDirectiveLine = regexp.MustCompile("^(?:([A-Za-z]*):|([A-Z]+): ?(.*))$")
 
 // Single-line PascalCase directives: `Name:` or `Name: content` on
-// one line. Used by meta-directives like `Unsupported:` /
-// `Divergence:` / `GnoOutput:` / `GoOutput:` whose payload is a short
+// one line. Used by meta-directives like `Verdict:` /
+// `GnoOutput:` / `GoOutput:` whose payload is a short
 // single-line value (often empty for `GoOutput:` when Go produces no
 // stdout). PascalCase distinguishes them from the ALLCAPS
 // input-parameter family (PKGPATH/MAXALLOC/SEND); a bare `Name:` is
@@ -1336,7 +1304,11 @@ var goSubprocessTimeout = 30 * time.Second
 // Non-zero exit (panic, compile error) is NOT a function-level error
 // — it's the corpus file's expected behavior. The only error returned
 // is a genuine exec failure (Go toolchain not on PATH, timeout).
-func runGoToolchain(source []byte) (output string, err error) {
+// runGoToolchain runs source with the Go toolchain on PATH: `go run` for a
+// runnable program, else `go build` (always, when buildOnly: compile-mode
+// files are never executed).
+func runGoToolchain(source []byte, buildOnly bool) (output string, err error) {
+	runnable := IsRunnable(source) && !buildOnly
 	dir, mkErr := os.MkdirTemp("", "gno-filetest-go-*")
 	if mkErr != nil {
 		return "", fmt.Errorf("mkdir temp: %w", mkErr)
@@ -1358,7 +1330,7 @@ func runGoToolchain(source []byte) (output string, err error) {
 	// Its `go` line is the toolchain's own version: an older pin would
 	// set -lang and make gc reject `any`, unions or `max` as "requires
 	// go1.N or later", which is not the reference verdict we want.
-	if !IsRunnable(source) {
+	if !runnable {
 		modPath := filepath.Join(dir, "go.mod")
 		mod := "module gnofiletest\n\ngo " + goModLangVersion(runtime.Version()) + "\n"
 		if err := os.WriteFile(modPath, []byte(mod), 0o644); err != nil {
@@ -1366,7 +1338,7 @@ func runGoToolchain(source []byte) (output string, err error) {
 		}
 	}
 	var args []string
-	if IsRunnable(source) {
+	if runnable {
 		args = []string{"run", srcPath}
 	} else {
 		args = []string{"build", "-o", os.DevNull, "."}
