@@ -13,6 +13,7 @@ import (
 	libs_chain_params "github.com/gnolang/gno/gnovm/stdlibs/chain/params"
 	libs_chain_runtime "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime"
 	libs_chain_runtime_unsafe "github.com/gnolang/gno/gnovm/stdlibs/chain/runtime/unsafe"
+	libs_crypto_bls12381 "github.com/gnolang/gno/gnovm/stdlibs/crypto/bls12381"
 	libs_crypto_bn254 "github.com/gnolang/gno/gnovm/stdlibs/crypto/bn254"
 	libs_crypto_cometbls "github.com/gnolang/gno/gnovm/stdlibs/crypto/cometbls"
 	libs_crypto_ed25519 "github.com/gnolang/gno/gnovm/stdlibs/crypto/ed25519"
@@ -1397,6 +1398,48 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"crypto/bls12381",
+		"fastAggregateVerify",
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("p0"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p1"), Type: gno.X("[]byte")},
+			{NameExpr: *gno.Nx("p2"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{NameExpr: *gno.Nx("r0"), Type: gno.X("bool")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []byte
+				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  []byte
+				rp1 = reflect.ValueOf(&p1).Elem()
+				p2  []byte
+				rp2 = reflect.ValueOf(&p2).Elem()
+			)
+
+			tv0 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV
+			tv0.DeepFill(m.Store)
+			gno.Gno2GoValue(tv0, rp0)
+			tv1 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV
+			tv1.DeepFill(m.Store)
+			gno.Gno2GoValue(tv1, rp1)
+			tv2 := b.GetPointerTo(nil, gno.NewValuePathBlock(1, 2, "")).TV
+			tv2.DeepFill(m.Store)
+			gno.Gno2GoValue(tv2, rp2)
+
+			r0 := libs_crypto_bls12381.X_fastAggregateVerify(p0, p1, p2)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
 		"crypto/bn254",
 		"g1Add",
 		[]gno.FieldTypeExpr{
@@ -2639,6 +2682,7 @@ var initOrder = [...]string{
 	"chain/runtime",
 	"chain/runtime/unsafe",
 	"crypto/bech32",
+	"crypto/bls12381",
 	"crypto/bn254",
 	"encoding/binary",
 	"crypto/chacha20/chacha",

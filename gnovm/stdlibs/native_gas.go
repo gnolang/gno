@@ -94,9 +94,9 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 72 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
-// The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
-// crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
+// 73 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// The trailing 11 IBC-crypto entries (crypto/bls12381, crypto/bn254,
+// crypto/cometbls, crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
 // Apple M2. The whole table must be regenerated on the reference Xeon 8168
 // before any consensus-relevant deployment; the IBC rows are flagged
@@ -190,8 +190,12 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/bn254", Fn: "g1Add", Base: 14883, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 14883ns (input fixed 128B)
 	{Pkg: "crypto/bn254", Fn: "g1Mul", Base: 44465, SlopeIdx: -1, SlopeKind: SizeFlat},                            // draft, median 44465ns (input fixed 96B)
 	{Pkg: "crypto/bn254", Fn: "pairingCheck", Base: 457574, Slope: 1786890, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft fit base=457574ns slope=1745.4ns/N (=1786890/1024) on 1..4 pairs
-	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                   // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
-	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},        // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
+	// bls12381 was measured on Apple M4 Pro (base 0.88ms, 40us per 48-byte key
+	// for decompression + subgroup check) and scaled by 2.3x toward the Xeon
+	// Silver 4114 the rows around it use; regenerate with the rest of the table.
+	{Pkg: "crypto/bls12381", Fn: "fastAggregateVerify", Base: 2024000, Slope: 1962000, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft, M4 fit x2.3: base=2.02ms slope=1916ns/B (=1962000/1024) on 1..512 keys
+	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                              // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
+	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},                   // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
 	// innerHash hashes 0x01||left||right, so its cost is O(len(left)+len(right))
 	// — leafHash's shape over two operands instead of one, and nothing bounds
 	// either. Both operands therefore carry leafHash's per-byte rate, which
