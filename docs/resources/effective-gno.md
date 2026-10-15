@@ -706,7 +706,7 @@ func AddUser(id, name string) {
 }
 ```
 
-For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/v0/README.md).
+For a detailed explanation of how AVL trees are stored in Gno's object store, see the [avl package README](../../examples/gno.land/p/nt/avl/README.md).
 
 ### Construct "safe" objects
 
