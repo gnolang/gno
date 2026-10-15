@@ -4,6 +4,7 @@ package keyscli
 import (
 	"encoding/base64"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/stdlibs/chain"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -78,7 +79,7 @@ func PrintTxMetrics(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxComm
 	if bytesDelta, coinsDelta, hasStorageEvents := GetStorageInfo(res.DeliverTx.Events); hasStorageEvents {
 		io.Printfln("STORAGE DELTA:  %d bytes", bytesDelta)
 		if coinsDelta.IsAllPositive() || coinsDelta.IsZero() {
-			io.Println("STORAGE FEE:   ", coinsDelta)
+			io.Println("STORAGE FEE:   ", formatCost(coinsDelta))
 		} else {
 			// NOTE: there is edge cases where coinsDelta can be a mixture of positive and negative coins.
 			// For example if the keeper respects the storage price param denom and a tx contains a storage cost param change message sandwiched by storage movement messages.
@@ -86,7 +87,10 @@ func PrintTxMetrics(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxComm
 			// really care about this possibility here.
 			io.Println("STORAGE REFUND:", std.Coins{}.SubUnsafe(coinsDelta))
 		}
-		io.Printfln("TOTAL TX COST:  %s", coinsDelta.AddUnsafe(std.Coins{tx.Fee.GasFee}))
+		if sponsored := GetSponsoredStorage(res.DeliverTx.Events); !sponsored.IsZero() {
+			io.Println("SPONSORED STORAGE:", sponsored)
+		}
+		io.Printfln("TOTAL TX COST:  %s", formatCost(coinsDelta.AddUnsafe(std.Coins{tx.Fee.GasFee})))
 	}
 	io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	io.Println("INFO:      ", res.DeliverTx.Info)
@@ -98,7 +102,10 @@ func PrintTxMetrics(io commands.IO, tx std.Tx, res *ctypes.ResultBroadcastTxComm
 	}
 }
 
-// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent and returns the bytes delta and coins delta. The coins delta omits RefundWithheld.
+// GetStorageInfo searches events for StorageDepositEvent or StorageUnlockEvent
+// and returns the bytes delta and the signer's coins delta. The coins delta
+// omits RefundWithheld, deposits a realm paid through PayStorage, and refunds
+// returned to that realm; the bytes delta counts them all.
 func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 	var (
 		bytesDelta int64
@@ -110,16 +117,52 @@ func GetStorageInfo(events []abci.Event) (int64, std.Coins, bool) {
 		switch storageEvent := event.(type) {
 		case chain.StorageDepositEvent:
 			bytesDelta += storageEvent.BytesDelta
-			coinsDelta = coinsDelta.AddUnsafe(std.Coins{storageEvent.FeeDelta})
+			if storageEvent.Payer == "" {
+				coinsDelta = coinsDelta.AddUnsafe(std.Coins{storageEvent.FeeDelta})
+			}
 			hasEvents = true
 		case chain.StorageUnlockEvent:
 			bytesDelta += storageEvent.BytesDelta
 			if !storageEvent.RefundWithheld {
-				coinsDelta = coinsDelta.SubUnsafe(std.Coins{storageEvent.FeeRefund})
+				refund := storageEvent.FeeRefund
+				if storageEvent.SponsorRefund != nil {
+					refund.Amount -= storageEvent.SponsorRefund.Amount
+				}
+				if refund.Amount > 0 {
+					coinsDelta = coinsDelta.SubUnsafe(std.Coins{refund})
+				}
 			}
 			hasEvents = true
 		}
 	}
 
 	return bytesDelta, coinsDelta, hasEvents
+}
+
+// formatCost prints coins, or 0ugnot for none (a fully sponsored tx), rather
+// than an empty string. Storage is priced in ugnot.
+func formatCost(c std.Coins) string {
+	if c.IsZero() {
+		return "0" + ugnot.Denom
+	}
+	return c.String()
+}
+
+// GetSponsoredStorage returns what realms paid, net of what they got back, for
+// storage deposits in events through runtime.PayStorage.
+func GetSponsoredStorage(events []abci.Event) std.Coins {
+	var sponsored std.Coins
+	for _, event := range events {
+		switch storageEvent := event.(type) {
+		case chain.StorageDepositEvent:
+			if storageEvent.Payer != "" {
+				sponsored = sponsored.AddUnsafe(std.Coins{storageEvent.FeeDelta})
+			}
+		case chain.StorageUnlockEvent:
+			if storageEvent.SponsorRefund != nil {
+				sponsored = sponsored.SubUnsafe(std.Coins{*storageEvent.SponsorRefund})
+			}
+		}
+	}
+	return sponsored
 }
