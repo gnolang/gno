@@ -1,9 +1,11 @@
 package ledger
 
 import (
+	stderrors "errors"
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
@@ -209,16 +211,95 @@ func validateKey(device ledger.SECP256K1, pkl PrivKeyLedgerSecp256k1) error {
 // an error, so this should only trigger if the private key is held in memory
 // for a while before use.
 func sign(device ledger.SECP256K1, pkl PrivKeyLedgerSecp256k1, msg []byte) ([]byte, error) {
+	// Before the device is asked anything: a payload it cannot hold will not
+	// become signable by checking the key first, and the signer needs the sizes
+	// rather than whatever the transport says when the transfer fails.
+	if len(msg) > MaxPayloadSize {
+		return nil, fmt.Errorf("%w: %d bytes, the app accepts %d",
+			ErrPayloadTooLarge, len(msg), MaxPayloadSize)
+	}
+
 	err := validateKey(device, pkl)
 	if err != nil {
 		return nil, err
 	}
 	sig, err := device.SignSECP256K1(pkl.Path.DerivationPath(), msg, 0)
 	if err != nil {
-		return nil, err
+		return nil, explainSignError(err, len(msg))
 	}
 
 	return convertDERtoBER(sig)
+}
+
+// MaxPayloadSize is the largest signature payload the Ledger Cosmos app can
+// hold: FLASH_BUFFER_SIZE in ledger-cosmos, app/src/common/tx.c, which the
+// buffering layer falls back to once RAM_BUFFER_SIZE is exceeded. The device
+// parses the payload itself, so a larger one is refused with APDU 0x6988
+// before anything is displayed.
+//
+// This is a pre-check, not the authority. The device decides, and in practice
+// it gives up earlier than this: see largePayloadSize.
+const MaxPayloadSize = 16384
+
+// largePayloadSize is where payload size starts being the likely explanation
+// for a device failure, whatever the failure says.
+//
+// It is RAM_BUFFER_SIZE, the point at which the app stops holding the payload
+// in RAM, and it is close to the one measurement this repository has: a Nano X
+// on Cosmos app 2.39.1 failed an 8,840 byte addpkg with "hidapi: unknown
+// failure" while a ~400 byte call succeeded (see
+// tm2/adr/pr6173_ledger_compatible_sign_doc.md). That failure arrives from the
+// transport with nothing in it about size, so the advice has to be attached by
+// size rather than by error.
+const largePayloadSize = 8192
+
+// These classify a failed signing attempt for a caller that can offer a remedy.
+//
+// THE DEVICE LAYER SAYS WHAT HAPPENED, NOT WHAT TO DO. This package cannot
+// import the gnokey client that defines -sign-mode, and the remedy is not even
+// the same for every caller: gnoclient reaches Sign through keys.Keybase with no
+// flags to offer, so naming one here would be advice it cannot act on. Each
+// front end matches these and phrases what it can actually do.
+var (
+	// ErrPayloadTooLarge means the payload exceeds what the app can hold, or
+	// that the device refused it as oversized.
+	ErrPayloadTooLarge = stderrors.New("signature payload too large for the Ledger Cosmos app")
+	// ErrTooManyJSONValues means the payload fits but holds more JSON values
+	// than the app's parser has tokens for.
+	ErrTooManyJSONValues = stderrors.New("signature payload has too many JSON values for the Ledger Cosmos app")
+	// ErrLargePayloadRefused means a large payload failed for a reason the
+	// device did not attribute to its size. It is a suspicion, not a
+	// diagnosis, so the device's own error is always wrapped alongside.
+	ErrLargePayloadRefused = stderrors.New("large signature payload refused by the Ledger device")
+)
+
+// explainSignError classifies a device refusal.
+//
+// The three failures that mean "too large to display" all arrive opaque: APDU
+// 0x6988 has no entry in zondax/ledger-go's table, token exhaustion is a bare
+// string from the Cosmos app's JSON parser (MAX_NUMBER_OF_TOKENS,
+// app/src/json/json_parser.h), and a payload the transport gives up on reports
+// nothing about size at all. String matching is the only option either library
+// leaves; neither exports a code or a sentinel to compare against.
+//
+// The device's own error is always wrapped, so a signer chasing an unplugged
+// cable still sees what the device said, and errors.Is finds either.
+func explainSignError(err error, size int) error {
+	switch msg := err.Error(); {
+	case strings.Contains(msg, "0x6988"):
+		// No size is quoted here. The pre-check in sign already refused
+		// anything over MaxPayloadSize, so a payload that reaches the device
+		// and is refused for capacity is under the number this package would
+		// otherwise cite, and quoting both would be an error arguing with
+		// itself. The device is the authority on its own buffer.
+		return fmt.Errorf("%w: the device refused it (%d bytes): %w", ErrPayloadTooLarge, size, err)
+	case strings.Contains(msg, "not enough tokens were provided"):
+		return fmt.Errorf("%w: %w", ErrTooManyJSONValues, err)
+	case size > largePayloadSize:
+		return fmt.Errorf("%w: %d bytes: %w", ErrLargePayloadRefused, size, err)
+	default:
+		return err
+	}
 }
 
 // getPubKeyUnsafe reads the pubkey from a ledger device

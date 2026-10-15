@@ -204,6 +204,55 @@ func Test_execVerify(t *testing.T) {
 		require.Contains(t, out.String(), "legacy payload rendering")
 	})
 
+	// A digest-rendering signature is valid too, and the output has to say so:
+	// the signer approved a hash in place of those fields, and anyone checking
+	// the signature after the fact needs to know which fields nobody read.
+	t.Run("digest rendering is reported with its fields", func(t *testing.T) {
+		t.Parallel()
+
+		kbHome, kb, tx, cleanUp := newUnsignedTx(t)
+		defer cleanUp()
+
+		tx.Memo = strings.Repeat("a", std.MaxSignDocStringLen+1)
+
+		digestBytes, err := tx.GetSignBytesDigest(chainID, accountNumber, accountSequence)
+		require.NoError(t, err)
+		signature, pub, err := kb.Sign(fakeKeyName1, encPassword, digestBytes)
+		require.NoError(t, err)
+		tx.Signatures = []std.Signature{{PubKey: pub, Signature: signature}}
+
+		rawTx, err := amino.MarshalJSON(tx)
+		require.NoError(t, err)
+		txPath := filepath.Join(t.TempDir(), "tx.json")
+		require.NoError(t, os.WriteFile(txPath, rawTx, 0o644))
+
+		var out strings.Builder
+		io := commands.NewTestIO()
+		io.SetOut(commands.WriteNopCloser(&out))
+
+		cfg := &VerifyCfg{
+			RootCfg: &BaseCfg{
+				BaseOptions: BaseOptions{
+					Home:                  kbHome,
+					InsecurePasswordStdin: true,
+				},
+			},
+			AccountNumber:   commands.Uint64Flag{V: accountNumber, Defined: true},
+			AccountSequence: commands.Uint64Flag{V: accountSequence, Defined: true},
+			ChainID:         chainID,
+			TxPath:          txPath,
+		}
+
+		require.NoError(t, execVerify(context.Background(), cfg, []string{fakeKeyName1}, io))
+		require.Contains(t, out.String(), "Valid signature!")
+		require.Contains(t, out.String(), "digest payload rendering")
+
+		_, fields, err := std.GetSignaturePayloadDigest(tx.SignDoc(chainID, accountNumber, accountSequence))
+		require.NoError(t, err)
+		require.Len(t, fields, 1)
+		require.Contains(t, out.String(), groupHex(fields[0].Sum))
+	})
+
 	t.Run("tx path not specified", func(t *testing.T) {
 		t.Parallel()
 

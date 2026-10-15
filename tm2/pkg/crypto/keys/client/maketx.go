@@ -31,6 +31,9 @@ type MakeTxCfg struct {
 	// Master, when set, signs the tx as a session account on behalf of this master key
 	// (name or bech32). The chain enforces which msg types a session may sign.
 	Master string
+	// SignMode selects how the tx is rendered for signing: SignModeFull or
+	// SignModeDigest. See the -sign-mode flag.
+	SignMode string
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -46,7 +49,7 @@ func (c *MakeTxCfg) Validate() error {
 	default:
 		return fmt.Errorf("invalid simulate option: %q", c.Simulate)
 	}
-	return nil
+	return validateSignMode(c.SignMode)
 }
 
 func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -130,6 +133,14 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		"master",
 		"",
 		"session account master's key name or bech32 address (optional)",
+	)
+
+	fs.StringVar(
+		&c.SignMode,
+		"sign-mode",
+		SignModeFull,
+		"how the tx is rendered for signing: full, or digest to replace oversized "+
+			"strings by their hashes so a Ledger can parse the payload",
 	)
 }
 
@@ -255,11 +266,18 @@ func SignAndBroadcastHandler(
 		chainID:         txopts.ChainID,
 		accountSequence: sequence,
 		accountNumber:   accountNumber,
+		signMode:        txopts.SignMode,
 	}
 
 	kOpts := keyOpts{
 		keyName:     nameOrBech32,
 		decryptPass: pass,
+	}
+
+	// Tell the signer what the device will not be able to show them, before
+	// the device asks them to approve it.
+	if err := reportDigestedFields(&tx, sOpts, io); err != nil {
+		return nil, err
 	}
 
 	// Generate the transaction signature

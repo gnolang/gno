@@ -1255,6 +1255,64 @@ func TestAnteHandlerStillRejectsBadSignatures(t *testing.T) {
 	})
 }
 
+// A TRANSACTION TOO LARGE FOR A LEDGER STILL ENTERS THE CHAIN. The device parses
+// the signature payload itself and refuses anything over 16KB, which is every
+// realm deployment, and it has no instruction for signing a bare digest. So a
+// signer may render the payload with its oversized strings replaced by their
+// digests, and the handler verifies against that rendering too.
+//
+// See std.GetSignaturePayloadDigest for why the device is the constraint, and
+// std.VerifySignaturePayload for why taking a third rendering is safe: the
+// digest rendering holds an object under a key amino cannot emit, so it cannot
+// be read as a full rendering of a different transaction.
+func TestAnteHandlerAcceptsDigestSignBytes(t *testing.T) {
+	t.Parallel()
+
+	e := newSingleSignerEnv(t)
+
+	// A memo past std.MaxSignDocStringLen stands in for a file body: the
+	// package here cannot build a MsgAddPackage, and the rendering does not
+	// care which field overflows.
+	memo := strings.Repeat("a", std.MaxSignDocStringLen+1)
+	doc := e.signDoc()
+	doc.Memo = memo
+
+	digestBytes, _, err := std.GetSignaturePayloadDigest(doc)
+	require.NoError(t, err)
+
+	// Guard the guard: if the renderings coincide, this test passes without
+	// exercising the third arm at all.
+	currentBytes, err := std.GetSignaturePayload(doc)
+	require.NoError(t, err)
+	require.NotEqual(t, currentBytes, digestBytes,
+		"the renderings are identical, so this test proves nothing")
+
+	tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, digestBytes, memo)
+	checkValidTx(t, e.anteHandler, e.ctx, tx, false)
+}
+
+// AND THE DIGEST STILL BINDS THE CONTENT IT STANDS FOR. The signer could not
+// read the field on the device, so the only thing between them and a swapped
+// file body is that a different body hashes differently. If this ever passes,
+// the mode has become blind signing.
+func TestAnteHandlerRejectsSwappedDigestedContent(t *testing.T) {
+	t.Parallel()
+
+	e := newSingleSignerEnv(t)
+
+	signed := strings.Repeat("a", std.MaxSignDocStringLen+1)
+	doc := e.signDoc()
+	doc.Memo = signed
+	digestBytes, _, err := std.GetSignaturePayloadDigest(doc)
+	require.NoError(t, err)
+
+	// Same length, same structure, different content: the tx carries a memo
+	// the signer never approved.
+	swapped := strings.Repeat("b", std.MaxSignDocStringLen+1)
+	tx := tu.NewTestTxWithSignBytes(e.msgs, []crypto.PrivKey{e.priv}, e.fee, digestBytes, swapped)
+	checkInvalidTx(t, e.anteHandler, e.ctx, tx, false, std.UnauthorizedError{})
+}
+
 // singleSignerEnv is a funded account with number 0 and sequence 0, the handler
 // that judges its transactions, and a message and fee for it to sign. Every test
 // builds its own: the ante handler writes to the store before it reaches

@@ -187,10 +187,21 @@ func execVerify(ctx context.Context, cfg *VerifyCfg, args []string, io commands.
 			base64.StdEncoding.EncodeToString(sig),
 		)
 		// Only the amount/gas rendering is one the Ledger Cosmos app will
-		// sign, so a signature over the other is worth pointing out.
-		if rendering == std.PayloadRenderingLegacy {
+		// sign, so a signature over the other is worth pointing out. So is one
+		// made over the digest rendering, where the signer never saw the
+		// oversized fields on their device.
+		switch rendering {
+		case std.PayloadRenderingLegacy:
 			io.Printfln("Note: signed over the legacy payload rendering (fee as " +
 				"gas_wanted/gas_fee), which the Ledger Cosmos app refuses to sign")
+		case std.PayloadRenderingDigest:
+			io.Printfln("Note: signed over the digest payload rendering, so the signer " +
+				"approved a hash rather than the contents of these fields:")
+			_, fields, err := std.GetSignaturePayloadDigest(tx.SignDoc(chainID, accountNumber, accountSequence))
+			if err != nil {
+				return fmt.Errorf("unable to compute digested fields, %w", err)
+			}
+			printDigestedFields(io, fields)
 		}
 	}
 

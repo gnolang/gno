@@ -133,6 +133,19 @@ func (tx Tx) GetSignBytesLegacy(chainID string, accountNumber uint64, sequence u
 	return GetSignaturePayloadLegacy(tx.SignDoc(chainID, accountNumber, sequence))
 }
 
+// GetSignBytesDigest returns the signature payload for tx with oversized
+// strings replaced by their digests, the rendering a Ledger can parse when the
+// transaction is too large for the device. Verification accepts it alongside
+// the one GetSignBytes produces.
+//
+// A caller that also has to show a signer WHICH fields were replaced should
+// call GetSignaturePayloadDigest instead, which returns both from one pass.
+func (tx Tx) GetSignBytesDigest(chainID string, accountNumber uint64, sequence uint64) ([]byte, error) {
+	payload, _, err := GetSignaturePayloadDigest(tx.SignDoc(chainID, accountNumber, sequence))
+
+	return payload, err
+}
+
 // __________________________________________________________
 
 // Fee includes the amount of coins paid in fees and the maximum

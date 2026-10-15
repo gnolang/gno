@@ -2,6 +2,7 @@ package std_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -81,5 +82,54 @@ func TestSignaturePayloadRenderingsDifferOnlyInFee(t *testing.T) {
 		if got, want := string(currentFields[key]), string(legacyValue); got != want {
 			t.Errorf("%s differs between renderings\n current: %s\n legacy:  %s", key, got, want)
 		}
+	}
+}
+
+// A transfer is never digested, which is what makes the digest mode safe to
+// reach for: the money path keeps full on-device display, and the fields a
+// signer gives up reading are code and call arguments.
+//
+// The guarantee is about realistic transfers, not an invariant of the type.
+// std.Coins renders as one string ("10ugnot,5foo"), so a send carrying enough
+// denominations crosses MaxSignDocStringLen like anything else; the second case
+// here pins where that starts, so the behaviour is known rather than
+// discovered on a device.
+func TestDigestNeverAppliesToMsgSend(t *testing.T) {
+	t.Parallel()
+
+	sendOf := func(coins std.Coins) std.SignDoc {
+		doc := ledgerSignDoc()
+		doc.Msgs = []std.Msg{bank.MsgSend{
+			FromAddress: crypto.AddressFromPreimage([]byte("from")),
+			ToAddress:   crypto.AddressFromPreimage([]byte("to")),
+			Amount:      coins,
+		}}
+		return doc
+	}
+
+	manyDenoms := make(std.Coins, 0, 8)
+	for i := range 8 {
+		manyDenoms = append(manyDenoms, std.NewCoin(fmt.Sprintf("denom%dx", i), 1<<62))
+	}
+
+	for _, tc := range []struct {
+		name  string
+		coins std.Coins
+	}{
+		{"one denom", std.NewCoins(std.NewCoin("ugnot", 1<<62))},
+		{"eight denoms", manyDenoms},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, fields, err := std.GetSignaturePayloadDigest(sendOf(tc.coins))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(fields) != 0 {
+				t.Errorf("a transfer was digested at %v; the money path no longer keeps "+
+					"full on-device display", fields)
+			}
+		})
 	}
 }
