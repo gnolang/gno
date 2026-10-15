@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/yuin/goldmark"
 	mdhtml "github.com/yuin/goldmark/renderer/html"
@@ -102,8 +103,9 @@ type AppConfig struct {
 	// RenderConfig defines the default configuration for rendering realms and source files.
 	RenderConfig RenderConfig
 	// StateRateLimitPerMinute caps the per-IP request rate against
-	// ?state* URLs (also used as the token-bucket burst). 0 ⇒ the
-	// HTTPHandler default (100/min). ADR-003 §Resource bounds.
+	// ?state* URLs and, in a separate bucket, $search (also used as the
+	// token-bucket burst). 0 ⇒ the HTTPHandler default (1200/min).
+	// ADR-003 §Resource bounds.
 	StateRateLimitPerMinute int
 	// StateRateLimitTrustedProxies is the list of trusted reverse-proxy
 	// CIDRs (or bare IPs) for the per-IP rate limiter. X-Real-IP is honored
@@ -112,6 +114,18 @@ type AppConfig struct {
 	// empty (the default) trusts nothing, so untrusted deployments never
 	// trust attacker-controlled headers. ADR-003 §Resource bounds.
 	StateRateLimitTrustedProxies []string
+	// IndexerURL, when non-empty, is the GraphQL endpoint of a tx-indexer
+	// gnoweb consults for search qualifiers the RPC node cannot answer
+	// (transactions, account activity, source-wide text search).
+	//
+	// Empty is the default and the whole feature switch: with no indexer,
+	// gnoweb makes no outbound request beyond its RPC node, and the
+	// qualifiers that would need one are not registered — they do not
+	// autocomplete and cannot be typed into a failing search. Indexer data is
+	// never consensus data and is labelled as such wherever it appears.
+	IndexerURL string
+	// IndexerToken, when set, is sent as a bearer credential to the indexer.
+	IndexerToken string
 	// MaxConcurrentRPC caps in-flight outbound RPCs per gnoweb instance
 	// against the chain node. 0 ⇒ the rpcClient default (32). Tighten on
 	// chain nodes under pressure; relax when capacity allows. ADR-003
@@ -125,17 +139,17 @@ type AppConfig struct {
 func NewDefaultAppConfig() *AppConfig {
 	const localRemote = "127.0.0.1:26657"
 	return &AppConfig{
-		NodeRemote:              localRemote, // local first
-		RemoteHelp:              localRemote, // local first
-		NodeRequestTimeout:      time.Minute,
-		AssetsPath:              "/public/",
-		Domain:                  "gno.land",
-		Aliases:                 maps.Clone(DefaultAliases), // callers add their own
-		RenderConfig:            NewDefaultRenderConfig(),
-		StateRateLimitPerMinute: 100,
-		MaxConcurrentRPC:        32,
-		TrustedPaths:            strings.Split(DefaultTrustedPaths, ","),
-		IndexCommunity:          IndexNoCommunity, // names are free: see the ADR
+		NodeRemote:         localRemote, // local first
+		RemoteHelp:         localRemote, // local first
+		NodeRequestTimeout: time.Minute,
+		AssetsPath:         "/public/",
+		Domain:             "gno.land",
+		Aliases:            maps.Clone(DefaultAliases), // callers add their own
+		RenderConfig:       NewDefaultRenderConfig(),
+		// StateRateLimitPerMinute stays 0 so the handler default applies.
+		MaxConcurrentRPC: 32,
+		TrustedPaths:     strings.Split(DefaultTrustedPaths, ","),
+		IndexCommunity:   IndexNoCommunity, // names are free: see the ADR
 	}
 }
 
@@ -201,8 +215,13 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	if cfg.Aliases == nil {
 		cfg.Aliases = make(map[string]AliasTarget) // Sanitize Aliases cfg
 	}
-	httphandler, err := NewHTTPHandler(logger, &HTTPHandlerConfig{
+	// Built before the handler so the search feature and /search.json share
+	// one directory — and therefore one singleflight group.
+	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
+
+	handlerCfg := &HTTPHandlerConfig{
 		ClientAdapter:                adpcli,
+		Directory:                    searchDir,
 		Meta:                         staticMeta,
 		Renderer:                     renderer,
 		Aliases:                      cfg.Aliases,
@@ -214,7 +233,21 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 		StateRateLimitTrustedProxies: cfg.StateRateLimitTrustedProxies,
 		StoreRealm:                   cfg.StoreRealm,
 		IPFSGateway:                  cfg.IPFSGateway,
-	})
+	}
+
+	// Assigned inside the branch, never before it: an interface field holding
+	// a typed nil pointer is not nil, and that is exactly how a deployment
+	// with no indexer would end up advertising indexer-backed search.
+	if cfg.IndexerURL != "" {
+		if err := indexer.ValidateURL(cfg.IndexerURL); err != nil {
+			return nil, err
+		}
+		// Redacted: the URL is where an indexer credential would sit.
+		logger.Info("indexer enabled", "url", indexer.Redact(cfg.IndexerURL))
+		handlerCfg.Indexer = indexer.New(cfg.IndexerURL, cfg.IndexerToken)
+	}
+
+	httphandler, err := NewHTTPHandler(logger, handlerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create web handler: %w", err)
 	}
@@ -266,7 +299,6 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	mux.Handle("/ready", handlerReadyJSON(logger, rpcclient, cfg.Domain))
 
 	// Handle realm/package discovery search (browser fetches the list once and filters locally)
-	searchDir := newRPCRealmDirectory(adpcli, cfg.Domain, searchMaxConcurrentQueries)
 	mux.Handle("/search.json", handlerSearchJSON(logger, searchDir))
 
 	// The sitemap needs an origin for absolute URLs and is never served under

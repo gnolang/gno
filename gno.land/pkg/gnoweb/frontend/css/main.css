@@ -21,5 +21,7 @@
    in here (still inside the Block layer slot, between 06-blocks and
    07-utilities — cascade order preserved). */
 @import "../../feature/state/frontend/state.css";
+@import "../../feature/omnisearch/frontend/omnisearch.css";
+@import "../../feature/chainmap/frontend/chainmap.css";
 @import "../../feature/store/frontend/store.css";
 @import "./07-utilities.css";
