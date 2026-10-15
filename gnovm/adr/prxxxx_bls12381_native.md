@@ -30,15 +30,26 @@ Silver 4114 the other IBC crypto draft rows were measured on, and is marked
 draft: the whole table is regenerated on the reference machine before any
 consensus-relevant deployment.
 
+A second native, `FastAggregateVerifyExcluding(aggregate, excluded, msg,
+sig)`, verifies the same equation for the signers of a committee from the
+committee's aggregate key minus the keys of the members that did not sign. An
+Ethereum `SyncCommittee` commits to its `aggregate_pubkey` (the sum of its
+keys, computed by the state transition) next to the keys, and sync committee
+participation is typically above 95%, so a light client decodes a handful of
+keys per update instead of ~500. With it the light client never needs the
+committee's key list on chain: updates carry only the non-signers' keys with
+Merkle branches to the committee's pubkeys root. Same per-key pricing as
+`fastAggregateVerify`, on the excluded bytes.
+
 ## Alternatives considered
 
 - **EIP-2537-style primitives** (G1/G2 add, MSM, pairing, map-to-curve) with
   the verification written in Gno. More general, but each step crosses the
   native boundary and the Gno side still decompresses and aggregates 512 keys.
 - **A native taking pre-decompressed keys**, letting the client cache them per
-  period. Cuts per-update cost by about 95%, but needs a second native and
-  realm storage for 512 uncompressed keys per period. Worth revisiting if
-  update gas matters.
+  period. Cuts the per-key cost, but needs realm storage for 512 uncompressed
+  keys per period; subtracting the non-signers from the committed aggregate
+  needs neither.
 
 ## Consequences
 

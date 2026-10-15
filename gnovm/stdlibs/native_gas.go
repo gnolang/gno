@@ -94,8 +94,8 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 73 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
-// The trailing 11 IBC-crypto entries (crypto/bls12381, crypto/bn254,
+// 74 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// The trailing 12 IBC-crypto entries (crypto/bls12381, crypto/bn254,
 // crypto/cometbls, crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
 // Apple M2. The whole table must be regenerated on the reference Xeon 8168
@@ -194,6 +194,11 @@ var calibratedNativeGas = []nativeGasEntry{
 	// for decompression + subgroup check) and scaled by 2.3x toward the Xeon
 	// Silver 4114 the rows around it use; regenerate with the rest of the table.
 	{Pkg: "crypto/bls12381", Fn: "fastAggregateVerify", Base: 2024000, Slope: 1962000, SlopeIdx: 0, SlopeKind: SizeLenBytes}, // draft, M4 fit x2.3: base=2.02ms slope=1916ns/B (=1962000/1024) on 1..512 keys
+	// fastAggregateVerifyExcluding does the same per-key work as
+	// fastAggregateVerify (decompression, subgroup check, one addition) on the
+	// excluded keys, plus the aggregate's decoding; priced from the same fit,
+	// draft until benchmarked on its own.
+	{Pkg: "crypto/bls12381", Fn: "fastAggregateVerifyExcluding", Base: 2116000, Slope: 1962000, SlopeIdx: 1, SlopeKind: SizeLenBytes}, // draft, base=2.02ms+one key, slope on excluded bytes
 	{Pkg: "crypto/cometbls", Fn: "verifyZKP", Base: 2632556, SlopeIdx: -1, SlopeKind: SizeFlat},                              // draft, median 2.63ms (full Groth16 verify; proof always 384B, header 116B)
 	{Pkg: "crypto/merkle", Fn: "leafHash", Base: 3528, Slope: 32911, SlopeIdx: 0, SlopeKind: SizeLenBytes},                   // draft fit base=3528ns slope=32.14ns/N (=32911/1024) on 0..4096 bytes
 	// innerHash hashes 0x01||left||right, so its cost is O(len(left)+len(right))

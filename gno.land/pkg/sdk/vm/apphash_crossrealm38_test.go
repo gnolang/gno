@@ -229,10 +229,11 @@ import (
 // after merging develop, whose own changes moved the root too, so neither
 // side's value survives.
 //
-// Bumped by the crypto/bls12381 stdlib: its .gno sources (and its _test.gno,
-// see above) are committed into genesis state like every stdlib's, so the root
-// moves. crossrealm38 does not import it.
-const expectedCrossrealm38Hash = "e753053a6a7dcef33360f59ba505c457bb3510dc927247abce97062f916cfef2"
+// Bumped by the crypto/bls12381 stdlib, and again by its
+// FastAggregateVerifyExcluding: its .gno sources (and its _test.gno, see above)
+// are committed into genesis state like every stdlib's, so the root moves.
+// crossrealm38 does not import it.
+const expectedCrossrealm38Hash = "9c883b9746e7d374a2eadfd4e02bc79b3af3e547206c11c9202e30df50cfdd16"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

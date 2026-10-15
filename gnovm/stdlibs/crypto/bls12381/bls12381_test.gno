@@ -45,3 +45,32 @@ func TestFastAggregateVerify(t *testing.T) {
 		t.Fatal("empty public key set accepted")
 	}
 }
+
+// A committee of four (secret keys 0x1234567, 0x89abcdef, 0x7654321, 0x5555)
+// whose second and fourth members did not sign msg.
+const (
+	vecAggregate = "8b38c72176718cbaa7ba3fb02c062ce2a116cbd72791c1af8d4fc9ff84f0ba265dfac905e4cbc8120b5cd01ac95c3aaf"
+	vecExcluded  = "b6a005f54655f0a670599f6b9de9edffc39c99799a482f62fa5e42bfe986a93ae2c52360a96139ed82c4c4d6672695e5" +
+		"b900fd910bb898cd4fb2a689bd59751e450105efc3b2be03c6a9545b7221fa2f5320d284cc731dc49c93262459138da0"
+	vecPartialSig = "951e05eff3af6074e89a657c9d36f9d01c0b463e33ea5cfb64c19d822b52055c816414e78bd833da3ad50364bb1e358b" +
+		"0e322f576108346548a273637c42b7056e6d0777458215800ed23ff4d320ea3f5350df732af8d2b9d26eb6397292403f"
+)
+
+func TestFastAggregateVerifyExcluding(t *testing.T) {
+	agg := mustDecode(vecAggregate)
+	excluded := mustDecode(vecExcluded)
+	sig := mustDecode(vecPartialSig)
+
+	if !bls12381.FastAggregateVerifyExcluding(agg, excluded, []byte(vecMsg), sig) {
+		t.Fatal("valid partial signature rejected")
+	}
+	if bls12381.FastAggregateVerifyExcluding(agg, excluded[bls12381.PubKeySize:], []byte(vecMsg), sig) {
+		t.Fatal("signature with a wrong excluded set accepted")
+	}
+	if bls12381.FastAggregateVerifyExcluding(agg, nil, []byte(vecMsg), sig) {
+		t.Fatal("signature claimed by the whole committee accepted")
+	}
+	if bls12381.FastAggregateVerifyExcluding(agg[1:], excluded, []byte(vecMsg), sig) {
+		t.Fatal("malformed aggregate accepted")
+	}
+}

@@ -26,4 +26,24 @@ func FastAggregateVerify(pubkeys, msg, sig []byte) bool {
 	return fastAggregateVerify(pubkeys, msg, sig)
 }
 
+// FastAggregateVerifyExcluding reports whether sig is a valid signature of
+// msg by the members of a committee that are not in excluded, given the
+// committee's aggregate public key: it is FastAggregateVerify over aggregate
+// minus excluded. Use it only when aggregate is known to be the sum of the
+// committee's keys (an Ethereum SyncCommittee commits to it); it then costs
+// one key decoding per non-signer instead of one per signer.
+//
+// aggregate is a PubKeySize key, excluded the concatenation of zero or more
+// PubKeySize keys. Malformed or out-of-subgroup points, and a committee in
+// which nobody signed, make it return false.
+func FastAggregateVerifyExcluding(aggregate, excluded, msg, sig []byte) bool {
+	// Reject wrong lengths before the native call; see FastAggregateVerify.
+	if len(aggregate) != PubKeySize || len(excluded)%PubKeySize != 0 || len(sig) != SignatureSize {
+		return false
+	}
+	return fastAggregateVerifyExcluding(aggregate, excluded, msg, sig)
+}
+
 func fastAggregateVerify(pubkeys, msg, sig []byte) bool // injected
+
+func fastAggregateVerifyExcluding(aggregate, excluded, msg, sig []byte) bool // injected
