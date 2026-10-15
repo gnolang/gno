@@ -28,8 +28,8 @@ var KindGnoDetails = ast.NewNodeKind("GnoDetails")
 // parser.
 type GnoDetailsNode struct {
 	ast.BaseBlock
-	// tag is detailsTagOpen (the container), detailsTagClose or
-	// detailsTagInvalid (rendered as a comment).
+	// tag is detailsTagOpen (the container) or detailsTagInvalid (a close
+	// or a refused tag, rendered as a comment unless its opener removes it).
 	tag detailsTagKind
 	// Open renders the block expanded.
 	Open bool
@@ -139,9 +139,7 @@ func releaseDetails(pc parser.Context, parent ast.Node) {
 	for i > 0 && !holds((*stack)[i-1].parent, parent) {
 		i--
 	}
-	if i < len(*stack) {
-		endDetails(pc, stack, i)
-	}
+	endDetails(pc, stack, i)
 }
 
 // holds reports whether c is n or one of its ancestors.
@@ -215,7 +213,6 @@ func (*detailsParser) Open(parent ast.Node, reader text.Reader, pc parser.Contex
 		*stack = append(*stack, detailsEntry{node, parent})
 	case valid && stack != nil && len(*stack) > 0 && (*stack)[len(*stack)-1].parent == parent:
 		top := len(*stack) - 1
-		node.tag = detailsTagClose
 		(*stack)[top].node.close = node
 		endDetails(pc, stack, top)
 	}
@@ -254,13 +251,13 @@ func (*detailsASTTransformer) Transform(doc *ast.Document, _ text.Reader, pc par
 }
 
 // wrapDetails gives each open marker under n its blocks, innermost first:
-// the walk reaches an inner block's markers through its parent's children
-// before its parent's turn, and a parent then takes the inner block whole.
+// walking back from the last child, a marker's following siblings are
+// wrapped before it takes them whole. Inline nodes hold no marker.
 func wrapDetails(n ast.Node) {
-	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
-		wrapDetails(c)
-	}
 	for c := n.LastChild(); c != nil; c = c.PreviousSibling() {
+		if c.Type() == ast.TypeBlock {
+			wrapDetails(c)
+		}
 		if d, ok := c.(*GnoDetailsNode); ok && d.tag == detailsTagOpen {
 			takeBlocks(n, d)
 		}
@@ -287,14 +284,10 @@ func takeBlocks(parent ast.Node, d *GnoDetailsNode) {
 			for ch := tb.FirstChild(); ch != nil; ch = tb.FirstChild() {
 				p.AppendChild(p, ch)
 			}
-			parent.RemoveChild(parent, tb)
-			d.AppendChild(d, p)
-			continue
+			parent.ReplaceChild(parent, tb, p)
+			c = p
 		}
 		d.AppendChild(d, c)
-	}
-	if d.close != nil {
-		d.close.tag = detailsTagInvalid
 	}
 }
 
