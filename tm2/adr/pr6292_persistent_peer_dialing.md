@@ -4,6 +4,8 @@
 
 Proposed
 
+Decision 3, and its rejection of an immediate redial on disconnect, are superseded by PR6303.
+
 ## Context
 
 On 2026-10-06, up to 7 of 8 mainnet RPC nodes stopped following the chain for about 40 minutes after a rolling restart of their sentries and seeds (#6287). The nodes run peer exchange behind a NAT, take no inbound peers and allow 25 outbound; their persistent peers are configured by private hostname and advertise a public `external_address`, with `allow_duplicate_ip = false`.

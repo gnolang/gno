@@ -6,9 +6,8 @@
 // relies on, the rendering, and the check that the two files agree. The rules
 // live in Go, tested, rather than in a shell script forked per chain.
 //
-// The contract: a version runs the blocks from the previous entry's
-// halt_height + 1 (1 for genesis) up to and including its own successor's
-// halt_height. Entries are in chain order: strictly increasing versions and
+// The contract: a version runs the blocks from its own halt_height + 1 (1 for
+// genesis) up to and including its successor's halt_height. Entries are in chain order: strictly increasing versions and
 // strictly increasing halt heights. A rolling release — a PATCH that changes
 // no consensus code, switched to whenever an operator likes — has no halt and
 // bounds no range: it can serve the same blocks as the entry before it.
@@ -72,6 +71,10 @@ type Ledger struct {
 // Entry is one binary the network ran. Pointer fields are null in the JSON
 // until the fact they record has happened: the digest until CI built the
 // image, the halt time until the halt, the proposal until it was created.
+// Binaries is null by the same rule, until CI built the release, which comes
+// after the entry is written; only the last entry may still be pending, and
+// it is never an empty object, so a pending entry cannot pass for a built one
+// with no downloads. The image digest is never filled in before the binaries.
 // HaltMinVersion is null when the proposal set no floor; an empty string is
 // refused, so "the gate was off" and "someone forgot" cannot be confused.
 type Entry struct {
@@ -276,8 +279,19 @@ func (l *Ledger) Validate() error {
 		if e.Image.Digest != nil && !digestRE.MatchString(*e.Image.Digest) {
 			fail("%s: image.digest %q is not sha256: followed by 64 hex characters", at, *e.Image.Digest)
 		}
-		if len(e.Binaries) == 0 {
-			fail("%s: binaries is empty; a supervisor needs one download per platform", at)
+		// nil is JSON null or an absent key, pending the build; a decoded {} is
+		// an empty map. Only the entry being cut can be pending: an earlier one
+		// was built, and a replaying supervisor needs its downloads.
+		switch {
+		case e.Binaries == nil && i != len(l.Upgrades)-1:
+			fail("%s: binaries is null or missing, but only the last entry can still be pending its build", at)
+		case e.Binaries == nil && e.Image.Digest != nil:
+			// Both come from the same build and are filled in together; a
+			// digest alone would make the row look built in UPGRADES.md,
+			// which does not show the binaries.
+			fail("%s: image.digest is set but binaries is null; fill both in once CI has built the release", at)
+		case e.Binaries != nil && len(e.Binaries) == 0:
+			fail("%s: binaries is an empty object; use null until CI has built the release, then one download per platform", at)
 		}
 		for plat, url := range e.Binaries {
 			if !platform.MatchString(plat) {
@@ -304,17 +318,30 @@ func (l *Ledger) Validate() error {
 	return errors.New(strings.Join(problems, "\n"))
 }
 
-// Has reports whether the ledger has an entry for v, ignoring a pre-release
-// suffix on either side: a release candidate rehearses the final version's
-// entry rather than getting one of its own.
-func (l *Ledger) Has(v string) bool {
-	want := finalVersion(v)
+// Entry returns the entry a release of v is recorded under: the entry for v
+// itself, or else the last entry for the same final version, since a release
+// candidate rehearses the final version's entry rather than getting one of its
+// own, and a final is cut on its last candidate's commit.
+func (l *Ledger) Entry(v string) (Entry, bool) {
 	for _, e := range l.Upgrades {
-		if e.Version == v || finalVersion(e.Version) == want {
-			return true
+		if e.Version == v {
+			return e, true
 		}
 	}
-	return false
+	want := finalVersion(v)
+	for i := len(l.Upgrades) - 1; i >= 0; i-- {
+		if e := l.Upgrades[i]; finalVersion(e.Version) == want {
+			return e, true
+		}
+	}
+	return Entry{}, false
+}
+
+// Has reports whether the ledger has an entry for v, ignoring a pre-release
+// suffix on either side (see Entry).
+func (l *Ledger) Has(v string) bool {
+	_, ok := l.Entry(v)
+	return ok
 }
 
 // BlockRanges is the contract made explicit: which version produced which
