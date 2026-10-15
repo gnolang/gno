@@ -287,8 +287,10 @@
 		padding: 0 var(--g-space-2);
 	}
 
-	/* Inside the switch: its overflow would clip a ring drawn outside. */
+	/* Inside the switch: its overflow would clip a ring drawn outside.
+	   Safari's default `outline: auto` ignores the offset, hence our own ring. */
 	& > a:focus-visible {
+		outline: var(--s-focus-ring);
 		outline-offset: -2px;
 	}
 
