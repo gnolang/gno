@@ -1,0 +1,14 @@
+// MARKDOWNFUNC: BlockquoteRich
+// CONTEXT: %s
+-- input.md --
+- <gno-button href="https://evil.example" label="Claim" />
+-- output.md --
+
+> - \<gno-button href="https://evil.example" label="Claim" />
+
+-- output.html --
+<blockquote>
+<ul>
+<li>&lt;gno-button href=&quot;https://evil.example&quot; label=&quot;Claim&quot; /&gt;</li>
+</ul>
+</blockquote>

@@ -173,18 +173,13 @@ func TestFlightKeepsPartialAnswersBriefly(t *testing.T) {
 	}
 }
 
-// A fetch past its timeout is cancelled, not given a deadline: the indexer
-// client's breaker counts a deadline against the indexer, and one slow
-// aggregate must not turn search off.
+// A fetch past its timeout is ended, and get says why.
 func TestFlightTimeoutCancelsTheFetch(t *testing.T) {
 	t.Parallel()
 
 	f := &flight[int]{ttl: time.Minute, timeout: 10 * time.Millisecond, max: 1}
 	var seen error
 	_, err := f.get(context.Background(), "k", func(ctx context.Context) (int, error) {
-		if _, ok := ctx.Deadline(); ok {
-			t.Error("the fetch was given a deadline")
-		}
 		<-ctx.Done()
 		seen = ctx.Err()
 		return 0, ctx.Err()
@@ -194,5 +189,38 @@ func TestFlightTimeoutCancelsTheFetch(t *testing.T) {
 	}
 	if !errors.Is(err, errFetchTimeout) {
 		t.Errorf("get = %v, want errFetchTimeout", err)
+	}
+}
+
+// A reader leaving does not end the fetch it started: the answer lands for
+// the next reader.
+func TestFlightFetchOutlivesItsReader(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 1}
+	ctx, cancel := context.WithCancel(context.Background())
+	started, release := make(chan struct{}), make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		_, err := f.get(ctx, "k", func(fctx context.Context) (int, error) {
+			close(started)
+			<-release
+			return 7, fctx.Err()
+		})
+		done <- err
+	}()
+	<-started
+	cancel()
+	if err := <-done; !errors.Is(err, ErrPending) {
+		t.Fatalf("get = %v, want ErrPending for the reader who left", err)
+	}
+	close(release)
+	// Joins the running fetch or reads what it stored: never fetches again.
+	v, err := f.get(context.Background(), "k", func(context.Context) (int, error) {
+		t.Error("fetched again: the first fetch stored nothing")
+		return 0, nil
+	})
+	if v != 7 || err != nil {
+		t.Fatalf("get = %d, %v; want the answer of the fetch whose reader left", v, err)
 	}
 }

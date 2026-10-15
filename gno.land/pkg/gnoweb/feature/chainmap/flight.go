@@ -35,10 +35,8 @@ type flight[T any] struct {
 	// errTTL is how long a failure is remembered, so a failing backend is not
 	// asked again by every reader. Zero remembers none.
 	errTTL time.Duration
-	// timeout bounds one fetch, whoever started it. It ends the fetch by
-	// cancelling it, not with a deadline: the indexer client's breaker counts
-	// a deadline as the indexer failing, and an open breaker turns search off
-	// for every reader. A fetch cut short this way is still a failure here.
+	// timeout bounds one fetch, whoever started it. A fetch cut short is a
+	// failure here.
 	timeout time.Duration
 	// max bounds the number of keys; the oldest answer goes first.
 	max int

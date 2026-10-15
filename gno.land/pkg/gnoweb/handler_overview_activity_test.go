@@ -34,7 +34,7 @@ func TestHTTPHandler_OverviewShowsStorage(t *testing.T) {
 	t.Parallel()
 
 	client := gnoweb.NewMockClient(mockPkg("/r/demo/wugnot", &gnoweb.RealmStorage{Bytes: 1292654, Deposit: 129265400}))
-	body := serve(t, overviewHandler(t, client, nil), "/r/demo/wugnot$source").Body.String()
+	body := serveGet(overviewHandler(t, client, nil), "/r/demo/wugnot$source").Body.String()
 	for _, want := range []string{">Storage</dt>", ">1.29 MB<", ">Storage deposit</dt>", ">129.27 GNOT<"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("overview lacks %q", want)
@@ -51,10 +51,10 @@ func TestHTTPHandler_OverviewStorageOnlyForRealms(t *testing.T) {
 	client := gnoweb.NewMockClient(mockPkg("/p/demo/lib", &gnoweb.RealmStorage{Bytes: 1, Deposit: 1}), mockPkg("/r/demo/quiet", nil))
 	client.OnStorage = func(string) { asked.Add(1) }
 	h := overviewHandler(t, client, nil)
-	if body := serve(t, h, "/p/demo/lib$source").Body.String(); strings.Contains(body, "Storage deposit") || asked.Load() != 0 {
+	if body := serveGet(h, "/p/demo/lib$source").Body.String(); strings.Contains(body, "Storage deposit") || asked.Load() != 0 {
 		t.Errorf("a pure package must neither query nor show storage (queries: %d)", asked.Load())
 	}
-	rr := serve(t, h, "/r/demo/quiet$source")
+	rr := serveGet(h, "/r/demo/quiet$source")
 	if rr.Code != http.StatusOK || strings.Contains(rr.Body.String(), "Storage deposit") {
 		t.Error("a realm whose storage the node cannot give must render without the rows")
 	}
@@ -116,13 +116,13 @@ func TestHTTPHandler_OverviewRecentCallsScope(t *testing.T) {
 	if body := serveWarm(t, h, "/r/demo/quiet$source", "No calls in the last 7 days."); !strings.Contains(body, "No calls in the last 7 days.") {
 		t.Error("a realm with no call in the window must say so")
 	}
-	if body := serve(t, h, "/p/demo/lib$source").Body.String(); strings.Contains(body, `id="calls"`) || strings.Contains(body, `href="#calls"`) {
+	if body := serveGet(h, "/p/demo/lib$source").Body.String(); strings.Contains(body, `id="calls"`) || strings.Contains(body, `href="#calls"`) {
 		t.Error("a pure package must have no calls section")
 	}
-	if body := serve(t, h, "/r/demo/quiet$source&height=10").Body.String(); strings.Contains(body, `id="calls"`) {
+	if body := serveGet(h, "/r/demo/quiet$source&height=10").Body.String(); strings.Contains(body, `id="calls"`) {
 		t.Error("a page pinned to a past height must have no calls section")
 	}
-	if body := serve(t, overviewHandler(t, client, nil), "/r/demo/quiet$source").Body.String(); strings.Contains(body, `id="calls"`) {
+	if body := serveGet(overviewHandler(t, client, nil), "/r/demo/quiet$source").Body.String(); strings.Contains(body, `id="calls"`) {
 		t.Error("without an indexer the overview must not have a calls section")
 	}
 }

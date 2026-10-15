@@ -21,8 +21,8 @@ export class MapController extends BaseController {
 			const tile = (event.target as Element | null)?.closest(".b-map__tile");
 			const title = tile?.querySelector("title")?.textContent;
 			// Text only: the title is the server's escaped text, and goes in as
-			// a text node, never as markup.
-			if (title && this.status) this.status.textContent = title;
+			// a text node, never as markup. Anything but a tile resets.
+			if (this.status) this.status.textContent = title || idle;
 		};
 		// Leaving the map says nothing about a tile: back to the prompt, so a
 		// name never lingers under a pointer that has moved on.
@@ -32,5 +32,6 @@ export class MapController extends BaseController {
 		this.element.addEventListener("pointerover", show);
 		this.element.addEventListener("focusin", show);
 		this.element.addEventListener("pointerleave", clear);
+		this.element.addEventListener("focusout", clear);
 	}
 }

@@ -122,6 +122,9 @@ func (*MapData) ViewBox() string {
 // ScaleStep is one colour of the key: a shade and the range it stands for.
 type ScaleStep struct {
 	Class, Range string
+	// upTo is the step's upper bound in thousands of gas, for the gas
+	// scale only: tiles take their shade from it, so they match the key.
+	upTo float64
 }
 
 // Map draws a listing: the figure for the listing's body and its key for the
@@ -184,23 +187,23 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 			}
 		}
 	})
-	data.eachTile(func(t *Tile) {
-		// Partial: a zero may be calls in the part that went unread.
-		t.Unknown = a.Partial && t.Calls == 0
-		l := level(t.value(data.Metric), busiest)
-		if data.Gas() {
-			l = gasLevel(t.value(MetricGas), lightest, busiest)
-		}
-		t.ShadeClass = shadeClasses[l]
-		if t.Unknown {
-			t.ShadeClass = unknownShadeClass
-		}
-	})
 	if data.Gas() {
 		data.Scale = gasScale(lightest, busiest, a.Partial)
 	} else {
 		data.Scale = scale(busiest, a.Partial)
 	}
+	data.eachTile(func(t *Tile) {
+		// Partial: a zero may be calls in the part that went unread.
+		t.Unknown = a.Partial && t.Calls == 0
+		switch {
+		case t.Unknown:
+			t.ShadeClass = unknownShadeClass
+		case data.Gas():
+			t.ShadeClass = gasShade(t.value(MetricGas), data.Scale)
+		default:
+			t.ShadeClass = shadeClasses[level(t.value(data.Metric), busiest)]
+		}
+	})
 }
 
 // loadActivity returns the activity aggregate, waiting up to wait for a
@@ -226,42 +229,42 @@ const (
 	coldWait = 10 * time.Millisecond
 )
 
-// gasLevel maps gas, in thousands, to a colour step on a log scale from the
-// lightest realm on the map to the heaviest. Gas sits in a narrow band (a call
-// costs hundreds of thousands), so a scale from zero would put every realm in
-// the top shades.
-func gasLevel(v, lightest, heaviest int) int {
-	switch {
-	case v <= 0:
-		return 0
-	case heaviest <= lightest:
-		return len(shadeClasses) - 1
+// gasShade is the shade of the first step in the key whose bound holds v,
+// gas in thousands.
+func gasShade(v int, steps []ScaleStep) string {
+	if v > 0 {
+		for _, st := range steps[1:] {
+			if float64(v) <= st.upTo {
+				return st.Class
+			}
+		}
 	}
-	f := math.Log(float64(v)/float64(lightest)) / math.Log(float64(heaviest)/float64(lightest))
-	return 1 + min(len(shadeClasses)-2, int(f*float64(len(shadeClasses)-1)))
+	return shadeClasses[0]
 }
 
 // gasScale is the key's colour steps under gas: each shade with its upper
-// bound, since rounded gas ranges would print the same number where they
-// meet. A bound that reads like the previous one is skipped.
+// bound, on a log scale from the lightest realm on the map to the heaviest.
+// Gas sits in a narrow band (a call costs hundreds of thousands), so a scale
+// from zero would put every realm in the top shades. Rounded bounds can print
+// the same number where they meet: such steps merge into one that covers both
+// in the darker shade, so the heaviest realm is always drawn darkest.
 func gasScale(lightest, heaviest int, partial bool) []ScaleStep {
 	steps := []ScaleStep{{Class: shadeClasses[0], Range: "0"}}
 	if partial {
 		steps[0].Range = "0 (counted)"
 	}
 	last := len(shadeClasses) - 1
-	prev := ""
 	for l := 1; l <= last && heaviest > 0; l++ {
 		bound := float64(heaviest)
 		if l < last && heaviest > lightest {
 			bound = float64(lightest) * math.Pow(float64(heaviest)/float64(lightest), float64(l)/float64(last))
 		}
 		label := "≤ " + components.FormatGas(int64(bound)*1_000)
-		if label == prev {
+		if prev := &steps[len(steps)-1]; prev.Range == label {
+			prev.Class, prev.upTo = shadeClasses[l], bound
 			continue
 		}
-		prev = label
-		steps = append(steps, ScaleStep{Class: shadeClasses[l], Range: label})
+		steps = append(steps, ScaleStep{Class: shadeClasses[l], Range: label, upTo: bound})
 	}
 	if partial {
 		steps = append(steps, ScaleStep{Class: unknownShadeClass, Range: "unknown"})

@@ -70,12 +70,12 @@ in the listing's rail.
   <div class="row"><dt class="label">Box</dt><dd class="value" title="Select a box's name to open its map.">A folder, zoomable</dd></div>
   {{ if .Window }}{{ with .Window }}
   <div class="row"><dt class="label">Color</dt><dd class="value">
+    <span class="b-tag b-tag--indexer">indexer</span>
     {{/* Two links, one per metric: no script needed to switch. */}}
     <span class="b-map-switch" role="group" aria-label="Color tiles by">
       {{ if $.Gas }}<a href="{{ $.SwitchURL }}" title="Successful calls over the last 7 days.">Calls</a><span aria-current="true" title="Gas used by successful calls over the last 7 days.">Gas</span>
       {{- else }}<span aria-current="true" title="Successful calls over the last 7 days.">Calls</span><a href="{{ $.SwitchURL }}" title="Gas used by successful calls over the last 7 days.">Gas</a>{{ end }}
-    </span>
-    <span class="b-tag b-tag--indexer">indexer</span></dd></div>
+    </span></dd></div>
   <div class="row"><dt class="label">Since</dt><dd class="value">{{ .Since.UTC.Format "Jan 2" }}, 7 days</dd></div>
   <div class="row"><dt class="label">Blocks</dt><dd class="value">{{ .From }}–{{ .To }}</dd></div>
   {{ end }}{{ else if eq .Activity "pending" }}

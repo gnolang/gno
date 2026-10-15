@@ -84,6 +84,9 @@ func newDepsHandler(t *testing.T, idx *stubIndexer) http.Handler {
 		&gnoweb.MockPackage{Path: "/r/demo/mention", Files: map[string]string{"m.gno": "package m"}, Imports: []string{"strings"}},
 	)
 	cfg := newTestHandlerConfig(t, client)
+	// Trusted, so the crawl policy alone would index these pages: what keeps
+	// $deps out is its own header.
+	cfg.TrustedPaths = []string{"*"}
 	if idx != nil {
 		cfg.Indexer = idx
 	}
@@ -101,7 +104,7 @@ func TestHTTPHandler_DepsWithoutIndexer(t *testing.T) {
 	t.Parallel()
 
 	h := newDepsHandler(t, nil)
-	overview := serve(t, h, "/r/demo/user$source").Body.String()
+	overview := serveGet(h, "/r/demo/user$source").Body.String()
 	if !strings.Contains(overview, "b-depgraph") || !strings.Contains(overview, `href="/p/demo/lib"`) {
 		t.Error("the overview must draw the imports as a graph")
 	}
@@ -109,8 +112,12 @@ func TestHTTPHandler_DepsWithoutIndexer(t *testing.T) {
 		t.Error("without an indexer the overview must not offer importers")
 	}
 
-	if body := serve(t, h, "/p/demo/lib$deps").Body.String(); strings.Contains(body, "b-deps-view") || strings.Contains(body, "Imported by") {
+	body := serveGet(h, "/p/demo/lib$deps").Body.String()
+	if strings.Contains(body, "b-deps-view") || strings.Contains(body, "Imported by") {
 		t.Error("without an indexer $deps must fall through to the package")
+	}
+	if !activeTab(body, "Content") {
+		t.Error("the page renders the package's Content, so its tab must be the active one")
 	}
 }
 
@@ -121,12 +128,12 @@ func TestHTTPHandler_DepsSharesOneAnswerPerPackage(t *testing.T) {
 
 	var scans atomic.Int32
 	h := newDepsHandler(t, &stubIndexer{scans: &scans})
-	serve(t, h, "/p/demo/lib$deps")
+	serveGet(h, "/p/demo/lib$deps")
 	first := scans.Load()
 	if first == 0 {
 		t.Fatal("the first lookup did not scan")
 	}
-	if got := serve(t, h, "/p/demo/lib/$deps").Code; got != http.StatusOK {
+	if got := serveGet(h, "/p/demo/lib/$deps").Code; got != http.StatusOK {
 		t.Fatalf("status = %d, want 200", got)
 	}
 	if n := scans.Load(); n != first {
@@ -142,12 +149,12 @@ func TestHTTPHandler_DepsListsCheckedImporters(t *testing.T) {
 	idx := &stubIndexer{deploys: []indexer.Tx{deployOf("/r/demo/user"), deployOf("/r/demo/mention"), deployOf("/r/demo/gone")}}
 	h := newDepsHandler(t, idx)
 
-	overview := serve(t, h, "/p/demo/lib$source").Body.String()
+	overview := serveGet(h, "/p/demo/lib$source").Body.String()
 	if !strings.Contains(overview, `href="/p/demo/lib$deps"`) {
 		t.Error("with an indexer the overview must link to the importers")
 	}
 
-	rr := serve(t, h, "/p/demo/lib$deps")
+	rr := serveGet(h, "/p/demo/lib$deps")
 	body := rr.Body.String()
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rr.Code)
@@ -161,7 +168,7 @@ func TestHTTPHandler_DepsListsCheckedImporters(t *testing.T) {
 	if !strings.Contains(body, "last indexed block 77") {
 		t.Error("the page must state the indexer's freshness")
 	}
-	if !strings.Contains(body, `content="noindex`) {
+	if !strings.Contains(body, `content="noindex, nofollow"`) || rr.Header().Get("X-Robots-Tag") != "noindex, nofollow" {
 		t.Error("a page costing an indexer scan must not be offered to crawlers")
 	}
 }
@@ -169,7 +176,7 @@ func TestHTTPHandler_DepsListsCheckedImporters(t *testing.T) {
 func TestHTTPHandler_DepsOfAMissingPackage(t *testing.T) {
 	t.Parallel()
 
-	if got := serve(t, newDepsHandler(t, nil), "/p/demo/nothing$deps").Code; got != http.StatusNotFound {
+	if got := serveGet(newDepsHandler(t, nil), "/p/demo/nothing$deps").Code; got != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", got)
 	}
 }
@@ -181,7 +188,7 @@ func TestHTTPHandler_DepsOfAMissingPackageScansNothing(t *testing.T) {
 
 	var scans atomic.Int32
 	h := newDepsHandler(t, &stubIndexer{scans: &scans})
-	if got := serve(t, h, "/r/demo/nothing$deps").Code; got != http.StatusNotFound {
+	if got := serveGet(h, "/r/demo/nothing$deps").Code; got != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", got)
 	}
 	if n := scans.Load(); n != 0 {

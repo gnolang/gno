@@ -154,8 +154,7 @@ func TestImportersWithoutAnIndexer(t *testing.T) {
 	}
 }
 
-// The first failing band stops the scan: later bands would only fail too, and
-// each failure counts against the shared indexer client's breaker.
+// The first failing band stops the scan: later bands would only fail too.
 func TestScanStopsAfterAFailingBand(t *testing.T) {
 	t.Parallel()
 
@@ -251,4 +250,51 @@ func (c *countingLimiter) AllowRequest(*http.Request) bool {
 	defer c.mu.Unlock()
 	c.asked++
 	return c.asked <= c.allow
+}
+
+// denyFirst refuses the first request and allows every one after.
+type denyFirst struct{ asked int }
+
+func (d *denyFirst) AllowRequest(*http.Request) bool { d.asked++; return d.asked > 1 }
+
+// A rate-limited reader is not remembered: every other reader of the package
+// would get a 429 for as long as a failure is kept.
+func TestImportersRateLimitIsNotRemembered(t *testing.T) {
+	t.Parallel()
+
+	f := &fakeIndexer{tip: 10, deploys: []indexer.Tx{deploy("gno.land/r/a")}}
+	h := newImporterHandler(f, fakeImports{imports: map[string][]string{"gno.land/r/a": {avl}}}, &denyFirst{})
+	if _, err := h.Importers(context.Background(), nil, avl); !errors.Is(err, ErrRateLimited) {
+		t.Fatalf("err = %v, want ErrRateLimited", err)
+	}
+	got, err := h.Importers(context.Background(), nil, avl)
+	if err != nil || len(got.Paths) != 1 {
+		t.Fatalf("got %+v, %v; a refusal must not be cached", got, err)
+	}
+}
+
+// cancelOnRead ends the lookup's time on its first read.
+type cancelOnRead struct{ cancel context.CancelFunc }
+
+func (c cancelOnRead) Imports(context.Context, string) ([]string, error) {
+	c.cancel()
+	return nil, ErrNotLive
+}
+
+// A lookup that runs out of time reads unread, not complete: the answer says
+// there may be more.
+func TestImportersOutOfTimeIsUnread(t *testing.T) {
+	t.Parallel()
+
+	var deploys []indexer.Tx
+	for i := range 4 * checkConcurrency {
+		deploys = append(deploys, deploy(fmt.Sprintf("gno.land/r/a/p%d", i)))
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	h := New(Deps{Indexer: &fakeIndexer{tip: 10, deploys: deploys}, Imports: cancelOnRead{cancel}, Domain: "gno.land"})
+	imp, err := h.findImporters(ctx, avl)
+	if err != nil || !imp.Unread {
+		t.Fatalf("got %+v, %v; want an unread answer", imp, err)
+	}
 }

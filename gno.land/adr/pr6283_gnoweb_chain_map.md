@@ -33,7 +33,8 @@ The two renderings share one page: the listing's header, and a side rail on
 the realm grid, where a realm has its table of contents. The rail holds what
 the listing contains (packages, folders), a filter that works on either
 rendering (the overview's own filter controller; on the map it dims tiles
-rather than removing them, so the map keeps its shape), and, on the map, its
+rather than removing them, so the map keeps its shape, and takes them out of
+the tab order and the accessibility tree), and, on the map, its
 key. Every rail section uses the overview rail's heading, meta-card and list
 styles.
 
@@ -67,7 +68,7 @@ The map is one `<svg>` in a fixed coordinate space (960 × 600) that scales to
 its column; every tile is an `<a>` named by its `<title>`. Because the space
 is fixed, text sizes are known in the same units as the boxes, and every
 label is fitted on the server to the character, shortened with an ellipsis,
-or left out below four characters. The `viewBox` and each label's font size
+or left out below six characters. The `viewBox` and each label's font size
 are written from the layout's own constants, so the stylesheet repeats
 neither.
 
@@ -95,8 +96,9 @@ The window is read in bands of 25 000 heights aligned on multiples of that
 width (`indexer.CallsBetween`); a band the indexer's element cap refuses is
 split in half until it fits. Whole bands below the indexer's tip are final,
 so they are kept across refreshes: a refresh reads the band the window now
-starts in, the one it ends in, and any band closed since — at most four
-instead of about twenty-five. Bands that leave the window are dropped.
+starts in, the one it ends in, and one per band closed since the last
+refresh. After a restart or a long idle gap that is the whole week again,
+about twenty-five. Bands that leave the window are dropped.
 
 The aggregate is cached for five minutes. A refresh is started by a request,
 detached from it and shared by every concurrent reader; a stale aggregate is
@@ -136,7 +138,8 @@ realms in the top shade. Ranking and labels
 use the gas as measured (50 k, 1.9 M, 76.0 bn), the unit chosen on the
 rounded value; bn, not B, which would read as bytes. The legend gives each
 shade's upper bound, since rounded ranges would print the same number where
-they meet. Under gas, a line under the map names the metric, because the
+they meet; steps whose bounds print the same merge into one, in the darker
+shade, and tiles take their shade from the key's bounds. Under gas, a line under the map names the metric, because the
 key folds away with the rail on a phone.
 
 On the whole chain the gas map looks much like the call map, the log scale
@@ -188,7 +191,7 @@ reads as unavailable. An answer some candidate reads failed to complete is
 kept one minute rather than ten. Past any of its bounds — a band the indexer
 capped, the candidate cap, an unread candidate — the count reads "at least",
 and the page says whether a reload can help. On a wide screen the package node
-stays in view while a long side scrolls.
+of `$deps` stays in view while a long side scrolls.
 
 ### One cache shape
 
@@ -198,10 +201,12 @@ by every concurrent reader, a TTL, a size bound evicting in store order, a
 short memory of failures so a failing indexer is not asked again by every
 reader, and, for activity, the last good answer served while a refresh runs.
 
-A fetch past its budget is cancelled, not given a deadline. The indexer
-client's breaker, shared with search, counts a deadline as the indexer failing
-and ignores a cancellation; a slow aggregate must not turn search off. No band
-query starts after its fetch has given up, for the same reason.
+A fetch past its budget is cancelled. The band queries leave the indexer
+client's breaker, shared with search, alone: a band too wide or too slow
+describes the band, and one reader's `$map` must not turn search off for
+everyone. The tip and block fetches a refresh starts with stay the health
+signal, so a hung indexer still opens it. No band query starts after its fetch
+has given up.
 
 ### Undecoded indexer rows
 
@@ -265,9 +270,9 @@ the feature never switches off silently.
   last 20 000 blocks.
 - `$map` costs one more node read than the list, to check the parent before
   offering a way back out.
-- Importer scans and the activity refresh share the indexer client, its slots
-  and its breaker, with search. A separate client for aggregate queries would
-  isolate them; that is a change to #6231's wiring.
+- Importer scans and the activity refresh share the indexer client and its
+  slots with search. A separate client for aggregate queries would isolate
+  them; that is a change to #6231's wiring.
 - The provenance partial copies omnisearch's; omnisearch can switch to it in a
   follow-up.
 

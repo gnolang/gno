@@ -427,7 +427,7 @@ func TestIndexerStatusOnlyWhenAnIndexerGroupRan(t *testing.T) {
 		t.Errorf("Indexer footer = %+v on a chain-only answer, want nil", chainOnly.Indexer)
 	}
 
-	withIndexer := h.build(context.Background(), mustQuery(t, h, "account:g1abc", ""))
+	withIndexer := h.build(context.Background(), mustQuery(t, h, "account:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", ""))
 	if withIndexer.Indexer == nil {
 		t.Fatal("Indexer footer = nil on an indexer-backed answer")
 	}
@@ -438,7 +438,7 @@ func TestIndexerStatusOnlyWhenAnIndexerGroupRan(t *testing.T) {
 	// A failing tip shows a fixed phrase, not the indexer's raw error.
 	down := newHandlerWithDir(t, newDiscoveryClient(), newDiscoveryDir(),
 		&mockIndexer{tipErr: errors.New(`graphql error: dial tcp 10.0.0.5:8546`)})
-	st := down.build(context.Background(), mustQuery(t, down, "account:g1abc", "")).Indexer
+	st := down.build(context.Background(), mustQuery(t, down, "account:g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "")).Indexer
 	if st == nil || st.Err == nil || st.Err.Error() != "indexer unavailable" {
 		t.Errorf("Indexer footer = %+v, want Err %q", st, "indexer unavailable")
 	}
@@ -842,5 +842,91 @@ func TestTypedNilIndexerMeansNoIndexer(t *testing.T) {
 	h := newHandler(t, &mockClient{}, idx)
 	if h.deps.Indexer != nil {
 		t.Fatal("a nil *mockIndexer reached Deps.Indexer as a non-nil interface")
+	}
+}
+
+// The omnibar sends every Enter from the page path, so on a realm page an
+// explicit `author:` must still widen `render:` to that namespace. A bare
+// `render:` keeps searching the page's realm.
+func TestRenderSearchPrefersAnExplicitAuthorOverThePage(t *testing.T) {
+	t.Parallel()
+
+	c := newDiscoveryClient()
+	c.renders = map[string]string{
+		"/r/alice/blog": "voting is open",
+		"/r/bob/blog":   "voting closed",
+	}
+	h := newHandlerWithDir(t, c, newDiscoveryDir(), nil)
+
+	q := mustQuery(t, h, "render:voting author:alice", "")
+	h.scope(q, parseURL(t, "/r/bob/blog$search"))
+	groups, _ := h.Search(context.Background(), q)
+	if len(groups) != 1 || len(groups[0].Results) != 1 || groups[0].Results[0].Title != "/r/alice/blog" {
+		t.Fatalf("groups = %+v, want alice's realm, not the page's", groups)
+	}
+
+	q = mustQuery(t, h, "render:voting", "")
+	h.scope(q, parseURL(t, "/r/bob/blog$search"))
+	groups, _ = h.Search(context.Background(), q)
+	if len(groups) != 1 || len(groups[0].Results) != 1 || groups[0].Results[0].Title != "/r/bob/blog" {
+		t.Fatalf("groups = %+v, want the page's realm for a bare render:", groups)
+	}
+}
+
+// A term that is not an address never matches, and would walk every height
+// band once per debounced keystroke. It is refused before any fetch.
+func TestAccountRefusesANonAddressBeforeAnyFetch(t *testing.T) {
+	t.Parallel()
+
+	h := newHandler(t, &mockClient{}, &mockIndexer{err: errors.New("fetched")})
+	groups, _ := h.Search(context.Background(), mustQuery(t, h, "account:g1abc", ""))
+	var in inputError
+	if len(groups) != 1 || !errors.As(groups[0].Err, &in) {
+		t.Fatalf("groups = %+v, want an input error and no fetch", groups)
+	}
+}
+
+// TestRenderScopeNamesWhatItRenders checks render: names the realm it
+// renders: the page's own with no author:, none when author: widens it, and
+// the in: scope when given.
+func TestRenderScopeNamesWhatItRenders(t *testing.T) {
+	t.Parallel()
+
+	h := newHandler(t, &mockClient{}, nil)
+	for raw, want := range map[string]string{
+		"render:voting":                    "/r/bob/blog",
+		"render:voting author:alice":       "",
+		"render:voting in:/r/alice/voting": "/r/alice/voting",
+	} {
+		q := mustQuery(t, h, raw, "")
+		h.scope(q, parseURL(t, "/r/bob/blog$search"))
+		if got := h.build(context.Background(), q).PkgPath; got != want {
+			t.Errorf("%q: PkgPath = %q, want %q", raw, got, want)
+		}
+	}
+
+	// A package does not render: asked to narrow, never told the node is down.
+	c := &mockClient{}
+	h = newHandler(t, c, nil)
+	q := mustQuery(t, h, "render:voting", "")
+	h.scope(q, parseURL(t, "/p/demo/avl$search"))
+	data := h.build(context.Background(), q)
+	if data.PkgPath != "" || len(data.Groups) != 1 || !errors.Is(data.Groups[0].Err, errRenderNeedsNarrowing) || c.realmCalls != 0 {
+		t.Errorf("on a package page: PkgPath = %q, groups = %+v, Realm calls = %d", data.PkgPath, data.Groups, c.realmCalls)
+	}
+}
+
+// A chain-wide selector answers the same on every page and ignores in:, so
+// its header must claim neither as its scope.
+func TestGlobalSelectorDoesNotClaimThePageAsScope(t *testing.T) {
+	t.Parallel()
+
+	h := newHandler(t, &mockClient{}, &mockIndexer{tx: &indexer.Tx{Hash: "abc"}})
+	for _, raw := range []string{"tx:abc", "tx:abc in:/r/demo/boards"} {
+		q := mustQuery(t, h, raw, "")
+		h.scope(q, parseURL(t, "/r/demo/boards$search"))
+		if got := h.build(context.Background(), q).PkgPath; got != "" {
+			t.Errorf("%q: PkgPath = %q, want none for a chain-wide selector", raw, got)
+		}
 	}
 }

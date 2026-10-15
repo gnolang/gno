@@ -10,8 +10,8 @@
    follow the tokens.
    ========================================================================== */
 
-/* Below --md the map keeps a readable size and scrolls sideways, rather than
-   shrinking its labels to nothing. */
+/* In a column narrower than 56rem the map keeps a readable size and scrolls
+   sideways, rather than shrinking its labels to nothing. */
 .b-map-frame {
 	overflow-x: auto;
 	border: var(--s-border);
@@ -29,10 +29,6 @@
 	min-width: 56rem;
 	height: auto;
 	font-family: var(--g-font-family-mono);
-
-	@media (--md) {
-		min-width: 0;
-	}
 
 	& text {
 		pointer-events: none;
@@ -64,19 +60,23 @@
 	}
 
 	/* Focus is drawn heavier than hover, and solid even on an unknown tile:
-	   the map scales down, and a thin or dashed ring is lost. */
+	   the map scales down, and a thin or dashed ring is lost. It sits inside
+	   the tile, where neighbours and frames cannot paint over it, in the
+	   tile's own ink, which contrasts with its shade in both themes. */
 	&:focus-visible rect {
-		stroke: var(--s-color-border-focus);
-		stroke-width: 6;
+		stroke: var(--map-ink);
+		stroke-width: 8;
 		stroke-dasharray: none;
+		clip-path: inset(0) fill-box;
 	}
 
 	&:focus-visible {
 		outline: none;
 	}
 
-	/* Filtered out: dimmed rather than removed, so the map keeps its shape. */
-	&.is-dimmed {
+	/* Filtered out: dimmed rather than removed, so the map keeps its shape.
+	   The filter also takes it out of the tab order; a ring is never dimmed. */
+	&.is-dimmed:not(:focus-visible) {
 		opacity: 0.2;
 	}
 }
@@ -197,7 +197,7 @@
 	--map-tile: var(--s-color-bg-surface-tertiary);
 
 	& rect {
-		stroke: var(--s-color-text-tertiary);
+		stroke: var(--s-color-text-secondary);
 		stroke-dasharray: 4 3;
 	}
 }
@@ -206,6 +206,9 @@
 .b-map-figure {
 	/* Anchors its skip link, which shows over the map's corner. */
 	position: relative;
+	/* The scroll hint asks whether the column holds the map, not the
+	   viewport. */
+	container-type: inline-size;
 	display: flex;
 	flex-direction: column;
 	gap: var(--g-space-2);
@@ -214,11 +217,9 @@
 
 .b-map-status {
 	min-height: 1.5em;
-	overflow: hidden;
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	overflow-wrap: anywhere;
 
 	/* No pointer to follow on touch: the tap opens the tile. */
 	@media (pointer: coarse) {
@@ -233,13 +234,16 @@
 	font-size: var(--g-font-size-50);
 }
 
-/* Only where the map scrolls: below --md it keeps its width. */
+/* Only where the map scrolls: in a column narrower than its floor. */
 .b-map-scroll-hint {
 	margin-block-start: var(--g-space-2);
 	color: var(--s-color-text-secondary);
 	font-size: var(--g-font-size-50);
+}
 
-	@media (--md) {
+/* The map's floor plus the frame's border either side. */
+@container (min-width: calc(56rem + 2px)) {
+	.b-map-scroll-hint {
 		display: none;
 	}
 }
@@ -283,6 +287,13 @@
 		padding: 0 var(--g-space-2);
 	}
 
+	/* Inside the switch: its overflow would clip a ring drawn outside.
+	   Safari's default `outline: auto` ignores the offset, hence our own ring. */
+	& > a:focus-visible {
+		outline: var(--s-focus-ring);
+		outline-offset: -2px;
+	}
+
 	/* Qualified to outrank the meta card's link colour: the inactive metric
 	   reads as a choice, not as the selected one. */
 	.b-pkg-meta dd.value & > a {
@@ -308,9 +319,10 @@
 	border: 1px solid var(--s-color-border-secondary);
 	border-radius: var(--s-rounded-sm);
 	background-color: var(--map-tile);
+	forced-color-adjust: none;
 
 	&.b-map__tile--unknown {
-		border: 1px dashed var(--s-color-text-tertiary);
+		border: 1px dashed var(--s-color-text-secondary);
 	}
 }
 
