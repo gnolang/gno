@@ -67,6 +67,12 @@ its throwaway cache drops the sequence bump (one in-flight sponsored tx per
 account per block). Rechecks stay ante-only, so pending 0-fee txs are not
 re-executed every block.
 
+CheckExecute runs the same VM paths as DeliverTx, including while block sync
+holds commits in memory (`pr6334_deferred_block_sync_writes.md`). Nothing on
+those paths iterates the database today; one that did would only refuse that
+tx at admission, since a refused iterator during `CheckTx` fails the tx and
+not the block.
+
 ### 4. "PayGas was called" is enforced in `runTx`, all modes
 
 A 0-fee tx that never calls `PayGas` has no payer and fails in `runTx` (shared by
