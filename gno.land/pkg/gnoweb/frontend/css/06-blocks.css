@@ -2687,6 +2687,12 @@ main.is-dev-mode .b-toc a {
 		vertical-align: -0.2em;
 	}
 
+	/* An icon opening a heading gets a little more room than a word space,
+	   so the glyph does not stick to the title. */
+	:is(h1, h2, h3, h4, h5, h6) > .gno-icon:first-child {
+		margin-inline-end: 0.15em;
+	}
+
 	/* ===== COLUMNS COMPONENT ===== */
 	.gno-columns {
 		--columns-gap: var(--g-space-10);
