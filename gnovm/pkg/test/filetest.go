@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"runtime/debug"
 	"slices"
 	"sort"
@@ -1636,9 +1637,13 @@ func runGoToolchain(source []byte) (output string, err error) {
 	// requires a go.mod, otherwise Go complains "go.mod not found"
 	// before it even parses the source. Write a minimal go.mod so we
 	// get the real compile errors (e.g. "missing function body").
+	// Its `go` line is the toolchain's own version: an older pin would
+	// set -lang and make gc reject `any`, unions or `max` as "requires
+	// go1.N or later", which is not the reference verdict we want.
 	if !IsRunnable(source) {
 		modPath := filepath.Join(dir, "go.mod")
-		if err := os.WriteFile(modPath, []byte("module gnofiletest\n\ngo 1.17\n"), 0o644); err != nil {
+		mod := "module gnofiletest\n\ngo " + goModLangVersion(runtime.Version()) + "\n"
+		if err := os.WriteFile(modPath, []byte(mod), 0o644); err != nil {
 			return "", fmt.Errorf("write temp go.mod: %w", err)
 		}
 	}
@@ -1744,4 +1749,15 @@ func restoreGoExtInError(originalFname, tcError string) string {
 	}
 	base := strings.TrimSuffix(filepath.Base(originalFname), ".go")
 	return strings.ReplaceAll(tcError, base+".gno", base+".go")
+}
+
+var reGoVersion = regexp.MustCompile(`^go(\d+\.\d+)`)
+
+// goModLangVersion turns runtime.Version() ("go1.25.9") into a go.mod
+// `go` line value ("1.25"); a devel build falls back to the go.mod floor.
+func goModLangVersion(v string) string {
+	if m := reGoVersion.FindStringSubmatch(v); m != nil {
+		return m[1]
+	}
+	return "1.21"
 }

@@ -150,3 +150,15 @@ func TestFinalizeGoRunDivergence_Sync(t *testing.T) {
 		})
 	}
 }
+
+func TestGoModLangVersion(t *testing.T) {
+	for in, want := range map[string]string{
+		"go1.25.9":                 "1.25",
+		"go1.26rc1":                "1.26",
+		"devel go1.27-abc Mon Jan": "1.21",
+	} {
+		if got := goModLangVersion(in); got != want {
+			t.Errorf("goModLangVersion(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
