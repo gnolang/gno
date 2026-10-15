@@ -25,8 +25,8 @@ var ErrUnavailable = errors.New("indexer unavailable, not retried yet")
 // counts against the breaker.
 var ErrNotFound = errors.New("not found")
 
-// ErrResponseTooLarge is refused before decoding, and counts against the
-// breaker: it describes the endpoint.
+// ErrResponseTooLarge is refused before decoding. On a recorded query it
+// counts against the breaker: it describes the endpoint.
 var ErrResponseTooLarge = errors.New("indexer response too large")
 
 // ErrTooLarge reports the server-side element cap. The response is partial,

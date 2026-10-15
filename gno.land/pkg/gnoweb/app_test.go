@@ -13,6 +13,8 @@ import (
 
 	"github.com/rs/xid"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/indexer"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -449,4 +451,19 @@ func TestNewDefaultAppConfigIndexesNoCommunity(t *testing.T) {
 	t.Parallel()
 
 	assert.Equal(t, IndexNoCommunity, NewDefaultAppConfig().IndexCommunity)
+}
+
+// With an indexer, importer lookups get their own narrow bucket: the general
+// rate would let one address start hundreds of whole-chain scans a minute.
+func TestChainmapDepsLimitsLookups(t *testing.T) {
+	t.Parallel()
+
+	cfg := &HTTPHandlerConfig{Indexer: indexer.New("http://indexer.invalid/graphql/query", "")}
+	deps := chainmapDeps(cfg, log.NewTestingLogger(t), nil)
+	require.NotNil(t, deps.Limiter)
+	r := httptest.NewRequest(http.MethodGet, "/p/demo/lib$deps", nil)
+	for range chainmap.LookupsBurst {
+		require.True(t, deps.Limiter.AllowRequest(r))
+	}
+	assert.False(t, deps.Limiter.AllowRequest(r), "past the burst a lookup must be refused")
 }

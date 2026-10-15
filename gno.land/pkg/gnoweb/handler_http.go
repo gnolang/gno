@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/omnisearch"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -45,6 +46,10 @@ const defaultRequestTimeout = 30 * time.Second
 // a slow registry or a busy RPC pool left unbounded would spend all of it and
 // fail the page. The budget covers the wait for an RPC slot as well.
 const maxUserLookupTimeout = 2 * time.Second
+
+// maxListedPaths caps a directory listing, which the list and the map both
+// draw. qpaths has no cursor, so past it a listing can only say it stopped.
+const maxListedPaths = 1_000
 
 // StaticMetadata holds static configuration for a web handler.
 type StaticMetadata struct {
@@ -164,6 +169,9 @@ type HTTPHandler struct {
 	State *state.Handler
 	// Search is the feature/omnisearch handler that owns every $search URL.
 	Search *omnisearch.Handler
+	// ChainMap is the feature/chainmap handler: the map of a listing, and the
+	// dependencies page with its importers.
+	ChainMap *chainmap.Handler
 	// trustedProxies are the networks whose X-Forwarded-Host is believed.
 	trustedProxies []*net.IPNet
 	// packageText caches the whole-package texts of $download.
@@ -231,6 +239,7 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		}),
 		Logger: logger,
 	})
+	h.ChainMap = chainmap.New(chainmapDeps(cfg, logger, trustedProxies))
 	return h, nil
 }
 
@@ -482,6 +491,12 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModeRealm
 	}
 
+	// $deps costs an indexer scan per package: off the index and off the
+	// crawl path, as $search is. finalRobots keeps it at that.
+	if gnourl.WebQuery.Has("deps") {
+		w.Header().Set("X-Robots-Tag", noIndexNoFollow.String())
+	}
+
 	sp.render.markdown = negotiatesMarkdown(r.Header.Get("Accept"))
 	status, bodyView := h.prepareIndexBodyView(r, &indexData, &sp.render)
 	scrubHeaderOnError(&indexData, status)
@@ -621,6 +636,17 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 
 	h.setHeaderForRealm(indexData, gnourl)
 
+	// Only a deployment that can list importers serves $deps; without an
+	// indexer the overview's graph is all there is, and $deps falls through
+	// to the package like any web query gnoweb does not know. The header's
+	// tabs then follow the page that renders.
+	servesDeps := gnourl.WebQuery.Has("deps") && h.ChainMap.HasIndexer() && (gnourl.IsRealm() || gnourl.IsPure())
+	if gnourl.WebQuery.Has("deps") && !servesDeps {
+		u := &indexData.HeaderData.RealmURL
+		u.WebQuery = maps.Clone(u.WebQuery)
+		u.WebQuery.Del("deps")
+	}
+
 	switch {
 	case aliasExists && aliasTarget.Kind == StaticMarkdown:
 		if pr.markdown {
@@ -628,6 +654,8 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		}
 		indexData.HeaderData.Static = true
 		return h.GetMarkdownView(gnourl, aliasTarget, pr)
+	case servesDeps:
+		return h.GetDepsView(r, gnourl)
 	case isPackageURL(gnourl):
 		// A markdown answer has no header, so it skips the counterpart lookup.
 		if pr.markdown {
@@ -668,6 +696,11 @@ func (h *HTTPHandler) GetMarkdownView(gnourl *weburl.GnoURL, alias AliasTarget, 
 
 // GetPackageView handles package pages, including help, source, directory, and user views.
 func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData, pr *pageRender) (int, *components.View) {
+	// Handle Map page: the listing below the path, drawn rather than listed.
+	if gnourl.WebQuery.Has("map") {
+		return h.GetMapView(ctx, gnourl, indexData)
+	}
+
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
@@ -1265,39 +1298,8 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 }
 
 func (h *HTTPHandler) GetPathsListView(ctx context.Context, gnourl *weburl.GnoURL, indexData *components.IndexData) (int, *components.View) {
-	const limit = 1_000 // XXX: implement pagination
-
-	prefix := path.Join(h.Static.Domain, gnourl.Path) + "/"
-	paths, qerr := h.Client.ListPaths(ctx, prefix, limit)
-	if qerr != nil {
-		h.Logger.Error("unable to query path", "error", qerr, "path", gnourl.EncodeURL())
-	} else {
-		h.Logger.Debug("query paths", "prefix", prefix, "paths", len(paths))
-	}
-
-	if len(paths) == 0 || paths[0] == "" {
-		// Both the realm view and the source view funnel here when nothing is
-		// live at the path, so this is the one place that has to distinguish
-		// "never submitted" from "submitted, not approved yet".
-		if view := h.pendingApprovalView(ctx, gnourl); view != nil {
-			return http.StatusNotFound, view
-		}
-		return GetClientErrorStatusView(gnourl, ErrClientPackageNotFound, 0)
-	}
-
-	// Always use explorer mode for paths list
-	indexData.Mode = components.ViewModeExplorer
-
-	// Update header mode
-	indexData.HeaderData.Mode = indexData.Mode
-
-	return http.StatusOK, components.DirectoryView(
-		gnourl.Path,
-		paths,
-		len(paths),
-		components.DirLinkTypeFile,
-		indexData.Mode,
-	)
+	paths, truncated := h.listPaths(ctx, gnourl)
+	return h.renderListing(ctx, gnourl, indexData, paths, truncated, nil)
 }
 
 // GetDirectoryView renders the directory view for a package, showing available files.
@@ -1800,7 +1802,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		prefix := path.Join(h.Static.Domain, pkgPath) + "/"
 		// Match GetPathsListView's cap so a package with many descendants
 		// doesn't silently drop direct children from the Subpackages section.
-		paths, err := h.Client.ListPaths(gctx, prefix, 1_000)
+		paths, err := h.Client.ListPaths(gctx, prefix, maxListedPaths)
 		if err != nil {
 			return nil
 		}
@@ -1822,7 +1824,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		return GetClientErrorStatusView(gnourl, err, height)
 	}
 
-	data := components.BuildOverview(components.OverviewInput{
+	in := components.OverviewInput{
 		URL:         gnourl,
 		Files:       files,
 		Doc:         jdoc,
@@ -1831,7 +1833,9 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		Readme:      readme,
 		Domain:      h.Static.Domain,
 		DocRenderer: h.Renderer,
-	})
+	}
+	in.DepsURL = h.ChainMap.DepsURL(pkgPath)
+	data := components.BuildOverview(in)
 	return http.StatusOK, components.OverviewView(data)
 }
 
