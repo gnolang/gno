@@ -26,12 +26,6 @@ func main() {
 // line 13: no new variables on left side of :=
 // line 18: no new variables on left side of :=
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 18
-// line 19
-
 // ParseBlocked:
 // line 14: gc expects: invalid use of type|undefined
 // line 19: gc expects: no fields or methods|undefined

@@ -38,7 +38,4 @@ func good() {
 // GnoError:
 // line 21: cannot fallthrough final case in switch
 
-// GoTypeCheckError:
-// line 21
-
 // Verdict: Clean errorcheck

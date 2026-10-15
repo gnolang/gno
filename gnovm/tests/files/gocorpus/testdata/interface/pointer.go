@@ -40,10 +40,6 @@ func main() {
 // line 34: should not happen
 // line 36: cannot use *main.Start as *main.Inst
 
-// GoTypeCheckError:
-// line 34
-// line 36
-
 // GnoWordingDiffers:
 // line 34: gc expects: pointer to interface|incompatible type; gno: should not happen
 // line 36: gc expects: pointer to interface|incompatible type; gno: cannot use *main.Start as *main.Inst

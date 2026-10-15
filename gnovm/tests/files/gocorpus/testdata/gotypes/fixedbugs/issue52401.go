@@ -14,10 +14,6 @@ func _() {
 // line 9: cannot assign to const x
 // line 10: cannot assign to x
 
-// GoTypeCheckError:
-// line 9
-// line 10
-
 // GnoWordingDiffers:
 // line 9: gc expects: cannot assign to x; gno: cannot assign to const x
 

@@ -28,9 +28,6 @@ func i() {
 // GnoError:
 // line 12: missing ',' before newline in argument list
 
-// GoTypeCheckError:
-// line 12
-
 // ParseBlocked:
 // line 20: gc expects: unexpected newline
 // line 24: gc expects: unexpected newline

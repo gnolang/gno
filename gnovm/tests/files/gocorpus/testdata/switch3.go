@@ -80,15 +80,6 @@ func good() {
 // line 50: cannot switch on ar ([4]func() is not comparable)
 // line 56: cannot switch on st (struct{f func()} is not comparable)
 
-// GoTypeCheckError:
-// line 21
-// line 25
-// line 31
-// line 38
-// line 45
-// line 50
-// line 56
-
 // GnoWordingDiffers:
 // line 21: gc expects: mismatched types string and I|incompatible types; gno: string does not implement main.I (missing method M)
 // line 25: gc expects: mismatched types I and string|incompatible types; gno: string does not implement main.I (missing method M)

@@ -19,9 +19,6 @@ type J interface {
 // GnoError:
 // line 12: expected ';', found ','
 
-// GoTypeCheckError:
-// line 12
-
 // ParseBlocked:
 // line 16: gc expects: syntax|signature
 

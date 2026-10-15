@@ -32,9 +32,4 @@ func _() {
 // line 9: 2: duplicate key (0 int) in map literal
 // line 22: duplicate case 0 in expression switch
 
-// GoTypeCheckError:
-// line 11
-// line 21
-// line 22
-
 // Verdict: Clean errorcheck

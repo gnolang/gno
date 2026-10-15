@@ -26,16 +26,7 @@ func main() {
 // GnoError:
 // line 16: name G not declared
 
-// GoTypeCheckError:
-// line 16
-// line 18
-// line 22
-
-// GoTypesOnly:
-// line 18: gc expects: undefined: E|undefined type .*E
-// line 22: gc expects: undefined: T|undefined type .*T
-
 // GnoWordingDiffers:
 // line 16: gc expects: undefined: G|undefined type .*G; gno: name G not declared
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 22

@@ -18,7 +18,4 @@ func main() {
 // GnoError:
 // line 15: invalid operation: cannot indirect av<VPBlock(1,0)> (variable of type gno.land/p/filetest/p.a)
 
-// GoTypeCheckError:
-// line 15
-
 // Verdict: Clean errorcheck

@@ -15,10 +15,4 @@ func f() {
 	}
 }
 
-// GnoPreprocessError:
-// line 14: 3: range iteration requires map, string, array, slice, or pointer to array
-
-// GoTypeCheckError:
-// line 14
-
-// Verdict: Clean compile
+// Verdict: Unsupported gc-lang-pin: range over int (Go 1.22) not supported in Gno

@@ -18,8 +18,4 @@ var _ = b[2:] // ERROR "invalid slice index 2|array index out of bounds|index 2 
 // line 12: invalid argument: index 2 out of bounds [0:1]
 // line 15: invalid argument: index 2 out of bounds [0:2]
 
-// GoTypeCheckError:
-// line 12
-// line 15
-
 // Verdict: Clean errorcheck

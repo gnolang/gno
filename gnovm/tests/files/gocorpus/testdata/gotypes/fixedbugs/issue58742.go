@@ -22,14 +22,6 @@ func _() UndefinedType /* ERROR "undefined: UndefinedType" */ {
 // line 11: 2: name UndefinedType not defined in fileset with files [issue58742.go]
 // line 16: 2: name UndefinedType not defined in fileset with files [issue58742.go]
 
-// GoTypeCheckError:
-// line 7
-// line 8
-// line 11
-// line 12
-// line 16
-// line 17
-
 // GnoWordingDiffers:
 // line 7: gc expects: undefined: UndefinedType; gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
 // line 8: gc expects: not enough return values

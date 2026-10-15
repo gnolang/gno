@@ -57,9 +57,6 @@ func f() {
 // GnoError:
 // line 50: expected 'chan', found '<-'
 
-// GoTypeCheckError:
-// line 50
-
 // ParseBlocked:
 // line 51: gc expects: unexpected <-, expected chan|expecting {
 // line 53: gc expects: unexpected int, expected chan|expected .*chan.*|expected chan|expected .*;.* or .*}.* or newline

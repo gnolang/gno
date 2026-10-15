@@ -21,11 +21,6 @@ func main() {
 // line 15: type should be numeric
 // line 16: cannot use untyped Bigint as StringKind
 
-// GoTypeCheckError:
-// line 14
-// line 15
-// line 16
-
 // GnoWordingDiffers:
 // line 14: gc expects: non-integer slice index|must be integer|cannot convert; gno: type should be numeric
 // line 15: gc expects: non-integer string index|must be integer|cannot convert; gno: type should be numeric

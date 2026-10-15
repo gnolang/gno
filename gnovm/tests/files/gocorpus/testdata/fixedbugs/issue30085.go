@@ -16,8 +16,4 @@ func main() {
 // line 10: extra init expr 3
 // line 11: missing init expr for g<!VPInvalid(0)>
 
-// GoTypeCheckError:
-// line 10
-// line 11
-
 // Verdict: Clean errorcheck

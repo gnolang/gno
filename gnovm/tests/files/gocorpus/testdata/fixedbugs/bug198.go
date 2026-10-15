@@ -14,9 +14,6 @@ func main() {
 // GnoError:
 // line 8: name T not defined in fileset with files [bug198.go]
 
-// GoTypeCheckError:
-// line 8
-
 // GnoWordingDiffers:
 // line 8: gc expects: undefined; gno: name T not defined in fileset with files [bug198.go]
 

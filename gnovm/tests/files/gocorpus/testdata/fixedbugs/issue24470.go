@@ -18,9 +18,6 @@ func f(i interface{}) {
 // GnoError:
 // line 13: should not happen
 
-// GoTypeCheckError:
-// line 13
-
 // GnoWordingDiffers:
 // line 13: gc expects: assignment mismatch|outside type switch; gno: should not happen
 

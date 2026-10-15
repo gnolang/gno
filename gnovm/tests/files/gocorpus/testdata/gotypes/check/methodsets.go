@@ -223,26 +223,6 @@ func issue5918() {
 // line 211: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
 // line 212: T.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T has no method m)
 
-// GoTypeCheckError:
-// line 32
-// line 43
-// line 138
-// line 148
-// line 166
-// line 176
-// line 199
-// line 200
-// line 201
-// line 210
-// line 211
-// line 212
-
-// GoTypesOnly:
-// line 138: gc expects: cannot call pointer method p0 on T0
-// line 148: gc expects: cannot call pointer method p0 on T3
-// line 166: gc expects: cannot call pointer method p0 on T0
-// line 176: gc expects: cannot call pointer method p0 on T3
-
 // GnoWordingDiffers:
 // line 199: gc expects: type *error is pointer to interface, not interface; gno: should not happen
 // line 200: gc expects: type *error is pointer to interface, not interface; gno: should not happen
@@ -251,4 +231,4 @@ func issue5918() {
 // line 211: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
 // line 212: gc expects: type T is pointer to interface, not interface; gno: T.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T has no method m)
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 32, 138, 148, 166, 176; over-strict: lines 34, 39, 40, 42, 44, 45, 46, 47, 49, 50, 51, 52, 53, 54, 196

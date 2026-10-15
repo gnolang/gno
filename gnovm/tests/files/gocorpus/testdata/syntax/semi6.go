@@ -13,9 +13,6 @@ type T2 /* // ERROR "(semicolon.*|EOF) in type declaration" */
 // GnoError:
 // line 9: expected type, found newline
 
-// GoTypeCheckError:
-// line 9
-
 // ParseBlocked:
 // line 11: gc expects: (semicolon.*|EOF) in type declaration
 

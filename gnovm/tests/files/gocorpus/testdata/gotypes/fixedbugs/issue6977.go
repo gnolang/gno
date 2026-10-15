@@ -88,12 +88,6 @@ var _ = x.m
 // line 35: m redeclared in this block
 // 	previous declaration at issue6977.go:36:21
 
-// GoTypeCheckError:
-// line 35
-// line 36
-// line 37
-// line 38
-
 // ParseBlocked:
 // line 36: gc expects: duplicate method
 // line 37: gc expects: duplicate method

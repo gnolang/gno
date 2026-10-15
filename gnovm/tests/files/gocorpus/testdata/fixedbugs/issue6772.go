@@ -24,8 +24,4 @@ func f2() {
 // line 10: 3: a repeated on left side of :=
 // line 17: 3: a repeated on left side of :=
 
-// GoTypeCheckError:
-// line 10
-// line 17
-
 // Verdict: Clean errorcheck

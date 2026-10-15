@@ -23,8 +23,4 @@ var m = map[string]F{"f": f} // ERROR "initialization cycle|depends upon itself|
 // GnoError:
 // line 21: initialization cycle: m refers to f refers to m
 
-// GoTypeCheckError:
-// line 15
-// line 21
-
 // Verdict: Clean errorcheck

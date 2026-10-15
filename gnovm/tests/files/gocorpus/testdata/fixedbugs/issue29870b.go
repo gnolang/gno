@@ -16,7 +16,4 @@ func _() {
 // GnoError:
 // line 13: declared and not used: x
 
-// GoTypeCheckError:
-// line 13
-
 // Verdict: Clean errorcheck

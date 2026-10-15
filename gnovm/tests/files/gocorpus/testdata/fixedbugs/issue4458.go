@@ -19,10 +19,4 @@ func main() {
 	(**T).foo(&pav) // ERROR "no method .*foo|requires named type or pointer to named|undefined"
 }
 
-// GoTypeCheckError:
-// line 19
-
-// GoTypesOnly:
-// line 19: gc expects: no method .*foo|requires named type or pointer to named|undefined
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19

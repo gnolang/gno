@@ -13,7 +13,4 @@ func _() {
 // GnoError:
 // line 10: expected operand, found ']'
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

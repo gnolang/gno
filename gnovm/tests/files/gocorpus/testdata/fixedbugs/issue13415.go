@@ -18,4 +18,4 @@ func f() {
     }
 }
 
-// Verdict: Unsupported select: select statements not supported in Gno
+// Verdict: Unsupported other: select: select statements not supported in Gno

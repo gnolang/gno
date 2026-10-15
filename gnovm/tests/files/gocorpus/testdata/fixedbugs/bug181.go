@@ -13,7 +13,4 @@ type T *struct {
 // GnoError:
 // line 10: embedded field type cannot be a pointer
 
-// GoTypeCheckError:
-// line 10
-
 // Verdict: Clean errorcheck

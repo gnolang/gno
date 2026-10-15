@@ -20,9 +20,6 @@ func main() {
 // GnoError:
 // line 13: missing condition in if statement
 
-// GoTypeCheckError:
-// line 13
-
 // ParseBlocked:
 // line 16: gc expects: missing condition
 

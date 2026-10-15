@@ -28,8 +28,4 @@ func G() {
 // line 13: 3: cannot type switch on non-interface value nil (type untyped nil)
 // line 22: 3: cannot type switch on non-interface value x (type int)
 
-// GoTypeCheckError:
-// line 13
-// line 22
-
 // Verdict: Clean errorcheck

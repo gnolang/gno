@@ -21,8 +21,4 @@ func main() {
 // line 15: invalid operation: cannot take address of main (value of type func())
 // line 16: cannot assign to main (neither addressable nor a map index expression)
 
-// GoTypeCheckError:
-// line 15
-// line 16
-
 // Verdict: Clean errorcheck

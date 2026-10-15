@@ -23,7 +23,4 @@ func _(p P) {
 // GnoError:
 // line 20: P.t undefined (type gno.land/p/filetest/issue15722.P has no method t)
 
-// GoTypeCheckError:
-// line 20
-
 // Verdict: Clean errorcheck

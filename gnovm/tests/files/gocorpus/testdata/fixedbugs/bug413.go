@@ -13,7 +13,4 @@ var i = func() int {a := f(i); return a}()  // ERROR "initialization cycle|depen
 // GnoError:
 // line 11: initialization cycle: i refers to i
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

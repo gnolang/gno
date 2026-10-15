@@ -20,9 +20,6 @@ func f(int, int) {
 // GnoError:
 // line 12: missing ',' before newline in argument list
 
-// GoTypeCheckError:
-// line 12
-
 // ParseBlocked:
 // line 16: gc expects: expecting \)|possibly missing comma or \)
 

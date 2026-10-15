@@ -27,14 +27,6 @@ var _ = []int{
 // GnoError:
 // line 16: 2: cannot use func(gno.land/p/filetest/p.T) as int
 
-// GoTypeCheckError:
-// line 17
-// line 18
-// line 19
-// line 21
-// line 22
-// line 23
-
 // GnoWordingDiffers:
 // line 17: gc expects: cannot use T\.Mv|incompatible type; gno: 2: cannot use func(gno.land/p/filetest/p.T) as int
 // line 18: gc expects: cannot use \(\*T\)\.Mv|incompatible type; gno: 2: cannot use func(gno.land/p/filetest/p.T) as int

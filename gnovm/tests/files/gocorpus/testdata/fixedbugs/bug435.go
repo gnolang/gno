@@ -17,9 +17,6 @@ func foo() {
 // GnoError:
 // line 15: expected ')', found 'EOF'
 
-// GoTypeCheckError:
-// line 15
-
 // GnoWordingDiffers:
 // line 15: gc expects: unexpected|missing|undefined; gno: expected ')', found 'EOF'
 

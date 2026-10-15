@@ -28,7 +28,4 @@ func main() {
 // GnoError:
 // line 18: false (value of type <untyped> bool) is not used
 
-// GoTypeCheckError:
-// line 18
-
 // Verdict: Clean errorcheck
