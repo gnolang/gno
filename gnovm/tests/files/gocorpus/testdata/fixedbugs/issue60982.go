@@ -2022,4 +2022,4 @@ func f(x int, b bool) int {
 	return 0
 }
 
-// Verdict: Unsupported stdlib-symbol: unsupported stdlib symbol max (the go/types guard rejects it too)
+// Verdict: Unsupported gc-lang-pin: version-gating: min/max builtins (Go 1.21) not supported in Gno

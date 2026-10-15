@@ -1,6 +1,7 @@
 package test
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -95,7 +96,7 @@ func TestFinalizeGoRunDivergence_Verify(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			newDirs, err := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, "", nil, false, true)
+			newDirs, err := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, nil, false, true)
 			if newDirs != nil {
 				t.Fatalf("verify must not rewrite directives, got %v", newDirs)
 			}
@@ -134,7 +135,7 @@ func TestFinalizeGoRunDivergence_Sync(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out, _ := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, "", nil, true, tc.isGoFile)
+			out, _ := finalizeGoRunDivergence(tc.dirs, tc.gnoOut, tc.gnoErr, tc.goOut, nil, true, tc.isGoFile)
 			if got := verdictOf(out); got != tc.wantVerdict {
 				t.Fatalf("verdict = %q, want %q", got, tc.wantVerdict)
 			}
@@ -174,6 +175,21 @@ func TestUsesGenerics(t *testing.T) {
 	} {
 		if got := UsesGenerics([]byte(src)); got != want {
 			t.Errorf("UsesGenerics(%q) = %v, want %v", src, got, want)
+		}
+	}
+}
+
+func TestMissingStdlibImport(t *testing.T) {
+	root := filepath.Join("..", "..", "..")
+	for src, want := range map[string]string{
+		"package p\nimport \"strings\"":                 "",
+		"package p\nimport \"os\"":                      "", // tests/stdlibs
+		"package p\nimport \"reflect\"":                 "reflect",
+		"package p\nimport (\"fmt\"; \"encoding/xml\")": "encoding/xml",
+		"package p\nimport \"/foo\"":                    "", // syntax case, not a gap
+	} {
+		if got := MissingStdlibImport([]byte(src), root); got != want {
+			t.Errorf("MissingStdlibImport(%q) = %q, want %q", src, got, want)
 		}
 	}
 }

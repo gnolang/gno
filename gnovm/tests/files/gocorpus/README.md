@@ -14,7 +14,7 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `GnoOutput:` / `GoOutput:` | stdout of Gno and of `go run` (run files) |
 | `Output:` / `GoOutput:` | the same pair for a native `.gno` filetest that opts in: adding `GoOutput:` makes the harness run Go too and demand the `Verdict:` line; `.gno` files without it are untouched |
 | `GnoError:` | Gno's own errors, per line, wording kept (a runtime panic in run mode, preprocess errors in compile mode) |
-| `GoTypeCheckError:` / `GoBuildError:` | lines the go/types guard / `go build` flagged; lines only, their wording follows the Go release |
+| `GoBuildError:` | lines gc (`go build`) flagged, compile files; lines only, their wording follows the Go release |
 
 | verdict | meaning |
 |---|---|
@@ -31,12 +31,11 @@ them as "stale verdict" until it does). A file whose cause has no issue yet
 stays out of the tree.
 
 Verify (`go test ./gnovm/pkg/gnolang -run TestFiles/gocorpus`) runs Gno only
-and compares with the pinned Go side; it never shells out to `go`. One
-dependency on the Go release remains: the go/types guard runs in-process, so
-the *set of lines* in `GoTypeCheckError:` follows the Go that
-built the test binary. Run with `GOTOOLCHAIN=$(cat VERSION)` to match the
-goldens; `make -C gnovm _test.filetest` does not pin the toolchain unless
-`go.mod` carries a `toolchain` line, so set it explicitly.
+and compares with the pinned Go side; it never shells out to `go`. Sync runs
+`go run` / `go build` from the toolchain on PATH, so run it with
+`GOTOOLCHAIN=$(cat VERSION)` to keep the goldens on one Go release;
+`make -C gnovm _test.filetest` does not pin the toolchain unless `go.mod`
+carries a `toolchain` line, so set it explicitly.
 
 ## Re-sync
 

@@ -16,4 +16,4 @@ func f(err error) {
 	}
 }
 
-// Verdict: Unsupported stdlib-symbol: unsupported stdlib symbol PathError (the go/types guard rejects it too)
+// Verdict: Unsupported stdlib-symbol: unsupported stdlib symbol in Gno: PathError

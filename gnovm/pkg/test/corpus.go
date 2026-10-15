@@ -6,6 +6,8 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -192,14 +194,10 @@ var langGapErrors = []struct {
 	{regexp.MustCompile(`name (imag|real) not (declared|defined)`), "complex numbers not supported in Gno"},
 	{regexp.MustCompile(`name uintptr not (declared|defined)`), "uintptr type not supported in Gno"},
 	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
+	{regexp.MustCompile(`name (min|max) not declared`), "version-gating: min/max builtins (Go 1.21) not supported in Gno"},
 	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
 	{regexp.MustCompile(`select statements are not permitted`), "channels not supported in Gno (select)"},
 }
-
-// reGuardSymbolGap captures the name in Gno's "name <Sym> not
-// declared/defined" when the go/types guard rejects the same file: the
-// symbol is then a Go stdlib member Gno's stdlibs lack, whatever its name.
-var reGuardSymbolGap = regexp.MustCompile(`name (\w+) not (?:declared|defined)`)
 
 // reStdlibSymbolGap matches Gno's "name <Sym> not declared/defined" for a
 // known exported stdlib symbol Gno's test context doesn't provide
@@ -216,7 +214,7 @@ var reStdlibSymbolGap = regexp.MustCompile(`name (Exit|Getenv|Args|Environ|Hostn
 	`Caller|Callers|SetFinalizer|KeepAlive|GC|GOMAXPROCS|GOARCH|GOOS|NumCPU|NumGoroutine|` +
 	`Gosched|Goexit|Stack|ReadMemStats|MemProfileRecord|MemProfileRate|MemStats|Frame|Frames|` +
 	`Compiler|Breakpoint|Version|Intn|Int31|Int31n|Int63|Int63n|Float64|Float32|Seed|Perm|Shuffle|` +
-	`Sleep|Tick|AllocsPerRun|Caller) not (declared|defined)`)
+	`Sleep|Tick|AllocsPerRun|Caller|PathError|ErrNotExist) not (declared|defined)`)
 
 // UnsupportedFeatureError returns a feature-gap reason if errStr is one
 // of Gno's "feature not implemented" messages (channels, goroutines,
@@ -267,11 +265,9 @@ func NondeterministicOutput(out string) string {
 	return ""
 }
 
-// reUnknownImport matches an "unknown import path <path>" error,
-// capturing the import path. Handles both Gno's own preprocess form
-// (`unknown import path reflect`) and the go/types guard's form
-// (`could not import reflect (unknown import path "reflect")`), so the
-// optional quote and trailing `)` are excluded from the capture.
+// reUnknownImport matches Gno's "unknown import path <path>" error,
+// capturing the import path (an optional quote and trailing `)` are
+// excluded so a wrapped form captures the same path).
 var reUnknownImport = regexp.MustCompile(`unknown import path "?([^\s;")]+)`)
 
 // UnsupportedImport returns the import path from an "unknown import
@@ -291,10 +287,7 @@ func UnsupportedImport(errStr string) string {
 // looksLikePackagePath reports whether imp is a normal Go import path
 // (a missing stdlib like "reflect" or "encoding/xml") rather than an
 // invalid-import-path syntax test case ("/foo", "c:/foo", empty,
-// control chars). The go/types guard emits "unknown import path" for
-// both; only the former is a genuine missing-package feature gap worth
-// routing to `// Unsupported:`. The latter is a real errorcheck case
-// (e.g. import6.go) whose golden must be kept.
+// control chars), which is an errorcheck case to pin, not a gap.
 func looksLikePackagePath(imp string) bool {
 	if imp == "" || strings.HasPrefix(imp, "/") || strings.HasPrefix(imp, ".") {
 		return false
@@ -305,6 +298,33 @@ func looksLikePackagePath(imp string) bool {
 		}
 	}
 	return true
+}
+
+// MissingStdlibImport returns the first import path of source that is a
+// normal package path with no package under gnovm/stdlibs or
+// gnovm/tests/stdlibs, or "" if every import resolves.
+func MissingStdlibImport(source []byte, rootDir string) string {
+	f, err := parser.ParseFile(token.NewFileSet(), "", source, parser.ImportsOnly)
+	if err != nil {
+		return ""
+	}
+	for _, imp := range f.Imports {
+		p, err := strconv.Unquote(imp.Path.Value)
+		if err != nil || !looksLikePackagePath(p) {
+			continue
+		}
+		found := false
+		for _, base := range []string{"stdlibs", filepath.Join("tests", "stdlibs")} {
+			if st, err := os.Stat(filepath.Join(rootDir, "gnovm", base, p)); err == nil && st.IsDir() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return p
+		}
+	}
+	return ""
 }
 
 // CorpusDirective returns the gc test directive word on source's first
@@ -426,9 +446,9 @@ func indent(s, prefix string) string {
 }
 
 // FormatLineOnlyBlock serializes the keys of a per-line error map as
-// `line N` entries, dropping the messages. Used for the Go-side blocks
-// (`// GoTypeCheckError:`, `// GoBuildError:`), whose wording changes
-// with the Go release while the set of flagged lines does not.
+// `line N` entries, dropping the messages. Used for the Go-side block
+// (`// GoBuildError:`), whose wording changes with the Go release while
+// the set of flagged lines does not.
 func FormatLineOnlyBlock(perLine map[int]string) string {
 	if len(perLine) == 0 {
 		return ""
