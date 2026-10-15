@@ -1,6 +1,6 @@
 # onyx genesis
 
-Builds the **onyx** genesis. Onyx is the testnet on the mainnet line: it runs **mainnet's code, one release candidate ahead** (the version in [`UPGRADES.md`](./UPGRADES.md); `v1.5.0` exactly at launch) and is upgraded whenever mainnet is, so mainnet's upgrades are rehearsed here first. Its genesis is mainnet's shape with a testnet's money — a fresh chain, not a hardfork of pearl.
+Builds the **onyx** genesis. Onyx is the testnet on the mainnet line: it runs **mainnet's code** (the version in [`UPGRADES.md`](./UPGRADES.md); `v1.5.0` exactly at launch) and takes every mainnet release first, as a release candidate on the same commit, so mainnet's upgrades are rehearsed here. Its genesis is mainnet's shape with a testnet's money — a fresh chain, not a hardfork of pearl.
 
 > Launch: **2026-09-28T00:00:00Z**, chain-id `onyx-1`.
 >
@@ -16,11 +16,11 @@ Builds the **onyx** genesis. Onyx is the testnet on the mainnet line: it runs **
 - **Namespace enforcement**: `r/sys/names.Enable` runs as a genesis MsgCall, so name-based deploy authorization is on from block 1. The admin is the gnolang/multisigs `[govdao]` multisig, as on mainnet; the build asserts the configured value against the admin compiled into `r/sys/names/verifier.gno`.
 - **Inert packages**: ACTIVE at genesis, exactly as on mainnet — `code_submission_policy=inert`, the gpao approvals oracle (`g1yaee4f…`) as sole `pkg_approvers` entry, `run_submitters` restricted to the seeded T1 member (so only aeddi can `maketx run`; a developer who needs it goes into `RUN_SUBMITTERS_EXTRA` by name), submission charge off. A post-genesis `MsgAddPackage` parks until gpao enables it; genesis replay is exempt.
 
-Not set at genesis, deliberately (chain defaults apply; adjustable post-genesis via GovDAO proposals, see `misc/govdao-scripts/`): CLA and minimum gas price. No vested accounts.
+Not set at genesis, deliberately (chain defaults apply; adjustable post-genesis via GovDAO proposals): CLA (`misc/govdao-scripts/set-cla.sh`) and minimum gas price (no script in `misc/govdao-scripts/` yet). No vested accounts.
 
 ## Quick start
 
-Build from the tree of the version onyx launches on — the [`chain/onyx`](https://github.com/gnolang/gno/releases/tag/chain%2Fonyx) tag, which sits on that version's commit on `chain/mainnet` — not from `master`: the package set is read from `examples/`, and `master`'s already differs from what the network runs. The script builds the binaries from the worktree, assembles the genesis txs, measures fee-payer balances on a temp node, and verifies sha256 of the locked build artifacts.
+Build from the tree of the version onyx launches on — the [`chain/onyx`](https://github.com/gnolang/gno/releases/tag/chain%2Fonyx) tag, which sits on `chain/mainnet` at the commit that added this folder, on top of that version's code — not from `master`: the package set is read from `examples/`, and `master`'s already differs from what the network runs. The script builds the binaries from the worktree, assembles the genesis txs, measures fee-payer balances on a temp node, and verifies sha256 of the locked build artifacts.
 
 ```bash
 ./gen-genesis.sh                # full build
