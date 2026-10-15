@@ -755,6 +755,13 @@ var goldenRegionStarts = []string{
 	DirectiveVerdict,
 }
 
+// legacyGoldenBlocks are block names older ledger formats wrote; a
+// re-sync strips them with the region and verify reports them as stray.
+var legacyGoldenBlocks = []string{
+	"GoTypeCheckError", "GoTypesOnly", "GnoOverStrictError", "UncaughtError",
+	"GnoPreprocessError", "GoError", "Divergence",
+}
+
 // triageStateMarkers are the standalone triage status lines (`// Fixed:`,
 // `// Fixing:`, `// Tracked:`) written by manual triage after the golden
 // region. They are NOT harness directives (never add them to
@@ -793,7 +800,7 @@ func stripTrailingGoldenRegion(src string) string {
 		if i > start && strings.TrimSpace(lines[i-1]) != "" {
 			continue // not a block top
 		}
-		for _, name := range append(goldenRegionStarts, triageStateMarkers...) {
+		for _, name := range slices.Concat(goldenRegionStarts, triageStateMarkers, legacyGoldenBlocks) {
 			if strings.HasPrefix(t, "// "+name+":") {
 				return strings.Join(lines[:i], "\n")
 			}
