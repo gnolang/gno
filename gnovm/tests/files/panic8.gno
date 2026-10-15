@@ -12,4 +12,3 @@ func main() {
 
 // Error:
 // runtime error: division by zero
-
