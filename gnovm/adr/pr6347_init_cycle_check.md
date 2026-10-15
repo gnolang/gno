@@ -1,4 +1,4 @@
-# PRxxxx: report initialization cycles at preprocess
+# PR6347: report initialization cycles at preprocess
 
 ## Context
 
