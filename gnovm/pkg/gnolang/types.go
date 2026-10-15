@@ -1571,14 +1571,13 @@ func (dt *DeclaredType) Kind() Kind {
 
 func (dt *DeclaredType) Seal() {
 	dt.checkSeal()
-	validateEmbedDepth(dt, string(dt.Name))
 	dt.sealed = true
 }
 
 // MaxEmbedDepth bounds embed-chain depth for declared types, struct fields,
-// and embedded interfaces. The check fires at type construction (Seal for
-// named types; doOp{Struct,Interface}Type and staticTypeFromAST for inline
-// types). Caps the worst-case FindEmbeddedFieldType trail length so that K
+// and embedded interfaces. The check fires once a declaration group is
+// built (checkBuiltTypeDecl) and at construction for inline types
+// (doOp{Struct,Interface}Type and staticTypeFromAST). Caps the worst-case FindEmbeddedFieldType trail length so that K
 // repeated selector lookups stay O(K * MaxEmbedDepth) instead of O(K * N)
 // for deeply nested source-level embed chains. 8 is well above any observed
 // legitimate Gno code (deepest in stdlib + examples + tests is 3); the cap
@@ -1894,27 +1893,26 @@ func validateStructFields(st *StructType, displayName string) {
 //   - DeclaredType, PointerType: transparent passthrough (0 own contribution)
 //
 // Non-composite or non-embedding types return 0.
-func embedDepth(t Type, visited map[Type]struct{}) int {
-	if visited == nil {
-		visited = map[Type]struct{}{}
-	}
+func embedDepth(t Type, visited map[Type]struct{}, work *int64) int {
+	*work++
 	if _, ok := visited[t]; ok {
 		return 0
 	}
 	visited[t] = struct{}{}
 	switch ct := t.(type) {
 	case *DeclaredType:
-		return embedDepth(ct.Base, visited)
+		return embedDepth(ct.Base, visited, work)
 	case *PointerType:
-		return embedDepth(ct.Elt, visited)
+		return embedDepth(ct.Elt, visited, work)
 	case *StructType:
 		maxDepth := 0
+		*work += int64(len(ct.Fields))
 		for i := range ct.Fields {
 			f := &ct.Fields[i]
 			if !f.Embedded {
 				continue
 			}
-			if d := 1 + embedDepth(f.Type, visited); d > maxDepth {
+			if d := 1 + embedDepth(f.Type, visited, work); d > maxDepth {
 				maxDepth = d
 				if maxDepth > MaxEmbedDepth {
 					return maxDepth
@@ -1924,12 +1922,13 @@ func embedDepth(t Type, visited map[Type]struct{}) int {
 		return maxDepth
 	case *InterfaceType:
 		maxDepth := 0
+		*work += int64(len(ct.Methods))
 		for i := range ct.Methods {
 			mt := ct.Methods[i].Type
 			if !isInterfaceMethodEmbed(mt) {
 				continue
 			}
-			if d := 1 + embedDepth(mt, visited); d > maxDepth {
+			if d := 1 + embedDepth(mt, visited, work); d > maxDepth {
 				maxDepth = d
 				if maxDepth > MaxEmbedDepth {
 					return maxDepth
@@ -1958,11 +1957,14 @@ func isInterfaceMethodEmbed(t Type) bool {
 }
 
 // validateEmbedDepth panics if t's embed depth exceeds MaxEmbedDepth.
-// Called at type-finalization points (Seal for named types; immediately
-// after construction for inline struct/interface types). Per-call cost is
-// O(MaxEmbedDepth) thanks to embedDepth's early-exit.
-func validateEmbedDepth(t Type, displayName string) {
-	if d := embedDepth(t, nil); d > MaxEmbedDepth {
+// Called once a declaration group is built (checkBuiltTypeDecl) and
+// immediately after construction for inline struct/interface types.
+// The walk is billed to gm per type visited and field scanned.
+func validateEmbedDepth(gm store.GasMeter, t Type, displayName string) {
+	var work int64
+	d := embedDepth(t, map[Type]struct{}{}, &work)
+	chargeCPUGas(gm, OpCPUSlopeTypeDeclStep*work)
+	if d > MaxEmbedDepth {
 		panic(fmt.Sprintf(
 			"type %s embed depth %d exceeds max %d",
 			displayName, d, MaxEmbedDepth))
