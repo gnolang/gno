@@ -19,8 +19,4 @@ func main() {
 // line 13: name asdf not declared
 // line 15: cannot assign to uverse new
 
-// GoTypeCheckError:
-// line 13
-// line 15
-
 // Verdict: Clean errorcheck

@@ -25,7 +25,4 @@ func main() {
 // stack 2: func main/issue4458.go:16:1-20:2
 // ------------------------
 
-// GoTypeCheckError:
-// line 19
-
 // Verdict: Clean errorcheck

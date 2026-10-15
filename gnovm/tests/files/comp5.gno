@@ -22,4 +22,3 @@ func main() {
 // znil == y false
 // y == znil true
 // znil == y true
-

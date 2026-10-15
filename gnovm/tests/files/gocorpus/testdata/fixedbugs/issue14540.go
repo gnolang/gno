@@ -24,11 +24,4 @@ func f(x int) {
 // line 15: fallthrough statement out of place
 // line 18: cannot fallthrough final case in switch
 
-// GoTypeCheckError:
-// line 15
-// line 18
-
-// GnoOverStrictError:
-// line 12: fallthrough statement out of place
-
-// Verdict: KnownIssue errorcheck: 1 over-strict line(s), 0 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 12

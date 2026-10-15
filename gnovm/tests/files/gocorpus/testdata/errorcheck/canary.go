@@ -10,7 +10,4 @@ var x = undeclared // ERROR "undeclared|undefined|not declared"
 // GnoError:
 // line 8: name undeclared not defined in fileset with files [canary.go]
 
-// GoTypeCheckError:
-// line 8
-
 // Verdict: Clean errorcheck

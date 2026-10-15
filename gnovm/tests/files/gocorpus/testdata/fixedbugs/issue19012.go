@@ -30,10 +30,4 @@ func main() {
 // line 22: cannot use untyped Bigint as StringKind
 // line 24: wrong argument count in call to f<VPBlock(3,0)>; want 2 got 3
 
-// GoTypeCheckError:
-// line 16
-// line 18
-// line 22
-// line 24
-
 // Verdict: Clean errorcheck

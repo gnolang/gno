@@ -15,7 +15,4 @@ func Open() (int, error) {
 // GnoError:
 // line 12: name OpenFile not declared
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

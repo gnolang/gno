@@ -17,7 +17,4 @@ func a(b int) int64 {
 // GnoError:
 // line 13: b (value of type int) is not used
 
-// GoTypeCheckError:
-// line 13
-
 // Verdict: Clean errorcheck

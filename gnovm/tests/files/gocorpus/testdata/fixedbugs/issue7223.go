@@ -27,11 +27,4 @@ func main() {
 // line 19: cannot use (true <untyped> bool) as type int in argument to make
 // line 20: cannot use ("abc" <untyped> string) as type int in argument to make
 
-// GoTypeCheckError:
-// line 16
-// line 17
-// line 18
-// line 19
-// line 20
-
 // Verdict: Clean errorcheck

@@ -21,9 +21,4 @@ func f(e interface{}) {
 // line 10: 3: duplicate type nil in type switch
 // line 14: 3: duplicate type nil in type switch
 
-// GoTypeCheckError:
-// line 11
-// line 15
-// line 16
-
 // Verdict: Clean errorcheck

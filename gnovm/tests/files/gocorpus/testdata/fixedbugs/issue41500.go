@@ -25,10 +25,4 @@ func f() {
 // line 18: operator && not defined on: IntKind
 // line 19: operator && not defined on: IntKind
 
-// GoTypeCheckError:
-// line 16
-// line 17
-// line 18
-// line 19
-
 // Verdict: Clean errorcheck

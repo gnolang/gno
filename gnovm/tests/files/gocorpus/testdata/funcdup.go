@@ -50,21 +50,4 @@ func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition
 // line 26: i redeclared in this block
 // 	previous declaration at funcdup.go:27:9
 
-// GoTypeCheckError:
-// line 10
-// line 11
-// line 12
-// line 15
-// line 16
-// line 17
-// line 21
-// line 22
-// line 23
-// line 25
-// line 26
-// line 27
-
-// GoTypesOnly:
-// line 27: gc expects: duplicate argument i|redefinition|previous|redeclared
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 27

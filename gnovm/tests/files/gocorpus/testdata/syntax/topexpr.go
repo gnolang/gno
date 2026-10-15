@@ -21,11 +21,4 @@ x,y := 1, 2	// ERROR "non-declaration statement outside function body|expected d
 // GnoError:
 // line 9: expected declaration, found fmt
 
-// GoTypeCheckError:
-// line 9
-
-// UncaughtError:
-// line 14: uncaught; gc expects: non-declaration statement outside function body|expected declaration
-// line 19: uncaught; gc expects: non-declaration statement outside function body|expected declaration
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 19

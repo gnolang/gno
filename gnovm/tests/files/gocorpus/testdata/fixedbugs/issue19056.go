@@ -11,7 +11,4 @@ var _ = ... . // ERROR "unexpected ...|expected operand|expected .*;"
 // GnoError:
 // line 9: expected operand, found '...'
 
-// GoTypeCheckError:
-// line 9
-
 // Verdict: Clean errorcheck

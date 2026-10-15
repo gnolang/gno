@@ -33,11 +33,4 @@ func main() {
 // GnoError:
 // line 24: expected statement, found 'case'
 
-// GoTypeCheckError:
-// line 24
-
-// UncaughtError:
-// line 23: uncaught; gc expects: statement
-// line 25: uncaught; gc expects: statement
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 25; over-strict: lines 24

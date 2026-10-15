@@ -17,7 +17,4 @@ type foo struct { // ERROR "invalid recursive type|cycle"
 // GnoError:
 // line 12: 2: invalid recursive type: foo -> foo
 
-// GoTypeCheckError:
-// line 12
-
 // Verdict: Clean errorcheck

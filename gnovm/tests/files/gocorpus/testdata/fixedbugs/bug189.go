@@ -20,7 +20,4 @@ func main() {
 // GnoError:
 // line 16: too few values in struct literal of type main.S
 
-// GoTypeCheckError:
-// line 16
-
 // Verdict: Clean errorcheck

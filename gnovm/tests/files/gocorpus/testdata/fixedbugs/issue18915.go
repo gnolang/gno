@@ -23,11 +23,4 @@ func _() {
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?)
 
-// GoTypeCheckError:
-// line 13
-
-// UncaughtError:
-// line 16: uncaught; gc expects: cannot use b := 10 as value|parse error|declared and not used
-// line 19: uncaught; gc expects: cannot use c := 10 as value|expected .*;|declared and not used
-
-// Verdict: KnownIssue errorcheck: 0 over-strict line(s), 2 uncaught marker(s)
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16, 19

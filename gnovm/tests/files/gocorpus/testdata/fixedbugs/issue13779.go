@@ -17,7 +17,4 @@ func main() {
 // GnoError:
 // line 14: cannot assign to struct field students["sally"].age in map
 
-// GoTypeCheckError:
-// line 14
-
 // Verdict: Clean errorcheck

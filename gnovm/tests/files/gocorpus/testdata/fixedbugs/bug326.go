@@ -41,7 +41,4 @@ func ii() (int, error) {
 // GnoError:
 // line 22: expected 2 return values; got 0
 
-// GoTypeCheckError:
-// line 22
-
 // Verdict: Clean errorcheck

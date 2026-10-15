@@ -30,8 +30,4 @@ func main() {
 // line 18: I (type) is not an expression
 // line 22: interface contains embedded non-interface int
 
-// GoTypeCheckError:
-// line 18
-// line 22
-
 // Verdict: Clean errorcheck

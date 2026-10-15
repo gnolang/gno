@@ -15,7 +15,4 @@ func main() {
 // GnoError:
 // line 11: expected '{', found ')'
 
-// GoTypeCheckError:
-// line 11
-
 // Verdict: Clean errorcheck

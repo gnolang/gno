@@ -25,11 +25,4 @@ func main() {
 // line 17: wrong argument count in call to (const (new func(<T.(type)>{}) <*T>{})); want 1 got 0
 // line 18: wrong argument count in call to (const (new func(<T.(type)>{}) <*T>{})); want 1 got 2
 
-// GoTypeCheckError:
-// line 13
-// line 14
-// line 15
-// line 17
-// line 18
-
 // Verdict: Clean errorcheck

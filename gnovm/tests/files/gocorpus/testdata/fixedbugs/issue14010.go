@@ -18,8 +18,4 @@ func main() {
 // line 13: cannot assign to uverse true
 // line 14: cannot assign to uverse byte
 
-// GoTypeCheckError:
-// line 13
-// line 14
-
 // Verdict: Clean errorcheck

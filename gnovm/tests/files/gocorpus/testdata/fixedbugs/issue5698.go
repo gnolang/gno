@@ -20,7 +20,4 @@ type Map map[Key]Val // ERROR "invalid map key type"
 // GnoError:
 // line 18: invalid map key type main.Key
 
-// GoTypeCheckError:
-// line 18
-
 // Verdict: Clean errorcheck

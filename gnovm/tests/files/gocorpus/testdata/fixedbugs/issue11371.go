@@ -24,12 +24,4 @@ const f int = 0.00000001 // ERROR "constant 1e-08 truncated to integer|floating-
 // line 16: cannot convert untyped bigdec to integer -- 1.00000001 not an exact integer
 // line 17: cannot convert untyped bigdec to integer -- 0.00000001 not an exact integer
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 14
-// line 15
-// line 16
-// line 17
-
 // Verdict: Clean errorcheck

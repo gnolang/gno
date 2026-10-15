@@ -24,8 +24,4 @@ func main() {
 // line 17: struct type struct{} has no field X
 // line 19: cannot use untyped Bigint as StringKind
 
-// GoTypeCheckError:
-// line 17
-// line 19
-
 // Verdict: Clean errorcheck

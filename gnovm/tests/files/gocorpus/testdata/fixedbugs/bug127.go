@@ -15,8 +15,4 @@ func main() {
 // line 10: invalid operation: (mismatched types <nil> and int64)
 // line 11: invalid operation: (mismatched types <nil> and <untyped> bigint)
 
-// GoTypeCheckError:
-// line 10
-// line 11
-
 // Verdict: Clean errorcheck

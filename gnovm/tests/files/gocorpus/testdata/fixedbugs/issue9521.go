@@ -21,8 +21,4 @@ func main() {
 // line 16: cannot use []int as int
 // line 17: cannot use float64 as int
 
-// GoTypeCheckError:
-// line 16
-// line 17
-
 // Verdict: Clean errorcheck

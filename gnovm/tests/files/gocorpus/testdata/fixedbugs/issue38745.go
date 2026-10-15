@@ -22,9 +22,4 @@ func f2() (*t, error) {
 // line 13: missing field M in gno.land/p/filetest/p.t
 // line 17: missing field M in gno.land/p/filetest/p.t
 
-// GoTypeCheckError:
-// line 12
-// line 13
-// line 17
-
 // Verdict: Clean errorcheck

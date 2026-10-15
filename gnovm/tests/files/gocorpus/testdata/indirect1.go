@@ -74,31 +74,4 @@ func f() {
 // GnoError:
 // line 41: invalid argument: *map[string]int for built-in len
 
-// GoTypeCheckError:
-// line 41
-// line 42
-// line 44
-// line 47
-// line 48
-// line 50
-// line 61
-// line 62
-// line 64
-// line 67
-// line 68
-// line 70
-
-// GoTypesOnly:
-// line 42: gc expects: illegal|invalid|must be
-// line 44: gc expects: illegal|invalid|must be
-// line 47: gc expects: illegal|invalid|must be
-// line 48: gc expects: illegal|invalid|must be
-// line 50: gc expects: illegal|invalid|must be
-// line 61: gc expects: illegal|invalid|must be
-// line 62: gc expects: illegal|invalid|must be
-// line 64: gc expects: illegal|invalid|must be
-// line 67: gc expects: illegal|invalid|must be
-// line 68: gc expects: illegal|invalid|must be
-// line 70: gc expects: illegal|invalid|must be
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 41, 42, 44, 47, 48, 50, 61, 62, 64, 67, 68, 70

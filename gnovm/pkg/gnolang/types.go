@@ -3309,9 +3309,12 @@ func resolveEmbedNode(callerPath string, typ Type, n Name, fieldsOnly bool) (hit
 				return false, gated, nil
 			}
 			seenDecls = append(seenDecls, ct)
-			// Search direct methods via O(1) name lookup.
-			if _, ok := ct.lookupMethod(n); ok && !fieldsOnly {
-				if !isRestrictedName(n, ct.PkgPath, callerPath) {
+			// Search direct methods via O(1) name lookup. Through a
+			// declared pointer type (fieldsOnly) a method is still the
+			// shallowest provider, so it shadows deeper fields; the trail
+			// then finds no field and the selector is undefined.
+			if _, ok := ct.lookupMethod(n); ok {
+				if fieldsOnly || !isRestrictedName(n, ct.PkgPath, callerPath) {
 					return true, gated, nil
 				}
 				gated = true // fall through to the base search.

@@ -1,0 +1,13 @@
+-- input.md --
+<gno-foreign>
+<gno-button href="/r/test" label="Foreign block" />
+
+Foreign inline <gno-button href="https://example.com" label="Foreign inline" />
+</gno-foreign>
+-- output.html --
+<div class="gno-foreign" role="group">
+<div class="gno-foreign__body">
+<!-- raw HTML omitted -->
+<p>Foreign inline <!-- raw HTML omitted --></p>
+</div>
+</div>
