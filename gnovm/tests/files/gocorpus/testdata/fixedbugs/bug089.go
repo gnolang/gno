@@ -20,10 +20,4 @@ main() {
 	i2 = e().(I2);	// bug089.go:16: fatal error: agen_inter i2i
 }
 
-// GnoError:
-// line 12: function e does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoBuildError:
-// line 12
-
-// Verdict: Clean compile
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

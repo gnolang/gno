@@ -22,10 +22,4 @@ func f() (a, b M) {
 bugs/bug150.go:13: reorder2: too many function calls evaluating parameters
 */
 
-// GnoError:
-// line 14: function g does not have a body but is not natively defined (did you build after pulling from the repository?)
-
-// GoBuildError:
-// line 10
-
-// Verdict: Clean compile
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
