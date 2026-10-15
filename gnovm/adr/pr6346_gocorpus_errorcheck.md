@@ -1,4 +1,4 @@
-# PRxxxx: errorcheck mode for the Go corpus
+# PR6346: errorcheck mode for the Go corpus
 
 ## Context
 
