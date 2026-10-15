@@ -8,4 +8,7 @@ package p
 
 var f = func() { f() } // ERROR "initialization cycle|initialization expression for .*f.* depends upon itself"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9
+// GnoError:
+// line 9: initialization cycle: f refers to f
+
+// Verdict: Clean errorcheck

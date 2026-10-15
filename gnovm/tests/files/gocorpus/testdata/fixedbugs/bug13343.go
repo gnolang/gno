@@ -17,4 +17,7 @@ func f() (int, int) {
 
 func main() {}
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10
+// GnoError:
+// line 10: initialization cycle: a refers to f refers to c refers to b
+
+// Verdict: Clean errorcheck
