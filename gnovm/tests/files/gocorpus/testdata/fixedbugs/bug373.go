@@ -31,4 +31,7 @@ func h(x interface{}) {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12
+// GnoError:
+// line 12: 3: declared and not used: t
+
+// Verdict: Clean errorcheck
