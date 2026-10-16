@@ -227,7 +227,7 @@ Repositories and branches:
 | T1 | Go relayer: trust, create/update clients both ways, relay gno → Eth and Eth → gno, acks, transfers, snapshots, wire/ABI vectors | ✅ | gno-eth-ibc `relayer/` (`cmd/relayer`, `relay/`, `gnoibc/`, `ethgno/`, `beacon/`, `eth/`) | Fix: `relay-gno-acks` re-sends an ack another step just delivered (stale read). Read commitments at the latest receipt's block. Add a regression test over consecutive periods (a finality update crossing a rotation, then the update revealing the next committee). |
 | T2 | TypeScript relayer: Ethereum chains (source and host), gno hosting Ethereum clients, byte-equality tests against the Go encoders | ✅ (PR open) | ts-relayer [`src/clients/ethereum/`](https://github.com/allinbits/ibc-v2-ts-relayer/tree/feat/ethereum-clients/src/clients/ethereum), [`src/clients/gno/ethereum.ts`](https://github.com/allinbits/ibc-v2-ts-relayer/blob/feat/ethereum-clients/src/clients/gno/ethereum.ts); [PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) | Support the claim queue (call `Claim`), governance packets, and the guardian-aware pause. Implement conflicting-header detection for the GnoLightClient (unsupported today, `src/clients/ethereum/host.ts`) and bounded `eth_getLogs` scans instead of scanning from block 0. Fixed in review: an update revealing the next committee that already finalizes the fetched finality update's slot is no longer followed by that stale update, which the client refuses (catch-up planned by the tested `planUpdates`, [`675ad9f`](https://github.com/allinbits/ibc-v2-ts-relayer/commit/675ad9f)). |
 | T3 | Local testnet (N secp256k1 validators, realms at genesis), local e2e with anvil, Sepolia scripts | ✅ | gno-eth-ibc [`testnet/`](https://github.com/allinbits/gno-eth-ibc/tree/main/testnet), [`scripts/e2e-local.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/e2e-local.sh), [`scripts/sepolia.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/sepolia.sh) | — |
-| T4 | **Monitors**: supply identity, header record, foreign decisions; auto-flag on integrity breaks, alarm on liveness | ❌ (♻️) | bridges: [`ethereum/bridge/agent`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/agent) (monitor role) | New, IBC-specific: escrow per client against voucher supply, plus in-flight packets from commitments. |
+| T4 | **Monitors**: supply identity, header record, foreign decisions; auto-flag on integrity breaks, alarm on liveness | ❌ (♻️) | bridges: [`ethereum/bridge/agent`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/agent) (monitor role) | New, IBC-specific: escrow per client against voucher supply, plus in-flight packets reconstructed from packet records as of one pinned height per chain (§7.11), not read from commitments. |
 | T5 | **Watch tool** for guardians and GovDAO members: state, pending decisions, flags, `check` of upgrade targets (code-hash, reproducible build, append-only storage layout) | ❌ (♻️) | bridges: [`ethereum/bridge/cmd/hlwatch`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/cmd/hlwatch) | Port. |
 | T6 | Setup audit tool (reads every authority and setting back, byte-for-byte creation checks) | ❌ (♻️) | bridges: `ethereum/bridge/cmd/hleth` (`audit`) | Port. |
 
@@ -797,10 +797,23 @@ so other IBC routes of the same realms are unaffected.
   - "In flight" means packets in an economic state: sent and not yet received, **or received with an error ack
     whose refund has not yet been processed at the source** (a pending refund liability) — not every outstanding
     commitment, since commitments also persist until acks are processed.
-  - Evaluated in a fixed snapshot order from the operator's own nodes, with two agreeing RPC providers pinned by
-    block hash, counting only finalized Ethereum state.
-- **What triggers what.** A break auto-flags credits+payouts and receives, and sets the route's `refunds` hold
-  (§7.13). Stalls, ages and float runways only alarm.
+  - **Causally consistent snapshots.** Escrow and mint (or burn and release) happen on different chains at
+    different times, so two snapshots read in any fixed order can catch a receive without its send, or the
+    reverse, and report a break that is not there. The monitor therefore pins one height per chain (finalized
+    Ethereum state, gno.land state at a committed height, each read from the operator's own node and checked
+    against two agreeing RPC providers by block hash) and evaluates the identity **as of those pinned heights**
+    from packet records: a packet counts as in flight when its send is at or below the source's pinned height and
+    its receive is not at or below the destination's; a receive whose send lies above the source's pinned height is
+    excluded from both sides (the destination's supply is corrected by the amounts of such receives), and refund
+    liabilities and claims are taken from the same pinned heights. Every included receive must thus have its send
+    included.
+  - **Deferred alarms.** If alignment cannot be established — a record missing, a provider disagreeing, a pinned
+    height not yet finalized — the evaluation is skipped and retried at later heights; it only alarms after a
+    configured number of failures. An integrity auto-flag needs a break that persists over two consecutive aligned
+    evaluations.
+- **What triggers what.** A break in an aligned evaluation that persists as above auto-flags credits+payouts and
+  receives, and sets the route's `refunds` hold (§7.13). Stalls, ages, float runways and failures to align only
+  alarm.
 - **Watch tool.** Guardians and members see flags, holds, pending decisions and the client heads, and check
   upgrade targets.
 
@@ -1244,6 +1257,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     refuses; the catch-up plan is now a pure, tested function (T2).
   - Reconciliation separates the verified outcome from the amount still payable: the entitlement minus what was
     already refunded, with paid, unpaid, overpaid and queued-but-fraudulent refunds each specified (§7.12).
+- 2026-10-16, sixteenth review with Codex. Folded:
+  - Monitoring evaluates the supply identity as of one pinned height per chain, reconstructed from packet records
+    so that every included receive has its send included; integrity auto-flags need a persisting break in aligned
+    evaluations, and failures to align only alarm (§7.11).
 
 ## 15. References
 
