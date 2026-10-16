@@ -37,9 +37,9 @@ func f4(e interface{}) {
 // line 16: duplicate type int in type switch
 
 // GnoWordingDiffers:
-// line 18: gc expects: duplicate case int in type switch; gno: 3: duplicate type int in type switch
-// line 21: gc expects: duplicate case error in type switch; gno: 3: duplicate type int in type switch
-// line 23: gc expects: duplicate case fmt.Stringer in type switch; gno: 3: duplicate type int in type switch
-// line 30: gc expects: duplicate case struct { i int .tag1. } in type switch|duplicate case; gno: 3: duplicate type int in type switch
+// line 18: gc expects: duplicate case int in type switch; gno: duplicate type int in type switch
+// line 21: gc expects: duplicate case error in type switch; gno: duplicate type int in type switch
+// line 23: gc expects: duplicate case fmt.Stringer in type switch; gno: duplicate type int in type switch
+// line 30: gc expects: duplicate case struct { i int .tag1. } in type switch|duplicate case; gno: duplicate type int in type switch
 
 // Verdict: Clean errorcheck
