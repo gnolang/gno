@@ -13,7 +13,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	//----------------------------------------
 	// Values
 	&TypedValue{},
-	StringValue(""),
+	StringValue{},
 	BigintValue{},
 	BigdecValue{},
 	// DataByteValue{}

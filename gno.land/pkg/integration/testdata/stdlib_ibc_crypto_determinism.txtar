@@ -35,7 +35,10 @@ env CALL_GAS=10_000_000
 #
 # Re-derived after merging develop; unrelated gas changes on the base branch
 # move the absolute number, so re-derive again rather than assuming it holds.
-env EXACT_GAS=1850271
+#
+# +185 on this branch: string bytes charged on load, folded into one Allocate
+# per object (ADR pr6110); the same +185 this branch carried on the old base.
+env EXACT_GAS=1850456
 
 gnoland start
 

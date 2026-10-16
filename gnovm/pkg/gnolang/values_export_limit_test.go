@@ -87,7 +87,7 @@ func TestExportValuesLimit_BoundMethodReceiverDepthGuard(t *testing.T) {
 // rejected by the size bound before the export walk completes, while a small
 // one passes.
 func TestExportValuesLimit_String(t *testing.T) {
-	tv := TypedValue{T: StringType, V: StringValue(strings.Repeat("A", 1_000_000))}
+	tv := TypedValue{T: StringType, V: StringValue{Str: strings.Repeat("A", 1_000_000)}}
 
 	// Under budget: passes.
 	got, err := ExportValues([]TypedValue{tv}, 2_000_000)

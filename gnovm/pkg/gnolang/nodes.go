@@ -2407,7 +2407,14 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 						"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
 						n, old.T, tv.T))
 				}
-				if tv.V != old.V {
+				// Strings compare by content: a re-fold mints a new backing.
+				changed := tv.V != old.V
+				if nv, ok := tv.V.(StringValue); ok {
+					if ov, ok := old.V.(StringValue); ok {
+						changed = nv.Str != ov.Str
+					}
+				}
+				if changed {
 					panic(fmt.Sprintf(
 						"StaticBlock.Define2(%s) cannot change .V",
 						n))
