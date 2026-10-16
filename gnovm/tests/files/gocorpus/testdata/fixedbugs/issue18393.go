@@ -23,4 +23,4 @@ var x     // error on line 24, not 30
 
 // ERROR "syntax error: unexpected newline, expecting type|expected type"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20, 24
+// Verdict: Unsupported gc-specific: //line directives remap the positions the markers refer to
