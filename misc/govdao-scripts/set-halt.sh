@@ -181,8 +181,11 @@ meets_min_version() {
   fi
 }
 
-# http_get URL prints the body at URL.
-http_get() {
+# http_get URL prints the body at URL. gnokey dials REMOTE directly, so the
+# proxy variables curl and wget honour are cleared: through a proxy the check
+# could fail, or read another node than the one gnokey broadcasts to.
+http_get() (
+  unset http_proxy HTTP_PROXY https_proxy HTTPS_PROXY all_proxy ALL_PROXY
   if command -v curl >/dev/null 2>&1; then
     curl -fsS --max-time 10 "$1"
   elif command -v wget >/dev/null 2>&1; then
@@ -191,7 +194,7 @@ http_get() {
     echo "error: reading the version REMOTE runs needs curl or wget" >&2
     return 1
   fi
-}
+)
 
 if [ "$HEIGHT" != "0" ]; then
   case "$REMOTE" in

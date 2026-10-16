@@ -112,6 +112,18 @@ func TestSetHaltRefusesAFloorTheRunningBinaryMeets(t *testing.T) {
 		assertRefused(t, runSetHalt(t, gnokey, dropped.URL, "1000", "v1.5.2"), "cannot read the version REMOTE runs")
 	})
 
+	// gnokey dials REMOTE directly, so the version must be read the same way:
+	// a proxy in the environment would block the check or read another node.
+	t.Run("a proxy in the environment is not used to read the version", func(t *testing.T) {
+		t.Parallel()
+
+		proxy := []string{"NO_PROXY=", "no_proxy="}
+		for _, name := range []string{"http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"} {
+			proxy = append(proxy, name+"="+dropped.URL)
+		}
+		assertRefused(t, runSetHalt(t, gnokey, live, "1000", "v1.5.1", proxy...), "already meets")
+	})
+
 	t.Run("a status without a build version stops the proposal", func(t *testing.T) {
 		t.Parallel()
 		assertRefused(t, runSetHalt(t, gnokey, statusServer(t, ""), "1000", "v1.5.2"), "build_version")
