@@ -86,6 +86,8 @@ func canonicalViews(q url.Values) bool {
 
 // robots decides what search engines may do with u, a page of kind k.
 //
+// Under -no-index no page is indexed and no link followed, whatever its kind.
+//
 // A community page under "registered" is indexed only as the bare page of a
 // package or user under a registered name, not as one of its files or its
 // listing: once r/sys/names is enabled the chain lets nobody deploy under a
@@ -98,6 +100,9 @@ func canonicalViews(q url.Values) bool {
 // its source: both let any link multiply one page into as many URLs as it
 // cares to write, and a query reaches Render. Its links stay followed.
 func (p pagePolicy) robots(k pageKind, u *weburl.GnoURL) robots {
+	if p.noIndex {
+		return noIndexNoFollow
+	}
 	if k == pageCommunity {
 		switch p.index {
 		case IndexAllCommunity:

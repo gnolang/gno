@@ -561,7 +561,103 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 	}
 }
 
-// SANITIZE.md's threat-surface table carries a per-helper fixture count. Hand
+// TestExtensionAndFooterIsolation verifies that untrusted user input cannot
+// open live structural extensions (<gno-columns>, <gno-form>, <gno-frame>, etc.)
+// or swallow trusted page footer chrome across Block and BlockRich callers.
+func TestExtensionAndFooterIsolation(t *testing.T) {
+	const (
+		chromePrefix = "# Trusted Realm Title\n\n"
+		chromeFooter = "\n\n---\n**Trusted Realm Footer**\n"
+	)
+
+	reproCases := []struct {
+		name         string
+		input        string
+		mustNotHTML  []string // substrings that must NOT appear in rendered HTML
+		mustHaveHTML []string // substrings that MUST appear in rendered HTML
+	}{
+		{
+			name:        "repro-bypass-fence-tilde",
+			input:       " ~~~\n~~~\n<gno-columns>",
+			mustNotHTML: []string{"<div class=\"gno-columns\">", "class=\"gno-columns\""},
+		},
+		{
+			name:        "repro-bypass-fence-backtick",
+			input:       " ```\nx\n```\n<gno-columns>",
+			mustNotHTML: []string{"<div class=\"gno-columns\">", "class=\"gno-columns\""},
+		},
+		{
+			name:        "repro-fence-in-list-form",
+			input:       "- a\n  ```\n<gno-form path=\"x\">\n```\n",
+			mustNotHTML: []string{"<form class=\"gno-form\"", "class=\"gno-form\""},
+		},
+		{
+			name:        "repro-unclosed-fence-indented",
+			input:       " ```\nx\n",
+			mustNotHTML: []string{}, // footer must remain intact
+		},
+		{
+			name:        "bracket-fence-idempotency",
+			input:       "[\n ~~~](<\n>)",
+			mustNotHTML: []string{},
+		},
+	}
+
+	for _, helper := range []string{"Block", "BlockRich"} {
+		sc := sanitizeCase{Func: helper}
+		t.Run(helper, func(t *testing.T) {
+			for _, rc := range reproCases {
+				t.Run(rc.name, func(t *testing.T) {
+					sanitized := applySanitize(t, sc, rc.input)
+					composed := chromePrefix + sanitized + chromeFooter
+					html := renderMarkdown(t, composed)
+
+					for _, forbidden := range rc.mustNotHTML {
+						require.NotContains(t, html, forbidden,
+							"live element injected via helper %s with input %q\nrendered: %s",
+							helper, rc.input, html)
+					}
+
+					// Verify trusted footer is preserved and not swallowed into a code fence
+					require.Contains(t, html, "Trusted Realm Footer",
+						"trusted footer was swallowed or corrupted by helper %s with input %q\nrendered: %s",
+						helper, rc.input, html)
+
+					// Verify idempotency
+					twice := applySanitize(t, sc, sanitized)
+					require.Equal(t, sanitized, twice,
+						"helper %s was not idempotent on input %q", helper, rc.input)
+				})
+			}
+		})
+	}
+
+	// Verify that <gno-icon> inside list items and blockquotes renders as a live SVG in BlockRich
+	t.Run("BlockRich_IconInContainers", func(t *testing.T) {
+		sc := sanitizeCase{Func: "BlockRich"}
+		containerCases := []struct {
+			name  string
+			input string
+		}{
+			{"list-bullet", "- <gno-icon name=\"star\" /> Star item\n"},
+			{"list-numbered", "1. <gno-icon name=\"check\" /> Checked item\n"},
+			{"blockquote", "> <gno-icon name=\"info\" /> Note quote\n"},
+		}
+		for _, tc := range containerCases {
+			t.Run(tc.name, func(t *testing.T) {
+				sanitized := applySanitize(t, sc, tc.input)
+				html := renderMarkdown(t, sanitized)
+				require.Contains(t, html, "<svg class=\"gno-icon\"",
+					"gno-icon in container failed to render live SVG: %s", html)
+
+				// Idempotency
+				twice := applySanitize(t, sc, sanitized)
+				require.Equal(t, sanitized, twice, "not idempotent on %q", tc.input)
+			})
+		}
+	})
+}
+
 // maintenance let it drift badly — it claimed 103 fixtures against 186 on
 // disk, documented a `Link` helper that no longer exists, and had no row at
 // all for BlockRich (30 fixtures) or BlockquoteRich (1). A stale count reads

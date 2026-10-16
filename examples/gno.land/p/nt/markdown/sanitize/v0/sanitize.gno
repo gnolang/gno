@@ -389,7 +389,8 @@ func InlineText(s string) string {
 //	---, ***, ___ (3+) at line-start                      | escaped
 //	=== or --- on its own line after non-blank text       | escaped (no setext promotion of the line above)
 //	<gno-card>, <gno-columns>, any <gno-…>/</gno-…> at    | escaped (wildcard match) → literal text
-//	  line-start                                          |
+//	  block start (line-start, indented, or container)    |   (<gno-icon /> permitted in containers / inline)
+//	<gno-button …/> anywhere, code included               | escaped (\<gno-button) → literal text
 //	| a | b | GFM table row (line-leading `|`)            | escaped → literal `| a | b |`
 //	<!--, <script>, <pre>, <style>, <textarea>, <?…?>,    | escaped (\<…) → literal text;
 //	  <!DOCTYPE…>, <![CDATA[…]]> at line-start            |   blocks goldmark from opening a
@@ -554,7 +555,8 @@ func Block(s string) string {
 //	[text](url), ![alt](src)                      | preserved verbatim [SAME]
 //	----------------------------------------------|--------------------------------------------------
 //	  --- escaped / stripped / folded ---         |
-//	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
+//	<gno-card>, any <gno-…>/</gno-…> at block start| escaped (wildcard match) [SAME]
+//	<gno-button …/> anywhere, code included       | escaped (\<gno-button) [SAME]
 //	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — Types 1-5 don't close
 //	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   on blank lines, so `\n\n` envelope
 //	  at line-start (CM §4.6 HTML block types 1-5)|   doesn't isolate them; explicit escape
@@ -894,7 +896,8 @@ func Blockquote(text string) string {
 //	[text](url), ![alt](src)                      | preserved verbatim [SAME]
 //	----------------------------------------------|------------------------------------------------
 //	  --- escaped / stripped / folded ---         |
-//	<gno-card>, any <gno-…>/</gno-…> at line-start| escaped (wildcard match) [SAME]
+//	<gno-card>, any <gno-…>/</gno-…> at block start| escaped (wildcard match) [SAME]
+//	<gno-button …/> anywhere, code included       | escaped (\<gno-button) [SAME]
 //	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — CM §4.6 Types 1-5
 //	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   don't close on blank lines; without escape
 //	  at line-start                               |   they would swallow chrome past the `> ` quote
