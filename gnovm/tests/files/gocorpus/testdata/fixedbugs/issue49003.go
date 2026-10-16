@@ -15,6 +15,6 @@ func f(s string) int {
 // line 9: [function "f" does not terminate]
 
 // GnoWordingDiffers:
-// line 12: gc expects: missing return; gno: 2: [function "f" does not terminate]
+// line 12: gc expects: missing return; gno: [function "f" does not terminate]
 
 // Verdict: Clean errorcheck
