@@ -12,7 +12,7 @@ import (
 
 // TestCorpusBodiesMatchUpstream pins that every corpus file is the
 // upstream file verbatim plus the harness's trailing golden region: the
-// body (region stripped, trailing newlines normalised to one) must hash
+// body (region stripped, CRLF and trailing newlines normalised) must hash
 // to the entry UPSTREAM.sha256 records for it, and every upstream-layout
 // file must have an entry. Regenerate the manifest with
 // upstream-manifest.sh against the release named in UPSTREAM.
@@ -44,7 +44,8 @@ func TestCorpusBodiesMatchUpstream(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		body := strings.TrimRight(stripTrailingGoldenRegion(string(src)), "\n") + "\n"
+		body := strings.ReplaceAll(stripTrailingGoldenRegion(string(src)), "\r\n", "\n")
+		body = strings.TrimRight(body, "\n") + "\n"
 		sum := sha256.Sum256([]byte(body))
 		got := hex.EncodeToString(sum[:])
 		switch w, ok := want[rel]; {
