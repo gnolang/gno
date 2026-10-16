@@ -23,7 +23,4 @@ var _ = struct{ A }.m // ERROR "invalid method expression struct{A}.m (needs poi
 // line 16: invalid method expression B.m (needs pointer receiver (*B).m)
 // line 19: unexpected selector expression type value struct{A gno.land/p/filetest/p.A}
 
-// GnoWordingDiffers:
-// line 19: gc expects: invalid method expression struct{A}.m (needs pointer receiver (*struct{A}).m); gno: unexpected selector expression type value struct{A gno.land/p/filetest/p.A}
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19; internal errors: lines 19
