@@ -18,14 +18,14 @@ adduserfrom receiver 'smooth crawl poverty trumpet glare useful curtain annual p
 stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 loadpkg gno.land/r/gov/dao
-loadpkg gno.land/r/gov/dao/v3/impl
-loadpkg gno.land/r/gov/dao/v3/treasury
-loadpkg gno.land/r/gov/dao/v3/loader $WORK/loader
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/treasury/v0
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
 
 gnoland start
 
 # fund the treasury with 1_000_000ugnot
-gnokey maketx send -send 1000000ugnot -to g1axf7xdzvhcapsvr0yzadr32wgsgs0064xyysrm -gas-fee 180001ugnot -gas-wanted 1800000 -chainid tendermint_test member
+gnokey maketx send -send 1000000ugnot -to g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t -gas-fee 180001ugnot -gas-wanted 1800000 -chainid tendermint_test member
 stdout OK!
 
 gnokey query bank/balances/${receiver_user_addr}
@@ -65,7 +65,7 @@ import (
 	"gno.land/p/nt/treasury/v0"
 
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
+	"gno.land/r/gov/dao/impl/v0"
 )
 
 func main(cur realm) {
@@ -90,8 +90,8 @@ package loader
 
 import (
 	"gno.land/r/gov/dao"
-	"gno.land/r/gov/dao/v3/impl"
-	"gno.land/r/gov/dao/v3/memberstore"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
 )
 
 func init(cur realm) {
@@ -105,5 +105,5 @@ func init(cur realm) {
 		memberstore.NewMember(3),
 	)
 
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/v3/impl"}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
 }

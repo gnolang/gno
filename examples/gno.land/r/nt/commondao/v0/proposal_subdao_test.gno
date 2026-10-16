@@ -37,7 +37,7 @@ func newTestDAO(t *testing.T, name string, members ...address) *commondao.Common
 }
 
 func TestSubDAOPropDefinitionNew(cur realm, t *testing.T) {
-	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	var member address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 	dao := newTestDAO(t, "Root", member)
 
@@ -61,7 +61,7 @@ func TestSubDAOPropDefinitionNew(cur realm, t *testing.T) {
 }
 
 func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
-	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	var member address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 	dao := newTestDAO(t, "Root2", member)
 
@@ -84,7 +84,7 @@ func TestSubDAOPropDefinitionExecute(cur realm, t *testing.T) {
 }
 
 func TestDissolvePropDefinitionExecute(cur realm, t *testing.T) {
-	var member address = "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"
+	var member address = "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"
 
 	dao := newTestDAO(t, "Root3", member)
 

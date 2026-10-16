@@ -8,7 +8,7 @@ Example:
 
 	import (
 		"gno.land/p/lou/query"
-		"gno.land/p/moul/md"
+		"gno.land/p/moul/md/v0"
 	)
 
 	func Render(rawPath string) string {

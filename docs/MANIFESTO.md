@@ -1463,7 +1463,7 @@ and using its exposed functions just as if it were any other dependency
 library.
 
 To illustrate a concrete example consider the management of discussion boards
-on Gno.land ([example](https://gno.land/r/gnoland/boards2/v1:OpenDiscussions)):
+on Gno.land ([example](https://gno.land/r/gnoland/boards2/v0:OpenDiscussions)):
 
 > Realm Package \> Board Object \> Post Object \> Comment Object
 

@@ -150,7 +150,7 @@ import (
 // CEILING on a storage deposit when a message declares no MaxDeposit, so a
 // single message may now add at most 1 MB of realm state rather than 6 MB
 // before it is refused. Measured against all 321 genesis packages the largest
-// deploy is r/gnoland/boards2/v1 at 276,098 bytes (27,609,800ugnot), so the
+// deploy is r/gnoland/boards2/v0 at 276,098 bytes (27,609,800ugnot), so the
 // new ceiling clears the worst real case by 3.6x.
 // Bumped again by the two inert-charge vm params, for the same reason as
 // run_submitters above: two more keys, written unconditionally. Behavior at
@@ -217,7 +217,18 @@ import (
 // 1d05023c. The scenario's own realms hold no byte slices (crossrealm_f keeps
 // []*Entry), so behavior is unchanged and the zrealm_crossrealm38.gno filetest
 // still passes.
-const expectedCrossrealm38Hash = "4beb454c4f1340d15c0864319533919a3c6506cc880eb0c5fbcbaebbd2f93a12"
+//
+// Bumped by the crypto/modexp operand cap and gas rework: modexp.gno gained a
+// MaxOperandLen const, a length guard in ModExp, and doc text for the new
+// rejection behavior. stdlib .gno source bytes are committed into genesis
+// state, so the root moves. Note this branch also adds modexp_test.gno, and
+// loadStdlibPackage reads stdlibs with MPStdlibAll, which keeps _test.gno
+// files — so that file is inside the Merkle root too, not just modexp.gno.
+// crossrealm38 calls neither, so the shift is those source bytes alone. The
+// gas-row change moves nothing here: gas is not committed state. Re-derived
+// after merging develop, whose own changes moved the root too, so neither
+// side's value survives.
+const expectedCrossrealm38Hash = "acd1f9ce7a9313b44b4711e4a854645d3a4a347ad2f6af3920b565dbd08414bd"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

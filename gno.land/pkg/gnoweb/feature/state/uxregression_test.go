@@ -354,9 +354,9 @@ func TestRegressionSourceNeverAutoLoads(t *testing.T) {
 // Regression: the sidebar "On this page" label must render the
 // b-expend-btn affordance (label + checkbox + chevron SVG) so the
 // mobile-collapse interaction works. The state feature template is
-// isolated and can't reuse components/layouts/aside.html's
-// ui/expend_label partial, so the state-local "state/expend-label"
-// partial must mirror that markup exactly.
+// isolated, so this set parses the shared components ui/expend_label
+// partial; the test guards that the wiring still resolves, not that a
+// copy stayed in sync.
 func TestRegressionExpendLabelKeepsToggleAffordance(t *testing.T) {
 	data := StateData{
 		PkgPath: "/r/demo",

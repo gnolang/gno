@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -532,5 +533,33 @@ func TestMsgEnablePackage(t *testing.T) {
 		// The ante handler and the session deny-list both key off these.
 		assert.Equal(t, "vm", MsgEnablePackage{}.Route())
 		assert.Equal(t, "enable_package", MsgEnablePackage{}.Type())
+	})
+
+	t.Run("every field survives the wire", func(t *testing.T) {
+		t.Parallel()
+
+		// A field the BINARY encoding drops is not a cosmetic bug: the signer
+		// signs GetSignBytes (JSON) over the full message, the node recomputes
+		// it from what it decoded, and the two differ -- so the transaction is
+		// rejected as "signature verification failed; verify correct account,
+		// sequence, and chain-id", naming none of the three.
+		//
+		// The binary path is generated (pb3_gen.go, `make -C misc/genproto2`),
+		// so adding a field to this struct without regenerating produces
+		// exactly that. PkgHeight shipped that way until an integration test
+		// caught it.
+		msg := MsgEnablePackage{
+			Approver:  approver,
+			PkgPath:   path,
+			PkgHash:   "deadbeef",
+			PkgHeight: 999,
+		}
+		bz, err := amino.Marshal(msg)
+		require.NoError(t, err)
+		var back MsgEnablePackage
+		require.NoError(t, amino.Unmarshal(bz, &back))
+		assert.Equal(t, msg, back)
+		assert.Equal(t, msg.GetSignBytes(), back.GetSignBytes(),
+			"what the node verifies must be what the approver signed")
 	})
 }

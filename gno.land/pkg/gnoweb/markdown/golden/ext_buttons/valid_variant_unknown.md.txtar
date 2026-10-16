@@ -1,0 +1,4 @@
+-- input.md --
+Unknown variants are dropped, known ones kept: <gno-button href="/r/test" label="Go" variant="primary info onclick=x" />
+-- output.html --
+<p>Unknown variants are dropped, known ones kept: <a href="/r/test" class="gno-button gno-button-info">Go</a></p>
