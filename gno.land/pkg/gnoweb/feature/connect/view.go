@@ -3,6 +3,7 @@ package connect
 import (
 	"html/template"
 	"io"
+	"slices"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 )
@@ -29,11 +30,8 @@ func GroupWallets(ws []components.Wallet) []WalletGroup {
 	for _, platform := range components.WalletPlatforms {
 		var members []components.Wallet
 		for _, w := range ws {
-			for _, p := range w.Platforms {
-				if p == platform {
-					members = append(members, w)
-					break
-				}
+			if slices.Contains(w.Platforms, platform) {
+				members = append(members, w)
 			}
 		}
 		if len(members) == 0 {
