@@ -14,6 +14,6 @@ type _ interface {
 // line 9: interface contains embedded non-interface int
 
 // GnoWordingDiffers:
-// line 10: gc expects: embedding non-interface type int requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\); gno: 2: interface contains embedded non-interface int
+// line 10: gc expects: embedding non-interface type int requires go1\.18 or later \(-lang was set to go1\.17; check go.mod\); gno: interface contains embedded non-interface int
 
 // Verdict: Clean errorcheck
