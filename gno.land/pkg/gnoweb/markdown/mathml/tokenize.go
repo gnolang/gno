@@ -273,10 +273,9 @@ type TokenBuffer struct {
 	Expr []Token // The current sub-expression
 	idx  int     // The index in the current sub-expression
 	jump int
-	// last is one past the last token that is not a space or a comment,
-	// found by the first Empty; Expr is never written after NewTokenBuffer.
-	last    int
-	hasLast bool
+	// last is one past the last token that is not a space or a comment;
+	// Expr is never written after NewTokenBuffer.
+	last int
 }
 
 type TokenBufferError struct {
@@ -308,18 +307,15 @@ func (e *TokenBufferError) Unwrap() error {
 
 // Create a new TokenBuffer
 func NewTokenBuffer(t []Token) *TokenBuffer {
-	return &TokenBuffer{Expr: t, idx: 0}
+	last := len(t)
+	for last > 0 && t[last-1].Kind&(tokComment|tokWhitespace) > 0 {
+		last--
+	}
+	return &TokenBuffer{Expr: t, idx: 0, last: last}
 }
 
 // Check if the TokenBuffer is empty
 func (b *TokenBuffer) Empty() bool {
-	if !b.hasLast {
-		b.last = len(b.Expr)
-		for b.last > 0 && b.Expr[b.last-1].Kind&(tokComment|tokWhitespace) > 0 {
-			b.last--
-		}
-		b.hasLast = true
-	}
 	// an expression may contain whitespace, but never start with whitespace
 	if b.idx >= b.last {
 		b.idx = max(b.idx, len(b.Expr))
