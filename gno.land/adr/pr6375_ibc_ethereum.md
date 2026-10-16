@@ -777,6 +777,20 @@ so other IBC routes of the same realms are unaffected.
   same packet. A void never creates a refund on the source: a successfully acknowledged packet is final there, so a
   voided forged claim is booked as lost or withheld on gno.land only. Escrow is reserved for open claims so voids
   and payouts never double-spend it.
+- **Recognized losses.** A loss enters a packet-keyed **loss ledger** per route and denom (packet, amount, chain,
+  incident) only through a decided void or a §7.12 reconciliation outcome — a forged payout already paid, a refund
+  paid for a delivered packet, a forged delivery. Monitors and guardians cannot record one. The ledger's
+  **unrecovered** total enters the supply identity (§7.11), so a reconciled incident stops reading as a break while
+  any further deficit still does.
+- **Restoring solvency.** Recording a loss does not restore the backing. Before a route that lost funds reopens
+  (its flags and `refunds` hold lifted, or its replacement enabled), one of these is decided (7 days):
+  - **recapitalization**: tokens or GNOT paid into the escrow through a governed `recapitalize(route, denom,
+    amount, incident)` call, credited to accounted backing and debited from the unrecovered losses — a plain
+    transfer to the escrow stays surplus (§7.11) and repairs nothing;
+  - **liability reduction**: an explicit, published haircut on the affected claims or refunds, recorded per packet
+    against the incident;
+  - **accepted deficit**: governance reopens with the loss unrecovered and states it in the trust statement
+    (§8.1); the identity still holds, since the loss is recorded, and later breaks are still detected.
 
 ### 7.10 Quarantine — E9
 
@@ -793,9 +807,11 @@ so other IBC routes of the same realms are unaffected.
 - **Supply identity, per client and denom**, over **accounted backing**: the escrow balance implied by
   authenticated bridge operations (escrows on send minus releases on receive, refund and claim payout), kept by the
   monitor from packet records, not the escrow account's raw token balance:
-  - gno-native: `accounted escrow on gno = voucher supply on Ethereum + in flight + unpaid refunds + open/owed/withheld claims on gno`
+  - gno-native: `accounted escrow on gno = voucher supply on Ethereum + in flight + unpaid refunds + open/owed/withheld claims on gno − unrecovered losses`
     (a returned voucher is burned on Ethereum but its GNOT stays escrowed until its claim is paid);
-  - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + unpaid refunds + open/owed/withheld mint claims on gno`.
+  - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + unpaid refunds + open/owed/withheld mint claims on gno − unrecovered losses`.
+  - **Unrecovered losses** are the loss ledger's open total (§7.9): only decided, packet-keyed losses, so a
+    reconciled incident does not re-trigger the response, and any deficit beyond them is a new break.
   - Each packet's amount sits in **exactly one** of these terms at a time, keyed by the packet:
     - **in flight** — sent and not yet received at the destination, or received with an error ack (or past its
       timeout) whose ack or timeout the source has not processed yet;
@@ -928,6 +944,8 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   timeout accepted there, success acks included, goes through both steps. Packets accepted by the old client but
   **never sent** by the honest source (forgeries) are written off against the voids and loss accounting of §7.9.
   Refund liabilities move with the backing: escrow re-keyed to the new client stays reserved for the refunds owed.
+  The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
+  accepted by decision (§7.9).
 - **Without the emergency path** (the default), the route replacement can only be done through governance, which
   needs a working governance channel. If the channel is lost (client expired, frozen or poisoned), **the Ethereum
   side's backing is stranded**: the escrow of Ethereum-native tokens can only be released by the existing ICS20
@@ -1298,6 +1316,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - 2026-10-16, nineteenth review with Codex. Folded:
   - The Ethereum-native identity's claim term is the mint claims **on gno.land**; claims exist only there, and a
     successful receive moves an amount from in flight into the claim, each paid installment out of it (§7.11).
+- 2026-10-16, twentieth review with Codex. Folded:
+  - Decided losses enter a packet-keyed loss ledger whose unrecovered total is part of the supply identity; a route
+    that lost funds reopens only after a decided recapitalization, liability reduction or accepted deficit
+    (§7.9, §7.11).
 
 ## 15. References
 
