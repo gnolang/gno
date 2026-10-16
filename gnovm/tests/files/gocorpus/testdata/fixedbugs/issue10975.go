@@ -18,6 +18,6 @@ func New() I {
 }
 
 // GnoError:
-// line 12: 2: interface contains embedded non-interface int
+// line 12: interface contains embedded non-interface int
 
 // Verdict: Clean errorcheck

@@ -25,7 +25,7 @@ func G() {
 }
 
 // GnoError:
-// line 13: 3: cannot type switch on non-interface value nil (type untyped nil)
-// line 22: 3: cannot type switch on non-interface value int(1) (type int)
+// line 13: cannot type switch on non-interface value nil (type untyped nil)
+// line 22: cannot type switch on non-interface value int(1) (type int)
 
 // Verdict: Clean errorcheck
