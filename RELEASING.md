@@ -303,7 +303,8 @@ null binaries, so they are filled in before the next release's entry is added.
 A testnet's ledger names what it ran, release candidates included.
 Every halt proposal names the version being released — `set-halt.sh` refuses a
 value the node cannot parse and an empty one, which would leave the restart
-gate off.
+gate off, and a floor the version `REMOTE` runs already meets, which would
+refuse that version's restarts before the halt and gate nothing after it.
 
 ### Coordinated upgrades
 
