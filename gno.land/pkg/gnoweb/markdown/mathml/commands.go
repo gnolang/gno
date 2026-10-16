@@ -317,7 +317,7 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		// The switch applies up to the end of the cell or row it is in. The
 		// cells of a group after it ({...}, an environment, a \left...\right
 		// pair) belong to that group.
-		switchExpressions, _ := b.GetNextN(cellEnd(b.Expr[b.idx:]))
+		switchExpressions, _ := b.GetNextN(b.cellEnd() - b.idx)
 
 		n := NewMMLNode("mstyle")
 		if name == "color" {
@@ -369,6 +369,10 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		n = NewMMLNode("merror", `\`+name).SetAttr("title", "unknown command")
 		n.Tok = tok
 		return n
+	}
+	if n == nil {
+		// \class{a}{} has nothing to draw.
+		return nil
 	}
 	n.Tok = tok
 	n.set_variants_from_context(context)
@@ -580,23 +584,8 @@ func isCellEnd(t Token) bool {
 	return t.Value == "\\" || t.Value == "cr"
 }
 
-// cellEnd returns the index of the first & or line break in toks outside a
-// group, or len(toks).
-func cellEnd(toks []Token) int {
-	i := 0
-	for ; i < len(toks); i++ {
-		if t := toks[i]; opensGroup(t) {
-			i += t.MatchOffset
-		} else if isCellEnd(t) {
-			break
-		}
-	}
-	return min(i, len(toks))
-}
-
-// colorArgMissing reports whether a \color at b's position certainly has no
-// {argument}, after an optional [model], within its cell. False means it has
-// one, or it cannot tell.
+// colorArgMissing reports whether a \color at b's position has no {argument}
+// in its cell, after an optional [model] that closes there.
 func colorArgMissing(b *TokenBuffer) bool {
 	next := func(i int) int {
 		for i < len(b.Expr) && b.Expr[i].Kind&(tokComment|tokWhitespace) > 0 {
@@ -604,20 +593,9 @@ func colorArgMissing(b *TokenBuffer) bool {
 		}
 		return i
 	}
-	opens := func(i int, v string) bool {
-		t := b.Expr[i]
-		return t.MatchOffset > 0 && t.Kind&tokEscaped == 0 && t.Value == v
-	}
 	i := next(b.idx)
-	if i < len(b.Expr) && opens(i, "[") {
-		end := i + b.Expr[i].MatchOffset
-		if end >= len(b.Expr) {
-			return false
-		}
-		if cellEnd(b.Expr[i+1:end]) < end-i-1 {
-			return false
-		}
-		i = next(end + 1)
+	if i < len(b.Expr) && b.matched(i, "[") && i+b.Expr[i].MatchOffset < b.cellEnd() {
+		i = next(i + b.Expr[i].MatchOffset + 1)
 	}
-	return i >= len(b.Expr) || !opens(i, "{")
+	return i >= len(b.Expr) || !b.matched(i, "{")
 }

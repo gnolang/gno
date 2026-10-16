@@ -146,6 +146,31 @@ func TestBareColorRunIsLinear(t *testing.T) {
 	for _, unit := range []string{`\color`, `\color[RGB]`, `\color[{&}]`} {
 		convertErrWithin(t, strings.Repeat(unit, 1<<16)+"x")
 	}
+	convertErrWithin(t, strings.Repeat(`\color[`, 1<<15)+"x"+strings.Repeat("]", 1<<15))
+	convertErrWithin(t, strings.Repeat(`\color`, 1<<17)+strings.Repeat("%\n", 1<<17))
+}
+
+// A switch reached through an infix inside \left...\right still ends at the
+// line break after the pair.
+func TestSwitchEndsAtItsCell(t *testing.T) {
+	out := mathBody(t, `\color[RGB]\left\over\bf)\right\cr`)
+	assert.Less(t, strings.Index(out, "</mstyle>"), strings.Index(out, `\cr`))
+}
+
+// Input the parser cannot read converts without a crash, which would replace
+// the whole formula with an error.
+func TestMalformedInputDoesNotCrash(t *testing.T) {
+	for _, tex := range []string{
+		`\bf\sqrt[a&b]x`,
+		`x\bigl\mathrm`,
+		`x\bigr\mathrm`,
+		`\middle\mathrm`,
+		`\class{a}{}`,
+		"\\cr%c\n\\color\\{cr\\left\\sqrt|\t(\\Bigl}}\\middle",
+	} {
+		_, err := convertErrWithin(t, tex)
+		assert.NoError(t, err, tex)
+	}
 }
 
 // \left. and \right. draw nothing.
