@@ -29,11 +29,4 @@ func main() {
 	echo(fd)
 }
 
-// GnoError:
-// line 16: name ReadWriterCloser not declared
-// line 28: name Open not declared
-
-// GnoWordingDiffers:
-// line 16: gc expects: undefined.*io.ReadWriterCloser; gno: name ReadWriterCloser not declared
-
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 28
+// Verdict: Unsupported stdlib-symbol: unsupported stdlib symbol in Gno: Open

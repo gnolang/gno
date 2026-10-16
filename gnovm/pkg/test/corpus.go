@@ -240,6 +240,7 @@ var langGapErrors = []struct {
 	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
 	{regexp.MustCompile(`name comparable not (declared|defined)`), "generics (comparable constraint) not supported in Gno"},
 	{regexp.MustCompile(`name (min|max) not declared`), "version-gating: min/max builtins (Go 1.21) not supported in Gno"},
+	{regexp.MustCompile(`cannot convert .* \(of type \[\][^)]*\) to type \[\d+\]`), "version-gating: slice-to-array conversion (Go 1.20) not supported in Gno"},
 	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
 	{regexp.MustCompile(`select statements are not permitted`), "channels not supported in Gno (select)"},
 }
@@ -259,7 +260,8 @@ var reStdlibSymbolGap = regexp.MustCompile(`name (Exit|Getenv|Args|Environ|Hostn
 	`Caller|Callers|SetFinalizer|KeepAlive|GC|GOMAXPROCS|GOARCH|GOOS|NumCPU|NumGoroutine|` +
 	`Gosched|Goexit|Stack|ReadMemStats|MemProfileRecord|MemProfileRate|MemStats|Frame|Frames|` +
 	`Compiler|Breakpoint|Version|Intn|Int31|Int31n|Int63|Int63n|Float64|Float32|Seed|Perm|Shuffle|` +
-	`Sleep|Tick|AllocsPerRun|Caller|PathError|ErrNotExist) not (declared|defined)`)
+	`Sleep|Tick|AllocsPerRun|Caller|PathError|ErrNotExist|Open|Create|Stat|File|FileInfo|` +
+	`Stdin|Stdout|Stderr|ReadFile|WriteFile) not (declared|defined)`)
 
 // UnsupportedFeatureError returns a feature-gap reason if errStr is one
 // of Gno's "feature not implemented" messages (channels, goroutines,
