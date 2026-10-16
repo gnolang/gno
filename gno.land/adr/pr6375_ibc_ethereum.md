@@ -795,7 +795,7 @@ so other IBC routes of the same realms are unaffected.
   monitor from packet records, not the escrow account's raw token balance:
   - gno-native: `accounted escrow on gno = voucher supply on Ethereum + in flight + unpaid refunds + open/owed/withheld claims on gno`
     (a returned voucher is burned on Ethereum but its GNOT stays escrowed until its claim is paid);
-  - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + unpaid refunds + open/owed/withheld claims on Ethereum`.
+  - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + unpaid refunds + open/owed/withheld mint claims on gno`.
   - Each packet's amount sits in **exactly one** of these terms at a time, keyed by the packet:
     - **in flight** — sent and not yet received at the destination, or received with an error ack (or past its
       timeout) whose ack or timeout the source has not processed yet;
@@ -803,8 +803,12 @@ so other IBC routes of the same realms are unaffected.
       a refund queued under the refund meter (§7.13) or held by a `refunds` hold, on **either** chain — including
       a pending re-mint of returned vouchers on Ethereum, or re-mint of returned vouchers on gno. A refund leaves
       this term only when paid, not when its ack or timeout is processed;
-    - **claims** — received with a success ack and not yet paid out at the destination (open, owed or withheld,
-      §7.1);
+    - **claims** — received on gno.land with a success ack and not yet paid out there (open, owed or withheld,
+      §7.1). Claims exist only on gno.land, in both directions: a return of gno-native vouchers becomes a claim on
+      escrowed GNOT, and a deposit of an Ethereum-native token a **mint claim** for its voucher. A successful
+      receive moves the amount from "in flight" into the claim, and each paid installment moves its portion into
+      the released balance or the voucher supply. Ethereum releases and mints at once on receive (within E5's
+      limits), so it has no claim term;
     - otherwise settled: in the destination's supply or released from escrow.
     Not every outstanding commitment is in flight, since commitments also persist until acks are processed.
   - **Balances must cover it.** Separately, each escrow's actual balance must be at least its accounted backing.
@@ -1291,6 +1295,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     by itself; rewinding and deferred alarms apply only to sends not yet visible or data unavailable (§7.11).
   - The supply identity has an **unpaid refunds** term on either chain, including queued voucher re-mints; a
     refund leaves it when paid, and every packet's amount sits in exactly one term (§7.11).
+- 2026-10-16, nineteenth review with Codex. Folded:
+  - The Ethereum-native identity's claim term is the mint claims **on gno.land**; claims exist only there, and a
+    successful receive moves an amount from in flight into the claim, each paid installment out of it (§7.11).
 
 ## 15. References
 
