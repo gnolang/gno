@@ -21,6 +21,6 @@ func main() {
 // line 14: 0 is not a type
 
 // GnoWordingDiffers:
-// line 16: gc expects: type interface \{\}|reference to undefined field or method|interface with no methods|undefined; gno: 10: 0 is not a type
+// line 16: gc expects: type interface \{\}|reference to undefined field or method|interface with no methods|undefined; gno: 0 is not a type
 
 // Verdict: Clean errorcheck
