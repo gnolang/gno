@@ -88,4 +88,4 @@ func good() {
 // line 38: gc expects: can only compare slice a to nil|slice can only be compared to nil|cannot compare; gno: []int can only be compared to nil
 // line 45: gc expects: can only compare func f to nil|func can only be compared to nil|cannot compare; gno: func() can only be compared to nil
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 38, 45, 50, 56; over-strict: lines 70
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 70

@@ -41,7 +41,6 @@ func main() {
 // line 36: cannot use *main.Start as *main.Inst
 
 // GnoWordingDiffers:
-// line 34: gc expects: pointer to interface|incompatible type; gno: should not happen
 // line 36: gc expects: pointer to interface|incompatible type; gno: cannot use *main.Start as *main.Inst
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 34; internal errors: lines 34

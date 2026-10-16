@@ -49,4 +49,4 @@ type w2 w // refer to the type loop again
 // .*b refers to c
 // .*c refers to b|invalid recursive type|invalid recursive type; gno: name c not declared
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 32; over-strict: lines 17, 21, 31, 36
+// Verdict: KnownIssue errorcheck: #6344; internal errors: lines 19, 36

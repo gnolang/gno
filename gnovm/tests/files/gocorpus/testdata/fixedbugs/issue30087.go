@@ -21,9 +21,8 @@ func main() {
 // line 13: assignment mismatch: 2 variable(s) but 3 value(s)
 
 // GnoWordingDiffers:
-// line 10: gc expects: assignment mismatch: 2 variables but 1 value|wrong number of initializations|cannot initialize; gno: missing init expr for b<!VPInvalid(0)>
 // line 11: gc expects: assignment mismatch: 1 variable but 2 values|number of variables does not match|cannot assign; gno: Machine.EvalStaticTypeOf(x) expression not yet preprocessed: 2
 // line 12: gc expects: assignment mismatch: 2 variables but 1 value|wrong number of initializations|cannot initialize; gno: assignment mismatch: 2 variable(s) but 1 value(s)
 // line 13: gc expects: assignment mismatch: 2 variables but 3 values|wrong number of initializations|cannot initialize; gno: assignment mismatch: 2 variable(s) but 3 value(s)
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10; internal errors: lines 10

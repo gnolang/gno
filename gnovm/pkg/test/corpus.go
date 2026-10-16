@@ -742,3 +742,21 @@ func wordingMatches(patterns []string, msg string) bool {
 	}
 	return false
 }
+
+// internalErrorMarks are fragments of Gno messages that report a VM
+// failure rather than a checking verdict; such an error covers no marker.
+var internalErrorMarks = []string{
+	"should not happen", "decl node already predefined", "StaticBlock.Define",
+	"expected block type value path", "VPInvalid", "requires non-nil",
+	"nil pointer dereference", "index out of range", "unexpected selector expression type",
+}
+
+// IsInternalError reports whether msg is a VM failure, not a verdict.
+func IsInternalError(msg string) bool {
+	for _, m := range internalErrorMarks {
+		if strings.Contains(msg, m) {
+			return true
+		}
+	}
+	return false
+}

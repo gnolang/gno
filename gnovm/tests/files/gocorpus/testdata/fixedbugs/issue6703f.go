@@ -20,4 +20,4 @@ var x = T(0).m() // ERROR "initialization cycle|depends upon itself"
 // GnoError:
 // line 18: initialization cycle: x refers to T.m refers to x
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
