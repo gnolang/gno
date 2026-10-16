@@ -1,4 +1,4 @@
-# PRxxxx: declaration and literal rules at preprocess
+# PR6363: declaration and literal rules at preprocess
 
 ## Context
 
