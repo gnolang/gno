@@ -52,9 +52,9 @@
       "version": "v1.6.0-rc.1",
       "commit": "c868ccab1f93f0542a4c10a9d9b49b6fabcc0d98",
       "halt_height": 445000,
-      "halt_time": null,
+      "halt_time": "2026-10-16T12:51:52Z",
       "halt_min_version": "v1.6.0-rc.1",
-      "proposal": null,
+      "proposal": 33,
       "image": {
         "ref": "ghcr.io/gnolang/gno/gnoland:v1.6.0-rc.1",
         "digest": "sha256:4286ffcd805f7a4925cc15ad2290d4be0e1c28f63436bf7b0ed4570ff38e7e38"
