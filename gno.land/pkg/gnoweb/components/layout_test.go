@@ -804,6 +804,8 @@ func TestIndexLayout_AssetVersioning(t *testing.T) {
 
 	for _, href := range []string{
 		`href="/public/favicon.ico?v=20260920120000"`,
+		`href="/public/favicon.svg?v=20260920120000"`,
+		`href="/public/apple-touch-icon.png?v=20260920120000"`,
 		`href="/public/_chroma/style.css?v=20260920120000"`,
 		`href="/public/main.css?v=20260920120000"`,
 	} {
