@@ -145,10 +145,4 @@ func init /* ERROR "no arguments and no return values" */ () int { return 0 }
 func init /* ERROR "no arguments and no return values" */ (int) int { return 0 }
 func (T) init(int) int { return 0 }
 
-// GnoError:
-// line 43: expected block type value path but got VPInvalid:
-// --- preprocess stack ---
-// stack 1: file gno.land/p/filetest/decls1/decls1.go:8:1-149:15
-// ------------------------
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 29, 35, 38, 40, 42, 45, 48, 49, 51, 54, 55, 57, 59, 60, 61, 64, 66, 67, 68, 70, 71, 72, 77, 79, 81, 86, 88, 90, 93, 95, 98, 99, 100, 106, 107, 113, 114, 124, 125, 128, 129, 143, 144, 145; internal errors: lines 43; on-chain path first error on line 124, not reported by accumulate mode
+// Verdict: Unsupported complex-types: complex numbers not supported in Gno

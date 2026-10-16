@@ -23,10 +23,4 @@ func main() {
 	)
 }
 
-// GnoError:
-// line 19: expected block type value path but got VPInvalid:
-// --- preprocess stack ---
-// stack 2: func main/issue8836.go:15:1-24:2
-// ------------------------
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22; internal errors: lines 19; on-chain path first error on line 13, not reported by accumulate mode
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

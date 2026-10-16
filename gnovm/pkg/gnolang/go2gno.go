@@ -665,6 +665,9 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 			recv = *Go2Gno(fs, gon.Recv.List[0], fileComments).(*FieldTypeExpr)
 		}
 		name := toName(gon.Name)
+		if gon.Type.TypeParams != nil {
+			panicWithPos("type parameters are not permitted")
+		}
 		type_ := Go2Gno(fs, gon.Type, fileComments).(*FuncTypeExpr)
 		var body []Stmt
 		if gon.Body != nil {
@@ -884,6 +887,10 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 		switch s := s.(type) {
 		case *ast.TypeSpec:
 			name := toName(s.Name)
+			if s.TypeParams != nil {
+				pos := fs.Position(s.Pos())
+				panic(fmt.Errorf("%s:%d:%d: type parameters are not permitted", pos.Filename, pos.Line, pos.Column))
+			}
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
 			td := &TypeDecl{
