@@ -50,7 +50,16 @@ Generics are currently not implemented.
 
 ## Reserved identifiers
 
-Predeclared names that Go lets you shadow, but Gno does not.
+Predeclared names that Go lets you shadow, but Gno does not. Gno refuses
+every built-in identifier at every binding site: not as a variable, constant,
+type, function or import name, not as a parameter, result, receiver, `range`
+or type-switch variable, and not as a parameter or result name in a function
+type or interface method.
+
+The rule protects readers of contract code: Go would let `var panic =
+func(string) {}` turn a later `panic("unauthorized")` into a normal return,
+and the same holds for `cross`, `revive`, `len` or any other builtin. In Gno
+these names always mean what they mean in the VM.
 
 Built-in types. The following typecasting assignment works in Go, but not in Gno:
 
@@ -58,14 +67,21 @@ Built-in types. The following typecasting assignment works in Go, but not in Gno
 rune := rune('a')
 ```
 
-`iota`. Gno reserves it everywhere, not just inside `const` blocks. Go accepts it
-as an ordinary identifier outside a `const` block; Gno rejects every binding site —
-variable declarations, function parameters, results and receivers, `range` and
-type-switch variables, and the init clause of a `for`:
+`iota`. Gno reserves it everywhere, not just inside `const` blocks, like every
+other builtin:
 
 ```go
 func f(iota int) {} // error: builtin identifiers cannot be shadowed: iota
 iota := 5           // same error
+```
+
+`cur`. A contextual keyword: usable as an expression anywhere, declarable only
+as the first parameter of a crossing function (see
+[Captured Realm Values](gno-interrealm.md#captured-realm-values-cur-realm)):
+
+```go
+func Register(cur realm, name string) {} // ok
+func f(cur int) {}                       // error: `cur` is a contextual keyword
 ```
 
 ## Builtin types

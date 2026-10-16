@@ -71,6 +71,6 @@ func OriginSend() chain.Coins {
 }
 
 // Native bindings.
-func getRealm(height int) (address string, pkgPath string)
+func getRealm(height int) (addr string, pkgPath string)
 func originCaller() string
 func originSend() (denoms []string, amounts []int64)

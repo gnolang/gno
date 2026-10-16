@@ -21,4 +21,4 @@ func main(cur realm) {
 }
 
 // Error:
-// gno.land/r/demo/curaddr/zrealm_cur_addr.gno:18:7-11: cannot take the address of a realm-typed `cur`: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value
+// gno.land/r/demo/curaddr/zrealm_cur_addr.gno:18:7-11: cannot take the address of the crossing `cur` parameter: the binding is fixed for the life of the frame, and a pointer to it is a way to rebind it. `realm` is an interface, so a *realm is never needed — pass `cur` by value
