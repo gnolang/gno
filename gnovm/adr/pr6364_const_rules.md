@@ -1,4 +1,4 @@
-# PRxxxx: import path, constant width and branch label rules
+# PR6364: import path, constant width and branch label rules
 
 ## Context
 
