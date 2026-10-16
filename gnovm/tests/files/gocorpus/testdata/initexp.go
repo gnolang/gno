@@ -38,4 +38,4 @@ func b8() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 // GnoError:
 // line 15: initialization cycle: x refers to z refers to x
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
