@@ -225,7 +225,7 @@ Repositories and branches:
 | # | Component | Status | Where | Changes needed |
 |---|---|---|---|---|
 | T1 | Go relayer: trust, create/update clients both ways, relay gno → Eth and Eth → gno, acks, transfers, snapshots, wire/ABI vectors | ✅ | gno-eth-ibc `relayer/` (`cmd/relayer`, `relay/`, `gnoibc/`, `ethgno/`, `beacon/`, `eth/`) | Fix: `relay-gno-acks` re-sends an ack another step just delivered (stale read). Read commitments at the latest receipt's block. Add a regression test over consecutive periods (a finality update crossing a rotation, then the update revealing the next committee). |
-| T2 | TypeScript relayer: Ethereum chains (source and host), gno hosting Ethereum clients, byte-equality tests against the Go encoders | ✅ (PR open) | ts-relayer [`src/clients/ethereum/`](https://github.com/allinbits/ibc-v2-ts-relayer/tree/feat/ethereum-clients/src/clients/ethereum), [`src/clients/gno/ethereum.ts`](https://github.com/allinbits/ibc-v2-ts-relayer/blob/feat/ethereum-clients/src/clients/gno/ethereum.ts); [PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) | Support the claim queue (call `Claim`), governance packets, and the guardian-aware pause. Implement conflicting-header detection for the GnoLightClient (unsupported today, `src/clients/ethereum/host.ts`) and bounded `eth_getLogs` scans instead of scanning from block 0. Add the same consecutive-period regression test as T1. |
+| T2 | TypeScript relayer: Ethereum chains (source and host), gno hosting Ethereum clients, byte-equality tests against the Go encoders | ✅ (PR open) | ts-relayer [`src/clients/ethereum/`](https://github.com/allinbits/ibc-v2-ts-relayer/tree/feat/ethereum-clients/src/clients/ethereum), [`src/clients/gno/ethereum.ts`](https://github.com/allinbits/ibc-v2-ts-relayer/blob/feat/ethereum-clients/src/clients/gno/ethereum.ts); [PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) | Support the claim queue (call `Claim`), governance packets, and the guardian-aware pause. Implement conflicting-header detection for the GnoLightClient (unsupported today, `src/clients/ethereum/host.ts`) and bounded `eth_getLogs` scans instead of scanning from block 0. Fixed in review: an update revealing the next committee that already finalizes the fetched finality update's slot is no longer followed by that stale update, which the client refuses (catch-up planned by the tested `planUpdates`, [`675ad9f`](https://github.com/allinbits/ibc-v2-ts-relayer/commit/675ad9f)). |
 | T3 | Local testnet (N secp256k1 validators, realms at genesis), local e2e with anvil, Sepolia scripts | ✅ | gno-eth-ibc [`testnet/`](https://github.com/allinbits/gno-eth-ibc/tree/main/testnet), [`scripts/e2e-local.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/e2e-local.sh), [`scripts/sepolia.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/sepolia.sh) | — |
 | T4 | **Monitors**: supply identity, header record, foreign decisions; auto-flag on integrity breaks, alarm on liveness | ❌ (♻️) | bridges: [`ethereum/bridge/agent`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/agent) (monitor role) | New, IBC-specific: escrow per client against voucher supply, plus in-flight packets from commitments. |
 | T5 | **Watch tool** for guardians and GovDAO members: state, pending decisions, flags, `check` of upgrade targets (code-hash, reproducible build, append-only storage layout) | ❌ (♻️) | bridges: [`ethereum/bridge/cmd/hlwatch`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/cmd/hlwatch) | Port. |
@@ -867,28 +867,29 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   which the commitment covers, nor the proof height, and the router deleted the commitment before calling them. Then the destination's state is proven through the new clients — its receipt and
   acknowledgement — and the destination's receipt hash is **recomputed from the same packet in the destination's
   own encoding** (eureka: `keccak256(abi.encode(packet))`; gno: R19's) and compared with the proven receipt.
-  each packet gets exactly one terminal settlement, recorded atomically with consuming (or marking settled) its
-  source commitment:
-  - received with a **success** ack, and the proven receipt equals the receipt recomputed from the authenticated
-    packet → stands; the source commitment (or send record) is consumed as acknowledged, and any queued
-    refund of that packet is rejected as fraudulent;
-  - a **success ack accepted through the old client** whose packet the destination's proven state shows as not
-    received, received with an error ack, or a collision → the ack was forged: the honest packet is refunded at
-    its source by decision, exactly once (the send record is marked settled with the refund);
-  - a **collision**: the proven receipt at that sequence differs from the one recomputed from the authenticated
-    packet (a forgery occupied it) → the honest packet is refunded at its source by decision (or its queued refund
-    is paid), and the forged delivery is accounted as a loss (§7.9);
-  - received with an **error** ack whose refund is pending → refunded at the source by decision;
-  - **not received** → refunded at the source by decision; the destination's old client is frozen, so it can no
-    longer be received there;
-  - received with an **asynchronous ack not yet written** → the destination writes it (success or error) before the
-    snapshot, then one of the two cases above;
-  - **settled** — the ack or timeout was processed **before** the suspected compromise interval **and** any refund
-    it triggered was paid → nothing. Transport completion alone is not settlement: a processed ack or timeout whose
-    refund is still queued, or one accepted during the compromise interval (success acks included), is reconciled
-    like the other cases against the destination's proven state;
-  - accepted by the old client but **never sent** by the honest source (a forgery) → written off against the voids
-    and loss accounting of §7.9.
+  Each packet is reconciled in two steps, recorded atomically with consuming (or marking settled) its source
+  commitment or send record, so it is settled exactly once.
+  1. **Verified outcome**, from the destination's proven state:
+     - **delivered**: received, the proven receipt equals the one recomputed from the authenticated packet, and the
+       ack is a success → the sender is owed nothing;
+     - **refundable**: received with an error ack, or not received (the destination's old client is frozen, so it
+       can no longer be received there) → the sender is owed the packet's amount;
+     - **collision**: the proven receipt at that sequence differs from the recomputed one (a forgery occupied it) →
+       the honest packet is refundable, and the forged delivery is accounted as a loss (§7.9);
+     - **asynchronous ack not yet written** → the destination writes it (success or error) before the snapshot,
+       then one of the cases above.
+  2. **Payment**, from the send record's payment state: the source pays the verified entitlement **minus what it
+     already refunded** for that packet:
+     - genuine refund already paid → nothing more;
+     - genuine refund unpaid (queued, or no refund yet because a forged success ack consumed the commitment) → the
+       remainder is paid by decision;
+     - refund paid although the packet was delivered (forged error ack or timeout) → no payment; the overpayment is
+       recorded as a loss (§7.9);
+     - refund queued although the packet was delivered → the queued refund is rejected.
+  Packets whose ack or timeout was processed **before** the suspected compromise interval and whose refund, if
+  any, was paid are taken as settled and skipped. Transport completion inside the interval is not: every ack and
+  timeout accepted there, success acks included, goes through both steps. Packets accepted by the old client but
+  **never sent** by the honest source (forgeries) are written off against the voids and loss accounting of §7.9.
   Refund liabilities move with the backing: escrow re-keyed to the new client stays reserved for the refunds owed.
 - **Without the emergency path** (the default), the route replacement can only be done through governance, which
   needs a working governance channel. If the channel is lost (client expired, frozen or poisoned), **the Ethereum
@@ -1237,6 +1238,12 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Send records are written by the app's send entry point atomically with the send (full packet, commitment,
     metadata); the ack and timeout callbacks only attach the outcome, the local processing height and the payment
     state (§7.12, §7.13).
+- 2026-10-16, fifteenth review with Codex. Folded:
+  - **Code fix** in the TypeScript relayer ([`675ad9f`](https://github.com/allinbits/ibc-v2-ts-relayer/commit/675ad9f)):
+    a committee update that already reached finality was followed by the stale finality update, which the client
+    refuses; the catch-up plan is now a pure, tested function (T2).
+  - Reconciliation separates the verified outcome from the amount still payable: the entitlement minus what was
+    already refunded, with paid, unpaid, overpaid and queued-but-fraudulent refunds each specified (§7.12).
 
 ## 15. References
 
