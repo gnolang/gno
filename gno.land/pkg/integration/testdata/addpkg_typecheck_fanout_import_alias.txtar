@@ -1,0 +1,87 @@
+# A duplicate import selector must not defeat the charge. go/types reports
+# `heavy redeclared in this block` but binds the FIRST import and still runs the
+# delayed validType walk over it, so a guard that kept the LAST binding priced the
+# light package while the walk expanded the heavy one — the whole chain, unpriced,
+# then rejected for the redeclaration after the CPU was already spent.
+#
+# heavy is the doubling chain from addpkg_typecheck_fanout_imported (~115k nodes),
+# light is two ints. honest embeds heavy.T five times and is refused at 20M, as in
+# that fixture. hijack is the same three lines plus one import that rebinds the
+# `heavy` selector to light. It must be refused for the SAME reason, before
+# go/types runs: the guard prices the heaviest candidate for a rebound selector.
+#
+# With last-write-wins restored, hijack is billed for light, go/types walks the
+# chain, and the redeclaration error is what comes back.
+#
+# -simulate skip: gnokey simulates with GasWanted raised to the chain max and only
+# synthesizes out-of-gas when no other error came back, so under simulation
+# hijack's redeclaration error wins. Skipping it runs both packages through
+# DeliverTx's 20M meter, where the charge aborts before go/types runs.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/heavy -pkgpath gno.land/r/foobar/heavy -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+gnokey maketx addpkg -pkgdir $WORK/light -pkgpath gno.land/r/foobar/light -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+
+! gnokey maketx addpkg -pkgdir $WORK/honest -pkgpath gno.land/r/foobar/honest -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test -simulate skip $test1_user_addr
+stderr 'out of gas'
+
+! gnokey maketx addpkg -pkgdir $WORK/hijack -pkgpath gno.land/r/foobar/hijack -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test -simulate skip $test1_user_addr
+stderr 'out of gas'
+! stderr 'redeclared'
+
+-- heavy/gnomod.toml --
+module = "gno.land/r/foobar/heavy"
+gno = "0.9"
+
+-- heavy/heavy.gno --
+package heavy
+
+type t0 struct{ v int }
+type t1 struct{ a, b [0]t0 }
+type t2 struct{ a, b [0]t1 }
+type t3 struct{ a, b [0]t2 }
+type t4 struct{ a, b [0]t3 }
+type t5 struct{ a, b [0]t4 }
+type t6 struct{ a, b [0]t5 }
+type t7 struct{ a, b [0]t6 }
+type t8 struct{ a, b [0]t7 }
+type t9 struct{ a, b [0]t8 }
+type t10 struct{ a, b [0]t9 }
+type t11 struct{ a, b [0]t10 }
+type t12 struct{ a, b [0]t11 }
+type T struct{ a, b [0]t12 }
+
+-- light/gnomod.toml --
+module = "gno.land/r/foobar/light"
+gno = "0.9"
+
+-- light/light.gno --
+package light
+
+type T struct{ a, b int }
+
+-- honest/gnomod.toml --
+module = "gno.land/r/foobar/honest"
+gno = "0.9"
+
+-- honest/honest.gno --
+package honest
+
+import "gno.land/r/foobar/heavy"
+
+type U struct{ a, b, c, d, e [0]heavy.T }
+
+-- hijack/gnomod.toml --
+module = "gno.land/r/foobar/hijack"
+gno = "0.9"
+
+-- hijack/hijack.gno --
+package hijack
+
+import (
+	"gno.land/r/foobar/heavy"
+	heavy "gno.land/r/foobar/light"
+)
+
+type U struct{ a, b, c, d, e [0]heavy.T }

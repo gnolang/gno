@@ -1,0 +1,63 @@
+# Value-containment fan-out split across an import boundary. p0 is a doubling chain
+# whose expansion (~115k nodes, ~11.5M gas) it pays for and deploys. p1 declares a
+# single type, but embeds p0.T five times by value — and go/types' validType walk
+# re-expands imported types WITHOUT memoizing (golang/go#65711), so p1's real walk
+# is ~5x p0.T's.
+#
+# The cost model must follow the import to see that. Scoring the imported type as a
+# leaf would price p1 at its own three lines, and the multiplication would be walked
+# for free — across a longer chain, until the node hangs.
+#
+# The 20M budget is the discriminator: it comfortably covers p0's whole expansion
+# once, which is what an importer pays anyway (see addpkg_typecheck_fanout_deps_gas),
+# but not the five-fold multiplication p1 adds on top.
+#
+# This is a PRICING fixture, not a hang: measured against master, p1 deploys fine in
+# about a second, because ~287k nodes is milliseconds of walk. It cannot be both —
+# a cross-package fixture needs p0 legitimately deployed, and with the charge in
+# place nothing deployable is dangerous (a whole block buys 3e7 nodes, ~3s). So the
+# hang only shows up when the ENTRY package is pathological and refused outright:
+# addpkg_typecheck_fanout.txtar, which is verified to wedge master.
+
+# start a new node
+gnoland start
+
+# p0: a doubling chain that pays for its own expansion and deploys
+gnokey maketx addpkg -pkgdir $WORK/p0 -pkgpath gno.land/r/foobar/p0 -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+
+# p1: tiny source, but priced for a walk five times p0's, which 20M does not cover
+! gnokey maketx addpkg -pkgdir $WORK/p1 -pkgpath gno.land/r/foobar/p1 -gas-fee 350001ugnot -gas-wanted 20_000_000 -chainid=tendermint_test $test1_user_addr
+stderr 'out of gas'
+
+-- p0/gnomod.toml --
+module = "gno.land/r/foobar/p0"
+gno = "0.9"
+
+-- p0/p0.gno --
+package p0
+
+type t0 struct{ v int }
+type t1 struct{ a, b [0]t0 }
+type t2 struct{ a, b [0]t1 }
+type t3 struct{ a, b [0]t2 }
+type t4 struct{ a, b [0]t3 }
+type t5 struct{ a, b [0]t4 }
+type t6 struct{ a, b [0]t5 }
+type t7 struct{ a, b [0]t6 }
+type t8 struct{ a, b [0]t7 }
+type t9 struct{ a, b [0]t8 }
+type t10 struct{ a, b [0]t9 }
+type t11 struct{ a, b [0]t10 }
+type t12 struct{ a, b [0]t11 }
+type T struct{ a, b [0]t12 }
+
+-- p1/gnomod.toml --
+module = "gno.land/r/foobar/p1"
+gno = "0.9"
+
+-- p1/p1.gno --
+package p1
+
+import "gno.land/r/foobar/p0"
+
+type T struct{ a, b, c, d, e [0]p0.T }
