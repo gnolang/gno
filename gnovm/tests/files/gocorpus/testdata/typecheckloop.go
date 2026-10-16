@@ -22,4 +22,4 @@ const C = A + B + 1
 // .*B uses C
 // .*C uses A|initialization cycle; gno: invalid recursive value: A -> B -> C -> A
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 14
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13

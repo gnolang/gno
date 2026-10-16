@@ -239,11 +239,9 @@ func issue5918() {
 
 // GnoWordingDiffers:
 // line 43: gc expects: invalid method expression T3.p0 (needs pointer receiver (*T3).p0); gno: unknown *DeclaredType method named p0
-// line 199: gc expects: type *error is pointer to interface, not interface; gno: should not happen
-// line 200: gc expects: type *error is pointer to interface, not interface; gno: should not happen
 // line 201: gc expects: type *error is pointer to interface, not interface; gno: unknown *DeclaredType method named Error
 // line 210: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
 // line 211: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
 // line 212: gc expects: type T is pointer to interface, not interface; gno: unknown *DeclaredType method named m
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 32, 138, 148, 166, 176; over-strict: lines 34, 39, 40, 42, 44, 45, 46, 47, 49, 50, 51, 52, 53, 54, 196
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 32, 138, 148, 166, 176, 199, 200; over-strict: lines 34, 39, 40, 42, 44, 45, 46, 47, 49, 50, 51, 52, 53, 54, 196; internal errors: lines 199, 200

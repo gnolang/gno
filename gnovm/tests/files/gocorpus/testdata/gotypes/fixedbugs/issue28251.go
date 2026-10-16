@@ -83,4 +83,4 @@ func _() { (&T{}).m9 /* ERROR "has no field or method m9" */ () }
 // line 64: gc expects: has no field or method m9; gno: missing field m9 in gno.land/p/filetest/issue28251.T
 // line 65: gc expects: has no field or method m9; gno: missing field m9 in *gno.land/p/filetest/issue28251.T
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 44; over-strict: lines 26, 27, 30, 35, 36, 48, 55
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 44; over-strict: lines 26, 27, 35, 36, 55; internal errors: lines 30, 48

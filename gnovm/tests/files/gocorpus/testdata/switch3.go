@@ -90,4 +90,4 @@ func good() {
 // line 50: gc expects: cannot switch on; gno: [4]func() is not comparable
 // line 56: gc expects: cannot switch on; gno: struct{f func()} is not comparable
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 38, 45, 50, 56; over-strict: lines 70
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 70
