@@ -6,7 +6,7 @@ interface Wallet {
 	name: string;
 	id: string;
 	icon: string;
-	scheme: string; // bare, e.g. "land.gno.gnokey"; this controller appends "://tx?..."
+	scheme: string; // bare, e.g. "land.gno.gnokey"; this controller appends "://sendtx?..."
 	platforms: string[];
 	install_url: string;
 }
@@ -117,7 +117,7 @@ export class WalletLaunchController extends BaseController {
 		return url.toString();
 	}
 
-	// Compose "<scheme>://tx?path=&func=&arg.<name>=&...". Args are named,
+	// Compose "<scheme>://sendtx?path=&func=&arg.<name>=&...". Args are named,
 	// prefixed "arg." so realm parameter names can't collide with the link's
 	// own keys (path, func, send, rpc, chainid, callback).
 	private _buildLink(wallet: Wallet): string {
@@ -138,7 +138,7 @@ export class WalletLaunchController extends BaseController {
 		if (chainid) parts.push(`chainid=${enc(chainid)}`);
 		parts.push(`callback=${enc(this._callbackURL())}`);
 
-		return `${wallet.scheme}://tx?${parts.join("&")}`;
+		return `${wallet.scheme}://sendtx?${parts.join("&")}`;
 	}
 
 	private _openWallet(wallet: Wallet): void {

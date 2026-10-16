@@ -10,12 +10,12 @@ import (
 )
 
 // Wallet is one entry of the embedded external-wallet registry (wallets.json),
-// describing an app that handles GnoConnect launch links ("<scheme>://tx?...").
+// describing an app that handles GnoConnect launch links ("<scheme>://sendtx?...").
 type Wallet struct {
 	Name       string   `json:"name"`
 	ID         string   `json:"id"`
 	Icon       string   `json:"icon"`        // data: URI (offline-safe)
-	Scheme     string   `json:"scheme"`      // bare URL scheme, e.g. "land.gno.gnokey"; the frontend appends "://tx?..."
+	Scheme     string   `json:"scheme"`      // bare URL scheme, e.g. "land.gno.gnokey"; the frontend appends "://sendtx?..."
 	Platforms  []string `json:"platforms"`   // informational for now
 	InstallURL string   `json:"install_url"` // informational for now
 }

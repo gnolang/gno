@@ -30,9 +30,6 @@ On Execute, gnoweb opens the chosen wallet with a launch link
   a previous wallet round trip so they don't accumulate. The wallet reopens
   exactly where the user was. Works on localhost.
 
-This branch emits the host as `tx`, its name when this PR was opened. The
-standard has since renamed it `sendtx`; #6016 moves gnoweb to it.
-
 ### Registry: in-repo, server-embedded
 
 `components/wallets.json` is embedded via `//go:embed`, parsed and re-marshaled
@@ -47,7 +44,7 @@ HTML-escapes), and exposed to the frontend through a
 ```
 
 - The registry stores the bare scheme (`land.gno.gnokey`, not
-  `land.gno.gnokey://tx`); gnoweb composes the launch prefix, so the registry
+  `land.gno.gnokey://sendtx`); gnoweb composes the launch prefix, so the registry
   stays reusable as the standard adds hosts.
 - Embedding (vs a served endpoint or on-chain catalog) is decisive for gnoweb:
   it renders offline, needs no fetch, and is cache-safe — the localnet
