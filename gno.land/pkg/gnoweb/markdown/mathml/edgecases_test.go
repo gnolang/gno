@@ -128,6 +128,13 @@ func TestDelimiterAfterSpace(t *testing.T) {
 	assert.Equal(t, mathBody(t, `\left.x\middle|y\right.`), mathBody(t, `\left . x \middle | y \right .`))
 }
 
+// A run of comments costs its length, indented or not.
+func TestCommentRunIsLinear(t *testing.T) {
+	for _, line := range []string{"%\n", "  %\n"} {
+		mathBody(t, "x"+strings.Repeat(line, (1<<18)/len(line))+"y")
+	}
+}
+
 // \left. and \right. draw nothing.
 func TestNullDelimiter(t *testing.T) {
 	for _, tex := range []string{`\left. x \right|`, `\left| x \right.`, `\left( x \middle. y \right)`} {

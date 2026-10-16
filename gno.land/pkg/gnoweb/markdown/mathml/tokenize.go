@@ -273,6 +273,9 @@ type TokenBuffer struct {
 	Expr []Token // The current sub-expression
 	idx  int     // The index in the current sub-expression
 	jump int
+	// Expr[blankFrom:blankTo] holds only spaces and comments, so Empty walks
+	// a run once. It holds while Expr is never written after NewTokenBuffer.
+	blankFrom, blankTo int
 }
 
 type TokenBufferError struct {
@@ -312,15 +315,18 @@ func (b *TokenBuffer) Empty() bool {
 	if b.idx >= len(b.Expr) {
 		return true
 	}
-	temp := b.idx
 	// an expression may contain whitespace, but never start with whitespace
-	for b.idx < len(b.Expr) && b.Expr[b.idx].Kind&(tokComment|tokWhitespace) > 0 {
-		b.idx++
+	if b.idx < b.blankFrom || b.idx >= b.blankTo {
+		end := b.idx
+		for end < len(b.Expr) && b.Expr[end].Kind&(tokComment|tokWhitespace) > 0 {
+			end++
+		}
+		b.blankFrom, b.blankTo = b.idx, end
 	}
-	if b.idx >= len(b.Expr) {
+	if b.blankTo >= len(b.Expr) {
+		b.idx = b.blankTo
 		return true
 	}
-	b.idx = temp
 	return false
 }
 
@@ -639,11 +645,17 @@ func fixFences(toks []Token) []Token {
 				set, unset = tokClose|bigLevel(val[:len(val)-1]), tokFence
 			}
 		}
+		// Only \left, \middle, \right and the \big commands look past the
+		// spaces and comments after them, so a comment run is walked once.
+		if set == 0 {
+			out = append(out, toks[i])
+			continue
+		}
 		j := i + 1
 		for j < len(toks) && toks[j].Kind&(tokWhitespace|tokComment) > 0 {
 			j++
 		}
-		if set == 0 || j == len(toks) {
+		if j == len(toks) {
 			out = append(out, toks[i])
 			continue
 		}
