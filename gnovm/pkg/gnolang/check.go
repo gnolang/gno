@@ -64,15 +64,15 @@ const (
 	CodeNotAssignable  ErrCode = "not-assignable"
 )
 
-// spanPanic is a checking error raised by a rule: its code, its text, and
+// spanError is a checking error raised by a rule: its code, its text, and
 // the node it is positioned at (zero: the node being transcribed).
-type spanPanic struct {
+type spanError struct {
 	code ErrCode
 	span Span
 	msg  string
 }
 
-func (p *spanPanic) Error() string { return p.msg }
+func (p *spanError) Error() string { return p.msg }
 
 // fail raises the checking error code with text msg, positioned at the
 // first of at with a span; a folded constant borrows its source's.
@@ -89,20 +89,15 @@ func fail(code ErrCode, msg string, at ...Node) {
 			}
 		}
 		if x != nil {
-			panic(&spanPanic{code: code, span: x.GetSpan(), msg: msg})
+			panic(&spanError{code: code, span: x.GetSpan(), msg: msg})
 		}
 	}
-	panic(&spanPanic{code: code, msg: msg})
+	panic(&spanError{code: code, msg: msg})
 }
 
 // failf is fail with a format.
 func failf(code ErrCode, at []Node, format string, args ...any) {
 	fail(code, fmt.Sprintf(format, args...), at...)
-}
-
-// panicAt is fail without a code, for sites not yet given one.
-func panicAt(msg string, at ...Node) {
-	fail(CodeNone, msg, at...)
 }
 
 // checkRun is the context of one preprocess walk: the store, the block
