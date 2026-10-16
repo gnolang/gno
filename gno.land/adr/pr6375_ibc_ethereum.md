@@ -185,7 +185,7 @@ Repositories and branches:
 |---|---|---|---|---|
 | R1 | IBC v2 core (ICS26) behind an upgradeable proxy | ✅ (pre-existing) | [`r/aib/ibc/core`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core) | Scope route controls per client (§7). The relayer allow-list gates `UpdateClient`, `RecvPacket`, `Acknowledgement` and `Timeout` in the core **proxy** ([`core.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/core.gno), [`client.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/client.gno)), which is frozen once deployed, so the public-relaying decision of R17 must be made before deployment. `core.Pause` blocks refunds and is reserved for a core bug. |
 | R2 | Client-specific proofs through the frozen messages' `Ext` field (`extproof.Proof{Data any}` + `Verifier`) | ✅ | [`p/aib/ibc/lightclient/extproof/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/extproof/v0); core impl routing (commit `a5d7f0b`) | None. |
-| R3 | **Ethereum light client**: Altair sync protocol across Electra, Fulu and Gloas; summaries instead of keys; non-signer updates; next-committee-only updates; MPT/RLP/SSZ; wire decoders | ✅ | [`p/aib/ibc/lightclient/ethereum/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0) (`ethereum.gno`, `ssz.gno`, `mpt.gno`, `rlp.gno`, `wire.gno`, `types.gno`); ADR [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md); live Sepolia replay test | Consensus-state pruning (each update stores about 6 KB, never refunded). A fork-upgrade migration (R16). Audit. |
+| R3 | **Ethereum light client**: Altair sync protocol across Electra, Fulu and Gloas; summaries instead of keys; non-signer updates; next-committee-only updates; MPT/RLP/SSZ; wire decoders | ✅ | [`p/aib/ibc/lightclient/ethereum/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0) (`ethereum.gno`, `ssz.gno`, `mpt.gno`, `rlp.gno`, `wire.gno`, `types.gno`); ADR [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md); live Sepolia replay test | Updates now build on the latest trusted state only ([`d56b992`](https://github.com/allinbits/gno-realms/commit/d56b992), found in review): before, an update could anchor at any stored state and insert roots below the latest slot. Still to do: consensus-state pruning (each update stores about 6 KB, never refunded), a fork-upgrade migration (R16), an audit. |
 | R4 | `r/aib/ibc/ethrelay`: MsgCall entry points taking wire-encoded `[]byte` (`UpdateClient`, `SubmitMisbehaviour`, `RecvPacket`, `Acknowledgement`, `Timeout`), avoiding MsgRun's per-byte cost | ✅ | [`r/aib/ibc/ethrelay`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/r/aib/ibc/ethrelay) | Optional: `CreateClient`/`RegisterCounterparty` from wire bytes (today a MsgRun). |
 | R5 | Wire format `p/aib/encoding/wire/v0` (originally `p/clockwork/wire/v0` from [clockworkgr/gno-upgradeable](https://github.com/clockworkgr/gno-upgradeable)) | ✅ | [`p/aib/encoding/wire/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/encoding/wire/v0) (commit `e0b12e6`) | Deploy with the realms. |
 | R6 | ICS20 ABI payloads (`application/x-solidity-abi`) to and from `ethereum-*` clients | ✅ | [`p/aib/ibc/ics20/abi/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/ics20/abi/v0); transfer impl (commit `1b53279`) | None. |
@@ -272,6 +272,15 @@ Repositories and branches:
 - **Next-committee-only updates.** Updates whose finalized slot does not advance are accepted when they reveal the
   next committee (the spec's `apply_light_client_update`). This is needed because beacon nodes only serve
   bootstraps at recent checkpoints.
+- **Single store.** Every update must build on the client's **latest** trusted state (`TrustedSlot == LatestSlot`),
+  as the spec's store does; it either advances the latest slot or, for a next-committee-only update, updates the
+  latest state in place. No update can insert a root below the latest slot, so a past committee cannot add history.
+  Roots already stored stay usable for proofs.
+- **Freshness.** The client follows Ethereum one sync-committee period (~27 h) at a time, so it can catch up after
+  any gap for which beacon nodes still serve the best update of each period. If it falls behind further than that
+  (or than Ethereum's weak-subjectivity period), it cannot be updated and must be re-bootstrapped by a route
+  replacement (§7.12); the relayer updates it at least every epoch it relays, and the monitor alarms after a day
+  without an update.
 - **Fork-aware generalized indices.** Gloas: finality 735, next committee 2946, execution block hash 2856.
   Electra/Fulu: 169, 87, 25.
 - **Proofs.** `eth_getProof` at the finalized block gives an account proof (router address under the state
@@ -309,8 +318,12 @@ Repositories and branches:
   - Undecodable envelope (no readable `seq`): error ack; `ibcgov`'s builders never produce one, so it can only come
     from a forgery. A decodable decision with unknown kind or bad parameters is recorded and **spent**, so it never
     blocks the sequence.
-  - **Cancellations** are not held behind gaps: a cancel decision's targets are tombstoned on arrival (even for
-    numbers not yet received), while the cancel itself still takes its place in the sequence.
+  - **Cancellations** are an exception to the window: a cancel decision is never refused. On arrival, whatever its
+    `seq`, its targets are tombstoned (bounded: at most 64 stored ranges, merging beyond that, as `HlAdmin`), and it
+    gets a **success** ack. If its own `seq` is inside the window it is also recorded or buffered as usual; if it is
+    beyond the window, the success ack carries an app-level flag `redispatch = 1`, and `ibcgov` re-sends the same
+    `seq` with identical bytes later so the cancel takes its place in the sequence (its tombstones already
+    applied; re-applying them is a no-op).
   - Only the router may call, only from `ibcgov`'s port over the paired client; anything else is an error ack.
 - An ack tells `ibcgov` the decision is recorded or buffered. A **timeout** (no receipt) or an out-of-window error
   ack lets `ibcgov` re-dispatch the same `seq` with identical bytes. `ibcgov` never skips or reuses a number, so the
@@ -785,7 +798,10 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
      governance packets over the old client cannot, since that client may be the compromised party. Guardian
      replacements (kind 3) are deferred while a proposal is pending.
   4. *Execution, atomically in `IBCAdmin`:*
-     - freeze the old client id (no further receives, acks or timeouts through it);
+     - retire the old client id: the ICS20 fork refuses every send variant on it (the router's `sendPacket` does
+       not check client status, [`ICS26Router.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS26Router.sol)), and returns go through the new client; then freeze it
+       (no further receives, acks or timeouts through it). Sends are retired on both chains, and the retirement is
+       final on both, before any reconciliation snapshot is taken;
      - `addClient` a **new client id** with the attested GnoLightClient, so transport sequence numbers start
        fresh and no forged receipt can block an honest packet;
      - open a **new governance epoch**: packets carry `epoch ‖ seq`; every recorded-but-unexecuted decision,
@@ -801,12 +817,28 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   to the new one; freeze the old client. GovDAO acts on gno.land without the channel. (The core's ordinary
   recovery needs a frozen or expired subject and a substitute ahead of it,
   [`impl/v0/client.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/impl/v0/client.gno); a route replacement does not use it.)
-- **Packets in flight on the old route** are settled by a governed reconciliation: each side proves, through the
-  new clients at the checkpoint and later, which old-route packets were received and acknowledged; received ones
-  stand, unreceived ones are refunded at their source by decision, and packets the old client accepted but the
-  honest source never sent are written off against the voids and loss accounting of §7.9.
-- **Without the emergency path** (the default), the same route replacement happens through governance once the
-  guardians' hold has stopped the old route, or by a fresh deployment if the governance channel itself is lost.
+- **Packets of the old route** are settled by a governed reconciliation, after sends are retired on both chains.
+  Each side proves, through the new clients, the destination's state for every outstanding source commitment, and
+  each packet gets exactly one terminal settlement, recorded atomically with consuming (or marking settled) its
+  source commitment:
+  - received with a **success** ack → stands; the source commitment is consumed as acknowledged;
+  - received with an **error** ack whose refund is pending → refunded at the source by decision;
+  - **not received** → refunded at the source by decision; the destination's old client is frozen, so it can no
+    longer be received there;
+  - received with an **asynchronous ack not yet written** → the destination writes it (success or error) before the
+    snapshot, then one of the two cases above;
+  - **already settled** (ack or timeout processed) → nothing;
+  - accepted by the old client but **never sent** by the honest source (a forgery) → written off against the voids
+    and loss accounting of §7.9.
+  Refund liabilities move with the backing: escrow re-keyed to the new client stays reserved for the refunds owed.
+- **Without the emergency path** (the default), the route replacement can only be done through governance, which
+  needs a working governance channel. If the channel is lost (client expired, frozen or poisoned), **the Ethereum
+  side's backing is stranded**: the escrow of Ethereum-native tokens can only be released by the existing ICS20
+  contract ([`utils/Escrow.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/utils/Escrow.sol) `send`), existing vouchers can only be minted and burned by it, and every
+  authority over it sits in `IBCAdmin`. A fresh deployment would need fresh liquidity and could not honour the old
+  vouchers. So: if preserving backing after a channel loss is a requirement, the emergency path must be enabled
+  (once the guardian seats hold independent outsiders); otherwise this risk is accepted and stated in the trust
+  statement (§8.1).
 - **Operational deadlines.** The relayer updates the GnoLightClient at least daily, well within the trusting
   period; the monitor alarms after 3 days without one. Timeouts need a proof from the destination after the
   timeout, so a halted chain cannot refund until it resumes.
@@ -821,6 +853,7 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
 | Ethereum → gno.land | Gno Ethereum client: ≥ 2/3 of the 512-member sync committee signed a finalized header (BLS aggregate) + MPT proof | The sync committee (unslashable for signing; weaker than Casper finality, the standard light-client assumption); the BLS natives; the Gno client's fork tracking |
 | Governance → Ethereum | `IBCAdmin`: a `gov` packet from `ibcgov` proven by the GnoLightClient | GovDAO (after the yield) or the governor; gno.land's validators; the 7-day window and guardians |
 | Emergency recovery (if enabled, §7.12) | a guardian supermajority's attested checkpoint, after a long public delay | the guardian supermajority — a declared, optional trust assumption |
+| Recovery if the emergency path is disabled | governance over a working channel only | nobody — but a lost governance channel strands the Ethereum side's backing (§7.12) |
 
 ### 8.2 Actors and what each can break
 
@@ -968,7 +1001,8 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
    with the Go relayer and scripts; the controls (E5–E11) could be developed there or in a dedicated contracts
    repository.
 2. Claim queue vs error ack when meters are empty (default: claim queue).
-3. Whether to enable §7.12's emergency route replacement, and its guardian threshold, eligibility periods and delay.
+3. Whether to enable §7.12's emergency route replacement — required if Ethereum backing must survive the loss of
+   the governance channel — and its guardian threshold, eligibility periods and delay.
 4. Quarantine duration and whether to enable it at launch (a 7-day gno → Eth outage per validator-set change).
 5. 18-decimal Ethereum tokens: wrapper (E10) or cap.
 6. Mixed ed25519/secp256k1 validator sets during the migration: support both in `GnoLightClient` (costly for the
@@ -1021,6 +1055,15 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     constraint against the poisoned client and can be cancelled only by guardians.
   - Diagrams §6.1, §6.2, §6.4 and §6.8 aligned with the receive-path limits, the separate mint accounting and the
     live-epoch quarantine test.
+- 2026-10-16, fourth review with Codex. Folded:
+  - **Code fix** in gno-realms ([`d56b992`](https://github.com/allinbits/gno-realms/commit/d56b992)): Ethereum client updates must build on the latest
+    trusted state; a past committee could otherwise insert historical roots (R3, §5.2). Freshness rule added.
+  - A lost governance channel strands Ethereum backing unless the emergency path is enabled (§7.12, §8.1, open
+    question 3).
+  - Route replacement retires every send on the old client on both chains before reconciling; reconciliation
+    defined per packet state, with refund liabilities moving with the backing (§7.12).
+  - Cancellations beyond the governance window: tombstones persisted, success ack with `redispatch`, re-sent for
+    ordered recording (§5.4).
 
 ## 15. References
 
