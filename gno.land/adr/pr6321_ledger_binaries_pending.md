@@ -1,5 +1,7 @@
 # ADR: A ledger entry's binaries may be pending until CI builds the release
 
+> **Superseded in part by `prxxxx_ledger_entry_after_upgrade.md`.** That ADR has a ledger entry written once the chain runs the release, complete, instead of before the cut: the order in Decision 3 and the Consequences below do not describe the release process. Pending binaries stay valid in the format.
+
 ## Context
 
 The upgrade ledger (`misc/deployments/<chain>.gno.land/upgrades.json`, rules in `gno.land/pkg/upgrades`, introduced by #6228) records one entry per release a network has run, including a `binaries` map of per-platform download URLs carrying their sha256. `misc/release/cut-release.sh` refuses to tag a final release that the ledger does not record. The checksums only exist once CI has built the tagged release, and the ledger refused an entry without them, so no valid entry for a final release could exist at the moment it had to be cut. The gate only passed because it asked whether the entry existed (`upgrades has`, which parses) and never whether the ledger validated.
