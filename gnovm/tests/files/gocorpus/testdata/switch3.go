@@ -74,11 +74,11 @@ func good() {
 // GnoError:
 // line 21: string does not implement main.I (missing method M)
 // line 25: cannot use main.I as string without explicit conversion
-// line 29: 3: map[int]int can only be compared to nil
-// line 36: 3: []int can only be compared to nil
-// line 43: 3: func() can only be compared to nil
-// line 50: 3: [4]func() is not comparable
-// line 56: 3: struct{f func()} is not comparable
+// line 29: map[int]int can only be compared to nil
+// line 36: []int can only be compared to nil
+// line 43: func() can only be compared to nil
+// line 50: [4]func() is not comparable
+// line 56: struct{f func()} is not comparable
 // line 70: cannot use interface {} as string
 
 // GnoWordingDiffers:

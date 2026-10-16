@@ -18,6 +18,6 @@ bug209.go:5: Bus error
 */
 
 // GnoError:
-// line 11: 3: expected typed bool kind, but got IntKind
+// line 11: expected typed bool kind, but got IntKind
 
 // Verdict: Clean errorcheck

@@ -15,7 +15,7 @@ func _() {
 }
 
 // GnoError:
-// line 12: 0: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+// line 12: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
 
 // GnoWordingDiffers:
 // line 13: gc expects: cannot range over 10; gno: 0: range iteration requires map, string, array, slice, or pointer to array; got BigintKind

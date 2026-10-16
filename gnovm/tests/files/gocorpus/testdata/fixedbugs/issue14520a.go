@@ -10,6 +10,6 @@ import /* // ERROR "import path" */ `
 bogus`
 
 // GnoError:
-// line 9: 7: invalid import path "\nbogus": invalid character '\n'
+// line 9: invalid import path "\nbogus": invalid character '\n'
 
 // Verdict: Clean errorcheck

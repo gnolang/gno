@@ -22,8 +22,8 @@ func main() {
 }
 
 // GnoError:
-// line 9: 2: name T not defined in fileset with files [issue6572.go]
-// line 13: 2: name T not defined in fileset with files [issue6572.go]
+// line 9: name T not defined in fileset with files [issue6572.go]
+// line 13: name T not defined in fileset with files [issue6572.go]
 
 // GnoWordingDiffers:
 // line 9: gc expects: undefined; gno: 2: name T not defined in fileset with files [issue6572.go]
