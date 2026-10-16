@@ -321,6 +321,29 @@ Repositories and branches:
   - Every hash, buffer slot and tombstone is keyed by `(epoch, seq)`.
   - The app acknowledgement is `epoch u32 ‖ seq u64 ‖ status u8 ‖ redispatch u8`, status one of recorded,
     buffered, duplicate, conflict, spent; `ibcgov` re-sends the same bytes when `redispatch = 1` or on a timeout.
+- **Wire encoding.** The payload's port is `gov` on both sides, version `ibcgov-1`, encoding
+  `application/x-ibcgov`. The envelope prefix is fixed-width big-endian (`version`, `epoch`, `seq`, `kind`: 14
+  bytes); `params` is the Solidity ABI encoding (`abi.encode`) of the kind's tuple below, so `IBCAdmin` decodes it
+  with `abi.decode` and `ibcgov` builds it with the ABI encoder the transfer app already uses. The app
+  acknowledgement's `status` is 1 recorded, 2 buffered, 3 duplicate, 4 conflict, 5 spent. A `token` is the
+  Ethereum ERC20 address; a `clientId` is the Ethereum router's client id.
+
+  | Kind | `params` tuple | Delay rule |
+  |---|---|---|
+  | 1 cancel | `(uint64 from, uint64 to)[] ranges` (inclusive) | at recording |
+  | 2 unpause | `(uint8 object, string clientId)`; object 1 = the transfer route of `clientId`, 2 = `IBCAdmin` (`clientId` empty) | 24 h |
+  | 3 seats | `(uint8 seat, address key)[]`; seats 0–3 guardians, 4–5 watch keys; at most 2 guardian seats per decision | 7 d; through a hold at ≥ day 21 |
+  | 4 limits | `(string clientId, address token, uint256 maxPerMessage, uint256 dayCap, uint256 refundCap, uint256 sendMax, uint256 sendMin)`; `sendMax`/`sendMin` apply to Ethereum-native tokens only (0 = unset) | at recording if no field loosens, else 7 d |
+  | 5 voucher | `(string clientId, string baseDenom, address voucher, bytes32 codeHash)` | 7 d |
+  | 6 client | `(uint8 op, string clientId, string counterpartyClientId, bytes[] merklePrefix, address lightClient, bytes32 codeHash)`; op 1 add, 2 migrate `clientId` to `lightClient` | 7 d |
+  | 7 upgrade | `(address proxy, address implementation, bytes32 codeHash, bytes call)` | 7 d |
+  | 8 role | `(bool grant, uint64 roleId, address account)` | grant 7 d, revoke at recording |
+  | 9 hand-over | `(address exec, bytes32 codeHash, bytes migrationCall)` | 7 d |
+  | 10 route replacement | `(string oldClientId, string newClientId)`: retire and freeze the old client id, `migrateRoute`, open the next epoch over the new client (added by kind 6 first) | 7 d |
+  | 11 route settings | `(string clientId, uint64 quarantineSeconds)` | lengthening at recording, shortening 7 d |
+
+  A decision that fails to decode, names an unknown kind or fails its checks at execution is **spent** (§5.4
+  above), never retried.
 - Router semantics this relies on: a callback revert with non-empty data becomes an error ack and the receipt
   stays; a revert with empty data (or out-of-gas) rolls the whole receive back. So `IBCAdmin` never reverts with
   empty data, and it **orders recording, not delivery**:
