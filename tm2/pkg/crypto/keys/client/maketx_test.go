@@ -293,3 +293,57 @@ func (m stubMsg) Type() string                 { return m.typ }
 func (m stubMsg) ValidateBasic() error         { return nil }
 func (m stubMsg) GetSignBytes() []byte         { return nil }
 func (m stubMsg) GetSigners() []crypto.Address { return nil }
+
+// TestPlanSignatures pins when maketx signs a simulation copy. On a Ledger each
+// signature is a prompt, so a signature the broadcast step does not use is a
+// prompt for nothing.
+func TestPlanSignatures(t *testing.T) {
+	t.Parallel()
+
+	const (
+		gasWanted = int64(10)
+		maxGas    = int64(25)
+	)
+	newTx := func(route, typ string) std.Tx {
+		return std.Tx{
+			Msgs:       []std.Msg{stubMsg{route: route, typ: typ}},
+			Fee:        std.NewFee(gasWanted, std.MustParseCoin("1ugnot")),
+			Signatures: []std.Signature{{Signature: []byte("broadcast")}},
+		}
+	}
+	addpkg, send := newTx("vm", "add_package"), newTx("bank", "send")
+
+	tests := []struct {
+		name         string
+		tx           std.Tx
+		simulate     string
+		maxGas       int64
+		ledger       bool
+		wantSimTx    bool
+		wantAsSigned bool
+	}{
+		{name: "local key, simulate test: a copy, for the better error", tx: addpkg, simulate: SimulateTest, maxGas: maxGas, wantSimTx: true},
+		{name: "ledger, simulate test: simulated as signed", tx: addpkg, simulate: SimulateTest, maxGas: maxGas, ledger: true, wantAsSigned: true},
+		{name: "local key, simulate only: a copy", tx: addpkg, simulate: SimulateOnly, maxGas: maxGas, wantSimTx: true},
+		{name: "ledger, simulate only: a copy", tx: addpkg, simulate: SimulateOnly, maxGas: maxGas, ledger: true, wantSimTx: true},
+		{name: "simulate skip", tx: addpkg, simulate: SimulateSkip, maxGas: maxGas, ledger: true},
+		{name: "unverified simulation", tx: send, simulate: SimulateOnly, maxGas: maxGas, ledger: true},
+		{name: "max gas unknown: nothing to rewrite", tx: addpkg, simulate: SimulateOnly, maxGas: 0},
+		{name: "gas wanted already at max: nothing to rewrite", tx: addpkg, simulate: SimulateTest, maxGas: gasWanted},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			plan := planSignatures(tt.tx, tt.simulate, tt.maxGas, tt.ledger)
+
+			assert.Equal(t, tt.wantAsSigned, plan.simulateAsSigned, "simulateAsSigned")
+			require.Equal(t, tt.wantSimTx, plan.simTx != nil, "simTx")
+			if plan.simTx != nil {
+				assert.Equal(t, tt.maxGas, plan.simTx.Fee.GasWanted)
+				assert.Empty(t, plan.simTx.Signatures, "the copy is signed on its own")
+			}
+			assert.Equal(t, gasWanted, tt.tx.Fee.GasWanted, "the broadcast tx keeps its GasWanted")
+			assert.Len(t, tt.tx.Signatures, 1, "the broadcast tx keeps its signature")
+		})
+	}
+}

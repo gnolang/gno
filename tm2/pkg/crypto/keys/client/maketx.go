@@ -262,47 +262,50 @@ func SignAndBroadcastHandler(
 		decryptPass: pass,
 	}
 
-	// Generate the transaction signature
-	signature, err := generateSignature(&tx, kb, sOpts, kOpts)
-	if err != nil {
-		return nil, fmt.Errorf("unable to sign transaction: %w", err)
+	sign := func(t *std.Tx) error {
+		signature, err := generateSignature(t, kb, sOpts, kOpts)
+		if err != nil {
+			return err
+		}
+		if cfg.Master != "" {
+			signature.SessionAddr = info.GetAddress()
+		}
+		return addSignature(t, signature)
 	}
 
-	if cfg.Master != "" {
-		signature.SessionAddr = info.GetAddress()
-	}
-
-	// Add the signature to the tx
-	if err = addSignature(&tx, signature); err != nil {
-		return nil, fmt.Errorf("unable to add signature: %w", err)
+	// -simulate only broadcasts nothing, so the tx itself is signed only if
+	// no simulation copy is. Otherwise sign it first, so that a Ledger prompt
+	// overlaps the max gas fetch.
+	if cfg.Simulate != SimulateOnly {
+		if err := sign(&tx); err != nil {
+			return nil, fmt.Errorf("unable to sign transaction: %w", err)
+		}
 	}
 
 	maxGas := resolveMaxGas(maxGasCh, io)
+	plan := planSignatures(tx, cfg.Simulate, maxGas, info.GetType() == keys.TypeLedger)
 
-	// Simulation raises GasWanted to consensus maxGas so the estimate is not
-	// clipped by whatever the caller guessed. That changes the sign bytes,
-	// and the chain verifies signatures on the simulate path for some message
-	// types (see auth.AnteOptions.RequireSigForSimulate), so the rewritten tx
-	// gets its own signature rather than carrying one that no longer matches.
-	var simTxBytes []byte
-	if cfg.Simulate != SimulateSkip && txNeedsSimulationSignature(tx) {
-		if simTx, rewritten := txWithGasWanted(&tx, maxGas); rewritten {
-			simTx.Signatures = nil
-			simSig, err := generateSignature(simTx, kb, sOpts, kOpts)
-			if err != nil {
-				return nil, fmt.Errorf("unable to sign simulation transaction: %w", err)
-			}
-			if cfg.Master != "" {
-				simSig.SessionAddr = info.GetAddress()
-			}
-			if err = addSignature(simTx, simSig); err != nil {
-				return nil, fmt.Errorf("unable to add simulation signature: %w", err)
-			}
-			simTxBytes, err = amino.Marshal(simTx)
-			if err != nil {
-				return nil, fmt.Errorf("unable to marshal simulation transaction: %w", err)
-			}
+	if cfg.Simulate == SimulateOnly && plan.simTx == nil {
+		if err := sign(&tx); err != nil {
+			return nil, fmt.Errorf("unable to sign transaction: %w", err)
 		}
+	}
+
+	var simTxBytes []byte
+	if plan.simTx != nil {
+		if err := sign(plan.simTx); err != nil {
+			return nil, fmt.Errorf("unable to sign simulation transaction: %w", err)
+		}
+		simTxBytes, err = amino.Marshal(plan.simTx)
+		if err != nil {
+			return nil, fmt.Errorf("unable to marshal simulation transaction: %w", err)
+		}
+	}
+
+	simulateMaxGas := maxGas
+	if plan.simulateAsSigned {
+		// 0 makes the broadcast step simulate the signed tx unchanged.
+		simulateMaxGas = 0
 	}
 
 	// broadcast signed tx
@@ -312,7 +315,7 @@ func SignAndBroadcastHandler(
 
 		DryRun:         cfg.Simulate == SimulateOnly,
 		testSimulate:   cfg.Simulate == SimulateTest,
-		simulateMaxGas: maxGas,
+		simulateMaxGas: simulateMaxGas,
 		simTxBytes:     simTxBytes,
 		GasFeeMargin:   cfg.GasFeeMargin,
 	}
@@ -375,6 +378,35 @@ func handleDeliverResult(cfg *BaseCfg, tx std.Tx, bres *types.ResultBroadcastTxC
 		DefaultOnTxFailure(io, tx, bres)
 	}
 	return errors.Wrapf(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+}
+
+type signaturePlan struct {
+	// simTx is a copy of the tx with GasWanted raised for simulation, to be
+	// signed on its own.
+	simTx *std.Tx
+	// simulateAsSigned is whether to simulate the signed tx unchanged.
+	simulateAsSigned bool
+}
+
+// planSignatures decides how a tx is simulated, signing nothing the broadcast
+// step will not use. Simulation raises GasWanted to maxGas so the estimate is
+// not clipped, which needs a second signature when the chain verifies it (see
+// txNeedsSimulationSignature). On a Ledger that is a second prompt, so with
+// -simulate test it simulates the tx as signed, giving up the gas figure past
+// its own GasWanted.
+func planSignatures(tx std.Tx, simulate string, maxGas int64, ledger bool) signaturePlan {
+	if simulate == SimulateSkip || !txNeedsSimulationSignature(tx) {
+		return signaturePlan{}
+	}
+	simTx, rewritten := txWithGasWanted(&tx, maxGas)
+	switch {
+	case !rewritten:
+		return signaturePlan{}
+	case ledger && simulate == SimulateTest:
+		return signaturePlan{simulateAsSigned: true}
+	}
+	simTx.Signatures = nil
+	return signaturePlan{simTx: simTx}
 }
 
 type consensusMaxGasResult struct {
