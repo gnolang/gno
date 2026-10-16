@@ -27,6 +27,7 @@ const (
 	CodeImpossibleCase   ErrCode = "impossible-case"
 	CodeTypeSwitchTag    ErrCode = "type-switch-tag"
 	CodeNotAType         ErrCode = "not-a-type"
+	CodeMissingField     ErrCode = "missing-field"
 	CodeCopyArgs         ErrCode = "copy-args"
 	CodeRecursiveType    ErrCode = "recursive-type"
 	CodeRecursiveValue   ErrCode = "recursive-value"

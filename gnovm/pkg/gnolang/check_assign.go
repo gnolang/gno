@@ -158,7 +158,7 @@ func checkValDefineMismatch(n Node) {
 
 	if valueDecl != nil {
 		if numNames > numValues {
-			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].String()))
+			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].Name))
 		}
 		panic(fmt.Sprintf("extra init expr %s", values[numNames].String()))
 	}
@@ -213,7 +213,15 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with isImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if err := idt.checkImplementedBy(preprocessGasMeterOf(store), xt); err == nil {
+			}
+			// A pointer to an interface has no methods, so it never
+			// implements a non-empty one (Go spec, Method sets).
+			if pt, ok := baseOf(xt).(*PointerType); ok {
+				if _, isIface := baseOf(pt.Elt).(*InterfaceType); isIface {
+					return errors.New("cannot use %s as %s: %s is pointer to interface, not interface", xt.String(), dt.String(), xt.String())
+				}
+			}
+			if err := idt.checkImplementedBy(preprocessGasMeterOf(store), xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {

@@ -2758,7 +2758,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
 				if n.Type == nil {
-					panic("should not happen")
+					fail(CodeTypeSwitchTag, "use of .(type) outside type switch", n)
 				}
 
 				// Type assertions on the blank identifier are illegal.
@@ -3124,9 +3124,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					case *DeclaredType:
 						dt = ct
 					default:
-						panic(fmt.Sprintf(
-							"unexpected selector expression type value %s",
-							xt.String()))
+						fail(CodeMissingField, fmt.Sprintf(
+							"invalid method expression %s.%s (type %s has no method %s)",
+							exprString(n.X), n.Sel, xt.String(), n.Sel), n)
 					}
 					// Ensure exposed or package path match. Without this gate,
 					// `(*pkg.Type).unexportedMethod` from outside pkg resolves
@@ -3158,9 +3158,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						return Preprocess(store, last, lit).(Expr), TRANS_CONTINUE
 					}
 				default:
-					panic(fmt.Sprintf(
-						"unexpected selector expression type %v",
-						reflect.TypeOf(xt)))
+					// A selector on a value with no fields or methods: a
+					// primitive, a func, a slice, a map, a channel.
+					fail(CodeMissingField, fmt.Sprintf(
+						"%s.%s undefined (type %s has no field or method %s)",
+						exprString(n.X), n.Sel, xt.String(), n.Sel), n)
 				}
 
 			// TRANS_LEAVE -----------------------

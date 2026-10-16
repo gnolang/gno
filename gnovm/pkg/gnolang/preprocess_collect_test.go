@@ -849,3 +849,38 @@ func TestInitCycleOnChain(t *testing.T) {
 	m.RunFiles(fn)
 	t.Fatal("RunFiles accepted a cycle")
 }
+
+func TestPreprocessCollectDiagnosticsNotCrashes(t *testing.T) {
+	// Each of these used to be an internal panic; now a positioned error.
+	for src, want := range map[string]string{
+		"package main\n\nfunc main() {\n\tvar i interface{}\n\tif x, ok := i.(type); ok {\n\t\t_ = x\n\t}\n}\n":   "use of .(type) outside type switch",
+		"package main\n\nconst c = 3\nvar x = c.String()\n\nfunc main() {}\n":                                     "c.String undefined (type",
+		"package main\n\nfunc main() {\n\tx := 1\n\tfor range x.m() {\n\t}\n}\n":                                  "x.m undefined (type int has no field or method m)",
+		"package main\n\ntype I interface{ M() }\n\nfunc Add(i I) {}\n\nfunc main() {\n\tvar p *I\n\tAdd(p)\n}\n": "*main.I is pointer to interface, not interface",
+		"package main\n\nfunc main() {\n\tvar a, b = 1\n\t_, _ = a, b\n}\n":                                       "missing init expr for b",
+	} {
+		msgs := collectErrors(t, src)
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, want) {
+				found = true
+			}
+			if IsInternalMessage(m) {
+				t.Errorf("internal error for %q: %s", want, m)
+			}
+		}
+		if !found {
+			t.Errorf("want %q, got %v", want, msgs)
+		}
+	}
+}
+
+// IsInternalMessage mirrors the harness's internal-error filter.
+func IsInternalMessage(m string) bool {
+	for _, s := range []string{"should not happen", "unexpected selector expression type", "VPInvalid", "StaticBlock.Define"} {
+		if strings.Contains(m, s) {
+			return true
+		}
+	}
+	return false
+}

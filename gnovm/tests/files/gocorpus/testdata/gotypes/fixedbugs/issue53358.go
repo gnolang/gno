@@ -21,6 +21,9 @@ var _ = struct{ A }.m // ERROR "invalid method expression struct{A}.m (needs poi
 // GnoError:
 // line 11: invalid method expression A.m (needs pointer receiver (*A).m)
 // line 16: invalid method expression B.m (needs pointer receiver (*B).m)
-// line 19: unexpected selector expression type value struct{A gno.land/p/filetest/p.A}
+// line 19: invalid method expression struct {  typeval{gno.land/p/filetest/p.A} }.m (type struct{A gno.land/p/filetest/p.A} has no method m)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19; internal errors: lines 19
+// GnoWordingDiffers:
+// line 19: gc expects: invalid method expression struct{A}.m (needs pointer receiver (*struct{A}).m); gno: invalid method expression struct {  typeval{gno.land/p/filetest/p.A} }.m (type struct{A gno.land/p/filetest/p.A} has no method m)
+
+// Verdict: Clean errorcheck
