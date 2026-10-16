@@ -17,9 +17,10 @@ find testdata -name '*.go' | sort | while read -r f; do
 	case $rel in run/*|compile/*|errorcheck/*|gno/*) continue ;; esac
 	case $rel in gotypes/*) up="$src/src/internal/types/testdata/${rel#gotypes/}" ;; *) up="$src/test/$rel" ;; esac
 	[ -f "$up" ] || { echo "no upstream file for $rel" >&2; exit 1; }
-	# $(cat) drops every trailing newline, printf puts one back: the same
-	# normalisation the test applies to a stripped body.
-	sum=$(printf '%s\n' "$(cat "$up")" | shasum -a 256 | cut -d' ' -f1)
+	# CRLF becomes LF (one upstream file is a CRLF test); $(cat) drops every
+	# trailing newline and printf puts one back: the normalisation the test
+	# applies to a stripped body.
+	sum=$(printf '%s\n' "$(tr -d '\r' < "$up")" | shasum -a 256 | cut -d' ' -f1)
 	printf '%s  %s\n' "$sum" "$rel" >> "$out.tmp"
 done
 mv "$out.tmp" "$out"
