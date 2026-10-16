@@ -44,4 +44,4 @@ type w2 w // refer to the type loop again
 // line 31: invalid recursive type: w -> x -> y -> z -> x
 // line 36: should not happen
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 32; over-strict: lines 17, 21, 31, 36
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 23, 32; over-strict: lines 21, 31; internal errors: lines 17, 18, 36

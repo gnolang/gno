@@ -31,4 +31,4 @@ func (*B) m() {} // ERROR "already declared|redefinition"
 // line 21: redeclaration of method T.m
 // line 22: redeclaration of method T.m
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file

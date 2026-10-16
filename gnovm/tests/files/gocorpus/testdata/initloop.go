@@ -22,4 +22,4 @@ var (
 // line 15: decl node already predefined! var a<!VPInvalid(0)> int<VPInvalid(0)> = b<VPInvalid(0)>
 // line 16: decl node already predefined! var a<!VPInvalid(0)> int<VPInvalid(0)> = b<VPInvalid(0)>
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 13, 15, 16
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 13; internal errors: lines 15, 16

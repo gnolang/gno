@@ -27,4 +27,4 @@ func main() {
 // stack 0: file main/bug463.go:10:1-22:2
 // ------------------------
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 16; internal errors: lines 10; on-chain path first error on line 12, not reported by accumulate mode
