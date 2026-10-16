@@ -19,7 +19,4 @@ func main() {
 // GnoError:
 // line 13: should not happen
 
-// GnoWordingDiffers:
-// line 13: gc expects: outside type switch; gno: should not happen
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13; internal errors: lines 13

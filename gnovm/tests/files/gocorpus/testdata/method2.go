@@ -51,8 +51,6 @@ var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires point
 // line 41: wrong argument count in call to typeval{main.T}.g; want 1 got 0
 
 // GnoWordingDiffers:
-// line 36: gc expects: undefined|pointer to interface; gno: should not happen
-// line 37: gc expects: undefined|pointer to interface; gno: should not happen
 // line 41: gc expects: needs pointer receiver|undefined|method requires pointer|cannot call pointer method; gno: wrong argument count in call to typeval{main.T}.g; want 1 got 0
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 36, 37; internal errors: lines 36, 37

@@ -13,4 +13,4 @@ import""  // ERROR "import path is empty|invalid import path \(empty string\)"
 // GnoError:
 // line 11: invalid import path (empty string)
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
