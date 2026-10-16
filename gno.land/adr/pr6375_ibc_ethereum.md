@@ -793,12 +793,20 @@ so other IBC routes of the same realms are unaffected.
 - **Supply identity, per client and denom**, over **accounted backing**: the escrow balance implied by
   authenticated bridge operations (escrows on send minus releases on receive, refund and claim payout), kept by the
   monitor from packet records, not the escrow account's raw token balance:
-  - gno-native: `accounted escrow on gno = voucher supply on Ethereum + in flight + open/owed/withheld claims on gno`
+  - gno-native: `accounted escrow on gno = voucher supply on Ethereum + in flight + unpaid refunds + open/owed/withheld claims on gno`
     (a returned voucher is burned on Ethereum but its GNOT stays escrowed until its claim is paid);
-  - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + open/owed/withheld claims`.
-  - "In flight" means packets in an economic state: sent and not yet received, **or received with an error ack
-    whose refund has not yet been processed at the source** (a pending refund liability) — not every outstanding
-    commitment, since commitments also persist until acks are processed.
+  - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + unpaid refunds + open/owed/withheld claims on Ethereum`.
+  - Each packet's amount sits in **exactly one** of these terms at a time, keyed by the packet:
+    - **in flight** — sent and not yet received at the destination, or received with an error ack (or past its
+      timeout) whose ack or timeout the source has not processed yet;
+    - **unpaid refunds** — the source processed the error ack or timeout but has not **paid** the refund yet:
+      a refund queued under the refund meter (§7.13) or held by a `refunds` hold, on **either** chain — including
+      a pending re-mint of returned vouchers on Ethereum, or re-mint of returned vouchers on gno. A refund leaves
+      this term only when paid, not when its ack or timeout is processed;
+    - **claims** — received with a success ack and not yet paid out at the destination (open, owed or withheld,
+      §7.1);
+    - otherwise settled: in the destination's supply or released from escrow.
+    Not every outstanding commitment is in flight, since commitments also persist until acks are processed.
   - **Balances must cover it.** Separately, each escrow's actual balance must be at least its accounted backing.
     A shortfall is an integrity break. An excess is **surplus** — anyone can transfer tokens or GNOT straight to
     an escrow address without a packet — and only alarms; it never flags or holds the route, and governance may
@@ -814,11 +822,16 @@ so other IBC routes of the same realms are unaffected.
     lies above `G`, and lowers `G` below the first gno.land receive whose Ethereum send lies above `E`, repeating
     until neither moves. Both only decrease, so this ends, at worst at the previous evaluation's pair (or the route's launch heights), which is closed.
     Refund liabilities, claims and payouts are all read at the same pair.
-  - **Deferred alarms.** If a closed pair cannot be established — a record missing, a provider disagreeing, a
-    pinned height not yet finalized, or the pair falling too far behind — the evaluation is skipped and retried
-    later; it only alarms after a configured number of failures. An integrity auto-flag needs a break (in the
+  - **Confirmed orphans are breaks, not skew.** Rewinding is only for receives whose send is **not yet visible**
+    at the other pin. Once a finalized receive's send is confirmed **absent** from the canonical source history
+    (the source's finalized state, read as above, has no send record and no commitment for that sequence — or has
+    a different packet there), the receive is a forgery: it is an integrity break by itself, flagged at once
+    with the containment response below, and is not rewound past or deferred.
+  - **Deferred alarms.** If a closed pair cannot be established because data is **unavailable** — a record
+    missing, a provider disagreeing, a pinned height not yet finalized, or the pair falling too far behind — the
+    evaluation is skipped and retried later; it only alarms after a configured number of failures. An integrity auto-flag needs a break (in the
     identity or a balance shortfall) that persists over two consecutive evaluations at closed pairs.
-- **What triggers what.** A break at closed pairs that persists as above auto-flags credits+payouts and
+- **What triggers what.** A confirmed orphan receive, or a break at closed pairs that persists as above, auto-flags credits+payouts and
   receives, and sets the route's `refunds` hold (§7.13). Stalls, ages, float runways, failures to find a closed pair and escrow
   surplus only alarm.
 - **Watch tool.** Guardians and members see flags, holds, pending decisions and the client heads, and check
@@ -1273,6 +1286,11 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     receives whose sends lie beyond the other's, instead of correcting for excluded receives (§7.11, T4).
   - The identity is over accounted backing from bridge operations; actual escrow balances must cover it, and
     unsolicited surplus only alarms, so a direct transfer to an escrow cannot hold the route (§7.11, T4).
+- 2026-10-16, eighteenth review with Codex. Folded:
+  - A finalized receive whose send is confirmed absent from the source's canonical history is an integrity break
+    by itself; rewinding and deferred alarms apply only to sends not yet visible or data unavailable (§7.11).
+  - The supply identity has an **unpaid refunds** term on either chain, including queued voucher re-mints; a
+    refund leaves it when paid, and every packet's amount sits in exactly one term (§7.11).
 
 ## 15. References
 
