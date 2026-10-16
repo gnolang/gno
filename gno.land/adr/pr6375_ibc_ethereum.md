@@ -344,10 +344,10 @@ Repositories and branches:
   | 7 upgrade | `(address proxy, address implementation, bytes32 codeHash, bytes call)` | 7 d |
   | 8 role | `(bool grant, uint64 roleId, address account)` | grant 7 d, revoke at recording |
   | 9 hand-over | `(address exec, bytes32 codeHash, bytes migrationCall)` | 7 d |
-  | 10 route replacement | `(string oldClientId, string newClientId)`: retire and freeze the old client id, `migrateRoute`, open the next epoch over the new client (added by kind 6 first) | 7 d |
+  | 10 route replacement | `(string oldClientId, string newClientId, uint64 suspectFrom)`: retire and freeze the old client id, `migrateRoute`, open the next epoch over the new client (a custom id enrolled by a kind 6 first; an id the router generated is refused). `suspectFrom` is the Ethereum block from which acks and timeouts processed through the old client are suspect (§7.12): every send record processed at or after it must be settled by kind 12 before kind 13 | 7 d |
   | 11 route settings | `(string clientId, uint64 quarantineSeconds)`; a duration applies to transitions accepted after it; one already started keeps its deadline | lengthening at recording, shortening 7 d |
   | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the route's send records; action 1 pay the refund's remainder — `amount` must equal the entitlement minus what was already refunded (a refund is never cut short, §7.9) — 2 reject a queued refund, 3 settled as delivered, 4 forged refund: reject the unpaid remainder **and** record what was already paid as a loss, atomically (`amount` must equal what was paid); each send record is settled at most once | 7 d |
-  | 13 reopen | `(string clientId)`: reopen a route closed by kind 10 or the emergency recovery. Refused while any send record on the route's retired client ids is still open (outstanding commitment, or a queued, parked or unpaid refund, not settled by kind 12). Any unrecovered loss not recapitalized is recorded as an **accepted deficit** by this decision (§7.9). | 7 d |
+  | 13 reopen | `(string clientId)`: reopen a route closed by kind 10 or the emergency recovery. Refused while any send record on the route's retired client ids is still open (outstanding commitment, or a queued, parked or unpaid refund, not settled by kind 12), or while any record whose ack or timeout was processed at or after the replacement's `suspectFrom` is unsettled. Any unrecovered loss not recapitalized is recorded as an **accepted deficit** by this decision (§7.9); when there are many, a permissionless continuation records them in bounded batches and the route opens when the last batch completes. | 7 d |
 
   A decision that fails to decode, names an unknown kind or fails its checks at execution is **spent** (§5.4
   above), never retried.
@@ -943,7 +943,9 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
 - **Packets of the old route** are settled by a governed reconciliation, after sends are retired on both chains.
   It covers every outstanding source commitment **and** every packet whose ack or timeout the source accepted
   through the old client during the **suspected compromise interval** (from the last height the replacement clients
-  confirm as honest to the replacement): transport success through a suspect verifier is not financial settlement.
+  confirm as honest to the replacement; on Ethereum this start is kind 10's `suspectFrom`, or the emergency
+  recovery proposal's, and the source keeps its processed records ordered by processing height so the records to
+  settle are counted in logarithmic work): transport success through a suspect verifier is not financial settlement.
   For every outstanding source commitment, the original packet is first **authenticated** by recomputing its source
   commitment from the packet bytes and comparing it with the stored one (the source chain's encoding). An **unpaid
   queued refund** or any other packet whose ack or timeout was processed (§7.13) has no source commitment left —
@@ -1371,6 +1373,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     custom ids of at least 4 characters not starting with `client-` (§5.4).
   - Kinds 12 (settle) and 13 (reopen): a replaced route stays closed until reconciled and reopened by decision
     (§5.4, §7.12). Quarantine durations apply to later transitions only (kind 11).
+- 2026-10-16, third implementation review amendments:
+  - Kind 10 carries `suspectFrom`; acks and timeouts processed through the old client from then on must be
+    settled by kind 12 before kind 13. Kind 10 accepts only a governed custom client id (§5.4, §7.12).
+  - Kind 13's deficit acceptance runs in bounded batches (§5.4).
 
 ## 15. References
 
