@@ -34,7 +34,7 @@ func f4(e interface{}) {
 }
 
 // GnoError:
-// line 16: 3: duplicate type int in type switch
+// line 16: duplicate type int in type switch
 
 // GnoWordingDiffers:
 // line 18: gc expects: duplicate case int in type switch; gno: 3: duplicate type int in type switch

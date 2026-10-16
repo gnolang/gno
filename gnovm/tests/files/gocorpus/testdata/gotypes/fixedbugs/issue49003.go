@@ -10,9 +10,9 @@ func f(s string) int {
 } // ERROR "missing return"
 
 // GnoError:
-// line 7: 2: [function "f" does not terminate]
+// line 7: [function "f" does not terminate]
 
 // GnoWordingDiffers:
-// line 10: gc expects: missing return; gno: 2: [function "f" does not terminate]
+// line 10: gc expects: missing return; gno: [function "f" does not terminate]
 
 // Verdict: Clean errorcheck

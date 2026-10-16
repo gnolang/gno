@@ -431,26 +431,17 @@ func gnoErrSegments(s string) []string {
 	return out
 }
 
-// CleanErrorMessage strips a leading `path:line:col:` prefix from
-// errStr, leaving just the message text. Used when recording a Gno
-// error in the `// GnoError:` golden block so the block doesn't pin
-// volatile file paths or column numbers.
+// reErrorLocation is a located message's prefix: file:L:C, with an
+// optional span end (-C2 or -L2:C2), or just file:L.
+var reErrorLocation = regexp.MustCompile(`(?s)^\S+?:\d+(?::\d+)?(?:-\d+(?::\d+)?)?:\s*(.*)$`)
+
+// CleanErrorMessage strips the location prefix from a Gno error message
+// ("pkg/file.go:12:3-14:2: msg" becomes "msg"); a message with no
+// location is returned trimmed.
 func CleanErrorMessage(errStr string) string {
 	s := strings.TrimSpace(errStr)
-	// Format: file:line:col: text  → split into 4 parts, take the 4th.
-	parts := strings.SplitN(s, ":", 4)
-	if len(parts) == 4 {
-		// Sanity: parts[1] should be a number (line); parts[2] a number (col).
-		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
-			return strings.TrimSpace(parts[3])
-		}
-	}
-	// Fall back: try file:line: text (3 parts).
-	parts = strings.SplitN(s, ":", 3)
-	if len(parts) == 3 {
-		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
-			return strings.TrimSpace(parts[2])
-		}
+	if m := reErrorLocation.FindStringSubmatch(s); m != nil {
+		return strings.TrimSpace(m[1])
 	}
 	return s
 }

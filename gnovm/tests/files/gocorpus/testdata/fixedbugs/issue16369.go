@@ -13,7 +13,7 @@ type T interface { // ERROR "invalid recursive type: anonymous interface refers 
 }
 
 // GnoError:
-// line 9: 2: invalid recursive type: T -> T
+// line 9: invalid recursive type: T -> T
 
 // GnoWordingDiffers:
 // line 9: gc expects: invalid recursive type: anonymous interface refers to itself; gno: 2: invalid recursive type: T -> T
