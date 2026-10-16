@@ -13,4 +13,4 @@ var i = func() int {a := f(i); return a}()  // ERROR "initialization cycle|depen
 // GnoError:
 // line 11: initialization cycle: i refers to i
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
