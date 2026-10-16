@@ -18,7 +18,7 @@ func f(e interface{}) {
 }
 
 // GnoError:
-// line 10: 3: duplicate type nil in type switch
-// line 14: 3: duplicate type nil in type switch
+// line 10: duplicate type nil in type switch
+// line 14: duplicate type nil in type switch
 
 // Verdict: Clean errorcheck

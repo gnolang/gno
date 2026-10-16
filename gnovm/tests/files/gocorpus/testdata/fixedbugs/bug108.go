@@ -11,6 +11,6 @@ func f() {
 }
 
 // GnoError:
-// line 8: 2: constant shift overflow
+// line 8: constant shift overflow
 
 // Verdict: Clean errorcheck
