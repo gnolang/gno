@@ -1,4 +1,4 @@
-# PRxxxx: type rules at preprocess
+# PR6361: type rules at preprocess
 
 ## Context
 
