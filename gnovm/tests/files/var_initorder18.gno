@@ -11,7 +11,7 @@ var B = func() int {
 func main() { println(B) }
 
 // Error:
-// main/var_initorder18.gno:7:5: circular dependency: B -> B
+// main/var_initorder18.gno:7:5-9:4: initialization cycle: B refers to B
 
 // TypeCheckError:
 // main/var_initorder18.gno:9:1: missing return; main/var_initorder18.gno:7:5: initialization cycle: B refers to itself

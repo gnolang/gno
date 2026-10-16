@@ -37,4 +37,4 @@ func (f *FlagSet) setErrorHandling(b bool) {
 // GnoError:
 // line 12: initialization cycle: commandLine refers to NewFlagSet refers to FlagSet.setErrorHandling refers to FlagSet.failf refers to FlagSet.usage refers to commandLine
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck
