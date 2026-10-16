@@ -11,6 +11,6 @@ func f() {
 }
 
 // GnoError:
-// line 9: bigint overflows target kind
+// line 8: constant shift overflow
 
 // Verdict: Clean errorcheck

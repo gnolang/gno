@@ -32,6 +32,11 @@ const _ = MaxInt512 ^ -1 // ERROR "constant bitwise XOR overflow"
 const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
 
 // GnoError:
+// line 10: constant shift overflow
 // line 14: missing init expr for const declaration
+// line 19: constant multiplication overflow
+// line 30: constant addition overflow
+// line 31: constant bitwise XOR overflow
+// line 32: constant bitwise complement overflow
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 26, 30, 31, 32
+// Verdict: Clean errorcheck

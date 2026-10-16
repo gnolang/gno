@@ -10,10 +10,6 @@ import /* // ERROR "import path" */ `
 bogus`
 
 // GnoError:
-// line 9: unknown import path 
-// bogus:
-// --- preprocess stack ---
-// stack 1: file gno.land/p/filetest/f/issue14520a.go:8:1-13:15
-// ------------------------
+// line 9: invalid import path "\nbogus": invalid character '\n'
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file

@@ -537,19 +537,15 @@ func TestPreprocessGas_BignumLiterals(t *testing.T) {
 		})
 	}
 
-	// Chained big-int shift: 1<<10000<<10000<<... grows the operand ~10000
-	// bits per step (each shift is within maxBigintShift, so the per-shift cap
-	// never trips). doOpShl now charges by operand bit-width, so the fold
-	// exhausts a modest gas budget after a few hundred shifts. Without that
-	// charge the 2000-shift chain bills only ~760K gas (per shift amount only)
-	// and would NOT OOG here — so this also guards against regressing part 2.
-	t.Run("chained_shift_oog", func(t *testing.T) {
+	// Chained big-int shift: 1<<10000<<10000<<... An untyped integer
+	// constant is capped at constWidth bits (assertConstWidth), so the fold
+	// stops at the first shift past it, long before the gas budget.
+	t.Run("chained_shift_capped", func(t *testing.T) {
 		m := newMachine(t, "shlgas", stypes.NewGasMeter(10_000_000))
 		body := "package shlgas\n\nconst _ = 1" + strings.Repeat(" << 10000", 2000) + "\n"
 		panicked, val := run(t, m, "shlgas", body)
-		require.True(t, panicked, "chained shift must exhaust gas during fold")
-		require.Contains(t, strings.ToLower(fmt.Sprint(val)), "gas",
-			"panic should be out-of-gas, got: %v", val)
+		require.True(t, panicked, "chained shift must be rejected during fold")
+		require.Contains(t, fmt.Sprint(val), "constant shift overflow", "got: %v", val)
 	})
 
 	// Literal parse: the quadratic charge exhausts a modest gas budget before
@@ -571,12 +567,12 @@ func TestPreprocessGas_BignumLiterals(t *testing.T) {
 	}
 
 	// Control: a large literal that the removed cap would have rejected
-	// (20000 digits) and a small shift chain both fold cleanly under a
+	// (150 digits, under the width cap) and a small shift chain both fold under a
 	// realistic budget — the fix meters, it does not forbid.
 	t.Run("within_limits_ok", func(t *testing.T) {
 		m := newMachine(t, "okpkg", stypes.NewGasMeter(1_000_000_000))
-		body := "package okpkg\n\nconst _ = " + strings.Repeat("9", 20_000) +
-			"\nconst _ = 1 << 10000 << 10000\n"
+		body := "package okpkg\n\nconst _ = " + strings.Repeat("9", 150) +
+			"\nconst _ = 1 << 250 << 250\n"
 		panicked, val := run(t, m, "okpkg", body)
 		require.False(t, panicked, "within-limit literals/shifts must fold, got: %v", val)
 	})
