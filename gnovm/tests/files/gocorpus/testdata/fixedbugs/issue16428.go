@@ -1,0 +1,18 @@
+// errorcheck
+
+// Copyright 2016 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+var (
+	b = [...]byte("abc") // ERROR "outside of array literal|outside a composite literal"
+	s = len(b)
+)
+
+// GnoError:
+// line 10: cannot convert StringKind to ArrayKind
+// line 11: decl node already predefined! var b<!VPBlock(2,0)> = [...](const-type uint8)((const ("abc" string)))
+
+// Verdict: KnownIssue errorcheck: #6344; internal errors: lines 11

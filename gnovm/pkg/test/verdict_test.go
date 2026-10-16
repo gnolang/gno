@@ -193,3 +193,31 @@ func TestMissingStdlibImport(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanErrorMessage(t *testing.T) {
+	for in, want := range map[string]string{
+		"main/a.go:12:3: msg":              "msg",
+		"main/a.go:12:3-9: msg":            "msg",
+		"main/a.go:23:3-24:3: msg":         "msg",
+		"main/a.go:7: msg":                 "msg",
+		"a.go:5:1: x[main/a.go:1:1-2:2].S": "x[main/a.go:1:1-2:2].S",
+		"no location here":                 "no location here",
+	} {
+		if got := CleanErrorMessage(in); got != want {
+			t.Errorf("CleanErrorMessage(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestIsInternalError(t *testing.T) {
+	for msg, want := range map[string]bool{
+		"main/a.go:3:1: should not happen":                   true,
+		"main/a.go:9:6: decl node already predefined! var x": true,
+		"main/a.go:3:1: declared and not used: x":            false,
+		"main/a.go:3:1: cannot use int as string":            false,
+	} {
+		if got := IsInternalError(msg); got != want {
+			t.Errorf("IsInternalError(%q) = %v, want %v", msg, got, want)
+		}
+	}
+}

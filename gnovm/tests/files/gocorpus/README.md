@@ -18,7 +18,7 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 
 | verdict | meaning |
 |---|---|
-| `Verdict: Clean <mode>` | both checkers reach the same verdict (run \| compile); wording differences stay in the evidence blocks |
+| `Verdict: Clean <mode>` | both checkers reach the same verdict (run \| compile \| errorcheck); wording differences stay in the evidence blocks |
 | `Verdict: Unsupported <tag>: <reason>` | skipped, feature gap or gc-only test; tags in `corpus.go` (`unsupportedTags`) |
 | `Verdict: KnownIssue <mode>: <reason>` | Gno is wrong here; the reason must cite the tracking issue (`#NNNN` or an issue URL) |
 | `Verdict: KnownDivergence <mode>: <reason>` | Gno differs on purpose; the reason must cite the Gno decision it rests on (a `docs/` page, `#NNNN` or a URL); the Go spec merely permitting a difference is not one. A divergence nobody has decided is a `KnownIssue` |
@@ -51,5 +51,24 @@ Sync runs `go run` / `go build` for the Go side; the pinned toolchain keeps
 `GoOutput` stable. `VERSION` is kept equal to the `go` line in the root
 `go.mod`, so CI needs one toolchain; bump both together and re-sync.
 
-Files with inline `// ERROR` markers (gc's errorcheck tests) are refused for
-now; that mode lands with the error-accumulating preprocessor.
+Files with inline `// ERROR "regex"` markers (gc's errorcheck tests) are
+preprocessed once in accumulate mode (`PreprocessFilesCollect`): every Gno
+error with its span, no execution, no Go side. The markers are gc's verdict.
+`Clean errorcheck` when a Gno error covers every checkable marker line and
+none falls on an unmarked line; otherwise sync writes
+`KnownIssue errorcheck: #6344 uncaught markers: lines …; over-strict: lines …`
+directly, since every such gap is a preprocess conformance gap in that
+umbrella issue's scope (a per-cause `#NNNN` written by hand survives re-sync).
+An over-strict line whose Gno message is a feature gap (the `unsupportedTags`
+needles: a stdlib symbol Gno lacks, a newer language feature) does not count;
+the `GnoError:` block still shows it. An internal error (`should not happen`
+and kin) covers no marker: it is a VM bug, listed as `internal errors: lines …`.
+Every errorcheck file is also run through the on-chain path (plain
+`Preprocess`, first error): it must reject the file iff accumulate mode did,
+with its first error on a reported line, else the verdict says how the
+`on-chain path` disagrees. Coverage is by line, not wording: a marker counts
+as covered when a Gno checking error spans its line; the wording stays in
+the evidence. An EOF error maps to the last source
+line, where gc's marker sits. gc-only files (`-0`/`-m` diagnostics, `-+`/`-p=`,
+`-lang` below go1.17, `GC_ERROR`-only, pragma placement, `//line` directives,
+a byte order mark) are `Unsupported`.

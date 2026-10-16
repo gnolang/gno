@@ -66,6 +66,12 @@ func verdictIn(dirs Directives) (verdict, bool) {
 	return parseVerdict(d.Content)
 }
 
+// preprocessUmbrella is the tracking issue every errorcheck gap cites:
+// a marker line Gno's preprocess misses, or an unmarked line it rejects,
+// is by definition a preprocess conformance gap, fixed in place by the
+// type-checker PR series.
+const preprocessUmbrella = "#6344"
+
 var (
 	reIssueRef = regexp.MustCompile(`#\d+|github\.com/[\w.-]+/[\w.-]+/issues/\d+`)
 	// Where a Gno decision can be recorded: a docs page, or an issue /

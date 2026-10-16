@@ -57,8 +57,4 @@ func main() {
 	_, _ = x, e
 }
 
-// GnoOutput:
-
-// GoOutput:
-
-// Verdict: Clean run
+// Verdict: Unsupported other: resource budget; escape-analysis stress loop: ~5 s; gc only type-checks or runs it natively

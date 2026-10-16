@@ -1,0 +1,54 @@
+// errorcheck
+
+// Copyright 2021 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+var s string
+var b bool
+var i int
+var iface interface{}
+
+var (
+	_ = "" + b   // ERROR "invalid operation.*mismatched types.*untyped string and bool"
+	_ = "" + i   // ERROR "invalid operation.*mismatched types.*untyped string and int"
+	_ = "" + nil // ERROR "invalid operation.*mismatched types.*untyped string and nil|(untyped nil)"
+)
+
+var (
+	_ = s + false // ERROR "invalid operation.*mismatched types.*string and untyped bool"
+	_ = s + 1     // ERROR "invalid operation.*mismatched types.*string and untyped int"
+	_ = s + nil   // ERROR "invalid operation.*mismatched types.*string and nil|(untyped nil)"
+)
+
+var (
+	_ = "" + false // ERROR "invalid operation.*mismatched types.*untyped string and untyped bool"
+	_ = "" + 1     // ERROR "invalid operation.*mismatched types.*untyped string and untyped int"
+)
+
+var (
+	_ = b + 1         // ERROR "invalid operation.*mismatched types.*bool and untyped int"
+	_ = i + false     // ERROR "invalid operation.*mismatched types.*int and untyped bool"
+	_ = iface + 1     // ERROR "invalid operation.*mismatched types.*interface *{} and int"
+	_ = iface + 1.0   // ERROR "invalid operation.*mismatched types.*interface *{} and float64"
+	_ = iface + false // ERROR "invalid operation.*mismatched types.*interface *{} and bool"
+)
+
+// GnoError:
+// line 15: operator + not defined on: BoolKind
+// line 16: cannot use untyped string as IntKind
+// line 17: invalid operation: (const ("" <untyped> string)) + (const (undefined)) (mismatched types <untyped> string and untyped nil)
+// line 21: cannot use untyped bool as StringKind
+// line 22: cannot use untyped Bigint as StringKind
+// line 23: invalid operation: s<VPBlock(2,0)> + (const (undefined)) (mismatched types string and untyped nil)
+// line 27: cannot use untyped bool as StringKind
+// line 28: cannot use untyped string as BigintKind
+// line 32: operator + not defined on: BoolKind
+// line 33: cannot use untyped bool as IntKind
+// line 34: operator + not defined on: InterfaceKind
+// line 35: operator + not defined on: InterfaceKind
+// line 36: operator + not defined on: InterfaceKind
+
+// Verdict: Clean errorcheck
