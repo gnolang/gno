@@ -110,6 +110,12 @@ func TestCommentKeepsTheWindow(t *testing.T) {
 		{"\\left( \\begin{matrix}%c\na & b\\end{matrix}\\right)", "\\left( \\begin{matrix}a & b\\end{matrix}\\right)"},
 		{"\\begin{matrix}%c\na\\end{matrix}", "\\begin{matrix}a\\end{matrix}"},
 		{"\\left(%c\nx\\right)", "\\left(x\\right)"},
+		// A comment between \left, \middle, \right or \big and its delimiter.
+		{"\\left%c\n(x\\right)", "\\left(x\\right)"},
+		{"\\left(x\\middle%c\n|y\\right)", "\\left(x\\middle|y\\right)"},
+		{"\\left(x\\right%c\n)", "\\left(x\\right)"},
+		{"\\big%c\n(x\\big)", "\\big(x\\big)"},
+		{"\\left %c\n  ( x \\right)", "\\left(x\\right)"},
 		// A comment after a style switch in a cell.
 		{"\\begin{matrix}\\bf %c\na & b\\end{matrix}", "\\begin{matrix}\\bf a & b\\end{matrix}"},
 		{"\\begin{matrix}a\\color{red}%c\n & b\\end{matrix}", "\\begin{matrix}a\\color{red} & b\\end{matrix}"},
