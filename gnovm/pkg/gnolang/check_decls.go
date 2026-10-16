@@ -1,8 +1,10 @@
 package gnolang
 
-import "github.com/gnolang/gno/tm2/pkg/store"
+import (
+	"fmt"
 
-import "fmt"
+	"github.com/gnolang/gno/tm2/pkg/store"
+)
 
 // Declaration and literal rules the preprocessor enforces (Go spec:
 // "Short variable declarations", "Function types", "Composite literals",
