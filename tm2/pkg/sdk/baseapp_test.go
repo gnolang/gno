@@ -889,6 +889,7 @@ func TestSimulateTx(t *testing.T) {
 		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
 			limit := gasConsumed
 			newCtx = ctx.WithGasMeter(store.NewGasMeter(limit))
+			res.GasWanted = limit
 			return
 		})
 	}
@@ -1739,4 +1740,68 @@ func TestInitChainCheckStateIsolation(t *testing.T) {
 		"deliver state must see genesis state")
 	require.Nil(t, deliverStore.Get(nil, seqKey),
 		"CheckTx writes must not leak into the block-1 deliver state")
+}
+
+// A simulation metered past GasWanted reports the real gas used, and still fails
+// when that does not fit GasWanted.
+func TestSimulateMeteredPastGasWanted(t *testing.T) {
+	t.Parallel()
+
+	const (
+		gasWanted = int64(10)
+		maxGas    = int64(100)
+	)
+
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(maxGas))
+			res.GasWanted = gasWanted
+			return
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(msg.(msgCounter).Counter, "counter-handler")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{
+		ChainID:         "test-chain",
+		ConsensusParams: &abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: maxGas}},
+	})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+
+	simulate := func(gas int64) Result {
+		txBytes, err := amino.Marshal(newTxCounter(0, gas))
+		require.NoError(t, err)
+		return app.Simulate(txBytes)
+	}
+
+	t.Run("fits gas wanted", func(t *testing.T) {
+		t.Parallel()
+		res := simulate(gasWanted)
+		require.True(t, res.IsOK(), res.Log)
+		assert.Equal(t, gasWanted, res.GasUsed)
+	})
+
+	t.Run("past gas wanted: fails, with the real gas used", func(t *testing.T) {
+		t.Parallel()
+		res := simulate(40)
+		require.False(t, res.IsOK())
+		_, ok := res.Error.(std.OutOfGasError)
+		assert.True(t, ok, "expected an out of gas error, got %v", res.Error)
+		assert.Equal(t, int64(40), res.GasUsed)
+		assert.Equal(t, gasWanted, res.GasWanted)
+		assert.Contains(t, res.Log, "exceeds tx's gas wanted (10)")
+	})
+
+	t.Run("past the block max: out of gas at the meter's limit", func(t *testing.T) {
+		t.Parallel()
+		res := simulate(maxGas + 1)
+		require.False(t, res.IsOK())
+		assert.Equal(t, gasWanted, res.GasWanted)
+		assert.Contains(t, res.Log, "exceeds max block gas (100)")
+	})
 }
