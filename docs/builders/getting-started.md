@@ -353,14 +353,12 @@ PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
 
 The testnet enables a new package a few seconds after `addpkg`; if `call`
-answers `package not found`, wait and retry, and
+fails right after a deploy, wait and retry, and
 `https://gpao.latest.testnets.gno.land/status/<pkgpath>` says why a package
 was refused. Once enabled, the package is browsable at
 **`https://latest.testnets.gno.land/r/<your-g1-addr>/myrealm`**.
 
-Two optional flags are worth knowing about:
-- `-send <amount>ugnot`: transfer GNOT to the realm with the deploy.
-  A network that holds new packages for approval refuses it.
+One optional flag is worth knowing about:
 - `-max-deposit <amount>ugnot`: cap the [storage deposit](../resources/storage-deposit.md)
   the chain may lock; the deploy fails if the cap is exceeded.
 
