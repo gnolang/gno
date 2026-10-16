@@ -19,15 +19,15 @@ func main() {
 		// panic("FAIL")
 	}
 	if p != q {
-		print("p=", p, " q=", q, " p==q = ", p == q, "\n")
+		print("p=", p, " q=", q, " p==q = ", p==q, "\n")
 		panic("FAIL")
 	}
 	if &x != p {
-		print("&x=", &x, " p=", p, " &x==p = ", &x == p, "\n")
+		print("&x=", &x, " p=", p, " &x==p = ", &x==p, "\n")
 		panic("FAIL")
 	}
 	if &y != p {
-		print("&y=", &y, " p=", p, " &y==p = ", &y == p, "\n")
+		print("&y=", &y, " p=", p, " &y==p = ", &y==p, "\n")
 		panic("FAIL")
 	}
 }
