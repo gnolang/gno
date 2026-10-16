@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gnolang/gno/tm2/pkg/store"
+
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
