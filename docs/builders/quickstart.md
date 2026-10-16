@@ -49,31 +49,29 @@ func Render(path string) string {
 gnokey add dev
 gnokey list   # copy the g1... address
 
-# 6. Point at the current testnet; its chain ID changes with each testnet
-REMOTE=https://rpc.latest.testnets.gno.land:443
-CHAINID=$(curl -fsS $REMOTE/status | grep -o '"network": *"[^"]*"' | cut -d'"' -f4)
+# 6. Confirm the faucet landed
+gnokey query bank/balances/<your-g1-addr> \
+  -remote https://rpc.latest.testnets.gno.land:443
 
-# 7. Confirm the faucet landed
-gnokey query bank/balances/<your-g1-addr> -remote $REMOTE
-
-# 8. Deploy
+# 7. Deploy
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
-  -chainid "$CHAINID" -remote $REMOTE dev
+  -chainid onyx-1 -remote https://rpc.latest.testnets.gno.land:443 dev
 
-# 9. Wait for "status":"live": the testnet holds a new package until an
+# 8. Wait for "status":"live": the testnet holds a new package until an
 #    approver enables it; https://gpao.latest.testnets.gno.land/status/<pkgpath>
 #    gives the reason it refused one
 gnokey query vm/qpkgmeta_json \
-  -data "gno.land/r/<your-g1-addr>/counter" -remote $REMOTE
+  -data "gno.land/r/<your-g1-addr>/counter" \
+  -remote https://rpc.latest.testnets.gno.land:443
 
-# 10. Call a realm function
+# 9. Call a realm function
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid "$CHAINID" -remote $REMOTE dev
+  -chainid onyx-1 -remote https://rpc.latest.testnets.gno.land:443 dev
 ```
 
 Live at **`https://latest.testnets.gno.land/r/<your-g1-addr>/counter`**.

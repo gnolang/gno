@@ -275,14 +275,8 @@ network dropdown and every `gnokey` command's `-remote` and
 
 Onyx is the current testnet: it runs mainnet's code (each mainnet release first, as its release candidate) and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
-Examples below use the **testnet** through its `latest` endpoint, which
-always points at the current testnet. Its chain ID changes with each
-testnet, so read both into your shell once:
-
-```sh
-REMOTE=https://rpc.latest.testnets.gno.land:443
-CHAINID=$(curl -fsS $REMOTE/status | grep -o '"network": *"[^"]*"' | cut -d'"' -f4)
-```
+Examples below use the **testnet**, chain ID `onyx-1`, through its
+`latest` endpoint, which always points at the current testnet.
 
 **Mainnet** (`gnoland-1`) is the production
 network: no faucet, and token transfers, locked at launch per Constitution
@@ -302,7 +296,7 @@ cooldown if a re-request is rejected.
 Confirm the funds landed before spending them on a deploy:
 
 ```sh
-gnokey query bank/balances/<your-g1-addr> -remote $REMOTE
+gnokey query bank/balances/<your-g1-addr> -remote https://rpc.latest.testnets.gno.land:443
 ```
 
 Response shows your balance as `<amount>ugnot`, where 1 GNOT is
@@ -337,7 +331,7 @@ gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
-  -chainid "$CHAINID" -remote $REMOTE \
+  -chainid onyx-1 -remote https://rpc.latest.testnets.gno.land:443 \
   alice
 ```
 
@@ -360,7 +354,8 @@ fails until then. Wait for this query to read `"status":"live"`:
 
 ```sh
 gnokey query vm/qpkgmeta_json \
-  -data "gno.land/r/<your-g1-addr>/myrealm" -remote $REMOTE
+  -data "gno.land/r/<your-g1-addr>/myrealm" \
+  -remote https://rpc.latest.testnets.gno.land:443
 ```
 
 A package stays `inert` when it fails to type-check or its storage deposit
@@ -391,7 +386,7 @@ gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid "$CHAINID" -remote $REMOTE \
+  -chainid onyx-1 -remote https://rpc.latest.testnets.gno.land:443 \
   alice
 ```
 
@@ -412,7 +407,8 @@ To read the state without spending gas, query the realm's render:
 
 ```sh
 gnokey query vm/qrender \
-  -data "gno.land/r/<your-g1-addr>/myrealm:" -remote $REMOTE
+  -data "gno.land/r/<your-g1-addr>/myrealm:" \
+  -remote https://rpc.latest.testnets.gno.land:443
 ```
 
 This returns the `Render` output ("Count: 1"), a free, read-only
