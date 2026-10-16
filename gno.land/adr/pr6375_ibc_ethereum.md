@@ -185,7 +185,7 @@ Repositories and branches:
 |---|---|---|---|---|
 | R1 | IBC v2 core (ICS26) behind an upgradeable proxy | ✅ (pre-existing) | [`r/aib/ibc/core`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core) | Scope route controls per client (§7). The relayer allow-list gates `UpdateClient`, `RecvPacket`, `Acknowledgement` and `Timeout` in the core **proxy** ([`core.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/core.gno), [`client.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/client.gno)), which is frozen once deployed, so the public-relaying decision of R17 must be made before deployment. `core.Pause` blocks refunds and is reserved for a core bug. |
 | R2 | Client-specific proofs through the frozen messages' `Ext` field (`extproof.Proof{Data any}` + `Verifier`) | ✅ | [`p/aib/ibc/lightclient/extproof/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/extproof/v0); core impl routing (commit `a5d7f0b`) | None. |
-| R3 | **Ethereum light client**: Altair sync protocol across Electra, Fulu and Gloas; summaries instead of keys; non-signer updates; next-committee-only updates; MPT/RLP/SSZ; wire decoders | ✅ | [`p/aib/ibc/lightclient/ethereum/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0) (`ethereum.gno`, `ssz.gno`, `mpt.gno`, `rlp.gno`, `wire.gno`, `types.gno`); ADR [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md); live Sepolia replay test | Updates now build on the latest trusted state only ([`d56b992`](https://github.com/allinbits/gno-realms/commit/d56b992), found in review): before, an update could anchor at any stored state and insert roots below the latest slot. Still to do: consensus-state pruning (each update stores about 6 KB, never refunded), a fork-upgrade migration (R16), an audit. |
+| R3 | **Ethereum light client**: Altair sync protocol across Electra, Fulu and Gloas; summaries instead of keys; non-signer updates; next-committee-only updates; MPT/RLP/SSZ; wire decoders | ✅ | [`p/aib/ibc/lightclient/ethereum/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0) (`ethereum.gno`, `ssz.gno`, `mpt.gno`, `rlp.gno`, `wire.gno`, `types.gno`); ADR [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md); live Sepolia replay test | Fixed in review: updates build on the latest trusted state only ([`d56b992`](https://github.com/allinbits/gno-realms/commit/d56b992)); the client expires 8 sync committee periods after its latest trusted slot, misbehaviour requires conflicting finality, and misbehaviour too must build on the latest trusted state ([`cba712f`](https://github.com/allinbits/gno-realms/commit/cba712f)). Still to do: consensus-state pruning (each update stores about 6 KB, never refunded), a fork-upgrade migration (R16), an audit. |
 | R4 | `r/aib/ibc/ethrelay`: MsgCall entry points taking wire-encoded `[]byte` (`UpdateClient`, `SubmitMisbehaviour`, `RecvPacket`, `Acknowledgement`, `Timeout`), avoiding MsgRun's per-byte cost | ✅ | [`r/aib/ibc/ethrelay`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/r/aib/ibc/ethrelay) | Optional: `CreateClient`/`RegisterCounterparty` from wire bytes (today a MsgRun). |
 | R5 | Wire format `p/aib/encoding/wire/v0` (originally `p/clockwork/wire/v0` from [clockworkgr/gno-upgradeable](https://github.com/clockworkgr/gno-upgradeable)) | ✅ | [`p/aib/encoding/wire/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/encoding/wire/v0) (commit `e0b12e6`) | Deploy with the realms. |
 | R6 | ICS20 ABI payloads (`application/x-solidity-abi`) to and from `ethereum-*` clients | ✅ | [`p/aib/ibc/ics20/abi/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/ics20/abi/v0); transfer impl (commit `1b53279`) | None. |
@@ -276,11 +276,18 @@ Repositories and branches:
   as the spec's store does; it either advances the latest slot or, for a next-committee-only update, updates the
   latest state in place. No update can insert a root below the latest slot, so a past committee cannot add history.
   Roots already stored stay usable for proofs.
-- **Freshness.** The client follows Ethereum one sync-committee period (~27 h) at a time, so it can catch up after
-  any gap for which beacon nodes still serve the best update of each period. If it falls behind further than that
-  (or than Ethereum's weak-subjectivity period), it cannot be updated and must be re-bootstrapped by a route
-  replacement (§7.12); the relayer updates it at least every epoch it relays, and the monitor alarms after a day
-  without an update.
+- **Freshness (enforced).** The client follows Ethereum one sync-committee period (~27 h) at a time, so it can
+  catch up after a gap. Its trust is bounded: it **expires** `TrustingPeriods = 8` periods (~9 days on mainnet)
+  after its latest trusted slot, measured by the current slot from the block time. An expired client reports
+  `Expired` and refuses every client message, so stale committees can never advance it; it comes back only through
+  governed recovery (the core's recovery with a fresh substitute) or a route replacement (§7.12). The relayer
+  updates it at least daily; the monitor alarms after a day without an update.
+- **Misbehaviour** is conflicting finality: two valid updates (each with the supermajority participation an update
+  needs) that finalize **different beacon headers at the same slot**. Different attested heads alone are not
+  evidence: sync committees sign their fork-choice head, and an ordinary reorg yields two. Evidence must build on
+  the latest trusted state of an unexpired client, so a past committee cannot freeze it. Valid evidence freezes the
+  client. A header that would store a different state root at a slot the client already holds is also treated as
+  misbehaviour.
 - **Fork-aware generalized indices.** Gloas: finality 735, next committee 2946, execution block hash 2856.
   Electra/Fulu: 169, 87, 25.
 - **Proofs.** `eth_getProof` at the finalized block gives an account proof (router address under the state
@@ -327,7 +334,10 @@ Repositories and branches:
   - Only the router may call, only from `ibcgov`'s port over the paired client; anything else is an error ack.
 - An ack tells `ibcgov` the decision is recorded or buffered. A **timeout** (no receipt) or an out-of-window error
   ack lets `ibcgov` re-dispatch the same `seq` with identical bytes. `ibcgov` never skips or reuses a number, so the
-  destination never has a permanent gap; a decision withdrawn on gno.land is sent as a no-op of its number.
+  destination never has a permanent gap. **A number's bytes are immutable once bound**: a dispatched decision is
+  withdrawn only by a separate cancel decision (its own number), never by re-sending its number with other bytes. A
+  number may be sent as a no-op only if it was reserved but never bound to a decision or dispatched (e.g. its
+  builder's proposal failed), so no other bytes for it can exist.
 - Forged governance packets (a light-client forgery) can occupy sequence numbers with the attacker's bytes; honest
   re-sends then show up as conflicts and flag `IBCAdmin`. That case is handled by the guardians' hold and the route
   replacement of §7.12, which starts a new governance epoch over a new client, not by GovDAO cancelling over the
@@ -911,6 +921,8 @@ Proposed launch values, following gnolang/bridges where applicable.
 | quarantine after valset change | 7 days | kind (governed), 0 disables |
 | GnoLightClient trusting period / clock drift | 14 days / 30 s (gno.land is proof-of-authority with no unbonding; the period assumes a retired validator key is not used to forge within 14 days of its removal) | client creation |
 | GnoLightClient update cadence / alarm | at least every 24 h / no update for 3 days | relayer and monitor configuration |
+| Gno Ethereum client trusting window | 8 sync committee periods (~9 days) after the latest trusted slot | constant `TrustingPeriods` in the client package (changes by a new package version, R16) |
+| Gno Ethereum client update cadence / alarm | at least every 24 h / no update for 24 h | relayer and monitor configuration |
 | packet timeout (relayer default) | 1–3 h | per transfer |
 
 ## 10. Costs
@@ -1064,6 +1076,12 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     defined per packet state, with refund liabilities moving with the backing (§7.12).
   - Cancellations beyond the governance window: tombstones persisted, success ack with `redispatch`, re-sent for
     ordered recording (§5.4).
+- 2026-10-16, fifth review with Codex. Folded:
+  - **Code fixes** in gno-realms ([`cba712f`](https://github.com/allinbits/gno-realms/commit/cba712f)): the Ethereum client expires 8 sync committee
+    periods after its latest trusted slot and then refuses client messages; misbehaviour requires conflicting
+    finality (not merely different attested heads) and must build on the latest trusted state (R3, §5.2, §9).
+  - A governance number's bytes are immutable once bound; withdrawal is a separate cancel; no-ops only for numbers
+    never bound or dispatched (§5.4).
 
 ## 15. References
 
