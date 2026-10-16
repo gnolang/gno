@@ -19,4 +19,4 @@ const (
 	_ = '
 	_ = '
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11, 12
+// Verdict: Unsupported gc-specific: //line directives remap the positions the markers refer to
