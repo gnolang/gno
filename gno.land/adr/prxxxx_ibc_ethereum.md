@@ -25,7 +25,8 @@
 11. [Alternatives considered](#11-alternatives-considered)
 12. [Consequences](#12-consequences)
 13. [Work plan and open questions](#13-work-plan-and-open-questions)
-14. [References](#14-references)
+14. [Review log](#14-review-log)
+15. [References](#15-references)
 
 Status legend used throughout: **✅ implemented** · **🟡 implemented, needs changes** · **♻️ exists in
 gnolang/bridges, to be ported** · **❌ not implemented**.
@@ -62,7 +63,8 @@ With that settled, the remaining difference is the protocol:
 ## 2. Decision
 
 1. **Use IBC v2 as the protocol, unmodified on the wire.**
-   - Ethereum: solidity-ibc-eureka `ICS26Router` and `ICS20Transfer`, with a `GnoLightClient`.
+   - Ethereum: solidity-ibc-eureka `ICS26Router`, a minimal fork of its `ICS20Transfer` (§4.4 E6; its callbacks are
+     not `virtual`, so it cannot be subclassed), and a `GnoLightClient`.
    - gno.land: the ICS26/ICS20 realms of allinbits/gno-realms, with an Ethereum light client.
 2. **gno.land validators sign with secp256k1.** Ethereum verifies commits with `ecrecover`.
 3. **gno.land verifies Ethereum natively.** A sync-committee light client in Gno, with BLS12-381 aggregate
@@ -75,8 +77,9 @@ With that settled, the remaining difference is the protocol:
    - A decision ledger with 7-day delays on every loosening change.
    - A governor who yields once to GovDAO.
    - An immutable Ethereum admin that acts only on GovDAO decisions proven over IBC.
-   - A quarantine after validator-set changes.
+   - A quarantine after validator-set transitions.
    - Voids, monitors and the operational rules.
+   - Recovery paths that work when the governance channel itself is down (§7.12).
 5. **Gno-native denoms get real decimals on Ethereum.** A `GnoVoucher` with gno.land's decimals is registered
    through `ICS20Transfer.setCustomERC20` before the denom's first transfer.
 
@@ -100,11 +103,12 @@ flowchart LR
   subgraph ETH["Ethereum"]
     direction TB
     ROUTER["ICS26Router (eureka v3.0.2)"]
-    ICS20["ICS20Transfer (eureka)<br/>→ GnoICS20Transfer subclass ❌"]
+    ICS20["GnoICS20Transfer ❌<br/>minimal fork of eureka ICS20Transfer"]
     GLC["GnoLightClient<br/>tm2 commits via ecrecover,<br/>ICS23 B+tree proofs"]
     VOUCH["GnoVoucher (GNOT, 6 dec)<br/>+ mint limits ❌"]
     ESC["Escrow (per client)<br/>+ bucket rate limit 🟡"]
-    ADMIN["IBCAdmin ❌<br/>immutable, gov port,<br/>guardians, delays"]
+    GOVPORT["gov port dispatcher ❌<br/>stable, immutable"]
+    ADMIN["IBCAdmin ❌<br/>immutable, guardians, delays"]
     AM["AccessManager"]
   end
 
@@ -122,7 +126,8 @@ flowchart LR
   GOV --> CORE
   ROUTER --- ICS20
   ROUTER --- GLC
-  ROUTER --- ADMIN
+  ROUTER --- GOVPORT
+  GOVPORT --> ADMIN
   ICS20 --- VOUCH
   ICS20 --- ESC
   ADMIN -->|"holds ADMIN_ROLE, proxies"| AM
@@ -151,7 +156,7 @@ Repositories and branches:
 | **gno** | this branch, `feat/secp256k1-validators-ibc` (fork remote clockworkgr/gno) |
 | **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
-| **gno-eth-ibc** | the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts. **Not yet published** (local repository; see §13). Paths below are relative to its root. |
+| **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts. |
 | **bridges** | [gnolang/bridges](https://github.com/gnolang/bridges): `main` (Solana, live) and [`ethereum-draft`](https://github.com/gnolang/bridges/tree/ethereum-draft) |
 | **eureka** | [cosmos/solidity-ibc-eureka `solidity-v3.0.2`](https://github.com/cosmos/solidity-ibc-eureka/tree/solidity-v3.0.2) |
 
@@ -169,8 +174,8 @@ Repositories and branches:
 
 | # | Component | Status | Where | Changes needed |
 |---|---|---|---|---|
-| N1 | `crypto/bls12381.FastAggregateVerify(pubkeys, msg, sig)` | ✅ | gno: [`gnovm/stdlibs/crypto/bls12381/`](../../gnovm/stdlibs/crypto/bls12381/), gas row in [`native_gas.go`](../../gnovm/stdlibs/native_gas.go) (Base 2,024,000, Slope 1,962,000 per key); ADR [`prxxxx_bls12381_native`](../../gnovm/adr/prxxxx_bls12381_native.md) | Gas rows are drafts: calibrate against the gas benchmark harness before upstreaming. Builds on the idea of [gnolang/gno#5583](https://github.com/gnolang/gno/pull/5583). Needs an audit (subgroup checks, infinity handling). |
-| N2 | `crypto/bls12381.FastAggregateVerifyExcluding(aggregate, excluded, msg, sig)`: verify against a committee's aggregate key minus non-signers | ✅ | gno: same package (gas Base 2,116,000, Slope 1,962,000 per excluded key) | Same as N1. This lets updates carry only non-signers, which cut update gas from about 260M to 40M. |
+| N1 | `crypto/bls12381.FastAggregateVerify(pubkeys, msg, sig)` | ✅ | gno: [`gnovm/stdlibs/crypto/bls12381/`](../../gnovm/stdlibs/crypto/bls12381/), gas row in [`native_gas.go`](../../gnovm/stdlibs/native_gas.go) (Base 2,024,000; Slope 1,962,000 per 1,024 bytes of keys, ≈92k per 48-byte key); ADR [`prxxxx_bls12381_native`](../../gnovm/adr/prxxxx_bls12381_native.md) | Gas rows are drafts: calibrate against the gas benchmark harness before upstreaming. Builds on the idea of [gnolang/gno#5583](https://github.com/gnolang/gno/pull/5583). Needs an audit (subgroup checks, infinity handling). |
+| N2 | `crypto/bls12381.FastAggregateVerifyExcluding(aggregate, excluded, msg, sig)`: verify against a committee's aggregate key minus non-signers | ✅ | gno: same package (gas Base 2,116,000; same slope per 1,024 bytes of excluded keys) | Same as N1. This lets updates carry only non-signers, which cut update gas from about 260M to 40M. |
 | N3 | `crypto/keccak256`, `crypto/sha256` | ✅ (master) | gno: [`gnovm/stdlibs/crypto/`](../../gnovm/stdlibs/crypto/) | None. |
 
 ### 4.3 gno.land realms and packages (gno-realms)
@@ -179,42 +184,45 @@ Repositories and branches:
 |---|---|---|---|---|
 | R1 | IBC v2 core (ICS26) behind an upgradeable proxy | ✅ (pre-existing) | [`r/aib/ibc/core`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/r/aib/ibc/core) | Scope the new controls per client (§7); `core.Pause` blocks refunds, so incidents use `PauseApp` (§7.3). |
 | R2 | Client-specific proofs through the frozen messages' `Ext` field (`extproof.Proof{Data any}` + `Verifier`) | ✅ | [`p/aib/ibc/lightclient/extproof/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/extproof/v0); core impl routing (commit `a5d7f0b`) | None. |
-| R3 | **Ethereum light client**: Altair sync protocol across Electra, Fulu and Gloas; summaries instead of keys; non-signer updates; next-committee-only updates; MPT/RLP/SSZ; wire decoders | ✅ | [`p/aib/ibc/lightclient/ethereum/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0) (`ethereum.gno`, `ssz.gno`, `mpt.gno`, `rlp.gno`, `wire.gno`, `types.gno`); ADR [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md); live Sepolia replay test | Consensus-state pruning (each update stores about 6 KB, never refunded). A fork-upgrade procedure (§6.12). Audit. |
+| R3 | **Ethereum light client**: Altair sync protocol across Electra, Fulu and Gloas; summaries instead of keys; non-signer updates; next-committee-only updates; MPT/RLP/SSZ; wire decoders | ✅ | [`p/aib/ibc/lightclient/ethereum/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0) (`ethereum.gno`, `ssz.gno`, `mpt.gno`, `rlp.gno`, `wire.gno`, `types.gno`); ADR [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md); live Sepolia replay test | Consensus-state pruning (each update stores about 6 KB, never refunded). A fork-upgrade migration (R16). Audit. |
 | R4 | `r/aib/ibc/ethrelay`: MsgCall entry points taking wire-encoded `[]byte` (`UpdateClient`, `SubmitMisbehaviour`, `RecvPacket`, `Acknowledgement`, `Timeout`), avoiding MsgRun's per-byte cost | ✅ | [`r/aib/ibc/ethrelay`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/r/aib/ibc/ethrelay) | Optional: `CreateClient`/`RegisterCounterparty` from wire bytes (today a MsgRun). |
 | R5 | Wire format `p/aib/encoding/wire/v0` (originally `p/clockwork/wire/v0` from [clockworkgr/gno-upgradeable](https://github.com/clockworkgr/gno-upgradeable)) | ✅ | [`p/aib/encoding/wire/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/encoding/wire/v0) (commit `e0b12e6`) | Deploy with the realms. |
 | R6 | ICS20 ABI payloads (`application/x-solidity-abi`) to and from `ethereum-*` clients | ✅ | [`p/aib/ibc/ics20/abi/v0`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client/gno.land/p/aib/ibc/ics20/abi/v0); transfer impl (commit `1b53279`) | None. |
 | R7 | Core renders of Ethereum client and consensus states (read by the TS relayer) | ✅ | core `impl/v0/render.gno` (commits `a863e19`, `39fc86b`) | None. |
-| R8 | **Outflow meters + claim queue** for Ethereum → gno credits (§7.1) | ♻️ | bridges: [`solana/realm/p/hlroute/v0/hlroute.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/solana/realm/p/hlroute/v0/hlroute.gno) (`Meter`, `Credit`, `Claim`, `Cap`), [`ethereum/realm/hlgnot/installments.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/realm/hlgnot/installments.gno) | Port the meter, claim and void machinery into a new transfer impl (`impl/v1`), keyed by (client, denom). `Credit` becomes the transfer app's receive path. hlroute is about 2,500 lines tied to one route's lock: take the algorithms (`Meter.refill`, round-robin claims, installments), not the package. |
+| R8 | **Outflow meters + claim queue** for Ethereum → gno credits (§7.1) | ♻️ | bridges: [`solana/realm/p/hlroute/v0/hlroute.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/solana/realm/p/hlroute/v0/hlroute.gno) (`Meter`, `Credit`, `Claim`, `Cap`), [`ethereum/realm/hlgnot/installments.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/realm/hlgnot/installments.gno) | Port the meter/claim/void algorithms (not the 2,500-line package, which is tied to one route's lock) into a new transfer impl, keyed by (client, denom). Two accountings: **unescrow of gno-native assets** is capped by their escrow (the lock); **minting of vouchers for Ethereum assets** has no lock and needs its own cap and backing accounting ([`impl/v0/app.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/apps/transfer/impl/v0/app.gno) mints them). `Claim(n)` must be reachable: the transfer proxy's `Logic` interface is frozen ([`apps/transfer/upgrade.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/apps/transfer/upgrade.gno)), so a new proxy entry point (or a generic dispatch method) is required — a proxy change, not only an impl. |
 | R9 | **Decision ledger** + **governor / one-way yield** (§7.5, §7.7) | ♻️ | bridges: [`solana/realm/p/decisions/v0/decisions.gno`](https://github.com/gnolang/bridges/blob/main/solana/realm/p/decisions/v0/decisions.gno) (about 300 lines, depends only on `avl`; deployed on gnoland-1 under the bridge operator's namespace) | Reuse by import or copy. Its 7-day `Delay` and 14-day `Deadline` are constants and `DAOPath` is `gno.land/r/gov/dao`, which suits us. Ours needs per-kind delays (24 h unpause, 7 d otherwise). |
 | R10 | **Guardian flags** on gno.land (sends / credits / payouts, 4 guardian + 2 watch seats) (§7.4) | ♻️ | bridges: [`ethereum/realm/hlmailbox/flags.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/realm/hlmailbox/flags.gno), [`gov.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/realm/hlmailbox/gov.gno) | Host them in the new governance realm (R11); the transfer impl consults them per client. |
 | R11 | **Governance realm `ibcgov`**: builders, ledger, governor/yield, flags, and the **sender of governance packets** to Ethereum on a `gov` port (§7.6) | ❌ (pattern ♻️) | pattern: bridges [`ethereum/realm/hlgov/hlgov.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/realm/hlgov/hlgov.gno) (decision kinds, `seq`, `Redispatch`) | New realm. It registers as an IBC app on gno core (port `gov`) and sends `kind‖seq‖params` packets to `IBCAdmin`. It handles acks (recorded) and timeouts (re-dispatch with the same `seq`). |
 | R12 | Send-side limits: per-message max/min, route fee with floor and ceiling, recipient filters (§7.8) | ❌ (♻️ `CheckSend`) | bridges: `hlroute.CheckSend`, [`ethereum/realm/hlgnot/hlgnot.gno`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/realm/hlgnot/hlgnot.gno) `TransferRemote` (`RefusedEthRecipient`) | Transfer impl v1, per client. |
-| R13 | Voids / restores / credit-by-vote (§7.9) | ❌ (♻️) | bridges: `hlroute.DraftVoid`, `Decide` | Only with the claim queue. |
-| R14 | Existing admin surface: `p/aib/authority` (deployer + GovDAO), relayer allow-list, global and per-app pause, address blocklist, GovDAO builders | ✅ | [`r/aib/ibc/core/admin.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/admin.gno), [`app.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/app.gno), [`apps/transfer/admin.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/apps/transfer/admin.gno) | Route Ethereum-route changes through R9's delays. Keep immediate authority for tightening only. |
+| R13 | Voids / restores / credit-by-vote (§7.9) | ❌ (♻️) | bridges: `hlroute.DraftVoid`, `Decide` | Only with the claim queue. Needs IBC terminal-state rules: claims are keyed by packet and created atomically with the receipt; a manual credit only for a packet with a receipt; never both a credit and a source refund (§7.9). |
+| R14 | Existing admin surface: `p/aib/authority` (deployer + GovDAO), relayer allow-list, global and per-app pause, address blocklist, GovDAO builders, `UpdateImpl` | 🟡 | [`r/aib/ibc/core/admin.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/admin.gno), [`core/upgrade.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/upgrade.gno), [`app.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/app.gno), [`apps/transfer/admin.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/apps/transfer/admin.gno), [`p/aib/authority`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/p/aib/authority/v0/authority.gno) | Today authority members (the deployer and GovDAO) act **immediately**, including `UpdateImpl` and adding members, which would bypass every delay. Every loosening power over the Ethereum route — impl upgrades, membership, relayer list, recovery, legacy proposal callbacks — must move exclusively to `ibcgov` (R11) and the deployer must be removed; immediate authority remains only for tightening. |
 | R15 | 18-decimal Ethereum tokens on gno (GRC20 and amounts are int64: about 9.22 tokens max) | ❌ | — | A 6-decimal wrapper on Ethereum (factory, `wrap` takes whole multiples of 10^(d−6), refunds dust, `wrapAndSend`), or accept the cap (§12). |
+| R16 | **Ethereum light-client fork migration**: replacing the verifier of a live `ethereum-N` client (new fork parameters, new container indices) while keeping its client id, commitments and consensus states | ❌ | [`p/aib/ibc/lightclient/ethereum/v0/ethereum.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0/ethereum.gno) (client upgrade/recovery refuse differing fork parameters) | A core impl change: a governed `SetLightClient`-style conversion from the old client state to a new package version, rehearsed before each relevant Ethereum fork (§6.12). A new package alone changes no stored client. |
+| R17 | **Route-scoped pause on gno** that keeps returns open, and **public refunds** | ❌ | [`core/app.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/app.gno) `PauseApp` pauses the whole `transfer` port (sends included, so voucher returns too); [`core/core.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/core.gno) applies the relayer allow-list to `Acknowledgement`/`Timeout` | Per-client flags in the transfer impl that stop credits/payouts/sends of gno-native tokens but never burns of returning vouchers; exempt acks and timeouts from the relayer allow-list (or keep a guaranteed fail-over relayer). |
 
 ### 4.4 Ethereum contracts
 
 | # | Component | Status | Where | Changes needed |
 |---|---|---|---|---|
-| E1 | `ICS26Router`, `ICS20Transfer`, `Escrow`, `IBCERC20`, `AccessManager` roles | ✅ (eureka v3.0.2, unchanged) | eureka [`contracts/`](https://github.com/cosmos/solidity-ibc-eureka/tree/solidity-v3.0.2/contracts); deployed by gno-eth-ibc `contracts/script/DeployGnoIBC.s.sol` | `ICS20Transfer` is replaced by a subclass (E6); AccessManager's admin moves to E8. |
-| E2 | **`GnoLightClient`**: tm2 header hash (amino leaves, sha256 merkle), CanonicalVote sign bytes, secp256k1 `ecrecover` low-S, power tally ≥ 2/3 plus trust level for non-adjacent headers, validator-set cache by hash, packed 81-byte signatures, minimal signer set, ICS23 B+tree + simple-tree membership/non-membership, misbehaviour freezing | ✅ | gno-eth-ibc `contracts/src/GnoLightClient.sol`, `contracts/src/lib/`; 88 Foundry tests (fixtures from real tm2 code) | Add the quarantine (E9). Consider supporting mixed key sets only if C2 needs it. Audit. |
-| E3 | **`GnoVoucher`**: ERC20 with gno.land's decimals (GNOT 6), mint/burn only by ICS20, registered with `setCustomERC20` before the first transfer; `RegisterGnoDenom.s.sol` for more denoms | ✅ | gno-eth-ibc `contracts/src/GnoVoucher.sol`, `contracts/script/GnoDenoms.sol`, `contracts/script/RegisterGnoDenom.s.sol` | Add mint limits (E5) and the receive pause (E7). |
-| E4 | Deployment: AccessManager, router, ICS20, roles as eureka's `DeployAccessManagerWithRoles`, GnoLightClient, `addClient`, GNOT voucher; resumes a broadcast after RPC nonce lag | ✅ | gno-eth-ibc `contracts/script/DeployGnoIBC.s.sol`, `scripts/sepolia.sh` | Hand every authority to E8 at the end; add a `finishSetup`-style check list (♻️ bridges `HlAdmin.finishSetup`). |
-| E5 | **Mint limits** per token: per-message max + leaky-bucket day cap (§7.2) | ♻️ | bridges: [`PausableGate.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/PausableGate.sol) `_charge`/`_level` | In `GnoVoucher.mint`. For Ethereum tokens leaving escrow, replace eureka's fixed-day `RateLimitUpgradeable` with the same bucket (Escrow beacon upgrade) or keep it. |
-| E6 | **`GnoICS20Transfer`**: a subclass of eureka's `ICS20Transfer` (UUPS upgrade) that overrides only the receive and send hooks to apply flags, quarantine and send-side limits, and **never pauses acks or timeouts** | ❌ | — | New. Eureka's `whenNotPaused` covers `onAcknowledgementPacket` and `onTimeoutPacket`, which would hold refunds back; don't grant `PAUSER_ROLE` to anyone. |
+| E1 | `ICS26Router`, `ICS20Transfer`, `Escrow`, `IBCERC20`, `AccessManager` roles | ✅ (eureka v3.0.2, unchanged) | eureka [`contracts/`](https://github.com/cosmos/solidity-ibc-eureka/tree/solidity-v3.0.2/contracts); deployed by gno-eth-ibc [`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol) | `ICS20Transfer` is replaced by a subclass (E6); AccessManager's admin moves to E8. |
+| E2 | **`GnoLightClient`**: tm2 header hash (amino leaves, sha256 merkle), CanonicalVote sign bytes, secp256k1 `ecrecover` low-S, power tally ≥ 2/3 plus trust level for non-adjacent headers, validator-set cache by hash, packed 81-byte signatures, minimal signer set, ICS23 B+tree + simple-tree membership/non-membership, misbehaviour freezing | ✅ | gno-eth-ibc [`contracts/src/GnoLightClient.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/src/GnoLightClient.sol), [`contracts/src/lib/`](https://github.com/allinbits/gno-eth-ibc/tree/main/contracts/src/lib); 88 Foundry tests (fixtures from real tm2 code) | Add the quarantine (E9). Consider supporting mixed key sets only if C2 needs it. Audit. |
+| E3 | **`GnoVoucher`**: ERC20 with gno.land's decimals (GNOT 6), mint/burn only by ICS20, registered with `setCustomERC20` before the first transfer; `RegisterGnoDenom.s.sol` for more denoms | ✅ | gno-eth-ibc [`contracts/src/GnoVoucher.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/src/GnoVoucher.sol), [`contracts/script/GnoDenoms.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/GnoDenoms.sol), [`contracts/script/RegisterGnoDenom.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/RegisterGnoDenom.s.sol) | Limits are **not** enforced in `mint`: ICS20 also calls `mint` to refund a returning voucher on an error ack or timeout ([ICS20Transfer.sol `_refundTokens`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS20Transfer.sol)), and a refund must never be limited. Limits live in E6's receive path. |
+| E4 | Deployment: AccessManager, router, ICS20, roles as eureka's `DeployAccessManagerWithRoles`, GnoLightClient, `addClient`, GNOT voucher; resumes a broadcast after RPC nonce lag | ✅ | gno-eth-ibc [`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol), [`scripts/sepolia.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/sepolia.sh) | Hand every authority to E8 at the end; add a `finishSetup`-style check list (♻️ bridges `HlAdmin.finishSetup`). |
+| E5 | **Mint and release limits** per token: per-message max + leaky-bucket day cap (§7.2) | ♻️ | bridges: [`PausableGate.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/PausableGate.sol) `_charge`/`_level` | Enforced in E6's `onRecvPacket` only, before minting or `escrow.send`, so refunds (which also mint or use `escrow.send`, [`utils/Escrow.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/utils/Escrow.sol)) are never limited. Eureka's own `Escrow` rate limit also applies to refunds, so it is left unset. |
+| E6 | **`GnoICS20Transfer`**: a **minimal fork** of eureka's `ICS20Transfer` (installed by its UUPS upgrade). The callbacks are `external` and not `virtual`, and `_refundTokens` is private ([`ICS20Transfer.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS20Transfer.sol)), so a subclass is impossible. The fork adds, in `onRecvPacket` only: flags, quarantine, limits (E5), and **default-deny denoms** (a gno-native denom without a registered `GnoVoucher` is refused, so no stock 18-decimal `IBCERC20` can ever be created for it); in every send variant: send-side limits; and leaves acks, timeouts and refunds unconditional | ❌ | — | New. Keep the diff small and audited, or upstream an extensibility hook to eureka. Do not grant `PAUSER_ROLE`: eureka's pause also blocks `onAcknowledgementPacket`/`onTimeoutPacket`. Note the router turns any callback revert into an **error ack** ([`ICS26Router.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS26Router.sol) `recvPacket`'s try/catch): a refused receive refunds the sender, it does not stay pending. |
 | E7 | **Guardians, flags and holds** on Ethereum (4 guardian + 2 watch seats; hold = two guardian flags; unpause after 24 h clears only earlier flags; replacement under a hold no sooner than day 21) | ♻️ | bridges: [`lib/Guardians.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/lib/Guardians.sol) | Reuse nearly as is, in E6/E3 (deliveries) and E8 (decisions). |
-| E8 | **`IBCAdmin`**: an immutable IBC app on port `gov` that holds `ADMIN_ROLE`, every proxy and the router's client-migration rights; accepts packets only from `ibcgov` on gno.land through the GnoLightClient pair; decision kinds with delays, deferred by flags and holds; code-hash-pinned upgrades with after-checks; hand-over to a successor | ❌ (pattern ♻️) | pattern: bridges [`HlAdmin.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/HlAdmin.sol), [`admin/HlAdminExec.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/admin/HlAdminExec.sol) | Replace the Hyperlane `handle`/ISM plumbing with `IIBCApp.onRecvPacket` (source client + port checks) and ack. Kinds are remapped (§7.6). Keep it under EIP-170 (HlAdmin splits into two contracts). |
-| E9 | **Quarantine** after a validator-set change | ❌ (♻️) | bridges: [`GnoLightClient.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/GnoLightClient.sol) (`quarantineEnd`) | Our client records `quarantineEnd`; E6 refuses token receives until then; E8 ignores it. |
+| E8 | **`IBCAdmin`** behind a **stable `gov` port dispatcher**. The dispatcher is a tiny immutable IBC app registered on port `gov` (router ports can never be re-registered, [`ICS26Router._addIBCApp`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS26Router.sol)); it accepts packets only from the router, from `ibcgov` over the paired client, and forwards to the current admin. `IBCAdmin` holds `ADMIN_ROLE`, every proxy and `migrateClient`; buffers decisions by `seq` and applies them in order; runs decision kinds with delays, deferred by flags and holds; code-hash-pinned upgrades with after-checks; hand-over to a successor (which the dispatcher then forwards to) | ❌ (pattern ♻️) | pattern: bridges [`HlAdmin.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/HlAdmin.sol), [`admin/HlAdminExec.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/admin/HlAdminExec.sol) | Replace Hyperlane's `handle`/ISM plumbing with `IIBCApp` callbacks. Because a callback revert becomes an error ack, never revert to defer: a `seq` ahead of `last+1` is **stored** and applied when the gap fills; a duplicate `seq` with identical bytes is a no-op, with different bytes is recorded as a conflict and flags `IBCAdmin`; a malformed decision is recorded and spent (§5.4). Kinds remapped (§7.6). Split for EIP-170 as HlAdmin is. |
+| E9 | **Quarantine** after a validator-set transition | ❌ (♻️) | bridges: [`GnoLightClient.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/GnoLightClient.sol) (`quarantineEnd`) | Our client records `quarantineEnd` whenever an accepted header is signed by a set other than the trusted next set (the non-adjacent `checkTrust` path of `update` in [`contracts/src/GnoLightClient.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/src/GnoLightClient.sol)) **or** announces a different next set — not only on a `NextValidatorsHash` change, which an attacker can keep unchanged. E6 refuses token receives until then; the dispatcher and `IBCAdmin` ignore it. |
 | E10 | 6-decimal wrapper for 18-decimal Ethereum tokens | ❌ | — | See R15. |
+| E11 | **Bootstrap role cleanup**: the deployment grants the deployer `ID_CUSTOMIZER_ROLE` and `ERC20_CUSTOMIZER_ROLE` besides the AccessManager admin ([`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol)) | 🟡 | gno-eth-ibc [`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol) | `finishSetup` must enumerate and revoke every bootstrap role and admin, renounce the deployer, and check the result on chain (♻️ bridges `finishSetup`'s check list). |
 
 ### 4.5 Relayers and tooling
 
 | # | Component | Status | Where | Changes needed |
 |---|---|---|---|---|
 | T1 | Go relayer: trust, create/update clients both ways, relay gno → Eth and Eth → gno, acks, transfers, snapshots, wire/ABI vectors | ✅ | gno-eth-ibc `relayer/` (`cmd/relayer`, `relay/`, `gnoibc/`, `ethgno/`, `beacon/`, `eth/`) | Fix: `relay-gno-acks` re-sends an ack another step just delivered (stale read). Read commitments at the latest receipt's block. |
-| T2 | TypeScript relayer: Ethereum chains (source and host), gno hosting Ethereum clients, byte-equality tests against the Go encoders | ✅ (PR open) | ts-relayer [`src/clients/ethereum/`](https://github.com/allinbits/ibc-v2-ts-relayer/tree/feat/ethereum-clients/src/clients/ethereum), [`src/clients/gno/ethereum.ts`](https://github.com/allinbits/ibc-v2-ts-relayer/blob/feat/ethereum-clients/src/clients/gno/ethereum.ts); [PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) | Support the claim queue (call `Claim`), governance packets, and the guardian-aware pause. |
-| T3 | Local testnet (N secp256k1 validators, realms at genesis), local e2e with anvil, Sepolia scripts, demo recorder | ✅ | gno-eth-ibc `testnet/`, `scripts/e2e-local.sh`, `scripts/sepolia.sh` | — |
+| T2 | TypeScript relayer: Ethereum chains (source and host), gno hosting Ethereum clients, byte-equality tests against the Go encoders | ✅ (PR open) | ts-relayer [`src/clients/ethereum/`](https://github.com/allinbits/ibc-v2-ts-relayer/tree/feat/ethereum-clients/src/clients/ethereum), [`src/clients/gno/ethereum.ts`](https://github.com/allinbits/ibc-v2-ts-relayer/blob/feat/ethereum-clients/src/clients/gno/ethereum.ts); [PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) | Support the claim queue (call `Claim`), governance packets, and the guardian-aware pause. Implement conflicting-header detection for the GnoLightClient (unsupported today, `src/clients/ethereum/host.ts`) and bounded `eth_getLogs` scans instead of scanning from block 0. |
+| T3 | Local testnet (N secp256k1 validators, realms at genesis), local e2e with anvil, Sepolia scripts | ✅ | gno-eth-ibc [`testnet/`](https://github.com/allinbits/gno-eth-ibc/tree/main/testnet), [`scripts/e2e-local.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/e2e-local.sh), [`scripts/sepolia.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/sepolia.sh) | — |
 | T4 | **Monitors**: supply identity, header record, foreign decisions; auto-flag on integrity breaks, alarm on liveness | ❌ (♻️) | bridges: [`ethereum/bridge/agent`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/agent) (monitor role) | New, IBC-specific: escrow per client against voucher supply, plus in-flight packets from commitments. |
 | T5 | **Watch tool** for guardians and GovDAO members: state, pending decisions, flags, `check` of upgrade targets (code-hash, reproducible build, append-only storage layout) | ❌ (♻️) | bridges: [`ethereum/bridge/cmd/hlwatch`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/cmd/hlwatch) | Port. |
 | T6 | Setup audit tool (reads every authority and setting back, byte-for-byte creation checks) | ❌ (♻️) | bridges: `ethereum/bridge/cmd/hleth` (`audit`) | Port. |
@@ -224,12 +232,16 @@ Repositories and branches:
 ### 5.1 gno.land → Ethereum: `GnoLightClient`
 
 - **Header.** The relayer submits the tm2 header (its amino-encoded leaves), the commit, and the signers' packed
-  signatures (`index u8 ‖ r ‖ s`, the recovery id found off chain). The client rebuilds the header hash with
+  signatures: 81 bytes each, `validatorIndex u16 ‖ trustedIndex u16 ‖ timeSeconds u64 ‖ timeNanos u32 ‖ r ‖ s ‖ v`
+  ([`contracts/src/msgs/IGnoLightClientMsgs.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/src/msgs/IGnoLightClientMsgs.sol); the recovery id `v` is found off chain). The client rebuilds the header hash with
   sha256 merkle, rebuilds each validator's CanonicalVote sign bytes, recovers each address with `ecrecover` over
   `sha256(signBytes)`, and requires low-S.
-- **Trust rule.** Adjacent headers need more than 2/3 of the trusted set's power. Non-adjacent headers need more
-  than the trust level (1/3) of the trusted next set **and** more than 2/3 of the new set (tm2 light-client rules),
-  within the trusting period and the clock drift.
+- **Trust rule.** Adjacent headers need more than 2/3 of the trusted next set's power. Non-adjacent headers need
+  more than 2/3 of the header's own set **and**, when that set differs from the trusted next set, more than the
+  trust level (1/3) of the trusted next set (tm2 light-client rules), within the trusting period and the clock
+  drift. So the security of skipping is the standard light-client assumption: fewer than 1/3 of the trusted set's
+  power is faulty within the trusting period. A coalition of more than 1/3 of the trusted set can sign a header of
+  a set it fully controls; the quarantine (§7.10) is the brake for that.
 - **Validator-set cache.** Sets are stored by hash on first sight. Later updates send no keys, only signer indexes.
   The relayer sends the minimal signer set: enough of the trusted power first, then of the new set.
 - **Proofs.** Packet commitments, receipts and acks are proven with ICS23 against the app hash of height H+1:
@@ -278,9 +290,19 @@ Repositories and branches:
 - A dedicated IBC app pair: `ibcgov` on gno.land (port `gov`) ⇄ `IBCAdmin` on Ethereum (port `gov`), over the
   same client pair as transfers.
 - Payload: `kind u8 ‖ seq u64 ‖ params`, at most 512 bytes.
-- `IBCAdmin` records `seq == last+1`, ignores `seq ≤ last` (ack success, no-op), and reverts `seq > last+1` so the
-  packet stays receivable. IBC v2 is unordered, so the sequence keeps decisions in order.
-- An ack tells `ibcgov` the decision is recorded. A timeout re-dispatches the same `seq`.
+- The router writes a receipt for every received packet and turns an app's revert into an error ack, so **a
+  governance packet can never be "left pending" by reverting**. Therefore:
+  - `seq == last+1` is recorded, then any buffered `last+2…` follow in order;
+  - `seq > last+1` is **stored** (up to a bound, e.g. 64 ahead) and acked success; it is applied when the gap fills;
+  - `seq ≤ last` with identical bytes is a no-op success; with different bytes it is recorded as a conflict, flags
+    `IBCAdmin` and is never applied;
+  - a malformed or unknown decision is recorded and spent (success ack), so it cannot block the sequence;
+  - only the router may call, only from `ibcgov`'s port over the paired client; anything else is an error ack.
+- An ack tells `ibcgov` the decision is recorded. A **timeout** (no receipt) lets `ibcgov` re-dispatch the **same
+  `seq` with identical bytes**; an error ack is only possible for a packet from the wrong source.
+- Resynchronisation: `ibcgov` can only raise its sequence (as bridges' `hlgov` "sync sequence"), never reuse one.
+  Forged governance packets (a light-client forgery) can consume sequence numbers; that case is handled by the
+  Ethereum-local guardians and recovery (§7.12), not by GovDAO cancelling over the same channel.
 
 ## 6. Flows
 
@@ -360,7 +382,7 @@ flowchart TD
   A -- error ack --> RF1[Error ack → sender refunded]
   Q -- no --> TO[Relayer proves non-receipt after timeout]
   TO --> RF2[Timeout → sender refunded]
-  P[Receive paused / quarantined on destination] --> Q
+  P[Receive refused on destination:<br/>paused, quarantined, over limit, unknown denom] --> A2[app reverts → router writes error ack] --> RF1
   RF1 & RF2 --> N[Refund paths are never paused]
 ```
 
@@ -376,7 +398,7 @@ flowchart TD
   CACHE -- yes --> NOKEYS[send only signer indexes]
   KEYS & NOKEYS --> SIG[for each signer: CanonicalVote bytes,<br/>ecrecover sha256, low-S, address match]
   SIG --> STORE[store consensus state: root = AppHash, time, nextValsHash]
-  STORE --> VCH{NextValidatorsHash changed?}
+  STORE --> VCH{signed by a set other than trusted next set,<br/>or announces a different next set?}
   VCH -- yes --> QUAR["quarantineEnd = max(old, now + 7d) ❌ new"]
   VCH -- no --> DONE[done]
   QUAR --> DONE
@@ -405,14 +427,14 @@ flowchart TD
 stateDiagram-v2
   [*] --> Built: builder in ibcgov (params as record)
   Built --> Recorded: Govern (governor, before yield)<br/>or GovDAO proposal executes (after yield)
-  Recorded --> Applied: immediate kind (tightening, removal, cancel)
-  Recorded --> Queued: loosening kind → due = now + 7d (unpause on Eth: 24h)
+  Recorded --> Applied: immediate gno-side kind (tightening, removal, cancel)
+  Recorded --> Queued: loosening gno-side kind → due = now + 7d
+  Recorded --> Dispatched: Ethereum-side kind → sent at once (delay runs on Ethereum)
   Queued --> Cancelled: cancel decision (immediate)
   Queued --> Applied: anyone executes after due<br/>(re-checked against live state)
   Queued --> Spent: re-check fails at execution
-  Applied --> Dispatched: kind targets Ethereum → gov packet (seq)
-  Dispatched --> RecordedEth: IBCAdmin.onRecvPacket seq == last+1
-  Dispatched --> Dispatched: timeout → re-dispatch same seq
+  Dispatched --> RecordedEth: received in order (or buffered until the gap fills)
+  Dispatched --> Dispatched: timeout → re-dispatch same seq, same bytes
   RecordedEth --> AppliedEth: delay elapsed · no flag/hold on IBCAdmin · anyone executes
   RecordedEth --> Deferred: flag or hold on IBCAdmin
   Deferred --> RecordedEth: flags cleared / hold ends
@@ -423,8 +445,11 @@ stateDiagram-v2
 The delay is applied once per side:
 
 - **gno-side kinds** (meters, fees, gno guardians) wait on gno.land.
-- **Ethereum kinds** wait in `IBCAdmin` after they are recorded. They are dispatched at once from gno.land, so a
-  guardian on either side has the full window.
+- **Ethereum kinds** are dispatched at once from gno.land and wait in `IBCAdmin` after they are recorded (7 days;
+  unpause 24 h). Guardians on either side have the full window. Every 7-day Ethereum kind is deferred while a flag
+  or hold stands on `IBCAdmin`, **except** the guardian replacement, which lands through a hold no sooner than day
+  21 of the hold (as `HlAdmin`). Holds on gno.land (deferring gno-side decisions) are new work: bridges' realms have
+  no holds on gno.land.
 
 ### 6.7 Guardian flags and holds
 
@@ -472,7 +497,7 @@ sequenceDiagram
   R->>LC: updateClient(header announcing new set)
   LC->>LC: quarantineEnd = now + 7d
   R->>I: recvPacket(token packet)
-  I-->>R: revert Quarantine (packet stays pending → may time out → refund)
+  I-->>R: app reverts Quarantine → router writes error ack → sender refunded on gno.land
   R->>A: recvPacket(gov packet)
   A->>A: accepted (governance is not quarantined)
   Note over V,A: guardians and GovDAO have 7 days to react to a hostile set
@@ -520,9 +545,9 @@ flowchart LR
   subgraph ETHUP[Ethereum]
     U1[new implementation deployed<br/>reproducible build] --> U2[watch tool: code hash, storage layout append-only]
     U2 --> U3[ibcgov decision kind 'upgrade' → gov packet]
-    U3 --> U4[IBCAdmin: 7 days, not deferred by flags → upgradeToAndCall<br/>code hash pinned, after-checks]
+    U3 --> U4[IBCAdmin: 7 days, deferred by flags and holds → upgradeToAndCall<br/>code hash pinned, after-checks]
   end
-  F[Ethereum fork changing light-client containers] --> L1[new Ethereum client package version] --> L2[decision: client upgrade<br/>must land before the fork epoch]
+  F[Ethereum fork changing light-client containers] --> L1[new Ethereum client package version] --> L2[decision: client migration R16<br/>must land before the fork epoch]
 ```
 
 ## 7. Safety and governance controls
@@ -544,38 +569,50 @@ so other IBC routes of the same realms are unaffected.
 - **Sweep queue.** Amounts below the fee, above the lock, or to a bridge realm or invalid address are booked as
   owed and paid only by a 7-day decision.
 - **Meters start empty.** At launch, after a migration, and whenever a `payouts` flag is cleared.
-- **What it bounds.**
-  - A forged or buggy Ethereum client drains at most cap/day across recipients, or cap/4 per recipient, until a
-    void.
-  - It also gives holders time to leave before any hostile decision lands: about 52% of the lock can leave in
-    7 days.
+- **Two accountings.** Gno-native assets returning from Ethereum are unescrowed: `lock` is their escrow and caps
+  payouts. Ethereum assets arriving on gno are **minted** as vouchers: there is no gno lock, so they get their own
+  day cap (absolute, per denom) and their own outstanding-supply accounting; `amount > lock` sweeping applies only
+  to unescrow.
+- **What it bounds.** A bucket starts at most full and refills over time, so within any 24 hours at most **two**
+  day caps can leave (a full bucket plus one day of refill), and within `t` hours of an exploit at most
+  `level₀ + cap·t/24`. The loss before a void is that amount for the time it takes a monitor or guardian to set a
+  `payouts` flag; that detection time is an operational parameter (monitors poll every 10 s and flag within
+  minutes).
+- **Time to leave.** If nothing is flagged, holders can withdraw at the meter rate before a hostile 7-day decision
+  lands — about half the lock in 7 days at lock/10 per day; less when the meter is shared with an attacker or a
+  `payouts` flag stops exits.
 - **IBC alternative.** Refuse with an error ack when a meter is empty, so the sender is refunded on Ethereum.
   Simpler, but under an attack honest transfers bounce. The claim queue is the tested design and is the default.
 
 ### 7.2 Mint and release limits (Ethereum) — E5
 
 - **Per token:** a per-message maximum and a leaky-bucket day cap (`used` drains at `dayCap` per day).
-- **Where:**
-  - `GnoVoucher.mint` for gno-native tokens;
-  - the `Escrow` for Ethereum tokens being released (eureka's fixed-UTC-day `RateLimitUpgradeable` replaced by the
-    bucket, or kept).
+- **Where:** in `GnoICS20Transfer.onRecvPacket`, before it mints a gno-native token's voucher or releases an
+  Ethereum token from escrow. **Not** in `GnoVoucher.mint` or `Escrow.send`: ICS20's refund path (error ack,
+  timeout) also mints returning vouchers and uses `escrow.send`, and refunds must never be limited. Eureka's
+  per-token escrow rate limit is left unset for the same reason.
+- **Default deny:** a gno-native denom without a registered `GnoVoucher` and configured limits is refused.
 - **Launch values:** `maxPerMessage = min(25,000, dayCap)`, `dayCap = min(100,000, expectedLock/10)`.
-- **What it bounds:** a gno.land validator-key forgery mints at most one message plus one day cap before the flags
-  land.
+- **What it bounds:** a gno.land validator-key forgery mints at most `level₀ + dayCap·t/day` within `t` of the
+  forgery (at most two day caps in any 24 hours), each message at most `maxPerMessage`, until a flag lands.
 
 ### 7.3 Pausing that never traps exits — E6, R1
 
 - **Rule: a pause stops minting and crediting, never burning, acks, timeouts or refunds.**
 - **gno.land.**
-  - The incident tool is `PauseApp` (already correct: it refuses sends, error-acks receives so the sender is
-    refunded, and keeps acks and timeouts running) together with the per-client flags.
+  - The incident tool is the per-client flags of the transfer impl (R17): `credits`, `payouts`, and `sends` of
+    gno-native tokens. Burns of returning vouchers are never paused.
+  - `PauseApp` refuses sends (voucher returns included) for the whole `transfer` port, error-acks receives and keeps
+    acks and timeouts running: acceptable as a coarse fallback, not the incident tool.
   - `core.Pause` blocks the whole packet path, refunds included, and is reserved for a core bug.
+  - Acks and timeouts must not depend on the relayer allow-list (R17), or a fail-over relayer must be guaranteed.
 - **Ethereum.**
   - Eureka's `ICS20Transfer.pause` also blocks `onAcknowledgementPacket`/`onTimeoutPacket`, so `PAUSER_ROLE` is
     granted to nobody.
-  - The pause lives in `GnoICS20Transfer.onRecvPacket` and `GnoVoucher.mint`.
-  - A paused receive leaves the packet pending. When it times out, the source refunds it: IBC's escape hatch, which
-    the Hyperlane design does not have.
+  - The pause lives in `GnoICS20Transfer.onRecvPacket` (and its send variants for gno-native tokens).
+  - A paused receive reverts inside the app; the router turns that into an **error ack**, and the source refunds
+    the sender when the ack is relayed: IBC's escape hatch, which the Hyperlane design does not have. (A receive
+    refused *before* the app — by the light client — would instead leave the packet pending until it times out.)
 
 ### 7.4 Guardians, flags and holds — R10, E7
 
@@ -584,8 +621,9 @@ so other IBC routes of the same realms are unaffected.
   - One flag pauses at once.
   - Flags are per function on gno.land (`sends`, `credits`, `payouts`, per client).
   - Flags are per object on Ethereum (`GnoICS20Transfer`+vouchers, and `IBCAdmin`).
-- **Holds.** Two guardian flags make a **hold**: every 7-day decision is deferred and unpause decisions are spent.
-  A hold ends after 24 hours below two flags.
+- **Holds.** Two guardian flags make a **hold**: every 7-day decision is deferred (except the guardian
+  replacement, below) and unpause decisions are spent. A hold ends after 24 hours below two flags. Holds exist on
+  Ethereum in bridges' code; on gno.land they are new work.
 - **Guardian replacement** under a hold lands no sooner than day 21 of the hold.
 - **Unpause.**
   - The flag's owner can clear their own flag at any time.
@@ -624,14 +662,17 @@ so other IBC routes of the same realms are unaffected.
   | 5 | register a gno denom's voucher (`setCustomERC20`) | 7 d |
   | 6 | add / migrate a light client (`addClient`, `migrateClient`) | 7 d |
   | 7 | upgrade a proxy (implementation + code hash + optional call; after-checks) | 7 d |
-  | 8 | grant / revoke an AccessManager role (relayer allow-list, rate limiter) | 7 d (revoke: immediate) |
+  | 8 | grant / revoke a **non-admin** AccessManager role (relayer allow-list only); never `ADMIN_ROLE`, never a role or target function that can upgrade, re-point authorities or set execution delays | 7 d (revoke: immediate) |
   | 9 | hand-over to a successor admin (code-hash pinned, all authorities moved) | 7 d |
 
 - **Choice of transport.** A dedicated port rather than eureka's `ICS27GMP`: GMP executes arbitrary calls from a
   derived account, with no delays, guardians or kind checks.
-- **Single point of failure.** If the GnoLightClient can no longer follow gno.land, the governance channel stops.
-  The answer, as in the Hyperlane design, is a hand-over prepared in advance or a fresh deployment. An optional
-  guardian-held emergency path with a long delay (e.g. 30 days) is an open question (§13).
+- **Stable endpoint.** Router ports cannot be re-registered, so `gov` is a minimal immutable dispatcher that
+  forwards to the current admin; a hand-over (kind 9) moves the authorities and re-points the dispatcher, keeping
+  the sequence, the buffer and pending decisions.
+- **Single point of failure.** If the GnoLightClient can no longer follow gno.land, or a forgery has pushed it past
+  honest heights, the governance channel stops and GovDAO's cancellations are not provable on Ethereum. See §7.12
+  for the recovery that does not depend on the channel.
 
 ### 7.7 Governor and one-way yield — R9/R11
 
@@ -653,19 +694,28 @@ so other IBC routes of the same realms are unaffected.
   lost.
 - A void is immediate when a guardian's flag named the packet, otherwise 7 days.
 - Credit-by-vote is the manual fallback for a griefed transfer: 7 days, never above the lock.
+- **IBC terminal-state rules.** A claim is keyed by its packet and created in the same transaction as the receipt.
+  A credit-by-vote is only for a packet that has a receipt on gno.land (otherwise the source could also refund it on
+  timeout). A void never creates a refund on the source: a successfully acknowledged packet is final there, so a
+  voided forged claim is booked as lost or withheld on gno.land only. Escrow is reserved for open claims so voids
+  and payouts never double-spend it.
 
 ### 7.10 Quarantine — E9
 
-- A header announcing a new validator set starts a 7-day quarantine of token receives on Ethereum. Governance is
-  not quarantined.
+- Any accepted header signed by a set other than the trusted next set (a non-adjacent skip), or announcing a
+  different next set, starts a 7-day quarantine of token receives on Ethereum. Governance is not quarantined.
+  Quarantined receives error-ack and are refunded at the source.
 - It bounds a validator-set takeover: two GovDAO members can replace the set in one block.
 - The duration is a governed parameter (0 disables it).
 
 ### 7.11 Monitoring — T4, T5
 
 - **Supply identity, per client and denom:**
-  - `escrowed on gno = voucher supply on Ethereum + in-flight`;
-  - for Ethereum tokens, `escrow on Ethereum = voucher supply on gno + in-flight + owed claims`.
+  - gno-native: `escrowed on gno = voucher supply on Ethereum + in flight + open/owed/withheld claims on gno`
+    (a returned voucher is burned on Ethereum but its GNOT stays escrowed until its claim is paid);
+  - Ethereum-native: `escrow on Ethereum = voucher supply on gno + in flight + open/owed/withheld claims`.
+  - "In flight" means packets in an economic state (sent, not yet received or refunded), not every outstanding
+    commitment: commitments also persist until acks are processed.
   - Evaluated in a fixed snapshot order from the operator's own nodes, with two agreeing RPC providers pinned by
     block hash, counting only finalized Ethereum state.
 - **What triggers what.** A break auto-flags (credits+payouts, receives). Stalls, ages and float runways only
@@ -673,13 +723,30 @@ so other IBC routes of the same realms are unaffected.
 - **Watch tool.** Guardians and members see flags, holds, pending decisions and the client heads, and check
   upgrade targets.
 
+### 7.12 Recovery without the governance channel — new
+
+The governance channel runs over the same GnoLightClient it would need to repair. If that client expires (no update
+within the trusting period), freezes, or is pushed past honest heights by a forgery:
+
+- **Ethereum-local brake.** Guardian flags and holds on `IBCAdmin` and `GnoICS20Transfer` are set by Ethereum
+  transactions, not packets, so they keep working.
+- **Ethereum-local recovery.** An emergency path inside `IBCAdmin`, independent of IBC: a supermajority of guardian
+  seats (e.g. 3 of 4) can schedule a client migration (`migrateClient` to a new GnoLightClient trusting a header
+  they attest) that executes only after a long delay (e.g. 30 days) and only while the governance channel has been
+  silent or frozen; any later valid governance decision cancels it. This trades a bounded, slow guardian power for
+  liveness.
+- **gno.land side.** GovDAO can always act on gno.land directly (recover the Ethereum client, pause, void).
+- **Operational deadlines.** The relayer must update the GnoLightClient well within the trusting period; the
+  monitor alarms at a fraction of it (e.g. 1/3). Timeouts need a proof from the destination after the timeout, so
+  a halted chain cannot refund until it resumes.
+
 ## 8. Security assumptions and behaviour
 
 ### 8.1 Trust per direction
 
 | Direction | Accepted when | Trusted |
 |---|---|---|
-| gno.land → Ethereum | `GnoLightClient`: > 2/3 of gno.land's validator power signed, secp256k1 | gno.land's validators (forge with > 2/3, halt with ≥ 1/3); the Solidity client and `ecrecover`; eureka core |
+| gno.land → Ethereum | `GnoLightClient`: > 2/3 of the header's set and, for a skip, > 1/3 of the trusted next set (secp256k1) | gno.land's validators: fewer than 1/3 of the trusted set's power faulty within the trusting period (a > 1/3 coalition can forge a skip to a set it controls; > 2/3 forge adjacent headers; ≥ 1/3 halt); the Solidity client and `ecrecover`; eureka core |
 | Ethereum → gno.land | Gno Ethereum client: ≥ 2/3 of the 512-member sync committee signed a finalized header (BLS aggregate) + MPT proof | The sync committee (unslashable for signing; weaker than Casper finality, the standard light-client assumption); the BLS natives; the Gno client's fork tracking |
 | Governance → Ethereum | `IBCAdmin`: a `gov` packet from `ibcgov` proven by the GnoLightClient | GovDAO (after the yield) or the governor; gno.land's validators; the 7-day window and guardians |
 
@@ -687,7 +754,7 @@ so other IBC routes of the same realms are unaffected.
 
 | Actor | Can | Cannot | Bounded by |
 |---|---|---|---|
-| > 2/3 of gno.land validators (or keys leaked) | forge gno → Eth packets and governance packets | bypass delays on Ethereum | quarantine, mint limits, guardians, 7-day delays |
+| > 1/3 of the trusted gno.land validator power (or keys leaked) | forge a skipped header to a set it controls, then gno → Eth packets and governance packets; push the client past honest heights; consume governance sequence numbers | bypass Ethereum's delays, guardians or limits | quarantine (every set transition), mint limits, guardians and holds (Ethereum-local), 7-day delays, §7.12 recovery |
 | 2 GovDAO members | replace the validator set in one block (on gno.land) | skip Ethereum's 7-day delays | quarantine + guardians (time to leave) |
 | Sync committee (≥ 2/3 colluding) | forge Eth → gno credits | mint on Ethereum | gno meters, flags, voids |
 | Relayers | delay, withhold, grief with permissionless calls | move funds, forge | anyone can relay; work per call bounded (claims ≤ 20, pages) |
@@ -701,15 +768,15 @@ so other IBC routes of the same realms are unaffected.
 
 | Situation | Behaviour |
 |---|---|
-| gno.land halts | gno → Eth stops; Eth → gno packets wait; timeouts refund on Ethereum once provable |
+| gno.land halts | gno → Eth stops; Eth → gno packets wait; their timeouts need a gno.land proof after the timeout, so refunds on Ethereum wait until gno.land resumes |
 | Ethereum finality stalls | Eth → gno stops (only finalized state is provable); monitors go blind and alarm |
 | Ethereum fork changes light-client containers | the Gno client must be upgraded before the fork; otherwise Eth → gno stops until it is |
-| Validator set changes | quarantine of gno → Eth receives (if enabled); refunds by timeout |
-| GnoLightClient cannot follow gno.land (expired trusting period) | gno → Eth and governance stop; `migrateClient` needs governance → prepared hand-over or new deployment (open question §13) |
+| Validator set changes | quarantine of gno → Eth receives (if enabled): they error-ack and are refunded on gno.land |
+| GnoLightClient cannot follow gno.land (expired trusting period) | every proof against it fails — receives, acks and timeouts of both directions' packets on Ethereum, and governance; recovery by §7.12's Ethereum-local path, or a new deployment |
 | Meter exhausted (gno) | claims wait and are paid as the meter refills; no loss |
-| Mint limit reached (Eth) | receive reverts; packet waits or times out → refund |
+| Mint limit reached (Eth) | receive refused in the app → error ack → sender refunded on gno.land |
 | Guardian flag | the flagged function stops; exits stay open |
-| Relayer down | anyone can relay; costs fall on whoever does |
+| Relayer down | relaying is permissionless on Ethereum; on gno.land the relayer allow-list applies, so acks/timeouts are exempted from it (R17) or a fail-over relayer is kept |
 
 ### 8.4 Known limits
 
@@ -799,12 +866,17 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 
 1. **Chain (C1–C3, N1–N2).** Upstream the secp256k1, BLS and param PRs (#6358 first); calibrate gas rows; audit the
    BLS natives; write the gnoland-1 key-migration plan (C2).
-2. **Controls, Ethereum (E5–E9).**
-   - `GnoICS20Transfer`, voucher and escrow limits, `Guardians` library, `IBCAdmin` with kinds 1–9, quarantine in
-     `GnoLightClient`, `finishSetup` check list.
+2. **Controls, Ethereum (E5–E9, E11).**
+   - `GnoICS20Transfer` (minimal fork, or an upstream extensibility PR to eureka), limits and default-deny denoms
+     in its receive path, `Guardians` library, the `gov` dispatcher and `IBCAdmin` with kinds 1–9, the buffered
+     sequence and the §7.12 recovery path, quarantine in `GnoLightClient`, `finishSetup` check list and role
+     cleanup.
    - Foundry tests, including fuzzing the limits and the hold state machine.
-3. **Controls, gno.land (R8–R13).**
-   - Transfer `impl/v1` with meters, claims, send limits and voids per client.
+3. **Controls, gno.land (R8–R14, R16, R17).**
+   - Transfer proxy entry point for `Claim`, and a new impl with meters (both accountings), claims, send limits,
+     route-scoped flags and voids per client.
+   - Move every loosening authority (impl upgrades, membership, relayer list) to `ibcgov`; remove the deployer.
+   - Ethereum client fork migration in core.
    - The `ibcgov` realm with ledger, governor/yield, flags and the gov port.
    - Gno tests and filetests.
 4. **Relayers and tooling (T1, T2, T4–T6).** Claim calls, governance packets, monitors, the watch tool and the audit
@@ -819,11 +891,11 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 
 ### Open questions
 
-1. **Where the Solidity contracts, scripts and Go relayer live.** They are in the unpublished gno-eth-ibc repository
-   today. Options: publish it as its own repository, or move the contracts into gno-realms (or a new allinbits
-   repository).
+1. **Where the Solidity contracts live long-term.** They are in [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc)
+   with the Go relayer and scripts; the controls (E5–E11) could be developed there or in a dedicated contracts
+   repository.
 2. Claim queue vs error ack when meters are empty (default: claim queue).
-3. A guardian-held, long-delay emergency path for the governance channel if the GnoLightClient stalls.
+3. The exact guardian threshold and delay of §7.12's emergency client migration.
 4. Quarantine duration and whether to enable it at launch (a 7-day gno → Eth outage per validator-set change).
 5. 18-decimal Ethereum tokens: wrapper (E10) or cap.
 6. Mixed ed25519/secp256k1 validator sets during the migration: support both in `GnoLightClient` (costly for the
@@ -834,7 +906,24 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 10. Coexistence with the Hyperlane bridges: separate locks per route (as gnolang/bridges does between Solana and
     Ethereum), so a fault on one route touches only its own lock.
 
-## 14. References
+## 14. Review log
+
+- 2026-10-16, review of this ADR with Codex (read-only, against the code). Folded:
+  - Router callback reverts become error acks: corrected the pause/quarantine/limit flows (§6.3, §6.9, §7.3) and
+    redesigned the governance sequence as buffered rather than revert-to-retry (§5.4, E8).
+  - Refunds mint and use `escrow.send` too: limits moved to the ICS20 receive path (E3, E5, §7.2).
+  - eureka's `ICS20Transfer` is not extensible by inheritance: E6 is a minimal fork.
+  - Non-adjacent updates trust > 1/3 of the trusted set: trust model and quarantine trigger corrected (§5.1, §7.10,
+    §8).
+  - gno.land authority acts immediately today, including `UpdateImpl` (R14); the transfer proxy needs a `Claim`
+    entry point (R8); Ethereum assets need their own mint accounting (R8, §7.1).
+  - Router ports are permanent: a stable `gov` dispatcher (E8, §7.6). Bootstrap roles (E11). Governance-channel
+    loss and client expiry: §7.12, §8.3.
+  - Terminal-state rules for credits and voids (§7.9); supply identity includes claims (§7.11); loss bounds stated
+    as functions of time (§7.1, §7.2); default-deny denoms (E6); route-scoped pause and public refunds (R17);
+    Ethereum client fork migration (R16); TS relayer gaps (T2); BLS gas slope and packed signature format corrected.
+
+## 15. References
 
 - This branch:
   - [`tm2/adr/prxxxx_secp256k1_validator_keys.md`](../../tm2/adr/prxxxx_secp256k1_validator_keys.md)
@@ -855,9 +944,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - `ICS26Router`, `ICS20Transfer`, `ICS27GMP`
   - `utils/Escrow.sol`, `utils/RateLimitUpgradeable.sol`, `utils/IBCRolesLib.sol`
 - Ethereum light-client spec:
-  [consensus-specs, altair/light-client](https://github.com/ethereum/consensus-specs/tree/dev/specs/altair/light-client)
+  [consensus-specs, altair/light-client](https://github.com/ethereum/consensus-specs/tree/master/specs/altair/light-client)
   and its Electra, Fulu and Gloas updates.
 - Upstream: [gnolang/gno#6358](https://github.com/gnolang/gno/pull/6358) (param key colons),
   [gnolang/gno#5583](https://github.com/gnolang/gno/pull/5583) (BLS).
-- gno-eth-ibc (unpublished): `CONTEXT.md` (state of the work), `docs/bridges-review.md` (review of gnolang/bridges),
-  `contracts/README.md` (GnoLightClient design and gas scaling).
+- [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc): [`CONTEXT.md`](https://github.com/allinbits/gno-eth-ibc/blob/main/CONTEXT.md) (state of the work), [`docs/bridges-review.md`](https://github.com/allinbits/gno-eth-ibc/blob/main/docs/bridges-review.md) (review of gnolang/bridges),
+  [`contracts/README.md`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/README.md) (GnoLightClient design and gas scaling).
