@@ -33,8 +33,9 @@ Use live apps and read the code behind them.
 Write, test and deploy smart contracts in Gno.
 
 <gno-button href="https://docs.gno.land/builders/getting-started" label="Getting started guide" />
+<gno-button href="https://play.gno.land" label="Try the Playground" variant="outline" />
 
-- [Write Gno in the browser](https://play.gno.land)
+- [Install Gno](https://docs.gno.land/builders/install)
 - [Build with AI, using gnomcp](https://mcp.gno.dev)
 - [Get a grant for your project](/partners)
 

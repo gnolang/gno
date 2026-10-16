@@ -38,3 +38,9 @@ permissionless token exchanges on the platform. Visit
 [Gno Native Kit](https://github.com/gnolang/gnonative) is a framework that
 allows developers to build and port gno.land (d)apps written in the (d)app's
 native language.
+
+---
+
+Built something on gno.land?
+[Submit your project](https://github.com/gnolang/gno/edit/master/misc/deployments/home-alias/pages/ecosystem.md)
+by adding it to this page in a pull request.
