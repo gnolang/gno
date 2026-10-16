@@ -1131,7 +1131,7 @@ export class SearchbarController extends BaseController {
 	// server returns, so one renderer serves both paths.
 	private filter(q: string): SearchGroup[] {
 		const needle = q.toLowerCase();
-		const apps = SearchbarController.rank(this.realms, needle);
+		const realms = SearchbarController.rank(this.realms, needle);
 		const packages = SearchbarController.rank(this.packages, needle);
 
 		const users: string[] = [];
@@ -1141,7 +1141,7 @@ export class SearchbarController extends BaseController {
 			seen.add(needle);
 			users.push(`/u/${needle}`);
 		}
-		for (const p of apps.concat(packages)) {
+		for (const p of realms.concat(packages)) {
 			const name = SearchbarController.firstSegment(p);
 			if (name && !seen.has(name)) {
 				seen.add(name);
@@ -1158,7 +1158,7 @@ export class SearchbarController extends BaseController {
 		});
 
 		return [
-			toGroup("Apps", apps),
+			toGroup("Realms", realms),
 			toGroup("Packages", packages),
 			toGroup("Users", users),
 		].filter((g) => (g.results?.length ?? 0) > 0);
