@@ -3,6 +3,8 @@ package gnolang
 import (
 	"fmt"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // unusedName is a local variable or label a function declares and never
@@ -18,7 +20,7 @@ type unusedName struct {
 // (every name has its path). parent is fn's parent block. A variable is used by any occurrence except as a target of `=` or
 // `:=`; a label by a goto, break or continue naming it. The variable of a
 // type switch counts as used when any clause uses it.
-func checkUnused(parent BlockNode, fn Node) []unusedName {
+func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 	// Keyed by the declaring statement: faux blocks (if, switch) copy the
 	// name sources of their init statement into each case block.
 	type key struct {
@@ -32,6 +34,9 @@ func checkUnused(parent BlockNode, fn Node) []unusedName {
 	plain := func(n Name) Name { return Name(strings.TrimSuffix(string(n), ".loopvar")) }
 
 	TranscribeB(parent, fn, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage == TRANS_ENTER {
+			chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		}
 		switch stage {
 		case TRANS_BLOCK:
 			blocks = append(blocks, n.(BlockNode))

@@ -1158,7 +1158,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 	// reportUnused raises the unused locals and labels of a function.
 	reportUnused := func(parent BlockNode, fn Node, last BlockNode, stack []BlockNode) {
-		for _, u := range checkUnused(parent, fn) {
+		for _, u := range checkUnused(preprocessGasMeterOf(store), parent, fn) {
 			if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
 				continue // a dropped statement declared or mentioned it
 			}
@@ -2889,9 +2889,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
-					assertUniqueLiteralIndices(n)
+					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 					if !cclt.Vrd {
-						assertLiteralIndicesFit(n, cclt.Len)
+						assertLiteralIndicesFit(preprocessGasMeterOf(store), n, cclt.Len)
 					}
 				case *SliceType:
 					for i := range n.Elts {
@@ -2902,7 +2902,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
-					assertUniqueLiteralIndices(n)
+					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 				case *MapType:
 					// kset tracks seen const keys for duplicate detection.
 					// checkOrConvertType must be called before the check so that
@@ -3267,7 +3267,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *MapTypeExpr:
-				if msg := mapKeyError(evalStaticType(store, last, n).(*MapType).Key); msg != "" {
+				if msg := mapKeyError(preprocessGasMeterOf(store), evalStaticType(store, last, n).(*MapType).Key); msg != "" {
 					panicAt(msg, n.Key, n)
 				}
 
@@ -3785,8 +3785,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
 				if dt, ok := dstT.(*DeclaredType); ok && !n.IsAlias {
-					checkTypeExprShape(n.Type)
-					checkTypeShape(dt)
+					checkTypeExprShape(preprocessGasMeterOf(store), n.Type)
+					checkTypeShape(preprocessGasMeterOf(store), dt)
 				}
 				n.Type = toConstTypeExpr(last, n.Type, dstT)
 			}

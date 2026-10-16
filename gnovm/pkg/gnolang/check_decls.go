@@ -1,5 +1,7 @@
 package gnolang
 
+import "github.com/gnolang/gno/tm2/pkg/store"
+
 import "fmt"
 
 // Declaration and literal rules the preprocessor enforces (Go spec:
@@ -78,7 +80,8 @@ func assertStructLiteralCount(n *CompositeLitExpr, st *StructType, lt Type) {
 
 // assertLiteralIndicesFit rejects an array literal element whose index,
 // written or implied, is not below the array length.
-func assertLiteralIndicesFit(n *CompositeLitExpr, length int) {
+func assertLiteralIndicesFit(gm store.GasMeter, n *CompositeLitExpr, length int) {
+	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
 	next := int64(0)
 	for _, elt := range n.Elts {
 		idx := next
