@@ -25,4 +25,4 @@ func main() {
 // stack 2: func main/issue4458.go:16:1-20:2
 // ------------------------
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19; internal errors: lines 19

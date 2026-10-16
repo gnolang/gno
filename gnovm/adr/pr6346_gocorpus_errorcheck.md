@@ -27,6 +27,14 @@ preprocessor (`PreprocessFilesCollect`) gives every error with its span.
   `GC_ERROR`-only and pragma-placement markers, markers on non-code lines.
 - Parse errors are pinned up to the first syntax error; the parser's
   resynchronisation cascades are not gc's.
+- Coverage is by line: a marker is covered when a Gno checking error
+  spans it, wording kept as evidence. An internal error (`should not
+  happen` and kin) covers nothing: it is a VM bug, listed on its own.
+  Matching by error code, once every rule carries one, is the follow-up.
+- The on-chain path (plain `Preprocess`, first error) also runs on every
+  file and must agree with accumulate mode on whether the file is
+  rejected, with its first error on a reported line; the ledger vouches
+  for the path deploys take, not only for the measuring one.
 
 ## Alternatives considered
 

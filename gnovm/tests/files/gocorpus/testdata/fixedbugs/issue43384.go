@@ -149,4 +149,4 @@ func _() {
 // line 118: should not happen
 // line 119: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 41, 47, 56, 62, 97, 103, 112, 118; internal errors: lines 41, 47, 56, 62, 97, 103, 112, 118

@@ -20,4 +20,4 @@ func main() {
 // line 12: assignment mismatch: 2 variable(s) but 1 value(s)
 // line 13: assignment mismatch: 2 variable(s) but 3 value(s)
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10; internal errors: lines 10
