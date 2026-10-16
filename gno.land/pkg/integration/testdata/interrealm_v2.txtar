@@ -22,7 +22,8 @@
 #   borrow rule #2 — storage-realm borrow:  a /p/-declared (or stdlib)
 #     method invoked on a defined receiver whose authoring PkgID
 #     differs from m.Realm soft-switches m.Realm to the receiver's
-#     PkgID. This fires for both REAL and UNREAL foreign receivers.
+#     PkgID, provided the owner granted the receiver with mutable(x).
+#     This fires for both REAL and UNREAL granted receivers.
 #
 #   Realm-context invariant:  Borrow shifts m.Realm but NOT
 #     unsafe.CurrentRealm()/PreviousRealm(); those track only
@@ -196,7 +197,8 @@ stderr 'cannot cur-call to external realm function'
 ## ============================================================
 
 ## L2_PMethodOnOwnedReal: /p/-method on real /r/owned-allocated
-## receiver. borrow rule #2 borrows m.Realm to /r/owned; write succeeds.
+## receiver the owner granted with mutable(). borrow rule #2 borrows m.Realm
+## to /r/owned; write succeeds.
 ##
 ##   func L2_PMethodOnOwnedReal(cur realm) {
 ##       owned.Lib.TouchA()
@@ -206,9 +208,10 @@ stdout OK!
 gnokey query "vm/qrender" --data "gno.land/r/test/owned:"
 stdout 'libA=1 '
 
-## L2_PMethodOnOwnedUnreal: borrow rule #2 fires for unreal foreign
+## L2_PMethodOnOwnedUnreal: borrow rule #2 fires for unreal granted
 ## receivers too. owned.LibFactory() returns a PkgID=/r/owned
-## LibContainer with NewTime=0; TouchA still borrows to /r/owned.
+## LibContainer with NewTime=0, granted by the factory; TouchA still
+## borrows to /r/owned.
 ##
 ##   func L2_PMethodOnOwnedUnreal(cur realm) {
 ##       lc := owned.LibFactory()
@@ -456,7 +459,7 @@ func (r *Resource) RecordRealmTraceForCTX() {
 var (
 	global      int
 	Real        = &Resource{Value: 0}
-	Lib         = &v2lib.LibContainer{A: 0}
+	Lib         = mutable(&v2lib.LibContainer{A: 0}) // grant: foreign /p/-method writes may borrow
 	GlobalSlice = []int{1, 2, 3}
 	trace       string
 )
@@ -474,7 +477,7 @@ func Factory() *Resource {
 }
 
 func LibFactory() *v2lib.LibContainer {
-	return &v2lib.LibContainer{A: 0}
+	return mutable(&v2lib.LibContainer{A: 0}) // grant: the fresh container is a handle
 }
 
 var Closure = func() {
@@ -552,7 +555,7 @@ import (
 	"gno.land/r/test/owned"
 )
 
-var Lib = &v2lib.LibContainer{A: 0}
+var Lib = mutable(&v2lib.LibContainer{A: 0}) // grant: foreign /p/-method writes may borrow
 
 func MutateOwnedVia(r *owned.Resource) {
 	r.Mutate()

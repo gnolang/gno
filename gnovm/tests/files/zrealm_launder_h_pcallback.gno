@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderh
 package launderh
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // Attack H: ATTACKER-PROVIDED INTERFACE IMPL WITH PRIMITIVE
 // UNDERLYING TYPE.
 //
@@ -44,4 +49,6 @@ func main(cur realm) {
 
 // Output:
 // before: original-imm
-// after:  pwnd-via-iface
+
+// Error:
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,1)>.Field

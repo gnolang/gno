@@ -1,6 +1,11 @@
 // PKGPATH: gno.land/r/launderrh_pf
 package launderrh_pf
 
+// UPDATED (view-by-default): a /p/-method write on an object another realm
+// owns now borrows only if the owner granted mutable(x). None of these
+// fixtures grant, so the write described below is refused; the expected
+// output pins the refusal. The original analysis is kept for context.
+
 // /r/-declared victim with /p/-POINTER FIELD — Apply-callback attack.
 //
 // WithPtr has `Inner *launderpkg.Immutable`. Attacker reads the
@@ -25,4 +30,6 @@ func main(cur realm) {
 
 // Output:
 // before: ptr-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (the owner must hand it out with mutable(x), or expose a crossing function): i<VPBlock(1,0)>.Field
