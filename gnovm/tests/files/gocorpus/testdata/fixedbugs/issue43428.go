@@ -28,11 +28,11 @@ var _ = []int{
 // line 16: cannot use func(gno.land/p/filetest/p.T) as int
 
 // GnoWordingDiffers:
-// line 17: gc expects: cannot use T\.Mv|incompatible type; gno: 2: cannot use func(gno.land/p/filetest/p.T) as int
-// line 18: gc expects: cannot use \(\*T\)\.Mv|incompatible type; gno: 2: cannot use func(gno.land/p/filetest/p.T) as int
-// line 19: gc expects: cannot use \(\*T\)\.Mp|incompatible type; gno: 2: cannot use func(gno.land/p/filetest/p.T) as int
-// line 21: gc expects: cannot use time\.Time\.GobEncode|incompatible type; gno: 2: cannot use func(gno.land/p/filetest/p.T) as int
-// line 22: gc expects: cannot use \(\*time\.Time\)\.GobEncode|incompatible type; gno: 2: cannot use func(gno.land/p/filetest/p.T) as int
-// line 23: gc expects: cannot use \(\*time\.Time\)\.GobDecode|incompatible type; gno: 2: cannot use func(gno.land/p/filetest/p.T) as int
+// line 17: gc expects: cannot use T\.Mv|incompatible type; gno: cannot use func(gno.land/p/filetest/p.T) as int
+// line 18: gc expects: cannot use \(\*T\)\.Mv|incompatible type; gno: cannot use func(gno.land/p/filetest/p.T) as int
+// line 19: gc expects: cannot use \(\*T\)\.Mp|incompatible type; gno: cannot use func(gno.land/p/filetest/p.T) as int
+// line 21: gc expects: cannot use time\.Time\.GobEncode|incompatible type; gno: cannot use func(gno.land/p/filetest/p.T) as int
+// line 22: gc expects: cannot use \(\*time\.Time\)\.GobEncode|incompatible type; gno: cannot use func(gno.land/p/filetest/p.T) as int
+// line 23: gc expects: cannot use \(\*time\.Time\)\.GobDecode|incompatible type; gno: cannot use func(gno.land/p/filetest/p.T) as int
 
 // Verdict: Clean errorcheck
