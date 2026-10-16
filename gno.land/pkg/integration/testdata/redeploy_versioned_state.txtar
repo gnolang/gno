@@ -1,0 +1,229 @@
+# A private realm redeployed with version = N+1 keeps its globals.
+#
+# Without a version, a private redeploy starts the realm's globals over. With
+# `version = 2` over a live `version = 1`, every global is carried by name into
+# the new code, declared types keep their identity, and migrate() runs once in
+# place of init(). The state is then served by the new methods, and survives a
+# restart. A redeploy that retypes a global, or skips a version, is refused. A
+# private realm may drop a global once nothing needs it any more.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/v1 -pkgpath gno.land/r/demo/ledger -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/demo/ledger -func Add -args alice -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/ledger -func Add -args bob -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Names()'
+stdout '"alice,bob"'
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Tag()'
+stdout '"v1"'
+
+# Version 2: same globals plus a new one, a new method on the carried type,
+# and a migrate() that derives the new global from the carried ones.
+gnokey maketx addpkg -pkgdir $WORK/v2 -pkgpath gno.land/r/demo/ledger -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Tag()'
+stdout '"v2"'
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Names()'
+stdout '"alice,bob"'
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Total()'
+stdout '2000 int64'
+# The object v1 persisted answers with the method v2 declared on its type.
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.LastDescribed()'
+stdout '"bob#2 via v2"'
+
+# The new code keeps writing the carried state.
+gnokey maketx call -pkgpath gno.land/r/demo/ledger -func Add -args carol -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Names()'
+stdout '"alice,bob,carol"'
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Total()'
+stdout '3000 int64'
+
+gnoland restart
+stdout 'node restarted successfully'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Names()'
+stdout '"alice,bob,carol"'
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.LastDescribed()'
+stdout '"carol#3 via v2"'
+
+# Refused: a global changes type.
+! gnokey maketx addpkg -pkgdir $WORK/v3_retyped -pkgpath gno.land/r/demo/ledger -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'upgrade: variable counter changed type'
+
+# Refused: the version does not step by one. Refused before the plan, so the
+# package needs nothing but a version.
+! gnokey maketx addpkg -pkgdir $WORK/v9 -pkgpath gno.land/r/demo/ledger -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'needs version = 3 in gnomod.toml, got 9'
+
+# Both refusals left the realm as version 2 wrote it.
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Names()'
+stdout '"alice,bob,carol"'
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Tag()'
+stdout '"v2"'
+
+# Version 3 drops counter, which total replaced in version 2: the two-step
+# rename. Everything else is carried.
+gnokey maketx addpkg -pkgdir $WORK/v3_drop -pkgpath gno.land/r/demo/ledger -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Tag()'
+stdout '"v3"'
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.Total()'
+stdout '3000 int64'
+gnokey query vm/qeval --data 'gno.land/r/demo/ledger.LastDescribed()'
+stdout '"carol#3 via v2"'
+
+-- v1/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 1
+
+-- v1/ledger.gno --
+package ledger
+
+import "strings"
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+var (
+	counter int
+	names   []string
+	last    *Entry
+)
+
+func Add(cur realm, name string) {
+	counter++
+	names = append(names, name)
+	last = &Entry{Name: name, N: counter}
+}
+
+func Names() string { return strings.Join(names, ",") }
+func Tag() string   { return "v1" }
+
+-- v2/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2/ledger.gno --
+package ledger
+
+import (
+	"strconv"
+	"strings"
+)
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+func (e *Entry) Describe() string {
+	return e.Name + "#" + strconv.Itoa(e.N) + " via v2"
+}
+
+var (
+	counter int
+	names   []string
+	last    *Entry
+	total   int64 // new in v2
+)
+
+// migrate runs once, in place of init, when this version replaces the last.
+func migrate() {
+	total = int64(counter) * 1000
+}
+
+func Add(cur realm, name string) {
+	counter++
+	total += 1000
+	names = append(names, name)
+	last = &Entry{Name: name, N: counter}
+}
+
+func Names() string        { return strings.Join(names, ",") }
+func Total() int64         { return total }
+func LastDescribed() string { return last.Describe() }
+func Tag() string          { return "v2" }
+
+-- v3_retyped/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 3
+
+-- v3_retyped/ledger.gno --
+package ledger
+
+var (
+	counter string
+	names   []string
+	last    *Entry
+	total   int64
+)
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+func Tag() string { return "v3" }
+
+-- v3_drop/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 3
+
+-- v3_drop/ledger.gno --
+package ledger
+
+import (
+	"strconv"
+	"strings"
+)
+
+type Entry struct {
+	Name string
+	N    int
+}
+
+func (e *Entry) Describe() string {
+	return e.Name + "#" + strconv.Itoa(e.N) + " via v2"
+}
+
+var (
+	names []string
+	last  *Entry
+	total int64
+)
+
+func Add(cur realm, name string) {
+	total += 1000
+	names = append(names, name)
+	last = &Entry{Name: name, N: int(total / 1000)}
+}
+
+func Names() string        { return strings.Join(names, ",") }
+func Total() int64         { return total }
+func LastDescribed() string { return last.Describe() }
+func Tag() string          { return "v3" }
+
+-- v9/gnomod.toml --
+module = "gno.land/r/demo/ledger"
+gno = "0.9"
+private = true
+version = 9
+
+-- v9/ledger.gno --
+package ledger
+
+func Tag() string { return "v9" }

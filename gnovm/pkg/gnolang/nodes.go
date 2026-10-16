@@ -1319,6 +1319,34 @@ type PackageNode struct {
 	// pkgID is the lazy-cached PkgID derived from PkgPath.
 	// Not serialized.
 	pkgID PkgID
+
+	// pendingHidden are the init, migrate and blank func decls
+	// initStaticBlocks met, named and reserved by reserveHiddenFuncs after
+	// every other name. Not serialized.
+	pendingHidden []*FuncDecl
+}
+
+// reserveHiddenFuncs names and reserves the unreferenceable funcs (init.N,
+// migrate.N, ._N) after every other package-level name, so that adding or
+// dropping one moves no slot an importer compiled against.
+func (pn *PackageNode) reserveHiddenFuncs() {
+	for _, n := range pn.pendingHidden {
+		if n.Name == blankIdentifier {
+			n.Name = Name(fmt.Sprintf("._%d", pn.GetNumNames()))
+		} else {
+			n.Name = Name(fmt.Sprintf("%s.%d", n.Name, pn.GetNumNames()))
+		}
+		pn.reserveFuncDecl(n)
+	}
+	pn.pendingHidden = nil
+}
+
+// reserveFuncDecl reserves the slot of a package-level function.
+func (pn *PackageNode) reserveFuncDecl(n *FuncDecl) {
+	nx := &n.NameExpr
+	nx.Type = NameExprTypeDefine
+	pn.Reserve(false, nx, n, NSFuncDecl, -1)
+	pn.UnassignableNames = append(pn.UnassignableNames, n.Name)
 }
 
 // GetPkgID returns the cached PkgID for this PackageNode, computing
