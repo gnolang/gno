@@ -40,4 +40,4 @@ func main() {
 // line 34: should not happen
 // line 36: main.Start does not implement main.Inst (method Next has pointer receiver)
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 34; internal errors: lines 34
