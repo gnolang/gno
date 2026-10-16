@@ -18,6 +18,6 @@ func main() {
 }
 
 // GnoError:
-// line 14: 10: 0 is not a type
+// line 14: 0 is not a type
 
 // Verdict: Clean errorcheck
