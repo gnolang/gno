@@ -227,7 +227,7 @@ Repositories and branches:
 | T1 | Go relayer: trust, create/update clients both ways, relay gno → Eth and Eth → gno, acks, transfers, snapshots, wire/ABI vectors | ✅ | gno-eth-ibc `relayer/` (`cmd/relayer`, `relay/`, `gnoibc/`, `ethgno/`, `beacon/`, `eth/`) | Fix: `relay-gno-acks` re-sends an ack another step just delivered (stale read). Read commitments at the latest receipt's block. Add a regression test over consecutive periods (a finality update crossing a rotation, then the update revealing the next committee). |
 | T2 | TypeScript relayer: Ethereum chains (source and host), gno hosting Ethereum clients, byte-equality tests against the Go encoders | ✅ (PR open) | ts-relayer [`src/clients/ethereum/`](https://github.com/allinbits/ibc-v2-ts-relayer/tree/feat/ethereum-clients/src/clients/ethereum), [`src/clients/gno/ethereum.ts`](https://github.com/allinbits/ibc-v2-ts-relayer/blob/feat/ethereum-clients/src/clients/gno/ethereum.ts); [PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) | Support the claim queue (call `Claim`), governance packets, and the guardian-aware pause. Implement conflicting-header detection for the GnoLightClient (unsupported today, `src/clients/ethereum/host.ts`) and bounded `eth_getLogs` scans instead of scanning from block 0. Fixed in review: an update revealing the next committee that already finalizes the fetched finality update's slot is no longer followed by that stale update, which the client refuses (catch-up planned by the tested `planUpdates`, [`675ad9f`](https://github.com/allinbits/ibc-v2-ts-relayer/commit/675ad9f)). |
 | T3 | Local testnet (N secp256k1 validators, realms at genesis), local e2e with anvil, Sepolia scripts | ✅ | gno-eth-ibc [`testnet/`](https://github.com/allinbits/gno-eth-ibc/tree/main/testnet), [`scripts/e2e-local.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/e2e-local.sh), [`scripts/sepolia.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/sepolia.sh) | — |
-| T4 | **Monitors**: supply identity, header record, foreign decisions; auto-flag on integrity breaks, alarm on liveness | ❌ (♻️) | bridges: [`ethereum/bridge/agent`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/agent) (monitor role) | New, IBC-specific: escrow per client against voucher supply, plus in-flight packets reconstructed from packet records as of one pinned height per chain (§7.11), not read from commitments. |
+| T4 | **Monitors**: supply identity, header record, foreign decisions; auto-flag on integrity breaks, alarm on liveness | ❌ (♻️) | bridges: [`ethereum/bridge/agent`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/agent) (monitor role) | New, IBC-specific: accounted escrow per client against voucher supply plus in-flight packets, reconstructed from packet records at causally closed heights (§7.11), not read from commitments; actual escrow balances must cover the accounted backing, and surplus only alarms. |
 | T5 | **Watch tool** for guardians and GovDAO members: state, pending decisions, flags, `check` of upgrade targets (code-hash, reproducible build, append-only storage layout) | ❌ (♻️) | bridges: [`ethereum/bridge/cmd/hlwatch`](https://github.com/gnolang/bridges/tree/ethereum-draft/ethereum/bridge/cmd/hlwatch) | Port. |
 | T6 | Setup audit tool (reads every authority and setting back, byte-for-byte creation checks) | ❌ (♻️) | bridges: `ethereum/bridge/cmd/hleth` (`audit`) | Port. |
 
@@ -790,30 +790,37 @@ so other IBC routes of the same realms are unaffected.
 
 ### 7.11 Monitoring — T4, T5
 
-- **Supply identity, per client and denom:**
-  - gno-native: `escrowed on gno = voucher supply on Ethereum + in flight + open/owed/withheld claims on gno`
+- **Supply identity, per client and denom**, over **accounted backing**: the escrow balance implied by
+  authenticated bridge operations (escrows on send minus releases on receive, refund and claim payout), kept by the
+  monitor from packet records, not the escrow account's raw token balance:
+  - gno-native: `accounted escrow on gno = voucher supply on Ethereum + in flight + open/owed/withheld claims on gno`
     (a returned voucher is burned on Ethereum but its GNOT stays escrowed until its claim is paid);
-  - Ethereum-native: `escrow on Ethereum = voucher supply on gno + in flight + open/owed/withheld claims`.
+  - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + open/owed/withheld claims`.
   - "In flight" means packets in an economic state: sent and not yet received, **or received with an error ack
     whose refund has not yet been processed at the source** (a pending refund liability) — not every outstanding
     commitment, since commitments also persist until acks are processed.
-  - **Causally consistent snapshots.** Escrow and mint (or burn and release) happen on different chains at
-    different times, so two snapshots read in any fixed order can catch a receive without its send, or the
-    reverse, and report a break that is not there. The monitor therefore pins one height per chain (finalized
-    Ethereum state, gno.land state at a committed height, each read from the operator's own node and checked
-    against two agreeing RPC providers by block hash) and evaluates the identity **as of those pinned heights**
-    from packet records: a packet counts as in flight when its send is at or below the source's pinned height and
-    its receive is not at or below the destination's; a receive whose send lies above the source's pinned height is
-    excluded from both sides (the destination's supply is corrected by the amounts of such receives), and refund
-    liabilities and claims are taken from the same pinned heights. Every included receive must thus have its send
-    included.
-  - **Deferred alarms.** If alignment cannot be established — a record missing, a provider disagreeing, a pinned
-    height not yet finalized — the evaluation is skipped and retried at later heights; it only alarms after a
-    configured number of failures. An integrity auto-flag needs a break that persists over two consecutive aligned
-    evaluations.
-- **What triggers what.** A break in an aligned evaluation that persists as above auto-flags credits+payouts and
-  receives, and sets the route's `refunds` hold (§7.13). Stalls, ages, float runways and failures to align only
-  alarm.
+  - **Balances must cover it.** Separately, each escrow's actual balance must be at least its accounted backing.
+    A shortfall is an integrity break. An excess is **surplus** — anyone can transfer tokens or GNOT straight to
+    an escrow address without a packet — and only alarms; it never flags or holds the route, and governance may
+    sweep it.
+  - **Consistent cut.** Escrow and mint (or burn and release) happen on different chains at different times, so
+    two snapshots read in any fixed order can catch a receive without its send and report a break that is not
+    there; correcting for such a receive afterwards would have to reverse every effect that followed it (escrow
+    releases, claims, payouts, refund settlements). The monitor instead evaluates the identity only at a pair of
+    **causally closed** heights `(G, E)`: every receive at or below either height has its send at or below the
+    other's, so no effect needs reversing. It pins `G` at a committed gno.land height and `E` at the latest
+    finalized Ethereum height, each read from the operator's own node and checked against two agreeing RPC
+    providers by block hash, then, from packet records: lowers `E` below the first Ethereum receive whose gno send
+    lies above `G`, and lowers `G` below the first gno.land receive whose Ethereum send lies above `E`, repeating
+    until neither moves. Both only decrease, so this ends, at worst at the previous evaluation's pair (or the route's launch heights), which is closed.
+    Refund liabilities, claims and payouts are all read at the same pair.
+  - **Deferred alarms.** If a closed pair cannot be established — a record missing, a provider disagreeing, a
+    pinned height not yet finalized, or the pair falling too far behind — the evaluation is skipped and retried
+    later; it only alarms after a configured number of failures. An integrity auto-flag needs a break (in the
+    identity or a balance shortfall) that persists over two consecutive evaluations at closed pairs.
+- **What triggers what.** A break at closed pairs that persists as above auto-flags credits+payouts and
+  receives, and sets the route's `refunds` hold (§7.13). Stalls, ages, float runways, failures to find a closed pair and escrow
+  surplus only alarm.
 - **Watch tool.** Guardians and members see flags, holds, pending decisions and the client heads, and check
   upgrade targets.
 
@@ -1261,6 +1268,11 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Monitoring evaluates the supply identity as of one pinned height per chain, reconstructed from packet records
     so that every included receive has its send included; integrity auto-flags need a persisting break in aligned
     evaluations, and failures to align only alarm (§7.11).
+- 2026-10-16, seventeenth review with Codex. Folded:
+  - The monitor evaluates the supply identity at causally closed heights, found by lowering each chain's pin past
+    receives whose sends lie beyond the other's, instead of correcting for excluded receives (§7.11, T4).
+  - The identity is over accounted backing from bridge operations; actual escrow balances must cover it, and
+    unsolicited surplus only alarms, so a direct transfer to an escrow cannot hold the route (§7.11, T4).
 
 ## 15. References
 
