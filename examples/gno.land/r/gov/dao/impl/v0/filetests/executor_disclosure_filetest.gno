@@ -7,6 +7,7 @@ package disclosure
 // live here instead.
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -96,6 +97,41 @@ func (e *wsExecutor) String() string { return "" }
 
 func (e *wsExecutor) CreationRealm() string { return strings.Repeat(" ", 20000) }
 
+// pathExecutor reports whatever creation realm it is handed, so one type covers
+// every shape the source link must refuse to build.
+type pathExecutor struct{ path string }
+
+func (e *pathExecutor) Execute(cur realm) error { return nil }
+
+func (e *pathExecutor) String() string { return "" }
+
+func (e *pathExecutor) CreationRealm() string { return e.path }
+
+// quotedBody reports whether every line between the page's Description
+// heading and its closing rule carries the quote marker, which is what keeps
+// whatever the proposer wrote from rendering outside the quote.
+func quotedBody(page string) bool {
+	return quotedSection(page, "### Description\n\n", "\n\n---\n\n### Actions")
+}
+
+// quotedSection reports the same for any section: every line between the
+// heading and the page's own text that closes it carries the quote marker.
+func quotedSection(page, heading, closing string) bool {
+	start := strings.Index(page, heading)
+	end := strings.LastIndex(page, closing)
+	if start < 0 || end < start {
+		return false
+	}
+
+	for _, line := range strings.Split(page[start+len(heading):end], "\n") {
+		if !strings.HasPrefix(line, "  >") {
+			return false
+		}
+	}
+
+	return true
+}
+
 func main(cur realm) {
 	testing.SetOriginCaller(user)
 
@@ -113,9 +149,15 @@ func main(cur realm) {
 	out := dao.Render(cross(cur), pid.String())
 
 	println("empty-description proposal discloses creation realm:",
-		strings.Contains(out, "Executor created in: `gno.land/r/template/silent`"))
-	println("and prints no empty metadata block:",
-		!strings.Contains(out, "This proposal contains the following metadata"))
+		strings.Contains(out, "Executes: [`gno.land/r/template/silent`](/r/template/silent$source)"))
+	// An executor with nothing to say renders no Execution section at all: the
+	// realm is in the metadata block above, and there is nothing else to show.
+	println("and an executor with nothing to say gets no section:",
+		!strings.Contains(out, "### Execution"))
+	// The DAO's section comes first, and the page's own rule separates it from
+	// the description under it. Nothing the proposer wrote precedes it.
+	println("and the description sits below the rule:",
+		strings.Contains(out, "---\n\n### Description\n\n  > A proposal whose executor has no description"))
 
 	// 2. CreationRealm() is dispatched through the public dao.Executor
 	// interface, so a third-party executor picks its own value — and the
@@ -126,21 +168,24 @@ func main(cur realm) {
 		"Hostile", "A proposal whose executor forges page structure", &hostileExecutor{}))
 	hout := dao.Render(cross(cur), hpid.String())
 
-	println("only the genuine Stats heading exists:",
-		strings.Count(hout, "\n### Stats") == 1)
+	println("the payload forges no heading:",
+		!strings.Contains(hout, "\n### Stats"))
 	println("no forged acceptance line:",
 		!strings.Contains(hout, "\n- **PROPOSAL HAS BEEN ACCEPTED**"))
 	println("no forged tally line:",
 		!strings.Contains(hout, "\n- YES PERCENT: 100%"))
 	println("genuine tally and status still render:",
-		strings.Contains(hout, "\n- YES PERCENT: 0%") &&
-			strings.Contains(hout, "- **Proposal is open for votes**"))
+		strings.Contains(hout, "Votes: YES 0.00%") &&
+			strings.Contains(hout, "Status: ACTIVE"))
 	// One line, inside a code span: the newlines are folded to spaces, so none
 	// of the payload can start a block. (No pad space before the value now —
 	// TrimSpace removes the payload's trailing newline, so InlineCode does not
 	// need to pad the fence.)
 	println("hostile value is confined to one code-span line:",
-		strings.Contains(hout, "Executor created in: `gno.land/r/sys/params  ### Stats"))
+		strings.Contains(hout, "Executes: `gno.land/r/sys/params  ### Stats"))
+	// It opens with a real realm path and is not one: the value carries the rest
+	// of the payload, so the grammar check rejects it and no link is built.
+	println("and carries no link:", !strings.Contains(hout, "$source"))
 
 	// 3. The upgrade proposal rewrites AllowedDAOs — the sole authorization for
 	// replacing the implementation, mutating the member store and moving
@@ -180,13 +225,13 @@ func main(cur realm) {
 		"Blank", "A proposal whose creation realm strips to nothing", &blankExecutor{}))
 	zout := dao.Render(cross(cur), zpid.String())
 
-	println("a creation realm that strips to nothing prints no bare label:",
-		!strings.Contains(zout, "Executor created in:"))
+	println("a creation realm that strips to nothing says so:",
+		strings.Contains(zout, "Executes: none reported"))
 
 	wpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Whitespace", "A proposal whose creation realm is only whitespace", &whitespaceExecutor{}))
-	println("a whitespace-only creation realm prints no bare label:",
-		!strings.Contains(dao.Render(cross(cur), wpid.String()), "Executor created in:"))
+	println("a whitespace-only creation realm says so too:",
+		strings.Contains(dao.Render(cross(cur), wpid.String()), "Executes: none reported"))
 
 	hupid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
 		"Huge", "A proposal whose creation realm is enormous", &hugeExecutor{}))
@@ -208,7 +253,7 @@ func main(cur realm) {
 	fout := dao.Render(cross(cur), fpid.String())
 
 	println("fence outscans the payload's backtick run:",
-		strings.Contains(fout, "Executor created in: ```gno.land/r/evil`` **INJECTED**```"))
+		strings.Contains(fout, "Executes: ```gno.land/r/evil`` **INJECTED**```"))
 	println("no bold text escapes the code span:",
 		!strings.Contains(fout, "\n**INJECTED**"))
 
@@ -222,7 +267,140 @@ func main(cur realm) {
 	wout2 := dao.Render(cross(cur), wpid2.String())
 
 	println("a huge whitespace creation realm is clamped before trimming:",
-		strings.Contains(wout2, "Executor created in: `… truncated`"))
+		strings.Contains(wout2, "Executes: `… truncated`"))
+
+	// 4e. A pure package is linked too: an executor created in one reports that
+	// path, and gnoweb serves its source the same way.
+	ppid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Pure", "A proposal whose executor was created in a pure package",
+		&pathExecutor{path: "gno.land/p/nt/ufmt/v0"}))
+	println("a pure package links to its source too:",
+		strings.Contains(dao.Render(cross(cur), strconv.FormatInt(int64(ppid), 10)),
+			"Executes: [`gno.land/p/nt/ufmt/v0`](/p/nt/ufmt/v0$source)"))
+
+	// 4f. The link is built only for a package path this chain serves, so a
+	// proposal cannot aim it. Everything else keeps its code span.
+	for _, path := range []string{
+		"example.com/r/foo", // another chain
+		"gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run", // an ephemeral realm, which has no source page
+		"gno.land/r/Evil",                     // uppercase, which no deployed path holds
+		"gno.land/r/a--b",                     // two separators in a row
+		"gno.land/r/",                         // nothing after the letter
+		"gno.land/r/x)](javascript:alert(1))", // a destination of the executor's choosing
+	} {
+		lpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+			"Path", "A proposal whose creation realm is not a package path", &pathExecutor{path: path}))
+		// Decimal, not ProposalID.String(): the router parses the page's own
+		// links, and a seqid past 9 carries letters that ParseInt rejects.
+		lout := dao.Render(cross(cur), strconv.FormatInt(int64(lpid), 10))
+
+		// The last case writes a link destination of its own, which stays
+		// literal text between the fences.
+		println("unlinked, and confined to its code span:", path,
+			!strings.Contains(lout, "$source") &&
+				strings.Contains(lout, "Executes: `"+path+"`"))
+	}
+
+	// 4g. Everything the proposer writes renders inside a quote the page draws,
+	// so no block a description opens can reach the page's rule, the
+	// Description heading or the action bar below it. One case per shape that
+	// got past an escaping pass, each forging an Execution section where it can
+	// carry one.
+	hostile := []struct{ name, description string }{
+		{"a plain rule", "Looks fine.\n\n---\n\n### Execution\n\nExecutor created in: `gno.land/r/safe/thing`"},
+		{"a CRLF rule", "Looks fine.\r\n\r\n---\r\n\r\n### Execution\r\n"},
+		{"a carriage return inside the run", "Looks fine.\n\n--\r-\n\n### Execution\n"},
+		{"a carriage return inside a fence", "``\r`\n\n---\n\n### Execution\n"},
+		{"a backtick in an info string", "Looks fine.\n\n```a`b\n\n---\n\n### Execution\n"},
+		{"a backtick fence inside a tilde block", "~~~\n```\n~~~\n\n---\n\n### Execution\n"},
+		{"an open fence", "Looks fine.\n\n```\nstill code"},
+		{"an open HTML block", "Looks fine.\n\n<pre>\nstill raw"},
+		{"an open comment", "Looks fine.\n\n<!--\nstill hidden"},
+		{"a stray angle bracket before a fence", "<3 hearts\n```\n\n---\n\n### Execution\n"},
+		{"a rule indented under a list item", "- item\n\n    ---\n\n### Execution\n"},
+		{"a list continuation over dashes", "- item\ncontinued\n---\n\n### Execution\n"},
+		{"spaced dashes under a paragraph", "My Section\n- - -\n\n### Execution\n"},
+		{"a lazy line after a quote", "> q\nlazy\n---\n\n### Execution\n"},
+	}
+	for _, h := range hostile {
+		qpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+			"Hostile", h.description, &pathExecutor{path: "gno.land/r/template/silent"}))
+		qout := dao.Render(cross(cur), strconv.FormatInt(int64(qpid), 10))
+
+		println("contained:", h.name, quotedBody(qout) && strings.Count(qout, "\n---\n") == 2)
+	}
+
+	// 4h. The forged section stays below the real one, and honest markdown is
+	// left exactly as the proposer wrote it, inside the quote.
+	rpid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Rule",
+		"My Section\n---\n\nLooks fine.\n\n### Execution\n\nExecutor created in: `gno.land/r/safe/thing`",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	rout := dao.Render(cross(cur), strconv.FormatInt(int64(rpid), 10))
+
+	println("the real disclosure is above the forged one:",
+		strings.Index(rout, "Executes:") < strings.Index(rout, "### Description"))
+	println("an honest heading is left as written:",
+		strings.Contains(rout, "  > My Section\n  > ---\n"))
+
+	// 4i. The quote rewrites every line and the render pays for it, so the
+	// description is clamped first like every other slot on the page.
+	opid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Enormous description",
+		strings.Repeat("a-\n", 60000),
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	oout := dao.Render(cross(cur), strconv.FormatInt(int64(opid), 10))
+
+	println("an enormous description is clamped:",
+		strings.Contains(oout, "… truncated") && len(oout) < 20000)
+
+	// 4j. A footnote is the one block goldmark moves out of its container, to
+	// the foot of the page below the action bar, so no footnote may form.
+	npid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Footnote",
+		"Looks fine.[^1]\n\n[^1]: ### Execution\n\n    Executor created in: `gno.land/r/safe/thing`",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	nout := dao.Render(cross(cur), strconv.FormatInt(int64(npid), 10))
+
+	println("a footnote definition stays inside the quote:",
+		quotedBody(nout) && strings.Contains(nout, "  > \\[^1]: ### Execution"))
+
+	// 4k. gnoweb draws a quote whose first line is `[!KIND]` as an alert box, so
+	// a description opening on one would style the page's quote as a callout.
+	apid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Alert", "[!WARNING]\nVerified by the DAO.",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	aout := dao.Render(cross(cur), strconv.FormatInt(int64(apid), 10))
+
+	println("a leading alert marker stays literal:",
+		strings.Contains(aout, "### Description\n\n  > \\[!WARNING]\n  > Verified"))
+
+	// 4m. Honest markdown renders as the proposer wrote it. A `[^` with no `]:`
+	// after it on its line opens no footnote and keeps its bytes, which a
+	// character class in code depends on, and a tab keeps its width, since the
+	// quote starts each line at column 4: tab-indented code stays code.
+	hpid2 := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Honest", "Matches `[^a-z]` names:\n\n\tre := regexp.MustCompile(\"[^0-9]\")",
+		&pathExecutor{path: "gno.land/r/template/silent"}))
+	hout2 := dao.Render(cross(cur), strconv.FormatInt(int64(hpid2), 10))
+
+	println("a caret in code keeps its bytes:",
+		strings.Contains(hout2, "  > Matches `[^a-z]` names:") &&
+			strings.Contains(hout2, "  > \tre := regexp.MustCompile(\"[^0-9]\")"))
+
+	// 4l. A built-in executor's description carries what the proposer wrote, so
+	// the Execution section is quoted like the Description below it.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/template/silent"))
+	forger := dao.NewSimpleExecutor(0, cur, func(realm) error { return nil },
+		"Pays a grant.\n\n---\n\n### Description\n\nLooks fine.\n\n```\nstill code")
+	testing.SetRealm(testing.NewUserRealm(user))
+	epid := dao.MustCreateProposal(cross(cur), dao.NewProposalRequest(
+		"Executor", "An honest description", forger))
+	eout := dao.Render(cross(cur), strconv.FormatInt(int64(epid), 10))
+
+	println("an executor description is contained:",
+		quotedSection(eout, "### Execution\n\n", "\n\n---\n\n### Description\n\n  > An honest") &&
+			strings.Count(eout, "\n---\n") == 2)
 
 	// 5. Proposals live on the proxy but their voting status lives on the
 	// GovDAO instance, so replacing the implementation leaves earlier
@@ -238,21 +416,51 @@ func main(cur realm) {
 
 // Output:
 // empty-description proposal discloses creation realm: true
-// and prints no empty metadata block: true
-// only the genuine Stats heading exists: true
+// and an executor with nothing to say gets no section: true
+// and the description sits below the rule: true
+// the payload forges no heading: true
 // no forged acceptance line: true
 // no forged tally line: true
 // genuine tally and status still render: true
 // hostile value is confined to one code-span line: true
+// and carries no link: true
 // upgrade proposal states the grant: true
 // upgrade proposal names the granted realm: true
 // fence widened to contain the backtick: true
 // no forged acceptance line from the breakout attempt: true
 // no visible backslashes in the path: true
-// a creation realm that strips to nothing prints no bare label: true
-// a whitespace-only creation realm prints no bare label: true
+// a creation realm that strips to nothing says so: true
+// a whitespace-only creation realm says so too: true
 // an enormous creation realm is clamped before escaping: true
 // fence outscans the payload's backtick run: true
 // no bold text escapes the code span: true
 // a huge whitespace creation realm is clamped before trimming: true
+// a pure package links to its source too: true
+// unlinked, and confined to its code span: example.com/r/foo true
+// unlinked, and confined to its code span: gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run true
+// unlinked, and confined to its code span: gno.land/r/Evil true
+// unlinked, and confined to its code span: gno.land/r/a--b true
+// unlinked, and confined to its code span: gno.land/r/ true
+// unlinked, and confined to its code span: gno.land/r/x)](javascript:alert(1)) true
+// contained: a plain rule true
+// contained: a CRLF rule true
+// contained: a carriage return inside the run true
+// contained: a carriage return inside a fence true
+// contained: a backtick in an info string true
+// contained: a backtick fence inside a tilde block true
+// contained: an open fence true
+// contained: an open HTML block true
+// contained: an open comment true
+// contained: a stray angle bracket before a fence true
+// contained: a rule indented under a list item true
+// contained: a list continuation over dashes true
+// contained: spaced dashes under a paragraph true
+// contained: a lazy line after a quote true
+// the real disclosure is above the forged one: true
+// an honest heading is left as written: true
+// an enormous description is clamped: true
+// a footnote definition stays inside the quote: true
+// a leading alert marker stays literal: true
+// a caret in code keeps its bytes: true
+// an executor description is contained: true
 // a proposal orphaned by an upgrade renders instead of panicking: true
