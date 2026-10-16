@@ -16,4 +16,4 @@ func main() {
 // line 10: extra init expr 3
 // line 11: missing init expr for g<!VPInvalid(0)>
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11; internal errors: lines 11

@@ -11,4 +11,4 @@ var f = func() { f() } // ERROR "initialization cycle|initialization expression 
 // GnoError:
 // line 9: initialization cycle: f refers to f
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file

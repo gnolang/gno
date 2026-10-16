@@ -61,7 +61,14 @@ directly, since every such gap is a preprocess conformance gap in that
 umbrella issue's scope (a per-cause `#NNNN` written by hand survives re-sync).
 An over-strict line whose Gno message is a feature gap (the `unsupportedTags`
 needles: a stdlib symbol Gno lacks, a newer language feature) does not count;
-the `GnoError:` block still shows it. An EOF error maps to the last source
+the `GnoError:` block still shows it. An internal error (`should not happen`
+and kin) covers no marker: it is a VM bug, listed as `internal errors: lines …`.
+Every errorcheck file is also run through the on-chain path (plain
+`Preprocess`, first error): it must reject the file iff accumulate mode did,
+with its first error on a reported line, else the verdict says how the
+`on-chain path` disagrees. Coverage is by line, not wording: a marker counts
+as covered when a Gno checking error spans its line; the wording stays in
+the evidence. An EOF error maps to the last source
 line, where gc's marker sits. gc-only files (`-0`/`-m` diagnostics, `-+`/`-p=`,
 `-lang` below go1.17, `GC_ERROR`-only, pragma placement, `//line` directives,
 a byte order mark) are `Unsupported`.
