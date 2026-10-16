@@ -109,22 +109,6 @@
       },
       "ran_as": null,
       "release": "https://github.com/gnolang/gno/releases/tag/v1.5.1"
-    },
-    {
-      "kind": "upgrade",
-      "version": "v1.6.0",
-      "commit": "c868ccab1f93f0542a4c10a9d9b49b6fabcc0d98",
-      "halt_height": 848000,
-      "halt_time": null,
-      "halt_min_version": "v1.6.0",
-      "proposal": null,
-      "image": {
-        "ref": "ghcr.io/gnolang/gno/gnoland:v1.6.0",
-        "digest": null
-      },
-      "binaries": null,
-      "ran_as": null,
-      "release": "https://github.com/gnolang/gno/releases/tag/v1.6.0"
     }
   ]
 }
