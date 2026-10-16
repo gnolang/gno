@@ -2,8 +2,9 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/store"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // unusedName is a local variable or label a function declares and never

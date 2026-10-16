@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/store"
 	"maps"
 	"math"
 	"math/big"
@@ -12,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+
+	"github.com/gnolang/gno/tm2/pkg/store"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
