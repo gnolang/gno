@@ -310,9 +310,10 @@ Repositories and branches:
 
 ### 5.4 Governance channel (new)
 
-- A dedicated IBC app pair: `ibcgov` on gno.land (port `gov`) ⇄ `IBCAdmin` on Ethereum (port `gov`), over the
+- A dedicated IBC app pair: `ibcgov` on gno.land (port `gov`) ⇄ `IBCAdmin` on Ethereum (port `ibcgov`: eureka's
+  router refuses custom port ids shorter than 4 characters; `IBCAdmin` accepts only source port `gov`), over the
   same client pair as transfers.
-- **Envelope** (canonical, at most 512 bytes): `version u8 (= 1) ‖ epoch u32 ‖ seq u64 ‖ kind u8 ‖ params`.
+- **Envelope** (canonical, at most 1024 bytes — a kind 6 carrying gno.land's real merkle prefix is 558): `version u8 (= 1) ‖ epoch u32 ‖ seq u64 ‖ kind u8 ‖ params`.
   - `epoch` starts at 1 and is raised only by a route replacement (§7.12); `IBCAdmin` accepts packets only for its
     current epoch and only over that epoch's client. Another epoch is refused with an error ack (custom error
     `StaleEpoch`), and `ibcgov` never re-sends a packet of a past epoch.
@@ -321,12 +322,16 @@ Repositories and branches:
   - Every hash, buffer slot and tombstone is keyed by `(epoch, seq)`.
   - The app acknowledgement is `epoch u32 ‖ seq u64 ‖ status u8 ‖ redispatch u8`, status one of recorded,
     buffered, duplicate, conflict, spent; `ibcgov` re-sends the same bytes when `redispatch = 1` or on a timeout.
-- **Wire encoding.** The payload's port is `gov` on both sides, version `ibcgov-1`, encoding
+- **Wire encoding.** The source port is `gov` (gno.land) and the destination port `ibcgov` (Ethereum), version `ibcgov-1`, encoding
   `application/x-ibcgov`. The envelope prefix is fixed-width big-endian (`version`, `epoch`, `seq`, `kind`: 14
   bytes); `params` is the Solidity ABI encoding (`abi.encode`) of the kind's tuple below, so `IBCAdmin` decodes it
   with `abi.decode` and `ibcgov` builds it with the ABI encoder the transfer app already uses. The app
   acknowledgement's `status` is 1 recorded, 2 buffered, 3 duplicate, 4 conflict, 5 spent. A `token` is the
-  Ethereum ERC20 address; a `clientId` is the Ethereum router's client id.
+  Ethereum ERC20 address; a `clientId` is the Ethereum router's client id. A client id added by governance
+  (kind 6 op 1, kind 10, recovery) is a custom id of at least 4 characters not starting with `client-` (eureka
+  reserves those). `ibcgov` re-sends the identical bytes whenever an ack carries `redispatch = 1`, whatever its
+  status (a cancel beyond the window is acked `buffered` with `redispatch = 1`). Byte-equality vectors for every
+  kind and ack: gno-eth-ibc `contracts/test/fixtures/gov-vectors.json`, checked by both implementations.
 
   | Kind | `params` tuple | Delay rule |
   |---|---|---|
@@ -340,7 +345,9 @@ Repositories and branches:
   | 8 role | `(bool grant, uint64 roleId, address account)` | grant 7 d, revoke at recording |
   | 9 hand-over | `(address exec, bytes32 codeHash, bytes migrationCall)` | 7 d |
   | 10 route replacement | `(string oldClientId, string newClientId)`: retire and freeze the old client id, `migrateRoute`, open the next epoch over the new client (added by kind 6 first) | 7 d |
-  | 11 route settings | `(string clientId, uint64 quarantineSeconds)` | lengthening at recording, shortening 7 d |
+  | 11 route settings | `(string clientId, uint64 quarantineSeconds)`; a duration applies to transitions accepted after it; one already started keeps its deadline | lengthening at recording, shortening 7 d |
+  | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the route's send records; action 1 pay a refund of `amount` (at most the entitlement minus what was already refunded), 2 reject a queued refund, 3 settled as delivered, 4 record a loss of `amount`; each send record is settled at most once | 7 d |
+  | 13 reopen | `(string clientId)`: reopen a route closed by kind 10 or the emergency recovery, once §7.9's restoring decision exists | 7 d |
 
   A decision that fails to decode, names an unknown kind or fails its checks at execution is **spent** (§5.4
   above), never retried.
@@ -971,7 +978,8 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   **never sent** by the honest source (forgeries) are written off against the voids and loss accounting of §7.9.
   Refund liabilities move with the backing: escrow re-keyed to the new client stays reserved for the refunds owed.
   The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
-  accepted by decision (§7.9).
+  accepted by decision (§7.9): on Ethereum the route stays closed after kind 10 or the emergency recovery,
+  outcomes are applied by kind 12 and the route reopens by kind 13.
 - **Without the emergency path** (the default), the route replacement can only be done through governance, which
   needs a working governance channel. If the channel is lost (client expired, frozen or poisoned), **the Ethereum
   side's backing is stranded**: the escrow of Ethereum-native tokens can only be released by the existing ICS20
@@ -1002,7 +1010,11 @@ same packet: a double spend that receive limits, flags and the quarantine do not
   gno.land) writes an immutable **send record** keyed by `(client, sequence)` in the same transaction as the send:
   the full packet (timeout and payload), its commitment hash and the send metadata (sender, denom, amount, local
   send height). It has all of these, since it builds the packet and the router returns the sequence; the
-  `onSendPacket` callback alone would lack the timeout. The ack and timeout callbacks look the record up by
+  `onSendPacket` callback alone would lack the timeout. On Ethereum the record keeps the router's commitment
+  hash and the send metadata, not the packet bytes (about half a send's gas): the bytes are in the router's
+  `SendPacket` event and are authenticated against the stored commitment. Packets sent before the fork was
+  installed have no record; a permissionless `backfill(packet)` creates one while the router still holds the
+  packet's commitment, and the upgrade runbook backfills every outstanding packet before relaying resumes. The ack and timeout callbacks look the record up by
   `(client, sequence)` and only **attach** to it the outcome (success ack, error ack or timeout), the **local
   processing height** — which selects the reconciliation interval; the callbacks receive no proof height — and the
   payment state (paid, queued or claimed). Every ack or timeout the app processes is recorded this way — success
@@ -1350,6 +1362,12 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - A liability reduction applies only to claims on gno.land, per packet, and lowers the claims term and the
     unrecovered losses alike; refunds are never reduced, so every refund path still pays the full amount (§7.9).
 - 2026-10-16, twenty-second review with Codex: no open issues.
+- 2026-10-16, implementation amendments (agreed by both implementations):
+  - `IBCAdmin`'s port is `ibcgov` (eureka refuses ports under 4 characters); the source port stays `gov`. The
+    envelope cap is 1024 bytes. `ibcgov` re-sends on every `redispatch = 1`. Governance-added client ids are
+    custom ids of at least 4 characters not starting with `client-` (§5.4).
+  - Kinds 12 (settle) and 13 (reopen): a replaced route stays closed until reconciled and reopened by decision
+    (§5.4, §7.12). Quarantine durations apply to later transitions only (kind 11).
 
 ## 15. References
 
