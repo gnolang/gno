@@ -787,8 +787,11 @@ so other IBC routes of the same realms are unaffected.
   - **recapitalization**: tokens or GNOT paid into the escrow through a governed `recapitalize(route, denom,
     amount, incident)` call, credited to accounted backing and debited from the unrecovered losses — a plain
     transfer to the escrow stays surplus (§7.11) and repairs nothing;
-  - **liability reduction**: an explicit, published haircut on the affected claims or refunds, recorded per packet
-    against the incident;
+  - **liability reduction**: an explicit, published haircut on the affected route's **open, owed or withheld
+    claims on gno.land** (§7.1), recorded per packet against the incident: each reduced claim pays its reduced
+    amount, the claims term of §7.11 drops by the reduction and the unrecovered losses by the same amount.
+    **Refunds are never reduced**: a genuine refund — paid at once, queued (§7.13) or paid by reconciliation
+    (§7.12) — is always the packet's full amount minus what was already refunded, so the refund guarantee holds;
   - **accepted deficit**: governance reopens with the loss unrecovered and states it in the trust statement
     (§8.1); the identity still holds, since the loss is recorded, and later breaks are still detected.
 
@@ -1320,6 +1323,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Decided losses enter a packet-keyed loss ledger whose unrecovered total is part of the supply identity; a route
     that lost funds reopens only after a decided recapitalization, liability reduction or accepted deficit
     (§7.9, §7.11).
+- 2026-10-16, twenty-first review with Codex. Folded:
+  - A liability reduction applies only to claims on gno.land, per packet, and lowers the claims term and the
+    unrecovered losses alike; refunds are never reduced, so every refund path still pays the full amount (§7.9).
 
 ## 15. References
 
