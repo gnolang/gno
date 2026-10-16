@@ -4,6 +4,7 @@ import (
 	"gno.land/p/moul/realmpath/v0"
 	"gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -77,7 +78,7 @@ No matter how you browse through the paginated list, the introductory text (this
 func renderConfigItem(itemName string) string {
 	value := items.Get(itemName)
 	if value == nil {
-		return ufmt.Sprintf("**No item found** for key: %s", itemName)
+		return ufmt.Sprintf("**No item found** for key: %s", sanitize.InlineText(itemName))
 	}
 
 	out := ufmt.Sprintf("# Item %s\n\n%s\n\n", itemName, value.(string))

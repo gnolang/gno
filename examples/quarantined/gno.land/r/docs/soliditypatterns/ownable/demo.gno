@@ -1,9 +1,5 @@
 package ownable
 
-import (
-	"chain/runtime/unsafe"
-)
-
 var owner address = ""
 
 func InitOwner(cur realm) {
@@ -13,14 +9,17 @@ func InitOwner(cur realm) {
 	owner = cur.Previous().Address()
 }
 
-func assertOnlyOwner() {
-	if unsafe.PreviousRealm().Address() != owner {
+func assertOnlyOwner(caller address) {
+	if caller != owner {
 		panic("caller isn't the owner")
 	}
 }
 
 func ChangeOwner(cur realm, newOwner address) {
-	assertOnlyOwner()
+	assertOnlyOwner(cur.Previous().Address())
+	if !newOwner.IsValid() {
+		panic("invalid owner address")
+	}
 	owner = newOwner
 }
 

@@ -5,6 +5,8 @@ package factory
 import (
 	"errors"
 	"strconv"
+
+	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
 // TokenType represents different types of tokens
@@ -190,7 +192,7 @@ if err := token.Transfer(recipientAddr, 100); err != nil {
 	if lastToken != nil {
 		out += "### Last Created Token\n\n"
 		out += "**Type:** " + lastToken.GetType() + "\n\n"
-		out += "**Info:** " + lastToken.GetInfo() + "\n\n"
+		out += "**Info:** " + sanitize.InlineText(lastToken.GetInfo()) + "\n\n"
 	}
 
 	return out

@@ -61,3 +61,14 @@ func TestCreatePostMultiple(cur realm, t *testing.T) {
 		uassert.True(t, condition, "expected render to contain text '"+expectedText+"' and address '"+expectedAuthor+"'")
 	}
 }
+
+func TestRenderEscapesPostText(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("mallory")))
+
+	err := CreatePost(cross(cur), "hi\n# Fake heading\n<gno-form>")
+	uassert.NoError(t, err)
+
+	got := Render("")
+	uassert.False(t, strings.Contains(got, "\n# Fake heading"), "post text must not open a heading")
+	uassert.False(t, strings.Contains(got, "\n<gno-form>"), "post text must not open a form")
+}

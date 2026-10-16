@@ -1,5 +1,7 @@
 package minisocial
 
+import "gno.land/p/nt/markdown/sanitize/v0"
+
 func Render(_ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
 
@@ -11,7 +13,7 @@ func Render(_ string) string {
 
 	// Let's append the text of each post to the output
 	for _, post := range posts {
-		output += post.text + "\n\n"
+		output += sanitize.Block(post.text)
 	}
 
 	return output

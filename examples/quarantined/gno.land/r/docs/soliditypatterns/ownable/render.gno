@@ -42,33 +42,34 @@ contract OnlyOwnerCanChange {
 ^^^go
 package onlyownercanchange
 
-import "chain/runtime/unsafe"
-
 var owner address = ""
 
 func InitOwner(cur realm) {
 	if len(owner) != 0 {
 		panic("owner already defined")
 	}
-	owner = unsafe.PreviousRealm().Address()
+	owner = cur.Previous().Address()
 }
 
-func assertOnlyOwner() {
-	if unsafe.PreviousRealm().Address() != owner {
+func assertOnlyOwner(caller address) {
+	if caller != owner {
 		panic("caller isn't the owner")
 	}
 }
 
 func ChangeOwner(cur realm, newOwner address) {
-	assertOnlyOwner()
+	assertOnlyOwner(cur.Previous().Address())
+	if !newOwner.IsValid() {
+		panic("invalid owner address")
+	}
 	owner = newOwner
 }
 ^^^
 
 * We declare a persistent global variable ^owner^ of type ^address^ (an alias for ^string^ in Gno), initialized to the empty string ^""^. This holds the address of the contract owner.
-* The function ^InitOwner^ is used to initialize the ^owner^. It can only be called once: if ^owner^ is already set (non-empty), it throws an error using ^panic^. It sets the ^owner^ to the address of the previous realm (the caller) via ^unsafe.PreviousRealm().Address()^, which is similar to ^msg.sender^ in Solidity.
-* The helper function ^assertOnlyOwner^ checks that the caller is the current ^owner^ by comparing ^unsafe.PreviousRealm().Address()^ with ^owner^. If not, it panics. This is equivalent to a Solidity ^modifier onlyOwner^.
-* The function ^ChangeOwner^ allows the current owner to transfer ownership to a new address. It first calls ^assertOnlyOwner()^ to ensure that only the current owner can do this.
+* The function ^InitOwner^ is used to initialize the ^owner^. It can only be called once: if ^owner^ is already set (non-empty), it throws an error using ^panic^. It sets the ^owner^ to the address of the previous realm (the caller) via ^cur.Previous().Address()^, which is similar to ^msg.sender^ in Solidity.
+* The helper function ^assertOnlyOwner^ checks that the caller is the current ^owner^ by comparing the caller address it is given with ^owner^. If not, it panics. This is equivalent to a Solidity ^modifier onlyOwner^.
+* The function ^ChangeOwner^ allows the current owner to transfer ownership to a new address. It first calls ^assertOnlyOwner(cur.Previous().Address())^ to ensure that only the current owner can do this, then refuses a ^newOwner^ that is not a valid address.
 * All functions are capitalized (exported), meaning they can be called externally. However, ^assertOnlyOwner^ is unexported (lowercase), meaning it's only usable within the package.
 
 

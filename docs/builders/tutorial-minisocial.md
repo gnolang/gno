@@ -68,9 +68,8 @@ transaction. Create the file like this:
 package minisocial
 
 import (
-	"chain/runtime/unsafe" // Stack-walking primitives (see unsafe.PreviousRealm docs)
-	"errors"               // For handling errors
-	"time"                 // For handling time
+	"errors" // For handling errors
+	"time"   // For handling time
 )
 
 var posts []*Post
@@ -78,7 +77,7 @@ var posts []*Post
 // CreatePost creates a new post
 // As the function modifies state (i.e. the `posts` slice),
 // it needs to be crossing. This is defined by the first argument being of type `realm`
-func CreatePost(_ realm, text string) error {
+func CreatePost(cur realm, text string) error {
 	// If the body of the post is empty, return an error
 	if text == "" {
 		return errors.New("empty post text")
@@ -86,9 +85,9 @@ func CreatePost(_ realm, text string) error {
 
 	// Append the new post to the list
 	posts = append(posts, &Post{
-		text:      text,                              // Set the input text
-		author:    unsafe.PreviousRealm().Address(), // The author of the address is the previous realm, the realm that called this one
-		createdAt: time.Now(),                        // Capture the time of the transaction, in this case the block timestamp
+		text:      text,                     // Set the input text
+		author:    cur.Previous().Address(), // The author of the address is the previous realm, the realm that called this one
+		createdAt: time.Now(),               // Capture the time of the transaction, in this case the block timestamp
 	})
 
 	return nil
@@ -100,10 +99,10 @@ A few things to note:
   best practices: return early in your code and modify state only after you are sure all
   security checks in your code have passed. To discard (revert) state changes,
   use `panic()`.
-- To get the caller of `CreatePost`, we need to import `chain/runtime/unsafe`,
-which provides access to the function caller, and use `unsafe.PreviousRealm().Address()`.
-Check out the [realm concept page](../resources/realms.md) and the
-[`chain/runtime/unsafe` package](../resources/gno-stdlibs.md) reference page for more info.
+- To get the caller of `CreatePost`, use `cur.Previous().Address()`: `cur` is
+the realm value the crossing call hands the function, and `Previous()` names
+whoever made that call. Check out the
+[realm concept page](../resources/realms.md) for more info.
 - In Gno, `time.Now()` returns the timestamp of the block the transaction was
 included in, instead of the system time.
 
@@ -137,6 +136,8 @@ Let's gradually add more functionality:
 ```go
 package minisocial
 
+import "gno.land/p/nt/markdown/sanitize/v0"
+
 func Render(_ string) string {
 	output := "# MiniSocial\n\n" // \n is needed just like in standard Markdown
 
@@ -148,12 +149,17 @@ func Render(_ string) string {
 
 	// Let's append the text of each post to the output
 	for _, post := range posts {
-		output += post.text + "\n\n"
+		output += sanitize.Block(post.text)
 	}
 
 	return output
 }
 ```
+
+Anyone can create a post, and `Render` returns markdown, so raw post text could
+add a heading, a list or a `<gno-form>` to the page. `sanitize.Block` from
+`gno.land/p/nt/markdown/sanitize/v0` keeps each post inside its own
+paragraphs; links and emphasis inside a post still render.
 
 We can now use `gnokey` to call the `CreatePost` function and see how our posts
 look rendered on `gnoweb`. From the gnoweb realm page, the **Docs** tab gives
@@ -183,6 +189,7 @@ package minisocial
 import (
 	"time" // For handling time operations
 
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -195,7 +202,7 @@ type Post struct {
 
 // String stringifies a Post
 func (p Post) String() string {
-	out := p.text + "\n\n"
+	out := sanitize.Block(p.text)
 
 	// We can use `ufmt` to format strings, and the built-in time library formatting function
 	out += ufmt.Sprintf("_by %s on %s_\n\n", p.author, p.createdAt.Format("02 Jan 2006, 15:04"))
@@ -362,6 +369,7 @@ package minisocial
 import (
 	"time" // For handling time operations
 
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/sys/users"
 )
@@ -375,7 +383,7 @@ type Post struct {
 
 // String stringifies a Post
 func (p Post) String() string {
-	out := p.text + "\n\n"
+	out := sanitize.Block(p.text)
 
 	author := p.author.String()
 	// We can import and use the r/sys/users package to resolve addresses

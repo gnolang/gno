@@ -66,8 +66,8 @@ func UpdatePost(cur realm, id string, text string) error {
 		return ErrUnauthorized
 	}
 
-	// Can only update 10 mins after it was posted
-	if post.updatedAt.After(post.createdAt.Add(time.Minute * 10)) {
+	// Can only update up to 10 mins after it was posted
+	if time.Now().After(post.createdAt.Add(time.Minute * 10)) {
 		return ErrUpdateWindowExpired
 	}
 

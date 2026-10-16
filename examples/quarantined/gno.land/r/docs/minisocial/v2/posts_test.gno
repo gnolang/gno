@@ -71,7 +71,7 @@ func TestReset(cur realm, t *testing.T) {
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
 	// Set admin
-	testing.SetRealm(testing.NewUserRealm(Ownable.Owner()))
+	testing.SetRealm(testing.NewUserRealm(admin.Owner()))
 	ResetPosts(cross(cur))
 
 	got = Render("")
@@ -86,4 +86,28 @@ func TestReset(cur realm, t *testing.T) {
 	uassert.True(t, strings.Contains(got, text2), "expected render to contain text2")
 }
 
-// TODO: Add tests for Update & Delete
+func TestUpdatePostWindow(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("alice")))
+
+	err := CreatePost(cross(cur), "first draft")
+	uassert.NoError(t, err)
+	id := postID.String()
+
+	// 121 blocks of 5s each is just over the 10 minute window.
+	testing.SkipHeights(121)
+	err = UpdatePost(cross(cur), id, "edited too late")
+	uassert.ErrorIs(t, err, ErrUpdateWindowExpired)
+}
+
+func TestRenderEscapesPostText(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(testutils.TestAddress("mallory")))
+
+	err := CreatePost(cross(cur), "hi\n# Fake heading\n<gno-form>")
+	uassert.NoError(t, err)
+
+	got := Render("")
+	uassert.False(t, strings.Contains(got, "\n# Fake heading"), "post text must not open a heading")
+	uassert.False(t, strings.Contains(got, "\n<gno-form>"), "post text must not open a form")
+}
+
+// TODO: Add tests for Delete
