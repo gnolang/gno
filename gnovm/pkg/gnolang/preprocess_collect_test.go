@@ -273,6 +273,107 @@ func main() { f() }
 	}
 }
 
+func TestPreprocessCollectTypes(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type I interface{ M() }
+type P struct{}
+
+func (*P) M() {}
+
+type Field struct{ M func() }
+type Bad struct{ m map[Bad]int } // incomplete key, decided at the decl
+type Rec struct{ next *Rec }     // pointer cycle is fine
+type Ptr *struct{ Ptr }          // embedded named pointer
+type Bare interface{ int }
+
+var _ map[func()]int
+var _ map[*Rec]int
+
+func (Bad) A() {}
+
+func f(x int, e interface{}, i I, p *P, v P) {
+	switch x {
+	case 0, 1:
+	case 0: // duplicate
+	}
+	switch e {
+	case 0, int64(0), float32(10), float32(10): // duplicate only for the last
+	}
+	switch e {
+	case interface{}(0), interface{}(0): // conversions are not constants
+	}
+	switch e.(type) {
+	default:
+	default:
+	}
+	switch {
+	case true, true: // bools are exempt
+	}
+	switch e.(type) {
+	case 0: // not a type
+	}
+	switch i.(type) {
+	case P: // pointer receiver
+	case *P, int:
+	}
+	switch x.(type) { // not an interface
+	}
+	_ = i.(P)
+	_ = i.(*P)
+	_ = e.(P)
+	var fi Field
+	i = fi // a func field is not a method
+	var si []int
+	var sf []float64
+	copy(si, sf)
+	copy(si, "hi")
+	copy(x, si)
+	var a [-1]int
+	_ = a
+	var b [...]int
+	_ = b
+	_ = p
+	_ = v
+}
+
+func main() {}
+`)
+	want := []string{
+		"invalid map key type main.Bad",
+		"embedded field type cannot be a pointer",
+		"interface contains embedded non-interface int",
+		"invalid map key type func()",
+		"duplicate case 0 in expression switch",
+		"duplicate case float32(10) in expression switch",
+		"multiple defaults in switch",
+		"0 is not a type",
+		"cannot have dynamic type main.P (method M has pointer receiver)",
+		"cannot type switch on non-interface value x",
+		"impossible type assertion: main.P does not implement main.I (method M has pointer receiver)",
+		"main.Field does not implement main.I (main.Field.M is a field, not a method)",
+		"arguments to copy have different element types int and float64",
+		"arguments to copy have different element types int and byte",
+		"copy expects slice arguments; found int and []int",
+		"invalid array length -1",
+		"invalid use of [...] array (outside a composite literal)",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main

@@ -15,6 +15,8 @@ func main() {
 }
 
 // GnoError:
+// line 12: invalid argument: copy expects slice arguments; found untyped nil and []int
+// line 13: invalid argument: copy expects slice arguments; found []int and untyped nil
 // line 14: cannot use untyped bool as BigintKind
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 13
+// Verdict: Clean errorcheck

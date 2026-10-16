@@ -299,6 +299,11 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 					if iota_ != nil {
 						part.SetAttribute(ATTR_IOTA, iota_)
 					}
+					// Positioned at its name, so an error names the line;
+					// the part contains the name (see Span.Union).
+					span := vd.NameExprs[j].GetSpan()
+					span.Num--
+					part.SetSpan(span)
 					parts = append(parts, part)
 				}
 				// Apply the split to fn.Decls BEFORE calling predefineRecursively,
@@ -311,7 +316,7 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 					if parts[j].GetAttribute(ATTR_PREDEFINED) == true {
 						continue
 					}
-					predefineRecursivelyIndexed(store, fn, parts[j], index)
+					predefineOne(fn, parts[j], func() { predefineRecursivelyIndexed(store, fn, parts[j], index) })
 				}
 				i += len(vd.NameExprs) - 1
 				continue
@@ -846,6 +851,12 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 	if !n.GetSpan().IsZero() {
 		loc.SetSpanOverride(n.GetSpan())
 	}
+	if sp, ok := r.(*spanError); ok {
+		if !sp.span.IsZero() {
+			loc.SetSpanOverride(sp.span)
+		}
+		r = sp.msg
+	}
 	var err error
 	if rerr, ok := r.(error); ok {
 		err = errors.Wrap(rerr, loc.String())
@@ -853,6 +864,36 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 		err = fmt.Errorf("%s: %v", loc.String(), r)
 	}
 	return &PreprocessError{err: err, stack: stack}
+}
+
+// spanError is a checking error positioned at a node other than the one
+// being transcribed; see panicAt.
+type spanError struct {
+	span Span
+	msg  string
+}
+
+func (p *spanError) Error() string { return p.msg }
+
+// panicAt raises a preprocess error positioned at the first of at with
+// a span; a folded constant borrows its source's.
+func panicAt(msg string, at ...Node) {
+	for _, x := range at {
+		for x != nil && x.GetSpan().IsZero() {
+			switch cx := x.(type) {
+			case *ConstExpr:
+				x = cx.Source
+			case *constTypeExpr:
+				x = cx.Source
+			default:
+				x = nil
+			}
+		}
+		if x != nil {
+			panic(&spanError{span: x.GetSpan(), msg: msg})
+		}
+	}
+	panic(msg)
 }
 
 // preprocessAccumulator collects the errors of one PreprocessCollect run.
@@ -873,6 +914,9 @@ func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
 	// what it declares is poisoned and what it mentions may be a use the
 	// walk will never see.
 	for _, name := range declaredNamesOf(n) {
+		acc.poisoned[name] = true
+	}
+	for _, name := range pe.dropped {
 		acc.poisoned[name] = true
 	}
 	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -1100,6 +1144,20 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			}
 		}()
 		predefineRecursively(store, last, d)
+	}
+
+	// report raises a checking error. In accumulate mode it is recorded
+	// and the walk goes on, so a node can report more than one.
+	report := func(msg string, at ...Node) {
+		if acc == nil {
+			panicAt(msg, at...)
+		}
+		func() {
+			defer func() {
+				acc.report(wrapPreprocessPanic(stack, stack[len(stack)-1], recover()))
+			}()
+			panicAt(msg, at...)
+		}()
 	}
 
 	nn := transcribeWith(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -1382,11 +1440,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							var ct Type
 							if cxx, ok := cx.(*ConstExpr); ok {
 								if cxx.IsUndefined() {
-									// TODO: shouldn't cxx.T be TypeType?
-									// Don't change cxx.GetType() for defensiveness.
 									ct = nil
-								} else {
+								} else if _, ok := cxx.T.(*TypeType); ok {
 									ct = cxx.GetType()
+								} else {
+									panic(fmt.Sprintf("%s is not a type", constString(cxx)))
 								}
 							} else {
 								ct = evalStaticType(store, last, cx)
@@ -1577,6 +1635,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				if n.X != nil {
 					n.X = Preprocess(store, last, n.X).(Expr)
 					convertIfConst(store, last, n, n.X)
+				}
+				if n.IsTypeSwitch {
+					tt := evalStaticTypeOf(store, last, n.X)
+					if _, ok := baseOf(tt).(*InterfaceType); !ok {
+						panic(fmt.Sprintf("cannot type switch on non-interface value %s (type %s)",
+							exprString(n.X), typeString(tt)))
+					}
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -2194,6 +2259,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							}
 						case "copy":
 							if len(n.Args) == 2 {
+								assertCopyArgs(
+									evalStaticTypeOf(store, last, n.Args[0]),
+									evalStaticTypeOf(store, last, n.Args[1]))
 								// If the second argument is a string,
 								// convert to byteslice.
 								args1 := n.Args[1]
@@ -2730,6 +2798,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						),
 					)
 				}
+				if at := evalStaticType(store, last, n.Type); at != nil {
+					if err := dynamicTypeError(t, at); err != nil {
+						panic(fmt.Sprintf("impossible type assertion: %v does not implement %v (%v)", at, t, err))
+					}
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
@@ -2799,10 +2872,6 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 				case *MapType:
-					if !isComparable(cclt.Key) {
-						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
-					}
-
 					// kset tracks seen const keys for duplicate detection.
 					// checkOrConvertType must be called before the check so that
 					// values are stored in N (not V), making TypedValue comparable.
@@ -2813,7 +2882,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
+						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() && !isInterfaceConversion(cx) {
 							if _, ok := kset[cx.TypedValue]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
 							}
@@ -3092,10 +3161,17 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			case *ArrayTypeExpr:
 				if n.Len == nil {
 					// Calculate length at *CompositeLitExpr:LEAVE
+					// A root node is a literal's type preprocessed on its own.
+					if len(ns) > 0 {
+						if _, ok := ns[len(ns)-1].(*CompositeLitExpr); !ok {
+							panic("invalid use of [...] array (outside a composite literal)")
+						}
+					}
 				} else {
 					// Replace const Len with int *ConstExpr.
 					cx := evalConst(store, last, n.Len)
 					convertConst(store, last, n, cx, IntType)
+					assertArrayLength(cx.GetInt())
 					n.Len = cx
 					// Reject an oversized fixed-size array at compile time (see
 					// checkArrayAllocFits). This covers [N]T and [N]T{...}; the
@@ -3155,7 +3231,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *MapTypeExpr:
-				evalStaticType(store, last, n)
+				if msg := mapKeyError(preprocessGasMeterOf(store), evalStaticType(store, last, n).(*MapType).Key); msg != "" {
+					panicAt(msg, n.Key, n)
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *StructTypeExpr:
@@ -3521,6 +3599,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
+				assertSingleDefault(n.Clauses)
 				if !n.IsTypeSwitch {
 					// Each case is compared to the tag with ==.
 					var tt Type = BoolType
@@ -3533,9 +3612,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							assertComparableTo(tt, ct, isNilLiteral(n.X), isNilLiteral(cx))
 						}
 					}
+					for _, dup := range duplicateSwitchCases(store, n.Clauses) {
+						report(dup.msg, dup.at...)
+					}
 				}
-				// Ensure type switch cases are unique.
+				// Ensure type switch cases are unique and possible.
 				if n.IsTypeSwitch {
+					tt := evalStaticTypeOf(store, last, n.X)
 					types := map[string]struct{}{}
 					for _, clause := range n.Clauses {
 						for _, casetype := range clause.Cases {
@@ -3545,6 +3628,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 								ctstr = nilStr
 							} else {
 								ctstr = casetype.(*constTypeExpr).Type.String()
+								if err := dynamicTypeError(tt, ctype); err != nil {
+									panicAt(fmt.Sprintf(
+										"impossible type switch case: %s cannot have dynamic type %v (%v)",
+										exprString(n.X), ctype, err), casetype, &clause)
+								}
 							}
 							if _, exists := types[ctstr]; exists {
 								panic(fmt.Sprintf(
@@ -3654,6 +3742,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				n.Type.SetAttribute(ATTR_TYPE_VALUE, dstT)
 				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
+				if dt, ok := dstT.(*DeclaredType); ok && !n.IsAlias {
+					checkTypeExprShape(preprocessGasMeterOf(store), n.Type)
+					checkTypeShape(preprocessGasMeterOf(store), dt)
+				}
 				n.Type = toConstTypeExpr(last, n.Type, dstT)
 			}
 			// end type switch statement
@@ -4725,6 +4817,9 @@ func buildFieldTypesAST(store Store, last BlockNode, fxs FieldTypeExprs, embed b
 		}
 		if embed {
 			fillEmbeddedName(&ft, fx.Type)
+			if msg := embeddedFieldError(ft); ft.Embedded && msg != "" {
+				panicAt(msg, fx)
+			}
 		}
 		fts[i] = ft
 	}
@@ -5581,8 +5676,8 @@ func findUndefinedAny(store Store, last BlockNode, x Expr, stack []Name, definin
 		if direct {
 			if astype {
 				if _, ok := defining[cx.Name]; ok {
-					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
-						Names(stack).Join(" -> "), cx.Name))
+					panicAt(fmt.Sprintf("invalid recursive type: %s", cycleString(stack, cx.Name)),
+						packageDeclOf(last, cx.Name))
 				}
 				if tv := last.GetSlot(store, cx.Name, true); tv != nil {
 					return
@@ -5900,6 +5995,16 @@ func predefineRecursivelyIndexed(store Store, last BlockNode, d Decl, index *pre
 // a map to ensure best time performance of circular definition detection.
 func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool, index *predefineDeclIndex) bool {
 	pkg := packageOf(last)
+	// A plain panic while predefining d is about d: position it there,
+	// not at the declaration that depended on it.
+	defer func() {
+		if r := recover(); r != nil {
+			if msg, ok := r.(string); ok {
+				panic(&spanError{span: d.GetSpan(), msg: msg})
+			}
+			panic(r)
+		}
+	}()
 
 	// NOTE: PredefineFileSet splits multi-value decls like `var a, b = c, d`
 	// into individual decls before calling this function, so that GetDeclFor
@@ -5945,15 +6050,21 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		}
 		if un != "" {
 			// `un` is undefined, so define recursively.
-			// first, check circularity.
+			// first, check circularity. The error names the cycle only and
+			// sits at the declaration that starts it, as in Go.
 			if _, exists := defining[un]; exists {
+				what := "value"
 				if untype {
-					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
-						Names(stack).Join(" -> "), un))
-				} else {
-					panic(fmt.Sprintf("invalid recursive value: %s -> %s",
-						Names(stack).Join(" -> "), un))
+					what = "type"
 				}
+				msg := fmt.Sprintf("invalid recursive %s: %s", what, cycleString(stack, un))
+				var at Decl
+				if index == nil {
+					at = lookupPredefineDecl(pkg.FileSet, un).decl
+				} else {
+					at = index.lookup(un).decl
+				}
+				panicAt(msg, at)
 			}
 			// Look up the dependency declaration in the fileset.
 			//
@@ -5975,6 +6086,10 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			if !dependency.file.IsInitialized() {
 				panic("all types from files in file-set should have already been predefined")
 			}
+			if dependency.decl.GetAttribute(ATTR_PREDEFINED) == true {
+				// Dropped by accumulate mode after it was predefined.
+				panic(fmt.Sprintf("name %s not declared", un))
+			}
 			// predefine dependency recursively.
 			// `directR` is passed on.
 			predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
@@ -5988,11 +6103,11 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		// refer to package names in any order.
 		return false
 	case *ValueDecl:
-		vd2 := Preprocess(store, last, cd).(*ValueDecl)
+		vd2 := preprocessDependency(store, last, cd).(*ValueDecl)
 		*cd = *vd2
 		return true
 	case *TypeDecl:
-		td2 := Preprocess(store, last, cd).(*TypeDecl)
+		td2 := preprocessDependency(store, last, cd).(*TypeDecl)
 		*cd = *td2
 		return true
 	case *ImportDecl:
@@ -6002,6 +6117,47 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	default:
 		panic("should not happen")
 	}
+}
+
+// preprocessDependency preprocesses a declaration reached through a
+// dependent one. If it fails it is marked done first, so accumulate mode
+// does not visit it again and report it twice.
+func preprocessDependency(store Store, last BlockNode, d Decl) Node {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, isRuntime := r.(runtime.Error); isRuntime {
+				panic(r)
+			}
+			d.SetAttribute(ATTR_PREPROCESSED, true)
+			pe := wrapPreprocessPanic([]BlockNode{last}, d, r)
+			pe.dropped = append(pe.dropped, d.GetDeclNames()...)
+			panic(pe)
+		}
+	}()
+	return Preprocess(store, last, d)
+}
+
+// packageDeclOf returns the package-level declaration of name, or nil
+// for a local or unknown one.
+func packageDeclOf(last BlockNode, name Name) (d Decl) {
+	defer func() {
+		if recover() != nil {
+			d = nil
+		}
+	}()
+	return lookupPredefineDecl(packageOf(last).FileSet, name).decl
+}
+
+// cycleString prints the declaration cycle closed by name: the part of
+// stack from name's first occurrence, then name again.
+func cycleString(stack []Name, name Name) string {
+	for i, n := range stack {
+		if n == name {
+			stack = stack[i:]
+			break
+		}
+	}
+	return Names(append(append([]Name{}, stack...), name)).Join(" -> ")
 }
 
 // If a dependent name is not yet defined, that name is returned; this return

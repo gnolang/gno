@@ -44,3 +44,36 @@ func TestPreprocessGas_CheckWalks(t *testing.T) {
 	require.GreaterOrEqual(t, large-small, int64(90)*OpCPUSlopeCheckNode*GasFactorCPU,
 		"check walks must bill per declaration: %d -> %d", small, large)
 }
+
+// TestPreprocessGas_TypeWalks pins the type-shape walk: a struct
+// declaration with n map fields is walked once per field by
+// checkTypeShape, so its charge grows with n.
+func TestPreprocessGas_TypeWalks(t *testing.T) {
+	charge := func(fields int) int64 {
+		gm := stypes.NewGasMeter(1_000_000_000)
+		st, _ := newPreprocessAllocTestStore(t, 256*1024*1024, gm)
+		t.Cleanup(func() { st.SetPreprocessAllocator(nil) })
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath: "gno.land/r/test/checkgas",
+			Store:   st,
+		})
+		defer m.Release()
+		var b strings.Builder
+		b.WriteString("package checkgas\n\ntype T struct {\n")
+		for i := range fields {
+			fmt.Fprintf(&b, "\tf%d map[string]int\n", i)
+		}
+		b.WriteString("}\n")
+		panicked, val := runMemPackageRecover(m, &std.MemPackage{
+			Type:  MPUserProd,
+			Name:  "checkgas",
+			Path:  "gno.land/r/test/checkgas",
+			Files: []*std.MemFile{{Name: "a.gno", Body: b.String()}},
+		})
+		require.False(t, panicked, "got: %v", val)
+		return gm.GasConsumed()
+	}
+	small, large := charge(10), charge(100)
+	require.GreaterOrEqual(t, large-small, int64(90)*OpCPUSlopeCheckNode*GasFactorCPU,
+		"type walks must bill per field: %d -> %d", small, large)
+}

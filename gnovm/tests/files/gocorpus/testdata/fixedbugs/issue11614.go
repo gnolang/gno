@@ -25,4 +25,8 @@ func m() {
 func main() {
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 22
+// GnoError:
+// line 13: interface contains embedded non-interface int
+// line 22: interface contains embedded non-interface int
+
+// Verdict: Clean errorcheck
