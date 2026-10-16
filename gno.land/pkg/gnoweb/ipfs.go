@@ -41,7 +41,9 @@ func normalizeIPFSGateway(raw, domain, canonicalHost string) (string, error) {
 
 	u, err := url.Parse(raw)
 	if err != nil {
-		return "", err
+		// url.Parse's errors quote the value or parts of it, credentials
+		// included, so none of it is passed on.
+		return "", errors.New("not a valid URL")
 	}
 
 	host := strings.ToLower(u.Hostname())

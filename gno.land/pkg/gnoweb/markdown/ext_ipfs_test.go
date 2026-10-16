@@ -43,6 +43,8 @@ func TestRewriteIPFSURL(t *testing.T) {
 		{"https://cf-ipfs.com/ipfs/" + testCIDv1, gwIPFS + testCIDv1},
 		{"https://nftstorage.link/ipfs/" + testCIDv1, gwIPFS + testCIDv1},
 		{"https://w3s.link/ipfs/" + testCIDv1, gwIPFS + testCIDv1},
+		{"https://ipfs.filebase.io/ipfs/" + testCIDv1, gwIPFS + testCIDv1}, // the default, once the operator moves
+		{"https://ipfs.io/ipfs/" + testCIDv1 + "/a b.png", gwIPFS + testCIDv1 + "/a%20b.png"},
 
 		// Retired subdomain gateways.
 		{"https://" + testCIDv1 + ".ipfs.dweb.link/img.png", gwIPFS + testCIDv1 + "/img.png"},
@@ -64,7 +66,7 @@ func TestRewriteIPFSURL(t *testing.T) {
 	}
 
 	untouched := []string{
-		"https://ipfs.filebase.io/ipfs/" + testCIDv1, // a gateway that still works
+		"https://gateway.pinata.cloud/ipfs/" + testCIDv1, // a gateway that still works
 		"https://example.com/ipfs/" + testCIDv1,
 		"https://ipfs.io/",
 		"https://ipfs.io/docs",
@@ -73,6 +75,7 @@ func TestRewriteIPFSURL(t *testing.T) {
 		"https://ipfs.io:8443/ipfs/" + testCIDv1,
 		"https://user@ipfs.io/ipfs/" + testCIDv1,
 		"https://ipfs.io/ipfs/%41" + testCIDv1,
+		"https://ipfs.io/ipfs/%41" + testCIDv1 + "/a b.png", // the space makes EscapedPath decode %41
 		"https://ipfs.io/ipfs/" + testCIDv1 + "%2F..%2Fx",
 		"https://" + testCIDv1 + ".ipfs.example.com/",
 		"https://" + testCIDv1 + ".ipfs.dweb.link.example.com/",

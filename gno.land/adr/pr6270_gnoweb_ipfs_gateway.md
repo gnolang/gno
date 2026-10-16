@@ -37,6 +37,9 @@ cannot open, and images were blocked by the CSP.
     protocol-relative form (`//host/...`) or subdomain form
     (`<cid>.ipfs.<host>`, `<label>.ipns.<host>` with DNSLink labels decoded),
     become the same path on the gateway.
+  - So do URLs on `ipfs.filebase.io`, the default gateway, in path form. A
+    URL stored while it was the default then follows an operator who moves
+    to another gateway, and the CSP never has to keep the old default.
   - Only an alphanumeric CID, or an IPNS key or DNS name, is rewritten. Other
     hosts, userinfo, ports and anything unparsable are left as written.
   - So is a path with a `.` or `..` segment, also percent-encoded or split by
@@ -56,7 +59,11 @@ cannot open, and images were blocked by the CSP.
   more. A test renders each URL form (`ipfs://`, `ipns://`, entity-encoded,
   path gateway, subdomain gateway, inlined DNSLink) next to the same gateway
   URL written by hand and requires identical output.
-- The CSP drops the dead hosts and allows the configured gateway origin.
+- The CSP drops the dead hosts and allows the configured gateway origin. For
+  a gateway named by a DNS host it also allows `*.ipfs.<host>` and
+  `*.ipns.<host>`: a subdomain gateway (Kubo, by default on localhost)
+  redirects `/ipfs/<cid>` to `<cid>.ipfs.<host>`, and the browser checks the
+  redirect against `img-src`.
 - The gateway must be `https` (`http` only on loopback), with no credentials,
   path, query or fragment. Its host must be a DNS name or an IPv4 address,
   with an optional port in 1..65535 (the CSP has no IPv6 host-source). It

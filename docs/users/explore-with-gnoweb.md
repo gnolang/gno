@@ -94,11 +94,12 @@ a short list of hosts such as imgur and GitHub (`cspImgHost` in
 To show content stored on IPFS, use an `ipfs://<cid>/<path>` or
 `ipns://<name>/<path>` URL as the target of a markdown link or image. gnoweb
 resolves it through its configured IPFS gateway (`-ipfs-gateway`, Filebase's
-public gateway by default). It also rewrites links to retired public gateways,
-such as ipfs.io and dweb.link, to that gateway. Prefer `ipfs://` to a gateway
-URL, so the gateway can change without touching your realm. The content still
-has to be pinned somewhere on the IPFS network: a gateway only serves what some
-node provides.
+public gateway by default). It also rewrites links that point at a retired
+public gateway, such as ipfs.io or dweb.link, or at Filebase's, to the
+configured gateway, so a stored link follows a gateway change. Prefer
+`ipfs://` to a gateway URL, so the gateway can change without touching your
+realm. The content still has to be pinned somewhere on the IPFS network: a
+gateway only serves what some node provides.
 
 :::warning
 The URL helpers in `p/nt/markdown/sanitize/v0`, which `p/moul/md/v0` uses,

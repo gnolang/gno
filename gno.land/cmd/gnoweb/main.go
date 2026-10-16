@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -456,6 +457,22 @@ func parseAliases(aliasesStr string) (map[string]gnoweb.AliasTarget, error) {
 	return aliases, nil
 }
 
+// ipfsGatewayImgSources returns the img-src sources an IPFS gateway origin
+// needs: the origin itself and, for a DNS name, the subdomains a subdomain
+// gateway redirects /ipfs/<cid> and /ipns/<name> to (<cid>.ipfs.<host>,
+// <name>.ipns.<host>), as Kubo does by default on localhost.
+func ipfsGatewayImgSources(origin string) []string {
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	sources := []string{origin}
+	if net.ParseIP(u.Hostname()) == nil {
+		sources = append(sources, u.Scheme+"://*.ipfs."+u.Host, u.Scheme+"://*.ipns."+u.Host)
+	}
+	return sources
+}
+
 // SecureHeadersMiddleware sets the security headers. ipfsGateway is the
 // normalized IPFS gateway origin (empty if disabled); it is allowed as an
 // image source because rendered ipfs:// images point at it.
@@ -467,8 +484,8 @@ func SecureHeadersMiddleware(next http.Handler, strict bool, remote, ipfsGateway
 	for _, host := range cspImgHost {
 		imgSrc.WriteString(" " + host)
 	}
-	if ipfsGateway != "" {
-		imgSrc.WriteString(" " + ipfsGateway)
+	for _, src := range ipfsGatewayImgSources(ipfsGateway) {
+		imgSrc.WriteString(" " + src)
 	}
 
 	// Define a Content Security Policy (CSP) to restrict the sources of

@@ -2,7 +2,6 @@ package gnoweb
 
 import (
 	"bytes"
-	"maps"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -79,12 +78,11 @@ func TestNewRouterIPFSGateway(t *testing.T) {
 	t.Parallel()
 
 	const cid = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
-	render := func(gateway string) (string, *AppConfig) {
+	render := func(gateway, page string) (string, *AppConfig) {
 		cfg := NewDefaultAppConfig()
 		cfg.ChainID = "dev" // skips the chain-id lookup: no node needed
 		cfg.RenderConfig.IPFSGateway = gateway
-		cfg.Aliases = maps.Clone(cfg.Aliases) // NewDefaultAppConfig shares DefaultAliases
-		cfg.Aliases["/ipfs-page"] = AliasTarget{Value: "![x](ipfs://" + cid + ")", Kind: StaticMarkdown}
+		cfg.Aliases["/ipfs-page"] = AliasTarget{Value: page, Kind: StaticMarkdown}
 
 		router, err := NewRouter(log.NewTestingLogger(t), cfg)
 		require.NoError(t, err)
@@ -94,18 +92,40 @@ func TestNewRouterIPFSGateway(t *testing.T) {
 		return rec.Body.String(), cfg
 	}
 
-	out, cfg := render("https://gw.example/")
+	out, cfg := render("https://gw.example/", "![x](ipfs://"+cid+")")
 	assert.Equal(t, "https://gw.example", cfg.RenderConfig.IPFSGateway, "normalized in place for the CSP")
 	assert.Contains(t, out, `src="https://gw.example/ipfs/`+cid+`"`)
 
-	out, _ = render("")
+	out, _ = render("", "![x](ipfs://"+cid+")")
 	assert.Contains(t, out, `src="ipfs://`+cid+`"`)
+
+	// A URL stored on the default gateway follows an operator who moves to
+	// another one, so the CSP never has to keep the old default.
+	out, _ = render("https://gw.example", "![x]("+DefaultIPFSGateway+"/ipfs/"+cid+")")
+	assert.Contains(t, out, `src="https://gw.example/ipfs/`+cid+`"`)
 
 	bad := NewDefaultAppConfig()
 	bad.ChainID = "dev"
 	bad.RenderConfig.IPFSGateway = "http://gw.example"
 	_, err := NewRouter(log.NewTestingLogger(t), bad)
 	assert.ErrorContains(t, err, "invalid IPFS gateway")
+
+	// The startup error never echoes the value, which may hold a secret.
+	for _, secret := range []string{
+		"https://user:s3cret@gw.example",
+		"https://x.mypinata.cloud?pinataGatewayToken=s3cret",
+		"https://x.mypinata.cloud/#s3cret",
+		"https://user:s3cret^x@gw.example", // url.Parse fails, and its error quotes the value
+		"https://user:s3cret/x@gw.example", // or part of it, as a port
+		"https://gw.example/s3cret",        // a token in the path
+		"https://gw.example;token=s3cret",
+		`https://gw.example\s3cret`,
+	} {
+		bad.RenderConfig.IPFSGateway = secret
+		_, err = NewRouter(log.NewTestingLogger(t), bad)
+		require.Error(t, err)
+		assert.NotContains(t, err.Error(), "s3cret")
+	}
 
 	onCanonical := NewDefaultAppConfig()
 	onCanonical.ChainID = "dev"

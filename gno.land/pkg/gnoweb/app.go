@@ -163,7 +163,8 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// (cmd/gnoweb) read the validated origin back from cfg.
 	ipfsGateway, err := normalizeIPFSGateway(cfg.RenderConfig.IPFSGateway, cfg.Domain, originHost(canonicalOrigin))
 	if err != nil {
-		return nil, fmt.Errorf("invalid IPFS gateway %q: %w", cfg.RenderConfig.IPFSGateway, err)
+		// The value is not echoed: it may carry a credential or token.
+		return nil, fmt.Errorf("invalid IPFS gateway: %w", err)
 	}
 	cfg.RenderConfig.IPFSGateway = ipfsGateway
 

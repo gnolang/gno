@@ -11,11 +11,13 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
-// ipfsRetiredGateways are public IPFS gateways that no longer serve
-// hotlinked content (see gno.land/adr/pr6270_gnoweb_ipfs_gateway.md); URLs
-// on them are rewritten to the configured gateway. The value reports
-// whether the gateway also served the subdomain form <cid>.ipfs.<host>.
-var ipfsRetiredGateways = map[string]bool{
+// ipfsRewrittenGateways are public IPFS gateways whose URLs are rewritten to
+// the configured gateway: the ones that no longer serve hotlinked content
+// (see gno.land/adr/pr6270_gnoweb_ipfs_gateway.md), and the host of gnoweb's
+// default gateway, so a URL stored while it was the default keeps working
+// after an operator moves to another one. The value reports whether the
+// gateway also served the subdomain form <cid>.ipfs.<host>.
+var ipfsRewrittenGateways = map[string]bool{
 	"ipfs.io":             false,
 	"gateway.ipfs.io":     false,
 	"cloudflare-ipfs.com": false,
@@ -23,6 +25,7 @@ var ipfsRetiredGateways = map[string]bool{
 	"dweb.link":           true,
 	"nftstorage.link":     true,
 	"w3s.link":            true,
+	"ipfs.filebase.io":    false, // gnoweb.DefaultIPFSGateway
 }
 
 // dnsLinkLabelDecoder reverses how subdomain gateways inline a DNSLink name
@@ -82,7 +85,7 @@ func (t *ipfsTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 	// would end the walk of its parent early.
 	for _, a := range autolinks {
 		parent := a.node.Parent()
-		parent.ReplaceChild(parent, a.node, newLinkFromAutoLink(escapeDestination(a.url), []byte(a.url)))
+		parent.ReplaceChild(parent, a.node, newRawLabelLink(escapeDestination(a.url), []byte(a.url)))
 	}
 }
 
@@ -139,8 +142,16 @@ func rewriteIPFSURL(gateway, raw string) (string, bool) {
 		namespace, name, rest = u.Scheme, u.Host, u.EscapedPath()
 	case "http", "https", "": // "" with a host: protocol-relative //host/...
 		host := strings.ToLower(u.Host) // keeps any port, so ported hosts never match
-		if _, retired := ipfsRetiredGateways[host]; retired {
+		if _, known := ipfsRewrittenGateways[host]; known {
 			namespace, name, rest = splitGatewayPath(u.EscapedPath())
+			// EscapedPath decodes the whole path when the raw one is not a
+			// valid encoding (a space anywhere), which would turn %41<cid>
+			// into A<cid>: the name must read the same in the raw path.
+			if u.RawPath != "" {
+				if _, rawName, _ := splitGatewayPath(u.RawPath); rawName != name {
+					return "", false
+				}
+			}
 		} else {
 			namespace, name = splitGatewaySubdomain(host)
 			rest = u.EscapedPath()
@@ -192,12 +203,12 @@ func splitGatewayPath(p string) (namespace, name, rest string) {
 }
 
 // splitGatewaySubdomain splits "<label>.ipfs.<gateway>" or
-// "<label>.ipns.<gateway>" for a retired subdomain gateway, decoding an
+// "<label>.ipns.<gateway>" for a known subdomain gateway, decoding an
 // inlined DNSLink name. It returns empty strings for any other host.
 func splitGatewaySubdomain(host string) (namespace, name string) {
 	label, suffix, _ := strings.Cut(host, ".")
 	namespace, gateway, _ := strings.Cut(suffix, ".")
-	if !ipfsRetiredGateways[gateway] {
+	if !ipfsRewrittenGateways[gateway] {
 		return "", ""
 	}
 

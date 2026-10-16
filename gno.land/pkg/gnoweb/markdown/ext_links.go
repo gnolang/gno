@@ -167,9 +167,10 @@ func escapeDestination(resolved string) []byte {
 	return []byte(resolved)
 }
 
-// newLinkFromAutoLink builds the ast.Link that stands in for an autolink,
-// pointing at dest and labelled with label, verbatim.
-func newLinkFromAutoLink(dest, label []byte) *ast.Link {
+// newRawLabelLink builds an ast.Link to dest whose label is raw text: it
+// is escaped on output, never parsed as markdown. Autolinks and buttons
+// become such links.
+func newRawLabelLink(dest, label []byte) *ast.Link {
 	link := ast.NewLink()
 	link.Destination = dest
 	text := ast.NewString(label)
@@ -265,7 +266,7 @@ func (t *linkTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		} else {
 			rawDest = rawURL
 		}
-		gnoLink := &GnoLink{Link: newLinkFromAutoLink(rawDest, n.Label(source)), Untrusted: untrusted}
+		gnoLink := &GnoLink{Link: newRawLabelLink(rawDest, n.Label(source)), Untrusted: untrusted}
 		replaceWithGnoLink(n, gnoLink, rawDest, orig, links)
 	}
 }

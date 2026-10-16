@@ -95,7 +95,7 @@ func NewHTMLRenderer(logger *slog.Logger, cfg RenderConfig, client ClientAdapter
 	// caller's malformed one, rather than rendering it as a relative URL.
 	gateway, err := normalizeIPFSGateway(cfg.IPFSGateway, "", "")
 	if err != nil {
-		logger.Warn("ignoring invalid IPFS gateway", "gateway", cfg.IPFSGateway, "error", err)
+		logger.Warn("ignoring invalid IPFS gateway", "error", err) // not the value: it may carry a secret
 	}
 	cfg.IPFSGateway = gateway
 
