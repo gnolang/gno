@@ -276,9 +276,18 @@ the full transaction history plus the metadata needed to replay it:
 gnogenesis fork generate \
     --source-txs-data-dir /path/to/halted/gnoland/data \
     --source-genesis-file /path/to/source/genesis.json \
+    --halt-height <halt_height> \
     --chain-id gnoland-1 \
     --output genesis.json
 ```
+
+Pass `--halt-height` after a governance halt: the data directory's block store
+holds the next block, `halt_height + 1` (see
+[What a halt actually looks like](#what-a-halt-actually-looks-like)), which the
+tool would otherwise take as the halt height, failing on that block's missing
+results. With the flag it warns that the height is below the block store's tip;
+that is expected here, since the application state it reads is at the halt
+height.
 
 On the new chain, `InitChain` replays every historical transaction through the
 full ante handler. Three genesis-level fields make that possible:
@@ -363,8 +372,8 @@ implements:
 3. The chain commits block H and stops. Operators stop the idle processes.
 4. **If the state format did not change**: restart on the new binary. It must
    satisfy `minVersion`. The chain continues at H+1.
-5. **If it did change**: run `gnogenesis fork generate` against a halted data
-   directory, add `--migration-tx` / `--patch-realm` for anything the upgrade
+5. **If it did change**: run `gnogenesis fork generate --halt-height H` against
+   a halted data directory, add `--migration-tx` / `--patch-realm` for anything the upgrade
    introduces, verify with `gnogenesis fork test`, distribute the new
    `genesis.json`, and start the new binary against it. Replay rebuilds state
    and the chain produces its first fresh block at `InitialHeight`.
