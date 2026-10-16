@@ -226,7 +226,11 @@ if [ "$HEIGHT" != "0" ]; then
     echo "       it before, which can stall the chain short of the halt." >&2
     exit 1
   fi
-  if ! release_version "$RUNNING" >/dev/null; then
+  if release_version "$RUNNING" >/dev/null; then
+    echo "$REMOTE runs $RUNNING, below the floor $MIN_VERSION. This is one node:"
+    echo "if the network runs mixed versions, read the others' /status too."
+    echo ""
+  else
     echo "warning: $REMOTE runs '$RUNNING', not a release version, so it meets no floor;" >&2
     echo "         read the other nodes' /status before relying on this one." >&2
   fi

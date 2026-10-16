@@ -124,6 +124,16 @@ func TestSetHaltRefusesAFloorTheRunningBinaryMeets(t *testing.T) {
 		assertRefused(t, runSetHalt(t, gnokey, live, "1000", "v1.5.1", proxy...), "already meets")
 	})
 
+	// The guard reads one node behind REMOTE, so it says which version it compared.
+	t.Run("a floor above the remote's version names that version", func(t *testing.T) {
+		t.Parallel()
+
+		res := runSetHalt(t, gnokey, live, "1000", "v1.5.2")
+		assert.NoError(t, res.err, res.out)
+		assert.True(t, res.reachedGnokey, res.out)
+		assert.Contains(t, res.out, "runs v1.5.1, below the floor v1.5.2")
+	})
+
 	t.Run("a status without a build version stops the proposal", func(t *testing.T) {
 		t.Parallel()
 		assertRefused(t, runSetHalt(t, gnokey, statusServer(t, ""), "1000", "v1.5.2"), "build_version")
