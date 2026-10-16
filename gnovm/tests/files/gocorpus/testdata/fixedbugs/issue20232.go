@@ -14,4 +14,4 @@ const _ = 1e+1000000000 // ERROR "malformed constant: 1e\+1000000000"
 // GnoError:
 // line 9: invalid decimal constant: 6e5518446744
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12; over-strict: lines 10
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12
