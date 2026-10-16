@@ -34,7 +34,7 @@ func main() {
 
 // GnoError:
 // line 13: cannot assign to s<VPBlock(1,0)>[(const (1 int)):(const (2 int))]
-// line 14: cannot assign to s[3]
+// line 14: cannot assign to s[3] (neither addressable nor a map index expression)
 // line 18: cannot assign to const n
 // line 19: cannot assign to const cs
 // line 20: cannot assign to uverse true
@@ -47,7 +47,6 @@ func main() {
 // line 32: cannot assign to x + 1
 
 // GnoWordingDiffers:
-// line 14: gc expects: cannot assign to .* (\(strings are immutable\))?; gno: cannot assign to s[3]
 // line 27: gc expects: cannot assign to nil; gno: cannot assign to uverse nil
 // line 29: gc expects: cannot assign to \[\]int\{\}; gno: cannot assign to (const-type []int){}
 

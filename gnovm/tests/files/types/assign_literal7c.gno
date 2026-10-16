@@ -10,7 +10,7 @@ func main() {
 }
 
 // Error:
-// main/assign_literal7c.gno:7:2-14: cannot assign to str[0]
+// main/assign_literal7c.gno:7:2-14: cannot assign to str[0] (neither addressable nor a map index expression)
 
 // TypeCheckError:
 // main/assign_literal7c.gno:7:2: cannot assign to str[0] (neither addressable nor a map index expression)
