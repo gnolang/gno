@@ -20,11 +20,4 @@ func main() {
 	}
 }
 
-// GnoError:
-// line 11: name Open not declared
-// line 19: name File not declared
-
-// GnoWordingDiffers:
-// line 19: gc expects: invalid field name os.File|unknown field; gno: name File not declared
-
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 11
+// Verdict: Unsupported stdlib-symbol: unsupported stdlib symbol in Gno: Open
