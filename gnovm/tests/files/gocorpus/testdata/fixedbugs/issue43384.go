@@ -124,17 +124,29 @@ func _() {
 }
 
 // GnoError:
+// line 40: missing field Mv in gno.land/p/filetest/p.P3
 // line 41: should not happen
-// line 46: should not happen
+// line 42: missing field Mv in gno.land/p/filetest/p.P3
+// line 46: missing field Mp in gno.land/p/filetest/p.P3
 // line 47: should not happen
-// line 48: should not happen
+// line 48: missing field Mp in gno.land/p/filetest/p.P3
+// line 55: missing field Mv in gno.land/p/filetest/p.P4
 // line 56: should not happen
+// line 57: missing field Mv in gno.land/p/filetest/p.P4
+// line 61: missing field Mp in gno.land/p/filetest/p.P4
 // line 62: should not happen
+// line 63: missing field Mp in gno.land/p/filetest/p.P4
+// line 96: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
 // line 97: should not happen
-// line 102: should not happen
+// line 98: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 102: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
 // line 103: should not happen
-// line 104: should not happen
+// line 104: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
+// line 111: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 // line 112: should not happen
+// line 113: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 117: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 // line 118: should not happen
+// line 119: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 40, 41, 42, 46, 47, 48, 55, 56, 57, 61, 62, 63, 96, 97, 98, 102, 103, 104, 111, 112, 113, 117, 118, 119; internal errors: lines 41, 46, 47, 48, 56, 62, 97, 102, 103, 104, 112, 118
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 41, 47, 56, 62, 97, 103, 112, 118; internal errors: lines 41, 47, 56, 62, 97, 103, 112, 118

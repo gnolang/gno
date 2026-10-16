@@ -374,6 +374,60 @@ func main() {}
 	}
 }
 
+func TestPreprocessCollectAssign(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type S struct {
+	x int "foo"
+}
+type P *S
+type Q struct{ a [2]int }
+
+func (S) m() {}
+
+func f(p P, m map[int]S, mq map[int]Q, mp map[int]*S) {
+	var s S
+	var u struct {
+		x int "bar"
+	}
+	var v struct {
+		x int "foo"
+	}
+	s = u // tags differ
+	s = v // tags agree
+	s = S(u)
+	m[0].x = 1 // in a map
+	mp[0].x = 1 // through a pointer is fine
+	mq[0].a[1] = 2 // array element in a map
+	_ = p.x // field through a named pointer is fine
+	p.m() // method through a named pointer is not
+	_ = s
+}
+
+func main() {}
+`)
+	want := []string{
+		"cannot use struct{x int} as struct{x int}: struct tags differ",
+		"cannot assign to struct field m[0].x in map",
+		"cannot assign to mq[0].a[1] (neither addressable nor a map index expression)",
+		"missing field m in main.P",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main
@@ -387,6 +441,28 @@ _:
 `
 	if msgs := collectErrors(t, src); len(msgs) != 0 {
 		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectNamedPointerShadow(t *testing.T) {
+	// Through a declared pointer type a method is still the shallowest
+	// provider, so it shadows the promoted field and the selector fails.
+	msgs := collectErrors(t, `package main
+
+type E struct{ f int }
+type T struct{ E }
+
+func (*T) f() int { return 0 }
+
+type P *T
+
+func main() {
+	var x P
+	_ = x.f
+}
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "missing field f") {
+		t.Fatalf("unexpected: %v", msgs)
 	}
 }
 

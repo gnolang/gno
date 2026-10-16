@@ -29,6 +29,6 @@ func main() {
 }
 
 // GnoError:
-// line 22: should not happen
+// line 22: missing field get in main.PS
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22; internal errors: lines 22
+// Verdict: Clean errorcheck

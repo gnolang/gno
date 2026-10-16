@@ -618,7 +618,10 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *FuncType, *StructType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
-			return nil // ok
+			if tagsIdentical(preprocessGasMeterOf(store), xt, cdt) {
+				return nil // ok
+			}
+			return errors.New("cannot use %s as %s: struct tags differ", xt.String(), dt.String())
 		}
 	default:
 		return errors.New(
@@ -1063,11 +1066,19 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		} else {
 			shouldPanic = false
 		}
-	case *StarExpr, *SelectorExpr:
+	case *StarExpr:
+		shouldPanic = false
+	case *SelectorExpr:
+		if inMapValue(store, last, clx) {
+			panic(fmt.Sprintf("cannot assign to struct field %s in map", exprString(lx)))
+		}
 		shouldPanic = false
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, clx.X)
 		shouldPanic = xt != nil && xt.Kind() == StringKind
+		if !shouldPanic && inMapValue(store, last, clx) {
+			panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", exprString(lx)))
+		}
 	default:
 	}
 	if shouldPanic {
