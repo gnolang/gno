@@ -1,5 +1,7 @@
 package gnolang
 
+import "github.com/gnolang/gno/tm2/pkg/store"
+
 // Expression rules the preprocessor enforces (Go spec: "Comparison
 // operators", "Index expressions", "Slice expressions", "Composite
 // literals", "Length and capacity").
@@ -140,7 +142,8 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 
 // assertUniqueLiteralIndices rejects a repeated constant index in an array
 // or slice literal; elements without a key take the next index.
-func assertUniqueLiteralIndices(n *CompositeLitExpr) {
+func assertUniqueLiteralIndices(gm store.GasMeter, n *CompositeLitExpr) {
+	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
 	seen := map[int64]bool{}
 	next := int64(0)
 	for _, elt := range n.Elts {
