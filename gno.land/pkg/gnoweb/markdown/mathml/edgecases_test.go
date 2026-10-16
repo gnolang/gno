@@ -110,6 +110,12 @@ func TestCommentKeepsTheWindow(t *testing.T) {
 		{"\\left( \\begin{matrix}%c\na & b\\end{matrix}\\right)", "\\left( \\begin{matrix}a & b\\end{matrix}\\right)"},
 		{"\\begin{matrix}%c\na\\end{matrix}", "\\begin{matrix}a\\end{matrix}"},
 		{"\\left(%c\nx\\right)", "\\left(x\\right)"},
+		// A comment between \left, \middle, \right or \big and its delimiter.
+		{"\\left%c\n(x\\right)", "\\left(x\\right)"},
+		{"\\left(x\\middle%c\n|y\\right)", "\\left(x\\middle|y\\right)"},
+		{"\\left(x\\right%c\n)", "\\left(x\\right)"},
+		{"\\big%c\n(x\\big)", "\\big(x\\big)"},
+		{"\\left %c\n  ( x \\right)", "\\left(x\\right)"},
 		// A comment after a style switch in a cell.
 		{"\\begin{matrix}\\bf %c\na & b\\end{matrix}", "\\begin{matrix}\\bf a & b\\end{matrix}"},
 		{"\\begin{matrix}a\\color{red}%c\n & b\\end{matrix}", "\\begin{matrix}a\\color{red} & b\\end{matrix}"},
@@ -126,6 +132,45 @@ func TestDelimiterAfterSpace(t *testing.T) {
 	assert.Equal(t, mathBody(t, `\left(x\right)`), mathBody(t, `\left ( x \right )`))
 	assert.Equal(t, mathBody(t, `\big(x\big)`), mathBody(t, `\big ( x \big )`))
 	assert.Equal(t, mathBody(t, `\left.x\middle|y\right.`), mathBody(t, `\left . x \middle | y \right .`))
+}
+
+// A run of comments costs its length, indented or not.
+func TestCommentRunIsLinear(t *testing.T) {
+	for _, line := range []string{"%\n", "  %\n"} {
+		mathBody(t, "x"+strings.Repeat(line, (1<<18)/len(line))+"y")
+	}
+}
+
+// A run of \color with no argument costs its length.
+func TestBareColorRunIsLinear(t *testing.T) {
+	for _, unit := range []string{`\color`, `\color[RGB]`, `\color[{&}]`} {
+		convertErrWithin(t, strings.Repeat(unit, 1<<16)+"x")
+	}
+	convertErrWithin(t, strings.Repeat(`\color[`, 1<<15)+"x"+strings.Repeat("]", 1<<15))
+	convertErrWithin(t, strings.Repeat(`\color`, 1<<17)+strings.Repeat("%\n", 1<<17))
+}
+
+// A switch reached through an infix inside \left...\right still ends at the
+// line break after the pair.
+func TestSwitchEndsAtItsCell(t *testing.T) {
+	out := mathBody(t, `\color[RGB]\left\over\bf)\right\cr`)
+	assert.Less(t, strings.Index(out, "</mstyle>"), strings.Index(out, `\cr`))
+}
+
+// Input the parser cannot read converts without a crash, which would replace
+// the whole formula with an error.
+func TestMalformedInputDoesNotCrash(t *testing.T) {
+	for _, tex := range []string{
+		`\bf\sqrt[a&b]x`,
+		`x\bigl\mathrm`,
+		`x\bigr\mathrm`,
+		`\middle\mathrm`,
+		`\class{a}{}`,
+		"\\cr%c\n\\color\\{cr\\left\\sqrt|\t(\\Bigl}}\\middle",
+	} {
+		_, err := convertErrWithin(t, tex)
+		assert.NoError(t, err, tex)
+	}
 }
 
 // \left. and \right. draw nothing.

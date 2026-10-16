@@ -273,6 +273,11 @@ type TokenBuffer struct {
 	Expr []Token // The current sub-expression
 	idx  int     // The index in the current sub-expression
 	jump int
+	// last is one past the last token that is not a space or a comment;
+	// Expr is never written after NewTokenBuffer.
+	last int
+	// cellEnds[i] is cellEnd's answer at position i, filled on first use.
+	cellEnds []int
 }
 
 type TokenBufferError struct {
@@ -304,23 +309,48 @@ func (e *TokenBufferError) Unwrap() error {
 
 // Create a new TokenBuffer
 func NewTokenBuffer(t []Token) *TokenBuffer {
-	return &TokenBuffer{Expr: t, idx: 0}
+	last := len(t)
+	for last > 0 && t[last-1].Kind&(tokComment|tokWhitespace) > 0 {
+		last--
+	}
+	return &TokenBuffer{Expr: t, idx: 0, last: last}
+}
+
+// cellEnd returns the index of the first & or line break from b's position on
+// outside a group, or len(b.Expr). A run of switches asks it once per switch.
+func (b *TokenBuffer) cellEnd() int {
+	n := len(b.Expr)
+	if b.cellEnds == nil {
+		b.cellEnds = make([]int, n+1)
+		b.cellEnds[n] = n
+		for i := n - 1; i >= 0; i-- {
+			switch t := b.Expr[i]; {
+			case opensGroup(t):
+				b.cellEnds[i] = b.cellEnds[min(i+t.MatchOffset+1, n)]
+			case isCellEnd(t):
+				b.cellEnds[i] = i
+			default:
+				b.cellEnds[i] = b.cellEnds[i+1]
+			}
+		}
+	}
+	return b.cellEnds[min(b.idx, n)]
+}
+
+// matched reports whether the token at i opens a group of value v whose content
+// lies within b.
+func (b *TokenBuffer) matched(i int, v string) bool {
+	t := b.Expr[i]
+	return t.MatchOffset > 0 && t.Kind&tokEscaped == 0 && t.Value == v && i+t.MatchOffset <= len(b.Expr)
 }
 
 // Check if the TokenBuffer is empty
 func (b *TokenBuffer) Empty() bool {
-	if b.idx >= len(b.Expr) {
-		return true
-	}
-	temp := b.idx
 	// an expression may contain whitespace, but never start with whitespace
-	for b.idx < len(b.Expr) && b.Expr[b.idx].Kind&(tokComment|tokWhitespace) > 0 {
-		b.idx++
-	}
-	if b.idx >= len(b.Expr) {
+	if b.idx >= b.last {
+		b.idx = max(b.idx, len(b.Expr))
 		return true
 	}
-	b.idx = temp
 	return false
 }
 
@@ -345,7 +375,7 @@ func (b *TokenBuffer) GetNextToken(skipWhitespace ...bool) (Token, error) {
 		b.idx = temp
 		return result, &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
 	}
-	if b.Expr[b.idx].Kind&(tokEscaped|tokCurly|tokOpen) == (tokCurly | tokOpen) {
+	if b.matched(b.idx, "{") {
 		b.idx = temp
 		return result, &TokenBufferError{tbIsExprErr, ErrTokenBufferExpr}
 	}
@@ -367,10 +397,10 @@ func (b *TokenBuffer) GetNextExpr() (*TokenBuffer, error) {
 		b.idx = temp
 		return nil, &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
 	}
-	if b.Expr[b.idx].MatchOffset > 0 && b.Expr[b.idx].Kind&tokEscaped == 0 && b.Expr[b.idx].Value == "{" {
+	if b.matched(b.idx, "{") {
 		end := b.idx + b.Expr[b.idx].MatchOffset
 		result = NewTokenBuffer(b.Expr[b.idx+1 : end : end])
-		b.idx = end + 1
+		b.idx = min(end+1, len(b.Expr))
 	} else {
 		b.idx = temp
 		return nil, &TokenBufferError{tbIsSingleErr, ErrTokenBufferSingle}
@@ -393,10 +423,10 @@ func (b *TokenBuffer) GetOptions(skipWhitespace ...bool) (*TokenBuffer, error) {
 		b.idx = temp
 		return nil, &TokenBufferError{tbEndErr, ErrTokenBufferEnd}
 	}
-	if b.Expr[b.idx].MatchOffset > 0 && b.Expr[b.idx].Kind&tokEscaped == 0 && b.Expr[b.idx].Value == "[" {
+	if b.matched(b.idx, "[") {
 		end := b.idx + b.Expr[b.idx].MatchOffset
 		result = NewTokenBuffer(b.Expr[b.idx+1 : end : end])
-		b.idx = end + 1 // Don't parse closing "]"
+		b.idx = min(end+1, len(b.Expr)) // Don't parse closing "]"
 	} else {
 		b.idx = temp
 		return nil, &TokenBufferError{}
@@ -639,11 +669,17 @@ func fixFences(toks []Token) []Token {
 				set, unset = tokClose|bigLevel(val[:len(val)-1]), tokFence
 			}
 		}
+		// Only \left, \middle, \right and the \big commands look past the
+		// spaces and comments after them, so a comment run is walked once.
+		if set == 0 {
+			out = append(out, toks[i])
+			continue
+		}
 		j := i + 1
 		for j < len(toks) && toks[j].Kind&(tokWhitespace|tokComment) > 0 {
 			j++
 		}
-		if set == 0 || j == len(toks) {
+		if j == len(toks) {
 			out = append(out, toks[i])
 			continue
 		}
