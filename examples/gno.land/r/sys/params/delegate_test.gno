@@ -262,7 +262,7 @@ func TestDelegatePathValidation(t *testing.T) {
 	} {
 		// PanicsContains, not AbortsContains: this is a same-realm call, so
 		// the panic never crosses a realm boundary and is not an abort.
-		uassert.PanicsContains(t, cur, "invalid delegate", func() {
+		uassert.PanicsContains(t, rlm, "invalid delegate", func() {
 			assertDelegatePath(bad)
 		})
 	}
