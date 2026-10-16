@@ -59,6 +59,9 @@ func f() {
 // line 14: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 15: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 16: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// line 17: invalid argument: index 10 out of bounds [0:10]
+// line 20: invalid argument: index 12 out of bounds [0:11]
+// line 21: invalid argument: index 11 out of bounds [0:11]
 // line 22: bigint overflows target kind
 // line 25: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 26: invalid argument: index must not be negative: (-1 <untyped> bigint)
@@ -67,10 +70,13 @@ func f() {
 // line 36: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 37: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 38: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// line 39: invalid argument: index 10 out of bounds [0:10]
+// line 42: invalid argument: index 12 out of bounds [0:11]
+// line 43: invalid argument: index 11 out of bounds [0:11]
 // line 44: bigint overflows target kind
 // line 47: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 48: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 49: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 55: bigint overflows target kind
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 20, 21, 39, 42, 43
+// Verdict: Clean errorcheck

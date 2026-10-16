@@ -14,4 +14,8 @@ var _ = a[2:] // ERROR "invalid slice index 2|array index out of bounds|index 2 
 var b [1]int
 var _ = b[2:] // ERROR "invalid slice index 2|array index out of bounds|index 2 out of bounds"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 15
+// GnoError:
+// line 12: invalid argument: index 2 out of bounds [0:1]
+// line 15: invalid argument: index 2 out of bounds [0:2]
+
+// Verdict: Clean errorcheck

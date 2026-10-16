@@ -2145,6 +2145,12 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
+						case "len", "cap":
+							if len(n.Args) == 1 {
+								assertLenCapArg(fv.Name, evalStaticTypeOf(store, last, n.Args[0]))
+							}
+						}
+						switch fv.Name {
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
 								// If the second argument is a string,
@@ -2659,6 +2665,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIndexKind(store, last, n, n.Index)
+					assertConstIndex(n.Index, staticLengthOf(dt, n.X))
 				case MapKind:
 					mt := baseOf(dt).(*MapType)
 					checkOrConvertType(store, last, n, &n.Index, mt.Key)
@@ -2687,6 +2694,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				default:
 					panic(fmt.Sprintf("cannot slice variable of type %v", t))
 				}
+				assertConstSliceBounds(n, staticLengthOf(t, n.X))
 
 				// if n.X is untyped, convert to corresponding type
 				if isUntyped(t) {
@@ -2745,8 +2753,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					if n.IsKeyed() {
 						// NOTE: unexported field check for keyed literals
 						// is handled in TRANS_COMPOSITE_KEY (*NameExpr).
+						seen := map[Name]bool{}
 						for i := range n.Elts {
 							key := n.Elts[i].Key.(*NameExpr).Name
+							if seen[key] {
+								panic(fmt.Sprintf("duplicate field name %s in struct literal", key))
+							}
+							seen[key] = true
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
@@ -2775,6 +2788,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
+					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
@@ -2783,6 +2797,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
+					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 				case *MapType:
 					if !isComparable(cclt.Key) {
 						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
@@ -2793,6 +2808,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					// values are stored in N (not V), making TypedValue comparable.
 					kset := make(map[TypedValue]struct{})
 					for i, elt := range n.Elts {
+						if elt.Key == nil {
+							panic("missing key in map literal")
+						}
 						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
 						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
@@ -3503,6 +3521,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
+				if !n.IsTypeSwitch {
+					// Each case is compared to the tag with ==.
+					var tt Type = BoolType
+					if n.X != nil {
+						tt = evalStaticTypeOf(store, last, n.X)
+					}
+					for _, clause := range n.Clauses {
+						for _, cx := range clause.Cases {
+							ct := evalStaticTypeOf(store, last, cx)
+							assertComparableTo(tt, ct, isNilLiteral(n.X), isNilLiteral(cx))
+						}
+					}
+				}
 				// Ensure type switch cases are unique.
 				if n.IsTypeSwitch {
 					types := map[string]struct{}{}

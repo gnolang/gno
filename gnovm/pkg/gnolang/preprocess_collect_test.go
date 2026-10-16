@@ -221,6 +221,58 @@ func main() { f(0) }
 	}
 }
 
+func TestPreprocessCollectExprs(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type S []int
+
+func f() {
+	var s []int
+	_ = s[2:1] // inverted
+	var a [1]int
+	_ = a[2:] // out of bounds
+	var b [10]int
+	_ = b[0:10] // high may equal the length
+	const c = "0123456789"
+	_ = c[10] // out of bounds
+	_ = c[9]
+	var m1 *map[int]int
+	_ = len(m1) // pointer to map
+	var pa *[3]int
+	_ = len(pa) // pointer to array is fine
+	_ = []byte{1: 1, 2: 2, 1: 3} // duplicate index
+	_ = struct{ X, Y int }{X: 1, X: 2}  // duplicate field
+	_ = map[string]int{"a": 1, "b": 2}
+	var sl S
+	switch sl {
+	case nil: // fine
+	case S(nil): // a typed nil is not the nil literal
+	}
+	var e interface{}
+	var fn func()
+	_ = e == fn
+	_ = fn == nil
+}
+
+func main() { f() }
+`)
+	want := []string{"invalid slice indices: 1 < 2", "index 2 out of bounds [0:2]", "index 10 out of bounds [0:10]", "*map[int]int for built-in len", "duplicate index 1 in array or slice literal", "duplicate field name X in struct literal", "main.S can only be compared to nil", "func() can only be compared to nil"}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main
