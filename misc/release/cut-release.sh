@@ -33,7 +33,8 @@
 #   misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
 #
 #   # a consensus-breaking upgrade, with the halt proposal to go with it; the
-#   # commit is the code commit the ledger entry names, not the branch tip
+#   # commit is the code commit, not the branch tip, which may carry deployment
+#   # docs on top of it
 #   misc/release/cut-release.sh v1.3.0 --commit <code-commit> --halt-height 120000 --push
 
 set -euo pipefail
@@ -232,13 +233,14 @@ check_on_master() {
 }
 
 # The ledger is what operators read to know which version to run and what a
-# replaying node follows; a final release without an entry is invisible to
-# both, so it is refused, and so is one whose ledger fails `upgrades check`, the
-# check CI runs: a supervisor or the daily ledger job reads the whole file, not
-# one row, and operators read the UPGRADES.md rendered from it. The entry is
-# written before the cut, its image digest and binaries null until CI has built
-# them. A release candidate only warns: it rehearses the final version's entry,
-# which may not be written yet.
+# replaying node follows, so a final release is refused when its ledger fails
+# `upgrades check`, the check CI runs: a supervisor or the daily ledger job reads
+# the whole file, not one row, and operators read the UPGRADES.md rendered from
+# it. The entry itself is written once the chain runs the release, when
+# everything it records is known, its halt time included, so a release without
+# one only warns; one whose entry names other code than the commit being tagged
+# is refused. A release candidate only warns: the final release cut after it,
+# on its commit, is checked the same way.
 check_ledger_entry() {
 	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land"
 	[[ -f ${dir}/upgrades.json ]] || return 0
@@ -263,9 +265,9 @@ ${out}"
 	local named
 	if named="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades commit "${dir}" "${VERSION}" 2>/dev/null)"; then
 		ok "upgrades.json has an entry for ${VERSION}"
-		# The entry is committed on top of the code it names, so the branch tip
-		# is the ledger commit: cutting without --commit would tag that one
-		# while the entry names the code.
+		# An entry must name the code being tagged. The branch tip may be a
+		# deployment-docs commit on top of that code, which a cut without
+		# --commit would tag instead.
 		if [[ ${named} == "${COMMIT}" ]]; then
 			ok "the entry names the commit being tagged"
 			return
@@ -278,13 +280,7 @@ ${out}"
 		fi
 		return
 	fi
-	local hint="add the entry to misc/deployments/${CHAIN}.gno.land/upgrades.json and run
-       go run ./misc/deployments/upgrades render misc/deployments/${CHAIN}.gno.land"
-	if [[ ${VERSION} == *-* ]]; then
-		warn "upgrades.json has no entry for ${VERSION%%-*} yet; ${hint}"
-	else
-		die "upgrades.json has no entry for ${VERSION}. ${hint}"
-	fi
+	warn "upgrades.json has no entry for ${VERSION%%-*} yet: it is written once the chain runs it"
 }
 
 # Everything below inspects the commit being tagged, which is usually not the

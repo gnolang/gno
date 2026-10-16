@@ -71,10 +71,10 @@ type Ledger struct {
 // Entry is one binary the network ran. Pointer fields are null in the JSON
 // until the fact they record has happened: the digest until CI built the
 // image, the halt time until the halt, the proposal until it was created.
-// Binaries is null by the same rule, until CI built the release, which comes
-// after the entry is written; only the last entry may still be pending, and
-// it is never an empty object, so a pending entry cannot pass for a built one
-// with no downloads. The image digest is never filled in before the binaries.
+// Binaries is null by the same rule, until CI built the release; only the
+// last entry may still be pending, and it is never an empty object, so a
+// pending entry cannot pass for a built one with no downloads. The image
+// digest is never filled in before the binaries.
 // HaltMinVersion is null when the proposal set no floor; an empty string is
 // refused, so "the gate was off" and "someone forgot" cannot be confused.
 type Entry struct {
@@ -280,7 +280,7 @@ func (l *Ledger) Validate() error {
 			fail("%s: image.digest %q is not sha256: followed by 64 hex characters", at, *e.Image.Digest)
 		}
 		// nil is JSON null or an absent key, pending the build; a decoded {} is
-		// an empty map. Only the entry being cut can be pending: an earlier one
+		// an empty map. Only the last entry can be pending: an earlier one
 		// was built, and a replaying supervisor needs its downloads.
 		switch {
 		case e.Binaries == nil && i != len(l.Upgrades)-1:
@@ -319,9 +319,9 @@ func (l *Ledger) Validate() error {
 }
 
 // Entry returns the entry a release of v is recorded under: the entry for v
-// itself, or else the last entry for the same final version, since a release
-// candidate rehearses the final version's entry rather than getting one of its
-// own, and a final is cut on its last candidate's commit.
+// itself, or else the last entry for the same final version. A chain that runs
+// finals only, like mainnet, has no entry for a candidate; the entry for its
+// final stands in, since a final is cut on its last candidate's commit.
 func (l *Ledger) Entry(v string) (Entry, bool) {
 	for _, e := range l.Upgrades {
 		if e.Version == v {
