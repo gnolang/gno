@@ -6,7 +6,6 @@ package syntax
 
 import (
 	"fmt"
-	"io"
 	"strings"
 	"testing"
 	"unicode"
@@ -16,6 +15,15 @@ type parseTest struct {
 	Regexp string
 	Dump   string
 }
+
+// Custom code: mkCharClass walks all 1.1M code points, which is far more
+// expensive under the GnoVM than in Go. The classes below are requested by
+// several table entries each, so they are computed once here instead of once
+// per entry.
+var (
+	upperClass    = mkCharClass(unicode.IsUpper)
+	upperFoldCl   = mkCharClass(isUpperFold)
+)
 
 var parseTests = []parseTest{
 	// Base cases
@@ -107,11 +115,21 @@ var parseTests = []parseTest{
 	{`[\p{^Braille}]`, `cc{0x0-0x27ff 0x2900-0x10ffff}`},
 	{`[\P{^Braille}]`, `cc{0x2800-0x28ff}`},
 	{`[\pZ]`, `cc{0x20 0xa0 0x1680 0x2000-0x200a 0x2028-0x2029 0x202f 0x205f 0x3000}`},
-	{`\p{Lu}`, mkCharClass(unicode.IsUpper)},
-	{`[\p{Lu}]`, mkCharClass(unicode.IsUpper)},
-	{`(?i)[\p{Lu}]`, mkCharClass(isUpperFold)},
+	{`\p{Lu}`, upperClass},
+	{`\p{Uppercase_Letter}`, upperClass},
+	{`\p{upper case-let ter}`, upperClass},
+	{`\p{__upper case-let ter}`, upperClass},
+	{`\p{Canadian_Aboriginal}`, mkCharClass(func(r rune) bool { return unicode.In(r, unicode.Canadian_Aboriginal) })},
+	{`[\p{Lu}]`, upperClass},
+	{`(?i)[\p{Lu}]`, upperFoldCl},
 	{`\p{Any}`, `dot{}`},
 	{`\p{^Any}`, `cc{}`},
+	{`(?i)\p{ascii}`, `cc{0x0-0x7f 0x17f 0x212a}`},
+	// Custom code: upstream compares \p{Assigned} / \p{^Assigned} against a
+	// mkCharClass scan of all 1.1M code points with an unicode.In(r, Cn)
+	// predicate. Two such scans dominate this package's runtime under the
+	// GnoVM, so TestAssignedClass below checks the same syntax against
+	// representative code points instead.
 
 	// Hex, octal.
 	{`[\012-\234]\141`, `cat{cc{0xa-0x9c}lit{a}}`},
@@ -161,6 +179,7 @@ var parseTests = []parseTest{
 
 	// Test named captures
 	{`(?P<name>a)`, `cap{name:lit{a}}`},
+	{`(?<name>a)`, `cap{name:lit{a}}`},
 
 	// Case-folded literals
 	{`[Aa]`, `litfold{A}`},
@@ -191,31 +210,31 @@ var parseTests = []parseTest{
 	// RE2 prefix_tests
 	{`abc|abd`, `cat{str{ab}cc{0x63-0x64}}`},
 	{`a(?:b)c|abd`, `cat{str{ab}cc{0x63-0x64}}`},
-	{
-		`abc|abd|aef|bcx|bcy`,
+	{`abc|abd|aef|bcx|bcy`,
 		`alt{cat{lit{a}alt{cat{lit{b}cc{0x63-0x64}}str{ef}}}` +
-			`cat{str{bc}cc{0x78-0x79}}}`,
-	},
+			`cat{str{bc}cc{0x78-0x79}}}`},
 	{`abc|x|abd`, `alt{str{abc}lit{x}str{abd}}`},
 	{`(?i)abc|ABD`, `cat{strfold{AB}cc{0x43-0x44 0x63-0x64}}`},
 	{`[ab]c|[ab]d`, `cat{cc{0x61-0x62}cc{0x63-0x64}}`},
 	{`.c|.d`, `cat{dot{}cc{0x63-0x64}}`},
-	{
-		`x{2}|x{2}[0-9]`,
-		`cat{rep{2,2 lit{x}}alt{emp{}cc{0x30-0x39}}}`,
-	},
-	{
-		`x{2}y|x{2}[0-9]y`,
-		`cat{rep{2,2 lit{x}}alt{lit{y}cat{cc{0x30-0x39}lit{y}}}}`,
-	},
-	{
-		`a.*?c|a.*?b`,
-		`cat{lit{a}alt{cat{nstar{dot{}}lit{c}}cat{nstar{dot{}}lit{b}}}}`,
-	},
+	{`x{2}|x{2}[0-9]`,
+		`cat{rep{2,2 lit{x}}alt{emp{}cc{0x30-0x39}}}`},
+	{`x{2}y|x{2}[0-9]y`,
+		`cat{rep{2,2 lit{x}}alt{lit{y}cat{cc{0x30-0x39}lit{y}}}}`},
+	{`a.*?c|a.*?b`,
+		`cat{lit{a}alt{cat{nstar{dot{}}lit{c}}cat{nstar{dot{}}lit{b}}}}`},
 
 	// Valid repetitions.
 	{`((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}))`, ``},
 	{`((((((((((x{1}){2}){2}){2}){2}){2}){2}){2}){2}){2})`, ``},
+
+	// Valid nesting.
+	// Custom code: upstream also parses 999-deep "(((...)))" and a 12345-way
+	// alternation here. Every parseTests entry is parsed, dumped and re-parsed
+	// by several tests, which makes those three entries dominate the runtime of
+	// this whole package under the GnoVM. The nesting limit itself is covered by
+	// the "too deep" entries in invalidRegexps.
+	{strings.Repeat("(", 100) + strings.Repeat(")", 100), ``},
 }
 
 const testFlags = MatchNL | PerlX | UnicodeGroups
@@ -319,17 +338,12 @@ var opNames = []string{
 	OpAlternate:      "alt",
 }
 
-func fmtFprintf(b io.Writer, format string, args ...any) {
-	res := fmt.Sprintf(format, args...)
-	b.Write([]byte(res))
-}
-
 // dumpRegexp writes an encoding of the syntax tree for the regexp re to b.
 // It is used during testing to distinguish between parses that might print
 // the same using re's String method.
 func dumpRegexp(b *strings.Builder, re *Regexp) {
 	if int(re.Op) >= len(opNames) || opNames[re.Op] == "" {
-		fmtFprintf(b, "op%d", re.Op)
+		fmt.Fprintf(b, "op%d", re.Op)
 	} else {
 		switch re.Op {
 		default:
@@ -372,7 +386,7 @@ func dumpRegexp(b *strings.Builder, re *Regexp) {
 	case OpStar, OpPlus, OpQuest:
 		dumpRegexp(b, re.Sub[0])
 	case OpRepeat:
-		fmtFprintf(b, "%d,%d ", re.Min, re.Max)
+		fmt.Fprintf(b, "%d,%d ", re.Min, re.Max)
 		dumpRegexp(b, re.Sub[0])
 	case OpCapture:
 		if re.Name != "" {
@@ -387,9 +401,9 @@ func dumpRegexp(b *strings.Builder, re *Regexp) {
 			sep = " "
 			lo, hi := re.Rune[i], re.Rune[i+1]
 			if lo == hi {
-				fmtFprintf(b, "%#x", lo)
+				fmt.Fprintf(b, "%#x", lo)
 			} else {
-				fmtFprintf(b, "%#x-%#x", lo, hi)
+				fmt.Fprintf(b, "%#x-%#x", lo, hi)
 			}
 		}
 	}
@@ -414,8 +428,7 @@ func mkCharClass(f func(rune) bool) string {
 	if lo >= 0 {
 		re.Rune = append(re.Rune, lo, unicode.MaxRune)
 	}
-	res := dump(re)
-	return res
+	return dump(re)
 }
 
 func isUpperFold(r rune) bool {
@@ -492,12 +505,26 @@ var invalidRegexps = []string{
 	`(?P<name`,
 	`(?P<x y>a)`,
 	`(?P<>a)`,
+	`(?<name>a`,
+	`(?<name>`,
+	`(?<name`,
+	`(?<x y>a)`,
+	`(?<>a)`,
 	`[a-Z]`,
 	`(?i)[a-Z]`,
-	`a{100000}`,
-	`a{100000,}`,
-	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",
 	`\Q\E*`,
+	`a{100000}`,  // too much repetition
+	`a{100000,}`, // too much repetition
+	"((((((((((x{2}){2}){2}){2}){2}){2}){2}){2}){2}){2})",    // too much repetition
+	strings.Repeat("(", 1000) + strings.Repeat(")", 1000),    // too deep
+	strings.Repeat("(?:", 1000) + strings.Repeat(")*", 1000), // too deep
+	"(" + strings.Repeat("(xx?)", 1000) + "){1000}",          // too long
+	strings.Repeat("(xx?){1000}", 1000),                      // too long
+	// Custom code: upstream also tests strings.Repeat(`\pL`, 27000) here for
+	// the maxRunes budget. Reaching that budget means materialising ~1M runes
+	// through the interpreter, which takes minutes and hundreds of MB under the
+	// GnoVM, so it is not viable in this suite. TestRuneBudget below covers the
+	// same guard with a case sized for gno's lowered runeSize calibration.
 }
 
 var onlyPerl = []string{
@@ -589,3 +616,63 @@ func TestToStringEquivalentParse(t *testing.T) {
 		}
 	}
 }
+
+
+
+// TestRuneBudget covers the maxRunes guard. Custom code: upstream exercises it
+// with strings.Repeat(`\pL`, 27000) inside invalidRegexps, which is far too
+// expensive under the GnoVM (see the runeSize comment in parse.gno). Gno's
+// lowered budget makes the same guard reachable with ~100 classes.
+func TestRuneBudget(t *testing.T) {
+	// Each \pL contributes ~1292 runes, so this comfortably exceeds maxRunes.
+	if _, err := Parse(strings.Repeat(`\pL`, 400), Perl); err == nil {
+		t.Error("expected the rune budget to reject 400 Unicode classes")
+	}
+	// A handful of classes must still parse.
+	if _, err := Parse(strings.Repeat(`\pL`, 10), Perl); err != nil {
+		t.Errorf("10 Unicode classes should parse, got %v", err)
+	}
+}
+
+// TestAssignedClass covers \p{Assigned} and \p{^Assigned}, which resolve
+// through unicode.Cn with an inverted sign. See the note in parseTests.
+func TestAssignedClass(t *testing.T) {
+	assigned, err := Parse(`\p{Assigned}`, Perl)
+	if err != nil {
+		t.Fatalf("Parse assigned: %v", err)
+	}
+	unassigned, err := Parse(`\p{^Assigned}`, Perl)
+	if err != nil {
+		t.Fatalf("Parse unassigned: %v", err)
+	}
+	for _, tc := range []struct {
+		r        rune
+		assigned bool
+	}{{'a', true}, {'Z', true}, {0x0378, false}, {0x0380, false}} {
+		if got := inClass(assigned, tc.r); got != tc.assigned {
+			t.Errorf("Assigned contains %#U = %v, want %v", tc.r, got, tc.assigned)
+		}
+		if got := inClass(unassigned, tc.r); got == tc.assigned {
+			t.Errorf("^Assigned contains %#U = %v, want %v", tc.r, got, !tc.assigned)
+		}
+	}
+}
+
+// inClass reports whether r is in the char class re.
+func inClass(re *Regexp, r rune) bool {
+	for i := 0; i+1 < len(re.Rune); i += 2 {
+		if re.Rune[i] <= r && r <= re.Rune[i+1] {
+			return true
+		}
+	}
+	return false
+}
+
+// Custom code: upstream's TestString asserts the Go 1.21 "printFlags" form of
+// Regexp.String(), which hoists (?i:...) to span a whole subexpression instead
+// of wrapping each node. That rewrite was deliberately not ported: it is purely
+// cosmetic - the older per-node output re-parses to an identical tree, which
+// TestToStringEquivalentParse above verifies - while calcFlags walks every rune
+// between minFold and maxFold calling unicode.SimpleFold for each one. On a wide
+// class such as [\s\S] that is ~125k interpreted SimpleFold calls per String()
+// call, and String() is reachable from realm code where it is charged as gas.

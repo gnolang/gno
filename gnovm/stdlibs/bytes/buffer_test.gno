@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"math/rand"
 	"testing"
 	"unicode/utf8"
 )
@@ -216,14 +215,14 @@ func TestMixedReadsAndWrites(t *testing.T) {
 	var buf bytes.Buffer
 	s := ""
 	for i := 0; i < 50; i++ {
-		wlen := rand.IntN(len(testString))
+		wlen := rng.IntN(len(testString))
 		if i%2 == 0 {
 			s = fillString(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, testString[0:wlen])
 		} else {
 			s = fillBytes(t, "TestMixedReadsAndWrites (1)", &buf, s, 1, testBytes[0:wlen])
 		}
 
-		rlen := rand.IntN(len(testString))
+		rlen := rng.IntN(len(testString))
 		fub := make([]byte, rlen)
 		n, _ := buf.Read(fub)
 		s = s[n:]

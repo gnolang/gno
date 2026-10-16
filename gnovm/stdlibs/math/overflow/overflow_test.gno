@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+// rng supplies the pseudo-random inputs these tests used to draw from
+// math/rand's package-level source. Gno has no such source (see the note at
+// the end of math/rand/rand.gno), so the generator is explicit and seeded,
+// which also makes these tests reproducible.
+var rng = rand.New(rand.NewPCG(1, 2))
+
+
 func TestSigned(t *testing.T) {
 	tt := []struct {
 		opName string
@@ -47,7 +54,7 @@ func TestSigned(t *testing.T) {
 			// negative all 1's bits
 			return -1
 		default:
-			return i<<56 | rand.Int64N(1<<56)
+			return i<<56 | rng.Int64N(1<<56)
 		}
 	}
 	for _, tc := range tt {
@@ -165,7 +172,7 @@ func TestUnsigned(t *testing.T) {
 		case 255:
 			return (1 << 64) - 1
 		default:
-			return i<<56 | rand.Uint64N(1<<56)
+			return i<<56 | rng.Uint64N(1<<56)
 		}
 	}
 	for _, tc := range tt {

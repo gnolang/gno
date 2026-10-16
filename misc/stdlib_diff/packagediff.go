@@ -13,6 +13,10 @@ type PackageDiffChecker struct {
 	SrcPath  string   // Source directory path.
 	DstFiles []string // List of destination files.
 	DstPath  string   // Destination directory path.
+
+	// ExtraSrcPaths are additional directories to search for a source file
+	// that is absent from SrcPath, for packages Go has split up. See aliases.go.
+	ExtraSrcPaths []string
 }
 
 // Differences represents the differences between source and destination packages.
@@ -32,7 +36,7 @@ type FileDifference struct {
 // NewPackageDiffChecker creates a new PackageDiffChecker instance with the specified
 // source and destination paths. It initializes the SrcFiles and DstFiles fields by
 // listing files in the corresponding directories.
-func NewPackageDiffChecker(srcPath, dstPath string) (*PackageDiffChecker, error) {
+func NewPackageDiffChecker(srcPath, dstPath string, extraSrcPaths ...string) (*PackageDiffChecker, error) {
 	srcFiles, err := listDirFiles(srcPath)
 	if err != nil {
 		return nil, err
@@ -43,11 +47,22 @@ func NewPackageDiffChecker(srcPath, dstPath string) (*PackageDiffChecker, error)
 		return nil, err
 	}
 
+	// Files relocated into an extra directory still count as present on the
+	// source side, so they are listed alongside SrcPath's own files.
+	for _, extra := range extraSrcPaths {
+		extraFiles, err := listDirFiles(extra)
+		if err != nil {
+			continue // an absent optional directory is not an error
+		}
+		srcFiles = append(srcFiles, extraFiles...)
+	}
+
 	return &PackageDiffChecker{
-		SrcFiles: srcFiles,
-		SrcPath:  srcPath,
-		DstFiles: dstFiles,
-		DstPath:  dstPath,
+		SrcFiles:      srcFiles,
+		SrcPath:       srcPath,
+		DstFiles:      dstFiles,
+		DstPath:       dstPath,
+		ExtraSrcPaths: extraSrcPaths,
 	}, nil
 }
 
@@ -64,7 +79,7 @@ func (p *PackageDiffChecker) Differences() (*Differences, error) {
 
 	for _, trimmedFileName := range allFiles {
 		srcFileName := trimmedFileName + srcFilesExt
-		srcFilePath := p.SrcPath + "/" + srcFileName
+		srcFilePath := p.resolveSrcFile(srcFileName)
 		dstFileName := trimmedFileName + dstFileExt
 		dstFilePath := p.DstPath + "/" + dstFileName
 
@@ -84,6 +99,23 @@ func (p *PackageDiffChecker) Differences() (*Differences, error) {
 	}
 
 	return d, nil
+}
+
+// resolveSrcFile returns the path to read srcFileName from: SrcPath if it holds
+// the file, otherwise the first ExtraSrcPaths entry that does. When no directory
+// has it, SrcPath is returned so the file is reported missing there, as before.
+func (p *PackageDiffChecker) resolveSrcFile(srcFileName string) string {
+	direct := p.SrcPath + "/" + srcFileName
+	if _, err := os.Stat(direct); err == nil {
+		return direct
+	}
+	for _, extra := range p.ExtraSrcPaths {
+		candidate := extra + "/" + srcFileName
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return direct
 }
 
 // listAllPossibleFiles returns a list of unique file names without extensions
