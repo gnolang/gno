@@ -126,9 +126,7 @@ gnoland config get halt_height   # expect 0
 
 ### What a halt actually looks like
 
-The block **at** `halt_height` is fully committed. The halt is armed, and the
-panic fires when the *next* block begins, so the last committed block is
-`halt_height` itself.
+The block **at** `halt_height` is fully committed. The halt is armed, and the panic fires when the *next* block begins, so the last block the application commits is `halt_height` itself. That next block already exists when the panic fires: consensus has agreed on it and stored it, so the binaries the network runs before the halt decide what block `halt_height + 1` holds. A new binary started on the same data directory executes it from the block store (`Replay last block using real app` in its log). A genesis replay starts the new chain at `halt_height + 1` instead (`InitialHeight`, see [How it works](#how-it-works)), from the transactions up to `halt_height`.
 
 The stop itself is identical whether the halt was scheduled by governance or set
 in `config.toml`: each writes the same in-memory halt height, so each reaches the
@@ -173,6 +171,8 @@ halt height share one deterministic path with no async signals: every node stops
 at the same block because the same check runs during block execution, not because
 a signal arrived at some moment. A process that outlives its own halt is the cost
 of that guarantee.
+
+The process stays up only on a node at the tip, where the consensus routine catches the panic. A node still catching up through block sync, such as one syncing from genesis across a past halt, has nothing to catch it: the process exits with code 2, so a supervisor configured to restart on exit does fire, and the restarted node carries on past the halt if its binary meets that halt's `halt_min_version`.
 
 ### Restart gates
 
