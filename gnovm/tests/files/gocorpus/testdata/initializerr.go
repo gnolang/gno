@@ -46,4 +46,4 @@ var _ = map[Key]string{
 // line 25: slice/array literals may not contain non-const keys
 // line 26: duplicate index 1 in array or slice literal
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 23, 24, 26
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 24
