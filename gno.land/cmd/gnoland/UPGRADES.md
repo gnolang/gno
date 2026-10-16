@@ -191,15 +191,17 @@ Both checks are skipped entirely when `halt_height` is `0` or
 `halt_min_version` is empty. A halt proposal that leaves the version empty is a
 coordinated *pause*, not an upgrade gate.
 
+**The floor is the version operators switch to, above every version the network runs.** A floor the running binary already meets gates nothing and blocks restarts: before the halt the second check refuses every restart of that binary, so the chain stalls short of the halt once validators holding a third of the voting power have tried to restart, and after the halt the first check lets the same binary resume. `misc/govdao-scripts/set-halt.sh` refuses such a floor, comparing it with the version one node, its `REMOTE`, reports; survey the others as described in [Where the binary's version comes from](#where-the-binarys-version-comes-from).
+
 An operator who has already migrated out-of-band can bypass both:
 
 ```bash
 gnoland config set skip_upgrade_height 704052   # must equal halt_height
 ```
 
-#### Where the binary's version comes from
-
 Set it back to `0` once the node is past `halt_height`: left in place, it also lets a binary below the floor resume the chain.
+
+#### Where the binary's version comes from
 
 The value being compared is the `tm2/pkg/version.Version` variable compiled into
 the binary. It is a build-time constant, not something the node reads from
@@ -250,9 +252,7 @@ gnoland version                              # gnoland version: v1.2.0
 curl -s localhost:26657/status | grep -i build_version
 ```
 
-The RPC `/status` endpoint reports it as `BuildVersion`, so you can survey what
-the rest of the network is running — worth doing before choosing a
-`halt_min_version` that some validators cannot satisfy.
+The RPC `/status` endpoint reports it as `result.build_version` (`result.node_info.version` is the p2p protocol version), so you can survey what the rest of the network is running — worth doing before choosing a `halt_min_version` that some validators cannot satisfy, or one that some already meet.
 
 **The halt params are never cleared.** Nothing in the node resets them after a
 successful resume, so `halt_min_version` stays in force as a permanent

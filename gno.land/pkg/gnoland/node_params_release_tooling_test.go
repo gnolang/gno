@@ -13,11 +13,17 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/upgrades"
 )
 
+// repoPath turns a path relative to the repository root into one relative to
+// this package, the directory tests run in.
+func repoPath(rel string) string {
+	return filepath.Join("..", "..", "..", filepath.FromSlash(rel))
+}
+
 // repoFile reads a file by its path relative to the repository root.
 func repoFile(t *testing.T, rel string) string {
 	t.Helper()
 
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", filepath.FromSlash(rel)))
+	b, err := os.ReadFile(repoPath(rel))
 	require.NoError(t, err, "%s — has it moved? The release tooling is checked against this package.", rel)
 	return string(b)
 }
@@ -46,7 +52,7 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 	const (
 		cutRelease = "misc/release/cut-release.sh"
 		bumpProto  = "misc/release/bump-protocol-version.sh"
-		setHalt    = "misc/govdao-scripts/set-halt.sh"
+		setHalt    = setHaltScript
 		workflow   = ".github/workflows/release-chain-tag.yml"
 	)
 
@@ -111,12 +117,6 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		haltRE := grepOne(t, setHalt, `(?m)^  VERSION_RE='(.+)'$`)
 		assert.Equal(t, shapeRE, haltRE,
 			"%s accepts a different shape than %s; it writes halt_min_version directly", setHalt, cutRelease)
-	})
-
-	// cut-release.sh's build check earns its place only by building the way the
-	// workflow builds. If the workflow's -ldflags symbol is renamed and the
-	// script's is not, the script goes on asserting a symbol nothing declares
-	// and passes a release whose binaries report "develop".
 
 		// The shape's bracket ranges follow the locale's collation: under
 		// en_US.UTF-8 on glibc, [A-Za-z] also matches letters such as é, which
@@ -129,6 +129,12 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 					"%s must export LC_ALL=C before its first regex match", script)
 			}
 		}
+	})
+
+	// cut-release.sh's build check earns its place only by building the way the
+	// workflow builds. If the workflow's -ldflags symbol is renamed and the
+	// script's is not, the script goes on asserting a symbol nothing declares
+	// and passes a release whose binaries report "develop".
 	t.Run("the build check uses the workflow's version symbol", func(t *testing.T) {
 		t.Parallel()
 
