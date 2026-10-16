@@ -3,6 +3,7 @@ package components
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/url"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
@@ -53,6 +54,8 @@ type HeaderData struct {
 	// MapTab is set by a directory listing large enough for a map: it then
 	// offers its Directory and Map renderings as tabs.
 	MapTab bool
+	// Wallet registry for the GnoConnect chooser; set by EnrichHeaderData.
+	WalletsJSON template.JS
 }
 
 // RealmNotice is the header row shown on pages of community packages.
@@ -203,6 +206,7 @@ func listingTabs(u weburl.GnoURL) []HeaderLink {
 }
 
 func EnrichHeaderData(data HeaderData, mode ViewMode) HeaderData {
+	data.WalletsJSON = WalletsJSON()
 	// The root has no path: an empty value shows the placeholder
 	if data.RealmURL.Path != "/" {
 		data.RealmPath = data.RealmURL.EncodeURL()
