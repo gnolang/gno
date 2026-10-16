@@ -103,7 +103,7 @@ gnoland start \
 
 Let the node sync, and wait until it has caught up to the chain tip before the next step.
 
-**Syncing from genesis stops at every past upgrade.** Each coordinated halt in [`UPGRADES.md`](./UPGRADES.md) fires again during replay: the node stops after committing that halt height. Restart it — with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version — and it continues. If a restart lands between a halt proposal's execution and its halt height while your binary already satisfies that halt's version, the node refuses to start; set `skip_upgrade_height` to that height in `config.toml` for that one restart, or use the previous version until the height.
+**Syncing from genesis stops at every past upgrade.** Each coordinated halt in [`UPGRADES.md`](./UPGRADES.md) fires again during replay: the node stops after committing that halt height. Restart it — with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version — and it continues. If a restart lands between a halt proposal's execution and its halt height while your binary already satisfies that halt's version, the node refuses to start; set `skip_upgrade_height` to that height in `config.toml` for that one restart, or use the previous version until the height. Set it back to `0` once the node is past that height: it bypasses both upgrade gates, so left in place it also lets a binary below that row's `halt_min_version` resume.
 
 ## 5. Register as a validator candidate
 
