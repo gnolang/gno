@@ -276,7 +276,9 @@ network dropdown and every `gnokey` command's `-remote` and
 Onyx is the current testnet: it runs mainnet's code (each mainnet release first, as its release candidate) and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
 Examples below use the **testnet**, chain ID `onyx-1`, through its
-`latest` endpoint, which always points at the current testnet.
+`latest` endpoint, which always points at the current testnet. The testnet
+upgrades in place with each release, so a realm you deploy there carries
+over from one release to the next.
 
 **Mainnet** (`gnoland-1`) is the production
 network: no faucet, and token transfers, locked at launch per Constitution
