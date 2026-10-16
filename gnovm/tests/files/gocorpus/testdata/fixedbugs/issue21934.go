@@ -29,4 +29,4 @@ func main() {
 // line 22: missing field f in main.P
 // line 25: missing field f in main.PP
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22; internal errors: lines 22

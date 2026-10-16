@@ -282,7 +282,19 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// preprocess only.
 	var result runResult
 	if len(errorcheckMarkers) > 0 {
-		result = opts.runErrorcheck(m, pkgPath, fname, source)
+		// The on-chain path (first error, Preprocess) runs on its own
+		// store wrap so the two passes do not share a package.
+		cw2 := opts.BaseStore.CacheWrap()
+		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+			Output:        &opts.outWriter,
+			Store:         tgs.BeginTransaction(cw2, cw2, nil, gasMeter),
+			Context:       ctx,
+			MaxAllocBytes: maxAlloc,
+			GasMeter:      gasMeter,
+			ReviveEnabled: true,
+		})
+		defer m2.Release()
+		result = opts.runErrorcheck(m, m2, pkgPath, fname, source)
 	} else {
 		result = opts.runTest(m, pkgPath, fname, source, opslog, tcheck, compileMode)
 	}
@@ -359,6 +371,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		var spans []lineSpan
 		gnoErr := make(map[int]string) // start line, source coordinates
 		bodyLines := strings.Count(string(originalSource), "\n")
+		var internal []int
 		for _, e := range result.gnoErrors {
 			lo, hi := errorSpan(e)
 			if lo == 0 {
@@ -370,10 +383,18 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			if lo > bodyLines {
 				lo, hi = bodyLines, bodyLines
 			}
-			spans = append(spans, lineSpan{lo, hi})
 			if _, ok := gnoErr[lo]; !ok {
 				gnoErr[lo] = CleanErrorMessage(e)
 			}
+			// An internal error is a VM bug, not a verdict: it covers no
+			// marker and is reported on its own.
+			if IsInternalError(e) {
+				if !slices.Contains(internal, lo) {
+					internal = append(internal, lo)
+				}
+				continue
+			}
+			spans = append(spans, lineSpan{lo, hi})
 		}
 		covers := func(line int) bool {
 			for _, sp := range spans {
@@ -408,9 +429,25 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				overStrict = append(overStrict, sp.lo)
 			}
 		}
+		// The on-chain path must reject the file iff accumulate mode did,
+		// with its first error on a reported line; a parse-blocked file
+		// has no on-chain checking error to compare.
+		onChain := ""
+		if !result.parseBlocked {
+			lo, _ := errorSpan(result.onChainError)
+			lo -= prependedLines
+			switch {
+			case result.onChainError == "" && len(result.gnoErrors) > 0:
+				onChain = "accepts the file"
+			case result.onChainError != "" && len(result.gnoErrors) == 0:
+				onChain = "rejects the file: " + CleanErrorMessage(result.onChainError)
+			case result.onChainError != "" && lo > 0 && !covers(lo) && !slices.Contains(internal, lo):
+				onChain = fmt.Sprintf("first error on line %d, not reported by accumulate mode", lo)
+			}
+		}
 		v := verdict{Kind: VerdictClean, Mode: "errorcheck"}
-		if len(uncaught) > 0 || len(overStrict) > 0 {
-			v = verdict{Kind: VerdictKnownIssue, Mode: "errorcheck", Reason: errorcheckGapReason(uncaught, overStrict)}
+		if len(uncaught) > 0 || len(overStrict) > 0 || len(internal) > 0 || onChain != "" {
+			v = verdict{Kind: VerdictKnownIssue, Mode: "errorcheck", Reason: errorcheckGapReason(uncaught, overStrict, internal, onChain)}
 			// A reason written by hand (a per-cause issue) survives re-sync;
 			// the sync-written umbrella form is recomputed every time.
 			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue &&
@@ -1070,6 +1107,12 @@ type runResult struct {
 	// gnoErrors holds every preprocess error of an errorcheck run
 	// (accumulate mode), with location prefixes; Error joins them.
 	gnoErrors []string
+	// parseBlocked: the file did not parse, so Gno's checker never ran
+	// and markers it did not reach say nothing about it.
+	parseBlocked bool
+	// onChainError is the first error of the on-chain path (plain
+	// Preprocess, which stops at one), "" when it accepts the file.
+	onChainError string
 	// Set if there was an issue with type-checking.
 	TypeCheckError string
 	// Set if there was a panic within gno code.
@@ -1775,13 +1818,16 @@ func goModLangVersion(v string) string {
 }
 
 // runErrorcheck parses and preprocesses content in accumulate mode;
-// nothing is type-checked by go/types or executed.
-func (opts *TestOptions) runErrorcheck(m *gno.Machine, pkgPath, fname string, content []byte) (rr runResult) {
+// nothing is type-checked by go/types or executed. It also runs the
+// on-chain path (plain Preprocess, first error) on onChain, so the
+// ledger can check that the two agree on whether the file is rejected.
+func (opts *TestOptions) runErrorcheck(m, onChain *gno.Machine, pkgPath, fname string, content []byte) (rr runResult) {
 	pkgName, err := gno.PackageNameFromFileBody(fname, string(content))
 	if err != nil {
 		return runResult{Error: err.Error()}
 	}
 	fname = filepath.Base(fname)
+	rr.onChainError = firstPreprocessError(onChain, pkgName, pkgPath, fname, content)
 	defer func() {
 		if r := recover(); r != nil { // a syntax error, or a VM bug
 			rr.Error = fmt.Sprint(r)
@@ -1806,6 +1852,7 @@ func (opts *TestOptions) runErrorcheck(m *gno.Machine, pkgPath, fname string, co
 		} else {
 			rr.gnoErrors = []string{perr.Error()}
 		}
+		rr.parseBlocked = true
 		rr.Error = strings.Join(rr.gnoErrors, "; ")
 		return rr
 	}
@@ -1820,6 +1867,31 @@ func (opts *TestOptions) runErrorcheck(m *gno.Machine, pkgPath, fname string, co
 	}
 	rr.Error = strings.Join(rr.gnoErrors, "; ")
 	return rr
+}
+
+// firstPreprocessError runs the on-chain path on m: parse, predefine and
+// preprocess the file as RunFiles does, stopping at the first checking
+// error. It returns that error's text, or "" when the path accepts the
+// file. A parse error or a runtime panic is not a checking error.
+func firstPreprocessError(m *gno.Machine, pkgName gno.Name, pkgPath, fname string, content []byte) (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			if pe, ok := r.(*gno.PreprocessError); ok {
+				msg = pe.Unwrap().Error()
+			}
+		}
+	}()
+	fn, err := m.ParseFile(fname, string(content))
+	if err != nil {
+		return ""
+	}
+	pn := gno.NewPackageNode(pkgName, pkgPath, &gno.FileSet{})
+	pv := pn.NewPackage(m.Alloc)
+	m.Store.SetBlockNode(pn)
+	m.Store.SetCachePackage(pv)
+	m.SetActivePackage(pv)
+	m.RunFiles(fn)
+	return ""
 }
 
 // A located message is "file:L:C: msg", "file:L:C-C2: msg" (same line) or
@@ -1842,9 +1914,10 @@ func errorSpan(msg string) (lo, hi int) {
 }
 
 // errorcheckGapReason is the sync-written KnownIssue reason for an
-// errorcheck file: the umbrella issue, then the marker lines Gno missed
-// and the unmarked lines it rejected.
-func errorcheckGapReason(uncaught, overStrict []int) string {
+// errorcheck file: the umbrella issue, then the marker lines Gno missed,
+// the unmarked lines it rejected, the lines where it failed internally,
+// and how the on-chain path disagrees with accumulate mode.
+func errorcheckGapReason(uncaught, overStrict, internal []int, onChain string) string {
 	lines := func(ns []int) string {
 		ss := make([]string, len(ns))
 		for i, n := range ns {
@@ -1859,6 +1932,13 @@ func errorcheckGapReason(uncaught, overStrict []int) string {
 	if len(overStrict) > 0 {
 		slices.Sort(overStrict)
 		parts = append(parts, "over-strict: lines "+lines(overStrict))
+	}
+	if len(internal) > 0 {
+		slices.Sort(internal)
+		parts = append(parts, "internal errors: lines "+lines(internal))
+	}
+	if onChain != "" {
+		parts = append(parts, "on-chain path "+onChain)
 	}
 	return strings.Join(parts, "; ")
 }
