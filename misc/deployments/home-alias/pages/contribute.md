@@ -37,8 +37,8 @@ If you are interested in contributing to Gno.land, you can jump in on our
 
 Two reasons prompted this pause:
 
-- **Focus on mainnet.** The team is fully focused on Gno.land mainnet, the
-  highest priority.
+- **Focus on mainnet.** The team is fully focused on Gno.land mainnet and on
+  securing the network, the highest priority.
 - **Decline in submission quality.** The bounty program was created to
   encourage innovative, creative, and technical contributions that
   meaningfully advance Gno.land. However, with the rise of generative AI,
