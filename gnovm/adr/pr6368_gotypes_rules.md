@@ -1,4 +1,4 @@
-# PRxxxx: rules the go/types suite asked for
+# PR6368: rules the go/types suite asked for
 
 ## Context
 
