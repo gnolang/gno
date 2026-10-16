@@ -17,11 +17,4 @@ func main() {
 	println("hi﻿ there") // and here	// ERROR "BOM"
 }
 
-// GnoError:
-// line 14: illegal byte order mark
-// line 15: illegal byte order mark
-// line 16: illegal byte order mark
-// line 17: illegal byte order mark
-// line 18: expected '}', found 'EOF'
-
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 15, 18
+// Verdict: Unsupported gc-specific: byte order mark test; the markers sit on the BOM lines

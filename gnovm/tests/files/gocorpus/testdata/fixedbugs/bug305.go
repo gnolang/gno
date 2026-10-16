@@ -23,7 +23,4 @@ var a int = "bogus"
 // 23
 // ERROR "cannot|incompatible"
 
-// GnoError:
-// line 23: cannot use untyped string as IntKind
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 24; over-strict: lines 23
+// Verdict: Unsupported gc-specific: //line directives remap the positions the markers refer to
