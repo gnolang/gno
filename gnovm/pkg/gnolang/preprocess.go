@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/store"
 	"maps"
 	"math"
 	"math/big"
