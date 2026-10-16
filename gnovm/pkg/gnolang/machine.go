@@ -689,6 +689,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.FileName, fb)
 	}
+	CheckInitCycles(m.Store, pn, fset)
 	// Get new values across all files in package.
 	pn.PrepareNewValues(m.Alloc, pv)
 	// save package value.
@@ -790,6 +791,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.FileName, fb)
 	}
+	CheckInitCycles(m.Store, pn, fs)
 
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)

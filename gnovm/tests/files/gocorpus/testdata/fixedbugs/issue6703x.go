@@ -23,4 +23,4 @@ var (
 // GnoError:
 // line 20: initialization cycle: x refers to T.pm refers to x
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck
