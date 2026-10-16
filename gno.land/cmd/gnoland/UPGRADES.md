@@ -199,6 +199,8 @@ gnoland config set skip_upgrade_height 704052   # must equal halt_height
 
 #### Where the binary's version comes from
 
+Set it back to `0` once the node is past `halt_height`: left in place, it also lets a binary below the floor resume the chain.
+
 The value being compared is the `tm2/pkg/version.Version` variable compiled into
 the binary. It is a build-time constant, not something the node reads from
 config or chain state, so it is fixed the moment the binary is produced:
