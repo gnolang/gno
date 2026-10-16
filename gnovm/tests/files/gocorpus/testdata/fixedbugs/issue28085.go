@@ -29,7 +29,7 @@ func _() {
 }
 
 // GnoError:
-// line 9: 2: duplicate key (0 int) in map literal
-// line 14: 2: duplicate key (0 int) in map literal
+// line 9: duplicate key (0 int) in map literal
+// line 14: duplicate key (0 int) in map literal
 
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22; over-strict: lines 14

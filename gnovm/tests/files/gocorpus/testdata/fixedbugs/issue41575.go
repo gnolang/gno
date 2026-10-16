@@ -36,11 +36,11 @@ type z [10]x
 type w2 w // refer to the type loop again
 
 // GnoError:
-// line 9: 2: invalid recursive type: T1 -> T2 -> T1
+// line 9: invalid recursive type: T1 -> T2 -> T1
 // line 17: should not happen
 // line 18: decl node already predefined! type c b<VPInvalid(0)>
 // line 21: invalid recursive type: d -> e -> f -> f
-// line 25: 2: invalid recursive type: g -> g
+// line 25: invalid recursive type: g -> g
 // line 31: invalid recursive type: w -> x -> y -> z -> x
 // line 36: should not happen
 

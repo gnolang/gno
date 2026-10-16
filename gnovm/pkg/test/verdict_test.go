@@ -193,3 +193,18 @@ func TestMissingStdlibImport(t *testing.T) {
 		}
 	}
 }
+
+func TestCleanErrorMessage(t *testing.T) {
+	for in, want := range map[string]string{
+		"main/a.go:12:3: msg":              "msg",
+		"main/a.go:12:3-9: msg":            "msg",
+		"main/a.go:23:3-24:3: msg":         "msg",
+		"main/a.go:7: msg":                 "msg",
+		"a.go:5:1: x[main/a.go:1:1-2:2].S": "x[main/a.go:1:1-2:2].S",
+		"no location here":                 "no location here",
+	} {
+		if got := CleanErrorMessage(in); got != want {
+			t.Errorf("CleanErrorMessage(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

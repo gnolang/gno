@@ -10,7 +10,7 @@ import /* // ERROR "import path" */ `
 bogus`
 
 // GnoError:
-// line 9: 7: unknown import path 
+// line 9: unknown import path 
 // bogus:
 // --- preprocess stack ---
 // stack 1: file gno.land/p/filetest/f/issue14520a.go:8:1-13:15

@@ -37,6 +37,6 @@ var _ = map[string]int{
 }
 
 // GnoError:
-// line 31: 2: duplicate key ("a" string) in map literal
+// line 31: duplicate key ("a" string) in map literal
 
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 21, 24, 25
