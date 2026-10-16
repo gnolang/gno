@@ -355,6 +355,13 @@ Repositories and branches:
   receipt non-membership proof. The source recomputes the destination's receipt in that chain's encoding (R19 on
   gno.land, `keccak256(abi.encode(packet))` on Ethereum), compares it, and stores the verified outcome (delivered,
   refundable, collision) on the record. Governance chooses the action; the proof decides whether it may apply.
+  Only **final** states count: a receipt non-membership proof shows "refundable" only at a proof height whose
+  destination timestamp is at or past the packet's timeout (the destination can then never receive it — IBC's own
+  timeout rule); a written acknowledgement and a receipt are final once proven. The replacement client must be
+  active (not frozen, expired or retired) when the outcome is submitted **and** when kind 12 consumes it; an
+  outcome whose verifier has since frozen or expired is void and must be proven again through a healthy client.
+  An implementation that cannot keep these records (e.g. the transfer realm's pre-controls version) may never be
+  reinstalled over a route that has them.
   Kind 7's migration call is empty or a selector on an allow-list pinned in `IBCAdminExec` (empty at launch; a
   kind 9 hand-over extends it), so an upgrade can never carry a client migration or other authority change.
 
