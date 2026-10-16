@@ -3366,7 +3366,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			case *FuncDecl:
 				// Unused locals and labels, once the body has its paths.
 				if n.Body != nil && len(stack) >= 2 {
-					for _, u := range checkUnused(stack[len(stack)-2], n) {
+					for _, u := range checkUnused(preprocessGasMeterOf(store), stack[len(stack)-2], n) {
 						if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
 							continue // a dropped statement declared or mentioned it
 						}
