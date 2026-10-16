@@ -18,4 +18,4 @@ var x = fx // ERROR "initialization cycle|depends upon itself"
 // GnoError:
 // line 16: initialization cycle: x refers to fx refers to x
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
