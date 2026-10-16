@@ -159,8 +159,8 @@ because the config path never consults chain state, so no "will halt after this
 block" line is ever emitted. If you are watching for a config-driven halt, watch
 the height, not the log.
 
-**The process does not exit.** `gnoland start` waits on its signal context, not
-on consensus health, so the node stops producing blocks while the RPC server
+**On a node at the tip, the process does not exit.** `gnoland start` waits on
+its signal context, not on consensus health, so the node stops producing blocks while the RPC server
 stays up and the process idles. Stop it yourself. Process supervisors configured
 to restart on exit will not fire.
 

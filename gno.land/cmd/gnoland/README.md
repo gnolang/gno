@@ -244,7 +244,7 @@ expected outcomes, depending on which binary you hold.
 
 [UPGRADES.md](UPGRADES.md) covers what you need as an operator: how the halt
 height is set, what the halt looks like in your logs, why the process stays
-alive after halting, which binary version the node reports and where that value
+alive after halting at the tip, which binary version the node reports and where that value
 comes from, and what to do when the state format changes and the chain is
 rebuilt from a replayed genesis.
 
