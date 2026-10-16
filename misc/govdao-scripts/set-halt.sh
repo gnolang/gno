@@ -17,6 +17,11 @@
 # Environment: see README.md.
 set -eo pipefail
 
+# Regex bracket ranges follow the locale's collation: under en_US.UTF-8 on
+# glibc, [A-Za-z] also matches letters such as é, which the node's version
+# parser refuses. In the C locale the shape checks match the parser.
+export LC_ALL=C
+
 HEIGHT="${1?Usage: $0 HEIGHT MIN_VERSION (HEIGHT 0 cancels)}"
 MIN_VERSION="${2-}"
 

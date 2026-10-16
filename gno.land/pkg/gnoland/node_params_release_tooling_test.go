@@ -117,6 +117,18 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 	// workflow builds. If the workflow's -ldflags symbol is renamed and the
 	// script's is not, the script goes on asserting a symbol nothing declares
 	// and passes a release whose binaries report "develop".
+
+		// The shape's bracket ranges follow the locale's collation: under
+		// en_US.UTF-8 on glibc, [A-Za-z] also matches letters such as é, which
+		// parseReleaseVersion refuses. Each script checks in the C locale.
+		export := regexp.MustCompile(`(?m)^export LC_ALL=C$`)
+		for _, script := range []string{cutRelease, bumpProto, setHalt} {
+			src := repoFile(t, script)
+			if loc := export.FindStringIndex(src); assert.NotNil(t, loc, "%s must export LC_ALL=C", script) {
+				assert.Less(t, loc[0], strings.Index(src, "=~"),
+					"%s must export LC_ALL=C before its first regex match", script)
+			}
+		}
 	t.Run("the build check uses the workflow's version symbol", func(t *testing.T) {
 		t.Parallel()
 
