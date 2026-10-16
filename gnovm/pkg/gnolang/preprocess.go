@@ -1256,6 +1256,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_BLOCK -----------------------
 			case *ForStmt:
+				if as, ok := n.Post.(*AssignStmt); ok && as.Op == DEFINE {
+					panicAt("cannot declare in post statement of for loop", as)
+				}
 				pushInitBlock(n, &last, &stack)
 
 			// TRANS_BLOCK -----------------------
@@ -2848,6 +2851,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 								"implicit assignment to unexported field in struct literal of type %s",
 								clt.String()))
 						}
+						assertStructLiteralCount(n, cclt, clt)
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
 							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
@@ -2862,6 +2866,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
 					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
+					if !cclt.Vrd {
+						assertLiteralIndicesFit(preprocessGasMeterOf(store), n, cclt.Len)
+					}
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
@@ -3193,6 +3200,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *FuncTypeExpr:
+				assertFuncTypeNames(n)
 				ftype := evalStaticType(store, last, n)
 				// The `cur` naming rules decide on the RESOLVED type, because
 				// that is what decides whether the function is crossing.
@@ -3642,6 +3650,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							types[ctstr] = struct{}{}
 						}
 					}
+					// With clauses, checkUnused sees the variable in them.
+					if n.VarName != "" && len(n.Clauses) == 0 {
+						panic(fmt.Sprintf("declared and not used: %s", n.VarName))
+					}
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -3782,6 +3794,12 @@ func defineOrDecl(
 		// line but the number of names doesn't match (go2gno sets Values to nil
 		// in that case). Report a proper error instead of a confusing internal panic.
 		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but 0 value(s)", numNames))
+	}
+	if isConst && numVals == 0 && numNames > 0 {
+		panic("missing init expr for const declaration")
+	}
+	if isDefine {
+		checkRedefinedTargets(store, bn, n, nameExprs, valueExprs)
 	}
 
 	sts := make([]Type, numNames) // static types

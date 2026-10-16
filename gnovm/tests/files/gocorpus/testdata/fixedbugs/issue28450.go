@@ -17,4 +17,11 @@ type b interface {
 	valid(...int)
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9, 10, 11, 13, 15, 16
+// GnoError:
+// line 9: can only use ... with final parameter in list
+// line 10: can only use ... with final parameter in list
+// line 11: can only use ... with final parameter in list
+// line 13: can only use ... with final parameter in list
+// line 15: can only use ... with final parameter in list
+
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

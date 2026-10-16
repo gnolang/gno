@@ -428,6 +428,70 @@ func main() {}
 	}
 }
 
+func TestPreprocessCollectDecls(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type S struct{ a, b int }
+type V func(a ...int, b int) // variadic not last
+
+const (
+	A int = 1
+	B byte // no value
+)
+
+func f3() (float32, int, string) { return 1, 2, "3" }
+
+func f(x interface{}) {
+	i, g, s := f3()
+	g, h, t := f3() // g changes type
+	_, _, _, _, _ = i, g, s, h, t
+	var fl float64
+	fl, j := 1, 2 // the constant converts to float64
+	_, _ = fl, j
+	_ = S{7}
+	_ = S{7, 8, 9}
+	_ = [2]int{1, 2, 3}
+	_ = [2]int{5: 0}
+	for ; ; k := 1 {
+		_ = k
+	}
+	switch u := x.(type) {
+	}
+	switch w := x.(type) {
+	case int:
+		_ = w
+	}
+}
+
+func main() {}
+`)
+	want := []string{
+		"can only use ... with final parameter in list",
+		"missing init expr for const declaration",
+		"cannot use float32 as int",
+		"too few values in struct literal of type main.S",
+		"too many values in struct literal of type main.S",
+		"index 2 out of bounds [0:2]",
+		"index 5 out of bounds [0:2]",
+		"cannot declare in post statement of for loop",
+		"declared and not used: u",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main
