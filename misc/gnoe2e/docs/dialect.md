@@ -118,10 +118,16 @@ either, because the builtin table is not reachable from a custom command.
 
 **`gpao`** owns the oracle's lifetime, so a script that fails halfway leaves no daemon behind. `start` picks a free
 port for the status board, exports `GPAO_STATUS`, and returns once that board answers, up to 30s. The mnemonic,
-`-chain-id`, `-status-listen` and `-gno-root` are supplied by the harness; everything on the line is passed through
-to the binary, and `-remote` there replaces the run's default node. `! gpao start` is allowed, for a scenario
+`-chain-id`, `-status-listen`, `-data-dir` and `-gno-root` are supplied by the harness; everything on the line is
+passed through to the binary, and `-remote` there replaces the run's default node. `-data-dir` is the exception: a
+script naming it fails, because the harness puts the oracle's state in `$WORK/gpao-data` so that a cursor cannot
+outlive the script that wrote it, and a scenario writing outside `$WORK` would reach the developer's home. That
+directory is a script's to read, which is how a scenario asserts what the oracle recorded rather than only what it
+did. `! gpao start` is allowed, for a scenario
 asserting the oracle refuses to come up. `stop` and `restart` are not negatable, and `restart` is a stop followed by
-a start that takes the flags on its own line. A started oracle is stopped when the script ends, so a `stop` line
+a start that takes the flags on its own line -- and since the state directory is stable across a stop and a start,
+a restart with no `-start-height` resumes from the recorded cursor rather than the node's tip. A started oracle is
+stopped when the script ends, so a `stop` line
 means the claim needs the oracle gone rather than the run tidied. Whatever the oracle wrote is logged when it stops, so a failed
 assertion still comes with the oracle's own account of events.
 

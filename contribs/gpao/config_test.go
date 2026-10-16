@@ -15,6 +15,7 @@ func TestConfigRejectsANonPositivePrepareBudget(t *testing.T) {
 		chainID:       "test",
 		key:           "approver",
 		gnoRoot:       "/gno",
+		dataDir:       "/gpao",
 		verifyBudget:  10 * time.Second,
 		prepareBudget: time.Minute,
 		gasWanted:     1,
@@ -28,4 +29,22 @@ func TestConfigRejectsANonPositivePrepareBudget(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "prepare-budget must be positive")
 	}
+}
+
+// TestConfigRequiresADataDir: the data directory holds the height a restart
+// resumes from, so an empty one is not "no persistence" but a daemon that
+// cannot say where its own state lives.
+func TestConfigRequiresADataDir(t *testing.T) {
+	cfg := config{
+		chainID:       "test",
+		key:           "approver",
+		gnoRoot:       "/gno",
+		verifyBudget:  10 * time.Second,
+		prepareBudget: time.Minute,
+		gasWanted:     1,
+	}
+
+	err := cfg.validate()
+	require.Error(t, err)
+	require.ErrorContains(t, err, "--data-dir is required")
 }
