@@ -38,10 +38,10 @@ func _() {
 }
 
 // GnoError:
-// line 7: 4: struct{m func()} does not implement interface {m func()} (struct{m func()}.m is a field, not a method)
-// line 11: 4: *struct{m func()} does not implement interface {m func()} (*struct{m func()}.m is a field, not a method)
-// line 15: 4: struct{m func()} does not implement interface {M func()} (missing method M)
-// line 19: 4: *struct{m func()} does not implement interface {M func()} (missing method M)
+// line 7: struct{m func()} does not implement interface {m func()} (struct{m func()}.m is a field, not a method)
+// line 11: *struct{m func()} does not implement interface {m func()} (*struct{m func()}.m is a field, not a method)
+// line 15: struct{m func()} does not implement interface {M func()} (missing method M)
+// line 19: *struct{m func()} does not implement interface {M func()} (missing method M)
 // line 36: gno.land/p/filetest/p.T does not implement gno.land/p/filetest/p.I (gno.land/p/filetest/p.T.m is a field, not a method)
 
 // Verdict: Clean errorcheck

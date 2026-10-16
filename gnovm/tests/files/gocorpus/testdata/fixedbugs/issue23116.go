@@ -15,6 +15,6 @@ func f(x interface{}) {
 }
 
 // GnoError:
-// line 13: 3: declared and not used: t
+// line 13: declared and not used: t
 
 // Verdict: Clean errorcheck

@@ -18,22 +18,22 @@ func _() UndefinedType /* ERROR "undefined: UndefinedType" */ {
 }
 
 // GnoError:
-// line 7: 2: name UndefinedType not defined in fileset with files [issue58742.go]
-// line 11: 2: name UndefinedType not defined in fileset with files [issue58742.go]
-// line 16: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 7: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 11: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 16: name UndefinedType not defined in fileset with files [issue58742.go]
 
 // GnoWordingDiffers:
-// line 7: gc expects: undefined: UndefinedType; gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 7: gc expects: undefined: UndefinedType; gno: name UndefinedType not defined in fileset with files [issue58742.go]
 // line 8: gc expects: not enough return values
 // 	have (number)
-// 	want (int, unknown type, string); gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
-// line 11: gc expects: undefined: UndefinedType; gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// 	want (int, unknown type, string); gno: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 11: gc expects: undefined: UndefinedType; gno: name UndefinedType not defined in fileset with files [issue58742.go]
 // line 12: gc expects: too many return values
 // 	have (number, number, number)
-// 	want (int, unknown type); gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
-// line 16: gc expects: undefined: UndefinedType; gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// 	want (int, unknown type); gno: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 16: gc expects: undefined: UndefinedType; gno: name UndefinedType not defined in fileset with files [issue58742.go]
 // line 17: gc expects: not enough return values
 // 	have ()
-// 	want (unknown type); gno: 2: name UndefinedType not defined in fileset with files [issue58742.go]
+// 	want (unknown type); gno: name UndefinedType not defined in fileset with files [issue58742.go]
 
 // Verdict: Clean errorcheck
