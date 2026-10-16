@@ -48,6 +48,11 @@ and compares with the pinned Go side; it never shells out to `go`. Sync runs
 `make -C gnovm _test.filetest` does not pin the toolchain unless `go.mod`
 carries a `toolchain` line, so set it explicitly.
 
+`UPSTREAM` names the Go release the files were lifted from; `UPSTREAM.sha256`
+holds the sha256 of each file's upstream body, and `TestCorpusBodiesMatchUpstream`
+fails any file whose body (golden region stripped) drifts from it. After adding
+files, regenerate the manifest with `./upstream-manifest.sh <go source tree>`.
+
 ## Re-sync
 
     GOTOOLCHAIN=$(cat gnovm/tests/files/gocorpus/VERSION) \
