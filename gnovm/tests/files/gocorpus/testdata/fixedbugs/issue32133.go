@@ -42,11 +42,4 @@ func _() {
 //line :13:1
 	`
 
-// GnoError:
-// line 9: string literal not terminated
-// line 10: rune literal not terminated
-// line 11: string literal not terminated
-// line 12: raw string literal not terminated
-// line 14: expected '}', found 'EOF'
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 20, 24, 28; over-strict: lines 9, 14
+// Verdict: Unsupported gc-specific: //line directives remap the positions the markers refer to
