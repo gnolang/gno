@@ -42,5 +42,5 @@ native language.
 ---
 
 Built something on gno.land?
-[Submit your project](https://github.com/gnolang/gno/edit/master/misc/deployments/home-alias/pages/ecosystem.md)
-by adding it to this page in a pull request.
+[Submit your project](https://github.com/gnoverse/awesome-gno/blob/main/CONTRIBUTING.md)
+to Awesome Gno, the community list of Gno projects.
