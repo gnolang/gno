@@ -25,4 +25,4 @@ var (
 // GnoError:
 // line 22: initialization cycle: x refers to T.m refers to x
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck

@@ -23,4 +23,4 @@ var m = map[string]F{"f": f} // ERROR "initialization cycle|depends upon itself|
 // GnoError:
 // line 21: initialization cycle: m refers to f refers to m
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck

@@ -26,4 +26,4 @@ func matchAnyFn(s *S) (err E) { return matchAny(s) }
 // GnoError:
 // line 22: initialization cycle: matchAny refers to matchList refers to matchAnyFn refers to matchAny
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck

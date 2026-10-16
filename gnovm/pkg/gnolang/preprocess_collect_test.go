@@ -688,3 +688,20 @@ func main() {
 		t.Fatalf("unexpected: %v", msgs)
 	}
 }
+
+func TestInitCycleOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
+	// any initializer runs, with the same positioned message.
+	m := NewMachine("test", nil)
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
+			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted a cycle")
+}
