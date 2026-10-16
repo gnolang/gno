@@ -13,6 +13,7 @@ Tags a release, after checking it is one.
 misc/release/cut-release.sh v1.6.0 --commit <code-commit>
 
 # a coordinated upgrade: also prints the GovDAO halt proposal, then pushes.
+# The tag records no height: it can change until the proposal executes
 misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
   --halt-height 120000 --push
 ```

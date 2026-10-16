@@ -137,3 +137,17 @@ func TestCutReleaseLedgerGate(t *testing.T) {
 		assert.Contains(t, out, "names "+last.Commit[:9])
 	})
 }
+
+// A tag never moves, so its message must not record a halt height: the height
+// passed to cut-release.sh can still change until the halt proposal executes.
+func TestCutReleaseTagMessage(t *testing.T) {
+	t.Parallel()
+
+	out, returned := runCutReleaseFuncs(t, map[string]string{
+		"CHAIN": "mainnet", "VERSION": "v1.6.0", "COMMIT": strings.Repeat("c", 40),
+		"PREVIOUS": "v1.5.1", "HALT_HEIGHT": "848000",
+	}, "tag_message")
+	require.True(t, returned, out)
+	assert.NotContains(t, out, "848000", "the tag message records the halt height")
+	assert.Contains(t, out, "halt_min_version v1.6.0")
+}

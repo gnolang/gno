@@ -529,8 +529,9 @@ tag_message() {
 	printf '%s %s\n\nReleased from chain/%s at %s.' \
 		"${CHAIN}" "${VERSION}" "${CHAIN}" "${COMMIT:0:9}"
 	[[ -z ${PREVIOUS} ]] || printf '\nPrevious release: %s.' "${PREVIOUS}"
-	[[ -z ${HALT_HEIGHT} ]] || printf '\nCoordinated upgrade at height %s, halt_min_version %s.' \
-		"${HALT_HEIGHT}" "${VERSION}"
+	# No height: a tag never moves, and the height can change until the halt
+	# proposal executes.
+	[[ -z ${HALT_HEIGHT} ]] || printf '\nCoordinated upgrade, halt_min_version %s.' "${VERSION}"
 	printf '\n'
 }
 

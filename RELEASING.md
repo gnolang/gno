@@ -120,6 +120,7 @@ runs, and the two are not the same thing:
 misc/release/cut-release.sh v1.6.0 --commit <code-commit>
 
 # a coordinated upgrade: also prints the GovDAO halt proposal to go with it.
+# The tag records no height: it can change until the proposal executes
 misc/release/cut-release.sh v1.6.0 --commit <code-commit> \
   --halt-height 120000 --push
 ```
@@ -252,10 +253,7 @@ Two kinds of release page, one job each:
 
 - `chain/<name>` is the genesis record: `genesis.json`, its `.gz`, their
   checksums, and a description of the chain at birth. Frozen; no binaries.
-- `vX.Y.Z` is a binary you can run: the CI-built binaries and `CHECKSUMS.txt`,
-  for a coordinated upgrade the halt height and `halt_min_version` that made it
-  live, the eight image URLs, and the changelog. The workflow attaches the
-  binaries with generated notes; the rest is written by hand.
+- `vX.Y.Z` is a binary you can run: the CI-built binaries and `CHECKSUMS.txt`, for a coordinated upgrade the `halt_min_version` and, once the halt proposal has executed, the halt height that made it live, the eight image URLs, and the changelog. The workflow attaches the binaries with generated notes; the rest is written by hand.
 
 `misc/deployments/<chain>.gno.land/upgrades.json` is the ledger: one entry per
 version the network has run — the genesis, one per coordinated halt, and one
