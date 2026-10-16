@@ -23,6 +23,6 @@ type T3 struct { // ERROR "invalid recursive type: T3 refers to itself"
 }
 
 // GnoError:
-// line 19: 2: invalid recursive type: T3 -> T3
+// line 19: invalid recursive type: T3 -> T3
 
 // Verdict: Clean errorcheck
