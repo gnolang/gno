@@ -15,13 +15,13 @@ func _() {
 }
 
 // GnoError:
-// line 9: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
-// line 11: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
-// line 13: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 9: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 11: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 13: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 
 // GnoWordingDiffers:
-// line 9: gc expects: yield func returns user-defined boolean, not bool; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
-// line 11: gc expects: yield func returns user-defined boolean, not bool; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
-// line 13: gc expects: yield func returns user-defined boolean, not bool; gno: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 9: gc expects: yield func returns user-defined boolean, not bool; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 11: gc expects: yield func returns user-defined boolean, not bool; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 13: gc expects: yield func returns user-defined boolean, not bool; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 
 // Verdict: Clean errorcheck
