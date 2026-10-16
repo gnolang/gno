@@ -309,30 +309,15 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		if converter.switchDepth > maxSwitchDepth {
 			panic(errMaxDepth)
 		}
-		cellEnd := func(t Token) bool {
-			if t.Kind&tokReserved > 0 && t.Value == "&" {
-				return true
-			}
-			if t.Value == "\\" || t.Value == "cr" {
-				return true
-			}
-			return false
+		// Answer a \color with no {argument} before the scan to the cell end
+		// below, which a run of them would repeat once per command.
+		if name == "color" && colorArgMissing(b) {
+			return NewMMLNode("merror", name).SetAttr("title", fmt.Sprintf("%s expects an argument", name))
 		}
 		// The switch applies up to the end of the cell or row it is in. The
 		// cells of a group after it ({...}, an environment, a \left...\right
 		// pair) belong to that group.
-		var i int
-		for i = b.idx; i < len(b.Expr); i++ {
-			t := b.Expr[i]
-			if opensGroup(t) {
-				i += t.MatchOffset
-				continue
-			}
-			if cellEnd(t) {
-				break
-			}
-		}
-		switchExpressions, _ := b.GetNextN(min(i, len(b.Expr)) - b.idx)
+		switchExpressions, _ := b.GetNextN(cellEnd(b.Expr[b.idx:]))
 
 		n := NewMMLNode("mstyle")
 		if name == "color" {
@@ -585,4 +570,54 @@ func (converter *MathMLConverter) newCommand(b *TokenBuffer) (errNode *MMLNode) 
 	}
 
 	return
+}
+
+// isCellEnd reports whether t ends a table cell or row: an & or a line break.
+func isCellEnd(t Token) bool {
+	if t.Kind&tokReserved > 0 && t.Value == "&" {
+		return true
+	}
+	return t.Value == "\\" || t.Value == "cr"
+}
+
+// cellEnd returns the index of the first & or line break in toks outside a
+// group, or len(toks).
+func cellEnd(toks []Token) int {
+	i := 0
+	for ; i < len(toks); i++ {
+		if t := toks[i]; opensGroup(t) {
+			i += t.MatchOffset
+		} else if isCellEnd(t) {
+			break
+		}
+	}
+	return min(i, len(toks))
+}
+
+// colorArgMissing reports whether a \color at b's position certainly has no
+// {argument}, after an optional [model], within its cell. False means it has
+// one, or it cannot tell.
+func colorArgMissing(b *TokenBuffer) bool {
+	next := func(i int) int {
+		for i < len(b.Expr) && b.Expr[i].Kind&(tokComment|tokWhitespace) > 0 {
+			i++
+		}
+		return i
+	}
+	opens := func(i int, v string) bool {
+		t := b.Expr[i]
+		return t.MatchOffset > 0 && t.Kind&tokEscaped == 0 && t.Value == v
+	}
+	i := next(b.idx)
+	if i < len(b.Expr) && opens(i, "[") {
+		end := i + b.Expr[i].MatchOffset
+		if end >= len(b.Expr) {
+			return false
+		}
+		if cellEnd(b.Expr[i+1:end]) < end-i-1 {
+			return false
+		}
+		i = next(end + 1)
+	}
+	return i >= len(b.Expr) || !opens(i, "{")
 }

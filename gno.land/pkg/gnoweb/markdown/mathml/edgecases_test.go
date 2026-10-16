@@ -141,6 +141,13 @@ func TestCommentRunIsLinear(t *testing.T) {
 	}
 }
 
+// A run of \color with no argument costs its length.
+func TestBareColorRunIsLinear(t *testing.T) {
+	for _, unit := range []string{`\color`, `\color[RGB]`, `\color[{&}]`} {
+		convertErrWithin(t, strings.Repeat(unit, 1<<16)+"x")
+	}
+}
+
 // \left. and \right. draw nothing.
 func TestNullDelimiter(t *testing.T) {
 	for _, tex := range []string{`\left. x \right|`, `\left| x \right.`, `\left( x \middle. y \right)`} {
