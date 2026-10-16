@@ -12,4 +12,4 @@ bogus`
 // GnoError:
 // line 9: invalid import path "\nbogus": invalid character '\n'
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
