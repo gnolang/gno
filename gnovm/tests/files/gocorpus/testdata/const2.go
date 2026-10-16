@@ -34,4 +34,4 @@ const _ = ^MaxInt512     // ERROR "constant bitwise complement overflow"
 // GnoError:
 // line 14: missing init expr for const declaration
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 26, 30, 31, 32
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 26, 30, 31, 32
