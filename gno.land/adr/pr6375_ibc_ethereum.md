@@ -346,8 +346,8 @@ Repositories and branches:
   | 9 hand-over | `(address exec, bytes32 codeHash, bytes migrationCall)` | 7 d |
   | 10 route replacement | `(string oldClientId, string newClientId)`: retire and freeze the old client id, `migrateRoute`, open the next epoch over the new client (added by kind 6 first) | 7 d |
   | 11 route settings | `(string clientId, uint64 quarantineSeconds)`; a duration applies to transitions accepted after it; one already started keeps its deadline | lengthening at recording, shortening 7 d |
-  | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the route's send records; action 1 pay a refund of `amount` (at most the entitlement minus what was already refunded), 2 reject a queued refund, 3 settled as delivered, 4 record a loss of `amount`; each send record is settled at most once | 7 d |
-  | 13 reopen | `(string clientId)`: reopen a route closed by kind 10 or the emergency recovery, once §7.9's restoring decision exists | 7 d |
+  | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the route's send records; action 1 pay the refund's remainder — `amount` must equal the entitlement minus what was already refunded (a refund is never cut short, §7.9) — 2 reject a queued refund, 3 settled as delivered, 4 forged refund: reject the unpaid remainder **and** record what was already paid as a loss, atomically (`amount` must equal what was paid); each send record is settled at most once | 7 d |
+  | 13 reopen | `(string clientId)`: reopen a route closed by kind 10 or the emergency recovery. Refused while any send record on the route's retired client ids is still open (outstanding commitment, or a queued, parked or unpaid refund, not settled by kind 12). Any unrecovered loss not recapitalized is recorded as an **accepted deficit** by this decision (§7.9). | 7 d |
 
   A decision that fails to decode, names an unknown kind or fails its checks at execution is **spent** (§5.4
   above), never retried.
@@ -976,7 +976,10 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   any, was paid are taken as settled and skipped. Transport completion inside the interval is not: every ack and
   timeout accepted there, success acks included, goes through both steps. Packets accepted by the old client but
   **never sent** by the honest source (forgeries) are written off against the voids and loss accounting of §7.9.
-  Refund liabilities move with the backing: escrow re-keyed to the new client stays reserved for the refunds owed.
+  Refund liabilities move with the backing: escrow re-keyed to the new client stays reserved for the refunds owed —
+  every queued, parked or decided-but-unpaid refund is reserved per route and token, and a receive may not release
+  escrow below that reservation. A retired client id is final: no decision may migrate it back to a live client,
+  and an ack or timeout for a send record already settled by reconciliation pays nothing.
   The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
   accepted by decision (§7.9): on Ethereum the route stays closed after kind 10 or the emergency recovery,
   outcomes are applied by kind 12 and the route reopens by kind 13.
