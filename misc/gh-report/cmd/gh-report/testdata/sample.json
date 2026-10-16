@@ -1,0 +1,48 @@
+{
+  "data": {
+    "repository": {
+      "issues": {
+        "nodes": [
+          {
+            "number": 100,
+            "title": "an issue",
+            "url": "https://github.com/gnolang/gno/issues/100",
+            "createdAt": "2026-04-20T10:00:00Z",
+            "updatedAt": "2026-05-15T10:00:00Z",
+            "author": {"__typename": "User", "login": "alice", "createdAt": "2025-01-01T00:00:00Z"},
+            "authorAssociation": "CONTRIBUTOR",
+            "assignees": {"nodes": [{"login": "moul"}]},
+            "labels": {"nodes": [{"name": "bug"}]},
+            "reactions": {"totalCount": 4},
+            "comments": {"totalCount": 6, "nodes": [
+              {"author": {"__typename": "User", "login": "bob"}, "createdAt": "2026-05-14T00:00:00Z", "body": "ping @jaekwon"}
+            ]}
+          }
+        ]
+      },
+      "pullRequests": {
+        "nodes": [
+          {
+            "number": 200,
+            "title": "a PR",
+            "url": "https://github.com/gnolang/gno/pull/200",
+            "createdAt": "2026-05-10T00:00:00Z",
+            "updatedAt": "2026-05-18T00:00:00Z",
+            "isDraft": false,
+            "mergeable": "MERGEABLE",
+            "author": {"__typename": "User", "login": "carol", "createdAt": "2026-04-01T00:00:00Z"},
+            "authorAssociation": "FIRST_TIME_CONTRIBUTOR",
+            "assignees": {"nodes": []},
+            "reviewRequests": {"nodes": [{"requestedReviewer": {"login": "moul"}}]},
+            "labels": {"nodes": []},
+            "reactions": {"totalCount": 0},
+            "comments": {"totalCount": 1, "nodes": []},
+            "reviews": {"nodes": [{"author": {"login": "moul"}, "state": "APPROVED", "submittedAt": "2026-05-17T00:00:00Z"}]},
+            "commits": {"nodes": [{"commit": {"statusCheckRollup": {"state": "SUCCESS"}}}]},
+            "timelineItems": {"nodes": [{"__typename": "ReviewRequestedEvent"}]}
+          }
+        ]
+      }
+    }
+  }
+}
