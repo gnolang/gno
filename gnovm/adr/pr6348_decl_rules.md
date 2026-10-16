@@ -32,6 +32,13 @@ never guarded) stay uncovered.
   so their intent and goldens stay; the five whose point was the unused
   name take the new error as their golden.
 
+- Metering: every checker walk bills the transaction's preprocess meter
+  through `chargeCPUGas`, as `embedWalk` does, in the PR that adds the
+  walk, so no release ships an unmetered walk. One constant,
+  `OpCPUSlopeCheckNode` (per node; an estimate, not yet fitted), and a
+  pin test that the charge grows per declaration. Filetests run
+  unmetered, so no golden moves.
+
 ## Alternatives considered
 
 - Leaving unused names to the go/types guard. Rejected: the guard is
