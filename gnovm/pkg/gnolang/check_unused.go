@@ -13,6 +13,7 @@ type unusedName struct {
 	name Name
 	msg  string
 	span Span
+	code ErrCode
 }
 
 // checkUnused reports the unused local variables and labels of the
@@ -119,12 +120,12 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 			if span.IsZero() { // the type-switch variable's name expr is synthetic
 				span = ns.Origin.GetSpan()
 			}
-			out = append(out, unusedName{name, fmt.Sprintf("declared and not used: %s", name), span})
+			out = append(out, unusedName{name, fmt.Sprintf("declared and not used: %s", name), span, CodeUnusedVar})
 		}
 	}
 	for l, span := range labels {
 		if !branched[l] {
-			out = append(out, unusedName{l, fmt.Sprintf("label %s defined and not used", l), span})
+			out = append(out, unusedName{l, fmt.Sprintf("label %s defined and not used", l), span, CodeUnusedLabel})
 		}
 	}
 	return out

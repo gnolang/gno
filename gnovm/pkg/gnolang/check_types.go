@@ -88,14 +88,14 @@ func checkTypeExprShape(gm store.GasMeter, tx Expr) {
 		case *MapTypeExpr:
 			if mt, ok := t.(*MapType); ok {
 				if msg := mapKeyError(gm, mt.Key); msg != "" {
-					panicAt(msg, x.Key, x)
+					fail(CodeMapKey, msg, x.Key, x)
 				}
 			}
 		case *StructTypeExpr:
 			if st, ok := t.(*StructType); ok && len(st.Fields) == len(x.Fields) {
 				for i, f := range st.Fields {
 					if msg := embeddedFieldError(f); f.Embedded && msg != "" {
-						panicAt(msg, &x.Fields[i], x)
+						fail(CodeEmbeddedField, msg, &x.Fields[i], x)
 					}
 				}
 			}
@@ -131,7 +131,7 @@ func checkTypeShape(gm store.GasMeter, dt *DeclaredType) {
 			walk(ct.Elt)
 		case *MapType:
 			if msg := mapKeyError(gm, ct.Key); msg != "" {
-				panic(msg)
+				fail(CodeMapKey, msg)
 			}
 			walk(ct.Key)
 			walk(ct.Value)
@@ -145,7 +145,7 @@ func checkTypeShape(gm store.GasMeter, dt *DeclaredType) {
 		case *StructType:
 			for _, f := range ct.Fields {
 				if msg := embeddedFieldError(f); f.Embedded && msg != "" {
-					panic(msg)
+					fail(CodeEmbeddedField, msg)
 				}
 				walk(f.Type)
 			}
@@ -161,7 +161,7 @@ func checkTypeShape(gm store.GasMeter, dt *DeclaredType) {
 // assertArrayLength rejects a negative constant array length.
 func assertArrayLength(n int64) {
 	if n < 0 {
-		panic(fmt.Sprintf("invalid array length %d", n))
+		failf(CodeArrayLength, nil, "invalid array length %d", n)
 	}
 }
 
@@ -293,7 +293,7 @@ func assertSingleDefault(clauses []SwitchClauseStmt) {
 			continue
 		}
 		if seen {
-			panicAt("multiple defaults in switch", &clauses[i])
+			fail(CodeMultipleDefaults, "multiple defaults in switch", &clauses[i])
 		}
 		seen = true
 	}
@@ -320,13 +320,13 @@ func assertCopyArgs(dt, st Type) {
 	ss, sok := baseOf(st).(*SliceType)
 	isString := st != nil && st.Kind() == StringKind
 	if !dok || !sok && !isString {
-		panic(fmt.Sprintf("invalid argument: copy expects slice arguments; found %s and %s",
-			typeString(dt), typeString(st)))
+		failf(CodeCopyArgs, nil, "invalid argument: copy expects slice arguments; found %s and %s",
+			typeString(dt), typeString(st))
 	}
 	if sok && ds.Elt.TypeID() != ss.Elt.TypeID() {
-		panic(fmt.Sprintf("arguments to copy have different element types %v and %v", ds.Elt, ss.Elt))
+		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and %v", ds.Elt, ss.Elt)
 	}
 	if isString && ds.Elt != Uint8Type {
-		panic(fmt.Sprintf("arguments to copy have different element types %v and byte", ds.Elt))
+		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and byte", ds.Elt)
 	}
 }

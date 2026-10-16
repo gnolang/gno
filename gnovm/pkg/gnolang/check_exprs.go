@@ -1,10 +1,6 @@
 package gnolang
 
-import (
-	"fmt"
-
-	"github.com/gnolang/gno/tm2/pkg/store"
-)
+import "github.com/gnolang/gno/tm2/pkg/store"
 
 // Expression rules the preprocessor enforces (Go spec: "Comparison
 // operators", "Index expressions", "Slice expressions", "Composite
@@ -27,10 +23,10 @@ func assertComparableTo(at, bt Type, aNil, bNil bool) {
 		}
 		switch baseOf(t).(type) {
 		case *SliceType, *FuncType, *MapType:
-			panic(fmt.Sprintf("%v can only be compared to nil", t))
+			failf(CodeNilOnly, nil, "%v can only be compared to nil", t)
 		}
 		if !isComparable(t) {
-			panic(fmt.Sprintf("%v is not comparable", t))
+			failf(CodeNotComparable, nil, "%v is not comparable", t)
 		}
 	}
 	check(at, bNil)
@@ -58,7 +54,7 @@ func assertLenCapArg(name Name, t Type) {
 	if t.Kind() == StringKind && name == "len" {
 		return
 	}
-	panic(fmt.Sprintf("invalid argument: %v for built-in %s", t, name))
+	failf(CodeLenCapArg, nil, "invalid argument: %v for built-in %s", t, name)
 }
 
 // staticLengthOf returns the length a constant index can be checked
@@ -102,10 +98,10 @@ func constIndex(x Expr) (int64, bool) {
 func assertConstIndex(index Expr, length int64) {
 	if i, ok := constIndex(index); ok {
 		if i < 0 {
-			panic(fmt.Sprintf("invalid argument: index %d (constant of type int) must not be negative", i))
+			failf(CodeIndexBounds, nil, "invalid argument: index %d (constant of type int) must not be negative", i)
 		}
 		if length >= 0 && i >= length {
-			panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", i, length))
+			failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", i, length)
 		}
 	}
 }
@@ -123,13 +119,13 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 			continue
 		}
 		if i < 0 {
-			panic(fmt.Sprintf("invalid argument: index %d (constant of type int) must not be negative", i))
+			failf(CodeIndexBounds, nil, "invalid argument: index %d (constant of type int) must not be negative", i)
 		}
 		if length >= 0 && i > length {
-			panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", i, length+1))
+			failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", i, length+1)
 		}
 		if prev >= 0 && i < prev {
-			panic(fmt.Sprintf("invalid slice indices: %d < %d", i, prev))
+			failf(CodeSliceIndices, nil, "invalid slice indices: %d < %d", i, prev)
 		}
 		prev = i
 	}
@@ -151,7 +147,7 @@ func assertUniqueLiteralIndices(gm store.GasMeter, n *CompositeLitExpr) {
 			idx = i
 		}
 		if seen[idx] {
-			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+			failf(CodeDuplicateIndex, nil, "duplicate index %d in array or slice literal", idx)
 		}
 		seen[idx] = true
 		next = idx + 1
@@ -189,9 +185,9 @@ func assertExprStmtUsed(store Store, last BlockNode, n *ExprStmt) {
 func notUsed(store Store, last BlockNode, x Expr) {
 	t := evalStaticTypeOf(store, last, x)
 	if _, ok := t.(*TypeType); ok {
-		panic(fmt.Sprintf("%s (type) is not an expression", exprString(x)))
+		failf(CodeNotExpression, nil, "%s (type) is not an expression", exprString(x))
 	}
-	panic(fmt.Sprintf("%s (value of type %s) is not used", exprString(x), typeString(t)))
+	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", exprString(x), typeString(t))
 }
 
 // constStringLen folds len of a constant string into an int constant.
@@ -211,7 +207,7 @@ func assertConstLiteralKey(key Expr) {
 		return
 	}
 	if _, ok := key.(*ConstExpr); !ok {
-		panic(fmt.Sprintf("index %s must be integer constant", exprString(key)))
+		failf(CodeLiteralKeyConst, []Node{key}, "index %s must be integer constant", exprString(key))
 	}
 }
 

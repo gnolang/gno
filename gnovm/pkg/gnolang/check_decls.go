@@ -1,10 +1,6 @@
 package gnolang
 
-import (
-	"fmt"
-
-	"github.com/gnolang/gno/tm2/pkg/store"
-)
+import "github.com/gnolang/gno/tm2/pkg/store"
 
 // Declaration and literal rules the preprocessor enforces (Go spec:
 // "Short variable declarations", "Function types", "Composite literals",
@@ -63,7 +59,7 @@ func wasUntyped(cx *ConstExpr) bool {
 func assertFuncTypeNames(n *FuncTypeExpr) {
 	for i := 0; i+1 < len(n.Params); i++ {
 		if st, ok := n.Params[i].Type.(*SliceTypeExpr); ok && st.Vrd {
-			panicAt("can only use ... with final parameter in list", &n.Params[i])
+			fail(CodeVariadicLast, "can only use ... with final parameter in list", &n.Params[i])
 		}
 	}
 }
@@ -74,9 +70,9 @@ func assertStructLiteralCount(n *CompositeLitExpr, st *StructType, lt Type) {
 	switch {
 	case len(n.Elts) == 0:
 	case len(n.Elts) < len(st.Fields):
-		panic(fmt.Sprintf("too few values in struct literal of type %v", lt))
+		failf(CodeStructLiteralCount, nil, "too few values in struct literal of type %v", lt)
 	case len(n.Elts) > len(st.Fields):
-		panic(fmt.Sprintf("too many values in struct literal of type %v", lt))
+		failf(CodeStructLiteralCount, nil, "too many values in struct literal of type %v", lt)
 	}
 }
 
@@ -95,7 +91,7 @@ func assertLiteralIndicesFit(gm store.GasMeter, n *CompositeLitExpr, length int)
 			idx = i
 		}
 		if idx >= int64(length) {
-			panic(fmt.Sprintf("index %d out of bounds [0:%d]", idx, length))
+			failf(CodeIndexBounds, nil, "index %d out of bounds [0:%d]", idx, length)
 		}
 		next = idx + 1
 	}
