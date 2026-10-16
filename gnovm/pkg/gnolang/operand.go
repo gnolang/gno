@@ -39,11 +39,6 @@ type operand struct {
 	val  *TypedValue
 }
 
-// isUntyped reports whether the operand is an untyped constant or nil.
-func (o operand) isUntyped() bool {
-	return o.mode == opNil || (o.mode == opConstant && isUntyped(o.typ))
-}
-
 // assignable reports whether the operand can be the target of `=`.
 func (o operand) assignable() bool {
 	return o.mode == opVariable || o.mode == opMapIndex
