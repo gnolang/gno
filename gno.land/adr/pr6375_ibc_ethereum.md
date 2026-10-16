@@ -1326,6 +1326,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - 2026-10-16, twenty-first review with Codex. Folded:
   - A liability reduction applies only to claims on gno.land, per packet, and lowers the claims term and the
     unrecovered losses alike; refunds are never reduced, so every refund path still pays the full amount (§7.9).
+- 2026-10-16, twenty-second review with Codex: no open issues.
 
 ## 15. References
 
