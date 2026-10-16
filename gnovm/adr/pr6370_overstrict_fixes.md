@@ -1,4 +1,4 @@
-# PRxxxx: programs Go accepts that the checker refused
+# PR6370: programs Go accepts that the checker refused
 
 ## Context
 
