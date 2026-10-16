@@ -264,7 +264,7 @@ explicit `addpkg` transaction instead of hot-reload on file save.
 
 Pick a target network now and use it consistently. The faucet's
 network dropdown and every `gnokey` command's `-remote` and
-`-chainid` flags must match:
+[`-chainid`](../resources/gnoland-networks.md#network-configurations) flags must match:
 
 | Network    | `-chainid`   | `-remote`                                     |
 |------------|--------------|-----------------------------------------------|
@@ -275,8 +275,9 @@ network dropdown and every `gnokey` command's `-remote` and
 
 Onyx is the current testnet: it runs mainnet's code (each mainnet release first, as its release candidate) and package set, with a faucet. See [Networks](../resources/gnoland-networks.md) for the live list.
 
-Examples below use the **testnet**, chain ID `onyx-1`, through its
-`latest` endpoint, which always points at the current testnet. The testnet
+Examples below use the **testnet** through its `latest` endpoint, which
+always points at the current testnet. Its chain ID changes with each
+testnet, so put the current one in place of `<chain-id>`. The testnet
 upgrades in place with each release, so a realm you deploy there carries
 over from one release to the next.
 
@@ -333,7 +334,7 @@ gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
-  -chainid onyx-1 -remote https://rpc.latest.testnets.gno.land:443 \
+  -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 \
   alice
 ```
 
@@ -388,7 +389,7 @@ gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/myrealm" \
   -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid onyx-1 -remote https://rpc.latest.testnets.gno.land:443 \
+  -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 \
   alice
 ```
 

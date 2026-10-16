@@ -53,11 +53,12 @@ gnokey list   # copy the g1... address
 gnokey query bank/balances/<your-g1-addr> \
   -remote https://rpc.latest.testnets.gno.land:443
 
-# 7. Deploy
+# 7. Deploy; <chain-id> is the testnet's, listed at
+#    https://docs.gno.land/resources/gnoland-networks/
 gnokey maketx addpkg \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" -pkgdir . \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
-  -chainid onyx-1 -remote https://rpc.latest.testnets.gno.land:443 dev
+  -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 dev
 
 # 8. Wait for "status":"live": the testnet holds a new package until an
 #    approver enables it; https://gpao.latest.testnets.gno.land/status/<pkgpath>
@@ -71,7 +72,7 @@ gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" \
   -gas-fee 1000000ugnot -gas-wanted 2000000 \
-  -chainid onyx-1 -remote https://rpc.latest.testnets.gno.land:443 dev
+  -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 dev
 ```
 
 Live at **`https://latest.testnets.gno.land/r/<your-g1-addr>/counter`**.
