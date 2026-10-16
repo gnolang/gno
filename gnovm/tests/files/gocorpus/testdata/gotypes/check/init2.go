@@ -166,4 +166,4 @@ var x10pv /* ERROR "initialization cycle" */ = x10pvar.m()
 // line 133: initialization cycle: x9pv refers to E9pv.m refers to x9pv
 // line 139: initialization cycle: x10pv refers to E10pv.m refers to x10pv
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck
