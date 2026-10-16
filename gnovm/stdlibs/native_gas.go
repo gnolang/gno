@@ -94,7 +94,7 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 72 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 78 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
@@ -117,6 +117,12 @@ type nativeGasEntry struct {
 // argument covers the flat part only. The two borrowed PostSlopes come from
 // measured sys/params getters rather than from a setter, and the four scalar
 // getters carry no length term at all.
+//
+// math/big rows (7) are placeholders, NOT calibrated: real values must
+// come from a benchmark run before any consensus-relevant deployment.
+// The linear slopes over-charge only because math/big caps every value
+// at MaxBytes, 1024 bytes; past it mul and decimal conversion outgrow
+// them. See gnovm/adr/pr5678_math_big_stdlib.md.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
@@ -248,6 +254,22 @@ var calibratedNativeGas = []nativeGasEntry{
 		Slope: 2200, SlopeIdx: 1, SlopeKind: SizeModExpWork,
 		Slope2: 3500, Slope2Idx: 2, Slope2Kind: SizeLenBytes,
 	}, // draft, upper bound over 26 ModExpGrid points (x2.3 to reference, +19% margin); thinnest at expLen=3/modLen=256
+
+	// math/big — PLACEHOLDER values. Binary ops slope on BOTH []byte
+	// operands (Slope on a=p1, Slope2 on b=p3) so an asymmetric call
+	// (tiny a, huge b, or vice versa) is metered on the larger operand
+	// rather than escaping the slope entirely. Bases are conservative so
+	// trivial cases over-charge. The slopes are linear and cover mul and
+	// decimal conversion only up to math/big's MaxBytes, which every
+	// value stays under. Re-run gnovm/cmd/calibrate with a math/big-aware
+	// benchmark before consensus-relevant deployment and replace this block.
+	{Pkg: "math/big", Fn: "add", Base: 2000, Slope: 20000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 20000, Slope2Idx: 3, Slope2Kind: SizeLenBytes},      // TODO: calibrate
+	{Pkg: "math/big", Fn: "sub", Base: 2000, Slope: 20000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 20000, Slope2Idx: 3, Slope2Kind: SizeLenBytes},      // TODO: calibrate
+	{Pkg: "math/big", Fn: "mul", Base: 3000, Slope: 100000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 100000, Slope2Idx: 3, Slope2Kind: SizeLenBytes},    // TODO: calibrate
+	{Pkg: "math/big", Fn: "quoRem", Base: 3500, Slope: 120000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 120000, Slope2Idx: 3, Slope2Kind: SizeLenBytes}, // TODO: calibrate
+	{Pkg: "math/big", Fn: "divMod", Base: 3500, Slope: 120000, SlopeIdx: 1, SlopeKind: SizeLenBytes, Slope2: 120000, Slope2Idx: 3, Slope2Kind: SizeLenBytes}, // TODO: calibrate
+	{Pkg: "math/big", Fn: "setString", Base: 2500, Slope: 80000, SlopeIdx: 0, SlopeKind: SizeLenString},                                                      // TODO: calibrate
+	{Pkg: "math/big", Fn: "text", Base: 2500, Slope: 80000, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                            // TODO: calibrate
 }
 
 // validateRow cross-checks a row against the native's actual signature before
