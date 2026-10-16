@@ -1,6 +1,10 @@
 package gnolang
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/gnolang/gno/tm2/pkg/store"
+)
 
 // Type rules the preprocessor enforces (Go spec: "Map types", "Struct
 // types", "Interface types", "Array types", "Switch statements", "Type
@@ -10,7 +14,7 @@ import "fmt"
 // through struct fields and array elements already has its base set.
 // Comparability of an incomplete type is unknown, so its checks run
 // again when the enclosing declaration finishes (see checkTypeShape).
-func typeComplete(t Type) bool {
+func typeComplete(gm store.GasMeter, t Type) bool {
 	seen := map[Type]bool{}
 	var walk func(t Type) bool
 	walk = func(t Type) bool {
@@ -18,6 +22,7 @@ func typeComplete(t Type) bool {
 			return true
 		}
 		seen[t] = true
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
 		switch ct := t.(type) {
 		case *DeclaredType:
 			return ct.Base != nil && walk(ct.Base)
@@ -37,8 +42,8 @@ func typeComplete(t Type) bool {
 
 // mapKeyError reports why kt cannot key a map, or "" when it can or is
 // still incomplete (then checkTypeExprShape decides later).
-func mapKeyError(kt Type) string {
-	if kt == nil || !typeComplete(kt) {
+func mapKeyError(gm store.GasMeter, kt Type) string {
+	if kt == nil || !typeComplete(gm, kt) {
 		return ""
 	}
 	if _, ok := baseOf(kt).(*ChanType); ok {
@@ -71,16 +76,17 @@ func embeddedFieldError(ft FieldType) string {
 // checkTypeExprShape re-runs the map key and embedded field rules over
 // the type expression of a finished declaration, positioned at the
 // spelling: checks skipped while the type was incomplete now decide.
-func checkTypeExprShape(tx Expr) {
+func checkTypeExprShape(gm store.GasMeter, tx Expr) {
 	Transcribe(tx, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_LEAVE {
 			return n, TRANS_CONTINUE
 		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
 		t, _ := n.GetAttribute(ATTR_TYPE_VALUE).(Type)
 		switch x := n.(type) {
 		case *MapTypeExpr:
 			if mt, ok := t.(*MapType); ok {
-				if msg := mapKeyError(mt.Key); msg != "" {
+				if msg := mapKeyError(gm, mt.Key); msg != "" {
 					panicAt(msg, x.Key, x)
 				}
 			}
@@ -100,7 +106,7 @@ func checkTypeExprShape(tx Expr) {
 // checkTypeShape re-runs the map key and embedded field rules over the
 // package types reachable from dt once its base is set: a type finished
 // earlier may hold a map keyed by dt, skipped while dt was incomplete.
-func checkTypeShape(dt *DeclaredType) {
+func checkTypeShape(gm store.GasMeter, dt *DeclaredType) {
 	seen := map[Type]bool{}
 	var walk func(t Type)
 	walk = func(t Type) {
@@ -108,6 +114,7 @@ func checkTypeShape(dt *DeclaredType) {
 			return
 		}
 		seen[t] = true
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
 		switch ct := t.(type) {
 		case *DeclaredType:
 			if ct.PkgPath == dt.PkgPath {
@@ -122,7 +129,7 @@ func checkTypeShape(dt *DeclaredType) {
 		case *ChanType:
 			walk(ct.Elt)
 		case *MapType:
-			if msg := mapKeyError(ct.Key); msg != "" {
+			if msg := mapKeyError(gm, ct.Key); msg != "" {
 				panic(msg)
 			}
 			walk(ct.Key)
@@ -167,9 +174,11 @@ type dupCase struct {
 // duplicateSwitchCases finds constant cases of the same type and value
 // in an expression switch. Booleans are exempt, as in Go.
 func duplicateSwitchCases(store Store, clauses []SwitchClauseStmt) (dups []dupCase) {
+	gm := preprocessGasMeterOf(store)
 	seen := map[MapKey]bool{}
 	for i := range clauses {
 		for _, cx := range clauses[i].Cases {
+			chargeCPUGas(gm, OpCPUSlopeCheckNode)
 			c, ok := cx.(*ConstExpr)
 			if !ok || c.T == nil || c.T.Kind() == BoolKind || isInterfaceConversion(c) {
 				continue
@@ -177,7 +186,7 @@ func duplicateSwitchCases(store Store, clauses []SwitchClauseStmt) (dups []dupCa
 			if _, ok := baseOf(c.T).(PrimitiveType); !ok {
 				continue
 			}
-			key, isNaN := c.ComputeMapKey(nil, store, false)
+			key, isNaN := c.ComputeMapKey(gm, store, false)
 			if isNaN {
 				continue
 			}

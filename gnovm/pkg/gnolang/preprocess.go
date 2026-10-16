@@ -3218,7 +3218,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *MapTypeExpr:
-				if msg := mapKeyError(evalStaticType(store, last, n).(*MapType).Key); msg != "" {
+				if msg := mapKeyError(preprocessGasMeterOf(store), evalStaticType(store, last, n).(*MapType).Key); msg != "" {
 					panicAt(msg, n.Key, n)
 				}
 
@@ -3730,8 +3730,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
 				if dt, ok := dstT.(*DeclaredType); ok && !n.IsAlias {
-					checkTypeExprShape(n.Type)
-					checkTypeShape(dt)
+					checkTypeExprShape(preprocessGasMeterOf(store), n.Type)
+					checkTypeShape(preprocessGasMeterOf(store), dt)
 				}
 				n.Type = toConstTypeExpr(last, n.Type, dstT)
 			}
