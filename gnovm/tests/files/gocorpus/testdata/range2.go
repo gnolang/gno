@@ -24,7 +24,7 @@ func test() {
 }
 
 // GnoError:
-// line 20: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
-// line 22: 3: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 20: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 22: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 
 // Verdict: Clean errorcheck
