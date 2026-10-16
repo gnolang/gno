@@ -1,8 +1,9 @@
 # gocorpus: Go's test corpus as Gno filetests
 
-`testdata/` holds files lifted verbatim from Go's `$GOROOT/test` (the
-release in `VERSION`), each followed by a comment tail the harness writes
-(`gnovm/pkg/test/filetest.go`). Nothing above the tail is edited.
+`testdata/` holds files lifted verbatim from Go's `$GOROOT/test` at the
+release in `UPSTREAM`, each followed by a comment tail the harness writes
+(`gnovm/pkg/test/filetest.go`). Nothing above the tail is edited. `VERSION`
+is the Go toolchain the Go-side evidence was recorded with.
 
 ## Per-file contract
 
