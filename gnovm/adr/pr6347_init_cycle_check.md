@@ -20,10 +20,13 @@ lists 31 corpus files whose only gap is this rule.
   reported again.
 - A method selected on a call result (`f().m`) now records its edge: the
   receiver's static type is a one-element tuple.
-- Off-chain only for now: `Preprocess` (on chain) is unchanged, the same
-  cycle still fails in `runFileDecls`, so deploy gas and messages do not
-  move. Moving the check on chain is a separate decision once the
-  type-checker series settles what preprocess rejects.
+- On chain too: `CheckInitCycles` runs after a package's files are
+  preprocessed (`RunFiles`, `runMemPackage`) and panics with the first
+  cycle as a positioned `*PreprocessError`, where `runFileDecls` used to
+  fail later with "circular dependency". Same programs rejected, earlier
+  and with the cycle named; the walk bills `OpCPUSlopeCheckNode` per
+  declaration visited. The ledger's on-chain check (#6346) requires the
+  two paths to agree, which an accumulate-only rule would fail.
 - Names accumulate mode dropped resolve to nothing and are skipped.
 
 ## Alternatives considered
@@ -35,7 +38,8 @@ lists 31 corpus files whose only gap is this rule.
 
 ## Consequences
 
-- 31 errorcheck corpus files flip to `Clean`; `gno lint` reports cycles
-  before deployment.
+- 31 errorcheck corpus files flip to `Clean`; `gno lint` and deploys
+  report cycles at preprocess. Six native filetests take the positioned
+  message as their golden.
 - Messages name the path, as gc's do, so a marker regex such as
   `initialization cycle|depends upon itself` matches.
