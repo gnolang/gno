@@ -27,4 +27,4 @@ func G() {
 // GnoError:
 // line 14: StaticBlock.Define(t) requires non-nil tv.T; use Reserve() for placeholder slots
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 22; over-strict: lines 14
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 22; internal errors: lines 14
