@@ -411,8 +411,11 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		v := verdict{Kind: VerdictClean, Mode: "errorcheck"}
 		if len(uncaught) > 0 || len(overStrict) > 0 {
 			v = verdict{Kind: VerdictKnownIssue, Mode: "errorcheck", Reason: errorcheckGapReason(uncaught, overStrict)}
+			// A reason written by hand (a per-cause issue) survives re-sync;
+			// the sync-written umbrella form is recomputed every time.
 			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue &&
-				prev.check() == nil && !strings.HasPrefix(prev.Reason, preprocessUmbrella+" ") {
+				prev.check() == nil && !strings.HasPrefix(prev.Reason, preprocessUmbrella+";") &&
+				prev.Reason != preprocessUmbrella {
 				v.Reason = prev.Reason
 			}
 		}

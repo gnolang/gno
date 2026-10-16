@@ -838,7 +838,7 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 	if !n.GetSpan().IsZero() {
 		loc.SetSpanOverride(n.GetSpan())
 	}
-	if sp, ok := r.(*spanPanic); ok {
+	if sp, ok := r.(*spanError); ok {
 		if !sp.span.IsZero() {
 			loc.SetSpanOverride(sp.span)
 		}
@@ -853,14 +853,14 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 	return &PreprocessError{err: err, stack: stack}
 }
 
-// spanPanic is a checking error positioned at a node other than the one
+// spanError is a checking error positioned at a node other than the one
 // being transcribed; see panicAt.
-type spanPanic struct {
+type spanError struct {
 	span Span
 	msg  string
 }
 
-func (p *spanPanic) Error() string { return p.msg }
+func (p *spanError) Error() string { return p.msg }
 
 // panicAt raises a preprocess error positioned at the first of at with
 // a span; a folded constant borrows its source's.
@@ -877,7 +877,7 @@ func panicAt(msg string, at ...Node) {
 			}
 		}
 		if x != nil {
-			panic(&spanPanic{span: x.GetSpan(), msg: msg})
+			panic(&spanError{span: x.GetSpan(), msg: msg})
 		}
 	}
 	panic(msg)
@@ -6005,7 +6005,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	defer func() {
 		if r := recover(); r != nil {
 			if msg, ok := r.(string); ok {
-				panic(&spanPanic{span: d.GetSpan(), msg: msg})
+				panic(&spanError{span: d.GetSpan(), msg: msg})
 			}
 			panic(r)
 		}
