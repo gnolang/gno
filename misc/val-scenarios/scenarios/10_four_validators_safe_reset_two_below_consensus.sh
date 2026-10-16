@@ -2,6 +2,11 @@
 set -euo pipefail
 
 SCENARIO_CI=true
+# Realistic canary: unlike the other consensus-only scenarios, this one KEEPS the
+# full example genesis (SCENARIO_GENESIS_EXAMPLES defaults to true). It is the one
+# CI scenario that exercises a halt below quorum and resume while validators must
+# replay a realistic full genesis at InitChain on restart. Do not set
+# SCENARIO_GENESIS_EXAMPLES=false here — that coverage would otherwise be lost.
 
 # 4 validators, safe reset 2 (db + wal only, priv_validator_state preserved).
 # 2/4 remain during the reset (50% < 2/3 threshold) so the chain must halt.
