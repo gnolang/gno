@@ -250,9 +250,28 @@ func deriveInfo(gnourl *weburl.GnoURL, gnomodData []byte) PackageInfo {
 			info.Private = mod.Private
 			info.Creator = mod.AddPkg.Creator
 			info.Height = mod.AddPkg.Height
+			info.Source = packageSourceOf(mod.Source)
 		}
 	}
 	return info
+}
+
+// packageSourceOf renders a validated gnomod [source] section for display.
+// ParseBytes has already rejected anything but a credential-free https URL,
+// so URL is safe to use as an href.
+func packageSourceOf(src gnomod.Source) PackageSource {
+	if src.Repository == "" {
+		return PackageSource{}
+	}
+	rev := src.Revision
+	if len(rev) > 9 {
+		rev = rev[:9]
+	}
+	return PackageSource{
+		URL:      src.URL(),
+		Label:    strings.TrimPrefix(strings.TrimSuffix(src.Repository, "/"), "https://"),
+		Revision: rev,
+	}
 }
 
 func packageTypeOf(gnourl *weburl.GnoURL) string {

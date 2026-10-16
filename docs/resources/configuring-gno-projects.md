@@ -67,6 +67,23 @@ Marks the package as private and **unimportable** by any other package. Addition
 Marks the module to be **ignored by the Gno toolchain** while still being usable
 in development environments.
 
+#### `source`
+
+Declares where the package's source code lives, so explorers such as gnoweb
+can link a deployed package back to its repository. It is informational: the
+chain stores it as written and never fetches or verifies it.
+
+- `repository`: https URL of the repository, without credentials, query or
+  fragment (`https://github.com/<owner>/<repo>`). Required when the section is set.
+- `path`: the package directory inside the repository, relative to its root.
+- `revision`: the commit the package was deployed from, as lowercase hex.
+
+`gno mod init -source <path>` and `gno mod tidy -source` fill `repository` and
+`path` from the git checkout's `origin` remote. It is opt-in, so a private
+repository's name never ends up on chain by accident. `revision` is not written
+by `gno mod`: a committed revision is stale one commit later, so it belongs to
+whatever tool publishes the package.
+
 ### Example
 
 ```toml
@@ -75,6 +92,11 @@ module = "gno.land/r/test"
 gno = "0.9"
 draft = true
 private = true
+
+[source]
+  repository = "https://github.com/gnolang/gno"
+  path = "examples/gno.land/r/test"
+  revision = "3cc494ec4"
 
 [[replace]]
   old = "gno.land/r/test"
