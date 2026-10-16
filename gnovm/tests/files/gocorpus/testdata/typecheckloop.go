@@ -18,4 +18,4 @@ const C = A + B + 1
 // line 13: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
 // line 14: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 14
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13; internal errors: lines 13, 14
