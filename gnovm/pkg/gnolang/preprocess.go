@@ -60,13 +60,26 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*PreprocessError {
 	var errs []*PreprocessError
 	reported := map[Decl]bool{}
+	// Names resolve to the declaration predefine selected (the last
+	// file's wins), and only those are roots: a shadowed split part of a
+	// multi-name declaration is neither, or it would close a false cycle.
+	index := newPredefineDeclIndex(fset)
+	resolve := func(name Name) (Decl, bool) {
+		if e, ok := index.entries[name]; ok {
+			return e.decl, true
+		}
+		return resolveDeclDepSafe(name, pn)
+	}
 	for _, fn := range fset.Files {
 		for _, d := range fn.Decls {
 			vd, ok := d.(*ValueDecl)
 			if !ok || reported[vd] {
 				continue
 			}
-			path := findInitCycle(gm, vd, pn)
+			if names := vd.GetDeclNames(); len(names) == 0 || index.entries[names[0]].decl != vd {
+				continue
+			}
+			path := findInitCycle(gm, vd, resolve)
 			if path == nil {
 				continue
 			}
@@ -91,7 +104,7 @@ func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*Prepr
 			loc := Location{PkgPath: pn.PkgPath, File: file, Span: at.GetSpan()}
 			errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String()), code: CodeInitCycle})
 			for _, name := range path {
-				if dep, ok := resolveDeclDepSafe(name, pn); ok {
+				if dep, ok := resolve(name); ok {
 					reported[dep] = true
 				}
 			}
@@ -103,7 +116,7 @@ func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*Prepr
 // findInitCycle walks the dependency graph from root the way
 // resolveEffectiveDeps does and returns the first cycle back to a variable
 // as the names along it, closed with the variable, or nil.
-func findInitCycle(gm store.GasMeter, root *ValueDecl, pn *PackageNode) []Name {
+func findInitCycle(gm store.GasMeter, root *ValueDecl, resolve func(Name) (Decl, bool)) []Name {
 	onStack := map[Decl]bool{}
 	done := map[Decl]bool{}
 	var walk func(d Decl, path []Name) []Name
@@ -118,7 +131,7 @@ func findInitCycle(gm store.GasMeter, root *ValueDecl, pn *PackageNode) []Name {
 		names := slices.Collect(maps.Keys(m))
 		slices.Sort(names)
 		for _, name := range names {
-			dep, ok := resolveDeclDepSafe(name, pn)
+			dep, ok := resolve(name)
 			if !ok {
 				continue
 			}
