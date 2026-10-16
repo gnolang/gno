@@ -25,4 +25,4 @@ func main() {
 // line 12: invalid recursive value: a -> a
 // line 16: invalid recursive value: A -> B -> C -> D -> A
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 16; internal errors: lines 10; on-chain path first error on line 12, not reported by accumulate mode
+// Verdict: Clean errorcheck
