@@ -25,7 +25,7 @@ func TestPreprocessGas_CheckWalks(t *testing.T) {
 		defer m.Release()
 		var b strings.Builder
 		b.WriteString("package checkgas\n\nfunc F() {\n")
-		for i := 0; i < locals; i++ {
+		for i := range locals {
 			fmt.Fprintf(&b, "\tv%d := %d\n\t_ = v%d\n", i, i, i)
 		}
 		b.WriteString("}\n")
@@ -60,7 +60,7 @@ func TestPreprocessGas_TypeWalks(t *testing.T) {
 		defer m.Release()
 		var b strings.Builder
 		b.WriteString("package checkgas\n\ntype T struct {\n")
-		for i := 0; i < fields; i++ {
+		for i := range fields {
 			fmt.Fprintf(&b, "\tf%d map[string]int\n", i)
 		}
 		b.WriteString("}\n")
