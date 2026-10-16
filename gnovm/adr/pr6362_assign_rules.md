@@ -1,4 +1,4 @@
-# PRxxxx: assignability rules at preprocess
+# PR6362: assignability rules at preprocess
 
 ## Context
 

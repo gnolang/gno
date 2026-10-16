@@ -1,4 +1,4 @@
-# PRxxxx: expression statement and builtin rules at preprocess
+# PR6365: expression statement and builtin rules at preprocess
 
 ## Context
 

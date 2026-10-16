@@ -1,4 +1,4 @@
-# PRxxxx: go/types' test suite as a second corpus
+# PR6367: go/types' test suite as a second corpus
 
 ## Context
 
