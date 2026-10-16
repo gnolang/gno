@@ -20,4 +20,4 @@ func main() {}
 // GnoError:
 // line 10: initialization cycle: a refers to f refers to c refers to b
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck

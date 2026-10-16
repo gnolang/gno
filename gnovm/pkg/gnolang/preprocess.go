@@ -45,7 +45,7 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 	for _, fn := range fset.Files {
 		preprocess(store, pn, fn, acc)
 	}
-	acc.errs = append(acc.errs, checkInitCycles(pn, fset)...)
+	acc.errs = append(acc.errs, checkInitCycles(preprocessGasMeterOf(store), pn, fset)...)
 	return acc.errs
 }
 
@@ -53,10 +53,11 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 // variables: a variable whose initializer, directly or through the
 // functions and methods it uses, depends on itself (Go spec, "Package
 // initialization"). The dependency edges are the ATTR_DECL_DEPS that
-// codaInitOrderDeps recorded on each declaration. Off-chain only for now:
-// on chain the same cycle surfaces when runFileDecls orders the
-// initializers (resolveEffectiveDeps), so deploy behaviour is unchanged.
-func checkInitCycles(pn *PackageNode, fset *FileSet) []*PreprocessError {
+// codaInitOrderDeps recorded on each declaration. Each declaration
+// visited bills OpCPUSlopeCheckNode on gm. On chain CheckInitCycles
+// panics with the first one, where runFileDecls would otherwise fail
+// later and unpositioned.
+func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*PreprocessError {
 	var errs []*PreprocessError
 	reported := map[Decl]bool{}
 	for _, fn := range fset.Files {
@@ -65,7 +66,7 @@ func checkInitCycles(pn *PackageNode, fset *FileSet) []*PreprocessError {
 			if !ok || reported[vd] {
 				continue
 			}
-			path := findInitCycle(vd, pn)
+			path := findInitCycle(gm, vd, pn)
 			if path == nil {
 				continue
 			}
@@ -102,7 +103,7 @@ func checkInitCycles(pn *PackageNode, fset *FileSet) []*PreprocessError {
 // findInitCycle walks the dependency graph from root the way
 // resolveEffectiveDeps does and returns the first cycle back to a variable
 // as the names along it, closed with the variable, or nil.
-func findInitCycle(root *ValueDecl, pn *PackageNode) []Name {
+func findInitCycle(gm store.GasMeter, root *ValueDecl, pn *PackageNode) []Name {
 	onStack := map[Decl]bool{}
 	done := map[Decl]bool{}
 	var walk func(d Decl, path []Name) []Name
@@ -110,6 +111,7 @@ func findInitCycle(root *ValueDecl, pn *PackageNode) []Name {
 		if done[d] {
 			return nil
 		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
 		onStack[d] = true
 		defer func() { delete(onStack, d); done[d] = true }()
 		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
@@ -149,6 +151,15 @@ func resolveDeclDepSafe(name Name, pn *PackageNode) (d Decl, ok bool) {
 	}()
 	d = resolveDeclDep(name, pn)
 	return d, d != nil
+}
+
+// CheckInitCycles is the on-chain form of checkInitCycles: the first
+// initialization cycle among the package's variables panics as a
+// *PreprocessError, positioned at the variable that opens it.
+func CheckInitCycles(store Store, pn *PackageNode, fset *FileSet) {
+	if errs := checkInitCycles(preprocessGasMeterOf(store), pn, fset); len(errs) > 0 {
+		panic(errs[0])
+	}
 }
 
 func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preprocessAccumulator) {
