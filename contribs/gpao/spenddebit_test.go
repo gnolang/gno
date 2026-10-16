@@ -127,7 +127,7 @@ func TestSpentMovesOnlyWhenATransactionIsSent(t *testing.T) {
 	// Control arm: a broadcast approval costs exactly one fee, counted at the
 	// send.
 	o.handleCandidate(t.Context(), candidate{mpkg: good})
-	assert.Equal(t, o.enableFee, o.spent,
+	assert.Equal(t, o.gasFee.Amount, o.spent,
 		"a broadcast approval must be counted, whether or not it succeeds -- the ante charges for it")
 	assert.Equal(t, statusApproved, o.status.get(goodPath).Status)
 }
