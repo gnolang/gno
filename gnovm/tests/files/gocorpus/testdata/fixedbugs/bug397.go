@@ -13,6 +13,6 @@ var m = map[string]int{
 }
 
 // GnoError:
-// line 10: 2: cannot use untyped Bigint as StringKind
+// line 10: cannot use untyped Bigint as StringKind
 
 // Verdict: Clean errorcheck
