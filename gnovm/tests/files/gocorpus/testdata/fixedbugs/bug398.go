@@ -44,9 +44,9 @@ func f() bool {
 }
 
 // GnoError:
-// line 14: 2: invalid recursive type: I1 -> I1
-// line 18: 2: invalid recursive type: I2 -> I2
-// line 31: 2: invalid recursive type: i1 -> i1
-// line 35: 2: invalid recursive type: i2 -> i2
+// line 14: invalid recursive type: I1 -> I1
+// line 18: invalid recursive type: I2 -> I2
+// line 31: invalid recursive type: i1 -> i1
+// line 35: invalid recursive type: i2 -> i2
 
 // Verdict: Clean errorcheck
