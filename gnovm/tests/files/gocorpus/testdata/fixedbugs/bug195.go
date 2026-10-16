@@ -27,8 +27,8 @@ type I6 interface {
 }
 
 // GnoError:
-// line 14: 2: invalid recursive type: S -> S
-// line 17: 2: invalid recursive type: I4 -> I4
-// line 21: 2: invalid recursive type: I5 -> I6 -> I5
+// line 14: invalid recursive type: S -> S
+// line 17: invalid recursive type: I4 -> I4
+// line 21: invalid recursive type: I5 -> I6 -> I5
 
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9, 12

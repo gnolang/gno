@@ -15,6 +15,6 @@ func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
 }
 
 // GnoError:
-// line 13: 2: redeclaration of method Reader.Buffered
+// line 13: redeclaration of method Reader.Buffered
 
 // Verdict: Clean errorcheck

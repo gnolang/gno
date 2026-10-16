@@ -22,7 +22,7 @@ func main() {
 }
 
 // GnoError:
-// line 10: 2: decl node already predefined! const A<!VPInvalid(0)> = B<VPInvalid(0)>:
+// line 10: decl node already predefined! const A<!VPInvalid(0)> = B<VPInvalid(0)>:
 // --- preprocess stack ---
 // stack 0: file main/bug463.go:10:1-22:2
 // ------------------------

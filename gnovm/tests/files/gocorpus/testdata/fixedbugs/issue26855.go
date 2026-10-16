@@ -28,7 +28,7 @@ var _ = P{
 }
 
 // GnoError:
-// line 22: 2: cannot use *gno.land/p/filetest/p.T as struct{}
-// line 26: 2: cannot use struct{} as *gno.land/p/filetest/p.T
+// line 22: cannot use *gno.land/p/filetest/p.T as struct{}
+// line 26: cannot use struct{} as *gno.land/p/filetest/p.T
 
 // Verdict: Clean errorcheck
