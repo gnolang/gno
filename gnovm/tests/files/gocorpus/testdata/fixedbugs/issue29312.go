@@ -10,26 +10,26 @@
 // This code generates lots of types. The binary should contain
 // a runtime.slicetype for each of the following 253 types:
 //
-//	[]*pwn
-//	[][]*pwn
-//	...
-//	[][]...[][]*pwn          - 249 total "[]"
-//	[][]...[][][]*pwn        - 250 total "[]"
-//	[][]...[][][][]*pwn      - 251 total "[]"
-//	[][]...[][][][][]*pwn    - 252 total "[]"
-//	[][]...[][][][][][]*pwn  - 253 total "[]"
+//     []*pwn
+//     [][]*pwn
+//     ...
+//     [][]...[][]*pwn          - 249 total "[]"
+//     [][]...[][][]*pwn        - 250 total "[]"
+//     [][]...[][][][]*pwn      - 251 total "[]"
+//     [][]...[][][][][]*pwn    - 252 total "[]"
+//     [][]...[][][][][][]*pwn  - 253 total "[]"
 //
 // The type names for these types are as follows. Because we truncate
 // the name at depth 250, the last few names are all identical:
 //
-//	type:[]*"".pwn
-//	type:[][]*"".pwn
-//	...
-//	type:[][]...[][]*pwn       - 249 total "[]"
-//	type:[][]...[][][]*<...>   - 250 total "[]"
-//	type:[][]...[][][][]<...>  - 251 total "[]"
-//	type:[][]...[][][][]<...>  - 252 total "[]" (but only 251 "[]" in the name)
-//	type:[][]...[][][][]<...>  - 253 total "[]" (but only 251 "[]" in the name)
+//     type:[]*"".pwn
+//     type:[][]*"".pwn
+//     ...
+//     type:[][]...[][]*pwn       - 249 total "[]"
+//     type:[][]...[][][]*<...>   - 250 total "[]"
+//     type:[][]...[][][][]<...>  - 251 total "[]"
+//     type:[][]...[][][][]<...>  - 252 total "[]" (but only 251 "[]" in the name)
+//     type:[][]...[][][][]<...>  - 253 total "[]" (but only 251 "[]" in the name)
 //
 // Because the names of the last 3 types are all identical, the
 // compiler will generate only a single runtime.slicetype data
