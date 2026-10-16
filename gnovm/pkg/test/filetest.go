@@ -358,12 +358,18 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		type lineSpan struct{ lo, hi int }
 		var spans []lineSpan
 		gnoErr := make(map[int]string) // start line, source coordinates
+		bodyLines := strings.Count(string(originalSource), "\n")
 		for _, e := range result.gnoErrors {
 			lo, hi := errorSpan(e)
 			if lo == 0 {
 				continue
 			}
 			lo, hi = lo-prependedLines, hi-prependedLines
+			// An EOF error is positioned one past the last line; gc's
+			// marker for it sits on the last line.
+			if lo > bodyLines {
+				lo, hi = bodyLines, bodyLines
+			}
 			spans = append(spans, lineSpan{lo, hi})
 			if _, ok := gnoErr[lo]; !ok {
 				gnoErr[lo] = CleanErrorMessage(e)
@@ -395,7 +401,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 					break
 				}
 			}
-			if !coversMarked && !slices.Contains(overStrict, sp.lo) {
+			// A feature gap on one line of an otherwise checkable file
+			// (a stdlib symbol Gno lacks, a newer language feature) is not
+			// over-strictness; the GnoError block still shows it.
+			if !coversMarked && UnsupportedFeatureError(gnoErr[sp.lo]) == "" && !slices.Contains(overStrict, sp.lo) {
 				overStrict = append(overStrict, sp.lo)
 			}
 		}
@@ -1855,6 +1864,14 @@ func errorcheckGapReason(uncaught, overStrict []int) string {
 // Gno to check: gc diagnostic or runtime-package flags, a -lang pin below
 // go1.17, only GC_ERROR markers, or only pragma-placement markers.
 func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
+	// Positions the harness cannot attribute: `//line` directives remap
+	// them, and a byte order mark inside the file is a parser test.
+	if bytes.Contains(source, []byte("\n//line ")) {
+		return "gc-specific: //line directives remap the positions the markers refer to"
+	}
+	if bytes.Contains(source[1:], []byte("\ufeff")) {
+		return "gc-specific: byte order mark test; the markers sit on the BOM lines"
+	}
 	if firstLine := strings.SplitN(string(source), "\n", 2)[0]; strings.HasPrefix(firstLine, "//") {
 		flags := strings.Fields(strings.TrimPrefix(firstLine, "//"))
 		if len(flags) > 0 && flags[0] == "errorcheckwithauto" {
