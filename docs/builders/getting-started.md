@@ -352,19 +352,10 @@ TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 PKGPATH:    gno.land/r/<your-g1-addr>/myrealm
 ```
 
-The testnet holds a new package until an approver enables it, and a call
-fails until then. Wait for this query to read `"status":"live"`:
-
-```sh
-gnokey query vm/qpkgmeta_json \
-  -data "gno.land/r/<your-g1-addr>/myrealm" \
-  -remote https://rpc.latest.testnets.gno.land:443
-```
-
-A package stays `inert` when it fails to type-check or its storage deposit
-exceeds your balance or your `-max-deposit` cap. The approver gives its
-reason at `https://gpao.latest.testnets.gno.land/status/<pkgpath>`. Once
-live, the package is browsable at
+The testnet enables a new package a few seconds after `addpkg`; if `call`
+answers `package not found`, wait and retry, and
+`https://gpao.latest.testnets.gno.land/status/<pkgpath>` says why a package
+was refused. Once enabled, the package is browsable at
 **`https://latest.testnets.gno.land/r/<your-g1-addr>/myrealm`**.
 
 Two optional flags are worth knowing about:

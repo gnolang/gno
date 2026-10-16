@@ -60,14 +60,9 @@ gnokey maketx addpkg \
   -gas-fee 1000000ugnot -gas-wanted 20000000 \
   -chainid <chain-id> -remote https://rpc.latest.testnets.gno.land:443 dev
 
-# 8. Wait for "status":"live": the testnet holds a new package until an
-#    approver enables it; https://gpao.latest.testnets.gno.land/status/<pkgpath>
-#    gives the reason it refused one
-gnokey query vm/qpkgmeta_json \
-  -data "gno.land/r/<your-g1-addr>/counter" \
-  -remote https://rpc.latest.testnets.gno.land:443
-
-# 9. Call a realm function
+# 8. Call a realm function. The testnet enables a new package a few seconds
+#    after addpkg: on "package not found", wait and retry; a refused one's
+#    reason is at https://gpao.latest.testnets.gno.land/status/<pkgpath>
 gnokey maketx call \
   -pkgpath "gno.land/r/<your-g1-addr>/counter" \
   -func "Increment" \
