@@ -2,6 +2,7 @@ package gnolang_test
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -104,6 +105,25 @@ func TestFiles(t *testing.T) {
 			strings.HasSuffix(path, ".swn") {
 			return nil
 		}
+		// Whitelist filetest extensions. .gno is the native extension;
+		// .go is accepted so regression tests for files from Go's
+		// standard test corpus (/usr/local/go/test/) can be dropped
+		// under tests/files/gocorpus/testdata/ without renaming; their
+		// Gno-vs-Go goldens and `// Verdict:` line are described in
+		// tests/files/gocorpus/README.md.
+		if !strings.HasSuffix(path, ".gno") && !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		// .go filetests must live under a `testdata/` segment so Go's
+		// own tooling (go list / go build / go test) ignores them.
+		// Enforced here rather than relying on contributor discipline:
+		// a stray .go file outside testdata/ would be picked up by
+		// TestFiles AND visible to `go build ./...` simultaneously.
+		if strings.HasSuffix(path, ".go") &&
+			!strings.HasPrefix(path, "testdata/") &&
+			!strings.Contains(path, "/testdata/") {
+			return nil
+		}
 
 		content, err := fs.ReadFile(fsys, path)
 		if err != nil {
@@ -132,6 +152,10 @@ func TestFiles(t *testing.T) {
 			}
 			changed, _, _, err := opts.RunFiletest(path, content, opts.TestStore)
 			if err != nil {
+				var skip *test.SkipError
+				if errors.As(err, &skip) {
+					t.Skip(skip.Reason)
+				}
 				t.Fatal(err.Error())
 			}
 			if changed != "" {
