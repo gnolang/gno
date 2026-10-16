@@ -6,7 +6,7 @@
 -- output.md --
 
 
-> <gno-frame>
+> \<gno-frame>
 > attacker
 
 -- output.html --
@@ -14,8 +14,8 @@
 <!-- Column 0 -->
 <div class="gno-column">
 <blockquote>
-<!-- unexpected/invalid frame tag omitted -->
-<p>attacker</p>
+<p>&lt;gno-frame&gt;
+attacker</p>
 </blockquote>
 </div>
 <!-- Column 1 -->

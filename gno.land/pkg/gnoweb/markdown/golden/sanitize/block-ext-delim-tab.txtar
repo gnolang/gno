@@ -8,8 +8,9 @@ text\n\n\t<gno-card>
 
 text
 
-\	<gno-card>
+	\<gno-card>
 
 -- output.html --
 <p>text</p>
-<p>\	<!-- raw HTML omitted --></p>
+<pre><code>\&lt;gno-card&gt;
+</code></pre>

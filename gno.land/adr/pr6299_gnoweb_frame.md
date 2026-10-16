@@ -156,6 +156,9 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   of the document-level rule. That changes a Gno stdlib and the realm-side
   package, and every future gno-* tag would have to be checked against the
   same container shapes; the parser rule closes the hole where it opens.
+  *(Superseded by PR #6304 / ADR `pr6304_sanitize_gno_tags.md`: the sanitizer now
+  escapes `<gno-…>` tags at block start including after `>` and list markers, with
+  `<gno-icon />` exempted in containers, eliminating container-bypass risks).*
 
 ## Consequences
 
@@ -167,7 +170,7 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   fence indented under a list item makes the sanitizer
   skip the escape on the next unindented line, which goldmark parses at
   document level, so user content can open or close a frame there (the same
-  shape already reaches `<gno-columns>` tags today).
+  shape already reaches `<gno-columns>` tags today). *(Resolved in PR #6304).*
 - Frames cannot sit inside a list, a quote or an alert. Alerts, lists, quotes,
   code, forms and complete column grids (with one card per column at a time)
   inside a frame work.

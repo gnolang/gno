@@ -10,7 +10,6 @@
 - item
   ```
 \<gno-button href="https://evil.example/claim" label="Claim your reward" />
-```
 
 -- output.html --
 <ul>
@@ -19,5 +18,3 @@
 </li>
 </ul>
 <p>&lt;gno-button href=&quot;https://evil.example/claim&quot; label=&quot;Claim your reward&quot; /&gt;</p>
-<pre><code>
-</code></pre>

@@ -404,10 +404,13 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	}
 
 	var (
-		inFence      bool
-		fenceChar    byte
-		fenceLen     int
-		prevNonBlank bool
+		inFence         bool
+		fenceChar       byte
+		fenceLen        int
+		fenceInList     bool
+		fenceListIndent int
+		curListIndent   int
+		prevNonBlank    bool
 	)
 	escapeLeader := mode&modeEscapeLineLeader != 0
 	escapeSetext := mode&modeEscapeSetext != 0
@@ -417,41 +420,52 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		writeNL := idx < len(lines)-1 || trailingNewline
 
 		if inFence {
-			out.WriteString(line)
-			if writeNL {
-				out.WriteByte('\n')
-			}
 			if isCloseFence(line, fenceChar, fenceLen) {
+				out.WriteString(line)
+				if writeNL {
+					out.WriteByte('\n')
+				}
 				inFence = false
+				fenceInList = false
+				curListIndent = 0
+				prevNonBlank = line != ""
+				continue
 			}
-			prevNonBlank = line != ""
-			continue
+			if fenceInList && isNonBlankIndentedLess(line, fenceListIndent) {
+				// In CommonMark, an unindented line terminates the container list item
+				// and any fenced code block inside it. The line is parsed at document
+				// level, so we exit fence mode without writing an extra close fence
+				// and proceed to normal line processing.
+				inFence = false
+				fenceInList = false
+				curListIndent = 0
+			} else {
+				out.WriteString(line)
+				if writeNL {
+					out.WriteByte('\n')
+				}
+				prevNonBlank = line != ""
+				continue
+			}
 		}
 
-		// Extension delimiter lines: a backslash before the `<` makes it a
+		// Track active list item content indentation in Rich mode.
+		if !escapeLeader {
+			if listIndent, ok := parseListMarkerIndent(line); ok {
+				curListIndent = listIndent
+			} else if line == "" || isNonBlankIndentedLess(line, curListIndent) {
+				curListIndent = 0
+			}
+		}
+
+		// Extension delimiters: a backslash before the `<` makes it a
 		// CM §2.4 inline escape, so neither a gno-* block parser nor the
 		// Type-7 HTML block detection sees a tag (a leading space would not
-		// do: the parsers call util.TrimLeftSpace). From 4 columns of indent
-		// the line may be indented code, so the backslash keeps its old
-		// place at line start, ahead of the indent. A backslash shows either
-		// way: after the indent it would be literal code text, and at line
-		// start it precedes a space, which it cannot escape, so the line
-		// renders as `\` plus the indent and the tag (dropped as raw HTML).
-		if isExtDelimiter(line) {
-			trimmed := strings.TrimLeft(line, " \t")
-			lead := line[:len(line)-len(trimmed)]
-			if indentColumns(lead) >= 4 {
-				lead, trimmed = "", line
-			}
-			out.WriteString(lead)
-			out.WriteByte('\\')
-			out.WriteString(trimmed)
-			if writeNL {
-				out.WriteByte('\n')
-			}
-			prevNonBlank = true
-			continue
-		}
+		// do: the parsers call util.TrimLeftSpace). This neutralizes any
+		// unescaped <gno-…> or </gno-…> tag at block start (line-start,
+		// indented, or after list/quote container markers), except
+		// <gno-icon /> which is allowed inside list items and blockquotes.
+		line = escapeGnoExtDelimiters(line)
 
 		// CM §4.6 HTML block types 1-5: prefix with backslash so the
 		// leading `<` becomes a CM §2.4 inline escape and goldmark's
@@ -492,7 +506,7 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		// unconditional. `escapeLeader` gates the doc-spoof markers
 		// (#, >, list, HR) and `escapePipe` gates the GFM table-row
 		// `|` escape; both are on in strict mode and off in Rich.
-		escaped, fc, fl := escapeLineLeader(line, escapeLeader, escapePipe)
+		escaped, fc, fl, indent := escapeLineLeader(line, escapeLeader, escapePipe)
 		out.WriteString(escaped)
 		if writeNL {
 			out.WriteByte('\n')
@@ -501,6 +515,13 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			inFence = true
 			fenceChar = fc
 			fenceLen = fl
+			if !escapeLeader && curListIndent > 0 && indent >= curListIndent {
+				fenceInList = true
+				fenceListIndent = curListIndent
+			} else {
+				fenceInList = false
+				fenceListIndent = 0
+			}
 		}
 		prevNonBlank = line != ""
 	}
@@ -539,53 +560,149 @@ func foldUnicodeSeparators(s string) string {
 	return string(out)
 }
 
-// isExtDelimiter recognises any gnoweb structural-extension delimiter
-// shape via the open/close `<gno-...>` / `</gno-...>` prefixes. The
-// wildcard is intentionally over-permissive: a malformed line like
-// `<gno-x asdf` still trips it, which is fine — the only effect is
-// that the line gets a leading backslash prepended (rendered as a
-// literal `<` per CM §2.4). Future extensions (`<gno-card>`,
-// `<gno-foreign>`, anything later) auto-cover without needing a
-// sanitize-side update.
-//
-// Match is case-INsensitive (`<GNO-Card>`, `<Gno-COLUMNS>`, etc. all
-// trip). Go's html.Tokenizer (used by the extension block parsers in
-// gnoweb at ext_columns.go, ext_alert.go, etc.) lowercases tag names
-// before the per-extension matcher runs, so an uppercase or mixed-
-// case opener still opens the block. The sanitizer therefore must
-// match the same byte-shape envelope the parsers do — otherwise
-// `<GNO-columns>` slips past the sanitizer and opens a columns
-// container in goldmark, swallowing realm chrome.
-//
-// Bare `|||` (the legacy `<gno-columns>` shorthand) is intentionally
-// NOT matched here — the shorthand has been removed from the columns
-// parser, so user content writing `|||` is now harmless paragraph
-// text and doesn't need neutralisation.
-func isExtDelimiter(line string) bool {
-	trim := strings.TrimLeft(line, " \t")
-	if len(trim) == 0 || trim[0] != '<' {
+// hasGnoIconPrefix reports whether s starts with "gno-icon" case-insensitively,
+// followed by a tag delimiter (whitespace, '/', '>', or end of string).
+func hasGnoIconPrefix(s string) bool {
+	const prefix = "gno-icon"
+	if !hasCaseInsensitivePrefix(s, prefix) {
 		return false
 	}
-	rest := trim[1:]
-	// Optional `/` for close tags.
+	if len(s) == len(prefix) {
+		return true
+	}
+	c := s[len(prefix)]
+	return c == ' ' || c == '\t' || c == '/' || c == '>'
+}
+
+// isUnescapedGnoTag reports whether line[i] is an unescaped `<` opening a
+// case-insensitive `<gno-...>` or `</gno-...>` tag.
+func isUnescapedGnoTag(line string, i int) bool {
+	if line[i] != '<' {
+		return false
+	}
+	slashes := 0
+	for k := i - 1; k >= 0 && line[k] == '\\'; k-- {
+		slashes++
+	}
+	if slashes%2 != 0 {
+		return false
+	}
+	rest := line[i+1:]
 	if len(rest) > 0 && rest[0] == '/' {
 		rest = rest[1:]
 	}
 	return hasCaseInsensitivePrefix(rest, "gno-")
 }
 
-// indentColumns returns the width of a run of spaces and tabs, a tab
-// advancing to the next multiple of 4 (CM §2.2).
-func indentColumns(lead string) int {
-	cols := 0
-	for i := 0; i < len(lead); i++ {
-		if lead[i] == '\t' {
-			cols += 4 - cols%4
-		} else {
-			cols++
+// parseContainerPrefix inspects line for leading indentation and CommonMark container
+// markers: blockquotes (>) and bullet/ordered list items (-, *, +, 1., 1)).
+// It returns:
+// - pos: byte offset where the block content starts
+// - hasContainer: true if any container marker (>, -, *, +, digit) was consumed
+func parseContainerPrefix(line string) (int, bool) {
+	i := 0
+	hasContainer := false
+	for i < len(line) {
+		for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
+			i++
+		}
+		if i >= len(line) {
+			break
+		}
+		if line[i] == '>' {
+			hasContainer = true
+			i++
+			continue
+		}
+		if (line[i] == '-' || line[i] == '*' || line[i] == '+') &&
+			i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
+			hasContainer = true
+			i++
+			continue
+		}
+		if line[i] >= '0' && line[i] <= '9' {
+			j := i
+			for j < len(line) && j-i < 9 && line[j] >= '0' && line[j] <= '9' {
+				j++
+			}
+			if j < len(line) && (line[j] == '.' || line[j] == ')') &&
+				j+1 < len(line) && (line[j+1] == ' ' || line[j+1] == '\t') {
+				hasContainer = true
+				i = j + 1
+				continue
+			}
+		}
+		break
+	}
+	return i, hasContainer
+}
+
+// parseListMarkerIndent reports whether line begins with a CommonMark list marker
+// (bullet -, *, + or ordered [0-9]+[.)]), and returns the indentation required for
+// its contents.
+func parseListMarkerIndent(line string) (int, bool) {
+	i := 0
+	for i < len(line) && (line[i] == ' ' || line[i] == '\t') {
+		i++
+	}
+	if i >= len(line) {
+		return 0, false
+	}
+	if (line[i] == '-' || line[i] == '*' || line[i] == '+') &&
+		i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
+		return i + 2, true
+	}
+	if line[i] >= '0' && line[i] <= '9' {
+		j := i
+		for j < len(line) && j-i < 9 && line[j] >= '0' && line[j] <= '9' {
+			j++
+		}
+		if j < len(line) && (line[j] == '.' || line[j] == ')') &&
+			j+1 < len(line) && (line[j+1] == ' ' || line[j+1] == '\t') {
+			return j + 2, true
 		}
 	}
-	return cols
+	return 0, false
+}
+
+// escapeGnoExtDelimiters recognises any gnoweb structural-extension delimiter
+// shape via the open/close `<gno-...>` / `</gno-...>` prefixes where a block
+// can open (at line start, after indentation, or after container markers like
+// `>`, `-`, `*`, `+`, `1.`, `1)`) and prefixes the unescaped `<` with a
+// backslash so it becomes a CM §2.4 inline escape.
+//
+// The wildcard is intentionally over-permissive: a malformed line like
+// `<gno-x asdf` still trips it, which is fine — the only effect is
+// that the tag gets an escaping backslash prepended (rendered as a
+// literal `<` per CM §2.4). Future extensions (`<gno-card>`,
+// `<gno-foreign>`, `<gno-frame>`, anything later) auto-cover without
+// needing a sanitize-side update.
+//
+// Match is case-INsensitive (`<GNO-Card>`, `<Gno-COLUMNS>`, etc. all
+// trip). Go's html.Tokenizer (used by the extension block parsers in
+// gnoweb at ext_columns.go, ext_alert.go, etc.) lowercases tag names
+// before the per-extension matcher runs, so an uppercase or mixed-
+// case opener still opens the block. The sanitizer therefore must
+// match the same byte-shape envelope the parsers do.
+//
+// Unescaped occurrences (not preceded by an odd number of backslashes)
+// are escaped; already-escaped tags (e.g. `\<gno-card>`) are left intact
+// to preserve idempotency. Mid-line tags (e.g. `<gno-icon />`) are not
+// at block start and remain unescaped. <gno-icon /> is on the allow-list
+// of extensions permitted in user content, so its openers are not escaped
+// when placed inside list items or blockquotes, while at line-start without
+// a container they are escaped like any other <gno-…> tag.
+func escapeGnoExtDelimiters(line string) string {
+	pos, hasContainer := parseContainerPrefix(line)
+	if pos >= len(line) || !isUnescapedGnoTag(line, pos) {
+		return line
+	}
+	rest := line[pos+1:]
+	isClose := len(rest) > 0 && rest[0] == '/'
+	if !isClose && hasContainer && hasGnoIconPrefix(rest) {
+		return line
+	}
+	return line[:pos] + "\\" + line[pos:]
 }
 
 // gnoButtonTag is matched case-insensitively, as gnoweb matches it.
@@ -633,8 +750,7 @@ func escapeGnoButtonTags(line string) string {
 // Detection mirrors goldmark's regexes at parser/html_block.go:79-92
 // (case-insensitive Type 1 tag name; case-sensitive Types 2/3/4/5;
 // ASCII space-only indent of 0-3 columns — tabs are deliberately NOT
-// allowed since goldmark uses `[ ]{0,3}` literal, divergent from
-// isExtDelimiter's `TrimLeft(line, " \t")`).
+// allowed since goldmark uses `[ ]{0,3}` literal).
 //
 // Type 4 uses `[A-Z]` (one uppercase letter) where goldmark's regex
 // is `[A-Z]+` — equivalent for opener detection because any line
@@ -746,9 +862,62 @@ func isSetextUnderline(line string) bool {
 	return true
 }
 
+// parseFenceOpener reports whether line opens a CommonMark §4.5 fenced code
+// block. An opening fence begins with 0-3 spaces of indentation, followed
+// by at least 3 backticks or tildes. For backtick fences, the info string
+// must not contain another backtick.
+// Returns (fenceChar, fenceLen, indent, ok).
+func parseFenceOpener(line string) (byte, int, int, bool) {
+	i := 0
+	for i < len(line) && i < 3 && line[i] == ' ' {
+		i++
+	}
+	if i >= len(line) {
+		return 0, 0, 0, false
+	}
+	c := line[i]
+	if c != '`' && c != '~' {
+		return 0, 0, 0, false
+	}
+	j := i
+	for j < len(line) && line[j] == c {
+		j++
+	}
+	fenceLen := j - i
+	if fenceLen < 3 {
+		return 0, 0, 0, false
+	}
+	// CM §4.5: backtick fences with a backtick in the info string do NOT open.
+	if c == '`' && hasBacktickBeforeNewline(line, j) {
+		return 0, 0, 0, false
+	}
+	return c, fenceLen, i, true
+}
+
+// isNonBlankIndentedLess reports whether line is non-blank (contains at least
+// one non-whitespace character) and is preceded by fewer than minIndent spaces.
+func isNonBlankIndentedLess(line string, minIndent int) bool {
+	i := 0
+	for i < len(line) && line[i] == ' ' {
+		i++
+	}
+	if i >= minIndent {
+		return false
+	}
+	if i < len(line) && line[i] == '\t' {
+		return false
+	}
+	for j := i; j < len(line); j++ {
+		if line[j] != ' ' && line[j] != '\t' && line[j] != '\r' && line[j] != '\n' {
+			return true
+		}
+	}
+	return false
+}
+
 // escapeLineLeader escapes a single line-leading block marker by
 // prefixing it with \. Returns (possibly-escaped line, fence-char,
-// fence-len) — fence char/len are returned when the line opens a
+// fence-len, fence-indent) — fence char/len/indent are returned when the line opens a
 // code fence (length >= 3).
 //
 // The `escapeLeader` flag gates the doc-spoof markers (#, >, list,
@@ -757,13 +926,13 @@ func isSetextUnderline(line string) bool {
 // line-leading `|` is preserved so user content can render as a
 // table. Fenced-code-block detection is always on (state machine
 // tracking, not a defense).
-func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte, int) {
+func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte, int, int) {
 	i := 0
 	for i < len(line) && i < 3 && line[i] == ' ' {
 		i++
 	}
 	if i >= len(line) {
-		return line, 0, 0
+		return line, 0, 0, 0
 	}
 	c := line[i]
 	switch c {
@@ -775,27 +944,27 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte,
 				j++
 			}
 			if j-i >= 1 && j-i <= 6 && (j == len(line) || line[j] == ' ' || line[j] == '\t') {
-				return line[:i] + "\\" + line[i:], 0, 0
+				return line[:i] + "\\" + line[i:], 0, 0, 0
 			}
 		}
 	case '>':
 		if escapeLeader {
-			return line[:i] + "\\" + line[i:], 0, 0
+			return line[:i] + "\\" + line[i:], 0, 0, 0
 		}
 	case '-', '*', '_':
 		if escapeLeader {
 			// Thematic break: 3+ of -, *, or _ optionally separated by spaces.
 			if isThematicBreak(line, i) {
-				return line[:i] + "\\" + line[i:], 0, 0
+				return line[:i] + "\\" + line[i:], 0, 0, 0
 			}
 			// Bullet list marker: - or * followed by space.
 			if (c == '-' || c == '*') && i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
-				return line[:i] + "\\" + line[i:], 0, 0
+				return line[:i] + "\\" + line[i:], 0, 0, 0
 			}
 		}
 	case '+':
 		if escapeLeader && i+1 < len(line) && (line[i+1] == ' ' || line[i+1] == '\t') {
-			return line[:i] + "\\" + line[i:], 0, 0
+			return line[:i] + "\\" + line[i:], 0, 0, 0
 		}
 	case '|':
 		// GFM table-row line leader. gnoweb loads
@@ -804,35 +973,15 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte,
 		// Block keeps tables out of user content (strict posture);
 		// BlockRich preserves them so authors can compose tables.
 		if escapePipe {
-			return line[:i] + "\\" + line[i:], 0, 0
+			return line[:i] + "\\" + line[i:], 0, 0, 0
 		}
 	case '`', '~':
 		// Fenced code block: 3+ of ` or ~. Code fences are legitimate
 		// user content (users want to share code); do NOT escape them.
 		// Just mark the fence as open so the EOF auto-close can fire if
 		// the user never closes it.
-		//
-		// CM §4.5: for BACKTICK fences only, the info string MUST NOT
-		// contain another backtick. Goldmark enforces this — if the
-		// info string contains a `, no fence opens (the line is paragraph
-		// text). The sanitizer MUST mirror this exactly, or it would
-		// treat the line as a fence open while goldmark treats subsequent
-		// lines as paragraph content where line-leader / extension /
-		// HTML-block defenses normally apply. Without the check, an
-		// caller can write "```a`b" to make the sanitizer believe a
-		// fence opened and skip defenses on `<gno-…>`, `<!--`, `===`,
-		// `#`, `|---|`, etc. on the following lines, while goldmark
-		// happily opens those blocks. Tilde fences are NOT subject to
-		// this rule (tildes ARE allowed in tilde-fence info strings).
-		j := i
-		for j < len(line) && line[j] == c {
-			j++
-		}
-		if j-i >= 3 {
-			if c == '`' && hasBacktickBeforeNewline(line, j) {
-				return line, 0, 0
-			}
-			return line, c, j - i
+		if fc, fl, indent, ok := parseFenceOpener(line); ok {
+			return line, fc, fl, indent
 		}
 	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		// Ordered list marker: 1-9 digits followed by . or ) and space.
@@ -844,11 +993,11 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte,
 			if j < len(line) && (line[j] == '.' || line[j] == ')') &&
 				j+1 < len(line) && (line[j+1] == ' ' || line[j+1] == '\t') {
 				// Escape the digit run by prefixing the delimiter with \.
-				return line[:j] + "\\" + line[j:], 0, 0
+				return line[:j] + "\\" + line[j:], 0, 0, 0
 			}
 		}
 	}
-	return line, 0, 0
+	return line, 0, 0, 0
 }
 
 func isThematicBreak(line string, start int) bool {
@@ -968,40 +1117,24 @@ func findBracketSpans(s string) []bracketSpan {
 				nextClose = i + rel
 			}
 		}
-		// Fence open at line-start (0-3 lead spaces, ≥3 backticks or tildes)?
+		// Fence open (0-3 lead spaces, ≥3 backticks or tildes)?
 		if atLineStart {
-			j := i
-			// skip up to 3 leading spaces
-			for j < len(s) && j-i < 3 && s[j] == ' ' {
-				j++
+			lineEnd := strings.IndexByte(s[i:], '\n')
+			var line string
+			var lineLen int
+			if lineEnd < 0 {
+				line = s[i:]
+				lineLen = len(line)
+			} else {
+				line = s[i : i+lineEnd]
+				lineLen = lineEnd + 1
 			}
-			if j < len(s) && (s[j] == '`' || s[j] == '~') {
-				fenceChar := s[j]
-				k := j
-				for k < len(s) && s[k] == fenceChar {
-					k++
-				}
-				if k-j >= 3 {
-					// CM §4.5: backtick fences with a backtick in the
-					// info string do NOT open. Without this check the
-					// walker treats subsequent lines as fence interior
-					// (skipping LRD strip + bracket escape) while
-					// goldmark treats them as paragraph — letting an
-					// caller smuggle a ref-link definition past the
-					// walker.
-					if fenceChar == '`' && hasBacktickBeforeNewline(s, k) {
-						i = k
-						atLineStart = false
-						continue
-					}
-					// Fence opens. Find close.
-					fenceLen := k - j
-					end := findFenceClose(s, k, fenceChar, fenceLen)
-					spans = append(spans, bracketSpan{start: i, end: end, kind: spanFence})
-					i = end
-					atLineStart = (end > 0 && s[end-1] == '\n')
-					continue
-				}
+			if fc, fl, _, ok := parseFenceOpener(line); ok {
+				end := findFenceClose(s, i+lineLen, fc, fl)
+				spans = append(spans, bracketSpan{start: i, end: end, kind: spanFence})
+				i = end
+				atLineStart = (end > 0 && end <= len(s) && s[end-1] == '\n')
+				continue
 			}
 		}
 
@@ -1090,49 +1223,26 @@ func atLineStartAt(s string, pos int) bool {
 
 // findFenceClose returns the byte index AFTER the closing fence line, or
 // len(s) if no close is found (treat-as-opaque-to-EOF). `from` is the byte
-// index right after the open fence's last fence char.
+// index right after the open fence's line.
 func findFenceClose(s string, from int, fenceChar byte, fenceLen int) int {
-	// Skip rest of open fence's line
 	i := from
-	for i < len(s) && s[i] != '\n' {
-		i++
-	}
-	if i < len(s) {
-		i++ // past the newline
-	}
-	// Scan lines
 	for i < len(s) {
-		// line start
-		j := i
-		// 0-3 lead spaces
-		for j < len(s) && j-i < 3 && s[j] == ' ' {
-			j++
+		lineEnd := strings.IndexByte(s[i:], '\n')
+		var line string
+		var nextLine int
+		if lineEnd < 0 {
+			line = s[i:]
+			nextLine = len(s)
+		} else {
+			line = s[i : i+lineEnd]
+			nextLine = i + lineEnd + 1
 		}
-		// count fence chars
-		k := j
-		for k < len(s) && s[k] == fenceChar {
-			k++
+
+		if isCloseFence(line, fenceChar, fenceLen) {
+			return nextLine
 		}
-		if k-j >= fenceLen {
-			// rest of line must be whitespace
-			rest := k
-			for rest < len(s) && s[rest] != '\n' && (s[rest] == ' ' || s[rest] == '\t') {
-				rest++
-			}
-			if rest >= len(s) || s[rest] == '\n' {
-				if rest < len(s) {
-					rest++
-				}
-				return rest
-			}
-		}
-		// Not a close fence — skip to next line
-		for i < len(s) && s[i] != '\n' {
-			i++
-		}
-		if i < len(s) {
-			i++
-		}
+
+		i = nextLine
 	}
 	return len(s)
 }
