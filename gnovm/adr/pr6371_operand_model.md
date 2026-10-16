@@ -1,4 +1,4 @@
-# PRxxxx: the operand model for the checker rules
+# PR6371: the operand model for the checker rules
 
 ## Context
 
