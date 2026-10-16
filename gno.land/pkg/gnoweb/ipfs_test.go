@@ -2,6 +2,7 @@ package gnoweb
 
 import (
 	"bytes"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -74,6 +75,19 @@ func TestNormalizeIPFSGateway(t *testing.T) {
 	assert.Equal(t, "https://ipfs.filebase.io", got)
 }
 
+// secretGateways are invalid gateway settings carrying a secret, which no
+// error or log line may echo.
+var secretGateways = []string{
+	"https://user:s3cret@gw.example",
+	"https://x.mypinata.cloud?pinataGatewayToken=s3cret",
+	"https://x.mypinata.cloud/#s3cret",
+	"https://user:s3cret^x@gw.example", // url.Parse fails, and its error quotes the value
+	"https://user:s3cret/x@gw.example", // or part of it, as a port
+	"https://gw.example/s3cret",        // a token in the path
+	"https://gw.example;token=s3cret",
+	`https://gw.example\s3cret`,
+}
+
 func TestNewRouterIPFSGateway(t *testing.T) {
 	t.Parallel()
 
@@ -111,16 +125,7 @@ func TestNewRouterIPFSGateway(t *testing.T) {
 	assert.ErrorContains(t, err, "invalid IPFS gateway")
 
 	// The startup error never echoes the value, which may hold a secret.
-	for _, secret := range []string{
-		"https://user:s3cret@gw.example",
-		"https://x.mypinata.cloud?pinataGatewayToken=s3cret",
-		"https://x.mypinata.cloud/#s3cret",
-		"https://user:s3cret^x@gw.example", // url.Parse fails, and its error quotes the value
-		"https://user:s3cret/x@gw.example", // or part of it, as a port
-		"https://gw.example/s3cret",        // a token in the path
-		"https://gw.example;token=s3cret",
-		`https://gw.example\s3cret`,
-	} {
+	for _, secret := range secretGateways {
 		bad.RenderConfig.IPFSGateway = secret
 		_, err = NewRouter(log.NewTestingLogger(t), bad)
 		require.Error(t, err)
@@ -155,4 +160,17 @@ func TestNewHTMLRendererIPFSGateway(t *testing.T) {
 	assert.Contains(t, render("https://gw.example/"), `src="https://gw.example/ipfs/`+cid+`"`)
 	// Not rendered as a relative URL: an invalid gateway is ignored.
 	assert.Contains(t, render("gw.example"), `src="ipfs://`+cid+`"`)
+}
+
+func TestNewHTMLRendererIPFSGatewayLog(t *testing.T) {
+	t.Parallel()
+
+	for _, secret := range secretGateways {
+		var logs bytes.Buffer
+		cfg := NewDefaultRenderConfig()
+		cfg.IPFSGateway = secret
+		NewHTMLRenderer(slog.New(slog.NewTextHandler(&logs, nil)), cfg, nil)
+		assert.Contains(t, logs.String(), "ignoring invalid IPFS gateway", secret)
+		assert.NotContains(t, logs.String(), "s3cret")
+	}
 }

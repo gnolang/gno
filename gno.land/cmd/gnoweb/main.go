@@ -238,7 +238,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.ipfsGateway,
 		"ipfs-gateway",
 		defaultWebOptions.ipfsGateway,
-		"IPFS gateway origin that ipfs:// URLs and retired gateway URLs (ipfs.io, dweb.link, ...) are rewritten to; empty disables the rewrite",
+		"IPFS gateway origin that ipfs:// URLs and URLs on retired gateways (ipfs.io, dweb.link, ...) or on ipfs.filebase.io are rewritten to; empty disables the rewrite",
 	)
 
 	fs.BoolVar(
