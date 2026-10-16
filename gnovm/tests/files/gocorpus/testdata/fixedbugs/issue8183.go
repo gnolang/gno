@@ -22,4 +22,4 @@ const (
 	f // ERROR "array bound must be non-negative|negative array bound|invalid array length"
 )
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15, 21, 22; over-strict: lines 19
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15, 21, 22
