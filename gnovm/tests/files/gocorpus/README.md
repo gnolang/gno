@@ -13,12 +13,12 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 |---|---|
 | `GnoOutput:` / `GoOutput:` | stdout of Gno and of `go run` (run files) |
 | `Output:` / `GoOutput:` | the same pair for a native `.gno` filetest that opts in: adding `GoOutput:` makes the harness run Go too and demand the `Verdict:` line; `.gno` files without it are untouched |
-| `GnoError:` | Gno's own errors, per line, wording kept |
+| `GnoError:` | Gno's own errors, per line, wording kept (a runtime panic in run mode, preprocess errors in compile mode) |
 | `GoBuildError:` | lines gc (`go build`) flagged, compile files; lines only, their wording follows the Go release |
 
 | verdict | meaning |
 |---|---|
-| `Verdict: Clean <mode>` | both checkers reach the same verdict (`run`); wording differences stay in the evidence blocks |
+| `Verdict: Clean <mode>` | both checkers reach the same verdict (run \| compile); wording differences stay in the evidence blocks |
 | `Verdict: Unsupported <tag>: <reason>` | skipped, feature gap or gc-only test; tags in `corpus.go` (`unsupportedTags`) |
 | `Verdict: KnownIssue <mode>: <reason>` | Gno is wrong here; the reason must cite the tracking issue (`#NNNN` or an issue URL) |
 | `Verdict: KnownDivergence <mode>: <reason>` | Gno differs on purpose; the reason must cite the Gno decision it rests on (a `docs/` page, `#NNNN` or a URL); the Go spec merely permitting a difference is not one. A divergence nobody has decided is a `KnownIssue` |

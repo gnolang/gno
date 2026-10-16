@@ -67,6 +67,7 @@ func (e *SkipError) Error() string { return "skipped: " + e.Reason }
 // Go type-checking in filetests is only available for gnovm internal filetests
 // in test/files.
 func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store, tcheck bool) (newContent string, gas types.Gas, diffs gno.StorageDiffs, retErr error) {
+	rawSource := source // as on disk, golden region included
 	dirs, err := ParseDirectives(bytes.NewReader(source))
 	if err != nil {
 		return "", 0, nil, fmt.Errorf("error parsing directives: %w", err)
@@ -116,6 +117,27 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// THIS, never the rescued source — the rescue transforms must
 	// not be persisted (gocorpus files stay upstream-verbatim).
 	originalSource := source
+	// Capture the golden region now, before the compile-mode rescue
+	// re-parses dirs from the rescued source.
+	origDirs := dirs
+	// prependedLines is how many lines the rescue added at the top (0 or
+	// 1), used to map Gno's error lines back to original-file coordinates.
+	prependedLines := 0
+	prependRescue := func() error {
+		source = PrependPkgPathIfNeeded(source)
+		if bytes.HasPrefix(source, []byte("// PKGPATH:")) &&
+			!bytes.HasPrefix(originalSource, []byte("// PKGPATH:")) {
+			prependedLines = 1
+		}
+		// Re-parse so the prepended `// PKGPATH:` line reaches the
+		// directive parser.
+		dirs, err = ParseDirectives(bytes.NewReader(source))
+		if err != nil {
+			return fmt.Errorf("error re-parsing directives after pkgpath rescue: %w", err)
+		}
+		return nil
+	}
+	compileMode := false
 	// .gno files opt INTO Gno-vs-Go comparison by declaring
 	// `// GoOutput:` (or a KnownDivergence verdict). Without it, .gno
 	// files keep their pure-Gno behavior — the 1600+ existing files
@@ -129,9 +151,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
 			// errorcheck mode lands with the error-accumulating preprocessor.
 			return "", 0, diffs, fmt.Errorf("filetest %s: inline // ERROR markers are not supported yet", fname)
-		case CorpusDirective(source) == "compile" || (!IsRunnable(source) && !hasErrorDir && !hasTypeCheckErrorDir):
-			// compile mode lands with the compile files.
-			return "", 0, diffs, fmt.Errorf("filetest %s: compile-only corpus files are not supported yet", fname)
+		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
+			// `// compile`: gc compiles but never runs it. Preprocess only
+			// and check that Gno and go/types accept it; takes precedence
+			// over run mode even when the file is runnable.
+			compileMode = true
+			if err := prependRescue(); err != nil {
+				return "", 0, diffs, err
+			}
+		case !IsRunnable(source) && !hasErrorDir && !hasTypeCheckErrorDir:
+			// No main to run and no markers to check: compile-only,
+			// whatever the header says.
+			compileMode = true
+			if err := prependRescue(); err != nil {
+				return "", 0, diffs, err
+			}
 		default:
 			// Runnable .go corpus file: symmetric Gno-vs-Go.
 			isGoRunMode = true
@@ -143,11 +177,13 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		// directives drive the Gno-vs-Go finalize at the end.
 		isGoRunMode = true
 	}
-	// One verdict line per Go-compared file (.go corpus files and
-	// opted-in .gno files alike); sync writes it, verify demands it.
-	if isGoRunMode && !opts.Sync {
+	// One verdict line per Go-compared file (.go corpus files in run or
+	// compile mode, opted-in .gno files); sync writes it, verify demands it.
+	// origDirs: the compile-mode rescue appends a synthetic main after
+	// the golden tail, so the re-parsed dirs no longer see the verdict.
+	if (isGoRunMode || compileMode) && !opts.Sync {
 		n := 0
-		for _, d := range dirs {
+		for _, d := range origDirs {
 			if d.Name == DirectiveVerdict {
 				n++
 			}
@@ -155,7 +191,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		if n != 1 {
 			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
 		}
-		v, ok := verdictIn(dirs)
+		v, ok := verdictIn(origDirs)
 		if !ok {
 			return "", 0, diffs, fmt.Errorf("malformed `// Verdict:` line: want `<Kind> <mode>[: <reason>]`")
 		}
@@ -229,7 +265,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Errorcheck and compile files are not executed (gc doesn't run
 	// them; executing can hang on infinite loops Gno fails to reject) —
 	// preprocess only.
-	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, false)
+	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, compileMode)
 
 	// Collect storage diffs after test execution.
 	diffs = m.Store.RealmStorageDiffs()
@@ -282,6 +318,54 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			}
 			return "", m.GasMeter.GasConsumed(), diffs, &SkipError{Reason: reason}
 		}
+	}
+
+	// Compile mode: Gno's preprocess against gc. Two evidence blocks
+	// (GnoError, and GoBuildError as line numbers) and one verdict:
+	// `Clean compile` when gc agrees with Gno, accepting or rejecting;
+	// `KnownIssue compile` when only Gno rejects. The verdict's reason
+	// obeys the same rules as run mode (verdict.check: no TODO, a
+	// KnownIssue cites its issue).
+	if compileMode {
+		gas := m.GasMeter.GasConsumed()
+		gnoErr := PerLineErrors(result.Error, prependedLines)
+		if len(gnoErr) == 0 {
+			// Gno accepts, as gc does upstream: no `go build` needed.
+			sections := []goldenSection{
+				{name: DirectiveGnoError}, {name: DirectiveGoBuildError},
+				{name: DirectiveVerdict, block: verdict{Kind: VerdictClean, Mode: "compile"}.String(), inline: true},
+			}
+			newContent, err := opts.resolveStaticGolden(rawSource, originalSource, origDirs, sections)
+			return newContent, gas, diffs, err
+		}
+		// gc is the reference: `// compile` upstream means gc accepts the
+		// file. Whenever Gno rejects, ask `go build` (sync; verify reuses
+		// the pinned lines, and an absent block means gc accepted).
+		var goBuildErr map[int]string
+		if opts.Sync {
+			buildOut, err := runGoToolchain(source, true)
+			if err != nil {
+				return "", gas, diffs, fmt.Errorf("filetest %s: cannot build via Go toolchain "+"(install go, or mark file `// Unsupported:`): %w", fname, err)
+			}
+			goBuildErr = PerLineErrors(buildOut, prependedLines)
+		} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
+			goBuildErr = ParseLineBlock(d.Content)
+		}
+		v := verdict{Kind: VerdictClean, Mode: "compile"}
+		if len(goBuildErr) == 0 {
+			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc accepts)"}
+			// Keep a cited human verdict (KnownIssue or KnownDivergence) across re-syncs.
+			if prev, ok := verdictIn(origDirs); ok && prev.Kind != VerdictClean && prev.Kind != VerdictUnsupported && prev.check() == nil {
+				v = prev
+			}
+		}
+		sections := []goldenSection{
+			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
+			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
+			{name: DirectiveVerdict, block: v.String(), inline: true},
+		}
+		newContent, err := opts.resolveStaticGolden(rawSource, originalSource, origDirs, sections)
+		return newContent, gas, diffs, err
 	}
 
 	// updated tells whether the directives have been mutated and the
@@ -443,6 +527,68 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	return "", m.GasMeter.GasConsumed(), diffs, returnErr
 }
 
+// goldenSection is one named per-line golden block (`// GnoError:` or
+// `// GoBuildError:`) to (re)write at the bottom of a compile-mode file.
+type goldenSection struct {
+	name   string // directive name, e.g. DirectiveGnoError
+	block  string // FormatGnoErrorBlock output (may be empty → omitted)
+	inline bool   // single-line `// Name: block` (verdicts)
+}
+
+// resolveStaticGolden compares the wanted golden sections with the ones
+// on disk. Verify fails on a missing, stale or differing block and on a
+// stray block from an older ledger format; sync rewrites the region.
+func (opts *TestOptions) resolveStaticGolden(rawSource, originalSource []byte, dirs Directives, sections []goldenSection) (string, error) {
+	allOK := true
+	for _, s := range sections {
+		d := dirs.First(s.name)
+		ok := (s.block == "" && d == nil) || (d != nil && strings.TrimRight(d.Content, "\n") == s.block)
+		allOK = allOK && ok
+	}
+	allowed := make([]string, 0, len(sections))
+	for _, s := range sections {
+		allowed = append(allowed, s.name)
+	}
+	stray := strayGoldenBlocks(string(rawSource), allowed)
+	if allOK && len(stray) == 0 {
+		return "", nil
+	}
+	if opts.Sync {
+		return writeStaticGolden(originalSource, sections), nil
+	}
+	for _, s := range sections {
+		d := dirs.First(s.name)
+		switch {
+		case s.block != "" && d == nil:
+			return "", fmt.Errorf(
+				"no `// %s:` block present; re-run with "+
+					"--update-golden-tests to record it:\n%s", s.name, indent(s.block, "  "))
+		case s.block == "" && d != nil:
+			return "", fmt.Errorf("stale `// %s:` block; re-run with --update-golden-tests to remove it", s.name)
+		case d != nil && strings.TrimRight(d.Content, "\n") != s.block:
+			return "", fmt.Errorf("// %s: diff:\n%s", s.name, unifiedDiff(d.Content, s.block))
+		}
+	}
+	return "", fmt.Errorf("stray `// %s:` block in the golden region; re-run with --update-golden-tests to drop it", stray[0])
+}
+
+var reGoldenHeader = regexp.MustCompile(`^// ([A-Z][A-Za-z]*):`)
+
+// strayGoldenBlocks lists the `// Name:` headers in src's trailing golden
+// region that are not in allowed (blocks an older ledger format wrote).
+func strayGoldenBlocks(src string, allowed []string) []string {
+	region := strings.TrimPrefix(src, stripTrailingGoldenRegion(src))
+	var stray []string
+	for l := range strings.SplitSeq(region, "\n") {
+		m := reGoldenHeader.FindStringSubmatch(l)
+		if m == nil || slices.Contains(allowed, m[1]) || slices.Contains(triageStateMarkers, m[1]) {
+			continue
+		}
+		stray = append(stray, m[1])
+	}
+	return stray
+}
+
 // writeUnsupportedDirective returns originalSource (golden region
 // stripped) with a trailing `// Unsupported: <reason>` directive, so a
 // file that fails on a Gno-unsupported import is skipped on future
@@ -452,10 +598,62 @@ func writeUnsupportedDirective(originalSource []byte, reason string) string {
 	return body + "\n\n// " + DirectiveVerdict + ": " + VerdictUnsupported + " " + TagUnsupportedReason(reason) + "\n"
 }
 
+// writeStaticGolden returns the file content for a compile-mode golden
+// update: originalSource (upstream-verbatim — NOT the rescued source, so
+// in-memory transforms aren't persisted) with a trailing golden region
+// appended, each non-empty section blank-line separated. Any existing
+// trailing golden region is replaced rather than duplicated.
+func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
+	// Capture triage state marker lines before stripping so a golden
+	// refresh never drops manual triage status.
+	var stateLines []string
+	for ln := range strings.SplitSeq(string(originalSource), "\n") {
+		t := strings.TrimSpace(ln)
+		for _, name := range triageStateMarkers {
+			if strings.HasPrefix(t, "// "+name+":") {
+				stateLines = append(stateLines, t)
+			}
+		}
+	}
+	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
+	var sb strings.Builder
+	sb.WriteString(body)
+	sb.WriteString("\n")
+	// Canonical marker position: between the code body and the pinned
+	// golden region (same place the run-mode writer keeps them).
+	for _, ln := range stateLines {
+		sb.WriteString("\n")
+		sb.WriteString(ln)
+		sb.WriteString("\n")
+	}
+	for _, s := range sections {
+		if s.block == "" {
+			continue
+		}
+		if s.inline {
+			sb.WriteString("\n// " + s.name + ": " + s.block + "\n")
+			continue
+		}
+		sb.WriteString("\n// ")
+		sb.WriteString(s.name)
+		sb.WriteString(":\n")
+		for line := range strings.SplitSeq(s.block, "\n") {
+			if line == "" {
+				sb.WriteString("//\n")
+				continue
+			}
+			sb.WriteString("// ")
+			sb.WriteString(line)
+			sb.WriteString("\n")
+		}
+	}
+	return sb.String()
+}
+
 // goldenRegionStarts are the directive names that can begin the trailing
 // golden region of an errorcheck file.
 var goldenRegionStarts = []string{
-	DirectiveGnoError,
+	DirectiveGnoError, DirectiveGoBuildError,
 	// .go corpus files only: the run-mode goldens and the verdict line,
 	// so a rewrite leaves no stale block behind.
 	DirectiveGnoOutput, DirectiveGoOutput, DirectiveTypeCheckError,
@@ -466,7 +664,7 @@ var goldenRegionStarts = []string{
 // `// Fixing:`, `// Tracked:`) written by manual triage after the golden
 // region. They are NOT harness directives (never add them to
 // allDirectives); stripTrailingGoldenRegion treats a trailing marker
-// block as strippable so a re-sync replaces rather than duplicates it.
+// block as strippable and writeStaticGolden re-appends it on re-sync.
 var triageStateMarkers = []string{"Fixed", "Fixing", "Tracked"}
 
 // stripTrailingGoldenRegion removes the trailing golden region — one or
@@ -989,6 +1187,11 @@ const (
 	DirectiveGnoOutput = "GnoOutput"
 	DirectiveGoOutput  = "GoOutput"
 	DirectiveGnoError  = "GnoError"
+	// DirectiveGoBuildError pins the lines `go build` flagged on a
+	// compile-mode file (numbers only, wording follows the Go release).
+	// Gno's side of a compile file is the same `// GnoError:` block run
+	// mode uses; the verdict's mode says which stage produced it.
+	DirectiveGoBuildError = "GoBuildError"
 )
 
 // nativeDirectives are the .gno filetest directives; corpusDirectives
@@ -1016,6 +1219,7 @@ var corpusDirectives = []string{
 	DirectiveGnoOutput,
 	DirectiveGoOutput,
 	DirectiveGnoError,
+	DirectiveGoBuildError,
 }
 
 var allDirectives = slices.Concat(nativeDirectives, corpusDirectives)
@@ -1040,9 +1244,10 @@ var singleLinePascalDirectives = map[string]bool{
 // skipped). `// GoOutput:` with no lines means "Go produces no stdout"
 // — a pinned-golden assertion we want visible in the file.
 var pinnedGoldenDirectives = map[string]bool{
-	DirectiveGnoOutput: true,
-	DirectiveGoOutput:  true,
-	DirectiveGnoError:  true,
+	DirectiveGnoOutput:    true,
+	DirectiveGoOutput:     true,
+	DirectiveGnoError:     true,
+	DirectiveGoBuildError: true,
 }
 
 // Directives contains the directives of a file.

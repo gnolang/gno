@@ -75,6 +75,40 @@ func HasInlineErrorMarkers(source []byte) bool {
 	return false
 }
 
+// PrependPkgPathIfNeeded rescues compile-only files
+// declaring a non-main package (e.g. `package p`) so they reach
+// Gno's preprocess+typecheck phase instead of bouncing on the
+// realm-naming requirement. Two transforms:
+//
+//  1. Prepend `// PKGPATH: gno.land/p/filetest/<name>` so Gno's
+//     harness stops bailing with "expected package name [main] but
+//     got [p]".
+//  2. Append `func main() {}` when source has no `main()` of its
+//     own, so Gno's executor doesn't then bail with "name main not
+//     declared" once PKGPATH gets it past the package-name check.
+//
+// No-op when source is already `package main` or already declares
+// its own `// PKGPATH:`. The chosen pkgpath prefix is intentionally
+// neutral — `gno.land/p/filetest/` — so external test drivers can
+// reuse this helper without a namespace clash.
+func PrependPkgPathIfNeeded(source []byte) []byte {
+	if bytes.Contains(source, []byte("// PKGPATH:")) {
+		return source
+	}
+	m := pkgDeclRe.FindSubmatch(source)
+	if m == nil || string(m[1]) == "main" {
+		return source
+	}
+	prefix := fmt.Appendf(nil, "// PKGPATH: gno.land/p/filetest/%s\n", m[1])
+	out := make([]byte, 0, len(prefix)+len(source))
+	out = append(out, prefix...)
+	out = append(out, source...)
+	if !funcMainRe.Match(source) {
+		out = append(out, "\nfunc main() {}\n"...)
+	}
+	return out
+}
+
 // pkgDeclRe matches the Go package declaration; captures the name.
 var pkgDeclRe = regexp.MustCompile(`(?m)^package (\w+)`)
 
@@ -86,8 +120,8 @@ var funcMainRe = regexp.MustCompile(`(?m)^func\s+main\s*\(\)`)
 
 // IsRunnable reports whether source can be `go run` — i.e. declares
 // `package main` AND has a top-level `func main()`. Files lacking
-// either are compile-only by intent: gc accepts and never runs them.
-// The harness refuses such files until compile mode lands.
+// either are compile-only by intent: gc accepts and never runs them,
+// and the harness takes them through compile mode.
 func IsRunnable(source []byte) bool {
 	m := pkgDeclRe.FindSubmatch(source)
 	if m == nil || string(m[1]) != "main" {
@@ -137,6 +171,7 @@ var featureGapErrors = []struct {
 	reason   string
 }{
 	{"channels are not permitted", "channels not supported in Gno"},
+	{"does not have a body but is not natively defined", "bodiless function declarations (assembly-backed in gc) not supported in Gno"},
 	{"goroutines are not permitted", "goroutines not supported in Gno"},
 	{"imaginaries are not supported", "imaginary literals not supported in Gno"},
 	{"dot imports not allowed", "dot imports not supported in Gno"},
@@ -162,6 +197,7 @@ var langGapErrors = []struct {
 	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
 	{regexp.MustCompile(`name (min|max) not declared`), "version-gating: min/max builtins (Go 1.21) not supported in Gno"},
 	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
+	{regexp.MustCompile(`select statements are not permitted`), "channels not supported in Gno (select)"},
 }
 
 // reStdlibSymbolGap matches Gno's "name <Sym> not declared/defined" for a
@@ -398,6 +434,18 @@ func FormatGnoErrorBlock(perLine map[int]string) string {
 	return strings.TrimRight(buf.String(), "\n")
 }
 
+// indent prefixes every line of s with prefix.
+func indent(s, prefix string) string {
+	if s == "" {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = prefix + l
+	}
+	return strings.Join(lines, "\n")
+}
+
 // FormatLineOnlyBlock serializes the keys of a per-line error map as
 // `line N` entries, dropping the messages. Used for the Go-side block
 // (`// GoBuildError:`), whose wording changes with the Go release while
@@ -439,6 +487,7 @@ func ParseLineBlock(block string) map[int]string {
 var unsupportedTags = []struct{ tag, needle string }{
 	{"generics", "generics not supported"},
 	{"channel", "channels not supported"},
+	{"bodiless-func", "bodiless function declarations"},
 	{"goroutine", "goroutines not supported"},
 	{"complex-types", "complex numbers not supported"},
 	{"imaginary-literal", "imaginary literals"},
