@@ -57,9 +57,14 @@
       "proposal": null,
       "image": {
         "ref": "ghcr.io/gnolang/gno/gnoland:v1.6.0-rc.1",
-        "digest": null
+        "digest": "sha256:4286ffcd805f7a4925cc15ad2290d4be0e1c28f63436bf7b0ed4570ff38e7e38"
       },
-      "binaries": null,
+      "binaries": {
+        "darwin/amd64": "https://github.com/gnolang/gno/releases/download/v1.6.0-rc.1/gnoland_darwin_amd64?checksum=sha256:5ed799846d82db571b7fdd72ca8cfc5c5ddba3bff2c41488c683362d3586c675",
+        "darwin/arm64": "https://github.com/gnolang/gno/releases/download/v1.6.0-rc.1/gnoland_darwin_arm64?checksum=sha256:747346473ec55ea65057c893e2ca0020ea29c5e3e3d9fc8d9af961877c9848c6",
+        "linux/amd64": "https://github.com/gnolang/gno/releases/download/v1.6.0-rc.1/gnoland_linux_amd64?checksum=sha256:dfd401b6efd1d33f18aec7a92b63c098fac5af56941e3ae5239f8674a89e8d66",
+        "linux/arm64": "https://github.com/gnolang/gno/releases/download/v1.6.0-rc.1/gnoland_linux_arm64?checksum=sha256:ceee84331239c84bbd289dbc2b514502570e729ae61868e6772c5924443d05db"
+      },
       "ran_as": null,
       "release": "https://github.com/gnolang/gno/releases/tag/v1.6.0-rc.1"
     }
