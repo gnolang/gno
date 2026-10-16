@@ -568,7 +568,7 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 	case *PointerType: // case 4 from here on
 		// Pointer types are assignable only with identical elements.
 		if pt, ok := xt.(*PointerType); ok {
-			if pt.Elt.TypeID() == cdt.Elt.TypeID() && tagsIdentical(pt.Elt, cdt.Elt) {
+			if pt.Elt.TypeID() == cdt.Elt.TypeID() && tagsIdentical(preprocessGasMeterOf(store), pt.Elt, cdt.Elt) {
 				return nil
 			}
 			return errors.New("cannot use %s as %s", xt.String(), dt.String())
@@ -622,7 +622,7 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *FuncType, *StructType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
-			if tagsIdentical(xt, cdt) {
+			if tagsIdentical(preprocessGasMeterOf(store), xt, cdt) {
 				return nil // ok
 			}
 			return errors.New("cannot use %s as %s: struct tags differ", xt.String(), dt.String())

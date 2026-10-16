@@ -139,7 +139,7 @@ func (c *checkRun) report(code ErrCode, msg string, at ...Node) {
 
 // reportUnused raises the unused locals and labels of the function fn.
 func (c *checkRun) reportUnused(parent BlockNode, fn Node) {
-	for _, u := range checkUnused(parent, fn) {
+	for _, u := range checkUnused(preprocessGasMeterOf(c.store), parent, fn) {
 		if c.acc != nil && (c.acc.poisoned[u.name] || c.acc.referenced[u.name]) {
 			continue // a dropped statement declared or mentioned it
 		}
