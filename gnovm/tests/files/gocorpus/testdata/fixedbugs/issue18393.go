@@ -23,8 +23,4 @@ var x     // error on line 24, not 30
 
 // ERROR "syntax error: unexpected newline, expecting type|expected type"
 
-// ParseBlocked:
-// line 20: gc expects: import path must be a string
-// line 24: gc expects: syntax error: unexpected newline, expecting type|expected type
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported gc-specific: //line directives remap the positions the markers refer to
