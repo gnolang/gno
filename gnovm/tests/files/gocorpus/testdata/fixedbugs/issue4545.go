@@ -21,4 +21,7 @@ func main() {
 // GnoError:
 // line 17: operator << not defined on: BigdecKind
 
+// GnoWordingDiffers:
+// line 17: gc expects: invalid operation|non-integer type; gno: operator << not defined on: BigdecKind
+
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16

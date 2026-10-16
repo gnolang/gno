@@ -14,4 +14,7 @@ func foo(x foo) {} // ERROR "expected type|not a type"
 // GnoError:
 // line 12: invalid recursive type: foo -> foo
 
+// GnoWordingDiffers:
+// line 12: gc expects: expected type|not a type; gno: invalid recursive type: foo -> foo
+
 // Verdict: Clean errorcheck

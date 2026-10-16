@@ -31,4 +31,9 @@ var (
 // line 25: struct type struct{t3f1 int; t2 main.t2} has no field t1f2
 // line 26: struct type struct{t3f1 int; t2 main.t2} has no field t2f1
 
+// GnoWordingDiffers:
+// line 24: gc expects: cannot use promoted field t1.t1f1 in struct literal of type t2|unknown field; gno: struct type struct{t2f1 int; t2f2 int; t1 main.t1} has no field t1f1
+// line 25: gc expects: cannot use promoted field t2.t1.t1f2 in struct literal of type t3|unknown field; gno: struct type struct{t3f1 int; t2 main.t2} has no field t1f2
+// line 26: gc expects: cannot use promoted field t2.t2f1 in struct literal of type t3|unknown field; gno: struct type struct{t3f1 int; t2 main.t2} has no field t2f1
+
 // Verdict: Clean errorcheck

@@ -70,6 +70,16 @@ func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*Prepr
 			if path == nil {
 				continue
 			}
+			// Name only the cycle and report it at its first member.
+			at, file := vd, fn.FileName
+			if i := slices.Index(path[:len(path)-1], path[len(path)-1]); i > 0 {
+				path = path[i:]
+				if f, d, ok := fset.GetDeclForSafe(path[0]); ok {
+					if vd, ok := (*d).(*ValueDecl); ok {
+						at, file = vd, f.FileName
+					}
+				}
+			}
 			var msg strings.Builder
 			msg.WriteString("initialization cycle: ")
 			for i, name := range path {
@@ -78,8 +88,8 @@ func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*Prepr
 				}
 				msg.WriteString(string(name))
 			}
-			loc := Location{PkgPath: pn.PkgPath, File: fn.FileName, Span: vd.GetSpan()}
-			errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String())})
+			loc := Location{PkgPath: pn.PkgPath, File: file, Span: at.GetSpan()}
+			errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String()), code: CodeInitCycle})
 			for _, name := range path {
 				if dep, ok := resolveDeclDepSafe(name, pn); ok {
 					reported[dep] = true

@@ -27,4 +27,8 @@ func main() {
 // line 22: missing field m in **main.T
 // line 23: missing field pm in **main.T
 
+// GnoWordingDiffers:
+// line 22: gc expects: requires explicit dereference|undefined; gno: missing field m in **main.T
+// line 23: gc expects: requires explicit dereference|undefined; gno: missing field pm in **main.T
+
 // Verdict: Clean errorcheck

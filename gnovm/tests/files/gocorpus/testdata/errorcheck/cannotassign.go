@@ -46,4 +46,9 @@ func main() {
 // line 29: cannot assign to (const-type []int){}
 // line 32: cannot assign to x + 1
 
+// GnoWordingDiffers:
+// line 14: gc expects: cannot assign to .* (\(strings are immutable\))?; gno: cannot assign to s[3]
+// line 27: gc expects: cannot assign to nil; gno: cannot assign to uverse nil
+// line 29: gc expects: cannot assign to \[\]int\{\}; gno: cannot assign to (const-type []int){}
+
 // Verdict: Clean errorcheck

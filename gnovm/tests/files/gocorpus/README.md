@@ -5,6 +5,15 @@ release in `UPSTREAM`, each followed by a comment tail the harness writes
 (`gnovm/pkg/test/filetest.go`). Nothing above the tail is edited. `VERSION`
 is the Go toolchain the Go-side evidence was recorded with.
 
+`testdata/gotypes/` is the type checker's own suite, lifted the same way
+from `$GOROOT/src/internal/types/testdata` (`check`, `fixedbugs`, `spec`,
+`examples`): one rule per file, markers in go/types' block form
+(`/* ERROR "text" */`, `/* ERRORx "regex" */`, several per line), checked
+by the same errorcheck mode; a file without markers must preprocess
+cleanly (compile mode). `// -lang=` and `// -gotypesalias=` headers
+configure go/types; those below Gno's go1.17 pin or disabling alias
+nodes are `Unsupported`.
+
 ## Per-file contract
 
 Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
@@ -15,6 +24,8 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `Output:` / `GoOutput:` | the same pair for a native `.gno` filetest that opts in: adding `GoOutput:` makes the harness run Go too and demand the `Verdict:` line; `.gno` files without it are untouched |
 | `GnoError:` | Gno's own errors, per line, wording kept (a runtime panic in run mode, preprocess errors in compile mode) |
 | `GoBuildError:` | lines gc (`go build`) flagged, compile files; lines only, their wording follows the Go release |
+| `ParseBlocked:` | checkable markers in a file Gno could not parse: the checker never ran, so they count as neither caught nor missed |
+| `GnoWordingDiffers:` | attributed lines whose Gno message matches none of gc's patterns: the line agreed, the wording did not; read these when a line match may be a coincidence |
 
 | verdict | meaning |
 |---|---|

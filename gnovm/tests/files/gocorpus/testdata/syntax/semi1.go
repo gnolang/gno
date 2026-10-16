@@ -14,4 +14,7 @@ func main() {
 // GnoError:
 // line 10: expected '{', found newline
 
+// GnoWordingDiffers:
+// line 10: gc expects: expected .*{.* after if clause|undefined; gno: expected '{', found newline
+
 // Verdict: Clean errorcheck

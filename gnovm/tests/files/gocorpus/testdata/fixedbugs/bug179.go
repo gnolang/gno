@@ -30,4 +30,8 @@ L1:
 // line 13: label L2 undefined
 // line 14: label L2 undefined
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 23
+// ParseBlocked:
+// line 22: gc expects: L1
+// line 23: gc expects: L1
+
+// Verdict: Clean errorcheck

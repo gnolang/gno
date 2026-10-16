@@ -19,4 +19,10 @@ type J interface {
 // GnoError:
 // line 12: expected ';', found ','
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// ParseBlocked:
+// line 16: gc expects: syntax|signature
+
+// GnoWordingDiffers:
+// line 12: gc expects: unexpected comma; gno: expected ';', found ','
+
+// Verdict: Clean errorcheck

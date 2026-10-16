@@ -31,4 +31,12 @@ var x8 = b && !B2(true) // ERROR "mismatched types B and B2|incompatible types"
 // line 22: invalid operation: b2<VPBlock(2,3)> && x2<VPBlock(2,5)> (mismatched types gno.land/p/filetest/p.B2 and gno.land/p/filetest/p.B)
 // line 24: invalid operation: b<VPBlock(2,2)> && (const (false gno.land/p/filetest/p.B2)) (mismatched types gno.land/p/filetest/p.B and gno.land/p/filetest/p.B2)
 
+// GnoWordingDiffers:
+// line 18: gc expects: mismatched types B and B2|incompatible types; gno: invalid operation: b<VPBlock(2,2)> && b2<VPBlock(2,3)> (mismatched types gno.land/p/filetest/p.B and gno.land/p/filetest/p.B2)
+// line 19: gc expects: mismatched types B and B2|incompatible types; gno: invalid operation: x1<VPBlock(2,4)> && b2<VPBlock(2,3)> (mismatched types gno.land/p/filetest/p.B and gno.land/p/filetest/p.B2)
+// line 20: gc expects: mismatched types B and B2|incompatible types; gno: invalid operation: x2<VPBlock(2,5)> && b2<VPBlock(2,3)> (mismatched types gno.land/p/filetest/p.B and gno.land/p/filetest/p.B2)
+// line 21: gc expects: mismatched types B2 and B|incompatible types; gno: invalid operation: b2<VPBlock(2,3)> && x1<VPBlock(2,4)> (mismatched types gno.land/p/filetest/p.B2 and gno.land/p/filetest/p.B)
+// line 22: gc expects: mismatched types B2 and B|incompatible types; gno: invalid operation: b2<VPBlock(2,3)> && x2<VPBlock(2,5)> (mismatched types gno.land/p/filetest/p.B2 and gno.land/p/filetest/p.B)
+// line 24: gc expects: mismatched types B and B2|incompatible types; gno: invalid operation: b<VPBlock(2,2)> && (const (false gno.land/p/filetest/p.B2)) (mismatched types gno.land/p/filetest/p.B and gno.land/p/filetest/p.B2)
+
 // Verdict: Clean errorcheck

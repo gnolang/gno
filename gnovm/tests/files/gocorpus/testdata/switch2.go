@@ -41,4 +41,13 @@ func f() {
 // GnoError:
 // line 14: expected ':', found ';'
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 28, 33, 37
+// ParseBlocked:
+// line 18: gc expects: expecting := or = or : or comma|expected :
+// line 28: gc expects: unexpected keyword case at end of statement
+// line 33: gc expects: unexpected keyword default at end of statement
+// line 37: gc expects: expected case or default or }
+
+// GnoWordingDiffers:
+// line 14: gc expects: expecting := or = or : or comma|expected :; gno: expected ':', found ';'
+
+// Verdict: Clean errorcheck

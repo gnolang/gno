@@ -15,4 +15,7 @@ func main() {
 // GnoError:
 // line 12: no new variables on left side of :=
 
+// GnoWordingDiffers:
+// line 12: gc expects: non-name [(]x[)]|non-name on left side; gno: no new variables on left side of :=
+
 // Verdict: Clean errorcheck

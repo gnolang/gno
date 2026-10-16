@@ -41,4 +41,7 @@ func ii() (int, error) {
 // GnoError:
 // line 22: expected 2 return values; got 0
 
+// GnoWordingDiffers:
+// line 22: gc expects: not enough return values|not enough arguments to return; gno: expected 2 return values; got 0
+
 // Verdict: Clean errorcheck

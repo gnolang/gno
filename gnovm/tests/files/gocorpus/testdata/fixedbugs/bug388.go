@@ -31,4 +31,8 @@ func main() {
 // GnoError:
 // line 12: missing parameter name
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 22
+// ParseBlocked:
+// line 17: gc expects: unexpected [.]|expected type
+// line 22: gc expects: unexpected [.]|expected type
+
+// Verdict: Clean errorcheck

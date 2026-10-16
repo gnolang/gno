@@ -30,4 +30,9 @@ func main() {
 // line 22: cannot use untyped Bigint as StringKind
 // line 24: wrong argument count in call to f<VPBlock(3,0)>; want 2 got 3
 
+// GnoWordingDiffers:
+// line 16: gc expects: ^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types; gno: cannot use untyped string as BigintKind
+// line 22: gc expects: too many arguments|invalid operation|incompatible type; gno: cannot use untyped Bigint as StringKind
+// line 24: gc expects: too many arguments; gno: wrong argument count in call to f<VPBlock(3,0)>; want 2 got 3
+
 // Verdict: Clean errorcheck

@@ -29,4 +29,8 @@ func g(a int, c string) // ERROR "redeclared|redefinition"
 // line 24: g redeclared in this block
 // 	previous declaration at method1.go:23:6
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15, 18
+// ParseBlocked:
+// line 15: gc expects: already declared|redefinition
+// line 18: gc expects: already declared|redefinition
+
+// Verdict: Clean errorcheck

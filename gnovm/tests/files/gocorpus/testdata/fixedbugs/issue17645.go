@@ -18,4 +18,7 @@ func main() {
 // GnoError:
 // line 15: cannot use untyped string as IntKind
 
+// GnoWordingDiffers:
+// line 15: gc expects: cannot use append\(s, Foo{…}\) .* as string value in variable declaration | cannot use Foo{…} .* as int value in argument to append | cannot use .* as int value in struct literal; gno: cannot use untyped string as IntKind
+
 // Verdict: Clean errorcheck

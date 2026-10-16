@@ -252,6 +252,9 @@ func f() {
 	var fn func()
 	_ = e == fn
 	_ = fn == nil
+	switch fn {
+	case nil: // fine: the literal, converted to the tag type
+	}
 }
 
 func main() { f() }

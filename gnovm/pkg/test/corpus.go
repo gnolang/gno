@@ -68,7 +68,7 @@ func UsesGenerics(source []byte) bool {
 // `// ERROR ` or `// GC_ERROR ` marker (Go's errorcheck convention),
 // which selects errorcheck mode.
 func HasInlineErrorMarkers(source []byte) bool {
-	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+	for _, tag := range markerTags {
 		if bytes.Contains(source, []byte(tag)) {
 			return true
 		}
@@ -76,15 +76,44 @@ func HasInlineErrorMarkers(source []byte) bool {
 	return false
 }
 
+// markerTags are the inline marker spellings: gc's line-comment form
+// (`// ERROR "regex"`, `// GC_ERROR`) and go/types' block-comment form
+// (`/* ERROR "text" */`, `/* ERRORx "regex" */`), which may repeat on a
+// line and ends at `*/`.
+var markerTags = []string{
+	"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// ERRORx ",
+	"/* ERROR ", "/* ERRORx ",
+}
+
+// findMarker returns the index and tag of the first marker in line.
+func findMarker(line string) (int, string) {
+	best, bestTag := -1, ""
+	for _, tag := range markerTags {
+		if i := strings.Index(line, tag); i >= 0 && (best < 0 || i < best) {
+			best, bestTag = i, tag
+		}
+	}
+	return best, bestTag
+}
+
+// Distinguish a real marker from an `// ERROR "..."` mentioned
+// in narrative prose. Markers come in two valid shapes:
+//   - trailing a line of code:  `_ = x // ERROR "..."`
+//   - on its own comment line:  `// ERROR "..."` (used with
+//     //line remapping, e.g. fixedbugs/bug305.go)
+// A prose mention (e.g. a doc comment that says "a `// ERROR
+// \"regex\"` marker …") has other text before the marker on a
+// comment line. So: if the line is a pure comment, accept it
+// only when the marker is the FIRST token after `//`.
+
 // indexErrorMarker returns the byte index in line where an `// ERROR`
 // or `// GC_ERROR` marker's content begins, or -1.
 func indexErrorMarker(line string) int {
-	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
-		if i := strings.Index(line, tag); i >= 0 {
-			return i + len(tag)
-		}
+	i, tag := findMarker(line)
+	if i < 0 {
+		return -1
 	}
-	return -1
+	return i + len(tag)
 }
 
 // PrependPkgPathIfNeeded rescues errorcheck and compile-only files
@@ -189,6 +218,8 @@ var featureGapErrors = []struct {
 	{"dot imports not allowed", "dot imports not supported in Gno"},
 	{"builtin identifiers cannot be shadowed", "builtin shadowing not supported in Gno"},
 	{"type parameter", "generics not supported in Gno"},
+	{"operator | not defined on: TypeKind", "generics (type set unions) not supported in Gno"},
+	{"tilde operator is not permitted", "generics (type set constraints) not supported in Gno"},
 	{"unknown Go type", "unsupported Go type in Gno"},
 }
 
@@ -207,6 +238,7 @@ var langGapErrors = []struct {
 	{regexp.MustCompile(`name (imag|real) not (declared|defined)`), "complex numbers not supported in Gno"},
 	{regexp.MustCompile(`name uintptr not (declared|defined)`), "uintptr type not supported in Gno"},
 	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
+	{regexp.MustCompile(`name comparable not (declared|defined)`), "generics (comparable constraint) not supported in Gno"},
 	{regexp.MustCompile(`name (min|max) not declared`), "version-gating: min/max builtins (Go 1.21) not supported in Gno"},
 	{regexp.MustCompile(`cannot convert .* \(of type \[\][^)]*\) to type \[\d+\]`), "version-gating: slice-to-array conversion (Go 1.20) not supported in Gno"},
 	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
@@ -595,7 +627,7 @@ func ParseInlineErrors(source []byte) []InlineError {
 		trimmed := strings.TrimLeft(text, " \t")
 		if strings.HasPrefix(trimmed, "//") {
 			isMarkerStart := false
-			for _, p := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+			for _, p := range markerTags {
 				if strings.HasPrefix(trimmed, p) {
 					isMarkerStart = true
 					break
@@ -605,8 +637,27 @@ func ParseInlineErrors(source []byte) []InlineError {
 				continue
 			}
 		}
-		patterns := extractQuotedStrings(text[idx:])
-		gcOnly := strings.Contains(text[:idx], "GC_ERROR")
+		// Every marker on the line; a block marker ends at `*/`, a line
+		// marker runs to the end of the line.
+		var patterns []string
+		gcOnly := true
+		for rest := text; ; {
+			i, tag := findMarker(rest)
+			if i < 0 {
+				break
+			}
+			content := rest[i+len(tag):]
+			end := len(content)
+			if strings.HasPrefix(tag, "/*") {
+				if j := strings.Index(content, "*/"); j >= 0 {
+					end = j
+				}
+			}
+			patterns = append(patterns, extractQuotedStrings(content[:end])...)
+			gcOnly = gcOnly && strings.Contains(tag, "GC_ERROR")
+			rest = content[end:]
+		}
+		_ = idx
 		out = append(out, InlineError{Line: lineNo, Patterns: patterns, GcOnly: gcOnly})
 	}
 	return out
@@ -675,6 +726,21 @@ func langBelowPin(fl string) bool {
 		n = n*10 + int(c-'0')
 	}
 	return n < 17
+}
+
+// wordingMatches reports whether msg matches any of gc's marker patterns,
+// as a regexp when the pattern compiles and as a substring otherwise.
+func wordingMatches(patterns []string, msg string) bool {
+	for _, p := range patterns {
+		if re, err := regexp.Compile(p); err == nil {
+			if re.MatchString(msg) {
+				return true
+			}
+		} else if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
 }
 
 // internalErrorMarks are fragments of Gno messages that report a VM

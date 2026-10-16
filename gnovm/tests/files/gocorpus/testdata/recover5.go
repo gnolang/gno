@@ -19,4 +19,8 @@ func main() {
 // line 14: wrong argument count in call to (const (recover func() interface {})); want 0 got 1
 // line 15: wrong argument count in call to (const (recover func() interface {})); want 0 got 2
 
+// GnoWordingDiffers:
+// line 14: gc expects: too many arguments; gno: wrong argument count in call to (const (recover func() interface {})); want 0 got 1
+// line 15: gc expects: too many arguments; gno: wrong argument count in call to (const (recover func() interface {})); want 0 got 2
+
 // Verdict: Clean errorcheck

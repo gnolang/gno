@@ -15,4 +15,8 @@ var m = map[string]int{
 // GnoError:
 // line 9: cannot use untyped Bigint as StringKind
 
+// GnoWordingDiffers:
+// line 11: gc expects: cannot use 1.*as.*string.*in map; gno: cannot use untyped Bigint as StringKind
+// line 12: gc expects: cannot use 2.*as.*string.*in map; gno: cannot use untyped Bigint as StringKind
+
 // Verdict: Clean errorcheck

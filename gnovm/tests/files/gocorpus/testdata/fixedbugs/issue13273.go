@@ -57,4 +57,9 @@ func f() {
 // GnoError:
 // line 50: expected 'chan', found '<-'
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 51, 53, 54
+// ParseBlocked:
+// line 51: gc expects: unexpected <-, expected chan|expecting {
+// line 53: gc expects: unexpected int, expected chan|expected .*chan.*|expected chan|expected .*;.* or .*}.* or newline
+// line 54: gc expects: unexpected int, expected chan|expecting {
+
+// Verdict: Clean errorcheck

@@ -38,4 +38,10 @@ var _ = C.I // ERROR "no method .*I.*|C.I undefined"
 // line 32: unknown *DeclaredType method named H
 // line 33: unknown *DeclaredType method named I
 
+// GnoWordingDiffers:
+// line 30: gc expects: ambiguous; gno: unknown *DeclaredType method named F
+// line 31: gc expects: ambiguous; gno: unknown *DeclaredType method named G
+// line 32: gc expects: ambiguous; gno: unknown *DeclaredType method named H
+// line 33: gc expects: no method .*I.*|C.I undefined; gno: unknown *DeclaredType method named I
+
 // Verdict: Clean errorcheck

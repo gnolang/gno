@@ -25,4 +25,8 @@ func main() {
 // line 9: name T not defined in fileset with files [issue6572.go]
 // line 13: name T not defined in fileset with files [issue6572.go]
 
+// GnoWordingDiffers:
+// line 9: gc expects: undefined; gno: name T not defined in fileset with files [issue6572.go]
+// line 13: gc expects: undefined; gno: name T not defined in fileset with files [issue6572.go]
+
 // Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20

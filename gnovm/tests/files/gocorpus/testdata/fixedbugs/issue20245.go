@@ -13,4 +13,7 @@ var e = interface{ I1 } // ERROR "undefined: I1"
 // GnoError:
 // line 11: name I1 not defined in fileset with files [issue20245.go]
 
+// GnoWordingDiffers:
+// line 11: gc expects: undefined: I1; gno: name I1 not defined in fileset with files [issue20245.go]
+
 // Verdict: Clean errorcheck

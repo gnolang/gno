@@ -19,4 +19,8 @@ func main() {
 // line 13: name asdf not declared
 // line 15: cannot assign to uverse new
 
+// GnoWordingDiffers:
+// line 13: gc expects: undefined.*asdf; gno: name asdf not declared
+// line 15: gc expects: use of builtin new not in function call|invalid left hand side|must be called; gno: cannot assign to uverse new
+
 // Verdict: Clean errorcheck
