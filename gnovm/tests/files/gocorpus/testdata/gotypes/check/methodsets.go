@@ -224,11 +224,8 @@ func issue5918() {
 // line 212: T.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T has no method m)
 
 // GnoWordingDiffers:
-// line 199: gc expects: type *error is pointer to interface, not interface; gno: should not happen
-// line 200: gc expects: type *error is pointer to interface, not interface; gno: should not happen
-// line 201: gc expects: type *error is pointer to interface, not interface; gno: should not happen
 // line 210: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
 // line 211: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
 // line 212: gc expects: type T is pointer to interface, not interface; gno: T.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T has no method m)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 32, 138, 148, 166, 176; over-strict: lines 34, 39, 40, 42, 44, 45, 46, 47, 49, 50, 51, 52, 53, 54, 196
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 138, 148, 166, 176, 199, 200, 201; internal errors: lines 199, 200, 201

@@ -24,4 +24,4 @@ func _() {
 // GnoWordingDiffers:
 // line 10: gc expects: cannot convert 0 (untyped int constant) to type T1; gno: cannot convert 0 to type gno.land/p/filetest/p.T1: gno.land/p/filetest/p.T1 refers to itself
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7, 10, 12
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7, 12
