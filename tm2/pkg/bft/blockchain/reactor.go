@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -29,6 +30,12 @@ const (
 	statusUpdateIntervalSeconds = 10
 	// check if we should switch to consensus reactor
 	switchToConsensusIntervalSeconds = 1
+
+	// While deferring its writes (SetDeferredWrites), block sync takes a
+	// flush point at least this often, bounding what a crash or a stop costs
+	// again, and when a database holds more than flushPointBytes.
+	flushPointInterval = time.Second
+	flushPointBytes    = 64 << 20 // 64 MiB
 
 	// maxBlockMsgOverhead is the allowance for the bcBlockResponseMessage
 	// envelope wrapped around an already length-prefixed block: an amino type
@@ -85,6 +92,10 @@ type BlockchainReactor struct {
 	errorsCh   <-chan peerError
 
 	switchToConsensusFn SwitchToConsensusFn
+
+	deferred *DeferredWrites // nil: every block is written as it is applied
+
+	routineDone chan struct{} // closed when poolRoutine returns; nil if it never started
 }
 
 // NewBlockchainReactor returns new reactor instance.
@@ -143,6 +154,14 @@ func (bcR *BlockchainReactor) SetLogger(l *slog.Logger) {
 	bcR.pool.Logger = l
 }
 
+// SetDeferredWrites makes block sync hold the writes of the block store, of
+// the state and of app in memory, and write all of them at flush points, if
+// their databases are HoldingDBs and app agrees to defer its commits (see
+// DeferredWrites). Call it before the reactor starts.
+func (bcR *BlockchainReactor) SetDeferredWrites(app abci.DeferredCommitter) {
+	bcR.deferred = NewDeferredWrites(bcR.store, bcR.blockExec, app)
+}
+
 // OnStart implements cmn.Service.
 func (bcR *BlockchainReactor) OnStart() error {
 	if bcR.fastSync {
@@ -150,14 +169,23 @@ func (bcR *BlockchainReactor) OnStart() error {
 		if err != nil {
 			return err
 		}
-		go bcR.poolRoutine()
+		bcR.routineDone = make(chan struct{})
+		go func() {
+			defer close(bcR.routineDone)
+			bcR.poolRoutine()
+		}()
 	}
 	return nil
 }
 
-// OnStop implements cmn.Service.
+// OnStop implements cmn.Service. It waits for the block-sync routine, which
+// returns once the pool is stopped, at the end of its current block or flush
+// point: whoever stops the node may then close the application's database.
 func (bcR *BlockchainReactor) OnStop() {
 	bcR.pool.Stop()
+	if bcR.routineDone != nil {
+		<-bcR.routineDone
+	}
 }
 
 // GetChannels implements Reactor
@@ -258,6 +286,13 @@ func (bcR *BlockchainReactor) poolRoutine() {
 
 	didProcessCh := make(chan struct{}, 1)
 
+	// deferred holds the writes since the last flush point; nil while not
+	// deferring.
+	var deferred *DeferredWrites
+	if bcR.deferred != nil && bcR.deferred.Start(state.LastBlockHeight) {
+		deferred = bcR.deferred
+	}
+
 	go func() {
 		for {
 			select {
@@ -295,9 +330,23 @@ FOR_LOOP:
 			height, numPending, lenRequesters := bcR.pool.GetStatus()
 
 			bcR.Logger.Debug("Consensus ticker", "numPending", numPending, "total", lenRequesters)
+			if deferred != nil && deferred.NeedsFlushPoint() {
+				// Also when no block arrives, so a stalled window is written.
+				deferred.FlushPoint(state.LastBlockHeight)
+			}
 			if bcR.pool.IsCaughtUp() {
+				// No consensus block may land in a held database, and a stop
+				// meanwhile must not start consensus: the pool stops only
+				// once, so its Stop fails if OnStop stopped it first.
+				if deferred != nil {
+					deferred.FlushPoint(state.LastBlockHeight)
+					deferred.Stop()
+					deferred = nil
+				}
+				if err := bcR.pool.Stop(); err != nil {
+					break FOR_LOOP // stopped meanwhile, by OnStop
+				}
 				bcR.Logger.Info("Time to switch to consensus reactor!", "height", height)
-				bcR.pool.Stop()
 
 				// switchToConsensusFn may be nil under test harnesses that
 				// construct a reactor in isolation; production wiring always
@@ -377,6 +426,10 @@ FOR_LOOP:
 				}
 				blocksSynced++
 
+				if deferred != nil && deferred.NeedsFlushPoint() {
+					deferred.FlushPoint(state.LastBlockHeight)
+				}
+
 				if blocksSynced%100 == 0 {
 					lastRate = 0.9*lastRate + 0.1*(100/time.Since(lastHundred).Seconds())
 					bcR.Logger.Info("Fast Sync Rate", "height", bcR.pool.height,
@@ -386,7 +439,11 @@ FOR_LOOP:
 			}
 			continue FOR_LOOP
 
-		case <-bcR.Quit():
+		case <-bcR.pool.Quit():
+			// Stopping (OnStop stops the pool, then waits for this routine,
+			// so the reactor's own Quit closes only after it returns): what
+			// is held is dropped, as on a crash, and fetched again after the
+			// restart.
 			break FOR_LOOP
 		}
 	}
