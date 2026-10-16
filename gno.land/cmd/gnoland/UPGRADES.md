@@ -281,13 +281,7 @@ gnogenesis fork generate \
     --output genesis.json
 ```
 
-Pass `--halt-height` after a governance halt: the data directory's block store
-holds the next block, `halt_height + 1` (see
-[What a halt actually looks like](#what-a-halt-actually-looks-like)), which the
-tool would otherwise take as the halt height, failing on that block's missing
-results. With the flag it warns that the height is below the block store's tip;
-that is expected here, since the application state it reads is at the halt
-height.
+Pass `--halt-height` after a governance halt. The data directory's block store also holds the next block, `halt_height + 1` (see [What a halt actually looks like](#what-a-halt-actually-looks-like)), whose results are never saved, and without the flag the tool takes it as the halt height: it fails on the missing results when that block carries transactions, and otherwise starts the new chain one block late, at `halt_height + 2`. With the flag it warns that the height is below the block store's tip; that is expected here, since the application state it reads is at the halt height.
 
 On the new chain, `InitChain` replays every historical transaction through the
 full ante handler. Three genesis-level fields make that possible:
