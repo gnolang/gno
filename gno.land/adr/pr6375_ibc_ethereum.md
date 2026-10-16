@@ -346,8 +346,17 @@ Repositories and branches:
   | 9 hand-over | `(address exec, bytes32 codeHash, bytes migrationCall)` | 7 d |
   | 10 route replacement | `(string oldClientId, string newClientId, uint64 suspectFrom)`: retire and freeze the old client id, `migrateRoute`, open the next epoch over the new client (a custom id enrolled by a kind 6 first; an id the router generated is refused). `suspectFrom` is the Ethereum block from which acks and timeouts processed through the old client are suspect (§7.12): every send record processed at or after it must be settled by kind 12 before kind 13 | 7 d |
   | 11 route settings | `(string clientId, uint64 quarantineSeconds)`; a duration applies to transitions accepted after it; one already started keeps its deadline | lengthening at recording, shortening 7 d |
-  | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the route's send records; action 1 genuine refund: pay its remainder — `amount` must equal the entitlement minus what was already refunded, **zero** for a genuine refund already paid in full, which then only marks the record settled and moves no funds (a refund is never cut short, §7.9) — 2 reject a queued refund of a delivered packet (refused if any of it was paid: use 4), 3 settled as delivered (refused if any refund was paid: use 4), 4 forged refund: reject the unpaid remainder **and** record what was already paid as a loss, atomically (`amount` must equal what was paid); each send record is settled at most once | 7 d |
+  | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the route's send records; action 1 genuine refund: pay its remainder — `amount` must equal the entitlement minus what was already refunded, **zero** for a genuine refund already paid in full, which then only marks the record settled and moves no funds (a refund is never cut short, §7.9) — 2 reject a queued refund of a delivered packet (refused if any of it was paid: use 4), 3 settled as delivered (refused if any refund was paid: use 4), 4 forged refund: reject the unpaid remainder **and** record what was already paid as a loss, atomically (`amount` must equal what was paid); 5 forged receive: `sequence` is an **inbound** sequence on the retired client whose receive released or minted `amount` (recorded per receive), booked as a loss once. Each send record is settled at most once. Actions 1–4 require the record's **proven outcome** (below) to match: 1 refundable (proven non-receipt or error ack, or a collision), 2–3 delivered (proven success ack and matching receipt), 4 delivered with a refund paid | 7 d |
   | 13 reopen | `(string clientId)`: reopen a route closed by kind 10 or the emergency recovery. Refused while any send record on the route's retired client ids is still open (outstanding commitment, or a queued, parked or unpaid refund, not settled by kind 12), or while any record whose ack or timeout was processed at or after the replacement's `suspectFrom` is unsettled. Any unrecovered loss not recapitalized is recorded as an **accepted deficit** by this decision (§7.9); when there are many, a permissionless continuation records them in bounded batches and the route opens when the last batch completes. | 7 d |
+
+  **Proven outcomes.** Before kind 12 settles a record, anyone submits the destination's state for it through the
+  route's **replacement** client — a permissionless `proveOutcome` taking the packet (authenticated against the
+  record's commitment), a proof height, and the destination's receipt and acknowledgement membership proofs, or a
+  receipt non-membership proof. The source recomputes the destination's receipt in that chain's encoding (R19 on
+  gno.land, `keccak256(abi.encode(packet))` on Ethereum), compares it, and stores the verified outcome (delivered,
+  refundable, collision) on the record. Governance chooses the action; the proof decides whether it may apply.
+  Kind 7's migration call is empty or a selector on an allow-list pinned in `IBCAdminExec` (empty at launch; a
+  kind 9 hand-over extends it), so an upgrade can never carry a client migration or other authority change.
 
   A decision that fails to decode, names an unknown kind or fails its checks at execution is **spent** (§5.4
   above), never retried.
@@ -1377,6 +1386,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Kind 10 carries `suspectFrom`; acks and timeouts processed through the old client from then on must be
     settled by kind 12 before kind 13. Kind 10 accepts only a governed custom client id (§5.4, §7.12).
   - Kind 13's deficit acceptance runs in bounded batches (§5.4).
+- 2026-10-16, fourth implementation review amendments:
+  - Kind 12 settles only against an outcome proven through the replacement client (`proveOutcome`), and gains
+    action 5 for forged receives (§5.4, §7.12).
+  - Kind 7's migration call is empty or on a pinned allow-list (§5.4).
 
 ## 15. References
 
