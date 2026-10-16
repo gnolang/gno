@@ -77,7 +77,7 @@ func _() {
 }
 
 // GnoError:
-// line 8: 3: invalid recursive type: A -> ABC1 -> A
+// line 8: invalid recursive type: A -> ABC1 -> A
 
 // GoBuildError:
 // line 8
