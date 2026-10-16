@@ -2775,7 +2775,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
-					assertUniqueLiteralIndices(n)
+					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
@@ -2784,7 +2784,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
-					assertUniqueLiteralIndices(n)
+					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
 				case *MapType:
 					if !isComparable(cclt.Key) {
 						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
