@@ -17,4 +17,7 @@ func main() {
 	len("foo")	// ERROR "len|value computed is not used"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17
+// GnoError:
+// line 17: len("foo") (value of type int) is not used
+
+// Verdict: Clean errorcheck

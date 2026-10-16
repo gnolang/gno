@@ -546,6 +546,62 @@ func main() {}
 	}
 }
 
+func TestPreprocessCollectExprStmts(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var notmain func()
+
+var lit = func() {
+	a := 1 // unused in a package-level literal
+}
+
+func g(n int) int { return n }
+
+func main() {
+	len("foo")
+	1 + 2
+	int(3)
+	g(1) // a call is a statement
+	var x = &main
+	_ = x
+	main = notmain
+	println("a", "b")
+	var s []string
+	println(s...)
+	_ = append(nil, 1)
+	_ = []int{g(1): 2}
+	const c = "abc"
+	_ = map[int]int{len(c) + 0: 0, 3: 1} // len of a constant is constant
+}
+`)
+	want := []string{
+		"declared and not used: a",
+		"len(\"foo\") (value of type int) is not used",
+		"1 + 2 (value of type",
+		"int(3) (value of type int) is not used",
+		"cannot take address of main (value of type func())",
+		"cannot assign to main (neither addressable nor a map index expression)",
+		"invalid use of ... with built-in println",
+		"first argument to append must be a typed slice; have untyped nil",
+		"index g(1) must be integer constant",
+		"duplicate key (3 int) in map literal",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main

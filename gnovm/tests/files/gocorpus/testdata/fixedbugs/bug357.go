@@ -25,4 +25,7 @@ func main() {
 	_ = x
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18
+// GnoError:
+// line 18: false (value of type <untyped> bool) is not used
+
+// Verdict: Clean errorcheck

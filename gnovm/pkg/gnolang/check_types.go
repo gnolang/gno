@@ -225,8 +225,16 @@ func exprString(x Expr) string {
 	switch x := x.(type) {
 	case *NameExpr:
 		return string(x.Name)
+	case *BasicLitExpr:
+		return x.Value
 	case *ConstExpr:
 		return constString(x)
+	case *constTypeExpr:
+		return x.Type.String()
+	case *BinaryExpr:
+		return exprString(x.Left) + " " + x.Op.TokenString() + " " + exprString(x.Right)
+	case *UnaryExpr:
+		return x.Op.TokenString() + exprString(x.X)
 	case *SelectorExpr:
 		return exprString(x.X) + "." + string(x.Sel)
 	case *IndexExpr:
@@ -254,8 +262,9 @@ func typeString(t Type) string {
 // constString prints a folded constant Go style: the value for an
 // untyped constant, T(value) for a typed one, strings quoted.
 func constString(c *ConstExpr) string {
-	if lit, ok := c.Source.(*BasicLitExpr); ok {
-		return lit.Value // as written, also after conversion
+	switch c.Source.(type) {
+	case *BasicLitExpr, *CallExpr, *BinaryExpr, *UnaryExpr, *NameExpr, *SelectorExpr:
+		return exprString(c.Source) // as written, also after folding
 	}
 	var v string
 	switch {

@@ -157,3 +157,91 @@ func assertUniqueLiteralIndices(gm store.GasMeter, n *CompositeLitExpr) {
 		next = idx + 1
 	}
 }
+
+// valueBuiltins are the built-in functions that may not be called in
+// statement context (Go spec: "Expression statements").
+var valueBuiltins = map[Name]bool{
+	"append": true, "cap": true, "complex": true, "imag": true,
+	"len": true, "make": true, "new": true, "real": true,
+}
+
+// assertExprStmtUsed rejects an expression statement that is not a call,
+// a conversion, or a call to a value builtin. A type assertion statement
+// is left alone: Gno runs it for its panic.
+func assertExprStmtUsed(store Store, last BlockNode, n *ExprStmt) {
+	call, ok := n.X.(*CallExpr)
+	if !ok {
+		if _, ok := n.X.(*TypeAssertExpr); ok {
+			return
+		}
+		notUsed(store, last, n.X)
+	}
+	switch fx := call.Func.(type) {
+	case *constTypeExpr:
+		notUsed(store, last, n.X)
+	case *ConstExpr:
+		if fv := fx.GetFunc(); fv != nil && fv.PkgPath == uversePkgPath && valueBuiltins[fv.Name] {
+			notUsed(store, last, n.X)
+		}
+	}
+}
+
+func notUsed(store Store, last BlockNode, x Expr) {
+	t := evalStaticTypeOf(store, last, x)
+	if _, ok := t.(*TypeType); ok {
+		panic(fmt.Sprintf("%s (type) is not an expression", exprString(x)))
+	}
+	panic(fmt.Sprintf("%s (value of type %s) is not used", exprString(x), typeString(t)))
+}
+
+// constStringLen folds len of a constant string into an int constant.
+func constStringLen(name Name, arg Expr) *ConstExpr {
+	cx, ok := arg.(*ConstExpr)
+	if name != "len" || !ok || cx.T == nil || cx.T.Kind() != StringKind {
+		return nil
+	}
+	tv := TypedValue{T: IntType}
+	tv.SetInt(int64(len(cx.GetString())))
+	return toConstExpr(cx, tv)
+}
+
+// assertConstLiteralKey: an array or slice literal index is a constant.
+func assertConstLiteralKey(key Expr) {
+	if key == nil {
+		return
+	}
+	if _, ok := key.(*ConstExpr); !ok {
+		panic(fmt.Sprintf("index %s must be integer constant", exprString(key)))
+	}
+}
+
+// isFuncDeclName reports whether nx names a declared function.
+func isFuncDeclName(last BlockNode, nx *NameExpr) (is bool) {
+	defer func() {
+		if recover() != nil {
+			is = false
+		}
+	}()
+	if nx.Path.Type != VPBlock {
+		return false
+	}
+	bn := last.GetBlockNodeForPath(nil, nx.Path)
+	if bn == nil {
+		return false
+	}
+	idx, ok := bn.GetLocalIndex(nx.Name)
+	sources := bn.GetStaticBlock().NameSources
+	return ok && int(idx) < len(sources) && sources[idx].Type == NSFuncDecl
+}
+
+// inFunction reports whether bn is inside a function declaration or
+// literal.
+func inFunction(bn BlockNode) bool {
+	for ; bn != nil; bn = bn.GetParentNode(nil) {
+		switch bn.(type) {
+		case *FuncDecl, *FuncLitExpr:
+			return true
+		}
+	}
+	return false
+}

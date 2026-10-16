@@ -1169,6 +1169,22 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 		}()
 	}
 
+	// reportUnused raises the unused locals and labels of a function.
+	reportUnused := func(parent BlockNode, fn Node, last BlockNode, stack []BlockNode) {
+		for _, u := range checkUnused(preprocessGasMeterOf(store), parent, fn) {
+			if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
+				continue // a dropped statement declared or mentioned it
+			}
+			loc := last.GetLocation()
+			loc.SetSpanOverride(u.span)
+			pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg), stack: stack}
+			if acc == nil {
+				panic(pe)
+			}
+			acc.report(pe)
+		}
+	}
+
 	nn := transcribeWith(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// if already preprocessed, skip it.
 		if n.GetAttribute(ATTR_PREPROCESSED) == true {
@@ -2221,10 +2237,21 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						fv = cx.GetFunc()
 					}
 					if fv != nil && fv.PkgPath == uversePkgPath {
+						if n.Varg && fv.Name != "append" {
+							panic(fmt.Sprintf("invalid use of ... with built-in %s", fv.Name))
+						}
 						switch fv.Name {
 						case "len", "cap":
 							if len(n.Args) == 1 {
 								assertLenCapArg(fv.Name, evalStaticTypeOf(store, last, n.Args[0]))
+								if cx := constStringLen(fv.Name, n.Args[0]); cx != nil {
+									cx.Source = n
+									return cx, TRANS_CONTINUE
+								}
+							}
+						case "append":
+							if len(n.Args) > 0 && evalStaticTypeOf(store, last, n.Args[0]) == nil {
+								panic("first argument to append must be a typed slice; have untyped nil")
 							}
 						}
 						switch fv.Name {
@@ -2868,6 +2895,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 				case *ArrayType:
 					for i := range n.Elts {
+						assertConstLiteralKey(n.Elts[i].Key)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
 						}
@@ -2880,6 +2908,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 				case *SliceType:
 					for i := range n.Elts {
+						assertConstLiteralKey(n.Elts[i].Key)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
 						}
@@ -2970,6 +2999,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// on the RefExpr so doOpRef can use it (instead of
 				// the runtime type, which is wrong for interface variables).
 				xt := evalStaticTypeOf(store, last, n.X)
+				if nx, ok := n.X.(*NameExpr); ok && isFuncDeclName(last, nx) {
+					panic(fmt.Sprintf("invalid operation: cannot take address of %s (value of type %v)", nx.Name, xt))
+				}
 				// Refuse a pointer to a realm-typed `cur`.
 				//
 				// Rejecting `cur = ...` (AssignStmt, below) only matches a
@@ -3494,19 +3526,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			case *FuncDecl:
 				// Unused locals and labels, once the body has its paths.
 				if n.Body != nil && len(stack) >= 2 {
-					for _, u := range checkUnused(preprocessGasMeterOf(store), stack[len(stack)-2], n) {
-						if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
-							continue // a dropped statement declared or mentioned it
-						}
-						loc := last.GetLocation()
-						loc.SetSpanOverride(u.span)
-						pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg), stack: stack}
-						if acc == nil {
-							panic(pe)
-						}
-						acc.report(pe)
-					}
+					reportUnused(stack[len(stack)-2], n, last, stack)
 				}
+
+			// TRANS_LEAVE -----------------------
+			case *FuncLitExpr:
+				// A literal inside a function is covered by that function.
+				if len(stack) >= 2 && !inFunction(stack[len(stack)-2]) {
+					reportUnused(stack[len(stack)-2], n, last, stack)
+				}
+
+			// TRANS_LEAVE -----------------------
+			case *ExprStmt:
+				assertExprStmtUsed(store, last, n)
 			case *IncDecStmt:
 				n.AssertCompatible(store, last)
 
