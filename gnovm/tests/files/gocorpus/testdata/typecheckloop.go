@@ -16,4 +16,4 @@ const C = A + B + 1
 // GnoError:
 // line 12: invalid recursive value: A -> B -> C -> A
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 14
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13
