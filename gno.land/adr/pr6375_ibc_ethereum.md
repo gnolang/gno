@@ -212,7 +212,7 @@ Repositories and branches:
 | E3 | **`GnoVoucher`**: ERC20 with gno.land's decimals (GNOT 6), mint/burn only by ICS20, registered with `setCustomERC20` before the first transfer; `RegisterGnoDenom.s.sol` for more denoms | ✅ | gno-eth-ibc [`contracts/src/GnoVoucher.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/src/GnoVoucher.sol), [`contracts/script/GnoDenoms.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/GnoDenoms.sol), [`contracts/script/RegisterGnoDenom.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/RegisterGnoDenom.s.sol) | Limits are **not** enforced in `mint`: ICS20 also calls `mint` to refund a returning voucher on an error ack or timeout ([ICS20Transfer.sol `_refundTokens`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS20Transfer.sol)), and a refund must never be limited. Limits live in E6's receive path. |
 | E4 | Deployment: AccessManager, router, ICS20, roles as eureka's `DeployAccessManagerWithRoles`, GnoLightClient, `addClient`, GNOT voucher; resumes a broadcast after RPC nonce lag | ✅ | gno-eth-ibc [`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol), [`scripts/sepolia.sh`](https://github.com/allinbits/gno-eth-ibc/blob/main/scripts/sepolia.sh) | Hand every authority to E8 at the end; add a `finishSetup`-style check list (♻️ bridges `HlAdmin.finishSetup`). |
 | E5 | **Mint and release limits** per token: per-message max + leaky-bucket day cap (§7.2) | ♻️ | bridges: [`PausableGate.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/PausableGate.sol) `_charge`/`_level` | Enforced in E6's `onRecvPacket` only, before minting or `escrow.send`, so refunds (which also mint or use `escrow.send`, [`utils/Escrow.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/utils/Escrow.sol)) are never limited. Eureka's own `Escrow` rate limit also applies to refunds, so it is left unset. |
-| E6 | **`GnoICS20Transfer`**: a **minimal fork** of eureka's `ICS20Transfer` (installed by its UUPS upgrade). The callbacks are `external` and not `virtual`, and `_refundTokens` is private ([`ICS20Transfer.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS20Transfer.sol)), so a subclass is impossible. The fork adds, in `onRecvPacket` only: flags, quarantine, limits (E5), and **default-deny denoms** (a gno-native denom without a registered `GnoVoucher` is refused, so no stock 18-decimal `IBCERC20` can ever be created for it); in every send variant: send-side limits **for Ethereum-native tokens leaving through escrow only**, the **refund meter** per route and denom on its ack/timeout refund path (refunds beyond the bucket are queued and paid as it refills, §7.13); the guardian `refunds` hold that suspends proof-based refunds on a route pending reconciliation (§7.13) — returning vouchers (burns) are never limited or paused; and leaves acks, timeouts and refunds unconditional. Expected refusals revert with non-empty custom errors | ❌ | — | New. Keep the diff small and audited, or upstream an extensibility hook to eureka. Do not grant `PAUSER_ROLE`: eureka's pause also blocks `onAcknowledgementPacket`/`onTimeoutPacket`. Note the router turns a callback revert **with non-empty data** into an **error ack** ([`ICS26Router.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS26Router.sol) `recvPacket`'s try/catch): such a refused receive refunds the sender. A revert with empty data (including out-of-gas) or an empty/forbidden returned ack reverts the whole router call and rolls back the receipt, so the packet stays pending. |
+| E6 | **`GnoICS20Transfer`**: a **minimal fork** of eureka's `ICS20Transfer` (installed by its UUPS upgrade). The callbacks are `external` and not `virtual`, and `_refundTokens` is private ([`ICS20Transfer.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS20Transfer.sol)), so a subclass is impossible. The fork adds, in `onRecvPacket` only: flags, quarantine, limits (E5), and **default-deny denoms** (a gno-native denom without a registered `GnoVoucher` is refused, so no stock 18-decimal `IBCERC20` can ever be created for it); in every send variant: send-side limits **for Ethereum-native tokens leaving through escrow only**, the **refund meter** per route and denom on its ack/timeout refund path (refunds beyond the bucket are queued and paid as it refills, §7.13); the guardian `refunds` hold that suspends proof-based refunds on a route pending reconciliation (§7.13) — returning vouchers (burns) are never limited or paused; and never blocks acks, timeouts or refunds through ordinary pauses or limits (only §7.13's refund meter and refunds hold can delay a refund). Expected refusals revert with non-empty custom errors | ❌ | — | New. Keep the diff small and audited, or upstream an extensibility hook to eureka. Do not grant `PAUSER_ROLE`: eureka's pause also blocks `onAcknowledgementPacket`/`onTimeoutPacket`. Note the router turns a callback revert **with non-empty data** into an **error ack** ([`ICS26Router.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS26Router.sol) `recvPacket`'s try/catch): such a refused receive refunds the sender. A revert with empty data (including out-of-gas) or an empty/forbidden returned ack reverts the whole router call and rolls back the receipt, so the packet stays pending. |
 | E7 | **Guardians, flags and holds** on Ethereum (4 guardian + 2 watch seats; hold = two guardian flags; unpause after 24 h clears only earlier flags; replacement under a hold no sooner than day 21) | ♻️ | bridges: [`lib/Guardians.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/lib/Guardians.sol) | Reuse nearly as is, in E6/E3 (deliveries) and E8 (decisions). |
 | E8 | **`IBCAdmin`** (permanent) + **`IBCAdminExec`** (replaceable executor). `IBCAdmin` is a small immutable IBC app on port `gov` (router ports can never be re-registered, [`ICS26Router._addIBCApp`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS26Router.sol)) that owns the ledger state (sequence, buffer, decision hashes, cancellations, maturity times, flags, hold history, recovery proposals) and **holds every authority** (`ADMIN_ROLE`, every proxy, `migrateClient`). It accepts packets only from the router, from `ibcgov` over the paired client, and delegatecalls an executor whose code hash it pins; decision kinds with delays, deferred by flags and holds; code-hash-pinned upgrades with after-checks. A hand-over (kind 9) swaps the executor's code hash atomically, with an optional one-time migration call; no state or authority moves | ❌ (pattern ♻️) | pattern: bridges [`HlAdmin.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/HlAdmin.sol), [`admin/HlAdminExec.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/admin/HlAdminExec.sol) (there the executor is fixed and hand-over moves authorities to a successor) | Replace Hyperlane's `handle`/ISM plumbing with `IIBCApp` callbacks and implement the delivery protocol of §5.4 (never revert with empty data; expected refusals revert with custom errors; out-of-window packets error-ack for redispatch). Kinds remapped (§7.6). Keep each contract under EIP-170. |
 | E9 | **Quarantine** after a validator-set transition | ❌ (♻️) | bridges: [`GnoLightClient.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/GnoLightClient.sol) (`quarantineEnd`) | The client keeps a **live epoch**: the `(validatorsHash, nextValidatorsHash)` pair of its latest accepted header. A newly accepted update (not a no-op, not misbehaviour checking) starts a quarantine only for a **live transition**: its `nextValidatorsHash` differs from the live epoch's (a new set announced), or its `validatorsHash` is neither the live set nor the live announced next set (a set the chain never announced: the > 1/3 skip). The verification anchor the relayer chooses plays no part, so an older anchor cannot restart it. Each transition sets its own deadline once (`quarantineEnd = max(quarantineEnd, transitionTime + duration)`); later headers of the established epoch do not extend it. `_verifyHeader` is `view`: it returns the transition data and `update` applies it (`contracts/src/GnoLightClient.sol`). E6 refuses token receives until `quarantineEnd`; `IBCAdmin` ignores it. |
@@ -519,7 +519,8 @@ stateDiagram-v2
 ```
 
 What a flag stops: deliveries/mints (Ethereum), `credits`/`payouts`/`sends` (gno.land, per client). What it never
-stops: burns, sends of vouchers back, acks, timeouts, refunds.
+stops: burns, sends of vouchers back, acks and timeouts. Refunds run under ordinary flags; only the dedicated
+`refunds` hold (§7.13) delays them, until reconciliation.
 
 ### 6.8 Meters and claims on gno.land
 
@@ -590,7 +591,7 @@ flowchart TD
   G1 --> H[second guardian flags → hold:<br/>7-day decisions deferred]
   H --> GOV["GovDAO: void forged claims (immediate when a guardian named them),<br/>cancel hostile decisions, rotate keys"]
   GOV --> UNP[unpause decision / flags cleared → meters restart empty]
-  AUTO -.-> EXIT[exits stay open: burns, refunds, timeouts]
+  AUTO -.-> EXIT[burns and returns stay open;<br/>refunds wait under the refunds hold until reconciliation]
 ```
 
 ### 6.12 Upgrades
@@ -649,8 +650,9 @@ so other IBC routes of the same realms are unaffected.
 - **Per token:** a per-message maximum and a leaky-bucket day cap (`used` drains at `dayCap` per day).
 - **Where:** in `GnoICS20Transfer.onRecvPacket`, before it mints a gno-native token's voucher or releases an
   Ethereum token from escrow. **Not** in `GnoVoucher.mint` or `Escrow.send`: ICS20's refund path (error ack,
-  timeout) also mints returning vouchers and uses `escrow.send`, and refunds must never be limited. Eureka's
-  per-token escrow rate limit is left unset for the same reason.
+  timeout) also mints returning vouchers and uses `escrow.send`, and refunds are never limited by receive limits
+  (only by §7.13's refund meter, in the refund path). Eureka's per-token escrow rate limit is left unset for the
+  same reason.
 - **Default deny:** a gno-native denom without a registered `GnoVoucher` and configured limits is refused.
 - **Launch values:** `maxPerMessage = min(25,000, dayCap)`, `dayCap = min(100,000, expectedLock/10)`.
 - **What it bounds:** a gno.land validator-key forgery mints at most `level₀ + dayCap·t/day` within `t` of the
@@ -852,9 +854,12 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   recovery needs a frozen or expired subject and a substitute ahead of it,
   [`impl/v0/client.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/impl/v0/client.gno); a route replacement does not use it.)
 - **Packets of the old route** are settled by a governed reconciliation, after sends are retired on both chains.
-  For every outstanding source commitment, and every **unpaid queued refund** (§7.13), the original packet is first
-  **authenticated** by recomputing its source commitment from the packet bytes and comparing it with the stored one
-  (the source chain's encoding). Then the destination's state is proven through the new clients — its receipt and
+  For every outstanding source commitment, the original packet is first **authenticated** by recomputing its source
+  commitment from the packet bytes and comparing it with the stored one (the source chain's encoding). An **unpaid
+  queued refund** (§7.13) has no source commitment left — processing its ack or timeout deleted it — so it is
+  authenticated by its refund record instead: the router checked the stored commitment against the packet before
+  deleting it and calling the app, and the app recorded that packet, its commitment hash and the original send
+  metadata (sender, denom, amount, send height) at that moment. Then the destination's state is proven through the new clients — its receipt and
   acknowledgement — and the destination's receipt hash is **recomputed from the same packet in the destination's
   own encoding** (eureka: `keccak256(abi.encode(packet))`; gno: R19's) and compared with the proven receipt.
   each packet gets exactly one terminal settlement, recorded atomically with consuming (or marking settled) its
@@ -870,7 +875,9 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
     longer be received there;
   - received with an **asynchronous ack not yet written** → the destination writes it (success or error) before the
     snapshot, then one of the two cases above;
-  - **already settled** (ack or timeout processed) → nothing;
+  - **settled** — the ack or timeout was processed **and** any refund it triggered was paid → nothing. Transport
+    completion alone is not settlement: a processed ack or timeout whose refund is still queued is reconciled like
+    the other cases, its queued refund paid or rejected by the destination's proven state;
   - accepted by the old client but **never sent** by the honest source (a forgery) → written off against the voids
     and loss accounting of §7.9.
   Refund liabilities move with the backing: escrow re-keyed to the new client stays reserved for the refunds owed.
@@ -897,7 +904,8 @@ same packet: a double spend that receive limits, flags and the quarantine do not
   refund; outstanding volume alone does not bound the total. Each chain therefore meters **cumulative refunds** per
   route and denom with a leaky bucket (`refundCap` per day, refilled continuously, not replenished by refunds). A
   refund within the bucket is paid at once; one beyond it is booked as owed in a **packet-keyed record** (the
-  packet, its proof height and the acknowledgement or timeout that triggered it) and paid by a permissionless
+  packet as the router authenticated it, its commitment hash, the original send metadata, the proof height and the
+  acknowledgement or timeout that triggered it) and paid by a permissionless
   `claim` as the bucket refills. The record outlives the source commitment, which processing the ack deletes, so
   route replacement reconciles it (§7.12): a genuine refund is never cancelled, a forged one is rejected there.
 - **Bound.** Receive losses and refund losses stop at different times, so they have separate intervals: the
@@ -1186,6 +1194,12 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     are reconciled on route replacement (§7.13, §7.12).
   - Separate loss intervals for receives and refunds; watch keys set the refunds hold automatically (§7.13, §7.11,
     §6.11).
+- 2026-10-16, twelfth review with Codex. Folded:
+  - Queued refunds are authenticated by their refund record (the packet the router authenticated before deleting
+    its commitment, its commitment hash and send metadata); settlement means the refund was paid, not only that the
+    ack or timeout was processed (§7.12, §7.13).
+  - Remaining "unconditional refunds" wording qualified by the refund meter and refunds hold (E6, §6.7, §6.11,
+    §7.2).
 
 ## 15. References
 
