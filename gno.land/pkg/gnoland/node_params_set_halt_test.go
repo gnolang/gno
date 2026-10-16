@@ -134,6 +134,14 @@ func TestSetHaltRefusesAFloorTheRunningBinaryMeets(t *testing.T) {
 		assert.Contains(t, res.out, "runs v1.5.1, below the floor v1.5.2")
 	})
 
+	t.Run("a malformed floor is refused", func(t *testing.T) {
+		t.Parallel()
+
+		for _, floor := range []string{"v1.02.0", "1.2.0", "chain/mainnet", "v1.6.0+meta", "v1.6"} {
+			assertRefused(t, runSetHalt(t, gnokey, live, "1000", floor), "MIN_VERSION must be vMAJOR.MINOR.PATCH")
+		}
+	})
+
 	t.Run("a status without a build version stops the proposal", func(t *testing.T) {
 		t.Parallel()
 		assertRefused(t, runSetHalt(t, gnokey, statusServer(t, ""), "1000", "v1.5.2"), "build_version")
