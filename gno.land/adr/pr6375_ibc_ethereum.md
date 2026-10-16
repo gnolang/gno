@@ -201,7 +201,7 @@ Repositories and branches:
 | R16 | **Ethereum light-client fork migration**: replacing the verifier of a live `ethereum-N` client (new fork parameters, new container indices) while keeping its client id, commitments and consensus states | ❌ | [`p/aib/ibc/lightclient/ethereum/v0/ethereum.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/p/aib/ibc/lightclient/ethereum/v0/ethereum.gno) (client upgrade/recovery refuse differing fork parameters) | A core impl change: a governed `SetLightClient`-style conversion from the old client state to a new package version, rehearsed before each relevant Ethereum fork (§6.12). A new package alone changes no stored client. |
 | R17 | **Route-scoped flags on gno** that keep returns open, and **public relaying for the Ethereum route** | ❌ | [`core/app.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/app.gno) `PauseApp` pauses the whole `transfer` port (sends included, so voucher returns too); [`core/core.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/core.gno) and [`core/client.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/client.gno) apply the relayer allow-list to `UpdateClient`, `RecvPacket`, `Acknowledgement` and `Timeout` | Per-client flags in the transfer impl that stop credits/payouts and sends of gno-native tokens, never burns of returning vouchers; plus the refund meter and the guardian `refunds` hold of §7.13 (the only controls that delay refunds, never cancel them). Refunds need fresh client updates as well as the ack/timeout itself, so exempting acks and timeouts alone is not enough: make every relaying entry point for the Ethereum client permissionless (they are proof-checked), or keep the allow-list with at least two independent relayers and a documented fail-over. Decide before deploying the core proxy. |
 | R18 | **Route replacement on gno.land** (§7.12): new Ethereum client and counterparty, `ibcgov` epoch, re-pointing the transfer realm's route alias (registries keyed by route key, translated to the current client id on the wire), freezing the old client, reconciliation of in-flight packets | ❌ | — | New, in core impl, the transfer impl and `ibcgov`; GovDAO-driven. |
-| R19 | **Receipts that identify the packet**: gno core stores a constant receipt value ([`core/store.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/store.gno)) and its ack commitment hashes only the acknowledgement ([`p/aib/ibc/types/v0/commitment.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/p/aib/ibc/types/v0/commitment.gno)), so nothing provable says *which* payload was received at a sequence | ❌ | — | Store the packet commitment hash as the receipt value (as eureka does), so reconciliation (§7.12) can compare it with the source commitment. A store change behind the frozen core proxy: decide before deployment. |
+| R19 | **Receipts that identify the packet**: gno core stores a constant receipt value ([`core/store.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/store.gno)) and its ack commitment hashes only the acknowledgement ([`p/aib/ibc/types/v0/commitment.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/p/aib/ibc/types/v0/commitment.gno)), so nothing provable says *which* payload was received at a sequence | ❌ | — | Store a hash of the received packet as the receipt value — e.g. sha256 of its canonical encoding — as eureka already does with its own encoding (`keccak256(abi.encode(packet))`, [`utils/ICS24Host.sol`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/utils/ICS24Host.sol) `packetReceiptCommitmentBytes32`), so reconciliation (§7.12) can tell which packet occupies a sequence. A store change behind the frozen core proxy: decide before deployment. |
 
 ### 4.4 Ethereum contracts
 
@@ -585,7 +585,7 @@ sequenceDiagram
 
 ```mermaid
 flowchart TD
-  DET[Monitor detects: supply identity broken /<br/>header mismatch / foreign decision] --> AUTO[watch key auto-flags:<br/>credits+payouts on gno, receives on Eth]
+  DET[Monitor detects: supply identity broken /<br/>header mismatch / foreign decision] --> AUTO[watch key auto-flags:<br/>credits+payouts on gno, receives on Eth,<br/>refunds hold on both]
   AUTO --> G1[Guardian confirms → flags, names suspect packets]
   G1 --> H[second guardian flags → hold:<br/>7-day decisions deferred]
   H --> GOV["GovDAO: void forged claims (immediate when a guardian named them),<br/>cancel hostile decisions, rotate keys"]
@@ -796,8 +796,8 @@ so other IBC routes of the same realms are unaffected.
     commitment, since commitments also persist until acks are processed.
   - Evaluated in a fixed snapshot order from the operator's own nodes, with two agreeing RPC providers pinned by
     block hash, counting only finalized Ethereum state.
-- **What triggers what.** A break auto-flags (credits+payouts, receives). Stalls, ages and float runways only
-  alarm.
+- **What triggers what.** A break auto-flags credits+payouts and receives, and sets the route's `refunds` hold
+  (§7.13). Stalls, ages and float runways only alarm.
 - **Watch tool.** Guardians and members see flags, holds, pending decisions and the client heads, and check
   upgrade targets.
 
@@ -852,14 +852,19 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   recovery needs a frozen or expired subject and a substitute ahead of it,
   [`impl/v0/client.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/impl/v0/client.gno); a route replacement does not use it.)
 - **Packets of the old route** are settled by a governed reconciliation, after sends are retired on both chains.
-  Each side proves, through the new clients, the destination's state for every outstanding source commitment — the
-  receipt, which identifies the received packet (R19), and its acknowledgement — and
+  For every outstanding source commitment, and every **unpaid queued refund** (§7.13), the original packet is first
+  **authenticated** by recomputing its source commitment from the packet bytes and comparing it with the stored one
+  (the source chain's encoding). Then the destination's state is proven through the new clients — its receipt and
+  acknowledgement — and the destination's receipt hash is **recomputed from the same packet in the destination's
+  own encoding** (eureka: `keccak256(abi.encode(packet))`; gno: R19's) and compared with the proven receipt.
   each packet gets exactly one terminal settlement, recorded atomically with consuming (or marking settled) its
   source commitment:
-  - received with a **success** ack, and the receipt's packet hash equals the source commitment → stands; the source
-    commitment is consumed as acknowledged;
-  - a **collision**: the receipt at that sequence is for a different packet (a forgery occupied it) → the honest
-    packet is refunded at its source by decision, and the forged delivery is accounted as a loss (§7.9);
+  - received with a **success** ack, and the proven receipt equals the receipt recomputed from the authenticated
+    packet → stands; the source commitment is consumed as acknowledged, and any queued refund of that packet is
+    rejected as fraudulent;
+  - a **collision**: the proven receipt at that sequence differs from the one recomputed from the authenticated
+    packet (a forgery occupied it) → the honest packet is refunded at its source by decision (or its queued refund
+    is paid), and the forged delivery is accounted as a loss (§7.9);
   - received with an **error** ack whose refund is pending → refunded at the source by decision;
   - **not received** → refunded at the source by decision; the destination's old client is frozen, so it can no
     longer be received there;
@@ -891,15 +896,20 @@ same packet: a double spend that receive limits, flags and the quarantine do not
 - **Refund meter.** A refund frees its source commitment, so an attacker could repeat send → delivery → forged
   refund; outstanding volume alone does not bound the total. Each chain therefore meters **cumulative refunds** per
   route and denom with a leaky bucket (`refundCap` per day, refilled continuously, not replenished by refunds). A
-  refund within the bucket is paid at once; one beyond it is booked as owed and paid by a permissionless `claim`
-  as the bucket refills — delayed, never cancelled. Honest refunds wait only when refund volume itself is unusual.
-- **Bound.** Within `t` of a verifier compromise, the loss is at most the receive-side bound of §7.1/§7.2 plus
-  `refundLevel₀ + refundCap·t/day` per denom (at most two refund caps in any 24 hours), until a guardian's
-  `refunds` hold or `payouts`/receive flags land.
-- **Refunds hold.** A guardian flag dedicated to suspected verifier compromise (`refunds`, per route, on each
-  chain) suspends **proof-based** refunds — error acks and timeouts — on that route. It does not cancel them: they
-  are settled by the reconciliation of §7.12 against the honest chain's state. Lifting it follows the ordinary
-  flag rules. It is the only control that can delay a refund, and monitors never set it automatically.
+  refund within the bucket is paid at once; one beyond it is booked as owed in a **packet-keyed record** (the
+  packet, its proof height and the acknowledgement or timeout that triggered it) and paid by a permissionless
+  `claim` as the bucket refills. The record outlives the source commitment, which processing the ack deletes, so
+  route replacement reconciles it (§7.12): a genuine refund is never cancelled, a forged one is rejected there.
+- **Bound.** Receive losses and refund losses stop at different times, so they have separate intervals: the
+  receive-side loss of §7.1/§7.2 accumulates until a `payouts`/receive flag lands (`t_recv`); the refund loss
+  accumulates until an effective `refunds` hold lands (`t_ref`), since ordinary flags deliberately leave refunds
+  running. Per denom the loss is at most `receiveBound(t_recv) + refundLevel₀ + refundCap·t_ref/day` (at most two
+  refund caps in any 24 hours).
+- **Refunds hold.** A flag dedicated to suspected verifier compromise (`refunds`, per route, on each chain)
+  suspends **proof-based** refunds — error acks and timeouts — and the `claim` payouts of queued refunds on that
+  route. It cancels nothing: everything it holds is settled by the reconciliation of §7.12 against the honest
+  chain's state. Because it only delays, watch keys set it automatically on an integrity break (§7.11), keeping
+  `t_ref` to the monitors' reaction time; lifting it follows the ordinary flag rules.
 - **Accounting.** Under §7.11's economic definition of in flight, a forged refund of a packet that was in fact
   delivered leaves the backing short of the supply (the refunded sender and the recipient both hold value), so the
   identity breaks and the monitors alarm.
@@ -1168,6 +1178,14 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     §7.8, §7.13, §9).
   - Receipts must identify the received packet (R19); reconciliation handles sequence collisions (§7.12).
   - §7.13's accounting sentence follows §7.11's economic definition of in flight.
+- 2026-10-16, eleventh review with Codex. Folded:
+  - Reconciliation authenticates each packet against its source commitment, then recomputes the destination's
+    receipt in that chain's encoding (eureka's is `keccak256(abi.encode(packet))`, not the source commitment);
+    R19 corrected (§7.12).
+  - Queued refunds are packet-keyed records that outlive the source commitment, are held by the `refunds` hold and
+    are reconciled on route replacement (§7.13, §7.12).
+  - Separate loss intervals for receives and refunds; watch keys set the refunds hold automatically (§7.13, §7.11,
+    §6.11).
 
 ## 15. References
 
