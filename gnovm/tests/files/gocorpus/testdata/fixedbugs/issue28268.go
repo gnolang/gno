@@ -35,4 +35,4 @@ func _() {
 // line 26: cannot call non-function x.b (variable of type int)
 // line 29: cannot call non-function x.E (variable of type gno.land/p/filetest/p.E)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19, 20
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 26, 29

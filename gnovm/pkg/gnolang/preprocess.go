@@ -866,7 +866,7 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 		loc.SetSpanOverride(n.GetSpan())
 	}
 	var code ErrCode
-	if sp, ok := r.(*spanPanic); ok {
+	if sp, ok := r.(*spanError); ok {
 		if !sp.span.IsZero() {
 			loc.SetSpanOverride(sp.span)
 		}
@@ -6025,8 +6025,8 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		if r := recover(); r != nil {
 			switch p := r.(type) {
 			case string:
-				panic(&spanPanic{span: d.GetSpan(), msg: p})
-			case *spanPanic:
+				panic(&spanError{span: d.GetSpan(), msg: p})
+			case *spanError:
 				if p.span.IsZero() {
 					p.span = d.GetSpan()
 				}

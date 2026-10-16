@@ -50,9 +50,4 @@ var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires point
 // line 37: should not happen
 // line 41: invalid method expression T.g (needs pointer receiver (*T).g)
 
-// GnoWordingDiffers:
-// line 31: gc expects: method|type \*Val is pointer to interface, not interface; gno: should not happen
-// line 36: gc expects: undefined|pointer to interface; gno: should not happen
-// line 37: gc expects: undefined|pointer to interface; gno: should not happen
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 36, 37; internal errors: lines 31, 36, 37
