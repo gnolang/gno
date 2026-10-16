@@ -19,16 +19,9 @@ func getNewTest() *Test {
 
 func main() {
 	test := getNewTest()
+	_ = test // keep the variable used; the test is about something else
 	panic("here")
 }
 
-// Stacktrace:
-// panic: here
-// main<VPBlock(1,2)>()
-//     main/panic1.gno:22
-
 // Error:
 // here
-
-// TypeCheckError:
-// main/panic1.gno:21:2: declared and not used: test

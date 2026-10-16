@@ -29,4 +29,10 @@ func _() {
 	x.E()   // no follow-on error here
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19, 20
+// GnoError:
+// line 19: type T has both field and method named b
+// line 20: type T has both field and method named E
+// line 26: unexpected func type int (gnolang.PrimitiveType)
+// line 29: unexpected func type gno.land/p/filetest/p.E (*gnolang.DeclaredType)
+
+// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 26, 29

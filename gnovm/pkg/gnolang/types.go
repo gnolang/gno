@@ -2635,6 +2635,16 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 		return embeddedInterface(ft.Type) != nil
 	})
 	if !hasEmbed {
+		names := make(map[Name]bool, len(fts))
+		for _, ft := range fts {
+			if ft.Name == "_" {
+				panic("methods must have a unique non-blank name")
+			}
+			if names[ft.Name] {
+				panic(fmt.Sprintf("duplicate method %s", ft.Name))
+			}
+			names[ft.Name] = true
+		}
 		return fts
 	}
 	out := make([]FieldType, 0, len(fts))
@@ -2642,6 +2652,9 @@ func flattenInterfaceMethods(fts []FieldType, pkgPath string) []FieldType {
 	// methods from different packages are distinct and must coexist.
 	seen := make(map[string]Type, len(fts))
 	add := func(name Name, typ Type, origin string) {
+		if name == "_" {
+			panic("methods must have a unique non-blank name")
+		}
 		ft := FieldType{Name: name, Type: typ}
 		// Stamp only cross-package unexported methods; same-package ones stay
 		// unstamped and rely on idName's fallback to the enclosing pkgPath,
