@@ -39,9 +39,6 @@ func main() {
 
 // GnoOutput:
 
-// GnoError:
-// main/method3.go:31:5-17: cannot use *main.T as []int
-
 // GoOutput:
 
-// Verdict: KnownIssue run: #5787 method expression on an interface or mixed-receiver type is rejected at preprocess
+// Verdict: Clean run

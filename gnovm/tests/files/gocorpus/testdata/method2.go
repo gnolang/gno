@@ -45,12 +45,9 @@ var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires point
 // line 19: invalid receiver type *main.P1 (base type is pointer type)
 // line 24: invalid receiver type main.I (base type is interface type)
 // line 25: invalid receiver type *main.I1 (base type is interface type)
-// line 31: unknown *DeclaredType method named val
+// line 31: should not happen
 // line 36: should not happen
 // line 37: should not happen
-// line 41: wrong argument count in call to typeval{main.T}.g; want 1 got 0
+// line 41: invalid method expression T.g (needs pointer receiver (*T).g)
 
-// GnoWordingDiffers:
-// line 41: gc expects: needs pointer receiver|undefined|method requires pointer|cannot call pointer method; gno: wrong argument count in call to typeval{main.T}.g; want 1 got 0
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 36, 37; internal errors: lines 36, 37
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 36, 37; internal errors: lines 31, 36, 37

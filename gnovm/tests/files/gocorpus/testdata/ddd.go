@@ -234,9 +234,6 @@ func main() {
 
 // GnoOutput:
 
-// GnoError:
-// main/ddd.go:222:10-18: unknown *DeclaredType method named Sum
-
 // GoOutput:
 
-// Verdict: KnownIssue run: #5787 method expression on an interface or mixed-receiver type is rejected at preprocess
+// Verdict: Clean run

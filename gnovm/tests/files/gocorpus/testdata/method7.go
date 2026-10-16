@@ -72,7 +72,7 @@ func main() {
 // GnoOutput:
 
 // GnoError:
-// main/method7.go:35:2-5: unknown *DeclaredType method named m
+// main/method7.go:42:7-33: unexpected selector expression type value interface {m1 func(string)}
 
 // GoOutput:
 

@@ -346,3 +346,53 @@ func assertSwitchTag(x Expr, tt Type) {
 		failf(CodeSwitchTag, []Node{x}, "cannot switch on %s (%v is not comparable)", exprString(x), tt)
 	}
 }
+
+// assertMethodExprReceiver: the method expression T.m needs *T when m
+// has a pointer receiver (Go spec, "Method expressions").
+func assertMethodExprReceiver(xt Type, dt *DeclaredType, sel Name, recv Type, isPtr bool) {
+	if _, ptrRecv := recv.(*PointerType); ptrRecv && !isPtr {
+		failf(CodeMethodExprReceiver, nil,
+			"invalid method expression %s.%s (needs pointer receiver (*%s).%s)", dt.Name, sel, dt.Name, sel)
+	}
+}
+
+// promotedMethodExpr lowers the method expression n (X.Sel, X a type)
+// whose method is promoted through an embedded field to
+// func(r X, args...) results { return r.Sel(args...) }.
+func promotedMethodExpr(store Store, last BlockNode, pkgPath string, n *SelectorExpr, xt Type, isPtr bool) *FuncLitExpr {
+	trail, hasPtr, rcvr, ft, status := findEmbeddedFieldType(preprocessGasMeterOf(store), pkgPath, xt, n.Sel)
+	if status != embedLookupFound || len(trail) == 0 || trail[len(trail)-1].Type == VPField || trail[len(trail)-1].Type == VPDerefField {
+		failf(CodeNoMethod, nil, "%s.%s undefined (type %v has no method %s)", exprString(n.X), n.Sel, xt, n.Sel)
+	}
+	if _, ptrRecv := rcvr.(*PointerType); ptrRecv && !isPtr && !hasPtr {
+		failf(CodeMethodExprReceiver, nil,
+			"invalid method expression %s.%s (needs pointer receiver (*%s).%s)", exprString(n.X), n.Sel, exprString(n.X), n.Sel)
+	}
+	mt := ft.(*FuncType)
+	recv := Name(".recv")
+	params := FieldTypeExprs{{NameExpr: *Nx(recv), Type: toConstTypeExpr(last, n.X, xt)}}
+	args := make([]any, len(mt.Params))
+	for i, p := range mt.Params {
+		name := Name(fmt.Sprintf(".arg%d", i))
+		params = append(params, FieldTypeExpr{NameExpr: *Nx(name), Type: toConstTypeExpr(last, Nx(name), p.Type)})
+		args[i] = Nx(name)
+	}
+	results := make(FieldTypeExprs, len(mt.Results))
+	for i, r := range mt.Results {
+		results[i] = FieldTypeExpr{Type: toConstTypeExpr(last, Nx(".res"), r.Type)}
+	}
+	call := Call(Sel(Nx(recv), n.Sel), args...)
+	call.Varg = mt.HasVarg()
+	var body Body
+	if len(results) > 0 {
+		body = Body{Return(call)}
+	} else {
+		body = Body{&ExprStmt{X: call}}
+	}
+	lit := &FuncLitExpr{Type: *FuncT(params, results), Body: body}
+	lit.SetSpan(n.GetSpan())
+	loc := last.GetLocation()
+	loc.Span = n.GetSpan()
+	lit.SetLocation(loc)
+	return lit
+}
