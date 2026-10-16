@@ -11,6 +11,6 @@ package p
 var f = func() { // ERROR "unexpected EOF|expected .*}.*"
 
 // GnoError:
-// line 13: expected '(', found main
+// line 11: expected '(', found main
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11; over-strict: lines 13
+// Verdict: Clean errorcheck
