@@ -99,11 +99,6 @@ func failf(code ErrCode, at []Node, format string, args ...any) {
 	fail(code, fmt.Sprintf(format, args...), at...)
 }
 
-// panicAt is fail without a code, for sites not yet given one.
-func panicAt(msg string, at ...Node) {
-	fail(CodeNone, msg, at...)
-}
-
 // checkRun is the context of one preprocess walk: the store, the block
 // stack the walk maintains (shared by pointer, the walk owns it) and, in
 // accumulate mode, the error sink. On chain (acc == nil) the first error
