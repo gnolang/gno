@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gnolang/gno/tm2/pkg/store"
+
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -6179,9 +6181,12 @@ func packageDeclOf(last BlockNode, name Name) (d Decl) {
 // carryIota stamps the iota of a constant declaration on the type of
 // every composite literal among its values: the literal's type is
 // preprocessed on its own and would otherwise not see it.
-func carryIota(values Exprs, io int) {
+func carryIota(gm store.GasMeter, values Exprs, io int) {
 	for _, v := range values {
 		Transcribe(v, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage == TRANS_ENTER {
+				chargeCPUGas(gm, OpCPUSlopeCheckNode)
+			}
 			if cl, ok := n.(*CompositeLitExpr); ok && stage == TRANS_ENTER && cl.Type != nil {
 				cl.Type.SetAttribute(ATTR_IOTA, io)
 			}
@@ -6291,7 +6296,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// `var a, b, c = 1, a, b` was already split up before reaching
 		// here, whereas they are illegal inside a function.
 		if io, ok := d.GetAttribute(ATTR_IOTA).(int); ok {
-			carryIota(d.Values, io)
+			carryIota(preprocessGasMeterOf(store), d.Values, io)
 		}
 		for _, vx := range d.Values {
 			un, directR = findUndefinedV(store, last, vx, stack, defining, direct, nil)
