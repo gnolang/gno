@@ -20,6 +20,6 @@ var _ = T{
 }
 
 // GnoError:
-// line 16: 2: types cannot be elided in composite literals for struct types
+// line 16: types cannot be elided in composite literals for struct types
 
 // Verdict: Clean errorcheck

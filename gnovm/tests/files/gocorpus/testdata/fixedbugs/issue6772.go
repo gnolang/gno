@@ -21,7 +21,7 @@ func f2() {
 }
 
 // GnoError:
-// line 10: 3: a repeated on left side of :=
-// line 17: 3: a repeated on left side of :=
+// line 10: a repeated on left side of :=
+// line 17: a repeated on left side of :=
 
 // Verdict: Clean errorcheck

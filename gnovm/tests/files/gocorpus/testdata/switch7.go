@@ -34,6 +34,6 @@ func f4(e interface{}) {
 }
 
 // GnoError:
-// line 16: 3: duplicate type int in type switch
+// line 16: duplicate type int in type switch
 
 // Verdict: Clean errorcheck

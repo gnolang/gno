@@ -25,6 +25,6 @@ var _ = []int{
 }
 
 // GnoError:
-// line 16: 2: cannot use func(gno.land/p/filetest/p.T) as int
+// line 16: cannot use func(gno.land/p/filetest/p.T) as int
 
 // Verdict: Clean errorcheck

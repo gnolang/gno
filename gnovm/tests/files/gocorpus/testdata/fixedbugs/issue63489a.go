@@ -20,6 +20,6 @@ func f() {
 }
 
 // GnoError:
-// line 18: 3: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+// line 18: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
 
 // Verdict: Clean errorcheck
