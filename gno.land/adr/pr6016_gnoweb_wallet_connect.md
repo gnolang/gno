@@ -3,7 +3,7 @@
 ## Context
 
 Two earlier ADRs on this branch built the transports:
-[`gnoconnect_in_page_wallets.md`](./gnoconnect_in_page_wallets.md) (announcement
+[`pr6016_gnoconnect_in_page_wallets.md`](./pr6016_gnoconnect_in_page_wallets.md) (announcement
 discovery, `sendTx` on an in-page provider) and
 [`pr5970_gnoconnect_external_wallets.md`](./pr5970_gnoconnect_external_wallets.md)
 (the registry, the chooser, the `<scheme>://sendtx?…` launch link). Both answer
@@ -21,26 +21,21 @@ This change adds the identity layer on top of the transports, plus the two pages
 that make it reachable: `/wallets` to install one, and a QR on `$help` to move a
 transaction to a device that has one.
 
+The protocol this relies on — `connect`, the `signer` pin, the challenge — is
+specified by the GnoConnect standard (#6373), whose decisions are recorded in
+[`pr6373_gnoconnect_standard.md`](./pr6373_gnoconnect_standard.md).
+
 ## Decision
 
-### `connect()` becomes a mandatory method of the standard
+### Identity comes from `connect`
 
-`docs/resources/gnoconnect.md` listed `connect` under optional methods, on the
-reasoning that a wallet gating nothing does not need it. That framing is
-backwards for a page that wants to know its user: `connect` is the only way a
-page learns an address, and an address is what the header renders, what the
-`signer` pin carries, and what the session remembers. A wallet that cannot be
-identified cannot be logged into.
-
-Two rules come with it. `connect` on an already-approved origin MUST resolve
-without prompting — gnoweb restores the session on every navigation, and a
-wallet popup per page load would make the feature unusable. And the `connect`
-launch-link host becomes required of an external wallet, because a mobile login
-that goes nowhere is indistinguishable, to the producer, from the user
-abandoning it.
-
-The cost is real but it is cheap *now*: no wallet implements the in-page half
-yet, so promoting it breaks nothing today. It would not stay cheap.
+`connect` is the only way a page learns an address, and an address is what the
+header renders, what the `signer` pin carries, and what the session remembers.
+This change is what made the standard promote `connect` to a core method, with
+a silent answer on an already-approved origin — gnoweb restores the session on
+every navigation, and a wallet popup per page load would make the feature
+unusable. The standard's ADR records the decision; gnoweb is its first
+consumer.
 
 ### The session is client-side only
 
@@ -126,7 +121,9 @@ today's disconnected page.
 
 - **A server session with a signature challenge.** Rejected: it makes every
   page per-user and uncacheable, needs a backend gnoweb does not have, and buys
-  nothing here — gnoweb never acts on the user's behalf, the wallet does.
+  nothing here — gnoweb never acts on the user's behalf, the wallet does. The
+  standard does define a challenge, for producers whose backend must know who
+  it is talking to; gnoweb is not one of them.
 - **A JS test runner for the frontend.** Rejected at first: gnoweb had none, and
   adding one was a larger decision than the connect change should make.
   Revisited for connected reads, whose parsing, formatting and URL logic is pure:
@@ -163,15 +160,12 @@ today's disconnected page.
 - Signing while unconnected leaves the user unconnected — `sendTx` returns a
   hash, not an address — so gnoweb calls `connect()` after a successful
   unconnected sign to adopt the identity.
-- The standard gains a mandatory method every future wallet must implement.
-  That is the price of being able to say "log in with any conforming wallet".
 - `github.com/boombuler/barcode` is a new dependency of the root module, and
   therefore an indirect one of `contribs/gnodev` and `contribs/gnobro`.
 
-## Deviations from the design spec
+## Implementation notes
 
-1. **The registry gains a `global` field**, which the spec's schema table does
-   not list. `rdns` replaces half of the old `LEGACY_PROVIDERS` table — matching
+1. **The registry gains a `global` field**, beyond the entry shape of #5970. `rdns` replaces half of the old `LEGACY_PROVIDERS` table — matching
    an entry to an announcement — but legacy detection still needs a `window` key
    to probe. Rather than keep a second hardcoded table, the key moved into the
    registry, validated as a bare JS identifier and permitted only on
@@ -183,8 +177,8 @@ today's disconnected page.
    `layouts/header.html`.** The header renders on every page and both
    controllers need them; leaving them on `$help` would mean either duplicating
    the registry JSON or a header with no chooser.
-4. **Frontend tests are a checked-in fixture plus a checklist**, not a test
-   runner — see Alternatives (revisited for connected reads).
+4. **Frontend tests started as a checked-in fixture plus a checklist**, not a
+   test runner — see Alternatives (revisited for connected reads).
 
 Connected reads:
 
@@ -256,7 +250,7 @@ intact, both with script enabled and with it blocked for the origin. The
 sentence above described the bug, which was inherited from `master`, not a
 property worth preserving.
 
-The spec flagged two open questions to measure rather than assume:
+Two open questions were measured rather than assumed:
 
 1. **Does an extension open its approval popup without user activation?**
    Measured `navigator.userActivation.isActive` inside `sendTx`, under a real
@@ -281,7 +275,7 @@ The spec flagged two open questions to measure rather than assume:
    The last shape is what shipped. Verified end to end from the fixture's own
    Execute button: the prompt appears, Open brings up gnokey-mobile prefilled
    with the path, function, both arguments and the network from gnoweb's link.
-   The plan's proposed remedy would not have worked, which is why it was
+   The remedy first proposed would not have worked, which is why it was
    measured rather than assumed.
 
 `go test ./gno.land/pkg/gnoweb/...` passes, as do `make -C gno.land/pkg/gnoweb

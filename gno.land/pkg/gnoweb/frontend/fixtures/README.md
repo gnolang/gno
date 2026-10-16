@@ -86,7 +86,7 @@ failure — but with Adena enabled these rows measure nothing.
 
 Both were run in Chrome with all wallets disabled: with script blocked, and again
 with script enabled and no wallet to route to (the "no candidate" row of the
-Execute table in `prxxxx_gnoweb_wallet_connect.md`). Editing `author` to `bob`
+Execute table in `pr6016_gnoweb_wallet_connect.md`). Editing `author` to `bob`
 and submitting lands on `…$help&func=Post&author=bob&body=hello` in both, with
 the edit intact and no query fields in the breadcrumb.
 
@@ -97,7 +97,7 @@ intact — `article.b-action-function > form.params` and the
 `views/action.html`, to the `b-action-function` class, or to those attributes;
 breaking it silently removes the only in-page signing route these users have,
 dropping them onto case 20 with their arguments discarded. See
-[`gnoconnect_in_page_wallets.md`](../../../../adr/gnoconnect_in_page_wallets.md)
+[`pr6016_gnoconnect_in_page_wallets.md`](../../../../adr/pr6016_gnoconnect_in_page_wallets.md)
 § "With page JavaScript disabled".
 
 A `Content-Security-Policy: script-src 'none'` proxy is **not** a substitute for

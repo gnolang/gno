@@ -12,10 +12,7 @@ That check is the problem this change removes. A single well-known global is a
 namespace race: whichever extension writes it last wins, and a user with two
 wallets installed cannot reach one of them. It is also unusable as discovery —
 gnoweb learns that *an* extension exists, not which, nor what it can do, nor
-whether the user wants it for this transaction. EIP-6963 and the Wallet
-Standard both exist because the Ethereum and Solana ecosystems hit exactly this
-wall; the draft in issue #2799 (`registerWallet` / `getWallets`) points at the
-same answer for Gno.
+whether the user wants it for this transaction.
 
 The global is only half of how a wallet takes a transaction today. Adena also
 claims the Execute submit outright, by scraping gnoweb's markup from a
@@ -23,43 +20,30 @@ document-capture listener and cancelling the event. That is the same problem in
 a second form — first one to the event wins, the page is never asked — and it
 has to be addressed here too, or discovery has nothing to discover with.
 
+The GnoConnect standard (#6373) specifies the in-page protocol: the announce
+handshake, the provider, the rule against consuming the page's events, and the
+no-script exception to it. Its decisions are recorded in
+[`pr6373_gnoconnect_standard.md`](./pr6373_gnoconnect_standard.md). This ADR
+covers how gnoweb implements the page side, and how it stays compatible with
+the wallets installed today.
+
 ## Decision
 
-### Announce protocol: two events on `window`
+### The page side of the handshake
 
-`gno:registerWallet` (wallet → page, `detail: { info, provider }`) and
-`gno:requestWallet` (page → wallets, no payload). Wallets announce on load and
-on every request; the page listens before it asks and keeps listening after.
-Specified in `docs/resources/gnoconnect.md` § "In-Page Wallets".
+gnoweb implements the page side of `docs/resources/gnoconnect.md` § "In-Page
+Wallets": it listens for `gno:registerWallet` before it dispatches
+`gno:requestWallet`, keeps listening afterwards, and dispatches the request on
+load rather than when the chooser opens (§ Pages that never ask makes that a
+MUST). Announcements are deduplicated by `rdns`, falling back to `uuid`, and
+`rdns` is what gnoweb persists when it remembers a wallet.
 
-- **On `window`, not `document`** — an extension announces at `document_start`,
-  before any page script exists; `window` is the one surface both sides can
-  rely on at that point.
-- **Both directions are required.** Either alone loses to a race: announce-only
-  misses pages that start listening late, request-only misses wallets that
-  load late. This is the single most-repeated implementation mistake in
-  EIP-6963, so the spec states it as an obligation on each side rather than as
-  advice.
-- **`rdns` alongside `uuid`** — `uuid` is a per-page-load handle for
-  deduplication; `rdns` is what identifies a wallet across loads and versions,
-  and therefore what a page persists when it remembers a choice. A display
-  name cannot serve: names are neither unique nor stable.
+The only provider methods gnoweb calls are `sendTx` and `connect`.
 
-### Provider surface: mirror the launch link, feature-detect the rest
-
-The only method gnoweb calls is `sendTx(tx)`, whose argument
-is the `sendtx` launch link field for field — named args included — returning
-`UserResponse<{hash}>`. Wallets may implement more of the draft's surface
-(`connect`, `signMessage`, network switching); a page must feature-detect every
-method it calls.
-
-- **One intent, two transports.** The in-page call and the launch link
-  serialize the same `GnoTxRequest`, built by one function reading the live
+- **One intent, two transports.** The in-page call and the launch link are
+  built from the same `GnoTxRequest`, produced by one function reading the live
   form. Divergence between the two paths would be invisible until a wallet
   bound an argument to the wrong parameter.
-- **`Rejected` is a status, not an exception.** A user declining is an answer;
-  reserving rejection of the promise for genuine failures keeps "the user said
-  no" from being reported as an error.
 - **Announcing is not a claim to implement everything.** A wallet that
   announces without `sendTx` falls back to the native submit,
   so its legacy interception still works and Execute is never dead-ended.
@@ -107,14 +91,12 @@ listeners were added in, so it is the one place the page is certain to be asked.
   Adena installed could no longer reach Adena at all — "Continue in browser"
   calls `form.submit()`, which fires no event either.
 - **This is a transition mechanism, and it lives here, not in the standard.**
-  `docs/resources/gnoconnect.md` states that a wallet MUST NOT cancel or consume
-  the page's events; it deliberately says nothing about deferring to one that
-  does. That rule is permanent and wallet-agnostic, whereas "keep working with
-  the extensions installed today" is a gnoweb rollout decision with an expiry
-  date — putting it in the standard would have every future implementer carry
-  our migration forever. Once wallets announce, the legacy entry and the claim
-  both stop mattering and both come out — with one carve-out, measured after
-  this was first written: see "With page JavaScript disabled" below.
+  The standard forbids a wallet to cancel or consume the page's events and says
+  nothing about deferring to one that does. "Keep working with the extensions
+  installed today" is a gnoweb rollout decision with an expiry date; in the
+  standard, every future implementer would carry our migration forever. Once
+  wallets announce, the legacy entry and the claim both come out — with one
+  carve-out: see "With page JavaScript disabled" below.
 
 ### With page JavaScript disabled
 
@@ -139,8 +121,11 @@ chooser; gnoweb is reduced to the HTML and CSS it served. So:
 `master`'s flow: it claims nothing, and a wallet that intercepts on its own
 takes the submit exactly as it does today. This costs no code — it is what
 happens already, because every mechanism this ADR adds is page script and simply
-does not register. What it costs is a commitment, stated here so it is not
-broken by accident:
+does not register. The standard sanctions it (§ Pages that never ask: a wallet
+may intercept a TxLink navigation only on a page that has not dispatched
+`gno:requestWallet`), and gnoweb dispatches that request on load, so the two
+paths never compete. What it costs gnoweb is a commitment, stated here so it is
+not broken by accident:
 
 - The markup an intercepting wallet scrapes — `article.b-action-function >
   form.params` and the `data-action-function-*` attributes — is a **supported
@@ -164,35 +149,6 @@ This change already satisfies the commitment: `views/action.html` adds an inert
 scraped attributes are untouched — verified against Adena 1.21.1 with script
 blocked, where Execute behaves as it does on `master`.
 
-What the fallback does **not** cover is a visitor with no such wallet: for them
-Execute reaches the native submit, which discards the typed arguments (see
-[`prxxxx_gnoweb_wallet_connect.md`](./prxxxx_gnoweb_wallet_connect.md) §
-Deviations — the same bug on `master`). An intercepting wallet masks it by
-cancelling the submit before the browser acts on it; nothing else does.
-
-Two further options were considered and **not** adopted, both of which remain
-compatible with the decision above rather than alternatives to it:
-
-- **Give the Execute inputs `name` attributes**, so the native submit navigates
-  to a URL that fully encodes the intent instead of emptying it. This does not
-  interact with the fallback — an intercepting wallet cancels the event before
-  the browser ever reads the form — so it only repairs the no-wallet case, and
-  additionally lets a wallet reach the intent by **observing** the navigation,
-  which `gnoconnect.md` permits ("Observing is not intercepting"). Deferred as
-  a separate change, since it alters a URL shape `master` also produces.
-- **Sanction interception through a liveness marker gnoweb sets on boot.**
-  That would put a gnoweb-specific signal into a wallet-agnostic standard.
-
-Interception is nonetheless sanctioned in the standard, on a signal it already
-defines: `gnoconnect.md` § Pages that never ask lets a wallet intercept a TxLink
-navigation only on a page that has not dispatched `gno:requestWallet`. "The
-wallet is unopposed without being told" held technically but not in practice.
-The standard's rule against consuming the page's events is unconditional, so a
-conforming wallet drops the fallback: Adena's GnoConnect branch removed its
-interceptors on exactly that reading. And no-JS is not a migration with an expiry
-date, so the objection to putting transition mechanisms in the standard does not
-apply to it.
-
 In-page signing by a desktop extension with script disabled therefore works, and
 works for exactly one wallet — the first to register. That is a property of the
 page being unable to run, not a choice, and is the honest boundary of this
@@ -200,14 +156,12 @@ fallback.
 
 ### Announcements are untrusted input
 
-Any script in the page can announce. The chooser renders `name` as text with a
-64-character clamp, accepts `icon` only as a `data:image/` URI (a remote URL
-would leak the page visit and render fetched content), and caps the list at 16
-entries so a flood cannot push the real wallet out of view.
-
-This does not authenticate anything, and is not meant to: picking a name from a
-list is the user's trust decision, as it was when they installed the extension.
-What the page owes them is a list that is legible and cannot be crowded out.
+Any script in the page can announce (§ Announcements are untrusted). The
+chooser renders `name` as text with a 64-character clamp, accepts `icon` only as
+a `data:image/` URI (a remote URL would leak the page visit and render fetched
+content), and caps the list at 16 entries so a flood cannot push the real
+wallet out of view. What the page owes the user is a list that is legible and
+cannot be crowded out; picking from it is their trust decision.
 
 ### Following the wallet's events
 
@@ -221,8 +175,7 @@ and keeps the session in step:
   stored username, which belonged to the old one.
 - `networkChanged` records the new `chainid`, which decides whether the header's
   chain reads can run against this page's RPC.
-- `disconnect` clears the session. It does not call `connect`: the user just
-  revoked the site, and a prompt in reply argues with them.
+- `disconnect` clears the session, without calling `connect`.
 
 It only listens to the wallet the session came from, subscribes once per wallet
 (announcements repeat), resubscribes when the session changes, and waits for the
@@ -235,16 +188,10 @@ request declined, not signed as the wrong identity.
 
 ## Alternatives considered
 
-- **Keep the `window.adena` check** — works only for one wallet, by name, and
-  is what the draft standard exists to replace.
-- **A `window.gno` namespace object with a wallet array** — still a shared
-  mutable global: extensions overwrite each other's writes, and load order
-  decides who is visible.
-- **Adopting the Wallet Standard's registration callback handshake verbatim**
-  (`app-ready` carrying a `register` function) — richer, but it makes the
-  protocol depend on a shared library implementing it. gnoweb has no npm
-  dependency for this and must work offline; announce/request is enough to
-  merge into a chooser.
+Alternatives to the protocol itself (`window.<wallet>` globals, a `window.gno`
+array, the Wallet Standard handshake verbatim, a liveness marker sanctioning
+interception) are in the standard's ADR.
+
 - **Rejecting a wallet whose icon is not a `data:` URI** — makes an otherwise
   working wallet unreachable over a presentational flaw; the icon is dropped
   and the entry kept instead.
@@ -273,9 +220,6 @@ request declined, not signed as the wrong identity.
   extension. For a user with two, the page asks.
 - Rendering the outcome (`status`/`hash`) is still a follow-up. Both transports
   now converge on one URL shape, so it is one surface to build, not two.
-- The in-page half has no automated test: gnoweb's frontend has no JS test
-  runner, and adding one is a larger decision than this change should make.
-  Verified in-browser against a stub wallet that announces per the spec.
 - Everything this ADR adds is page script, so a visitor with JavaScript disabled
   falls back to `master`'s flow by design: an intercepting wallet takes the
   submit as it does today. That path is single-wallet by construction and cannot
@@ -285,8 +229,7 @@ request declined, not signed as the wrong identity.
 ## Validation
 
 Headless Chrome against the built bundle, on a fixture reproducing the `$help`
-Execute markup, with stub wallets announcing per the spec. Nine cases, all
-passing:
+Execute markup, with stub wallets announcing per the spec. All cases pass:
 
 | Case | Result |
 |---|---|
@@ -309,7 +252,7 @@ announcing, the chooser opens (before this change Adena consumed the submit),
 and picking the "Adena" entry hands the event back — Adena cancels it, so the
 page stays put and the stub is not called.
 
-`go test ./gno.land/pkg/gnoweb/...` green (the Go side is untouched).
+`go test ./gno.land/pkg/gnoweb/...` green.
 
 ### Re-run against Adena 1.21.1 from the Chrome Web Store
 
@@ -329,6 +272,5 @@ disabled:
 
 Now covered: a real wallet extension, on both paths. Not covered: a real wallet
 implementing the announce protocol. A development build that does exists
-(`gno:registerWallet`, `sendTx`, `getAccount`, and the spec's error codes), so
-the earlier claim that no such extension exists is no longer true, but it is not
-a shipped wallet and was disabled for these measurements.
+(`gno:registerWallet`, `sendTx`, `getAccount`, and the spec's error codes), but
+it is not a shipped wallet and was disabled for these measurements.
