@@ -118,3 +118,41 @@ func main() {
 		Preprocess(m.Store, pn, fn)
 	})
 }
+
+func TestPreprocessCollectInitCycle(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var a = f()
+
+func f() int { return a + g() }
+
+func g() int { return g() } // recursion among functions is not a cycle
+
+var b = 1
+
+func main() { println(a, b) }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "initialization cycle: a refers to f refers to a") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	if msgs := collectErrors(t, "package main\n\nvar a = f()\n\nfunc f() int { return 1 }\n\nfunc main() { println(a) }\n"); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestInitCycleOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
+	// any initializer runs, with the same positioned message.
+	m := NewMachine("test", nil)
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
+			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted a cycle")
+}

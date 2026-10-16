@@ -15,4 +15,7 @@ func fx() int {
 
 var x = fx() // ERROR "initialization cycle|depends upon itself"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// GnoError:
+// line 16: initialization cycle: x refers to fx refers to x
+
+// Verdict: Clean errorcheck

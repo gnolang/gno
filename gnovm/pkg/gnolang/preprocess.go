@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gnolang/gno/tm2/pkg/store"
+
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/softfloat"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -43,7 +45,111 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 	for _, fn := range fset.Files {
 		preprocess(store, pn, fn, acc)
 	}
+	acc.errs = append(acc.errs, checkInitCycles(preprocessGasMeterOf(store), pn, fset)...)
 	return acc.errs
+}
+
+// checkInitCycles reports every initialization cycle among the package's
+// variables: a variable whose initializer, directly or through the
+// functions and methods it uses, depends on itself (Go spec, "Package
+// initialization"). The dependency edges are the ATTR_DECL_DEPS that
+// codaInitOrderDeps recorded on each declaration. Each declaration
+// visited bills OpCPUSlopeCheckNode on gm. On chain CheckInitCycles
+// panics with the first one, where runFileDecls would otherwise fail
+// later and unpositioned.
+func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*PreprocessError {
+	var errs []*PreprocessError
+	reported := map[Decl]bool{}
+	for _, fn := range fset.Files {
+		for _, d := range fn.Decls {
+			vd, ok := d.(*ValueDecl)
+			if !ok || reported[vd] {
+				continue
+			}
+			path := findInitCycle(gm, vd, pn)
+			if path == nil {
+				continue
+			}
+			var msg strings.Builder
+			msg.WriteString("initialization cycle: ")
+			for i, name := range path {
+				if i > 0 {
+					msg.WriteString(" refers to ")
+				}
+				msg.WriteString(string(name))
+			}
+			loc := Location{PkgPath: pn.PkgPath, File: fn.FileName, Span: vd.GetSpan()}
+			errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String())})
+			for _, name := range path {
+				if dep, ok := resolveDeclDepSafe(name, pn); ok {
+					reported[dep] = true
+				}
+			}
+		}
+	}
+	return errs
+}
+
+// findInitCycle walks the dependency graph from root the way
+// resolveEffectiveDeps does and returns the first cycle back to a variable
+// as the names along it, closed with the variable, or nil.
+func findInitCycle(gm store.GasMeter, root *ValueDecl, pn *PackageNode) []Name {
+	onStack := map[Decl]bool{}
+	done := map[Decl]bool{}
+	var walk func(d Decl, path []Name) []Name
+	walk = func(d Decl, path []Name) []Name {
+		if done[d] {
+			return nil
+		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		onStack[d] = true
+		defer func() { delete(onStack, d); done[d] = true }()
+		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+		names := slices.Collect(maps.Keys(m))
+		slices.Sort(names)
+		for _, name := range names {
+			dep, ok := resolveDeclDepSafe(name, pn)
+			if !ok {
+				continue
+			}
+			if onStack[dep] {
+				if _, isVar := dep.(*ValueDecl); isVar {
+					return append(append([]Name(nil), path...), name)
+				}
+				continue // recursion among functions is not a cycle
+			}
+			if cyc := walk(dep, append(path, name)); cyc != nil {
+				return cyc
+			}
+		}
+		return nil
+	}
+	names := root.GetDeclNames()
+	if len(names) == 0 {
+		return nil
+	}
+	return walk(root, []Name{names[0]})
+}
+
+// resolveDeclDepSafe is resolveDeclDep without the panics: a name the
+// package cannot resolve (dropped by accumulate mode) is skipped.
+func resolveDeclDepSafe(name Name, pn *PackageNode) (d Decl, ok bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			d, ok = nil, false
+		}
+	}()
+	d = resolveDeclDep(name, pn)
+	return d, d != nil
+}
+
+// CheckInitCycles is the on-chain form of checkInitCycles: the first
+// initialization cycle among the package's variables panics as a
+// *PreprocessError, positioned at the variable that opens it.
+func CheckInitCycles(store Store, pn *PackageNode, fset *FileSet) {
+	if errs := checkInitCycles(preprocessGasMeterOf(store), pn, fset); len(errs) > 0 {
+		panic(errs[0])
+	}
 }
 
 func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preprocessAccumulator) {
@@ -6463,6 +6569,10 @@ func codaInitOrderDeps(pn *PackageNode, fn *FileNode) {
 						}
 						if !ok {
 							break
+						}
+						// A call result (`f().m`) is typed as a one-element tuple.
+						if tt, ok2 := xt.(*tupleType); ok2 && len(tt.Elts) == 1 {
+							xt = tt.Elts[0]
 						}
 						// Dereference pointer receiver types.
 						if pt, ok2 := xt.(*PointerType); ok2 {

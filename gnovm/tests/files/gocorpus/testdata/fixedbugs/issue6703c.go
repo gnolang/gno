@@ -17,4 +17,7 @@ func (T) m() int {
 
 var x = T.m // ERROR "initialization cycle|depends upon itself"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18
+// GnoError:
+// line 18: initialization cycle: x refers to T.m refers to x
+
+// Verdict: Clean errorcheck
