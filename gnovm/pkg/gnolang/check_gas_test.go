@@ -60,7 +60,7 @@ func TestPreprocessGas_TypeWalks(t *testing.T) {
 		defer m.Release()
 		var b strings.Builder
 		b.WriteString("package checkgas\n\ntype T struct {\n")
-		for i := 0; i < fields; i++ {
+		for i := range fields {
 			fmt.Fprintf(&b, "\tf%d map[string]int\n", i)
 		}
 		b.WriteString("}\n")
