@@ -1,6 +1,6 @@
 # ADR: A ledger entry's binaries may be pending until CI builds the release
 
-> **Superseded in part by `prxxxx_ledger_entry_after_upgrade.md`.** That ADR has a ledger entry written once the chain runs the release, complete, instead of before the cut: the order in Decision 3 and the Consequences below do not describe the release process. Pending binaries stay valid in the format.
+> **Superseded in part by `pr6381_ledger_entry_after_upgrade.md`.** That ADR has a ledger entry written once the chain runs the release, complete, instead of before the cut: the order in Decision 3 and the Consequences below do not describe the release process. Pending binaries stay valid in the format.
 
 ## Context
 

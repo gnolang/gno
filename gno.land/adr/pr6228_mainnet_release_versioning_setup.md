@@ -1,6 +1,6 @@
 # ADR: One version per binary the network runs — mainnet releases, tags, images and the upgrade ledger
 
-> **Superseded in part by `prxxxx_ledger_entry_after_upgrade.md`.** That ADR has a ledger entry written once the chain runs the release, so `cut-release.sh` warns, rather than refuses, when a final release has no entry (Decision 7 below), and a tag message records no halt height.
+> **Superseded in part by `pr6381_ledger_entry_after_upgrade.md`.** That ADR has a ledger entry written once the chain runs the release, so `cut-release.sh` warns, rather than refuses, when a final release has no entry (Decision 7 below), and a tag message records no halt height.
 
 ## Context
 
