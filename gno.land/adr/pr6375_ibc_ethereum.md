@@ -740,7 +740,8 @@ so other IBC routes of the same realms are unaffected.
 - **Holds.** Two guardian flags make a **hold**: every 7-day decision is deferred (except the guardian
   replacement, below) and unpause decisions are spent. A hold ends after 24 hours below two flags. Holds exist on
   Ethereum in bridges' code; on gno.land they are new work.
-- **Guardian replacement** under a hold lands no sooner than day 21 of the hold.
+- **Guardian replacement** under a hold lands no sooner than day 21 of the hold. A vacancy (a seat set to no key) is a
+  replacement: it waits 7 days and, under a hold, lands no sooner than day 21.
 - **Unpause.**
   - The flag's owner can clear their own flag at any time.
   - On gno.land, GovDAO unpauses immediately.
@@ -952,8 +953,23 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
        work, whatever the number of registered denoms (needs E6's fork). The transfer realm on gno.land uses the
        same indirection.
 - **gno.land side, by GovDAO directly.** Create the new Ethereum client and register it against the new router
-  client; start `ibcgov`'s new epoch; point the transfer realm's route alias from the old client to the new one
-  (constant work, as on Ethereum); freeze the old client. GovDAO acts on gno.land without the channel. (The core's ordinary
+  client; point the transfer realm's route alias from the old client to the new one (constant work, as on
+  Ethereum); retire the old client for the transfer port. GovDAO acts on gno.land without the channel.
+- **Governance epoch switch, two-phase and authenticated.** `ibcgov` keeps its current epoch, bound to the old
+  client, until Ethereum has actually executed the matching kind 10: retiring the old client for transfers does not
+  retire it for the `gov` port, so a decision still in flight (or the kind 10 itself) can be re-sent. When `IBCAdmin`
+  executes kind 10 (or the emergency recovery), it sends an **epoch notice** — `version u8 ‖ epoch u32 ‖ newClient` —
+  from its port over the **new** client to `ibcgov`'s `gov` port; anyone may re-send it until it is acknowledged
+  (a notice that times out is re-sent with the same bytes). `ibcgov` accepts a notice only over the new client of a
+  route replacement it has recorded, only for exactly its epoch plus one, proven through gno.land's new (healthy)
+  Ethereum client; on acceptance it switches to the new epoch over the new client and retires the old client for the
+  `gov` port. A notice for any other epoch or client is refused. Until the notice arrives, gno.land never sends with
+  the new epoch, so the two sides cannot disagree about the current epoch.
+- **Route identity is preserved.** A replacement client must authenticate the same history as the one it retires:
+  on gno.land the same Ethereum chain (chain id and genesis validators root), router address and commitment slot;
+  on Ethereum the same gno.land chain id and store prefix. A route records this identity at enrollment, and every
+  replacement — governed or emergency — is refused unless the new client matches it. Moving a route to a different
+  router or chain is not a replacement and needs its own migration. (The core's ordinary
   recovery needs a frozen or expired subject and a substitute ahead of it,
   [`impl/v0/client.gno`](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/gno.land/r/aib/ibc/core/impl/v0/client.gno); a route replacement does not use it.)
 - **Packets of the old route** are settled by a governed reconciliation, after sends are retired on both chains.
@@ -1397,6 +1413,13 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Kind 12 settles only against an outcome proven through the replacement client (`proveOutcome`), and gains
     action 5 for forged receives (§5.4, §7.12).
   - Kind 7's migration call is empty or on a pinned allow-list (§5.4).
+- 2026-10-17, design-review amendments from the implementation:
+  - The governance epoch switches in two phases: `IBCAdmin` sends an authenticated epoch notice over the new client
+    when it executes kind 10 or the emergency recovery, and `ibcgov` switches only on receiving it (§7.12).
+  - A route replacement preserves the route's identity: the same Ethereum chain, router and commitment slot (gno.land
+    side), the same gno.land chain and store prefix (Ethereum side); a client of another router or chain is refused.
+  - A governance-initiated guardian vacancy follows the replacement rule: 7 days, and through a hold no sooner than
+    day 21 (§7.4).
 
 ## 15. References
 
