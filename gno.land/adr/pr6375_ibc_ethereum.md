@@ -961,9 +961,16 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   executes kind 10 (or the emergency recovery), it sends an **epoch notice** — `version u8 ‖ epoch u32 ‖ newClient` —
   from its port over the **new** client to `ibcgov`'s `gov` port; anyone may re-send it until it is acknowledged
   (a notice that times out is re-sent with the same bytes). `ibcgov` accepts a notice only over the new client of a
-  route replacement it has recorded, only for exactly its epoch plus one, proven through gno.land's new (healthy)
-  Ethereum client; on acceptance it switches to the new epoch over the new client and retires the old client for the
-  `gov` port. A notice for any other epoch or client is refused. Until the notice arrives, gno.land never sends with
+  transition it expects, proven through gno.land's (healthy) Ethereum client of that new client; on acceptance it
+  switches to the notice's epoch over its client and retires the passed clients for the `gov` port. **Expected
+  transitions** are recorded when `ibcgov` dispatches a kind 10 (old → new client), and — for an emergency recovery,
+  which `ibcgov` does not dispatch — by a gno.land decision naming the recovery's old and new client; a client may
+  have a few (capped) expected successors, since only one of the competing kind 10s can execute on Ethereum. Each
+  executed kind 10 or recovery raises Ethereum's epoch by one and sends its own notice, so a notice for epoch
+  `current + k` is accepted only if its client is reached from the current epoch client through exactly `k`
+  expected transitions (bounded `k`); this lets gno.land skip an intermediate client whose notice can no longer be
+  proven (e.g. it froze). A cancelled or failed transition is simply never confirmed by a notice; the expectation
+  costs nothing. A notice for any other epoch or client is refused. Until the notice arrives, gno.land never sends with
   the new epoch, so the two sides cannot disagree about the current epoch.
 - **Route identity is preserved.** A replacement client must authenticate the same history as the one it retires:
   on gno.land the same Ethereum chain (chain id and genesis validators root), router address and commitment slot;
@@ -1420,6 +1427,8 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     side), the same gno.land chain and store prefix (Ethereum side); a client of another router or chain is refused.
   - A governance-initiated guardian vacancy follows the replacement rule: 7 days, and through a hold no sooner than
     day 21 (§7.4).
+- 2026-10-17, epoch notices may skip: a notice for `current + k` is accepted along exactly `k` expected transitions,
+  recorded at kind 10 dispatch or by a gno.land decision for an emergency recovery (§7.12).
 
 ## 15. References
 
