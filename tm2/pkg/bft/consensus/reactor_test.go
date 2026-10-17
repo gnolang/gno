@@ -15,6 +15,7 @@ import (
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	p2pTesting "github.com/gnolang/gno/tm2/pkg/internal/p2p"
@@ -155,6 +156,28 @@ func TestReactorBasic(t *testing.T) {
 	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
 	// wait till everyone makes the first new block
 	timeoutWaitGroup(t, N, func(j int) {
+		<-blocksSubs[j]
+	}, css)
+}
+
+// Ensure a testnet whose validators all sign with secp256k1 makes blocks.
+func TestReactorBasicSecp256k1(t *testing.T) {
+	t.Parallel()
+
+	N := 4
+	genDoc, privVals := genesisDocWithKeys(N, func() (*types.Validator, types.PrivValidator) {
+		pv := types.NewMockPVWithPrivKey(secp256k1.GenPrivKey())
+		return types.NewValidator(pv.PubKey(), 30), pv
+	})
+	css, cleanup := consensusNetFromGenesis(genDoc, privVals, "consensus_reactor_secp256k1_test",
+		newMockTickerFunc(true), newCounter)
+	defer cleanup()
+	reactors, blocksSubs, eventSwitches, p2pSwitches := startConsensusNet(t, css, N)
+	defer stopConsensusNet(log.NewTestingLogger(t), reactors, eventSwitches, p2pSwitches)
+	// wait till everyone makes the first two blocks, so that a block carrying
+	// a secp256k1 LastCommit is also validated
+	timeoutWaitGroup(t, N, func(j int) {
+		<-blocksSubs[j]
 		<-blocksSubs[j]
 	}, css)
 }

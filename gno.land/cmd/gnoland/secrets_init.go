@@ -20,7 +20,8 @@ var errOverwriteNotEnabled = errors.New("overwrite not enabled")
 type secretsInitCfg struct {
 	commonAllCfg
 
-	forceOverwrite bool
+	forceOverwrite   bool
+	validatorKeyType string
 }
 
 // newSecretsInitCmd creates the secrets init command
@@ -53,6 +54,13 @@ func (c *secretsInitCfg) RegisterFlags(fs *flag.FlagSet) {
 		"force",
 		false,
 		"overwrite existing secrets, if any",
+	)
+
+	fs.StringVar(
+		&c.validatorKeyType,
+		"validator-key-type",
+		string(signer.DefaultKeyType),
+		"validator consensus key type (secp256k1 or ed25519)",
 	)
 }
 
@@ -92,7 +100,7 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 		}
 
 		// Initialize and save the validator's private key
-		return initAndSaveValidatorKey(validatorKeyPath, io)
+		return initAndSaveValidatorKey(signer.KeyType(cfg.validatorKeyType))(validatorKeyPath, io)
 	case nodeIDKey:
 		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
 			return fmt.Errorf("unable to overwrite the node' p2p key, %w", errOverwriteNotEnabled)
@@ -110,7 +118,7 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 	default:
 		// No key provided, initialize everything
 		return errors.Join(
-			overwriteGuard(validatorKeyPath, initAndSaveValidatorKey, cfg.forceOverwrite, io),
+			overwriteGuard(validatorKeyPath, initAndSaveValidatorKey(signer.KeyType(cfg.validatorKeyType)), cfg.forceOverwrite, io),
 			overwriteGuard(validatorStatePath, initAndSaveValidatorState, cfg.forceOverwrite, io),
 			overwriteGuard(nodeKeyPath, initAndSaveNodeKey, cfg.forceOverwrite, io),
 		)
@@ -138,16 +146,23 @@ func overwriteGuard(
 	return initFn(path, io)
 }
 
-// initAndSaveValidatorKey generates a validator private key and saves it to the given path
-func initAndSaveValidatorKey(path string, io commands.IO) error {
-	// Initialize the validator's private key
-	if _, err := signer.GeneratePersistedFileKey(path); err != nil {
-		return fmt.Errorf("unable to save validator key, %w", err)
+// initAndSaveValidatorKey returns a function that generates a validator
+// private key of the given type and saves it to the given path
+func initAndSaveValidatorKey(keyType signer.KeyType) func(string, commands.IO) error {
+	if keyType == "" {
+		keyType = signer.DefaultKeyType
 	}
 
-	io.Printfln("Validator private key saved at %s", path)
+	return func(path string, io commands.IO) error {
+		// Initialize the validator's private key
+		if _, err := signer.GeneratePersistedFileKeyOfType(path, keyType); err != nil {
+			return fmt.Errorf("unable to save validator key, %w", err)
+		}
 
-	return nil
+		io.Printfln("Validator private key saved at %s", path)
+
+		return nil
+	}
 }
 
 // initAndSaveValidatorState generates an empty last validator sign state and saves it to the given path
