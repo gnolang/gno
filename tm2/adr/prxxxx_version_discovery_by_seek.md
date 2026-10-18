@@ -165,8 +165,8 @@ data above, with the seek:
 | 900,000 | 89.5 ms | 0.03 to 0.21 ms |
 
 At 900,000 versions, gpao's `verify-one` on a package importing
-`gno.land/r/sys/names` finishes in 0.65 s instead of 14.98 s, and 16 parallel clients get 13,700
-queries per second at 1 ms instead of 64 at 253 ms.
+`gno.land/r/sys/names` finishes in 0.65 s instead of 14.98 s, and 16 parallel
+clients get 13,700 queries per second at 1 ms instead of 64 at 253 ms.
 
 **No consensus change, no coordinated upgrade.** On every root-key set a node
 writes, `discoverVersions`, which `Load` and `LoadVersion` run, returns the
@@ -183,7 +183,8 @@ both LSM backends, goleveldb and pebble. Startup pays the forward seek once.
 
 **Corruption between the two ends is found later.** A corrupt root-range block
 no longer fails `Load`; the node runs until a prune reads it, and each restart
-after that loads cleanly and fails at the next commit.
+after that loads cleanly and fails at the first prune that reads the corrupt
+block.
 
 **The public-node figures are not reproduced locally.** The laptop pays about
 99 ns per retained version, while onyx-1's per-query cost implies several times
@@ -233,11 +234,17 @@ on a public node is known only once a node runs the change.
   `TestSaveVersionAfterLoadReadonlyKeepsPruning`: a save on a read-only loaded
   tree still prunes the older versions. `TestSaveVersionRejectsVersionsBelowOne`:
   `SaveVersion` returns an error for a working version below 1.
+  `TestSaveVersionOnEmptyTreeOpensNoIterator`: a first save on an empty tree
+  opens no iterator, which is why the `latestVersion > 0` gate exists.
+  `TestSaveVersionReturnsFirstVersionSeekError`: a seek error leaves both
+  version counters unchanged.
 - **Existing suites.** `tm2/pkg/bptree/...`, `tm2/pkg/store/...`,
   `tm2/pkg/sdk/...`, `TestAppHashCrossrealm38`, the consensus handshake and
   replay tests, `gno.land/pkg/gnoland/...`, and the integration testdata.
-- **Mixed network.** A validator on the previous binary produced blocks with
-  state-changing transactions while a full node on the new binary followed it
-  with the `everything` prune strategy, exercising `firstVersion`, and was
-  restarted mid-run, exercising `Load`. Across 204 heights, 21 with
-  transactions, both nodes committed the same app hash at every height.
+- **Mixed network.** A validator on the previous binary (master) produced
+  blocks with state-changing transactions. A full node on the new binary
+  followed it with the `everything` prune strategy, syncing from genesis through
+  block sync, and was restarted between two batches of transactions. Both nodes
+  committed the same app hash at all 43 heights both logged (224 to 266), 20 of
+  them with transactions. The full node replayed heights 1 to 266 with no
+  app-hash error, and a `vm/qfile` query on it succeeded after pruning.
