@@ -62,29 +62,59 @@ Both seeks return the scan's results on every key set whose root keys lie in
   skips it;
 - a key encoding version 0, or a version with the top bit set, is not a root
   version and is skipped. No node path writes either (the node only sets an
-  initial height above 1); through the bptree API, a `uint64` initial version
-  above `math.MaxInt64` would write a top-bit root, which the scan mishandled;
-- an iterator error is returned, as the scan returns it.
+  initial height above 1), and `SaveVersion` refuses a working version below 1,
+  so the `[1, math.MaxInt64]` domain holds when writing as well as when reading.
+  Without that refusal, a `uint64` initial version above `math.MaxInt64` would
+  commit a top-bit root that the next `Load` skips;
+- an iterator error is returned, as the scan returns it. On goleveldb and
+  pebble a read error does not reach that return: `Valid()` panics on it
+  (`assertNoError`), in the scan and in the seeks alike. The return is the
+  contract for backends whose iterators report errors through `Error()`, and
+  `TestDiscoverVersionsPropagatesIteratorError` pins it through a fake backend.
+
+Root keys are decoded by one function, `rootKeyVersion`, which discovery and
+`AvailableVersions` share, so `AvailableVersions` skips version-0 and top-bit
+keys as discovery does.
+
+The scan read every root key, so a corrupt block anywhere in the root range
+failed `Load` at startup. The seeks read only the two ends, so corruption
+between them surfaces at the next prune that reads that block
+(`versionExistsE`), where `Store.Commit` panics on the error. No data is lost,
+and the scan never covered node or value blocks.
 
 `LoadReadonly`, which every query view goes through, needs only the latest
 version and does only the reverse seek. Pruning deletes the lowest versions, so
 the top of the range is live and the seek returns at once whatever the pruning
 state. A read-only tree leaves `firstVersion` unset; only `SaveVersion` and
-`PruneVersionsTo` read it. `Load` and `LoadVersion` keep both seeks, and `Load`
+`PruneVersionsTo` read it. If a caller saves on such a tree anyway, `SaveVersion`
+reads the lowest version with a forward seek before pruning relies on it, so
+the saved version does not become the floor and hide older versions from
+pruning. Only that first save pays the seek, and only when `firstVersion` is
+unset and the tree knows a latest version: a first save on an empty DB opens no
+iterator, because it can run while deferred-commit writes are held and
+iterators are refused. `Load` and `LoadVersion` keep both seeks, and `Load`
 no longer goes through `LoadReadonly`: the live store loads through `Load`, and
 a restart without `firstVersion` would stop pruning every version retained
 before it. On pebble their forward seek steps over uncompacted tombstones of
 pruned roots (about 7 ms per 100,000 at 500,000 roots), paid when a node
 starts. Pruning reads the cached `firstVersion` and is untouched.
 
-The reverse seek is fast only because pebbledb's reverse iterators pass their
-range as iterator bounds, as its forward iterators already did. Without the
-bound, a reverse seek steps over the deleted keys between the end of the range
-and the next live key, once forward and once back. The values sort right after
-the root range, ordered by version, and pruning deletes the orphaned values of
-pruned versions, so a query view would step over every value tombstone that
-sorts before the first live value, until compaction drops them. Iteration
-results are identical, so neither consensus nor gas changes.
+The seeks are fast only because the backends pass the range as iterator bounds:
+pebbledb's reverse iterators, as its forward iterators already did, and
+goleveldb's forward and reverse iterators. Without the bound, a seek steps over
+the deleted keys between the end of the range and the next live key (once
+forward and once back, on a reverse seek). The values sort right after the root
+range, ordered by version, and pruning deletes the orphaned values of pruned
+versions, so a query view would step over every value tombstone that sorts
+before the first live value, until compaction drops them. Iteration results are
+identical, so neither consensus nor gas changes.
+
+The backends audited are goleveldb and pebble, the LSM stores, whose deletes
+leave tombstones until compaction. boltdb, lmdb and mdbx are B+trees and memdb
+sorts its live keys, so an unbounded seek on them walks no deleted keys.
+goleveldb panics on an inverted `util.Range` once a level holds several tables,
+so an inverted range is clamped to an empty one. pebble can ignore an empty but
+non-nil end bound, so pebble keeps its end check in `Valid()`.
 
 The two seeks of `Load` and `LoadVersion` are two reads, so on backends without
 snapshots they are not taken at one point in time. This is harmless: they run
@@ -148,8 +178,12 @@ so it decides which versions pruning deletes, and those deletions are local
 state outside the app hash. A network mixing both binaries keeps agreeing, and
 nodes upgrade one at a time in any order.
 
-**Query cost depends on neither retained versions nor pruning.** Startup pays
-the forward seek once.
+**Query cost depends on neither retained versions nor pruning.** This holds on
+both LSM backends, goleveldb and pebble. Startup pays the forward seek once.
+
+**Corruption between the two ends is found later.** A corrupt root-range block
+no longer fails `Load`; the node runs until a prune reads it, and each restart
+after that loads cleanly and fails at the next commit.
 
 **The public-node figures are not reproduced locally.** The laptop pays about
 99 ns per retained version, while onyx-1's per-query cost implies several times
@@ -168,8 +202,11 @@ on a public node is known only once a node runs the change.
   at both ends of the range. They run on memdb and on the production
   composition (pebble behind a `PrefixDB` and a `SnapshotDB`, with base-store
   keys sharing the prefix). `TestDiscoverVersionsSkipsNonRootVersions` covers
-  version 0 and top-bit keys, and `TestDiscoverVersionsPropagatesIteratorError`
-  covers iterator errors at open and from `Error()`.
+  version 0 and top-bit keys, `TestAvailableVersionsSkipsNonRootVersions` the
+  same keys for `AvailableVersions`, and
+  `TestDiscoverVersionsPropagatesIteratorError` covers iterator errors at open
+  and from `Error()` through a fake backend. A pebble or goleveldb read error
+  panics in `Valid()` before that path.
 - **Guard.** `TestDiscoverVersionsReadsOnlyTheEnds`: discovery over 10,000
   roots steps the iterator at most twice. `BenchmarkLoadReadonlyVersionRoots`
   covers 1 to 500,000 roots, 500,000 with 400,000 pruned, and
@@ -184,9 +221,18 @@ on a public node is known only once a node runs the change.
   the root cases comes from the L0 sublevels the build leaves with compactions
   off, which every read opens: its 1,000 commits flush often, where the root
   cases write a few large batches.
+- **Bounded goleveldb iterators.** `TestGoLevelDBIteratorsStayInRange`: over a
+  range followed by 10,000 deleted keys, forward and reverse iterators yield the
+  in-range keys and make at most 1,000 key comparisons. Without bounds they make
+  30,020 forward and 60,023 reverse; with them, 35 each.
+  `TestGoLevelDBInvertedRangeIsEmpty` pins the clamp, and
+  `TestPebbleEmptyEndYieldsNothing` the pebble end check.
 - **Load paths.** `TestLoadReadonlyReadsOnlyTheLatestRoot`: a query view opens
   no forward iterator. `TestLoadKeepsPruningOlderVersions`: after `Load`,
   pruning still removes the versions retained before the restart.
+  `TestSaveVersionAfterLoadReadonlyKeepsPruning`: a save on a read-only loaded
+  tree still prunes the older versions. `TestSaveVersionRejectsVersionsBelowOne`:
+  `SaveVersion` returns an error for a working version below 1.
 - **Existing suites.** `tm2/pkg/bptree/...`, `tm2/pkg/store/...`,
   `tm2/pkg/sdk/...`, `TestAppHashCrossrealm38`, the consensus handshake and
   replay tests, `gno.land/pkg/gnoland/...`, and the integration testdata.
