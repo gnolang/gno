@@ -358,6 +358,11 @@ the app runs, so it stays pending at the source until it times out.
   refusing the emergency recovery until `IBCAdmin` has recorded its first decision from gno.land (target rule, being
   implemented); kind 10 needs a decision from gno.land anyway. If Ethereum's epoch advanced before the binding
   regardless, the launch is void and must be redeployed: gno.land's epoch 1 could never be reconciled with it.
+  **Before binding, gno.land refuses any replacement of the Ethereum route**, when the request is built and when it
+  executes (gno design r23): a failed client is recovered in place, or the unlaunched deployment is restarted. So the
+  binding is always over the route's **original** client, the pair Ethereum's epoch 1 uses (gno.land's client of the
+  router and the router's launch client `client-0`), and the launch checklist verifies that pair. Until Ethereum
+  records its first governance decision, the route's limits stay at **zero** on both chains (no value transfer).
 - **Envelope** (canonical, at most 1024 bytes — a kind 6 carrying gno.land's real merkle prefix is 558): `version u8 (= 1) ‖ epoch u32 ‖ seq u64 ‖ kind u8 ‖ params`.
   - `epoch` starts at 1 and is raised only by a route replacement (§7.12) — an executed kind 10 or emergency
     recovery on Ethereum, a notice-driven epoch switch on gno.land; `IBCAdmin` accepts packets only for its
@@ -734,7 +739,8 @@ sequenceDiagram
   D->>E: quarantine armed, then limits; hand ADMIN_ROLE + proxies to IBCAdmin, renounce
   D->>E: finishSetup(launch): check list + the launch record against the chain
   G->>GNO: create Ethereum client (checkpoint authenticated independently), register counterparty
-  G->>GNO: decisions (7 d each): enroll the route, seat guardians, bind governance, set denoms
+  G->>GNO: decisions (7 d each): enroll the route, seat guardians, bind governance over the route's original client, set denoms
+  Note over G,E: no route replacement before binding (recover in place, or restart the deployment);<br/>checklist: the bound pair is Ethereum's epoch-1 pair; limits stay zero until IBCAdmin records its first gno decision
   M->>E: audit tool reads every authority back (RoleGranted log); build verification
   G->>GNO: Launch (meters start empty, small caps)
   Note over G,GNO: testing phase: small lock, governor decides with every delay in force
@@ -2385,6 +2391,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     state; a newer genuine head never advances it (§7.12, §8.5).
   - On gno.land an ordinary payout failure rolls back the whole transaction, transport completion included, and
     nothing is withheld or parked for it; it is retried after repair (§7.3, §7.13, §8.5).
+- 2026-10-18, before binding (gno design r23): gno.land refuses replacements of the Ethereum route until governance
+  is bound, at build and at execution (a failed client is recovered in place, or the deployment restarted); binding
+  is over the route's original client, the pair Ethereum's epoch 1 uses, verified by the launch checklist; the
+  route's limits stay zero until Ethereum records the first governance decision (§5.4, §6.10).
 
 ## 15. References
 
