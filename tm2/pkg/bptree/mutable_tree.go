@@ -488,10 +488,18 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 
 // Load loads the latest version from the DB and performs fast-index
 // maintenance. For the LIVE store only (single-threaded startup); read-only
-// consumers use LoadReadonly.
+// consumers use LoadReadonly. It discovers both ends of the version range
+// because pruning reads firstVersion.
 func (t *MutableTree) Load() (int64, error) {
-	v, err := t.LoadReadonly()
-	if err != nil || v == 0 {
+	if err := t.ndb.discoverVersions(); err != nil {
+		return 0, err
+	}
+	latest := t.ndb.getLatestVersion()
+	if latest == 0 {
+		return 0, nil
+	}
+	v, err := t.loadVersionDiscovered(latest)
+	if err != nil {
 		return v, err
 	}
 	// Build the fast index from the loaded latest root if it is absent/stale
@@ -515,9 +523,10 @@ func (t *MutableTree) Load() (int64, error) {
 // available for snapshots taken via getImmutable, which gates them on the
 // stamp covering the snapshot version and on fastGet's per-entry version guard;
 // a bare working-tree read after LoadReadonly is outside the trust contract
-// (see fast_index.go).
+// (see fast_index.go). A read-only tree discovers only the latest version and
+// leaves firstVersion unset, which only the write paths read.
 func (t *MutableTree) LoadReadonly() (int64, error) {
-	if err := t.ndb.discoverVersions(); err != nil {
+	if err := t.ndb.discoverLatestVersion(); err != nil {
 		return 0, err
 	}
 	latest := t.ndb.getLatestVersion()

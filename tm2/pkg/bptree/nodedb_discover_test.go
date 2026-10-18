@@ -59,8 +59,46 @@ func (erroringIterator) Value() []byte               { panic("invalid iterator")
 func (erroringIterator) Error() error                { return errIterRead }
 func (erroringIterator) Close() error                { return nil }
 
-// scanRootVersions is the full PrefixRoot scan that discoverVersions performed
-// before it read the two ends of the range.
+// stepCountingDB counts the Next calls made on the iterators it opens, and the
+// forward iterators it opens.
+type stepCountingDB struct {
+	dbm.DB
+	nextCount, forwardCount int64
+}
+
+func (c *stepCountingDB) Iterator(start, end []byte) (dbm.Iterator, error) {
+	c.forwardCount++
+	itr, err := c.DB.Iterator(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return stepCountingIterator{Iterator: itr, count: &c.nextCount}, nil
+}
+
+func (c *stepCountingDB) ReverseIterator(start, end []byte) (dbm.Iterator, error) {
+	itr, err := c.DB.ReverseIterator(start, end)
+	if err != nil {
+		return nil, err
+	}
+	return stepCountingIterator{Iterator: itr, count: &c.nextCount}, nil
+}
+
+func (c *stepCountingDB) nexts() int64        { return c.nextCount }
+func (c *stepCountingDB) forwardOpens() int64 { return c.forwardCount }
+func (c *stepCountingDB) reset()              { c.nextCount, c.forwardCount = 0, 0 }
+
+type stepCountingIterator struct {
+	dbm.Iterator
+	count *int64
+}
+
+func (s stepCountingIterator) Next() {
+	*s.count++
+	s.Iterator.Next()
+}
+
+// scanRootVersions is the full scan of the PrefixRoot range, whose results
+// discovery must equal.
 func scanRootVersions(t *testing.T, db dbm.DB) (first, latest int64) {
 	t.Helper()
 	itr, err := db.Iterator([]byte{PrefixRoot}, []byte{PrefixRoot + 1})
@@ -238,27 +276,116 @@ func TestDiscoverVersionsKnownLayouts(t *testing.T) {
 
 func TestDiscoverVersionsPropagatesIteratorError(t *testing.T) {
 	cases := map[string]struct {
-		atOpen bool
-		want   error
+		forward, reverse, atOpen bool
+		want                     error
 	}{
-		"open": {atOpen: true, want: errIterOpen},
-		"read": {atOpen: false, want: errIterRead},
+		"open":         {forward: true, reverse: true, atOpen: true, want: errIterOpen},
+		"read":         {forward: true, reverse: true, atOpen: false, want: errIterRead},
+		"reverse open": {reverse: true, atOpen: true, want: errIterOpen},
+		"reverse read": {reverse: true, atOpen: false, want: errIterRead},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			mem := memdb.NewMemDB()
 			writeLayout(t, mem, rootLayout{versions: versionRange(1, 10)})
-			db := failingIterDB{DB: mem, forward: true, reverse: true, atOpen: tc.atOpen}
+			db := failingIterDB{DB: mem, forward: tc.forward, reverse: tc.reverse, atOpen: tc.atOpen}
 
 			ndb := newNodeDB(db, 0, NewNopLogger(), DefaultOptions())
-			ndb.mtx.Lock()
-			ndb.firstVersion = 7
-			ndb.latestVersion = 9
-			ndb.mtx.Unlock()
+			presetCounters := func() {
+				ndb.mtx.Lock()
+				ndb.firstVersion = 7
+				ndb.latestVersion = 9
+				ndb.mtx.Unlock()
+			}
 
+			presetCounters()
 			require.ErrorIs(t, ndb.discoverVersions(), tc.want)
 			require.Equal(t, int64(7), ndb.getFirstVersion())
 			require.Equal(t, int64(9), ndb.getLatestVersion())
+
+			presetCounters()
+			require.ErrorIs(t, ndb.discoverLatestVersion(), tc.want)
+			require.Equal(t, int64(9), ndb.getLatestVersion())
 		})
 	}
+}
+
+func TestDiscoverVersionsReadsOnlyTheEnds(t *testing.T) {
+	mem := memdb.NewMemDB()
+	writeLayout(t, mem, rootLayout{versions: versionRange(1, 10_000)})
+	cdb := &stepCountingDB{DB: mem}
+	ndb := newNodeDB(cdb, 0, NewNopLogger(), DefaultOptions())
+	cdb.reset()
+
+	require.NoError(t, ndb.discoverVersions())
+	require.Equal(t, int64(1), ndb.getFirstVersion())
+	require.Equal(t, int64(10_000), ndb.getLatestVersion())
+	require.LessOrEqual(t, cdb.nexts(), int64(2), "discovery must not walk the root range")
+}
+
+func TestDiscoverVersionsSkipsNonRootVersions(t *testing.T) {
+	writeKeys := func(t *testing.T, db dbm.DB) {
+		t.Helper()
+		for _, k := range [][]byte{
+			rootDBKey(5),
+			rootDBKey(9),
+			binary.BigEndian.AppendUint64([]byte{PrefixRoot}, 1<<63+1),
+			binary.BigEndian.AppendUint64([]byte{PrefixRoot}, 0),
+		} {
+			require.NoError(t, db.Set(k, []byte{1}))
+		}
+	}
+	check := func(t *testing.T, db dbm.DB) {
+		t.Helper()
+		first, latest := discover(t, db)
+		require.Equal(t, int64(5), first)
+		require.Equal(t, int64(9), latest)
+	}
+	t.Run("memdb", func(t *testing.T) {
+		db := memdb.NewMemDB()
+		writeKeys(t, db)
+		check(t, db)
+	})
+	t.Run("pebble/prefix/snapshot", func(t *testing.T) {
+		check(t, openPebbleComposition(t, func(db dbm.DB) { writeKeys(t, db) }))
+	})
+}
+
+func TestLoadReadonlyReadsOnlyTheLatestRoot(t *testing.T) {
+	mem := memdb.NewMemDB()
+	writer := NewMutableTreeWithDB(mem, 0, NewNopLogger())
+	for i := range 3 {
+		mustSet(t, writer, []byte("k"), []byte{byte(i)})
+		mustSave(t, writer)
+	}
+
+	cdb := &stepCountingDB{DB: mem}
+	tree := NewMutableTreeWithDB(cdb, 0, NewNopLogger())
+	cdb.reset()
+
+	latest, err := tree.LoadReadonly()
+	require.NoError(t, err)
+	require.Equal(t, int64(3), latest)
+	require.Zero(t, cdb.forwardOpens(), "a query view must not seek the low end, where pruning leaves tombstones")
+}
+
+func TestLoadKeepsPruningOlderVersions(t *testing.T) {
+	mem := memdb.NewMemDB()
+	tree := NewMutableTreeWithDB(mem, 0, NewNopLogger())
+	for i := range 5 {
+		mustSet(t, tree, []byte("k"), []byte{byte(i)})
+		mustSave(t, tree)
+	}
+	require.NoError(t, tree.PruneVersionsTo(2))
+
+	tree = NewMutableTreeWithDB(mem, 0, NewNopLogger())
+	latest, err := tree.Load()
+	require.NoError(t, err)
+	require.Equal(t, int64(5), latest)
+
+	mustSet(t, tree, []byte("k"), []byte{5})
+	require.Equal(t, int64(6), mustSave(t, tree))
+	require.NoError(t, tree.PruneVersionsTo(4))
+	require.False(t, tree.VersionExists(3), "version 3 survived a prune to 4 after reload")
+	require.False(t, tree.VersionExists(4), "version 4 survived a prune to 4 after reload")
 }
