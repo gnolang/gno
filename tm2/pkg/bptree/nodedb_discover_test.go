@@ -389,3 +389,45 @@ func TestLoadKeepsPruningOlderVersions(t *testing.T) {
 	require.False(t, tree.VersionExists(3), "version 3 survived a prune to 4 after reload")
 	require.False(t, tree.VersionExists(4), "version 4 survived a prune to 4 after reload")
 }
+
+func TestSaveVersionAfterLoadReadonlyKeepsPruning(t *testing.T) {
+	mem := memdb.NewMemDB()
+	writer := NewMutableTreeWithDB(mem, 0, NewNopLogger())
+	for i := range 5 {
+		mustSet(t, writer, []byte("k"), []byte{byte(i)})
+		mustSave(t, writer)
+	}
+
+	tree := NewMutableTreeWithDB(mem, 0, NewNopLogger())
+	latest, err := tree.LoadReadonly()
+	require.NoError(t, err)
+	require.Equal(t, int64(5), latest)
+	mustSet(t, tree, []byte("k"), []byte{5})
+	require.Equal(t, int64(6), mustSave(t, tree))
+
+	require.NoError(t, tree.PruneVersionsTo(5))
+	for v := int64(1); v <= 5; v++ {
+		require.False(t, tree.VersionExists(v), "version %d survived a prune to 5", v)
+	}
+	require.True(t, tree.VersionExists(6))
+	got, err := tree.Get([]byte("k"))
+	require.NoError(t, err)
+	require.Equal(t, []byte{5}, got)
+}
+
+func TestSaveVersionReturnsFirstVersionSeekError(t *testing.T) {
+	mem := memdb.NewMemDB()
+	writer := NewMutableTreeWithDB(mem, 0, NewNopLogger())
+	mustSet(t, writer, []byte("k"), []byte{0})
+	mustSave(t, writer)
+
+	tree := NewMutableTreeWithDB(failingIterDB{DB: mem, forward: true, atOpen: true}, 0, NewNopLogger())
+	_, err := tree.LoadReadonly()
+	require.NoError(t, err)
+	mustSet(t, tree, []byte("k"), []byte{1})
+	_, _, err = tree.SaveVersion()
+	require.ErrorIs(t, err, errIterOpen)
+	require.Equal(t, int64(1), tree.ndb.getLatestVersion())
+	require.Zero(t, tree.ndb.getFirstVersion())
+	require.False(t, tree.VersionExists(2))
+}

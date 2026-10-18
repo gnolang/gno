@@ -2,6 +2,7 @@ package bptree
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/sha256"
 	"fmt"
 
@@ -416,6 +417,15 @@ func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err er
 		return nil, 0, err
 	}
 
+	// firstVersion is 0 while the low end of the root range is unread, and older
+	// versions may exist: making this version the floor would hide them from pruning.
+	first := t.ndb.getFirstVersion()
+	if first == 0 {
+		if first, err = t.ndb.edgeRootVersion(false); err != nil {
+			return nil, 0, fmt.Errorf("finding first version: %w", err)
+		}
+	}
+
 	// Commit batch (nodes + root + orphan list, atomically)
 	if err := t.ndb.Commit(); err != nil {
 		return nil, 0, err
@@ -426,7 +436,7 @@ func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err er
 	t.lastSaved = t.root
 	t.ndb.setLatestVersion(version)
 	if t.ndb.getFirstVersion() == 0 {
-		t.ndb.setFirstVersion(version)
+		t.ndb.setFirstVersion(cmp.Or(first, version))
 	}
 
 	t.resetSession()
