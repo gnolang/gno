@@ -351,6 +351,22 @@ func TestDiscoverVersionsSkipsNonRootVersions(t *testing.T) {
 	})
 }
 
+func TestAvailableVersionsSkipsNonRootVersions(t *testing.T) {
+	mem := memdb.NewMemDB()
+	for _, k := range [][]byte{
+		rootDBKey(5),
+		rootDBKey(9),
+		binary.BigEndian.AppendUint64([]byte{PrefixRoot}, 1<<63+1),
+		binary.BigEndian.AppendUint64([]byte{PrefixRoot}, 0),
+		{PrefixRoot, 1, 2},
+	} {
+		require.NoError(t, mem.Set(k, []byte{1}))
+	}
+
+	ndb := newNodeDB(mem, 0, NewNopLogger(), DefaultOptions())
+	require.Equal(t, []int{5, 9}, ndb.AvailableVersions())
+}
+
 func TestLoadReadonlyReadsOnlyTheLatestRoot(t *testing.T) {
 	mem := memdb.NewMemDB()
 	writer := NewMutableTreeWithDB(mem, 0, NewNopLogger())

@@ -92,11 +92,28 @@ func orphanDBKey(version int64) []byte {
 	return key
 }
 
+// rootKeyLen is the length of a root key: PrefixRoot, then the version as
+// 8 big-endian bytes.
+const rootKeyLen = 1 + 8
+
 func rootDBKey(version int64) []byte {
-	key := make([]byte, 1+8)
+	key := make([]byte, rootKeyLen)
 	key[0] = PrefixRoot
 	binary.BigEndian.PutUint64(key[1:], uint64(version))
 	return key
+}
+
+// rootKeyVersion decodes the version of a key from the root range. It reports
+// false for a key of another length or a version outside [1, math.MaxInt64].
+func rootKeyVersion(key []byte) (int64, bool) {
+	if len(key) != rootKeyLen {
+		return 0, false
+	}
+	v := binary.BigEndian.Uint64(key[1:])
+	if v < 1 || v > math.MaxInt64 {
+		return 0, false
+	}
+	return int64(v), true
 }
 
 // --- Node operations ---
@@ -455,11 +472,9 @@ func (ndb *nodeDB) AvailableVersions() []int {
 
 	var versions []int
 	for ; itr.Valid(); itr.Next() {
-		key := itr.Key()
-		if len(key) != 9 { // prefix(1) + version(8)
-			continue
+		if v, ok := rootKeyVersion(itr.Key()); ok {
+			versions = append(versions, int(v))
 		}
-		versions = append(versions, int(binary.BigEndian.Uint64(key[1:])))
 	}
 	if itr.Error() != nil {
 		// Don't return a silently-truncated list on a mid-scan DB error; mirror
@@ -514,12 +529,8 @@ func (ndb *nodeDB) edgeRootVersion(reverse bool) (int64, error) {
 	defer itr.Close()
 
 	for ; itr.Valid(); itr.Next() {
-		key := itr.Key()
-		if len(key) != 9 { // prefix(1) + version(8)
-			continue
-		}
-		if v := binary.BigEndian.Uint64(key[1:]); v >= 1 && v <= math.MaxInt64 {
-			return int64(v), nil
+		if v, ok := rootKeyVersion(itr.Key()); ok {
+			return v, nil
 		}
 	}
 	return 0, itr.Error()
