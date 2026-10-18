@@ -323,6 +323,12 @@ func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err er
 		}
 	}()
 
+	// Discovery skips root keys outside [1, MaxInt64], so such a version
+	// would commit and then never load.
+	if version < 1 {
+		return nil, 0, fmt.Errorf("working version %d is below 1", version)
+	}
+
 	// If this version already exists, verify the hash matches.
 	// This prevents accidentally overwriting a version with different data.
 	// Use the error-propagating variant: a transient DB error must NOT be read

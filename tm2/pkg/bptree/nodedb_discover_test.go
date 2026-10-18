@@ -431,3 +431,22 @@ func TestSaveVersionReturnsFirstVersionSeekError(t *testing.T) {
 	require.Zero(t, tree.ndb.getFirstVersion())
 	require.False(t, tree.VersionExists(2))
 }
+
+func TestSaveVersionRejectsVersionsBelowOne(t *testing.T) {
+	for _, initial := range []uint64{1 << 63, 1<<63 + 1, math.MaxUint64} {
+		t.Run(fmt.Sprint(initial), func(t *testing.T) {
+			mem := memdb.NewMemDB()
+			tree := NewMutableTreeWithDB(mem, 0, NewNopLogger())
+			tree.SetInitialVersion(initial)
+			mustSet(t, tree, []byte("k"), []byte{1})
+
+			_, _, err := tree.SaveVersion()
+			require.Error(t, err)
+
+			itr, err := mem.Iterator([]byte{PrefixRoot}, []byte{PrefixRoot + 1})
+			require.NoError(t, err)
+			defer itr.Close()
+			require.False(t, itr.Valid(), "a root key was written")
+		})
+	}
+}
