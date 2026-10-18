@@ -60,10 +60,10 @@ func (erroringIterator) Error() error                { return errIterRead }
 func (erroringIterator) Close() error                { return nil }
 
 // stepCountingDB counts the Next calls made on the iterators it opens, and the
-// forward iterators it opens.
+// iterators it opens in each direction.
 type stepCountingDB struct {
 	dbm.DB
-	nextCount, forwardCount int64
+	nextCount, forwardCount, reverseCount int64
 }
 
 func (c *stepCountingDB) Iterator(start, end []byte) (dbm.Iterator, error) {
@@ -76,6 +76,7 @@ func (c *stepCountingDB) Iterator(start, end []byte) (dbm.Iterator, error) {
 }
 
 func (c *stepCountingDB) ReverseIterator(start, end []byte) (dbm.Iterator, error) {
+	c.reverseCount++
 	itr, err := c.DB.ReverseIterator(start, end)
 	if err != nil {
 		return nil, err
@@ -441,6 +442,7 @@ func TestSaveVersionOnEmptyTreeOpensNoIterator(t *testing.T) {
 
 	require.Equal(t, int64(1), mustSave(t, tree))
 	require.Zero(t, cdb.forwardCount, "the first save on an empty tree opened a forward iterator")
+	require.Zero(t, cdb.reverseCount, "the first save on an empty tree opened a reverse iterator")
 	require.Equal(t, int64(1), tree.ndb.getFirstVersion())
 }
 
@@ -453,7 +455,7 @@ func TestSaveVersionRejectsVersionsBelowOne(t *testing.T) {
 			mustSet(t, tree, []byte("k"), []byte{1})
 
 			_, _, err := tree.SaveVersion()
-			require.Error(t, err)
+			require.ErrorContains(t, err, fmt.Sprintf("working version %d is below 1", int64(initial)))
 
 			itr, err := mem.Iterator([]byte{PrefixRoot}, []byte{PrefixRoot + 1})
 			require.NoError(t, err)
