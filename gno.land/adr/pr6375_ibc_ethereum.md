@@ -898,10 +898,13 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   - `core.Pause` blocks the whole packet path, refunds included, and is reserved for a core bug.
   - **Direct user calls only.** `Transfer` requires `IsUserCall()`: an intermediate realm or a `maketx run` script
     cannot send, for any token. Ethereum's `sendTransfer` accepts any calling account, contracts included (§8.5).
-  - **A failed payment aborts on gno.land.** gno.land does not park: an immediate refund, a claim or a refund claim
-    whose payout fails (e.g. a GRC20 transfer returning an error) panics, rolling back the acknowledgement,
-    timeout or claim transaction; it is retried once the payment problem is repaired. Ethereum parks instead (§7.13,
-    §8.5).
+  - **A failed payment aborts on gno.land.** gno.land neither parks nor withholds on an ordinary payout failure:
+    an immediate refund, a claim payout or a refund-claim payout that fails (e.g. a GRC20 transfer returning an
+    error) panics and rolls back the **whole** transaction, transport completion included — the acknowledgement or
+    timeout is not processed, its send record unchanged and nothing queued, withheld or parked — and the ack,
+    timeout or claim must be retried once the payment problem is repaired. Ethereum parks instead (§7.13, §8.5).
+    (Withholding on gno.land is only the governed void of a claim, never a reaction to a failed payment; parking on
+    gno.land is only a settlement's, §7.12.)
   - Relaying for an Ethereum client (updates, receives, acks, timeouts) is permissionless (R17).
   - A route with an unresolved loss of any denom takes no new exposure (no gno-native send, credit, claim payout or
     sweep payment), whatever the flags; voucher returns, acks, timeouts and refunds go on (§7.9).
@@ -1522,9 +1525,11 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
     been compromised** — an update, or a membership or absence proof checked — considering verifier defects and the
     implementation versions affected. When that is unknown it is **0**, every ack and timeout the client ever
     processed: an authenticated consensus root proves that root genuine, not that every proof checked against it
-    was verified correctly. Only once the compromise is established to be **header-only** (forged consensus states,
-    the verifier sound) may it start at the client's first update after its last independently authenticated
-    consensus state. One record too many costs a proof; one too few keeps a forged refund. (This replaces "from the
+    was verified correctly, and an independently authenticated newer head says nothing about older stored roots. A
+    later boundary is allowed only once operators establish a **safe history prefix** — every consensus state the
+    client retains from before the boundary is genuine — and it is then the **installation height of the earliest
+    potentially forged consensus state**. A newer genuine head never advances it. One record too many costs a proof;
+    one too few keeps a forged refund. (This replaces "from the
     last height the replacement clients confirm as honest".) The range is clamped to the client's activation: on
     gno.land a suspect height below the height the retired client became the route's is raised to it, and a future
     or negative one is refused; on Ethereum it is found by binary search in the client's own processed list, and a
@@ -1701,7 +1706,10 @@ same packet: a double spend that receive limits, flags and the quarantine do not
   parked refund's retry stays metered and may pay a partial installment; only a refund kind 12 settled (action 1)
   is retried whole outside the meter. One exception to parking: a voucher refund first mints into the escrow, and
   if the escrow's release then fails the mint is undone by an unbounded `burn` on the governance-pinned voucher,
-  whose failure propagates; that burn is trusted to succeed.
+  whose failure propagates; that burn is trusted to succeed. **On gno.land there is no such parking**: an ordinary
+  payout failure (an immediate refund, a `ClaimRefunds` installment, a claim payout) panics and rolls back the whole
+  transaction, transport completion included, so the ack, timeout or claim is retried after the payment problem is
+  repaired; the entitlement is never withheld or parked for it (§7.3). Only a settlement parks on gno.land (§7.12).
 - **Send and settlement records.** The transfer app's send entry point (E6's fork on Ethereum, the transfer realm on
   gno.land) writes an immutable **send record** keyed by `(client, sequence)` in the same transaction as the send:
   the full packet (timeout and payload), its commitment hash and the send metadata (sender, denom, amount, local
@@ -1884,7 +1892,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | # | Side | Divergence | Rationale |
 |---|---|---|---|
 | 1 | Both | **A closed route pays no refund until it reopens**, the healthy replacement client's included; only the governed settlements pay on a closed route (R17, §6.7, §7.3, §7.13 said only the refund meter and the `refunds` hold delay a refund) | While closed, the retired client's records are not yet told apart; a refund paid from the route's backing could pay a forged one with what a genuine one needs. One rule keeps the backing whole without a per-client refund path; liveness rests on the bounded, governed reconciliation (project-owner decision) |
-| 2 | Both | **Suspect height** = the earliest verification operation that may have been compromised, default 0 (clamped to the client's activation), later only for an established header-only compromise (§7.12 said "from the last height the replacement clients confirm as honest") | An authenticated root proves the root, not every proof checked against it; one record too many costs a proof, one too few keeps a forged refund |
+| 2 | Both | **Suspect height** = the earliest verification operation that may have been compromised, default 0 (clamped to the client's activation), later only past an established safe history prefix (every retained earlier consensus state genuine), at the installation height of the earliest potentially forged state; a newer genuine head never advances it (§7.12 said "from the last height the replacement clients confirm as honest"); no "first update after the last authenticated root" shortcut | An authenticated root proves the root, not every proof checked against it, and a newer genuine head says nothing about older stored roots; one record too many costs a proof, one too few keeps a forged refund |
 | 3 | Both | **Preparation at suspicion**: a replacement reserves every refund its retired clients' records may owe before any payment; reservations are released **only** by a settlement applying an outcome valid at execution, never by a proof | Otherwise a refund proven and paid first could take a sibling's backing, and a proof that later goes void could release backing a refund needs |
 | 4 | Both | **Settlement refunds park** when the free backing is short (owed, reserved, record settled), instead of failing the settlement | A drained escrow must not block the reconciliation or the reopening; the refund is paid once the backing returns |
 | 5 | Both | **Voucher returns exit a closed route** over its current client; their refunds wait for the reopening | An exit is never trapped (§7.3's rule), while the closed-route refund rule (1) still holds |
@@ -1904,7 +1912,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | 19 | gno.land | **Refund meters start empty**; a refund is paid at once only if the whole of it fits; installments of at least `min(remainder, max(1, refundCap/24))`, which the meter (and, escrowed, the escrow) must hold; a settled parked refund is paid under the meter, and only a minted installment may then be cut below the minimum by the supply's headroom (Ethereum pays a settled refund outside the meter) | Conservative; a parked minted refund larger than any headroom a return frees is still paid |
 | 19a | Both, differing | **Refund meter starting state**: gno.land starts empty; Ethereum starts with the whole `refundCap` available (`used = 0`) | Each chain's port of the bucket; recorded so operators size the launch refund cap for an immediately full Ethereum budget |
 | 19c | Both, differing | **Ordinary refund availability**: Ethereum pays at once (or on a claim) only if every other record's reservation stays backed, else parks; gno.land checks gross escrow for an immediate refund and the lock less `ProvenOwed` for a queued one, not every sibling reservation or claim liability | Recorded as built; gno.land's settlement payments (§7.12) do check free escrow net of every reservation |
-| 19d | Both, differing | **Failed refund payments**: Ethereum parks a refund its token refuses; gno.land has no parking outside settlements, so a failed payout panics and the ack, timeout or claim is retried after the payment problem is repaired | Recorded as built |
+| 19d | Both, differing | **Failed refund payments**: Ethereum parks a refund its token refuses; gno.land has no parking outside settlements, so a failed payout panics and the ack, timeout or claim is retried after the payment problem is repaired | Recorded as built; on gno.land nothing is withheld or parked for a failed payout, and the transport completion rolls back with it |
 | 19e | Both, differing | **Who may send**: gno.land's `Transfer` requires a direct user call (`IsUserCall`), refusing intermediate realms and `maketx run`; Ethereum's `sendTransfer` accepts any account, contracts included | gno.land's realm-call model; integrations built on gno.land cannot wrap a transfer in a realm |
 | 19f | gno.land | **The address blocklist stops exits**: a blocked sender cannot send, voucher returns included (refunds still reach it); blocking is immediate, unblocking a 7-day decision | A deliberate exception to "a pause never stops burning" (§7.3); the blocklist is a compliance tool, not a pause |
 | 19g | Both, differing | **Reopening during new losses**: gno.land lets a loss be booked during a reopening and restarts the incident scan; Ethereum seals the reopening (no settlement on its incidents, no loss on the route) | Recorded as built; both end with every loss accepted or resolved |
@@ -2370,6 +2378,13 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   it closes the route to new exposure until an accepted deficit resolves it; reductions, recapitalizations and
   forged voids into a mirror incident are refused; incidents never mix mirror and authoritative losses (§7.9,
   §7.12).
+- 2026-10-18, suspect height and gno.land payout failures:
+  - The header-only shortcut for the suspect height is removed as unsafe: a newer authenticated head does not make
+    older stored roots genuine. `suspectFrom` defaults to 0 (clamped to activation); a later boundary needs an
+    established safe history prefix and is the installation height of the earliest potentially forged consensus
+    state; a newer genuine head never advances it (§7.12, §8.5).
+  - On gno.land an ordinary payout failure rolls back the whole transaction, transport completion included, and
+    nothing is withheld or parked for it; it is retried after repair (§7.3, §7.13, §8.5).
 
 ## 15. References
 
