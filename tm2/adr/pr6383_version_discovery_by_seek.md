@@ -1,4 +1,4 @@
-# PRxxxx: Version discovery by seek, not scan
+# PR6383: Version discovery by seek, not scan
 
 ## Status
 
