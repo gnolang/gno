@@ -808,10 +808,12 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 - **Meters start empty.** At launch, after a migration or verifier replacement of the route's client, after a route
   replacement (a new payouts epoch), and whenever a `payouts` flag is cleared, by its owner as well (any clearing
   starts a new payouts epoch, §8.5). Refund meters keep their state through all of these.
-- **Cap changes settle first (target rule, both chains; being changed in code).** Before any cap changes — a
-  governed change of a cap floor, mint cap, day cap or refund cap, and a lock-derived unescrow cap moving with the
-  lock — every affected meter is settled (refilled to now) at the old cap, so a new cap never applies to time
-  before it took effect.
+- **Cap changes never backdate a refill.** On gno.land (built, gno-realms 2966e40), a governed reconfiguration of a
+  denom first settles its bridge and refund meters (refilled to now) at the old cap. The lock-derived unescrow cap
+  and the per-recipient meters are not settled at the change: each picks up the new cap at its next refill, which
+  refills the earlier time at the **old** cap. For a raise that grants less than settling would; for a cut it
+  grants the old rate only up to the change's refill, which the bound's `cap_max` already covers. On Ethereum (target rule, being changed in
+  code) both buckets are settled at the old caps before a limits change.
 - **Two accountings.** Gno-native assets returning from Ethereum are unescrowed: `lock` is their escrow and caps
   payouts. Ethereum assets arriving on gno are **minted** as vouchers: there is no gno lock, so they get their own
   day cap (absolute, per denom) and their own outstanding-supply accounting; `amount > lock` sweeping applies only
@@ -832,8 +834,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   `level₀ + Δ⁺ + ∫ cap(τ)/24 dτ ≤ cap_max + Δ⁺ + cap_max·t/24`, where `cap_max` is the largest cap over the interval
   and `Δ⁺` the sum of the cap raises during it (for unescrow `cap = max(CapFloor, lock/10)` only falls while the lock
   drains, so `cap_max` is the cap at the start unless new deposits raise the lock; for minting it is the configured
-  cap). Because meters settle at the old cap before every change, lock-derived ones included, refill is never
-  backdated; a raise can still lift what is available at once — on Ethereum, whose bucket tracks `used`, available
+  cap). Because a new cap never applies to time before it took effect — governed changes settle at the old cap,
+  and gno.land's lock-derived and per-recipient meters refill the earlier time at the old cap, which can only grant
+  less — refill is never backdated; a raise can still lift what is available at once — on Ethereum, whose bucket tracks `used`, available
   becomes `cap − used`, up by the raise; on gno.land the stored level stays and only the ceiling rises, so `Δ⁺ = 0`
   there. Conservatively, the loss within `t` is at most a full bucket at the interval's maximum cap plus its refill,
   `2·cap_max` within any 24 hours. Governed raises wait 7 days, so they are visible in advance. The loss before a void is that amount for the time it takes a monitor or guardian to set a
@@ -938,10 +941,12 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   flagging anything, on any route or client, make it. On Ethereum, a hold is per flag set, and a dip in which a
   guardian flag standing at the dip's start stops standing (its key replaced) ends the hold at once, as a
   replacement does; an owner's own clear keeps the 24-hour grace.
-- **Guardian replacement** under a hold lands no sooner than day 21 of the hold. **Target rule, both chains (being
-  changed in code):** each pending seat change has a **deadline that later holds cannot reset**. It is anchored the
-  first time a hold defers that decision after it became due, and the decision may execute from anchor + 21 days
-  whatever holds stand then, so clearing and re-flagging (a new hold) never moves it. A vacancy (a seat set to no
+- **Guardian replacement** under a hold lands no sooner than day 21 of the hold. Each pending seat change has a
+  **deadline that later holds cannot reset** (built on gno.land, gno-realms 2966e40; target rule on Ethereum, being
+  changed in code). It is anchored the first time a hold defers that decision after it became due, and the decision
+  may execute from anchor + 21 days whatever holds stand then, so clearing and re-flagging (a new hold) never moves
+  it. On gno.land the first deferring `Execute` records the anchor and emits a `deferred` event instead of
+  reverting. A vacancy (a seat set to no
   key) is a replacement: it waits 7 days and, under a hold, follows the same deadline. On gno.land a vacating change targets
   the holder the seat had when the request was built and is skipped if the seat changed hands since; the governor
   cannot end a hold by vacating the flagging seats. **Ethereum refuses vacancies**: kind 3 never sets a seat to no
@@ -1204,7 +1209,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   - gno-native: `accounted escrow on gno = voucher supply on Ethereum + in flight + unpaid refunds + open/owed/withheld claims on gno − unrecovered losses`
     (a returned voucher is burned on Ethereum but its GNOT stays escrowed until its claim is paid);
   - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + unpaid refunds + open/owed/withheld mint claims on gno − unrecovered losses`.
-  - **Unrecovered losses** are the loss ledger's open total (§7.9): only decided, packet-keyed losses, so a
+  - **Unrecovered losses** are the loss ledger's open total (§7.9), taken from the token's home chain only (a
+    mirrored record on the other chain never counts, §7.12 Cross-chain loss ownership): only decided, packet-keyed losses, so a
     reconciled incident does not re-trigger the response, and any deficit beyond them is a new break.
   - Each packet's amount sits in **exactly one** of these terms at a time, keyed by the packet:
     - **in flight** — sent and not yet received at the destination, or received with an error ack (or past its
@@ -1576,12 +1582,19 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
     without a `refunds` hold, for its whole remainder outside the meter; a refund a token refuses is parked the
     same way. The only permitted shortfall is the one reconciliation recognizes: refunds owed again for packets a
     forged success released, whose backing the compromise consumed, and only while they are unpaid.
-  - **Cross-chain loss ownership — PLACEHOLDER, rule pending (being defined for gno.land).** One economic loss can
-    be booked on both chains (e.g. a forged Ethereum receive that occupied an honest packet's sequence: Ethereum's
-    action 5 and gno.land's `NewRecordLossRequest` for the collision). The stable cross-chain loss identity, which
-    ledger is authoritative for each loss class, and how mirrored records and remedies count exactly once in the
-    monitor's `unrecovered losses` term are **not yet specified here**; until they are, monitors must not sum the
-    two ledgers' balances for the same packet.
+  - **Cross-chain loss ownership.** One economic loss can be booked on both chains (e.g. a forged Ethereum receive
+    that occupied an honest packet's sequence: Ethereum's action 5 and gno.land's `NewRecordLossRequest` for the
+    collision). It is counted exactly once by this rule:
+    - **Identity:** the packet — the sending chain's client id and sequence — and the token.
+    - **Authoritative ledger: the token's home chain**, the escrow holder: gno.land for gno-native tokens, Ethereum
+      for Ethereum-native ones. Remedies (recapitalization, reduction, acceptance) act there.
+    - **Where it is booked:** a gno-native token's loss paid out on Ethereum (a forged delivery minted there, a
+      collision) is recorded on gno.land with `NewRecordLossRequest(…, "ethereum", …)`; an Ethereum-native token's
+      loss is booked on Ethereum by kind 12, action 4 (forged refund) or 5 (forged receive).
+    - **Mirrors:** a record of the same loss on the other chain is a mirror. It is resolved only by an accepted
+      deficit (on gno.land at the reopening, on Ethereum by kind 13), never recapitalized or reduced.
+    - **Monitoring** sums only the home chain's open unrecovered balances per token in the supply identity's
+      `unrecovered losses` term (§7.11), never a mirror.
   - **Forged receive entitlements.** The reopening checks the retired clients' **send** records only. Reconciliation
     must therefore also enumerate every suspect **receive** entitlement on gno.land — every claim (open, withheld or
     paid) and every sweep entry (paid or unpaid) of every client the route ever retired, from its own suspect
@@ -1617,7 +1630,8 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   A retired client id is final for transfers: no decision may migrate it back to a live client, and an ack or
   timeout for a send record already settled by reconciliation pays nothing and notifies nobody.
   The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
-  accepted by decision (§7.9): on Ethereum the route stays closed after kind 10 or the emergency recovery,
+  accepted by decision (§7.9), each loss booked and remedied on its token's home chain and any mirror on the other
+  chain resolved by an accepted deficit only (Cross-chain loss ownership, above): on Ethereum the route stays closed after kind 10 or the emergency recovery,
   outcomes are applied by kind 12 and the route reopens by kind 13 (accepting every loss as a deficit); on gno.land
   outcomes are applied by `NewSettleRequest` (at most 64 items, naming a sequence once per direction) and the route
   reopens by `NewReopenRouteRequest`, which waits for every open send record and every send record processed in a
@@ -1662,7 +1676,7 @@ same packet: a double spend that receive limits, flags and the quarantine do not
   refund is never cancelled, a forged one is rejected there. On gno.land refund meters start empty when a denom is enabled; on Ethereum a
   token's refund bucket starts with its whole `refundCap` available (`used = 0`) (§8.5). Both keep their state
   through replacements and payouts epochs. Before a cap change both chains settle the buckets at the old cap (§7.1;
-  target rule, being changed in code). On Ethereum the meter is charged before the token
+  built on gno.land, target rule being changed in code on Ethereum). On Ethereum the meter is charged before the token
   moves and given back if the payment fails; a refund its token refuses (a blacklisted sender, a paused token, a
   token needing more than the fixed payment gas), **or one that cannot be paid without taking another record's
   reserved backing**, is **parked**, never blocking the ack or the queue, and retried by `claimParked`. An ordinary
@@ -1933,7 +1947,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | decision delay | 7 days | constant |
 | Ethereum unpause delay | 24 h | constant |
 | proposal deadline | 14 days (gno.land proposals; a recorded Ethereum decision has no execution expiry) | constant |
-| guardian replacement under hold | from anchor + 21 days, the anchor being the first time a hold deferred the due decision; later holds never reset it (target rule, both chains; a gno.land vacancy too; Ethereum refuses vacancies) | constant |
+| guardian replacement under hold | from anchor + 21 days, the anchor being the first time a hold deferred the due decision; later holds never reset it (built on gno.land; target rule on Ethereum; a gno.land vacancy too; Ethereum refuses vacancies) | constant |
 | quarantine after valset change | 7 days | kind 11, per route (governed), 0 disables |
 | GnoLightClient maximum validator-set size | 65,535 | constant |
 | GnoLightClient trusting period / clock drift | 14 days / 30 s (gno.land is proof-of-authority with no unbonding; the period assumes a retired validator key is not used to forge within 14 days of its removal) | client creation |
@@ -2319,6 +2333,14 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     among bridge realms; kind 5's voucher binding and uniqueness; gno.land denom grammar and the receive's int64
     liability check; GnoLightClient's conditional set caching, 65,535-validator limit and freeze rules; the refund
     and upgrade diagrams; the fee ceiling `CapFloor/4`; pre-controls background labelled (R14, E11).
+- 2026-10-18, gno.land code landed (gno-realms 2966e40):
+  - Cross-chain loss ownership defined (§7.12, §7.11): identity packet (sending client id, sequence) and token; the
+    token's home chain holds the authoritative ledger and the remedies; the other chain's record is a mirror,
+    resolved only by an accepted deficit; monitoring sums home-chain balances only.
+  - The guardian-replacement anchor and the old-cap settlement are built on gno.land (the first deferring `Execute`
+    records the anchor and emits `deferred`; a governed reconfiguration settles the bridge and refund meters, the
+    lock-derived and per-recipient meters refill earlier time at the old cap); Ethereum's remain target rules
+    (§7.1, §7.4, §7.13, §9).
 
 ## 15. References
 
