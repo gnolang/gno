@@ -354,7 +354,10 @@ the app runs, so it stays pending at the source until it times out.
   current client both when the decision is built and when it executes. Binding opens epoch 1. One channel serves
   exactly one Ethereum transfer route, ever (§7.6, Scope). Every Ethereum-bound decision is refused until the
   channel is bound. On Ethereum, `IBCAdmin` refuses every delivery, execution and recovery until `finishSetup` has
-  passed (E4).
+  passed (E4). **Launch invariant: Ethereum stays at epoch 1 until gno.land binds.** Ethereum enforces it by
+  refusing the emergency recovery until `IBCAdmin` has recorded its first decision from gno.land (target rule, being
+  implemented); kind 10 needs a decision from gno.land anyway. If Ethereum's epoch advanced before the binding
+  regardless, the launch is void and must be redeployed: gno.land's epoch 1 could never be reconciled with it.
 - **Envelope** (canonical, at most 1024 bytes — a kind 6 carrying gno.land's real merkle prefix is 558): `version u8 (= 1) ‖ epoch u32 ‖ seq u64 ‖ kind u8 ‖ params`.
   - `epoch` starts at 1 and is raised only by a route replacement (§7.12) — an executed kind 10 or emergency
     recovery on Ethereum, a notice-driven epoch switch on gno.land; `IBCAdmin` accepts packets only for its
@@ -737,6 +740,7 @@ sequenceDiagram
   Note over G,GNO: testing phase: small lock, governor decides with every delay in force
   G->>GNO: Yield() — one way
   M->>GNO: from here every decision is a GovDAO proposal
+  Note over GNO,E: launch invariant: Ethereum stays at epoch 1 until gno.land binds governance<br/>(recovery refused before IBCAdmin's first recorded decision; an earlier epoch advance voids the launch: redeploy)
 ```
 
 ### 6.11 Incident response
@@ -1209,8 +1213,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   - gno-native: `accounted escrow on gno = voucher supply on Ethereum + in flight + unpaid refunds + open/owed/withheld claims on gno − unrecovered losses`
     (a returned voucher is burned on Ethereum but its GNOT stays escrowed until its claim is paid);
   - Ethereum-native: `accounted escrow on Ethereum = voucher supply on gno + in flight + unpaid refunds + open/owed/withheld mint claims on gno − unrecovered losses`.
-  - **Unrecovered losses** are the loss ledger's open total (§7.9), taken from the token's home chain only (a
-    mirrored record on the other chain never counts, §7.12 Cross-chain loss ownership): only decided, packet-keyed losses, so a
+  - **Unrecovered losses** are the loss ledger's open total (§7.9), each (packet, token) loss counted once, at the
+    payout chain's open balance (a mirrored record on the other chain never counts, §7.12 Cross-chain loss
+    ownership): only decided, packet-keyed losses, so a
     reconciled incident does not re-trigger the response, and any deficit beyond them is a new break.
   - Each packet's amount sits in **exactly one** of these terms at a time, keyed by the packet:
     - **in flight** — sent and not yet received at the destination, or received with an error ack (or past its
@@ -1303,7 +1308,9 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
      are checked at approval, before it can open**: `newClientId` a valid custom router id (4 to 128 characters of
      eureka's grammar, not `client-` or `channel-`), not already used by the router, and a fresh route for the
      transfer app; so a proposal that could never execute never opens. A replaced seat loses its approval.
-  2. *Eligibility*, checked **when the proposal opens**, on each approval (so a guardian approves again when
+  2. *Eligibility*, checked **when the proposal opens** — and never before `IBCAdmin` has recorded its first
+     decision from gno.land (the launch invariant, §5.4: Ethereum stays at epoch 1 until gno.land binds; target rule,
+     being implemented; an epoch advance before the binding voids the launch, which is redeployed) — on each approval (so a guardian approves again when
      eligibility arrives later), never again at execution. The route is eligible when any of: the epoch's client
      answers `isFrozen()` or `isExpired()` true (an exact answer; a client answering neither opens nothing by
      status); `silence` is non-zero and at least `silence` has passed since the last recorded decision or epoch
@@ -1586,15 +1593,18 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
     that occupied an honest packet's sequence: Ethereum's action 5 and gno.land's `NewRecordLossRequest` for the
     collision). It is counted exactly once by this rule:
     - **Identity:** the packet — the sending chain's client id and sequence — and the token.
-    - **Authoritative ledger: the token's home chain**, the escrow holder: gno.land for gno-native tokens, Ethereum
-      for Ethereum-native ones. Remedies (recapitalization, reduction, acceptance) act there.
-    - **Where it is booked:** a gno-native token's loss paid out on Ethereum (a forged delivery minted there, a
-      collision) is recorded on gno.land with `NewRecordLossRequest(…, "ethereum", …)`; an Ethereum-native token's
-      loss is booked on Ethereum by kind 12, action 4 (forged refund) or 5 (forged receive).
-    - **Mirrors:** a record of the same loss on the other chain is a mirror. It is resolved only by an accepted
-      deficit (on gno.land at the reopening, on Ethereum by kind 13), never recapitalized or reduced.
-    - **Monitoring** sums only the home chain's open unrecovered balances per token in the supply identity's
-      `unrecovered losses` term (§7.11), never a mirror.
+    - **Authoritative ledger: the payout chain.** Every loss is a payout that happened on exactly one chain, and that
+      chain books it with its own machinery — on gno.land a forged void or settlement action 4 or 5, on Ethereum
+      kind 12 action 4 or 5 — and its remedies (recapitalization, reduction, acceptance) act there.
+    - **Mirrors:** a record of the same (packet, token) on the other chain is a mirror. It is resolved only by an
+      accepted deficit (on gno.land at the reopening, on Ethereum by kind 13), never reduced or recapitalized;
+      gno.land enforces this in code. (Whether `NewRecordLossRequest`'s `"ethereum"` chain option is removed or
+      restricted is pending confirmation.)
+    - **Monitoring** counts each (packet, token) loss once, at the payout chain's open unrecovered balance, in the
+      supply identity's `unrecovered losses` term (§7.11), never a mirror.
+    - **Why the payout chain, not the token's home chain:** Ethereum has no operation to book a loss paid only on
+      gno.land (e.g. a forged mint of Ethereum-native tokens' vouchers there), so a home-chain rule could not be
+      met; the payout chain always has the machinery.
   - **Forged receive entitlements.** The reopening checks the retired clients' **send** records only. Reconciliation
     must therefore also enumerate every suspect **receive** entitlement on gno.land — every claim (open, withheld or
     paid) and every sweep entry (paid or unpaid) of every client the route ever retired, from its own suspect
@@ -1630,8 +1640,8 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   A retired client id is final for transfers: no decision may migrate it back to a live client, and an ack or
   timeout for a send record already settled by reconciliation pays nothing and notifies nobody.
   The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
-  accepted by decision (§7.9), each loss booked and remedied on its token's home chain and any mirror on the other
-  chain resolved by an accepted deficit only (Cross-chain loss ownership, above): on Ethereum the route stays closed after kind 10 or the emergency recovery,
+  accepted by decision (§7.9), each loss booked and remedied on the chain that paid it out and any mirror on the
+  other chain resolved by an accepted deficit only (Cross-chain loss ownership, above): on Ethereum the route stays closed after kind 10 or the emergency recovery,
   outcomes are applied by kind 12 and the route reopens by kind 13 (accepting every loss as a deficit); on gno.land
   outcomes are applied by `NewSettleRequest` (at most 64 items, naming a sequence once per direction) and the route
   reopens by `NewReopenRouteRequest`, which waits for every open send record and every send record processed in a
@@ -2341,6 +2351,13 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     records the anchor and emits `deferred`; a governed reconfiguration settles the bridge and refund meters, the
     lock-derived and per-recipient meters refill earlier time at the old cap); Ethereum's remain target rules
     (§7.1, §7.4, §7.13, §9).
+- 2026-10-18, loss ownership and the launch invariant:
+  - Cross-chain loss ownership changed to **the payout chain is authoritative** (§7.11, §7.12, reconciliation):
+    Ethereum cannot book a loss paid only on gno.land, so the home-chain rule could not be met; the other chain's
+    record is a mirror, resolved only by an accepted deficit (enforced on gno.land).
+  - Launch invariant: Ethereum stays at epoch 1 until gno.land binds; the emergency recovery is refused before
+    `IBCAdmin`'s first recorded decision from gno.land (target rule, being implemented); an earlier epoch advance
+    voids the launch (§5.4, §6.10, §7.12).
 
 ## 15. References
 
