@@ -423,10 +423,11 @@ func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err er
 		return nil, 0, err
 	}
 
-	// firstVersion is 0 while the low end of the root range is unread, and older
-	// versions may exist: making this version the floor would hide them from pruning.
+	// A load that read only the high end leaves firstVersion 0 with older
+	// versions on disk: making this version the floor would hide them from
+	// pruning. With latestVersion also 0 there is nothing older, so no seek.
 	first := t.ndb.getFirstVersion()
-	if first == 0 {
+	if first == 0 && t.ndb.getLatestVersion() > 0 {
 		if first, err = t.ndb.edgeRootVersion(false); err != nil {
 			return nil, 0, fmt.Errorf("finding first version: %w", err)
 		}

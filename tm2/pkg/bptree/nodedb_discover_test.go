@@ -432,6 +432,18 @@ func TestSaveVersionReturnsFirstVersionSeekError(t *testing.T) {
 	require.False(t, tree.VersionExists(2))
 }
 
+// A commit window that holds writes in memory refuses iterators, so the first
+// save on an empty DB must not open one.
+func TestSaveVersionOnEmptyTreeOpensNoIterator(t *testing.T) {
+	cdb := &stepCountingDB{DB: memdb.NewMemDB()}
+	tree := NewMutableTreeWithDB(cdb, 0, NewNopLogger())
+	mustSet(t, tree, []byte("k"), []byte{1})
+
+	require.Equal(t, int64(1), mustSave(t, tree))
+	require.Zero(t, cdb.forwardCount, "the first save on an empty tree opened a forward iterator")
+	require.Equal(t, int64(1), tree.ndb.getFirstVersion())
+}
+
 func TestSaveVersionRejectsVersionsBelowOne(t *testing.T) {
 	for _, initial := range []uint64{1 << 63, 1<<63 + 1, math.MaxUint64} {
 		t.Run(fmt.Sprint(initial), func(t *testing.T) {
