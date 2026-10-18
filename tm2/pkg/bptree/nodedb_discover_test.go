@@ -83,10 +83,6 @@ func (c *stepCountingDB) ReverseIterator(start, end []byte) (dbm.Iterator, error
 	return stepCountingIterator{Iterator: itr, count: &c.nextCount}, nil
 }
 
-func (c *stepCountingDB) nexts() int64        { return c.nextCount }
-func (c *stepCountingDB) forwardOpens() int64 { return c.forwardCount }
-func (c *stepCountingDB) reset()              { c.nextCount, c.forwardCount = 0, 0 }
-
 type stepCountingIterator struct {
 	dbm.Iterator
 	count *int64
@@ -224,21 +220,27 @@ func openPebbleComposition(t *testing.T, fill func(dbm.DB)) dbm.DB {
 	return dbm.NewPrefixDB(dbm.NewSnapshotDB(snap), prefix)
 }
 
+// runOnBothBackends runs check as two subtests, on a memdb and on
+// openPebbleComposition, each filled by fill.
+func runOnBothBackends(t *testing.T, name string, fill, check func(t *testing.T, db dbm.DB)) {
+	t.Run("memdb/"+name, func(t *testing.T) {
+		db := memdb.NewMemDB()
+		fill(t, db)
+		check(t, db)
+	})
+	t.Run("pebble/prefix/snapshot/"+name, func(t *testing.T) {
+		check(t, openPebbleComposition(t, func(db dbm.DB) { fill(t, db) }))
+	})
+}
+
 func TestDiscoverVersionsMatchesScan(t *testing.T) {
 	for name, l := range rootLayouts() {
-		check := func(t *testing.T, db dbm.DB) {
+		fill := func(t *testing.T, db dbm.DB) { writeLayout(t, db, l) }
+		runOnBothBackends(t, name, fill, func(t *testing.T, db dbm.DB) {
 			wantFirst, wantLatest := scanRootVersions(t, db)
 			first, latest := discover(t, db)
 			require.Equal(t, wantFirst, first, "first")
 			require.Equal(t, wantLatest, latest, "latest")
-		}
-		t.Run("memdb/"+name, func(t *testing.T) {
-			db := memdb.NewMemDB()
-			writeLayout(t, db, l)
-			check(t, db)
-		})
-		t.Run("pebble/prefix/snapshot/"+name, func(t *testing.T) {
-			check(t, openPebbleComposition(t, func(db dbm.DB) { writeLayout(t, db, l) }))
 		})
 	}
 }
@@ -258,18 +260,11 @@ func TestDiscoverVersionsKnownLayouts(t *testing.T) {
 	for name, want := range cases {
 		l, ok := layouts[name]
 		require.True(t, ok, "layout %q", name)
-		check := func(t *testing.T, db dbm.DB) {
+		fill := func(t *testing.T, db dbm.DB) { writeLayout(t, db, l) }
+		runOnBothBackends(t, name, fill, func(t *testing.T, db dbm.DB) {
 			first, latest := discover(t, db)
 			require.Equal(t, want.first, first, "first")
 			require.Equal(t, want.latest, latest, "latest")
-		}
-		t.Run("memdb/"+name, func(t *testing.T) {
-			db := memdb.NewMemDB()
-			writeLayout(t, db, l)
-			check(t, db)
-		})
-		t.Run("pebble/prefix/snapshot/"+name, func(t *testing.T) {
-			check(t, openPebbleComposition(t, func(db dbm.DB) { writeLayout(t, db, l) }))
 		})
 	}
 }
@@ -315,12 +310,11 @@ func TestDiscoverVersionsReadsOnlyTheEnds(t *testing.T) {
 	writeLayout(t, mem, rootLayout{versions: versionRange(1, 10_000)})
 	cdb := &stepCountingDB{DB: mem}
 	ndb := newNodeDB(cdb, 0, NewNopLogger(), DefaultOptions())
-	cdb.reset()
 
 	require.NoError(t, ndb.discoverVersions())
 	require.Equal(t, int64(1), ndb.getFirstVersion())
 	require.Equal(t, int64(10_000), ndb.getLatestVersion())
-	require.LessOrEqual(t, cdb.nexts(), int64(2), "discovery must not walk the root range")
+	require.LessOrEqual(t, cdb.nextCount, int64(2), "discovery must not walk the root range")
 }
 
 func TestDiscoverVersionsSkipsNonRootVersions(t *testing.T) {
@@ -335,19 +329,10 @@ func TestDiscoverVersionsSkipsNonRootVersions(t *testing.T) {
 			require.NoError(t, db.Set(k, []byte{1}))
 		}
 	}
-	check := func(t *testing.T, db dbm.DB) {
-		t.Helper()
+	runOnBothBackends(t, "zero and top-bit versions", writeKeys, func(t *testing.T, db dbm.DB) {
 		first, latest := discover(t, db)
 		require.Equal(t, int64(5), first)
 		require.Equal(t, int64(9), latest)
-	}
-	t.Run("memdb", func(t *testing.T) {
-		db := memdb.NewMemDB()
-		writeKeys(t, db)
-		check(t, db)
-	})
-	t.Run("pebble/prefix/snapshot", func(t *testing.T) {
-		check(t, openPebbleComposition(t, func(db dbm.DB) { writeKeys(t, db) }))
 	})
 }
 
@@ -377,12 +362,11 @@ func TestLoadReadonlyReadsOnlyTheLatestRoot(t *testing.T) {
 
 	cdb := &stepCountingDB{DB: mem}
 	tree := NewMutableTreeWithDB(cdb, 0, NewNopLogger())
-	cdb.reset()
 
 	latest, err := tree.LoadReadonly()
 	require.NoError(t, err)
 	require.Equal(t, int64(3), latest)
-	require.Zero(t, cdb.forwardOpens(), "a query view must not seek the low end, where pruning leaves tombstones")
+	require.Zero(t, cdb.forwardCount, "a query view must not seek the low end, where pruning leaves tombstones")
 }
 
 func TestLoadKeepsPruningOlderVersions(t *testing.T) {
