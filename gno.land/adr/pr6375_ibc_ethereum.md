@@ -1154,7 +1154,12 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   path (a forged void, a forged-receive or forged-refund settlement, a recorded loss): on gno.land
   `NewRecordLossRequest` names its cause (`forged-delivery` or `collision`) and chain, a forged refund is booked only
   by settlement action 4 and a forged receive represented by a claim or sweep entry only by its void or action 5.
-  Loss balances are wide (§7.1). The ledger's
+  **`NewRecordLossRequest` with chain `"ethereum"` is a mirror-only operation** (gno-realms 97cbbf0): it records on
+  gno.land the shortfall a forged Ethereum payout of a gno-native token's vouchers creates, and closes the route to
+  new exposure until resolved (`LossClosed`), but the loss's authoritative record is Ethereum's (§7.12, Cross-chain
+  loss ownership). A mirror is resolved only by an accepted deficit: a reduction, a recapitalization or a forged
+  void into a mirror incident is refused and the decision spent. An incident never mixes mirror and authoritative
+  losses. Loss balances are wide (§7.1). The ledger's
   **unrecovered** total enters the supply identity (§7.11), so a reconciled incident stops reading as a break while
   any further deficit still does.
 - **Restoring solvency.** Recording a loss does not restore the backing. Before a route that lost funds reopens
@@ -1598,8 +1603,11 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
       kind 12 action 4 or 5 — and its remedies (recapitalization, reduction, acceptance) act there.
     - **Mirrors:** a record of the same (packet, token) on the other chain is a mirror. It is resolved only by an
       accepted deficit (on gno.land at the reopening, on Ethereum by kind 13), never reduced or recapitalized;
-      gno.land enforces this in code. (Whether `NewRecordLossRequest`'s `"ethereum"` chain option is removed or
-      restricted is pending confirmation.)
+      gno.land enforces this in code: `NewRecordLossRequest(…, "ethereum", …)` is mirror-only — it shows on
+      gno.land the shortfall of a forged Ethereum payout of a gno-native token's vouchers and closes the route to new
+      exposure (`LossClosed`) until an accepted deficit resolves it; reductions, recapitalizations and forged voids
+      into a mirror incident are refused (the decision spent), and no incident mixes mirror and authoritative
+      losses (§7.9).
     - **Monitoring** counts each (packet, token) loss once, at the payout chain's open unrecovered balance, in the
       supply identity's `unrecovered losses` term (§7.11), never a mirror.
     - **Why the payout chain, not the token's home chain:** Ethereum has no operation to book a loss paid only on
@@ -2358,6 +2366,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Launch invariant: Ethereum stays at epoch 1 until gno.land binds; the emergency recovery is refused before
     `IBCAdmin`'s first recorded decision from gno.land (target rule, being implemented); an earlier epoch advance
     voids the launch (§5.4, §6.10, §7.12).
+- 2026-10-18, `NewRecordLossRequest`'s `"ethereum"` option kept as a mirror-only operation (gno-realms 97cbbf0):
+  it closes the route to new exposure until an accepted deficit resolves it; reductions, recapitalizations and
+  forged voids into a mirror incident are refused; incidents never mix mirror and authoritative losses (§7.9,
+  §7.12).
 
 ## 15. References
 
