@@ -2,6 +2,7 @@ package pebbledb
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,6 +89,31 @@ func TestPebbleReverseIteratorStaysInRange(t *testing.T) {
 
 			points := itr.(*pebbleDBIterator).source.Stats().InternalStats.PointCount
 			require.LessOrEqual(t, points, uint64(maxPoints), "reverse iterator stepped over keys outside [start, end)")
+		})
+	}
+}
+
+func TestPebbleEmptyEndYieldsNothing(t *testing.T) {
+	// Not parallel: pebble ignores an empty UpperBound when the iterator's
+	// pooled allocation has no bounds buffer yet, so each subtest empties the
+	// pool first and no other iterator may refill it meanwhile.
+	pdb, err := NewPebbleDB("emptyend", t.TempDir())
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, pdb.Close()) })
+	require.NoError(t, pdb.Set([]byte("a"), []byte("a")))
+
+	openers := map[string]func(start, end []byte) (db.Iterator, error){
+		"forward": pdb.Iterator,
+		"reverse": pdb.ReverseIterator,
+	}
+	for name, open := range openers {
+		t.Run(name, func(t *testing.T) {
+			runtime.GC()
+			runtime.GC()
+			itr, err := open(nil, []byte{})
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, itr.Close()) })
+			require.False(t, itr.Valid(), "no key sorts before an empty end")
 		})
 	}
 }
