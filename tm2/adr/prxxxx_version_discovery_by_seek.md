@@ -17,9 +17,7 @@ over the committed snapshot (PR5431). For the main store that means
 `bptree.Store.loadImmutableView`, then `MutableTree.LoadReadonly`, then
 `nodeDB.discoverVersions`, which iterates every `PrefixRoot` key to find the
 first and latest versions. There is one root key per retained version, and the
-default `syncable` strategy retains 705,600 of them. The comment on
-`loadVersionDiscovered` already records that this scan sits on the per-query
-path.
+default `syncable` strategy retains 705,600 of them.
 
 The cost is linear in retained versions. On a local gnoland node (pebble with
 the options the node opens it with, synthetic root records under the main
@@ -57,16 +55,15 @@ order is version order:
 - `latestVersion` is the first root key of a reverse iterator over the same
   range.
 
-Both seeks keep the scan's exact semantics:
+Both seeks return the scan's results on every key set whose root keys lie in
+`[1, math.MaxInt64]`:
 
 - a key under the prefix whose length is not 9 bytes is skipped, as the scan
   skips it;
 - a key encoding version 0, or a version with the top bit set, is not a root
   version and is skipped. No node path writes either (the node only sets an
   initial height above 1); through the bptree API, a `uint64` initial version
-  above `math.MaxInt64` would write a top-bit root, which the scan also
-  mishandled. The seek results equal the scan's on every key set whose root
-  keys lie in `[1, math.MaxInt64]`;
+  above `math.MaxInt64` would write a top-bit root, which the scan mishandled;
 - an iterator error is returned, as the scan returns it.
 
 `LoadReadonly`, which every query view goes through, needs only the latest
@@ -79,6 +76,15 @@ a restart without `firstVersion` would stop pruning every version retained
 before it. On pebble their forward seek steps over uncompacted tombstones of
 pruned roots (about 7 ms per 100,000 at 500,000 roots), paid when a node
 starts. Pruning reads the cached `firstVersion` and is untouched.
+
+The reverse seek is fast only because pebbledb's reverse iterators pass their
+range as iterator bounds, as its forward iterators already did. Without the
+bound, a reverse seek steps over the deleted keys between the end of the range
+and the next live key, once forward and once back. The values sort right after
+the root range, ordered by version, and pruning deletes the orphaned values of
+pruned versions, so a query view would step over every value tombstone that
+sorts before the first live value, until compaction drops them. Iteration
+results are identical, so neither consensus nor gas changes.
 
 The two seeks of `Load` and `LoadVersion` are two reads, so on backends without
 snapshots they are not taken at one point in time. This is harmless: they run
@@ -132,10 +138,15 @@ At 900,000 versions, gpao's `verify-one` on a package importing
 `gno.land/r/sys/names` finishes in 0.65 s instead of 14.98 s, and 16 parallel clients get 13,700
 queries per second at 1 ms instead of 64 at 253 ms.
 
-**No consensus change, no coordinated upgrade.** Discovery returns the same
-first and latest versions. They select the version to load and the start of the
-prune range; neither feeds the app hash, gas, or stored data. A network mixing
-both binaries keeps agreeing, and nodes upgrade one at a time in any order.
+**No consensus change, no coordinated upgrade.** On every root-key set a node
+writes, `discoverVersions`, which `Load` and `LoadVersion` run, returns the
+same first and latest versions as the scan, so both binaries load the same
+version and start the prune range at the same version. Query views compute only
+the latest version, the same one, and leave `firstVersion` at 0. `firstVersion`
+feeds none of the app hash, gas or reads: it sets where the prune range starts,
+so it decides which versions pruning deletes, and those deletions are local
+state outside the app hash. A network mixing both binaries keeps agreeing, and
+nodes upgrade one at a time in any order.
 
 **Query cost depends on neither retained versions nor pruning.** Startup pays
 the forward seek once.
@@ -161,7 +172,18 @@ on a public node is known only once a node runs the change.
   covers iterator errors at open and from `Error()`.
 - **Guard.** `TestDiscoverVersionsReadsOnlyTheEnds`: discovery over 10,000
   roots steps the iterator at most twice. `BenchmarkLoadReadonlyVersionRoots`
-  covers 1 to 500,000 roots, and 500,000 with 400,000 pruned.
+  covers 1 to 500,000 roots, 500,000 with 400,000 pruned, and
+  `values=1000/versions=1000/pruned=999`: 1,000 versions overwriting the same
+  1,000 keys, with all but the latest pruned.
+- **Bounded reverse iterators.** `TestPebbleReverseIteratorStaysInRange`: a
+  reverse iterator over a range followed by 10,000 deleted keys, on the DB and
+  on a snapshot, yields the in-range keys and reads at most 100 internal
+  points. Without bounds it reads 20,004; with them, 3. In the
+  `values=1000/versions=1000/pruned=999` case a query view's load takes 247 ms
+  without bounds and 232 µs with them (median of 5 runs). The remaining gap to
+  the root cases comes from the L0 sublevels the build leaves with compactions
+  off, which every read opens: its 1,000 commits flush often, where the root
+  cases write a few large batches.
 - **Load paths.** `TestLoadReadonlyReadsOnlyTheLatestRoot`: a query view opens
   no forward iterator. `TestLoadKeepsPruningOlderVersions`: after `Load`,
   pruning still removes the versions retained before the restart.

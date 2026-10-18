@@ -559,9 +559,8 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 }
 
 // loadVersionDiscovered is LoadVersion's body after version discovery: it
-// loads version using the already-refreshed first/latest counters. Split out
-// so LoadReadonly — which has just discovered versions to FIND the latest —
-// doesn't discover versions twice.
+// loads version and returns the already-refreshed latest counter. Load and
+// LoadReadonly also call it, each after its own discovery.
 func (t *MutableTree) loadVersionDiscovered(version int64) (int64, error) {
 	latestVersion := t.ndb.getLatestVersion()
 
