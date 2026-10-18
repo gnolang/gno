@@ -224,6 +224,7 @@ func openPebbleComposition(t *testing.T, fill func(dbm.DB)) dbm.DB {
 // runOnBothBackends runs check as two subtests, on a memdb and on
 // openPebbleComposition, each filled by fill.
 func runOnBothBackends(t *testing.T, name string, fill, check func(t *testing.T, db dbm.DB)) {
+	t.Helper()
 	t.Run("memdb/"+name, func(t *testing.T) {
 		db := memdb.NewMemDB()
 		fill(t, db)
@@ -236,8 +237,12 @@ func runOnBothBackends(t *testing.T, name string, fill, check func(t *testing.T,
 
 func TestDiscoverVersionsMatchesScan(t *testing.T) {
 	for name, l := range rootLayouts() {
-		fill := func(t *testing.T, db dbm.DB) { writeLayout(t, db, l) }
+		fill := func(t *testing.T, db dbm.DB) {
+			t.Helper()
+			writeLayout(t, db, l)
+		}
 		runOnBothBackends(t, name, fill, func(t *testing.T, db dbm.DB) {
+			t.Helper()
 			wantFirst, wantLatest := scanRootVersions(t, db)
 			first, latest := discover(t, db)
 			require.Equal(t, wantFirst, first, "first")
@@ -261,8 +266,12 @@ func TestDiscoverVersionsKnownLayouts(t *testing.T) {
 	for name, want := range cases {
 		l, ok := layouts[name]
 		require.True(t, ok, "layout %q", name)
-		fill := func(t *testing.T, db dbm.DB) { writeLayout(t, db, l) }
+		fill := func(t *testing.T, db dbm.DB) {
+			t.Helper()
+			writeLayout(t, db, l)
+		}
 		runOnBothBackends(t, name, fill, func(t *testing.T, db dbm.DB) {
+			t.Helper()
 			first, latest := discover(t, db)
 			require.Equal(t, want.first, first, "first")
 			require.Equal(t, want.latest, latest, "latest")
@@ -331,6 +340,7 @@ func TestDiscoverVersionsSkipsNonRootVersions(t *testing.T) {
 		}
 	}
 	runOnBothBackends(t, "zero and top-bit versions", writeKeys, func(t *testing.T, db dbm.DB) {
+		t.Helper()
 		first, latest := discover(t, db)
 		require.Equal(t, int64(5), first)
 		require.Equal(t, int64(9), latest)

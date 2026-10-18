@@ -38,8 +38,6 @@ func TestPebbleDBBackend(t *testing.T) {
 }
 
 func TestPebbleReverseIteratorStaysInRange(t *testing.T) {
-	t.Parallel()
-
 	const (
 		deleted = 10_000
 		// A reverse iteration over [start, end) reads its few in-range keys and

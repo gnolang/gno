@@ -62,8 +62,7 @@ func (c *countingComparer) Compare(a, b []byte) int {
 }
 
 func TestGoLevelDBIteratorsStayInRange(t *testing.T) {
-	t.Parallel()
-
+	// Not parallel: each subtest reads its delta of one shared counter.
 	const (
 		deleted = 10_000
 		// Iterating [start, end) compares keys near its few in-range keys and
@@ -148,6 +147,8 @@ func TestGoLevelDBInvertedRangeIsEmpty(t *testing.T) {
 	}
 	for name, open := range openers {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
 			itr, err := open(start, end)
 			require.NoError(t, err)
 			require.False(t, itr.Valid())
