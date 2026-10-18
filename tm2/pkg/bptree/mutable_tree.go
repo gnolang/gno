@@ -507,15 +507,8 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 // consumers use LoadReadonly. It discovers both ends of the version range
 // because pruning reads firstVersion.
 func (t *MutableTree) Load() (int64, error) {
-	if err := t.ndb.discoverVersions(); err != nil {
-		return 0, err
-	}
-	latest := t.ndb.getLatestVersion()
-	if latest == 0 {
-		return 0, nil
-	}
-	v, err := t.loadVersionDiscovered(latest)
-	if err != nil {
+	v, err := t.loadLatest(t.ndb.discoverVersions)
+	if err != nil || v == 0 {
 		return v, err
 	}
 	// Build the fast index from the loaded latest root if it is absent/stale
@@ -542,7 +535,13 @@ func (t *MutableTree) Load() (int64, error) {
 // (see fast_index.go). A read-only tree discovers only the latest version and
 // leaves firstVersion unset, which only the write paths read.
 func (t *MutableTree) LoadReadonly() (int64, error) {
-	if err := t.ndb.discoverLatestVersion(); err != nil {
+	return t.loadLatest(t.ndb.discoverLatestVersion)
+}
+
+// loadLatest loads the latest version that discover finds; it returns 0 with
+// no error when the DB holds no version.
+func (t *MutableTree) loadLatest(discover func() error) (int64, error) {
+	if err := discover(); err != nil {
 		return 0, err
 	}
 	latest := t.ndb.getLatestVersion()
@@ -575,8 +574,7 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 }
 
 // loadVersionDiscovered is LoadVersion's body after version discovery: it
-// loads version and returns the already-refreshed latest counter. Load and
-// LoadReadonly also call it, each after its own discovery.
+// loads version and returns the already-refreshed latest counter.
 func (t *MutableTree) loadVersionDiscovered(version int64) (int64, error) {
 	latestVersion := t.ndb.getLatestVersion()
 
