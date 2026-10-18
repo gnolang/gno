@@ -190,7 +190,10 @@ func (pdb *PebbleDB) Iterator(start, end []byte) (db.Iterator, error) {
 
 // Implements DB.
 func (pdb *PebbleDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
-	it, err := pdb.db.NewIter(nil)
+	it, err := pdb.db.NewIter(&pebble.IterOptions{
+		LowerBound: start,
+		UpperBound: end,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -387,7 +390,10 @@ func (s *pebbleSnapshot) Iterator(start, end []byte) (db.Iterator, error) {
 
 // Implements Snapshot.
 func (s *pebbleSnapshot) ReverseIterator(start, end []byte) (db.Iterator, error) {
-	it, err := s.snapshot.NewIter(nil)
+	it, err := s.snapshot.NewIter(&pebble.IterOptions{
+		LowerBound: start,
+		UpperBound: end,
+	})
 	if err != nil {
 		return nil, err
 	}
