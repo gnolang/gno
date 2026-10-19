@@ -1590,3 +1590,61 @@ func main() {
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
 	}
 }
+
+func TestPreprocessCollectPointerToNamedPointer(t *testing.T) {
+	// A pointer to a named pointer or interface type exposes no field or
+	// method, as a pointer to a pointer or to an interface does (Go spec,
+	// Selectors); the walk used to reach through it and panic.
+	msgs := collectErrors(t, `package main
+
+type T int
+
+func (T) Mv()  {}
+func (*T) Mp() {}
+
+type P3 *struct{ T }
+type P4 *struct{ *T }
+type PP *P3
+
+type I *interface{ m() int }
+
+var err error
+var perr = &err
+
+func main() {
+	var p P3
+	_ = (&p).T
+	(&p).Mv()
+	(&p).Mp()
+	(**&p).Mv() // fine
+	(*p).Mp()   // fine
+	var q P4
+	(&q).Mv()
+	var pp PP
+	_ = pp.T
+	_ = perr.Error
+	perr.Error()
+	var x I
+	_ = x.m
+	_ = (*x).m() // fine
+}
+`)
+	want := []string{
+		"missing field T in *main.P3",
+		"missing field Mv in *main.P3",
+		"missing field Mp in *main.P3",
+		"missing field Mv in *main.P4",
+		"missing field T in main.PP",
+		"missing field Error in *.uverse.error",
+		"missing field Error in *.uverse.error",
+		"missing field m in main.I",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.Contains(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
+		}
+	}
+}
