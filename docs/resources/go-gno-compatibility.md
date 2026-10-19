@@ -430,3 +430,13 @@ The packages below are part of the Gno stdlib but have no Go counterpart.
 | go version        |                              |                                                                       |
 | go vet            |                              |                                                                       |
 | golint            | gno lint                     | same intention                                                        |
+
+## Syntax errors
+
+Gno parses with a fork of `go/parser`, so the position and recovery of a
+syntax error are go/parser's, not gc's: an error such as a missing operand
+or a label with no statement is reported at the token where go/parser
+notices it, which can be one token or one line after gc's, and after a
+statement at file level go/parser skips to the next declaration where gc
+reports each one.
+
