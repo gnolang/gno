@@ -1014,3 +1014,24 @@ func f(x interface{}) {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectUndefinedDependency(t *testing.T) {
+	// An undefined name in a declaration's type is reported where it is
+	// spelled, not at the declaration.
+	msgs := collectErrorsRaw(t, `package main
+type S struct {
+	err foo.Bar
+	Num int
+}
+type T struct {
+	x T1
+}
+`)
+	want := []string{
+		"main/main.gno:3:6-9: name foo not defined in fileset with files [main.gno]",
+		"main/main.gno:7:4-6: name T1 not defined in fileset with files [main.gno]",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}

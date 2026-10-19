@@ -477,6 +477,32 @@ func lookupPredefineDecl(fset *FileSet, name Name) predefineDecl {
 	return predefineDecl{file: file, decl: *slot}
 }
 
+// lookupPredefineDeclSafe is lookupPredefineDecl reporting a miss.
+func lookupPredefineDeclSafe(fset *FileSet, name Name) (predefineDecl, bool) {
+	file, slot, ok := fset.GetDeclForSafe(name)
+	if !ok {
+		return predefineDecl{}, false
+	}
+	return predefineDecl{file: file, decl: *slot}, true
+}
+
+// undefinedNameNode returns the first mention of name in d, where the
+// "not defined" error is positioned; nil when d never spells it.
+func undefinedNameNode(gm store.GasMeter, d Decl, name Name) (found Node) {
+	Transcribe(d, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		if nx, ok := n.(*NameExpr); ok && nx.Name == name {
+			found = nx
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
+}
+
 // predefineDeclIndex binds a FileSet to its selected package declarations.
 type predefineDeclIndex struct {
 	fileSet *FileSet
@@ -504,6 +530,13 @@ func newPredefineDeclIndex(fset *FileSet) *predefineDeclIndex {
 		}
 	}
 	return index
+}
+
+// find resolves a name within the FileSet captured by the index,
+// reporting a miss.
+func (index *predefineDeclIndex) find(name Name) (predefineDecl, bool) {
+	indexed, ok := index.entries[name]
+	return indexed, ok
 }
 
 // lookup resolves a name within the FileSet captured by the index.
@@ -6335,10 +6368,15 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			// name, so this branch is only reached for a name defined
 			// nowhere, which is a single scan followed by GetDeclFor's panic.
 			var dependency predefineDecl
+			var found bool
 			if index == nil {
-				dependency = lookupPredefineDecl(pkg.FileSet, un)
+				dependency, found = lookupPredefineDeclSafe(pkg.FileSet, un)
 			} else {
-				dependency = index.lookup(un)
+				dependency, found = index.find(un)
+			}
+			if !found {
+				panicAt(fmt.Sprintf("name %s not defined in fileset with files %v", un, pkg.FileSet.FileNames()),
+					undefinedNameNode(preprocessGasMeterOf(store), d, un), d)
 			}
 			// preprocess if not already preprocessed.
 			if !dependency.file.IsInitialized() {
