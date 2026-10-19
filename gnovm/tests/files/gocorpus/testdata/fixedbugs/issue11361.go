@@ -11,6 +11,7 @@ import "fmt"  // GC_ERROR "imported and not used"
 const n = fmt // ERROR "fmt without selector|unexpected reference to package|use of package fmt not in selector"
 
 // GnoError:
+// line 9: "fmt" imported and not used
 // line 11: package fmt cannot only be referred to in a selector expression
 
 // Verdict: Clean errorcheck
