@@ -955,11 +955,12 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   guardian flag standing at the dip's start stops standing (its key replaced) ends the hold at once, as a
   replacement does; an owner's own clear keeps the 24-hour grace.
 - **Guardian replacement** under a hold lands no sooner than day 21 of the hold. Each pending seat change has a
-  **deadline that later holds cannot reset** (built on gno.land, gno-realms 2966e40; target rule on Ethereum, its
-  alignment being finalised). The anchor is the **start of the first hold standing at or after the decision's due
+  **deadline that later holds cannot reset** (built on both chains: gno-realms 2966e40, gno-eth-ibc 7a53e2b). The anchor is the **start of the first hold standing at or after the decision's due
   time**, even if that hold began before the due time, so the decision may execute from day 21 of that hold
   whatever holds stand then; clearing and re-flagging (a new hold) never moves it. Per chain: Ethereum takes the
-  anchor from its hold history, so a hold no one observed still counts; gno.land uses the hold standing at the
+  anchor from its hold history, so a hold no one observed still counts, pins it on the decision's first held
+  `execute` (which returns without reverting) and lands the change at anchor + 21 days; the hold-history
+  compression is being hardened so it can never yield an anchor earlier than this rule. gno.land uses the hold standing at the
   decision's first deferring `Execute`, which records the anchor and emits a `deferred` event instead of
   reverting — which can only make the wait longer. A vacancy (a seat set to no
   key) is a replacement: it waits 7 days and, under a hold, follows the same deadline. On gno.land a vacating change targets
@@ -1996,7 +1997,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | decision delay | 7 days | constant |
 | Ethereum unpause delay | 24 h | constant |
 | proposal deadline | 14 days (gno.land proposals; a recorded Ethereum decision has no execution expiry) | constant |
-| guardian replacement under hold | from day 21 of the first hold standing at or after the decision's due time (its start the anchor, even if before the due time); later holds never reset it (built on gno.land, using the hold standing at the first deferring `Execute`; target rule on Ethereum, from its hold history; a gno.land vacancy too; Ethereum refuses vacancies) | constant |
+| guardian replacement under hold | from day 21 of the first hold standing at or after the decision's due time (its start the anchor, even if before the due time); later holds never reset it (built on gno.land, using the hold standing at the first deferring `Execute`; built on Ethereum from its hold history, pinned at the first held `execute`; a gno.land vacancy too; Ethereum refuses vacancies) | constant |
 | quarantine after valset change | 7 days | kind 11, per route (governed), 0 disables |
 | GnoLightClient maximum validator-set size | 65,535 | constant |
 | GnoLightClient trusting period / clock drift | 14 days / 30 s (gno.land is proof-of-authority with no unbonding; the period assumes a retired validator key is not used to forge within 14 days of its removal) | client creation |
@@ -2430,6 +2431,9 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     decision pending (cancel, or retry once the token resumes); enrolled GRC20s are assumed not to pause or
     blacklist the transfer realm (§7.5, §8.1, §8.5).
   - Ethereum's settlement at the old cap before a cap change is built (§7.1, §7.13).
+- 2026-10-19, the Ethereum guardian anchor is built (gno-eth-ibc 7a53e2b): from hold history, pinned at the first
+  held `execute` (no revert), landing at anchor + 21 days; hold-history compression is being hardened so it never
+  yields an earlier anchor (§7.4, §9).
 
 ## 15. References
 
