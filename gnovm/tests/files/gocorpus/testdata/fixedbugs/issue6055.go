@@ -34,9 +34,6 @@ func main() {
 	shouldPanic(nilInterfaceDeferCall)
 }
 
-
-// Fixed: master PR #5715 (df91bada8); verified clean, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 
 // GoOutput:

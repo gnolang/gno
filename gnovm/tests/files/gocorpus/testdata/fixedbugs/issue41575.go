@@ -37,11 +37,10 @@ type w2 w // refer to the type loop again
 
 // GnoError:
 // line 9: invalid recursive type: T1 -> T2 -> T1
-// line 18: name c not declared
 // line 19: should not happen
 // line 23: invalid recursive type: f -> f
 // line 25: invalid recursive type: g -> g
 // line 32: invalid recursive type: x -> y -> z -> x
 // line 36: should not happen
 
-// Verdict: KnownIssue errorcheck: #6344; internal errors: lines 19, 36
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18; internal errors: lines 19, 36

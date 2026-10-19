@@ -21,10 +21,4 @@ func main() {
 	_ = append(s, make([]int, -1)...) // ERROR "negative len argument in make|index -1.* must not be negative"
 }
 
-// GnoError:
-// line 17: not enough arguments in call to (const (append func(<X>{}, ...<X.Elem()>{}) <X>{})); want 2 (including variadic) got 1
-// line 18: not enough arguments in call to (const (append func(<X>{}, ...<X.Elem()>{}) <X>{})); want 2 (including variadic) got 3
-// line 20: cannot use []int as int
-// line 21: invalid argument: index (-1 <untyped> bigint) must not be negative
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 17, 18, 20, 21

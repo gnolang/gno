@@ -20,4 +20,4 @@ func main() {
 // GnoError:
 // line 13: missing condition in if statement
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16

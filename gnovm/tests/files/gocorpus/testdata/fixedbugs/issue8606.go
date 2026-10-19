@@ -105,9 +105,6 @@ func shouldPanic(name string, f func()) {
 	f()
 }
 
-
-// Fixed: master PR #5713 (5d889b083); verified clean, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 
 // GoOutput:

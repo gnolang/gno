@@ -132,9 +132,6 @@ func main() {
 	}
 }
 
-
-// Tracked: issue #5662 (same local-type-in-block root cause as bigmap.go).
-
 // GnoOutput:
 
 // GnoError:
@@ -142,4 +139,4 @@ func main() {
 
 // GoOutput:
 
-// Verdict: KnownIssue run: #6060 type declaration inside a block fails preprocess (expected type expr, got *BlockStmt)
+// Verdict: KnownIssue run: #5662 type declaration inside a block fails preprocess (expected type expr, got *BlockStmt); fix in #6060

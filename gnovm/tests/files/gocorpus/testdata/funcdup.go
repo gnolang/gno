@@ -50,4 +50,4 @@ func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition
 // line 26: i redeclared in this block
 // 	previous declaration at funcdup.go:27:9
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 27
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 27

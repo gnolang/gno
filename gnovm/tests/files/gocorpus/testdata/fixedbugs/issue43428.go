@@ -27,4 +27,4 @@ var _ = []int{
 // GnoError:
 // line 16: cannot use func(gno.land/p/filetest/p.T) as int
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17, 18, 19, 21, 22, 23; over-strict: lines 16

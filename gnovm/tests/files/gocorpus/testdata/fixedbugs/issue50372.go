@@ -31,4 +31,4 @@ func _(s chan int) {
 // GnoError:
 // line 16: expected at most 2 expressions
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 26, 27, 28
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17, 26, 27, 28
