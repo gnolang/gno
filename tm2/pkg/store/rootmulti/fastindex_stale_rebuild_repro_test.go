@@ -42,7 +42,7 @@ import (
 
 // hookDB delegates to db and runs onStampGet once, the first time the
 // fast-index stamp key is read. It stands in for the consensus drain landing
-// between a query-load's discoverVersions scan and its stamp read. The
+// between a query-load's root read and its stamp read. The
 // "fastidx" suffix couples to bptree's unexported metaFastVersionKey; drift
 // is guarded by layer 2's mandatory hasFired assertion below.
 type hookDB struct {
