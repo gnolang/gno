@@ -171,19 +171,19 @@ var (
 // line 101: main.G can only be compared to nil
 // line 102: main.G can only be compared to nil
 // line 103: operator >= not defined on: InterfaceKind
-// line 105: name _ not defined in fileset with files [issue9370.go]
-// line 106: name _ not defined in fileset with files [issue9370.go]
-// line 107: name _ not defined in fileset with files [issue9370.go]
-// line 108: name _ not defined in fileset with files [issue9370.go]
-// line 109: name _ not defined in fileset with files [issue9370.go]
-// line 110: name _ not defined in fileset with files [issue9370.go]
-// line 112: name _ not defined in fileset with files [issue9370.go]
-// line 113: name _ not defined in fileset with files [issue9370.go]
-// line 114: name _ not defined in fileset with files [issue9370.go]
-// line 115: name _ not defined in fileset with files [issue9370.go]
-// line 116: name _ not defined in fileset with files [issue9370.go]
-// line 117: name _ not defined in fileset with files [issue9370.go]
-// line 119: name _ not defined in fileset with files [issue9370.go]
+// line 105: name not defined: _
+// line 106: name not defined: _
+// line 107: name not defined: _
+// line 108: name not defined: _
+// line 109: name not defined: _
+// line 110: name not defined: _
+// line 112: name not defined: _
+// line 113: name not defined: _
+// line 114: name not defined: _
+// line 115: name not defined: _
+// line 116: name not defined: _
+// line 117: name not defined: _
+// line 119: name not defined: _
 // line 121: operator ^ not defined on: InterfaceKind
 // line 122: operator ^ not defined on: InterfaceKind
 // line 123: operator ^ not defined on: InterfaceKind
@@ -226,19 +226,19 @@ var (
 // line 101: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
 // line 102: gc expects: invalid operation.*not defined|invalid operation; gno: main.G can only be compared to nil
 // line 103: gc expects: invalid operation.*not defined|invalid comparison; gno: operator >= not defined on: InterfaceKind
-// line 105: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 106: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 107: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 108: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 109: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 110: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 112: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 113: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 114: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 115: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 116: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 117: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
-// line 119: gc expects: cannot use .*_.* as value; gno: name _ not defined in fileset with files [issue9370.go]
+// line 105: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 106: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 107: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 108: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 109: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 110: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 112: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 113: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 114: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 115: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 116: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 117: gc expects: cannot use .*_.* as value; gno: name not defined: _
+// line 119: gc expects: cannot use .*_.* as value; gno: name not defined: _
 // line 121: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator ^ not defined on: InterfaceKind
 // line 122: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator ^ not defined on: InterfaceKind
 // line 123: gc expects: invalid operation.*mismatched types|incompatible types; gno: operator ^ not defined on: InterfaceKind

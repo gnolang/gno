@@ -99,5 +99,5 @@ a function that does not terminate: gc's marker sits on the closing brace);
 one error credits no other line, however many it spans. The wording stays
 in the evidence. An EOF error maps to the last source line, where gc's
 marker sits. Internal errors are pinned without their preprocess stack dump. gc-only files (`-0`/`-m` diagnostics, `-+`/`-p=`,
-`-lang` below go1.17, `GC_ERROR`-only, pragma placement, `//line` directives,
+`-lang` below go1.17, `GC_ERROR`-only, pragma placement, `//line` and `/*line*/` directives,
 a byte order mark) are `Unsupported`.
