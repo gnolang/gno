@@ -153,7 +153,14 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
 			// `// errorcheck`: gc's inline markers name the lines it
 			// rejects; Gno preprocesses once in accumulate mode.
-			errorcheckMarkers = ParseInlineErrors(source)
+			errorcheckMarkers = ParseInlineErrors(source, isGoTypesFile(fname))
+			if isGoTypesFile(fname) {
+				for _, mk := range errorcheckMarkers {
+					if mk.LineLeading {
+						return "", 0, diffs, fmt.Errorf("%s:%d: line-leading marker: go/types attributes it to the previous line's token, which the harness cannot follow", fname, mk.Line)
+					}
+				}
+			}
 			if len(errorcheckMarkers) == 0 {
 				// A marker on a full-comment line (a pragma, as in
 				// fixedbugs/issue18882.go) is not checkable.
@@ -408,9 +415,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		for _, mk := range errorcheckMarkers {
 			marked[mk.Line] = true
 		}
-		// Two more Gno-side evidence blocks, neither changing the verdict:
-		// markers a parse failure kept the checker from reaching, and
-		// covered lines whose Gno wording matches none of gc's patterns.
+		// Two more Gno-side evidence blocks: markers a parse failure kept
+		// the checker from reaching (still uncaught; the block says why),
+		// and covered lines whose Gno wording matches none of gc's patterns.
 		var uncaught, overStrict []int
 		parseBlocked, wording := make(map[int]string), make(map[int]string)
 		messageAt := func(line int) string {
@@ -425,20 +432,20 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			if mk.GcOnly {
 				continue
 			}
-			expect := "gc expects: " + strings.Join(mk.Patterns, " | ")
+			expect := "gc expects: " + strings.Join(patternTexts(mk.Patterns), " | ")
 			if len(mk.Patterns) == 0 {
 				expect = "gc expects an error (no pattern)"
 			}
-			switch {
-			case covers(mk.Line):
+			if covers(mk.Line) {
 				if msg := messageAt(mk.Line); len(mk.Patterns) > 0 && !wordingMatches(mk.Patterns, msg) {
 					wording[mk.Line] = expect + "; gno: " + msg
 				}
-			case result.parseBlocked:
-				parseBlocked[mk.Line] = expect
-			default:
-				uncaught = append(uncaught, mk.Line)
+				continue
 			}
+			if result.parseBlocked {
+				parseBlocked[mk.Line] = expect
+			}
+			uncaught = append(uncaught, mk.Line)
 		}
 		for _, sp := range spans {
 			coversMarked := false
@@ -456,10 +463,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			}
 		}
 		// The on-chain path must reject the file iff accumulate mode did,
-		// with its first error on a reported line; a parse-blocked file
-		// has no on-chain checking error to compare.
+		// with its first error on a reported line (a parse error is the
+		// first error of both).
 		onChain := ""
-		if !result.parseBlocked {
+		{
 			lo, _ := errorSpan(result.onChainError)
 			lo -= prependedLines
 			switch {
@@ -1380,9 +1387,9 @@ const (
 	// Gno's side of a compile file is the same `// GnoError:` block run
 	// mode uses; the verdict's mode says which stage produced it.
 	DirectiveGoBuildError = "GoBuildError"
-	// Errorcheck evidence beside GnoError, neither changing the verdict.
+	// Errorcheck evidence beside GnoError.
 	// ParseBlocked: checkable markers in a file Gno could not parse; the
-	// checker never ran, so they are neither caught nor missed.
+	// checker never ran, so they stay uncaught and this block says why.
 	// GnoWordingDiffers: covered lines whose Gno message matches none of
 	// gc's patterns, where line attribution may be a coincidence.
 	DirectiveParseBlocked      = "ParseBlocked"
@@ -1877,21 +1884,20 @@ func (opts *TestOptions) runErrorcheck(m, onChain *gno.Machine, pkgPath, fname s
 	if perr != nil {
 		// Syntax and declaration errors come as a list with positions;
 		// pin each one so parse-level markers are attributed too.
+		// Every error go/parser reports (one per line without AllErrors),
+		// cascades included: a resynchronisation error on an unmarked line
+		// is an honest over-strict line, not something to hide.
 		var list scanner.ErrorList
 		if errors.As(perr, &list) {
 			for _, e := range list {
 				rr.gnoErrors = append(rr.gnoErrors, e.Error())
-				// After a syntax error the parser resynchronises and
-				// reports cascades ("expected '}', found 'EOF'") that
-				// gc never does; declaration errors before it are real.
-				if strings.HasPrefix(e.Msg, "expected ") || strings.HasPrefix(e.Msg, "missing ") {
-					break
-				}
 			}
 		} else {
 			rr.gnoErrors = []string{perr.Error()}
 		}
 		rr.parseBlocked = true
+		// The parse error rejects the file on chain too, as its first error.
+		rr.onChainError = rr.gnoErrors[0]
 		rr.Error = strings.Join(rr.gnoErrors, "; ")
 		return rr
 	}
@@ -1982,6 +1988,12 @@ func errorcheckGapReason(uncaught, overStrict, internal []int, onChain string) s
 	return strings.Join(parts, "; ")
 }
 
+// isGoTypesFile reports whether fname is in the go/types suite
+// (testdata/gotypes/), whose markers follow go/types' conventions.
+func isGoTypesFile(fname string) bool {
+	return strings.Contains(filepath.ToSlash(fname), "gotypes/")
+}
+
 // gcOnlyErrorcheckReason names why an errorcheck file has nothing for
 // Gno to check: gc diagnostic or runtime-package flags, a -lang pin below
 // go1.17, only GC_ERROR markers, or only pragma-placement markers.
@@ -2025,7 +2037,7 @@ func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
 		checkable++
 		hit := false
 		for _, pat := range mk.Patterns {
-			if strings.Contains(pat, "compiler directive") {
+			if strings.Contains(pat.Text, "compiler directive") {
 				hit = true
 			}
 		}

@@ -12,7 +12,12 @@ from `$GOROOT/src/internal/types/testdata` (`check`, `fixedbugs`, `spec`,
 by the same errorcheck mode; a file without markers must preprocess
 cleanly (compile mode). `// -lang=` and `// -gotypesalias=` headers
 configure go/types; those below Gno's go1.17 pin or disabling alias
-nodes are `Unsupported`.
+nodes are `Unsupported`, a `-lang=go1.N` with N ≥ 17 is ignored (the
+harness emulates no language version: a "requires go1.N" marker counts
+as caught only when Gno rejects the line for its own reason, which
+`GnoWordingDiffers:` then shows). A marker that is the first token on
+its line is refused for these files: go/types attributes it to the
+previous line's token, which line-based attribution cannot follow.
 
 ## Per-file contract
 
@@ -24,8 +29,8 @@ Evidence blocks (raw, auto-written), then exactly one `// Verdict:` line, last:
 | `Output:` / `GoOutput:` | the same pair for a native `.gno` filetest that opts in: adding `GoOutput:` makes the harness run Go too and demand the `Verdict:` line; `.gno` files without it are untouched |
 | `GnoError:` | Gno's own errors, per line, wording kept (a runtime panic in run mode, preprocess errors in compile mode) |
 | `GoBuildError:` | lines gc (`go build`) flagged, compile files; lines only, their wording follows the Go release |
-| `ParseBlocked:` | checkable markers in a file Gno could not parse: the checker never ran, so they count as neither caught nor missed |
-| `GnoWordingDiffers:` | attributed lines whose Gno message matches none of gc's patterns: the line agreed, the wording did not; read these when a line match may be a coincidence |
+| `ParseBlocked:` | checkable markers in a file Gno could not parse: the checker never ran, so they stay uncaught (the verdict is `KnownIssue`) and this block says why |
+| `GnoWordingDiffers:` | attributed lines whose Gno message matches none of gc's patterns (go/types' `ERROR` is a substring, `ERRORx` and gc's `ERROR` regexps): the line agreed, the wording did not; read these when a line match may be a coincidence |
 
 | verdict | meaning |
 |---|---|
