@@ -26,10 +26,4 @@ import 'a'   // ERROR "import path must be a string"
 import 3.14  // ERROR "import path must be a string"
 import 0.25i // ERROR "import path must be a string"
 
-// GnoError:
-// line 24: import path must be a string
-// line 25: import path must be a string
-// line 26: import path must be a string
-// line 27: import path must be a string
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported import: unknown import path go/parser

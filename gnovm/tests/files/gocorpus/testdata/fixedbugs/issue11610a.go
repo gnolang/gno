@@ -11,6 +11,6 @@ package a
 import""  // ERROR "import path is empty|invalid import path \(empty string\)"
 
 // GnoError:
-// line 11: invalid zero package path in testStore().pkgGetter
+// line 11: invalid import path (empty string)
 
 // Verdict: Clean errorcheck

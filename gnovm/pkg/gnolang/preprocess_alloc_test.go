@@ -471,9 +471,9 @@ func TestEllipsisArrayIndexOverflow(t *testing.T) {
 // TestShiftAmountGasOverflow pins the clamp in doOpShl/doOpShlAssign. The
 // shift-amount gas charge runs before shlAssign enforces maxBigintShift, so an
 // unvalidated amount above ~2.4e17 used to wrap int64 negative and surface as
-// "gas must not be negative" from ConsumeGas instead of the real
-// "shift amount exceeds maximum" error. Every over-cap amount must report the
-// cap, whatever its magnitude.
+// "gas must not be negative" from ConsumeGas instead of the real error.
+// Every over-cap amount must report the constant shift count rule
+// (assertConstShiftCount, ahead of the fold), whatever its magnitude.
 func TestShiftAmountGasOverflow(t *testing.T) {
 	for _, shift := range []string{
 		"10001",                // just over maxBigintShift
@@ -500,8 +500,8 @@ func TestShiftAmountGasOverflow(t *testing.T) {
 			})
 			require.True(t, panicked, "over-cap shift must be rejected")
 			got := fmt.Sprint(val)
-			require.Contains(t, got, "exceeds maximum",
-				"must report the shift cap, got: %v", got)
+			require.Contains(t, got, "invalid shift count "+shift+" (untyped int constant)",
+				"must report the shift count rule, got: %v", got)
 			require.NotContains(t, got, "gas must not be negative",
 				"gas charge overflowed instead of reporting the cap: %v", got)
 		})
@@ -537,19 +537,25 @@ func TestPreprocessGas_BignumLiterals(t *testing.T) {
 		})
 	}
 
-	// Chained big-int shift: 1<<10000<<10000<<... grows the operand ~10000
-	// bits per step (each shift is within maxBigintShift, so the per-shift cap
-	// never trips). doOpShl now charges by operand bit-width, so the fold
-	// exhausts a modest gas budget after a few hundred shifts. Without that
-	// charge the 2000-shift chain bills only ~760K gas (per shift amount only)
-	// and would NOT OOG here — so this also guards against regressing part 2.
-	t.Run("chained_shift_oog", func(t *testing.T) {
+	// Chained big-int shift: 1<<1000<<1000<<... An untyped integer
+	// constant is capped at constWidth bits (assertConstWidth), so the fold
+	// stops at the first shift past it, long before the gas budget.
+	t.Run("chained_shift_capped", func(t *testing.T) {
 		m := newMachine(t, "shlgas", stypes.NewGasMeter(10_000_000))
-		body := "package shlgas\n\nconst _ = 1" + strings.Repeat(" << 10000", 2000) + "\n"
+		body := "package shlgas\n\nconst _ = 1" + strings.Repeat(" << 1000", 2000) + "\n"
 		panicked, val := run(t, m, "shlgas", body)
-		require.True(t, panicked, "chained shift must exhaust gas during fold")
-		require.Contains(t, strings.ToLower(fmt.Sprint(val)), "gas",
-			"panic should be out-of-gas, got: %v", val)
+		require.True(t, panicked, "chained shift must be rejected during fold")
+		require.Contains(t, fmt.Sprint(val), "constant shift overflow", "got: %v", val)
+	})
+
+	// A constant shift count past maxConstShift is rejected before the
+	// fold (assertConstShiftCount), whatever the left operand.
+	t.Run("shift_count", func(t *testing.T) {
+		m := newMachine(t, "shlcount", stypes.NewGasMeter(10_000_000))
+		body := "package shlcount\n\nconst _ = 0 << 10000\n"
+		panicked, val := run(t, m, "shlcount", body)
+		require.True(t, panicked, "shift count past the bound must be rejected")
+		require.Contains(t, fmt.Sprint(val), "invalid shift count 10000 (untyped int constant)", "got: %v", val)
 	})
 
 	// Literal parse: the quadratic charge exhausts a modest gas budget before
@@ -571,12 +577,12 @@ func TestPreprocessGas_BignumLiterals(t *testing.T) {
 	}
 
 	// Control: a large literal that the removed cap would have rejected
-	// (20000 digits) and a small shift chain both fold cleanly under a
+	// (150 digits, under the width cap) and a small shift chain both fold under a
 	// realistic budget — the fix meters, it does not forbid.
 	t.Run("within_limits_ok", func(t *testing.T) {
 		m := newMachine(t, "okpkg", stypes.NewGasMeter(1_000_000_000))
-		body := "package okpkg\n\nconst _ = " + strings.Repeat("9", 20_000) +
-			"\nconst _ = 1 << 10000 << 10000\n"
+		body := "package okpkg\n\nconst _ = " + strings.Repeat("9", 150) +
+			"\nconst _ = 1 << 250 << 250\n"
 		panicked, val := run(t, m, "okpkg", body)
 		require.False(t, panicked, "within-limit literals/shifts must fold, got: %v", val)
 	})
@@ -720,4 +726,29 @@ func TestTxPathLiteralCap(t *testing.T) {
 		gas := d10 * d10 * OpCPUSlopeBigDecParse / 10 * GasFactorCPU
 		require.Less(t, gas, int64(3_000_000_000)/1000)
 	})
+}
+
+// TestImportPathErrorOnChain pins that the import path rule raises a
+// positioned *PreprocessError on the on-chain path, not a bare panic.
+func TestImportPathErrorOnChain(t *testing.T) {
+	gm := stypes.NewGasMeter(math.MaxInt64)
+	st, _ := newPreprocessAllocTestStore(t, 64*1024*1024, gm)
+	t.Cleanup(func() { st.SetPreprocessAllocator(nil) })
+	m := NewMachineWithOptions(MachineOptions{
+		PkgPath: "gno.land/r/test/imp",
+		Store:   st,
+		Output:  io.Discard,
+		Alloc:   NewAllocator(math.MaxInt64),
+	})
+	t.Cleanup(m.Release)
+	panicked, val := runMemPackageRecover(m, &std.MemPackage{
+		Type:  MPUserProd,
+		Name:  "imp",
+		Path:  "gno.land/r/test/imp",
+		Files: []*std.MemFile{{Name: "a.gno", Body: "package imp\n\nimport \"\"\n"}},
+	})
+	require.True(t, panicked, "an empty import path must be rejected")
+	pe, ok := val.(*PreprocessError)
+	require.True(t, ok, "want *PreprocessError, got %T: %v", val, val)
+	require.Contains(t, pe.Unwrap().Error(), "a.gno:3:8-10: invalid import path (empty string)")
 }
