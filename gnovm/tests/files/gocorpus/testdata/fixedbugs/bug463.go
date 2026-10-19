@@ -22,11 +22,7 @@ func main() {
 }
 
 // GnoError:
-// line 12: invalid recursive value: a -> a
-// line 16: invalid recursive value: A -> B -> C -> D -> A
-
-// GnoWordingDiffers:
-// line 12: gc expects: refers to itself|definition loop|initialization cycle; gno: invalid recursive value: a -> a
-// line 16: gc expects: refers to itself|definition loop|initialization cycle; gno: invalid recursive value: A -> B -> C -> D -> A
+// line 12: initialization cycle: a refers to a
+// line 16: initialization cycle: A refers to B refers to C refers to D refers to A
 
 // Verdict: Clean errorcheck

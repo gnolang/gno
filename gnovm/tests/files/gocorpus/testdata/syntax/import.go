@@ -13,8 +13,9 @@ import (
 
 // GnoError:
 // line 10: expected ';', found ','
+// line 11: "os" imported and not used
 
 // GnoWordingDiffers:
 // line 10: gc expects: unexpected comma; gno: expected ';', found ','
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 11

@@ -18,10 +18,10 @@ func _() {
 
 // GnoError:
 // line 10: name ok not declared
-// line 14: name undef not defined in fileset with files [issue59371.go]
+// line 14: name not defined: undef
 
 // GnoWordingDiffers:
 // line 10: gc expects: undefined: ok; gno: name ok not declared
-// line 14: gc expects: undefined: undef; gno: name undef not defined in fileset with files [issue59371.go]
+// line 14: gc expects: undefined: undef; gno: name not defined: undef
 
 // Verdict: Clean errorcheck
