@@ -81,4 +81,4 @@ func g() {
 // 	previous declaration at issue14006.go:50:3
 // line 67: expected ';', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 50; over-strict: lines 25, 38, 51, 60, 67
+// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): a label with no statement is reported at the next line, with cascades on the lines after each one
