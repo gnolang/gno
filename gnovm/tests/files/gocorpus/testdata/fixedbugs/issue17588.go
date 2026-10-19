@@ -21,6 +21,5 @@ func T(fn F) {
 
 // GnoError:
 // line 14: T<VPBlock(2,1)> is not a type
-// line 18: wrong argument count in call to fn<VPBlock(2,0)>; want 0 got 1
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 18
+// Verdict: Clean errorcheck

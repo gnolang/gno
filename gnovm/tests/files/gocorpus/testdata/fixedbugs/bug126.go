@@ -14,4 +14,4 @@ const none = 1;  // ERROR "redeclared|redef"
 // line 11: none redeclared in this block
 // 	previous declaration at bug126.go:10:7
 
-// Verdict: KnownIssue errorcheck: #6344 internal errors: lines 11
+// Verdict: Clean errorcheck

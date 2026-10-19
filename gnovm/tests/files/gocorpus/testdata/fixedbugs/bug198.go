@@ -12,6 +12,6 @@ func main() {
 }
 
 // GnoError:
-// line 8: name T not defined in fileset with files [bug198.go]
+// line 8: name not defined: T
 
 // Verdict: Clean errorcheck

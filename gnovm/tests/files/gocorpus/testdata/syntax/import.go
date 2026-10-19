@@ -13,5 +13,6 @@ import (
 
 // GnoError:
 // line 10: expected ';', found ','
+// line 11: "os" imported and not used
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 11
