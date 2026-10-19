@@ -48,8 +48,8 @@ func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store)
 	return opts.runFiletest(fname, source, tgs, tcheck)
 }
 
-// SkipError is returned by RunFiletest when the source file declares
-// a top-level `// Unsupported: <reason>` directive. The walker is
+// SkipError is returned by RunFiletest when the source file ends in a
+// `// Verdict: Unsupported <tag>: <reason>` line. The walker is
 // expected to detect this with [errors.As] and call t.Skip(Reason).
 //
 // Replaces conformance's external skiplist.yaml + compat.go for the
@@ -73,8 +73,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 	isGoFile := strings.HasSuffix(fname, ".go")
 
-	// Unsupported short-circuit: declared via a top-level
-	// `// Unsupported: <reason>` directive. Surfaces as a SkipError
+	// Verify: a second `// Verdict:` line must not hide behind an
+	// Unsupported first one, so the count runs before the short-circuit.
+	if isGoFile && !opts.Sync {
+		if n := countDirectives(dirs, DirectiveVerdict); n > 1 {
+			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
+		}
+	}
+	// Unsupported short-circuit: declared via the file's
+	// `// Verdict: Unsupported <tag>: <reason>` line. Surfaces as a SkipError
 	// the walker turns into t.Skip. Checked before any dispatch /
 	// rescue / machine construction so unsupported files cost nothing.
 	// Corpus vocabulary only: in a .gno file the line stays a comment.
@@ -146,13 +153,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// One verdict line per Go-compared file (.go corpus files and
 	// opted-in .gno files alike); sync writes it, verify demands it.
 	if isGoRunMode && !opts.Sync {
-		n := 0
-		for _, d := range dirs {
-			if d.Name == DirectiveVerdict {
-				n++
-			}
-		}
-		if n != 1 {
+		if n := countDirectives(dirs, DirectiveVerdict); n != 1 {
 			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
 		}
 		v, ok := verdictIn(dirs)
@@ -161,6 +162,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		if err := v.check(); err != nil {
 			return "", 0, diffs, err
+		}
+		// The mode names the file's mode; an Unsupported verdict carries a tag there.
+		if v.Kind != VerdictUnsupported && v.Mode != "run" {
+			return "", 0, diffs, fmt.Errorf("`// Verdict: %s` names mode %q, but this is a run file", v.Kind, v.Mode)
 		}
 	}
 	// The Go side is a golden: `go run` only under sync (with the toolchain
@@ -240,7 +245,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// can't process it at all, so route to `// Unsupported:` (skip)
 	// rather than letting it fail or land in KnownIssue. Detected from
 	// Gno's ACTUAL error, so prose like "go to" in a comment can't trip
-	// it. Auto-written under sync; thereafter skipped pre-dispatch.
+	// it. Auto-written under sync; thereafter skipped pre-dispatch. Verify
+	// never skips here: a file that reaches this point carries a Clean or
+	// Known* verdict, so a gap message now is a regression, not a gap.
 	if isGoFile {
 		reason := UnsupportedFeatureError(result.Error)
 		// Gno's preprocess may surface an unrelated error before the
@@ -280,7 +287,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			if opts.Sync {
 				return writeUnsupportedDirective(originalSource, reason), m.GasMeter.GasConsumed(), diffs, nil
 			}
-			return "", m.GasMeter.GasConsumed(), diffs, &SkipError{Reason: reason}
+			return "", m.GasMeter.GasConsumed(), diffs, fmt.Errorf(
+				"stale verdict: Gno now hits a feature gap (%s) — re-run with --update-golden-tests to mark the file `// Verdict: Unsupported`:\n%s",
+				reason, result.Error)
 		}
 	}
 
@@ -462,18 +471,12 @@ var goldenRegionStarts = []string{
 	DirectiveVerdict,
 }
 
-// triageStateMarkers are the standalone triage status lines (`// Fixed:`,
-// `// Fixing:`, `// Tracked:`) written by manual triage after the golden
-// region. They are NOT harness directives (never add them to
-// allDirectives); stripTrailingGoldenRegion treats a trailing marker
-// block as strippable so a re-sync replaces rather than duplicates it.
-var triageStateMarkers = []string{"Fixed", "Fixing", "Tracked"}
-
 // stripTrailingGoldenRegion removes the trailing golden region — one or
 // more blank-line-separated `//`-comment blocks each beginning with a
 // golden directive (goldenRegionStarts) — so a refresh replaces rather
-// than appends. Returns src unchanged if the
-// trailing comment block isn't a golden block.
+// than appends. Returns src unchanged if the trailing comment block isn't
+// a golden block. Only those directives open the region: any other
+// trailing note is body, so the upstream manifest guards it.
 func stripTrailingGoldenRegion(src string) string {
 	lines := strings.Split(src, "\n")
 	end := len(lines)
@@ -500,7 +503,7 @@ func stripTrailingGoldenRegion(src string) string {
 		if i > start && strings.TrimSpace(lines[i-1]) != "" {
 			continue // not a block top
 		}
-		for _, name := range append(goldenRegionStarts, triageStateMarkers...) {
+		for _, name := range goldenRegionStarts {
 			if strings.HasPrefix(t, "// "+name+":") {
 				return strings.Join(lines[:i], "\n")
 			}
@@ -633,6 +636,17 @@ func runVerdict(dirs Directives, gnoErrored bool) verdict {
 		return verdict{Kind: VerdictKnownIssue, Mode: "run", Reason: "TODO: explain the Gno bug (Gno errors where Go runs clean)"}
 	}
 	return verdict{Kind: VerdictKnownDivergence, Mode: "run", Reason: "TODO: <category>: explain why this divergence is acceptable"}
+}
+
+// countDirectives returns how many entries of dirs carry name.
+func countDirectives(dirs Directives, name string) int {
+	n := 0
+	for _, d := range dirs {
+		if d.Name == name {
+			n++
+		}
+	}
+	return n
 }
 
 // removeDirectives returns a copy of dirs with all entries whose Name

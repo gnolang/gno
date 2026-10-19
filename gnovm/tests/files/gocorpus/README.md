@@ -37,10 +37,21 @@ and compares with the pinned Go side; it never shells out to `go`. Sync runs
 `make -C gnovm _test.filetest` does not pin the toolchain unless `go.mod`
 carries a `toolchain` line, so set it explicitly.
 
+Verify also refuses a Clean or `Known*` file whose Gno side now fails with a
+feature-gap message (`stale verdict`): only sync routes a file to
+`Unsupported`, so a Gno regression never turns into a skip.
+
 `UPSTREAM` names the Go release the files were lifted from; `UPSTREAM.sha256`
 holds the sha256 of each file's upstream body, and `TestCorpusBodiesMatchUpstream`
 fails any file whose body (golden region stripped) drifts from it. After adding
 files, regenerate the manifest with `./upstream-manifest.sh <go source tree>`.
+The region is the trailing comment blocks that open with a golden directive
+(`GnoOutput:`, `GnoError:`, `GoOutput:`, `TypeCheckError:`, `Verdict:`); any
+other trailing comment is body and the manifest guards it, so triage notes
+go in the verdict's reason. Directive parsing is line-based: a column-0
+`// Verdict:` or `// GnoOutput: x` line inside an upstream body (a raw string,
+a comment) is read as a directive, verify fails the file for carrying two
+verdicts, and a sync would drop the line, which the manifest then catches.
 
 ## Re-sync
 
