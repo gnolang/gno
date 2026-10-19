@@ -18,13 +18,12 @@ func f2() (*t, error) {
 }
 
 // GnoError:
-// line 12: missing field M in gno.land/p/filetest/p.t
-// line 13: missing field M in gno.land/p/filetest/p.t
-// line 17: missing field M in gno.land/p/filetest/p.t
+// line 12: gno.land/p/filetest/p.t{}.M undefined (type gno.land/p/filetest/p.t has no field or method M)
+// line 13: gno.land/p/filetest/p.t{…}.M undefined (type gno.land/p/filetest/p.t has no field or method M)
+// line 17: gno.land/p/filetest/p.t{}.M undefined (type gno.land/p/filetest/p.t has no field or method M)
 
 // GnoWordingDiffers:
-// line 12: gc expects: t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M; gno: missing field M in gno.land/p/filetest/p.t
-// line 13: gc expects: t{...}.M undefined \(type t has no field or method M\)|undefined field or method .*M|no field or method M; gno: missing field M in gno.land/p/filetest/p.t
-// line 17: gc expects: t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M|not enough arguments; gno: missing field M in gno.land/p/filetest/p.t
+// line 12: gc expects: t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M; gno: gno.land/p/filetest/p.t{}.M undefined (type gno.land/p/filetest/p.t has no field or method M)
+// line 17: gc expects: t{}.M undefined \(type t has no field or method M\)|undefined field or method .*M|not enough arguments; gno: gno.land/p/filetest/p.t{}.M undefined (type gno.land/p/filetest/p.t has no field or method M)
 
 // Verdict: Clean errorcheck

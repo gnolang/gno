@@ -69,7 +69,7 @@ func main() {
 // GnoOutput:
 
 // GnoError:
-// main/method7.go:42:7-33: unexpected selector expression type value interface {m1 func(string)}
+// main/method7.go:42:7-33: interface { m1 func(.arg_0 (const-type string)) }.m1 undefined (type interface {m1 func(string)} has no method m1)
 
 // GoOutput:
 

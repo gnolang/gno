@@ -175,18 +175,12 @@ Main:
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
 						switch fv.Name {
-						case "len":
+						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
-							}
-							assertValidConstValue(store, last, currExpr.Args[0])
-							break Main
-						case "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
+								if hasCall(preprocessGasMeterOf(store), store, last, currExpr.Args[0]) {
+									panic(fmt.Sprintf("%s (value of type int) is not constant", currExpr.String()))
+								}
 								break Main
 							}
 							assertValidConstValue(store, last, currExpr.Args[0])
@@ -261,4 +255,21 @@ Main:
 		}
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ift))
 	}
+}
+
+// assertConstFinite rejects a folded untyped float constant beyond
+// big.Float's exponent range (an infinity, go/constant's unknown value):
+// a literal is malformed, an operation's result is not representable.
+func assertConstFinite(x Expr, cv *TypedValue) {
+	if cv.T != UntypedBigdecType {
+		return
+	}
+	bd, ok := cv.V.(BigdecValue)
+	if !ok || !bd.IsFloat() || !bd.F.IsInf() {
+		return
+	}
+	if bl, ok := x.(*BasicLitExpr); ok {
+		failf(CodeConstOverflow, nil, "malformed constant: %s", bl.Value)
+	}
+	fail(CodeConstOverflow, "constant result is not representable")
 }

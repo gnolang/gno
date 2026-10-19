@@ -11,9 +11,6 @@ func _() {
 }
 
 // GnoError:
-// line 10: unexpected index base kind for type func() []int
-
-// GnoWordingDiffers:
-// line 10: gc expects: cannot index f; gno: unexpected index base kind for type func() []int
+// line 10: invalid operation: cannot index f (variable of type func() []int)
 
 // Verdict: Clean errorcheck

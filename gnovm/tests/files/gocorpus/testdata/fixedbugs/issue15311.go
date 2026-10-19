@@ -20,9 +20,7 @@ var t = T{
 }
 
 // GnoError:
-// line 18: name foo not declared
+// line 18: invalid field name foo.toInt in struct literal
+// line 19: invalid field name bar.toString in struct literal
 
-// GnoWordingDiffers:
-// line 18: gc expects: field name; gno: name foo not declared
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19
+// Verdict: Clean errorcheck

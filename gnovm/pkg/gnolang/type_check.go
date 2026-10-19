@@ -173,6 +173,10 @@ func checkSame(at, bt Type, msg string) error {
 		return errors.New("incompatible types %v and %v %s",
 			at.TypeID(), bt.TypeID(), msg)
 	}
+	if f := embeddedFieldMismatch(at, bt); f != "" {
+		return errors.New("incompatible types %v and %v (field %s is embedded in only one) %s",
+			at.TypeID(), bt.TypeID(), f, msg)
+	}
 	return nil
 }
 

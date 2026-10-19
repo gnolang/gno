@@ -17,9 +17,7 @@ type J interface {
 }
 
 // GnoError:
-// line 11: name f not defined in fileset with files [bug121.go]
 // line 12: expected ';', found ','
-// line 15: name h not defined in fileset with files [bug121.go]
 // line 16: expected ';', found T
 // line 17: expected ';', found 'EOF'
 
@@ -27,4 +25,4 @@ type J interface {
 // line 12: gc expects: unexpected comma; gno: expected ';', found ','
 // line 16: gc expects: syntax|signature; gno: expected ';', found T
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 11, 15, 17
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 17

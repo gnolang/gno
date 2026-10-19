@@ -9,4 +9,7 @@ package foo
 var s [][10]int
 const m = len(s[len(s)-1]) // ERROR "is not a constant|is not constant" 
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10
+// GnoError:
+// line 10: (const (len func(interface {}) int))(s<VPBlock(2,0)>[(const (len func(interface {}) int))(s<VPBlock(2,0)>) - (const (1 int))]) (value of type int) is not constant
+
+// Verdict: Clean errorcheck

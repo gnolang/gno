@@ -124,47 +124,29 @@ func _() {
 }
 
 // GnoError:
-// line 40: missing field Mv in gno.land/p/filetest/p.P3
-// line 41: should not happen
-// line 42: missing field Mv in gno.land/p/filetest/p.P3
-// line 46: missing field Mp in gno.land/p/filetest/p.P3
-// line 47: should not happen
-// line 48: missing field Mp in gno.land/p/filetest/p.P3
-// line 55: missing field Mv in gno.land/p/filetest/p.P4
-// line 56: should not happen
-// line 57: missing field Mv in gno.land/p/filetest/p.P4
-// line 61: missing field Mp in gno.land/p/filetest/p.P4
-// line 62: should not happen
-// line 63: missing field Mp in gno.land/p/filetest/p.P4
-// line 96: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 97: should not happen
-// line 98: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 102: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 103: should not happen
-// line 104: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 111: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
-// line 112: should not happen
-// line 113: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
-// line 117: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
-// line 118: should not happen
-// line 119: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
+// line 40: p.Mv undefined (type gno.land/p/filetest/p.P3 has no field or method Mv)
+// line 41: (&p).Mv undefined (type *gno.land/p/filetest/p.P3 has no field or method Mv)
+// line 42: (*&p).Mv undefined (type gno.land/p/filetest/p.P3 has no field or method Mv)
+// line 46: p.Mp undefined (type gno.land/p/filetest/p.P3 has no field or method Mp)
+// line 47: (&p).Mp undefined (type *gno.land/p/filetest/p.P3 has no field or method Mp)
+// line 48: (*&p).Mp undefined (type gno.land/p/filetest/p.P3 has no field or method Mp)
+// line 55: p.Mv undefined (type gno.land/p/filetest/p.P4 has no field or method Mv)
+// line 56: (&p).Mv undefined (type *gno.land/p/filetest/p.P4 has no field or method Mv)
+// line 57: (*&p).Mv undefined (type gno.land/p/filetest/p.P4 has no field or method Mv)
+// line 61: p.Mp undefined (type gno.land/p/filetest/p.P4 has no field or method Mp)
+// line 62: (&p).Mp undefined (type *gno.land/p/filetest/p.P4 has no field or method Mp)
+// line 63: (*&p).Mp undefined (type gno.land/p/filetest/p.P4 has no field or method Mp)
+// line 96: p.Mv undefined (type gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7 has no field or method Mv)
+// line 97: (&p).Mv undefined (type *gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7 has no field or method Mv)
+// line 98: (*&p).Mv undefined (type gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7 has no field or method Mv)
+// line 102: p.Mp undefined (type gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7 has no field or method Mp)
+// line 103: (&p).Mp undefined (type *gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7 has no field or method Mp)
+// line 104: (*&p).Mp undefined (type gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7 has no field or method Mp)
+// line 111: p.Mv undefined (type gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8 has no field or method Mv)
+// line 112: (&p).Mv undefined (type *gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8 has no field or method Mv)
+// line 113: (*&p).Mv undefined (type gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8 has no field or method Mv)
+// line 117: p.Mp undefined (type gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8 has no field or method Mp)
+// line 118: (&p).Mp undefined (type *gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8 has no field or method Mp)
+// line 119: (*&p).Mp undefined (type gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8 has no field or method Mp)
 
-// GnoWordingDiffers:
-// line 40: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P3
-// line 42: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P3
-// line 46: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P3
-// line 48: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P3
-// line 55: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P4
-// line 57: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p.P4
-// line 61: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P4
-// line 63: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p.P4
-// line 96: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 98: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 102: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 104: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P7
-// line 111: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
-// line 113: gc expects: undefined; gno: missing field Mv in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
-// line 117: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
-// line 119: gc expects: undefined; gno: missing field Mp in gno.land/p/filetest/p[gno.land/p/filetest/p/issue43384.go:71:1-125:2].P8
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 41, 47, 56, 62, 97, 103, 112, 118; internal errors: lines 41, 47, 56, 62, 97, 103, 112, 118
+// Verdict: Clean errorcheck

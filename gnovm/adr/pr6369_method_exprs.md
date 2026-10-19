@@ -16,6 +16,12 @@ the harness's KnownIssue canary pinned the gap.
   `func(*T, ...)`.
 - `T.m` needs `*T` when `m` has a pointer receiver; an unknown method is
   reported as such, positioned.
+- A pointer to a named pointer or interface type (`*P3` for
+  `type P3 *struct{T}`, `*error`) exposes no field or method, as `**T`
+  and `*I` already did; the walk used to reach through it and panic.
+- An undefined selector is reported in go/types' words, `x.f undefined
+  (type T has no field or method f)`, also on a type with no fields or
+  methods at all (was an internal "unexpected selector expression type").
 - The KnownIssue canary, which existed to show the verdict flow on a real
   bug, moves to the builtin `print` operand spacing (#6331), still open.
 
@@ -36,3 +42,5 @@ pins the growth); no separate charge is added.
 - Six `#5787` corpus files and one errorcheck file flip to `Clean`;
   `method7.go` keeps `#5787` for a method value on an interface-typed
   field, still open.
+- Pointer methods on non-addressable values (`T{}.pm()`, `conv(x).pm()`)
+  stay with #6083, which inserts the `&x` under Go's addressability rule.

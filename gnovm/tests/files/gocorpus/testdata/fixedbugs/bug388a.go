@@ -26,11 +26,11 @@ func main() {
 // line 13: no new variables on left side of :=
 // line 14: name UintType not declared
 // line 18: no new variables on left side of :=
-// line 19: unexpected selector expression type *gnolang.FuncType
+// line 19: main.i undefined (type func() has no field or method i)
 
 // GnoWordingDiffers:
 // line 13: gc expects: non-name runtime.UintType|non-name on left side|undefined; gno: no new variables on left side of :=
 // line 14: gc expects: invalid use of type|undefined; gno: name UintType not declared
 // line 18: gc expects: non-name main.i|non-name on left side|undefined; gno: no new variables on left side of :=
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19; internal errors: lines 19
+// Verdict: Clean errorcheck

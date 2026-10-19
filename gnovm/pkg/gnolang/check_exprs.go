@@ -60,30 +60,62 @@ func assertComparableTo(a, b operand) {
 	check(b.typ, b.mode == opNil, a.mode == opNil)
 }
 
-// assertLenCapArg checks the operand of len or cap: a string (len only),
-// array, pointer to array, slice, map (len only) or channel.
-func assertLenCapArg(name Name, arg operand) {
+// lenCapArgError checks the operand of len or cap: a string (len only),
+// array, pointer to array, slice, map (len only) or channel. It returns
+// the message rather than raising it: the call's type is int whatever the
+// operand, so accumulate mode reports and goes on, as gc does.
+func lenCapArgError(name Name, arg operand) string {
 	assertNotType(arg)
 	t := arg.typ
 	if t == nil {
-		return
+		return ""
 	}
 	switch bt := baseOf(t).(type) {
 	case *ArrayType, *SliceType, *ChanType:
-		return
+		return ""
 	case *PointerType:
 		if _, ok := baseOf(bt.Elt).(*ArrayType); ok {
-			return
+			return ""
 		}
 	case *MapType:
 		if name == "len" {
-			return
+			return ""
 		}
 	}
 	if t.Kind() == StringKind && name == "len" {
-		return
+		return ""
 	}
-	failf(CodeLenCapArg, nil, "invalid argument: %v for built-in %s", t, name)
+	return fmt.Sprintf("invalid argument: %v for built-in %s", t, name)
+}
+
+// assertIndexable checks the operand of an index expression: a string,
+// array, pointer to array, slice or map. A pointer to anything else is not
+// dereferenced (Go spec: "Index expressions").
+func assertIndexable(x Expr, t Type) {
+	if t != nil {
+		switch bt := baseOf(t).(type) {
+		case *ArrayType, *SliceType, *MapType:
+			return
+		case *PointerType:
+			if _, ok := baseOf(bt.Elt).(*ArrayType); ok {
+				return
+			}
+		default:
+			if t.Kind() == StringKind {
+				return
+			}
+		}
+	}
+	failf(CodeIndexOperand, nil, "invalid operation: cannot index %s (%s of type %v)", operandString(x), operandWord(x), t)
+}
+
+// operandWord is gc's noun for an operand in a message: a variable, else
+// a value.
+func operandWord(x Expr) string {
+	if _, ok := x.(*NameExpr); ok {
+		return "variable"
+	}
+	return "value"
 }
 
 // staticLengthOf returns the length a constant index can be checked
@@ -156,12 +188,14 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 
 // assertLiteralIndices rejects a repeated constant index in an array or
 // slice literal, and one at or past length when it is known (-1 for a
-// slice); elements without a key take the next index. Charged per element.
+// slice); elements without a key take the next index. Charged per
+// element; the error is positioned at the element.
 func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) {
 	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
 	seen := map[int64]bool{}
 	next := int64(0)
-	for _, elt := range n.Elts {
+	for i := range n.Elts {
+		elt := &n.Elts[i]
 		idx := next
 		if elt.Key != nil {
 			i, ok := constIndex(elt.Key)
@@ -170,13 +204,13 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 			}
 			idx = i
 			if length >= 0 && idx >= length {
-				failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", idx, length)
+				failf(CodeIndexBounds, []Node{elt.Key, elt.Value}, "invalid argument: index %d out of bounds [0:%d]", idx, length)
 			}
 		} else if length >= 0 && idx >= length {
-			failf(CodeIndexBounds, nil, "index %d is out of bounds (>= %d)", idx, length)
+			failf(CodeIndexBounds, []Node{elt.Value}, "index %d is out of bounds (>= %d)", idx, length)
 		}
 		if seen[idx] {
-			failf(CodeDuplicateIndex, nil, "duplicate index %d in array or slice literal", idx)
+			failf(CodeDuplicateIndex, []Node{elt.Key, elt.Value}, "duplicate index %d in array or slice literal", idx)
 		}
 		seen[idx] = true
 		next = idx + 1
@@ -465,6 +499,251 @@ func (x *BinaryExpr) checkCompatibility(store Store, n Node, xt, dt Type, checke
 	}
 }
 
+func isQuoOrRem(op Word) bool {
+	switch op {
+	case QUO, QUO_ASSIGN, REM, REM_ASSIGN:
+		return true
+	default:
+		return false
+	}
+}
+
+func isComparison(op Word) bool {
+	switch op {
+	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+		return true
+	default:
+		return false
+	}
+}
+
+// shouldSwapOnSpecificity determines the potential direction for
+// checkOrConvertType. it checks whether a swap is needed between two types
+// based on their specificity. If t2 has a lower specificity than t1, it returns
+// false, indicating no swap is needed. If t1 has a lower specificity than t2,
+// it returns true, indicating a swap is needed.
+func shouldSwapOnSpecificity(t1, t2 Type) bool {
+	// check nil
+	if t1 == nil {
+		return false // also with both nil
+	} else if t2 == nil {
+		return true
+	}
+
+	// check interface
+	if it1, ok := baseOf(t1).(*InterfaceType); ok {
+		if it1.IsEmptyInterface() {
+			return true // left empty interface
+		} else {
+			if it2, ok := baseOf(t2).(*InterfaceType); ok {
+				if it2.IsEmptyInterface() {
+					return false
+				}
+				// The more methods, the more specific.
+				return len(it1.Methods) < len(it2.Methods)
+			} else {
+				return true // right not interface
+			}
+		}
+	} else if _, ok := t2.(*InterfaceType); ok {
+		return false // left not interface, right is interface
+	}
+
+	// primitive types
+	t1s, t2s := 0, 0
+	if t1p, ok := t1.(PrimitiveType); ok {
+		t1s = t1p.Specificity()
+	}
+	if t2p, ok := t2.(PrimitiveType); ok {
+		t2s = t2p.Specificity()
+	}
+	if t1s < t2s {
+		// NOTE: higher specificity has lower value, so backwards.
+		return true
+	} else {
+		return false
+	}
+}
+
+// hasCall reports whether x holds a function call other than a conversion
+// or a constant len/cap of an array: len and cap of an array are constant
+// only then (Go spec: "Length and capacity"; Gno has no channel receive).
+// Charged per node entered.
+func hasCall(gm store.GasMeter, store Store, last BlockNode, x Expr) bool {
+	found := false
+	Transcribe(x, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		switch n := n.(type) {
+		case *CallExpr:
+			if isConstType(n.Func) {
+				return n, TRANS_CONTINUE // a conversion
+			}
+			if cx, ok := n.Func.(*ConstExpr); ok && len(n.Args) == 1 {
+				if fv, ok := cx.V.(*FuncValue); ok && fv.PkgPath == uversePkgPath && (fv.Name == "len" || fv.Name == "cap") {
+					at := evalStaticTypeOf(store, last, n.Args[0])
+					if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+						return n, TRANS_CONTINUE // constant unless its operand is not
+					}
+				}
+			}
+			found = true
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
+}
+
+// eltFailure is a composite literal element that failed a check: the
+// message and the element to report it at.
+type eltFailure struct {
+	code ErrCode
+	msg  string
+	at   Node
+}
+
+// checkElt runs check on one element of a composite literal and records
+// a checking error it raises in fails, to be reported at the element; a
+// VM panic or an error that is positioned already passes through.
+func checkElt(fails *[]eltFailure, at Node, check func()) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		if isRuntimePanic(r) {
+			panic(r)
+		}
+		switch e := r.(type) {
+		case *PreprocessError:
+			panic(r)
+		case *spanError:
+			*fails = append(*fails, eltFailure{e.code, e.msg, at})
+		case error:
+			*fails = append(*fails, eltFailure{CodeNone, e.Error(), at})
+		default:
+			*fails = append(*fails, eltFailure{CodeNone, fmt.Sprint(r), at})
+		}
+	}()
+	check()
+}
+
+// assertAppendArgs checks append's arity: a typed slice, then values, with
+// ... only on a single second argument (Go spec: "Appending to and
+// copying slices"). Wording and positions follow go/types.
+func assertAppendArgs(store Store, last BlockNode, n *CallExpr) {
+	if len(n.Args) == 0 {
+		fail(CodeAppendArgs, "invalid operation: not enough arguments for append() (expected 1, found 0)")
+	}
+	st := evalStaticTypeOf(store, last, n.Args[0])
+	if st == nil {
+		fail(CodeAppendArgs, "first argument to append must be a typed slice; have untyped nil")
+	}
+	bst, isSlice := baseOf(st).(*SliceType)
+	if !n.Varg {
+		if isSlice {
+			assertAppendValues(store, last, n, bst.Elt)
+		}
+		return
+	}
+	if len(n.Args) == 2 {
+		return
+	}
+	want := "([]T, ...T)"
+	if isSlice {
+		want = fmt.Sprintf("(%s, ...%s)", typeString(st), typeString(bst.Elt))
+	}
+	have := "("
+	for i, arg := range n.Args {
+		if i > 0 {
+			have += ", "
+		}
+		have += argTypeSummary(evalStaticTypeOf(store, last, arg))
+	}
+	have += "...)"
+	if len(n.Args) > 2 {
+		failf(CodeAppendArgs, []Node{n.Args[2]}, "too many arguments in call to append\n\thave %s\n\twant %s", have, want)
+	}
+	failf(CodeAppendArgs, nil, "not enough arguments in call to append\n\thave %s\n\twant %s", have, want)
+}
+
+// argTypeSummary names an argument's type as go/types does in have/want
+// lists: an untyped constant by its kind, a numeric one as "number".
+func argTypeSummary(t Type) string {
+	switch {
+	case t == nil:
+		return "nil"
+	case isUntyped(t):
+		if isNumeric(t) {
+			return "number"
+		}
+		return untypedKindName(t)
+	}
+	return typeString(t)
+}
+
+// assertAppendValues checks each typed value argument against the slice's
+// element type with gc's wording; untyped constants are converted by the
+// caller and nil is left to the general call check.
+func assertAppendValues(store Store, last BlockNode, n *CallExpr, elt Type) {
+	for _, arg := range n.Args[1:] {
+		at := evalStaticTypeOf(store, last, arg)
+		if at == nil || isUntyped(at) {
+			continue
+		}
+		if checkAssignableTo(store, n, at, elt) != nil {
+			failf(CodeAppendArgs, []Node{arg}, "cannot use %s (%s of type %s) as %s value in argument to append", exprString(arg), operandKind(arg), typeString(at), typeString(elt))
+		}
+	}
+}
+
+// operandKind is go/types' word for an operand: a named variable or a value.
+func operandKind(x Expr) string {
+	if _, ok := x.(*NameExpr); ok {
+		return "variable"
+	}
+	return "value"
+}
+
+// operandTypeString prints a type as go/types names an operand's: an
+// untyped constant's by its kind.
+func operandTypeString(t Type) string {
+	if t == nil {
+		return "nil"
+	}
+	if isUntyped(t) {
+		return "untyped " + untypedKindName(t)
+	}
+	return typeString(t)
+}
+
+// constOperandString prints a constant as go/types does: "-1 (constant of
+// type int)", or "i (constant -1 of type int)" when the value is not the
+// spelling. An untyped constant is printed after the conversion gc
+// applies to it; a non-integral one keeps its untyped form.
+func constOperandString(cx *ConstExpr, t Type) string {
+	expr := constString(cx)
+	tn := operandTypeString(cx.T)
+	var val string
+	switch {
+	case cx.T == UntypedBigdecType && !cx.GetBigDec().IsInt():
+		return fmt.Sprintf("%s (untyped float constant)", expr)
+	case cx.T == UntypedBigdecType:
+		val, tn = bigdecToBigInt(cx.GetBigDec()).String(), typeString(t)
+	case isUntyped(cx.T):
+		val, tn = cx.TypedValue.Sprint(nil), typeString(t)
+	default:
+		val = cx.TypedValue.Sprint(nil)
+	}
+	if expr == val {
+		return fmt.Sprintf("%s (constant of type %s)", expr, tn)
+	}
+	return fmt.Sprintf("%s (constant %s of type %s)", expr, val, tn)
+}
+
 func (x *UnaryExpr) AssertCompatible(t Type) {
 	// check compatible
 	if checker, ok := unaryChecker[x.Op]; ok {
@@ -543,71 +822,5 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 				mustAssignableTo(store, x, Int32Type, vt) // rune
 			}
 		}
-	}
-}
-
-func isQuoOrRem(op Word) bool {
-	switch op {
-	case QUO, QUO_ASSIGN, REM, REM_ASSIGN:
-		return true
-	default:
-		return false
-	}
-}
-
-func isComparison(op Word) bool {
-	switch op {
-	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
-		return true
-	default:
-		return false
-	}
-}
-
-// shouldSwapOnSpecificity determines the potential direction for
-// checkOrConvertType. it checks whether a swap is needed between two types
-// based on their specificity. If t2 has a lower specificity than t1, it returns
-// false, indicating no swap is needed. If t1 has a lower specificity than t2,
-// it returns true, indicating a swap is needed.
-func shouldSwapOnSpecificity(t1, t2 Type) bool {
-	// check nil
-	if t1 == nil {
-		return false // also with both nil
-	} else if t2 == nil {
-		return true
-	}
-
-	// check interface
-	if it1, ok := baseOf(t1).(*InterfaceType); ok {
-		if it1.IsEmptyInterface() {
-			return true // left empty interface
-		} else {
-			if it2, ok := baseOf(t2).(*InterfaceType); ok {
-				if it2.IsEmptyInterface() {
-					return false
-				}
-				// The more methods, the more specific.
-				return len(it1.Methods) < len(it2.Methods)
-			} else {
-				return true // right not interface
-			}
-		}
-	} else if _, ok := t2.(*InterfaceType); ok {
-		return false // left not interface, right is interface
-	}
-
-	// primitive types
-	t1s, t2s := 0, 0
-	if t1p, ok := t1.(PrimitiveType); ok {
-		t1s = t1p.Specificity()
-	}
-	if t2p, ok := t2.(PrimitiveType); ok {
-		t2s = t2p.Specificity()
-	}
-	if t1s < t2s {
-		// NOTE: higher specificity has lower value, so backwards.
-		return true
-	} else {
-		return false
 	}
 }

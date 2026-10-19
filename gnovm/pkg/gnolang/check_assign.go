@@ -158,9 +158,9 @@ func checkValDefineMismatch(n Node) {
 
 	if valueDecl != nil {
 		if numNames > numValues {
-			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].String()))
+			failf(CodeMissingConstInit, nil, "missing init expr for %s", valueDecl.NameExprs[numValues].Name)
 		}
-		panic(fmt.Sprintf("extra init expr %s", values[numNames].String()))
+		failf(CodeMissingConstInit, []Node{values[numNames]}, "extra init expr %s", values[numNames].String())
 	}
 
 	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
@@ -405,6 +405,11 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *FuncType, *StructType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
+			if f := embeddedFieldMismatch(xt, cdt); f != "" {
+				return errors.New(
+					"cannot use %s as %s (field %s is embedded in only one)",
+					xt.String(), dt.String(), f)
+			}
 			if tagsIdentical(preprocessGasMeterOf(store), xt, cdt) {
 				return nil // ok
 			}
@@ -654,4 +659,24 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 			}
 		}
 	}
+}
+
+// embeddedFieldMismatch names the first field embedded in exactly one of
+// two unnamed struct types with the same TypeID, which does not record
+// embedding (Go spec, "Type identity": fields must agree on it), or "".
+func embeddedFieldMismatch(at, bt Type) Name {
+	ast, ok := at.(*StructType)
+	if !ok {
+		return ""
+	}
+	bst, ok := bt.(*StructType)
+	if !ok || len(ast.Fields) != len(bst.Fields) {
+		return ""
+	}
+	for i := range ast.Fields {
+		if ast.Fields[i].Embedded != bst.Fields[i].Embedded {
+			return ast.Fields[i].Name
+		}
+	}
+	return ""
 }

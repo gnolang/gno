@@ -77,8 +77,8 @@ func good() {
 // line 31: map[int]int can only be compared to nil
 // line 38: []int can only be compared to nil
 // line 45: func() can only be compared to nil
-// line 51: [4]func() is not comparable
-// line 57: struct{f func()} is not comparable
+// line 50: cannot switch on ar (variable of type [4]func()) ([4]func() is not comparable)
+// line 56: cannot switch on st (variable of type struct{f func()}) (struct{f func()} is not comparable)
 
 // GnoWordingDiffers:
 // line 21: gc expects: mismatched types string and I|incompatible types; gno: string does not implement main.I (missing method M)
@@ -87,4 +87,4 @@ func good() {
 // line 38: gc expects: can only compare slice a to nil|slice can only be compared to nil|cannot compare; gno: []int can only be compared to nil
 // line 45: gc expects: can only compare func f to nil|func can only be compared to nil|cannot compare; gno: func() can only be compared to nil
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 50, 56; over-strict: lines 51, 57
+// Verdict: Clean errorcheck
