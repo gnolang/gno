@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -659,4 +660,39 @@ func main() { println(f()) }
 			"a.gno:5:1", "f redeclared in this block; other declaration at main/b.gno:5:1",
 		)
 	})
+}
+
+func TestPreprocessCollectDeterministic(t *testing.T) {
+	src := `package main
+
+type T struct{ X Undef }
+
+func (t T) get() int { return t.X }
+
+func mine(int b) int { return b + 2 }
+
+var a, b = mine()
+
+func main() {
+	var e interface{}
+	switch e := e.(type) {
+	case 0:
+		e.x = 1
+	case T:
+		e.get()
+	}
+	x := []int{1, "s", undefinedV}
+	y := x + mine(1, 2)
+	println(a, b, y, Undef2)
+}
+`
+	first := collectErrors(t, src)
+	if len(first) < 6 {
+		t.Fatalf("want a multi-error file, got %v", first)
+	}
+	for i := 1; i < 50; i++ {
+		if got := collectErrors(t, src); !slices.Equal(got, first) {
+			t.Fatalf("run %d differs:\n%v\nvs\n%v", i, got, first)
+		}
+	}
 }
