@@ -618,3 +618,45 @@ func main() {
 		)
 	})
 }
+
+func TestPreprocessCollectDuplicates(t *testing.T) {
+	t.Run("methods, which the parser does not see", func(t *testing.T) {
+		msgs := collectFiles(t, "main.gno", `package main
+
+type T int
+
+func (T) m()  {}
+func (T) m()  {}
+func (*T) p() {}
+func (*T) p() {}
+
+func main() {}
+`)
+		wantErrors(t, msgs,
+			"main.gno:6:1", "T.m redeclared in this block; other declaration at main/main.gno:5:1",
+			"main.gno:8:1", "T.p redeclared in this block; other declaration at main/main.gno:7:1",
+		)
+	})
+
+	t.Run("across files, the resolving declaration survives", func(t *testing.T) {
+		msgs := collectFiles(t,
+			"a.gno", `package main
+
+var v int
+
+func f() int { return v }
+`,
+			"b.gno", `package main
+
+var v string
+
+func f() string { return v }
+
+func main() { println(f()) }
+`)
+		wantErrors(t, msgs,
+			"a.gno:3:5", "v redeclared in this block; other declaration at main/b.gno:3:5",
+			"a.gno:5:1", "f redeclared in this block; other declaration at main/b.gno:5:1",
+		)
+	})
+}

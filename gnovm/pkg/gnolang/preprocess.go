@@ -62,6 +62,9 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 		setNodeLocations(pn.PkgPath, fn.FileName, fn)
 		initStaticBlocks(store, pn, fn)
 	}
+	if acc != nil {
+		acc.checkDuplicates(pn, fset)
+	}
 	index := newPredefineDeclIndex(pn.FileSet)
 	index.acc = acc
 	// In accumulate mode a declaration that fails to predefine is recorded
@@ -857,6 +860,58 @@ func (acc *preprocessAccumulator) dropDecl(pe *PreprocessError, fn BlockNode, d 
 		for _, name := range d.GetDeclNames() {
 			if !defineInvalid(sb, name) {
 				acc.poisoned[name] = true
+			}
+		}
+	}
+}
+
+// checkDuplicates is checkDuplicates (the deploy path's package-level
+// rule) for accumulate mode: each redeclaration is reported at the
+// declaration that loses and that one is dropped. A method loses to the
+// one predefined first (files in order); any other name resolves as
+// GetDeclFor does (last file, first declaration), so that one survives.
+func (acc *preprocessAccumulator) checkDuplicates(pn *PackageNode, fset *FileSet) {
+	type site struct {
+		fn *FileNode
+		d  Decl
+	}
+	first := map[Name]site{}
+	visit := func(fn *FileNode, d Decl) {
+		for _, key := range declDupKeys(d) {
+			prev, seen := first[key]
+			if !seen {
+				first[key] = site{fn, d}
+				continue
+			}
+			shown := key
+			if fd, ok := d.(*FuncDecl); ok && fd.IsMethod {
+				if nx, ok := destar(fd.Recv.Type).(*NameExpr); ok {
+					shown = nx.Name + "." + fd.Name // the key prints its value path
+				}
+			}
+			at := prev.fn.GetLocation()
+			at.SetSpanOverride(prev.d.GetSpan())
+			msg := fmt.Sprintf("%s redeclared in this block; other declaration at %s", shown, at.String())
+			acc.record(wrapPreprocessPanic([]BlockNode{pn, fn}, d, msg))
+			markDropped(d)
+		}
+	}
+	isMethod := func(d Decl) bool {
+		fd, ok := d.(*FuncDecl)
+		return ok && fd.IsMethod
+	}
+	for _, fn := range fset.Files {
+		for _, d := range fn.Decls {
+			if isMethod(d) {
+				visit(fn, d)
+			}
+		}
+	}
+	for i := len(fset.Files) - 1; i >= 0; i-- {
+		fn := fset.Files[i]
+		for _, d := range fn.Decls {
+			if !isMethod(d) {
+				visit(fn, d)
 			}
 		}
 	}
