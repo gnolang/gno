@@ -30,17 +30,4 @@ func _[T I](i, j int) {
 	_ = t[i, j /* ERROR "more than one index" */ ]
 }
 
-// GnoError:
-// line 8: invalid operation: more than one index
-// line 13: expected type argument list
-
-// ParseBlocked:
-// line 21: gc expects: more than one index
-// line 24: gc expects: more than one index
-// line 27: gc expects: more than one index
-// line 30: gc expects: more than one index
-
-// GnoWordingDiffers:
-// line 8: gc expects: undefined; gno: invalid operation: more than one index
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21, 24, 27, 30
+// Verdict: Unsupported other: generics (type set constraints) not supported in Gno
