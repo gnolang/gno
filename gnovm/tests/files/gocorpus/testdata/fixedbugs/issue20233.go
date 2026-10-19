@@ -14,6 +14,6 @@ var f = func(...A) // ERROR "undefined: A"
 // line 11: name not defined: A
 
 // GnoWordingDiffers:
-// line 11: gc expects: undefined: A; gno: name A not defined in fileset with files [issue20233.go]
+// line 11: gc expects: undefined: A; gno: name not defined: A
 
 // Verdict: Clean errorcheck

@@ -2662,7 +2662,9 @@ func TestPreprocessCollectInitCyclePosition(t *testing.T) {
 	fset := &FileSet{Files: fns}
 	pn := NewPackageNode("main", "main", fset)
 	errs := PreprocessFilesCollect(m.Store, pn, fset)
-	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "z.gno:4:5-10: initialization cycle: b refers to c refers to b") {
-		t.Fatalf("want the cycle at z.gno:4, got %v", errs)
+	// The same-named declarations are a redeclaration too (gc reports both).
+	if len(errs) != 2 || !strings.Contains(errs[0].Error(), "a.gno:3:5-10: b redeclared in this block") ||
+		!strings.Contains(errs[1].Error(), "z.gno:4:5-10: initialization cycle: b refers to c refers to b") {
+		t.Fatalf("want the redeclaration and the cycle at z.gno:4, got %v", errs)
 	}
 }

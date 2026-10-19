@@ -105,7 +105,7 @@ func TestGcOnlyErrorcheckReason_LineDirectives(t *testing.T) {
 	// Both directive forms remap the positions the markers refer to, so
 	// the file is gc-specific rather than attributed against the wrong
 	// line; a directive-free file is checkable.
-	markers := []InlineError{{Line: 3, Patterns: []string{"x"}}}
+	markers := []InlineError{{Line: 3, Patterns: []ErrorPattern{{Text: "x"}}}}
 	for src, want := range map[string]string{
 		"// errorcheck\n\npackage p\n//line :20:1\nvar _ = x // ERROR \"x\"\n":                  "//line",
 		"// errorcheck\n\npackage p\nvar _ = /*line :20:1*/x // ERROR \"x\"\n":                  "/*line*/",

@@ -26,6 +26,6 @@ func main() {
 // GnoWordingDiffers:
 // line 16: gc expects: undefined.*init; gno: name init not declared
 // line 17: gc expects: undefined.*runtime\.init|reference to undefined name|undefined: runtime; gno: name runtime not declared
-// line 18: gc expects: undefined.*init; gno: name init not defined in fileset with files [init.go]
+// line 18: gc expects: undefined.*init; gno: name not defined: init
 
 // Verdict: Clean errorcheck

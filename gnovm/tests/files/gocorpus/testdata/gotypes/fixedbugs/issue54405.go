@@ -16,11 +16,11 @@ var y *NotAType  /* ERROR "undefined" */
 var _ = y == nil // no error expected here
 
 // GnoError:
-// line 11: name NotAType not defined in fileset with files [issue54405.go]
-// line 15: name NotAType not defined in fileset with files [issue54405.go]
+// line 11: name not defined: NotAType
+// line 15: name not defined: NotAType
 
 // GnoWordingDiffers:
-// line 11: gc expects: undefined; gno: name NotAType not defined in fileset with files [issue54405.go]
-// line 15: gc expects: undefined; gno: name NotAType not defined in fileset with files [issue54405.go]
+// line 11: gc expects: undefined; gno: name not defined: NotAType
+// line 15: gc expects: undefined; gno: name not defined: NotAType
 
 // Verdict: Clean errorcheck

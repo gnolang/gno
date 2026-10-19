@@ -6735,6 +6735,10 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 					what, code = "type", CodeRecursiveType
 				}
 				msg := fmt.Sprintf("invalid recursive %s: %s", what, cycleString(stack, un))
+				if !untype && index != nil && index.acc != nil { // gc's wording off chain; on chain unchanged
+					msg = "initialization cycle: " + strings.ReplaceAll(cycleString(stack, un), " -> ", " refers to ")
+					code = CodeInitCycle
+				}
 				var at Decl
 				if index == nil {
 					at = lookupPredefineDecl(pkg.FileSet, un).decl
