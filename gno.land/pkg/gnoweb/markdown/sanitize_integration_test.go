@@ -562,45 +562,40 @@ func TestBlockRichSetextCannotReachRealm(t *testing.T) {
 }
 
 // TestExtensionAndFooterIsolation verifies that untrusted user input cannot
-// open live structural extensions (<gno-columns>, <gno-form>, <gno-frame>, etc.)
-// or swallow trusted page footer chrome across Block and BlockRich callers.
+// open live structural extensions (<gno-columns>, <gno-form>, <gno-frame>, etc.),
+// swallow trusted page footer chrome, or rebind the realm's reference links
+// across Block and BlockRich callers.
 func TestExtensionAndFooterIsolation(t *testing.T) {
 	const (
 		chromePrefix = "# Trusted Realm Title\n\n"
-		chromeFooter = "\n\n---\n**Trusted Realm Footer**\n"
+		chromeFooter = "\n\n---\n**Trusted Realm Footer** [home]\n\n[home]: https://realm.example/home\n"
 	)
 
+	var (
+		noColumns = []string{"class=\"gno-columns\""}
+		noForm    = []string{"class=\"gno-form\""}
+		noRebind  = []string{"href=\"https://evil.example"}
+	)
 	reproCases := []struct {
-		name         string
-		input        string
-		mustNotHTML  []string // substrings that must NOT appear in rendered HTML
-		mustHaveHTML []string // substrings that MUST appear in rendered HTML
+		name        string
+		input       string
+		mustNotHTML []string // substrings that must NOT appear in rendered HTML
 	}{
-		{
-			name:        "repro-bypass-fence-tilde",
-			input:       " ~~~\n~~~\n<gno-columns>",
-			mustNotHTML: []string{"<div class=\"gno-columns\">", "class=\"gno-columns\""},
-		},
-		{
-			name:        "repro-bypass-fence-backtick",
-			input:       " ```\nx\n```\n<gno-columns>",
-			mustNotHTML: []string{"<div class=\"gno-columns\">", "class=\"gno-columns\""},
-		},
-		{
-			name:        "repro-fence-in-list-form",
-			input:       "- a\n  ```\n<gno-form path=\"x\">\n```\n",
-			mustNotHTML: []string{"<form class=\"gno-form\"", "class=\"gno-form\""},
-		},
-		{
-			name:        "repro-unclosed-fence-indented",
-			input:       " ```\nx\n",
-			mustNotHTML: []string{}, // footer must remain intact
-		},
-		{
-			name:        "bracket-fence-idempotency",
-			input:       "[\n ~~~](<\n>)",
-			mustNotHTML: []string{},
-		},
+		{name: "repro-bypass-fence-tilde", input: " ~~~\n~~~\n<gno-columns>", mustNotHTML: noColumns},
+		{name: "repro-bypass-fence-backtick", input: " ```\nx\n```\n<gno-columns>", mustNotHTML: noColumns},
+		{name: "repro-fence-in-list-form", input: "- a\n  ```\n<gno-form path=\"x\">\n```\n", mustNotHTML: noForm},
+		{name: "repro-fence-in-list-blank-line", input: "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", mustNotHTML: noForm},
+		{name: "repro-fence-in-list-lazy-continuation", input: "- a\nb\n  ```\n<gno-columns>\n```\n", mustNotHTML: noColumns},
+		{name: "repro-fence-in-list-dedented-closer", input: "- a\n  ```\n```\n<gno-columns>\n", mustNotHTML: noColumns},
+		{name: "repro-fence-in-list-unclosed", input: "- a\n  ```\n  code\n"},
+		{name: "repro-fence-after-thematic-break", input: "para\n* * *\n  ```\n  x\ntext\n"},
+		{name: "repro-fence-after-ordered-marker", input: "para\n2. item\n   ```\n   x\n<gno-columns>\n", mustNotHTML: noColumns},
+		{name: "repro-fence-in-list-lrd", input: "- a\n  ```\n[home]: https://evil.example\n```\n", mustNotHTML: noRebind},
+		{name: "repro-fence-in-list-lrd-then-closer", input: "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n", mustNotHTML: noRebind},
+		{name: "repro-indented-code-lrd", input: "    ```\n[home]: https://evil.example\n", mustNotHTML: noRebind},
+		{name: "repro-tab-indented-code-lrd", input: "\t```\n[home]: https://evil.example\n", mustNotHTML: noRebind},
+		{name: "repro-unclosed-fence-indented", input: " ```\nx\n"},
+		{name: "bracket-fence-idempotency", input: "[\n ~~~](<\n>)"},
 	}
 
 	for _, helper := range []string{"Block", "BlockRich"} {
@@ -614,12 +609,13 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 
 					for _, forbidden := range rc.mustNotHTML {
 						require.NotContains(t, html, forbidden,
-							"live element injected via helper %s with input %q\nrendered: %s",
+							"helper %s let input %q through\nrendered: %s",
 							helper, rc.input, html)
 					}
 
-					// Verify trusted footer is preserved and not swallowed into a code fence
-					require.Contains(t, html, "Trusted Realm Footer",
+					// The footer must render as markdown: inside a code
+					// block its text would still be there, unbolded.
+					require.Contains(t, html, "<strong>Trusted Realm Footer</strong>",
 						"trusted footer was swallowed or corrupted by helper %s with input %q\nrendered: %s",
 						helper, rc.input, html)
 

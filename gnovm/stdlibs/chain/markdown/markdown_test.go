@@ -247,7 +247,6 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"ext-delimiter-mixed-case-list", "- <Gno-Card>\n", "\\- \\<Gno-Card>\n"},
 		{"ext-delimiter-already-escaped", "- \\<gno-card>\n", "\\- \\<gno-card>\n"},
 		{"ext-delimiter-plus-list", "+ <gno-card>\n", "\\+ \\<gno-card>\n"},
-		{"ext-delimiter-indented", "    <gno-card>\n", "    \\<gno-card>\n"},
 		{"ext-delimiter-inline", "hello <gno-card>\n", "hello <gno-card>\n"},
 		{"ext-delimiter-multiple", "<gno-card> x </gno-card>\n", "\\<gno-card> x </gno-card>\n"},
 		{"ext-delimiter-nested-container", "> - <gno-card>\n", "\\> - \\<gno-card>\n"},
@@ -258,7 +257,11 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"email-like-text", "contact <gno-support@gno.land> today\n", "contact <gno-support@gno.land> today\n"},
 		{"angle-bracket-link-dest", "[home](<gno-a b>)\n", "[home](<gno-a b>)\n"},
 		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "\\- a\n  ```\n<gno-form path=\"x\">\n```\n"},
-		{"fence-list-edge-case", "- ```\n<gno-columns>\n```\n", "\\- ```\n\\<gno-columns>\n```\n```\n"},
+		{"fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", "\\- a\n\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"fence-dedented-line-stays-fenced", "- a\n  ```\n[home]: https://evil.example\n```\n", "\\- a\n  ```\n[home]: https://evil.example\n```\n"},
+		{"fence-autoclose-at-opener-indent", " ```\nfoo\n", " ```\nfoo\n ```\n"},
+		{"fence-walker-4-space-indent-not-fence", "    ```\n[home]: https://evil.example\n", "    ```\n"},
+		{"fence-walker-tab-indent-not-fence", "\t```\n[home]: https://evil.example\n", "\t```\n"},
 		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n~~~\n\\<gno-columns>\n"},
 		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\nx\n```\n\\<gno-columns>\n"},
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
@@ -372,10 +375,27 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"email-like-text", "contact <gno-support@gno.land> today\n", "contact <gno-support@gno.land> today\n"},
 		{"angle-bracket-link-dest", "[home](<gno-a b>)\n", "[home](<gno-a b>)\n"},
 		{"nested-blockquote-fence", "> ```\n> <gno-columns>\n> ```\n", "> ```\n> \\<gno-columns>\n> ```\n"},
-		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n  ```\n\\<gno-form path=\"x\">\n```\n```\n"},
-		{"fence-list-edge-case", "- ```\n<gno-columns>\n```\n", "- ```\n\\<gno-columns>\n```\n```\n"},
-		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n~~~\n\\<gno-columns>\n"},
-		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\nx\n```\n\\<gno-columns>\n"},
+		// A line indented less than its fence's opener gets a closer at the
+		// opener's column before it, so it parses outside the fence whether
+		// or not the fence sits in a list item.
+		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n  ```\n  ```\n\\<gno-form path=\"x\">\n```\n```\n"},
+		{"fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n\n  ```\n  ```\n\\<gno-form path=\"x\">\n```\n```\n"},
+		{"fence-in-list-lazy-continuation", "- a\nb\n  ```\n<gno-columns>\n```\n", "- a\nb\n  ```\n  ```\n\\<gno-columns>\n```\n```\n"},
+		{"fence-in-list-dedented-closer", "- a\n  ```\n```\n<gno-columns>\n", "- a\n  ```\n  ```\n\\<gno-columns>\n"},
+		{"fence-in-list-autoclose-at-opener-indent", "- a\n  ```\n  code\n", "- a\n  ```\n  code\n  ```\n"},
+		{"fence-in-list-lrd-stripped", "- a\n  ```\n[home]: https://evil.example\n```\n", "- a\n  ```\n  ```\n```\n```\n"},
+		// The walker deletes the first definition; the fence must still end
+		// where it ended before the deletion, so the second stays code.
+		{"fence-in-list-lrd-then-closer", "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n", "- a\n  ```\n  ```\n```\n[home]: https://evil.example\n```\n"},
+		// Lines shaped like list markers that goldmark does not open a list
+		// for: the fence is document-level, so only a written closer ends it.
+		{"fence-after-thematic-break", "para\n* * *\n  ```\n  x\ntext\n", "para\n* * *\n  ```\n  x\n  ```\ntext\n"},
+		{"fence-after-non-interrupting-ordered-marker", "para\n2. item\n   ```\n   x\n<gno-columns>\n", "para\n2. item\n   ```\n   x\n   ```\n\\<gno-columns>\n"},
+		{"fence-in-list-content-kept", "- step\n\n  ```sh\n  make\n  ```\n", "- step\n\n  ```sh\n  make\n  ```\n"},
+		{"fence-walker-4-space-indent-not-fence", "    ```\n[home]: https://evil.example\n", "    ```\n"},
+		{"fence-walker-tab-indent-not-fence", "\t```\n[home]: https://evil.example\n", "\t```\n"},
+		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n ~~~\n\\<gno-columns>\n"},
+		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\n ```\nx\n```\n<gno-columns>\n```\n"},
 		{"repro-fence-indented-columns", "- item\n\n  ```\n    <gno-columns>\n  ```\n", "- item\n\n  ```\n    <gno-columns>\n  ```\n"},
 		{"ext-delimiter-indented-button", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
 		{"gno-button-in-blockquote", "> <gno-button />\n", "> \\<gno-button />\n"},
@@ -446,6 +466,9 @@ func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 	links := strings.Repeat("[a](b)", 1000)
 	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
+	// One line of indentation: the walker's fence check must run once
+	// per line, not once per leading space.
+	indent := strings.Repeat(" ", 1<<16) + "x"
 	cases := []struct {
 		name string
 		in   string
@@ -453,6 +476,7 @@ func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 		{"links-x1000", links},
 		{"unclosed-x1000", unclosed},
 		{"multiline-lrd-label", mlLRD},
+		{"indent-run-64k", indent},
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
@@ -479,6 +503,7 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
 	parenTitle := strings.Repeat("[a]: u\n(x\n", 100) // calibration shape
+	indent := strings.Repeat(" ", 1<<16) + "x"
 	cases := []struct {
 		name string
 		in   string
@@ -487,6 +512,7 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 		{"unclosed-x1000", unclosed},
 		{"multiline-lrd-label", mlLRD},
 		{"paren-title-x100", parenTitle},
+		{"indent-run-64k", indent},
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {

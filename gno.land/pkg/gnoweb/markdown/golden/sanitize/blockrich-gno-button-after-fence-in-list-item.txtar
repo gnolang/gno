@@ -9,6 +9,7 @@
 
 - item
   ```
+  ```
 \<gno-button href="https://evil.example/claim" label="Claim your reward" />
 
 -- output.html --
