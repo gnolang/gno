@@ -75,6 +75,40 @@ func HasInlineErrorMarkers(source []byte) bool {
 	return false
 }
 
+// PrependPkgPathIfNeeded rescues compile-only files
+// declaring a non-main package (e.g. `package p`) so they reach
+// Gno's preprocess+typecheck phase instead of bouncing on the
+// realm-naming requirement. Two transforms:
+//
+//  1. Prepend `// PKGPATH: gno.land/p/filetest/<name>` so Gno's
+//     harness stops bailing with "expected package name [main] but
+//     got [p]".
+//  2. Append `func main() {}` when source has no `main()` of its
+//     own, so Gno's executor doesn't then bail with "name main not
+//     declared" once PKGPATH gets it past the package-name check.
+//
+// No-op when source is already `package main` or already declares
+// its own `// PKGPATH:`. The chosen pkgpath prefix is intentionally
+// neutral — `gno.land/p/filetest/` — so external test drivers can
+// reuse this helper without a namespace clash.
+func PrependPkgPathIfNeeded(source []byte) []byte {
+	if bytes.Contains(source, []byte("// PKGPATH:")) {
+		return source
+	}
+	m := pkgDeclRe.FindSubmatch(source)
+	if m == nil || string(m[1]) == "main" {
+		return source
+	}
+	prefix := fmt.Appendf(nil, "// PKGPATH: gno.land/p/filetest/%s\n", m[1])
+	out := make([]byte, 0, len(prefix)+len(source))
+	out = append(out, prefix...)
+	out = append(out, source...)
+	if !funcMainRe.Match(source) {
+		out = append(out, "\nfunc main() {}\n"...)
+	}
+	return out
+}
+
 // pkgDeclRe matches the Go package declaration; captures the name.
 var pkgDeclRe = regexp.MustCompile(`(?m)^package (\w+)`)
 
@@ -86,8 +120,8 @@ var funcMainRe = regexp.MustCompile(`(?m)^func\s+main\s*\(\)`)
 
 // IsRunnable reports whether source can be `go run` — i.e. declares
 // `package main` AND has a top-level `func main()`. Files lacking
-// either are compile-only by intent: gc accepts and never runs them.
-// The harness refuses such files until compile mode lands.
+// either are compile-only by intent: gc accepts and never runs them,
+// and the harness takes them through compile mode.
 func IsRunnable(source []byte) bool {
 	m := pkgDeclRe.FindSubmatch(source)
 	if m == nil || string(m[1]) != "main" {
@@ -137,6 +171,7 @@ var featureGapErrors = []struct {
 	reason   string
 }{
 	{"channels are not permitted", "channels not supported in Gno"},
+	{"does not have a body but is not natively defined", "bodiless function declarations (assembly-backed in gc) not supported in Gno"},
 	{"goroutines are not permitted", "goroutines not supported in Gno"},
 	{"imaginaries are not supported", "imaginary literals not supported in Gno"},
 	{"dot imports not allowed", "dot imports not supported in Gno"},
@@ -162,6 +197,7 @@ var langGapErrors = []struct {
 	{regexp.MustCompile(`name clear not declared`), "clear builtin not supported in Gno"},
 	{regexp.MustCompile(`name (min|max) not declared`), "version-gating: min/max builtins (Go 1.21) not supported in Gno"},
 	{regexp.MustCompile(`channel (receive|send) is not permitted`), "channels not supported in Gno"},
+	{regexp.MustCompile(`select statements are not permitted`), "channels not supported in Gno (select)"},
 }
 
 // reStdlibSymbolGap matches Gno's "name <Sym> not declared/defined" for a
@@ -351,26 +387,19 @@ func gnoErrSegments(s string) []string {
 	return out
 }
 
-// CleanErrorMessage strips a leading `path:line:col:` prefix from
-// errStr, leaving just the message text. Used when recording a Gno
-// error in the `// GnoError:` golden block so the block doesn't pin
-// volatile file paths or column numbers.
+// reErrorPrefix matches a leading `path:line[:col]` position, with the
+// span end (`-col` or `-line:col`) and primes Gno's Location.String()
+// appends (`main.gno:9:2-11:2”`), up to the colon that ends it.
+var reErrorPrefix = regexp.MustCompile(`^[^:]+:\d+(?::\d+(?:-\d+(?::\d+)?)?)?'*:\s*`)
+
+// CleanErrorMessage strips a leading `path:line:col:` position (span
+// end included) from errStr, leaving just the message text. Used when
+// recording a Gno error in the `// GnoError:` golden block so the block
+// doesn't pin volatile file paths or column numbers.
 func CleanErrorMessage(errStr string) string {
 	s := strings.TrimSpace(errStr)
-	// Format: file:line:col: text  → split into 4 parts, take the 4th.
-	parts := strings.SplitN(s, ":", 4)
-	if len(parts) == 4 {
-		// Sanity: parts[1] should be a number (line); parts[2] a number (col).
-		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
-			return strings.TrimSpace(parts[3])
-		}
-	}
-	// Fall back: try file:line: text (3 parts).
-	parts = strings.SplitN(s, ":", 3)
-	if len(parts) == 3 {
-		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
-			return strings.TrimSpace(parts[2])
-		}
+	if m := reErrorPrefix.FindStringIndex(s); m != nil {
+		return strings.TrimSpace(s[m[1]:])
 	}
 	return s
 }
@@ -396,6 +425,18 @@ func FormatGnoErrorBlock(perLine map[int]string) string {
 		fmt.Fprintf(&buf, "line %d: %s\n", n, perLine[n])
 	}
 	return strings.TrimRight(buf.String(), "\n")
+}
+
+// indent prefixes every line of s with prefix.
+func indent(s, prefix string) string {
+	if s == "" {
+		return s
+	}
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		lines[i] = prefix + l
+	}
+	return strings.Join(lines, "\n")
 }
 
 // FormatLineOnlyBlock serializes the keys of a per-line error map as
@@ -439,6 +480,7 @@ func ParseLineBlock(block string) map[int]string {
 var unsupportedTags = []struct{ tag, needle string }{
 	{"generics", "generics not supported"},
 	{"channel", "channels not supported"},
+	{"bodiless-func", "bodiless function declarations"},
 	{"goroutine", "goroutines not supported"},
 	{"complex-types", "complex numbers not supported"},
 	{"imaginary-literal", "imaginary literals"},
