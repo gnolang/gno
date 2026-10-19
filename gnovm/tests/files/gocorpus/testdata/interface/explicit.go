@@ -120,4 +120,4 @@ var b2 B2 = &T2{}
 // line 89: methods must have a unique non-blank name
 // line 93: methods must have a unique non-blank name
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 70, 76, 78
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 70, 76, 78, 90, 95; over-strict: lines 89, 93
