@@ -464,6 +464,7 @@ var declStart = map[token.Token]bool{
 	token.CONST:  true,
 	token.TYPE:   true,
 	token.VAR:    true,
+	token.FUNC:   true,
 }
 
 var exprEnd = map[token.Token]bool{
@@ -2891,8 +2892,10 @@ func (p *parser) parseDecl(sync map[token.Token]bool) ast.Decl {
 		return p.parseFuncDecl()
 
 	default:
+		// gc: "non-declaration statement outside function body", then on
+		// to the next declaration, func included, so each one is reported
 		pos := p.pos
-		p.errorExpected(pos, "declaration")
+		p.error(pos, "non-declaration statement outside function body")
 		p.advance(sync)
 		return &ast.BadDecl{From: pos, To: p.pos}
 	}

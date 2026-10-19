@@ -116,6 +116,28 @@ func _() {
 				"12:3: illegal label declaration",
 			},
 		},
+		{
+			name: "statements at file level are each reported", // syntax/topexpr
+			src: `package p
+
+fmt.Printf("hello")
+
+func main() {
+}
+
+x++
+
+func init() {
+}
+
+x, y := 1, 2
+`,
+			want: []string{
+				"3:1: non-declaration statement outside function body",
+				"8:1: non-declaration statement outside function body",
+				"13:1: non-declaration statement outside function body",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -148,4 +170,23 @@ func TestRecoveryLabelTree(t *testing.T) {
 		}
 		return true
 	})
+}
+
+// TestRecoveryDeclTree pins that the declarations after a file-level
+// statement are kept.
+func TestRecoveryDeclTree(t *testing.T) {
+	fset := token.NewFileSet()
+	f, _ := ParseFile(fset, "x.go", "package p\n\nx++\n\nfunc main() {}\n\nx++\n\nfunc init() {}\n", AllErrors)
+	var kinds []string
+	for _, d := range f.Decls {
+		switch d := d.(type) {
+		case *ast.FuncDecl:
+			kinds = append(kinds, "func "+d.Name.Name)
+		default:
+			kinds = append(kinds, fmt.Sprintf("%T", d))
+		}
+	}
+	if got, want := strings.Join(kinds, ", "), "*ast.BadDecl, func main, *ast.BadDecl, func init"; got != want {
+		t.Errorf("decls: %s, want %s", got, want)
+	}
 }
