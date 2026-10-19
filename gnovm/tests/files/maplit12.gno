@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/maplit12.gno:4:6-46: invalid map key type [2][]int
+// main/maplit12.gno:4:10-18: invalid map key type [2][]int
 
 // TypeCheckError:
 // main/maplit12.gno:4:10: invalid map key type [2][]int

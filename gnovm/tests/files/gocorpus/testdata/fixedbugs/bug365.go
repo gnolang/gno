@@ -24,4 +24,4 @@ func main() {
 // GnoError:
 // line 15: name not defined: foo
 
-// Verdict: KnownIssue errorcheck: #6344 on-chain path first error on line 14, not reported by accumulate mode
+// Verdict: Clean errorcheck

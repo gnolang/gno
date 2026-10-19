@@ -11,6 +11,6 @@ package main
 var mult [3][...]byte = [3][5]byte{}	// ERROR "\.\.\."
 
 // GnoError:
-// line 11: cannot use [3][5]uint8 as [3][0]uint8
+// line 11: invalid use of [...] array (outside a composite literal)
 
 // Verdict: Clean errorcheck

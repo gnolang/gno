@@ -46,6 +46,9 @@ func f2() {
 }
 
 // GnoError:
-// line 23: duplicate default clause
+// line 18: impossible type switch case: e cannot have dynamic type int (missing method Error)
+// line 26: multiple defaults in switch
+// line 30: multiple defaults in switch
+// line 44: impossible type switch case: i cannot have dynamic type main.X (method Foo has pointer receiver)
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 26, 30, 44; over-strict: lines 23
+// Verdict: Clean errorcheck

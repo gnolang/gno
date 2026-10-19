@@ -37,6 +37,11 @@ var _ = map[string]int{
 }
 
 // GnoError:
-// line 31: duplicate key ("a" string) in map literal
+// line 21: duplicate case one in expression switch
+// line 24: duplicate case 3 in expression switch
+// line 25: duplicate case iii in expression switch
+// line 34: duplicate key "a" in map literal
+// line 35: duplicate key "b" in map literal
+// line 36: duplicate key "b" in map literal
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21, 24, 25, 34; over-strict: lines 31
+// Verdict: Clean errorcheck

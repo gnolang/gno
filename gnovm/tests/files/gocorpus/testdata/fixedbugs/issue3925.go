@@ -22,7 +22,7 @@ var _ = []string{
 }
 
 // GnoError:
-// line 13: missing key in map literal
+// line 15: missing key in map literal
 // line 21: cannot use untyped Bigint as StringKind
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15; over-strict: lines 13
+// Verdict: Clean errorcheck

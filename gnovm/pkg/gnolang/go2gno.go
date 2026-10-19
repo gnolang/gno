@@ -1125,16 +1125,8 @@ func toKeyValueExprs(fs *token.FileSet, elts []ast.Expr) (kvxs KeyValueExprs) {
 // are handled at evaluation time in doOpSwitchClause / doOpTypeSwitch.
 func toClauses(fs *token.FileSet, csz []ast.Stmt) []SwitchClauseStmt {
 	res := make([]SwitchClauseStmt, 0, len(csz))
-	sawDefault := false
 	for _, cs := range csz {
-		clause := toSwitchClauseStmt(fs, cs.(*ast.CaseClause))
-		if len(clause.Cases) == 0 {
-			if sawDefault {
-				panic("duplicate default clause")
-			}
-			sawDefault = true
-		}
-		res = append(res, clause)
+		res = append(res, toSwitchClauseStmt(fs, cs.(*ast.CaseClause)))
 	}
 	return res
 }

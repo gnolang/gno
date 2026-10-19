@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// main/maplit8.gno:6:7-54: invalid map key type []int
+// main/maplit8.gno:6:11-16: invalid map key type []int
 
 // TypeCheckError:
 // main/maplit8.gno:6:11: invalid map key type []int

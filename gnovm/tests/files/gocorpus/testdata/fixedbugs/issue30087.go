@@ -15,9 +15,9 @@ func main() {
 }
 
 // GnoError:
-// line 10: missing init expr for b<!VPInvalid(0)>
+// line 10: missing init expr for b
 // line 11: Machine.EvalStaticTypeOf(x) expression not yet preprocessed: 2
 // line 12: assignment mismatch: 2 variable(s) but 1 value(s)
 // line 13: assignment mismatch: 2 variable(s) but 3 value(s)
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10; internal errors: lines 10
+// Verdict: Clean errorcheck

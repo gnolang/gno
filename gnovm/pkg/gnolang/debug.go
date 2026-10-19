@@ -95,8 +95,9 @@ func (debugging) Errorf(format string, args ...any) {
 // PreprocessError wraps a processing error along with its associated
 // preprocessing stack for enhanced error reporting.
 type PreprocessError struct {
-	err   error
-	stack []BlockNode
+	err     error
+	stack   []BlockNode
+	dropped []Name // declared by dependencies dropped on the way up
 }
 
 // Unwrap returns the encapsulated error message.

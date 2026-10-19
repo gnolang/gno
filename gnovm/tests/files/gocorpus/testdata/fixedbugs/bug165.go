@@ -14,4 +14,7 @@ type S struct {
 	m map[S] bool;	// ERROR "map key type"
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14
+// GnoError:
+// line 14: invalid map key type main.S
+
+// Verdict: Clean errorcheck

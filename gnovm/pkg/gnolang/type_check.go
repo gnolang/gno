@@ -393,9 +393,9 @@ func checkValDefineMismatch(n Node) {
 
 	if valueDecl != nil {
 		if numNames > numValues {
-			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].String()))
+			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].Name))
 		}
-		panic(fmt.Sprintf("extra init expr %s", values[numNames].String()))
+		panicAt(fmt.Sprintf("extra init expr %s", values[numNames].String()), values[numNames])
 	}
 
 	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
