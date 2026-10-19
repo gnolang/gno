@@ -21,5 +21,6 @@ var t = T{
 
 // GnoError:
 // line 18: name foo not declared
+// line 19: name bar not declared
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19
+// Verdict: Clean errorcheck

@@ -19,7 +19,6 @@ func f() {
 }
 
 // GnoError:
-// line 12: name T1 not defined in fileset with files [issue4359.go]
-// line 18: missing field x in *main.T
+// line 13: name not defined: T1
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13; over-strict: lines 12, 18
+// Verdict: KnownIssue errorcheck: #6344 on-chain path first error on line 12, not reported by accumulate mode

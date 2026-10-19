@@ -11,6 +11,6 @@ package p
 var f = func(...A) // ERROR "undefined: A"
 
 // GnoError:
-// line 11: name A not defined in fileset with files [issue20233.go]
+// line 11: name not defined: A
 
 // Verdict: Clean errorcheck

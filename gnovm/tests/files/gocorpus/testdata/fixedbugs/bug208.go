@@ -19,6 +19,6 @@ var _ = f;	// ERROR "undefined"
 var _ = T{f: 1}
 
 // GnoError:
-// line 17: name f not defined in fileset with files [bug208.go]
+// line 17: name not defined: f
 
 // Verdict: Clean errorcheck
