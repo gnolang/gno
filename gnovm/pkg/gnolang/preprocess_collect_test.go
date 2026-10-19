@@ -664,8 +664,8 @@ func main() { println(u) }
 			t.Fatalf("escaped: %v", panicked)
 		}
 		wantErrors(t, msgs,
-			"main.gno:11:2", "name foo not declared",
-			"main.gno:12:2", "name bar not declared",
+			"main.gno:11:2", "invalid field name foo.toInt in struct literal",
+			"main.gno:12:2", "invalid field name bar.toString in struct literal",
 		)
 	})
 
