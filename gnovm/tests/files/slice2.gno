@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// duplicate index 2 in array or slice literal
+// main/slice2.gno:4:6-44: duplicate index 2 in array or slice literal
 
 // TypeCheckError:
 // main/slice2.gno:4:35: duplicate index 2 in array or slice literal

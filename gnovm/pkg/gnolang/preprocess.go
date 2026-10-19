@@ -1981,6 +1981,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
+						// Each case is compared to the tag with ==; checked
+						// here, before the conversion types an untyped nil.
+						assertComparableTo(tt, evalStaticTypeOf(store, last, cx), isNilLiteral(ss.X), isNilLiteral(cx))
 						checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
 						n.Cases[i] = cx
 					}
@@ -2728,6 +2731,14 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 					if fv != nil && fv.PkgPath == uversePkgPath {
 						switch fv.Name {
+						case "len", "cap":
+							if len(n.Args) == 1 {
+								if msg := lenCapArgError(fv.Name, evalStaticTypeOf(store, last, n.Args[0])); msg != "" {
+									reportOrPanic(acc, stack, n, msg)
+								}
+							}
+						}
+						switch fv.Name {
 						case "append":
 							if n.Varg && len(n.Args) == 2 {
 								// If the second argument is a string,
@@ -3238,6 +3249,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:
 				dt := evalStaticTypeOf(store, last, n.X)
+				assertIndexable(n.X, dt)
 				if dt.Kind() == PointerKind {
 					// if a is a pointer to an array,
 					// a[low : high : max] is shorthand
@@ -3251,6 +3263,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIndexKind(store, last, n, n.Index)
+					assertConstIndex(n.Index, staticLengthOf(dt, n.X))
 				case MapKind:
 					mt := baseOf(dt).(*MapType)
 					checkOrConvertType(store, last, n, &n.Index, mt.Key)
@@ -3274,11 +3287,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					if t.Elem().Kind() != ArrayKind {
 						panic(fmt.Sprintf("cannot slice variable of type %v", t))
 					}
-				case SliceKind, ArrayKind, StringKind:
+				case StringKind:
+					if n.Max != nil {
+						panic("invalid operation: 3-index slice of string")
+					}
+				case SliceKind, ArrayKind:
 					// good.
 				default:
 					panic(fmt.Sprintf("cannot slice variable of type %v", t))
 				}
+				assertConstSliceBounds(n, staticLengthOf(t, n.X))
 
 				// if n.X is untyped, convert to corresponding type
 				if isUntyped(t) {
@@ -3371,8 +3389,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					if n.IsKeyed() {
 						// NOTE: unexported field check for keyed literals
 						// is handled in TRANS_COMPOSITE_KEY (*NameExpr).
+						seen := map[Name]bool{}
 						for i := range n.Elts {
 							key := n.Elts[i].Key.(*NameExpr).Name
+							if seen[key] {
+								panic(fmt.Sprintf("duplicate field name %s in struct literal", key))
+							}
+							seen[key] = true
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
 							checkElt(&n.Elts[i].Value, ft, false)
@@ -3401,6 +3424,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						checkElt(&n.Elts[i].Key, IntType, true)
 						checkElt(&n.Elts[i].Value, cclt.Elt, false)
 					}
+					length := int64(-1) // [...]T is measured below
+					if !cclt.Vrd {
+						length = int64(cclt.Len)
+					}
+					assertLiteralIndices(preprocessGasMeterOf(store), n, length)
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
@@ -3409,6 +3437,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						checkElt(&n.Elts[i].Key, IntType, true)
 						checkElt(&n.Elts[i].Value, cclt.Elt, false)
 					}
+					assertLiteralIndices(preprocessGasMeterOf(store), n, -1)
 				case *MapType:
 					if !isComparable(cclt.Key) {
 						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
@@ -3419,6 +3448,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					// values are stored in N (not V), making TypedValue comparable.
 					kset := make(map[TypedValue]struct{})
 					for i := range n.Elts {
+						if n.Elts[i].Key == nil {
+							panic("missing key in map literal")
+						}
 						checkElt(&n.Elts[i].Key, cclt.Key, false)
 						checkElt(&n.Elts[i].Value, cclt.Value, false)
 						elt := n.Elts[i]
@@ -4134,6 +4166,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
+				if !n.IsTypeSwitch && n.X != nil {
+					// The tag must be comparable even with no case to
+					// compare it to (cases are checked at the clause).
+					assertSwitchTag(evalStaticTypeOf(store, last, n.X))
+				}
 				// Ensure type switch cases are unique.
 				if n.IsTypeSwitch {
 					types := map[string]struct{}{}
@@ -5979,6 +6016,12 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					lt := evalStaticTypeOf(store, last, bx.Left)
 					rt := evalStaticTypeOf(store, last, bx.Right)
 					if t != nil {
+						// An interface target gives the whole expression
+						// its default type, which both operands take (the
+						// shift in `1.0 + 1<<s` is then a float64 shift).
+						if t.Kind() == InterfaceKind {
+							t = defaultTypeOf(xt)
+						}
 						// push t into bx.Left and bx.Right
 						checkOrConvertType(store, last, n, &bx.Left, t)
 						checkOrConvertType(store, last, n, &bx.Right, t)
@@ -7600,6 +7643,17 @@ func reportUnusedImports(store Store, acc *preprocessAccumulator, pn *PackageNod
 		}
 		acc.record(pe)
 	}
+}
+
+// reportOrPanic raises msg at n: the first error panics on chain; in
+// accumulate mode it is recorded and the walk goes on, for a rule whose
+// failure leaves the node's type intact (gc reports every such site).
+func reportOrPanic(acc *preprocessAccumulator, stack []BlockNode, n Node, msg string) {
+	pe := wrapPreprocessPanic(stack, n, msg)
+	if acc == nil {
+		panic(pe)
+	}
+	acc.record(pe)
 }
 
 // enclosedByFunc reports whether stack holds a function node.

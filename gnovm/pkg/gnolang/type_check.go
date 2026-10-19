@@ -174,7 +174,31 @@ func checkSame(at, bt Type, msg string) error {
 		return errors.New("incompatible types %v and %v %s",
 			at.TypeID(), bt.TypeID(), msg)
 	}
+	if f := embeddedFieldMismatch(at, bt); f != "" {
+		return errors.New("incompatible types %v and %v (field %s is embedded in only one) %s",
+			at.TypeID(), bt.TypeID(), f, msg)
+	}
 	return nil
+}
+
+// embeddedFieldMismatch names the first field embedded in exactly one of
+// two unnamed struct types with the same TypeID, which does not record
+// embedding (Go spec, "Type identity": fields must agree on it), or "".
+func embeddedFieldMismatch(at, bt Type) Name {
+	ast, ok := at.(*StructType)
+	if !ok {
+		return ""
+	}
+	bst, ok := bt.(*StructType)
+	if !ok || len(ast.Fields) != len(bst.Fields) {
+		return ""
+	}
+	for i := range ast.Fields {
+		if ast.Fields[i].Embedded != bst.Fields[i].Embedded {
+			return ast.Fields[i].Name
+		}
+	}
+	return ""
 }
 
 // mustAssignableTo panics if xt is not assignable to dt. store supplies the
@@ -232,18 +256,12 @@ Main:
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
 						switch fv.Name {
-						case "len":
+						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
-							}
-							assertValidConstValue(store, last, currExpr.Args[0])
-							break Main
-						case "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
+								if hasCall(preprocessGasMeterOf(store), store, last, currExpr.Args[0]) {
+									panic(fmt.Sprintf("%s (value of type int) is not constant", currExpr.String()))
+								}
 								break Main
 							}
 							assertValidConstValue(store, last, currExpr.Args[0])
@@ -619,7 +637,16 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
-	case *FuncType, *StructType, *PackageType, *TypeType:
+	case *StructType:
+		if xt.TypeID() == cdt.TypeID() {
+			if f := embeddedFieldMismatch(xt, cdt); f != "" {
+				return errors.New(
+					"cannot use %s as %s (field %s is embedded in only one)",
+					xt.String(), dt.String(), f)
+			}
+			return nil // ok
+		}
+	case *FuncType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
 		}
@@ -738,6 +765,14 @@ func (x *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
 			default:
 				if !isComparable(dt) {
 					panic(fmt.Sprintf("%v is not comparable", dt))
+				}
+			}
+			// An interface operand does not make a slice, map or func
+			// on the other side comparable.
+			if xt != nil {
+				switch baseOf(xt).(type) {
+				case *SliceType, *FuncType, *MapType:
+					panic(fmt.Sprintf("%v can only be compared to nil", xt))
 				}
 			}
 			err := checkAssignableTo(store, x, xt, dt)
