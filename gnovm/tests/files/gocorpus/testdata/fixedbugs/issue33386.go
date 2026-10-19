@@ -34,4 +34,4 @@ func _() {
 // line 22: expected operand, found '}'
 // line 29: expected ';', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 26, 27, 28; over-strict: lines 20, 29
+// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): a missing operand is reported at the closing token, and the resynchronisation errors on lines 20 and 29 are its cascades
