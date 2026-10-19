@@ -1196,3 +1196,46 @@ func main() {}
 		}
 	}
 }
+
+func TestPreprocessCollectTypeDeclNotAType(t *testing.T) {
+	// A type declaration naming a constant, variable or function fails
+	// at the name, also when that value's declaration needs the type.
+	msgs := collectErrors(t, `package main
+
+const C = 0
+
+type T1 C
+
+var V = 1
+
+type T2 V
+
+func F() {}
+
+type T3 F
+
+type T4 K
+
+const K = T4(0)
+
+func main() {
+	const c = 0
+	type L c
+}
+`)
+	want := []string{
+		"C is not a type",
+		"V is not a type",
+		"F is not a type",
+		"K is not a type",
+		"c is not a type",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Fatalf("got %v, want %v", msgs, want)
+		}
+	}
+}

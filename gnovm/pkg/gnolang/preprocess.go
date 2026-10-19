@@ -6308,7 +6308,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	var directR bool
 	// var direct = true // invalid cycle detection
 	for {
-		un, untype, directR = tryPredefine(store, pkg, last, d, stack, defining, direct)
+		un, untype, directR = tryPredefine(store, pkg, last, d, stack, defining, direct, index)
 		if debugFind {
 			fmt.Printf("tryPredefine(%v, %v, defining=%v, direct=%v)-->un=%v,untype=%v,direct2=%v\n", d, stack, defining, direct, un, untype, directR)
 		}
@@ -6434,7 +6434,7 @@ func cycleString(stack []Name, name Name) string {
 // If all dependencies are met, constructs and empty definition value (for a
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
-func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
+func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool, index *predefineDeclIndex) (un Name, untype bool, directR bool) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		if d.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
 			// accumulate mode: a dependent of a dropped declaration.
@@ -6571,6 +6571,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				}
 				// sanity check.
 				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
+					assertNamesType(tx, tv, nil)
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
 						if !dt.sealed {
@@ -6579,6 +6580,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 							panic("should not happen")
 						}
 					}
+				} else if index != nil {
+					// Not yet defined: a package-level constant, variable
+					// or function is not a type, said before the empty
+					// type is placed and the dependency predefined.
+					assertNamesType(tx, nil, index.entries[tx.Name].decl)
 				}
 				// set t for proper type.
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {

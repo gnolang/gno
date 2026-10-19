@@ -139,3 +139,21 @@ func receiverDeclaredType(rt Type, pkgPath string, at Node) *DeclaredType {
 	panicAt(fmt.Sprintf("cannot define new methods on non-local type %s", bt), at)
 	return nil
 }
+
+// assertNamesType: the name nx a type declaration gives as its type,
+// resolved to the slot tv (nil: not yet defined) or to the package-level
+// declaration dep, is a type and not a constant, variable or function.
+func assertNamesType(nx *NameExpr, tv *TypedValue, dep Decl) {
+	notType := false
+	if tv != nil && tv.T != nil {
+		_, isType := tv.T.(*TypeType)
+		notType = !isType
+	}
+	switch dep.(type) {
+	case *ValueDecl, *FuncDecl:
+		notType = true
+	}
+	if notType {
+		panicAt(fmt.Sprintf("%s is not a type", nx.Name), nx)
+	}
+}

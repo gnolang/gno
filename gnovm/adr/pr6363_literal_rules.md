@@ -25,6 +25,8 @@ tree:
 - A blank field or method is never found through a selector.
 - A method's receiver names a type declared in the package: a basic or
   foreign type cannot be given new methods.
+- A type declaration whose type is a name names a type, not a constant,
+  variable or function, said before that value is predefined.
 - A `for` post statement may not declare.
 - A type switch variable with no clause is unused.
 
