@@ -1332,9 +1332,11 @@ router receipts at transport sequence numbers the attacker chose (eureka stores 
 [`IBCStoreUpgradeable.setPacketReceipt`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/utils/IBCStoreUpgradeable.sol)), and governance sequence
 numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier of the same client id
 (`migrateClient`) repairs none of that, so recovery from poisoning is a **route replacement**. When the old history
-is trusted (the client expired or a verifier defect stopped it, no forged state), a **kind 6 op 2 already recorded**
-on `IBCAdmin` alone can repair the channel loss by migrating the client to a working verifier; a kind 10 is not
-always needed.
+is trusted — the client **expired**, or a **liveness-only** defect stopped it that is shown not to have accepted any
+false update or proof — a **kind 6 op 2 already recorded** on `IBCAdmin` alone can repair the channel loss by
+migrating the client to a working verifier; a kind 10 is not always needed. Where that is not established, the
+client is treated as possibly poisoned and recovery requires a kind 10 or the emergency recovery, with
+reconciliation.
 
 - **Ethereum-local brake (always available).** Guardian flags and holds on `IBCAdmin` and `GnoICS20Transfer` are
   Ethereum transactions, not packets, so they keep working while the channel is down or poisoned.
@@ -2504,7 +2506,8 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   §7.13).
 - 2026-10-19, gno-eth-ibc b07faf4: the ERC-165 probe described as `ERC165Checker` (up to three capped
   `staticcall`s, about 90,000 gas worst case before the callback and reserve; §7.13); a recorded kind 6 op 2 alone
-  can repair a channel loss when the old history is trusted (§7.12); queued and parked refunds stay claimable after
+  can repair a channel loss when the old history is trusted (expiry, or a liveness-only defect shown not to have
+  accepted any false update or proof; otherwise kind 10 or the emergency recovery, with reconciliation; §7.12); queued and parked refunds stay claimable after
   a client fails (§7.6, §8.3); a pre-installation transition's quarantine counts from its existing timestamp
   (§7.10, §8.4).
 
