@@ -660,6 +660,26 @@ func main() {
 	}
 }
 
+func TestPreprocessCollectIndexBase(t *testing.T) {
+	// Only a pointer to an array is dereferenced by an index expression.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	var ps *string
+	var pa *[3]int
+	var pm *map[int]int
+	_ = ps[0]
+	_ = pa[0]
+	_ = pm[0]
+	_ = (*ps)[0]
+}
+`)
+	want := []string{"invalid operation: cannot index ps (variable of type *string)", "invalid operation: cannot index pm (variable of type *map[int]int)"}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main

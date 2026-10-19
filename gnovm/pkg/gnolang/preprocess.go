@@ -2874,6 +2874,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:
 				dt := evalStaticTypeOf(store, last, n.X)
+				assertIndexable(n.X, dt)
 				if dt.Kind() == PointerKind {
 					// if a is a pointer to an array,
 					// a[low : high : max] is shorthand

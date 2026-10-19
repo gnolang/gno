@@ -63,6 +63,45 @@ func lenCapArgError(name Name, t Type) string {
 	return fmt.Sprintf("invalid argument: %v for built-in %s", t, name)
 }
 
+// assertIndexable checks the operand of an index expression: a string,
+// array, pointer to array, slice or map. A pointer to anything else is not
+// dereferenced (Go spec: "Index expressions").
+func assertIndexable(x Expr, t Type) {
+	if t != nil {
+		switch bt := baseOf(t).(type) {
+		case *ArrayType, *SliceType, *MapType:
+			return
+		case *PointerType:
+			if _, ok := baseOf(bt.Elt).(*ArrayType); ok {
+				return
+			}
+		default:
+			if t.Kind() == StringKind {
+				return
+			}
+		}
+	}
+	panic(fmt.Sprintf("invalid operation: cannot index %s (%s of type %v)", operandString(x), operandWord(x), t))
+}
+
+// operandWord is gc's noun for an operand in a message: a variable, else
+// a value.
+func operandWord(x Expr) string {
+	if _, ok := x.(*NameExpr); ok {
+		return "variable"
+	}
+	return "value"
+}
+
+// operandString spells an operand as written: a name without its
+// resolved value path.
+func operandString(x Expr) string {
+	if nx, ok := x.(*NameExpr); ok {
+		return string(nx.Name)
+	}
+	return x.String()
+}
+
 // staticLengthOf returns the length a constant index can be checked
 // against: an array's (through one pointer), a constant string's, else -1.
 func staticLengthOf(t Type, x Expr) int64 {
