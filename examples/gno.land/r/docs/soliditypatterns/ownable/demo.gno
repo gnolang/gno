@@ -15,10 +15,14 @@ func InitOwner(cur realm) {
 	owner = cur.Previous().Address()
 }
 
-// ChangeOwner transfers ownership to newOwner. Only the current owner may call it.
+// ChangeOwner transfers ownership to newOwner, which must be a valid address.
+// Only the current owner may call it.
 func ChangeOwner(cur realm, newOwner address) {
 	if cur.Previous().Address() != owner {
 		panic("caller isn't the owner")
+	}
+	if !newOwner.IsValid() {
+		panic("invalid owner address")
 	}
 	owner = newOwner
 	chain.Emit("OwnershipChange", "newOwner", newOwner.String())

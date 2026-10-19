@@ -38,3 +38,16 @@ func TestInitOwnerThenChange(cur realm, t *testing.T) {
 		ChangeOwner(cross(cur), alice)
 	}, "the former owner must lose authority after transfer")
 }
+
+func TestChangeOwnerRejectsInvalidAddress(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	owner = alice
+
+	// RenderDemo prints the owner into the page, so a caller-chosen string
+	// accepted here would become markdown on the realm's page.
+	testing.SetRealm(testing.NewUserRealm(alice))
+	uassert.AbortsWithMessage(t, cur, "invalid owner address", func() {
+		ChangeOwner(cross(cur), address("**[click](https://evil.example)**"))
+	})
+	uassert.Equal(t, Owner().String(), alice.String(), "owner must be unchanged after a rejected call")
+}

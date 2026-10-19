@@ -59,6 +59,9 @@ func ChangeOwner(cur realm, newOwner address) {
 	if cur.Previous().Address() != owner {
 		panic("caller isn't the owner")
 	}
+	if !newOwner.IsValid() {
+		panic("invalid owner address")
+	}
 	owner = newOwner
 	chain.Emit("OwnershipChange", "newOwner", newOwner.String())
 }
@@ -69,6 +72,7 @@ func ChangeOwner(cur realm, newOwner address) {
 * ^InitOwner^ lets the first caller claim ownership. It panics if ^owner^ is already set, so it works only once.
 * ^ChangeOwner^ transfers ownership. Both functions authenticate the caller the same way, before touching state:
     * ^cur.Previous().Address()^ identifies the immediate caller. The runtime guarantees ^cur^ is the live crossing frame, so ^cur.Previous()^ names the realm or user that called in, and for ^ChangeOwner^ it is compared against ^owner^.
+* ^ChangeOwner^ also refuses a ^newOwner^ that is not a valid address. A transaction hands an ^address^ argument over as the string the caller sent, unchecked, and the demo below prints the owner into this page.
 * On success ^ChangeOwner^ updates ^owner^ and emits an ^OwnershipChange^ event so off-chain indexers can observe the transfer.
 
 > [!WARNING]

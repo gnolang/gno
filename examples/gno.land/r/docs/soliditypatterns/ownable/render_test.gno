@@ -33,3 +33,11 @@ func TestRenderKeepsAccurateStackWalkWarning(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderSnippetValidatesNewOwner keeps the page's snippet in step with the
+// demo realm, which refuses an invalid newOwner.
+func TestRenderSnippetValidatesNewOwner(t *testing.T) {
+	if !strings.Contains(Render(""), "if !newOwner.IsValid() {") {
+		t.Error("the Gno snippet must refuse an invalid newOwner, as the demo does")
+	}
+}
