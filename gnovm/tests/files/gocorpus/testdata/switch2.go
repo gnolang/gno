@@ -41,10 +41,12 @@ func f() {
 // GnoError:
 // line 14: expected ':', found ';'
 // line 18: expected ':', found ';'
+// line 23: cannot use untyped Bigint as BoolKind
+// line 27: cannot use untyped Bigint as BoolKind
 // line 28: expected ';', found 'case'
 // line 33: expected ';', found 'default'
 // line 37: expected '}', found 'if'
-// line 39: expected '}', found 'EOF'
+// line 39: expected ';', found 'EOF'
 
 // GnoWordingDiffers:
 // line 14: gc expects: expecting := or = or : or comma|expected :; gno: expected ':', found ';'
@@ -53,4 +55,4 @@ func f() {
 // line 33: gc expects: unexpected keyword default at end of statement; gno: expected ';', found 'default'
 // line 37: gc expects: expected case or default or }; gno: expected '}', found 'if'
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 39
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 23, 27, 39

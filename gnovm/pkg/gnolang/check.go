@@ -51,6 +51,7 @@ const (
 	CodeMissingConstInit   ErrCode = "missing-const-init"
 	CodeVariadicLast       ErrCode = "variadic-last"
 	CodeStructLiteralCount ErrCode = "struct-literal-count"
+	CodeStructFieldName    ErrCode = "struct-field-name"
 	CodeForPostDecl        ErrCode = "for-post-decl"
 	CodeUnusedVar          ErrCode = "unused-var"
 	CodeUnusedLabel        ErrCode = "unused-label"

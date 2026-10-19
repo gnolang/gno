@@ -18,14 +18,12 @@ func f(int, int) {
 }
 
 // GnoError:
+// line 10: name x not declared
 // line 12: missing ',' before newline in argument list
 // line 13: expected operand, found 'case'
-// line 18: missing ',' in argument list
-
-// ParseBlocked:
-// line 16: gc expects: expecting \)|possibly missing comma or \)
+// line 18: expected ')', found 'EOF'
 
 // GnoWordingDiffers:
 // line 12: gc expects: expecting \)|possibly missing comma or \); gno: missing ',' before newline in argument list
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 13, 18
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 10, 13, 18

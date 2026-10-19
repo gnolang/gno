@@ -14,11 +14,4 @@ func _(x int) {
 	_ = x ~ x // ERROR "unexpected ~ at end of statement"
 }
 
-// GnoError:
-// line 14: expected ';', found '~'
-// line 15: expected '}', found 'EOF'
-
-// GnoWordingDiffers:
-// line 14: gc expects: unexpected ~ at end of statement; gno: expected ';', found '~'
-
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 15
+// Verdict: Unsupported other: generics (type set constraints) not supported in Gno

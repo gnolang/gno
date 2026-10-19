@@ -56,11 +56,9 @@ func noninterface() {
 }
 
 // GnoError:
+// line 24: impossible type switch case: x cannot have dynamic type string (missing method M)
 // line 39: no new variables on left side of :=
+// line 45: cannot type switch on non-interface value i (type int)
+// line 54: cannot type switch on non-interface value s (type main[main/typeswitch3.go:43:1-56:2].S)
 
-// ParseBlocked:
-// line 24: gc expects: impossible
-// line 45: gc expects: cannot type switch on non-interface value|not an interface
-// line 54: gc expects: cannot type switch on non-interface value|not an interface
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 24, 45, 54
+// Verdict: Clean errorcheck

@@ -46,4 +46,4 @@ func main() {
 // line 34: too many values in struct literal of type main.Bar
 // line 40: too many values in struct literal of type main.Bar
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 24
+// Verdict: Clean errorcheck
