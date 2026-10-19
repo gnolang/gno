@@ -29,5 +29,12 @@ func _ () {
 
 // GnoError:
 // line 10: missing condition in if statement
+// line 13: missing condition in if statement
+// line 15: missing condition in if statement
+// line 17: missing condition in if statement
+// line 19: missing condition in if statement
+// line 22: name foo not declared
+// line 24: name foo not declared
+// line 26: unexpected newline, expecting { after if clause
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13, 15, 17, 19, 26
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 22, 24

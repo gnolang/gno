@@ -28,7 +28,4 @@ func _(s chan int) {
         for i, j, k, l = range s {} // ERROR "range over .* permits only one iteration variable"
 }
 
-// GnoError:
-// line 16: expected at most 2 expressions
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17, 26, 27, 28
+// Verdict: Unsupported channel: channels not supported in Gno

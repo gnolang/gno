@@ -3,6 +3,7 @@ package test
 import (
 	"bytes"
 	"io"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -145,5 +146,63 @@ func TestErrorcheckVerifyDemandsOneVerdict(t *testing.T) {
 	_, _ = gas, diffs
 	if err == nil || !strings.Contains(err.Error(), "exactly one") {
 		t.Fatalf("two verdicts accepted: %v", err)
+	}
+}
+
+// errorcheckOpts is a sync-mode harness over a fresh store: RunFiletest
+// returns the file as sync would write it, verdict included.
+func errorcheckOpts(t *testing.T) *TestOptions {
+	t.Helper()
+	rootDir, err := filepath.Abs("../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := &TestOptions{RootDir: rootDir, Output: io.Discard, Error: io.Discard, Sync: true}
+	o.BaseStore, o.TestStore = StoreWithOptions(rootDir, o.WriterForStore(), StoreOptions{Testing: true})
+	return o
+}
+
+func TestErrorcheck_ParseErrorsDoNotBlockTheChecker(t *testing.T) {
+	// The parser's error credits line 4; the checker still runs on the
+	// partial tree and credits line 6, so the file is Clean.
+	src := []byte(`package p
+
+func f() {
+	if { // ERROR "missing condition"
+	}
+	var x int = "s" // ERROR "cannot use"
+	_ = x
+}
+`)
+	o := errorcheckOpts(t)
+	out, gas, diffs, err := o.RunFiletest("testdata/errorcheck/pb.go", src, o.TestStore)
+	_, _ = gas, diffs
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"// Verdict: Clean errorcheck", "line 4: missing condition", "line 6: cannot use"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	for _, bad := range []string{"!syntax", "uncaught"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("unexpected %q in:\n%s", bad, out)
+		}
+	}
+}
+
+func TestParseInlineErrors_GccgoMarkerIsOptional(t *testing.T) {
+	src := []byte(`package p
+var _ = x // GCCGO_ERROR "undefined"
+var _ = y // ERROR "undefined"
+`)
+	got := ParseInlineErrors(src)
+	if len(got) != 2 || !got[0].GcOnly || got[1].GcOnly {
+		t.Fatalf("want an optional marker on line 2 and a required one on line 3, got %+v", got)
+	}
+	cov := attributeErrorcheck(got, []string{"a.go:2:9: name x not declared"}, 0, 3)
+	if len(cov.overStrict) != 0 || !slices.Equal(cov.uncaught, []int{3}) {
+		t.Errorf("gccgo line must not be over-strict and line 3 stays uncaught: %+v", cov)
 	}
 }

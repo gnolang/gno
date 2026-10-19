@@ -9,7 +9,4 @@ package ddd
 func Sum() int
 	for i := range []int{} { return i }  // ERROR "statement outside function|expected"
 
-// GnoError:
-// line 10: expected declaration, found 'for'
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

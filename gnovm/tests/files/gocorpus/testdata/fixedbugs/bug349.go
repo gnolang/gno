@@ -14,5 +14,6 @@ func foo() (a, b, c int) {
 
 // GnoError:
 // line 12: expected ';', found 2.01
+// line 13: expected ';', found 'EOF'
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 13

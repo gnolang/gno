@@ -14,7 +14,4 @@ var x ...int;		// ERROR "[.][.][.]|syntax|type"
 
 type T ...int;		// ERROR "[.][.][.]|syntax|type"
 
-// GnoError:
-// line 11: expected type, found ')'
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13, 15
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno
