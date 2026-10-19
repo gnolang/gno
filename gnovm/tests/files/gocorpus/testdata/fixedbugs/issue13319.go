@@ -26,4 +26,4 @@ func f(int, int) {
 // GnoWordingDiffers:
 // line 12: gc expects: expecting \)|possibly missing comma or \); gno: missing ',' before newline in argument list
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 10, 13, 18
+// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): the missing comma is reported on the next line, with cascades on lines 10, 13 and 18
