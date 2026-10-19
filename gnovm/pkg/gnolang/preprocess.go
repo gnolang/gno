@@ -1431,6 +1431,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
+						// Each case is compared to the tag with ==; checked
+						// here, before the conversion types an untyped nil.
+						assertComparableTo(tt, evalStaticTypeOf(store, last, cx), isNilLiteral(ss.X), isNilLiteral(cx))
 						checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
 						n.Cases[i] = cx
 					}
@@ -2702,7 +2705,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					if t.Elem().Kind() != ArrayKind {
 						panic(fmt.Sprintf("cannot slice variable of type %v", t))
 					}
-				case SliceKind, ArrayKind, StringKind:
+				case StringKind:
+					if n.Max != nil {
+						panic("invalid operation: 3-index slice of string")
+					}
+				case SliceKind, ArrayKind:
 					// good.
 				default:
 					panic(fmt.Sprintf("cannot slice variable of type %v", t))
@@ -2801,7 +2808,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
-					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
+					length := int64(-1) // [...]T is measured below
+					if !cclt.Vrd {
+						length = int64(cclt.Len)
+					}
+					assertLiteralIndices(preprocessGasMeterOf(store), n, length)
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
@@ -2810,7 +2821,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						convertType(store, last, n, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
 					}
-					assertUniqueLiteralIndices(preprocessGasMeterOf(store), n)
+					assertLiteralIndices(preprocessGasMeterOf(store), n, -1)
 				case *MapType:
 					if !isComparable(cclt.Key) {
 						panic(fmt.Sprintf("invalid map key type %v", cclt.Key))
@@ -3534,18 +3545,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
-				if !n.IsTypeSwitch {
-					// Each case is compared to the tag with ==.
-					var tt Type = BoolType
-					if n.X != nil {
-						tt = evalStaticTypeOf(store, last, n.X)
-					}
-					for _, clause := range n.Clauses {
-						for _, cx := range clause.Cases {
-							ct := evalStaticTypeOf(store, last, cx)
-							assertComparableTo(tt, ct, isNilLiteral(n.X), isNilLiteral(cx))
-						}
-					}
+				if !n.IsTypeSwitch && n.X != nil {
+					// The tag must be comparable even with no case to
+					// compare it to (cases are checked at the clause).
+					assertSwitchTag(evalStaticTypeOf(store, last, n.X))
 				}
 				// Ensure type switch cases are unique.
 				if n.IsTypeSwitch {
