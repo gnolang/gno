@@ -129,10 +129,10 @@ func Transcribe(n Node, t Transform) (nn Node) {
 }
 
 // PanicHandler is consulted when transcribing one body statement or
-// file declaration panics. ns, ftype, index and n name the statement;
-// r is the panic value. Returning true drops the statement in place and
-// continues with the next one; false re-panics.
-type PanicHandler func(ns []Node, ftype TransField, index int, n Node, r any) bool
+// file declaration panics. ns, ftype, index and n name the node; r is the panic value.
+// Returning true drops the node: nn takes its place (n itself to keep it
+// as is) and the walk continues with the next one; false re-panics.
+type PanicHandler func(ns []Node, ftype TransField, index int, n Node, r any) (nn Node, handled bool)
 
 type transcriber struct {
 	t       Transform
@@ -158,8 +158,8 @@ func (tc *transcriber) guarded(ns []Node, ftype TransField, index int, n Node, n
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			if tc.onPanic(ns, ftype, index, n, r) {
-				nn = n
+			if dropped, ok := tc.onPanic(ns, ftype, index, n, r); ok {
+				nn = dropped
 				return
 			}
 			panic(r)

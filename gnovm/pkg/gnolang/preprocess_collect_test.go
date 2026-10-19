@@ -178,6 +178,8 @@ func main() { println(a, b) }
 		if panicked != nil {
 			t.Fatalf("escaped: %v", panicked)
 		}
+		// The copied value of a split part has no span of its own: the
+		// error sits at the part, i.e. at the name a.
 		if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:5") || !strings.Contains(msgs[0], "undefinedF") {
 			t.Fatalf("want one error at the name a (3:5), got %v", msgs)
 		}
@@ -352,4 +354,151 @@ func g() {
 			t.Errorf("placeholder leaked: %s", m)
 		}
 	}
+}
+
+// collectFiles is collectErrors over several files, in order; messages
+// keep their position.
+func collectFiles(t *testing.T, files ...string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fset := &FileSet{}
+	for i := 0; i < len(files); i += 2 {
+		fn, err := m.ParseFile(files[i], files[i+1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset.Files = append(fset.Files, fn)
+	}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+// wantErrors checks that msgs are exactly the (position prefix, substring)
+// pairs given, in order.
+func wantErrors(t *testing.T, msgs []string, want ...string) {
+	t.Helper()
+	if len(msgs) != len(want)/2 {
+		t.Fatalf("want %d errors, got %d: %v", len(want)/2, len(msgs), msgs)
+	}
+	for i, msg := range msgs {
+		pos, sub := want[2*i], want[2*i+1]
+		if !strings.HasPrefix(msg, "main/"+pos) || !strings.Contains(msg, sub) {
+			t.Errorf("error %d: want %q containing %q, got %q", i, pos, sub, msg)
+		}
+	}
+}
+
+// Finer than a dropped declaration: what cannot be typed becomes
+// invalidType, already reported, and everything depending on it is
+// still checked (go/types' Typ[Invalid]).
+func TestPreprocessCollectInvalid(t *testing.T) {
+	t.Run("an undefined signature type keeps the function, its body and its callers", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+func mine(int b) int {
+	return b + 2
+}
+
+func _() (int, undefined) { return 0 }
+
+func main() {
+	mine()
+	r := mine(1) + "s"
+	println(r)
+}
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:3:15", "name not defined: b",
+			"main.gno:7:16", "name not defined: undefined",
+			"main.gno:4:9", "name b not declared",
+			"main.gno:7:29", "expected 2 return values; got 1",
+			"main.gno:10:2", "wrong argument count in call to mine",
+			"main.gno:11:7", "cannot use untyped",
+		)
+	})
+
+	t.Run("a declaration that fails keeps its names, typed invalid", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+func bar() (T, int) { return 0, 0 }
+
+func G() int { return 1 }
+
+var a, b = G()
+
+func main() {
+	var x, y, z int
+	x, y, z = bar()
+	a, b = G()
+	println(x, y, z, a, b)
+}
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:3:13", "name not defined: T",
+			"main.gno:7:5", "assignment mismatch: 2 variable(s) but G",
+			"main.gno:11:2", "assignment mismatch: 3 variables but bar",
+			"main.gno:12:2", "assignment mismatch: 2 variables but G",
+		)
+	})
+
+	t.Run("a dropped statement types its names invalid in its own block only", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+func a() {
+	x := "s" + 1
+	println(x)
+}
+
+func b() { println(x) }
+`)
+		if len(msgs) != 2 || !strings.Contains(msgs[1], "name x not declared") {
+			t.Fatalf("want the root error and b's genuine one, got %v", msgs)
+		}
+	})
+
+	t.Run("a dropped type keeps its identity with an invalid base", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+type T struct{ X Undef }
+
+func (t T) get() int { return t.X }
+
+var v = T{X: 1}
+
+func main() {
+	var s string = 1
+	println(v, s)
+}
+`)
+		if len(msgs) != 2 || !strings.Contains(msgs[0], "Undef") || !strings.Contains(msgs[1], "cannot use") {
+			t.Fatalf("want Undef and the string error only, got %v", msgs)
+		}
+	})
+
+	t.Run("a dropped import silences its uses", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+import pkg "nowhere/pkg"
+
+func main() {
+	pkg.F(1)
+	x := pkg.V + 1
+	println(x)
+}
+`)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "unknown import path") {
+			t.Fatalf("want the import error only, got %v", msgs)
+		}
+	})
 }
