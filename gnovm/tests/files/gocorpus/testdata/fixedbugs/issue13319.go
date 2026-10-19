@@ -23,4 +23,4 @@ func f(int, int) {
 // line 13: expected operand, found 'case'
 // line 18: expected ')', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 10, 13, 18
+// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): the missing comma is reported on the next line, with cascades on lines 10, 13 and 18
