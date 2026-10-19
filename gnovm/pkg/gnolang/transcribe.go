@@ -128,11 +128,12 @@ func Transcribe(n Node, t Transform) (nn Node) {
 	return transcribeWith(n, t, nil)
 }
 
-// PanicHandler is consulted when transcribing one body statement or
-// file declaration panics. ns, ftype, index and n name the statement;
-// r is the panic value. Returning true drops the statement in place and
-// continues with the next one; false re-panics.
-type PanicHandler func(ns []Node, ftype TransField, index int, n Node, r any) bool
+// PanicHandler is consulted when transcribing one body statement, file
+// declaration, switch or select clause, or composite literal element
+// panics. ns, ftype, index and n name the node; r is the panic value.
+// Returning true drops the node: nn takes its place (n itself to keep it
+// as is) and the walk continues with the next one; false re-panics.
+type PanicHandler func(ns []Node, ftype TransField, index int, n Node, r any) (nn Node, handled bool)
 
 type transcriber struct {
 	t       Transform
@@ -150,16 +151,16 @@ func transcribeWith(n Node, t Transform, onPanic PanicHandler) (nn Node) {
 	return
 }
 
-// guarded transcribes one body statement or declaration, handing a
-// panic to onPanic when one is installed.
+// guarded transcribes one body statement, declaration, clause or
+// composite element, handing a panic to onPanic when one is installed.
 func (tc *transcriber) guarded(ns []Node, ftype TransField, index int, n Node, nc *TransCtrl) (nn Node) {
 	if tc.onPanic == nil {
 		return transcribe(tc, ns, ftype, index, n, nc)
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			if tc.onPanic(ns, ftype, index, n, r) {
-				nn = n
+			if dropped, ok := tc.onPanic(ns, ftype, index, n, r); ok {
+				nn = dropped
 				return
 			}
 			panic(r)
@@ -276,12 +277,12 @@ func transcribe(tc *transcriber, ns []Node, ftype TransField, index int, n Node,
 		for idx, kvx := range cnn.Elts {
 			k, v := kvx.Key, kvx.Value
 			if k != nil {
-				k = transcribe(tc, nns, TRANS_COMPOSITE_KEY, idx, k, &c).(Expr)
+				k = tc.guarded(nns, TRANS_COMPOSITE_KEY, idx, k, &c).(Expr)
 				if stopOrSkip(nc, c) {
 					return
 				}
 			}
-			v = transcribe(tc, nns, TRANS_COMPOSITE_VALUE, idx, v, &c).(Expr)
+			v = tc.guarded(nns, TRANS_COMPOSITE_VALUE, idx, v, &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return
 			}
@@ -563,7 +564,7 @@ func transcribe(tc *transcriber, ns []Node, ftype TransField, index int, n Node,
 		}
 	case *SelectStmt:
 		for idx := range cnn.Cases {
-			cnn.Cases[idx] = *transcribe(tc, nns, TRANS_SELECT_CASE, idx, &cnn.Cases[idx], &c).(*SelectCaseStmt)
+			cnn.Cases[idx] = *tc.guarded(nns, TRANS_SELECT_CASE, idx, &cnn.Cases[idx], &c).(*SelectCaseStmt)
 			if stopOrSkip(nc, c) {
 				return
 			}
@@ -627,7 +628,7 @@ func transcribe(tc *transcriber, ns []Node, ftype TransField, index int, n Node,
 			cnn = cnn2.(*SwitchStmt)
 		}
 		for idx := range cnn.Clauses {
-			cnn.Clauses[idx] = *transcribe(tc, nns, TRANS_SWITCH_CASE, idx, &cnn.Clauses[idx], &c).(*SwitchClauseStmt)
+			cnn.Clauses[idx] = *tc.guarded(nns, TRANS_SWITCH_CASE, idx, &cnn.Clauses[idx], &c).(*SwitchClauseStmt)
 			if stopOrSkip(nc, c) {
 				return
 			}
