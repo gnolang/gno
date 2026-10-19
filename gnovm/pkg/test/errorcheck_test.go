@@ -101,6 +101,30 @@ func TestErrorcheckGapReason(t *testing.T) {
 	}
 }
 
+func TestGcOnlyErrorcheckReason_LineDirectives(t *testing.T) {
+	// Both directive forms remap the positions the markers refer to, so
+	// the file is gc-specific rather than attributed against the wrong
+	// line; a directive-free file is checkable.
+	markers := []InlineError{{Line: 3, Patterns: []string{"x"}}}
+	for src, want := range map[string]string{
+		"// errorcheck\n\npackage p\n//line :20:1\nvar _ = x // ERROR \"x\"\n":                  "//line",
+		"// errorcheck\n\npackage p\nvar _ = /*line :20:1*/x // ERROR \"x\"\n":                  "/*line*/",
+		"// errorcheck\n\npackage p\nvar _ = struct{}{ /*line :20:1*/foo: 0 } // ERROR \"x\"\n": "/*line*/",
+		"// errorcheck\n\npackage p\nvar _ = x // ERROR \"x\"\n":                                "",
+	} {
+		got := gcOnlyErrorcheckReason([]byte(src), markers)
+		if want == "" {
+			if got != "" {
+				t.Errorf("%q: got reason %q, want none", src, got)
+			}
+			continue
+		}
+		if !strings.HasPrefix(got, "gc-specific: "+want+" directives") {
+			t.Errorf("%q: got %q, want a %s reason", src, got, want)
+		}
+	}
+}
+
 func errorcheckMachine(t *testing.T, out io.Writer) (*TestOptions, *gno.Machine) {
 	t.Helper()
 	opts := NewTestOptions(gnoenv.RootDir(), out, out, nil)
