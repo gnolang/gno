@@ -223,7 +223,8 @@ asynchronous acks and of everything a Tendermint light client trusts; canonical 
 …) so no ground denom can take another's registry key; no caller-supplied implementation of a proof, state or
 message type; the fee-collector registration bar (R14); Markdown-inert JSON renders. Identifier validation and the
 SDK packet limits (262,144 bytes of payload data, a send timeout after now and at most 24 hours ahead) are unchanged; an Ethereum route's packets carry exactly one payload (gno.land `ValidateBasicRouter`, as eureka's router); an oversized receive is refused by the core before
-the app runs, so it stays pending at the source until it times out.
+the app runs, so it stays pending at the source until it times out. Ethereum bounds the transfer payload at the same
+262,144 bytes on send and receive, and error-acks an oversize receive.
 
 ### 4.4 Ethereum contracts
 
@@ -363,7 +364,10 @@ the app runs, so it stays pending at the source until it times out.
   executes (built, gno-realms b86f38d): a failed client is recovered in place, or the unlaunched deployment is restarted. So the
   binding is always over the route's **original** client, the pair Ethereum's epoch 1 uses (gno.land's client of the
   router and the router's launch client `client-0`), and the launch checklist verifies that pair. Until Ethereum
-  records its first governance decision, the route's limits stay at **zero** on both chains (no value transfer).
+  records its first governance decision, the route's limits stay at **zero** on both chains (no value transfer). On
+  Ethereum the deployment registers ugnot with zero limits and its output carries `activationKind4Params`: governance
+  activates the route with that kind 4 only after `IBCAdmin` has recorded gno.land's first decision (gno-eth-ibc
+  0a5f2ba). `LAUNCH_ACTIVE`, which deploys with live limits, is a test-network flag refused on chain id 1.
 - **Envelope** (canonical, at most 1024 bytes — a kind 6 carrying gno.land's real merkle prefix is 558): `version u8 (= 1) ‖ epoch u32 ‖ seq u64 ‖ kind u8 ‖ params`.
   - `epoch` starts at 1 and is raised only by a route replacement (§7.12) — an executed kind 10 or emergency
     recovery on Ethereum, a notice-driven epoch switch on gno.land; `IBCAdmin` accepts packets only for its
@@ -407,7 +411,7 @@ the app runs, so it stays pending at the source until it times out.
   | 10 route replacement | `(string oldClientId, string newClientId, uint64 suspectFrom)`: retire the old client id (`migrateClient` to a `FrozenLightClient`, since the router has no freeze), `migrateRoute`, open the next epoch over the new client and send its epoch notice (§7.12). The new id must be one a kind 6 enrolled (an id the router generated is refused) whose verifier is still usable immediately before the switch; the old id must be the route's current client. **All or nothing**: the quarantine checkpoint (which bumps the route's verifier generation), the migration and the epoch switch run in one frame, and a refused migration rolls all of it back, the decision spent and outcomes proven before still usable. Allowed while the route is closed: it opens a new incident and aborts a reopening under way (§7.12). `suspectFrom` is the Ethereum block from which acks and timeouts processed through the old client are suspect (§7.12): every send record processed at or after it must be settled by kind 12 before kind 13. On gno.land its dispatch also creates a pending **expected transition** whose binding to a local client is a separate 7-day decision (§7.12) | 7 d |
   | 11 route settings | `(string clientId, uint64 quarantineSeconds)`, at most 365 days, per route; a duration applies to transitions accepted after it; one already started keeps its deadline; an older decision maturing later never overwrites a newer setting | lengthening at recording, shortening 7 d |
   | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the send records of a client a replacement retired; at most 8 items (more is spent at recording), all or nothing, a fixed 6M gas budget. Action 1 genuine refund: pay its remainder — `amount` must equal the entitlement minus what was already refunded, **zero** for a genuine refund already paid in full, which then only marks the record settled and moves no funds (a refund is never cut short, §7.9); a refund the free escrow cannot pay now is **parked**, owed and reserved, never failing the batch (§7.12). 2 reject an owed refund of a delivered packet, queued **or parked** (refused if any of it was paid: use 4). 3 settled as delivered (refused if any refund was paid: use 4). 4 forged refund: the record's transport outcome an error ack or timeout, its proven outcome delivered; reject the unpaid remainder **and** record what was already paid as a loss, atomically (`amount` must equal what was paid). Ethereum's receiver also accepts action 4 with zero and ignores `amount` for actions 2–3, but `ibcgov`'s `NewEthSettleRequest` (like gno.land's own settlement) refuses zero for action 4 and requires zero for actions 2–3, so end to end an entirely unpaid refund of a delivered packet is settled by action 2. 5 forged receive: `sequence` is an **inbound** sequence on the retired client whose receive released or minted `amount` (recorded per receive), booked as a loss once; it needs no destination-outcome proof, so it runs even while the replacement verifier is frozen or expired. Each send record is settled at most once. Actions 1–4 require the record's **proven outcome** (below) to match: 1 refundable (proven non-receipt or error ack, or a collision), 2–3 delivered (proven success ack and matching receipt), 4 delivered. Two passes: the first validates and settles every item and restores every action 1 refund's reservation, the second pays them against the batch's complete reservations, so the item order never matters. A kind 12 with an action 1 item of non-zero amount is **deferred** (stays pending) while the route's `refunds` hold stands; one paying nothing is not held. While any incident of the route is unprepared (§7.12) kind 12 pays no refund: the refunds stay parked | 7 d |
-  | 13 reopen | `(string clientId)`, the route's current client: reopen a route closed by kind 10, the emergency recovery or a late loss. Refused while any **retired** client of an unresolved replacement incident still has an open send record (outstanding commitment, or a queued, parked or unpaid refund, not settled by kind 12) or an unsettled record whose ack or timeout was processed at or after its replacement's `suspectFrom`; the live client's records never count. Every recorded loss becomes an **accepted deficit** (Ethereum has no recapitalization decision, §8.5): 16 tokens in the decision, the rest in bounded batches by a permissionless `continueReopen`; the route stays closed until the last batch, which checks the preconditions again and aborts the reopening if a record opened meanwhile. While a route reopens, no kind 12 runs on a client whose incident is reopening and no loss is booked on the route | 7 d |
+  | 13 reopen | `(string clientId)`, which must be the route's **current** client (a retired alias is refused and the decision spent): reopen a route closed by kind 10, the emergency recovery or a late loss. Refused while any **retired** client of an unresolved replacement incident still has an open send record (outstanding commitment, or a queued, parked or unpaid refund, not settled by kind 12) or an unsettled record whose ack or timeout was processed at or after its replacement's `suspectFrom`; the live client's records never count. Every recorded loss becomes an **accepted deficit** (Ethereum has no recapitalization decision, §8.5): 16 tokens in the decision, the rest in bounded batches by a permissionless `continueReopen`; the route stays closed until the last batch, which checks the preconditions again and aborts the reopening if a record opened meanwhile. While a route reopens, no kind 12 runs on a client whose incident is reopening and no loss is booked on the route | 7 d |
 
   **Proven outcomes.** Before kind 12 (or gno.land's settlement) settles a record, anyone submits the destination's
   state for it through the route's **current** (replacement) client — a permissionless `proveOutcome` taking the
@@ -741,7 +745,7 @@ sequenceDiagram
   D->>E: finishSetup(launch): check list + the launch record against the chain
   G->>GNO: create Ethereum client (checkpoint authenticated independently), register counterparty
   G->>GNO: decisions (7 d each): enroll the route, seat guardians, bind governance over the route's original client, set denoms
-  Note over G,E: no route replacement before binding (recover in place, or restart the deployment);<br/>checklist: the bound pair is Ethereum's epoch-1 pair; limits stay zero until IBCAdmin records its first gno decision
+  Note over G,E: no route replacement before binding (recover in place, or restart the deployment);<br/>checklist: the bound pair is Ethereum's epoch-1 pair; ugnot deployed with zero limits,<br/>activated by the kind 4 in activationKind4Params only after IBCAdmin records gno's first decision
   M->>E: audit tool reads every authority back (RoleGranted log); build verification
   G->>GNO: Launch (meters start empty, small caps)
   Note over G,GNO: testing phase: small lock, governor decides with every delay in force
@@ -874,7 +878,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   — and is error-acked otherwise (`GnoEscrowReserved`); vouchers reserve nothing.
 - **Amounts:** a receive or send above 2^96 − 1 is refused (a receive record fits one slot), whatever the limits.
 - **Launch values:** `maxPerMessage = min(25,000, dayCap)`, `dayCap = min(100,000, expectedLock/10)`, refund cap the
-  day cap; deployment overrides may only lower them, and a zero override means "use the default" (not a zero cap,
+  day cap, applied by the activating kind 4 (`activationKind4Params` from the deploy output) after `IBCAdmin`
+  records gno.land's first decision; the deployment itself registers ugnot with zero limits (§5.4). Overrides may only lower them, and a zero override means "use the default" (not a zero cap,
   unlike kind 4, where a zero cap refuses every receive or queues every refund).
 - **What it bounds:** a gno.land validator-key forgery mints at most `level₀ + Δ⁺ + dayCap·t/day` within `t` of the
   forgery (at most two day caps in any 24 hours), each message at most `maxPerMessage`, until a flag lands.
@@ -959,8 +964,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   time**, even if that hold began before the due time, so the decision may execute from day 21 of that hold
   whatever holds stand then; clearing and re-flagging (a new hold) never moves it. Per chain: Ethereum takes the
   anchor from its hold history, so a hold no one observed still counts, pins it on the decision's first held
-  `execute` (which returns without reverting) and lands the change at anchor + 21 days; the hold-history
-  compression is being hardened so it can never yield an anchor earlier than this rule. gno.land uses the hold standing at the
+  `execute` (which returns without reverting) and lands the change at anchor + 21 days; hold-history
+  compression marks merged intervals and never takes an anchor from one, so the anchor is never earlier than this
+  rule, though it can be later. gno.land uses the hold standing at the
   decision's first deferring `Execute`, which records the anchor and emits a `deferred` event instead of
   reverting — which can only make the wait longer. A vacancy (a seat set to no
   key) is a replacement: it waits 7 days and, under a hold, follows the same deadline. On gno.land a vacating change targets
@@ -1215,9 +1221,12 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   client: the client records the time of its latest live transition (`lastTransition`), and the transfer app fixes
   each transition's deadline with the duration in force when it first sees it; a duration change settles the
   deadlines of transitions accepted before it. A started quarantine's deadline is checkpointed before any verifier
-  swap (kind 6 op 2) or route replacement (kind 10), so the new client cannot end it early.
+  swap (kind 6 op 2) or route replacement (kind 10), so the new client cannot end it early. A route replacement
+  (kind 10, the emergency recovery) never depends on the old verifier's `lastTransition()`: if it reverts or is
+  malformed, the deadline becomes `max(saved, now + route quarantine)`, `verifierGen` is still bumped, and the
+  replacement proceeds. A kind 6 swap keeps the strict read.
 - **Fail closed.** A client whose `lastTransition()` is missing or reverts refuses receives and quarantine changes,
-  with two exceptions that do not read it: a receive on a route whose duration and saved deadline are both zero, and
+  except a route replacement (above), and with two further exceptions that do not read it: a receive on a route whose duration and saved deadline are both zero, and
   the route's first quarantine setting (which arms it). Checkpoints and installation require an answer of exactly
   two words (64 bytes); a receive reads it with a typed call, which accepts a longer answer whose first two words
   decode.
@@ -1543,7 +1552,8 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   - **The suspect height** (kind 10's `suspectFrom`, an Ethereum block; the emergency recovery proposal's; gno.land's
     replacement's, a gno.land height) is the **earliest verification operation of the retired client that may have
     been compromised** — an update, or a membership or absence proof checked — considering verifier defects and the
-    implementation versions affected. When that is unknown it is **0**, every ack and timeout the client ever
+    implementation versions affected; on both chains it covers the updates and the proof verifications performed
+    under every affected verifier version. When that is unknown it is **0**, every ack and timeout the client ever
     processed: an authenticated consensus root proves that root genuine, not that every proof checked against it
     was verified correctly, and an independently authenticated newer head says nothing about older stored roots. A
     later boundary is allowed only once operators establish a **safe history prefix** — every consensus state the
@@ -1773,7 +1783,7 @@ same packet: a double spend that receive limits, flags and the quarantine do not
 - **Sender notifications (Ethereum).** A contract sender answering ERC-165 true for `IIBCSenderCallbacks` is
   notified of an error ack or timeout when its refund is paid at once (bounded gas; a failure never rolls the
   refund back); otherwise only the notification's hash is kept and anyone delivers it later
-  (`retryNotification`). Each send record has **one terminal notification**, and **a transport callback already
+  (`retryNotification`). Each send record has **one terminal notification** (a checked invariant, gno-eth-ibc 0a5f2ba), and **a transport callback already
   delivered is final**: when kind 12 later decides the other kind (a delivered forged success, then an action 1
   refund; or a delivered refund notification, then actions 2–4), no second, contradictory callback follows, and the
   reconciliation is reported by the settlement event `GnoSettled(clientId, sequence, action, amount)`, emitted once
@@ -2016,7 +2026,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | controls page size (`PageLines`) | 100 | constant |
 | settlement items per decision | gno.land 64; Ethereum kind 12: 8 (6M inner `settleRecords` budget) | constant |
 | Ethereum execution frame per kind | kind 12: 7M; kinds 7, 9: 3.5M; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording runs in a fixed 1M frame | constant |
-| packet limits (every route) | one payload on an Ethereum route; 262,144 bytes of payload data; send timeout after now and at most 24 h ahead (gno.land also refuses a timeout not after the client's latest consensus time) | constant |
+| packet limits (every route) | one payload on an Ethereum route; 262,144 bytes of payload data, bounded on send and receive on both chains (an oversize receive is refused by gno.land's core before the app, leaving the packet pending; Ethereum error-acks it); send timeout after now and at most 24 h ahead (gno.land also refuses a timeout not after the client's latest consensus time) | constant |
 | kind 13 deficits per decision (Ethereum) | 16 tokens, the rest by `continueReopen` | constant |
 | Ethereum receive / send amount | at most 2^96 − 1 | constant |
 | Ethereum `dayCap`, `refundCap` / quarantine | at most 2^128 − 1 / at most 365 days | kind 4 / kind 11 |
@@ -2432,8 +2442,15 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     blacklist the transfer realm (§7.5, §8.1, §8.5).
   - Ethereum's settlement at the old cap before a cap change is built (§7.1, §7.13).
 - 2026-10-19, the Ethereum guardian anchor is built (gno-eth-ibc 7a53e2b): from hold history, pinned at the first
-  held `execute` (no revert), landing at anchor + 21 days; hold-history compression is being hardened so it never
+  held `execute` (no revert), landing at anchor + 21 days; hold-history compression later made safe so it never
   yields an earlier anchor (§7.4, §9).
+- 2026-10-19, Ethereum round built (gno-eth-ibc 0a5f2ba, cbe98b0): ugnot deployed with zero limits and activated by
+  the kind 4 in `activationKind4Params` after gno.land's first recorded decision (`LAUNCH_ACTIVE` test-network
+  only, refused on chain id 1); route replacement never depends on the old verifier's `lastTransition()`;
+  hold-history compression never yields an anchor from a merged interval; the 262,144-byte transfer payload bound on
+  both chains (Ethereum error-acks an oversize receive); kind 13 names the current client only; one terminal sender
+  notification per packet checked; the suspect boundary covers updates and proofs under every affected verifier
+  version on both chains (§5.4, §6.10, §7.2, §7.4, §7.10, §7.12, §7.13, §9).
 
 ## 15. References
 
