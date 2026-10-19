@@ -5342,6 +5342,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 			}
 		}
 		assertConstWidth(x, &cv)
+		assertConstFinite(x, &cv)
 		cx = &ConstExpr{
 			Source:     x,
 			TypedValue: cv,

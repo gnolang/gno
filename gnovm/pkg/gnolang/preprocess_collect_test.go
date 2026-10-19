@@ -1250,3 +1250,32 @@ func main() { foo.Bar() }
 		t.Fatalf("want %v, got %v", want, msgs)
 	}
 }
+
+func TestPreprocessCollectConstFloatOverflow(t *testing.T) {
+	// A float constant past big.Float's exponent range is an infinity:
+	// rejected where it arises, so no later fold meets it (Inf - Inf).
+	msgs := collectErrors(t, `package main
+
+const a = 1e+500000000
+const b = a * a
+const c = b - b
+const d = a / 1e-500000000
+const e = 1e+700000000
+const f = -a
+
+func main() {}
+`)
+	want := []string{
+		"constant result is not representable",
+		"constant result is not representable",
+		"malformed constant: 1e+700000000",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Fatalf("got %v, want %v", msgs, want)
+		}
+	}
+}
