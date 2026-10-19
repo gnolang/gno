@@ -14,6 +14,6 @@ const B = C - 1 // ERROR "constant definition loop\n.*B uses C\n.*C uses B|initi
 const C = A + B + 1
 
 // GnoError:
-// line 12: invalid recursive value: A -> B -> C -> A
+// line 12: initialization cycle: A refers to B refers to C refers to A
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13
