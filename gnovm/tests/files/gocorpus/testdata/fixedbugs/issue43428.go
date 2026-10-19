@@ -32,4 +32,4 @@ var _ = []int{
 // line 22: cannot use func(time.Time) ([]uint8, .uverse.error) as int
 // line 23: cannot use func(*time.Time, []uint8) .uverse.error as int
 
-// Verdict: KnownIssue errorcheck: #6344 on-chain path first error on line 16, not reported by accumulate mode
+// Verdict: Clean errorcheck
