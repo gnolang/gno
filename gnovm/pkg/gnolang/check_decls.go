@@ -89,3 +89,31 @@ func assertStructLiteralCount(n *CompositeLitExpr, st *StructType, lt Type) {
 		panic(fmt.Sprintf("too many values in struct literal of type %v", lt))
 	}
 }
+
+// assertNotImported: a package-level declaration may not take the name an
+// import gives any file of the package (go/types: DuplicateDecl, reported
+// at the declaration). Charged per file.
+func assertNotImported(store Store, last BlockNode, nx *NameExpr) {
+	if nx.Name == blankIdentifier {
+		return
+	}
+	pn, ok := skipFile(last).(*PackageNode)
+	if !ok || pn.FileSet == nil {
+		return
+	}
+	chargeCPUGas(preprocessGasMeterOf(store), OpCPUSlopeCheckNode*int64(len(pn.FileSet.Files)))
+	for _, fn := range pn.FileSet.Files {
+		idx, exists := fn.GetLocalIndex(nx.Name)
+		if !exists {
+			continue
+		}
+		if src := fn.GetStaticBlock().NameSources[idx]; src.Type == NSImportDecl {
+			path := src.Origin.(*ImportDecl).PkgPath
+			pkg, ok := expectedPkgName(path)
+			if !ok {
+				pkg = path
+			}
+			panicAt(fmt.Sprintf("%s already declared through import of package %s (%q)", nx.Name, pkg, path), nx)
+		}
+	}
+}

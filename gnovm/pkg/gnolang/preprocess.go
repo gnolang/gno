@@ -6535,6 +6535,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		if isBlankIdentifier(d.Type) {
 			panic("cannot use _ as value or type")
 		}
+		for i := range d.NameExprs {
+			assertNotImported(store, last, &d.NameExprs[i])
+		}
 		isalias := false                                                                   // a value decl can't be.
 		un, directR = findUndefinedT(store, last, d.Type, stack, defining, isalias, false) // XXX
 		if un != "" {
@@ -6563,6 +6566,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		if d.Name == blankIdentifier {
 			return
 		}
+		assertNotImported(store, last, &d.NameExpr)
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		if !isLocallyDefined(last2, d.Name) {
@@ -6662,6 +6666,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		}
 		// END *TypeDecl
 	case *FuncDecl:
+		if !d.IsMethod {
+			assertNotImported(store, last, &d.NameExpr)
+		}
 		un, directR = findUndefinedT(store, last, &d.Type, stack, defining, false, false)
 		if un != "" {
 			untype = true

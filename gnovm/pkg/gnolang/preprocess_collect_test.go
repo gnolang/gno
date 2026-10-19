@@ -1493,3 +1493,83 @@ func main() {
 		}
 	}
 }
+
+// collectErrorsFiles is collectErrors over several files of one package,
+// with an empty package "foo" in the store for them to import.
+func collectErrorsFiles(t *testing.T, srcs ...string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fpn := NewPackageNode("foo", "foo", &FileSet{})
+	m.Store.SetBlockNode(fpn)
+	m.Store.SetCachePackage(fpn.NewPackage(m.Alloc))
+	fset := &FileSet{}
+	for i, src := range srcs {
+		fn, err := m.ParseFile(fmt.Sprintf("f%d.gno", i), src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset.Files = append(fset.Files, fn)
+	}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectImportName(t *testing.T) {
+	// Spans are the declarations' name spans as Go2Gno sets them; the
+	// line is what matters.
+	check := func(t *testing.T, msgs []string, want map[string]string) {
+		t.Helper()
+		if len(msgs) != len(want) {
+			t.Fatalf("want %d errors, got %d: %q", len(want), len(msgs), msgs)
+		}
+		for _, m := range msgs {
+			loc, msg, _ := strings.Cut(m, ": ")
+			line := strings.Split(loc, ":")[1]
+			if want[line] != msg {
+				t.Errorf("line %s: want %q, got %q", line, want[line], msg)
+			}
+		}
+	}
+	t.Run("declaration after import", func(t *testing.T) {
+		msgs := collectErrorsFiles(t, `package main
+
+import "foo"
+import bar "foo"
+import baz "foo"
+import qux "foo"
+
+var foo int
+
+type bar struct{}
+
+func baz() {}
+
+const qux = 1
+
+func main() {}
+`)
+		check(t, msgs, map[string]string{
+			"8":  `foo already declared through import of package foo ("foo")`,
+			"10": `bar already declared through import of package foo ("foo")`,
+			"12": `baz already declared through import of package foo ("foo")`,
+			"14": `qux already declared through import of package foo ("foo")`,
+		})
+	})
+	t.Run("import after a declaration in another file", func(t *testing.T) {
+		msgs := collectErrorsFiles(t, "package main\n\nvar foo int\n\nfunc main() {}\n",
+			"package main\n\nimport \"foo\"\n")
+		check(t, msgs, map[string]string{"3": `foo already declared through import of package foo ("foo")`})
+	})
+	t.Run("a name declared in another file is not a clash", func(t *testing.T) {
+		msgs := collectErrorsFiles(t, "package main\n\nimport \"foo\"\n\nfunc main() {}\n",
+			"package main\n\nvar bar int\n")
+		if len(msgs) != 0 {
+			t.Fatalf("want no error, got %q", msgs)
+		}
+	})
+}
