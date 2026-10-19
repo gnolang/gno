@@ -127,7 +127,7 @@ if (devmodeToggle) {
 // ---- toc_toggle: native <details> toggle event does NOT bubble; attach
 // directly to each accordion present at load time.
 document
-	.querySelectorAll<HTMLDetailsElement>("details.accordion")
+	.querySelectorAll<HTMLDetailsElement>("details.b-accordion")
 	.forEach((d) => {
 		d.addEventListener("toggle", () => {
 			fire("toc_toggle", { open: d.open });

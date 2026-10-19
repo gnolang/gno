@@ -5,7 +5,9 @@ on:
   push:
     branches: [ main, master ]
   pull_request:
-    branches: [ main, master ]
+    # chain/*: a chain release is cut from commits cherry-picked onto its
+    # branch; a pull request into it runs this suite on that exact tree.
+    branches: [ main, master, "chain/*" ]
     paths:
       - .github/workflows/ci-e2e.yml
       - misc/e2e/**

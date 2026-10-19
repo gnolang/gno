@@ -8,7 +8,7 @@ For IDE / LSP support, see [Editor setup](./editor-setup.md).
 
 ## One-line installer
 
-Install precompiled `gno`, `gnokey`, `gnodev`, `gnobro`, and `gnoweb`
+Install precompiled `gno`, `gnokey`, `gnodev`, and `gnoweb`
 (Linux/macOS, amd64/arm64) from [GitHub Releases](https://github.com/gnolang/gno/releases)
 into `~/.gno/bin`:
 
@@ -70,7 +70,7 @@ You can also install individual tools:
 make install.gno                 # Only gno
 make install.gnokey              # Only gnokey
 make install.gnodev              # Only gnodev
-make install.gnobro              # Only gnobro
+make install.gnobro              # Only gnobro (not among the installer's precompiled binaries)
 make -C gno.land install.gnoweb  # Only gnoweb
 ```
 
@@ -88,7 +88,7 @@ without installing from source:
 docker run -it ghcr.io/gnolang/gno/gnokey:latest --help
 
 # Run a gnoland node: always an explicit version, never `latest`
-docker run -it ghcr.io/gnolang/gno/gnoland:v1.5.0 start
+docker run -it ghcr.io/gnolang/gno/gnoland:v1.5.1 start
 ```
 
 `gnoland` has no `latest` tag on purpose: the version a network runs changes

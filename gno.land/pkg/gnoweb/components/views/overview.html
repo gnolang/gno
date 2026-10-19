@@ -6,16 +6,25 @@ LAYOUT - Overview
 <aside class="b-sidebar sidebar" aria-label="Package metadata and table of contents">
   <div>
     <div class="inner u-no-scrollbar c-stack">
+      {{/* Metadata stays outside the collapse: it identifies the package, and
+           below --lg the toggle's target is hidden, so folding it in would
+           leave a phone with nothing but a button. The toggle owns the index
+           alone, which is why it can be named for it. */}}
       {{ template "ui/pkg_meta" . }}
       {{ template "ui/pkg_metadata" . }}
       {{ template "ui/expend_label" "Package Index" }}
-      {{ with render .ComponentTOC }}<nav class="b-pkg-toc" aria-label="Package index">{{ . }}</nav>{{ end }}
+      {{ with render .ComponentTOC }}
+      <nav aria-labelledby="pkg-index-heading">
+        <h2 id="pkg-index-heading" class="b-sidebar-heading">Package Index</h2>
+        <div class="b-pkg-toc">{{ . }}</div>
+      </nav>
+      {{ end }}
     </div>
   </div>
 </aside>
 
 <!-- Overview Header -->
-<header class="b-content-header">
+<header id="main-content" tabindex="-1" class="b-content-header">
   <h1 class="title b-content-h1">
     <span>{{ .Title }} source</span>
     <span class="b-tag b-tag--type">{{ .Info.PackageType }}</span>
@@ -36,7 +45,7 @@ UI - Package metadata (sidebar card)
 =================================================================================== */}}
 {{ define "ui/pkg_meta" }}
 <dl class="b-pkg-meta" aria-label="Package info">
-  <dt class="section">Package Info</dt>
+  <dt class="section b-sidebar-heading">Package Info</dt>
   <div class="row"><dt class="label" title="The namespace this package is published under, taken from its path.">Namespace</dt><dd class="value">{{ .Info.Namespace }}</dd></div>
   <div class="row mono"><dt class="label" title="The on-chain import path of this package.">Path</dt><dd class="value">{{ .Info.PackagePath }}</dd></div>
   <div class="row"><dt class="label" title="A realm keeps state on chain; a pure package is a stateless library.">Type</dt><dd class="value">{{ .Info.PackageType }}</dd></div>
@@ -45,7 +54,7 @@ UI - Package metadata (sidebar card)
   {{ with .Info.Creator }}<div class="row"><dt class="label" title="The account that deployed this package.">Creator</dt><dd class="value"><a href="/u/{{ . }}" title="{{ . }}">{{ truncMiddle . 6 }}</a></dd></div>{{ end }}
   {{ if .Info.Creator }}<div class="row"><dt class="label" title="The block height at which this package was deployed.">Block</dt><dd class="value">{{ .Info.Height }}</dd></div>{{ end }}
 
-  <dt class="section">Code stats</dt>
+  <dt class="section b-sidebar-heading">Code stats</dt>
   <div class="row"><dt class="label" title="Every file in the package, including tests and configuration.">Files</dt><dd class="value">{{ .Stats.FileCount }}</dd></div>
   <div class="row"><dt class="label" title="Files with a .gno extension, tests included.">.gno files</dt><dd class="value">{{ .Stats.GnoFileCount }}</dd></div>
   <div class="row"><dt class="label" title="Files whose name ends in _test.gno or _filetest.gno.">Tests</dt><dd class="value">{{ .Stats.TestCount }}</dd></div>
@@ -64,7 +73,7 @@ UI - Package quality (sidebar card)
 =================================================================================== */}}
 {{ define "ui/pkg_metadata" }}
 <section class="b-pkg-metadata" aria-label="Package metadata">
-  <h3 class="b-pkg-meta-heading">Metadata</h3>
+  <h2 class="b-sidebar-heading">Metadata</h2>
   <ul>
     {{/* Status from gnomod: published|draft + public|private */}}
     {{ if .Info.Draft }}<li class="b-tag b-tag--draft" title="Marked draft in gnomod.toml: the author considers it not production-ready. Only genesis can deploy it, and no package added later may import it.">draft</li>{{ else }}<li class="b-tag b-tag--published" title="Not marked draft in gnomod.toml.">published</li>{{ end }}
@@ -90,14 +99,14 @@ UI - Section nav: sticky anchor links (with count pills) + client-side symbol se
 =================================================================================== */}}
 {{ define "ui/pkg_nav" }}
 <nav class="b-pkg-subheader" aria-label="Package sections" data-controller="observer">
-  <div class="packages-tabs">
+  <div class="b-packages-tabs">
     {{/* Grouped jumps (Readme+Overview, Consts+Vars) keep the bar from overflowing;
          the sidebar Package Index still lists each section separately. */}}
     {{ if .Readme }}<a href="#readme">Overview</a>{{ else if or .PackageDoc .Bugs }}<a href="#overview">Overview</a>{{ end }}
     {{ if or .Consts .Vars }}<a href="#{{ if .Consts }}constants{{ else }}variables{{ end }}">Values <span class="b-tag--tertiary">{{ add (len .Consts) (len .Vars) }}</span></a>{{ end }}
     {{ with .Funcs }}<a href="#functions">Funcs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
     {{ with .Types }}<a href="#types">Types <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
-    {{ with .Imports }}<a href="#imports">Imports <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
+    {{ if .Graph.Shown }}<a href="#imports">Dependencies <span class="b-tag--tertiary">{{ len .Graph.Imports }}</span></a>{{ end }}
     <a href="#files">Files <span class="b-tag--tertiary">{{ len .Files }}</span></a>
     {{ with .Subpackages }}<a href="#subpackages">Subdirs <span class="b-tag--tertiary">{{ len . }}</span></a>{{ end }}
   </div>
@@ -205,30 +214,13 @@ UI - Overview body
 </section>
 {{ end }}
 
-{{/* --- Imports --- */}}
-{{ with .Imports }}
+{{/* --- Dependencies --- */}}
+{{ if .Graph.Shown }}
 <section class="b-pkg-section" id="imports">
   <h2 class="b-pkg-section__header">
-    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Imports</span></span>
-    <span class="count">{{ len . }}</span>
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-ddl"></use></svg><span>Dependencies</span></span>
   </h2>
-  <ul class="b-pkg-list b-pkg-section__body">
-    {{ range . }}
-    <li class="b-pkg-list__item">
-      {{ if .Link }}
-      <a href="{{ .Link }}" class="b-pkg-list__link"{{ if .External }} rel="noopener noreferrer" title="External link"{{ end }}>
-        <span class="c-with-icon u-font-mono">{{ .Path }}{{ if .External }}<svg class="c-icon b-pkg-list__outbound" aria-hidden="true"><use href="#ico-external-link"></use></svg>{{ end }}</span>
-        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
-      </a>
-      {{ else }}
-      <span class="b-pkg-list__link b-pkg-list__link--disabled">
-        <span class="u-font-mono">{{ .Path }}</span>
-        <span class="b-tag b-tag--kind">{{ .Kind }}</span>
-      </span>
-      {{ end }}
-    </li>
-    {{ end }}
-  </ul>
+  <div class="b-pkg-section__body">{{ template "ui/pkg_graph" .Graph }}</div>
 </section>
 {{ end }}
 

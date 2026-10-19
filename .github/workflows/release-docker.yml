@@ -6,15 +6,19 @@ name: release / docker
 # halt_min_version and which operators nevertheless pulled; and a chain/<name>
 # launch tag would recreate that name for an image reporting a different
 # version. A runnable node image is always a vX.Y.Z tag (RELEASING.md).
+#
+# Tag pushes only, with no manual trigger, and a published release is never
+# replaced (RELEASING.md, "Cutting a release").
 on:
   push:
     tags:
       - v*
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Tag to build (e.g. v1.3.0)"
-        required: true
+
+concurrency:
+  # One run per tag at a time. GitHub can start two runs for a single tag
+  # push, and two concurrent runs both pass the registry check below before
+  # either pushes; serialized, the second meets the version tag and refuses.
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: read
@@ -22,6 +26,9 @@ permissions:
 jobs:
   bake:
     strategy:
+      # Every image runs to its end: a failing leg must not cancel a sibling
+      # between its push and its signature.
+      fail-fast: false
       matrix:
         # `latest` only for the CLI tools: a node image that moves by itself
         # breaks coordinated upgrades (RELEASING.md, "Container images").
@@ -39,29 +46,18 @@ jobs:
       contents: read
       actions: write # kept in case type=gha is re-enabled; not required by type=registry
       packages: write # to push images to ghcr.io
+      id-token: write # to sign the images (keyless, sigstore)
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
+          # Every tag, for the ordering below; blob:none keeps that cheap.
           fetch-depth: 0
+          filter: blob:none
 
-      - name: Compute build version
-        id: build_version
+      - name: Decide whether this is the highest release
+        id: release_order
         run: |
-          # Prefer the release tag: a launch commit carries both chain/<name>
-          # and v<X.Y.Z>, and only the latter is a version the node can order.
-          # The branch fallback deliberately produces something unparseable —
-          # a branch build must not satisfy an upgrade gate.
-          BRANCH=$(git branch --show-current)
-          V=$(git describe --tags --exact-match --match 'v*' 2>/dev/null \
-              || git describe --tags --exact-match 2>/dev/null \
-              || echo "${BRANCH:-HEAD}.$(git rev-list --count HEAD)+$(git rev-parse --short HEAD)")
-          echo "version=$V" >> "$GITHUB_OUTPUT"
-          # The sha of what is built. docker/metadata-action's type=sha would
-          # label the image with the event's sha instead, which on a dispatch
-          # is the default branch's tip, not the tag being built.
-          echo "short_sha=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
           # `latest` may only move forward. Gate it on being the highest final
           # v* tag, not merely a final one: a backport cut after a newer line
           # must not re-point latest at the older line.
@@ -78,21 +74,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      - name: Resolve image tag
-        id: resolve_tag
-        run: |
-          INPUT="${INPUTS_TAG}"
-          if [ -n "$INPUT" ]; then
-            # chain/gnolang1.2 → chain-gnolang1.2
-            echo "tag=${INPUT/\//-}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          INPUTS_TAG: ${{ inputs.tag }}
-
-      # Tags: the git tag itself, the dispatch input, the built commit's sha,
-      # and `latest` for the images the matrix marks, only when this tag is the
+      # Tags: the git tag itself (never the commit: a final release shares its
+      # last candidate's commit, so a commit tag would move between them), and
+      # `latest` for the images the matrix marks, only when this tag is the
       # highest final release. The action's own default adds `latest` to every
       # tag build, gnoland included, so it is turned off and the raw rule below
       # is the only `latest` published. See RELEASING.md, "Container images".
@@ -103,18 +87,60 @@ jobs:
           images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
           tags: |
             type=ref,event=tag
-            type=raw,value=${{ steps.resolve_tag.outputs.tag }},enable=${{ inputs.tag != '' }}
-            type=raw,value=sha-${{ steps.build_version.outputs.short_sha }}
-            type=raw,value=latest,enable=${{ matrix.latest && steps.build_version.outputs.is_highest == 'true' }}
+            type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}
           flavor: |
             latest=false
           labels: |
             org.opencontainers.image.authors=Gno Core Team
 
+      # A published image tag is never re-pushed: its digest is what the upgrade
+      # ledgers record (RELEASING.md, "Cutting a release"). Asked of the
+      # registry by HTTP status rather than by parsing a tool's message: 404 is
+      # the only answer that lets the build go on.
+      - name: Refuse a published image tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}/${{ matrix.image }}
+          # The tag bake pushes: the git tag, with what a registry tag cannot
+          # hold replaced by metadata-action.
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          [ -n "${VERSION}" ] || { echo "::error::metadata-action gave no version to check"; exit 1; }
+          # Authenticated, so a package never pushed before answers 404 instead
+          # of refusing an anonymous token. Credentials go through curl's
+          # config on stdin, not its argument list.
+          token="$(printf 'user = "%s:%s"\n' "${GITHUB_REPOSITORY_OWNER}" "${GH_TOKEN}" \
+            | curl -fsS -K - "https://ghcr.io/token?scope=repository:${REPO}:pull" | jq -er .token)" \
+            || { echo "::error::cannot get a token to read ghcr.io/${REPO}"; exit 1; }
+          code="$(printf 'header = "Authorization: Bearer %s"\n' "${token}" \
+            | curl -sS -K - -o /dev/null -w '%{http_code}' -I \
+              -H "Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json" \
+              "https://ghcr.io/v2/${REPO}/manifests/${VERSION}")"
+          case "${code}" in
+          404) echo "ghcr.io/${REPO}:${VERSION} is not published yet" ;;
+          200)
+            echo "::error::ghcr.io/${REPO}:${VERSION} is already published, and a published image tag is never re-pushed (RELEASING.md, \"Cutting a release\")"
+            exit 1
+            ;;
+          *)
+            echo "::error::cannot tell whether ghcr.io/${REPO}:${VERSION} is published: HTTP ${code}"
+            exit 1
+            ;;
+          esac
+
+      # Installed before anything is pushed: an installer failure after the push
+      # would leave published images with no signature.
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
       - name: Bake build and push
+        id: bake
         uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
         env:
-          BUILD_VERSION: ${{ steps.build_version.outputs.version }}
+          # The tag that triggered the run, verbatim, never a version derived
+          # from the checkout: a final release shares its last candidate's
+          # commit. Pinned by gno.land/pkg/gnoland.TestReleaseToolingMatchesTheParser.
+          BUILD_VERSION: ${{ github.ref_name }}
         with:
           source: . # use checked-out code, not git URL at GITHUB_SHA
           files: |
@@ -127,7 +153,40 @@ jobs:
           # entries are global (not scoped). When matrix jobs export concurrently,
           # they race on the shared blob namespace, corrupting each other's cache.
           # type=registry gives each image a fully independent OCI cache manifest.
+          # ignore-error: the cache only saves build time, and a failed export
+          # would otherwise fail a run whose image is pushed but not yet signed.
           set: |
             *.cache-from=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }}
-            *.cache-to=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }},mode=max
+            *.cache-to=type=registry,ref=ghcr.io/${{ github.repository }}/cache:${{ matrix.image }},mode=max,ignore-error=true
             *.context=.
+
+      # Keyless signature on the pushed image, by digest, so `cosign verify`
+      # can tie ghcr.io/gnolang/gno/<tool>:vX.Y.Z to this workflow and tag
+      # (RELEASING.md, "Signing and provenance"). --recursive signs every
+      # manifest in the multi-arch index as well as the index itself: each
+      # platform image, and the attestation manifest buildx adds for each
+      # platform, which carries both its provenance and its SBOM. A host
+      # pulls the manifest for its platform, and a check made against that
+      # digest finds no signature on the index alone.
+      - name: Sign the image
+        timeout-minutes: 30
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+          DIGEST: ${{ fromJSON(steps.bake.outputs.metadata)[matrix.image]['containerimage.digest'] }}
+        run: |
+          [ -n "${DIGEST}" ] || { echo "::error::bake reported no digest for ${IMAGE}"; exit 1; }
+          # The image is pushed by now and its tag is never pushed again, so a
+          # Sigstore or registry outage must not end the job: five attempts of
+          # at most three minutes each, ten minutes of pauses between them, 25
+          # minutes in all, inside the step's 30. Signing again is additive.
+          for attempt in 1 2 3 4 5; do
+            if cosign sign --yes --recursive --timeout 3m "${IMAGE}@${DIGEST}"; then
+              exit 0
+            fi
+            if [ "${attempt}" -lt 5 ]; then
+              echo "::warning::cosign sign failed (attempt ${attempt} of 5); retrying in $((attempt * 60))s"
+              sleep $((attempt * 60))
+            fi
+          done
+          echo "::error::${IMAGE}@${DIGEST} is pushed but could not be signed"
+          exit 1
