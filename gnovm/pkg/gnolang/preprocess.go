@@ -873,8 +873,11 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 // names it declares are poisoned, so "not declared" follow-ons about them
 // are not reported (go/types' invalid-object suppression).
 type preprocessAccumulator struct {
-	errs       []*PreprocessError
-	poisoned   map[Name]bool // declared by a dropped statement
+	errs     []*PreprocessError
+	poisoned map[Name]bool // declared by a dropped statement
+	// referenced is keyed by bare name, package-wide: a dropped statement
+	// mentioning x hides "declared and not used: x" in every function.
+	// Over-suppression; an unused report is never a false positive.
 	referenced map[Name]bool // mentioned inside a dropped statement
 }
 
@@ -1442,8 +1445,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// the type and receiver are already set in predefineRecursively.
 				ft := getType(&n.Type).(*FuncType)
 				if !n.IsMethod && strings.HasPrefix(string(n.Name), "init.") {
+					// The only parameter allowed is the crossing one, `cur realm`.
 					if len(n.Type.Results) > 0 ||
-						(len(n.Type.Params) > 0 && !(len(n.Type.Params) == 1 && n.Type.Params[0].Name == "cur")) {
+						(len(n.Type.Params) > 0 && !(len(n.Type.Params) == 1 && ft.IsCrossing())) {
 						panic("func init must have no arguments and no return values")
 					}
 				}
@@ -3391,20 +3395,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *FuncDecl:
 				// Unused locals and labels, once the body has its paths.
-				if n.Body != nil && len(stack) >= 2 {
-					for _, u := range checkUnused(preprocessGasMeterOf(store), stack[len(stack)-2], n) {
-						if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
-							continue // a dropped statement declared or mentioned it
-						}
-						loc := last.GetLocation()
-						loc.SetSpanOverride(u.span)
-						pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg), stack: stack}
-						if acc == nil {
-							panic(pe)
-						}
-						acc.report(pe)
-					}
+				if n.Body != nil {
+					reportUnused(store, acc, stack, n)
 				}
+
+			// TRANS_LEAVE -----------------------
+			case *FuncLitExpr:
+				// A package-level literal (`var f = func() {...}`) has no
+				// FuncDecl to walk it; one nested in a function is walked
+				// by that function's check.
+				if !enclosedByFunc(stack[:len(stack)-1]) {
+					reportUnused(store, acc, stack, n)
+				}
+
 			case *IncDecStmt:
 				n.AssertCompatible(store, last)
 
@@ -6258,7 +6261,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				for _, f := range st.Fields {
 					if f.Name == d.Name {
 						packageOf(last).StaticBlock.revertToOld()
-						panic(fmt.Sprintf("type %s has both field and method named %s", dt.Name, d.Name))
+						panic(fmt.Sprintf("field and method with the same name %s", d.Name))
 					}
 				}
 			}
@@ -6839,12 +6842,12 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 // checkShortVarDecl enforces the two rules of `:=` the resolver does not
 // see after name resolution: no name twice on the left, and at least one
 // new variable in the current Go scope. Gno folds a control statement's
-// header (range variables, `for`/`if`/`switch` init, the type-switch
-// variable, a select case's receive) into the same block as its body,
-// where Go opens a new scope, so a name that header declared may be
-// shadowed; a name declared by a sibling statement or a parameter may
-// not. initStaticBlocks reserved the names on behalf of this statement,
-// so "new" also means reserved by this very node.
+// header (range variables, `for`/`if`/`switch` init) into the same block
+// as its body, where Go opens a new scope, so a name that header declared
+// may be shadowed; a name declared by a sibling statement, a parameter,
+// the type-switch guard or a select case's receive (Go declares those in
+// the clause's own block) may not. initStaticBlocks reserved the names on
+// behalf of this statement, so "new" also means reserved by this very node.
 func checkShortVarDecl(ns []Node, last BlockNode, n *AssignStmt) {
 	seen := map[Name]bool{}
 	anyNew := false
@@ -6870,11 +6873,44 @@ func checkShortVarDecl(ns []Node, last BlockNode, n *AssignStmt) {
 	}
 }
 
+// reportUnused runs checkUnused over fn, the function node on top of
+// stack, and raises each unused name: the first panics on chain, all are
+// reported in accumulate mode (minus names a dropped statement declared
+// or mentioned, which the walk could never see used).
+func reportUnused(store Store, acc *preprocessAccumulator, stack []BlockNode, fn BlockNode) {
+	if len(stack) < 2 {
+		return
+	}
+	for _, u := range checkUnused(preprocessGasMeterOf(store), stack[len(stack)-2], fn) {
+		if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
+			continue
+		}
+		loc := fn.GetLocation()
+		loc.SetSpanOverride(u.span)
+		pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg), stack: stack}
+		if acc == nil {
+			panic(pe)
+		}
+		acc.report(pe)
+	}
+}
+
+// enclosedByFunc reports whether stack holds a function node.
+func enclosedByFunc(stack []BlockNode) bool {
+	for _, bn := range stack {
+		switch bn.(type) {
+		case *FuncDecl, *FuncLitExpr:
+			return true
+		}
+	}
+	return false
+}
+
 // declaredByHeader reports whether src was declared by the header of the
 // control statement whose body last holds (see checkShortVarDecl).
 func declaredByHeader(ns []Node, last BlockNode, src *NameSource) bool {
 	switch src.Type {
-	case NSRangeKey, NSRangeValue, NSTypeSwitch:
+	case NSRangeKey, NSRangeValue:
 		return true
 	}
 	parentOf := func(bn BlockNode) Node {
@@ -6896,8 +6932,6 @@ func declaredByHeader(ns []Node, last BlockNode, src *NameSource) bool {
 		if p, ok := parentOf(b).(*SwitchStmt); ok {
 			return p.Init != nil && src.Origin == p.Init
 		}
-	case *SelectCaseStmt:
-		return src.Origin == b.Comm
 	}
 	return false
 }

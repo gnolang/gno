@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -173,20 +174,128 @@ L2:
 
 func main() { f() }
 `)
-	want := []string{"declared and not used: x", "declared and not used: y", "label L2 defined and not used", "declared and not used: t"}
-	for _, w := range want {
-		found := false
-		for _, m := range msgs {
-			if strings.Contains(m, w) {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("missing %q in %v", w, msgs)
+	// Source order, as gc reports them; the guard variable in gc's spelling.
+	want := []string{"declared and not used: x", "declared and not used: y", "label L2 defined and not used", "t declared and not used"}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.HasSuffix(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q (all: %v)", i, w, msgs[i], msgs)
 		}
 	}
+}
+
+func TestPreprocessCollectUnusedOrder(t *testing.T) {
+	// Reported in source order whatever the block nesting: the inner x
+	// before the outer y, the labels where they stand. Checked many times
+	// in one process so no map order can reach the text or the first error.
+	src := `package main
+
+func main() {
+L1:
+	for {
+		break
+	}
+	if true {
+		x := 1
+	}
+L2:
+	for {
+		break
+	}
+	y := 2
+L3:
+	for {
+		break
+	}
+}
+`
+	want := "label L1 defined and not used|declared and not used: x|label L2 defined and not used|declared and not used: y|label L3 defined and not used"
+	for i := 0; i < 100; i++ {
+		if got := strings.Join(collectErrors(t, src), "|"); got != want {
+			t.Fatalf("iteration %d:\n got %s\nwant %s", i, got, want)
+		}
+	}
+	// The on-chain path panics with the first one.
+	for i := 0; i < 100; i++ {
+		m := NewMachine("main", nil)
+		fn, err := m.ParseFile("main.gno", src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("main", "main", fset)
+		got := func() (s string) {
+			defer func() { s = fmt.Sprint(recover()) }()
+			PredefineFileSet(m.Store, pn, fset)
+			Preprocess(m.Store, pn, fn)
+			return "no error"
+		}()
+		m.Release()
+		if !strings.Contains(got, "main.gno:5:2-7:3: label L1 defined and not used") {
+			t.Fatalf("iteration %d: first error %q", i, got)
+		}
+	}
+}
+
+func TestPreprocessCollectUnusedFuncLit(t *testing.T) {
+	// A package-level function literal has no FuncDecl; its body and its
+	// nested literals are checked once.
+	msgs := collectErrors(t, `package main
+
+var f = func() {
+	q := 1
+	g := func() {
+		r := 2
+	}
+	g()
+}
+
+var _ = func() int {
+L:
+	s := 3
+	return 0
+}()
+
+func main() { f() }
+`)
+	want := []string{"declared and not used: q", "declared and not used: r", "label L defined and not used", "declared and not used: s"}
 	if len(msgs) != len(want) {
-		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.HasSuffix(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectInitSignature(t *testing.T) {
+	for _, tc := range []struct {
+		pkgPath, src, want string
+	}{
+		{"gno.land/r/test", "func init(cur realm) {}", ""},
+		{"gno.land/r/test", "func init(cur int) {}", "func init must have no arguments and no return values"},
+		{"gno.land/r/test", "func init() int { return 0 }", "func init must have no arguments and no return values"},
+	} {
+		m := NewMachine("test", nil)
+		fn, err := m.ParseFile("test.gno", "package test\n\n"+tc.src+"\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("test", tc.pkgPath, fset)
+		errs := PreprocessFilesCollect(m.Store, pn, fset)
+		m.Release()
+		var msgs []string
+		for _, e := range errs {
+			msgs = append(msgs, e.Unwrap().Error())
+		}
+		got := strings.Join(msgs, "|")
+		if tc.want == "" && got != "" || tc.want != "" && !strings.Contains(got, tc.want) {
+			t.Errorf("%s: want %q, got %q", tc.src, tc.want, got)
+		}
 	}
 }
 
@@ -212,11 +321,18 @@ func f(p int) {
 	for a, a := range []int{1} { // ERROR repeated
 		_ = a
 	}
+	var e any = 1
+	switch t := e.(type) { // the guard lives in each clause's block
+	case int:
+		t := 3 // ERROR no new variables
+		_ = t
+	}
 }
 
 func main() { f(0) }
 `)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "a repeated on left side of :=") {
+	if len(msgs) != 2 || !strings.Contains(msgs[0], "a repeated on left side of :=") ||
+		!strings.Contains(msgs[1], "no new variables on left side of :=") {
 		t.Fatalf("unexpected: %v", msgs)
 	}
 }
