@@ -161,7 +161,7 @@ func TestFirstPreprocessErrorDoesNotExecute(t *testing.T) {
 func TestErrorcheckVerifyDemandsOneVerdict(t *testing.T) {
 	opts, m := errorcheckMachine(t, io.Discard)
 	m.Release()
-	src := "package p\n\nvar x = undeclared // ERROR \"undeclared\"\n\n// GnoError:\n// line 3: name undeclared not defined in fileset with files [canary.go]\n\n// Verdict: Clean errorcheck\n"
+	src := "package p\n\nvar x = undeclared // ERROR \"undeclared\"\n\n// GnoError:\n// line 3: name not defined: undeclared\n\n// Verdict: Clean errorcheck\n"
 	if _, _, _, err := opts.RunFiletest("canary.go", []byte(src), opts.TestStore); err != nil {
 		t.Fatalf("one verdict: %v", err)
 	}
