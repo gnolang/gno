@@ -552,3 +552,13 @@ func main() {}
 		t.Fatalf("no package clause: want nil node and an error, got %v, %v", fn != nil, perrs)
 	}
 }
+
+func TestPreprocessCollectMainSignature(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+func main(int) {}
+`)
+	if len(msgs) != 1 || msgs[0] != "func main must have no arguments and no return values" {
+		t.Fatalf("got %v", msgs)
+	}
+}
