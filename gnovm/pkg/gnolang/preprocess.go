@@ -2991,7 +2991,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
 				if n.Type == nil {
-					panic("should not happen")
+					// x.(type) is only a type switch guard; the parser
+					// accepts it anywhere (go/types reports it here too).
+					panic("use of .(type) outside type switch")
 				}
 
 				// Type assertions on the blank identifier are illegal.

@@ -840,3 +840,24 @@ func f(e interface{}) {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectTypeGuardOutsideSwitch(t *testing.T) {
+	// x.(type) parses anywhere; outside a type switch header it is an
+	// error, not a VM failure, also when parenthesised as a switch tag.
+	msgs := collectErrorsRaw(t, `package main
+func f(i interface{}) {
+	if x, ok := i.(type); ok {
+		_ = x
+	}
+	switch (i.(type)) {
+	}
+}
+`)
+	want := []string{
+		"main/main.gno:3:14-22: use of .(type) outside type switch",
+		"main/main.gno:6:10-18: use of .(type) outside type switch",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
