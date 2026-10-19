@@ -12,6 +12,7 @@ func main() {
 		z	// GCCGO_ERROR "undefined"
 
 // GnoError:
+// line 10: name x not declared
 // line 11: expected operand, found '{'
 // line 12: expected ';', found 'EOF'
 

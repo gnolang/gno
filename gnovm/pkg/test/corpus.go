@@ -82,6 +82,7 @@ func HasInlineErrorMarkers(source []byte) bool {
 // line and ends at `*/`.
 var markerTags = []string{
 	"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// ERRORx ",
+	"// GCCGO_ERROR ", "// GCCGO_ERROR\t",
 	"/* ERROR ", "/* ERRORx ",
 }
 
@@ -576,7 +577,7 @@ type InlineError struct {
 	// go/types attributes such a marker to the previous line's last
 	// token, which the harness (line-based) cannot follow.
 	LineLeading bool
-	// GcOnly marks a `// GC_ERROR` marker: a gc-implementation-specific
+	// GcOnly marks a `// GC_ERROR` or `// GCCGO_ERROR` marker: a compiler-specific
 	// diagnostic (backend limit, pragma check, …) that is NOT part of
 	// Gno's contract. GcOnly markers are excluded from leak accounting —
 	// catching one is fine, missing one is not an uncaught error.
@@ -606,8 +607,11 @@ func patternTexts(ps []ErrorPattern) []string {
 // Format: any number of double-quoted (or backtick-quoted) strings
 // after `// ERROR`, e.g. `// ERROR "oct|char"` or `// ERROR "a" "b"`.
 // `// GC_ERROR` is accepted as equivalent to `// ERROR` since several
-// corpus files mix the two; gccgo-only markers (`// GCCGO_ERROR`)
-// are intentionally ignored — this harness mirrors gc semantics.
+// corpus files mix the two. A gccgo-only marker (`// GCCGO_ERROR`) is
+// optional: it never counts as uncaught, but an error on its line is not
+// over-strict either, since another Go compiler reports one there (the
+// typical case is an undefined name after a syntax error, which gc alone
+// suppresses).
 // LINE/LINE+N substitutions are NOT performed; the literal text
 // stays in the regex (matching is best-effort).
 //
@@ -670,7 +674,7 @@ func ParseInlineErrors(source []byte, goTypes bool) []InlineError {
 			for _, q := range extractQuotedStrings(content[:end]) {
 				patterns = append(patterns, ErrorPattern{Text: q, Regex: regex})
 			}
-			gcOnly = gcOnly && strings.Contains(tag, "GC_ERROR")
+			gcOnly = gcOnly && (strings.Contains(tag, "GC_ERROR") || strings.Contains(tag, "GCCGO_ERROR"))
 			rest = content[end:]
 		}
 		out = append(out, InlineError{Line: lineNo, Patterns: patterns, LineLeading: lineLeading, GcOnly: gcOnly})

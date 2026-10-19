@@ -16,7 +16,7 @@ func main() {
 }
 
 // GnoError:
-// line 11: illegal character U+003F '?'
+// line 11: expected 'IDENT', found 'ILLEGAL'
 // line 13: expected type, found 'var'
 
 // GnoWordingDiffers:
