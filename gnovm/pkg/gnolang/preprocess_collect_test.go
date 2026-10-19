@@ -705,3 +705,27 @@ func TestInitCycleOnChain(t *testing.T) {
 	m.RunFiles(fn)
 	t.Fatal("RunFiles accepted a cycle")
 }
+
+func TestPreprocessCollectInitCyclePosition(t *testing.T) {
+	// The cycle is reported at its first member's winning declaration
+	// (the last file's), not at a same-named declaration in an earlier file.
+	m := NewMachine("main", nil)
+	defer m.Release()
+	var fns []*FileNode
+	for _, f := range []struct{ name, src string }{
+		{"a.gno", "package main\n\nvar b = 1\n"},
+		{"z.gno", "package main\n\nvar r = b\nvar b = c\nvar c = b\n\nfunc main() {}\n"},
+	} {
+		fn, err := m.ParseFile(f.name, f.src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fns = append(fns, fn)
+	}
+	fset := &FileSet{Files: fns}
+	pn := NewPackageNode("main", "main", fset)
+	errs := PreprocessFilesCollect(m.Store, pn, fset)
+	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "z.gno:4:5-10: initialization cycle: b refers to c refers to b") {
+		t.Fatalf("want the cycle at z.gno:4, got %v", errs)
+	}
+}
