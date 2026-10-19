@@ -62,6 +62,9 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 		setNodeLocations(pn.PkgPath, fn.FileName, fn)
 		initStaticBlocks(store, pn, fn)
 	}
+	if acc != nil {
+		acc.checkDuplicates(pn, fset)
+	}
 	index := newPredefineDeclIndex(pn.FileSet)
 	index.acc = acc
 	// In accumulate mode a declaration that fails to predefine is recorded
@@ -77,8 +80,7 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 				if isRuntimePanic(r) {
 					panic(r) // a VM bug, not a checking error
 				}
-				acc.add(wrapPreprocessPanic([]BlockNode{pn, fn}, d, r), d)
-				markDropped(d)
+				acc.dropDecl(wrapPreprocessPanic([]BlockNode{pn, fn}, d, r), fn, d)
 			}
 		}()
 		do()
@@ -283,18 +285,16 @@ func (index *predefineDeclIndex) lookup(name Name) predefineDecl {
 }
 
 // predefineDependency is the accumulate-mode recursion into a dependency.
-// A failure is recorded once, against the dependency, which is dropped;
-// the dependent then fails with a droppedDeclError that add() turns into
-// a quiet drop. One cause, one error, at its own declaration.
+// A failure is recorded once, against the dependency, which is dropped
+// with invalidType names; the dependent goes on against those. One
+// cause, one error, at its own declaration.
 func (index *predefineDeclIndex) predefineDependency(store Store, dep predefineDecl, stack []Name, defining map[Name]struct{}, direct bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			if isRuntimePanic(r) {
 				panic(r)
 			}
-			index.acc.add(wrapPreprocessPanic([]BlockNode{dep.file}, dep.decl, r), dep.decl)
-			markDropped(dep.decl)
-			panic(&droppedDeclError{name: firstDeclName(dep.decl)})
+			index.acc.dropDecl(wrapPreprocessPanic([]BlockNode{dep.file}, dep.decl, r), dep.file, dep.decl)
 		}
 	}()
 	predefineRecursively2(store, dep.file, dep.decl, stack, defining, direct, index)
@@ -777,9 +777,10 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 }
 
 // preprocessAccumulator collects the errors of one PreprocessCollect run.
-// A statement or declaration that fails is dropped from the walk and the
-// names it declares are poisoned, so "not declared" follow-ons about them
-// are not reported (go/types' invalid-object suppression).
+// A statement or declaration that fails is dropped from the walk; the
+// names it declares get invalidType where their slot is reachable, else
+// they are poisoned, so "not declared" follow-ons about them are not
+// reported (go/types' invalid-object suppression).
 type preprocessAccumulator struct {
 	errs     []*PreprocessError
 	poisoned map[Name]bool
@@ -791,30 +792,280 @@ type preprocessAccumulator struct {
 // Both spellings the preprocessor uses for an unknown name.
 var reUndeclaredName = regexp.MustCompile(`name (\S+) not (?:declared|defined)|name not defined: (\S+)`)
 
-// add records pe, raised while preprocessing n. The names n declares are
-// poisoned first, so a suppressed cascade still poisons what it declares.
-func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
-	for _, name := range declaredNamesOf(n) {
-		acc.poisoned[name] = true
-	}
+// record keeps pe unless it is a follow-on: a dependent of a dropped
+// declaration, an unknown poisoned name, a rule tripping over an
+// invalidType operand (already reported where it arose), or a message
+// already recorded through another path.
+func (acc *preprocessAccumulator) record(pe *PreprocessError) {
 	var dropped *droppedDeclError
 	if stderrors.As(pe.err, &dropped) {
-		return // a dependent of a dropped declaration: dropped quietly
+		return
 	}
 	msg := pe.err.Error()
 	if m := reUndeclaredName.FindStringSubmatch(msg); m != nil && acc.poisoned[Name(m[1]+m[2])] {
 		return
 	}
+	if strings.Contains(msg, invalidType{}.String()) {
+		return
+	}
 	for _, e := range acc.errs {
 		if e.err.Error() == msg {
-			return // the same failure reached through another path
+			return
 		}
 	}
 	acc.errs = append(acc.errs, pe)
 }
 
+// dropStmt records pe for the failed statement n, dropped in place in
+// block last: each name it declares in last becomes invalidType, so later
+// uses are typed and checked; a name out of reach is poisoned instead,
+// so a suppressed cascade still covers what it declares.
+func (acc *preprocessAccumulator) dropStmt(pe *PreprocessError, n Node, last BlockNode) {
+	for _, name := range declaredNamesOf(n) {
+		if !defineInvalid(last.GetStaticBlock(), name) {
+			acc.poisoned[name] = true
+		}
+	}
+	acc.record(pe)
+}
+
+// dropDecl records pe for the failed file-level declaration d of fn and
+// drops it (markDropped). What it declares becomes invalidType in its
+// block, so dependents are checked against an invalid object rather than
+// failing on a missing name; a declared type keeps its identity with an
+// invalid base.
+func (acc *preprocessAccumulator) dropDecl(pe *PreprocessError, fn BlockNode, d Decl) {
+	acc.record(pe)
+	markDropped(d)
+	switch d := d.(type) {
+	case *ImportDecl:
+		name := d.Name
+		if name == "" {
+			if exp, ok := expectedPkgName(d.PkgPath); ok {
+				name = Name(exp)
+			}
+		}
+		defineInvalid(fn.GetStaticBlock(), name)
+	case *TypeDecl:
+		sb := skipFile(fn).GetStaticBlock()
+		if idx, ok := sb.GetLocalIndex(d.Name); ok {
+			if dt, ok := sb.Types[idx].(*DeclaredType); ok && !dt.sealed {
+				dt.Base = invalidType{}
+			} else if sb.Types[idx] == nil {
+				defineInvalid(sb, d.Name)
+			}
+		}
+	default:
+		sb := skipFile(fn).GetStaticBlock()
+		for _, name := range d.GetDeclNames() {
+			if !defineInvalid(sb, name) {
+				acc.poisoned[name] = true
+			}
+		}
+	}
+}
+
+// checkDuplicates is checkDuplicates (the deploy path's package-level
+// rule) for accumulate mode: each redeclaration is reported at the
+// declaration that loses and that one is dropped. A method loses to the
+// one predefined first (files in order); any other name resolves as
+// GetDeclFor does (last file, first declaration), so that one survives.
+func (acc *preprocessAccumulator) checkDuplicates(pn *PackageNode, fset *FileSet) {
+	type site struct {
+		fn *FileNode
+		d  Decl
+	}
+	first := map[Name]site{}
+	visit := func(fn *FileNode, d Decl) {
+		for _, key := range declDupKeys(d) {
+			prev, seen := first[key]
+			if !seen {
+				first[key] = site{fn, d}
+				continue
+			}
+			shown := key
+			if fd, ok := d.(*FuncDecl); ok && fd.IsMethod {
+				if nx, ok := destar(fd.Recv.Type).(*NameExpr); ok {
+					shown = nx.Name + "." + fd.Name // the key prints its value path
+				}
+			}
+			at := prev.fn.GetLocation()
+			at.SetSpanOverride(prev.d.GetSpan())
+			msg := fmt.Sprintf("%s redeclared in this block; other declaration at %s", shown, at.String())
+			acc.record(wrapPreprocessPanic([]BlockNode{pn, fn}, d, msg))
+			markDropped(d)
+		}
+	}
+	isMethod := func(d Decl) bool {
+		fd, ok := d.(*FuncDecl)
+		return ok && fd.IsMethod
+	}
+	for _, fn := range fset.Files {
+		for _, d := range fn.Decls {
+			if isMethod(d) {
+				visit(fn, d)
+			}
+		}
+	}
+	for i := len(fset.Files) - 1; i >= 0; i-- {
+		fn := fset.Files[i]
+		for _, d := range fn.Decls {
+			if !isMethod(d) {
+				visit(fn, d)
+			}
+		}
+	}
+}
+
+// defineInvalid gives name, reserved in sb, the type invalidType and
+// reports whether it could: a slot already holding a sealed type or a
+// value of another type is left alone.
+func defineInvalid(sb *StaticBlock, name Name) bool {
+	if name == "" || name == blankIdentifier {
+		return false
+	}
+	idx, ok := sb.GetLocalIndex(name)
+	if !ok {
+		return false
+	}
+	if old := sb.Types[idx]; old != nil && !isInvalid(old) {
+		if _, isFunc := old.(*FuncType); !isFunc {
+			return false
+		}
+		// a function placeholder: callers would check the arity of a
+		// signature that never completed.
+	}
+	sb.Types[idx] = invalidType{}
+	sb.Block.Values[idx] = anyValue(invalidType{})
+	return true
+}
+
+// invalidConstExpr is the placeholder for an expression already reported:
+// typed invalidType, so every rule passes it through.
+func invalidConstExpr(source Expr) *ConstExpr {
+	return toConstExpr(source, anyValue(invalidType{}))
+}
+
+// isInvalidExpr reports whether x was typed invalidType, without
+// evaluating it: a placeholder, a constant of (or naming) an invalid
+// type, or an expression propagated at TRANS_LEAVE.
+func isInvalidExpr(x Expr) bool {
+	switch x := x.(type) {
+	case nil:
+		return false
+	case *constTypeExpr:
+		return isInvalid(x.Type)
+	case *ConstExpr:
+		if x.T == nil {
+			return false
+		}
+		if tv, ok := x.V.(TypeValue); ok {
+			return isInvalid(tv.Type)
+		}
+		return isInvalid(x.T)
+	}
+	t, ok := x.GetAttribute(ATTR_TYPEOF_VALUE).(Type)
+	return ok && isInvalid(t)
+}
+
+// anyInvalidTV reports whether an argument was typed invalidType.
+func anyInvalidTV(tvs []TypedValue) bool {
+	for _, tv := range tvs {
+		if isInvalid(tv.T) {
+			return true
+		}
+	}
+	return false
+}
+
+// operandsOf lists the sub-expressions whose invalidity makes x invalid
+// (go/types: an invalid operand silences the operation).
+func operandsOf(x Expr) []Expr {
+	switch x := x.(type) {
+	case *BinaryExpr:
+		return []Expr{x.Left, x.Right}
+	case *UnaryExpr:
+		return []Expr{x.X}
+	case *StarExpr:
+		return []Expr{x.X}
+	case *RefExpr:
+		return []Expr{x.X}
+	case *SelectorExpr:
+		return []Expr{x.X}
+	case *IndexExpr:
+		return []Expr{x.X, x.Index}
+	case *SliceExpr:
+		return []Expr{x.X, x.Low, x.High, x.Max}
+	case *TypeAssertExpr:
+		return []Expr{x.X, x.Type}
+	case *CallExpr:
+		return []Expr{x.Func}
+	case *CompositeLitExpr:
+		return []Expr{x.Type}
+	}
+	return nil
+}
+
+// undefinedName records, at each use in d, that un is declared nowhere
+// and replaces those uses by invalidType placeholders, so d keeps being
+// predefined (its signature, its dependents). Statements are left to the
+// walk, which resolves their names itself. Reports whether a use was found.
+func (acc *preprocessAccumulator) undefinedName(last BlockNode, d Decl, un Name) bool {
+	found := false
+	typePos := map[Node]bool{} // nodes in type position (a *T of a type is one)
+	Transcribe(d, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		if _, ok := n.(Stmt); ok && n != Node(d) {
+			return n, TRANS_SKIP
+		}
+		asType := isTypeField(ftype) || (ftype == TRANS_STAR_X && typePos[ns[len(ns)-1]])
+		if asType {
+			typePos[n] = true
+		}
+		nx, ok := n.(*NameExpr)
+		if !ok || nx.Name != un {
+			return n, TRANS_CONTINUE
+		}
+		switch ftype {
+		case TRANS_VAR_NAME, TRANS_FIELDTYPE_NAME:
+			return n, TRANS_CONTINUE
+		case TRANS_COMPOSITE_KEY:
+			// a struct key names a field, not a value.
+			clx := ns[len(ns)-1].(*CompositeLitExpr)
+			ct, ok := clx.Type.(*constTypeExpr)
+			if !ok || ct.Type.Kind() == StructKind {
+				return n, TRANS_CONTINUE
+			}
+		}
+		found = true
+		at := Node(nx)
+		if nx.GetSpan().IsZero() { // a split part's copied value
+			at = d
+		}
+		acc.record(wrapPreprocessPanic([]BlockNode{last}, at, fmt.Sprintf("name not defined: %s", un)))
+		if asType {
+			return toConstTypeExpr(last, nx, invalidType{}), TRANS_CONTINUE
+		}
+		return invalidConstExpr(nx), TRANS_CONTINUE
+	})
+	return found
+}
+
+// isTypeField reports whether a child at ftype is a type expression.
+func isTypeField(ftype TransField) bool {
+	switch ftype {
+	case TRANS_COMPOSITE_TYPE, TRANS_TYPE_TYPE, TRANS_VAR_TYPE, TRANS_CONST_TYPE,
+		TRANS_TYPEASSERT_TYPE, TRANS_FIELDTYPE_TYPE, TRANS_ARRAYTYPE_ELT,
+		TRANS_SLICETYPE_ELT, TRANS_CHANTYPE_VALUE, TRANS_MAPTYPE_KEY, TRANS_MAPTYPE_VALUE:
+		return true
+	}
+	return false
+}
+
 // droppedDeclError is raised, in accumulate mode, by a declaration that
-// depends on one already dropped; add turns it into a quiet drop.
+// depends on one dropped without a definition; record drops it quietly.
 type droppedDeclError struct{ name Name }
 
 func (e *droppedDeclError) Error() string {
@@ -1006,12 +1257,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 	// rewind the block stack to the statement's enclosing block, go on.
 	var onPanic PanicHandler
 	if acc != nil {
-		onPanic = func(ns []Node, ftype TransField, index int, n Node, r any) bool {
+		onPanic = func(ns []Node, ftype TransField, index int, n Node, r any) (Node, bool) {
 			pe, ok := r.(*PreprocessError)
 			if !ok || isRuntimePanic(pe) {
-				return false // not a checking error: a VM bug, let it surface
+				return nil, false // not a checking error: a VM bug, let it surface
 			}
-			for i := len(ns) - 1; i >= 0; i-- {
+			rewound := false
+			for i := len(ns) - 1; i >= 0 && !rewound; i-- {
 				if bn, ok := ns[i].(BlockNode); ok {
 					for k := len(stack) - 1; k > 0; k-- {
 						if stack[k] == bn {
@@ -1019,13 +1271,43 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							break
 						}
 					}
-					break
+					rewound = true
 				}
 			}
+			if !rewound {
+				stack = stack[:1] // every block above ctx was pushed below n
+			}
 			last = stack[len(stack)-1]
-			acc.add(pe, n)
-			return true
+			switch ftype {
+			case TRANS_COMPOSITE_KEY, TRANS_COMPOSITE_VALUE:
+				// the element alone drops: typed invalid, the literal's
+				// rule passes it (a key so typed is removed there).
+				acc.record(pe)
+				return invalidConstExpr(n.(Expr)), true
+			case TRANS_SWITCH_CASE:
+				n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // the switch skips it
+			}
+			acc.dropStmt(pe, n, last)
+			return n, true
 		}
+	}
+
+	// In accumulate mode declarations predefine through an index carrying
+	// the accumulator, so undefined names and failing dependencies resolve
+	// to invalidType instead of dropping the dependent; built on first use.
+	var accIndex *predefineDeclIndex
+	predefineAcc := func(last BlockNode, d Decl) bool {
+		if acc == nil {
+			return predefineRecursively(store, last, d)
+		}
+		if accIndex == nil {
+			if ctxpn.FileSet == nil {
+				return predefineRecursively(store, last, d)
+			}
+			accIndex = newPredefineDeclIndex(ctxpn.FileSet)
+			accIndex.acc = acc
+		}
+		return predefineRecursivelyIndexed(store, last, d, accIndex)
 	}
 
 	// predefineGuarded is predefineRecursively with the same drop-and-record
@@ -1041,11 +1323,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				if isRuntimePanic(r) {
 					panic(r) // a VM bug, not a checking error
 				}
-				acc.add(wrapPreprocessPanic(stack, d, r), d)
-				markDropped(d)
+				acc.dropDecl(wrapPreprocessPanic(stack, d, r), last, d)
 			}
 		}()
-		predefineRecursively(store, last, d)
+		predefineAcc(last, d)
 	}
 
 	t := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -1100,7 +1381,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 
 					// recursively predefine dependencies.
-					preprocessed := predefineRecursively(store, last, d)
+					preprocessed := predefineAcc(last, d)
 					if preprocessed {
 						return d, TRANS_SKIP
 					} else {
@@ -1175,6 +1456,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 
 				switch xt.Kind() {
+				case InvalidKind:
+					// accumulate mode: reported already; key and value
+					// are invalid too.
+					if n.Op == DEFINE {
+						for _, kv := range []Expr{n.Key, n.Value} {
+							if nx, ok := kv.(*NameExpr); ok {
+								last.Define(nx.Name, anyValue(xt))
+							}
+						}
+					}
 				case MapKind:
 					n.IsMap = true
 				case StringKind:
@@ -1193,7 +1484,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					))
 				}
 				// key value if define.
-				if n.Op == DEFINE {
+				if n.Op == DEFINE && xt.Kind() != InvalidKind {
 					if xt.Kind() == MapKind {
 						if n.Key != nil {
 							kt := baseOf(xt).(*MapType).Key
@@ -1315,6 +1606,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					} else {
 						// evaluate case types.
 						for i, cx := range n.Cases {
+							src := cx
 							cx = Preprocess(
 								store, last, cx).(Expr)
 							var ct Type
@@ -1324,6 +1616,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 									// Don't change cxx.GetType() for defensiveness.
 									ct = nil
 								} else {
+									if acc != nil && cxx.T.Kind() != TypeKind {
+										panic(fmt.Sprintf("%s is not a type", src.String()))
+									}
 									ct = cxx.GetType()
 								}
 							} else {
@@ -1548,6 +1843,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					elideCompositeElements(last, clx, clt)
 				}
 			}()
+
+			// Accumulate mode: an expression with an operand already
+			// reported is invalid itself, and its rule does not run.
+			if acc != nil {
+				if x, ok := n.(Expr); ok {
+					for _, op := range operandsOf(x) {
+						if isInvalidExpr(op) {
+							x.SetAttribute(ATTR_TYPEOF_VALUE, invalidType{})
+							return n, TRANS_CONTINUE
+						}
+					}
+				}
+			}
 
 			// The main TRANS_LEAVE switch.
 			switch n := n.(type) {
@@ -2189,6 +2497,10 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							// Specify function param/result generics.
 							argTVs := evalStaticTypedValues(store, last, n.Args...)
 							isVarg := n.Varg
+							if acc != nil && anyInvalidTV(argTVs) {
+								n.SetAttribute(ATTR_TYPEOF_VALUE, invalidType{})
+								return n, TRANS_CONTINUE
+							}
 							sft := ft.Specify(store, n, argTVs, isVarg)
 							spts := sft.Params
 							srts := FieldTypeList(sft.Results).Types()
@@ -2508,6 +2820,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						panic("should not happen")
 					}
 					// Specify function param/result generics.
+					if acc != nil && anyInvalidTV(argTVs) {
+						// arity was checked; the arguments were reported.
+						n.SetAttribute(ATTR_TYPEOF_VALUE, invalidType{})
+						return n, TRANS_CONTINUE
+					}
 					sft := ft.Specify(store, n, argTVs, isVarg)
 					spts := sft.Params
 					srts := FieldTypeList(sft.Results).Types()
@@ -2668,6 +2985,40 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *CompositeLitExpr:
+				dropInvalidKeys := func() {
+					// accumulate mode: an element whose key dropped goes
+					// (a dropped value stays, typed invalid).
+					n.Elts = slices.DeleteFunc(n.Elts, func(kv KeyValueExpr) bool {
+						return isInvalidExpr(kv.Key)
+					})
+				}
+				if acc != nil {
+					dropInvalidKeys()
+				}
+				// checkElt is checkOrConvertType (convertType with convert)
+				// for one element: in accumulate mode its failure is
+				// recorded at the element, which becomes invalid, so the
+				// siblings are still checked.
+				checkElt := func(x *Expr, t Type, convert bool) {
+					check := checkOrConvertType
+					if convert {
+						check = convertType
+					}
+					if acc == nil {
+						check(store, last, n, x, t)
+						return
+					}
+					defer func() {
+						if r := recover(); r != nil {
+							if isRuntimePanic(r) {
+								panic(r)
+							}
+							acc.record(wrapPreprocessPanic(stack, unconst(*x), r)) // a const keeps its source's span
+							*x = invalidConstExpr(*x)
+						}
+					}()
+					check(store, last, n, x, t)
+				}
 				// Get or evaluate composite type.
 				clt := evalStaticType(store, last, n.Type)
 				n.Type = toConstTypeExpr(last, n.Type, clt)
@@ -2681,7 +3032,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							checkElt(&n.Elts[i].Value, ft, false)
 						}
 					} else {
 						// Check for unexported fields in unkeyed struct literals
@@ -2696,7 +3047,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							checkElt(&n.Elts[i].Value, ft, false)
 						}
 					}
 				case *ArrayType:
@@ -2704,16 +3055,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
 						}
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						checkElt(&n.Elts[i].Key, IntType, true)
+						checkElt(&n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
 						}
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						checkElt(&n.Elts[i].Key, IntType, true)
+						checkElt(&n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *MapType:
 					if !isComparable(cclt.Key) {
@@ -2724,10 +3075,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					// checkOrConvertType must be called before the check so that
 					// values are stored in N (not V), making TypedValue comparable.
 					kset := make(map[TypedValue]struct{})
-					for i, elt := range n.Elts {
-						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
+					for i := range n.Elts {
+						checkElt(&n.Elts[i].Key, cclt.Key, false)
+						checkElt(&n.Elts[i].Value, cclt.Value, false)
+						elt := n.Elts[i]
+						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() && !isInvalidExpr(cx) {
 							if _, ok := kset[cx.TypedValue]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
 							}
@@ -2738,6 +3090,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					panic(fmt.Sprintf(
 						"unexpected composite type %s",
 						clt.String()))
+				}
+				if acc != nil {
+					dropInvalidKeys() // a key that failed its own check
 				}
 				// If variadic array lit, measure.
 				if at, ok := clt.(*ArrayType); ok {
@@ -3379,7 +3734,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							))
 						}
 					} else if len(n.Results) == 1 {
-						if cx, ok := n.Results[0].(*CallExpr); ok {
+						if cx, ok := n.Results[0].(*CallExpr); ok && isInvalidExpr(cx) {
+							// already reported.
+						} else if ok {
 							ift := evalStaticTypeOf(store, last, cx.Func)
 							cft := getGnoFuncTypeOf(store, ift)
 							if len(cft.Results) != len(ft.Results) {
@@ -3423,6 +3780,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				if n.IsTypeSwitch {
 					types := map[string]struct{}{}
 					for _, clause := range n.Clauses {
+						if acc != nil && clause.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
+							continue
+						}
 						for _, casetype := range clause.Cases {
 							var ctstr string
 							ctype := casetype.(*constTypeExpr).Type
@@ -3589,7 +3949,13 @@ func defineOrDecl(
 	sts := make([]Type, numNames) // static types
 	tvs := make([]TypedValue, numNames)
 
-	if numVals == 1 && numNames > 1 {
+	if numVals == 1 && numNames > 1 && isInvalidExpr(valueExprs[0]) {
+		// accumulate mode: the value was reported; the names are invalid.
+		for i := range sts {
+			sts[i] = invalidType{}
+			tvs[i] = anyValue(invalidType{})
+		}
+	} else if numVals == 1 && numNames > 1 {
 		parseMultipleAssignFromOneExpr(store, bn, n, sts, tvs, nameExprs, typeExpr, valueExprs[0])
 	} else {
 		parseAssignFromExprList(store, bn, n, sts, tvs, isConst, nameExprs, typeExpr, valueExprs)
@@ -5200,6 +5566,9 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
+	if isInvalid(t) || isInvalidExpr(*x) {
+		return // accumulate mode: already reported.
+	}
 	if cx, ok := (*x).(*ConstExpr); ok {
 		// A nil t means "no destination type, just default-convert below"
 		// (the typeless `var x = <expr>` path and recursive untyped-operand
@@ -5304,6 +5673,9 @@ func convertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 	if debug {
 		debug.Printf("convertType, *x: %v:, t:%v \n", *x, t)
 	}
+	if isInvalid(t) || isInvalidExpr(*x) {
+		return // accumulate mode: already reported.
+	}
 	if cx, ok := (*x).(*ConstExpr); ok {
 		convertConst(store, last, n, cx, t)
 	} else if *x != nil {
@@ -5394,6 +5766,9 @@ func convertIfConst(store Store, last BlockNode, n Node, x Expr) {
 }
 
 func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
+	if isInvalid(t) || isInvalid(cx.T) {
+		return // accumulate mode: already reported.
+	}
 	if t != nil && t.Kind() == InterfaceKind {
 		if cx.T != nil {
 			mustAssignableTo(store, n, cx.T, t)
@@ -5712,8 +6087,8 @@ func checkOrConvertBoolKind(store Store, last BlockNode, n Node, x Expr) {
 // assert that xt is a typed bool kind.
 func checkBoolKind(xt Type) {
 	switch xt.Kind() {
-	case BoolKind:
-		return // ok
+	case BoolKind, InvalidKind:
+		return // ok, or already reported (accumulate mode)
 	default:
 		panic(fmt.Sprintf(
 			"expected typed bool kind, but got %v",
@@ -5851,6 +6226,27 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			// after PredefineFileSet has already defined every package-level
 			// name, so this branch is only reached for a name defined
 			// nowhere, which is a single scan followed by GetDeclFor's panic.
+			if index != nil && index.acc != nil {
+				// Accumulate mode: a name declared nowhere becomes an
+				// invalidType placeholder at each use; a failing
+				// dependency is dropped with invalidType names. Either
+				// way d goes on. A dependency that defined nothing
+				// (or un recurring) drops d quietly.
+				dependency, declared := index.entries[un]
+				if !declared && index.acc.undefinedName(last, d, un) {
+					continue
+				}
+				if declared && dependency.decl.GetAttribute(ATTR_PREDEFINED) != true {
+					if !dependency.file.IsInitialized() {
+						panic("all types from files in file-set should have already been predefined")
+					}
+					index.predefineDependency(store, dependency, stack, defining, directR)
+				}
+				if last.GetSlot(store, un, true) == nil {
+					panic(&droppedDeclError{name: un})
+				}
+				continue
+			}
 			var dependency predefineDecl
 			if index == nil {
 				dependency = lookupPredefineDecl(pkg.FileSet, un)
@@ -5863,14 +6259,14 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			}
 			// predefine dependency recursively.
 			// `directR` is passed on.
-			if index != nil && index.acc != nil {
-				index.predefineDependency(store, dependency, stack, defining, directR)
-			} else {
-				predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
-			}
+			predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
 		} else {
 			break // predefine successfully performed.
 		}
+	}
+	var acc *preprocessAccumulator // nested walk inherits accumulate mode
+	if index != nil {
+		acc = index.acc
 	}
 	switch cd := d.(type) {
 	case *FuncDecl:
@@ -5878,15 +6274,15 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		// refer to package names in any order.
 		return false
 	case *ValueDecl:
-		vd2 := Preprocess(store, last, cd).(*ValueDecl)
+		vd2 := preprocess(store, last, cd, acc).(*ValueDecl)
 		*cd = *vd2
 		return true
 	case *TypeDecl:
-		td2 := Preprocess(store, last, cd).(*TypeDecl)
+		td2 := preprocess(store, last, cd, acc).(*TypeDecl)
 		*cd = *td2
 		return true
 	case *ImportDecl:
-		id2 := Preprocess(store, last, cd).(*ImportDecl)
+		id2 := preprocess(store, last, cd, acc).(*ImportDecl)
 		*cd = *id2
 		return true
 	default:
@@ -6122,6 +6518,10 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			d.Type = *Preprocess(store, last, &d.Type).(*FuncTypeExpr)
 			rft := evalStaticType(store, last, &d.Recv).(FieldType)
 			rt := rft.Type
+			if isInvalid(unwrapPointerType(rt)) {
+				// accumulate mode: the receiver type was reported.
+				panic(&droppedDeclError{name: d.Name})
+			}
 			ft := evalStaticType(store, last, &d.Type).(*FuncType)
 			ubft := ft.UnboundType(rft)
 			dt := (*DeclaredType)(nil)
@@ -6438,8 +6838,8 @@ func countNumArgs(store Store, last BlockNode, n *CallExpr) (numArgs int) {
 		return len(n.Args)
 	} else if cx, ok := n.Args[0].(*CallExpr); ok {
 		cxift := evalStaticTypeOf(store, last, cx.Func) // cx (iface) func type
-		if cxift.Kind() == TypeKind {
-			return 1 // type conversion
+		if cxift.Kind() == TypeKind || isInvalid(cxift) {
+			return 1 // type conversion, or already reported
 		} else {
 			cxft := getGnoFuncTypeOf(store, cxift)
 			numResults := len(cxft.Results)
