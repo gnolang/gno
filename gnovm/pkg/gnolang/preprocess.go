@@ -986,9 +986,12 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 			case *SwitchStmt:
 				// n.Varname is declared in each clause.
 			case *SwitchClauseStmt:
-				blen := len(n.Body)
-				if blen > 0 {
-					n.Body[blen-1].SetAttribute(ATTR_LAST_BLOCK_STMT, true)
+				// The last statement, ignoring trailing empty ones.
+				for i := len(n.Body) - 1; i >= 0; i-- {
+					if _, empty := n.Body[i].(*EmptyStmt); !empty {
+						n.Body[i].SetAttribute(ATTR_LAST_BLOCK_STMT, true)
+						break
+					}
 				}
 
 				// parent switch statement.
@@ -1983,14 +1986,24 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				} else {
 					// evaluate tag type
 					tt := evalStaticTypeOf(store, last, ss.X)
-					// check or convert case types to tt.
+					// check or convert case types to tt; a case of interface
+					// type against a concrete tag (or the reverse) is
+					// compared as is, see the comparability check at LEAVE.
 					for i, cx := range n.Cases {
 						cx = Preprocess(
 							store, last, cx).(Expr)
 						// Each case is compared to the tag with ==; checked
 						// here, before the conversion types an untyped nil.
 						assertComparableTo(tt, evalStaticTypeOf(store, last, cx), isNilLiteral(ss.X), isNilLiteral(cx))
-						checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
+						ct := evalStaticTypeOf(store, last, cx)
+						switch {
+						case ct == nil || tt == nil || isUntyped(ct) || (ct.Kind() == InterfaceKind) == (tt.Kind() == InterfaceKind):
+							checkOrConvertType(store, last, n, &cx, tt) // #nosec G601
+						case tt.Kind() == InterfaceKind:
+							mustAssignableTo(store, n, ct, tt) // the case must implement the tag
+						default:
+							mustAssignableTo(store, n, tt, ct) // the tag must implement the case
+						}
 						n.Cases[i] = cx
 					}
 				}
@@ -2279,6 +2292,14 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					pd := lastDecl(ns)
 					valueDecl, ok := pd.(*ValueDecl)
 					if !ok || !valueDecl.Const {
+						// A literal's type is preprocessed on its own
+						// (findUndefinedV); the declaration's iota rides
+						// on its root then.
+						if len(ns) > 0 {
+							if io, ok := ns[0].GetAttribute(ATTR_IOTA).(int); ok {
+								return constUntypedBigint(n, int64(io)), TRANS_CONTINUE
+							}
+						}
 						panic("cannot use iota outside constant declaration")
 					}
 
@@ -2506,9 +2527,12 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 									"incompatible types in binary expression: %v %v %v",
 									lt.TypeID(), n.Op, rt.TypeID()))
 							}
-							// convert untyped to typed
-							checkOrConvertType(store, last, n, &n.Left, defaultTypeOf(lt))
-							checkOrConvertType(store, last, n, &n.Right, defaultTypeOf(rt))
+							// convert untyped to typed; && and || of untyped
+							// bools stay untyped for the context to decide.
+							if n.Op != LAND && n.Op != LOR {
+								checkOrConvertType(store, last, n, &n.Left, defaultTypeOf(lt))
+								checkOrConvertType(store, last, n, &n.Right, defaultTypeOf(rt))
+							}
 						} else { // left untyped, right typed
 							checkOrConvertType(store, last, n, &n.Left, rt)
 						}
@@ -3286,9 +3310,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 					}
 				default:
-					panic(fmt.Sprintf(
-						"unexpected func type %v (%v)",
-						nft, reflect.TypeOf(nft)))
+					kind := "variable"
+					if isConst(n.Func) {
+						kind = "constant"
+					}
+					failf(CodeNotCallable, nil, "cannot call non-function %s (%s of type %v)", exprString(n.Func), kind, nft)
 				}
 
 			// TRANS_LEAVE -----------------------
@@ -6158,6 +6184,9 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 						// push t into bx.Left and bx.Right
 						checkOrConvertType(store, last, n, &bx.Left, t)
 						checkOrConvertType(store, last, n, &bx.Right, t)
+						// Cache the converted operand's type, not t: t may be
+						// untyped (a recursive call) or an interface.
+						bx.SetAttribute(ATTR_TYPEOF_VALUE, evalStaticTypeOf(store, last, bx.Left))
 						return
 					} else { // t is nil, and bx is untyped binary expr.
 						if shouldSwapOnSpecificity(lt, rt) {
@@ -6174,10 +6203,16 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 							checkOrConvertType(store, last, n, &bx.Left, rt)
 							checkOrConvertType(store, last, n, &bx.Right, nil)
 						}
+						// The operands have their default types now.
+						bx.SetAttribute(ATTR_TYPEOF_VALUE, evalStaticTypeOf(store, last, bx.Left))
 					}
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					t = BoolType
+					// An untyped bool result takes the context's boolean
+					// type; only without one does it default to bool.
+					if t == nil || isUntyped(t) || t.Kind() == InterfaceKind {
+						t = BoolType
+					}
 				default:
 					// do nothing
 				}
@@ -6900,6 +6935,23 @@ func packageDeclOf(last BlockNode, name Name) (d Decl) {
 	return lookupPredefineDecl(packageOf(last).FileSet, name).decl
 }
 
+// carryIota stamps the iota of a constant declaration on the type of
+// every composite literal among its values: the literal's type is
+// preprocessed on its own and would otherwise not see it.
+func carryIota(gm store.GasMeter, values Exprs, io int) {
+	for _, v := range values {
+		Transcribe(v, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			if stage == TRANS_ENTER {
+				chargeCPUGas(gm, OpCPUSlopeCheckNode)
+			}
+			if cl, ok := n.(*CompositeLitExpr); ok && stage == TRANS_ENTER && cl.Type != nil {
+				cl.Type.SetAttribute(ATTR_IOTA, io)
+			}
+			return n, TRANS_CONTINUE
+		})
+	}
+}
+
 // cycleString prints the declaration cycle closed by name: the part of
 // stack from name's first occurrence, then name again.
 func cycleString(stack []Name, name Name) string {
@@ -7007,6 +7059,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		// NOTE: cyclic *ValueDecl at the package/file level such as
 		// `var a, b, c = 1, a, b` was already split up before reaching
 		// here, whereas they are illegal inside a function.
+		if io, ok := d.GetAttribute(ATTR_IOTA).(int); ok {
+			carryIota(preprocessGasMeterOf(store), d.Values, io)
+		}
 		for _, vx := range d.Values {
 			un, directR = findUndefinedV(store, last, vx, stack, defining, direct, nil)
 			if un != "" {

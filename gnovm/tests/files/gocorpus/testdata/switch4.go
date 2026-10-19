@@ -37,6 +37,5 @@ func good() {
 
 // GnoError:
 // line 21: cannot fallthrough final case in switch
-// line 34: cannot use interface {} as string
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 34
+// Verdict: Clean errorcheck
