@@ -18,10 +18,10 @@ func main() {
 }
 
 // GnoError:
-// line 12: invalid argument: index (-1 <untyped> bigint) must not be negative
+// line 12: invalid argument: index -1 (constant of type int) must not be negative
 // line 13: cannot convert untyped bigdec to integer -- 0.5 not an exact integer
 // line 15: bigint overflows target kind
-// line 16: invalid argument: index (-1 <untyped> bigint) must not be negative
+// line 16: invalid argument: index -1 (constant of type int) must not be negative
 // line 17: invalid argument: len larger than cap in make(main.T)
 
 // Verdict: Clean errorcheck

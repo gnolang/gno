@@ -9,4 +9,4 @@ func main() {
 // main/make7.gno:4:28: invalid argument: index -1 (constant of type int) must not be negative
 
 // Error:
-// main/make7.gno:4:7-31: invalid argument: index (-1 <untyped> bigint) must not be negative
+// main/make7.gno:4:28-30: invalid argument: index -1 (constant of type int) must not be negative

@@ -230,3 +230,23 @@ var _ = y // ERROR "undefined"
 		t.Errorf("gccgo line must not be over-strict and line 3 stays uncaught: %+v", cov)
 	}
 }
+
+func TestErrorcheck_MissingPackageClauseIsPinned(t *testing.T) {
+	// The parser's "expected 'package'" error credits gc's marker line;
+	// the checker never runs, so there is no on-chain comparison.
+	src := []byte(`// errorcheck
+
+func main() { // ERROR "package"
+}
+`)
+	o := errorcheckOpts(t)
+	out, _, _, err := o.RunFiletest("testdata/errorcheck/pb.go", src, o.TestStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"// Verdict: Clean errorcheck", "line 3: expected 'package', found 'func'"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}

@@ -12,7 +12,7 @@ func main() {
 }
 
 // Error:
-// main/assign_range_h.gno:8:2-9:3: cannot assign to (const (undefined))
+// main/assign_range_h.gno:8:2-9:3: cannot assign to nil
 
 // TypeCheckError:
 // main/assign_range_h.gno:8:9: cannot assign to nil (neither addressable nor a map index expression)

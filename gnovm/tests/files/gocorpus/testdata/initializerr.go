@@ -45,7 +45,7 @@ var _ = map[Key]string{
 // line 22: duplicate field name Y in struct literal
 // line 23: too many values in struct literal of type main.T
 // line 24: index 5 is out of bounds (>= 5)
-// line 25: slice/array literals may not contain non-const keys
+// line 25: index x must be integer constant
 // line 26: duplicate index 1 in array or slice literal
 
 // Verdict: Clean errorcheck

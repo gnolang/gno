@@ -14,4 +14,7 @@ func a(b int) int64 {
   return 0
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13
+// GnoError:
+// line 13: b (value of type int) is not used
+
+// Verdict: Clean errorcheck

@@ -6,7 +6,15 @@ type Foo struct {
 }
 
 func (f Foo) Println(s ...string) {
-	println(s...)
+	// println takes no ... argument, as in Go.
+	line := ""
+	for i, x := range s {
+		if i > 0 {
+			line += " "
+		}
+		line += x
+	}
+	println(line)
 }
 
 func main() {
@@ -40,6 +48,3 @@ func main() {
 // p1
 //
 // bye1
-
-// TypeCheckError:
-// main/defer0.gno:9:11: invalid operation: invalid use of ... with built-in println

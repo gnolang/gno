@@ -201,6 +201,98 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 	}
 }
 
+// valueBuiltins are the built-in functions that may not be called in
+// statement context (Go spec: "Expression statements").
+var valueBuiltins = map[Name]bool{
+	"append": true, "cap": true, "complex": true, "imag": true,
+	"len": true, "make": true, "new": true, "real": true,
+}
+
+// assertExprStmtUsed rejects an expression statement that is not a call,
+// a conversion, or a call to a value builtin. A type assertion statement
+// is left alone: Gno runs it for its panic.
+func assertExprStmtUsed(store Store, last BlockNode, n *ExprStmt) {
+	call, ok := n.X.(*CallExpr)
+	if !ok {
+		if _, ok := n.X.(*TypeAssertExpr); ok {
+			return
+		}
+		notUsed(store, last, n.X)
+	}
+	switch fx := call.Func.(type) {
+	case *constTypeExpr:
+		notUsed(store, last, n.X)
+	case *ConstExpr:
+		if fv := fx.GetFunc(); fv != nil && fv.PkgPath == uversePkgPath && valueBuiltins[fv.Name] {
+			notUsed(store, last, n.X)
+		}
+	}
+}
+
+func notUsed(store Store, last BlockNode, x Expr) {
+	t := evalStaticTypeOf(store, last, x)
+	if _, ok := t.(*TypeType); ok {
+		panic(fmt.Sprintf("%s (type) is not an expression", exprString(x)))
+	}
+	xs := exprString(x)
+	if _, ok := x.(*FuncLitExpr); ok {
+		xs = fmt.Sprintf("(%s literal)", typeString(t)) // as go/types
+	}
+	panic(fmt.Sprintf("%s (value of type %s) is not used", xs, typeString(t)))
+}
+
+// constStringLen folds len of a constant string into an int constant.
+func constStringLen(name Name, arg Expr) *ConstExpr {
+	cx, ok := arg.(*ConstExpr)
+	if name != "len" || !ok || cx.T == nil || cx.T.Kind() != StringKind {
+		return nil
+	}
+	tv := TypedValue{T: IntType}
+	tv.SetInt(int64(len(cx.GetString())))
+	return toConstExpr(cx, tv)
+}
+
+// assertConstLiteralKey: an array or slice literal index is a constant.
+func assertConstLiteralKey(key Expr) {
+	if key == nil {
+		return
+	}
+	if _, ok := key.(*ConstExpr); !ok {
+		panic(fmt.Sprintf("index %s must be integer constant", exprString(key)))
+	}
+}
+
+// isFuncDeclName reports whether nx names a declared function. It walks
+// the path as GetBlockNodeForPath does, stopping on a parent the walk
+// has not linked yet instead of panicking.
+func isFuncDeclName(last BlockNode, nx *NameExpr) bool {
+	if nx.Path.Type != VPBlock || nx.Path.Depth == 0 {
+		return false
+	}
+	bn := last
+	for i := 1; i < int(nx.Path.Depth); i++ {
+		if fauxChildBlockNode(bn) {
+			bn = bn.GetParentNode(nil)
+		}
+		if bn == nil {
+			return false
+		}
+		bn = bn.GetParentNode(nil)
+		if bn == nil {
+			return false
+		}
+	}
+	switch fb := bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		if pn := fb.GetParentNode(nil); pn != nil && nx.Path.Index < pn.GetNumNames() {
+			bn = pn
+		}
+	}
+	idx, ok := bn.GetLocalIndex(nx.Name)
+	sources := bn.GetStaticBlock().NameSources
+	return ok && int(idx) < len(sources) && sources[idx].Type == NSFuncDecl
+}
+
 // hasCall reports whether x holds a function call other than a conversion
 // or a constant len/cap of an array: len and cap of an array are constant
 // only then (Go spec: "Length and capacity"; Gno has no channel receive).
@@ -248,4 +340,118 @@ func assertSwitchTag(x Expr, t Type) {
 		panicAt(fmt.Sprintf("cannot switch on %s (variable of type %v) (%v is not comparable)",
 			exprString(x), t, t), x)
 	}
+}
+
+// assertAppendArgs checks append's arity: a typed slice, then values, with
+// ... only on a single second argument (Go spec: "Appending to and
+// copying slices"). Wording and positions follow go/types.
+func assertAppendArgs(store Store, last BlockNode, n *CallExpr) {
+	if len(n.Args) == 0 {
+		panic("invalid operation: not enough arguments for append() (expected 1, found 0)")
+	}
+	st := evalStaticTypeOf(store, last, n.Args[0])
+	if st == nil {
+		panic("first argument to append must be a typed slice; have untyped nil")
+	}
+	bst, isSlice := baseOf(st).(*SliceType)
+	if !n.Varg {
+		if isSlice {
+			assertAppendValues(store, last, n, bst.Elt)
+		}
+		return
+	}
+	if len(n.Args) == 2 {
+		return
+	}
+	want := "([]T, ...T)"
+	if isSlice {
+		want = fmt.Sprintf("(%s, ...%s)", typeString(st), typeString(bst.Elt))
+	}
+	have := "("
+	for i, arg := range n.Args {
+		if i > 0 {
+			have += ", "
+		}
+		have += argTypeSummary(evalStaticTypeOf(store, last, arg))
+	}
+	have += "...)"
+	if len(n.Args) > 2 {
+		panicAt(fmt.Sprintf("too many arguments in call to append\n\thave %s\n\twant %s", have, want), n.Args[2])
+	}
+	panic(fmt.Sprintf("not enough arguments in call to append\n\thave %s\n\twant %s", have, want))
+}
+
+// argTypeSummary names an argument's type as go/types does in have/want
+// lists: an untyped constant by its kind, a numeric one as "number".
+func argTypeSummary(t Type) string {
+	switch {
+	case t == nil:
+		return "nil"
+	case isUntyped(t):
+		if isNumeric(t) {
+			return "number"
+		}
+		return untypedKindName(t)
+	}
+	return typeString(t)
+}
+
+// assertAppendValues checks each typed value argument against the slice's
+// element type with gc's wording; untyped constants are converted by the
+// caller and nil is left to the general call check.
+func assertAppendValues(store Store, last BlockNode, n *CallExpr, elt Type) {
+	for _, arg := range n.Args[1:] {
+		at := evalStaticTypeOf(store, last, arg)
+		if at == nil || isUntyped(at) {
+			continue
+		}
+		if checkAssignableTo(store, n, at, elt) != nil {
+			panicAt(fmt.Sprintf("cannot use %s (%s of type %s) as %s value in argument to append",
+				exprString(arg), operandKind(arg), typeString(at), typeString(elt)), arg)
+		}
+	}
+}
+
+// operandKind is go/types' word for an operand: a named variable or a value.
+func operandKind(x Expr) string {
+	if _, ok := x.(*NameExpr); ok {
+		return "variable"
+	}
+	return "value"
+}
+
+// operandTypeString prints a type as go/types names an operand's: an
+// untyped constant's by its kind.
+func operandTypeString(t Type) string {
+	if t == nil {
+		return "nil"
+	}
+	if isUntyped(t) {
+		return "untyped " + untypedKindName(t)
+	}
+	return typeString(t)
+}
+
+// constOperandString prints a constant as go/types does: "-1 (constant of
+// type int)", or "i (constant -1 of type int)" when the value is not the
+// spelling. An untyped constant is printed after the conversion gc
+// applies to it; a non-integral one keeps its untyped form.
+func constOperandString(cx *ConstExpr, t Type) string {
+	expr := constString(cx)
+	tn := operandTypeString(cx.T)
+	var val string
+	switch {
+	case cx.T == UntypedBigdecType && !cx.GetBigDec().IsInt():
+		return fmt.Sprintf("%s (untyped float constant)", expr)
+	case cx.T == UntypedBigdecType:
+		val, tn = bigdecToBigInt(cx.GetBigDec()).String(), typeString(t)
+	case isUntyped(cx.T):
+		val, tn = cx.TypedValue.Sprint(nil), typeString(t)
+	default:
+		val = cx.TypedValue.Sprint(nil)
+	}
+	if expr == val {
+		return fmt.Sprintf("%s (constant of type %s)", expr, tn)
+	}
+	return fmt.Sprintf("%s (constant %s of type %s)", expr, val, tn)
 }
