@@ -482,3 +482,44 @@ func TestInitCycleOnChain(t *testing.T) {
 	m.RunFiles(fn)
 	t.Fatal("RunFiles accepted a cycle")
 }
+
+func TestPreprocessCollectAssignTags(t *testing.T) {
+	// Tags take part in identity for method types and copy element types.
+	msgs := collectErrors(t, `package main
+
+type I interface{ M(struct{ x int "b" }) }
+type S struct{}
+
+func (S) M(struct{ x int "a" }) {}
+
+func f() {
+	var i I = S{}
+	var a []struct{ x int "a" }
+	var b []struct{ x int "b" }
+	var c []struct{ x int "a" }
+	copy(a, b)
+	copy(a, c)
+	_ = i
+}
+
+func main() {}
+`)
+	want := []string{
+		"main.S does not implement main.I (wrong type for method M)",
+		"arguments to copy have different element types struct{x int} and struct{x int}: struct tags differ",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}

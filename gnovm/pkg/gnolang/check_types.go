@@ -305,8 +305,9 @@ func dynamicTypeError(it, ct Type) error {
 }
 
 // assertCopyArgs checks copy(dst, src): dst a slice, src a slice of the
-// same element type, or a string when dst is a byte slice.
-func assertCopyArgs(dt, st Type) {
+// identical element type (tags included), or a string when dst is a
+// byte slice.
+func assertCopyArgs(gm store.GasMeter, dt, st Type) {
 	ds, dok := baseOf(dt).(*SliceType)
 	ss, sok := baseOf(st).(*SliceType)
 	isString := st != nil && st.Kind() == StringKind
@@ -316,6 +317,9 @@ func assertCopyArgs(dt, st Type) {
 	}
 	if sok && ds.Elt.TypeID() != ss.Elt.TypeID() {
 		panic(fmt.Sprintf("arguments to copy have different element types %v and %v", ds.Elt, ss.Elt))
+	}
+	if sok && !tagsIdentical(gm, ds.Elt, ss.Elt) {
+		panic(fmt.Sprintf("arguments to copy have different element types %v and %v: struct tags differ", ds.Elt, ss.Elt))
 	}
 	if isString && ds.Elt != Uint8Type {
 		panic(fmt.Sprintf("arguments to copy have different element types %v and byte", ds.Elt))
