@@ -2,7 +2,6 @@ package params
 
 import (
 	"fmt"
-	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
@@ -100,9 +99,12 @@ func pkey(m *gno.Machine, key string) string {
 	if len(key) == 0 {
 		m.PanicString("empty param key")
 	}
-	if strings.Contains(key, ":") {
-		m.PanicString("invalid param key: " + key)
-	}
+	// The key may contain any byte, colons included: it is always stored
+	// under vm:<realm>:, so it cannot reach another module's or realm's
+	// namespace, and every reader recovers the realm by splitting on the
+	// first colon after "vm:" (package paths contain none). IBC relies on
+	// this: its packet keys end in a big-endian sequence number, which
+	// contains 0x3a (':') for sequence 58 and many others.
 	_, rlmPath := execctx.CurrentRealm(m)
 	return fmt.Sprintf("vm:%s:%s", rlmPath, key)
 }
