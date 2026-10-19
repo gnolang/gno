@@ -100,7 +100,8 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 	var out []unusedName
 	seen := map[key]bool{}
 	for _, bn := range blocks {
-		for _, ns := range bn.GetStaticBlock().NameSources {
+		sb := bn.GetStaticBlock()
+		for _, ns := range sb.NameSources {
 			if ns.NameExpr == nil {
 				continue
 			}
@@ -120,6 +121,12 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 			k := key{ns.Origin, name}
 			if seen[k] || used[k] {
 				continue
+			}
+			if ns.Origin.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
+				continue // accumulate mode dropped the statement with its uses
+			}
+			if idx, ok := sb.GetLocalIndex(ns.NameExpr.Name); ok && isInvalid(sb.Types[idx]) {
+				continue // a dropped statement's placeholder (accumulate mode)
 			}
 			seen[k] = true
 			span := ns.NameExpr.GetSpan()

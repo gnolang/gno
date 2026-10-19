@@ -22,7 +22,6 @@ func main() {
 }
 
 // GnoError:
-// line 14: name foo not defined in fileset with files [bug365.go]
-// line 21: missing field Num in main.S
+// line 15: name not defined: foo
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15; over-strict: lines 14, 21
+// Verdict: KnownIssue errorcheck: #6344 on-chain path first error on line 14, not reported by accumulate mode

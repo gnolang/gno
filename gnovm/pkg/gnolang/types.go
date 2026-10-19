@@ -81,6 +81,7 @@ func (*PackageType) assertType()   {}
 func (*ChanType) assertType()      {}
 func (blockType) assertType()      {}
 func (heapItemType) assertType()   {}
+func (invalidType) assertType()    {}
 func (*tupleType) assertType()     {}
 func (RefType) assertType()        {}
 
@@ -100,6 +101,7 @@ func (*PackageType) IsImmutable() bool     { return false }
 func (*ChanType) IsImmutable() bool        { return true }
 func (blockType) IsImmutable() bool        { return false }
 func (heapItemType) IsImmutable() bool     { return false }
+func (invalidType) IsImmutable() bool      { return true }
 func (*tupleType) IsImmutable() bool       { panic("should not happen") }
 func (RefType) IsImmutable() bool          { panic("should not happen") }
 
@@ -2245,6 +2247,50 @@ func (bt blockType) GetPkgPath() string {
 
 func (bt blockType) IsNamed() bool {
 	panic("blockType has no property called named")
+}
+
+// ----------------------------------------
+// invalidType
+
+// invalidType is the type of what accumulate mode has already reported
+// (go/types' Typ[Invalid]): assignable to and from anything, so no rule
+// reports it twice and dependents keep being checked. Never on chain.
+type invalidType struct{} // no data
+
+func (invalidType) Kind() Kind {
+	return InvalidKind
+}
+
+func (invalidType) TypeID() TypeID {
+	return typeid("invalid type")
+}
+
+func (invalidType) String() string {
+	return "invalid type"
+}
+
+func (invalidType) Elem() Type {
+	return invalidType{}
+}
+
+func (invalidType) GetPkgPath() string {
+	return ""
+}
+
+func (invalidType) IsNamed() bool {
+	return false
+}
+
+// isInvalid reports whether t, or the base of a declared t, is invalidType.
+func isInvalid(t Type) bool {
+	switch bt := baseOf(t).(type) {
+	case invalidType:
+		return true
+	case *PointerType: // a pointer to an invalid type says as little
+		_, ok := baseOf(bt.Elt).(invalidType) // one level: `type T *T` recurs
+		return ok
+	}
+	return false
 }
 
 // ----------------------------------------

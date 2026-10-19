@@ -48,5 +48,8 @@ var x = []interface{}{
 
 // GnoError:
 // line 32: cannot convert untyped bigdec to float32 -- too close to +-Inf
+// line 36: cannot convert untyped bigdec to float32 -- too close to +-Inf
+// line 42: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 46: cannot convert untyped bigdec to float64 -- too close to +-Inf
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 36, 42, 46
+// Verdict: Clean errorcheck
