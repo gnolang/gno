@@ -3,6 +3,7 @@ package minisocial
 import (
 	"time" // For handling time operations
 
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/sys/users"
 )
@@ -16,7 +17,7 @@ type Post struct {
 
 // String stringifies a Post
 func (p Post) String() string {
-	out := p.text + "\n\n"
+	out := sanitize.Block(p.text)
 
 	author := p.author.String()
 	// We can import and use the r/sys/users package to resolve addresses
