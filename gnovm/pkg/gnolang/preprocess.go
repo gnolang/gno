@@ -1123,6 +1123,9 @@ func isTypeField(ftype TransField) bool {
 // markReferenced notes every name a dropped node mentions: a use the walk
 // never sees, so the unused-name rules stay quiet about it.
 func (acc *preprocessAccumulator) markReferenced(n Node) {
+	if acc.referenced == nil {
+		acc.referenced = map[Name]bool{}
+	}
 	Transcribe(n, func(_ []Node, _ TransField, _ int, sn Node, stage TransStage) (Node, TransCtrl) {
 		if nx, ok := sn.(*NameExpr); ok && stage == TRANS_ENTER {
 			acc.referenced[nx.Name] = true
