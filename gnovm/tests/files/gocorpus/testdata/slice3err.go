@@ -132,5 +132,12 @@ func f() {
 // line 35: final index required in 3-index slice
 // line 36: final index required in 3-index slice
 // line 37: middle index required in 3-index slice
+// line 38: middle index required in 3-index slice
+// line 46: middle index required in 3-index slice
+// line 47: middle index required in 3-index slice
+// line 48: final index required in 3-index slice
+// line 49: final index required in 3-index slice
+// line 50: middle index required in 3-index slice
+// line 51: middle index required in 3-index slice
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 38, 46, 47, 48, 49, 50, 51, 52, 53, 57, 62, 63, 64, 65, 66, 68, 70, 72, 75, 80, 81, 82, 83, 84, 86, 88, 90, 93, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 118, 119
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 52, 53, 57, 62, 63, 64, 65, 66, 68, 70, 72, 75, 80, 81, 82, 83, 84, 86, 88, 90, 93, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 118, 119

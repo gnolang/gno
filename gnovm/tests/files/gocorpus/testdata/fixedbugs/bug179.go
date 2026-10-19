@@ -29,5 +29,7 @@ L1:
 // GnoError:
 // line 13: label L2 undefined
 // line 14: label L2 undefined
+// line 22: cannot find branch label "L1"
+// line 23: cannot find branch label "L1"
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 22, 23
+// Verdict: Clean errorcheck

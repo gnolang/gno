@@ -23,10 +23,4 @@ func f(int, float64) {} // ERROR "redeclared|redefinition"
 func g(a int, b string) // GCCGO_ERROR "previous"
 func g(a int, c string) // ERROR "redeclared|redefinition"
 
-// GnoError:
-// line 21: f redeclared in this block
-// 	previous declaration at method1.go:20:6
-// line 24: g redeclared in this block
-// 	previous declaration at method1.go:23:6
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15, 18
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

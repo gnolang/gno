@@ -16,6 +16,8 @@ func main() {
 
 // GnoError:
 // line 10: var declaration not allowed in if initializer
-// line 12: expected operand, found 'var'
+// line 12: expected '{', found 'var'
+// line 14: expected '{', found 'var'
+// line 15: expected ';', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 15

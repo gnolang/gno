@@ -43,4 +43,4 @@ type w2 w // refer to the type loop again
 // line 34: invalid recursive type: w -> x -> y -> z -> x
 // line 36: should not happen
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9, 18, 32; over-strict: lines 13, 34; internal errors: lines 19, 36; on-chain path first error on line 9, not reported by accumulate mode
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9, 18, 32; over-strict: lines 34; internal errors: lines 19, 36; on-chain path first error on line 9, not reported by accumulate mode
