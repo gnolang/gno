@@ -12,7 +12,4 @@ func (t *T) m() *A { return t }
 
 type T struct{}
 
-// GnoError:
-// line 9: StaticBlock.Define2(A) cannot change .V
-
-// Verdict: KnownIssue compile: #6344 an alias of a type declared later panics in Define2
+// Verdict: Clean compile
