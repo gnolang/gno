@@ -995,3 +995,22 @@ func f(p *I, i I) {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectTypeSwitchGuardShadow(t *testing.T) {
+	// The guard t shadows the init t in each clause; a use of t in a
+	// clause is the guard's, so the init t is declared and not used.
+	msgs := collectErrorsRaw(t, `package main
+func f(x interface{}) {
+	switch t := 0; t := x.(type) {
+	case int:
+		_ = t
+	}
+}
+`)
+	want := []string{
+		"main/main.gno:3:9-10: declared and not used: t",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
