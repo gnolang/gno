@@ -8,4 +8,4 @@ package main
 
 var main = func() {} // ERROR "must be func|redefinition"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9

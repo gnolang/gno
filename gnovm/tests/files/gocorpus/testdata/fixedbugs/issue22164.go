@@ -28,4 +28,4 @@ func i() {
 // GnoError:
 // line 12: missing ',' before newline in argument list
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20, 24
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 20, 24

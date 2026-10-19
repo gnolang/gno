@@ -30,4 +30,4 @@ func main() {
 // line 17: wrong argument count in call to (const (copy func(<X>{}, <Y>{}) int)); want 2 got 0
 // line 18: wrong argument count in call to (const (copy func(<X>{}, <Y>{}) int)); want 2 got 3
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20, 21, 23, 24, 25
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 20, 21, 23, 24, 25

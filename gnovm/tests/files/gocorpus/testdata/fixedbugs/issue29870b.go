@@ -13,4 +13,4 @@ func _() {
 	x := 7 // ERROR "declared and not used"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13

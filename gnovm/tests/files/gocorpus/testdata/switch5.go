@@ -93,4 +93,4 @@ func f8(r rune) {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15, 20, 27, 28, 35, 37, 44, 47, 49, 75, 76, 85, 86, 87, 88, 89, 91, 92
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15, 20, 27, 28, 35, 37, 44, 47, 49, 75, 76, 85, 86, 87, 88, 89, 91, 92

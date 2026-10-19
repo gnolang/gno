@@ -10,4 +10,4 @@ package main
 
 type A [...]int	// ERROR "outside of array literal|invalid use of \[\.\.\.\]"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11

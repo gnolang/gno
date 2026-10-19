@@ -20,4 +20,4 @@ func f() {
 
 var m = map[string]F{"f": f} // ERROR "initialization cycle|depends upon itself|initialization cycle"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 21
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21

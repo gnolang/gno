@@ -9,4 +9,4 @@
 
 package% // ERROR "unexpected %|package name must be an identifier|after package clause|expected declaration"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10

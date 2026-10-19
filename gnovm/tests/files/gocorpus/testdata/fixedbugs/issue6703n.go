@@ -24,4 +24,4 @@ var (
 	x = f().m() // ERROR "initialization cycle|depends upon itself"
 )
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 24
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 24

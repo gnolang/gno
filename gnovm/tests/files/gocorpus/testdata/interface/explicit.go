@@ -118,4 +118,4 @@ var b2 B2 = &T2{}
 // line 86: int does not implement main.M (missing method M)
 // line 87: main.Int does not implement main.M (wrong type for method M)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 70, 76, 78, 90, 95
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 70, 76, 78, 90, 95

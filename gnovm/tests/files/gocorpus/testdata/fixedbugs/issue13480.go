@@ -45,4 +45,4 @@ func bug() {
 // line 33: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 // line 34: gno.land/p/filetest/p[gno.land/p/filetest/p/issue13480.go:13:1-39:2].F can only be compared to nil
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 24, 30, 36
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 24, 30, 36

@@ -17,4 +17,4 @@ func (*T) pm() int {
 
 var x = (*T).pm // ERROR "initialization cycle|depends upon itself"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18

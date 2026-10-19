@@ -13,9 +13,4 @@ func main() {
 	_ = append(nil, 1, 2, 3) // ERROR "untyped nil|nil"
 }
 
-// GnoError:
-// line 10: use of untyped nil in assignment
-// line 11: use of untyped nil in assignment
-// line 12: use of untyped nil in assignment
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10, 11, 12, 13; on-chain path first error on line 10, not reported by accumulate mode

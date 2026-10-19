@@ -25,4 +25,4 @@ func m() {
 func main() {
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 22
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14, 22

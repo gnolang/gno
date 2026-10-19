@@ -15,4 +15,4 @@ var m = map[string]int{
 // GnoError:
 // line 10: cannot use untyped Bigint as StringKind
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12; over-strict: lines 10

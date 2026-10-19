@@ -17,4 +17,4 @@ func (T) m() int {
 
 var x = T(0).m() // ERROR "initialization cycle|depends upon itself"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18

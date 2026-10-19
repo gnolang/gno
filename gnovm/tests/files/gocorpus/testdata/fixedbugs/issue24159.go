@@ -19,4 +19,4 @@ func f() {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 16, 18
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14, 16, 18

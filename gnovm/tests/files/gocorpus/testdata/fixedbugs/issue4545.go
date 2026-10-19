@@ -21,4 +21,4 @@ func main() {
 // GnoError:
 // line 17: operator << not defined on: BigdecKind
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16

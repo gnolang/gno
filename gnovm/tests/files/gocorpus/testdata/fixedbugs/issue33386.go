@@ -31,4 +31,4 @@ func _() {
 // GnoError:
 // line 16: expected operand, found '}'
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 26, 27, 28
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 22, 26, 27, 28

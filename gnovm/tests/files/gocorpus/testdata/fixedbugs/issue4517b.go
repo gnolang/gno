@@ -8,4 +8,4 @@ package p
 
 const init = 1 // ERROR "cannot declare init - must be func"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9

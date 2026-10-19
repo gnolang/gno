@@ -34,4 +34,4 @@ func (f *FlagSet) setErrorHandling(b bool) {
 	f.failf("DIE")
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12

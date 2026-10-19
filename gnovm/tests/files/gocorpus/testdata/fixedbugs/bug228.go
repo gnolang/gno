@@ -17,4 +17,4 @@ type T ...int;		// ERROR "[.][.][.]|syntax|type"
 // GnoError:
 // line 11: expected type, found ')'
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 15
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13, 15

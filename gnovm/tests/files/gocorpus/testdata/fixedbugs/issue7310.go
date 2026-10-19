@@ -14,7 +14,4 @@ func main() {
 	_ = 1 + true           // ERROR "mismatched types untyped int and untyped bool|incompatible types|cannot convert"
 }
 
-// GnoError:
-// line 14: cannot use untyped bool as BigintKind
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12, 13, 14

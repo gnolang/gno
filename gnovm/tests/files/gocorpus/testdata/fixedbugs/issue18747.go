@@ -30,4 +30,4 @@ func _ () {
 // GnoError:
 // line 10: missing condition in if statement
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 15, 17, 19, 26
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13, 15, 17, 19, 26

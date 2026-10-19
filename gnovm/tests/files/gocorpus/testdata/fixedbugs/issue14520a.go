@@ -11,9 +11,6 @@ bogus`
 
 // GnoError:
 // line 9: unknown import path 
-// bogus:
-// --- preprocess stack ---
-// stack 1: file gno.land/p/filetest/f/issue14520a.go:8:1-13:15
-// ------------------------
+// bogus
 
 // Verdict: Clean errorcheck

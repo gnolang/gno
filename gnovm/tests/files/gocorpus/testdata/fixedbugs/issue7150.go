@@ -19,4 +19,4 @@ func main() {
 // GnoError:
 // line 12: invalid argument: index must not be negative: (-1 <untyped> bigint)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 14, 15, 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13, 14, 15, 16

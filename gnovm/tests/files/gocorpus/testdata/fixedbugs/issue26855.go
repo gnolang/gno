@@ -31,4 +31,4 @@ var _ = P{
 // line 22: cannot use *gno.land/p/filetest/p.T as struct{}
 // line 26: cannot use struct{} as *gno.land/p/filetest/p.T
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 23, 27; over-strict: lines 22, 26

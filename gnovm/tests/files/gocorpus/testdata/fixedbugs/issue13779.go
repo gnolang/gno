@@ -14,4 +14,4 @@ func main() {
 	students["sally"].age = 3 // ERROR "cannot assign to struct field .* in map"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14

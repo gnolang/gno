@@ -10,4 +10,4 @@ type T *struct {
 	T;	// ERROR "embed.*pointer"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10

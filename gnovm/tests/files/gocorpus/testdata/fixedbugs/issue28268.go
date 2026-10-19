@@ -29,4 +29,4 @@ func _() {
 	x.E()   // no follow-on error here
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19, 20
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19, 20

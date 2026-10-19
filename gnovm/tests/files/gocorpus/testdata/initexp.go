@@ -35,4 +35,4 @@ func b6() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 func b7() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 func b8() int { return a1() + a2() + a3() + a4() + a5() + a6() + a7() }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15

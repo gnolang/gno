@@ -19,4 +19,4 @@ type E struct{ T }
 
 var x = E{}.m() // ERROR "initialization cycle|depends upon itself"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 20

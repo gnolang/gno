@@ -14,8 +14,6 @@ const B = C - 1 // ERROR "constant definition loop\n.*B uses C\n.*C uses B|initi
 const C = A + B + 1
 
 // GnoError:
-// line 12: invalid recursive value: A -> B -> C -> A
-// line 13: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
-// line 14: decl node already predefined! const A<!VPInvalid(0)> = 1 + B<VPInvalid(0)>
+// line 14: invalid recursive value: A -> B -> C -> A
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13; internal errors: lines 13, 14
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12, 13; over-strict: lines 14; on-chain path first error on line 12, not reported by accumulate mode
