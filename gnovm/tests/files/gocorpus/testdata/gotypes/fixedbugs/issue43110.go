@@ -44,11 +44,11 @@ func _() {
 
 // GnoError:
 // line 12: cannot switch on a (struct{_ func()} is not comparable)
-// line 15: cannot switch on a (struct{_ func()} is not comparable)
-// line 32: func() can only be compared to nil
+// line 16: struct{_ func()} is not comparable
+// line 33: func() can only be compared to nil
 // line 36: use of untyped nil in switch expression
 
 // GnoWordingDiffers:
 // line 33: gc expects: invalid case f in switch on .* \(func can only be compared to nil\); gno: func() can only be compared to nil
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15; over-strict: lines 16
