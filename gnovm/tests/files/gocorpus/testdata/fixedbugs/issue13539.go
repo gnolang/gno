@@ -19,4 +19,7 @@ math:
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13
+// GnoError:
+// line 13: "math" imported and not used
+
+// Verdict: Clean errorcheck

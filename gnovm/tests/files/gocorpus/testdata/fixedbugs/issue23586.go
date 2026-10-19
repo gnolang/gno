@@ -24,9 +24,11 @@ func f() {
 }
 
 // GnoError:
+// line 15: "fmt" imported and not used
+// line 16: "math" imported and not used
 // line 20: declared and not used: i
 // line 21: expression in defer must be function call
 // line 22: expression in go must be function call
 // line 23: expression in go must be function call
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 20
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 15, 16, 20

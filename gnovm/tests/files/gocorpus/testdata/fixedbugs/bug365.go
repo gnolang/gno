@@ -22,7 +22,6 @@ func main() {
 }
 
 // GnoError:
-// line 15: name foo not defined in fileset with files [bug365.go]
-// line 21: missing field Num in main.S
+// line 15: name not defined: foo
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 21
+// Verdict: Clean errorcheck
