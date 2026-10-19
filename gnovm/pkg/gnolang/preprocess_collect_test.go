@@ -142,6 +142,258 @@ func main() { println(a, b) }
 	}
 }
 
+func TestInitCycleOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
+	// any initializer runs, with the same positioned message.
+	m := NewMachine("test", nil)
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
+			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted a cycle")
+}
+
+// collectWith is collectErrors with the accumulator exposed: full messages
+// (position kept), an optional in-walk hook, and the panic if one escaped.
+func collectWith(t *testing.T, src string, hook func(Node, TransStage)) (msgs []string, panicked any) {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, referenced: map[Name]bool{}, testHook: hook}
+	func() {
+		defer func() { panicked = recover() }()
+		predefineFileSet(m.Store, pn, fset, acc)
+		for _, f := range fset.Files {
+			preprocess(m.Store, pn, f, acc)
+		}
+	}()
+	for _, e := range acc.errs {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs, panicked
+}
+
+func TestPreprocessCollectDrops(t *testing.T) {
+	t.Run("a Go runtime error is a VM bug, not a diagnostic", func(t *testing.T) {
+		hook := func(n Node, stage TransStage) {
+			if nx, ok := n.(*NameExpr); ok && nx.Name == "crashme" && stage == TRANS_LEAVE {
+				var s []int
+				_ = s[1] // runtime.Error, raised inside doRecover like a VM bug would be
+			}
+		}
+		msgs, panicked := collectWith(t, `package main
+
+func main() {
+	crashme := 1
+	println(crashme)
+}
+`, hook)
+		if panicked == nil || !isRuntimePanic(panicked) {
+			t.Fatalf("want the runtime error to escape, got panic %v, errors %v", panicked, msgs)
+		}
+		if len(msgs) != 0 {
+			t.Fatalf("want no diagnostic, got %v", msgs)
+		}
+	})
+
+	t.Run("a split package-level var is guarded and positioned at its name", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+var a, b = undefinedF, 2
+
+func main() { println(a, b) }
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:5") || !strings.Contains(msgs[0], "undefinedF") {
+			t.Fatalf("want one error at the name a (3:5), got %v", msgs)
+		}
+	})
+
+	t.Run("a suppressed cascade still poisons what it declares", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+func main() {
+	x := undefinedA
+	y := x + 1
+	z := y
+	println(z)
+}
+`)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "undefinedA") {
+			t.Fatalf("want only the root error, got %v", msgs)
+		}
+	})
+
+	t.Run("a dropped dependency reports once, at its own declaration", func(t *testing.T) {
+		for name, src := range map[string]string{
+			"dependency first": `package main
+
+const C = undefinedH + 1
+var V = C * 2
+var W = V + 1
+
+func main() { println(W) }
+`,
+			"dependent first": `package main
+
+var W = V + 1
+var V = C * 2
+const C = undefinedH + 1
+
+func main() { println(W) }
+`,
+		} {
+			msgs, panicked := collectWith(t, src, nil)
+			if panicked != nil {
+				t.Fatalf("%s: escaped: %v", name, panicked)
+			}
+			cLine := "main.gno:3:"
+			if name == "dependent first" {
+				cLine = "main.gno:5:"
+			}
+			if len(msgs) != 1 || !strings.Contains(msgs[0], cLine) || !strings.Contains(msgs[0], "undefinedH") {
+				t.Fatalf("%s: want one error at C (%s), got %v", name, cLine, msgs)
+			}
+		}
+	})
+
+	t.Run("PreprocessCollect on one file node", func(t *testing.T) {
+		m := NewMachine("main", nil)
+		defer m.Release()
+		fn, err := m.ParseFile("main.gno", `package main
+
+var G int = "g"
+
+func main() {
+	var n string = 1
+	println(G, n)
+}
+`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("main", "main", fset)
+		nn, errs := PreprocessCollect(m.Store, pn, fn)
+		if nn == nil || len(errs) != 2 {
+			t.Fatalf("want the node and 2 errors, got %v, %v", nn != nil, errs)
+		}
+		if !strings.Contains(errs[0].Unwrap().Error(), "main.gno:3:") || !strings.Contains(errs[1].Unwrap().Error(), "main.gno:6:") {
+			t.Fatalf("unexpected positions: %v", errs)
+		}
+	})
+}
+
+func TestParseFileCollect(t *testing.T) {
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, perrs := m.ParseFileCollect("main.gno", `package main
+
+func f() int {
+	x := 1 +
+	return x
+}
+
+func g() {
+	if {
+	}
+	var s string = 1
+	_ = s
+}
+
+func main() {}
+`)
+	// AllErrors: both errors of line 5 are kept, plus line 9.
+	if fn == nil || len(perrs) != 3 {
+		t.Fatalf("want a file node and 3 parser errors, got %v, %v", fn != nil, perrs)
+	}
+	for i, want := range []string{"main.gno:5:2:", "main.gno:5:2:", "main.gno:9:5:"} {
+		if !strings.HasPrefix(perrs[i].Error(), want) {
+			t.Errorf("parser error %d: got %v, want prefix %s", i, perrs[i], want)
+		}
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	// The broken statements drop silently; the checker still reaches g's
+	// type error and nothing mentions the placeholder.
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:11:") || !strings.Contains(msgs[0], "cannot use") {
+		t.Fatalf("want one error at line 11, got %v", msgs)
+	}
+	if fn, perrs := m.ParseFileCollect("main.gno", "func f() {}\n"); fn != nil || len(perrs) == 0 {
+		t.Fatalf("no package clause: want nil node and an error, got %v, %v", fn != nil, perrs)
+	}
+}
+
+func TestParseFileCollectDeclarations(t *testing.T) {
+	// A declaration Go2Gno refuses drops with its own error; a blank
+	// package name is reported and parsed past. (A missing import path
+	// is left to the import rule, exercised by the corpus.)
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, perrs := m.ParseFileCollect("main.gno", `package _
+
+type T int
+
+func (x, y T) m() {}
+
+func g() {
+	var s string = 1
+	_ = s
+}
+`)
+	if fn == nil {
+		t.Fatalf("want a file node, got errors %v", perrs)
+	}
+	var got []string
+	for _, e := range perrs {
+		got = append(got, e.Error())
+	}
+	for _, want := range []string{"main.gno:1:10: invalid package name _", "main.gno:5:7: "} {
+		found := false
+		for _, g := range got {
+			if strings.HasPrefix(g, want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing an error starting %q in %v", want, got)
+		}
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("_", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	// g is still checked.
+	if len(msgs) < 1 || !strings.Contains(msgs[len(msgs)-1], "main.gno:8:") {
+		t.Fatalf("want g's error last, got %v", msgs)
+	}
+	for _, m := range msgs {
+		if strings.Contains(m, "!syntax") {
+			t.Errorf("placeholder leaked: %s", m)
+		}
+	}
+}
+
 func TestPreprocessCollectUnused(t *testing.T) {
 	msgs := collectErrors(t, `package main
 
@@ -390,6 +642,32 @@ func main() { f() }
 	}
 }
 
+func TestPreprocessCollectUnusedExempt(t *testing.T) {
+	// A name only a folded constant uses, and a blank label, are not unused.
+	src := `package main
+
+func main() {
+	var a [10]int
+	const ca = len(a)
+	_ = ca
+_:
+}
+`
+	if msgs := collectErrors(t, src); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectMainSignature(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+func main(int) {}
+`)
+	if len(msgs) != 1 || msgs[0] != "func main must have no arguments and no return values" {
+		t.Fatalf("got %v", msgs)
+	}
+}
+
 func TestPreprocessCollectTypes(t *testing.T) {
 	msgs := collectErrors(t, `package main
 
@@ -491,6 +769,49 @@ func main() {}
 	}
 }
 
+// collectErrorsRaw is collectErrors with the position kept.
+func collectErrorsRaw(t *testing.T, src string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	errs := PreprocessFilesCollect(m.Store, pn, fset)
+	var msgs []string
+	for _, e := range errs {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectTypePositions(t *testing.T) {
+	// B's key check is skipped while B is a shell and decided when B
+	// completes; the error still points at the key spelling in A.
+	msgs := collectErrorsRaw(t, `package main
+type B struct{ s []int; a A }
+type A struct{ m map[B]int }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:22-23: invalid map key type main.B") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	// A typed declared constant prints as T(value).
+	msgs = collectErrors(t, `package main
+type MyInt int
+func f(mi MyInt) {
+	switch mi {
+	case 1, MyInt(1):
+	}
+}
+`)
+	if len(msgs) != 1 || msgs[0] != "duplicate case MyInt(1) in expression switch" {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
+
 func TestPreprocessCollectAssign(t *testing.T) {
 	msgs := collectErrors(t, `package main
 
@@ -545,22 +866,6 @@ func main() {}
 	}
 }
 
-func TestPreprocessCollectUnusedExempt(t *testing.T) {
-	// A name only a folded constant uses, and a blank label, are not unused.
-	src := `package main
-
-func main() {
-	var a [10]int
-	const ca = len(a)
-	_ = ca
-_:
-}
-`
-	if msgs := collectErrors(t, src); len(msgs) != 0 {
-		t.Fatalf("false positive: %v", msgs)
-	}
-}
-
 func TestPreprocessCollectNamedPointerShadow(t *testing.T) {
 	// Through a declared pointer type a method is still the shallowest
 	// provider, so it shadows the promoted field and the selector fails.
@@ -581,23 +886,6 @@ func main() {
 	if len(msgs) != 1 || !strings.Contains(msgs[0], "missing field f") {
 		t.Fatalf("unexpected: %v", msgs)
 	}
-}
-
-func TestInitCycleOnChain(t *testing.T) {
-	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
-	// any initializer runs, with the same positioned message.
-	m := NewMachine("test", nil)
-	defer m.Release()
-	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
-	defer func() {
-		r := recover()
-		pe, ok := r.(*PreprocessError)
-		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
-			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
-		}
-	}()
-	m.RunFiles(fn)
-	t.Fatal("RunFiles accepted a cycle")
 }
 
 func TestPreprocessCollectAssignTags(t *testing.T) {
@@ -638,232 +926,6 @@ func main() {}
 	}
 	if len(msgs) != len(want) {
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
-	}
-}
-
-// collectErrorsRaw is collectErrors with the position kept.
-func collectErrorsRaw(t *testing.T, src string) []string {
-	t.Helper()
-	m := NewMachine("main", nil)
-	defer m.Release()
-	fn, err := m.ParseFile("main.gno", src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fset := &FileSet{Files: []*FileNode{fn}}
-	pn := NewPackageNode("main", "main", fset)
-	errs := PreprocessFilesCollect(m.Store, pn, fset)
-	var msgs []string
-	for _, e := range errs {
-		msgs = append(msgs, e.Unwrap().Error())
-	}
-	return msgs
-}
-
-func TestPreprocessCollectTypePositions(t *testing.T) {
-	// B's key check is skipped while B is a shell and decided when B
-	// completes; the error still points at the key spelling in A.
-	msgs := collectErrorsRaw(t, `package main
-type B struct{ s []int; a A }
-type A struct{ m map[B]int }
-`)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:22-23: invalid map key type main.B") {
-		t.Fatalf("unexpected: %v", msgs)
-	}
-	// A typed declared constant prints as T(value).
-	msgs = collectErrors(t, `package main
-type MyInt int
-func f(mi MyInt) {
-	switch mi {
-	case 1, MyInt(1):
-	}
-}
-`)
-	if len(msgs) != 1 || msgs[0] != "duplicate case MyInt(1) in expression switch" {
-		t.Fatalf("unexpected: %v", msgs)
-	}
-}
-
-// collectWith is collectErrors with the accumulator exposed: full messages
-// (position kept), an optional in-walk hook, and the panic if one escaped.
-func collectWith(t *testing.T, src string, hook func(Node, TransStage)) (msgs []string, panicked any) {
-	t.Helper()
-	m := NewMachine("main", nil)
-	defer m.Release()
-	fn, err := m.ParseFile("main.gno", src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fset := &FileSet{Files: []*FileNode{fn}}
-	pn := NewPackageNode("main", "main", fset)
-	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, referenced: map[Name]bool{}, testHook: hook}
-	func() {
-		defer func() { panicked = recover() }()
-		predefineFileSet(m.Store, pn, fset, acc)
-		for _, f := range fset.Files {
-			preprocess(m.Store, pn, f, acc)
-		}
-	}()
-	for _, e := range acc.errs {
-		msgs = append(msgs, e.Unwrap().Error())
-	}
-	return msgs, panicked
-}
-
-func TestPreprocessCollectDrops(t *testing.T) {
-	t.Run("a Go runtime error is a VM bug, not a diagnostic", func(t *testing.T) {
-		hook := func(n Node, stage TransStage) {
-			if nx, ok := n.(*NameExpr); ok && nx.Name == "crashme" && stage == TRANS_LEAVE {
-				var s []int
-				_ = s[1] // runtime.Error, raised inside doRecover like a VM bug would be
-			}
-		}
-		msgs, panicked := collectWith(t, `package main
-
-func main() {
-	crashme := 1
-	println(crashme)
-}
-`, hook)
-		if panicked == nil || !isRuntimePanic(panicked) {
-			t.Fatalf("want the runtime error to escape, got panic %v, errors %v", panicked, msgs)
-		}
-		if len(msgs) != 0 {
-			t.Fatalf("want no diagnostic, got %v", msgs)
-		}
-	})
-
-	t.Run("a split package-level var is guarded and positioned at its name", func(t *testing.T) {
-		msgs, panicked := collectWith(t, `package main
-
-var a, b = undefinedF, 2
-
-func main() { println(a, b) }
-`, nil)
-		if panicked != nil {
-			t.Fatalf("escaped: %v", panicked)
-		}
-		if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:5") || !strings.Contains(msgs[0], "undefinedF") {
-			t.Fatalf("want one error at the name a (3:5), got %v", msgs)
-		}
-	})
-
-	t.Run("a suppressed cascade still poisons what it declares", func(t *testing.T) {
-		msgs := collectErrors(t, `package main
-
-func main() {
-	x := undefinedA
-	y := x + 1
-	z := y
-	println(z)
-}
-`)
-		if len(msgs) != 1 || !strings.Contains(msgs[0], "undefinedA") {
-			t.Fatalf("want only the root error, got %v", msgs)
-		}
-	})
-
-	t.Run("a dropped dependency reports once, at its own declaration", func(t *testing.T) {
-		for name, src := range map[string]string{
-			"dependency first": `package main
-
-const C = undefinedH + 1
-var V = C * 2
-var W = V + 1
-
-func main() { println(W) }
-`,
-			"dependent first": `package main
-
-var W = V + 1
-var V = C * 2
-const C = undefinedH + 1
-
-func main() { println(W) }
-`,
-		} {
-			msgs, panicked := collectWith(t, src, nil)
-			if panicked != nil {
-				t.Fatalf("%s: escaped: %v", name, panicked)
-			}
-			cLine := "main.gno:3:"
-			if name == "dependent first" {
-				cLine = "main.gno:5:"
-			}
-			if len(msgs) != 1 || !strings.Contains(msgs[0], cLine) || !strings.Contains(msgs[0], "undefinedH") {
-				t.Fatalf("%s: want one error at C (%s), got %v", name, cLine, msgs)
-			}
-		}
-	})
-
-	t.Run("PreprocessCollect on one file node", func(t *testing.T) {
-		m := NewMachine("main", nil)
-		defer m.Release()
-		fn, err := m.ParseFile("main.gno", `package main
-
-var G int = "g"
-
-func main() {
-	var n string = 1
-	println(G, n)
-}
-`)
-		if err != nil {
-			t.Fatal(err)
-		}
-		fset := &FileSet{Files: []*FileNode{fn}}
-		pn := NewPackageNode("main", "main", fset)
-		nn, errs := PreprocessCollect(m.Store, pn, fn)
-		if nn == nil || len(errs) != 2 {
-			t.Fatalf("want the node and 2 errors, got %v, %v", nn != nil, errs)
-		}
-		if !strings.Contains(errs[0].Unwrap().Error(), "main.gno:3:") || !strings.Contains(errs[1].Unwrap().Error(), "main.gno:6:") {
-			t.Fatalf("unexpected positions: %v", errs)
-		}
-	})
-}
-
-func TestParseFileCollect(t *testing.T) {
-	m := NewMachine("main", nil)
-	defer m.Release()
-	fn, perrs := m.ParseFileCollect("main.gno", `package main
-
-func f() int {
-	x := 1 +
-	return x
-}
-
-func g() {
-	if {
-	}
-	var s string = 1
-	_ = s
-}
-
-func main() {}
-`)
-	// AllErrors: both errors of line 5 are kept, plus line 9.
-	if fn == nil || len(perrs) != 3 {
-		t.Fatalf("want a file node and 3 parser errors, got %v, %v", fn != nil, perrs)
-	}
-	for i, want := range []string{"main.gno:5:2:", "main.gno:5:2:", "main.gno:9:5:"} {
-		if !strings.HasPrefix(perrs[i].Error(), want) {
-			t.Errorf("parser error %d: got %v, want prefix %s", i, perrs[i], want)
-		}
-	}
-	fset := &FileSet{Files: []*FileNode{fn}}
-	pn := NewPackageNode("main", "main", fset)
-	var msgs []string
-	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
-		msgs = append(msgs, e.Unwrap().Error())
-	}
-	// The broken statements drop silently; the checker still reaches g's
-	// type error and nothing mentions the placeholder.
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:11:") || !strings.Contains(msgs[0], "cannot use") {
-		t.Fatalf("want one error at line 11, got %v", msgs)
-	}
-	if fn, perrs := m.ParseFileCollect("main.gno", "func f() {}\n"); fn != nil || len(perrs) == 0 {
-		t.Fatalf("no package clause: want nil node and an error, got %v, %v", fn != nil, perrs)
 	}
 }
 
