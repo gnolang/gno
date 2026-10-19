@@ -48,6 +48,7 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 		preprocess(store, pn, fn, acc)
 	}
 	acc.errs = append(acc.errs, checkInitCycles(preprocessGasMeterOf(store), pn, fset)...)
+	reportUnusedImports(store, acc, pn, fset)
 	return acc.errs
 }
 
@@ -285,6 +286,13 @@ func CheckInitCycles(store Store, pn *PackageNode, fset *FileSet) {
 	if errs := checkInitCycles(preprocessGasMeterOf(store), pn, fset); len(errs) > 0 {
 		panic(errs[0])
 	}
+}
+
+// CheckUnusedImports is the on-chain form of the unused-import rule: once
+// the package's files are preprocessed, the first import no file refers
+// to panics as a *PreprocessError positioned at its import spec.
+func CheckUnusedImports(store Store, pn *PackageNode, fset *FileSet) {
+	reportUnusedImports(store, nil, pn, fset)
 }
 
 func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preprocessAccumulator) {
@@ -7105,6 +7113,30 @@ func reportUnused(store Store, acc *preprocessAccumulator, stack []BlockNode, fn
 		loc := fn.GetLocation()
 		loc.SetSpanOverride(u.span)
 		pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg), stack: stack}
+		if acc == nil {
+			panic(pe)
+		}
+		acc.report(pe)
+	}
+}
+
+// reportUnusedImports runs checkUnusedImports over the package's files and
+// raises each unused import: the first panics on chain, all are reported
+// in accumulate mode (minus names a dropped statement mentioned, which the
+// walk could never see used).
+func reportUnusedImports(store Store, acc *preprocessAccumulator, pn *PackageNode, fset *FileSet) {
+	pkgName := func(pkgPath string) Name { // cached since predefine
+		if pv := store.GetPackage(pkgPath, false); pv != nil {
+			return pv.PkgName
+		}
+		return ""
+	}
+	for _, u := range checkUnusedImports(preprocessGasMeterOf(store), fset, pkgName) {
+		if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
+			continue
+		}
+		loc := Location{PkgPath: pn.PkgPath, File: u.file.FileName, Span: u.span}
+		pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg)}
 		if acc == nil {
 			panic(pe)
 		}

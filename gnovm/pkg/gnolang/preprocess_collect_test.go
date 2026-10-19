@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // collectErrors preprocesses one file in accumulate mode and returns the
@@ -613,4 +615,147 @@ func main(int) {}
 	if len(msgs) != 1 || msgs[0] != "func main must have no arguments and no return values" {
 		t.Fatalf("got %v", msgs)
 	}
+}
+
+// depStore is a bare store that resolves "dep", "dep2" and "dep3" to
+// one-file packages.
+func depStore() Store {
+	store := NewStore(nil, nil, nil)
+	store.SetPackageGetter(func(pkgPath string, st Store) (*PackageNode, *PackageValue) {
+		switch pkgPath {
+		case "dep", "dep2", "dep3":
+		default:
+			return nil, nil
+		}
+		m := NewMachineWithOptions(MachineOptions{PkgPath: pkgPath, Store: st, SkipPackage: true})
+		defer m.Release()
+		return m.RunMemPackage(&std.MemPackage{Type: MPStdlibProd, Name: pkgPath, Path: pkgPath, Files: []*std.MemFile{
+			{Name: "dep.gno", Body: "package " + pkgPath + "\n\nconst X = 1\n\ntype T struct{}\n\nfunc F() int { return X }\n"},
+		}}, false)
+	})
+	return store
+}
+
+// collectPkgErrors preprocesses srcs (one file each: a.gno, b.gno, ...) as
+// one package in accumulate mode over depStore and returns the messages
+// with their position kept.
+func collectPkgErrors(t *testing.T, srcs ...string) []string {
+	t.Helper()
+	m := NewMachine("main", depStore())
+	defer m.Release()
+	var files []*FileNode
+	for i, src := range srcs {
+		fn, err := m.ParseFile(fmt.Sprintf("%c.gno", 'a'+i), src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, fn)
+	}
+	fset := &FileSet{Files: files}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectUnusedImport(t *testing.T) {
+	t.Run("unused import, at its spec", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import (
+	"dep"
+	"dep2"
+)
+
+func main() { println(dep.X) }
+`)
+		if len(msgs) != 1 || msgs[0] != `main/a.gno:5:2-8: "dep2" imported and not used` {
+			t.Fatalf("got %v", msgs)
+		}
+	})
+
+	t.Run("imports are per file; a use in another file does not count", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import d "dep"
+
+func main() { println(g()) }
+`, `package main
+
+import "dep"
+
+func g() int { return dep.F() }
+`)
+		if len(msgs) != 1 || msgs[0] != `main/a.gno:3:8-15: "dep" imported as d and not used` {
+			t.Fatalf("got %v", msgs)
+		}
+	})
+
+	t.Run("a type, a constant and a value reference are uses", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import (
+	"dep"
+	d2 "dep2"
+	"dep3"
+)
+
+type S struct{ f dep.T }
+
+const c = d2.X
+
+var _ = dep3.F
+
+func main() { _ = S{} }
+`)
+		if len(msgs) != 0 {
+			t.Fatalf("false positive: %v", msgs)
+		}
+	})
+
+	t.Run("blank imports are exempt", func(t *testing.T) {
+		if msgs := collectPkgErrors(t, "package main\n\nimport _ \"dep\"\n\nfunc main() {}\n"); len(msgs) != 0 {
+			t.Fatalf("false positive: %v", msgs)
+		}
+	})
+
+	t.Run("a name a dropped statement mentioned is not reported", func(t *testing.T) {
+		msgs := collectPkgErrors(t, "package main\n\nimport \"dep\"\n\nfunc main() { dep.Nope() }\n")
+		for _, msg := range msgs {
+			if strings.Contains(msg, "imported and not used") {
+				t.Fatalf("reported a dropped statement's import: %v", msgs)
+			}
+		}
+	})
+
+	t.Run("source order, files then specs", func(t *testing.T) {
+		msgs := collectPkgErrors(t, "package main\n\nimport (\n\t\"dep2\"\n\t\"dep\"\n)\n\nfunc main() {}\n", "package main\n\nimport \"dep3\"\n")
+		want := []string{
+			`main/a.gno:4:2-8: "dep2" imported and not used`,
+			`main/a.gno:5:2-7: "dep" imported and not used`,
+			`main/b.gno:3:8-14: "dep3" imported and not used`,
+		}
+		if fmt.Sprint(msgs) != fmt.Sprint(want) {
+			t.Fatalf("got %v\nwant %v", msgs, want)
+		}
+	})
+}
+
+func TestUnusedImportOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the package once its files are
+	// preprocessed, with the first unused import's positioned message.
+	m := NewMachine("test", depStore())
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nimport \"dep\"\n\nfunc f() int { return 1 }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), `test/a.gno:3:8-13: "dep" imported and not used`) {
+			t.Fatalf("want an unused-import PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted an unused import")
 }
