@@ -64,4 +64,23 @@ func (T9 /* ERRORx `invalid receiver type (\*\*T|T9)` */ ) m9() {}
 func _() { (T{}).m9 /* ERROR "has no field or method m9" */ () }
 func _() { (&T{}).m9 /* ERROR "has no field or method m9" */ () }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 44, 54, 63, 64, 65; on-chain path first error on line 30, not reported by accumulate mode
+// GnoError:
+// line 26: missing field m2 in gno.land/p/filetest/issue28251.T
+// line 27: missing field m2 in *gno.land/p/filetest/issue28251.T
+// line 30: StaticBlock.Define2(T2) cannot change .V
+// line 35: missing field m2 in gno.land/p/filetest/issue28251.T
+// line 36: missing field m2 in *gno.land/p/filetest/issue28251.T
+// line 48: StaticBlock.Define2(T6) cannot change .V
+// line 54: missing field m6 in gno.land/p/filetest/issue28251.T
+// line 55: missing field m6 in *gno.land/p/filetest/issue28251.T
+// line 63: invalid receiver type **gno.land/p/filetest/issue28251.T (base type is pointer type)
+// line 64: missing field m9 in gno.land/p/filetest/issue28251.T
+// line 65: missing field m9 in *gno.land/p/filetest/issue28251.T
+
+// GnoWordingDiffers:
+// line 54: gc expects: cannot call pointer method m6 on T; gno: missing field m6 in gno.land/p/filetest/issue28251.T
+// line 63: gc expects: invalid receiver type (\*\*T|T9); gno: invalid receiver type **gno.land/p/filetest/issue28251.T (base type is pointer type)
+// line 64: gc expects: has no field or method m9; gno: missing field m9 in gno.land/p/filetest/issue28251.T
+// line 65: gc expects: has no field or method m9; gno: missing field m9 in *gno.land/p/filetest/issue28251.T
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 44; over-strict: lines 26, 27, 35, 36, 55; internal errors: lines 30, 48
