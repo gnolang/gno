@@ -61,13 +61,16 @@ type self2[P any] *self2[P] // this is ok
 // line 35: expected type argument list
 // line 36: expected type argument list
 // line 39: expected type argument list
+// line 41: invalid operation: more than one index
 
 // ParseBlocked:
 // line 12: gc expects: cannot use a type parameter as RHS in type declaration
 // line 23: gc expects: cannot use generic type
 // line 33: gc expects: not a type
 // line 40: gc expects: not a type
-// line 41: gc expects: too many type arguments for type T1: have 2, want 1
 // line 57: gc expects: invalid recursive type
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12, 23, 33, 40, 41, 57
+// GnoWordingDiffers:
+// line 41: gc expects: too many type arguments for type T1: have 2, want 1; gno: invalid operation: more than one index
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12, 23, 33, 40, 57

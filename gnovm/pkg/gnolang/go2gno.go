@@ -31,8 +31,10 @@ package gnolang
 */
 
 import (
+	stderrors "errors"
 	"fmt"
 	"go/ast"
+	goscanner "go/scanner"
 	"go/token"
 	"os"
 	"reflect"
@@ -193,6 +195,50 @@ func newParserCallback(m *Machine) parser.ParserCallback {
 	return func(tok token.Token, nestLev int) {
 		m.GasMeter.ConsumeGas(types.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
 	}
+}
+
+// syntaxErrName stands in for a node go/parser could not parse (its
+// ast.Bad* placeholders). Not a Go identifier, so no program declares it;
+// accumulate mode poisons it, so the statement holding it drops silently
+// behind the parser's own error for that line.
+const syntaxErrName Name = "!syntax"
+
+// ParseFileCollect is ParseFile for accumulate mode: every syntax and
+// declaration error go/parser reports (AllErrors) comes back located, and
+// the partial AST still becomes a FileNode, each unparsed node a statement
+// that drops at preprocess. fn is nil only when the source has no package
+// clause or Go2Gno cannot take the partial AST; on chain ParseFile still
+// rejects the file at its first error.
+func (m *Machine) ParseFileCollect(fname, body string) (fn *FileNode, errs []error) {
+	fs := token.NewFileSet()
+	const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.AllErrors
+	astf, err := parser.ParseFile2(fs, fname, body, parseOpts, newParserCallback(m))
+	if err != nil {
+		var list goscanner.ErrorList
+		if stderrors.As(err, &list) {
+			for _, e := range list {
+				errs = append(errs, e)
+			}
+		} else {
+			errs = append(errs, err)
+		}
+	}
+	if astf == nil || astf.Name == nil || astf.Name.Name == "" {
+		return nil, errs
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fn = nil
+			if rerr, ok := r.(error); ok {
+				errs = append(errs, rerr)
+			} else {
+				errs = append(errs, fmt.Errorf("%v", r))
+			}
+		}
+	}()
+	fn = Go2Gno(fs, astf, nil).(*FileNode)
+	fn.FileName = fname
+	return fn, errs
 }
 
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
@@ -705,6 +751,12 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 		}
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}
+	case *ast.BadExpr:
+		return Nx(syntaxErrName)
+	case *ast.BadStmt:
+		return &ExprStmt{X: Nx(syntaxErrName)}
+	case *ast.BadDecl:
+		return &ValueDecl{NameExprs: NameExprs{*Nx(syntaxErrName)}, Values: Exprs{Nx(syntaxErrName)}}
 	case *ast.IndexListExpr:
 		if len(gon.Indices) > 1 {
 			panicWithPos("invalid operation: more than one index")

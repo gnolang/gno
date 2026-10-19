@@ -8,10 +8,4 @@ func main()
 func main /* ERROR "no arguments and no return values" */ /* ERROR "redeclared" */ (int)
 func main /* ERROR "no arguments and no return values" */ /* ERROR "redeclared" */ () int
 
-// GnoError:
-// line 8: main redeclared in this block
-// 	previous declaration at main0.go:7:6
-// line 9: main redeclared in this block
-// 	previous declaration at main0.go:7:6
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

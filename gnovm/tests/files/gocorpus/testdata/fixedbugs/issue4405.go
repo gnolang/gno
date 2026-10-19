@@ -15,10 +15,13 @@ const (
 )
 
 // GnoError:
-// line 11: illegal character U+0007
+// line 11: expected ';', found 'ILLEGAL'
 // line 12: illegal character U+0008
 // line 13: illegal character U+000B
 // line 14: illegal character U+000C
 // line 15: expected ')', found 'EOF'
+
+// GnoWordingDiffers:
+// line 11: gc expects: illegal character|invalid character; gno: expected ';', found 'ILLEGAL'
 
 // Verdict: KnownIssue errorcheck: #6344 over-strict: lines 15

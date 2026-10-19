@@ -13,9 +13,9 @@ func main() {
 
 // GnoError:
 // line 10: expected '{', found newline
-// line 12: expected '}', found 'EOF'
+// line 12: expected ';', found 'EOF'
 
 // GnoWordingDiffers:
 // line 10: gc expects: expected .*{.* after for clause|undefined; gno: expected '{', found newline
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 12
+// Verdict: Clean errorcheck

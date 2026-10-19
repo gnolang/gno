@@ -10,6 +10,7 @@ var _ = interface{
 }(nil)
 
 // GnoError:
+// line 7: duplicate method m
 // line 9: m redeclared in this block
 // 	previous declaration at issue48234.go:9:2
 
@@ -17,4 +18,4 @@ var _ = interface{
 // line 9: gc expects: duplicate method; gno: m redeclared in this block
 // 	previous declaration at issue48234.go:9:2
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 7

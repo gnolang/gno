@@ -185,20 +185,69 @@ func _() {
 }
 
 // GnoError:
+// line 30: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 33: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 35: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 37: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 39: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 41: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 43: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 45: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 47: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 49: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+// line 51: range iteration requires map, string, array, slice, or pointer to array; got Uint8Kind
+// line 53: range iteration requires map, string, array, slice, or pointer to array; got Int64Kind
+// line 55: range iteration requires map, string, array, slice, or pointer to array; got Int32Kind
+// line 57: range iteration requires map, string, array, slice, or pointer to array; got Int32Kind
+// line 59: range iteration requires map, string, array, slice, or pointer to array; got BigdecKind
+// line 61: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 63: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 65: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 72: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 75: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 78: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 81: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 84: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 87: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 90: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 93: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 96: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 99: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 102: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 105: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 108: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 111: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 115: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+// line 118: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+// line 121: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+// line 124: range iteration requires map, string, array, slice, or pointer to array; got Int32Kind
+// line 127: range iteration requires map, string, array, slice, or pointer to array; got Int32Kind
+// line 133: range iteration requires map, string, array, slice, or pointer to array; got StructKind
+// line 138: range iteration requires map, string, array, slice, or pointer to array; got StructKind
+// line 143: range iteration requires map, string, array, slice, or pointer to array; got StructKind
+// line 148: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 153: range iteration requires map, string, array, slice, or pointer to array; got StructKind
+// line 164: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 166: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 169: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 171: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 173: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 176: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 178: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 180: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 // line 183: expected at most 2 expressions
 
-// ParseBlocked:
-// line 30: gc expects: cannot range over m1 (variable of type func(T)): func must be func(yield func(...) bool): argument is not func
-// line 33: gc expects: cannot range over m2 (variable of type func(*T)): func must be func(yield func(...) bool): argument is not func
-// line 35: gc expects: cannot range over f1 (value of type func()): func must be func(yield func(...) bool): wrong argument count
-// line 37: gc expects: cannot range over f2 (value of type func(func())): func must be func(yield func(...) bool): yield func does not return bool
-// line 59: gc expects: cannot range over 1.0 (untyped float constant 1)
-// line 105: gc expects: cannot use i (value of int32 type MyInt) as int value in assignment | cannot use s (value of string type MyString) as string value in assignment
-// line 109: gc expects: cannot use mi (variable of int32 type MyInt) as int value in assignment | cannot use ms (variable of string type MyString) as string value in assignment
-// line 121: gc expects: range over 10 (untyped int constant) permits only one iteration variable
-// line 133: gc expects: cannot range over x (variable of type T constrained by int | string): no core type
-// line 138: gc expects: cannot range over x (variable of type T constrained by int | int64): no core type
-// line 166: gc expects: range over seq0 (value of type func(func() bool)) permits no iteration variables
-// line 173: gc expects: range over seq1 (value of type func(func(int) bool)) permits only one iteration variable
+// GnoWordingDiffers:
+// line 30: gc expects: cannot range over m1 (variable of type func(T)): func must be func(yield func(...) bool): argument is not func; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 33: gc expects: cannot range over m2 (variable of type func(*T)): func must be func(yield func(...) bool): argument is not func; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 35: gc expects: cannot range over f1 (value of type func()): func must be func(yield func(...) bool): wrong argument count; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 37: gc expects: cannot range over f2 (value of type func(func())): func must be func(yield func(...) bool): yield func does not return bool; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 59: gc expects: cannot range over 1.0 (untyped float constant 1); gno: range iteration requires map, string, array, slice, or pointer to array; got BigdecKind
+// line 105: gc expects: cannot use i (value of int32 type MyInt) as int value in assignment | cannot use s (value of string type MyString) as string value in assignment; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 121: gc expects: range over 10 (untyped int constant) permits only one iteration variable; gno: range iteration requires map, string, array, slice, or pointer to array; got BigintKind
+// line 133: gc expects: cannot range over x (variable of type T constrained by int | string): no core type; gno: range iteration requires map, string, array, slice, or pointer to array; got StructKind
+// line 138: gc expects: cannot range over x (variable of type T constrained by int | int64): no core type; gno: range iteration requires map, string, array, slice, or pointer to array; got StructKind
+// line 166: gc expects: range over seq0 (value of type func(func() bool)) permits no iteration variables; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
+// line 173: gc expects: range over seq1 (value of type func(func(int) bool)) permits only one iteration variable; gno: range iteration requires map, string, array, slice, or pointer to array; got FuncKind
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 30, 33, 35, 37, 59, 105, 109, 121, 133, 138, 166, 173
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 109; over-strict: lines 39, 41, 43, 45, 47, 49, 51, 53, 55, 57, 61, 63, 65, 72, 75, 78, 81, 84, 87, 90, 93, 96, 99, 102, 108, 111, 115, 118, 124, 127, 143, 148, 153, 164, 169, 171, 176, 178, 180
