@@ -17,6 +17,6 @@ var (
 )
 
 // GnoError:
-// line 14: invalid recursive value: a -> b -> c -> a
+// line 14: initialization cycle: a refers to b refers to c refers to a
 
 // Verdict: Clean errorcheck
