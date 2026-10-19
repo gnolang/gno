@@ -271,6 +271,12 @@ func (p *parser) error(pos token.Pos, msg string) {
 
 	epos := p.file.Position(pos)
 
+	// An error at EOF after another is a follow-up of it (an unclosed
+	// list or block); gc drops it and so does this parser.
+	if pos == p.pos && p.tok == token.EOF && len(p.errors) > 0 {
+		return
+	}
+
 	// If AllErrors is not set, discard errors reported on the same line
 	// as the last recorded error and stop parsing if there are more than
 	// 10 errors.

@@ -45,6 +45,17 @@ func _() {
 				"12:22: expected operand, found '}'",
 			},
 		},
+		{
+			name: "follow-up errors at EOF are dropped",
+			src: `package p
+
+func f() {
+	x := f(g(
+`,
+			want: []string{
+				"4:12: expected ')', found 'EOF'",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
