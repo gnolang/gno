@@ -983,3 +983,20 @@ func TestConstSpecTypeWithoutValues(t *testing.T) {
 		t.Fatalf("unexpected: %v", msgs)
 	}
 }
+
+func TestPreprocessCollectStructFieldName(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type T struct{ x int }
+
+func main() {
+	_ = T{1: 2}
+	_ = T{"x": 2}
+	_ = T{x: 1}
+}
+`)
+	want := []string{"invalid field name 1 in struct literal", "invalid field name \"x\" in struct literal"}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+}
