@@ -1134,3 +1134,22 @@ func main() {
 		t.Fatalf("got %v, want %v", msgs, want)
 	}
 }
+
+func TestPreprocessCollectUnknownField(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type T struct{ x int }
+
+func main() {
+	_ = T{y: 1}
+	_ = struct{}{foo: 0}
+}
+`)
+	want := []string{
+		"unknown field y in struct literal of type main.T",
+		"unknown field foo in struct literal of type struct{}",
+	}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+}

@@ -99,3 +99,14 @@ func invalidStructKey(key Expr) string {
 	}
 	return fmt.Sprintf("invalid field name %s in struct literal", exprString(key))
 }
+
+// assertStructField: the key of a keyed struct literal names a field of
+// st (the literal's type lt as written).
+func assertStructField(st *StructType, lt Type, key *NameExpr) {
+	for i := range st.Fields {
+		if st.Fields[i].Name == key.Name {
+			return
+		}
+	}
+	panicAt(fmt.Sprintf("unknown field %s in struct literal of type %s", key.Name, lt), key)
+}

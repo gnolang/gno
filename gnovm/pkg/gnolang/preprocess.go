@@ -1942,6 +1942,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						// referencing an enclosing loop variable).
 						fname := strings.TrimSuffix(string(n.Name), ".loopvar")
 						n.Name = Name(fname)
+						assertStructField(bt, clt, n)
 						n.Path = bt.GetPathForName(n.Name)
 						// Check for unexported fields from external packages.
 						if !isUpper(fname) && bt.PkgPath != ctxpn.PkgPath {

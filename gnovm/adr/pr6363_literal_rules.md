@@ -20,6 +20,8 @@ tree:
 - A variadic parameter must be last.
 - An unkeyed struct literal gives every field a value; array literal
   indices stay below the length.
+- A keyed struct literal's keys are field names, each bad one reported
+  before it is resolved, and name fields of the type.
 - A `for` post statement may not declare.
 - A type switch variable with no clause is unused.
 
