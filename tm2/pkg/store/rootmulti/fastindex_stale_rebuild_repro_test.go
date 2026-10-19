@@ -17,10 +17,12 @@ package rootmulti_test
 // exact moment the fast-index stamp is first read (the racing interleaving,
 // made deterministic):
 //
-//  1. Immutable store loads use MutableTree.LoadReadonly, which performs NO
-//     fast-index maintenance (never writes). The one stamp read they do make
-//     is getImmutable's advisory snapshot gate, and the view stays
-//     version-correct even when a commit races that read.
+//  1. Immutable store loads perform NO fast-index maintenance (never write):
+//     a load at a version reads that version's root through getImmutable, and
+//     only a load of the latest version goes through MutableTree.LoadReadonly.
+//     The one stamp read they do make is getImmutable's advisory snapshot
+//     gate, and the view stays version-correct even when a commit races that
+//     read.
 //  2. Even a FULL Load() straddling the commit (stamp ahead of the loaded
 //     version) must NOT rebuild: ensureFastIndex treats stamp > version as
 //     "out-of-contract racing reader or external rewind" and fails loud,
