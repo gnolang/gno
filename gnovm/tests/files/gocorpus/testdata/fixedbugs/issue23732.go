@@ -41,4 +41,4 @@ func main() {
 	} // GC_ERROR "too few values in"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 34, 40
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 34, 40

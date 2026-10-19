@@ -44,3 +44,51 @@ func TestPreprocessGas_CheckWalks(t *testing.T) {
 	require.GreaterOrEqual(t, large-small, int64(90)*OpCPUSlopeCheckNode*GasFactorCPU,
 		"check walks must bill per declaration: %d -> %d", small, large)
 }
+
+// TestPreprocessGas_CheckUnusedExact pins the unused-name walk's charge
+// itself: one OpCPUSlopeCheckNode per node entered, nothing else, so an
+// unmetered walk (or a doubled one) fails here where the end-to-end
+// delta above, dominated by the per-byte charge, would not.
+func TestPreprocessGas_CheckUnusedExact(t *testing.T) {
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", `package main
+
+func F(n int) int {
+	s := 0
+L:
+	for i := 0; i < n; i++ {
+		if i%2 == 0 {
+			continue L
+		}
+		s += i
+	}
+	return s
+}
+
+func main() { println(F(3)) }
+`)
+	require.NoError(t, err)
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	PredefineFileSet(m.Store, pn, fset)
+	Preprocess(m.Store, pn, fn)
+	var fd *FuncDecl
+	for _, d := range fn.Decls {
+		if f, ok := d.(*FuncDecl); ok && f.Name == "F" {
+			fd = f
+		}
+	}
+	require.NotNil(t, fd)
+	nodes := int64(0)
+	TranscribeB(fn, fd, func(_ []Node, _ []BlockNode, _ BlockNode, _ TransField, _ int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage == TRANS_ENTER {
+			nodes++
+		}
+		return n, TRANS_CONTINUE
+	})
+	require.Greater(t, nodes, int64(20))
+	gm := stypes.NewGasMeter(1_000_000_000)
+	require.Empty(t, checkUnused(gm, fn, fd))
+	require.Equal(t, nodes*OpCPUSlopeCheckNode*GasFactorCPU, gm.GasConsumed())
+}

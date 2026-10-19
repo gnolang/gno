@@ -18,9 +18,6 @@ func main() {
 	_ = paib[i64]
 }
 
-
-// Fixed: master PR #5738 (1da3a0ff7); verified clean, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 
 // GoOutput:

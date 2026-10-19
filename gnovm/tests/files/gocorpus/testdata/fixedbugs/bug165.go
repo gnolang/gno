@@ -14,4 +14,4 @@ type S struct {
 	m map[S] bool;	// ERROR "map key type"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14

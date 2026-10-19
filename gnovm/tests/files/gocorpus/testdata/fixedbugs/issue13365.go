@@ -32,4 +32,4 @@ func main() {
 // line 23: cannot use struct{} as int
 // line 24: cannot use struct{} as int
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19

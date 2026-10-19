@@ -23,4 +23,4 @@ func main() {
 	_ = i
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 22

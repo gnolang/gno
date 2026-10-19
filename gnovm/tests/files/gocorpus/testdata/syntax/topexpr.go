@@ -21,4 +21,4 @@ x,y := 1, 2	// ERROR "non-declaration statement outside function body|expected d
 // GnoError:
 // line 9: expected declaration, found fmt
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14, 19
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14, 19

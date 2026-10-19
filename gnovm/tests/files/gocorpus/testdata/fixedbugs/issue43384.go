@@ -137,4 +137,4 @@ func _() {
 // line 112: should not happen
 // line 118: should not happen
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 40, 41, 42, 46, 47, 48, 55, 56, 57, 61, 62, 63, 96, 97, 98, 102, 103, 104, 111, 112, 113, 117, 118, 119; internal errors: lines 41, 46, 47, 48, 56, 62, 97, 102, 103, 104, 112, 118
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 40, 41, 42, 46, 47, 48, 55, 56, 57, 61, 62, 63, 96, 97, 98, 102, 103, 104, 111, 112, 113, 117, 118, 119; internal errors: lines 41, 46, 47, 48, 56, 62, 97, 102, 103, 104, 112, 118

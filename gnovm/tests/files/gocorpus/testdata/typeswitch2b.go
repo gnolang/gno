@@ -19,4 +19,4 @@ func notused(x interface{}) {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16

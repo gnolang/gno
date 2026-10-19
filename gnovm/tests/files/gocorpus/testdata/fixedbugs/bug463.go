@@ -22,9 +22,7 @@ func main() {
 }
 
 // GnoError:
-// line 10: decl node already predefined! const A<!VPInvalid(0)> = B<VPInvalid(0)>:
-// --- preprocess stack ---
-// stack 0: file main/bug463.go:10:1-22:2
-// ------------------------
+// line 12: invalid recursive value: a -> a
+// line 18: invalid recursive value: X -> A -> B -> C -> D -> A
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 16; internal errors: lines 10; on-chain path first error on line 12, not reported by accumulate mode
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 18

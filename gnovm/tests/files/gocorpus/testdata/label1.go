@@ -125,4 +125,4 @@ L5:
 // line 108: label on undefined
 // line 113: label dance undefined
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 22, 46, 53, 64, 72, 75, 85, 88, 96, 99, 106, 111
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 22, 46, 53, 64, 72, 75, 85, 88, 96, 99, 106, 111
