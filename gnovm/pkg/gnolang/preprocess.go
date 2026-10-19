@@ -7033,6 +7033,8 @@ func checkShortVarDecl(ns []Node, last BlockNode, n *AssignStmt) {
 	for _, lx := range n.Lhs {
 		nx, ok := lx.(*NameExpr)
 		if !ok {
+			// go/parser's resolver reports this first for parsed source;
+			// kept for trees built without it.
 			failf(CodeNonNameDefine, []Node{lx}, "non-name %s on left side of :=", exprString(lx))
 		}
 		ln := nx.Name
