@@ -333,11 +333,16 @@ func (p *parser) expect2(tok token.Token) (pos token.Pos) {
 }
 
 // expectClosing is like expect but provides a better error message
-// for the common case of a missing comma before a newline.
+// for the common case of a missing comma before a newline. As gc does,
+// it then skips to a closing token or statement start and, unless that
+// is tok, leaves the list unclosed: one error, no cascade.
 func (p *parser) expectClosing(tok token.Token, context string) token.Pos {
 	if p.tok != tok && p.tok == token.SEMICOLON && p.lit == "\n" {
-		p.error(p.pos, "missing ',' before newline in "+context)
-		p.next()
+		p.error(p.pos, "unexpected newline in "+context+"; possibly missing comma or "+tok.String())
+		p.advance(exprClose)
+		if p.tok != tok {
+			return p.pos
+		}
 	}
 	return p.expect(tok)
 }
@@ -375,11 +380,10 @@ func (p *parser) atComma(context string, follow token.Token) bool {
 		return true
 	}
 	if p.tok != follow {
-		msg := "missing ','"
 		if p.tok == token.SEMICOLON && p.lit == "\n" {
-			msg += " before newline"
+			return false // expectClosing reports the missing comma and resynchronises
 		}
-		p.error(p.pos, msg+" in "+context)
+		p.error(p.pos, "missing ',' in "+context)
 		return true // "insert" comma and continue
 	}
 	return false
@@ -1080,7 +1084,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
 		p.next()
 		// [T any](params) syntax
 		list := p.parseParameterList(nil, nil, token.RBRACK)
-		rbrack := p.expect(token.RBRACK)
+		rbrack := p.expectClosing(token.RBRACK, "type parameter list")
 		tparams = &ast.FieldList{Opening: opening, List: list, Closing: rbrack}
 		// Type parameter lists must not be empty.
 		if tparams.NumFields() == 0 {
@@ -1096,7 +1100,7 @@ func (p *parser) parseParameters(acceptTParams bool) (tparams, params *ast.Field
 		fields = p.parseParameterList(nil, nil, token.RPAREN)
 	}
 
-	rparen := p.expect(token.RPAREN)
+	rparen := p.expectClosing(token.RPAREN, "parameter list")
 	params = &ast.FieldList{Opening: opening, List: fields, Closing: rparen}
 
 	return

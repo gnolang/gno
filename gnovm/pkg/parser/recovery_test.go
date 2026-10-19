@@ -56,6 +56,42 @@ func f() {
 				"4:12: expected ')', found 'EOF'",
 			},
 		},
+		{
+			name: "missing comma before a newline ends the list", // issue 22164
+			src: `package p
+
+func f() {
+	x := f(g()
+	y := 1
+}
+
+func g() {
+	x := []int{1, 2, 3
+	y := 0
+}
+`,
+			want: []string{
+				"4:12: unexpected newline in argument list; possibly missing comma or )",
+				"9:20: unexpected newline in composite literal; possibly missing comma or }",
+			},
+		},
+		{
+			name: "missing comma before a newline in a parameter list",
+			src: `package p
+
+func h(a int
+	b int) {
+}
+
+func i[T any
+	U any](x T) {
+}
+`,
+			want: []string{
+				"3:13: unexpected newline in parameter list; possibly missing comma or )",
+				"7:13: unexpected newline in type parameter list; possibly missing comma or ]",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
