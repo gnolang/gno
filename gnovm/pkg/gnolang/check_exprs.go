@@ -25,11 +25,25 @@ func isNilLiteral(x Expr) bool {
 	return ok && nx.Name == "nil"
 }
 
-// assertComparableTo checks a == b between the types at and bt, where
-// aNil / bNil say whether the operand is the untyped nil literal. A slice,
-// map or func compares only to nil, also when the other side is an
-// interface.
-func assertComparableTo(at, bt Type, aNil, bNil bool) {
+// assertNotType rejects a type where a value is expected, named as
+// written when it is a name, else by the type it denotes.
+func assertNotType(o operand) {
+	if !o.isType() {
+		return
+	}
+	name := typeString(o.typ)
+	switch o.expr.(type) {
+	case *NameExpr, *SelectorExpr, *ConstExpr, *constTypeExpr:
+		name = exprString(o.expr)
+	}
+	failf(CodeNotExpression, nil, "%s (type) is not an expression", name)
+}
+
+// assertComparableTo checks a == b. A slice, map or func compares only
+// to the nil literal, also when the other side is an interface.
+func assertComparableTo(a, b operand) {
+	assertNotType(a)
+	assertNotType(b)
 	check := func(t Type, selfNil, otherNil bool) {
 		if t == nil || selfNil || otherNil {
 			return
@@ -42,15 +56,17 @@ func assertComparableTo(at, bt Type, aNil, bNil bool) {
 			failf(CodeNotComparable, nil, "%v is not comparable", t)
 		}
 	}
-	check(at, aNil, bNil)
-	check(bt, bNil, aNil)
+	check(a.typ, a.mode == opNil, b.mode == opNil)
+	check(b.typ, b.mode == opNil, a.mode == opNil)
 }
 
 // lenCapArgError checks the operand of len or cap: a string (len only),
 // array, pointer to array, slice, map (len only) or channel. It returns
 // the message rather than raising it: the call's type is int whatever the
 // operand, so accumulate mode reports and goes on, as gc does.
-func lenCapArgError(name Name, t Type) string {
+func lenCapArgError(name Name, arg operand) string {
+	assertNotType(arg)
+	t := arg.typ
 	if t == nil {
 		return ""
 	}
@@ -217,28 +233,26 @@ func assertExprStmtUsed(store Store, last BlockNode, n *ExprStmt) {
 		if _, ok := n.X.(*TypeAssertExpr); ok {
 			return
 		}
-		notUsed(store, last, n.X)
+		notUsed(operandOf(store, last, n.X))
 	}
-	switch fx := call.Func.(type) {
-	case *constTypeExpr:
-		notUsed(store, last, n.X)
-	case *ConstExpr:
-		if fv := fx.GetFunc(); fv != nil && fv.PkgPath == uversePkgPath && valueBuiltins[fv.Name] {
-			notUsed(store, last, n.X)
+	fn := operandOf(store, last, call.Func)
+	switch fn.mode {
+	case opType:
+		notUsed(operandOf(store, last, n.X))
+	case opBuiltin:
+		if valueBuiltins[fn.val.GetFunc().Name] {
+			notUsed(operandOf(store, last, n.X))
 		}
 	}
 }
 
-func notUsed(store Store, last BlockNode, x Expr) {
-	t := evalStaticTypeOf(store, last, x)
-	if _, ok := t.(*TypeType); ok {
-		failf(CodeNotExpression, nil, "%s (type) is not an expression", exprString(x))
+func notUsed(o operand) {
+	assertNotType(o)
+	xs := exprString(o.expr)
+	if _, ok := o.expr.(*FuncLitExpr); ok {
+		xs = fmt.Sprintf("(%s literal)", typeString(o.typ)) // as go/types
 	}
-	xs := exprString(x)
-	if _, ok := x.(*FuncLitExpr); ok {
-		xs = fmt.Sprintf("(%s literal)", typeString(t)) // as go/types
-	}
-	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", xs, typeString(t))
+	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", xs, typeString(o.typ))
 }
 
 // constStringLen folds len of a constant string into an int constant.
@@ -253,11 +267,13 @@ func constStringLen(name Name, arg Expr) *ConstExpr {
 }
 
 // assertConstLiteralKey: an array or slice literal index is a constant.
-func assertConstLiteralKey(key Expr) {
+func assertConstLiteralKey(store Store, last BlockNode, key Expr) {
 	if key == nil {
 		return
 	}
-	if _, ok := key.(*ConstExpr); !ok {
+	o := operandOf(store, last, key)
+	assertNotType(o)
+	if o.mode != opConstant {
 		failf(CodeLiteralKeyConst, []Node{key}, "index %s must be integer constant", exprString(key))
 	}
 }
@@ -291,6 +307,262 @@ func isFuncDeclName(last BlockNode, nx *NameExpr) bool {
 	idx, ok := bn.GetLocalIndex(nx.Name)
 	sources := bn.GetStaticBlock().NameSources
 	return ok && int(idx) < len(sources) && sources[idx].Type == NSFuncDecl
+}
+
+// ===========================================================
+// assertShiftExprCompatible1 check happens while trans_leave binary expression.
+// it checks both lhs and rhs types of shift expression.
+func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
+	if rt == nil {
+		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
+	}
+
+	lcx, lic := x.Left.(*ConstExpr)
+	_, ric := x.Right.(*ConstExpr)
+	// Step1, check RHS type.
+	// Must be numeric.
+	if !isNumeric(rt) {
+		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
+	}
+	// If not const, must be IntNum.
+	if !isWhole(rt) && !ric {
+		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+	}
+
+	if ric {
+		rv := evalConst(store, last, x.Right)
+		if rv.Sign() < 0 {
+			panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Right))
+		}
+
+		if isWhole(rt) {
+			// Good.
+		} else if !IsExactBigDec(rv.V) { // e.g. 1.0 .
+			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+		}
+	}
+
+	// Step2, check lhs type.
+	if checker, ok := binaryChecker[x.Op]; ok {
+		if checker(lt) { // check pass
+			return
+		}
+
+		// If lhs not IntNum, it must be const.
+		if !lic {
+			if isUntyped(lt) {
+				lt = defaultTypeOf(lt)
+			}
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(lt)))
+		}
+
+		// LHS is const.
+		// Special case for untyped const lhs.
+		lv := evalConst(store, last, lcx)
+		if !IsExactBigDec(lv.V) {
+			panic(fmt.Sprintf("invalid operation: shifted operand %v (%v) must be integer", lv, lt))
+		}
+
+		// Both const. left is untypedBigDec & exact integer.
+		if ric {
+			// Representable as an integer. e.g. 1.0 << 1.
+			// convert lhs to untypedBigint so it can be evaluated as const later.
+			convertConst(store, last, x, lcx, UntypedBigintType)
+		}
+		return
+	}
+	panic(fmt.Sprintf("checker for %s does not exist", x.Op))
+}
+
+// assertShiftExprCompatible2 checks if untyped (non-const)
+// shift expr is compatible with t finally, which is type info
+// from context. e.g. var y int = 1.0 << x.
+func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
+	// check lhs type
+	if checker, ok := binaryChecker[x.Op]; ok {
+		if !checker(t) {
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(t)))
+		}
+	} else {
+		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
+	}
+}
+
+// AssertCompatible works as a pre-check prior to checkOrConvertType.
+// It checks against expressions to ensure the compatibility between operands and operators.
+// e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
+// Overall,it efficiently filters out incompatible expressions, stopping before the next
+// checkOrConvertType() operation to optimize performance.
+// store supplies the preprocess gas meter for the EQL/NEQ operand check
+// (`S{} == i` runs the same interface-satisfaction walk as an assignment).
+func (x *BinaryExpr) AssertCompatible(store Store, lt, rt Type) {
+	xt, dt, swapped := lt, rt, false
+	if shouldSwapOnSpecificity(lt, rt) {
+		xt, dt, swapped = dt, xt, true
+	}
+
+	if isComparison(x.Op) {
+		switch x.Op {
+		case EQL, NEQ:
+			// Slice, func, and map can only be compared to nil.
+			switch baseOf(dt).(type) {
+			case *SliceType, *FuncType, *MapType:
+				if xt != nil {
+					panic(fmt.Sprintf("%v can only be compared to nil", dt))
+				}
+			default:
+				if !isComparable(dt) {
+					panic(fmt.Sprintf("%v is not comparable", dt))
+				}
+			}
+			// An interface operand does not make a slice, map or func
+			// on the other side comparable.
+			if xt != nil {
+				switch baseOf(xt).(type) {
+				case *SliceType, *FuncType, *MapType:
+					panic(fmt.Sprintf("%v can only be compared to nil", xt))
+				}
+			}
+			err := checkAssignableTo(store, x, xt, dt)
+			if err != nil {
+				if debug {
+					debug.Printf("checkAssignableTo fail: %v\n", err)
+				}
+				panic(fmt.Sprintf("invalid operation: (mismatched types %v and %v)", xt, dt))
+			}
+		case LSS, LEQ, GTR, GEQ:
+			if checker, ok := binaryChecker[x.Op]; ok {
+				x.checkCompatibility(store, x, xt, dt, checker, x.Op.TokenString(), swapped)
+			} else {
+				panic(fmt.Sprintf("checker for %s does not exist", x.Op))
+			}
+		default:
+			panic("invalid comparison operator")
+		}
+	} else {
+		if checker, ok := binaryChecker[x.Op]; ok {
+			x.checkCompatibility(store, x, xt, dt, checker, x.Op.TokenString(), swapped)
+		} else {
+			panic(fmt.Sprintf("checker for %s does not exist", x.Op))
+		}
+
+		switch x.Op {
+		case QUO, REM:
+			// special case of zero divisor
+			if isQuoOrRem(x.Op) {
+				if rcx, ok := x.Right.(*ConstExpr); ok {
+					if rcx.TypedValue.Sign() == 0 {
+						panic("invalid operation: division by zero")
+					}
+				}
+			}
+		default:
+			// do nothing
+		}
+	}
+}
+
+// Check compatibility of the destination type (dt) with the operator.
+// If both source type (xt) and destination type (dt) are typed:
+// Verify that xt is assignable to dt.
+// If xt is untyped:
+// The function checkOrConvertType will be invoked after this check.
+// NOTE: dt is established based on a specificity check between xt and dt,
+// confirming dt as the appropriate destination type for this context.
+func (x *BinaryExpr) checkCompatibility(store Store, n Node, xt, dt Type, checker func(t Type) bool, OpStr string, swapped bool) {
+	if !checker(dt) {
+		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
+	}
+
+	// display xt as "untyped nil" if nil as Go does.
+	untypedNil := func(t Type) string {
+		if t == nil {
+			return "untyped nil"
+		} else {
+			return t.String()
+		}
+	}
+
+	// if both typed
+	if !isUntyped(xt) && !isUntyped(dt) {
+		err := checkAssignableTo(store, n, xt, dt)
+		if err != nil {
+			if debug {
+				debug.Printf("checkAssignableTo fail: %v\n", err)
+			}
+			if swapped {
+				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and %v)", n, dt, untypedNil(xt)))
+			} else {
+				panic(fmt.Sprintf("invalid operation: %v (mismatched types %v and %v)", n, untypedNil(xt), dt))
+			}
+		}
+	}
+}
+
+func isQuoOrRem(op Word) bool {
+	switch op {
+	case QUO, QUO_ASSIGN, REM, REM_ASSIGN:
+		return true
+	default:
+		return false
+	}
+}
+
+func isComparison(op Word) bool {
+	switch op {
+	case EQL, NEQ, LSS, LEQ, GTR, GEQ:
+		return true
+	default:
+		return false
+	}
+}
+
+// shouldSwapOnSpecificity determines the potential direction for
+// checkOrConvertType. it checks whether a swap is needed between two types
+// based on their specificity. If t2 has a lower specificity than t1, it returns
+// false, indicating no swap is needed. If t1 has a lower specificity than t2,
+// it returns true, indicating a swap is needed.
+func shouldSwapOnSpecificity(t1, t2 Type) bool {
+	// check nil
+	if t1 == nil {
+		return false // also with both nil
+	} else if t2 == nil {
+		return true
+	}
+
+	// check interface
+	if it1, ok := baseOf(t1).(*InterfaceType); ok {
+		if it1.IsEmptyInterface() {
+			return true // left empty interface
+		} else {
+			if it2, ok := baseOf(t2).(*InterfaceType); ok {
+				if it2.IsEmptyInterface() {
+					return false
+				}
+				// The more methods, the more specific.
+				return len(it1.Methods) < len(it2.Methods)
+			} else {
+				return true // right not interface
+			}
+		}
+	} else if _, ok := t2.(*InterfaceType); ok {
+		return false // left not interface, right is interface
+	}
+
+	// primitive types
+	t1s, t2s := 0, 0
+	if t1p, ok := t1.(PrimitiveType); ok {
+		t1s = t1p.Specificity()
+	}
+	if t2p, ok := t2.(PrimitiveType); ok {
+		t2s = t2p.Specificity()
+	}
+	if t1s < t2s {
+		// NOTE: higher specificity has lower value, so backwards.
+		return true
+	} else {
+		return false
+	}
 }
 
 // hasCall reports whether x holds a function call other than a conversion
@@ -436,4 +708,85 @@ func constOperandString(cx *ConstExpr, t Type) string {
 		return fmt.Sprintf("%s (constant of type %s)", expr, tn)
 	}
 	return fmt.Sprintf("%s (constant %s of type %s)", expr, val, tn)
+}
+
+func (x *UnaryExpr) AssertCompatible(t Type) {
+	// check compatible
+	if checker, ok := unaryChecker[x.Op]; ok {
+		if !checker(t) {
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(t)))
+		}
+	} else {
+		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
+	}
+}
+
+// AssertCompatible checks that x++/x-- is well-formed: the operand's type must
+// support the operator, and the operand must be a valid (addressable, settable)
+// assignment target. The operator/type error is reported first, matching
+// go/types.
+func (x *IncDecStmt) AssertCompatible(store Store, last BlockNode) {
+	t := evalStaticTypeOf(store, last, x.X)
+	// check compatible
+	if checker, ok := IncDecStmtChecker[x.Op]; ok {
+		if !checker(t) {
+			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(t)))
+		}
+	} else {
+		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
+	}
+	// like go/types, operator/type errors take precedence over
+	// target assignability.
+	assertValidAssignLhs(store, last, x.X)
+}
+
+// AssertCompatible checks that the range key and value targets are valid
+// assignment targets and that their types are assignable from the range
+// expression's key/element types. Each operand is handled independently
+// (like AssignStmt.AssertCompatible): kt/vt are nil iff that operand is
+// blank, and the type checks are skipped for a nil operand.
+func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
+	if x.Op != ASSIGN {
+		return
+	}
+	kt := evalAssignLhsType(store, last, x.Key)
+	var vt Type
+	if x.Value != nil {
+		vt = evalAssignLhsType(store, last, x.Value)
+	}
+	if kt == nil && vt == nil {
+		return
+	}
+
+	xt := baseOf(evalStaticTypeOf(store, last, x.X))
+	// Ranging over a pointer to array iterates the array itself (int keys,
+	// array-element values), so unwrap it to the array type. Mirrors the
+	// PointerKind handling in preprocess.
+	if pt, ok := xt.(*PointerType); ok {
+		xt = baseOf(pt.Elem())
+	}
+	if kt != nil {
+		switch cxt := xt.(type) {
+		case *MapType:
+			mustAssignableTo(store, x, cxt.Key, kt)
+		case *SliceType, *ArrayType:
+			mustAssignableTo(store, x, IntType, kt)
+		case PrimitiveType:
+			if cxt.Kind() == StringKind {
+				mustAssignableTo(store, x, IntType, kt)
+			}
+		}
+	}
+	if vt != nil {
+		switch cxt := xt.(type) {
+		case *MapType:
+			mustAssignableTo(store, x, cxt.Value, vt)
+		case *SliceType, *ArrayType:
+			mustAssignableTo(store, x, cxt.Elem(), vt)
+		case PrimitiveType:
+			if cxt.Kind() == StringKind {
+				mustAssignableTo(store, x, Int32Type, vt) // rune
+			}
+		}
+	}
 }

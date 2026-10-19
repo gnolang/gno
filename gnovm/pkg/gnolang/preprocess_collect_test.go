@@ -2978,3 +2978,64 @@ func main() {
 		t.Errorf("want %v, got %v", want, msgs)
 	}
 }
+
+func TestPreprocessCollectTypeNotExpression(t *testing.T) {
+	// A type where the operand rules expect a value.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	var sl []int
+	_ = len([3]int)
+	_ = cap([]int)
+	copy([]byte, "x")
+	switch int {
+	}
+	_ = []int{[]int: 1}
+	_ = sl
+}
+`)
+	want := []string{
+		"[3]int (type) is not an expression",
+		"[]int (type) is not an expression",
+		"[]uint8 (type) is not an expression",
+		"int (type) is not an expression",
+		"[]int (type) is not an expression",
+	}
+	if !reflect.DeepEqual(msgs, want) {
+		t.Errorf("want %v, got %v", want, msgs)
+	}
+}
+
+func TestPreprocessCollectAssignTarget(t *testing.T) {
+	// A method value and a call result's field are not assignable; a
+	// field of a variable is.
+	msgs := collectErrors(t, `package main
+
+type S struct{ a int }
+
+func (S) M()   {}
+func (*S) PM() {}
+
+func fs() S { return S{} }
+
+func main() {
+	var s S
+	ps := &s
+	s.M = nil
+	ps.PM = nil
+	fs().a = 1
+	fs().a++
+	s.a = 1
+	ps.a = 2
+}
+`)
+	want := []string{
+		"cannot assign to s.M (neither addressable nor a map index expression)",
+		"cannot assign to ps.PM (neither addressable nor a map index expression)",
+		"cannot assign to fs().a (neither addressable nor a map index expression)",
+		"cannot assign to fs().a (neither addressable nor a map index expression)",
+	}
+	if !reflect.DeepEqual(msgs, want) {
+		t.Errorf("want %v, got %v", want, msgs)
+	}
+}
