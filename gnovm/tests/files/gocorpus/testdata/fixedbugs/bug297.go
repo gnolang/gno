@@ -16,9 +16,9 @@ const (
 )
 
 // GnoError:
-// line 15: name X not defined in fileset with files [bug297.go]
+// line 15: name not defined: X
 
 // GnoWordingDiffers:
-// line 15: gc expects: undefined; gno: name X not defined in fileset with files [bug297.go]
+// line 15: gc expects: undefined; gno: name not defined: X
 
 // Verdict: Clean errorcheck
