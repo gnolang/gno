@@ -69,16 +69,28 @@ func g() {
 // GnoError:
 // line 24: illegal label declaration
 // line 25: expected ';', found 'case'
+// line 30: illegal label declaration
+// line 37: illegal label declaration
+// line 38: expected ';', found 'case'
+// line 43: illegal label declaration
+// line 51: expected statement, found 'case'
+// line 59: labelname redeclared in this block
+// 	previous declaration at issue14006.go:50:3
+// line 64: labelname redeclared in this block
+// 	previous declaration at issue14006.go:50:3
+// line 67: expected '}', found 'EOF'
 
 // ParseBlocked:
-// line 30: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
-// line 37: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
-// line 43: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used
 // line 50: gc expects: missing statement after label
-// line 59: gc expects: label labelname defined and not used|previous definition|defined and not used
-// line 64: gc expects: label labelname already defined at LINE-5|label .*labelname.* already defined
 
 // GnoWordingDiffers:
 // line 24: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+// line 30: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+// line 37: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+// line 43: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
+// line 59: gc expects: label labelname defined and not used|previous definition|defined and not used; gno: labelname redeclared in this block
+// 	previous declaration at issue14006.go:50:3
+// line 64: gc expects: label labelname already defined at LINE-5|label .*labelname.* already defined; gno: labelname redeclared in this block
+// 	previous declaration at issue14006.go:50:3
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 25
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 50; over-strict: lines 25, 38, 51, 67

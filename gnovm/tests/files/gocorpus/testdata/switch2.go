@@ -40,14 +40,17 @@ func f() {
 
 // GnoError:
 // line 14: expected ':', found ';'
-
-// ParseBlocked:
-// line 18: gc expects: expecting := or = or : or comma|expected :
-// line 28: gc expects: unexpected keyword case at end of statement
-// line 33: gc expects: unexpected keyword default at end of statement
-// line 37: gc expects: expected case or default or }
+// line 18: expected ':', found ';'
+// line 28: expected ';', found 'case'
+// line 33: expected ';', found 'default'
+// line 37: expected '}', found 'if'
+// line 39: expected '}', found 'EOF'
 
 // GnoWordingDiffers:
 // line 14: gc expects: expecting := or = or : or comma|expected :; gno: expected ':', found ';'
+// line 18: gc expects: expecting := or = or : or comma|expected :; gno: expected ':', found ';'
+// line 28: gc expects: unexpected keyword case at end of statement; gno: expected ';', found 'case'
+// line 33: gc expects: unexpected keyword default at end of statement; gno: expected ';', found 'default'
+// line 37: gc expects: expected case or default or }; gno: expected '}', found 'if'
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 39

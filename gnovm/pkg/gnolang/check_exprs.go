@@ -1,5 +1,7 @@
 package gnolang
 
+import "fmt"
+
 import "github.com/gnolang/gno/tm2/pkg/store"
 
 // Expression rules the preprocessor enforces (Go spec: "Comparison
@@ -103,20 +105,17 @@ func constIndex(x Expr) (int64, bool) {
 	return 0, false
 }
 
-// assertConstIndex checks a constant index against a known length.
+// assertConstIndex checks a constant index against a known length. A
+// negative constant was already refused by checkOrConvertIndexKind.
 func assertConstIndex(index Expr, length int64) {
-	if i, ok := constIndex(index); ok {
-		if i < 0 {
-			failf(CodeIndexBounds, nil, "invalid argument: index %d (constant of type int) must not be negative", i)
-		}
-		if length >= 0 && i >= length {
-			failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", i, length)
-		}
+	if i, ok := constIndex(index); ok && length >= 0 && i >= length {
+		failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", i, length)
 	}
 }
 
 // assertConstSliceBounds checks constant slice indices: ordered, and
 // within the length when it is known (an index may equal the length).
+// Negative constants were already refused by checkOrConvertIndexKind.
 func assertConstSliceBounds(n *SliceExpr, length int64) {
 	prev := int64(-1)
 	for _, ix := range []Expr{n.Low, n.High, n.Max} {
@@ -126,9 +125,6 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 		i, ok := constIndex(ix)
 		if !ok {
 			continue
-		}
-		if i < 0 {
-			failf(CodeIndexBounds, nil, "invalid argument: index %d (constant of type int) must not be negative", i)
 		}
 		if length >= 0 && i > length {
 			failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", i, length+1)
@@ -140,9 +136,10 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 	}
 }
 
-// assertUniqueLiteralIndices rejects a repeated constant index in an array
-// or slice literal; elements without a key take the next index.
-func assertUniqueLiteralIndices(gm store.GasMeter, n *CompositeLitExpr) {
+// assertLiteralIndices rejects a repeated constant index in an array or
+// slice literal, and one at or past length when it is known (-1 for a
+// slice); elements without a key take the next index. Charged per element.
+func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) {
 	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
 	seen := map[int64]bool{}
 	next := int64(0)
@@ -154,6 +151,11 @@ func assertUniqueLiteralIndices(gm store.GasMeter, n *CompositeLitExpr) {
 				continue
 			}
 			idx = i
+			if length >= 0 && idx >= length {
+				failf(CodeIndexBounds, nil, "invalid argument: index %d out of bounds [0:%d]", idx, length)
+			}
+		} else if length >= 0 && idx >= length {
+			failf(CodeIndexBounds, nil, "index %d is out of bounds (>= %d)", idx, length)
 		}
 		if seen[idx] {
 			failf(CodeDuplicateIndex, nil, "duplicate index %d in array or slice literal", idx)
@@ -196,7 +198,11 @@ func notUsed(store Store, last BlockNode, x Expr) {
 	if _, ok := t.(*TypeType); ok {
 		failf(CodeNotExpression, nil, "%s (type) is not an expression", exprString(x))
 	}
-	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", exprString(x), typeString(t))
+	xs := exprString(x)
+	if _, ok := x.(*FuncLitExpr); ok {
+		xs = fmt.Sprintf("(%s literal)", typeString(t)) // as go/types
+	}
+	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", xs, typeString(t))
 }
 
 // constStringLen folds len of a constant string into an int constant.
@@ -220,33 +226,33 @@ func assertConstLiteralKey(key Expr) {
 	}
 }
 
-// isFuncDeclName reports whether nx names a declared function.
-func isFuncDeclName(last BlockNode, nx *NameExpr) (is bool) {
-	defer func() {
-		if recover() != nil {
-			is = false
-		}
-	}()
-	if nx.Path.Type != VPBlock {
+// isFuncDeclName reports whether nx names a declared function. It walks
+// the path as GetBlockNodeForPath does, stopping on a parent the walk
+// has not linked yet instead of panicking.
+func isFuncDeclName(last BlockNode, nx *NameExpr) bool {
+	if nx.Path.Type != VPBlock || nx.Path.Depth == 0 {
 		return false
 	}
-	bn := last.GetBlockNodeForPath(nil, nx.Path)
-	if bn == nil {
-		return false
+	bn := last
+	for i := 1; i < int(nx.Path.Depth); i++ {
+		if fauxChildBlockNode(bn) {
+			bn = bn.GetParentNode(nil)
+		}
+		if bn == nil {
+			return false
+		}
+		bn = bn.GetParentNode(nil)
+		if bn == nil {
+			return false
+		}
+	}
+	switch fb := bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		if pn := fb.GetParentNode(nil); pn != nil && nx.Path.Index < pn.GetNumNames() {
+			bn = pn
+		}
 	}
 	idx, ok := bn.GetLocalIndex(nx.Name)
 	sources := bn.GetStaticBlock().NameSources
 	return ok && int(idx) < len(sources) && sources[idx].Type == NSFuncDecl
-}
-
-// inFunction reports whether bn is inside a function declaration or
-// literal.
-func inFunction(bn BlockNode) bool {
-	for ; bn != nil; bn = bn.GetParentNode(nil) {
-		switch bn.(type) {
-		case *FuncDecl, *FuncLitExpr:
-			return true
-		}
-	}
-	return false
 }

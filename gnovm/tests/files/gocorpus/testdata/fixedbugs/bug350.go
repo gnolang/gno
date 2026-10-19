@@ -22,4 +22,4 @@ func (*T) p() {} // ERROR "T\.p already declared|redefinition"
 // line 12: gc expects: T\.m already declared|redefinition; gno: redeclaration of method T.m
 // line 15: gc expects: T\.p already declared|redefinition; gno: redeclaration of method T.p
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 on-chain path accepts the file

@@ -1675,6 +1675,10 @@ const (
 	// literal element or switch case examined. Same work per step as an
 	// embedWalk scan (a type switch and a map lookup); not yet fitted.
 	OpCPUSlopeCheckNode = 25
+	// checkInitCycles: per declaration and per dependency edge visited
+	// (map lookups, a name resolution, a sorted-name walk twice).
+	// BenchmarkInitCycleWalk: 130-210 ns per visit on an M-series laptop.
+	OpCPUSlopeInitCycleVisit = 200
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 

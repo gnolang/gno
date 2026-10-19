@@ -12,18 +12,24 @@ at all.
 ## Decision
 
 Checks in `check_exprs.go`, called from preprocess on the preprocessed
-tree, allocating nothing (gas is unchanged):
+tree. They allocate no VM values; the only metered walk is the literal
+index check, `OpCPUSlopeCheckNode` (25 gas) per element of an array or
+slice literal, pinned by a gas test. The others inspect nodes the walk
+already visited, so no other charge moves:
 
 - A slice, map or func compares only to nil, also against an interface
-  and in an expression switch's cases; a typed nil (`S(nil)`) is not the
-  nil literal.
+  and in an expression switch's cases, which are checked at the clause
+  before conversion types the `nil` literal (`case nil:` stays valid); a
+  typed nil (`S(nil)`) is not the nil literal. A switch tag must be
+  comparable even with no case.
 - `len` and `cap` take a string, array, pointer to array, slice, map or
   channel.
 - A constant index or slice bound is checked against an array's or a
   constant string's length (`high` may equal the length); slice bounds
-  must be ordered.
-- An array or slice literal may not repeat an index, a struct literal a
-  field name, and a map literal needs every key.
+  must be ordered; a string has no 3-index slice.
+- An array or slice literal may not repeat an index or, for an array,
+  reach its length; a struct literal may not repeat a field name; a map
+  literal needs every key.
 
 Ten native filetests that reached a runtime error now fail at preprocess
 with the positioned message; their goldens follow.

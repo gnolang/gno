@@ -35,9 +35,6 @@ func main() {
 	i.F()
 }
 
-
-// Fixing: PR #5732 (fix/5667, typedRuntimeError); verified clean on branch, broken on master; tracks issue #5667; re-golden after merge.
-
 // GnoOutput:
 
 // GoOutput:

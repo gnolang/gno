@@ -45,9 +45,6 @@ func main() {
 	}
 }
 
-
-// Fixing: PR #5721 (fix/method40, BFS lookup); verified clean on branch, broken on master; re-golden after merge.
-
 // GnoOutput:
 
 // GoOutput:

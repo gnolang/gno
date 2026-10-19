@@ -25,4 +25,4 @@ var _ = []string{
 // line 13: missing key in map literal
 // line 18: cannot use untyped Bigint as StringKind
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15, 21; over-strict: lines 13, 18

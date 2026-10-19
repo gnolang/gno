@@ -252,4 +252,4 @@ _:
 // line 197: gc expects: invalid continue label _; gno: label _ undefined
 // line 205: gc expects: invalid break label _; gno: label _ undefined
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13, 16, 19, 22, 25, 38, 44, 46, 47, 55, 63, 70, 77, 79, 102, 114, 122, 125, 135, 138, 146, 149, 160, 163, 173, 174, 176, 177

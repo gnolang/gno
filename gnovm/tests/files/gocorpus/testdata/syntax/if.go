@@ -19,8 +19,6 @@ func main() {
 
 // GnoError:
 // line 13: missing condition in if statement
-
-// ParseBlocked:
-// line 16: gc expects: missing condition
+// line 16: missing condition in if statement
 
 // Verdict: Clean errorcheck

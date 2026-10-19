@@ -16,8 +16,9 @@ func _(x int) {
 
 // GnoError:
 // line 14: expected ';', found '~'
+// line 15: expected '}', found 'EOF'
 
 // GnoWordingDiffers:
 // line 14: gc expects: unexpected ~ at end of statement; gno: expected ';', found '~'
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 15

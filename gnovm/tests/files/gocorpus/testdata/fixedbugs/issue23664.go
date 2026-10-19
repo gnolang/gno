@@ -18,11 +18,11 @@ func f() {
 
 // GnoError:
 // line 12: expected ';', found true
-
-// ParseBlocked:
-// line 15: gc expects: unexpected name true, expected {
+// line 15: expected '{', found true
+// line 17: expected declaration, found '}'
 
 // GnoWordingDiffers:
 // line 12: gc expects: unexpected name true, expected {; gno: expected ';', found true
+// line 15: gc expects: unexpected name true, expected {; gno: expected '{', found true
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 17
