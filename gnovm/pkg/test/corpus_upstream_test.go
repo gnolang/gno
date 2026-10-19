@@ -44,9 +44,7 @@ func TestCorpusBodiesMatchUpstream(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		body := strings.ReplaceAll(stripTrailingGoldenRegion(string(src)), "\r\n", "\n")
-		body = strings.TrimRight(body, "\n") + "\n"
-		sum := sha256.Sum256([]byte(body))
+		sum := sha256.Sum256([]byte(upstreamBody(string(src))))
 		got := hex.EncodeToString(sum[:])
 		switch w, ok := want[rel]; {
 		case !ok:
@@ -63,5 +61,42 @@ func TestCorpusBodiesMatchUpstream(t *testing.T) {
 		if !seen[rel] {
 			t.Errorf("%s: in UPSTREAM.sha256 but not in testdata; run upstream-manifest.sh", rel)
 		}
+	}
+}
+
+// upstreamBody is a corpus file as the manifest hashes it: golden region
+// stripped, CRLF and trailing newlines normalised. CRLF goes first, or the
+// blank line above the region leaves a stray \r behind the strip.
+func upstreamBody(src string) string {
+	src = strings.ReplaceAll(src, "\r\n", "\n")
+	return strings.TrimRight(stripTrailingGoldenRegion(src), "\n") + "\n"
+}
+
+func TestUpstreamBody(t *testing.T) {
+	t.Parallel()
+	const body = "// run\n\npackage main\n\nfunc main() {}\n"
+	const tail = "\n// GnoOutput:\n\n// GoOutput:\n\n// Verdict: Clean run\n"
+	crlf := strings.ReplaceAll(body+tail, "\n", "\r\n")
+	for name, src := range map[string]string{
+		"lf":                 body + tail,
+		"crlf whole file":    crlf,
+		"crlf body only":     strings.ReplaceAll(body, "\n", "\r\n") + tail,
+		"extra newlines":     body + "\n\n" + tail + "\n\n",
+		"no trailing region": body,
+	} {
+		if got := upstreamBody(src); got != body {
+			t.Errorf("%s: upstreamBody = %q, want %q", name, got, body)
+		}
+	}
+}
+
+// A trailing note that is not a golden directive is body, not region, so
+// the manifest covers it.
+func TestStripTrailingGoldenRegion_KeepsNotes(t *testing.T) {
+	t.Parallel()
+	const body = "package main\n\nfunc main() {}\n\n// Tracked: issue #1\n"
+	const tail = "\n// GoOutput:\n\n// Verdict: Clean run\n"
+	if got := stripTrailingGoldenRegion(body + tail); strings.TrimRight(got, "\n") != strings.TrimRight(body, "\n") {
+		t.Errorf("stripTrailingGoldenRegion dropped the note: %q", got)
 	}
 }

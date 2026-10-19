@@ -387,26 +387,19 @@ func gnoErrSegments(s string) []string {
 	return out
 }
 
-// CleanErrorMessage strips a leading `path:line:col:` prefix from
-// errStr, leaving just the message text. Used when recording a Gno
-// error in the `// GnoError:` golden block so the block doesn't pin
-// volatile file paths or column numbers.
+// reErrorPrefix matches a leading `path:line[:col]` position, with the
+// span end (`-col` or `-line:col`) and primes Gno's Location.String()
+// appends (`main.gno:9:2-11:2”`), up to the colon that ends it.
+var reErrorPrefix = regexp.MustCompile(`^[^:]+:\d+(?::\d+(?:-\d+(?::\d+)?)?)?'*:\s*`)
+
+// CleanErrorMessage strips a leading `path:line:col:` position (span
+// end included) from errStr, leaving just the message text. Used when
+// recording a Gno error in the `// GnoError:` golden block so the block
+// doesn't pin volatile file paths or column numbers.
 func CleanErrorMessage(errStr string) string {
 	s := strings.TrimSpace(errStr)
-	// Format: file:line:col: text  → split into 4 parts, take the 4th.
-	parts := strings.SplitN(s, ":", 4)
-	if len(parts) == 4 {
-		// Sanity: parts[1] should be a number (line); parts[2] a number (col).
-		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
-			return strings.TrimSpace(parts[3])
-		}
-	}
-	// Fall back: try file:line: text (3 parts).
-	parts = strings.SplitN(s, ":", 3)
-	if len(parts) == 3 {
-		if _, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
-			return strings.TrimSpace(parts[2])
-		}
+	if m := reErrorPrefix.FindStringIndex(s); m != nil {
+		return strings.TrimSpace(s[m[1]:])
 	}
 	return s
 }

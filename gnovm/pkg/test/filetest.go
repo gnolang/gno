@@ -48,8 +48,8 @@ func (opts *TestOptions) RunFiletest(fname string, source []byte, tgs gno.Store)
 	return opts.runFiletest(fname, source, tgs, tcheck)
 }
 
-// SkipError is returned by RunFiletest when the source file declares
-// a top-level `// Unsupported: <reason>` directive. The walker is
+// SkipError is returned by RunFiletest when the source file ends in a
+// `// Verdict: Unsupported <tag>: <reason>` line. The walker is
 // expected to detect this with [errors.As] and call t.Skip(Reason).
 //
 // Replaces conformance's external skiplist.yaml + compat.go for the
@@ -74,8 +74,15 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 	isGoFile := strings.HasSuffix(fname, ".go")
 
-	// Unsupported short-circuit: declared via a top-level
-	// `// Unsupported: <reason>` directive. Surfaces as a SkipError
+	// Verify: a second `// Verdict:` line must not hide behind an
+	// Unsupported first one, so the count runs before the short-circuit.
+	if isGoFile && !opts.Sync {
+		if n := countDirectives(dirs, DirectiveVerdict); n > 1 {
+			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
+		}
+	}
+	// Unsupported short-circuit: declared via the file's
+	// `// Verdict: Unsupported <tag>: <reason>` line. Surfaces as a SkipError
 	// the walker turns into t.Skip. Checked before any dispatch /
 	// rescue / machine construction so unsupported files cost nothing.
 	// Corpus vocabulary only: in a .gno file the line stays a comment.
@@ -152,9 +159,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			// errorcheck mode lands with the error-accumulating preprocessor.
 			return "", 0, diffs, fmt.Errorf("filetest %s: inline // ERROR markers are not supported yet", fname)
 		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
-			// `// compile`: gc compiles but never runs it. Preprocess only
-			// and check that Gno and go/types accept it; takes precedence
-			// over run mode even when the file is runnable.
+			// `// compile`: gc compiles but never runs it. Gno's preprocess
+			// (and package init) only, no main; go/types' verdict is not
+			// part of the ledger. Takes precedence over run mode even when
+			// the file is runnable.
 			compileMode = true
 			if err := prependRescue(); err != nil {
 				return "", 0, diffs, err
@@ -179,16 +187,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 	// One verdict line per Go-compared file (.go corpus files in run or
 	// compile mode, opted-in .gno files); sync writes it, verify demands it.
-	// origDirs: the compile-mode rescue appends a synthetic main after
-	// the golden tail, so the re-parsed dirs no longer see the verdict.
+	// origDirs: the compile-mode rescue re-parses dirs from the source
+	// whose golden tail was stripped above, so they no longer see it.
 	if (isGoRunMode || compileMode) && !opts.Sync {
-		n := 0
-		for _, d := range origDirs {
-			if d.Name == DirectiveVerdict {
-				n++
-			}
-		}
-		if n != 1 {
+		if n := countDirectives(origDirs, DirectiveVerdict); n != 1 {
 			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
 		}
 		v, ok := verdictIn(origDirs)
@@ -197,6 +199,14 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		if err := v.check(); err != nil {
 			return "", 0, diffs, err
+		}
+		// The mode names the file's mode; an Unsupported verdict carries a tag there.
+		mode := "run"
+		if compileMode {
+			mode = "compile"
+		}
+		if v.Kind != VerdictUnsupported && v.Mode != mode {
+			return "", 0, diffs, fmt.Errorf("`// Verdict: %s` names mode %q, but this is a %s file", v.Kind, v.Mode, mode)
 		}
 	}
 	// The Go side is a golden: `go run` only under sync (with the toolchain
@@ -276,7 +286,9 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// can't process it at all, so route to `// Unsupported:` (skip)
 	// rather than letting it fail or land in KnownIssue. Detected from
 	// Gno's ACTUAL error, so prose like "go to" in a comment can't trip
-	// it. Auto-written under sync; thereafter skipped pre-dispatch.
+	// it. Auto-written under sync; thereafter skipped pre-dispatch. Verify
+	// never skips here: a file that reaches this point carries a Clean or
+	// Known* verdict, so a gap message now is a regression, not a gap.
 	if isGoFile {
 		reason := UnsupportedFeatureError(result.Error)
 		// Gno's preprocess may surface an unrelated error before the
@@ -316,14 +328,16 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			if opts.Sync {
 				return writeUnsupportedDirective(originalSource, reason), m.GasMeter.GasConsumed(), diffs, nil
 			}
-			return "", m.GasMeter.GasConsumed(), diffs, &SkipError{Reason: reason}
+			return "", m.GasMeter.GasConsumed(), diffs, fmt.Errorf(
+				"stale verdict: Gno now hits a feature gap (%s) — re-run with --update-golden-tests to mark the file `// Verdict: Unsupported`:\n%s",
+				reason, result.Error)
 		}
 	}
 
 	// Compile mode: Gno's preprocess against gc. Two evidence blocks
 	// (GnoError, and GoBuildError as line numbers) and one verdict:
-	// `Clean compile` when gc agrees with Gno, accepting or rejecting;
-	// `KnownIssue compile` when only Gno rejects. The verdict's reason
+	// `Clean compile` when Gno accepts as gc did upstream, a Known*
+	// verdict whenever Gno rejects (compileVerdict). The verdict's reason
 	// obeys the same rules as run mode (verdict.check: no TODO, a
 	// KnownIssue cites its issue).
 	if compileMode {
@@ -351,14 +365,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
 			goBuildErr = ParseLineBlock(d.Content)
 		}
-		v := verdict{Kind: VerdictClean, Mode: "compile"}
-		if len(goBuildErr) == 0 {
-			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc accepts)"}
-			// Keep a cited human verdict (KnownIssue or KnownDivergence) across re-syncs.
-			if prev, ok := verdictIn(origDirs); ok && prev.Kind != VerdictClean && prev.Kind != VerdictUnsupported && prev.check() == nil {
-				v = prev
-			}
-		}
+		prev, hasPrev := verdictIn(origDirs)
+		v := compileVerdict(goBuildErr, prev, hasPrev)
 		sections := []goldenSection{
 			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
 			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
@@ -527,6 +535,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	return "", m.GasMeter.GasConsumed(), diffs, returnErr
 }
 
+// compileVerdict decides the verdict of a compile-mode file Gno rejects.
+// gc accepted the file upstream (`// compile`), so a gc rejection here is
+// a toolchain or rescue artefact, not agreement: the file is never Clean.
+// A cited human Known* verdict is kept across re-syncs.
+func compileVerdict(goBuildErr map[int]string, prev verdict, hasPrev bool) verdict {
+	v := verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc accepts)"}
+	if len(goBuildErr) != 0 {
+		v = verdict{Kind: VerdictKnownDivergence, Mode: "compile", Reason: "TODO: cite why gc rejects this `// compile` file here (toolchain flag or rescue artefact); Gno rejects it too"}
+	}
+	if hasPrev && prev.Kind != VerdictClean && prev.Kind != VerdictUnsupported && prev.check() == nil {
+		v = prev
+	}
+	return v
+}
+
 // goldenSection is one named per-line golden block (`// GnoError:` or
 // `// GoBuildError:`) to (re)write at the bottom of a compile-mode file.
 type goldenSection struct {
@@ -581,7 +604,7 @@ func strayGoldenBlocks(src string, allowed []string) []string {
 	var stray []string
 	for l := range strings.SplitSeq(region, "\n") {
 		m := reGoldenHeader.FindStringSubmatch(l)
-		if m == nil || slices.Contains(allowed, m[1]) || slices.Contains(triageStateMarkers, m[1]) {
+		if m == nil || slices.Contains(allowed, m[1]) {
 			continue
 		}
 		stray = append(stray, m[1])
@@ -604,28 +627,10 @@ func writeUnsupportedDirective(originalSource []byte, reason string) string {
 // appended, each non-empty section blank-line separated. Any existing
 // trailing golden region is replaced rather than duplicated.
 func writeStaticGolden(originalSource []byte, sections []goldenSection) string {
-	// Capture triage state marker lines before stripping so a golden
-	// refresh never drops manual triage status.
-	var stateLines []string
-	for ln := range strings.SplitSeq(string(originalSource), "\n") {
-		t := strings.TrimSpace(ln)
-		for _, name := range triageStateMarkers {
-			if strings.HasPrefix(t, "// "+name+":") {
-				stateLines = append(stateLines, t)
-			}
-		}
-	}
 	body := strings.TrimRight(stripTrailingGoldenRegion(string(originalSource)), "\n")
 	var sb strings.Builder
 	sb.WriteString(body)
 	sb.WriteString("\n")
-	// Canonical marker position: between the code body and the pinned
-	// golden region (same place the run-mode writer keeps them).
-	for _, ln := range stateLines {
-		sb.WriteString("\n")
-		sb.WriteString(ln)
-		sb.WriteString("\n")
-	}
 	for _, s := range sections {
 		if s.block == "" {
 			continue
@@ -660,18 +665,12 @@ var goldenRegionStarts = []string{
 	DirectiveVerdict,
 }
 
-// triageStateMarkers are the standalone triage status lines (`// Fixed:`,
-// `// Fixing:`, `// Tracked:`) written by manual triage after the golden
-// region. They are NOT harness directives (never add them to
-// allDirectives); stripTrailingGoldenRegion treats a trailing marker
-// block as strippable and writeStaticGolden re-appends it on re-sync.
-var triageStateMarkers = []string{"Fixed", "Fixing", "Tracked"}
-
 // stripTrailingGoldenRegion removes the trailing golden region — one or
 // more blank-line-separated `//`-comment blocks each beginning with a
 // golden directive (goldenRegionStarts) — so a refresh replaces rather
-// than appends. Returns src unchanged if the
-// trailing comment block isn't a golden block.
+// than appends. Returns src unchanged if the trailing comment block isn't
+// a golden block. Only those directives open the region: any other
+// trailing note is body, so the upstream manifest guards it.
 func stripTrailingGoldenRegion(src string) string {
 	lines := strings.Split(src, "\n")
 	end := len(lines)
@@ -698,7 +697,7 @@ func stripTrailingGoldenRegion(src string) string {
 		if i > start && strings.TrimSpace(lines[i-1]) != "" {
 			continue // not a block top
 		}
-		for _, name := range append(goldenRegionStarts, triageStateMarkers...) {
+		for _, name := range goldenRegionStarts {
 			if strings.HasPrefix(t, "// "+name+":") {
 				return strings.Join(lines[:i], "\n")
 			}
@@ -831,6 +830,17 @@ func runVerdict(dirs Directives, gnoErrored bool) verdict {
 		return verdict{Kind: VerdictKnownIssue, Mode: "run", Reason: "TODO: explain the Gno bug (Gno errors where Go runs clean)"}
 	}
 	return verdict{Kind: VerdictKnownDivergence, Mode: "run", Reason: "TODO: <category>: explain why this divergence is acceptable"}
+}
+
+// countDirectives returns how many entries of dirs carry name.
+func countDirectives(dirs Directives, name string) int {
+	n := 0
+	for _, d := range dirs {
+		if d.Name == name {
+			n++
+		}
+	}
+	return n
 }
 
 // removeDirectives returns a copy of dirs with all entries whose Name

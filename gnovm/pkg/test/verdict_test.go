@@ -193,3 +193,42 @@ func TestMissingStdlibImport(t *testing.T) {
 		}
 	}
 }
+
+func TestCompileVerdict(t *testing.T) {
+	t.Parallel()
+	gcRejects := map[int]string{5: "x"}
+	cited := verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "#1234 bug"}
+	divergence := verdict{Kind: VerdictKnownDivergence, Mode: "compile", Reason: "docs/x.md"}
+	todo := verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: fill"}
+	clean := verdict{Kind: VerdictClean, Mode: "compile"}
+	for _, tc := range []struct {
+		name    string
+		goBuild map[int]string
+		prev    verdict
+		hasPrev bool
+		want    string // Kind, or "TODO <Kind>" for a sync placeholder
+	}{
+		{"gc accepts, no prior", nil, verdict{}, false, "TODO " + VerdictKnownIssue},
+		// gc accepted the file upstream: a rejection here is an artefact,
+		// never agreement, so the file is not Clean.
+		{"gc rejects, no prior", gcRejects, verdict{}, false, "TODO " + VerdictKnownDivergence},
+		{"gc rejects, prior Clean", gcRejects, clean, true, "TODO " + VerdictKnownDivergence},
+		{"gc accepts, prior cited issue", nil, cited, true, VerdictKnownIssue},
+		{"gc rejects, prior cited divergence", gcRejects, divergence, true, VerdictKnownDivergence},
+		{"gc accepts, prior TODO", nil, todo, true, "TODO " + VerdictKnownIssue},
+	} {
+		got := compileVerdict(tc.goBuild, tc.prev, tc.hasPrev)
+		want := tc.want
+		if strings.HasPrefix(want, "TODO ") {
+			want = strings.TrimPrefix(want, "TODO ")
+			if got.check() == nil {
+				t.Errorf("%s: want a TODO placeholder verify refuses, got %q", tc.name, got.String())
+			}
+		} else if tc.hasPrev && got != tc.prev {
+			t.Errorf("%s: want the prior verdict kept, got %q", tc.name, got.String())
+		}
+		if got.Kind != want || got.Mode != "compile" {
+			t.Errorf("%s: compileVerdict = %q; want kind %s", tc.name, got.String(), want)
+		}
+	}
+}
