@@ -16,7 +16,4 @@ func Foo(y chan) { // ERROR "unexpected .*\).* in channel type|missing channel e
 func Bar(x chan, y int) { // ERROR "unexpected comma in channel type|missing channel element type"
 }
 
-// GnoError:
-// line 11: expected type, found '}'
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13, 16
+// Verdict: Unsupported channel: channels not supported in Gno

@@ -18,6 +18,9 @@ func f(int, int) {
 }
 
 // GnoError:
+// line 10: name x not declared
 // line 12: missing ',' before newline in argument list
+// line 13: expected operand, found 'case'
+// line 18: expected ')', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 10, 13, 18

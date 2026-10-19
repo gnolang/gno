@@ -27,5 +27,8 @@ func i() {
 
 // GnoError:
 // line 12: missing ',' before newline in argument list
+// line 13: missing ',' in argument list
+// line 14: expected operand, found '}'
+// line 26: expected ')', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 20, 24
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 20, 24; over-strict: lines 13, 14, 26

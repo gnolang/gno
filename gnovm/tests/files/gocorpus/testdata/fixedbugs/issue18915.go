@@ -22,5 +22,7 @@ func _() {
 
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?)
+// line 16: expected boolean or range expression, found assignment (missing parentheses around composite literal?)
+// line 19: expected switch expression, found assignment (missing parentheses around composite literal?)
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 19
+// Verdict: Clean errorcheck
