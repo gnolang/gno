@@ -217,7 +217,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		// The mode names the file's mode; an Unsupported verdict carries a tag there.
 		mode := "run"
-		if compileMode {
+		switch {
+		case len(errorcheckMarkers) > 0:
+			mode = "errorcheck"
+		case compileMode:
 			mode = "compile"
 		}
 		if v.Kind != VerdictUnsupported && v.Mode != mode {
