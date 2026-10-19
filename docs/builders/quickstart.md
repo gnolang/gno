@@ -79,4 +79,4 @@ to run the executable checks.
 
 ## Next
 
-[r/docs](https://staging.gno.land/r/docs) — on-chain tour of Gno.land.
+[r/docs](https://staging.gno.land/docs) — on-chain tour of Gno.land.

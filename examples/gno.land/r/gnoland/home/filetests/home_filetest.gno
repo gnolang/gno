@@ -51,6 +51,7 @@ func main() {
 // - [Write Gno in the browser](https://play.gno.land)
 // - [Read about the Gno Language](/gnolang)
 // - [Visit the official documentation](https://docs.gno.land)
+// - [Gno by Example](/docs)
 // - [Efficient local development for Gno](https://docs.gno.land/resources/gnodev)
 // - [Get testnet GNOTs](https://faucet.gno.land)
 //
