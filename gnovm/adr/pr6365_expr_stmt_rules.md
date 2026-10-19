@@ -22,6 +22,10 @@ tree:
 - Array and slice literal indices are constants; `len` of a constant
   string folds to a constant.
 - Unused locals are also checked in package-level function literals.
+- A type assertion statement `x.(T)` stays accepted, which go/types
+  refuses ("comma, ok expression ... is not used"): Gno runs it for its
+  panic and programs rely on that. This divergence from Go is deliberate
+  and survives the on-chain switch.
 
 `map42`, `var27` and `composite16` are error filetests now; `defer0`
 keeps its run coverage without the spread into `println`. Goldens print

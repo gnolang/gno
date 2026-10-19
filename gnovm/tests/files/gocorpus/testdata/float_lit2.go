@@ -163,9 +163,6 @@ func fromBits(b uint64, x interface{}) interface{} {
 	return "?"
 }
 
-
-// Fixing: PR #5867 (apd→big.Rat); candidate, unverified.
-
 // GnoOutput:
 
 // GoOutput:

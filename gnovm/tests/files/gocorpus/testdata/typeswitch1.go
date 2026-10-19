@@ -84,9 +84,6 @@ func main() {
 	check(nil, "nil <nil>")
 }
 
-
-// Fixing: PR #5766 (fix/typeswitch1, case-nil tag-type handling); verified clean on branch, broken on master; re-golden after merge.
-
 // GnoOutput:
 
 // GoOutput:

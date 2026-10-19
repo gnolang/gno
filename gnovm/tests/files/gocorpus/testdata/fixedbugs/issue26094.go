@@ -48,9 +48,6 @@ func main() {
 	F2() // check that X is not F2's T
 }
 
-
-// Fixing: PR #5732 (fix/5667, typedRuntimeError); verified on branch (wording gap remains), broken on master; reclassify KnownDivergence after merge.
-
 // GnoOutput:
 
 // GnoError:
@@ -58,4 +55,4 @@ func main() {
 
 // GoOutput:
 
-// Verdict: KnownIssue run: #5913 runtime panic value is a bare string, so recover().(error) fails
+// Verdict: KnownDivergence run: runtime panic messages use Gno's wording, not gc's (#5732): the failed assertion between two function-local types named T does not say "different scopes", which the file greps for

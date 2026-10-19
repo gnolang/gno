@@ -23,5 +23,10 @@ func main() {
 	panic("here")
 }
 
+// Stacktrace:
+// panic: here
+// main<VPBlock(1,2)>()
+//     main/panic1.gno:23
+
 // Error:
 // here

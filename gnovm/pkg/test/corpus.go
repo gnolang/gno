@@ -424,8 +424,8 @@ func gnoErrSegments(s string) []string {
 }
 
 // reErrorLocation is a located message's prefix: file:L:C, with an
-// optional span end (-C2 or -L2:C2), or just file:L.
-var reErrorLocation = regexp.MustCompile(`(?s)^\S+?:\d+(?::\d+)?(?:-\d+(?::\d+)?)?:\s*(.*)$`)
+// optional span end (-C2 or -L2:C2) and primes ('), or just file:L.
+var reErrorLocation = regexp.MustCompile(`(?s)^\S+?:\d+(?::\d+)?(?:-\d+(?::\d+)?)?'*:\s*(.*)$`)
 
 // CleanErrorMessage strips the location prefix from a Gno error message
 // ("pkg/file.go:12:3-14:2: msg" becomes "msg"); a message with no

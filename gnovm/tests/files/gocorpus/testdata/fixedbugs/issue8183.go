@@ -23,6 +23,10 @@ const (
 )
 
 // GnoError:
+// line 15: bigint overflows target kind
 // line 19: cannot use iota outside constant declaration
+// line 20: cannot use iota outside constant declaration
+// line 21: cannot use iota outside constant declaration
+// line 22: cannot use iota outside constant declaration
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15, 21, 22; over-strict: lines 19
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 19, 20
