@@ -339,3 +339,55 @@ func main() {}
 		t.Fatalf("no package clause: want nil node and an error, got %v, %v", fn != nil, perrs)
 	}
 }
+
+func TestParseFileCollectDeclarations(t *testing.T) {
+	// A declaration Go2Gno refuses drops with its own error; a blank
+	// package name is reported and parsed past. (A missing import path
+	// is left to the import rule, exercised by the corpus.)
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, perrs := m.ParseFileCollect("main.gno", `package _
+
+type T int
+
+func (x, y T) m() {}
+
+func g() {
+	var s string = 1
+	_ = s
+}
+`)
+	if fn == nil {
+		t.Fatalf("want a file node, got errors %v", perrs)
+	}
+	var got []string
+	for _, e := range perrs {
+		got = append(got, e.Error())
+	}
+	for _, want := range []string{"main.gno:1:10: invalid package name _", "main.gno:5:7: "} {
+		found := false
+		for _, g := range got {
+			if strings.HasPrefix(g, want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing an error starting %q in %v", want, got)
+		}
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("_", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	// g is still checked.
+	if len(msgs) < 1 || !strings.Contains(msgs[len(msgs)-1], "main.gno:8:") {
+		t.Fatalf("want g's error last, got %v", msgs)
+	}
+	for _, m := range msgs {
+		if strings.Contains(m, "!syntax") {
+			t.Errorf("placeholder leaked: %s", m)
+		}
+	}
+}

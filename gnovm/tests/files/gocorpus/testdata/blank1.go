@@ -33,5 +33,9 @@ func main() {
 
 // GnoError:
 // line 10: invalid package name _
+// line 16: should not happen
+// line 25: cannot use _ as value or type
+// line 26: cannot use _ as value or type
+// line 31: gno.land/p/filetest/_.T is not comparable
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 25, 26, 28, 31
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 28; internal errors: lines 16

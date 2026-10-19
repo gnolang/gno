@@ -45,4 +45,7 @@ func f2() {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 26, 30, 44
+// GnoError:
+// line 23: duplicate default clause
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 26, 30, 44; over-strict: lines 23
