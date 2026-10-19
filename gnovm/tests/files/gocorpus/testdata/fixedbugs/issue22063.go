@@ -17,7 +17,7 @@ func _() {
 }
 
 // GnoError:
-// line 11: name Wrong not defined in fileset with files [issue22063.go]
+// line 11: name not defined: Wrong
 
 // GnoWordingDiffers:
 // line 11: gc expects: undefined: Wrong|reference to undefined name .*Wrong; gno: name Wrong not defined in fileset with files [issue22063.go]

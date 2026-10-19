@@ -15,8 +15,8 @@ func (*T) p() {} // GCCGO_ERROR "previous"
 func (*T) p() {} // ERROR "T\.p already declared|redefinition"
 
 // GnoError:
-// line 12: redeclaration of method T.m
-// line 15: redeclaration of method T.p
+// line 12: T.m redeclared in this block; other declaration at main/bug350.go:11:1-16
+// line 15: T.p redeclared in this block; other declaration at main/bug350.go:14:1-17
 
 // GnoWordingDiffers:
 // line 12: gc expects: T\.m already declared|redefinition; gno: redeclaration of method T.m

@@ -30,6 +30,13 @@ never guarded) stay uncovered.
   statement, since faux blocks copy their header's name sources into
   each case block. In accumulate mode, names a dropped statement declared
   or mentioned are not reported.
+- `checkUnusedImports` runs once per package after every file is
+  preprocessed (beside the init-cycle check) and reports each named
+  import no file refers to, gc's `"math" imported and not used` at the
+  import spec, files then specs in order; dot and blank imports are
+  exempt. A reference is a name the preprocessor resolved to a package,
+  in the tree or in a folded constant's or type's source. In accumulate
+  mode an import a dropped statement mentioned is not reported.
 - Native filetests that declared variables they never used now use them,
   so their intent and goldens stay; the five whose point was the unused
   name take the new error as their golden.
@@ -50,7 +57,8 @@ never guarded) stay uncovered.
 
 ## Consequences
 
-- 10 errorcheck corpus files flip to `Clean`; the four `// compile` files
+- 10 errorcheck corpus files flip to `Clean`, and `fixedbugs/issue13539.go`
+  with the unused-import rule; the four `// compile` files
   with a blank label or a constant-only use stay `Clean compile`.
 - The on-chain error for an unused variable moves from the guard's text
   to preprocess's, same line.

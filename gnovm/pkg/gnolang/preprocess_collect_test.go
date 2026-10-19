@@ -3,8 +3,11 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // collectErrors preprocesses one file in accumulate mode and returns the
@@ -218,6 +221,8 @@ func main() { println(a, b) }
 		if panicked != nil {
 			t.Fatalf("escaped: %v", panicked)
 		}
+		// The copied value of a split part has no span of its own: the
+		// error sits at the part, i.e. at the name a.
 		if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:5") || !strings.Contains(msgs[0], "undefinedF") {
 			t.Fatalf("want one error at the name a (3:5), got %v", msgs)
 		}
@@ -390,6 +395,378 @@ func g() {
 	for _, m := range msgs {
 		if strings.Contains(m, "!syntax") {
 			t.Errorf("placeholder leaked: %s", m)
+		}
+	}
+}
+
+// collectFiles is collectErrors over several files, in order; messages
+// keep their position.
+func collectFiles(t *testing.T, files ...string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fset := &FileSet{}
+	for i := 0; i < len(files); i += 2 {
+		fn, err := m.ParseFile(files[i], files[i+1])
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset.Files = append(fset.Files, fn)
+	}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+// wantErrors checks that msgs are exactly the (position prefix, substring)
+// pairs given, in order.
+func wantErrors(t *testing.T, msgs []string, want ...string) {
+	t.Helper()
+	if len(msgs) != len(want)/2 {
+		t.Fatalf("want %d errors, got %d: %v", len(want)/2, len(msgs), msgs)
+	}
+	for i, msg := range msgs {
+		pos, sub := want[2*i], want[2*i+1]
+		if !strings.HasPrefix(msg, "main/"+pos) || !strings.Contains(msg, sub) {
+			t.Errorf("error %d: want %q containing %q, got %q", i, pos, sub, msg)
+		}
+	}
+}
+
+// Finer than a dropped declaration: what cannot be typed becomes
+// invalidType, already reported, and everything depending on it is
+// still checked (go/types' Typ[Invalid]).
+func TestPreprocessCollectInvalid(t *testing.T) {
+	t.Run("an undefined signature type keeps the function, its body and its callers", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+func mine(int b) int {
+	return b + 2
+}
+
+func _() (int, undefined) { return 0 }
+
+func main() {
+	mine()
+	r := mine(1) + "s"
+	println(r)
+}
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:3:15", "name not defined: b",
+			"main.gno:7:16", "name not defined: undefined",
+			"main.gno:4:9", "name b not declared",
+			"main.gno:7:29", "expected 2 return values; got 1",
+			"main.gno:10:2", "wrong argument count in call to mine",
+			"main.gno:11:7", "cannot use untyped",
+		)
+	})
+
+	t.Run("a declaration that fails keeps its names, typed invalid", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+func bar() (T, int) { return 0, 0 }
+
+func G() int { return 1 }
+
+var a, b = G()
+
+func main() {
+	var x, y, z int
+	x, y, z = bar()
+	a, b = G()
+	println(x, y, z, a, b)
+}
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:3:13", "name not defined: T",
+			"main.gno:7:5", "assignment mismatch: 2 variable(s) but G",
+			"main.gno:11:2", "assignment mismatch: 3 variables but bar",
+			"main.gno:12:2", "assignment mismatch: 2 variables but G",
+		)
+	})
+
+	t.Run("a dropped statement types its names invalid in its own block only", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+func a() {
+	x := "s" + 1
+	println(x)
+}
+
+func b() { println(x) }
+`)
+		if len(msgs) != 2 || !strings.Contains(msgs[1], "name x not declared") {
+			t.Fatalf("want the root error and b's genuine one, got %v", msgs)
+		}
+	})
+
+	t.Run("a dropped type keeps its identity with an invalid base", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+type T struct{ X Undef }
+
+func (t T) get() int { return t.X }
+
+var v = T{X: 1}
+
+func main() {
+	var s string = 1
+	println(v, s)
+}
+`)
+		if len(msgs) != 2 || !strings.Contains(msgs[0], "Undef") || !strings.Contains(msgs[1], "cannot use") {
+			t.Fatalf("want Undef and the string error only, got %v", msgs)
+		}
+	})
+
+	t.Run("a dropped import silences its uses", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+import pkg "nowhere/pkg"
+
+func main() {
+	pkg.F(1)
+	x := pkg.V + 1
+	println(x)
+}
+`)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "unknown import path") {
+			t.Fatalf("want the import error only, got %v", msgs)
+		}
+	})
+	t.Run("an undefined package qualifier, a literal key and an invalid field keep going", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+type T x.T
+
+type S struct{ f x.T }
+
+type A struct{ a A }
+
+var _ = []int{a: true, true}
+
+func f(t T, s S, p *A) {
+	s.f.M()
+	s.g = 1
+	p.bar()
+	println(t)
+}
+
+func main() {}
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:3:8", "name not defined: x",
+			"main.gno:5:18", "name not defined: x",
+			"main.gno:7:6", "invalid recursive type: A -> A",
+			"main.gno:9:15", "name not defined: a",
+			"main.gno:9:24", "cannot use untyped bool",
+			"main.gno:13:2", "missing field g in main.S",
+		)
+	})
+}
+
+func TestPreprocessCollectClauses(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type Stringer interface{ String() string }
+
+func main() {
+	var e interface{}
+	switch e := e.(type) {
+	case 0:
+		e.x = 1
+	case T:
+		e.M()
+	case Stringer:
+		e.M()
+	}
+	switch 1 {
+	case "s":
+	case 2:
+		var s string = 1
+		_ = s
+	}
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// A failing clause drops alone: its body is silenced (go/types), the
+	// other clauses are checked.
+	wantErrors(t, msgs,
+		"main.gno:8:2", "0 is not a type",
+		"main.gno:10:7", "name T not declared",
+		"main.gno:13:3", "missing field M in main.Stringer",
+		"main.gno:16:2", "cannot use",
+		"main.gno:18:7", "cannot use",
+	)
+}
+
+func TestPreprocessCollectElements(t *testing.T) {
+	t.Run("each failing element of a package-level literal", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+const max32 = 3.40282346638528859811704183484516925440e+38
+
+var x = []interface{}{
+	float32(max32),
+	float32(max32 * 2),
+	float32(-max32 * 2),
+	"ok",
+	float64(1e400),
+	float64(-1e400),
+}
+
+func main() { println(x) }
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:7:2", "cannot convert",
+			"main.gno:8:2", "cannot convert",
+			"main.gno:10:2", "cannot convert",
+			"main.gno:11:2", "cannot convert",
+		)
+	})
+
+	t.Run("bad keys, also on the dependency path", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+type T struct {
+	toInt    map[string]int
+	toString map[int]string
+}
+
+var u = t
+
+var t = T{
+	foo.toInt:    make(map[string]int),
+	bar.toString: make(map[int]string),
+}
+
+func main() { println(u) }
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:11:2", "invalid field name foo.toInt in struct literal",
+			"main.gno:12:2", "invalid field name bar.toString in struct literal",
+		)
+	})
+
+	t.Run("in a function body", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+type P struct{ A, B int }
+
+func main() {
+	x := []int{1, "s", 2, 3.5}
+	p := P{1, "s"}
+	m := map[string]int{"a": 1, 2: 2, "c": "s"}
+	println(x, p, m)
+}
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:6:16", "cannot use",
+			"main.gno:6:24", "cannot convert",
+			"main.gno:7:12", "cannot use",
+			"main.gno:8:30", "cannot use",
+			"main.gno:8:41", "cannot use",
+		)
+	})
+}
+
+func TestPreprocessCollectDuplicates(t *testing.T) {
+	t.Run("methods, which the parser does not see", func(t *testing.T) {
+		msgs := collectFiles(t, "main.gno", `package main
+
+type T int
+
+func (T) m()  {}
+func (T) m()  {}
+func (*T) p() {}
+func (*T) p() {}
+
+func main() {}
+`)
+		wantErrors(t, msgs,
+			"main.gno:6:1", "T.m redeclared in this block; other declaration at main/main.gno:5:1",
+			"main.gno:8:1", "T.p redeclared in this block; other declaration at main/main.gno:7:1",
+		)
+	})
+
+	t.Run("across files, the resolving declaration survives", func(t *testing.T) {
+		msgs := collectFiles(t,
+			"a.gno", `package main
+
+var v int
+
+func f() int { return v }
+`,
+			"b.gno", `package main
+
+var v string
+
+func f() string { return v }
+
+func main() { println(f()) }
+`)
+		wantErrors(t, msgs,
+			"a.gno:3:5", "v redeclared in this block; other declaration at main/b.gno:3:5",
+			"a.gno:5:1", "f redeclared in this block; other declaration at main/b.gno:5:1",
+		)
+	})
+}
+
+func TestPreprocessCollectDeterministic(t *testing.T) {
+	src := `package main
+
+type T struct{ X Undef }
+
+func (t T) get() int { return t.X }
+
+func mine(int b) int { return b + 2 }
+
+var a, b = mine()
+
+func main() {
+	var e interface{}
+	switch e := e.(type) {
+	case 0:
+		e.x = 1
+	case T:
+		e.get()
+	}
+	x := []int{1, "s", undefinedV}
+	y := x + mine(1, 2)
+	println(a, b, y, Undef2)
+}
+`
+	first := collectErrors(t, src)
+	if len(first) < 6 {
+		t.Fatalf("want a multi-error file, got %v", first)
+	}
+	for i := 1; i < 50; i++ {
+		if got := collectErrors(t, src); !slices.Equal(got, first) {
+			t.Fatalf("run %d differs:\n%v\nvs\n%v", i, got, first)
 		}
 	}
 }
@@ -781,6 +1158,149 @@ func main(int) {}
 	}
 }
 
+// depStore is a bare store that resolves "dep", "dep2" and "dep3" to
+// one-file packages.
+func depStore() Store {
+	store := NewStore(nil, nil, nil)
+	store.SetPackageGetter(func(pkgPath string, st Store) (*PackageNode, *PackageValue) {
+		switch pkgPath {
+		case "dep", "dep2", "dep3":
+		default:
+			return nil, nil
+		}
+		m := NewMachineWithOptions(MachineOptions{PkgPath: pkgPath, Store: st, SkipPackage: true})
+		defer m.Release()
+		return m.RunMemPackage(&std.MemPackage{Type: MPStdlibProd, Name: pkgPath, Path: pkgPath, Files: []*std.MemFile{
+			{Name: "dep.gno", Body: "package " + pkgPath + "\n\nconst X = 1\n\ntype T struct{}\n\nfunc F() int { return X }\n"},
+		}}, false)
+	})
+	return store
+}
+
+// collectPkgErrors preprocesses srcs (one file each: a.gno, b.gno, ...) as
+// one package in accumulate mode over depStore and returns the messages
+// with their position kept.
+func collectPkgErrors(t *testing.T, srcs ...string) []string {
+	t.Helper()
+	m := NewMachine("main", depStore())
+	defer m.Release()
+	var files []*FileNode
+	for i, src := range srcs {
+		fn, err := m.ParseFile(fmt.Sprintf("%c.gno", 'a'+i), src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, fn)
+	}
+	fset := &FileSet{Files: files}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectUnusedImport(t *testing.T) {
+	t.Run("unused import, at its spec", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import (
+	"dep"
+	"dep2"
+)
+
+func main() { println(dep.X) }
+`)
+		if len(msgs) != 1 || msgs[0] != `main/a.gno:5:2-8: "dep2" imported and not used` {
+			t.Fatalf("got %v", msgs)
+		}
+	})
+
+	t.Run("imports are per file; a use in another file does not count", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import d "dep"
+
+func main() { println(g()) }
+`, `package main
+
+import "dep"
+
+func g() int { return dep.F() }
+`)
+		if len(msgs) != 1 || msgs[0] != `main/a.gno:3:8-15: "dep" imported as d and not used` {
+			t.Fatalf("got %v", msgs)
+		}
+	})
+
+	t.Run("a type, a constant and a value reference are uses", func(t *testing.T) {
+		msgs := collectPkgErrors(t, `package main
+
+import (
+	"dep"
+	d2 "dep2"
+	"dep3"
+)
+
+type S struct{ f dep.T }
+
+const c = d2.X
+
+var _ = dep3.F
+
+func main() { _ = S{} }
+`)
+		if len(msgs) != 0 {
+			t.Fatalf("false positive: %v", msgs)
+		}
+	})
+
+	t.Run("blank imports are exempt", func(t *testing.T) {
+		if msgs := collectPkgErrors(t, "package main\n\nimport _ \"dep\"\n\nfunc main() {}\n"); len(msgs) != 0 {
+			t.Fatalf("false positive: %v", msgs)
+		}
+	})
+
+	t.Run("a name a dropped statement mentioned is not reported", func(t *testing.T) {
+		msgs := collectPkgErrors(t, "package main\n\nimport \"dep\"\n\nfunc main() { dep.Nope() }\n")
+		for _, msg := range msgs {
+			if strings.Contains(msg, "imported and not used") {
+				t.Fatalf("reported a dropped statement's import: %v", msgs)
+			}
+		}
+	})
+
+	t.Run("source order, files then specs", func(t *testing.T) {
+		msgs := collectPkgErrors(t, "package main\n\nimport (\n\t\"dep2\"\n\t\"dep\"\n)\n\nfunc main() {}\n", "package main\n\nimport \"dep3\"\n")
+		want := []string{
+			`main/a.gno:4:2-8: "dep2" imported and not used`,
+			`main/a.gno:5:2-7: "dep" imported and not used`,
+			`main/b.gno:3:8-14: "dep3" imported and not used`,
+		}
+		if fmt.Sprint(msgs) != fmt.Sprint(want) {
+			t.Fatalf("got %v\nwant %v", msgs, want)
+		}
+	})
+}
+
+func TestUnusedImportOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the package once its files are
+	// preprocessed, with the first unused import's positioned message.
+	m := NewMachine("test", depStore())
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nimport \"dep\"\n\nfunc f() int { return 1 }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), `test/a.gno:3:8-13: "dep" imported and not used`) {
+			t.Fatalf("want an unused-import PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted an unused import")
+}
+
 func TestPreprocessCollectTypes(t *testing.T) {
 	msgs := collectErrors(t, `package main
 
@@ -1142,8 +1662,8 @@ type T struct {
 }
 `)
 	want := []string{
-		"main/main.gno:3:6-9: name foo not defined in fileset with files [main.gno]",
-		"main/main.gno:7:4-6: name T1 not defined in fileset with files [main.gno]",
+		"main/main.gno:3:6-13: name not defined: foo",
+		"main/main.gno:7:4-6: name not defined: T1",
 	}
 	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
@@ -2024,6 +2544,9 @@ func TestPreprocessCollectImportName(t *testing.T) {
 	// line is what matters.
 	check := func(t *testing.T, msgs []string, want map[string]string) {
 		t.Helper()
+		// The clashing imports are unused too (gc reports that as well);
+		// this test is about the clash.
+		msgs = slices.DeleteFunc(slices.Clone(msgs), func(m string) bool { return strings.Contains(m, "imported") })
 		if len(msgs) != len(want) {
 			t.Fatalf("want %d errors, got %d: %q", len(want), len(msgs), msgs)
 		}
@@ -2068,8 +2591,8 @@ func main() {}
 	t.Run("a name declared in another file is not a clash", func(t *testing.T) {
 		msgs := collectErrorsFiles(t, "package main\n\nimport \"foo\"\n\nfunc main() {}\n",
 			"package main\n\nvar bar int\n")
-		if len(msgs) != 0 {
-			t.Fatalf("want no error, got %q", msgs)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], `"foo" imported and not used`) {
+			t.Fatalf("want only the unused import, got %q", msgs)
 		}
 	})
 }

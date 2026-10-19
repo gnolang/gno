@@ -2087,10 +2087,15 @@ func isGoTypesFile(fname string) bool {
 // Gno to check: gc diagnostic or runtime-package flags, a -lang pin below
 // go1.17, only GC_ERROR markers, or only pragma-placement markers.
 func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
-	// Positions the harness cannot attribute: `//line` directives remap
-	// them, and a byte order mark inside the file is a parser test.
+	// Positions the harness cannot attribute: `//line` and `/*line*/`
+	// directives remap them (the error lines then follow the directive,
+	// not the file, and the rescue offset no longer applies), and a byte
+	// order mark inside the file is a parser test.
 	if bytes.Contains(source, []byte("\n//line ")) {
 		return "gc-specific: //line directives remap the positions the markers refer to"
+	}
+	if bytes.Contains(source, []byte("/*line ")) {
+		return "gc-specific: /*line*/ directives remap the positions the markers refer to"
 	}
 	if bytes.Contains(source[1:], []byte("\ufeff")) {
 		return "gc-specific: byte order mark test; the markers sit on the BOM lines"
