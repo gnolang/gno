@@ -111,6 +111,6 @@ func f8(r rune) {
 // line 88: duplicate case int32(36) in expression switch
 // line 89: duplicate case int32(37) in expression switch
 // line 91: duplicate case 'b' in expression switch
-// line 92: duplicate case int32(10) in expression switch
+// line 92: duplicate case x in expression switch
 
 // Verdict: Clean errorcheck

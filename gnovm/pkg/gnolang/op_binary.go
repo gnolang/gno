@@ -879,6 +879,11 @@ func parseBigdecLiteral(s, kind string) BigdecValue {
 	if err != nil {
 		panic(fmt.Sprintf("invalid %s constant: %s", kind, s))
 	}
+	if f.IsInf() {
+		// The exponent overflowed big.Float's range: gc's "malformed
+		// constant"; an infinite constant must not enter the program.
+		panic(fmt.Sprintf("malformed constant: %s", s))
+	}
 	if exp := f.MantExp(nil); exp > ratOverflowBits || exp < -ratOverflowBits {
 		return BigdecValue{F: f}
 	}
