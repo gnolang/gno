@@ -19,9 +19,11 @@ func main() {
 }
 
 // GnoError:
+// line 16: operator << not defined on: Float64Kind
 // line 17: operator << not defined on: BigdecKind
 
 // GnoWordingDiffers:
+// line 16: gc expects: invalid operation|non-integer type|incompatible type; gno: operator << not defined on: Float64Kind
 // line 17: gc expects: invalid operation|non-integer type; gno: operator << not defined on: BigdecKind
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// Verdict: Clean errorcheck

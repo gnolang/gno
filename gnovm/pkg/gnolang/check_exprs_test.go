@@ -66,3 +66,35 @@ func main() { println(S) }
 	assertLiteralIndices(gm, lit, -1)
 	require.Equal(t, int64(12)*OpCPUSlopeCheckNode*GasFactorCPU, gm.GasConsumed())
 }
+
+// TestPreprocessGas_HasCall pins the constant len/cap operand walk's
+// charge: OpCPUSlopeCheckNode per node entered, nothing else.
+func TestPreprocessGas_HasCall(t *testing.T) {
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", `package main
+
+var a [3][4]int
+
+const C = len(a[len(a)-1])
+
+func main() { println(C) }
+`)
+	require.NoError(t, err)
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	PredefineFileSet(m.Store, pn, fset)
+	Preprocess(m.Store, pn, fn)
+	arg := fn.Decls[1].(*ValueDecl).Values[0].(*ConstExpr).Source.(*CallExpr).Args[0]
+	entered := 0
+	Transcribe(arg, func(_ []Node, _ TransField, _ int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage == TRANS_ENTER {
+			entered++
+		}
+		return n, TRANS_CONTINUE
+	})
+	require.Greater(t, entered, 3)
+	gm := stypes.NewGasMeter(1_000_000_000)
+	require.False(t, hasCall(gm, m.Store, fn, arg))
+	require.Equal(t, int64(entered)*OpCPUSlopeCheckNode*GasFactorCPU, gm.GasConsumed())
+}

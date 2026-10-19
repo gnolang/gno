@@ -5,7 +5,7 @@ func main() {
 }
 
 // Error:
-// main/index10.gno:4:6-18: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// main/index10.gno:4:12-14: invalid argument: index must not be negative: (-1 <untyped> bigint)
 
 // TypeCheckError:
 // main/index10.gno:4:12: invalid argument: index -1 (constant of type int) must not be negative

@@ -25,6 +25,20 @@ tree:
   impossible case; an impossible type assertion is rejected.
 - `copy` takes a slice destination and a slice or string source of the
   same element type.
+- Every repeated type-switch case is reported at the case, by type
+  identity (struct tags do not enter Gno's TypeID, so tag-only
+  variants count as one type); `x.(type)` outside a type switch is an
+  error, not an internal failure; a pointer to an interface implements
+  no interface; a float literal past big.Float's exponent range is
+  malformed; the switch tag is checked before its clauses.
+- Positioned at the offending node: interface elements (blank method,
+  embedded non-interface), composite literal elements (each failing
+  element is reported, then the literal drops; a package-level
+  declaration is preprocessed with the accumulator for this), the
+  extra initializer of a `var`, and an undefined dependency at its
+  first mention.
+- The unused-variable rule credits a use inside a type-switch clause to
+  the guard when it shadows a name of the init statement.
 - Errors can be positioned at a sub-node (`panicAt`). A declaration
   cycle is reported at the declaration that opens it, naming the cycle
   only, as go/types does; that commit overlaps #6254, which replaces the

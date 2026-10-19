@@ -25,4 +25,7 @@ bug022.go:8: illegal types for operand
 	(<uint8>UINT8) AS
 */
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12
+// GnoError:
+// line 12: invalid operation: cannot index digits (variable of type *string)
+
+// Verdict: Clean errorcheck
