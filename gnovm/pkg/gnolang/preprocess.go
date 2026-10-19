@@ -1767,7 +1767,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							cx := evalConst(store, last, n)
 							return cx, TRANS_CONTINUE
 						}
-						panic("slice/array literals may not contain non-const keys")
+						assertConstLiteralKey(n)
 					}
 				}
 				// specific and general cases

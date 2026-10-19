@@ -191,7 +191,11 @@ func notUsed(store Store, last BlockNode, x Expr) {
 	if _, ok := t.(*TypeType); ok {
 		panic(fmt.Sprintf("%s (type) is not an expression", exprString(x)))
 	}
-	panic(fmt.Sprintf("%s (value of type %s) is not used", exprString(x), typeString(t)))
+	xs := exprString(x)
+	if _, ok := x.(*FuncLitExpr); ok {
+		xs = fmt.Sprintf("(%s literal)", typeString(t)) // as go/types
+	}
+	panic(fmt.Sprintf("%s (value of type %s) is not used", xs, typeString(t)))
 }
 
 // constStringLen folds len of a constant string into an int constant.
@@ -215,19 +219,31 @@ func assertConstLiteralKey(key Expr) {
 	}
 }
 
-// isFuncDeclName reports whether nx names a declared function.
-func isFuncDeclName(last BlockNode, nx *NameExpr) (is bool) {
-	defer func() {
-		if recover() != nil {
-			is = false
-		}
-	}()
-	if nx.Path.Type != VPBlock {
+// isFuncDeclName reports whether nx names a declared function. It walks
+// the path as GetBlockNodeForPath does, stopping on a parent the walk
+// has not linked yet instead of panicking.
+func isFuncDeclName(last BlockNode, nx *NameExpr) bool {
+	if nx.Path.Type != VPBlock || nx.Path.Depth == 0 {
 		return false
 	}
-	bn := last.GetBlockNodeForPath(nil, nx.Path)
-	if bn == nil {
-		return false
+	bn := last
+	for i := 1; i < int(nx.Path.Depth); i++ {
+		if fauxChildBlockNode(bn) {
+			bn = bn.GetParentNode(nil)
+		}
+		if bn == nil {
+			return false
+		}
+		bn = bn.GetParentNode(nil)
+		if bn == nil {
+			return false
+		}
+	}
+	switch fb := bn.(type) {
+	case *IfCaseStmt, *SwitchClauseStmt:
+		if pn := fb.GetParentNode(nil); pn != nil && nx.Path.Index < pn.GetNumNames() {
+			bn = pn
+		}
 	}
 	idx, ok := bn.GetLocalIndex(nx.Name)
 	sources := bn.GetStaticBlock().NameSources

@@ -247,6 +247,18 @@ func exprString(x Expr) string {
 			args[i] = exprString(a)
 		}
 		return exprString(x.Func) + "(" + strings.Join(args, ", ") + ")"
+	case *SliceTypeExpr:
+		if x.Vrd {
+			return "..." + exprString(x.Elt)
+		}
+		return "[]" + exprString(x.Elt)
+	case *ArrayTypeExpr:
+		if x.Len == nil {
+			return "[...]" + exprString(x.Elt)
+		}
+		return "[" + exprString(x.Len) + "]" + exprString(x.Elt)
+	case *MapTypeExpr:
+		return "map[" + exprString(x.Key) + "]" + exprString(x.Value)
 	}
 	return x.String()
 }
@@ -262,9 +274,16 @@ func typeString(t Type) string {
 // constString prints a folded constant Go style: the value for an
 // untyped constant, T(value) for a typed one, strings quoted.
 func constString(c *ConstExpr) string {
-	switch c.Source.(type) {
-	case *BasicLitExpr, *CallExpr, *BinaryExpr, *UnaryExpr, *NameExpr, *SelectorExpr:
-		return exprString(c.Source) // as written, also after folding
+	switch src := c.Source.(type) {
+	case *CallExpr:
+		// A conversion the preprocessor inserted has no span: print
+		// the operand as written.
+		if _, ok := src.Func.(*constTypeExpr); ok && len(src.Args) == 1 && src.GetSpan().IsZero() {
+			return exprString(src.Args[0])
+		}
+		return exprString(src)
+	case *BasicLitExpr, *BinaryExpr, *UnaryExpr, *NameExpr, *SelectorExpr, *ConstExpr:
+		return exprString(src) // as written, also after folding or conversion
 	}
 	var v string
 	switch {

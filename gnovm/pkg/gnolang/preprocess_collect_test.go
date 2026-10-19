@@ -656,3 +656,91 @@ func TestInitCycleOnChain(t *testing.T) {
 	m.RunFiles(fn)
 	t.Fatal("RunFiles accepted a cycle")
 }
+
+func TestPreprocessCollectExprStrings(t *testing.T) {
+	// One rule, one message: a non-constant literal index is reported
+	// the same way whatever its expression; messages print expressions
+	// as go/types does.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	i := 1
+	_ = []int{i: 2}
+	_ = [2]int{i + 1: 2}
+	a := []int{1}
+	append(a, 2)
+	make([]int, 1)
+	make(map[string][]int)
+	func() {}
+}
+`)
+	want := []string{
+		"index i must be integer constant",
+		"index i + 1 must be integer constant",
+		"append(a, 2) (value of type []int) is not used",
+		"make([]int, 1) (value of type []int) is not used",
+		"make(map[string][]int) (value of type map[string][]int) is not used",
+		"(func() literal) (value of type func()) is not used",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectFuncDeclName(t *testing.T) {
+	// A parameter or local that shadows a declared function is
+	// addressable and assignable, also through a faux block.
+	msgs := collectErrors(t, `package main
+
+func g() {}
+
+func h(g func()) {
+	_ = &g
+	if x := 1; x > 0 {
+		g = nil
+	}
+	_ = &h
+}
+
+func main() { h(g) }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "cannot take address of h") {
+		t.Fatalf("want one error on &h, got %v", msgs)
+	}
+}
+
+func TestLenConstStringFolds(t *testing.T) {
+	// len of a constant string is a constant: folded at preprocess, so
+	// it costs nothing at run time (a gas change pinned by the ADR).
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", "package main\n\nconst c = \"abc\"\n\nvar n = len(c)\n\nfunc main() {}\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	if errs := PreprocessFilesCollect(m.Store, pn, fset); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	for _, d := range fn.Decls {
+		vd, ok := d.(*ValueDecl)
+		if !ok || vd.NameExprs[0].Name != "n" {
+			continue
+		}
+		cx, ok := vd.Values[0].(*ConstExpr)
+		if !ok {
+			t.Fatalf("len(c) not folded: %T", vd.Values[0])
+		}
+		if cx.T != IntType || cx.GetInt() != 3 {
+			t.Fatalf("len(c) folded to %v", cx.TypedValue)
+		}
+		return
+	}
+	t.Fatal("declaration n not found")
+}
