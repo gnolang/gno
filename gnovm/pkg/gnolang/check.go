@@ -51,6 +51,7 @@ const (
 
 	// Declarations and statements.
 	CodeMissingConstInit   ErrCode = "missing-const-init"
+	CodeRedeclared         ErrCode = "redeclared"
 	CodeVariadicLast       ErrCode = "variadic-last"
 	CodeStructLiteralCount ErrCode = "struct-literal-count"
 	CodeStructFieldName    ErrCode = "struct-field-name"

@@ -22,6 +22,14 @@ Each crash site raises a checking error with a code instead:
   Method sets): `cannot use *I as I: *I is pointer to interface, not
   interface`, checked before the implementation walk that crashed.
 - An init-expression count mismatch names the variable plainly.
+- A name declared twice in one block (a receiver and a parameter, a
+  parameter and a result, two package-level or local declarations, two
+  names in one `var`): `x redeclared in this block` (`CodeRedeclared`),
+  said where the second declaration is reserved or defined, before the
+  static block's `Define2` could fail on a changed type. A name declared
+  by another file is an override, which `checkDuplicates` polices on the
+  machine path; a range, type-switch or if/switch-header variable may be
+  shadowed by a nested declaration.
 
 Messages spell the expression as written (`exprString`), not with the
 value paths of the preprocessed tree.

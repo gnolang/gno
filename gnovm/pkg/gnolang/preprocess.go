@@ -417,6 +417,14 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 			// and when it does the following splitting logic will
 			// need to be duplicated in the Preprocessor.
 			if vd, ok := d.(*ValueDecl); ok && len(vd.NameExprs) > 1 && len(vd.Values) == len(vd.NameExprs) {
+				// A name twice in one declaration: said here, since the
+				// parts below would each declare it alone.
+				if dup := duplicateDeclName(vd.NameExprs); dup != nil {
+					predefineOne(fn, vd, func() {
+						failf(CodeRedeclared, []Node{dup}, "%s redeclared in this block", dup.Name)
+					})
+					continue
+				}
 				var iota_ any
 				if len(vd.Attributes.data) > 0 {
 					// TODO: use a uint64 bitflag and faster operations.
@@ -1581,6 +1589,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
+				checkSignatureNames(last, n, nil, &n.Type)
 				// define parameters in new block.
 				for i, p := range ft.Params {
 					last.Define(p.Name, anyValue(p.Type))
@@ -1717,6 +1726,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 				// push func body block.
 				pushInitBlock(n, &last, &stack)
+				checkSignatureNames(last, n, &n.Recv, &n.Type)
 				// define receiver in new block, if method.
 				if n.IsMethod {
 					name := n.Recv.Name
@@ -3998,6 +4008,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				nameExprs := make([]*NameExpr, len(n.NameExprs))
 				for i := range n.NameExprs {
 					nameExprs[i] = &n.NameExprs[i]
+					checkNotRedeclared(last, nameExprs[i], n, NSValueDecl, i)
 				}
 				defineOrDecl(store, last, n, n.Const, nameExprs, n.Type, n.Values, false)
 
@@ -6684,6 +6695,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 		assertNotImported(store, last, &d.NameExpr)
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
+		checkNotRedeclared(last, &d.NameExpr, d, NSTypeDecl, -1)
 		if !isLocallyDefined(last2, d.Name) {
 			// construct empty t type
 			var t Type
@@ -6862,6 +6874,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			if d.Name == "init" {
 				panic("d.Name 'init' should have been appended with a number in initStaticBlocks")
 			}
+			checkNotRedeclared(last, &d.NameExpr, d, NSFuncDecl, -1)
 			// define package-level function.
 			ft := &FuncType{}
 			// define a FuncValue w/ above type as d.Name.
