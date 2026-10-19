@@ -299,7 +299,9 @@ the app runs, so it stays pending at the source until it times out. Ethereum bou
   - on Gloas, the RLP execution header, checked against the committed block hash;
   - optionally the next committee's summary with its branch.
 
-  The client requires at least `MinSyncCommitteeParticipants` (2/3 of 512) to have signed, and checks
+  The client makes two independent participation checks: at least the configured `MinSyncCommitteeParticipants`
+  (the relayer configures 341) must have signed for the update to be valid, and the mandatory 2/3 supermajority
+  (`participants·3 ≥ 512·2`, i.e. 342 of 512) for it to move the client; it then checks
   `FastAggregateVerifyExcluding(aggregate, nonSigners, signingRoot, sig)`.
 - **Next-committee-only updates.** Updates whose finalized slot does not advance are accepted when they reveal the
   next committee (the spec's `apply_light_client_update`). This is needed because beacon nodes only serve
@@ -775,7 +777,9 @@ sequenceDiagram
 flowchart TD
   DET[Monitor detects: supply identity broken /<br/>header mismatch / foreign decision] --> AUTO[watch key auto-flags:<br/>credits+payouts on gno, receives on Eth,<br/>refunds hold on both]
   AUTO --> G1[Guardian confirms → flags, names suspect packets]
-  G1 --> H[second guardian flags → hold:<br/>7-day decisions deferred]
+  G1 --> H["second guardian flags → hold:<br/>gno.land: every 7-day decision deferred;<br/>Ethereum route flags: route receives, sends, refunds only"]
+  G1 --> HA["Ethereum governance containment, separately:<br/>two guardians flag IBCAdmin → its hold defers 7-day kinds"]
+  HA --> GOV
   H --> GOV["GovDAO: void forged claims (immediate when a guardian named them),<br/>cancel hostile decisions, rotate keys"]
   GOV --> UNP[unpause decision / flags cleared → meters restart empty]
   AUTO -.-> EXIT[burns and returns stay open;<br/>refunds wait under the refunds hold until reconciliation]
@@ -830,8 +834,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   claims, queued refunds and proven reservations; so an amount the total escrow covers can still be swept), or to a
   bridge realm, a blank or an undecodable or invalid
   address are booked as owed (with a success ack) and paid only by a 7-day decision (`NewSweepRequest`: live
-  entries of one denom, each paid whole to the decision's payee, no claim fee, outside the payout meters, within the
-  free escrow, deferred under a `payouts` flag). A **bridge realm** is the core and transfer proxies, `ibcgov`,
+  entries of one denom, each paid whole to the decision's payee, no claim fee, outside the payout meters, for an `unescrow` denom within
+  the free escrow, for a `mint` denom only within the int64 supply headroom (the entries' supply is already booked),
+  deferred under a `payouts` flag). A **bridge realm** is the core and transfer proxies, `ibcgov`,
   `ethrelay`, transfer `impl/v0` (never registered) and every implementation either proxy ever registered, read at each receive through each proxy's
   permanent index of registered implementation addresses (`IsImplAddress`, one keyed lookup). The recipient is
   checked again at payout: a claim whose recipient became a bridge realm after its credit moves to the owed sweep.
@@ -1198,7 +1203,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 - A void is immediate when a guardian's `payouts` flag named every packet it voids, otherwise 7 days. Only a
   withheld void is restored; a forged void and a voided sweep entry are final. A paid sweep entry voided as forged
   books its payout once.
-- Credit-by-vote is the manual fallback for a griefed transfer: 7 days, never above the lock. As built it replaces
+- Credit-by-vote is the manual fallback for a griefed transfer: 7 days, for an `unescrow` denom never above the
+  lock (free escrow); for a `mint` denom the credit reuses the supply its sweep entry already booked. As built it replaces
   a **sweep entry** booked at the receipt after the route's enrolment, for the entry's current whole amount (at
   least the current fee), or completes a pending asynchronous ack for exactly what the packet carried; a sweep entry
   moved from a claim cannot be re-credited. It checks that its client is one of the route's — the current client or
@@ -1327,8 +1333,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
     at the other pin. Absence at the selected pin is not conclusive by itself (an honest send just above the pin
     looks the same), but a later finalized state settles it: a receive is a **confirmed orphan** when the source's
     **permanently retained send record** for that sequence is absent (or holds a different packet) at an
-    independently authenticated finalized source state whose timestamp has passed the packet's timeout — no honest
-    send can appear after that. It need not reach the receive's referenced proof height, which the attacker chose.
+    independently authenticated finalized source state whose timestamp has passed the packet's timeout, or whose
+    router next send sequence for that source client is already past the receive's sequence (immediately, for a
+    record holding a different packet) — no honest send can appear after that. It need not reach the receive's referenced proof height, which the attacker chose.
     A confirmed orphan is an integrity break by itself, flagged at once with the containment response below, not
     rewound past or deferred; before that state exists the receive is rewound past or the evaluation deferred, as
     below.
@@ -1728,9 +1735,17 @@ reconciliation.
     - evidence comes only from an **independently authenticated finalized** Ethereum state, with `eth_call` and
       `eth_getProof` pinned to that finalized block, never `latest`;
     - a matching `sendRecord` is genuine;
-    - an absent record, or one of another packet, is conclusive (a forgery) only once that finalized state's
-      timestamp has reached the packet's timeout;
-    - until then the entitlement stays **unresolved** and containment stays in place.
+    - **mismatch:** a `sendRecord` at that (source client, sequence) holding a different packet proves forgery
+      **at once**, since records are immutable;
+    - **absence, by sequence:** proves forgery once the finalized state shows the router's next send sequence for
+      that source client past the receive's sequence: sequences are assigned monotonically, so a packet with that
+      sequence either was sent (and its record exists) or never will be;
+    - **absence, by timeout** (fallback): proves forgery once that finalized state's timestamp has reached the
+      packet's timeout; a forged receive's timeout is attacker-chosen (the 24-hour ceiling binds sends only), so the
+      sequence path above is the one that cannot be held hostage;
+    - a receive whose referenced proof height or consensus state is demonstrably fabricated (§7.11) is a forgery
+      too;
+    - until one of these holds the entitlement stays **unresolved** and containment stays in place.
     gno.land's Ethereum client proves only the router's storage, so this check is **off-chain**, on evidence from an
     Ethereum node trusted independently of the incident (a stated trust assumption, §8.1). Every forged remainder
     must be **voided or settled before the route reopens or containment is cleared** — a forged void if nothing was
@@ -1761,7 +1776,8 @@ reconciliation.
   timeout for a send record already settled by reconciliation pays nothing and notifies nobody.
   The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
   accepted by decision (§7.9), every suspect receive entitlement is resolved under the evidence rule above
-  (finalized, independently authenticated Ethereum state; absence conclusive only past the packet's timeout), each
+  (finalized, independently authenticated Ethereum state; a mismatched record conclusive at once, an absence once
+  the router's next send sequence passes the receive's, or past the packet's timeout), each
   loss booked and remedied on the chain that paid it out and any mirror on the
   other chain resolved by an accepted deficit only (Cross-chain loss ownership, above): on Ethereum the route stays closed after kind 10 or the emergency recovery,
   outcomes are applied by kind 12 and the route reopens by kind 13 (accepting every loss as a deficit); on gno.land
@@ -1918,8 +1934,9 @@ Further trust assumptions of the built controls, each stated where its rule is:
   seizure, negative rebase or semantic upgrade creates a shortfall reconciliation does not recognize. A token that
   pauses or blacklists only makes refunds park. gno.land vouchers on Ethereum are the bridge's own pinned code.
 - **Forged receive authentication** after a replacement relies on an Ethereum node trusted independently of the
-  incident, read off-chain by governance at an independently authenticated finalized block (never `latest`), an
-  absence conclusive only once that state's timestamp reaches the packet's timeout (§7.12).
+  incident, read off-chain by governance at an independently authenticated finalized block (never `latest`): a
+  mismatched `sendRecord` is conclusive at once, an absence once the router's next send sequence for the source
+  client passes the receive's sequence, or once that state's timestamp reaches the packet's timeout (§7.12).
 - **Code pins** mean what they name only through the build verification (§7.6), run by the operators until the
   watch tool exists; a verifier of another type than `GnoLightClient` is checked by hand. Exclusive ownership of
   Ethereum roles needs an external audit of the AccessManager's `RoleGranted` log and of the function-role
@@ -2126,7 +2143,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | Ethereum receive / send amount | at most 2^96 − 1 | constant |
 | Ethereum `dayCap`, `refundCap` / quarantine | at most 2^128 − 1 / at most 365 days | kind 4 / kind 11 |
 | emergency recovery: delay / approvals / cancellations / silence / hold period | 0 (off) or ≥ 30 d / 3 of 4 / 3 of 4 / 30 d / 14 d | deployment (`RecoveryConfig`), fixed |
-| Ethereum hold history | 8 holds (a ninth merges the two oldest; informational) | constant |
+| Ethereum hold history | 8 holds (a ninth merges the two oldest into a marked compressed interval); execution reads it to choose guardian-replacement anchors and never anchors on a compressed interval, so compression can add delay | constant |
 | Ethereum refund payment gas / `balanceOf` gas / sender notification gas | 200,000 / 30,000 / 100,000 (60,000 reserve) | constant |
 
 ## 10. Costs
@@ -2597,6 +2614,15 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - On gno.land an accepted deficit can fall on a later refund after reopening (FIFO `ClaimRefunds`); the shortfall
     invariant's scope restricted, §8.5 19j added, and the refunds-hold procedure tells operators to recapitalize
     first or accept FIFO assignment (§7.12, §7.13).
+- 2026-10-19, fifth review of the alignment with Codex. Folded:
+  - §6.11 separates Ethereum governance containment (`IBCAdmin` flags or hold) from route containment.
+  - Sweep payments and credit by vote are bounded by free escrow for `unescrow` denoms only; minted ones reuse the
+    booked supply and check the int64 supply headroom (§6.8 text, §7.1, §7.9).
+  - The Ethereum client's configured minimum (341) and mandatory supermajority (342 of 512) are separate checks
+    (§5.2). Ethereum's hold history chooses guardian anchors (§9).
+  - Forged receive evidence no longer waits on an attacker-chosen timeout: a mismatched `sendRecord` is conclusive
+    at once, an absence once the router's next send sequence passes the receive's; the timeout and
+    fabricated-state paths remain (§7.11, §7.12, §8.1).
 
 ## 15. References
 
