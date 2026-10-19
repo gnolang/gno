@@ -23,7 +23,6 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgRun)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgAddPackage)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgEnablePackage)(nil)).Elem())
-	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgDisablePackage)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*MsgRejectPackage)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*InvalidPkgPathError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*NoRenderDeclError)(nil)).Elem())
@@ -682,6 +681,18 @@ func (goo *MsgAddPackage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth
 
 func (goo MsgEnablePackage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	if goo.PkgHeight != 0 {
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.PkgHeight))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 4, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
 	if goo.PkgHash != "" {
 		{
 			before := offset
@@ -744,6 +755,9 @@ func (goo MsgEnablePackage) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if goo.PkgHash != "" {
 		s += 1 + amino.UvarintSize(uint64(len(goo.PkgHash))) + len(goo.PkgHash)
 	}
+	if goo.PkgHeight != 0 {
+		s += 1 + amino.VarintSize(int64(goo.PkgHeight))
+	}
 	return s, nil
 }
 
@@ -796,106 +810,18 @@ func (goo *MsgEnablePackage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDe
 			}
 			bz = bz[n:]
 			goo.PkgHash = string(v)
+		case 4:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 4: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.PkgHeight = int64(v)
 		default:
 			return fmt.Errorf("unknown field number %d for MsgEnablePackage", fnum)
-		}
-	}
-	return nil
-}
-
-func (goo MsgDisablePackage) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
-	var err error
-	if goo.PkgPath != "" {
-		{
-			before := offset
-			offset = amino.PrependString(buf, offset, string(goo.PkgPath))
-			valueLen := before - offset
-			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 2, amino.Typ3ByteLength)
-			} else {
-				offset = before
-			}
-		}
-	}
-	{
-		repr, err := goo.Approver.MarshalAmino()
-		if err != nil {
-			return offset, err
-		}
-		if repr != "" {
-			{
-				before := offset
-				offset = amino.PrependString(buf, offset, string(repr))
-				valueLen := before - offset
-				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 1, amino.Typ3ByteLength)
-				} else {
-					offset = before
-				}
-			}
-		}
-	}
-	return offset, err
-}
-
-func (goo MsgDisablePackage) SizeBinary2(cdc *amino.Codec) (int, error) {
-	var s int
-	{
-		repr, err := goo.Approver.MarshalAmino()
-		if err != nil {
-			return 0, err
-		}
-		if repr != "" {
-			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
-		}
-	}
-	if goo.PkgPath != "" {
-		s += 1 + amino.UvarintSize(uint64(len(goo.PkgPath))) + len(goo.PkgPath)
-	}
-	return s, nil
-}
-
-func (goo *MsgDisablePackage) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
-	*goo = MsgDisablePackage{}
-	var lastFieldNum uint32
-	for len(bz) > 0 {
-		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
-		_ = typ3
-		if err != nil {
-			return err
-		}
-		if fnum <= lastFieldNum {
-			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
-		}
-		lastFieldNum = fnum
-		bz = bz[n:]
-		switch fnum {
-		case 1:
-			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 1: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
-			}
-			var repr string
-			v, n, err := amino.DecodeString(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			repr = string(v)
-			if err := goo.Approver.UnmarshalAmino(repr); err != nil {
-				return err
-			}
-		case 2:
-			if typ3 != amino.Typ3ByteLength {
-				return fmt.Errorf("field 2: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
-			}
-			v, n, err := amino.DecodeString(bz)
-			if err != nil {
-				return err
-			}
-			bz = bz[n:]
-			goo.PkgPath = string(v)
-		default:
-			return fmt.Errorf("unknown field number %d for MsgDisablePackage", fnum)
 		}
 	}
 	return nil

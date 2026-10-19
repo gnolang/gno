@@ -245,7 +245,7 @@ services by name.
 - [r/sys/users](/r/sys/users) - Official username registry. Users register
 their username and address, and anyone can look them up.
 
-- [r/demo/defi/grc20reg](/r/demo/defi/grc20reg) - GRC20 token registry.
+- [r/nt/grc20reg/v0](/r/nt/grc20reg/v0) - GRC20 token registry.
 Token realms register themselves so other contracts can discover available tokens.
 
 [View source code](/r/docs/registry$source)

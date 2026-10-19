@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"strings"
@@ -9,8 +10,70 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
+	"github.com/gnolang/gno/tm2/pkg/store/cache"
+	"github.com/gnolang/gno/tm2/pkg/store/cachemulti"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
+
+type paramsReadCountingStore struct {
+	types.Store
+	reads int
+}
+
+func (s *paramsReadCountingStore) Get(gctx *types.GasContext, key []byte) []byte {
+	if bytes.HasPrefix(key, []byte(params.StoreKeyPrefix+"vm:p:")) {
+		s.reads++
+	}
+	return s.Store.Get(gctx, key)
+}
+
+func (s *paramsReadCountingStore) CacheWrap() types.Store { return cache.New(s) }
+
+// This is not an ante-handler regression guard. It documents that the block
+// cache absorbs later transactions, so VM params reach the backing store only
+// once per block and cannot amplify physical I/O per transaction.
+func TestGetParamsReadsBackingStoreOncePerBlock(t *testing.T) {
+	key := types.NewStoreKey("params")
+	backing := &paramsReadCountingStore{Store: dbadapter.Store{DB: memdb.NewMemDB()}}
+	newCache := func() types.MultiStore {
+		return cachemulti.NewFromStores(map[types.StoreKey]types.Store{key: backing}, nil)
+	}
+	newContext := func(ms types.MultiStore) sdk.Context {
+		return sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain"}, log.NewNoopLogger())
+	}
+
+	prmk := params.NewParamsKeeper(key)
+	vmk := NewVMKeeper(nil, key, nil, nil, prmk)
+	prmk.Register(ModuleName, vmk)
+
+	seed := newCache()
+	require.NoError(t, vmk.SetParams(newContext(seed), DefaultParams()))
+	seed.MultiWrite()
+	backing.reads = 0
+
+	blockCache := newCache()
+	var firstReadCount int
+	for tx := 1; tx <= 3; tx++ {
+		before := backing.reads
+		txCache := blockCache.MultiCacheWrap()
+		require.Equal(t, DefaultParams(), vmk.GetParams(newContext(txCache)))
+		txCache.MultiWrite()
+
+		if tx == 1 {
+			firstReadCount = backing.reads
+			require.Positive(t, firstReadCount)
+		}
+		require.Equal(t, firstReadCount, backing.reads, "tx %d added backing-store VM params reads", tx)
+		t.Logf("tx %d: %d new backing-store VM params reads (%d cumulative)", tx, backing.reads-before, backing.reads)
+	}
+}
 
 // TestParamsString verifies the output of the String method.
 func TestParamsString(t *testing.T) {
@@ -373,12 +436,18 @@ var addressListParams = []struct {
 	get func(Params) []crypto.Address
 	set func(*Params, []crypto.Address)
 }{
-	{"code_submitters", func(p Params) []crypto.Address { return p.CodeSubmitters },
-		func(p *Params, v []crypto.Address) { p.CodeSubmitters = v }},
-	{"pkg_approvers", func(p Params) []crypto.Address { return p.PkgApprovers },
-		func(p *Params, v []crypto.Address) { p.PkgApprovers = v }},
-	{"run_submitters", func(p Params) []crypto.Address { return p.RunSubmitters },
-		func(p *Params, v []crypto.Address) { p.RunSubmitters = v }},
+	{
+		"code_submitters", func(p Params) []crypto.Address { return p.CodeSubmitters },
+		func(p *Params, v []crypto.Address) { p.CodeSubmitters = v },
+	},
+	{
+		"pkg_approvers", func(p Params) []crypto.Address { return p.PkgApprovers },
+		func(p *Params, v []crypto.Address) { p.PkgApprovers = v },
+	},
+	{
+		"run_submitters", func(p Params) []crypto.Address { return p.RunSubmitters },
+		func(p *Params, v []crypto.Address) { p.RunSubmitters = v },
+	},
 }
 
 // TestWillSetParamAddressLists covers the governance path for every address
@@ -515,8 +584,8 @@ func TestParamsValidateCodeSubmissionPolicy(t *testing.T) {
 //
 // These lists are decoded on every transaction by the ante closure, before
 // auth's SetGasMeter installs the per-tx meter — so the decode is unmetered
-// work that the party who grew the list does not pay for. Without a cap that is
-// a cheap, permanent, per-transaction DoS.
+// work that the party who grew the list does not pay for, so the list length
+// has to be bounded where it is set.
 func TestAddressListLengthCap(t *testing.T) {
 	t.Parallel()
 

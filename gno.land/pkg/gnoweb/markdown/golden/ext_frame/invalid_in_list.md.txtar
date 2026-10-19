@@ -1,0 +1,13 @@
+-- input.md --
+- item
+  <gno-frame>
+  inside list
+  </gno-frame>
+-- output.html --
+<ul>
+<li>item
+<!-- unexpected/invalid frame tag omitted -->
+inside list
+<!-- unexpected/invalid frame tag omitted -->
+</li>
+</ul>

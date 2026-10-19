@@ -421,7 +421,9 @@ func TestReactor_DiscoveryResponse(t *testing.T) {
 		t.Parallel()
 
 		var (
-			peers   = mock.GeneratePeers(t, 50)
+			// A response carrying more peers than the protocol shares is
+			// rejected by ValidateBasic
+			peers   = mock.GeneratePeers(t, maxPeersShared)
 			notifCh = make(chan struct{}, 1)
 
 			capturedDials []*types.NetAddress

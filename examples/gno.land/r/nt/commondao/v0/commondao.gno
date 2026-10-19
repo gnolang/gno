@@ -4,7 +4,7 @@ import (
 	"chain"
 	"strconv"
 
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/commondao/v0"
 	"gno.land/p/nt/seqid/v0"

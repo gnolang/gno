@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0" // Provides testing utilities
 	"gno.land/p/nt/uassert/v0"

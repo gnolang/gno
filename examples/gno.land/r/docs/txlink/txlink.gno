@@ -3,7 +3,7 @@ package txlink
 import (
 	"time"
 
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/p/nt/markdown/sanitize/v0"
 )
 

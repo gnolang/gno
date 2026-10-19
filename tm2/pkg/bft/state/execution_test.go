@@ -1,6 +1,7 @@
 package state_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
@@ -52,6 +55,74 @@ func TestApplyBlock(t *testing.T) {
 
 	// TODO check state and mempool
 	_ = state
+}
+
+// TestApplyBlockFlushesABCIResponsesBeforeAppCommit pins that the responses for
+// a height are on disk by the time the application commits that height.
+func TestApplyBlockFlushesABCIResponsesBeforeAppCommit(t *testing.T) {
+	t.Parallel()
+
+	state, _, _ := makeState(1, 1)
+	stateDB := newUnsyncedWriteDB()
+	sm.SaveState(stateDB, state)
+
+	var atAppCommit dbm.DB
+	app := &commitHookApp{onCommit: func() { atAppCommit = stateDB.Durable() }}
+	proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(app))
+	require.NoError(t, proxyApp.Start())
+	defer proxyApp.Stop()
+
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec.SetEventSwitch(events.NewEventSwitch())
+
+	block := makeBlock(state, 1)
+	require.NotEmpty(t, block.Txs)
+	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(testPartSize).Header()}
+	_, err := blockExec.ApplyBlock(state, blockID, block)
+	require.NoError(t, err)
+	require.NotNil(t, atAppCommit)
+
+	// The state for the block is saved after the commit, so the snapshot was
+	// taken inside the window the responses have to cover.
+	require.Equal(t, block.Height-1, sm.LoadState(atAppCommit).LastBlockHeight)
+
+	loaded, err := sm.LoadABCIResponses(atAppCommit, block.Height)
+	require.NoError(t, err)
+	require.Len(t, loaded.DeliverTxs, len(block.Txs))
+	assert.Equal(t, []byte(block.Txs[0]), loaded.DeliverTxs[0].Data)
+}
+
+// TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError pins that a failed
+// write of the crash-recovery record stops the block before the application
+// commits it: committing anyway would leave the app ahead of a record that was
+// never stored, the exact skew the record exists to cover.
+func TestApplyBlockAbortsBeforeAppCommitOnResponsesWriteError(t *testing.T) {
+	t.Parallel()
+
+	state, _, _ := makeState(1, 1)
+	writeErr := errors.New("injected responses write failure")
+	stateDB := &failingWriteDB{
+		DB:      memdb.NewMemDB(),
+		failKey: sm.CalcABCIResponsesKey(1),
+		failErr: writeErr,
+	}
+	sm.SaveState(stateDB, state)
+
+	committed := false
+	app := &commitHookApp{onCommit: func() { committed = true }}
+	proxyApp := appconn.NewAppConns(proxy.NewLocalClientCreator(app))
+	require.NoError(t, proxyApp.Start())
+	defer proxyApp.Stop()
+
+	blockExec := sm.NewBlockExecutor(stateDB, log.NewTestingLogger(t), proxyApp.Consensus(), mock.Mempool{})
+	blockExec.SetEventSwitch(events.NewEventSwitch())
+
+	block := makeBlock(state, 1)
+	blockID := types.BlockID{Hash: block.Hash(), PartsHeader: block.MakePartSet(testPartSize).Header()}
+	_, err := blockExec.ApplyBlock(state, blockID, block)
+
+	require.ErrorIs(t, err, writeErr)
+	assert.False(t, committed, "the application committed a height whose recovery record was never stored")
 }
 
 // TestBeginBlockValidators ensures we send absent validators list.
@@ -381,4 +452,58 @@ func TestGetBeginBlockLastCommitInfo_InitialHeight(t *testing.T) {
 		// Genesis block: no votes
 		assert.Empty(t, info.Votes)
 	})
+}
+
+// TestGetBeginBlockLastCommitInfo_LastValidators verifies that the validators
+// a block's LastCommit is attributed to are taken from state.LastValidators,
+// with nothing loaded from the stateDB, when state is the state the block
+// builds on, and are loaded from the stateDB otherwise (ExecCommitBlock
+// replays the blocks the app is missing against the latest state), and that
+// both give the same votes.
+func TestGetBeginBlockLastCommitInfo_LastValidators(t *testing.T) {
+	t.Parallel()
+
+	const height = int64(5)
+	state, stateDB, _ := makeState(3, int(height))
+
+	now := tmtime.Now()
+	precommits := []*types.CommitSig{
+		(&types.Vote{ValidatorIndex: 0, Timestamp: now, Type: types.PrecommitType}).CommitSig(),
+		nil,
+		(&types.Vote{ValidatorIndex: 2, Timestamp: now, Type: types.PrecommitType}).CommitSig(),
+	}
+	lastCommit := types.NewCommit(state.LastBlockID, precommits)
+	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, state.Validators.GetProposer().Address)
+
+	// The votes the app must see: the validators of height-1 as stored, in
+	// order, each flagged by whether its precommit is present.
+	stored, err := sm.LoadValidators(stateDB, height-1)
+	require.NoError(t, err)
+	expected := make([]abci.VoteInfo, 0, stored.Size())
+	for i, val := range stored.Validators {
+		expected = append(expected, abci.VoteInfo{
+			Address:         val.Address,
+			Power:           val.VotingPower,
+			SignedLastBlock: precommits[i] != nil,
+		})
+	}
+
+	// A state the block does not build on, as ExecCommitBlock hands one to a
+	// block it replays: a later height, with other validators behind it. The
+	// stored validators are used, not its LastValidators.
+	stale := state.Copy()
+	stale.LastBlockHeight = height
+	stale.LastValidators = genValSet(3)
+	assert.Equal(t, expected, sm.GetBeginBlockLastCommitInfo(block, stale, stateDB).Votes)
+
+	// The state the block builds on: the same votes, and no load — with the
+	// stored validators gone, a load could only panic.
+	require.NoError(t, stateDB.Delete(sm.CalcValidatorsKey(height-1)))
+	// Only LastValidators can give these votes.
+	state.Validators = genValSet(3)
+	state.NextValidators = genValSet(3)
+	require.NotPanics(t, func() {
+		assert.Equal(t, expected, sm.GetBeginBlockLastCommitInfo(block, state, stateDB).Votes)
+	})
+	assert.Panics(t, func() { sm.GetBeginBlockLastCommitInfo(block, stale, stateDB) })
 }

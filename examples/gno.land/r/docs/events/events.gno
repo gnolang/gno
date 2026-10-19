@@ -3,7 +3,7 @@ package events
 import (
 	"chain"
 
-	"gno.land/p/moul/helplink"
+	"gno.land/p/moul/helplink/v0"
 )
 
 func Render(_ string) string {

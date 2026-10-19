@@ -3,8 +3,8 @@ package cla
 import (
 	"chain"
 
-	"gno.land/p/moul/addrset"
-	"gno.land/p/moul/helplink"
+	"gno.land/p/moul/addrset/v0"
+	"gno.land/p/moul/helplink/v0"
 	"gno.land/r/gov/dao"
 )
 
