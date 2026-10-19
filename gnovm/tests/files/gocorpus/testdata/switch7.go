@@ -34,6 +34,13 @@ func f4(e interface{}) {
 }
 
 // GnoError:
-// line 16: duplicate type int in type switch
+// line 18: duplicate case int in type switch
+// line 21: duplicate case .uverse.error in type switch
+// line 23: duplicate case fmt.Stringer in type switch
+// line 27: duplicate case struct{i int} in type switch
+// line 30: duplicate case struct{i int} in type switch
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 21, 23, 30; over-strict: lines 16
+// GnoWordingDiffers:
+// line 21: gc expects: duplicate case error in type switch; gno: duplicate case .uverse.error in type switch
+
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 27

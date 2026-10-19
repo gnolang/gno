@@ -33,12 +33,13 @@ func main() {
 
 // GnoError:
 // line 10: invalid package name _
-// line 16: should not happen
+// line 16: cannot define new methods on non-local type int
 // line 25: cannot use _ as value or type
 // line 26: cannot use _ as value or type
+// line 28: t._ undefined (type struct{_ int} has no field or method _)
 // line 31: gno.land/p/filetest/_.T is not comparable
 
 // GnoWordingDiffers:
 // line 31: gc expects: cannot be compared|non-comparable|cannot compare v1 == v2; gno: gno.land/p/filetest/_.T is not comparable
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 28; internal errors: lines 16
+// Verdict: Clean errorcheck

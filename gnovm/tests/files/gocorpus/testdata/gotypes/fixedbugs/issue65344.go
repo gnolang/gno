@@ -18,4 +18,8 @@ func _() {
 	_ = C + V
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 7, 10, 12; on-chain path first error on line 10, not reported by accumulate mode
+// GnoError:
+// line 7: C is not a type
+// line 12: V is not a type
+
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10

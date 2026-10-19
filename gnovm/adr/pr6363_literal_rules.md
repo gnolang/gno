@@ -20,6 +20,13 @@ tree:
 - A variadic parameter must be last.
 - An unkeyed struct literal gives every field a value; array literal
   indices stay below the length.
+- A keyed struct literal's keys are field names, each bad one reported
+  before it is resolved, and name fields of the type.
+- A blank field or method is never found through a selector.
+- A method's receiver names a type declared in the package: a basic or
+  foreign type cannot be given new methods.
+- A type declaration whose type is a name names a type, not a constant,
+  variable or function, said before that value is predefined.
 - A `for` post statement may not declare.
 - A type switch variable with no clause is unused.
 

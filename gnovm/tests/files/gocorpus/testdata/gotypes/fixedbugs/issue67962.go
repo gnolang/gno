@@ -26,10 +26,10 @@ func _() {
 }
 
 // GnoError:
-// line 15: unexpected selector expression type gnolang.PrimitiveType
+// line 15: x.m undefined (type int has no field or method m)
 // line 22: cannot type switch on non-interface value x (type int)
 
 // GnoWordingDiffers:
 // line 22: gc expects: not an interface; gno: cannot type switch on non-interface value x (type int)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15; internal errors: lines 15
+// Verdict: Clean errorcheck
