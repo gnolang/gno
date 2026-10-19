@@ -573,7 +573,7 @@ func main() {}
 			"main.gno:7:6", "invalid recursive type: A -> A",
 			"main.gno:9:15", "name not defined: a",
 			"main.gno:9:24", "cannot use untyped bool",
-			"main.gno:13:2", "missing field g in main.S",
+			"main.gno:13:2", "s.g undefined",
 		)
 	})
 }
@@ -609,7 +609,7 @@ func main() {
 	wantErrors(t, msgs,
 		"main.gno:8:2", "0 is not a type",
 		"main.gno:10:7", "name T not declared",
-		"main.gno:13:3", "missing field M in main.Stringer",
+		"main.gno:13:3", "e.M undefined",
 		"main.gno:16:2", "cannot use",
 		"main.gno:18:7", "cannot use",
 	)
