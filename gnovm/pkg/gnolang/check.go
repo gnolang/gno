@@ -121,6 +121,12 @@ type checkRun struct {
 	acc   *preprocessAccumulator
 	stack *[]BlockNode
 	last  *BlockNode
+	// fset and index: in accumulate mode declarations predefine through an
+	// index carrying the accumulator, so undefined names and failing
+	// dependencies resolve to invalidType instead of dropping the
+	// dependent; the index is built on first use.
+	fset  *FileSet
+	index *predefineDeclIndex
 }
 
 // report raises a checking error. In accumulate mode it is recorded and
@@ -131,7 +137,7 @@ func (c *checkRun) report(code ErrCode, msg string, at ...Node) {
 	}
 	func() {
 		defer func() {
-			c.acc.report(wrapPreprocessPanic(*c.stack, (*c.stack)[len(*c.stack)-1], recover()))
+			c.acc.record(wrapPreprocessPanic(*c.stack, (*c.stack)[len(*c.stack)-1], recover()))
 		}()
 		fail(code, msg, at...)
 	}()
@@ -149,20 +155,22 @@ func (c *checkRun) reportUnused(parent BlockNode, fn Node) {
 		if c.acc == nil {
 			panic(pe)
 		}
-		c.acc.report(pe)
+		c.acc.record(pe)
 	}
 }
 
 // onPanic is the transcriber's handler in accumulate mode: a failed
 // statement is dropped, the block stack rewound to its enclosing block,
-// and the walk goes on. A non-checking panic (a VM bug) surfaces.
-func (c *checkRun) onPanic(ns []Node, ftype TransField, index int, n Node, r any) bool {
+// and the walk goes on; a failed literal element or switch clause drops
+// alone. A non-checking panic (a VM bug) surfaces.
+func (c *checkRun) onPanic(ns []Node, ftype TransField, index int, n Node, r any) (Node, bool) {
 	pe, ok := r.(*PreprocessError)
 	if !ok || isRuntimePanic(pe) {
-		return false // not a checking error: a VM bug, let it surface
+		return nil, false // not a checking error: a VM bug, let it surface
 	}
 	stack := *c.stack
-	for i := len(ns) - 1; i >= 0; i-- {
+	rewound := false
+	for i := len(ns) - 1; i >= 0 && !rewound; i-- {
 		if bn, ok := ns[i].(BlockNode); ok {
 			for k := len(stack) - 1; k > 0; k-- {
 				if stack[k] == bn {
@@ -170,18 +178,46 @@ func (c *checkRun) onPanic(ns []Node, ftype TransField, index int, n Node, r any
 					break
 				}
 			}
-			break
+			rewound = true
 		}
+	}
+	if !rewound {
+		stack = stack[:1] // every block above ctx was pushed below n
 	}
 	*c.stack = stack
 	*c.last = stack[len(stack)-1]
-	c.acc.add(pe, n)
-	return true
+	switch ftype {
+	case TRANS_COMPOSITE_KEY, TRANS_COMPOSITE_VALUE:
+		// the element alone drops: typed invalid, the literal's rule
+		// passes it (a key so typed is removed there).
+		c.acc.record(pe)
+		return invalidConstExpr(n.(Expr)), true
+	case TRANS_SWITCH_CASE:
+		n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // the switch skips it
+	}
+	c.acc.dropStmt(pe, n, *c.last)
+	return n, true
 }
 
-// predefineGuarded is predefineRecursively with the same drop-and-record
-// rule for file-level declarations in accumulate mode; a dropped
-// declaration is marked preprocessed so the walk skips it.
+// predefineAcc is predefineRecursively through the accumulator's index
+// in accumulate mode (see checkRun.index); plain otherwise.
+func (c *checkRun) predefineAcc(last BlockNode, d Decl) bool {
+	if c.acc == nil {
+		return predefineRecursively(c.store, last, d)
+	}
+	if c.index == nil {
+		if c.fset == nil {
+			return predefineRecursively(c.store, last, d)
+		}
+		c.index = newPredefineDeclIndex(c.fset)
+		c.index.acc = c.acc
+	}
+	return predefineRecursivelyIndexed(c.store, last, d, c.index)
+}
+
+// predefineGuarded is predefineAcc with the drop-and-record rule for
+// file-level declarations in accumulate mode: a dropped declaration is
+// marked preprocessed so the walk skips it, and its names become invalid.
 func (c *checkRun) predefineGuarded(last BlockNode, d Decl) {
 	if c.acc == nil {
 		predefineRecursively(c.store, last, d)
@@ -192,9 +228,8 @@ func (c *checkRun) predefineGuarded(last BlockNode, d Decl) {
 			if isRuntimePanic(r) {
 				panic(r) // a VM bug, not a checking error
 			}
-			c.acc.add(wrapPreprocessPanic(*c.stack, d, r), d)
-			markDropped(d)
+			c.acc.dropDecl(wrapPreprocessPanic(*c.stack, d, r), last, d)
 		}
 	}()
-	predefineRecursively(c.store, last, d)
+	c.predefineAcc(last, d)
 }

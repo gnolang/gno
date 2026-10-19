@@ -323,40 +323,6 @@ func hasCall(gm store.GasMeter, store Store, last BlockNode, x Expr) bool {
 	return found
 }
 
-// eltFailure is a composite literal element that failed a check: the
-// message and the element to report it at.
-type eltFailure struct {
-	code ErrCode
-	msg  string
-	at   Node
-}
-
-// checkElt runs check on one element of a composite literal and records
-// a checking error it raises in fails, to be reported at the element; a
-// VM panic or an error that is positioned already passes through.
-func checkElt(fails *[]eltFailure, at Node, check func()) {
-	defer func() {
-		r := recover()
-		if r == nil {
-			return
-		}
-		if isRuntimePanic(r) {
-			panic(r)
-		}
-		switch e := r.(type) {
-		case *PreprocessError:
-			panic(r)
-		case *spanError:
-			*fails = append(*fails, eltFailure{e.code, e.msg, at})
-		case error:
-			*fails = append(*fails, eltFailure{CodeNone, e.Error(), at})
-		default:
-			*fails = append(*fails, eltFailure{CodeNone, fmt.Sprint(r), at})
-		}
-	}()
-	check()
-}
-
 // assertSwitchTag checks an expression switch's tag x of type t:
 // comparable, or a slice, map or func, which the clauses may compare to
 // nil only. The error is positioned at the tag.
