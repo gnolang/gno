@@ -24,14 +24,13 @@ func main() {
 
 // GnoError:
 // line 13: no new variables on left side of :=
+// line 14: name UintType not declared
 // line 18: no new variables on left side of :=
-
-// ParseBlocked:
-// line 14: gc expects: invalid use of type|undefined
-// line 19: gc expects: no fields or methods|undefined
+// line 19: unexpected selector expression type *gnolang.FuncType
 
 // GnoWordingDiffers:
 // line 13: gc expects: non-name runtime.UintType|non-name on left side|undefined; gno: no new variables on left side of :=
+// line 14: gc expects: invalid use of type|undefined; gno: name UintType not declared
 // line 18: gc expects: non-name main.i|non-name on left side|undefined; gno: no new variables on left side of :=
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14, 19
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19; internal errors: lines 19

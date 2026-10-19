@@ -42,10 +42,4 @@ func GetDefaultNumber[T Number](value, defaultValue T) T {
 	return value
 }
 
-// GnoError:
-// line 11: expected type, found '{'
-// line 13: expected declaration, found '}'
-// line 21: expected type, found '{'
-// line 23: expected declaration, found '}'
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported other: generics (type set unions) not supported in Gno

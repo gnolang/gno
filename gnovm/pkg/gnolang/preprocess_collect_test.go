@@ -565,70 +565,6 @@ _:
 	}
 }
 
-func TestPreprocessCollectDecls(t *testing.T) {
-	msgs := collectErrors(t, `package main
-
-type S struct{ a, b int }
-type V func(a ...int, b int) // variadic not last
-
-const (
-	A int = 1
-	B byte // no value
-)
-
-func f3() (float32, int, string) { return 1, 2, "3" }
-
-func f(x interface{}) {
-	i, g, s := f3()
-	g, h, t := f3() // g changes type
-	_, _, _, _, _ = i, g, s, h, t
-	var fl float64
-	fl, j := 1, 2 // the constant converts to float64
-	_, _ = fl, j
-	_ = S{7}
-	_ = S{7, 8, 9}
-	_ = [2]int{1, 2, 3}
-	_ = [2]int{5: 0}
-	for ; ; k := 1 {
-		_ = k
-	}
-	switch u := x.(type) {
-	}
-	switch w := x.(type) {
-	case int:
-		_ = w
-	}
-}
-
-func main() {}
-`)
-	want := []string{
-		"can only use ... with final parameter in list",
-		"missing init expr for B",
-		"cannot use float32 as int",
-		"too few values in struct literal of type main.S",
-		"too many values in struct literal of type main.S",
-		"index 2 is out of bounds (>= 2)",
-		"index 5 out of bounds [0:2]",
-		"cannot declare in post statement of for loop",
-		"declared and not used: u",
-	}
-	for _, w := range want {
-		found := false
-		for _, m := range msgs {
-			if strings.Contains(m, w) {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("missing %q in %v", w, msgs)
-		}
-	}
-	if len(msgs) != len(want) {
-		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
-	}
-}
-
 func TestPreprocessCollectNamedPointerShadow(t *testing.T) {
 	// Through a declared pointer type a method is still the shallowest
 	// provider, so it shadows the promoted field and the selector fails.
@@ -891,6 +827,114 @@ func main() {
 	})
 }
 
+func TestParseFileCollect(t *testing.T) {
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, perrs := m.ParseFileCollect("main.gno", `package main
+
+func f() int {
+	x := 1 +
+	return x
+}
+
+func g() {
+	if {
+	}
+	var s string = 1
+	_ = s
+}
+
+func main() {}
+`)
+	// AllErrors: both errors of line 5 are kept, plus line 9.
+	if fn == nil || len(perrs) != 3 {
+		t.Fatalf("want a file node and 3 parser errors, got %v, %v", fn != nil, perrs)
+	}
+	for i, want := range []string{"main.gno:5:2:", "main.gno:5:2:", "main.gno:9:5:"} {
+		if !strings.HasPrefix(perrs[i].Error(), want) {
+			t.Errorf("parser error %d: got %v, want prefix %s", i, perrs[i], want)
+		}
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	// The broken statements drop silently; the checker still reaches g's
+	// type error and nothing mentions the placeholder.
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:11:") || !strings.Contains(msgs[0], "cannot use") {
+		t.Fatalf("want one error at line 11, got %v", msgs)
+	}
+	if fn, perrs := m.ParseFileCollect("main.gno", "func f() {}\n"); fn != nil || len(perrs) == 0 {
+		t.Fatalf("no package clause: want nil node and an error, got %v, %v", fn != nil, perrs)
+	}
+}
+
+func TestPreprocessCollectDecls(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type S struct{ a, b int }
+type V func(a ...int, b int) // variadic not last
+
+const (
+	A int = 1
+	B byte // no value
+)
+
+func f3() (float32, int, string) { return 1, 2, "3" }
+
+func f(x interface{}) {
+	i, g, s := f3()
+	g, h, t := f3() // g changes type
+	_, _, _, _, _ = i, g, s, h, t
+	var fl float64
+	fl, j := 1, 2 // the constant converts to float64
+	_, _ = fl, j
+	_ = S{7}
+	_ = S{7, 8, 9}
+	_ = [2]int{1, 2, 3}
+	_ = [2]int{5: 0}
+	for ; ; k := 1 {
+		_ = k
+	}
+	switch u := x.(type) {
+	}
+	switch w := x.(type) {
+	case int:
+		_ = w
+	}
+}
+
+func main() {}
+`)
+	want := []string{
+		"can only use ... with final parameter in list",
+		"missing init expr for B",
+		"cannot use float32 as int",
+		"too few values in struct literal of type main.S",
+		"too many values in struct literal of type main.S",
+		"index 2 is out of bounds (>= 2)",
+		"index 5 out of bounds [0:2]",
+		"cannot declare in post statement of for loop",
+		"declared and not used: u",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
 func TestPreprocessCollectRedefine(t *testing.T) {
 	// A := target the block already declares is assigned: an untyped
 	// constant must be assignable (kind and representability), a typed
@@ -985,6 +1029,23 @@ func TestConstSpecTypeWithoutValues(t *testing.T) {
 	msgs := collectErrors(t, "package main\n\nconst (\n\tA int = 1\n\tB byte\n\tC\n)\n\nvar _ int = C\n")
 	if len(msgs) != 1 || msgs[0] != "missing init expr for B" {
 		t.Fatalf("unexpected: %v", msgs)
+	}
+}
+
+func TestPreprocessCollectStructFieldName(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type T struct{ x int }
+
+func main() {
+	_ = T{1: 2}
+	_ = T{"x": 2}
+	_ = T{x: 1}
+}
+`)
+	want := []string{"invalid field name 1 in struct literal", "invalid field name \"x\" in struct literal"}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("got %v, want %v", msgs, want)
 	}
 }
 

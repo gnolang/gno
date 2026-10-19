@@ -76,12 +76,10 @@ func g() {
 // line 51: expected statement, found 'case'
 // line 59: labelname redeclared in this block
 // 	previous declaration at issue14006.go:50:3
+// line 60: label labelname defined and not used
 // line 64: labelname redeclared in this block
 // 	previous declaration at issue14006.go:50:3
-// line 67: expected '}', found 'EOF'
-
-// ParseBlocked:
-// line 50: gc expects: missing statement after label
+// line 67: expected ';', found 'EOF'
 
 // GnoWordingDiffers:
 // line 24: gc expects: unexpected :|expected .*;.* or .*}.* or newline|value computed is not used; gno: illegal label declaration
@@ -93,4 +91,4 @@ func g() {
 // line 64: gc expects: label labelname already defined at LINE-5|label .*labelname.* already defined; gno: labelname redeclared in this block
 // 	previous declaration at issue14006.go:50:3
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 50; over-strict: lines 25, 38, 51, 67
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 50; over-strict: lines 25, 38, 51, 60, 67
