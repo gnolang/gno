@@ -156,3 +156,142 @@ func TestInitCycleOnChain(t *testing.T) {
 	m.RunFiles(fn)
 	t.Fatal("RunFiles accepted a cycle")
 }
+
+// collectWith is collectErrors with the accumulator exposed: full messages
+// (position kept), an optional in-walk hook, and the panic if one escaped.
+func collectWith(t *testing.T, src string, hook func(Node, TransStage)) (msgs []string, panicked any) {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, testHook: hook}
+	func() {
+		defer func() { panicked = recover() }()
+		predefineFileSet(m.Store, pn, fset, acc)
+		for _, f := range fset.Files {
+			preprocess(m.Store, pn, f, acc)
+		}
+	}()
+	for _, e := range acc.errs {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs, panicked
+}
+
+func TestPreprocessCollectDrops(t *testing.T) {
+	t.Run("a Go runtime error is a VM bug, not a diagnostic", func(t *testing.T) {
+		hook := func(n Node, stage TransStage) {
+			if nx, ok := n.(*NameExpr); ok && nx.Name == "crashme" && stage == TRANS_LEAVE {
+				var s []int
+				_ = s[1] // runtime.Error, raised inside doRecover like a VM bug would be
+			}
+		}
+		msgs, panicked := collectWith(t, `package main
+
+func main() {
+	crashme := 1
+	println(crashme)
+}
+`, hook)
+		if panicked == nil || !isRuntimePanic(panicked) {
+			t.Fatalf("want the runtime error to escape, got panic %v, errors %v", panicked, msgs)
+		}
+		if len(msgs) != 0 {
+			t.Fatalf("want no diagnostic, got %v", msgs)
+		}
+	})
+
+	t.Run("a split package-level var is guarded and positioned at its name", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+var a, b = undefinedF, 2
+
+func main() { println(a, b) }
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:5") || !strings.Contains(msgs[0], "undefinedF") {
+			t.Fatalf("want one error at the name a (3:5), got %v", msgs)
+		}
+	})
+
+	t.Run("a suppressed cascade still poisons what it declares", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+func main() {
+	x := undefinedA
+	y := x + 1
+	z := y
+	println(z)
+}
+`)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "undefinedA") {
+			t.Fatalf("want only the root error, got %v", msgs)
+		}
+	})
+
+	t.Run("a dropped dependency reports once, at its own declaration", func(t *testing.T) {
+		for name, src := range map[string]string{
+			"dependency first": `package main
+
+const C = undefinedH + 1
+var V = C * 2
+var W = V + 1
+
+func main() { println(W) }
+`,
+			"dependent first": `package main
+
+var W = V + 1
+var V = C * 2
+const C = undefinedH + 1
+
+func main() { println(W) }
+`,
+		} {
+			msgs, panicked := collectWith(t, src, nil)
+			if panicked != nil {
+				t.Fatalf("%s: escaped: %v", name, panicked)
+			}
+			cLine := "main.gno:3:"
+			if name == "dependent first" {
+				cLine = "main.gno:5:"
+			}
+			if len(msgs) != 1 || !strings.Contains(msgs[0], cLine) || !strings.Contains(msgs[0], "undefinedH") {
+				t.Fatalf("%s: want one error at C (%s), got %v", name, cLine, msgs)
+			}
+		}
+	})
+
+	t.Run("PreprocessCollect on one file node", func(t *testing.T) {
+		m := NewMachine("main", nil)
+		defer m.Release()
+		fn, err := m.ParseFile("main.gno", `package main
+
+var G int = "g"
+
+func main() {
+	var n string = 1
+	println(G, n)
+}
+`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("main", "main", fset)
+		nn, errs := PreprocessCollect(m.Store, pn, fn)
+		if nn == nil || len(errs) != 2 {
+			t.Fatalf("want the node and 2 errors, got %v, %v", nn != nil, errs)
+		}
+		if !strings.Contains(errs[0].Unwrap().Error(), "main.gno:3:") || !strings.Contains(errs[1].Unwrap().Error(), "main.gno:6:") {
+			t.Fatalf("unexpected positions: %v", errs)
+		}
+	})
+}

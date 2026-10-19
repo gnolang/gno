@@ -20,4 +20,4 @@ func main() {
 // GnoError:
 // line 16: not assignable
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15

@@ -19,4 +19,4 @@ func main() {
 // GnoError:
 // line 13: should not happen
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13; internal errors: lines 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13; internal errors: lines 13

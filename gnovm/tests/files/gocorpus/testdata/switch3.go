@@ -76,4 +76,4 @@ func good() {
 // line 25: cannot use main.I as string without explicit conversion
 // line 70: cannot use interface {} as string
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 38, 45, 50, 56; over-strict: lines 70
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 31, 38, 45, 50, 56; over-strict: lines 70

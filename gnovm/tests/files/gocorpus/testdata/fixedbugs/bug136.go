@@ -24,4 +24,4 @@ func main() {
 // GnoError:
 // line 13: cannot find branch label "L"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19

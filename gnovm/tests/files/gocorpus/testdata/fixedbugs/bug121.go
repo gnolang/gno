@@ -19,4 +19,4 @@ type J interface {
 // GnoError:
 // line 12: expected ';', found ','
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16

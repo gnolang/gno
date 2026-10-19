@@ -20,4 +20,4 @@ func f2() {
 	println(a)
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 10, 17
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10, 17

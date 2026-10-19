@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"cmp"
+	stderrors "errors"
 	"fmt"
 	"maps"
 	"math"
@@ -302,6 +303,7 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 		initStaticBlocks(store, pn, fn)
 	}
 	index := newPredefineDeclIndex(pn.FileSet)
+	index.acc = acc
 	// In accumulate mode a declaration that fails to predefine is recorded
 	// and dropped (marked preprocessed, so the walk skips it) instead of
 	// stopping the whole file set.
@@ -312,12 +314,11 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 		}
 		defer func() {
 			if r := recover(); r != nil {
-				if _, isRuntime := r.(runtime.Error); isRuntime {
-					panic(r)
+				if isRuntimePanic(r) {
+					panic(r) // a VM bug, not a checking error
 				}
 				acc.add(wrapPreprocessPanic([]BlockNode{pn, fn}, d, r), d)
-				d.SetAttribute(ATTR_PREDEFINED, true)
-				d.SetAttribute(ATTR_PREPROCESSED, true)
+				markDropped(d)
 			}
 		}()
 		do()
@@ -430,6 +431,12 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 						Values: Exprs{vd.Values[j].Copy().(Expr)},
 						Const:  vd.Const,
 					}
+					// Accumulate mode positions the part at its name, else
+					// its errors point at the whole file. On chain the file
+					// span is kept: the error text is pinned (var44.gno).
+					if acc != nil {
+						part.SetSpan(vd.NameExprs[j].GetSpan())
+					}
 					if iota_ != nil {
 						part.SetAttribute(ATTR_IOTA, iota_)
 					}
@@ -445,7 +452,8 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 					if parts[j].GetAttribute(ATTR_PREDEFINED) == true {
 						continue
 					}
-					predefineRecursivelyIndexed(store, fn, parts[j], index)
+					part := parts[j]
+					predefineOne(fn, part, func() { predefineRecursivelyIndexed(store, fn, part, index) })
 				}
 				i += len(vd.NameExprs) - 1
 				continue
@@ -474,6 +482,7 @@ func lookupPredefineDecl(fset *FileSet, name Name) predefineDecl {
 type predefineDeclIndex struct {
 	fileSet *FileSet
 	entries map[Name]predefineDecl
+	acc     *preprocessAccumulator // accumulate mode, else nil
 }
 
 // newPredefineDeclIndex captures the package declarations visible to PredefineFileSet.
@@ -511,6 +520,24 @@ func (index *predefineDeclIndex) lookup(name Name) predefineDecl {
 	}
 	// The index covers the whole FileSet, so a miss can never resolve a decl.
 	panic(fmt.Sprintf("name %s not defined in fileset with files %v", name, index.fileSet.FileNames()))
+}
+
+// predefineDependency is the accumulate-mode recursion into a dependency.
+// A failure is recorded once, against the dependency, which is dropped;
+// the dependent then fails with a droppedDeclError that add() turns into
+// a quiet drop. One cause, one error, at its own declaration.
+func (index *predefineDeclIndex) predefineDependency(store Store, dep predefineDecl, stack []Name, defining map[Name]struct{}, direct bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			if isRuntimePanic(r) {
+				panic(r)
+			}
+			index.acc.add(wrapPreprocessPanic([]BlockNode{dep.file}, dep.decl, r), dep.decl)
+			markDropped(dep.decl)
+			panic(&droppedDeclError{name: firstDeclName(dep.decl)})
+		}
+	}()
+	predefineRecursively2(store, dep.file, dep.decl, stack, defining, direct, index)
 }
 
 // rebindSplitParts redirects indexed names from an original declaration in file
@@ -996,12 +1023,24 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 type preprocessAccumulator struct {
 	errs     []*PreprocessError
 	poisoned map[Name]bool
+	// testHook, when set, runs inside the guarded transform before each
+	// node's stage; tests use it to raise a panic from within the walk.
+	testHook func(n Node, stage TransStage)
 }
 
 // Both spellings the preprocessor uses for an unknown name.
 var reUndeclaredName = regexp.MustCompile(`name (\S+) not (?:declared|defined)|name not defined: (\S+)`)
 
+// add records pe, raised while preprocessing n. The names n declares are
+// poisoned first, so a suppressed cascade still poisons what it declares.
 func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
+	for _, name := range declaredNamesOf(n) {
+		acc.poisoned[name] = true
+	}
+	var dropped *droppedDeclError
+	if stderrors.As(pe.err, &dropped) {
+		return // a dependent of a dropped declaration: dropped quietly
+	}
 	msg := pe.err.Error()
 	if m := reUndeclaredName.FindStringSubmatch(msg); m != nil && acc.poisoned[Name(m[1]+m[2])] {
 		return
@@ -1011,10 +1050,44 @@ func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
 			return // the same failure reached through another path
 		}
 	}
-	for _, name := range declaredNamesOf(n) {
-		acc.poisoned[name] = true
-	}
 	acc.errs = append(acc.errs, pe)
+}
+
+// droppedDeclError is raised, in accumulate mode, by a declaration that
+// depends on one already dropped; add turns it into a quiet drop.
+type droppedDeclError struct{ name Name }
+
+func (e *droppedDeclError) Error() string {
+	return fmt.Sprintf("name %s not declared (declaration dropped)", e.name)
+}
+
+// markDropped marks a declaration accumulate mode dropped: predefined and
+// preprocessed so every loop skips it, dropped so a dependent reaching it
+// in tryPredefine is dropped quietly instead of failing.
+func markDropped(d Decl) {
+	d.SetAttribute(ATTR_PREDEFINED, true)
+	d.SetAttribute(ATTR_PREPROCESSED, true)
+	d.SetAttribute(ATTR_PREPROCESS_DROPPED, true)
+}
+
+func firstDeclName(d Decl) Name {
+	if names := d.GetDeclNames(); len(names) > 0 {
+		return names[0]
+	}
+	return ""
+}
+
+// isRuntimePanic reports whether r is a Go runtime error, raw or already
+// wrapped by doRecover: a VM bug, which accumulate mode never records.
+func isRuntimePanic(r any) bool {
+	switch r := r.(type) {
+	case runtime.Error:
+		return true
+	case *PreprocessError:
+		var re runtime.Error
+		return stderrors.As(r.err, &re)
+	}
+	return false
 }
 
 // declaredNamesOf lists the names a statement or declaration introduces.
@@ -1175,7 +1248,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 	if acc != nil {
 		onPanic = func(ns []Node, ftype TransField, index int, n Node, r any) bool {
 			pe, ok := r.(*PreprocessError)
-			if !ok {
+			if !ok || isRuntimePanic(pe) {
 				return false // not a checking error: a VM bug, let it surface
 			}
 			for i := len(ns) - 1; i >= 0; i-- {
@@ -1205,17 +1278,17 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 		}
 		defer func() {
 			if r := recover(); r != nil {
-				if _, isRuntime := r.(runtime.Error); isRuntime {
+				if isRuntimePanic(r) {
 					panic(r) // a VM bug, not a checking error
 				}
 				acc.add(wrapPreprocessPanic(stack, d, r), d)
-				d.SetAttribute(ATTR_PREPROCESSED, true)
+				markDropped(d)
 			}
 		}()
 		predefineRecursively(store, last, d)
 	}
 
-	nn := transcribeWith(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	t := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// if already preprocessed, skip it.
 		if n.GetAttribute(ATTR_PREPROCESSED) == true {
 			return n, TRANS_SKIP
@@ -3715,7 +3788,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 		panic(fmt.Sprintf(
 			"unknown stage %v", stage))
-	}, onPanic)
+	}
+	if acc != nil && acc.testHook != nil {
+		inner := t
+		t = func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			defer doRecover(stack, n)
+			acc.testHook(n, stage)
+			return inner(ns, ftype, index, n, stage)
+		}
+	}
+	nn := transcribeWith(n, t, onPanic)
 
 	return nn
 }
@@ -6021,7 +6103,11 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			}
 			// predefine dependency recursively.
 			// `directR` is passed on.
-			predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
+			if index != nil && index.acc != nil {
+				index.predefineDependency(store, dependency, stack, defining, directR)
+			} else {
+				predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
+			}
 		} else {
 			break // predefine successfully performed.
 		}
@@ -6056,6 +6142,10 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 // will preprocess receiver/argument/result types recursively.
 func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
+		if d.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
+			// accumulate mode: a dependent of a dropped declaration.
+			panic(&droppedDeclError{name: firstDeclName(d)})
+		}
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
 

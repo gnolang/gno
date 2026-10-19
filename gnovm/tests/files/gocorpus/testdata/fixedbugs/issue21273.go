@@ -33,4 +33,4 @@ func h() {
 // line 16: invalid recursive type: T2 -> T2
 // line 21: invalid recursive type: T3 -> T3
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 26
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 26

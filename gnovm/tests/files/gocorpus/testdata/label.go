@@ -69,4 +69,4 @@ L10:
 // 	previous declaration at label.go:29:1
 // line 64: label go2 undefined
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16, 19, 21, 24, 27, 53
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 19, 21, 24, 27, 53

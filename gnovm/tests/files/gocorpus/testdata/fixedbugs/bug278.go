@@ -25,4 +25,4 @@ func main() {
 // GnoError:
 // line 21: cannot assign to x<VPBlock(1,0)>[(const (2 int))]
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 19, 22
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 19, 22

@@ -33,4 +33,4 @@ func main() {
 // GnoError:
 // line 24: expected statement, found 'case'
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23, 25; over-strict: lines 24
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 23, 25; over-strict: lines 24

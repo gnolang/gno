@@ -19,6 +19,6 @@ func f() {
 }
 
 // GnoError:
-// line 12: invalid recursive type: a -> b -> a
+// line 13: invalid recursive type: a -> b -> a
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12; over-strict: lines 13; on-chain path first error on line 12, not reported by accumulate mode

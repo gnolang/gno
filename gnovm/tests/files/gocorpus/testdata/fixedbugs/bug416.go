@@ -12,4 +12,4 @@ type T struct {
 
 func (t *T) X() {} // ERROR "type T has both field and method named X|redeclares struct field name|field and method with the same name"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13

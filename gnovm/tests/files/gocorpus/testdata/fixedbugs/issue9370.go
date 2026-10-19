@@ -177,4 +177,4 @@ var (
 // line 123: operator ^ not defined on: InterfaceKind
 // line 124: operator ^ not defined on: InterfaceKind
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 77, 78, 80, 81, 91, 92, 94, 95, 98, 99, 101, 102
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 77, 78, 80, 81, 91, 92, 94, 95, 98, 99, 101, 102

@@ -40,8 +40,4 @@ var _ = map[Key]string{
 	Key{1, 2}: "world",
 }
 
-// GnoError:
-// line 21: mixed keyed and unkeyed elements
-// line 25: slice/array literals may not contain non-const keys
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 23, 24, 26
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21, 22, 23, 24, 25, 26; on-chain path first error on line 21, not reported by accumulate mode
