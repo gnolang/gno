@@ -199,6 +199,38 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 	}
 }
 
+// hasCall reports whether x holds a function call other than a conversion
+// or a constant len/cap of an array: len and cap of an array are constant
+// only then (Go spec: "Length and capacity"; Gno has no channel receive).
+// Charged per node entered.
+func hasCall(gm store.GasMeter, store Store, last BlockNode, x Expr) bool {
+	found := false
+	Transcribe(x, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		switch n := n.(type) {
+		case *CallExpr:
+			if isConstType(n.Func) {
+				return n, TRANS_CONTINUE // a conversion
+			}
+			if cx, ok := n.Func.(*ConstExpr); ok && len(n.Args) == 1 {
+				if fv, ok := cx.V.(*FuncValue); ok && fv.PkgPath == uversePkgPath && (fv.Name == "len" || fv.Name == "cap") {
+					at := evalStaticTypeOf(store, last, n.Args[0])
+					if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+						return n, TRANS_CONTINUE // constant unless its operand is not
+					}
+				}
+			}
+			found = true
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
+}
+
 // assertSwitchTag checks an expression switch's tag: comparable, or a
 // slice, map or func, which the clauses may compare to nil only.
 func assertSwitchTag(t Type) {

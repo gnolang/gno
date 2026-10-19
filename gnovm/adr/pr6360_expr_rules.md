@@ -25,6 +25,10 @@ already visited, so no other charge moves:
 - `len` and `cap` take a string, array, pointer to array, slice, map or
   channel. The call is an int whatever the operand, so accumulate mode
   reports every bad site in a statement instead of dropping it (gc does).
+  `len`/`cap` of an array is a constant only when the operand holds no
+  function call (a conversion or a constant `len` is not one), checked
+  where a constant is required; the operand walk is `OpCPUSlopeCheckNode`
+  per node. Indexing dereferences a pointer to an array only.
 - A constant index or slice bound is checked against an array's or a
   constant string's length (`high` may equal the length); slice bounds
   must be ordered; a string has no 3-index slice.

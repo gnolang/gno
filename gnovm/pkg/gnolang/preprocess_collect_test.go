@@ -680,6 +680,33 @@ func main() {
 	}
 }
 
+func TestPreprocessCollectConstLenCap(t *testing.T) {
+	// len or cap of an array is constant only when its operand holds no
+	// call; a conversion or another constant len is not a call.
+	msgs := collectErrors(t, `package main
+
+var s [][10]int
+var a [3][4]int
+
+func f() [5]int { return [5]int{} }
+
+func main() {
+	const m = len(s[len(s)-1])
+	const n = cap(f())
+	const p = len(a[len(a)-1])
+	const q = len([4]int(a[0]))
+	const r = cap(a)
+	_, _, _, _, _ = m, n, p, q, r
+}
+`)
+	// The operand prints in its preprocessed form, as the neighbouring
+	// "is not constant" messages do.
+	if len(msgs) != 2 || !strings.Contains(msgs[0], "(s<") || !strings.Contains(msgs[1], "(f<") ||
+		!strings.HasSuffix(msgs[0], ") (value of type int) is not constant") || !strings.HasSuffix(msgs[1], ") (value of type int) is not constant") {
+		t.Fatalf("got %v", msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main
