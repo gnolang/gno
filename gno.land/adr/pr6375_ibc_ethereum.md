@@ -823,8 +823,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   denom first settles its bridge and refund meters (refilled to now) at the old cap. The lock-derived unescrow cap
   and the per-recipient meters are not settled at the change: each picks up the new cap at its next refill, which
   refills the earlier time at the **old** cap. For a raise that grants less than settling would; for a cut it
-  grants the old rate only up to the change's refill, which the bound's `cap_max` already covers. On Ethereum (target rule, being changed in
-  code) both buckets are settled at the old caps before a limits change.
+  grants the old rate only up to the change's refill, which the bound's `cap_max` already covers. On Ethereum both buckets are settled at the old caps before a limits change (always built).
 - **Two accountings.** Gno-native assets returning from Ethereum are unescrowed: `lock` is their escrow and caps
   payouts. Ethereum assets arriving on gno are **minted** as vouchers: there is no gno lock, so they get their own
   day cap (absolute, per denom) and their own outstanding-supply accounting; `amount > lock` sweeping applies only
@@ -1007,7 +1006,12 @@ routes of the same realms are unaffected; a governance channel serves exactly on
     spent, never left pending; a sweep payment under a `payouts` flag and a refund-paying settlement under a
     `refunds` hold are deferred instead. What the preflight cannot evaluate still rolls back and leaves the decision
     pending: a panic in candidate implementation code, a constructor whose result depends on the store it is
-    handed, or an install hook refusing on a condition it does not declare (an accepted residual, §8.5).
+    handed, or an install hook refusing on a condition it does not declare (an accepted residual, §8.5). **A second
+    rollback exception: governed payments** — a sweep payment or a settlement's refund — are checked by `payable`
+    before anything changes, but a runtime token failure `payable` cannot predict (e.g. a paused GRC20) rolls the
+    `Execute` back and the decision stays pending. Operator procedure: cancel the decision, or retry `Execute`
+    once the token resumes. Token assumption: an enrolled GRC20 does not pause or blacklist the transfer realm, and
+    governance checks this before enrolling it (§8.1).
   - On Ethereum, `execute` reverts, leaving the decision pending, while it is suspended by an open recovery,
     deferred by flags or holds, immature, the transfer app is busy, the executor's code is not the pinned one, a
     refund-paying kind 12 is under its route's `refunds` hold, or the caller's gas is below the kind's frame; the
@@ -1395,8 +1399,8 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   executes kind 10 (or the emergency recovery), it raises its epoch by one and sends an **epoch notice** — `version
   u8 ‖ epoch u32 ‖ newClient` (§5.4) — from its port over the **new** client to `ibcgov`'s `gov` port. `ibcgov`
   accepts a notice only along transitions it expects, proven through the gno.land Ethereum client that governance
-  bound to that transition; on acceptance it switches to the notice's epoch over that client and retires the passed
-  clients for the `gov` port. Until a notice is accepted, gno.land never sends with the new epoch, so gno.land's
+  bound to that transition; on acceptance it switches to the notice's epoch over that client and retires the old epoch's
+  client for the `gov` port (only that one, below). Until a notice is accepted, gno.land never sends with the new epoch, so gno.land's
   epoch is at or behind Ethereum's, never ahead (short of the forged-notice residual, §8.5).
   - **Expected transitions** are kept apart from the transfer aliases, in router client ids, each bound to the
     local gno client governance approves to carry the epoch over the new router client:
@@ -1448,8 +1452,8 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
       recorded as proven may still be applied along a path through it;
     - `NewPurgeTombstoneRequest(old, new, localClient)` (7 days, deferred by a hold: it gives up a notice path)
       drops one tombstone, freeing its place without a switch. It frees capacity only and never makes a client
-      retirable: the clients it disconnects are kept off the graph, gov port open and inert, until a switch passes
-      them; it is refused while a notice recorded as proven may still be applied along a path through it.
+      retirable: the clients it disconnects are kept off the graph, gov port open and inert, until a switch leaves
+      them behind as the old epoch's client; it is refused while a notice recorded as proven may still be applied along a path through it.
     The protection of a recorded notice is read live, by the rules `ApplyEpochNotice` applies (`pinnedBy`): it pins
     a transition only while some active or tombstoned path of exactly `e − current` steps from the epoch client's
     router counterparty, ending at the notice's source over its client, goes through it, and only while the
@@ -1504,14 +1508,20 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
     - *otherwise* (a client a switch already retired for governance, or one replaced before the channel was
       bound): retired for good.
 
-    A client is then retired for governance **only by an authenticated epoch switch**: the switch retires the old
-    epoch's client and the local clients of the path's intermediate steps (at most 63; for good if their route
-    replacement executed here, otherwise for the gov port), in bounded work, and supersedes the transitions and
-    tombstones it leaves behind. The permissionless `PruneGovRetirements(n)` (1 to 64 a call, resumable, wrapping
-    round) retires for good only the clients in `awaitingGov` that no path from the epoch's client reaches any
-    more. Graph unreachability alone, a full graph, an unchanged epoch or a purge never retires a client. This
-    qualifies "a retired client id is final" below: final for transfers at once, for governance only once a switch
-    passes it.
+    A client is then retired for governance **only when an authenticated epoch switch leaves it behind as the old
+    epoch's client** (gno-realms b95e29f): the later epoch's notice proves Ethereum moved past it (for good if its
+    route replacement executed here, otherwise for the gov port), in bounded work. The applied path's
+    **intermediate clients are not retired**: whoever applies a recorded notice supplies its path, so it does not
+    prove which clients Ethereum passed (with A→B→C and A→X→C both recorded, Ethereum may have run A→B→C and later
+    recovered to X). They, and every client the switch's pruning disconnects (on a branch the path did not take),
+    are taken out of `awaitingGov` and **kept off the graph, gov port open and inert**, exactly as a purge keeps the
+    clients it disconnects, so a later expectation can still carry their notice (z9zzv, z9zzu). The pruning drops
+    the transitions and tombstones it leaves behind. The permissionless `PruneGovRetirements(n)` (1 to 64 a call,
+    resumable, wrapping round) retires for good only clients in `awaitingGov` that no path reaches any more, and
+    none is ever left so; it remains a safety net. Graph unreachability alone, a full graph, an unchanged epoch, a
+    purge or a switch's pruning never retires a client. This qualifies "a retired client id is final" below: final
+    for transfers at once, and for governance only once a switch leaves the client behind as the old epoch's
+    client.
 - **Route identity is preserved.** A replacement client must authenticate the same history as the one it retires:
   on gno.land the same Ethereum chain (chain id and genesis validators root), router address and commitment slot;
   on Ethereum the same gno.land chain id and store prefix. A route records this identity at enrollment, and every
@@ -1708,8 +1718,7 @@ same packet: a double spend that receive limits, flags and the quarantine do not
   source commitment, which processing the ack deletes, so route replacement reconciles it (§7.12): a genuine
   refund is never cancelled, a forged one is rejected there. On gno.land refund meters start empty when a denom is enabled; on Ethereum a
   token's refund bucket starts with its whole `refundCap` available (`used = 0`) (§8.5). Both keep their state
-  through replacements and payouts epochs. Before a cap change both chains settle the buckets at the old cap (§7.1;
-  built on gno.land, target rule being changed in code on Ethereum). On Ethereum the meter is charged before the token
+  through replacements and payouts epochs. Before a cap change both chains settle the buckets at the old cap (§7.1). On Ethereum the meter is charged before the token
   moves and given back if the payment fails; a refund its token refuses (a blacklisted sender, a paused token, a
   token needing more than the fixed payment gas), **or one that cannot be paid without taking another record's
   reserved backing**, is **parked**, never blocking the ack or the queue, and retried by `claimParked`. An ordinary
@@ -1798,6 +1807,9 @@ Further trust assumptions of the built controls, each stated where its rule is:
   router configuration are authenticated independently before creation and again before voting on the enrolment
   or a replacement (runbook §7 step 0); on Ethereum, `finishSetup` checks the launch client against the
   deployment's own record, and later clients (kind 6, recovery) are attested by governance or the guardians.
+- **GRC20s on gno.land.** An enrolled GRC20 is assumed not to pause or blacklist the transfer realm; governance
+  checks this before enrolling it. Otherwise a governed payment can roll back and stay pending (§7.5), and an
+  ordinary payout rolls back its transaction (§7.3).
 - **Supported tokens.** Ethereum's escrow, reservation and conservation guarantees hold only for tokens whose
   transfers move exactly the amount asked, whose `balanceOf` is truthful and whose balances change only by the
   holder's transfers (no fee on transfer, no rebasing, no hooks moving other balances). Governance establishes this
@@ -1911,7 +1923,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | 8 | Both | **Public relaying in production**; a relayer allow-list only in testing deployments (R17 left the choice open) | Eureka restricts relaying per function, not per port, so an allow-list would gate governance and notice acks, and a lost relayer key would lock governance out for good |
 | 9 | Both | **Epoch notices**: resendable for any recorded epoch at any time, over that epoch's own client, in a fresh packet; acks informational; **no cap on unacknowledged advances on Ethereum**; on gno.land one-step notices apply on receipt, longer ones are recorded as proven and applied with an explicit path; **no authenticated epoch resync** (§7.12 said a notice is re-sent until acknowledged) | A cap could block the recovery after the latest client froze; forged acks could close resending; gno.land bounds its own work by its expected graph (project-owner decisions) |
 | 10 | gno.land | **Expected-transition graph**: 4 successors per router client, 64 transitions pending, active and tombstoned jointly, acyclic, simple paths only; pending intents owned per decision; kind 10's local binding a separate 7-day, hold-deferred decision; tombstones, `NewRemoveExpectationRequest` (immediate) and `NewPurgeTombstoneRequest` (7 days) added; an unconfirmed expectation costs capacity (§7.12 said it costs nothing) | Bounded work with exact reachability; approving a local verifier loosens and waits; a cancelled or failed transition must not exhaust the capacity |
-| 11 | gno.land | **One governance retirement rule**: a replaced client of the route is retired for transfers at once and for governance only by an authenticated epoch switch (final retirement qualified) | A client Ethereum may still send a notice over must keep its `gov` port until a switch passes it |
+| 11 | gno.land | **One governance retirement rule**: a replaced client of the route is retired for transfers at once and for governance only by an authenticated epoch switch (final retirement qualified) | A client Ethereum may still send a notice over must keep its `gov` port; only being left behind as the old epoch's client proves Ethereum moved past it (a notice's path is supplied by whoever applies it, so intermediate and pruned clients stay open and inert) |
 | 12 | Both | **Retransmission**: anyone re-sends a current-epoch dispatch after any answer but a conflict; a conflict is re-sent once per governed `NewRetransmitRequest` (§5.4 said re-send on `redispatch = 1` or a timeout) | A forged success ack can hide an undelivered decision; free conflict re-sends would let anyone keep `IBCAdmin` flagged |
 | 13 | gno.land | **A retired client is marked, not frozen** (its verifier keeps its status) | Retirement is per port (divergence 11); a mark refuses new packets without changing the verifier |
 | 14 | gno.land | **`ibcgov` is not upgradeable**; the proxies accept loosening governance only from its fixed path | Its port and ledger are permanent, as `IBCAdmin`'s are |
@@ -1953,7 +1965,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | # | Residual | Repair, if any |
 |---|---|---|
 | R1 | **Settlement finality** (both): a settlement is final once it applies; a record settled as delivered, or a refund settled as forged, on a proof whose verifier is found compromised only afterwards stays settled, and **no compensation path exists inside these controls** | Outside the bridge (an upgrade, a treasury payment); the defense is the 7-day delay and the guardians' hold over it (project-owner decision) |
-| R2 | **A forged epoch notice applied** on gno.land by a compromised approved local verifier: the switch retires the clients it passes and no decision undoes it (no authenticated resync). A premature notice naming the epoch and client a recorded kind 10 will establish costs nothing | Only Ethereum's emergency recovery, if enabled, to a fresh router client recorded as expected from gno.land's current epoch client over a fresh local client; its epoch must pass gno.land's (one recovery, 30 days, per epoch gno.land was pushed ahead). Without it, Ethereum-bound governance ends for good; gno-side governance continues (project-owner decision) |
+| R2 | **A forged epoch notice applied** on gno.land by a compromised approved local verifier: the switch retires the old epoch's client for governance, adopts the forged epoch, and no decision undoes it (no authenticated resync). A premature notice naming the epoch and client a recorded kind 10 will establish costs nothing | Only Ethereum's emergency recovery, if enabled, to a fresh router client recorded as expected from gno.land's current epoch client over a fresh local client; its epoch must pass gno.land's (one recovery, 30 days, per epoch gno.land was pushed ahead). Without it, Ethereum-bound governance ends for good; gno-side governance continues (project-owner decision) |
 | R3 | **A poisoned intermediate client gno.land keeps Active** (forged updates at every prefix endpoint within 64 steps) blocks a catch-up past 64, since recovery needs a Frozen or Expired subject | Freeze it by misbehaviour when conflicting valid updates exist, or let it expire; recover it in place (`NewRecoverClientRequest`) and relay the resent notice through it (project-owner decision) |
 | R4 | **No replacement of `ibcgov`**: core and transfer take loosening governance only from `IBCGovPath`; `IBCAdmin` is immutable | Tightening powers stay with GovDAO; a defect needs a new deployment |
 | R5 | **Forged receive entitlements are not checked by the reopening**: a forged claim or sweep entry left unvoided is paid once the route is open and `payouts` cleared | Operator precondition: authenticate every suspect receive entitlement off-chain against Ethereum's retained send records and void or settle every forged one before reopening or clearing containment (project-owner decision) |
@@ -1961,6 +1973,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | R7 | **A forged conflict ack** of a governance dispatch stops free re-sends of it | `NewRetransmitRequest` after checking `IBCAdmin` on Ethereum |
 | R8 | **A forged success ack** of a governance dispatch hides an undelivered decision | Anyone re-sends it (`Redispatch`); `IBCAdmin` deduplicates |
 | R9 | **Candidate implementation code** that panics, depends on the store it is handed, or refuses on an undeclared condition rolls the `Execute` back and leaves its decision pending | Declare install conditions in `CheckInstall`; cancel the decision; ship a fixed version |
+| R9a | **A governed payment on gno.land** (sweep or settlement refund) whose token fails at runtime in a way `payable` cannot predict (e.g. a paused GRC20) rolls the `Execute` back and leaves the decision pending | Cancel the decision, or retry once the token resumes; enrolled GRC20s are assumed not to pause or blacklist the transfer realm, checked by governance before enrolment |
 | R10 | **A lost governance channel without the emergency path** strands the Ethereum side's backing (§7.12) | None after deployment: enabling the emergency path is a pre-deployment decision (no later governed enablement) |
 | R11 | **Token issuers' powers** (seize, burn, rebase, upgrade) are trusted for enrolled tokens | Governance vets each token before its first limits |
 | R12 | **Ethereum keeps no cap on unacknowledged epoch advances** | gno.land catches up in prefixes (project-owner decision) |
@@ -2409,6 +2422,14 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - Ethereum built (0c673ad, ad7f3e3): `cancelThreshold` in `[3, threshold]`, the recovery id checks at approval,
     recovery refused while epoch 1 and last sequence 0, build verification covering vouchers, light clients, kinds 5
     and 6 and recovery candidates, `PERMIT2` configurable at deployment.
+- 2026-10-19, gno-realms b95e29f:
+  - A switch retires for governance only the old epoch's client; the applied path's intermediate clients and every
+    client the switch's pruning disconnects are kept off the graph with an inert gov port, since a notice's path is
+    supplied by whoever applies it (§7.12, §8.5).
+  - Governed payments on gno.land can roll back on a runtime token failure `payable` cannot predict, leaving the
+    decision pending (cancel, or retry once the token resumes); enrolled GRC20s are assumed not to pause or
+    blacklist the transfer realm (§7.5, §8.1, §8.5).
+  - Ethereum's settlement at the old cap before a cap change is built (§7.1, §7.13).
 
 ## 15. References
 
