@@ -696,6 +696,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	CheckInitCycles(m.Store, pn, fset)
+	CheckUnusedImports(m.Store, pn, fset)
 	// Get new values across all files in package.
 	pn.PrepareNewValues(m.Alloc, pv)
 	// save package value.
@@ -798,6 +799,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		pv.AddFileBlock(fn.FileName, fb)
 	}
 	CheckInitCycles(m.Store, pn, fs)
+	CheckUnusedImports(m.Store, pn, fs)
 
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)
@@ -1676,9 +1678,10 @@ const (
 	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
 	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
 	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
-	// Checker walks at preprocess (check_*.go): per node visited. Same
-	// work per step as an embedWalk scan (a type switch and a map
-	// lookup); an estimate, not yet fitted.
+	// Checker walks at preprocess (check_*.go): per node visited by a
+	// type-shape, type-expression, unused-name or identity walk, and per
+	// literal element or switch case examined. Same work per step as an
+	// embedWalk scan (a type switch and a map lookup); not yet fitted.
 	OpCPUSlopeCheckNode = 25
 	// checkInitCycles: per declaration and per dependency edge visited
 	// (map lookups, a name resolution, a sorted-name walk twice).

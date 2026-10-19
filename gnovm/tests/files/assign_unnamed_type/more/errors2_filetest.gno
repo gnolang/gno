@@ -10,11 +10,9 @@ func main() {
 	var a error
 	a = makeError()
 	b := a.Error()
+	_ = b // keep the variable used; the test is about something else
 	println(a)
 }
 
 // Output:
 // some error
-
-// TypeCheckError:
-// main/errors2.gno:12:2: declared and not used: b

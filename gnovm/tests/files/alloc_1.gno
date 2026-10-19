@@ -16,12 +16,10 @@ var S = []*Foo{&Foo{name: "foo1", Bar: Bar{name: "bar1"}}, &Foo{name: "foo2", Ba
 
 func main() {
 	S1 := S
+	_ = S1 // keep the variable used; the test is about something else
 	runtime.GC()
 	println("MemStats: ", runtime.MemStats())
 }
 
 // Output:
-// MemStats:  Allocator{maxBytes:100000000, bytes:9888}
-
-// TypeCheckError:
-// main/alloc_1.gno:18:2: declared and not used: S1
+// MemStats:  Allocator{maxBytes:100000000, bytes:9960}

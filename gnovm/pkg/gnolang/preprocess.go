@@ -48,6 +48,7 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 		preprocess(store, pn, fn, acc)
 	}
 	acc.errs = append(acc.errs, checkInitCycles(preprocessGasMeterOf(store), pn, fset)...)
+	reportUnusedImports(store, acc, pn, fset)
 	return acc.errs
 }
 
@@ -285,6 +286,13 @@ func CheckInitCycles(store Store, pn *PackageNode, fset *FileSet) {
 	if errs := checkInitCycles(preprocessGasMeterOf(store), pn, fset); len(errs) > 0 {
 		panic(errs[0])
 	}
+}
+
+// CheckUnusedImports is the on-chain form of the unused-import rule: once
+// the package's files are preprocessed, the first import no file refers
+// to panics as a *PreprocessError positioned at its import spec.
+func CheckUnusedImports(store Store, pn *PackageNode, fset *FileSet) {
+	reportUnusedImports(store, nil, pn, fset)
 }
 
 func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preprocessAccumulator) {
@@ -1663,6 +1671,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				checkValDefineMismatch(n)
 
 				if n.Op == DEFINE {
+					checkShortVarDecl(ns, last, n)
+				}
+				if n.Op == DEFINE {
 					for i, lx := range n.Lhs {
 						lnx := lx.(*NameExpr)
 						if lnx.Name == blankIdentifier {
@@ -1798,6 +1809,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					))
 				}
 				// key value if define.
+				if n.Op == DEFINE && n.Key != nil && n.Value != nil {
+					if kn, vn := n.Key.(*NameExpr).Name, n.Value.(*NameExpr).Name; kn == vn && kn != blankIdentifier {
+						panic(fmt.Sprintf("%s repeated on left side of :=", kn))
+					}
+				}
 				if n.Op == DEFINE && xt.Kind() != InvalidKind {
 					if xt.Kind() == MapKind {
 						if n.Key != nil {
@@ -1975,6 +1991,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// retrieve cached function type.
 				// the type and receiver are already set in predefineRecursively.
 				ft := getType(&n.Type).(*FuncType)
+				if !n.IsMethod && strings.HasPrefix(string(n.Name), "init.") {
+					// The only parameter allowed is the crossing one, `cur realm`.
+					if len(n.Type.Results) > 0 ||
+						(len(n.Type.Params) > 0 && !(len(n.Type.Params) == 1 && ft.IsCrossing())) {
+						panic("func init must have no arguments and no return values")
+					}
+				}
+				// main, like init, may take only the crossing parameter.
+				if !n.IsMethod && n.Name == "main" && packageOf(last).PkgName == "main" &&
+					(len(n.Type.Results) > 0 ||
+						(len(n.Type.Params) > 0 && !(len(n.Type.Params) == 1 && ft.IsCrossing()))) {
+					panic("func main must have no arguments and no return values")
+				}
 				// a crossing function can only be declared in a realm
 				// (or, as a carve-out, in any *_test.gno file so p/ tests
 				// can declare `TestXxx(cur realm, t *testing.T)` to drive
@@ -3977,6 +4006,21 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 
 			// TRANS_LEAVE -----------------------
+			case *FuncDecl:
+				// Unused locals and labels, once the body has its paths.
+				if n.Body != nil {
+					reportUnused(store, acc, stack, n)
+				}
+
+			// TRANS_LEAVE -----------------------
+			case *FuncLitExpr:
+				// A package-level literal (`var f = func() {...}`) has no
+				// FuncDecl to walk it; one nested in a function is walked
+				// by that function's check.
+				if !enclosedByFunc(stack[:len(stack)-1]) {
+					reportUnused(store, acc, stack, n)
+				}
+
 			case *IncDecStmt:
 				n.AssertCompatible(store, last)
 
@@ -6494,6 +6538,14 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			panic(fmt.Sprintf(
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
+		if _, isFunc := d.(*FuncDecl); !isFunc {
+			if dn == "init" {
+				panic("cannot declare init - must be func")
+			}
+			if dn == "main" && pkg.PkgName == "main" {
+				panic("cannot declare main - must be func")
+			}
+		}
 		stack = append(stack, dn)
 		defining[dn] = struct{}{}
 	}
@@ -6888,6 +6940,14 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 			// Method FuncValue belongs to the declaring package's
 			// realm.
 			methodFV.ObjectInfo.SetPkgID(PkgIDFromPkgPath(pkg.PkgPath))
+			if st, ok := baseOf(dt).(*StructType); ok {
+				for _, f := range st.Fields {
+					if f.Name == d.Name {
+						packageOf(last).StaticBlock.revertToOld()
+						panic(fmt.Sprintf("field and method with the same name %s", d.Name))
+					}
+				}
+			}
 			if !dt.TryDefineMethod(methodFV) {
 				// Revert to old function declarations in the package we're preprocessing.
 				pkg := packageOf(last)
@@ -7462,6 +7522,141 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 }
 
 // if name is is reserved.
+// checkShortVarDecl enforces the two rules of `:=` the resolver does not
+// see after name resolution: no name twice on the left, and at least one
+// new variable in the current Go scope. Gno folds a control statement's
+// header (range variables, `for`/`if`/`switch` init) into the same block
+// as its body, where Go opens a new scope, so a name that header declared
+// may be shadowed; a name declared by a sibling statement, a parameter,
+// the type-switch guard or a select case's receive (Go declares those in
+// the clause's own block) may not. initStaticBlocks reserved the names on
+// behalf of this statement, so "new" also means reserved by this very node.
+func checkShortVarDecl(ns []Node, last BlockNode, n *AssignStmt) {
+	seen := map[Name]bool{}
+	anyNew := false
+	for _, lx := range n.Lhs {
+		ln := lx.(*NameExpr).Name
+		if ln == blankIdentifier {
+			continue
+		}
+		if strings.HasPrefix(string(ln), ".") {
+			return // synthesized by the preprocessor
+		}
+		if seen[ln] {
+			panic(fmt.Sprintf("%s repeated on left side of :=", ln))
+		}
+		seen[ln] = true
+		src := definedBy(last, ln)
+		if src == nil || src.Origin == n || declaredByHeader(ns, last, src) {
+			anyNew = true
+		}
+	}
+	if !anyNew && len(seen) > 0 {
+		panic("no new variables on left side of :=")
+	}
+}
+
+// reportUnused runs checkUnused over fn, the function node on top of
+// stack, and raises each unused name: the first panics on chain, all are
+// reported in accumulate mode (minus names a dropped statement declared
+// or mentioned, which the walk could never see used).
+func reportUnused(store Store, acc *preprocessAccumulator, stack []BlockNode, fn BlockNode) {
+	if len(stack) < 2 {
+		return
+	}
+	for _, u := range checkUnused(preprocessGasMeterOf(store), stack[len(stack)-2], fn) {
+		if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
+			continue
+		}
+		loc := fn.GetLocation()
+		loc.SetSpanOverride(u.span)
+		pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg), stack: stack}
+		if acc == nil {
+			panic(pe)
+		}
+		acc.record(pe)
+	}
+}
+
+// reportUnusedImports runs checkUnusedImports over the package's files and
+// raises each unused import: the first panics on chain, all are reported
+// in accumulate mode (minus names a dropped statement mentioned, which the
+// walk could never see used).
+func reportUnusedImports(store Store, acc *preprocessAccumulator, pn *PackageNode, fset *FileSet) {
+	pkgName := func(pkgPath string) Name { // cached since predefine
+		if pv := store.GetPackage(pkgPath, false); pv != nil {
+			return pv.PkgName
+		}
+		return ""
+	}
+	for _, u := range checkUnusedImports(preprocessGasMeterOf(store), fset, pkgName) {
+		if acc != nil && (acc.poisoned[u.name] || acc.referenced[u.name]) {
+			continue
+		}
+		loc := Location{PkgPath: pn.PkgPath, File: u.file.FileName, Span: u.span}
+		pe := &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), u.msg)}
+		if acc == nil {
+			panic(pe)
+		}
+		acc.record(pe)
+	}
+}
+
+// enclosedByFunc reports whether stack holds a function node.
+func enclosedByFunc(stack []BlockNode) bool {
+	for _, bn := range stack {
+		switch bn.(type) {
+		case *FuncDecl, *FuncLitExpr:
+			return true
+		}
+	}
+	return false
+}
+
+// declaredByHeader reports whether src was declared by the header of the
+// control statement whose body last holds (see checkShortVarDecl).
+func declaredByHeader(ns []Node, last BlockNode, src *NameSource) bool {
+	switch src.Type {
+	case NSRangeKey, NSRangeValue:
+		return true
+	}
+	parentOf := func(bn BlockNode) Node {
+		for i := len(ns) - 1; i >= 0; i-- {
+			if ns[i] == bn && i > 0 {
+				return ns[i-1]
+			}
+		}
+		return nil
+	}
+	switch b := last.(type) {
+	case *ForStmt:
+		return b.Init != nil && src.Origin == b.Init
+	case *IfCaseStmt:
+		if p, ok := parentOf(b).(*IfStmt); ok {
+			return p.Init != nil && src.Origin == p.Init
+		}
+	case *SwitchClauseStmt:
+		if p, ok := parentOf(b).(*SwitchStmt); ok {
+			return p.Init != nil && src.Origin == p.Init
+		}
+	}
+	return false
+}
+
+// definedBy returns the name source that reserved name in bn's own static
+// block, nil when the name is not local to bn.
+func definedBy(bn BlockNode, name Name) *NameSource {
+	idx, ok := bn.GetLocalIndex(name)
+	if !ok {
+		return nil
+	}
+	sources := bn.GetStaticBlock().NameSources
+	if int(idx) >= len(sources) {
+		return nil
+	}
+	return &sources[idx]
+}
+
 func isLocallyReserved(bn BlockNode, n Name) bool {
 	_, isLocal := bn.GetLocalIndex(n)
 	return isLocal

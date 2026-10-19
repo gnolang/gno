@@ -8,4 +8,7 @@ package p
 
 const init = 1 // ERROR "cannot declare init - must be func"
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9
+// GnoError:
+// line 9: cannot declare init - must be func
+
+// Verdict: Clean errorcheck
