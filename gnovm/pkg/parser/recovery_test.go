@@ -6,6 +6,7 @@ package parser
 
 import (
 	"fmt"
+	"go/ast"
 	"go/scanner"
 	"go/token"
 	"strings"
@@ -92,6 +93,29 @@ func i[T any
 				"7:13: unexpected newline in type parameter list; possibly missing comma or ]",
 			},
 		},
+		{
+			name: "label without a statement", // bug274, issue 14006
+			src: `package p
+
+func _() {
+	switch 0 {
+	case 0:
+		L0:
+	case 1:
+		L1:
+	default:
+		L2:
+	}
+	2:
+	L3:
+}
+`,
+			want: []string{
+				"6:5: missing statement after label",
+				"8:5: missing statement after label",
+				"12:3: illegal label declaration",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -107,4 +131,21 @@ func i[T any
 			}
 		})
 	}
+}
+
+// TestRecoveryLabelTree pins the tree a label with no statement leaves:
+// an implicit empty statement placed right after its colon, so the
+// label's own line is the statement's.
+func TestRecoveryLabelTree(t *testing.T) {
+	fset := token.NewFileSet()
+	f, _ := ParseFile(fset, "y.go", "package p\n\nfunc _() {\n\tswitch {\n\tcase true:\n\t\tL:\n\t}\n\tM:\n}\n", AllErrors)
+	ast.Inspect(f, func(n ast.Node) bool {
+		if l, ok := n.(*ast.LabeledStmt); ok {
+			e, ok := l.Stmt.(*ast.EmptyStmt)
+			if !ok || !e.Implicit || e.Semicolon != l.Colon+1 {
+				t.Errorf("label %s: statement %#v, want an implicit empty statement after the colon", l.Label.Name, l.Stmt)
+			}
+		}
+		return true
+	})
 }

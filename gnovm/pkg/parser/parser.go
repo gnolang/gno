@@ -445,6 +445,8 @@ var stmtStart = map[token.Token]bool{
 // The sync sets below are stmtStart plus the tokens gc's parser stops
 // at in the same situation, so a recovery never skips a closing token.
 var (
+	// stmtEnd: where an unparsable statement ends.
+	stmtEnd = union(stmtStart, token.SEMICOLON, token.RBRACE, token.CASE, token.DEFAULT)
 	// exprClose: where a broken expression or list ends (issue 33386).
 	exprClose = union(stmtStart, token.RPAREN, token.RBRACK, token.RBRACE)
 )
@@ -1983,7 +1985,18 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 			// Go spec: The scope of a label is the body of the function
 			// in which it is declared and excludes the body of any nested
 			// function.
-			stmt := &ast.LabeledStmt{Label: label, Colon: colon, Stmt: p.parseStmt()}
+			stmt := &ast.LabeledStmt{Label: label, Colon: colon}
+			switch p.tok {
+			case token.CASE, token.DEFAULT:
+				// gc: reported at the label, nothing skipped (bug274).
+				p.error(colon, "missing statement after label")
+				fallthrough
+			case token.RBRACE:
+				// a semicolon may be omitted before a closing "}"
+				stmt.Stmt = &ast.EmptyStmt{Semicolon: colon + 1, Implicit: true}
+			default:
+				stmt.Stmt = p.parseStmt()
+			}
 			return stmt, false
 		}
 		// The label declaration typically starts at x[0].Pos(), but the label
@@ -2471,7 +2484,16 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 		// because of the required look-ahead, labeled statements are
 		// parsed by parseSimpleStmt - don't expect a semicolon after
 		// them
-		if _, isLabeledStmt := s.(*ast.LabeledStmt); !isLabeledStmt {
+		switch s.(type) {
+		case *ast.LabeledStmt:
+		case *ast.BadStmt:
+			// an illegal label declaration, already reported: skip to
+			// the end of the statement, as gc does
+			p.advance(stmtEnd)
+			if p.tok == token.SEMICOLON {
+				p.next()
+			}
+		default:
 			p.expectSemi()
 		}
 	case token.GO:
