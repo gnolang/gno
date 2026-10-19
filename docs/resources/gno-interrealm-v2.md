@@ -780,17 +780,12 @@ the approver who enabled it.
 
 ### 12.4 Package lifecycle messages
 
-Two further messages drive a package between the parked and active
-states. Under the `inert` policy `MsgEnablePackage` runs a parked
-package's `init()` and makes it callable. `MsgRejectPackage` discards
-a parked submission; it is not gated on the policy still being
-`inert`, and either an approver or the package's own creator may send
-it.
-
-A third message, `MsgDisablePackage`, is declared and routed but not
-implemented. Its handler checks the approver gate and then returns
-`disable_package is not yet implemented`, so nothing returns an
-active package to the parked state.
+Two further messages act on a parked package. Under the `inert`
+policy `MsgEnablePackage` runs its `init()` and makes it callable.
+`MsgRejectPackage` discards the parked submission; it is not gated on
+the policy still being `inert`, and an approver, the package's own
+creator, or the owner of the live package at that path may send it.
+Nothing returns an active package to the parked state.
 
 ## 13. Implementation References
 
