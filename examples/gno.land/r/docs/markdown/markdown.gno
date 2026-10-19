@@ -1038,17 +1038,17 @@ Ask @alice about it.
 
 #### Bech32 Addresses
 
-Valid Gno bech32 addresses (±g1± prefix, 39 to 92 characters) are auto-linked to the user profile at ±/u/{addr}±.
+A Gno bech32 address (±g1± prefix, 39 to 92 characters) is auto-linked to the user profile at ±/u/{addr}± when its checksum is valid. A string that only looks like an address stays plain text.
 
 ±±±markdown
 This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 
-You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
+This one has a wrong checksum: g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
 ±±±
 
 This is a GNO address: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 
-You can also reference g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
+This one has a wrong checksum: g1abc123def456ghi789jkl012mno345pqr678stu901vwx234yz5.
 
 #### Custom Link Text
 
