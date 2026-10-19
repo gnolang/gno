@@ -332,6 +332,22 @@ func (p *parser) expect2(tok token.Token) (pos token.Pos) {
 	return
 }
 
+// expectLbrace is expect(LBRACE) with gc's recovery for a block that
+// does not open: skip to a block or statement, and leave a '}' found
+// there for the block's close (go.dev/issue/22581).
+func (p *parser) expectLbrace() token.Pos {
+	if p.tok != token.LBRACE {
+		p.errorExpected(p.pos, "'{'")
+		p.advance(blockStart)
+		if p.tok != token.LBRACE {
+			return p.pos
+		}
+	}
+	pos := p.pos
+	p.next()
+	return pos
+}
+
 // expectClosing is like expect but provides a better error message
 // for the common case of a missing comma before a newline. As gc does,
 // it then skips to a closing token or statement start and, unless that
@@ -449,6 +465,10 @@ var (
 	stmtEnd = union(stmtStart, token.SEMICOLON, token.RBRACE, token.CASE, token.DEFAULT)
 	// exprClose: where a broken expression or list ends (issue 33386).
 	exprClose = union(stmtStart, token.RPAREN, token.RBRACK, token.RBRACE)
+	// blockStart: where a broken statement header ends (go.dev/issue/22581).
+	blockStart = union(stmtStart, token.LBRACE, token.RBRACE)
+	// caseStart: where a broken switch header ends.
+	caseStart = union(stmtStart, token.CASE, token.DEFAULT, token.RBRACE)
 )
 
 func union(set map[token.Token]bool, toks ...token.Token) map[token.Token]bool {
@@ -1458,7 +1478,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 		defer un(trace(p, "BlockStmt"))
 	}
 
-	lbrace := p.expect(token.LBRACE)
+	lbrace := p.expectLbrace()
 	list := p.parseStmtList()
 	rbrace := p.expect2(token.RBRACE)
 
@@ -2154,6 +2174,9 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 			p.next()
 		} else {
 			p.expect(token.SEMICOLON)
+			if p.tok != token.LBRACE {
+				p.advance(blockStart) // for better synchronization (go.dev/issue/22581)
+			}
 		}
 		if p.tok != token.LBRACE {
 			condStmt, _ = p.parseSimpleStmt(basic)
@@ -2298,7 +2321,14 @@ func (p *parser) parseSwitchStmt() ast.Stmt {
 	}
 
 	typeSwitch := p.isTypeSwitchGuard(s2)
-	lbrace := p.expect(token.LBRACE)
+	lbrace := p.pos
+	if p.tok == token.LBRACE {
+		p.next()
+	} else {
+		// gc: "missing { after switch clause", then on to the clauses
+		p.errorExpected(p.pos, "'{'")
+		p.advance(caseStart)
+	}
 	var list []ast.Stmt
 	for p.tok == token.CASE || p.tok == token.DEFAULT {
 		list = append(list, p.parseCaseClause())

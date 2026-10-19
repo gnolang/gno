@@ -138,6 +138,39 @@ x, y := 1, 2
 				"13:1: non-declaration statement outside function body",
 			},
 		},
+		{
+			name: "statement header resynchronises at its block", // issue 22581
+			src: `package p
+
+func f() {
+	if i := g()); i == j {
+	}
+	if i == g()] {
+	}
+	switch i := g()); i {
+	}
+	switch g()] {
+	}
+	for i := g()); i < y; {
+	}
+	for g()] {
+	}
+	switch x; y
+	{
+		z
+`,
+			want: []string{
+				"4:13: expected ';', found ')'",
+				"6:13: expected ';', found ']'",
+				"8:9: expected switch expression, found assignment (missing parentheses around composite literal?)",
+				"8:17: expected '{', found ')'",
+				"10:12: expected '{', found ']'",
+				"12:6: expected boolean or range expression, found assignment (missing parentheses around composite literal?)",
+				"12:14: expected '{', found ')'",
+				"14:9: expected '{', found ']'",
+				"16:13: expected '{', found newline",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
