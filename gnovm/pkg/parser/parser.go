@@ -21,6 +21,7 @@ import (
 	"go/build/constraint"
 	"go/scanner"
 	"go/token"
+	"maps"
 	"strings"
 )
 
@@ -429,6 +430,21 @@ var stmtStart = map[token.Token]bool{
 	token.SWITCH:      true,
 	token.TYPE:        true,
 	token.VAR:         true,
+}
+
+// The sync sets below are stmtStart plus the tokens gc's parser stops
+// at in the same situation, so a recovery never skips a closing token.
+var (
+	// exprClose: where a broken expression or list ends (issue 33386).
+	exprClose = union(stmtStart, token.RPAREN, token.RBRACK, token.RBRACE)
+)
+
+func union(set map[token.Token]bool, toks ...token.Token) map[token.Token]bool {
+	m := maps.Clone(set)
+	for _, tok := range toks {
+		m[tok] = true
+	}
+	return m
 }
 
 var declStart = map[token.Token]bool{
@@ -1497,7 +1513,7 @@ func (p *parser) parseOperand() ast.Expr {
 	// we have an error
 	pos := p.pos
 	p.errorExpected(pos, "operand")
-	p.advance(stmtStart)
+	p.advance(exprClose)
 	return &ast.BadExpr{From: pos, To: p.pos}
 }
 
