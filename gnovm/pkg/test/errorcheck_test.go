@@ -2,14 +2,15 @@ package test
 
 import (
 	"bytes"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/tm2/pkg/store"
 	"io"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 func TestAttributeErrorcheck(t *testing.T) {
@@ -141,7 +142,8 @@ func TestErrorcheckVerifyDemandsOneVerdict(t *testing.T) {
 		t.Fatalf("one verdict: %v", err)
 	}
 	two := src + "\n// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 3\n"
-	_, _, _, err := opts.RunFiletest("canary.go", []byte(two), opts.TestStore)
+	_, gas, diffs, err := opts.RunFiletest("canary.go", []byte(two), opts.TestStore)
+	_, _ = gas, diffs
 	if err == nil || !strings.Contains(err.Error(), "exactly one") {
 		t.Fatalf("two verdicts accepted: %v", err)
 	}
@@ -284,7 +286,8 @@ var _ = undefined
 /* ERROR "undefined" */
 `)
 	o := errorcheckOpts(t)
-	_, _, _, err := o.RunFiletest("testdata/gotypes/check/ll.go", src, o.TestStore)
+	_, gas, diffs, err := o.RunFiletest("testdata/gotypes/check/ll.go", src, o.TestStore)
+	_, _ = gas, diffs
 	if err == nil || !strings.Contains(err.Error(), "line-leading marker") {
 		t.Fatalf("want a line-leading marker error, got %v", err)
 	}
