@@ -3131,10 +3131,14 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							dt.PkgPath, n.Sel, ctxpn.PkgPath))
 					}
 					_, isPtr := xt.(*PointerType)
+					if _, iface := dt.Base.(*InterfaceType); iface && isPtr {
+						failf(CodeNoMethod, []Node{n}, "(%s).%s undefined (type %v is pointer to interface, not interface)",
+							exprString(n.X), n.Sel, xt)
+					}
 					if i, ok := dt.lookupMethod(n.Sel); ok {
 						fv := dt.Methods[i].V.(*FuncValue)
 						recv := fv.GetType(store).Params[0].Type
-						assertMethodExprReceiver(xt, dt, n.Sel, recv, isPtr)
+						assertMethodExprReceiver(dt, n.Sel, recv, isPtr)
 						if _, ptrRecv := recv.(*PointerType); isPtr && !ptrRecv {
 							// (*T).m with a value receiver has type
 							// func(*T, ...): the literal dereferences.

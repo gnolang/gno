@@ -726,10 +726,24 @@ type T3 struct {
 	T0
 }
 
+type T4 struct{}
+
+func (T4) v0() int { return 3 }
+
+type Amb struct {
+	T0
+	T4
+}
+
+type I interface{ M() }
+
 func main() {
 	_ = T0.p0 // needs *T0
 	_ = T3.p0 // promoted, still needs a pointer
 	_ = T3.nope
+	_ = Amb.v0  // two at the same depth
+	_ = (*I).M  // a pointer to an interface has no methods
+	_ = I.M     // fine
 	var f func(T3) int = T3.v0
 	var g func(*T3) int = (*T3).p0
 	var g2 func(*T0) int = (*T0).v0 // value method through a pointer
@@ -741,6 +755,8 @@ func main() {
 		"invalid method expression T0.p0 (needs pointer receiver (*T0).p0)",
 		"invalid method expression T3.p0 (needs pointer receiver (*T3).p0)",
 		"T3.nope undefined (type main.T3 has no method nope)",
+		"ambiguous selector Amb.v0",
+		"(*I).M undefined (type *main.I is pointer to interface, not interface)",
 	}
 	for _, w := range want {
 		found := false

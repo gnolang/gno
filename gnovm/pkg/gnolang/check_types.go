@@ -349,7 +349,7 @@ func assertSwitchTag(x Expr, tt Type) {
 
 // assertMethodExprReceiver: the method expression T.m needs *T when m
 // has a pointer receiver (Go spec, "Method expressions").
-func assertMethodExprReceiver(xt Type, dt *DeclaredType, sel Name, recv Type, isPtr bool) {
+func assertMethodExprReceiver(dt *DeclaredType, sel Name, recv Type, isPtr bool) {
 	if _, ptrRecv := recv.(*PointerType); ptrRecv && !isPtr {
 		failf(CodeMethodExprReceiver, nil,
 			"invalid method expression %s.%s (needs pointer receiver (*%s).%s)", dt.Name, sel, dt.Name, sel)
@@ -358,9 +358,15 @@ func assertMethodExprReceiver(xt Type, dt *DeclaredType, sel Name, recv Type, is
 
 // promotedMethodExpr lowers the method expression n (X.Sel, X a type)
 // whose method is promoted through an embedded field to
-// func(r X, args...) results { return r.Sel(args...) }.
+// func(r X, args...) results { return r.Sel(args...) }. Preprocessing
+// the literal evaluates its type expressions on the machine, so the
+// lowering is metered per op, O(params + results).
 func promotedMethodExpr(store Store, last BlockNode, pkgPath string, n *SelectorExpr, xt Type, isPtr bool) *FuncLitExpr {
-	trail, hasPtr, rcvr, ft, status := findEmbeddedFieldType(preprocessGasMeterOf(store), pkgPath, xt, n.Sel)
+	gm := preprocessGasMeterOf(store)
+	trail, hasPtr, rcvr, ft, status := findEmbeddedFieldType(gm, pkgPath, xt, n.Sel)
+	if status == embedLookupAmbiguous {
+		failf(CodeNoMethod, nil, "ambiguous selector %s.%s", exprString(n.X), n.Sel)
+	}
 	if status != embedLookupFound || len(trail) == 0 || trail[len(trail)-1].Type == VPField || trail[len(trail)-1].Type == VPDerefField {
 		failf(CodeNoMethod, nil, "%s.%s undefined (type %v has no method %s)", exprString(n.X), n.Sel, xt, n.Sel)
 	}
