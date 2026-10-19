@@ -2,13 +2,13 @@
 
 - **Status:** proposed. The protocol path works end to end on a local 3-validator gno.land testnet ⇄ Ethereum
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
-  `feat/ibc-controls` (ab794ba, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
-  the Ethereum side in gno-eth-ibc `feat/ibc-controls`
-  ([`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
+  `feat/ibc-controls` (39e5ecf, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
+  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (d9e0ef1,
+  [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
   built; where the implementations depart from the design as reviewed, §8.5 lists each departure and each accepted
   residual.
-- **Date:** 2026-10-16; amended 2026-10-18 to match the implementations (§14).
+- **Date:** 2026-10-16; amended 2026-10-18 and 2026-10-19 to match the implementations (§14).
 - **Scope:** tm2, gnovm, gno.land, the IBC realms (allinbits/gno-realms), the Ethereum contracts, the relayers and
   the off-chain tooling.
 - **Related ADRs:** [`tm2/adr/pr6375_secp256k1_validator_keys.md`](../../tm2/adr/pr6375_secp256k1_validator_keys.md),
@@ -166,7 +166,7 @@ Repositories and branches:
 | Short name | Location |
 |---|---|
 | **gno** | this branch, `feat/secp256k1-validators-ibc` (fork remote clockworkgr/gno) |
-| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, ab794ba; ADR 0004) |
+| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, 39e5ecf; ADR 0004) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
 | **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts; the controls on `feat/ibc-controls` (`docs/controls.md`). |
 | **bridges** | [gnolang/bridges](https://github.com/gnolang/bridges): `main` (Solana, live) and [`ethereum-draft`](https://github.com/gnolang/bridges/tree/ethereum-draft) |
@@ -445,6 +445,10 @@ the app runs, so it stays pending at the source until it times out. Ethereum bou
   - **A proof never releases a reservation**, not even one of delivery, since a proof can go void and be proven
     otherwise; only the settlement applying an outcome still valid at execution releases it (§7.12). A proof of a
     refund owed on a send whose forged success released its backing reserves that refund again at once.
+  - **Settlement freezes a record's evidence**, on both chains: Ethereum's `proveOutcome` and `voidOutcome` refuse a
+    settled record (gno-eth-ibc d9e0ef1); gno.land's `ProveOutcome` refuses it, the replacement's preparation skips
+    it, and a late ack or timeout on it moves nothing (gno-realms 39e5ecf). So no later proof can recreate a hold,
+    change a reservation, or replace the proven ack.
   - An implementation that cannot keep these records (e.g. the transfer realm's pre-controls version) may never be
     reinstalled over a route that has them; both chains enforce it (the gno transfer proxy's `keepsControls`,
     kind 7's controls-version probe).
@@ -1126,7 +1130,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 ### 7.7 Governor and one-way yield — R9/R11
 
 - The realms compile a governor key, which decides through the same builders, checks and delays as GovDAO.
-  **As shipped at ab794ba, `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
+  **As shipped (ab794ba through 39e5ecf), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
   real key in the deployed source, and GovDAO members verify it before the immutable realm is deployed. The
   supported alternative is an empty key (`""`): then no governor exists, `Yield` is refused, and GovDAO decides
   from the first block.
@@ -1703,7 +1707,8 @@ reconciliation.
     the reopening waits for every retired client still blocking it, read through an index (`ReopenBlockers` on
     gno.land, `pendingIncidents` on Ethereum), in logarithmic or constant work whatever the number of replacements.
     Each client id is retired once, so suspect ranges never overlap.
-  - **Settlements are final once they apply** (an accepted residual). Before then they wait their 7 days, a hold
+  - **Settlements are final once they apply** (an accepted residual), and a settled record's evidence is frozen:
+    no later proof, void, preparation step, ack or timeout changes its outcome, holds or reservations (§5.4). Before then they wait their 7 days, a hold
     defers them, and the outcomes they rest on are void once the proving verifier is no longer Active or changed
     generation. A compromise of that verifier found only after execution does not reopen them: a record settled as
     delivered, or a refund settled as forged, on a fabricated proof stays settled, and no governed path on either
@@ -2152,7 +2157,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
      sequence and the §7.12 recovery path, quarantine in `GnoLightClient`, `finishSetup` check list and role
      cleanup.
    - Foundry tests, including fuzzing the limits and the hold state machine.
-3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, ab794ba, ADR 0004).
+3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, 39e5ecf, ADR 0004).
    - Transfer proxy entry point for `Claim`, and a new impl with meters (both accountings), claims, send limits,
      route-scoped flags and voids per client.
    - Move every loosening authority (impl upgrades, membership, relayer list) to `ibcgov`; remove the deployer.
@@ -2510,6 +2515,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   accepted any false update or proof; otherwise kind 10 or the emergency recovery, with reconciliation; §7.12); queued and parked refunds stay claimable after
   a client fails (§7.6, §8.3); a pre-installation transition's quarantine counts from its existing timestamp
   (§7.10, §8.4).
+- 2026-10-19, settlement freezes a record's evidence on both chains (gno-eth-ibc d9e0ef1: `proveOutcome` and
+  `voidOutcome` refuse a settled record; gno-realms 39e5ecf: `ProveOutcome` refuses it, preparation skips it, a late
+  ack or timeout moves nothing), so no later proof recreates a hold, changes a reservation or replaces the proven
+  ack (§5.4, §7.12). Implementation references updated to gno-realms 39e5ecf and gno-eth-ibc d9e0ef1.
 
 ## 15. References
 
@@ -2520,7 +2529,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - gno-realms:
   - [branch `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client)
   - ADRs [0001](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0001-proxy-realm-for-core-upgrades.md), [0002](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0002-proxy-realm-for-transfer-upgrades.md), [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md)
-  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (ab794ba): ADR
+  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (39e5ecf): ADR
     [0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)
     (Ethereum route controls, `ibcgov`, core changes), the
     [upgrade runbook](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/upgrade-runbook.md)
