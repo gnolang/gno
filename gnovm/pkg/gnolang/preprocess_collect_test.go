@@ -539,3 +539,82 @@ func main() {
 		"main.gno:18:7", "cannot use",
 	)
 }
+
+func TestPreprocessCollectElements(t *testing.T) {
+	t.Run("each failing element of a package-level literal", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+const max32 = 3.40282346638528859811704183484516925440e+38
+
+var x = []interface{}{
+	float32(max32),
+	float32(max32 * 2),
+	float32(-max32 * 2),
+	"ok",
+	float64(1e400),
+	float64(-1e400),
+}
+
+func main() { println(x) }
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:7:2", "cannot convert",
+			"main.gno:8:2", "cannot convert",
+			"main.gno:10:2", "cannot convert",
+			"main.gno:11:2", "cannot convert",
+		)
+	})
+
+	t.Run("bad keys, also on the dependency path", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+type T struct {
+	toInt    map[string]int
+	toString map[int]string
+}
+
+var u = t
+
+var t = T{
+	foo.toInt:    make(map[string]int),
+	bar.toString: make(map[int]string),
+}
+
+func main() { println(u) }
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:11:2", "name foo not declared",
+			"main.gno:12:2", "name bar not declared",
+		)
+	})
+
+	t.Run("in a function body", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+type P struct{ A, B int }
+
+func main() {
+	x := []int{1, "s", 2, 3.5}
+	p := P{1, "s"}
+	m := map[string]int{"a": 1, 2: 2, "c": "s"}
+	println(x, p, m)
+}
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:6:16", "cannot use",
+			"main.gno:6:24", "cannot convert",
+			"main.gno:7:12", "cannot use",
+			"main.gno:8:30", "cannot use",
+			"main.gno:8:41", "cannot use",
+		)
+	})
+}

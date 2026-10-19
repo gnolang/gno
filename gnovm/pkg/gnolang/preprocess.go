@@ -1223,7 +1223,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				stack = stack[:1] // every block above ctx was pushed below n
 			}
 			last = stack[len(stack)-1]
-			if ftype == TRANS_SWITCH_CASE {
+			switch ftype {
+			case TRANS_COMPOSITE_KEY, TRANS_COMPOSITE_VALUE:
+				// the element alone drops: typed invalid, the literal's
+				// rule passes it (a key so typed is removed there).
+				acc.record(pe)
+				return invalidConstExpr(n.(Expr)), true
+			case TRANS_SWITCH_CASE:
 				n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // the switch skips it
 			}
 			acc.dropStmt(pe, n, last)
@@ -2924,6 +2930,40 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *CompositeLitExpr:
+				dropInvalidKeys := func() {
+					// accumulate mode: an element whose key dropped goes
+					// (a dropped value stays, typed invalid).
+					n.Elts = slices.DeleteFunc(n.Elts, func(kv KeyValueExpr) bool {
+						return isInvalidExpr(kv.Key)
+					})
+				}
+				if acc != nil {
+					dropInvalidKeys()
+				}
+				// checkElt is checkOrConvertType (convertType with convert)
+				// for one element: in accumulate mode its failure is
+				// recorded at the element, which becomes invalid, so the
+				// siblings are still checked.
+				checkElt := func(x *Expr, t Type, convert bool) {
+					check := checkOrConvertType
+					if convert {
+						check = convertType
+					}
+					if acc == nil {
+						check(store, last, n, x, t)
+						return
+					}
+					defer func() {
+						if r := recover(); r != nil {
+							if isRuntimePanic(r) {
+								panic(r)
+							}
+							acc.record(wrapPreprocessPanic(stack, unconst(*x), r)) // a const keeps its source's span
+							*x = invalidConstExpr(*x)
+						}
+					}()
+					check(store, last, n, x, t)
+				}
 				// Get or evaluate composite type.
 				clt := evalStaticType(store, last, n.Type)
 				n.Type = toConstTypeExpr(last, n.Type, clt)
@@ -2937,7 +2977,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							key := n.Elts[i].Key.(*NameExpr).Name
 							path := cclt.GetPathForName(key)
 							ft := cclt.GetStaticTypeOfAt(path)
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							checkElt(&n.Elts[i].Value, ft, false)
 						}
 					} else {
 						// Check for unexported fields in unkeyed struct literals
@@ -2952,7 +2992,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							checkElt(&n.Elts[i].Value, ft, false)
 						}
 					}
 				case *ArrayType:
@@ -2960,16 +3000,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
 						}
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						checkElt(&n.Elts[i].Key, IntType, true)
+						checkElt(&n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
 							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
 						}
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						checkElt(&n.Elts[i].Key, IntType, true)
+						checkElt(&n.Elts[i].Value, cclt.Elt, false)
 					}
 				case *MapType:
 					if !isComparable(cclt.Key) {
@@ -2980,10 +3020,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					// checkOrConvertType must be called before the check so that
 					// values are stored in N (not V), making TypedValue comparable.
 					kset := make(map[TypedValue]struct{})
-					for i, elt := range n.Elts {
-						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() {
+					for i := range n.Elts {
+						checkElt(&n.Elts[i].Key, cclt.Key, false)
+						checkElt(&n.Elts[i].Value, cclt.Value, false)
+						elt := n.Elts[i]
+						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() && !isInvalidExpr(cx) {
 							if _, ok := kset[cx.TypedValue]; ok {
 								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
 							}
@@ -2994,6 +3035,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					panic(fmt.Sprintf(
 						"unexpected composite type %s",
 						clt.String()))
+				}
+				if acc != nil {
+					dropInvalidKeys() // a key that failed its own check
 				}
 				// If variadic array lit, measure.
 				if at, ok := clt.(*ArrayType); ok {

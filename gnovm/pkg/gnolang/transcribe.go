@@ -129,7 +129,8 @@ func Transcribe(n Node, t Transform) (nn Node) {
 }
 
 // PanicHandler is consulted when transcribing one body statement, file
-// declaration, or switch or select clause panics. ns, ftype, index and n name the node; r is the panic value.
+// declaration, switch or select clause, or composite literal element
+// panics. ns, ftype, index and n name the node; r is the panic value.
 // Returning true drops the node: nn takes its place (n itself to keep it
 // as is) and the walk continues with the next one; false re-panics.
 type PanicHandler func(ns []Node, ftype TransField, index int, n Node, r any) (nn Node, handled bool)
@@ -150,8 +151,8 @@ func transcribeWith(n Node, t Transform, onPanic PanicHandler) (nn Node) {
 	return
 }
 
-// guarded transcribes one body statement, declaration or clause,
-// handing a panic to onPanic when one is installed.
+// guarded transcribes one body statement, declaration, clause or
+// composite element, handing a panic to onPanic when one is installed.
 func (tc *transcriber) guarded(ns []Node, ftype TransField, index int, n Node, nc *TransCtrl) (nn Node) {
 	if tc.onPanic == nil {
 		return transcribe(tc, ns, ftype, index, n, nc)
@@ -276,12 +277,12 @@ func transcribe(tc *transcriber, ns []Node, ftype TransField, index int, n Node,
 		for idx, kvx := range cnn.Elts {
 			k, v := kvx.Key, kvx.Value
 			if k != nil {
-				k = transcribe(tc, nns, TRANS_COMPOSITE_KEY, idx, k, &c).(Expr)
+				k = tc.guarded(nns, TRANS_COMPOSITE_KEY, idx, k, &c).(Expr)
 				if stopOrSkip(nc, c) {
 					return
 				}
 			}
-			v = transcribe(tc, nns, TRANS_COMPOSITE_VALUE, idx, v, &c).(Expr)
+			v = tc.guarded(nns, TRANS_COMPOSITE_VALUE, idx, v, &c).(Expr)
 			if stopOrSkip(nc, c) {
 				return
 			}
