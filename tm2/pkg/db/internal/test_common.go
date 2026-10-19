@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 	"testing"
 
@@ -108,6 +109,90 @@ func BenchmarkIterator(b *testing.B, db db.DB) {
 			}
 		}
 		it.Close()
+	}
+}
+
+// PrunedRange is a range [Start, End) of live keys, followed by a run of deleted
+// keys and one live key after them: the layout pruning leaves behind.
+type PrunedRange struct {
+	Start, End []byte
+	Live       [][]byte // the keys in [Start, End), in order
+}
+
+// WritePrunedRange writes a PrunedRange followed by the given number of deleted
+// keys. Held as tombstones in the backend's tables, they cost an iterator that
+// runs past End a step each, and a reverse one two.
+func WritePrunedRange(tb testing.TB, store db.DB, deleted int) PrunedRange {
+	tb.Helper()
+
+	r := PrunedRange{
+		Start: []byte("b"),
+		End:   []byte("c"),
+		Live:  [][]byte{[]byte("b1"), []byte("b2"), []byte("b3")},
+	}
+	batch := store.NewBatch()
+	set := func(k []byte) {
+		if err := batch.Set(k, k); err != nil {
+			tb.Fatal(err)
+		}
+	}
+	for _, k := range r.Live {
+		set(k)
+	}
+	for i := range deleted {
+		k := fmt.Appendf(nil, "c%06d", i)
+		set(k)
+		if err := batch.Delete(k); err != nil {
+			tb.Fatal(err)
+		}
+	}
+	set([]byte("d"))
+	if err := batch.Write(); err != nil {
+		tb.Fatal(err)
+	}
+	if err := batch.Close(); err != nil {
+		tb.Fatal(err)
+	}
+	return r
+}
+
+// BenchmarkPrunedRange times draining a forward and a reverse iterator over a
+// PrunedRange at several counts of deleted keys. newStore must leave the deleted
+// keys as tombstones in the store's tables.
+func BenchmarkPrunedRange(b *testing.B, newStore func(tb testing.TB, deleted int) (db.DB, PrunedRange)) {
+	b.Helper()
+
+	for _, deleted := range []int{0, 1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("deleted=%d", deleted), func(b *testing.B) {
+			store, r := newStore(b, deleted)
+			openers := []struct {
+				name string
+				open func(start, end []byte) (db.Iterator, error)
+			}{
+				{"forward", store.Iterator},
+				{"reverse", store.ReverseIterator},
+			}
+			for _, o := range openers {
+				b.Run(o.name, func(b *testing.B) {
+					for b.Loop() {
+						itr, err := o.open(r.Start, r.End)
+						if err != nil {
+							b.Fatal(err)
+						}
+						n := 0
+						for ; itr.Valid(); itr.Next() {
+							n++
+						}
+						if err := itr.Close(); err != nil {
+							b.Fatal(err)
+						}
+						if n != len(r.Live) {
+							b.Fatalf("iterated %d keys, want %d", n, len(r.Live))
+						}
+					}
+				})
+			}
+		})
 	}
 }
 

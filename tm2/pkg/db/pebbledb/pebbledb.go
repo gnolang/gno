@@ -1,7 +1,6 @@
 package pebbledb
 
 import (
-	"bytes"
 	goerrors "errors"
 	"path/filepath"
 	"slices"
@@ -190,7 +189,10 @@ func (pdb *PebbleDB) Iterator(start, end []byte) (db.Iterator, error) {
 
 // Implements DB.
 func (pdb *PebbleDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
-	it, err := pdb.db.NewIter(nil)
+	it, err := pdb.db.NewIter(&pebble.IterOptions{
+		LowerBound: start,
+		UpperBound: end,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -210,32 +212,18 @@ var _ db.Iterator = (*pebbleDBIterator)(nil)
 
 func newPebbleDBIterator(source *pebble.Iterator, start, end []byte, isReverse bool) *pebbleDBIterator {
 	if isReverse {
-		if end == nil {
-			source.Last()
-		} else {
-			valid := source.SeekGE(end)
-			if valid {
-				eoakey := source.Key() // end or after key
-				if bytes.Compare(end, eoakey) <= 0 {
-					source.Prev()
-				}
-			} else {
-				source.Last()
-			}
-		}
+		source.Last()
 	} else {
-		if start == nil {
-			source.First()
-		} else {
-			source.SeekGE(start)
-		}
+		source.First()
 	}
 	return &pebbleDBIterator{
 		source:    source,
 		start:     start,
 		end:       end,
 		isReverse: isReverse,
-		isInvalid: false,
+		// pebble can read an empty UpperBound as none, and no key sorts before
+		// an empty end.
+		isInvalid: end != nil && len(end) == 0,
 	}
 }
 
@@ -258,23 +246,6 @@ func (itr *pebbleDBIterator) Valid() bool {
 	if !itr.source.Valid() {
 		itr.isInvalid = true
 		return false
-	}
-
-	// If key is end or past it, invalid.
-	start := itr.start
-	end := itr.end
-	key := itr.source.Key()
-
-	if itr.isReverse {
-		if start != nil && bytes.Compare(key, start) < 0 {
-			itr.isInvalid = true
-			return false
-		}
-	} else {
-		if end != nil && bytes.Compare(end, key) <= 0 {
-			itr.isInvalid = true
-			return false
-		}
 	}
 
 	// Valid
@@ -387,7 +358,10 @@ func (s *pebbleSnapshot) Iterator(start, end []byte) (db.Iterator, error) {
 
 // Implements Snapshot.
 func (s *pebbleSnapshot) ReverseIterator(start, end []byte) (db.Iterator, error) {
-	it, err := s.snapshot.NewIter(nil)
+	it, err := s.snapshot.NewIter(&pebble.IterOptions{
+		LowerBound: start,
+		UpperBound: end,
+	})
 	if err != nil {
 		return nil, err
 	}

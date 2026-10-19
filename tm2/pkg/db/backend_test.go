@@ -237,6 +237,43 @@ func testDBIterator(t *testing.T, backend db.BackendType) {
 		[]int64(nil), "reverse iterator from 2 (ex) to 4")
 }
 
+func TestDBIteratorEmptyBounds(t *testing.T) {
+	t.Parallel()
+
+	for _, backend := range db.BackendList() {
+		t.Run(string(backend), func(t *testing.T) {
+			t.Parallel()
+
+			if backend == "lmdbdb" {
+				t.Skip("lmdbdb seeks an empty bound, which LMDB rejects with MDB_BAD_VALSIZE")
+			}
+			tdb := newTempDB(t, backend)
+			for i := range 3 {
+				require.NoError(t, tdb.Set(int642Bytes(int64(i)), nil))
+			}
+
+			cases := []struct {
+				name       string
+				open       func(start, end []byte) (db.Iterator, error)
+				start, end []byte
+				want       []int64
+			}{
+				{"forward from empty", tdb.Iterator, []byte{}, nil, []int64{0, 1, 2}},
+				{"reverse to empty", tdb.ReverseIterator, []byte{}, nil, []int64{2, 1, 0}},
+				{"forward to empty", tdb.Iterator, nil, []byte{}, nil},
+				{"reverse from empty", tdb.ReverseIterator, nil, []byte{}, nil},
+				{"forward from empty to empty", tdb.Iterator, []byte{}, []byte{}, nil},
+				{"reverse from empty to empty", tdb.ReverseIterator, []byte{}, []byte{}, nil},
+			}
+			for _, tc := range cases {
+				itr, err := tc.open(tc.start, tc.end)
+				require.NoError(t, err, tc.name)
+				verifyIterator(t, itr, tc.want, tc.name)
+			}
+		})
+	}
+}
+
 func verifyIterator(t *testing.T, itr db.Iterator, expected []int64, msg string) {
 	t.Helper()
 
