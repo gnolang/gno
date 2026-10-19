@@ -15,5 +15,7 @@ func init() int { return 1 } // ERROR "func init must have no arguments and no r
 // GnoError:
 // line 10: main redeclared in this block
 // 	previous declaration at mainsig.go:9:6
+// line 12: func init must have no arguments and no return values
+// line 13: func init must have no arguments and no return values
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9, 12, 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9

@@ -13,5 +13,6 @@ func main() {
 
 // GnoError:
 // line 10: expected '{', found newline
+// line 12: expected ';', found 'EOF'
 
 // Verdict: Clean errorcheck

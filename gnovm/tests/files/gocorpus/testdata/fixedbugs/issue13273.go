@@ -54,7 +54,4 @@ func f() {
 	<-chan<-int // ERROR "unexpected int, expected chan|expecting {" (new parser: same error as for type decl)
 }
 
-// GnoError:
-// line 50: expected 'chan', found '<-'
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 51, 53, 54
+// Verdict: Unsupported channel: channels not supported in Gno

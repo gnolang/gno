@@ -31,12 +31,4 @@ func F() {
 	defer (&s.t).F()
 }
 
-// GnoError:
-// line 22: expression in go must be function call
-// line 23: expression in defer must be function call
-// line 24: expression in go must not be parenthesized
-// line 25: expression in defer must not be parenthesized
-// line 26: expression in go must not be parenthesized
-// line 27: expression in defer must not be parenthesized
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported goroutine: goroutines not supported in Gno

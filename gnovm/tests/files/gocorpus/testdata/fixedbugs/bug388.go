@@ -30,5 +30,11 @@ func main() {
 
 // GnoError:
 // line 12: missing parameter name
+// line 17: expected type, found '.'
+// line 18: unexpected selector expression type *gnolang.FuncType
+// line 22: expected type, found '.'
+// line 23: unexpected selector expression type *gnolang.FuncType
+// line 27: wrong argument count in call to foo<VPBlock(3,0)>; want 0 got 2
+// line 28: name bar not declared
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17, 22
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 27, 28; internal errors: lines 18, 23
