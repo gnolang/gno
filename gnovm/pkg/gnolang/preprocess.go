@@ -1703,6 +1703,12 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						panic("func init must have no arguments and no return values")
 					}
 				}
+				// main, like init, may take only the crossing parameter.
+				if !n.IsMethod && n.Name == "main" && packageOf(last).PkgName == "main" &&
+					(len(n.Type.Results) > 0 ||
+						(len(n.Type.Params) > 0 && !(len(n.Type.Params) == 1 && ft.IsCrossing()))) {
+					panic("func main must have no arguments and no return values")
+				}
 				// a crossing function can only be declared in a realm
 				// (or, as a carve-out, in any *_test.gno file so p/ tests
 				// can declare `TestXxx(cur realm, t *testing.T)` to drive
