@@ -2115,9 +2115,14 @@ func Grow(cur realm, s string) {
 	// many orders of magnitude above 1 ugnot.
 	longStr := strings.Repeat("x", 256)
 	msg := NewMsgCall(master, std.Coins{}, pkgPath, "Grow", []string{longStr})
-	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(8000))
+	// Comfortably above the ~29_400ugnot the growth costs. A ceiling below
+	// that refuses the call for want of deposit before the session is ever
+	// consulted, which would leave the spend limit untested.
+	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
 	_, err := env.vmk.Call(sessionCtx, msg)
 	require.Error(t, err, "storage deposit exceeding session SpendLimit must be rejected")
+	require.Contains(t, err.Error(), "session",
+		"the refusal must come from the spend limit, not the deposit ceiling")
 
 	// Session's SpendUsed unchanged — the check rejected before persisting.
 	reloadedSA := env.acck.GetSessionAccount(sessionCtx, master, sessionPubAddr)

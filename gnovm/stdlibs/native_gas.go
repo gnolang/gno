@@ -77,13 +77,29 @@ type nativeGasEntry struct {
 // today, so the table stays single-slope; the schema fields support
 // future natives that genuinely scale on both dimensions.
 //
-// 66 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
+// 72 entries — exhaustive coverage of gnovm/stdlibs/generated.go.
 // The trailing 10 IBC-crypto entries (crypto/bn254, crypto/cometbls,
 // crypto/keccak256, crypto/merkle, crypto/modexp) are draft fits measured
 // on Intel Xeon Silver 4114; the chain/markdown rows and the rest are on
 // Apple M2. The whole table must be regenerated on the reference Xeon 8168
 // before any consensus-relevant deployment; the IBC rows are flagged
 // "draft" in their trailing comment to make that obvious.
+//
+// The six chain/params Get* rows are a further exception, and a different one:
+// they are not fitted at all. native_bench_output.txt holds no samples for
+// them, so re-running the fitter drops those rows rather than reproducing
+// them. Each Base is copied from the matching Set*, and GetBytes and
+// GetStrings additionally borrow a PostSlope from the sys/params getter of the
+// same shape. The benchmarks that would replace them exist
+// (BenchmarkNative_Params_Get* in
+// gnovm/cmd/calibrate/native_machine_bench_test.go).
+//
+// The borrowed Base is very unlikely to undercharge: a setter writes rather
+// than reads and also runs recordParamsDelta for storage-deposit accounting,
+// so it does strictly more work than the getter lending its price. That
+// argument covers the flat part only. The two borrowed PostSlopes come from
+// measured sys/params getters rather than from a setter, and the four scalar
+// getters carry no length term at all.
 var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "crypto/sha256", Fn: "sum256", Base: 226, Slope: 8906, SlopeIdx: 0, SlopeKind: SizeLenBytes},                                                         // fit base=226.3ns slope=8.6969ns/N (=8906/1024) R²=1.000
 	{Pkg: "crypto/ed25519", Fn: "verify", Base: 56534, Slope: 8975, SlopeIdx: 1, SlopeKind: SizeLenBytes},                                                      // fit base=56534.0ns slope=8.7645ns/N (=8975/1024) R²=0.991
@@ -106,6 +122,11 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain/params", Fn: "SetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // flat, median 1643.0ns
 	{Pkg: "chain/params", Fn: "SetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // flat, median 1201.0ns
 	{Pkg: "chain/params", Fn: "SetUint64", Base: 1219, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // flat, median 1219.0ns
+	{Pkg: "chain/params", Fn: "GetBytes", Base: 1912, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},      // mirrors chain/params keying plus sys/params bytes return cost
+	{Pkg: "chain/params", Fn: "GetString", Base: 1772, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // mirrors chain/params SetString keying cost
+	{Pkg: "chain/params", Fn: "GetBool", Base: 1643, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                        // mirrors chain/params SetBool keying cost
+	{Pkg: "chain/params", Fn: "GetInt64", Base: 1201, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                       // mirrors chain/params SetInt64 keying cost
+	{Pkg: "chain/params", Fn: "GetUint64", Base: 1219, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                      // mirrors chain/params SetUint64 keying cost
 	{Pkg: "sys/params", Fn: "setSysParamBytes", Base: 323, Slope: 9703, SlopeIdx: 3, SlopeKind: SizeLenBytes},                                                  // fit base=323.3ns slope=9.4757ns/N (=9703/1024) R²=0.995
 	{Pkg: "sys/params", Fn: "getSysParamBytes", Base: 416, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 10584, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=415.7ns + 10.3357ns/N (=10584/1024) R²=1.000
 	{Pkg: "sys/params", Fn: "setSysParamString", Base: 269, SlopeIdx: -1, SlopeKind: SizeFlat},                                                                 // flat, median 269.1ns
@@ -129,6 +150,7 @@ var calibratedNativeGas = []nativeGasEntry{
 	{Pkg: "chain", Fn: "emit", Base: 362, Slope: 40218, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                                    // fit base=361.9ns slope=39.2750ns/N (=40218/1024) R²=0.955
 	{Pkg: "chain/params", Fn: "SetStrings", Base: 1601, Slope: 39842, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                                      // fit base=1601.1ns slope=38.9082ns/N (=39842/1024) R²=0.993
 	{Pkg: "chain/params", Fn: "UpdateParamStrings", Base: 1298, Slope: 24077, SlopeIdx: 1, SlopeKind: SizeLenSlice},                                              // fit base=1298.0ns slope=23.5122ns/N (=24077/1024) R²=1.000
+	{Pkg: "chain/params", Fn: "GetStrings", Base: 1601, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen},      // mirrors chain/params keying plus sys/params strings return cost
 	{Pkg: "sys/params", Fn: "setSysParamStrings", Base: 341, Slope: 27034, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                                 // fit base=341.0ns slope=26.4006ns/N (=27034/1024) R²=0.997
 	{Pkg: "sys/params", Fn: "updateSysParamStrings", Base: 413, Slope: 26861, SlopeIdx: 3, SlopeKind: SizeLenSlice},                                              // fit base=413.4ns slope=26.2318ns/N (=26861/1024) R²=0.998
 	{Pkg: "sys/params", Fn: "getSysParamStrings", Base: 349, SlopeIdx: -1, SlopeKind: SizeFlat, PostSlope: 23215, PostSlopeIdx: 2, PostSlopeKind: SizeReturnLen}, // post-call: base=348.9ns + 22.6713ns/N (=23215/1024) R²=0.999

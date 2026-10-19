@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -1143,4 +1144,39 @@ func TestAnteHandlerRequireSigForSimulateAcceptsValidSig(t *testing.T) {
 	tx := tu.NewTestTx(t, ctx.ChainID(), []std.Msg{tu.NewTestMsg(addr)},
 		[]crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, tu.NewTestFee())
 	checkValidTx(t, anteHandler, ctx, tx, true)
+}
+
+// The node's minimum and the block minimum are one rule, and both now go through
+// GasPrice.IsGTE. When this cross-multiplied inline it did not inherit IsGTE's
+// guards: a negative gas_wanted flips the sign of one side, so a fee of nothing
+// compared as sufficient and the transaction entered the mempool.
+//
+// Nothing was exploitable -- SetGasMeter runs two lines later and NewGasMeter
+// panics on a negative limit -- but the two implementations disagreed on the
+// same inputs, and only one of them had been fixed.
+func TestMempoolFeeRefusesNonPositiveGasWanted(t *testing.T) {
+	t.Parallel()
+
+	minGP, err := std.ParseGasPrice("1ugnot/1000gas")
+	require.NoError(t, err)
+	ctx := sdk.NewContext(sdk.RunTxModeCheck, nil, &bft.Header{ChainID: "test"}, nil).
+		WithMinGasPrices([]std.GasPrice{minGP}).
+		// No block gas price, so the node minimum is the only rule in play.
+		WithValue(GasPriceContextKey{}, std.GasPrice{})
+
+	feeOf := func(gasWanted, amount int64) std.Fee {
+		return std.Fee{GasWanted: gasWanted, GasFee: std.Coin{Denom: "ugnot", Amount: amount}}
+	}
+
+	// Controls: the rule still works for real gas, in both directions.
+	require.True(t, EnsureSufficientMempoolFees(ctx, feeOf(1000, 10)).IsOK(),
+		"paying above the minimum must be accepted")
+	require.False(t, EnsureSufficientMempoolFees(ctx, feeOf(1000, 0)).IsOK(),
+		"paying nothing for real gas must be refused")
+
+	// A fee of nothing must not become sufficient by negating the gas.
+	for _, gasWanted := range []int64{-1, -1000, math.MinInt64} {
+		require.False(t, EnsureSufficientMempoolFees(ctx, feeOf(gasWanted, 0)).IsOK(),
+			"gas_wanted %d must be refused", gasWanted)
+	}
 }

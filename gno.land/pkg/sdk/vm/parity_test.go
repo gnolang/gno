@@ -32,21 +32,29 @@ func TestCodecParity_VM(t *testing.T) {
 		name string
 		v    any
 	}{
+		// MaxDeposit is on all three and is money: it caps the storage deposit
+		// taken from the payer, and an empty one falls back to the chain's
+		// default. A dropped or misnumbered field would raise what the signer
+		// agreed to pay, so every case carries one.
 		{"MsgCall", &vm.MsgCall{
-			Caller:  caller,
-			Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
-			PkgPath: "gno.land/r/demo/foo",
-			Func:    "Hello",
-			Args:    []string{"world"},
+			Caller:     caller,
+			Send:       std.Coins{{Denom: "ugnot", Amount: 100}},
+			MaxDeposit: std.Coins{{Denom: "ugnot", Amount: 7000}},
+			PkgPath:    "gno.land/r/demo/foo",
+			Func:       "Hello",
+			Args:       []string{"world"},
 		}},
 		{"MsgAddPackage", &vm.MsgAddPackage{
-			Creator: caller,
-			Package: pkg,
-			Send:    std.Coins{{Denom: "ugnot", Amount: 50}},
+			Creator:    caller,
+			Package:    pkg,
+			Send:       std.Coins{{Denom: "ugnot", Amount: 50}},
+			MaxDeposit: std.Coins{{Denom: "ugnot", Amount: 8000}},
 		}},
 		{"MsgRun", &vm.MsgRun{
-			Caller:  caller,
-			Package: pkg,
+			Caller:     caller,
+			Package:    pkg,
+			Send:       std.Coins{{Denom: "ugnot", Amount: 25}},
+			MaxDeposit: std.Coins{{Denom: "ugnot", Amount: 9000}},
 		}},
 		// The two inert-flow messages. They arrived with about 400 lines of
 		// hand-written pb3_gen.go and were not covered here, so a wrong field
@@ -75,6 +83,15 @@ func TestCodecParity_VM(t *testing.T) {
 			PkgPath: "gno.land/r/demo/foo",
 		}},
 		{"Params", &vm.Params{}},
+		// The inert submission charge, which defaults to empty because empty
+		// means off. DefaultParams leaves it that way and the encoder skips an
+		// empty string, so no other case reaches its marshal path -- a field
+		// dropped there would read back as off, and a charge governance had
+		// turned on would quietly stop being taken.
+		{"ParamsInertCharge", &vm.Params{
+			InertSubmissionCharge: "1000ugnot",
+			InertChargeCollector:  crypto.AddressFromPreimage([]byte("inert-collector")),
+		}},
 		// Populated address lists. The empty Params case above never enters the
 		// repeated-field marshal/size/unmarshal loops in pb3_gen.go, so it passes
 		// even if a repeated field has no codec at all — and DefaultParams()

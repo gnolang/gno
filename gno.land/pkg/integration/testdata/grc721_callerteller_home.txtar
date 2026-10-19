@@ -1,0 +1,124 @@
+# Regression: a frame-relative CallerTeller only works in the token's own realm.
+#
+# The direct mint is closed by construction and has no runtime test here: the
+# accessor hangs off *PrivateLedger, which never leaves the token's realm, so a
+# foreign realm attempting `token.CallerTeller()` does not compile.
+#
+# What remains testable is the value-leak path: `leaky721` legally builds a
+# teller from its own ledger and then exports it. The write-time home check
+# makes that value inert in any other realm, so both of the following are
+# refused:
+#
+#   (a) TransferFrom driven by a realm the user merely called — the actor is
+#       resolved from the frame, so without the home check the attacker acts as
+#       whoever crossed in and takes their NFT
+#   (b) SetApprovalForAll from that same foreign realm, which would hand the
+#       attacker standing authority over the victim's whole collection
+#
+# Each attacker surfaces the error rather than swallowing it, so these assert
+# the specific refusal and not merely that no token happened to move.
+
+loadpkg gno.land/p/demo/tokens/grc721
+loadpkg gno.land/r/test/leaky721 $WORK/leaky721
+loadpkg gno.land/r/test/n721attack $WORK/n721attack
+
+gnoland start
+
+# The collection mints token "1" to the signing user.
+gnokey maketx call -pkgpath gno.land/r/test/leaky721 -func MintTo -args $test1_user_addr -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/leaky721 -func OwnerOf -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout $test1_user_addr
+
+## (a) the exported teller cannot move the caller's NFT from a foreign realm.
+! gnokey maketx call -pkgpath gno.land/r/test/n721attack -func Pull -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'frame-relative teller used outside the token.s realm'
+
+## (b) nor grant itself blanket operator rights over the caller.
+! gnokey maketx call -pkgpath gno.land/r/test/n721attack -func GrabAll -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'frame-relative teller used outside the token.s realm'
+
+## Ownership is unchanged.
+gnokey maketx call -pkgpath gno.land/r/test/leaky721 -func OwnerOf -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout $test1_user_addr
+
+## The same teller still works at home, so the guard is scoped and not a
+## blanket disable: leaky721 moves the user's token with the user's approval.
+gnokey maketx call -pkgpath gno.land/r/test/leaky721 -func ApproveHome -args '1' -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stdout OK!
+
+-- leaky721/gnomod.toml --
+module = "gno.land/r/test/leaky721"
+gno = "0.9"
+-- leaky721/leaky721.gno --
+package leaky721
+
+import "gno.land/p/demo/tokens/grc721"
+
+var (
+	Token  *grc721.Token
+	ledger *grc721.PrivateLedger
+
+	// Teller is exported on purpose: this is the leak the home guard closes.
+	Teller grc721.Teller
+)
+
+func init(cur realm) {
+	Token, ledger = grc721.NewToken("Leaky", "LEAK", 0, cur)
+	Teller = ledger.CallerTeller()
+}
+
+func MintTo(cur realm, to address, tid string) {
+	if err := ledger.Mint(to, grc721.TokenID(tid)); err != nil {
+		panic(err)
+	}
+}
+
+func OwnerOf(cur realm, tid string) string {
+	owner, err := Token.OwnerOf(grc721.TokenID(tid))
+	if err != nil {
+		panic(err)
+	}
+	return owner.String()
+}
+
+// ApproveHome uses the same teller from the token's own realm, where the actor
+// is the user who called in and the write is legitimate.
+func ApproveHome(cur realm, tid string) {
+	if err := Teller.Approve(0, cur, chain_addr(), grc721.TokenID(tid)); err != nil {
+		panic(err)
+	}
+}
+
+func chain_addr() address { return address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") }
+
+-- n721attack/gnomod.toml --
+module = "gno.land/r/test/n721attack"
+gno = "0.9"
+-- n721attack/n721attack.gno --
+package n721attack
+
+import (
+	"chain"
+
+	"gno.land/p/demo/tokens/grc721"
+	"gno.land/r/test/leaky721"
+)
+
+// Pull tries to take an NFT from whoever called this realm, through the
+// exported teller. The actor would be cur.Previous() — the victim.
+func Pull(cur realm, tid string) {
+	victim := cur.Previous().Address()
+	me := chain.PackageAddress("gno.land/r/test/n721attack")
+	if err := leaky721.Teller.TransferFrom(0, cur, victim, me, grc721.TokenID(tid)); err != nil {
+		panic(err)
+	}
+}
+
+// GrabAll tries to make itself an operator for everything the caller owns.
+func GrabAll(cur realm) {
+	me := chain.PackageAddress("gno.land/r/test/n721attack")
+	if err := leaky721.Teller.SetApprovalForAll(0, cur, me, true); err != nil {
+		panic(err)
+	}
+}

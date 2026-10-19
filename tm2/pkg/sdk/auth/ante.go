@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
+	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -124,7 +125,13 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			return newCtx, abciResult(err), true
 		}
 
-		newCtx.GasMeter().ConsumeGas(params.TxSizeCostPerByte*store.Gas(len(newCtx.TxBytes())), "txSize")
+		// Mulp, not a bare multiply: TxSizeCostPerByte is only validated positive,
+		// so an absurd one wraps. Some wraps land negative and the meter refuses
+		// them, but others land small and positive -- a 4096-byte transaction
+		// charged 4096 gas for its size, silently. Panic on the overflow instead,
+		// as the same per-byte multiply does in gno.land/pkg/sdk/vm.
+		newCtx.GasMeter().ConsumeGas(
+			overflow.Mulp(params.TxSizeCostPerByte, store.Gas(len(newCtx.TxBytes()))), "txSize")
 
 		if res := ValidateMemo(tx, params); !res.IsOK() {
 			return newCtx, res, true
@@ -518,32 +525,36 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 		return sdk.Result{}
 	} else {
 		fgw := big.NewInt(fee.GasWanted)
-		fga := big.NewInt(fee.GasFee.Amount)
 		fgd := fee.GasFee.Denom
 
 		for _, gp := range minGasPrices {
-			gpg := big.NewInt(gp.Gas)
-			gpa := big.NewInt(gp.Price.Amount)
-			gpd := gp.Price.Denom
-
-			if fgd == gpd {
-				prod1 := big.NewInt(0).Mul(fga, gpg) // fee amount * price gas
-				prod2 := big.NewInt(0).Mul(fgw, gpa) // fee gas * price amount
-				// This is equivalent to checking
-				// That the Fee / GasWanted ratio is greater than or equal to the minimum GasPrice per gas.
-				// This approach helps us avoid dealing with configurations where the value of
-				// the minimum gas price is set to 0.00001ugnot/gas.
-				if prod1.Cmp(prod2) >= 0 {
-					return sdk.Result{}
-				} else {
-					fee := new(big.Int).Quo(prod2, gpg)
-					return abciResult(std.ErrInsufficientFee(
-						fmt.Sprintf(
-							"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %d with %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, fee, gp,
-						),
-					))
-				}
+			if fgd != gp.Price.Denom {
+				continue
 			}
+			// Decided by GasPrice.IsGTE, the same comparison the block minimum
+			// above uses, so one implementation owns the rule. Cross-multiplying
+			// here instead meant this copy did not inherit IsGTE's guards: a
+			// negative gas_wanted flips the sign of one side, and a fee of nothing
+			// then compares as sufficient.
+			ok, err := feeGasPrice.IsGTE(gp)
+			if err != nil {
+				return abciResult(std.ErrInsufficientFee(err.Error()))
+			}
+			if ok {
+				return sdk.Result{}
+			}
+			// What the fee should have been, for the message. ParseGasPrice
+			// refuses a non-positive gp.Gas and IsGTE has already refused a
+			// non-positive gas_wanted, so this cannot divide by zero.
+			required := new(big.Int).Quo(
+				new(big.Int).Mul(fgw, big.NewInt(gp.Price.Amount)),
+				big.NewInt(gp.Gas),
+			)
+			return abciResult(std.ErrInsufficientFee(
+				fmt.Sprintf(
+					"insufficient fees; got: {Gas-Wanted: %d, Gas-Fee %s}, fee required: %d with %+v as minimum gas price set by the node", feeGasPrice.Gas, feeGasPrice.Price, required, gp,
+				),
+			))
 		}
 	}
 

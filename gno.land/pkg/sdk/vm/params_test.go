@@ -556,3 +556,37 @@ func TestAddressListLengthCap(t *testing.T) {
 		})
 	}
 }
+
+// DefaultDeposit and StoragePrice are read back with std.MustParseCoin, which
+// takes exactly one coin, and both are then used as ugnot amounts. Validate is
+// the only gate on a parameter change, so anything it lets through reaches those
+// two call sites.
+//
+// A set panics there, which fails every transaction that touches storage; a
+// non-ugnot denom is worse than a panic because it is silent -- the amount is
+// spent as ugnot under another denom's name.
+func TestParamsValidateStorageMoneyParams(t *testing.T) {
+	t.Parallel()
+
+	valid := DefaultParams()
+	require.NoError(t, valid.Validate(), "the defaults must pass")
+
+	for _, tt := range []struct {
+		name   string
+		mutate func(*Params)
+	}{
+		{"deposit as a set", func(p *Params) { p.DefaultDeposit = "1ugnot,2atom" }},
+		{"price as a set", func(p *Params) { p.StoragePrice = "1ugnot,2atom" }},
+		{"deposit in another denom", func(p *Params) { p.DefaultDeposit = "5atom" }},
+		{"price in another denom", func(p *Params) { p.StoragePrice = "5atom" }},
+		{"deposit empty", func(p *Params) { p.DefaultDeposit = "" }},
+		{"price empty", func(p *Params) { p.StoragePrice = "" }},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p := DefaultParams()
+			tt.mutate(&p)
+			require.Error(t, p.Validate(), "Validate must refuse %s", tt.name)
+		})
+	}
+}

@@ -3,7 +3,6 @@ package std
 import (
 	"fmt"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -187,8 +186,15 @@ type Coins []Coin
 
 // NewCoins constructs a new coin set.
 func NewCoins(coins ...Coin) Coins {
+	// Sort below reorders in place, and with `NewCoins(myVar...)` the variadic
+	// array is the caller's own slice, so sorting it would silently reorder what
+	// the caller still holds. Copy first. The Gno mirror in chain/coins.gno
+	// copies for the same reason.
+	cz := make(Coins, len(coins))
+	copy(cz, coins)
+
 	// remove zeroes
-	newCoins := removeZeroCoins(Coins(coins))
+	newCoins := removeZeroCoins(cz)
 	if len(newCoins) == 0 {
 		return Coins{}
 	}
@@ -547,6 +553,9 @@ func (coins Coins) Empty() bool {
 }
 
 // Returns the amount of a denom from coins, which may be negative.
+//
+// The set must be sorted. This is a binary search, so on an unsorted set it can
+// step past a denom that is there and return 0 without saying so.
 func (coins Coins) AmountOf(denom string) int64 {
 	mustValidateDenom(denom)
 
@@ -610,14 +619,23 @@ func (coins Coins) IsAnyNegative() bool {
 
 // negative returns a set of coins with all amount negative.
 //
+// Panics rather than wrapping, like the arithmetic that uses it. MinInt64 has no
+// positive counterpart, so negating it silently returns MinInt64 again; SubUnsafe
+// subtracts by adding this, and would then add where it meant to subtract and
+// report a plausible wrong number instead of the overflow it really hit.
+//
 // TODO: Remove once unsigned integers are used.
 func (coins Coins) negative() Coins {
 	res := make([]Coin, 0, len(coins))
 
 	for _, coin := range coins {
+		amount, ok := overflow.Sub(0, coin.Amount)
+		if !ok {
+			panic(fmt.Sprintf("coin negate overflow: %v", coin))
+		}
 		res = append(res, Coin{
 			Denom:  coin.Denom,
-			Amount: -1 * coin.Amount,
+			Amount: amount,
 		})
 	}
 
@@ -625,19 +643,37 @@ func (coins Coins) negative() Coins {
 }
 
 // removeZeroCoins removes all zero coins from the given coin set in-place.
+// removeZeroCoins returns coins without its zero-amount entries.
+//
+// The argument is never modified. Callers pass a view of data they do not own:
+// [Coins.AddUnsafe] passes both its receiver and its argument, and [NewCoins]
+// passes the variadic array, which is the caller's own slice when spread with
+// `NewCoins(myVar...)`. Deleting in place shifts the rest of the set down over
+// the gap, so the caller would come back holding a reordered set with a
+// zero-amount coin at the end that it never had -- one that no longer passes
+// [Coins.Validate].
+//
+// Returns the input as-is when there is nothing to remove, which is every call
+// on a valid set, since validate rejects a zero amount. So the common path
+// still does not allocate.
 func removeZeroCoins(coins Coins) Coins {
-	i, l := 0, len(coins)
-	for i < l {
-		if coins[i].IsZero() {
-			// remove coin
-			coins = slices.Delete(coins, i, i+1)
-			l--
-		} else {
-			i++
+	zeros := 0
+	for _, coin := range coins {
+		if coin.IsZero() {
+			zeros++
 		}
 	}
+	if zeros == 0 {
+		return coins
+	}
 
-	return coins[:i]
+	res := make(Coins, 0, len(coins)-zeros)
+	for _, coin := range coins {
+		if !coin.IsZero() {
+			res = append(res, coin)
+		}
+	}
+	return res
 }
 
 // -----------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -3721,10 +3722,16 @@ func TestInitChainer_VestingAccount(t *testing.T) {
 			require.True(t, qres.IsOK(), "account query response: %v", qres)
 
 			if tt.isVesting {
-				// The account should be a vesting account type.
-				assert.Contains(t, string(qres.Data), "Vesting")
+				// An ordinary account carrying a schedule, so what identifies it
+				// is the field rather than a type name.
+				assert.Contains(t, string(qres.Data), `"vesting"`)
+				assert.Contains(t, string(qres.Data), vestingAmount.String())
 				// The account number must be present.
 				assert.Contains(t, string(qres.Data), "account_number")
+			} else {
+				// An account with no schedule must not carry the key at all: that
+				// is what keeps the field out of every existing account's bytes.
+				assert.NotContains(t, string(qres.Data), `"vesting"`)
 			}
 
 			// Verify the coins are set correctly.
@@ -3952,9 +3959,12 @@ func TestApplyBalanceWithARepeatedAddress(t *testing.T) {
 	cfg.applyBalance(ctx, Balance{Address: vester, Amount: amount, Vesting: &std.VestingSchedule{
 		OriginalVesting: amount, StartTime: 100, EndTime: 1_000_000,
 	}})
-	require.IsType(t, &std.ContinuousVestingAccount{}, acck.GetAccount(ctx, vester))
-	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
 	require.IsType(t, &GnoAccount{}, acck.GetAccount(ctx, vester),
+		"a vesting balance is an ordinary account carrying a schedule")
+	require.False(t, acck.GetAccount(ctx, vester).GetVesting().IsZero(),
+		"the schedule must have been set")
+	cfg.applyBalance(ctx, Balance{Address: vester, Amount: std.Coins{{Denom: ugnot.Denom, Amount: 500}}})
+	require.True(t, acck.GetAccount(ctx, vester).GetVesting().IsZero(),
 		"a plain entry must clear an earlier vesting schedule")
 	require.NoError(t, bankk.SubtractCoins(ctx, vester, std.Coins{{Denom: ugnot.Denom, Amount: 1}}),
 		"and the funds must be spendable")
@@ -4243,4 +4253,195 @@ func TestSimulateVerifiesSignaturesOnCodeBearingTx(t *testing.T) {
 				"an ordinary message must not be refused for its signature")
 		}
 	})
+}
+
+// A vesting account must also be whitelistable against the token lock. The two
+// are meant to be combined -- see docs/CONSTITUTION.md, "Whitelisted funds
+// remain subject to the vesting schedule" -- and the combination used to abort
+// genesis, because applyBalance built a bare std.BaseAccount subtype while
+// applyUnrestrictedAddrs asserts every genesis account to *GnoAccount.
+func TestInitChainer_VestingAccountCanBeWhitelisted(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	addr := crypto.AddressFromPreimage([]byte("vested-investor"))
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
+	cfg.applyBalance(ctx, Balance{Address: addr, Amount: amount, Vesting: &std.VestingSchedule{
+		OriginalVesting: amount, StartTime: 100, EndTime: 200,
+	}})
+
+	// The panic this guards against happened here.
+	require.NotPanics(t, func() {
+		cfg.applyUnrestrictedAddrs(ctx, []crypto.Address{addr})
+	}, "a vesting account must be whitelistable")
+
+	acc := acck.GetAccount(ctx, addr)
+	unrestricter, ok := acc.(std.AccountUnrestricter)
+	require.True(t, ok, "a vesting account must carry the token-lock attributes")
+	assert.True(t, unrestricter.IsTokenLockWhitelisted(), "the whitelist bit must have been set")
+
+	// Both rules still apply: whitelisted against the token lock, and still
+	// locked by the schedule. Whitelisting must not have cleared it.
+	assert.False(t, acc.GetVesting().IsZero(), "whitelisting must not clear the schedule")
+	locked := acc.LockedCoins(time.Unix(150, 0))
+	assert.Equal(t, int64(500), locked.AmountOf(ugnot.Denom),
+		"halfway through, half must still be locked")
+}
+
+// applyBalance is the runtime path that builds accounts, and it holds the only
+// guards on a genesis schedule. Balance.Verify checks the same two things, but it
+// runs only under `gnogenesis verify`, which an operator can skip; these must
+// abort the boot on their own.
+func TestInitChainer_RejectsABadVestingSchedule(t *testing.T) {
+	t.Parallel()
+
+	amount := std.Coins{{Denom: ugnot.Denom, Amount: 1000}}
+
+	tests := []struct {
+		name    string
+		vesting *std.VestingSchedule
+		want    string
+	}{
+		{
+			name: "vesting more than the balance",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: ugnot.Denom, Amount: 5000}},
+				StartTime:       100,
+				EndTime:         200,
+			},
+			want: "exceeds the balance",
+		},
+		{
+			name: "vesting a denom the balance does not hold",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: std.Coins{{Denom: "atom", Amount: 1}},
+				StartTime:       100,
+				EndTime:         200,
+			},
+			want: "exceeds the balance",
+		},
+		{
+			name: "linear vesting that starts after it ends",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: amount,
+				StartTime:       300,
+				EndTime:         100,
+			},
+			want: "invalid vesting schedule",
+		},
+		{
+			name: "an end time of zero",
+			vesting: &std.VestingSchedule{
+				OriginalVesting: amount,
+				Type:            std.VestingDelayed,
+			},
+			want: "invalid vesting schedule",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			db := memdb.NewMemDB()
+			mainKey := store.NewStoreKey("mainKey")
+			ms := store.NewCommitMultiStore(db)
+			ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+			require.NoError(t, ms.LoadLatestVersion())
+			ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+			prmk := params.NewParamsKeeper(mainKey)
+			acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+			bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+			prmk.Register(auth.ModuleName, acck)
+			prmk.Register(bank.ModuleName, bankk)
+			cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+			addr := crypto.AddressFromPreimage([]byte("bad-vester"))
+			bal := Balance{Address: addr, Amount: amount, Vesting: tt.vesting}
+
+			defer func() {
+				r := recover()
+				require.NotNil(t, r, "a bad schedule must abort genesis")
+				assert.Contains(t, fmt.Sprint(r), tt.want)
+				// Nothing may be left behind by a boot that aborted.
+				assert.Nil(t, acck.GetAccount(ctx, addr),
+					"the account must not have been written")
+			}()
+			cfg.applyBalance(ctx, bal)
+		})
+	}
+}
+
+// The whole path an operator actually takes: a balance sheet with a vesting
+// entry, loaded from file, applied at genesis, and then enforced by the bank.
+// Each half is covered on its own; this is the seam between them, where a
+// schedule that parses but never reaches the account would otherwise go
+// unnoticed.
+func TestInitChainer_VestingFromABalanceSheetIsEnforced(t *testing.T) {
+	t.Parallel()
+
+	const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+
+	sheet := filepath.Join(t.TempDir(), "balances.txt")
+	require.NoError(t, os.WriteFile(sheet,
+		[]byte(addr+"=1000ugnot;vesting=1000ugnot,100,200\n"), 0o600))
+
+	loaded, err := LoadGenesisBalancesFile(sheet)
+	require.NoError(t, err)
+
+	db := memdb.NewMemDB()
+	mainKey := store.NewStoreKey("mainKey")
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(mainKey, storebptree.FastStoreConstructor, db)
+	require.NoError(t, ms.LoadLatestVersion())
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test"}, log.NewNoopLogger())
+
+	prmk := params.NewParamsKeeper(mainKey)
+	acck := auth.NewAccountKeeper(mainKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, std.ProtoBaseSessionAccount)
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), mainKey, []string{ugnot.Denom})
+	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(bank.ModuleName, bankk)
+	cfg := InitChainerConfig{acck: acck, bankk: bankk}
+
+	for _, bal := range loaded.List() {
+		cfg.applyBalance(ctx, bal)
+	}
+
+	vester := crypto.MustAddressFromString(addr)
+	to := crypto.AddressFromPreimage([]byte("sheet-vesting-to"))
+
+	atTime := func(unix int64) sdk.Context {
+		return ctx.WithBlockHeader(&bft.Header{ChainID: ctx.ChainID(), Time: time.Unix(unix, 0)})
+	}
+
+	// Before it starts: the schedule made it all the way from the file.
+	before := atTime(50)
+	require.Error(t, bankk.SendCoins(before, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 1}}),
+		"a schedule read from the sheet must be enforced")
+	require.Equal(t, int64(1000), bankk.GetCoin(before, vester, ugnot.Denom))
+
+	// Halfway: exactly half is spendable, so this pins the schedule's numbers and
+	// not merely that something is locked.
+	half := atTime(150)
+	require.Error(t, bankk.SendCoins(half, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 501}}))
+	require.NoError(t, bankk.SendCoins(half, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 500}}))
+
+	// After it ends: the rest is free.
+	after := atTime(250)
+	require.NoError(t, bankk.SendCoins(after, vester, to, std.Coins{{Denom: ugnot.Denom, Amount: 500}}))
+	require.Zero(t, bankk.GetCoin(after, vester, ugnot.Denom))
 }

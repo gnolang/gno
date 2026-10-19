@@ -178,10 +178,13 @@ type Params struct {
 	// price deploys out of reach entirely, which is the outcome the charge
 	// exists to prevent.
 	InertSubmissionCharge string `json:"inert_submission_charge" yaml:"inert_submission_charge"`
-	// InertChargeCollector receives InertSubmissionCharge. Validate rejects the
-	// zero address, and the default is a derived placeholder, so the "charge set,
-	// collector unset" combination is unrepresentable — deliberately, rather than
-	// as a cross-field rule. Cross-field validation on Params was tried and
+	// InertChargeCollector receives InertSubmissionCharge. Validate does not look
+	// at this field. Two other things keep a zero address away from the charge:
+	// applyLegacyDefaults fills a derived placeholder, and the charge site skips
+	// a zero collector rather than pay it. Both are load-bearing — neither is a
+	// redundant check on the other — and together they make the "charge set,
+	// collector unset" combination unrepresentable, rather than a cross-field
+	// rule doing it. Cross-field validation on Params was tried and
 	// reverted (see the ADR): WillSetParam re-validates the whole struct and
 	// PANICS, and r/sys/params sets one key per proposal, so a rule spanning two
 	// fields aborts a proposal that already passed its vote.
@@ -265,13 +268,19 @@ func (p Params) Validate() error {
 	if p.ChainDomain != "" && !ASCIIDomain.MatchString(p.ChainDomain) {
 		return fmt.Errorf("invalid chain domain %q, failed to match %q", p.ChainDomain, ASCIIDomain)
 	}
+	// Both are read back with std.MustParseCoin, which takes one coin and panics
+	// on anything else, and both are then used as ugnot amounts. So accepting a
+	// set here would let a parameter change through that panics in the storage
+	// deposit path, or that is silently spent as ugnot under another denom's name.
 	coins, err := std.ParseCoins(p.DefaultDeposit)
-	if len(coins) == 0 || err != nil {
-		return fmt.Errorf("invalid default storage deposit %q", p.DefaultDeposit)
+	if err != nil || len(coins) != 1 || coins[0].Denom != ugnot.Denom {
+		return fmt.Errorf("invalid default storage deposit %q, want a single %s amount",
+			p.DefaultDeposit, ugnot.Denom)
 	}
 	coins, err = std.ParseCoins(p.StoragePrice)
-	if len(coins) == 0 || err != nil {
-		return fmt.Errorf("invalid storage price %q", p.StoragePrice)
+	if err != nil || len(coins) != 1 || coins[0].Denom != ugnot.Denom {
+		return fmt.Errorf("invalid storage price %q, want a single %s amount",
+			p.StoragePrice, ugnot.Denom)
 	}
 	if p.StorageFeeCollector.IsZero() {
 		return fmt.Errorf("invalid storage fee collector, cannot be empty")

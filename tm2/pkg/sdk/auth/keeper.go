@@ -430,6 +430,15 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 	num.Div(num, big.NewInt(int64(100)))
 	targetGasInt := new(big.Int).Set(num)
 
+	// A target of zero or less is not a target, and both branches below divide by
+	// it. Consensus params accept any Block.MaxGas at or above -1: a limit under
+	// 100 truncates the target to zero, and -1 means unlimited, which has no
+	// congestion to measure. This runs in EndBlocker, so dividing by zero there
+	// would halt the chain rather than fail one transaction.
+	if targetGasInt.Sign() <= 0 {
+		return lastGasPrice
+	}
+
 	// if used gas is right on target, no need to change
 	gasUsedInt := big.NewInt(gasUsed)
 	if targetGasInt.Cmp(gasUsedInt) == 0 {
@@ -452,7 +461,7 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 		// XXX should we cap it with a max gas price?
 	} else { // gas used is less than the target
 		// decrease gas price down to initial gas price
-		initPriceInt := big.NewInt(params.InitialGasPrice.Price.Amount)
+		initPriceInt := initialPriceOver(lastGasPrice.Gas, params.InitialGasPrice)
 		if lastPriceInt.Cmp(initPriceInt) == -1 {
 			return params.InitialGasPrice
 		}
@@ -476,6 +485,37 @@ func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed in
 
 	lastGasPrice.Price.Amount = num.Int64()
 	return lastGasPrice
+}
+
+// initialPriceOver restates the initial gas price's amount over gas units of
+// gas, so it can be compared against a price written over that many units.
+//
+// A gas price is a ratio, Price per Gas units, which is why comparing two of
+// them goes through [std.GasPrice.IsGTE] rather than their amounts. The floor
+// here is the one place that still needs a bare amount, because it feeds the
+// same arithmetic as the price itself. Governance sets the initial price on its
+// own, so it can name a ratio over a different number of gas units than the
+// stored price uses; taking its amount as-is would read a floor of "10ugnot per
+// 1 gas" as "10ugnot per 1000 gas" and let the price settle a thousandfold
+// under it.
+//
+// Rounds up. A floor rounded down is a floor that lets something through.
+//
+// Either Gas being non-positive is not a ratio, so there is nothing to restate
+// and the amount stands. Params.Validate allows a zero Gas here.
+func initialPriceOver(gas int64, initial std.GasPrice) *big.Int {
+	amt := big.NewInt(initial.Price.Amount)
+	if gas <= 0 || initial.Gas <= 0 || gas == initial.Gas {
+		return amt
+	}
+	amt.Mul(amt, big.NewInt(gas))
+	initGas := big.NewInt(initial.Gas)
+	rem := new(big.Int)
+	amt.QuoRem(amt, initGas, rem)
+	if rem.Sign() > 0 {
+		amt.Add(amt, big.NewInt(1))
+	}
+	return amt
 }
 
 // max returns the larger of x or y.
