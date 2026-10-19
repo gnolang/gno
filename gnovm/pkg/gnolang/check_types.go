@@ -316,6 +316,8 @@ func dynamicTypeError(it, ct Type) error {
 // assertCopyArgs checks copy(dst, src): dst a slice, src a slice of the
 // same element type, or a string when dst is a byte slice.
 func assertCopyArgs(dst, src operand) {
+	assertNotType(dst)
+	assertNotType(src)
 	dt, st := dst.typ, src.typ
 	ds, dok := baseOf(dt).(*SliceType)
 	ss, sok := baseOf(st).(*SliceType)
@@ -336,6 +338,7 @@ func assertCopyArgs(dst, src operand) {
 // == cannot compare; a slice, map or func tag is allowed, its cases must
 // be nil.
 func assertSwitchTag(tag operand) {
+	assertNotType(tag)
 	if tag.mode == opNil && tag.typ == nil {
 		fail(CodeSwitchTag, "use of untyped nil in switch expression", tag.expr)
 	}

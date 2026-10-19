@@ -581,7 +581,9 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		}
 	}
 	// The target is a variable or a map index expression.
-	if o := operandOf(store, last, lx); o.assignable() {
+	o := operandOf(store, last, lx)
+	assertNotType(o)
+	if o.assignable() {
 		return
 	}
 	switch clx := lx.(type) {

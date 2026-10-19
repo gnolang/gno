@@ -25,9 +25,25 @@ func isNilLiteral(x Expr) bool {
 	return ok && nx.Name == "nil"
 }
 
+// assertNotType rejects a type where a value is expected, named as
+// written when it is a name, else by the type it denotes.
+func assertNotType(o operand) {
+	if !o.isType() {
+		return
+	}
+	name := typeString(o.typ)
+	switch o.expr.(type) {
+	case *NameExpr, *SelectorExpr, *ConstExpr, *constTypeExpr:
+		name = exprString(o.expr)
+	}
+	failf(CodeNotExpression, nil, "%s (type) is not an expression", name)
+}
+
 // assertComparableTo checks a == b. A slice, map or func compares only
 // to the nil literal, also when the other side is an interface.
 func assertComparableTo(a, b operand) {
+	assertNotType(a)
+	assertNotType(b)
 	check := func(t Type, selfNil, otherNil bool) {
 		if t == nil || selfNil || otherNil {
 			return
@@ -47,6 +63,7 @@ func assertComparableTo(a, b operand) {
 // assertLenCapArg checks the operand of len or cap: a string (len only),
 // array, pointer to array, slice, map (len only) or channel.
 func assertLenCapArg(name Name, arg operand) {
+	assertNotType(arg)
 	t := arg.typ
 	if t == nil {
 		return
@@ -196,9 +213,7 @@ func assertExprStmtUsed(store Store, last BlockNode, n *ExprStmt) {
 }
 
 func notUsed(o operand) {
-	if o.mode == opType {
-		failf(CodeNotExpression, nil, "%s (type) is not an expression", exprString(o.expr))
-	}
+	assertNotType(o)
 	failf(CodeNotUsed, nil, "%s (value of type %s) is not used", exprString(o.expr), typeString(o.typ))
 }
 
@@ -218,7 +233,9 @@ func assertConstLiteralKey(store Store, last BlockNode, key Expr) {
 	if key == nil {
 		return
 	}
-	if operandOf(store, last, key).mode != opConstant {
+	o := operandOf(store, last, key)
+	assertNotType(o)
+	if o.mode != opConstant {
 		failf(CodeLiteralKeyConst, []Node{key}, "index %s must be integer constant", exprString(key))
 	}
 }

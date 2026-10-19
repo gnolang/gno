@@ -44,6 +44,9 @@ func (o operand) assignable() bool {
 	return o.mode == opVariable || o.mode == opMapIndex
 }
 
+// isType reports whether the operand denotes a type, not a value.
+func (o operand) isType() bool { return o.mode == opType }
+
 // operandOf classifies the preprocessed expression x in block last.
 func operandOf(store Store, last BlockNode, x Expr) operand {
 	o := operand{expr: x}

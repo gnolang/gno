@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -792,6 +793,33 @@ func main() {}
 `)
 	if len(msgs) != 0 {
 		t.Errorf("want no errors, got %v", msgs)
+	}
+}
+
+func TestPreprocessCollectTypeNotExpression(t *testing.T) {
+	// A type where the operand rules expect a value.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	var sl []int
+	_ = len([3]int)
+	_ = cap([]int)
+	copy([]byte, "x")
+	switch int {
+	}
+	_ = []int{[]int: 1}
+	_ = sl
+}
+`)
+	want := []string{
+		"[3]int (type) is not an expression",
+		"[]int (type) is not an expression",
+		"[]uint8 (type) is not an expression",
+		"int (type) is not an expression",
+		"[]int (type) is not an expression",
+	}
+	if !reflect.DeepEqual(msgs, want) {
+		t.Errorf("want %v, got %v", want, msgs)
 	}
 }
 
