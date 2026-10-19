@@ -144,4 +144,4 @@ L5:
 // line 108: gc expects: continue label not defined: on|invalid continue label .*on; gno: label on undefined
 // line 113: gc expects: break label not defined: dance|invalid break label .*dance; gno: label dance undefined
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 22, 46, 53, 64, 72, 75, 85, 88, 96, 99, 106, 111

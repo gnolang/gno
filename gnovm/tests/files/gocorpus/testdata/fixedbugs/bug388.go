@@ -30,9 +30,7 @@ func main() {
 
 // GnoError:
 // line 12: missing parameter name
-
-// ParseBlocked:
-// line 17: gc expects: unexpected [.]|expected type
-// line 22: gc expects: unexpected [.]|expected type
+// line 17: expected type, found '.'
+// line 22: expected type, found '.'
 
 // Verdict: Clean errorcheck

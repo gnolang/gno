@@ -110,10 +110,4 @@ func _() {
 	assert(01_23.e123i == 123e123i)
 }
 
-// GnoError:
-// line 13: name assert not declared
-
-// GoBuildError:
-// line 13
-
-// Verdict: Clean compile
+// Verdict: Unsupported other: assert is a builtin of go/types' test harness, not of Go

@@ -16,8 +16,4 @@ var c = map[int]int{x: 1}
 // line 11: index x must be integer constant
 // line 12: index x must be integer constant
 
-// GnoWordingDiffers:
-// line 11: gc expects: constant; gno: slice/array literals may not contain non-const keys
-// line 12: gc expects: constant; gno: slice/array literals may not contain non-const keys
-
 // Verdict: Clean errorcheck

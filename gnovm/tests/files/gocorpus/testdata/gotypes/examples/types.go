@@ -316,6 +316,9 @@ func _[P MyInts]() P {
 
 // GnoError:
 // line 109: expected ';', found '['
+// line 149: cannot parenthesize embedded type
+// line 150: cannot parenthesize embedded type
+// line 151: cannot parenthesize embedded type
 
 // ParseBlocked:
 // line 56: gc expects: assignment
@@ -324,9 +327,6 @@ func _[P MyInts]() P {
 // line 104: gc expects: cannot use generic type T
 // line 105: gc expects: cannot use generic type T
 // line 117: gc expects: invalid use of '...'
-// line 149: gc expects: cannot parenthesize
-// line 150: gc expects: cannot parenthesize
-// line 151: gc expects: cannot parenthesize
 // line 154: gc expects: int8 redeclared
 // line 155: gc expects: int16 redeclared
 // line 156: gc expects: List redeclared
@@ -346,4 +346,4 @@ func _[P MyInts]() P {
 // line 284: gc expects: not constant
 // line 285: gc expects: invalid constant type T
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 56, 81, 100, 104, 105, 117, 154, 155, 156, 223, 227, 251, 252, 255, 256, 257, 260, 267, 268, 270, 273, 274, 284, 285

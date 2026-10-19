@@ -26,6 +26,5 @@ func main() {
 
 // GnoWordingDiffers:
 // line 15: gc expects: undefined.*b; gno: name b not defined in fileset with files [typecheck.go]
-// line 16: gc expects: undefined.*b; gno: name b not defined in fileset with files [typecheck.go]
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 20, 21
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 20, 21

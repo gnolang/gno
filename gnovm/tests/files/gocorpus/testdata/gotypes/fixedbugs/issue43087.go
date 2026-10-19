@@ -54,4 +54,4 @@ func _() {
 // GnoWordingDiffers:
 // line 34: gc expects: a repeated on left side of :=; gno: no new variables on left side of :=
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 8, 20, 27

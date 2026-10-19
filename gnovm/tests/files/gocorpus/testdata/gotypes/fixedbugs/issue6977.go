@@ -97,4 +97,4 @@ var _ = x.m
 // line 35: gc expects: duplicate method; gno: m redeclared in this block
 // 	previous declaration at issue6977.go:36:21
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 36, 37, 38

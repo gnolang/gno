@@ -50,6 +50,5 @@ var _ = map[Key]string{
 
 // GnoWordingDiffers:
 // line 21: gc expects: mixture|undefined | too few values; gno: mixed keyed and unkeyed elements
-// line 25: gc expects: index; gno: slice/array literals may not contain non-const keys
 
 // Verdict: Clean errorcheck
