@@ -64,22 +64,4 @@ L10:
 	goto go2 // ERROR "label go2 not defined|reference to undefined label .*go2"
 }
 
-// GnoError:
-// line 31: L6 redeclared in this block
-// 	previous declaration at label.go:29:1
-// line 64: label go2 undefined
-
-// ParseBlocked:
-// line 16: gc expects: label .*L1.* defined and not used
-// line 19: gc expects: label .*L2.* defined and not used
-// line 21: gc expects: label .*L3.* defined and not used
-// line 24: gc expects: label .*L4.* defined and not used
-// line 27: gc expects: label .*L5.* defined and not used
-// line 53: gc expects: label .*defalt.* defined and not used
-
-// GnoWordingDiffers:
-// line 31: gc expects: label .*L6.* already defined; gno: L6 redeclared in this block
-// 	previous declaration at label.go:29:1
-// line 64: gc expects: label go2 not defined|reference to undefined label .*go2; gno: label go2 undefined
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 19, 21, 24, 27, 53
+// Verdict: Unsupported channel: channels not supported in Gno (select)

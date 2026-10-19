@@ -314,36 +314,4 @@ func _[P MyInts]() P {
 	return P{}
 }
 
-// GnoError:
-// line 109: expected ';', found '['
-// line 149: cannot parenthesize embedded type
-// line 150: cannot parenthesize embedded type
-// line 151: cannot parenthesize embedded type
-
-// ParseBlocked:
-// line 56: gc expects: assignment
-// line 81: gc expects: assignment
-// line 100: gc expects: assignment
-// line 104: gc expects: cannot use generic type T
-// line 105: gc expects: cannot use generic type T
-// line 117: gc expects: invalid use of '...'
-// line 154: gc expects: int8 redeclared
-// line 155: gc expects: int16 redeclared
-// line 156: gc expects: List redeclared
-// line 223: gc expects: cannot use generic type .* without instantiation
-// line 227: gc expects: cannot use generic type .* without instantiation
-// line 251: gc expects: contains type constraints
-// line 252: gc expects: contains type constraints
-// line 255: gc expects: contains type constraints
-// line 256: gc expects: contains type constraints
-// line 257: gc expects: contains type constraints
-// line 260: gc expects: contains type constraints
-// line 267: gc expects: comparable
-// line 268: gc expects: comparable
-// line 270: gc expects: comparable | comparable
-// line 273: gc expects: comparable
-// line 274: gc expects: comparable
-// line 284: gc expects: not constant
-// line 285: gc expects: invalid constant type T
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 56, 81, 100, 104, 105, 117, 154, 155, 156, 223, 227, 251, 252, 255, 256, 257, 260, 267, 268, 270, 273, 274, 284, 285
+// Verdict: Unsupported other: generics (type set constraints) not supported in Gno

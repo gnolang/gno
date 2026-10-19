@@ -19,4 +19,4 @@ func main() {
 // GnoWordingDiffers:
 // line 11: gc expects: unexpected {, expected for loop condition|expecting .*{.* after for clause; gno: expected operand, found '{'
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 12
+// Verdict: Clean errorcheck

@@ -16,12 +16,4 @@ func main() {
 
 var _ = c <- v // ERROR "unexpected <-|send statement used as value"
 
-// GnoError:
-// line 13: expected boolean expression, found simple statement (missing parentheses around composite literal?)
-// line 17: expected ';', found '<-'
-
-// GnoWordingDiffers:
-// line 13: gc expects: cannot use c <- v as value|send statement used as value; gno: expected boolean expression, found simple statement (missing parentheses around composite literal?)
-// line 17: gc expects: unexpected <-|send statement used as value; gno: expected ';', found '<-'
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported channel: channels not supported in Gno

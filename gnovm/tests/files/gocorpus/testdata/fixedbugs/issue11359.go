@@ -14,6 +14,6 @@ var ۶ = 0 // ERROR "identifier cannot begin with digit"
 // line 11: expected 'IDENT', found 'ILLEGAL'
 
 // GnoWordingDiffers:
-// line 11: gc expects: identifier cannot begin with digit; gno: illegal character U+06F6 '۶'
+// line 11: gc expects: identifier cannot begin with digit; gno: expected 'IDENT', found 'ILLEGAL'
 
 // Verdict: Clean errorcheck
