@@ -6522,6 +6522,10 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 					panic(fmt.Sprintf("invalid recursive type: %s -> %s",
 						Names(stack).Join(" -> "), un))
 				} else {
+					if index != nil && index.acc != nil { // gc's wording off chain; on chain unchanged
+						panic(fmt.Sprintf("initialization cycle: %s refers to %s",
+							Names(stack).Join(" refers to "), un))
+					}
 					panic(fmt.Sprintf("invalid recursive value: %s -> %s",
 						Names(stack).Join(" -> "), un))
 				}
