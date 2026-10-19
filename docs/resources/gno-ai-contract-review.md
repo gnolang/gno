@@ -22,12 +22,12 @@ func AdminAction(cur realm) {
 }
 ```
 
-A plain crossing function's first `cur realm` is adopted by its own frame, so an
-`IsCurrent()` check on it is always true and proves nothing (see
+The first `cur realm` of a crossing function or method is current on entry, so
+an `IsCurrent()` check on it is always true and proves nothing. The VM enters
+either one only through `cross(cur)` or with the caller's own `cur`, and refuses
+a forwarded or captured value (see
 [`gnovm/adr/interrealm_v2.md`](../../gnovm/adr/interrealm_v2.md) and
-[`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno),
-which cover plain functions only). A crossing **method** does not get that
-adoption: guard its `cur` like any other realm value.
+[`gnovm/tests/files/zrealm_cur_method_backstop.gno`](../../gnovm/tests/files/zrealm_cur_method_backstop.gno)).
 Check every *other* realm value a function receives. A secondary `rlm realm` is
 filled from an ordinary argument, whether it sits on a non-crossing helper or
 beside a crossing function's own `cur`, and can carry `cur.Previous()` or
@@ -279,7 +279,7 @@ Two cases where the swap is **wrong**, both found by making it:
 ## Review Checklist
 
 - [ ] Authenticated mutators take `cur realm` and derive the caller from `cur.Previous()`
-- [ ] Every realm value other than a plain function's own first `cur` (a crossing method's `cur`, and any secondary `rlm realm` parameter in a helper or in a crossing function) is checked with `rlm.IsCurrent()` before `Previous()`/`Address()`/`PkgPath()` is trusted
+- [ ] Every realm value other than a crossing function's or method's own first `cur` (any secondary `rlm realm` parameter, in a helper or in a crossing function) is checked with `rlm.IsCurrent()` before `Previous()`/`Address()`/`PkgPath()` is trusted
 - [ ] No realm value is passed to code outside this realm's trust boundary (the callee can mint and retain a `banker.NewBanker(BankerTypeRealmSend, rlm)`, which is permanent spend authority)
 - [ ] No import of `chain/runtime/unsafe` alongside `cur realm` parameters
 - [ ] Payment-guarded functions use `cur.Previous().IsUserCall()`

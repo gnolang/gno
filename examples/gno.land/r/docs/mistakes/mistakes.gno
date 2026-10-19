@@ -79,9 +79,9 @@ func Withdraw(_ realm, amount int64) {
 
 Use [` + "`cur.Previous().Address()`" + `](/r/docs/crossing) for permission checks.
 The runtime restricts what may be passed as ` + "`cur`" + `: only ` + "`cur`" + ` itself or
-` + "`cross(rlm)`" + `, and a foreign realm cannot cur-call in. In a crossing method,
-check ` + "`cur.IsCurrent()`" + ` first, because a method's frame does not adopt the
-token it is handed:
+` + "`cross(rlm)`" + `, a foreign realm cannot cur-call in, and a captured or forwarded
+` + "`cur`" + ` is refused on entry. In a crossing function or method,
+` + "`cur.Previous()`" + ` names the realm that crossed into this one:
 
 ` + "```go" + `
 // SAFE

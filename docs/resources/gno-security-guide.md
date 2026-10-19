@@ -380,12 +380,11 @@ func DoThing(cur realm) {
 
 This is class **2 (designation-forgery)** from `gno-security.md`.
 
-A plain crossing function's frame adopts the first `cur realm` it is handed, so
-`cur.IsCurrent()` there is always true and proves nothing (see
-[`gnovm/tests/files/zrealm_iscurrent.gno`](../../gnovm/tests/files/zrealm_iscurrent.gno),
-which exercises plain functions only). A crossing method's frame does not adopt
-it, so guard that one. The check is required on any *other* realm value a
-function receives, such as a secondary `rlm realm` parameter.
+The VM enters a crossing function or method only with a `cur` that is current,
+so `cur.IsCurrent()` there is always true and proves nothing (see
+[`gnovm/tests/files/zrealm_cur_method_backstop.gno`](../../gnovm/tests/files/zrealm_cur_method_backstop.gno)).
+The check is required on any *other* realm value a function receives, such as
+a secondary `rlm realm` parameter.
 
 ### 5.7 Stored `realm`-typed values
 
@@ -424,12 +423,13 @@ func Set(cur realm, key, value string) {
 
 Any import of `chain/runtime/unsafe` in a realm that also declares
 crossing functions (`func F(cur realm, ...)`) is a red flag. The
-`unsafe` package is appropriate only in non-crossing helpers or
-in realms that have not yet been migrated to the `cur realm` API.
+`unsafe` package is appropriate only in non-crossing helpers that
+make no authorization decision with it, or in realms that have not
+yet been migrated to the `cur realm` API.
 
-**Rule**: in crossing functions, always derive caller identity from
-`cur.Previous()`, guarding it with `cur.IsCurrent()` first in a method. Delete
-the `chain/runtime/unsafe` import.
+**Rule**: in crossing functions and methods, derive caller identity
+from `cur.Previous()`, with no `cur.IsCurrent()` guard. Delete the
+`chain/runtime/unsafe` import.
 
 ### 5.9 `OriginCaller()` as authorization identity
 
@@ -606,9 +606,9 @@ Before deploying a realm:
 - [ ] Every exported function/method I expose does one of:
   - Pure read (returns primitives or values, no internal pointers).
   - Takes `cur realm` and derives the caller from `cur.Previous()`;
-    a method's `cur`, and any secondary `rlm realm` parameter, is
-    checked with `rlm.IsCurrent()` first. Only a plain function's
-    first `cur` is exempt, because its frame adopts the value.
+    any secondary `rlm realm` parameter is checked with
+    `rlm.IsCurrent()` first. The first `cur` needs no check, because
+    the VM enters the function only with a `cur` that is current.
   - Documented intentionally permissive (faucet, public mint).
 
 - [ ] No exported var or function returns a pointer aliasing
@@ -716,14 +716,13 @@ Attackers cannot:
 - Write `gCounter.value` directly (unexported field).
 - Get `gCounter` and Apply-launder it (no Apply method, no exported
   pointer).
-- Forge a `cur realm`. `Increment` and `SetOwner` are plain crossing
-  functions, so their frame adopts whatever `cur` it is handed, and an
-  `IsCurrent()` check inside them would be true by construction (5.6).
-  What blocks the forge sits upstream of the callee: a non-crossing
-  `Increment(cur)` from another realm panics with `cannot cur-call to
-  external realm function`, and on the only other route,
-  `Increment(cross(cur))`, `cross` rejects a stale or forwarded token
-  before the callee runs.
+- Forge a `cur realm`. The VM enters `Increment` and `SetOwner` only
+  with a `cur` that is current, so an `IsCurrent()` check inside them
+  would be true by construction (5.6). The forge is refused before the
+  callee runs: a non-crossing `Increment(cur)` from another realm
+  panics with `cannot cur-call to external realm function`, and on the
+  only other route, `Increment(cross(cur))`, `cross` rejects a stale or
+  forwarded token.
 - Spoof `cur.Previous().Address()` (it's the live crossing frame).
 
 ---
