@@ -158,9 +158,10 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 	}
 }
 
-// assertSwitchTag checks an expression switch's tag: comparable, or a
-// slice, map or func, which the clauses may compare to nil only.
-func assertSwitchTag(t Type) {
+// assertSwitchTag checks an expression switch's tag x of type t:
+// comparable, or a slice, map or func, which the clauses may compare to
+// nil only. The error is positioned at the tag.
+func assertSwitchTag(x Expr, t Type) {
 	if t == nil {
 		return
 	}
@@ -169,6 +170,7 @@ func assertSwitchTag(t Type) {
 		return
 	}
 	if !isComparable(t) {
-		panic(fmt.Sprintf("cannot switch on %v (%v is not comparable)", t, t))
+		panicAt(fmt.Sprintf("cannot switch on %s (variable of type %v) (%v is not comparable)",
+			exprString(x), t, t), x)
 	}
 }

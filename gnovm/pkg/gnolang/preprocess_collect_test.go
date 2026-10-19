@@ -861,3 +861,20 @@ func f(i interface{}) {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectSwitchTag(t *testing.T) {
+	// An incomparable tag is reported at the tag, before any clause
+	// compares a case to it.
+	msgs := collectErrorsRaw(t, `package main
+func f() {
+	var ar, ar1 [4]func()
+	switch ar {
+	case ar1:
+	}
+}
+`)
+	want := "main/main.gno:4:9-11: cannot switch on ar (variable of type [4]func()) ([4]func() is not comparable)"
+	if len(msgs) != 1 || msgs[0] != want {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
