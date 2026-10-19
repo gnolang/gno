@@ -19,6 +19,8 @@ func init() {
 x,y := 1, 2	// ERROR "non-declaration statement outside function body|expected declaration"
 
 // GnoError:
-// line 9: expected declaration, found fmt
+// line 9: non-declaration statement outside function body
+// line 14: non-declaration statement outside function body
+// line 19: non-declaration statement outside function body
 
-// Verdict: KnownDivergence errorcheck: syntax error recovery follows go/parser, not gc (docs/resources/go-gno-compatibility.md): after a statement at file level go/parser skips to the next declaration where gc reports each one
+// Verdict: Clean errorcheck

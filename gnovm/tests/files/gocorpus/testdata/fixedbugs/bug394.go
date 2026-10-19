@@ -10,6 +10,6 @@ package foo
 return nil // ERROR "non-declaration statement outside function body|expected declaration"
 
 // GnoError:
-// line 10: expected declaration, found 'return'
+// line 10: non-declaration statement outside function body
 
 // Verdict: Clean errorcheck
