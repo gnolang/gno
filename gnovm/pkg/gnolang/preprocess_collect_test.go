@@ -2621,3 +2621,30 @@ func TestPreprocessCollectRedeclared(t *testing.T) {
 		}
 	}
 }
+
+func TestPreprocessCollectNameCycle(t *testing.T) {
+	// A cycle through type names alone used to crash the predefine
+	// sanity check; it is the cycle, at the declaration that starts it.
+	for _, src := range []string{
+		"package main\n\ntype a b\ntype b c\ntype c b\n",
+		"package main\n\ntype b = c\ntype c b\n",
+	} {
+		msgs := collectErrors(t, src)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "invalid recursive type: b -> c -> b") {
+			t.Errorf("want the b -> c -> b cycle for %q, got %v", src, msgs)
+		}
+	}
+	m := NewMachine("main", nil)
+	defer m.Release()
+	func() {
+		defer func() {
+			r := recover()
+			pe, ok := r.(*PreprocessError)
+			if !ok || !strings.Contains(pe.Error(), "main.gno:4:6-9: invalid recursive type: b -> c -> b") {
+				t.Errorf("on-chain path: want the cycle at b, got %v", r)
+			}
+		}()
+		fn := m.MustParseFile("main.gno", "package main\n\ntype a b\ntype b c\ntype c b\n")
+		m.PreprocessFiles("main", "main", &FileSet{Files: []*FileNode{fn}}, false, false)
+	}()
+}

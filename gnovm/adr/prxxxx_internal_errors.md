@@ -30,6 +30,10 @@ Each crash site raises a checking error with a code instead:
   by another file is an override, which `checkDuplicates` polices on the
   machine path; a range, type-switch or if/switch-header variable may be
   shadowed by a nested declaration.
+- A cycle through type names alone (`type b c; type c b`): `invalid
+  recursive type: b -> c -> b` (`CodeRecursiveType`) at the declaration
+  that starts it, as for the cycles through composite types, instead of
+  the predefine sanity check failing on the unsealed type.
 
 Messages spell the expression as written (`exprString`), not with the
 value paths of the preprocessed tree.

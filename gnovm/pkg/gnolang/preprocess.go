@@ -6730,6 +6730,16 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
 						if !dt.sealed {
+							// A type still being defined names this one
+							// directly: a cycle through names alone, which
+							// the dependency walk below would otherwise
+							// re-enter (go/types: invalid recursive type).
+							// Through a pointer it is valid, and still falls
+							// to the panic below.
+							if _, ok := defining[tx.Name]; ok && direct {
+								fail(CodeRecursiveType, fmt.Sprintf("invalid recursive type: %s", cycleString(stack, tx.Name)),
+									packageDeclOf(last, tx.Name))
+							}
 							// predefineRecursively should have
 							// already preprocessed dependent types!
 							panic("should not happen")
