@@ -4,21 +4,21 @@ package ledger
 
 import (
 	"errors"
+	"fmt"
+	"runtime"
 
 	"github.com/btcsuite/btcd/btcec/v2"
-	ledger_go "github.com/cosmos/ledger-cosmos-go"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
-	"github.com/zondax/hid"
 )
 
 // SECP256K1 reflects an interface a Ledger API must implement for SECP256K1
 type SECP256K1 interface {
 	Close() error
-	// Returns an uncompressed pubkey
+	// Returns a SEC1-encoded pubkey, compressed or uncompressed
 	GetPublicKeySECP256K1([]uint32) ([]byte, error)
 	// Returns a compressed pubkey and bech32 address (requires user confirmation)
 	GetAddressPubKeySECP256K1([]uint32, string) ([]byte, string, error)
-	// Signs a message (requires user confirmation)
+	// Signs a message (requires user confirmation); returns a DER signature
 	SignSECP256K1([]uint32, []byte, byte) ([]byte, error)
 }
 
@@ -26,18 +26,42 @@ type SECP256K1 interface {
 // a connected Ledger device.
 var Discover DiscoverFn = DiscoverDefault
 
-// DiscoverDefault is the default function for [Discover].
+// DiscoverDefault is the default function for [Discover]. It connects to the
+// first Ledger device and uses the Gno.land app or the Cosmos app, whichever
+// is open.
 func DiscoverDefault() (SECP256K1, error) {
-	if !hid.Supported() {
-		return nil, errors.New("ledger support is not enabled, try building with CGO_ENABLED=1")
+	if !hidSupported {
+		return nil, fmt.Errorf("no Ledger support on %s", runtime.GOOS)
 	}
-
-	device, err := ledger_go.FindLedgerCosmosUserApp()
+	dev, err := connectHID()
 	if err != nil {
 		return nil, err
 	}
+	app, err := openApp(dev)
+	if err != nil {
+		_ = dev.Close()
+		return nil, err
+	}
+	return app, nil
+}
 
-	return device, nil
+// openApp returns a client for the app open on dev.
+func openApp(dev device) (SECP256K1, error) {
+	gno, err := openGnoApp(dev)
+	switch {
+	case err == nil:
+		return gno, nil
+	case !errors.Is(err, errNotGnoApp):
+		return nil, err
+	}
+	cosmos, err := openCosmosApp(dev)
+	switch {
+	case err == nil:
+		return cosmos, nil
+	case !errors.Is(err, errNotCosmosApp):
+		return nil, err
+	}
+	return nil, errors.New("open the Gno.land or the Cosmos app on the Ledger device")
 }
 
 // DiscoverMock can be used as a mock [DiscoverFn].

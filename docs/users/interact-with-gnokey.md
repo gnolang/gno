@@ -69,6 +69,30 @@ is visible in the caller stack of an application, it is included in each
 transaction you create with your key pair, and anyone who knows your address can
 send you [coins](../resources/gno-stdlibs.md#coin), etc.
 
+### Using a Ledger device
+
+`gnokey` can keep a key on a Ledger device instead of in the keybase. It works
+with two Ledger apps and uses whichever one is open:
+
+- the [Gno.land app](https://github.com/gnolang/ledger-app-gno), which shows
+  each gno message (sends, calls, sessions, packages) field by field before
+  signing;
+- the Cosmos app, which signs gno transactions as generic amino documents.
+
+Ledger support is built into every `gnokey` on Linux, macOS and Windows; it
+needs no CGO or other build options.
+
+To add a reference to a Ledger key, open the app on the device and run:
+
+```bash
+gnokey add ledger -account 0 -index 0 MyLedgerKey
+```
+
+The device shows the address for `m/44'/118'/0'/0/0`; approve it there. The
+keybase stores only the public key. Transactions signed with `MyLedgerKey` are
+then reviewed and approved on the device. With the Gno.land app, transactions that
+deploy or run code (`addpkg`, `run`) also need the app's "Packages" setting.
+
 ## Making transactions
 
 In Gno, there are four types of messages that can change on-chain state:
@@ -955,18 +979,8 @@ go env GOOS GOARCH
 
 If those don't match the airgapped target, **set `GOOS=linux` and `GOARCH=<...>` explicitly**.
 
-> Important: because Ledger support requires **CGO**, cross-compiling with `CGO_ENABLED=1` is often painful and may not
-> work without a proper cross C toolchain. The simplest safe approach is:
-> **build on a machine that matches the airgapped machine's OS/arch/distro baseline**.
-
-### CGO + Ledger support
-
-Ledger support requires **CGO**.
-CGO is **off by default** in this repo's build setup, so you must explicitly enable it when building `gnokey`.
-
-See [#2737](https://github.com/gnolang/gno/issues/2737).
-
-To enable CGO, simply add this before the `go build` command: `CGO_ENABLED=1`
+Ledger support needs no CGO, so `gnokey` cross-compiles for the airgapped machine like any
+other Go binary.
 
 ### 1. Build on a trusted online machine
 
