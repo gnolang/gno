@@ -903,3 +903,17 @@ func f() {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectMalformedFloatConstant(t *testing.T) {
+	// A float literal past big.Float's exponent range parses as an
+	// infinity; gc rejects it as malformed. An underflow is 0, as in gc.
+	msgs := collectErrorsRaw(t, `package main
+const _ = 1e+1000000000
+const _ = 1e-1000000000
+const _ = 1e+646456992
+`)
+	want := "main/main.gno:2:11-24: malformed constant: 1e+1000000000"
+	if len(msgs) != 1 || msgs[0] != want {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
