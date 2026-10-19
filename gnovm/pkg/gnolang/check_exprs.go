@@ -37,28 +37,69 @@ func assertComparableTo(at, bt Type, aNil, bNil bool) {
 	check(bt, aNil)
 }
 
-// assertLenCapArg checks the operand of len or cap: a string (len only),
-// array, pointer to array, slice, map (len only) or channel.
-func assertLenCapArg(name Name, t Type) {
+// lenCapArgError checks the operand of len or cap: a string (len only),
+// array, pointer to array, slice, map (len only) or channel. It returns
+// the message rather than raising it: the call's type is int whatever the
+// operand, so accumulate mode reports and goes on, as gc does.
+func lenCapArgError(name Name, t Type) string {
 	if t == nil {
-		return
+		return ""
 	}
 	switch bt := baseOf(t).(type) {
 	case *ArrayType, *SliceType, *ChanType:
-		return
+		return ""
 	case *PointerType:
 		if _, ok := baseOf(bt.Elt).(*ArrayType); ok {
-			return
+			return ""
 		}
 	case *MapType:
 		if name == "len" {
-			return
+			return ""
 		}
 	}
 	if t.Kind() == StringKind && name == "len" {
-		return
+		return ""
 	}
-	panic(fmt.Sprintf("invalid argument: %v for built-in %s", t, name))
+	return fmt.Sprintf("invalid argument: %v for built-in %s", t, name)
+}
+
+// assertIndexable checks the operand of an index expression: a string,
+// array, pointer to array, slice or map. A pointer to anything else is not
+// dereferenced (Go spec: "Index expressions").
+func assertIndexable(x Expr, t Type) {
+	if t != nil {
+		switch bt := baseOf(t).(type) {
+		case *ArrayType, *SliceType, *MapType:
+			return
+		case *PointerType:
+			if _, ok := baseOf(bt.Elt).(*ArrayType); ok {
+				return
+			}
+		default:
+			if t.Kind() == StringKind {
+				return
+			}
+		}
+	}
+	panic(fmt.Sprintf("invalid operation: cannot index %s (%s of type %v)", operandString(x), operandWord(x), t))
+}
+
+// operandWord is gc's noun for an operand in a message: a variable, else
+// a value.
+func operandWord(x Expr) string {
+	if _, ok := x.(*NameExpr); ok {
+		return "variable"
+	}
+	return "value"
+}
+
+// operandString spells an operand as written: a name without its
+// resolved value path.
+func operandString(x Expr) string {
+	if nx, ok := x.(*NameExpr); ok {
+		return string(nx.Name)
+	}
+	return x.String()
 }
 
 // staticLengthOf returns the length a constant index can be checked
@@ -158,6 +199,38 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 		seen[idx] = true
 		next = idx + 1
 	}
+}
+
+// hasCall reports whether x holds a function call other than a conversion
+// or a constant len/cap of an array: len and cap of an array are constant
+// only then (Go spec: "Length and capacity"; Gno has no channel receive).
+// Charged per node entered.
+func hasCall(gm store.GasMeter, store Store, last BlockNode, x Expr) bool {
+	found := false
+	Transcribe(x, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		switch n := n.(type) {
+		case *CallExpr:
+			if isConstType(n.Func) {
+				return n, TRANS_CONTINUE // a conversion
+			}
+			if cx, ok := n.Func.(*ConstExpr); ok && len(n.Args) == 1 {
+				if fv, ok := cx.V.(*FuncValue); ok && fv.PkgPath == uversePkgPath && (fv.Name == "len" || fv.Name == "cap") {
+					at := evalStaticTypeOf(store, last, n.Args[0])
+					if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+						return n, TRANS_CONTINUE // constant unless its operand is not
+					}
+				}
+			}
+			found = true
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
 }
 
 // eltFailure is a composite literal element that failed a check: the

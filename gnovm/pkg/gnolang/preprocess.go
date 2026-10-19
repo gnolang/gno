@@ -2465,7 +2465,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						switch fv.Name {
 						case "len", "cap":
 							if len(n.Args) == 1 {
-								assertLenCapArg(fv.Name, evalStaticTypeOf(store, last, n.Args[0]))
+								if msg := lenCapArgError(fv.Name, evalStaticTypeOf(store, last, n.Args[0])); msg != "" {
+									reportOrPanic(acc, stack, n, msg)
+								}
 							}
 						}
 						switch fv.Name {
@@ -2973,6 +2975,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:
 				dt := evalStaticTypeOf(store, last, n.X)
+				assertIndexable(n.X, dt)
 				if dt.Kind() == PointerKind {
 					// if a is a pointer to an array,
 					// a[low : high : max] is shorthand
@@ -5744,6 +5747,12 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					lt := evalStaticTypeOf(store, last, bx.Left)
 					rt := evalStaticTypeOf(store, last, bx.Right)
 					if t != nil {
+						// An interface target gives the whole expression
+						// its default type, which both operands take (the
+						// shift in `1.0 + 1<<s` is then a float64 shift).
+						if t.Kind() == InterfaceKind {
+							t = defaultTypeOf(xt)
+						}
 						// push t into bx.Left and bx.Right
 						checkOrConvertType(store, last, n, &bx.Left, t)
 						checkOrConvertType(store, last, n, &bx.Right, t)
@@ -7373,6 +7382,17 @@ func reportUnused(store Store, acc *preprocessAccumulator, stack []BlockNode, fn
 		}
 		acc.report(pe)
 	}
+}
+
+// reportOrPanic raises msg at n: the first error panics on chain; in
+// accumulate mode it is recorded and the walk goes on, for a rule whose
+// failure leaves the node's type intact (gc reports every such site).
+func reportOrPanic(acc *preprocessAccumulator, stack []BlockNode, n Node, msg string) {
+	pe := wrapPreprocessPanic(stack, n, msg)
+	if acc == nil {
+		panic(pe)
+	}
+	acc.report(pe)
 }
 
 // enclosedByFunc reports whether stack holds a function node.
