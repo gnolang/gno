@@ -522,7 +522,7 @@ func main() {}
 `)
 	want := []string{
 		"invalid import path (empty string)",
-		"invalid import path \"a b\": invalid character ' '",
+		"invalid import path (invalid character U+0020 ' ')",
 		"import path cannot be absolute path: \"/foo\"",
 		"constant shift overflow",
 		"constant addition overflow",
@@ -599,4 +599,94 @@ func TestInitCycleOnChain(t *testing.T) {
 	}()
 	m.RunFiles(fn)
 	t.Fatal("RunFiles accepted a cycle")
+}
+
+// locatedErrors returns the located messages ("file:L:C-C2: msg") of a
+// collect run.
+func locatedErrors(t *testing.T, src string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectConstShiftPositions(t *testing.T) {
+	// A shift with an untyped count folds through a synthesized node;
+	// the error must still point at the expression, not at the
+	// enclosing file or function.
+	msgs := locatedErrors(t, `package main
+
+const a = 1 << 1025
+
+func f() {
+	v := 1 << 1025
+	_ = v
+}
+
+func main() {}
+`)
+	want := []string{
+		"main/main.gno:3:11-20: constant shift overflow",
+		"main/main.gno:6:7-16: constant shift overflow",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectConstShiftCount(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+const c uint = 2000
+const _ = 0 << 2000
+const _ = 1 << c
+const _ = 1 << 1074 // within the count bound: overflow
+const _ = 1e1000 >> 1 // a float is converted first: no operation named
+
+func main() {}
+`)
+	want := []string{
+		"invalid operation: invalid shift count 2000 (untyped int constant)",
+		"invalid operation: invalid shift count c (constant 2000 of type uint)",
+		"constant shift overflow",
+		"constant overflow",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectImportPoison(t *testing.T) {
+	// A dropped import poisons its default name: a use of it is not a
+	// second error.
+	msgs := collectErrors(t, `package main
+
+import "/foo"
+
+func main() { foo.Bar() }
+`)
+	want := []string{"import path cannot be absolute path: \"/foo\""}
+	if len(msgs) != 1 || msgs[0] != want[0] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
 }

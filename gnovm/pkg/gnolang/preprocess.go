@@ -178,17 +178,18 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 	// In accumulate mode a declaration that fails to predefine is recorded
 	// and dropped (marked preprocessed, so the walk skips it) instead of
 	// stopping the whole file set.
+	// Either way a checking error is a *PreprocessError positioned at d.
 	predefineOne := func(fn *FileNode, d Decl, do func()) {
-		if acc == nil {
-			do()
-			return
-		}
 		defer func() {
 			if r := recover(); r != nil {
 				if _, isRuntime := r.(runtime.Error); isRuntime {
 					panic(r)
 				}
-				acc.add(wrapPreprocessPanic([]BlockNode{pn, fn}, d, r), d)
+				pe := wrapPreprocessPanic([]BlockNode{pn, fn}, d, r)
+				if acc == nil {
+					panic(pe)
+				}
+				acc.add(pe, d)
 				d.SetAttribute(ATTR_PREDEFINED, true)
 				d.SetAttribute(ATTR_PREPROCESSED, true)
 			}
@@ -202,6 +203,12 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 		for _, d := range fn.Decls {
 			if id, ok := d.(*ImportDecl); ok {
 				predefineOne(fn, id, func() { assertValidImportPath(id.PkgPath) })
+				// A dropped default import poisons the name it would bind.
+				if acc != nil && id.Name == "" && id.GetAttribute(ATTR_PREPROCESSED) == true {
+					if exp, ok := expectedPkgName(id.PkgPath); ok {
+						acc.poisoned[Name(exp)] = true
+					}
+				}
 			}
 		}
 		initStaticBlocks(store, pn, fn)
@@ -1885,6 +1892,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Shift case.
 				if n.Op == SHL || n.Op == SHR {
 					n.assertShiftExprCompatible1(store, last, lt, rt)
+					if lic && ric {
+						assertConstShiftCount(rcx)
+					}
 					if baseOf(rt) != UintType {
 						// convert n.Right to (gno) uint type,
 						rn := Expr(Call("uint", n.Right))
@@ -1894,6 +1904,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							Op:    n.Op,
 							Right: rn,
 						}
+						// n2 stands for n: errors point at n's span.
+						n2.SetSpan(n.GetSpan())
 						// Mark the uint() conversion as a shift RHS so
 						// doOpCall can assert non-negative at runtime.
 						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
@@ -3456,7 +3468,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						findContinuableNode(last, store)
 					} else {
 						if isSwitchLabel(ns, n.Label) {
-							panic(fmt.Sprintf("invalid continue label %s", n.Label))
+							failBranchLabel(n)
 						}
 						bn, _, _ := findBranchLabel(last, n.Label)
 						assertBranchTarget(n, bn)
