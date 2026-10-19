@@ -490,6 +490,32 @@ func lookupPredefineDecl(fset *FileSet, name Name) predefineDecl {
 	return predefineDecl{file: file, decl: *slot}
 }
 
+// lookupPredefineDeclSafe is lookupPredefineDecl reporting a miss.
+func lookupPredefineDeclSafe(fset *FileSet, name Name) (predefineDecl, bool) {
+	file, slot, ok := fset.GetDeclForSafe(name)
+	if !ok {
+		return predefineDecl{}, false
+	}
+	return predefineDecl{file: file, decl: *slot}, true
+}
+
+// undefinedNameNode returns the first mention of name in d, where the
+// "not defined" error is positioned; nil when d never spells it.
+func undefinedNameNode(gm store.GasMeter, d Decl, name Name) (found Node) {
+	Transcribe(d, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		if nx, ok := n.(*NameExpr); ok && nx.Name == name {
+			found = nx
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
+}
+
 // predefineDeclIndex binds a FileSet to its selected package declarations.
 type predefineDeclIndex struct {
 	fileSet *FileSet
@@ -517,6 +543,13 @@ func newPredefineDeclIndex(fset *FileSet) *predefineDeclIndex {
 		}
 	}
 	return index
+}
+
+// find resolves a name within the FileSet captured by the index,
+// reporting a miss.
+func (index *predefineDeclIndex) find(name Name) (predefineDecl, bool) {
+	indexed, ok := index.entries[name]
+	return indexed, ok
 }
 
 // lookup resolves a name within the FileSet captured by the index.
@@ -1394,6 +1427,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 		switch stage {
 		// ----------------------------------------
 		case TRANS_ENTER:
+			// A struct literal key that is not a field name is reported
+			// before it is resolved as an expression, each one.
+			if ftype == TRANS_COMPOSITE_KEY {
+				if msg := invalidStructKey(n.(Expr)); msg != "" {
+					clx := ns[len(ns)-1].(*CompositeLitExpr)
+					if clx.Type != nil {
+						if _, ok := baseOf(evalStaticType(store, last, clx.Type)).(*StructType); ok {
+							report(msg, n)
+							return n, TRANS_SKIP
+						}
+					}
+				}
+			}
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
@@ -1869,6 +1915,12 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					n.X = Preprocess(store, last, n.X).(Expr)
 					convertIfConst(store, last, n, n.X)
 				}
+				if !n.IsTypeSwitch && n.X != nil {
+					// The tag must be comparable even with no case to
+					// compare it to; checked before the clauses, which
+					// would otherwise fail on the comparison first.
+					assertSwitchTag(n.X, evalStaticTypeOf(store, last, n.X))
+				}
 				if n.IsTypeSwitch {
 					tt := evalStaticTypeOf(store, last, n.X)
 					if _, ok := baseOf(tt).(*InterfaceType); !ok {
@@ -1945,6 +1997,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						// referencing an enclosing loop variable).
 						fname := strings.TrimSuffix(string(n.Name), ".loopvar")
 						n.Name = Name(fname)
+						assertStructField(bt, clt, n)
 						n.Path = bt.GetPathForName(n.Name)
 						// Check for unexported fields from external packages.
 						if !isUpper(fname) && bt.PkgPath != ctxpn.PkgPath {
@@ -2450,7 +2503,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						switch fv.Name {
 						case "len", "cap":
 							if len(n.Args) == 1 {
-								assertLenCapArg(fv.Name, evalStaticTypeOf(store, last, n.Args[0]))
+								if msg := lenCapArgError(fv.Name, evalStaticTypeOf(store, last, n.Args[0])); msg != "" {
+									reportOrPanic(acc, stack, n, msg)
+								}
 							}
 						}
 						switch fv.Name {
@@ -2959,6 +3014,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *IndexExpr:
 				dt := evalStaticTypeOf(store, last, n.X)
+				assertIndexable(n.X, dt)
 				if dt.Kind() == PointerKind {
 					// if a is a pointer to an array,
 					// a[low : high : max] is shorthand
@@ -3016,7 +3072,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
 				if n.Type == nil {
-					panic("should not happen")
+					// x.(type) is only a type switch guard; the parser
+					// accepts it anywhere (go/types reports it here too).
+					panic("use of .(type) outside type switch")
 				}
 
 				// Type assertions on the blank identifier are illegal.
@@ -3063,7 +3121,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Get or evaluate composite type.
 				clt := evalStaticType(store, last, n.Type)
 				n.Type = toConstTypeExpr(last, n.Type, clt)
-				// Replace const Elts with default *ConstExpr.
+				// Replace const Elts with default *ConstExpr. An element
+				// that fails is reported at the element; every failing
+				// element is reported, then the literal drops (flush).
+				var fails []eltFailure
+				flush := func() {
+					if len(fails) == 0 {
+						return
+					}
+					for _, f := range fails {
+						report(f.msg, f.at)
+					}
+					panicAt(fails[0].msg, fails[0].at) // recorded already: a quiet drop
+				}
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
 					if n.IsKeyed() {
@@ -3077,12 +3147,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 							}
 							key := kx.Name
 							if seen[key] {
-								panic(fmt.Sprintf("duplicate field name %s in struct literal", key))
+								panicAt(fmt.Sprintf("duplicate field name %s in struct literal", key), n.Elts[i].Key)
 							}
 							seen[key] = true
-							path := cclt.GetPathForName(key)
-							ft := cclt.GetStaticTypeOfAt(path)
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							checkElt(&fails, n.Elts[i].Key, func() {
+								path := cclt.GetPathForName(key)
+								ft := cclt.GetStaticTypeOfAt(path)
+								checkElt(&fails, n.Elts[i].Value, func() {
+									checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+								})
+							})
 						}
 					} else {
 						// Check for unexported fields in unkeyed struct literals
@@ -3098,17 +3172,25 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						assertStructLiteralCount(n, cclt, clt)
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							checkElt(&fails, n.Elts[i].Value, func() {
+								checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							})
 						}
 					}
+					flush()
 				case *ArrayType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
-							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+							panicAt(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue), cx)
 						}
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						checkElt(&fails, n.Elts[i].Key, func() {
+							convertType(store, last, n, &n.Elts[i].Key, IntType)
+						})
+						checkElt(&fails, n.Elts[i].Value, func() {
+							checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						})
 					}
+					flush()
 					length := int64(-1) // [...]T is measured below
 					if !cclt.Vrd {
 						length = int64(cclt.Len)
@@ -3117,11 +3199,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
-							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+							panicAt(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue), cx)
 						}
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						checkElt(&fails, n.Elts[i].Key, func() {
+							convertType(store, last, n, &n.Elts[i].Key, IntType)
+						})
+						checkElt(&fails, n.Elts[i].Value, func() {
+							checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						})
 					}
+					flush()
 					assertLiteralIndices(preprocessGasMeterOf(store), n, -1)
 				case *MapType:
 					// kset tracks seen const keys for duplicate detection.
@@ -3130,17 +3217,25 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					kset := make(map[TypedValue]struct{})
 					for i, elt := range n.Elts {
 						if elt.Key == nil {
-							panic("missing key in map literal")
+							fails = append(fails, eltFailure{"missing key in map literal", elt.Value})
+							continue
 						}
-						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() && !isInterfaceConversion(cx) {
+						checkElt(&fails, n.Elts[i].Key, func() {
+							checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
+						})
+						checkElt(&fails, n.Elts[i].Value, func() {
+							checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
+						})
+						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() && !isInterfaceConversion(cx) {
 							if _, ok := kset[cx.TypedValue]; ok {
-								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
+								fails = append(fails, eltFailure{
+									fmt.Sprintf("duplicate key %s in map literal", constString(cx)), cx,
+								})
 							}
 							kset[cx.TypedValue] = struct{}{}
 						}
 					}
+					flush()
 				default:
 					panic(fmt.Sprintf(
 						"unexpected composite type %s",
@@ -3233,6 +3328,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
+				assertSelectorNotBlank(n, xt)
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -3441,6 +3537,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *InterfaceTypeExpr:
+				checkInterfaceElems(store, last, n)
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------
@@ -3857,11 +3954,6 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *SwitchStmt:
 				assertSingleDefault(n.Clauses)
-				if !n.IsTypeSwitch && n.X != nil {
-					// The tag must be comparable even with no case to
-					// compare it to (cases are checked at the clause).
-					assertSwitchTag(evalStaticTypeOf(store, last, n.X))
-				}
 				if !n.IsTypeSwitch {
 					for _, dup := range duplicateSwitchCases(store, n.Clauses) {
 						report(dup.msg, dup.at...)
@@ -3869,28 +3961,21 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 				// Ensure type switch cases are unique and possible.
 				if n.IsTypeSwitch {
+					for _, dup := range duplicateTypeSwitchCases(preprocessGasMeterOf(store), n.Clauses) {
+						report(dup.msg, dup.at...)
+					}
 					tt := evalStaticTypeOf(store, last, n.X)
-					types := map[string]struct{}{}
-					for _, clause := range n.Clauses {
-						for _, casetype := range clause.Cases {
-							var ctstr string
+					for i := range n.Clauses {
+						for _, casetype := range n.Clauses[i].Cases {
 							ctype := casetype.(*constTypeExpr).Type
 							if ctype == nil {
-								ctstr = nilStr
-							} else {
-								ctstr = casetype.(*constTypeExpr).Type.String()
-								if err := dynamicTypeError(preprocessGasMeterOf(store), tt, ctype); err != nil {
-									panicAt(fmt.Sprintf(
-										"impossible type switch case: %s cannot have dynamic type %v (%v)",
-										exprString(n.X), ctype, err), casetype, &clause)
-								}
+								continue
 							}
-							if _, exists := types[ctstr]; exists {
-								panic(fmt.Sprintf(
-									"duplicate type %s in type switch",
-									ctstr))
+							if err := dynamicTypeError(preprocessGasMeterOf(store), tt, ctype); err != nil {
+								panicAt(fmt.Sprintf(
+									"impossible type switch case: %s cannot have dynamic type %v (%v)",
+									exprString(n.X), ctype, err), casetype, &n.Clauses[i])
 							}
-							types[ctstr] = struct{}{}
 						}
 					}
 					// With clauses, checkUnused sees the variable in them.
@@ -5727,6 +5812,12 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					lt := evalStaticTypeOf(store, last, bx.Left)
 					rt := evalStaticTypeOf(store, last, bx.Right)
 					if t != nil {
+						// An interface target gives the whole expression
+						// its default type, which both operands take (the
+						// shift in `1.0 + 1<<s` is then a float64 shift).
+						if t.Kind() == InterfaceKind {
+							t = defaultTypeOf(xt)
+						}
 						// push t into bx.Left and bx.Right
 						checkOrConvertType(store, last, n, &bx.Left, t)
 						checkOrConvertType(store, last, n, &bx.Right, t)
@@ -6318,7 +6409,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 	var directR bool
 	// var direct = true // invalid cycle detection
 	for {
-		un, untype, directR = tryPredefine(store, pkg, last, d, stack, defining, direct)
+		un, untype, directR = tryPredefine(store, pkg, last, d, stack, defining, direct, index)
 		if debugFind {
 			fmt.Printf("tryPredefine(%v, %v, defining=%v, direct=%v)-->un=%v,untype=%v,direct2=%v\n", d, stack, defining, direct, un, untype, directR)
 		}
@@ -6351,10 +6442,15 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			// name, so this branch is only reached for a name defined
 			// nowhere, which is a single scan followed by GetDeclFor's panic.
 			var dependency predefineDecl
+			var found bool
 			if index == nil {
-				dependency = lookupPredefineDecl(pkg.FileSet, un)
+				dependency, found = lookupPredefineDeclSafe(pkg.FileSet, un)
 			} else {
-				dependency = index.lookup(un)
+				dependency, found = index.find(un)
+			}
+			if !found {
+				panicAt(fmt.Sprintf("name %s not defined in fileset with files %v", un, pkg.FileSet.FileNames()),
+					undefinedNameNode(preprocessGasMeterOf(store), d, un), d)
 			}
 			// preprocess if not already preprocessed.
 			if !dependency.file.IsInitialized() {
@@ -6381,11 +6477,11 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		// refer to package names in any order.
 		return false
 	case *ValueDecl:
-		vd2 := preprocessDependency(store, last, cd).(*ValueDecl)
+		vd2 := preprocessDependency(store, last, cd, index).(*ValueDecl)
 		*cd = *vd2
 		return true
 	case *TypeDecl:
-		td2 := preprocessDependency(store, last, cd).(*TypeDecl)
+		td2 := preprocessDependency(store, last, cd, index).(*TypeDecl)
 		*cd = *td2
 		return true
 	case *ImportDecl:
@@ -6398,9 +6494,14 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 }
 
 // preprocessDependency preprocesses a declaration reached through a
-// dependent one. If it fails it is marked done first, so accumulate mode
-// does not visit it again and report it twice.
-func preprocessDependency(store Store, last BlockNode, d Decl) Node {
+// dependent one, with the accumulator of index (if any) so a node in
+// it can report more than one error. If it fails it is marked done
+// first, so accumulate mode does not visit it again and report it twice.
+func preprocessDependency(store Store, last BlockNode, d Decl, index *predefineDeclIndex) Node {
+	var acc *preprocessAccumulator
+	if index != nil {
+		acc = index.acc
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			if _, isRuntime := r.(runtime.Error); isRuntime {
@@ -6412,7 +6513,7 @@ func preprocessDependency(store Store, last BlockNode, d Decl) Node {
 			panic(pe)
 		}
 	}()
-	return Preprocess(store, last, d)
+	return preprocess(store, last, d, acc)
 }
 
 // packageDeclOf returns the package-level declaration of name, or nil
@@ -6444,7 +6545,7 @@ func cycleString(stack []Name, name Name) string {
 // If all dependencies are met, constructs and empty definition value (for a
 // *TypeDecl is a TypeValue) and sets it on last. As an exception, *FuncDecls
 // will preprocess receiver/argument/result types recursively.
-func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
+func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool, index *predefineDeclIndex) (un Name, untype bool, directR bool) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		if d.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
 			// accumulate mode: a dependent of a dropped declaration.
@@ -6581,6 +6682,7 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				}
 				// sanity check.
 				if tv := last.GetSlot(store, tx.Name, true); tv != nil {
+					assertNamesType(tx, tv, nil)
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
 						if !dt.sealed {
@@ -6589,6 +6691,11 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 							panic("should not happen")
 						}
 					}
+				} else if index != nil {
+					// Not yet defined: a package-level constant, variable
+					// or function is not a type, said before the empty
+					// type is placed and the dependency predefined.
+					assertNamesType(tx, nil, index.entries[tx.Name].decl)
 				}
 				// set t for proper type.
 				if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
@@ -6682,18 +6789,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 
 			if pt, ok := rt.(*PointerType); ok {
 				assertValidReceiverType(pt.Elem())
-				if ddt, ok := pt.Elem().(*DeclaredType); ok {
-					assertValidReceiverType(baseOf(ddt))
-					dt = ddt
-				} else {
-					panic("should not happen")
-				}
-			} else if ddt, ok := rt.(*DeclaredType); ok {
-				assertValidReceiverType(baseOf(ddt))
-				dt = ddt
-			} else {
-				panic("should not happen")
 			}
+			dt = receiverDeclaredType(rt, pkg.PkgPath, d.Recv.Type)
+			assertValidReceiverType(baseOf(dt))
 			// The body may get altered during preprocessing later.
 			methodFV := &FuncValue{
 				Type:       ubft,
@@ -6944,7 +7042,7 @@ func elideCompositeElements(last BlockNode, clx *CompositeLitExpr, clt Type) {
 			vx := kvx.Value
 			if vclx, ok := vx.(*CompositeLitExpr); ok {
 				if vclx.Type == nil {
-					panic("types cannot be elided in composite literals for struct types")
+					panicAt("missing type in composite literal", vclx)
 				}
 			}
 		}
@@ -7346,6 +7444,17 @@ func reportUnused(store Store, acc *preprocessAccumulator, stack []BlockNode, fn
 		}
 		acc.report(pe)
 	}
+}
+
+// reportOrPanic raises msg at n: the first error panics on chain; in
+// accumulate mode it is recorded and the walk goes on, for a rule whose
+// failure leaves the node's type intact (gc reports every such site).
+func reportOrPanic(acc *preprocessAccumulator, stack []BlockNode, n Node, msg string) {
+	pe := wrapPreprocessPanic(stack, n, msg)
+	if acc == nil {
+		panic(pe)
+	}
+	acc.report(pe)
 }
 
 // enclosedByFunc reports whether stack holds a function node.

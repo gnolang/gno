@@ -11,6 +11,6 @@ type _ interface {
 }
 
 // GnoError:
-// line 9: interface contains embedded non-interface int
+// line 10: interface contains embedded non-interface int
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10; over-strict: lines 9
+// Verdict: Clean errorcheck
