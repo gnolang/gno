@@ -11,6 +11,6 @@ package p
 var ۶ = 0 // ERROR "identifier cannot begin with digit"
 
 // GnoError:
-// line 11: illegal character U+06F6 '۶'
+// line 11: expected 'IDENT', found 'ILLEGAL'
 
 // Verdict: Clean errorcheck

@@ -69,5 +69,16 @@ func g() {
 // GnoError:
 // line 24: illegal label declaration
 // line 25: expected ';', found 'case'
+// line 30: illegal label declaration
+// line 37: illegal label declaration
+// line 38: expected ';', found 'case'
+// line 43: illegal label declaration
+// line 51: expected statement, found 'case'
+// line 59: labelname redeclared in this block
+// 	previous declaration at issue14006.go:50:3
+// line 60: label labelname defined and not used
+// line 64: labelname redeclared in this block
+// 	previous declaration at issue14006.go:50:3
+// line 67: expected ';', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 30, 37, 43, 50, 59, 64; over-strict: lines 25
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 50; over-strict: lines 25, 38, 51, 60, 67
