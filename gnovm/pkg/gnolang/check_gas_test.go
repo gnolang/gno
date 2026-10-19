@@ -2,11 +2,13 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/std"
-	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/std"
+	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // TestPreprocessGas_CheckWalks pins that the checker walks bill the
