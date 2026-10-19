@@ -1668,14 +1668,20 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
     paid) and every sweep entry (paid or unpaid) of every client the route ever retired, from its own suspect
     height — and authenticate each against Ethereum: the received packet `P` matches gno.land's receipt
     (`CommitPacketReceipt(P)`), and Ethereum's transfer app's **permanently retained send record** at that sequence
-    (`GnoICS20Transfer.sendRecord`, never deleted) has commitment `CommitPacket(P)`; no record, or one of another
-    packet, is a forgery, and the router's live commitment is no evidence either way (the source ack deletes it).
+    (`GnoICS20Transfer.sendRecord`, never deleted) has commitment `CommitPacket(P)`. The router's live commitment
+    is no evidence either way (the source ack deletes it). **Evidence rule:**
+    - evidence comes only from an **independently authenticated finalized** Ethereum state, with `eth_call` and
+      `eth_getProof` pinned to that finalized block, never `latest`;
+    - a matching `sendRecord` is genuine;
+    - an absent record, or one of another packet, is conclusive (a forgery) only once that finalized state's
+      timestamp has reached the packet's timeout;
+    - until then the entitlement stays **unresolved** and containment stays in place.
     gno.land's Ethereum client proves only the router's storage, so this check is **off-chain**, on evidence from an
     Ethereum node trusted independently of the incident (a stated trust assumption, §8.1). Every forged remainder
     must be **voided or settled before the route reopens or containment is cleared** — a forged void if nothing was
     paid, settlement action 5 for what was paid — an **operator precondition** the code does not enforce (§8.5),
     since nothing stops a forged claim left unvoided from being paid once the route is open and `payouts` cleared.
-    Evidence that cannot be obtained leaves the route closed.
+    Evidence that cannot be obtained, or is not yet conclusive, leaves the route closed.
   - **Closed-route refunds.** While a route is closed no refund is paid outside the settlements (§7.3): queued and
     parked refunds wait, and acks and timeouts queue what they would have paid, including the genuine refunds of
     sends over the healthy replacement client. While the route is closed the retired client's records are not yet
@@ -1698,7 +1704,9 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
   A retired client id is final for transfers: no decision may migrate it back to a live client, and an ack or
   timeout for a send record already settled by reconciliation pays nothing and notifies nobody.
   The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
-  accepted by decision (§7.9), each loss booked and remedied on the chain that paid it out and any mirror on the
+  accepted by decision (§7.9), every suspect receive entitlement is resolved under the evidence rule above
+  (finalized, independently authenticated Ethereum state; absence conclusive only past the packet's timeout), each
+  loss booked and remedied on the chain that paid it out and any mirror on the
   other chain resolved by an accepted deficit only (Cross-chain loss ownership, above): on Ethereum the route stays closed after kind 10 or the emergency recovery,
   outcomes are applied by kind 12 and the route reopens by kind 13 (accepting every loss as a deficit); on gno.land
   outcomes are applied by `NewSettleRequest` (at most 64 items, naming a sequence once per direction) and the route
@@ -1846,7 +1854,8 @@ Further trust assumptions of the built controls, each stated where its rule is:
   seizure, negative rebase or semantic upgrade creates a shortfall reconciliation does not recognize. A token that
   pauses or blacklists only makes refunds park. gno.land vouchers on Ethereum are the bridge's own pinned code.
 - **Forged receive authentication** after a replacement relies on an Ethereum node trusted independently of the
-  incident, read off-chain by governance (§7.12).
+  incident, read off-chain by governance at an independently authenticated finalized block (never `latest`), an
+  absence conclusive only once that state's timestamp reaches the packet's timeout (§7.12).
 - **Code pins** mean what they name only through the build verification (§7.6), run by the operators until the
   watch tool exists; a verifier of another type than `GnoLightClient` is checked by hand. Exclusive ownership of
   Ethereum roles needs an external audit of the AccessManager's `RoleGranted` log and of the function-role
@@ -2475,6 +2484,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   voucher-defect containment needs gno.land's `credits` and `payouts` flags and reconciliation, Ethereum flags
   stopping ingress only; a manual append-only storage-layout review before kinds 7 and 9 (§5.4, §7.4, §7.6, §7.10,
   §8.1).
+- 2026-10-19, off-chain receive-entitlement evidence: only an independently authenticated finalized Ethereum
+  state, `eth_call` and `eth_getProof` pinned to that block, never `latest`; a matching `sendRecord` is genuine; an
+  absence or mismatch is conclusive only once that state's timestamp reaches the packet's timeout, until then the
+  entitlement stays unresolved and containment stays in place (§7.12, §8.1).
 
 ## 15. References
 
