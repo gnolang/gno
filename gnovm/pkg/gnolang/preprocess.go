@@ -968,6 +968,26 @@ func isInvalidExpr(x Expr) bool {
 	return ok && isInvalid(t)
 }
 
+// isInvalidOperand reports whether a preprocessed operand without a type
+// attribute (a selector, an index) has an invalid static type, e.g. a
+// field declared with an undefined type.
+func isInvalidOperand(store Store, last BlockNode, x Expr) (invalid bool) {
+	if x == nil || x.GetAttribute(ATTR_PREPROCESSED) != true {
+		return false
+	}
+	switch x.(type) {
+	case *SelectorExpr, *IndexExpr, *StarExpr, *CallExpr:
+	default:
+		return false
+	}
+	defer func() {
+		if recover() != nil {
+			invalid = false
+		}
+	}()
+	return isInvalid(evalStaticTypeOf(store, last, x))
+}
+
 // anyInvalidTV reports whether an argument was typed invalidType.
 func anyInvalidTV(tvs []TypedValue) bool {
 	for _, tv := range tvs {
@@ -1010,7 +1030,7 @@ func operandsOf(x Expr) []Expr {
 // and replaces those uses by invalidType placeholders, so d keeps being
 // predefined (its signature, its dependents). Statements are left to the
 // walk, which resolves their names itself. Reports whether a use was found.
-func (acc *preprocessAccumulator) undefinedName(last BlockNode, d Decl, un Name) bool {
+func (acc *preprocessAccumulator) undefinedName(store Store, last BlockNode, d Decl, un Name) bool {
 	found := false
 	typePos := map[Node]bool{} // nodes in type position (a *T of a type is one)
 	Transcribe(d, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -1024,6 +1044,18 @@ func (acc *preprocessAccumulator) undefinedName(last BlockNode, d Decl, un Name)
 		if asType {
 			typePos[n] = true
 		}
+		// A qualified name whose package is un: the whole selector is
+		// the use (tryPredefine reads the package through it).
+		if sx, ok := n.(*SelectorExpr); ok {
+			if x, ok := sx.X.(*NameExpr); ok && x.Name == un {
+				found = true
+				acc.record(wrapPreprocessPanic([]BlockNode{last}, sx, fmt.Sprintf("name not defined: %s", un)))
+				if asType {
+					return toConstTypeExpr(last, sx, invalidType{}), TRANS_CONTINUE
+				}
+				return invalidConstExpr(sx), TRANS_CONTINUE
+			}
+		}
 		nx, ok := n.(*NameExpr)
 		if !ok || nx.Name != un {
 			return n, TRANS_CONTINUE
@@ -1033,9 +1065,7 @@ func (acc *preprocessAccumulator) undefinedName(last BlockNode, d Decl, un Name)
 			return n, TRANS_CONTINUE
 		case TRANS_COMPOSITE_KEY:
 			// a struct key names a field, not a value.
-			clx := ns[len(ns)-1].(*CompositeLitExpr)
-			ct, ok := clx.Type.(*constTypeExpr)
-			if !ok || ct.Type.Kind() == StructKind {
+			if isStructLitType(store, last, ns[len(ns)-1].(*CompositeLitExpr).Type) {
 				return n, TRANS_CONTINUE
 			}
 		}
@@ -1051,6 +1081,25 @@ func (acc *preprocessAccumulator) undefinedName(last BlockNode, d Decl, un Name)
 		return invalidConstExpr(nx), TRANS_CONTINUE
 	})
 	return found
+}
+
+// isStructLitType reports whether a composite literal's type expression,
+// preprocessed or not, denotes a struct (its keys are then field names).
+func isStructLitType(store Store, last BlockNode, tx Expr) (isStruct bool) {
+	switch tx := tx.(type) {
+	case *StructTypeExpr:
+		return true
+	case *constTypeExpr:
+		return tx.Type.Kind() == StructKind
+	case *ArrayTypeExpr, *SliceTypeExpr, *MapTypeExpr:
+		return false
+	}
+	defer func() { // the type may not be predefined yet: then not a struct
+		if recover() != nil {
+			isStruct = false
+		}
+	}()
+	return evalStaticType(store, last, tx).Kind() == StructKind
 }
 
 // isTypeField reports whether a child at ftype is a type expression.
@@ -1849,7 +1898,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			if acc != nil {
 				if x, ok := n.(Expr); ok {
 					for _, op := range operandsOf(x) {
-						if isInvalidExpr(op) {
+						if isInvalidExpr(op) || isInvalidOperand(store, last, op) {
 							x.SetAttribute(ATTR_TYPEOF_VALUE, invalidType{})
 							return n, TRANS_CONTINUE
 						}
@@ -6233,7 +6282,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 				// way d goes on. A dependency that defined nothing
 				// (or un recurring) drops d quietly.
 				dependency, declared := index.entries[un]
-				if !declared && index.acc.undefinedName(last, d, un) {
+				if !declared && index.acc.undefinedName(store, last, d, un) {
 					continue
 				}
 				if declared && dependency.decl.GetAttribute(ATTR_PREDEFINED) != true {
@@ -6471,6 +6520,10 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 				tx.Path = pn.GetPathForName(store, tx.Sel)
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
 				t = ptr.TV.GetType()
+			case *constTypeExpr:
+				// accumulate mode's invalidType placeholder for an
+				// undefined name (undefinedName).
+				t = tx.Type
 			default:
 				panic(fmt.Sprintf(
 					"unexpected type declaration type %v",

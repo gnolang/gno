@@ -502,6 +502,38 @@ func main() {
 			t.Fatalf("want the import error only, got %v", msgs)
 		}
 	})
+	t.Run("an undefined package qualifier, a literal key and an invalid field keep going", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+type T x.T
+
+type S struct{ f x.T }
+
+type A struct{ a A }
+
+var _ = []int{a: true, true}
+
+func f(t T, s S, p *A) {
+	s.f.M()
+	s.g = 1
+	p.bar()
+	println(t)
+}
+
+func main() {}
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		wantErrors(t, msgs,
+			"main.gno:3:8", "name not defined: x",
+			"main.gno:5:18", "name not defined: x",
+			"main.gno:7:6", "invalid recursive type: A -> A",
+			"main.gno:9:15", "name not defined: a",
+			"main.gno:9:24", "cannot use untyped bool",
+			"main.gno:13:2", "missing field g in main.S",
+		)
+	})
 }
 
 func TestPreprocessCollectClauses(t *testing.T) {
