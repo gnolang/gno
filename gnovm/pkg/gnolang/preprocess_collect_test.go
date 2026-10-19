@@ -878,3 +878,28 @@ func f() {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectInterfaceElems(t *testing.T) {
+	// A blank method and an embedded non-interface are reported at the
+	// element, not at the interface.
+	msgs := collectErrorsRaw(t, `package main
+type B1 interface {
+	M()
+	_()
+}
+type B2 interface {
+	int
+}
+func f() {
+	var _ interface{ _() }
+}
+`)
+	want := []string{
+		"main/main.gno:4:2-5: methods must have a unique non-blank name",
+		"main/main.gno:7:2-5: interface contains embedded non-interface int",
+		"main/main.gno:10:19-22: methods must have a unique non-blank name",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}

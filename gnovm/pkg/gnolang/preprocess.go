@@ -3419,6 +3419,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 			// TRANS_LEAVE -----------------------
 			case *InterfaceTypeExpr:
+				checkInterfaceElems(store, last, n)
 				evalStaticType(store, last, n)
 
 			// TRANS_LEAVE -----------------------

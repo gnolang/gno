@@ -202,6 +202,29 @@ func typeExprIn(gm store.GasMeter, last BlockNode, owner *DeclaredType, t Type) 
 	return found
 }
 
+// checkInterfaceElems rejects a blank method name and an embedded
+// non-interface in an interface type expression, positioned at the
+// element (the type construction repeats both checks, unpositioned).
+func checkInterfaceElems(store Store, last BlockNode, x *InterfaceTypeExpr) {
+	gm := preprocessGasMeterOf(store)
+	for i := range x.Methods {
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		m := &x.Methods[i]
+		switch m.Name {
+		case blankIdentifier:
+			panicAt("methods must have a unique non-blank name", m)
+		case "":
+			t := evalStaticType(store, last, m.Type)
+			if dt, ok := t.(*DeclaredType); ok && dt.Base == nil {
+				continue // being declared; checked once complete
+			}
+			if embeddedInterface(t) == nil {
+				panicAt(fmt.Sprintf("interface contains embedded non-interface %v", t), m)
+			}
+		}
+	}
+}
+
 // assertArrayLength rejects a negative constant array length.
 func assertArrayLength(n int64) {
 	if n < 0 {
