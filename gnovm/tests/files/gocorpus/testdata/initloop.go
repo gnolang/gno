@@ -17,6 +17,6 @@ var (
 )
 
 // GnoError:
-// line 16: invalid recursive value: x -> a -> b -> c -> a
+// line 16: initialization cycle: x refers to a refers to b refers to c refers to a
 
 // Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14; over-strict: lines 16; on-chain path first error on line 13, not reported by accumulate mode
