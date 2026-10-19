@@ -279,8 +279,8 @@ func assertSingleDefault(clauses []SwitchClauseStmt) {
 
 // dynamicTypeError reports why a value of interface type it can never
 // have the concrete dynamic type ct, or nil when it can. Interface and
-// nil case types are always possible.
-func dynamicTypeError(it, ct Type) error {
+// nil case types are always possible. gm meters the method-set walk.
+func dynamicTypeError(gm store.GasMeter, it, ct Type) error {
 	iface, ok := baseOf(it).(*InterfaceType)
 	if !ok || ct == nil || iface.Generic != "" {
 		return nil
@@ -288,7 +288,7 @@ func dynamicTypeError(it, ct Type) error {
 	if _, ok := baseOf(ct).(*InterfaceType); ok {
 		return nil
 	}
-	return iface.checkImplementedBy(nil, ct)
+	return iface.checkImplementedBy(gm, ct)
 }
 
 // assertCopyArgs checks copy(dst, src): dst a slice, src a slice of the

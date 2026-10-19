@@ -2812,7 +2812,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					)
 				}
 				if at := evalStaticType(store, last, n.Type); at != nil {
-					if err := dynamicTypeError(t, at); err != nil {
+					if err := dynamicTypeError(preprocessGasMeterOf(store), t, at); err != nil {
 						panic(fmt.Sprintf("impossible type assertion: %v does not implement %v (%v)", at, t, err))
 					}
 				}
@@ -3641,7 +3641,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 								ctstr = nilStr
 							} else {
 								ctstr = casetype.(*constTypeExpr).Type.String()
-								if err := dynamicTypeError(tt, ctype); err != nil {
+								if err := dynamicTypeError(preprocessGasMeterOf(store), tt, ctype); err != nil {
 									panicAt(fmt.Sprintf(
 										"impossible type switch case: %s cannot have dynamic type %v (%v)",
 										exprString(n.X), ctype, err), casetype, &clause)
