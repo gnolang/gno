@@ -81,8 +81,8 @@ func TestReset(cur realm, t *testing.T) {
 	got := Render("")
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
-	// Set admin
-	testing.SetRealm(testing.NewUserRealm(owner.Owner()))
+	// Set admin: the GovDAO T1 multisig
+	testing.SetRealm(testing.NewUserRealm(address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")))
 	ResetPosts(cross(cur))
 
 	got = Render("")

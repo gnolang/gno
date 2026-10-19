@@ -9,7 +9,7 @@ import (
 
 // owner gates admin-only operations. Ownable guards its own mutators, so
 // exporting it would be safe; unexported keeps the admin surface to ResetPosts.
-var owner = ownable.NewWithAddress("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh") // govdao t1 multisig
+var owner = ownable.NewWithAddress("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx") // govdao t1 multisig
 
 // ResetPosts allows admin deletion of the posts
 func ResetPosts(cur realm) {
