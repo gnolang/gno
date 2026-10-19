@@ -26,4 +26,4 @@ func _() {
 // line 12: gc expects: invalid operation: bool[int] (bool is not a generic type)
 // line 13: gc expects: invalid operation: bool[G] (bool is not a generic type)
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11, 12, 13

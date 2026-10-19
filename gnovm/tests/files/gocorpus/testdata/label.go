@@ -82,4 +82,4 @@ L10:
 // 	previous declaration at label.go:29:1
 // line 64: gc expects: label go2 not defined|reference to undefined label .*go2; gno: label go2 undefined
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 19, 21, 24, 27, 53

@@ -53,9 +53,6 @@ func shouldPanic(str string, f func()) {
 	f()
 }
 
-
-// Fixing: PR #5732 (fix/5667, typedRuntimeError); verified clean on branch, broken on master; re-golden after merge.
-
 // GnoOutput:
 
 // GoOutput:

@@ -40,4 +40,4 @@ func _[T I](i, j int) {
 // line 27: gc expects: more than one index
 // line 30: gc expects: more than one index
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 8, 21, 24, 27, 30

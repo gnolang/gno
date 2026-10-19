@@ -18,7 +18,7 @@ func _(x, c []int) {
 
 // GnoError:
 // line 9: cannot use string as int
-// line 14: []int can only be compared to nil
+// line 15: []int can only be compared to nil
 
 // GnoWordingDiffers:
 // line 9: gc expects: invalid case c in switch on x (mismatched types string and int); gno: cannot use string as int

@@ -327,9 +327,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 	// path, but do not introduce per-node Pos()/End() walks without
 	// considering the DoS implications.
 	panicWithPos := func(fmtStr string, args ...any) {
-		pos := fs.Position(gon.Pos())
-		loc := fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
-		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
+		panicAtPos(fs, gon.Pos(), fmtStr, args...)
 	}
 
 	switch gon := gon.(type) {
@@ -872,6 +870,12 @@ func toDecl(fs *token.FileSet, god ast.Decl, fileComments []*ast.CommentGroup) D
 	}
 }
 
+// panicAtPos raises a positioned conversion error ("file:line:col: msg").
+func panicAtPos(fs *token.FileSet, pos token.Pos, fmtStr string, args ...any) {
+	p := fs.Position(pos)
+	panic(fmt.Errorf("%s:%d:%d: %v", p.Filename, p.Line, p.Column, fmt.Sprintf(fmtStr, args...)))
+}
+
 func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 	ds = make([]Decl, 0, len(gd.Specs))
 	/*
@@ -888,8 +892,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 		case *ast.TypeSpec:
 			name := toName(s.Name)
 			if s.TypeParams != nil {
-				pos := fs.Position(s.Pos())
-				panic(fmt.Errorf("%s:%d:%d: type parameters are not permitted", pos.Filename, pos.Line, pos.Column))
+				panicAtPos(fs, s.Pos(), "type parameters are not permitted")
 			}
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
@@ -909,13 +912,16 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					names = append(names, *Nx(toName(id)))
 				}
 
-				// Inherit the last type when
-				// both type and value are nil
+				// Inherit the last type when both type and value are
+				// nil; a type travels with its expression list, so a
+				// typed spec without values sets nothing.
 				if s.Type == nil && s.Values == nil {
 					tipe = lastType
 				} else {
 					tipe = toExpr(fs, s.Type)
-					lastType = tipe
+					if s.Values != nil {
+						lastType = tipe
+					}
 				}
 
 				if s.Values == nil && s.Type != nil {

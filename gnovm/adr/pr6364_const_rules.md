@@ -18,6 +18,8 @@ tree:
 - An untyped integer constant wider than 512 bits is a constant
   overflow, as in go/types. This also bounds constant folding, so the
   chained-shift gas test now expects the cap.
+- A constant shift of a constant by more than 1074 is an invalid shift
+  count, before the fold, as in go/types.
 - A labeled `break` or `continue` must name an enclosing loop (`break`
   also a switch or select).
 
@@ -30,7 +32,8 @@ tree:
 
 ## Consequences
 
-- 3 errorcheck corpus files flip to `Clean`; the other import and
-  constant files in the group keep their verdict with updated evidence.
+- 5 errorcheck corpus files flip to `Clean` (const2, bug108, bug136,
+  issue11610a, issue14520a, issue54280 by evidence line); const2 keeps
+  one uncaught marker (an exact bigdec product go/types rounds away).
 - Programs that folded constants past 512 bits are rejected at deploy,
   as gc rejects them.

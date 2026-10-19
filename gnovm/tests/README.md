@@ -33,3 +33,16 @@ the block vocabulary and the re-sync command are in
 [`files/gocorpus/README.md`](files/gocorpus/README.md). The corpus files are
 copyright The Go Authors, BSD-3-Clause (`files/gocorpus/LICENSE`); their
 headers are kept verbatim.
+
+## `stdlibs`: testing standard libraries
+
+These contain standard libraries which are only available in testing, and
+extensions of them, like `std.TestSkipHeights`.
+
+## other directories
+
+- `backup` has been here since forever; and somebody should come around and delete it at some point.
+- `challenges` contains code that supposedly doesn't work, but should.
+- `integ` contains some files for integration tests which likely should have
+  been in some `testdata` directory to begin with. You guessed it,
+  they're here until someone bothers to move them out.

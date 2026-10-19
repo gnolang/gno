@@ -15,7 +15,4 @@ func _(m map[int]S, key int) {
 // GnoError:
 // line 12: cannot assign to m[key].a[0] (neither addressable nor a map index expression)
 
-// GnoWordingDiffers:
-// line 12: gc expects: cannot assign to m[key].a[0] (neither addressable nor a map index expression); gno: cannot assign to m[key].a[0] (neither addressable nor a map index expression)
-
 // Verdict: Clean errorcheck

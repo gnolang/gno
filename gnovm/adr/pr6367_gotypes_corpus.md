@@ -16,11 +16,12 @@ finely and names the rule a gap belongs to.
   (`/* ERROR "text" */`, `/* ERRORx "regex" */`, several per line) and
   its `// -lang=` and `// -gotypesalias=` headers; a file without markers
   must preprocess cleanly (compile mode).
-- Two more Gno-side evidence blocks, neither changing the verdict:
-  `ParseBlocked:` (checkable markers in a file Gno could not parse, the
-  checker never ran) and `GnoWordingDiffers:` (covered lines whose Gno
-  message matches none of gc's patterns, so a line match may be a
-  coincidence).
+- Two more Gno-side evidence blocks: `ParseBlocked:` (checkable markers
+  in a file Gno could not parse; the checker never ran, so they stay
+  uncaught and the file is a `KnownIssue`, the block saying why) and
+  `GnoWordingDiffers:` (covered lines whose Gno message matches none of
+  gc's patterns, so a line match may be a coincidence; `ERROR` is a
+  substring in go/types' files, `ERRORx` a regexp).
 - Type set unions, `~` and `comparable` route to `Unsupported generics`;
   `-gotypesalias=0` files are `Unsupported`.
 

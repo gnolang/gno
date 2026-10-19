@@ -17,11 +17,11 @@ func main() {
 // GnoError:
 // line 10: var declaration not allowed in if initializer
 // line 12: expected operand, found 'var'
-
-// ParseBlocked:
-// line 14: gc expects: var declaration not allowed in for initializer
+// line 14: expected operand, found 'var'
+// line 15: expected '}', found 'EOF'
 
 // GnoWordingDiffers:
 // line 12: gc expects: var declaration not allowed in switch initializer; gno: expected operand, found 'var'
+// line 14: gc expects: var declaration not allowed in for initializer; gno: expected operand, found 'var'
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 15

@@ -22,12 +22,12 @@ func _() {
 
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?)
-
-// ParseBlocked:
-// line 16: gc expects: cannot use b := 10 as value|parse error|declared and not used
-// line 19: gc expects: cannot use c := 10 as value|expected .*;|declared and not used
+// line 16: expected boolean or range expression, found assignment (missing parentheses around composite literal?)
+// line 19: expected switch expression, found assignment (missing parentheses around composite literal?)
 
 // GnoWordingDiffers:
 // line 13: gc expects: cannot use a := 10 as value|expected .*;|declared and not used; gno: expected boolean expression, found assignment (missing parentheses around composite literal?)
+// line 16: gc expects: cannot use b := 10 as value|parse error|declared and not used; gno: expected boolean or range expression, found assignment (missing parentheses around composite literal?)
+// line 19: gc expects: cannot use c := 10 as value|expected .*;|declared and not used; gno: expected switch expression, found assignment (missing parentheses around composite literal?)
 
 // Verdict: Clean errorcheck

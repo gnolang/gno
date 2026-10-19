@@ -16,10 +16,8 @@ type T ...int;		// ERROR "[.][.][.]|syntax|type"
 
 // GnoError:
 // line 11: expected type, found ')'
-
-// ParseBlocked:
-// line 13: gc expects: [.][.][.]|syntax|type
-// line 15: gc expects: [.][.][.]|syntax|type
+// line 13: expected type, found '...'
+// line 15: expected type, found '...'
 
 // GnoWordingDiffers:
 // line 11: gc expects: [.][.][.]; gno: expected type, found ')'
