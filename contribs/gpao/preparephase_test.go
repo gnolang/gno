@@ -20,6 +20,7 @@ import (
 	vm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -136,7 +137,11 @@ func nodeServing(t *testing.T, pkgPath string) string {
 	require.NoError(t, err)
 	client := gnoclient.Client{Signer: signer, RPCClient: rpc}
 
-	mpkg, err := gno.ReadMemPackage(filepath.Join(gnoroot, "examples", pkgPath), pkgPath, gno.MPUserAll)
+	// examples/ resolves by module path: the directory does not repeat the
+	// version the module path carries.
+	dir := gnomod.FindModuleDir(filepath.Join(gnoroot, "examples"), pkgPath)
+	require.NotEmpty(t, dir, "no module %q under examples/", pkgPath)
+	mpkg, err := gno.ReadMemPackage(dir, pkgPath, gno.MPUserAll)
 	require.NoError(t, err)
 	signed, err := client.SignTx(std.Tx{
 		Msgs: []std.Msg{vm.MsgAddPackage{Creator: who, Package: mpkg}},
