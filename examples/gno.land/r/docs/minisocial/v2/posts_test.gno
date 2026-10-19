@@ -11,6 +11,9 @@ import (
 	"gno.land/p/nt/uassert/v0"
 )
 
+// adminAddr mirrors the hardcoded owner in admin.gno.
+const adminAddr = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
+
 // resetPostsForTest clears the realm's post state so each test starts from a
 // known-empty feed independent of test ordering.
 func resetPostsForTest() {
@@ -81,8 +84,8 @@ func TestReset(cur realm, t *testing.T) {
 	got := Render("")
 	uassert.True(t, strings.Contains(got, text1), "expected render to contain text1")
 
-	// Set admin: the GovDAO T1 multisig
-	testing.SetRealm(testing.NewUserRealm(address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")))
+	// Set admin
+	testing.SetRealm(testing.NewUserRealm(adminAddr))
 	ResetPosts(cross(cur))
 
 	got = Render("")

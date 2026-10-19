@@ -1071,7 +1071,7 @@ self-closing ±<gno-icon />± tag. It takes the size and color of the text aroun
 - <gno-icon name="check-circle" label="Done" /> Audit
 - <gno-icon name="clock" label="Pending" /> Mainnet
 
-[<gno-icon name="book" /> Read the docs](/r/docs)
+[<gno-icon name="book" /> Read the docs](/docs)
 ±±±
 
 - Renders as:
@@ -1083,7 +1083,7 @@ self-closing ±<gno-icon />± tag. It takes the size and color of the text aroun
 - <gno-icon name="check-circle" label="Done" /> Audit
 - <gno-icon name="clock" label="Pending" /> Mainnet
 
-[<gno-icon name="book" /> Read the docs](/r/docs)
+[<gno-icon name="book" /> Read the docs](/docs)
 
 ---
 
