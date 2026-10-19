@@ -22,6 +22,7 @@ tree:
   indices stay below the length.
 - A keyed struct literal's keys are field names, each bad one reported
   before it is resolved, and name fields of the type.
+- A blank field or method is never found through a selector.
 - A `for` post statement may not declare.
 - A type switch variable with no clause is unused.
 

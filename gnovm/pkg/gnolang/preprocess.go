@@ -3226,6 +3226,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
+				assertSelectorNotBlank(n, xt)
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {

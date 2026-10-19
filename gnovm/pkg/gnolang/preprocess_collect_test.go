@@ -1153,3 +1153,18 @@ func main() {
 		t.Fatalf("got %v, want %v", msgs, want)
 	}
 }
+
+func TestPreprocessCollectBlankSelector(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+var t struct{ _ int }
+
+func main() {
+	_ = t._
+}
+`)
+	want := "t._ undefined (type struct{_ int} has no field or method _)"
+	if len(msgs) != 1 || msgs[0] != want {
+		t.Fatalf("got %v, want [%s]", msgs, want)
+	}
+}

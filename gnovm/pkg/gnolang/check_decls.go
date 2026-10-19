@@ -110,3 +110,10 @@ func assertStructField(st *StructType, lt Type, key *NameExpr) {
 	}
 	panicAt(fmt.Sprintf("unknown field %s in struct literal of type %s", key.Name, lt), key)
 }
+
+// assertSelectorNotBlank: a blank field or method is never found.
+func assertSelectorNotBlank(n *SelectorExpr, xt Type) {
+	if n.Sel == blankIdentifier {
+		panic(fmt.Sprintf("%s undefined (type %s has no field or method _)", exprString(n), xt))
+	}
+}
