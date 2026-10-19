@@ -7192,17 +7192,18 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 					"unexpected type declaration type %v",
 					reflect.TypeOf(d.Type)))
 			}
-			if d.IsAlias {
-				// use t directly.
-			} else {
+			if !d.IsAlias {
 				// create new declared type.
 				pn := packageOf(last)
 				dt := declareWith(pn.PkgPath, last, d.Name, t)
 				t = dt
 			}
-			// fill in later.
-			last2.Define2(true, d.Name, t, asValue(t), NameSource{&d.NameExpr, d, NSTypeDecl, -1})
-			d.Path = last.GetPathForName(store, d.Name)
+			// fill in later. An alias of a name not yet defined waits
+			// for it: a nil type value could not be redefined to it.
+			if t != nil {
+				last2.Define2(true, d.Name, t, asValue(t), NameSource{&d.NameExpr, d, NSTypeDecl, -1})
+				d.Path = last.GetPathForName(store, d.Name)
+			}
 		} // END if !isLocallyDefined(last2, d.Name) {
 		// now it is or was locally defined.
 

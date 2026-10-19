@@ -33,7 +33,11 @@ Each crash site raises a checking error with a code instead:
 - A cycle through type names alone (`type b c; type c b`): `invalid
   recursive type: b -> c -> b` (`CodeRecursiveType`) at the declaration
   that starts it, as for the cycles through composite types, instead of
-  the predefine sanity check failing on the unsealed type.
+  the predefine sanity check failing on the unsealed type. A dropped
+  declaration's unsealed type (an invalid base) passes that check.
+- An alias of a name declared later (`type A = T; type T struct{}`) is
+  defined once the name is, instead of the static block refusing to
+  change the nil type value it was reserved with.
 
 Messages spell the expression as written (`exprString`), not with the
 value paths of the preprocessed tree.
