@@ -15,47 +15,64 @@ all of them.
 ## Decision
 
 `PreprocessCollect` / `PreprocessFilesCollect` run the same walk with an
-accumulator. Granularity is the statement and the file declaration:
+accumulator. Granularity is the statement, the switch or select clause,
+the composite-literal element and the file declaration; what cannot be
+typed keeps an invalid type instead of taking its dependents down:
 
-- `Transcribe` gains an optional `PanicHandler`; the ten body and
-  declaration loops call it through `guarded`. In accumulate mode a
-  `*PreprocessError` raised anywhere inside a statement is recorded, the
-  statement is dropped in place, the block stack is rewound to the
-  statement's enclosing block, and the walk continues with the next one.
+- `Transcribe` gains an optional `PanicHandler`; the body, declaration,
+  clause and element loops call it through `guarded`. In accumulate mode
+  a `*PreprocessError` raised anywhere inside such a node is recorded, the
+  node is dropped in place (an element becomes an `invalidType`
+  placeholder, a clause is skipped by its switch), the block stack is
+  rewound to the enclosing block, and the walk continues with the next.
 - `predefineFileSet` guards each file-level declaration the same way; a
   dropped declaration is marked predefined and preprocessed so the walk
-  skips it.
-- Names declared by a dropped statement are poisoned: later "not declared"
-  errors about them are suppressed (go/types' invalid-object rule). The
-  same message reached through two paths is recorded once.
+  skips it. The deploy path's package-level duplicate check runs first,
+  reporting each redeclaration at the declaration that loses.
+- `invalidType` (go/types' `Typ[Invalid]`) is the type of what was
+  reported. A name declared nowhere becomes a placeholder at each use in
+  a declaration (`undefinedName`), so a signature naming it still defines
+  its function, body and callers checked. A dropped declaration or
+  statement gives its names that type (`dropDecl`, `dropStmt`; a declared
+  type keeps its identity with an invalid base). At `TRANS_LEAVE` an
+  expression with an invalid operand is invalid itself and its rule does
+  not run; assignability, conversion and the bool check pass it, and a
+  rule that still mentions it is suppressed by message. A name with no
+  slot to type is poisoned instead: later "not declared" errors about it
+  are dropped. The same message reached through two paths is kept once.
+- The dependency path (`predefineRecursively2`) carries the accumulator
+  into its nested walk, so a package-level literal is checked element by
+  element and a function literal statement by statement as well.
 - Go runtime errors are never swallowed: they are VM bugs.
 
 `Preprocess` passes a nil handler, so the on-chain path is unchanged:
-first error, same gas, same text. The accumulated result must not be
-executed.
+first error, same gas, same text. `invalidType` never exists there; the
+checks for it are type assertions on paths it cannot reach. The
+accumulated result must not be executed.
 
 ## Consequences
 
 - One pass gives every error with exact positions; the harness's
   multi-pass neutraliser can go, and `gno lint` can report all errors.
-- Per-site "record and return an invalid type" can replace the
-  statement-level rule incrementally where finer granularity is wanted;
-  the accumulator and the guard are the seam.
-- Suppression is heuristic (by name); a rule that reports a dropped
-  name under another spelling shows up as noise and gets added to
-  `reUndeclaredName`.
+- Finer recovery (per expression inside a statement) can be added at the
+  same seam: record, substitute an `invalidType` placeholder, go on.
+- Suppression stays heuristic in two places: by name for what cannot be
+  typed, by message for a rule that prints the invalid type.
 
 ## Limits
 
-- Poison is by bare name, package-wide, not by scope: in
-  `func a() { x := "s" + 1 }; func b() { println(x) }` the genuine
-  `name x not declared` in `b` is suppressed by the drop in `a`.
-- A dropped declaration can leave partial state: `type T struct{ X Undef }`
-  is dropped but `T` exists as an empty struct, so a method body's `t.X`
-  reports `missing field X in main.T`, which no name poison covers.
-- Dependency attribution (one error, at the dependency) needs the file-set
-  index, i.e. `PreprocessFilesCollect`; `PreprocessCollect` on a lone file
-  node may report a dropped dependency at each dependent too.
+- A failing statement is still dropped whole: `x := undefined + 1`
+  reports the name, not what else the statement does wrong.
+- A type switch clause whose case is not a type drops with its body;
+  go/types types the clause variable invalid and walks the body silently,
+  which reports the same.
+- An import with the default name and an unknown path fails in
+  `initStaticBlocks`, before any guard: the run panics as on chain.
+- A same-file redeclaration is reported by the parser (`ParseFileCollect`,
+  `DeclarationErrors`) and again, in the deploy path's wording, by the
+  package-level check.
+- `PreprocessCollect` on a package node without a `FileSet` cannot index
+  declarations: a declaration that fails there drops whole.
 
 ## Parser errors
 
