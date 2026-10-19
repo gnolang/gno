@@ -823,6 +823,40 @@ func main() {
 	}
 }
 
+func TestPreprocessCollectAssignTarget(t *testing.T) {
+	// A method value and a call result's field are not assignable; a
+	// field of a variable is.
+	msgs := collectErrors(t, `package main
+
+type S struct{ a int }
+
+func (S) M()   {}
+func (*S) PM() {}
+
+func fs() S { return S{} }
+
+func main() {
+	var s S
+	ps := &s
+	s.M = nil
+	ps.PM = nil
+	fs().a = 1
+	fs().a++
+	s.a = 1
+	ps.a = 2
+}
+`)
+	want := []string{
+		"cannot assign to s.M (neither addressable nor a map index expression)",
+		"cannot assign to ps.PM (neither addressable nor a map index expression)",
+		"cannot assign to fs().a (neither addressable nor a map index expression)",
+		"cannot assign to fs().a (neither addressable nor a map index expression)",
+	}
+	if !reflect.DeepEqual(msgs, want) {
+		t.Errorf("want %v, got %v", want, msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main

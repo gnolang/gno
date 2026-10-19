@@ -69,6 +69,8 @@ func operandOf(store Store, last BlockNode, x Expr) operand {
 			o.mode, o.typ = opValue, t
 		case isTypeValue(cx.T):
 			o.mode, o.typ = opType, cx.GetType()
+		case isPackageValue(cx):
+			o.mode, o.typ = opPackage, cx.T
 		case isBuiltinFunc(cx):
 			o.mode, o.typ, o.val = opBuiltin, cx.T, &cx.TypedValue
 		default:
@@ -119,10 +121,21 @@ func valueMode(store Store, last BlockNode, x Expr, t Type) opMode {
 	case *StarExpr:
 		return opVariable
 	case *SelectorExpr:
+		switch cx.Path.Type {
+		case VPValMethod, VPPtrMethod, VPInterface,
+			VPDerefValMethod, VPDerefPtrMethod, VPDerefInterface:
+			return opValue // a method value
+		}
 		xt := evalStaticTypeOf(store, last, cx.X)
 		switch baseOf(xt).(type) {
-		case *PointerType, *PackageType:
-			return opVariable // pkg.Var: a package member is addressable
+		case *PointerType:
+			return opVariable
+		case *PackageType:
+			// pkg.Var is addressable; pkg.Func is not.
+			if src := packageNameSourceOf(store, last, cx); src != nil && src.Type == NSFuncDecl {
+				return opValue
+			}
+			return opVariable
 		}
 		if _, ok := baseOf(xt).(*StructType); ok && valueMode(store, last, cx.X, xt) == opVariable {
 			return opVariable
@@ -172,8 +185,50 @@ func nameSourceOf(last BlockNode, nx *NameExpr) (src *NameSource) {
 	return &sources[idx]
 }
 
+// packageNameSourceOf returns how the member sx.Sel of the package sx.X
+// names was declared, or nil when it cannot be resolved.
+func packageNameSourceOf(store Store, last BlockNode, sx *SelectorExpr) *NameSource {
+	// The package name folds to a constant holding a package ref; the
+	// import's slot in the file block holds the package value.
+	x := sx.X
+	if cx, ok := x.(*ConstExpr); ok {
+		x = cx.Source
+	}
+	nx, ok := x.(*NameExpr)
+	if !ok {
+		return nil
+	}
+	tv := last.GetSlot(store, nx.Name, true)
+	if tv == nil {
+		return nil
+	}
+	pv, ok := tv.V.(*PackageValue)
+	if !ok {
+		return nil
+	}
+	return nameSourceIn(pv.GetBlock(store).GetSource(store), sx.Sel)
+}
+
+// nameSourceIn returns the source of the name declared in bn, or nil.
+func nameSourceIn(bn BlockNode, name Name) *NameSource {
+	if bn == nil {
+		return nil
+	}
+	idx, ok := bn.GetLocalIndex(name)
+	sources := bn.GetStaticBlock().NameSources
+	if !ok || int(idx) >= len(sources) {
+		return nil
+	}
+	return &sources[idx]
+}
+
 func isTypeValue(t Type) bool {
 	_, ok := t.(*TypeType)
+	return ok
+}
+
+func isPackageValue(cx *ConstExpr) bool {
+	_, ok := cx.T.(*PackageType)
 	return ok
 }
 

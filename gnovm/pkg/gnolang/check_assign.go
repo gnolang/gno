@@ -586,12 +586,11 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	if o.assignable() {
 		return
 	}
-	switch clx := lx.(type) {
-	case *SelectorExpr:
-		if inMapValue(store, last, clx) {
-			failf(CodeMapValueAssign, nil, "cannot assign to struct field %s in map", exprString(lx))
-		}
-	case *IndexExpr, *NameExpr:
+	if sx, ok := lx.(*SelectorExpr); ok && inMapValue(store, last, sx) {
+		failf(CodeMapValueAssign, nil, "cannot assign to struct field %s in map", exprString(lx))
+	}
+	switch lx.(type) {
+	case *SelectorExpr, *IndexExpr, *NameExpr:
 		failf(CodeNotAssignable, nil, "cannot assign to %s (neither addressable nor a map index expression)", exprString(lx))
 	}
 	panic(fmt.Sprintf("cannot assign to %s", exprString(lx)))
