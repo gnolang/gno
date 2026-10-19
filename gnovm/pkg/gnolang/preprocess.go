@@ -1223,6 +1223,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				stack = stack[:1] // every block above ctx was pushed below n
 			}
 			last = stack[len(stack)-1]
+			if ftype == TRANS_SWITCH_CASE {
+				n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // the switch skips it
+			}
 			acc.dropStmt(pe, n, last)
 			return n, true
 		}
@@ -1542,6 +1545,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					} else {
 						// evaluate case types.
 						for i, cx := range n.Cases {
+							src := cx
 							cx = Preprocess(
 								store, last, cx).(Expr)
 							var ct Type
@@ -1551,6 +1555,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 									// Don't change cxx.GetType() for defensiveness.
 									ct = nil
 								} else {
+									if acc != nil && cxx.T.Kind() != TypeKind {
+										panic(fmt.Sprintf("%s is not a type", src.String()))
+									}
 									ct = cxx.GetType()
 								}
 							} else {
@@ -3674,6 +3681,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				if n.IsTypeSwitch {
 					types := map[string]struct{}{}
 					for _, clause := range n.Clauses {
+						if acc != nil && clause.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
+							continue
+						}
 						for _, casetype := range clause.Cases {
 							var ctstr string
 							ctype := casetype.(*constTypeExpr).Type

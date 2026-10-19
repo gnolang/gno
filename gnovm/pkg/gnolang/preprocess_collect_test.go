@@ -502,3 +502,40 @@ func main() {
 		}
 	})
 }
+
+func TestPreprocessCollectClauses(t *testing.T) {
+	msgs, panicked := collectWith(t, `package main
+
+type Stringer interface{ String() string }
+
+func main() {
+	var e interface{}
+	switch e := e.(type) {
+	case 0:
+		e.x = 1
+	case T:
+		e.M()
+	case Stringer:
+		e.M()
+	}
+	switch 1 {
+	case "s":
+	case 2:
+		var s string = 1
+		_ = s
+	}
+}
+`, nil)
+	if panicked != nil {
+		t.Fatalf("escaped: %v", panicked)
+	}
+	// A failing clause drops alone: its body is silenced (go/types), the
+	// other clauses are checked.
+	wantErrors(t, msgs,
+		"main.gno:8:2", "0 is not a type",
+		"main.gno:10:7", "name T not declared",
+		"main.gno:13:3", "missing field M in main.Stringer",
+		"main.gno:16:2", "cannot use",
+		"main.gno:18:7", "cannot use",
+	)
+}
