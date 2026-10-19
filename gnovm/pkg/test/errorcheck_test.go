@@ -141,7 +141,8 @@ func TestErrorcheckVerifyDemandsOneVerdict(t *testing.T) {
 		t.Fatalf("one verdict: %v", err)
 	}
 	two := src + "\n// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 3\n"
-	_, _, _, err := opts.RunFiletest("canary.go", []byte(two), opts.TestStore)
+	_, gas, diffs, err := opts.RunFiletest("canary.go", []byte(two), opts.TestStore)
+	_, _ = gas, diffs
 	if err == nil || !strings.Contains(err.Error(), "exactly one") {
 		t.Fatalf("two verdicts accepted: %v", err)
 	}
