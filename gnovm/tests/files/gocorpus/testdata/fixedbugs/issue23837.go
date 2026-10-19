@@ -69,9 +69,6 @@ func shouldPanic(x func()) {
 	x()
 }
 
-
-// Fixed: master PR #5711 (a7e4c34b0, bisected); verified clean, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 
 // GoOutput:

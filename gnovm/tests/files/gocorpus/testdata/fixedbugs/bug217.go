@@ -18,4 +18,4 @@ type b int
 // GnoError:
 // line 12: method has no receiver
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14

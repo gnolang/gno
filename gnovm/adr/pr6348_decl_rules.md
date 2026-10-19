@@ -15,14 +15,16 @@ never guarded) stay uncovered.
 - Declaration rules in preprocess: `:=` may not repeat a name and must
   declare at least one new variable in its Go scope (Gno folds a control
   statement's header into its body block, so header-declared names may be
-  shadowed; sibling declarations and parameters may not); a range clause
+  shadowed; sibling declarations, parameters and the type-switch guard,
+  which Go declares in each clause's own block, may not); a range clause
   may not repeat its key as value; `init` and `main` may only be
   functions, and `init` takes no arguments or results (a `cur realm`
   parameter aside); a type may not have a field and a method of the same
   name; interface methods must be unique and non-blank.
-- `checkUnused` walks a preprocessed function and reports every local
-  variable without a use and every label no goto, break or continue
-  names, at the declaration. A target of `=` or `:=` is not a use; unused
+- `checkUnused` walks a preprocessed function (a declaration, or a
+  package-level literal, each once) and reports every local variable
+  without a use and every label no goto, break or continue names, at the
+  declaration, in source order so the on-chain first error is gc's. A target of `=` or `:=` is not a use; unused
   constants and the blank label are fine; a name only a folded constant
   uses (`len(a)` of an array) counts as used. Keyed by the declaring
   statement, since faux blocks copy their header's name sources into

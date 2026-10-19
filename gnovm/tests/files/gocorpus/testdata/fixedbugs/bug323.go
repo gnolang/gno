@@ -23,4 +23,4 @@ func main() {
 // line 18: should not happen
 // line 19: should not happen
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18, 19; internal errors: lines 18, 19
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 19; internal errors: lines 18, 19

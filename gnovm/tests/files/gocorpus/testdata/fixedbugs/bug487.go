@@ -27,4 +27,4 @@ func H() (int, int) {
 // line 17: assignment mismatch: 2 variables but G<VPBlock(3,0)> returns 3 values
 // line 23: expected 2 return values; got 3
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18

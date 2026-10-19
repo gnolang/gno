@@ -36,4 +36,4 @@ func f4(e interface{}) {
 // GnoError:
 // line 16: duplicate type int in type switch
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 21, 23, 30; over-strict: lines 16

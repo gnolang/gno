@@ -21,4 +21,4 @@ const (
 // line 14: illegal character U+000C
 // line 15: expected ')', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 15
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 15

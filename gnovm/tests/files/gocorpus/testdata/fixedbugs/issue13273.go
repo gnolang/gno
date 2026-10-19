@@ -57,4 +57,4 @@ func f() {
 // GnoError:
 // line 50: expected 'chan', found '<-'
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 51, 53, 54
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 51, 53, 54
