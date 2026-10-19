@@ -1074,6 +1074,7 @@ func (acc *preprocessAccumulator) record(pe *PreprocessError) {
 // so a suppressed cascade still covers what it declares.
 func (acc *preprocessAccumulator) dropStmt(pe *PreprocessError, n Node, last BlockNode) {
 	n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // later rules skip what it declares
+	acc.markReferenced(n)
 	for _, name := range declaredNamesOf(n) {
 		if !defineInvalid(last.GetStaticBlock(), name) {
 			acc.poisoned[name] = true
@@ -1088,6 +1089,7 @@ func (acc *preprocessAccumulator) dropStmt(pe *PreprocessError, n Node, last Blo
 // failing on a missing name; a declared type keeps its identity with an
 // invalid base.
 func (acc *preprocessAccumulator) dropDecl(pe *PreprocessError, fn BlockNode, d Decl) {
+	acc.markReferenced(d)
 	acc.record(pe)
 	markDropped(d)
 	switch d := d.(type) {
@@ -1364,6 +1366,20 @@ func isTypeField(ftype TransField) bool {
 		return true
 	}
 	return false
+}
+
+// markReferenced notes every name a dropped node mentions: a use the walk
+// never sees, so the unused-name rules stay quiet about it.
+func (acc *preprocessAccumulator) markReferenced(n Node) {
+	if acc.referenced == nil {
+		acc.referenced = map[Name]bool{}
+	}
+	Transcribe(n, func(_ []Node, _ TransField, _ int, sn Node, stage TransStage) (Node, TransCtrl) {
+		if nx, ok := sn.(*NameExpr); ok && stage == TRANS_ENTER {
+			acc.referenced[nx.Name] = true
+		}
+		return sn, TRANS_CONTINUE
+	})
 }
 
 // droppedDeclError is raised, in accumulate mode, by a declaration that
