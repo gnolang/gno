@@ -194,6 +194,19 @@ func TestMissingStdlibImport(t *testing.T) {
 	}
 }
 
+func TestIsInternalError(t *testing.T) {
+	for msg, want := range map[string]bool{
+		"main/a.go:3:1: should not happen":                   true,
+		"main/a.go:9:6: decl node already predefined! var x": true,
+		"main/a.go:3:1: declared and not used: x":            false,
+		"main/a.go:3:1: cannot use int as string":            false,
+	} {
+		if got := IsInternalError(msg); got != want {
+			t.Errorf("IsInternalError(%q) = %v, want %v", msg, got, want)
+		}
+	}
+}
+
 func TestCompileVerdict(t *testing.T) {
 	t.Parallel()
 	gcRejects := map[int]string{5: "x"}

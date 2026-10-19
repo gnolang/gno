@@ -13,6 +13,8 @@ func TestCleanErrorMessage(t *testing.T) {
 		{"main/main.gno:4:5': primed point", "primed point"},
 		{"./main.go:5:3: undefined: y", "undefined: y"},
 		{"main.go:5: line only", "line only"},
+		{"a.go:5:1: x[main/a.go:1:1-2:2].S", "x[main/a.go:1:1-2:2].S"},
+		{"main/a.go:23:3-24:3: msg", "msg"},
 		{"no position here: keep it", "no position here: keep it"},
 		{"  main.gno:1:1:   padded  ", "padded"},
 	} {

@@ -145,6 +145,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		return nil
 	}
 	compileMode := false
+	var errorcheckMarkers []InlineError
 	// .gno files opt INTO Gno-vs-Go comparison by declaring
 	// `// GoOutput:` (or a KnownDivergence verdict). Without it, .gno
 	// files keep their pure-Gno behavior — the 1600+ existing files
@@ -156,8 +157,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		hasTypeCheckErrorDir := dirs.First(DirectiveTypeCheckError) != nil
 		switch {
 		case HasInlineErrorMarkers(source) && !hasErrorDir:
-			// errorcheck mode lands with the error-accumulating preprocessor.
-			return "", 0, diffs, fmt.Errorf("filetest %s: inline // ERROR markers are not supported yet", fname)
+			// `// errorcheck`: gc's inline markers name the lines it
+			// rejects; Gno preprocesses once in accumulate mode.
+			errorcheckMarkers = ParseInlineErrors(source)
+			if len(errorcheckMarkers) == 0 {
+				// A marker on a full-comment line (a pragma, as in
+				// fixedbugs/issue18882.go) is not checkable.
+				reason := "errorcheck marker on a non-code line (e.g. pragma comment); not checkable by the harness"
+				if opts.Sync {
+					return writeUnsupportedDirective(originalSource, reason), 0, diffs, nil
+				}
+				return "", 0, diffs, &SkipError{Reason: reason}
+			}
+			if err := prependRescue(); err != nil {
+				return "", 0, diffs, err
+			}
 		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
 			// `// compile`: gc compiles but never runs it. Gno's preprocess
 			// (and package init) only, no main; go/types' verdict is not
@@ -189,7 +203,7 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// compile mode, opted-in .gno files); sync writes it, verify demands it.
 	// origDirs: the compile-mode rescue re-parses dirs from the source
 	// whose golden tail was stripped above, so they no longer see it.
-	if (isGoRunMode || compileMode) && !opts.Sync {
+	if (isGoFile || isGoRunMode || compileMode) && !opts.Sync {
 		if n := countDirectives(origDirs, DirectiveVerdict); n != 1 {
 			return "", 0, diffs, fmt.Errorf("expected exactly one `// Verdict:` line, found %d; re-run with --update-golden-tests", n)
 		}
@@ -202,7 +216,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		}
 		// The mode names the file's mode; an Unsupported verdict carries a tag there.
 		mode := "run"
-		if compileMode {
+		switch {
+		case len(errorcheckMarkers) > 0:
+			mode = "errorcheck"
+		case compileMode:
 			mode = "compile"
 		}
 		if v.Kind != VerdictUnsupported && v.Mode != mode {
@@ -275,7 +292,24 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	// Errorcheck and compile files are not executed (gc doesn't run
 	// them; executing can hang on infinite loops Gno fails to reject) —
 	// preprocess only.
-	result := opts.runTest(m, pkgPath, fname, source, opslog, tcheck, compileMode)
+	var result runResult
+	if len(errorcheckMarkers) > 0 {
+		// The on-chain path (first error, Preprocess) runs on its own
+		// store wrap so the two passes do not share a package.
+		cw2 := opts.BaseStore.CacheWrap()
+		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+			Output:        &opts.outWriter,
+			Store:         tgs.BeginTransaction(cw2, cw2, nil, gasMeter),
+			Context:       ctx,
+			MaxAllocBytes: maxAlloc,
+			GasMeter:      gasMeter,
+			ReviveEnabled: true,
+		})
+		defer m2.Release()
+		result = opts.runErrorcheck(m, m2, pkgPath, fname, source)
+	} else {
+		result = opts.runTest(m, pkgPath, fname, source, opslog, tcheck, compileMode)
+	}
 
 	// Collect storage diffs after test execution.
 	diffs = m.Store.RealmStorageDiffs()
@@ -332,6 +366,69 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 				"stale verdict: Gno now hits a feature gap (%s) — re-run with --update-golden-tests to mark the file `// Verdict: Unsupported`:\n%s",
 				reason, result.Error)
 		}
+	}
+
+	// Errorcheck mode: gc's inline `// ERROR "regex"` markers are the
+	// reference. One accumulate-mode pass gives every Gno error with its
+	// span (`GnoError:`). Clean when every checkable marker line has a
+	// Gno error starting on it (see creditLines) and no Gno error starts
+	// on an unmarked line; otherwise a KnownIssue that cites the
+	// preprocess-conformance umbrella issue, since every such gap is in
+	// its scope (a per-cause issue written by hand survives re-sync).
+	if len(errorcheckMarkers) > 0 {
+		gas := m.GasMeter.GasConsumed()
+		if reason := gcOnlyErrorcheckReason(originalSource, errorcheckMarkers); reason != "" {
+			if opts.Sync {
+				return writeUnsupportedDirective(originalSource, reason), gas, diffs, nil
+			}
+			return "", gas, diffs, &SkipError{Reason: reason}
+		}
+		bodyLines := strings.Count(string(originalSource), "\n")
+		cov := attributeErrorcheck(errorcheckMarkers, result.gnoErrors, prependedLines, bodyLines)
+		// The on-chain path must reject the file iff accumulate mode did,
+		// with its first error on a reported line; a parse-blocked file
+		// has no on-chain checking error to compare.
+		onChain := ""
+		if !result.parseBlocked {
+			lo, _ := errorSpan(result.onChainError)
+			lo = min(lo-prependedLines, bodyLines)
+			_, reported := cov.gnoErr[lo]
+			switch {
+			case result.onChainError == "" && len(result.gnoErrors) > 0:
+				onChain = "accepts the file"
+			case result.onChainError != "" && len(result.gnoErrors) == 0:
+				onChain = "rejects the file: " + CleanErrorMessage(result.onChainError)
+			case result.onChainError != "" && lo > 0 && !reported:
+				onChain = fmt.Sprintf("first error on line %d, not reported by accumulate mode", lo)
+			}
+		}
+		uncaught, overStrict, internal := cov.uncaught, cov.overStrict, cov.internal
+		v := verdict{Kind: VerdictClean, Mode: "errorcheck"}
+		if len(uncaught) > 0 || len(overStrict) > 0 || len(internal) > 0 || onChain != "" {
+			v = verdict{Kind: VerdictKnownIssue, Mode: "errorcheck", Reason: errorcheckGapReason(uncaught, overStrict, internal, onChain)}
+			// A reason written by hand (a per-cause issue) survives re-sync;
+			// the sync-written umbrella form is recomputed every time, and
+			// verify accepts its legacy `#6344; …` spelling until the next sync.
+			if prev, ok := verdictIn(origDirs); ok && prev.check() == nil {
+				switch {
+				case prev.Kind == VerdictKnownDivergence:
+					// A divergence is a decision: it stands while the sides
+					// still disagree, whatever the gap list says.
+					v = prev
+				case prev.Kind != VerdictKnownIssue:
+				case !isSyncWrittenReason(prev.Reason):
+					v.Reason = prev.Reason
+				case !opts.Sync && legacySyncReason(prev.Reason) == v.Reason:
+					v.Reason = prev.Reason
+				}
+			}
+		}
+		sections := []goldenSection{
+			{name: DirectiveGnoError, block: FormatGnoErrorBlock(cov.gnoErr)},
+			{name: DirectiveVerdict, block: v.String(), inline: true},
+		}
+		newContent, err := opts.resolveStaticGolden(rawSource, originalSource, origDirs, sections)
+		return newContent, gas, diffs, err
 	}
 
 	// Compile mode: Gno's preprocess against gc. Two evidence blocks
@@ -665,6 +762,13 @@ var goldenRegionStarts = []string{
 	DirectiveVerdict,
 }
 
+// legacyGoldenBlocks are block names older ledger formats wrote; a
+// re-sync strips them with the region and verify reports them as stray.
+var legacyGoldenBlocks = []string{
+	"GoTypeCheckError", "GoTypesOnly", "GnoOverStrictError", "UncaughtError",
+	"GnoPreprocessError", "GoError", "Divergence",
+}
+
 // stripTrailingGoldenRegion removes the trailing golden region — one or
 // more blank-line-separated `//`-comment blocks each beginning with a
 // golden directive (goldenRegionStarts) — so a refresh replaces rather
@@ -697,7 +801,7 @@ func stripTrailingGoldenRegion(src string) string {
 		if i > start && strings.TrimSpace(lines[i-1]) != "" {
 			continue // not a block top
 		}
-		for _, name := range goldenRegionStarts {
+		for _, name := range slices.Concat(goldenRegionStarts, legacyGoldenBlocks) {
 			if strings.HasPrefix(t, "// "+name+":") {
 				return strings.Join(lines[:i], "\n")
 			}
@@ -963,6 +1067,16 @@ func unifiedDiff(wanted, actual string) string {
 type runResult struct {
 	Output string
 	Error  string
+	// gnoErrors holds every preprocess error of an errorcheck run
+	// (accumulate mode), with location prefixes; Error joins them.
+	gnoErrors []string
+	// parseBlocked: the file has no Gno form at all (no package clause,
+	// or Go2Gno failed), so the checker never ran and markers it did not
+	// reach say nothing about it. A file with syntax errors is checked.
+	parseBlocked bool
+	// onChainError is the first error of the on-chain path (plain
+	// Preprocess, which stops at one), "" when it accepts the file.
+	onChainError string
 	// Set if there was an issue with type-checking.
 	TypeCheckError string
 	// Set if there was a panic within gno code.
@@ -1665,4 +1779,303 @@ func goModLangVersion(v string) string {
 		return m[1]
 	}
 	return "1.21"
+}
+
+// runErrorcheck parses and preprocesses content in accumulate mode;
+// nothing is type-checked by go/types or executed. It also runs the
+// on-chain path (plain Preprocess, first error) on onChain, so the
+// ledger can check that the two agree on whether the file is rejected.
+func (opts *TestOptions) runErrorcheck(m, onChain *gno.Machine, pkgPath, fname string, content []byte) (rr runResult) {
+	pkgName, err := gno.PackageNameFromFileBody(fname, string(content))
+	if err != nil {
+		return runResult{Error: err.Error()}
+	}
+	fname = filepath.Base(fname)
+	rr.onChainError = firstPreprocessError(onChain, pkgName, pkgPath, fname, content)
+	defer func() {
+		if r := recover(); r != nil { // a VM bug: keep what was collected before it
+			msg := fmt.Sprint(r)
+			if pe, ok := r.(*gno.PreprocessError); ok {
+				msg = pe.Unwrap().Error()
+			}
+			rr.gnoErrors = append(rr.gnoErrors, stripPreprocessStack(msg))
+			rr.Error = strings.Join(rr.gnoErrors, "; ")
+		}
+	}()
+	// Every syntax and declaration error go/parser reports is pinned,
+	// cascades included: a resynchronisation error on an unmarked line is
+	// an honest over-strict line. The checker then runs on the partial
+	// tree, each unparsed node a dropped statement.
+	fn, perrs := m.ParseFileCollect(fname, string(content))
+	for _, e := range perrs {
+		rr.gnoErrors = append(rr.gnoErrors, e.Error())
+	}
+	if len(perrs) > 0 {
+		// The parse error rejects the file on chain too, as its first error.
+		rr.onChainError = rr.gnoErrors[0]
+	}
+	if fn == nil {
+		// No package clause, or the partial tree has no Gno form: the
+		// checker never ran, so markers it did not reach say nothing.
+		rr.parseBlocked = true
+		rr.Error = strings.Join(rr.gnoErrors, "; ")
+		return rr
+	}
+	fset := &gno.FileSet{Files: []*gno.FileNode{fn}}
+	pn := gno.NewPackageNode(pkgName, pkgPath, fset)
+	pv := pn.NewPackage(m.Alloc)
+	m.Store.SetBlockNode(pn)
+	m.Store.SetCachePackage(pv)
+	m.SetActivePackage(pv)
+	for _, e := range gno.PreprocessFilesCollect(m.Store, pn, fset) {
+		rr.gnoErrors = append(rr.gnoErrors, stripPreprocessStack(e.Unwrap().Error()))
+	}
+	rr.Error = strings.Join(rr.gnoErrors, "; ")
+	return rr
+}
+
+// firstPreprocessError runs the on-chain path on m: parse, predefine and
+// preprocess the file (PreprocessFiles, the deploy path's checking half,
+// which stops at the first error), without running any initializer or
+// init function. It returns that error's text, or "" when the path
+// accepts the file. A parse error or a runtime panic is not a checking
+// error.
+func firstPreprocessError(m *gno.Machine, pkgName gno.Name, pkgPath, fname string, content []byte) (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			if pe, ok := r.(*gno.PreprocessError); ok {
+				msg = stripPreprocessStack(pe.Unwrap().Error())
+			}
+		}
+	}()
+	fn, err := m.ParseFile(fname, string(content))
+	if err != nil {
+		return ""
+	}
+	m.PreprocessFiles(string(pkgName), pkgPath, &gno.FileSet{Files: []*gno.FileNode{fn}}, false, false)
+	return ""
+}
+
+// stripPreprocessStack drops the preprocess stack dump an internal error
+// carries after its message; the ledger pins the message alone.
+func stripPreprocessStack(msg string) string {
+	if i := strings.Index(msg, "\n--- preprocess stack ---"); i >= 0 {
+		return strings.TrimSuffix(msg[:i], ":")
+	}
+	return msg
+}
+
+// errorcheckCoverage is the attribution of accumulate-mode errors to the
+// file's markers, by line.
+type errorcheckCoverage struct {
+	gnoErr     map[int]string // first message per start line, source coordinates
+	uncaught   []int          // checkable marker lines no error credits
+	overStrict []int          // start lines of errors that credit no marker
+	internal   []int          // start lines of internal errors
+}
+
+// creditLines lists the lines an error credits: the line its span starts
+// on, and the line it ends on for a closing-brace rule (a function that
+// does not terminate), where gc puts the marker. One error credits
+// nothing else, however many lines it spans.
+func creditLines(lo, hi int, msg string) []int {
+	if hi > lo && strings.Contains(msg, "does not terminate") {
+		return []int{lo, hi}
+	}
+	return []int{lo}
+}
+
+// attributeErrorcheck maps gnoErrors (located, in machine coordinates)
+// onto markers. An internal error is a VM bug, not a verdict: it credits
+// no marker and is listed on its own. An EOF error is positioned one past
+// the last line; gc's marker for it sits on the last line.
+func attributeErrorcheck(markers []InlineError, gnoErrors []string, prependedLines, bodyLines int) errorcheckCoverage {
+	cov := errorcheckCoverage{gnoErr: map[int]string{}}
+	marked := make(map[int]bool, len(markers))
+	for _, mk := range markers {
+		marked[mk.Line] = true
+	}
+	credited := map[int]bool{}
+	for _, e := range gnoErrors {
+		lo, hi := errorSpan(e)
+		if lo == 0 {
+			continue
+		}
+		lo, hi = lo-prependedLines, hi-prependedLines
+		if lo > bodyLines {
+			lo, hi = bodyLines, bodyLines
+		}
+		msg := CleanErrorMessage(e)
+		if _, ok := cov.gnoErr[lo]; !ok {
+			cov.gnoErr[lo] = msg
+		}
+		if IsInternalError(e) {
+			if !slices.Contains(cov.internal, lo) {
+				cov.internal = append(cov.internal, lo)
+			}
+			continue
+		}
+		hit := false
+		for _, line := range creditLines(lo, hi, msg) {
+			credited[line] = true
+			hit = hit || marked[line]
+		}
+		// A feature gap on one line of an otherwise checkable file (a
+		// stdlib symbol Gno lacks, a newer language feature) is not
+		// over-strictness; the GnoError block still shows it.
+		if !hit && UnsupportedFeatureError(msg) == "" && !slices.Contains(cov.overStrict, lo) {
+			cov.overStrict = append(cov.overStrict, lo)
+		}
+	}
+	for _, mk := range markers {
+		if !mk.GcOnly && !credited[mk.Line] {
+			cov.uncaught = append(cov.uncaught, mk.Line)
+		}
+	}
+	slices.Sort(cov.overStrict)
+	slices.Sort(cov.internal)
+	return cov
+}
+
+// A located message is "file:L:C: msg", "file:L:C-C2: msg" (same line),
+// "file:L:C-L2:C2: msg", or "file:L: msg"; a span may end in primes
+// (nodes synthesised at one position).
+var reErrorSpan = regexp.MustCompile(`:(\d+)(?::\d+)?(?:-(?:(\d+):)?\d+)?'*:`)
+
+// errorSpan returns the first and last line of a located error message
+// ("pkg/file.go:12:3-14:2: msg"); 0, 0 when it has no location.
+func errorSpan(msg string) (lo, hi int) {
+	m := reErrorSpan.FindStringSubmatch(msg)
+	if m == nil {
+		return 0, 0
+	}
+	lo, _ = strconv.Atoi(m[1])
+	hi = lo
+	if m[2] != "" {
+		hi, _ = strconv.Atoi(m[2])
+	}
+	return lo, hi
+}
+
+// errorcheckGapReason is the sync-written KnownIssue reason for an
+// errorcheck file: the umbrella issue, then the marker lines Gno missed,
+// the unmarked lines it rejected, the lines where it failed internally,
+// and how the on-chain path disagrees with accumulate mode.
+func errorcheckGapReason(uncaught, overStrict, internal []int, onChain string) string {
+	lines := func(ns []int) string {
+		ss := make([]string, len(ns))
+		for i, n := range ns {
+			ss[i] = strconv.Itoa(n)
+		}
+		return strings.Join(ss, ", ")
+	}
+	var parts []string
+	if len(uncaught) > 0 {
+		parts = append(parts, "uncaught markers: lines "+lines(uncaught))
+	}
+	if len(overStrict) > 0 {
+		slices.Sort(overStrict)
+		parts = append(parts, "over-strict: lines "+lines(overStrict))
+	}
+	if len(internal) > 0 {
+		slices.Sort(internal)
+		parts = append(parts, "internal errors: lines "+lines(internal))
+	}
+	if onChain != "" {
+		parts = append(parts, "on-chain path "+onChain)
+	}
+	if len(parts) == 0 {
+		return preprocessUmbrella
+	}
+	return preprocessUmbrella + " " + strings.Join(parts, "; ")
+}
+
+// syncReasonParts are the heads of the gap parts errorcheckGapReason writes.
+var syncReasonParts = []string{"uncaught markers:", "over-strict:", "internal errors:", "on-chain path "}
+
+// isSyncWrittenReason reports whether r is a reason errorcheckGapReason
+// wrote (the umbrella alone, or followed by its parts), in the current
+// spelling or the legacy `#6344; …` one; anything else was written by hand.
+func isSyncWrittenReason(r string) bool {
+	rest, ok := strings.CutPrefix(r, preprocessUmbrella)
+	if !ok {
+		return false
+	}
+	rest = strings.TrimSpace(strings.TrimPrefix(rest, ";"))
+	if rest == "" {
+		return true
+	}
+	for _, p := range syncReasonParts {
+		if strings.HasPrefix(rest, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// legacySyncReason rewrites the legacy `#6344; …` spelling to the current
+// `#6344 …` one; other reasons are returned unchanged.
+func legacySyncReason(r string) string {
+	if rest, ok := strings.CutPrefix(r, preprocessUmbrella+"; "); ok {
+		return preprocessUmbrella + " " + rest
+	}
+	return r
+}
+
+// gcOnlyErrorcheckReason names why an errorcheck file has nothing for
+// Gno to check: gc diagnostic or runtime-package flags, a -lang pin below
+// go1.17, only GC_ERROR markers, or only pragma-placement markers.
+func gcOnlyErrorcheckReason(source []byte, markers []InlineError) string {
+	// Positions the harness cannot attribute: `//line` and `/*line*/`
+	// directives remap them (the error lines then follow the directive,
+	// not the file, and the rescue offset no longer applies), and a byte
+	// order mark inside the file is a parser test.
+	if bytes.Contains(source, []byte("\n//line ")) {
+		return "gc-specific: //line directives remap the positions the markers refer to"
+	}
+	if bytes.Contains(source, []byte("/*line ")) {
+		return "gc-specific: /*line*/ directives remap the positions the markers refer to"
+	}
+	if bytes.Contains(source[1:], []byte("\ufeff")) {
+		return "gc-specific: byte order mark test; the markers sit on the BOM lines"
+	}
+	if firstLine := strings.SplitN(string(source), "\n", 2)[0]; strings.HasPrefix(firstLine, "//") {
+		flags := strings.Fields(strings.TrimPrefix(firstLine, "//"))
+		if len(flags) > 0 && flags[0] == "errorcheckwithauto" {
+			return "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
+		}
+		for _, fl := range flags[1:] {
+			switch {
+			case fl == "-0" || fl == "-m":
+				return "gc optimization-diagnostic errorcheck (-0/-m); markers are compiler diagnostics, not errors"
+			case fl == "-+" || strings.HasPrefix(fl, "-p="):
+				return "gc runtime-package errorcheck (-+/-p=); markers assert gc-internal contracts"
+			case langBelowPin(fl):
+				return "gc -lang version-gating test below Gno's go1.17 pin (" + strings.TrimPrefix(fl, "-lang=") + ")"
+			}
+		}
+	}
+	checkable, pragmaOnly := 0, true
+	for _, mk := range markers {
+		if mk.GcOnly {
+			continue
+		}
+		checkable++
+		hit := false
+		for _, pat := range mk.Patterns {
+			if strings.Contains(pat, "compiler directive") {
+				hit = true
+			}
+		}
+		if !hit {
+			pragmaOnly = false
+		}
+	}
+	if checkable == 0 {
+		return "only gc-specific (GC_ERROR) markers; not part of Gno's contract"
+	}
+	if pragmaOnly {
+		return "gc pragma-placement enforcement; //go: directives are inert comments in Gno"
+	}
+	return ""
 }
