@@ -152,9 +152,10 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			// errorcheck mode lands with the error-accumulating preprocessor.
 			return "", 0, diffs, fmt.Errorf("filetest %s: inline // ERROR markers are not supported yet", fname)
 		case CorpusDirective(source) == "compile" && !hasErrorDir && !hasTypeCheckErrorDir:
-			// `// compile`: gc compiles but never runs it. Preprocess only
-			// and check that Gno and go/types accept it; takes precedence
-			// over run mode even when the file is runnable.
+			// `// compile`: gc compiles but never runs it. Gno's preprocess
+			// (and package init) only, no main; go/types' verdict is not
+			// part of the ledger. Takes precedence over run mode even when
+			// the file is runnable.
 			compileMode = true
 			if err := prependRescue(); err != nil {
 				return "", 0, diffs, err
@@ -179,8 +180,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 	// One verdict line per Go-compared file (.go corpus files in run or
 	// compile mode, opted-in .gno files); sync writes it, verify demands it.
-	// origDirs: the compile-mode rescue appends a synthetic main after
-	// the golden tail, so the re-parsed dirs no longer see the verdict.
+	// origDirs: the compile-mode rescue re-parses dirs from the source
+	// whose golden tail was stripped above, so they no longer see it.
 	if (isGoRunMode || compileMode) && !opts.Sync {
 		n := 0
 		for _, d := range origDirs {
@@ -322,8 +323,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 
 	// Compile mode: Gno's preprocess against gc. Two evidence blocks
 	// (GnoError, and GoBuildError as line numbers) and one verdict:
-	// `Clean compile` when gc agrees with Gno, accepting or rejecting;
-	// `KnownIssue compile` when only Gno rejects. The verdict's reason
+	// `Clean compile` when Gno accepts as gc did upstream, a Known*
+	// verdict whenever Gno rejects (compileVerdict). The verdict's reason
 	// obeys the same rules as run mode (verdict.check: no TODO, a
 	// KnownIssue cites its issue).
 	if compileMode {
@@ -351,14 +352,8 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 		} else if d := origDirs.First(DirectiveGoBuildError); d != nil {
 			goBuildErr = ParseLineBlock(d.Content)
 		}
-		v := verdict{Kind: VerdictClean, Mode: "compile"}
-		if len(goBuildErr) == 0 {
-			v = verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc accepts)"}
-			// Keep a cited human verdict (KnownIssue or KnownDivergence) across re-syncs.
-			if prev, ok := verdictIn(origDirs); ok && prev.Kind != VerdictClean && prev.Kind != VerdictUnsupported && prev.check() == nil {
-				v = prev
-			}
-		}
+		prev, hasPrev := verdictIn(origDirs)
+		v := compileVerdict(goBuildErr, prev, hasPrev)
 		sections := []goldenSection{
 			{name: DirectiveGnoError, block: FormatGnoErrorBlock(gnoErr)},
 			{name: DirectiveGoBuildError, block: FormatLineOnlyBlock(goBuildErr)},
@@ -525,6 +520,21 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	}
 
 	return "", m.GasMeter.GasConsumed(), diffs, returnErr
+}
+
+// compileVerdict decides the verdict of a compile-mode file Gno rejects.
+// gc accepted the file upstream (`// compile`), so a gc rejection here is
+// a toolchain or rescue artefact, not agreement: the file is never Clean.
+// A cited human Known* verdict is kept across re-syncs.
+func compileVerdict(goBuildErr map[int]string, prev verdict, hasPrev bool) verdict {
+	v := verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: #NNNN explain the Gno bug (Gno rejects code gc accepts)"}
+	if len(goBuildErr) != 0 {
+		v = verdict{Kind: VerdictKnownDivergence, Mode: "compile", Reason: "TODO: cite why gc rejects this `// compile` file here (toolchain flag or rescue artefact); Gno rejects it too"}
+	}
+	if hasPrev && prev.Kind != VerdictClean && prev.Kind != VerdictUnsupported && prev.check() == nil {
+		v = prev
+	}
+	return v
 }
 
 // goldenSection is one named per-line golden block (`// GnoError:` or
