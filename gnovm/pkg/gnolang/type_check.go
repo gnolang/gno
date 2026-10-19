@@ -419,6 +419,9 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 	if dt == nil {
 		panic("should not happen: nil dt in checkAssignableTo (blank targets must be skipped by the caller)")
 	}
+	if isInvalid(dt) || isInvalid(xt) {
+		return nil // accumulate mode: already reported.
+	}
 	// case0
 	if xt == nil { // untyped nil, see test/files/types/eql_0f18
 		if dt.Kind() == InterfaceKind {
@@ -942,6 +945,9 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			switch cx := x.Rhs[0].(type) {
 			case *CallExpr:
 				// Call case: a, b = x(...)
+				if isInvalidExpr(cx) {
+					return // accumulate mode: already reported.
+				}
 				ift := evalStaticTypeOf(store, last, cx.Func)
 				cft := getGnoFuncTypeOf(store, ift)
 				if len(x.Lhs) != len(cft.Results) {
