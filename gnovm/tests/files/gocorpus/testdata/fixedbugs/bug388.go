@@ -31,4 +31,4 @@ func main() {
 // GnoError:
 // line 12: missing parameter name
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 22
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17, 22

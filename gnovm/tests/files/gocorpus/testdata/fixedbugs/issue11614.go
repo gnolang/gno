@@ -29,4 +29,4 @@ func main() {
 // line 13: interface contains embedded non-interface int
 // line 22: interface contains embedded non-interface int
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14; over-strict: lines 13

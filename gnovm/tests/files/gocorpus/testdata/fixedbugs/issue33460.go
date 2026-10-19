@@ -42,4 +42,4 @@ var _ = map[string]int{
 // line 25: duplicate case int(3) in expression switch
 // line 31: duplicate key ("a" string) in map literal
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 34; over-strict: lines 31

@@ -21,4 +21,4 @@ var _ = func() {
 	A(a).g() // ERROR "cannot call pointer method .*on|cannot take the address of"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 21
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21

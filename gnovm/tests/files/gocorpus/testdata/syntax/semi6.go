@@ -13,4 +13,4 @@ type T2 /* // ERROR "(semicolon.*|EOF) in type declaration" */
 // GnoError:
 // line 9: expected type, found newline
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 11
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11

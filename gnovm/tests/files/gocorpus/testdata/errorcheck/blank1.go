@@ -34,4 +34,4 @@ func main() {
 // GnoError:
 // line 10: invalid package name _
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16, 25, 26, 28, 31
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 25, 26, 28, 31

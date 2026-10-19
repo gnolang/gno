@@ -30,9 +30,6 @@ func main() {
 	}
 }
 
-
-// Fixing: #5379
-
 // GnoOutput:
 
 // GoOutput:

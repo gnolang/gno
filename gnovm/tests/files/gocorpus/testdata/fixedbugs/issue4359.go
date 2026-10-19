@@ -22,4 +22,4 @@ func f() {
 // line 12: name T1 not defined in fileset with files [issue4359.go]
 // line 18: missing field x in *main.T
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 18
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13; over-strict: lines 12, 18
