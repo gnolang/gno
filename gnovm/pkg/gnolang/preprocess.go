@@ -2712,7 +2712,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 					}
 				default:
-					failf(CodeNotCallable, nil, "cannot call non-function %s (variable of type %v)", exprString(n.Func), nft)
+					kind := "variable"
+					if isConst(n.Func) {
+						kind = "constant"
+					}
+					failf(CodeNotCallable, nil, "cannot call non-function %s (%s of type %v)", exprString(n.Func), kind, nft)
 				}
 
 			// TRANS_LEAVE -----------------------

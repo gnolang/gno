@@ -832,6 +832,26 @@ func main() {}
 	}
 }
 
+func TestPreprocessCollectNotCallable(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+const F = 1
+
+func main() {
+	x := 1
+	F()
+	x()
+}
+`)
+	want := []string{
+		"cannot call non-function F (constant of type <untyped> bigint)",
+		"cannot call non-function x (variable of type int)",
+	}
+	if !reflect.DeepEqual(msgs, want) {
+		t.Errorf("want %v, got %v", want, msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main
