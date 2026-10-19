@@ -30,11 +30,8 @@ func _() {
 
 // GnoError:
 // line 16: expected operand, found '}'
+// line 20: expected ';', found 'defer'
+// line 22: expected operand, found '}'
+// line 29: expected ';', found 'EOF'
 
-// ParseBlocked:
-// line 22: gc expects: expected expression|expected operand
-// line 26: gc expects: expected expression|expected operand
-// line 27: gc expects: expected expression|expected operand|undefined name
-// line 28: gc expects: expected expression|expected operand
-
-// Verdict: Clean errorcheck
+// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): a missing operand is reported at the closing token, and the resynchronisation errors on lines 20 and 29 are its cascades

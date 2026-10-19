@@ -76,10 +76,4 @@ func _() {
 	x3 = x3.c()
 }
 
-// GnoError:
-// line 8: invalid recursive type: A -> ABC1 -> A
-
-// GoBuildError:
-// line 8
-
-// Verdict: Clean compile
+// Verdict: Unsupported gc-specific: gc rejects the anonymous interface that refers to itself (go.dev/issue/56103); go/types' own harness accepts it, so the file has no gc reference

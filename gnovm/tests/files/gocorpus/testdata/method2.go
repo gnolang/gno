@@ -45,9 +45,12 @@ var _ = (T).g() // ERROR "needs pointer receiver|undefined|method requires point
 // line 19: invalid receiver type *main.P1 (base type is pointer type)
 // line 24: invalid receiver type main.I (base type is interface type)
 // line 25: invalid receiver type *main.I1 (base type is interface type)
-// line 31: should not happen
-// line 36: should not happen
-// line 37: should not happen
+// line 31: (*Val).val undefined (type *main.Val is pointer to interface, not interface)
+// line 36: pv.val undefined (type *main.Val is pointer to interface, not interface)
+// line 37: pv.val undefined (type *main.Val is pointer to interface, not interface)
 // line 41: invalid method expression T.g (needs pointer receiver (*T).g)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 31, 36, 37; internal errors: lines 31, 36, 37
+// GnoWordingDiffers:
+// line 31: gc expects: method|type \*Val is pointer to interface, not interface; gno: (*Val).val undefined (type *main.Val is pointer to interface, not interface)
+
+// Verdict: Clean errorcheck

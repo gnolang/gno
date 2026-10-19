@@ -29,9 +29,7 @@ L1:
 // GnoError:
 // line 13: label L2 undefined
 // line 14: label L2 undefined
-
-// ParseBlocked:
-// line 22: gc expects: L1
-// line 23: gc expects: L1
+// line 22: cannot find branch label "L1"
+// line 23: cannot find branch label "L1"
 
 // Verdict: Clean errorcheck

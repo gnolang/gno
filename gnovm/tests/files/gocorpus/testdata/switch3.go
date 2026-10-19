@@ -74,11 +74,11 @@ func good() {
 // GnoError:
 // line 21: string does not implement main.I (missing method M)
 // line 25: string does not implement main.I (missing method M)
-// line 29: map[int]int can only be compared to nil
-// line 36: []int can only be compared to nil
-// line 43: func() can only be compared to nil
-// line 50: cannot switch on ar ([4]func() is not comparable)
-// line 56: cannot switch on st (struct{f func()} is not comparable)
+// line 31: map[int]int can only be compared to nil
+// line 38: []int can only be compared to nil
+// line 45: func() can only be compared to nil
+// line 50: cannot switch on ar (variable of type [4]func()) ([4]func() is not comparable)
+// line 56: cannot switch on st (variable of type struct{f func()}) (struct{f func()} is not comparable)
 
 // GnoWordingDiffers:
 // line 21: gc expects: mismatched types string and I|incompatible types; gno: string does not implement main.I (missing method M)

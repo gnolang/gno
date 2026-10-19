@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"runtime"
 )
 
 // The preprocessor's checking half: the per-run context the rule files
@@ -48,11 +47,13 @@ const (
 	CodeAppendNil       ErrCode = "append-nil"
 	CodeBuiltinSpread   ErrCode = "builtin-spread"
 	CodeFuncAddress     ErrCode = "func-address"
+	CodeMultiValue      ErrCode = "multi-value"
 
 	// Declarations and statements.
 	CodeMissingConstInit   ErrCode = "missing-const-init"
 	CodeVariadicLast       ErrCode = "variadic-last"
 	CodeStructLiteralCount ErrCode = "struct-literal-count"
+	CodeStructFieldName    ErrCode = "struct-field-name"
 	CodeForPostDecl        ErrCode = "for-post-decl"
 	CodeUnusedVar          ErrCode = "unused-var"
 	CodeUnusedLabel        ErrCode = "unused-label"
@@ -66,10 +67,22 @@ const (
 	CodeMethodExprReceiver ErrCode = "method-expr-receiver"
 	CodeNoMethod           ErrCode = "no-method"
 	CodeNotCallable        ErrCode = "not-callable"
+	CodeShiftCount         ErrCode = "shift-count"
 
 	// Assignability.
 	CodeMapValueAssign ErrCode = "map-value-assign"
 	CodeNotAssignable  ErrCode = "not-assignable"
+	CodeMissingMapKey  ErrCode = "missing-map-key"
+	CodeDuplicateField ErrCode = "duplicate-field"
+	CodeLiteralType    ErrCode = "literal-type"
+	CodeUndefined      ErrCode = "undefined"
+	CodeTypeGuard      ErrCode = "type-guard"
+	CodeIndexOperand   ErrCode = "index-operand"
+	CodeAppendArgs     ErrCode = "append-args"
+	CodeImportName     ErrCode = "import-name"
+	CodeStructField    ErrCode = "struct-field"
+	CodeReceiverType   ErrCode = "receiver-type"
+	CodeAssignability  ErrCode = "assignability"
 )
 
 // spanError is a checking error raised by a rule: its code, its text, and
@@ -154,8 +167,8 @@ func (c *checkRun) reportUnused(parent BlockNode, fn Node) {
 // and the walk goes on. A non-checking panic (a VM bug) surfaces.
 func (c *checkRun) onPanic(ns []Node, ftype TransField, index int, n Node, r any) bool {
 	pe, ok := r.(*PreprocessError)
-	if !ok {
-		return false
+	if !ok || isRuntimePanic(pe) {
+		return false // not a checking error: a VM bug, let it surface
 	}
 	stack := *c.stack
 	for i := len(ns) - 1; i >= 0; i-- {
@@ -185,11 +198,11 @@ func (c *checkRun) predefineGuarded(last BlockNode, d Decl) {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			if _, isRuntime := r.(runtime.Error); isRuntime {
+			if isRuntimePanic(r) {
 				panic(r) // a VM bug, not a checking error
 			}
 			c.acc.add(wrapPreprocessPanic(*c.stack, d, r), d)
-			d.SetAttribute(ATTR_PREPROCESSED, true)
+			markDropped(d)
 		}
 	}()
 	predefineRecursively(c.store, last, d)

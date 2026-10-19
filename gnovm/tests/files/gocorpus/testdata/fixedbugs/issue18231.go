@@ -20,9 +20,6 @@ var _ = T{
 }
 
 // GnoError:
-// line 16: types cannot be elided in composite literals for struct types
-
-// GnoWordingDiffers:
-// line 17: gc expects: missing type in composite literal|may only omit types within; gno: types cannot be elided in composite literals for struct types
+// line 17: missing type in composite literal
 
 // Verdict: Clean errorcheck

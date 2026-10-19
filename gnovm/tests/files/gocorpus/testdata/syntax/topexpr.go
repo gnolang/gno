@@ -21,8 +21,4 @@ x,y := 1, 2	// ERROR "non-declaration statement outside function body|expected d
 // GnoError:
 // line 9: expected declaration, found fmt
 
-// ParseBlocked:
-// line 14: gc expects: non-declaration statement outside function body|expected declaration
-// line 19: gc expects: non-declaration statement outside function body|expected declaration
-
-// Verdict: Clean errorcheck
+// Verdict: KnownDivergence errorcheck: syntax error recovery follows go/parser, not gc (docs/resources/go-gno-compatibility.md): after a statement at file level go/parser skips to the next declaration where gc reports each one

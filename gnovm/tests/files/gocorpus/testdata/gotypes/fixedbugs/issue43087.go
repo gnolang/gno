@@ -43,13 +43,11 @@ func _() {
 }
 
 // GnoError:
+// line 8: b repeated on left side of :=
+// line 20: b repeated on left side of :=
+// line 27: non-name a[0] on left side of :=
 // line 34: no new variables on left side of :=
 // line 40: no new variables on left side of :=
-
-// ParseBlocked:
-// line 8: gc expects: b repeated on left side of :=
-// line 20: gc expects: b repeated on left side of :=
-// line 27: gc expects: non-name .* on left side of :=
 
 // GnoWordingDiffers:
 // line 34: gc expects: a repeated on left side of :=; gno: no new variables on left side of :=

@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// main/array3.gno:6:7-22: index 3 out of bounds [0:3]
+// main/array3.gno:6:20-21: index 3 is out of bounds (>= 3)
 
 // TypeCheckError:
 // main/array3.gno:6:20: index 3 is out of bounds (>= 3)

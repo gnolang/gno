@@ -19,4 +19,7 @@ func notused(x interface{}) {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// GnoError:
+// line 16: declared and not used: t
+
+// Verdict: Clean errorcheck

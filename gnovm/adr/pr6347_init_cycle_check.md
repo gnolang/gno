@@ -12,21 +12,24 @@ lists 31 corpus files whose only gap is this rule.
 ## Decision
 
 - `checkInitCycles` runs after the accumulate-mode walk
-  (`PreprocessFilesCollect`): it follows `ATTR_DECL_DEPS` from each
-  package variable, the way `resolveEffectiveDeps` does, and reports the
-  first path back to a variable at that variable's declaration as
-  `initialization cycle: x refers to f refers to x`. Recursion among
-  functions alone is not a cycle. A variable on a reported path is not
-  reported again.
+  (`PreprocessFilesCollect`): one Tarjan pass over the `ATTR_DECL_DEPS`
+  graph (linear in declarations and edges, each visit metered) finds the
+  strongly connected components; a component holding a variable is a
+  cycle, reported once, at the variable the sorted-name walk from its
+  earliest variable closes on, as `initialization cycle: x refers to f
+  refers to x` (Go's position and path). Recursion among functions
+  alone is not a cycle.
 - A method selected on a call result (`f().m`) now records its edge: the
   receiver's static type is a one-element tuple.
 - On chain too: `CheckInitCycles` runs after a package's files are
   preprocessed (`RunFiles`, `runMemPackage`) and panics with the first
   cycle as a positioned `*PreprocessError`, where `runFileDecls` used to
-  fail later with "circular dependency". Same programs rejected, earlier
-  and with the cycle named; the walk bills `OpCPUSlopeCheckNode` per
-  declaration visited. The ledger's on-chain check (#6346) requires the
-  two paths to agree, which an accumulate-only rule would fail.
+  fail later with "circular dependency". Rejected earlier and with the
+  cycle named, and stricter: the old runtime walk's memo missed `var A =
+  d(); var V = d(); func d() int { return V }`, which go/types already
+  refused. The walk bills `OpCPUSlopeInitCycleVisit` per declaration and
+  per edge visited. The ledger's on-chain check (#6346) requires the two
+  paths to agree, which an accumulate-only rule would fail.
 - Names accumulate mode dropped resolve to nothing and are skipped.
 
 ## Alternatives considered

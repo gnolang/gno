@@ -49,8 +49,7 @@ func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition
 // 	previous declaration at funcdup.go:26:9
 // line 26: i redeclared in this block
 // 	previous declaration at funcdup.go:27:9
+// line 27: i redeclared in this block
+// 	previous declaration at funcdup.go:28:12
 
-// ParseBlocked:
-// line 27: gc expects: duplicate argument i|redefinition|previous|redeclared
-
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 internal errors: lines 21, 22

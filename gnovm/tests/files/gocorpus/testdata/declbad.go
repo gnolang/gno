@@ -68,14 +68,12 @@ func main() {
 
 // GnoError:
 // line 20: no new variables on left side of :=
+// line 26: cannot use float32 as int
+// line 32: cannot use int as float32
 // line 38: no new variables on left side of :=
 // line 44: no new variables on left side of :=
 // line 52: no new variables on left side of :=
 // line 58: no new variables on left side of :=
 // line 64: no new variables on left side of :=
-
-// ParseBlocked:
-// line 26: gc expects: redeclared|cannot assign|incompatible|cannot use
-// line 32: gc expects: redeclared|cannot assign|incompatible|cannot use
 
 // Verdict: Clean errorcheck

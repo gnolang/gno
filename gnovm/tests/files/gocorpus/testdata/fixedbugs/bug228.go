@@ -14,14 +14,4 @@ var x ...int;		// ERROR "[.][.][.]|syntax|type"
 
 type T ...int;		// ERROR "[.][.][.]|syntax|type"
 
-// GnoError:
-// line 11: expected type, found ')'
-
-// ParseBlocked:
-// line 13: gc expects: [.][.][.]|syntax|type
-// line 15: gc expects: [.][.][.]|syntax|type
-
-// GnoWordingDiffers:
-// line 11: gc expects: [.][.][.]; gno: expected type, found ')'
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

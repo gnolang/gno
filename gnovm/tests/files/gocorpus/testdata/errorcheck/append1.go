@@ -22,15 +22,14 @@ func main() {
 }
 
 // GnoError:
-// line 17: not enough arguments in call to (const (append func(<X>{}, ...<X.Elem()>{}) <X>{})); want 2 (including variadic) got 1
-// line 18: not enough arguments in call to (const (append func(<X>{}, ...<X.Elem()>{}) <X>{})); want 2 (including variadic) got 3
-// line 20: cannot use []int as int
-// line 21: invalid argument: index (-1 <untyped> bigint) must not be negative
+// line 16: invalid operation: not enough arguments for append() (expected 1, found 0)
+// line 17: not enough arguments in call to append
+// 	have ([]int...)
+// 	want ([]int, ...int)
+// line 18: too many arguments in call to append
+// 	have ([]int, number, []int...)
+// 	want ([]int, ...int)
+// line 20: cannot use make([]int, 0) (value of type []int) as int value in argument to append
+// line 21: invalid argument: index -1 (constant of type int) must not be negative
 
-// GnoWordingDiffers:
-// line 17: gc expects: cannot use ... on first argument|not enough arguments in call to append; gno: not enough arguments in call to (const (append func(<X>{}, ...<X.Elem()>{}) <X>{})); want 2 (including variadic) got 1
-// line 18: gc expects: too many arguments to append|too many arguments in call to append; gno: not enough arguments in call to (const (append func(<X>{}, ...<X.Elem()>{}) <X>{})); want 2 (including variadic) got 3
-// line 20: gc expects: cannot use make\(\[\]int, 0\) \(value of type \[\]int\) as int value in argument to append; gno: cannot use []int as int
-// line 21: gc expects: negative len argument in make|index -1.* must not be negative; gno: invalid argument: index (-1 <untyped> bigint) must not be negative
-
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16
+// Verdict: Clean errorcheck

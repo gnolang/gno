@@ -216,16 +216,19 @@ func issue5918() {
 // GnoError:
 // line 32: invalid method expression T0.p0 (needs pointer receiver (*T0).p0)
 // line 43: invalid method expression T3.p0 (needs pointer receiver (*T3).p0)
-// line 199: should not happen
-// line 200: should not happen
-// line 201: should not happen
-// line 210: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
-// line 211: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
+// line 199: perr.Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 200: perr.Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 201: (*.uverse.error).Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 210: x.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T is pointer to interface, not interface)
+// line 211: x.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T is pointer to interface, not interface)
 // line 212: T.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T has no method m)
 
 // GnoWordingDiffers:
-// line 210: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
-// line 211: gc expects: type T is pointer to interface, not interface; gno: missing field m in gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T
+// line 199: gc expects: type *error is pointer to interface, not interface; gno: perr.Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 200: gc expects: type *error is pointer to interface, not interface; gno: perr.Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 201: gc expects: type *error is pointer to interface, not interface; gno: (*.uverse.error).Error undefined (type *.uverse.error is pointer to interface, not interface)
+// line 210: gc expects: type T is pointer to interface, not interface; gno: x.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T is pointer to interface, not interface)
+// line 211: gc expects: type T is pointer to interface, not interface; gno: x.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T is pointer to interface, not interface)
 // line 212: gc expects: type T is pointer to interface, not interface; gno: T.m undefined (type gno.land/p/filetest/methodsets[gno.land/p/filetest/methodsets/methodsets.go:192:1-215:2].T has no method m)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 138, 148, 166, 176, 199, 200, 201; internal errors: lines 199, 200, 201
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 138, 148, 166, 176

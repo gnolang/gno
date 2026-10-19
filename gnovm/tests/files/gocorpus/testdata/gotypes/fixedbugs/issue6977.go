@@ -87,11 +87,9 @@ var _ = x.m
 // GnoError:
 // line 35: m redeclared in this block
 // 	previous declaration at issue6977.go:36:21
-
-// ParseBlocked:
-// line 36: gc expects: duplicate method
-// line 37: gc expects: duplicate method
-// line 38: gc expects: duplicate method
+// line 36: duplicate method m with conflicting types in interface
+// line 37: duplicate method m with conflicting types in interface
+// line 38: duplicate method m with conflicting types in interface
 
 // GnoWordingDiffers:
 // line 35: gc expects: duplicate method; gno: m redeclared in this block

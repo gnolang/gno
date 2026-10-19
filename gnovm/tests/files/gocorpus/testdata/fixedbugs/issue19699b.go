@@ -16,7 +16,4 @@ func f() bool {
 // GnoError:
 // line 9: [function "f" does not terminate]
 
-// GnoWordingDiffers:
-// line 14: gc expects: missing return( at end of function)?; gno: [function "f" does not terminate]
-
 // Verdict: Clean errorcheck

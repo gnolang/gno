@@ -10,13 +10,11 @@ type main /* ERROR "cannot declare main" */ struct{}
 var _, main /* ERROR "cannot declare main" */ int
 
 // GnoError:
+// line 8: cannot declare main - must be func
 // line 9: main redeclared in this block
 // 	previous declaration at decls5.go:8:10
 // line 10: main redeclared in this block
 // 	previous declaration at decls5.go:8:10
-
-// ParseBlocked:
-// line 8: gc expects: cannot declare main
 
 // GnoWordingDiffers:
 // line 9: gc expects: cannot declare main; gno: main redeclared in this block

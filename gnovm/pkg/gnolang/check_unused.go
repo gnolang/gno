@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -10,17 +11,19 @@ import (
 // unusedName is a local variable or label a function declares and never
 // uses (Go spec: "Declared and not used"; "Labeled statements").
 type unusedName struct {
-	name Name
-	msg  string
-	span Span
-	code ErrCode
+	name  Name
+	msg   string
+	span  Span
+	code  ErrCode
+	label bool
 }
 
-// checkUnused reports the unused local variables and labels of the
-// function fn (a declaration or literal), which must be preprocessed
-// (every name has its path). parent is fn's parent block. A variable is used by any occurrence except as a target of `=` or
-// `:=`; a label by a goto, break or continue naming it. The variable of a
-// type switch counts as used when any clause uses it.
+// checkUnused reports the unused local variables and labels of fn (a
+// *FuncDecl or a package-level *FuncLitExpr), which must be preprocessed
+// (every name has its path), in source order. parent is fn's parent block.
+// A variable is used by any occurrence except as a target of `=` or `:=`;
+// a label by a goto, break or continue naming it. The variable of a type
+// switch counts as used when any clause uses it.
 func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 	// Keyed by the declaring statement: faux blocks (if, switch) copy the
 	// name sources of their init statement into each case block.
@@ -30,9 +33,32 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 	}
 	used := map[key]bool{}
 	var blocks []BlockNode
-	labels := map[Name]Span{}
+	type label struct {
+		name Name
+		span Span
+	}
+	var labels []label // in walk order; never ranged as a map
 	branched := map[Name]bool{}
 	plain := func(n Name) Name { return Name(strings.TrimSuffix(string(n), ".loopvar")) }
+	// markUse records a use of name from inside last, resolved to dbn's
+	// slot. A type-switch guard that shadows a name of the switch's init
+	// statement reuses the slot copied into each clause (resolved to the
+	// switch): used in a clause, it is the guard, not the init's name.
+	markUse := func(last, dbn BlockNode, name Name) {
+		if ss, ok := dbn.(*SwitchStmt); ok && ss.IsTypeSwitch && ss.VarName == name {
+			for bn := last; bn != nil && bn != BlockNode(ss); bn = bn.GetParentNode(nil) {
+				chargeCPUGas(gm, OpCPUSlopeCheckNode)
+				if cs, ok := bn.(*SwitchClauseStmt); ok && cs.GetParentNode(nil) == BlockNode(ss) {
+					used[key{ss, plain(name)}] = true
+					return
+				}
+			}
+		}
+		sources := dbn.GetStaticBlock().NameSources
+		if idx, ok := dbn.GetLocalIndex(name); ok && int(idx) < len(sources) {
+			used[key{sources[idx].Origin, plain(name)}] = true
+		}
+	}
 
 	TranscribeB(parent, fn, func(ns []Node, stack []BlockNode, last BlockNode, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage == TRANS_ENTER {
@@ -44,7 +70,7 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 		case TRANS_ENTER:
 			if st, ok := n.(Stmt); ok {
 				if l := st.GetLabel(); l != "" && l != blankIdentifier {
-					labels[l] = n.GetSpan()
+					labels = append(labels, label{l, n.GetSpan()})
 				}
 			}
 			if bs, ok := n.(*BranchStmt); ok && bs.Label != "" {
@@ -57,10 +83,7 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 				Transcribe(cx.Source, func(_ []Node, _ TransField, _ int, sn Node, st TransStage) (Node, TransCtrl) {
 					if snx, ok := sn.(*NameExpr); ok && st == TRANS_LEAVE && snx.Path.Type == VPBlock {
 						if dbn := last.GetBlockNodeForPath(nil, snx.Path); dbn != nil {
-							sources := dbn.GetStaticBlock().NameSources
-							if idx, ok := dbn.GetLocalIndex(snx.Name); ok && int(idx) < len(sources) {
-								used[key{sources[idx].Origin, plain(snx.Name)}] = true
-							}
+							markUse(last, dbn, snx.Name)
 						}
 					}
 					return sn, TRANS_CONTINUE
@@ -81,10 +104,7 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 				fallthrough
 			default:
 				if dbn := last.GetBlockNodeForPath(nil, nx.Path); dbn != nil {
-					sources := dbn.GetStaticBlock().NameSources
-					if idx, ok := dbn.GetLocalIndex(nx.Name); ok && int(idx) < len(sources) {
-						used[key{sources[idx].Origin, plain(nx.Name)}] = true
-					}
+					markUse(last, dbn, nx.Name)
 				}
 			}
 		}
@@ -120,13 +140,26 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 			if span.IsZero() { // the type-switch variable's name expr is synthetic
 				span = ns.Origin.GetSpan()
 			}
-			out = append(out, unusedName{name, fmt.Sprintf("declared and not used: %s", name), span, CodeUnusedVar})
+			msg := fmt.Sprintf("declared and not used: %s", name)
+			if ns.Type == NSTypeSwitch {
+				msg = fmt.Sprintf("%s declared and not used", name) // gc's spelling for the guard variable
+			}
+			out = append(out, unusedName{name: name, msg: msg, span: span, code: CodeUnusedVar})
 		}
 	}
-	for l, span := range labels {
-		if !branched[l] {
-			out = append(out, unusedName{l, fmt.Sprintf("label %s defined and not used", l), span, CodeUnusedLabel})
+	for _, l := range labels {
+		if !branched[l.name] {
+			out = append(out, unusedName{name: l.name, msg: fmt.Sprintf("label %s defined and not used", l.name), span: l.span, code: CodeUnusedLabel, label: true})
 		}
 	}
+	// Source order, as gc reports: the first error is the same on every
+	// node, and no map order reaches the text. A label carries its
+	// statement's span, so on a tie it comes first (`L:` precedes `x := 1`).
+	sort.SliceStable(out, func(i, j int) bool {
+		if c := out[i].span.Pos.Compare(out[j].span.Pos); c != 0 {
+			return c < 0
+		}
+		return out[i].label && !out[j].label
+	})
 	return out
 }

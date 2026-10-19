@@ -66,14 +66,11 @@ func main() {
 	}
 }
 
-
-// Tracked: issue #5787 (method expressions: interface/promoted/mixed-receiver forms); broken on master, no PR yet.
-
 // GnoOutput:
 
 // GnoError:
-// main/method7.go:42:7-33: invalid method expression interface { m1 func(.arg_0 (const-type string)) }.m1 (type interface {m1 func(string)} has no method m1)
+// main/method7.go:42:7-33: interface { m1 func(.arg_0 (const-type string)) }.m1 undefined (type interface {m1 func(string)} has no method m1)
 
 // GoOutput:
 
-// Verdict: KnownIssue run: #5787 method expression on an interface or mixed-receiver type is rejected at preprocess
+// Verdict: KnownIssue run: #5787 method expression on an interface type literal (line 42) is rejected at preprocess

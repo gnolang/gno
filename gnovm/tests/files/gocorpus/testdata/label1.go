@@ -121,27 +121,4 @@ L5:
 	}
 }
 
-// GnoError:
-// line 108: label on undefined
-// line 113: label dance undefined
-
-// ParseBlocked:
-// line 18: gc expects: continue is not in a loop$|continue statement not within for
-// line 22: gc expects: continue is not in a loop$|continue statement not within for
-// line 46: gc expects: invalid continue label .*L2|continue is not in a loop$
-// line 53: gc expects: invalid continue label .*L2
-// line 64: gc expects: invalid continue label .*L3|continue is not in a loop$
-// line 72: gc expects: invalid break label .*L4
-// line 75: gc expects: invalid continue label .*L4|continue is not in a loop$
-// line 85: gc expects: invalid break label .*L5
-// line 88: gc expects: invalid continue label .*L5|continue is not in a loop$
-// line 96: gc expects: invalid break label .*L1
-// line 99: gc expects: invalid continue label .*L1
-// line 106: gc expects: continue is not in a loop$|continue statement not within for
-// line 111: gc expects: break is not in a loop, switch, or select|break statement not within for or switch or select
-
-// GnoWordingDiffers:
-// line 108: gc expects: continue label not defined: on|invalid continue label .*on; gno: label on undefined
-// line 113: gc expects: break label not defined: dance|invalid break label .*dance; gno: label dance undefined
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported channel: channels not supported in Gno (select)

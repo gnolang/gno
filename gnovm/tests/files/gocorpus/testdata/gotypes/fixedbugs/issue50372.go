@@ -26,13 +26,4 @@ func _(s chan int) {
         for i, j, k, l /* ERRORx `range over .* permits only one iteration variable|at most 2 expressions` */ = range s {}
 }
 
-// GnoError:
-// line 14: expected at most 2 expressions
-
-// ParseBlocked:
-// line 15: gc expects: range clause permits at most two iteration variables|at most 2 expressions
-// line 24: gc expects: range over .* permits only one iteration variable
-// line 25: gc expects: range over .* permits only one iteration variable|at most 2 expressions
-// line 26: gc expects: range over .* permits only one iteration variable|at most 2 expressions
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported channel: channels not supported in Gno

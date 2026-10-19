@@ -18,9 +18,6 @@ func main() {
 	}
 }
 
-
-// Tracked: issue #5787 (method expressions: interface/promoted/mixed-receiver forms); broken on master, no PR yet.
-
 // GnoOutput:
 
 // GoOutput:

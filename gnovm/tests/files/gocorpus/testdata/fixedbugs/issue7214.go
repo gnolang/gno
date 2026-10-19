@@ -30,10 +30,10 @@ var _ = map[I]int{N(0): 1, N(2): 1}
 var _ = map[I]int{N(2): 1, N(2): 1} // ERROR "duplicate key"
 
 // GnoError:
-// line 11: duplicate key (2 int) in map literal
-// line 13: duplicate key (2 int16) in map literal
-// line 17: duplicate key ("a" string) in map literal
-// line 19: duplicate key ("a" gno.land/p/filetest/p.S) in map literal
-// line 30: duplicate key (2 gno.land/p/filetest/p.N) in map literal
+// line 11: duplicate key 2 in map literal
+// line 13: duplicate key int16(2) in map literal
+// line 17: duplicate key "a" in map literal
+// line 19: duplicate key S("a") in map literal
+// line 30: duplicate key N(2) in map literal
 
 // Verdict: Clean errorcheck

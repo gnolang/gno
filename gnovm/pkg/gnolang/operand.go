@@ -44,6 +44,9 @@ func (o operand) assignable() bool {
 	return o.mode == opVariable || o.mode == opMapIndex
 }
 
+// isType reports whether the operand denotes a type, not a value.
+func (o operand) isType() bool { return o.mode == opType }
+
 // operandOf classifies the preprocessed expression x in block last.
 func operandOf(store Store, last BlockNode, x Expr) operand {
 	o := operand{expr: x}
@@ -66,6 +69,8 @@ func operandOf(store Store, last BlockNode, x Expr) operand {
 			o.mode, o.typ = opValue, t
 		case isTypeValue(cx.T):
 			o.mode, o.typ = opType, cx.GetType()
+		case isPackageValue(cx):
+			o.mode, o.typ = opPackage, cx.T
 		case isBuiltinFunc(cx):
 			o.mode, o.typ, o.val = opBuiltin, cx.T, &cx.TypedValue
 		default:
@@ -101,25 +106,38 @@ func operandOf(store Store, last BlockNode, x Expr) operand {
 }
 
 // valueMode tells a variable (addressable) from a map index expression
-// and from any other value (Go spec, "Address operators").
+// and from any other value (Go spec, "Address operators"). A name whose
+// path does not resolve is invalid, so no rule speaks for it.
 func valueMode(store Store, last BlockNode, x Expr, t Type) opMode {
 	switch cx := x.(type) {
 	case *NameExpr:
-		if src := nameSourceOf(last, cx); src != nil {
-			switch src.Type {
-			case NSFuncDecl, NSTypeDecl, NSImportDecl:
-				return opValue
-			}
-			return opVariable
+		src := nameSourceOf(last, cx)
+		if src == nil {
+			return opInvalid
 		}
-		return opValue
+		switch src.Type {
+		case NSFuncDecl, NSTypeDecl, NSImportDecl:
+			return opValue
+		}
+		return opVariable
 	case *StarExpr:
 		return opVariable
 	case *SelectorExpr:
+		switch cx.Path.Type {
+		case VPValMethod, VPPtrMethod, VPInterface,
+			VPDerefValMethod, VPDerefPtrMethod, VPDerefInterface:
+			return opValue // a method value
+		}
 		xt := evalStaticTypeOf(store, last, cx.X)
 		switch baseOf(xt).(type) {
-		case *PointerType, *PackageType:
-			return opVariable // pkg.Var: a package member is addressable
+		case *PointerType:
+			return opVariable
+		case *PackageType:
+			// pkg.Var is addressable; pkg.Func is not.
+			if src := packageNameSourceOf(store, last, cx); src != nil && src.Type == NSFuncDecl {
+				return opValue
+			}
+			return opVariable
 		}
 		if _, ok := baseOf(xt).(*StructType); ok && valueMode(store, last, cx.X, xt) == opVariable {
 			return opVariable
@@ -147,21 +165,59 @@ func valueMode(store Store, last BlockNode, x Expr, t Type) opMode {
 }
 
 // nameSourceOf returns how the name nx was declared, or nil when its
-// path does not lead to a block (uverse, dropped declaration).
-func nameSourceOf(last BlockNode, nx *NameExpr) (src *NameSource) {
-	defer func() {
-		if recover() != nil {
-			src = nil
-		}
-	}()
-	if nx.Path.Type != VPBlock {
+// path does not lead to a block in last's ancestry (uverse, a dropped
+// declaration, a path deeper than the chain).
+func nameSourceOf(last BlockNode, nx *NameExpr) *NameSource {
+	if nx.Path.Type != VPBlock || nx.Path.Depth == 0 {
 		return nil
 	}
-	bn := last.GetBlockNodeForPath(nil, nx.Path)
+	// GetBlockNodeForPath walks Depth-1 parents (one more past a faux
+	// child); check the chain is long enough, it does not.
+	bn := last
+	for i := 1; i < int(nx.Path.Depth); i++ {
+		if fauxChildBlockNode(bn) {
+			if bn = bn.GetParentNode(nil); bn == nil {
+				return nil
+			}
+		}
+		if bn = bn.GetParentNode(nil); bn == nil {
+			return nil
+		}
+	}
+	bn = last.GetBlockNodeForPath(nil, nx.Path)
+	return nameSourceIn(bn, nx.Name)
+}
+
+// packageNameSourceOf returns how the member sx.Sel of the package sx.X
+// names was declared, or nil when it cannot be resolved.
+func packageNameSourceOf(store Store, last BlockNode, sx *SelectorExpr) *NameSource {
+	// The package name folds to a constant holding a package ref; the
+	// import's slot in the file block holds the package value.
+	x := sx.X
+	if cx, ok := x.(*ConstExpr); ok {
+		x = cx.Source
+	}
+	nx, ok := x.(*NameExpr)
+	if !ok {
+		return nil
+	}
+	tv := last.GetSlot(store, nx.Name, true)
+	if tv == nil {
+		return nil
+	}
+	pv, ok := tv.V.(*PackageValue)
+	if !ok {
+		return nil
+	}
+	return nameSourceIn(pv.GetBlock(store).GetSource(store), sx.Sel)
+}
+
+// nameSourceIn returns the source of the name declared in bn, or nil.
+func nameSourceIn(bn BlockNode, name Name) *NameSource {
 	if bn == nil {
 		return nil
 	}
-	idx, ok := bn.GetLocalIndex(nx.Name)
+	idx, ok := bn.GetLocalIndex(name)
 	sources := bn.GetStaticBlock().NameSources
 	if !ok || int(idx) >= len(sources) {
 		return nil
@@ -171,6 +227,11 @@ func nameSourceOf(last BlockNode, nx *NameExpr) (src *NameSource) {
 
 func isTypeValue(t Type) bool {
 	_, ok := t.(*TypeType)
+	return ok
+}
+
+func isPackageValue(cx *ConstExpr) bool {
+	_, ok := cx.T.(*PackageType)
 	return ok
 }
 

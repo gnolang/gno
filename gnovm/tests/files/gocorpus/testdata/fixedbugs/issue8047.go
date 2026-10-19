@@ -28,9 +28,6 @@ func main() {
 	stackit(1000)
 }
 
-
-// Fixed: master PR #5722 (49af0f55c); verified clean, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 
 // GoOutput:

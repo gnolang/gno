@@ -2872,14 +2872,16 @@ func (p *parser) parseFile() *ast.File {
 	// Go spec: The package clause is not a declaration;
 	// the package name does not appear in any scope.
 	ident := p.parseIdent()
+	clauseErrors := p.errors.Len()
 	if ident.Name == "_" && p.mode&DeclarationErrors != 0 {
 		p.error(p.pos, "invalid package name _")
 	}
 	p.expectSemi()
 
 	// Don't bother parsing the rest if we had errors parsing the package clause.
-	// Likely not a Go source file at all.
-	if p.errors.Len() != 0 {
+	// Likely not a Go source file at all. A blank package name alone is
+	// reported and parsed past, so the rest of the file can be checked.
+	if p.errors.Len() != 0 && !(ident.Name == "_" && p.errors.Len() == clauseErrors+1) {
 		return nil
 	}
 

@@ -25,7 +25,7 @@ func assertValidImportPath(path string) {
 	for _, r := range path {
 		if !unicode.IsGraphic(r) || unicode.IsSpace(r) ||
 			strings.ContainsRune("!\"#$%&'()*,:;<=>?[\\]^`{|}", r) {
-			failf(CodeImportPath, nil, "invalid import path %q: invalid character %q", path, r)
+			failf(CodeImportPath, nil, "invalid import path (invalid character %#U)", r)
 		}
 	}
 	if strings.HasPrefix(path, "/") {
@@ -35,6 +35,42 @@ func assertValidImportPath(path string) {
 
 // constWidth is the width go/types gives untyped integer constants.
 const constWidth = 512
+
+// maxConstShift is the largest count go/types accepts in a constant
+// shift of a constant: enough to express the smallest float64.
+const maxConstShift = 1023 - 1 + 52
+
+// assertConstShiftCount rejects a constant shift of a constant by more
+// than maxConstShift, before the fold, as go/types does. A negative
+// count has its own error.
+func assertConstShiftCount(rcx *ConstExpr) {
+	if rcx.T == nil {
+		return
+	}
+	over := false
+	switch rcx.T.Kind() {
+	case BigintKind:
+		b := rcx.GetBigInt()
+		over = b.Sign() >= 0 && (b.BitLen() > 63 || b.Int64() > maxConstShift)
+	case Uint64Kind:
+		over = rcx.GetUint64() > maxConstShift
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind:
+		tv := rcx.TypedValue // ConvertGetInt converts in place
+		over = tv.ConvertGetInt() > maxConstShift
+	}
+	if !over {
+		return
+	}
+	what := "untyped int constant"
+	if !isUntyped(rcx.T) {
+		what = fmt.Sprintf("constant %s of type %s", rcx.TypedValue.Sprint(nil), rcx.T)
+	}
+	expr := exprString(rcx)
+	if nx, ok := rcx.Source.(*NameExpr); ok {
+		expr = string(nx.Name)
+	}
+	failf(CodeShiftCount, nil, "invalid operation: invalid shift count %s (%s)", expr, what)
+}
 
 // assertConstWidth rejects a folded untyped integer constant wider than
 // constWidth bits, naming the operation that produced it.
@@ -46,6 +82,13 @@ func assertConstWidth(x Expr, cv *TypedValue) {
 	switch x := x.(type) {
 	case *BinaryExpr:
 		op = constOpNames[x.Op]
+		// A shifted float literal is converted first; go/types names no
+		// operation.
+		if lcx, ok := x.Left.(*ConstExpr); ok && (x.Op == SHL || x.Op == SHR) {
+			if bl, ok := lcx.Source.(*BasicLitExpr); ok && bl.Kind == FLOAT {
+				op = ""
+			}
+		}
 	case *UnaryExpr:
 		switch x.Op {
 		case XOR:
@@ -78,6 +121,12 @@ func assertBranchTarget(n *BranchStmt, bn BlockNode) {
 			return
 		}
 	}
+	failBranchLabel(n)
+}
+
+// failBranchLabel rejects the label of a break or continue whose target
+// cannot be branched to.
+func failBranchLabel(n *BranchStmt) {
 	if n.Op == BREAK {
 		failf(CodeBranchLabel, nil, "invalid break label %s", n.Label)
 	}
@@ -126,18 +175,12 @@ Main:
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
 						switch fv.Name {
-						case "len":
+						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
 							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
-							}
-							assertValidConstValue(store, last, currExpr.Args[0])
-							break Main
-						case "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
+								if hasCall(preprocessGasMeterOf(store), store, last, currExpr.Args[0]) {
+									panic(fmt.Sprintf("%s (value of type int) is not constant", currExpr.String()))
+								}
 								break Main
 							}
 							assertValidConstValue(store, last, currExpr.Args[0])
@@ -212,4 +255,21 @@ Main:
 		}
 		panic(fmt.Sprintf("%s (variable of type %s) is not constant", currExpr.String(), ift))
 	}
+}
+
+// assertConstFinite rejects a folded untyped float constant beyond
+// big.Float's exponent range (an infinity, go/constant's unknown value):
+// a literal is malformed, an operation's result is not representable.
+func assertConstFinite(x Expr, cv *TypedValue) {
+	if cv.T != UntypedBigdecType {
+		return
+	}
+	bd, ok := cv.V.(BigdecValue)
+	if !ok || !bd.IsFloat() || !bd.F.IsInf() {
+		return
+	}
+	if bl, ok := x.(*BasicLitExpr); ok {
+		failf(CodeConstOverflow, nil, "malformed constant: %s", bl.Value)
+	}
+	fail(CodeConstOverflow, "constant result is not representable")
 }

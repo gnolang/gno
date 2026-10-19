@@ -22,6 +22,6 @@ func F() {
 }
 
 // GnoError:
-// line 20: invalid method expression T.M (type struct{I gno.land/p/filetest/p.I} has no method M)
+// line 20: T.M undefined (type struct{I gno.land/p/filetest/p.I} has no method M)
 
 // Verdict: KnownIssue compile: #5787 method expression on a promoted method is rejected at preprocess

@@ -14,7 +14,13 @@ their chapters.
   expression": constant, nil, type, built-in, variable (addressable), map
   index, value, tuple, no value, package, or invalid. `operandOf` builds
   it at a rule's call site from what the preprocessor already cached: no
-  allocation, nothing stored on the tree.
+  allocation, nothing stored on the tree. Its only walk, down the
+  selector/index chain of the target, is unmetered: it is bounded by the
+  expression's size, which the preprocess walk already charged for.
+- A rule that takes an operand rejects a type first (`%s (type) is not
+  an expression`, `CodeNotExpression`): an operand's `typ` is the type a
+  type expression denotes, so a rule reading `typ` alone would accept
+  `len([3]int)`.
 - `assertComparableTo`, `assertSwitchTag`, `assertCopyArgs`,
   `assertExprStmtUsed`, `assertValidAssignLhs`, `assertLenCapArg` and the
   literal key rule read an operand's mode and type. The assignment target
@@ -23,8 +29,12 @@ their chapters.
   says why.
 - The remaining rules move out of `type_check.go` into the chapter files
   (`check_assign.go`, `check_exprs.go`, `check_consts.go`); it keeps what
-  the VM needs at runtime. A move, nothing else: goldens and both corpora
-  are byte-identical.
+  the VM needs at runtime. The move commit is byte-identical (goldens and
+  both corpora untouched); the rule commits flip five goldens for the
+  assignment target wording: `types/assign_literal7c.gno`,
+  `types/assign_op_b.gno`, `gocorpus/testdata/cannotassign.go`,
+  `gocorpus/testdata/errorcheck/cannotassign.go`,
+  `gocorpus/testdata/fixedbugs/bug278.go`.
 
 ## Alternatives considered
 
@@ -34,4 +44,5 @@ their chapters.
 ## Consequences
 
 - Rules read like go/types' and new ones have one vocabulary.
-- Goldens follow the assignment target wording; the corpora do not move.
+- Goldens follow the assignment target wording; a method value and a
+  call result's field are refused as targets, as gc does.

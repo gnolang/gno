@@ -29,7 +29,7 @@ func _() {
 }
 
 // GnoError:
-// line 9: duplicate key (0 int) in map literal
+// line 11: duplicate key 0 in map literal
 // line 22: duplicate case 0 in expression switch
 
 // Verdict: Clean errorcheck

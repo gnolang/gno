@@ -10,6 +10,6 @@ const c = 3
 var x = c.String()	// ERROR "String"
 
 // GnoError:
-// line 10: c.String undefined (type <untyped> bigint has no field or method String)
+// line 10: c.String undefined (type untyped int has no field or method String)
 
 // Verdict: Clean errorcheck

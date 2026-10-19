@@ -19,11 +19,4 @@ func f3() (x int, *string)	// ERROR "missing parameter name"
 
 func f4() (t1 t1)	// legal - scope of parameter named t1 starts in body of f4.
 
-// GnoError:
-// line 16: missing parameter name
-
-// ParseBlocked:
-// line 17: gc expects: missing parameter name
-// line 18: gc expects: missing parameter name
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported bodiless-func: bodiless function declarations (assembly-backed in gc) not supported in Gno

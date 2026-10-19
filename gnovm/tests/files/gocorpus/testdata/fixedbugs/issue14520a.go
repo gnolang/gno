@@ -10,6 +10,6 @@ import /* // ERROR "import path" */ `
 bogus`
 
 // GnoError:
-// line 9: invalid import path "\nbogus": invalid character '\n'
+// line 9: invalid import path (invalid character U+000A)
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck

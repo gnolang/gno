@@ -18,12 +18,4 @@ func _() {
 	_ = &([10]bool /* ERRORx `invalid operation.*bool is not a generic type` */ [1 /* ERROR "expected type" */ ]{})
 }
 
-// GnoError:
-// line 18: expected type, found 1
-
-// ParseBlocked:
-// line 11: gc expects: cannot use.*without instantiation
-// line 12: gc expects: invalid operation: bool[int] (bool is not a generic type)
-// line 13: gc expects: invalid operation: bool[G] (bool is not a generic type)
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported generics: generics not supported in Gno

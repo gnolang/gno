@@ -13,12 +13,10 @@ func init(int)  {}           // ERROR "func init must have no arguments and no r
 func init() int { return 1 } // ERROR "func init must have no arguments and no return values"
 
 // GnoError:
+// line 9: func main must have no arguments and no return values
 // line 10: main redeclared in this block
 // 	previous declaration at mainsig.go:9:6
-
-// ParseBlocked:
-// line 9: gc expects: func main must have no arguments and no return values
-// line 12: gc expects: func init must have no arguments and no return values
-// line 13: gc expects: func init must have no arguments and no return values
+// line 12: func init must have no arguments and no return values
+// line 13: func init must have no arguments and no return values
 
 // Verdict: Clean errorcheck

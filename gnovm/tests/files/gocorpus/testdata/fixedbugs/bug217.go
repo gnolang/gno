@@ -17,8 +17,6 @@ type b int
 
 // GnoError:
 // line 12: method has no receiver
-
-// ParseBlocked:
-// line 14: gc expects: multiple receiver
+// line 14: method has multiple receivers
 
 // Verdict: Clean errorcheck

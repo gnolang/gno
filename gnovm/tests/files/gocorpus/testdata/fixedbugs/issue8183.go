@@ -22,4 +22,12 @@ const (
 	f // ERROR "array bound must be non-negative|negative array bound|invalid array length"
 )
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15, 21, 22
+// GnoError:
+// line 15: bigint overflows target kind
+// line 21: invalid array length -1
+// line 22: invalid array length -2
+
+// GnoWordingDiffers:
+// line 15: gc expects: constant 256 overflows byte|integer constant overflow|cannot convert; gno: bigint overflows target kind
+
+// Verdict: Clean errorcheck

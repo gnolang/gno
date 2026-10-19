@@ -33,14 +33,9 @@ var _ = C.H // ERROR "ambiguous"
 var _ = C.I // ERROR "no method .*I.*|C.I undefined"
 
 // GnoError:
-// line 30: C.F undefined (type gno.land/p/filetest/p.C has no method F)
-// line 31: C.G undefined (type gno.land/p/filetest/p.C has no method G)
-// line 32: C.H undefined (type gno.land/p/filetest/p.C has no method H)
+// line 30: ambiguous selector C.F
+// line 31: ambiguous selector C.G
+// line 32: ambiguous selector C.H
 // line 33: C.I undefined (type gno.land/p/filetest/p.C has no method I)
-
-// GnoWordingDiffers:
-// line 30: gc expects: ambiguous; gno: C.F undefined (type gno.land/p/filetest/p.C has no method F)
-// line 31: gc expects: ambiguous; gno: C.G undefined (type gno.land/p/filetest/p.C has no method G)
-// line 32: gc expects: ambiguous; gno: C.H undefined (type gno.land/p/filetest/p.C has no method H)
 
 // Verdict: Clean errorcheck

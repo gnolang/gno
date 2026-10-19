@@ -27,12 +27,11 @@ func i() {
 
 // GnoError:
 // line 12: missing ',' before newline in argument list
-
-// ParseBlocked:
-// line 20: gc expects: unexpected newline
-// line 24: gc expects: unexpected newline
+// line 13: missing ',' in argument list
+// line 14: expected operand, found '}'
+// line 26: expected ')', found 'EOF'
 
 // GnoWordingDiffers:
 // line 12: gc expects: unexpected newline; gno: missing ',' before newline in argument list
 
-// Verdict: Clean errorcheck
+// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): the missing comma before a newline is reported on the next line, with cascades on lines 13, 14 and 26

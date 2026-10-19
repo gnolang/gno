@@ -20,11 +20,7 @@ func main() {
 }
 
 // GnoError:
-// line 18: missing field Meth in main.P
-// line 19: missing field Meth2 in main.P
-
-// GnoWordingDiffers:
-// line 18: gc expects: undefined; gno: missing field Meth in main.P
-// line 19: gc expects: undefined; gno: missing field Meth2 in main.P
+// line 18: p.Meth undefined (type main.P has no field or method Meth)
+// line 19: p.Meth2 undefined (type main.P has no field or method Meth2)
 
 // Verdict: Clean errorcheck

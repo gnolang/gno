@@ -37,6 +37,8 @@ func whatis(x interface{}) string {
 }
 
 // GnoError:
-// line 15: duplicate type int in type switch
+// line 18: duplicate case int in type switch
+// line 22: duplicate case io.Reader in type switch
+// line 29: duplicate case interface {r func(); w func()} in type switch
 
 // Verdict: Clean errorcheck

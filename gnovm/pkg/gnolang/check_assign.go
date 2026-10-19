@@ -158,9 +158,9 @@ func checkValDefineMismatch(n Node) {
 
 	if valueDecl != nil {
 		if numNames > numValues {
-			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].Name))
+			failf(CodeMissingConstInit, nil, "missing init expr for %s", valueDecl.NameExprs[numValues].Name)
 		}
-		panic(fmt.Sprintf("extra init expr %s", values[numNames].String()))
+		failf(CodeMissingConstInit, []Node{values[numNames]}, "extra init expr %s", values[numNames].String())
 	}
 
 	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
@@ -213,15 +213,7 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with isImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			}
-			// A pointer to an interface has no methods, so it never
-			// implements a non-empty one (Go spec, Method sets).
-			if pt, ok := baseOf(xt).(*PointerType); ok {
-				if _, isIface := baseOf(pt.Elt).(*InterfaceType); isIface {
-					return errors.New("cannot use %s as %s: %s is pointer to interface, not interface", xt.String(), dt.String(), xt.String())
-				}
-			}
-			if err := idt.checkImplementedBy(preprocessGasMeterOf(store), xt); err == nil {
+			} else if err := idt.checkImplementedByStatic(preprocessGasMeterOf(store), xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
@@ -413,6 +405,11 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *FuncType, *StructType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
+			if f := embeddedFieldMismatch(xt, cdt); f != "" {
+				return errors.New(
+					"cannot use %s as %s (field %s is embedded in only one)",
+					xt.String(), dt.String(), f)
+			}
 			if tagsIdentical(preprocessGasMeterOf(store), xt, cdt) {
 				return nil // ok
 			}
@@ -589,15 +586,16 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		}
 	}
 	// The target is a variable or a map index expression.
-	if o := operandOf(store, last, lx); o.assignable() {
+	o := operandOf(store, last, lx)
+	assertNotType(o)
+	if o.assignable() {
 		return
 	}
-	switch clx := lx.(type) {
-	case *SelectorExpr:
-		if inMapValue(store, last, clx) {
-			failf(CodeMapValueAssign, nil, "cannot assign to struct field %s in map", exprString(lx))
-		}
-	case *IndexExpr, *NameExpr:
+	if sx, ok := lx.(*SelectorExpr); ok && inMapValue(store, last, sx) {
+		failf(CodeMapValueAssign, nil, "cannot assign to struct field %s in map", exprString(lx))
+	}
+	switch lx.(type) {
+	case *SelectorExpr, *IndexExpr, *NameExpr:
 		failf(CodeNotAssignable, nil, "cannot assign to %s (neither addressable nor a map index expression)", exprString(lx))
 	}
 	panic(fmt.Sprintf("cannot assign to %s", exprString(lx)))
@@ -661,4 +659,24 @@ func assertValidAssignRhs(store Store, last BlockNode, n Node) {
 			}
 		}
 	}
+}
+
+// embeddedFieldMismatch names the first field embedded in exactly one of
+// two unnamed struct types with the same TypeID, which does not record
+// embedding (Go spec, "Type identity": fields must agree on it), or "".
+func embeddedFieldMismatch(at, bt Type) Name {
+	ast, ok := at.(*StructType)
+	if !ok {
+		return ""
+	}
+	bst, ok := bt.(*StructType)
+	if !ok || len(ast.Fields) != len(bst.Fields) {
+		return ""
+	}
+	for i := range ast.Fields {
+		if ast.Fields[i].Embedded != bst.Fields[i].Embedded {
+			return ast.Fields[i].Name
+		}
+	}
+	return ""
 }

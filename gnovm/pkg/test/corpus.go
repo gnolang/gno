@@ -82,6 +82,7 @@ func HasInlineErrorMarkers(source []byte) bool {
 // line and ends at `*/`.
 var markerTags = []string{
 	"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// ERRORx ",
+	"// GCCGO_ERROR ", "// GCCGO_ERROR\t",
 	"/* ERROR ", "/* ERRORx ",
 }
 
@@ -95,16 +96,6 @@ func findMarker(line string) (int, string) {
 	}
 	return best, bestTag
 }
-
-// Distinguish a real marker from an `// ERROR "..."` mentioned
-// in narrative prose. Markers come in two valid shapes:
-//   - trailing a line of code:  `_ = x // ERROR "..."`
-//   - on its own comment line:  `// ERROR "..."` (used with
-//     //line remapping, e.g. fixedbugs/bug305.go)
-// A prose mention (e.g. a doc comment that says "a `// ERROR
-// \"regex\"` marker …") has other text before the marker on a
-// comment line. So: if the line is a pure comment, accept it
-// only when the marker is the FIRST token after `//`.
 
 // indexErrorMarker returns the byte index in line where an `// ERROR`
 // or `// GC_ERROR` marker's content begins, or -1.
@@ -434,8 +425,8 @@ func gnoErrSegments(s string) []string {
 }
 
 // reErrorLocation is a located message's prefix: file:L:C, with an
-// optional span end (-C2 or -L2:C2), or just file:L.
-var reErrorLocation = regexp.MustCompile(`(?s)^\S+?:\d+(?::\d+)?(?:-\d+(?::\d+)?)?:\s*(.*)$`)
+// optional span end (-C2 or -L2:C2) and primes ('), or just file:L.
+var reErrorLocation = regexp.MustCompile(`(?s)^\S+?:\d+(?::\d+)?(?:-\d+(?::\d+)?)?'*:\s*(.*)$`)
 
 // CleanErrorMessage strips the location prefix from a Gno error message
 // ("pkg/file.go:12:3-14:2: msg" becomes "msg"); a message with no
@@ -579,14 +570,35 @@ func TagUnsupportedReason(reason string) string {
 type InlineError struct {
 	// Line is the 1-based source line the marker was attached to.
 	Line int
-	// Patterns lists the quoted regex strings on the marker, in
+	// Patterns lists the quoted patterns on the line's markers, in
 	// declaration order. Empty for a bare `// ERROR` with no patterns.
-	Patterns []string
-	// GcOnly marks a `// GC_ERROR` marker: a gc-implementation-specific
+	Patterns []ErrorPattern
+	// LineLeading marks a marker that is the first token on its line.
+	// go/types attributes such a marker to the previous line's last
+	// token, which the harness (line-based) cannot follow.
+	LineLeading bool
+	// GcOnly marks a `// GC_ERROR` or `// GCCGO_ERROR` marker: a compiler-specific
 	// diagnostic (backend limit, pragma check, …) that is NOT part of
 	// Gno's contract. GcOnly markers are excluded from leak accounting —
 	// catching one is fine, missing one is not an uncaught error.
 	GcOnly bool
+}
+
+// ErrorPattern is one quoted marker pattern: a regexp for gc's
+// `// ERROR "…"` and go/types' `ERRORx`, a plain substring for
+// go/types' `ERROR` (its check_test.go unquotes and uses strings.Contains).
+type ErrorPattern struct {
+	Text  string
+	Regex bool
+}
+
+// patternTexts returns the patterns' texts.
+func patternTexts(ps []ErrorPattern) []string {
+	out := make([]string, len(ps))
+	for i, p := range ps {
+		out[i] = p.Text
+	}
+	return out
 }
 
 // ParseInlineErrors scans source for inline `// ERROR "..."` markers
@@ -595,15 +607,22 @@ type InlineError struct {
 // Format: any number of double-quoted (or backtick-quoted) strings
 // after `// ERROR`, e.g. `// ERROR "oct|char"` or `// ERROR "a" "b"`.
 // `// GC_ERROR` is accepted as equivalent to `// ERROR` since several
-// corpus files mix the two; gccgo-only markers (`// GCCGO_ERROR`)
-// are intentionally ignored — this harness mirrors gc semantics.
+// corpus files mix the two. A gccgo-only marker (`// GCCGO_ERROR`) is
+// optional: it never counts as uncaught, but an error on its line is not
+// over-strict either, since another Go compiler reports one there (the
+// typical case is an undefined name after a syntax error, which gc alone
+// suppresses).
 // LINE/LINE+N substitutions are NOT performed; the literal text
 // stays in the regex (matching is best-effort).
 //
 // Lines that begin with `//` (i.e. pure doc-comment lines that
 // happen to mention `// ERROR "..."` in their prose) are skipped —
 // real markers always trail actual code on the same line.
-func ParseInlineErrors(source []byte) []InlineError {
+//
+// goTypes selects go/types' reading of a line-comment marker: `// ERROR`
+// is a substring there (as `/* ERROR */` always is) and a regexp in gc's
+// files; `ERRORx` is a regexp in both.
+func ParseInlineErrors(source []byte, goTypes bool) []InlineError {
 	var out []InlineError
 	sc := bufio.NewScanner(bytes.NewReader(source))
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -625,21 +644,19 @@ func ParseInlineErrors(source []byte) []InlineError {
 		// comment line. So: if the line is a pure comment, accept it
 		// only when the marker is the FIRST token after `//`.
 		trimmed := strings.TrimLeft(text, " \t")
-		if strings.HasPrefix(trimmed, "//") {
-			isMarkerStart := false
-			for _, p := range markerTags {
-				if strings.HasPrefix(trimmed, p) {
-					isMarkerStart = true
-					break
-				}
+		lineLeading := false
+		for _, p := range markerTags {
+			if strings.HasPrefix(trimmed, p) {
+				lineLeading = true
+				break
 			}
-			if !isMarkerStart {
-				continue
-			}
+		}
+		if strings.HasPrefix(trimmed, "//") && !lineLeading {
+			continue
 		}
 		// Every marker on the line; a block marker ends at `*/`, a line
 		// marker runs to the end of the line.
-		var patterns []string
+		var patterns []ErrorPattern
 		gcOnly := true
 		for rest := text; ; {
 			i, tag := findMarker(rest)
@@ -653,12 +670,14 @@ func ParseInlineErrors(source []byte) []InlineError {
 					end = j
 				}
 			}
-			patterns = append(patterns, extractQuotedStrings(content[:end])...)
-			gcOnly = gcOnly && strings.Contains(tag, "GC_ERROR")
+			regex := strings.Contains(tag, "ERRORx") || (!goTypes && strings.HasPrefix(tag, "//"))
+			for _, q := range extractQuotedStrings(content[:end]) {
+				patterns = append(patterns, ErrorPattern{Text: q, Regex: regex})
+			}
+			gcOnly = gcOnly && (strings.Contains(tag, "GC_ERROR") || strings.Contains(tag, "GCCGO_ERROR"))
 			rest = content[end:]
 		}
-		_ = idx
-		out = append(out, InlineError{Line: lineNo, Patterns: patterns, GcOnly: gcOnly})
+		out = append(out, InlineError{Line: lineNo, Patterns: patterns, LineLeading: lineLeading, GcOnly: gcOnly})
 	}
 	return out
 }
@@ -728,15 +747,20 @@ func langBelowPin(fl string) bool {
 	return n < 17
 }
 
-// wordingMatches reports whether msg matches any of gc's marker patterns,
-// as a regexp when the pattern compiles and as a substring otherwise.
-func wordingMatches(patterns []string, msg string) bool {
+// wordingMatches reports whether msg matches any of the marker patterns:
+// a regexp pattern as a regexp (as a substring if it does not compile),
+// a substring pattern with strings.Contains.
+func wordingMatches(patterns []ErrorPattern, msg string) bool {
 	for _, p := range patterns {
-		if re, err := regexp.Compile(p); err == nil {
-			if re.MatchString(msg) {
-				return true
+		if p.Regex {
+			if re, err := regexp.Compile(p.Text); err == nil {
+				if re.MatchString(msg) {
+					return true
+				}
+				continue
 			}
-		} else if strings.Contains(msg, p) {
+		}
+		if strings.Contains(msg, p.Text) {
 			return true
 		}
 	}

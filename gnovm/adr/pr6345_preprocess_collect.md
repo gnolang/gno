@@ -44,3 +44,26 @@ executed.
 - Suppression is heuristic (by name); a rule that reports a dropped
   name under another spelling shows up as noise and gets added to
   `reUndeclaredName`.
+
+## Limits
+
+- Poison is by bare name, package-wide, not by scope: in
+  `func a() { x := "s" + 1 }; func b() { println(x) }` the genuine
+  `name x not declared` in `b` is suppressed by the drop in `a`.
+- A dropped declaration can leave partial state: `type T struct{ X Undef }`
+  is dropped but `T` exists as an empty struct, so a method body's `t.X`
+  reports `missing field X in main.T`, which no name poison covers.
+- Dependency attribution (one error, at the dependency) needs the file-set
+  index, i.e. `PreprocessFilesCollect`; `PreprocessCollect` on a lone file
+  node may report a dropped dependency at each dependent too.
+
+## Parser errors
+
+`ParseFileCollect` is `ParseFile` for this mode: it parses with
+`AllErrors`, returns every parser error located, and converts the partial
+tree anyway; `Go2Gno` maps `ast.BadExpr` / `BadStmt` / `BadDecl` to a name
+no program can declare (`!syntax`), poisoned up front, so the statement
+holding it drops behind the parser's error for that line like any failed
+statement. gc and go/types type-check after syntax errors; the old
+`ParseFile` threw the tree away on the first one. On chain `ParseFile` is
+unchanged.

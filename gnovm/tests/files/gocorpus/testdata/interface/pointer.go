@@ -37,7 +37,7 @@ func main() {
 }
 
 // GnoError:
-// line 34: cannot use *main.Inst as main.Inst: *main.Inst is pointer to interface, not interface
+// line 34: *main.Inst does not implement main.Inst (type *main.Inst is pointer to interface, not interface)
 // line 36: cannot use *main.Start as *main.Inst
 
 // GnoWordingDiffers:

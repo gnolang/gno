@@ -28,8 +28,8 @@ var _ = P{
 }
 
 // GnoError:
-// line 22: cannot use *gno.land/p/filetest/p.T as struct{}
-// line 26: cannot use struct{} as *gno.land/p/filetest/p.T
+// line 23: cannot use *gno.land/p/filetest/p.T as struct{}
+// line 27: cannot use struct{} as *gno.land/p/filetest/p.T
 
 // GnoWordingDiffers:
 // line 23: gc expects: cannot use &T{}|incompatible type; gno: cannot use *gno.land/p/filetest/p.T as struct{}

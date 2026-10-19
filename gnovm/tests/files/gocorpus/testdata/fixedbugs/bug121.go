@@ -18,11 +18,11 @@ type J interface {
 
 // GnoError:
 // line 12: expected ';', found ','
-
-// ParseBlocked:
-// line 16: gc expects: syntax|signature
+// line 16: expected ';', found T
+// line 17: expected ';', found 'EOF'
 
 // GnoWordingDiffers:
 // line 12: gc expects: unexpected comma; gno: expected ';', found ','
+// line 16: gc expects: syntax|signature; gno: expected ';', found T
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 17

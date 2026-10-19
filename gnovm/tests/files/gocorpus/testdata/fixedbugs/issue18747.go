@@ -29,12 +29,15 @@ func _ () {
 
 // GnoError:
 // line 10: missing condition in if statement
+// line 13: missing condition in if statement
+// line 15: missing condition in if statement
+// line 17: missing condition in if statement
+// line 19: missing condition in if statement
+// line 22: name foo not declared
+// line 24: name foo not declared
+// line 26: unexpected newline, expecting { after if clause
 
-// ParseBlocked:
-// line 13: gc expects: missing condition in if statement
-// line 15: gc expects: missing condition in if statement
-// line 17: gc expects: missing condition in if statement
-// line 19: gc expects: missing condition in if statement
-// line 26: gc expects: unexpected newline, expected { after if clause
+// GnoWordingDiffers:
+// line 26: gc expects: unexpected newline, expected { after if clause; gno: unexpected newline, expecting { after if clause
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 22, 24

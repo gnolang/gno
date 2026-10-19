@@ -43,9 +43,9 @@ func _() {
 }
 
 // GnoError:
-// line 12: cannot switch on a (struct{_ func()} is not comparable)
-// line 15: cannot switch on a (struct{_ func()} is not comparable)
-// line 32: func() can only be compared to nil
+// line 12: cannot switch on a (variable of type struct{_ func()}) (struct{_ func()} is not comparable)
+// line 15: cannot switch on a (variable of type struct{_ func()}) (struct{_ func()} is not comparable)
+// line 33: func() can only be compared to nil
 // line 36: use of untyped nil in switch expression
 
 // GnoWordingDiffers:

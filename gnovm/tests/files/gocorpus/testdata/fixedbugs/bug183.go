@@ -26,6 +26,7 @@ func g() {
 }
 
 // GnoError:
+// line 14: cannot use struct{T main.T} as struct{T main.T} (field T is embedded in only one)
 // line 24: cannot use main.T2 as main.T1 without explicit conversion
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14
+// Verdict: Clean errorcheck

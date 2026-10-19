@@ -31,8 +31,10 @@ package gnolang
 */
 
 import (
+	stderrors "errors"
 	"fmt"
 	"go/ast"
+	goscanner "go/scanner"
 	"go/token"
 	"os"
 	"reflect"
@@ -195,6 +197,78 @@ func newParserCallback(m *Machine) parser.ParserCallback {
 	}
 }
 
+// syntaxErrName stands in for a node go/parser could not parse (its
+// ast.Bad* placeholders). Not a Go identifier, so no program declares it;
+// accumulate mode poisons it, so the statement holding it drops silently
+// behind the parser's own error for that line. A dropped declaration
+// becomes `var _ = !syntax`: the blank name never clashes or cycles.
+const syntaxErrName Name = "!syntax"
+
+// ParseFileCollect is ParseFile for accumulate mode: every syntax and
+// declaration error go/parser reports (AllErrors) comes back located, and
+// the partial AST still becomes a FileNode, each unparsed node a statement
+// that drops at preprocess. fn is nil only when the source has no package
+// clause or Go2Gno cannot take the partial AST; on chain ParseFile still
+// rejects the file at its first error.
+func (m *Machine) ParseFileCollect(fname, body string) (fn *FileNode, errs []error) {
+	fs := token.NewFileSet()
+	const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.AllErrors
+	astf, err := parser.ParseFile2(fs, fname, body, parseOpts, newParserCallback(m))
+	if err != nil {
+		var list goscanner.ErrorList
+		if stderrors.As(err, &list) {
+			for _, e := range list {
+				errs = append(errs, e)
+			}
+		} else {
+			errs = append(errs, err)
+		}
+	}
+	if astf == nil || astf.Name == nil || astf.Name.Name == "" {
+		return nil, errs
+	}
+	// Declaration by declaration, as Go2Gno's *ast.File case does, so a
+	// declaration Go2Gno refuses (a method with two receivers, a generic
+	// index list) drops with its positioned error instead of the file.
+	fn = &FileNode{FileName: fname, PkgName: Name(astf.Name.Name)}
+	for _, d := range astf.Decls {
+		ds, err := go2gnoDecl(fs, d, astf.Comments)
+		if err != nil {
+			errs = append(errs, err)
+			bad := &ValueDecl{NameExprs: NameExprs{*Nx("_")}, Values: Exprs{Nx(syntaxErrName)}}
+			setSpan(fs, d, bad)
+			fn.Decls = append(fn.Decls, bad)
+			continue
+		}
+		fn.Decls = append(fn.Decls, ds...)
+	}
+	setSpan(fs, astf, fn)
+	return fn, errs
+}
+
+// go2gnoDecl converts one declaration, turning a conversion panic into a
+// located error (Go2Gno's own errors carry the position; others get the
+// declaration's).
+func go2gnoDecl(fs *token.FileSet, d ast.Decl, comments []*ast.CommentGroup) (ds []Decl, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg := fmt.Sprint(r)
+			if rerr, ok := r.(error); ok {
+				msg = rerr.Error()
+			}
+			pos := fs.Position(d.Pos())
+			if !strings.HasPrefix(msg, pos.Filename+":") {
+				msg = fmt.Sprintf("%s:%d:%d: %s", pos.Filename, pos.Line, pos.Column, msg)
+			}
+			ds, err = nil, stderrors.New(msg)
+		}
+	}()
+	if gd, ok := d.(*ast.GenDecl); ok {
+		return toDecls(fs, gd), nil
+	}
+	return []Decl{toDecl(fs, d, comments)}, nil
+}
+
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
@@ -327,9 +401,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 	// path, but do not introduce per-node Pos()/End() walks without
 	// considering the DoS implications.
 	panicWithPos := func(fmtStr string, args ...any) {
-		pos := fs.Position(gon.Pos())
-		loc := fmt.Sprintf("%s:%d:%d", pos.Filename, pos.Line, pos.Column)
-		panic(fmt.Errorf("%s: %v", loc, fmt.Sprintf(fmtStr, args...)))
+		panicAtPos(fs, gon.Pos(), fmtStr, args...)
 	}
 
 	switch gon := gon.(type) {
@@ -707,6 +779,12 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 		}
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}
+	case *ast.BadExpr:
+		return Nx(syntaxErrName)
+	case *ast.BadStmt:
+		return &ExprStmt{X: Nx(syntaxErrName)}
+	case *ast.BadDecl:
+		return &ValueDecl{NameExprs: NameExprs{*Nx("_")}, Values: Exprs{Nx(syntaxErrName)}}
 	case *ast.IndexListExpr:
 		if len(gon.Indices) > 1 {
 			panicWithPos("invalid operation: more than one index")
@@ -872,6 +950,12 @@ func toDecl(fs *token.FileSet, god ast.Decl, fileComments []*ast.CommentGroup) D
 	}
 }
 
+// panicAtPos raises a positioned conversion error ("file:line:col: msg").
+func panicAtPos(fs *token.FileSet, pos token.Pos, fmtStr string, args ...any) {
+	p := fs.Position(pos)
+	panic(fmt.Errorf("%s:%d:%d: %v", p.Filename, p.Line, p.Column, fmt.Sprintf(fmtStr, args...)))
+}
+
 func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 	ds = make([]Decl, 0, len(gd.Specs))
 	/*
@@ -888,8 +972,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 		case *ast.TypeSpec:
 			name := toName(s.Name)
 			if s.TypeParams != nil {
-				pos := fs.Position(s.Pos())
-				panic(fmt.Errorf("%s:%d:%d: type parameters are not permitted", pos.Filename, pos.Line, pos.Column))
+				panicAtPos(fs, s.Pos(), "type parameters are not permitted")
 			}
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
@@ -909,13 +992,16 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					names = append(names, *Nx(toName(id)))
 				}
 
-				// Inherit the last type when
-				// both type and value are nil
+				// Inherit the last type when both type and value are
+				// nil; a type travels with its expression list, so a
+				// typed spec without values sets nothing.
 				if s.Type == nil && s.Values == nil {
 					tipe = lastType
 				} else {
 					tipe = toExpr(fs, s.Type)
-					lastType = tipe
+					if s.Values != nil {
+						lastType = tipe
+					}
 				}
 
 				if s.Values == nil && s.Type != nil {
@@ -962,9 +1048,11 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
-			path, err := strconv.Unquote(s.Path.Value)
-			if err != nil {
-				panic("unexpected import spec path type")
+			// A missing or malformed path is a parse error; the empty path
+			// lets the preprocessor reject the import at its own position.
+			path := ""
+			if s.Path != nil {
+				path, _ = strconv.Unquote(s.Path.Value)
 			}
 			im := &ImportDecl{
 				NameExpr: *Nx(toName(s.Name)),

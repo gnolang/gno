@@ -1025,11 +1025,28 @@ func (it *InterfaceType) panicUnflattened(im FieldType) {
 // an unmetered call is visible at its call site.
 // TODO: optimize somehow.
 func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
+	return it.checkImplementedBy2(gm, ot, false)
+}
+
+// checkImplementedByStatic is checkImplementedBy for the preprocessor:
+// method types must be identical struct tags included, as in Go. The
+// runtime path keeps the tag-blind comparison and its charges.
+func (it *InterfaceType) checkImplementedByStatic(gm store.GasMeter, ot Type) error {
+	return it.checkImplementedBy2(gm, ot, true)
+}
+
+func (it *InterfaceType) checkImplementedBy2(gm store.GasMeter, ot Type, tags bool) error {
 	// Charge gas for the per-method interface implementation verification.
 	// Each method is looked up on a shared embedWalk
 	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (349 gas)
 	// mirrors the runtime type-assertion charge in op_expressions.go.
 	chargeCPUGas(gm, OpCPUSlopeTypeAssertIface*int64(len(it.Methods)))
+	if pt, ok := baseOf(ot).(*PointerType); ok {
+		if _, ok := baseOf(pt.Elt).(*InterfaceType); ok {
+			// Its method set is empty; the embedding walk has no case for it.
+			return fmt.Errorf("type %v is pointer to interface, not interface", ot)
+		}
+	}
 	// One walk of ot's embedding graph serves every method lookup below: the
 	// graph is expanded once (OpCPUSlopeEmbedExpand per type) and re-scanned
 	// per name (OpCPUSlopeEmbedScan per entry, plus OpCPUSlopeEmbedTrailHop
@@ -1075,10 +1092,11 @@ func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 			if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
 				return fmt.Errorf("method %s has pointer receiver", mname) // not addressable.
 			}
-			// check for func type equality.
+			// check for func type identity (struct tags included when
+			// tags is set).
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
-			if dmtid != imtid {
+			if dmtid != imtid || tags && !tagsIdentical(gm, mt, im.Type) {
 				return fmt.Errorf("wrong type for method %s", mname)
 			}
 		} else {
@@ -3273,12 +3291,18 @@ func (w *embedWalk) expand() bool {
 // (embedded fields are T or *T, and pointers to declared types and
 // structs are transparent for field/method exposure). Returns nil for
 // types that expose nothing (e.g. nested pointers, pointers to
-// interfaces).
+// interfaces), a named pointer or interface under the pointer included.
 func canonEmbeddedType(t Type) Type {
 	if pt, ok := t.(*PointerType); ok {
-		switch pt.Elt.(type) {
-		case *DeclaredType, *StructType:
-			return pt.Elt
+		switch elt := pt.Elt.(type) {
+		case *DeclaredType:
+			switch elt.Base.(type) {
+			case *PointerType, *InterfaceType:
+				return nil
+			}
+			return elt
+		case *StructType:
+			return elt
 		}
 		return nil
 	}
