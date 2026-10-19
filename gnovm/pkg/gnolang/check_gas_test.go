@@ -77,3 +77,41 @@ func TestPreprocessGas_TypeWalks(t *testing.T) {
 	require.GreaterOrEqual(t, large-small, int64(90)*OpCPUSlopeCheckNode*GasFactorCPU,
 		"type walks must bill per field: %d -> %d", small, large)
 }
+
+// TestPreprocessGas_PromotedMethodExpr pins the lowering of a promoted
+// method expression: T3.sum (T3 embeds T0) builds and preprocesses a
+// literal with a node per parameter, metered per op; T0.sum, the same
+// bytes, resolves directly and builds nothing.
+func TestPreprocessGas_PromotedMethodExpr(t *testing.T) {
+	charge := func(recv string, params int) int64 {
+		gm := stypes.NewGasMeter(1_000_000_000)
+		st, _ := newPreprocessAllocTestStore(t, 256*1024*1024, gm)
+		t.Cleanup(func() { st.SetPreprocessAllocator(nil) })
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath: "gno.land/r/test/megas",
+			Store:   st,
+		})
+		defer m.Release()
+		var b strings.Builder
+		b.WriteString("package megas\n\ntype T0 struct{}\n\nfunc (T0) sum(")
+		for i := range params {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "a%d int", i)
+		}
+		b.WriteString(") int { return 0 }\n\ntype T3 struct{ T0 }\n\nvar F = " + recv + ".sum\n")
+		panicked, val := runMemPackageRecover(m, &std.MemPackage{
+			Type:  MPUserProd,
+			Name:  "megas",
+			Path:  "gno.land/r/test/megas",
+			Files: []*std.MemFile{{Name: "a.gno", Body: b.String()}},
+		})
+		require.False(t, panicked, "got: %v", val)
+		return gm.GasConsumed()
+	}
+	small := charge("T3", 10) - charge("T0", 10)
+	large := charge("T3", 40) - charge("T0", 40)
+	require.GreaterOrEqual(t, large-small, int64(30)*OpCPUSlopeCheckNode*GasFactorCPU,
+		"the lowering must be metered per parameter: %d -> %d", small, large)
+}
