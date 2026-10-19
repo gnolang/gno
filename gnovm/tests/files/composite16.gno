@@ -17,4 +17,4 @@ func main() {
 // main/composite16.gno:10:3: index x(1) must be integer constant; main/composite16.gno:11:3: index x(3) must be integer constant
 
 // Error:
-// main/composite16.gno:9:7-12:3: index x(1) must be integer constant
+// main/composite16.gno:10:3-7: index x(1) must be integer constant

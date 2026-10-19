@@ -97,7 +97,13 @@ func (debugging) Errorf(format string, args ...any) {
 type PreprocessError struct {
 	err     error
 	stack   []BlockNode
-	dropped []Name // declared by dependencies dropped on the way up
+	code    ErrCode // the rule, "" for a site not yet given one
+	dropped []Name  // declared by dependencies dropped on the way up
+}
+
+// Code returns the rule that raised the error, or "" when unknown.
+func (p *PreprocessError) Code() ErrCode {
+	return p.code
 }
 
 // Unwrap returns the encapsulated error message.

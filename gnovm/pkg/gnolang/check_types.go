@@ -88,14 +88,14 @@ func checkTypeExprShape(gm store.GasMeter, tx Expr) {
 		case *MapTypeExpr:
 			if mt, ok := t.(*MapType); ok {
 				if msg := mapKeyError(gm, mt.Key); msg != "" {
-					panicAt(msg, x.Key, x)
+					fail(CodeMapKey, msg, x.Key, x)
 				}
 			}
 		case *StructTypeExpr:
 			if st, ok := t.(*StructType); ok && len(st.Fields) == len(x.Fields) {
 				for i, f := range st.Fields {
 					if msg := embeddedFieldError(f); f.Embedded && msg != "" {
-						panicAt(msg, &x.Fields[i], x)
+						fail(CodeEmbeddedField, msg, &x.Fields[i], x)
 					}
 				}
 			}
@@ -134,9 +134,9 @@ func checkTypeShape(gm store.GasMeter, last BlockNode, dt *DeclaredType) {
 			if msg := mapKeyError(gm, ct.Key); msg != "" {
 				x, _ := typeExprIn(gm, last, owner, ct).(*MapTypeExpr)
 				if x == nil {
-					panic(msg)
+					fail(CodeMapKey, msg)
 				}
-				panicAt(msg, x.Key, x)
+				fail(CodeMapKey, msg, x.Key, x)
 			}
 			walk(ct.Key, owner)
 			walk(ct.Value, owner)
@@ -152,9 +152,9 @@ func checkTypeShape(gm store.GasMeter, last BlockNode, dt *DeclaredType) {
 				if msg := embeddedFieldError(f); f.Embedded && msg != "" {
 					x, _ := typeExprIn(gm, last, owner, ct).(*StructTypeExpr)
 					if x == nil || len(x.Fields) != len(ct.Fields) {
-						panic(msg)
+						fail(CodeEmbeddedField, msg)
 					}
-					panicAt(msg, &x.Fields[i], x)
+					fail(CodeEmbeddedField, msg, &x.Fields[i], x)
 				}
 				walk(f.Type, owner)
 			}
@@ -213,14 +213,14 @@ func checkInterfaceElems(store Store, last BlockNode, x *InterfaceTypeExpr) {
 		m := &x.Methods[i]
 		switch m.Name {
 		case blankIdentifier:
-			panicAt("methods must have a unique non-blank name", m)
+			fail(CodeInterfaceEmbed, "methods must have a unique non-blank name", m)
 		case "":
 			t := evalStaticType(store, last, m.Type)
 			if dt, ok := t.(*DeclaredType); ok && dt.Base == nil {
 				continue // being declared; checked once complete
 			}
 			if embeddedInterface(t) == nil {
-				panicAt(fmt.Sprintf("interface contains embedded non-interface %v", t), m)
+				failf(CodeInterfaceEmbed, []Node{m}, "interface contains embedded non-interface %v", t)
 			}
 		}
 	}
@@ -229,7 +229,7 @@ func checkInterfaceElems(store Store, last BlockNode, x *InterfaceTypeExpr) {
 // assertArrayLength rejects a negative constant array length.
 func assertArrayLength(n int64) {
 	if n < 0 {
-		panic(fmt.Sprintf("invalid array length %d", n))
+		failf(CodeArrayLength, nil, "invalid array length %d", n)
 	}
 }
 
@@ -424,7 +424,7 @@ func assertSingleDefault(clauses []SwitchClauseStmt) {
 			continue
 		}
 		if seen {
-			panicAt("multiple defaults in switch", &clauses[i])
+			fail(CodeMultipleDefaults, "multiple defaults in switch", &clauses[i])
 		}
 		seen = true
 	}
@@ -452,16 +452,16 @@ func assertCopyArgs(gm store.GasMeter, dt, st Type) {
 	ss, sok := baseOf(st).(*SliceType)
 	isString := st != nil && st.Kind() == StringKind
 	if !dok || !sok && !isString {
-		panic(fmt.Sprintf("invalid argument: copy expects slice arguments; found %s and %s",
-			typeString(dt), typeString(st)))
+		failf(CodeCopyArgs, nil, "invalid argument: copy expects slice arguments; found %s and %s",
+			typeString(dt), typeString(st))
 	}
 	if sok && ds.Elt.TypeID() != ss.Elt.TypeID() {
-		panic(fmt.Sprintf("arguments to copy have different element types %v and %v", ds.Elt, ss.Elt))
+		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and %v", ds.Elt, ss.Elt)
 	}
 	if sok && !tagsIdentical(gm, ds.Elt, ss.Elt) {
-		panic(fmt.Sprintf("arguments to copy have different element types %v and %v: struct tags differ", ds.Elt, ss.Elt))
+		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and %v: struct tags differ", ds.Elt, ss.Elt)
 	}
 	if isString && ds.Elt != Uint8Type {
-		panic(fmt.Sprintf("arguments to copy have different element types %v and byte", ds.Elt))
+		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and byte", ds.Elt)
 	}
 }

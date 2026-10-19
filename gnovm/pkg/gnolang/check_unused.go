@@ -14,6 +14,7 @@ type unusedName struct {
 	name  Name
 	msg   string
 	span  Span
+	code  ErrCode
 	label bool
 }
 
@@ -150,12 +151,12 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 			if ns.Type == NSTypeSwitch {
 				msg = fmt.Sprintf("%s declared and not used", name) // gc's spelling for the guard variable
 			}
-			out = append(out, unusedName{name: name, msg: msg, span: span})
+			out = append(out, unusedName{name: name, msg: msg, span: span, code: CodeUnusedVar})
 		}
 	}
 	for _, l := range labels {
 		if !branched[l.name] {
-			out = append(out, unusedName{name: l.name, msg: fmt.Sprintf("label %s defined and not used", l.name), span: l.span, label: true})
+			out = append(out, unusedName{name: l.name, msg: fmt.Sprintf("label %s defined and not used", l.name), span: l.span, code: CodeUnusedLabel, label: true})
 		}
 	}
 	// Source order, as gc reports: the first error is the same on every
