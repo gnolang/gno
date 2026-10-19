@@ -76,8 +76,9 @@ func g() {
 // line 51: expected statement, found 'case'
 // line 59: labelname redeclared in this block
 // 	previous declaration at issue14006.go:50:3
+// line 60: label labelname defined and not used
 // line 64: labelname redeclared in this block
 // 	previous declaration at issue14006.go:50:3
 // line 67: expected ';', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 50; over-strict: lines 25, 38, 51, 67
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 50; over-strict: lines 25, 38, 51, 60, 67
