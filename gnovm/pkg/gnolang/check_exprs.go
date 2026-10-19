@@ -37,28 +37,30 @@ func assertComparableTo(at, bt Type, aNil, bNil bool) {
 	check(bt, aNil)
 }
 
-// assertLenCapArg checks the operand of len or cap: a string (len only),
-// array, pointer to array, slice, map (len only) or channel.
-func assertLenCapArg(name Name, t Type) {
+// lenCapArgError checks the operand of len or cap: a string (len only),
+// array, pointer to array, slice, map (len only) or channel. It returns
+// the message rather than raising it: the call's type is int whatever the
+// operand, so accumulate mode reports and goes on, as gc does.
+func lenCapArgError(name Name, t Type) string {
 	if t == nil {
-		return
+		return ""
 	}
 	switch bt := baseOf(t).(type) {
 	case *ArrayType, *SliceType, *ChanType:
-		return
+		return ""
 	case *PointerType:
 		if _, ok := baseOf(bt.Elt).(*ArrayType); ok {
-			return
+			return ""
 		}
 	case *MapType:
 		if name == "len" {
-			return
+			return ""
 		}
 	}
 	if t.Kind() == StringKind && name == "len" {
-		return
+		return ""
 	}
-	panic(fmt.Sprintf("invalid argument: %v for built-in %s", t, name))
+	return fmt.Sprintf("invalid argument: %v for built-in %s", t, name)
 }
 
 // staticLengthOf returns the length a constant index can be checked

@@ -641,6 +641,25 @@ func main() { f() }
 	}
 }
 
+func TestPreprocessCollectLenCapEverySite(t *testing.T) {
+	// A bad len or cap operand does not drop its statement: the call is
+	// still an int, so every site in one expression is reported, as gc does.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	var m *map[int]int
+	var s *[]int
+	x := len(m) +
+		cap(s)
+	_ = x
+}
+`)
+	want := []string{"invalid argument: *map[int]int for built-in len", "invalid argument: *[]int for built-in cap"}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main

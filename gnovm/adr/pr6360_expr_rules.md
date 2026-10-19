@@ -23,7 +23,8 @@ already visited, so no other charge moves:
   typed nil (`S(nil)`) is not the nil literal. A switch tag must be
   comparable even with no case.
 - `len` and `cap` take a string, array, pointer to array, slice, map or
-  channel.
+  channel. The call is an int whatever the operand, so accumulate mode
+  reports every bad site in a statement instead of dropping it (gc does).
 - A constant index or slice bound is checked against an array's or a
   constant string's length (`high` may equal the length); slice bounds
   must be ordered; a string has no 3-index slice.

@@ -2367,7 +2367,9 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						switch fv.Name {
 						case "len", "cap":
 							if len(n.Args) == 1 {
-								assertLenCapArg(fv.Name, evalStaticTypeOf(store, last, n.Args[0]))
+								if msg := lenCapArgError(fv.Name, evalStaticTypeOf(store, last, n.Args[0])); msg != "" {
+									reportOrPanic(acc, stack, n, msg)
+								}
 							}
 						}
 						switch fv.Name {
@@ -7144,6 +7146,17 @@ func reportUnused(store Store, acc *preprocessAccumulator, stack []BlockNode, fn
 		}
 		acc.report(pe)
 	}
+}
+
+// reportOrPanic raises msg at n: the first error panics on chain; in
+// accumulate mode it is recorded and the walk goes on, for a rule whose
+// failure leaves the node's type intact (gc reports every such site).
+func reportOrPanic(acc *preprocessAccumulator, stack []BlockNode, n Node, msg string) {
+	pe := wrapPreprocessPanic(stack, n, msg)
+	if acc == nil {
+		panic(pe)
+	}
+	acc.report(pe)
 }
 
 // enclosedByFunc reports whether stack holds a function node.
