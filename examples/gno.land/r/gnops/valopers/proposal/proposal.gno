@@ -70,15 +70,26 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 
 // ProposeNewInstructionsProposalRequest creates a proposal to the GovDAO
 // for updating the realm instructions.
+//
+// Signature is preserved; the body now delegates. Building the request
+// here required valopers to export the privileged closure, which handed
+// this realm's frame identity to any caller. The
+// closure and the request are now built inside valopers, which returns
+// the request with its executor sealed — see valopers.NewInstructionsProposalRequest.
 func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
-	cb := valopers.NewInstructionsProposalCallback(newInstructions)
-	// Create a proposal
-	title := "/p/gnops/valopers: Update instructions"
-	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
+	return valopers.NewInstructionsProposalRequest(cross(cur), newInstructions)
+}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
-
-	return dao.NewProposalRequest(title, description, e)
+// ProposeAuthorityRotationProposalRequest creates a proposal to the GovDAO
+// for re-pointing the valopers realm's governance authority.
+//
+// Delegates, for the same reason as above: the rotation closure reaches
+// auth.Transfer, so it must never leave the valopers package. Exposed here
+// because this package is where proposal factories for the realm live —
+// see valopers.NewAuthorityRotationProposalRequest for why it takes a path
+// rather than an authz.Authority, and why it exists at all.
+func ProposeAuthorityRotationProposalRequest(cur realm, newContractPath string) dao.ProposalRequest {
+	return valopers.NewAuthorityRotationProposalRequest(cross(cur), newContractPath)
 }
 
 // ProposeNewMinFeeProposalRequest creates a proposal to the GovDAO

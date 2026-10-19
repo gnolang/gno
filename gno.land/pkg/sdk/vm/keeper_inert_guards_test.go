@@ -28,10 +28,12 @@ func approvalFor(t *testing.T, env testEnv, ctx sdk.Context, approver crypto.Add
 	t.Helper()
 	parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(path)
 	require.NotNil(t, parked, "nothing parked at %s to approve", path)
+	hash, err := PackageContentHash(parked)
+	require.NoError(t, err)
 	return MsgEnablePackage{
 		Approver: approver,
 		PkgPath:  path,
-		PkgHash:  PackageContentHash(parked),
+		PkgHash:  hash,
 	}
 }
 
@@ -1584,6 +1586,128 @@ func TestEnableRefusesSourceChangedAfterApproval(t *testing.T) {
 	// Approving what is actually parked now still works: the check binds the
 	// approval to bytes, it does not freeze the path.
 	require.NoError(t, env.vmk.EnablePackage(ctx, approvalFor(t, env, ctx, approver, pkgPath)))
+}
+
+// TestEnableRefusesResubmissionWhenTheHeightIsPinned covers what the content
+// hash structurally cannot: a re-park of byte-identical sources.
+//
+// The hash is computed from the author's directory, which has no [addpkg]
+// section -- the keeper writes that. So a creator can re-submit the same files
+// with a lower max_deposit, keep the hash, and let the approver's transaction
+// pass the hash gate, run init(), and only then abort on the deposit. The
+// approver pays the gas; the creator can repeat it for the price of a submit.
+//
+// PkgHeight closes the class rather than the one field: any re-park lands at a
+// new height.
+func TestEnableRefusesResubmissionWhenTheHeightIsPinned(t *testing.T) {
+	const pkgPath = "gno.land/r/test/repinned"
+
+	files := func() []*std.MemFile {
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+			{Name: "repinned.gno", Body: "package repinned\n\nfunc Who(cur realm) string { return \"same\" }"},
+		}
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, files())))
+	approval := approvalFor(t, env, ctx, approver, pkgPath)
+	parked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath)
+	submitGm, err := parseGnomodForHash(parked)
+	require.NoError(t, err)
+	approval.PkgHeight = int64(submitGm.AddPkg.Height)
+
+	// Re-park the SAME bytes, one block later, under a ceiling that cannot pay.
+	ctx = ctx.WithBlockHeader(&bft.Header{
+		ChainID: ctx.ChainID(), Height: ctx.BlockHeight() + 1,
+	})
+	regrief := NewMsgAddPackage(creator, pkgPath, files())
+	regrief.MaxDeposit = std.MustParseCoins("1ugnot")
+	require.NoError(t, env.vmk.AddPackage(ctx, regrief))
+
+	// The hash still matches -- that is the whole point of the height.
+	reparked := env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath)
+	reparkedGm, err := parseGnomodForHash(reparked)
+	require.NoError(t, err)
+	require.Equal(t, approval.PkgHash, packageContentHash(reparked, *reparkedGm),
+		"re-parking identical sources must not move the content hash")
+	require.Equal(t, "1ugnot", reparkedGm.AddPkg.MaxDeposit,
+		"but it does move the ceiling the approver would pay against")
+
+	err = env.vmk.EnablePackage(ctx, approval)
+	require.Error(t, err, "a pinned approval must not survive a re-submission")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "re-submitted after review")
+
+	// An approver who pins nothing gets the old behaviour, so existing
+	// approvals and genesis history keep working.
+	unpinned := approval
+	unpinned.PkgHeight = 0
+	require.Error(t, env.vmk.EnablePackage(ctx, unpinned),
+		"unpinned, it gets past the hash gate and dies on the deposit instead")
+}
+
+// TestAddPackageRefusesUnsupportedGnoVersion pins that a version the toolchain
+// cannot compile is refused at SUBMIT, on the submitter's gas.
+//
+// ParseCheckGnoMod panics on one, and it is reached from the type checker --
+// which the inert submit branch never runs. So gno = "0.8" used to park
+// cleanly and detonate inside EnablePackage, on the approver's transaction, for
+// a mistake the submitter made.
+func TestAddPackageRefusesUnsupportedGnoVersion(t *testing.T) {
+	const pkgPath = "gno.land/r/test/oldver"
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	err := env.vmk.AddPackage(ctx, NewMsgAddPackage(creator, pkgPath, []*std.MemFile{
+		{Name: "gnomod.toml", Body: "module = \"" + pkgPath + "\"\ngno = \"0.8\"\n"},
+		{Name: "oldver.gno", Body: "package oldver\n\nfunc Who(cur realm) string { return \"x\" }"},
+	}))
+	require.Error(t, err, "an unsupported gno version must not park")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "unsupported gno version")
+
+	require.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetInertPackage(pkgPath),
+		"nothing may be left parked for an approver to trip over")
+}
+
+// TestEnableRefusesGnomodChangedAfterApproval covers the metadata an author declares,
+// which must be bound to an approval just like Gno source.
+func TestEnableRefusesGnomodChangedAfterApproval(t *testing.T) {
+	const pkgPath = "gno.land/r/test/gnomodswapped"
+
+	filesFor := func(private bool) []*std.MemFile {
+		mod := gnolang.GenGnoModLatest(pkgPath)
+		if private {
+			mod += "\nprivate = true"
+		}
+		return []*std.MemFile{
+			{Name: "gnomod.toml", Body: mod},
+			{Name: "gnomodswapped.gno", Body: "package gnomodswapped\n\nfunc Who(cur realm) string { return \"same\" }"},
+		}
+	}
+
+	approver := crypto.AddressFromPreimage([]byte("oracle"))
+	creator := crypto.AddressFromPreimage([]byte("submitter"))
+	env, ctx := inertEnv(t, approver, creator)
+
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, filesFor(true))))
+	approval := approvalFor(t, env, ctx, approver, pkgPath)
+
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, filesFor(false))))
+	err := env.vmk.EnablePackage(ctx, approval)
+	require.Error(t, err, "changing private after approval must invalidate the approval")
+	assert.Contains(t, fmt.Sprintf("%+v", err), "not what was approved")
+
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(creator, pkgPath, filesFor(true))))
+	require.NoError(t, env.vmk.EnablePackage(ctx, approval),
+		"restoring the approved private flag must restore the approved hash")
 }
 
 // TestEnableRequiresAHash pins that an approval must name a source at all.

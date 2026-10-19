@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,6 +23,7 @@ import (
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,6 +53,58 @@ func TestFetchingSourcesDoesNotSpendTheBudget(t *testing.T) {
 		"premise: fetching the closure must take longer than the budget, or this test proves nothing")
 	require.NoError(t, err,
 		"the package compiles in milliseconds; the time went to fetching its dependency from a slow node, which is not what the budget measures")
+}
+
+// TestClassifyingAnImportDoesNotSpendTheBudget: what tells a parked import
+// from an absent one is asked in prepare, off the budget, so nothing after the
+// ready marker reaches the node.
+//
+// The marker sits between prepare and verifyPackage in the child
+// (execVerifyOne), so the count is taken across that line: before it the walk
+// fetches and asks, after it the typecheck and the classification read what
+// was recorded. A question asked on the clock arrives, against a slow node, as
+// an overrun instead of as its answer.
+func TestClassifyingAnImportDoesNotSpendTheBudget(t *testing.T) {
+	chain := newInertChain(t)
+	const depPath = "gno.land/p/test/parkeddep"
+	chain.park(t, chainPackage(depPath, "package parkeddep\n\nfunc Answer() int { return 42 }\n"))
+
+	var requests atomic.Int64
+	counted := httptest.NewServer(counting(t, chain.remote, &requests))
+	t.Cleanup(counted.Close)
+
+	cases := map[string]struct {
+		mpkg   *std.MemPackage
+		parked bool // what the classification has to say, read off the clock
+	}{
+		"parked import": {
+			mpkg: chainPackage("gno.land/r/test/wantsdep",
+				"package wantsdep\n\nimport \""+depPath+"\"\n\nfunc N(cur realm) int { return parkeddep.Answer() }\n"),
+			parked: true,
+		},
+		"absent import": {
+			mpkg: chainPackage("gno.land/r/test/wantsmissing",
+				"package wantsmissing\n\nimport \"gno.land/p/test/neversubmitted\"\n\nfunc N(cur realm) int { return neversubmitted.Answer() }\n"),
+			parked: false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			v, err := newVerifier(verifyOneConfig{gnoRoot: gnoenv.RootDir(), remote: counted.URL}, io.Discard)
+			require.NoError(t, err)
+
+			require.NoError(t, v.prepare(tc.mpkg))
+			onReady := requests.Load()
+			require.Positive(t, onReady, "premise: prepare must have asked the node, or this proves nothing")
+
+			err = v.verifyPackage(tc.mpkg)
+			require.Error(t, err, "an unresolved import fails the typecheck either way")
+			assert.Equal(t, tc.parked, errors.Is(err, errImportParked),
+				"the classification must come from what prepare recorded")
+			assert.Equal(t, onReady, requests.Load(),
+				"nothing after the ready marker may reach the node: the budget measures the compile")
+		})
+	}
 }
 
 // nodeServing starts a node with the named examples package live on it, and
@@ -98,10 +154,7 @@ func nodeServing(t *testing.T, pkgPath string) string {
 // answers, slowly.
 func delaying(t *testing.T, remote string, d time.Duration) http.Handler {
 	t.Helper()
-	// The node advertises tcp://; the proxy speaks HTTP to it.
-	target, err := url.Parse(strings.Replace(remote, "tcp://", "http://", 1))
-	require.NoError(t, err)
-	proxy := httputil.NewSingleHostReverseProxy(target)
+	proxy := nodeProxy(t, remote)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-time.After(d):
@@ -109,6 +162,25 @@ func delaying(t *testing.T, remote string, d time.Duration) http.Handler {
 		case <-r.Context().Done():
 		}
 	})
+}
+
+// counting proxies every request to remote and counts it.
+func counting(t *testing.T, remote string, n *atomic.Int64) http.Handler {
+	t.Helper()
+	proxy := nodeProxy(t, remote)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n.Add(1)
+		proxy.ServeHTTP(w, r)
+	})
+}
+
+// nodeProxy forwards to the node at remote, which advertises tcp:// while the
+// proxy speaks HTTP to it.
+func nodeProxy(t *testing.T, remote string) *httputil.ReverseProxy {
+	t.Helper()
+	target, err := url.Parse(strings.Replace(remote, "tcp://", "http://", 1))
+	require.NoError(t, err)
+	return httputil.NewSingleHostReverseProxy(target)
 }
 
 // packageImporting is a realm whose only chain import is dep.

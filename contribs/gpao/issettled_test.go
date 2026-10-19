@@ -82,11 +82,13 @@ func TestRedeployParkedOverLivePrivateRealmIsEnabled(t *testing.T) {
 
 	enableAsApprover := func(t *testing.T, mpkg *std.MemPackage) {
 		t.Helper()
+		pkgHash, err := vm.PackageContentHash(mpkg)
+		require.NoError(t, err)
 		signed, err := client.SignTx(std.Tx{
 			Msgs: []std.Msg{vm.MsgEnablePackage{
 				Approver: who,
 				PkgPath:  mpkg.Path,
-				PkgHash:  vm.PackageContentHash(mpkg),
+				PkgHash:  pkgHash,
 			}},
 			Fee: std.NewFee(20_000_000, std.MustParseCoin("1000000ugnot")),
 		}, 0, 0)
@@ -140,7 +142,7 @@ func TestRedeployParkedOverLivePrivateRealmIsEnabled(t *testing.T) {
 	require.True(t, answered, "a zero ceiling clamps every gas figure to zero and the enable is refused")
 	o.blockMaxGas = maxGas
 
-	o.handleCandidate(t.Context(), v2)
+	o.handleCandidate(t.Context(), candidate{mpkg: v2})
 
 	st := o.status.get(pkgPath)
 	require.NotEqual(t, "already active on-chain", st.Reason,

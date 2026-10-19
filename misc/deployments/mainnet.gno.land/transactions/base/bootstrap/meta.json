@@ -1,0 +1,10 @@
+{
+  "reason": "mainnet bootstrap MsgRun: seeds the sole GovDAO T1 member (aeddi, operational key) and locks dao.UpdateImpl's AllowedDAOs to r/gov/dao/impl/v0; the remaining six members are added post-genesis by GovDAO proposal. Transfers are locked chain-wide per Constitution \u00a7126 by the genesis bank params, not by this tx.",
+  "kind": "MsgRun",
+  "caller_key": "GenesisDeployer",
+  "gas_wanted": 100000000,
+  "gas_fee": "1ugnot",
+  "account_number": "0",
+  "sequence": "0",
+  "body_file": "govdao_prop1_mainnet.gno"
+}

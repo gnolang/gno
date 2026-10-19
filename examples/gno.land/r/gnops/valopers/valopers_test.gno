@@ -138,6 +138,27 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		})
 	})
 
+	// A fee above MaxInt64 wraps negative in Coin.Amount, which would make
+	// the IsLT amount check false for every payment: the realm would read
+	// the fee as configured and collect 1ugnot. uint64(int64(-1)) is what
+	// valopers/proposal.ProposeNewMinFeeProposalRequest stores for a
+	// negative newMinFee, so this is reachable from one governance typo.
+	t.Run("unrepresentable fee fails closed", func(cur realm, t *testing.T) {
+		resetState()
+		testing.SetSysParamUint64("node", "valoper", "register_fee", ^uint64(0))
+
+		info := validValidatorInfo(t)
+		testing.SetRealm(testing.NewUserRealm(info.Address))
+
+		// Nowhere near the configured fee, and previously accepted.
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", 1)})
+
+		uassert.AbortsWithMessage(t, cur, ErrFeeParamOutOfRange.Error(), func() {
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+		})
+		uassert.False(t, isValoper(info.Address), "must not register")
+	})
+
 	t.Run("squat guard rejects mismatched OriginCaller", func(cur realm, t *testing.T) {
 		resetState()
 
@@ -259,9 +280,19 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 
 		// Auth owner must be the operator addr (info.Address), NOT
 		// the deployer.
+		//
+		// Asserted through the exported AuthOwner() accessor, not the
+		// private v.auth: AuthOwner is the API that replaced the removed
+		// Auth() capability leak, so it is what external readers see. A
+		// second assertion against the underlying Authorizable pins that
+		// the accessor actually reports the auth list's owner rather
+		// than echoing OperatorAddress, which is what a plausible
+		// "simplification" of AuthOwner would do.
 		v := GetByAddr(info.Address)
-		uassert.Equal(t, info.Address.String(), v.Auth().Owner().String(),
+		uassert.Equal(t, info.Address.String(), v.AuthOwner().String(),
 			"auth owner must equal OperatorAddress, not OriginCaller")
+		uassert.Equal(t, v.auth.Owner().String(), v.AuthOwner().String(),
+			"AuthOwner must report the Authorizable's owner")
 
 		// Operator can manage their own profile post-genesis.
 		testing.SetHeight(100)
@@ -298,7 +329,7 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 		})
 
 		v := GetByAddr(info.Address)
-		uassert.Equal(t, info.Address.String(), v.Auth().Owner().String())
+		uassert.Equal(t, info.Address.String(), v.AuthOwner().String())
 	})
 }
 

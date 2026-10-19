@@ -158,7 +158,7 @@ func TestFlagStorageSize(t *testing.T) {
 			setup: func() boards.FlagStorage {
 				s := boards.NewFlagStorage()
 				s.Add(boards.Flag{User: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"})
-				s.Add(boards.Flag{User: "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq"})
+				s.Add(boards.Flag{User: "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx"})
 				return s
 			},
 			size: 2,
@@ -175,13 +175,15 @@ func TestFlagStorageSize(t *testing.T) {
 }
 
 func TestFlagStorageIterate(t *testing.T) {
+	// Listed in sorted (bech32-string) user order, which is the order
+	// Iterate yields them in.
 	flags := []boards.Flag{
 		{
-			User:   "g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq",
+			User:   "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
 			Reason: "a",
 		},
 		{
-			User:   "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+			User:   "g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx",
 			Reason: "b",
 		},
 	}
