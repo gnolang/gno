@@ -695,6 +695,7 @@ func (m *Machine) PreprocessFiles(pkgName, pkgPath string, fset *FileSet, save, 
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.FileName, fb)
 	}
+	CheckInitCycles(m.Store, pn, fset)
 	// Get new values across all files in package.
 	pn.PrepareNewValues(m.Alloc, pv)
 	// save package value.
@@ -796,6 +797,7 @@ func (m *Machine) runFileDecls(withOverrides bool, fns ...*FileNode) []TypedValu
 		copy(fb.Values, fn.StaticBlock.Values)
 		pv.AddFileBlock(fn.FileName, fb)
 	}
+	CheckInitCycles(m.Store, pn, fs)
 
 	// Get new values across all files in package.
 	updates := pn.PrepareNewValues(m.Alloc, pv)
@@ -1674,6 +1676,14 @@ const (
 	OpCPUSlopeEmbedExpand   = 200 // embedWalk: per embedded type added to a level (built once per walk)
 	OpCPUSlopeEmbedScan     = 25  // embedWalk: per level entry scanned, per name looked up
 	OpCPUSlopeEmbedTrailHop = 135 // embedWalk: per hop of a found name's trail, once per hit
+	// Checker walks at preprocess (check_*.go): per node visited. Same
+	// work per step as an embedWalk scan (a type switch and a map
+	// lookup); an estimate, not yet fitted.
+	OpCPUSlopeCheckNode = 25
+	// checkInitCycles: per declaration and per dependency edge visited
+	// (map lookups, a name resolution, a sorted-name walk twice).
+	// BenchmarkInitCycleWalk: 130-210 ns per visit on an M-series laptop.
+	OpCPUSlopeInitCycleVisit = 200
 	// TODO: OpCPUSlopeBytesCmp is an arbitrary number; needs benchmarking.
 	OpCPUSlopeBytesCmp = 1 // per-byte cost for string and []byte comparisons (hardware-optimized memcmp)
 
