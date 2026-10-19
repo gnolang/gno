@@ -409,8 +409,13 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			// A reason written by hand (a per-cause issue) survives re-sync;
 			// the sync-written umbrella form is recomputed every time, and
 			// verify accepts its legacy `#6344; …` spelling until the next sync.
-			if prev, ok := verdictIn(origDirs); ok && prev.Kind == VerdictKnownIssue && prev.check() == nil {
+			if prev, ok := verdictIn(origDirs); ok && prev.check() == nil {
 				switch {
+				case prev.Kind == VerdictKnownDivergence:
+					// A divergence is a decision: it stands while the sides
+					// still disagree, whatever the gap list says.
+					v = prev
+				case prev.Kind != VerdictKnownIssue:
 				case !isSyncWrittenReason(prev.Reason):
 					v.Reason = prev.Reason
 				case !opts.Sync && legacySyncReason(prev.Reason) == v.Reason:
