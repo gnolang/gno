@@ -1394,3 +1394,39 @@ func TestLenConstStringFolds(t *testing.T) {
 	}
 	t.Fatal("declaration n not found")
 }
+
+func TestPreprocessCollectAppendArgs(t *testing.T) {
+	msgs := collectErrorsRaw(t, `package main
+
+func main() {
+	s := make([]int, 8)
+	_ = append()
+	_ = append(s...)
+	_ = append(s, 2, s...)
+	_ = append(s, make([]int, 0))
+	var q int8 = 1
+	_ = append(s, q)
+	var b []byte
+	b = append(b, "x"...)
+	var e []error
+	e = append(e, nil)
+	_ = append(s, 1, 2)
+	_ = append(s, s...)
+}
+`)
+	want := []string{
+		"main.gno:5:6-14: invalid operation: not enough arguments for append() (expected 1, found 0)",
+		"main.gno:6:6-18: not enough arguments in call to append\n\thave ([]int...)\n\twant ([]int, ...int)",
+		"main.gno:7:19-20: too many arguments in call to append\n\thave ([]int, number, []int...)\n\twant ([]int, ...int)",
+		"main.gno:8:16-30: cannot use make([]int, 0) (value of type []int) as int value in argument to append",
+		"main.gno:10:16-17: cannot use q (variable of type int8) as int value in argument to append",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %q", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.HasSuffix(msgs[i], w) {
+			t.Errorf("error %d: want suffix %q, got %q", i, w, msgs[i])
+		}
+	}
+}

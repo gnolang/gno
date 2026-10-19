@@ -2460,9 +2460,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 								}
 							}
 						case "append":
-							if len(n.Args) > 0 && evalStaticTypeOf(store, last, n.Args[0]) == nil {
-								panic("first argument to append must be a typed slice; have untyped nil")
-							}
+							assertAppendArgs(store, last, n)
 						}
 						switch fv.Name {
 						case "append":

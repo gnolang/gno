@@ -264,3 +264,81 @@ func assertSwitchTag(t Type) {
 		panic(fmt.Sprintf("cannot switch on %v (%v is not comparable)", t, t))
 	}
 }
+
+// assertAppendArgs checks append's arity: a typed slice, then values, with
+// ... only on a single second argument (Go spec: "Appending to and
+// copying slices"). Wording and positions follow go/types.
+func assertAppendArgs(store Store, last BlockNode, n *CallExpr) {
+	if len(n.Args) == 0 {
+		panic("invalid operation: not enough arguments for append() (expected 1, found 0)")
+	}
+	st := evalStaticTypeOf(store, last, n.Args[0])
+	if st == nil {
+		panic("first argument to append must be a typed slice; have untyped nil")
+	}
+	bst, isSlice := baseOf(st).(*SliceType)
+	if !n.Varg {
+		if isSlice {
+			assertAppendValues(store, last, n, bst.Elt)
+		}
+		return
+	}
+	if len(n.Args) == 2 {
+		return
+	}
+	want := "([]T, ...T)"
+	if isSlice {
+		want = fmt.Sprintf("(%s, ...%s)", typeString(st), typeString(bst.Elt))
+	}
+	have := "("
+	for i, arg := range n.Args {
+		if i > 0 {
+			have += ", "
+		}
+		have += argTypeSummary(evalStaticTypeOf(store, last, arg))
+	}
+	have += "...)"
+	if len(n.Args) > 2 {
+		panicAt(fmt.Sprintf("too many arguments in call to append\n\thave %s\n\twant %s", have, want), n.Args[2])
+	}
+	panic(fmt.Sprintf("not enough arguments in call to append\n\thave %s\n\twant %s", have, want))
+}
+
+// argTypeSummary names an argument's type as go/types does in have/want
+// lists: an untyped constant by its kind, a numeric one as "number".
+func argTypeSummary(t Type) string {
+	switch {
+	case t == nil:
+		return "nil"
+	case isUntyped(t):
+		if isNumeric(t) {
+			return "number"
+		}
+		return untypedKindName(t)
+	}
+	return typeString(t)
+}
+
+// assertAppendValues checks each typed value argument against the slice's
+// element type with gc's wording; untyped constants are converted by the
+// caller and nil is left to the general call check.
+func assertAppendValues(store Store, last BlockNode, n *CallExpr, elt Type) {
+	for _, arg := range n.Args[1:] {
+		at := evalStaticTypeOf(store, last, arg)
+		if at == nil || isUntyped(at) {
+			continue
+		}
+		if checkAssignableTo(store, n, at, elt) != nil {
+			panicAt(fmt.Sprintf("cannot use %s (%s of type %s) as %s value in argument to append",
+				exprString(arg), operandKind(arg), typeString(at), typeString(elt)), arg)
+		}
+	}
+}
+
+// operandKind is go/types' word for an operand: a named variable or a value.
+func operandKind(x Expr) string {
+	if _, ok := x.(*NameExpr); ok {
+		return "variable"
+	}
+	return "value"
+}
