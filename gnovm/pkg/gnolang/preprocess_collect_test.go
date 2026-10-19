@@ -1106,3 +1106,31 @@ func main() {
 		t.Fatalf("got %v, want %v", msgs, want)
 	}
 }
+
+func TestPreprocessCollectStructLiteralKeys(t *testing.T) {
+	// Every key that is not a field name is reported, before it is
+	// resolved as an expression; keys of other literals are untouched.
+	msgs := collectErrors(t, `package main
+
+type T struct{ toInt, toString int }
+
+var foo, bar struct{ toInt, toString int }
+
+func main() {
+	t := T{
+		foo.toInt:    1,
+		bar.toString: 2,
+	}
+	m := map[string]int{"a": 1, "b": 2}
+	s := []int{0: 1, 3: 2}
+	_, _, _ = t, m, s
+}
+`)
+	want := []string{
+		"invalid field name foo.toInt in struct literal",
+		"invalid field name bar.toString in struct literal",
+	}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+}

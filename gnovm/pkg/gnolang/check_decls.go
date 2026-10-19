@@ -89,3 +89,13 @@ func assertStructLiteralCount(n *CompositeLitExpr, st *StructType, lt Type) {
 		panic(fmt.Sprintf("too many values in struct literal of type %v", lt))
 	}
 }
+
+// invalidStructKey is the error for a keyed struct literal element whose
+// key is not a field name, "" when it is one. Checked before the key is
+// resolved as an expression, so every bad key of a literal is reported.
+func invalidStructKey(key Expr) string {
+	if _, ok := key.(*NameExpr); ok {
+		return ""
+	}
+	return fmt.Sprintf("invalid field name %s in struct literal", exprString(key))
+}

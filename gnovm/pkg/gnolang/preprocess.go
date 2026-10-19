@@ -1378,6 +1378,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 		switch stage {
 		// ----------------------------------------
 		case TRANS_ENTER:
+			// A struct literal key that is not a field name is reported
+			// before it is resolved as an expression, each one.
+			if ftype == TRANS_COMPOSITE_KEY {
+				if msg := invalidStructKey(n.(Expr)); msg != "" {
+					clx := ns[len(ns)-1].(*CompositeLitExpr)
+					if clx.Type != nil {
+						if _, ok := baseOf(evalStaticType(store, last, clx.Type)).(*StructType); ok {
+							report(msg, n)
+							return n, TRANS_SKIP
+						}
+					}
+				}
+			}
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
