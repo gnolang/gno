@@ -917,3 +917,40 @@ const _ = 1e+646456992
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectLiteralElements(t *testing.T) {
+	// Every failing element of a composite literal is reported at the
+	// element, in a function body and at package level alike; then the
+	// literal drops. Index and key errors point at the element too.
+	msgs := collectErrorsRaw(t, `package main
+type T struct{ f map[string]string }
+var m = map[string]int{
+	"a": 1,
+	1:   1,
+	2:   2,
+}
+func f() {
+	_ = map[string]int{
+		"a": 1,
+		"b", 2,
+		"a": 3,
+	}
+	_ = []string{"x", 20}
+	_ = []string{1: "dup", 1: "dup"}
+	_ = T{f: {"a": "b"}}
+}
+`)
+	want := []string{
+		"main/main.gno:5:2-3: cannot use untyped Bigint as StringKind",
+		"main/main.gno:6:2-3: cannot use untyped Bigint as StringKind",
+		"main/main.gno:11:3-6: missing key in map literal",
+		"main/main.gno:11:8-9: missing key in map literal",
+		"main/main.gno:12:3-6: duplicate key \"a\" in map literal",
+		"main/main.gno:14:20-22: cannot use untyped Bigint as StringKind",
+		"main/main.gno:15:25-26: duplicate index 1 in array or slice literal",
+		"main/main.gno:16:11-21: missing type in composite literal",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}

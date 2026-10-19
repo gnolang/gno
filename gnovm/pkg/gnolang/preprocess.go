@@ -3046,7 +3046,19 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// Get or evaluate composite type.
 				clt := evalStaticType(store, last, n.Type)
 				n.Type = toConstTypeExpr(last, n.Type, clt)
-				// Replace const Elts with default *ConstExpr.
+				// Replace const Elts with default *ConstExpr. An element
+				// that fails is reported at the element; every failing
+				// element is reported, then the literal drops (flush).
+				var fails []eltFailure
+				flush := func() {
+					if len(fails) == 0 {
+						return
+					}
+					for _, f := range fails {
+						report(f.msg, f.at)
+					}
+					panicAt(fails[0].msg, fails[0].at) // recorded already: a quiet drop
+				}
 				switch cclt := baseOf(clt).(type) {
 				case *StructType:
 					if n.IsKeyed() {
@@ -3056,12 +3068,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						for i := range n.Elts {
 							key := n.Elts[i].Key.(*NameExpr).Name
 							if seen[key] {
-								panic(fmt.Sprintf("duplicate field name %s in struct literal", key))
+								panicAt(fmt.Sprintf("duplicate field name %s in struct literal", key), n.Elts[i].Key)
 							}
 							seen[key] = true
-							path := cclt.GetPathForName(key)
-							ft := cclt.GetStaticTypeOfAt(path)
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							checkElt(&fails, n.Elts[i].Key, func() {
+								path := cclt.GetPathForName(key)
+								ft := cclt.GetStaticTypeOfAt(path)
+								checkElt(&fails, n.Elts[i].Value, func() {
+									checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+								})
+							})
 						}
 					} else {
 						// Check for unexported fields in unkeyed struct literals
@@ -3076,17 +3092,25 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						}
 						for i := range n.Elts {
 							ft := cclt.Fields[i].Type
-							checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							checkElt(&fails, n.Elts[i].Value, func() {
+								checkOrConvertType(store, last, n, &n.Elts[i].Value, ft)
+							})
 						}
 					}
+					flush()
 				case *ArrayType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
-							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+							panicAt(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue), cx)
 						}
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						checkElt(&fails, n.Elts[i].Key, func() {
+							convertType(store, last, n, &n.Elts[i].Key, IntType)
+						})
+						checkElt(&fails, n.Elts[i].Value, func() {
+							checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						})
 					}
+					flush()
 					length := int64(-1) // [...]T is measured below
 					if !cclt.Vrd {
 						length = int64(cclt.Len)
@@ -3095,11 +3119,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				case *SliceType:
 					for i := range n.Elts {
 						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && cx.TypedValue.Sign() < 0 {
-							panic(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue))
+							panicAt(fmt.Sprintf("invalid argument: index must not be negative: %v", cx.TypedValue), cx)
 						}
-						convertType(store, last, n, &n.Elts[i].Key, IntType)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						checkElt(&fails, n.Elts[i].Key, func() {
+							convertType(store, last, n, &n.Elts[i].Key, IntType)
+						})
+						checkElt(&fails, n.Elts[i].Value, func() {
+							checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Elt)
+						})
 					}
+					flush()
 					assertLiteralIndices(preprocessGasMeterOf(store), n, -1)
 				case *MapType:
 					// kset tracks seen const keys for duplicate detection.
@@ -3108,17 +3137,25 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					kset := make(map[TypedValue]struct{})
 					for i, elt := range n.Elts {
 						if elt.Key == nil {
-							panic("missing key in map literal")
+							fails = append(fails, eltFailure{"missing key in map literal", elt.Value})
+							continue
 						}
-						checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
-						checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
-						if cx, ok := elt.Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() && !isInterfaceConversion(cx) {
+						checkElt(&fails, n.Elts[i].Key, func() {
+							checkOrConvertType(store, last, n, &n.Elts[i].Key, cclt.Key)
+						})
+						checkElt(&fails, n.Elts[i].Value, func() {
+							checkOrConvertType(store, last, n, &n.Elts[i].Value, cclt.Value)
+						})
+						if cx, ok := n.Elts[i].Key.(*ConstExpr); ok && !cx.TypedValue.IsUndefined() && !isInterfaceConversion(cx) {
 							if _, ok := kset[cx.TypedValue]; ok {
-								panic(fmt.Sprintf("duplicate key %v in map literal", cx.TypedValue))
+								fails = append(fails, eltFailure{
+									fmt.Sprintf("duplicate key %s in map literal", constString(cx)), cx,
+								})
 							}
 							kset[cx.TypedValue] = struct{}{}
 						}
 					}
+					flush()
 				default:
 					panic(fmt.Sprintf(
 						"unexpected composite type %s",
@@ -6328,11 +6365,11 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 		// refer to package names in any order.
 		return false
 	case *ValueDecl:
-		vd2 := preprocessDependency(store, last, cd).(*ValueDecl)
+		vd2 := preprocessDependency(store, last, cd, index).(*ValueDecl)
 		*cd = *vd2
 		return true
 	case *TypeDecl:
-		td2 := preprocessDependency(store, last, cd).(*TypeDecl)
+		td2 := preprocessDependency(store, last, cd, index).(*TypeDecl)
 		*cd = *td2
 		return true
 	case *ImportDecl:
@@ -6345,9 +6382,14 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 }
 
 // preprocessDependency preprocesses a declaration reached through a
-// dependent one. If it fails it is marked done first, so accumulate mode
-// does not visit it again and report it twice.
-func preprocessDependency(store Store, last BlockNode, d Decl) Node {
+// dependent one, with the accumulator of index (if any) so a node in
+// it can report more than one error. If it fails it is marked done
+// first, so accumulate mode does not visit it again and report it twice.
+func preprocessDependency(store Store, last BlockNode, d Decl, index *predefineDeclIndex) Node {
+	var acc *preprocessAccumulator
+	if index != nil {
+		acc = index.acc
+	}
 	defer func() {
 		if r := recover(); r != nil {
 			if _, isRuntime := r.(runtime.Error); isRuntime {
@@ -6359,7 +6401,7 @@ func preprocessDependency(store Store, last BlockNode, d Decl) Node {
 			panic(pe)
 		}
 	}()
-	return Preprocess(store, last, d)
+	return preprocess(store, last, d, acc)
 }
 
 // packageDeclOf returns the package-level declaration of name, or nil
@@ -6891,7 +6933,7 @@ func elideCompositeElements(last BlockNode, clx *CompositeLitExpr, clt Type) {
 			vx := kvx.Value
 			if vclx, ok := vx.(*CompositeLitExpr); ok {
 				if vclx.Type == nil {
-					panic("types cannot be elided in composite literals for struct types")
+					panicAt("missing type in composite literal", vclx)
 				}
 			}
 		}

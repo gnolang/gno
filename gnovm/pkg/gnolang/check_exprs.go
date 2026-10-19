@@ -131,12 +131,14 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 
 // assertLiteralIndices rejects a repeated constant index in an array or
 // slice literal, and one at or past length when it is known (-1 for a
-// slice); elements without a key take the next index. Charged per element.
+// slice); elements without a key take the next index. Charged per
+// element; the error is positioned at the element.
 func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) {
 	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
 	seen := map[int64]bool{}
 	next := int64(0)
-	for _, elt := range n.Elts {
+	for i := range n.Elts {
+		elt := &n.Elts[i]
 		idx := next
 		if elt.Key != nil {
 			i, ok := constIndex(elt.Key)
@@ -145,17 +147,48 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 			}
 			idx = i
 			if length >= 0 && idx >= length {
-				panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", idx, length))
+				panicAt(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", idx, length), elt.Key, elt.Value)
 			}
 		} else if length >= 0 && idx >= length {
-			panic(fmt.Sprintf("index %d is out of bounds (>= %d)", idx, length))
+			panicAt(fmt.Sprintf("index %d is out of bounds (>= %d)", idx, length), elt.Value)
 		}
 		if seen[idx] {
-			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+			panicAt(fmt.Sprintf("duplicate index %d in array or slice literal", idx), elt.Key, elt.Value)
 		}
 		seen[idx] = true
 		next = idx + 1
 	}
+}
+
+// eltFailure is a composite literal element that failed a check: the
+// message and the element to report it at.
+type eltFailure struct {
+	msg string
+	at  Node
+}
+
+// checkElt runs check on one element of a composite literal and records
+// a checking error it raises in fails, to be reported at the element; a
+// VM panic or an error that is positioned already passes through.
+func checkElt(fails *[]eltFailure, at Node, check func()) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		if isRuntimePanic(r) {
+			panic(r)
+		}
+		switch e := r.(type) {
+		case *PreprocessError, *spanError:
+			panic(r)
+		case error:
+			*fails = append(*fails, eltFailure{e.Error(), at})
+		default:
+			*fails = append(*fails, eltFailure{fmt.Sprint(r), at})
+		}
+	}()
+	check()
 }
 
 // assertSwitchTag checks an expression switch's tag x of type t:

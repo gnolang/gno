@@ -341,11 +341,15 @@ func typeString(t Type) string {
 	return t.String()
 }
 
-// constString prints a folded constant Go style: the value for an
-// untyped constant, T(value) for a typed one, strings quoted.
+// constString prints a folded constant Go style: as written for a
+// literal or a name, else the value for an untyped constant, T(value)
+// for a typed one, strings quoted.
 func constString(c *ConstExpr) string {
-	if lit, ok := c.Source.(*BasicLitExpr); ok {
-		return lit.Value // as written, also after conversion
+	switch src := c.Source.(type) {
+	case *BasicLitExpr:
+		return src.Value // as written, also after conversion
+	case *NameExpr:
+		return string(src.Name)
 	}
 	var v string
 	switch {
