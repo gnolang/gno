@@ -173,7 +173,7 @@ Empirically verified across 60+ probe filetests:
 
 ## 4. The Encapsulation Pattern (GRC20 Reference)
 
-`gno.land/p/demo/tokens/grc20` is the canonical example of *safe*
+`gno.land/p/nt/grc20/v0` is the canonical example of *safe*
 `/p/`-declared data. It violates (A) — `Token`, `PrivateLedger`, and
 `fnTeller` are all `/p/`-declared — but compensates with airtight
 encapsulation:
@@ -183,6 +183,7 @@ encapsulation:
 | All sensitive fields are unexported | `Token.ledger`, `PrivateLedger.balances`, `PrivateLedger.allowances`, `fnTeller.accountFn` all lowercase. Foreign packages cannot access them. |
 | No exported method leaks an interior pointer | No `Token` method returns `*PrivateLedger`, `*avl.Tree`, or `*avl.Node`. |
 | Authority transitions gated by `rlm.IsCurrent()` | Every `Teller` method checks `rlm.IsCurrent()` before resolving `rlm.Previous().Address()`. |
+| A frame-relative teller never leaves its realm | `CallerTeller` hangs off `*PrivateLedger`, which `NewToken` gives only to the creating realm, so a foreign realm cannot mint one. Every write also checks that the invoking realm is the token's own `origRealm` (host compared after stripping any `realm.Sub` subpath), so a teller that is legally built and then *exported as a value* is inert elsewhere. Keying on the actor instead would miss two cases: a realm charged by a realm it calls, and `TransferFrom`, whose actor is the spender while the debited owner is a parameter. |
 | Forgery defended by nominal type assertion | `IsCanonicalTeller(t)` checks `_, ok := t.(*fnTeller)`. Embedding wrappers (`type Evil struct { Teller }`) fail this check despite method promotion. |
 | `*PrivateLedger`'s unauthenticated mutators isolated by package privacy | `Mint`/`Burn`/etc. have no `rlm` check. They're safe only because no realm exports the `*PrivateLedger` pointer. |
 
@@ -334,7 +335,7 @@ not as an enforced boundary.
 
 ### 5.5 `IsUser()` for payment guards
 
-When accepting native coin payment via `banker.OriginSend()`, the
+When accepting native coin payment via `unsafe.OriginSend()`, the
 caller guard must be `cur.Previous().IsUserCall()`, **not**
 `IsUser()`. `IsUser()` accepts `MsgRun` ephemeral realms, which can
 consume the origin-send envelope before calling your function,
@@ -481,10 +482,21 @@ tracked.)
 Allocating a foreign `/r/`-declared type with a composite literal,
 `new()`, or `make()` panics:
 `cannot allocate <type> in realm <m.Realm>`. Attackers cannot
-fabricate impostor `*v.User` instances and pass them to victim
+populate impostor `*v.User` instances and pass them to victim
 APIs that expect a user pointer. Construction must go through
 constructors declared in the type's home realm (which trigger
-borrow rule #1 declaring-borrow on call).
+borrow rule #1 declaring-borrow on call). Converting to such a type,
+directly or through one pointer level like `(*v.User)(&Fake{...})`,
+panics with `illegal conversion to external realm type` (nil
+pointers excepted, as are types whose underlying type is a
+primitive, func, or chan type).
+
+**Implication**: holding a realm-typed value, or a pointer to one, is
+not authority. Another realm can still write `var u v.User` (zero
+value, stamped with `v`'s PkgID) and pass `&u` to a victim API. A check
+like `if u == nil { deny }` authorizes that caller. Authenticate the
+caller through `cur.Previous()`. A pointer that matches one in state
+you own proves only where it came from, not who is calling.
 
 ---
 
@@ -516,6 +528,9 @@ Before deploying a realm:
 - [ ] No exported field is a `/p/`-pointer or embedded `/p/`-type
   whose type has `Iterate(cb func(*T))` / `Apply(fn func(*T))` /
   similar concretely-typed callback methods.
+
+- [ ] No function treats a non-nil pointer to one of my types as
+  proof of authorization (see §7.3).
 
 - [ ] Payment-guarded entry points use `cur.Previous().IsUserCall()`,
   not `IsUser()`.

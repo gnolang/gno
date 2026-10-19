@@ -1,7 +1,7 @@
 package pages
 
 import (
-	"gno.land/p/leon/svgbtn"
+	"gno.land/p/leon/svgbtn/v0"
 )
 
 func init() {

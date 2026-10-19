@@ -1,6 +1,7 @@
 package gnoland
 
 import (
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -29,7 +30,7 @@ func setupTestEnv() testEnv {
 	ms.LoadLatestVersion()
 	prmk := params.NewParamsKeeper(authCapKey)
 	acck := auth.NewAccountKeeper(authCapKey, prmk.ForModule(auth.ModuleName), ProtoGnoAccount, ProtoGnoSessionAccount)
-	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName))
+	bankk := bank.NewBankKeeper(acck, prmk.ForModule(bank.ModuleName), authCapKey, []string{ugnot.Denom})
 	prmk.Register(auth.ModuleName, acck)
 	prmk.Register(bank.ModuleName, bankk)
 

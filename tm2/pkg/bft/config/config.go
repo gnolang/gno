@@ -153,6 +153,9 @@ func testP2PConfig() *p2p.P2PConfig {
 	cfg := p2p.DefaultP2PConfig()
 	cfg.ListenAddress = "tcp://0.0.0.0:26656"
 	cfg.FlushThrottleTimeout = 10 * time.Millisecond
+	// Test clusters run every node on the loopback address, so they must be
+	// allowed to share it.
+	cfg.AllowDuplicateIP = true
 
 	return cfg
 }

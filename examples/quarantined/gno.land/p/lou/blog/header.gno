@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"gno.land/p/lou/query"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 )
 
 // HeaderLink applies to a function that transform the rawPath to make the suggested query changes (when header is interacted with)

@@ -35,7 +35,7 @@ func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
 			panic(ErrNegativeCoinAmount)
 		}
 
-		if banker_.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount {
+		if banker_.GetCoin(realmAddr, coin.Denom) < coin.Amount {
 			panic(ErrMismatchBetweenSentAndParams)
 		}
 	}
@@ -47,7 +47,7 @@ func DisperseUgnot(cur realm, addresses []address, coins chain.Coins) {
 
 	// Return possible leftover coins
 	for _, coin := range coinSent {
-		leftoverAmt := banker_.GetCoins(realmAddr).AmountOf(coin.Denom)
+		leftoverAmt := banker_.GetCoin(realmAddr, coin.Denom)
 		if leftoverAmt > 0 {
 			send := chain.Coins{chain.NewCoin(coin.Denom, leftoverAmt)}
 			banker_.SendCoins(realmAddr, caller, send)

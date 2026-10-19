@@ -2,7 +2,7 @@
 package crossrealm
 
 import (
-	"gno.land/p/demo/tests"
+	"gno.land/p/demo/tests/v0"
 )
 
 var somevalue tests.TestRealmObject2
@@ -18,4 +18,4 @@ func main(cur realm) {
 }
 
 // Output:
-// (struct{("modified" string)} gno.land/p/demo/tests.TestRealmObject2)
+// (struct{("modified" string)} gno.land/p/demo/tests/v0.TestRealmObject2)

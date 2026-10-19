@@ -1,0 +1,50 @@
+{
+  "reason": "noop patch (gnops/valopers.Register squat-guard residual): historical operator/caller mismatch fires the post-genesis squat guard at gno.land/r/gnops/valopers/valopers.gno:140. Replacing the MsgCall with an empty MsgRun preserves manfred-style fee-deduction balance evolution while letting the tx pass under current master. caller=g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4 height=275321",
+  "kind": "Patched",
+  "metadata": {
+    "timestamp": "1774608252",
+    "block_height": "275321",
+    "chain_id": "gnoland1",
+    "signer_info": [
+      {
+        "address": "g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4",
+        "account_num": "3077561",
+        "sequence": "2"
+      }
+    ]
+  },
+  "tx": {
+    "msg": [
+      {
+        "@type": "/vm.m_run",
+        "caller": "g1m0rgan0rla00ygmdmp55f5m0unvsvknluyg2a4",
+        "send": "",
+        "max_deposit": "",
+        "package": {
+          "name": "main",
+          "path": "",
+          "files": [
+            {
+              "name": "noop.gno",
+              "body": "// NOOP run tx\npackage main\n\nfunc main(cur realm) {}\n"
+            }
+          ]
+        }
+      }
+    ],
+    "fee": {
+      "gas_wanted": "17304000",
+      "gas_fee": "17304ugnot"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "@type": "/tm.PubKeySecp256k1",
+          "value": "A8sFyEHYuQJkO81NmFCnqesV0ai7qcXiSBkyXKQQCJie"
+        },
+        "signature": "5WSckBunoa7OaKN4lduf19C1DgAnnLZ4uvFI1zcL3KJdXUrvBwjAN5sDrMvwIplaqF1zwXlt4SfNbc1t8xOsHQ=="
+      }
+    ],
+    "memo": ""
+  }
+}

@@ -34,7 +34,8 @@ type sendCall struct {
 	amt      chain.Coins
 }
 
-func (m *mockBanker) GetCoins(addr address) chain.Coins { return nil }
+func (m *mockBanker) GetCoins(addr address) chain.Coins        { return nil }
+func (m *mockBanker) GetCoin(addr address, denom string) int64 { return 0 }
 func (m *mockBanker) SendCoins(from, to address, amt chain.Coins) {
 	if m.failNext {
 		m.failNext = false

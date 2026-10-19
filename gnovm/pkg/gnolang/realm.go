@@ -15,6 +15,7 @@ import (
 	"sync"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 /*
@@ -1879,14 +1880,14 @@ func fillType(store Store, typ Type) Type {
 	}
 }
 
-func fillTypesTV(store Store, tv *TypedValue) {
+func fillTypesTV(gm types.GasMeter, store Store, tv *TypedValue) {
 	tv.T = fillType(store, tv.T)
-	tv.V = fillTypesOfValue(store, tv.V)
+	tv.V = fillTypesOfValue(gm, store, tv.V)
 }
 
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
-func fillTypesOfValue(store Store, val Value) Value {
+func fillTypesOfValue(gm types.GasMeter, store Store, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
@@ -1901,25 +1902,25 @@ func fillTypesOfValue(store Store, val Value) Value {
 	case PointerValue:
 		if cv.Base != nil {
 			// cv.Base is object.
-			// fillTypesOfValue(store, cv.Base) (wrong)
+			// fillTypesOfValue(gm, store, cv.Base) (wrong)
 			return cv
 		} else {
-			fillTypesTV(store, cv.TV)
+			fillTypesTV(gm, store, cv.TV)
 			return cv
 		}
 	case *ArrayValue:
 		for i := range cv.List {
 			ctv := &cv.List[i]
-			fillTypesTV(store, ctv)
+			fillTypesTV(gm, store, ctv)
 		}
 		return cv
 	case *SliceValue:
-		fillTypesOfValue(store, cv.Base)
+		fillTypesOfValue(gm, store, cv.Base)
 		return cv
 	case *StructValue:
 		for i := range cv.Fields {
 			ctv := &cv.Fields[i]
-			fillTypesTV(store, ctv)
+			fillTypesTV(gm, store, ctv)
 		}
 		return cv
 	case *FuncValue:
@@ -1927,20 +1928,18 @@ func fillTypesOfValue(store Store, val Value) Value {
 		return cv
 	case *BoundMethodValue:
 		if cv.Func != nil { // nil for a lazy interface bind
-			fillTypesOfValue(store, cv.Func)
+			fillTypesOfValue(gm, store, cv.Func)
 		}
-		fillTypesTV(store, &cv.Receiver)
+		fillTypesTV(gm, store, &cv.Receiver)
 		return cv
 	case *MapValue:
 		cv.vmap = make(map[MapKey]*MapListItem, cv.List.Size)
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			fillTypesTV(store, &cur.Key)
-			fillTypesTV(store, &cur.Value)
+			fillTypesTV(gm, store, &cur.Key)
+			fillTypesTV(gm, store, &cur.Value)
 
 			fillValueTV(store, &cur.Key)
-			// nil machine: deserialization from disk has no *Machine in
-			// scope — we're inside the store layer, so no gas is charged.
-			mk, isNaN := cur.Key.ComputeMapKey(nil, store, false)
+			mk, isNaN := cur.Key.ComputeMapKey(gm, store, false)
 			if !isNaN {
 				cv.vmap[mk] = cur
 			}
@@ -1950,18 +1949,18 @@ func fillTypesOfValue(store Store, val Value) Value {
 		cv.Type = fillType(store, cv.Type)
 		return cv
 	case *PackageValue:
-		fillTypesOfValue(store, cv.Block)
+		fillTypesOfValue(gm, store, cv.Block)
 		return cv
 	case *Block:
 		for i := range cv.Values {
 			ctv := &cv.Values[i]
-			fillTypesTV(store, ctv)
+			fillTypesTV(gm, store, ctv)
 		}
 		return cv
 	case RefValue: // do nothing
 		return cv
 	case *HeapItemValue:
-		fillTypesTV(store, &cv.Value)
+		fillTypesTV(gm, store, &cv.Value)
 		return cv
 	default:
 		panic(fmt.Sprintf(
@@ -1983,6 +1982,10 @@ func fillTypesOfValue(store Store, val Value) Value {
 //     mint NewTime from the OWNING realm's counter
 //     (rlm.touchForeignRealm). Record the touched foreign realm
 //     so FinalizeRealmTransaction's batch-drain persists it.
+//   - rlm's own package value takes the reserved NewTime that
+//     ObjectIDFromPkgID names, without minting: a package path
+//     resolves to that one id, so a deployment over a realm whose
+//     counter has already moved replaces the object there.
 //   - Otherwise, mint NewTime from rlm's counter (the self case).
 func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 	oid := oo.GetObjectID()
@@ -2022,6 +2025,13 @@ func (rlm *Realm) assignNewObjectID(store Store, oo Object) ObjectID {
 		// take pre-allocated targets as out-parameters.
 		oo.SetPkgID(rlm.ID)
 		oid = oo.GetObjectID()
+	}
+	if _, isPkg := oo.(*PackageValue); isPkg && oid.PkgID == rlm.ID {
+		reserved := ObjectIDFromPkgID(rlm.ID)
+		oo.SetNewTime(reserved.NewTime)
+		// A counter below the reserved id would hand it out again.
+		rlm.Time = max(rlm.Time, reserved.NewTime)
+		return oo.GetObjectID()
 	}
 	targetRlm := rlm
 	if oid.PkgID != rlm.ID {

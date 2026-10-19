@@ -36,7 +36,17 @@ type BlockExecutor struct {
 	// and update both with block results after commit.
 	mempool mempl.Mempool
 
+	// While holding (HoldEvents), ApplyBlock keeps each block's events in held.
+	holding bool
+	held    []blockEvents
+
 	logger *slog.Logger
+}
+
+// blockEvents is what fireEvents needs to fire one block's events.
+type blockEvents struct {
+	block         *types.Block
+	abciResponses *ABCIResponses
 }
 
 type BlockExecutorOption func(executor *BlockExecutor)
@@ -67,6 +77,25 @@ func (blockExec *BlockExecutor) SetEventSwitch(evsw events.EventSwitch) {
 	blockExec.evsw = evsw
 }
 
+// HoldEvents makes ApplyBlock keep each block's events instead of firing
+// them, until FireHeldEvents. Block sync holds them while its writes are
+// held, so that a block's events fire only once the block is on disk. It
+// panics when turned off with events held.
+func (blockExec *BlockExecutor) HoldEvents(on bool) {
+	if !on && len(blockExec.held) > 0 {
+		panic(fmt.Sprintf("events of %d blocks held when holding stopped", len(blockExec.held)))
+	}
+	blockExec.holding = on
+}
+
+// FireHeldEvents fires the events held since the last call, in block order.
+func (blockExec *BlockExecutor) FireHeldEvents() {
+	for _, e := range blockExec.held {
+		fireEvents(blockExec.evsw, e.block, e.abciResponses)
+	}
+	blockExec.held = nil
+}
+
 // CreateProposalBlock calls state.MakeBlock with txs from the mempool.
 func (blockExec *BlockExecutor) CreateProposalBlock(
 	height int64,
@@ -77,8 +106,62 @@ func (blockExec *BlockExecutor) CreateProposalBlock(
 	maxGas := state.ConsensusParams.Block.MaxGas
 
 	txs := blockExec.mempool.ReapMaxBytesMaxGas(maxDataBytes, maxGas)
+	block, parts := state.MakeBlock(height, txs, commit, proposerAddr)
 
-	return state.MakeBlock(height, txs, commit, proposerAddr)
+	// MaxDataBytes bounds the reap above by raw tx bytes, but peers apply it to
+	// the *whole* serialized block when they decode a proposal (see
+	// ConsensusState.addProposalBlockPart), so the header, the LastCommit and
+	// amino's framing have to fit in the same budget. A block that fills the tx
+	// budget would otherwise be undecodable by every peer, failing the round
+	// and, since the next proposer reaps the same mempool, stalling the chain
+	// for as long as it holds that much data.
+	//
+	// Drop txs from the tail until the serialized block fits. Removing n bytes
+	// of tx data removes at least n bytes from the block, so trimming by the
+	// excess is enough; the loop only re-checks.
+	reaped := len(txs)
+	for len(txs) > 0 && int64(parts.ByteSize()) > maxDataBytes {
+		txs = trimTxsTail(txs, int64(parts.ByteSize())-maxDataBytes)
+		block, parts = state.MakeBlock(height, txs, commit, proposerAddr)
+	}
+
+	if dropped := reaped - len(txs); dropped > 0 {
+		// Ordinary when a block fills the budget -- the txs stay in the mempool
+		// and go into the next one -- but it is the only signal that the reap
+		// budget and the decode budget disagree, so say it out loud.
+		blockExec.logger.Info(
+			"Trimmed txs from the proposal to fit Block.MaxDataBytes",
+			"height", height,
+			"dropped", dropped,
+			"kept", len(txs),
+			"block_bytes", parts.ByteSize(),
+			"max_data_bytes", maxDataBytes,
+		)
+	}
+
+	if size := int64(parts.ByteSize()); size > maxDataBytes {
+		// Nothing left to drop: the header and commit alone exceed the budget.
+		// Propose it anyway (there is no smaller block to make) and say so,
+		// because peers will reject it.
+		blockExec.logger.Error(
+			"Block.MaxDataBytes is too small to hold an empty block; peers will reject the proposal",
+			"height", height,
+			"max_data_bytes", maxDataBytes,
+			"block_bytes", size,
+		)
+	}
+
+	return block, parts
+}
+
+// trimTxsTail drops txs from the end of the slice until at least excess bytes of
+// tx data have been removed, or nothing is left.
+func trimTxsTail(txs types.Txs, excess int64) types.Txs {
+	for removed := int64(0); len(txs) > 0 && removed < excess; txs = txs[:len(txs)-1] {
+		removed += int64(len(txs[len(txs)-1]))
+	}
+
+	return txs
 }
 
 // ApplyBlock validates the block against the state, executes it against the app,
@@ -96,8 +179,11 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 		return state, ProxyAppConnError(err)
 	}
 
-	// Save the results by height
-	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
+	// Save the results by height. A failed write must stop the block here:
+	// past the application commit below, a missing record is unrecoverable.
+	if err := SaveABCIResponses(blockExec.db, block.Height, abciResponses); err != nil {
+		return state, err
+	}
 
 	// Save the results by tx hash
 	for index, tx := range block.Txs {
@@ -139,7 +225,11 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
-	fireEvents(blockExec.evsw, block, abciResponses)
+	if blockExec.holding {
+		blockExec.held = append(blockExec.held, blockEvents{block, abciResponses})
+	} else {
+		fireEvents(blockExec.evsw, block, abciResponses)
+	}
 
 	return state, nil
 }
@@ -278,9 +368,20 @@ func getBeginBlockLastCommitInfo(block *types.Block, state State, stateDB dbm.DB
 	// For a genesis block (block.Height == state.InitialHeight) there are
 	// no previous validators to attribute votes to.
 	if block.Height > state.InitialHeight {
-		lastValSet, err = LoadValidators(stateDB, block.Height-1)
-		if err != nil {
-			panic(err) // shouldn't happen
+		if state.LastBlockHeight == block.Height-1 {
+			// state is the state this block builds on (ApplyBlock, after
+			// state.ValidateBlock): its LastValidators are the validators of
+			// block.Height-1, the set that signed block.LastCommit. Loading
+			// them would replay IncrementProposerPriority from the last stored
+			// set, up to valSetCheckpointInterval steps, on every block.
+			lastValSet = state.LastValidators
+		} else {
+			// ExecCommitBlock replays the blocks the app is missing against
+			// the latest state, whose LastValidators belong to another height.
+			lastValSet, err = LoadValidators(stateDB, block.Height-1)
+			if err != nil {
+				panic(err) // shouldn't happen
+			}
 		}
 
 		// Sanity check that commit length matches validator set size -

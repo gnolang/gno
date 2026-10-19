@@ -1,9 +1,12 @@
 package node
 
 import (
+	"bytes"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -25,6 +28,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	p2pTypes "github.com/gnolang/gno/tm2/pkg/p2p/types"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -367,6 +371,296 @@ func TestNodeSetAppVersion(t *testing.T) {
 	appVersion2, ok := n.nodeInfo.VersionSet.Get("app")
 	assert.True(t, ok)
 	assert.Equal(t, appVersion2.Version, appVersion)
+}
+
+// TestParseSeedAddrs verifies the parsing of config.P2P.Seeds on the node.
+// Invalid entries are dropped, and the seeds are ignored entirely when peer
+// exchange is disabled: without the discovery reactor there is no way to ask
+// a seed for peers, so the connection would serve no purpose.
+func TestParseSeedAddrs(t *testing.T) {
+	generateSeed := func(t *testing.T, hostPort string) string {
+		t.Helper()
+
+		return p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), hostPort)
+	}
+
+	t.Run("seeds are parsed", func(t *testing.T) {
+		seeds := []string{
+			generateSeed(t, "127.0.0.1:26656"),
+			generateSeed(t, "127.0.0.1:26657"),
+		}
+
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = strings.Join(seeds, ",")
+
+		seedAddrs := parseSeedAddrs(config, log.NewNoopLogger())
+
+		require.Len(t, seedAddrs, len(seeds))
+
+		for index, addr := range seedAddrs {
+			assert.Equal(t, seeds[index], addr.String())
+		}
+	})
+
+	t.Run("invalid seed addresses are dropped", func(t *testing.T) {
+		validSeed := generateSeed(t, "127.0.0.1:26656")
+
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = strings.Join([]string{"not-a-seed-address", validSeed}, ",")
+
+		seedAddrs := parseSeedAddrs(config, log.NewNoopLogger())
+
+		require.Len(t, seedAddrs, 1)
+		assert.Equal(t, validSeed, seedAddrs[0].String())
+	})
+
+	t.Run("an unresolvable seed hostname is kept", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = p2pTypes.NetAddressString(id, "seed.invalid:26656")
+
+		seedAddrs := parseSeedAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, seedAddrs, 1)
+		assert.Nil(t, seedAddrs[0].IP)
+		assert.Equal(t, "seed.invalid", seedAddrs[0].Hostname)
+		assert.Equal(t, 1, strings.Count(buf.String(), "seed hostname does not resolve yet"))
+		assert.NotContains(t, buf.String(), "invalid seed address")
+	})
+
+	t.Run("seeds are ignored when peer exchange is disabled", func(t *testing.T) {
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = false
+		config.P2P.Seeds = generateSeed(t, "127.0.0.1:26656")
+
+		assert.Empty(t, parseSeedAddrs(config, log.NewNoopLogger()))
+	})
+
+	t.Run("no seeds configured", func(t *testing.T) {
+		config := cfg.TestConfig()
+		config.P2P.PeerExchange = true
+		config.P2P.Seeds = ""
+
+		assert.Empty(t, parseSeedAddrs(config, log.NewNoopLogger()))
+	})
+}
+
+// TestParsePersistentPeerAddrs verifies the parsing of config.P2P.PersistentPeers
+// on the node. Invalid entries are dropped, and a peer ID listed more than once
+// is reported, since only the last address of a persistent peer is dialed
+func TestParsePersistentPeerAddrs(t *testing.T) {
+	t.Run("persistent peers are parsed", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		peers := []string{
+			p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), "127.0.0.1:26656"),
+			p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), "127.0.0.1:26657"),
+		}
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join(peers, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, len(peers))
+
+		for index, addr := range peerAddrs {
+			assert.Equal(t, peers[index], addr.String())
+		}
+
+		assert.Empty(t, buf.String())
+	})
+
+	t.Run("invalid persistent peer addresses are dropped", func(t *testing.T) {
+		validPeer := p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), "127.0.0.1:26656")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{"not-a-peer-address", validPeer}, ",")
+
+		var buf bytes.Buffer
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, validPeer, peerAddrs[0].String())
+		assert.Equal(t, 1, strings.Count(buf.String(), "invalid persistent peer address"))
+	})
+
+	t.Run("an unresolvable persistent peer hostname is kept", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = p2pTypes.NetAddressString(id, "peer.invalid:26656")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Nil(t, peerAddrs[0].IP)
+		assert.Equal(t, "peer.invalid", peerAddrs[0].Hostname)
+
+		logs := buf.String()
+		assert.Equal(t, 1, strings.Count(logs, "persistent peer hostname does not resolve yet"))
+		assert.NotContains(t, logs, "invalid persistent peer address")
+	})
+
+	t.Run("two hostnames for one peer ID are reported", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+		a := p2pTypes.NetAddressString(id, "peer-a.invalid:26656")
+		b := p2pTypes.NetAddressString(id, "peer-b.invalid:26656")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{a, b}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, "peer-b.invalid", peerAddrs[0].Hostname)
+
+		logs := buf.String()
+		assert.Equal(t, 1, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Contains(t, logs, "ignored="+a)
+		assert.Contains(t, logs, "dialed="+b)
+	})
+
+	t.Run("a repeated peer ID is reported", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+		first := p2pTypes.NetAddressString(id, "127.0.0.1:26656")
+		last := p2pTypes.NetAddressString(id, "127.0.0.1:26657")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{first, last}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, last, peerAddrs[0].String())
+
+		logs := buf.String()
+		assert.Equal(t, 1, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Contains(t, logs, "id="+string(id))
+		assert.Contains(t, logs, "ignored="+first)
+		assert.Contains(t, logs, "dialed="+last)
+	})
+
+	t.Run("repeated peer IDs keep their first position and last address", func(t *testing.T) {
+		idA := p2pTypes.GenerateNodeKey().ID()
+		idB := p2pTypes.GenerateNodeKey().ID()
+
+		a1 := p2pTypes.NetAddressString(idA, "127.0.0.1:26656")
+		b1 := p2pTypes.NetAddressString(idB, "127.0.0.1:26657")
+		a2 := p2pTypes.NetAddressString(idA, "127.0.0.1:26658")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{a1, b1, a2}, ",")
+
+		var buf bytes.Buffer
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 2)
+		assert.Equal(t, a2, peerAddrs[0].String())
+		assert.Equal(t, b1, peerAddrs[1].String())
+
+		logs := buf.String()
+		assert.Equal(t, 1, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Contains(t, logs, "ignored="+a1)
+		assert.Contains(t, logs, "dialed="+a2)
+	})
+
+	t.Run("an entry repeated after another address is reported against the one kept", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+		a1 := p2pTypes.NetAddressString(id, "127.0.0.1:26656")
+		a2 := p2pTypes.NetAddressString(id, "127.0.0.1:26657")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{a1, a2, a1}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, a1, peerAddrs[0].String())
+
+		logs := buf.String()
+		assert.Equal(t, 1, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Contains(t, logs, "ignored="+a2)
+		assert.Contains(t, logs, "dialed="+a1)
+		assert.NotContains(t, logs, "ignored="+a1)
+	})
+
+	t.Run("every ignored entry is reported against the last address", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		id := p2pTypes.GenerateNodeKey().ID()
+		a1 := p2pTypes.NetAddressString(id, "127.0.0.1:26656")
+		a2 := p2pTypes.NetAddressString(id, "127.0.0.1:26657")
+		a3 := p2pTypes.NetAddressString(id, "127.0.0.1:26658")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{a1, a2, a3}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, a3, peerAddrs[0].String())
+
+		logs := buf.String()
+		assert.Equal(t, 2, strings.Count(logs, "persistent peer listed more than once"))
+		assert.Equal(t, 2, strings.Count(logs, "dialed="+a3))
+		assert.Contains(t, logs, "ignored="+a1)
+		assert.Contains(t, logs, "ignored="+a2)
+	})
+
+	t.Run("an identical repeated entry is not reported", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		addr := p2pTypes.NetAddressString(p2pTypes.GenerateNodeKey().ID(), "127.0.0.1:26656")
+
+		config := cfg.TestConfig()
+		config.P2P.PersistentPeers = strings.Join([]string{addr, addr}, ",")
+
+		peerAddrs := parsePersistentPeerAddrs(config, slog.New(slog.NewTextHandler(&buf, nil)))
+
+		require.Len(t, peerAddrs, 1)
+		assert.Equal(t, addr, peerAddrs[0].String())
+		assert.Empty(t, buf.String())
+	})
+}
+
+func TestDedupePersistentPeerAddrs(t *testing.T) {
+	t.Run("an entry repeated with another resolved IP is not reported", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		// Each entry is looked up on its own, and a round-robin hostname can
+		// put another address first in the second answer
+		var (
+			id     = p2pTypes.GenerateNodeKey().ID()
+			first  = &p2pTypes.NetAddress{ID: id, IP: net.ParseIP("192.0.2.1"), Port: 26656, Hostname: "pool.example"}
+			second = &p2pTypes.NetAddress{ID: id, IP: net.ParseIP("192.0.2.2"), Port: 26656, Hostname: "pool.example"}
+		)
+
+		peerAddrs := dedupePersistentPeerAddrs(
+			[]*p2pTypes.NetAddress{first, second},
+			slog.New(slog.NewTextHandler(&buf, nil)),
+		)
+
+		require.Len(t, peerAddrs, 1)
+		assert.Same(t, second, peerAddrs[0])
+		assert.Empty(t, buf.String())
+	})
 }
 
 func TestNodeSetPrivValTCP(t *testing.T) {

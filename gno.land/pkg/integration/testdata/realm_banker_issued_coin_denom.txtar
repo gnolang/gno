@@ -15,6 +15,9 @@ gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_12345
 ## add invalid realm_denom
 gnokey maketx addpkg -pkgdir $WORK/invalid_realm_denom -pkgpath gno.land/r/test/invalid_realm_denom -gas-fee 360001ugnot -gas-wanted 3_600_000 -chainid=tendermint_test test1
 
+## add a realm whose path contains a hyphen
+gnokey maketx addpkg -pkgdir $WORK/hyphen -pkgpath gno.land/r/test/my-org/token -gas-fee 370001ugnot -gas-wanted 3_700_000 -chainid=tendermint_test test1
+
 ## test2 spend all balance
 gnokey maketx send -send "995000000ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test2
 
@@ -40,7 +43,7 @@ stdout '31330/gno.land/r/test/realm_banker:ugnot'
 gnokey maketx send -send "5000000ugnot" -to ${test2_user_addr} -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test1
 
 ## transfer coin
-gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 180001ugnot -gas-wanted 1_800_000 -chainid=tendermint_test test2
+gnokey maketx send -send "1330/gno.land/r/test/realm_banker:ugnot" -to g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0 -gas-fee 180001ugnot -gas-wanted 2_200_000 -chainid=tendermint_test test2
 
 ## check sender balance
 gnokey query bank/balances/${test2_user_addr}
@@ -51,7 +54,7 @@ gnokey query bank/balances/g1yr0dpfgthph7y6mepdx8afuec4q3ga2lg8tjt0
 stdout '1330/gno.land/r/test/realm_banker:ugnot'
 
 ## mint coin from long named package with banker
-gnokey maketx call -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 320001ugnot -gas-wanted 3_200_000 -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 340001ugnot -gas-wanted 3_800_000 -chainid=tendermint_test test1
 gnokey query bank/balances/g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7
 stdout '"100/gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890:ugnot"'
 
@@ -71,6 +74,67 @@ stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 ! gnokey maketx call -pkgpath gno.land/r/test/invalid_realm_denom -func Burn -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "ugnot" -args "100" -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
 stderr 'invalid denom, can only issue/remove coins with the realm.s prefix'
 
+## mint from a hyphenated realm path, with an "a".."p" 16-byte base denom
+## Two pins: the hyphen is the end-to-end pin for reDnmString (tm2/pkg/std/coin.go);
+## the 16-byte name is the accepting half of the boundary the 17-byte case below rejects.
+gnokey maketx call -pkgpath gno.land/r/test/my-org/token -func Mint -args ${test2_user_addr} -args "abcdefghijklmnop" -args "42" -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+
+## check balance
+gnokey query bank/balances/${test2_user_addr}
+stdout '42/gno.land/r/test/my-org/token:abcdefghijklmnop'
+
+## Total supply is readable from outside the chain. A realm denom contains slashes,
+## which is why the route takes the path remainder rather than a path component — a
+## component split would truncate it at the first slash.
+## 31337 minted then 7 burned, and the 1330 transfer below is supply-neutral.
+gnokey query bank/supply//gno.land/r/test/realm_banker:ugnot
+stdout 'data: "31330"'
+
+gnokey query bank/supply//gno.land/r/test/my-org/token:abcdefghijklmnop
+stdout 'data: "42"'
+
+## a denom nobody holds reports zero rather than an error
+gnokey query bank/supply/atom
+stdout 'data: "0"'
+
+## read one denom back with GetCoin, the per-denom accessor
+## This is the whole point of splitting balances: a realm can read one denom
+## without enumerating everything the address happens to have been sent.
+gnokey query vm/qeval --data "gno.land/r/test/my-org/token.Balance(\"${test2_user_addr}\",\"abcdefghijklmnop\")"
+stdout '42'
+
+## mint base denom one byte over the 16-byte limit
+## Pins the banker's 16-byte base denom limit, mirrored as maxBaseDenomLength
+## in tm2/pkg/std/coin.go (Go cannot import a constant from .gno source).
+## Raising the limit here without raising it there would let a realm at a
+## maximum-length package path mint a denom that ValidateDenom then rejects,
+## so this case must keep failing.
+! gnokey maketx call -pkgpath gno.land/r/test/realm_banker -func Mint -args "g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7" -args "abcdefghijklmnopq" -args "100" -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test test1
+stderr 'cannot issue coins with invalid denom base name, it should start by a lowercase letter and be followed by 2-15 lowercase letters or digits'
+
+-- hyphen/gnomod.toml --
+module = "gno.land/r/test/my-org/token"
+gno = "0.9"
+
+-- hyphen/realm_banker.gno --
+package token
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
+
+func Mint(cur realm, addr address, denom string, amount int64) {
+	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
+	banker_.IssueCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
+}
+
+// Read one denom without enumerating the address's whole balance. Non-crossing,
+// so there is no realm handle to derive the denom from.
+func Balance(addr address, denom string) int64 {
+	return banker.NewReadonlyBanker().GetCoin(addr, unsafe.CurrentRealm().CoinDenom(denom))
+}
 -- short/gnomod.toml --
 module = "gno.land/r/test/realm_banker"
 gno = "0.9"
@@ -79,18 +143,18 @@ gno = "0.9"
 package realm_banker
 
 import (
+	"chain"
 	"chain/banker"
-	"chain/runtime/unsafe"
 )
 
 func Mint(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.IssueCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.IssueCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
 
 func Burn(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.RemoveCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.RemoveCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
 -- long/gnomod.toml --
 module = "gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890"
@@ -101,18 +165,18 @@ gno = "0.9"
 package package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
 
 import (
+	"chain"
 	"chain/banker"
-	"chain/runtime/unsafe"
 )
 
 func Mint(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.IssueCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.IssueCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
 
 func Burn(cur realm, addr address, denom string, amount int64) {
 	banker_ := banker.NewBanker(banker.BankerTypeRealmIssue, cur)
-	banker_.RemoveCoin(addr, unsafe.CurrentRealm().CoinDenom(denom), amount)
+	banker_.RemoveCoin(addr, chain.CoinDenom(cur.PkgPath(), denom), amount)
 }
 -- invalid_realm_denom/gnomod.toml --
 module = "gno.land/r/test/invalid_realm_denom"

@@ -15,9 +15,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	&BaseSessionAccount{}, "BaseSessionAccount",
 	// Vesting
 	&VestingSchedule{}, "VestingSchedule",
-	&BaseVestingAccount{}, "BaseVestingAccount",
-	&ContinuousVestingAccount{}, "ContinuousVestingAccount",
-	&DelayedVestingAccount{}, "DelayedVestingAccount",
 	// Coin
 	&Coin{}, "Coin",
 	// GasPrice
