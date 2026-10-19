@@ -2998,7 +2998,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						for i := range n.Elts {
 							kx, ok := n.Elts[i].Key.(*NameExpr)
 							if !ok {
-								panicAt(fmt.Sprintf("invalid field name %s in struct literal", exprString(n.Elts[i].Key)), n.Elts[i].Key)
+								failf(CodeStructFieldName, []Node{n.Elts[i].Key}, "invalid field name %s in struct literal", exprString(n.Elts[i].Key))
 							}
 							key := kx.Name
 							if seen[key] {
