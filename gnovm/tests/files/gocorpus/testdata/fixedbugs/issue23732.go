@@ -44,6 +44,7 @@ func main() {
 // GnoError:
 // line 24: too few values in struct literal of type main.Foo
 // line 34: too many values in struct literal of type main.Bar
+// line 37: too few values in struct literal of type main.Foo
 // line 40: too many values in struct literal of type main.Bar
 
 // Verdict: Clean errorcheck

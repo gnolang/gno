@@ -22,6 +22,9 @@ func main() {
 }
 
 // GnoError:
-// line 15: name b not defined in fileset with files [typecheck.go]
+// line 15: name not defined: b
+// line 16: name b not declared
+// line 20: wrong argument count in call to mine<VPBlock(3,0)>; want 1 got 0
+// line 21: wrong argument count in call to mine<VPBlock(3,0)>; want 1 got 0
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 20, 21
+// Verdict: Clean errorcheck

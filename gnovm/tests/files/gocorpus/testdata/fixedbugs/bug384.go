@@ -12,6 +12,6 @@ package foo
 func (r *indexWriter) foo() {}  // ERROR "undefined.*indexWriter"
 
 // GnoError:
-// line 12: name indexWriter not defined in fileset with files [bug384.go]
+// line 12: name not defined: indexWriter
 
 // Verdict: Clean errorcheck
