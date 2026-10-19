@@ -49,9 +49,8 @@ type cacheStore struct {
 	chargedGas    map[string]types.Gas // write/delete gas deduplication per key
 
 	// Checkpoint for rollback support. When set, WriteCheckpoint()
-	// restores these snapshots and flushes only the checkpointed state.
-	checkpointCache      map[string]*cValue
-	checkpointChargedGas map[string]types.Gas
+	// restores this snapshot and flushes only the checkpointed state.
+	checkpointCache map[string]*cValue
 
 	// Depth estimation for gas. Cached at construction time from
 	// DepthEstimator (IAVL/B+tree). 100x fixed-point (300 = 3.0).
@@ -320,30 +319,30 @@ func (store *cacheStore) clear() {
 	store.sortedCache = list.New()
 	store.chargedGas = make(map[string]types.Gas)
 	store.checkpointCache = nil
-	store.checkpointChargedGas = nil
 }
 
 // ----------------------------------------
 // Checkpoint/rollback support.
 
-// Checkpoint saves a shallow clone of the cache and chargedGas maps.
-// Used by BaseApp to snapshot ante handler state before msg execution.
-// setCacheValue always allocates a new *cValue, so the cloned map's
-// pointers remain valid after subsequent Set/Delete calls.
+// Checkpoint saves a shallow clone of the cache. Used by BaseApp to
+// snapshot ante handler state before msg execution. setCacheValue
+// always allocates a new *cValue, so the cloned map's pointers remain
+// valid after subsequent Set/Delete calls.
+//
+// chargedGas is not snapshotted. It only exists to dedup repeat writes
+// to one key, and WriteCheckpoint's flush clears it, so a saved copy
+// would never be read.
 //
 // The GasMeter's consumed counter is intentionally NOT snapshotted.
 // On msg failure/OOG, WriteCheckpoint rewinds writes but the meter
 // keeps everything charged during the msg — the SDK "failed tx burns
 // gas" invariant. Rewinding the meter would refund gas for a
 // rolled-back attempt and let an attacker retry expensive operations
-// for the cost of the ante alone. chargedGas being tx-local (one
-// cacheStore per tx) means no later tx sees the restored map, so
-// there's no cross-tx write-dedup inconsistency from the asymmetry.
+// for the cost of the ante alone.
 func (store *cacheStore) Checkpoint() {
 	store.mtx.Lock()
 	defer store.mtx.Unlock()
 	store.checkpointCache = maps.Clone(store.cache)
-	store.checkpointChargedGas = maps.Clone(store.chargedGas)
 }
 
 // HasCheckpoint returns true if a checkpoint is active.
@@ -362,9 +361,7 @@ func (store *cacheStore) WriteCheckpoint() {
 		panic("WriteCheckpoint called without Checkpoint")
 	}
 	store.cache = store.checkpointCache
-	store.chargedGas = store.checkpointChargedGas
 	store.checkpointCache = nil
-	store.checkpointChargedGas = nil
 	store.writeLocked()
 }
 

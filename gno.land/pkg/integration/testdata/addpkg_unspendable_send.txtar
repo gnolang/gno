@@ -1,0 +1,60 @@
+# Coins must not be attached to the deployment of a pure library package.
+#
+# When you deploy a package you can attach coins. They are moved into the
+# package's address. A realm can get them back later — it can ask for a
+# banker and spend from its own address.
+#
+# A pure library package cannot. It has no realm identity, so it can never
+# get a banker, and nothing else can move coins out of that address either.
+# The coins would be gone permanently, with no error at the time.
+#
+# So the deployment is refused instead.
+
+adduser alice
+
+gnoland start
+
+## A pure library package with coins attached is rejected.
+! gnokey maketx addpkg -pkgdir $WORK/lib -pkgpath gno.land/p/test/lib -send 700000ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test alice
+stderr 'can never spend it'
+
+## The same package with no coins attached deploys fine.
+gnokey maketx addpkg -pkgdir $WORK/lib -pkgpath gno.land/p/test/lib -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test alice
+stdout OK!
+
+## A realm with coins attached is still allowed: it can spend them later.
+gnokey maketx addpkg -pkgdir $WORK/rlm -pkgpath gno.land/r/test/rlm -send 700000ugnot -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test alice
+stdout OK!
+
+## And the realm really did receive them.
+gnokey maketx call -pkgpath gno.land/r/test/rlm -func Balance -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test alice
+stdout 'balance=700000'
+
+-- lib/gnomod.toml --
+module = "gno.land/p/test/lib"
+gno = "0.9"
+
+-- lib/lib.gno --
+package lib
+
+func Hello() string { return "hi" }
+
+-- rlm/gnomod.toml --
+module = "gno.land/r/test/rlm"
+gno = "0.9"
+
+-- rlm/rlm.gno --
+package rlm
+
+import (
+	"strconv"
+
+	"chain/banker"
+	"chain/runtime/unsafe"
+)
+
+func Balance(cur realm) string {
+	me := unsafe.CurrentRealm().Address()
+	return "balance=" + strconv.FormatInt(
+		banker.NewReadonlyBanker().GetCoins(me).AmountOf("ugnot"), 10)
+}

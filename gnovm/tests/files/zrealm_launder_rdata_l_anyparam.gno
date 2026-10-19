@@ -16,7 +16,7 @@ package launderrh
 // path to a writable view of the field. Panic at the assertion.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
@@ -29,4 +29,4 @@ func main(cur realm) {
 }
 
 // Error:
-// *gno.land/r/tests/vm/launderrvictim.Immutable is not of type *gno.land/p/demo/tests/launderpkg.Immutable
+// *gno.land/r/tests/vm/launderrvictim.Immutable is not of type *gno.land/p/demo/tests/launderpkg/v0.Immutable

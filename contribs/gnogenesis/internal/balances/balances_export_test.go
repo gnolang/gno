@@ -3,12 +3,15 @@ package balances
 import (
 	"bufio"
 	"context"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/contribs/gnogenesis/internal/common"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/assert"
@@ -154,4 +157,52 @@ func TestGenesis_Balances_Export(t *testing.T) {
 			assert.Equal(t, balances[index], balance)
 		}
 	})
+}
+
+// Export writes the sheet an operator feeds back in, so a schedule has to
+// survive the round trip. Nothing else records that the exported line is in the
+// format the sheet readers accept.
+func TestGenesis_Balances_Export_Vesting(t *testing.T) {
+	t.Parallel()
+
+	key := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	schedule := &std.VestingSchedule{
+		OriginalVesting: std.Coins{{Denom: ugnot.Denom, Amount: 100}},
+		StartTime:       100,
+		EndTime:         200,
+	}
+
+	tempGenesis, cleanupGenesis := testutils.NewTestFile(t)
+	t.Cleanup(cleanupGenesis)
+
+	genesis := common.DefaultGenesis()
+	genesis.AppState = gnoland.GnoGenesisState{
+		Balances: []gnoland.Balance{{
+			Address: key,
+			Amount:  std.Coins{{Denom: ugnot.Denom, Amount: 1000}},
+			Vesting: schedule,
+		}},
+	}
+	require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+	outputFile, cleanupOutput := testutils.NewTestFile(t)
+	t.Cleanup(cleanupOutput)
+
+	cmd := NewBalancesCmd(commands.NewTestIO())
+	require.NoError(t, cmd.ParseAndRun(context.Background(), []string{
+		"export",
+		"--genesis-path", tempGenesis.Name(),
+		outputFile.Name(),
+	}))
+
+	written, err := os.ReadFile(outputFile.Name())
+	require.NoError(t, err)
+	assert.Contains(t, string(written), "vesting=",
+		"the exported entry must carry its schedule")
+
+	// And the sheet readers must accept what was written.
+	reloaded, err := gnoland.GetBalancesFromSheet(strings.NewReader(string(written)))
+	require.NoError(t, err, "the exported sheet must parse back")
+	require.NotNil(t, reloaded[key].Vesting)
+	assert.Equal(t, *schedule, *reloaded[key].Vesting)
 }

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/moul/addrset"
+	"gno.land/p/moul/addrset/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/pausable/v0"

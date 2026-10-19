@@ -69,11 +69,80 @@ func TestPercentEncodeURL(t *testing.T) {
 		{"a<b", "a%3Cb"},
 		{"a%20b", "a%20b"},   // already encoded, preserved
 		{"a%zzb", "a%25zzb"}, // bare %
+		{"&#x6a;avascript:alert", "%26#x6a;avascript:alert"},
+		{"&#106;avascript:alert", "%26#106;avascript:alert"},
+		// Leading zeros make goldmark parse the reference as octal
+		// (strconv.ParseUint with base 0), so 0000152 is also 'j'.
+		{"&#0000152;avascript:alert", "%26#0000152;avascript:alert"},
+		{"javascript&colon;alert", "javascript%26colon;alert"},
+		{"&bogus;", "%26bogus;"},
+		{"&#12345678;", "%26#12345678;"},
+		{"&name", "&name"},
+		{"&#;", "&#;"},
+		{"?x=1&y=2", "?x=1&y=2"},
+		{"/r/boards$help&func=DeleteThread&boardID=2", "/r/boards$help&func=DeleteThread&boardID=2"},
+		// UnescapePunctuations runs before the reference resolvers, so a
+		// `\` on the `#` or the `;` must not hide the shape from us.
+		{`&\#x6a;avascript:alert`, `%26%5C#x6a;avascript:alert`},
+		{`&#x6a\;avascript:alert`, `%26#x6a%5C;avascript:alert`},
+		{`&\#x6a\;avascript:alert`, `%26%5C#x6a%5C;avascript:alert`},
+		{`&\#106;avascript:alert`, `%26%5C#106;avascript:alert`},
+		{`javascript&colon\;alert`, `javascript%26colon%5C;alert`},
+		{`&\name;`, `&%5Cname;`}, // `\n` is not punctuation — no reference to hide
+		// A renderer runs its resolvers over each other's OUTPUT, so a
+		// numeric reference can manufacture the `&` its entity-name pass
+		// then consumes: `&#38;colon;` becomes `&colon;` becomes `:`.
+		// Encoding the `&` of the numeric reference is what stops the
+		// chain — there is no second `&` to encode.
+		{"javascript&#38;colon;alert", "javascript%26#38;colon;alert"},
+		{"javascript&#x26;colon;alert", "javascript%26#x26;colon;alert"},
 	}
 	for _, c := range cases {
 		if got := PercentEncodeURL(c.in); got != c.want {
 			t.Errorf("PercentEncodeURL(%q) = %q, want %q", c.in, got, c.want)
 		}
+	}
+}
+
+func TestBlockEncodesEntityReferencesInInlineLinkURLs(t *testing.T) {
+	for _, sanitize := range []struct {
+		name string
+		fn   func(string) string
+	}{
+		{"Block", EscapeBlockHazards},
+		{"BlockRich", EscapeBlockHazardsRich},
+	} {
+		t.Run(sanitize.name, func(t *testing.T) {
+			for _, c := range []struct{ in, want string }{
+				{"[x](&#x6a;avascript:alert)\n", "[x](%26#x6a;avascript:alert)\n"},
+				{"[x](&#106;avascript:alert)\n", "[x](%26#106;avascript:alert)\n"},
+				{"[x](&#0000152;avascript:alert)\n", "[x](%26#0000152;avascript:alert)\n"}, // octal
+
+				{"[x](javascript&colon;alert)\n", "[x](javascript%26colon;alert)\n"},
+				{"[x](?x=1&y=2)\n", "[x](?x=1&y=2)\n"},
+
+				// A `\` on the `#` or the `;` survives the sanitizer but
+				// not the renderer: UnescapePunctuations runs before the
+				// reference resolvers, so these reach a resolver as
+				// `&#x6a;` / `&colon;` unless the `&` is encoded here.
+				// The backslash itself is left alone — the span keeps its
+				// escapes so `\)` still holds the destination together.
+				{"[x](&\\#x6a;avascript:alert)\n", "[x](%26\\#x6a;avascript:alert)\n"},
+				{"[x](&#x6a\\;avascript:alert)\n", "[x](%26#x6a\\;avascript:alert)\n"},
+				{"[x](&\\#x6a\\;avascript:alert)\n", "[x](%26\\#x6a\\;avascript:alert)\n"},
+				{"[x](javascript&colon\\;alert)\n", "[x](javascript%26colon\\;alert)\n"},
+				{"[x](&\\#x64;ata:text/html,x)\n", "[x](%26\\#x64;ata:text/html,x)\n"},
+
+				// Chained resolution: `&#38;colon;` reaches the entity-name
+				// pass as `&colon;`, which resolves to `:`. See the
+				// TestPercentEncodeURL cases.
+				{"[x](javascript&#38;colon;alert)\n", "[x](javascript%26#38;colon;alert)\n"},
+			} {
+				if got := sanitize.fn(c.in); got != c.want {
+					t.Errorf("%s(%q) = %q, want %q", sanitize.name, c.in, got, c.want)
+				}
+			}
+		})
 	}
 }
 
@@ -135,7 +204,7 @@ func TestEscapeBlockHazards(t *testing.T) {
 	}{
 		{"plain", "hello world\n", "hello world\n"},
 		{"atx-heading", "# evil heading\n", "\\# evil heading\n"},
-		{"blockquote", "> attacker\n", "\\> attacker\n"},
+		{"blockquote", "> caller\n", "\\> caller\n"},
 		{"bullet-list", "- item\n", "\\- item\n"},
 		{"ordered-list", "1. item\n", "1\\. item\n"},
 		{"fence-open-autoclose", "```\nuser code\n", "```\nuser code\n```\n"},
@@ -150,7 +219,7 @@ func TestEscapeBlockHazards(t *testing.T) {
 		// Bracket walker MUST also reject the backtick-info-string
 		// "fence" — otherwise it treats lines below as opaque fence
 		// interior and skips LRD strip + bracket escape, letting an
-		// attacker smuggle realm-targeted ref-link definitions past
+		// caller smuggle realm-targeted ref-link definitions past
 		// the walker.
 		{"fence-walker-backtick-in-info-rejected", "```a`b\n\n[evil]: https://bad\n\n[evil]\n", "```a`b\n\n\n\\[evil\\]\n"},
 		{"setext-h1", "title\n===\n", "title\n\\===\n"},
@@ -170,6 +239,26 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"ext-delimiter-close-uppercase", "</GNO-COLUMNS>\n", "\\</GNO-COLUMNS>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"}, // not `gno-`
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
+		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"ext-delimiter-tab-indented", "\t</gno-columns>\n", "\\\t</gno-columns>\n"}, // tab = 4 columns: line-start backslash
+		{"ext-delimiter-2-spaces", "  <gno-card>\n", "  \\<gno-card>\n"},
+		{"ext-delimiter-4-spaces", "    <gno-card>\n", "\\    <gno-card>\n"},
+		{"gno-button-mid-line", "hi <gno-button href=\"/r/x\" label=\"x\" />\n", "hi \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-after-list-marker", "- <GNO-BUTTON href=\"/r/x\" label=\"x\" />\n", "\\- \\<GNO-BUTTON href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-after-nbsp", "\u00a0<gno-button />\n", "\u00a0\\<gno-button />\n"},
+		{"gno-button-after-formfeed", "\f<gno-button />\n", "\f\\<gno-button />\n"},
+		{"gno-button-already-escaped", "a \\<gno-button />\n", "a \\<gno-button />\n"},
+		{"gno-button-after-escaped-backslash", "a \\\\<gno-button />\n", "a \\\\\\<gno-button />\n"},
+		{"gno-button-in-code-span", "use `<gno-button />` here\n", "use `\\<gno-button />` here\n"}, // backslash shows: safe over pretty
+		{"gno-button-after-backtick-in-html", "a <span title=\"`\"><gno-button /> `\n", "a <span title=\"`\">\\<gno-button /> `\n"},
+		{"gno-button-four-spaces", "    <gno-button />\n", "    \\<gno-button />\n"},
+		{"gno-button-in-fence", "```\n<gno-button />\n```\n", "```\n\\<gno-button />\n```\n"}, // the tracker may see a fence goldmark does not
+		// A pointy link destination: the backslash must be in place before
+		// the bracket walker runs, or `[evil]` binds to a realm reference.
+		{"gno-button-pointy-link", "[evil](<gno-button x>)\n", "\\[evil\\](\\<gno-button x>)\n"},
+		{"gno-button-pointy-link-bare", "[evil](<gno-button>)\n", "[evil](\\<gno-button>)\n"},
+		{"gno-button-pointy-link-title", "[evil](<gno-button x> \"t\")\n", "\\[evil\\](\\<gno-button x> \"t\")\n"},
+		{"gno-button-pointy-link-upper", "see [evil](<GNO-BUTTON href=/x />) now\n", "see \\[evil\\](\\<GNO-BUTTON href=/x />) now\n"},
 		// CM §4.6 HTML block types 1-5 — escaped (blank-line-NON-terminating).
 		{"html-type1-script", "<script>x</script>\n", "\\<script>x</script>\n"},
 		{"html-type1-pre", "<pre>x</pre>\n", "\\<pre>x</pre>\n"},
@@ -237,6 +326,17 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"ext-delimiter-uppercase", "<GNO-CARD>\n", "\\<GNO-CARD>\n"},
 		{"ext-delimiter-mixed-case", "<Gno-Columns>\n", "\\<Gno-Columns>\n"},
 		{"ext-delimiter-not-matched", "<gnu-card>\n", "<gnu-card>\n"},
+		{"ext-delimiter-indented", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
+		{"gno-button-in-blockquote", "> <gno-button />\n", "> \\<gno-button />\n"},
+		{"gno-button-in-list", "- <gno-button />\n", "- \\<gno-button />\n"},
+		{"gno-button-in-heading", "# <gno-button />\n", "# \\<gno-button />\n"},
+		{"gno-button-in-fence", "```\n<gno-button />\n```\n", "```\n\\<gno-button />\n```\n"},
+		// A pointy link destination: the backslash must be in place before
+		// the bracket walker runs, or `[evil]` binds to a realm reference.
+		{"gno-button-pointy-link", "[evil](<gno-button x>)\n", "\\[evil\\](\\<gno-button x>)\n"},
+		{"gno-button-pointy-link-bare", "[evil](<gno-button>)\n", "[evil](\\<gno-button>)\n"},
+		{"gno-button-pointy-link-title", "[evil](<gno-button x> \"t\")\n", "\\[evil\\](\\<gno-button x> \"t\")\n"},
+		{"gno-button-pointy-link-upper", "see [evil](<GNO-BUTTON href=/x />) now\n", "see \\[evil\\](\\<GNO-BUTTON href=/x />) now\n"},
 		{"ref-link-use", "[click][evil]\n", "\\[click\\]\\[evil\\]\n"},
 		{"shortcut-ref", "[label]\n", "\\[label\\]\n"},
 		{"footnote-ref", "[^name]\n", "\\[^name\\]\n"},
@@ -279,7 +379,7 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 	}
 }
 
-// BenchmarkEscapeBlockHazardsAdversarial exercises bracket-walker
+// BenchmarkEscapeBlockHazardsPathological exercises bracket-walker
 // inputs that maximize backtrack work in pass 1: repeated well-formed
 // links (linear path), repeated unclosed-link prefixes terminated by a
 // blank line (current super-linear path; see note), and a multi-line
@@ -291,7 +391,7 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 // the per-op cost grows ~3x per 2x input. Acceptable for realistic
 // realm input sizes (a few KB) but flagged here for follow-up if a
 // caller needs to defend against pathological inputs.
-func BenchmarkEscapeBlockHazardsAdversarial(b *testing.B) {
+func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 	links := strings.Repeat("[a](b)", 1000)
 	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
@@ -314,8 +414,8 @@ func BenchmarkEscapeBlockHazardsAdversarial(b *testing.B) {
 	}
 }
 
-// BenchmarkEscapeBlockHazardsRichAdversarial mirrors the strict
-// variant's adversarial guard for EscapeBlockHazardsRich. The
+// BenchmarkEscapeBlockHazardsRichPathological mirrors the strict
+// variant's pathological-input guard for EscapeBlockHazardsRich. The
 // bracket walker, scan-budget cap, and fence state machine are
 // shared with EscapeBlockHazards — Rich mode only skips two
 // per-line escapes — so the same pathological inputs are the
@@ -323,7 +423,7 @@ func BenchmarkEscapeBlockHazardsAdversarial(b *testing.B) {
 // catches regressions specific to the Rich code path (e.g. if a
 // future refactor breaks the bracket walker's budget enforcement
 // for mode=0 only).
-func BenchmarkEscapeBlockHazardsRichAdversarial(b *testing.B) {
+func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 	links := strings.Repeat("[a](b)", 1000)
 	unclosed := strings.Repeat("[a", 1000) + "\n\nbody"
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"

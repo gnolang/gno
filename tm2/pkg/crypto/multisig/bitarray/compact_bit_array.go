@@ -84,6 +84,60 @@ func (bA *CompactBitArray) NumTrueBitsBefore(index int) int {
 	return numTrueValues
 }
 
+// ValidateBasic returns an error unless bA holds exactly the Size() bits it
+// claims, as NewCompactBitArray and SetIndex produce one. It is the
+// counterpart, for this type, of bitarray.BitArray.ValidateBasic.
+//
+// A CompactBitArray decoded from an untrusted transaction signature has neither
+// of the properties below for free, and anything making an authorization
+// decision from one needs both:
+//
+//   - ExtraBitsStored comes off the wire and is never checked against
+//     len(Elems), so Size() may claim more bits than Elems holds. GetIndex
+//     bounds its index against Size(), not against len(Elems), so every index
+//     from len(Elems)*8 up to Size() indexes past the end of the slice. This is
+//     the load-bearing half: without it the walk reads out of bounds and panics.
+//   - Bits past Size() are never read at all, so a value that sets them says
+//     something the type cannot mean. Rejecting what nothing interprets keeps
+//     the accepted set equal to the set signers can produce.
+//
+// It does NOT make the wire encoding of a bit array unique, and nothing here
+// should be read as claiming that: amino's decoder accepts non-minimal uvarints
+// and explicitly-written zero-valued fields, so ExtraBitsStored alone has
+// several accepted encodings of the same value. Byte-level canonicality is an
+// amino property, not one this function can establish.
+//
+// A nil bit array is not an error here, the same as for BitArray: Size() is 0
+// for one, which the callers already reject against their own key.
+func (bA *CompactBitArray) ValidateBasic() error {
+	if bA == nil {
+		return nil
+	}
+	// ExtraBitsStored is the number of bits used in the final byte, so it is
+	// Size()%8. Eight or more is not a count of bits in the final byte at all,
+	// and is what lets Size() overshoot Elems.
+	if bA.ExtraBitsStored >= 8 {
+		return fmt.Errorf(
+			"compact bit array: extra bits stored is %d, want less than 8", bA.ExtraBitsStored)
+	}
+	if len(bA.Elems) == 0 {
+		// Size() is (len(Elems)-1)*8 + ExtraBitsStored, which is negative here
+		// for any non-zero count of extra bits.
+		if bA.ExtraBitsStored != 0 {
+			return fmt.Errorf(
+				"compact bit array: %d extra bits stored with no elements", bA.ExtraBitsStored)
+		}
+		return nil
+	}
+	// The two clauses above leave len(Elems) == (Size()+7)/8, so every index
+	// GetIndex admits is backed by a byte. What remains is the 8-ExtraBitsStored
+	// bits of the final byte that Size() excludes.
+	if bA.ExtraBitsStored != 0 && bA.Elems[len(bA.Elems)-1]&(byte(0xff)>>bA.ExtraBitsStored) != 0 {
+		return errors.New("compact bit array: bits set past the end of the array")
+	}
+	return nil
+}
+
 // Copy returns a copy of the provided bit array.
 func (bA *CompactBitArray) Copy() *CompactBitArray {
 	if bA == nil {

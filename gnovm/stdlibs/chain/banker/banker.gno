@@ -32,6 +32,14 @@ import (
 // bypassed entirely by a retained banker, which reaches the bank keeper
 // without re-entering your code.
 //
+// BankerTypeOriginSend is the one exception, and is NOT persistable. Its
+// authority is the send-envelope of a single message, so it is pinned to
+// that message: it carries a live realm value, which the persistence walk
+// refuses to store, so any attempt to keep one in realm state aborts the
+// transaction before any coins move. For that type alone the paragraph
+// above does not apply — the grant expires when the message ends. See
+// [NewBanker]. Every other banker type behaves exactly as described.
+//
 // Banker panics on errors instead of returning errors.
 // This also helps simplify the interface and prevent
 // hidden bugs (e.g. ignoring errors)
@@ -56,7 +64,10 @@ type BankerType uint8
 const (
 	// Can only read state.
 	BankerTypeReadonly BankerType = iota
-	// Can only send from tx send.
+	// Can only send from tx send: at most the coins this message's
+	// send-envelope credited to the realm's own address. Valid only
+	// inside the message that created it (it cannot be persisted) and
+	// only while that realm is the envelope's recipient.
 	BankerTypeOriginSend
 	// Can send from all realm coins.
 	BankerTypeRealmSend
@@ -133,11 +144,30 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 	if bt == BankerTypeOriginSend && !rlm.Previous().IsUserCall() {
 		panic("banker with type BankerTypeOriginSend can only be instantiated by the origin package")
 	}
-	return banker{
+	b := banker{
 		bt:      bt,
 		pkgAddr: rlm.Address(),
 		pkgPath: rlm.PkgPath(),
 	}
+	if bt == BankerTypeOriginSend {
+		// Pin the banker to the message that created it. An OriginSend
+		// banker's authority IS the send-envelope of one message, so it
+		// must not outlive that message; the construction-time check
+		// above is worthless against a value stashed in realm state and
+		// woken up later. Carrying a live (non-origin) realm handle makes
+		// the value structurally unpersistable — the realm finalization
+		// walk refuses realm values outright (refusePersistRealmHIV in
+		// gnovm/pkg/gnolang/uverse.go), so any attempt to store this
+		// banker in realm state aborts the whole transaction. It stays
+		// freely passable to other realms WITHIN the message, which is
+		// the delegation the type exists for.
+		//
+		// This is structural, not a token: there is no per-message value
+		// for a caller to forge and no context field for a construction
+		// site to forget to populate.
+		b.rlm = rlm
+	}
+	return b
 }
 
 // These are native bindings to the banker's functions.
@@ -152,6 +182,14 @@ type banker struct {
 	bt      BankerType
 	pkgAddr address
 	pkgPath string // realm pkgpath, for IssueCoin/RemoveCoin denom-prefix.
+	// rlm is set only for BankerTypeOriginSend, where it is the
+	// message-lifetime pin described in [NewBanker]: realm values are
+	// refused by the persistence walk, so a banker holding one cannot be
+	// written to realm state. Nil for every other banker type — those
+	// are genuine cross-transaction capabilities (see
+	// gno.land/pkg/integration/testdata/banker_persistence.txtar) and
+	// keep persisting exactly as before.
+	rlm realm
 }
 
 // IsCanonical reports whether b is the canonical bank-keeper-backed
@@ -199,6 +237,16 @@ func (b banker) SendCoins(from, to address, amt chain.Coins) {
 	if b.pkgAddr != from {
 		msg := `can only send coins from realm that created banker "` + b.pkgAddr + `", not "` + from + `"`
 		panic(msg)
+	}
+	if b.bt == BankerTypeOriginSend && b.rlm == nil {
+		// Unreachable for anything NewBanker built in this message: it
+		// always sets rlm for OriginSend. Reaching here means the value
+		// crossed a message boundary through some route the persistence
+		// refusal did not catch (e.g. a realm object written before this
+		// rule existed). Fail closed rather than fall through to the
+		// envelope check, which alone cannot tell a revived banker from
+		// a fresh one.
+		panic("BankerTypeOriginSend banker is not valid outside the message that created it")
 	}
 	denoms, amounts := expandNative(amt)
 	bankerSendCoins(uint8(b.bt), string(from), string(to), denoms, amounts)

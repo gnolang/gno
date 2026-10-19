@@ -13,6 +13,7 @@ message BaseAccount {
 	google.protobuf.Any pub_key = 3 [json_name = "public_key"];
 	uint64 account_number = 4;
 	uint64 sequence = 5;
+	VestingSchedule vesting = 6;
 }
 
 message BaseSessionAccount {
@@ -30,19 +31,6 @@ message VestingSchedule {
 	sint64 start_time = 2;
 	sint64 end_time = 3;
 	string type = 4;
-}
-
-message BaseVestingAccount {
-	BaseAccount base_account = 1 [json_name = "BaseAccount"];
-	VestingSchedule vesting_schedule = 2 [json_name = "VestingSchedule"];
-}
-
-message ContinuousVestingAccount {
-	BaseVestingAccount base_vesting_account = 1 [json_name = "BaseVestingAccount"];
-}
-
-message DelayedVestingAccount {
-	BaseVestingAccount base_vesting_account = 1 [json_name = "BaseVestingAccount"];
 }
 
 message Coin {

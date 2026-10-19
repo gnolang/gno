@@ -24,6 +24,10 @@ func main(cur realm) {
 	// simulate a Deposit call.
 	testing.IssueCoins(banktestAddr, chain.Coins{{"ugnot", 100000000}})
 	testing.SetOriginSend(chain.Coins{{"ugnot", 100000000}})
+	// The -send envelope lands on banktest, so name banktest as the payee.
+	// Must come before the user-realm line below: after it, cur is a code
+	// realm and banker.NewBanker(BankerTypeOriginSend, cur) is refused.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/archive/banktest"))
 	testing.SetRealm(testing.NewUserRealm(mainaddr))
 	res := banktest.Deposit(cross(cur), "ugnot", 55000000)
 	println("Deposit():", res)
