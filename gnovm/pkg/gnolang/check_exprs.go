@@ -37,28 +37,69 @@ func assertComparableTo(at, bt Type, aNil, bNil bool) {
 	check(bt, aNil)
 }
 
-// assertLenCapArg checks the operand of len or cap: a string (len only),
-// array, pointer to array, slice, map (len only) or channel.
-func assertLenCapArg(name Name, t Type) {
+// lenCapArgError checks the operand of len or cap: a string (len only),
+// array, pointer to array, slice, map (len only) or channel. It returns
+// the message rather than raising it: the call's type is int whatever the
+// operand, so accumulate mode reports and goes on, as gc does.
+func lenCapArgError(name Name, t Type) string {
 	if t == nil {
-		return
+		return ""
 	}
 	switch bt := baseOf(t).(type) {
 	case *ArrayType, *SliceType, *ChanType:
-		return
+		return ""
 	case *PointerType:
 		if _, ok := baseOf(bt.Elt).(*ArrayType); ok {
-			return
+			return ""
 		}
 	case *MapType:
 		if name == "len" {
-			return
+			return ""
 		}
 	}
 	if t.Kind() == StringKind && name == "len" {
-		return
+		return ""
 	}
-	panic(fmt.Sprintf("invalid argument: %v for built-in %s", t, name))
+	return fmt.Sprintf("invalid argument: %v for built-in %s", t, name)
+}
+
+// assertIndexable checks the operand of an index expression: a string,
+// array, pointer to array, slice or map. A pointer to anything else is not
+// dereferenced (Go spec: "Index expressions").
+func assertIndexable(x Expr, t Type) {
+	if t != nil {
+		switch bt := baseOf(t).(type) {
+		case *ArrayType, *SliceType, *MapType:
+			return
+		case *PointerType:
+			if _, ok := baseOf(bt.Elt).(*ArrayType); ok {
+				return
+			}
+		default:
+			if t.Kind() == StringKind {
+				return
+			}
+		}
+	}
+	panic(fmt.Sprintf("invalid operation: cannot index %s (%s of type %v)", operandString(x), operandWord(x), t))
+}
+
+// operandWord is gc's noun for an operand in a message: a variable, else
+// a value.
+func operandWord(x Expr) string {
+	if _, ok := x.(*NameExpr); ok {
+		return "variable"
+	}
+	return "value"
+}
+
+// operandString spells an operand as written: a name without its
+// resolved value path.
+func operandString(x Expr) string {
+	if nx, ok := x.(*NameExpr); ok {
+		return string(nx.Name)
+	}
+	return x.String()
 }
 
 // staticLengthOf returns the length a constant index can be checked
@@ -131,12 +172,14 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 
 // assertLiteralIndices rejects a repeated constant index in an array or
 // slice literal, and one at or past length when it is known (-1 for a
-// slice); elements without a key take the next index. Charged per element.
+// slice); elements without a key take the next index. Charged per
+// element; the error is positioned at the element.
 func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) {
 	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
 	seen := map[int64]bool{}
 	next := int64(0)
-	for _, elt := range n.Elts {
+	for i := range n.Elts {
+		elt := &n.Elts[i]
 		idx := next
 		if elt.Key != nil {
 			i, ok := constIndex(elt.Key)
@@ -145,13 +188,13 @@ func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) 
 			}
 			idx = i
 			if length >= 0 && idx >= length {
-				panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", idx, length))
+				panicAt(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", idx, length), elt.Key, elt.Value)
 			}
 		} else if length >= 0 && idx >= length {
-			panic(fmt.Sprintf("index %d is out of bounds (>= %d)", idx, length))
+			panicAt(fmt.Sprintf("index %d is out of bounds (>= %d)", idx, length), elt.Value)
 		}
 		if seen[idx] {
-			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
+			panicAt(fmt.Sprintf("duplicate index %d in array or slice literal", idx), elt.Key, elt.Value)
 		}
 		seen[idx] = true
 		next = idx + 1
@@ -250,9 +293,73 @@ func isFuncDeclName(last BlockNode, nx *NameExpr) bool {
 	return ok && int(idx) < len(sources) && sources[idx].Type == NSFuncDecl
 }
 
-// assertSwitchTag checks an expression switch's tag: comparable, or a
-// slice, map or func, which the clauses may compare to nil only.
-func assertSwitchTag(t Type) {
+// hasCall reports whether x holds a function call other than a conversion
+// or a constant len/cap of an array: len and cap of an array are constant
+// only then (Go spec: "Length and capacity"; Gno has no channel receive).
+// Charged per node entered.
+func hasCall(gm store.GasMeter, store Store, last BlockNode, x Expr) bool {
+	found := false
+	Transcribe(x, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		switch n := n.(type) {
+		case *CallExpr:
+			if isConstType(n.Func) {
+				return n, TRANS_CONTINUE // a conversion
+			}
+			if cx, ok := n.Func.(*ConstExpr); ok && len(n.Args) == 1 {
+				if fv, ok := cx.V.(*FuncValue); ok && fv.PkgPath == uversePkgPath && (fv.Name == "len" || fv.Name == "cap") {
+					at := evalStaticTypeOf(store, last, n.Args[0])
+					if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
+						return n, TRANS_CONTINUE // constant unless its operand is not
+					}
+				}
+			}
+			found = true
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
+}
+
+// eltFailure is a composite literal element that failed a check: the
+// message and the element to report it at.
+type eltFailure struct {
+	msg string
+	at  Node
+}
+
+// checkElt runs check on one element of a composite literal and records
+// a checking error it raises in fails, to be reported at the element; a
+// VM panic or an error that is positioned already passes through.
+func checkElt(fails *[]eltFailure, at Node, check func()) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		if isRuntimePanic(r) {
+			panic(r)
+		}
+		switch e := r.(type) {
+		case *PreprocessError, *spanError:
+			panic(r)
+		case error:
+			*fails = append(*fails, eltFailure{e.Error(), at})
+		default:
+			*fails = append(*fails, eltFailure{fmt.Sprint(r), at})
+		}
+	}()
+	check()
+}
+
+// assertSwitchTag checks an expression switch's tag x of type t:
+// comparable, or a slice, map or func, which the clauses may compare to
+// nil only. The error is positioned at the tag.
+func assertSwitchTag(x Expr, t Type) {
 	if t == nil {
 		return
 	}
@@ -261,7 +368,8 @@ func assertSwitchTag(t Type) {
 		return
 	}
 	if !isComparable(t) {
-		panic(fmt.Sprintf("cannot switch on %v (%v is not comparable)", t, t))
+		panicAt(fmt.Sprintf("cannot switch on %s (variable of type %v) (%v is not comparable)",
+			exprString(x), t, t), x)
 	}
 }
 

@@ -131,3 +131,20 @@ func failBranchLabel(n *BranchStmt) {
 	}
 	panic(fmt.Sprintf("invalid continue label %s", n.Label))
 }
+
+// assertConstFinite rejects a folded untyped float constant beyond
+// big.Float's exponent range (an infinity, go/constant's unknown value):
+// a literal is malformed, an operation's result is not representable.
+func assertConstFinite(x Expr, cv *TypedValue) {
+	if cv.T != UntypedBigdecType {
+		return
+	}
+	bd, ok := cv.V.(BigdecValue)
+	if !ok || !bd.IsFloat() || !bd.F.IsInf() {
+		return
+	}
+	if bl, ok := x.(*BasicLitExpr); ok {
+		panic(fmt.Sprintf("malformed constant: %s", bl.Value))
+	}
+	panic("constant result is not representable")
+}
