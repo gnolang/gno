@@ -14,6 +14,6 @@ func fn(i int) int {
 }
 
 // GnoError:
-// line 10: cannot call non-function F (variable of type <untyped> bigint)
+// line 10: cannot call non-function F (constant of type <untyped> bigint)
 
 // Verdict: Clean errorcheck
