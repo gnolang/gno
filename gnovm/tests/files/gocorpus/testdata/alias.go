@@ -38,4 +38,9 @@ func main() {
 // line 30: cannot use float64 as int32
 // line 32: cannot use float64 as uint8
 
+// GnoWordingDiffers:
+// line 23: gc expects: byte; gno: cannot use float64 as uint8
+// line 30: gc expects: rune; gno: cannot use float64 as int32
+// line 32: gc expects: byte; gno: cannot use float64 as uint8
+
 // Verdict: Clean errorcheck

@@ -40,4 +40,7 @@ func f4(e interface{}) {
 // line 27: duplicate case struct{i int} in type switch
 // line 30: duplicate case struct{i int} in type switch
 
+// GnoWordingDiffers:
+// line 21: gc expects: duplicate case error in type switch; gno: duplicate case .uverse.error in type switch
+
 // Verdict: KnownIssue errorcheck: #6344 over-strict: lines 27

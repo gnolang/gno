@@ -40,4 +40,14 @@ func main() {
 // line 27: cannot convert untyped bigdec to float64 -- too close to +-Inf
 // line 28: cannot convert untyped bigdec to float64 -- too close to +-Inf
 
+// GnoWordingDiffers:
+// line 21: gc expects: 1e\+646456992 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 22: gc expects: 1e\+64645699 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 23: gc expects: 1e\+6464569 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 24: gc expects: 1e\+646456 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 25: gc expects: 1e\+64645 overflows float64|floating-point constant overflow|exponent too large|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 26: gc expects: 1e\+6464 overflows float64|floating-point constant overflow|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 27: gc expects: 1e\+646 overflows float64|floating-point constant overflow|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 28: gc expects: 1e\+309 overflows float64|floating-point constant overflow|overflows float64|overflows; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+
 // Verdict: Clean errorcheck

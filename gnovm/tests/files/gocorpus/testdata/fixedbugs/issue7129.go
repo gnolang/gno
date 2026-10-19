@@ -25,4 +25,9 @@ func main() {
 // line 19: cannot use untyped bool as IntKind
 // line 20: cannot use untyped bool as IntKind
 
+// GnoWordingDiffers:
+// line 18: gc expects: in argument to f|incompatible type|cannot convert; gno: cannot use bool as int
+// line 19: gc expects: in argument to f|incompatible type|cannot convert; gno: cannot use untyped bool as IntKind
+// line 20: gc expects: in argument to h|incompatible type|cannot convert; gno: cannot use untyped bool as IntKind
+
 // Verdict: Clean errorcheck

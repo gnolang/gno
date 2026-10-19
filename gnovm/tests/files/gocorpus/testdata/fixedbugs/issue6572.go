@@ -26,4 +26,8 @@ func main() {
 // line 13: name not defined: T
 // line 20: cannot use string as int
 
+// GnoWordingDiffers:
+// line 9: gc expects: undefined; gno: name not defined: T
+// line 13: gc expects: undefined; gno: name not defined: T
+
 // Verdict: Clean errorcheck

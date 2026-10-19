@@ -22,4 +22,9 @@ func main() {
 // line 13: cannot access bytes.nonexist from main
 // line 17: cannot access bytes.buffer from main
 
+// GnoWordingDiffers:
+// line 11: gc expects: unexported|undefined; gno: cannot access bytes.nonexist from main
+// line 13: gc expects: unexported|undefined|expected signature or type name; gno: cannot access bytes.nonexist from main
+// line 17: gc expects: unexported|undefined; gno: cannot access bytes.buffer from main
+
 // Verdict: Clean errorcheck

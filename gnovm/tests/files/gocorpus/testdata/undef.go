@@ -51,4 +51,11 @@ func f2(val interface{}) {
 // line 23: name y not declared
 // line 43: name v not declared
 
+// GnoWordingDiffers:
+// line 13: gc expects: undefined.*x; gno: name not defined: x
+// line 14: gc expects: undefined.*x; gno: name not defined: x
+// line 15: gc expects: undefined.*x; gno: name not defined: x
+// line 23: gc expects: undefined.*y; gno: name y not declared
+// line 43: gc expects: undefined.*v; gno: name v not declared
+
 // Verdict: Clean errorcheck

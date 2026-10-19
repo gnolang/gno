@@ -25,4 +25,7 @@ func main() {
 // line 18: unknown field floats in struct literal of type main.it
 // line 19: unknown field InneR in struct literal of type main.it
 
+// GnoWordingDiffers:
+// line 16: gc expects: (type it .* field or method floats, but does have field Floats)|undefined field or method; gno: missing field floats in main.it
+
 // Verdict: Clean errorcheck

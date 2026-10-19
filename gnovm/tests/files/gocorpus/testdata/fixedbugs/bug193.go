@@ -19,4 +19,8 @@ func main() {
 // line 13: operator << not defined on: Float64Kind
 // line 14: operator << not defined on: StringKind
 
+// GnoWordingDiffers:
+// line 13: gc expects: shift; gno: operator << not defined on: Float64Kind
+// line 14: gc expects: shift; gno: operator << not defined on: StringKind
+
 // Verdict: Clean errorcheck

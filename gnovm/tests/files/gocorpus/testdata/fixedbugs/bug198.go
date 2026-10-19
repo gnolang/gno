@@ -14,4 +14,7 @@ func main() {
 // GnoError:
 // line 8: name not defined: T
 
+// GnoWordingDiffers:
+// line 8: gc expects: undefined; gno: name not defined: T
+
 // Verdict: Clean errorcheck

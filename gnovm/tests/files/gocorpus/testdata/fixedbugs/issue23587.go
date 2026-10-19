@@ -14,9 +14,4 @@ func _(x int) {
 	_ = x ~ x // ERROR "unexpected ~ at end of statement"
 }
 
-// GnoError:
-// line 10: tilde operator is not permitted
-// line 14: expected ';', found '~'
-// line 15: expected ';', found 'EOF'
-
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 10, 15
+// Verdict: Unsupported other: generics (type set constraints) not supported in Gno

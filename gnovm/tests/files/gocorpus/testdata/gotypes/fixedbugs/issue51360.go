@@ -1,0 +1,29 @@
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+func _() {
+	len.Println /* ERROR "invalid use of len (built-in) in selector expression" */
+	len.Println /* ERROR "invalid use of len (built-in) in selector expression" */ ()
+	_ = len.Println /* ERROR "invalid use of len (built-in) in selector expression" */
+	_ = len /* ERROR "cannot index len" */ [0]
+	_ = *len /* ERROR "cannot indirect len" */
+}
+
+// GnoError:
+// line 8: use of builtin len not in function call
+// line 9: use of builtin len not in function call
+// line 10: use of builtin len not in function call
+// line 11: use of builtin len not in function call
+// line 12: use of builtin len not in function call
+
+// GnoWordingDiffers:
+// line 8: gc expects: invalid use of len (built-in) in selector expression; gno: use of builtin len not in function call
+// line 9: gc expects: invalid use of len (built-in) in selector expression; gno: use of builtin len not in function call
+// line 10: gc expects: invalid use of len (built-in) in selector expression; gno: use of builtin len not in function call
+// line 11: gc expects: cannot index len; gno: use of builtin len not in function call
+// line 12: gc expects: cannot indirect len; gno: use of builtin len not in function call
+
+// Verdict: Clean errorcheck

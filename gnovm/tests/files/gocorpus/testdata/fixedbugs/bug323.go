@@ -23,4 +23,8 @@ func main() {
 // line 18: missing field Meth in main.P
 // line 19: missing field Meth2 in main.P
 
+// GnoWordingDiffers:
+// line 18: gc expects: undefined; gno: missing field Meth in main.P
+// line 19: gc expects: undefined; gno: missing field Meth2 in main.P
+
 // Verdict: Clean errorcheck

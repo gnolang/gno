@@ -17,4 +17,7 @@ _:
 // GnoError:
 // line 14: label _ undefined
 
+// GnoWordingDiffers:
+// line 14: gc expects: not defined|undefined label; gno: label _ undefined
+
 // Verdict: Clean errorcheck

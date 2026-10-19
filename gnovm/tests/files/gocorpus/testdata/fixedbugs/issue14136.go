@@ -24,4 +24,7 @@ func main() {
 // line 17: unknown field X in struct literal of type main.T
 // line 19: cannot use untyped Bigint as StringKind
 
+// GnoWordingDiffers:
+// line 19: gc expects: cannot use 1|incompatible type|cannot convert; gno: cannot use untyped Bigint as StringKind
+
 // Verdict: Clean errorcheck

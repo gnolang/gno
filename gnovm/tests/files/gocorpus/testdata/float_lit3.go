@@ -52,4 +52,10 @@ var x = []interface{}{
 // line 42: cannot convert untyped bigdec to float64 -- too close to +-Inf
 // line 46: cannot convert untyped bigdec to float64 -- too close to +-Inf
 
+// GnoWordingDiffers:
+// line 32: gc expects: constant 3\.40282e\+38 overflows float32|cannot convert.*to type float32; gno: cannot convert untyped bigdec to float32 -- too close to +-Inf
+// line 36: gc expects: constant -3\.40282e\+38 overflows float32|cannot convert.*to type float32; gno: cannot convert untyped bigdec to float32 -- too close to +-Inf
+// line 42: gc expects: constant 1\.79769e\+308 overflows float64|cannot convert.*to type float64; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+// line 46: gc expects: constant -1\.79769e\+308 overflows float64|cannot convert.*to type float64; gno: cannot convert untyped bigdec to float64 -- too close to +-Inf
+
 // Verdict: Clean errorcheck

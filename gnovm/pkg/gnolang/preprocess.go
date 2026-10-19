@@ -123,7 +123,7 @@ func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*Prepr
 		if fn := w.file[r.at]; fn != nil {
 			loc.File = fn.FileName
 		}
-		errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String())})
+		errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String()), code: CodeInitCycle})
 	}
 	return errs
 }
@@ -6741,6 +6741,7 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 				msg := fmt.Sprintf("invalid recursive %s: %s", what, cycleString(stack, un))
 				if !untype && index != nil && index.acc != nil { // gc's wording off chain; on chain unchanged
 					msg = "initialization cycle: " + strings.ReplaceAll(cycleString(stack, un), " -> ", " refers to ")
+					code = CodeInitCycle
 				}
 				var at Decl
 				if index == nil {
