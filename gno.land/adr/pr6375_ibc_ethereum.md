@@ -421,7 +421,12 @@ the app runs, so it stays pending at the source until it times out. Ethereum bou
   stores the verified outcome (delivered, refundable, collision) on the record, with the verifier that proved it and
   that verifier's generation (gno.land: the client's trust generation; Ethereum: the route's verifier generation,
   bumped before every verifier swap and replacement). Governance chooses the action; the proof decides whether it
-  may apply.
+  may apply. Neither the verifier address nor the generation can detect a trust reset **inside** an unchanged
+  verifier, so **verifier admission requires irreversible freezing**: an admitted verifier must freeze
+  irreversibly and offer no in-place trust reset, as `GnoLightClient` does (Ethereum: kind 6, kind 10 targets and
+  recovery candidates); on gno.land a verifier may change what it trusts only through the core's governed paths
+  (recovery, migration, verifier substitution), each of which advances the trust generation. This is a mandatory
+  admission check and a trust assumption (§8.1).
   - Only **final** states count: a receipt non-membership proof shows "refundable" only at a proof height whose
     destination timestamp is at or past the packet's timeout (the destination can then never receive it — IBC's
     own timeout rule); a written acknowledgement and a receipt are final once proven; an unwritten acknowledgement
@@ -968,7 +973,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   compression marks merged intervals and never takes an anchor from one, so the anchor is never earlier than this
   rule, though it can be later. gno.land uses the hold standing at the
   decision's first deferring `Execute`, which records the anchor and emits a `deferred` event instead of
-  reverting — which can only make the wait longer. A vacancy (a seat set to no
+  reverting. Neither chain ever anchors earlier than the ideal boundary; compression (Ethereum) and the timing of
+  the first observed deferral (gno.land) can each make one chain's anchor later than the other's, so neither
+  chain's wait is guaranteed to be at least the other's. A vacancy (a seat set to no
   key) is a replacement: it waits 7 days and, under a hold, follows the same deadline. On gno.land a vacating change targets
   the holder **and the seat generation** the seat had when the request was built, and is skipped if either changed
   since (the generation check being fixed now); the governor
@@ -1087,7 +1094,10 @@ routes of the same realms are unaffected; a governance channel serves exactly on
     further vouchers and light clients; and emergency recovery candidates (the proposal's `lightClient`);
   - *manual:* a verifier of another type than `GnoLightClient` (a reproducible build of its named source,
     and no mutable implementation pointer), checked before the kind 6 or recovery that installs it matures; and
-    running the tool itself, with operator-supplied pending lists, until the watch tool (T5) automates it.
+    running the tool itself, with operator-supplied pending lists, until the watch tool (T5) automates it; and
+    a **storage-layout compatibility review** (append-only layout) of every kind 7 implementation and kind 9
+    executor before it matures: a successful bytecode verification proves the code is a build of its source, not
+    that its layout is compatible with the live storage.
   It is run after every deployment and executed decision, and for each recorded kind 5, 6, 7 or 9 and each opened
   recovery within its delay; a failing pending candidate is cancelled by kind 1 (a recovery by the guardians'
   cancellation).
@@ -1102,8 +1112,10 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   5. **execute the verified repair**, recorded meanwhile and verified as pending before it matures: a kind 7 back to
      the last verified implementation or to a fixed build (transfer app, router, beacon), a kind 9 to a verified
      executor, a kind 6 migration or kind 10 replacement for a failed verifier (`suspectFrom` covering the time it
-     ran); a failed voucher cannot be swapped (kind 5 registers a denom once), so its flows stay stopped by flags
-     and zero limits;
+     ran); a failed voucher cannot be swapped (kind 5 registers a denom once). Ethereum route flags and zero caps
+     stop **ingress only**: returning-voucher burns continue, so containment also needs gno.land's `credits` and
+     `payouts` flags on the route, then reconciliation of the affected gno.land receive entitlements (voids,
+     settlements, §7.12); stopping the burns themselves needs a governed code change (kind 7);
   6. **reconcile** what ran meanwhile (kind 12) where outcomes were touched, and lift the route flags once the live
      code verifies again.
 - **Single point of failure.** If the GnoLightClient can no longer follow gno.land, or a forgery has pushed it past
@@ -1224,7 +1236,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   swap (kind 6 op 2) or route replacement (kind 10), so the new client cannot end it early. A route replacement
   (kind 10, the emergency recovery) never depends on the old verifier's `lastTransition()`: if it reverts or is
   malformed, the deadline becomes `max(saved, now + route quarantine)`, `verifierGen` is still bumped, and the
-  replacement proceeds. A kind 6 swap keeps the strict read.
+  replacement proceeds. The probe of the old verifier in a replacement or recovery is a **bounded `staticcall`**: a
+  gas cap and bounded return data, with gas reserved to finish the replacement, so an old verifier cannot starve or
+  block it. A kind 6 swap keeps the strict read.
 - **Fail closed.** A client whose `lastTransition()` is missing or reverts refuses receives and quarantine changes,
   except a route replacement (above), and with two further exceptions that do not read it: a receive on a route whose duration and saved deadline are both zero, and
   the route's first quarantine setting (which arms it). Checkpoints and installation require an answer of exactly
@@ -1821,6 +1835,10 @@ Further trust assumptions of the built controls, each stated where its rule is:
 - **GRC20s on gno.land.** An enrolled GRC20 is assumed not to pause or blacklist the transfer realm; governance
   checks this before enrolling it. Otherwise a governed payment can roll back and stay pending (§7.5), and an
   ordinary payout rolls back its transaction (§7.3).
+- **Verifiers freeze irreversibly.** Proven outcomes record the verifier address and route generation, which
+  cannot detect a trust reset inside an unchanged verifier, so every admitted verifier (Ethereum kind 6, kind 10
+  targets, recovery candidates; gno.land Ethereum clients) must freeze irreversibly with no in-place trust reset
+  outside the governed paths that advance the generation (§5.4, Proven outcomes).
 - **Supported tokens.** Ethereum's escrow, reservation and conservation guarantees hold only for tokens whose
   transfers move exactly the amount asked, whose `balanceOf` is truthful and whose balances change only by the
   holder's transfers (no fee on transfer, no rebasing, no hooks moving other balances). Governance establishes this
@@ -2451,6 +2469,12 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   both chains (Ethereum error-acks an oversize receive); kind 13 names the current client only; one terminal sender
   notification per packet checked; the suspect boundary covers updates and proofs under every affected verifier
   version on both chains (§5.4, §6.10, §7.2, §7.4, §7.10, §7.12, §7.13, §9).
+- 2026-10-19, rules for work in progress on both chains: neither chain's anchor wait is claimed to be at least the
+  other's; verifier admission requires irreversible freezing with no in-place trust reset (a mandatory check and a
+  trust assumption); the old-verifier probe in replacement and recovery is a bounded `staticcall` with gas reserved;
+  voucher-defect containment needs gno.land's `credits` and `payouts` flags and reconciliation, Ethereum flags
+  stopping ingress only; a manual append-only storage-layout review before kinds 7 and 9 (§5.4, §7.4, §7.6, §7.10,
+  §8.1).
 
 ## 15. References
 
