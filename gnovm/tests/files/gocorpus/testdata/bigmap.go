@@ -138,9 +138,6 @@ func main() {
   	}
 }
 
-
-// Tracked: issue #5662; local type decl in a block fails preprocess.
-
 // GnoOutput:
 
 // GnoError:
@@ -148,4 +145,4 @@ func main() {
 
 // GoOutput:
 
-// Verdict: KnownIssue run: #6060 type declaration inside a block fails preprocess (expected type expr, got *BlockStmt)
+// Verdict: KnownIssue run: #5662 type declaration inside a block fails preprocess (expected type expr, got *BlockStmt); fix in #6060
