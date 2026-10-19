@@ -810,3 +810,33 @@ func f(mi MyInt) {
 		t.Fatalf("unexpected: %v", msgs)
 	}
 }
+
+func TestPreprocessCollectTypeSwitchCases(t *testing.T) {
+	// Every repeated case is reported, at the case, by type identity:
+	// method order and parameter names do not distinguish types.
+	msgs := collectErrorsRaw(t, `package main
+func f(e interface{}) {
+	switch e.(type) {
+	case int:
+	case int:
+	case error:
+	case error:
+	case interface{ r(); w() }:
+	case interface{ w(); r() }:
+	case func(int):
+	case func(f int):
+	case nil, nil:
+	}
+}
+`)
+	want := []string{
+		"main/main.gno:5:7-10: duplicate case int in type switch",
+		"main/main.gno:7:7-12: duplicate case .uverse.error in type switch",
+		"main/main.gno:9:7-28: duplicate case interface {r func(); w func()} in type switch",
+		"main/main.gno:11:7-18: duplicate case func(int) in type switch",
+		"main/main.gno:12:12-15: duplicate case nil in type switch",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}

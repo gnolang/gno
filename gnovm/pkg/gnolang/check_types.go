@@ -209,8 +209,7 @@ func assertArrayLength(n int64) {
 	}
 }
 
-// dupCase is a duplicate expression-switch case: a message and where to
-// report it.
+// dupCase is a duplicate switch case: a message and where to report it.
 type dupCase struct {
 	msg string
 	at  []Node
@@ -242,6 +241,42 @@ func duplicateSwitchCases(store Store, clauses []SwitchClauseStmt) (dups []dupCa
 				})
 			}
 			seen[key] = true
+		}
+	}
+	return dups
+}
+
+// duplicateTypeSwitchCases finds a repeated case type in a type switch:
+// nil twice, or two identical types (by TypeID, so spelling and method
+// order do not matter). Each repeat is reported at its case.
+func duplicateTypeSwitchCases(gm store.GasMeter, clauses []SwitchClauseStmt) (dups []dupCase) {
+	seenNil := false
+	seen := map[TypeID]bool{}
+	for i := range clauses {
+		for _, cx := range clauses[i].Cases {
+			chargeCPUGas(gm, OpCPUSlopeCheckNode)
+			ctx, ok := cx.(*constTypeExpr)
+			if !ok {
+				continue
+			}
+			if ctx.Type == nil {
+				if seenNil {
+					dups = append(dups, dupCase{
+						msg: "duplicate case nil in type switch",
+						at:  []Node{cx, &clauses[i]},
+					})
+				}
+				seenNil = true
+				continue
+			}
+			id := ctx.Type.TypeID()
+			if seen[id] {
+				dups = append(dups, dupCase{
+					msg: fmt.Sprintf("duplicate case %v in type switch", ctx.Type),
+					at:  []Node{cx, &clauses[i]},
+				})
+			}
+			seen[id] = true
 		}
 	}
 	return dups

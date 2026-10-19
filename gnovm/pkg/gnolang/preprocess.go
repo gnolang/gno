@@ -3833,28 +3833,21 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				}
 				// Ensure type switch cases are unique and possible.
 				if n.IsTypeSwitch {
+					for _, dup := range duplicateTypeSwitchCases(preprocessGasMeterOf(store), n.Clauses) {
+						report(dup.msg, dup.at...)
+					}
 					tt := evalStaticTypeOf(store, last, n.X)
-					types := map[string]struct{}{}
-					for _, clause := range n.Clauses {
-						for _, casetype := range clause.Cases {
-							var ctstr string
+					for i := range n.Clauses {
+						for _, casetype := range n.Clauses[i].Cases {
 							ctype := casetype.(*constTypeExpr).Type
 							if ctype == nil {
-								ctstr = nilStr
-							} else {
-								ctstr = casetype.(*constTypeExpr).Type.String()
-								if err := dynamicTypeError(preprocessGasMeterOf(store), tt, ctype); err != nil {
-									panicAt(fmt.Sprintf(
-										"impossible type switch case: %s cannot have dynamic type %v (%v)",
-										exprString(n.X), ctype, err), casetype, &clause)
-								}
+								continue
 							}
-							if _, exists := types[ctstr]; exists {
-								panic(fmt.Sprintf(
-									"duplicate type %s in type switch",
-									ctstr))
+							if err := dynamicTypeError(preprocessGasMeterOf(store), tt, ctype); err != nil {
+								panicAt(fmt.Sprintf(
+									"impossible type switch case: %s cannot have dynamic type %v (%v)",
+									exprString(n.X), ctype, err), casetype, &n.Clauses[i])
 							}
-							types[ctstr] = struct{}{}
 						}
 					}
 				}
