@@ -54,8 +54,8 @@ Sync runs `go run` / `go build` for the Go side; the pinned toolchain keeps
 Files with inline `// ERROR "regex"` markers (gc's errorcheck tests) are
 preprocessed once in accumulate mode (`PreprocessFilesCollect`): every Gno
 error with its span, no execution, no Go side. The markers are gc's verdict.
-`Clean errorcheck` when a Gno error covers every checkable marker line and
-none falls on an unmarked line; otherwise sync writes
+`Clean errorcheck` when every checkable marker line has a Gno error starting
+on it and no Gno error starts on an unmarked line; otherwise sync writes
 `KnownIssue errorcheck: #6344 uncaught markers: lines …; over-strict: lines …`
 directly, since every such gap is a preprocess conformance gap in that
 umbrella issue's scope (a per-cause `#NNNN` written by hand survives re-sync).
@@ -67,8 +67,10 @@ Every errorcheck file is also run through the on-chain path (plain
 `Preprocess`, first error): it must reject the file iff accumulate mode did,
 with its first error on a reported line, else the verdict says how the
 `on-chain path` disagrees. Coverage is by line, not wording: a marker counts
-as covered when a Gno checking error spans its line; the wording stays in
-the evidence. An EOF error maps to the last source
-line, where gc's marker sits. gc-only files (`-0`/`-m` diagnostics, `-+`/`-p=`,
+as covered when a Gno checking error starts on its line (or ends on it, for
+a function that does not terminate: gc's marker sits on the closing brace);
+one error credits no other line, however many it spans. The wording stays
+in the evidence. An EOF error maps to the last source line, where gc's
+marker sits. Internal errors are pinned without their preprocess stack dump. gc-only files (`-0`/`-m` diagnostics, `-+`/`-p=`,
 `-lang` below go1.17, `GC_ERROR`-only, pragma placement, `//line` directives,
 a byte order mark) are `Unsupported`.
