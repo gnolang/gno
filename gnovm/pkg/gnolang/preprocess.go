@@ -3192,8 +3192,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						panic(fmt.Sprintf("ambiguous selector %s in %s",
 							n.Sel, cxt.String()))
 					case embedLookupNone:
-						panic(fmt.Sprintf("missing field %s in %s",
-							n.Sel, cxt.String()))
+						undefinedSelector(n, cxt)
 					}
 					// embedLookupFound guarantees tr != nil below.
 
@@ -3366,9 +3365,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						return Preprocess(store, last, lit).(Expr), TRANS_CONTINUE
 					}
 				default:
-					panic(fmt.Sprintf(
-						"unexpected selector expression type %v",
-						reflect.TypeOf(xt)))
+					undefinedSelector(n, xt)
 				}
 
 			// TRANS_LEAVE -----------------------

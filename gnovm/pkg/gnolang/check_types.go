@@ -264,6 +264,24 @@ func isInterfaceConversion(c *ConstExpr) bool {
 	return t != nil && t.Kind() == InterfaceKind
 }
 
+// undefinedSelector rejects x.sel when the type t of x has no such field
+// or method (Go spec, "Selectors"); a pointer to an interface, named or
+// not, is said to be one, as go/types does.
+func undefinedSelector(n *SelectorExpr, t Type) {
+	if tt, ok := t.(*tupleType); ok {
+		failf(CodeMultiValue, []Node{n.X}, "multiple-value %s (value of type %v) in single-value context",
+			exprString(n.X), tt)
+	}
+	if pt, ok := baseOf(t).(*PointerType); ok {
+		if _, iface := baseOf(pt.Elt).(*InterfaceType); iface {
+			failf(CodeNoMethod, []Node{n}, "%s undefined (type %v is pointer to interface, not interface)",
+				exprString(n), t)
+		}
+	}
+	failf(CodeNoMethod, []Node{n}, "%s undefined (type %s has no field or method %s)",
+		exprString(n), typeString(t), n.Sel)
+}
+
 // exprString prints an expression for a message: names bare, constants
 // as written, selectors and indexes composed from their parts.
 func exprString(x Expr) string {
@@ -280,10 +298,12 @@ func exprString(x Expr) string {
 		return exprString(x.Left) + " " + x.Op.TokenString() + " " + exprString(x.Right)
 	case *UnaryExpr:
 		return x.Op.TokenString() + exprString(x.X)
+	case *RefExpr:
+		return "&" + exprString(x.X)
 	case *SelectorExpr:
-		return exprString(x.X) + "." + string(x.Sel)
+		return operandString(x.X) + "." + string(x.Sel)
 	case *IndexExpr:
-		return exprString(x.X) + "[" + exprString(x.Index) + "]"
+		return operandString(x.X) + "[" + exprString(x.Index) + "]"
 	case *StarExpr:
 		return "*" + exprString(x.X)
 	case *CallExpr:
@@ -291,7 +311,7 @@ func exprString(x Expr) string {
 		for i, a := range x.Args {
 			args[i] = exprString(a)
 		}
-		return exprString(x.Func) + "(" + strings.Join(args, ", ") + ")"
+		return operandString(x.Func) + "(" + strings.Join(args, ", ") + ")"
 	case *SliceTypeExpr:
 		if x.Vrd {
 			return "..." + exprString(x.Elt)
@@ -306,6 +326,16 @@ func exprString(x Expr) string {
 		return "map[" + exprString(x.Key) + "]" + exprString(x.Value)
 	}
 	return x.String()
+}
+
+// operandString is exprString with a unary or binary operand of a
+// selector, index or call parenthesised: the parser drops the parens.
+func operandString(x Expr) string {
+	switch x.(type) {
+	case *UnaryExpr, *BinaryExpr, *StarExpr, *RefExpr:
+		return "(" + exprString(x) + ")"
+	}
+	return exprString(x)
 }
 
 // typeString names a type for a message; nil is the untyped nil.

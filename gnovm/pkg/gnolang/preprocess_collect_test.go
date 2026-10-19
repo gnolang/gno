@@ -851,7 +851,7 @@ func main() {}
 		"cannot use struct{x int} as struct{x int}: struct tags differ",
 		"cannot assign to struct field m[0].x in map",
 		"cannot assign to mq[0].a[1] (neither addressable nor a map index expression)",
-		"missing field m in main.P",
+		"p.m undefined (type main.P has no field or method m)",
 	}
 	for _, w := range want {
 		found := false
@@ -886,7 +886,7 @@ func main() {
 	_ = x.f
 }
 `)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "missing field f") {
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "x.f undefined (type main.P has no field or method f)") {
 		t.Fatalf("unexpected: %v", msgs)
 	}
 }
@@ -1630,14 +1630,49 @@ func main() {
 }
 `)
 	want := []string{
-		"missing field T in *main.P3",
-		"missing field Mv in *main.P3",
-		"missing field Mp in *main.P3",
-		"missing field Mv in *main.P4",
-		"missing field T in main.PP",
-		"missing field Error in *.uverse.error",
-		"missing field Error in *.uverse.error",
-		"missing field m in main.I",
+		"(&p).T undefined (type *main.P3 has no field or method T)",
+		"(&p).Mv undefined (type *main.P3 has no field or method Mv)",
+		"(&p).Mp undefined (type *main.P3 has no field or method Mp)",
+		"(&q).Mv undefined (type *main.P4 has no field or method Mv)",
+		"pp.T undefined (type main.PP has no field or method T)",
+		"perr.Error undefined (type *.uverse.error is pointer to interface, not interface)",
+		"perr.Error undefined (type *.uverse.error is pointer to interface, not interface)",
+		"x.m undefined (type main.I is pointer to interface, not interface)",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.Contains(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectUndefinedSelector(t *testing.T) {
+	// A selector on a type that has no fields or methods at all, or on a
+	// multi-value call, is reported in go/types' words rather than as an
+	// internal error; a unary operand is printed in parens.
+	msgs := collectErrors(t, `package main
+
+func f() (int, int) { return 1, 2 }
+
+func main() {
+	var n int
+	_ = n.x
+	main.i()
+	_ = f().x
+	var s struct{ a int }
+	_ = (*&s).b
+	_ = (-n).y
+}
+`)
+	want := []string{
+		"n.x undefined (type int has no field or method x)",
+		"main.i undefined (type func() has no field or method i)",
+		"multiple-value f() (value of type (int,int)) in single-value context",
+		"(*&s).b undefined (type struct{a int} has no field or method b)",
+		"(-n).y undefined (type int has no field or method y)",
 	}
 	if len(msgs) != len(want) {
 		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)

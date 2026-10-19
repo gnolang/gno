@@ -46,6 +46,7 @@ const (
 	CodeAppendNil       ErrCode = "append-nil"
 	CodeBuiltinSpread   ErrCode = "builtin-spread"
 	CodeFuncAddress     ErrCode = "func-address"
+	CodeMultiValue      ErrCode = "multi-value"
 
 	// Declarations and statements.
 	CodeMissingConstInit   ErrCode = "missing-const-init"
