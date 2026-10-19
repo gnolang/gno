@@ -191,3 +191,20 @@ func main() {}
 		t.Errorf("pp.F: want %s, got %s", opValue, o.mode)
 	}
 }
+
+// A name whose path runs past the block chain is invalid, not a value.
+func TestOperandOfUnresolvedName(t *testing.T) {
+	store, fd := funcBody(t, nil, `package main
+
+func f(x int) { _ = x }
+
+func main() {}
+`)
+	nx := &NameExpr{Name: "x", Path: NewValuePathBlock(99, 0, "x")}
+	if src := nameSourceOf(fd, nx); src != nil {
+		t.Errorf("want no source, got %v", src)
+	}
+	if mode := valueMode(store, fd, nx, IntType); mode != opInvalid {
+		t.Errorf("want %s, got %s", opInvalid, mode)
+	}
+}

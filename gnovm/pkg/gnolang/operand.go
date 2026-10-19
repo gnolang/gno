@@ -106,18 +106,20 @@ func operandOf(store Store, last BlockNode, x Expr) operand {
 }
 
 // valueMode tells a variable (addressable) from a map index expression
-// and from any other value (Go spec, "Address operators").
+// and from any other value (Go spec, "Address operators"). A name whose
+// path does not resolve is invalid, so no rule speaks for it.
 func valueMode(store Store, last BlockNode, x Expr, t Type) opMode {
 	switch cx := x.(type) {
 	case *NameExpr:
-		if src := nameSourceOf(last, cx); src != nil {
-			switch src.Type {
-			case NSFuncDecl, NSTypeDecl, NSImportDecl:
-				return opValue
-			}
-			return opVariable
+		src := nameSourceOf(last, cx)
+		if src == nil {
+			return opInvalid
 		}
-		return opValue
+		switch src.Type {
+		case NSFuncDecl, NSTypeDecl, NSImportDecl:
+			return opValue
+		}
+		return opVariable
 	case *StarExpr:
 		return opVariable
 	case *SelectorExpr:
@@ -163,26 +165,27 @@ func valueMode(store Store, last BlockNode, x Expr, t Type) opMode {
 }
 
 // nameSourceOf returns how the name nx was declared, or nil when its
-// path does not lead to a block (uverse, dropped declaration).
-func nameSourceOf(last BlockNode, nx *NameExpr) (src *NameSource) {
-	defer func() {
-		if recover() != nil {
-			src = nil
+// path does not lead to a block in last's ancestry (uverse, a dropped
+// declaration, a path deeper than the chain).
+func nameSourceOf(last BlockNode, nx *NameExpr) *NameSource {
+	if nx.Path.Type != VPBlock || nx.Path.Depth == 0 {
+		return nil
+	}
+	// GetBlockNodeForPath walks Depth-1 parents (one more past a faux
+	// child); check the chain is long enough, it does not.
+	bn := last
+	for i := 1; i < int(nx.Path.Depth); i++ {
+		if fauxChildBlockNode(bn) {
+			if bn = bn.GetParentNode(nil); bn == nil {
+				return nil
+			}
 		}
-	}()
-	if nx.Path.Type != VPBlock {
-		return nil
+		if bn = bn.GetParentNode(nil); bn == nil {
+			return nil
+		}
 	}
-	bn := last.GetBlockNodeForPath(nil, nx.Path)
-	if bn == nil {
-		return nil
-	}
-	idx, ok := bn.GetLocalIndex(nx.Name)
-	sources := bn.GetStaticBlock().NameSources
-	if !ok || int(idx) >= len(sources) {
-		return nil
-	}
-	return &sources[idx]
+	bn = last.GetBlockNodeForPath(nil, nx.Path)
+	return nameSourceIn(bn, nx.Name)
 }
 
 // packageNameSourceOf returns how the member sx.Sel of the package sx.X
