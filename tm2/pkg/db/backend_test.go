@@ -244,9 +244,6 @@ func TestDBIteratorEmptyBounds(t *testing.T) {
 		t.Run(string(backend), func(t *testing.T) {
 			t.Parallel()
 
-			if backend == "lmdbdb" {
-				t.Skip("lmdbdb seeks an empty bound, which LMDB rejects with MDB_BAD_VALSIZE")
-			}
 			tdb := newTempDB(t, backend)
 			for i := range 3 {
 				require.NoError(t, tdb.Set(int642Bytes(int64(i)), nil))

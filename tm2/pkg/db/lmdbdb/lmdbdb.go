@@ -409,7 +409,7 @@ func newLMDBIterator(l *LMDB, start, end []byte, isReverse bool) (*lmdbIterator,
 		if end == nil {
 			itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, lmdb.Last)
 		} else {
-			itr.currentKey, itr.currentValue, err = cur.Get(end, nil, lmdb.SetRange)
+			itr.currentKey, itr.currentValue, err = cur.Get(nonEmptyKey(end), nil, lmdb.SetRange)
 			if lmdb.IsNotFound(err) {
 				// end is past all keys, go to last.
 				itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, lmdb.Last)
@@ -424,7 +424,7 @@ func newLMDBIterator(l *LMDB, start, end []byte, isReverse bool) (*lmdbIterator,
 		if start == nil {
 			itr.currentKey, itr.currentValue, err = cur.Get(nil, nil, lmdb.First)
 		} else {
-			itr.currentKey, itr.currentValue, err = cur.Get(start, nil, lmdb.SetRange)
+			itr.currentKey, itr.currentValue, err = cur.Get(nonEmptyKey(start), nil, lmdb.SetRange)
 		}
 	}
 

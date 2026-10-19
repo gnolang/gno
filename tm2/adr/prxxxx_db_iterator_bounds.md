@@ -53,6 +53,11 @@ or `*pebble.Snapshot`, so its `IterOptions` stay on the stack. Through the
 would heap-allocate its 192 bytes. `iteratorRange` returns its `util.Range` by
 value for the same reason: goleveldb copies the range.
 
+LMDB rejects an empty key with `MDB_BAD_VALSIZE`, and lmdbdb already stores
+the empty key under a `0x00` sentinel. Its iterators seek an empty bound
+through the same sentinel. Every stored key sorts at or after it, so an empty
+start reads every key and an empty end none, as on the other backends.
+
 ## Alternatives considered
 
 - One constructor taking a `pebble.Reader` for the four pebble iterators: a
@@ -94,9 +99,8 @@ and after.
   panics with `slice bounds out of range [3:1]`.
 - `TestPebbleEmptyEndYieldsNothing`: an iterator with an empty end starts
   invalid.
-- `TestDBIteratorEmptyBounds`: empty start and end bounds on every backend
-  except lmdbdb, which seeks an empty bound and gets `MDB_BAD_VALSIZE` from
-  LMDB, with or without this change.
+- `TestDBIteratorEmptyBounds`: empty start and end bounds on every backend.
+  Without the sentinel, lmdbdb fails it with `MDB_BAD_VALSIZE`.
 - `TestPebbleIteratorAllocatesOnlyItsWrapper`: each pebble iterator allocates
   at most one object more than pebble's own iterator over the same range. The
   test is excluded under `-race`, which drops `sync.Pool` items at random.
