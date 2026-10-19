@@ -276,8 +276,6 @@ func realmParamsNeedingGuard(params string) []string {
 	return names
 }
 
-// guardedRealmParams returns the realm-typed parameters of a func declaration
-// line.
 func guardedRealmParams(line string) []string {
 	m := funcSigRE.FindStringSubmatch(line)
 	if m == nil {

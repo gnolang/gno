@@ -152,57 +152,33 @@ func teller() *fnTeller {
 	}
 }
 
-func TestCurrentGuardExemptsCrossingMethodCur(t *testing.T) {
-	// The VM refuses a crossing method entered with anything but its caller's
-	// own cur, so its first cur is current by construction, as on a plain func.
-	const src = `package x
-
-type T struct{ n int }
-
-func (t *T) Mutate(cur realm) {
+func TestCurrentGuardExemptsLeadingCur(t *testing.T) {
+	// The VM enters a crossing function or method only with a cur that is
+	// current, so IsCurrent() on it cannot fail and the guard proves nothing.
+	for name, decl := range map[string]string{
+		"func":   "func Mutate(cur realm) {",
+		"method": "func (t *T) Mutate(cur realm) {",
+	} {
+		t.Run(name, func(t *testing.T) {
+			src := "package x\n\ntype T struct{ n int }\n\n" + decl + `
 	if cur.Previous().Address() != owner {
 		panic("owner only")
 	}
 }
 `
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
+				t.Fatal(err)
+			}
 
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	hits, err := RunRule("current_guard", dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(hits) != 0 {
-		t.Fatalf("crossing method first cur should be exempt: %+v", hits)
-	}
-}
-
-func TestCurrentGuardExemptsPlainFuncCur(t *testing.T) {
-	// A crossing function's first cur is current on entry, so IsCurrent()
-	// cannot fail and the guard would prove nothing.
-	const src = `package x
-
-func Mutate(cur realm) {
-	if cur.Previous().Address() != owner {
-		panic("owner only")
-	}
-}
-`
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "a.gno"), []byte(src), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	hits, err := RunRule("current_guard", dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(hits) != 0 {
-		t.Fatalf("plain func first cur should stay exempt: %+v", hits)
+			hits, err := RunRule("current_guard", dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(hits) != 0 {
+				t.Fatalf("first cur should be exempt: %+v", hits)
+			}
+		})
 	}
 }
 
