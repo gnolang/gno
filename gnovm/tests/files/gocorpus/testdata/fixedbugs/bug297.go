@@ -16,6 +16,6 @@ const (
 )
 
 // GnoError:
-// line 15: name X not defined in fileset with files [bug297.go]
+// line 15: name not defined: X
 
 // Verdict: Clean errorcheck

@@ -13,6 +13,7 @@ var m = map[string]int{
 }
 
 // GnoError:
-// line 9: cannot use untyped Bigint as StringKind
+// line 11: cannot use untyped Bigint as StringKind
+// line 12: cannot use untyped Bigint as StringKind
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11, 12; over-strict: lines 9
+// Verdict: KnownIssue errorcheck: #6344 on-chain path first error on line 9, not reported by accumulate mode

@@ -8,6 +8,6 @@ package p
 var x = undeclared // ERROR "undeclared|undefined|not declared"
 
 // GnoError:
-// line 8: name undeclared not defined in fileset with files [canary.go]
+// line 8: name not defined: undeclared
 
 // Verdict: Clean errorcheck
