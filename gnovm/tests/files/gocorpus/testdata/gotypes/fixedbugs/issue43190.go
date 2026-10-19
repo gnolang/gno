@@ -32,15 +32,14 @@ import _ "math"
 
 // GnoError:
 // line 10: missing import path
+// line 11: invalid import path (empty string)
 // line 13: missing import path
 // line 14: missing import path
 // line 15: import path must be a string
 // line 17: imports must appear before other declarations
 // line 21: missing import path
+// line 24: invalid import path (empty string)
 // line 25: missing import path
 // line 30: imports must appear before other declarations
 
-// ParseBlocked:
-// line 11: gc expects: invalid import path (empty string)
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 24

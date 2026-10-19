@@ -33,12 +33,12 @@ func main() {
 
 // GnoError:
 // line 10: invalid package name _
+// line 16: should not happen
+// line 25: cannot use _ as value or type
+// line 26: cannot use _ as value or type
+// line 31: gno.land/p/filetest/_.T is not comparable
 
-// ParseBlocked:
-// line 16: gc expects: methods on non-local type
-// line 25: gc expects: cannot use .* as value
-// line 26: gc expects: cannot use .* as value
-// line 28: gc expects: cannot refer to blank field|invalid use of|t._ undefined
-// line 31: gc expects: cannot be compared|non-comparable|cannot compare v1 == v2
+// GnoWordingDiffers:
+// line 31: gc expects: cannot be compared|non-comparable|cannot compare v1 == v2; gno: gno.land/p/filetest/_.T is not comparable
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 25, 26, 28, 31
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 28; internal errors: lines 16

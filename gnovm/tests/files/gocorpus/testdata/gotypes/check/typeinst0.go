@@ -58,19 +58,30 @@ type self1[P any] self1 /* ERROR "invalid recursive type" */ [P]
 type self2[P any] *self2[P] // this is ok
 
 // GnoError:
+// line 12: name P not defined in fileset with files [typeinst0.go]
+// line 14: name P not defined in fileset with files [typeinst0.go]
+// line 19: name P not defined in fileset with files [typeinst0.go]
+// line 23: should not happen
+// line 27: unexpected type declaration type *gnolang.IndexExpr
+// line 33: name not defined: x
 // line 35: expected type argument list
 // line 36: expected type argument list
 // line 39: expected type argument list
+// line 40: name not defined: x
 // line 41: invalid operation: more than one index
-
-// ParseBlocked:
-// line 12: gc expects: cannot use a type parameter as RHS in type declaration
-// line 23: gc expects: cannot use generic type
-// line 33: gc expects: not a type
-// line 40: gc expects: not a type
-// line 57: gc expects: invalid recursive type
+// line 43: unexpected index base kind for type type{}
+// line 45: unexpected index base kind for type type{}
+// line 46: unexpected index base kind for type type{}
+// line 47: unexpected index base kind for type type{}
+// line 51: unexpected type declaration type *gnolang.IndexExpr
+// line 57: unexpected type declaration type *gnolang.IndexExpr
+// line 58: name P not defined in fileset with files [typeinst0.go]
 
 // GnoWordingDiffers:
+// line 12: gc expects: cannot use a type parameter as RHS in type declaration; gno: name P not defined in fileset with files [typeinst0.go]
+// line 33: gc expects: not a type; gno: name not defined: x
+// line 40: gc expects: not a type; gno: name not defined: x
 // line 41: gc expects: too many type arguments for type T1: have 2, want 1; gno: invalid operation: more than one index
+// line 57: gc expects: invalid recursive type; gno: unexpected type declaration type *gnolang.IndexExpr
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12, 23, 33, 40, 57
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 23; over-strict: lines 14, 19, 27, 43, 45, 46, 47, 51, 58; internal errors: lines 23
