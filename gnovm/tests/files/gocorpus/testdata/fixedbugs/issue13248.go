@@ -13,6 +13,7 @@ func main() {
 } // ERROR "unexpected }|expected operand|missing"
 
 // GnoError:
+// line 12: name foo not declared
 // line 13: expected operand, found '}'
 
 // Verdict: Clean errorcheck
