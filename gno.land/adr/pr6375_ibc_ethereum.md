@@ -1334,8 +1334,9 @@ routes of the same realms are unaffected; a governance channel serves exactly on
     looks the same), but a later finalized state settles it: a receive is a **confirmed orphan** when the source's
     **permanently retained send record** for that sequence is absent (or holds a different packet) at an
     independently authenticated finalized source state whose timestamp has passed the packet's timeout, or whose
-    router `prevSequenceSends[sourceClient]` (the last allocated sequence) is at or past the receive's sequence
-    (immediately, for a record holding a different packet) — no honest send can appear after that. It need not reach the receive's referenced proof height, which the attacker chose.
+    router `prevSequenceSends[sourceClient]` (the last allocated sequence) is at or past the receive's sequence,
+    or at which the receive's named source client is **retired** on the Ethereum transfer app (immediately, for a
+    record holding a different packet or under a retired client) — no honest send can appear after that. It need not reach the receive's referenced proof height, which the attacker chose.
     A confirmed orphan is an integrity break by itself, flagged at once with the containment response below, not
     rewound past or deferred; before that state exists the receive is rewound past or the evaluation deferred, as
     below.
@@ -1744,6 +1745,14 @@ reconciliation.
       block. This is conclusive because a transfer send at an allocated sequence writes its `sendRecord` in the same
       transaction, and a sequence allocated to another app's packet on that client also means no transfer was sent
       at it;
+    - **absence under a retired client:** proves forgery at once, whatever the sequence counter or timeout says,
+      when at the pinned finalized state the client id the receive names is **retired** on the Ethereum transfer app
+      and its `sendRecord` at that sequence is absent. `retired[id]` is set only by `migrateRoute` (kind 10 or the
+      emergency recovery) and never cleared, transfer sends over a retired id are refused, and records are written
+      only on that send path, so only a governed kind 7 upgrade could change this. Read it with `isRetired(sourceClient)`
+      on the transfer proxy (`eth_call` at the pinned block), or `eth_getProof` of `GnoTransferStorage.retired[sourceClient]`
+      (ERC-7201 namespace `gno.storage.GnoICS20Transfer`, base + 10) at that block (gno-eth-ibc 076ae87). So a
+      route replacement ends any forged-receive hostage;
     - **absence, by timeout** (fallback): proves forgery once that finalized state's timestamp has reached the
       packet's timeout; a forged receive's timeout is attacker-chosen (the 24-hour ceiling binds sends only), so the
       sequence path above is the one that cannot be held hostage;
@@ -1781,7 +1790,8 @@ reconciliation.
   The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
   accepted by decision (§7.9), every suspect receive entitlement is resolved under the evidence rule above
   (finalized, independently authenticated Ethereum state; a mismatched record conclusive at once, an absence once
-  the router's `prevSequenceSends[sourceClient]` reaches the receive's sequence, or past the packet's timeout), each
+  the router's `prevSequenceSends[sourceClient]` reaches the receive's sequence or the named source client is retired
+  on the Ethereum transfer app, or past the packet's timeout), each
   loss booked and remedied on the chain that paid it out and any mirror on the
   other chain resolved by an accepted deficit only (Cross-chain loss ownership, above): on Ethereum the route stays closed after kind 10 or the emergency recovery,
   outcomes are applied by kind 12 and the route reopens by kind 13 (accepting every loss as a deficit); on gno.land
@@ -1941,7 +1951,8 @@ Further trust assumptions of the built controls, each stated where its rule is:
   incident, read off-chain by governance at an independently authenticated finalized block (never `latest`): a
   mismatched `sendRecord` is conclusive at once, an absence once the router's `prevSequenceSends[sourceClient]` (the last
   allocated sequence, read by `eth_getProof` of its `IBCStore` slot at the same block) is at or past the receive's
-  sequence, or once that state's timestamp reaches the packet's timeout (§7.12).
+  sequence, at once when the named source client is retired on the Ethereum transfer app (`isRetired`, or
+  `eth_getProof` of `retired[sourceClient]`), or once that state's timestamp reaches the packet's timeout (§7.12).
 - **Code pins** mean what they name only through the build verification (§7.6), run by the operators until the
   watch tool exists; a verifier of another type than `GnoLightClient` is checked by hand. Exclusive ownership of
   Ethereum roles needs an external audit of the AccessManager's `RoleGranted` log and of the function-role
@@ -2633,6 +2644,11 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   at the authenticated finalized block, and `prevSequenceSends[sourceClient] ≥ sequence` with no matching
   `sendRecord` proves the receive forged, since a transfer send writes its record in the same transaction and a
   sequence allocated to another app's packet carried no transfer (§7.11, §7.12, §8.1).
+- 2026-10-19, a fourth conclusive forgery path (gno-eth-ibc 076ae87): a receive naming a source client retired on the
+  Ethereum transfer app, with no `sendRecord` at its sequence, is forged at once (`retired[id]` set only by
+  `migrateRoute`, never cleared; sends over retired ids refused; records written only on that path), read by
+  `isRetired` or `eth_getProof` of `retired[sourceClient]` at the pinned block; a route replacement thus ends any
+  forged-receive hostage (§7.11, §7.12, §8.1).
 
 ## 15. References
 
