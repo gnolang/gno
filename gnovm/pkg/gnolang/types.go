@@ -2283,8 +2283,14 @@ func (invalidType) IsNamed() bool {
 
 // isInvalid reports whether t, or the base of a declared t, is invalidType.
 func isInvalid(t Type) bool {
-	_, ok := baseOf(t).(invalidType)
-	return ok
+	switch bt := baseOf(t).(type) {
+	case invalidType:
+		return true
+	case *PointerType: // a pointer to an invalid type says as little
+		_, ok := baseOf(bt.Elt).(invalidType) // one level: `type T *T` recurs
+		return ok
+	}
+	return false
 }
 
 // ----------------------------------------
