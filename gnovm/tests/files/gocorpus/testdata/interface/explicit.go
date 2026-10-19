@@ -120,8 +120,8 @@ var b2 B2 = &T2{}
 // line 84: main.Int does not implement main.M (wrong type for method M)
 // line 86: int does not implement main.M (missing method M)
 // line 87: main.Int does not implement main.M (wrong type for method M)
-// line 89: methods must have a unique non-blank name
-// line 93: methods must have a unique non-blank name
+// line 90: methods must have a unique non-blank name
+// line 95: methods must have a unique non-blank name
 
 // GnoWordingDiffers:
 // line 41: gc expects: need explicit|need type assertion; gno: cannot use interface {} as *main.T
@@ -129,4 +129,4 @@ var b2 B2 = &T2{}
 // line 53: gc expects: invalid|missing N method|cannot convert; gno: main.I does not implement main.I2 (missing method N)
 // line 87: gc expects: invalid|wrong type for M method|cannot convert; gno: main.Int does not implement main.M (wrong type for method M)
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 90, 95; over-strict: lines 89, 93
+// Verdict: Clean errorcheck

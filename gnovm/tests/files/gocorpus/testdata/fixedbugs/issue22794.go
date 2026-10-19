@@ -27,7 +27,5 @@ func main() {
 
 // GnoWordingDiffers:
 // line 16: gc expects: (type it .* field or method floats, but does have field Floats)|undefined field or method; gno: missing field floats in main.it
-// line 18: gc expects: cannot refer to unexported field floats in struct literal|unknown field|declared and not used; gno: struct type struct{Floats bool; inner string} has no field floats
-// line 19: gc expects: (but does have field inner)|unknown field; gno: struct type struct{Floats bool; inner string} has no field InneR
 
 // Verdict: Clean errorcheck

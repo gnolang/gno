@@ -59,7 +59,7 @@ type self2[P any] *self2[P] // this is ok
 
 // GnoError:
 // line 12: name P not defined in fileset with files [typeinst0.go]
-// line 14: name P not defined in fileset with files [typeinst0.go]
+// line 15: name P not defined in fileset with files [typeinst0.go]
 // line 19: name P not defined in fileset with files [typeinst0.go]
 // line 23: should not happen
 // line 27: unexpected type declaration type *gnolang.IndexExpr
@@ -69,10 +69,10 @@ type self2[P any] *self2[P] // this is ok
 // line 39: expected type argument list
 // line 40: name not defined: x
 // line 41: invalid operation: more than one index
-// line 43: unexpected index base kind for type type{}
-// line 45: unexpected index base kind for type type{}
-// line 46: unexpected index base kind for type type{}
-// line 47: unexpected index base kind for type type{}
+// line 43: invalid operation: cannot index typeval{gno.land/p/filetest/p.T2} (value of type type{})
+// line 45: invalid operation: cannot index typeval{gno.land/p/filetest/p.List} (value of type type{})
+// line 46: invalid operation: cannot index typeval{gno.land/p/filetest/p.List} (value of type type{})
+// line 47: invalid operation: cannot index typeval{gno.land/p/filetest/p.List} (value of type type{})
 // line 51: unexpected type declaration type *gnolang.IndexExpr
 // line 57: unexpected type declaration type *gnolang.IndexExpr
 // line 58: name P not defined in fileset with files [typeinst0.go]
@@ -84,4 +84,4 @@ type self2[P any] *self2[P] // this is ok
 // line 41: gc expects: too many type arguments for type T1: have 2, want 1; gno: invalid operation: more than one index
 // line 57: gc expects: invalid recursive type; gno: unexpected type declaration type *gnolang.IndexExpr
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 23; over-strict: lines 14, 19, 27, 43, 45, 46, 47, 51, 58; internal errors: lines 23
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 23; over-strict: lines 15, 19, 27, 43, 45, 46, 47, 51, 58; internal errors: lines 23
