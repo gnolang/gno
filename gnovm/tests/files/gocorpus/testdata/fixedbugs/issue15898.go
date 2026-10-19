@@ -18,7 +18,7 @@ func f(e interface{}) {
 }
 
 // GnoError:
-// line 10: duplicate type nil in type switch
-// line 14: duplicate type nil in type switch
+// line 11: duplicate case nil in type switch
+// line 16: duplicate case nil in type switch
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11, 16; over-strict: lines 10, 14
+// Verdict: Clean errorcheck

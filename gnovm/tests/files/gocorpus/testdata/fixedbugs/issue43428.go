@@ -25,6 +25,11 @@ var _ = []int{
 }
 
 // GnoError:
-// line 16: cannot use func(gno.land/p/filetest/p.T) as int
+// line 17: cannot use func(gno.land/p/filetest/p.T) as int
+// line 18: cannot use func(gno.land/p/filetest/p.T) as int
+// line 19: cannot use func(*gno.land/p/filetest/p.T) as int
+// line 21: cannot use func(time.Time) ([]uint8, .uverse.error) as int
+// line 22: cannot use func(time.Time) ([]uint8, .uverse.error) as int
+// line 23: cannot use func(*time.Time, []uint8) .uverse.error as int
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17, 18, 19, 21, 22, 23; over-strict: lines 16
+// Verdict: Clean errorcheck
