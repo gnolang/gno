@@ -30,7 +30,6 @@ func _() {
 // line 22: cannot type switch on non-interface value x (type int)
 
 // GnoWordingDiffers:
-// line 15: gc expects: x.m undefined (type int has no field or method m); gno: x.m undefined (type int has no field or method m)
 // line 22: gc expects: not an interface; gno: cannot type switch on non-interface value x (type int)
 
 // Verdict: Clean errorcheck
