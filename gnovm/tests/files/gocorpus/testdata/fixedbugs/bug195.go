@@ -32,5 +32,6 @@ type I6 interface {
 // line 14: invalid recursive type: S -> S
 // line 17: invalid recursive type: I4 -> I4
 // line 21: invalid recursive type: I5 -> I6 -> I5
+// line 22: interface contains embedded non-interface main.I6
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 22

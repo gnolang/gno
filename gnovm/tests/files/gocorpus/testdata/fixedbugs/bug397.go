@@ -15,4 +15,4 @@ var m = map[string]int{
 // GnoError:
 // line 12: cannot use untyped Bigint as StringKind
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 on-chain path first error on line 10, not reported by accumulate mode

@@ -31,4 +31,4 @@ var _ = P{
 // line 23: cannot use *gno.land/p/filetest/p.T as struct{}
 // line 27: cannot use struct{} as *gno.land/p/filetest/p.T
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 on-chain path first error on line 22, not reported by accumulate mode

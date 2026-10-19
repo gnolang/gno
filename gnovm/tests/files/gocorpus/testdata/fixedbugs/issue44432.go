@@ -16,4 +16,4 @@ var m = map[string]int{
 // line 11: cannot use untyped Bigint as StringKind
 // line 12: cannot use untyped Bigint as StringKind
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 on-chain path first error on line 9, not reported by accumulate mode

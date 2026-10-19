@@ -3465,18 +3465,23 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					if convert {
 						check = convertType
 					}
-					if acc == nil {
-						check(store, last, n, x, t)
-						return
-					}
 					defer func() {
-						if r := recover(); r != nil {
-							if isRuntimePanic(r) {
+						r := recover()
+						if r == nil {
+							return
+						}
+						if isRuntimePanic(r) {
+							panic(r)
+						}
+						if acc == nil {
+							switch r.(type) {
+							case *PreprocessError, *spanError: // positioned already
 								panic(r)
 							}
-							acc.record(wrapPreprocessPanic(stack, unconst(*x), r)) // a const keeps its source's span
-							*x = invalidConstExpr(*x)
+							panicAt(fmt.Sprint(r), unconst(*x)) // gc reports at the element
 						}
+						acc.record(wrapPreprocessPanic(stack, unconst(*x), r)) // a const keeps its source's span
+						*x = invalidConstExpr(*x)
 					}()
 					check(store, last, n, x, t)
 				}
