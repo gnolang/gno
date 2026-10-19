@@ -42,7 +42,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // mode (see PreprocessCollect) and returns every error found, in source
 // order of discovery. The nodes must not be executed afterwards.
 func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*PreprocessError {
-	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, referenced: map[Name]bool{}}
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{syntaxErrName: true}, referenced: map[Name]bool{}}
 	predefineFileSet(store, pn, fset, acc)
 	for _, fn := range fset.Files {
 		preprocess(store, pn, fn, acc)
@@ -1210,7 +1210,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 // must not be executed. The on-chain path uses Preprocess, which keeps
 // the first-error semantics, gas and error text unchanged.
 func PreprocessCollect(store Store, ctx BlockNode, n Node) (Node, []*PreprocessError) {
-	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, referenced: map[Name]bool{}}
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{syntaxErrName: true}, referenced: map[Name]bool{}}
 	nn := preprocess(store, ctx, n, acc)
 	return nn, acc.errs
 }
@@ -3006,7 +3006,11 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						// is handled in TRANS_COMPOSITE_KEY (*NameExpr).
 						seen := map[Name]bool{}
 						for i := range n.Elts {
-							key := n.Elts[i].Key.(*NameExpr).Name
+							kx, ok := n.Elts[i].Key.(*NameExpr)
+							if !ok {
+								failf(CodeStructFieldName, []Node{n.Elts[i].Key}, "invalid field name %s in struct literal", exprString(n.Elts[i].Key))
+							}
+							key := kx.Name
 							if seen[key] {
 								panic(fmt.Sprintf("duplicate field name %s in struct literal", key))
 							}

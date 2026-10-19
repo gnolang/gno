@@ -24,8 +24,9 @@ func f() {
 }
 
 // GnoError:
+// line 20: declared and not used: i
 // line 21: expression in defer must be function call
 // line 22: expression in go must be function call
 // line 23: expression in go must be function call
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 20

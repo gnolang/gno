@@ -16,10 +16,10 @@ func main() {
 }
 
 // GnoError:
-// line 11: illegal character U+003F '?'
+// line 11: expected 'IDENT', found 'ILLEGAL'
 // line 13: expected type, found 'var'
 
 // GnoWordingDiffers:
-// line 11: gc expects: invalid character U\+003F '\?'|invalid character 0x3f in input file; gno: illegal character U+003F '?'
+// line 11: gc expects: invalid character U\+003F '\?'|invalid character 0x3f in input file; gno: expected 'IDENT', found 'ILLEGAL'
 
 // Verdict: Clean errorcheck

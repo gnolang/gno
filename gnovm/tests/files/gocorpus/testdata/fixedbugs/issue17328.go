@@ -14,6 +14,6 @@ func main() {
 
 // GnoError:
 // line 11: expected '{', found ')'
-// line 13: expected '}', found 'EOF'
+// line 13: expected ';', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 13
+// Verdict: Clean errorcheck

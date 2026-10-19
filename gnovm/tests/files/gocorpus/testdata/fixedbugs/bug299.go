@@ -28,9 +28,4 @@ func (p (*T)) h() {}
 func (p (*(T))) i() {}
 func ((T),) j() {}
 
-// GnoError:
-// line 16: cannot parenthesize embedded type
-// line 17: cannot parenthesize embedded type
-// line 18: cannot parenthesize embedded type
-
-// Verdict: Clean errorcheck
+// Verdict: Unsupported complex-types: complex numbers not supported in Gno

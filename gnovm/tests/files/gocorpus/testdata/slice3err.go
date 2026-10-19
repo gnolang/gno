@@ -132,47 +132,45 @@ func f() {
 // line 35: final index required in 3-index slice
 // line 36: final index required in 3-index slice
 // line 37: middle index required in 3-index slice
+// line 38: middle index required in 3-index slice
+// line 46: middle index required in 3-index slice
+// line 47: middle index required in 3-index slice
+// line 48: final index required in 3-index slice
+// line 49: final index required in 3-index slice
+// line 50: middle index required in 3-index slice
+// line 51: middle index required in 3-index slice
+// line 52: invalid operation: 3-index slice of string
+// line 53: invalid operation: 3-index slice of string
+// line 57: invalid slice indices: 1 < 2
+// line 62: invalid slice indices: 2 < 3
+// line 63: invalid slice indices: 1 < 2
+// line 64: invalid slice indices: 1 < 3
+// line 65: invalid slice indices: 1 < 3
+// line 66: invalid slice indices: 2 < 3
+// line 68: invalid slice indices: 1 < 2
+// line 70: invalid slice indices: 1 < 2
+// line 72: invalid slice indices: 1 < 2
+// line 75: invalid slice indices: 1 < 2
+// line 80: invalid slice indices: 2 < 3
+// line 81: invalid slice indices: 1 < 2
+// line 82: invalid slice indices: 1 < 3
+// line 83: invalid slice indices: 1 < 3
+// line 84: invalid slice indices: 2 < 3
+// line 86: invalid slice indices: 1 < 2
+// line 88: invalid slice indices: 1 < 2
+// line 90: invalid slice indices: 1 < 2
+// line 93: invalid slice indices: 1 < 2
+// line 99: invalid argument: index 11 out of bounds [0:11]
+// line 100: invalid argument: index 11 out of bounds [0:11]
+// line 101: invalid argument: index 11 out of bounds [0:11]
+// line 102: invalid argument: index 11 out of bounds [0:11]
+// line 103: invalid argument: index 11 out of bounds [0:11]
+// line 104: invalid argument: index 11 out of bounds [0:11]
+// line 105: invalid argument: index 11 out of bounds [0:11]
+// line 106: invalid argument: index 11 out of bounds [0:11]
+// line 107: invalid argument: index 11 out of bounds [0:11]
+// line 108: invalid argument: index 11 out of bounds [0:11]
+// line 118: invalid slice indices: 3 < 11
+// line 119: invalid slice indices: 2 < 11
 
-// ParseBlocked:
-// line 38: gc expects: middle index required in 3-index slice|invalid slice indices
-// line 46: gc expects: 3-index slice of string | middle index required in 3-index slice | final index required in 3-index slice
-// line 47: gc expects: 3-index slice of string | middle index required in 3-index slice | final index required in 3-index slice
-// line 48: gc expects: 3-index slice of string | final index required in 3-index slice
-// line 49: gc expects: 3-index slice of string | final index required in 3-index slice
-// line 50: gc expects: 3-index slice of string | middle index required in 3-index slice
-// line 51: gc expects: 3-index slice of string | middle index required in 3-index slice
-// line 52: gc expects: 3-index slice of string
-// line 53: gc expects: 3-index slice of string
-// line 57: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 62: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 63: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 64: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 65: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 66: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 68: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 70: gc expects: invalid slice index|invalid slice indices
-// line 72: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 75: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 80: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 81: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 82: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 83: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 84: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 86: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 88: gc expects: invalid slice index|invalid slice indices
-// line 90: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 93: gc expects: invalid slice index|invalid slice indices|inverted slice
-// line 99: gc expects: out of bounds
-// line 100: gc expects: out of bounds
-// line 101: gc expects: out of bounds
-// line 102: gc expects: out of bounds
-// line 103: gc expects: out of bounds
-// line 104: gc expects: out of bounds
-// line 105: gc expects: out of bounds
-// line 106: gc expects: out of bounds|invalid slice index
-// line 107: gc expects: out of bounds|inverted slice|invalid slice index
-// line 108: gc expects: out of bounds
-// line 118: gc expects: invalid slice index|invalid slice indices
-// line 119: gc expects: invalid slice index|invalid slice indices|inverted slice
-
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 38, 46, 47, 48, 49, 50, 51, 52, 53, 57, 62, 63, 64, 65, 66, 68, 70, 72, 75, 80, 81, 82, 83, 84, 86, 88, 90, 93, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 118, 119
+// Verdict: Clean errorcheck

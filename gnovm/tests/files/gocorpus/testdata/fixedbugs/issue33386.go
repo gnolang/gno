@@ -34,9 +34,4 @@ func _() {
 // line 22: expected operand, found '}'
 // line 29: expected ';', found 'EOF'
 
-// ParseBlocked:
-// line 26: gc expects: expected expression|expected operand
-// line 27: gc expects: expected expression|expected operand|undefined name
-// line 28: gc expects: expected expression|expected operand
-
 // Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 26, 27, 28; over-strict: lines 20, 29
