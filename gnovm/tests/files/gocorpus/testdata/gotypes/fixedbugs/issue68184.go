@@ -38,11 +38,11 @@ func _() {
 }
 
 // GnoError:
-// line 35: missing field B2 in gno.land/p/filetest/p.VeryLongStruct
+// line 35: x.B2 undefined (type gno.land/p/filetest/p.VeryLongStruct has no field or method B2)
 // line 37: unknown field B2 in struct literal of type gno.land/p/filetest/p.VeryLongStruct
 
 // GnoWordingDiffers:
-// line 35: gc expects: x.B2 undefined (type VeryLongStruct has no field or method B2); gno: missing field B2 in gno.land/p/filetest/p.VeryLongStruct
+// line 35: gc expects: x.B2 undefined (type VeryLongStruct has no field or method B2); gno: x.B2 undefined (type gno.land/p/filetest/p.VeryLongStruct has no field or method B2)
 // line 37: gc expects: unknown field B2 in struct literal of type VeryLongStruct; gno: unknown field B2 in struct literal of type gno.land/p/filetest/p.VeryLongStruct
 
 // Verdict: Clean errorcheck
