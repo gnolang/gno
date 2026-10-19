@@ -858,8 +858,12 @@ func (acc *preprocessAccumulator) dropDecl(pe *PreprocessError, fn BlockNode, d 
 		if idx, ok := sb.GetLocalIndex(d.Name); ok {
 			if dt, ok := sb.Types[idx].(*DeclaredType); ok && !dt.sealed {
 				dt.Base = invalidType{}
-			} else if sb.Types[idx] == nil {
-				defineInvalid(sb, d.Name)
+			} else if tv, ok := sb.Block.Values[idx].V.(TypeValue); !ok || tv.Type == nil {
+				// a type slot never filled (an alias that failed to
+				// define): a type value, so a receiver or a field of
+				// it evaluates to invalidType instead of crashing.
+				sb.Types[idx] = gTypeType
+				sb.Block.Values[idx] = asValue(invalidType{})
 			}
 		}
 	default:
@@ -1123,6 +1127,9 @@ func isTypeField(ftype TransField) bool {
 // markReferenced notes every name a dropped node mentions: a use the walk
 // never sees, so the unused-name rules stay quiet about it.
 func (acc *preprocessAccumulator) markReferenced(n Node) {
+	if acc.referenced == nil {
+		acc.referenced = map[Name]bool{}
+	}
 	Transcribe(n, func(_ []Node, _ TransField, _ int, sn Node, stage TransStage) (Node, TransCtrl) {
 		if nx, ok := sn.(*NameExpr); ok && stage == TRANS_ENTER {
 			acc.referenced[nx.Name] = true
