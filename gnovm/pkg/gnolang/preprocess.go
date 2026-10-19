@@ -1061,6 +1061,7 @@ func (acc *preprocessAccumulator) record(pe *PreprocessError) {
 // uses are typed and checked; a name out of reach is poisoned instead,
 // so a suppressed cascade still covers what it declares.
 func (acc *preprocessAccumulator) dropStmt(pe *PreprocessError, n Node, last BlockNode) {
+	n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // later rules skip what it declares
 	for _, name := range declaredNamesOf(n) {
 		if !defineInvalid(last.GetStaticBlock(), name) {
 			acc.poisoned[name] = true
