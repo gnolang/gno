@@ -130,6 +130,7 @@ const (
 	ATTR_PREPROCESS_SKIPPED    GnoAttribute = "ATTR_PREPROCESS_SKIPPED"
 	ATTR_PREPROCESS_INCOMPLETE GnoAttribute = "ATTR_PREPROCESS_INCOMPLETE"
 	ATTR_PREDEFINED            GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_PREPROCESS_DROPPED    GnoAttribute = "ATTR_PREPROCESS_DROPPED" // accumulate mode: declaration or statement dropped.
 	ATTR_TYPE_VALUE            GnoAttribute = "ATTR_TYPE_VALUE"
 	ATTR_TYPEOF_VALUE          GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_IOTA                  GnoAttribute = "ATTR_IOTA"

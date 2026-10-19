@@ -31,8 +31,10 @@ package gnolang
 */
 
 import (
+	stderrors "errors"
 	"fmt"
 	"go/ast"
+	goscanner "go/scanner"
 	"go/token"
 	"os"
 	"reflect"
@@ -193,6 +195,78 @@ func newParserCallback(m *Machine) parser.ParserCallback {
 	return func(tok token.Token, nestLev int) {
 		m.GasMeter.ConsumeGas(types.Gas(tokenCostFactor+nestLev*nestingCostFactor), "parsing")
 	}
+}
+
+// syntaxErrName stands in for a node go/parser could not parse (its
+// ast.Bad* placeholders). Not a Go identifier, so no program declares it;
+// accumulate mode poisons it, so the statement holding it drops silently
+// behind the parser's own error for that line. A dropped declaration
+// becomes `var _ = !syntax`: the blank name never clashes or cycles.
+const syntaxErrName Name = "!syntax"
+
+// ParseFileCollect is ParseFile for accumulate mode: every syntax and
+// declaration error go/parser reports (AllErrors) comes back located, and
+// the partial AST still becomes a FileNode, each unparsed node a statement
+// that drops at preprocess. fn is nil only when the source has no package
+// clause or Go2Gno cannot take the partial AST; on chain ParseFile still
+// rejects the file at its first error.
+func (m *Machine) ParseFileCollect(fname, body string) (fn *FileNode, errs []error) {
+	fs := token.NewFileSet()
+	const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.AllErrors
+	astf, err := parser.ParseFile2(fs, fname, body, parseOpts, newParserCallback(m))
+	if err != nil {
+		var list goscanner.ErrorList
+		if stderrors.As(err, &list) {
+			for _, e := range list {
+				errs = append(errs, e)
+			}
+		} else {
+			errs = append(errs, err)
+		}
+	}
+	if astf == nil || astf.Name == nil || astf.Name.Name == "" {
+		return nil, errs
+	}
+	// Declaration by declaration, as Go2Gno's *ast.File case does, so a
+	// declaration Go2Gno refuses (a method with two receivers, a generic
+	// index list) drops with its positioned error instead of the file.
+	fn = &FileNode{FileName: fname, PkgName: Name(astf.Name.Name)}
+	for _, d := range astf.Decls {
+		ds, err := go2gnoDecl(fs, d, astf.Comments)
+		if err != nil {
+			errs = append(errs, err)
+			bad := &ValueDecl{NameExprs: NameExprs{*Nx("_")}, Values: Exprs{Nx(syntaxErrName)}}
+			setSpan(fs, d, bad)
+			fn.Decls = append(fn.Decls, bad)
+			continue
+		}
+		fn.Decls = append(fn.Decls, ds...)
+	}
+	setSpan(fs, astf, fn)
+	return fn, errs
+}
+
+// go2gnoDecl converts one declaration, turning a conversion panic into a
+// located error (Go2Gno's own errors carry the position; others get the
+// declaration's).
+func go2gnoDecl(fs *token.FileSet, d ast.Decl, comments []*ast.CommentGroup) (ds []Decl, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg := fmt.Sprint(r)
+			if rerr, ok := r.(error); ok {
+				msg = rerr.Error()
+			}
+			pos := fs.Position(d.Pos())
+			if !strings.HasPrefix(msg, pos.Filename+":") {
+				msg = fmt.Sprintf("%s:%d:%d: %s", pos.Filename, pos.Line, pos.Column, msg)
+			}
+			ds, err = nil, stderrors.New(msg)
+		}
+	}()
+	if gd, ok := d.(*ast.GenDecl); ok {
+		return toDecls(fs, gd), nil
+	}
+	return []Decl{toDecl(fs, d, comments)}, nil
 }
 
 // ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
@@ -704,6 +778,12 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 		}
 	case *ast.EmptyStmt:
 		return &EmptyStmt{}
+	case *ast.BadExpr:
+		return Nx(syntaxErrName)
+	case *ast.BadStmt:
+		return &ExprStmt{X: Nx(syntaxErrName)}
+	case *ast.BadDecl:
+		return &ValueDecl{NameExprs: NameExprs{*Nx("_")}, Values: Exprs{Nx(syntaxErrName)}}
 	case *ast.IndexListExpr:
 		if len(gon.Indices) > 1 {
 			panicWithPos("invalid operation: more than one index")
@@ -951,9 +1031,11 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
-			path, err := strconv.Unquote(s.Path.Value)
-			if err != nil {
-				panic("unexpected import spec path type")
+			// A missing or malformed path is a parse error; the empty path
+			// lets the preprocessor reject the import at its own position.
+			path := ""
+			if s.Path != nil {
+				path, _ = strconv.Unquote(s.Path.Value)
 			}
 			im := &ImportDecl{
 				NameExpr: *Nx(toName(s.Name)),
