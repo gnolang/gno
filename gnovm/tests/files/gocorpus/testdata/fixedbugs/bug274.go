@@ -33,4 +33,4 @@ func main() {
 // GnoError:
 // line 24: expected statement, found 'case'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 23, 25; over-strict: lines 24
+// Verdict: KnownDivergence errorcheck: syntax error positions follow go/parser, not gc (docs/resources/go-gno-compatibility.md): a label before `case` is reported at the `case` line, not the label line
