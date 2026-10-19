@@ -40,4 +40,12 @@ var _ = map[Key]string{
 	Key{1, 2}: "world",
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 21, 22, 23, 24, 25, 26; on-chain path first error on line 21, not reported by accumulate mode
+// GnoError:
+// line 21: mixed keyed and unkeyed elements
+// line 22: duplicate field name Y in struct literal
+// line 23: too many values in struct literal of type main.T
+// line 24: index 5 is out of bounds (>= 5)
+// line 25: slice/array literals may not contain non-const keys
+// line 26: duplicate index 1 in array or slice literal
+
+// Verdict: Clean errorcheck

@@ -14,4 +14,7 @@ func f(x interface{}) {
 	}
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13
+// GnoError:
+// line 13: declared and not used: t
+
+// Verdict: Clean errorcheck

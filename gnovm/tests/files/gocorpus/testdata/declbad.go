@@ -68,12 +68,12 @@ func main() {
 
 // GnoError:
 // line 20: no new variables on left side of :=
-// line 26: StaticBlock.Define2(f) cannot change .T; was int, new float32
-// line 32: StaticBlock.Define2(i) cannot change .T; was float32, new int
+// line 26: cannot use float32 as int
+// line 32: cannot use int as float32
 // line 38: no new variables on left side of :=
 // line 44: no new variables on left side of :=
 // line 52: no new variables on left side of :=
 // line 58: no new variables on left side of :=
 // line 64: no new variables on left side of :=
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 26, 32; internal errors: lines 26, 32
+// Verdict: Clean errorcheck

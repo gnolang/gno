@@ -982,16 +982,23 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					names = append(names, *Nx(toName(id)))
 				}
 
-				// Inherit the last type when
-				// both type and value are nil
+				// Inherit the last type when both type and value are
+				// nil; a type travels with its expression list, so a
+				// typed spec without values sets nothing.
 				if s.Type == nil && s.Values == nil {
 					tipe = lastType
 				} else {
 					tipe = toExpr(fs, s.Type)
-					lastType = tipe
+					if s.Values != nil {
+						lastType = tipe
+					}
 				}
 
-				if s.Values == nil {
+				if s.Values == nil && s.Type != nil {
+					// A type without values repeats nothing: rejected at
+					// preprocess as a missing init expr.
+					values = nil
+				} else if s.Values == nil {
 					// Does not work unless len(s.Names) == len(lastValues)
 					if len(s.Names) != len(lastValues) {
 						lastValues = nil
