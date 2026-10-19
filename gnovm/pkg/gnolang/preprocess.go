@@ -5589,6 +5589,12 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					lt := evalStaticTypeOf(store, last, bx.Left)
 					rt := evalStaticTypeOf(store, last, bx.Right)
 					if t != nil {
+						// An interface target gives the whole expression
+						// its default type, which both operands take (the
+						// shift in `1.0 + 1<<s` is then a float64 shift).
+						if t.Kind() == InterfaceKind {
+							t = defaultTypeOf(xt)
+						}
 						// push t into bx.Left and bx.Right
 						checkOrConvertType(store, last, n, &bx.Left, t)
 						checkOrConvertType(store, last, n, &bx.Right, t)

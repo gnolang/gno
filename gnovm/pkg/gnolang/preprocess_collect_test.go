@@ -707,6 +707,23 @@ func main() {
 	}
 }
 
+func TestPreprocessCollectShiftInInterface(t *testing.T) {
+	// An untyped expression passed to an interface takes its default type
+	// as a whole, so the shift's operand in `1.0 + 1<<s` is a float64.
+	msgs := collectErrors(t, `package main
+
+func main() {
+	var s uint
+	var i any = 1 + 1<<s
+	println(1 + 1<<s, i)
+	println(1.0 + 1<<s)
+}
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "operator << not defined on") {
+		t.Fatalf("got %v", msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main
