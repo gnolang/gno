@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/markdown/sanitize/v0"
 )
 
-func TestSetMessageRequiresLiveAdmin(cur realm, t *testing.T) {
+func TestSetMessageRequiresAdmin(cur realm, t *testing.T) {
 	// cross(cur) at the call site performs the realm crossing: PreviousRealm
 	// inside SetMessage becomes the UserRealm set just above, so assertAdmin
 	// can verify the caller's address.
@@ -23,6 +23,26 @@ func TestSetMessageRequiresLiveAdmin(cur realm, t *testing.T) {
 	}
 	if Message() != "hello" {
 		t.Fatalf("non-admin caller changed message")
+	}
+}
+
+func TestTransferAdminRejectsInvalidAddress(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewUserRealm(admin))
+	before := Admin()
+	if rec := revive(func() { TransferAdmin(cross(cur), address("**[x](https://evil.example)**")) }); rec == nil {
+		t.Fatalf("expected an invalid address to panic")
+	}
+	if Admin() != before {
+		t.Fatalf("admin changed after a rejected transfer")
+	}
+}
+
+// TestRenderTeachesNoGuardOnOwnCur keeps the page from presenting a check on
+// the function's own cur as a defense: the VM enters a crossing function only
+// with a cur that is current, so cur.IsCurrent() there is always true.
+func TestRenderTeachesNoGuardOnOwnCur(t *testing.T) {
+	if out := Render(""); strings.Contains(out, "cur.IsCurrent()") {
+		t.Fatalf("page presents cur.IsCurrent() as a defense: %s", out)
 	}
 }
 
