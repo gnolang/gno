@@ -3812,7 +3812,7 @@ func defineOrDecl(
 		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but 0 value(s)", numNames))
 	}
 	if isConst && numVals == 0 && numNames > 0 {
-		panic("missing init expr for const declaration")
+		panic(fmt.Sprintf("missing init expr for %s", nameExprs[0].Name))
 	}
 
 	sts := make([]Type, numNames) // static types

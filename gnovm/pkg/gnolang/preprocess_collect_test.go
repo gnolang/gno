@@ -468,7 +468,7 @@ func main() {}
 `)
 	want := []string{
 		"can only use ... with final parameter in list",
-		"missing init expr for const declaration",
+		"missing init expr for B",
 		"cannot use float32 as int",
 		"too few values in struct literal of type main.S",
 		"too many values in struct literal of type main.S",
@@ -626,5 +626,21 @@ func main() {
 	m.RunMain()
 	if got, want := buf.String(), "3 2\n5 3\n1 true\n"; got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestConstSpecTypeWithoutValues(t *testing.T) {
+	// A typed spec without values repeats nothing and does not become the
+	// type the next untyped spec inherits.
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn := m.MustParseFile("main.gno", "package main\n\nconst (\n\tA int = 1\n\tB byte\n\tC\n)\n")
+	c := fn.Decls[2].(*ValueDecl)
+	if tx, ok := c.Type.(*NameExpr); !ok || tx.Name != "int" || len(c.Values) != 1 {
+		t.Fatalf("C: type %v values %v", c.Type, c.Values)
+	}
+	msgs := collectErrors(t, "package main\n\nconst (\n\tA int = 1\n\tB byte\n\tC\n)\n\nvar _ int = C\n")
+	if len(msgs) != 1 || msgs[0] != "missing init expr for B" {
+		t.Fatalf("unexpected: %v", msgs)
 	}
 }
