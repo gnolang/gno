@@ -107,9 +107,6 @@ func init() {
 	}
 }
 
-
-// Fixing: PR #5599 (slice-to-array conversion); candidate, unverified.
-
 // GnoOutput:
 
 // GnoError:
@@ -117,4 +114,4 @@ func init() {
 
 // GoOutput:
 
-// Verdict: KnownIssue run: #5599 slice-to-array-pointer conversion is rejected
+// Verdict: KnownIssue run: #3501 slice-to-array-pointer conversion is rejected; fix in #5599

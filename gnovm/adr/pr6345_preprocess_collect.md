@@ -44,3 +44,15 @@ executed.
 - Suppression is heuristic (by name); a rule that reports a dropped
   name under another spelling shows up as noise and gets added to
   `reUndeclaredName`.
+
+## Limits
+
+- Poison is by bare name, package-wide, not by scope: in
+  `func a() { x := "s" + 1 }; func b() { println(x) }` the genuine
+  `name x not declared` in `b` is suppressed by the drop in `a`.
+- A dropped declaration can leave partial state: `type T struct{ X Undef }`
+  is dropped but `T` exists as an empty struct, so a method body's `t.X`
+  reports `missing field X in main.T`, which no name poison covers.
+- Dependency attribution (one error, at the dependency) needs the file-set
+  index, i.e. `PreprocessFilesCollect`; `PreprocessCollect` on a lone file
+  node may report a dropped dependency at each dependent too.
