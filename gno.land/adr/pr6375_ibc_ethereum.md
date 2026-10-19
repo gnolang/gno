@@ -1150,7 +1150,10 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   6. **clear the `refunds` flags** before a refund-paying reconciliation (a refund-paying kind 12 stays pending
      under them), keeping the route flags so receives and escrowed sends stay contained;
   7. **reconcile** what ran meanwhile (kind 12, on the records of the client a kind 10 or recovery retired) where
-     outcomes were touched, and lift the route flags once the live code verifies again.
+     outcomes were touched, and lift the route flags once the live code verifies again. Kind 12 settles only a
+     retired client's records, so after a **transfer-implementation failure** repaired by kind 7 the reconciliation
+     needs its own replacement: enrol a target client (kind 6 op 1) → a kind 10 with a `suspectFrom` boundary
+     covering the fault → the replacement's preparation → kinds 12 and 13.
 - **Single point of failure.** If the GnoLightClient can no longer follow gno.land, or a forgery has pushed it past
   honest heights, the governance channel stops and GovDAO's cancellations are not provable on Ethereum. See §7.12
   for the recovery that does not depend on the channel. Refunds already queued or parked stay claimable after a
@@ -2116,6 +2119,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | R10 | **A lost governance channel without the emergency path** strands the Ethereum side's backing (§7.12), except where a suitable repair was already recorded before the failure (a kind 6 with trusted history, or a kind 10 to an enrolled healthy target) | None after deployment: enabling the emergency path is a pre-deployment decision (no later governed enablement) |
 | R11 | **Token issuers' powers** (seize, burn, rebase, upgrade) are trusted for enrolled tokens | Governance vets each token before its first limits |
 | R12 | **Ethereum keeps no cap on unacknowledged epoch advances** | gno.land catches up in prefixes (project-owner decision) |
+| R13 | **A defective executor hand-over path (Ethereum):** kind 9 is recorded and executed by the installed executor, so a defect in its hand-over path strands Ethereum governance (no later executor can be installed) | Each executor release's kind 9 hand-over is exercised in its test suite and on a test deployment before approval; build verification proves only code identity, not that the hand-over works |
 
 ## 9. Parameters
 
@@ -2649,6 +2653,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   `migrateRoute`, never cleared; sends over retired ids refused; records written only on that path), read by
   `isRetired` or `eth_getProof` of `retired[sourceClient]` at the pinned block; a route replacement thus ends any
   forged-receive hostage (§7.11, §7.12, §8.1).
+- 2026-10-19, from the Ethereum design review: residual R13, a defective kind 9 hand-over path in the installed
+  executor strands Ethereum governance, mitigated by exercising each release's hand-over in tests and on a test
+  deployment before approval (§8.5); after a transfer-implementation failure repaired by kind 7, reconciliation
+  needs enrol target → kind 10 with a covering boundary → preparation → kinds 12 and 13 (§7.6).
 
 ## 15. References
 
