@@ -23,4 +23,4 @@ func _() {
 // GnoError:
 // line 13: expected boolean expression, found assignment (missing parentheses around composite literal?)
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 16, 19
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 19

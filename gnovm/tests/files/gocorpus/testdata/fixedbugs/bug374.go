@@ -23,4 +23,4 @@ func (T) m(buf []byte) (a int, b xxxx) {  // ERROR "xxxx"
 // line 16: gno.land/p/filetest/foo.T does not implement gno.land/p/filetest/foo.I (missing method m)
 // line 18: name xxxx not defined in fileset with files [bug374.go]
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 16
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 16

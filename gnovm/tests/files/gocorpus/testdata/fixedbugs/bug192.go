@@ -12,4 +12,4 @@ var _ = fmt.Println // avoid imported and not used error
 
 var fmt int	// ERROR "redecl|redefinition|fmt already declared"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13

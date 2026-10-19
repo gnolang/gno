@@ -24,9 +24,6 @@ func main() {
 	}
 }
 
-
-// Fixing: WIP fix/issue15039 (int→string totality); no PR yet.
-
 // GnoOutput:
 
 // GnoError:

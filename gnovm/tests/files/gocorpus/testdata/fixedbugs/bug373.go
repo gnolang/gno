@@ -32,6 +32,6 @@ func h(x interface{}) {
 }
 
 // GnoError:
-// line 12: declared and not used: t
+// line 12: t declared and not used
 
 // Verdict: Clean errorcheck

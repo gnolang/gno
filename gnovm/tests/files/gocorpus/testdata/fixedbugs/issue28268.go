@@ -30,9 +30,9 @@ func _() {
 }
 
 // GnoError:
-// line 19: type T has both field and method named b
-// line 20: type T has both field and method named E
+// line 19: field and method with the same name b
+// line 20: field and method with the same name E
 // line 26: unexpected func type int (gnolang.PrimitiveType)
 // line 29: unexpected func type gno.land/p/filetest/p.E (*gnolang.DeclaredType)
 
-// Verdict: KnownIssue errorcheck: #6344; over-strict: lines 26, 29
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 26, 29

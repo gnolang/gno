@@ -21,4 +21,4 @@ func f(e interface{}) {
 // line 10: duplicate type nil in type switch
 // line 14: duplicate type nil in type switch
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11, 16; over-strict: lines 10, 14

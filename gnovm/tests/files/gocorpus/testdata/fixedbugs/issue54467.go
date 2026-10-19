@@ -32,4 +32,4 @@ func main() {
 
 // GoOutput:
 
-// Verdict: KnownIssue run: #5599 slice-to-array-pointer conversion is rejected
+// Verdict: KnownIssue run: #3501 slice-to-array-pointer conversion is rejected; fix in #5599

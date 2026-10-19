@@ -430,7 +430,7 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with isImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if err := idt.checkImplementedBy(preprocessGasMeterOf(store), xt); err == nil {
+			} else if err := idt.checkImplementedByStatic(preprocessGasMeterOf(store), xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {

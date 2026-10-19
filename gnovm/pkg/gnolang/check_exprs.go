@@ -98,20 +98,17 @@ func constIndex(x Expr) (int64, bool) {
 	return 0, false
 }
 
-// assertConstIndex checks a constant index against a known length.
+// assertConstIndex checks a constant index against a known length. A
+// negative constant was already refused by checkOrConvertIndexKind.
 func assertConstIndex(index Expr, length int64) {
-	if i, ok := constIndex(index); ok {
-		if i < 0 {
-			panic(fmt.Sprintf("invalid argument: index %d (constant of type int) must not be negative", i))
-		}
-		if length >= 0 && i >= length {
-			panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", i, length))
-		}
+	if i, ok := constIndex(index); ok && length >= 0 && i >= length {
+		panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", i, length))
 	}
 }
 
 // assertConstSliceBounds checks constant slice indices: ordered, and
 // within the length when it is known (an index may equal the length).
+// Negative constants were already refused by checkOrConvertIndexKind.
 func assertConstSliceBounds(n *SliceExpr, length int64) {
 	prev := int64(-1)
 	for _, ix := range []Expr{n.Low, n.High, n.Max} {
@@ -121,9 +118,6 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 		i, ok := constIndex(ix)
 		if !ok {
 			continue
-		}
-		if i < 0 {
-			panic(fmt.Sprintf("invalid argument: index %d (constant of type int) must not be negative", i))
 		}
 		if length >= 0 && i > length {
 			panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", i, length+1))
@@ -135,9 +129,10 @@ func assertConstSliceBounds(n *SliceExpr, length int64) {
 	}
 }
 
-// assertUniqueLiteralIndices rejects a repeated constant index in an array
-// or slice literal; elements without a key take the next index.
-func assertUniqueLiteralIndices(gm store.GasMeter, n *CompositeLitExpr) {
+// assertLiteralIndices rejects a repeated constant index in an array or
+// slice literal, and one at or past length when it is known (-1 for a
+// slice); elements without a key take the next index. Charged per element.
+func assertLiteralIndices(gm store.GasMeter, n *CompositeLitExpr, length int64) {
 	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
 	seen := map[int64]bool{}
 	next := int64(0)
@@ -149,6 +144,11 @@ func assertUniqueLiteralIndices(gm store.GasMeter, n *CompositeLitExpr) {
 				continue
 			}
 			idx = i
+			if length >= 0 && idx >= length {
+				panic(fmt.Sprintf("invalid argument: index %d out of bounds [0:%d]", idx, length))
+			}
+		} else if length >= 0 && idx >= length {
+			panic(fmt.Sprintf("index %d is out of bounds (>= %d)", idx, length))
 		}
 		if seen[idx] {
 			panic(fmt.Sprintf("duplicate index %d in array or slice literal", idx))
@@ -250,14 +250,17 @@ func isFuncDeclName(last BlockNode, nx *NameExpr) bool {
 	return ok && int(idx) < len(sources) && sources[idx].Type == NSFuncDecl
 }
 
-// inFunction reports whether bn is inside a function declaration or
-// literal.
-func inFunction(bn BlockNode) bool {
-	for ; bn != nil; bn = bn.GetParentNode(nil) {
-		switch bn.(type) {
-		case *FuncDecl, *FuncLitExpr:
-			return true
-		}
+// assertSwitchTag checks an expression switch's tag: comparable, or a
+// slice, map or func, which the clauses may compare to nil only.
+func assertSwitchTag(t Type) {
+	if t == nil {
+		return
 	}
-	return false
+	switch baseOf(t).(type) {
+	case *SliceType, *FuncType, *MapType:
+		return
+	}
+	if !isComparable(t) {
+		panic(fmt.Sprintf("cannot switch on %v (%v is not comparable)", t, t))
+	}
 }

@@ -21,9 +21,6 @@ func main() {
 	_ = string(z)
 }
 
-
-// Fixed: master PR #5780 (5d7ec8679); verified clean, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 
 // GoOutput:

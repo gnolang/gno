@@ -29,9 +29,6 @@ var list = []func(){
 	},
 }
 
-
-// Fixed: master PR #5764 (98f4db57c); verified 1/2/3 output, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 // 1
 // 2

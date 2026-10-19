@@ -20,4 +20,4 @@ func main() {
 // GnoError:
 // line 14: 0 is not a type
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16

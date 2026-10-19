@@ -1,6 +1,8 @@
 package gnolang
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -173,20 +175,128 @@ L2:
 
 func main() { f() }
 `)
-	want := []string{"declared and not used: x", "declared and not used: y", "label L2 defined and not used", "declared and not used: t"}
-	for _, w := range want {
-		found := false
-		for _, m := range msgs {
-			if strings.Contains(m, w) {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("missing %q in %v", w, msgs)
+	// Source order, as gc reports them; the guard variable in gc's spelling.
+	want := []string{"declared and not used: x", "declared and not used: y", "label L2 defined and not used", "t declared and not used"}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.HasSuffix(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q (all: %v)", i, w, msgs[i], msgs)
 		}
 	}
+}
+
+func TestPreprocessCollectUnusedOrder(t *testing.T) {
+	// Reported in source order whatever the block nesting: the inner x
+	// before the outer y, the labels where they stand. Checked many times
+	// in one process so no map order can reach the text or the first error.
+	src := `package main
+
+func main() {
+L1:
+	for {
+		break
+	}
+	if true {
+		x := 1
+	}
+L2:
+	for {
+		break
+	}
+	y := 2
+L3:
+	for {
+		break
+	}
+}
+`
+	want := "label L1 defined and not used|declared and not used: x|label L2 defined and not used|declared and not used: y|label L3 defined and not used"
+	for i := 0; i < 100; i++ {
+		if got := strings.Join(collectErrors(t, src), "|"); got != want {
+			t.Fatalf("iteration %d:\n got %s\nwant %s", i, got, want)
+		}
+	}
+	// The on-chain path panics with the first one.
+	for i := 0; i < 100; i++ {
+		m := NewMachine("main", nil)
+		fn, err := m.ParseFile("main.gno", src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("main", "main", fset)
+		got := func() (s string) {
+			defer func() { s = fmt.Sprint(recover()) }()
+			PredefineFileSet(m.Store, pn, fset)
+			Preprocess(m.Store, pn, fn)
+			return "no error"
+		}()
+		m.Release()
+		if !strings.Contains(got, "main.gno:5:2-7:3: label L1 defined and not used") {
+			t.Fatalf("iteration %d: first error %q", i, got)
+		}
+	}
+}
+
+func TestPreprocessCollectUnusedFuncLit(t *testing.T) {
+	// A package-level function literal has no FuncDecl; its body and its
+	// nested literals are checked once.
+	msgs := collectErrors(t, `package main
+
+var f = func() {
+	q := 1
+	g := func() {
+		r := 2
+	}
+	g()
+}
+
+var _ = func() int {
+L:
+	s := 3
+	return 0
+}()
+
+func main() { f() }
+`)
+	want := []string{"declared and not used: q", "declared and not used: r", "label L defined and not used", "declared and not used: s"}
 	if len(msgs) != len(want) {
-		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+		t.Fatalf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.HasSuffix(msgs[i], w) {
+			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectInitSignature(t *testing.T) {
+	for _, tc := range []struct {
+		pkgPath, src, want string
+	}{
+		{"gno.land/r/test", "func init(cur realm) {}", ""},
+		{"gno.land/r/test", "func init(cur int) {}", "func init must have no arguments and no return values"},
+		{"gno.land/r/test", "func init() int { return 0 }", "func init must have no arguments and no return values"},
+	} {
+		m := NewMachine("test", nil)
+		fn, err := m.ParseFile("test.gno", "package test\n\n"+tc.src+"\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("test", tc.pkgPath, fset)
+		errs := PreprocessFilesCollect(m.Store, pn, fset)
+		m.Release()
+		var msgs []string
+		for _, e := range errs {
+			msgs = append(msgs, e.Unwrap().Error())
+		}
+		got := strings.Join(msgs, "|")
+		if tc.want == "" && got != "" || tc.want != "" && !strings.Contains(got, tc.want) {
+			t.Errorf("%s: want %q, got %q", tc.src, tc.want, got)
+		}
 	}
 }
 
@@ -212,11 +322,18 @@ func f(p int) {
 	for a, a := range []int{1} { // ERROR repeated
 		_ = a
 	}
+	var e any = 1
+	switch t := e.(type) { // the guard lives in each clause's block
+	case int:
+		t := 3 // ERROR no new variables
+		_ = t
+	}
 }
 
 func main() { f(0) }
 `)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "a repeated on left side of :=") {
+	if len(msgs) != 2 || !strings.Contains(msgs[0], "a repeated on left side of :=") ||
+		!strings.Contains(msgs[1], "no new variables on left side of :=") {
 		t.Fatalf("unexpected: %v", msgs)
 	}
 }
@@ -428,6 +545,22 @@ func main() {}
 	}
 }
 
+func TestPreprocessCollectUnusedExempt(t *testing.T) {
+	// A name only a folded constant uses, and a blank label, are not unused.
+	src := `package main
+
+func main() {
+	var a [10]int
+	const ca = len(a)
+	_ = ca
+_:
+}
+`
+	if msgs := collectErrors(t, src); len(msgs) != 0 {
+		t.Fatalf("false positive: %v", msgs)
+	}
+}
+
 func TestPreprocessCollectDecls(t *testing.T) {
 	msgs := collectErrors(t, `package main
 
@@ -467,11 +600,11 @@ func main() {}
 `)
 	want := []string{
 		"can only use ... with final parameter in list",
-		"missing init expr for const declaration",
+		"missing init expr for B",
 		"cannot use float32 as int",
 		"too few values in struct literal of type main.S",
 		"too many values in struct literal of type main.S",
-		"index 2 out of bounds [0:2]",
+		"index 2 is out of bounds (>= 2)",
 		"index 5 out of bounds [0:2]",
 		"cannot declare in post statement of for loop",
 		"declared and not used: u",
@@ -489,6 +622,365 @@ func main() {}
 	}
 	if len(msgs) != len(want) {
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestPreprocessCollectNamedPointerShadow(t *testing.T) {
+	// Through a declared pointer type a method is still the shallowest
+	// provider, so it shadows the promoted field and the selector fails.
+	msgs := collectErrors(t, `package main
+
+type E struct{ f int }
+type T struct{ E }
+
+func (*T) f() int { return 0 }
+
+type P *T
+
+func main() {
+	var x P
+	_ = x.f
+}
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "missing field f") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
+
+func TestInitCycleOnChain(t *testing.T) {
+	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
+	// any initializer runs, with the same positioned message.
+	m := NewMachine("test", nil)
+	defer m.Release()
+	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
+	defer func() {
+		r := recover()
+		pe, ok := r.(*PreprocessError)
+		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
+			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
+		}
+	}()
+	m.RunFiles(fn)
+	t.Fatal("RunFiles accepted a cycle")
+}
+
+func TestPreprocessCollectAssignTags(t *testing.T) {
+	// Tags take part in identity for method types and copy element types.
+	msgs := collectErrors(t, `package main
+
+type I interface{ M(struct{ x int "b" }) }
+type S struct{}
+
+func (S) M(struct{ x int "a" }) {}
+
+func f() {
+	var i I = S{}
+	var a []struct{ x int "a" }
+	var b []struct{ x int "b" }
+	var c []struct{ x int "a" }
+	copy(a, b)
+	copy(a, c)
+	_ = i
+}
+
+func main() {}
+`)
+	want := []string{
+		"main.S does not implement main.I (wrong type for method M)",
+		"arguments to copy have different element types struct{x int} and struct{x int}: struct tags differ",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+// collectErrorsRaw is collectErrors with the position kept.
+func collectErrorsRaw(t *testing.T, src string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	errs := PreprocessFilesCollect(m.Store, pn, fset)
+	var msgs []string
+	for _, e := range errs {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectTypePositions(t *testing.T) {
+	// B's key check is skipped while B is a shell and decided when B
+	// completes; the error still points at the key spelling in A.
+	msgs := collectErrorsRaw(t, `package main
+type B struct{ s []int; a A }
+type A struct{ m map[B]int }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:22-23: invalid map key type main.B") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	// A typed declared constant prints as T(value).
+	msgs = collectErrors(t, `package main
+type MyInt int
+func f(mi MyInt) {
+	switch mi {
+	case 1, MyInt(1):
+	}
+}
+`)
+	if len(msgs) != 1 || msgs[0] != "duplicate case MyInt(1) in expression switch" {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
+
+// collectWith is collectErrors with the accumulator exposed: full messages
+// (position kept), an optional in-walk hook, and the panic if one escaped.
+func collectWith(t *testing.T, src string, hook func(Node, TransStage)) (msgs []string, panicked any) {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{}, referenced: map[Name]bool{}, testHook: hook}
+	func() {
+		defer func() { panicked = recover() }()
+		predefineFileSet(m.Store, pn, fset, acc)
+		for _, f := range fset.Files {
+			preprocess(m.Store, pn, f, acc)
+		}
+	}()
+	for _, e := range acc.errs {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs, panicked
+}
+
+func TestPreprocessCollectDrops(t *testing.T) {
+	t.Run("a Go runtime error is a VM bug, not a diagnostic", func(t *testing.T) {
+		hook := func(n Node, stage TransStage) {
+			if nx, ok := n.(*NameExpr); ok && nx.Name == "crashme" && stage == TRANS_LEAVE {
+				var s []int
+				_ = s[1] // runtime.Error, raised inside doRecover like a VM bug would be
+			}
+		}
+		msgs, panicked := collectWith(t, `package main
+
+func main() {
+	crashme := 1
+	println(crashme)
+}
+`, hook)
+		if panicked == nil || !isRuntimePanic(panicked) {
+			t.Fatalf("want the runtime error to escape, got panic %v, errors %v", panicked, msgs)
+		}
+		if len(msgs) != 0 {
+			t.Fatalf("want no diagnostic, got %v", msgs)
+		}
+	})
+
+	t.Run("a split package-level var is guarded and positioned at its name", func(t *testing.T) {
+		msgs, panicked := collectWith(t, `package main
+
+var a, b = undefinedF, 2
+
+func main() { println(a, b) }
+`, nil)
+		if panicked != nil {
+			t.Fatalf("escaped: %v", panicked)
+		}
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:5") || !strings.Contains(msgs[0], "undefinedF") {
+			t.Fatalf("want one error at the name a (3:5), got %v", msgs)
+		}
+	})
+
+	t.Run("a suppressed cascade still poisons what it declares", func(t *testing.T) {
+		msgs := collectErrors(t, `package main
+
+func main() {
+	x := undefinedA
+	y := x + 1
+	z := y
+	println(z)
+}
+`)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "undefinedA") {
+			t.Fatalf("want only the root error, got %v", msgs)
+		}
+	})
+
+	t.Run("a dropped dependency reports once, at its own declaration", func(t *testing.T) {
+		for name, src := range map[string]string{
+			"dependency first": `package main
+
+const C = undefinedH + 1
+var V = C * 2
+var W = V + 1
+
+func main() { println(W) }
+`,
+			"dependent first": `package main
+
+var W = V + 1
+var V = C * 2
+const C = undefinedH + 1
+
+func main() { println(W) }
+`,
+		} {
+			msgs, panicked := collectWith(t, src, nil)
+			if panicked != nil {
+				t.Fatalf("%s: escaped: %v", name, panicked)
+			}
+			cLine := "main.gno:3:"
+			if name == "dependent first" {
+				cLine = "main.gno:5:"
+			}
+			if len(msgs) != 1 || !strings.Contains(msgs[0], cLine) || !strings.Contains(msgs[0], "undefinedH") {
+				t.Fatalf("%s: want one error at C (%s), got %v", name, cLine, msgs)
+			}
+		}
+	})
+
+	t.Run("PreprocessCollect on one file node", func(t *testing.T) {
+		m := NewMachine("main", nil)
+		defer m.Release()
+		fn, err := m.ParseFile("main.gno", `package main
+
+var G int = "g"
+
+func main() {
+	var n string = 1
+	println(G, n)
+}
+`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fset := &FileSet{Files: []*FileNode{fn}}
+		pn := NewPackageNode("main", "main", fset)
+		nn, errs := PreprocessCollect(m.Store, pn, fn)
+		if nn == nil || len(errs) != 2 {
+			t.Fatalf("want the node and 2 errors, got %v, %v", nn != nil, errs)
+		}
+		if !strings.Contains(errs[0].Unwrap().Error(), "main.gno:3:") || !strings.Contains(errs[1].Unwrap().Error(), "main.gno:6:") {
+			t.Fatalf("unexpected positions: %v", errs)
+		}
+	})
+}
+
+func TestPreprocessCollectRedefine(t *testing.T) {
+	// A := target the block already declares is assigned: an untyped
+	// constant must be assignable (kind and representability), a typed
+	// value assignable; the target keeps its declared type.
+	msgs := collectErrors(t, `package main
+
+const c = 5
+
+func f2() (int, bool) { return 1, true }
+
+func f() {
+	var s string
+	s, j := 1, 2 // not assignable
+	var b bool
+	b, k := 1, 2 // not assignable
+	var u uint8
+	u, l := 300, 2 // overflows
+	var fl float64
+	fl, m := 1+2, 2 // untyped constant expressions convert
+	fl, n := -1, 2
+	fl, o := 1<<2, 2
+	fl, p := c, 2
+	var e interface{}
+	e, ok := f2() // assignable, e keeps its type
+	_, _, _, _, _, _, _, _ = j, k, l, m, n, o, p, ok
+	_, _, _, _, _ = s, b, u, fl, e
+}
+
+func main() {}
+`)
+	want := []string{
+		"cannot use 1 (untyped int constant) as string value in assignment",
+		"cannot use 1 (untyped int constant) as bool value in assignment",
+		"bigint overflows target kind",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestDefineRedeclaredKeepsType(t *testing.T) {
+	// On the run path the redeclared targets take the converted values
+	// and keep their declared types.
+	var buf bytes.Buffer
+	m := NewMachineWithOptions(MachineOptions{PkgPath: "main", Output: &buf})
+	defer m.Release()
+	fn := m.MustParseFile("main.gno", `package main
+
+const c = 5
+
+func f2() (int, bool) { return 1, true }
+
+func main() {
+	var fl float64
+	fl, j := 1+2, 2
+	println(fl, j)
+	fl, k := c, 3
+	println(fl, k)
+	var e interface{}
+	e, ok := f2()
+	println(e, ok)
+}
+`)
+	m.RunFiles(fn)
+	m.RunMain()
+	if got, want := buf.String(), "3 2\n5 3\n1 true\n"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestConstSpecTypeWithoutValues(t *testing.T) {
+	// A typed spec without values repeats nothing and does not become the
+	// type the next untyped spec inherits.
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn := m.MustParseFile("main.gno", "package main\n\nconst (\n\tA int = 1\n\tB byte\n\tC\n)\n")
+	c := fn.Decls[2].(*ValueDecl)
+	if tx, ok := c.Type.(*NameExpr); !ok || tx.Name != "int" || len(c.Values) != 1 {
+		t.Fatalf("C: type %v values %v", c.Type, c.Values)
+	}
+	msgs := collectErrors(t, "package main\n\nconst (\n\tA int = 1\n\tB byte\n\tC\n)\n\nvar _ int = C\n")
+	if len(msgs) != 1 || msgs[0] != "missing init expr for B" {
+		t.Fatalf("unexpected: %v", msgs)
 	}
 }
 
@@ -522,7 +1014,7 @@ func main() {}
 `)
 	want := []string{
 		"invalid import path (empty string)",
-		"invalid import path \"a b\": invalid character ' '",
+		"invalid import path (invalid character U+0020 ' ')",
 		"import path cannot be absolute path: \"/foo\"",
 		"constant shift overflow",
 		"constant addition overflow",
@@ -543,6 +1035,96 @@ func main() {}
 	}
 	if len(msgs) != len(want) {
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+// locatedErrors returns the located messages ("file:L:C-C2: msg") of a
+// collect run.
+func locatedErrors(t *testing.T, src string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectConstShiftPositions(t *testing.T) {
+	// A shift with an untyped count folds through a synthesized node;
+	// the error must still point at the expression, not at the
+	// enclosing file or function.
+	msgs := locatedErrors(t, `package main
+
+const a = 1 << 1025
+
+func f() {
+	v := 1 << 1025
+	_ = v
+}
+
+func main() {}
+`)
+	want := []string{
+		"main/main.gno:3:11-20: constant shift overflow",
+		"main/main.gno:6:7-16: constant shift overflow",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectConstShiftCount(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+const c uint = 2000
+const _ = 0 << 2000
+const _ = 1 << c
+const _ = 1 << 1074 // within the count bound: overflow
+const _ = 1e1000 >> 1 // a float is converted first: no operation named
+
+func main() {}
+`)
+	want := []string{
+		"invalid operation: invalid shift count 2000 (untyped int constant)",
+		"invalid operation: invalid shift count c (constant 2000 of type uint)",
+		"constant shift overflow",
+		"constant overflow",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Errorf("error %d: want %q, got %q", i, want[i], msgs[i])
+		}
+	}
+}
+
+func TestPreprocessCollectImportPoison(t *testing.T) {
+	// A dropped import poisons its default name: a use of it is not a
+	// second error.
+	msgs := collectErrors(t, `package main
+
+import "/foo"
+
+func main() { foo.Bar() }
+`)
+	want := []string{"import path cannot be absolute path: \"/foo\""}
+	if len(msgs) != 1 || msgs[0] != want[0] {
+		t.Fatalf("want %v, got %v", want, msgs)
 	}
 }
 
@@ -600,61 +1182,6 @@ func main() {
 	if len(msgs) != len(want) {
 		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
 	}
-}
-
-func TestPreprocessCollectUnusedExempt(t *testing.T) {
-	// A name only a folded constant uses, and a blank label, are not unused.
-	src := `package main
-
-func main() {
-	var a [10]int
-	const ca = len(a)
-	_ = ca
-_:
-}
-`
-	if msgs := collectErrors(t, src); len(msgs) != 0 {
-		t.Fatalf("false positive: %v", msgs)
-	}
-}
-
-func TestPreprocessCollectNamedPointerShadow(t *testing.T) {
-	// Through a declared pointer type a method is still the shallowest
-	// provider, so it shadows the promoted field and the selector fails.
-	msgs := collectErrors(t, `package main
-
-type E struct{ f int }
-type T struct{ E }
-
-func (*T) f() int { return 0 }
-
-type P *T
-
-func main() {
-	var x P
-	_ = x.f
-}
-`)
-	if len(msgs) != 1 || !strings.Contains(msgs[0], "missing field f") {
-		t.Fatalf("unexpected: %v", msgs)
-	}
-}
-
-func TestInitCycleOnChain(t *testing.T) {
-	// The on-chain path (RunFiles) rejects the cycle at preprocess, before
-	// any initializer runs, with the same positioned message.
-	m := NewMachine("test", nil)
-	defer m.Release()
-	fn := m.MustParseFile("a.gno", "package test\n\nvar a = f()\n\nfunc f() int { return a }\n")
-	defer func() {
-		r := recover()
-		pe, ok := r.(*PreprocessError)
-		if !ok || !strings.Contains(pe.Error(), "initialization cycle: a refers to f refers to a") {
-			t.Fatalf("want an initialization cycle PreprocessError, got %v", r)
-		}
-	}()
-	m.RunFiles(fn)
-	t.Fatal("RunFiles accepted a cycle")
 }
 
 func TestPreprocessCollectExprStrings(t *testing.T) {
