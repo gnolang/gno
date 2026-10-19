@@ -15,7 +15,7 @@ const (
 )
 
 // GnoError:
-// line 11: illegal character U+0007
+// line 11: expected ';', found 'ILLEGAL'
 // line 12: illegal character U+0008
 // line 13: illegal character U+000B
 // line 14: illegal character U+000C

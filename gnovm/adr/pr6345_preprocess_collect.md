@@ -56,3 +56,14 @@ executed.
 - Dependency attribution (one error, at the dependency) needs the file-set
   index, i.e. `PreprocessFilesCollect`; `PreprocessCollect` on a lone file
   node may report a dropped dependency at each dependent too.
+
+## Parser errors
+
+`ParseFileCollect` is `ParseFile` for this mode: it parses with
+`AllErrors`, returns every parser error located, and converts the partial
+tree anyway; `Go2Gno` maps `ast.BadExpr` / `BadStmt` / `BadDecl` to a name
+no program can declare (`!syntax`), poisoned up front, so the statement
+holding it drops behind the parser's error for that line like any failed
+statement. gc and go/types type-check after syntax errors; the old
+`ParseFile` threw the tree away on the first one. On chain `ParseFile` is
+unchanged.

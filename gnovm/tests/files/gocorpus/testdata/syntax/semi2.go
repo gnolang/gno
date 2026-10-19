@@ -13,5 +13,7 @@ func main() {
 
 // GnoError:
 // line 10: expected '{', found newline
+// line 11: expected '}', found '{'
+// line 12: expected ';', found z
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 11, 12
