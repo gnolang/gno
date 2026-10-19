@@ -2541,6 +2541,9 @@ func TestPreprocessCollectImportName(t *testing.T) {
 	// line is what matters.
 	check := func(t *testing.T, msgs []string, want map[string]string) {
 		t.Helper()
+		// The clashing imports are unused too (gc reports that as well);
+		// this test is about the clash.
+		msgs = slices.DeleteFunc(slices.Clone(msgs), func(m string) bool { return strings.Contains(m, "imported") })
 		if len(msgs) != len(want) {
 			t.Fatalf("want %d errors, got %d: %q", len(want), len(msgs), msgs)
 		}
@@ -2585,8 +2588,8 @@ func main() {}
 	t.Run("a name declared in another file is not a clash", func(t *testing.T) {
 		msgs := collectErrorsFiles(t, "package main\n\nimport \"foo\"\n\nfunc main() {}\n",
 			"package main\n\nvar bar int\n")
-		if len(msgs) != 0 {
-			t.Fatalf("want no error, got %q", msgs)
+		if len(msgs) != 1 || !strings.Contains(msgs[0], `"foo" imported and not used`) {
+			t.Fatalf("want only the unused import, got %q", msgs)
 		}
 	})
 }

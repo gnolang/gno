@@ -31,10 +31,7 @@ func main() {
 // GnoError:
 // line 12: missing parameter name
 // line 17: expected type, found '.'
-// line 18: main.i undefined (type func() has no field or method i)
 // line 22: expected type, found '.'
-// line 23: foo.i undefined (type func() has no field or method i)
-// line 27: wrong argument count in call to foo<VPBlock(3,0)>; want 0 got 2
 // line 28: name bar not declared
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 18, 23, 27, 28
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 28
