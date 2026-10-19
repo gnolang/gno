@@ -31,9 +31,6 @@ func main() {
 	}
 }
 
-
-// Fixing: PR #5737 (fix/defer12, call-time dispatch); verified clean on branch, broken on master; re-golden after merge.
-
 // GnoOutput:
 
 // GoOutput:

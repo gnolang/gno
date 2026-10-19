@@ -84,9 +84,6 @@ func test7() {
 	println(x / y)
 }
 
-
-// Fixing: PR #5732 (fix/5667, typedRuntimeError); partial on branch (wording gap at test4), broken on master; re-check after merge.
-
 // GnoOutput:
 
 // GnoError:
