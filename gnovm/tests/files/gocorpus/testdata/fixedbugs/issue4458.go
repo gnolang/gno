@@ -19,4 +19,4 @@ func main() {
 	(**T).foo(&pav) // ERROR "no method .*foo|requires named type or pointer to named|undefined"
 }
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 19
+// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19

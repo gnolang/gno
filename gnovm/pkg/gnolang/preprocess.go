@@ -823,7 +823,10 @@ func initStaticBlocks2(store Store, ctx BlockNode, nn Node) {
 			case *AssignStmt:
 				if n.Op == DEFINE {
 					for i, lx := range n.Lhs {
-						nx := lx.(*NameExpr)
+						nx, ok := lx.(*NameExpr)
+						if !ok {
+							continue // reported by checkShortVarDecl
+						}
 						ln := nx.Name
 						if ln == blankIdentifier {
 							continue
@@ -2532,6 +2535,13 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					n.NumArgs = 1
 					arg0 := n.Args[0]
 					ct := evalStaticType(store, last, n.Func)
+					if n.Varg {
+						failf(CodeConversionSpread, nil, "invalid use of ... in conversion to %v", ct)
+					}
+					if dt, ok := ct.(*DeclaredType); ok && dt.Base == nil {
+						// Still being declared through this very constant.
+						failf(CodeRecursiveType, nil, "cannot convert %s to type %v: %v refers to itself", exprString(arg0), ct, ct)
+					}
 					at := evalStaticTypeOf(store, last, n.Args[0])
 
 					// OPTIMIZATION: Skip redundant type conversions when source and target types are identical
@@ -4848,6 +4858,9 @@ func codaHeapDefinesByUse(ctx BlockNode, bn BlockNode) {
 				lmx := LeftmostX(n.X)
 				if nx, ok := lmx.(*NameExpr); ok {
 					// Find the block where name is defined
+					if nx.Path.Type != VPBlock {
+						return n, TRANS_CONTINUE // a dropped declaration
+					}
 					dbn := last.GetBlockNodeForPath(nil, nx.Path)
 					// The leftmost name of possibly nested index
 					// and selector exprs.
@@ -7759,7 +7772,13 @@ func checkShortVarDecl(ns []Node, last BlockNode, n *AssignStmt) {
 	seen := map[Name]bool{}
 	anyNew := false
 	for _, lx := range n.Lhs {
-		ln := lx.(*NameExpr).Name
+		nx, ok := lx.(*NameExpr)
+		if !ok {
+			// go/parser's resolver reports this first for parsed source;
+			// kept for trees built without it.
+			failf(CodeNonNameDefine, []Node{lx}, "non-name %s on left side of :=", exprString(lx))
+		}
+		ln := nx.Name
 		if ln == blankIdentifier {
 			continue
 		}
@@ -7767,7 +7786,7 @@ func checkShortVarDecl(ns []Node, last BlockNode, n *AssignStmt) {
 			return // synthesized by the preprocessor
 		}
 		if seen[ln] {
-			panic(fmt.Sprintf("%s repeated on left side of :=", ln))
+			failf(CodeRepeatedDefine, []Node{lx}, "%s repeated on left side of :=", ln)
 		}
 		seen[ln] = true
 		src := definedBy(last, ln)

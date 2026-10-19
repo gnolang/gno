@@ -465,3 +465,19 @@ func assertCopyArgs(gm store.GasMeter, dt, st Type) {
 		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and byte", ds.Elt)
 	}
 }
+
+// assertSwitchTag rejects a switch on an untyped nil or on a value that
+// == cannot compare; a slice, map or func tag is allowed, its cases must
+// be nil.
+func assertSwitchTag(x Expr, tt Type) {
+	if tt == nil {
+		fail(CodeSwitchTag, "use of untyped nil in switch expression", x)
+	}
+	switch baseOf(tt).(type) {
+	case *SliceType, *MapType, *FuncType:
+		return
+	}
+	if !isComparable(tt) {
+		failf(CodeSwitchTag, []Node{x}, "cannot switch on %s (variable of type %v) (%v is not comparable)", exprString(x), tt, tt)
+	}
+}

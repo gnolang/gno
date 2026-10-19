@@ -587,8 +587,12 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			}
 		}
 	case *PointerType: // case 4 from here on
+		// Pointer types are assignable only with identical elements.
 		if pt, ok := xt.(*PointerType); ok {
-			return checkAssignableTo(store, n, pt.Elt, cdt.Elt)
+			if pt.Elt.TypeID() == cdt.Elt.TypeID() && tagsIdentical(preprocessGasMeterOf(store), pt.Elt, cdt.Elt) {
+				return nil
+			}
+			return errors.New("cannot use %s as %s", xt.String(), dt.String())
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
