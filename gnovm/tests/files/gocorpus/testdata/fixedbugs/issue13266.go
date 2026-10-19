@@ -9,4 +9,10 @@
 
 package% // ERROR "unexpected %|package name must be an identifier|after package clause|expected declaration"
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 10
+// GnoError:
+// line 10: expected 'IDENT', found '%'
+
+// GnoWordingDiffers:
+// line 10: gc expects: unexpected %|package name must be an identifier|after package clause|expected declaration; gno: expected 'IDENT', found '%'
+
+// Verdict: Clean errorcheck

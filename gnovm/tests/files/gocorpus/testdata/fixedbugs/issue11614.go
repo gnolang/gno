@@ -26,8 +26,8 @@ func main() {
 }
 
 // GnoError:
-// line 13: interface contains embedded non-interface int
+// line 14: interface contains embedded non-interface int
 // line 18: I (type) is not an expression
 // line 22: interface contains embedded non-interface int
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14; over-strict: lines 13
+// Verdict: Clean errorcheck

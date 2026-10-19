@@ -21,13 +21,11 @@ func main() {
 }
 
 // GnoError:
-// line 16: missing field floats in main.it
-// line 18: struct type struct{Floats bool; inner string} has no field floats
-// line 19: struct type struct{Floats bool; inner string} has no field InneR
+// line 16: i1.floats undefined (type main.it has no field or method floats)
+// line 18: unknown field floats in struct literal of type main.it
+// line 19: unknown field InneR in struct literal of type main.it
 
 // GnoWordingDiffers:
-// line 16: gc expects: (type it .* field or method floats, but does have field Floats)|undefined field or method; gno: missing field floats in main.it
-// line 18: gc expects: cannot refer to unexported field floats in struct literal|unknown field|declared and not used; gno: struct type struct{Floats bool; inner string} has no field floats
-// line 19: gc expects: (but does have field inner)|unknown field; gno: struct type struct{Floats bool; inner string} has no field InneR
+// line 16: gc expects: (type it .* field or method floats, but does have field Floats)|undefined field or method; gno: i1.floats undefined (type main.it has no field or method floats)
 
 // Verdict: Clean errorcheck

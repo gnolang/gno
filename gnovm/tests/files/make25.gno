@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/make25.gno:9:7-22: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// main/make25.gno:9:16-18: invalid argument: index must not be negative: (-1 <untyped> bigint)
 
 // TypeCheckError:
 // main/make25.gno:9:16: invalid argument: index -1 (constant of type int) must not be negative

@@ -20,7 +20,7 @@ func f() {
 }
 
 // GnoError:
-// line 16: missing field f in **struct{f int}
-// line 19: missing field f in gno.land/p/filetest/p.PP
+// line 16: p.f undefined (type **struct{f int} has no field or method f)
+// line 19: p2.f undefined (type gno.land/p/filetest/p.PP has no field or method f)
 
 // Verdict: Clean errorcheck

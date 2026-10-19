@@ -24,11 +24,7 @@ func main() {
 }
 
 // GnoError:
-// line 22: missing field m in **main.T
-// line 23: missing field pm in **main.T
-
-// GnoWordingDiffers:
-// line 22: gc expects: requires explicit dereference|undefined; gno: missing field m in **main.T
-// line 23: gc expects: requires explicit dereference|undefined; gno: missing field pm in **main.T
+// line 22: q.m undefined (type **main.T has no field or method m)
+// line 23: q.pm undefined (type **main.T has no field or method pm)
 
 // Verdict: Clean errorcheck

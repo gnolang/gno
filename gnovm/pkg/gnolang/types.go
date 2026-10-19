@@ -1041,6 +1041,12 @@ func (it *InterfaceType) checkImplementedBy2(gm store.GasMeter, ot Type, tags bo
 	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (349 gas)
 	// mirrors the runtime type-assertion charge in op_expressions.go.
 	chargeCPUGas(gm, OpCPUSlopeTypeAssertIface*int64(len(it.Methods)))
+	if pt, ok := baseOf(ot).(*PointerType); ok {
+		if _, ok := baseOf(pt.Elt).(*InterfaceType); ok {
+			// Its method set is empty; the embedding walk has no case for it.
+			return fmt.Errorf("type %v is pointer to interface, not interface", ot)
+		}
+	}
 	// One walk of ot's embedding graph serves every method lookup below: the
 	// graph is expanded once (OpCPUSlopeEmbedExpand per type) and re-scanned
 	// per name (OpCPUSlopeEmbedScan per entry, plus OpCPUSlopeEmbedTrailHop
@@ -3285,12 +3291,18 @@ func (w *embedWalk) expand() bool {
 // (embedded fields are T or *T, and pointers to declared types and
 // structs are transparent for field/method exposure). Returns nil for
 // types that expose nothing (e.g. nested pointers, pointers to
-// interfaces).
+// interfaces), a named pointer or interface under the pointer included.
 func canonEmbeddedType(t Type) Type {
 	if pt, ok := t.(*PointerType); ok {
-		switch pt.Elt.(type) {
-		case *DeclaredType, *StructType:
-			return pt.Elt
+		switch elt := pt.Elt.(type) {
+		case *DeclaredType:
+			switch elt.Base.(type) {
+			case *PointerType, *InterfaceType:
+				return nil
+			}
+			return elt
+		case *StructType:
+			return elt
 		}
 		return nil
 	}
