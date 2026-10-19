@@ -18,5 +18,7 @@ func f() {
 
 // GnoError:
 // line 12: expected ';', found true
+// line 15: expected '{', found true
+// line 17: expected declaration, found '}'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 17

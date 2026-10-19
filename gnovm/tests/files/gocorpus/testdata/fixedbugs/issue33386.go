@@ -30,5 +30,8 @@ func _() {
 
 // GnoError:
 // line 16: expected operand, found '}'
+// line 20: expected ';', found 'defer'
+// line 22: expected operand, found '}'
+// line 29: expected ';', found 'EOF'
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 22, 26, 27, 28
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 26, 27, 28; over-strict: lines 20, 29

@@ -68,7 +68,7 @@ func UsesGenerics(source []byte) bool {
 // `// ERROR ` or `// GC_ERROR ` marker (Go's errorcheck convention),
 // which selects errorcheck mode.
 func HasInlineErrorMarkers(source []byte) bool {
-	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// GCCGO_ERROR ", "// GCCGO_ERROR\t"} {
 		if bytes.Contains(source, []byte(tag)) {
 			return true
 		}
@@ -79,7 +79,7 @@ func HasInlineErrorMarkers(source []byte) bool {
 // indexErrorMarker returns the byte index in line where an `// ERROR`
 // or `// GC_ERROR` marker's content begins, or -1.
 func indexErrorMarker(line string) int {
-	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+	for _, tag := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// GCCGO_ERROR ", "// GCCGO_ERROR\t"} {
 		if i := strings.Index(line, tag); i >= 0 {
 			return i + len(tag)
 		}
@@ -550,7 +550,7 @@ type InlineError struct {
 	// Patterns lists the quoted regex strings on the marker, in
 	// declaration order. Empty for a bare `// ERROR` with no patterns.
 	Patterns []string
-	// GcOnly marks a `// GC_ERROR` marker: a gc-implementation-specific
+	// GcOnly marks a `// GC_ERROR` or `// GCCGO_ERROR` marker: a compiler-specific
 	// diagnostic (backend limit, pragma check, …) that is NOT part of
 	// Gno's contract. GcOnly markers are excluded from leak accounting —
 	// catching one is fine, missing one is not an uncaught error.
@@ -563,8 +563,11 @@ type InlineError struct {
 // Format: any number of double-quoted (or backtick-quoted) strings
 // after `// ERROR`, e.g. `// ERROR "oct|char"` or `// ERROR "a" "b"`.
 // `// GC_ERROR` is accepted as equivalent to `// ERROR` since several
-// corpus files mix the two; gccgo-only markers (`// GCCGO_ERROR`)
-// are intentionally ignored — this harness mirrors gc semantics.
+// corpus files mix the two. A gccgo-only marker (`// GCCGO_ERROR`) is
+// optional: it never counts as uncaught, but an error on its line is not
+// over-strict either, since another Go compiler reports one there (the
+// typical case is an undefined name after a syntax error, which gc alone
+// suppresses).
 // LINE/LINE+N substitutions are NOT performed; the literal text
 // stays in the regex (matching is best-effort).
 //
@@ -595,7 +598,7 @@ func ParseInlineErrors(source []byte) []InlineError {
 		trimmed := strings.TrimLeft(text, " \t")
 		if strings.HasPrefix(trimmed, "//") {
 			isMarkerStart := false
-			for _, p := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t"} {
+			for _, p := range []string{"// ERROR ", "// GC_ERROR ", "// ERROR\t", "// GC_ERROR\t", "// GCCGO_ERROR ", "// GCCGO_ERROR\t"} {
 				if strings.HasPrefix(trimmed, p) {
 					isMarkerStart = true
 					break
@@ -606,7 +609,7 @@ func ParseInlineErrors(source []byte) []InlineError {
 			}
 		}
 		patterns := extractQuotedStrings(text[idx:])
-		gcOnly := strings.Contains(text[:idx], "GC_ERROR")
+		gcOnly := strings.Contains(text[:idx], "GC_ERROR") || strings.Contains(text[:idx], "GCCGO_ERROR")
 		out = append(out, InlineError{Line: lineNo, Patterns: patterns, GcOnly: gcOnly})
 	}
 	return out
