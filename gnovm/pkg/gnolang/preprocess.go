@@ -1098,8 +1098,12 @@ func (acc *preprocessAccumulator) dropDecl(pe *PreprocessError, fn BlockNode, d 
 		if idx, ok := sb.GetLocalIndex(d.Name); ok {
 			if dt, ok := sb.Types[idx].(*DeclaredType); ok && !dt.sealed {
 				dt.Base = invalidType{}
-			} else if sb.Types[idx] == nil {
-				defineInvalid(sb, d.Name)
+			} else if tv, ok := sb.Block.Values[idx].V.(TypeValue); !ok || tv.Type == nil {
+				// a type slot never filled (an alias that failed to
+				// define): a type value, so a receiver or a field of
+				// it evaluates to invalidType instead of crashing.
+				sb.Types[idx] = gTypeType
+				sb.Block.Values[idx] = asValue(invalidType{})
 			}
 		}
 	default:
