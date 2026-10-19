@@ -25,4 +25,4 @@ bug022.go:8: illegal types for operand
 	(<uint8>UINT8) AS
 */
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12

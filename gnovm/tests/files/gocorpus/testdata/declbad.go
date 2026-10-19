@@ -74,4 +74,4 @@ func main() {
 // line 58: no new variables on left side of :=
 // line 64: no new variables on left side of :=
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 26, 32
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 26, 32

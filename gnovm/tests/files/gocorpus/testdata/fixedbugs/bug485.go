@@ -38,9 +38,6 @@ func main() {
 	}
 }
 
-
-// Fixing: PR #5721 (fix/method40, BFS embedded lookup); verified clean on branch.
-
 // GnoOutput:
 
 // GoOutput:

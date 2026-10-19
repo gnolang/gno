@@ -32,4 +32,4 @@ func _() {
 // line 9: duplicate key (0 int) in map literal
 // line 14: duplicate key (0 int) in map literal
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22; over-strict: lines 14
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 11, 22; over-strict: lines 9, 14

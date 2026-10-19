@@ -73,4 +73,4 @@ func f() {
 // line 49: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 55: bigint overflows target kind
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17, 20, 21, 39, 42, 43
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17, 20, 21, 39, 42, 43

@@ -1,6 +1,8 @@
 package gnolang
 
 import (
+	"cmp"
+	stderrors "errors"
 	"fmt"
 	"maps"
 	"math"
@@ -53,18 +55,26 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 // variables: a variable whose initializer, directly or through the
 // functions and methods it uses, depends on itself (Go spec, "Package
 // initialization"). The dependency edges are the ATTR_DECL_DEPS that
-// codaInitOrderDeps recorded on each declaration. Each declaration
-// visited bills OpCPUSlopeCheckNode on gm. On chain CheckInitCycles
-// panics with the first one, where runFileDecls would otherwise fail
-// later and unpositioned.
+// codaInitOrderDeps recorded on each declaration. One pass of Tarjan's
+// algorithm finds the strongly connected components; a component is a
+// cycle when it holds a variable (functions are edges, not roots), and is
+// reported once, at the variable the cycle closes on (see initCycleOf),
+// in source order. Each declaration and edge visited bills
+// OpCPUSlopeInitCycleVisit on gm. On chain CheckInitCycles panics with
+// the first one, where runFileDecls would otherwise fail later and
+// unpositioned.
 func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*PreprocessError {
-	var errs []*PreprocessError
-	reported := map[Decl]bool{}
 	// Names resolve to the declaration predefine selected (the last
-	// file's wins), and only those are roots: a shadowed split part of a
-	// multi-name declaration is neither, or it would close a false cycle.
+	// file's wins), and only those are roots: a shadowed declaration is
+	// neither, or it would close a false cycle.
 	index := newPredefineDeclIndex(fset)
-	resolve := func(name Name) (Decl, bool) {
+	w := &initCycleWalk{
+		gm:    gm,
+		order: map[Decl]int{},
+		file:  map[Decl]*FileNode{},
+		nodes: map[Decl]*initCycleNode{},
+	}
+	w.resolve = func(name Name) (Decl, bool) {
 		if e, ok := index.entries[name]; ok {
 			return e.decl, true
 		}
@@ -72,76 +82,188 @@ func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*Prepr
 	}
 	for _, fn := range fset.Files {
 		for _, d := range fn.Decls {
+			w.order[d] = len(w.order)
+			w.file[d] = fn
+		}
+	}
+	for _, fn := range fset.Files {
+		for _, d := range fn.Decls {
 			vd, ok := d.(*ValueDecl)
-			if !ok || reported[vd] {
+			if !ok || !w.live(vd, index) {
 				continue
 			}
-			if names := vd.GetDeclNames(); len(names) == 0 || index.entries[names[0]].decl != vd {
-				continue
-			}
-			path := findInitCycle(gm, vd, resolve)
-			if path == nil {
-				continue
-			}
-			var msg strings.Builder
-			msg.WriteString("initialization cycle: ")
-			for i, name := range path {
-				if i > 0 {
-					msg.WriteString(" refers to ")
-				}
-				msg.WriteString(string(name))
-			}
-			loc := Location{PkgPath: pn.PkgPath, File: fn.FileName, Span: vd.GetSpan()}
-			errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String())})
-			for _, name := range path {
-				if dep, ok := resolve(name); ok {
-					reported[dep] = true
-				}
+			if _, seen := w.nodes[vd]; !seen {
+				w.connect(vd)
 			}
 		}
+	}
+	type report struct {
+		at   Decl
+		path []Name
+	}
+	var reports []report
+	for _, scc := range w.sccs {
+		if at, path := w.initCycleOf(scc); at != nil {
+			reports = append(reports, report{at, path})
+		}
+	}
+	slices.SortFunc(reports, func(a, b report) int { return cmp.Compare(w.declOrder(a.at), w.declOrder(b.at)) })
+	var errs []*PreprocessError
+	for _, r := range reports {
+		var msg strings.Builder
+		msg.WriteString("initialization cycle: ")
+		for i, name := range r.path {
+			if i > 0 {
+				msg.WriteString(" refers to ")
+			}
+			msg.WriteString(string(name))
+		}
+		loc := Location{PkgPath: pn.PkgPath, Span: r.at.GetSpan()}
+		if fn := w.file[r.at]; fn != nil {
+			loc.File = fn.FileName
+		}
+		errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String())})
 	}
 	return errs
 }
 
-// findInitCycle walks the dependency graph from root the way
-// resolveEffectiveDeps does and returns the first cycle back to a variable
-// as the names along it, closed with the variable, or nil.
-func findInitCycle(gm store.GasMeter, root *ValueDecl, resolve func(Name) (Decl, bool)) []Name {
-	onStack := map[Decl]bool{}
-	done := map[Decl]bool{}
-	var walk func(d Decl, path []Name) []Name
-	walk = func(d Decl, path []Name) []Name {
-		if done[d] {
-			return nil
+// initCycleWalk is Tarjan's strongly-connected-components walk over the
+// declaration dependency graph.
+type initCycleWalk struct {
+	gm      store.GasMeter
+	resolve func(Name) (Decl, bool)
+	order   map[Decl]int       // source order of the file set's declarations
+	file    map[Decl]*FileNode // declaring file
+	nodes   map[Decl]*initCycleNode
+	stack   []Decl
+	sccs    [][]Decl // in completion order
+}
+
+// initCycleNode is a visited declaration's walk state.
+type initCycleNode struct {
+	number, low int // Tarjan index, in visit order, and low link
+	onStack     bool
+	deps        []Name // dependency names, sorted so the walk is deterministic
+}
+
+// live reports whether vd is the declaration predefine selected for one
+// of its names; a shadowed declaration is not walked.
+func (w *initCycleWalk) live(vd *ValueDecl, index *predefineDeclIndex) bool {
+	for _, name := range vd.GetDeclNames() {
+		if index.entries[name].decl == vd {
+			return true
 		}
-		chargeCPUGas(gm, OpCPUSlopeCheckNode)
-		onStack[d] = true
-		defer func() { delete(onStack, d); done[d] = true }()
-		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
-		names := slices.Collect(maps.Keys(m))
-		slices.Sort(names)
-		for _, name := range names {
-			dep, ok := resolve(name)
-			if !ok {
+	}
+	return false
+}
+
+// declOrder is the source position of d among the walked files; a
+// declaration from an earlier file set sorts last.
+func (w *initCycleWalk) declOrder(d Decl) int {
+	if n, ok := w.order[d]; ok {
+		return n
+	}
+	return math.MaxInt
+}
+
+func (w *initCycleWalk) connect(d Decl) {
+	chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+	m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+	nd := &initCycleNode{number: len(w.nodes), onStack: true, deps: slices.Collect(maps.Keys(m))}
+	nd.low = nd.number
+	slices.Sort(nd.deps)
+	w.nodes[d] = nd
+	w.stack = append(w.stack, d)
+	for _, name := range nd.deps {
+		chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+		dep, ok := w.resolve(name)
+		if !ok {
+			continue
+		}
+		if nn, seen := w.nodes[dep]; !seen {
+			w.connect(dep)
+			nd.low = min(nd.low, w.nodes[dep].low)
+		} else if nn.onStack {
+			nd.low = min(nd.low, nn.number)
+		}
+	}
+	if nd.low != nd.number {
+		return
+	}
+	var scc []Decl
+	for {
+		top := w.stack[len(w.stack)-1]
+		w.stack = w.stack[:len(w.stack)-1]
+		w.nodes[top].onStack = false
+		scc = append(scc, top)
+		if top == d {
+			break
+		}
+	}
+	w.sccs = append(w.sccs, scc)
+}
+
+// initCycleOf returns the cycle to report for a component, or nil: a
+// component with no variable is recursion among functions, not a cycle.
+// The cycle is the first one the sorted-name walk from the component's
+// earliest variable closes on a variable; it is reported at that
+// variable, as its path of names closed with the variable's name.
+func (w *initCycleWalk) initCycleOf(scc []Decl) (Decl, []Name) {
+	members := make(map[Decl]bool, len(scc))
+	var start *ValueDecl
+	for _, d := range scc {
+		members[d] = true
+		if vd, ok := d.(*ValueDecl); ok && (start == nil || w.declOrder(vd) < w.declOrder(start)) {
+			start = vd
+		}
+	}
+	if start == nil {
+		return nil, nil
+	}
+	if len(scc) == 1 && !slices.ContainsFunc(w.nodes[start].deps, func(name Name) bool {
+		dep, ok := w.resolve(name)
+		return ok && dep == start
+	}) {
+		return nil, nil // a lone variable with no edge to itself
+	}
+	type step struct {
+		d    Decl
+		name Name
+	}
+	var path []step
+	onPath := map[Decl]int{}
+	var walk func(d Decl) (Decl, []Name)
+	walk = func(d Decl) (Decl, []Name) {
+		chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+		for _, name := range w.nodes[d].deps {
+			chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+			dep, ok := w.resolve(name)
+			if !ok || !members[dep] {
 				continue
 			}
-			if onStack[dep] {
-				if _, isVar := dep.(*ValueDecl); isVar {
-					return append(append([]Name(nil), path...), name)
+			if i, ok := onPath[dep]; ok {
+				if _, isVar := dep.(*ValueDecl); !isVar {
+					continue
 				}
-				continue // recursion among functions is not a cycle
+				names := make([]Name, 0, len(path)-i+1)
+				for _, st := range path[i:] {
+					names = append(names, st.name)
+				}
+				return dep, append(names, name)
 			}
-			if cyc := walk(dep, append(path, name)); cyc != nil {
-				return cyc
+			onPath[dep] = len(path)
+			path = append(path, step{dep, name})
+			if at, names := walk(dep); at != nil {
+				return at, names
 			}
+			path = path[:len(path)-1]
+			delete(onPath, dep)
 		}
-		return nil
+		return nil, nil
 	}
-	names := root.GetDeclNames()
-	if len(names) == 0 {
-		return nil
-	}
-	return walk(root, []Name{names[0]})
+	onPath[start] = 0
+	path = append(path, step{start, start.GetDeclNames()[0]})
+	return walk(start)
 }
 
 // resolveDeclDepSafe is resolveDeclDep without the panics: a name the
@@ -181,6 +303,7 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 		initStaticBlocks(store, pn, fn)
 	}
 	index := newPredefineDeclIndex(pn.FileSet)
+	index.acc = acc
 	// In accumulate mode a declaration that fails to predefine is recorded
 	// and dropped (marked preprocessed, so the walk skips it) instead of
 	// stopping the whole file set.
@@ -191,12 +314,11 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 		}
 		defer func() {
 			if r := recover(); r != nil {
-				if _, isRuntime := r.(runtime.Error); isRuntime {
-					panic(r)
+				if isRuntimePanic(r) {
+					panic(r) // a VM bug, not a checking error
 				}
 				acc.add(wrapPreprocessPanic([]BlockNode{pn, fn}, d, r), d)
-				d.SetAttribute(ATTR_PREDEFINED, true)
-				d.SetAttribute(ATTR_PREPROCESSED, true)
+				markDropped(d)
 			}
 		}()
 		do()
@@ -309,6 +431,12 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 						Values: Exprs{vd.Values[j].Copy().(Expr)},
 						Const:  vd.Const,
 					}
+					// Accumulate mode positions the part at its name, else
+					// its errors point at the whole file. On chain the file
+					// span is kept: the error text is pinned (var44.gno).
+					if acc != nil {
+						part.SetSpan(vd.NameExprs[j].GetSpan())
+					}
 					if iota_ != nil {
 						part.SetAttribute(ATTR_IOTA, iota_)
 					}
@@ -324,7 +452,8 @@ func predefineFileSet(store Store, pn *PackageNode, fset *FileSet, acc *preproce
 					if parts[j].GetAttribute(ATTR_PREDEFINED) == true {
 						continue
 					}
-					predefineRecursivelyIndexed(store, fn, parts[j], index)
+					part := parts[j]
+					predefineOne(fn, part, func() { predefineRecursivelyIndexed(store, fn, part, index) })
 				}
 				i += len(vd.NameExprs) - 1
 				continue
@@ -353,6 +482,7 @@ func lookupPredefineDecl(fset *FileSet, name Name) predefineDecl {
 type predefineDeclIndex struct {
 	fileSet *FileSet
 	entries map[Name]predefineDecl
+	acc     *preprocessAccumulator // accumulate mode, else nil
 }
 
 // newPredefineDeclIndex captures the package declarations visible to PredefineFileSet.
@@ -390,6 +520,24 @@ func (index *predefineDeclIndex) lookup(name Name) predefineDecl {
 	}
 	// The index covers the whole FileSet, so a miss can never resolve a decl.
 	panic(fmt.Sprintf("name %s not defined in fileset with files %v", name, index.fileSet.FileNames()))
+}
+
+// predefineDependency is the accumulate-mode recursion into a dependency.
+// A failure is recorded once, against the dependency, which is dropped;
+// the dependent then fails with a droppedDeclError that add() turns into
+// a quiet drop. One cause, one error, at its own declaration.
+func (index *predefineDeclIndex) predefineDependency(store Store, dep predefineDecl, stack []Name, defining map[Name]struct{}, direct bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			if isRuntimePanic(r) {
+				panic(r)
+			}
+			index.acc.add(wrapPreprocessPanic([]BlockNode{dep.file}, dep.decl, r), dep.decl)
+			markDropped(dep.decl)
+			panic(&droppedDeclError{name: firstDeclName(dep.decl)})
+		}
+	}()
+	predefineRecursively2(store, dep.file, dep.decl, stack, defining, direct, index)
 }
 
 // rebindSplitParts redirects indexed names from an original declaration in file
@@ -879,11 +1027,16 @@ type preprocessAccumulator struct {
 	// mentioning x hides "declared and not used: x" in every function.
 	// Over-suppression; an unused report is never a false positive.
 	referenced map[Name]bool // mentioned inside a dropped statement
+	// testHook, when set, runs inside the guarded transform before each
+	// node's stage; tests use it to raise a panic from within the walk.
+	testHook func(n Node, stage TransStage)
 }
 
 // Both spellings the preprocessor uses for an unknown name.
 var reUndeclaredName = regexp.MustCompile(`name (\S+) not (?:declared|defined)|name not defined: (\S+)`)
 
+// add records pe, raised while preprocessing n. The names n declares are
+// poisoned first, so a suppressed cascade still poisons what it declares.
 func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
 	// The statement is dropped whether or not its error is reported, so
 	// what it declares is poisoned and what it mentions may be a use the
@@ -897,6 +1050,10 @@ func (acc *preprocessAccumulator) add(pe *PreprocessError, n Node) {
 		}
 		return n, TRANS_CONTINUE
 	})
+	var dropped *droppedDeclError
+	if stderrors.As(pe.err, &dropped) {
+		return // a dependent of a dropped declaration: dropped quietly
+	}
 	msg := pe.err.Error()
 	if m := reUndeclaredName.FindStringSubmatch(msg); m != nil && acc.poisoned[Name(m[1]+m[2])] {
 		return
@@ -918,6 +1075,43 @@ func (acc *preprocessAccumulator) report(pe *PreprocessError) {
 		}
 	}
 	acc.errs = append(acc.errs, pe)
+}
+
+// droppedDeclError is raised, in accumulate mode, by a declaration that
+// depends on one already dropped; add turns it into a quiet drop.
+type droppedDeclError struct{ name Name }
+
+func (e *droppedDeclError) Error() string {
+	return fmt.Sprintf("name %s not declared (declaration dropped)", e.name)
+}
+
+// markDropped marks a declaration accumulate mode dropped: predefined and
+// preprocessed so every loop skips it, dropped so a dependent reaching it
+// in tryPredefine is dropped quietly instead of failing.
+func markDropped(d Decl) {
+	d.SetAttribute(ATTR_PREDEFINED, true)
+	d.SetAttribute(ATTR_PREPROCESSED, true)
+	d.SetAttribute(ATTR_PREPROCESS_DROPPED, true)
+}
+
+func firstDeclName(d Decl) Name {
+	if names := d.GetDeclNames(); len(names) > 0 {
+		return names[0]
+	}
+	return ""
+}
+
+// isRuntimePanic reports whether r is a Go runtime error, raw or already
+// wrapped by doRecover: a VM bug, which accumulate mode never records.
+func isRuntimePanic(r any) bool {
+	switch r := r.(type) {
+	case runtime.Error:
+		return true
+	case *PreprocessError:
+		var re runtime.Error
+		return stderrors.As(r.err, &re)
+	}
+	return false
 }
 
 // declaredNamesOf lists the names a statement or declaration introduces.
@@ -1078,7 +1272,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 	if acc != nil {
 		onPanic = func(ns []Node, ftype TransField, index int, n Node, r any) bool {
 			pe, ok := r.(*PreprocessError)
-			if !ok {
+			if !ok || isRuntimePanic(pe) {
 				return false // not a checking error: a VM bug, let it surface
 			}
 			for i := len(ns) - 1; i >= 0; i-- {
@@ -1108,17 +1302,17 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 		}
 		defer func() {
 			if r := recover(); r != nil {
-				if _, isRuntime := r.(runtime.Error); isRuntime {
+				if isRuntimePanic(r) {
 					panic(r) // a VM bug, not a checking error
 				}
 				acc.add(wrapPreprocessPanic(stack, d, r), d)
-				d.SetAttribute(ATTR_PREPROCESSED, true)
+				markDropped(d)
 			}
 		}()
 		predefineRecursively(store, last, d)
 	}
 
-	nn := transcribeWith(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+	t := func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		// if already preprocessed, skip it.
 		if n.GetAttribute(ATTR_PREPROCESSED) == true {
 			return n, TRANS_SKIP
@@ -3648,7 +3842,16 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 		panic(fmt.Sprintf(
 			"unknown stage %v", stage))
-	}, onPanic)
+	}
+	if acc != nil && acc.testHook != nil {
+		inner := t
+		t = func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+			defer doRecover(stack, n)
+			acc.testHook(n, stage)
+			return inner(ns, ftype, index, n, stage)
+		}
+	}
+	nn := transcribeWith(n, t, onPanic)
 
 	return nn
 }
@@ -5962,7 +6165,11 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 			}
 			// predefine dependency recursively.
 			// `directR` is passed on.
-			predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
+			if index != nil && index.acc != nil {
+				index.predefineDependency(store, dependency, stack, defining, directR)
+			} else {
+				predefineRecursively2(store, dependency.file, dependency.decl, stack, defining, directR, index)
+			}
 		} else {
 			break // predefine successfully performed.
 		}
@@ -5997,6 +6204,10 @@ func predefineRecursively2(store Store, last BlockNode, d Decl, stack []Name, de
 // will preprocess receiver/argument/result types recursively.
 func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack []Name, defining map[Name]struct{}, direct bool) (un Name, untype bool, directR bool) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
+		if d.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
+			// accumulate mode: a dependent of a dropped declaration.
+			panic(&droppedDeclError{name: firstDeclName(d)})
+		}
 		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
 

@@ -13,6 +13,5 @@ var (
 
 // GnoError:
 // line 10: cannot convert StringKind to ArrayKind
-// line 11: decl node already predefined! var b<!VPBlock(2,0)> = [...](const-type uint8)((const ("abc" string)))
 
-// Verdict: KnownIssue errorcheck: #6344; internal errors: lines 11
+// Verdict: Clean errorcheck

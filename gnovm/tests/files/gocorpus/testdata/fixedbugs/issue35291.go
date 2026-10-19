@@ -13,4 +13,4 @@ var s = []string{
 	1: "dup", // ERROR "duplicate index in slice literal: 1|duplicate value for index 1|duplicate index 1"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13

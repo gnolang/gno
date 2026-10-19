@@ -59,4 +59,4 @@ func main() {
 // GnoError:
 // line 47: should not happen
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 47, 50, 53, 56; internal errors: lines 47
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 47, 50, 53, 56; internal errors: lines 47

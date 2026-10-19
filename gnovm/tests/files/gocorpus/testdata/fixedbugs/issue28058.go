@@ -12,4 +12,4 @@ package main
 var x map[func()]int // ERROR "invalid map key type"
 var X map[func()]int // ERROR "invalid map key type"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 12, 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 12, 13

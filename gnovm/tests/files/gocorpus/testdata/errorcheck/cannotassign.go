@@ -45,4 +45,4 @@ func main() {
 // line 29: cannot assign to (const-type []int){}
 // line 32: cannot assign to x<VPBlock(1,4)> + (const (1 int))
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 23
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 23

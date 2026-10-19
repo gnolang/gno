@@ -20,4 +20,4 @@ func New() I {
 // GnoError:
 // line 17: struct{} does not implement main.I (missing method )
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13; over-strict: lines 17
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13; over-strict: lines 17

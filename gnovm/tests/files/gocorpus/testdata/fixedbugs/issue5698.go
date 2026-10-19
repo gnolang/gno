@@ -17,4 +17,4 @@ type Val struct{}
 
 type Map map[Key]Val // ERROR "invalid map key type"
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 18
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18
