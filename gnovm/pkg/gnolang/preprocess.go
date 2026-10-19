@@ -5498,7 +5498,9 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 						// push t into bx.Left and bx.Right
 						checkOrConvertType(store, last, n, &bx.Left, t)
 						checkOrConvertType(store, last, n, &bx.Right, t)
-						bx.SetAttribute(ATTR_TYPEOF_VALUE, t) // the cached untyped type is stale now
+						// Cache the converted operand's type, not t: t may be
+						// untyped (a recursive call) or an interface.
+						bx.SetAttribute(ATTR_TYPEOF_VALUE, evalStaticTypeOf(store, last, bx.Left))
 						return
 					} else { // t is nil, and bx is untyped binary expr.
 						if shouldSwapOnSpecificity(lt, rt) {

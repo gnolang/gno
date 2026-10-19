@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -769,11 +770,25 @@ const (
 	d
 )
 
+func g(b bool) bool { return b }
+
 func f(x, y int, i interface{}, s string) {
 	var b mybool
 	b = true && x < y // && of untyped bools stays untyped
 	b = x < y || x < y
 	_ = b
+	// A nested logical expression defined without a context is bool.
+	d := (x < y && x < y) || x > y
+	g(d)
+	var e bool = d
+	_ = e
+	for ld := (x < y && x < y) || x > y; ld; {
+		break
+	}
+	f := x < y && (x < y || x > y)
+	g(f)
+	var a interface{} = x < y && x < y
+	_ = a
 	switch x {
 	case 0:
 		fallthrough
@@ -792,6 +807,28 @@ func main() {}
 `)
 	if len(msgs) != 0 {
 		t.Errorf("want no errors, got %v", msgs)
+	}
+	// A nested logical expression keeps its bool static type (not untyped).
+	msgs = collectErrors(t, `package main
+
+type mybool bool
+
+func f(x, y int) {
+	d := (x < y && x < y) || x > y
+	var b mybool = d
+	var i interface{} = x < y && x < y
+	var c mybool = i
+	_, _ = b, c
+}
+
+func main() {}
+`)
+	want := []string{
+		"cannot use bool as main.mybool without explicit conversion",
+		"cannot use interface {} as bool",
+	}
+	if !reflect.DeepEqual(msgs, want) {
+		t.Errorf("want %v, got %v", want, msgs)
 	}
 }
 
