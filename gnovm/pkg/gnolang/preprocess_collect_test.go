@@ -1430,3 +1430,33 @@ func main() {
 		}
 	}
 }
+
+func TestPreprocessCollectMakeNegative(t *testing.T) {
+	msgs := collectErrorsRaw(t, `package main
+
+func main() {
+	_ = make([]int, -1)
+	const i = -1
+	_ = make([]int, 0, i)
+	_ = make(map[int]int, int8(-1))
+	_ = make([]int, -1.0)
+	_ = make([]int, -1.2)
+	_ = make([]int, 2)
+}
+`)
+	want := []string{
+		"main.gno:4:18-20: invalid argument: index -1 (constant of type int) must not be negative",
+		"main.gno:6:21-22: invalid argument: index i (constant -1 of type int) must not be negative",
+		"main.gno:7:24-32: invalid argument: index int8(-1) (constant -1 of type int8) must not be negative",
+		"main.gno:8:18-22: invalid argument: index -1.0 (constant -1 of type int) must not be negative",
+		"main.gno:9:18-22: invalid argument: index -1.2 (untyped float constant) must not be negative",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %q", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if !strings.HasSuffix(msgs[i], w) {
+			t.Errorf("error %d: want suffix %q, got %q", i, w, msgs[i])
+		}
+	}
+}

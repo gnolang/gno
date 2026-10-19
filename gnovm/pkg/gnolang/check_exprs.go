@@ -342,3 +342,39 @@ func operandKind(x Expr) string {
 	}
 	return "value"
 }
+
+// operandTypeString prints a type as go/types names an operand's: an
+// untyped constant's by its kind.
+func operandTypeString(t Type) string {
+	if t == nil {
+		return "nil"
+	}
+	if isUntyped(t) {
+		return "untyped " + untypedKindName(t)
+	}
+	return typeString(t)
+}
+
+// constOperandString prints a constant as go/types does: "-1 (constant of
+// type int)", or "i (constant -1 of type int)" when the value is not the
+// spelling. An untyped constant is printed after the conversion gc
+// applies to it; a non-integral one keeps its untyped form.
+func constOperandString(cx *ConstExpr, t Type) string {
+	expr := constString(cx)
+	tn := operandTypeString(cx.T)
+	var val string
+	switch {
+	case cx.T == UntypedBigdecType && !cx.GetBigDec().IsInt():
+		return fmt.Sprintf("%s (untyped float constant)", expr)
+	case cx.T == UntypedBigdecType:
+		val, tn = bigdecToBigInt(cx.GetBigDec()).String(), typeString(t)
+	case isUntyped(cx.T):
+		val, tn = cx.TypedValue.Sprint(nil), typeString(t)
+	default:
+		val = cx.TypedValue.Sprint(nil)
+	}
+	if expr == val {
+		return fmt.Sprintf("%s (constant of type %s)", expr, tn)
+	}
+	return fmt.Sprintf("%s (constant %s of type %s)", expr, val, tn)
+}

@@ -2570,8 +2570,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 											"cannot use %v as type int in argument to make", tv))
 									}
 									if tv.Sign() < 0 {
-										panic(fmt.Sprintf(
-											"invalid argument: index %v must not be negative", tv))
+										panicAt(fmt.Sprintf(
+											"invalid argument: index %s must not be negative", constOperandString(cx, IntType)), cx)
 									}
 								}
 							}
