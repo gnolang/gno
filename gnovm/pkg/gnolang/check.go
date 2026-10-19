@@ -63,6 +63,17 @@ const (
 	// Assignability.
 	CodeMapValueAssign ErrCode = "map-value-assign"
 	CodeNotAssignable  ErrCode = "not-assignable"
+	CodeMissingMapKey  ErrCode = "missing-map-key"
+	CodeDuplicateField ErrCode = "duplicate-field"
+	CodeLiteralType    ErrCode = "literal-type"
+	CodeUndefined      ErrCode = "undefined"
+	CodeTypeGuard      ErrCode = "type-guard"
+	CodeIndexOperand   ErrCode = "index-operand"
+	CodeAppendArgs     ErrCode = "append-args"
+	CodeImportName     ErrCode = "import-name"
+	CodeStructField    ErrCode = "struct-field"
+	CodeNoMethod       ErrCode = "no-method"
+	CodeReceiverType   ErrCode = "receiver-type"
 	CodeAssignability  ErrCode = "assignability"
 )
 

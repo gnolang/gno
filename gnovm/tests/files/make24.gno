@@ -11,7 +11,7 @@ func main() {
 }
 
 // Error:
-// main/make24.gno:9:7-39: bigint overflows target kind
+// main/make24.gno:9:16-35: bigint overflows target kind
 
 // TypeCheckError:
 // main/make24.gno:9:16: 9223372036854775808 (untyped int constant) overflows int

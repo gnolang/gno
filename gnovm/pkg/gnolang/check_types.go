@@ -203,6 +203,29 @@ func typeExprIn(gm store.GasMeter, last BlockNode, owner *DeclaredType, t Type) 
 	return found
 }
 
+// checkInterfaceElems rejects a blank method name and an embedded
+// non-interface in an interface type expression, positioned at the
+// element (the type construction repeats both checks, unpositioned).
+func checkInterfaceElems(store Store, last BlockNode, x *InterfaceTypeExpr) {
+	gm := preprocessGasMeterOf(store)
+	for i := range x.Methods {
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		m := &x.Methods[i]
+		switch m.Name {
+		case blankIdentifier:
+			fail(CodeInterfaceEmbed, "methods must have a unique non-blank name", m)
+		case "":
+			t := evalStaticType(store, last, m.Type)
+			if dt, ok := t.(*DeclaredType); ok && dt.Base == nil {
+				continue // being declared; checked once complete
+			}
+			if embeddedInterface(t) == nil {
+				failf(CodeInterfaceEmbed, []Node{m}, "interface contains embedded non-interface %v", t)
+			}
+		}
+	}
+}
+
 // assertArrayLength rejects a negative constant array length.
 func assertArrayLength(n int64) {
 	if n < 0 {
@@ -210,8 +233,7 @@ func assertArrayLength(n int64) {
 	}
 }
 
-// dupCase is a duplicate expression-switch case: a message and where to
-// report it.
+// dupCase is a duplicate switch case: a message and where to report it.
 type dupCase struct {
 	msg string
 	at  []Node
@@ -243,6 +265,42 @@ func duplicateSwitchCases(store Store, clauses []SwitchClauseStmt) (dups []dupCa
 				})
 			}
 			seen[key] = true
+		}
+	}
+	return dups
+}
+
+// duplicateTypeSwitchCases finds a repeated case type in a type switch:
+// nil twice, or two identical types (by TypeID, so spelling and method
+// order do not matter). Each repeat is reported at its case.
+func duplicateTypeSwitchCases(gm store.GasMeter, clauses []SwitchClauseStmt) (dups []dupCase) {
+	seenNil := false
+	seen := map[TypeID]bool{}
+	for i := range clauses {
+		for _, cx := range clauses[i].Cases {
+			chargeCPUGas(gm, OpCPUSlopeCheckNode)
+			ctx, ok := cx.(*constTypeExpr)
+			if !ok {
+				continue
+			}
+			if ctx.Type == nil {
+				if seenNil {
+					dups = append(dups, dupCase{
+						msg: "duplicate case nil in type switch",
+						at:  []Node{cx, &clauses[i]},
+					})
+				}
+				seenNil = true
+				continue
+			}
+			id := ctx.Type.TypeID()
+			if seen[id] {
+				dups = append(dups, dupCase{
+					msg: fmt.Sprintf("duplicate case %v in type switch", ctx.Type),
+					at:  []Node{cx, &clauses[i]},
+				})
+			}
+			seen[id] = true
 		}
 	}
 	return dups
@@ -304,6 +362,11 @@ func exprString(x Expr) string {
 		return "[" + exprString(x.Len) + "]" + exprString(x.Elt)
 	case *MapTypeExpr:
 		return "map[" + exprString(x.Key) + "]" + exprString(x.Value)
+	case *CompositeLitExpr:
+		if len(x.Elts) == 0 {
+			return exprString(x.Type) + "{}"
+		}
+		return exprString(x.Type) + "{…}" // as go/types
 	}
 	return x.String()
 }
@@ -316,8 +379,9 @@ func typeString(t Type) string {
 	return t.String()
 }
 
-// constString prints a folded constant Go style: the value for an
-// untyped constant, T(value) for a typed one, strings quoted.
+// constString prints a folded constant Go style: as written for a
+// literal or a name, else the value for an untyped constant, T(value)
+// for a typed one, strings quoted.
 func constString(c *ConstExpr) string {
 	switch src := c.Source.(type) {
 	case *CallExpr:

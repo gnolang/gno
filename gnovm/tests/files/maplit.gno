@@ -8,7 +8,7 @@ func main() {
 }
 
 // Error:
-// main/maplit.gno:6:7-32: duplicate key (0 int) in map literal
+// main/maplit.gno:6:26-27: duplicate key 0 in map literal
 
 // TypeCheckError:
 // main/maplit.gno:6:26: duplicate key 0 in map literal
