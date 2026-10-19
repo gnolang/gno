@@ -15,6 +15,8 @@ func _(x int) {
 }
 
 // GnoError:
+// line 10: tilde operator is not permitted
 // line 14: expected ';', found '~'
+// line 15: expected ';', found 'EOF'
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 10, 15

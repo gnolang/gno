@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/scanner"
 	"io"
 	"math"
 	"os"
@@ -1066,8 +1065,9 @@ type runResult struct {
 	// gnoErrors holds every preprocess error of an errorcheck run
 	// (accumulate mode), with location prefixes; Error joins them.
 	gnoErrors []string
-	// parseBlocked: the file did not parse, so Gno's checker never ran
-	// and markers it did not reach say nothing about it.
+	// parseBlocked: the file has no Gno form at all (no package clause,
+	// or Go2Gno failed), so the checker never ran and markers it did not
+	// reach say nothing about it. A file with syntax errors is checked.
 	parseBlocked bool
 	// onChainError is the first error of the on-chain path (plain
 	// Preprocess, which stops at one), "" when it accepts the file.
@@ -1788,33 +1788,30 @@ func (opts *TestOptions) runErrorcheck(m, onChain *gno.Machine, pkgPath, fname s
 	fname = filepath.Base(fname)
 	rr.onChainError = firstPreprocessError(onChain, pkgName, pkgPath, fname, content)
 	defer func() {
-		if r := recover(); r != nil { // a syntax error, or a VM bug
-			rr.Error = fmt.Sprint(r)
+		if r := recover(); r != nil { // a VM bug: keep what was collected before it
+			msg := fmt.Sprint(r)
 			if pe, ok := r.(*gno.PreprocessError); ok {
-				rr.Error = pe.Unwrap().Error()
+				msg = pe.Unwrap().Error()
 			}
-			rr.Error = stripPreprocessStack(rr.Error)
-			rr.gnoErrors = []string{rr.Error}
+			rr.gnoErrors = append(rr.gnoErrors, stripPreprocessStack(msg))
+			rr.Error = strings.Join(rr.gnoErrors, "; ")
 		}
 	}()
-	fn, perr := m.ParseFile(fname, string(content))
-	if perr != nil {
-		// Syntax and declaration errors come as a list with positions;
-		// pin each one so parse-level markers are attributed too.
-		var list scanner.ErrorList
-		if errors.As(perr, &list) {
-			for _, e := range list {
-				rr.gnoErrors = append(rr.gnoErrors, e.Error())
-				// After a syntax error the parser resynchronises and
-				// reports cascades ("expected '}', found 'EOF'") that
-				// gc never does; declaration errors before it are real.
-				if strings.HasPrefix(e.Msg, "expected ") || strings.HasPrefix(e.Msg, "missing ") {
-					break
-				}
-			}
-		} else {
-			rr.gnoErrors = []string{perr.Error()}
-		}
+	// Every syntax and declaration error go/parser reports is pinned,
+	// cascades included: a resynchronisation error on an unmarked line is
+	// an honest over-strict line. The checker then runs on the partial
+	// tree, each unparsed node a dropped statement.
+	fn, perrs := m.ParseFileCollect(fname, string(content))
+	for _, e := range perrs {
+		rr.gnoErrors = append(rr.gnoErrors, e.Error())
+	}
+	if len(perrs) > 0 {
+		// The parse error rejects the file on chain too, as its first error.
+		rr.onChainError = rr.gnoErrors[0]
+	}
+	if fn == nil {
+		// No package clause, or the partial tree has no Gno form: the
+		// checker never ran, so markers it did not reach say nothing.
 		rr.parseBlocked = true
 		rr.Error = strings.Join(rr.gnoErrors, "; ")
 		return rr
