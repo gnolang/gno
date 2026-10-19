@@ -39,7 +39,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 // mode (see PreprocessCollect) and returns every error found, in source
 // order of discovery. The nodes must not be executed afterwards.
 func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*PreprocessError {
-	acc := &preprocessAccumulator{poisoned: map[Name]bool{syntaxErrName: true}}
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{syntaxErrName: true}, referenced: map[Name]bool{}}
 	predefineFileSet(store, pn, fset, acc)
 	for _, fn := range fset.Files {
 		preprocess(store, pn, fn, acc)
@@ -783,7 +783,11 @@ func wrapPreprocessPanic(stack []BlockNode, n Node, r any) *PreprocessError {
 // reported (go/types' invalid-object suppression).
 type preprocessAccumulator struct {
 	errs     []*PreprocessError
-	poisoned map[Name]bool
+	poisoned map[Name]bool // declared by a dropped statement
+	// referenced is keyed by bare name, package-wide: a dropped statement
+	// mentioning x hides "declared and not used: x" in every function.
+	// Over-suppression; an unused report is never a false positive.
+	referenced map[Name]bool // mentioned inside a dropped statement
 	// testHook, when set, runs inside the guarded transform before each
 	// node's stage; tests use it to raise a panic from within the walk.
 	testHook func(n Node, stage TransStage)
@@ -822,6 +826,7 @@ func (acc *preprocessAccumulator) record(pe *PreprocessError) {
 // so a suppressed cascade still covers what it declares.
 func (acc *preprocessAccumulator) dropStmt(pe *PreprocessError, n Node, last BlockNode) {
 	n.SetAttribute(ATTR_PREPROCESS_DROPPED, true) // later rules skip what it declares
+	acc.markReferenced(n)
 	for _, name := range declaredNamesOf(n) {
 		if !defineInvalid(last.GetStaticBlock(), name) {
 			acc.poisoned[name] = true
@@ -836,6 +841,7 @@ func (acc *preprocessAccumulator) dropStmt(pe *PreprocessError, n Node, last Blo
 // failing on a missing name; a declared type keeps its identity with an
 // invalid base.
 func (acc *preprocessAccumulator) dropDecl(pe *PreprocessError, fn BlockNode, d Decl) {
+	acc.markReferenced(d)
 	acc.record(pe)
 	markDropped(d)
 	switch d := d.(type) {
@@ -1114,6 +1120,17 @@ func isTypeField(ftype TransField) bool {
 	return false
 }
 
+// markReferenced notes every name a dropped node mentions: a use the walk
+// never sees, so the unused-name rules stay quiet about it.
+func (acc *preprocessAccumulator) markReferenced(n Node) {
+	Transcribe(n, func(_ []Node, _ TransField, _ int, sn Node, stage TransStage) (Node, TransCtrl) {
+		if nx, ok := sn.(*NameExpr); ok && stage == TRANS_ENTER {
+			acc.referenced[nx.Name] = true
+		}
+		return sn, TRANS_CONTINUE
+	})
+}
+
 // droppedDeclError is raised, in accumulate mode, by a declaration that
 // depends on one dropped without a definition; record drops it quietly.
 type droppedDeclError struct{ name Name }
@@ -1218,7 +1235,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 // must not be executed. The on-chain path uses Preprocess, which keeps
 // the first-error semantics, gas and error text unchanged.
 func PreprocessCollect(store Store, ctx BlockNode, n Node) (Node, []*PreprocessError) {
-	acc := &preprocessAccumulator{poisoned: map[Name]bool{syntaxErrName: true}}
+	acc := &preprocessAccumulator{poisoned: map[Name]bool{syntaxErrName: true}, referenced: map[Name]bool{}}
 	nn := preprocess(store, ctx, n, acc)
 	return nn, acc.errs
 }
