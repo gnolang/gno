@@ -240,7 +240,7 @@ the app runs, so it stays pending at the source until it times out. Ethereum bou
 | E8 | **`IBCAdmin`** (permanent) + **`IBCAdminExec`** (replaceable executor). `IBCAdmin` is a small immutable IBC app on port `ibcgov` (accepting only source port `gov`) (router ports can never be re-registered, [`ICS26Router._addIBCApp`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/ICS26Router.sol)) that owns the ledger state (sequence, buffer, decision hashes, cancellations, maturity times, flags, hold history, recovery proposals) and **holds every authority** (`ADMIN_ROLE`, every proxy, `migrateClient`). It accepts packets only from the router, from `ibcgov` over the paired client, and delegatecalls an executor whose code hash it pins; decision kinds with delays, deferred by flags and holds; code-hash-pinned upgrades with after-checks. A hand-over (kind 9) swaps the executor's code hash atomically, with an optional one-time migration call; no state or authority moves | ✅ (`IBCAdmin`, `IBCAdminExec`; `IBCAdminRecovery`, `IBCAdminChecks` and `IBCAdminSetupCheck` deployed by the executor and pinned with it; `FrozenLightClient` for retired ids) | pattern: bridges [`HlAdmin.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/HlAdmin.sol), [`admin/HlAdminExec.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/admin/HlAdminExec.sol) (there the executor is fixed and hand-over moves authorities to a successor) | Replace Hyperlane's `handle`/ISM plumbing with `IIBCApp` callbacks and implement the delivery protocol of §5.4 (never revert with empty data; expected refusals revert with custom errors; out-of-window packets error-ack for redispatch). Kinds remapped (§7.6). Keep each contract under EIP-170. |
 | E9 | **Quarantine** after a validator-set transition | ✅ (`GnoLightClient._isLiveTransition`; durations per route, §7.10) | bridges: [`GnoLightClient.sol`](https://github.com/gnolang/bridges/blob/ethereum-draft/ethereum/bridge/contracts/src/GnoLightClient.sol) (`quarantineEnd`) | The client keeps a **live epoch**: the `(validatorsHash, nextValidatorsHash)` pair of its latest accepted header. A newly accepted update (not a no-op, not misbehaviour checking) starts a quarantine only for a **live transition**: its `nextValidatorsHash` differs from the live epoch's (a new set announced), or its `validatorsHash` is neither the live set nor the live announced next set (a set the chain never announced: the > 1/3 skip). The verification anchor the relayer chooses plays no part, so an older anchor cannot restart it. Each transition sets its own deadline once (`quarantineEnd = max(quarantineEnd, transitionTime + duration)`); later headers of the established epoch do not extend it. `_verifyHeader` is `view`: it returns the transition data and `update` applies it (`contracts/src/GnoLightClient.sol`). E6 refuses token receives until `quarantineEnd`; `IBCAdmin` ignores it. |
 | E10 | 6-decimal wrapper for 18-decimal Ethereum tokens | ❌ | — | See R15. |
-| E11 | **Bootstrap role cleanup**: *before the controls* the deployment granted the deployer `ID_CUSTOMIZER_ROLE` and `ERC20_CUSTOMIZER_ROLE` besides the AccessManager admin; as built it grants neither ([`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol)) | ✅ (the deployer never holds the customizer roles; `ADMIN_ROLE` renounced; `IBCAdminSetupCheck`) | gno-eth-ibc [`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol) | `finishSetup` must enumerate and revoke every bootstrap role and admin, renounce the deployer, and check the result on chain (♻️ bridges `finishSetup`'s check list). **Built, with one limit:** `finishSetup` checks `IBCAdmin`'s and the deployer's roles only, since the AccessManager cannot list a role's members, so exclusive ownership needs an external audit of its `RoleGranted` log; its function list also omits the roles of `settleRecords`, `reopenRoute` (unassigned, so `ADMIN_ROLE` by default) and `sendTransferWithSender` (`DELEGATE_SENDER_ROLE`, granted to nobody), which the audit must confirm (§8.4). |
+| E11 | **Bootstrap role cleanup**: *before the controls* the deployment granted the deployer `ID_CUSTOMIZER_ROLE` and `ERC20_CUSTOMIZER_ROLE` besides the AccessManager admin; as built it grants neither ([`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol)) | ✅ (the deployer never holds the customizer roles; `ADMIN_ROLE` renounced; `IBCAdminSetupCheck`) | gno-eth-ibc [`contracts/script/DeployGnoIBC.s.sol`](https://github.com/allinbits/gno-eth-ibc/blob/main/contracts/script/DeployGnoIBC.s.sol) | `finishSetup` must enumerate and revoke every bootstrap role and admin, renounce the deployer, and check the result on chain (♻️ bridges `finishSetup`'s check list). **Built, with one limit:** `finishSetup` checks `IBCAdmin`'s and the deployer's roles only, since the AccessManager cannot list a role's members, so exclusive ownership needs an external audit of its `RoleGranted` log; its function list also omits the roles of `settleRecords`, `reopenRoute`, `checkpointForReplacement` (unassigned, so `ADMIN_ROLE` by default) and `sendTransferWithSender` (`DELEGATE_SENDER_ROLE`, granted to nobody), which the audit must confirm (§8.4). |
 | E12 | **Route replacement** (§7.12): retire and freeze an old client id, add a new one, open a new governance epoch (§5.4 envelope) dropping the old epoch's unexecuted state, `migrateRoute` re-pointing the route alias (constant work); the optional guardian-attested emergency path | ✅ | `IBCAdminExec._route`, `IBCAdminRecovery`, `GnoICS20Controls.migrateRoute`, the reconciliation state machine of `docs/controls.md` | New, in `IBCAdmin`/`IBCAdminExec` and the ICS20 fork (E6), whose registries and escrows are keyed by route key with a client-id alias. |
 
 ### 4.5 Relayers and tooling
@@ -364,10 +364,14 @@ the app runs, so it stays pending at the source until it times out. Ethereum bou
   executes (built, gno-realms b86f38d): a failed client is recovered in place, or the unlaunched deployment is restarted. So the
   binding is always over the route's **original** client, the pair Ethereum's epoch 1 uses (gno.land's client of the
   router and the router's launch client `client-0`), and the launch checklist verifies that pair. Until Ethereum
-  records its first governance decision, the route's limits stay at **zero** on both chains (no value transfer). On
-  Ethereum the deployment registers ugnot with zero limits and its output carries `activationKind4Params`: governance
-  activates the route with that kind 4 only after `IBCAdmin` has recorded gno.land's first decision (gno-eth-ibc
-  0a5f2ba). `LAUNCH_ACTIVE`, which deploys with live limits, is a test-network flag refused on chain id 1.
+  records its first governance decision, no value moves on either chain, by these gates:
+  - **gno.land (manual operating gate):** the route starts with no enabled denom; operators execute the first
+    `NewSetDenomRequest` only after checking on Ethereum that `epoch()` is 1 and `lastSeq() ≥ 1` (runbook §7 step
+    5). No code on gno.land enforces this Ethereum-state condition.
+  - **Ethereum:** the deployment registers ugnot with zero limits, and the deploy script reads the installed limits
+    back exactly (`finishSetup` checks only that limits exist); its output carries `activationKind4Params`, and
+    governance activates the route with that kind 4 only after `IBCAdmin` has recorded gno.land's first decision
+    (gno-eth-ibc 0a5f2ba). `LAUNCH_ACTIVE`, which deploys with live limits, is a test-network flag refused on chain id 1.
 - **Envelope** (canonical, at most 1024 bytes — a kind 6 carrying gno.land's real merkle prefix is 558): `version u8 (= 1) ‖ epoch u32 ‖ seq u64 ‖ kind u8 ‖ params`.
   - `epoch` starts at 1 and is raised only by a route replacement (§7.12) — an executed kind 10 or emergency
     recovery on Ethereum, a notice-driven epoch switch on gno.land; `IBCAdmin` accepts packets only for its
@@ -405,7 +409,7 @@ the app runs, so it stays pending at the source until it times out. Ethereum bou
   | 4 limits | `(string clientId, address token, uint256 maxPerMessage, uint256 dayCap, uint256 refundCap, uint256 sendMax, uint256 sendMin)`; `sendMax`/`sendMin` apply to Ethereum-native tokens only (0 = unset). Spent unless: the token is non-zero, `dayCap` and `refundCap` are at most 2^128 − 1, `sendMin ≤ sendMax` when `sendMax` is set. A zero `dayCap` or `maxPerMessage` refuses every receive, a zero `refundCap` queues every refund. A token's first limits always wait 7 days, escrowed sends of a token need them, and receive limits are refused until the route's quarantine is armed (§7.10). A limits change settles both buckets at the old caps first. An older decision maturing later never overwrites a newer setting | at recording if no field loosens, else 7 d |
   | 5 voucher | `(string clientId, string baseDenom, address voucher, bytes32 codeHash)`; `baseDenom` only in the transfer app's wire grammar, shared byte for byte with `ibcgov`'s builder: a native denom `[a-z][a-z0-9]{2,15}`, or `gno.land:r` then at least two `:`-separated gno package names, optionally `.` and a slug of 1 to 32 `[A-Za-z0-9_-]`, at most 128 bytes; a realm-issued coin (`/gno.land/r/...:denom`) is refused; a denom registers once; at execution the voucher's `ics20()` must be this transfer app, and the voucher must not already represent another denom (a matching code hash alone is not enough) | 7 d |
   | 6 client | `(uint8 op, string clientId, string counterpartyClientId, bytes[] merklePrefix, address lightClient, bytes32 codeHash)`; op 1 add (a custom id, thereby **enrolled** as a target kind 10 may move a route to), 2 migrate `clientId` to `lightClient` (quarantine checkpointed and the route's verifier generation bumped first, which voids outcomes proven through the old verifier; **not atomic**: a router refusal spends the decision without undoing them). The verifier must be usable (code with the pinned hash, not an EIP-7702 designator, gno.land's chain id, neither frozen nor expired); the counterparty only in canonical form (gno.land's exact prefix `["main", "/pv/vm:gno.land/r/aib/ibc/core:"]`, a client id of 1 to 64 `[a-z0-9-]`); a migration keeps the counterparty id; a retired id is never migrated | 7 d |
-  | 7 upgrade | `(address proxy, address implementation, bytes32 codeHash, bytes call)`: the router, the transfer app or one of its two beacons; fixed call gas, after-checks (authority, bindings, every beacon the decision does not name unchanged), rolled back whole on failure. On the transfer proxy only code that keeps the controls (`gnoControlsVersion()` of the fork and its three modules at least the running one's, before and after). The call is empty or a selector on the executor's pinned allow-list (empty in the launch executor; only a kind 9 hand-over extends it), and never an upgrade-setting selector (`upgradeToAndCall`, `multicall`, `upgradeEscrowTo`, `upgradeIBCERC20To`) | 7 d |
+  | 7 upgrade | `(address proxy, address implementation, bytes32 codeHash, bytes call)`: the router, the transfer app or one of its two beacons; fixed call gas, after-checks (authority, bindings, every beacon the decision does not name unchanged), rolled back whole on failure. On the transfer proxy only code that keeps the controls: the candidate fork's `gnoControlsVersion()` at least the running one's; each of its three modules (controls, reconciliation, evidence) code answering **exactly** the fork's version, recording its own address as its `gnoSelf()` and with the code hash its holder recorded (so an ordinary proxy-backed module, whose `gnoSelf()` answers its implementation's address, is refused); and the proxy answering that version for all four after the upgrade. The call is empty or a selector on the executor's pinned allow-list (empty in the launch executor; only a kind 9 hand-over extends it), and never an upgrade-setting selector (`upgradeToAndCall`, `multicall`, `upgradeEscrowTo`, `upgradeIBCERC20To`) | 7 d |
   | 8 role | `(bool grant, uint64 roleId, address account)`; Ethereum accepts **only `RELAYER_ROLE` (1)** with a non-zero account (`ibcgov`'s builder also refuses `ADMIN_ROLE` and `PUBLIC_ROLE`). It cannot enable `sendTransferWithSender` (its `DELEGATE_SENDER_ROLE` is granted to nobody), and `sendTransferWithPermit2` exists only when the deployment configures a `PERMIT2` address (a deploy-time setting, unset by default); plain `sendTransfer` is the deployed send path | grant 7 d, revoke at recording |
   | 9 hand-over | `(address exec, bytes32 codeHash, bytes migrationCall)`; the new executor must answer the same bindings; rolled back whole on failure | 7 d |
   | 10 route replacement | `(string oldClientId, string newClientId, uint64 suspectFrom)`: retire the old client id (`migrateClient` to a `FrozenLightClient`, since the router has no freeze), `migrateRoute`, open the next epoch over the new client and send its epoch notice (§7.12). The new id must be one a kind 6 enrolled (an id the router generated is refused) whose verifier is still usable immediately before the switch; the old id must be the route's current client. **All or nothing**: the quarantine checkpoint (which bumps the route's verifier generation), the migration and the epoch switch run in one frame, and a refused migration rolls all of it back, the decision spent and outcomes proven before still usable. Allowed while the route is closed: it opens a new incident and aborts a reopening under way (§7.12). `suspectFrom` is the Ethereum block from which acks and timeouts processed through the old client are suspect (§7.12): every send record processed at or after it must be settled by kind 12 before kind 13. On gno.land its dispatch also creates a pending **expected transition** whose binding to a local client is a separate 7-day decision (§7.12) | 7 d |
@@ -614,7 +618,7 @@ flowchart TD
   ADJ -- adjacent --> V1[Signers: > 2/3 of trusted set power]
   ADJ -- non-adjacent --> V2[> 1/3 trust level of trusted next set<br/>AND > 2/3 of new set]
   V1 & V2 --> CACHE{valset hash cached?}
-  CACHE -- no --> KEYS[send validators, cache by hash]
+  CACHE -- no --> KEYS["send validators; cached by hash only if the<br/>signing set is also the accepted header's next set"]
   CACHE -- yes --> NOKEYS[send only signer indexes]
   KEYS & NOKEYS --> SIG[for each signer: CanonicalVote bytes,<br/>ecrecover sha256, low-S, address match]
   SIG --> STORE[store consensus state: root = AppHash, time, nextValsHash]
@@ -890,8 +894,10 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   day cap, applied by the activating kind 4 (`activationKind4Params` from the deploy output) after `IBCAdmin`
   records gno.land's first decision; the deployment itself registers ugnot with zero limits (§5.4). Overrides may only lower them, and a zero override means "use the default" (not a zero cap,
   unlike kind 4, where a zero cap refuses every receive or queues every refund).
-- **What it bounds:** a gno.land validator-key forgery mints at most `level₀ + Δ⁺ + dayCap·t/day` within `t` of the
-  forgery (at most two day caps in any 24 hours), each message at most `maxPerMessage`, until a flag lands.
+- **What it bounds:** a gno.land validator-key forgery mints at most `level₀ + Δ⁺ + ∫ dayCap(τ)/day dτ ≤ dayCap_max
+  + Δ⁺ + dayCap_max·t/day` within `t` of the forgery, the cap integral and maximum taken over the interval (the
+  bucket keeps drainage at the caps in force when it happened, so with an unchanged cap this is `level₀ +
+  dayCap·t/day`, at most two day caps in any 24 hours), each message at most `maxPerMessage`, until a flag lands.
 
 ### 7.3 Pausing that never traps exits — E6, R1
 
@@ -982,7 +988,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   chain's wait is guaranteed to be at least the other's. A vacancy (a seat set to no
   key) is a replacement: it waits 7 days and, under a hold, follows the same deadline. On gno.land a vacating change targets
   the holder **and the seat generation** the seat had when the request was built, and is skipped if either changed
-  since (the generation check being fixed now); the governor
+  since (built, gno-realms 4dbcc03); the governor
   cannot end a hold by vacating the flagging seats. **Ethereum refuses vacancies**: kind 3 never sets a seat to no
   key, and such a decision is spent at recording (a deliberate divergence, §8.5).
 - **Unpause.**
@@ -1092,10 +1098,15 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   simulation at its own address with the constructor arguments the system's graph calls for and compares the code
   byte for byte. **Coverage** (built, gno-eth-ibc 0c673ad and ad7f3e3):
   - *performed by the tooling:* what runs now, read from the chain (the transfer and router implementations, the
-    escrow and voucher beacons' implementations, `IBCAdmin` and its executor with their delegate graphs); the launch
-    voucher and launch light client; every pending kind 5, 6, 7 or 9 candidate before it matures (the recorded
+    escrow and voucher beacons' implementations, `IBCAdmin` and its executor with their delegate graphs); the **current
+    epoch's verifier** (read through `govClient()`, rebuilt as a `GnoLightClient`) and its registered ugnot voucher;
+    every pending kind 5, 6, 7 or 9 candidate before it matures (the recorded
     decision's hash against the envelope gno.land sent, the candidate's live code hash, a rebuild of its source);
-    further vouchers and light clients; and emergency recovery candidates (the proposal's `lightClient`);
+    further vouchers and light clients, which must be listed explicitly (`VOUCHERS`, `CLIENTS`); and emergency
+    recovery candidates (the proposal's `lightClient`, listed);
+  - **one release per run:** the tool rebuilds every artifact from the one checkout it runs in, so verify the live
+    system from a checkout of the release it runs, and each pending candidate from a checkout of the release it
+    installs with `CANDIDATES_ONLY=true`; a valid candidate of another release would otherwise fail a combined run;
   - *manual:* a verifier of another type than `GnoLightClient` (a reproducible build of its named source,
     and no mutable implementation pointer), checked before the kind 6 or recovery that installs it matures; and
     running the tool itself, with operator-supplied pending lists, until the watch tool (T5) automates it; and
@@ -1115,12 +1126,19 @@ routes of the same realms are unaffected; a governance channel serves exactly on
      can execute again;
   5. **execute the verified repair**, recorded meanwhile and verified as pending before it matures: a kind 7 back to
      the last verified implementation or to a fixed build (transfer app, router, beacon), a kind 9 to a verified
-     executor, a kind 6 migration or kind 10 replacement for a failed verifier (`suspectFrom` covering the time it
-     ran); a failed voucher cannot be swapped (kind 5 registers a denom once). Ethereum route flags and zero caps
-     stop **ingress only**: returning-voucher burns continue, so containment also needs gno.land's `credits` and
-     `payouts` flags on the route, then reconciliation of the affected gno.land receive entitlements (voids,
-     settlements, §7.12); stopping the burns themselves needs a governed code change (kind 7);
-  6. **reconcile** what ran meanwhile (kind 12) where outcomes were touched, and lift the route flags once the live
+     executor. For a failed verifier: an already-recorded kind 6 migration **only when its history is trusted**
+     (expiry, or a liveness-only defect shown not to have accepted any false update or proof), since kind 6 creates
+     no incident, retires nothing and has no `suspectFrom`, and kind 12 settles only a retired client's records;
+     otherwise a kind 10 replacement or the emergency recovery, with `suspectFrom` covering the time it ran, and
+     reconciliation. A failed voucher cannot be swapped (kind 5 registers a denom once). Ethereum route flags and
+     zero caps stop **ingress only**: returning-voucher burns continue, and a defect that mints unbacked vouchers can
+     still be burned into gno.land claims with genuine Ethereum send records. So containment also needs gno.land's
+     `credits` and `payouts` flags on the route, then reconciliation of the affected gno.land receive entitlements
+     (voids, settlements, §7.12) **together with an audit of the voucher's supply against its escrowed backing** — a
+     matching send record alone does not establish backing — and containment stays until a repair or the denom's
+     retirement; stopping the burns themselves needs a governed code change (kind 7);
+  6. **reconcile** what ran meanwhile (kind 12, on the records of the client a kind 10 or recovery retired) where
+     outcomes were touched, and lift the route flags once the live
      code verifies again.
 - **Single point of failure.** If the GnoLightClient can no longer follow gno.land, or a forgery has pushed it past
   honest heights, the governance channel stops and GovDAO's cancellations are not provable on Ethereum. See §7.12
@@ -1300,10 +1318,14 @@ routes of the same realms are unaffected; a governance channel serves exactly on
     until neither moves. Both only decrease, so this ends, at worst at the previous evaluation's pair (or the route's launch heights), which is closed.
     Refund liabilities, claims and payouts are all read at the same pair.
   - **Confirmed orphans are breaks, not skew.** Rewinding is only for receives whose send is **not yet visible**
-    at the other pin. Once a finalized receive's send is confirmed **absent** from the canonical source history
-    (the source's finalized state, read as above, has no send record and no commitment for that sequence — or has
-    a different packet there), the receive is a forgery: it is an integrity break by itself, flagged at once
-    with the containment response below, and is not rewound past or deferred.
+    at the other pin. Absence at the selected source pin is **not** conclusive by itself: an honest send just above
+    the pin looks the same. A receive is a confirmed orphan only with **completeness evidence**: the source state
+    examined covers the receive's referenced source proof height (authenticated independently: the consensus state
+    the receive was proven against, read from the source's finalized history), that finalized source state's
+    timestamp has reached the packet's timeout, and it has no send record and no commitment for that sequence — or
+    a different packet there. Only then is the receive a forgery: an integrity break by itself, flagged at once with
+    the containment response below, not rewound past or deferred. Without that evidence the receive is rewound past
+    or the evaluation deferred, as below; missing evidence leaves it unresolved, never flagged.
   - **Deferred alarms.** If a closed pair cannot be established because data is **unavailable** — a record
     missing, a provider disagreeing, a pinned height not yet finalized, or the pair falling too far behind — the
     evaluation is skipped and retried later; it only alarms after a configured number of failures. An integrity auto-flag needs a break (in the
@@ -1422,7 +1444,9 @@ reconciliation.
     current client;
   - the route closes until a governed reopening, its payout meters (bridge and recipient) start empty through a
     new payouts epoch (refund meters keep their state), and the flags standing under the new client's id fold into
-    the route's (§7.4);
+    the route's (§7.4). **On Ethereum they do not**: the new client aliases the existing route, whose flags, limits
+    and quarantine govern from then on, and flags set under the candidate's own id do not carry over, so operators
+    flag the existing route (§8.5);
   - the old client is **marked retired** in the core, not frozen: its verifier keeps its status; retired for good,
     it takes no new packet message, except that the app that registered a packet's port may still write the
     pending asynchronous acknowledgement of a packet received before the retirement. For the `gov` port the
@@ -1468,7 +1492,8 @@ reconciliation.
     path is a **simple path**, the only kind a notice is applied along (no router client or local client repeated,
     the epoch's own included); a switch never retires the client it adopts. Every transition must start from a
     router client the epoch client reaches, checked when built, dispatched or recorded and when its expectation
-    applies. Each retention and pruning walk expands every router client at most once, at most 64 in all; a
+    applies. Each retention and pruning walk reads each of the at most 64 transitions and tombstones once and expands at
+    most 65 router clients (the starting one included); a
     notice-path walk is bounded by 64 layers: there is no "too many to tell" case. So, qualifying the earlier "the
     expectation costs nothing": pending or active, an expectation holds a place among its old client's 4 successors
     and the graph's 64 until it goes, so one never confirmed by a notice costs capacity.
@@ -1582,9 +1607,12 @@ reconciliation.
     under every affected verifier version. When that is unknown it is **0**, every ack and timeout the client ever
     processed: an authenticated consensus root proves that root genuine, not that every proof checked against it
     was verified correctly, and an independently authenticated newer head says nothing about older stored roots. A
-    later boundary is allowed only once operators establish a **safe history prefix** — every consensus state the
-    client retains from before the boundary is genuine — and it is then the **installation height of the earliest
-    potentially forged consensus state**. A newer genuine head never advances it. One record too many costs a proof;
+    later boundary than 0 needs **both** a **safe state prefix** (every consensus state the client retains from
+    before the boundary is genuine, each root authenticated independently) **and** evidence that no affected
+    verifier version verified any proof, against any root, before it. It is then the **earliest potentially
+    compromised operation**: the earlier of the installation of the earliest consensus state that may be forged and
+    the earliest update or proof verification by affected code. When either is uncertain it stays 0. A newer
+    genuine head never advances it. One record too many costs a proof;
     one too few keeps a forged refund. (This replaces "from the
     last height the replacement clients confirm as honest".) The range is clamped to the client's activation: on
     gno.land a suspect height below the previous replacement's height (`ReplacedAt`) is raised to it, and a future or
@@ -1905,7 +1933,7 @@ Further trust assumptions of the built controls, each stated where its rule is:
 | Ethereum finality stalls | Eth → gno stops (only finalized state is provable); monitors go blind and alarm |
 | Ethereum fork changes light-client containers | the Gno client must be upgraded before the fork; otherwise Eth → gno stops until it is |
 | Validator set changes | quarantine of gno → Eth receives (if enabled): they error-ack and are refunded on gno.land |
-| GnoLightClient cannot follow gno.land (expired trusting period), frozen, or poisoned by a forgery | every proof against it fails or is untrustworthy — receives, acks and timeouts on Ethereum, and governance (refunds already queued or parked stay claimable: only new proof-based processing stops); guardians hold the route; recovery is a route replacement (§7.12), by governance or, if enabled, the guardian emergency path |
+| GnoLightClient cannot follow gno.land (expired trusting period), frozen, or poisoned by a forgery | every proof against it fails or is untrustworthy — receives, acks and timeouts on Ethereum, and governance (refunds already queued or parked stay claimable: only new proof-based processing stops); guardians hold the route; recovery is a route replacement (§7.12), by governance or, if enabled, the guardian emergency path, with reconciliation — or, only when the history is trusted (expiry, or a liveness-only defect shown not to have accepted any false update or proof), an already-recorded kind 6 migration |
 | Meter exhausted (gno) | claims wait and are paid as the meter refills; no loss |
 | Mint limit reached (Eth) | receive refused in the app → error ack → sender refunded on gno.land |
 | Guardian flag | the flagged function stops; exits stay open |
@@ -1947,7 +1975,8 @@ Further trust assumptions of the built controls, each stated where its rule is:
   kept).
 - **Ethereum role ownership.** `finishSetup` checks `IBCAdmin`'s and the deployer's roles only; that no one else
   holds a governed role needs an external audit of the AccessManager's `RoleGranted` log, and the function-role
-  assignments its checklist omits — `settleRecords`, `reopenRoute` (unassigned: `ADMIN_ROLE` by default) and
+  assignments its checklist omits — `settleRecords`, `reopenRoute`, `checkpointForReplacement` (unassigned:
+  `ADMIN_ROLE` by default) and
   `sendTransferWithSender` (`DELEGATE_SENDER_ROLE`, granted to nobody) — must be verified externally too.
 - **Governance capacity.** An expected transition never confirmed by a notice holds a successor place and a place
   in the graph's 64 until removed (at once) or released; a recorded notice nobody applies pins the transitions on
@@ -1969,7 +1998,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | # | Side | Divergence | Rationale |
 |---|---|---|---|
 | 1 | Both | **A closed route pays no refund until it reopens**, the healthy replacement client's included; only the governed settlements pay on a closed route (R17, §6.7, §7.3, §7.13 said only the refund meter and the `refunds` hold delay a refund) | While closed, the retired client's records are not yet told apart; a refund paid from the route's backing could pay a forged one with what a genuine one needs. One rule keeps the backing whole without a per-client refund path; liveness rests on the bounded, governed reconciliation (project-owner decision) |
-| 2 | Both | **Suspect height** = the earliest verification operation that may have been compromised, default 0 (clamped to the client's activation), later only past an established safe history prefix (every retained earlier consensus state genuine), at the installation height of the earliest potentially forged state; a newer genuine head never advances it (§7.12 said "from the last height the replacement clients confirm as honest"); no "first update after the last authenticated root" shortcut | An authenticated root proves the root, not every proof checked against it, and a newer genuine head says nothing about older stored roots; one record too many costs a proof, one too few keeps a forged refund |
+| 2 | Both | **Suspect height** = the earliest verification operation that may have been compromised, default 0 (clamped to the client's activation), later only with both a safe state prefix (every retained earlier consensus state genuine) and evidence that no affected verifier version verified a proof before it, at the earliest potentially compromised operation (a possibly forged root's installation, or an update or proof verification by affected code), 0 when uncertain; a newer genuine head never advances it (§7.12 said "from the last height the replacement clients confirm as honest"); no "first update after the last authenticated root" shortcut | An authenticated root proves the root, not every proof checked against it, and a newer genuine head says nothing about older stored roots; one record too many costs a proof, one too few keeps a forged refund |
 | 3 | Both | **Preparation at suspicion**: a replacement reserves every refund its retired clients' records may owe before any payment; reservations are released **only** by a settlement applying an outcome valid at execution, never by a proof | Otherwise a refund proven and paid first could take a sibling's backing, and a proof that later goes void could release backing a refund needs |
 | 4 | Both | **Settlement refunds park** when the free backing is short (owed, reserved, record settled), instead of failing the settlement | A drained escrow must not block the reconciliation or the reopening; the refund is paid once the backing returns |
 | 5 | Both | **Voucher returns exit a closed route** over its current client; their refunds wait for the reopening | An exit is never trapped (§7.3's rule), while the closed-route refund rule (1) still holds |
@@ -1993,6 +2022,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | 19e | Both, differing | **Who may send**: gno.land's `Transfer` requires a direct user call (`IsUserCall`), refusing intermediate realms and `maketx run`; Ethereum's `sendTransfer` accepts any account, contracts included | gno.land's realm-call model; integrations built on gno.land cannot wrap a transfer in a realm |
 | 19f | gno.land | **The address blocklist stops exits**: a blocked sender cannot send, voucher returns included (refunds still reach it); blocking is immediate, unblocking a 7-day decision | A deliberate exception to "a pause never stops burning" (§7.3); the blocklist is a compliance tool, not a pause |
 | 19g | Both, differing | **Reopening during new losses**: gno.land lets a loss be booked during a reopening and restarts the incident scan; Ethereum seals the reopening (no settlement on its incidents, no loss on the route) | Recorded as built; both end with every loss accepted or resolved |
+| 19i | Both, differing | **Candidate flags at replacement**: gno.land folds flags standing under the new client's id into the route's; Ethereum does not — the new client aliases the existing route, whose flags, limits and quarantine govern, and flags set under the candidate's own id do not carry over | Recorded as built; on Ethereum operators flag the existing route |
 | 19h | Both, differing | **Seat swaps**: gno.land checks only the final seat arrangement, so a decision may move a key between seats; Ethereum refuses any new key already holding any seat at execution | Recorded as built; on Ethereum a swap takes two decisions |
 | 20 | gno.land | **Ethereum-bound decisions are not deferred by gno-side holds** | Their delay and deferral run on Ethereum |
 | 21 | gno.land | **Conservative choices**: a route with an unresolved loss takes no new exposure; a credit by vote only replaces a sweep entry booked after enrolment; only a withheld void is restored; a voucher return waits until its denom is enabled; a flag may stand on any Ethereum client; any change of the fee floor or the Ethereum token waits 7 days; settlements apply only to retired clients' sends | Where the design was silent, the stricter option |
@@ -2149,7 +2179,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 1. **Chain (C1–C3, N1–N2).** Upstream the secp256k1, BLS and param PRs (#6358 first); calibrate gas rows; audit the
    BLS natives; write the gnoland-1 key-migration plan (C2).
 2. **Controls, Ethereum (E5–E9, E11, E12)** — built (gno-eth-ibc `feat/ibc-controls`, `docs/controls.md`).
-   The build verification covers live code, the launch voucher and light client, pending kinds 5, 6, 7 and 9,
+   The build verification covers live code, the current epoch verifier and its ugnot voucher, pending kinds 5, 6, 7 and 9,
    further vouchers and light clients, and recovery candidates (0c673ad, ad7f3e3); only non-`GnoLightClient`
    verifiers and running the tool remain manual (§7.6, Code pinning).
    - `GnoICS20Transfer` (minimal fork, or an upstream extensibility PR to eureka), limits and default-deny denoms
@@ -2519,6 +2549,21 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   `voidOutcome` refuse a settled record; gno-realms 39e5ecf: `ProveOutcome` refuses it, preparation skips it, a late
   ack or timeout moves nothing), so no later proof recreates a hold, changes a reservation or replaces the proven
   ack (§5.4, §7.12). Implementation references updated to gno-realms 39e5ecf and gno-eth-ibc d9e0ef1.
+- 2026-10-19, final review of the alignment with Codex (code and design). Folded:
+  - The later suspect boundary needs both a safe state prefix and evidence that no affected verifier version
+    verified a proof before it; it is the earliest potentially compromised operation, 0 when uncertain (§7.12,
+    §8.5 2).
+  - The repair checklist allows an already-recorded kind 6 only for trusted history, otherwise kind 10 or the
+    emergency recovery with reconciliation; voucher-defect repair adds a supply-versus-backing audit and keeps
+    containment until a repair or the denom's retirement (§7.6).
+  - The monitor's orphan test needs completeness evidence (the receive's referenced source proof height covered)
+    and a finalized source timestamp at or past the packet's timeout; otherwise rewind or defer (§7.11).
+  - Launch gates per chain: gno.land's manual value gate, Ethereum's zero-limit readback in the deploy script
+    (§5.4). The Ethereum mint bound uses the cap integral (§7.2). Ethereum does not carry candidate flags over at
+    replacement (§7.12, §8.5 19i). `checkpointForReplacement` joins the external role audit (E11, §8.4). Build
+    verification: one release per run (`CANDIDATES_ONLY`), the current epoch verifier, explicit lists (§7.6).
+    Kind 7 module equality and own-address checks (§5.4). Conditional set caching in §6.4. The vacancy generation
+    check built (gno-realms 4dbcc03). The graph walk reads at most 64 transitions and expands at most 65 clients.
 
 ## 15. References
 
