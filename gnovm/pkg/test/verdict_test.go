@@ -194,21 +194,6 @@ func TestMissingStdlibImport(t *testing.T) {
 	}
 }
 
-func TestCleanErrorMessage(t *testing.T) {
-	for in, want := range map[string]string{
-		"main/a.go:12:3: msg":              "msg",
-		"main/a.go:12:3-9: msg":            "msg",
-		"main/a.go:23:3-24:3: msg":         "msg",
-		"main/a.go:7: msg":                 "msg",
-		"a.go:5:1: x[main/a.go:1:1-2:2].S": "x[main/a.go:1:1-2:2].S",
-		"no location here":                 "no location here",
-	} {
-		if got := CleanErrorMessage(in); got != want {
-			t.Errorf("CleanErrorMessage(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 func TestIsInternalError(t *testing.T) {
 	for msg, want := range map[string]bool{
 		"main/a.go:3:1: should not happen":                   true,
@@ -218,6 +203,45 @@ func TestIsInternalError(t *testing.T) {
 	} {
 		if got := IsInternalError(msg); got != want {
 			t.Errorf("IsInternalError(%q) = %v, want %v", msg, got, want)
+		}
+	}
+}
+
+func TestCompileVerdict(t *testing.T) {
+	t.Parallel()
+	gcRejects := map[int]string{5: "x"}
+	cited := verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "#1234 bug"}
+	divergence := verdict{Kind: VerdictKnownDivergence, Mode: "compile", Reason: "docs/x.md"}
+	todo := verdict{Kind: VerdictKnownIssue, Mode: "compile", Reason: "TODO: fill"}
+	clean := verdict{Kind: VerdictClean, Mode: "compile"}
+	for _, tc := range []struct {
+		name    string
+		goBuild map[int]string
+		prev    verdict
+		hasPrev bool
+		want    string // Kind, or "TODO <Kind>" for a sync placeholder
+	}{
+		{"gc accepts, no prior", nil, verdict{}, false, "TODO " + VerdictKnownIssue},
+		// gc accepted the file upstream: a rejection here is an artefact,
+		// never agreement, so the file is not Clean.
+		{"gc rejects, no prior", gcRejects, verdict{}, false, "TODO " + VerdictKnownDivergence},
+		{"gc rejects, prior Clean", gcRejects, clean, true, "TODO " + VerdictKnownDivergence},
+		{"gc accepts, prior cited issue", nil, cited, true, VerdictKnownIssue},
+		{"gc rejects, prior cited divergence", gcRejects, divergence, true, VerdictKnownDivergence},
+		{"gc accepts, prior TODO", nil, todo, true, "TODO " + VerdictKnownIssue},
+	} {
+		got := compileVerdict(tc.goBuild, tc.prev, tc.hasPrev)
+		want := tc.want
+		if strings.HasPrefix(want, "TODO ") {
+			want = strings.TrimPrefix(want, "TODO ")
+			if got.check() == nil {
+				t.Errorf("%s: want a TODO placeholder verify refuses, got %q", tc.name, got.String())
+			}
+		} else if tc.hasPrev && got != tc.prev {
+			t.Errorf("%s: want the prior verdict kept, got %q", tc.name, got.String())
+		}
+		if got.Kind != want || got.Mode != "compile" {
+			t.Errorf("%s: compileVerdict = %q; want kind %s", tc.name, got.String(), want)
 		}
 	}
 }

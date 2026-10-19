@@ -17,4 +17,4 @@ type b interface {
 	valid(...int)
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 9, 10, 11, 13, 15, 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 9, 10, 11, 13, 15, 16

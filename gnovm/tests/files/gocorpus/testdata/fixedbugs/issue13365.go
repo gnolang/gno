@@ -28,8 +28,9 @@ func main() {
 // line 14: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 15: invalid argument: index must not be negative: (-1 <untyped> bigint)
 // line 16: invalid argument: index must not be negative: (-1 <untyped> bigint)
+// line 19: invalid argument: index 100 out of bounds [0:10]
 // line 22: cannot use struct{} as int
 // line 23: cannot use struct{} as int
 // line 24: cannot use struct{} as int
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 19
+// Verdict: Clean errorcheck

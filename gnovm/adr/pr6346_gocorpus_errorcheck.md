@@ -15,8 +15,8 @@ preprocessor (`PreprocessFilesCollect`) gives every error with its span.
 
 - Evidence is one block, `GnoError:` (every accumulate-mode error, per
   line, wording kept), and one `Verdict:` line.
-- `Clean errorcheck` when a Gno error span covers every checkable marker
-  line and no Gno error falls on an unmarked line.
+- `Clean errorcheck` when every checkable marker line has a Gno error
+  starting on it and no Gno error starts on an unmarked line.
 - Otherwise `KnownIssue errorcheck: #6344 uncaught markers: lines …;
   over-strict: lines …`. Sync writes the citation itself: a marker Gno
   misses, or an unmarked line it rejects, is by definition a preprocess
@@ -28,13 +28,16 @@ preprocessor (`PreprocessFilesCollect`) gives every error with its span.
 - Parse errors are pinned up to the first syntax error; the parser's
   resynchronisation cascades are not gc's.
 - Coverage is by line: a marker is covered when a Gno checking error
-  spans it, wording kept as evidence. An internal error (`should not
-  happen` and kin) covers nothing: it is a VM bug, listed on its own.
-  Matching by error code, once every rule carries one, is the follow-up.
-- The on-chain path (plain `Preprocess`, first error) also runs on every
-  file and must agree with accumulate mode on whether the file is
-  rejected, with its first error on a reported line; the ledger vouches
-  for the path deploys take, not only for the measuring one.
+  starts on its line (or ends on it, for a function that does not
+  terminate), wording kept as evidence; one error credits at most those
+  lines, so a span over several marked lines does not cover them all.
+  An internal error (`should not happen` and kin) covers nothing: it is
+  a VM bug, listed on its own without its stack dump. Matching by error
+  code, once every rule carries one, is the follow-up.
+- The on-chain path (`PreprocessFiles`, first error, nothing executed)
+  also runs on every file and must agree with accumulate mode on whether
+  the file is rejected, with its first error on a reported line; the
+  ledger vouches for the path deploys take, not only for the measuring one.
 
 ## Alternatives considered
 

@@ -19,4 +19,4 @@ func Bar(x chan, y int) { // ERROR "unexpected comma in channel type|missing cha
 // GnoError:
 // line 11: expected type, found '}'
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 13, 16
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13, 16
