@@ -954,3 +954,22 @@ func f() {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectInitExprCount(t *testing.T) {
+	// An extra initializer is reported at the value, as gc does; a
+	// missing one names the variable without its unresolved path.
+	msgs := collectErrorsRaw(t, `package main
+func main() {
+	var c, d = 1, 2, 3
+	var e, f, g = 1, 2
+	_, _, _, _, _ = c, d, e, f, g
+}
+`)
+	want := []string{
+		"main/main.gno:3:19-20: extra init expr 3",
+		"main/main.gno:4:6-20: missing init expr for g",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}
