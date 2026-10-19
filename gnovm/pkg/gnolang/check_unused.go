@@ -113,7 +113,8 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 	var out []unusedName
 	seen := map[key]bool{}
 	for _, bn := range blocks {
-		for _, ns := range bn.GetStaticBlock().NameSources {
+		sb := bn.GetStaticBlock()
+		for _, ns := range sb.NameSources {
 			if ns.NameExpr == nil {
 				continue
 			}
@@ -133,6 +134,12 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 			k := key{ns.Origin, name}
 			if seen[k] || used[k] {
 				continue
+			}
+			if ns.Origin.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
+				continue // accumulate mode dropped the statement with its uses
+			}
+			if idx, ok := sb.GetLocalIndex(ns.NameExpr.Name); ok && isInvalid(sb.Types[idx]) {
+				continue // a dropped statement's placeholder (accumulate mode)
 			}
 			seen[k] = true
 			span := ns.NameExpr.GetSpan()
@@ -160,5 +167,83 @@ func checkUnused(gm store.GasMeter, parent BlockNode, fn Node) []unusedName {
 		}
 		return out[i].label && !out[j].label
 	})
+	return out
+}
+
+// unusedImport is an import no file of the package refers to (Go spec:
+// "Import declarations"; gc: `"math" imported and not used`).
+type unusedImport struct {
+	name Name
+	msg  string
+	file *FileNode
+	span Span
+}
+
+// checkUnusedImports reports the named imports of fset (dot and blank
+// imports are exempt, as in Go) that no preprocessed file refers to, in
+// source order: files, then import specs. A reference is a NameExpr the
+// preprocessor resolved to a package (ATTR_PACKAGE_REF), in the tree or
+// in the source a folded constant or type keeps. pkgName gives a path's
+// package name, for gc's `imported as m` spelling of a renamed import.
+func checkUnusedImports(gm store.GasMeter, fset *FileSet, pkgName func(pkgPath string) Name) []unusedImport {
+	type key struct {
+		file *FileNode
+		name Name
+	}
+	used := map[key]bool{}  // never ranged
+	seen := map[Node]bool{} // folded sources may refer to each other
+	for _, fn := range fset.Files {
+		var sources func(n Node)
+		mark := func(n Node) {
+			if nx, ok := n.(*NameExpr); ok && nx.GetAttribute(ATTR_PACKAGE_REF) != nil {
+				used[key{fn, nx.Name}] = true
+			}
+		}
+		// Transcribe treats a folded constant or type as a leaf; the
+		// names its source used still count as uses.
+		sources = func(n Node) {
+			if seen[n] {
+				return
+			}
+			seen[n] = true
+			Transcribe(n, func(_ []Node, _ TransField, _ int, sn Node, st TransStage) (Node, TransCtrl) {
+				if st != TRANS_ENTER {
+					return sn, TRANS_CONTINUE
+				}
+				chargeCPUGas(gm, OpCPUSlopeCheckNode)
+				mark(sn)
+				switch sx := sn.(type) {
+				case *ConstExpr:
+					if sx.Source != nil {
+						sources(sx.Source)
+					}
+				case *constTypeExpr:
+					if sx.Source != nil {
+						sources(sx.Source)
+					}
+				}
+				return sn, TRANS_CONTINUE
+			})
+		}
+		sources(fn)
+	}
+	var out []unusedImport
+	for _, fn := range fset.Files {
+		for _, d := range fn.Decls {
+			id, ok := d.(*ImportDecl)
+			if !ok || d.GetAttribute(ATTR_PREPROCESS_DROPPED) == true {
+				continue
+			}
+			name := id.NameExpr.Name
+			if name == blankIdentifier || name == "." || used[key{fn, name}] {
+				continue
+			}
+			msg := fmt.Sprintf("%q imported and not used", id.PkgPath)
+			if pkgName != nil && pkgName(id.PkgPath) != name {
+				msg = fmt.Sprintf("%q imported as %s and not used", id.PkgPath, name)
+			}
+			out = append(out, unusedImport{name: name, msg: msg, file: fn, span: id.GetSpan()})
+		}
+	}
 	return out
 }

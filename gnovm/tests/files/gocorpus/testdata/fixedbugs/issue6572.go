@@ -22,7 +22,8 @@ func main() {
 }
 
 // GnoError:
-// line 9: name T not defined in fileset with files [issue6572.go]
-// line 13: name T not defined in fileset with files [issue6572.go]
+// line 9: name not defined: T
+// line 13: name not defined: T
+// line 20: cannot use string as int
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 20
+// Verdict: Clean errorcheck
