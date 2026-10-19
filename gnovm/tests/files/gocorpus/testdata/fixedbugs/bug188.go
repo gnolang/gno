@@ -15,7 +15,6 @@ func main() {
 }
 
 // GnoError:
-// line 13: declared and not used: x
 // line 14: package sort cannot only be referred to in a selector expression
 
-// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 13
+// Verdict: Clean errorcheck

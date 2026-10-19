@@ -18,7 +18,6 @@ func main() {
 }
 
 // GnoError:
-// line 13: t declared and not used
 // line 14: 0 is not a type
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 13
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16
