@@ -246,95 +246,19 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
 	}
 }
 
-/*
- * Top-level convenience functions
- */
-
-// globalRand is the source of random numbers for the top-level
-// convenience functions.
-var globalRand = &Rand{src: &PCG{}}
-
-// Int64 returns a non-negative pseudo-random 63-bit integer as an int64
-// from the default Source.
-func Int64() int64 { return globalRand.Int64() }
-
-// Uint32 returns a pseudo-random 32-bit value as a uint32
-// from the default Source.
-func Uint32() uint32 { return globalRand.Uint32() }
-
-// Uint64N returns, as a uint64, a pseudo-random number in the half-open interval [0,n)
-// from the default Source.
-// It panics if n <= 0.
-func Uint64N(n uint64) uint64 { return globalRand.Uint64N(n) }
-
-// Uint32N returns, as a uint32, a pseudo-random number in the half-open interval [0,n)
-// from the default Source.
-// It panics if n <= 0.
-func Uint32N(n uint32) uint32 { return globalRand.Uint32N(n) }
-
-// Uint64 returns a pseudo-random 64-bit value as a uint64
-// from the default Source.
-func Uint64() uint64 { return globalRand.Uint64() }
-
-// Int32 returns a non-negative pseudo-random 31-bit integer as an int32
-// from the default Source.
-func Int32() int32 { return globalRand.Int32() }
-
-// Int returns a non-negative pseudo-random int from the default Source.
-func Int() int { return globalRand.Int() }
-
-// Int64N returns, as an int64, a pseudo-random number in the half-open interval [0,n)
-// from the default Source.
-// It panics if n <= 0.
-func Int64N(n int64) int64 { return globalRand.Int64N(n) }
-
-// Int32N returns, as an int32, a pseudo-random number in the half-open interval [0,n)
-// from the default Source.
-// It panics if n <= 0.
-func Int32N(n int32) int32 { return globalRand.Int32N(n) }
-
-// IntN returns, as an int, a pseudo-random number in the half-open interval [0,n)
-// from the default Source.
-// It panics if n <= 0.
-func IntN(n int) int { return globalRand.IntN(n) }
-
-// UintN returns, as a uint, a pseudo-random number in the half-open interval [0,n)
-// from the default Source.
-// It panics if n <= 0.
-func UintN(n uint) uint { return globalRand.UintN(n) }
-
-// Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0)
-// from the default Source.
-func Float64() float64 { return globalRand.Float64() }
-
-// Float32 returns, as a float32, a pseudo-random number in the half-open interval [0.0,1.0)
-// from the default Source.
-func Float32() float32 { return globalRand.Float32() }
-
-// Perm returns, as a slice of n ints, a pseudo-random permutation of the integers
-// in the half-open interval [0,n) from the default Source.
-func Perm(n int) []int { return globalRand.Perm(n) }
-
-// Shuffle pseudo-randomizes the order of elements using the default Source.
-// n is the number of elements. Shuffle panics if n < 0.
-// swap swaps the elements with indexes i and j.
-func Shuffle(n int, swap func(i, j int)) { globalRand.Shuffle(n, swap) }
-
-// NormFloat64 returns a normally distributed float64 in the range
-// [-math.MaxFloat64, +math.MaxFloat64] with
-// standard normal distribution (mean = 0, stddev = 1)
-// from the default Source.
-// To produce a different normal distribution, callers can
-// adjust the output using:
+// Custom code: Gno does not provide the top-level convenience functions
+// (Int64, IntN, Float64, Shuffle, Perm, ...) that Go's math/rand/v2 exposes.
 //
-//	sample = NormFloat64() * desiredStdDev + desiredMean
-func NormFloat64() float64 { return globalRand.NormFloat64() }
-
-// ExpFloat64 returns an exponentially distributed float64 in the range
-// (0, +math.MaxFloat64] with an exponential distribution whose rate parameter
-// (lambda) is 1 and whose mean is 1/lambda (1) from the default Source.
-// To produce a distribution with a different rate parameter,
-// callers can adjust the output using:
+// In Go those draw from a package-level Source seeded from runtime entropy.
+// Gno has neither runtime entropy nor writable package state: math/rand is a
+// pure package, so a realm cannot seed or advance a shared generator, and any
+// package-level Source would be a fixed seed producing the identical stream in
+// every transaction forever - a silent footgun rather than a convenience.
 //
-//	sample = ExpFloat64() / desiredRateParameter
-func ExpFloat64() float64 { return globalRand.ExpFloat64() }
+// Callers must construct an explicit generator and own its seed:
+//
+//	r := rand.New(rand.NewPCG(seed1, seed2))
+//	r.IntN(100)
+//
+// Choosing the seed is then an explicit, auditable decision (a block height, a
+// commit-reveal value, an oracle) rather than an invisible default.

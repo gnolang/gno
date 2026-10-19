@@ -36,7 +36,10 @@ func Example() {
 		"Outlook not so good",
 		"Very doubtful",
 	}
-	fmt.Println("Magic 8-Ball says:", answers[rand.IntN(len(answers))])
+	// Custom code: Gno has no package-level source, so the generator is
+	// explicit and its seed is the caller's responsibility.
+	r := rand.New(rand.NewPCG(1, 2))
+	fmt.Println("Magic 8-Ball says:", answers[r.IntN(len(answers))])
 }
 
 // This example shows the use of each of the methods on a *Rand.
@@ -100,7 +103,8 @@ func Example_rand() {
 }
 
 func ExamplePerm() {
-	for _, value := range rand.Perm(3) {
+	r := rand.New(rand.NewPCG(1, 2))
+	for _, value := range r.Perm(3) {
 		fmt.Println(value)
 	}
 
@@ -110,8 +114,9 @@ func ExamplePerm() {
 }
 
 func ExampleShuffle() {
+	r := rand.New(rand.NewPCG(1, 2))
 	words := strings.Fields("ink runs from the corners of my mouth")
-	rand.Shuffle(len(words), func(i, j int) {
+	r.Shuffle(len(words), func(i, j int) {
 		words[i], words[j] = words[j], words[i]
 	})
 	fmt.Println(words)
@@ -121,7 +126,8 @@ func ExampleShuffle_slicesInUnison() {
 	numbers := []byte("12345")
 	letters := []byte("ABCDE")
 	// Shuffle numbers, swapping corresponding entries in letters at the same time.
-	rand.Shuffle(len(numbers), func(i, j int) {
+	r := rand.New(rand.NewPCG(1, 2))
+	r.Shuffle(len(numbers), func(i, j int) {
 		numbers[i], numbers[j] = numbers[j], numbers[i]
 		letters[i], letters[j] = letters[j], letters[i]
 	})
@@ -131,7 +137,8 @@ func ExampleShuffle_slicesInUnison() {
 }
 
 func ExampleIntN() {
-	fmt.Println(rand.IntN(100))
-	fmt.Println(rand.IntN(100))
-	fmt.Println(rand.IntN(100))
+	r := rand.New(rand.NewPCG(1, 2))
+	fmt.Println(r.IntN(100))
+	fmt.Println(r.IntN(100))
+	fmt.Println(r.IntN(100))
 }

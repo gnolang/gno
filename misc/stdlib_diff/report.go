@@ -153,9 +153,17 @@ func (builder *ReportBuilder) ExecuteDiffTemplate(directory *Directory) error {
 		return nil
 	}
 
-	srcPackagePath := builder.SrcPath + "/" + directory.Path
+	// The Go side may live at a different path than the gno side, and some of
+	// its files may have been relocated into another directory. See aliases.go.
+	srcPackagePath := builder.SrcPath + "/" + resolveDir(directory.Path)
 	dstPackagePath := builder.DstPath + "/" + directory.Path
-	packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath)
+
+	var extraSrcPaths []string
+	for _, extra := range extraLookupDirs[directory.Path] {
+		extraSrcPaths = append(extraSrcPaths, builder.SrcPath+"/"+extra)
+	}
+
+	packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath, extraSrcPaths...)
 	if err != nil {
 		return fmt.Errorf("can't create new PackageDiffChecker: %w", err)
 	}
@@ -299,6 +307,10 @@ func (builder *ReportBuilder) findDirectories() ([]string, map[string]bool, map[
 	srcMap := make(map[string]bool)
 	dstMap := make(map[string]bool)
 	for _, path := range srcDirectories {
+		if isAliasTarget(path) {
+			// Covered by the gno package that aliases it; see aliases.go.
+			continue
+		}
 		res = append(res, path)
 		srcMap[path] = true
 	}
