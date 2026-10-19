@@ -1787,10 +1787,21 @@ func goModLangVersion(v string) string {
 // ledger can check that the two agree on whether the file is rejected.
 func (opts *TestOptions) runErrorcheck(m, onChain *gno.Machine, pkgPath, fname string, content []byte) (rr runResult) {
 	pkgName, err := gno.PackageNameFromFileBody(fname, string(content))
-	if err != nil {
-		return runResult{Error: err.Error()}
-	}
 	fname = filepath.Base(fname)
+	if err != nil {
+		// No package clause: the parser's errors are pinned, credited to
+		// their lines (gc: "package statement must be first").
+		_, perrs := m.ParseFileCollect(fname, string(content))
+		for _, e := range perrs {
+			rr.gnoErrors = append(rr.gnoErrors, e.Error())
+		}
+		if len(rr.gnoErrors) == 0 {
+			rr.gnoErrors = append(rr.gnoErrors, err.Error())
+		}
+		rr.parseBlocked = true
+		rr.Error = strings.Join(rr.gnoErrors, "; ")
+		return rr
+	}
 	rr.onChainError = firstPreprocessError(onChain, pkgName, pkgPath, fname, content)
 	defer func() {
 		if r := recover(); r != nil { // a VM bug: keep what was collected before it

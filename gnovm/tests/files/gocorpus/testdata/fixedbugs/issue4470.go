@@ -17,6 +17,6 @@ func main() {
 }
 
 // GnoError:
-// line 13: should not happen
+// line 13: use of .(type) outside type switch
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13; internal errors: lines 13
+// Verdict: Clean errorcheck

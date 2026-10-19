@@ -18,6 +18,6 @@ func New() I {
 }
 
 // GnoError:
-// line 12: interface contains embedded non-interface int
+// line 13: interface contains embedded non-interface int
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13; over-strict: lines 12
+// Verdict: Clean errorcheck

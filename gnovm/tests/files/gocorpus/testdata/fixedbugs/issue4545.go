@@ -19,6 +19,7 @@ func main() {
 }
 
 // GnoError:
+// line 16: operator << not defined on: Float64Kind
 // line 17: operator << not defined on: BigdecKind
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16
+// Verdict: Clean errorcheck

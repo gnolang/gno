@@ -19,6 +19,6 @@ func main() {
 }
 
 // GnoError:
-// line 15: duplicate type func(int) in type switch
+// line 17: duplicate case func(int) in type switch
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17; over-strict: lines 15
+// Verdict: Clean errorcheck

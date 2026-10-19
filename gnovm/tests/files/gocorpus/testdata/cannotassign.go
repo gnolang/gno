@@ -43,7 +43,7 @@ func main() {
 // line 26: cannot assign to "hi"
 // line 27: cannot assign to uverse nil
 // line 28: cannot assign to len("")
-// line 29: cannot assign to (const-type []int){}
+// line 29: cannot assign to []int{}
 // line 32: cannot assign to x + 1
 
 // Verdict: Clean errorcheck
