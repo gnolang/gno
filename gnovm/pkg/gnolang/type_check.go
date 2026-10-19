@@ -634,17 +634,13 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
-	case *StructType:
+	case *StructType, *FuncType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			if f := embeddedFieldMismatch(xt, cdt); f != "" {
 				return errors.New(
 					"cannot use %s as %s (field %s is embedded in only one)",
 					xt.String(), dt.String(), f)
 			}
-			return nil // ok
-		}
-	case *FuncType, *PackageType, *TypeType:
-		if xt.TypeID() == cdt.TypeID() {
 			if tagsIdentical(preprocessGasMeterOf(store), xt, cdt) {
 				return nil // ok
 			}
