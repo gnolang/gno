@@ -3396,9 +3396,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					case *DeclaredType:
 						dt = ct
 					default:
-						panic(fmt.Sprintf(
-							"unexpected selector expression type value %s",
-							xt.String()))
+						panic(fmt.Sprintf("%s undefined (type %s has no method %s)",
+							exprString(n), typeString(xt), n.Sel))
 					}
 					// Ensure exposed or package path match. Without this gate,
 					// `(*pkg.Type).unexportedMethod` from outside pkg resolves
@@ -3413,9 +3412,8 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 					}
 					n.Path = dt.GetUnboundPathForName(n.Sel)
 				default:
-					panic(fmt.Sprintf(
-						"unexpected selector expression type %v",
-						reflect.TypeOf(xt)))
+					panic(fmt.Sprintf("%s undefined (type %s has no field or method %s)",
+						exprString(n), operandTypeString(xt), n.Sel))
 				}
 
 			// TRANS_LEAVE -----------------------

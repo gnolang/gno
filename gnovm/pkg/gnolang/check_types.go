@@ -304,6 +304,11 @@ func exprString(x Expr) string {
 		return "[" + exprString(x.Len) + "]" + exprString(x.Elt)
 	case *MapTypeExpr:
 		return "map[" + exprString(x.Key) + "]" + exprString(x.Value)
+	case *CompositeLitExpr:
+		if len(x.Elts) == 0 {
+			return exprString(x.Type) + "{}"
+		}
+		return exprString(x.Type) + "{…}" // as go/types
 	}
 	return x.String()
 }

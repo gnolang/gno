@@ -1460,3 +1460,36 @@ func main() {
 		}
 	}
 }
+
+func TestPreprocessCollectSelectorUndefined(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+const c = 3
+
+var v int
+
+func main() {
+	_ = c.String()
+	_ = v.String()
+	_ = []int{}.Len
+	_ = int.String
+	var f func()
+	_ = f.X
+}
+`)
+	want := []string{
+		"c.String undefined (type untyped int has no field or method String)",
+		"v.String undefined (type int has no field or method String)",
+		"[]int{}.Len undefined (type []int has no field or method Len)",
+		"int.String undefined (type int has no method String)",
+		"f.X undefined (type func() has no field or method X)",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("want %d errors, got %d: %q", len(want), len(msgs), msgs)
+	}
+	for i, w := range want {
+		if msgs[i] != w {
+			t.Errorf("error %d: want %q, got %q", i, w, msgs[i])
+		}
+	}
+}
