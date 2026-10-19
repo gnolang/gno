@@ -24,4 +24,4 @@ var _, main /* ERROR "cannot declare main" */ int
 // line 10: gc expects: cannot declare main; gno: main redeclared in this block
 // 	previous declaration at decls5.go:8:10
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 8

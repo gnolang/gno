@@ -21,4 +21,4 @@ type b int
 // ParseBlocked:
 // line 14: gc expects: multiple receiver
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14

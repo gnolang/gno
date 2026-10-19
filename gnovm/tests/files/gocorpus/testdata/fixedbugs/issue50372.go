@@ -30,14 +30,17 @@ func _(s chan int) {
 
 // GnoError:
 // line 16: expected at most 2 expressions
+// line 17: expected at most 2 expressions
+// line 27: expected at most 2 expressions
+// line 28: expected at most 2 expressions
 
 // ParseBlocked:
-// line 17: gc expects: range clause permits at most two iteration variables
 // line 26: gc expects: range over .* permits only one iteration variable
-// line 27: gc expects: range over .* permits only one iteration variable
-// line 28: gc expects: range over .* permits only one iteration variable
 
 // GnoWordingDiffers:
 // line 16: gc expects: range clause permits at most two iteration variables; gno: expected at most 2 expressions
+// line 17: gc expects: range clause permits at most two iteration variables; gno: expected at most 2 expressions
+// line 27: gc expects: range over .* permits only one iteration variable; gno: expected at most 2 expressions
+// line 28: gc expects: range over .* permits only one iteration variable; gno: expected at most 2 expressions
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 26

@@ -107,10 +107,11 @@ func checkTypeExprShape(gm store.GasMeter, tx Expr) {
 // checkTypeShape re-runs the map key and embedded field rules over the
 // package types reachable from dt once its base is set: a type finished
 // earlier may hold a map keyed by dt, skipped while dt was incomplete.
-func checkTypeShape(gm store.GasMeter, dt *DeclaredType) {
+// An error is positioned at its spelling in the owning declaration.
+func checkTypeShape(gm store.GasMeter, last BlockNode, dt *DeclaredType) {
 	seen := map[Type]bool{}
-	var walk func(t Type)
-	walk = func(t Type) {
+	var walk func(t Type, owner *DeclaredType)
+	walk = func(t Type, owner *DeclaredType) {
 		if t == nil || seen[t] {
 			return
 		}
@@ -119,43 +120,87 @@ func checkTypeShape(gm store.GasMeter, dt *DeclaredType) {
 		switch ct := t.(type) {
 		case *DeclaredType:
 			if ct.PkgPath == dt.PkgPath {
-				walk(ct.Base)
+				walk(ct.Base, ct)
 			}
 		case *PointerType:
-			walk(ct.Elt)
+			walk(ct.Elt, owner)
 		case *SliceType:
-			walk(ct.Elt)
+			walk(ct.Elt, owner)
 		case *ArrayType:
-			walk(ct.Elt)
+			walk(ct.Elt, owner)
 		case *ChanType:
-			walk(ct.Elt)
+			walk(ct.Elt, owner)
 		case *MapType:
 			if msg := mapKeyError(gm, ct.Key); msg != "" {
-				fail(CodeMapKey, msg)
+				x, _ := typeExprIn(gm, last, owner, ct).(*MapTypeExpr)
+				if x == nil {
+					fail(CodeMapKey, msg)
+				}
+				fail(CodeMapKey, msg, x.Key, x)
 			}
-			walk(ct.Key)
-			walk(ct.Value)
+			walk(ct.Key, owner)
+			walk(ct.Value, owner)
 		case *FuncType:
 			for _, p := range ct.Params {
-				walk(p.Type)
+				walk(p.Type, owner)
 			}
 			for _, r := range ct.Results {
-				walk(r.Type)
+				walk(r.Type, owner)
 			}
 		case *StructType:
-			for _, f := range ct.Fields {
+			for i, f := range ct.Fields {
 				if msg := embeddedFieldError(f); f.Embedded && msg != "" {
-					fail(CodeEmbeddedField, msg)
+					x, _ := typeExprIn(gm, last, owner, ct).(*StructTypeExpr)
+					if x == nil || len(x.Fields) != len(ct.Fields) {
+						fail(CodeEmbeddedField, msg)
+					}
+					fail(CodeEmbeddedField, msg, &x.Fields[i], x)
 				}
-				walk(f.Type)
+				walk(f.Type, owner)
 			}
 		case *InterfaceType:
 			for _, m := range ct.Methods {
-				walk(m.Type)
+				walk(m.Type, owner)
 			}
 		}
 	}
-	walk(dt)
+	walk(dt, dt)
+}
+
+// typeExprIn returns the type expression in owner's package-level
+// declaration that evaluated to t, or nil (local or unknown owner).
+func typeExprIn(gm store.GasMeter, last BlockNode, owner *DeclaredType, t Type) (found Expr) {
+	if owner == nil {
+		return nil
+	}
+	fset := packageOf(last).FileSet
+	if fset == nil {
+		return nil
+	}
+	_, slot, ok := fset.GetDeclForSafe(owner.Name)
+	if !ok {
+		return nil
+	}
+	td, ok := (*slot).(*TypeDecl)
+	if !ok {
+		return nil
+	}
+	tx := td.Type
+	if ctx, ok := tx.(*constTypeExpr); ok {
+		tx = ctx.Source
+	}
+	Transcribe(tx, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		chargeCPUGas(gm, OpCPUSlopeCheckNode)
+		if x, ok := n.(Expr); ok && n.GetAttribute(ATTR_TYPE_VALUE) == t {
+			found = x
+			return n, TRANS_EXIT
+		}
+		return n, TRANS_CONTINUE
+	})
+	return found
 }
 
 // assertArrayLength rejects a negative constant array length.
@@ -247,6 +292,18 @@ func exprString(x Expr) string {
 			args[i] = exprString(a)
 		}
 		return exprString(x.Func) + "(" + strings.Join(args, ", ") + ")"
+	case *SliceTypeExpr:
+		if x.Vrd {
+			return "..." + exprString(x.Elt)
+		}
+		return "[]" + exprString(x.Elt)
+	case *ArrayTypeExpr:
+		if x.Len == nil {
+			return "[...]" + exprString(x.Elt)
+		}
+		return "[" + exprString(x.Len) + "]" + exprString(x.Elt)
+	case *MapTypeExpr:
+		return "map[" + exprString(x.Key) + "]" + exprString(x.Value)
 	}
 	return x.String()
 }
@@ -262,9 +319,16 @@ func typeString(t Type) string {
 // constString prints a folded constant Go style: the value for an
 // untyped constant, T(value) for a typed one, strings quoted.
 func constString(c *ConstExpr) string {
-	switch c.Source.(type) {
-	case *BasicLitExpr, *CallExpr, *BinaryExpr, *UnaryExpr, *NameExpr, *SelectorExpr:
-		return exprString(c.Source) // as written, also after folding
+	switch src := c.Source.(type) {
+	case *CallExpr:
+		// A conversion the preprocessor inserted has no span: print
+		// the operand as written.
+		if _, ok := src.Func.(*constTypeExpr); ok && len(src.Args) == 1 && src.GetSpan().IsZero() {
+			return exprString(src.Args[0])
+		}
+		return exprString(src)
+	case *BasicLitExpr, *BinaryExpr, *UnaryExpr, *NameExpr, *SelectorExpr, *ConstExpr:
+		return exprString(src) // as written, also after folding or conversion
 	}
 	var v string
 	switch {
@@ -277,7 +341,10 @@ func constString(c *ConstExpr) string {
 	case isUntyped(c.T):
 		return c.TypedValue.Sprint(nil)
 	default:
-		v = c.TypedValue.Sprint(nil)
+		// Print the value alone; a declared type is named by the wrapper.
+		tv := c.TypedValue
+		tv.T = baseOf(tv.T)
+		v = tv.Sprint(nil)
 	}
 	if isUntyped(c.T) {
 		return v
@@ -301,8 +368,8 @@ func assertSingleDefault(clauses []SwitchClauseStmt) {
 
 // dynamicTypeError reports why a value of interface type it can never
 // have the concrete dynamic type ct, or nil when it can. Interface and
-// nil case types are always possible.
-func dynamicTypeError(it, ct Type) error {
+// nil case types are always possible. gm meters the method-set walk.
+func dynamicTypeError(gm store.GasMeter, it, ct Type) error {
 	iface, ok := baseOf(it).(*InterfaceType)
 	if !ok || ct == nil || iface.Generic != "" {
 		return nil
@@ -310,12 +377,13 @@ func dynamicTypeError(it, ct Type) error {
 	if _, ok := baseOf(ct).(*InterfaceType); ok {
 		return nil
 	}
-	return iface.checkImplementedBy(nil, ct)
+	return iface.checkImplementedBy(gm, ct)
 }
 
 // assertCopyArgs checks copy(dst, src): dst a slice, src a slice of the
-// same element type, or a string when dst is a byte slice.
-func assertCopyArgs(dst, src operand) {
+// identical element type (tags included), or a string when dst is a
+// byte slice.
+func assertCopyArgs(gm store.GasMeter, dst, src operand) {
 	assertNotType(dst)
 	assertNotType(src)
 	dt, st := dst.typ, src.typ
@@ -328,6 +396,9 @@ func assertCopyArgs(dst, src operand) {
 	}
 	if sok && ds.Elt.TypeID() != ss.Elt.TypeID() {
 		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and %v", ds.Elt, ss.Elt)
+	}
+	if sok && !tagsIdentical(gm, ds.Elt, ss.Elt) {
+		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and %v: struct tags differ", ds.Elt, ss.Elt)
 	}
 	if isString && ds.Elt != Uint8Type {
 		failf(CodeCopyArgs, nil, "arguments to copy have different element types %v and byte", ds.Elt)
@@ -353,7 +424,7 @@ func assertSwitchTag(tag operand) {
 
 // assertMethodExprReceiver: the method expression T.m needs *T when m
 // has a pointer receiver (Go spec, "Method expressions").
-func assertMethodExprReceiver(xt Type, dt *DeclaredType, sel Name, recv Type, isPtr bool) {
+func assertMethodExprReceiver(dt *DeclaredType, sel Name, recv Type, isPtr bool) {
 	if _, ptrRecv := recv.(*PointerType); ptrRecv && !isPtr {
 		failf(CodeMethodExprReceiver, nil,
 			"invalid method expression %s.%s (needs pointer receiver (*%s).%s)", dt.Name, sel, dt.Name, sel)
@@ -362,9 +433,15 @@ func assertMethodExprReceiver(xt Type, dt *DeclaredType, sel Name, recv Type, is
 
 // promotedMethodExpr lowers the method expression n (X.Sel, X a type)
 // whose method is promoted through an embedded field to
-// func(r X, args...) results { return r.Sel(args...) }.
+// func(r X, args...) results { return r.Sel(args...) }. Preprocessing
+// the literal evaluates its type expressions on the machine, so the
+// lowering is metered per op, O(params + results).
 func promotedMethodExpr(store Store, last BlockNode, pkgPath string, n *SelectorExpr, xt Type, isPtr bool) *FuncLitExpr {
-	trail, hasPtr, rcvr, ft, status := findEmbeddedFieldType(preprocessGasMeterOf(store), pkgPath, xt, n.Sel)
+	gm := preprocessGasMeterOf(store)
+	trail, hasPtr, rcvr, ft, status := findEmbeddedFieldType(gm, pkgPath, xt, n.Sel)
+	if status == embedLookupAmbiguous {
+		failf(CodeNoMethod, nil, "ambiguous selector %s.%s", exprString(n.X), n.Sel)
+	}
 	if status != embedLookupFound || len(trail) == 0 || trail[len(trail)-1].Type == VPField || trail[len(trail)-1].Type == VPDerefField {
 		failf(CodeNoMethod, nil, "%s.%s undefined (type %v has no method %s)", exprString(n.X), n.Sel, xt, n.Sel)
 	}

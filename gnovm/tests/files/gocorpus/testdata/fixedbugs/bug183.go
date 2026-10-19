@@ -28,4 +28,4 @@ func g() {
 // GnoError:
 // line 24: cannot use main.T2 as main.T1 without explicit conversion
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 14
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 14

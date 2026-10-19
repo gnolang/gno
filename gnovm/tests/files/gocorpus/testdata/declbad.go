@@ -78,4 +78,4 @@ func main() {
 // line 26: gc expects: redeclared|cannot assign|incompatible|cannot use
 // line 32: gc expects: redeclared|cannot assign|incompatible|cannot use
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 26, 32

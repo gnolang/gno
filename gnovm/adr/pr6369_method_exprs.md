@@ -24,6 +24,13 @@ the harness's KnownIssue canary pinned the gap.
 - Synthesising a bound method value in the VM: more machinery for the
   same observable behaviour; the literal reuses selector lowering.
 
+## Gas
+
+The embed walk is metered as for any selector. Preprocessing the
+literal evaluates its type expressions on the machine, so the lowering
+is metered per op, O(params + results) (`TestPreprocessGas_PromotedMethodExpr`
+pins the growth); no separate charge is added.
+
 ## Consequences
 
 - Six `#5787` corpus files and one errorcheck file flip to `Clean`;

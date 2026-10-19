@@ -19,6 +19,8 @@ func f(int, int) {
 
 // GnoError:
 // line 12: missing ',' before newline in argument list
+// line 13: expected operand, found 'case'
+// line 18: missing ',' in argument list
 
 // ParseBlocked:
 // line 16: gc expects: expecting \)|possibly missing comma or \)
@@ -26,4 +28,4 @@ func f(int, int) {
 // GnoWordingDiffers:
 // line 12: gc expects: expecting \)|possibly missing comma or \); gno: missing ',' before newline in argument list
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16; over-strict: lines 13, 18

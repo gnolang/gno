@@ -66,9 +66,6 @@ func main() {
 	}
 }
 
-
-// Tracked: issue #5787 (method expressions: interface/promoted/mixed-receiver forms); broken on master, no PR yet.
-
 // GnoOutput:
 
 // GnoError:
@@ -76,4 +73,4 @@ func main() {
 
 // GoOutput:
 
-// Verdict: KnownIssue run: #5787 method expression on an interface or mixed-receiver type is rejected at preprocess
+// Verdict: KnownIssue run: #5787 method expression on an interface type literal (line 42) is rejected at preprocess

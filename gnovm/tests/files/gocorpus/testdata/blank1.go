@@ -41,4 +41,4 @@ func main() {
 // line 28: gc expects: cannot refer to blank field|invalid use of|t._ undefined
 // line 31: gc expects: cannot be compared|non-comparable|cannot compare v1 == v2
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 16, 25, 26, 28, 31

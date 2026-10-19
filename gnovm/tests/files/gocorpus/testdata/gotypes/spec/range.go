@@ -201,4 +201,4 @@ func _() {
 // line 166: gc expects: range over seq0 (value of type func(func() bool)) permits no iteration variables
 // line 173: gc expects: range over seq1 (value of type func(func(int) bool)) permits only one iteration variable
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 30, 33, 35, 37, 59, 105, 109, 121, 133, 138, 166, 173
