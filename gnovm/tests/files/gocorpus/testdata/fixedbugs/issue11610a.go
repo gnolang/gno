@@ -11,9 +11,6 @@ package a
 import""  // ERROR "import path is empty|invalid import path \(empty string\)"
 
 // GnoError:
-// line 11: invalid zero package path in testStore().pkgGetter:
-// --- preprocess stack ---
-// stack 1: file gno.land/p/filetest/a/issue11610a.go:11:1-14:15
-// ------------------------
+// line 11: invalid zero package path in testStore().pkgGetter
 
 // Verdict: Clean errorcheck

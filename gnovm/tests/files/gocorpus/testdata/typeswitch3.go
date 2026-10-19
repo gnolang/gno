@@ -58,4 +58,4 @@ func noninterface() {
 // GnoError:
 // line 39: no new variables on left side of :=
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 24, 45, 54
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 24, 45, 54

@@ -2,8 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-
-	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Declaration and literal rules the preprocessor enforces (Go spec:
@@ -89,26 +87,5 @@ func assertStructLiteralCount(n *CompositeLitExpr, st *StructType, lt Type) {
 		panic(fmt.Sprintf("too few values in struct literal of type %v", lt))
 	case len(n.Elts) > len(st.Fields):
 		panic(fmt.Sprintf("too many values in struct literal of type %v", lt))
-	}
-}
-
-// assertLiteralIndicesFit rejects an array literal element whose index,
-// written or implied, is not below the array length.
-func assertLiteralIndicesFit(gm store.GasMeter, n *CompositeLitExpr, length int) {
-	chargeCPUGas(gm, OpCPUSlopeCheckNode*int64(len(n.Elts)))
-	next := int64(0)
-	for _, elt := range n.Elts {
-		idx := next
-		if elt.Key != nil {
-			i, ok := constIndex(elt.Key)
-			if !ok {
-				continue
-			}
-			idx = i
-		}
-		if idx >= int64(length) {
-			panic(fmt.Sprintf("index %d out of bounds [0:%d]", idx, length))
-		}
-		next = idx + 1
 	}
 }

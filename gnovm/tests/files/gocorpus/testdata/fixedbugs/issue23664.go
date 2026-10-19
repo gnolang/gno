@@ -19,4 +19,4 @@ func f() {
 // GnoError:
 // line 12: expected ';', found true
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 15
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15

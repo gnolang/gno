@@ -229,9 +229,6 @@ func main() {
 	}
 }
 
-
-// Tracked: issue #5787 (method expressions).
-
 // GnoOutput:
 
 // GnoError:

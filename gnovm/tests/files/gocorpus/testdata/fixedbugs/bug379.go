@@ -17,4 +17,4 @@ func main() {
 	1 + 2 // ERROR "1 \+ 2 evaluated but not used|value computed is not used|is not used"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 17
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 17

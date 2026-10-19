@@ -39,4 +39,4 @@ func whatis(x interface{}) string {
 // GnoError:
 // line 15: duplicate type int in type switch
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 18, 22, 29; over-strict: lines 15

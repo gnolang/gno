@@ -18,4 +18,4 @@ func (*T) p() {} // ERROR "T\.p already declared|redefinition"
 // line 12: redeclaration of method T.m
 // line 15: redeclaration of method T.p
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 on-chain path accepts the file

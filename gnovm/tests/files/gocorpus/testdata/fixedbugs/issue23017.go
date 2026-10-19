@@ -112,9 +112,6 @@ func check(want, got int) {
 	}
 }
 
-
-// Fixed: master PR #5790 (7b2888c3b); verified clean, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 
 // GoOutput:

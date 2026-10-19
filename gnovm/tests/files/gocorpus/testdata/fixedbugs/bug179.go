@@ -30,4 +30,4 @@ L1:
 // line 13: label L2 undefined
 // line 14: label L2 undefined
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 22, 23
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 22, 23

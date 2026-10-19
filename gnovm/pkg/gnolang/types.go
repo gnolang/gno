@@ -1025,6 +1025,17 @@ func (it *InterfaceType) panicUnflattened(im FieldType) {
 // an unmetered call is visible at its call site.
 // TODO: optimize somehow.
 func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
+	return it.checkImplementedBy2(gm, ot, false)
+}
+
+// checkImplementedByStatic is checkImplementedBy for the preprocessor:
+// method types must be identical struct tags included, as in Go. The
+// runtime path keeps the tag-blind comparison and its charges.
+func (it *InterfaceType) checkImplementedByStatic(gm store.GasMeter, ot Type) error {
+	return it.checkImplementedBy2(gm, ot, true)
+}
+
+func (it *InterfaceType) checkImplementedBy2(gm store.GasMeter, ot Type, tags bool) error {
 	// Charge gas for the per-method interface implementation verification.
 	// Each method is looked up on a shared embedWalk
 	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (349 gas)
@@ -1075,10 +1086,11 @@ func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 			if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
 				return fmt.Errorf("method %s has pointer receiver", mname) // not addressable.
 			}
-			// check for func type equality.
+			// check for func type identity (struct tags included when
+			// tags is set).
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
-			if dmtid != imtid {
+			if dmtid != imtid || tags && !tagsIdentical(gm, mt, im.Type) {
 				return fmt.Errorf("wrong type for method %s", mname)
 			}
 		} else {
