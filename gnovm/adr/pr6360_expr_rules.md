@@ -29,6 +29,11 @@ already visited, so no other charge moves:
   function call (a conversion or a constant `len` is not one), checked
   where a constant is required; the operand walk is `OpCPUSlopeCheckNode`
   per node. Indexing dereferences a pointer to an array only.
+- An untyped binary expression given to an interface takes its default
+  type as a whole (`1.0 + 1<<s` is a float64 shift). Two unnamed structs
+  whose fields differ only in embedding (`struct{T}` / `struct{T T}`)
+  share a TypeID, which the store keys on, so assignability and element
+  identity compare the embedding flag instead.
 - A constant index or slice bound is checked against an array's or a
   constant string's length (`high` may equal the length); slice bounds
   must be ordered; a string has no 3-index slice.

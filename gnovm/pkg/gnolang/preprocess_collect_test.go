@@ -724,6 +724,33 @@ func main() {
 	}
 }
 
+func TestPreprocessCollectEmbeddedIdentity(t *testing.T) {
+	// struct{T} and struct{T T} share a TypeID but are not identical.
+	msgs := collectErrors(t, `package main
+
+type T int
+
+func main() {
+	var x struct{ T }
+	var y struct{ T T }
+	var z struct{ T }
+	x = y
+	x = z
+	var xs []struct{ T }
+	var ys []struct{ T T }
+	xs = ys
+	_, _ = x, xs
+}
+`)
+	want := []string{
+		"cannot use struct{T main.T} as struct{T main.T} (field T is embedded in only one)",
+		"cannot use []struct{T main.T} as []struct{T main.T}",
+	}
+	if len(msgs) != 2 || msgs[0] != want[0] || msgs[1] != want[1] {
+		t.Fatalf("want %v, got %v", want, msgs)
+	}
+}
+
 func TestPreprocessCollectUnusedExempt(t *testing.T) {
 	// A name only a folded constant uses, and a blank label, are not unused.
 	src := `package main
