@@ -53,4 +53,4 @@ func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition
 // ParseBlocked:
 // line 27: gc expects: duplicate argument i|redefinition|previous|redeclared
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 27

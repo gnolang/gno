@@ -14,7 +14,13 @@ covered.
 Checks in `check_assign.go` and the type lookup, on the preprocessed
 tree:
 
-- Struct tags take part in type identity, as in Go.
+- Struct tags take part in type identity where assignability, static
+  interface satisfaction (method types, `checkImplementedByStatic`) and
+  `copy` element types are decided (`tagsIdentical` beside the tag-blind
+  `TypeID`). The runtime assertion path keeps the tag-blind comparison
+  and its gas. Left tag-blind for now: `checkSame` (slice, map and array
+  element identity), `==` and channel element types; conversions ignore
+  tags, as in Go.
 - A field or element of a value held in a map is not assignable
   (`m[k].f = v`); the native filetest that relied on go/types refusing
   the statement while Gno ran it moves to its own error filetest.

@@ -34,4 +34,4 @@ L1:
 // line 22: gc expects: L1
 // line 23: gc expects: L1
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 22, 23

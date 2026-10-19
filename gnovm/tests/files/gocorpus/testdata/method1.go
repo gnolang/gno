@@ -33,4 +33,4 @@ func g(a int, c string) // ERROR "redeclared|redefinition"
 // line 15: gc expects: already declared|redefinition
 // line 18: gc expects: already declared|redefinition
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15, 18

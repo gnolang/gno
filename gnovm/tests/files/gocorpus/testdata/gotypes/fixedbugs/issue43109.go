@@ -15,4 +15,4 @@ import . "/foo" // ERROR "could not import /foo"
 // GnoWordingDiffers:
 // line 10: gc expects: could not import /foo; gno: import path cannot be absolute path: "/foo"
 
-// Verdict: KnownIssue errorcheck: #6344; on-chain path accepts the file
+// Verdict: Clean errorcheck

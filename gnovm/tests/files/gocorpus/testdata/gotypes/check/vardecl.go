@@ -216,10 +216,13 @@ func _() {
 
 // GnoError:
 // line 17: expected type, found ';'
+// line 18: expected type, found ';'
+// line 19: expected type, found ';'
+// line 192: no new variables on left side of :=
+// line 194: no new variables on left side of :=
+// line 196: no new variables on left side of :=
 
 // ParseBlocked:
-// line 18: gc expects: expected type
-// line 19: gc expects: expected type
 // line 22: gc expects: not an expression
 // line 23: gc expects: used as value
 // line 27: gc expects: extra init expr 2
@@ -263,11 +266,8 @@ func _() {
 // line 181: gc expects: too many return values
 // line 182: gc expects: too many return values
 // line 187: gc expects: too many return values
-// line 192: gc expects: no new variables
-// line 194: gc expects: no new variables
-// line 196: gc expects: no new variables
 // line 203: gc expects: initialization cycle
 // line 207: gc expects: undefined
 // line 211: gc expects: undefined | undefined | undefined
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 22, 23, 27, 28, 29, 31, 33, 37, 40, 41, 42, 46, 47, 48, 50, 52, 56, 59, 60, 61, 67, 68, 72, 73, 78, 79, 83, 84, 89, 91, 95, 99, 101, 105, 126, 128, 138, 143, 154, 174, 181, 182, 187, 203, 207, 211

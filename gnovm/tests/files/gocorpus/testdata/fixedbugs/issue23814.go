@@ -60,9 +60,6 @@ func main() {
 	_ = []myRune(myString("🌐")) // []myRune{0x1f310}
 }
 
-
-// Fixed: master PR #5780 (5d7ec8679); verified clean, broken at parent; re-golden after rebase.
-
 // GnoOutput:
 
 // GoOutput:

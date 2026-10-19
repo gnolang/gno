@@ -56,10 +56,12 @@ func f() {
 
 // GnoError:
 // line 50: expected 'chan', found '<-'
+// line 51: expected 'chan'
+// line 53: expected 'chan', found int
+// line 54: expected channel type
 
-// ParseBlocked:
-// line 51: gc expects: unexpected <-, expected chan|expecting {
-// line 53: gc expects: unexpected int, expected chan|expected .*chan.*|expected chan|expected .*;.* or .*}.* or newline
-// line 54: gc expects: unexpected int, expected chan|expecting {
+// GnoWordingDiffers:
+// line 51: gc expects: unexpected <-, expected chan|expecting {; gno: expected 'chan'
+// line 54: gc expects: unexpected int, expected chan|expecting {; gno: expected channel type
 
 // Verdict: Clean errorcheck

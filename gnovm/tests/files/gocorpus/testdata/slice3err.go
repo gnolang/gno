@@ -175,4 +175,4 @@ func f() {
 // line 118: gc expects: invalid slice index|invalid slice indices
 // line 119: gc expects: invalid slice index|invalid slice indices|inverted slice
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 38, 46, 47, 48, 49, 50, 51, 52, 53, 57, 62, 63, 64, 65, 66, 68, 70, 72, 75, 80, 81, 82, 83, 84, 86, 88, 90, 93, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 118, 119

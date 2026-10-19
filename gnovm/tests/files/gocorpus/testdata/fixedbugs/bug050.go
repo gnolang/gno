@@ -7,4 +7,4 @@
 func main() {	// ERROR "package"
 }
 
-// Verdict: KnownIssue errorcheck: #6344; uncaught markers: lines 7
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 7

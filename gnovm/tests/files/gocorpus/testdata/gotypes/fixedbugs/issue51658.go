@@ -44,10 +44,8 @@ func GetDefaultNumber[T Number](value, defaultValue T) T {
 
 // GnoError:
 // line 11: expected type, found '{'
-
-// ParseBlocked:
-// line 13: gc expects: expected declaration|non-declaration statement
-// line 21: gc expects: expected type|type declaration
-// line 23: gc expects: expected declaration|non-declaration statement
+// line 13: expected declaration, found '}'
+// line 21: expected type, found '{'
+// line 23: expected declaration, found '}'
 
 // Verdict: Clean errorcheck
