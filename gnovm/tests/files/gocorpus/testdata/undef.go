@@ -45,9 +45,9 @@ func f2(val interface{}) {
 }
 
 // GnoError:
-// line 13: name x not defined in fileset with files [undef.go]
-// line 14: name x not defined in fileset with files [undef.go]
-// line 15: name x not defined in fileset with files [undef.go]
+// line 13: name not defined: x
+// line 14: name not defined: x
+// line 15: name not defined: x
 // line 23: name y not declared
 // line 43: name v not declared
 

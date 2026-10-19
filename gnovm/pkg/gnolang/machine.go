@@ -523,43 +523,49 @@ func checkDuplicates(fset *FileSet) error {
 	var duplicated redeclarationErrors
 	for _, f := range fset.Files {
 		for _, d := range f.Decls {
-			var name Name
-			switch d := d.(type) {
-			case *FuncDecl:
-				if d.Name == "init" {
-					continue
+			for _, name := range declDupKeys(d) {
+				if _, ok := defined[name]; ok {
+					duplicated = duplicated.add(name)
 				}
-				name = d.Name
-				if d.IsMethod {
-					name = Name(destar(d.Recv.Type).String()) + "." + name
-				}
-			case *TypeDecl:
-				name = d.Name
-			case *ValueDecl:
-				for _, nx := range d.NameExprs {
-					if nx.Name == blankIdentifier {
-						continue
-					}
-					if _, ok := defined[nx.Name]; ok {
-						duplicated = duplicated.add(nx.Name)
-					}
-					defined[nx.Name] = struct{}{}
-				}
-				continue
-			default:
-				continue
+				defined[name] = struct{}{}
 			}
-			if name == blankIdentifier {
-				continue
-			}
-			if _, ok := defined[name]; ok {
-				duplicated = duplicated.add(name)
-			}
-			defined[name] = struct{}{}
 		}
 	}
 	if len(duplicated) > 0 {
 		return duplicated
+	}
+	return nil
+}
+
+// declDupKeys lists the names checkDuplicates holds d to: a method as
+// "T.m"; init, imports and blank names are not checked.
+func declDupKeys(d Decl) []Name {
+	switch d := d.(type) {
+	case *FuncDecl:
+		if d.Name == "init" {
+			return nil
+		}
+		name := d.Name
+		if d.IsMethod {
+			name = Name(destar(d.Recv.Type).String()) + "." + name
+		}
+		if name == blankIdentifier {
+			return nil
+		}
+		return []Name{name}
+	case *TypeDecl:
+		if d.Name == blankIdentifier {
+			return nil
+		}
+		return []Name{d.Name}
+	case *ValueDecl:
+		var names []Name
+		for _, nx := range d.NameExprs {
+			if nx.Name != blankIdentifier {
+				names = append(names, nx.Name)
+			}
+		}
+		return names
 	}
 	return nil
 }

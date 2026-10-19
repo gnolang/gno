@@ -22,6 +22,6 @@ var _ = []string{
 }
 
 // GnoError:
-// line 18: cannot use untyped Bigint as StringKind
+// line 21: cannot use untyped Bigint as StringKind
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15, 21; over-strict: lines 18
+// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 15; on-chain path first error on line 18, not reported by accumulate mode
