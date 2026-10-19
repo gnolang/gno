@@ -3757,7 +3757,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 				// otherwise methods would be un at runtime.
 				if dt, ok := dstT.(*DeclaredType); ok && !n.IsAlias {
 					checkTypeExprShape(preprocessGasMeterOf(store), n.Type)
-					checkTypeShape(preprocessGasMeterOf(store), dt)
+					checkTypeShape(preprocessGasMeterOf(store), last, dt)
 				}
 				n.Type = toConstTypeExpr(last, n.Type, dstT)
 			}

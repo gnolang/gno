@@ -406,3 +406,46 @@ func TestInitCycleOnChain(t *testing.T) {
 	m.RunFiles(fn)
 	t.Fatal("RunFiles accepted a cycle")
 }
+
+// collectErrorsRaw is collectErrors with the position kept.
+func collectErrorsRaw(t *testing.T, src string) []string {
+	t.Helper()
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	errs := PreprocessFilesCollect(m.Store, pn, fset)
+	var msgs []string
+	for _, e := range errs {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	return msgs
+}
+
+func TestPreprocessCollectTypePositions(t *testing.T) {
+	// B's key check is skipped while B is a shell and decided when B
+	// completes; the error still points at the key spelling in A.
+	msgs := collectErrorsRaw(t, `package main
+type B struct{ s []int; a A }
+type A struct{ m map[B]int }
+`)
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:3:22-23: invalid map key type main.B") {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+	// A typed declared constant prints as T(value).
+	msgs = collectErrors(t, `package main
+type MyInt int
+func f(mi MyInt) {
+	switch mi {
+	case 1, MyInt(1):
+	}
+}
+`)
+	if len(msgs) != 1 || msgs[0] != "duplicate case main.MyInt(1) in expression switch" {
+		t.Fatalf("unexpected: %v", msgs)
+	}
+}
