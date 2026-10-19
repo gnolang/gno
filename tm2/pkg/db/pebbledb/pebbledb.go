@@ -177,33 +177,25 @@ func (mBatch *pebbleDBBatch) GetByteSize() (int, error) {
 
 // Implements DB.
 func (pdb *PebbleDB) Iterator(start, end []byte) (db.Iterator, error) {
-	return newRangeIterator(pdb.db, start, end, false)
-}
-
-// Implements DB.
-func (pdb *PebbleDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
-	return newRangeIterator(pdb.db, start, end, true)
-}
-
-func newRangeIterator(r pebble.Reader, start, end []byte, reverse bool) (db.Iterator, error) {
-	source, err := r.NewIter(&pebble.IterOptions{
+	it, err := pdb.db.NewIter(&pebble.IterOptions{
 		LowerBound: start,
 		UpperBound: end,
 	})
 	if err != nil {
 		return nil, err
 	}
-	if reverse {
-		source.Last()
-	} else {
-		source.First()
+
+	return newPebbleDBIterator(it, start, end, false), nil
+}
+
+// Implements DB.
+func (pdb *PebbleDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
+	it, err := pdb.db.NewIter(nil)
+	if err != nil {
+		return nil, err
 	}
-	return &pebbleDBIterator{
-		source:    source,
-		start:     start,
-		end:       end,
-		isReverse: reverse,
-	}, nil
+
+	return newPebbleDBIterator(it, start, end, true), nil
 }
 
 type pebbleDBIterator struct {
@@ -215,6 +207,37 @@ type pebbleDBIterator struct {
 }
 
 var _ db.Iterator = (*pebbleDBIterator)(nil)
+
+func newPebbleDBIterator(source *pebble.Iterator, start, end []byte, isReverse bool) *pebbleDBIterator {
+	if isReverse {
+		if end == nil {
+			source.Last()
+		} else {
+			valid := source.SeekGE(end)
+			if valid {
+				eoakey := source.Key() // end or after key
+				if bytes.Compare(end, eoakey) <= 0 {
+					source.Prev()
+				}
+			} else {
+				source.Last()
+			}
+		}
+	} else {
+		if start == nil {
+			source.First()
+		} else {
+			source.SeekGE(start)
+		}
+	}
+	return &pebbleDBIterator{
+		source:    source,
+		start:     start,
+		end:       end,
+		isReverse: isReverse,
+		isInvalid: false,
+	}
+}
 
 // Implements Iterator.
 func (itr *pebbleDBIterator) Domain() ([]byte, []byte) {
@@ -237,10 +260,21 @@ func (itr *pebbleDBIterator) Valid() bool {
 		return false
 	}
 
-	// pebble can ignore an empty UpperBound, which then admits every key.
-	if itr.end != nil && bytes.Compare(itr.end, itr.source.Key()) <= 0 {
-		itr.isInvalid = true
-		return false
+	// If key is end or past it, invalid.
+	start := itr.start
+	end := itr.end
+	key := itr.source.Key()
+
+	if itr.isReverse {
+		if start != nil && bytes.Compare(key, start) < 0 {
+			itr.isInvalid = true
+			return false
+		}
+	} else {
+		if end != nil && bytes.Compare(end, key) <= 0 {
+			itr.isInvalid = true
+			return false
+		}
 	}
 
 	// Valid
@@ -341,10 +375,21 @@ func (s *pebbleSnapshot) Has(key []byte) (bool, error) {
 
 // Implements Snapshot.
 func (s *pebbleSnapshot) Iterator(start, end []byte) (db.Iterator, error) {
-	return newRangeIterator(s.snapshot, start, end, false)
+	it, err := s.snapshot.NewIter(&pebble.IterOptions{
+		LowerBound: start,
+		UpperBound: end,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return newPebbleDBIterator(it, start, end, false), nil
 }
 
 // Implements Snapshot.
 func (s *pebbleSnapshot) ReverseIterator(start, end []byte) (db.Iterator, error) {
-	return newRangeIterator(s.snapshot, start, end, true)
+	it, err := s.snapshot.NewIter(nil)
+	if err != nil {
+		return nil, err
+	}
+	return newPebbleDBIterator(it, start, end, true), nil
 }

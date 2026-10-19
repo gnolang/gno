@@ -2,7 +2,6 @@ package bptree
 
 import (
 	"bytes"
-	"cmp"
 	"crypto/sha256"
 	"fmt"
 
@@ -323,12 +322,6 @@ func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err er
 		}
 	}()
 
-	// Discovery skips root keys outside [1, MaxInt64], so such a version
-	// would commit and then never load.
-	if version < 1 {
-		return nil, 0, fmt.Errorf("working version %d is below 1", version)
-	}
-
 	// If this version already exists, verify the hash matches.
 	// This prevents accidentally overwriting a version with different data.
 	// Use the error-propagating variant: a transient DB error must NOT be read
@@ -423,17 +416,6 @@ func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err er
 		return nil, 0, err
 	}
 
-	// A load that read only the high end leaves firstVersion 0 with older
-	// versions on disk: making this version the floor would hide them from
-	// pruning. With latestVersion 0 the tree knows no older version, and the first
-	// save on an empty DB can run while writes are held and iterators refused.
-	first := t.ndb.getFirstVersion()
-	if first == 0 && t.ndb.getLatestVersion() > 0 {
-		if first, err = t.ndb.edgeRootVersion(false); err != nil {
-			return nil, 0, fmt.Errorf("finding first version: %w", err)
-		}
-	}
-
 	// Commit batch (nodes + root + orphan list, atomically)
 	if err := t.ndb.Commit(); err != nil {
 		return nil, 0, err
@@ -444,7 +426,7 @@ func (t *MutableTree) SaveVersion() (rootHash []byte, savedVersion int64, err er
 	t.lastSaved = t.root
 	t.ndb.setLatestVersion(version)
 	if t.ndb.getFirstVersion() == 0 {
-		t.ndb.setFirstVersion(cmp.Or(first, version))
+		t.ndb.setFirstVersion(version)
 	}
 
 	t.resetSession()
@@ -506,10 +488,9 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 
 // Load loads the latest version from the DB and performs fast-index
 // maintenance. For the LIVE store only (single-threaded startup); read-only
-// consumers use LoadReadonly. It discovers both ends of the version range
-// because pruning reads firstVersion.
+// consumers use LoadReadonly.
 func (t *MutableTree) Load() (int64, error) {
-	v, err := t.loadLatest(t.ndb.discoverVersions)
+	v, err := t.LoadReadonly()
 	if err != nil || v == 0 {
 		return v, err
 	}
@@ -534,16 +515,9 @@ func (t *MutableTree) Load() (int64, error) {
 // available for snapshots taken via getImmutable, which gates them on the
 // stamp covering the snapshot version and on fastGet's per-entry version guard;
 // a bare working-tree read after LoadReadonly is outside the trust contract
-// (see fast_index.go). A read-only tree discovers only the latest version and
-// leaves firstVersion unset, which only the write paths read.
+// (see fast_index.go).
 func (t *MutableTree) LoadReadonly() (int64, error) {
-	return t.loadLatest(t.ndb.discoverLatestVersion)
-}
-
-// loadLatest loads the latest version that discover finds; it returns 0 with
-// no error when the DB holds no version.
-func (t *MutableTree) loadLatest(discover func() error) (int64, error) {
-	if err := discover(); err != nil {
+	if err := t.ndb.discoverVersions(); err != nil {
 		return 0, err
 	}
 	latest := t.ndb.getLatestVersion()
@@ -576,7 +550,11 @@ func (t *MutableTree) LoadVersion(version int64) (int64, error) {
 }
 
 // loadVersionDiscovered is LoadVersion's body after version discovery: it
-// loads version and returns the already-refreshed latest counter.
+// loads version using the already-refreshed first/latest counters. Split out
+// so LoadReadonly — which has just discovered versions to FIND the latest —
+// doesn't pay a second full PrefixRoot scan. The scan is O(retained versions)
+// (~700k at gno.land's default syncable retention) and sits on the per-query
+// store-construction path, so the duplication was the dominant per-query cost.
 func (t *MutableTree) loadVersionDiscovered(version int64) (int64, error) {
 	latestVersion := t.ndb.getLatestVersion()
 

@@ -11,7 +11,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/syndtr/goleveldb/leveldb/util"
 
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/db"
@@ -203,23 +202,14 @@ func (mBatch *goLevelDBBatch) GetByteSize() (int, error) {
 
 // Implements DB.
 func (db *GoLevelDB) Iterator(start, end []byte) (db.Iterator, error) {
-	itr := db.db.NewIterator(iteratorRange(start, end), nil)
+	itr := db.db.NewIterator(nil, nil)
 	return newGoLevelDBIterator(itr, start, end, false), nil
 }
 
 // Implements DB.
 func (db *GoLevelDB) ReverseIterator(start, end []byte) (db.Iterator, error) {
-	itr := db.db.NewIterator(iteratorRange(start, end), nil)
+	itr := db.db.NewIterator(nil, nil)
 	return newGoLevelDBIterator(itr, start, end, true), nil
-}
-
-// iteratorRange bounds a goleveldb iterator to [start, end), or to nothing when
-// start sorts after end, a range goleveldb panics on.
-func iteratorRange(start, end []byte) *util.Range {
-	if start != nil && end != nil && bytes.Compare(start, end) > 0 {
-		end = start
-	}
-	return &util.Range{Start: start, Limit: end}
 }
 
 type goLevelDBIterator struct {
@@ -234,9 +224,25 @@ var _ db.Iterator = (*goLevelDBIterator)(nil)
 
 func newGoLevelDBIterator(source iterator.Iterator, start, end []byte, isReverse bool) *goLevelDBIterator {
 	if isReverse {
-		source.Last()
+		if end == nil {
+			source.Last()
+		} else {
+			valid := source.Seek(end)
+			if valid {
+				eoakey := source.Key() // end or after key
+				if bytes.Compare(end, eoakey) <= 0 {
+					source.Prev()
+				}
+			} else {
+				source.Last()
+			}
+		}
 	} else {
-		source.First()
+		if start == nil {
+			source.First()
+		} else {
+			source.Seek(start)
+		}
 	}
 	return &goLevelDBIterator{
 		source:    source,
@@ -266,6 +272,23 @@ func (itr *goLevelDBIterator) Valid() bool {
 	if !itr.source.Valid() {
 		itr.isInvalid = true
 		return false
+	}
+
+	// If key is end or past it, invalid.
+	start := itr.start
+	end := itr.end
+	key := itr.source.Key()
+
+	if itr.isReverse {
+		if start != nil && bytes.Compare(key, start) < 0 {
+			itr.isInvalid = true
+			return false
+		}
+	} else {
+		if end != nil && bytes.Compare(end, key) <= 0 {
+			itr.isInvalid = true
+			return false
+		}
 	}
 
 	// Valid

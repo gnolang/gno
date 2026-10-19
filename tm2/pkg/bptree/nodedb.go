@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"math"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -92,28 +91,11 @@ func orphanDBKey(version int64) []byte {
 	return key
 }
 
-// rootKeyLen is the length of a root key: PrefixRoot, then the version as
-// 8 big-endian bytes.
-const rootKeyLen = 1 + 8
-
 func rootDBKey(version int64) []byte {
-	key := make([]byte, rootKeyLen)
+	key := make([]byte, 1+8)
 	key[0] = PrefixRoot
 	binary.BigEndian.PutUint64(key[1:], uint64(version))
 	return key
-}
-
-// rootKeyVersion decodes the version of a key from the root range. It reports
-// false for a key of another length or a version outside [1, math.MaxInt64].
-func rootKeyVersion(key []byte) (int64, bool) {
-	if len(key) != rootKeyLen {
-		return 0, false
-	}
-	v := binary.BigEndian.Uint64(key[1:])
-	if v < 1 || v > math.MaxInt64 {
-		return 0, false
-	}
-	return int64(v), true
 }
 
 // --- Node operations ---
@@ -472,9 +454,11 @@ func (ndb *nodeDB) AvailableVersions() []int {
 
 	var versions []int
 	for ; itr.Valid(); itr.Next() {
-		if v, ok := rootKeyVersion(itr.Key()); ok {
-			versions = append(versions, int(v))
+		key := itr.Key()
+		if len(key) != 9 { // prefix(1) + version(8)
+			continue
 		}
+		versions = append(versions, int(binary.BigEndian.Uint64(key[1:])))
 	}
 	if itr.Error() != nil {
 		// Don't return a silently-truncated list on a mid-scan DB error; mirror
@@ -484,15 +468,36 @@ func (ndb *nodeDB) AvailableVersions() []int {
 	return versions
 }
 
-// discoverVersions reads the lowest and highest root versions from the two
-// ends of the root-key range.
+// discoverVersions scans the DB for root references to find
+// the first and latest versions. Called during Load.
 func (ndb *nodeDB) discoverVersions() error {
-	first, err := ndb.edgeRootVersion(false)
+	prefix := []byte{PrefixRoot}
+	end := make([]byte, len(prefix))
+	copy(end, prefix)
+	end[0]++
+
+	itr, err := ndb.db.Iterator(prefix, end)
 	if err != nil {
 		return err
 	}
-	latest, err := ndb.edgeRootVersion(true)
-	if err != nil {
+	defer itr.Close()
+
+	first := int64(0)
+	latest := int64(0)
+	for ; itr.Valid(); itr.Next() {
+		key := itr.Key()
+		if len(key) != 9 { // prefix(1) + version(8)
+			continue
+		}
+		v := int64(binary.BigEndian.Uint64(key[1:]))
+		if first == 0 || v < first {
+			first = v
+		}
+		if v > latest {
+			latest = v
+		}
+	}
+	if err := itr.Error(); err != nil {
 		return err
 	}
 
@@ -501,39 +506,6 @@ func (ndb *nodeDB) discoverVersions() error {
 	ndb.latestVersion = latest
 	ndb.mtx.Unlock()
 	return nil
-}
-
-// discoverLatestVersion reads the highest root version from the high end of
-// the root-key range, leaving firstVersion as it is.
-func (ndb *nodeDB) discoverLatestVersion() error {
-	latest, err := ndb.edgeRootVersion(true)
-	if err != nil {
-		return err
-	}
-	ndb.setLatestVersion(latest)
-	return nil
-}
-
-// edgeRootVersion returns the first root version met from the low end of the
-// root-key range, or from the high end when reverse is set; 0 if there is none.
-// Root keys sort in version order, so that version is the lowest or highest.
-func (ndb *nodeDB) edgeRootVersion(reverse bool) (int64, error) {
-	open := ndb.db.Iterator
-	if reverse {
-		open = ndb.db.ReverseIterator
-	}
-	itr, err := open([]byte{PrefixRoot}, []byte{PrefixRoot + 1})
-	if err != nil {
-		return 0, err
-	}
-	defer itr.Close()
-
-	for ; itr.Valid(); itr.Next() {
-		if v, ok := rootKeyVersion(itr.Key()); ok {
-			return v, nil
-		}
-	}
-	return 0, itr.Error()
 }
 
 // --- Version readers ---
