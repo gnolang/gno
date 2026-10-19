@@ -295,3 +295,47 @@ func main() {
 		}
 	})
 }
+
+func TestParseFileCollect(t *testing.T) {
+	m := NewMachine("main", nil)
+	defer m.Release()
+	fn, perrs := m.ParseFileCollect("main.gno", `package main
+
+func f() int {
+	x := 1 +
+	return x
+}
+
+func g() {
+	if {
+	}
+	var s string = 1
+	_ = s
+}
+
+func main() {}
+`)
+	// AllErrors: both errors of line 5 are kept, plus line 9.
+	if fn == nil || len(perrs) != 3 {
+		t.Fatalf("want a file node and 3 parser errors, got %v, %v", fn != nil, perrs)
+	}
+	for i, want := range []string{"main.gno:5:2:", "main.gno:5:2:", "main.gno:9:5:"} {
+		if !strings.HasPrefix(perrs[i].Error(), want) {
+			t.Errorf("parser error %d: got %v, want prefix %s", i, perrs[i], want)
+		}
+	}
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	var msgs []string
+	for _, e := range PreprocessFilesCollect(m.Store, pn, fset) {
+		msgs = append(msgs, e.Unwrap().Error())
+	}
+	// The broken statements drop silently; the checker still reaches g's
+	// type error and nothing mentions the placeholder.
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "main.gno:11:") || !strings.Contains(msgs[0], "cannot use") {
+		t.Fatalf("want one error at line 11, got %v", msgs)
+	}
+	if fn, perrs := m.ParseFileCollect("main.gno", "func f() {}\n"); fn != nil || len(perrs) == 0 {
+		t.Fatalf("no package clause: want nil node and an error, got %v, %v", fn != nil, perrs)
+	}
+}

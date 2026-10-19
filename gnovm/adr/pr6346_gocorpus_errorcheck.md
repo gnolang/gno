@@ -58,3 +58,12 @@ preprocessor (`PreprocessFilesCollect`) gives every error with its span.
   file whose Gno errors changed without a verdict update.
 - Sync for errorcheck files is Gno-only and fast; `VERSION` does not
   affect them.
+
+## Syntax errors
+
+A file go/parser rejects is still checked: `ParseFileCollect` pins every
+parser error and the checker runs on the partial tree, so a marker on a
+line the parser could not read is credited by the parser's error and the
+rest of the file is measured. Only a file with no Gno form at all (no
+package clause, or a partial tree Go2Gno refuses) is parse-blocked. A
+gccgo-only marker is optional: never uncaught, never over-strict.
