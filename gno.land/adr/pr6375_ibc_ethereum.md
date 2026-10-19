@@ -1515,8 +1515,9 @@ numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier
     intermediate epoch within 64 steps is resent, relayed and applied, the switch frees the transitions behind it,
     the next expectations are recorded (7 days each), and so on; a later notice recorded as proven still applies
     from there. Where the gno local client of an intermediate transition failed, governance recovers it in place
-    (`NewRecoverClientRequest`, 7 days: same id, a new trust generation) and the resent notice is proven through
-    it; where Ethereum's recovery created a new router client, its transition is recorded with a fresh local
+    (`NewRecoverClientRequest`, 7 days: same id, a new trust generation; it needs a Frozen or Expired subject and an
+    honest substitute client ahead of it, without which the catch-up past that client can fail permanently) and the
+    resent notice is proven through it; where Ethereum's recovery created a new router client, its transition is recorded with a fresh local
     client.
   - **Governance retirement: the one rule.** A route's replaced client is retired, when its route replacement
     executes on gno.land, as follows, and in no other way:
@@ -1803,7 +1804,8 @@ same packet: a double spend that receive limits, flags and the quarantine do not
 - **Closed routes.** A route closed by a replacement pays no refund outside the settlements until it reopens
   (§7.12): a deliberate exception to this section's "only the meter and the hold delay a refund" (§8.5).
 - **Sender notifications (Ethereum).** A contract sender answering ERC-165 true for `IIBCSenderCallbacks` is
-  notified of an error ack or timeout when its refund is paid at once (bounded gas; a failure never rolls the
+  notified (the `supportsInterface` probe is a bounded `staticcall`, about 30,000 gas with one word of return data
+  copied; a failure or a malformed answer means unsupported, and its cost is counted in the gas reserves) of an error ack or timeout when its refund is paid at once (bounded gas; a failure never rolls the
   refund back); otherwise only the notification's hash is kept and anyone delivers it later
   (`retryNotification`). Each send record has **one terminal notification** (a checked invariant, gno-eth-ibc 0a5f2ba), and **a transport callback already
   delivered is final**: when kind 12 later decides the other kind (a delivered forged success, then an action 1
@@ -2004,7 +2006,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 |---|---|---|
 | R1 | **Settlement finality** (both): a settlement is final once it applies; a record settled as delivered, or a refund settled as forged, on a proof whose verifier is found compromised only afterwards stays settled, and **no compensation path exists inside these controls** | Outside the bridge (an upgrade, a treasury payment); the defense is the 7-day delay and the guardians' hold over it (project-owner decision) |
 | R2 | **A forged epoch notice applied** on gno.land by a compromised approved local verifier: the switch retires the old epoch's client for governance, adopts the forged epoch, and no decision undoes it (no authenticated resync). A premature notice naming the epoch and client a recorded kind 10 will establish costs nothing | Only Ethereum's emergency recovery, if enabled, to a fresh router client recorded as expected from gno.land's current epoch client over a fresh local client; its epoch must pass gno.land's (one recovery, 30 days, per epoch gno.land was pushed ahead). Without it, Ethereum-bound governance ends for good; gno-side governance continues (project-owner decision) |
-| R3 | **A poisoned intermediate client gno.land keeps Active** (forged updates at every prefix endpoint within 64 steps) blocks a catch-up past 64, since recovery needs a Frozen or Expired subject | Freeze it by misbehaviour when conflicting valid updates exist, or let it expire; recover it in place (`NewRecoverClientRequest`) and relay the resent notice through it (project-owner decision) |
+| R3 | **A poisoned intermediate client gno.land keeps Active** (forged updates at every prefix endpoint within 64 steps) blocks a catch-up past 64, since recovery needs a Frozen or Expired subject | Freeze it by misbehaviour when conflicting valid updates exist, or let it expire; recover it in place (`NewRecoverClientRequest`), which also needs an **honest substitute client ahead of the subject**, and relay the resent notice through it. Without such a substitute the catch-up past that client can fail permanently (project-owner decision) |
 | R4 | **No replacement of `ibcgov`**: core and transfer take loosening governance only from `IBCGovPath`; `IBCAdmin` is immutable | Tightening powers stay with GovDAO; a defect needs a new deployment |
 | R5 | **Forged receive entitlements are not checked by the reopening**: a forged claim or sweep entry left unvoided is paid once the route is open and `payouts` cleared | Operator precondition: authenticate every suspect receive entitlement off-chain against Ethereum's retained send records and void or settle every forged one before reopening or clearing containment (project-owner decision) |
 | R6 | **Refund liveness on a closed route** depends on the governed reconciliation finishing (divergence 1) | Bounded: 7-day decisions, permissionless batches |
@@ -2488,6 +2490,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   state, `eth_call` and `eth_getProof` pinned to that block, never `latest`; a matching `sendRecord` is genuine; an
   absence or mismatch is conclusive only once that state's timestamp reaches the packet's timeout, until then the
   entitlement stays unresolved and containment stays in place (§7.12, §8.1).
+- 2026-10-19, residual R3's repair also needs an honest substitute client ahead of the subject, without which the
+  catch-up past it can fail permanently (§7.12, §8.5); Ethereum's ERC-165 sender probe is a bounded `staticcall`
+  (about 30,000 gas, one word copied; failure or a malformed answer means unsupported; counted in the reserves,
+  §7.13).
 
 ## 15. References
 
