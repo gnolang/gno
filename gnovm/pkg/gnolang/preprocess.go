@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"cmp"
 	"fmt"
 	"maps"
 	"math"
@@ -53,18 +54,26 @@ func PreprocessFilesCollect(store Store, pn *PackageNode, fset *FileSet) []*Prep
 // variables: a variable whose initializer, directly or through the
 // functions and methods it uses, depends on itself (Go spec, "Package
 // initialization"). The dependency edges are the ATTR_DECL_DEPS that
-// codaInitOrderDeps recorded on each declaration. Each declaration
-// visited bills OpCPUSlopeCheckNode on gm. On chain CheckInitCycles
-// panics with the first one, where runFileDecls would otherwise fail
-// later and unpositioned.
+// codaInitOrderDeps recorded on each declaration. One pass of Tarjan's
+// algorithm finds the strongly connected components; a component is a
+// cycle when it holds a variable (functions are edges, not roots), and is
+// reported once, at the variable the cycle closes on (see initCycleOf),
+// in source order. Each declaration and edge visited bills
+// OpCPUSlopeInitCycleVisit on gm. On chain CheckInitCycles panics with
+// the first one, where runFileDecls would otherwise fail later and
+// unpositioned.
 func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*PreprocessError {
-	var errs []*PreprocessError
-	reported := map[Decl]bool{}
 	// Names resolve to the declaration predefine selected (the last
-	// file's wins), and only those are roots: a shadowed split part of a
-	// multi-name declaration is neither, or it would close a false cycle.
+	// file's wins), and only those are roots: a shadowed declaration is
+	// neither, or it would close a false cycle.
 	index := newPredefineDeclIndex(fset)
-	resolve := func(name Name) (Decl, bool) {
+	w := &initCycleWalk{
+		gm:    gm,
+		order: map[Decl]int{},
+		file:  map[Decl]*FileNode{},
+		nodes: map[Decl]*initCycleNode{},
+	}
+	w.resolve = func(name Name) (Decl, bool) {
 		if e, ok := index.entries[name]; ok {
 			return e.decl, true
 		}
@@ -72,76 +81,188 @@ func checkInitCycles(gm store.GasMeter, pn *PackageNode, fset *FileSet) []*Prepr
 	}
 	for _, fn := range fset.Files {
 		for _, d := range fn.Decls {
+			w.order[d] = len(w.order)
+			w.file[d] = fn
+		}
+	}
+	for _, fn := range fset.Files {
+		for _, d := range fn.Decls {
 			vd, ok := d.(*ValueDecl)
-			if !ok || reported[vd] {
+			if !ok || !w.live(vd, index) {
 				continue
 			}
-			if names := vd.GetDeclNames(); len(names) == 0 || index.entries[names[0]].decl != vd {
-				continue
-			}
-			path := findInitCycle(gm, vd, resolve)
-			if path == nil {
-				continue
-			}
-			var msg strings.Builder
-			msg.WriteString("initialization cycle: ")
-			for i, name := range path {
-				if i > 0 {
-					msg.WriteString(" refers to ")
-				}
-				msg.WriteString(string(name))
-			}
-			loc := Location{PkgPath: pn.PkgPath, File: fn.FileName, Span: vd.GetSpan()}
-			errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String())})
-			for _, name := range path {
-				if dep, ok := resolve(name); ok {
-					reported[dep] = true
-				}
+			if _, seen := w.nodes[vd]; !seen {
+				w.connect(vd)
 			}
 		}
+	}
+	type report struct {
+		at   Decl
+		path []Name
+	}
+	var reports []report
+	for _, scc := range w.sccs {
+		if at, path := w.initCycleOf(scc); at != nil {
+			reports = append(reports, report{at, path})
+		}
+	}
+	slices.SortFunc(reports, func(a, b report) int { return cmp.Compare(w.declOrder(a.at), w.declOrder(b.at)) })
+	var errs []*PreprocessError
+	for _, r := range reports {
+		var msg strings.Builder
+		msg.WriteString("initialization cycle: ")
+		for i, name := range r.path {
+			if i > 0 {
+				msg.WriteString(" refers to ")
+			}
+			msg.WriteString(string(name))
+		}
+		loc := Location{PkgPath: pn.PkgPath, Span: r.at.GetSpan()}
+		if fn := w.file[r.at]; fn != nil {
+			loc.File = fn.FileName
+		}
+		errs = append(errs, &PreprocessError{err: fmt.Errorf("%s: %s", loc.String(), msg.String())})
 	}
 	return errs
 }
 
-// findInitCycle walks the dependency graph from root the way
-// resolveEffectiveDeps does and returns the first cycle back to a variable
-// as the names along it, closed with the variable, or nil.
-func findInitCycle(gm store.GasMeter, root *ValueDecl, resolve func(Name) (Decl, bool)) []Name {
-	onStack := map[Decl]bool{}
-	done := map[Decl]bool{}
-	var walk func(d Decl, path []Name) []Name
-	walk = func(d Decl, path []Name) []Name {
-		if done[d] {
-			return nil
+// initCycleWalk is Tarjan's strongly-connected-components walk over the
+// declaration dependency graph.
+type initCycleWalk struct {
+	gm      store.GasMeter
+	resolve func(Name) (Decl, bool)
+	order   map[Decl]int       // source order of the file set's declarations
+	file    map[Decl]*FileNode // declaring file
+	nodes   map[Decl]*initCycleNode
+	stack   []Decl
+	sccs    [][]Decl // in completion order
+}
+
+// initCycleNode is a visited declaration's walk state.
+type initCycleNode struct {
+	number, low int // Tarjan index, in visit order, and low link
+	onStack     bool
+	deps        []Name // dependency names, sorted so the walk is deterministic
+}
+
+// live reports whether vd is the declaration predefine selected for one
+// of its names; a shadowed declaration is not walked.
+func (w *initCycleWalk) live(vd *ValueDecl, index *predefineDeclIndex) bool {
+	for _, name := range vd.GetDeclNames() {
+		if index.entries[name].decl == vd {
+			return true
 		}
-		chargeCPUGas(gm, OpCPUSlopeCheckNode)
-		onStack[d] = true
-		defer func() { delete(onStack, d); done[d] = true }()
-		m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
-		names := slices.Collect(maps.Keys(m))
-		slices.Sort(names)
-		for _, name := range names {
-			dep, ok := resolve(name)
-			if !ok {
+	}
+	return false
+}
+
+// declOrder is the source position of d among the walked files; a
+// declaration from an earlier file set sorts last.
+func (w *initCycleWalk) declOrder(d Decl) int {
+	if n, ok := w.order[d]; ok {
+		return n
+	}
+	return math.MaxInt
+}
+
+func (w *initCycleWalk) connect(d Decl) {
+	chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+	m, _ := d.GetAttribute(ATTR_DECL_DEPS).(map[Name]struct{})
+	nd := &initCycleNode{number: len(w.nodes), onStack: true, deps: slices.Collect(maps.Keys(m))}
+	nd.low = nd.number
+	slices.Sort(nd.deps)
+	w.nodes[d] = nd
+	w.stack = append(w.stack, d)
+	for _, name := range nd.deps {
+		chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+		dep, ok := w.resolve(name)
+		if !ok {
+			continue
+		}
+		if nn, seen := w.nodes[dep]; !seen {
+			w.connect(dep)
+			nd.low = min(nd.low, w.nodes[dep].low)
+		} else if nn.onStack {
+			nd.low = min(nd.low, nn.number)
+		}
+	}
+	if nd.low != nd.number {
+		return
+	}
+	var scc []Decl
+	for {
+		top := w.stack[len(w.stack)-1]
+		w.stack = w.stack[:len(w.stack)-1]
+		w.nodes[top].onStack = false
+		scc = append(scc, top)
+		if top == d {
+			break
+		}
+	}
+	w.sccs = append(w.sccs, scc)
+}
+
+// initCycleOf returns the cycle to report for a component, or nil: a
+// component with no variable is recursion among functions, not a cycle.
+// The cycle is the first one the sorted-name walk from the component's
+// earliest variable closes on a variable; it is reported at that
+// variable, as its path of names closed with the variable's name.
+func (w *initCycleWalk) initCycleOf(scc []Decl) (Decl, []Name) {
+	members := make(map[Decl]bool, len(scc))
+	var start *ValueDecl
+	for _, d := range scc {
+		members[d] = true
+		if vd, ok := d.(*ValueDecl); ok && (start == nil || w.declOrder(vd) < w.declOrder(start)) {
+			start = vd
+		}
+	}
+	if start == nil {
+		return nil, nil
+	}
+	if len(scc) == 1 && !slices.ContainsFunc(w.nodes[start].deps, func(name Name) bool {
+		dep, ok := w.resolve(name)
+		return ok && dep == start
+	}) {
+		return nil, nil // a lone variable with no edge to itself
+	}
+	type step struct {
+		d    Decl
+		name Name
+	}
+	var path []step
+	onPath := map[Decl]int{}
+	var walk func(d Decl) (Decl, []Name)
+	walk = func(d Decl) (Decl, []Name) {
+		chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+		for _, name := range w.nodes[d].deps {
+			chargeCPUGas(w.gm, OpCPUSlopeInitCycleVisit)
+			dep, ok := w.resolve(name)
+			if !ok || !members[dep] {
 				continue
 			}
-			if onStack[dep] {
-				if _, isVar := dep.(*ValueDecl); isVar {
-					return append(append([]Name(nil), path...), name)
+			if i, ok := onPath[dep]; ok {
+				if _, isVar := dep.(*ValueDecl); !isVar {
+					continue
 				}
-				continue // recursion among functions is not a cycle
+				names := make([]Name, 0, len(path)-i+1)
+				for _, st := range path[i:] {
+					names = append(names, st.name)
+				}
+				return dep, append(names, name)
 			}
-			if cyc := walk(dep, append(path, name)); cyc != nil {
-				return cyc
+			onPath[dep] = len(path)
+			path = append(path, step{dep, name})
+			if at, names := walk(dep); at != nil {
+				return at, names
 			}
+			path = path[:len(path)-1]
+			delete(onPath, dep)
 		}
-		return nil
+		return nil, nil
 	}
-	names := root.GetDeclNames()
-	if len(names) == 0 {
-		return nil
-	}
-	return walk(root, []Name{names[0]})
+	onPath[start] = 0
+	path = append(path, step{start, start.GetDeclNames()[0]})
+	return walk(start)
 }
 
 // resolveDeclDepSafe is resolveDeclDep without the panics: a name the
