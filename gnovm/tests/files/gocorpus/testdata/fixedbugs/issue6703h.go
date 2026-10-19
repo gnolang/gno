@@ -20,9 +20,6 @@ type E struct{ T }
 var x = E.m(E{0}) // ERROR "initialization cycle|depends upon itself" 
 
 // GnoError:
-// line 20: unknown *DeclaredType method named m
-
-// GnoWordingDiffers:
-// line 20: gc expects: initialization cycle|depends upon itself; gno: unknown *DeclaredType method named m
+// line 20: initialization cycle: x refers to T.m refers to x
 
 // Verdict: Clean errorcheck

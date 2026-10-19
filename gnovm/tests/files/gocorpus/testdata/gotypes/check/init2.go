@@ -145,10 +145,10 @@ var x10pv /* ERROR "initialization cycle" */ = x10pvar.m()
 // line 25: initialization cycle: x4 refers to T4.m refers to x4
 // line 29: initialization cycle: x3p refers to T3p.m refers to x3p
 // line 33: initialization cycle: x4p refers to T4p.m refers to x4p
-// line 40: unknown *DeclaredType method named m
-// line 45: unknown *DeclaredType method named m
-// line 50: unknown *DeclaredType method named m
-// line 55: unknown *DeclaredType method named m
+// line 40: initialization cycle: x5 refers to E5.m refers to x5
+// line 45: initialization cycle: x6 refers to E6.m refers to x6
+// line 50: initialization cycle: x5p refers to E5p.m refers to x5p
+// line 55: initialization cycle: x6p refers to E6p.m refers to x6p
 // line 61: initialization cycle: x7 refers to T7.m refers to x7
 // line 65: initialization cycle: x8 refers to T8.m refers to x8
 // line 69: initialization cycle: x7p refers to T7p.m refers to x7p
@@ -165,11 +165,5 @@ var x10pv /* ERROR "initialization cycle" */ = x10pvar.m()
 // line 127: initialization cycle: x10v refers to E10v.m refers to x10v
 // line 133: initialization cycle: x9pv refers to E9pv.m refers to x9pv
 // line 139: initialization cycle: x10pv refers to E10pv.m refers to x10pv
-
-// GnoWordingDiffers:
-// line 40: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
-// line 45: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
-// line 50: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
-// line 55: gc expects: initialization cycle; gno: unknown *DeclaredType method named m
 
 // Verdict: Clean errorcheck

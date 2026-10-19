@@ -322,6 +322,24 @@ func isInterfaceConversion(c *ConstExpr) bool {
 	return t != nil && t.Kind() == InterfaceKind
 }
 
+// undefinedSelector rejects x.sel when the type t of x has no such field
+// or method (Go spec, "Selectors"); a pointer to an interface, named or
+// not, is said to be one, as go/types does.
+func undefinedSelector(n *SelectorExpr, t Type) {
+	if tt, ok := t.(*tupleType); ok {
+		failf(CodeMultiValue, []Node{n.X}, "multiple-value %s (value of type %v) in single-value context",
+			exprString(n.X), tt)
+	}
+	if pt, ok := baseOf(t).(*PointerType); ok {
+		if _, iface := baseOf(pt.Elt).(*InterfaceType); iface {
+			failf(CodeNoMethod, []Node{n}, "%s undefined (type %v is pointer to interface, not interface)",
+				exprString(n), t)
+		}
+	}
+	failf(CodeNoMethod, []Node{n}, "%s undefined (type %s has no field or method %s)",
+		exprString(n), operandTypeString(t), n.Sel)
+}
+
 // exprString prints an expression for a message: names bare, constants
 // as written, selectors and indexes composed from their parts.
 func exprString(x Expr) string {
@@ -338,10 +356,12 @@ func exprString(x Expr) string {
 		return exprString(x.Left) + " " + x.Op.TokenString() + " " + exprString(x.Right)
 	case *UnaryExpr:
 		return x.Op.TokenString() + exprString(x.X)
+	case *RefExpr:
+		return "&" + exprString(x.X)
 	case *SelectorExpr:
-		return exprString(x.X) + "." + string(x.Sel)
+		return operandString(x.X) + "." + string(x.Sel)
 	case *IndexExpr:
-		return exprString(x.X) + "[" + exprString(x.Index) + "]"
+		return operandString(x.X) + "[" + exprString(x.Index) + "]"
 	case *StarExpr:
 		return "*" + exprString(x.X)
 	case *CallExpr:
@@ -349,7 +369,7 @@ func exprString(x Expr) string {
 		for i, a := range x.Args {
 			args[i] = exprString(a)
 		}
-		return exprString(x.Func) + "(" + strings.Join(args, ", ") + ")"
+		return operandString(x.Func) + "(" + strings.Join(args, ", ") + ")"
 	case *SliceTypeExpr:
 		if x.Vrd {
 			return "..." + exprString(x.Elt)
@@ -369,6 +389,16 @@ func exprString(x Expr) string {
 		return exprString(x.Type) + "{…}" // as go/types
 	}
 	return x.String()
+}
+
+// operandString is exprString with a unary or binary operand of a
+// selector, index or call parenthesised: the parser drops the parens.
+func operandString(x Expr) string {
+	switch x.(type) {
+	case *UnaryExpr, *BinaryExpr, *StarExpr, *RefExpr:
+		return "(" + exprString(x) + ")"
+	}
+	return exprString(x)
 }
 
 // typeString names a type for a message; nil is the untyped nil.
@@ -480,4 +510,60 @@ func assertSwitchTag(x Expr, tt Type) {
 	if !isComparable(tt) {
 		failf(CodeSwitchTag, []Node{x}, "cannot switch on %s (variable of type %v) (%v is not comparable)", exprString(x), tt, tt)
 	}
+}
+
+// assertMethodExprReceiver: the method expression T.m needs *T when m
+// has a pointer receiver (Go spec, "Method expressions").
+func assertMethodExprReceiver(dt *DeclaredType, sel Name, recv Type, isPtr bool) {
+	if _, ptrRecv := recv.(*PointerType); ptrRecv && !isPtr {
+		failf(CodeMethodExprReceiver, nil,
+			"invalid method expression %s.%s (needs pointer receiver (*%s).%s)", dt.Name, sel, dt.Name, sel)
+	}
+}
+
+// promotedMethodExpr lowers the method expression n (X.Sel, X a type)
+// whose method is promoted through an embedded field to
+// func(r X, args...) results { return r.Sel(args...) }. Preprocessing
+// the literal evaluates its type expressions on the machine, so the
+// lowering is metered per op, O(params + results).
+func promotedMethodExpr(store Store, last BlockNode, pkgPath string, n *SelectorExpr, xt Type, isPtr bool) *FuncLitExpr {
+	gm := preprocessGasMeterOf(store)
+	trail, hasPtr, rcvr, ft, status := findEmbeddedFieldType(gm, pkgPath, xt, n.Sel)
+	if status == embedLookupAmbiguous {
+		failf(CodeNoMethod, nil, "ambiguous selector %s.%s", exprString(n.X), n.Sel)
+	}
+	if status != embedLookupFound || len(trail) == 0 || trail[len(trail)-1].Type == VPField || trail[len(trail)-1].Type == VPDerefField {
+		failf(CodeNoMethod, nil, "%s.%s undefined (type %v has no method %s)", exprString(n.X), n.Sel, xt, n.Sel)
+	}
+	if _, ptrRecv := rcvr.(*PointerType); ptrRecv && !isPtr && !hasPtr {
+		failf(CodeMethodExprReceiver, nil,
+			"invalid method expression %s.%s (needs pointer receiver (*%s).%s)", exprString(n.X), n.Sel, exprString(n.X), n.Sel)
+	}
+	mt := ft.(*FuncType)
+	recv := Name(".recv")
+	params := FieldTypeExprs{{NameExpr: *Nx(recv), Type: toConstTypeExpr(last, n.X, xt)}}
+	args := make([]any, len(mt.Params))
+	for i, p := range mt.Params {
+		name := Name(fmt.Sprintf(".arg%d", i))
+		params = append(params, FieldTypeExpr{NameExpr: *Nx(name), Type: toConstTypeExpr(last, Nx(name), p.Type)})
+		args[i] = Nx(name)
+	}
+	results := make(FieldTypeExprs, len(mt.Results))
+	for i, r := range mt.Results {
+		results[i] = FieldTypeExpr{Type: toConstTypeExpr(last, Nx(".res"), r.Type)}
+	}
+	call := Call(Sel(Nx(recv), n.Sel), args...)
+	call.Varg = mt.HasVarg()
+	var body Body
+	if len(results) > 0 {
+		body = Body{Return(call)}
+	} else {
+		body = Body{&ExprStmt{X: call}}
+	}
+	lit := &FuncLitExpr{Type: *FuncT(params, results), Body: body}
+	lit.SetSpan(n.GetSpan())
+	loc := last.GetLocation()
+	loc.Span = n.GetSpan()
+	lit.SetLocation(loc)
+	return lit
 }

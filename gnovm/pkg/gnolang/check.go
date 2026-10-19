@@ -46,6 +46,7 @@ const (
 	CodeAppendNil       ErrCode = "append-nil"
 	CodeBuiltinSpread   ErrCode = "builtin-spread"
 	CodeFuncAddress     ErrCode = "func-address"
+	CodeMultiValue      ErrCode = "multi-value"
 
 	// Declarations and statements.
 	CodeMissingConstInit   ErrCode = "missing-const-init"
@@ -62,6 +63,8 @@ const (
 	CodeRepeatedDefine     ErrCode = "repeated-define"
 	CodeSwitchTag          ErrCode = "switch-tag"
 	CodeConversionSpread   ErrCode = "conversion-spread"
+	CodeMethodExprReceiver ErrCode = "method-expr-receiver"
+	CodeNoMethod           ErrCode = "no-method"
 	CodeShiftCount         ErrCode = "shift-count"
 
 	// Assignability.
@@ -76,7 +79,6 @@ const (
 	CodeAppendArgs     ErrCode = "append-args"
 	CodeImportName     ErrCode = "import-name"
 	CodeStructField    ErrCode = "struct-field"
-	CodeNoMethod       ErrCode = "no-method"
 	CodeReceiverType   ErrCode = "receiver-type"
 	CodeAssignability  ErrCode = "assignability"
 )

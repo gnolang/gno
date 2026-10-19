@@ -29,9 +29,6 @@ func main() {
 }
 
 // GnoError:
-// line 22: missing field get in main.PS
-
-// GnoWordingDiffers:
-// line 22: gc expects: undefined; gno: missing field get in main.PS
+// line 22: p.get undefined (type main.PS has no field or method get)
 
 // Verdict: Clean errorcheck
