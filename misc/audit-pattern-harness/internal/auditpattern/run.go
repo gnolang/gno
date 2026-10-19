@@ -25,10 +25,11 @@ var mapVarRE = regexp.MustCompile(`^(?:var\s+)?([A-Za-z_]\w*)\s*(?:=\s*)?map\[`)
 // method) whose first parameter is the realm capability token `cur realm`.
 var crossingFuncRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(cur realm\b`)
 
-// funcSigRE captures a func declaration's parameter list: group 1 is the
-// receiver (empty for a plain func), group 2 the parameters. A signature that
-// wraps across lines is not matched: the scanner is line-based.
-var funcSigRE = regexp.MustCompile(`^func\s+(\([^)]*\)\s+)?\w+\(([^)]*)\)`)
+// funcSigRE captures a func or method declaration's parameter list. A
+// signature that wraps across lines is not matched: the scanner is line-based.
+// The capture also stops at the first `)`, so a parameter whose type holds
+// parentheses, such as `cb func()`, hides every parameter after it.
+var funcSigRE = regexp.MustCompile(`^func\s+(?:\([^)]*\)\s+)?\w+\(([^)]*)\)`)
 
 var realmParamRE = regexp.MustCompile(`^([A-Za-z_]\w*)\s+realm$`)
 
@@ -255,18 +256,19 @@ func pkgMutablePointerHits(dir string) ([]Hit, error) {
 }
 
 // realmParamsNeedingGuard returns the realm-typed names in a parameter list
-// that require an IsCurrent() check. Any realm parameter beyond the first
-// arrives as an ordinary argument and can carry a forwarded or derived value
-// such as cur.Previous(). exemptLeadingCur drops a leading `cur realm` from the
-// result, which is correct only where the frame adopts it.
-func realmParamsNeedingGuard(params string, exemptLeadingCur bool) []string {
+// that require an IsCurrent() check. A leading `cur realm` is exempt: the VM
+// enters a crossing function or method only with a cur that is current, so
+// IsCurrent() on it cannot fail. Any later realm parameter arrives as an
+// ordinary argument and can carry a forwarded or derived value such as
+// cur.Previous().
+func realmParamsNeedingGuard(params string) []string {
 	var names []string
 	for i, p := range strings.Split(params, ",") {
 		pm := realmParamRE.FindStringSubmatch(strings.TrimSpace(p))
 		if pm == nil {
 			continue
 		}
-		if exemptLeadingCur && i == 0 && pm[1] == "cur" {
+		if i == 0 && pm[1] == "cur" {
 			continue
 		}
 		names = append(names, pm[1])
@@ -275,17 +277,13 @@ func realmParamsNeedingGuard(params string, exemptLeadingCur bool) []string {
 }
 
 // guardedRealmParams returns the realm-typed parameters of a func declaration
-// line. A plain function's leading `cur realm` is exempt because its frame
-// adopts whatever value it is handed, so IsCurrent() there cannot fail. A
-// method's is not: the frame never adopts it, the check resolves against an
-// outer crossing frame, and the guard is load-bearing.
+// line.
 func guardedRealmParams(line string) []string {
 	m := funcSigRE.FindStringSubmatch(line)
 	if m == nil {
 		return nil
 	}
-	isMethod := strings.TrimSpace(m[1]) != ""
-	return realmParamsNeedingGuard(m[2], !isMethod)
+	return realmParamsNeedingGuard(m[1])
 }
 
 // literalRealmParams returns the realm-typed parameters of every func literal
@@ -293,7 +291,7 @@ func guardedRealmParams(line string) []string {
 func literalRealmParams(line string) []string {
 	var names []string
 	for _, m := range funcLitRE.FindAllStringSubmatch(line, -1) {
-		names = append(names, realmParamsNeedingGuard(m[1], true)...)
+		names = append(names, realmParamsNeedingGuard(m[1])...)
 	}
 	return names
 }

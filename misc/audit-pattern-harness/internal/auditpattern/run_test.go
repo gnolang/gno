@@ -152,10 +152,9 @@ func teller() *fnTeller {
 	}
 }
 
-func TestCurrentGuardFlagsCrossingMethodCur(t *testing.T) {
-	// A method's first cur realm is NOT current by construction: the frame
-	// never adopts it, so the guard is load-bearing here even though the same
-	// parameter on a plain func would be redundant.
+func TestCurrentGuardExemptsCrossingMethodCur(t *testing.T) {
+	// The VM refuses a crossing method entered with anything but its caller's
+	// own cur, so its first cur is current by construction, as on a plain func.
 	const src = `package x
 
 type T struct{ n int }
@@ -176,14 +175,14 @@ func (t *T) Mutate(cur realm) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(hits) != 1 {
-		t.Fatalf("unguarded cur on a crossing method: expected 1 hit, got %d", len(hits))
+	if len(hits) != 0 {
+		t.Fatalf("crossing method first cur should be exempt: %+v", hits)
 	}
 }
 
 func TestCurrentGuardExemptsPlainFuncCur(t *testing.T) {
-	// On a plain crossing function the frame adopts whatever cur it is handed,
-	// so IsCurrent() cannot fail and the guard would prove nothing.
+	// A crossing function's first cur is current on entry, so IsCurrent()
+	// cannot fail and the guard would prove nothing.
 	const src = `package x
 
 func Mutate(cur realm) {

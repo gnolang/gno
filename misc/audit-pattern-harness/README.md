@@ -116,12 +116,13 @@ false positives and false negatives in real-world code.
 Detects a secondary `rlm realm` parameter, declared on a func or on a func
 literal, read before `rlm.IsCurrent()` only within the **same function**, and
 only when the signature fits on one line. Any member other than `IsCurrent()`
-counts as a read. A plain
-function's first `cur realm` is exempt, because its frame adopts the value and
-`cur.IsCurrent()` on it is always true. A method's is not exempt: that frame
-never adopts, so the guard there is load-bearing. If the check lives in a helper
-called from the function that reads the realm value, the detector will not
-flag it. Check helper call chains manually when auditing cross-realm code.
+counts as a read. The first `cur realm` of a crossing function or method is
+exempt: the VM enters one only with a `cur` that is current, so
+`cur.IsCurrent()` on it is always true. A parameter whose type holds
+parentheses, such as `cb func()`, hides every parameter declared after it. If
+the check lives in a helper called from the function that reads the realm
+value, the detector will not flag it. Check helper call chains manually when
+auditing cross-realm code.
 
 ### payment_user_call
 
