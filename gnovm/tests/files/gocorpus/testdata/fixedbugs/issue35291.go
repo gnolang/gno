@@ -14,6 +14,6 @@ var s = []string{
 }
 
 // GnoError:
-// line 11: duplicate index 1 in array or slice literal
+// line 13: duplicate index 1 in array or slice literal
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 13; over-strict: lines 11
+// Verdict: Clean errorcheck
