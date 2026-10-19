@@ -201,8 +201,12 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 			return "", 0, diffs, err
 		}
 		// The mode names the file's mode; an Unsupported verdict carries a tag there.
-		if v.Kind != VerdictUnsupported && v.Mode != "run" {
-			return "", 0, diffs, fmt.Errorf("`// Verdict: %s` names mode %q, but this is a run file", v.Kind, v.Mode)
+		mode := "run"
+		if compileMode {
+			mode = "compile"
+		}
+		if v.Kind != VerdictUnsupported && v.Mode != mode {
+			return "", 0, diffs, fmt.Errorf("`// Verdict: %s` names mode %q, but this is a %s file", v.Kind, v.Mode, mode)
 		}
 	}
 	// The Go side is a golden: `go run` only under sync (with the toolchain
