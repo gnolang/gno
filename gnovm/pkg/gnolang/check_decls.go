@@ -12,7 +12,8 @@ import (
 
 // checkRedefinedTargets: a name on the left of := that this block already
 // declares is assigned, not redeclared, so the value must be assignable
-// to its type; an untyped constant converts to it.
+// to its type; an untyped constant converts to it. Runs before the
+// values take their default types, so untyped constants are still seen.
 func checkRedefinedTargets(store Store, bn BlockNode, n Node, nameExprs []*NameExpr, valueExprs []Expr) {
 	node := skipFile(bn)
 	var results []Type
@@ -39,9 +40,12 @@ func checkRedefinedTargets(store Store, bn BlockNode, n Node, nameExprs []*NameE
 				mustAssignableTo(store, n, results[i], et)
 			}
 		case i < len(valueExprs):
-			if cx, ok := valueExprs[i].(*ConstExpr); ok && wasUntyped(cx) {
-				// Already given its default type; convert as Go would.
-				convertConst(store, bn, n, cx, et)
+			if cx, ok := valueExprs[i].(*ConstExpr); ok && isUntyped(cx.T) {
+				if err := checkAssignableTo(store, n, cx.T, et); err != nil {
+					panic(fmt.Sprintf("cannot use %s (untyped %s constant) as %v value in assignment",
+						constString(cx), untypedKindName(cx.T), et))
+				}
+				convertConst(store, bn, n, cx, et) // representability
 				continue
 			}
 			checkOrConvertType(store, bn, n, &valueExprs[i], et)
@@ -49,13 +53,21 @@ func checkRedefinedTargets(store Store, bn BlockNode, n Node, nameExprs []*NameE
 	}
 }
 
-// wasUntyped reports whether a folded constant was written untyped.
-func wasUntyped(cx *ConstExpr) bool {
-	if cx.T == nil || isUntyped(cx.T) {
-		return true
+// untypedKindName is the Go name of an untyped constant kind.
+func untypedKindName(t Type) string {
+	switch t {
+	case UntypedBigintType:
+		return "int"
+	case UntypedBigdecType:
+		return "float"
+	case UntypedRuneType:
+		return "rune"
+	case UntypedStringType:
+		return "string"
+	case UntypedBoolType:
+		return "bool"
 	}
-	_, lit := cx.Source.(*BasicLitExpr)
-	return lit
+	return t.String()
 }
 
 // assertFuncTypeNames rejects a variadic parameter that is not the last

@@ -3312,14 +3312,17 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
+					nameExprs := make([]*NameExpr, len(n.Lhs))
+					for i := range len(n.Lhs) {
+						nameExprs[i] = n.Lhs[i].(*NameExpr)
+					}
+					// Before defaulting: an already-declared target takes
+					// an untyped constant by assignability.
+					checkRedefinedTargets(store, last, n, nameExprs, n.Rhs)
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
 						convertIfConst(store, last, n, rx)
-					}
-					nameExprs := make([]*NameExpr, len(n.Lhs))
-					for i := range len(n.Lhs) {
-						nameExprs[i] = n.Lhs[i].(*NameExpr)
 					}
 					defineOrDecl(store, last, n, false, nameExprs, nil, n.Rhs, true)
 				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
@@ -3811,9 +3814,6 @@ func defineOrDecl(
 	if isConst && numVals == 0 && numNames > 0 {
 		panic("missing init expr for const declaration")
 	}
-	if isDefine {
-		checkRedefinedTargets(store, bn, n, nameExprs, valueExprs)
-	}
 
 	sts := make([]Type, numNames) // static types
 	tvs := make([]TypedValue, numNames)
@@ -3832,8 +3832,13 @@ func defineOrDecl(
 		} else {
 			_, ok := node.GetLocalIndex(nx.Name)
 			if isDefine && ok {
-				// Keep the original nx, this one is fake.
-				node.Define2(isConst, nx.Name, sts[i], tvs[i], noNameSource)
+				if src := definedBy(node, nx.Name); src != nil && src.Origin != n {
+					// Declared earlier in this block: := assigns to it
+					// and it keeps its type (see checkRedefinedTargets).
+				} else {
+					// Keep the original nx, this one is fake.
+					node.Define2(isConst, nx.Name, sts[i], tvs[i], noNameSource)
+				}
 			} else {
 				nsType := NSValueDecl
 				if isDefine {

@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -545,4 +546,85 @@ func TestInitCycleOnChain(t *testing.T) {
 	}()
 	m.RunFiles(fn)
 	t.Fatal("RunFiles accepted a cycle")
+}
+
+func TestPreprocessCollectRedefine(t *testing.T) {
+	// A := target the block already declares is assigned: an untyped
+	// constant must be assignable (kind and representability), a typed
+	// value assignable; the target keeps its declared type.
+	msgs := collectErrors(t, `package main
+
+const c = 5
+
+func f2() (int, bool) { return 1, true }
+
+func f() {
+	var s string
+	s, j := 1, 2 // not assignable
+	var b bool
+	b, k := 1, 2 // not assignable
+	var u uint8
+	u, l := 300, 2 // overflows
+	var fl float64
+	fl, m := 1+2, 2 // untyped constant expressions convert
+	fl, n := -1, 2
+	fl, o := 1<<2, 2
+	fl, p := c, 2
+	var e interface{}
+	e, ok := f2() // assignable, e keeps its type
+	_, _, _, _, _, _, _, _ = j, k, l, m, n, o, p, ok
+	_, _, _, _, _ = s, b, u, fl, e
+}
+
+func main() {}
+`)
+	want := []string{
+		"cannot use 1 (untyped int constant) as string value in assignment",
+		"cannot use 1 (untyped int constant) as bool value in assignment",
+		"bigint overflows target kind",
+	}
+	for _, w := range want {
+		found := false
+		for _, m := range msgs {
+			if strings.Contains(m, w) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("missing %q in %v", w, msgs)
+		}
+	}
+	if len(msgs) != len(want) {
+		t.Errorf("want %d errors, got %d: %v", len(want), len(msgs), msgs)
+	}
+}
+
+func TestDefineRedeclaredKeepsType(t *testing.T) {
+	// On the run path the redeclared targets take the converted values
+	// and keep their declared types.
+	var buf bytes.Buffer
+	m := NewMachineWithOptions(MachineOptions{PkgPath: "main", Output: &buf})
+	defer m.Release()
+	fn := m.MustParseFile("main.gno", `package main
+
+const c = 5
+
+func f2() (int, bool) { return 1, true }
+
+func main() {
+	var fl float64
+	fl, j := 1+2, 2
+	println(fl, j)
+	fl, k := c, 3
+	println(fl, k)
+	var e interface{}
+	e, ok := f2()
+	println(e, ok)
+}
+`)
+	m.RunFiles(fn)
+	m.RunMain()
+	if got, want := buf.String(), "3 2\n5 3\n1 true\n"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
 }
