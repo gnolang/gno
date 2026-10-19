@@ -106,20 +106,20 @@ var t1 T2
 var x12 /* ERROR "initialization cycle for x12" */ = t1.m
 
 // GnoError:
-// line 11: invalid recursive value: s0 -> s0
-// line 13: invalid recursive value: x0 -> y0 -> x0
-// line 17: invalid recursive value: b0 -> c0 -> d0 -> b0
-// line 23: invalid recursive value: s1 -> s1
-// line 25: invalid recursive value: x1 -> y1 -> x1
-// line 29: invalid recursive value: b1 -> c1 -> d1 -> b1
-// line 36: invalid recursive value: s2 -> s2
-// line 38: invalid recursive value: x2 -> y2 -> x2
-// line 42: invalid recursive value: b2 -> c2 -> d2 -> b2
-// line 48: invalid recursive value: s3 -> s3
-// line 50: invalid recursive value: x3 -> y3 -> x3
-// line 54: invalid recursive value: b3 -> c3 -> d3 -> b3
-// line 64: invalid recursive value: cx3 -> cx3
-// line 65: invalid recursive value: vx3 -> vx3
+// line 11: initialization cycle: s0 refers to s0
+// line 13: initialization cycle: x0 refers to y0 refers to x0
+// line 17: initialization cycle: b0 refers to c0 refers to d0 refers to b0
+// line 23: initialization cycle: s1 refers to s1
+// line 25: initialization cycle: x1 refers to y1 refers to x1
+// line 29: initialization cycle: b1 refers to c1 refers to d1 refers to b1
+// line 36: initialization cycle: s2 refers to s2
+// line 38: initialization cycle: x2 refers to y2 refers to x2
+// line 42: initialization cycle: b2 refers to c2 refers to d2 refers to b2
+// line 48: initialization cycle: s3 refers to s3
+// line 50: initialization cycle: x3 refers to y3 refers to x3
+// line 54: initialization cycle: b3 refers to c3 refers to d3 refers to b3
+// line 64: initialization cycle: cx3 refers to cx3
+// line 65: initialization cycle: vx3 refers to vx3
 // line 70: initialization cycle: x5 refers to f1 refers to x5
 // line 73: initialization cycle: x6 refers to f2 refers to f3 refers to x8 refers to x7
 // line 80: initialization cycle: x9 refers to x9
@@ -128,20 +128,20 @@ var x12 /* ERROR "initialization cycle for x12" */ = t1.m
 // line 106: initialization cycle: x12 refers to T2.m refers to x12
 
 // GnoWordingDiffers:
-// line 11: gc expects: initialization cycle: s0 refers to itself; gno: invalid recursive value: s0 -> s0
-// line 13: gc expects: initialization cycle for x0; gno: invalid recursive value: x0 -> y0 -> x0
-// line 17: gc expects: initialization cycle for b0; gno: invalid recursive value: b0 -> c0 -> d0 -> b0
-// line 23: gc expects: initialization cycle: s1 refers to itself; gno: invalid recursive value: s1 -> s1
-// line 25: gc expects: initialization cycle for x1; gno: invalid recursive value: x1 -> y1 -> x1
-// line 29: gc expects: initialization cycle for b1; gno: invalid recursive value: b1 -> c1 -> d1 -> b1
-// line 36: gc expects: initialization cycle: s2 refers to itself; gno: invalid recursive value: s2 -> s2
-// line 38: gc expects: initialization cycle for x2; gno: invalid recursive value: x2 -> y2 -> x2
-// line 42: gc expects: initialization cycle for b2; gno: invalid recursive value: b2 -> c2 -> d2 -> b2
-// line 48: gc expects: initialization cycle: s3 refers to itself; gno: invalid recursive value: s3 -> s3
-// line 50: gc expects: initialization cycle for x3; gno: invalid recursive value: x3 -> y3 -> x3
-// line 54: gc expects: initialization cycle for b3; gno: invalid recursive value: b3 -> c3 -> d3 -> b3
-// line 64: gc expects: invalid constant type; gno: invalid recursive value: cx3 -> cx3
-// line 65: gc expects: initialization cycle: vx3 refers to itself; gno: invalid recursive value: vx3 -> vx3
+// line 11: gc expects: initialization cycle: s0 refers to itself; gno: initialization cycle: s0 refers to s0
+// line 13: gc expects: initialization cycle for x0; gno: initialization cycle: x0 refers to y0 refers to x0
+// line 17: gc expects: initialization cycle for b0; gno: initialization cycle: b0 refers to c0 refers to d0 refers to b0
+// line 23: gc expects: initialization cycle: s1 refers to itself; gno: initialization cycle: s1 refers to s1
+// line 25: gc expects: initialization cycle for x1; gno: initialization cycle: x1 refers to y1 refers to x1
+// line 29: gc expects: initialization cycle for b1; gno: initialization cycle: b1 refers to c1 refers to d1 refers to b1
+// line 36: gc expects: initialization cycle: s2 refers to itself; gno: initialization cycle: s2 refers to s2
+// line 38: gc expects: initialization cycle for x2; gno: initialization cycle: x2 refers to y2 refers to x2
+// line 42: gc expects: initialization cycle for b2; gno: initialization cycle: b2 refers to c2 refers to d2 refers to b2
+// line 48: gc expects: initialization cycle: s3 refers to itself; gno: initialization cycle: s3 refers to s3
+// line 50: gc expects: initialization cycle for x3; gno: initialization cycle: x3 refers to y3 refers to x3
+// line 54: gc expects: initialization cycle for b3; gno: initialization cycle: b3 refers to c3 refers to d3 refers to b3
+// line 64: gc expects: invalid constant type; gno: initialization cycle: cx3 refers to cx3
+// line 65: gc expects: initialization cycle: vx3 refers to itself; gno: initialization cycle: vx3 refers to vx3
 // line 70: gc expects: initialization cycle for x5; gno: initialization cycle: x5 refers to f1 refers to x5
 // line 80: gc expects: initialization cycle: x9 refers to itself; gno: initialization cycle: x9 refers to x9
 // line 82: gc expects: initialization cycle for x10; gno: initialization cycle: x10 refers to f4 refers to x10

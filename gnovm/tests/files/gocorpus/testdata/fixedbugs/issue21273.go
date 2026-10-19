@@ -29,10 +29,12 @@ func h() {
 
 // GnoError:
 // line 9: invalid recursive type: T0 -> T0
+// line 10: invalid map key type main.T0
 // line 12: invalid recursive type: T1 -> T1
+// line 13: invalid map key type main.T1
 // line 16: invalid recursive type: T2 -> T2
 // line 21: invalid recursive type: T3 -> T3
 // line 26: invalid map key type main[main/issue21273.go:25:1-28:2].T4
 // line 27: invalid map key type main[main/issue21273.go:25:1-28:2].T4
 
-// Verdict: Clean errorcheck
+// Verdict: KnownIssue errorcheck: #6344 over-strict: lines 10, 13

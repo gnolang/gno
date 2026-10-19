@@ -18,13 +18,25 @@ func _() UndefinedType /* ERROR "undefined: UndefinedType" */ {
 }
 
 // GnoError:
-// line 7: name UndefinedType not defined in fileset with files [issue58742.go]
-// line 11: name UndefinedType not defined in fileset with files [issue58742.go]
-// line 16: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 7: name not defined: UndefinedType
+// line 8: expected 3 return values; got 1
+// line 11: name not defined: UndefinedType
+// line 12: expected 2 return values; got 3
+// line 16: name not defined: UndefinedType
+// line 17: expected 1 return values; got 0
 
 // GnoWordingDiffers:
-// line 7: gc expects: undefined: UndefinedType; gno: name UndefinedType not defined in fileset with files [issue58742.go]
-// line 11: gc expects: undefined: UndefinedType; gno: name UndefinedType not defined in fileset with files [issue58742.go]
-// line 16: gc expects: undefined: UndefinedType; gno: name UndefinedType not defined in fileset with files [issue58742.go]
+// line 7: gc expects: undefined: UndefinedType; gno: name not defined: UndefinedType
+// line 8: gc expects: not enough return values
+// 	have (number)
+// 	want (int, unknown type, string); gno: expected 3 return values; got 1
+// line 11: gc expects: undefined: UndefinedType; gno: name not defined: UndefinedType
+// line 12: gc expects: too many return values
+// 	have (number, number, number)
+// 	want (int, unknown type); gno: expected 2 return values; got 3
+// line 16: gc expects: undefined: UndefinedType; gno: name not defined: UndefinedType
+// line 17: gc expects: not enough return values
+// 	have ()
+// 	want (unknown type); gno: expected 1 return values; got 0
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 8, 12, 17
+// Verdict: Clean errorcheck
