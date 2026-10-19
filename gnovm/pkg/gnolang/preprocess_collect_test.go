@@ -1168,3 +1168,31 @@ func main() {
 		t.Fatalf("got %v, want [%s]", msgs, want)
 	}
 }
+
+func TestPreprocessCollectReceiverType(t *testing.T) {
+	msgs := collectErrors(t, `package main
+
+type A = int
+
+func (x int) m()      {}
+func (p *int) n()     {}
+func (a A) o()        {}
+func (s struct{}) p() {}
+
+func main() {}
+`)
+	want := []string{
+		"cannot define new methods on non-local type int",
+		"cannot define new methods on non-local type int",
+		"cannot define new methods on non-local type int",
+		"invalid receiver type struct{}",
+	}
+	if len(msgs) != len(want) {
+		t.Fatalf("got %v, want %v", msgs, want)
+	}
+	for i := range want {
+		if msgs[i] != want[i] {
+			t.Fatalf("got %v, want %v", msgs, want)
+		}
+	}
+}

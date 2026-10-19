@@ -117,3 +117,25 @@ func assertSelectorNotBlank(n *SelectorExpr, xt Type) {
 		panic(fmt.Sprintf("%s undefined (type %s has no field or method _)", exprString(n), xt))
 	}
 }
+
+// receiverDeclaredType returns the declared type a method receiver type
+// rt (or what it points to) names. It must be declared in pkgPath: a
+// basic or foreign type cannot be given new methods, nothing else is a
+// receiver type.
+func receiverDeclaredType(rt Type, pkgPath string, at Node) *DeclaredType {
+	bt := rt
+	if pt, ok := rt.(*PointerType); ok {
+		bt = pt.Elem()
+	}
+	switch t := bt.(type) {
+	case *DeclaredType:
+		if t.PkgPath == pkgPath {
+			return t
+		}
+	case PrimitiveType:
+	default:
+		panicAt(fmt.Sprintf("invalid receiver type %s", rt), at)
+	}
+	panicAt(fmt.Sprintf("cannot define new methods on non-local type %s", bt), at)
+	return nil
+}

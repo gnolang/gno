@@ -6672,18 +6672,9 @@ func tryPredefine(store Store, pkg *PackageNode, last BlockNode, d Decl, stack [
 
 			if pt, ok := rt.(*PointerType); ok {
 				assertValidReceiverType(pt.Elem())
-				if ddt, ok := pt.Elem().(*DeclaredType); ok {
-					assertValidReceiverType(baseOf(ddt))
-					dt = ddt
-				} else {
-					panic("should not happen")
-				}
-			} else if ddt, ok := rt.(*DeclaredType); ok {
-				assertValidReceiverType(baseOf(ddt))
-				dt = ddt
-			} else {
-				panic("should not happen")
 			}
+			dt = receiverDeclaredType(rt, pkg.PkgPath, d.Recv.Type)
+			assertValidReceiverType(baseOf(dt))
 			// The body may get altered during preprocessing later.
 			methodFV := &FuncValue{
 				Type:       ubft,
