@@ -1334,8 +1334,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
     looks the same), but a later finalized state settles it: a receive is a **confirmed orphan** when the source's
     **permanently retained send record** for that sequence is absent (or holds a different packet) at an
     independently authenticated finalized source state whose timestamp has passed the packet's timeout, or whose
-    router next send sequence for that source client is already past the receive's sequence (immediately, for a
-    record holding a different packet) — no honest send can appear after that. It need not reach the receive's referenced proof height, which the attacker chose.
+    router `prevSequenceSends[sourceClient]` (the last allocated sequence) is at or past the receive's sequence
+    (immediately, for a record holding a different packet) — no honest send can appear after that. It need not reach the receive's referenced proof height, which the attacker chose.
     A confirmed orphan is an integrity break by itself, flagged at once with the containment response below, not
     rewound past or deferred; before that state exists the receive is rewound past or the evaluation deferred, as
     below.
@@ -1737,9 +1737,13 @@ reconciliation.
     - a matching `sendRecord` is genuine;
     - **mismatch:** a `sendRecord` at that (source client, sequence) holding a different packet proves forgery
       **at once**, since records are immutable;
-    - **absence, by sequence:** proves forgery once the finalized state shows the router's next send sequence for
-      that source client past the receive's sequence: sequences are assigned monotonically, so a packet with that
-      sequence either was sent (and its record exists) or never will be;
+    - **absence, by sequence:** proves forgery once the finalized state shows
+      `prevSequenceSends[sourceClient] ≥` the receive's sequence. In eureka v3.0.2 the router keeps this mapping in
+      its ERC-7201 `IBCStore`: the **last allocated** send sequence of that client, not the next one. It has no
+      getter, so it is read with `eth_getProof` of that mapping slot, pinned to the same authenticated finalized
+      block. This is conclusive because a transfer send at an allocated sequence writes its `sendRecord` in the same
+      transaction, and a sequence allocated to another app's packet on that client also means no transfer was sent
+      at it;
     - **absence, by timeout** (fallback): proves forgery once that finalized state's timestamp has reached the
       packet's timeout; a forged receive's timeout is attacker-chosen (the 24-hour ceiling binds sends only), so the
       sequence path above is the one that cannot be held hostage;
@@ -1777,7 +1781,7 @@ reconciliation.
   The replacement route opens only once every loss the reconciliation recognized is recapitalized, reduced or
   accepted by decision (§7.9), every suspect receive entitlement is resolved under the evidence rule above
   (finalized, independently authenticated Ethereum state; a mismatched record conclusive at once, an absence once
-  the router's next send sequence passes the receive's, or past the packet's timeout), each
+  the router's `prevSequenceSends[sourceClient]` reaches the receive's sequence, or past the packet's timeout), each
   loss booked and remedied on the chain that paid it out and any mirror on the
   other chain resolved by an accepted deficit only (Cross-chain loss ownership, above): on Ethereum the route stays closed after kind 10 or the emergency recovery,
   outcomes are applied by kind 12 and the route reopens by kind 13 (accepting every loss as a deficit); on gno.land
@@ -1935,8 +1939,9 @@ Further trust assumptions of the built controls, each stated where its rule is:
   pauses or blacklists only makes refunds park. gno.land vouchers on Ethereum are the bridge's own pinned code.
 - **Forged receive authentication** after a replacement relies on an Ethereum node trusted independently of the
   incident, read off-chain by governance at an independently authenticated finalized block (never `latest`): a
-  mismatched `sendRecord` is conclusive at once, an absence once the router's next send sequence for the source
-  client passes the receive's sequence, or once that state's timestamp reaches the packet's timeout (§7.12).
+  mismatched `sendRecord` is conclusive at once, an absence once the router's `prevSequenceSends[sourceClient]` (the last
+  allocated sequence, read by `eth_getProof` of its `IBCStore` slot at the same block) is at or past the receive's
+  sequence, or once that state's timestamp reaches the packet's timeout (§7.12).
 - **Code pins** mean what they name only through the build verification (§7.6), run by the operators until the
   watch tool exists; a verifier of another type than `GnoLightClient` is checked by hand. Exclusive ownership of
   Ethereum roles needs an external audit of the AccessManager's `RoleGranted` log and of the function-role
@@ -2621,8 +2626,13 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - The Ethereum client's configured minimum (341) and mandatory supermajority (342 of 512) are separate checks
     (§5.2). Ethereum's hold history chooses guardian anchors (§9).
   - Forged receive evidence no longer waits on an attacker-chosen timeout: a mismatched `sendRecord` is conclusive
-    at once, an absence once the router's next send sequence passes the receive's; the timeout and
+    at once, an absence once the router's next send sequence passes the receive's (made precise below as `prevSequenceSends ≥ sequence`); the timeout and
     fabricated-state paths remain (§7.11, §7.12, §8.1).
+- 2026-10-19, the absence-by-sequence proof made precise: eureka v3.0.2's router stores `prevSequenceSends[sourceClient]`
+  (the last allocated sequence) in its ERC-7201 `IBCStore`, with no getter; it is read by `eth_getProof` of that slot
+  at the authenticated finalized block, and `prevSequenceSends[sourceClient] ≥ sequence` with no matching
+  `sendRecord` proves the receive forged, since a transfer send writes its record in the same transaction and a
+  sequence allocated to another app's packet carried no transfer (§7.11, §7.12, §8.1).
 
 ## 15. References
 
