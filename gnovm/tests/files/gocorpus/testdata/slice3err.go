@@ -139,5 +139,38 @@ func f() {
 // line 49: final index required in 3-index slice
 // line 50: middle index required in 3-index slice
 // line 51: middle index required in 3-index slice
+// line 52: invalid operation: 3-index slice of string
+// line 53: invalid operation: 3-index slice of string
+// line 57: invalid slice indices: 1 < 2
+// line 62: invalid slice indices: 2 < 3
+// line 63: invalid slice indices: 1 < 2
+// line 64: invalid slice indices: 1 < 3
+// line 65: invalid slice indices: 1 < 3
+// line 66: invalid slice indices: 2 < 3
+// line 68: invalid slice indices: 1 < 2
+// line 70: invalid slice indices: 1 < 2
+// line 72: invalid slice indices: 1 < 2
+// line 75: invalid slice indices: 1 < 2
+// line 80: invalid slice indices: 2 < 3
+// line 81: invalid slice indices: 1 < 2
+// line 82: invalid slice indices: 1 < 3
+// line 83: invalid slice indices: 1 < 3
+// line 84: invalid slice indices: 2 < 3
+// line 86: invalid slice indices: 1 < 2
+// line 88: invalid slice indices: 1 < 2
+// line 90: invalid slice indices: 1 < 2
+// line 93: invalid slice indices: 1 < 2
+// line 99: invalid argument: index 11 out of bounds [0:11]
+// line 100: invalid argument: index 11 out of bounds [0:11]
+// line 101: invalid argument: index 11 out of bounds [0:11]
+// line 102: invalid argument: index 11 out of bounds [0:11]
+// line 103: invalid argument: index 11 out of bounds [0:11]
+// line 104: invalid argument: index 11 out of bounds [0:11]
+// line 105: invalid argument: index 11 out of bounds [0:11]
+// line 106: invalid argument: index 11 out of bounds [0:11]
+// line 107: invalid argument: index 11 out of bounds [0:11]
+// line 108: invalid argument: index 11 out of bounds [0:11]
+// line 118: invalid slice indices: 3 < 11
+// line 119: invalid slice indices: 2 < 11
 
-// Verdict: KnownIssue errorcheck: #6344 uncaught markers: lines 52, 53, 57, 62, 63, 64, 65, 66, 68, 70, 72, 75, 80, 81, 82, 83, 84, 86, 88, 90, 93, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 118, 119
+// Verdict: Clean errorcheck
