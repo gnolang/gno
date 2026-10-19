@@ -451,7 +451,7 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with isImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if err := idt.checkImplementedBy(preprocessGasMeterOf(store), xt); err == nil {
+			} else if err := idt.checkImplementedByStatic(preprocessGasMeterOf(store), xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
@@ -637,18 +637,17 @@ func checkAssignableTo(store Store, n Node, xt, dt Type) (err error) {
 		panic("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
-	case *StructType:
+	case *StructType, *FuncType, *PackageType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			if f := embeddedFieldMismatch(xt, cdt); f != "" {
 				return errors.New(
 					"cannot use %s as %s (field %s is embedded in only one)",
 					xt.String(), dt.String(), f)
 			}
-			return nil // ok
-		}
-	case *FuncType, *PackageType, *TypeType:
-		if xt.TypeID() == cdt.TypeID() {
-			return nil // ok
+			if tagsIdentical(preprocessGasMeterOf(store), xt, cdt) {
+				return nil // ok
+			}
+			return errors.New("cannot use %s as %s: struct tags differ", xt.String(), dt.String())
 		}
 	default:
 		return errors.New(
@@ -1096,11 +1095,19 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 		} else {
 			shouldPanic = false
 		}
-	case *StarExpr, *SelectorExpr:
+	case *StarExpr:
+		shouldPanic = false
+	case *SelectorExpr:
+		if inMapValue(store, last, clx) {
+			panic(fmt.Sprintf("cannot assign to struct field %s in map", exprString(lx)))
+		}
 		shouldPanic = false
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, clx.X)
 		shouldPanic = xt != nil && xt.Kind() == StringKind
+		if !shouldPanic && inMapValue(store, last, clx) {
+			panic(fmt.Sprintf("cannot assign to %s (neither addressable nor a map index expression)", exprString(lx)))
+		}
 	default:
 	}
 	if shouldPanic {

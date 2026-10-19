@@ -2877,6 +2877,7 @@ func preprocess1(store Store, ctx BlockNode, n Node, acc *preprocessAccumulator)
 						case "copy":
 							if len(n.Args) == 2 {
 								assertCopyArgs(
+									preprocessGasMeterOf(store),
 									evalStaticTypeOf(store, last, n.Args[0]),
 									evalStaticTypeOf(store, last, n.Args[1]))
 								// If the second argument is a string,
