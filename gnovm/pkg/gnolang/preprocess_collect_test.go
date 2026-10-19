@@ -973,3 +973,25 @@ func main() {
 		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
 	}
 }
+
+func TestPreprocessCollectPointerToInterface(t *testing.T) {
+	// A pointer to an interface has no methods: it implements nothing
+	// but the empty interface, in an assignment and in an assertion.
+	msgs := collectErrorsRaw(t, `package main
+type I interface{ M() }
+type S struct{}
+func (*S) M() {}
+func f(p *I, i I) {
+	var _ I = p
+	var _ interface{} = p
+	_ = i.(*I)
+}
+`)
+	want := []string{
+		"main/main.gno:6:6-13: *main.I does not implement main.I (type *main.I is pointer to interface, not interface)",
+		"main/main.gno:8:6-12: impossible type assertion: *main.I does not implement main.I (type *main.I is pointer to interface, not interface)",
+	}
+	if strings.Join(msgs, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("unexpected:\n%s", strings.Join(msgs, "\n"))
+	}
+}

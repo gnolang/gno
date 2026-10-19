@@ -1030,6 +1030,12 @@ func (it *InterfaceType) checkImplementedBy(gm store.GasMeter, ot Type) error {
 	// BFS over the struct's embedding graph. OpCPUSlopeTypeAssertIface (349 gas)
 	// mirrors the runtime type-assertion charge in op_expressions.go.
 	chargeCPUGas(gm, OpCPUSlopeTypeAssertIface*int64(len(it.Methods)))
+	if pt, ok := baseOf(ot).(*PointerType); ok {
+		if _, ok := baseOf(pt.Elt).(*InterfaceType); ok {
+			// Its method set is empty; the embedding walk has no case for it.
+			return fmt.Errorf("type %v is pointer to interface, not interface", ot)
+		}
+	}
 	// One walk of ot's embedding graph serves every method lookup below: the
 	// graph is expanded once (OpCPUSlopeEmbedExpand per type) and re-scanned
 	// per name (OpCPUSlopeEmbedScan per entry, plus OpCPUSlopeEmbedTrailHop
