@@ -1120,7 +1120,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
      code verifies again.
 - **Single point of failure.** If the GnoLightClient can no longer follow gno.land, or a forgery has pushed it past
   honest heights, the governance channel stops and GovDAO's cancellations are not provable on Ethereum. See §7.12
-  for the recovery that does not depend on the channel.
+  for the recovery that does not depend on the channel. Refunds already queued or parked stay claimable after a
+  client fails; only new proof-based processing (receives, acks, timeouts, proofs) through it stops.
 
 ### 7.7 Governor and one-way yield — R9/R11
 
@@ -1248,7 +1249,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   checkpoint, so every transition since the trusted launch checkpoint counts with the launch duration; receive
   limits are refused until it is armed, and the deployment sets the quarantine first.
 - A freshly constructed client installed by kind 6, kind 10 or the recovery starts unquarantined until its first
-  transition (§8.4).
+  transition (§8.4). A client already updated before installation brings its transitions in: each one's quarantine
+  counts from its existing transition timestamp, so it may already have elapsed at installation.
 
 ### 7.11 Monitoring — T4, T5
 
@@ -1329,7 +1331,10 @@ router receipts at transport sequence numbers the attacker chose (eureka stores 
 `(client, sequence)` and refuses a different packet there,
 [`IBCStoreUpgradeable.setPacketReceipt`](https://github.com/cosmos/solidity-ibc-eureka/blob/solidity-v3.0.2/contracts/utils/IBCStoreUpgradeable.sol)), and governance sequence
 numbers, buffered decisions and tombstones in `IBCAdmin`. Replacing the verifier of the same client id
-(`migrateClient`) repairs none of that, so recovery is a **route replacement**.
+(`migrateClient`) repairs none of that, so recovery from poisoning is a **route replacement**. When the old history
+is trusted (the client expired or a verifier defect stopped it, no forged state), a **kind 6 op 2 already recorded**
+on `IBCAdmin` alone can repair the channel loss by migrating the client to a working verifier; a kind 10 is not
+always needed.
 
 - **Ethereum-local brake (always available).** Guardian flags and holds on `IBCAdmin` and `GnoICS20Transfer` are
   Ethereum transactions, not packets, so they keep working while the channel is down or poisoned.
@@ -1804,8 +1809,10 @@ same packet: a double spend that receive limits, flags and the quarantine do not
 - **Closed routes.** A route closed by a replacement pays no refund outside the settlements until it reopens
   (§7.12): a deliberate exception to this section's "only the meter and the hold delay a refund" (§8.5).
 - **Sender notifications (Ethereum).** A contract sender answering ERC-165 true for `IIBCSenderCallbacks` is
-  notified (the `supportsInterface` probe is a bounded `staticcall`, about 30,000 gas with one word of return data
-  copied; a failure or a malformed answer means unsupported, and its cost is counted in the gas reserves) of an error ack or timeout when its refund is paid at once (bounded gas; a failure never rolls the
+  notified (support is probed with OpenZeppelin's `ERC165Checker`: at most three `staticcall`s — `IERC165`, the
+  invalid id, the target interface — each capped at 30,000 gas with only the first word copied; a revert, a short
+  answer or a zero word means unsupported, an oversized answer counts by its first word; the worst case, about
+  90,000 gas, comes before the 100,000-gas callback and the 60,000 reserve, gno-eth-ibc b07faf4) of an error ack or timeout when its refund is paid at once (bounded gas; a failure never rolls the
   refund back); otherwise only the notification's hash is kept and anyone delivers it later
   (`retryNotification`). Each send record has **one terminal notification** (a checked invariant, gno-eth-ibc 0a5f2ba), and **a transport callback already
   delivered is final**: when kind 12 later decides the other kind (a delivered forged success, then an action 1
@@ -1891,7 +1898,7 @@ Further trust assumptions of the built controls, each stated where its rule is:
 | Ethereum finality stalls | Eth → gno stops (only finalized state is provable); monitors go blind and alarm |
 | Ethereum fork changes light-client containers | the Gno client must be upgraded before the fork; otherwise Eth → gno stops until it is |
 | Validator set changes | quarantine of gno → Eth receives (if enabled): they error-ack and are refunded on gno.land |
-| GnoLightClient cannot follow gno.land (expired trusting period), frozen, or poisoned by a forgery | every proof against it fails or is untrustworthy — receives, acks and timeouts on Ethereum, and governance; guardians hold the route; recovery is a route replacement (§7.12), by governance or, if enabled, the guardian emergency path |
+| GnoLightClient cannot follow gno.land (expired trusting period), frozen, or poisoned by a forgery | every proof against it fails or is untrustworthy — receives, acks and timeouts on Ethereum, and governance (refunds already queued or parked stay claimable: only new proof-based processing stops); guardians hold the route; recovery is a route replacement (§7.12), by governance or, if enabled, the guardian emergency path |
 | Meter exhausted (gno) | claims wait and are paid as the meter refills; no loss |
 | Mint limit reached (Eth) | receive refused in the app → error ack → sender refunded on gno.land |
 | Guardian flag | the flagged function stops; exits stay open |
@@ -1925,7 +1932,8 @@ Further trust assumptions of the built controls, each stated where its rule is:
   client marks them untrusted, and only Ethereum clients prove settlement outcomes.
 - **A freshly constructed client starts unquarantined** on Ethereum: a client installed by kind 6, kind 10 or the
   recovery and never updated has no transition until its first one (marking construction as one would also
-  quarantine the launch client). A route replacement keeps the old route's quarantine deadline.
+  quarantine the launch client). A transition accepted before installation counts from its existing timestamp, so
+  its quarantine may already have elapsed. A route replacement keeps the old route's quarantine deadline.
 - **Expensive tokens are parked** on Ethereum: a refund gives the token fixed gas (200,000 a call, 30,000 for
   `balanceOf`); one needing more is parked and paid by `claimParked` with a caller-chosen budget. Delivering a
   stored sender notification needs its calldata rebuilt from the original ack or timeout transaction (only a hash is
@@ -2494,6 +2502,11 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   catch-up past it can fail permanently (§7.12, §8.5); Ethereum's ERC-165 sender probe is a bounded `staticcall`
   (about 30,000 gas, one word copied; failure or a malformed answer means unsupported; counted in the reserves,
   §7.13).
+- 2026-10-19, gno-eth-ibc b07faf4: the ERC-165 probe described as `ERC165Checker` (up to three capped
+  `staticcall`s, about 90,000 gas worst case before the callback and reserve; §7.13); a recorded kind 6 op 2 alone
+  can repair a channel loss when the old history is trusted (§7.12); queued and parked refunds stay claimable after
+  a client fails (§7.6, §8.3); a pre-installation transition's quarantine counts from its existing timestamp
+  (§7.10, §8.4).
 
 ## 15. References
 
