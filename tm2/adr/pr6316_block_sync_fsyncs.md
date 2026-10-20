@@ -16,9 +16,11 @@ A node applying a block waits for the disk five times, across three databases:
 | 4 | the application commit | `rootmulti.Commit` (`tm2/pkg/store/rootmulti/store.go`) | `WriteSync` |
 | 5 | the state record, with the validators and consensus params info | `ApplyBlock` → `SaveState` | `SetSync` |
 
-In consensus the WAL adds a sixth. A node catching up through block sync pays
-all five on every block, and on light blocks the disk waits are a large share
-of the time per block.
+In consensus the WAL adds a sixth. A node catching up through block sync paid
+all five on every block until #6334, which holds block sync's writes in memory
+and writes each database's share as one synced batch at a flush point, about
+once a second. Since then only a live node waits for the disk on every block,
+as it saves and applies each block consensus commits.
 
 Flush 2 protects nothing. It goes to the same database as flush 1, right after
 it, with no write in between, and a flush makes the database's earlier writes
@@ -40,10 +42,11 @@ either, as it syncs the same journal flush 1 has just synced.
 
 ## Decision
 
-Remove flush 2. Block sync waits for the disk four times per block instead of
-five, consensus five instead of six. Nothing else changes: the height record
-is still written last and flushed, so the block store's durability, and every
-case the restart handles, are as before.
+Remove flush 2. A live node waits for the disk five times per block instead of
+six. Block sync gains nothing since #6334: there flush 2's empty record is held
+with the block's other writes until the flush point. Nothing else changes: the
+height record is still written last and flushed, so the block store's
+durability, and every case the restart handles, are as before.
 
 ## Alternatives considered
 
@@ -80,18 +83,21 @@ when `ApplyBlock` saves it and wait for it at the start of the next
 block can halt or crash the node, as now, while in block sync its flush overlaps
 the block store's flush for the next block. It needs a pending flush in
 `BlockExecutor`, a wait on shutdown, and one executor across the handshake's
-replays; left for a follow-up.
+replays; left for a follow-up. Since #6334 block sync no longer flushes per
+block, so this would now help only live nodes.
 
 **Keep the block and the state in one database,** so that one flush covers
 both: a data-layout migration for every node.
 
 ## Consequences
 
-- One disk wait fewer per block. A reviewer timed each step over a full
-  resync of gno.land mainnet (775,243 blocks, AWS t3.xlarge, gp3) on the
-  first version: `SaveBlock`, the only step this change touches, went from
-  2.21 ms to 1.23 ms per block (the first version's other removed flush was
-  timed separately, in `SaveState`).
+- One disk wait fewer per block on a live node. A reviewer timed each step
+  over a full resync of gno.land mainnet (775,243 blocks, AWS t3.xlarge, gp3)
+  on the first version, before #6334: `SaveBlock`, the only step this change
+  touches, went from 2.21 ms to 1.23 ms per block (the first version's other
+  removed flush was timed separately, in `SaveState`). Block sync now holds
+  those writes instead; a live node's `SaveBlock` still writes and flushes as
+  in that resync, so it should save about the same, an estimate.
 - Block stores written before this change keep an empty key from flush 2;
   nothing reads it.
 
