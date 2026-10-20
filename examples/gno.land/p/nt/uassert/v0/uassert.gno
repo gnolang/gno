@@ -374,18 +374,6 @@ func Equal(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 			es, as = strconv.FormatUint(ev, 10), strconv.FormatUint(av, 10)
 		}
-	case int256:
-		if av, ok := actual.(int256); ok {
-			equal = ev == av
-			ok_ = true
-			es, as = strconv.FormatInt256(ev, 10), strconv.FormatInt256(av, 10)
-		}
-	case uint256:
-		if av, ok := actual.(uint256); ok {
-			equal = ev == av
-			ok_ = true
-			es, as = strconv.FormatUint256(ev, 10), strconv.FormatUint256(av, 10)
-		}
 	case bool:
 		if av, ok := actual.(bool); ok {
 			equal = ev == av
@@ -407,7 +395,16 @@ func Equal(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 		}
 	default:
-		return fail(t, msgs, "uassert.Equal: unsupported type")
+		ed, ename, eok := format256(expected)
+		if !eok {
+			return fail(t, msgs, "uassert.Equal: unsupported type")
+		}
+		if ad, aname, aok := format256(actual); aok && aname == ename {
+			// Same 256-bit type: canonical decimals are equal iff the values are.
+			equal = ed == ad
+			ok_ = true
+			es, as = ed, ad
+		}
 	}
 
 	/*
@@ -520,18 +517,6 @@ func NotEqual(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 			es, as = strconv.FormatUint(ev, 10), strconv.FormatUint(av, 10)
 		}
-	case int256:
-		if av, ok := actual.(int256); ok {
-			notEqual = ev != av
-			ok_ = true
-			es, as = strconv.FormatInt256(ev, 10), strconv.FormatInt256(av, 10)
-		}
-	case uint256:
-		if av, ok := actual.(uint256); ok {
-			notEqual = ev != av
-			ok_ = true
-			es, as = strconv.FormatUint256(ev, 10), strconv.FormatUint256(av, 10)
-		}
 	case bool:
 		if av, ok := actual.(bool); ok {
 			notEqual = ev != av
@@ -553,7 +538,16 @@ func NotEqual(t TestingT, expected, actual any, msgs ...string) bool {
 			ok_ = true
 		}
 	default:
-		return fail(t, msgs, "uassert.NotEqual: unsupported type")
+		ed, ename, eok := format256(expected)
+		if !eok {
+			return fail(t, msgs, "uassert.NotEqual: unsupported type")
+		}
+		if ad, aname, aok := format256(actual); aok && aname == ename {
+			// Same 256-bit type: canonical decimals are equal iff the values are.
+			notEqual = ed != ad
+			ok_ = true
+			es, as = ed, ad
+		}
 	}
 
 	/*
@@ -602,14 +596,13 @@ func isNumberEmpty(n any) (isNumber, isEmpty bool) {
 		return true, n == 0
 	case uint64:
 		return true, n == 0
-	case int256:
-		return true, n == 0
-	case uint256:
-		return true, n == 0
 	case float32:
 		return true, n == 0
 	case float64:
 		return true, n == 0
+	}
+	if digits, _, ok := format256(n); ok {
+		return true, digits == "0"
 	}
 	return false, false
 }
@@ -702,4 +695,16 @@ func NotTypedNil(t TestingT, value any, msgs ...string) bool {
 		return fail(t, msgs, "should not be typed-nil")
 	}
 	return true
+}
+
+// format256Hook is installed by int256.gno; see there.
+var format256Hook func(v any) (digits, name string, ok bool)
+
+// format256 returns v in canonical decimal and its type name if v is an
+// int256 or a uint256.
+func format256(v any) (digits, name string, ok bool) {
+	if format256Hook == nil {
+		return "", "", false
+	}
+	return format256Hook(v)
 }
