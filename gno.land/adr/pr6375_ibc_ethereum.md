@@ -2,8 +2,8 @@
 
 - **Status:** proposed. The protocol path works end to end on a local 3-validator gno.land testnet ⇄ Ethereum
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
-  `feat/ibc-controls` (1353ab5, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
-  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (7366bc1,
+  `feat/ibc-controls` (04ccc23, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
+  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (6d3933b,
   [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
   built; where the implementations depart from the design as reviewed, §8.5 lists each departure and each accepted
@@ -166,7 +166,7 @@ Repositories and branches:
 | Short name | Location |
 |---|---|
 | **gno** | this branch, `feat/secp256k1-validators-ibc` (fork remote clockworkgr/gno) |
-| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, 1353ab5; ADR 0004) |
+| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, 04ccc23; ADR 0004) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
 | **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts; the controls on `feat/ibc-controls` (`docs/controls.md`). |
 | **bridges** | [gnolang/bridges](https://github.com/gnolang/bridges): `main` (Solana, live) and [`ethereum-draft`](https://github.com/gnolang/bridges/tree/ethereum-draft) |
@@ -417,7 +417,7 @@ oversize governance envelope within the window and spends it (§5.4).
   | 6 client | `(uint8 op, string clientId, string counterpartyClientId, bytes[] merklePrefix, address lightClient, bytes32 codeHash)`; op 1 add (a custom id, thereby **enrolled** as a target kind 10 may move a route to), 2 migrate `clientId` to `lightClient` (quarantine checkpointed and the route's verifier generation bumped first, which voids outcomes proven through the old verifier; **not atomic**: a router refusal spends the decision without undoing them). The verifier must be usable (code with the pinned hash, not an EIP-7702 designator, gno.land's chain id, neither frozen nor expired); the counterparty only in canonical form (gno.land's exact prefix `["main", "/pv/vm:gno.land/r/aib/ibc/core:"]`, a client id of 1 to 64 `[a-z0-9-]`); a migration keeps the counterparty id; a retired id is never migrated | 7 d |
   | 7 upgrade | `(address proxy, address implementation, bytes32 codeHash, bytes call)`: the router, the transfer app or one of its two beacons; fixed call gas, after-checks (authority, bindings, every beacon the decision does not name unchanged), rolled back whole on failure. On the transfer proxy only code that keeps the controls: the candidate fork's `gnoControlsVersion()` at least the running one's; each of its three modules (controls, reconciliation, evidence) code answering **exactly** the fork's version, recording its own address as its `gnoSelf()` and with the code hash its holder recorded (so an ordinary proxy-backed module, whose `gnoSelf()` answers its implementation's address, is refused); and the proxy answering that version for all four after the upgrade. The call is empty or a selector on the executor's pinned allow-list (empty in the launch executor; only a later executor installed by kind 9 can carry a longer list), and never an upgrade-setting selector (`upgradeToAndCall`, `multicall`, `upgradeEscrowTo`, `upgradeIBCERC20To`) | 7 d |
   | 8 role | `(bool grant, uint64 roleId, address account)`; Ethereum accepts **only `RELAYER_ROLE` (1)** with a non-zero account (`ibcgov`'s builder also refuses `ADMIN_ROLE` and `PUBLIC_ROLE`). It cannot enable `sendTransferWithSender` (its `DELEGATE_SENDER_ROLE` is granted to nobody), and `sendTransferWithPermit2` exists only when the deployment configures a `PERMIT2` address (a deploy-time setting, unset by default); plain `sendTransfer` is the deployed send path | grant 7 d, revoke at recording |
-  | 9 hand-over | `(address exec, bytes32 codeHash, bytes migrationCall)`, recorded and executed by `IBCAdmin` itself, **never by delegatecall into the installed executor**, so a broken executor can be replaced — given an authenticated governance channel to deliver the kind 9, or a working recovery to restore one, and an accurate transfer-app `gnoBusy()` (§8.5 R14, R15) (gno-eth-ibc af6259d, e7a299f); during an open recovery kind 9 is suspended until it closes, and the guardians' native cancellation always lifts that suspension (§7.12). Recording (in `IBCAdmin`, `handoverParams`): the params must be exactly the canonical `abi.encode` of the tuple with a non-zero `exec` and an **empty** `migrationCall` — the migration call must be empty, and a non-empty one is spent at recording (`migration`), any other non-canonical form spent (`params`); `ibcgov`'s `NewEthHandOverRequest` takes no migration parameter and always sends it empty. A hand-over only moves the pin; any migration is done afterwards by the new executor through its own decisions. Execution, after the usual pending, tombstone, suspension, deferral and maturity checks: at least 161,587 gas (checked in `IBCAdmin`) or it reverts `CallStarved` and stays pending; then `IBCAdmin` delegatecalls its immutable `IBCAdminNative` helper, which checks that `exec` holds code (an EIP-7702 designator refused) with the pinned code hash, else spent (`codehash`); a `bindings()` staticcall with 100,000 gas must answer exactly 96 bytes matching the router, the AccessManager and the transfer app, else spent (`bindings`); then the pin moves and `ExecReplaced` is emitted. The envelope, sequencing, 7-day delay, deferral, recovery suspension, kind 1 cancellation and spending on refusal are those of every kind | 7 d |
+  | 9 hand-over | `(address exec, bytes32 codeHash, bytes migrationCall)`, recorded and executed by `IBCAdmin` itself, **never by delegatecall into the installed executor**, so a broken executor can be replaced — given an authenticated governance channel to deliver the kind 9, or a working recovery to restore one, and an accurate transfer-app `gnoBusy()` (§8.5 R14, R15) (gno-eth-ibc af6259d, e7a299f); during an open recovery kind 9 is suspended until it closes, and the guardians' native cancellation always lifts that suspension (§7.12). Recording (in `IBCAdmin`, `handoverParams`): the params must be exactly the canonical `abi.encode` of the tuple with a non-zero `exec` and an **empty** `migrationCall` — the migration call must be empty, and a non-empty one is spent at recording (`migration`), any other non-canonical form spent (`params`); `ibcgov`'s `NewEthHandOverRequest` takes no migration parameter and always sends it empty. **A broken executor cannot block a kind 9's recording** (gno-eth-ibc 6d3933b): a delivery drains the buffered decisions that follow it, and a decision the executor cannot answer is **halted**, not recorded (see the recording rules below), so the drain stops there and the kind 9's own recording stands; a halted decision **ahead** of the kind 9 holds it back until a kind 1 cancels it. A hand-over only moves the pin; any migration is done afterwards by the new executor through its own decisions. Execution, after the usual pending, tombstone, suspension, deferral and maturity checks: at least 161,587 gas (checked in `IBCAdmin`) or it reverts `CallStarved` and stays pending; then `IBCAdmin` delegatecalls its immutable `IBCAdminNative` helper, which checks that `exec` holds code (an EIP-7702 designator refused) with the pinned code hash, else spent (`codehash`); a `bindings()` staticcall with 100,000 gas must answer exactly 96 bytes matching the router, the AccessManager and the transfer app, else spent (`bindings`); then the pin moves and `ExecReplaced` is emitted. The envelope, sequencing, 7-day delay, deferral, recovery suspension, kind 1 cancellation and spending on refusal are those of every kind | 7 d |
   | 10 route replacement | `(string oldClientId, string newClientId, uint64 suspectFrom)`: retire the old client id (`migrateClient` to a `FrozenLightClient`, since the router has no freeze), `migrateRoute`, open the next epoch over the new client and send its epoch notice (§7.12). The new id must be one a kind 6 enrolled (an id the router generated is refused) whose verifier is still usable immediately before the switch; the old id must be the route's current client. **All or nothing**: the quarantine checkpoint (which bumps the route's verifier generation), the migration and the epoch switch run in one frame, and a refused migration rolls all of it back, the decision spent and outcomes proven before still usable. Allowed while the route is closed: it opens a new incident and aborts a reopening under way (§7.12). `suspectFrom` is the Ethereum block from which acks and timeouts processed through the old client are suspect (§7.12): every send record processed at or after it must be settled by kind 12 before kind 13. On gno.land its dispatch also creates a pending **expected transition** whose binding to a local client is a separate 7-day decision (§7.12) | 7 d |
   | 11 route settings | `(string clientId, uint64 quarantineSeconds)`, at most 365 days, per route; a duration applies to transitions accepted after it; one already started keeps its deadline; an older decision maturing later never overwrites a newer setting | lengthening at recording, shortening 7 d |
   | 12 settle | `(string clientId, (uint64 sequence, uint8 action, uint256 amount)[] items)`: §7.12's reconciliation outcomes for the send records of a client a replacement retired; at most 8 items (more is spent at recording), all or nothing, a fixed 6M gas budget. Action 1 genuine refund: pay its remainder — `amount` must equal the entitlement minus what was already refunded, **zero** for a genuine refund already paid in full, which then only marks the record settled and moves no funds (a refund is never cut short, §7.9); a refund the free escrow cannot pay now is **parked**, owed and reserved, never failing the batch (§7.12). 2 reject an owed refund of a delivered packet, queued **or parked** (refused if any of it was paid: use 4). 3 settled as delivered (refused if any refund was paid: use 4). 4 forged refund: the record's transport outcome an error ack or timeout, its proven outcome delivered; reject the unpaid remainder **and** record what was already paid as a loss, atomically (`amount` must equal what was paid). Ethereum's receiver also accepts action 4 with zero and ignores `amount` for actions 2–3, but `ibcgov`'s `NewEthSettleRequest` (like gno.land's own settlement) refuses zero for action 4 and requires zero for actions 2–3, so end to end an entirely unpaid refund of a delivered packet is settled by action 2. 5 forged receive: `sequence` is an **inbound** sequence on the retired client whose receive released or minted `amount` (recorded per receive), booked as a loss once; it needs no destination-outcome proof, so it runs even while the replacement verifier is frozen or expired. Each send record is settled at most once. Actions 1–4 require the record's **proven outcome** (below) to match: 1 refundable (proven non-receipt or error ack, or a collision), 2–3 delivered (proven success ack and matching receipt), 4 delivered. Two passes: the first validates and settles every item and restores every action 1 refund's reservation, the second pays them against the batch's complete reservations, so the item order never matters. A kind 12 with an action 1 item of non-zero amount is **deferred** (stays pending) while the route's `refunds` hold stands; one paying nothing is not held. While any incident of the route is unprepared (§7.12) kind 12 pays no refund: the refunds stay parked | 7 d |
@@ -477,6 +477,16 @@ oversize governance envelope within the window and spends it (§5.4).
   a decision by starving it). `IBCAdmin` **orders recording, not delivery**:
   - `seq == last+1`: recorded; then buffered `last+2…` are recorded in order, at most `D = 8` per call; the
     rest by a permissionless `drain()`.
+  - **Halted decisions** (gno-eth-ibc 6d3933b). At recording, a decision whose executor's code is not the pinned
+    one, or whose executor answers anything but exactly `abi.encode(uint8 action, string reason)` with a known
+    action, is **halted**: nothing is recorded (`lastSeq` and `lastRecordTime` are restored), it stays `BUFFERED`
+    and unspent, and `_drain` stops there without reverting. A delivered decision that halts is acknowledged status
+    2 (buffered); it records later through the replacement executor, by `drain()`. An executor that **reverts** at
+    recording still spends the decision (`params`: a revert is indistinguishable from undecodable parameters), and
+    gno.land sends it again after the replacement. A halted decision ahead of a kind 9 holds the kind 9 back
+    (decisions record in order) until a kind 1 cancels it: tombstones apply on arrival and a tombstoned decision is
+    recorded as cancelled without the executor. Purpose: a broken executor cannot revert the delivery that records a
+    kind 9.
   - `last+1 < seq ≤ last+W` (window `W = 64`): stored with its hash, success ack (`buffered`). A second packet for a
     buffered `seq` with the same hash is a duplicate; with a different hash it is a conflict: flags `IBCAdmin`
     (refreshing the conflict flag's block on every conflict), keeps the first, is never applied.
@@ -808,12 +818,15 @@ flowchart LR
     U2 --> U3[ibcgov decision kind 'upgrade' → gov packet]
     U3 --> U4[IBCAdmin: 7 days, deferred by flags and holds → upgradeToAndCall<br/>code hash pinned, after-checks]
   end
-  F[Ethereum fork changing light-client containers] --> L1["new Ethereum client package version<br/>+ core impl compiling the conversion in"] --> L2["decisions: core UpdateImpl, then<br/>NewReplaceVerifierRequest (R16), 7 d each;<br/>best before the client expires; an Expired client<br/>is still converted, then recovered"]
+  F[Ethereum fork changing light-client containers] --> L1["new Ethereum client package version<br/>+ core impl compiling the conversion in"] --> L2["decisions: core UpdateImpl, then<br/>NewReplaceVerifierRequest (R16), 7 d each,<br/>the conversion recorded only after the upgrade is installed;<br/>best before the client expires; an Expired client<br/>is still converted, then recovered"]
 ```
 
 The runbook (gno-realms `docs/upgrade-runbook.md`, §7 step 7) gives the deadline: install the conversion-bearing
 core implementation before the fork, so only the 7-day verifier replacement remains when a client stalls; a client
-that expired first is still converted, then recovered the ordinary way.
+that expired first is still converted, then recovered the ordinary way. The conversion (`NewReplaceVerifierRequest`)
+is recorded only **after** its conversion-bearing implementation is installed, never together with the upgrade:
+execution is permissionless once a decision is due, so a conversion recorded early could be executed before the
+upgrade and would be spent (gno-realms 04ccc23); the two steps take 14 days in all.
 
 ## 7. Safety and governance controls
 
@@ -1168,7 +1181,11 @@ routes of the same realms are unaffected; a governance channel serves exactly on
      can execute again;
   5. **execute the verified repair**, recorded meanwhile and verified as pending before it matures: a kind 7 back to
      the last verified implementation or to a fixed build (transfer app, router, beacon), a kind 9 to a verified
-     executor. For a failed verifier: an already-recorded kind 6 migration **only when its history is trusted**
+     executor (its delivery records it even when the failed executor cannot answer the decisions buffered behind
+     it, which halt, stay buffered and drain through the new executor afterwards; first cancel by kind 1 every
+     pending or buffered decision ahead of the kind 9 that the failed executor cannot answer, since a halted
+     decision holds back everything after it; a decision the failed executor reverts on is spent at recording,
+     and gno.land sends it again after the replacement). For a failed verifier: an already-recorded kind 6 migration **only when its history is trusted**
      (expiry, or a liveness-only defect shown not to have accepted any false update or proof), since kind 6 creates
      no incident, retires nothing and has no `suspectFrom`, and kind 12 settles only a retired client's records;
      otherwise a kind 10 replacement or the emergency recovery, with `suspectFrom` covering the time it ran, and
@@ -1195,7 +1212,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 ### 7.7 Governor and one-way yield — R9/R11
 
 - The realms compile a governor key, which decides through the same builders, checks and delays as GovDAO.
-  **As shipped (ab794ba through 1353ab5), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
+  **As shipped (ab794ba through 04ccc23), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
   real key in the deployed source, and GovDAO members verify it before the immutable realm is deployed. The
   supported alternative is an empty key (`""`): then no governor exists, `Yield` is refused, and GovDAO decides
   from the first block.
@@ -2178,7 +2195,7 @@ deliberate; where it changes a rule, the rule's section now states the built beh
 | R10 | **A lost governance channel without the emergency path** strands the Ethereum side's backing (§7.12), except where a suitable repair was already recorded before the failure (a kind 6 with trusted history, or a kind 10 to an enrolled healthy target) | None after deployment: enabling the emergency path is a pre-deployment decision (no later governed enablement) |
 | R11 | **Token issuers' powers** (seize, burn, rebase, upgrade) are trusted for enrolled tokens | Governance vets each token before its first limits |
 | R12 | **Ethereum keeps no cap on unacknowledged epoch advances** | gno.land catches up in prefixes (project-owner decision) |
-| R13 | ~~**A defective executor hand-over path (Ethereum):** kind 9 recorded and executed by the installed executor, so a defect in it strands Ethereum governance~~ — **resolved** | **Fully resolved.** `IBCAdmin` records and executes kind 9 itself, through its immutable `IBCAdminNative` helper, never through the installed executor, so a broken executor can be replaced by kind 9 whenever a kind 9 can be delivered — over an authenticated governance channel, or after a working recovery restores one — and during an open emergency recovery, which suspends kind 9, once the guardians cancel it natively (gno-eth-ibc af6259d, e7a299f; §5.4, §7.12). Its remaining dependencies are R14 and R15 |
+| R13 | ~~**A defective executor hand-over path (Ethereum):** kind 9 recorded and executed by the installed executor, so a defect in it strands Ethereum governance~~ — **resolved** | **Fully resolved.** `IBCAdmin` records and executes kind 9 itself, through its immutable `IBCAdminNative` helper, never through the installed executor, so a broken executor can be replaced by kind 9 whenever a kind 9 can be delivered — over an authenticated governance channel, or after a working recovery restores one; a broken executor cannot block the kind 9's recording, since decisions it cannot answer halt instead of reverting the delivery, and a halted decision ahead is cancelled by kind 1 (6d3933b) — and during an open emergency recovery, which suspends kind 9, once the guardians cancel it natively (gno-eth-ibc af6259d, e7a299f; §5.4, §7.12). Its remaining dependencies are R14 and R15 |
 | R14 | **Repair depends on the transfer app's busy view (Ethereum):** `IBCAdmin`'s delivery, `drain()` and every execution — kind 7 repairs and kind 9 included — first call the installed transfer implementation's `gnoBusy()`; if it reverts, returns malformed data or keeps answering true, even an already-recorded repair cannot execute, and the shipped admin has no bypass | Accepted by the owner. An accurate `gnoBusy()` (functional, false outside an operation) is a trust assumption repair depends on; every kind 7 candidate's review checks it as repair-critical (§7.6) |
 | R15 | **Repair after a channel loss needs working recovery and transfer components (Ethereum):** the emergency recovery assumes a working transfer app (for `migrateRoute` and the best-effort unblock) and a working executor recovery module (approval, execution); if a defect in one of them blocks the recovery after the governance client is lost, no kind 7 or 9 can be delivered and the route and its backing are stranded | Accepted by the owner. There is deliberately no guardian code-upgrade path; replacing a failed executor or transfer app needs an authenticated governance channel, or a working recovery to restore one |
 
@@ -2218,7 +2235,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | `MaxOpenRecaps` (unpaid recapitalizations per incident and denom) / `ReopenBatch` | 64 / 64 | constant |
 | controls page size (`PageLines`) | 100 | constant |
 | settlement items per decision | gno.land 64; Ethereum kind 12: 8 (6M inner `settleRecords` budget) | constant |
-| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`_atRecording`) runs in a fixed 1M frame with its starvation floor, while bad or unknown envelopes, cancels, tombstoned decisions and kind 9 (`handoverParams`) are recorded inline in `IBCAdmin` | constant |
+| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`_atRecording`) runs in a fixed 1M frame with its starvation floor, a foreign executor code hash or a malformed answer halting the decision (left buffered, `lastSeq` restored, status 2) and a revert spending it, while bad or unknown envelopes, cancels, tombstoned decisions and kind 9 (`handoverParams`) are recorded inline in `IBCAdmin` | constant |
 | packet limits (every route) | one payload on an Ethereum route; 262,144 bytes of payload data, on gno.land enforced by the core for every packet (an oversize receive refused before the app, leaving the packet pending), on Ethereum by the transfer app for ICS20 payloads on send and receive (an oversize receive error-acked; a readable oversize governance envelope is instead consumed and spent by `IBCAdmin`, §5.4); send timeout after now and at most 24 h ahead (gno.land also refuses a timeout not after the client's latest consensus time) | constant |
 | kind 13 deficits per decision (Ethereum) | 16 tokens, the rest by `continueReopen` | constant |
 | Ethereum receive / send amount | at most 2^96 − 1 | constant |
@@ -2308,7 +2325,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
      sequence and the §7.12 recovery path, quarantine in `GnoLightClient`, `finishSetup` check list and role
      cleanup.
    - Foundry tests, including fuzzing the limits and the hold state machine.
-3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, 1353ab5, ADR 0004).
+3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, 04ccc23, ADR 0004).
    - Transfer proxy entry point for `Claim`, and a new impl with meters (both accountings), claims, send limits,
      route-scoped flags and voids per client.
    - Move every loosening authority (impl upgrades, membership, relayer list) to `ibcgov`; remove the deployer.
@@ -2766,6 +2783,15 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   - The 1M recording frame applies to recording through the executor; bad or unknown envelopes, cancels,
     tombstoned decisions and kind 9 are recorded inline (§9).
   - References: gno-realms 1353ab5 (docs only since 2823194), gno-eth-ibc 7366bc1 (comments only since e9b5e65).
+- 2026-10-20, halted decisions and the R16 recording order:
+  - gno-eth-ibc 6d3933b: a decision whose executor has a foreign code hash or answers malformed at recording is
+    halted — nothing recorded, `lastSeq` and `lastRecordTime` restored, left buffered, the drain stopping without
+    reverting, a delivered one acknowledged status 2 — and records later through the replacement executor by
+    `drain()`; a reverting executor still spends it; a halted decision ahead of a kind 9 is cancelled by kind 1. So a
+    broken executor cannot revert the delivery that records a kind 9 (§5.4, §7.6, §8.5 R13, §9).
+  - gno-realms 04ccc23: a verifier conversion is recorded only after its conversion-bearing implementation is
+    installed, never together (§6.12).
+  - References: gno-eth-ibc 6d3933b, gno-realms 04ccc23 (which still ships the placeholder governor key).
 
 ## 15. References
 
@@ -2776,7 +2802,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - gno-realms:
   - [branch `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client)
   - ADRs [0001](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0001-proxy-realm-for-core-upgrades.md), [0002](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0002-proxy-realm-for-transfer-upgrades.md), [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md)
-  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (1353ab5): ADR
+  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (04ccc23): ADR
     [0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)
     (Ethereum route controls, `ibcgov`, core changes), the
     [upgrade runbook](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/upgrade-runbook.md)
