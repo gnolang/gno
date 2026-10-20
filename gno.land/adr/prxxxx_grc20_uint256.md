@@ -149,34 +149,36 @@ is built. `govdao_proposal_treasury_tokens_update.txtar` still exercises
 `treasury/v0` (with v0 tokens it defines itself, since the demo tokens are v1
 now).
 
-### Genesis scripts
+### Rollout: new chains only
 
-**Mainnet's inputs are untouched.** `misc/deployments/mainnet.gno.land/
-gen-genesis.sh` declares its package set final and checksum-locks its launch
-artifacts, including the resolved package list (`work/packages.gen.txt`).
-Editing it would break the rebuild, and cannot deploy anything on the running
-chain anyway. Packages for a running chain go through its upgrade process, not
-through genesis inputs.
+This change targets a future fresh chain. That chain's genesis config will
+list `p/nt/grc20/v1`, `r/nt/grc20reg/v1` and `p/nt/treasury/v1` explicitly,
+because `p/nt` paths cannot be added after genesis under namespace
+enforcement. Existing networks are not upgraded in place.
 
-The token migration changes mainnet's resolved list even with the script
-untouched. `gno tool deplist -test-dep` on mainnet's unchanged set gives 95
-packages; at the base commit it gave 89, and the base list hashes to the
-script's locked `0f58…a960`. The six new ones are `p/nt/grc20/v1` and
-`r/nt/grc20reg/v1` (imported by `r/gnoland/wugnot`), and `p/nt/treasury/v1`,
-`r/gov/dao/treasury/v1`, `r/gov/dao/impl/v1` and `r/gov/dao/treasury/test/v1`
-(matched by `./gno.land/r/gov/...`). Running the script on this branch stops at
-step 4 with `checksum mismatch for work/packages.gen.txt`. Mainnet genesis
-would not silently miss v1; it does not build at all from this branch. That
-is inherent to moving wugnot, a mainnet-listed realm, to grc20 v1. Whether
-mainnet takes it, and how, is the owner's decision.
+The existing networks' scripts under `misc/deployments` are untouched. Each
+network is built from its own release branch or tag: `chain/test13`,
+`chain/topaz`, `chain/sapphire`, `chain/pearl` (their `VALIDATOR.md`), the
+`chain/onyx` tag on `chain/mainnet`, and mainnet's release tag (its
+`VALIDATOR.md` says never to build from `master`). Each is checked against a
+pinned manifest. Onyx, pearl, sapphire, topaz and mainnet checksum-lock the
+resolved package list (`work/packages.gen.txt`) and other build artifacts.
 
-The other networks' scripts (onyx, pearl, sapphire, topaz, test13) list
-`p/nt/grc20/v1`, `r/nt/grc20reg/v1` and `p/nt/treasury/v1` next to the v0
-entries, because `p/nt` paths cannot be added after genesis under namespace
-enforcement. They resolve the same set without the explicit lines, so the
-lines only document the intent. All of these networks have past genesis
-times, and every one except test13 checksum-locks its package list, so their
-rebuilds change for the same reason mainnet's does.
+Moving wugnot to grc20 v1 and adding the `r/gov/dao/*/v1` realms changes what
+master's `examples/` resolve to. `gno tool deplist -test-dep` on mainnet's
+package set gives 95 packages on this branch against 89 at the base commit,
+where the list still hashes to mainnet's locked `0f58…a960` (onyx locks the
+same hash). The six new packages are:
+
+- `p/nt/grc20/v1` and `r/nt/grc20reg/v1`, via `r/gnoland/wugnot`;
+- `p/nt/treasury/v1`, `r/gov/dao/treasury/v1`, `r/gov/dao/impl/v1` and
+  `r/gov/dao/treasury/test/v1`, via `./gno.land/r/gov/...`.
+
+Running mainnet's `gen-genesis.sh` from this branch therefore stops at step 4
+with `checksum mismatch for work/packages.gen.txt`. That is expected for a
+launched network's script run from master, and it is the reason those
+networks are built from their release branches: onyx's README says as much,
+noting that "`master`'s already differs from what the network runs".
 
 ## Alternatives considered
 
@@ -196,7 +198,10 @@ rebuilds change for the same reason mainnet's does.
 5. **Edit `treasury/v0` and `impl/v0` in place.** It would change the API of
    versioned realms under their own version. It also cannot happen on a live
    chain, where the code is immutable.
-6. **Export the impl/v1 singleton (a `GetInstance` without the loader
+6. **Upgrade the existing networks in place,** or list the v1 packages in
+   their genesis scripts. Their genesis is fixed and pinned, and the owner
+   chose a fresh chain for this change.
+7. **Export the impl/v1 singleton (a `GetInstance` without the loader
    check), or install a fresh `NewGovDAO()`.** The first hands out a pointer
    whose methods trust the proxy. The second installs an instance the
    proposer could have kept a pointer to. `NewInstallRequest` avoids both.
