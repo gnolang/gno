@@ -209,12 +209,7 @@ func (led *PrivateLedger) SpendAllowance(owner, spender address, amount uint256)
 		return ErrInsufficientAllowance
 	}
 
-	key := allowanceKey(owner, spender)
-	if newAllowance == 0 {
-		led.allowances.Remove(key)
-	} else {
-		led.allowances.Set(key, newAllowance)
-	}
+	led.setAllowance(owner, spender, newAllowance)
 
 	return nil
 }
@@ -287,12 +282,7 @@ func (led *PrivateLedger) Approve(owner, spender address, amount uint256) error 
 		return ErrInvalidAddress
 	}
 
-	key := allowanceKey(owner, spender)
-	if amount == 0 {
-		led.allowances.Remove(key)
-	} else {
-		led.allowances.Set(key, amount)
-	}
+	led.setAllowance(owner, spender, amount)
 
 	chain.Emit(
 		ApprovalEvent,
@@ -390,6 +380,17 @@ func (led PrivateLedger) allowance(owner, spender address) uint256 {
 		return 0
 	}
 	return allowance.(uint256)
+}
+
+// setAllowance stores allowance for owner and spender, removing the entry when
+// it is zero, like setBalance.
+func (led *PrivateLedger) setAllowance(owner, spender address, allowance uint256) {
+	key := allowanceKey(owner, spender)
+	if allowance == 0 {
+		led.allowances.Remove(key)
+	} else {
+		led.allowances.Set(key, allowance)
+	}
 }
 
 // allowanceKey returns the key for the allowance of the specified owner and spender.
