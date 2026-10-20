@@ -278,6 +278,11 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 		targetPath = filepath.Join(filepath.Dir(srcPath), targetFilename)
 	}
 
+	if len(transpileRes.Omitted256) > 0 && opts.cfg.verbose {
+		opts.io.ErrPrintfln("%s: left out of the Go output, as Go has no int256 or uint256: %s",
+			filepath.Clean(srcPath), strings.Join(transpileRes.Omitted256, ", "))
+	}
+
 	// write .go file.
 	err = WriteDirFile(targetPath, []byte(transpileRes.Translated))
 	if err != nil {
