@@ -374,3 +374,46 @@ func assertNoError(t *testing.T, err error) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }
+
+// The plain (non-format) entry points share doPrint; each must print 256-bit
+// values in decimal, including a large unsigned and a negative signed one.
+func TestPrint256(t *testing.T) {
+	const (
+		bigU = "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+		negS = "-57896044618658097711785492504343953926634992332820282019728792003956564819968"
+	)
+	u := uint256(1<<256 - 1)
+	s := int256(-1 << 255)
+	want := "x " + bigU + " " + negS
+
+	if got := Sprint("x", u, s); got != want {
+		t.Errorf("Sprint: got %q", got)
+	}
+	if got := Sprintln("x", u, s); got != want+"\n" {
+		t.Errorf("Sprintln: got %q", got)
+	}
+	if got := string(Append([]byte("> "), "x", u, s)); got != "> "+want {
+		t.Errorf("Append: got %q", got)
+	}
+	if got := string(Appendln(nil, "x", u, s)); got != want+"\n" {
+		t.Errorf("Appendln: got %q", got)
+	}
+
+	var buf bytes.Buffer
+	if _, err := Fprint(&buf, "x", u, s); err != nil || buf.String() != want {
+		t.Errorf("Fprint: got %q, %v", buf.String(), err)
+	}
+	buf.Reset()
+	if _, err := Fprintln(&buf, "x", u, s); err != nil || buf.String() != want+"\n" {
+		t.Errorf("Fprintln: got %q, %v", buf.String(), err)
+	}
+
+	// Print and Println write to stdout; their byte counts show the values
+	// were formatted rather than replaced by "(unhandled)".
+	if n, err := Print("x", u, s); err != nil || n != len(want) {
+		t.Errorf("Print: wrote %d bytes, %v", n, err)
+	}
+	if n, err := Println("x", u, s); err != nil || n != len(want)+1 {
+		t.Errorf("Println: wrote %d bytes, %v", n, err)
+	}
+}

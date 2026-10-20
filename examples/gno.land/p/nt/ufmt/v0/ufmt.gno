@@ -66,7 +66,7 @@ func (p *printer) doPrint(args []any) {
 			p.buf.writeString(v.Error())
 		case float64:
 			p.buf.writeString(Sprintf("%f", v))
-		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, int256, uint256:
 			p.buf.writeString(Sprintf("%d", v))
 		case bool:
 			if v {
@@ -101,7 +101,7 @@ func (p *printer) doPrintln(a []any) {
 //	    string.
 //	%c: Formats the character represented by Unicode code point
 //	%d: Formats an integer value using package "strconv".
-//	    Currently supports only uint, uint64, int, int64.
+//	    Supports every integer type, including int256 and uint256.
 //	%f: Formats a float value, with a default precision of 6.
 //	%e: Formats a float with scientific notation; 1.23456e+78
 //	%E: Formats a float with scientific notation; 1.23456E+78
