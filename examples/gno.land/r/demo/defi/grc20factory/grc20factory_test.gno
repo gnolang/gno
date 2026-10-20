@@ -1,6 +1,7 @@
 package grc20factory
 
 import (
+	"strings"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -84,4 +85,22 @@ func TestAbove2Pow63(cur realm, t *testing.T) {
 	Transfer(cross(cur), "BIG", admin, big)
 	uassert.Equal(t, 2*big, BalanceOf("BIG", admin))
 	uassert.Equal(t, "**"+admin.String()+"** balance: 36893488147419103232\n\n", Render("BIG/balance/"+admin.String()))
+}
+
+// Anyone can create a factory token, so its name must not inject markdown
+// into the factory's pages.
+func TestRenderEscapesTokenName(cur realm, t *testing.T) {
+	const evil = "[Claim reward](https://evil.example)"
+	testing.SetOriginCaller(testutils.TestAddress("evil_creator"))
+	New(cross(cur), evil, "EVILNAME", 0, 0, 0)
+
+	for _, path := range []string{"", "EVILNAME"} {
+		out := Render(path)
+		uassert.False(t, strings.Contains(out, evil), "live link in Render("+path+"): "+out)
+		uassert.True(t, strings.Contains(out, `\[Claim reward\]`), "name not escaped in Render("+path+"): "+out)
+	}
+
+	// A path segment reflected into the balance page is escaped too.
+	out := Render("EVILNAME/balance/[x](y)")
+	uassert.False(t, strings.Contains(out, "[x](y)"), "path segment rendered raw: "+out)
 }

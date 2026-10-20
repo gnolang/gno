@@ -9,6 +9,7 @@ import (
 	"gno.land/p/nt/avl/rotree/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/grc20/v1"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/seqid/v0"
@@ -167,6 +168,7 @@ func renderHome(res *mux.ResponseWriter, req *mux.Request) {
 		token := item.Value.(*instance).token
 		out += md.BulletItem(
 			md.Link(
+				// md.Link escapes the link text itself.
 				ufmt.Sprintf("%s ($%s)", token.GetName(), token.GetSymbol()),
 				ufmt.Sprintf("/r/demo/grc20factory:%s", token.GetSymbol()),
 			),
@@ -206,7 +208,7 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render the balance information.
 	out := md.Paragraph(
-		ufmt.Sprintf("%s balance: %d", md.Bold(addr), balance),
+		ufmt.Sprintf("%s balance: %d", md.Bold(sanitize.InlineText(addr)), balance),
 	)
 
 	res.Write(out)

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -182,7 +183,9 @@ func FormatAmount(amount uint256, decimals int) string {
 
 func (tok Token) RenderHome() string {
 	str := ""
-	str += ufmt.Sprintf("# %s ($%s)\n\n", tok.name, tok.symbol)
+	// name is display text that validName lets carry markdown (links,
+	// emphasis, HTML), so it is escaped; symbol is escaped too for uniformity.
+	str += ufmt.Sprintf("# %s ($%s)\n\n", sanitize.InlineText(tok.name), sanitize.InlineText(tok.symbol))
 	str += ufmt.Sprintf("* **Decimals**: %d\n", tok.decimals)
 	str += ufmt.Sprintf("* **Total supply**: %d\n", tok.ledger.totalSupply)
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", tok.KnownAccounts())

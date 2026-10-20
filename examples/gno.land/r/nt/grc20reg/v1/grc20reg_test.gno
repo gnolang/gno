@@ -351,3 +351,18 @@ func TestWrappersAbove2Pow63(cur realm, t *testing.T) {
 	uassert.True(t, strings.Contains(Render(tokenKey),
 		"- total supply: 115792089237316195423570985008687907853269984665640564039457584007913129639935\n"))
 }
+
+// A registered token's name is chosen by its realm and shown on the registry's
+// pages; it must not render as markup.
+func TestRenderEscapesTokenName(cur realm, t *testing.T) {
+	const evil = "[Claim reward](https://evil.example)"
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/grc20reg_evil_name"))
+	token, _ := grc20.NewToken(evil, "EVILN", 4, 0, cur)
+	key := Register(cross(cur), token, "")
+
+	for _, path := range []string{"", key} {
+		out := Render(path)
+		uassert.False(t, strings.Contains(out, evil), "live link in Render("+path+"): "+out)
+		uassert.True(t, strings.Contains(out, `\[Claim reward\]`), "name not escaped in Render("+path+")")
+	}
+}

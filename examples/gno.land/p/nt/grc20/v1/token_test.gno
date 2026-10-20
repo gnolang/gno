@@ -434,3 +434,13 @@ func TestRenderHomeMaxSupply(cur realm, t *testing.T) {
 		"* **Known accounts**: 1\n"
 	uassert.Equal(t, exp, tok.RenderHome())
 }
+
+// A token name is display text and may contain markdown. RenderHome must not
+// turn it into a live link (or any other markup) on the token's page.
+func TestRenderHomeEscapesName(cur realm, t *testing.T) {
+	const evil = "[Claim reward](https://evil.example)"
+	tok, _ := newTestToken(evil, "EVIL", 6, 0, cur)
+	out := tok.RenderHome()
+	uassert.False(t, strings.Contains(out, evil), "name rendered as a live link: "+out)
+	uassert.True(t, strings.Contains(out, `\[Claim reward\]\(https://evil\.example\)`), "name not escaped: "+out)
+}

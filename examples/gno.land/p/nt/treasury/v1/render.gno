@@ -8,6 +8,7 @@ import (
 	"gno.land/p/moul/md/v0"
 	"gno.land/p/moul/mdtable/v0"
 	"gno.land/p/nt/bptree/pager/v0"
+	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -58,7 +59,7 @@ func (t *Treasury) RenderBanker(bankerID string, path string) string {
 	} else {
 		table := mdtable.Table{Headers: []string{"Denom", "Amount"}}
 		for _, balance := range balances {
-			table.Append([]string{balance.Denom, strconv.FormatUint256(balance.Amount, 10)})
+			table.Append([]string{sanitize.TableCell(balance.Denom), strconv.FormatUint256(balance.Amount, 10)})
 		}
 		out += table.String()
 	}
@@ -93,7 +94,7 @@ func (t *Treasury) RenderBanker(bankerID string, path string) string {
 
 		// Render each payment in the history.
 		for _, payment := range history {
-			out += md.BulletItem(payment.String())
+			out += md.BulletItem(sanitize.InlineText(payment.String()))
 		}
 		out += "\n"
 
@@ -141,7 +142,7 @@ func (t *Treasury) RenderBankerHistory(bankerID string, path string) string {
 			out += md.Paragraph(count + " payments (sorted by latest, descending):")
 		}
 		for _, item := range page.Items {
-			out += md.BulletItem(item.Value.(Payment).String())
+			out += md.BulletItem(sanitize.InlineText(item.Value.(Payment).String()))
 		}
 	}
 	out += "\n"
