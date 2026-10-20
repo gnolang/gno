@@ -115,7 +115,7 @@ Facts that are easy to get wrong:
 - goleveldb switches journals without syncing the old one, so a later `SetSync` does not cover writes left in it; pebbledb syncs the old log first.
 - In the VM, a gas charge, an allocation limit or a determinism guard can decide whether a transaction succeeds, so changing one can change what a node computes when it replays past blocks.
 
-Example: #6316 first stopped flushing the state record every block, since the restart could rebuild it; halts, `gnobr` and older binaries rely on that record too, so only a redundant block-store flush was removed.
+Examples: #6316's first version stopped flushing the state record every block, since the restart could rebuild it; halts, `gnobr` and older binaries rely on that record too, so review cut the PR back to a redundant block-store flush. The "Safeguard checklist" section of `tm2/adr/pr6334_deferred_block_sync_writes.md` works through this list for a change that defers block sync's flushes.
 
 ---
 
