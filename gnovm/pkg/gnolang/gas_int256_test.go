@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"io"
 	"math"
 	"math/big"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
@@ -208,5 +210,55 @@ func main() { a, b := S{T(0)}, S{T(0)}; println(a == b) }`, 1},
 			// allocates nothing at run time.
 			assert.Equal(t, c.comps*extra, g256-g64, "%s/%s", c.name, typ)
 		}
+	}
+}
+
+// TestBits256ConstPreprocessCharge checks that a 256-bit constant's box,
+// built by a constant conversion during preprocessing, is charged once on
+// the transaction's preprocessing allocator, as a string literal is.
+func TestBits256ConstPreprocessCharge(t *testing.T) {
+	preprocess := func(src string) (bytes, gas int64) {
+		gm := store.NewGasMeter(math.MaxInt64)
+		st, preAlloc := newPreprocessAllocTestStore(t, math.MaxInt64, gm)
+		defer st.SetPreprocessAllocator(nil)
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath: "gno.land/r/test/consts",
+			Store:   st,
+			Output:  io.Discard,
+			Alloc:   NewAllocator(math.MaxInt64),
+		})
+		defer m.Release()
+		mpkg := &std.MemPackage{
+			Type:  MPUserProd,
+			Name:  "consts",
+			Path:  "gno.land/r/test/consts",
+			Files: []*std.MemFile{{Name: "a.gno", Body: "package consts\n" + src}},
+		}
+		m.RunMemPackage(mpkg, false)
+		_, bytes = preAlloc.Status()
+		return bytes, gm.GasConsumed()
+	}
+	cases := []struct {
+		name, zero, nonzero string
+	}{
+		{"untyped int", "const A uint256 = 0", "const A uint256 = 1"},
+		{"untyped int, int256", "const B int256 = 0", "const B int256 = 2"},
+		{"rune", "const C uint256 = '\\x00'", "const C uint256 = 'x'"},
+		{"integral decimal", "const D uint256 = 0.0", "const D uint256 = 1e3"},
+		{"typed conversion", "const I int8 = 0\nconst E = uint256(I)", "const I int8 = 5\nconst E = uint256(I)"},
+		{"between 256-bit kinds", "const U uint256 = 0\nconst F = int256(U + 0)", "const U uint256 = 0\nconst F = int256(U + 7)"},
+	}
+	for _, c := range cases {
+		b0, g0 := preprocess(c.zero)
+		b1, g1 := preprocess(c.nonzero)
+		// The programs differ only in the values, so they run the same
+		// operations. "between 256-bit kinds": 7 converted to uint256, the
+		// folded sum, and the conversion to int256 each build a box.
+		boxes := int64(1)
+		if c.name == "between 256-bit kinds" {
+			boxes = 3
+		}
+		assert.Equal(t, boxes*allocBits256, b1-b0, "%s: bytes", c.name)
+		assert.Equal(t, boxes*allocGas(allocBits256), g1-g0, "%s: gas", c.name)
 	}
 }

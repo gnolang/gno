@@ -5165,8 +5165,13 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		}
 		t = nil // signifies to convert to default type.
 	}
+	var srcKind Kind
+	if cx.T != nil {
+		srcKind = cx.T.Kind()
+	}
 	if isUntyped(cx.T) {
 		ConvertUntypedTo(&cx.TypedValue, t)
+		chargeConstBits256(store, srcKind, &cx.TypedValue)
 		setConstAttrs(cx)
 	} else if t != nil {
 		// e.g. a named type or uint8 type to int for indexing.
@@ -5175,6 +5180,7 @@ func convertConst(store Store, last BlockNode, n Node, cx *ConstExpr, t Type) {
 		// conversion lands in a ConstExpr that isn't persisted directly,
 		// so use a nil (no-op) allocator: no stamping needed.
 		ConvertTo(nil, store, &cx.TypedValue, t, true)
+		chargeConstBits256(store, srcKind, &cx.TypedValue)
 		setConstAttrs(cx)
 	}
 }
