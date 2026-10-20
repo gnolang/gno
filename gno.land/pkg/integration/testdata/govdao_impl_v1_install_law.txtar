@@ -1,5 +1,6 @@
-# impl/v1 does not inherit impl/v0's law (v0 has no way to read it). The
-# install proposal says so, and a v1 law-change proposal restores it.
+# impl/v0's law cannot be read, so the install proposal carries the law
+# impl/v1 will use. The DAO votes on it under v0's law, and impl/v1 decides
+# with it from its first decision: there is no window at the default law.
 #
 # Three T1 members: two YES votes are 66.67%, which passes the default
 # 66.66% supermajority and fails an 80% one.
@@ -45,13 +46,18 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 1 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
 stdout OK!
 
-## Install impl/v1 (proposal 2). The proposal warns that the law resets.
-gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/install.gno
+## An install carrying a law weaker than impl/v1's default is refused.
+! gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/install_weak.gno
+stderr 'Supermajority must be in \[66.66, 100\], got 50'
+
+## Install impl/v1 carrying 80% (proposal 2). The reason tries to hide the law
+## line behind an HTML comment; it is escaped, so the law line stays visible.
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/install80.gno
 stdout OK!
 gnokey query vm/qrender --data 'gno.land/r/gov/dao:2'
-stdout 'WARNING: the governance law is not carried over'
-stdout 'Supermajority 66.66%'
-stdout 'NewChangeLawRequest'
+stdout 'Law after the install: Supermajority 80%'
+stdout 'routine upgrade +\\<\\!\\-\\-'
+! stdout '<!--'
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
@@ -61,18 +67,23 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 2 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
 stdout OK!
 
-## The reset is real: two of three now passes v1's 66.66% law. That proposal
-## restores 80% (proposal 3).
-gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law80.gno
+## impl/v1's first decision already uses 80%: two of three is refused
+## (proposal 3, a v1 law change to 90%).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law90.gno
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
 stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 3 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
+stderr 'proposal didn.t reach supermajority yet: 80'
+
+## With all three it passes, and the new law then stands (proposal 4: two of
+## three cannot pass a 90% law).
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test carol
+stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 3 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
 stdout OK!
-
-## Restored: two of three no longer passes (proposal 4).
 gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice $WORK/run/v1_law90.gno
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 4 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
@@ -80,7 +91,7 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 4 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test bob
 stdout OK!
 ! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 4 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test alice
-stderr 'proposal didn.t reach supermajority yet: 80'
+stderr 'proposal didn.t reach supermajority yet: 90'
 
 -- setup/gnomod.toml --
 module = "gno.land/r/test/setup"
@@ -120,18 +131,6 @@ func NewUnknownFilterRequest(cur realm) dao.ProposalRequest {
 	return dao.NewProposalRequestWithFilter("Filtered", "a filter impl/v1 does not know", e, myFilter{OnlyMe: true})
 }
 
--- run/install.gno --
-package main
-
-import (
-	"gno.land/r/gov/dao"
-	impl "gno.land/r/gov/dao/impl/v1"
-)
-
-func main(cur realm) {
-	dao.MustCreateProposal(cross(cur), impl.NewInstallRequest(cross(cur), "install impl/v1"))
-}
-
 -- run/v0_law80.gno --
 package main
 
@@ -144,7 +143,7 @@ func main(cur realm) {
 	dao.MustCreateProposal(cross(cur), implv0.NewChangeLawRequest(cross(cur), implv0.NewLaw(80)))
 }
 
--- run/v1_law80.gno --
+-- run/install_weak.gno --
 package main
 
 import (
@@ -153,7 +152,20 @@ import (
 )
 
 func main(cur realm) {
-	dao.MustCreateProposal(cross(cur), impl.NewChangeLawRequest(cross(cur), impl.NewLaw(80)))
+	dao.MustCreateProposal(cross(cur), impl.NewInstallRequest(cross(cur), "install impl/v1", impl.NewLaw(50)))
+}
+
+-- run/install80.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	req := impl.NewInstallRequest(cross(cur), "routine upgrade\n\n<!--", impl.NewLaw(80))
+	dao.MustCreateProposal(cross(cur), req)
 }
 
 -- run/v1_law90.gno --

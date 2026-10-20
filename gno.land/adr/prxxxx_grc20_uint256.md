@@ -112,12 +112,13 @@ convention; v0 is not changed.
 `impl/v1` differs from `impl/v0` in two more places:
 
 - `GetInstance` (loader-only in v0) is replaced by `NewInstallRequest(cur,
-  reason)`. It returns `impl/v0.NewUpgradeDaoImplRequest(cross(cur), govDAO,
-  "gno.land/r/gov/dao/impl/v1", reason)`: v0's checks and disclosure text, with
-  v1's own singleton as the new DAO. The `*GovDAO` is never handed to another
-  realm. That matters because its `PostCreateProposal` and `ExecuteProposal`
-  trust the proxy and take no caller check. A holder of the pointer could reset
-  a proposal's votes or deny it.
+  reason, law)`. It returns `impl/v0.NewUpgradeDaoImplRequest(cross(cur), d,
+  "gno.land/r/gov/dao/impl/v1", text)`, so the request carries v0's checks and
+  disclosure text. `d` is an `installedDAO`: v1's `*GovDAO` plus the law the
+  proposal carries (see below). The `*GovDAO` is never handed to another realm
+  except inside that proposal. That matters because its `PostCreateProposal`
+  and `ExecuteProposal` trust the proxy and take no caller check. A holder of
+  the pointer could reset a proposal's votes or deny it.
 - Its own `NewUpgradeDaoImplRequest` grants `[impl/v1, <new>]`, as v0's grants
   `[impl/v0, <new>]`.
 - **Proposal filters fail closed.** impl/v0 stays in AllowedDAOs after the
@@ -133,21 +134,40 @@ convention; v0 is not changed.
   default to "everyone votes". That filter is the only place impl/v1 type
   switches on a value another realm may build. Executors go through the
   proxy's `Executor` interface.
-- **The law is not carried over.** impl/v0 keeps its law in an unexported
-  variable with no accessor, and v0 is not changed, so impl/v1 cannot read
-  it. impl/v1 starts with its own default, Supermajority 66.66%.
-  `NewInstallRequest` appends a warning to the proposal text naming that
-  value and telling the DAO to restore a changed law with
-  `impl/v1.NewChangeLawRequest` after the install.
-  `govdao_impl_v1_law_reset.txtar` raises v0's law to 80%, installs v1, shows
-  the warning, shows two of three votes passing under the reset law, restores
-  80% and shows two of three failing again.
+- **The install proposal carries the law.** impl/v0 keeps its law in an
+  unexported variable with no accessor, and v0 is not changed, so impl/v1
+  cannot read it. Instead `NewInstallRequest` takes the law impl/v1 is to
+  use:
+  - It refuses a Supermajority outside [66.66, 100]. 66.66 is impl/v1's
+    default, so an install can never weaken the DAO. A DAO that wants a weaker
+    law lowers it with a v1 law-change vote after the install, in the open.
+  - The proposal text states the law ("Law after the install: Supermajority
+    X%"). The DAO votes on it under impl/v0's own law.
+  - `installedDAO.PreExecuteProposal` applies the carried law on its first
+    proxy-validated call. That is the only place a law is read, so impl/v1's
+    first decision already uses it. There is no window at the default law.
+  - Each install proposal has its own id, so a later
+    `impl/v1.NewChangeLawRequest` stands until another install proposal
+    executes.
+  - The proposer's `reason` is escaped with `sanitize.InlineText` before the
+    law line is appended. impl/v0 renders proposal descriptions raw, and Codex
+    showed that a reason ending in `\n\n<!--` opened an HTML comment that hid
+    everything after it, the law line included.
+  - Tests: `govdao_impl_v1_install_law.txtar` covers v0 raised to 80%, a
+    weaker install refused, and an install carrying 80% with that hostile
+    reason, whose law line is still visible and whose reason is escaped. v1's
+    first decision (two of three) is then refused at 80%, and a later v1 law
+    change stands. The gnoweb sanitize golden
+    `inline-html-comment-cannot-hide-trailing-notice.txtar` renders the same
+    construction through the production goldmark chain and shows the law line
+    in the HTML.
 
 **Migration path.**
 
-1. A member creates `impl/v1.NewInstallRequest` as a proposal. The DAO votes
-   on it under `impl/v0` and executes it. `dao.UpdateImpl` installs v1's
-   singleton with `AllowedDAOs = [impl/v0, impl/v1]`.
+1. A member creates `impl/v1.NewInstallRequest(cur, reason, law)` as a
+   proposal, with `law` set to the DAO's current law. The DAO votes on it under
+   `impl/v0` and executes it. `dao.UpdateImpl` installs v1's GovDAO, carrying
+   that law, with `AllowedDAOs = [impl/v0, impl/v1]`.
 2. The v0 treasury's funds are moved by an ordinary v0 payment proposal:
    `impl/v0.NewTreasuryPaymentRequest` with a v0 coins payment to
    `treasury/v1`'s address. It is voted on and executed under `impl/v1`. The
@@ -159,8 +179,8 @@ convention; v0 is not changed.
 4. Once nothing is left at `treasury/v0`, a later `UpdateImpl` can drop
    `impl/v0` from `AllowedDAOs`.
 
-A DAO whose law differs from the default should vote the
-`impl/v1.NewChangeLawRequest` restoring it right after step 1.
+The install proposal in step 1 should carry the DAO's current law. Voters
+check it against what impl/v0 enforces, since it cannot be read back.
 
 Proposal statuses live on the implementation instance. A proposal still open
 under `impl/v0` when the install executes cannot be voted on or executed

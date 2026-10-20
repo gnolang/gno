@@ -159,7 +159,7 @@ import (
 )
 
 func main(cur realm) {
-	req := impl.NewInstallRequest(cross(cur), "move the treasury to uint256 amounts")
+	req := impl.NewInstallRequest(cross(cur), "move the treasury to uint256 amounts", impl.NewLaw(66.66))
 	dao.MustCreateProposal(cross(cur), req)
 }
 
