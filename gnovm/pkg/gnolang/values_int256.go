@@ -10,7 +10,7 @@ package gnolang
 // The values are fixed-size arrays held by value. Copying a TypedValue
 // copies the interface, which shares the boxed array, but nothing ever writes
 // through it: every operation builds a new value. Assignment can therefore
-// never alias. See gnovm/adr/prxxxx_native_int256.md.
+// never alias. See gnovm/adr/pr6387_native_int256.md.
 
 import (
 	"errors"
