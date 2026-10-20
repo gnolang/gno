@@ -109,8 +109,12 @@ at Gno's preprocess with the message above.
   `var w int64 = '\U0010ffff' * '\U0010ffff'` (-2228223),
   `r := '\U0010ffff' * '\U0010ffff' / '\U0010ffff'` (gc: the rune 1114111;
   master -2), `'\U0010ffff' * '\U0010ffff' * '\x00'` (0, by accident).
-- Master already rejected overflowing shifts, with "constant overflows":
-  `var x int64 = 'a' << 40`. Only the message changes.
+- Master already rejected positive overflowing shifts, with "constant
+  overflows": `var x int64 = 'a' << 40`. Only the message changes.
+- Master's shift check tests only the upper bound for counts up to 64, so
+  it accepted some negative overflowing shifts and wrapped them:
+  `var x int64 = ('\x00' - '\x01') << 32` printed 0 (exact value
+  -4294967296). These become new rejections.
 
 Programs gc rejects stay rejected (`var r = '\U0010ffff' * '\U0010ffff'`).
 
