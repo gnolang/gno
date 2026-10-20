@@ -54,7 +54,7 @@ restriction applies to `int256` constants (see "go/types").
   zero is neither produced nor accepted: `MarshalAmino` refuses it and
   `UnmarshalAmino` rejects it. Amino can still build one without calling
   `UnmarshalAmino`, from a JSON `null` payload or an absent binary payload,
-  so `CheckCanonical256` checks the enclosing value, recursively through
+  so `checkCanonical256` checks the enclosing value, recursively through
   inline slots, interfaces and composites, and the store runs it on every
   object it loads. Zero therefore has exactly one encoding
   (`TestBits256CanonicalZero`, `TestBits256CanonicalZeroJSONNull`,

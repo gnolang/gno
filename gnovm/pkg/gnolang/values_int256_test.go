@@ -548,11 +548,11 @@ func TestBits256CanonicalZeroJSONNull(t *testing.T) {
 		} {
 			var v Value
 			require.NoError(t, amino.UnmarshalJSON([]byte(js), &v), js)
-			require.Error(t, CheckCanonical256(v), js)
+			require.Error(t, checkCanonical256(v), js)
 			require.Panics(t, func() { mustBeCanonical256(v) })
 		}
 	}
 	// A canonical value passes.
 	av := &ArrayValue{List: []TypedValue{tv256(Int256Type, big.NewInt(-1)), {T: Uint256Type}}}
-	require.NoError(t, CheckCanonical256(av))
+	require.NoError(t, checkCanonical256(av))
 }

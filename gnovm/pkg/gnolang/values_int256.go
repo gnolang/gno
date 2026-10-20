@@ -85,29 +85,25 @@ func (v *Int256Value) UnmarshalAmino(s string) error {
 	return err
 }
 
+// u256SignBit is 2^255, the magnitude of the smallest int256.
+var u256SignBit = *new(uint256.Int).Lsh(uint256.NewInt(1), 255)
+
 var errBoxedZero = errors.New("int256/uint256: zero must be a nil value, not a boxed zero")
 
-// CheckCanonical256 returns an error if v, a decoded value, holds a boxed
+// checkCanonical256 returns an error if v, a decoded value, holds a boxed
 // zero 256-bit value in any of its inline slots, recursively through inline
 // composites. The binary decoder already rejects one (UnmarshalAmino refuses
 // an empty payload), but amino builds a JSON null, or an absent Any payload,
 // as the zero value without calling UnmarshalAmino; this check closes that
 // path at the enclosing value. Objects are checked as the store loads them.
-func CheckCanonical256(v Value) error {
+func checkCanonical256(v Value) error {
 	var err error
 	var walk func(v Value)
 	slot := func(tv *TypedValue) {
-		switch x := tv.V.(type) {
-		case Int256Value:
-			if x.V.IsZero() {
-				err = errBoxedZero
-			}
-		case Uint256Value:
-			if x.V.IsZero() {
-				err = errBoxedZero
-			}
-		default:
-			walk(x)
+		if isBoxedZero256(tv.V) {
+			err = errBoxedZero
+		} else {
+			walk(tv.V)
 		}
 	}
 	walk = func(v Value) {
@@ -150,8 +146,19 @@ func CheckCanonical256(v Value) error {
 	return err
 }
 
+// isBoxedZero256 reports whether v is a 256-bit value holding zero.
+func isBoxedZero256(v Value) bool {
+	switch v := v.(type) {
+	case Int256Value:
+		return v.V.IsZero()
+	case Uint256Value:
+		return v.V.IsZero()
+	}
+	return false
+}
+
 func mustBeCanonical256(v Value) {
-	if err := CheckCanonical256(v); err != nil {
+	if err := checkCanonical256(v); err != nil {
 		panic(err)
 	}
 }
@@ -187,9 +194,7 @@ func parseCanonical256(s string, signed bool) (z uint256.Int, err error) {
 		return z, fmt.Errorf("int256/uint256: %q out of range", s)
 	}
 	if signed {
-		var limit uint256.Int
-		limit.Lsh(uint256.NewInt(1), 255)
-		if z.Gt(&limit) || (!neg && z.Eq(&limit)) {
+		if z.Gt(&u256SignBit) || (!neg && z.Eq(&u256SignBit)) {
 			return z, fmt.Errorf("int256: %q out of range", s)
 		}
 		if neg {
@@ -411,26 +416,10 @@ func exactIntegerValue64(tv *TypedValue) int64 {
 // exactIntegerValue returns the mathematical value of an integer-kinded tv.
 func exactIntegerValue(tv *TypedValue) *big.Int {
 	switch tv.T.Kind() {
-	case IntKind:
-		return big.NewInt(tv.GetInt())
-	case Int8Kind:
-		return big.NewInt(int64(tv.GetInt8()))
-	case Int16Kind:
-		return big.NewInt(int64(tv.GetInt16()))
-	case Int32Kind:
-		return big.NewInt(int64(tv.GetInt32()))
-	case Int64Kind:
-		return big.NewInt(tv.GetInt64())
-	case UintKind:
-		return new(big.Int).SetUint64(tv.GetUint())
-	case Uint8Kind:
-		return new(big.Int).SetUint64(uint64(tv.GetUint8()))
-	case Uint16Kind:
-		return new(big.Int).SetUint64(uint64(tv.GetUint16()))
-	case Uint32Kind:
-		return new(big.Int).SetUint64(uint64(tv.GetUint32()))
-	case Uint64Kind:
-		return new(big.Int).SetUint64(tv.GetUint64())
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind:
+		return big.NewInt(exactIntegerValue64(tv))
+	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		return new(big.Int).SetUint64(uint64(exactIntegerValue64(tv)))
 	case Int256Kind, Uint256Kind:
 		return tv.GetBig256()
 	case BigintKind:
@@ -495,7 +484,7 @@ func convert256(alloc *Allocator, tv *TypedValue, t Type, isConst bool) {
 		if !is256Kind(k) {
 			failCannot()
 		}
-		u := tv.GetFloat64Bits()
+		u := tv.getFloat64Bits()
 		var ok bool
 		bits, ok = bits256FromFloat64(u, k == Int256Kind)
 		if isConst && !ok {
@@ -564,9 +553,9 @@ func convert256(alloc *Allocator, tv *TypedValue, t Type, isConst bool) {
 	}
 }
 
-// GetFloat64Bits returns the float64 bits of a float32 or float64 value,
+// getFloat64Bits returns the float64 bits of a float32 or float64 value,
 // widening float32 exactly (in software, like all Gno float arithmetic).
-func (tv *TypedValue) GetFloat64Bits() uint64 {
+func (tv *TypedValue) getFloat64Bits() uint64 {
 	if tv.T.Kind() == Float32Kind {
 		return softfloat.F32to64(tv.GetFloat32())
 	}
