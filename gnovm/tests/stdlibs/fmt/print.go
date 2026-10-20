@@ -210,7 +210,11 @@ func compareKeys(ki, kj gnolang.TypedValue) bool {
 		gnolang.Uint64Kind:
 		return uint64(ki.ConvertGetInt()) < uint64(kj.ConvertGetInt())
 	case gnolang.Int256Kind, gnolang.Uint256Kind:
-		return ki.GetBig256().Cmp(kj.GetBig256()) < 0
+		x, y := ki.GetBits256(), kj.GetBits256()
+		if ki.T.Kind() == gnolang.Int256Kind {
+			return x.Slt(&y)
+		}
+		return x.Lt(&y)
 	default:
 		return false
 	}

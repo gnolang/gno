@@ -272,10 +272,8 @@ func convertInt256Arg(arg string, signed bool) uint256.Int {
 	}
 	if signed {
 		// The magnitude may reach 2^255 for a negative value only.
-		var limit uint256.Int
-		limit.Lsh(uint256.NewInt(1), 255)
 		neg := len(digits) < len(arg)
-		if z.Gt(&limit) || (!neg && z.Eq(&limit)) {
+		if z.Gt(&int256SignBit) || (!neg && z.Eq(&int256SignBit)) {
 			panic(fmt.Sprintf("error parsing %s %q: value out of range", name, arg))
 		}
 		if neg {
@@ -284,6 +282,9 @@ func convertInt256Arg(arg string, signed bool) uint256.Int {
 	}
 	return z
 }
+
+// int256SignBit is 2^255, the magnitude of the smallest int256.
+var int256SignBit = *new(uint256.Int).Lsh(uint256.NewInt(1), 255)
 
 func convertFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)
