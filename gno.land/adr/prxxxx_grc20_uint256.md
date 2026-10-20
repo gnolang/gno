@@ -87,33 +87,73 @@ and, after the balance check, range-checks it to `int64` before sending
 coins. The second check cannot fail while the invariant holds; it is there so
 the conversion can never truncate silently.
 
-### GovDAO treasury: stays on v0
+### GovDAO: a v1 treasury and implementation, installed by a vote
 
-`r/gov/dao/treasury/v0` and `r/gov/dao/impl/v0` are not changed:
+`r/gov/dao` versions its parts by path (`impl/v0`, `memberstore/v0`,
+`treasury/v0`) behind the unversioned proxy, and switches implementation by a
+governance vote (`dao.UpdateImpl`). The uint256 treasury follows that
+convention; v0 is not changed.
 
-- `r/gov/dao` versions its parts by path (`impl/v0`, `memberstore/v0`,
-  `treasury/v0`) behind the unversioned proxy, and moves to a new
-  implementation by a governance vote (`dao.UpdateImpl`). Moving the
-  treasury to v1 the repo's way means a new `r/gov/dao/treasury/v1` realm
-  plus an `impl/v1` that imports it, installed by a vote; editing
-  `treasury/v0` in place would change the API of a versioned, deployed realm
-  under its own version;
-- a new treasury realm has a new address, and the funds stay at
-  `treasury/v0`'s address until a v0 payment proposal moves them;
-- the treasury's GRC20 token list is empty by default and set by
-  governance, so nothing is lost today.
+| Realm | What it is |
+|---|---|
+| `r/gov/dao/treasury/v1` | `treasury/v0` on `p/nt/treasury/v1` and `grc20reg/v1`: uint256 balances and payments, grc20 v1 tokens, coin payments range-checked to int64. Its own address and funds. |
+| `r/gov/dao/impl/v1` | `impl/v0` with its treasury proposal builders (`NewTreasuryPaymentRequest`, `NewTreasuryGRC20TokensUpdate`) pointed at `treasury/v1` and `p/nt/treasury/v1`. Same member store (`memberstore/v0`) and builders otherwise. |
+| `r/gov/dao/treasury/test/v1` | `treasury/test/v0`'s tests, ported. |
 
-The consequence is that the DAO treasury handles v0 tokens only, and the demo
-tokens and wugnot now are v1 tokens. `govdao_proposal_treasury_tokens_update`
-supplies its own v0 tokens for that reason. A `treasury/v1` + `impl/v1` pair is
-the follow-up when the DAO needs v1 tokens.
+`impl/v1` differs from `impl/v0` in two more places:
+
+- `GetInstance` (loader-only in v0) is replaced by `NewInstallRequest(cur,
+  reason)`. It returns `impl/v0.NewUpgradeDaoImplRequest(cross(cur), govDAO,
+  "gno.land/r/gov/dao/impl/v1", reason)`: v0's checks and disclosure text, with
+  v1's own singleton as the new DAO. The `*GovDAO` is never handed to another
+  realm. That matters because its `PostCreateProposal` and `ExecuteProposal`
+  trust the proxy and take no caller check. A holder of the pointer could reset
+  a proposal's votes or deny it.
+- Its own `NewUpgradeDaoImplRequest` grants `[impl/v1, <new>]`, as v0's grants
+  `[impl/v0, <new>]`.
+
+**Migration path.**
+
+1. A member creates `impl/v1.NewInstallRequest` as a proposal. The DAO votes
+   on it under `impl/v0` and executes it. `dao.UpdateImpl` installs v1's
+   singleton with `AllowedDAOs = [impl/v0, impl/v1]`.
+2. The v0 treasury's funds are moved by an ordinary v0 payment proposal:
+   `impl/v0.NewTreasuryPaymentRequest` with a v0 coins payment to
+   `treasury/v1`'s address. It is voted on and executed under `impl/v1`. The
+   executor is v0's, and `treasury/v0.Send` accepts it because `impl/v0` is
+   still allowed. Any v0 GRC20 balances stay in `treasury/v0`, which keeps
+   working for them.
+3. `impl/v1.NewTreasuryGRC20TokensUpdate` lists the v1 tokens.
+   `impl/v1.NewTreasuryPaymentRequest` pays from `treasury/v1`.
+4. Once nothing is left at `treasury/v0`, a later `UpdateImpl` can drop
+   `impl/v0` from `AllowedDAOs`.
+
+Proposal statuses live on the implementation instance. A proposal still open
+under `impl/v0` when the install executes cannot be voted on or executed
+afterwards, as for any implementation change. So open proposals should be
+closed before the install.
+
+`govdao_treasury_v1_upgrade.txtar` runs steps 1 to 3 end to end. After the
+funds move, it pays 2^64 of a grc20 v1 token and 1200 ugnot from
+`treasury/v1`, and has an ugnot amount above MaxInt64 refused when the payment
+is built. `govdao_proposal_treasury_tokens_update.txtar` still exercises
+`treasury/v0` (with v0 tokens it defines itself, since the demo tokens are v1
+now).
 
 ### Genesis scripts
 
 `p/nt/grc20/v1` and `r/nt/grc20reg/v1` are listed next to their v0 entries in
-the `misc/deployments/*/gen-genesis.sh` sets that list v0. wugnot pulls them in
-as dependencies anyway, but `p/nt` paths cannot be added after genesis under
-namespace enforcement, so they are explicit, as v0 is.
+the `misc/deployments/*/gen-genesis.sh` sets that list v0, except mainnet,
+whose set is left for the owner to decide. The listing is explicit because
+`p/nt` paths cannot be added after genesis under namespace enforcement.
+
+It is redundant in practice. `gno tool deplist -test-dep` on mainnet's
+unchanged set resolves the same 95 packages as onyx's. Compared with the base
+commit, the new ones are `p/nt/grc20/v1`, `r/nt/grc20reg/v1` (via
+`r/gnoland/wugnot`), and `p/nt/treasury/v1`, `r/gov/dao/treasury/v1`,
+`r/gov/dao/impl/v1` and `r/gov/dao/treasury/test/v1` (via the
+`./gno.land/r/gov/...` pattern). So the treasury v1 stack reaches every network
+that lists `r/gov/...`, mainnet included.
 
 ## Alternatives considered
 
@@ -130,12 +170,19 @@ namespace enforcement, so they are explicit, as v0 is.
 4. **Range-check coin payments in `CoinsBanker.Send` instead of at
    construction.** Simpler data, but an out-of-range payment would pass a vote
    and fail at execution, which v0 already avoids for non-positive amounts.
-5. **Extend `uassert`/`ufmt` with 256-bit cases.** Useful, but those are
-   shared `p/nt/.../v0` packages outside this change. Tests compare natively
-   and print with `strconv` instead.
+5. **Edit `treasury/v0` and `impl/v0` in place.** It would change the API of
+   versioned realms under their own version. It also cannot happen on a live
+   chain, where the code is immutable.
+6. **Export the impl/v1 singleton (a `GetInstance` without the loader
+   check), or install a fresh `NewGovDAO()`.** The first hands out a pointer
+   whose methods trust the proxy. The second installs an instance the
+   proposer could have kept a pointer to. `NewInstallRequest` avoids both.
 
 ## Consequences
 
+- `p/nt/ufmt` formats `int256`/`uint256` (`%d`, `%v`, `%T`), and
+  `p/nt/uassert` compares them (`Equal`, `NotEqual`, `Empty`). Both changes
+  only add cases.
 - Breaking API change for realm callers of foo20, grc20factory, test20,
   wugnot, atomicswap's `NewCustomGRC20Swap`, and disperse's `DisperseGRC20`.
 - A token's v0 and v1 identities are unrelated: same symbol in the same realm
@@ -152,4 +199,7 @@ namespace enforcement, so they are explicit, as v0 is.
 | `examples/gno.land/p/nt/grc20/v1/README.md` | differences from v0 |
 | `examples/gno.land/r/nt/grc20reg/v1/grc20reg.gno` | the v1 registry |
 | `examples/gno.land/p/nt/treasury/v1/banker_coins.gno` | `uint256` to `int64` coin payments |
+| `examples/gno.land/r/gov/dao/treasury/v1/treasury.gno` | the GovDAO uint256 treasury |
+| `examples/gno.land/r/gov/dao/impl/v1/impl.gno` | `NewInstallRequest` |
 | `gno.land/pkg/integration/testdata/grc20_v1_uint256.txtar` | arguments, cap and persistence across a restart |
+| `gno.land/pkg/integration/testdata/govdao_treasury_v1_upgrade.txtar` | the install, the funds move and v1 payments |

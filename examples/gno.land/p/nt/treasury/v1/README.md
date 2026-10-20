@@ -17,7 +17,8 @@
   anyone votes on it.
 - `CoinsBanker.Balances` widens the `int64` chain coin amounts to `uint256`.
 
-v0 stays as it is for the realms already built on it (`r/gov/dao/treasury/v0`).
+v0 stays as it is for the realms already built on it (`r/gov/dao/treasury/v0`);
+`r/gov/dao/treasury/v1` is the GovDAO treasury built on v1.
 
 Treasury management for coin and GRC20 token transfers in Gno realms. A `Treasury` holds a set of `Banker`s, each responsible for sending a specific asset type, and records the payment history per banker.
 
