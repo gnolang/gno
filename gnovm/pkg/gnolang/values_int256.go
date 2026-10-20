@@ -264,6 +264,21 @@ func (tv *TypedValue) SetBits256(alloc *Allocator, z *uint256.Int) {
 	}
 }
 
+// chargeConstBits256 charges the preprocessing allocator, if the keeper
+// installed one, for the box of a 256-bit constant that a constant conversion
+// has just built from a value of kind srcKind. String literals are charged on
+// the same allocator when they are evaluated. A conversion between two
+// values of the same kind keeps the existing box, and zero has no box.
+func chargeConstBits256(store Store, srcKind Kind, tv *TypedValue) {
+	if store == nil || tv.T == nil || tv.T.Kind() == srcKind {
+		return
+	}
+	switch tv.V.(type) {
+	case Int256Value, Uint256Value:
+		store.GetPreprocessAllocator().Allocate(allocBits256)
+	}
+}
+
 // GetBig256 returns the mathematical value of an int256 or uint256 value.
 func (tv *TypedValue) GetBig256() *big.Int {
 	z := tv.GetBits256()

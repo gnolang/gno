@@ -132,16 +132,22 @@ shows 0; such clients must handle the two new value types. Pinned by
   first):
   - an untyped integer constant out of range: `bigint overflows target
     kind` or `bigint underflows target kind`; an untyped float constant
-    goes through the same check once it is a whole number, and otherwise
-    gives `cannot convert untyped bigdec to integer -- X not an exact
-    integer`;
+    goes through the same check once it is a whole number. A fractional
+    one gives `cannot convert (const (1.5 <untyped> bigdec)) to integer
+    type` in an explicit conversion such as `uint256(1.5)`, and `cannot
+    convert untyped bigdec to integer -- 1.5 not an exact integer` when it
+    is converted implicitly (assignment, argument, operand);
   - a negative untyped rune converted to `uint256`: `rune underflows target
     kind`;
   - a typed integer constant converted out of range: `constant X overflows
     <Target>Kind` (pr5269), e.g. `constant -1 overflows Uint256Kind`;
-  - a typed float constant that is not a whole number in range, or a
-    256-bit constant that overflows a float32: `cannot convert constant of
-    type <Source>Kind to <Target>Kind`.
+  - a typed float constant that is not a whole number in range, converted
+    to a 256-bit kind: `cannot convert constant of type <Source>Kind to
+    <Target>Kind`;
+  - a 256-bit constant converted to `float32` beyond its range: the
+    preprocessor folds it to `+Inf` (the conversion runs with run-time
+    semantics), and go/types rejects the program (`cannot convert c
+    (constant ... of uintptr type uint256) to type float32`).
 - Printing: `println`/`print`, `values_string_stream`, bounded strings and
   frame traces print the signed or unsigned decimal value. gnoweb's state
   view does too; when it reaches a value without its static type it uses
@@ -151,7 +157,10 @@ shows 0; such clients must handle the two new value types. Pinned by
   flags), and `%#v` (hex with `0x` for `uint256`, decimal for `int256`, as
   for the 64-bit integers). `%c`, `%q` and `%U` are refused. A 256-bit
   value is accepted as a `*` width or precision argument when it fits an
-  `int`.
+  `int` and is within the formatter's limits, as for any integer: above
+  a magnitude of 1,000,000 it is `%!(BADWIDTH)` or `%!(BADPREC)`; a negative
+  width left-justifies and a negative precision
+  is refused.
 
 ### go/types
 
@@ -258,7 +267,7 @@ M-series development machine.
 | `<<` | 40.5 | 83.4 | 80 | 165 |
 | `>>` | 39.8 | 82.4 | 79 | 164 |
 | `==` (`!=`: 83 + 15) | 51.4 | 59.4 | 93 | 108 |
-| `<`, `<=`, `>`, `>=` | 40.0 | 59.8 | 73 | 110 |
+| `<` (`<=`, `>`, `>=`: 72 → 110) | 40.0 | 59.8 | 73 | 110 |
 | unary `-` | 44.1 | 63.6 | 69 | 100 |
 | unary `^` | 43.2 | 63.9 | 69 | 103 |
 | convert, integer | 30.2 | 54.7 | 151 | 274 |
@@ -267,9 +276,16 @@ M-series development machine.
 Allocation is accounted for exactly as for strings, the other immutable
 value held in `V` and shared by its copies:
 
-- a box is charged once, when an operation, conversion or native binding
-  builds a non-zero value (`SetBits256`); a constant's box is built at
-  preprocessing, uncharged, as a string constant's is;
+- a box is charged once, when it is built: at run time when an operation,
+  conversion or native binding builds a non-zero value (`SetBits256` on the
+  machine's allocator), and during preprocessing when a constant conversion
+  builds one (`chargeConstBits256`, on the transaction's preprocessing
+  allocator, which the keeper installs; folded constant arithmetic runs on a
+  machine that uses the same allocator). String literals are charged on that
+  allocator when they are evaluated, so the two match there too
+  (`TestBits256ConstPreprocessCharge` covers integer, rune, decimal, typed
+  and 256-to-256 constant conversions). A conversion between values of the
+  same kind keeps the existing box;
 - copying a value into another slot shares the box and charges nothing,
   whatever the path (assignment, `TypedValue.Copy`, a method value formed
   through an interface, a saved method's receiver copied into its call
