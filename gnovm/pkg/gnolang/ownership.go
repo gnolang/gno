@@ -459,6 +459,15 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 // This function controls heavily the behaviour of
 // [Machine.IsReadonly], and thus cross-realm write authority.
 func (tv *TypedValue) IsReadonlyBy(rid, ownPkgID PkgID) bool {
+	return tv.isReadonlyBy(rid, ownPkgID, nil)
+}
+
+// isReadonlyBy is IsReadonlyBy carrying seen, the heap items it has already
+// descended into. A pointer stored in the slot it names makes hiv.Value name
+// hiv again, which would otherwise recurse until the stack overflows. The
+// descent below is the only one in this function, so a heap item is the only
+// key it needs; every other arm reads an ObjectID and stops.
+func (tv *TypedValue) isReadonlyBy(rid, ownPkgID PkgID, seen map[*HeapItemValue]struct{}) bool {
 	var tvoid ObjectID
 	switch cv := tv.V.(type) {
 	case PointerValue:
@@ -471,8 +480,14 @@ func (tv *TypedValue) IsReadonlyBy(rid, ownPkgID PkgID) bool {
 			// external while the heap item itself is
 			// not.
 			// See test/files/zrealm_crossrealm25a.gno.
-			if hiv.Value.IsReadonlyBy(rid, ownPkgID) {
-				return true
+			if _, dup := seen[hiv]; !dup {
+				if seen == nil {
+					seen = make(map[*HeapItemValue]struct{})
+				}
+				seen[hiv] = struct{}{}
+				if hiv.Value.isReadonlyBy(rid, ownPkgID, seen) {
+					return true
+				}
 			}
 			// An unreal HIV is a transient heap-promotion wrapper
 			// for an escaping local (closure capture, new(T), &T{},

@@ -50,7 +50,7 @@ func main() {
 		newAppHash = h
 	}
 
-	// 1. Open blockstore
+	// 1. Open blockstore and state
 	bsDB, err := dbm.NewDB("blockstore", dbm.PebbleDBBackend, dbDir)
 	if err != nil {
 		log.Fatalf("failed to open blockstore.db: %v", err)
@@ -58,16 +58,30 @@ func main() {
 	bs := store.NewBlockStore(bsDB)
 	bsHeight := bs.Height()
 	fmt.Printf("blockstore: %d\n", bsHeight)
+	stDB, err := dbm.NewDB("state", dbm.PebbleDBBackend, dbDir)
+	if err != nil {
+		bsDB.Close()
+		log.Fatalf("failed to open state.db: %v", err)
+	}
+	state := sm.LoadState(stDB)
 
 	if targetHeight > bsHeight {
 		fmt.Printf("target %d > blockstore %d, nothing to do\n", targetHeight, bsHeight)
 		bsDB.Close()
+		stDB.Close()
 		return
+	}
+
+	if err := checkRollbackable(bsHeight, state.LastBlockHeight, targetHeight); err != nil && !state.IsEmpty() {
+		bsDB.Close()
+		stDB.Close()
+		log.Fatal(err)
 	}
 
 	if *dryRun {
 		fmt.Printf("target: %d\n[dry-run] would trim blockstore, patch state, wipe app DB\n", targetHeight)
 		bsDB.Close()
+		stDB.Close()
 		return
 	}
 
@@ -97,11 +111,6 @@ func main() {
 	bsDB.Close()
 
 	// 2. Patch state.db
-	stDB, err := dbm.NewDB("state", dbm.PebbleDBBackend, dbDir)
-	if err != nil {
-		log.Fatalf("failed to open state.db: %v", err)
-	}
-	state := sm.LoadState(stDB)
 	if state.IsEmpty() {
 		fmt.Println("state.db: empty (nothing to patch)")
 	} else {
@@ -204,3 +213,17 @@ func resolveAppHash(explicit []byte, nextMeta *types.BlockMeta) []byte {
 
 // Ensure types is used (for BlockID in state patching).
 var _ = types.BlockID{}
+
+// checkRollbackable refuses a target above the state of a directory whose
+// block store is more than one block ahead of it, as a crash during a block
+// sync with deferred writes can leave it: the state is not rolled back then,
+// and its hashes would be patched from the block after the target, a later
+// height's. A target at or below the state rolls back as on any directory.
+func checkRollbackable(blockStoreHeight, stateHeight, target int64) error {
+	if blockStoreHeight > stateHeight+1 && target > stateHeight {
+		return fmt.Errorf("blockstore %d is more than one block ahead of state %d, as a crash during block sync "+
+			"leaves it: roll back to %d or below, or start gnoland once to recover the directory",
+			blockStoreHeight, stateHeight, stateHeight)
+	}
+	return nil
+}
