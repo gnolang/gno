@@ -1,6 +1,7 @@
 # PR6253: Versioned redeploy carries the realm's globals
 
 Status: proof of concept, draft PR. Background: RFC #694, #2191, #4682.
+User guide: `docs/resources/realm-upgrades.md`.
 
 ## Context
 

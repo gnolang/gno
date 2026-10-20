@@ -64,7 +64,8 @@ Marks the package as private and **unimportable** by any other package. Addition
 
 #### `version`
 
-An integer, for private or upgradeable realms. A redeploy that steps it by
+An integer, for private or upgradeable realms; see
+[Upgrading a realm](./realm-upgrades.md) for the walkthrough. A redeploy that steps it by
 exactly one (`version = 2` over a live `version = 1`) keeps the realm's globals
 instead of starting them over: every global is carried by name, declared types
 keep their identity, and `migrate(from int)` runs in place of `init()`, handed the
