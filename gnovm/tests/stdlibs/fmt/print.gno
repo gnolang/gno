@@ -878,6 +878,18 @@ func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 					num = int(n)
 					isInt = true
 				}
+			case "int256":
+				n := v.Base.(int256)
+				if int256(int(n)) == n {
+					num = int(n)
+					isInt = true
+				}
+			case "uint256":
+				n := v.Base.(uint256)
+				if n <= uint256(^uint(0)>>1) {
+					num = int(n)
+					isInt = true
+				}
 			default:
 				// Already 0, false.
 			}

@@ -23,6 +23,10 @@ func main() {
 	fmt.Println(u, i, struct{ A uint256 }{3})
 	fmt.Printf("%T %T %T\n", u, i, Amount(1))
 	fmt.Printf("%#v %#v %#v %#v\n", uint256(42), int256(-42), Amount(255), []uint256{1, 16})
+	// 256-bit width and precision arguments, as for any integer.
+	fmt.Printf("[%*d] [%.*d] [%-*d]\n", int256(6), 42, uint256(4), 7, int256(5), uint256(1))
+	var huge uint256 = 1 << 200
+	fmt.Printf("[%*d]\n", huge, 1)
 }
 
 // Output:
@@ -36,3 +40,5 @@ func main() {
 // 115792089237316195423570985008687907853269984665640564039457584007913129639935 -57896044618658097711785492504343953926634992332820282019728792003956564819968 {3}
 // uint256 int256 main.Amount
 // 0x2a -42 0xff []uint256{0x1, 0x10}
+// [    42] [0007] [1    ]
+// [%!(BADWIDTH)1]

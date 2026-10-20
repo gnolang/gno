@@ -86,7 +86,6 @@ func (m *Machine) doOpEql() {
 	if lv.T != nil && lv.T.Kind() == BigintKind {
 		m.incrCPUBigInt(lv, rv, OpCPUSlopeBigIntEql)
 	}
-	m.incrCPU256(lv.T, OpCPUEqlInt256, OpCPUEql)
 	// set result in lv.
 	res := isEql(m, lv, rv, isInterfaceCmp(bx))
 	lv.T = UntypedBoolType
@@ -103,8 +102,6 @@ func (m *Machine) doOpNeq() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
-
-	m.incrCPU256(lv.T, OpCPUEqlInt256, OpCPUNeq)
 
 	// set result in lv.
 	res := !isEql(m, lv, rv, isInterfaceCmp(bx))
@@ -542,6 +539,11 @@ func isEql(m *Machine, lv, rv *TypedValue, viaIface bool) bool {
 	case Uint64Kind:
 		return (lv.GetUint64() == rv.GetUint64())
 	case Int256Kind, Uint256Kind:
+		// Charged here rather than in doOpEql, so that comparisons of
+		// arrays, structs, interface fields and switch cases pay it too.
+		if m != nil {
+			m.incrCPU(OpCPUEqlInt256 - OpCPUEql)
+		}
 		return lv.GetBits256() == rv.GetBits256()
 	case Float32Kind:
 		return softfloat.Feq32(lv.GetFloat32(), rv.GetFloat32())

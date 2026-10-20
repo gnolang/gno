@@ -527,38 +527,6 @@ func TestBits256Gonative(t *testing.T) {
 	require.Equal(t, goInt256Type, gno2GoType(Int256Type))
 }
 
-// TestBits256CopyAccounting checks the logical, per-occurrence accounting:
-// every slot holding a non-zero 256-bit value is charged one box, whether
-// the box was built for it or shared by a copy, so allocation, the GC
-// recount and the charge on reload agree.
-func TestBits256CopyAccounting(t *testing.T) {
-	const n = 1000
-	alloc := NewAllocator(math.MaxInt64)
-	x := tv256(Uint256Type, bigMaxUint256)
-	av := &ArrayValue{List: make([]TypedValue, n)}
-	_, before := alloc.Status()
-	for i := range av.List {
-		av.List[i] = x.Copy(alloc)
-	}
-	_, after := alloc.Status()
-	require.Equal(t, int64(n*allocBits256), after-before, "allocation")
-
-	var recount int64
-	for i := range av.List {
-		recount += av.List[i].V.GetShallowSize()
-	}
-	require.Equal(t, int64(n*allocBits256), recount, "GC recount")
-	require.Equal(t, int64(n*allocBits256), internalRefSize(av), "charge on reload")
-
-	// Persisted and reloaded, each slot holds its own value.
-	bz := amino.MustMarshalAny(av)
-	var back Value
-	amino.MustUnmarshalAny(bz, &back)
-	for _, tv := range back.(*ArrayValue).List {
-		require.Equal(t, bigMaxUint256.String(), tv.GetBig256().String())
-	}
-}
-
 // TestBits256CanonicalZeroJSONNull checks that a typed JSON null payload,
 // which amino decodes as a boxed zero without calling UnmarshalAmino, is
 // rejected at the enclosing value, also nested in interface slots and inline

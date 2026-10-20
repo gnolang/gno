@@ -1359,9 +1359,6 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
-	case Int256Value, Uint256Value:
-		chargeBits256Slot(alloc, &tv)
-		cp = tv
 	default:
 		cp = tv
 	}
@@ -2361,9 +2358,6 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		// because the operand is re-walked live at the call. ift is the bound
 		// (receiver-stripped) method type, known statically from the interface.
 		alloc.AllocateBoundMethod()
-		// The saved operand is stored as is (no Copy), but a 256-bit value
-		// in it is a slot of its own for the GC recount and on reload.
-		chargeBits256Slot(alloc, dtv)
 		bmv := &BoundMethodValue{
 			Func:      nil, // resolved at call (see resolveLazyBound)
 			Receiver:  *dtv,

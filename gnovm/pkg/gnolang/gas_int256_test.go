@@ -3,6 +3,7 @@ package gnolang
 import (
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -78,45 +79,134 @@ func TestGasInt256Ops(t *testing.T) {
 	assert.Equal(t, boxGas, nonzero-zero, "zero result")
 }
 
-// TestBits256BoundReceiverAccounting checks that a method value formed
-// through an interface, which saves its 256-bit operand without a Copy,
-// charges the operand's box like any other slot: the difference between
-// non-zero and zero receivers is the same in what was allocated and in what
-// the GC recounts.
-func TestBits256BoundReceiverAccounting(t *testing.T) {
-	run := func(typ, val string) (tracked, recount int64) {
-		src := `package main
-type N ` + typ + `
+// TestBits256AccountingMatchesStrings checks that 256-bit values are
+// accounted for exactly as strings are: an immutable value in V, charged
+// once when it is built and shared by its copies, then counted once per slot
+// by the GC recount. In each scenario, the number of slots the recount (and
+// the allocator) sees for a non-zero 256-bit value is the same as for a
+// non-empty string.
+func TestBits256AccountingMatchesStrings(t *testing.T) {
+	scenarios := map[string]string{
+		// One value copied into many slots.
+		"copies": `
+var keep [100]T
+func main() {
+	x := V
+	for i := range keep {
+		keep[i] = x
+	}
+}`,
+		// A method value formed through an interface, retained.
+		"bound": `
+type N T
 func (N) M() {}
 var keep []func()
 func main() {
-	var i interface{ M() } = N(` + val + `)
+	var i interface{ M() } = N(V)
 	for j := 0; j < 100; j++ {
 		keep = append(keep, i.M)
 	}
-}`
+}`,
+		// A saved method called repeatedly, each call retaining its
+		// receiver copy.
+		"saved": `
+type N T
+var keep []*N
+func (n N) M() { keep = append(keep, &n) }
+func main() {
+	var i interface{ M() } = N(V)
+	f := i.M
+	for j := 0; j < 100; j++ {
+		f()
+	}
+}`,
+		// A deferred closure retaining a named result.
+		"named": `
+var keep []*T
+func g(v T) (x T) {
+	defer func() { keep = append(keep, &x) }()
+	return v
+}
+func main() {
+	v := V
+	for j := 0; j < 100; j++ {
+		g(v)
+	}
+}`,
+	}
+	run := func(src, typ, val string) (tracked, recount int64) {
+		src = strings.ReplaceAll(strings.ReplaceAll(src, "T", typ), "V", val)
 		m := NewMachineWithOptions(MachineOptions{
 			PkgPath: "main",
 			Alloc:   NewAllocator(math.MaxInt64),
 		})
 		defer m.Release()
-		m.RunFiles(m.MustParseFile("main.gno", src))
+		m.RunFiles(m.MustParseFile("main.gno", "package main\n"+src))
 		m.RunMain()
 		_, tracked = m.Alloc.Status()
 		m.GarbageCollect()
 		_, recount = m.Alloc.Status()
 		return tracked, recount
 	}
-	for _, typ := range []string{"uint256", "int256"} {
-		t0, r0 := run(typ, "0")
-		t1, r1 := run(typ, "7")
-		require.GreaterOrEqual(t, t1-t0, r1-r0, typ)
-		require.GreaterOrEqual(t, r1-r0, int64(100*allocBits256), typ)
+	const strLen = 10
+	for name, src := range scenarios {
+		for _, typ := range []string{"uint256", "int256"} {
+			t0, r0 := run(src, typ, typ+"(0)")
+			t1, r1 := run(src, typ, typ+"(7)")
+			s0t, s0r := run(src, "string", `string("")`)
+			s1t, s1r := run(src, "string", `string("abcdefghij")`)
+			t.Logf("%s/%s: slots %d, allocated %d", name, typ, (r1-r0)/allocBits256, (t1-t0)/allocBits256)
+			require.Zero(t, (r1-r0)%allocBits256, "%s/%s", name, typ)
+			require.Zero(t, (s1r-s0r)%strLen, "%s/%s", name, typ)
+			require.Equal(t, (s1r-s0r)/strLen, (r1-r0)/allocBits256,
+				"%s/%s: recounted slots differ from strings", name, typ)
+			require.Equal(t, (s1t-s0t)/strLen, (t1-t0)/allocBits256,
+				"%s/%s: allocated values differ from strings", name, typ)
+		}
 	}
-	// On reload, a bound receiver is charged its box, and a zero one nothing.
-	for _, typ := range []Type{Int256Type, Uint256Type} {
-		bmv := &BoundMethodValue{Receiver: tv256(typ, big.NewInt(7))}
-		require.Equal(t, int64(allocBits256), internalRefSize(bmv))
-		require.Equal(t, int64(0), internalRefSize(&BoundMethodValue{Receiver: TypedValue{T: typ}}))
+}
+
+// TestGasInt256Equality checks that the 256-bit equality surcharge is paid by
+// every comparison, not only by == and != expressions: element by element in
+// arrays, field by field in structs, through interface fields, and in switch
+// cases, and only as far as the comparison goes.
+func TestGasInt256Equality(t *testing.T) {
+	gasOf := func(src string) int64 {
+		gm := store.NewGasMeter(math.MaxInt64)
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath:  "main",
+			GasMeter: gm,
+			Alloc:    NewAllocator(math.MaxInt64),
+		})
+		defer m.Release()
+		m.Alloc.SetGasMeter(gm)
+		m.RunFiles(m.MustParseFile("main.gno", "package main\n"+src))
+		before := gm.GasConsumed()
+		m.RunMain()
+		return gm.GasConsumed() - before
+	}
+	const extra = OpCPUEqlInt256 - OpCPUEql
+	cases := []struct {
+		name  string
+		src   string // T is replaced by the element type
+		comps int64  // 256-bit comparisons made
+	}{
+		{"array", `func main() { var a, b [1000]T; println(a == b) }`, 1000},
+		{"array_early_failure", `func main() { var a, b [1000]T; a[0] = 1; println(a == b) }`, 1},
+		{"struct", `type S struct{ A, B, C T }
+func main() { var a, b S; println(a == b) }`, 3},
+		{"interface_field", `type S struct{ A any }
+func main() { a, b := S{T(0)}, S{T(0)}; println(a == b) }`, 1},
+		{"switch", `func main() { var x T; switch x { case 3: case 2: case 0: } }`, 3},
+		{"neq", `func main() { var x, y T; println(x != y) }`, 1},
+	}
+	for _, c := range cases {
+		g64 := gasOf(strings.ReplaceAll(c.src, "T", "uint64"))
+		for _, typ := range []string{"uint256", "int256"} {
+			g256 := gasOf(strings.ReplaceAll(c.src, "T", typ))
+			// The constant 1 is boxed at preprocessing, so assigning it
+			// allocates nothing at run time.
+			assert.Equal(t, c.comps*extra, g256-g64, "%s/%s", c.name, typ)
+		}
 	}
 }
