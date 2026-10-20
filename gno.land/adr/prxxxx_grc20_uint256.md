@@ -49,6 +49,15 @@ Owner decisions, fixed before this work:
   supply in decimal; `FormatAmount`/`Token.FormatAmount` apply `decimals`;
 - tellers, `IsCanonicalTeller`, the home binding of `CallerTeller`, token
   identity and the `NewToken` event are unchanged.
+- `RenderHome` escapes the token name and symbol with `sanitize.InlineText`.
+  `validName` admits markdown (a name like `[Claim reward](https://evil.example)`
+  is valid display text), and v0 prints it raw, so any v0 token page, including
+  `grc20factory`'s, can carry a live phishing link. v1 escapes it. The v1 render
+  paths of `grc20reg/v1` (`sanitize.InlineText`), `grc20factory` (path
+  segments) and `p/nt/treasury/v1` (token keys via `sanitize.TableCell`,
+  payment lines via `sanitize.InlineText`) do the same. **Follow-up:** v0
+  (`grc20/v0` `RenderHome`, and `p/nt/treasury/v0`'s render) has the same
+  injection and is left unchanged here.
 
 `treasury/v1`: chain coins are `int64`, so `NewCoinsPayment` now takes
 `[]Balance` (`uint256` amounts), joins them per denom with a checked add, and
@@ -142,18 +151,32 @@ now).
 
 ### Genesis scripts
 
-`p/nt/grc20/v1` and `r/nt/grc20reg/v1` are listed next to their v0 entries in
-the `misc/deployments/*/gen-genesis.sh` sets that list v0, except mainnet,
-whose set is left for the owner to decide. The listing is explicit because
-`p/nt` paths cannot be added after genesis under namespace enforcement.
+**Mainnet's inputs are untouched.** `misc/deployments/mainnet.gno.land/
+gen-genesis.sh` declares its package set final and checksum-locks its launch
+artifacts, including the resolved package list (`work/packages.gen.txt`).
+Editing it would break the rebuild, and cannot deploy anything on the running
+chain anyway. Packages for a running chain go through its upgrade process, not
+through genesis inputs.
 
-It is redundant in practice. `gno tool deplist -test-dep` on mainnet's
-unchanged set resolves the same 95 packages as onyx's. Compared with the base
-commit, the new ones are `p/nt/grc20/v1`, `r/nt/grc20reg/v1` (via
-`r/gnoland/wugnot`), and `p/nt/treasury/v1`, `r/gov/dao/treasury/v1`,
-`r/gov/dao/impl/v1` and `r/gov/dao/treasury/test/v1` (via the
-`./gno.land/r/gov/...` pattern). So the treasury v1 stack reaches every network
-that lists `r/gov/...`, mainnet included.
+The token migration changes mainnet's resolved list even with the script
+untouched. `gno tool deplist -test-dep` on mainnet's unchanged set gives 95
+packages; at the base commit it gave 89, and the base list hashes to the
+script's locked `0f58…a960`. The six new ones are `p/nt/grc20/v1` and
+`r/nt/grc20reg/v1` (imported by `r/gnoland/wugnot`), and `p/nt/treasury/v1`,
+`r/gov/dao/treasury/v1`, `r/gov/dao/impl/v1` and `r/gov/dao/treasury/test/v1`
+(matched by `./gno.land/r/gov/...`). Running the script on this branch stops at
+step 4 with `checksum mismatch for work/packages.gen.txt`. Mainnet genesis
+would not silently miss v1; it does not build at all from this branch. That
+is inherent to moving wugnot, a mainnet-listed realm, to grc20 v1. Whether
+mainnet takes it, and how, is the owner's decision.
+
+The other networks' scripts (onyx, pearl, sapphire, topaz, test13) list
+`p/nt/grc20/v1`, `r/nt/grc20reg/v1` and `p/nt/treasury/v1` next to the v0
+entries, because `p/nt` paths cannot be added after genesis under namespace
+enforcement. They resolve the same set without the explicit lines, so the
+lines only document the intent. All of these networks have past genesis
+times, and every one except test13 checksum-locks its package list, so their
+rebuilds change for the same reason mainnet's does.
 
 ## Alternatives considered
 
