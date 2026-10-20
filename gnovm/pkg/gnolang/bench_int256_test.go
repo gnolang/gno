@@ -10,7 +10,7 @@ import (
 // Benchmarks for the int256/uint256 op handlers, each paired with the same
 // handler on int so that the two can be compared in one run. The OpCPU*Int256
 // constants are ratio-scaled from these pairs: see the comment above them in
-// machine.go and gnovm/adr/prxxxx_native_int256.md.
+// machine.go and gnovm/adr/pr6387_native_int256.md.
 //
 //	go test -run '^$' -bench 'Op256' -benchtime 2000000x ./gnovm/pkg/gnolang
 

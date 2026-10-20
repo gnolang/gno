@@ -58,7 +58,7 @@ func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
 
-// 256-bit integers; see GoTypesSizes and gnovm/adr/prxxxx_native_int256.md.
+// 256-bit integers; see GoTypesSizes and gnovm/adr/pr6387_native_int256.md.
 type int256 int
 type uint256 uintptr
 type Int256 = int256
