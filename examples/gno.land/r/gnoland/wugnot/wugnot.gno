@@ -58,9 +58,13 @@ func Withdraw(cur realm, amount uint256) {
 	pkgaddr := cur.Address()
 	callerBal := Token.BalanceOf(caller)
 	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
-	// Every wugnot was minted from deposited ugnot, so the supply, and with it
-	// any balance, fits an int64. Checked anyway: the conversion below must
-	// never truncate.
+	// Unreachable while the backing holds, and checked anyway so the int64
+	// conversion below can never truncate: wugnot is minted only by Deposit,
+	// for ugnot that has landed at this realm, and burned on every Withdraw,
+	// so the supply never exceeds this realm's ugnot balance. That balance is
+	// an int64 chain coin amount, so supply, and any single balance, is at most
+	// math.MaxInt64, and the balance check above has already refused anything
+	// larger.
 	require(amount <= math.MaxInt64, ufmt.Sprintf("Withdrawal exceeds the ugnot range: %d wugnot.", amount))
 
 	// send swapped ugnots to qcaller

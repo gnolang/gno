@@ -68,7 +68,7 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 2 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
 stdout OK!
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v1:GRC20?history_size=0'
-stdout '\| gno.land/r/test/bigtok.BIG \| 18446744073709551621 \|'
+stdout '\| gno\\\.land/r/test/bigtok\\\.BIG \| 18446744073709551621 \|'
 
 ## 4. Pay 2^64 BIG to the receiver (proposal 3).
 gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member $WORK/run/pay_token.gno
@@ -82,7 +82,7 @@ stdout OK!
 gnokey query vm/qeval --data "gno.land/r/test/bigtok.BalanceOf(\"g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0\")"
 stdout '\(18446744073709551616 uint256\)'
 gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v1:GRC20?history_size=0'
-stdout '\| gno.land/r/test/bigtok.BIG \| 5 \|'
+stdout '\| gno\\\.land/r/test/bigtok\\\.BIG \| 5 \|'
 
 ## 5. Pay 1200ugnot through the v1 coins banker (proposal 4).
 gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member $WORK/run/pay_ugnot.gno

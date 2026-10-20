@@ -2,7 +2,9 @@
 package test
 
 // Withdraw takes a uint256, but every wugnot comes from deposited ugnot, so an
-// amount beyond the int64 range can never be backed and is refused.
+// amount beyond the int64 range can never be backed and is refused. It is
+// refused by the balance check: no account can hold more than MaxInt64 wugnot
+// (see Withdraw), so the int64 range check after it cannot be reached.
 
 import (
 	"chain"
