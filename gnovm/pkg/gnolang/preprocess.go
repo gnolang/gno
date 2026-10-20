@@ -1546,14 +1546,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else if isUntyped(lcx.T) {
 						if !isUntyped(rt) { // right is typed
 							checkOrConvertType(store, last, n, &n.Left, rt)
-						} else if n.Op == EQL || n.Op == NEQ {
+						} else if isComparison(n.Op) {
 							// both untyped.
-							// no push context type to == != expr.
-							// fall through to default type of left or right.
-							dt := defaultTypeOf(rt)
-							if shouldSwapOnSpecificity(lt, rt) {
-								dt = defaultTypeOf(lt)
-							}
+							// no push context type to a comparison.
+							// fall through to the default type of their kind.
+							dt := untypedOperandsDefault(lt, rt)
 							checkOrConvertType(store, last, n, &n.Right, dt)
 							checkOrConvertType(store, last, n, &n.Left, dt)
 						}
@@ -1569,14 +1566,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if isUntyped(rcx.T) {
 						if !isUntyped(lt) { // left is typed non-const, right is untyped const.
 							checkOrConvertType(store, last, n, &n.Right, lt)
-						} else if n.Op == EQL || n.Op == NEQ { // both untyped.
+						} else if isComparison(n.Op) { // both untyped.
 							// both untyped.
-							// no push context type to == != expr.
-							// fall through to default type of left or right.
-							dt := defaultTypeOf(rt)
-							if shouldSwapOnSpecificity(lt, rt) {
-								dt = defaultTypeOf(lt)
-							}
+							// no push context type to a comparison.
+							// fall through to the default type of their kind.
+							dt := untypedOperandsDefault(lt, rt)
 							checkOrConvertType(store, last, n, &n.Right, dt)
 							checkOrConvertType(store, last, n, &n.Left, dt)
 						}
@@ -1592,14 +1586,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					liu, riu := isUntyped(lt), isUntyped(rt)
 					if liu {
 						if riu {
-							if lt.TypeID() != rt.TypeID() {
-								panic(fmt.Sprintf(
-									"incompatible types in binary expression: %v %v %v",
-									lt.TypeID(), n.Op, rt.TypeID()))
-							}
-							// convert untyped to typed
-							checkOrConvertType(store, last, n, &n.Left, defaultTypeOf(lt))
-							checkOrConvertType(store, last, n, &n.Right, defaultTypeOf(rt))
+							// convert untyped to typed: the default type
+							// of the operands' combined kind, e.g. rune
+							// for ('a' << s) + (1 << s).
+							dt := untypedOperandsDefault(lt, rt)
+							checkOrConvertType(store, last, n, &n.Left, dt)
+							checkOrConvertType(store, last, n, &n.Right, dt)
 						} else { // left untyped, right typed
 							checkOrConvertType(store, last, n, &n.Left, rt)
 						}
@@ -4680,6 +4672,17 @@ func foldStringOfLargeIntConst(cx *ConstExpr) {
 	setConstAttrs(cx)
 }
 
+// untypedOperandsDefault returns the default type of the result of a binary
+// operation on two untyped operands of types lt and rt: the type of the
+// operand whose kind comes later in integer < rune < float (Go spec,
+// constant expressions), defaulted.
+func untypedOperandsDefault(lt, rt Type) Type {
+	if shouldSwapOnSpecificity(lt, rt) {
+		return defaultTypeOf(lt)
+	}
+	return defaultTypeOf(rt)
+}
+
 // importedConst returns the value of the constant pkg.Name selected by n,
 // where pn is the package node of pkg.
 //
@@ -5135,20 +5138,15 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 						checkOrConvertType(store, last, n, &bx.Right, t)
 						return
 					} else { // t is nil, and bx is untyped binary expr.
-						if shouldSwapOnSpecificity(lt, rt) {
-							// e.g. 1.0<<s + 1
-							// The expression '1.0<<s' does not trigger assertions of
-							// incompatible types when evaluated alone.
-							// However, when evaluating the full expression '1.0<<s + 1'
-							// without a specific context type, '1.0<<s' is checked against
-							// its default type, the BigDecKind, will trigger assertion failure.
-							// so here in checkOrConvertType, shift expression is "finally" checked.
-							checkOrConvertType(store, last, n, &bx.Left, nil)
-							checkOrConvertType(store, last, n, &bx.Right, lt)
-						} else {
-							checkOrConvertType(store, last, n, &bx.Left, rt)
-							checkOrConvertType(store, last, n, &bx.Right, nil)
-						}
+						// Both operands take the default type of their
+						// combined kind (e.g. rune for 1 + ('a' << s)),
+						// so neither stays untyped at runtime. A shift
+						// operand is "finally" checked against it here:
+						// 1.0<<s + 1 fails, as 1.0<<s is a float64 shift.
+						dt := untypedOperandsDefault(lt, rt)
+						checkOrConvertType(store, last, n, &bx.Left, dt)
+						checkOrConvertType(store, last, n, &bx.Right, dt)
+						bx.SetAttribute(ATTR_TYPEOF_VALUE, dt)
 					}
 					return
 				case EQL, LSS, GTR, NEQ, LEQ, GEQ:

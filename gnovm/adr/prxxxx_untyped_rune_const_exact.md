@@ -96,6 +96,32 @@ point; this holds for any size and for named string types. Other conversion
 targets keep normal defaulting, so `interface{}('a' << 40)` still fails, as
 the constant cannot default to `rune`.
 
+### Non-constant shifts: one type for the whole expression
+
+A non-constant shift of an untyped constant (`'a' << s`) stays untyped until
+context types it. When such an expression meets another untyped operand
+with no context (`x := 1 + ('a' << s)`, `('a' << s) < 100`), the
+preprocessor used to convert one operand to its default type and the other
+to the *untyped* type of the first, or to nothing at all for `<`, `<=`, `>`
+and `>=`; mixed untyped kinds on two non-constant operands
+(`('a' << s) + (1 << s)`) were rejected. With rune now ranking above int,
+that left an untyped rune constant, possibly in big form, in runtime
+arithmetic (`('a' << s) + (1 << 40)` printed 97).
+
+Both operands now take one type, `untypedOperandsDefault`: the default type
+of the later kind of the two. This applies to an untyped binary expression
+without context, to every comparison of two untyped operands (it was only
+`==` and `!=`), and to two untyped non-constant operands. The expression's
+cached type is updated to match. A constant operand is converted, and so
+range checked, before runtime: `('a' << s) + (1 << 40)` is rejected as in
+Go. A float shift such as `1<<s + 1.0` now fails as a `float64` shift, as
+in Go, instead of a bigdec one.
+
+To check that no big-form untyped rune reaches runtime, the `GetInt32` guard
+was made unconditional and the gnolang tests, `gnovm/pkg/test`,
+`gnovm/cmd/gno` and the examples suite were run with it: no hit. The guard
+is debug-only in the committed code.
+
 ### Imported constants: read the recomputed value
 
 A package constant is folded at deploy and its value is copied into the
@@ -183,9 +209,10 @@ separate change.
 
 | File | Role |
 |------|------|
-| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `importedConst`, `foldStringOfLargeIntConst`, `float64`/`string` conversion calls |
+| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `untypedOperandsDefault`, `importedConst`, `foldStringOfLargeIntConst`, `float64`/`string` conversion calls |
 | `gnovm/pkg/gnolang/values.go` | `GetUntypedRune`, `SetUntypedRune`, `Sign` |
 | `gnovm/pkg/gnolang/values_conversions.go` | `ConvertUntypedRuneTo`, `convertUntypedIntegerTo` |
 | `gnovm/pkg/gnolang/types.go` | `Specificity` ordering |
 | `gnovm/pkg/gnolang/preprocess_import_const_test.go` | persisted-layout test and reload test for imported constants |
-| `gnovm/tests/files/rune4.gno`–`rune19.gno` | filetests |
+| `gnovm/tests/files/rune4.gno`–`rune23.gno` | filetests |
+| `gnovm/tests/files/types/shift_f2d.gno`, `shift_f3.gno`, `shift_f3b.gno`, `shift_f4c.gno` | float shift diagnostics now name `float64` |
