@@ -212,6 +212,11 @@ type TypeCheckOptions struct {
 	// Defaults false, so `gno test`, `gno lint` and the gnovm test harness
 	// keep checking test files.
 	ProdOnly bool
+
+	// Info, if non-nil, receives the type information of mpkg's production
+	// files (not of its imports nor of its test files). Tools use it, see
+	// Files256.
+	Info *types.Info
 }
 
 // TypeCheckMemPackage performs type validation and checking on the given
@@ -236,6 +241,7 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 		cache:     map[string]*gnoImporterResult{},
 		permCache: opts.Cache,
 		fset:      opts.Fset,
+		info:      opts.Info,
 		cfg: &types.Config{
 			// Pin the accepted Go language version. Left empty, go/types gates
 			// syntax at whatever version the validator binary was built with,
@@ -293,8 +299,9 @@ type gnoImporter struct {
 	permCache TypeCheckCache
 	fset      *token.FileSet // if non-nil, used for Go parsing instead of creating a new one.
 	cfg       *types.Config
-	errors    []error  // there may be many for a single import
-	stack     []string // stack of pkgpaths for cyclic import detection
+	info      *types.Info // for the production files of pkgPath only
+	errors    []error     // there may be many for a single import
+	stack     []string    // stack of pkgpaths for cyclic import detection
 }
 
 // Unused, but satisfies the Importer interface.
@@ -550,7 +557,11 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 	// Preserve gimp.testing, sub-imports are under the same context.
 	// gimp.testing = false <-- incorrect!
 	pgofs := filterTests(gofset, gofs) // prod gofs.
-	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, nil)
+	var info *types.Info
+	if mpkg.Path == gimp.pkgPath {
+		info = gimp.info
+	}
+	pkg, _ = gimp.cfg.Check(mpkg.Path, gofset, pgofs, info)
 	// Fail early: there's no point checking the others.
 	if len(gimp.errors) != numErrs {
 		errs = multierr.Combine(gimp.errors[numErrs:]...)
