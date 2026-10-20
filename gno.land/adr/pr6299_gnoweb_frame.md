@@ -41,7 +41,9 @@ line, in `gno.land/pkg/gnoweb/markdown/ext_frame.go`.
   document level; a blockquote, list item or alert is not. This keeps the
   `BlockRich` guarantee: the sanitizer escapes a `<gno-…` at line start but
   not after `> ` or `- `, so without this rule sanitized user content could
-  draw a realm-styled frame inside a quote or a list.
+  draw a realm-styled frame inside a quote or a list. *(Since PR #6304 the
+  sanitizer escapes it after `> ` and list markers too; this rule stays as a
+  second guard.)*
 - **Empty attribute allowlist.** Any attribute (on the open or the close
   tag) or a self-closing form makes the tag invalid instead of silently
   ignored, so a later attribute (a variant, say) cannot be misread by an older

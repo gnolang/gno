@@ -425,9 +425,36 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		fenceOpen    string // the opener's indent and fence run, reused as its closer
 		prevNonBlank bool
 	)
+	// HTML blocks of CM §4.6 types 6 and 7 run to the next blank line,
+	// so a fence line inside one is HTML to goldmark and a fence opener
+	// to the fence tracker, which then auto-closes a fence goldmark never
+	// opened: that closer opens one over the realm's chrome. Such an
+	// opener is escaped like types 1-5, so goldmark reads the fence too.
+	// Openers with no fence line before the next blank line are left
+	// alone: gnoweb drops their HTML, and escaping would show it.
+	var ahead []bool // built on first use
+	htmlBlockHidesFence := func(idx int) bool {
+		if ahead == nil {
+			ahead = fenceBeforeBlankLine(lines)
+		}
+		return ahead[idx]
+	}
 
 	for idx, line := range lines {
 		writeNL := idx < len(lines)-1 || trailingNewline
+
+		// Extension delimiters: a backslash before the `<` makes it a
+		// CM §2.4 inline escape, so neither a gno-* block parser nor the
+		// Type-7 HTML block detection sees a tag (a leading space would not
+		// do: the parsers call util.TrimLeftSpace). This neutralizes any
+		// unescaped <gno-…> or </gno-…> tag at block start (line-start,
+		// indented, or after list/quote container markers), except
+		// <gno-icon /> which is allowed inside list items and blockquotes.
+		// Fenced lines included, as for <gno-button />: the fence tracker
+		// cannot follow goldmark into every container, so a line it counts
+		// as code may be read at block start. The cost is a visible
+		// backslash in code that shows such a tag.
+		line = escapeGnoExtDelimiters(line)
 
 		if inFence {
 			out.WriteString(line)
@@ -441,15 +468,6 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			continue
 		}
 
-		// Extension delimiters: a backslash before the `<` makes it a
-		// CM §2.4 inline escape, so neither a gno-* block parser nor the
-		// Type-7 HTML block detection sees a tag (a leading space would not
-		// do: the parsers call util.TrimLeftSpace). This neutralizes any
-		// unescaped <gno-…> or </gno-…> tag at block start (line-start,
-		// indented, or after list/quote container markers), except
-		// <gno-icon /> which is allowed inside list items and blockquotes.
-		line = escapeGnoExtDelimiters(line)
-
 		// CM §4.6 HTML block types 1-5: prefix with backslash so the
 		// leading `<` becomes a CM §2.4 inline escape and goldmark's
 		// HTML block parser (which requires the first non-whitespace
@@ -460,10 +478,11 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 		// any of them would consume realm chrome appended afterward
 		// (until a type-specific close token or EOF). Types 6 and 7
 		// close on a blank line, so sanitize.BlockRich's "\n\n"
-		// envelope already bounds them; we don't escape those.
+		// envelope already bounds them; they are escaped only where
+		// they would hide a fence line (see htmlBlockHidesFence).
 		// Fires unconditionally in both strict and Rich modes — this
 		// is a security defense, not stylistic.
-		if isHTMLBlockType1to5Opener(line) {
+		if isHTMLBlockType1to5Opener(line) || mayOpenHTMLBlock(line) && htmlBlockHidesFence(idx) {
 			out.WriteByte('\\')
 			out.WriteString(line)
 			if writeNL {
@@ -485,10 +504,10 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			continue
 		}
 
-		// Block markers / fence open. Always called: fence detection is
-		// unconditional. `escapeLeader` gates the doc-spoof markers
-		// (#, >, list, HR) and `escapePipe` gates the GFM table-row
-		// `|` escape; both are on in strict mode and off in Rich.
+		// Block markers, then fence tracking, which runs in both modes.
+		// `escapeLeader` gates the doc-spoof markers (#, >, list, HR)
+		// and `escapePipe` gates the GFM table-row `|` escape; both are
+		// on in strict mode and off in Rich.
 		out.WriteString(escapeLineLeader(line, escapeLeader, escapePipe))
 		if writeNL {
 			out.WriteByte('\n')
@@ -512,6 +531,41 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	}
 
 	return out.String()
+}
+
+// mayOpenHTMLBlock reports whether line, past 0-3 spaces, starts an HTML
+// open or close tag: `<` or `</` and an ASCII letter. That covers every
+// opener of CM §4.6 HTML block types 6 and 7, and more: escaping a line
+// goldmark would not open a block on only shows its tag as text.
+func mayOpenHTMLBlock(line string) bool {
+	i := 0
+	for i < 3 && i < len(line) && line[i] == ' ' {
+		i++
+	}
+	if i >= len(line) || line[i] != '<' {
+		return false
+	}
+	i++
+	if i < len(line) && line[i] == '/' {
+		i++
+	}
+	return i < len(line) && isASCIIAlpha(line[i])
+}
+
+// fenceBeforeBlankLine reports, for each line, whether a fence opener
+// follows it before the next blank line.
+func fenceBeforeBlankLine(lines []string) []bool {
+	ahead := make([]bool, len(lines))
+	seen := false
+	for i := len(lines) - 1; i >= 0; i-- {
+		ahead[i] = seen
+		if strings.TrimLeft(lines[i], " \t") == "" {
+			seen = false
+		} else if _, _, _, ok := parseFenceOpener(lines[i]); ok {
+			seen = true
+		}
+	}
+	return ahead
 }
 
 // foldUnicodeSeparators replaces U+2028, U+2029 (3-byte UTF-8 starting
@@ -581,7 +635,8 @@ func parseContainerPrefix(line string) (int, bool) {
 
 // listMarkerEnd reports whether a CommonMark list marker (`-`, `*`, `+`,
 // or 1-9 digits followed by `.` or `)`) starts at line[i] and is followed
-// by a space or tab, and returns the index just past the marker.
+// by a space, a tab, or the end of the line (an empty item), and returns
+// the index just past the marker.
 func listMarkerEnd(line string, i int) (int, bool) {
 	if i >= len(line) {
 		return 0, false
@@ -601,7 +656,7 @@ func listMarkerEnd(line string, i int) (int, bool) {
 	default:
 		return 0, false
 	}
-	if end >= len(line) || (line[end] != ' ' && line[end] != '\t') {
+	if end < len(line) && line[end] != ' ' && line[end] != '\t' {
 		return 0, false
 	}
 	return end, true
@@ -689,7 +744,7 @@ func escapeGnoButtonTags(line string) string {
 // close on a blank line. Types 6 and 7 close on a blank line per
 // goldmark's `Continue` (parser/html_block.go), so the leading +
 // trailing "\n\n" envelope in sanitize.BlockRich already bounds them;
-// we only need to neutralize 1-5 here.
+// mayOpenHTMLBlock covers them where they would hide a fence line.
 //
 // Detection mirrors goldmark's regexes at parser/html_block.go:79-92
 // (case-insensitive Type 1 tag name; case-sensitive Types 2/3/4/5;
@@ -868,6 +923,9 @@ func isNonBlankIndentedLess(line string, minIndent int) bool {
 // indented less than its opener moves to the opener's column instead:
 // left where it is, it would end a list item and open a new fence.
 func closeFencesAtDedent(s string) string {
+	if !strings.Contains(s, "```") && !strings.Contains(s, "~~~") {
+		return s
+	}
 	var out strings.Builder
 	out.Grow(len(s) + 16)
 	var (
@@ -1074,6 +1132,10 @@ func findBracketSpans(s string) []bracketSpan {
 	// content (real links are short and rare relative to input size)
 	// while capping worst-case work at O(n).
 	scanBudget := 8 * len(s)
+	// A link or definition never spans a fence-shaped line: the fence
+	// ends goldmark's paragraph first. Keeping such a span would hide the
+	// fence from this walker while the line loop and goldmark open it.
+	fenceLines := fenceLineFinder{s: s}
 	for i < len(s) {
 		// Advance nextClose past i if needed.
 		if nextClose < i {
@@ -1085,20 +1147,13 @@ func findBracketSpans(s string) []bracketSpan {
 			}
 		}
 		// Fence open (0-3 lead spaces, ≥3 backticks or tildes)?
+		// parseFenceOpener stops at the newline, so it reads the line
+		// in place and rejects any other line within 4 bytes.
 		if atLineStart {
-			lineEnd := strings.IndexByte(s[i:], '\n')
-			var line string
-			var lineLen int
-			if lineEnd < 0 {
-				line = s[i:]
-				lineLen = len(line)
-			} else {
-				line = s[i : i+lineEnd]
-				lineLen = lineEnd + 1
-			}
-			if fc, fl, _, ok := parseFenceOpener(line); ok {
-				end := findFenceClose(s, i+lineLen, fc, fl)
-				spans = append(spans, bracketSpan{start: i, end: end, kind: spanFence})
+			if fc, fl, _, ok := parseFenceOpener(s[i:]); ok {
+				bodyStart := nextLineStart(s, i, len(s))
+				end := findFenceClose(s, bodyStart, fc, fl)
+				spans = appendFenceSpans(spans, s, i, bodyStart, end)
 				i = end
 				atLineStart = (end > 0 && end <= len(s) && s[end-1] == '\n')
 				continue
@@ -1107,9 +1162,10 @@ func findBracketSpans(s string) []bracketSpan {
 
 		c := s[i]
 		if c == '\\' && i+1 < len(s) {
-			// Escaped byte — consume both
+			// Escaped byte — consume both. A backslash before a newline
+			// is a hard line break, so the next line still starts a line.
+			atLineStart = s[i+1] == '\n'
 			i += 2
-			atLineStart = false
 			continue
 		}
 		if c == '\n' {
@@ -1142,7 +1198,7 @@ func findBracketSpans(s string) []bracketSpan {
 			if textEnd+1 < len(s) && s[textEnd+1] == '(' && c != '!' || // [text](url) — link
 				textEnd+1 < len(s) && s[textEnd+1] == '(' && c == '!' { // ![alt](src) — image
 				end, urlStart, urlEnd, ok := scanLinkURL(s, textEnd+2, &scanBudget)
-				if ok {
+				if ok && fenceLines.after(start) >= end {
 					spans = append(spans, bracketSpan{start: start, end: end, urlStart: urlStart, urlEnd: urlEnd, kind: spanLink})
 					i = end
 					atLineStart = false
@@ -1151,7 +1207,12 @@ func findBracketSpans(s string) []bracketSpan {
 			}
 			// LRD candidate: [label]: url …  (only when `!` not prefixing AND only if line starts at line-start position)
 			if c == '[' && atLineStartAt(s, start) {
-				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget); ok {
+				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget); ok && fenceLines.after(start) >= end {
+					// Delete the definition's indent with it: left behind,
+					// it would indent the line after the definition.
+					for start > 0 && s[start-1] == ' ' {
+						start--
+					}
 					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLRD})
 					i = end
 					atLineStart = (end > 0 && s[end-1] == '\n')
@@ -1392,6 +1453,11 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	}
 	if i < len(s) && s[i] == '\n' {
 		i++
+		// A destination line that opens a block (a fence, a list item…)
+		// ends the paragraph first, so goldmark sees no definition here.
+		if isBlockInterrupt(s, i) {
+			return 0, false
+		}
 		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
 			i++
 		}
@@ -1650,6 +1716,88 @@ func rewriteWithSpans(s string, spans []bracketSpan) string {
 		i++
 	}
 	return b.String()
+}
+
+// nextLineStart returns the index just past the next newline in
+// s[i:end], or end.
+func nextLineStart(s string, i, end int) int {
+	if nl := strings.IndexByte(s[i:end], '\n'); nl >= 0 {
+		return i + nl + 1
+	}
+	return end
+}
+
+// fenceLineFinder finds fence-shaped lines for a caller that asks about
+// non-decreasing positions, like nextClose does for `]`: each line is
+// parsed at most once.
+type fenceLineFinder struct {
+	s    string
+	next int // first fence-shaped line start after the last position asked; 0 before the first ask
+}
+
+// after returns the start of the first fence-shaped line that starts
+// after p, or len(s).
+func (f *fenceLineFinder) after(p int) int {
+	if f.next > p {
+		return f.next
+	}
+	for ls := nextLineStart(f.s, p, len(f.s)); ls < len(f.s); ls = nextLineStart(f.s, ls, len(f.s)) {
+		if _, _, _, ok := parseFenceOpener(f.s[ls:]); ok {
+			f.next = ls
+			return ls
+		}
+	}
+	f.next = len(f.s)
+	return f.next
+}
+
+// appendFenceSpans adds the fence span [start, end) to spans, whose body
+// begins at bodyStart, leaving out the `[` that opens a line shaped like a
+// link reference definition so pass 2 escapes it. The fence tracker cannot
+// follow goldmark into every container, and a line it counts as code may
+// be read as list item text, where such a line would define a link for
+// the whole page, the realm's own labels included.
+//
+// A line qualifies when its content, past indentation and container
+// markers, starts with a `[` that opensLinkLabel accepts.
+func appendFenceSpans(spans []bracketSpan, s string, start, bodyStart, end int) []bracketSpan {
+	from := start
+	if strings.IndexByte(s[bodyStart:end], '[') >= 0 {
+		for ls := bodyStart; ls < end; ls = nextLineStart(s, ls, end) {
+			pos, _ := parseContainerPrefix(s[ls:end])
+			if q := ls + pos; q < end && s[q] == '[' && opensLinkLabel(s, q, end) {
+				spans = append(spans, bracketSpan{start: from, end: q, kind: spanFence})
+				from = q + 1
+			}
+		}
+	}
+	return append(spans, bracketSpan{start: from, end: end, kind: spanFence})
+}
+
+// opensLinkLabel reports whether the `[` at s[q] is closed by an unescaped
+// `]` followed by `:` before end, another `[`, or a blank line. An escaped
+// `\[` stops the scan too, as this pass may have escaped it: a scan that
+// stopped at `[` must stop at `\[`, or a second pass escapes more. Each
+// scan stops where the next candidate's `[` starts, so the work is linear.
+func opensLinkLabel(s string, q, end int) bool {
+	for j := q + 1; j < end; j++ {
+		switch s[j] {
+		case '\\':
+			if j+1 < end && s[j+1] == '[' {
+				return false
+			}
+			j++
+		case '[':
+			return false
+		case ']':
+			return j+1 < len(s) && s[j+1] == ':'
+		case '\n':
+			if j+1 < end && s[j+1] == '\n' {
+				return false
+			}
+		}
+	}
+	return false
 }
 
 // escapeBracketsOutsideLinks runs pass 1 + pass 2 over the input.

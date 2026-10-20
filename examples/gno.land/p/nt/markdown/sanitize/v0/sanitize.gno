@@ -385,23 +385,27 @@ func InlineText(s string) string {
 //	  --- escaped / stripped / folded ---                 |
 //	# heading at line-start                               | escaped → literal `# heading`
 //	> quoted at line-start                                | escaped → literal `>`
-//	- item, * item, + item, 1. item at line-start         | escaped
+//	- item, * item, + item, 1. item at line-start         | escaped (empty items too)
 //	---, ***, ___ (3+) at line-start                      | escaped
 //	=== or --- on its own line after non-blank text       | escaped (no setext promotion of the line above)
 //	<gno-card>, <gno-columns>, any <gno-…>/</gno-…> at    | escaped (wildcard match) → literal text
-//	  block start (line-start, indented, or container)    |   (<gno-icon /> permitted in containers / inline)
+//	  block start (line-start, indented, or container),   |   (<gno-icon /> permitted in containers / inline)
+//	  fenced code included                                |
 //	<gno-button …/> anywhere, code included               | escaped (\<gno-button) → literal text
 //	| a | b | GFM table row (line-leading `|`)            | escaped → literal `| a | b |`
 //	<!--, <script>, <pre>, <style>, <textarea>, <?…?>,    | escaped (\<…) → literal text;
 //	  <!DOCTYPE…>, <![CDATA[…]]> at line-start            |   blocks goldmark from opening a
 //	  (CM §4.6 HTML block types 1-5)                      |   blank-line-NON-terminating HTML block
+//	<div>, <span>, any tag at line-start with a fence     | escaped (\<…) → literal text; the HTML block
+//	  line before the next blank line                     |   would hide the fence from goldmark
 //	[text][realm-label] ref-link USE                      | both bracket pairs escaped → \[text\]\[realm-label\]
 //	[^name] footnote-ref                                  | both brackets escaped → \[^name\]
 //	[label] bare shortcut-ref                             | both brackets escaped → \[label\]
 //	[label]: url link-reference definition                | whole region stripped (incl. multi-line label
 //	  (incl. [lab\nel]: url multi-line)                   |   `[lab\nel]: url` and any title continuation)
 //	[label\]: url (backslash-escaped `]`)                 | NOT stripped; brackets escaped → paragraph text
-//	code fence opened without close                       | autoclosed at end of input
+//	[label]: url inside fenced code                       | `[` escaped → \[label]: url
+//	code fence opened without close                       | autoclosed at end of input, at its opener's column
 //	NUL byte (\x00)                                       | replaced with U+FFFD
 //	U+2028 / U+2029 / U+0085 (NEL)                        | folded to `\n`
 //	bidi/zero-width controls                              | stripped
@@ -556,16 +560,23 @@ func Block(s string) string {
 //	----------------------------------------------|--------------------------------------------------
 //	  --- escaped / stripped / folded ---         |
 //	<gno-card>, any <gno-…>/</gno-…> at block start| escaped (wildcard match) [SAME]
+//	  (fenced code included)                      |
 //	<gno-button …/> anywhere, code included       | escaped (\<gno-button) [SAME]
 //	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — Types 1-5 don't close
 //	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   on blank lines, so `\n\n` envelope
 //	  at line-start (CM §4.6 HTML block types 1-5)|   doesn't isolate them; explicit escape
+//	any tag at line-start with a fence line       | escaped (\<…) [SAME]
+//	  before the next blank line                  |
 //	[text][realm-label] ref-link USE              | both pairs escaped [SAME]
 //	[^name] footnote-ref                          | both brackets escaped [SAME]
 //	[label] bare shortcut-ref                     | both brackets escaped [SAME]
 //	[label]: url link-reference definition        | whole region stripped [SAME]
 //	[label\]: url (escaped `]`)                   | not stripped; brackets escaped [SAME]
-//	code fence opened without close               | autoclosed at end of input [SAME]
+//	[label]: url inside fenced code               | `[` escaped [SAME]
+//	code fence opened without close               | autoclosed at end of input, at its opener's
+//	                                              |   column [SAME]
+//	line indented less than an open fence's       | closer written before it, at the opener's
+//	  opener (the fence may sit in a list item)   |   column [CHANGED]
 //	NUL byte (\x00)                               | replaced with U+FFFD [SAME]
 //	U+2028 / U+2029 / U+0085 (NEL)                | folded to `\n` [SAME]
 //	bidi/zero-width controls                      | stripped [SAME]
@@ -897,6 +908,7 @@ func Blockquote(text string) string {
 //	----------------------------------------------|------------------------------------------------
 //	  --- escaped / stripped / folded ---         |
 //	<gno-card>, any <gno-…>/</gno-…> at block start| escaped (wildcard match) [SAME]
+//	  (fenced code included)                      |
 //	<gno-button …/> anywhere, code included       | escaped (\<gno-button) [SAME]
 //	<!--, <script>, <pre>, <style>, <textarea>,   | escaped (\<…) [SAME] — CM §4.6 Types 1-5
 //	  <?…?>, <!DOCTYPE…>, <![CDATA[…]]>           |   don't close on blank lines; without escape
@@ -905,7 +917,11 @@ func Blockquote(text string) string {
 //	[^name] footnote-ref                          | both brackets escaped [SAME]
 //	[label] bare shortcut-ref                     | both brackets escaped [SAME]
 //	[label]: url link-reference definition        | whole region stripped [SAME]
-//	code fence opened without close               | autoclosed at end of input [SAME]
+//	[label]: url inside fenced code               | `[` escaped [SAME]
+//	code fence opened without close               | autoclosed at end of input, at its opener's
+//	                                              |   column [SAME]
+//	line indented less than an open fence's       | closer written before it, at the opener's
+//	  opener (the fence may sit in a list item)   |   column [CHANGED]
 //	NUL byte (\x00)                               | replaced with U+FFFD [SAME]
 //	U+2028 / U+2029 / U+0085 (NEL)                | folded to `\n` [SAME]
 //	bidi/zero-width controls                      | stripped [SAME]

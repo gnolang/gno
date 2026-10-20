@@ -256,12 +256,38 @@ func TestEscapeBlockHazards(t *testing.T) {
 		{"inline-code-with-tag", "Use `<gno-columns>` for layout\n", "Use `<gno-columns>` for layout\n"},
 		{"email-like-text", "contact <gno-support@gno.land> today\n", "contact <gno-support@gno.land> today\n"},
 		{"angle-bracket-link-dest", "[home](<gno-a b>)\n", "[home](<gno-a b>)\n"},
-		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "\\- a\n  ```\n<gno-form path=\"x\">\n```\n"},
-		{"fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", "\\- a\n\n  ```\n<gno-form path=\"x\">\n```\n"},
-		{"fence-dedented-line-stays-fenced", "- a\n  ```\n[home]: https://evil.example\n```\n", "\\- a\n  ```\n[home]: https://evil.example\n```\n"},
+		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "\\- a\n  ```\n\\<gno-form path=\"x\">\n```\n"},
+		{"fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", "\\- a\n\n  ```\n\\<gno-form path=\"x\">\n```\n"},
+		{"fence-dedented-line-stays-fenced", "- a\n  ```\n[home]: https://evil.example\n```\n", "\\- a\n  ```\n\\[home]: https://evil.example\n```\n"},
 		{"fence-autoclose-at-opener-indent", " ```\nfoo\n", " ```\nfoo\n ```\n"},
 		{"fence-walker-4-space-indent-not-fence", "    ```\n[home]: https://evil.example\n", "    ```\n"},
 		{"fence-walker-tab-indent-not-fence", "\t```\n[home]: https://evil.example\n", "\t```\n"},
+		// A definition is deleted with its indent, and never across a line
+		// that opens a block: either would reshape the lines after it.
+		{"lrd-destination-line-opens-fence", "- x\n[foo]:\n  ```\n<gno-form path=\"x\">\n", "\\- x\n\\[foo\\]:\n  ```\n\\<gno-form path=\"x\">\n  ```\n"},
+		{"lrd-indent-deleted", "- x\n  [foo]: /u\n```\n<gno-form path=\"x\">\n```\n", "\\- x\n```\n\\<gno-form path=\"x\">\n```\n"},
+		{"lrd-indent-deleted-before-fence", " [x]: u\n   ```\n[home]: https://evil.example\n", "   ```\n\\[home]: https://evil.example\n   ```\n"},
+		{"link-label-across-fence", "[a\n```\n]: /u\n", "\\[a\n```\n]: /u\n```\n"},
+		{"link-text-across-fence", "[a\n```\n](u)\n", "\\[a\n```\n](u)\n```\n"},
+		{"link-across-fence-then-lrd", "[a\n```\n](u)\n```\n[home]: https://evil.example\n", "\\[a\n```\n](u)\n```\n"},
+		{"link-text-across-line-kept", "[a\nb](u)\n", "[a\nb](u)\n"},
+		// Empty list items are list items too.
+		{"empty-bullet-item", "-\n  ```\n<gno-form path=\"x\">\n```\n", "\\-\n  ```\n\\<gno-form path=\"x\">\n```\n"},
+		{"empty-star-item", "*\n", "\\*\n"},
+		{"empty-ordered-item", "1.\n", "1\\.\n"},
+		// The fence tracker can count a line as code that goldmark reads
+		// at block start, so tags and definitions are escaped in code too.
+		{"fence-on-list-marker-line", "- ```\n  ```\n  <gno-form path=\"x\">\n", "\\- ```\n  ```\n  \\<gno-form path=\"x\">\n  ```\n"},
+		{"fenced-lrd-escaped", "- a\n    ```\n  ```\n  [home]: https://evil.example\n", "\\- a\n    ```\n  ```\n  \\[home]: https://evil.example\n  ```\n"},
+		{"fenced-multiline-label-escaped", "```\n[ho\n[home]: https://evil.example\n```\n", "```\n[ho\n\\[home]: https://evil.example\n```\n"},
+		{"fenced-toml-section-kept", "```\n[package]\nname = \"x\"\n```\n", "```\n[package]\nname = \"x\"\n```\n"},
+		// An HTML block hides a fence line from goldmark; its opener is
+		// escaped only when a fence line follows before a blank line.
+		{"html-block-over-fence", "<div>\n```\n\n<gno-form path=\"x\">\n", "\\<div>\n```\n\n\\<gno-form path=\"x\">\n```\n"},
+		{"html-block-without-fence", "<div>\nhello\n", "<div>\nhello\n"},
+		// A backslash before a newline is a hard break: the walker still
+		// reads the next line as a line start.
+		{"hard-break-before-fence", "a\\\n```\nx\n```\n[home]: https://evil.example\n", "a\\\n```\nx\n```\n"},
 		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n~~~\n\\<gno-columns>\n"},
 		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\nx\n```\n\\<gno-columns>\n"},
 		{"gfm-table-row", "| a | b |\n", "\\| a | b |\n"},
@@ -386,7 +412,7 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"fence-in-list-lrd-stripped", "- a\n  ```\n[home]: https://evil.example\n```\n", "- a\n  ```\n  ```\n```\n```\n"},
 		// The walker deletes the first definition; the fence must still end
 		// where it ended before the deletion, so the second stays code.
-		{"fence-in-list-lrd-then-closer", "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n", "- a\n  ```\n  ```\n```\n[home]: https://evil.example\n```\n"},
+		{"fence-in-list-lrd-then-closer", "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n", "- a\n  ```\n  ```\n```\n\\[home]: https://evil.example\n```\n"},
 		// Lines shaped like list markers that goldmark does not open a list
 		// for: the fence is document-level, so only a written closer ends it.
 		{"fence-after-thematic-break", "para\n* * *\n  ```\n  x\ntext\n", "para\n* * *\n  ```\n  x\n  ```\ntext\n"},
@@ -394,9 +420,15 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"fence-in-list-content-kept", "- step\n\n  ```sh\n  make\n  ```\n", "- step\n\n  ```sh\n  make\n  ```\n"},
 		{"fence-walker-4-space-indent-not-fence", "    ```\n[home]: https://evil.example\n", "    ```\n"},
 		{"fence-walker-tab-indent-not-fence", "\t```\n[home]: https://evil.example\n", "\t```\n"},
+		{"lrd-destination-line-opens-fence", "- x\n[foo]:\n  ```\n<gno-form path=\"x\">\n", "- x\n\\[foo\\]:\n  ```\n  ```\n\\<gno-form path=\"x\">\n"},
+		{"lrd-indent-deleted", "- x\n  [foo]: /u\n```\n<gno-form path=\"x\">\n```\n", "- x\n```\n\\<gno-form path=\"x\">\n```\n"},
+		{"fence-on-list-marker-line", "- ```\n  ```\n  <gno-form path=\"x\">\n", "- ```\n  ```\n  \\<gno-form path=\"x\">\n  ```\n"},
+		{"link-text-across-fence", "[a\n```\n](u)\n", "\\[a\n```\n](u)\n```\n"},
+		{"fenced-lrd-escaped", "- a\n    ```\n  ```\n  [home]: https://evil.example\n", "- a\n    ```\n  ```\n  \\[home]: https://evil.example\n  ```\n"},
+		{"html-block-over-fence", "<div>\n```\n\n<gno-form path=\"x\">\n", "\\<div>\n```\n\n\\<gno-form path=\"x\">\n```\n"},
 		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n ~~~\n\\<gno-columns>\n"},
-		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\n ```\nx\n```\n<gno-columns>\n```\n"},
-		{"repro-fence-indented-columns", "- item\n\n  ```\n    <gno-columns>\n  ```\n", "- item\n\n  ```\n    <gno-columns>\n  ```\n"},
+		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\n ```\nx\n```\n\\<gno-columns>\n```\n"},
+		{"repro-fence-indented-columns", "- item\n\n  ```\n    <gno-columns>\n  ```\n", "- item\n\n  ```\n    \\<gno-columns>\n  ```\n"},
 		{"ext-delimiter-indented-button", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
 		{"gno-button-in-blockquote", "> <gno-button />\n", "> \\<gno-button />\n"},
 		{"gno-button-in-list", "- <gno-button />\n", "- \\<gno-button />\n"},
@@ -469,6 +501,10 @@ func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 	// One line of indentation: the walker's fence check must run once
 	// per line, not once per leading space.
 	indent := strings.Repeat(" ", 1<<16) + "x"
+	// Nested definition candidates whose labels share filler lines before
+	// a fence line: each fence-shaped line must be parsed once, not once
+	// per rejected candidate.
+	nested := strings.Repeat("[\n", 20) + strings.Repeat("\\\n", 5000) + "```\n" + strings.Repeat("]:\n", 20) + "u"
 	cases := []struct {
 		name string
 		in   string
@@ -477,6 +513,7 @@ func BenchmarkEscapeBlockHazardsPathological(b *testing.B) {
 		{"unclosed-x1000", unclosed},
 		{"multiline-lrd-label", mlLRD},
 		{"indent-run-64k", indent},
+		{"nested-lrd-candidates", nested},
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {
@@ -504,6 +541,8 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 	mlLRD := "[" + strings.Repeat("lab\nel", 500) + "]: url\n"
 	parenTitle := strings.Repeat("[a]: u\n(x\n", 100) // calibration shape
 	indent := strings.Repeat(" ", 1<<16) + "x"
+	nested := strings.Repeat("[\n", 20) + strings.Repeat("\\\n", 5000) + "```\n" + strings.Repeat("]:\n", 20) + "u"
+	dedent := strings.Repeat("  ```\nx\n", 1000) // a closer inserted per fence
 	cases := []struct {
 		name string
 		in   string
@@ -513,6 +552,8 @@ func BenchmarkEscapeBlockHazardsRichPathological(b *testing.B) {
 		{"multiline-lrd-label", mlLRD},
 		{"paren-title-x100", parenTitle},
 		{"indent-run-64k", indent},
+		{"nested-lrd-candidates", nested},
+		{"dedent-fences-x1000", dedent},
 	}
 	for _, c := range cases {
 		b.Run(c.name, func(b *testing.B) {

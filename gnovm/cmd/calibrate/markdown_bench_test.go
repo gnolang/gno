@@ -311,14 +311,15 @@ func BenchmarkNative_Markdown_EscapeBlockHazards_100000(b *testing.B) {
 }
 
 // ----- EscapeBlockHazardsRich -----
-// Same worst-case shape as EscapeBlockHazards (the bracket walker /
-// LRD scan is the per-byte hotspot in both variants). Rich mode skips
-// two per-line checks (line-leader, setext); slope should be slightly
-// lower than the strict variant's, but the gap is dominated by the
-// shared bracket-walker work.
+// Worst case: "  ```\nx\n" repeated. Rich mode closes a fence before
+// the first line indented less than its opener, so every pair of lines
+// gains a closer that the bracket walker and the line loop then walk
+// too. Since #6304 this and nested definition candidates (see
+// BenchmarkEscapeBlockHazardsRichPathological) are the slowest Rich
+// shapes, a little above the strict variant's `[a]: u\n(x\n`.
 func benchMarkdownEscapeBlockHazardsRich(b *testing.B, n int) {
 	b.Helper()
-	s := fillWorstCase(n, "[a]: u\n(x\n")
+	s := fillWorstCase(n, "  ```\nx\n")
 	m := newDispatchMachine(1)
 	setBlockValueFromGo(m, 0, s)
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/markdown", "EscapeBlockHazardsRich"), nReturns: 1}

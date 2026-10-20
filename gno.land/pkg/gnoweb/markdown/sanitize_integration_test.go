@@ -571,34 +571,40 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 		chromeFooter = "\n\n---\n**Trusted Realm Footer** [home]\n\n[home]: https://realm.example/home\n"
 	)
 
-	var (
-		noColumns = []string{"class=\"gno-columns\""}
-		noForm    = []string{"class=\"gno-form\""}
-		noRebind  = []string{"href=\"https://evil.example"}
-	)
-	reproCases := []struct {
-		name        string
-		input       string
-		mustNotHTML []string // substrings that must NOT appear in rendered HTML
-	}{
-		{name: "repro-bypass-fence-tilde", input: " ~~~\n~~~\n<gno-columns>", mustNotHTML: noColumns},
-		{name: "repro-bypass-fence-backtick", input: " ```\nx\n```\n<gno-columns>", mustNotHTML: noColumns},
-		{name: "repro-fence-in-list-form", input: "- a\n  ```\n<gno-form path=\"x\">\n```\n", mustNotHTML: noForm},
-		{name: "repro-fence-in-list-blank-line", input: "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", mustNotHTML: noForm},
-		{name: "repro-fence-in-list-lazy-continuation", input: "- a\nb\n  ```\n<gno-columns>\n```\n", mustNotHTML: noColumns},
-		{name: "repro-fence-in-list-dedented-closer", input: "- a\n  ```\n```\n<gno-columns>\n", mustNotHTML: noColumns},
-		{name: "repro-fence-in-list-unclosed", input: "- a\n  ```\n  code\n"},
-		{name: "repro-fence-after-thematic-break", input: "para\n* * *\n  ```\n  x\ntext\n"},
-		{name: "repro-fence-after-ordered-marker", input: "para\n2. item\n   ```\n   x\n<gno-columns>\n", mustNotHTML: noColumns},
-		{name: "repro-fence-in-list-lrd", input: "- a\n  ```\n[home]: https://evil.example\n```\n", mustNotHTML: noRebind},
-		{name: "repro-fence-in-list-lrd-then-closer", input: "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n", mustNotHTML: noRebind},
-		{name: "repro-indented-code-lrd", input: "    ```\n[home]: https://evil.example\n", mustNotHTML: noRebind},
-		{name: "repro-tab-indented-code-lrd", input: "\t```\n[home]: https://evil.example\n", mustNotHTML: noRebind},
-		{name: "repro-unclosed-fence-indented", input: " ```\nx\n"},
-		{name: "bracket-fence-idempotency", input: "[\n ~~~](<\n>)"},
+	// A live structural extension, or a link bound to the attacker's URL.
+	liveExtension := regexp.MustCompile(`class="gno-(?:form|columns|column|frame|foreign)"`)
+	const rebound = `href="https://evil.example`
+
+	reproCases := []struct{ name, input string }{
+		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>"},
+		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>"},
+		{"repro-fence-in-list-form", "- a\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-fence-in-list-lazy-continuation", "- a\nb\n  ```\n<gno-columns>\n```\n"},
+		{"repro-fence-in-list-dedented-closer", "- a\n  ```\n```\n<gno-columns>\n"},
+		{"repro-fence-in-list-unclosed", "- a\n  ```\n  code\n"},
+		{"repro-fence-after-thematic-break", "para\n* * *\n  ```\n  x\ntext\n"},
+		{"repro-fence-after-ordered-marker", "para\n2. item\n   ```\n   x\n<gno-columns>\n"},
+		{"repro-fence-in-list-lrd", "- a\n  ```\n[home]: https://evil.example\n```\n"},
+		{"repro-fence-in-list-lrd-then-closer", "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n"},
+		{"repro-indented-code-lrd", "    ```\n[home]: https://evil.example\n"},
+		{"repro-tab-indented-code-lrd", "\t```\n[home]: https://evil.example\n"},
+		{"repro-unclosed-fence-indented", " ```\nx\n"},
+		{"bracket-fence-idempotency", "[\n ~~~](<\n>)"},
+		{"repro-lrd-destination-line-opens-fence", "- x\n[foo]:\n  ```\n<gno-form path=\"x\">\n"},
+		{"repro-lrd-indent-joins-next", "- x\n  [foo]: /u\n```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-lrd-indent-before-fence", " [x]: u\n   ```\n[home]: https://evil.example\n"},
+		{"repro-empty-list-item", "-\n  ```\n<gno-form path=\"x\">\n```\n"},
+		{"repro-empty-list-item-lrd", "*\n  ```\n[home]: https://evil.example\n```\n"},
+		{"repro-fence-on-list-marker-line", "- ```\n  ```\n  <gno-form path=\"x\">\n"},
+		{"repro-closer-at-5-spaces", "- a\n  ```\n     ```\n  <gno-form path=\"x\">\n"},
+		{"repro-opener-at-4-spaces-lrd", "- a\n    ```\n  ```\n  [home]: https://evil.example\n"},
+		{"repro-html-block-hides-fence", "<div>\n```\n\n<gno-form path=\"x\">\n"},
+		{"repro-hard-break-before-fence", "a\\\n```\nx\n```\n[home]: https://evil.example\n"},
+		{"repro-tab-after-quote-prefix", "1. a\n   ```\n\t<gno-form path=\"x\">\n"},
 	}
 
-	for _, helper := range []string{"Block", "BlockRich"} {
+	for _, helper := range []string{"Block", "BlockRich", "Blockquote", "BlockquoteRich"} {
 		sc := sanitizeCase{Func: helper}
 		t.Run(helper, func(t *testing.T) {
 			for _, rc := range reproCases {
@@ -607,11 +613,12 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 					composed := chromePrefix + sanitized + chromeFooter
 					html := renderMarkdown(t, composed)
 
-					for _, forbidden := range rc.mustNotHTML {
-						require.NotContains(t, html, forbidden,
-							"helper %s let input %q through\nrendered: %s",
-							helper, rc.input, html)
-					}
+					require.False(t, liveExtension.MatchString(html),
+						"helper %s let input %q open an extension\nrendered: %s",
+						helper, rc.input, html)
+					require.NotContains(t, html, rebound,
+						"helper %s let input %q rebind [home]\nrendered: %s",
+						helper, rc.input, html)
 
 					// The footer must render as markdown: inside a code
 					// block its text would still be there, unbolded.
@@ -619,10 +626,13 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 						"trusted footer was swallowed or corrupted by helper %s with input %q\nrendered: %s",
 						helper, rc.input, html)
 
-					// Verify idempotency
-					twice := applySanitize(t, sc, sanitized)
-					require.Equal(t, sanitized, twice,
-						"helper %s was not idempotent on input %q", helper, rc.input)
+					// The quote helpers nest a second `> ` on a second
+					// pass by design; the others must be idempotent.
+					if helper == "Block" || helper == "BlockRich" {
+						twice := applySanitize(t, sc, sanitized)
+						require.Equal(t, sanitized, twice,
+							"helper %s was not idempotent on input %q", helper, rc.input)
+					}
 				})
 			}
 		})
@@ -654,6 +664,7 @@ func TestExtensionAndFooterIsolation(t *testing.T) {
 	})
 }
 
+// SANITIZE.md's threat-surface table carries a per-helper fixture count. Hand
 // maintenance let it drift badly — it claimed 103 fixtures against 186 on
 // disk, documented a `Link` helper that no longer exists, and had no row at
 // all for BlockRich (30 fixtures) or BlockquoteRich (1). A stale count reads
