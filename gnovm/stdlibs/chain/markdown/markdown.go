@@ -292,10 +292,12 @@ func inBitmap(c byte, lo, hi uint64) bool {
 
 // ---------- CodeFence ----------
 
+// maxCodeFenceMinCount bounds the fence minCount alone can ask for: the fence
+// is built in Go before gas or the VM allocation limit sees its length.
+const maxCodeFenceMinCount = 1024
+
 func CodeFence(content string, minCount int) string {
-	if minCount < 1 {
-		minCount = 1
-	}
+	minCount = min(max(minCount, 1), maxCodeFenceMinCount)
 	longest, cur := 0, 0
 	for i := 0; i < len(content); i++ {
 		if content[i] == '`' {
