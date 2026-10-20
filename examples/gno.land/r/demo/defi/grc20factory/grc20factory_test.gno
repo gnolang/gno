@@ -15,21 +15,21 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 
 	type test struct {
 		name    string
-		balance int64
-		fn      func() int64
+		balance uint256
+		fn      func() uint256
 	}
 
-	checkBalances := func(step string, totSup, balAdm, balBob, allowAdmBob, balCarl int64) {
+	checkBalances := func(step string, totSup, balAdm, balBob, allowAdmBob, balCarl uint256) {
 		tests := []test{
-			{"TotalSupply", totSup, func() int64 { return TotalSupply("FOO") }},
-			{"BalanceOf(admin)", balAdm, func() int64 { return BalanceOf("FOO", admin) }},
-			{"BalanceOf(bob)", balBob, func() int64 { return BalanceOf("FOO", bob) }},
-			{"Allowance(admin, bob)", allowAdmBob, func() int64 { return Allowance("FOO", admin, bob) }},
-			{"BalanceOf(carl)", balCarl, func() int64 { return BalanceOf("FOO", carl) }},
+			{"TotalSupply", totSup, func() uint256 { return TotalSupply("FOO") }},
+			{"BalanceOf(admin)", balAdm, func() uint256 { return BalanceOf("FOO", admin) }},
+			{"BalanceOf(bob)", balBob, func() uint256 { return BalanceOf("FOO", bob) }},
+			{"Allowance(admin, bob)", allowAdmBob, func() uint256 { return Allowance("FOO", admin, bob) }},
+			{"BalanceOf(carl)", balCarl, func() uint256 { return BalanceOf("FOO", carl) }},
 		}
 		for _, tc := range tests {
 			reason := ufmt.Sprintf("%s.%s - %s", step, tc.name, "balances do not match")
-			uassert.Equal(t, tc.balance, tc.fn(), reason)
+			uassert.True(t, tc.balance == tc.fn(), reason)
 		}
 	}
 
@@ -64,4 +64,24 @@ func TestReadOnlyPublicMethods(cur realm, t *testing.T) {
 	testing.SetOriginCaller(bob)
 	TransferFrom(cross(cur), "FOO", admin, carl, 600_000)
 	checkBalances("step6", 1_444_449_555, 1_110_111_000, 333_333_000, 0, 1_005_555)
+}
+
+func TestAbove2Pow63(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("admin_big")
+	bob := testutils.TestAddress("bob_big")
+	big := uint256(1) << 64
+
+	testing.SetOriginCaller(admin)
+	NewWithAdmin(cross(cur), "Big", "BIG", 18, big, big, admin)
+	uassert.True(t, TotalSupply("BIG") == big)
+
+	testing.SetOriginCaller(bob)
+	Faucet(cross(cur), "BIG")
+	uassert.True(t, BalanceOf("BIG", bob) == big)
+	uassert.True(t, TotalSupply("BIG") == 2*big)
+
+	testing.SetOriginCaller(bob)
+	Transfer(cross(cur), "BIG", admin, big)
+	uassert.True(t, BalanceOf("BIG", admin) == 2*big)
+	uassert.Equal(t, "**"+admin.String()+"** balance: 36893488147419103232\n\n", Render("BIG/balance/"+admin.String()))
 }

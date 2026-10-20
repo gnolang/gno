@@ -32,18 +32,19 @@ func splitString(input string) (string, string) {
 	return input[:pos], input[pos:]
 }
 
-func parseTokens(tokens string) ([]int64, []string, error) {
-	var amounts []int64
+// parseTokens parses "<amount><symbol>,..." where amount is a decimal uint256.
+func parseTokens(tokens string) ([]uint256, []string, error) {
+	var amounts []uint256
 	var symbols []string
 
 	for _, token := range strings.Split(tokens, ",") {
 		amountStr, symbol := splitString(token)
-		amount, _ := strconv.Atoi(amountStr)
-		if amount < 0 {
-			return nil, nil, ErrNegativeCoinAmount
+		amount, err := strconv.ParseUint256(amountStr, 10)
+		if err != nil {
+			return nil, nil, ErrInvalidAmount
 		}
 
-		amounts = append(amounts, int64(amount))
+		amounts = append(amounts, amount)
 		symbols = append(symbols, symbol)
 	}
 

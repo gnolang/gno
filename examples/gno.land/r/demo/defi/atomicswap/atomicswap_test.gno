@@ -152,11 +152,11 @@ func TestNewCustomGRC20Swap_Claim(cur realm, t *testing.T) {
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
 	bal := test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, int64(30_000))
+	uassert.True(t, bal == 30_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, int64(70_000))
+	uassert.True(t, bal == 70_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 
 	uassert.Equal(t, hashlockHex, swap.hashlock, "expected hashlock to match")
 	uassert.True(t, swap.timelock.Equal(timelock), "expected timelock to match")
@@ -170,11 +170,11 @@ func TestNewCustomGRC20Swap_Claim(cur realm, t *testing.T) {
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	bal = test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, int64(30_000))
+	uassert.True(t, bal == 30_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, int64(70_000))
+	uassert.True(t, bal == 70_000, "unexpected balance")
 
 	// Test refund (should fail because already claimed)
 	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Refund(cross(cur), id) })
@@ -225,11 +225,11 @@ func TestNewCustomGRC20Swap_Refund(cur realm, t *testing.T) {
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
 	bal := test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, int64(30_000))
+	uassert.True(t, bal == 30_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, int64(70_000))
+	uassert.True(t, bal == 70_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 
 	// Test Refund — sender is still the current realm.
 	testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
@@ -240,11 +240,11 @@ func TestNewCustomGRC20Swap_Refund(cur realm, t *testing.T) {
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
 	bal = test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, int64(100_000))
+	uassert.True(t, bal == 100_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 
 	expected = `- status: refunded
 - sender: g1wdjkuer9wg647h6lta047h6lta047h6l5p6k3k
@@ -290,11 +290,11 @@ func TestNewGRC20Swap_Claim(cur realm, t *testing.T) {
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
 	bal := test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, int64(30_000))
+	uassert.True(t, bal == 30_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, int64(70_000))
+	uassert.True(t, bal == 70_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 
 	uassert.Equal(t, hashlockHex, swap.hashlock, "expected hashlock to match")
 	uassert.True(t, swap.timelock.Equal(timelock), "expected timelock to match")
@@ -308,11 +308,11 @@ func TestNewGRC20Swap_Claim(cur realm, t *testing.T) {
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	bal = test20.Token.BalanceOf(sender)
-	uassert.Equal(t, int64(30_000), bal)
+	uassert.True(t, bal == 30_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, int64(0), bal)
+	uassert.True(t, bal == 0, "unexpected balance")
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, int64(70_000), bal)
+	uassert.True(t, bal == 70_000, "unexpected balance")
 
 	// Test refund (should fail because already claimed)
 	uassert.AbortsWithMessage(t, cur, "already claimed", func() { Refund(cross(cur), id) })
@@ -362,11 +362,11 @@ func TestNewGRC20Swap_Refund(cur realm, t *testing.T) {
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
 	bal := test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, int64(30_000))
+	uassert.True(t, bal == 30_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, int64(70_000))
+	uassert.True(t, bal == 70_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 
 	// Test Refund — sender is still the current realm.
 	testing.IssueCoins(pkgAddr, chain.Coins{{"ugnot", 100000000}})
@@ -377,11 +377,11 @@ func TestNewGRC20Swap_Refund(cur realm, t *testing.T) {
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
 	bal = test20.Token.BalanceOf(sender)
-	uassert.Equal(t, bal, int64(100_000))
+	uassert.True(t, bal == 100_000, "unexpected balance")
 	bal = test20.Token.BalanceOf(rlm)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 	bal = test20.Token.BalanceOf(recipient)
-	uassert.Equal(t, bal, int64(0))
+	uassert.True(t, bal == 0, "unexpected balance")
 
 	expected = `- status: refunded
 - sender: g1wdjkuer9wgm97h6lta047h6lta047h6ltj497r
@@ -425,6 +425,33 @@ func TestRender(cur realm, t *testing.T) {
 - 1: g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh -(10000TST)> g1vfhkyh6lta047h6lta047h6lta047h6l03vdhu - claimed
 `
 	uassert.Equal(t, expected, Render(""))
+}
+
+// TestGRC20SwapAbove2Pow63 locks and claims an amount no int64 token can hold.
+func TestGRC20SwapAbove2Pow63(cur realm, t *testing.T) {
+	defer resetTestState()
+
+	sender := testutils.TestAddress("sender_big")
+	recipient := testutils.TestAddress("recipient_big")
+	rlm := chain.PackageAddress("gno.land/r/demo/defi/atomicswap")
+	hashlock := sha256.Sum256([]byte("secret"))
+	hashlockHex := hex.EncodeToString(hashlock[:])
+	big := uint256(1)<<128 + 1
+
+	// Earlier tests can leave tokens locked in the swap realm.
+	held := test20.Token.BalanceOf(rlm)
+	test20.PrivateLedger.Mint(sender, big)
+	test20.PrivateLedger.Approve(sender, rlm, big)
+
+	testing.SetRealm(testing.NewUserRealm(sender))
+	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20.TST")
+	uassert.Equal(t, "340282366920938463463374607431768211457TST", swap.amountStr)
+	uassert.True(t, test20.Token.BalanceOf(rlm) == held+big, "swap holds the amount")
+
+	testing.SetRealm(testing.NewUserRealm(recipient))
+	Claim(cross(cur), id, "secret")
+	uassert.True(t, test20.Token.BalanceOf(recipient) == big, "recipient got the amount")
+	uassert.True(t, test20.Token.BalanceOf(rlm) == held, "swap released the amount")
 }
 
 func resetTestState() {

@@ -12,7 +12,7 @@ stdout OK!
 
 # check user's wugnot balance
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
-stdout '10000 int64'
+stdout '10000 uint256'
 
 # user withdraws 500 wugnot directly (origin call)
 gnokey maketx call -pkgpath gno.land/r/gnoland/wugnot -func Withdraw -args 500 -gas-fee 980001ugnot -gas-wanted 9_800_000 -chainid=tendermint_test test1
@@ -20,7 +20,7 @@ stdout OK!
 
 # check user's wugnot balance after withdraw
 gnokey query vm/qeval --data "gno.land/r/gnoland/wugnot.BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
-stdout '9500 int64'
+stdout '9500 uint256'
 
 # render
 gnokey query vm/qrender --data "gno.land/r/gnoland/wugnot:invalid"

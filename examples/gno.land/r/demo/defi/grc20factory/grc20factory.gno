@@ -1,16 +1,21 @@
+// Package grc20factory lets anyone create a GRC20 token. Tokens are built on
+// gno.land/p/nt/grc20/v1, so every amount is a uint256, and registered in
+// gno.land/r/nt/grc20reg/v1.
 package grc20factory
 
 import (
+	"strconv"
+
 	"gno.land/p/moul/md/v0"
 	p "gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/rotree/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/grc20/v0"
+	"gno.land/p/nt/grc20/v1"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ownable/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/r/nt/grc20reg/v0"
+	"gno.land/r/nt/grc20reg/v1"
 )
 
 var (
@@ -23,15 +28,15 @@ type instance struct {
 	token  *grc20.Token
 	ledger *grc20.PrivateLedger
 	admin  *ownable.Ownable
-	faucet int64 // per-request amount. disabled if 0.
+	faucet uint256 // per-request amount. disabled if 0.
 }
 
-func New(cur realm, name, symbol string, decimals int, initialMint, faucet int64) {
+func New(cur realm, name, symbol string, decimals int, initialMint, faucet uint256) {
 	caller := cur.Previous().Address()
 	NewWithAdmin(cur, name, symbol, decimals, initialMint, faucet, caller)
 }
 
-func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, faucet int64, admin address) {
+func NewWithAdmin(cur realm, name, symbol string, decimals int, initialMint, faucet uint256, admin address) {
 	exists := instances.Has(symbol)
 	if exists {
 		panic("token already exists")
@@ -58,7 +63,7 @@ func Bank(symbol string) *grc20.Token {
 	return inst.token
 }
 
-func TotalSupply(symbol string) int64 {
+func TotalSupply(symbol string) uint256 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().TotalSupply()
 }
@@ -68,31 +73,31 @@ func HasAddr(symbol string, owner address) bool {
 	return inst.token.HasAddr(owner)
 }
 
-func BalanceOf(symbol string, owner address) int64 {
+func BalanceOf(symbol string, owner address) uint256 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().BalanceOf(owner)
 }
 
-func Allowance(symbol string, owner, spender address) int64 {
+func Allowance(symbol string, owner, spender address) uint256 {
 	inst := mustGetInstance(symbol)
 	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }
 
-func Transfer(cur realm, symbol string, to address, amount int64) {
+func Transfer(cur realm, symbol string, to address, amount uint256) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Transfer(0, cur, to, amount))
 }
 
-func Approve(cur realm, symbol string, spender address, amount int64) {
+func Approve(cur realm, symbol string, spender address, amount uint256) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
 	checkErr(teller.Approve(0, cur, spender, amount))
 }
 
-func TransferFrom(cur realm, symbol string, from, to address, amount int64) {
+func TransferFrom(cur realm, symbol string, from, to address, amount uint256) {
 	inst := mustGetInstance(symbol)
 	caller := cur.Previous().Address()
 	teller := inst.ledger.ImpersonateTeller(caller)
@@ -111,13 +116,13 @@ func Faucet(cur realm, symbol string) {
 	checkErr(inst.ledger.Mint(caller, inst.faucet))
 }
 
-func Mint(cur realm, symbol string, to address, amount int64) {
+func Mint(cur realm, symbol string, to address, amount uint256) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedBy(cur.Previous().Address())
 	checkErr(inst.ledger.Mint(to, amount))
 }
 
-func Burn(cur realm, symbol string, from address, amount int64) {
+func Burn(cur realm, symbol string, from address, amount uint256) {
 	inst := mustGetInstance(symbol)
 	inst.admin.AssertOwnedBy(cur.Previous().Address())
 	checkErr(inst.ledger.Burn(from, amount))
@@ -203,7 +208,7 @@ func renderBalance(res *mux.ResponseWriter, req *mux.Request) {
 
 	// Render the balance information.
 	out := md.Paragraph(
-		ufmt.Sprintf("%s balance: %d", md.Bold(addr), balance),
+		md.Bold(addr) + " balance: " + strconv.FormatUint256(balance, 10),
 	)
 
 	res.Write(out)

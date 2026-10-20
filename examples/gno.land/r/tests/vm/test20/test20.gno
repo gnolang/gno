@@ -6,11 +6,14 @@
 //	WARNING: This token is highly insecure and should not be used in any
 //	 production environment. It is intended solely for testing and
 //	 educational purposes.
+//
+// It is built on gno.land/p/nt/grc20/v1 (uint256 amounts) and registered in
+// gno.land/r/nt/grc20reg/v1.
 package test20
 
 import (
-	"gno.land/p/nt/grc20/v0"
-	"gno.land/r/nt/grc20reg/v0"
+	"gno.land/p/nt/grc20/v1"
+	"gno.land/r/nt/grc20reg/v1"
 )
 
 var (
