@@ -3,7 +3,7 @@
 - **Status:** proposed. The protocol path works end to end on a local 3-validator gno.land testnet ⇄ Ethereum
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
   `feat/ibc-controls` (ebc55e5, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
-  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (82528e1,
+  the Ethereum side in gno-eth-ibc `feat/ibc-controls` (1b49d73,
   [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
   built; where the implementations depart from the design as reviewed, §8.5 lists each departure and each accepted
@@ -479,9 +479,11 @@ oversize governance envelope within the window and spends it (§5.4).
   kept, and the same packet can be relayed again; a starved **drain** stops without reverting, so what the delivery
   recorded stands (a kind 9 included) and the rest stays buffered for `drain()`. Each drain step — after a delivery
   or through `drain()` — first checks a reserve, `DRAIN_RESERVE = RECORD_FLOOR·64/63 + 100,000`, before its writes
-  and its parameter copy, and stops with its decision buffered below it (gno-eth-ibc 82528e1); the 100,000 margin
-  also covers `_close`'s worst-case parameter clear after a full-frame executor. The reserve and the recording
-  floor's own margin are each sufficient alone: defence in depth. `ExecutionStarved` is no longer
+  and its parameter copy, and stops with its decision buffered below it (gno-eth-ibc 82528e1). The two guards cover
+  different stages: `_record` writes the recording state and copies the stored parameters **before**
+  `IBCAdminNative.atRecording`'s floor check, so the reserve is what guards entry into each drain step, while the
+  recording floor's own 100,000 margin covers completion after the executor call (including `_close`'s worst-case
+  parameter clear after a full-frame executor); gno-eth-ibc 1b49d73's `docs/controls.md`). `ExecutionStarved` is no longer
   raised. (Before, a starved decision got an error ack, which a public relayer could front-run with too little gas
   to consume governance packets.) Refusable calls and self-steps at execution keep their fixed budgets and floors.
   `IBCAdmin` **orders recording, not delivery**:
@@ -2320,7 +2322,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | `MaxOpenRecaps` (unpaid recapitalizations per incident and denom) / `ReopenBatch` | 64 / 64 | constant |
 | controls page size (`PageLines`) | 100 | constant |
 | settlement items per decision | gno.land 64; Ethereum kind 12: 8 (6M inner `settleRecords` budget) | constant |
-| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`IBCAdminNative.atRecording`) runs in a fixed 1M frame behind its starvation floor — a starved delivered decision reverts empty (no receipt kept, relayable again), a starved drain stops without reverting, each drain step first requiring `DRAIN_RESERVE = RECORD_FLOOR·64/63 + 100,000` gas before its writes and parameter copy (82528e1) — a foreign executor code hash, an answer over 160 bytes (never copied) or one not equal to its canonical re-encoding halting the decision (left buffered, `lastSeq` restored, status 2; the frame reverted with `Halted()`, so the executor's own writes, events and calls are undone) and a revert spending it; the floor is `RECORD_GAS·64/63 + 100,000`; bad or unknown envelopes, cancels and tombstoned decisions are recorded inline in `IBCAdmin`, and kind 9's parameters are checked inside `IBCAdminNative.atRecording` without the executor | constant |
+| Ethereum execution frame per kind | kind 12: 7M; kind 7: 3.5M; kind 9 on `IBCAdmin`'s own path, needing at least 161,587 gas (`CallStarved` otherwise, left pending) with a 100,000-gas `bindings()` probe; kinds 6, 10, 13: 2.5M; others 1.5M; `execute` needs `frame·64/63 + 60,000` gas left; recording through the executor (`IBCAdminNative.atRecording`) runs in a fixed 1M frame behind its starvation floor — a starved delivered decision reverts empty (no receipt kept, relayable again), a starved drain stops without reverting, each drain step first requiring `DRAIN_RESERVE = RECORD_FLOOR·64/63 + 100,000` gas before its writes and parameter copy (82528e1), which guards entry into the step while the floor's margin covers completion after the executor call — a foreign executor code hash, an answer over 160 bytes (never copied) or one not equal to its canonical re-encoding halting the decision (left buffered, `lastSeq` restored, status 2; the frame reverted with `Halted()`, so the executor's own writes, events and calls are undone) and a revert spending it; the floor is `RECORD_GAS·64/63 + 100,000`; bad or unknown envelopes, cancels and tombstoned decisions are recorded inline in `IBCAdmin`, and kind 9's parameters are checked inside `IBCAdminNative.atRecording` without the executor | constant |
 | packet limits (every route) | one payload on an Ethereum route; 262,144 bytes of payload data, on gno.land enforced by the core for every packet (an oversize receive refused before the app, leaving the packet pending), on Ethereum by the transfer app for ICS20 payloads on send and receive (an oversize receive error-acked; a readable oversize governance envelope is instead consumed and spent by `IBCAdmin`, §5.4); send timeout after now and at most 24 h ahead (gno.land also refuses a timeout not after the client's latest consensus time) | constant |
 | kind 13 deficits per decision (Ethereum) | 16 tokens, the rest by `continueReopen` | constant |
 | Ethereum receive / send amount | at most 2^96 − 1 | constant |
@@ -2927,6 +2929,11 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   RECORD_FLOOR·64/63 + 100,000` before its writes and parameter copy and stops, its decision buffered, below it
   (defence in depth with the recording floor's own margin; §5.4, §9); a hand-over's 7-day delay counts from
   Ethereum's `recordedTime`, so `drain()` is repeated until it is pending (§7.6). References updated.
+- 2026-10-20, the drain gas guards described exactly (gno-eth-ibc 1b49d73): the reserve and the recording floor's
+  margin guard different stages, not each sufficient alone — `_record` writes the recording state and copies the
+  parameters before the helper's floor check, so the reserve guards entry into each drain step and the floor's
+  margin covers completion after the executor call (§5.4, §9). This corrects the previous entry's "defence in
+  depth". Ethereum reference updated to 1b49d73.
 
 ## 15. References
 
