@@ -2,7 +2,7 @@
 
 - **Status:** proposed. The protocol path works end to end on a local 3-validator gno.land testnet ⇄ Ethereum
   Sepolia. The safety and governance controls (§7) are built on both chains: the gno.land side in gno-realms
-  `feat/ibc-controls` (f499f78, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
+  `feat/ibc-controls` (ba5ffef, [ADR 0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)),
   the Ethereum side in gno-eth-ibc `feat/ibc-controls` (6623203,
   [`docs/controls.md`](https://github.com/allinbits/gno-eth-ibc/blob/feat/ibc-controls/docs/controls.md)). The
   monitors, the watch tool and the setup audit tool (T4–T6) are not built. This document describes the design as
@@ -166,7 +166,7 @@ Repositories and branches:
 | Short name | Location |
 |---|---|
 | **gno** | this branch, `feat/secp256k1-validators-ibc` (fork remote clockworkgr/gno) |
-| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, f499f78; ADR 0004) |
+| **gno-realms** | [allinbits/gno-realms `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client) (protocol path); [`feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (the controls, ba5ffef; ADR 0004) |
 | **ts-relayer** | [allinbits/ibc-v2-ts-relayer PR #40](https://github.com/allinbits/ibc-v2-ts-relayer/pull/40) (`feat/ethereum-clients`) |
 | **gno-eth-ibc** | [allinbits/gno-eth-ibc](https://github.com/allinbits/gno-eth-ibc) (`main`): the Solidity contracts, deployment scripts, Go relayer, testnet and e2e scripts; the controls on `feat/ibc-controls` (`docs/controls.md`). |
 | **bridges** | [gnolang/bridges](https://github.com/gnolang/bridges): `main` (Solana, live) and [`ethereum-draft`](https://github.com/gnolang/bridges/tree/ethereum-draft) |
@@ -1058,7 +1058,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
   - On Ethereum, an unpause decision waits 24 hours and clears only flags set before it; on a route it clears both
     the pause flags and the `refunds` flags, and is spent while either set holds.
 - **Naming suspects.** A guardian's `payouts` flag may name suspect packets (at most 64 packet keys; a re-assertion
-  replaces the list), which makes their void immediate when it names every packet of the void.
+  replaces the list). A void is immediate when **every** packet it voids is named, at recording, by at least one
+  standing guardian `payouts` flag; different guardians may cover different packets.
 - **No veto.** Guardians delay, they never veto. Unlike AccessManager's guardian role, they cannot cancel a
   decision.
 
@@ -1067,8 +1068,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 - **Immediate:** tightening changes, removals, cancels and unpauses on gno.land; on Ethereum, cancels and
   tightening of limits (kind 4 lowering) take effect at recording, and unpauses after 24 h (§7.6). On gno.land the
   immediate builders are: pause, pause app, reject app, unpause, unpause app, remove member, remove a relayer while
-  others stay, block an address, refuse recipients, a denom change that only tightens, a void of packets a
-  guardian named, unpause route, cancel, every Ethereum-bound decision (dispatched at once, delayed on Ethereum),
+  others stay, block an address, refuse recipients, a denom change that only tightens, a void whose every packet a
+  standing guardian `payouts` flag names (any guardian per packet), unpause route, cancel, every Ethereum-bound decision (dispatched at once, delayed on Ethereum),
   `NewRemoveExpectationRequest` (it narrows what notices authorize), `NewRevokeRecapRequest` and
   `NewRetransmitRequest` (one re-send of immutable bytes).
 - **7 days:** every loosening change: raising a cap, maximum or fee; adding or replacing a key, signer or
@@ -1240,6 +1241,10 @@ routes of the same realms are unaffected; a governance channel serves exactly on
      (voids, settlements, §7.12) **together with an audit of the voucher's supply against its escrowed backing** — a
      matching send record alone does not establish backing — and containment stays until a repair or the denom's
      retirement; stopping the burns themselves needs a governed code change (kind 7);
+  5a. **after a kind 9, restore ordinary governance**: installing the new executor leaves `IBCAdmin`'s flags (and
+     any hold) standing, and kinds 6, 7, 10, 12 and 13 still revert `Deferred` under them; once the executor is
+     installed, clear the administrative flags and wait out any hold still standing before ordinary repairs,
+     settlement and reopening, the transfer containment staying in place throughout;
   6. **clear the `refunds` flags** before a refund-paying reconciliation (a refund-paying kind 12 stays pending
      under them), keeping the route flags so receives and escrowed sends stay contained;
   7. **reconcile** what ran meanwhile (kind 12, on the records of the client a kind 10 or recovery retired) where
@@ -1256,7 +1261,7 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 ### 7.7 Governor and one-way yield — R9/R11
 
 - The realms compile a governor key, which decides through the same builders, checks and delays as GovDAO.
-  **As shipped (ab794ba through f499f78), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
+  **As shipped (ab794ba through ba5ffef), `ibcgov.LaunchGovernor` is a test address marked `PLACEHOLDER`.** Launch must supply the
   real key in the deployed source, and GovDAO members verify it before the immutable realm is deployed. The
   supported alternative is an empty key (`""`): then no governor exists, `Yield` is refused, and GovDAO decides
   from the first block.
@@ -1297,7 +1302,8 @@ routes of the same realms are unaffected; a governance channel serves exactly on
 
 - A **withheld** void can be restored. A **forged** void drops the remainder and books what was already paid as
   lost.
-- A void is immediate when a guardian's `payouts` flag named every packet it voids, otherwise 7 days. Only a
+- A void is immediate when every packet it voids is named, at recording, by at least one standing guardian
+  `payouts` flag (different guardians may cover different packets), otherwise 7 days. Only a
   withheld void is restored; a forged void and a voided sweep entry are final. A paid sweep entry voided as forged
   books its payout once.
 - Credit-by-vote is the manual fallback for a griefed transfer: 7 days, for an `unescrow` denom never above the
@@ -1437,9 +1443,13 @@ routes of the same realms are unaffected; a governance channel serves exactly on
     A confirmed orphan is an integrity break by itself, flagged at once with the containment response below, not
     rewound past or deferred; before that state exists the receive is rewound past or the evaluation deferred, as
     below.
-  - **Fabricated proof heights.** Separately, a receive whose referenced source proof height or consensus state is
-    demonstrably fabricated — e.g. beyond the source chain's independently authenticated head, or a state root the
-    source never had at that height — is an integrity break by itself, flagged at once with the same containment.
+  - **Unobserved versus fabricated proof heights.** A receive whose referenced source proof height lies **above
+    the monitor's observed source head** is **unresolved**, not fabricated: an authenticated head proves a block
+    exists, not that no later one does, agreement among RPC providers does not prove completeness, and the
+    snapshot may lag. The monitor refreshes its independently authenticated source view and re-evaluates. A receive
+    is flagged at once, with the same containment, only on **conclusive contradicting evidence**: a different
+    canonical state root at that height in the source's independently authenticated history, or one of the
+    documented send-record forgery tests (§7.12).
   - **Deferred alarms.** If a closed pair cannot be established because data is **unavailable** — a record
     missing, a provider disagreeing, a pinned height not yet finalized, or the pair falling too far behind — the
     evaluation is skipped and retried later; it only alarms after a configured number of failures. An integrity auto-flag needs a break (in the
@@ -1871,8 +1881,9 @@ reconciliation.
     - **absence, by timeout** (fallback): proves forgery once that finalized state's timestamp has reached the
       packet's timeout; a forged receive's timeout is attacker-chosen (the 24-hour ceiling binds sends only), so the
       sequence path above is the one that cannot be held hostage;
-    - a receive whose referenced proof height or consensus state is demonstrably fabricated (§7.11) is a forgery
-      too;
+    - a receive proven against a state root that differs from the source's independently authenticated canonical
+      root at that height is a forgery too; a proof height merely above the observed source head is unresolved, not
+      fabricated (§7.11);
     - until one of these holds the entitlement stays **unresolved** and containment stays in place.
     gno.land's Ethereum client proves only the router's storage, so this check is **off-chain**, on evidence from an
     Ethereum node trusted independently of the incident (a stated trust assumption, §8.1). Every forged remainder
@@ -2154,7 +2165,12 @@ Further trust assumptions of the built controls, each stated where its rule is:
   quarantine the launch client). A transition accepted before installation counts from its existing timestamp, so
   its quarantine may already have elapsed. A route replacement keeps the old route's quarantine deadline.
 - **Expensive tokens are parked** on Ethereum: a refund gives the token fixed gas (200,000 a call, 30,000 for
-  `balanceOf`); one needing more is parked and paid by `claimParked` with a caller-chosen budget. Delivering a
+  `balanceOf`); one needing more is parked and paid by `claimParked` with a caller-chosen budget. **A payment has a
+  starvation floor**: it needs `(gb + 2·g)·64/63 + 100,000` gas left, where `g` is the per-call budget and `gb` the
+  balance-read budget — 536,825 for an automatic payment (`g` 200,000, `gb` 30,000); for a caller-funded retry with
+  budget `B` (at least 200,000, used for both), `3·B·64/63 + 100,000`. Below it the call reverts
+  `GnoPaymentStarved` and rolls back rather than parking, so the caller retries with enough transaction gas; only a
+  token that runs out of its own budget is parked. Delivering a
   stored sender notification needs its calldata rebuilt from the original ack or timeout transaction (only a hash is
   kept).
 - **Ethereum role ownership.** `finishSetup` checks `IBCAdmin`'s and the deployer's roles only; that no one else
@@ -2294,7 +2310,7 @@ Proposed launch values, following gnolang/bridges where applicable.
 | Ethereum `dayCap`, `refundCap` / quarantine | at most 2^128 − 1 / at most 365 days | kind 4 / kind 11 |
 | emergency recovery: delay / approvals / cancellations / silence / hold period | 0 (off) or ≥ 30 d / 3 of 4 / 3 of 4 / 30 d / 14 d | deployment (`RecoveryConfig`), fixed |
 | Ethereum hold history | 8 holds (a ninth merges the two oldest into a marked compressed interval); execution reads it to choose guardian-replacement anchors and never anchors on a compressed interval, so compression can add delay | constant |
-| Ethereum refund payment gas / `balanceOf` gas / sender notification gas | 200,000 / 30,000 / 100,000 automatic, a caller-funded `gasBudget` (at least 100,000) on `retryNotification` and `notifySettled` (60,000 reserve) | constant |
+| Ethereum refund payment gas / `balanceOf` gas / payment starvation floor / sender notification gas | 200,000 / 30,000 / `(gb + 2·g)·64/63 + 100,000` (536,825 automatic; `3·B·64/63 + 100,000` for a caller budget `B`; `GnoPaymentStarved` below it, rolling back) / 100,000 automatic, a caller-funded `gasBudget` (at least 100,000) on `retryNotification` and `notifySettled` (60,000 reserve) | constant |
 
 ## 10. Costs
 
@@ -2378,7 +2394,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
      sequence and the §7.12 recovery path, quarantine in `GnoLightClient`, `finishSetup` check list and role
      cleanup.
    - Foundry tests, including fuzzing the limits and the hold state machine.
-3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, f499f78, ADR 0004).
+3. **Controls, gno.land (R8–R14, R16–R19)** — built (gno-realms `feat/ibc-controls`, ba5ffef, ADR 0004).
    - Transfer proxy entry point for `Claim`, and a new impl with meters (both accountings), claims, send limits,
      route-scoped flags and voids per client.
    - Move every loosening authority (impl upgrades, membership, relayer list) to `ibcgov`; remove the deployer.
@@ -2880,6 +2896,12 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
     report truthfully and never change balances on their own or by hook (§8.1, §8.2, §8.5 R11); GovDAO's
     tightening lasts only while it is a member (unchanged, R14, R4); a hand-over target is checked on Ethereum before
     recording (§5.4).
+- 2026-10-20, thirteenth review of the alignment with Codex (gno-realms ba5ffef). Folded: after a kind 9, clear
+  `IBCAdmin`'s flags and wait out any hold before ordinary repairs, settlement and reopening, containment kept
+  (§7.6); an immediate void needs every packet named by some standing guardian `payouts` flag, guardians may differ
+  per packet (§7.4, §7.5, §7.9); Ethereum's refund-payment starvation floor, `GnoPaymentStarved` rolling back
+  rather than parking (§8.4, §9); a proof height above the observed source head is unresolved, and only a different
+  canonical root at that height or a send-record forgery test flags at once (§7.11, §7.12).
 
 ## 15. References
 
@@ -2890,7 +2912,7 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
 - gno-realms:
   - [branch `feat/ethereum-light-client`](https://github.com/allinbits/gno-realms/tree/feat/ethereum-light-client)
   - ADRs [0001](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0001-proxy-realm-for-core-upgrades.md), [0002](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0002-proxy-realm-for-transfer-upgrades.md), [0003](https://github.com/allinbits/gno-realms/blob/feat/ethereum-light-client/docs/adrs/0003-ethereum-light-client.md)
-  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (f499f78): ADR
+  - [branch `feat/ibc-controls`](https://github.com/allinbits/gno-realms/tree/feat/ibc-controls) (ba5ffef): ADR
     [0004](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/adrs/0004-ethereum-route-controls.md)
     (Ethereum route controls, `ibcgov`, core changes), the
     [upgrade runbook](https://github.com/allinbits/gno-realms/blob/feat/ibc-controls/docs/upgrade-runbook.md)
