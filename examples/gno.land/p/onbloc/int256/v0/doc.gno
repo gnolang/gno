@@ -4,6 +4,13 @@
 // It designed for applications that require high-precision arithmetic
 // beyond the standard 64-bit range.
 //
+// Gno now has native int256 and uint256 types, with checked arithmetic in
+// math/overflow (Add256, Sub256, ..., and the panicking ...p variants),
+// strconv.FormatInt256/ParseInt256 and math.MaxInt256/MinInt256. Prefer them
+// in new code: they are plain values (copied on assignment, never aliased, no
+// ownership), and each operator is one VM operation. This package keeps
+// working for existing code. See gnovm/adr/prxxxx_native_int256.md.
+//
 // ## Features
 //
 //   - 256-bit Signed Integers: Support for large integer ranging from -2^255 to 2^255-1.
