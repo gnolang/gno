@@ -8,8 +8,6 @@ package main
 
 var s0, s32 uint = 0, 32
 
-const big2 = 'Ā' * 'Ā' * 'Ā' * 'Ā' // 4294967296
-
 func f(x interface{}) interface{} { return x }
 
 func main() {
@@ -50,14 +48,6 @@ func main() {
 	case 'a' + 'a':
 		println("compound match")
 	}
-
-	// Cancelled constants: big2*0 is 0.
-	const c = big2*0 + 'a'
-	const z = big2 * 0
-	s = s32
-	println(int64((c << s) + (c << s)))
-	s = s0
-	println(int64((z << s) + (1 << s)))
 }
 
 // Output:
@@ -71,8 +61,6 @@ func main() {
 // 97 1 97
 // + match
 // compound match
-// 833223655424
-// 1
 
 // TypeCheckError:
-// main/rune16.gno:36:37: 1 << 40 (untyped rune constant 1099511627776) overflows rune; main/rune16.gno:36:36: (1 << 40) (untyped rune constant 1099511627776) overflows rune; main/rune16.gno:37:24: 1 << 40 (untyped rune constant 1099511627776) overflows rune; main/rune16.gno:37:23: (1 << 40) (untyped rune constant 1099511627776) overflows rune; main/rune16.gno:41:17: cannot use u1 (variable of type rune) as int64 value in variable declaration; main/rune16.gno:42:17: cannot use u2 (variable of type int) as int64 value in variable declaration; main/rune16.gno:43:21: (1 << 40) (untyped int constant 1099511627776) overflows rune
+// main/rune16.gno:34:37: 1 << 40 (untyped rune constant 1099511627776) overflows rune; main/rune16.gno:34:36: (1 << 40) (untyped rune constant 1099511627776) overflows rune; main/rune16.gno:35:24: 1 << 40 (untyped rune constant 1099511627776) overflows rune; main/rune16.gno:35:23: (1 << 40) (untyped rune constant 1099511627776) overflows rune; main/rune16.gno:39:17: cannot use u1 (variable of type rune) as int64 value in variable declaration; main/rune16.gno:40:17: cannot use u2 (variable of type int) as int64 value in variable declaration; main/rune16.gno:41:21: (1 << 40) (untyped int constant 1099511627776) overflows rune

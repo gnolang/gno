@@ -1,15 +1,12 @@
 package main
 
-// An explicit rune conversion checks the exact value.
-
-const c = '\U0010ffff' * '\U0010ffff'
+// As rune8, where the expression comes back within int32 (gc: the rune
+// 1114111).
 
 func main() {
-	println(rune(c))
+	r := '\U0010ffff' * '\U0010ffff' / '\U0010ffff'
+	println(r)
 }
 
 // Error:
-// main/rune12.gno:8:10-17: bigint overflows target kind
-
-// TypeCheckError:
-// main/rune12.gno:8:15: constant 1241243320321 overflows rune
+// main/rune12.gno:7:7-34: untyped rune constant '\U0010ffff' * '\U0010ffff' overflows int32 (value 1241243320321); convert an operand to a wider integer type, e.g. int64('\U0010ffff')

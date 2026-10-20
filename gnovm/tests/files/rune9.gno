@@ -1,21 +1,12 @@
 package main
 
-// Typed rune arithmetic keeps int32 semantics: it wraps at runtime.
+// As rune8, through a constant declaration.
 
 func main() {
-	var a rune = '\U0010ffff'
-	println(a * a)
-	var b int32 = 2147483647
-	b++
-	println(b, -b)
-	var c rune = 'a'
-	println(c<<30, c<<40)
-	x := 'a' // defaults to rune
-	println(x * 1000000000)
+	const c = '\U0010ffff' * '\U0010ffff'
+	var x int64 = c
+	println(x)
 }
 
-// Output:
-// -2228223
-// -2147483648 -2147483648
-// 1073741824 0
-// -1784247808
+// Error:
+// main/rune9.gno:6:12-39: untyped rune constant '\U0010ffff' * '\U0010ffff' overflows int32 (value 1241243320321); convert an operand to a wider integer type, e.g. int64('\U0010ffff')

@@ -1,14 +1,11 @@
 package main
 
-// An untyped rune constant may exceed int64 but not when converted to it.
+// As rune8, where the expression cancels to 0 (gc: rune 0).
 
 func main() {
-	var x int64 = '\U0010ffff' * '\U0010ffff' * '\U0010ffff' * '\U0010ffff'
-	println(x)
+	r := '\U0010ffff' * '\U0010ffff' * '\x00'
+	println(r)
 }
 
 // Error:
-// main/rune13.gno:6:6-73: bigint overflows target kind
-
-// TypeCheckError:
-// main/rune13.gno:6:16: cannot use '\U0010ffff' * '\U0010ffff' * '\U0010ffff' * '\U0010ffff' (untyped rune constant 1540684980241500611543041) as int64 value in variable declaration (overflows)
+// main/rune13.gno:6:7-34: untyped rune constant '\U0010ffff' * '\U0010ffff' overflows int32 (value 1241243320321); convert an operand to a wider integer type, e.g. int64('\U0010ffff')

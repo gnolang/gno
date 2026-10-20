@@ -2734,10 +2734,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					n.Path = pn.GetPathForName(store, n.Sel)
 					// Produce const expr if typed or untyped const.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
-					if pn.GetIsConstAt(store, n.Path) {
-						cx := importedConst(store, last, pn, n)
-						return cx, TRANS_CONTINUE
-					} else if isUntyped(tt) {
+					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
@@ -4671,28 +4668,6 @@ func foldStringOfLargeIntConst(cx *ConstExpr) {
 	setConstAttrs(cx)
 }
 
-// importedConst returns the value of the constant pkg.Name selected by n,
-// where pn is the package node of pkg. n must select a declared constant:
-// a variable's static slot holds only a placeholder for its type.
-//
-// The value is read from pn's static block, which every node recomputes
-// when it preprocesses the package (at deploy and again at startup, see
-// PreprocessAllFilesAndSaveBlockNodes), and not from the package value's
-// block, which is persisted once at deploy. The two agree unless the
-// constant folding of the running VM differs from the one that deployed
-// the package; then the importer must see the current folding, as the
-// package itself does.
-func importedConst(store Store, last BlockNode, pn *PackageNode, n *SelectorExpr) *ConstExpr {
-	if n.Path.Type == VPBlock && n.Path.Depth == 1 && int(n.Path.Index) < len(pn.Values) {
-		if tv := pn.Values[n.Path.Index]; tv.T != nil {
-			cx := toConstExpr(n, tv)
-			setConstAttrs(cx)
-			return cx
-		}
-	}
-	return evalConst(store, last, n)
-}
-
 // isUntypedRuneConst reports whether x is an untyped rune *ConstExpr.
 func isUntypedRuneConst(x Expr) bool {
 	cx, ok := x.(*ConstExpr)
@@ -4728,18 +4703,55 @@ func untypedRuneOperands(x Expr) []*Expr {
 	return nil
 }
 
+// constSource renders x as written, looking through the *ConstExpr nodes
+// that preprocessing put in place of folded subexpressions.
+func constSource(x Expr) string {
+	switch x := x.(type) {
+	case *ConstExpr:
+		if x.Source != nil {
+			return constSource(x.Source)
+		}
+	case *BinaryExpr:
+		return constSourceOperand(x.Left) + " " + x.Op.TokenString() + " " + constSourceOperand(x.Right)
+	case *UnaryExpr:
+		return x.Op.TokenString() + constSourceOperand(x.X)
+	case *CallExpr:
+		// The uint() conversion preprocessing wraps a shift count in.
+		if x.GetAttribute(ATTR_SHIFT_RHS) == true && len(x.Args) == 1 {
+			return constSource(x.Args[0])
+		}
+	}
+	return x.String()
+}
+
+// constSourceOperand is constSource, parenthesized for an operation.
+func constSourceOperand(x Expr) string {
+	if cx, ok := x.(*ConstExpr); ok && cx.Source != nil {
+		x = cx.Source
+	}
+	switch x.(type) {
+	case *BinaryExpr, *UnaryExpr:
+		return "(" + constSource(x) + ")"
+	}
+	return constSource(x)
+}
+
 // evalUntypedRuneConst evaluates the constant operation x exactly, where
 // the operands *xs are untyped rune constants.
 //
 // Untyped constant arithmetic in Go is exact, while the machine computes
-// untyped rune values in int32 and wraps ('\U0010ffff' * '\U0010ffff' gave
-// -2228223). So each operand *xs is replaced by an untyped bigint of the
-// same value and x is evaluated with the machine's exact bigint arithmetic
-// (with its gas charges and shift cap). A result that fits in int32 is an
-// untyped rune again, laid out exactly as before. A result beyond int32
-// stays an untyped bigint, Gno's untyped integer kind, so it never needs a
-// new representation; Go would keep it an untyped rune (see the ADR).
+// untyped rune values in int32 and wraps: '\U0010ffff' * '\U0010ffff' gave
+// -2228223. So x is evaluated with the machine's exact bigint arithmetic
+// (each operand *xs replaced by an untyped bigint of the same value; its gas
+// charges and shift cap apply). A result that fits in int32 is an untyped
+// rune, laid out exactly as before. A result beyond int32 is rejected: Go
+// keeps it an exact untyped rune, but Gno's untyped runes hold int32 values,
+// and folding it to an untyped integer instead would change its kind (its
+// default type, and the type of everything derived from it). The fix for
+// the program is a typed operand, e.g. int64('\U0010ffff') * '\U0010ffff'.
 func evalUntypedRuneConst(store Store, last BlockNode, x Expr, xs ...*Expr) *ConstExpr {
+	src := constSource(x)
+	operand := constSource(*xs[0])
 	for _, px := range xs {
 		cx := (*px).(*ConstExpr)
 		*px = toConstExpr(cx, TypedValue{
@@ -4748,11 +4760,16 @@ func evalUntypedRuneConst(store Store, last BlockNode, x Expr, xs ...*Expr) *Con
 		})
 	}
 	cx := evalConst(store, last, x) // the operands are no longer runes.
-	if bi := cx.GetBigInt(); bi.IsInt64() && int64(int32(bi.Int64())) == bi.Int64() {
-		cx.TypedValue = TypedValue{T: UntypedRuneType}
-		cx.SetInt32(int32(bi.Int64()))
-		setConstAttrs(cx)
+	bi := cx.GetBigInt()
+	if !bi.IsInt64() || int64(int32(bi.Int64())) != bi.Int64() {
+		panic(fmt.Sprintf(
+			"untyped rune constant %s overflows int32 (value %s); "+
+				"convert an operand to a wider integer type, e.g. int64(%s)",
+			src, bi.String(), operand))
 	}
+	cx.TypedValue = TypedValue{T: UntypedRuneType}
+	cx.SetInt32(int32(bi.Int64()))
+	setConstAttrs(cx)
 	return cx
 }
 
