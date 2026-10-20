@@ -45,30 +45,31 @@ Go's (`1 + ((-'a') << s)` would print 4294967200, gc -96).
 
 ## Decision
 
-### Fold binary untyped rune operations exactly; reject results beyond int32
+### Check binary untyped rune operations; reject results beyond int32
 
-`evalConst`, the preprocessor's constant-folding entry point, recognises an
-arithmetic or bitwise operation on two untyped rune constants and a shift
-of one (`untypedRuneOperands`; a shift of a zero rune excepted), and folds it with
-`evalUntypedRuneConst`:
-each rune operand becomes an untyped bigint of the same value, and the
-expression is evaluated with the machine's existing bigint arithmetic (its
-gas charges and shift cap included).
+Before `evalConst`, the preprocessor's constant-folding entry point, folds
+an arithmetic operation or a left shift on untyped rune constants with the
+machine's int32 evaluation, `checkUntypedRuneConst` computes the exact
+result from the two int32 operand values in plain Go: in int64 for
+`+ - * /` (two int32 values cannot leave int64 there), and with a bound on
+the count for `<<` (any nonzero rune shifted by 32 or more leaves int32).
+`%`, the bitwise operators and `>>` cannot leave int32.
 
-- A result that fits in int32 is an untyped rune, laid out exactly as the
-  int32 folding laid it out (kind and bytes).
-- A result beyond int32 is a preprocess error that names the expression as
-  written (`constSource`: constants, imported selectors, `iota`, conversions such
-as `uint(N)`) and
-  suggests a typed operand:
+- If the exact result fits in int32, the machine folds the operation as
+  before, so the result is an untyped rune with master's value, kind and
+  bytes, at master's gas: the check is O(1) Go arithmetic outside the gas
+  meter.
+- If it does not, the operation is rejected, before the machine runs, with
+  a preprocess error that names the expression as written (`constSource`:
+  constants, imported selectors, `iota`, conversions such as `uint(N)`)
+  and suggests a typed operand:
 
   ```
   untyped rune constant '\U0010ffff' * '\U0010ffff' overflows int32 (value 1241243320321); convert an operand to a wider integer type, e.g. int64('\U0010ffff')
   ```
 
-- A shift of a zero rune is left to the int32 folding, which cannot
-  overflow on it and accepts any count (`'\x00' << 10001` is 0, as before;
-  the bigint shift caps counts at 10000), with master's gas.
+- A shift of a zero rune is 0 for any count, so it passes the check and is
+  folded as before (`'\x00' << 10001`).
 
 Comparisons of two untyped runes keep the int32 folding: both operands are
 within int32, so it is exact.
@@ -82,8 +83,8 @@ The typed workaround the message suggests gives gc's exact value:
 
 ### Conversions
 
-The first two were rejected on master, so they change no value master
-computed; the third rejects code master accepted:
+The first and third were rejected on master, so they change no value
+master computed; the second rejects code master accepted:
 
 - `ConvertUntypedRuneTo` gains float32/float64 targets
   (`var f float64 = 'a'` failed with "cannot convert untyped rune type to
@@ -173,14 +174,14 @@ persisted package block, need no special handling.
   a byte-for-byte dump of every package-block value of the stdlibs and of
   the example packages the test store loads is identical on master and on
   this branch: genesis and the pinned app hash do not change.
-- Gas: a rune-only fold that fits in int32 is now evaluated with bigint
-  arithmetic, whose CPU gas grows with operand bit length. Small runes cost
-  the same; `const C = ('\U0010ffff' * 'Ā') + '\x00'` costs one more
-  gas unit (1738 against 1737 for the whole deployment, measured with a
-  metered `RunMemPackage` on master and on this branch). Zero shifts
-  (`'\x00' << 1`, `'\x00' << 10001`: 2074), in-range shifts and imported
-  constants cost the same as on master; `TestRuneConstShiftGas` checks the
-  zero shifts against an in-range shift.
+- Gas is identical to master's for every accepted program: the fold is
+  master's int32 evaluation, and the overflow check is charged nothing.
+  `TestRuneConstFoldGas` pins master's deployment gas (measured at
+  8580ae38e) for in-range folds, wide operands
+  (`('\U0010ffff' * '\u0780') - '\x00'`), shifts (`'\x01' << 30`) and zero
+  shifts with small and large counts. A rejected program is rejected before
+  the fold, so it consumes slightly less gas than master spent computing
+  the wrapped value.
 
 ## Related, not fixed here
 
@@ -197,8 +198,8 @@ persisted package block, need no special handling.
 
 | File | Role |
 |------|------|
-| `gnovm/pkg/gnolang/preprocess.go` | `evalConst` hook, `untypedRuneOperands`, `evalUntypedRuneConst`, `constSource`, `foldStringOfLargeIntConst` |
+| `gnovm/pkg/gnolang/preprocess.go` | `checkUntypedRuneConst` (called from `evalConst`), `constSource`, `foldStringOfLargeIntConst` |
 | `gnovm/pkg/gnolang/values_conversions.go` | float targets and the `uint64` check in `ConvertUntypedRuneTo` |
-| `gnovm/pkg/gnolang/preprocess_rune_const_test.go` | persisted layout of folded rune constants; shift gas |
+| `gnovm/pkg/gnolang/preprocess_rune_const_test.go` | persisted layout of folded rune constants; fold gas |
 | `gnovm/pkg/gnolang/values_conversions_test.go` | conversion unit test |
 | `gnovm/tests/files/rune4.gno`–`rune23.gno`, `switch52.gno` | filetests |

@@ -4609,9 +4609,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	}
 
 	if cx == nil {
-		if rx := untypedRuneOperands(x); rx != nil {
-			return evalUntypedRuneConst(store, last, x, rx...)
-		}
+		checkUntypedRuneConst(x)
 		// is constant?  From the machine?
 		m := NewMachineWithOptions(MachineOptions{
 			PkgPath:            ".dontcare",
@@ -4671,32 +4669,6 @@ func isUntypedRuneConst(x Expr) bool {
 	return ok && cx.T == UntypedRuneType
 }
 
-// untypedRuneOperands returns the operands of x that evalConst must
-// evaluate exactly: both operands of an arithmetic or bitwise operation on
-// two untyped rune constants, or the left operand of a shift of one. It
-// returns nil otherwise: for comparisons, whose int32 evaluation of two
-// int32 runes is exact, and for unary operations, which the machine does
-// not define on untyped runes (-'a' is rejected, as before; +'a' cannot
-// overflow).
-func untypedRuneOperands(x Expr) []*Expr {
-	switch x := x.(type) {
-	case *BinaryExpr:
-		switch x.Op {
-		case SHL, SHR:
-			// A zero left operand cannot overflow: it stays with the
-			// int32 folding, which accepts any count ('\x00' << 10001).
-			if isUntypedRuneConst(x.Left) && x.Left.(*ConstExpr).GetInt32() != 0 {
-				return []*Expr{&x.Left}
-			}
-		case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR, BAND_NOT:
-			if isUntypedRuneConst(x.Left) && isUntypedRuneConst(x.Right) {
-				return []*Expr{&x.Left, &x.Right}
-			}
-		}
-	}
-	return nil
-}
-
 // constSource renders x as written, looking through the *ConstExpr nodes
 // that preprocessing put in place of folded subexpressions.
 func constSource(x Expr) string {
@@ -4743,41 +4715,86 @@ func constSourceOperand(x Expr) string {
 	return constSource(x)
 }
 
-// evalUntypedRuneConst evaluates the constant operation x exactly, where
-// the operands *xs are untyped rune constants.
+// checkUntypedRuneConst rejects the constant operation x if it is an
+// operation on untyped rune constants whose exact result does not fit in
+// int32.
 //
-// Untyped constant arithmetic in Go is exact, while the machine computes
-// untyped rune values in int32 and wraps: '\U0010ffff' * '\U0010ffff' gave
-// -2228223. So x is evaluated with the machine's exact bigint arithmetic
-// (each operand *xs replaced by an untyped bigint of the same value; its gas
-// charges and shift cap apply). A result that fits in int32 is an untyped
-// rune, laid out exactly as before. A result beyond int32 is rejected: Go
-// keeps it an exact untyped rune, but Gno's untyped runes hold int32 values,
-// and folding it to an untyped integer instead would change its kind (its
-// default type, and the type of everything derived from it). The fix for
-// the program is a typed operand, e.g. int64('\U0010ffff') * '\U0010ffff'.
-func evalUntypedRuneConst(store Store, last BlockNode, x Expr, xs ...*Expr) *ConstExpr {
-	src := constSource(x)
-	operand := constSource(*xs[0])
-	for _, px := range xs {
-		cx := (*px).(*ConstExpr)
-		*px = toConstExpr(cx, TypedValue{
-			T: UntypedBigintType,
-			V: BigintValue{V: big.NewInt(int64(cx.GetInt32()))},
-		})
+// Untyped constant arithmetic in Go is exact, while the machine folds an
+// operation on two untyped runes in int32 and wraps: '\U0010ffff' *
+// '\U0010ffff' gave -2228223. Go keeps such a result an exact untyped rune,
+// but Gno's untyped runes hold int32 values, and folding it to an untyped
+// integer instead would change its kind (its default type, and the type of
+// everything derived from it). So it is rejected, and the program needs a
+// typed operand, e.g. int64('\U0010ffff') * '\U0010ffff'. An operation
+// whose exact result fits in int32 is left to the machine, which then
+// computes exactly that result, at master's gas: the check is plain Go
+// arithmetic on two int32 values, charged nothing.
+//
+// Comparisons are exact in int32. Unary operators are not defined on
+// untyped runes by the machine (-'a' is rejected, as before; +'a' cannot
+// overflow), nor are right shifts able to overflow.
+func checkUntypedRuneConst(x Expr) {
+	bx, ok := x.(*BinaryExpr)
+	if !ok || !isUntypedRuneConst(bx.Left) {
+		return
 	}
-	cx := evalConst(store, last, x) // the operands are no longer runes.
-	bi := cx.GetBigInt()
-	if !bi.IsInt64() || int64(int32(bi.Int64())) != bi.Int64() {
+	a := int64(bx.Left.(*ConstExpr).GetInt32())
+	var exact *big.Int // nil: fits in int32
+	switch bx.Op {
+	case SHL:
+		rcx, ok := bx.Right.(*ConstExpr)
+		if !ok || a == 0 || rcx.T == nil || rcx.T.Kind() != UintKind {
+			return // 0 << n is 0 for any count; other counts fail as before
+		}
+		switch n := rcx.GetUint(); {
+		case n > maxBigintShift:
+			// |a << n| >= 1<<n: too large to print.
+			panic(fmt.Sprintf(
+				"untyped rune constant %s overflows int32; "+
+					"convert an operand to a wider integer type, e.g. int64(%s)",
+				constSource(x), constSource(bx.Left)))
+		case n >= 32: // |a| >= 1, so |a << n| >= 1<<32
+			exact = new(big.Int).Lsh(big.NewInt(a), uint(n))
+		default: // |a << n| < 1<<62
+			if r := a << n; int64(int32(r)) != r {
+				exact = big.NewInt(r)
+			}
+		}
+	case ADD, SUB, MUL, QUO, REM:
+		if !isUntypedRuneConst(bx.Right) {
+			return
+		}
+		b := int64(bx.Right.(*ConstExpr).GetInt32())
+		var r int64
+		switch bx.Op {
+		case ADD:
+			r = a + b
+		case SUB:
+			r = a - b
+		case MUL:
+			r = a * b // |a*b| <= 1<<62
+		case QUO:
+			if b == 0 {
+				return // division by zero, as before
+			}
+			r = a / b // only MinInt32 / -1 leaves int32
+		case REM:
+			return // |a % b| <= |a|
+		}
+		if int64(int32(r)) != r {
+			exact = big.NewInt(r)
+		}
+	default:
+		// Bitwise operations on int32 values stay within int32; right
+		// shifts too.
+		return
+	}
+	if exact != nil {
 		panic(fmt.Sprintf(
 			"untyped rune constant %s overflows int32 (value %s); "+
 				"convert an operand to a wider integer type, e.g. int64(%s)",
-			src, bi.String(), operand))
+			constSource(x), exact.String(), constSource(bx.Left)))
 	}
-	cx.TypedValue = TypedValue{T: UntypedRuneType}
-	cx.SetInt32(int32(bi.Int64()))
-	setConstAttrs(cx)
-	return cx
 }
 
 func toConstTypeExpr(last BlockNode, source Expr, t Type) *constTypeExpr {

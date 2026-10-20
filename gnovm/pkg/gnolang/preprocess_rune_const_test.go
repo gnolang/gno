@@ -102,14 +102,24 @@ func runeConstDeployGas(t *testing.T, decl string) int64 {
 	return gm.GasConsumed()
 }
 
-// TestRuneConstShiftGas checks that a zero untyped rune shifted by any
-// count is folded like any other in-range rune shift, by evaluating the
-// expression, so it is charged the same gas. (At 8580ae38e all three
-// deployments cost 2074 gas.)
-func TestRuneConstShiftGas(t *testing.T) {
-	small := runeConstDeployGas(t, `const C = '\x00' << 1`)
-	large := runeConstDeployGas(t, `const C = '\x00' << 10001`)
-	other := runeConstDeployGas(t, `const C = 'a' << 20`)
-	require.Equal(t, other, small)
-	require.Equal(t, other, large)
+// TestRuneConstFoldGas checks that folding untyped rune constants costs the
+// gas it cost before the overflow check: the check runs outside the gas
+// meter, and the fold itself is the machine's int32 evaluation. The
+// expected values were measured at 8580ae38e, with the same deployment.
+func TestRuneConstFoldGas(t *testing.T) {
+	for _, tc := range []struct {
+		decl string
+		gas  int64
+	}{
+		{`const C = 'a' + 'b'`, 1292},
+		{`const C = 'a' < 'b'`, 1284},
+		{`const C = ('\U0010ffff' * '\u0100') + '\x00'`, 1737},
+		{`const C = ('\U0010ffff' * '\u0780') - '\x00'`, 1726},
+		{`const C = '\x01' << 30`, 2074},
+		{`const C = 'a' << 20`, 2074},
+		{`const C = '\x00' << 1`, 2074},
+		{`const C = '\x00' << 10001`, 2074},
+	} {
+		require.Equal(t, tc.gas, runeConstDeployGas(t, tc.decl), tc.decl)
+	}
 }
