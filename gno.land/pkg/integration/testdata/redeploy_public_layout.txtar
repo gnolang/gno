@@ -429,7 +429,7 @@ var views int
 func Last() string { return posts[len(posts)-1].Body() }
 func Views() int   { return views }
 
-func migrate() { views = len(posts) }
+func migrate(from int) { views = len(posts) }
 func _()       {}
 
 -- reader_v1/gnomod.toml --

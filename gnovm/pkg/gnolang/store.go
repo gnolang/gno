@@ -104,8 +104,11 @@ type Store interface {
 	// is skipped. Each path is yielded once, at its highest index, which is
 	// where its current content was stored.
 	IterMemPackage() <-chan *std.MemPackage
-	ReplaceCachePackage(*PackageValue) // SetCachePackage for a redeploy
-	ClearObjectCache()                 // run before processing a message
+	ReplaceCachePackage(*PackageValue)              // SetCachePackage for a redeploy
+	AddPackageImporter(pkgPath, importer string)    // reverse import index, for Machine.ReprocessImporters
+	DeletePackageImporter(pkgPath, importer string) // an import the importer's redeploy dropped
+	GetPackageImporters(pkgPath string) []string    // direct importers, in key order
+	ClearObjectCache()                              // run before processing a message
 	GarbageCollectObjectCache(gcCycle int64)
 	SetNativeResolver(NativeResolver)                              // for native functions
 	GetNative(pkgPath string, name Name) func(m *Machine)          // for native functions
@@ -458,6 +461,29 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 // value it replaces may have been read in the same transaction.
 func (ds *defaultStore) ReplaceCachePackage(pv *PackageValue) {
 	ds.cacheObjects[ObjectIDFromPkgPath(pv.PkgPath)] = pv
+}
+
+// AddPackageImporter records that importer imports pkgPath, so a redeploy of
+// pkgPath can find the packages compiled against it. Idempotent.
+func (ds *defaultStore) AddPackageImporter(pkgPath, importer string) {
+	ds.iavlStore.Set(ds.gctx, []byte(backendPackageImporterKey(pkgPath, importer)), []byte{1})
+}
+
+// DeletePackageImporter removes an edge AddPackageImporter recorded.
+func (ds *defaultStore) DeletePackageImporter(pkgPath, importer string) {
+	ds.iavlStore.Delete(ds.gctx, []byte(backendPackageImporterKey(pkgPath, importer)))
+}
+
+// GetPackageImporters returns the direct importers of pkgPath in key order.
+func (ds *defaultStore) GetPackageImporters(pkgPath string) []string {
+	prefix := backendPackageImporterKey(pkgPath, "")
+	iter := store.PrefixIterator(ds.gctx, ds.iavlStore, []byte(prefix))
+	defer iter.Close()
+	var importers []string
+	for ; iter.Valid(); iter.Next() {
+		importers = append(importers, strings.TrimPrefix(string(iter.Key()), prefix))
+	}
+	return importers
 }
 
 // Some atomic operation. Consults cacheRealms before reading from
@@ -1654,6 +1680,12 @@ func backendInertPackagePathKey(path string) string { return inertPackagePrefix 
 // appear in a valid package path, so it never collides with a real package key.
 func backendPackageAllButProdKey(path string) string {
 	return backendPackagePathKey(path) + "#allbutprod"
+}
+
+// backendPackageImporterKey is one edge of the reverse import index. "#"
+// cannot appear in a package path, so one path's prefix matches no other's.
+func backendPackageImporterKey(pkgPath, importer string) string {
+	return "imp:" + pkgPath + "#" + importer
 }
 
 func decodeBackendPackagePathKey(key string) string {

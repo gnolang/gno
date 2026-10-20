@@ -41,13 +41,14 @@ gnokey maketx call -pkgpath gno.land/r/demo/rules -func Hit -gas-fee 1000000ugno
 gnokey query vm/qeval --data 'gno.land/r/demo/rules.Hits()'
 stdout '3 int'
 
-# version = 1 over it opts in: the globals are carried, migrate() runs.
+# version = 1 over it opts in: the globals are carried, migrate() runs with
+# the version replaced, 0 for an unversioned realm.
 gnokey maketx addpkg -pkgdir $WORK/v1 -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 stdout OK!
 gnokey query vm/qeval --data 'gno.land/r/demo/rules.Hits()'
 stdout '3 int'
 gnokey query vm/qeval --data 'gno.land/r/demo/rules.Tag()'
-stdout '"v1 migrated"'
+stdout '"migrated from 0"'
 
 # From here the version must step by one, and the realm stays private.
 ! gnokey maketx addpkg -pkgdir $WORK/unversioned -pkgpath gno.land/r/demo/rules -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
@@ -59,7 +60,7 @@ stderr 'a private package cannot be overridden by a public package'
 gnokey query vm/qeval --data 'gno.land/r/demo/rules.Hits()'
 stdout '3 int'
 gnokey query vm/qeval --data 'gno.land/r/demo/rules.Tag()'
-stdout '"v1 migrated"'
+stdout '"migrated from 0"'
 
 -- version_only/gnomod.toml --
 module = "gno.land/r/demo/rules"
@@ -143,12 +144,14 @@ version = 1
 -- v1/rules.gno --
 package rules
 
+import "strconv"
+
 var (
 	hits int
 	tag  string
 )
 
-func migrate() { tag = "v1 migrated" }
+func migrate(from int) { tag = "migrated from " + strconv.Itoa(from) }
 
 func Hit(cur realm) { hits++ }
 func Hits() int     { return hits }

@@ -1243,6 +1243,19 @@ func (fs *FileSet) AddFiles(fns ...*FileNode) {
 	fs.Files = append(fs.Files, fns...)
 }
 
+// ImportPaths returns the paths the files import, in file and decl order.
+func (fs *FileSet) ImportPaths() []string {
+	var paths []string
+	for _, fn := range fs.Files {
+		for _, d := range fn.Decls {
+			if id, ok := d.(*ImportDecl); ok {
+				paths = append(paths, id.PkgPath)
+			}
+		}
+	}
+	return paths
+}
+
 func (fs *FileSet) GetFileByName(fname string) *FileNode {
 	for _, fn := range fs.Files {
 		if fn.FileName == fname {

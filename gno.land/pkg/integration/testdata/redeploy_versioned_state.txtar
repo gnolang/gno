@@ -138,7 +138,7 @@ var (
 )
 
 // migrate runs once, in place of init, when this version replaces the last.
-func migrate() {
+func migrate(from int) {
 	total = int64(counter) * 1000
 }
 

@@ -129,7 +129,7 @@ func Total() int64 { return total }
 
 var count int // appended
 
-func migrate() { count = 1 } // one deposit happened under v1
+func migrate(from int) { count = 1 } // one deposit happened under v1
 
 func Count() int { return count } // appended
 

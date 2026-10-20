@@ -37,23 +37,29 @@ the version by exactly one keeps the realm's state:
   keeps its other slots but drops the carried ones, so the cleanup
   #4949 asks for cannot later count the live items as its own.
 - Declared types are re-persisted with `Store.ReplaceType` on every
-  redeploy, versioned or not, so objects loaded afterwards resolve to
-  the new definition, methods included. `SetType` keeps whatever is
-  cached, and the live package's types are cached by the time a
-  redeploy saves, so the old redeploy served stale methods to any
-  object it created.
-- `migrate()` runs once in place of `init()`. `IsPkgInitFunc` gives it
-  the same unreferenceable `migrate.N` suffix as `init`.
+  redeploy, versioned or not: `SetType` keeps the cached definition,
+  so the old redeploy served stale methods to objects it created.
+- `migrate(from int)` runs in place of `init()`, handed the version it
+  replaces (Version-1, by the step rule), so a migration guarded on
+  `from` is inert when left in a later version. Same unreferenceable
+  `migrate.N` suffix as `init` (`IsPkgInitFunc`); any other signature
+  is refused by the type checker.
 - Public realms: the authority alone may redeploy; absent, the path is
   permanent and cannot become upgradeable later; dropping it freezes
   the realm. Importers compile package selectors to block slots and
   method selectors to method indices, so a public redeploy may only
-  append declarations and methods, checked against the prior layout: a
-  stand-in for re-preprocessing importers, which a later layout-epoch
-  design can lift. `init`, `migrate` and blank funcs are reserved after
+  append, checked against the prior layout. Importers also bake in the
+  realm's type pointers and folded constants, so each deploy indexes
+  its realm imports (`imp:<dep>#<importer>`, diffed against the live
+  package on a redeploy) and a public redeploy re-preprocesses every
+  transitive importer in the same transaction,
+  importers after what they import, the authority paying preprocess
+  gas for each; otherwise importers ran version N's bodies until the
+  node restarted. `init`, `migrate` and blank funcs are reserved after
   every other name, so adding or dropping one moves no slot. An
-  immutable realm may not import an upgradeable one (type checker),
-  per CONSTITUTION, Realm Upgrading.
+  immutable realm may not import an upgradeable one (type checker,
+  which therefore does not cache one), per CONSTITUTION, Realm
+  Upgrading.
 - Node restart preprocesses a package after its imports, not in
   package-index order, which a redeploy of an imported realm breaks.
 - Refused by the shared gnomod rules, on all three deploy paths, with
@@ -91,9 +97,9 @@ Version unset on both sides is the old redeploy, unchanged.
   struct fields, gnoweb showing the upgradeable flag, and refusing a
   redeploy over persisted func-lit closures whose source moved.
 - Consensus-breaking: reserving hidden funcs last changes package
-  block slot order, so ObjectIDs, hashes and storage bytes shift (realm
-  goldens, an apphash pin, a genesis balance line re-derived). Ships
-  only with a chain upgrade.
+  block slot order, so ObjectIDs, hashes and storage bytes shift, and
+  every deploy writes the import index (realm goldens, an apphash pin,
+  a genesis balance line re-derived). Ships only with a chain upgrade.
 - The prior blocks are not deleted; that leak predates this change
   (#4949). The carried objects are re-adopted, not re-charged.
 - The inert path takes the same run and rules, untested by the txtars.

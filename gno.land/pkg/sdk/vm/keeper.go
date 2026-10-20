@@ -731,6 +731,18 @@ func parseLiveGnomod(live *std.MemPackage, pkgPath string) (*gnomod.File, error)
 	return gm, nil
 }
 
+// reprocessImporters re-preprocesses the importers of a redeployed public
+// realm (see Machine.ReprocessImporters), the redeployer paying preprocess
+// gas for each as for a deploy.
+func reprocessImporters(ctx sdk.Context, params Params, m *gno.Machine, pkgPath string, liveGm *gnomod.File) {
+	if liveGm == nil || !liveGm.Upgradeable() {
+		return
+	}
+	m.ReprocessImporters(pkgPath, func(mpkg *std.MemPackage) {
+		chargePreprocessGas(ctx, params, mpkg, "RedeployImporterPreprocess")
+	})
+}
+
 // checkRedeployPermission refuses unless a submission replacing the live
 // package at pkgPath comes from its upgrade authority, or, for a private
 // package, from the address that deployed it. creator is the address the
@@ -746,7 +758,8 @@ func parseLiveGnomod(live *std.MemPackage, pkgPath string) (*gnomod.File, error)
 // why.
 func checkRedeployPermission(liveGm *gnomod.File, pkgPath string, creator crypto.Address) error {
 	if liveGm.Upgradeable() {
-		if liveGm.Upgrade.Authority != creator.String() {
+		authority, err := crypto.AddressFromBech32(liveGm.Upgrade.Authority)
+		if err != nil || authority != creator {
 			return ErrPkgAlreadyExists(fmt.Sprintf(
 				"only the upgrade authority %s may redeploy %s", liveGm.Upgrade.Authority, pkgPath))
 		}
@@ -1236,6 +1249,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		priorRealm = gnostore.GetPackageRealm(pkgPath)
 	}
 	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
+	reprocessImporters(ctx, params, m2, pkgPath, liveGm)
 
 	err = vm.processStorageDeposit(ctx, creator, maxDeposit, gnostore, params)
 	if err != nil {

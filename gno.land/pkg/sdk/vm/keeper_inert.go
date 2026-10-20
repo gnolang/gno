@@ -361,6 +361,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		priorRealm = gnostore.GetPackageRealm(msg.PkgPath)
 	}
 	m2.RunMemPackageOverRealm(memPkg, true, priorRealm)
+	reprocessImporters(ctx, params, m2, msg.PkgPath, liveGm)
 
 	// Take the storage deposit for the realm objects this enable just created.
 	//

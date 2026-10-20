@@ -344,6 +344,70 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	}
 }
 
+// ReprocessImporters preprocesses again every package that imports pkgPath,
+// directly or through others, importers after what they import, so their
+// cached block nodes compile against the package now live at pkgPath. before
+// runs ahead of each package, for the caller to meter it.
+func (m *Machine) ReprocessImporters(pkgPath string, before func(*std.MemPackage)) {
+	// Reverse postorder over importer edges: a package before its importers.
+	var post []string
+	seen := map[string]bool{pkgPath: true}
+	var visit func(p string)
+	visit = func(p string) {
+		for _, imp := range m.Store.GetPackageImporters(p) {
+			if !seen[imp] {
+				seen[imp] = true
+				visit(imp)
+			}
+		}
+		post = append(post, p)
+	}
+	visit(pkgPath)
+	for i := len(post) - 2; i >= 0; i-- { // post[len-1] is pkgPath itself
+		if mpkg := m.Store.GetMemPackage(post[i]); mpkg != nil {
+			before(mpkg)
+			mpkg = MPFProd.FilterMemPackage(mpkg)
+			m.preprocessFileSet(mpkg, m.ParseMemPackage(mpkg))
+		}
+	}
+}
+
+// indexRealmImports records which realms a mutable package imports: what a
+// public redeploy of one must re-preprocess. No other edge reaches an
+// upgradeable realm: /p/ cannot import /r/, an immutable realm may not. On a
+// redeploy only the edges that changed against the live package are written.
+func (m *Machine) indexRealmImports(pkgPath string, files *FileSet, redeploy bool) {
+	var old []string
+	if redeploy {
+		if opn := m.Store.GetPackageNode(pkgPath); opn != nil && opn.FileSet != nil {
+			old = realmImports(opn.FileSet)
+		}
+	}
+	now := realmImports(files)
+	for _, path := range now {
+		if !slices.Contains(old, path) {
+			m.Store.AddPackageImporter(path, pkgPath)
+		}
+	}
+	for _, path := range old {
+		if !slices.Contains(now, path) {
+			m.Store.DeletePackageImporter(path, pkgPath)
+		}
+	}
+}
+
+// realmImports returns the realm paths fset imports, sorted and unique.
+func realmImports(fset *FileSet) []string {
+	var paths []string
+	for _, path := range fset.ImportPaths() {
+		if IsRealmPath(path) {
+			paths = append(paths, path)
+		}
+	}
+	slices.Sort(paths)
+	return slices.Compact(paths)
+}
+
 // preprocessSavedPackage preprocesses mpkg once, after the packages it
 // imports: a depth-first walk of the import decls (gnomod.PkgList.Sort does
 // the same over parsed packages, which this has not yet). The index order
@@ -356,15 +420,20 @@ func (m *Machine) preprocessSavedPackage(mpkg *std.MemPackage, done map[string]b
 	done[mpkg.Path] = true
 	mpkg = MPFProd.FilterMemPackage(mpkg)
 	fset := m.ParseMemPackage(mpkg)
-	for _, fn := range fset.Files {
-		for _, d := range fn.Decls {
-			if id, ok := d.(*ImportDecl); ok {
-				if dep := m.Store.GetMemPackage(id.PkgPath); dep != nil {
-					m.preprocessSavedPackage(dep, done)
-				}
-			}
+	for _, path := range fset.ImportPaths() {
+		if done[path] {
+			continue
+		}
+		if dep := m.Store.GetMemPackage(path); dep != nil {
+			m.preprocessSavedPackage(dep, done)
 		}
 	}
+	m.preprocessFileSet(mpkg, fset)
+}
+
+// preprocessFileSet preprocesses a stored package's parsed files and saves
+// their block nodes, without running them.
+func (m *Machine) preprocessFileSet(mpkg *std.MemPackage, fset *FileSet) {
 	pn := NewPackageNode(Name(mpkg.Name), mpkg.Path, fset)
 	m.Store.SetBlockNode(pn)
 	PredefineFileSet(m.Store, pn, fset)
@@ -473,6 +542,9 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prio
 		if prior != nil && mod.Version > 0 {
 			plan = planUpgrade(m.Store, mpkg.Path)
 		}
+		if save && mod.Mutable() {
+			m.indexRealmImports(mpkg.Path, files, prior != nil)
+		}
 	}
 
 	// make and set package if doesn't exist.
@@ -514,12 +586,14 @@ func (m *Machine) runMemPackage(mpkg *std.MemPackage, save, overrides bool, prio
 			m.setRealm(throwaway)
 		}
 	}
-	// run init functions, or on an upgrade the migrate functions instead.
-	initFn := Name("init")
+	// run init functions, or on an upgrade the migrate functions instead,
+	// handed the version they replace: the step rule makes it Version-1.
 	if plan != nil {
-		initFn = "migrate"
+		from := mod.Version - 1
+		m.runFuncsFromUpdates(pv, updates, "migrate", constInt(Num(strconv.Itoa(from)), int64(from)))
+	} else {
+		m.runFuncsFromUpdates(pv, updates, "init")
 	}
-	m.runFuncsFromUpdates(pv, updates, initFn)
 	// save again after init.
 	if save {
 		m.resavePackageValues(throwaway)
@@ -926,14 +1000,14 @@ func (m *Machine) runFileDecls(withOverrides bool, plan *upgradePlan, fns ...*Fi
 	return updates
 }
 
-// Run the new package initializers named fn: "init", or "migrate" on a
-// versioned redeploy (see IsPkgInitFunc).
+// Run the new package initializers named fn, with args: "init", or "migrate"
+// on a versioned redeploy (see IsPkgInitFunc).
 // Go spec: "To ensure reproducible initialization
 // behavior, build systems are encouraged to present
 // multiple files belonging to the same package in
 // lexical file name order to a compiler."
 // If m.Realm is set `init(cur realm)` works too.
-func (m *Machine) runFuncsFromUpdates(pv *PackageValue, updates []TypedValue, fn Name) {
+func (m *Machine) runFuncsFromUpdates(pv *PackageValue, updates []TypedValue, fn Name, args ...Expr) {
 	prefix := string(fn) + "."
 	// Only for the initializers make the origin caller
 	// the package addr.
@@ -947,7 +1021,7 @@ func (m *Machine) runFuncsFromUpdates(pv *PackageValue, updates []TypedValue, fn
 				fb := pv.GetFileBlock(m.Store, fv.FileName)
 				m.PushBlock(fb)
 				maybeCrossing := m.Realm != nil
-				m.runFunc(StageAdd, fv.Name, maybeCrossing)
+				m.runFunc(StageAdd, fv.Name, maybeCrossing, args...)
 				m.PopBlock()
 			}
 		}
@@ -1016,7 +1090,8 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 	// even after running the init function.
 }
 
-func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
+func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool, args ...Expr) {
+	var callArgs []any
 	if maybeCrossing {
 		pv := m.Package
 		pb := pv.GetBlock(m.Store)
@@ -1031,11 +1106,13 @@ func (m *Machine) runFunc(st Stage, fn Name, maybeCrossing bool) {
 			// considered to have already crossed at "frame -1", so
 			// we do not want to cross-call main, and the behavior
 			// is identical to main(), like wise init().
-			m.RunStatement(st, S(Call(Nx(fn), Nx(".cur"))))
-			return
+			callArgs = append(callArgs, Nx(".cur"))
 		}
 	}
-	m.RunStatement(st, S(Call(Nx(fn))))
+	for _, arg := range args {
+		callArgs = append(callArgs, arg)
+	}
+	m.RunStatement(st, S(Call(Nx(fn), callArgs...)))
 }
 
 func (m *Machine) RunMain() {

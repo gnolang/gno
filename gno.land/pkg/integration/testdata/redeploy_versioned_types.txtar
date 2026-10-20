@@ -41,6 +41,10 @@ stderr 'upgrade: type Store changed its underlying type'
 ! gnokey maketx addpkg -pkgdir $WORK/v2_var_to_const -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 stderr 'upgrade: counter is no longer a variable'
 
+# Refused: migrate without the version it replaces.
+! gnokey maketx addpkg -pkgdir $WORK/v2_migrate_noarg -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
+stderr 'migrate must be declared as migrate\(from int\) or migrate\(cur realm, from int\)'
+
 # Refused: one declaration names a carried global and a new one.
 ! gnokey maketx addpkg -pkgdir $WORK/v2_mixed_decl -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
 stderr 'mixes carried and new globals'
@@ -64,9 +68,9 @@ stdout '2 int'
 # The new global started at zero.
 gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Hits()'
 stdout '0 int'
-# Both migrate() ran, in order; init() did not.
+# Both migrate() ran, in order, handed the version replaced; init() did not.
 gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Log()'
-stdout '"ab"'
+stdout '"a1b"'
 # The object v1 persisted dispatches v2's method body.
 gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Describe()'
 stdout '"bob v2"'
@@ -76,7 +80,7 @@ stdout 'node restarted successfully'
 gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Describe()'
 stdout '"bob v2"'
 gnokey query vm/qeval --data 'gno.land/r/demo/shapes.Log()'
-stdout '"ab"'
+stdout '"a1b"'
 
 # Refused: once versioned, a realm cannot go back to the unversioned redeploy.
 ! gnokey maketx addpkg -pkgdir $WORK/v3_unversioned -pkgpath gno.land/r/demo/shapes -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test test1
@@ -288,6 +292,8 @@ version = 2
 -- v2_ok/shapes.gno --
 package shapes
 
+import "strconv"
+
 type Entry struct {
 	Name string
 	N    int
@@ -310,9 +316,9 @@ var (
 	log     string // new
 )
 
-func init()    { log += "init" } // does not run on an upgrade
-func migrate() { log += "a" }
-func migrate() { log += "b" }
+func init()             { log += "init" } // does not run on an upgrade
+func migrate(from int)  { log += "a" + strconv.Itoa(from) }
+func migrate(_ int)     { log += "b" }
 
 func Add(cur realm, name string) {
 	counter++
@@ -335,3 +341,16 @@ private = true
 package shapes
 
 func Tag() string { return "v3" }
+
+-- v2_migrate_noarg/gnomod.toml --
+module = "gno.land/r/demo/shapes"
+gno = "0.9"
+private = true
+version = 2
+
+-- v2_migrate_noarg/shapes.gno --
+package shapes
+
+func migrate() {}
+
+func Tag() string { return "v2" }

@@ -385,7 +385,8 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, err
 	}
-	if mod != nil && mod.Upgradeable() && gimp.rootIsImmutableRealm() {
+	upgradeable := mod != nil && mod.Upgradeable()
+	if upgradeable && gimp.rootIsImmutableRealm() {
 		// An immutable realm may not depend on code that can change under
 		// it (CONSTITUTION, Realm Upgrading).
 		err := ImportUpgradeableError{PkgPath: pkgPath}
@@ -400,7 +401,9 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 		result.pending = false
 		return nil, errs
 	}
-	if canPerm {
+	// That verdict depends on the root, so an upgradeable realm is not
+	// cached across roots: a hit would skip it.
+	if canPerm && !upgradeable {
 		gimp.permCache[ck] = pkg
 	}
 	result.pkg = pkg
@@ -412,15 +415,43 @@ func (gimp *gnoImporter) ImportFrom(pkgPath, _ string, _ types.ImportMode) (gopk
 // Minimal AST mutation(s) for Go.
 // Supports init(cur realm), main(cur realm) by removing the param and
 // inserting `var cur realm; _ = cur` so go/types sees the cur variable.
-func prepareGoGno0p9(f *ast.File) (err error) {
+func prepareGoGno0p9(fset *token.FileSet, f *ast.File) (err error) {
 	astutil.Apply(f, nil, func(c *astutil.Cursor) bool { // leaving...
 		switch gon := c.Node().(type) {
 		case *ast.FuncDecl:
 			name := gon.Name.String()
 			// migrate follows init's rules (many declarations, not
-			// referenceable); go/types only knows them for init.
+			// referenceable); go/types only knows them for init. Its
+			// trailing `from int` is stripped here and declared in the
+			// body, as `cur realm` is below.
 			if gon.Recv == nil && name == "migrate" {
 				gon.Name.Name = "init"
+				params := gon.Type.Params.List
+				n := len(params)
+				if n == 0 || n > 2 || !isIdentType(params[n-1].Type, "int") ||
+					len(params[n-1].Names) > 1 || gon.Type.Results.NumFields() > 0 ||
+					(n == 2 && !isIdentType(params[0].Type, "realm")) {
+					err = fmt.Errorf("%s: migrate must be declared as migrate(from int) or migrate(cur realm, from int)",
+						fset.Position(gon.Pos()))
+					return false
+				}
+				from := params[n-1]
+				gon.Type.Params.List = params[:n-1]
+				if len(from.Names) == 1 && from.Names[0].Name != "_" {
+					insert := gon.Type.End()
+					fromName := from.Names[0].Name
+					gon.Body.List = append([]ast.Stmt{
+						&ast.DeclStmt{Decl: &ast.GenDecl{Tok: token.VAR, TokPos: insert, Specs: []ast.Spec{&ast.ValueSpec{
+							Names: []*ast.Ident{{Name: fromName, NamePos: insert}},
+							Type:  &ast.Ident{Name: "int", NamePos: insert},
+						}}}},
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{&ast.Ident{Name: "_", NamePos: insert}},
+							Tok: token.ASSIGN, TokPos: insert,
+							Rhs: []ast.Expr{&ast.Ident{Name: fromName, NamePos: insert}},
+						},
+					}, gon.Body.List...)
+				}
 			}
 			if gon.Recv == nil && (name == "main" || IsPkgInitFunc(Name(name))) {
 				if len(gon.Type.Params.List) == 1 { // `cur realm`
@@ -500,9 +531,8 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 
 	// STEP 3: Prepare for Go type-checking.
 	for _, gof := range allgofs {
-		err := prepareGoGno0p9(gof)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error: %v", err))
+		if err := prepareGoGno0p9(gofset, gof); err != nil {
+			return nil, err
 		}
 	}
 
@@ -602,6 +632,12 @@ func (gimp *gnoImporter) typeCheckMemPackage(mpkg *std.MemPackage, wtests *bool)
 		*/
 	}
 	return pkg, multierr.Combine(gimp.errors[numErrs:]...)
+}
+
+// isIdentType reports whether t is the bare identifier name.
+func isIdentType(t ast.Expr, name string) bool {
+	id, ok := t.(*ast.Ident)
+	return ok && id.Name == name
 }
 
 // Ensure uniqueness of declarations,
