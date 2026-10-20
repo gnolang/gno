@@ -10,7 +10,6 @@ import (
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
-	"gno.land/p/nt/ufmt/v0"
 	"gno.land/p/nt/urequire/v0"
 )
 
@@ -40,8 +39,8 @@ func TestNewTokenAllowsDuplicateSymbolInSameRealm(cur realm, t *testing.T) {
 
 	urequire.NoError(t, firstLedger.Mint(holder, 11))
 	urequire.NoError(t, secondLedger.Mint(holder, 22))
-	urequire.Equal(t, uint256(11), first.BalanceOf(holder), "first balance")
-	urequire.Equal(t, uint256(22), second.BalanceOf(holder), "second balance")
+	require256(t, uint256(11), first.BalanceOf(holder), "first balance")
+	require256(t, uint256(22), second.BalanceOf(holder), "second balance")
 }
 
 func TestNewTokenValidation(cur realm, t *testing.T) {
@@ -106,17 +105,17 @@ func TestToken(cur realm, t *testing.T) {
 
 	checkBalances := func(aliceEB, bobEB, carlEB uint256) {
 		t.Helper()
-		exp := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceEB, bobEB, carlEB)
-		got := ufmt.Sprintf("alice=%d bob=%d carl=%d", bank.BalanceOf(alice), bank.BalanceOf(bob), bank.BalanceOf(carl))
+		exp := fmtAmounts("alice", aliceEB, "bob", bobEB, "carl", carlEB)
+		got := fmtAmounts("alice", bank.BalanceOf(alice), "bob", bank.BalanceOf(bob), "carl", bank.BalanceOf(carl))
 		uassert.Equal(t, got, exp, "invalid balances")
 	}
 	checkAllowances := func(abEB, acEB, baEB, bcEB, caEB, cbEB uint256) {
 		t.Helper()
-		exp := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%d", abEB, acEB, baEB, bcEB, caEB, cbEB)
-		got := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%d",
-			bank.Allowance(alice, bob), bank.Allowance(alice, carl),
-			bank.Allowance(bob, alice), bank.Allowance(bob, carl),
-			bank.Allowance(carl, alice), bank.Allowance(carl, bob),
+		exp := fmtAmounts("ab", abEB, "ac", acEB, "ba", baEB, "bc", bcEB, "ca", caEB, "cb", cbEB)
+		got := fmtAmounts(
+			"ab", bank.Allowance(alice, bob), "ac", bank.Allowance(alice, carl),
+			"ba", bank.Allowance(bob, alice), "bc", bank.Allowance(bob, carl),
+			"ca", bank.Allowance(carl, alice), "cb", bank.Allowance(carl, bob),
 		)
 		uassert.Equal(t, got, exp, "invalid allowances")
 	}
@@ -161,12 +160,12 @@ func TestMintOverflow(cur realm, t *testing.T) {
 
 	safeValue := uint256(1 << 255)
 	urequire.NoError(t, adm.Mint(alice, safeValue))
-	urequire.Equal(t, uint256(safeValue), tok.BalanceOf(alice), "alice balance")
+	require256(t, uint256(safeValue), tok.BalanceOf(alice), "alice balance")
 
 	err := adm.Mint(bob, safeValue)
 	uassert.True(t, errors.Is(err, ErrMintOverflow), "expected ErrMintOverflow")
-	urequire.Equal(t, uint256(safeValue), tok.TotalSupply(), "supply unchanged by a refused mint")
-	urequire.Equal(t, uint256(0), tok.BalanceOf(bob), "bob unchanged by a refused mint")
+	require256(t, uint256(safeValue), tok.TotalSupply(), "supply unchanged by a refused mint")
+	require256(t, uint256(0), tok.BalanceOf(bob), "bob unchanged by a refused mint")
 }
 
 func TestTransferFromAtomicity(cur realm, t *testing.T) {
@@ -193,23 +192,23 @@ func TestTransferFromAtomicity(cur realm, t *testing.T) {
 	uassert.Error(t, err, "transfer should fail due to invalid address")
 
 	ownerBalance := token.BalanceOf(owner)
-	urequire.Equal(t, uint256(initialBalance), ownerBalance, "owner balance should remain unchanged")
+	require256(t, uint256(initialBalance), ownerBalance, "owner balance should remain unchanged")
 
 	// check if allowance was incorrectly reduced
 	remainingAllowance := token.Allowance(owner, spender)
-	urequire.Equal(t, uint256(initialAllowance), remainingAllowance, "allowance should not be reduced when transfer fails")
+	require256(t, uint256(initialAllowance), remainingAllowance, "allowance should not be reduced when transfer fails")
 
 	// Self-transfers fail in Transfer after SpendAllowance. TransferFrom must
 	// reject them before it can mutate the allowance.
 	err = admin.TransferFrom(owner, spender, owner, transferAmount)
 	uassert.True(t, errors.Is(err, ErrCannotTransferToSelf), "self-transfer should fail")
-	urequire.Equal(t, uint256(initialBalance), token.BalanceOf(owner), "owner balance should not change when self-transfer fails")
-	urequire.Equal(t, uint256(initialAllowance), token.Allowance(owner, spender), "allowance should not be reduced when self-transfer fails")
+	require256(t, uint256(initialBalance), token.BalanceOf(owner), "owner balance should not change when self-transfer fails")
+	require256(t, uint256(initialAllowance), token.Allowance(owner, spender), "allowance should not be reduced when self-transfer fails")
 
 	// transfer all tokens
 	admin.Transfer(owner, recipient, 100)
 	remainingBalance := token.BalanceOf(owner)
-	urequire.Equal(t, uint256(0), remainingBalance, "balance should be zero")
+	require256(t, uint256(0), remainingBalance, "balance should be zero")
 	uassert.False(t, token.HasAddr(owner), "a zero balance is not stored")
 
 	err = admin.TransferFrom(owner, spender, recipient, transferAmount)
@@ -292,12 +291,12 @@ func TestMintUntilOverflow(cur realm, t *testing.T) {
 				uassert.NoError(t, err, tt.description)
 			}
 
-			urequire.Equal(t, uint256(tt.expectedSupply), tok.TotalSupply(), "totalSupply should match expected value")
+			require256(t, uint256(tt.expectedSupply), tok.TotalSupply(), "totalSupply should match expected value")
 		})
 	}
 
-	urequire.Equal(t, uint256(math.MaxUint256-1000), tok.BalanceOf(alice), "alice balance")
-	urequire.Equal(t, uint256(1000), tok.BalanceOf(bob), "bob balance")
+	require256(t, uint256(math.MaxUint256-1000), tok.BalanceOf(alice), "alice balance")
+	require256(t, uint256(1000), tok.BalanceOf(bob), "bob balance")
 }
 
 // TestMaxSupplyMovements moves the whole MaxUint256 supply around: every
@@ -309,21 +308,21 @@ func TestMaxSupplyMovements(cur realm, t *testing.T) {
 	tok, adm := newTestToken("Dummy", "DUMMY", 18, 0, cur)
 
 	urequire.NoError(t, adm.Mint(alice, math.MaxUint256))
-	urequire.Equal(t, uint256(math.MaxUint256), tok.TotalSupply(), "supply")
+	require256(t, uint256(math.MaxUint256), tok.TotalSupply(), "supply")
 
 	// Transfer everything but one.
 	urequire.NoError(t, adm.Transfer(alice, bob, math.MaxUint256-1))
-	urequire.Equal(t, uint256(1), tok.BalanceOf(alice), "alice")
-	urequire.Equal(t, uint256(math.MaxUint256-1), tok.BalanceOf(bob), "bob")
+	require256(t, uint256(1), tok.BalanceOf(alice), "alice")
+	require256(t, uint256(math.MaxUint256-1), tok.BalanceOf(bob), "bob")
 
 	// Overdraft by one is refused and changes nothing.
 	err := adm.Transfer(alice, bob, 2)
 	uassert.True(t, errors.Is(err, ErrInsufficientBalance), "overdraft must be refused")
-	urequire.Equal(t, uint256(1), tok.BalanceOf(alice), "alice after refused overdraft")
+	require256(t, uint256(1), tok.BalanceOf(alice), "alice after refused overdraft")
 
 	// The last unit lands on bob, who now holds MaxUint256.
 	urequire.NoError(t, adm.Transfer(alice, bob, 1))
-	urequire.Equal(t, uint256(math.MaxUint256), tok.BalanceOf(bob), "bob holds everything")
+	require256(t, uint256(math.MaxUint256), tok.BalanceOf(bob), "bob holds everything")
 	uassert.False(t, tok.HasAddr(alice), "alice's zero balance is removed")
 	uassert.Equal(t, 1, tok.KnownAccounts())
 
@@ -335,7 +334,7 @@ func TestMaxSupplyMovements(cur realm, t *testing.T) {
 
 	// Burn everything.
 	urequire.NoError(t, adm.Burn(carl, math.MaxUint256))
-	urequire.Equal(t, uint256(0), tok.TotalSupply(), "supply after burn")
+	require256(t, uint256(0), tok.TotalSupply(), "supply after burn")
 	uassert.Equal(t, 0, tok.KnownAccounts())
 
 	err = adm.Burn(carl, 1)
@@ -351,17 +350,17 @@ func TestAbove2Pow63(cur realm, t *testing.T) {
 
 	big := uint256(1<<63) + 7 // 9223372036854775815
 	urequire.NoError(t, adm.Mint(alice, big*3))
-	urequire.Equal(t, uint256(big*3), tok.TotalSupply(), "supply")
+	require256(t, uint256(big*3), tok.TotalSupply(), "supply")
 
 	urequire.NoError(t, adm.Transfer(alice, bob, big))
-	urequire.Equal(t, uint256(big*2), tok.BalanceOf(alice), "alice")
-	urequire.Equal(t, uint256(big), tok.BalanceOf(bob), "bob")
+	require256(t, uint256(big*2), tok.BalanceOf(alice), "alice")
+	require256(t, uint256(big), tok.BalanceOf(bob), "bob")
 
 	urequire.NoError(t, adm.Approve(alice, carl, big))
 	urequire.NoError(t, adm.TransferFrom(alice, carl, carl, big))
-	urequire.Equal(t, uint256(big), tok.BalanceOf(alice), "alice after TransferFrom")
-	urequire.Equal(t, uint256(big), tok.BalanceOf(carl), "carl")
-	urequire.Equal(t, uint256(0), tok.Allowance(alice, carl), "allowance used up")
+	require256(t, uint256(big), tok.BalanceOf(alice), "alice after TransferFrom")
+	require256(t, uint256(big), tok.BalanceOf(carl), "carl")
+	require256(t, uint256(0), tok.Allowance(alice, carl), "allowance used up")
 
 	uassert.Equal(t, "9223372036854775815", strconv.FormatUint256(tok.BalanceOf(bob), 10))
 }
@@ -376,34 +375,34 @@ func TestAllowanceNearMax(cur realm, t *testing.T) {
 
 	urequire.NoError(t, adm.Mint(alice, 1000))
 	urequire.NoError(t, adm.Approve(alice, bob, math.MaxUint256))
-	urequire.Equal(t, uint256(math.MaxUint256), tok.Allowance(alice, bob), "max allowance")
+	require256(t, uint256(math.MaxUint256), tok.Allowance(alice, bob), "max allowance")
 
 	// Spending decreases even a max allowance (no "infinite" special case).
 	urequire.NoError(t, adm.TransferFrom(alice, bob, carl, 400))
-	urequire.Equal(t, uint256(math.MaxUint256-400), tok.Allowance(alice, bob), "allowance after spend")
+	require256(t, uint256(math.MaxUint256-400), tok.Allowance(alice, bob), "allowance after spend")
 
 	// Spending more than the allowance is refused without wrapping.
 	urequire.NoError(t, adm.Approve(alice, bob, 10))
 	err := adm.SpendAllowance(alice, bob, 11)
 	uassert.True(t, errors.Is(err, ErrInsufficientAllowance), "over-allowance must be refused")
-	urequire.Equal(t, uint256(10), tok.Allowance(alice, bob), "allowance unchanged")
+	require256(t, uint256(10), tok.Allowance(alice, bob), "allowance unchanged")
 
 	// A max-size spend against a max allowance leaves zero, which is removed.
 	urequire.NoError(t, adm.Approve(alice, bob, math.MaxUint256))
 	urequire.NoError(t, adm.SpendAllowance(alice, bob, math.MaxUint256))
-	urequire.Equal(t, uint256(0), tok.Allowance(alice, bob), "allowance spent")
+	require256(t, uint256(0), tok.Allowance(alice, bob), "allowance spent")
 
 	// Approving zero clears an allowance.
 	urequire.NoError(t, adm.Approve(alice, bob, 5))
 	urequire.NoError(t, adm.Approve(alice, bob, 0))
-	urequire.Equal(t, uint256(0), tok.Allowance(alice, bob), "allowance cleared")
+	require256(t, uint256(0), tok.Allowance(alice, bob), "allowance cleared")
 
 	// TransferFrom with a max allowance but insufficient balance is refused
 	// before the allowance is touched.
 	urequire.NoError(t, adm.Approve(alice, bob, math.MaxUint256))
 	err = adm.TransferFrom(alice, bob, carl, 601)
 	uassert.True(t, errors.Is(err, ErrInsufficientBalance), "insufficient balance")
-	urequire.Equal(t, uint256(math.MaxUint256), tok.Allowance(alice, bob), "allowance untouched")
+	require256(t, uint256(math.MaxUint256), tok.Allowance(alice, bob), "allowance untouched")
 }
 
 func TestFormatAmount(t *testing.T) {

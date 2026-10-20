@@ -6,6 +6,7 @@ package grc20reg
 
 import (
 	"chain"
+	"strconv"
 	"strings"
 
 	"gno.land/p/moul/md/v0"
@@ -177,7 +178,7 @@ func Render(path string) string {
 		s += "- symbol: " + md.Bold(sanitize.InlineText(token.GetSymbol())) + "\n"
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
 		s += ufmt.Sprintf("- decimals: %d\n", token.GetDecimals())
-		s += ufmt.Sprintf("- total supply: %d\n", token.TotalSupply())
+		s += "- total supply: " + strconv.FormatUint256(token.TotalSupply(), 10) + "\n"
 		return s
 	}
 }

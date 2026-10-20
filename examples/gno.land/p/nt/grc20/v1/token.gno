@@ -187,7 +187,7 @@ func (tok Token) RenderHome() string {
 	// emphasis, HTML), so it is escaped; symbol is escaped too for uniformity.
 	str += ufmt.Sprintf("# %s ($%s)\n\n", sanitize.InlineText(tok.name), sanitize.InlineText(tok.symbol))
 	str += ufmt.Sprintf("* **Decimals**: %d\n", tok.decimals)
-	str += ufmt.Sprintf("* **Total supply**: %d\n", tok.ledger.totalSupply)
+	str += "* **Total supply**: " + strconv.FormatUint256(tok.ledger.totalSupply, 10) + "\n"
 	str += ufmt.Sprintf("* **Known accounts**: %d\n", tok.KnownAccounts())
 	return str
 }

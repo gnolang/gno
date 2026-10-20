@@ -76,13 +76,13 @@ func TestRegistryLookupGrantsNoSpendAuthority(cur realm, t *testing.T) {
 	urequire.NoError(t, ledger.Mint(alice, 1_000))
 	tokenKey := Register(cross(cur), token, "")
 	uassert.Equal(t, "TestToken", MustGet(tokenKey).GetName())
-	uassert.Equal(t, uint256(1_000), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, uint256(0), MustGet(tokenKey).Allowance(alice, consumer))
+	equal256(t, uint256(1_000), MustGet(tokenKey).BalanceOf(alice))
+	equal256(t, uint256(0), MustGet(tokenKey).Allowance(alice, consumer))
 
 	// alice approves the consumer realm on the token. On chain she does this
 	// through the token realm's own entry point; the ledger stands in for it.
 	urequire.NoError(t, ledger.ImpersonateTeller(alice).Approve(0, cur, consumer, 300))
-	uassert.Equal(t, uint256(300), MustGet(tokenKey).Allowance(alice, consumer))
+	equal256(t, uint256(300), MustGet(tokenKey).Allowance(alice, consumer))
 
 	// The consumer spends that allowance as ITSELF, over a token it found in
 	// the registry and does not own. The actor is fixed at construction, so it
@@ -90,16 +90,16 @@ func TestRegistryLookupGrantsNoSpendAuthority(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(consumerPath))
 	spender := MustGet(tokenKey).RealmTeller(0, cur)
 	urequire.NoError(t, spender.TransferFrom(0, cur, alice, bob, 200))
-	uassert.Equal(t, uint256(800), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, uint256(200), MustGet(tokenKey).BalanceOf(bob))
-	uassert.Equal(t, uint256(100), MustGet(tokenKey).Allowance(alice, consumer))
+	equal256(t, uint256(800), MustGet(tokenKey).BalanceOf(alice))
+	equal256(t, uint256(200), MustGet(tokenKey).BalanceOf(bob))
+	equal256(t, uint256(100), MustGet(tokenKey).Allowance(alice, consumer))
 
 	// Beyond the allowance it stops: the balance is not reachable directly.
 	uassert.ErrorContains(t,
 		spender.TransferFrom(0, cur, alice, bob, 101),
 		"insufficient allowance")
-	uassert.Equal(t, uint256(800), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, uint256(200), MustGet(tokenKey).BalanceOf(bob))
+	equal256(t, uint256(800), MustGet(tokenKey).BalanceOf(alice))
+	equal256(t, uint256(200), MustGet(tokenKey).BalanceOf(bob))
 }
 
 // TestRegistryConsumerCannotRedirectItsActor is the negative half of the
@@ -127,9 +127,9 @@ func TestRegistryConsumerCannotRedirectItsActor(cur realm, t *testing.T) {
 	testing.SetOriginCaller(alice)
 	testing.SetRealm(testing.NewCodeRealm(consumerPath))
 	urequire.NoError(t, MustGet(tokenKey).RealmTeller(0, cur).Transfer(0, cur, bob, 100))
-	uassert.Equal(t, uint256(1_000), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, uint256(400), MustGet(tokenKey).BalanceOf(consumer))
-	uassert.Equal(t, uint256(100), MustGet(tokenKey).BalanceOf(bob))
+	equal256(t, uint256(1_000), MustGet(tokenKey).BalanceOf(alice))
+	equal256(t, uint256(400), MustGet(tokenKey).BalanceOf(consumer))
+	equal256(t, uint256(100), MustGet(tokenKey).BalanceOf(bob))
 }
 
 func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
@@ -139,7 +139,7 @@ func TestRegisterRejectsOverwrite(cur realm, t *testing.T) {
 	key := Register(cross(cur), token, "")
 
 	urequire.Equal(t, "BAR", Get(key).GetSymbol())
-	uassert.Equal(t, uint256(11), Get(key).BalanceOf(cur.Address()))
+	equal256(t, uint256(11), Get(key).BalanceOf(cur.Address()))
 
 	replacement, _ := grc20.NewToken("Replacement", "BAR", 6, 0, cur)
 	urequire.AbortsContains(t, cur, "token already registered", func() {
@@ -250,9 +250,9 @@ func TestWrappersBindActorToCallingRealm(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(consumerPath))
 	Transfer(0, cur, tokenKey, bob, 100)
 
-	uassert.Equal(t, uint256(900), MustGet(tokenKey).BalanceOf(consumer))
-	uassert.Equal(t, uint256(1_000), MustGet(tokenKey).BalanceOf(registry))
-	uassert.Equal(t, uint256(100), MustGet(tokenKey).BalanceOf(bob))
+	equal256(t, uint256(900), MustGet(tokenKey).BalanceOf(consumer))
+	equal256(t, uint256(1_000), MustGet(tokenKey).BalanceOf(registry))
+	equal256(t, uint256(100), MustGet(tokenKey).BalanceOf(bob))
 }
 
 // TestWrapperActorIgnoresSigningUser is the negative half: the signing user has
@@ -278,8 +278,8 @@ func TestWrapperActorIgnoresSigningUser(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(consumerPath))
 	Transfer(0, cur, tokenKey, bob, 100)
 
-	uassert.Equal(t, uint256(1_000), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, uint256(400), MustGet(tokenKey).BalanceOf(consumer))
+	equal256(t, uint256(1_000), MustGet(tokenKey).BalanceOf(alice))
+	equal256(t, uint256(400), MustGet(tokenKey).BalanceOf(consumer))
 }
 
 // TestTransferFromSpendsAllowanceGrantedToCallingRealm records the semantic
@@ -305,15 +305,15 @@ func TestTransferFromSpendsAllowanceGrantedToCallingRealm(cur realm, t *testing.
 	uassert.PanicsContains(t, cur, "insufficient allowance", func() {
 		TransferFrom(0, cur, tokenKey, alice, bob, 100)
 	})
-	uassert.Equal(t, uint256(1_000), MustGet(tokenKey).BalanceOf(alice))
+	equal256(t, uint256(1_000), MustGet(tokenKey).BalanceOf(alice))
 
 	// alice approves the consuming realm itself, and only then does it work.
 	urequire.NoError(t, ledger.Approve(alice, consumer, 100))
 
 	testing.SetRealm(testing.NewCodeRealm(consumerPath))
 	TransferFrom(0, cur, tokenKey, alice, bob, 100)
-	uassert.Equal(t, uint256(900), MustGet(tokenKey).BalanceOf(alice))
-	uassert.Equal(t, uint256(100), MustGet(tokenKey).BalanceOf(bob))
+	equal256(t, uint256(900), MustGet(tokenKey).BalanceOf(alice))
+	equal256(t, uint256(100), MustGet(tokenKey).BalanceOf(bob))
 }
 
 // TestWrappersAbove2Pow63 moves amounts no int64 token can hold through the
@@ -337,15 +337,15 @@ func TestWrappersAbove2Pow63(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewCodeRealm(consumerPath))
 	Transfer(0, cur, tokenKey, bob, big)
 	Approve(0, cur, tokenKey, spender, math.MaxUint256)
-	uassert.Equal(t, uint256(math.MaxUint256-big), MustGet(tokenKey).BalanceOf(consumer))
-	uassert.Equal(t, uint256(big), MustGet(tokenKey).BalanceOf(bob))
-	uassert.Equal(t, uint256(math.MaxUint256), MustGet(tokenKey).Allowance(consumer, spender))
+	equal256(t, uint256(math.MaxUint256-big), MustGet(tokenKey).BalanceOf(consumer))
+	equal256(t, uint256(big), MustGet(tokenKey).BalanceOf(bob))
+	equal256(t, uint256(math.MaxUint256), MustGet(tokenKey).Allowance(consumer, spender))
 
 	testing.SetRealm(testing.NewCodeRealm(spenderPath))
 	TransferFrom(0, cur, tokenKey, consumer, bob, big)
-	uassert.Equal(t, uint256(math.MaxUint256-2*big), MustGet(tokenKey).BalanceOf(consumer))
-	uassert.Equal(t, uint256(2*big), MustGet(tokenKey).BalanceOf(bob))
-	uassert.Equal(t, uint256(math.MaxUint256-big), MustGet(tokenKey).Allowance(consumer, spender))
+	equal256(t, uint256(math.MaxUint256-2*big), MustGet(tokenKey).BalanceOf(consumer))
+	equal256(t, uint256(2*big), MustGet(tokenKey).BalanceOf(bob))
+	equal256(t, uint256(math.MaxUint256-big), MustGet(tokenKey).Allowance(consumer, spender))
 
 	// The total supply renders in full.
 	uassert.True(t, strings.Contains(Render(tokenKey),

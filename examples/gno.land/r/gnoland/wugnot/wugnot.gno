@@ -12,6 +12,7 @@ import (
 	"chain/runtime"
 	"chain/runtime/unsafe"
 	"math"
+	"strconv"
 	"strings"
 
 	"gno.land/p/nt/grc20/v1"
@@ -52,12 +53,12 @@ func Deposit(cur realm) {
 
 func Withdraw(cur realm, amount uint256) {
 	runtime.AssertOriginCall()
-	require(amount >= wugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d wugnot.", amount, wugnotMinDeposit))
+	require(amount >= wugnotMinDeposit, "Deposit below minimum: "+fmtAmount(amount)+"/"+fmtAmount(wugnotMinDeposit)+" wugnot.")
 
 	caller := cur.Previous().Address()
 	pkgaddr := cur.Address()
 	callerBal := Token.BalanceOf(caller)
-	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
+	require(amount <= callerBal, "Insufficient balance: "+fmtAmount(callerBal)+" available, "+fmtAmount(amount)+" needed.")
 	// Unreachable while the backing holds, and checked anyway so the int64
 	// conversion below can never truncate: wugnot is minted only by Deposit,
 	// for ugnot that has landed at this realm, and burned on every Withdraw,
@@ -65,7 +66,7 @@ func Withdraw(cur realm, amount uint256) {
 	// an int64 chain coin amount, so supply, and any single balance, is at most
 	// math.MaxInt64, and the balance check above has already refused anything
 	// larger.
-	require(amount <= math.MaxInt64, ufmt.Sprintf("Withdrawal exceeds the ugnot range: %d wugnot.", amount))
+	require(amount <= math.MaxInt64, "Withdrawal exceeds the ugnot range: "+fmtAmount(amount)+" wugnot.")
 
 	// send swapped ugnots to qcaller
 	stdBanker := banker.NewBanker(banker.BankerTypeRealmSend, cur)
@@ -84,7 +85,7 @@ func Render(path string) string {
 	case c == 2 && parts[0] == "balance":
 		owner := address(parts[1])
 		balance := Token.BalanceOf(owner)
-		return ufmt.Sprintf("%d", balance)
+		return fmtAmount(balance)
 	default:
 		return "404"
 	}
@@ -115,6 +116,11 @@ func Approve(cur realm, spender address, amount uint256) {
 func TransferFrom(cur realm, from, to address, amount uint256) {
 	userTeller := adm.CallerTeller()
 	checkErr(userTeller.TransferFrom(0, cur, from, to, amount))
+}
+
+// fmtAmount formats a wugnot amount in decimal (ufmt has no uint256 support).
+func fmtAmount(amount uint256) string {
+	return strconv.FormatUint256(amount, 10)
 }
 
 func require(condition bool, msg string) {

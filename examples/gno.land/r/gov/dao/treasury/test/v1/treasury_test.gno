@@ -203,10 +203,10 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 	for i, userAddr := range []address{user1Addr, user2Addr} {
 		for _, keyed := range keyedTokens {
 			// Check that the treasury has the expected balance before sending.
-			uassert.Equal(t, keyed.token.BalanceOf(treasuryAddr), uint256(mintAmount-int64(txAmount*i)))
+			equal256(t, uint256(mintAmount-int64(txAmount*i)), keyed.token.BalanceOf(treasuryAddr))
 
 			// Check that the user has no balance before sending.
-			uassert.Equal(t, keyed.token.BalanceOf(userAddr), uint256(0))
+			equal256(t, uint256(0), keyed.token.BalanceOf(userAddr))
 
 			// Try to send a GRC20 payment with a registered token, it should not abort.
 			uassert.NotAborts(t, cur, func() {
@@ -221,10 +221,10 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 			})
 
 			// Check that the user has the expected balance after sending.
-			uassert.Equal(t, keyed.token.BalanceOf(userAddr), uint256(txAmount))
+			equal256(t, uint256(txAmount), keyed.token.BalanceOf(userAddr))
 
 			// Check that the treasury has the expected balance after sending.
-			uassert.Equal(t, keyed.token.BalanceOf(treasuryAddr), uint256(mintAmount-int64(txAmount*(i+1))))
+			equal256(t, uint256(mintAmount-int64(txAmount*(i+1))), keyed.token.BalanceOf(treasuryAddr))
 		}
 	}
 
@@ -239,7 +239,7 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 	for _, balance := range balances {
 		for _, keyed := range keyedTokens {
 			if balance.Denom == keyed.key {
-				uassert.Equal(t, balance.Amount, keyed.token.BalanceOf(treasuryAddr))
+				equal256(t, keyed.token.BalanceOf(treasuryAddr), balance.Amount)
 				compared++
 			}
 		}
@@ -307,7 +307,7 @@ func TestSendCoinPayment(cur realm, t *testing.T) {
 			balances := treasury.Balances(bankerID)
 			uassert.Equal(t, len(balances), 1)
 			uassert.Equal(t, balances[0].Denom, "ugnot")
-			uassert.Equal(t, balances[0].Amount, uint256(expectedTreasuryBalance))
+			equal256(t, uint256(expectedTreasuryBalance), balances[0].Amount)
 
 			// Check treasury.History returned value.
 			history := treasury.History(bankerID, 1, expectedHistoryLen+1)
