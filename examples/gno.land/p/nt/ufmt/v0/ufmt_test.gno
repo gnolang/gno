@@ -13,6 +13,10 @@ func (stringer) String() string {
 	return "I'm a stringer"
 }
 
+// big200 is 2^200. A typed int256 constant must fit an int64 at type-check
+// time, so large int256 values are built at run time from a uint256 variable.
+var big200 uint256 = 1 << 200
+
 func TestSprintf(t *testing.T) {
 	tru := true
 	cases := []struct {
@@ -47,7 +51,7 @@ func TestSprintf(t *testing.T) {
 		{"uint64 [%v]", []any{uint64(64)}, "uint64 [64]"},
 		{"uint256 [%d]", []any{uint256(1<<256 - 1)}, "uint256 [115792089237316195423570985008687907853269984665640564039457584007913129639935]"},
 		{"uint256 [%v]", []any{uint256(1 << 64)}, "uint256 [18446744073709551616]"},
-		{"int256 [%d]", []any{-int256(1 << 200)}, "int256 [-1606938044258990275541962092341162602522202993782792835301376]"},
+		{"int256 [%d]", []any{-int256(big200)}, "int256 [-1606938044258990275541962092341162602522202993782792835301376]"},
 		{"int256 [%v]", []any{int256(-1)}, "int256 [-1]"},
 		{"%T %T", []any{uint256(0), int256(0)}, "uint256 int256"},
 		{"%s", []any{uint256(7)}, "%!s(uint256=7)"},
@@ -383,7 +387,8 @@ func TestPrint256(t *testing.T) {
 		negS = "-57896044618658097711785492504343953926634992332820282019728792003956564819968"
 	)
 	u := uint256(1<<256 - 1)
-	s := int256(-1 << 255)
+	var bits uint256 = 1 << 255
+	s := int256(bits) // -2^255; a typed int256 constant must fit an int64
 	want := "x " + bigU + " " + negS
 
 	if got := Sprint("x", u, s); got != want {

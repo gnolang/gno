@@ -251,6 +251,11 @@ func TestNotPanics(cur realm, t *testing.T) {
 	mockT.equals(t, "error: func should not panic\n\tPanic value:\tPanic!")
 }
 
+// big200 is 2^200. A typed int256 constant must fit an int64 at type-check
+// time, so large int256 values in these tables are built at run time from a
+// uint256 variable.
+var big200 uint256 = 1 << 200
+
 func TestEqual(t *testing.T) {
 	mockT := new(mockTestingT)
 
@@ -268,7 +273,7 @@ func TestEqual(t *testing.T) {
 		{int32(123), int32(123), true, ""},
 		{uint64(123), uint64(123), true, ""},
 		{uint256(1<<256 - 1), uint256(1<<256 - 1), true, ""},
-		{int256(-1 << 200), int256(-1 << 200), true, ""},
+		{-int256(big200), -int256(big200), true, ""},
 		{address("g12345"), address("g12345"), true, ""},
 		// XXX: continue
 
