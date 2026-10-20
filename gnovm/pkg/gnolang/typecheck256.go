@@ -37,14 +37,14 @@ func is256GoType(t types.Type) bool {
 	case *types.Map:
 		return is256GoType(t.Key()) || is256GoType(t.Elem())
 	case *types.Struct:
-		for i := range t.NumFields() {
-			if is256GoType(t.Field(i).Type()) {
+		for field := range t.Fields() {
+			if is256GoType(field.Type()) {
 				return true
 			}
 		}
 	case *types.Tuple:
-		for i := range t.Len() {
-			if is256GoType(t.At(i).Type()) {
+		for v := range t.Variables() {
+			if is256GoType(v.Type()) {
 				return true
 			}
 		}
