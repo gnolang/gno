@@ -85,3 +85,118 @@ func TestReadCgroupUint(t *testing.T) {
 	_, ok = readCgroupUint(dir + "/does-not-exist")
 	assert.False(t, ok)
 }
+
+func TestParseProcCgroup(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		name, in string
+		path     string
+		v1memory bool
+	}{
+		{name: "v2 only", in: "0::/user.slice/app.scope\n", path: "/user.slice/app.scope"},
+		{name: "v2 namespace root", in: "0::/\n", path: "/"},
+		{
+			// A stray v1 hierarchy without memory leaves v2 in charge of it.
+			name: "v2 beside a v1 net_cls",
+			in:   "1:net_cls:/\n0::/user.slice/app.scope\n",
+			path: "/user.slice/app.scope",
+		},
+		{
+			name:     "v1 memory",
+			in:       "5:memory:/docker/abc\n1:name=systemd:/docker/abc\n0::/\n",
+			path:     "/",
+			v1memory: true,
+		},
+		{name: "v1 memory sharing a hierarchy", in: "4:cpu,memory:/x\n", v1memory: true},
+		{name: "v1 named hierarchy is not memory", in: "1:name=memory-ish:/x\n"},
+		{name: "empty", in: ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			path, v1memory := parseProcCgroup(tt.in)
+			assert.Equal(t, tt.path, path)
+			assert.Equal(t, tt.v1memory, v1memory)
+		})
+	}
+}
+
+func TestCgroupDirs(t *testing.T) {
+	t.Parallel()
+
+	mount := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(mount, "a", "b", "c"), 0o700))
+
+	for _, tt := range []struct {
+		name, rel string
+		want      []string
+	}{
+		{name: "leaf and every ancestor", rel: "/a/b/c", want: []string{"a/b/c", "a/b", "a", ""}},
+		{name: "namespace root", rel: "/", want: []string{""}},
+		// A host path seen from inside a container sharing the namespace.
+		{name: "missing", rel: "/system.slice/docker-1.scope", want: []string{""}},
+		// Paths outside a cgroup namespace show as "/../..".
+		{name: "escapes the mount", rel: "/../../a", want: []string{""}},
+		{name: "no v2 entry", rel: "", want: nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var want []string
+			for _, w := range tt.want {
+				want = append(want, filepath.Join(mount, w))
+			}
+			assert.Equal(t, want, cgroupDirs(mount, tt.rel))
+		})
+	}
+}
+
+func TestCgroupMemory(t *testing.T) {
+	t.Parallel()
+
+	const (
+		gib4  = "4294967296\n"
+		gib1  = "1073741824\n"
+		stat  = "anon 1048576\nfile 3221225472\nactive_file 1073741824\ninactive_file 2147483648\n"
+		limit = 4 << 30
+	)
+	for _, tt := range []struct {
+		name     string
+		files    map[string]string
+		wantUsed uint64
+		wantOK   bool
+	}{
+		{
+			// At its limit, mostly in cache: the inactive cache is not usage.
+			name:     "cache at the limit",
+			files:    map[string]string{"memory.max": gib4, "memory.current": gib4, "memory.stat": stat},
+			wantUsed: 2 << 30, wantOK: true,
+		},
+		{
+			name:     "no memory.stat",
+			files:    map[string]string{"memory.max": gib4, "memory.current": gib1},
+			wantUsed: 1 << 30, wantOK: true,
+		},
+		{
+			// The files are not read atomically; must not underflow.
+			name:     "more inactive than current",
+			files:    map[string]string{"memory.max": gib4, "memory.current": gib1, "memory.stat": stat},
+			wantUsed: 0, wantOK: true,
+		},
+		{name: "no limit at this level", files: map[string]string{"memory.max": "max\n", "memory.current": gib1}},
+		{name: "no memory controller"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			for name, content := range tt.files {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+			}
+			gotLimit, gotUsed, ok := cgroupMemory(dir)
+			require.Equal(t, tt.wantOK, ok)
+			if ok {
+				assert.Equal(t, uint64(limit), gotLimit)
+				assert.Equal(t, tt.wantUsed, gotUsed)
+			}
+		})
+	}
+}

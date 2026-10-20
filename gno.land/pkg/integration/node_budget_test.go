@@ -142,7 +142,8 @@ func TestNewNodeBudgetHonoursOverride(t *testing.T) {
 }
 
 func TestNewNodeBudgetDefaults(t *testing.T) {
-	// Not parallel: reads the ambient environment.
+	// Clear any developer override: it would pin the budget rather than let it ramp.
+	t.Setenv(testutils.MaxParallelEnv, "")
 	if _, ok := testutils.ReadMemInfo(); !ok {
 		t.Skip("no memory reading on this platform")
 	}
