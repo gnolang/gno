@@ -80,6 +80,7 @@ FILTERED_PACKAGES=(
   ./gno.land/r/sys/validators/v0
   ./gno.land/r/nt/grc20reg/v0
   ./gno.land/r/nt/grc20reg/v1
+  ./gno.land/p/nt/treasury/v1
 )
 
 # Initial pearl validator set. Format: "name power address pub_key".

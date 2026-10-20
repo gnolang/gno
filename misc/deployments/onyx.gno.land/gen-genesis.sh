@@ -78,9 +78,10 @@ GENESIS_TIME=1790553600 # 2026-09-28T00:00:00Z — decided 2026-09-26
 #
 # Identical to mainnet's FILTERED_PACKAGES, on purpose: onyx exists to
 # rehearse mainnet's upgrades, so it deploys mainnet's package set.
-# Exception, pending the owner's decision for mainnet: r/nt/grc20reg/v1 and
-# p/nt/grc20/v1 are listed here and not there. Both arrive on mainnet anyway
-# as dependencies of r/gnoland/wugnot, so the resolved set is the same. Keep in
+# Exception, pending the owner's decision for mainnet: r/nt/grc20reg/v1,
+# p/nt/grc20/v1 and p/nt/treasury/v1 are listed here and not there. All three
+# arrive on mainnet anyway (via r/gnoland/wugnot and r/gov/dao/treasury/v1),
+# so the resolved set is the same. Keep in
 # mind when touching it: p/nt/* paths cannot be added post-genesis under
 # namespace enforcement, so anything missing here is a relaunch away
 # (r/tests/* and r/demo/* arrive via test deps of this set).
@@ -100,6 +101,7 @@ FILTERED_PACKAGES=(
   ./gno.land/r/nt/grc20reg/v1
   ./gno.land/p/nt/grc20/v0
   ./gno.land/p/nt/grc20/v1
+  ./gno.land/p/nt/treasury/v1
   ./gno.land/p/nt/grc721/...
 )
 
