@@ -11,3 +11,6 @@ func main() {
 
 // Error:
 // main/err_shadow_import.gno:6:8-38: builtin identifiers cannot be shadowed: uint256
+
+// TypeCheckError:
+// main/.gnobuiltins.gno:10:6: uint256 already declared through import of package uint256 ("gno.land/p/onbloc/uint256/v0"); main/err_shadow_import.gno:6:8: 	other declaration of uint256

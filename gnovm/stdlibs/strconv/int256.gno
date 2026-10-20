@@ -4,9 +4,14 @@ package strconv
 // counterpart in Go; they follow FormatInt/FormatUint and ParseInt/ParseUint,
 // without the bitSize argument (the size is always 256).
 
-const (
-	maxUint256 = 1<<256 - 1
-	maxInt256  = 1<<255 - 1
+const maxUint256 = 1<<256 - 1
+
+// The int256 limits. An int256 constant must fit an int64, so they are
+// variables converted from uint256 bits.
+var (
+	signBit256 uint256 = 1 << 255
+	maxInt256          = int256(signBit256 - 1)
+	minInt256          = int256(signBit256)
 )
 
 // FormatUint256 returns the string representation of u in the given base,
@@ -181,7 +186,10 @@ func ParseUint256(s string, base int) (uint256, error) {
 // include err.Num = s. If s is empty or contains invalid digits, err.Err =
 // ErrSyntax and the returned value is 0; if the value corresponding to s
 // cannot be represented by an int256, err.Err = ErrRange and the returned
-// value is the maximum magnitude int256 of the appropriate sign.
+// value is the maximum magnitude int256 of the appropriate sign. As in
+// ParseInt, digits are read left to right and the first failure wins: a
+// prefix that already overflows gives ErrRange even if an invalid character
+// follows.
 func ParseInt256(s string, base int) (i int256, err error) {
 	const fnParseInt256 = "ParseInt256"
 
@@ -208,12 +216,11 @@ func ParseInt256(s string, base int) (i int256, err error) {
 		return 0, err
 	}
 
-	const cutoff = uint256(1 << 255)
-	if !neg && un >= cutoff {
+	if !neg && un >= signBit256 {
 		return maxInt256, rangeError(fnParseInt256, s0)
 	}
-	if neg && un > cutoff {
-		return -maxInt256 - 1, rangeError(fnParseInt256, s0)
+	if neg && un > signBit256 {
+		return minInt256, rangeError(fnParseInt256, s0)
 	}
 	n := int256(un)
 	if neg {

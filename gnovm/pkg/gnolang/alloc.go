@@ -102,7 +102,7 @@ const (
 	_allocRefValue     = 72 // unsafe.Sizeof(RefValue{})
 	_allocTypeValue    = 16 // unsafe.Sizeof(TypeValue{})
 	_allocTypedValue   = 40 // unsafe.Sizeof(TypedValue{})
-	_allocBits256Value = 32 // unsafe.Sizeof(Bits256Value{})
+	_allocBits256Value = 32 // unsafe.Sizeof(Uint256Value{})
 
 	// By-pointer types (pointer receivers on Value interface).
 	// Heap-allocated; *T stored in TypedValue.V.
@@ -146,7 +146,7 @@ const (
 	// PointerValue (32 bytes, by value, escapes to heap via interface).
 	allocPointer = _allocHeap + _allocPointerValue
 
-	// Bits256Value (32 bytes, by value, escapes to heap via interface).
+	// Int256Value/Uint256Value (32 bytes, by value, escapes to heap via interface).
 	// Charged for every non-zero int256/uint256 result; zero is a nil V.
 	allocBits256 = _allocHeap + _allocBits256Value
 
@@ -194,7 +194,7 @@ func init() {
 	check("_allocPackageValue", _allocPackageValue, unsafe.Sizeof(PackageValue{}))
 	check("_allocTypeValue", _allocTypeValue, unsafe.Sizeof(TypeValue{}))
 	check("_allocTypedValue", _allocTypedValue, unsafe.Sizeof(TypedValue{}))
-	check("_allocBits256Value", _allocBits256Value, unsafe.Sizeof(Bits256Value{}))
+	check("_allocBits256Value", _allocBits256Value, unsafe.Sizeof(Uint256Value{}))
 	check("_allocRefValue", _allocRefValue, unsafe.Sizeof(RefValue{}))
 	check("_allocHeapItemValue", _allocHeapItemValue, unsafe.Sizeof(HeapItemValue{}))
 }
@@ -912,13 +912,13 @@ func (tv TypeValue) GetShallowSize() int64 {
 
 // inlineSlotSize is the allocation size of a TypedValue.V that is serialized
 // inline in its parent object and is not counted by the parent's
-// GetShallowSize: a RefValue slot, or a Bits256Value (whose GetShallowSize
+// GetShallowSize: a RefValue slot, or an Int256Value/Uint256Value (whose GetShallowSize
 // the GC recount adds, so a loaded object must be charged for it too).
 func inlineSlotSize(v Value) int64 {
 	switch v.(type) {
 	case RefValue:
 		return allocRefValue
-	case Bits256Value:
+	case Int256Value, Uint256Value:
 		return allocBits256
 	}
 	return 0
@@ -929,7 +929,7 @@ func inlineSlotSize(v Value) int64 {
 // Objects are replaced with RefValue{ObjectID, Hash} placeholders. These
 // RefValue slots are not counted by GetShallowSize (which only counts the
 // object's own structure), so we must account for them here to keep the
-// allocator consistent with the store's memory usage. Bits256Value slots are
+// allocator consistent with the store's memory usage. 256-bit value slots are
 // counted for the same reason (see inlineSlotSize).
 func internalRefSize(val Value) int64 {
 	var size int64
@@ -992,7 +992,7 @@ func internalRefSize(val Value) int64 {
 		// do nothing
 	case BigintValue:
 		// do nothing
-	case Bits256Value:
+	case Int256Value, Uint256Value:
 		// do nothing
 	case BigdecValue:
 		// do nothing

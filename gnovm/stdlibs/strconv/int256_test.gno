@@ -7,6 +7,16 @@ import (
 	"testing"
 )
 
+// An int256 constant must fit an int64, so wide int256 test values are
+// built at run time.
+var (
+	maxBits    uint256 = math.MaxInt256
+	i256Max            = int256(maxBits)
+	i256Min            = int256(maxBits + 1)
+	minInt64   int256  = math.MinInt64
+	minInt64m1         = minInt64 - 1
+)
+
 const (
 	maxUint256Str = "115792089237316195423570985008687907853269984665640564039457584007913129639935"
 	maxInt256Str  = "57896044618658097711785492504343953926634992332820282019728792003956564819967"
@@ -51,10 +61,10 @@ func TestFormatInt256(t *testing.T) {
 		{0, 10, "0"},
 		{-1, 10, "-1"},
 		{math.MinInt64, 10, "-9223372036854775808"},
-		{math.MinInt64 - 1, 10, "-9223372036854775809"},
-		{math.MaxInt256, 10, maxInt256Str},
-		{math.MinInt256, 10, minInt256Str},
-		{math.MinInt256, 16, "-8" + zeros(63)},
+		{minInt64m1, 10, "-9223372036854775809"},
+		{i256Max, 10, maxInt256Str},
+		{i256Min, 10, minInt256Str},
+		{i256Min, 16, "-8" + zeros(63)},
 		{-255, 16, "-ff"},
 	}
 	for _, tt := range tests {
@@ -131,12 +141,12 @@ func TestParseInt256(t *testing.T) {
 		{"-0", 0, nil},
 		{"+7", 7, nil},
 		{"-7", -7, nil},
-		{maxInt256Str, math.MaxInt256, nil},
-		{minInt256Str, math.MinInt256, nil},
-		{"57896044618658097711785492504343953926634992332820282019728792003956564819968", math.MaxInt256, strconv.ErrRange},
-		{"-57896044618658097711785492504343953926634992332820282019728792003956564819969", math.MinInt256, strconv.ErrRange},
-		{maxUint256Str + "1", math.MaxInt256, strconv.ErrRange},
-		{"-" + maxUint256Str + "1", math.MinInt256, strconv.ErrRange},
+		{maxInt256Str, i256Max, nil},
+		{minInt256Str, i256Min, nil},
+		{"57896044618658097711785492504343953926634992332820282019728792003956564819968", i256Max, strconv.ErrRange},
+		{"-57896044618658097711785492504343953926634992332820282019728792003956564819969", i256Min, strconv.ErrRange},
+		{maxUint256Str + "1", i256Max, strconv.ErrRange},
+		{"-" + maxUint256Str + "1", i256Min, strconv.ErrRange},
 		{"--1", 0, strconv.ErrSyntax},
 		{"1x", 0, strconv.ErrSyntax},
 	}

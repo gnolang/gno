@@ -6,11 +6,21 @@ import (
 	"testing"
 )
 
+// An int256 constant must fit an int64, so wide int256 test values are
+// built at run time.
+var (
+	maxBits uint256 = math.MaxInt256
+	i256Max         = int256(maxBits)
+	i256Min         = int256(maxBits + 1)
+)
+
+func pow2(n uint) int256 {
+	var one int256 = 1
+	return one << n
+}
+
 func TestInt256(t *testing.T) {
-	const (
-		max = math.MaxInt256
-		min = math.MinInt256
-	)
+	max, min := i256Max, i256Min
 	type op func(a, b int256) (int256, bool)
 	tests := []struct {
 		name string
@@ -34,9 +44,9 @@ func TestInt256(t *testing.T) {
 		{"Mul", overflow.Mul256, -1, max, -max, true},
 		{"Mul", overflow.Mul256, -1, min, min, false},
 		{"Mul", overflow.Mul256, min, -1, min, false},
-		{"Mul", overflow.Mul256, 1 << 127, 1 << 127, 1 << 254, true},
-		{"Mul", overflow.Mul256, 1 << 128, 1 << 127, min, false},
-		{"Mul", overflow.Mul256, -(1 << 128), 1 << 127, min, true},
+		{"Mul", overflow.Mul256, pow2(127), pow2(127), pow2(254), true},
+		{"Mul", overflow.Mul256, pow2(128), pow2(127), min, false},
+		{"Mul", overflow.Mul256, -pow2(128), pow2(127), min, true},
 		{"Div", overflow.Div256, 7, 2, 3, true},
 		{"Div", overflow.Div256, -7, 2, -3, true},
 		{"Div", overflow.Div256, min, -1, min, false},
@@ -92,10 +102,10 @@ func Test256Panics(t *testing.T) {
 		}()
 		fn()
 	}
-	mustPanic("Add256p", func() { overflow.Add256p(math.MaxInt256, 1) })
-	mustPanic("Sub256p", func() { overflow.Sub256p(math.MinInt256, 1) })
-	mustPanic("Mul256p", func() { overflow.Mul256p(math.MinInt256, -1) })
-	mustPanic("Div256p", func() { overflow.Div256p(math.MinInt256, -1) })
+	mustPanic("Add256p", func() { overflow.Add256p(i256Max, 1) })
+	mustPanic("Sub256p", func() { overflow.Sub256p(i256Min, 1) })
+	mustPanic("Mul256p", func() { overflow.Mul256p(i256Min, -1) })
+	mustPanic("Div256p", func() { overflow.Div256p(i256Min, -1) })
 	mustPanic("Addu256p", func() { overflow.Addu256p(math.MaxUint256, 1) })
 	mustPanic("Subu256p", func() { overflow.Subu256p(0, 1) })
 	mustPanic("Mulu256p", func() { overflow.Mulu256p(1<<200, 1<<56) })

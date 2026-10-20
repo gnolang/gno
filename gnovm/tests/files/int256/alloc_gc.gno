@@ -17,7 +17,17 @@ func main() {
 	zeros := make([]int256, 1000)
 	runtime.GC()
 	println(keep[0] != 0, len(zeros))
+
+	// One value copied into many slots: each copy is charged as a box of
+	// its own, as the recount counts it.
+	copies := make([]uint256, 5000)
+	for i := range copies {
+		copies[i] = acc
+	}
+	runtime.GC()
+	println(copies[4999] == acc)
 }
 
 // Output:
 // true 1000
+// true

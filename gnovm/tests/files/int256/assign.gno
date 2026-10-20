@@ -9,12 +9,14 @@ type S struct {
 
 func f(u uint256, i int256) (uint256, int256) { return u, i }
 
-func g() int256 { return -1 << 255 }
+var minBits uint256 = 1 << 255
+
+func g() int256 { return int256(minBits) }
 
 func main() {
-	u, i := f(1<<256-1, -1<<255)
+	u, i := f(1<<256-1, int256(minBits))
 	println(u, i, g())
-	s := S{U: 1 << 255, I: 1<<255 - 1}
+	s := S{U: 1 << 255, I: int256(minBits - 1)}
 	println(s.U, s.I)
 	a := [2]uint256{1 << 200, 1<<256 - 1}
 	println(a[0], a[1])
@@ -25,7 +27,7 @@ func main() {
 	case 1<<256 - 1:
 		println("max")
 	}
-	println(x == 1<<256-1, i < 1<<200)
+	println(x == 1<<256-1, i < 1<<62)
 }
 
 // Output:

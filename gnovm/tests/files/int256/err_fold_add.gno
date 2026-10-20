@@ -7,5 +7,8 @@ func main() {
 	println(d)
 }
 
-// Error:
-// main/err_fold_add.gno:6:12-17: constant 115792089237316195423570985008687907853269984665640564039457584007913129639936 overflows Uint256Kind
+// Output:
+// 0
+
+// TypeCheckError:
+// main/err_fold_add.gno:6:12: c + 1 (constant 115792089237316195423570985008687907853269984665640564039457584007913129639936 of uintptr type uint256) overflows uintptr

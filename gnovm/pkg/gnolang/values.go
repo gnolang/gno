@@ -64,7 +64,6 @@ var (
 	_ Value = StringValue("")
 	_ Value = BigintValue{}
 	_ Value = BigdecValue{}
-	_ Value = Bits256Value{}
 	_ Value = DataByteValue{}
 	_ Value = PointerValue{}
 	_ Value = &ArrayValue{}
@@ -1360,6 +1359,12 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	case *StructValue:
 		cp.T = tv.T
 		cp.V = cv.Copy(alloc, tv.T)
+	case Int256Value, Uint256Value:
+		// The copy shares the immutable box, but it is charged as a box of
+		// its own: the GC recount, and a reload from the store, count one
+		// box per slot (logical, per-occurrence accounting).
+		alloc.Allocate(allocBits256)
+		cp = tv
 	default:
 		cp = tv
 	}

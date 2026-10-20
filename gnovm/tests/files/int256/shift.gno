@@ -2,7 +2,8 @@ package main
 
 func main() {
 	var one uint256 = 1
-	var neg int256 = -1 << 200
+	var neg int256 = -1
+	neg <<= 200 // an int256 constant must fit in an int64
 	for _, n := range []uint{0, 1, 64, 128, 255, 256, 257, 1 << 63} {
 		println(n, one<<n, one<<n>>n, neg>>n, neg<<n)
 	}

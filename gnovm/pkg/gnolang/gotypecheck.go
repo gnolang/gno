@@ -7,7 +7,6 @@ import (
 	"go/token"
 	"go/types"
 	"path"
-	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -58,6 +57,12 @@ type address string
 func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
+
+// 256-bit integers; see GoTypesSizes and gnovm/adr/prxxxx_native_int256.md.
+type int256 int
+type uint256 uintptr
+type Int256 = int256
+type Uint256 = uint256
 `)
 	return mpkg
 }
@@ -85,6 +90,8 @@ func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form.
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
+type int256 = gno0p9.Int256
+type uint256 = gno0p9.Uint256
 `
 	return &std.MemFile{
 		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
@@ -92,48 +99,22 @@ type address = gno0p9.Address
 	}
 }
 
-// The 256-bit integers are declared in go/types' universe scope, as
+// GoTypesSizes is the types.Sizes Gno type-checks with, here and in any
+// tool that type-checks Gno code (gno lint goes through TypeCheckMemPackage;
+// an external checker such as an editor must use the same shims, from
+// gnoBuiltinsGno0p9, and these sizes). It differs from gc/amd64 in one point:
+// uintptr is 32 bytes wide. Gno has no uintptr, so the only uintptr-based
+// type go/types sees is the uint256 shim (`type uint256 uintptr`), and this
+// makes go/types accept exactly the uint256 constants [0, 2^256-1]: it sizes
+// Uint and Uintptr through Config.Sizes when checking representability.
 //
-//	type int256 int
-//	type uint256 uintptr
-//
-// (see gnoTypesSizes for how their constants are checked). They must be
-// universe types, like Gno's: a declaration in the injected .gnobuiltins file
-// would live in the package scope, so a package that imports a package named
-// uint256 (gno.land/p/onbloc/uint256) or declares its own uint256 would fail
-// with "already declared", where Gno lets file and package declarations
-// shadow the builtin. A universe object is also the same type in every
-// package. types.Universe is process-global; it is extended once, in init,
-// before any type-check can run.
-func init() {
-	for _, d := range []struct {
-		name  string
-		under types.Type
-	}{
-		{"int256", types.Typ[types.Int]},
-		{"uint256", types.Typ[types.Uintptr]},
-	} {
-		tn := types.NewTypeName(token.NoPos, nil, d.name, nil)
-		types.NewNamed(tn, d.under, nil)
-		if types.Universe.Insert(tn) != nil {
-			panic("go/types universe already declares " + d.name)
-		}
-	}
-}
+// int256 is shimmed as `type int256 int`, and int keeps its 8 bytes: go/types
+// computes a sized int's bounds as int64(-1)<<(s-1), which is wrong for
+// s > 64. So go/types only accepts int256 constants in the int64 range. This
+// is a language restriction of Gno (see the ADR): a wider int256 value comes
+// from runtime arithmetic or a conversion of a non-constant value.
+var GoTypesSizes types.Sizes = gnoTypesSizes{types.SizesFor("gc", "amd64")}
 
-// gnoTypesSizes is the go/types Sizes for Gno. It differs from gc/amd64 in
-// one point: uintptr is 32 bytes wide. Gno has no uintptr, so the only
-// uintptr-based type go/types ever sees is the uint256 shim (`type uint256
-// uintptr`, see init above), and this makes go/types accept exactly the
-// uint256 constants [0, 2^256-1]: it sizes Uint and Uintptr through
-// Config.Sizes when checking constant representability.
-//
-// int256 is shimmed as `type int256 int`, but int keeps its 8 bytes: go/types
-// computes the bounds of a sized int as int64(-1)<<(s-1), which is wrong for
-// s > 64 and would reject small negative constants. So go/types only accepts
-// int256 constants in the int64 range, and reports the others as numeric
-// overflows; isDeferredOverflowError drops those, and Gno's preprocessor does
-// the exact range check instead.
 type gnoTypesSizes struct{ types.Sizes }
 
 func (s gnoTypesSizes) Sizeof(t types.Type) int64 {
@@ -141,62 +122,6 @@ func (s gnoTypesSizes) Sizeof(t types.Type) int64 {
 		return 32
 	}
 	return s.Sizes.Sizeof(t)
-}
-
-// go/types error codes, from internal/types/errors (not importable). They are
-// read from types.Error's unexported go116code field, which go/types
-// documents as readable by reflection (see go/types/api.go). The values are
-// pinned by TestDeferredOverflowErrorCodes, so a toolchain that renumbers
-// them fails the tests instead of silently changing what is dropped.
-const (
-	goTypesCodeNumericOverflow   = 44
-	goTypesCodeInvalidConversion = 96
-)
-
-// goTypesErrorCode returns the error code of a go/types error.
-func goTypesErrorCode(terr types.Error) (int64, bool) {
-	f := reflect.ValueOf(terr).FieldByName("go116code")
-	if !f.IsValid() || !f.CanInt() {
-		return 0, false
-	}
-	return f.Int(), true
-}
-
-// isDeferredOverflowError reports whether err is a go/types constant overflow
-// error, which Gno leaves to its own preprocessor.
-//
-// Gno's preprocessor is the single constant-range check, for every numeric
-// kind: go/types cannot check int256 itself (see gnoTypesSizes), and two
-// checkers disagreeing on which constants fit would be a consensus hazard.
-// Dropping these errors is safe because the preprocessor rejects every
-// constant overflow go/types reports (checkConstFoldOverflow, ConvertTo's
-// validate and ConvertUntyped*To); the filetests under
-// gnovm/tests/files/overflow_* pin this per kind and per context.
-//
-// Two shapes are dropped, matched by error code:
-//   - NumericOverflow: an untyped constant that does not fit its target, or a
-//     typed constant operation whose result does not fit its type;
-//   - InvalidConversion whose message is "constant X overflows T": the
-//     concise form go/types uses for an integer-to-integer constant
-//     conversion (go.dev/issue/63563). Other InvalidConversion errors are
-//     kept, hence the narrow message match.
-func isDeferredOverflowError(err error) bool {
-	terr, ok := err.(types.Error)
-	if !ok {
-		return false
-	}
-	code, ok := goTypesErrorCode(terr)
-	if !ok {
-		return false
-	}
-	switch code {
-	case goTypesCodeNumericOverflow:
-		return true
-	case goTypesCodeInvalidConversion:
-		return strings.HasPrefix(terr.Msg, "constant ") &&
-			strings.Contains(terr.Msg, " overflows ")
-	}
-	return false
 }
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
@@ -324,11 +249,8 @@ func TypeCheckMemPackage(mpkg *std.MemPackage, opts TypeCheckOptions) (
 			// features Gno can't run (min/max, range-over-int/func) here rather
 			// than downstream.
 			GoVersion: "go1.18",
-			Sizes:     gnoTypesSizes{types.SizesFor("gc", "amd64")},
+			Sizes:     GoTypesSizes,
 			Error: func(err error) {
-				if isDeferredOverflowError(err) {
-					return
-				}
 				gimp.Error(err)
 			},
 		},

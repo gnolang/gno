@@ -9,7 +9,8 @@ type Amount uint256
 
 func main() {
 	var u uint256 = math.MaxUint256
-	var i int256 = math.MinInt256
+	var minBits uint256 = 1 << 255
+	i := int256(minBits) // an int256 constant must fit in an int64
 	var z int256
 	print(u, " ", i, " ", z, "\n")
 	println(u, i, z, Amount(42))
@@ -21,6 +22,7 @@ func main() {
 	fmt.Printf("%v %v\n", Amount(7), []int256{-1, 0, 1})
 	fmt.Println(u, i, struct{ A uint256 }{3})
 	fmt.Printf("%T %T %T\n", u, i, Amount(1))
+	fmt.Printf("%#v %#v %#v %#v\n", uint256(42), int256(-42), Amount(255), []uint256{1, 16})
 }
 
 // Output:
@@ -33,3 +35,4 @@ func main() {
 // 7 [-1 0 1]
 // 115792089237316195423570985008687907853269984665640564039457584007913129639935 -57896044618658097711785492504343953926634992332820282019728792003956564819968 {3}
 // uint256 int256 main.Amount
+// 0x2a -42 0xff []uint256{0x1, 0x10}

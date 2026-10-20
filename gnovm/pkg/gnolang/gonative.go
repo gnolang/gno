@@ -14,7 +14,7 @@ import (
 // bindings: a native function declared in Gno with a uint256 parameter takes
 // a gno.Uint256 in Go (see misc/genstd).
 //
-// Both hold the 256 bits by value, like the VM's Bits256Value, so a native
+// Both hold the 256 bits by value, like the VM's Int256Value/Uint256Value, so a native
 // function cannot alias a Gno value. Uint256 is holiman/uint256's Int, so
 // natives get its arithmetic directly. Int256 is a distinct type over the
 // same bits, read as two's complement; use (*uint256.Int)(&x) to reach the
