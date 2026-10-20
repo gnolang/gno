@@ -1279,6 +1279,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				if n.X != nil {
 					n.X = Preprocess(store, last, n.X).(Expr)
 					convertIfConst(store, last, n, n.X)
+					// A non-constant untyped tag ('a' << s) takes its
+					// default type too, before the cases are typed
+					// against it: the cases must not stay untyped.
+					if _, ok := n.X.(*ConstExpr); !ok &&
+						isUntyped(evalStaticTypeOf(store, last, n.X)) {
+						checkOrConvertType(store, last, n, &n.X, nil)
+					}
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -1586,10 +1593,24 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					liu, riu := isUntyped(lt), isUntyped(rt)
 					if liu {
 						if riu {
-							// convert untyped to typed: the default type
-							// of the operands' combined kind, e.g. rune
-							// for ('a' << s) + (1 << s).
-							dt := untypedOperandsDefault(lt, rt)
+							var dt Type
+							switch {
+							case isComparison(n.Op):
+								// Context-free: both take the default
+								// type of their combined kind, e.g. rune
+								// for ('a' << s) < (1 << s).
+								dt = untypedOperandsDefault(lt, rt)
+							case lt.TypeID() != rt.TypeID():
+								// The type of e.g. ('a' << s) + (1 << s)
+								// comes from its context, which is not
+								// known here; rather than guess, reject.
+								panic(fmt.Sprintf(
+									"incompatible types in binary expression: %v %v %v",
+									lt.TypeID(), n.Op, rt.TypeID()))
+							default:
+								dt = defaultTypeOf(lt)
+							}
+							// convert untyped to typed
 							checkOrConvertType(store, last, n, &n.Left, dt)
 							checkOrConvertType(store, last, n, &n.Right, dt)
 						} else { // left untyped, right typed
@@ -5132,6 +5153,13 @@ func checkOrConvertType(store Store, last BlockNode, n Node, x *Expr, t Type) {
 					BAND_NOT, LAND, LOR:
 					lt := evalStaticTypeOf(store, last, bx.Left)
 					rt := evalStaticTypeOf(store, last, bx.Right)
+					if t != nil && t.Kind() == InterfaceKind {
+						// An interface gives no type: the expression
+						// takes its default type as a whole (checked
+						// assignable above), not each operand its own,
+						// which would mix e.g. int and rune at runtime.
+						t = nil
+					}
 					if t != nil {
 						// push t into bx.Left and bx.Right
 						checkOrConvertType(store, last, n, &bx.Left, t)
