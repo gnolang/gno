@@ -291,16 +291,29 @@ noting that "`master`'s already differs from what the network runs".
 6. **Upgrade the existing networks in place,** or list the v1 packages in
    their genesis scripts. Their genesis is fixed and pinned, and the owner
    chose a fresh chain for this change.
-7. **Export the impl/v1 singleton (a `GetInstance` without the loader
+7. **256-bit cases in `p/nt/ufmt` and `p/nt/uassert`.** Convenient for
+   callers, but they would exclude both packages and their many importers
+   from the gno2go Go build, as above. Callers use `strconv` and native
+   comparison instead.
+8. **Export the impl/v1 singleton (a `GetInstance` without the loader
    check), or install a fresh `NewGovDAO()`.** The first hands out a pointer
    whose methods trust the proxy. The second installs an instance the
    proposer could have kept a pointer to. `NewInstallRequest` avoids both.
 
 ## Consequences
 
-- `p/nt/ufmt` formats `int256`/`uint256` (`%d`, `%v`, `%T`), and
-  `p/nt/uassert` compares them (`Equal`, `NotEqual`, `Empty`). Both changes
-  only add cases.
+- `p/nt/ufmt` and `p/nt/uassert` do not support `int256`/`uint256`; their
+  only change is a note in ufmt's README. The v1 stack formats amounts with
+  `strconv.FormatUint256`, which gives the same decimal text, and its tests
+  compare them natively, with small `equal256`/`require256` helpers in each
+  test package. A 256-bit case in ufmt or uassert would take those packages,
+  and every package importing them (148 for ufmt), out of CI's gno2go Go
+  build. `gno tool transpile --gobuild` skips any package that uses a
+  256-bit type, together with its importers. With ufmt and uassert left
+  alone, the job builds 359 packages and skips eleven. One is grc20 v1,
+  which uses `uint256`. The other ten import it directly or transitively:
+  treasury v1, grc20reg v1, foo20, grc20factory, disperse, atomicswap,
+  test20, wugnot, and the GovDAO treasury v1 and impl v1 realms.
 - Breaking API change for realm callers of foo20, grc20factory, test20,
   wugnot, atomicswap's `NewCustomGRC20Swap`, and disperse's `DisperseGRC20`.
 - A token's v0 and v1 identities are unrelated: same symbol in the same realm
