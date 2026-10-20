@@ -5,8 +5,8 @@ package main
 
 func main() {
 	var x uint16 = 1
-	println(x + 1 << 16)
+	println(x + 1<<16)
 }
 
 // Error:
-// main/uint16_binop.gno:8:10-21: bigint overflows target kind
+// main/uint16_binop.gno:8:10-19: bigint overflows target kind

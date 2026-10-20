@@ -5,8 +5,8 @@ package main
 
 func main() {
 	var x uint32 = 1
-	println(x + 1 << 32)
+	println(x + 1<<32)
 }
 
 // Error:
-// main/uint32_binop.gno:8:10-21: bigint overflows target kind
+// main/uint32_binop.gno:8:10-19: bigint overflows target kind

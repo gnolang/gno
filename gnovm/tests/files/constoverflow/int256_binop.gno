@@ -5,8 +5,8 @@ package main
 
 func main() {
 	var x int256 = 1
-	println(x + 1 << 255)
+	println(x + 1<<255)
 }
 
 // Error:
-// main/int256_binop.gno:8:10-22: bigint overflows target kind
+// main/int256_binop.gno:8:10-20: bigint overflows target kind

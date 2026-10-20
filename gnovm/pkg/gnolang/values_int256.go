@@ -185,11 +185,6 @@ func bits256FromInt64(v int64) (z uint256.Int) {
 	return z
 }
 
-func bits256FromUint64(v uint64) (z uint256.Int) {
-	z.SetUint64(v)
-	return z
-}
-
 // bits256FromFloat64 converts the float64 bits u to a 256-bit integer,
 // truncating toward zero. The Go spec leaves out-of-range float-to-integer
 // conversions implementation-defined; Gno defines them so that every node

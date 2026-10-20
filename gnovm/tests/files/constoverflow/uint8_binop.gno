@@ -5,8 +5,8 @@ package main
 
 func main() {
 	var x uint8 = 1
-	println(x + 1 << 8)
+	println(x + 1<<8)
 }
 
 // Error:
-// main/uint8_binop.gno:8:10-20: bigint overflows target kind
+// main/uint8_binop.gno:8:10-18: bigint overflows target kind
