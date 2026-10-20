@@ -1,6 +1,0 @@
-module = "gno.land/r/x/manfred_upgrade_patterns/upgrade_g/vault"
-gno = "0.9"
-version = 2
-
-[upgrade]
-authority = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"

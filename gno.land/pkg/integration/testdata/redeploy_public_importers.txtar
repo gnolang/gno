@@ -6,8 +6,6 @@
 # does not would keep the old, so the redeploy rebuilds it in the same
 # transaction, for every importer, direct or through another. The redeployer
 # pays for each as for a deploy.
-#
-# Readable as examples_ignored/r/x/manfred_upgrade_patterns/upgrade_g.
 
 gnoland start
 
