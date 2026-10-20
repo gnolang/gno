@@ -88,9 +88,10 @@ each token has a per-message maximum and a day cap (a **leaky bucket**). At unch
 bounded to about two day caps in any 24 hours; forged refunds have a separate bound under the refund meter (below),
 and the total exposure is the sum of the two (§7.1, §7.2, §7.13; send limits and the route fee, §7.8).
 
-**Quarantine.** With the launch settings, a live change of gno.land's validator set blocks token receives on Ethereum
-for 7 days (they are refunded at the source), so a hostile set installed in one block cannot mint anything before
-people have had a week to react. It does not touch refunds or governance, which have their own controls (§7.10).
+**Quarantine.** With the launch settings, an accepted live change of gno.land's validator set blocks token receives on
+Ethereum for 7 days (they are refunded at the source), giving people a week to react to a hostile set installed in one
+block. Refunds, voucher re-mints included, and governance are not quarantined; each has its own separate controls
+(§7.10).
 
 **Claims and refunds, including parked refunds.** A refund that cannot be paid at once is **queued** on the packet's
 **send record** and paid later by a permissionless `claim` under a **refund meter** (another bucket); on Ethereum one
@@ -106,9 +107,10 @@ a hold is per flag set, so a route's pause or `refunds` hold only stops that rou
 its refunds; `IBCAdmin`'s own flags or hold give the general deferral of its ordinary 7-day kinds (only that hold also
 counts for the emergency recovery below), and a route's `refunds` flag separately defers a refund-paying kind 12.
 Under a hold unpauses are spent. Not a veto: the owner can clear a flag, GovDAO can unpause (at once on gno.land,
-after 24 h on Ethereum), and a decision replacing a guardian's seat lands 21 days after its anchoring hold began —
-gno.land anchors at the hold standing at its first deferring `Execute`, Ethereum at the first eligible hold in its
-history (compressed intervals excluded) — and a later hold never resets a pinned anchor (§6.7, §7.4).
+after 24 h on Ethereum), and, outside an open emergency recovery on Ethereum (below), a decision replacing a
+guardian's seat lands 21 days after its anchoring hold began — gno.land anchors at the hold standing at its first
+deferring `Execute`, Ethereum at the first eligible hold in its history (compressed intervals excluded) — and a later
+hold never resets a pinned anchor (§6.7, §7.4).
 
 **The governance channel.** A governance realm, `ibcgov`, sends numbered **decisions** over IBC to `IBCAdmin`, an
 immutable Ethereum contract holding every authority. Each has a **kind**: 1 cancel, 2 unpause, 3 seats, 4 limits, 5
@@ -138,14 +140,16 @@ to repair, so there are two escape hatches. An optional **emergency recovery**, 
 default: when the route's client is frozen or expired, governance has been silent 30 days, or `IBCAdmin`'s hold has
 stood 14 days, the configured approval quorum of guardians (three or four of the four seats; three at launch) can
 propose a new client from a checkpoint they vouch for; it executes after a public delay of at least 30 days, during
-which the configured cancellation quorum (three or four seats) can cancel it. The candidate is not yet the route's
-client, so operators update it directly, at least daily, throughout the delay; if it expires or freezes, the guardians
-cancel and propose afresh. It is a declared extra trust assumption. And `IBCAdmin`'s logic lives in a replaceable
-**executor** (`IBCAdminExec`): a **kind 9 hand-over** moves the pointer to a new executor, recorded and run by
-`IBCAdmin` on its own code path, never through the executor, so a broken executor can be replaced. Two failure shapes
-differ: a foreign executor or a malformed answer **halts** recording (the decision stays buffered, unspent, and
-records later through the new executor), while an executor that reverts **spends** the decision, and a spent action
-needs a new decision with a fresh number (§5.4, §7.6, §7.12).
+which the configured cancellation quorum (three or four seats) can cancel it. On Ethereum, opening the proposal at
+once blocks token receives and escrowed sends (voucher burns stay available), and kinds 3 and 6–10 can still be
+recorded but none of them applies — guardian replacement and the kind 9 included — until the recovery executes or the
+cancellation quorum cancels it. The candidate is not yet the route's client, so operators update it directly, at least
+daily, throughout the delay; if it expires or freezes, the guardians cancel and propose afresh. It is a declared extra
+trust assumption. And `IBCAdmin`'s logic lives in a replaceable **executor** (`IBCAdminExec`): a **kind 9 hand-over**
+moves the pointer to a new executor, recorded and run by `IBCAdmin` on its own code path, never through the executor,
+so a broken executor can be replaced. Two failure shapes differ: a foreign executor or a malformed answer **halts**
+recording (the decision stays buffered, unspent, and records later through the new executor), while an executor that
+reverts **spends** the decision, and a spent action needs a new decision with a fresh number (§5.4, §7.6, §7.12).
 
 **Code pinning and build verification.** Code governance installs (kinds 5, 6, 7, 9 and recovery candidates) is named
 by its **code hash**, and each contract records the hashes of the modules it delegates to. A hash says nothing about
@@ -3143,6 +3147,10 @@ For comparison, the Hyperlane draft verifying ed25519 in Solidity costs 1.38M ga
   flag deferring a refund-paying kind 12 on its own; the recovery's configured approval quorum (three or four, three
   at launch); the expectation decision executed, after its 7 days, before an epoch notice is accepted and anything is
   dispatched in the new epoch; the forged-refund double spend described exactly.
+- 2026-10-20, third accuracy pass on the overview: the quarantine blocks token receives only (refunds, voucher
+  re-mints included, and governance keep their own controls); an open emergency recovery blocks receives and escrowed
+  sends at once and suspends kinds 3 and 6–10, guardian replacement and kind 9 included, until it executes or is
+  cancelled, which qualifies the day-21 seat-change rule.
 
 ## 15. References
 
