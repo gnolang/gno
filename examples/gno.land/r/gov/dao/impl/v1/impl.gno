@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
 	implv0 "gno.land/r/gov/dao/impl/v0"
 	"gno.land/r/gov/dao/memberstore/v0"
@@ -68,6 +69,21 @@ func AddMember(cur realm, addr address) {
 // ExecuteProposal trust the r/gov/dao proxy and must not be reachable from
 // anywhere else. impl/v0 stays allowed, so its own proposal builders (a v0
 // treasury payment that moves the v0 funds, for instance) keep executing.
+//
+// The governance law is NOT carried over: impl/v0 keeps its law in an
+// unexported variable with no accessor, so impl/v1 starts with its own (see
+// init). The proposal text says so, with the value v1 will apply, so voters
+// see it; a DAO that changed its law under impl/v0 restores it afterwards with
+// impl/v1.NewChangeLawRequest.
 func NewInstallRequest(cur realm, reason string) dao.ProposalRequest {
-	return implv0.NewUpgradeDaoImplRequest(cross(cur), govDAO, "gno.land/r/gov/dao/impl/v1", reason)
+	return implv0.NewUpgradeDaoImplRequest(cross(cur), govDAO, "gno.land/r/gov/dao/impl/v1", reason+lawResetNotice())
+}
+
+// lawResetNotice is appended to the install proposal's reason, which the
+// proposal description shows to voters.
+func lawResetNotice() string {
+	return ufmt.Sprintf("\n\n**WARNING: the governance law is not carried over.** "+
+		"After this install the DAO decides with impl/v1's law, Supermajority %v%%, "+
+		"whatever impl/v0's law is now. If the DAO changed its law under impl/v0, "+
+		"restore it after the install with impl/v1.NewChangeLawRequest.", law.Supermajority)
 }

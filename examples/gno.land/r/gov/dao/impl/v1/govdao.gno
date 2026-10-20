@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
+	implv0 "gno.land/r/gov/dao/impl/v0"
 	"gno.land/r/gov/dao/memberstore/v0"
 )
 
@@ -50,24 +51,63 @@ func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (add
 		return caller, errors.New("only members can create new proposals")
 	}
 
+	// Refuse a proposal whose voter restriction this implementation cannot
+	// enforce, before it exists.
+	if _, err := voterTiers(r.Filter()); err != nil {
+		return caller, err
+	}
+
 	return caller, nil
 }
 
 func (g *GovDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid dao.ProposalID) {
-	// Tiers Allowed to Vote
-	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
-	switch v := r.Filter().(type) {
-	case FilterByTier:
-		// only members from T1 are allowed to vote when adding new members to T1
-		if v.Tier == memberstore.T1 {
-			tatv = []string{memberstore.T1}
-		}
-		// only members from T1 and T2 are allowed to vote when adding new members to T2
-		if v.Tier == memberstore.T2 {
-			tatv = []string{memberstore.T1, memberstore.T2}
-		}
+	tatv, err := voterTiers(r.Filter())
+	if err != nil {
+		// PreCreateProposal refuses these, so this is unreachable; panicking
+		// keeps an unenforceable filter from ever becoming "everyone votes".
+		panic(err.Error())
 	}
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
+}
+
+// ErrUnsupportedFilter is returned for a proposal whose filter this
+// implementation does not know how to enforce.
+var ErrUnsupportedFilter = errors.New("unsupported proposal filter: voting restriction cannot be enforced")
+
+// voterTiers returns the tiers allowed to vote on a proposal with filter f.
+//
+// It fails closed. impl/v0 stays in AllowedDAOs after impl/v1 is installed,
+// and v0's builders (NewAddMemberRequest, NewPromoteMemberRequest) tag their
+// proposals with impl/v0's FilterByTier, a different type from this
+// package's. Recognising only our own type would read a v0 T1 proposal as
+// unfiltered and let T2/T3 votes carry it. So both types are enforced with
+// v0's exact rules, and any other non-nil filter, or a filter tier that is not
+// a known tier, is refused rather than treated as "no restriction".
+func voterTiers(f dao.Filter) ([]string, error) {
+	var tier string
+	switch v := f.(type) {
+	case nil:
+		return []string{memberstore.T1, memberstore.T2, memberstore.T3}, nil
+	case FilterByTier:
+		tier = v.Tier
+	case implv0.FilterByTier:
+		tier = v.Tier
+	default:
+		return nil, ErrUnsupportedFilter
+	}
+
+	switch tier {
+	case memberstore.T1:
+		// only members from T1 are allowed to vote when adding new members to T1
+		return []string{memberstore.T1}, nil
+	case memberstore.T2:
+		// only members from T1 and T2 are allowed to vote when adding new members to T2
+		return []string{memberstore.T1, memberstore.T2}, nil
+	case memberstore.T3:
+		return []string{memberstore.T1, memberstore.T2, memberstore.T3}, nil
+	default:
+		return nil, ErrUnsupportedFilter
+	}
 }
 
 func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
