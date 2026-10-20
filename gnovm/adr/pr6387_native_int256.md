@@ -233,6 +233,20 @@ checker, such as an editor's language server, must use the shims from
 `gnoBuiltinsGno0p9` and `gnolang.GoTypesSizes`, exported for that purpose.
 `gno fmt` needs no change: the names are ordinary identifiers to the parser.
 
+**Transpiling to Go (`gno tool transpile`, CI's gno2go job).** Go has no
+256-bit integer, and nothing can stand in for one: gc's `uintptr` is 64
+bits, so `type uint256 = uintptr` would compile `MaxUint256` and 256-bit
+arithmetic wrongly or not at all, and a struct has no operators. The
+transpiler therefore emits no shim. It leaves out of the Go output every
+top-level declaration that uses `int256` or `uint256`, transitively (a type
+declared as `uint256`, its methods, a function returning it, ...), and any
+import only those declarations used; the generated file names what was left
+out in a comment, and `-v` prints it. The rest of the file and package is
+transpiled and built as usual: `strconv`, `math/overflow` and their
+importers build, without their 256-bit functions. Go code that refers to an
+omitted declaration fails to build with `undefined`, which names it; no
+wrong Go code is produced.
+
 ### Gas
 
 Each 256-bit operator has an `OpCPU*Int256` constant (`machine.go`). Every
