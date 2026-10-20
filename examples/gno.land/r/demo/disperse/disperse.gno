@@ -79,16 +79,13 @@ func DisperseUgnotString(cur realm, addresses string, amounts string) {
 // DisperseGRC20 disperses tokens to multiple addresses
 // Note that it is necessary to approve the realm to spend the tokens before calling this function
 // see the corresponding filetests for examples
-func DisperseGRC20(cur realm, addresses []address, amounts []int64, symbols []string) {
+//
+// The tokens are grc20factory tokens, whose amounts are uint256.
+func DisperseGRC20(cur realm, addresses []address, amounts []uint256, symbols []string) {
 	caller := cur.Previous().Address()
 
 	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
 		panic(ErrArgLenAndSentLenMismatch)
-	}
-	for _, amount := range amounts {
-		if amount < 0 {
-			panic(ErrInvalidAmount)
-		}
 	}
 
 	for i := 0; i < len(addresses); i++ {

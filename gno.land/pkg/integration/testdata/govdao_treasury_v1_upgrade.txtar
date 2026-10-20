@@ -1,0 +1,253 @@
+# GovDAO migration to impl/v1 and the uint256 treasury (r/gov/dao/treasury/v1):
+#
+#   1. a vote installs impl/v1 (impl/v1.NewInstallRequest);
+#   2. a v0 payment proposal moves the v0 treasury's ugnot to treasury/v1;
+#   3. a v1 token-keys proposal lists a grc20 v1 token;
+#   4. a v1 payment sends 2^64 (above any int64) of that token;
+#   5. a v1 ugnot payment goes through the int64 range check, and one above
+#      MaxInt64 is refused when it is built.
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+adduserfrom receiver 'smooth crawl poverty trumpet glare useful curtain annual pluck lunar example merge ready forum better verb rescue rule mechanic dynamic drift bench release weekend'
+stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/impl/v1
+loadpkg gno.land/r/gov/dao/treasury/v1
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
+# A grc20 v1 token that mints 2^64+5 to treasury/v1 at genesis.
+loadpkg gno.land/r/test/bigtok $WORK/bigtok
+
+gnoland start
+
+## Fund the v0 treasury with 5000ugnot.
+gnokey maketx send -send 5000ugnot -to g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test member
+gnokey query bank/balances/g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t
+stdout 'data: "5000ugnot"'
+
+## 1. Install impl/v1 (proposal 0).
+gnokey query vm/qeval --data 'gno.land/r/gov/dao.AllowedDAOs()'
+stdout '"gno.land/r/gov/dao/impl/v0"'
+! stdout 'impl/v1'
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member $WORK/run/install.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'Change DAO implementation'
+stdout 'gno.land/r/gov/dao/impl/v1'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 0 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/gov/dao.AllowedDAOs()'
+stdout '"gno.land/r/gov/dao/impl/v0"'
+stdout '"gno.land/r/gov/dao/impl/v1"'
+
+## 2. A v0 payment proposal moves the v0 funds to treasury/v1 (proposal 1),
+## voted on and executed under impl/v1.
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member $WORK/run/move_funds.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 1 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey query bank/balances/g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t
+stdout 'data: ""'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v1:Coins?history_size=0'
+stdout '\| ugnot \| 5000 \|'
+
+## 3. List the v1 token in treasury/v1 (proposal 2).
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v1:GRC20?history_size=0'
+stdout 'No balances found.'
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member $WORK/run/token_keys.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 2 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v1:GRC20?history_size=0'
+stdout '\| gno\\\.land/r/test/bigtok\\\.BIG \| 18446744073709551621 \|'
+
+## 4. Pay 2^64 BIG to the receiver (proposal 3).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member $WORK/run/pay_token.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:3'
+stdout 'Payment: 18446744073709551616gno..land/r/test/bigtok..BIG to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 3 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey query vm/qeval --data "gno.land/r/test/bigtok.BalanceOf(\"g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0\")"
+stdout '\(18446744073709551616 uint256\)'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v1:GRC20?history_size=0'
+stdout '\| gno\\\.land/r/test/bigtok\\\.BIG \| 5 \|'
+
+## 5. Pay 1200ugnot through the v1 coins banker (proposal 4).
+gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member $WORK/run/pay_ugnot.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:4'
+stdout 'Payment: 1200ugnot to g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 4 -args YES -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 4 -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member
+stdout OK!
+gnokey query bank/balances/g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0
+stdout 'data: "1000001200ugnot"'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao/treasury/v1:Coins?history_size=0'
+stdout '\| ugnot \| 3800 \|'
+
+## An ugnot amount above MaxInt64 is refused when the payment is built.
+! gnokey maketx run -gas-fee 10000000ugnot -gas-wanted 100_000_000 -chainid=tendermint_test member $WORK/run/pay_ugnot_too_big.gno
+stderr 'coins payment amounts must be in \[1, MaxInt64\], got 9223372036854775808ugnot'
+
+-- loader/loader.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(
+		memberstore.T1,
+		address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), // member address
+		memberstore.NewMember(3),
+	)
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
+}
+
+-- bigtok/gnomod.toml --
+module = "gno.land/r/test/bigtok"
+gno = "0.9"
+
+-- bigtok/bigtok.gno --
+package bigtok
+
+import (
+	"chain"
+
+	"gno.land/p/nt/grc20/v1"
+	"gno.land/r/nt/grc20reg/v1"
+)
+
+var token *grc20.Token
+
+func init(cur realm) {
+	var ledger *grc20.PrivateLedger
+	token, ledger = grc20.NewToken("Big", "BIG", 18, 0, cur)
+	grc20reg.Register(cross(cur), token, "")
+	ledger.Mint(chain.PackageAddress("gno.land/r/gov/dao/treasury/v1"), uint256(1)<<64+5)
+}
+
+func BalanceOf(owner address) uint256 { return token.BalanceOf(owner) }
+
+-- run/install.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	req := impl.NewInstallRequest(cross(cur), "move the treasury to uint256 amounts", impl.NewLaw(66.66))
+	dao.MustCreateProposal(cross(cur), req)
+}
+
+-- run/move_funds.gno --
+package main
+
+import (
+	"chain"
+
+	trs "gno.land/p/nt/treasury/v0"
+
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v0"
+)
+
+func main(cur realm) {
+	payment := trs.NewCoinsPayment(
+		chain.NewCoins(chain.NewCoin("ugnot", 5000)),
+		chain.PackageAddress("gno.land/r/gov/dao/treasury/v1"),
+	)
+	req := impl.NewTreasuryPaymentRequest(cross(cur), payment, "move the v0 funds to treasury/v1")
+	dao.MustCreateProposal(cross(cur), req)
+}
+
+-- run/token_keys.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	req := impl.NewTreasuryGRC20TokensUpdate(cross(cur), []string{"gno.land/r/test/bigtok.BIG"})
+	dao.MustCreateProposal(cross(cur), req)
+}
+
+-- run/pay_token.gno --
+package main
+
+import (
+	trs "gno.land/p/nt/treasury/v1"
+
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	payment := trs.NewGRC20Payment(
+		"gno.land/r/test/bigtok.BIG",
+		uint256(1)<<64,
+		address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"),
+	)
+	req := impl.NewTreasuryPaymentRequest(cross(cur), payment, "pay above int64")
+	dao.MustCreateProposal(cross(cur), req)
+}
+
+-- run/pay_ugnot.gno --
+package main
+
+import (
+	trs "gno.land/p/nt/treasury/v1"
+
+	"gno.land/r/gov/dao"
+	impl "gno.land/r/gov/dao/impl/v1"
+)
+
+func main(cur realm) {
+	payment := trs.NewCoinsPayment(
+		[]trs.Balance{{Denom: "ugnot", Amount: 1000}, {Denom: "ugnot", Amount: 200}},
+		address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"),
+	)
+	req := impl.NewTreasuryPaymentRequest(cross(cur), payment, "pay ugnot")
+	dao.MustCreateProposal(cross(cur), req)
+}
+
+-- run/pay_ugnot_too_big.gno --
+package main
+
+import (
+	"math"
+
+	trs "gno.land/p/nt/treasury/v1"
+)
+
+func main(cur realm) {
+	trs.NewCoinsPayment(
+		[]trs.Balance{{Denom: "ugnot", Amount: math.MaxInt64 + 1}},
+		address("g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0"),
+	)
+}

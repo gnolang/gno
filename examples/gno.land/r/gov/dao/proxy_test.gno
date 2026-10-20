@@ -137,3 +137,20 @@ func (dd *dummyDao) ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor
 func (dd *dummyDao) Render(cur realm, pkgpath string, path string) string {
 	return "Render: " + pkgpath + "/" + path
 }
+
+// InstallGeneration counts non-nil DAO assignments, including the same DAO
+// assigned again, and ignores allowlist-only updates.
+func TestInstallGeneration(cur realm, t *testing.T) {
+	testing.SetRealm(testing.NewCodeRealm(v0))
+	d := &dummyDao{}
+	start := InstallGeneration()
+
+	UpdateImpl(cross(cur), UpdateRequest{DAO: d, AllowedDAOs: []string{v0}})
+	urequire.Equal(t, start+1, InstallGeneration(), "a DAO assignment is an installation")
+
+	UpdateImpl(cross(cur), UpdateRequest{DAO: d})
+	urequire.Equal(t, start+2, InstallGeneration(), "assigning the same DAO again is another installation")
+
+	UpdateImpl(cross(cur), UpdateRequest{AllowedDAOs: []string{v0, v2}})
+	urequire.Equal(t, start+2, InstallGeneration(), "an allowlist-only update is not an installation")
+}

@@ -1,0 +1,22 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: ## Prop #5 - Change DAO implementation\nAuthor: g1author\n\n%s\n\nThis proposal contains the following metadata:\n\nReplaces the govDAO implementation with the DAO carried by this proposal.\n\nAfter execution, only `gno.land/r/gov/dao/impl/v1` and `gno.land/r/some/realm` may replace the implementation, mutate the member store, or move treasury funds.\n\nExecutor created in: `gno.land/r/gov/dao/impl/v1`
+-- input.md --
+This proposal is looking to change the actual govDAO implementation. Reason: routine upgrade
+
+<!--
+-- output.md --
+
+
+This proposal is looking to change the actual govDAO implementation. Reason: routine upgrade
+
+\<!--
+
+-- output.html --
+<h2>Prop #5 - Change DAO implementation</h2>
+<p>Author: g1author</p>
+<p>This proposal is looking to change the actual govDAO implementation. Reason: routine upgrade</p>
+<p>&lt;!--</p>
+<p>This proposal contains the following metadata:</p>
+<p>Replaces the govDAO implementation with the DAO carried by this proposal.</p>
+<p>After execution, only <code>gno.land/r/gov/dao/impl/v1</code> and <code>gno.land/r/some/realm</code> may replace the implementation, mutate the member store, or move treasury funds.</p>
+<p>Executor created in: <code>gno.land/r/gov/dao/impl/v1</code></p>
