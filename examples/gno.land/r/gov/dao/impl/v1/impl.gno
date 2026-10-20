@@ -1,8 +1,6 @@
 package impl
 
 import (
-	"strings"
-
 	"gno.land/p/nt/markdown/sanitize/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
@@ -93,8 +91,7 @@ func NewInstallRequest(cur realm, reason string, newLaw Law) dao.ProposalRequest
 	if !(newLaw.Supermajority >= defaultSupermajority && newLaw.Supermajority <= 100) {
 		panic(ufmt.Sprintf("the install law's Supermajority must be in [%v, 100], got %v", defaultSupermajority, newLaw.Supermajority))
 	}
-	nextInstallID++
-	d := &installedDAO{GovDAO: govDAO, id: nextInstallID, law: newLaw}
+	d := &installedDAO{GovDAO: govDAO, law: newLaw}
 	text := sanitize.InlineText(reason) + ufmt.Sprintf(
 		"\n\n**Law after the install: Supermajority %v%%.** impl/v1 decides with this law, "+
 			"carried by this proposal, from its first decision on. impl/v0's current law is "+
@@ -105,70 +102,36 @@ func NewInstallRequest(cur realm, reason string, newLaw Law) dao.ProposalRequest
 // installedDAO is the DAO value an install proposal hands to dao.UpdateImpl:
 // this realm's GovDAO plus the law the proposal carried.
 //
-// The law is applied on the first proxy-validated PreExecuteProposal after an
-// installation, the only place a law is read, so no decision is ever made with
-// another law. Later law changes (NewChangeLawRequest) stand until the
-// implementation is replaced again.
+// The carried law is applied on the first proxy-validated PreExecuteProposal
+// after each installation, the only place a law is read, so no decision is
+// ever made with another law. Later law changes (NewChangeLawRequest) stand
+// until the next installation.
 //
-// "After an installation" has to cover a request that is used twice: the
-// proxy keeps a request's executor, so the same install request can be
-// submitted again, and executing it installs the same value. The id alone
-// would then say "already applied" and keep a law voted after the first
-// install, although the DAO just approved this request's law. So every
-// successful implementation change executed under an installedDAO clears
-// appliedInstall (see ExecuteProposal), and the next decision applies the
-// carried law of whichever installedDAO is current: a resubmitted request
-// re-applies its law.
+// "Each installation" is read from r/gov/dao's InstallGeneration, which
+// UpdateImpl increments on every non-nil DAO assignment, including assigning
+// this same value again. The proxy keeps a request's executor, so an install
+// request can be submitted twice; executing it again bumps the generation and
+// re-applies its law. Nothing a proposal or its executor reports is consulted,
+// and an allowlist-only update (nil DAO) does not count as an installation.
 type installedDAO struct {
 	*GovDAO
-	id  uint64
 	law Law
 }
 
-var (
-	nextInstallID  uint64
-	appliedInstall uint64 // id of the install whose law has been applied; 0 for none
-)
+// appliedGeneration is the proxy installation generation at which an
+// installedDAO last applied its carried law.
+var appliedGeneration uint64
 
 func (d *installedDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool, error) {
 	// Only a call through the r/gov/dao proxy applies the law; the proxy only
 	// calls the installed DAO. Anything else falls through to the same check
 	// inside GovDAO.PreExecuteProposal and is refused there.
-	if d.GovDAO.isValidCall(0, rlm) && appliedInstall != d.id {
+	// The proxy calls PreExecuteProposal on the current implementation only,
+	// so after the check this is the installedDAO the generation belongs to.
+	if gen := dao.InstallGeneration(); d.GovDAO.isValidCall(0, rlm) && appliedGeneration != gen {
 		l := d.law
 		law = &l
-		appliedInstall = d.id
+		appliedGeneration = gen
 	}
 	return d.GovDAO.PreExecuteProposal(0, rlm, pid)
-}
-
-// upgradeExecutorPrefix starts the executor description of every
-// implementation change built by impl/v0's and impl/v1's
-// NewUpgradeDaoImplRequest (and so by NewInstallRequest).
-const upgradeExecutorPrefix = "Replaces the govDAO implementation"
-
-func (d *installedDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Executor) error {
-	err := d.GovDAO.ExecuteProposal(0, rlm, pid, e)
-	if err != nil || !d.GovDAO.isValidCall(0, rlm) {
-		return err
-	}
-	// An implementation change built by impl/v0 or impl/v1 just executed: the
-	// next decision belongs to whatever it installed, and if that is an
-	// installedDAO (possibly this one again), its carried law must apply.
-	if isUpgradeExecutor(e) {
-		appliedInstall = 0
-	}
-	return nil
-}
-
-// isUpgradeExecutor reports whether e is an implementation change built by
-// impl/v0's or impl/v1's NewUpgradeDaoImplRequest. The creation realm is set
-// by dao.NewSimpleExecutor from a live realm, so no other realm can produce an
-// executor that passes this check.
-func isUpgradeExecutor(e dao.Executor) bool {
-	cr := e.CreationRealm()
-	if cr != "gno.land/r/gov/dao/impl/v0" && cr != "gno.land/r/gov/dao/impl/v1" {
-		return false
-	}
-	return strings.HasPrefix(e.String(), upgradeExecutorPrefix)
 }

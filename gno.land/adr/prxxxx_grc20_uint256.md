@@ -134,6 +134,11 @@ convention; v0 is not changed.
   default to "everyone votes". That filter is the only place impl/v1 type
   switches on a value another realm may build. Executors go through the
   proxy's `Executor` interface.
+- **Law-change proposals show their threshold.** `Law.String` has a value
+  receiver in v1, so `NewChangeLawRequest`'s metadata prints "Supermajority:
+  90%" instead of `%!v((unhandled))` (only `*Law` had `String` in v0, and the
+  builder formats a `Law` value). The reuse txtar asserts the rendered
+  percentage. **Follow-up:** impl/v0 has the same bug and is left unchanged.
 - **The install proposal carries the law.** impl/v0 keeps its law in an
   unexported variable with no accessor, and v0 is not changed, so impl/v1
   cannot read it. Instead `NewInstallRequest` takes the law impl/v1 is to
@@ -144,20 +149,35 @@ convention; v0 is not changed.
   - The proposal text states the law ("Law after the install: Supermajority
     X%"). The DAO votes on it under impl/v0's own law.
   - `installedDAO.PreExecuteProposal` applies the carried law on its first
-    proxy-validated call. That is the only place a law is read, so impl/v1's
-    first decision already uses it. There is no window at the default law.
-  - A later `impl/v1.NewChangeLawRequest` stands until the implementation
-    changes again. The proxy keeps a request's executor, so an install
-    request can be submitted twice. Therefore every successful
-    implementation change executed under an `installedDAO` clears the
-    applied marker (re-application, rather than refusing resubmission). An
-    implementation change is an executor built in impl/v0 or impl/v1 whose
-    description starts "Replaces the govDAO implementation". The next
-    decision then applies the carried law of whichever `installedDAO` is
-    current, so a resubmitted request re-applies its law.
-    `govdao_impl_v1_install_reuse.txtar` installs at 80%, lowers the law to
-    66.66%, executes the kept request again, and shows two of three votes
-    refused at 80%. Without the reset that last proposal passes.
+    proxy-validated call after each installation. That is the only place a
+    law is read, so impl/v1's first decision already uses it. There is no
+    window at the default law.
+  - "Each installation" is a structural signal from the proxy, not anything
+    a proposal reports. `r/gov/dao`'s `UpdateImpl` now increments an
+    installation counter on every non-nil DAO assignment, including
+    assigning the instance already installed, and exposes it read-only as
+    `dao.InstallGeneration()`. An allowlist-only update (nil DAO) leaves it
+    unchanged.
+    - `installedDAO` re-applies its law when the generation differs from the
+      one at which a carried law was last applied. The proxy only calls the
+      current implementation, so the generation belongs to it.
+    - A later `impl/v1.NewChangeLawRequest` therefore stands until the next
+      installation. An install request submitted twice (the proxy keeps a
+      request's executor) re-applies its law when it executes again.
+    - This is the only change to the `r/gov/dao` proxy realm: one counter and
+      one getter, backwards compatible, acceptable under the new-chains-only
+      rollout.
+    - An earlier version recognised an installation by the executor's
+      `CreationRealm()` and `String()`. Those belong to the public
+      `dao.Executor` interface, so a custom executor could forge them after a
+      no-op run, and a genuine nil-DAO allowlist cleanup matched them too.
+      Both would have restored a stale law.
+    - `govdao_impl_v1_install_reuse.txtar` installs at 80%, lowers the law
+      to 66.66%, re-executes the kept request and shows 80% back in force. It
+      then raises the law to 90% and shows that neither a forged executor
+      with execution-dependent metadata nor a nil-DAO allowlist update resets
+      it. A genuine re-install of the kept request then brings 80% back.
+      `TestInstallGeneration` in `r/gov/dao` pins the counter.
   - The proposer's `reason` is escaped with `sanitize.InlineText` before the
     law line is appended. impl/v0 renders proposal descriptions raw, and Codex
     showed that a reason ending in `\n\n<!--` opened an HTML comment that hid

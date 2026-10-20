@@ -18,7 +18,9 @@ func NewLaw(supermajority float64) Law {
 	return Law{Supermajority: supermajority}
 }
 
-func (l *Law) String() string {
+// String has a value receiver so that a Law value (as NewChangeLawRequest
+// formats it) prints its threshold, not "(unhandled)".
+func (l Law) String() string {
 	return ufmt.Sprintf("This law contains the following data:\n\n- Supermajority: %v%%", l.Supermajority)
 }
 
