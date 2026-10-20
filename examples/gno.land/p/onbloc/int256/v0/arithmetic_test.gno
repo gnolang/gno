@@ -3,7 +3,7 @@ package int256
 import (
 	"testing"
 
-	"gno.land/p/onbloc/uint256/v0"
+	u256 "gno.land/p/onbloc/uint256/v0"
 )
 
 const (
@@ -110,7 +110,7 @@ func TestAddUint256(t *testing.T) {
 			continue
 		}
 
-		y, err := uint256.FromDecimal(tc.y)
+		y, err := u256.FromDecimal(tc.y)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -146,13 +146,13 @@ func TestAddDelta(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		z, err := uint256.FromDecimal(tc.z)
+		z, err := u256.FromDecimal(tc.z)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 
-		x, err := uint256.FromDecimal(tc.x)
+		x, err := u256.FromDecimal(tc.x)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -164,7 +164,7 @@ func TestAddDelta(t *testing.T) {
 			continue
 		}
 
-		want, err := uint256.FromDecimal(tc.want)
+		want, err := u256.FromDecimal(tc.want)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -189,13 +189,13 @@ func TestAddDeltaOverflow(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		z, err := uint256.FromDecimal(tc.z)
+		z, err := u256.FromDecimal(tc.z)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 
-		x, err := uint256.FromDecimal(tc.x)
+		x, err := u256.FromDecimal(tc.x)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -281,7 +281,7 @@ func TestSubUint256(t *testing.T) {
 			continue
 		}
 
-		y, err := uint256.FromDecimal(tc.y)
+		y, err := u256.FromDecimal(tc.y)
 		if err != nil {
 			t.Error(err)
 			continue

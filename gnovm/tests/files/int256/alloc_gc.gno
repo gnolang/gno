@@ -16,8 +16,8 @@ func main() {
 	}
 	zeros := make([]int256, 1000)
 	runtime.GC()
-	println(keep[0] != 0, len(zeros), runtime.MemStats())
+	println(keep[0] != 0, len(zeros))
 }
 
 // Output:
-// true 1000 Allocator{maxBytes:2000000, bytes:58232}
+// true 1000

@@ -462,8 +462,10 @@ func TestDeferredOverflowErrorCodes(t *testing.T) {
 }
 
 // TestGoTypesSizes pins what go/types accepts for the uint256 and int256
-// shims: uint256 constants in [0, 2^256-1], and int256 constants in the int64
-// range only (the rest is left to the preprocessor).
+// universe shims: uint256 constants in [0, 2^256-1], and int256 constants in
+// the int64 range only (the rest is left to the preprocessor). It also checks
+// that the shims behave as universe types: a package or file declaration of
+// the same name shadows them.
 func TestGoTypesSizes(t *testing.T) {
 	cases := []struct {
 		src string
@@ -479,10 +481,13 @@ func TestGoTypesSizes(t *testing.T) {
 		{`var x int = 9223372036854775807`, true},
 		{`var x int = 9223372036854775808`, false},
 		{`var x int8 = -128`, true},
+		{`var x = uint256(1) + int256(1)`, false}, // distinct types
+		{`type uint256 struct{ hi, lo uint64 }; var x = uint256{1, 2}`, true},
+		{`func int256() {}; var _ = int256`, true},
 	}
 	for _, c := range cases {
 		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, "f.go", "package p\ntype uint256 uintptr\ntype int256 int\n"+c.src, 0)
+		f, err := parser.ParseFile(fset, "f.go", "package p\n"+c.src, 0)
 		require.NoError(t, err)
 		var errs []error
 		conf := types.Config{

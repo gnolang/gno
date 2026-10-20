@@ -58,12 +58,6 @@ type address string
 func (a address) String() string { return string(a) }
 func (a address) IsValid() bool { return false } // shim
 type Address = address
-
-// 256-bit integers, see gnoTypesSizes and gnovm/adr/prxxxx_native_int256.md.
-type int256 int
-type uint256 uintptr
-type Int256 = int256
-type Uint256 = uint256
 `)
 	return mpkg
 }
@@ -91,8 +85,6 @@ func cross(rlm realm) realm { return rlm } // shim — explicit cross-call form.
 func revive[F any](fn F) any { return nil } // shim
 type realm = gno0p9.Realm
 type address = gno0p9.Address
-type int256 = gno0p9.Int256
-type uint256 = gno0p9.Uint256
 `
 	return &std.MemFile{
 		Name: ".gnobuiltins.gno", // because GoParseMemPackage expects .gno.
@@ -100,10 +92,39 @@ type uint256 = gno0p9.Uint256
 	}
 }
 
+// The 256-bit integers are declared in go/types' universe scope, as
+//
+//	type int256 int
+//	type uint256 uintptr
+//
+// (see gnoTypesSizes for how their constants are checked). They must be
+// universe types, like Gno's: a declaration in the injected .gnobuiltins file
+// would live in the package scope, so a package that imports a package named
+// uint256 (gno.land/p/onbloc/uint256) or declares its own uint256 would fail
+// with "already declared", where Gno lets file and package declarations
+// shadow the builtin. A universe object is also the same type in every
+// package. types.Universe is process-global; it is extended once, in init,
+// before any type-check can run.
+func init() {
+	for _, d := range []struct {
+		name  string
+		under types.Type
+	}{
+		{"int256", types.Typ[types.Int]},
+		{"uint256", types.Typ[types.Uintptr]},
+	} {
+		tn := types.NewTypeName(token.NoPos, nil, d.name, nil)
+		types.NewNamed(tn, d.under, nil)
+		if types.Universe.Insert(tn) != nil {
+			panic("go/types universe already declares " + d.name)
+		}
+	}
+}
+
 // gnoTypesSizes is the go/types Sizes for Gno. It differs from gc/amd64 in
 // one point: uintptr is 32 bytes wide. Gno has no uintptr, so the only
 // uintptr-based type go/types ever sees is the uint256 shim (`type uint256
-// uintptr` in gnobuiltins/gno0p9), and this makes go/types accept exactly the
+// uintptr`, see init above), and this makes go/types accept exactly the
 // uint256 constants [0, 2^256-1]: it sizes Uint and Uintptr through
 // Config.Sizes when checking constant representability.
 //
