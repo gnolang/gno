@@ -957,8 +957,8 @@ func isIndentedCode(line string) bool {
 // indentation, or "".
 func leadingContent(s string) string {
 	s = strings.TrimLeft(s, " \t\n")
-	if nl := strings.IndexByte(s, '\n'); nl >= 0 {
-		return s[:nl]
+	if before, _, ok := strings.Cut(s, "\n"); ok {
+		return before
 	}
 	return s
 }
