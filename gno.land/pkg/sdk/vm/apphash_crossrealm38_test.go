@@ -235,7 +235,10 @@ import (
 // MinInt256 and MaxUint256 constants. Those source bytes are in genesis
 // state, so the root moves; crossrealm38 uses none of them. With the master
 // versions of strconv and math, this branch reproduces the previous root.
-const expectedCrossrealm38Hash = "725612e9b13fce83bf39672087e100637dd5f3c375e19eaef869d4b82389564b"
+// Re-derived when the 256-bit helpers and constants moved to files of their
+// own (math/overflow/overflow256_generated.gno, math/const256.gno), so that
+// tools turning Gno into Go can leave them out whole.
+const expectedCrossrealm38Hash = "157ad7ea8ccbd52cb67f7c7240955dd0ea5b73f3d4ca00e1684c1347ebf2e37f"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

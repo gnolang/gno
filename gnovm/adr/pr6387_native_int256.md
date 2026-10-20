@@ -235,17 +235,39 @@ checker, such as an editor's language server, must use the shims from
 
 **Transpiling to Go (`gno tool transpile`, CI's gno2go job).** Go has no
 256-bit integer, and nothing can stand in for one: gc's `uintptr` is 64
-bits, so `type uint256 = uintptr` would compile `MaxUint256` and 256-bit
-arithmetic wrongly or not at all, and a struct has no operators. The
-transpiler therefore emits no shim. It leaves out of the Go output every
-top-level declaration that uses `int256` or `uint256`, transitively (a type
-declared as `uint256`, its methods, a function returning it, ...), and any
-import only those declarations used; the generated file names what was left
-out in a comment, and `-v` prints it. The rest of the file and package is
-transpiled and built as usual: `strconv`, `math/overflow` and their
-importers build, without their 256-bit functions. Go code that refers to an
-omitted declaration fails to build with `undefined`, which names it; no
-wrong Go code is produced.
+bits, so a `type uint256 = uintptr` shim would compile `MaxUint256` and
+256-bit arithmetic wrongly or not at all, and a struct has no operators. The
+transpiler emits no shim and does not translate part of a declaration,
+file or package. It decides by whole files and packages, from go/types
+information obtained with the same shims and `GoTypesSizes` as Gno's type
+checker (`gnolang.Files256`), never from identifier spelling: a file uses
+256-bit types if some expression or declared object in it has type
+`int256` or `uint256`, or a pointer, slice, array, map, channel, function or
+unnamed struct type built from one.
+
+- Standard libraries keep their 256-bit APIs in dedicated files
+  (`strconv/int256.gno`, `math/overflow/overflow256_generated.gno`; the
+  untyped `math` constants are in `math/const256.gno`, which Go compiles
+  as is). The files that use 256-bit types are left out of the Go output
+  whole. The transpile fails if another file of the package refers to
+  anything they declare (`gnolang.RefsInto256Files`), or if a left-out file
+  has an `init` function or calls a function (other than a conversion) in a
+  package-level variable initializer (`gnolang.InitEffects256`), so leaving
+  them out cannot change what the rest of the package does.
+- Any other package that uses 256-bit types in one of its files is
+  transpiled but not built as Go with `--gobuild`, nor is any package that
+  imports it, directly or through other packages. With `-v`, each skipped
+  package is printed with its reason (`[build skipped: uses int256/uint256,
+  which Go lacks (files)]` or `[build skipped: imports P, which is not
+  built as Go]`).
+- A package the tool cannot type-check is built as before, and the Go build
+  reports its errors.
+
+A package that calls a standard library function left out this way, such as
+`strconv.FormatUint256`, normally has a 256-bit type in it (the argument or
+result) and is skipped by the rules above; if it does not, its Go build fails
+with `undefined`, naming the function. In `examples/` on this branch, no package is skipped,
+and the two standard library files above are left out.
 
 ### Gas
 
