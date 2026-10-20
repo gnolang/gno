@@ -55,7 +55,9 @@ func TestInt256(t *testing.T) {
 	}
 	for _, tt := range tests {
 		got, ok := tt.fn(tt.a, tt.b)
-		if ok != tt.ok || (ok && got != tt.want) {
+		// On failure the result is still defined: the wrapped value, or 0
+		// for a zero divisor.
+		if ok != tt.ok || got != tt.want {
 			t.Errorf("%s256(%d, %d) = %d, %v; want %d, %v", tt.name, tt.a, tt.b, got, ok, tt.want, tt.ok)
 		}
 	}
@@ -87,7 +89,9 @@ func TestUint256(t *testing.T) {
 	}
 	for _, tt := range tests {
 		got, ok := tt.fn(tt.a, tt.b)
-		if ok != tt.ok || (ok && got != tt.want) {
+		// On failure the result is still defined: the wrapped value, or 0
+		// for a zero divisor.
+		if ok != tt.ok || got != tt.want {
 			t.Errorf("%su256(%d, %d) = %d, %v; want %d, %v", tt.name, tt.a, tt.b, got, ok, tt.want, tt.ok)
 		}
 	}

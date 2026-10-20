@@ -87,6 +87,75 @@ func (v *Int256Value) UnmarshalAmino(s string) error {
 
 var errBoxedZero = errors.New("int256/uint256: zero must be a nil value, not a boxed zero")
 
+// CheckCanonical256 returns an error if v, a decoded value, holds a boxed
+// zero 256-bit value in any of its inline slots, recursively through inline
+// composites. The binary decoder already rejects one (UnmarshalAmino refuses
+// an empty payload), but amino builds a JSON null, or an absent Any payload,
+// as the zero value without calling UnmarshalAmino; this check closes that
+// path at the enclosing value. Objects are checked as the store loads them.
+func CheckCanonical256(v Value) error {
+	var err error
+	var walk func(v Value)
+	slot := func(tv *TypedValue) {
+		switch x := tv.V.(type) {
+		case Int256Value:
+			if x.V.IsZero() {
+				err = errBoxedZero
+			}
+		case Uint256Value:
+			if x.V.IsZero() {
+				err = errBoxedZero
+			}
+		default:
+			walk(x)
+		}
+	}
+	walk = func(v Value) {
+		if err != nil {
+			return
+		}
+		switch v := v.(type) {
+		case *Block:
+			for i := range v.Values {
+				slot(&v.Values[i])
+			}
+		case *ArrayValue:
+			for i := range v.List {
+				slot(&v.List[i])
+			}
+		case *StructValue:
+			for i := range v.Fields {
+				slot(&v.Fields[i])
+			}
+		case *MapValue:
+			for cur := v.List.Head; cur != nil; cur = cur.Next {
+				slot(&cur.Key)
+				slot(&cur.Value)
+			}
+		case *BoundMethodValue:
+			slot(&v.Receiver)
+		case *HeapItemValue:
+			slot(&v.Value)
+		case *FuncValue:
+			for i := range v.Captures {
+				slot(&v.Captures[i])
+			}
+		case PointerValue:
+			if v.TV != nil {
+				slot(v.TV)
+			}
+		}
+	}
+	walk(v)
+	return err
+}
+
+func mustBeCanonical256(v Value) {
+	if err := CheckCanonical256(v); err != nil {
+		panic(err)
+	}
+}
+
 // dec256 formats z in decimal, as signed two's complement if signed.
 func dec256(z *uint256.Int, signed bool) string {
 	if signed && z.Sign() < 0 {
@@ -192,6 +261,17 @@ func (tv *TypedValue) SetBits256(alloc *Allocator, z *uint256.Int) {
 		tv.V = Int256Value{V: *z}
 	} else {
 		tv.V = Uint256Value{V: *z}
+	}
+}
+
+// chargeBits256Slot charges one box when tv, a non-zero 256-bit value, is
+// stored in a new slot that shares its box (a copy). The GC recount and a
+// reload from the store count one box per slot (logical, per-occurrence
+// accounting), so every slot must be charged one.
+func chargeBits256Slot(alloc *Allocator, tv *TypedValue) {
+	switch tv.V.(type) {
+	case Int256Value, Uint256Value:
+		alloc.Allocate(allocBits256)
 	}
 }
 

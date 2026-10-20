@@ -186,10 +186,13 @@ func ParseUint256(s string, base int) (uint256, error) {
 // include err.Num = s. If s is empty or contains invalid digits, err.Err =
 // ErrSyntax and the returned value is 0; if the value corresponding to s
 // cannot be represented by an int256, err.Err = ErrRange and the returned
-// value is the maximum magnitude int256 of the appropriate sign. As in
-// ParseInt, digits are read left to right and the first failure wins: a
-// prefix that already overflows gives ErrRange even if an invalid character
-// follows.
+// value is the maximum magnitude int256 of the appropriate sign.
+//
+// As in ParseInt, the checks run in this order: each digit is checked, left
+// to right, for syntax and for overflowing a uint256, and the first failure
+// is returned at once (so a prefix that already overflows gives ErrRange even
+// if an invalid character follows); then underscores are validated (base 0
+// only); then the signed range is checked.
 func ParseInt256(s string, base int) (i int256, err error) {
 	const fnParseInt256 = "ParseInt256"
 

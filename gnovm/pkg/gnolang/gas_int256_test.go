@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -75,4 +76,47 @@ func TestGasInt256Ops(t *testing.T) {
 	zero := gasOf(a, a, (*Machine).doOpSub, false)
 	nonzero := gasOf(a, b, (*Machine).doOpSub, false)
 	assert.Equal(t, boxGas, nonzero-zero, "zero result")
+}
+
+// TestBits256BoundReceiverAccounting checks that a method value formed
+// through an interface, which saves its 256-bit operand without a Copy,
+// charges the operand's box like any other slot: the difference between
+// non-zero and zero receivers is the same in what was allocated and in what
+// the GC recounts.
+func TestBits256BoundReceiverAccounting(t *testing.T) {
+	run := func(typ, val string) (tracked, recount int64) {
+		src := `package main
+type N ` + typ + `
+func (N) M() {}
+var keep []func()
+func main() {
+	var i interface{ M() } = N(` + val + `)
+	for j := 0; j < 100; j++ {
+		keep = append(keep, i.M)
+	}
+}`
+		m := NewMachineWithOptions(MachineOptions{
+			PkgPath: "main",
+			Alloc:   NewAllocator(math.MaxInt64),
+		})
+		defer m.Release()
+		m.RunFiles(m.MustParseFile("main.gno", src))
+		m.RunMain()
+		_, tracked = m.Alloc.Status()
+		m.GarbageCollect()
+		_, recount = m.Alloc.Status()
+		return tracked, recount
+	}
+	for _, typ := range []string{"uint256", "int256"} {
+		t0, r0 := run(typ, "0")
+		t1, r1 := run(typ, "7")
+		require.GreaterOrEqual(t, t1-t0, r1-r0, typ)
+		require.GreaterOrEqual(t, r1-r0, int64(100*allocBits256), typ)
+	}
+	// On reload, a bound receiver is charged its box, and a zero one nothing.
+	for _, typ := range []Type{Int256Type, Uint256Type} {
+		bmv := &BoundMethodValue{Receiver: tv256(typ, big.NewInt(7))}
+		require.Equal(t, int64(allocBits256), internalRefSize(bmv))
+		require.Equal(t, int64(0), internalRefSize(&BoundMethodValue{Receiver: TypedValue{T: typ}}))
+	}
 }

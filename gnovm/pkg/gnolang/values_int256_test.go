@@ -558,3 +558,33 @@ func TestBits256CopyAccounting(t *testing.T) {
 		require.Equal(t, bigMaxUint256.String(), tv.GetBig256().String())
 	}
 }
+
+// TestBits256CanonicalZeroJSONNull checks that a typed JSON null payload,
+// which amino decodes as a boxed zero without calling UnmarshalAmino, is
+// rejected at the enclosing value, also nested in interface slots and inline
+// composites.
+func TestBits256CanonicalZeroJSONNull(t *testing.T) {
+	for _, c := range []struct {
+		name, at string
+	}{{"Int256Value", "2097152"}, {"Uint256Value", "4194304"}} {
+		slot := `{"T":{"@type":"/gno.PrimitiveType","value":"` + c.at + `"},"V":{"@type":"/gno.` + c.name + `","value":null}}`
+		var tv TypedValue
+		require.NoError(t, amino.UnmarshalJSON([]byte(slot), &tv))
+		require.NotNil(t, tv.V, "amino builds a boxed zero from null")
+
+		// In an array slot, and in an interface-typed slot of a struct
+		// held inline by an array.
+		for _, js := range []string{
+			`{"@type":"/gno.ArrayValue","List":[` + slot + `]}`,
+			`{"@type":"/gno.ArrayValue","List":[{"T":{"@type":"/gno.InterfaceType"},"V":{"@type":"/gno.StructValue","Fields":[` + slot + `]}}]}`,
+		} {
+			var v Value
+			require.NoError(t, amino.UnmarshalJSON([]byte(js), &v), js)
+			require.Error(t, CheckCanonical256(v), js)
+			require.Panics(t, func() { mustBeCanonical256(v) })
+		}
+	}
+	// A canonical value passes.
+	av := &ArrayValue{List: []TypedValue{tv256(Int256Type, big.NewInt(-1)), {T: Uint256Type}}}
+	require.NoError(t, CheckCanonical256(av))
+}

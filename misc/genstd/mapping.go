@@ -113,9 +113,30 @@ func (m *mapping) loadParamsResults(gnof, gof funcDecl) {
 
 func (m *mapping) _loadParamsResults(dst *[]mappingType, gnol, gol []*ast.Field) {
 	iterFields(gnol, gol, func(gnoe, goe ast.Expr) error {
-		*dst = append(*dst, mappingType{Type: gnoe, GoType: goe, IsTypedValue: m.isTypedValue(goe)})
+		*dst = append(*dst, mappingType{Type: gnoe, GoType: m.qualifyGoType(goe), IsTypedValue: m.isTypedValue(goe)})
 		return nil
 	})
+}
+
+// qualifyGoType returns e with each package selector renamed to the name the
+// generated file imports the package under (see tplData.Imports), whatever
+// alias the native's own file uses.
+func (m *mapping) qualifyGoType(e ast.Expr) ast.Expr {
+	switch e := e.(type) {
+	case *ast.SelectorExpr:
+		path := resolveSelectorImport(m.goImports, e)
+		return &ast.SelectorExpr{X: ast.NewIdent(pkgNameFromPath(path)), Sel: e.Sel}
+	case *ast.StarExpr:
+		return &ast.StarExpr{X: m.qualifyGoType(e.X)}
+	case *ast.ArrayType:
+		return &ast.ArrayType{Len: e.Len, Elt: m.qualifyGoType(e.Elt)}
+	case *ast.MapType:
+		return &ast.MapType{Key: m.qualifyGoType(e.Key), Value: m.qualifyGoType(e.Value)}
+	case *ast.Ellipsis:
+		return &ast.Ellipsis{Elt: m.qualifyGoType(e.Elt)}
+	default:
+		return e
+	}
 }
 
 // isGnoMachine checks whether field is of type *gno.Machine,
